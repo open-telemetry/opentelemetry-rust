@@ -1,0 +1,22 @@
+[package]
+name = "opentelemetry"
+version = "0.1.0"
+authors = ["Julian Tescher <julian@tescher.me>"]
+description = "A Rust OpenTelemetry client"
+homepage = "https://github.com/jtescher/opentelemetry-rust"
+repository = "https://github.com/jtescher/opentelemetry-rust"
+readme = "README.md"
+keywords = ["opentelemetry", "jaeger", "prometheus"]
+license = "MIT"
+edition = "2018"
+
+[dependencies]
+crossbeam-channel = "0.3.9"
+lazy_static = "1.4.0"
+prometheus = "0.7.0"
+rand = "0.7.2"
+rustracing = "0.2.0"
+rustracing_jaeger = "0.2.1"
+
+[dev-dependencies]
+hyper = "0.12.0"

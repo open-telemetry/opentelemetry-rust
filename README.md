@@ -1,0 +1,44 @@
+# OpenTelemetry-Rust
+
+A Rust [OpenTelemetry](https://opentelemetry.io/) client.
+
+## Quick Start
+
+```rust
+use opentelemetry::api::Tracer;
+use std::sync::Arc;
+
+fn main() {
+    let tracer = opentelemetry::sdk::Tracer::new("service_name");
+    opentelemetry::global::set_tracer(Box::new(tracer));
+
+    opentelemetry::global::get_current_tracer().with_span("foo".to_string(), Box::new(|_span| {
+        opentelemetry::global::get_current_tracer().with_span("bar".to_string(), Box::new(|_span| {
+            opentelemetry::global::get_current_tracer().with_span("baz".to_string(), Box::new(|_span| {
+
+            }))
+        }))
+    }));
+}
+```
+
+See the [opentelemetry-example-app](./example/basic.rs) for a complete example.
+
+## Release Schedule
+
+OpenTelemetry Rust is under active development. Below is the release schedule for the Rust library. The first version
+of a release isn't guaranteed to conform to a specific version of the specification, and future releases will not
+attempt to maintain backwards compatibility with the alpha release.
+
+| Component                   | Version | Target Date     |
+| --------------------------- | ------- | --------------- |
+| Tracing API                 | Alpha   | November 8 2019 |
+| Tracing SDK                 | Alpha   | November 8 2019 |
+| Metrics API                 | Alpha   | November 8 2019 |
+| Metrics SDK                 | Alpha   | November 8 2019 |
+| Zipkin Trace Exporter       | Alpha   | Unknown         |
+| Jaeger Trace Exporter       | Alpha   | November 8 2019 |
+| Prometheus Metrics Exporter | Alpha   | November 8 2019 |
+| Trace Context Propagation   | Alpha   | Unknown         |
+| OpenTracing Bridge          | Alpha   | Unknown         |
+| OpenCensus Bridge           | Alpha   | Unknown         |
