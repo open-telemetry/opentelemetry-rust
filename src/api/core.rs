@@ -1,13 +1,17 @@
+//! OpenTelemetry shared core date types
 use std::borrow::Cow;
 
+/// Key used for metric `LabelSet`s and trace `Span` attributes.
 #[derive(Clone, Debug)]
 pub struct Key(Cow<'static, str>);
 
 impl Key {
+    /// Create a new `Key`.
     pub fn new<S: Into<Cow<'static, str>>>(value: S) -> Self {
         Key(value.into())
     }
 
+    /// Create a `KeyValue` pair for `bool` values.
     pub fn bool(&self, value: bool) -> KeyValue {
         KeyValue {
             key: self.clone(),
@@ -15,6 +19,7 @@ impl Key {
         }
     }
 
+    /// Create a `KeyValue` pair for `i64` values.
     pub fn i64(&self, value: i64) -> KeyValue {
         KeyValue {
             key: self.clone(),
@@ -22,6 +27,7 @@ impl Key {
         }
     }
 
+    /// Create a `KeyValue` pair for `u64` values.
     pub fn u64(&self, value: u64) -> KeyValue {
         KeyValue {
             key: self.clone(),
@@ -29,6 +35,7 @@ impl Key {
         }
     }
 
+    /// Create a `KeyValue` pair for `f64` values.
     pub fn f64(&self, value: f64) -> KeyValue {
         KeyValue {
             key: self.clone(),
@@ -36,6 +43,7 @@ impl Key {
         }
     }
 
+    /// Create a `KeyValue` pair for `Into<String>` values.
     pub fn string<S: Into<String>>(&self, value: S) -> KeyValue {
         KeyValue {
             key: self.clone(),
@@ -43,6 +51,7 @@ impl Key {
         }
     }
 
+    /// Create a `KeyValue` pair for byte arrays.
     pub fn bytes(&self, value: Vec<u8>) -> KeyValue {
         KeyValue {
             key: self.clone(),
@@ -50,38 +59,51 @@ impl Key {
         }
     }
 
+    /// Returns a reference to the key's `Cow` type for use in `LabelSet`s.
     pub fn inner(&self) -> &Cow<'static, str> {
         &self.0
     }
 
+    /// Returns the inner `Cow` type.
     pub fn into_inner(self) -> Cow<'static, str> {
         self.0
     }
 }
 
 impl Into<Cow<'static, str>> for Key {
+    /// Converts `Key` instances into `Cow`
     fn into(self) -> Cow<'static, str> {
         self.0
     }
 }
 
 impl Into<String> for Key {
+    /// Converts `Key` instances into `String`.
     fn into(self) -> String {
         self.0.to_string()
     }
 }
 
+/// Value types for use in `KeyValue` pairs.
 #[derive(Clone, Debug)]
 pub enum Value {
+    /// bool values
     Bool(bool),
+    /// i64 values
     I64(i64),
+    /// u64 values
     U64(u64),
+    /// f64 values
     F64(f64),
+    /// String values
     String(String),
+    /// Byte array values
     Bytes(Vec<u8>),
 }
 
 impl ToString for Value {
+    /// Convert `Value` types to `String` for use by exporters that only use
+    /// `String` values.
     fn to_string(&self) -> String {
         match self {
             Value::Bool(value) => value.to_string(),
@@ -97,21 +119,27 @@ impl ToString for Value {
 }
 
 impl Into<Cow<'static, str>> for Value {
+    /// Convert `Value` types into `Cow` for use in `LabelSet`s.
     fn into(self) -> Cow<'static, str> {
         self.to_string().into()
     }
 }
 
+/// `KeyValue` pairs are used by `LabelSet`s and `Span` attributes.
 #[derive(Clone, Debug)]
 pub struct KeyValue {
+    /// Dimension or event key
     pub key: Key,
+    /// Dimension or event value
     pub value: Value,
 }
 
-#[derive(Default)]
+/// Units denote underlying data units tracked by `Meter`s.
+#[derive(Default, Debug)]
 pub struct Unit(String);
 
 impl Unit {
+    /// Create a new `Unit` from an `Into<String>`
     pub fn new<S: Into<String>>(value: S) -> Self {
         Unit(value.into())
     }

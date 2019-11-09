@@ -1,10 +1,12 @@
-use opentelemetry::api::metrics::{Gauge, GaugeHandle, Measure, MeasureHandle, Meter, Options};
-use opentelemetry::api::{Span, Tracer};
-use opentelemetry::{global, sdk, Key};
+use opentelemetry::api::{
+    Gauge, GaugeHandle, Key, Measure, MeasureHandle, Meter, MetricOptions, Provider, Span,
+    TracerGenerics,
+};
+use opentelemetry::{global, sdk};
 
 fn main() {
-    let tracer = opentelemetry::sdk::Tracer::new("ex_com_basic");
-    let meter = opentelemetry::sdk::Meter::new("ex_com_basic");
+    let tracer = sdk::Provider::new().get_tracer("ex_com_basic");
+    let meter = sdk::Meter::new("ex_com_basic");
 
     let foo_key = Key::new("ex_com_foo");
     let bar_key = Key::new("ex_com_bar");
@@ -13,12 +15,12 @@ fn main() {
 
     let one_metric = meter.new_f64_gauge(
         "ex_com_one",
-        Options::default()
+        MetricOptions::default()
             .with_keys(vec![foo_key, bar_key, lemons_key.clone()])
             .with_description("A gauge set to 1.0"),
     );
 
-    let measure_two = meter.new_f64_measure("ex_com_two", Options::default());
+    let measure_two = meter.new_f64_measure("ex_com_two", MetricOptions::default());
 
     let common_labels = meter.labels(vec![lemons_key.i64(10)]);
 
@@ -26,29 +28,23 @@ fn main() {
 
     let measure = measure_two.acquire_handle(&common_labels);
 
-    tracer.with_span(
-        "operation".to_string(),
-        Box::new(move |mut span: sdk::Span| {
-            span.add_event("Nice operation!".to_string());
-            span.set_attribute(another_key.string("yes"));
+    tracer.with_span("operation", move |mut span| {
+        span.add_event("Nice operation!".to_string());
+        span.set_attribute(another_key.string("yes"));
 
-            gauge.set(1.0);
+        gauge.set(1.0);
 
-            meter.record_batch(
-                &common_labels,
-                vec![one_metric.measurement(1.0), measure_two.measurement(2.0)],
-            );
+        meter.record_batch(
+            &common_labels,
+            vec![one_metric.measurement(1.0), measure_two.measurement(2.0)],
+        );
 
-            global::get_current_tracer().with_span(
-                "Sub operation...".to_string(),
-                Box::new(move |mut span| {
-                    span.set_attribute(lemons_key.string("five"));
+        global::global_tracer().with_span("Sub operation...", move |mut span| {
+            span.set_attribute(lemons_key.string("five"));
 
-                    span.add_event("Sub span event".to_string());
+            span.add_event("Sub span event".to_string());
 
-                    measure.record(1.3);
-                }),
-            );
-        }),
-    );
+            measure.record(1.3);
+        });
+    });
 }

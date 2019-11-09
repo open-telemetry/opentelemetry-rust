@@ -1,10 +1,17 @@
-use crate::api::metrics;
+//! # No-op OpenTelemetry Metrics Implementation
+//!
+//! This implementation is returned as the global Meter if no `Meter`
+//! has been set. It is also useful for testing purposes as it is intended
+//! to have minimal resource utilization and runtime impact.
+use crate::api;
 use std::marker;
 use std::sync::Arc;
 
+/// A no-op instance of a `Meter`.
+#[derive(Debug)]
 pub struct NoopMeter {}
 
-impl metrics::Meter for NoopMeter {
+impl api::Meter for NoopMeter {
     type LabelSet = NoopLabelSet;
     type I64Counter = NoopCounter<i64>;
     type F64Counter = NoopCounter<f64>;
@@ -13,63 +20,79 @@ impl metrics::Meter for NoopMeter {
     type I64Measure = NoopMeasure<i64>;
     type F64Measure = NoopMeasure<f64>;
 
-    fn labels(&self, _key_values: Vec<crate::KeyValue>) -> Self::LabelSet {
+    /// Returns a no-op `NoopLabelSet`.
+    fn labels(&self, _key_values: Vec<api::KeyValue>) -> Self::LabelSet {
         NoopLabelSet {}
     }
 
+    /// Returns a no-op `I64Counter` instance.
     fn new_i64_counter<S: Into<String>>(
         &self,
         _name: S,
-        _opts: metrics::Options,
+        _opts: api::MetricOptions,
     ) -> Self::I64Counter {
         NoopCounter {
             _marker: marker::PhantomData,
         }
     }
 
+    /// Returns a no-op `F64Counter` instance.
     fn new_f64_counter<S: Into<String>>(
         &self,
         _name: S,
-        _opts: metrics::Options,
+        _opts: api::MetricOptions,
     ) -> Self::F64Counter {
         NoopCounter {
             _marker: marker::PhantomData,
         }
     }
 
-    fn new_i64_gauge<S: Into<String>>(&self, _name: S, _opts: metrics::Options) -> Self::I64Gauge {
+    /// Returns a no-op `I64Gauge` instance.
+    fn new_i64_gauge<S: Into<String>>(
+        &self,
+        _name: S,
+        _opts: api::MetricOptions,
+    ) -> Self::I64Gauge {
         NoopGauge {
             _marker: marker::PhantomData,
         }
     }
 
-    fn new_f64_gauge<S: Into<String>>(&self, _name: S, _opts: metrics::Options) -> Self::F64Gauge {
+    /// Returns a no-op `F64Gauge` instance.
+    fn new_f64_gauge<S: Into<String>>(
+        &self,
+        _name: S,
+        _opts: api::MetricOptions,
+    ) -> Self::F64Gauge {
         NoopGauge {
             _marker: marker::PhantomData,
         }
     }
 
+    /// Returns a no-op `I64Measure` instance.
     fn new_i64_measure<S: Into<String>>(
         &self,
         _name: S,
-        _opts: metrics::Options,
+        _opts: api::MetricOptions,
     ) -> Self::I64Measure {
         NoopMeasure {
             _marker: marker::PhantomData,
         }
     }
 
+    /// Returns a no-op `F64Measure` instance.
     fn new_f64_measure<S: Into<String>>(
         &self,
         _name: S,
-        _opts: metrics::Options,
+        _opts: api::MetricOptions,
     ) -> Self::F64Measure {
         NoopMeasure {
             _marker: marker::PhantomData,
         }
     }
 
-    fn record_batch<M: IntoIterator<Item = metrics::Measurement<NoopLabelSet>>>(
+    /// Ignores batch recordings
+    fn record_batch<M: IntoIterator<Item = api::Measurement<NoopLabelSet>>>(
         &self,
         _label_set: &NoopLabelSet,
         _measurements: M,
@@ -78,51 +101,49 @@ impl metrics::Meter for NoopMeter {
     }
 }
 
+/// A no-op instance of `LabelSet`.
+#[derive(Debug)]
 pub struct NoopLabelSet {}
 
-impl metrics::LabelSet for NoopLabelSet {}
+impl api::LabelSet for NoopLabelSet {}
 
+/// A no-op instance of all metric `InstrumentHandler`
+#[derive(Debug)]
 pub struct NoopHandle<T> {
     _marker: marker::PhantomData<T>,
 }
 
-impl<T> metrics::Instrument<NoopLabelSet> for NoopHandle<T> {
-    fn record_one(&self, _value: metrics::MeasurementValue, _label_set: &NoopLabelSet) {
+impl<T> api::Instrument<NoopLabelSet> for NoopHandle<T> {
+    fn record_one(&self, _value: api::MeasurementValue, _label_set: &NoopLabelSet) {
         // Ignored
     }
 }
 
-impl<T> metrics::counter::CounterHandle<T> for NoopHandle<T> where
-    T: Into<metrics::value::MeasurementValue>
-{
-}
+impl<T> api::CounterHandle<T> for NoopHandle<T> where T: Into<api::MeasurementValue> {}
 
-impl<T> metrics::gauge::GaugeHandle<T> for NoopHandle<T> where
-    T: Into<metrics::value::MeasurementValue>
-{
-}
+impl<T> api::GaugeHandle<T> for NoopHandle<T> where T: Into<api::MeasurementValue> {}
 
-impl<T> metrics::measure::MeasureHandle<T> for NoopHandle<T> where
-    T: Into<metrics::value::MeasurementValue>
-{
-}
+impl<T> api::MeasureHandle<T> for NoopHandle<T> where T: Into<api::MeasurementValue> {}
 
+/// A no-op instance of a `Counter`.
+#[derive(Debug)]
 pub struct NoopCounter<T> {
     _marker: marker::PhantomData<T>,
 }
 
-impl<T: Into<metrics::value::MeasurementValue> + 'static> metrics::Counter<T, NoopLabelSet>
-    for NoopCounter<T>
-{
+impl<T: Into<api::MeasurementValue> + 'static> api::Counter<T, NoopLabelSet> for NoopCounter<T> {
     type Handle = NoopHandle<T>;
-    fn measurement(&self, value: T) -> metrics::Measurement<NoopLabelSet> {
+
+    /// Returns a no-op `Measurement`.
+    fn measurement(&self, value: T) -> api::Measurement<NoopLabelSet> {
         let handle = self.acquire_handle(&NoopLabelSet {});
-        metrics::Measurement {
+        api::Measurement {
             instrument: Arc::new(handle),
-            value: metrics::MeasurementValue::from(value.into()),
+            value: value.into(),
         }
     }
 
+    /// Returns a `NoopHandle`
     fn acquire_handle(&self, _labels: &NoopLabelSet) -> Self::Handle {
         NoopHandle {
             _marker: marker::PhantomData,
@@ -130,26 +151,32 @@ impl<T: Into<metrics::value::MeasurementValue> + 'static> metrics::Counter<T, No
     }
 }
 
-impl<T> metrics::Instrument<NoopLabelSet> for NoopCounter<T> {
-    fn record_one(&self, _value: metrics::MeasurementValue, _labels: &NoopLabelSet) {
+impl<T> api::Instrument<NoopLabelSet> for NoopCounter<T> {
+    /// Ignores all recorded measurement values.
+    fn record_one(&self, _value: api::MeasurementValue, _labels: &NoopLabelSet) {
         // Ignored
     }
 }
 
+/// A no-op instance of a `Gauge`.
+#[derive(Debug)]
 pub struct NoopGauge<T> {
     _marker: marker::PhantomData<T>,
 }
 
-impl metrics::Gauge<i64, NoopLabelSet> for NoopGauge<i64> {
+impl api::Gauge<i64, NoopLabelSet> for NoopGauge<i64> {
     type Handle = NoopHandle<i64>;
-    fn measurement(&self, value: i64) -> metrics::Measurement<NoopLabelSet> {
+
+    /// Returns a no-op `Measurement`.
+    fn measurement(&self, value: i64) -> api::Measurement<NoopLabelSet> {
         let handle = self.acquire_handle(&NoopLabelSet {});
-        metrics::Measurement {
+        api::Measurement {
             instrument: Arc::new(handle),
-            value: metrics::MeasurementValue::from(value),
+            value: api::MeasurementValue::from(value),
         }
     }
 
+    /// Returns a `NoopHandle`
     fn acquire_handle(&self, _labels: &NoopLabelSet) -> Self::Handle {
         NoopHandle {
             _marker: marker::PhantomData,
@@ -157,16 +184,19 @@ impl metrics::Gauge<i64, NoopLabelSet> for NoopGauge<i64> {
     }
 }
 
-impl metrics::Gauge<f64, NoopLabelSet> for NoopGauge<f64> {
+impl api::Gauge<f64, NoopLabelSet> for NoopGauge<f64> {
     type Handle = NoopHandle<f64>;
-    fn measurement(&self, value: f64) -> metrics::Measurement<NoopLabelSet> {
+
+    /// Returns a no-op `Measurement`.
+    fn measurement(&self, value: f64) -> api::Measurement<NoopLabelSet> {
         let handle = self.acquire_handle(&NoopLabelSet {});
-        metrics::Measurement {
+        api::Measurement {
             instrument: Arc::new(handle),
-            value: metrics::MeasurementValue::from(value),
+            value: api::MeasurementValue::from(value),
         }
     }
 
+    /// Returns a `NoopHandle`
     fn acquire_handle(&self, _labels: &NoopLabelSet) -> Self::Handle {
         NoopHandle {
             _marker: marker::PhantomData,
@@ -174,31 +204,37 @@ impl metrics::Gauge<f64, NoopLabelSet> for NoopGauge<f64> {
     }
 }
 
-impl<T> metrics::InstrumentHandle for NoopHandle<T> {
-    fn record_one(&self, _value: metrics::MeasurementValue) {
+impl<T> api::InstrumentHandle for NoopHandle<T> {
+    /// Ignores all measurement values.
+    fn record_one(&self, _value: api::MeasurementValue) {
         // Ignored
     }
 }
 
-impl<T> metrics::Instrument<NoopLabelSet> for NoopGauge<T> {
-    fn record_one(&self, _value: metrics::MeasurementValue, _labels: &NoopLabelSet) {
+impl<T> api::Instrument<NoopLabelSet> for NoopGauge<T> {
+    /// Ignores all measurement values and labels.
+    fn record_one(&self, _value: api::MeasurementValue, _labels: &NoopLabelSet) {
         // Ignored
     }
 }
 
+/// A no-op instance of a `Measure`.
+#[derive(Debug)]
 pub struct NoopMeasure<T> {
     _marker: marker::PhantomData<T>,
 }
 
-impl metrics::Measure<i64, NoopLabelSet> for NoopMeasure<i64> {
+impl api::Measure<i64, NoopLabelSet> for NoopMeasure<i64> {
     type Handle = NoopHandle<i64>;
 
-    fn measurement(&self, value: i64) -> metrics::Measurement<NoopLabelSet> {
+    /// Returns a no-op `Measurement`.
+    fn measurement(&self, value: i64) -> api::Measurement<NoopLabelSet> {
         let handle = self.acquire_handle(&NoopLabelSet {});
 
-        metrics::Measurement::new(Arc::new(handle), metrics::MeasurementValue::from(value))
+        api::Measurement::new(Arc::new(handle), api::MeasurementValue::from(value))
     }
 
+    /// Returns a `NoopHandle`
     fn acquire_handle(&self, _labels: &NoopLabelSet) -> Self::Handle {
         NoopHandle {
             _marker: marker::PhantomData,
@@ -206,15 +242,17 @@ impl metrics::Measure<i64, NoopLabelSet> for NoopMeasure<i64> {
     }
 }
 
-impl metrics::Measure<f64, NoopLabelSet> for NoopMeasure<f64> {
+impl api::Measure<f64, NoopLabelSet> for NoopMeasure<f64> {
     type Handle = NoopHandle<f64>;
 
-    fn measurement(&self, value: f64) -> metrics::Measurement<NoopLabelSet> {
+    /// Returns a no-op `Measurement`.
+    fn measurement(&self, value: f64) -> api::Measurement<NoopLabelSet> {
         let handle = self.acquire_handle(&NoopLabelSet {});
 
-        metrics::Measurement::new(Arc::new(handle), metrics::MeasurementValue::from(value))
+        api::Measurement::new(Arc::new(handle), api::MeasurementValue::from(value))
     }
 
+    /// Returns a `NoopHandle`
     fn acquire_handle(&self, _labels: &NoopLabelSet) -> Self::Handle {
         NoopHandle {
             _marker: marker::PhantomData,
@@ -222,8 +260,9 @@ impl metrics::Measure<f64, NoopLabelSet> for NoopMeasure<f64> {
     }
 }
 
-impl<T> metrics::Instrument<NoopLabelSet> for NoopMeasure<T> {
-    fn record_one(&self, _value: metrics::MeasurementValue, _labels: &NoopLabelSet) {
+impl<T> api::Instrument<NoopLabelSet> for NoopMeasure<T> {
+    /// Ignores all measurement values and labels.
+    fn record_one(&self, _value: api::MeasurementValue, _labels: &NoopLabelSet) {
         // Ignored
     }
 }
