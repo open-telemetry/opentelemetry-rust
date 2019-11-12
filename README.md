@@ -1,24 +1,26 @@
 # OpenTelemetry-Rust
 
+[![Crates.io: opentelemetry](https://img.shields.io/crates/v/opentelemetry.svg)](https://crates.io/crates/opentelemetry)
+[![Documentation](https://docs.rs/opentelemetry/badge.svg)](https://docs.rs/opentelemetry)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE.txt)
+
 A Rust [OpenTelemetry](https://opentelemetry.io/) client.
 
 ## Quick Start
 
 ```rust
-use opentelemetry::api::Tracer;
-use std::sync::Arc;
+use opentelemetry::api::Provider;
+use opentelemetry::{api::TracerGenerics, global, sdk};
 
 fn main() {
-    let tracer = opentelemetry::sdk::Tracer::new("service_name");
-    opentelemetry::global::set_tracer(Box::new(tracer));
+    let tracer = sdk::Provider::new().get_tracer("service_name");
+    global::set_tracer(Box::new(tracer));
 
-    opentelemetry::global::get_current_tracer().with_span("foo".to_string(), Box::new(|_span| {
-        opentelemetry::global::get_current_tracer().with_span("bar".to_string(), Box::new(|_span| {
-            opentelemetry::global::get_current_tracer().with_span("baz".to_string(), Box::new(|_span| {
-
-            }))
-        }))
-    }));
+    global::global_tracer().with_span("foo", |_span| {
+        global::global_tracer().with_span("bar", |_span| {
+            global::global_tracer().with_span("baz", |_span| {})
+        })
+    });
 }
 ```
 
