@@ -1,5 +1,6 @@
 //! OpenTelemetry global `Tracer` and `Meter` singletons.
 use crate::api::{self, KeyValue, SpanContext, Tracer};
+use std::any::Any;
 use std::sync::{Arc, RwLock};
 use std::time::SystemTime;
 
@@ -48,10 +49,15 @@ impl api::Span for BoxedSpan {
     fn end(&mut self) {
         self.0.end()
     }
+
+    /// Returns self as any
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 /// Boxed Tracer allows `GlobalTracer`'s to contain and use a `Tracer` type object.
-pub trait BoxedTracer {
+pub trait BoxedTracer: Send + Sync {
     /// Create a new invalid span for use in cases where there are no active spans.
     fn invalid_boxed(&self) -> Box<dyn api::Span>;
 
@@ -62,6 +68,15 @@ pub trait BoxedTracer {
         name: &'static str,
         parent: Option<api::SpanContext>,
     ) -> Box<dyn api::Span>;
+
+    /// Returns the currently active span as a BoxedSpan
+    fn get_active_span_boxed(&self) -> Box<dyn api::Span>;
+
+    /// Returns the currently active span as a BoxedSpan
+    fn mark_span_as_active_boxed(&self, span: &dyn api::Span);
+
+    /// Marks the current span as inactive
+    fn mark_span_as_inactive_boxed(&self, span_id: u64);
 }
 
 impl<S: api::Span + 'static> BoxedTracer for Box<dyn api::Tracer<Span = S>> {
@@ -78,6 +93,23 @@ impl<S: api::Span + 'static> BoxedTracer for Box<dyn api::Tracer<Span = S>> {
         parent: Option<api::SpanContext>,
     ) -> Box<dyn api::Span> {
         Box::new(self.start(name, parent))
+    }
+
+    /// Returns the current active span.
+    fn get_active_span_boxed(&self) -> Box<dyn api::Span> {
+        Box::new(self.get_active_span())
+    }
+
+    /// Mark span as active.
+    fn mark_span_as_active_boxed(&self, some_span: &dyn api::Span) {
+        if let Some(span) = some_span.as_any().downcast_ref::<S>() {
+            self.mark_span_as_active(span)
+        };
+    }
+
+    /// Mark span as inactive.
+    fn mark_span_as_inactive_boxed(&self, span_id: u64) {
+        self.mark_span_as_inactive(span_id)
     }
 }
 
@@ -97,12 +129,17 @@ impl Tracer for dyn BoxedTracer {
 
     /// Returns the current active span.
     fn get_active_span(&self) -> Self::Span {
-        unimplemented!()
+        BoxedSpan(self.get_active_span_boxed())
     }
 
     /// Marks a given `Span` as active.
-    fn mark_span_as_active(&self, _span_id: u64) {
-        unimplemented!()
+    fn mark_span_as_active(&self, span: &Self::Span) {
+        self.mark_span_as_active_boxed(&(*span.0))
+    }
+
+    /// Marks a given `Span` as inactive.
+    fn mark_span_as_inactive(&self, span_id: u64) {
+        self.mark_span_as_inactive_boxed(span_id)
     }
 }
 
@@ -139,34 +176,39 @@ impl api::Tracer for GlobalTracer {
 
     /// Returns the current active span.
     fn get_active_span(&self) -> Self::Span {
-        // TODO
-        unimplemented!()
+        self.tracer.get_active_span()
     }
 
     /// Mark a given `Span` as active.
-    fn mark_span_as_active(&self, _span_id: u64) {
-        // TODO
-        unimplemented!()
+    fn mark_span_as_active(&self, span: &Self::Span) {
+        self.tracer.mark_span_as_active(span)
+    }
+
+    /// Mark a given `Span` as inactive.
+    fn mark_span_as_inactive(&self, span_id: u64) {
+        self.tracer.mark_span_as_inactive(span_id)
     }
 }
 
-// The global `Tracer` singleton.
-thread_local!(static GLOBAL_TRACER: RwLock<Arc<GlobalTracer>> = RwLock::new(Arc::new(GlobalTracer::new(Box::new(api::NoopTracer {})))));
+lazy_static::lazy_static! {
+    /// The global `Tracer` singleton.
+    static ref GLOBAL_TRACER: RwLock<Arc<GlobalTracer>> = RwLock::new(Arc::new(GlobalTracer::new(Box::new(api::NoopTracer {}))));
+}
 
 /// Returns a reference to the global `Tracer`
 pub fn global_tracer() -> Arc<GlobalTracer> {
-    GLOBAL_TRACER.with(|tracer_cell| {
-        let tracer = tracer_cell.read().unwrap();
-        tracer.clone()
-    })
+    GLOBAL_TRACER
+        .read()
+        .expect("GLOBAL_TRACER RwLock poisoned")
+        .clone()
 }
 
 /// Assigns the global `Tracer`
 pub fn set_tracer<S: api::Span + 'static>(new_tracer: Box<dyn api::Tracer<Span = S>>) {
-    GLOBAL_TRACER.with(|tracer_cell| {
-        let mut tracer = tracer_cell.write().unwrap();
-        *tracer = Arc::new(GlobalTracer::new(new_tracer));
-    })
+    let mut global_tracer = GLOBAL_TRACER
+        .write()
+        .expect("GLOBAL_TRACER RwLock poisoned");
+    *global_tracer = Arc::new(GlobalTracer::new(new_tracer));
 }
 
 /// Returns `NoopMeter` for now

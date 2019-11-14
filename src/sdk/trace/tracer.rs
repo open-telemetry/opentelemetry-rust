@@ -10,10 +10,26 @@
 use crate::api;
 use crate::exporter::trace::jaeger;
 use crate::sdk;
+use std::cell::RefCell;
+use std::collections::HashSet;
 
 /// `Tracer` implementation to create and manage spans
 #[derive(Clone, Debug)]
-pub struct Tracer(pub(crate) jaeger::Tracer);
+pub struct Tracer {
+    inner: jaeger::Tracer,
+}
+
+impl Tracer {
+    /// Create a new tracer (used internally by `Provider`s.
+    pub(crate) fn new(inner: jaeger::Tracer) -> Self {
+        Tracer { inner }
+    }
+}
+
+thread_local! {
+    /// Track currently active `Span` per thread via a `SpanStack`.
+    static CURRENT_SPANS: RefCell<SpanStack> = RefCell::new(SpanStack::new());
+}
 
 impl api::Tracer for Tracer {
     /// This implementation of `api::Tracer` produces `sdk::Span` instances.
@@ -22,7 +38,7 @@ impl api::Tracer for Tracer {
     /// Returns a span with an inactive `SpanContext`. Used by functions that
     /// need to return a default span like `get_active_span` if no span is present.
     fn invalid(&self) -> Self::Span {
-        sdk::Span::new(jaeger::Span::inactive())
+        sdk::Span::new(0, jaeger::Span::inactive())
     }
 
     /// Starts a new `Span`.
@@ -33,13 +49,14 @@ impl api::Tracer for Tracer {
     /// trace includes a single root span, which is the shared ancestor of all other
     /// spans in the trace.
     fn start(&self, name: &'static str, parent_span: Option<api::SpanContext>) -> Self::Span {
-        let start_options = self.0.span(name);
+        let start_options = self.inner.span(name);
         let started = match parent_span.map(jaeger::SpanContext::from) {
             Some(span_context) => start_options.child_of(&span_context).start(),
             None => start_options.start(),
         };
+        let span_id = started.context().unwrap().state().span_id();
 
-        sdk::Span::new(started)
+        sdk::Span::new(span_id, started)
     }
 
     /// Returns the current active span.
@@ -47,13 +64,76 @@ impl api::Tracer for Tracer {
     /// When getting the current `Span`, the `Tracer` will return a placeholder
     /// `Span` with an invalid `SpanContext` if there is no currently active `Span`.
     fn get_active_span(&self) -> Self::Span {
-        // TODO
-        unimplemented!()
+        CURRENT_SPANS
+            .with(|spans| spans.borrow().current())
+            .unwrap_or_else(|| self.invalid())
     }
 
     /// Mark a given `Span` as active.
-    fn mark_span_as_active(&self, _span_id: u64) {
-        // TODO
-        unimplemented!()
+    fn mark_span_as_active(&self, span: &Self::Span) {
+        CURRENT_SPANS.with(|spans| {
+            spans.borrow_mut().push(span.clone());
+        })
+    }
+
+    /// Mark a given `Span` as inactive.
+    fn mark_span_as_inactive(&self, span_id: u64) {
+        CURRENT_SPANS.with(|spans| {
+            spans.borrow_mut().pop(span_id);
+        })
+    }
+}
+
+/// Used to track `Span` and its status in the stack
+struct ContextId {
+    span: sdk::Span,
+    duplicate: bool,
+}
+
+/// A stack of `Span`s that can be used to track active `Span`s per thread.
+pub(crate) struct SpanStack {
+    stack: Vec<ContextId>,
+    ids: HashSet<u64>,
+}
+
+impl SpanStack {
+    /// Create a new `SpanStack`
+    fn new() -> Self {
+        SpanStack {
+            stack: vec![],
+            ids: HashSet::new(),
+        }
+    }
+
+    /// Push a `Span` to the stack
+    fn push(&mut self, span: sdk::Span) {
+        let duplicate = self.ids.contains(&span.id());
+        if !duplicate {
+            self.ids.insert(span.id());
+        }
+        self.stack.push(ContextId { span, duplicate })
+    }
+
+    /// Pop a `Span` from the stack
+    fn pop(&mut self, expected_id: u64) -> Option<sdk::Span> {
+        if self.stack.last()?.span.id() == expected_id {
+            let ContextId { span, duplicate } = self.stack.pop()?;
+            if !duplicate {
+                self.ids.remove(&span.id());
+            }
+            Some(span)
+        } else {
+            None
+        }
+    }
+
+    /// Find the latest `Span` that is not doubly marked as active (pushed twice)
+    #[inline]
+    fn current(&self) -> Option<sdk::Span> {
+        self.stack
+            .iter()
+            .rev()
+            .find(|context_id| !context_id.duplicate)
+            .map(|context_id| context_id.span.clone())
     }
 }

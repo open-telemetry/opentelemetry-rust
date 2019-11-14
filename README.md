@@ -9,16 +9,17 @@ A Rust [OpenTelemetry](https://opentelemetry.io/) client.
 ## Quick Start
 
 ```rust
-use opentelemetry::api::Provider;
-use opentelemetry::{api::TracerGenerics, global, sdk};
+use opentelemetry::{api::{Provider, TracerGenerics}, global, sdk};
 
 fn main() {
     let tracer = sdk::Provider::new().get_tracer("service_name");
     global::set_tracer(Box::new(tracer));
 
-    global::global_tracer().with_span("foo", |_span| {
-        global::global_tracer().with_span("bar", |_span| {
-            global::global_tracer().with_span("baz", |_span| {})
+    global::global_tracer().with_span("foo", || {
+        global::global_tracer().with_span("bar", || {
+            global::global_tracer().with_span("baz", || {
+
+            })
         })
     });
 }

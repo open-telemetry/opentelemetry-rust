@@ -17,12 +17,10 @@ pub use rustracing_jaeger::{reporter::JaegerCompactReporter, span::SpanContext, 
 impl From<api::SpanContext> for rustracing_jaeger::span::SpanContext {
     /// Convert from `api::SpanContext` instances to `rustracing_jaeger`'s `SpanContext` type.
     fn from(context: api::SpanContext) -> Self {
-        let parent_id = 0; // TODO
         let jaeger_trace_str = format!(
-            "{:x}:{:x}:{:x}:{:x}",
+            "{:x}:{:x}:0:{:x}",
             context.trace_id(),
             context.span_id(),
-            parent_id,
             context.trace_flags()
         );
         let span_context_state =

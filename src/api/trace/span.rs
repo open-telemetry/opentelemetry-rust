@@ -121,4 +121,7 @@ pub trait Span: std::fmt::Debug {
     ///
     ///This API MUST be non-blocking.
     fn end(&mut self);
+
+    /// Used by global tracer to downcast to specific span type.
+    fn as_any(&self) -> &dyn std::any::Any;
 }

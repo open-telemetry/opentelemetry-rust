@@ -24,7 +24,7 @@
 use crate::api::{self, Span};
 
 /// Interface for constructing `Span`s.
-pub trait Tracer {
+pub trait Tracer: Send + Sync {
     /// The `Span` type used by this `Tracer`.
     type Span: api::Span;
 
@@ -70,7 +70,25 @@ pub trait Tracer {
     /// active `Span` is made inactive, the previously-active `Span` SHOULD be made active. A `Span`
     /// maybe finished (i.e. have a non-null end time) but still be active. A `Span` may be active
     /// on one thread after it has been made inactive on another.
-    fn mark_span_as_active(&self, span_id: u64);
+    ///
+    /// NOTE: The `mark_span_as_active`/`mark_span_as_inactive` functions MUST be used
+    /// together or you can end up retaining references to the currently active `Span`.
+    /// If you do not want to manage active state of `Span`s manually, use the `with_span`
+    /// API defined for all `Tracer`s via `TracerGenerics`
+    fn mark_span_as_active(&self, span: &Self::Span);
+
+    /// Remove span from active span
+    ///
+    /// When an active `Span` is made inactive, the previously-active `Span` SHOULD be
+    /// made active. A `Span` maybe finished (i.e. have a non-null end time) but still
+    /// be active. A `Span` may be active on one thread after it has been made inactive
+    /// on another.
+    ///
+    /// NOTE: The `mark_span_as_active`/`mark_span_as_inactive` functions MUST be used
+    /// together or you can end up retaining references to the currently active `Span`.
+    /// If you do not want to manage active state of `Span`s manually, use the `with_span`
+    /// API defined for all `Tracer`s via `TracerGenerics`
+    fn mark_span_as_inactive(&self, span_id: u64);
 }
 
 /// TracerGenerics are functions that have generic type parameters. They are a separate
@@ -79,7 +97,9 @@ pub trait TracerGenerics: Tracer {
     /// Wraps the execution of the function body with a span.
     /// It starts a new span and sets it as the active span for the given function.
     /// It then executes the body. It closes the span before returning the execution result.
-    fn with_span<F: FnOnce(Self::Span)>(&self, name: &'static str, f: F);
+    fn with_span<T, F>(&self, name: &'static str, f: F) -> T
+    where
+        F: FnOnce() -> T;
 }
 
 // These functions can be implemented for all tracers to allow for convenient `with_span` syntax.
@@ -87,10 +107,24 @@ impl<S: Tracer> TracerGenerics for S {
     /// Wraps the execution of the function body with a span.
     /// It starts a new span and sets it as the active span for the given function.
     /// It then executes the body. It closes the span before returning the execution result.
-    fn with_span<F: FnOnce(Self::Span)>(&self, name: &'static str, f: F) {
-        let parent = self.get_active_span();
-        let span = self.start(name, Some(parent.get_context()));
+    fn with_span<T, F>(&self, name: &'static str, f: F) -> T
+    where
+        F: FnOnce() -> T,
+    {
+        let active_context = self.get_active_span().get_context();
+        let parent = if active_context.is_valid() {
+            Some(active_context)
+        } else {
+            None
+        };
 
-        f(span)
+        let mut span = self.start(name, parent);
+        self.mark_span_as_active(&span);
+
+        let result = f();
+        span.end();
+        self.mark_span_as_inactive(span.get_context().span_id());
+
+        result
     }
 }
