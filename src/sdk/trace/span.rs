@@ -10,16 +10,26 @@
 //! These cannot be changed after the `Span`'s end time has been set.
 use crate::api;
 use crate::exporter::trace::jaeger;
+use std::any::Any;
+use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
 
 /// Single operation within a trace.
-#[derive(Debug)]
-pub struct Span(jaeger::Span);
+#[derive(Clone, Debug)]
+pub struct Span {
+    id: u64,
+    data: Arc<Mutex<jaeger::Span>>,
+}
 
 impl Span {
-    /// Creates a new span, used internally by `sdk::Tracer`.
-    pub(crate) fn new(span: jaeger::Span) -> Self {
-        Span(span)
+    pub(crate) fn new(id: u64, inner: jaeger::Span) -> Self {
+        Span {
+            id,
+            data: Arc::new(Mutex::new(inner)),
+        }
+    }
+    pub(crate) fn id(&self) -> u64 {
+        self.id
     }
 }
 
@@ -30,8 +40,10 @@ impl api::Span for Span {
     /// keys"](https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/data-semantic-conventions.md)
     /// which have prescribed semantic meanings.
     fn add_event_with_timestamp(&mut self, message: String, _timestamp: SystemTime) {
-        self.0.log(|log| {
-            log.std().event(message);
+        let _ = self.data.try_lock().map(|mut span_data| {
+            span_data.log(|log| {
+                log.std().event(message);
+            });
         });
     }
 
@@ -44,17 +56,20 @@ impl api::Span for Span {
 
     /// Returns the `SpanContext` for the given `Span`.
     fn get_context(&self) -> api::SpanContext {
-        match self.0.context() {
-            Some(context) => {
-                let state = context.state();
-                let trace_id = u128::from_str_radix(&state.trace_id().to_string(), 16).unwrap();
-                let trace_flags = if state.is_sampled() { 1 } else { 0 };
-                let is_remote = false; // TODO determine remote state
+        self.data
+            .try_lock()
+            .ok()
+            .and_then(|span_data| {
+                span_data.context().map(|context| {
+                    let state = context.state();
+                    let trace_id = u128::from_str_radix(&state.trace_id().to_string(), 16).unwrap();
+                    let trace_flags = if state.is_sampled() { 1 } else { 0 };
+                    let is_remote = false; // TODO determine remote state
 
-                api::SpanContext::new(trace_id, state.span_id(), trace_flags, is_remote)
-            }
-            None => api::SpanContext::new(rand::random(), 0, 0, false),
-        }
+                    api::SpanContext::new(trace_id, state.span_id(), trace_flags, is_remote)
+                })
+            })
+            .unwrap_or_else(|| api::SpanContext::new(0, 0, 0, false))
     }
 
     /// Returns true if this `Span` is recording information like events with the `add_event`
@@ -69,8 +84,10 @@ impl api::Span for Span {
     /// attributes"](https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/data-semantic-conventions.md)
     /// that have prescribed semantic meanings.
     fn set_attribute(&mut self, attribute: api::KeyValue) {
-        let api::KeyValue { key, value } = attribute;
-        self.0.set_tag(|| jaeger::Tag::new(key, value.to_string()))
+        let _ = self.data.try_lock().map(|mut span_data| {
+            let api::KeyValue { key, value } = attribute;
+            span_data.set_tag(|| jaeger::Tag::new(key, value.to_string()));
+        });
     }
 
     /// Sets the status of the `Span`. If used, this will override the default `Span`
@@ -81,11 +98,21 @@ impl api::Span for Span {
 
     /// Updates the `Span`'s name.
     fn update_name(&mut self, new_name: String) {
-        self.0.set_operation_name(|| new_name)
+        let _ = self
+            .data
+            .try_lock()
+            .map(|mut span_data| span_data.set_operation_name(|| new_name));
     }
 
     /// Finishes the span.
     fn end(&mut self) {
-        self.0.set_finish_time(SystemTime::now)
+        let _ = self.data.try_lock().map(|mut span_data| {
+            span_data.set_finish_time(SystemTime::now);
+        });
+    }
+
+    /// Returns self as any
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }

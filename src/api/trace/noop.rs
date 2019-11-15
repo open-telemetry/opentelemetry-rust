@@ -4,6 +4,7 @@
 //! has been set. It is also useful for testing purposes as it is intended
 //! to have minimal resource utilization and runtime impact.
 use crate::api;
+use std::any::Any;
 use std::time::SystemTime;
 
 /// A no-op instance of a `Provider`.
@@ -85,6 +86,11 @@ impl api::Span for NoopSpan {
     fn end(&mut self) {
         // Ignored
     }
+
+    /// Returns self as dyn Any
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 /// A no-op instance of a `Tracer`.
@@ -110,7 +116,12 @@ impl api::Tracer for NoopTracer {
     }
 
     /// Ignores active span state.
-    fn mark_span_as_active(&self, _span_id: u64) {
+    fn mark_span_as_active(&self, _span: &Self::Span) {
+        // Noop
+    }
+
+    /// Ignores active span state.
+    fn mark_span_as_inactive(&self, _span_id: u64) {
         // Noop
     }
 }

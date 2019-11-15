@@ -47,7 +47,7 @@ impl Provider {
                 }
             });
 
-        sdk::Tracer(tracer)
+        sdk::Tracer::new(tracer)
     }
 }
 
