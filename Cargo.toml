@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Julian Tescher <julian@tescher.me>"]
 description = "A Rust OpenTelemetry client"
 homepage = "https://github.com/jtescher/opentelemetry-rust"
