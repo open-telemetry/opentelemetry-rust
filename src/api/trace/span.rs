@@ -19,7 +19,7 @@ use crate::api;
 use std::time::SystemTime;
 
 /// Interface for a single operation within a trace.
-pub trait Span: std::fmt::Debug {
+pub trait Span: Send + Sync + std::fmt::Debug {
     /// An API to record events in the context of a given `Span`.
     ///
     /// Events have a time associated with the moment when they are
