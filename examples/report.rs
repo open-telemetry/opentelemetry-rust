@@ -8,7 +8,7 @@ use std::thread;
 use std::time::Duration;
 
 fn main() {
-    let tracer = sdk::Provider::new().get_tracer("report_example");
+    let tracer = sdk::Provider::default().get_tracer("report_example");
     {
         let span0 = tracer.start("main", None);
         thread::sleep(Duration::from_millis(10));

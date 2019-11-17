@@ -6,6 +6,7 @@
 //! * The `Span` struct with is a mutable object storing information about the
 //! current operation execution.
 //! * The `Provider` struct which configures and produces `Tracer`s.
+pub mod config;
 pub mod provider;
 pub mod span;
 pub mod tracer;

@@ -56,8 +56,8 @@ impl api::Span for BoxedSpan {
     }
 }
 
-/// Boxed Tracer allows `GlobalTracer`'s to contain and use a `Tracer` type object.
-pub trait BoxedTracer: Send + Sync {
+/// `GenericTracer` allows `BoxedTracer`'s to contain and use a `Tracer` trait object.
+pub trait GenericTracer: Send + Sync {
     /// Create a new invalid span for use in cases where there are no active spans.
     fn invalid_boxed(&self) -> Box<dyn api::Span>;
 
@@ -79,7 +79,7 @@ pub trait BoxedTracer: Send + Sync {
     fn mark_span_as_inactive_boxed(&self, span_id: u64);
 }
 
-impl<S: api::Span + 'static> BoxedTracer for Box<dyn api::Tracer<Span = S>> {
+impl<S: api::Span + 'static> GenericTracer for Box<dyn api::Tracer<Span = S>> {
     /// Create a new invalid span for use in cases where there are no active spans.
     fn invalid_boxed(&self) -> Box<dyn api::Span> {
         Box::new(self.invalid())
@@ -113,7 +113,7 @@ impl<S: api::Span + 'static> BoxedTracer for Box<dyn api::Tracer<Span = S>> {
     }
 }
 
-impl Tracer for dyn BoxedTracer {
+impl Tracer for dyn GenericTracer {
     /// BoxedTracer returns a BoxedSpan so that it doesn't need a generic type parameter.
     type Span = BoxedSpan;
 
@@ -143,72 +143,130 @@ impl Tracer for dyn BoxedTracer {
     }
 }
 
-/// GlobalTracer maintains a global singleton that allows any thread to access
-/// the same generic `Tracer` implementation.
+/// BoxedTracer is an instance of a generic tracer that can be returned by the
+/// global provider to represent.
 #[allow(missing_debug_implementations)]
-pub struct GlobalTracer {
-    tracer: Box<dyn BoxedTracer>,
-}
+pub struct BoxedTracer(Box<dyn GenericTracer>);
 
-impl GlobalTracer {
-    /// Create a new global tracer via any `Tracer`.
-    fn new<S: api::Span + 'static>(tracer: Box<dyn api::Tracer<Span = S>>) -> Self {
-        Self {
-            tracer: Box::new(tracer),
-        }
-    }
-}
-
-impl api::Tracer for GlobalTracer {
+impl api::Tracer for BoxedTracer {
     /// Global tracer uses `BoxedSpan`s so that it can be a global singleton,
     /// which is not possible if it takes generic type parameters.
     type Span = BoxedSpan;
 
     /// Returns a span with an invalid `SpanContext`.
     fn invalid(&self) -> Self::Span {
-        self.tracer.invalid()
+        self.0.invalid()
     }
 
     /// Starts a new `Span`.
     fn start(&self, name: &'static str, parent_span: Option<api::SpanContext>) -> Self::Span {
-        self.tracer.start(name, parent_span)
+        self.0.start(name, parent_span)
     }
 
     /// Returns the current active span.
     fn get_active_span(&self) -> Self::Span {
-        self.tracer.get_active_span()
+        self.0.get_active_span()
     }
 
     /// Mark a given `Span` as active.
     fn mark_span_as_active(&self, span: &Self::Span) {
-        self.tracer.mark_span_as_active(span)
+        self.0.mark_span_as_active(span)
     }
 
     /// Mark a given `Span` as inactive.
     fn mark_span_as_inactive(&self, span_id: u64) {
-        self.tracer.mark_span_as_inactive(span_id)
+        self.0.mark_span_as_inactive(span_id)
+    }
+}
+
+/// `GenericProvider` allows `GlobalProvider`'s to contain and use a `Provider` trait object.
+pub trait GenericProvider: Send + Sync {
+    /// Creates a named tracer instance that is a trait object through the underlying `Provider`.
+    fn get_tracer_boxed(&self, name: &'static str) -> Box<dyn GenericTracer>;
+}
+
+impl api::Provider for dyn GenericProvider {
+    /// Tracer is a boxed tracer so it can wrap any implementation of `Tracer`.
+    type Tracer = BoxedTracer;
+
+    /// Find or create a named instance of `BoxedTracer`.
+    fn get_tracer(&self, name: &'static str) -> Self::Tracer {
+        BoxedTracer(self.get_tracer_boxed(name))
+    }
+}
+
+impl<T, S> GenericProvider for Box<dyn api::Provider<Tracer = T>>
+where
+    S: api::Span + 'static,
+    T: api::Tracer<Span = S> + 'static,
+{
+    /// Return a boxed generic tracer, used
+    fn get_tracer_boxed(&self, name: &'static str) -> Box<dyn GenericTracer> {
+        // Has to first be boxed to impl `GenericTracer`
+        let generic_tracer: Box<dyn api::Tracer<Span = S>> = Box::new(self.get_tracer(name));
+        // Then boxed again to impl `Box<dyn GenericTracer>`.
+        Box::new(generic_tracer)
+    }
+}
+
+/// GlobalProvider maintains a global singleton that allows any thread to access
+/// the same generic `Provider` implementation.
+#[allow(missing_debug_implementations)]
+pub struct GlobalProvider {
+    provider: Box<dyn GenericProvider>,
+}
+
+impl GlobalProvider {
+    /// Create a new GlobalProvider instance from a struct that implements `Provider`.
+    fn new<P, T, S>(provider: P) -> Self
+    where
+        S: api::Span + 'static,
+        T: api::Tracer<Span = S> + 'static,
+        P: api::Provider<Tracer = T> + 'static,
+    {
+        // Has to first be boxed to impl `GenericProvider`.
+        let generic_provider: Box<dyn api::Provider<Tracer = T>> = Box::new(provider);
+
+        // Then boxed again to for `Box<dyn GenericProvider>`.
+        GlobalProvider {
+            provider: Box::new(generic_provider),
+        }
+    }
+}
+
+impl api::Provider for GlobalProvider {
+    type Tracer = BoxedTracer;
+
+    /// Find or create a named tracer using the global provider.
+    fn get_tracer(&self, name: &'static str) -> Self::Tracer {
+        self.provider.get_tracer(name)
     }
 }
 
 lazy_static::lazy_static! {
     /// The global `Tracer` singleton.
-    static ref GLOBAL_TRACER: RwLock<Arc<GlobalTracer>> = RwLock::new(Arc::new(GlobalTracer::new(Box::new(api::NoopTracer {}))));
+    static ref GLOBAL_TRACER_PROVIDER: RwLock<Arc<GlobalProvider>> = RwLock::new(Arc::new(GlobalProvider::new(api::NoopProvider {})));
 }
 
-/// Returns a reference to the global `Tracer`
-pub fn global_tracer() -> Arc<GlobalTracer> {
-    GLOBAL_TRACER
+/// Returns a reference to the global `Provider`
+pub fn trace_provider() -> Arc<GlobalProvider> {
+    GLOBAL_TRACER_PROVIDER
         .read()
-        .expect("GLOBAL_TRACER RwLock poisoned")
+        .expect("GLOBAL_TRACER_PROVIDER RwLock poisoned")
         .clone()
 }
 
 /// Assigns the global `Tracer`
-pub fn set_tracer<S: api::Span + 'static>(new_tracer: Box<dyn api::Tracer<Span = S>>) {
-    let mut global_tracer = GLOBAL_TRACER
+pub fn set_provider<P, T, S>(new_provider: P)
+where
+    S: api::Span + 'static,
+    T: api::Tracer<Span = S> + 'static,
+    P: api::Provider<Tracer = T> + 'static,
+{
+    let mut global_provider = GLOBAL_TRACER_PROVIDER
         .write()
-        .expect("GLOBAL_TRACER RwLock poisoned");
-    *global_tracer = Arc::new(GlobalTracer::new(new_tracer));
+        .expect("GLOBAL_TRACER_PROVIDER RwLock poisoned");
+    *global_provider = Arc::new(GlobalProvider::new(new_provider));
 }
 
 /// Returns `NoopMeter` for now

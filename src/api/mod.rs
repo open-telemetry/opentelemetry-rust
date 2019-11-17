@@ -32,6 +32,7 @@ pub use trace::{
     noop::{NoopProvider, NoopSpan, NoopTracer},
     propagator::{BinaryFormat, Carrier, HttpTextFormat},
     provider::Provider,
+    sampler::Sampler,
     span::Span,
     span_context::{SpanContext, TRACE_FLAGS_UNUSED, TRACE_FLAG_SAMPLED},
     tracer::{Tracer, TracerGenerics},

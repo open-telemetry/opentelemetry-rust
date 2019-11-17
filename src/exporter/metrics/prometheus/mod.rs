@@ -46,7 +46,7 @@ impl api::Counter<i64, sdk::LabelSet> for prometheus::IntCounterVec {
         api::Measurement::new(Arc::new(self.clone()), api::MeasurementValue::from(value))
     }
 
-    /// Creates a handle for this instrument..
+    /// Creates a handle for this instrument.
     fn acquire_handle(&self, labels: &sdk::LabelSet) -> Self::Handle {
         IntCounterHandle(self.with(&convert_label_set(labels)))
     }
@@ -82,7 +82,7 @@ impl api::Counter<f64, sdk::LabelSet> for prometheus::CounterVec {
         api::Measurement::new(Arc::new(self.clone()), api::MeasurementValue::from(value))
     }
 
-    /// Creates a handle for this instrument..
+    /// Creates a handle for this instrument.
     fn acquire_handle(&self, labels: &sdk::LabelSet) -> Self::Handle {
         CounterHandle(self.with(&convert_label_set(labels)))
     }
@@ -120,7 +120,7 @@ impl api::Gauge<i64, sdk::LabelSet> for prometheus::IntGaugeVec {
         api::Measurement::new(Arc::new(self.clone()), api::MeasurementValue::from(value))
     }
 
-    /// Creates a handle for this instrument..
+    /// Creates a handle for this instrument.
     fn acquire_handle(&self, labels: &sdk::LabelSet) -> Self::Handle {
         IntGaugeHandle(self.with(&convert_label_set(labels)))
     }
@@ -156,7 +156,7 @@ impl api::Gauge<f64, sdk::LabelSet> for prometheus::GaugeVec {
         api::Measurement::new(Arc::new(self.clone()), api::MeasurementValue::from(value))
     }
 
-    /// Creates a handle for this instrument..
+    /// Creates a handle for this instrument.
     fn acquire_handle(&self, labels: &sdk::LabelSet) -> Self::Handle {
         GaugeHandle(self.with(&convert_label_set(labels)))
     }
@@ -206,7 +206,7 @@ impl api::Measure<i64, sdk::LabelSet> for IntMeasure {
         api::Measurement::new(Arc::new(self.clone()), api::MeasurementValue::from(value))
     }
 
-    /// Creates a handle for this instrument..
+    /// Creates a handle for this instrument.
     fn acquire_handle(&self, labels: &sdk::LabelSet) -> Self::Handle {
         IntMeasureHandle(self.0.with(&convert_label_set(labels)))
     }
@@ -243,7 +243,7 @@ impl api::Measure<f64, sdk::LabelSet> for prometheus::HistogramVec {
         api::Measurement::new(Arc::new(self.clone()), api::MeasurementValue::from(value))
     }
 
-    /// Creates a handle for this instrument..
+    /// Creates a handle for this instrument.
     fn acquire_handle(&self, labels: &sdk::LabelSet) -> Self::Handle {
         MeasureHandle(self.with(&convert_label_set(labels)))
     }

@@ -22,7 +22,7 @@
 use crate::api;
 
 /// An interface to create `Tracer` instances.
-pub trait Provider {
+pub trait Provider: Send + Sync {
     /// The `Tracer` type that this `Provider` will return.
     type Tracer: api::Tracer;
 

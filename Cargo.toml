@@ -6,6 +6,7 @@ description = "A Rust OpenTelemetry client"
 homepage = "https://github.com/jtescher/opentelemetry-rust"
 repository = "https://github.com/jtescher/opentelemetry-rust"
 readme = "README.md"
+categories = ["development-tools::debugging"]
 keywords = ["opentelemetry", "jaeger", "prometheus"]
 license = "MIT"
 edition = "2018"

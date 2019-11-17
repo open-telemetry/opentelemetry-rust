@@ -9,5 +9,6 @@
 pub mod metrics;
 pub mod trace;
 
+pub use crate::exporter::trace::jaeger::AllSampler as AlwaysSample;
 pub use metrics::{LabelSet, Meter};
-pub use trace::{provider::Provider, span::Span, tracer::Tracer};
+pub use trace::{config::Config, provider::Provider, span::Span, tracer::Tracer};

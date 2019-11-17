@@ -16,13 +16,14 @@ use std::collections::HashSet;
 /// `Tracer` implementation to create and manage spans
 #[derive(Clone, Debug)]
 pub struct Tracer {
+    name: &'static str,
     inner: jaeger::Tracer,
 }
 
 impl Tracer {
     /// Create a new tracer (used internally by `Provider`s.
-    pub(crate) fn new(inner: jaeger::Tracer) -> Self {
-        Tracer { inner }
+    pub(crate) fn new(name: &'static str, inner: jaeger::Tracer) -> Self {
+        Tracer { name, inner }
     }
 }
 
@@ -49,7 +50,7 @@ impl api::Tracer for Tracer {
     /// trace includes a single root span, which is the shared ancestor of all other
     /// spans in the trace.
     fn start(&self, name: &'static str, parent_span: Option<api::SpanContext>) -> Self::Span {
-        let start_options = self.inner.span(name);
+        let start_options = self.inner.span(format!("{}/{}", self.name, name));
         let started = match parent_span.map(jaeger::SpanContext::from) {
             Some(span_context) => start_options.child_of(&span_context).start(),
             None => start_options.start(),
