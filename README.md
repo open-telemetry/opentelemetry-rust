@@ -12,12 +12,11 @@ A Rust [OpenTelemetry](https://opentelemetry.io/) client.
 use opentelemetry::{api::{Provider, TracerGenerics}, global, sdk};
 
 fn main() {
-    let tracer = sdk::Provider::new().get_tracer("service_name");
-    global::set_tracer(Box::new(tracer));
+    global::set_provider(sdk::Provider::default());
 
-    global::global_tracer().with_span("foo", || {
-        global::global_tracer().with_span("bar", || {
-            global::global_tracer().with_span("baz", || {
+    global::trace_provider().get_tracer("component-a").with_span("foo", |_span| {
+        global::trace_provider().get_tracer("component-b").with_span("bar", |_span| {
+            global::trace_provider().get_tracer("component-c").with_span("baz", |_span| {
 
             })
         })
@@ -25,7 +24,7 @@ fn main() {
 }
 ```
 
-See the [opentelemetry-example-app](./example/basic.rs) for a complete example.
+See the [opentelemetry-example-app](./examples/basic.rs) for a complete example.
 
 ## Release Schedule
 

@@ -94,6 +94,7 @@
 pub mod noop;
 pub mod propagator;
 pub mod provider;
+pub mod sampler;
 pub mod span;
 pub mod span_context;
 pub mod tracer;

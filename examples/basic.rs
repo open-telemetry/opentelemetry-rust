@@ -1,14 +1,34 @@
 use opentelemetry::api::{
-    Gauge, GaugeHandle, Key, Measure, MeasureHandle, Meter, MetricOptions, Provider, Span, Tracer,
+    Gauge, GaugeHandle, Key, Measure, MeasureHandle, Meter, MetricOptions, Provider, Sampler, Span,
     TracerGenerics,
 };
-use opentelemetry::{global, sdk};
+use opentelemetry::{exporter::trace::jaeger, global, sdk};
 use std::thread;
 use std::time::Duration;
 
+fn init_tracer() {
+    let exporter = jaeger::Exporter::builder()
+        .with_collector_endpoint("127.0.0.1:6831".parse().unwrap())
+        .with_process(jaeger::Process {
+            service_name: "trace-demo",
+            tags: vec![
+                Key::new("exporter").string("jaeger"),
+                Key::new("float").f64(312.23),
+            ],
+        })
+        .init();
+    let provider = sdk::Provider::builder()
+        .with_exporter(exporter)
+        .with_config(sdk::Config {
+            default_sampler: Sampler::Always,
+            ..Default::default()
+        })
+        .build();
+    global::set_provider(provider);
+}
+
 fn main() {
-    let tracer = sdk::Provider::new().get_tracer("ex_com_basic");
-    global::set_tracer(Box::new(tracer));
+    init_tracer();
     let meter = sdk::Meter::new("ex_com_basic");
 
     let lemons_key = Key::new("ex_com_lemons");
@@ -32,27 +52,29 @@ fn main() {
 
     let measure = measure_two.acquire_handle(&common_labels);
 
-    global::global_tracer().with_span("operation", move || {
-        let mut span = global::global_tracer().get_active_span();
-        span.add_event("Nice operation!".to_string());
-        span.set_attribute(another_key.string("yes"));
+    global::trace_provider()
+        .get_tracer("component-main")
+        .with_span("operation", move |span| {
+            span.add_event("Nice operation!".to_string());
+            span.set_attribute(another_key.string("yes"));
 
-        gauge.set(1.0);
+            gauge.set(1.0);
 
-        meter.record_batch(
-            &common_labels,
-            vec![one_metric.measurement(1.0), measure_two.measurement(2.0)],
-        );
+            meter.record_batch(
+                &common_labels,
+                vec![one_metric.measurement(1.0), measure_two.measurement(2.0)],
+            );
 
-        global::global_tracer().with_span("Sub operation...", move || {
-            let mut span = global::global_tracer().get_active_span();
-            span.set_attribute(lemons_key.string("five"));
+            global::trace_provider()
+                .get_tracer("component-bar")
+                .with_span("Sub operation...", move |span| {
+                    span.set_attribute(lemons_key.string("five"));
 
-            span.add_event("Sub span event".to_string());
+                    span.add_event("Sub span event".to_string());
 
-            measure.record(1.3);
+                    measure.record(1.3);
+                });
         });
-    });
 
     // Allow flush
     thread::sleep(Duration::from_millis(250));
