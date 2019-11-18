@@ -63,11 +63,7 @@ pub trait GenericTracer: Send + Sync {
 
     /// Returns a trait object so the underlying implementation can be swapped
     /// out at runtime.
-    fn start_boxed(
-        &self,
-        name: &'static str,
-        parent: Option<api::SpanContext>,
-    ) -> Box<dyn api::Span>;
+    fn start_boxed(&self, name: &str, parent: Option<api::SpanContext>) -> Box<dyn api::Span>;
 
     /// Returns the currently active span as a BoxedSpan
     fn get_active_span_boxed(&self) -> Box<dyn api::Span>;
@@ -87,11 +83,7 @@ impl<S: api::Span + 'static> GenericTracer for Box<dyn api::Tracer<Span = S>> {
 
     /// Returns a trait object so the underlying implementation can be swapped
     /// out at runtime.
-    fn start_boxed(
-        &self,
-        name: &'static str,
-        parent: Option<api::SpanContext>,
-    ) -> Box<dyn api::Span> {
+    fn start_boxed(&self, name: &str, parent: Option<api::SpanContext>) -> Box<dyn api::Span> {
         Box::new(self.start(name, parent))
     }
 
@@ -123,7 +115,7 @@ impl Tracer for dyn GenericTracer {
     }
 
     /// Starts a new boxed span.
-    fn start(&self, name: &'static str, parent_span: Option<api::SpanContext>) -> Self::Span {
+    fn start(&self, name: &str, parent_span: Option<api::SpanContext>) -> Self::Span {
         BoxedSpan(self.start_boxed(name, parent_span))
     }
 
@@ -159,7 +151,7 @@ impl api::Tracer for BoxedTracer {
     }
 
     /// Starts a new `Span`.
-    fn start(&self, name: &'static str, parent_span: Option<api::SpanContext>) -> Self::Span {
+    fn start(&self, name: &str, parent_span: Option<api::SpanContext>) -> Self::Span {
         self.0.start(name, parent_span)
     }
 
