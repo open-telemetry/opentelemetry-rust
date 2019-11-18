@@ -55,7 +55,7 @@ pub trait Tracer: Send + Sync {
     /// created in another process. Each propagators' deserialization must set
     /// `is_remote` to true on a parent `SpanContext` so `Span` creation knows if the
     /// parent is remote.
-    fn start(&self, name: &'static str, parent_span: Option<api::SpanContext>) -> Self::Span;
+    fn start(&self, name: &str, parent_span: Option<api::SpanContext>) -> Self::Span;
 
     /// Returns the current active span.
     ///

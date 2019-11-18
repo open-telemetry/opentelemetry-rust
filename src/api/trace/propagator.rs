@@ -179,15 +179,15 @@ pub trait HttpTextFormat {
 /// underlying struct like `HashMap`.
 pub trait Carrier {
     /// Get a value for a key from the underlying data.
-    fn get(&self, key: &'static str) -> Option<&String>;
+    fn get(&self, key: &'static str) -> Option<&str>;
     /// Add a key and value to the underlying.
     fn set(&mut self, key: &'static str, value: String);
 }
 
 impl<S: std::hash::BuildHasher> api::Carrier for HashMap<&'static str, String, S> {
     /// Get a value for a key from the HashMap.
-    fn get(&self, key: &'static str) -> Option<&String> {
-        self.get(key)
+    fn get(&self, key: &'static str) -> Option<&str> {
+        self.get(key).map(|v| v.as_str())
     }
 
     /// Set a key and value in the HashMap.

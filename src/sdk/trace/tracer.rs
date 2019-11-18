@@ -49,9 +49,12 @@ impl api::Tracer for Tracer {
     /// trace. A span is said to be a _root span_ if it does not have a parent. Each
     /// trace includes a single root span, which is the shared ancestor of all other
     /// spans in the trace.
-    fn start(&self, name: &'static str, parent_span: Option<api::SpanContext>) -> Self::Span {
+    fn start(&self, name: &str, parent_span: Option<api::SpanContext>) -> Self::Span {
         let start_options = self.inner.span(format!("{}/{}", self.name, name));
-        let started = match parent_span.map(jaeger::SpanContext::from) {
+        let started = match parent_span
+            .filter(|ctx| ctx.is_valid())
+            .map(jaeger::SpanContext::from)
+        {
             Some(span_context) => start_options.child_of(&span_context).start(),
             None => start_options.start(),
         };
