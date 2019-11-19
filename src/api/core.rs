@@ -70,6 +70,13 @@ impl Key {
     }
 }
 
+impl From<&'static str> for Key {
+    /// Convert a `&str` to a `Key`.
+    fn from(key_str: &'static str) -> Self {
+        Key(Cow::from(key_str))
+    }
+}
+
 impl Into<Cow<'static, str>> for Key {
     /// Converts `Key` instances into `Cow`
     fn into(self) -> Cow<'static, str> {
@@ -99,6 +106,13 @@ pub enum Value {
     String(String),
     /// Byte array values
     Bytes(Vec<u8>),
+}
+
+impl From<&str> for Value {
+    /// Convenience method for creating a `Value` form a `&str`.
+    fn from(value_str: &str) -> Self {
+        Value::String(value_str.to_string())
+    }
 }
 
 impl ToString for Value {
@@ -132,6 +146,13 @@ pub struct KeyValue {
     pub key: Key,
     /// Dimension or event value
     pub value: Value,
+}
+
+impl KeyValue {
+    /// Create a new `KeyValue` pair.
+    pub fn new<K, V>(key: K, value: V) -> Self where K: Into<Key>, V: Into<Value> {
+        KeyValue { key: key.into(), value: value.into() }
+    }
 }
 
 /// Units denote underlying data units tracked by `Meter`s.
