@@ -58,7 +58,10 @@ impl api::Tracer for Tracer {
             Some(span_context) => start_options.child_of(&span_context).start(),
             None => start_options.start(),
         };
-        let span_id = started.context().unwrap().state().span_id();
+        let span_id = started
+            .context()
+            .map(|ctx| ctx.state().span_id())
+            .unwrap_or(0);
 
         sdk::Span::new(span_id, started)
     }

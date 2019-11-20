@@ -150,8 +150,15 @@ pub struct KeyValue {
 
 impl KeyValue {
     /// Create a new `KeyValue` pair.
-    pub fn new<K, V>(key: K, value: V) -> Self where K: Into<Key>, V: Into<Value> {
-        KeyValue { key: key.into(), value: value.into() }
+    pub fn new<K, V>(key: K, value: V) -> Self
+    where
+        K: Into<Key>,
+        V: Into<Value>,
+    {
+        KeyValue {
+            key: key.into(),
+            value: value.into(),
+        }
     }
 }
 
