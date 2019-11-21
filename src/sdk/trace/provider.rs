@@ -52,6 +52,9 @@ impl Provider {
         let tracer = match self.config.default_sampler {
             api::Sampler::Always => jaeger::Tracer::with_sender(jaeger::AllSampler, span_sender),
             api::Sampler::Never => jaeger::Tracer::with_sender(jaeger::NullSampler, span_sender),
+            api::Sampler::Parent => {
+                jaeger::Tracer::with_sender(jaeger::PassiveSampler, span_sender)
+            }
             api::Sampler::Probability(prob) => {
                 // rustracing_jaeger does not like >1 or < 0
 

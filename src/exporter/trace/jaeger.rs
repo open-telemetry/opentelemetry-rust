@@ -13,7 +13,7 @@ use std::str::FromStr;
 use std::thread;
 
 pub use rustracing::{
-    sampler::{AllSampler, NullSampler, ProbabilisticSampler},
+    sampler::{AllSampler, NullSampler, PassiveSampler, ProbabilisticSampler},
     tag::{Tag, TagValue},
 };
 pub use rustracing_jaeger::{

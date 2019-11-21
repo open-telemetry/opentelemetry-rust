@@ -7,6 +7,8 @@ pub enum Sampler {
     Always,
     /// Never sample the trace
     Never,
+    /// Sample if the parent span is sampled
+    Parent,
     /// Sample a given fraction of traces. Fractions >= 1 will always sample.
     /// If the parent span is sampled, then it's child spans will automatically
     /// be sampled. Fractions <0 are treated as zero, but spans may still be
