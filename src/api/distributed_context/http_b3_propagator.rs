@@ -65,8 +65,7 @@ impl HttpB3Propagator {
 
     /// Extract a `SpanContext` from a single B3 header.
     fn extract_single_header(&self, carrier: &dyn api::Carrier) -> Result<api::SpanContext, ()> {
-        let empty = String::new();
-        let header_value = carrier.get(B3_SINGLE_HEADER).unwrap_or(&empty);
+        let header_value = carrier.get(B3_SINGLE_HEADER).unwrap_or("");
         let parts = header_value.split_terminator('-').collect::<Vec<&str>>();
         // Ensure length is within range.
         if parts.len() > 4 || parts.len() < 2 {
@@ -98,20 +97,19 @@ impl HttpB3Propagator {
 
     /// Extract a `SpanContext` from multiple B3 headers.
     fn extract_multi_header(&self, carrier: &dyn api::Carrier) -> Result<api::SpanContext, ()> {
-        let empty = String::new();
         let trace_id = self
-            .extract_trace_id(carrier.get(B3_TRACE_ID_HEADER).unwrap_or(&empty))
+            .extract_trace_id(carrier.get(B3_TRACE_ID_HEADER).unwrap_or(""))
             .map_err(|_| ())?;
         let span_id = self
-            .extract_span_id(carrier.get(B3_SPAN_ID_HEADER).unwrap_or(&empty))
+            .extract_span_id(carrier.get(B3_SPAN_ID_HEADER).unwrap_or(""))
             .map_err(|_| ())?;
         // Only ensure valid parent span header if present.
         if let Some(parent) = carrier.get(B3_PARENT_SPAN_ID_HEADER) {
             let _ = self.extract_span_id(parent).map_err(|_| ());
         }
         let mut sampled =
-            self.extract_sampled_state(carrier.get(B3_SAMPLED_HEADER).unwrap_or(&empty))?;
-        let debug = self.extract_debug_flag(carrier.get(B3_DEBUG_FLAG_HEADER).unwrap_or(&empty))?;
+            self.extract_sampled_state(carrier.get(B3_SAMPLED_HEADER).unwrap_or(""))?;
+        let debug = self.extract_debug_flag(carrier.get(B3_DEBUG_FLAG_HEADER).unwrap_or(""))?;
 
         if debug == api::TRACE_FLAG_SAMPLED {
             sampled = api::TRACE_FLAG_SAMPLED;
