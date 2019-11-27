@@ -9,4 +9,4 @@
 //! `Carrier`s that travel in-band across process boundaries.
 pub mod binary_propagator;
 pub mod http_b3_propagator;
-pub mod http_trace_context_propagator;
+pub mod trace_context_propagator;

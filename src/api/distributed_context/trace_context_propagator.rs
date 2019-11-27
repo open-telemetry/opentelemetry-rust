@@ -1,4 +1,4 @@
-//! # HTTP Trace Context Propagator
+//! # Trace Context Propagator
 //!
 //! The `traceparent` header represents the incoming request in a
 //! tracing system in a common format, understood by all vendors.
@@ -27,12 +27,12 @@ static TRACEPARENT_HEADER: &str = "Traceparent";
 /// Extracts and injects `SpanContext`s into `Carrier`s using the
 /// trace-context format.
 #[derive(Debug, Default)]
-pub struct HTTPTraceContextPropagator {}
+pub struct TraceContextPropagator {}
 
-impl HTTPTraceContextPropagator {
-    /// Create a new `HTTPTraceContextPropagator`.
+impl TraceContextPropagator {
+    /// Create a new `TraceContextPropagator`.
     pub fn new() -> Self {
-        HTTPTraceContextPropagator {}
+        TraceContextPropagator {}
     }
 
     /// Extract span context from w3c trace-context header.
@@ -78,7 +78,7 @@ impl HTTPTraceContextPropagator {
     }
 }
 
-impl api::HttpTextFormat for HTTPTraceContextPropagator {
+impl api::HttpTextFormat for TraceContextPropagator {
     /// Properly encodes the values of the `SpanContext` and injects them
     /// into the `Carrier`.
     fn inject(&self, context: api::SpanContext, carrier: &mut dyn api::Carrier) {
@@ -136,7 +136,7 @@ mod test {
 
     #[test]
     fn extract_w3c() {
-        let propagator = HTTPTraceContextPropagator::new();
+        let propagator = TraceContextPropagator::new();
 
         for (header, expected_context) in extract_data() {
             let mut carrier: HashMap<&'static str, String> = HashMap::new();
@@ -147,7 +147,7 @@ mod test {
 
     #[test]
     fn inject_w3c() {
-        let propagator = HTTPTraceContextPropagator::new();
+        let propagator = TraceContextPropagator::new();
 
         for (expected_header, context) in inject_data() {
             let mut carrier = HashMap::new();
