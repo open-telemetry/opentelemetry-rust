@@ -8,5 +8,5 @@
 //! - `HTTPTextFormat` which is used to inject and extract a value as text into
 //! `Carrier`s that travel in-band across process boundaries.
 pub mod binary_propagator;
-pub mod http_b3_propagator;
+pub mod b3_propagator;
 pub mod trace_context_propagator;
