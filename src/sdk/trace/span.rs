@@ -47,13 +47,6 @@ impl api::Span for Span {
         });
     }
 
-    /// Adds links to a given `Span`.
-    ///
-    /// Linked Spans can be from the same or a different trace.
-    fn add_link(&mut self, _link: api::SpanContext) {
-        // Ignored for now
-    }
-
     /// Returns the `SpanContext` for the given `Span`.
     fn get_context(&self) -> api::SpanContext {
         self.data

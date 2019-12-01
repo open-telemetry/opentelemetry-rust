@@ -45,13 +45,6 @@ pub trait Span: Send + Sync + std::fmt::Debug {
     /// which have prescribed semantic meanings.
     fn add_event_with_timestamp(&mut self, message: String, timestamp: SystemTime);
 
-    /// An API to add links to a given `Span`.
-    ///
-    /// Linked Spans can be from the same or a different trace.
-    ///
-    /// Links SHOULD preserve the order in which they're set.
-    fn add_link(&mut self, link: api::SpanContext);
-
     /// Returns the `SpanContext` for the given `Span`. The returned value may be used even after
     /// the `Span is finished. The returned value MUST be the same for the entire `Span` lifetime.
     fn get_context(&self) -> api::SpanContext;
