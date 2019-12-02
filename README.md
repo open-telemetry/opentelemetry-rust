@@ -2,7 +2,7 @@
 
 [![Crates.io: opentelemetry](https://img.shields.io/crates/v/opentelemetry.svg)](https://crates.io/crates/opentelemetry)
 [![Documentation](https://docs.rs/opentelemetry/badge.svg)](https://docs.rs/opentelemetry)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE.txt)
+[![Crates.io](https://img.shields.io/crates/l/opentelemetry)](./LICENSE)
 
 A Rust [OpenTelemetry](https://opentelemetry.io/) client.
 
