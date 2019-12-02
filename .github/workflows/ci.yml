@@ -1,0 +1,35 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches:
+    - master
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+        - rust:latest
+        - rustlang/rust:nightly
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ matrix.image }}
+    steps:
+    - uses: actions/checkout@v1
+    - name: Test
+      run: ./scripts/test.sh
+  lint:
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+        - rust:latest
+        - rustlang/rust:nightly
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ matrix.image }}
+    steps:
+    - uses: actions/checkout@v1
+    - name: Lint
+      run: ./scripts/lint.sh
