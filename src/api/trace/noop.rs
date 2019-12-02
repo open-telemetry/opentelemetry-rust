@@ -52,11 +52,6 @@ impl api::Span for NoopSpan {
         // Ignored
     }
 
-    /// Ignores all links
-    fn add_link(&mut self, _link: api::SpanContext) {
-        // Ignored
-    }
-
     /// Returns an invalid `SpanContext`.
     fn get_context(&self) -> api::SpanContext {
         self.span_context.clone()

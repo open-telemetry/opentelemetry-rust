@@ -16,11 +16,6 @@ impl api::Span for BoxedSpan {
     }
 
     /// Delegates to inner span.
-    fn add_link(&mut self, link: api::SpanContext) {
-        self.0.add_link(link)
-    }
-
-    /// Delegates to inner span.
     fn get_context(&self) -> SpanContext {
         self.0.get_context()
     }
