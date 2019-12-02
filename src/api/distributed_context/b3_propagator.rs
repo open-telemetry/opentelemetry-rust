@@ -1,6 +1,6 @@
-//! # HTTP B3 Propagator
+//! # B3 Propagator
 //!
-//! The `HttpB3Propagator` facilitates `SpanContext` propagation using
+//! The `B3Propagator` facilitates `SpanContext` propagation using
 //! B3 Headers. This propagator supports both version of B3 headers,
 //!  1. Single Header:
 //!    X-B3: {trace_id}-{span_id}-{sampling_state}-{parent_span_id}
@@ -24,14 +24,14 @@ static B3_PARENT_SPAN_ID_HEADER: &str = "X-B3-ParentSpanId";
 
 /// Extracts and injects `SpanContext`s into `Carrier`s using B3 header format.
 #[derive(Debug)]
-pub struct HttpB3Propagator {
+pub struct B3Propagator {
     single_header: bool,
 }
 
-impl HttpB3Propagator {
+impl B3Propagator {
     /// Create a new `HttpB3Propagator`.
     pub fn new(single_header: bool) -> Self {
-        HttpB3Propagator { single_header }
+        B3Propagator { single_header }
     }
 
     /// Extract trace id from hex encoded &str value.
@@ -125,7 +125,7 @@ impl HttpB3Propagator {
     }
 }
 
-impl api::HttpTextFormat for HttpB3Propagator {
+impl api::HttpTextFormat for B3Propagator {
     /// Properly encodes the values of the `SpanContext` and injects them
     /// into the `Carrier`.
     fn inject(&self, context: api::SpanContext, carrier: &mut dyn api::Carrier) {
@@ -218,8 +218,8 @@ mod test {
 
     #[test]
     fn extract_b3() {
-        let single_header_propagator = HttpB3Propagator::new(true);
-        let multi_header_propagator = HttpB3Propagator::new(false);
+        let single_header_propagator = B3Propagator::new(true);
+        let multi_header_propagator = B3Propagator::new(false);
 
         for (header, expected_context) in single_header_extract_data() {
             let mut carrier: HashMap<&'static str, String> = HashMap::new();
@@ -251,8 +251,8 @@ mod test {
 
     #[test]
     fn inject_b3() {
-        let single_header_propagator = HttpB3Propagator::new(true);
-        let multi_header_propagator = HttpB3Propagator::new(false);
+        let single_header_propagator = B3Propagator::new(true);
+        let multi_header_propagator = B3Propagator::new(false);
 
         for (expected_header, context) in single_header_inject_data() {
             let mut carrier = HashMap::new();

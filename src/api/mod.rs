@@ -19,7 +19,7 @@ pub mod metrics;
 pub mod trace;
 
 pub use self::core::{Key, KeyValue, Unit, Value};
-pub use distributed_context::http_b3_propagator::HttpB3Propagator;
+pub use distributed_context::b3_propagator::B3Propagator;
 pub use metrics::{
     counter::{Counter, CounterHandle},
     gauge::{Gauge, GaugeHandle},
