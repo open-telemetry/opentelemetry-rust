@@ -114,22 +114,22 @@ mod test {
     #[rustfmt::skip]
     fn extract_data() -> Vec<(&'static str, api::SpanContext)> {
         vec![
-            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-00", api::SpanContext::new(0x4bf92f3577b34da6a3ce929d0e0e4736, 0x00f067aa0ba902b7, 0, true)),
-            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01", api::SpanContext::new(0x4bf92f3577b34da6a3ce929d0e0e4736, 0x00f067aa0ba902b7, 1, true)),
-            ("02-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01", api::SpanContext::new(0x4bf92f3577b34da6a3ce929d0e0e4736, 0x00f067aa0ba902b7, 1, true)),
-            ("02-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-09", api::SpanContext::new(0x4bf92f3577b34da6a3ce929d0e0e4736, 0x00f067aa0ba902b7, 1, true)),
-            ("02-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-08", api::SpanContext::new(0x4bf92f3577b34da6a3ce929d0e0e4736, 0x00f067aa0ba902b7, 0, true)),
-            ("02-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-09-XYZxsf09", api::SpanContext::new(0x4bf92f3577b34da6a3ce929d0e0e4736, 0x00f067aa0ba902b7, 1, true)),
-            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01-", api::SpanContext::new(0x4bf92f3577b34da6a3ce929d0e0e4736, 0x00f067aa0ba902b7, 1, true)),
-            ("01-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-09-", api::SpanContext::new(0x4bf92f3577b34da6a3ce929d0e0e4736, 0x00f067aa0ba902b7, 1, true)),
+            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-00", api::SpanContext::new(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736, 0x00f0_67aa_0ba9_02b7, 0, true)),
+            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01", api::SpanContext::new(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736, 0x00f0_67aa_0ba9_02b7, 1, true)),
+            ("02-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01", api::SpanContext::new(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736, 0x00f0_67aa_0ba9_02b7, 1, true)),
+            ("02-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-09", api::SpanContext::new(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736, 0x00f0_67aa_0ba9_02b7, 1, true)),
+            ("02-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-08", api::SpanContext::new(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736, 0x00f0_67aa_0ba9_02b7, 0, true)),
+            ("02-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-09-XYZxsf09", api::SpanContext::new(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736, 0x00f0_67aa_0ba9_02b7, 1, true)),
+            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01-", api::SpanContext::new(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736, 0x00f0_67aa_0ba9_02b7, 1, true)),
+            ("01-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-09-", api::SpanContext::new(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736, 0x00f0_67aa_0ba9_02b7, 1, true)),
         ]
     }
     #[rustfmt::skip]
     fn inject_data() -> Vec<(&'static str, api::SpanContext)> {
         vec![
-            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01", api::SpanContext::new(0x4bf92f3577b34da6a3ce929d0e0e4736, 0x00f067aa0ba902b7, 1, true)),
-            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-00", api::SpanContext::new(0x4bf92f3577b34da6a3ce929d0e0e4736, 0x00f067aa0ba902b7, 0, true)),
-            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01", api::SpanContext::new(0x4bf92f3577b34da6a3ce929d0e0e4736, 0x00f067aa0ba902b7, 0xff, true)),
+            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01", api::SpanContext::new(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736, 0x00f0_67aa_0ba9_02b7, 1, true)),
+            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-00", api::SpanContext::new(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736, 0x00f0_67aa_0ba9_02b7, 0, true)),
+            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01", api::SpanContext::new(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736, 0x00f0_67aa_0ba9_02b7, 0xff, true)),
             ("", api::SpanContext::empty_context()),
         ]
     }
