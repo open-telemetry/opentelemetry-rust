@@ -8,5 +8,7 @@
 //! Exporters define the interface that protocol-specific exporters must
 //! implement so that they can be plugged into OpenTelemetry SDK and support
 //! sending of telemetry data.
+#[cfg(feature = "metrics")]
 pub mod metrics;
+#[cfg(feature = "trace")]
 pub mod trace;
