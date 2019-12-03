@@ -3,6 +3,7 @@
 [![Crates.io: opentelemetry](https://img.shields.io/crates/v/opentelemetry.svg)](https://crates.io/crates/opentelemetry)
 [![Documentation](https://docs.rs/opentelemetry/badge.svg)](https://docs.rs/opentelemetry)
 [![Crates.io](https://img.shields.io/crates/l/opentelemetry)](./LICENSE)
+[![GitHub Actions CI](https://github.com/open-telemetry/opentelemetry-rust/workflows/CI/badge.svg)](https://github.com/open-telemetry/opentelemetry-rust/actions?query=workflow%3ACI+branch%3Amaster)
 
 A Rust [OpenTelemetry](https://opentelemetry.io/) client.
 
