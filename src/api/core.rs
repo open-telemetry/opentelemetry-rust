@@ -171,4 +171,9 @@ impl Unit {
     pub fn new<S: Into<String>>(value: S) -> Self {
         Unit(value.into())
     }
+
+    /// View unit as &str
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
 }
