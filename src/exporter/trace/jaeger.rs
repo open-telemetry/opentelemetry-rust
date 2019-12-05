@@ -50,8 +50,8 @@ impl trace::SpanExporter for Exporter {
     type Span = sdk::Span;
 
     /// Ignored because spans export themselves on drop currently.
-    fn export(&self, _batch: Vec<Self::Span>) -> Result<(), ()> {
-        Ok(())
+    fn export(&self, _batch: Vec<Self::Span>) -> Result<trace::ExportResult, ()> {
+        Ok(trace::ExportResult::Success)
     }
 
     /// Ignored for now.

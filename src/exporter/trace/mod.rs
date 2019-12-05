@@ -3,6 +3,17 @@ use crate::api;
 
 pub mod jaeger;
 
+/// Describes the result of an export.
+#[derive(Debug)]
+pub enum ExportResult {
+    /// Batch is successfully exported.
+    Success,
+    /// Batch export failed. Caller must not retry.
+    FailedNotRetryable,
+    /// Batch export failed transiently. Caller should record error and may retry.
+    FailedRetryable,
+}
+
 /// `SpanExporter` defines the interface that protocol-specific exporters must
 /// implement so that they can be plugged into OpenTelemetry SDK and support
 /// sending of telemetry data.
@@ -28,7 +39,7 @@ pub trait SpanExporter: Send + Sync + std::fmt::Debug {
     ///
     /// This function must not block indefinitely, there must be a reasonable
     /// upper limit after which the call must time out with an error result.
-    fn export(&self, batch: Vec<Self::Span>) -> Result<(), ()>;
+    fn export(&self, batch: Vec<Self::Span>) -> Result<ExportResult, ()>;
 
     /// Shuts down the exporter. Called when SDK is shut down. This is an
     /// opportunity for exporter to do any cleanup required.
