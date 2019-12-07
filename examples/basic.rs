@@ -18,7 +18,7 @@ fn init_tracer() {
         })
         .init();
     let provider = sdk::Provider::builder()
-        .with_exporter(exporter)
+        .with_simple_exporter(exporter)
         .with_config(sdk::Config {
             default_sampler: Sampler::Always,
             ..Default::default()

@@ -91,10 +91,13 @@
 //! Please review the W3C specification for details on the [Tracestate
 //! field](https://www.w3.org/TR/trace-context/#tracestate-field).
 //!
+pub mod event;
+pub mod link;
 pub mod noop;
 pub mod propagator;
 pub mod provider;
 pub mod sampler;
 pub mod span;
 pub mod span_context;
+pub mod span_processor;
 pub mod tracer;

@@ -1,4 +1,4 @@
-//! # Trace Span SDK
+//! # Span
 //!
 //! `Span`s represent a single operation within a trace. `Span`s can be nested to form a trace
 //! tree. Each trace contains a root span, which typically describes the end-to-end latency and,
@@ -8,8 +8,7 @@
 //! start time is set to the current time on span creation. After the `Span` is created, it
 //! is possible to change its name, set its `Attributes`, and add `Links` and `Events`.
 //! These cannot be changed after the `Span`'s end time has been set.
-use crate::api;
-use crate::exporter::trace::jaeger;
+use crate::{api, exporter, sdk};
 use std::any::Any;
 use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
@@ -18,18 +17,56 @@ use std::time::SystemTime;
 #[derive(Clone, Debug)]
 pub struct Span {
     id: u64,
-    data: Arc<Mutex<jaeger::Span>>,
+    inner: Arc<SpanInner>,
+}
+
+/// Inner data, processed and exported on drop
+#[derive(Debug)]
+struct SpanInner {
+    data: Option<Mutex<exporter::trace::SpanData>>,
+    tracer: sdk::Tracer,
 }
 
 impl Span {
-    pub(crate) fn new(id: u64, inner: jaeger::Span) -> Self {
+    pub(crate) fn new(
+        id: u64,
+        data: Option<exporter::trace::SpanData>,
+        tracer: sdk::Tracer,
+    ) -> Self {
         Span {
             id,
-            data: Arc::new(Mutex::new(inner)),
+            inner: Arc::new(SpanInner {
+                data: data.map(Mutex::new),
+                tracer,
+            }),
         }
     }
+
+    /// Return span id
     pub(crate) fn id(&self) -> u64 {
         self.id
+    }
+
+    /// Operate on reference to span inner
+    fn with_data<T, F>(&self, f: F) -> Option<T>
+    where
+        F: FnOnce(&exporter::trace::SpanData) -> T,
+    {
+        self.inner
+            .data
+            .as_ref()
+            .and_then(|inner| inner.lock().ok().map(|span_data| f(&span_data)))
+    }
+
+    /// Operate on mutable reference to span inner
+    fn with_data_mut<T, F>(&self, f: F) -> Option<T>
+    where
+        F: FnOnce(&mut exporter::trace::SpanData) -> T,
+    {
+        self.inner
+            .data
+            .as_ref()
+            .and_then(|inner| inner.lock().ok().map(|mut span_data| f(&mut span_data)))
     }
 }
 
@@ -39,36 +76,23 @@ impl api::Span for Span {
     /// Note that the OpenTelemetry project documents certain ["standard event names and
     /// keys"](https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/data-semantic-conventions.md)
     /// which have prescribed semantic meanings.
-    fn add_event_with_timestamp(&mut self, message: String, _timestamp: SystemTime) {
-        let _ = self.data.try_lock().map(|mut span_data| {
-            span_data.log(|log| {
-                log.std().event(message);
-            });
+    fn add_event_with_timestamp(&mut self, message: String, timestamp: SystemTime) {
+        self.with_data_mut(|data| {
+            data.message_events
+                .push_front(api::Event { message, timestamp })
         });
     }
 
     /// Returns the `SpanContext` for the given `Span`.
     fn get_context(&self) -> api::SpanContext {
-        self.data
-            .try_lock()
-            .ok()
-            .and_then(|span_data| {
-                span_data.context().map(|context| {
-                    let state = context.state();
-                    let trace_id = u128::from_str_radix(&state.trace_id().to_string(), 16).unwrap();
-                    let trace_flags = if state.is_sampled() { 1 } else { 0 };
-                    let is_remote = false; // TODO determine remote state
-
-                    api::SpanContext::new(trace_id, state.span_id(), trace_flags, is_remote)
-                })
-            })
+        self.with_data(|data| data.context.clone())
             .unwrap_or_else(|| api::SpanContext::new(0, 0, 0, false))
     }
 
     /// Returns true if this `Span` is recording information like events with the `add_event`
     /// operation, attributes using `set_attributes`, status with `set_status`, etc.
     fn is_recording(&self) -> bool {
-        true
+        self.inner.data.is_some()
     }
 
     /// Sets a single `Attribute` where the attribute properties are passed as arguments.
@@ -77,35 +101,49 @@ impl api::Span for Span {
     /// attributes"](https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/data-semantic-conventions.md)
     /// that have prescribed semantic meanings.
     fn set_attribute(&mut self, attribute: api::KeyValue) {
-        let _ = self.data.try_lock().map(|mut span_data| {
-            let api::KeyValue { key, value } = attribute;
-            span_data.set_tag(|| jaeger::Tag::new(key, value.to_string()));
+        self.with_data_mut(|data| {
+            data.attributes.push_front(attribute);
         });
     }
 
     /// Sets the status of the `Span`. If used, this will override the default `Span`
     /// status, which is `OK`.
-    fn set_status(&mut self, _status: String) {
-        // Ignored for now
+    fn set_status(&mut self, status: api::SpanStatus) {
+        self.with_data_mut(|data| {
+            data.status = status;
+        });
     }
 
     /// Updates the `Span`'s name.
     fn update_name(&mut self, new_name: String) {
-        let _ = self
-            .data
-            .try_lock()
-            .map(|mut span_data| span_data.set_operation_name(|| new_name));
+        self.with_data_mut(|data| {
+            data.name = new_name;
+        });
     }
 
     /// Finishes the span.
     fn end(&mut self) {
-        let _ = self.data.try_lock().map(|mut span_data| {
-            span_data.set_finish_time(SystemTime::now);
+        self.with_data_mut(|data| {
+            data.end_time = SystemTime::now();
         });
     }
 
     /// Returns self as any
     fn as_any(&self) -> &dyn Any {
         self
+    }
+}
+
+impl Drop for SpanInner {
+    /// Report span on inner drop
+    fn drop(&mut self) {
+        if let Some(data) = self.data.take() {
+            if let Ok(inner) = data.lock() {
+                let exportable_span = Arc::new(inner.clone());
+                for processor in self.tracer.provider().span_processors() {
+                    processor.on_end(exportable_span.clone())
+                }
+            }
+        }
     }
 }

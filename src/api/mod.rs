@@ -29,11 +29,14 @@ pub use metrics::{
     Instrument, InstrumentHandle, LabelSet, Measurement, Meter, MetricOptions,
 };
 pub use trace::{
+    event::Event,
+    link::Link,
     noop::{NoopProvider, NoopSpan, NoopTracer},
     propagator::{BinaryFormat, Carrier, HttpTextFormat},
     provider::Provider,
-    sampler::Sampler,
-    span::Span,
+    sampler::{Sampler, SamplingDecision, SamplingResult},
+    span::{Span, SpanKind, SpanStatus},
     span_context::{SpanContext, TRACE_FLAGS_UNUSED, TRACE_FLAG_SAMPLED},
+    span_processor::SpanProcessor,
     tracer::{Tracer, TracerGenerics},
 };

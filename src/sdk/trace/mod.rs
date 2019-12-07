@@ -7,6 +7,9 @@
 //! current operation execution.
 //! * The `Provider` struct which configures and produces `Tracer`s.
 pub mod config;
+pub mod evicted_queue;
 pub mod provider;
+pub mod sampler;
 pub mod span;
+pub mod span_processor;
 pub mod tracer;

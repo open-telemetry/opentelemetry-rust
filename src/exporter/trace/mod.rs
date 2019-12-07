@@ -1,7 +1,7 @@
 //! Trace exporters
-use crate::api;
-
-pub mod jaeger;
+use crate::{api, sdk};
+use std::sync::Arc;
+use std::time::SystemTime;
 
 /// Describes the result of an export.
 #[derive(Debug)]
@@ -28,8 +28,6 @@ pub enum ExportResult {
 /// functionality such as queuing, batching, tagging, etc. as helpers. This
 /// functionality will be applicable regardless of what protocol exporter is used.
 pub trait SpanExporter: Send + Sync + std::fmt::Debug {
-    /// The type of `Span` that is exported
-    type Span: api::Span;
     /// Exports a batch of telemetry data. Protocol exporters that will implement
     /// this function are typically expected to serialize and transmit the data
     /// to the destination.
@@ -39,7 +37,7 @@ pub trait SpanExporter: Send + Sync + std::fmt::Debug {
     ///
     /// This function must not block indefinitely, there must be a reasonable
     /// upper limit after which the call must time out with an error result.
-    fn export(&self, batch: Vec<Self::Span>) -> Result<ExportResult, ()>;
+    fn export(&self, batch: Vec<Arc<SpanData>>) -> ExportResult;
 
     /// Shuts down the exporter. Called when SDK is shut down. This is an
     /// opportunity for exporter to do any cleanup required.
@@ -55,4 +53,30 @@ pub trait SpanExporter: Send + Sync + std::fmt::Debug {
 
     /// Allows exporter to be downcast
     fn as_any(&self) -> &dyn std::any::Any;
+}
+
+/// `SpanData` contains all the information collected by a `Span` and can be used
+/// by exporters as a standard input.
+#[derive(Clone, Debug)]
+pub struct SpanData {
+    /// Exportable `SpanContext`
+    pub context: api::SpanContext,
+    /// Span parent id
+    pub parent_span_id: u64,
+    /// Span kind
+    pub span_kind: api::SpanKind,
+    /// Span operation name
+    pub name: String,
+    /// Span start time
+    pub start_time: SystemTime,
+    /// Span end time
+    pub end_time: SystemTime,
+    /// Span attributes
+    pub attributes: sdk::EvictedQueue<api::KeyValue>,
+    /// Span Message events
+    pub message_events: sdk::EvictedQueue<api::Event>,
+    /// Span Links
+    pub links: sdk::EvictedQueue<api::Link>,
+    /// Span status
+    pub status: api::SpanStatus,
 }
