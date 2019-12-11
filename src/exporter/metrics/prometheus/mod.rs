@@ -9,8 +9,9 @@ use crate::api;
 use crate::sdk;
 use api::Key;
 pub use prometheus::{
-    default_registry, Counter, CounterVec, Encoder, Gauge, GaugeVec, Histogram, HistogramOpts,
-    HistogramVec, IntCounter, IntCounterVec, IntGauge, IntGaugeVec, Opts, Registry, TextEncoder,
+    default_registry, gather, Counter, CounterVec, Encoder, Gauge, GaugeVec, Histogram,
+    HistogramOpts, HistogramVec, IntCounter, IntCounterVec, IntGauge, IntGaugeVec, Opts, Registry,
+    TextEncoder,
 };
 use std::collections::HashMap;
 use std::sync::Arc;

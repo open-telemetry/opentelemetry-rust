@@ -8,7 +8,7 @@ use std::marker;
 use std::sync::Arc;
 
 /// A no-op instance of a `Meter`.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct NoopMeter {}
 
 impl api::Meter for NoopMeter {
@@ -102,13 +102,13 @@ impl api::Meter for NoopMeter {
 }
 
 /// A no-op instance of `LabelSet`.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct NoopLabelSet {}
 
 impl api::LabelSet for NoopLabelSet {}
 
 /// A no-op instance of all metric `InstrumentHandler`
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct NoopHandle<T> {
     _marker: marker::PhantomData<T>,
 }
@@ -126,7 +126,7 @@ impl<T> api::GaugeHandle<T> for NoopHandle<T> where T: Into<api::MeasurementValu
 impl<T> api::MeasureHandle<T> for NoopHandle<T> where T: Into<api::MeasurementValue> {}
 
 /// A no-op instance of a `Counter`.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct NoopCounter<T> {
     _marker: marker::PhantomData<T>,
 }
@@ -159,7 +159,7 @@ impl<T> api::Instrument<NoopLabelSet> for NoopCounter<T> {
 }
 
 /// A no-op instance of a `Gauge`.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct NoopGauge<T> {
     _marker: marker::PhantomData<T>,
 }
@@ -219,7 +219,7 @@ impl<T> api::Instrument<NoopLabelSet> for NoopGauge<T> {
 }
 
 /// A no-op instance of a `Measure`.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct NoopMeasure<T> {
     _marker: marker::PhantomData<T>,
 }

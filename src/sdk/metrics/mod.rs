@@ -36,14 +36,22 @@ impl Meter {
     }
 
     /// Build prometheus `Opts` from `name` and `description`.
-    fn build_opts(&self, name: String, description: String) -> prometheus::Opts {
+    fn build_opts(
+        &self,
+        mut name: String,
+        unit: api::Unit,
+        description: String,
+    ) -> prometheus::Opts {
+        if !unit.as_str().is_empty() {
+            name.push_str(&format!("_{}", unit.as_str()));
+        }
         // Prometheus cannot have empty help strings
         let help = if !description.is_empty() {
             description
         } else {
             format!("{} metric", name)
         };
-        prometheus::Opts::new(name, help).namespace(format!("{}_", self.component))
+        prometheus::Opts::new(name, help).namespace(self.component)
     }
 }
 
@@ -82,11 +90,11 @@ impl api::Meter for Meter {
     ) -> Self::I64Counter {
         let api::MetricOptions {
             description,
-            unit: _unit,
+            unit,
             keys,
             alternate: _alternative,
         } = opts;
-        let counter_opts = self.build_opts(name.into(), description);
+        let counter_opts = self.build_opts(name.into(), unit, description);
         let labels = prometheus::convert_labels(&keys);
         let counter = prometheus::IntCounterVec::new(counter_opts, &labels).unwrap();
         self.registry.register(Box::new(counter.clone())).unwrap();
@@ -102,11 +110,11 @@ impl api::Meter for Meter {
     ) -> Self::F64Counter {
         let api::MetricOptions {
             description,
-            unit: _unit,
+            unit,
             keys,
             alternate: _alternative,
         } = opts;
-        let counter_opts = self.build_opts(name.into(), description);
+        let counter_opts = self.build_opts(name.into(), unit, description);
         let labels = prometheus::convert_labels(&keys);
         let counter = prometheus::CounterVec::new(counter_opts, &labels).unwrap();
         self.registry.register(Box::new(counter.clone())).unwrap();
@@ -118,11 +126,11 @@ impl api::Meter for Meter {
     fn new_i64_gauge<S: Into<String>>(&self, name: S, opts: api::MetricOptions) -> Self::I64Gauge {
         let api::MetricOptions {
             description,
-            unit: _unit,
+            unit,
             keys,
             alternate: _alternative,
         } = opts;
-        let gauge_opts = self.build_opts(name.into(), description);
+        let gauge_opts = self.build_opts(name.into(), unit, description);
         let labels = prometheus::convert_labels(&keys);
         let gauge = prometheus::IntGaugeVec::new(gauge_opts, &labels).unwrap();
         self.registry.register(Box::new(gauge.clone())).unwrap();
@@ -134,11 +142,11 @@ impl api::Meter for Meter {
     fn new_f64_gauge<S: Into<String>>(&self, name: S, opts: api::MetricOptions) -> Self::F64Gauge {
         let api::MetricOptions {
             description,
-            unit: _unit,
+            unit,
             keys,
             alternate: _alternative,
         } = opts;
-        let gauge_opts = self.build_opts(name.into(), description);
+        let gauge_opts = self.build_opts(name.into(), unit, description);
         let labels = prometheus::convert_labels(&keys);
         let gauge = prometheus::GaugeVec::new(gauge_opts, &labels).unwrap();
         self.registry.register(Box::new(gauge.clone())).unwrap();
@@ -154,11 +162,11 @@ impl api::Meter for Meter {
     ) -> Self::I64Measure {
         let api::MetricOptions {
             description,
-            unit: _unit,
+            unit,
             keys,
             alternate: _alternative,
         } = opts;
-        let common_opts = self.build_opts(name.into(), description);
+        let common_opts = self.build_opts(name.into(), unit, description);
         let labels = prometheus::convert_labels(&keys);
         let histogram_opts = prometheus::HistogramOpts::from(common_opts);
         let histogram = prometheus::HistogramVec::new(histogram_opts, &labels).unwrap();
@@ -175,11 +183,11 @@ impl api::Meter for Meter {
     ) -> Self::F64Measure {
         let api::MetricOptions {
             description,
-            unit: _unit,
+            unit,
             keys,
             alternate: _alternative,
         } = opts;
-        let common_opts = self.build_opts(name.into(), description);
+        let common_opts = self.build_opts(name.into(), unit, description);
         let labels = prometheus::convert_labels(&keys);
         let histogram_opts = prometheus::HistogramOpts::from(common_opts);
         let histogram = prometheus::HistogramVec::new(histogram_opts, &labels).unwrap();

@@ -2,7 +2,7 @@ use hyper::{header::CONTENT_TYPE, rt::Future, service::service_fn_ok, Body, Resp
 use opentelemetry::api::{
     Counter, CounterHandle, Gauge, GaugeHandle, Key, Measure, MeasureHandle, Meter, MetricOptions,
 };
-use opentelemetry::exporter::metrics::prometheus::{Encoder, TextEncoder};
+use opentelemetry::exporter::metrics::prometheus::{gather, Encoder, TextEncoder};
 use opentelemetry::sdk;
 use std::time::SystemTime;
 
@@ -50,7 +50,7 @@ fn main() {
             http_counter.add(1);
             let timer = SystemTime::now();
 
-            let metric_families = prometheus::gather();
+            let metric_families = gather();
             let mut buffer = vec![];
             encoder.encode(&metric_families, &mut buffer).unwrap();
             http_body_gauge.set(buffer.len() as f64);
@@ -61,7 +61,7 @@ fn main() {
                 .body(Body::from(buffer))
                 .unwrap();
 
-            http_req_histogram.record(timer.elapsed().unwrap().as_secs_f64());
+            http_req_histogram.record(timer.elapsed().map(|t| t.as_secs_f64()).unwrap_or(0.0));
 
             response
         })
