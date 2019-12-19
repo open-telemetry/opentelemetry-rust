@@ -18,8 +18,15 @@ rand = { version = "0.7.2", optional = true }
 
 [dev-dependencies]
 hyper = "0.12.0"
+opentelemetry-jaeger = { path = "opentelemetry-jaeger", version = "0.1.0" }
+thrift = "0.13.0"
 
 [features]
 default = ["metrics", "trace"]
 trace = ["rand"]
 metrics = ["prometheus"]
+
+[workspace]
+members = [
+    "opentelemetry-jaeger",
+]

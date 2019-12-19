@@ -6,13 +6,31 @@ use opentelemetry::{global, sdk};
 use std::thread;
 use std::time::Duration;
 
-fn init_tracer() {
-    let provider = sdk::Provider::builder().build();
+fn init_tracer() -> thrift::Result<()> {
+    let exporter = opentelemetry_jaeger::Exporter::builder()
+        .with_agent_endpoint("127.0.0.1:6831".parse().unwrap())
+        .with_process(opentelemetry_jaeger::Process {
+            service_name: "trace-demo".to_string(),
+            tags: vec![
+                Key::new("exporter").string("jaeger"),
+                Key::new("float").f64(312.23),
+            ],
+        })
+        .init()?;
+    let provider = sdk::Provider::builder()
+        .with_simple_exporter(exporter)
+        .with_config(sdk::Config {
+            default_sampler: Box::new(sdk::Sampler::Always),
+            ..Default::default()
+        })
+        .build();
     global::set_provider(provider);
+
+    Ok(())
 }
 
-fn main() {
-    init_tracer();
+fn main() -> thrift::Result<()> {
+    init_tracer()?;
     let meter = sdk::Meter::new("ex_com_basic");
 
     let lemons_key = Key::new("ex_com_lemons");
@@ -62,4 +80,5 @@ fn main() {
 
     // Allow flush
     thread::sleep(Duration::from_millis(250));
+    Ok(())
 }
