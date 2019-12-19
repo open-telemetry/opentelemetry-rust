@@ -1,4 +1,96 @@
 //! # OpenTelemetry Jaeger Exporter
+//!
+//! Collects OpenTelemetry spans and reports them to a given Jaeger
+//! `agent` or `collector` endpoint. See the [Jaeger Docs] for details
+//! and deployment information.
+//!
+//! ### Jaeger Exporter Example
+//!
+//! This example expects a Jaeger agent running on `localhost:6831`.
+//!
+//! ```rust,no_run
+//! use opentelemetry::{api::Key, global, sdk};
+//!
+//! fn init_tracer() -> thrift::Result<()> {
+//!     let exporter = opentelemetry_jaeger::Exporter::builder()
+//!         .with_agent_endpoint("localhost:6831".parse().unwrap())
+//!         .with_process(opentelemetry_jaeger::Process {
+//!             service_name: "trace-demo".to_string(),
+//!             tags: vec![
+//!                 Key::new("exporter").string("jaeger"),
+//!                 Key::new("float").f64(312.23),
+//!             ],
+//!         })
+//!         .init()?;
+//!     let provider = sdk::Provider::builder()
+//!         .with_simple_exporter(exporter)
+//!         .with_config(sdk::Config {
+//!             default_sampler: Box::new(sdk::Sampler::Always),
+//!             ..Default::default()
+//!         })
+//!         .build();
+//!     global::set_provider(provider);
+//!
+//!     Ok(())
+//! }
+//!
+//! fn main() -> thrift::Result<()> {
+//!     init_tracer()?;
+//!     // Use configured tracer
+//!     Ok(())
+//! }
+//! ```
+//!
+//! ### Jaeger Collector Example
+//!
+//! If you want to skip the agent and submit spans directly to a Jaeger collector,
+//! you can enable the optional `collector_client` feature for this crate. This
+//! example expects a Jaeger collector running on `http://localhost:14268`.
+//!
+//! ```toml
+//! [dependencies]
+//! opentelemetry-jaeger = { version = "0.1", features = ["collector_client"] }
+//! ```
+//!
+//! Then you can use the [`with_collector_endpoint`] method to specify the endpoint:
+//!
+//! ```rust,ignore
+//! // Note that this requires the `collector_client` feature.
+//!
+//! use opentelemetry::{api::Key, global, sdk};
+//!
+//! fn init_tracer() -> thrift::Result<()> {
+//!     let exporter = opentelemetry_jaeger::Exporter::builder()
+//!         .with_collector_endpoint("http://localhost:14268/api/traces".to_string())
+//!         .with_process(opentelemetry_jaeger::Process {
+//!             service_name: "trace-demo".to_string(),
+//!             tags: vec![
+//!                 Key::new("exporter").string("jaeger"),
+//!                 Key::new("float").f64(312.23),
+//!             ],
+//!         })
+//!         .init()?;
+//!     let provider = sdk::Provider::builder()
+//!         .with_simple_exporter(exporter)
+//!         .with_config(sdk::Config {
+//!             default_sampler: Box::new(sdk::Sampler::Always),
+//!             ..Default::default()
+//!         })
+//!         .build();
+//!     global::set_provider(provider);
+//!
+//!     Ok(())
+//! }
+//!
+//! fn main() -> thrift::Result<()> {
+//!     init_tracer()?;
+//!     // Use configured tracer
+//!     Ok(())
+//! }
+//! ```
+//!
+//! [Jaeger Docs]: https://www.jaegertracing.io/docs/
+//! [`with_collector_endpoint`]: struct.Builder.html#with_collector_endpoint
 #![deny(missing_docs, unreachable_pub, missing_debug_implementations)]
 #![cfg_attr(test, deny(warnings))]
 mod agent;
@@ -22,14 +114,14 @@ static DEFAULT_SERVICE_NAME: &str = "OpenTelemetry";
 /// Default agent endpoint if none is provided
 static DEFAULT_AGENT_ENDPOINT: &str = "127.0.0.1:6831";
 
-/// Jaeger exporter
+/// Jaeger span exporter
 #[derive(Debug)]
 pub struct Exporter {
     process: jaeger::Process,
     uploader: Mutex<uploader::BatchUploader>,
 }
 
-/// Jaeger exporter
+/// Jaeger process configuration
 #[derive(Debug, Default)]
 pub struct Process {
     /// Jaeger service name
@@ -82,7 +174,7 @@ impl trace::SpanExporter for Exporter {
     }
 }
 
-/// Jaeger Exporter Builder
+/// Jaeger exporter builder
 #[derive(Debug)]
 pub struct Builder {
     agent_endpoint: Option<net::SocketAddr>,
@@ -115,7 +207,7 @@ impl Default for Builder {
 }
 
 impl Builder {
-    /// Assign the agent endpoint. Uses `DEFAULT_AGENT_ENDPOINT` if unset.
+    /// Assign the agent endpoint.
     pub fn with_agent_endpoint(self, agent_endpoint: net::SocketAddr) -> Self {
         Builder {
             agent_endpoint: Some(agent_endpoint),
