@@ -1,29 +1,13 @@
 use opentelemetry::api::{
-    Gauge, GaugeHandle, Key, Measure, MeasureHandle, Meter, MetricOptions, Provider, Sampler, Span,
+    Gauge, GaugeHandle, Key, Measure, MeasureHandle, Meter, MetricOptions, Provider, Span,
     TracerGenerics,
 };
-use opentelemetry::{exporter::trace::jaeger, global, sdk};
+use opentelemetry::{global, sdk};
 use std::thread;
 use std::time::Duration;
 
 fn init_tracer() {
-    let exporter = jaeger::Exporter::builder()
-        .with_collector_endpoint("127.0.0.1:6831".parse().unwrap())
-        .with_process(jaeger::Process {
-            service_name: "trace-demo",
-            tags: vec![
-                Key::new("exporter").string("jaeger"),
-                Key::new("float").f64(312.23),
-            ],
-        })
-        .init();
-    let provider = sdk::Provider::builder()
-        .with_exporter(exporter)
-        .with_config(sdk::Config {
-            default_sampler: Sampler::Always,
-            ..Default::default()
-        })
-        .build();
+    let provider = sdk::Provider::builder().build();
     global::set_provider(provider);
 }
 

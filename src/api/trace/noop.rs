@@ -68,7 +68,7 @@ impl api::Span for NoopSpan {
     }
 
     /// Ignores status
-    fn set_status(&mut self, _status: String) {
+    fn set_status(&mut self, _status: api::SpanStatus) {
         // Ignored
     }
 

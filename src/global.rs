@@ -31,7 +31,7 @@ impl api::Span for BoxedSpan {
     }
 
     /// Delegates to inner span.
-    fn set_status(&mut self, status: String) {
+    fn set_status(&mut self, status: api::SpanStatus) {
         self.0.set_status(status)
     }
 
