@@ -37,8 +37,8 @@ fn index() -> &'static str {
     })
 }
 
-fn main() -> std::io::Result<()> {
-    init_tracer();
+fn main() -> thrift::Result<()> {
+    init_tracer()?;
 
     HttpServer::new(|| {
         App::new()
@@ -46,7 +46,6 @@ fn main() -> std::io::Result<()> {
                 let tracer = global::trace_provider().get_tracer("request");
                 tracer.with_span("middleware", move |span| {
                     span.set_attribute(Key::new("path").string(req.path()));
-
                     srv.call(req).map(|res| res)
                 })
             })
@@ -54,5 +53,7 @@ fn main() -> std::io::Result<()> {
     })
     .bind("127.0.0.1:8088")
     .unwrap()
-    .run()
+    .run()?;
+
+    Ok(())
 }
