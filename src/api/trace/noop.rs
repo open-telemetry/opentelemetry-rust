@@ -86,6 +86,16 @@ impl api::Span for NoopSpan {
     fn as_any(&self) -> &dyn Any {
         self
     }
+
+    /// Ignores being marked as active
+    fn mark_as_active(&self) {
+        // Ignored
+    }
+
+    /// Ignores being marked as inactive
+    fn mark_as_inactive(&self) {
+        // Ignored
+    }
 }
 
 /// A no-op instance of a `Tracer`.
@@ -118,5 +128,9 @@ impl api::Tracer for NoopTracer {
     /// Ignores active span state.
     fn mark_span_as_inactive(&self, _span_id: u64) {
         // Noop
+    }
+
+    fn clone_span(&self, _span: &Self::Span) -> Self::Span {
+        self.invalid()
     }
 }

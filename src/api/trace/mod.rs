@@ -92,6 +92,7 @@
 //! field](https://www.w3.org/TR/trace-context/#tracestate-field).
 //!
 pub mod event;
+pub mod futures;
 pub mod link;
 pub mod noop;
 pub mod propagator;

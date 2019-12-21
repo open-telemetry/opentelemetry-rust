@@ -138,7 +138,7 @@ impl TAgentProcessFunctions {
             let ret_err = {
               ApplicationError::new(
                 ApplicationErrorKind::Unknown,
-                e.description()
+                e.to_string()
               )
             };
             Err(thrift::Error::Application(ret_err))
@@ -162,7 +162,7 @@ impl TAgentProcessFunctions {
             let ret_err = {
               ApplicationError::new(
                 ApplicationErrorKind::Unknown,
-                e.description()
+                e.to_string()
               )
             };
             Err(thrift::Error::Application(ret_err))

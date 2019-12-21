@@ -117,6 +117,22 @@ pub trait Span: Send + Sync + std::fmt::Debug {
 
     /// Used by global tracer to downcast to specific span type.
     fn as_any(&self) -> &dyn std::any::Any;
+
+    /// Mark as currently active span.
+    ///
+    /// This is the _synchronous_ api. If you are using futures, you
+    /// need to use the async api via [`instrument`].
+    ///
+    /// [`instrument`]: ../futures/trait.Instrument.html#method.instrument
+    fn mark_as_active(&self);
+
+    /// Mark as no longer active.
+    ///
+    /// This is the _synchronous_ api. If you are using futures, you
+    /// need to use the async api via [`instrument`].
+    ///
+    /// [`instrument`]: ../futures/trait.Instrument.html#method.instrument
+    fn mark_as_inactive(&self);
 }
 
 /// `SpanKind` describes the relationship between the Span, its parents,

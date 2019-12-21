@@ -7,6 +7,7 @@
 //! and exposes methods for creating and activating new `Spans`.
 //!
 //! Docs: https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/api-tracing.md#tracer
+use crate::api::Span;
 use crate::sdk;
 use crate::{api, exporter};
 use std::cell::RefCell;
@@ -110,7 +111,8 @@ impl api::Tracer for Tracer {
 
         // Build context for sampling decision
         let (no_parent, trace_id, parent_span_id, remote_parent, parent_trace_flags) = parent_span
-            .as_ref()
+            .clone()
+            .or_else(|| Some(self.get_active_span().get_context()))
             .filter(|ctx| ctx.is_valid())
             .map(|ctx| {
                 (
@@ -193,6 +195,11 @@ impl api::Tracer for Tracer {
         CURRENT_SPANS.with(|spans| {
             spans.borrow_mut().pop(span_id);
         })
+    }
+
+    /// Clone span
+    fn clone_span(&self, span: &Self::Span) -> Self::Span {
+        span.clone()
     }
 }
 
