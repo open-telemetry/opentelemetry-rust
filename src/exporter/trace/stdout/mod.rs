@@ -3,12 +3,20 @@ use std::any;
 use std::sync::Arc;
 
 #[derive(Debug)]
-/// Exporter
-pub struct Exporter {}
-
-#[derive(Debug)]
 /// Builder
 pub struct Builder {}
+
+impl Builder {
+    /// Create a new builder
+    pub fn new() -> Self {
+        Self {}
+    }
+
+    /// Build a new exporter
+    pub fn init() -> Exporter {
+        Exporter {}
+    }
+}
 
 impl Default for Builder {
     /// Return the default Exporter Builder.
@@ -17,19 +25,9 @@ impl Default for Builder {
     }
 }
 
-impl Builder {
-    /// Create a new exporter from the builder
-    pub fn init(self) -> Exporter {
-        Exporter {}
-    }
-}
-
-impl Exporter {
-    /// Create a new exporter builder.
-    pub fn builder() -> Builder {
-        Builder::default()
-    }
-}
+#[derive(Debug, Default)]
+/// Exporter
+pub struct Exporter {}
 
 impl trace::SpanExporter for Exporter {
     /// Export spans to stdout
