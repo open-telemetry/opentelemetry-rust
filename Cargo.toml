@@ -21,6 +21,8 @@ rand = { version = "0.7.2", optional = true }
 hyper = "0.12.0"
 opentelemetry-jaeger = { path = "opentelemetry-jaeger", version = "0.1.0" }
 thrift = "0.13.0"
+futures = "0.3.1"
+tokio = { version = "0.2.10", features = ["full"] }
 
 [features]
 default = ["metrics", "trace"]
