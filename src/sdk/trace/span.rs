@@ -8,6 +8,7 @@
 //! start time is set to the current time on span creation. After the `Span` is created, it
 //! is possible to change its name, set its `Attributes`, and add `Links` and `Events`.
 //! These cannot be changed after the `Span`'s end time has been set.
+use crate::api::Tracer;
 use crate::{api, exporter, sdk};
 use std::any::Any;
 use std::sync::{Arc, Mutex};
@@ -132,13 +133,26 @@ impl api::Span for Span {
     fn as_any(&self) -> &dyn Any {
         self
     }
+
+    /// Mark span as active
+    fn mark_as_active(&self) {
+        self.inner.tracer.mark_span_as_active(&self);
+    }
+
+    /// Mark span as inactive
+    fn mark_as_inactive(&self) {
+        self.inner.tracer.mark_span_as_inactive(self.id);
+    }
 }
 
 impl Drop for SpanInner {
     /// Report span on inner drop
     fn drop(&mut self) {
         if let Some(data) = self.data.take() {
-            if let Ok(inner) = data.lock() {
+            if let Ok(mut inner) = data.lock() {
+                if inner.end_time == inner.start_time {
+                    inner.end_time = SystemTime::now();
+                }
                 let exportable_span = Arc::new(inner.clone());
                 for processor in self.tracer.provider().span_processors() {
                     processor.on_end(exportable_span.clone())

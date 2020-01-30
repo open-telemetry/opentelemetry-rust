@@ -1,5 +1,4 @@
 //! Thrift UDP transport
-use std::error::Error;
 use std::net::{ToSocketAddrs, UdpSocket};
 use std::sync::{Arc, Mutex};
 use thrift::transport::{ReadHalf, WriteHalf};
@@ -46,7 +45,7 @@ impl std::io::Write for TUdpChannel {
         let mut write_buffer = self
             .write_buffer
             .lock()
-            .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err.description()))?;
+            .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err.to_string()))?;
         if write_buffer.len() + buf.len() > self.max_packet_size {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::InvalidInput,
@@ -67,7 +66,7 @@ impl std::io::Write for TUdpChannel {
         let mut write_buffer = self
             .write_buffer
             .lock()
-            .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err.description()))?;
+            .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err.to_string()))?;
         self.conn
             .send(write_buffer.as_slice())
             .map(|_| write_buffer.clear())

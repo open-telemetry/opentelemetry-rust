@@ -49,6 +49,16 @@ impl api::Span for BoxedSpan {
     fn as_any(&self) -> &dyn Any {
         self
     }
+
+    /// Mark span as currently active
+    fn mark_as_active(&self) {
+        self.0.mark_as_active()
+    }
+
+    /// Mark span as no longer active
+    fn mark_as_inactive(&self) {
+        self.0.mark_as_inactive()
+    }
 }
 
 /// `GenericTracer` allows `BoxedTracer`'s to contain and use a `Tracer` trait object.
@@ -68,6 +78,9 @@ pub trait GenericTracer: Send + Sync {
 
     /// Marks the current span as inactive
     fn mark_span_as_inactive_boxed(&self, span_id: u64);
+
+    /// Clone span
+    fn clone_span_boxed(&self, span: &dyn api::Span) -> Box<dyn api::Span>;
 }
 
 impl<S: api::Span + 'static> GenericTracer for Box<dyn api::Tracer<Span = S>> {
@@ -98,6 +111,15 @@ impl<S: api::Span + 'static> GenericTracer for Box<dyn api::Tracer<Span = S>> {
     fn mark_span_as_inactive_boxed(&self, span_id: u64) {
         self.mark_span_as_inactive(span_id)
     }
+
+    /// Clone span
+    fn clone_span_boxed(&self, some_span: &dyn api::Span) -> Box<dyn api::Span> {
+        if let Some(span) = some_span.as_any().downcast_ref::<S>() {
+            Box::new(self.clone_span(span))
+        } else {
+            self.invalid_boxed()
+        }
+    }
 }
 
 impl Tracer for dyn GenericTracer {
@@ -127,6 +149,11 @@ impl Tracer for dyn GenericTracer {
     /// Marks a given `Span` as inactive.
     fn mark_span_as_inactive(&self, span_id: u64) {
         self.mark_span_as_inactive_boxed(span_id)
+    }
+
+    /// Clone span
+    fn clone_span(&self, span: &Self::Span) -> Self::Span {
+        BoxedSpan(self.clone_span_boxed(&(*span.0)))
     }
 }
 
@@ -163,6 +190,11 @@ impl api::Tracer for BoxedTracer {
     /// Mark a given `Span` as inactive.
     fn mark_span_as_inactive(&self, span_id: u64) {
         self.0.mark_span_as_inactive(span_id)
+    }
+
+    /// Clone span
+    fn clone_span(&self, span: &Self::Span) -> Self::Span {
+        self.0.clone_span(span)
     }
 }
 

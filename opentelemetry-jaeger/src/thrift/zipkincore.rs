@@ -919,7 +919,7 @@ impl TZipkinCollectorProcessFunctions {
             let ret_err = {
               ApplicationError::new(
                 ApplicationErrorKind::Unknown,
-                e.description()
+                e.to_string()
               )
             };
             let message_ident = TMessageIdentifier::new("submitZipkinBatch", TMessageType::Exception, incoming_sequence_number);
