@@ -34,7 +34,7 @@
 //!
 //! `Span`s encapsulate:
 //!
-//! - The operation name
+//! - The span name
 //! - An immutable `SpanContext` that uniquely identifies the `Span`
 //! - A parent span in the form of a `SpanContext`, or None
 //! - A start timestamp
@@ -43,6 +43,24 @@
 //! - A list of `Link`s to other `Span`s
 //! - A list of timestamped `Event`s
 //! - A `Status`.
+//!
+//! The _span name_ is a human-readable string which concisely identifies the work
+//! represented by the `Span`, for example, an RPC method name, a function name,
+//! or the name of a subtask or stage within a larger computation. The span name
+//! should be the most general string that identifies a (statistically) interesting
+//! _class of Spans_, rather than individual Span instances. That is, "get_user" is
+//! a reasonable name, while "get_user/314159", where "314159" is a user ID, is not
+//! a good name due to its high cardinality.
+//!
+//! For example, here are potential span names for an endpoint that gets a
+//! hypothetical account information:
+//!
+//! | Span Name                 | Guidance     |
+//! | ------------------------- | ------------ |
+//! | `get`                     | Too general  |
+//! | `get_account/42`          | Too specific |
+//! | `get_account`             | Good, and account_id=42 would make a nice Span attribute |
+//! | `get_account/{accountId}` | Also good (using the "HTTP route") |
 //!
 //! The `Span`'s start and end timestamps reflect the elapsed real time of the
 //! operation. A `Span`'s start time SHOULD be set to the current time on span
@@ -91,14 +109,15 @@
 //! Please review the W3C specification for details on the [Tracestate
 //! field](https://www.w3.org/TR/trace-context/#tracestate-field).
 //!
+pub mod b3_propagator;
 pub mod event;
 pub mod futures;
 pub mod link;
 pub mod noop;
-pub mod propagator;
 pub mod provider;
 pub mod sampler;
 pub mod span;
 pub mod span_context;
 pub mod span_processor;
+pub mod trace_context_propagator;
 pub mod tracer;

@@ -65,7 +65,7 @@ pub struct SpanData {
     pub parent_span_id: u64,
     /// Span kind
     pub span_kind: api::SpanKind,
-    /// Span operation name
+    /// Span name
     pub name: String,
     /// Span start time
     pub start_time: SystemTime,
