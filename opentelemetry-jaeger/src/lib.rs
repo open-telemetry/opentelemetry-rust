@@ -141,7 +141,7 @@ impl Into<jaeger::Process> for Process {
 
 impl Exporter {
     /// Create a new exporter builder.
-    pub fn builder() -> Builder {
+    pub fn builder() -> Builder<String> {
         Builder::default()
     }
 
@@ -176,8 +176,8 @@ impl trace::SpanExporter for Exporter {
 
 /// Jaeger exporter builder
 #[derive(Debug)]
-pub struct Builder {
-    agent_endpoint: Option<net::SocketAddr>,
+pub struct Builder<T: net::ToSocketAddrs> {
+    agent_endpoint: Option<T>,
     #[cfg(feature = "collector_client")]
     collector_endpoint: Option<String>,
     #[cfg(feature = "collector_client")]
@@ -187,7 +187,7 @@ pub struct Builder {
     process: Process,
 }
 
-impl Default for Builder {
+impl<T: net::ToSocketAddrs> Default for Builder<T> {
     /// Return the default Exporter Builder.
     fn default() -> Self {
         Builder {
@@ -206,9 +206,9 @@ impl Default for Builder {
     }
 }
 
-impl Builder {
+impl<T: net::ToSocketAddrs> Builder<T> {
     /// Assign the agent endpoint.
-    pub fn with_agent_endpoint(self, agent_endpoint: net::SocketAddr) -> Self {
+    pub fn with_agent_endpoint(self, agent_endpoint: T) -> Self {
         Builder {
             agent_endpoint: Some(agent_endpoint),
             ..self
@@ -259,10 +259,15 @@ impl Builder {
 
     #[cfg(not(feature = "collector_client"))]
     fn init_uploader(self) -> ::thrift::Result<(Process, uploader::BatchUploader)> {
-        let endpoint = self
-            .agent_endpoint
-            .unwrap_or_else(|| DEFAULT_AGENT_ENDPOINT.parse().unwrap());
-        let agent = agent::AgentSyncClientUDP::new(endpoint, None)?;
+        let agent = if let Some(endpoint) = self.agent_endpoint {
+            agent::AgentSyncClientUDP::new(endpoint, None)?
+        } else {
+            agent::AgentSyncClientUDP::new(
+                DEFAULT_AGENT_ENDPOINT.parse::<net::SocketAddr>().unwrap(),
+                None,
+            )?
+        };
+
         Ok((self.process, uploader::BatchUploader::Agent(agent)))
     }
 
