@@ -10,6 +10,8 @@
 //! The spec can be viewed here: https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/api-tracing.md#spancontext
 //!
 //! [w3c TraceContext specification]: https://www.w3.org/TR/trace-context/
+#[cfg(feature = "serialize")]
+use serde::{Deserialize, Serialize};
 
 const TRACE_FLAGS_BIT_MASK_SAMPLED: u8 = 0x01;
 const TRACE_FLAGS_BIT_MASK_UNUSED: u8 = 0xFE;
@@ -21,6 +23,7 @@ pub const TRACE_FLAG_SAMPLED: u8 = TRACE_FLAGS_BIT_MASK_SAMPLED;
 pub const TRACE_FLAGS_UNUSED: u8 = TRACE_FLAGS_BIT_MASK_UNUSED;
 
 /// Immutable portion of a `Span` which can be serialized and propagated.
+#[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
 #[derive(Clone, Debug, PartialEq)]
 pub struct SpanContext {
     trace_id: u128,
