@@ -35,4 +35,5 @@ serialize = ["serde", "bincode"]
 [workspace]
 members = [
     "opentelemetry-jaeger",
+    "examples/actix",
 ]
