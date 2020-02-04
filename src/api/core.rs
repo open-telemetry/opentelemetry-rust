@@ -1,7 +1,10 @@
 //! OpenTelemetry shared core date types
+#[cfg(feature = "serialize")]
+use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 
 /// Key used for metric `LabelSet`s and trace `Span` attributes.
+#[cfg_attr(feature = "serialize", derive(Deserialize, PartialEq, Serialize))]
 #[derive(Clone, Debug)]
 pub struct Key(Cow<'static, str>);
 
@@ -92,6 +95,7 @@ impl Into<String> for Key {
 }
 
 /// Value types for use in `KeyValue` pairs.
+#[cfg_attr(feature = "serialize", derive(Deserialize, PartialEq, Serialize))]
 #[derive(Clone, Debug)]
 pub enum Value {
     /// bool values
@@ -140,6 +144,7 @@ impl Into<Cow<'static, str>> for Value {
 }
 
 /// `KeyValue` pairs are used by `LabelSet`s and `Span` attributes.
+#[cfg_attr(feature = "serialize", derive(Deserialize, PartialEq, Serialize))]
 #[derive(Clone, Debug)]
 pub struct KeyValue {
     /// Dimension or event key
