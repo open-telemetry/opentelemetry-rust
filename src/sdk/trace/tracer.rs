@@ -100,7 +100,6 @@ impl api::Tracer for Tracer {
     /// trace includes a single root span, which is the shared ancestor of all other
     /// spans in the trace.
     fn start(&self, name: &str, parent_span: Option<api::SpanContext>) -> Self::Span {
-        let name = format!("{}/{}", self.name, name);
         let config = self.provider.config();
         let span_id: u64 = rand::random();
 
@@ -131,7 +130,7 @@ impl api::Tracer for Tracer {
                 parent_span.as_ref(),
                 trace_id,
                 span_id,
-                &name,
+                name,
                 &span_kind,
                 &attribute_options,
                 &link_options,
@@ -152,7 +151,7 @@ impl api::Tracer for Tracer {
                 context: api::SpanContext::new(trace_id, span_id, trace_flags, false),
                 parent_span_id,
                 span_kind,
-                name,
+                name: name.to_string(),
                 start_time: SystemTime::now(),
                 end_time: SystemTime::now(),
                 attributes,

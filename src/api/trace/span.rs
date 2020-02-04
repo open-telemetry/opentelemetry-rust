@@ -16,6 +16,8 @@
 //! implementations MUST NOT allow callers to create Spans directly. All `Span`s MUST be created
 //! via a Tracer.
 use crate::api;
+#[cfg(feature = "serialize")]
+use serde::{Deserialize, Serialize};
 use std::time::SystemTime;
 
 /// Interface for a single operation within a trace.
@@ -168,6 +170,7 @@ pub trait Span: Send + Sync + std::fmt::Debug {
 /// | `PRODUCER` |     | yes |     | yes |
 /// | `CONSUMER` |     | yes | yes |     |
 /// | `INTERNAL` |     |     |     |     |
+#[cfg_attr(feature = "serialize", derive(Deserialize, PartialEq, Serialize))]
 #[derive(Clone, Debug)]
 pub enum SpanKind {
     /// Indicates that the span describes a synchronous request to
@@ -195,6 +198,7 @@ pub enum SpanKind {
 /// The `SpanStatus` interface represents the status of a finished `Span`.
 /// It's composed of a canonical code in conjunction with an optional
 /// descriptive message.
+#[cfg_attr(feature = "serialize", derive(Deserialize, PartialEq, Serialize))]
 #[derive(Clone, Debug)]
 pub enum SpanStatus {
     /// OK is returned on success.

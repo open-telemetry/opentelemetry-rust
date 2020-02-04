@@ -1,5 +1,7 @@
 //! Trace exporters
 use crate::{api, sdk};
+#[cfg(feature = "serialize")]
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::SystemTime;
 
@@ -57,6 +59,7 @@ pub trait SpanExporter: Send + Sync + std::fmt::Debug {
 
 /// `SpanData` contains all the information collected by a `Span` and can be used
 /// by exporters as a standard input.
+#[cfg_attr(feature = "serialize", derive(Deserialize, PartialEq, Serialize))]
 #[derive(Clone, Debug)]
 pub struct SpanData {
     /// Exportable `SpanContext`
@@ -79,4 +82,52 @@ pub struct SpanData {
     pub links: sdk::EvictedQueue<api::Link>,
     /// Span status
     pub status: api::SpanStatus,
+}
+
+#[cfg(feature = "serialize")]
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_serialise() {
+        let trace_id = 7;
+        let span_id = 99;
+
+        let trace_flags = 0;
+        let remote = false;
+        let context = api::SpanContext::new(trace_id, span_id, trace_flags, remote);
+
+        let parent_span_id = 1;
+        let span_kind = api::SpanKind::Client;
+        let name = "foo/bar baz 人?!".to_string();
+        let start_time = SystemTime::now();
+        let end_time = SystemTime::now();
+
+        let capacity = 3;
+        let attributes = sdk::EvictedQueue::new(capacity);
+        let message_events = sdk::EvictedQueue::new(capacity);
+        let links = sdk::EvictedQueue::new(capacity);
+
+        let status = api::SpanStatus::OK;
+
+        let span_data = SpanData {
+            context,
+            parent_span_id,
+            span_kind,
+            name,
+            start_time,
+            end_time,
+            attributes,
+            message_events,
+            links,
+            status,
+        };
+
+        let encoded: Vec<u8> = bincode::serialize(&span_data).unwrap();
+
+        let decoded: SpanData = bincode::deserialize(&encoded[..]).unwrap();
+
+        assert_eq!(span_data, decoded);
+    }
 }
