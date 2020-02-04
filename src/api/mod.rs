@@ -14,12 +14,11 @@
 //! which implements the delivery of the telemetry. The application must also configure exporters
 //! so that the SDK knows where and how to deliver the telemetry.
 pub mod core;
-pub mod distributed_context;
 pub mod metrics;
+pub mod propagation;
 pub mod trace;
 
 pub use self::core::{Key, KeyValue, Unit, Value};
-pub use distributed_context::b3_propagator::B3Propagator;
 pub use metrics::{
     counter::{Counter, CounterHandle},
     gauge::{Gauge, GaugeHandle},
@@ -28,15 +27,17 @@ pub use metrics::{
     value::MeasurementValue,
     Instrument, InstrumentHandle, LabelSet, Measurement, Meter, MetricOptions,
 };
+pub use propagation::{binary_propagator::BinaryFormat, text_propagator::HttpTextFormat, Carrier};
 pub use trace::{
+    b3_propagator::B3Propagator,
     event::Event,
     link::Link,
     noop::{NoopProvider, NoopSpan, NoopTracer},
-    propagator::{BinaryFormat, Carrier, HttpTextFormat},
     provider::Provider,
     sampler::{Sampler, SamplingDecision, SamplingResult},
     span::{Span, SpanKind, SpanStatus},
     span_context::{SpanContext, TRACE_FLAGS_UNUSED, TRACE_FLAG_SAMPLED},
     span_processor::SpanProcessor,
+    trace_context_propagator::TraceContextPropagator,
     tracer::{Tracer, TracerGenerics},
 };

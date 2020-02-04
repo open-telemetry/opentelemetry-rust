@@ -8,6 +8,16 @@
 use crate::api;
 use std::convert::TryInto;
 
+/// Used to serialize and deserialize `SpanContext`s to and from  a binary
+/// representation.
+pub trait BinaryFormat {
+    /// Serializes span context into a byte array and returns the array.
+    fn to_bytes(&self, context: &api::SpanContext) -> [u8; 29];
+
+    /// Deserializes a span context from a byte array.
+    fn from_bytes(&self, bytes: Vec<u8>) -> api::SpanContext;
+}
+
 /// Extracts and injects `SpanContext`s from byte arrays.
 #[derive(Debug, Default)]
 pub struct BinaryPropagator {}
@@ -19,7 +29,7 @@ impl BinaryPropagator {
     }
 }
 
-impl api::BinaryFormat for BinaryPropagator {
+impl BinaryFormat for BinaryPropagator {
     /// Serializes span context into a byte array and returns the array.
     fn to_bytes(&self, context: &api::SpanContext) -> [u8; 29] {
         let mut res = [0u8; 29];
