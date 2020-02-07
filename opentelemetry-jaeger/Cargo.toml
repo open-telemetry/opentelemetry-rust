@@ -12,8 +12,8 @@ license = "Apache-2.0"
 edition = "2018"
 
 [dependencies]
-opentelemetry = { version = "0.2.0", path = ".." }
-reqwest = { version = "0.10.0-alpha.2", features = ["blocking"], optional = true }
+opentelemetry = "0.2.0"
+reqwest = { version = "0.10.1", features = ["blocking"], optional = true }
 thrift = "0.13.0"
 
 [features]
