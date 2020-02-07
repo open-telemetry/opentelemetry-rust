@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2018"
 
 [dependencies]
-opentelemetry = { path = "../../", version = "0.1.5" }
+opentelemetry = { path = "../../", version = "0.2.0" }
 opentelemetry-jaeger = { path = "../../opentelemetry-jaeger", version = "0.1.0" }
 thrift = "0.13.0"
 
