@@ -28,6 +28,10 @@ fn main() {
 
 See the [opentelemetry-example-app](./examples/basic.rs) for a complete example.
 
+## Contributing
+
+See the [contributing file](CONTRIBUTING.md).
+
 ## Release Schedule
 
 OpenTelemetry Rust is under active development. Below is the release schedule for the Rust library. The first version
