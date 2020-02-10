@@ -12,14 +12,23 @@ use crate::sdk;
 use crate::{api, exporter};
 use std::cell::RefCell;
 use std::collections::HashSet;
+use std::fmt;
 use std::sync::Arc;
 use std::time::SystemTime;
 
 /// `Tracer` implementation to create and manage spans
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct Tracer {
     name: &'static str,
     provider: sdk::Provider,
+}
+
+impl fmt::Debug for Tracer {
+    /// Formats the `Tracer` using the given formatter.
+    /// Omitting `provider` here is necessary to avoid cycles.
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Tracer").field("name", &self.name).finish()
+    }
 }
 
 impl Tracer {
