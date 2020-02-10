@@ -92,10 +92,12 @@ your Rust code
 * Run `cargo fmt` - this will find and fix code formatting
 issues.
 
-## Testing
+## Testing and Benchmarking
 
 * Run `cargo test --all` - this will execute code and doc tests for all
 projects in this workspace.
+* Run `cargo bench` - this will run benchmarks to show performance 
+regressions
 
 ## Approvers and Maintainers
 
