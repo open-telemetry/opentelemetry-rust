@@ -19,13 +19,19 @@ use {
     std::{any::Any, sync::Arc},
 };
 
-// I would prefer this to be in the OUT_DIR but the include macro doesn't behave
-// with these files.
-pub mod proto;
+mod proto {
+    include!(concat!(env!("OUT_DIR"), "/mod.rs"));
+}
 
 /// Exports opentelemetry tracing spans to Google StackDriver.
 #[derive(Debug)]
 pub struct StackDriverExporter {}
+
+impl StackDriverExporter {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
 
 impl SpanExporter for StackDriverExporter {
     fn export(&self, batch: Vec<Arc<SpanData>>) -> ExportResult {
