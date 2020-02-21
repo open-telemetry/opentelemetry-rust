@@ -19,6 +19,10 @@ use {
     std::{any::Any, sync::Arc},
 };
 
+// I would prefer this to be in the OUT_DIR but the include macro doesn't behave
+// with these files.
+pub mod proto;
+
 /// Exports opentelemetry tracing spans to Google StackDriver.
 #[derive(Debug)]
 pub struct StackDriverExporter {}
