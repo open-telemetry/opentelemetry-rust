@@ -79,13 +79,11 @@ impl SpanExporter for StackDriverExporter {
             CallOption::default(),
         );
         match result {
-            Ok(_) => {
-                ExportResult::Success
-            },
+            Ok(_) => ExportResult::Success,
             Err(e) => {
                 log::error!("StackDriver push failed {:?}", e);
-                ExportResult::FailedNotRetryable 
-            },
+                ExportResult::FailedNotRetryable
+            }
         }
     }
 
