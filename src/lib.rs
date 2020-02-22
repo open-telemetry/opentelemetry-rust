@@ -16,8 +16,12 @@
 
 use {
     derivative::Derivative,
-    grpcio::{ChannelBuilder, ChannelCredentials, Client, Environment},
+    grpcio::{
+        CallOption, ChannelBuilder, ChannelCredentials, Client, Environment, Marshaller, Method,
+        MethodType,
+    },
     opentelemetry::exporter::trace::{ExportResult, SpanData, SpanExporter},
+    protobuf::Message,
     std::{any::Any, sync::Arc},
 };
 
@@ -48,6 +52,32 @@ impl StackDriverExporter {
 
 impl SpanExporter for StackDriverExporter {
     fn export(&self, batch: Vec<Arc<SpanData>>) -> ExportResult {
+        use proto::tracing::BatchWriteSpansRequest;
+        use protobuf::well_known_types::Empty;
+        let Self { client } = self;
+        let req = BatchWriteSpansRequest::new();
+        let result = client.unary_call(
+            &Method {
+                ty: MethodType::Unary,
+                name: "google.devtools.cloudtrace.v2.TraceService.BatchWriteSpans",
+                req_mar: Marshaller {
+                    ser: |thiz: &BatchWriteSpansRequest, v: &mut Vec<u8>| {
+                        thiz.write_to_vec(v).unwrap()
+                    },
+                    de: |b: &[u8]| {
+                        let mut ret = BatchWriteSpansRequest::new();
+                        ret.merge_from_bytes(b)?;
+                        Ok(ret)
+                    },
+                },
+                resp_mar: Marshaller {
+                    ser: |thiz: &Empty, v: &mut Vec<u8>| thiz.write_to_vec(v).unwrap(),
+                    de: |_: &[u8]| Ok(Empty::new()),
+                },
+            },
+            &req,
+            CallOption::default(),
+        );
         ExportResult::Success
     }
 
