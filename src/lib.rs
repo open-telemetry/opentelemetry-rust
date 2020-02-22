@@ -15,21 +15,34 @@
 */
 
 use {
+    derivative::Derivative,
+    grpcio::{ChannelBuilder, ChannelCredentials, Client, Environment},
     opentelemetry::exporter::trace::{ExportResult, SpanData, SpanExporter},
     std::{any::Any, sync::Arc},
 };
 
-mod proto {
+pub mod proto {
     include!(concat!(env!("OUT_DIR"), "/mod.rs"));
 }
 
 /// Exports opentelemetry tracing spans to Google StackDriver.
-#[derive(Debug)]
-pub struct StackDriverExporter {}
+#[derive(Derivative)]
+#[derivative(Debug)]
+pub struct StackDriverExporter {
+    #[derivative(Debug = "ignore")]
+    client: Client,
+}
 
 impl StackDriverExporter {
     pub fn new() -> Self {
-        Self {}
+        Self {
+            client: Client::new(
+                ChannelBuilder::new(Arc::new(Environment::new(num_cpus::get()))).secure_connect(
+                    "cloudtrace.googleapis.com:443",
+                    ChannelCredentials::google_default_credentials().unwrap(),
+                ),
+            ),
+        }
     }
 }
 
@@ -47,8 +60,10 @@ impl SpanExporter for StackDriverExporter {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     #[test]
     fn it_works() {
-        assert_eq!(2 + 2, 4);
+        StackDriverExporter::new();
     }
 }

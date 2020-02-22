@@ -7,9 +7,11 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [build-dependencies]
-protoc-rust-grpc = "0.6" 
+protoc-grpcio = "1.1" 
 
 [dependencies]
-grpc = "0.6"
-protobuf = "2.0"
+derivative = "1.0"
+grpcio = { version = "0.4", features = ["openssl"] }
 opentelemetry = "0.2"
+num_cpus = "1.12"
+protobuf = "2.0"
