@@ -20,25 +20,40 @@ use {
         CallOption, ChannelBuilder, ChannelCredentials, Client, Environment, Marshaller, Method,
         MethodType,
     },
-    opentelemetry::exporter::trace::{ExportResult, SpanData, SpanExporter},
-    protobuf::Message,
-    std::{any::Any, sync::Arc},
+    opentelemetry::{
+        api::core::Value,
+        exporter::trace::{ExportResult, SpanData, SpanExporter},
+    },
+    protobuf::{
+        well_known_types::{Empty, Timestamp},
+        Message,
+    },
+    std::{any::Any, sync::Arc, time::SystemTime},
 };
 
 pub mod proto {
     include!(concat!(env!("OUT_DIR"), "/mod.rs"));
 }
 
+use proto::trace::{AttributeValue, TruncatableString, Span_TimeEvent, Span_TimeEvent_Annotation};
+
 /// Exports opentelemetry tracing spans to Google StackDriver.
+///
+/// If you'd like your span's display_name to differ from the name, please set an
+/// attribute on your span with the key "display_name".
+///
+/// As of the time of this writing, the opentelemetry crate exposes no link information
+/// so this struct does not send link information.
 #[derive(Derivative)]
 #[derivative(Debug)]
 pub struct StackDriverExporter {
     #[derivative(Debug = "ignore")]
     client: Client,
+    project_name: String,
 }
 
 impl StackDriverExporter {
-    pub fn new() -> Self {
+    pub fn new(project_name: impl Into<String>) -> Self {
         Self {
             client: Client::new(
                 ChannelBuilder::new(Arc::new(Environment::new(num_cpus::get()))).secure_connect(
@@ -46,16 +61,58 @@ impl StackDriverExporter {
                     ChannelCredentials::google_default_credentials().unwrap(),
                 ),
             ),
+            project_name: project_name.into(),
         }
     }
 }
 
 impl SpanExporter for StackDriverExporter {
     fn export(&self, batch: Vec<Arc<SpanData>>) -> ExportResult {
-        use proto::tracing::BatchWriteSpansRequest;
-        use protobuf::well_known_types::Empty;
-        let Self { client } = self;
-        let req = BatchWriteSpansRequest::new();
+        use proto::{trace::Span, tracing::BatchWriteSpansRequest};
+        let Self {
+            client,
+            project_name,
+        } = self;
+        let mut req = BatchWriteSpansRequest::new();
+        req.set_name(project_name.clone());
+        for span in batch {
+            let mut new_span = Span::new();
+            new_span.set_name(format!(
+                "projects/{}/traces/{}/spans/{}",
+                project_name,
+                hex::encode(span.context.trace_id().to_be_bytes()),
+                hex::encode(span.context.span_id().to_be_bytes())
+            ));
+            new_span.set_display_name(to_truncate(span.name.clone()));
+            new_span.set_span_id(span.context.span_id().to_string());
+            new_span.set_parent_span_id(span.parent_span_id.to_string());
+            new_span.set_start_time(system_time_to_timestamp(span.start_time));
+            new_span.set_end_time(system_time_to_timestamp(span.end_time));
+            new_span.mut_attributes().set_attribute_map(
+                span.attributes
+                    .iter()
+                    .map(|kv| {
+                        (
+                            kv.key.inner().clone().into_owned(),
+                            attribute_value_conversion(kv.value.clone()),
+                        )
+                    })
+                    .collect(),
+            );
+            for event in span.message_events.iter() {
+                new_span.mut_time_events().mut_time_event().push({
+                    let mut time_event = Span_TimeEvent::new();
+                    time_event.set_time(system_time_to_timestamp(event.timestamp));
+                    time_event.set_annotation({
+                        let mut a = Span_TimeEvent_Annotation::new();
+                        a.set_description(to_truncate(event.message.clone()));
+                        a
+                    });
+                    time_event
+                });
+            }
+            req.mut_spans().push(new_span);
+        }
         let result = client.unary_call(
             &Method {
                 ty: MethodType::Unary,
@@ -94,12 +151,39 @@ impl SpanExporter for StackDriverExporter {
     }
 }
 
+fn system_time_to_timestamp(system: SystemTime) -> Timestamp {
+    let d = system.duration_since(SystemTime::UNIX_EPOCH).unwrap();
+    let mut t = Timestamp::new();
+    t.set_seconds(d.as_secs() as i64);
+    t.set_nanos(d.subsec_nanos() as i32);
+    t
+}
+
+fn attribute_value_conversion(v: Value) -> AttributeValue {
+    let mut a = AttributeValue::new();
+    match v {
+        Value::Bool(v) => a.set_bool_value(v),
+        Value::Bytes(v) => a.set_string_value(to_truncate(hex::encode(&v))),
+        Value::F64(v) => a.set_string_value(to_truncate(v.to_string())),
+        Value::I64(v) => a.set_int_value(v),
+        Value::String(v) => a.set_string_value(to_truncate(v)),
+        Value::U64(v) => a.set_int_value(v as i64),
+    }
+    a
+}
+
+fn to_truncate(s: String) -> TruncatableString {
+    let mut t = TruncatableString::new();
+    t.set_value(s);
+    t
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn it_works() {
-        StackDriverExporter::new();
+        StackDriverExporter::new("fake-project");
     }
 }
