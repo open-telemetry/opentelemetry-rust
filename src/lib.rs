@@ -31,16 +31,13 @@ use {
     std::{any::Any, sync::Arc, time::SystemTime},
 };
 
-pub mod proto {
+mod proto {
     include!(concat!(env!("OUT_DIR"), "/mod.rs"));
 }
 
 use proto::trace::{AttributeValue, TruncatableString, Span_TimeEvent, Span_TimeEvent_Annotation};
 
 /// Exports opentelemetry tracing spans to Google StackDriver.
-///
-/// If you'd like your span's display_name to differ from the name, please set an
-/// attribute on your span with the key "display_name".
 ///
 /// As of the time of this writing, the opentelemetry crate exposes no link information
 /// so this struct does not send link information.
@@ -74,7 +71,7 @@ impl SpanExporter for StackDriverExporter {
             project_name,
         } = self;
         let mut req = BatchWriteSpansRequest::new();
-        req.set_name(project_name.clone());
+        req.set_name(format!("projects/{}", project_name));
         for span in batch {
             let mut new_span = Span::new();
             new_span.set_name(format!(
@@ -116,7 +113,7 @@ impl SpanExporter for StackDriverExporter {
         let result = client.unary_call(
             &Method {
                 ty: MethodType::Unary,
-                name: "google.devtools.cloudtrace.v2.TraceService.BatchWriteSpans",
+                name: "/google.devtools.cloudtrace.v2.TraceService/BatchWriteSpans",
                 req_mar: Marshaller {
                     ser: |thiz: &BatchWriteSpansRequest, v: &mut Vec<u8>| {
                         thiz.write_to_vec(v).unwrap()
