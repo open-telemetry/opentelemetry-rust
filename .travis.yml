@@ -1,0 +1,20 @@
+language: rust
+rust:
+ - stable
+cache: cargo
+
+before_install:
+  - sudo apt-get -y install protobuf-compiler gcc
+
+script:
+  - cargo build --verbose
+  - cargo test --verbose
+  - cargo doc --verbose
+
+deploy:
+  provider: pages
+  skip_cleanup: true
+  github_token: $GITHUB_TOKEN
+  on:
+    branch: gh-pages
+  local_dir: target/docs/
