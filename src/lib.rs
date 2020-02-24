@@ -25,7 +25,7 @@ use {
     std::{any::Any, sync::Arc, time::SystemTime},
 };
 
-pub mod proto {
+mod proto {
     include!(concat!(env!("OUT_DIR"), "/mod.rs"));
 }
 
