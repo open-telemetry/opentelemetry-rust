@@ -4,7 +4,11 @@ rust:
 cache: cargo
 
 before_install:
-  - sudo apt-get -y install protobuf-compiler gcc
+  - sudo apt-get -y install unzip gcc
+  - curl -L -O https://github.com/protocolbuffers/protobuf/releases/download/v3.11.4/protoc-3.11.4-linux-x86_64.zip
+  - unzip protoc-3.11.4-linux-x86_64.zip -d protoc
+  - cp protoc/bin/protoc /usr/bin/protoc
+  - cp -r protoc/include/* /usr/include/
 
 script:
   - cargo build --verbose
