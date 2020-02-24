@@ -11,6 +11,7 @@ protoc-grpcio = "1.1"
 
 [dependencies]
 derivative = "1.0"
+futures = "0.1"
 grpcio = { version = "0.4", features = ["openssl"] }
 hex = "0.4"
 log = "0.4"

@@ -4,9 +4,15 @@ static MOD_RS: &[u8] = b"
 /// Generated from protobuf.
 pub mod tracing;
 /// Generated from protobuf.
+pub mod tracing_grpc;
+/// Generated from protobuf.
 pub mod trace;
 /// Generated from protobuf.
 pub mod status;
+
+pub mod empty {
+    pub use protobuf::well_known_types::Empty;
+}
 
 ";
 

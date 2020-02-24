@@ -16,26 +16,23 @@
 
 use {
     derivative::Derivative,
-    grpcio::{
-        CallOption, ChannelBuilder, ChannelCredentials, Client, Environment, Marshaller, Method,
-        MethodType,
-    },
+    grpcio::{ChannelBuilder, ChannelCredentials, Environment},
     opentelemetry::{
         api::core::Value,
         exporter::trace::{ExportResult, SpanData, SpanExporter},
     },
-    protobuf::{
-        well_known_types::{Empty, Timestamp},
-        Message,
-    },
+    protobuf::well_known_types::Timestamp,
     std::{any::Any, sync::Arc, time::SystemTime},
 };
 
-mod proto {
+pub mod proto {
     include!(concat!(env!("OUT_DIR"), "/mod.rs"));
 }
 
-use proto::trace::{AttributeValue, TruncatableString, Span_TimeEvent, Span_TimeEvent_Annotation};
+use proto::{
+    trace::{AttributeValue, Span_TimeEvent, Span_TimeEvent_Annotation, TruncatableString},
+    tracing_grpc::TraceServiceClient,
+};
 
 /// Exports opentelemetry tracing spans to Google StackDriver.
 ///
@@ -45,14 +42,14 @@ use proto::trace::{AttributeValue, TruncatableString, Span_TimeEvent, Span_TimeE
 #[derivative(Debug)]
 pub struct StackDriverExporter {
     #[derivative(Debug = "ignore")]
-    client: Client,
+    client: TraceServiceClient,
     project_name: String,
 }
 
 impl StackDriverExporter {
     pub fn new(project_name: impl Into<String>) -> Self {
         Self {
-            client: Client::new(
+            client: TraceServiceClient::new(
                 ChannelBuilder::new(Arc::new(Environment::new(num_cpus::get()))).secure_connect(
                     "cloudtrace.googleapis.com:443",
                     ChannelCredentials::google_default_credentials().unwrap(),
@@ -110,29 +107,7 @@ impl SpanExporter for StackDriverExporter {
             }
             req.mut_spans().push(new_span);
         }
-        let result = client.unary_call(
-            &Method {
-                ty: MethodType::Unary,
-                name: "/google.devtools.cloudtrace.v2.TraceService/BatchWriteSpans",
-                req_mar: Marshaller {
-                    ser: |thiz: &BatchWriteSpansRequest, v: &mut Vec<u8>| {
-                        thiz.write_to_vec(v).unwrap()
-                    },
-                    de: |b: &[u8]| {
-                        let mut ret = BatchWriteSpansRequest::new();
-                        ret.merge_from_bytes(b)?;
-                        Ok(ret)
-                    },
-                },
-                resp_mar: Marshaller {
-                    ser: |thiz: &Empty, v: &mut Vec<u8>| thiz.write_to_vec(v).unwrap(),
-                    de: |_: &[u8]| Ok(Empty::new()),
-                },
-            },
-            &req,
-            CallOption::default(),
-        );
-        match result {
+        match client.batch_write_spans(&req) {
             Ok(_) => ExportResult::Success,
             Err(e) => {
                 log::error!("StackDriver push failed {:?}", e);
