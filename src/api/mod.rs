@@ -39,5 +39,5 @@ pub use trace::{
     span_context::{SpanContext, SpanId, TraceId, TRACE_FLAGS_UNUSED, TRACE_FLAG_SAMPLED},
     span_processor::SpanProcessor,
     trace_context_propagator::TraceContextPropagator,
-    tracer::{Tracer, TracerGenerics},
+    tracer::{SpanBuilder, Tracer, TracerGenerics},
 };

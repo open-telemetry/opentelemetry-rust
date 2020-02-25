@@ -14,3 +14,18 @@ pub struct Event {
     /// Event timestamp
     pub timestamp: SystemTime,
 }
+
+impl Event {
+    /// Create new `Event`
+    pub fn new(message: String, timestamp: SystemTime) -> Self {
+        Event { message, timestamp }
+    }
+
+    /// Create new `Event` for a given message.
+    pub fn from_message(message: String) -> Self {
+        Event {
+            message,
+            timestamp: SystemTime::now(),
+        }
+    }
+}

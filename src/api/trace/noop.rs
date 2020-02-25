@@ -120,6 +120,16 @@ impl api::Tracer for NoopTracer {
         api::NoopSpan::new()
     }
 
+    /// Starts a SpanBuilder
+    fn span_builder(&self, name: &str) -> api::SpanBuilder {
+        api::SpanBuilder::from_name(name.to_string())
+    }
+
+    /// Builds a `NoopSpan` from a `SpanBuilder`
+    fn build(&self, _builder: api::SpanBuilder) -> Self::Span {
+        self.invalid()
+    }
+
     /// Returns a new `NoopSpan` as this tracer does not maintain a registry.
     fn get_active_span(&self) -> Self::Span {
         api::NoopSpan::new()
