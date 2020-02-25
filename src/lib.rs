@@ -78,8 +78,8 @@ impl SpanExporter for StackDriverExporter {
                 hex::encode(span.context.span_id().to_be_bytes())
             ));
             new_span.set_display_name(to_truncate(span.name.clone()));
-            new_span.set_span_id(span.context.span_id().to_string());
-            new_span.set_parent_span_id(span.parent_span_id.to_string());
+            new_span.set_span_id(hex::encode(span.context.span_id().to_be_bytes()));
+            new_span.set_parent_span_id(hex::encode(span.parent_span_id.to_be_bytes()));
             new_span.set_start_time(system_time_to_timestamp(span.start_time));
             new_span.set_end_time(system_time_to_timestamp(span.end_time));
             new_span.mut_attributes().set_attribute_map(
