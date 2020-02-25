@@ -19,6 +19,7 @@ futures = "0.1"
 grpcio = { version = "0.4", features = ["openssl"] }
 hex = "0.4"
 log = "0.4"
-opentelemetry = "0.2"
 num_cpus = "1.12"
+opentelemetry = "0.2"
 protobuf = "2.0"
+tokio = "0.1"

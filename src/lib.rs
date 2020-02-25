@@ -22,7 +22,12 @@ use {
         exporter::trace::{ExportResult, SpanData, SpanExporter},
     },
     protobuf::well_known_types::Timestamp,
-    std::{any::Any, sync::Arc, time::SystemTime},
+    std::{
+        any::Any,
+        sync::{Arc, Mutex},
+        time::SystemTime,
+    },
+    tokio::{prelude::Future, runtime::Runtime},
 };
 
 mod proto {
@@ -44,6 +49,7 @@ pub struct StackDriverExporter {
     #[derivative(Debug = "ignore")]
     client: TraceServiceClient,
     project_name: String,
+    runtime: Mutex<Runtime>,
 }
 
 impl StackDriverExporter {
@@ -56,6 +62,7 @@ impl StackDriverExporter {
                 ),
             ),
             project_name: project_name.into(),
+            runtime: Mutex::new(Runtime::new().unwrap()),
         }
     }
 }
@@ -66,6 +73,7 @@ impl SpanExporter for StackDriverExporter {
         let Self {
             client,
             project_name,
+            runtime,
         } = self;
         let mut req = BatchWriteSpansRequest::new();
         req.set_name(format!("projects/{}", project_name));
@@ -107,13 +115,18 @@ impl SpanExporter for StackDriverExporter {
             }
             req.mut_spans().push(new_span);
         }
-        match client.batch_write_spans(&req) {
-            Ok(_) => ExportResult::Success,
+        match client.batch_write_spans_async(&req) {
+            Ok(f) => {
+                runtime.lock().unwrap().spawn(
+                    f.map(|_| ())
+                        .map_err(|e| log::error!("StackDriver responded with error {:?}", e)),
+                );
+            }
             Err(e) => {
                 log::error!("StackDriver push failed {:?}", e);
-                ExportResult::FailedNotRetryable
             }
         }
+        ExportResult::Success
     }
 
     fn shutdown(&self) {}
