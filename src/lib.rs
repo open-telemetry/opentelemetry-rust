@@ -16,7 +16,7 @@
 
 use {
     derivative::Derivative,
-    grpcio::{ChannelBuilder, ChannelCredentials, Environment},
+    grpcio::{ChannelBuilder, ChannelCredentials, Environment, Error as GrpcioError},
     opentelemetry::{
         api::core::Value,
         exporter::trace::{ExportResult, SpanData, SpanExporter},
@@ -53,17 +53,17 @@ pub struct StackDriverExporter {
 }
 
 impl StackDriverExporter {
-    pub fn new(project_name: impl Into<String>) -> Self {
-        Self {
+    pub fn new(project_name: impl Into<String>) -> Result<Self, GrpcioError> {
+        Ok(Self {
             client: TraceServiceClient::new(
                 ChannelBuilder::new(Arc::new(Environment::new(num_cpus::get()))).secure_connect(
                     "cloudtrace.googleapis.com:443",
-                    ChannelCredentials::google_default_credentials().unwrap(),
+                    ChannelCredentials::google_default_credentials()?,
                 ),
             ),
             project_name: project_name.into(),
             runtime: Mutex::new(Runtime::new().unwrap()),
-        }
+        })
     }
 }
 
