@@ -22,12 +22,38 @@ pub const TRACE_FLAG_SAMPLED: u8 = TRACE_FLAGS_BIT_MASK_SAMPLED;
 /// Useful for extracting trace context
 pub const TRACE_FLAGS_UNUSED: u8 = TRACE_FLAGS_BIT_MASK_UNUSED;
 
+/// TraceId is an 16-byte value which uniquely identifies a given trace
+/// The actual `u128` value is wrapped in a tuple struct in order to leverage the newtype pattern
+#[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
+#[derive(Clone, Debug, PartialEq, Eq, Copy, Hash)]
+pub struct TraceId(pub u128);
+
+impl TraceId {
+    /// Construct a new invalid (zero-valued) TraceId
+    pub(crate) fn invalid() -> Self {
+        TraceId(0)
+    }
+}
+
+/// SpanId is an 8-byte value which uniquely identifies a given span within a trace
+/// The actual `u64` value is wrapped in a tuple struct in order to leverage the newtype pattern
+#[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
+#[derive(Clone, Debug, PartialEq, Eq, Copy, Hash)]
+pub struct SpanId(pub u64);
+
+impl SpanId {
+    /// Construct a new invalid (zero-valued) SpanId
+    pub(crate) fn invalid() -> Self {
+        SpanId(0)
+    }
+}
+
 /// Immutable portion of a `Span` which can be serialized and propagated.
 #[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
 #[derive(Clone, Debug, PartialEq)]
 pub struct SpanContext {
-    trace_id: u128,
-    span_id: u64,
+    trace_id: TraceId,
+    span_id: SpanId,
     trace_flags: u8,
     is_remote: bool,
 }
@@ -35,11 +61,11 @@ pub struct SpanContext {
 impl SpanContext {
     /// Create an invalid empty span context
     pub fn empty_context() -> Self {
-        SpanContext::new(0, 0, 0, false)
+        SpanContext::new(TraceId::invalid(), SpanId::invalid(), 0, false)
     }
 
     /// Construct a new `SpanContext`
-    pub fn new(trace_id: u128, span_id: u64, trace_flags: u8, is_remote: bool) -> Self {
+    pub fn new(trace_id: TraceId, span_id: SpanId, trace_flags: u8, is_remote: bool) -> Self {
         SpanContext {
             trace_id,
             span_id,
@@ -49,12 +75,12 @@ impl SpanContext {
     }
 
     /// A valid trace identifier is a non-zero `u128`.
-    pub fn trace_id(&self) -> u128 {
+    pub fn trace_id(&self) -> TraceId {
         self.trace_id
     }
 
     /// A valid span identifier is a non-zero `u64`.
-    pub fn span_id(&self) -> u64 {
+    pub fn span_id(&self) -> SpanId {
         self.span_id
     }
 
@@ -67,7 +93,7 @@ impl SpanContext {
     /// Returns a bool flag which is true if the `SpanContext` has a valid (non-zero) `trace_id`
     /// and a valid (non-zero) `span_id`.
     pub fn is_valid(&self) -> bool {
-        self.trace_id != 0 && self.span_id != 0
+        self.trace_id.0 != 0 && self.span_id.0 != 0
     }
 
     /// Returns true if the `SpanContext` was propagated from a remote parent.

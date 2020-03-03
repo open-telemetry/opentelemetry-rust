@@ -36,10 +36,9 @@ impl BinaryFormat for BinaryPropagator {
         if !context.is_valid() {
             return res;
         }
-
-        res[2..18].copy_from_slice(&context.trace_id().to_be_bytes());
+        res[2..18].copy_from_slice(&context.trace_id().0.to_be_bytes());
         res[18] = 1;
-        res[19..27].copy_from_slice(&context.span_id().to_be_bytes());
+        res[19..27].copy_from_slice(&context.span_id().0.to_be_bytes());
         res[27] = 2;
         res[28] = context.trace_flags();
 
@@ -69,7 +68,12 @@ impl BinaryFormat for BinaryPropagator {
             trace_flags = b[1]
         }
 
-        let span_context = api::SpanContext::new(trace_id, span_id, trace_flags, true);
+        let span_context = api::SpanContext::new(
+            api::trace::span_context::TraceId(trace_id),
+            api::trace::span_context::SpanId(span_id),
+            trace_flags,
+            true,
+        );
 
         if span_context.is_valid() {
             span_context
@@ -82,19 +86,17 @@ impl BinaryFormat for BinaryPropagator {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::api::trace::span_context::{SpanId, TraceId};
     use crate::api::BinaryFormat;
 
     #[rustfmt::skip]
     fn to_bytes_data() -> Vec<(api::SpanContext, [u8; 29])> {
         vec![
             // Context with sampled
-            (api::SpanContext::new(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736, 0x00f0_67aa_0ba9_02b7, 1, true), [
-                0x00, 0x00, 0x4b, 0xf9, 0x2f, 0x35, 0x77, 0xb3, 0x4d, 0xa6, 0xa3, 0xce, 0x92, 0x9d, 0x0e, 0x0e, 0x47, 0x36,
-                0x01, 0x00, 0xf0, 0x67, 0xaa, 0x0b, 0xa9, 0x02, 0xb7,
-                0x02, 0x01,
+            (api::SpanContext::new(TraceId(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId(0x00f0_67aa_0ba9_02b7), 1, true), [ 0x00, 0x00, 0x4b, 0xf9, 0x2f, 0x35, 0x77, 0xb3, 0x4d, 0xa6, 0xa3, 0xce, 0x92, 0x9d, 0x0e, 0x0e, 0x47, 0x36, 0x01, 0x00, 0xf0, 0x67, 0xaa, 0x0b, 0xa9, 0x02, 0xb7, 0x02, 0x01,
             ]),
             // Context without sampled
-            (api::SpanContext::new(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736, 0x00f0_67aa_0ba9_02b7, 0, true), [
+            (api::SpanContext::new(TraceId(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId(0x00f0_67aa_0ba9_02b7), 0, true), [
                 0x00, 0x00, 0x4b, 0xf9, 0x2f, 0x35, 0x77, 0xb3, 0x4d, 0xa6, 0xa3, 0xce, 0x92, 0x9d, 0x0e, 0x0e, 0x47, 0x36,
                 0x01, 0x00, 0xf0, 0x67, 0xaa, 0x0b, 0xa9, 0x02, 0xb7,
                 0x02, 0x00,
@@ -108,19 +110,19 @@ mod test {
     fn from_bytes_data() -> Vec<(api::SpanContext, Vec<u8>)> {
         vec![
             // Future version of the proto
-            (api::SpanContext::new(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736, 0x00f0_67aa_0ba9_02b7, 1, true), vec![
+            (api::SpanContext::new(TraceId(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId(0x00f0_67aa_0ba9_02b7), 1, true), vec![
                 0x02, 0x00, 0x4b, 0xf9, 0x2f, 0x35, 0x77, 0xb3, 0x4d, 0xa6, 0xa3, 0xce, 0x92, 0x9d, 0x0e, 0x0e, 0x47, 0x36,
                 0x01, 0x00, 0xf0, 0x67, 0xaa, 0x0b, 0xa9, 0x02, 0xb7,
                 0x02, 0x01,
             ]),
             // current version with sampled
-            (api::SpanContext::new(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736, 0x00f0_67aa_0ba9_02b7, 1, true), vec![
+            (api::SpanContext::new(TraceId(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId(0x00f0_67aa_0ba9_02b7), 1, true), vec![
                 0x02, 0x00, 0x4b, 0xf9, 0x2f, 0x35, 0x77, 0xb3, 0x4d, 0xa6, 0xa3, 0xce, 0x92, 0x9d, 0x0e, 0x0e, 0x47, 0x36,
                 0x01, 0x00, 0xf0, 0x67, 0xaa, 0x0b, 0xa9, 0x02, 0xb7,
                 0x02, 0x01,
             ]),
             // valid context without option
-            (api::SpanContext::new(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736, 0x00f0_67aa_0ba9_02b7, 0, true), vec![
+            (api::SpanContext::new(TraceId(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId(0x00f0_67aa_0ba9_02b7), 0, true), vec![
                 0x00, 0x00, 0x4b, 0xf9, 0x2f, 0x35, 0x77, 0xb3, 0x4d, 0xa6, 0xa3, 0xce, 0x92, 0x9d, 0x0e, 0x0e, 0x47, 0x36,
                 0x01, 0x00, 0xf0, 0x67, 0xaa, 0x0b, 0xa9, 0x02, 0xb7,
             ]),

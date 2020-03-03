@@ -36,7 +36,12 @@ impl NoopSpan {
     /// Creates a new `NoopSpan` instance.
     pub fn new() -> Self {
         NoopSpan {
-            span_context: api::SpanContext::new(0, 0, 0, false),
+            span_context: api::SpanContext::new(
+                api::trace::span_context::TraceId::invalid(),
+                api::trace::span_context::SpanId::invalid(),
+                0,
+                false,
+            ),
         }
     }
 }
@@ -126,7 +131,7 @@ impl api::Tracer for NoopTracer {
     }
 
     /// Ignores active span state.
-    fn mark_span_as_inactive(&self, _span_id: u64) {
+    fn mark_span_as_inactive(&self, _span_id: api::trace::span_context::SpanId) {
         // Noop
     }
 

@@ -17,7 +17,7 @@ use std::time::SystemTime;
 /// Single operation within a trace.
 #[derive(Clone, Debug)]
 pub struct Span {
-    id: u64,
+    id: api::trace::span_context::SpanId,
     inner: Arc<SpanInner>,
 }
 
@@ -30,7 +30,7 @@ struct SpanInner {
 
 impl Span {
     pub(crate) fn new(
-        id: u64,
+        id: api::trace::span_context::SpanId,
         data: Option<exporter::trace::SpanData>,
         tracer: sdk::Tracer,
     ) -> Self {
@@ -44,7 +44,7 @@ impl Span {
     }
 
     /// Return span id
-    pub(crate) fn id(&self) -> u64 {
+    pub(crate) fn id(&self) -> api::trace::span_context::SpanId {
         self.id
     }
 
@@ -87,7 +87,14 @@ impl api::Span for Span {
     /// Returns the `SpanContext` for the given `Span`.
     fn get_context(&self) -> api::SpanContext {
         self.with_data(|data| data.context.clone())
-            .unwrap_or_else(|| api::SpanContext::new(0, 0, 0, false))
+            .unwrap_or_else(|| {
+                api::SpanContext::new(
+                    api::trace::span_context::TraceId::invalid(),
+                    api::trace::span_context::SpanId::invalid(),
+                    0,
+                    false,
+                )
+            })
     }
 
     /// Returns true if this `Span` is recording information like events with the `add_event`

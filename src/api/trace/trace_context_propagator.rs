@@ -51,10 +51,14 @@ impl TraceContextPropagator {
         }
 
         // Parse trace id section
-        let trace_id = u128::from_str_radix(parts[1], 16).map_err(|_| ())?;
+        let trace_id = u128::from_str_radix(parts[1], 16)
+            .map_err(|_| ())
+            .map(api::trace::span_context::TraceId)?;
 
         // Parse span id section
-        let span_id = u64::from_str_radix(parts[2], 16).map_err(|_| ())?;
+        let span_id = u64::from_str_radix(parts[2], 16)
+            .map_err(|_| ())
+            .map(api::trace::span_context::SpanId)?;
 
         // Parse trace flags section
         let opts = u8::from_str_radix(parts[3], 16).map_err(|_| ())?;
@@ -86,8 +90,8 @@ impl api::HttpTextFormat for TraceContextPropagator {
             let header_value = format!(
                 "{:02x}-{:032x}-{:016x}-{:02x}",
                 SUPPORTED_VERSION,
-                context.trace_id(),
-                context.span_id(),
+                context.trace_id().0,
+                context.span_id().0,
                 context.trace_flags() & api::TRACE_FLAG_SAMPLED
             );
             carrier.set(TRACEPARENT_HEADER, header_value)
@@ -108,28 +112,29 @@ impl api::HttpTextFormat for TraceContextPropagator {
 mod test {
     use super::*;
 
+    use crate::api::trace::span_context::{SpanId, TraceId};
     use crate::api::{Carrier, HttpTextFormat};
     use std::collections::HashMap;
 
     #[rustfmt::skip]
     fn extract_data() -> Vec<(&'static str, api::SpanContext)> {
         vec![
-            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-00", api::SpanContext::new(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736, 0x00f0_67aa_0ba9_02b7, 0, true)),
-            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01", api::SpanContext::new(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736, 0x00f0_67aa_0ba9_02b7, 1, true)),
-            ("02-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01", api::SpanContext::new(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736, 0x00f0_67aa_0ba9_02b7, 1, true)),
-            ("02-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-09", api::SpanContext::new(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736, 0x00f0_67aa_0ba9_02b7, 1, true)),
-            ("02-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-08", api::SpanContext::new(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736, 0x00f0_67aa_0ba9_02b7, 0, true)),
-            ("02-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-09-XYZxsf09", api::SpanContext::new(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736, 0x00f0_67aa_0ba9_02b7, 1, true)),
-            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01-", api::SpanContext::new(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736, 0x00f0_67aa_0ba9_02b7, 1, true)),
-            ("01-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-09-", api::SpanContext::new(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736, 0x00f0_67aa_0ba9_02b7, 1, true)),
+            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-00", api::SpanContext::new(TraceId(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId(0x00f0_67aa_0ba9_02b7), 0, true)),
+            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01", api::SpanContext::new(TraceId(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId(0x00f0_67aa_0ba9_02b7), 1, true)),
+            ("02-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01", api::SpanContext::new(TraceId(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId(0x00f0_67aa_0ba9_02b7), 1, true)),
+            ("02-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-09", api::SpanContext::new(TraceId(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId(0x00f0_67aa_0ba9_02b7), 1, true)),
+            ("02-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-08", api::SpanContext::new(TraceId(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId(0x00f0_67aa_0ba9_02b7), 0, true)),
+            ("02-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-09-XYZxsf09", api::SpanContext::new(TraceId(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId(0x00f0_67aa_0ba9_02b7), 1, true)),
+            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01-", api::SpanContext::new(TraceId(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId(0x00f0_67aa_0ba9_02b7), 1, true)),
+            ("01-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-09-", api::SpanContext::new(TraceId(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId(0x00f0_67aa_0ba9_02b7), 1, true)),
         ]
     }
     #[rustfmt::skip]
     fn inject_data() -> Vec<(&'static str, api::SpanContext)> {
         vec![
-            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01", api::SpanContext::new(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736, 0x00f0_67aa_0ba9_02b7, 1, true)),
-            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-00", api::SpanContext::new(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736, 0x00f0_67aa_0ba9_02b7, 0, true)),
-            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01", api::SpanContext::new(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736, 0x00f0_67aa_0ba9_02b7, 0xff, true)),
+            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01", api::SpanContext::new(TraceId(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId(0x00f0_67aa_0ba9_02b7), 1, true)),
+            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-00", api::SpanContext::new(TraceId(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId(0x00f0_67aa_0ba9_02b7), 0, true)),
+            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01", api::SpanContext::new(TraceId(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId(0x00f0_67aa_0ba9_02b7), 0xff, true)),
             ("", api::SpanContext::empty_context()),
         ]
     }

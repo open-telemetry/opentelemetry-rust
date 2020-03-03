@@ -16,7 +16,12 @@ impl api::HttpTextFormat for NoopTextFormat {
 
     /// Always returns invalid span contexts
     fn extract(&self, _carrier: &dyn api::Carrier) -> api::SpanContext {
-        api::SpanContext::new(0, 0, 0, false)
+        api::SpanContext::new(
+            api::trace::span_context::TraceId::invalid(),
+            api::trace::span_context::SpanId::invalid(),
+            0,
+            false,
+        )
     }
 }
 
@@ -31,6 +36,11 @@ impl api::BinaryFormat for NoopBinaryFormat {
 
     /// Always returns invalid span contexts
     fn from_bytes(&self, _bytes: Vec<u8>) -> api::SpanContext {
-        api::SpanContext::new(0, 0, 0, false)
+        api::SpanContext::new(
+            api::trace::span_context::TraceId::invalid(),
+            api::trace::span_context::SpanId::invalid(),
+            0,
+            false,
+        )
     }
 }
