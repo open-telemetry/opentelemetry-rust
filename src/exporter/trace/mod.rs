@@ -65,7 +65,7 @@ pub struct SpanData {
     /// Exportable `SpanContext`
     pub context: api::SpanContext,
     /// Span parent id
-    pub parent_span_id: api::trace::span_context::SpanId,
+    pub parent_span_id: api::SpanId,
     /// Span kind
     pub span_kind: api::SpanKind,
     /// Span name
@@ -88,7 +88,6 @@ pub struct SpanData {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::api::trace::span_context::{SpanId, TraceId};
 
     #[test]
     fn test_serialise() {
@@ -97,8 +96,12 @@ mod tests {
 
         let trace_flags = 0;
         let remote = false;
-        let context =
-            api::SpanContext::new(TraceId(trace_id), SpanId(span_id), trace_flags, remote);
+        let context = api::SpanContext::new(
+            api::TraceId::from_u128(trace_id),
+            api::SpanId::from_u64(span_id),
+            trace_flags,
+            remote,
+        );
 
         let parent_span_id = 1;
         let span_kind = api::SpanKind::Client;
@@ -115,7 +118,7 @@ mod tests {
 
         let span_data = SpanData {
             context,
-            parent_span_id: api::trace::span_context::SpanId(parent_span_id),
+            parent_span_id: api::SpanId::from_u64(parent_span_id),
             span_kind,
             name,
             start_time,

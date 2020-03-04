@@ -36,7 +36,7 @@ pub use trace::{
     provider::Provider,
     sampler::{Sampler, SamplingDecision, SamplingResult},
     span::{Span, SpanKind, SpanStatus},
-    span_context::{SpanContext, TRACE_FLAGS_UNUSED, TRACE_FLAG_SAMPLED},
+    span_context::{SpanContext, SpanId, TraceId, TRACE_FLAGS_UNUSED, TRACE_FLAG_SAMPLED},
     span_processor::SpanProcessor,
     trace_context_propagator::TraceContextPropagator,
     tracer::{Tracer, TracerGenerics},

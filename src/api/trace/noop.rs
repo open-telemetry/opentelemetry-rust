@@ -37,8 +37,8 @@ impl NoopSpan {
     pub fn new() -> Self {
         NoopSpan {
             span_context: api::SpanContext::new(
-                api::trace::span_context::TraceId::invalid(),
-                api::trace::span_context::SpanId::invalid(),
+                api::TraceId::invalid(),
+                api::SpanId::invalid(),
                 0,
                 false,
             ),
@@ -131,7 +131,7 @@ impl api::Tracer for NoopTracer {
     }
 
     /// Ignores active span state.
-    fn mark_span_as_inactive(&self, _span_id: api::trace::span_context::SpanId) {
+    fn mark_span_as_inactive(&self, _span_id: api::SpanId) {
         // Noop
     }
 

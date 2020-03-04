@@ -26,12 +26,22 @@ pub const TRACE_FLAGS_UNUSED: u8 = TRACE_FLAGS_BIT_MASK_UNUSED;
 /// The actual `u128` value is wrapped in a tuple struct in order to leverage the newtype pattern
 #[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
 #[derive(Clone, Debug, PartialEq, Eq, Copy, Hash)]
-pub struct TraceId(pub u128);
+pub struct TraceId(u128);
 
 impl TraceId {
     /// Construct a new invalid (zero-valued) TraceId
-    pub(crate) fn invalid() -> Self {
+    pub fn invalid() -> Self {
         TraceId(0)
+    }
+
+    /// Convert from u128 to TraceId
+    pub fn from_u128(item: u128) -> Self {
+        TraceId(item)
+    }
+
+    /// Convert from TraceId to u128
+    pub fn to_u128(self) -> u128 {
+        self.0
     }
 }
 
@@ -39,12 +49,22 @@ impl TraceId {
 /// The actual `u64` value is wrapped in a tuple struct in order to leverage the newtype pattern
 #[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
 #[derive(Clone, Debug, PartialEq, Eq, Copy, Hash)]
-pub struct SpanId(pub u64);
+pub struct SpanId(u64);
 
 impl SpanId {
     /// Construct a new invalid (zero-valued) SpanId
-    pub(crate) fn invalid() -> Self {
+    pub fn invalid() -> Self {
         SpanId(0)
+    }
+
+    /// Convert from u64 to SpanId
+    pub fn from_u64(item: u64) -> Self {
+        SpanId(item)
+    }
+
+    /// Convert from SpanId to u64
+    pub fn to_u64(self) -> u64 {
+        self.0
     }
 }
 

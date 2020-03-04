@@ -22,8 +22,8 @@ impl api::Sampler for Sampler {
     fn should_sample(
         &self,
         parent_context: Option<&api::SpanContext>,
-        _trace_id: api::trace::span_context::TraceId,
-        _span_id: api::trace::span_context::SpanId,
+        _trace_id: api::TraceId,
+        _span_id: api::SpanId,
         _name: &str,
         _span_kind: &api::SpanKind,
         _attributes: &[api::KeyValue],

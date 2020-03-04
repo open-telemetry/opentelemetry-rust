@@ -47,8 +47,8 @@ impl Tracer {
     fn make_sampling_decision(
         &self,
         parent_context: Option<&api::SpanContext>,
-        trace_id: api::trace::span_context::TraceId,
-        span_id: api::trace::span_context::SpanId,
+        trace_id: api::TraceId,
+        span_id: api::SpanId,
         name: &str,
         span_kind: &api::SpanKind,
         attributes: &[api::KeyValue],
@@ -98,11 +98,7 @@ impl api::Tracer for Tracer {
     /// Returns a span with an inactive `SpanContext`. Used by functions that
     /// need to return a default span like `get_active_span` if no span is present.
     fn invalid(&self) -> Self::Span {
-        sdk::Span::new(
-            api::trace::span_context::SpanId::invalid(),
-            None,
-            self.clone(),
-        )
+        sdk::Span::new(api::SpanId::invalid(), None, self.clone())
     }
 
     /// Starts a new `Span`.
@@ -114,7 +110,7 @@ impl api::Tracer for Tracer {
     /// spans in the trace.
     fn start(&self, name: &str, parent_span: Option<api::SpanContext>) -> Self::Span {
         let config = self.provider.config();
-        let span_id = api::trace::span_context::SpanId(rand::random());
+        let span_id = api::SpanId::from_u64(rand::random::<u64>());
 
         // TODO allow the following to be set when starting span
         let span_kind = api::SpanKind::Internal;
@@ -137,8 +133,8 @@ impl api::Tracer for Tracer {
             })
             .unwrap_or((
                 true,
-                api::trace::span_context::TraceId(rand::random()),
-                api::trace::span_context::SpanId::invalid(),
+                api::TraceId::from_u128(rand::random::<u128>()),
+                api::SpanId::invalid(),
                 false,
                 0,
             ));
@@ -209,7 +205,7 @@ impl api::Tracer for Tracer {
     }
 
     /// Mark a given `Span` as inactive.
-    fn mark_span_as_inactive(&self, span_id: api::trace::span_context::SpanId) {
+    fn mark_span_as_inactive(&self, span_id: api::SpanId) {
         CURRENT_SPANS.with(|spans| {
             spans.borrow_mut().pop(span_id);
         })
@@ -230,7 +226,7 @@ struct ContextId {
 /// A stack of `Span`s that can be used to track active `Span`s per thread.
 pub(crate) struct SpanStack {
     stack: Vec<ContextId>,
-    ids: HashSet<api::trace::span_context::SpanId>,
+    ids: HashSet<api::SpanId>,
 }
 
 impl SpanStack {
@@ -252,7 +248,7 @@ impl SpanStack {
     }
 
     /// Pop a `Span` from the stack
-    fn pop(&mut self, expected_id: api::trace::span_context::SpanId) -> Option<sdk::Span> {
+    fn pop(&mut self, expected_id: api::SpanId) -> Option<sdk::Span> {
         if self.stack.last()?.span.id() == expected_id {
             let ContextId { span, duplicate } = self.stack.pop()?;
             if !duplicate {
