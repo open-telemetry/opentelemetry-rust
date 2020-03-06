@@ -332,14 +332,14 @@ impl Into<jaeger::Log> for api::Event {
 impl Into<jaeger::Span> for Arc<trace::SpanData> {
     /// Convert spans to jaeger thrift span for exporting.
     fn into(self) -> jaeger::Span {
-        let trace_id = self.context.trace_id();
+        let trace_id = self.context.trace_id().to_u128();
         let trace_id_high = (trace_id >> 64) as i64;
         let trace_id_low = trace_id as i64;
         jaeger::Span {
             trace_id_low,
             trace_id_high,
-            span_id: self.context.span_id() as i64,
-            parent_span_id: self.parent_span_id as i64,
+            span_id: self.context.span_id().to_u64() as i64,
+            parent_span_id: self.parent_span_id.to_u64() as i64,
             operation_name: self.name.clone(),
             references: links_to_references(&self.links),
             flags: self.context.trace_flags() as i32,

@@ -88,7 +88,7 @@ pub trait Tracer: Send + Sync {
     /// together or you can end up retaining references to the currently active `Span`.
     /// If you do not want to manage active state of `Span`s manually, use the `with_span`
     /// API defined for all `Tracer`s via `TracerGenerics`
-    fn mark_span_as_inactive(&self, span_id: u64);
+    fn mark_span_as_inactive(&self, span_id: api::SpanId);
 
     /// Clone a span created by this tracer.
     fn clone_span(&self, span: &Self::Span) -> Self::Span;
