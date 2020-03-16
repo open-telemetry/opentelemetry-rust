@@ -1,7 +1,7 @@
 [package]
 name = "opentelemetry"
-version = "0.1.5"
-authors = ["Julian Tescher <julian@tescher.me>"]
+version = "0.2.0"
+authors = ["OpenTelemetry Authors <cncf-opentelemetry-contributors@lists.cncf.io>"]
 description = "A Rust OpenTelemetry client"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust"
 repository = "https://github.com/open-telemetry/opentelemetry-rust"
@@ -20,8 +20,9 @@ serde = { version = "1.0.104", features = ["derive"], optional = true }
 bincode = { version = "1.2.1", optional = true }
 
 [dev-dependencies]
+criterion = "0.3.1"
 hyper = "0.12.0"
-opentelemetry-jaeger = { path = "opentelemetry-jaeger", version = "0.1.0" }
+opentelemetry-jaeger = "0.1.0"
 thrift = "0.13.0"
 futures = "0.3.1"
 tokio = { version = "0.2.10", features = ["full"] }
@@ -35,4 +36,13 @@ serialize = ["serde", "bincode"]
 [workspace]
 members = [
     "opentelemetry-jaeger",
+    "examples/actix",
 ]
+
+[patch.crates-io]
+opentelemetry-jaeger = { path = "opentelemetry-jaeger" }
+opentelemetry = { path = "." }
+
+[[bench]]
+name = "trace"
+harness = false

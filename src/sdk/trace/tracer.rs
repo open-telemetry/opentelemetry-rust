@@ -7,19 +7,28 @@
 //! and exposes methods for creating and activating new `Spans`.
 //!
 //! Docs: https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/api-tracing.md#tracer
-use crate::api::Span;
+use crate::api::trace::span::Span;
 use crate::sdk;
 use crate::{api, exporter};
 use std::cell::RefCell;
 use std::collections::HashSet;
+use std::fmt;
 use std::sync::Arc;
 use std::time::SystemTime;
 
 /// `Tracer` implementation to create and manage spans
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct Tracer {
     name: &'static str,
     provider: sdk::Provider,
+}
+
+impl fmt::Debug for Tracer {
+    /// Formats the `Tracer` using the given formatter.
+    /// Omitting `provider` here is necessary to avoid cycles.
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Tracer").field("name", &self.name).finish()
+    }
 }
 
 impl Tracer {
@@ -38,8 +47,8 @@ impl Tracer {
     fn make_sampling_decision(
         &self,
         parent_context: Option<&api::SpanContext>,
-        trace_id: u128,
-        span_id: u64,
+        trace_id: api::TraceId,
+        span_id: api::SpanId,
         name: &str,
         span_kind: &api::SpanKind,
         attributes: &[api::KeyValue],
@@ -89,7 +98,7 @@ impl api::Tracer for Tracer {
     /// Returns a span with an inactive `SpanContext`. Used by functions that
     /// need to return a default span like `get_active_span` if no span is present.
     fn invalid(&self) -> Self::Span {
-        sdk::Span::new(0, None, self.clone())
+        sdk::Span::new(api::SpanId::invalid(), None, self.clone())
     }
 
     /// Starts a new `Span`.
@@ -101,7 +110,7 @@ impl api::Tracer for Tracer {
     /// spans in the trace.
     fn start(&self, name: &str, parent_span: Option<api::SpanContext>) -> Self::Span {
         let config = self.provider.config();
-        let span_id: u64 = rand::random();
+        let span_id = api::SpanId::from_u64(rand::random::<u64>());
 
         // TODO allow the following to be set when starting span
         let span_kind = api::SpanKind::Internal;
@@ -122,7 +131,13 @@ impl api::Tracer for Tracer {
                     ctx.trace_flags(),
                 )
             })
-            .unwrap_or((true, rand::random(), 0, false, 0));
+            .unwrap_or((
+                true,
+                api::TraceId::from_u128(rand::random::<u128>()),
+                api::SpanId::invalid(),
+                false,
+                0,
+            ));
 
         // Make new sampling decision or use parent sampling decision
         let sampling_decision = if no_parent || remote_parent {
@@ -190,7 +205,7 @@ impl api::Tracer for Tracer {
     }
 
     /// Mark a given `Span` as inactive.
-    fn mark_span_as_inactive(&self, span_id: u64) {
+    fn mark_span_as_inactive(&self, span_id: api::SpanId) {
         CURRENT_SPANS.with(|spans| {
             spans.borrow_mut().pop(span_id);
         })
@@ -211,7 +226,7 @@ struct ContextId {
 /// A stack of `Span`s that can be used to track active `Span`s per thread.
 pub(crate) struct SpanStack {
     stack: Vec<ContextId>,
-    ids: HashSet<u64>,
+    ids: HashSet<api::SpanId>,
 }
 
 impl SpanStack {
@@ -233,7 +248,7 @@ impl SpanStack {
     }
 
     /// Pop a `Span` from the stack
-    fn pop(&mut self, expected_id: u64) -> Option<sdk::Span> {
+    fn pop(&mut self, expected_id: api::SpanId) -> Option<sdk::Span> {
         if self.stack.last()?.span.id() == expected_id {
             let ContextId { span, duplicate } = self.stack.pop()?;
             if !duplicate {

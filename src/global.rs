@@ -77,7 +77,7 @@ pub trait GenericTracer: Send + Sync {
     fn mark_span_as_active_boxed(&self, span: &dyn api::Span);
 
     /// Marks the current span as inactive
-    fn mark_span_as_inactive_boxed(&self, span_id: u64);
+    fn mark_span_as_inactive_boxed(&self, span_id: api::SpanId);
 
     /// Clone span
     fn clone_span_boxed(&self, span: &dyn api::Span) -> Box<dyn api::Span>;
@@ -108,7 +108,7 @@ impl<S: api::Span + 'static> GenericTracer for Box<dyn api::Tracer<Span = S>> {
     }
 
     /// Mark span as inactive.
-    fn mark_span_as_inactive_boxed(&self, span_id: u64) {
+    fn mark_span_as_inactive_boxed(&self, span_id: api::SpanId) {
         self.mark_span_as_inactive(span_id)
     }
 
@@ -147,7 +147,7 @@ impl Tracer for dyn GenericTracer {
     }
 
     /// Marks a given `Span` as inactive.
-    fn mark_span_as_inactive(&self, span_id: u64) {
+    fn mark_span_as_inactive(&self, span_id: api::SpanId) {
         self.mark_span_as_inactive_boxed(span_id)
     }
 
@@ -188,7 +188,7 @@ impl api::Tracer for BoxedTracer {
     }
 
     /// Mark a given `Span` as inactive.
-    fn mark_span_as_inactive(&self, span_id: u64) {
+    fn mark_span_as_inactive(&self, span_id: api::SpanId) {
         self.0.mark_span_as_inactive(span_id)
     }
 

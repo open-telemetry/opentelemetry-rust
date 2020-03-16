@@ -48,8 +48,8 @@ pub trait Sampler: Send + Sync + std::fmt::Debug {
     fn should_sample(
         &self,
         parent_context: Option<&api::SpanContext>,
-        trace_id: u128,
-        span_id: u64,
+        trace_id: api::TraceId,
+        span_id: api::SpanId,
         name: &str,
         span_kind: &api::SpanKind,
         attributes: &[api::KeyValue],

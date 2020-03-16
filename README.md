@@ -28,6 +28,10 @@ fn main() {
 
 See the [opentelemetry-example-app](./examples/basic.rs) for a complete example.
 
+## Contributing
+
+See the [contributing file](CONTRIBUTING.md).
+
 ## Release Schedule
 
 OpenTelemetry Rust is under active development. Below is the release schedule for the Rust library. The first version
@@ -36,13 +40,13 @@ attempt to maintain backwards compatibility with the alpha release.
 
 | Component                   | Version | Target Date     |
 | --------------------------- | ------- | --------------- |
-| Tracing API                 | Alpha   | November 8 2019 |
-| Tracing SDK                 | Alpha   | November 8 2019 |
-| Metrics API                 | Alpha   | November 8 2019 |
-| Metrics SDK                 | Alpha   | November 8 2019 |
+| Tracing API                 | Alpha   | March 31 2020   |
+| Tracing SDK                 | Alpha   | April 31 2020   |
+| Metrics API                 | Alpha   | March 31 2020   |
+| Metrics SDK                 | Alpha   | April 30 2020   |
 | Zipkin Trace Exporter       | Alpha   | Unknown         |
-| Jaeger Trace Exporter       | Alpha   | November 8 2019 |
-| Prometheus Metrics Exporter | Alpha   | November 8 2019 |
-| Trace Context Propagation   | Alpha   | Unknown         |
+| Jaeger Trace Exporter       | Alpha   | April 30 2020   |
+| Prometheus Metrics Exporter | Alpha   | April 30 2020   |
+| Context Propagation         | Alpha   | April 30 2020   |
 | OpenTracing Bridge          | Alpha   | Unknown         |
 | OpenCensus Bridge           | Alpha   | Unknown         |
