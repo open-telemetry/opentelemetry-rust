@@ -1,5 +1,5 @@
 //! OpenTelemetry global `Tracer` and `Meter` singletons.
-use crate::api::{self, KeyValue, SpanContext, Tracer};
+use crate::api;
 use std::any::Any;
 use std::sync::{Arc, RwLock};
 use std::time::SystemTime;
@@ -16,7 +16,7 @@ impl api::Span for BoxedSpan {
     }
 
     /// Delegates to inner span.
-    fn get_context(&self) -> SpanContext {
+    fn get_context(&self) -> api::SpanContext {
         self.0.get_context()
     }
 
@@ -26,7 +26,7 @@ impl api::Span for BoxedSpan {
     }
 
     /// Delegates to inner span.
-    fn set_attribute(&mut self, attribute: KeyValue) {
+    fn set_attribute(&mut self, attribute: api::KeyValue) {
         self.0.set_attribute(attribute)
     }
 
@@ -70,6 +70,10 @@ pub trait GenericTracer: Send + Sync {
     /// out at runtime.
     fn start_boxed(&self, name: &str, parent: Option<api::SpanContext>) -> Box<dyn api::Span>;
 
+    /// Returns a trait object so the underlying implementation can be swapped
+    /// out at runtime.
+    fn build_boxed(&self, builder: api::SpanBuilder) -> Box<dyn api::Span>;
+
     /// Returns the currently active span as a BoxedSpan
     fn get_active_span_boxed(&self) -> Box<dyn api::Span>;
 
@@ -93,6 +97,12 @@ impl<S: api::Span + 'static> GenericTracer for Box<dyn api::Tracer<Span = S>> {
     /// out at runtime.
     fn start_boxed(&self, name: &str, parent: Option<api::SpanContext>) -> Box<dyn api::Span> {
         Box::new(self.start(name, parent))
+    }
+
+    /// Returns a trait object so the underlying implementation can be swapped
+    /// out at runtime.
+    fn build_boxed(&self, builder: api::SpanBuilder) -> Box<dyn api::Span> {
+        Box::new(self.build(builder))
     }
 
     /// Returns the current active span.
@@ -122,7 +132,7 @@ impl<S: api::Span + 'static> GenericTracer for Box<dyn api::Tracer<Span = S>> {
     }
 }
 
-impl Tracer for dyn GenericTracer {
+impl api::Tracer for dyn GenericTracer {
     /// BoxedTracer returns a BoxedSpan so that it doesn't need a generic type parameter.
     type Span = BoxedSpan;
 
@@ -134,6 +144,18 @@ impl Tracer for dyn GenericTracer {
     /// Starts a new boxed span.
     fn start(&self, name: &str, parent_span: Option<api::SpanContext>) -> Self::Span {
         BoxedSpan(self.start_boxed(name, parent_span))
+    }
+
+    /// Creates a span builder
+    ///
+    /// An ergonomic way for attributes to be configured before the `Span` is started.
+    fn span_builder(&self, name: &str) -> api::SpanBuilder {
+        api::SpanBuilder::from_name(name.to_string())
+    }
+
+    /// Create a span from a `SpanBuilder`
+    fn build(&self, builder: api::SpanBuilder) -> Self::Span {
+        BoxedSpan(self.build_boxed(builder))
     }
 
     /// Returns the current active span.
@@ -175,6 +197,18 @@ impl api::Tracer for BoxedTracer {
     /// Starts a new `Span`.
     fn start(&self, name: &str, parent_span: Option<api::SpanContext>) -> Self::Span {
         self.0.start(name, parent_span)
+    }
+
+    /// Creates a span builder
+    ///
+    /// An ergonomic way for attributes to be configured before the `Span` is started.
+    fn span_builder(&self, name: &str) -> api::SpanBuilder {
+        api::SpanBuilder::from_name(name.to_string())
+    }
+
+    /// Create a span from a `SpanBuilder`
+    fn build(&self, builder: api::SpanBuilder) -> Self::Span {
+        self.0.build(builder)
     }
 
     /// Returns the current active span.
