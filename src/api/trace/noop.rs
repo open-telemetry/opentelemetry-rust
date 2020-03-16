@@ -77,7 +77,7 @@ impl api::Span for NoopSpan {
         // Ignored
     }
 
-    /// Ignors name updates
+    /// Ignores name updates
     fn update_name(&mut self, _new_name: String) {
         // Ignored
     }

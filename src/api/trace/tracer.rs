@@ -22,10 +22,11 @@
 //!
 //! Docs: https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/api-tracing.md#tracer
 use crate::api::{self, Span};
+use std::fmt;
 use std::time::SystemTime;
 
 /// Interface for constructing `Span`s.
-pub trait Tracer: Send + Sync {
+pub trait Tracer: fmt::Debug + 'static {
     /// The `Span` type used by this `Tracer`.
     type Span: api::Span;
 
