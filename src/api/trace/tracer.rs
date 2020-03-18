@@ -111,7 +111,7 @@ pub trait TracerGenerics: Tracer {
     /// It then executes the body. It closes the span before returning the execution result.
     fn with_span<T, F>(&self, name: &'static str, f: F) -> T
     where
-        F: FnOnce(&mut Self::Span) -> T;
+        F: FnOnce(&Self::Span) -> T;
 }
 
 // These functions can be implemented for all tracers to allow for convenient `with_span` syntax.
@@ -121,12 +121,12 @@ impl<S: Tracer> TracerGenerics for S {
     /// It then executes the body. It closes the span before returning the execution result.
     fn with_span<T, F>(&self, name: &'static str, f: F) -> T
     where
-        F: FnOnce(&mut Self::Span) -> T,
+        F: FnOnce(&Self::Span) -> T,
     {
-        let mut span = self.start(name, None);
+        let span = self.start(name, None);
         self.mark_span_as_active(&span);
 
-        let result = f(&mut span);
+        let result = f(&span);
         span.end();
         self.mark_span_as_inactive(span.get_context().span_id());
 

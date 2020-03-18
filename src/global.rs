@@ -11,8 +11,8 @@ pub struct BoxedSpan(Box<dyn api::Span>);
 
 impl api::Span for BoxedSpan {
     /// Delegates to inner span.0
-    fn add_event_with_timestamp(&mut self, message: String, timestamp: SystemTime) {
-        self.0.add_event_with_timestamp(message, timestamp)
+    fn add_event_with_timestamp(&self, name: String, timestamp: SystemTime) {
+        self.0.add_event_with_timestamp(name, timestamp)
     }
 
     /// Delegates to inner span.
@@ -26,22 +26,22 @@ impl api::Span for BoxedSpan {
     }
 
     /// Delegates to inner span.
-    fn set_attribute(&mut self, attribute: api::KeyValue) {
+    fn set_attribute(&self, attribute: api::KeyValue) {
         self.0.set_attribute(attribute)
     }
 
     /// Delegates to inner span.
-    fn set_status(&mut self, status: api::SpanStatus) {
+    fn set_status(&self, status: api::SpanStatus) {
         self.0.set_status(status)
     }
 
     /// Delegates to inner span.
-    fn update_name(&mut self, new_name: String) {
+    fn update_name(&self, new_name: String) {
         self.0.update_name(new_name)
     }
 
     /// Delegates to inner span.
-    fn end(&mut self) {
+    fn end(&self) {
         self.0.end()
     }
 
@@ -51,11 +51,21 @@ impl api::Span for BoxedSpan {
     }
 
     /// Mark span as currently active
+    ///
+    /// This is the _synchronous_ api. If you are using futures, you
+    /// need to use the async api via [`instrument`].
+    ///
+    /// [`instrument`]: ../api/trace/futures/trait.Instrument.html#method.instrument
     fn mark_as_active(&self) {
         self.0.mark_as_active()
     }
 
     /// Mark span as no longer active
+    ///
+    /// This is the _synchronous_ api. If you are using futures, you
+    /// need to use the async api via [`instrument`].
+    ///
+    /// [`instrument`]: ../api/trace/futures/trait.Instrument.html#method.instrument
     fn mark_as_inactive(&self) {
         self.0.mark_as_inactive()
     }

@@ -317,9 +317,9 @@ impl Into<jaeger::Log> for api::Event {
         jaeger::Log::new(
             timestamp,
             vec![jaeger::Tag::new(
-                "event".to_string(),
+                "name".to_string(),
                 jaeger::TagType::String,
-                Some(self.message),
+                Some(self.name),
                 None,
                 None,
                 None,
