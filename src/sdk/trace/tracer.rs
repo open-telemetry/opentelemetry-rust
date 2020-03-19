@@ -109,16 +109,40 @@ impl api::Tracer for Tracer {
     /// trace includes a single root span, which is the shared ancestor of all other
     /// spans in the trace.
     fn start(&self, name: &str, parent_span: Option<api::SpanContext>) -> Self::Span {
-        let config = self.provider.config();
-        let span_id = api::SpanId::from_u64(rand::random::<u64>());
+        let mut builder = self.span_builder(name);
+        builder.parent_context = parent_span;
 
-        // TODO allow the following to be set when starting span
-        let span_kind = api::SpanKind::Internal;
-        let mut attribute_options = Vec::new();
-        let mut link_options = Vec::new();
+        self.build(builder)
+    }
+
+    /// Creates a span builder
+    ///
+    /// An ergonomic way for attributes to be configured before the `Span` is started.
+    fn span_builder(&self, name: &str) -> api::SpanBuilder {
+        api::SpanBuilder::from_name(name.to_string())
+    }
+
+    /// Starts a span from a `SpanBuilder`.
+    ///
+    /// Each span has zero or one parent spans and zero or more child spans, which
+    /// represent causally related operations. A tree of related spans comprises a
+    /// trace. A span is said to be a _root span_ if it does not have a parent. Each
+    /// trace includes a single root span, which is the shared ancestor of all other
+    /// spans in the trace.
+    fn build(&self, mut builder: api::SpanBuilder) -> Self::Span {
+        let config = self.provider.config();
+        let span_id = builder
+            .span_id
+            .take()
+            .unwrap_or_else(|| api::SpanId::from_u64(rand::random()));
+
+        let span_kind = builder.span_kind.take().unwrap_or(api::SpanKind::Internal);
+        let mut attribute_options = builder.attributes.take().unwrap_or_else(Vec::new);
+        let mut link_options = builder.links.take().unwrap_or_else(Vec::new);
 
         // Build context for sampling decision
-        let (no_parent, trace_id, parent_span_id, remote_parent, parent_trace_flags) = parent_span
+        let (no_parent, trace_id, parent_span_id, remote_parent, parent_trace_flags) = builder
+            .parent_context
             .clone()
             .or_else(|| Some(self.get_active_span().get_context()))
             .filter(|ctx| ctx.is_valid())
@@ -142,10 +166,10 @@ impl api::Tracer for Tracer {
         // Make new sampling decision or use parent sampling decision
         let sampling_decision = if no_parent || remote_parent {
             self.make_sampling_decision(
-                parent_span.as_ref(),
+                builder.parent_context.as_ref(),
                 trace_id,
                 span_id,
-                name,
+                &builder.name,
                 &span_kind,
                 &attribute_options,
                 &link_options,
@@ -161,18 +185,25 @@ impl api::Tracer for Tracer {
             attributes.append_vec(&mut attribute_options);
             let mut links = sdk::EvictedQueue::new(config.max_links_per_span);
             links.append_vec(&mut link_options);
+            let start_time = builder.start_time.unwrap_or_else(SystemTime::now);
+            let end_time = builder.end_time.unwrap_or(start_time);
+            let mut message_events = sdk::EvictedQueue::new(config.max_events_per_span);
+            if let Some(mut events) = builder.message_events {
+                message_events.append_vec(&mut events);
+            }
+            let status = builder.status.unwrap_or(api::SpanStatus::OK);
 
             exporter::trace::SpanData {
                 context: api::SpanContext::new(trace_id, span_id, trace_flags, false),
                 parent_span_id,
                 span_kind,
-                name: name.to_string(),
-                start_time: SystemTime::now(),
-                end_time: SystemTime::now(),
+                name: builder.name,
+                start_time,
+                end_time,
                 attributes,
-                message_events: sdk::EvictedQueue::new(config.max_events_per_span),
+                message_events,
                 links,
-                status: api::SpanStatus::OK,
+                status,
             }
         });
 
