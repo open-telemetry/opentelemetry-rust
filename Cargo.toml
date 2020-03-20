@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-stackdriver"
-version = "0.2.0"
+version = "0.3.0"
 description = "A Rust opentelemetry exporter that uploads traces to Google Stackdriver trace."
 documentation = "https://vivint-smarthome.github.io/opentelemetry-stackdriver/opentelemetry_stackdriver/"
 repository = "https://github.com/vivint-smarthome/opentelemetry-stackdriver"
@@ -11,15 +11,16 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [build-dependencies]
-protoc-grpcio = "1.1" 
+tonic-build = "0.1"
 
 [dependencies]
 derivative = "1.0"
-futures = "0.1"
-grpcio = { version = "0.4", features = ["openssl"] }
+futures = "0.3"
 hex = "0.4"
+http = "0.2"
 log = "0.4"
 num_cpus = "1.12"
 opentelemetry = "0.2"
-protobuf = "2.0"
-tokio = "0.1"
+prost = "0.6"
+prost-types = "0.6"
+tonic = { version = "0.1", feature = ["transport", "tls"] }
