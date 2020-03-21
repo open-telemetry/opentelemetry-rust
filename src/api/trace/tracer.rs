@@ -22,6 +22,7 @@
 //!
 //! Docs: https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/api-tracing.md#tracer
 use crate::api::{self, Span};
+use std::time::SystemTime;
 
 /// Interface for constructing `Span`s.
 pub trait Tracer: Send + Sync {
@@ -56,6 +57,14 @@ pub trait Tracer: Send + Sync {
     /// `is_remote` to true on a parent `SpanContext` so `Span` creation knows if the
     /// parent is remote.
     fn start(&self, name: &str, parent_span: Option<api::SpanContext>) -> Self::Span;
+
+    /// Creates a span builder
+    ///
+    /// An ergonomic way for attributes to be configured before the `Span` is started.
+    fn span_builder(&self, name: &str) -> SpanBuilder;
+
+    /// Create a span from a `SpanBuilder`
+    fn build(&self, builder: SpanBuilder) -> Self::Span;
 
     /// Returns the current active span.
     ///
@@ -114,14 +123,7 @@ impl<S: Tracer> TracerGenerics for S {
     where
         F: FnOnce(&mut Self::Span) -> T,
     {
-        let active_context = self.get_active_span().get_context();
-        let parent = if active_context.is_valid() {
-            Some(active_context)
-        } else {
-            None
-        };
-
-        let mut span = self.start(name, parent);
+        let mut span = self.start(name, None);
         self.mark_span_as_active(&span);
 
         let result = f(&mut span);
@@ -129,5 +131,149 @@ impl<S: Tracer> TracerGenerics for S {
         self.mark_span_as_inactive(span.get_context().span_id());
 
         result
+    }
+}
+
+/// `SpanBuilder` allows span attributes to be configured before the span
+/// has started.
+///
+/// ```rust
+/// use opentelemetry::{
+///     api::{Provider, SpanBuilder, SpanKind, Tracer},
+///     global,
+/// };
+///
+/// let tracer = global::trace_provider().get_tracer("example-tracer");
+///
+/// // The builder can be used to create a span directly with the tracer
+/// let _span = tracer.build(SpanBuilder {
+///     name: "example-span-name".to_string(),
+///     span_kind: Some(SpanKind::Server),
+///     ..Default::default()
+/// });
+///
+/// // Or used with builder pattern
+/// let _span = tracer
+///     .span_builder("example-span-name")
+///     .with_kind(SpanKind::Server)
+///     .start(&tracer);
+/// ```
+#[derive(Debug, Default)]
+pub struct SpanBuilder {
+    /// Parent `SpanContext`
+    pub parent_context: Option<api::SpanContext>,
+    /// Span id, useful for integrations with external tracing systems.
+    pub span_id: Option<api::SpanId>,
+    /// Span kind
+    pub span_kind: Option<api::SpanKind>,
+    /// Span name
+    pub name: String,
+    /// Span start time
+    pub start_time: Option<SystemTime>,
+    /// Span end time
+    pub end_time: Option<SystemTime>,
+    /// Span attributes
+    pub attributes: Option<Vec<api::KeyValue>>,
+    /// Span Message events
+    pub message_events: Option<Vec<api::Event>>,
+    /// Span Links
+    pub links: Option<Vec<api::Link>>,
+    /// Span status
+    pub status: Option<api::SpanStatus>,
+}
+
+/// SpanBuilder methods
+impl SpanBuilder {
+    /// Create a new span builder from a span name
+    pub fn from_name(name: String) -> Self {
+        SpanBuilder {
+            parent_context: None,
+            span_id: None,
+            span_kind: None,
+            name,
+            start_time: None,
+            end_time: None,
+            attributes: None,
+            message_events: None,
+            links: None,
+            status: None,
+        }
+    }
+
+    /// Assign parent context
+    pub fn with_parent(self, parent_context: api::SpanContext) -> Self {
+        SpanBuilder {
+            parent_context: Some(parent_context),
+            ..self
+        }
+    }
+
+    /// Assign span id
+    pub fn with_span_id(self, span_id: api::SpanId) -> Self {
+        SpanBuilder {
+            span_id: Some(span_id),
+            ..self
+        }
+    }
+
+    /// Assign span kind
+    pub fn with_kind(self, span_kind: api::SpanKind) -> Self {
+        SpanBuilder {
+            span_kind: Some(span_kind),
+            ..self
+        }
+    }
+
+    /// Assign span start time
+    pub fn with_start_time<T: Into<SystemTime>>(self, start_time: T) -> Self {
+        SpanBuilder {
+            start_time: Some(start_time.into()),
+            ..self
+        }
+    }
+
+    /// Assign span end time
+    pub fn with_end_time<T: Into<SystemTime>>(self, end_time: T) -> Self {
+        SpanBuilder {
+            end_time: Some(end_time.into()),
+            ..self
+        }
+    }
+
+    /// Assign span attributes
+    pub fn with_attributes(self, attributes: Vec<api::KeyValue>) -> Self {
+        SpanBuilder {
+            attributes: Some(attributes),
+            ..self
+        }
+    }
+
+    /// Assign message events
+    pub fn with_message_events(self, message_events: Vec<api::Event>) -> Self {
+        SpanBuilder {
+            message_events: Some(message_events),
+            ..self
+        }
+    }
+
+    /// Assign links
+    pub fn with_links(self, links: Vec<api::Link>) -> Self {
+        SpanBuilder {
+            links: Some(links),
+            ..self
+        }
+    }
+
+    /// Assign status
+    pub fn with_status(self, status: api::SpanStatus) -> Self {
+        SpanBuilder {
+            status: Some(status),
+            ..self
+        }
+    }
+
+    /// Builds a span with the given tracer from this configuration.
+    pub fn start<T: api::Tracer>(self, tracer: &T) -> T::Span {
+        tracer.build(self)
     }
 }
