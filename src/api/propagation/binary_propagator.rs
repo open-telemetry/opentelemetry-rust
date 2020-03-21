@@ -18,7 +18,6 @@ pub trait BinaryFormat {
     fn from_bytes(&self, bytes: Vec<u8>) -> api::SpanContext;
 }
 
-
 /// Extracts and injects `SpanContext`s from byte arrays.
 #[derive(Debug, Default)]
 pub struct BinaryPropagator {}

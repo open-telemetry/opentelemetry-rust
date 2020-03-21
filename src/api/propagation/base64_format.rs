@@ -6,9 +6,9 @@
 //! `Base64Format` MUST expose the APIs that serializes values into base64 strings,
 //! and deserializes values from base64 strings. There is a blanket implementation
 //! for any implementors of `BinaryFormat`
-use base64::{decode, encode};
 use crate::api;
 use crate::api::propagation::binary_propagator::BinaryFormat;
+use base64::{decode, encode};
 
 /// Used to serialize and deserialize `SpanContext`s to and from a base64
 /// representation.
@@ -20,7 +20,10 @@ pub trait Base64Format {
     fn from_base64(&self, base64: &str) -> api::SpanContext;
 }
 
-impl<Format> Base64Format for Format where Format: BinaryFormat {
+impl<Format> Base64Format for Format
+where
+    Format: BinaryFormat,
+{
     fn to_base64(&self, context: &api::SpanContext) -> String {
         encode(&self.to_bytes(context))
     }
@@ -38,7 +41,7 @@ impl<Format> Base64Format for Format where Format: BinaryFormat {
 mod test {
     use super::*;
     use crate::api::propagation::binary_propagator::BinaryPropagator;
-    
+
     #[rustfmt::skip]
     fn to_base64_data() -> Vec<(api::SpanContext, String)> {
         vec![
@@ -76,6 +79,9 @@ mod test {
         let propagator = BinaryPropagator::new();
 
         for (context, data) in from_base64_data() {
+            assert_eq!(propagator.from_base64(&data), context)
+        }
+        for (context, data) in to_base64_data() {
             assert_eq!(propagator.from_base64(&data), context)
         }
     }
