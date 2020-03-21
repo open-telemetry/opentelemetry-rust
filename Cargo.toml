@@ -12,6 +12,7 @@ license = "Apache-2.0"
 edition = "2018"
 
 [dependencies]
+base64 = { version = "0.12", optional = true }
 lazy_static = "1.4.0"
 pin-project = { version = "0.4.6", optional = true }
 prometheus = { version = "0.7.0", optional = true }
@@ -29,6 +30,7 @@ tokio = { version = "0.2.10", features = ["full"] }
 
 [features]
 default = ["metrics", "trace"]
+base64_format = ["base64"]
 trace = ["rand", "pin-project"]
 metrics = ["prometheus"]
 serialize = ["serde", "bincode"]
