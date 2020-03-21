@@ -6,7 +6,6 @@
 //! `BinaryFormat` MUST expose the APIs that serializes values into bytes,
 //! and deserializes values from bytes.
 use crate::api;
-use base64::{decode, encode};
 use std::convert::TryInto;
 
 /// Used to serialize and deserialize `SpanContext`s to and from a binary
@@ -19,15 +18,6 @@ pub trait BinaryFormat {
     fn from_bytes(&self, bytes: Vec<u8>) -> api::SpanContext;
 }
 
-/// Used to serialize and deserialize `SpanContext`s to and from a base64
-/// representation.
-pub trait Base64Format {
-    /// Serializes span context into a base64 encoded string
-    fn to_base64(&self, context: &api::SpanContext) -> String;
-
-    /// Deserialize a span context from a base64 encoded string
-    fn from_base64(&self, base64: &str) -> api::SpanContext;
-}
 
 /// Extracts and injects `SpanContext`s from byte arrays.
 #[derive(Debug, Default)]
@@ -88,20 +78,6 @@ impl BinaryFormat for BinaryPropagator {
 
         if span_context.is_valid() {
             span_context
-        } else {
-            api::SpanContext::empty_context()
-        }
-    }
-}
-
-impl Base64Format for BinaryPropagator {
-    fn to_base64(&self, context: &api::SpanContext) -> String {
-        encode(&self.to_bytes(context))
-    }
-
-    fn from_base64(&self, base64: &str) -> api::SpanContext {
-        if let Ok(bytes) = decode(base64.as_bytes()) {
-            self.from_bytes(bytes)
         } else {
             api::SpanContext::empty_context()
         }
