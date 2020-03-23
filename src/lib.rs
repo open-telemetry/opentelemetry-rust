@@ -14,6 +14,10 @@
    limitations under the License.
 */
 
+#![cfg(not(doctest))]
+// unfortunately the proto code includes comments from the google proto files
+// that are interpreted as "doc tests" and will fail to build.
+
 use derivative::Derivative;
 use futures::sink::SinkExt;
 use futures::stream::StreamExt;
@@ -64,7 +68,7 @@ impl StackDriverExporter {
     pub async fn connect<S: futures::task::Spawn>(
         project_name: impl Into<String>,
         spawn: &S,
-    ) -> Result<Self, tonic::transport::Error> {
+    ) -> Result<Self, Box<dyn std::error::Error>> {
         let uri = http::uri::Uri::from_static("https://cloudtrace.googleapis.com:443");
         let channel = Channel::builder(uri).connect().await?;
         let (tx, rx) = futures::channel::mpsc::channel(64);
@@ -75,7 +79,7 @@ impl StackDriverExporter {
                 rx,
             ))
             .into(),
-        );
+        )?;
 
         Ok(Self { tx })
     }
@@ -90,66 +94,87 @@ impl StackDriverExporter {
             use proto::google::devtools::cloudtrace::v2::span::{Attributes, TimeEvents};
             use proto::google::devtools::cloudtrace::v2::{BatchWriteSpansRequest, Span};
 
+            let spans = batch
+                .iter()
+                .map(|span| {
+                    let new_attributes = Attributes {
+                        attribute_map: span
+                            .attributes
+                            .iter()
+                            .map(|kv| {
+                                (
+                                    kv.key.inner().clone().into_owned(),
+                                    attribute_value_conversion(kv.value.clone()),
+                                )
+                            })
+                            .collect(),
+                        ..Default::default()
+                    };
+                    let new_time_events = TimeEvents {
+                        time_event: span
+                            .message_events
+                            .iter()
+                            .map(|event| TimeEvent {
+                                time: Some(event.timestamp.into()),
+                                value: Some(Value::Annotation(Annotation {
+                                    description: Some(to_truncate(event.message.clone())),
+                                    ..Default::default()
+                                })),
+                            })
+                            .collect(),
+                        ..Default::default()
+                    };
+
+                    Span {
+                        name: format!(
+                            "projects/{}/traces/{}/spans/{}",
+                            project_name,
+                            hex::encode(span.context.trace_id().to_be_bytes()),
+                            hex::encode(span.context.span_id().to_be_bytes())
+                        ),
+                        display_name: Some(to_truncate(span.name.clone())),
+                        span_id: hex::encode(span.context.span_id().to_be_bytes()),
+                        parent_span_id: hex::encode(span.parent_span_id.to_be_bytes()),
+                        start_time: Some(span.start_time.into()),
+                        end_time: Some(span.end_time.into()),
+                        attributes: Some(new_attributes),
+                        time_events: Some(new_time_events),
+                        ..Default::default()
+                    }
+                })
+                .collect::<Vec<_>>();
+
             // let mut req = BatchWriteSpansRequest::default();
             let req = BatchWriteSpansRequest {
                 name: format!("projects/{}", project_name),
-                ..Default::default()
+                spans,
             };
-            for span in batch {
-                let new_attributes = Attributes {
-                    attribute_map: span
-                        .attributes
-                        .iter()
-                        .map(|kv| {
-                            (
-                                kv.key.inner().clone().into_owned(),
-                                attribute_value_conversion(kv.value.clone()),
-                            )
-                        })
-                        .collect(),
-                    ..Default::default()
-                };
-                let new_time_events = TimeEvents {
-                    time_event: span
-                        .message_events
-                        .iter()
-                        .map(|event| TimeEvent {
-                            time: Some(event.timestamp.into()),
-                            value: Some(Value::Annotation(Annotation {
-                                description: Some(to_truncate(event.message.clone())),
-                                ..Default::default()
-                            })),
-                            ..Default::default()
-                        })
-                        .collect(),
-                    ..Default::default()
-                };
-                let new_span = Span {
-                    name: format!(
-                        "projects/{}/traces/{}/spans/{}",
-                        project_name,
-                        hex::encode(span.context.trace_id().to_be_bytes()),
-                        hex::encode(span.context.span_id().to_be_bytes())
-                    ),
-                    display_name: Some(to_truncate(span.name.clone())),
-                    span_id: hex::encode(span.context.span_id().to_be_bytes()),
-                    parent_span_id: hex::encode(span.parent_span_id.to_be_bytes()),
-                    start_time: Some(span.start_time.into()),
-                    end_time: Some(span.end_time.into()),
-                    attributes: Some(new_attributes),
-                    time_events: Some(new_time_events),
-                    ..Default::default()
-                };
-            }
-            client.batch_write_spans(req); // TODO: run this
+            client
+                .batch_write_spans(req)
+                .await
+                .map_err(|e| {
+                    log::error!("StackDriver push failed {:?}", e);
+                })
+                .ok(); // TODO: run this
         }
     }
 }
 
 impl SpanExporter for StackDriverExporter {
+    /// # Safety
+    ///
+    /// Panics if called outside of executor.
     fn export(&self, batch: Vec<Arc<SpanData>>) -> ExportResult {
-        self.tx.clone().send(batch);
-        ExportResult::Success
+        match futures::executor::block_on(self.tx.clone().send(batch)) {
+            Err(e) => {
+                log::error!(
+                    "Unable to send to export_inner; this should never occur {:?}",
+                    e
+                );
+                ExportResult::FailedNotRetryable
+            }
+            _ => ExportResult::Success,
+        }
     }
 
     fn shutdown(&self) {}
@@ -158,14 +183,6 @@ impl SpanExporter for StackDriverExporter {
         self
     }
 }
-
-// fn system_time_to_timestamp(system: SystemTime) -> Timestamp {
-//     let d = system.duration_since(SystemTime::UNIX_EPOCH).unwrap();
-//     Timestamp {
-//         seconds: d.as_secs() as i64,
-//         nanos: d.subsec_nanos() as i32,
-//     }
-// }
 
 fn attribute_value_conversion(v: Value) -> AttributeValue {
     use proto::google::devtools::cloudtrace::v2::attribute_value;
@@ -195,6 +212,9 @@ mod tests {
 
     #[test]
     fn it_works() {
-        StackDriverExporter::connect("fake-project");
+        let mut rt = tokio::runtime::Runtime::new().unwrap();
+        let tp = futures::executor::ThreadPool::new().unwrap();
+        rt.block_on(StackDriverExporter::connect("fake-project", &tp))
+            .unwrap();
     }
 }

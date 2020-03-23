@@ -13,6 +13,10 @@ edition = "2018"
 [build-dependencies]
 tonic-build = "0.1"
 
+[dev-dependencies]
+futures = { version = "0.3", features = ["thread-pool"] }
+tokio = "0.2"
+
 [dependencies]
 derivative = "1.0"
 futures = "0.3"
@@ -23,4 +27,4 @@ num_cpus = "1.12"
 opentelemetry = "0.2"
 prost = "0.6"
 prost-types = "0.6"
-tonic = { version = "0.1", feature = ["transport", "tls"] }
+tonic = { version = "0.1", features = ["transport", "tls"] }
