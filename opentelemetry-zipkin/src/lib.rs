@@ -187,7 +187,7 @@ impl Into<annotation::Annotation> for api::Event {
 
         annotation::Annotation::builder()
             .timestamp(timestamp)
-            .value(self.message)
+            .value(self.name)
             .build()
     }
 }

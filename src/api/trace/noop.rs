@@ -48,12 +48,12 @@ impl NoopSpan {
 
 impl api::Span for NoopSpan {
     /// Ignores all events
-    fn add_event(&mut self, _message: String) {
+    fn add_event(&self, _name: String) {
         // Ignore
     }
 
     /// Ignores all events with timestamps
-    fn add_event_with_timestamp(&mut self, _message: String, _timestamp: SystemTime) {
+    fn add_event_with_timestamp(&self, _name: String, _timestamp: SystemTime) {
         // Ignored
     }
 
@@ -68,22 +68,22 @@ impl api::Span for NoopSpan {
     }
 
     /// Ignores all attributes
-    fn set_attribute(&mut self, _attribute: api::KeyValue) {
+    fn set_attribute(&self, _attribute: api::KeyValue) {
         // Ignored
     }
 
     /// Ignores status
-    fn set_status(&mut self, _status: api::SpanStatus) {
+    fn set_status(&self, _status: api::SpanStatus) {
         // Ignored
     }
 
     /// Ignores name updates
-    fn update_name(&mut self, _new_name: String) {
+    fn update_name(&self, _new_name: String) {
         // Ignored
     }
 
     /// Ignores `Span` endings.
-    fn end(&mut self) {
+    fn end(&self) {
         // Ignored
     }
 

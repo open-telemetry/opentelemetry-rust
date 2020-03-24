@@ -77,10 +77,10 @@ impl api::Span for Span {
     /// Note that the OpenTelemetry project documents certain ["standard event names and
     /// keys"](https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/data-semantic-conventions.md)
     /// which have prescribed semantic meanings.
-    fn add_event_with_timestamp(&mut self, message: String, timestamp: SystemTime) {
+    fn add_event_with_timestamp(&self, name: String, timestamp: SystemTime) {
         self.with_data_mut(|data| {
             data.message_events
-                .push_front(api::Event { message, timestamp })
+                .push_front(api::Event { name, timestamp })
         });
     }
 
@@ -103,7 +103,7 @@ impl api::Span for Span {
     /// Note that the OpenTelemetry project documents certain ["standard
     /// attributes"](https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/data-semantic-conventions.md)
     /// that have prescribed semantic meanings.
-    fn set_attribute(&mut self, attribute: api::KeyValue) {
+    fn set_attribute(&self, attribute: api::KeyValue) {
         self.with_data_mut(|data| {
             data.attributes.push_front(attribute);
         });
@@ -111,21 +111,21 @@ impl api::Span for Span {
 
     /// Sets the status of the `Span`. If used, this will override the default `Span`
     /// status, which is `OK`.
-    fn set_status(&mut self, status: api::SpanStatus) {
+    fn set_status(&self, status: api::SpanStatus) {
         self.with_data_mut(|data| {
             data.status = status;
         });
     }
 
     /// Updates the `Span`'s name.
-    fn update_name(&mut self, new_name: String) {
+    fn update_name(&self, new_name: String) {
         self.with_data_mut(|data| {
             data.name = new_name;
         });
     }
 
     /// Finishes the span.
-    fn end(&mut self) {
+    fn end(&self) {
         self.with_data_mut(|data| {
             data.end_time = SystemTime::now();
         });
@@ -136,12 +136,22 @@ impl api::Span for Span {
         self
     }
 
-    /// Mark span as active
+    /// Mark as currently active span.
+    ///
+    /// This is the _synchronous_ api. If you are using futures, you
+    /// need to use the async api via [`instrument`].
+    ///
+    /// [`instrument`]: ../../api/trace/futures/trait.Instrument.html#method.instrument
     fn mark_as_active(&self) {
         self.inner.tracer.mark_span_as_active(&self);
     }
 
     /// Mark span as inactive
+    ///
+    /// This is the _synchronous_ api. If you are using futures, you
+    /// need to use the async api via [`instrument`].
+    ///
+    /// [`instrument`]: ../futures/trait.Instrument.html#method.instrument
     fn mark_as_inactive(&self) {
         self.inner.tracer.mark_span_as_inactive(self.id);
     }

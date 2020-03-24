@@ -9,22 +9,22 @@ use std::time::SystemTime;
 #[cfg_attr(feature = "serialize", derive(Deserialize, PartialEq, Serialize))]
 #[derive(Clone, Debug)]
 pub struct Event {
-    /// Event message
-    pub message: String,
+    /// Event name
+    pub name: String,
     /// Event timestamp
     pub timestamp: SystemTime,
 }
 
 impl Event {
     /// Create new `Event`
-    pub fn new(message: String, timestamp: SystemTime) -> Self {
-        Event { message, timestamp }
+    pub fn new(name: String, timestamp: SystemTime) -> Self {
+        Event { name, timestamp }
     }
 
-    /// Create new `Event` for a given message.
-    pub fn from_message(message: String) -> Self {
+    /// Create new `Event` with a given name.
+    pub fn with_name(name: String) -> Self {
         Event {
-            message,
+            name,
             timestamp: SystemTime::now(),
         }
     }

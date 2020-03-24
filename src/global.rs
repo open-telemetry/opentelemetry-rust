@@ -82,8 +82,8 @@ impl api::Span for BoxedSpan {
     /// Note that the OpenTelemetry project documents certain ["standard event names and
     /// keys"](https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/data-semantic-conventions.md)
     /// which have prescribed semantic meanings.
-    fn add_event_with_timestamp(&mut self, message: String, timestamp: SystemTime) {
-        self.0.add_event_with_timestamp(message, timestamp)
+    fn add_event_with_timestamp(&self, name: String, timestamp: SystemTime) {
+        self.0.add_event_with_timestamp(name, timestamp)
     }
 
     /// Returns the `SpanContext` for the given `Span`.
@@ -102,23 +102,23 @@ impl api::Span for BoxedSpan {
     /// Note that the OpenTelemetry project documents certain ["standard
     /// attributes"](https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/data-semantic-conventions.md)
     /// that have prescribed semantic meanings.
-    fn set_attribute(&mut self, attribute: api::KeyValue) {
+    fn set_attribute(&self, attribute: api::KeyValue) {
         self.0.set_attribute(attribute)
     }
 
     /// Sets the status of the `Span`. If used, this will override the default `Span`
     /// status, which is `OK`.
-    fn set_status(&mut self, status: api::SpanStatus) {
+    fn set_status(&self, status: api::SpanStatus) {
         self.0.set_status(status)
     }
 
     /// Updates the `Span`'s name.
-    fn update_name(&mut self, new_name: String) {
+    fn update_name(&self, new_name: String) {
         self.0.update_name(new_name)
     }
 
     /// Finishes the span.
-    fn end(&mut self) {
+    fn end(&self) {
         self.0.end()
     }
 
@@ -127,12 +127,22 @@ impl api::Span for BoxedSpan {
         self
     }
 
-    /// Mark span as active
+    /// Mark span as currently active
+    ///
+    /// This is the _synchronous_ api. If you are using futures, you
+    /// need to use the async api via [`instrument`].
+    ///
+    /// [`instrument`]: ../api/trace/futures/trait.Instrument.html#method.instrument
     fn mark_as_active(&self) {
         self.0.mark_as_active()
     }
 
-    /// Mark span as inactive
+    /// Mark span as no longer active
+    ///
+    /// This is the _synchronous_ api. If you are using futures, you
+    /// need to use the async api via [`instrument`].
+    ///
+    /// [`instrument`]: ../api/trace/futures/trait.Instrument.html#method.instrument
     fn mark_as_inactive(&self) {
         self.0.mark_as_inactive()
     }
