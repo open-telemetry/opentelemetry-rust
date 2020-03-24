@@ -74,25 +74,7 @@ impl StackDriverExporter {
         spawn: &S,
     ) -> Result<Self, Box<dyn std::error::Error>> {
         let uri = http::uri::Uri::from_static("https://cloudtrace.googleapis.com:443");
-        // get pem, read bytes
 
-        // One example
-        //auto creds = CompositeChannelCredentials(SslCredentials(SslCredentialsOptions()), ServiceAccountJwtAccessCredentials(json_content, 3600));
-
-        // Another example
-        // public object AuthExplicit(string projectId, string jsonPath)
-        // {
-        //     var credential = GoogleCredential.FromFile(jsonPath)
-        //         .CreateScoped(LanguageServiceClient.DefaultScopes);
-        //     var channel = new Grpc.Core.Channel(
-        //         LanguageServiceClient.DefaultEndpoint.ToString(),
-        //         credential.ToChannelCredentials());
-        //     var client = LanguageServiceClient.Create(channel);
-        //     AnalyzeSentiment(client);
-        //     return 0;
-        // }
-
-        // Auth
         let service_account_key = yup_oauth2::read_service_account_key(credentials_path).await?;
         let authenticator = yup_oauth2::ServiceAccountAuthenticator::builder(service_account_key)
             .build()
@@ -102,19 +84,11 @@ impl StackDriverExporter {
         let bearer_token = format!("Bearer {:?}", token); // TODO: verify this prints correctly
         let header_value = MetadataValue::from_str(&bearer_token)?;
 
-        // let ca_cert = Certificate::from_pem();
-        // let client_cert = unimplemented!();
-        // let client_key = unimplemented!();
-        // let identity = Identity::from_pem(client_cert, client_key);
-        //
-
         let mut rustls_config = rustls::ClientConfig::new();
         rustls_config
             .root_store
             .add_server_trust_anchors(&webpki_roots::TLS_SERVER_ROOTS);
         let tls_config = ClientTlsConfig::new().rustls_client_config(rustls_config);
-        // tls_config.ca_certificate(ca_cert);
-        // tls_config.domain_name("cloudtrace.googleapis.com"); // TODO: DRY
 
         let channel = Channel::builder(uri)
             .tls_config(tls_config)
