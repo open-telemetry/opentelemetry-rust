@@ -31,6 +31,8 @@
 //! }
 //! ```
 //!
+#![deny(missing_docs, unreachable_pub, missing_debug_implementations)]
+#![cfg_attr(test, deny(warnings))]
 
 #[macro_use]
 extern crate typed_builder;
@@ -83,6 +85,7 @@ impl Default for ExporterConfigBuilder {
 }
 
 impl ExporterConfig {
+    /// Create an export config builder
     pub fn builder() -> ExporterConfigBuilder {
         ExporterConfigBuilder::default()
     }

@@ -3,11 +3,11 @@ use serde::Serialize;
 use std::collections::HashMap;
 
 #[derive(Serialize)]
-pub struct ListOfSpans(pub(crate) Vec<Span>);
+pub(crate) struct ListOfSpans(pub(crate) Vec<Span>);
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum Kind {
+pub(crate) enum Kind {
     Client,
     Server,
     Producer,
@@ -16,7 +16,7 @@ pub enum Kind {
 
 #[derive(TypedBuilder, Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Span {
+pub(crate) struct Span {
     #[builder(setter(strip_option), default)]
     #[serde(skip_serializing_if = "Option::is_none")]
     trace_id: Option<String>,

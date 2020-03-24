@@ -119,8 +119,8 @@ pub struct Tag {
 impl Tag {
   pub fn new<F3, F4, F5, F6, F7>(key: String, v_type: TagType, v_str: F3, v_double: F4, v_bool: F5, v_long: F6, v_binary: F7) -> Tag where F3: Into<Option<String>>, F4: Into<Option<OrderedFloat<f64>>>, F5: Into<Option<bool>>, F6: Into<Option<i64>>, F7: Into<Option<Vec<u8>>> {
     Tag {
-      key: key,
-      v_type: v_type,
+      key,
+      v_type,
       v_str: v_str.into(),
       v_double: v_double.into(),
       v_bool: v_bool.into(),
@@ -259,8 +259,8 @@ pub struct Log {
 impl Log {
   pub fn new(timestamp: i64, fields: Vec<Tag>) -> Log {
     Log {
-      timestamp: timestamp,
-      fields: fields,
+      timestamp,
+      fields,
     }
   }
   pub fn read_from_in_protocol(i_prot: &mut dyn TInputProtocol) -> thrift::Result<Log> {
@@ -336,10 +336,10 @@ pub struct SpanRef {
 impl SpanRef {
   pub fn new(ref_type: SpanRefType, trace_id_low: i64, trace_id_high: i64, span_id: i64) -> SpanRef {
     SpanRef {
-      ref_type: ref_type,
-      trace_id_low: trace_id_low,
-      trace_id_high: trace_id_high,
-      span_id: span_id,
+      ref_type,
+      trace_id_low,
+      trace_id_high,
+      span_id,
     }
   }
   pub fn read_from_in_protocol(i_prot: &mut dyn TInputProtocol) -> thrift::Result<SpanRef> {
@@ -432,15 +432,15 @@ pub struct Span {
 impl Span {
   pub fn new<F6, F10, F11>(trace_id_low: i64, trace_id_high: i64, span_id: i64, parent_span_id: i64, operation_name: String, references: F6, flags: i32, start_time: i64, duration: i64, tags: F10, logs: F11) -> Span where F6: Into<Option<Vec<SpanRef>>>, F10: Into<Option<Vec<Tag>>>, F11: Into<Option<Vec<Log>>> {
     Span {
-      trace_id_low: trace_id_low,
-      trace_id_high: trace_id_high,
-      span_id: span_id,
-      parent_span_id: parent_span_id,
-      operation_name: operation_name,
+      trace_id_low,
+      trace_id_high,
+      span_id,
+      parent_span_id,
+      operation_name,
       references: references.into(),
-      flags: flags,
-      start_time: start_time,
-      duration: duration,
+      flags,
+      start_time,
+      duration,
       tags: tags.into(),
       logs: logs.into(),
     }
@@ -638,7 +638,7 @@ pub struct Process {
 impl Process {
   pub fn new<F2>(service_name: String, tags: F2) -> Process where F2: Into<Option<Vec<Tag>>> {
     Process {
-      service_name: service_name,
+      service_name,
       tags: tags.into(),
     }
   }
@@ -717,8 +717,8 @@ pub struct Batch {
 impl Batch {
   pub fn new(process: Process, spans: Vec<Span>) -> Batch {
     Batch {
-      process: process,
-      spans: spans,
+      process,
+      spans,
     }
   }
   pub fn read_from_in_protocol(i_prot: &mut dyn TInputProtocol) -> thrift::Result<Batch> {
@@ -791,7 +791,7 @@ pub struct BatchSubmitResponse {
 impl BatchSubmitResponse {
   pub fn new(ok: bool) -> BatchSubmitResponse {
     BatchSubmitResponse {
-      ok: ok,
+      ok,
     }
   }
   pub fn read_from_in_protocol(i_prot: &mut dyn TInputProtocol) -> thrift::Result<BatchSubmitResponse> {
@@ -869,7 +869,7 @@ impl <C: TThriftClient + TCollectorSyncClientMarker> TCollectorSyncClient for C 
       {
         self.increment_sequence_number();
         let message_ident = TMessageIdentifier::new("submitBatches", TMessageType::Call, self.sequence_number());
-        let call_args = CollectorSubmitBatchesArgs { batches: batches };
+        let call_args = CollectorSubmitBatchesArgs { batches };
         self.o_prot_mut().write_message_begin(&message_ident)?;
         call_args.write_to_out_protocol(self.o_prot_mut())?;
         self.o_prot_mut().write_message_end()?;
