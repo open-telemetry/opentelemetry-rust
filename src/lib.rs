@@ -249,12 +249,12 @@ mod tests {
     #[test]
     fn it_works() {
         let mut rt = tokio::runtime::Runtime::new().unwrap();
-        let tp = futures::executor::ThreadPool::new().unwrap();
+        // let tp = futures::executor::ThreadPool::new().unwrap();
         // TODO: figure out how we want to do this test.
         rt.block_on(StackDriverExporter::connect(
             std::path::PathBuf::from("stuff.json"),
             "fake-project",
-            &tp,
+            &TokioSpawner,
         ))
         .unwrap();
     }
