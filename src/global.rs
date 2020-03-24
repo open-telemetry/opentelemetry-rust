@@ -154,7 +154,7 @@ impl api::Span for BoxedSpan {
 /// [`GlobalProvider`]: struct.GlobalProvider.html
 /// [`Tracer`]: ../api/trace/tracer/trait.Tracer.html
 #[derive(Debug)]
-pub struct BoxedTracer(Box<dyn GenericTracer>);
+pub struct BoxedTracer(Box<dyn GenericTracer + Send + Sync>);
 
 impl api::Tracer for BoxedTracer {
     /// Global tracer uses `BoxedSpan`s so that it can be a global singleton,
@@ -300,17 +300,17 @@ where
 /// [`GlobalProvider`]: struct.GlobalProvider.html
 pub trait GenericProvider: fmt::Debug + 'static {
     /// Creates a named tracer instance that is a trait object through the underlying `Provider`.
-    fn get_tracer_boxed(&self, name: &'static str) -> Box<dyn GenericTracer>;
+    fn get_tracer_boxed(&self, name: &'static str) -> Box<dyn GenericTracer + Send + Sync>;
 }
 
 impl<S, T, P> GenericProvider for P
 where
     S: api::Span,
-    T: api::Tracer<Span = S>,
+    T: api::Tracer<Span = S> + Send + Sync,
     P: api::Provider<Tracer = T>,
 {
     /// Return a boxed generic tracer
-    fn get_tracer_boxed(&self, name: &'static str) -> Box<dyn GenericTracer> {
+    fn get_tracer_boxed(&self, name: &'static str) -> Box<dyn GenericTracer + Send + Sync> {
         Box::new(self.get_tracer(name))
     }
 }
@@ -331,7 +331,7 @@ impl GlobalProvider {
     fn new<P, T, S>(provider: P) -> Self
     where
         S: api::Span,
-        T: api::Tracer<Span = S>,
+        T: api::Tracer<Span = S> + Send + Sync,
         P: api::Provider<Tracer = T> + Send + Sync,
     {
         GlobalProvider {
@@ -372,7 +372,7 @@ pub fn trace_provider() -> GlobalProvider {
 pub fn set_provider<P, T, S>(new_provider: P)
 where
     S: api::Span,
-    T: api::Tracer<Span = S>,
+    T: api::Tracer<Span = S> + Send + Sync,
     P: api::Provider<Tracer = T> + Send + Sync,
 {
     let mut global_provider = GLOBAL_TRACER_PROVIDER

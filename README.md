@@ -6,7 +6,13 @@
 [![GitHub Actions CI](https://github.com/open-telemetry/opentelemetry-rust/workflows/CI/badge.svg)](https://github.com/open-telemetry/opentelemetry-rust/actions?query=workflow%3ACI+branch%3Amaster)
 [![Gitter chat](https://img.shields.io/badge/gitter-join%20chat%20%E2%86%92-brightgreen.svg)](https://gitter.im/open-telemetry/opentelemetry-rust)
 
-A Rust [OpenTelemetry](https://opentelemetry.io/) client.
+The Rust [OpenTelemetry](https://opentelemetry.io/) client.
+
+OpenTelemetry provides a single set of APIs, libraries, agents, and collector services to capture distributed traces 
+and metrics from your application. You can analyze them using [Prometheus], [Jaeger], and other observability tools.
+
+[Prometheus]: https://prometheus.io
+[Jaeger]: https://www.jaegertracing.io
 
 ## Quick Start
 

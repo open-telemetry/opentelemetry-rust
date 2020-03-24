@@ -1,5 +1,19 @@
 # Changelog
 
+## [v0.3.0](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.2.0...v0.3.0)
+
+### Added
+- New Base64 propagator
+- New SpanBuilder api
+- Zipkin Exporter crate 
+
+### Changed
+- Switch to `SpanId` and `TraceId` from `u64` and `u128`
+- Remove `&mut self` requirements for `Span` API
+
+### Fixed
+- circular Tracer debug impl
+
 ## [v0.2.0](https://github.com/open-telemetry/opentelemetry-rust/compare/b5918251cc07f9f6957434ccddc35306f68bd791..v0.2.0)
 
 ### Added

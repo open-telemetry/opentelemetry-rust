@@ -1,13 +1,17 @@
 [package]
 name = "opentelemetry"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["OpenTelemetry Authors <cncf-opentelemetry-contributors@lists.cncf.io>"]
-description = "A Rust OpenTelemetry client"
+description = "A metrics collection and distributed tracing framework"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust"
 repository = "https://github.com/open-telemetry/opentelemetry-rust"
 readme = "README.md"
-categories = ["development-tools::debugging"]
-keywords = ["opentelemetry", "jaeger", "prometheus"]
+categories = [
+    "development-tools::debugging",
+    "development-tools::profiling",
+    "asynchronous",
+]
+keywords = ["opentelemetry", "logging", "tracing", "metrics", "async"]
 license = "Apache-2.0"
 edition = "2018"
 
@@ -23,7 +27,7 @@ bincode = { version = "1.2.1", optional = true }
 [dev-dependencies]
 criterion = "0.3.1"
 hyper = "0.12.0"
-opentelemetry-jaeger = "0.1.0"
+opentelemetry-jaeger = { version = "0.1.0", path = "opentelemetry-jaeger" }
 thrift = "0.13.0"
 futures = "0.3.1"
 tokio = { version = "0.2.10", features = ["full"] }
@@ -41,10 +45,6 @@ members = [
     "opentelemetry-zipkin",
     "examples/actix",
 ]
-
-[patch.crates-io]
-opentelemetry-jaeger = { path = "opentelemetry-jaeger" }
-opentelemetry = { path = "." }
 
 [[bench]]
 name = "trace"
