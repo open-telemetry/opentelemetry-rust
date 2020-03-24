@@ -124,7 +124,7 @@ impl api::Span for BoxedSpan {
 
     /// Returns self as any
     fn as_any(&self) -> &dyn Any {
-        self
+        self.0.as_any()
     }
 
     /// Mark span as currently active

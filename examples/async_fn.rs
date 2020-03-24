@@ -56,8 +56,11 @@ fn init_tracer() -> thrift::Result<()> {
             tags: vec![],
         })
         .init()?;
+    let batch = sdk::BatchSpanProcessor::builder(exporter, tokio::spawn, tokio::time::interval)
+        .with_scheduled_delay(Duration::from_millis(100))
+        .build();
     let provider = sdk::Provider::builder()
-        .with_simple_exporter(exporter)
+        .with_batch_exporter(batch)
         .with_config(sdk::Config {
             default_sampler: Box::new(sdk::Sampler::Always),
             ..Default::default()
