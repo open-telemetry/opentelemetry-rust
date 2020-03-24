@@ -217,7 +217,7 @@ impl<T: net::ToSocketAddrs> Builder<T> {
 
     /// Assign the collector endpoint.
     #[cfg(feature = "collector_client")]
-    pub fn with_collector_endpoint<T: Into<String>>(self, collector_endpoint: T) -> Self {
+    pub fn with_collector_endpoint<S: Into<String>>(self, collector_endpoint: S) -> Self {
         Builder {
             collector_endpoint: Some(collector_endpoint.into()),
             ..self
@@ -226,7 +226,7 @@ impl<T: net::ToSocketAddrs> Builder<T> {
 
     /// Assign the collector username
     #[cfg(feature = "collector_client")]
-    pub fn with_collector_username<T: Into<String>>(self, collector_username: T) -> Self {
+    pub fn with_collector_username<S: Into<String>>(self, collector_username: S) -> Self {
         Builder {
             collector_username: Some(collector_username.into()),
             ..self
@@ -235,7 +235,7 @@ impl<T: net::ToSocketAddrs> Builder<T> {
 
     /// Assign the collector password
     #[cfg(feature = "collector_client")]
-    pub fn with_collector_password<T: Into<String>>(self, collector_password: T) -> Self {
+    pub fn with_collector_password<S: Into<String>>(self, collector_password: S) -> Self {
         Builder {
             collector_password: Some(collector_password.into()),
             ..self
@@ -317,9 +317,9 @@ impl Into<jaeger::Log> for api::Event {
         jaeger::Log::new(
             timestamp,
             vec![jaeger::Tag::new(
-                "event".to_string(),
+                "name".to_string(),
                 jaeger::TagType::String,
-                Some(self.message),
+                Some(self.name),
                 None,
                 None,
                 None,

@@ -9,6 +9,7 @@
 
 ### Changed
 - Switch to `SpanId` and `TraceId` from `u64` and `u128`
+- Remove `&mut self` requirements for `Span` API
 
 ### Fixed
 - circular Tracer debug impl

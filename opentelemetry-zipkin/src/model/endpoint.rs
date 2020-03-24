@@ -3,7 +3,7 @@ use std::net::{Ipv4Addr, Ipv6Addr};
 
 #[derive(TypedBuilder, Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Endpoint {
+pub(crate) struct Endpoint {
     #[builder(setter(strip_option), default)]
     #[serde(skip_serializing_if = "Option::is_none")]
     service_name: Option<String>,

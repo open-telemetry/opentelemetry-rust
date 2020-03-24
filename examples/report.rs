@@ -13,7 +13,7 @@ fn main() {
         let span0 = tracer.start("main", None);
         thread::sleep(Duration::from_millis(10));
         {
-            let mut span1 = tracer.start("sub", Some(span0.get_context()));
+            let span1 = tracer.start("sub", Some(span0.get_context()));
             span1.set_attribute(api::Key::new("foo").string("bar"));
             span1.add_event("something wrong".to_string());
             thread::sleep(Duration::from_millis(10));

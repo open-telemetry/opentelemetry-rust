@@ -20,9 +20,10 @@
 //! Implementations might require the user to specify configuration properties at
 //! `Provider` creation time, or rely on external configuration.
 use crate::api;
+use std::fmt;
 
 /// An interface to create `Tracer` instances.
-pub trait Provider: Send + Sync {
+pub trait Provider: fmt::Debug + 'static {
     /// The `Tracer` type that this `Provider` will return.
     type Tracer: api::Tracer;
 

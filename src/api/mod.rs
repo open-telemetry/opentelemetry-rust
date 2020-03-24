@@ -27,9 +27,9 @@ pub use metrics::{
     value::MeasurementValue,
     Instrument, InstrumentHandle, LabelSet, Measurement, Meter, MetricOptions,
 };
-pub use propagation::{binary_propagator::BinaryFormat, text_propagator::HttpTextFormat, Carrier};
-#[cfg(feature="base64_format")]
+#[cfg(feature = "base64_format")]
 pub use propagation::base64_format::Base64Format;
+pub use propagation::{binary_propagator::BinaryFormat, text_propagator::HttpTextFormat, Carrier};
 pub use trace::{
     b3_propagator::B3Propagator,
     event::Event,

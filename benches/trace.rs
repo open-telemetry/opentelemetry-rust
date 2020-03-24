@@ -10,7 +10,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     });
 
     trace_benchmark_group(c, "start-end-span-4-attrs", |tracer| {
-        let mut span = tracer.start("foo", None);
+        let span = tracer.start("foo", None);
         span.set_attribute(Key::new("key1").bool(false));
         span.set_attribute(Key::new("key2").string("hello"));
         span.set_attribute(Key::new("key3").u64(123));
@@ -19,7 +19,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     });
 
     trace_benchmark_group(c, "start-end-span-8-attrs", |tracer| {
-        let mut span = tracer.start("foo", None);
+        let span = tracer.start("foo", None);
         span.set_attribute(Key::new("key1").bool(false));
         span.set_attribute(Key::new("key2").string("hello"));
         span.set_attribute(Key::new("key3").u64(123));
@@ -32,7 +32,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     });
 
     trace_benchmark_group(c, "start-end-span-all-attr-types", |tracer| {
-        let mut span = tracer.start("foo", None);
+        let span = tracer.start("foo", None);
         span.set_attribute(Key::new("key1").bool(false));
         span.set_attribute(Key::new("key2").string("hello"));
         span.set_attribute(Key::new("key3").i64(123));
@@ -45,7 +45,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     });
 
     trace_benchmark_group(c, "start-end-span-all-attr-types-2x", |tracer| {
-        let mut span = tracer.start("foo", None);
+        let span = tracer.start("foo", None);
         span.set_attribute(Key::new("key1").bool(false));
         span.set_attribute(Key::new("key2").string("hello"));
         span.set_attribute(Key::new("key3").i64(123));
