@@ -17,6 +17,8 @@
 #![cfg(not(doctest))]
 // unfortunately the proto code includes comments from the google proto files
 // that are interpreted as "doc tests" and will fail to build.
+// When this PR is merged we should be able to remove this attribute:
+// https://github.com/danburkert/prost/pull/291
 
 use derivative::Derivative;
 use futures::sink::SinkExt;
@@ -25,7 +27,8 @@ use opentelemetry::api::core::Value;
 use opentelemetry::exporter::trace::{ExportResult, SpanData, SpanExporter};
 use std::any::Any;
 use std::sync::Arc;
-use tonic::transport::Channel; // ClientTlsConfig};
+use tonic::metadata::MetadataValue;
+use tonic::transport::{Channel, ClientTlsConfig};
 
 pub mod proto {
     pub mod google {
@@ -66,15 +69,65 @@ pub struct StackDriverExporter {
 
 impl StackDriverExporter {
     pub async fn connect<S: futures::task::Spawn>(
+        credentials_path: std::path::PathBuf,
         project_name: impl Into<String>,
         spawn: &S,
     ) -> Result<Self, Box<dyn std::error::Error>> {
         let uri = http::uri::Uri::from_static("https://cloudtrace.googleapis.com:443");
-        let channel = Channel::builder(uri).connect().await?;
+        // get pem, read bytes
+
+        // One example
+        //auto creds = CompositeChannelCredentials(SslCredentials(SslCredentialsOptions()), ServiceAccountJwtAccessCredentials(json_content, 3600));
+
+        // Another example
+        // public object AuthExplicit(string projectId, string jsonPath)
+        // {
+        //     var credential = GoogleCredential.FromFile(jsonPath)
+        //         .CreateScoped(LanguageServiceClient.DefaultScopes);
+        //     var channel = new Grpc.Core.Channel(
+        //         LanguageServiceClient.DefaultEndpoint.ToString(),
+        //         credential.ToChannelCredentials());
+        //     var client = LanguageServiceClient.Create(channel);
+        //     AnalyzeSentiment(client);
+        //     return 0;
+        // }
+
+        // Auth
+        let service_account_key = yup_oauth2::read_service_account_key(&credentials_path).await?;
+        let authenticator = yup_oauth2::ServiceAccountAuthenticator::builder(service_account_key)
+            .build()
+            .await?;
+        let scopes = &["https://www.googleapis.com/auth/trace.append"];
+        let token = authenticator.token(scopes).await?;
+        let bearer_token = format!("Bearer {:?}", token); // TODO: verify this prints correctly
+        let header_value = MetadataValue::from_str(&bearer_token)?;
+
+        // let ca_cert = Certificate::from_pem();
+        // let client_cert = unimplemented!();
+        // let client_key = unimplemented!();
+        // let identity = Identity::from_pem(client_cert, client_key);
+        //
+
+        let mut rustls_config = rustls::ClientConfig::new();
+        rustls_config
+            .root_store
+            .add_server_trust_anchors(&webpki_roots::TLS_SERVER_ROOTS);
+        let tls_config = ClientTlsConfig::new().rustls_client_config(rustls_config);
+        // tls_config.ca_certificate(ca_cert);
+        // tls_config.domain_name("cloudtrace.googleapis.com"); // TODO: DRY
+
+        let channel = Channel::builder(uri)
+            .tls_config(tls_config)
+            .connect()
+            .await?;
         let (tx, rx) = futures::channel::mpsc::channel(64);
         spawn.spawn_obj(
             Box::new(Self::export_inner(
-                TraceServiceClient::new(channel),
+                TraceServiceClient::with_interceptor(channel, move |mut req: tonic::Request<()>| {
+                    req.metadata_mut()
+                        .insert("authorization", header_value.clone());
+                    Ok(req)
+                }),
                 project_name.into(),
                 rx,
             ))
@@ -161,9 +214,6 @@ impl StackDriverExporter {
 }
 
 impl SpanExporter for StackDriverExporter {
-    /// # Safety
-    ///
-    /// Panics if called outside of executor.
     fn export(&self, batch: Vec<Arc<SpanData>>) -> ExportResult {
         match futures::executor::block_on(self.tx.clone().send(batch)) {
             Err(e) => {
@@ -214,7 +264,12 @@ mod tests {
     fn it_works() {
         let mut rt = tokio::runtime::Runtime::new().unwrap();
         let tp = futures::executor::ThreadPool::new().unwrap();
-        rt.block_on(StackDriverExporter::connect("fake-project", &tp))
-            .unwrap();
+        // TODO: figure out how we want to do this test.
+        rt.block_on(StackDriverExporter::connect(
+            "stuff.json".into(),
+            "fake-project",
+            &tp,
+        ))
+        .unwrap();
     }
 }

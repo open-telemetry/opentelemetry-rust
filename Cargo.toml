@@ -27,4 +27,7 @@ num_cpus = "1.12"
 opentelemetry = "0.2"
 prost = "0.6"
 prost-types = "0.6"
+rustls = "0.16"
 tonic = { version = "0.1", features = ["transport", "tls"] }
+yup-oauth2 = "4.1"
+webpki-roots = "0.19"
