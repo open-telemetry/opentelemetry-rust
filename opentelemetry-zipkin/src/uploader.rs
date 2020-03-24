@@ -6,7 +6,7 @@ use opentelemetry::exporter::trace;
 static API_V2_COLLECTOR_ROUTE: &str = "/api/v2/spans";
 
 #[derive(Clone, Debug)]
-pub enum UploaderFormat {
+pub(crate) enum UploaderFormat {
     HTTP,
 }
 

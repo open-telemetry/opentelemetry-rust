@@ -18,10 +18,11 @@
 use crate::api;
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
+use std::fmt;
 use std::time::SystemTime;
 
 /// Interface for a single operation within a trace.
-pub trait Span: Send + Sync + std::fmt::Debug {
+pub trait Span: fmt::Debug + 'static {
     /// An API to record events in the context of a given `Span`.
     ///
     /// Events have a time associated with the moment when they are

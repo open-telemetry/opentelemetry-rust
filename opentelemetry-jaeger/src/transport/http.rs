@@ -1,6 +1,5 @@
 //! Thrift HTTP transport
 use reqwest::header;
-use std::error::Error;
 use std::fmt;
 use std::sync::{Arc, Mutex};
 use thrift::{TransportError, TransportErrorKind};
@@ -48,7 +47,7 @@ impl THttpChannel {
             .map_err(|err| {
                 thrift::Error::Transport(TransportError::new(
                     TransportErrorKind::Unknown,
-                    err.description(),
+                    err.to_string(),
                 ))
             })?;
 
@@ -87,7 +86,7 @@ impl std::io::Read for THttpChannel {
         let mut data = self
             .read_buffer
             .lock()
-            .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err.description()))?;
+            .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err.to_string()))?;
 
         let amt = data.as_slice().read(buf)?;
         if amt > 0 {
@@ -109,7 +108,7 @@ impl std::io::Write for THttpChannel {
         let mut write_buffer = self
             .write_buffer
             .lock()
-            .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err.description()))?;
+            .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err.to_string()))?;
         write_buffer.extend_from_slice(buf);
 
         Ok(buf.len())
@@ -120,7 +119,7 @@ impl std::io::Write for THttpChannel {
         let mut write_buffer = self
             .write_buffer
             .lock()
-            .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err.description()))?;
+            .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err.to_string()))?;
         let mut req = self.client.post(&self.endpoint).body(write_buffer.clone());
         if let (Some(username), Some(password)) = (self.username.as_ref(), self.password.as_ref()) {
             req = req.basic_auth(username, Some(password));
@@ -142,7 +141,7 @@ impl std::io::Write for THttpChannel {
             let mut read_buffer = self
                 .read_buffer
                 .lock()
-                .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err.description()))?;
+                .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err.to_string()))?;
 
             resp.copy_to(&mut *read_buffer)
                 .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;

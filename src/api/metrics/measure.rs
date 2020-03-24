@@ -14,7 +14,7 @@
 //! durations and sizes.
 //!
 //! When passing `MetricOptions`, measures can be declared as
-//! `with_abslute(false)` to indicate support for positive and negative values.
+//! `with_absolute(false)` to indicate support for positive and negative values.
 use crate::api::metrics;
 
 /// An interface for recording values where the count or rate of

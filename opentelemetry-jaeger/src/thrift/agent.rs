@@ -68,7 +68,7 @@ impl <C: TThriftClient + TAgentSyncClientMarker> TAgentSyncClient for C {
       {
         self.increment_sequence_number();
         let message_ident = TMessageIdentifier::new("emitZipkinBatch", TMessageType::OneWay, self.sequence_number());
-        let call_args = AgentEmitZipkinBatchArgs { spans: spans };
+        let call_args = AgentEmitZipkinBatchArgs { spans };
         self.o_prot_mut().write_message_begin(&message_ident)?;
         call_args.write_to_out_protocol(self.o_prot_mut())?;
         self.o_prot_mut().write_message_end()?;
@@ -82,7 +82,7 @@ impl <C: TThriftClient + TAgentSyncClientMarker> TAgentSyncClient for C {
       {
         self.increment_sequence_number();
         let message_ident = TMessageIdentifier::new("emitBatch", TMessageType::OneWay, self.sequence_number());
-        let call_args = AgentEmitBatchArgs { batch: batch };
+        let call_args = AgentEmitBatchArgs { batch };
         self.o_prot_mut().write_message_begin(&message_ident)?;
         call_args.write_to_out_protocol(self.o_prot_mut())?;
         self.o_prot_mut().write_message_end()?;
