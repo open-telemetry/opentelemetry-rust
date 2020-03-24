@@ -69,7 +69,7 @@ pub struct StackDriverExporter {
 
 impl StackDriverExporter {
     pub async fn connect<S: futures::task::Spawn>(
-        credentials_path: std::path::PathBuf,
+        credentials_path: impl AsRef<std::path::Path>,
         project_name: impl Into<String>,
         spawn: &S,
     ) -> Result<Self, Box<dyn std::error::Error>> {
@@ -93,7 +93,7 @@ impl StackDriverExporter {
         // }
 
         // Auth
-        let service_account_key = yup_oauth2::read_service_account_key(&credentials_path).await?;
+        let service_account_key = yup_oauth2::read_service_account_key(credentials_path).await?;
         let authenticator = yup_oauth2::ServiceAccountAuthenticator::builder(service_account_key)
             .build()
             .await?;
@@ -260,13 +260,25 @@ fn to_truncate(s: String) -> TruncatableString {
 mod tests {
     use super::*;
 
+    struct TokioSpawner;
+
+    impl futures::task::Spawn for TokioSpawner {
+        fn spawn_obj(
+            &self,
+            future: futures::future::FutureObj<'static, ()>,
+        ) -> Result<(), futures::task::SpawnError> {
+            tokio::runtime::Handle::current().spawn(future);
+            Ok(())
+        }
+    }
+
     #[test]
     fn it_works() {
         let mut rt = tokio::runtime::Runtime::new().unwrap();
         let tp = futures::executor::ThreadPool::new().unwrap();
         // TODO: figure out how we want to do this test.
         rt.block_on(StackDriverExporter::connect(
-            "stuff.json".into(),
+            std::path::PathBuf::from("stuff.json"),
             "fake-project",
             &tp,
         ))
