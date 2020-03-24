@@ -8,7 +8,7 @@
 use crate::api;
 use std::convert::TryInto;
 
-/// Used to serialize and deserialize `SpanContext`s to and from  a binary
+/// Used to serialize and deserialize `SpanContext`s to and from a binary
 /// representation.
 pub trait BinaryFormat {
     /// Serializes span context into a byte array and returns the array.
