@@ -735,7 +735,8 @@ pub struct Response {
 impl Response {
   pub fn new(ok: bool) -> Response {
     Response {
-      ok: ok,
+      ok,
+
     }
   }
   pub fn read_from_in_protocol(i_prot: &mut dyn TInputProtocol) -> thrift::Result<Response> {
@@ -845,7 +846,7 @@ impl <C: TThriftClient + TZipkinCollectorSyncClientMarker> TZipkinCollectorSyncC
       {
         self.increment_sequence_number();
         let message_ident = TMessageIdentifier::new("submitZipkinBatch", TMessageType::Call, self.sequence_number());
-        let call_args = ZipkinCollectorSubmitZipkinBatchArgs { spans: spans };
+        let call_args = ZipkinCollectorSubmitZipkinBatchArgs { spans };
         self.o_prot_mut().write_message_begin(&message_ident)?;
         call_args.write_to_out_protocol(self.o_prot_mut())?;
         self.o_prot_mut().write_message_end()?;

@@ -1,18 +1,22 @@
 [package]
 name = "opentelemetry-jaeger"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["OpenTelemetry Authors <cncf-opentelemetry-contributors@lists.cncf.io>"]
 description = "Jaeger exporter for OpenTelemetry"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust"
 repository = "https://github.com/open-telemetry/opentelemetry-rust"
 readme = "README.md"
-categories = ["development-tools::debugging"]
-keywords = ["opentelemetry", "jaeger"]
+categories = [
+    "development-tools::debugging",
+    "development-tools::profiling",
+    "asynchronous",
+]
+keywords = ["opentelemetry", "jaeger", "tracing", "async"]
 license = "Apache-2.0"
 edition = "2018"
 
 [dependencies]
-opentelemetry = "0.2.0"
+opentelemetry = { version = "0.3.0", path = ".." }
 reqwest = { version = "0.10.1", features = ["blocking"], optional = true }
 thrift = "0.13.0"
 

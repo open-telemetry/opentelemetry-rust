@@ -27,6 +27,8 @@ pub use metrics::{
     value::MeasurementValue,
     Instrument, InstrumentHandle, LabelSet, Measurement, Meter, MetricOptions,
 };
+#[cfg(feature = "base64_format")]
+pub use propagation::base64_format::Base64Format;
 pub use propagation::{binary_propagator::BinaryFormat, text_propagator::HttpTextFormat, Carrier};
 pub use trace::{
     b3_propagator::B3Propagator,
@@ -39,5 +41,5 @@ pub use trace::{
     span_context::{SpanContext, SpanId, TraceId, TRACE_FLAGS_UNUSED, TRACE_FLAG_SAMPLED},
     span_processor::SpanProcessor,
     trace_context_propagator::TraceContextPropagator,
-    tracer::{Tracer, TracerGenerics},
+    tracer::{SpanBuilder, Tracer, TracerGenerics},
 };

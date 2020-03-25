@@ -18,10 +18,11 @@
 use crate::api;
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
+use std::fmt;
 use std::time::SystemTime;
 
 /// Interface for a single operation within a trace.
-pub trait Span: Send + Sync + std::fmt::Debug {
+pub trait Span: fmt::Debug + 'static {
     /// An API to record events in the context of a given `Span`.
     ///
     /// Events have a time associated with the moment when they are
@@ -33,8 +34,8 @@ pub trait Span: Send + Sync + std::fmt::Debug {
     /// Note that the OpenTelemetry project documents certain ["standard event names and
     /// keys"](https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/data-semantic-conventions.md)
     /// which have prescribed semantic meanings.
-    fn add_event(&mut self, message: String) {
-        self.add_event_with_timestamp(message, SystemTime::now())
+    fn add_event(&self, name: String) {
+        self.add_event_with_timestamp(name, SystemTime::now())
     }
 
     /// An API to record events at a specific time in the context of a given `Span`.
@@ -45,7 +46,7 @@ pub trait Span: Send + Sync + std::fmt::Debug {
     /// Note that the OpenTelemetry project documents certain ["standard event names and
     /// keys"](https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/data-semantic-conventions.md)
     /// which have prescribed semantic meanings.
-    fn add_event_with_timestamp(&mut self, message: String, timestamp: SystemTime);
+    fn add_event_with_timestamp(&self, name: String, timestamp: SystemTime);
 
     /// Returns the `SpanContext` for the given `Span`. The returned value may be used even after
     /// the `Span is finished. The returned value MUST be the same for the entire `Span` lifetime.
@@ -82,14 +83,14 @@ pub trait Span: Send + Sync + std::fmt::Debug {
     /// Note that the OpenTelemetry project documents certain ["standard
     /// attributes"](https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/data-semantic-conventions.md)
     /// that have prescribed semantic meanings.
-    fn set_attribute(&mut self, attribute: api::KeyValue);
+    fn set_attribute(&self, attribute: api::KeyValue);
 
     /// Sets the status of the `Span`. If used, this will override the default `Span`
     /// status, which is `OK`.
     ///
     /// Only the value of the last call will be recorded, and implementations are free
     /// to ignore previous calls.
-    fn set_status(&mut self, status: api::SpanStatus);
+    fn set_status(&self, status: api::SpanStatus);
 
     /// Updates the `Span`'s name. After this update, any sampling behavior based on the
     /// name will depend on the implementation.
@@ -103,7 +104,7 @@ pub trait Span: Send + Sync + std::fmt::Debug {
     /// regular property. It emphasizes that this operation signifies a
     /// major change for a `Span` and may lead to re-calculation of sampling or
     /// filtering decisions made previously depending on the implementation.
-    fn update_name(&mut self, new_name: String);
+    fn update_name(&self, new_name: String);
 
     /// Finishes the `Span`.
     ///
@@ -115,7 +116,7 @@ pub trait Span: Send + Sync + std::fmt::Debug {
     /// still be running and can be ended later.
     ///
     ///This API MUST be non-blocking.
-    fn end(&mut self);
+    fn end(&self);
 
     /// Used by global tracer to downcast to specific span type.
     fn as_any(&self) -> &dyn std::any::Any;
