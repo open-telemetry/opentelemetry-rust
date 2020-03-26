@@ -81,13 +81,14 @@ impl StackDriverExporter {
             .await?;
         let scopes = &["https://www.googleapis.com/auth/trace.append"];
         let token = authenticator.token(scopes).await?;
-        let bearer_token = format!("Bearer {:?}", token); // TODO: verify this prints correctly
+        let bearer_token = format!("Bearer {}", token.as_str());
         let header_value = MetadataValue::from_str(&bearer_token)?;
 
         let mut rustls_config = rustls::ClientConfig::new();
         rustls_config
             .root_store
             .add_server_trust_anchors(&webpki_roots::TLS_SERVER_ROOTS);
+        rustls_config.set_protocols(&[Vec::from("h2".as_bytes())]);
         let tls_config = ClientTlsConfig::new().rustls_client_config(rustls_config);
 
         let channel = Channel::builder(uri)
@@ -171,7 +172,6 @@ impl StackDriverExporter {
                 })
                 .collect::<Vec<_>>();
 
-            // let mut req = BatchWriteSpansRequest::default();
             let req = BatchWriteSpansRequest {
                 name: format!("projects/{}", project_name),
                 spans,
@@ -182,7 +182,7 @@ impl StackDriverExporter {
                 .map_err(|e| {
                     log::error!("StackDriver push failed {:?}", e);
                 })
-                .ok(); // TODO: run this
+                .ok();
         }
     }
 }
