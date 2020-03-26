@@ -14,30 +14,47 @@
    limitations under the License.
 */
 
-use {
-    derivative::Derivative,
-    grpcio::{ChannelBuilder, ChannelCredentials, Environment, Error as GrpcioError},
-    opentelemetry::{
-        api::core::Value,
-        exporter::trace::{ExportResult, SpanData, SpanExporter},
-    },
-    protobuf::well_known_types::Timestamp,
-    std::{
-        any::Any,
-        sync::{Arc, Mutex},
-        time::SystemTime,
-    },
-    tokio::{prelude::Future, runtime::Runtime},
-};
+#![cfg(not(doctest))]
+// unfortunately the proto code includes comments from the google proto files
+// that are interpreted as "doc tests" and will fail to build.
+// When this PR is merged we should be able to remove this attribute:
+// https://github.com/danburkert/prost/pull/291
 
-mod proto {
-    include!(concat!(env!("OUT_DIR"), "/mod.rs"));
+use derivative::Derivative;
+use futures::sink::SinkExt;
+use futures::stream::StreamExt;
+use opentelemetry::api::core::Value;
+use opentelemetry::exporter::trace::{ExportResult, SpanData, SpanExporter};
+use std::any::Any;
+use std::sync::Arc;
+use tonic::metadata::MetadataValue;
+use tonic::transport::{Channel, ClientTlsConfig};
+
+pub mod proto {
+    pub mod google {
+        pub mod api {
+            tonic::include_proto!("google.api");
+        }
+        pub mod devtools {
+            pub mod cloudtrace {
+                pub mod v2 {
+                    tonic::include_proto!("google.devtools.cloudtrace.v2");
+                }
+            }
+        }
+        pub mod protobuf {
+            tonic::include_proto!("google.protobuf");
+        }
+        pub mod rpc {
+            tonic::include_proto!("google.rpc");
+        }
+    }
 }
 
-use proto::{
-    trace::{AttributeValue, Span_TimeEvent, Span_TimeEvent_Annotation, TruncatableString},
-    tracing_grpc::TraceServiceClient,
-};
+use proto::google::devtools::cloudtrace::v2::span::time_event::Annotation;
+use proto::google::devtools::cloudtrace::v2::span::TimeEvent;
+use proto::google::devtools::cloudtrace::v2::trace_service_client::TraceServiceClient;
+use proto::google::devtools::cloudtrace::v2::{AttributeValue, TruncatableString};
 
 /// Exports opentelemetry tracing spans to Google StackDriver.
 ///
@@ -47,86 +64,141 @@ use proto::{
 #[derivative(Debug)]
 pub struct StackDriverExporter {
     #[derivative(Debug = "ignore")]
-    client: TraceServiceClient,
-    project_name: String,
-    runtime: Mutex<Runtime>,
+    tx: futures::channel::mpsc::Sender<Vec<Arc<SpanData>>>,
 }
 
 impl StackDriverExporter {
-    pub fn new(project_name: impl Into<String>) -> Result<Self, GrpcioError> {
-        Ok(Self {
-            client: TraceServiceClient::new(
-                ChannelBuilder::new(Arc::new(Environment::new(num_cpus::get()))).secure_connect(
-                    "cloudtrace.googleapis.com:443",
-                    ChannelCredentials::google_default_credentials()?,
-                ),
-            ),
-            project_name: project_name.into(),
-            runtime: Mutex::new(Runtime::new().unwrap()),
-        })
+    pub async fn connect<S: futures::task::Spawn>(
+        credentials_path: impl AsRef<std::path::Path>,
+        project_name: impl Into<String>,
+        spawn: &S,
+    ) -> Result<Self, Box<dyn std::error::Error>> {
+        let uri = http::uri::Uri::from_static("https://cloudtrace.googleapis.com:443");
+
+        let service_account_key = yup_oauth2::read_service_account_key(credentials_path).await?;
+        let authenticator = yup_oauth2::ServiceAccountAuthenticator::builder(service_account_key)
+            .build()
+            .await?;
+        let scopes = &["https://www.googleapis.com/auth/trace.append"];
+        let token = authenticator.token(scopes).await?;
+        let bearer_token = format!("Bearer {}", token.as_str());
+        let header_value = MetadataValue::from_str(&bearer_token)?;
+
+        let mut rustls_config = rustls::ClientConfig::new();
+        rustls_config
+            .root_store
+            .add_server_trust_anchors(&webpki_roots::TLS_SERVER_ROOTS);
+        rustls_config.set_protocols(&[Vec::from("h2".as_bytes())]);
+        let tls_config = ClientTlsConfig::new().rustls_client_config(rustls_config);
+
+        let channel = Channel::builder(uri)
+            .tls_config(tls_config)
+            .connect()
+            .await?;
+        let (tx, rx) = futures::channel::mpsc::channel(64);
+        spawn.spawn_obj(
+            Box::new(Self::export_inner(
+                TraceServiceClient::with_interceptor(channel, move |mut req: tonic::Request<()>| {
+                    req.metadata_mut()
+                        .insert("authorization", header_value.clone());
+                    Ok(req)
+                }),
+                project_name.into(),
+                rx,
+            ))
+            .into(),
+        )?;
+
+        Ok(Self { tx })
+    }
+
+    async fn export_inner(
+        mut client: TraceServiceClient<Channel>,
+        project_name: String,
+        mut rx: futures::channel::mpsc::Receiver<Vec<Arc<SpanData>>>,
+    ) {
+        while let Some(batch) = rx.next().await {
+            use proto::google::devtools::cloudtrace::v2::span::time_event::Value;
+            use proto::google::devtools::cloudtrace::v2::span::{Attributes, TimeEvents};
+            use proto::google::devtools::cloudtrace::v2::{BatchWriteSpansRequest, Span};
+
+            let spans = batch
+                .iter()
+                .map(|span| {
+                    let new_attributes = Attributes {
+                        attribute_map: span
+                            .attributes
+                            .iter()
+                            .map(|kv| {
+                                (
+                                    kv.key.inner().clone().into_owned(),
+                                    attribute_value_conversion(kv.value.clone()),
+                                )
+                            })
+                            .collect(),
+                        ..Default::default()
+                    };
+                    let new_time_events = TimeEvents {
+                        time_event: span
+                            .message_events
+                            .iter()
+                            .map(|event| TimeEvent {
+                                time: Some(event.timestamp.into()),
+                                value: Some(Value::Annotation(Annotation {
+                                    description: Some(to_truncate(event.message.clone())),
+                                    ..Default::default()
+                                })),
+                            })
+                            .collect(),
+                        ..Default::default()
+                    };
+
+                    Span {
+                        name: format!(
+                            "projects/{}/traces/{}/spans/{}",
+                            project_name,
+                            hex::encode(span.context.trace_id().to_be_bytes()),
+                            hex::encode(span.context.span_id().to_be_bytes())
+                        ),
+                        display_name: Some(to_truncate(span.name.clone())),
+                        span_id: hex::encode(span.context.span_id().to_be_bytes()),
+                        parent_span_id: hex::encode(span.parent_span_id.to_be_bytes()),
+                        start_time: Some(span.start_time.into()),
+                        end_time: Some(span.end_time.into()),
+                        attributes: Some(new_attributes),
+                        time_events: Some(new_time_events),
+                        ..Default::default()
+                    }
+                })
+                .collect::<Vec<_>>();
+
+            let req = BatchWriteSpansRequest {
+                name: format!("projects/{}", project_name),
+                spans,
+            };
+            client
+                .batch_write_spans(req)
+                .await
+                .map_err(|e| {
+                    log::error!("StackDriver push failed {:?}", e);
+                })
+                .ok();
+        }
     }
 }
 
 impl SpanExporter for StackDriverExporter {
     fn export(&self, batch: Vec<Arc<SpanData>>) -> ExportResult {
-        use proto::{trace::Span, tracing::BatchWriteSpansRequest};
-        let Self {
-            client,
-            project_name,
-            runtime,
-        } = self;
-        let mut req = BatchWriteSpansRequest::new();
-        req.set_name(format!("projects/{}", project_name));
-        for span in batch {
-            let mut new_span = Span::new();
-            new_span.set_name(format!(
-                "projects/{}/traces/{}/spans/{}",
-                project_name,
-                hex::encode(span.context.trace_id().to_be_bytes()),
-                hex::encode(span.context.span_id().to_be_bytes())
-            ));
-            new_span.set_display_name(to_truncate(span.name.clone()));
-            new_span.set_span_id(hex::encode(span.context.span_id().to_be_bytes()));
-            new_span.set_parent_span_id(hex::encode(span.parent_span_id.to_be_bytes()));
-            new_span.set_start_time(system_time_to_timestamp(span.start_time));
-            new_span.set_end_time(system_time_to_timestamp(span.end_time));
-            new_span.mut_attributes().set_attribute_map(
-                span.attributes
-                    .iter()
-                    .map(|kv| {
-                        (
-                            kv.key.inner().clone().into_owned(),
-                            attribute_value_conversion(kv.value.clone()),
-                        )
-                    })
-                    .collect(),
-            );
-            for event in span.message_events.iter() {
-                new_span.mut_time_events().mut_time_event().push({
-                    let mut time_event = Span_TimeEvent::new();
-                    time_event.set_time(system_time_to_timestamp(event.timestamp));
-                    time_event.set_annotation({
-                        let mut a = Span_TimeEvent_Annotation::new();
-                        a.set_description(to_truncate(event.message.clone()));
-                        a
-                    });
-                    time_event
-                });
-            }
-            req.mut_spans().push(new_span);
-        }
-        match client.batch_write_spans_async(&req) {
-            Ok(f) => {
-                runtime.lock().unwrap().spawn(
-                    f.map(|_| ())
-                        .map_err(|e| log::error!("StackDriver responded with error {:?}", e)),
-                );
-            }
+        match futures::executor::block_on(self.tx.clone().send(batch)) {
             Err(e) => {
-                log::error!("StackDriver push failed {:?}", e);
+                log::error!(
+                    "Unable to send to export_inner; this should never occur {:?}",
+                    e
+                );
+                ExportResult::FailedNotRetryable
             }
+            _ => ExportResult::Success,
         }
-        ExportResult::Success
     }
 
     fn shutdown(&self) {}
@@ -136,39 +208,54 @@ impl SpanExporter for StackDriverExporter {
     }
 }
 
-fn system_time_to_timestamp(system: SystemTime) -> Timestamp {
-    let d = system.duration_since(SystemTime::UNIX_EPOCH).unwrap();
-    let mut t = Timestamp::new();
-    t.set_seconds(d.as_secs() as i64);
-    t.set_nanos(d.subsec_nanos() as i32);
-    t
-}
-
 fn attribute_value_conversion(v: Value) -> AttributeValue {
-    let mut a = AttributeValue::new();
-    match v {
-        Value::Bool(v) => a.set_bool_value(v),
-        Value::Bytes(v) => a.set_string_value(to_truncate(hex::encode(&v))),
-        Value::F64(v) => a.set_string_value(to_truncate(v.to_string())),
-        Value::I64(v) => a.set_int_value(v),
-        Value::String(v) => a.set_string_value(to_truncate(v)),
-        Value::U64(v) => a.set_int_value(v as i64),
+    use proto::google::devtools::cloudtrace::v2::attribute_value;
+    let new_value = match v {
+        Value::Bool(v) => attribute_value::Value::BoolValue(v),
+        Value::Bytes(v) => attribute_value::Value::StringValue(to_truncate(hex::encode(&v))),
+        Value::F64(v) => attribute_value::Value::StringValue(to_truncate(v.to_string())),
+        Value::I64(v) => attribute_value::Value::IntValue(v),
+        Value::String(v) => attribute_value::Value::StringValue(to_truncate(v)),
+        Value::U64(v) => attribute_value::Value::IntValue(v as i64),
+    };
+    AttributeValue {
+        value: Some(new_value),
     }
-    a
 }
 
 fn to_truncate(s: String) -> TruncatableString {
-    let mut t = TruncatableString::new();
-    t.set_value(s);
-    t
+    TruncatableString {
+        value: s,
+        ..Default::default()
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    struct TokioSpawner;
+
+    impl futures::task::Spawn for TokioSpawner {
+        fn spawn_obj(
+            &self,
+            future: futures::future::FutureObj<'static, ()>,
+        ) -> Result<(), futures::task::SpawnError> {
+            tokio::runtime::Handle::current().spawn(future);
+            Ok(())
+        }
+    }
+
     #[test]
     fn it_works() {
-        StackDriverExporter::new("fake-project");
+        let mut rt = tokio::runtime::Runtime::new().unwrap();
+        // let tp = futures::executor::ThreadPool::new().unwrap();
+        // TODO: figure out how we want to do this test.
+        rt.block_on(StackDriverExporter::connect(
+            std::path::PathBuf::from("stuff.json"),
+            "fake-project",
+            &TokioSpawner,
+        ))
+        .unwrap();
     }
 }
