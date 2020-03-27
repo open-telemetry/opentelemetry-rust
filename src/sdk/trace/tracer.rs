@@ -157,7 +157,7 @@ impl api::Tracer for Tracer {
             })
             .unwrap_or((
                 true,
-                api::TraceId::from_u128(rand::random::<u128>()),
+                builder.trace_id.unwrap_or(api::TraceId::from_u128(rand::random::<u128>())),
                 api::SpanId::invalid(),
                 false,
                 0,
