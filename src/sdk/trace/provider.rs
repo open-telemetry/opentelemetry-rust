@@ -24,6 +24,14 @@ struct ProviderInner {
     config: sdk::Config,
 }
 
+impl Drop for ProviderInner {
+    fn drop(&mut self) {
+        for processor in &self.processors {
+            processor.shutdown();
+        }
+    }
+}
+
 /// Creator and registry of named `Tracer` instances.
 #[derive(Clone, Debug)]
 pub struct Provider {
