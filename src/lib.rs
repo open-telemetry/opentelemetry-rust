@@ -25,7 +25,11 @@ use futures::stream::StreamExt;
 use opentelemetry::api::core::Value;
 use opentelemetry::exporter::trace::{ExportResult, SpanData, SpanExporter};
 use std::any::Any;
-use std::sync::Arc;
+use std::sync::{
+    atomic::{AtomicUsize, Ordering},
+    Arc,
+};
+use std::time::{Duration, Instant};
 use tonic::metadata::MetadataValue;
 use tonic::transport::{Channel, ClientTlsConfig};
 
@@ -64,17 +68,20 @@ use proto::google::devtools::cloudtrace::v2::{AttributeValue, TruncatableString}
 pub struct StackDriverExporter {
     #[derivative(Debug = "ignore")]
     tx: futures::channel::mpsc::Sender<Vec<Arc<SpanData>>>,
+    pending_count: Arc<AtomicUsize>,
+    maximum_shutdown_duration: Duration,
 }
 
 impl StackDriverExporter {
     pub async fn connect<S: futures::task::Spawn>(
         credentials_path: impl AsRef<std::path::Path>,
-        project_name: impl Into<String>,
         spawn: &S,
+        maximum_shutdown_duration: Option<Duration>,
     ) -> Result<Self, Box<dyn std::error::Error>> {
         let uri = http::uri::Uri::from_static("https://cloudtrace.googleapis.com:443");
 
-        let service_account_key = yup_oauth2::read_service_account_key(credentials_path).await?;
+        let service_account_key = yup_oauth2::read_service_account_key(&credentials_path).await?;
+        let project_name = service_account_key.project_id.as_ref().ok_or("project_id is missing")?.clone();
         let authenticator = yup_oauth2::ServiceAccountAuthenticator::builder(service_account_key)
             .build()
             .await?;
@@ -95,6 +102,7 @@ impl StackDriverExporter {
             .connect()
             .await?;
         let (tx, rx) = futures::channel::mpsc::channel(64);
+        let pending_count = Arc::new(AtomicUsize::new(0));
         spawn.spawn_obj(
             Box::new(Self::export_inner(
                 TraceServiceClient::with_interceptor(channel, move |mut req: tonic::Request<()>| {
@@ -102,19 +110,29 @@ impl StackDriverExporter {
                         .insert("authorization", header_value.clone());
                     Ok(req)
                 }),
-                project_name.into(),
+                project_name,
                 rx,
+                pending_count.clone(),
             ))
             .into(),
         )?;
 
-        Ok(Self { tx })
+        Ok(Self {
+            tx,
+            pending_count,
+            maximum_shutdown_duration: maximum_shutdown_duration.unwrap_or(Duration::from_secs(5)),
+        })
+    }
+
+    pub fn pending_count(&self) -> usize {
+        self.pending_count.load(Ordering::Relaxed)
     }
 
     async fn export_inner(
         mut client: TraceServiceClient<Channel>,
         project_name: String,
         mut rx: futures::channel::mpsc::Receiver<Vec<Arc<SpanData>>>,
+        pending_count: Arc<AtomicUsize>,
     ) {
         while let Some(batch) = rx.next().await {
             use proto::google::devtools::cloudtrace::v2::span::time_event::Value;
@@ -182,6 +200,7 @@ impl StackDriverExporter {
                     log::error!("StackDriver push failed {:?}", e);
                 })
                 .ok();
+            pending_count.fetch_sub(1, Ordering::Relaxed);
         }
     }
 }
@@ -197,11 +216,21 @@ impl SpanExporter for StackDriverExporter {
                     ExportResult::FailedRetryable
                 }
             }
-            _ => ExportResult::Success,
+            _ => {
+                self.pending_count.fetch_add(1, Ordering::Relaxed);
+                ExportResult::Success
+            }
         }
     }
 
-    fn shutdown(&self) {}
+    fn shutdown(&self) {
+        let start = Instant::now();
+        while (Instant::now() - start) < self.maximum_shutdown_duration && self.pending_count() > 0
+        {
+            std::thread::yield_now();
+            // Spin for a bit and give the inner export some time to upload, with a timeout.
+        }
+    }
 
     fn as_any(&self) -> &dyn Any {
         self

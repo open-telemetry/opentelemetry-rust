@@ -16,6 +16,10 @@ tonic-build = "0.1"
 [dev-dependencies]
 futures = { version = "0.3", features = ["thread-pool"] }
 tokio = "0.2"
+tracing = "0.1"
+tracing-futures = "0.2.2"
+tracing-opentelemetry = "0.2"
+tracing-subscriber = "0.2"
 
 [dependencies]
 derivative = "1.0"

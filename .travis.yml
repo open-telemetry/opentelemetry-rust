@@ -13,6 +13,7 @@ before_install:
 
 script:
   - cargo build --verbose
+  - cargo test --all --verbose
   - cargo doc --verbose
 
 deploy:
