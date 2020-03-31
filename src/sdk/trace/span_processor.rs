@@ -63,6 +63,6 @@ impl api::SpanProcessor for SimpleSpanProcessor {
     }
 
     fn shutdown(&self) {
-        // Ignored
+        self.exporter.shutdown();
     }
 }
