@@ -59,6 +59,9 @@ use proto::google::devtools::cloudtrace::v2::span::TimeEvent;
 use proto::google::devtools::cloudtrace::v2::trace_service_client::TraceServiceClient;
 use proto::google::devtools::cloudtrace::v2::{AttributeValue, TruncatableString};
 
+#[cfg(feature = "tokio_adapter")]
+pub mod tokio_adapter;
+
 /// Exports opentelemetry tracing spans to Google StackDriver.
 ///
 /// As of the time of this writing, the opentelemetry crate exposes no link information
@@ -81,7 +84,11 @@ impl StackDriverExporter {
         let uri = http::uri::Uri::from_static("https://cloudtrace.googleapis.com:443");
 
         let service_account_key = yup_oauth2::read_service_account_key(&credentials_path).await?;
-        let project_name = service_account_key.project_id.as_ref().ok_or("project_id is missing")?.clone();
+        let project_name = service_account_key
+            .project_id
+            .as_ref()
+            .ok_or("project_id is missing")?
+            .clone();
         let authenticator = yup_oauth2::ServiceAccountAuthenticator::builder(service_account_key)
             .build()
             .await?;
