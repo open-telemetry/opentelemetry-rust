@@ -7,8 +7,8 @@ use std::collections::VecDeque;
 /// This queue maintains an ordered list of elements, and a count of
 /// dropped elements. Elements are removed from the queue in a first
 /// in first out fashion.
-#[cfg_attr(feature = "serialize", derive(Deserialize, PartialEq, Serialize))]
-#[derive(Clone, Debug)]
+#[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
+#[derive(Clone, Debug, PartialEq)]
 pub struct EvictedQueue<T> {
     queue: VecDeque<T>,
     capacity: u32,
@@ -25,14 +25,14 @@ impl<T> EvictedQueue<T> {
         }
     }
 
-    /// Push a new element to the front of the queue, dropping and
+    /// Push a new element to the back of the queue, dropping and
     /// recording dropped count if over capacity.
-    pub(crate) fn push_front(&mut self, value: T) {
+    pub(crate) fn push_back(&mut self, value: T) {
         if self.queue.len() as u32 == self.capacity {
             self.queue.pop_back();
             self.dropped_count += 1;
         }
-        self.queue.push_front(value);
+        self.queue.push_back(value);
     }
 
     /// Moves all the elements of other into self, leaving other empty.
@@ -48,6 +48,11 @@ impl<T> EvictedQueue<T> {
     /// Returns a front-to-back iterator.
     pub fn iter(&self) -> std::collections::vec_deque::Iter<T> {
         self.queue.iter()
+    }
+
+    /// Returns the number of elements in the `EvictedQueue`.
+    pub fn len(&self) -> usize {
+        self.queue.len()
     }
 }
 
@@ -82,6 +87,6 @@ impl<'a, T> IntoIterator for &'a mut EvictedQueue<T> {
 
 impl<T> Extend<T> for EvictedQueue<T> {
     fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
-        iter.into_iter().for_each(move |elt| self.push_front(elt));
+        iter.into_iter().for_each(move |elt| self.push_back(elt));
     }
 }

@@ -314,18 +314,14 @@ impl Into<jaeger::Log> for api::Event {
             .duration_since(SystemTime::UNIX_EPOCH)
             .unwrap_or_else(|_| Duration::from_secs(0))
             .as_micros() as i64;
-        jaeger::Log::new(
-            timestamp,
-            vec![jaeger::Tag::new(
-                "name".to_string(),
-                jaeger::TagType::String,
-                Some(self.name),
-                None,
-                None,
-                None,
-                None,
-            )],
-        )
+        let mut fields = self
+            .attributes
+            .into_iter()
+            .map(Into::into)
+            .collect::<Vec<_>>();
+        fields.push(api::Key::new("name").string(self.name).into());
+
+        jaeger::Log::new(timestamp, fields)
     }
 }
 
@@ -353,23 +349,66 @@ impl Into<jaeger::Span> for Arc<trace::SpanData> {
                 .duration_since(self.start_time)
                 .unwrap_or_else(|_| Duration::from_secs(0))
                 .as_micros() as i64,
-            tags: attrs_to_tags(&self.attributes),
+            tags: build_tags(&self),
             logs: events_to_logs(&self.message_events),
         }
     }
 }
 
-fn links_to_references(_links: &sdk::EvictedQueue<api::Link>) -> Option<Vec<jaeger::SpanRef>> {
-    // TODO support span refs
-    None
+fn links_to_references(links: &sdk::EvictedQueue<api::Link>) -> Option<Vec<jaeger::SpanRef>> {
+    if !links.is_empty() {
+        let refs = links
+            .iter()
+            .map(|link| {
+                let span_context = link.span_context();
+                let trace_id = span_context.trace_id().to_u128();
+                let trace_id_high = (trace_id >> 64) as i64;
+                let trace_id_low = trace_id as i64;
+
+                // TODO: properly set the reference type when specs are defined
+                //  see https://github.com/open-telemetry/opentelemetry-specification/issues/65
+                jaeger::SpanRef::new(
+                    jaeger::SpanRefType::ChildOf,
+                    trace_id_high,
+                    trace_id_low,
+                    span_context.span_id().to_u64() as i64,
+                )
+            })
+            .collect();
+        Some(refs)
+    } else {
+        None
+    }
 }
 
-fn attrs_to_tags(attrs: &sdk::EvictedQueue<api::KeyValue>) -> Option<Vec<jaeger::Tag>> {
-    if attrs.is_empty() {
-        None
-    } else {
-        Some(attrs.iter().cloned().map(Into::into).collect())
+fn build_tags(span_data: &Arc<trace::SpanData>) -> Option<Vec<jaeger::Tag>> {
+    let mut tags = Vec::with_capacity(span_data.attributes.len() + 4);
+    let mut user_specified_error = false;
+    for attr in span_data.attributes.iter() {
+        tags.push(attr.clone().into());
+        if attr.key == api::Key::new("error") {
+            user_specified_error = true;
+        }
     }
+
+    // Ensure error status is set
+    if span_data.status_code != api::StatusCode::OK && !user_specified_error {
+        tags.push(api::Key::new("error").bool(true).into())
+    }
+
+    tags.push(api::KeyValue::new("status.code", span_data.status_code.clone() as i64).into());
+    tags.push(
+        api::Key::new("status.message")
+            .string(span_data.status_message.clone())
+            .into(),
+    );
+    tags.push(
+        api::Key::new("span.kind")
+            .string(span_data.span_kind.to_string())
+            .into(),
+    );
+
+    Some(tags)
 }
 
 fn events_to_logs(events: &sdk::EvictedQueue<api::Event>) -> Option<Vec<jaeger::Log>> {

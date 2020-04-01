@@ -62,8 +62,8 @@ pub trait SpanExporter: Send + Sync + std::fmt::Debug {
 
 /// `SpanData` contains all the information collected by a `Span` and can be used
 /// by exporters as a standard input.
-#[cfg_attr(feature = "serialize", derive(Deserialize, PartialEq, Serialize))]
-#[derive(Clone, Debug)]
+#[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
+#[derive(Clone, Debug, PartialEq)]
 pub struct SpanData {
     /// Exportable `SpanContext`
     pub context: api::SpanContext,
@@ -83,8 +83,10 @@ pub struct SpanData {
     pub message_events: sdk::EvictedQueue<api::Event>,
     /// Span Links
     pub links: sdk::EvictedQueue<api::Link>,
-    /// Span status
-    pub status: api::SpanStatus,
+    /// Span status code
+    pub status_code: api::StatusCode,
+    /// Span status message
+    pub status_message: String,
 }
 
 #[cfg(feature = "serialize")]
@@ -117,7 +119,8 @@ mod tests {
         let message_events = sdk::EvictedQueue::new(capacity);
         let links = sdk::EvictedQueue::new(capacity);
 
-        let status = api::SpanStatus::OK;
+        let status_code = api::StatusCode::OK;
+        let status_message = String::new();
 
         let span_data = SpanData {
             context,
@@ -129,7 +132,8 @@ mod tests {
             attributes,
             message_events,
             links,
-            status,
+            status_code,
+            status_message,
         };
 
         let encoded: Vec<u8> = bincode::serialize(&span_data).unwrap();

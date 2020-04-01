@@ -15,7 +15,7 @@ fn main() {
         {
             let span1 = tracer.start("sub", Some(span0.get_context()));
             span1.set_attribute(api::Key::new("foo").string("bar"));
-            span1.add_event("something wrong".to_string());
+            span1.add_event("something wrong".to_string(), vec![]);
             thread::sleep(Duration::from_millis(10));
         }
     }

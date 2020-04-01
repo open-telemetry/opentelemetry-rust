@@ -191,7 +191,8 @@ impl api::Tracer for Tracer {
             if let Some(mut events) = builder.message_events {
                 message_events.append_vec(&mut events);
             }
-            let status = builder.status.unwrap_or(api::SpanStatus::OK);
+            let status_code = builder.status_code.unwrap_or(api::StatusCode::OK);
+            let status_message = builder.status_message.unwrap_or_else(String::new);
 
             exporter::trace::SpanData {
                 context: api::SpanContext::new(trace_id, span_id, trace_flags, false),
@@ -203,7 +204,8 @@ impl api::Tracer for Tracer {
                 attributes,
                 message_events,
                 links,
-                status,
+                status_code,
+                status_message,
             }
         });
 

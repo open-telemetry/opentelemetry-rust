@@ -48,12 +48,17 @@ impl NoopSpan {
 
 impl api::Span for NoopSpan {
     /// Ignores all events
-    fn add_event(&self, _name: String) {
+    fn add_event(&self, _name: String, _attributes: Vec<api::KeyValue>) {
         // Ignore
     }
 
     /// Ignores all events with timestamps
-    fn add_event_with_timestamp(&self, _name: String, _timestamp: SystemTime) {
+    fn add_event_with_timestamp(
+        &self,
+        _name: String,
+        _timestamp: SystemTime,
+        _attributes: Vec<api::KeyValue>,
+    ) {
         // Ignored
     }
 
@@ -73,7 +78,7 @@ impl api::Span for NoopSpan {
     }
 
     /// Ignores status
-    fn set_status(&self, _status: api::SpanStatus) {
+    fn set_status(&self, _code: api::StatusCode, _message: String) {
         // Ignored
     }
 
