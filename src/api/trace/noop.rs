@@ -3,8 +3,9 @@
 //! This implementation is returned as the global tracer if no `Tracer`
 //! has been set. It is also useful for testing purposes as it is intended
 //! to have minimal resource utilization and runtime impact.
-use crate::api;
+use crate::{api, exporter};
 use std::any::Any;
+use std::sync::Arc;
 use std::time::SystemTime;
 
 /// A no-op instance of a `Provider`.
@@ -147,5 +148,25 @@ impl api::Tracer for NoopTracer {
 
     fn clone_span(&self, _span: &Self::Span) -> Self::Span {
         self.invalid()
+    }
+}
+
+/// A no-op instance of an [`SpanExporter`].
+///
+/// [`SpanExporter`]: ../../../exporter/trace/trait.SpanExporter.html
+#[derive(Debug)]
+pub struct NoopSpanExporter {}
+
+impl exporter::trace::SpanExporter for NoopSpanExporter {
+    fn export(&self, _batch: Vec<Arc<exporter::trace::SpanData>>) -> exporter::trace::ExportResult {
+        exporter::trace::ExportResult::Success
+    }
+
+    fn shutdown(&self) {
+        // Noop
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
