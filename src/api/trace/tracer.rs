@@ -163,6 +163,8 @@ impl<S: Tracer> TracerGenerics for S {
 pub struct SpanBuilder {
     /// Parent `SpanContext`
     pub parent_context: Option<api::SpanContext>,
+    /// Trace id, useful for integrations with external tracing systems.
+    pub trace_id: Option<api::TraceId>,
     /// Span id, useful for integrations with external tracing systems.
     pub span_id: Option<api::SpanId>,
     /// Span kind
@@ -189,6 +191,7 @@ impl SpanBuilder {
     pub fn from_name(name: String) -> Self {
         SpanBuilder {
             parent_context: None,
+            trace_id: None,
             span_id: None,
             span_kind: None,
             name,
@@ -205,6 +208,14 @@ impl SpanBuilder {
     pub fn with_parent(self, parent_context: api::SpanContext) -> Self {
         SpanBuilder {
             parent_context: Some(parent_context),
+            ..self
+        }
+    }
+
+    /// Specify trace id to use if no parent context exists
+    pub fn with_trace_id(self, trace_id: api::TraceId) -> Self {
+        SpanBuilder {
+            trace_id: Some(trace_id),
             ..self
         }
     }
