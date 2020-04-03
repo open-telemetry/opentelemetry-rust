@@ -110,6 +110,14 @@ impl Builder {
         Builder { processors, ..self }
     }
 
+    /// The `SpanExporter` that this provider should use.
+    pub fn with_batch_exporter(self, processor: sdk::BatchSpanProcessor) -> Self {
+        let mut processors = self.processors;
+        processors.push(Box::new(processor));
+
+        Builder { processors, ..self }
+    }
+
     /// The sdk `Config` that this provider will use.
     pub fn with_config(self, config: sdk::Config) -> Self {
         Builder { config, ..self }

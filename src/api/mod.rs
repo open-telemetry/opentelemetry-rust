@@ -34,7 +34,7 @@ pub use trace::{
     b3_propagator::B3Propagator,
     event::Event,
     link::Link,
-    noop::{NoopProvider, NoopSpan, NoopTracer},
+    noop::{NoopProvider, NoopSpan, NoopSpanExporter, NoopTracer},
     provider::Provider,
     sampler::{Sampler, SamplingDecision, SamplingResult},
     span::{Span, SpanKind, StatusCode},

@@ -15,6 +15,11 @@ pub mod trace;
 pub use metrics::{LabelSet, Meter};
 #[cfg(feature = "trace")]
 pub use trace::{
-    config::Config, evicted_queue::EvictedQueue, provider::Provider, sampler::Sampler, span::Span,
-    span_processor::SimpleSpanProcessor, tracer::Tracer,
+    config::Config,
+    evicted_queue::EvictedQueue,
+    provider::Provider,
+    sampler::Sampler,
+    span::Span,
+    span_processor::{BatchSpanProcessor, SimpleSpanProcessor},
+    tracer::Tracer,
 };

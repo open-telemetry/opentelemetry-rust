@@ -5,7 +5,6 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::SystemTime;
 
-/// Stdout exporter.
 pub mod stdout;
 
 /// Describes the result of an export.

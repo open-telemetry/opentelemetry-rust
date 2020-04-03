@@ -202,6 +202,8 @@
 //! - `HTTPTextFormat` which is used to inject and extract a value as text into carriers that travel
 //!   in-band across process boundaries.
 //!
+#![recursion_limit = "256"]
+#![allow(clippy::needless_doctest_main)]
 #![deny(missing_docs, unreachable_pub, missing_debug_implementations)]
 #![cfg_attr(test, deny(warnings))]
 
