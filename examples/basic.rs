@@ -57,7 +57,10 @@ fn main() -> thrift::Result<()> {
     global::trace_provider()
         .get_tracer("component-main")
         .with_span("operation", move |span| {
-            span.add_event("Nice operation!".to_string());
+            span.add_event(
+                "Nice operation!".to_string(),
+                vec![Key::new("bogons").i64(100)],
+            );
             span.set_attribute(another_key.string("yes"));
 
             gauge.set(1.0);
@@ -72,7 +75,7 @@ fn main() -> thrift::Result<()> {
                 .with_span("Sub operation...", move |span| {
                     span.set_attribute(lemons_key.string("five"));
 
-                    span.add_event("Sub span event".to_string());
+                    span.add_event("Sub span event".to_string(), vec![]);
 
                     measure.record(1.3);
                 });

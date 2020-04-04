@@ -183,8 +183,10 @@ impl api::Tracer for Tracer {
         // Build optional inner context, `None` if not recording.
         let inner = sampling_decision.map(move |(trace_flags, mut extra_attrs)| {
             attribute_options.append(&mut extra_attrs);
-            let mut attributes = sdk::EvictedQueue::new(config.max_attributes_per_span);
-            attributes.append_vec(&mut attribute_options);
+            let mut attributes = sdk::EvictedHashMap::new(config.max_attributes_per_span);
+            for attribute in attribute_options {
+                attributes.insert(attribute);
+            }
             let mut links = sdk::EvictedQueue::new(config.max_links_per_span);
             links.append_vec(&mut link_options);
             let start_time = builder.start_time.unwrap_or_else(SystemTime::now);
@@ -193,7 +195,8 @@ impl api::Tracer for Tracer {
             if let Some(mut events) = builder.message_events {
                 message_events.append_vec(&mut events);
             }
-            let status = builder.status.unwrap_or(api::SpanStatus::OK);
+            let status_code = builder.status_code.unwrap_or(api::StatusCode::OK);
+            let status_message = builder.status_message.unwrap_or_else(String::new);
 
             exporter::trace::SpanData {
                 context: api::SpanContext::new(trace_id, span_id, trace_flags, false),
@@ -205,7 +208,8 @@ impl api::Tracer for Tracer {
                 attributes,
                 message_events,
                 links,
-                status,
+                status_code,
+                status_message,
             }
         });
 

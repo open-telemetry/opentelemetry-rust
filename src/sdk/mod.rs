@@ -16,6 +16,7 @@ pub use metrics::{LabelSet, Meter};
 #[cfg(feature = "trace")]
 pub use trace::{
     config::Config,
+    evicted_hash_map::EvictedHashMap,
     evicted_queue::EvictedQueue,
     provider::Provider,
     sampler::Sampler,

@@ -181,8 +181,10 @@ pub struct SpanBuilder {
     pub message_events: Option<Vec<api::Event>>,
     /// Span Links
     pub links: Option<Vec<api::Link>>,
-    /// Span status
-    pub status: Option<api::SpanStatus>,
+    /// Span status code
+    pub status_code: Option<api::StatusCode>,
+    /// Span status message
+    pub status_message: Option<String>,
 }
 
 /// SpanBuilder methods
@@ -200,7 +202,8 @@ impl SpanBuilder {
             attributes: None,
             message_events: None,
             links: None,
-            status: None,
+            status_code: None,
+            status_message: None,
         }
     }
 
@@ -276,10 +279,18 @@ impl SpanBuilder {
         }
     }
 
-    /// Assign status
-    pub fn with_status(self, status: api::SpanStatus) -> Self {
+    /// Assign status code
+    pub fn with_status_code(self, code: api::StatusCode) -> Self {
         SpanBuilder {
-            status: Some(status),
+            status_code: Some(code),
+            ..self
+        }
+    }
+
+    /// Assign status message
+    pub fn with_status_message(self, message: String) -> Self {
+        SpanBuilder {
+            status_message: Some(message),
             ..self
         }
     }

@@ -109,7 +109,7 @@ impl api::HttpTextFormat for TraceContextPropagator {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
     use crate::api::{Carrier, HttpTextFormat};
     use std::collections::HashMap;

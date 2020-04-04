@@ -82,8 +82,13 @@ impl api::Span for BoxedSpan {
     /// Note that the OpenTelemetry project documents certain ["standard event names and
     /// keys"](https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/data-semantic-conventions.md)
     /// which have prescribed semantic meanings.
-    fn add_event_with_timestamp(&self, name: String, timestamp: SystemTime) {
-        self.0.add_event_with_timestamp(name, timestamp)
+    fn add_event_with_timestamp(
+        &self,
+        name: String,
+        timestamp: SystemTime,
+        attributes: Vec<api::KeyValue>,
+    ) {
+        self.0.add_event_with_timestamp(name, timestamp, attributes)
     }
 
     /// Returns the `SpanContext` for the given `Span`.
@@ -108,8 +113,8 @@ impl api::Span for BoxedSpan {
 
     /// Sets the status of the `Span`. If used, this will override the default `Span`
     /// status, which is `OK`.
-    fn set_status(&self, status: api::SpanStatus) {
-        self.0.set_status(status)
+    fn set_status(&self, code: api::StatusCode, message: String) {
+        self.0.set_status(code, message)
     }
 
     /// Updates the `Span`'s name.

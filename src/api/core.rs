@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 
 /// Key used for metric `LabelSet`s and trace `Span` attributes.
-#[cfg_attr(feature = "serialize", derive(Deserialize, PartialEq, Serialize))]
-#[derive(Clone, Debug)]
+#[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Key(Cow<'static, str>);
 
 impl Key {
@@ -95,8 +95,8 @@ impl Into<String> for Key {
 }
 
 /// Value types for use in `KeyValue` pairs.
-#[cfg_attr(feature = "serialize", derive(Deserialize, PartialEq, Serialize))]
-#[derive(Clone, Debug)]
+#[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Value {
     /// bool values
     Bool(bool),
@@ -116,6 +116,13 @@ impl From<&str> for Value {
     /// Convenience method for creating a `Value` form a `&str`.
     fn from(value_str: &str) -> Self {
         Value::String(value_str.to_string())
+    }
+}
+
+impl From<i64> for Value {
+    /// Convenience method for creating a `Value` form a `i64`.
+    fn from(value: i64) -> Self {
+        Value::I64(value)
     }
 }
 
@@ -144,8 +151,8 @@ impl Into<Cow<'static, str>> for Value {
 }
 
 /// `KeyValue` pairs are used by `LabelSet`s and `Span` attributes.
-#[cfg_attr(feature = "serialize", derive(Deserialize, PartialEq, Serialize))]
-#[derive(Clone, Debug)]
+#[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
+#[derive(Clone, Debug, PartialEq)]
 pub struct KeyValue {
     /// Dimension or event key
     pub key: Key,
