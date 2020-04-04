@@ -1,5 +1,26 @@
 # Changelog
 
+## [v0.4.0](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.3.0...v0.4.0)
+
+### Added
+- New async batch span processor
+- New stdout exporter
+- Add `trace_id` to `SpanBuilder`
+
+### Changed
+- Add `attributes` to `Event`s.
+- Update `Span`'s `add_event` and `add_event_with_timestamp` to accept attributes.
+- Record log fields in jaeger exporter
+- Properly export span kind in jaeger exporter
+- Add support for `Link`s
+- Add `status_message` to `Span` and `SpanData`
+- Rename `SpanStatus` to `StatusCode`
+- Update `EvictedQueue` internals from LIFO to FIFO
+- Switch span attributes to `EvictedHashMap`
+
+### Fixed
+- Call `shutdown` correctly when span processors and exporters are dropped
+
 ## [v0.3.0](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.2.0...v0.3.0)
 
 ### Added
