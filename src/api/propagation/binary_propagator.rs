@@ -84,7 +84,7 @@ impl BinaryFormat for BinaryPropagator {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
     use crate::api::BinaryFormat;
 

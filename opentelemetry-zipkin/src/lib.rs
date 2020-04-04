@@ -235,7 +235,12 @@ fn into_zipkin_span(config: &ExporterConfig, span_data: Arc<trace::SpanData>) ->
                 .map(Into::into)
                 .collect(),
         )
-        .tags(map_from_kvs(span_data.attributes.clone().into_iter()))
+        .tags(map_from_kvs(
+            span_data
+                .attributes
+                .iter()
+                .map(|(k, v)| api::KeyValue::new(k.clone(), v.clone())),
+        ))
         .build()
 }
 

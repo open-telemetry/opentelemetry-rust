@@ -29,7 +29,7 @@ impl<T> EvictedQueue<T> {
     /// recording dropped count if over capacity.
     pub(crate) fn push_back(&mut self, value: T) {
         if self.queue.len() as u32 == self.capacity {
-            self.queue.pop_back();
+            self.queue.pop_front();
             self.dropped_count += 1;
         }
         self.queue.push_back(value);
@@ -88,5 +88,25 @@ impl<'a, T> IntoIterator for &'a mut EvictedQueue<T> {
 impl<T> Extend<T> for EvictedQueue<T> {
     fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
         iter.into_iter().for_each(move |elt| self.push_back(elt));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::EvictedQueue;
+    use std::collections::VecDeque;
+
+    #[test]
+    fn insert_over_capacity_test() {
+        let capacity = 10;
+        let mut queue = EvictedQueue::new(capacity);
+
+        for i in 0..=capacity {
+            queue.push_back(i)
+        }
+
+        assert_eq!(queue.dropped_count, 1);
+        assert_eq!(queue.len(), capacity as usize);
+        assert_eq!(queue.queue, (1..=capacity).collect::<VecDeque<_>>());
     }
 }

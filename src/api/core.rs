@@ -5,7 +5,7 @@ use std::borrow::Cow;
 
 /// Key used for metric `LabelSet`s and trace `Span` attributes.
 #[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Key(Cow<'static, str>);
 
 impl Key {
@@ -120,7 +120,7 @@ impl From<&str> for Value {
 }
 
 impl From<i64> for Value {
-    /// Convenience method for creating a `Value` form a `&str`.
+    /// Convenience method for creating a `Value` form a `i64`.
     fn from(value: i64) -> Self {
         Value::I64(value)
     }

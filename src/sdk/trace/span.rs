@@ -110,7 +110,7 @@ impl api::Span for Span {
     /// that have prescribed semantic meanings.
     fn set_attribute(&self, attribute: api::KeyValue) {
         self.with_data_mut(|data| {
-            data.attributes.push_back(attribute);
+            data.attributes.insert(attribute);
         });
     }
 

@@ -77,7 +77,7 @@ pub struct SpanData {
     /// Span end time
     pub end_time: SystemTime,
     /// Span attributes
-    pub attributes: sdk::EvictedQueue<api::KeyValue>,
+    pub attributes: sdk::EvictedHashMap,
     /// Span Message events
     pub message_events: sdk::EvictedQueue<api::Event>,
     /// Span Links
@@ -114,7 +114,7 @@ mod tests {
         let end_time = SystemTime::now();
 
         let capacity = 3;
-        let attributes = sdk::EvictedQueue::new(capacity);
+        let attributes = sdk::EvictedHashMap::new(capacity);
         let message_events = sdk::EvictedQueue::new(capacity);
         let links = sdk::EvictedQueue::new(capacity);
 

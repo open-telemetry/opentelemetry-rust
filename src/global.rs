@@ -88,8 +88,7 @@ impl api::Span for BoxedSpan {
         timestamp: SystemTime,
         attributes: Vec<api::KeyValue>,
     ) {
-        self.0
-            .add_event_with_timestamp(name, timestamp, attributes)
+        self.0.add_event_with_timestamp(name, timestamp, attributes)
     }
 
     /// Returns the `SpanContext` for the given `Span`.

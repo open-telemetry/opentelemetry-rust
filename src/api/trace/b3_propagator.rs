@@ -173,7 +173,7 @@ impl api::HttpTextFormat for B3Propagator {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
     use crate::api::trace::span_context::{SpanId, TraceId};
     use crate::api::HttpTextFormat;
