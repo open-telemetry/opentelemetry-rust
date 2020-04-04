@@ -163,6 +163,8 @@ impl<S: Tracer> TracerGenerics for S {
 pub struct SpanBuilder {
     /// Parent `SpanContext`
     pub parent_context: Option<api::SpanContext>,
+    /// Trace id, useful for integrations with external tracing systems.
+    pub trace_id: Option<api::TraceId>,
     /// Span id, useful for integrations with external tracing systems.
     pub span_id: Option<api::SpanId>,
     /// Span kind
@@ -179,8 +181,10 @@ pub struct SpanBuilder {
     pub message_events: Option<Vec<api::Event>>,
     /// Span Links
     pub links: Option<Vec<api::Link>>,
-    /// Span status
-    pub status: Option<api::SpanStatus>,
+    /// Span status code
+    pub status_code: Option<api::StatusCode>,
+    /// Span status message
+    pub status_message: Option<String>,
 }
 
 /// SpanBuilder methods
@@ -189,6 +193,7 @@ impl SpanBuilder {
     pub fn from_name(name: String) -> Self {
         SpanBuilder {
             parent_context: None,
+            trace_id: None,
             span_id: None,
             span_kind: None,
             name,
@@ -197,7 +202,8 @@ impl SpanBuilder {
             attributes: None,
             message_events: None,
             links: None,
-            status: None,
+            status_code: None,
+            status_message: None,
         }
     }
 
@@ -205,6 +211,14 @@ impl SpanBuilder {
     pub fn with_parent(self, parent_context: api::SpanContext) -> Self {
         SpanBuilder {
             parent_context: Some(parent_context),
+            ..self
+        }
+    }
+
+    /// Specify trace id to use if no parent context exists
+    pub fn with_trace_id(self, trace_id: api::TraceId) -> Self {
+        SpanBuilder {
+            trace_id: Some(trace_id),
             ..self
         }
     }
@@ -265,10 +279,18 @@ impl SpanBuilder {
         }
     }
 
-    /// Assign status
-    pub fn with_status(self, status: api::SpanStatus) -> Self {
+    /// Assign status code
+    pub fn with_status_code(self, code: api::StatusCode) -> Self {
         SpanBuilder {
-            status: Some(status),
+            status_code: Some(code),
+            ..self
+        }
+    }
+
+    /// Assign status message
+    pub fn with_status_message(self, message: String) -> Self {
+        SpanBuilder {
+            status_message: Some(message),
             ..self
         }
     }

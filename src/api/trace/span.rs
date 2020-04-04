@@ -34,8 +34,8 @@ pub trait Span: fmt::Debug + 'static {
     /// Note that the OpenTelemetry project documents certain ["standard event names and
     /// keys"](https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/data-semantic-conventions.md)
     /// which have prescribed semantic meanings.
-    fn add_event(&self, name: String) {
-        self.add_event_with_timestamp(name, SystemTime::now())
+    fn add_event(&self, name: String, attributes: Vec<api::KeyValue>) {
+        self.add_event_with_timestamp(name, SystemTime::now(), attributes)
     }
 
     /// An API to record events at a specific time in the context of a given `Span`.
@@ -46,7 +46,12 @@ pub trait Span: fmt::Debug + 'static {
     /// Note that the OpenTelemetry project documents certain ["standard event names and
     /// keys"](https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/data-semantic-conventions.md)
     /// which have prescribed semantic meanings.
-    fn add_event_with_timestamp(&self, name: String, timestamp: SystemTime);
+    fn add_event_with_timestamp(
+        &self,
+        name: String,
+        timestamp: SystemTime,
+        attributes: Vec<api::KeyValue>,
+    );
 
     /// Returns the `SpanContext` for the given `Span`. The returned value may be used even after
     /// the `Span is finished. The returned value MUST be the same for the entire `Span` lifetime.
@@ -90,7 +95,7 @@ pub trait Span: fmt::Debug + 'static {
     ///
     /// Only the value of the last call will be recorded, and implementations are free
     /// to ignore previous calls.
-    fn set_status(&self, status: api::SpanStatus);
+    fn set_status(&self, code: api::StatusCode, message: String);
 
     /// Updates the `Span`'s name. After this update, any sampling behavior based on the
     /// name will depend on the implementation.
@@ -153,7 +158,7 @@ pub trait Span: fmt::Debug + 'static {
 /// the parent is expected to wait for it to complete under ordinary
 /// circumstances.  It can be useful for tracing systems to know this
 /// property, since synchronous `Span`s may contribute to the overall trace
-/// latency.
+/// latency. Asynchronous scenarios can be remote or local.
 ///
 /// In order for `SpanKind` to be meaningful, callers should arrange that
 /// a single `Span` does not serve more than one purpose.  For example, a
@@ -166,29 +171,31 @@ pub trait Span: fmt::Debug + 'static {
 ///
 /// | `SpanKind` | Synchronous | Asynchronous | Remote Incoming | Remote Outgoing |
 /// |------------|-----|-----|-----|-----|
-/// | `CLIENT`   | yes |     |     | yes |
-/// | `SERVER`   | yes |     | yes |     |
-/// | `PRODUCER` |     | yes |     | yes |
-/// | `CONSUMER` |     | yes | yes |     |
-/// | `INTERNAL` |     |     |     |     |
-#[cfg_attr(feature = "serialize", derive(Deserialize, PartialEq, Serialize))]
-#[derive(Clone, Debug)]
+/// | `Client`   | yes |     |     | yes |
+/// | `Server`   | yes |     | yes |     |
+/// | `Producer` |     | yes |     | yes |
+/// | `Consumer` |     | yes | yes |     |
+/// | `Internal` |     |     |     |     |
+#[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
+#[derive(Clone, Debug, PartialEq)]
 pub enum SpanKind {
     /// Indicates that the span describes a synchronous request to
-    /// some remote service.  This span is the parent of a remote `SERVER`
+    /// some remote service.  This span is the parent of a remote `Server`
     /// span and waits for its response.
     Client,
     /// Indicates that the span covers server-side handling of a
     /// synchronous RPC or other remote request.  This span is the child of
-    /// a remote `CLIENT` span that was expected to wait for a response.
+    /// a remote `Client` span that was expected to wait for a response.
     Server,
     /// Indicates that the span describes the parent of an
     /// asynchronous request.  This parent span is expected to end before
-    /// the corresponding child `CONSUMER` span, possibly even before the
-    /// child span starts.
+    /// the corresponding child `Consumer` span, possibly even before the
+    /// child span starts. In messaging scenarios with batching, tracing
+    /// individual messages requires a new `Producer` span per message to
+    /// be created.
     Producer,
-    /// Indicates that the span describes the child of an asynchronous
-    /// remote `PRODUCER` request.
+    /// Indicates that the span describes the child of an
+    /// asynchronous `Producer` request.
     Consumer,
     /// Default value. Indicates that the span represents an
     /// internal operation within an application, as opposed to an
@@ -196,12 +203,24 @@ pub enum SpanKind {
     Internal,
 }
 
-/// The `SpanStatus` interface represents the status of a finished `Span`.
+impl fmt::Display for SpanKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            SpanKind::Client => write!(f, "client"),
+            SpanKind::Server => write!(f, "server"),
+            SpanKind::Producer => write!(f, "producer"),
+            SpanKind::Consumer => write!(f, "consumer"),
+            SpanKind::Internal => write!(f, "internal"),
+        }
+    }
+}
+
+/// The `StatusCode` interface represents the status of a finished `Span`.
 /// It's composed of a canonical code in conjunction with an optional
 /// descriptive message.
-#[cfg_attr(feature = "serialize", derive(Deserialize, PartialEq, Serialize))]
-#[derive(Clone, Debug)]
-pub enum SpanStatus {
+#[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
+#[derive(Clone, Debug, PartialEq)]
+pub enum StatusCode {
     /// OK is returned on success.
     OK = 0,
     /// Canceled indicates the operation was canceled (typically by the caller).

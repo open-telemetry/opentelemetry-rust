@@ -17,6 +17,7 @@ edition = "2018"
 
 [dependencies]
 base64 = { version = "0.12", optional = true }
+futures = { version = "0.3.4", optional = true }
 lazy_static = "1.4.0"
 pin-project = { version = "0.4.6", optional = true }
 prometheus = { version = "0.7.0", optional = true }
@@ -29,13 +30,12 @@ criterion = "0.3.1"
 hyper = "0.12.0"
 opentelemetry-jaeger = { version = "0.3.0", path = "opentelemetry-jaeger" }
 thrift = "0.13.0"
-futures = "0.3.1"
 tokio = { version = "0.2.10", features = ["full"] }
 
 [features]
 default = ["metrics", "trace"]
 base64_format = ["base64"]
-trace = ["rand", "pin-project"]
+trace = ["futures", "rand", "pin-project"]
 metrics = ["prometheus"]
 serialize = ["serde", "bincode"]
 

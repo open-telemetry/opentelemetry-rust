@@ -77,10 +77,15 @@ impl api::Span for Span {
     /// Note that the OpenTelemetry project documents certain ["standard event names and
     /// keys"](https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/data-semantic-conventions.md)
     /// which have prescribed semantic meanings.
-    fn add_event_with_timestamp(&self, name: String, timestamp: SystemTime) {
+    fn add_event_with_timestamp(
+        &self,
+        name: String,
+        timestamp: SystemTime,
+        attributes: Vec<api::KeyValue>,
+    ) {
         self.with_data_mut(|data| {
             data.message_events
-                .push_front(api::Event { name, timestamp })
+                .push_back(api::Event::new(name, timestamp, attributes))
         });
     }
 
@@ -105,15 +110,16 @@ impl api::Span for Span {
     /// that have prescribed semantic meanings.
     fn set_attribute(&self, attribute: api::KeyValue) {
         self.with_data_mut(|data| {
-            data.attributes.push_front(attribute);
+            data.attributes.insert(attribute);
         });
     }
 
     /// Sets the status of the `Span`. If used, this will override the default `Span`
     /// status, which is `OK`.
-    fn set_status(&self, status: api::SpanStatus) {
+    fn set_status(&self, code: api::StatusCode, message: String) {
         self.with_data_mut(|data| {
-            data.status = status;
+            data.status_code = code;
+            data.status_message = message
         });
     }
 

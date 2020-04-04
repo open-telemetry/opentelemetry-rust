@@ -4,7 +4,7 @@ use opentelemetry::exporter::trace::stdout;
 use opentelemetry::{global, sdk};
 
 fn main() {
-    let exporter = stdout::Builder::init();
+    let exporter = stdout::Builder::default().init();
     let provider = sdk::Provider::builder()
         .with_simple_exporter(exporter)
         .with_config(sdk::Config {
