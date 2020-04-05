@@ -159,7 +159,7 @@ impl<S: Tracer> TracerGenerics for S {
 ///     .with_kind(SpanKind::Server)
 ///     .start(&tracer);
 /// ```
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct SpanBuilder {
     /// Parent `SpanContext`
     pub parent_context: Option<api::SpanContext>,

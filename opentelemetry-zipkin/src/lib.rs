@@ -211,7 +211,7 @@ fn into_zipkin_span(config: &ExporterConfig, span_data: Arc<trace::SpanData>) ->
         .parent_id(format!("{:016x}", span_data.parent_span_id.to_u64()))
         .id(format!("{:016x}", span_data.context.span_id().to_u64()))
         .name(span_data.name.clone())
-        .kind(into_zipkin_span_kind(span_data.span_kind.clone()))
+        .kind(into_zipkin_span_kind(span_data.span_kind))
         .timestamp(
             span_data
                 .start_time

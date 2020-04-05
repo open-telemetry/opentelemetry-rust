@@ -177,7 +177,7 @@ pub trait Span: fmt::Debug + 'static {
 /// | `Consumer` |     | yes | yes |     |
 /// | `Internal` |     |     |     |     |
 #[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum SpanKind {
     /// Indicates that the span describes a synchronous request to
     /// some remote service.  This span is the parent of a remote `Server`
@@ -219,7 +219,7 @@ impl fmt::Display for SpanKind {
 /// It's composed of a canonical code in conjunction with an optional
 /// descriptive message.
 #[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum StatusCode {
     /// OK is returned on success.
     OK = 0,

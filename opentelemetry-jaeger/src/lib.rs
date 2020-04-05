@@ -396,7 +396,7 @@ fn build_tags(span_data: &Arc<trace::SpanData>) -> Option<Vec<jaeger::Tag>> {
         tags.push(api::Key::new("error").bool(true).into())
     }
 
-    tags.push(api::KeyValue::new("status.code", span_data.status_code.clone() as i64).into());
+    tags.push(api::KeyValue::new("status.code", span_data.status_code as i64).into());
     tags.push(
         api::Key::new("status.message")
             .string(span_data.status_message.clone())

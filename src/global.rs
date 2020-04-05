@@ -38,7 +38,7 @@
 //! This module provides types for working with the Open Telemetry API in an
 //! abstract implementation-agnostic way through the use of [trait objects].
 //! There is a **performance penalty** due to global synchronization as well
-//! as heap allocation and dynamic dispatch (e.g. `Box<dyn api::Span>` vs
+//! as heap allocation and dynamic dispatch (e.g. `Box<DynSpan>` vs
 //! `sdk::Span`), but for many applications this overhead is likely either
 //! insignificant or unavoidable as it is in the case of 3rd party integrations
 //! that do not know the span type at compile time.
@@ -74,7 +74,8 @@ use std::time::SystemTime;
 /// [`BoxedTracer`]: struct.BoxedTracer.html
 /// [`Span`]: ../api/trace/span/trait.Span.html
 #[derive(Debug)]
-pub struct BoxedSpan(Box<dyn api::Span>);
+pub struct BoxedSpan(Box<DynSpan>);
+type DynSpan = dyn api::Span + Send + Sync;
 
 impl api::Span for BoxedSpan {
     /// Records events at a specific time in the context of a given `Span`.
@@ -226,58 +227,58 @@ impl api::Tracer for BoxedTracer {
 /// [`BoxedTracer`]: struct.BoxedTracer.html
 pub trait GenericTracer: fmt::Debug + 'static {
     /// Create a new invalid span for use in cases where there are no active spans.
-    fn invalid_boxed(&self) -> Box<dyn api::Span>;
+    fn invalid_boxed(&self) -> Box<DynSpan>;
 
     /// Returns a trait object so the underlying implementation can be swapped
     /// out at runtime.
-    fn start_boxed(&self, name: &str, parent: Option<api::SpanContext>) -> Box<dyn api::Span>;
+    fn start_boxed(&self, name: &str, parent: Option<api::SpanContext>) -> Box<DynSpan>;
 
     /// Returns a trait object so the underlying implementation can be swapped
     /// out at runtime.
-    fn build_boxed(&self, builder: api::SpanBuilder) -> Box<dyn api::Span>;
+    fn build_boxed(&self, builder: api::SpanBuilder) -> Box<DynSpan>;
 
     /// Returns the currently active span as a BoxedSpan
-    fn get_active_span_boxed(&self) -> Box<dyn api::Span>;
+    fn get_active_span_boxed(&self) -> Box<DynSpan>;
 
     /// Returns the currently active span as a BoxedSpan
-    fn mark_span_as_active_boxed(&self, span: &dyn api::Span);
+    fn mark_span_as_active_boxed(&self, span: &DynSpan);
 
     /// Marks the current span as inactive
     fn mark_span_as_inactive_boxed(&self, span_id: api::SpanId);
 
     /// Clone span
-    fn clone_span_boxed(&self, span: &dyn api::Span) -> Box<dyn api::Span>;
+    fn clone_span_boxed(&self, span: &DynSpan) -> Box<DynSpan>;
 }
 
 impl<S, T> GenericTracer for T
 where
-    S: api::Span,
+    S: api::Span + Send + Sync,
     T: api::Tracer<Span = S>,
 {
     /// Create a new invalid span for use in cases where there are no active spans.
-    fn invalid_boxed(&self) -> Box<dyn api::Span> {
+    fn invalid_boxed(&self) -> Box<DynSpan> {
         Box::new(self.invalid())
     }
 
     /// Returns a trait object so the underlying implementation can be swapped
     /// out at runtime.
-    fn start_boxed(&self, name: &str, parent: Option<api::SpanContext>) -> Box<dyn api::Span> {
+    fn start_boxed(&self, name: &str, parent: Option<api::SpanContext>) -> Box<DynSpan> {
         Box::new(self.start(name, parent))
     }
 
     /// Returns a trait object so the underlying implementation can be swapped
     /// out at runtime.
-    fn build_boxed(&self, builder: api::SpanBuilder) -> Box<dyn api::Span> {
+    fn build_boxed(&self, builder: api::SpanBuilder) -> Box<DynSpan> {
         Box::new(self.build(builder))
     }
 
     /// Returns the current active span.
-    fn get_active_span_boxed(&self) -> Box<dyn api::Span> {
+    fn get_active_span_boxed(&self) -> Box<DynSpan> {
         Box::new(self.get_active_span())
     }
 
     /// Mark span as active.
-    fn mark_span_as_active_boxed(&self, some_span: &dyn api::Span) {
+    fn mark_span_as_active_boxed(&self, some_span: &DynSpan) {
         if let Some(span) = some_span.as_any().downcast_ref::<S>() {
             self.mark_span_as_active(span)
         };
@@ -289,7 +290,7 @@ where
     }
 
     /// Clone span
-    fn clone_span_boxed(&self, some_span: &dyn api::Span) -> Box<dyn api::Span> {
+    fn clone_span_boxed(&self, some_span: &DynSpan) -> Box<DynSpan> {
         if let Some(span) = some_span.as_any().downcast_ref::<S>() {
             Box::new(self.clone_span(span))
         } else {
@@ -310,7 +311,7 @@ pub trait GenericProvider: fmt::Debug + 'static {
 
 impl<S, T, P> GenericProvider for P
 where
-    S: api::Span,
+    S: api::Span + Send + Sync,
     T: api::Tracer<Span = S> + Send + Sync,
     P: api::Provider<Tracer = T>,
 {
@@ -335,7 +336,7 @@ impl GlobalProvider {
     /// Create a new GlobalProvider instance from a struct that implements `Provider`.
     fn new<P, T, S>(provider: P) -> Self
     where
-        S: api::Span,
+        S: api::Span + Send + Sync,
         T: api::Tracer<Span = S> + Send + Sync,
         P: api::Provider<Tracer = T> + Send + Sync,
     {
@@ -376,7 +377,7 @@ pub fn trace_provider() -> GlobalProvider {
 /// [`Provider`]: ../api/trace/provider/trait.Provider.html
 pub fn set_provider<P, T, S>(new_provider: P)
 where
-    S: api::Span,
+    S: api::Span + Send + Sync,
     T: api::Tracer<Span = S> + Send + Sync,
     P: api::Provider<Tracer = T> + Send + Sync,
 {

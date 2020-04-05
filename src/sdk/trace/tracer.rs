@@ -50,7 +50,7 @@ impl Tracer {
         trace_id: api::TraceId,
         span_id: api::SpanId,
         name: &str,
-        span_kind: &api::SpanKind,
+        span_kind: api::SpanKind,
         attributes: &[api::KeyValue],
         links: &[api::Link],
     ) -> Option<(u8, Vec<api::KeyValue>)> {
@@ -172,7 +172,7 @@ impl api::Tracer for Tracer {
                 trace_id,
                 span_id,
                 &builder.name,
-                &span_kind,
+                span_kind,
                 &attribute_options,
                 &link_options,
             )

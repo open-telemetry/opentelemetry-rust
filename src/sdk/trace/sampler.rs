@@ -3,7 +3,7 @@
 use crate::api;
 
 /// Sampling options
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum Sampler {
     /// Always sample the trace
     Always,
@@ -25,7 +25,7 @@ impl api::Sampler for Sampler {
         _trace_id: api::TraceId,
         _span_id: api::SpanId,
         _name: &str,
-        _span_kind: &api::SpanKind,
+        _span_kind: api::SpanKind,
         _attributes: &[api::KeyValue],
         _links: &[api::Link],
     ) -> api::SamplingResult {

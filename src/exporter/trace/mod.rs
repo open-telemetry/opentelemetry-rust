@@ -8,7 +8,7 @@ use std::time::SystemTime;
 pub mod stdout;
 
 /// Describes the result of an export.
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ExportResult {
     /// Batch is successfully exported.
     Success,
