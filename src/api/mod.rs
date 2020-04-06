@@ -33,6 +33,7 @@ pub use propagation::{binary_propagator::BinaryFormat, text_propagator::HttpText
 pub use trace::{
     b3_propagator::B3Propagator,
     event::Event,
+    id_generator::IdGenerator,
     link::Link,
     noop::{NoopProvider, NoopSpan, NoopSpanExporter, NoopTracer},
     provider::Provider,

@@ -9,6 +9,7 @@
 pub mod config;
 pub mod evicted_hash_map;
 pub mod evicted_queue;
+pub mod id_generator;
 pub mod provider;
 pub mod sampler;
 pub mod span;

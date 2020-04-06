@@ -113,6 +113,7 @@
 pub mod b3_propagator;
 pub mod event;
 pub mod futures;
+pub mod id_generator;
 pub mod link;
 pub mod noop;
 pub mod provider;
