@@ -8,7 +8,5 @@ pub trait IdGenerator: Send + Sync + fmt::Debug {
     fn new_trace_id(&self) -> api::TraceId;
 
     /// Generate a new `SpanId`
-    fn new_span_id(&self) -> api::SpanId {
-        api::SpanId::from_u64(0)
-    }
+    fn new_span_id(&self) -> api::SpanId;
 }
