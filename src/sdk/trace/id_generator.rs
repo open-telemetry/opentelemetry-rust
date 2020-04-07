@@ -5,7 +5,9 @@ use std::cell::RefCell;
 
 /// Generates Trace and Span ids
 #[derive(Clone, Debug, Default)]
-pub struct IdGenerator {}
+pub struct IdGenerator {
+    _private: (),
+}
 
 impl api::IdGenerator for IdGenerator {
     /// Generate new `TraceId` using thread local rng
