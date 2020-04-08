@@ -1,5 +1,4 @@
 //! # Sampler
-//!
 use crate::api;
 
 /// Sampling options
@@ -11,10 +10,9 @@ pub enum Sampler {
     Never,
     /// Sample if the parent span is sampled
     Parent,
-    /// Sample a given fraction of traces. Fractions >= 1 will always sample.
-    /// If the parent span is sampled, then it's child spans will automatically
-    /// be sampled. Fractions <0 are treated as zero, but spans may still be
-    /// sampled if their parent is.
+    /// Sample a given fraction of traces. Fractions >= 1 will always sample. If the parent span is
+    /// sampled, then it's child spans will automatically be sampled. Fractions < 0 are treated as
+    /// zero, but spans may still be sampled if their parent is.
     Probability(f64),
 }
 
@@ -22,7 +20,7 @@ impl api::Sampler for Sampler {
     fn should_sample(
         &self,
         parent_context: Option<&api::SpanContext>,
-        _trace_id: api::TraceId,
+        trace_id: api::TraceId,
         _span_id: api::SpanId,
         _name: &str,
         _span_kind: &api::SpanKind,
@@ -44,14 +42,18 @@ impl api::Sampler for Sampler {
             }
             // Match parent or probabilistically sample the trace.
             Sampler::Probability(prob) => {
-                if parent_context.map(|ctx| ctx.is_sampled()).unwrap_or(false) && *prob > 0.0 {
-                    if *prob > 1.0 || *prob > rand::random() {
+                if *prob >= 1.0 || parent_context.map(|ctx| ctx.is_sampled()).unwrap_or(false) {
+                    api::SamplingDecision::RecordAndSampled
+                } else {
+                    let prob_upper_bound = (prob.max(0.0) * (1u64 << 63) as f64) as u64;
+                    // The trace_id is already randomly generated, so we don't need a new one here
+                    let rnd_from_trace_id = (trace_id.to_u128() as u64) >> 1;
+
+                    if rnd_from_trace_id < prob_upper_bound {
                         api::SamplingDecision::RecordAndSampled
                     } else {
                         api::SamplingDecision::NotRecord
                     }
-                } else {
-                    api::SamplingDecision::NotRecord
                 }
             }
         };
@@ -60,6 +62,103 @@ impl api::Sampler for Sampler {
             decision,
             // No extra attributes ever set by the SDK samplers.
             attributes: Vec::new(),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::api::{self, Sampler as _};
+    use crate::sdk::Sampler;
+    use rand::Rng;
+
+    #[rustfmt::skip]
+    fn sampler_data() -> Vec<(&'static str, Sampler, f64, bool, bool)> {
+        vec![
+            // Span w/o a parent
+            ("never_sample",    Sampler::Never,             0.0,  false, false),
+            ("always_sample",   Sampler::Always,            1.0,  false, false),
+            ("probability_-1",  Sampler::Probability(-1.0), 0.0,  false, false),
+            ("probability_.25", Sampler::Probability(0.25), 0.25, false, false),
+            ("probability_.50", Sampler::Probability(0.50), 0.5,  false, false),
+            ("probability_.75", Sampler::Probability(0.75), 0.75, false, false),
+            ("probability_2.0", Sampler::Probability(2.0),  1.0,  false, false),
+
+            // Spans with a parent that is *not* sampled act like spans w/o a parent
+            ("unsampled_parent_with_probability_-1",  Sampler::Probability(-1.0), 0.0, true, false),
+            ("unsampled_parent_with_probability_.25", Sampler::Probability(0.25), 0.25, true, false),
+            ("unsampled_parent_with_probability_.50", Sampler::Probability(0.50), 0.5, true, false),
+            ("unsampled_parent_with_probability_.75", Sampler::Probability(0.75), 0.75, true, false),
+            ("unsampled_parent_with_probability_2.0", Sampler::Probability(2.0),  1.0, true, false),
+
+            // Spans with a parent that is sampled, will always sample, regardless of the probability
+            ("sampled_parent_with_probability_-1",  Sampler::Probability(-1.0), 1.0, true, true),
+            ("sampled_parent_with_probability_.25", Sampler::Probability(0.25), 1.0, true, true),
+            ("sampled_parent_with_probability_2.0", Sampler::Probability(2.0),  1.0, true, true),
+
+            // Spans with a sampled parent, but when using the NeverSample Sampler, aren't sampled
+            ("SampledParentSpanWithNeverSample", Sampler::Never, 0.0, true, true),
+        ]
+    }
+
+    #[test]
+    fn sampling() {
+        let total = 10_000;
+        let mut rng = rand::thread_rng();
+        for (name, sampler, expectation, parent, sample_parent) in sampler_data() {
+            let mut sampled = 0;
+            for _ in 0..total {
+                let parent_context = if parent {
+                    let trace_flags = if sample_parent {
+                        api::TRACE_FLAG_SAMPLED
+                    } else {
+                        0
+                    };
+                    Some(api::SpanContext::new(
+                        api::TraceId::from_u128(1),
+                        api::SpanId::from_u64(1),
+                        trace_flags,
+                        false,
+                    ))
+                } else {
+                    None
+                };
+                let trace_id = api::TraceId::from_u128(rng.gen());
+                if sampler
+                    .should_sample(
+                        parent_context.as_ref(),
+                        trace_id,
+                        api::SpanId::from_u64(1),
+                        name,
+                        &api::SpanKind::Internal,
+                        &[],
+                        &[],
+                    )
+                    .decision
+                    == api::SamplingDecision::RecordAndSampled
+                {
+                    sampled += 1;
+                }
+            }
+            let mut tolerance = 0.0;
+            let got = sampled as f64 / total as f64;
+
+            if expectation > 0.0 && expectation < 1.0 {
+                // See https://en.wikipedia.org/wiki/Binomial_proportion_confidence_interval
+                let z = 4.75342; // This should succeed 99.9999% of the time
+                tolerance = z * (got * (1.0 - got) / total as f64).sqrt();
+            }
+
+            let diff = (got - expectation).abs();
+            assert!(
+                diff <= tolerance,
+                "{} got {:?} (diff: {}), expected {} (w/tolerance: {})",
+                name,
+                got,
+                diff,
+                expectation,
+                tolerance
+            );
         }
     }
 }
