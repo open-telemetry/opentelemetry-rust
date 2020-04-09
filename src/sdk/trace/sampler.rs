@@ -2,7 +2,7 @@
 use crate::api;
 
 /// Sampling options
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub enum Sampler {
     /// Always sample the trace
     Always,
