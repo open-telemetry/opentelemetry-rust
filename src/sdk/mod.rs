@@ -18,6 +18,7 @@ pub use trace::{
     config::Config,
     evicted_hash_map::EvictedHashMap,
     evicted_queue::EvictedQueue,
+    id_generator::IdGenerator,
     provider::Provider,
     sampler::Sampler,
     span::Span,

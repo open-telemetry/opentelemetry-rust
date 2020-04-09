@@ -134,7 +134,7 @@ impl api::Tracer for Tracer {
         let span_id = builder
             .span_id
             .take()
-            .unwrap_or_else(|| api::SpanId::from_u64(rand::random()));
+            .unwrap_or_else(|| self.provider().config().id_generator.new_span_id());
 
         let span_kind = builder.span_kind.take().unwrap_or(api::SpanKind::Internal);
         let mut attribute_options = builder.attributes.take().unwrap_or_else(Vec::new);
@@ -159,7 +159,7 @@ impl api::Tracer for Tracer {
                 true,
                 builder
                     .trace_id
-                    .unwrap_or_else(|| api::TraceId::from_u128(rand::random::<u128>())),
+                    .unwrap_or_else(|| self.provider().config().id_generator.new_trace_id()),
                 api::SpanId::invalid(),
                 false,
                 0,
