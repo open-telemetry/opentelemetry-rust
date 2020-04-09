@@ -76,7 +76,7 @@ impl api::Meter for Meter {
         let mut label_set: Self::LabelSet = Default::default();
 
         for api::KeyValue { key, value } in key_values.into_iter() {
-            label_set.insert(key.into(), value.into());
+            label_set.insert(Cow::Owned(key.into()), Cow::Owned(value.into()));
         }
 
         label_set
