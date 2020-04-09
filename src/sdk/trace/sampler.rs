@@ -97,7 +97,7 @@ mod tests {
             ("sampled_parent_with_probability_2.0", Sampler::Probability(2.0),  1.0, true, true),
 
             // Spans with a sampled parent, but when using the NeverSample Sampler, aren't sampled
-            ("SampledParentSpanWithNeverSample", Sampler::Never, 0.0, true, true),
+            ("sampled_parent_span_with_never_sample", Sampler::Never, 0.0, true, true),
         ]
     }
 
