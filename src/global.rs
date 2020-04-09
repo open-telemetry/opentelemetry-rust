@@ -23,9 +23,13 @@
 //! }
 //!
 //! fn do_something_tracked() {
-//!     // Then you can access the configured provider via `trace_provider`.
+//!     // Then you can use the global provider to create a tracer via `tracer`.
+//!     let _span = global::tracer("my-component").start("span-name", None);
+//!
+//!     // Or access the configured provider via `trace_provider`.
 //!     let provider = global::trace_provider();
-//!     let _span = provider.get_tracer("my-component").start("span-name", None);
+//!     let _tracer_a = provider.get_tracer("my-component-a");
+//!     let _tracer_b = provider.get_tracer("my-component-b");
 //! }
 //!
 //! // in main or other app start
@@ -62,7 +66,7 @@
 //! [`BoxedSpan`]: struct.BoxedSpan.html
 //! [`trace_provider`]: fn.trace_provider.html
 //! [trait objects]: https://doc.rust-lang.org/reference/types/trait-object.html#trait-objects
-use crate::api;
+use crate::{api, api::Provider};
 use std::any::Any;
 use std::fmt;
 use std::sync::{Arc, RwLock};
@@ -369,6 +373,18 @@ pub fn trace_provider() -> GlobalProvider {
         .read()
         .expect("GLOBAL_TRACER_PROVIDER RwLock poisoned")
         .clone()
+}
+
+/// Creates a named instance of [`Tracer`] via the configured [`GlobalProvider`].
+///
+/// If the name is an empty string, the provider will use a default name.
+///
+/// This is a more convenient way of expressing `global::trace_provider().get_tracer(name)`.
+///
+/// [`Tracer`]: ../api/trace/tracer/trait.Tracer.html
+/// [`GlobalProvider`]: struct.GlobalProvider.html
+pub fn tracer(name: &'static str) -> BoxedTracer {
+    trace_provider().get_tracer(name)
 }
 
 /// Sets the given [`Provider`] instance as the current global provider.
