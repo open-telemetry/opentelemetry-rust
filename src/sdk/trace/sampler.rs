@@ -130,7 +130,7 @@ mod tests {
                         trace_id,
                         api::SpanId::from_u64(1),
                         name,
-                        &api::SpanKind::Internal,
+                        api::SpanKind::Internal,
                         &[],
                         &[],
                     )
