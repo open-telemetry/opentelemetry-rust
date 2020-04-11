@@ -250,7 +250,7 @@ where
 {
     let mut map: HashMap<String, String> = HashMap::new();
     for kv in kvs {
-        map.insert(kv.key.into(), kv.value.to_string());
+        map.insert(kv.key.into(), kv.value.into());
     }
     map
 }

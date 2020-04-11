@@ -26,11 +26,7 @@ fn convert_label_set(label_set: &sdk::LabelSet) -> HashMap<&str, &str> {
 
 /// Convert from list of `Key`s to prometheus' label format.
 pub(crate) fn convert_labels(labels: &[Key]) -> Vec<&str> {
-    labels
-        .iter()
-        .map(|k| k.inner())
-        .map(|k| k.as_ref())
-        .collect()
+    labels.iter().map(|k| k.as_str()).collect()
 }
 
 /// Prometheus IntCounterHandle
