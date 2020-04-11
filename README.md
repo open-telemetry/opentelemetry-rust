@@ -32,7 +32,7 @@ fn main() {
 }
 ```
 
-See the [opentelemetry-example-app](./examples/basic.rs) for a complete example.
+See the [opentelemetry-example-app](./examples/basic) for a complete example.
 
 ## Contributing
 
