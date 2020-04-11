@@ -51,7 +51,7 @@ pub trait Sampler: Send + Sync + std::fmt::Debug {
         trace_id: api::TraceId,
         span_id: api::SpanId,
         name: &str,
-        span_kind: api::SpanKind,
+        span_kind: &api::SpanKind,
         attributes: &[api::KeyValue],
         links: &[api::Link],
     ) -> SamplingResult;
@@ -67,7 +67,7 @@ pub struct SamplingResult {
 }
 
 /// Decision about whether or not to sample
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum SamplingDecision {
     /// `is_recording() == false`, span will not be recorded and all events and
     /// attributes will be dropped.
