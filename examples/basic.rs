@@ -1,6 +1,5 @@
 use opentelemetry::api::{
-    Gauge, GaugeHandle, Key, Measure, MeasureHandle, Meter, MetricOptions, Provider, Span,
-    TracerGenerics,
+    Gauge, GaugeHandle, Key, Measure, MeasureHandle, Meter, MetricOptions, Span, TracerGenerics,
 };
 use opentelemetry::{global, sdk};
 use std::thread;
@@ -54,32 +53,28 @@ fn main() -> thrift::Result<()> {
 
     let measure = measure_two.acquire_handle(&common_labels);
 
-    global::trace_provider()
-        .get_tracer("component-main")
-        .with_span("operation", move |span| {
-            span.add_event(
-                "Nice operation!".to_string(),
-                vec![Key::new("bogons").i64(100)],
-            );
-            span.set_attribute(another_key.string("yes"));
+    global::tracer("component-main").with_span("operation", move |span| {
+        span.add_event(
+            "Nice operation!".to_string(),
+            vec![Key::new("bogons").i64(100)],
+        );
+        span.set_attribute(another_key.string("yes"));
 
-            gauge.set(1.0);
+        gauge.set(1.0);
 
-            meter.record_batch(
-                &common_labels,
-                vec![one_metric.measurement(1.0), measure_two.measurement(2.0)],
-            );
+        meter.record_batch(
+            &common_labels,
+            vec![one_metric.measurement(1.0), measure_two.measurement(2.0)],
+        );
 
-            global::trace_provider()
-                .get_tracer("component-bar")
-                .with_span("Sub operation...", move |span| {
-                    span.set_attribute(lemons_key.string("five"));
+        global::tracer("component-bar").with_span("Sub operation...", move |span| {
+            span.set_attribute(lemons_key.string("five"));
 
-                    span.add_event("Sub span event".to_string(), vec![]);
+            span.add_event("Sub span event".to_string(), vec![]);
 
-                    measure.record(1.3);
-                });
+            measure.record(1.3);
         });
+    });
 
     // Allow flush
     thread::sleep(Duration::from_millis(250));

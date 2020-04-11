@@ -1,7 +1,8 @@
-use opentelemetry::api::trace::provider::Provider;
-use opentelemetry::api::trace::tracer::TracerGenerics;
 use opentelemetry::exporter::trace::stdout;
-use opentelemetry::{global, sdk};
+use opentelemetry::{
+    api::{Provider, TracerGenerics},
+    global, sdk,
+};
 
 fn main() {
     let exporter = stdout::Builder::default().init();

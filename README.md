@@ -17,14 +17,14 @@ and metrics from your application. You can analyze them using [Prometheus], [Jae
 ## Quick Start
 
 ```rust
-use opentelemetry::{api::{Provider, TracerGenerics}, global, sdk};
+use opentelemetry::{api::TracerGenerics, global, sdk};
 
 fn main() {
     global::set_provider(sdk::Provider::default());
 
-    global::trace_provider().get_tracer("component-a").with_span("foo", |_span| {
-        global::trace_provider().get_tracer("component-b").with_span("bar", |_span| {
-            global::trace_provider().get_tracer("component-c").with_span("baz", |_span| {
+    global::tracer("component-a").with_span("foo", |_span| {
+        global::tracer("component-b").with_span("bar", |_span| {
+            global::tracer("component-c").with_span("baz", |_span| {
 
             })
         })
