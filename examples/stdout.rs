@@ -1,6 +1,8 @@
-use opentelemetry::api::trace::tracer::TracerGenerics;
 use opentelemetry::exporter::trace::stdout;
-use opentelemetry::{global, sdk};
+use opentelemetry::{
+    api::{Provider, TracerGenerics},
+    global, sdk,
+};
 
 fn main() {
     let exporter = stdout::Builder::default().init();
@@ -13,5 +15,7 @@ fn main() {
         .build();
     global::set_provider(provider);
 
-    global::tracer("component-main").with_span("operation", move |_span| {});
+    global::trace_provider()
+        .get_tracer("component-main")
+        .with_span("operation", move |_span| {});
 }
