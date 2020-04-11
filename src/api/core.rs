@@ -5,7 +5,7 @@ use std::borrow::Cow;
 
 /// Key used for metric `LabelSet`s and trace `Span` attributes.
 #[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Key(Cow<'static, str>);
 
 impl Key {

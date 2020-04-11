@@ -17,6 +17,8 @@ pub struct Config {
     pub max_attributes_per_span: u32,
     /// The max links that can be added to a `Span`.
     pub max_links_per_span: u32,
+    /// Contains attributes representing an entity that produces telemetry.
+    pub resource: sdk::Resource,
 }
 
 impl Default for Config {
@@ -28,6 +30,7 @@ impl Default for Config {
             max_events_per_span: 128,
             max_attributes_per_span: 32,
             max_links_per_span: 32,
+            resource: sdk::Resource::default(),
         }
     }
 }
