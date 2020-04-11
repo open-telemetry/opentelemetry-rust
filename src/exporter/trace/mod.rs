@@ -87,7 +87,7 @@ pub struct SpanData {
     /// Span status message
     pub status_message: String,
     /// Resource contains attributes representing an entity that produced this span.
-    pub resource: sdk::Resource,
+    pub resource: Arc<sdk::Resource>,
 }
 
 #[cfg(feature = "serialize")]
@@ -122,7 +122,7 @@ mod tests {
 
         let status_code = api::StatusCode::OK;
         let status_message = String::new();
-        let resource = sdk::Resource::default();
+        let resource = Arc::new(sdk::Resource::default());
 
         let span_data = SpanData {
             context,
