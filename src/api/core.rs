@@ -15,10 +15,10 @@ impl Key {
     }
 
     /// Create a `KeyValue` pair for `bool` values.
-    pub fn bool(&self, value: bool) -> KeyValue {
+    pub fn bool<T: Into<bool>>(&self, value: T) -> KeyValue {
         KeyValue {
             key: self.clone(),
-            value: Value::Bool(value),
+            value: Value::Bool(value.into()),
         }
     }
 
@@ -46,8 +46,8 @@ impl Key {
         }
     }
 
-    /// Create a `KeyValue` pair for `Into<String>` values.
-    pub fn string<S: Into<String>>(&self, value: S) -> KeyValue {
+    /// Create a `KeyValue` pair for `String` values.
+    pub fn string<T: Into<String>>(&self, value: T) -> KeyValue {
         KeyValue {
             key: self.clone(),
             value: Value::String(value.into()),
@@ -55,21 +55,16 @@ impl Key {
     }
 
     /// Create a `KeyValue` pair for byte arrays.
-    pub fn bytes(&self, value: Vec<u8>) -> KeyValue {
+    pub fn bytes<T: Into<Vec<u8>>>(&self, value: T) -> KeyValue {
         KeyValue {
             key: self.clone(),
-            value: Value::Bytes(value),
+            value: Value::Bytes(value.into()),
         }
     }
 
-    /// Returns a reference to the key's `Cow` type for use in `LabelSet`s.
-    pub fn inner(&self) -> &Cow<'static, str> {
-        &self.0
-    }
-
-    /// Returns the inner `Cow` type.
-    pub fn into_inner(self) -> Cow<'static, str> {
-        self.0
+    /// Returns a reference to the underlying key name
+    pub fn as_str(&self) -> &str {
+        self.0.as_ref()
     }
 }
 
@@ -77,13 +72,6 @@ impl From<&'static str> for Key {
     /// Convert a `&str` to a `Key`.
     fn from(key_str: &'static str) -> Self {
         Key(Cow::from(key_str))
-    }
-}
-
-impl Into<Cow<'static, str>> for Key {
-    /// Converts `Key` instances into `Cow`
-    fn into(self) -> Cow<'static, str> {
-        self.0
     }
 }
 
@@ -112,6 +100,31 @@ pub enum Value {
     Bytes(Vec<u8>),
 }
 
+macro_rules! from_values {
+   (
+        $(
+            ($t:ty, $val:expr);
+        )+
+    ) => {
+        $(
+            impl From<$t> for Value {
+                fn from(t: $t) -> Self {
+                    $val(t)
+                }
+            }
+        )+
+    }
+}
+
+from_values!(
+    (bool, Value::Bool);
+    (i64, Value::I64);
+    (u64, Value::U64);
+    (f64, Value::F64);
+    (String, Value::String);
+    (Vec<u8>, Value::Bytes);
+);
+
 impl From<&str> for Value {
     /// Convenience method for creating a `Value` form a `&str`.
     fn from(value_str: &str) -> Self {
@@ -119,34 +132,18 @@ impl From<&str> for Value {
     }
 }
 
-impl From<i64> for Value {
-    /// Convenience method for creating a `Value` form a `i64`.
-    fn from(value: i64) -> Self {
-        Value::I64(value)
-    }
-}
-
-impl ToString for Value {
+impl Into<String> for Value {
     /// Convert `Value` types to `String` for use by exporters that only use
     /// `String` values.
-    fn to_string(&self) -> String {
+    fn into(self) -> String {
         match self {
             Value::Bool(value) => value.to_string(),
             Value::I64(value) => value.to_string(),
             Value::U64(value) => value.to_string(),
             Value::F64(value) => value.to_string(),
-            Value::String(value) => value.clone(),
-            Value::Bytes(value) => {
-                String::from_utf8(value.clone()).unwrap_or_else(|_| String::new())
-            }
+            Value::String(value) => value,
+            Value::Bytes(value) => String::from_utf8(value).unwrap_or_else(|_| String::new()),
         }
-    }
-}
-
-impl Into<Cow<'static, str>> for Value {
-    /// Convert `Value` types into `Cow` for use in `LabelSet`s.
-    fn into(self) -> Cow<'static, str> {
-        self.to_string().into()
     }
 }
 

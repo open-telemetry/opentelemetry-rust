@@ -144,7 +144,7 @@ impl<S: Tracer> TracerGenerics for S {
 ///     global,
 /// };
 ///
-/// let tracer = global::trace_provider().get_tracer("example-tracer");
+/// let tracer = global::tracer("example-tracer");
 ///
 /// // The builder can be used to create a span directly with the tracer
 /// let _span = tracer.build(SpanBuilder {

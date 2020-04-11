@@ -1,4 +1,4 @@
-use opentelemetry::api::{Key, Provider, Span, TracerGenerics};
+use opentelemetry::api::{Key, Span, TracerGenerics};
 use opentelemetry::{global, sdk};
 
 use actix_service::Service;
@@ -29,7 +29,7 @@ fn init_tracer() -> thrift::Result<()> {
 }
 
 fn index() -> &'static str {
-    let tracer = global::trace_provider().get_tracer("request");
+    let tracer = global::tracer("request");
 
     tracer.with_span("index", move |span| {
         span.set_attribute(Key::new("parameter").i64(10));
@@ -43,7 +43,7 @@ fn main() -> thrift::Result<()> {
     HttpServer::new(|| {
         App::new()
             .wrap_fn(|req, srv| {
-                let tracer = global::trace_provider().get_tracer("request");
+                let tracer = global::tracer("request");
                 tracer.with_span("middleware", move |span| {
                     span.set_attribute(Key::new("path").string(req.path()));
                     srv.call(req).map(|res| res)
