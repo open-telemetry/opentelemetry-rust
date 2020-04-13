@@ -23,7 +23,7 @@ async fn main() {
 }
 
 async fn init_tracing(stackdriver_creds: impl AsRef<Path>) {
-    StackDriverExporter::connect(stackdriver_creds, &TokioSpawner, None)
+    StackDriverExporter::connect(stackdriver_creds, &TokioSpawner, None, 5)
         .await
         .map_err(|e| panic!("Error connecting to stackdriver: {:?}", e))
         .and_then(|exporter| {

@@ -76,11 +76,14 @@ pub struct StackDriverExporter {
 }
 
 impl StackDriverExporter {
+    /// If `num_concurrent_requests` is set to `0` or `None` then no limit is enforced.
     pub async fn connect<S: futures::task::Spawn>(
         credentials_path: impl AsRef<std::path::Path>,
         spawn: &S,
         maximum_shutdown_duration: Option<Duration>,
+        num_concurrent_requests: impl Into<Option<usize>>,
     ) -> Result<Self, Box<dyn std::error::Error>> {
+        let num_concurrent_requests = num_concurrent_requests.into();
         let uri = http::uri::Uri::from_static("https://cloudtrace.googleapis.com:443");
 
         let service_account_key = yup_oauth2::read_service_account_key(&credentials_path).await?;
@@ -120,6 +123,7 @@ impl StackDriverExporter {
                 project_name,
                 rx,
                 pending_count.clone(),
+                num_concurrent_requests,
             ))
             .into(),
         )?;
@@ -136,79 +140,86 @@ impl StackDriverExporter {
     }
 
     async fn export_inner(
-        mut client: TraceServiceClient<Channel>,
+        client: TraceServiceClient<Channel>,
         project_name: String,
-        mut rx: futures::channel::mpsc::Receiver<Vec<Arc<SpanData>>>,
+        rx: futures::channel::mpsc::Receiver<Vec<Arc<SpanData>>>,
         pending_count: Arc<AtomicUsize>,
+        num_concurrent: impl Into<Option<usize>>,
     ) {
-        while let Some(batch) = rx.next().await {
-            use proto::google::devtools::cloudtrace::v2::span::time_event::Value;
-            use proto::google::devtools::cloudtrace::v2::span::{Attributes, TimeEvents};
-            use proto::google::devtools::cloudtrace::v2::{BatchWriteSpansRequest, Span};
+        rx.for_each_concurrent(num_concurrent, move |batch| {
+            let mut client = client.clone(); // This clone is cheap and allows for concurrent requests (see https://github.com/hyperium/tonic/issues/285#issuecomment-595880400)
+            let project_name = project_name.clone();
+            let pending_count = pending_count.clone();
+            async move {
+                use proto::google::devtools::cloudtrace::v2::span::time_event::Value;
+                use proto::google::devtools::cloudtrace::v2::span::{Attributes, TimeEvents};
+                use proto::google::devtools::cloudtrace::v2::{BatchWriteSpansRequest, Span};
 
-            let spans = batch
-                .iter()
-                .map(|span| {
-                    let new_attributes = Attributes {
-                        attribute_map: span
-                            .attributes
-                            .iter()
-                            .map(|kv| {
-                                (
-                                    kv.key.inner().clone().into_owned(),
-                                    attribute_value_conversion(kv.value.clone()),
-                                )
-                            })
-                            .collect(),
-                        ..Default::default()
-                    };
-                    let new_time_events = TimeEvents {
-                        time_event: span
-                            .message_events
-                            .iter()
-                            .map(|event| TimeEvent {
-                                time: Some(event.timestamp.into()),
-                                value: Some(Value::Annotation(Annotation {
-                                    description: Some(to_truncate(event.message.clone())),
-                                    ..Default::default()
-                                })),
-                            })
-                            .collect(),
-                        ..Default::default()
-                    };
+                let spans = batch
+                    .iter()
+                    .map(|span| {
+                        let new_attributes = Attributes {
+                            attribute_map: span
+                                .attributes
+                                .iter()
+                                .map(|kv| {
+                                    (
+                                        kv.key.inner().clone().into_owned(),
+                                        attribute_value_conversion(kv.value.clone()),
+                                    )
+                                })
+                                .collect(),
+                            ..Default::default()
+                        };
+                        let new_time_events = TimeEvents {
+                            time_event: span
+                                .message_events
+                                .iter()
+                                .map(|event| TimeEvent {
+                                    time: Some(event.timestamp.into()),
+                                    value: Some(Value::Annotation(Annotation {
+                                        description: Some(to_truncate(event.message.clone())),
+                                        ..Default::default()
+                                    })),
+                                })
+                                .collect(),
+                            ..Default::default()
+                        };
 
-                    Span {
-                        name: format!(
-                            "projects/{}/traces/{}/spans/{}",
-                            project_name,
-                            hex::encode(span.context.trace_id().to_be_bytes()),
-                            hex::encode(span.context.span_id().to_be_bytes())
-                        ),
-                        display_name: Some(to_truncate(span.name.clone())),
-                        span_id: hex::encode(span.context.span_id().to_be_bytes()),
-                        parent_span_id: hex::encode(span.parent_span_id.to_be_bytes()),
-                        start_time: Some(span.start_time.into()),
-                        end_time: Some(span.end_time.into()),
-                        attributes: Some(new_attributes),
-                        time_events: Some(new_time_events),
-                        ..Default::default()
-                    }
-                })
-                .collect::<Vec<_>>();
+                        Span {
+                            name: format!(
+                                "projects/{}/traces/{}/spans/{}",
+                                project_name,
+                                hex::encode(span.context.trace_id().to_be_bytes()),
+                                hex::encode(span.context.span_id().to_be_bytes())
+                            ),
+                            display_name: Some(to_truncate(span.name.clone())),
+                            span_id: hex::encode(span.context.span_id().to_be_bytes()),
+                            parent_span_id: hex::encode(span.parent_span_id.to_be_bytes()),
+                            start_time: Some(span.start_time.into()),
+                            end_time: Some(span.end_time.into()),
+                            attributes: Some(new_attributes),
+                            time_events: Some(new_time_events),
+                            ..Default::default()
+                        }
+                    })
+                    .collect::<Vec<_>>();
 
-            let req = BatchWriteSpansRequest {
-                name: format!("projects/{}", project_name),
-                spans,
-            };
-            client
-                .batch_write_spans(req)
-                .await
-                .map_err(|e| {
-                    log::error!("StackDriver push failed {:?}", e);
-                })
-                .ok();
-            pending_count.fetch_sub(1, Ordering::Relaxed);
-        }
+                let req = BatchWriteSpansRequest {
+                    name: format!("projects/{}", project_name),
+                    spans,
+                };
+                client
+                    .batch_write_spans(req)
+                    .await
+                    .map_err(|e| {
+                        log::error!("StackDriver push failed {:?}", e);
+                    })
+                    .ok();
+                pending_count.fetch_sub(1, Ordering::Relaxed);
+            }
+        })
+        .await;
     }
 }
 
