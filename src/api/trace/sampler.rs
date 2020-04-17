@@ -58,7 +58,7 @@ pub trait Sampler: Send + Sync + std::fmt::Debug {
 }
 
 /// The result of sampling logic for a given `Span`.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct SamplingResult {
     /// `SamplingDecision` reached by this result
     pub decision: SamplingDecision,
