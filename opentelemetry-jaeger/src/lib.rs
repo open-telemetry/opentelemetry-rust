@@ -382,13 +382,18 @@ fn links_to_references(links: &sdk::EvictedQueue<api::Link>) -> Option<Vec<jaege
 }
 
 fn build_tags(span_data: &Arc<trace::SpanData>) -> Option<Vec<jaeger::Tag>> {
-    let mut tags = Vec::with_capacity(span_data.attributes.len() + 4);
+    let mut tags = Vec::with_capacity(span_data.attributes.len() + span_data.resource.len() + 4);
     let mut user_specified_error = false;
     for (key, value) in span_data.attributes.iter() {
         tags.push(api::KeyValue::new(key.clone(), value.clone()).into());
         if key == &api::Key::new("error") {
             user_specified_error = true;
         }
+    }
+
+    // TODO determine if namespacing is required to avoid colisions with set attributes
+    for (key, value) in span_data.resource.iter() {
+        tags.push(api::KeyValue::new(key.clone(), value.clone()).into());
     }
 
     // Ensure error status is set
