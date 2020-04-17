@@ -193,6 +193,19 @@
 //! well-known metric names in [Semantic Conventions](data-semantic-conventions.md)
 //! document.
 //!
+//!
+//! ## Resources
+//!
+//! A `Resource` captures information about the entity for which telemetry is recorded. For
+//! example, metrics exposed by a Kubernetes container can be linked to a resource that specifies
+//! the cluster, namespace, pod, and container name.
+//!
+//! A `Resource` may also capture an entire hierarchy of entity identification. It may describe the
+//! host in the cloud and specific container or an application running in the process.
+//!
+//! Note, that some of the process identification information can be associated with telemetry
+//! automatically by the OpenTelemetry SDK or a specific exporter.
+//!
 //! ## Propagators
 //!
 //! OpenTelemetry uses `Propagators` to serialize and deserialize `SpanContext` and

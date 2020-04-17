@@ -197,6 +197,7 @@ impl api::Tracer for Tracer {
             }
             let status_code = builder.status_code.unwrap_or(api::StatusCode::OK);
             let status_message = builder.status_message.unwrap_or_else(String::new);
+            let resource = config.resource.clone();
 
             exporter::trace::SpanData {
                 context: api::SpanContext::new(trace_id, span_id, trace_flags, false),
@@ -210,6 +211,7 @@ impl api::Tracer for Tracer {
                 links,
                 status_code,
                 status_message,
+                resource,
             }
         });
 

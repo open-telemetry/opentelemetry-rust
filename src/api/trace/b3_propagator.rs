@@ -23,7 +23,7 @@ static B3_SAMPLED_HEADER: &str = "X-B3-Sampled";
 static B3_PARENT_SPAN_ID_HEADER: &str = "X-B3-ParentSpanId";
 
 /// Extracts and injects `SpanContext`s into `Carrier`s using B3 header format.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct B3Propagator {
     single_header: bool,
 }
