@@ -56,9 +56,15 @@ fn init_tracer() -> thrift::Result<()> {
             tags: vec![],
         })
         .init()?;
+
+    // Configure your async library of choice. E.g. `async_std::spawn` or similar function can be
+    // used here in place of `tokio::spawn`, etc.
     let batch = sdk::BatchSpanProcessor::builder(exporter, tokio::spawn, tokio::time::interval)
         .with_scheduled_delay(Duration::from_millis(100))
         .build();
+
+    // For the demonstration, use `Sampler::Always` sampler to sample all traces. In a production
+    // application, use `Sampler::Parent` or `Sampler::Probability` with a desired probability.
     let provider = sdk::Provider::builder()
         .with_batch_exporter(batch)
         .with_config(sdk::Config {

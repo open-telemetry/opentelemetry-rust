@@ -17,6 +17,8 @@ jobs:
       image: ${{ matrix.image }}
     steps:
     - uses: actions/checkout@v1
+    - name: Install rustfmt
+      run: rustup component add rustfmt
     - name: Test
       run: ./scripts/test.sh
   lint:
@@ -31,5 +33,7 @@ jobs:
       image: ${{ matrix.image }}
     steps:
     - uses: actions/checkout@v1
+    - name: Install rustfmt
+      run: rustup component add rustfmt
     - name: Lint
       run: ./scripts/lint.sh
