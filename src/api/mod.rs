@@ -13,12 +13,14 @@
 //! In order to enable telemetry the application must take a dependency on the OpenTelemetry SDK,
 //! which implements the delivery of the telemetry. The application must also configure exporters
 //! so that the SDK knows where and how to deliver the telemetry.
+pub mod context;
 pub mod core;
 pub mod metrics;
 pub mod propagation;
 pub mod trace;
 
 pub use self::core::{Key, KeyValue, Unit, Value};
+pub use context::Context;
 pub use metrics::{
     counter::{Counter, CounterHandle},
     gauge::{Gauge, GaugeHandle},
