@@ -1,7 +1,7 @@
 use opentelemetry::{api::Provider, sdk};
 use opentelemetry_stackdriver::StackDriverExporter;
 use tracing::{span, Level};
-use tracing_opentelemetry::OpentelemetryLayer;
+use tracing_opentelemetry::OpenTelemetryLayer;
 use tracing_subscriber::{Layer, Registry};
 
 use std::{path::Path, thread::sleep, time::Duration};
@@ -28,7 +28,7 @@ async fn init_tracing(stackdriver_creds: impl AsRef<Path>) {
         .map_err(|e| panic!("Error connecting to stackdriver: {:?}", e))
         .and_then(|exporter| {
             tracing::subscriber::set_global_default(
-                OpentelemetryLayer::with_tracer(
+                OpenTelemetryLayer::with_tracer(
                     sdk::Provider::builder()
                         .with_simple_exporter(exporter)
                         .build()

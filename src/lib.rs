@@ -156,16 +156,16 @@ impl StackDriverExporter {
                 use proto::google::devtools::cloudtrace::v2::{BatchWriteSpansRequest, Span};
 
                 let spans = batch
-                    .iter()
+                    .into_iter()
                     .map(|span| {
                         let new_attributes = Attributes {
                             attribute_map: span
                                 .attributes
                                 .iter()
-                                .map(|kv| {
+                                .map(|(key, value)| {
                                     (
-                                        kv.key.inner().clone().into_owned(),
-                                        attribute_value_conversion(kv.value.clone()),
+                                        key.inner().clone().into_owned(),
+                                        attribute_value_conversion(value.clone()),
                                     )
                                 })
                                 .collect(),
@@ -178,7 +178,7 @@ impl StackDriverExporter {
                                 .map(|event| TimeEvent {
                                     time: Some(event.timestamp.into()),
                                     value: Some(Value::Annotation(Annotation {
-                                        description: Some(to_truncate(event.message.clone())),
+                                        description: Some(to_truncate(event.name.clone())),
                                         ..Default::default()
                                     })),
                                 })
@@ -190,12 +190,12 @@ impl StackDriverExporter {
                             name: format!(
                                 "projects/{}/traces/{}/spans/{}",
                                 project_name,
-                                hex::encode(span.context.trace_id().to_be_bytes()),
-                                hex::encode(span.context.span_id().to_be_bytes())
+                                hex::encode(span.context.trace_id().to_u128().to_be_bytes()),
+                                hex::encode(span.context.span_id().to_u64().to_be_bytes())
                             ),
                             display_name: Some(to_truncate(span.name.clone())),
-                            span_id: hex::encode(span.context.span_id().to_be_bytes()),
-                            parent_span_id: hex::encode(span.parent_span_id.to_be_bytes()),
+                            span_id: hex::encode(span.context.span_id().to_u64().to_be_bytes()),
+                            parent_span_id: hex::encode(span.parent_span_id.to_u64().to_be_bytes()),
                             start_time: Some(span.start_time.into()),
                             end_time: Some(span.end_time.into()),
                             attributes: Some(new_attributes),
