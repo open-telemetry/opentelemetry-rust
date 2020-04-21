@@ -1,0 +1,23 @@
+[package]
+name = "grpc"
+version = "0.1.0"
+edition = "2018"
+
+[[bin]] # Bin to run the gRPC server
+name = "grpc-server"
+path = "src/server.rs"
+
+[[bin]] # Bin to run the gRPC client
+name = "grpc-client"
+path = "src/client.rs"
+
+[dependencies]
+http = "0.2"
+tonic = "0.2"
+prost = "0.6"
+tokio = { version = "0.2", features = ["full"] }
+opentelemetry = { path = "../../" }
+opentelemetry-jaeger = { path = "../../opentelemetry-jaeger" }
+
+[build-dependencies]
+tonic-build = "0.2"

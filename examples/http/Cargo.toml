@@ -1,0 +1,18 @@
+[package]
+name = "http"
+version = "0.1.0"
+edition = "2018"
+
+[[bin]] # Bin to run the http server
+name = "http-server"
+path = "src/server.rs"
+
+[[bin]] # Bin to run the client
+name = "http-client"
+path = "src/client.rs"
+
+[dependencies]
+hyper = "0.13"
+tokio = { version = "0.2", features = ["full"] }
+opentelemetry = { path = "../../" }
+opentelemetry-jaeger = { path = "../../opentelemetry-jaeger" }

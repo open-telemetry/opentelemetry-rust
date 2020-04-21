@@ -2,8 +2,6 @@ use opentelemetry::api::{
     Gauge, GaugeHandle, Key, Measure, MeasureHandle, Meter, MetricOptions, Span, TracerGenerics,
 };
 use opentelemetry::{global, sdk};
-use std::thread;
-use std::time::Duration;
 
 fn init_tracer() -> thrift::Result<()> {
     let exporter = opentelemetry_jaeger::Exporter::builder()
@@ -16,6 +14,9 @@ fn init_tracer() -> thrift::Result<()> {
             ],
         })
         .init()?;
+
+    // For the demonstration, use `Sampler::Always` sampler to sample all traces. In a production
+    // application, use `Sampler::Parent` or `Sampler::Probability` with a desired probability.
     let provider = sdk::Provider::builder()
         .with_simple_exporter(exporter)
         .with_config(sdk::Config {
@@ -76,7 +77,5 @@ fn main() -> thrift::Result<()> {
         });
     });
 
-    // Allow flush
-    thread::sleep(Duration::from_millis(250));
     Ok(())
 }
