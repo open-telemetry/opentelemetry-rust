@@ -24,7 +24,7 @@
 //!
 //! fn do_something_tracked() {
 //!     // Then you can use the global provider to create a tracer via `tracer`.
-//!     let _span = global::tracer("my-component").start("span-name", None);
+//!     let _span = global::tracer("my-component").start("span-name");
 //!
 //!     // Or access the configured provider via `trace_provider`.
 //!     let provider = global::trace_provider();
@@ -67,7 +67,6 @@
 //! [`trace_provider`]: fn.trace_provider.html
 //! [trait objects]: https://doc.rust-lang.org/reference/types/trait-object.html#trait-objects
 use crate::{api, api::Provider};
-use std::any::Any;
 use std::fmt;
 use std::sync::{Arc, RwLock};
 use std::time::SystemTime;
@@ -97,8 +96,8 @@ impl api::Span for BoxedSpan {
     }
 
     /// Returns the `SpanContext` for the given `Span`.
-    fn get_context(&self) -> api::SpanContext {
-        self.0.get_context()
+    fn span_context(&self) -> api::SpanContext {
+        self.0.span_context()
     }
 
     /// Returns true if this `Span` is recording information like events with the `add_event`
@@ -131,31 +130,6 @@ impl api::Span for BoxedSpan {
     fn end(&self) {
         self.0.end()
     }
-
-    /// Returns self as any
-    fn as_any(&self) -> &dyn Any {
-        self.0.as_any()
-    }
-
-    /// Mark span as currently active
-    ///
-    /// This is the _synchronous_ api. If you are using futures, you
-    /// need to use the async api via [`instrument`].
-    ///
-    /// [`instrument`]: ../api/trace/futures/trait.Instrument.html#method.instrument
-    fn mark_as_active(&self) {
-        self.0.mark_as_active()
-    }
-
-    /// Mark span as no longer active
-    ///
-    /// This is the _synchronous_ api. If you are using futures, you
-    /// need to use the async api via [`instrument`].
-    ///
-    /// [`instrument`]: ../api/trace/futures/trait.Instrument.html#method.instrument
-    fn mark_as_inactive(&self) {
-        self.0.mark_as_inactive()
-    }
 }
 
 /// Wraps the [`GlobalProvider`]'s [`Tracer`] so it can be used generically by
@@ -184,8 +158,8 @@ impl api::Tracer for BoxedTracer {
     /// trace. A span is said to be a _root span_ if it does not have a parent. Each
     /// trace includes a single root span, which is the shared ancestor of all other
     /// spans in the trace.
-    fn start(&self, name: &str, parent_span: Option<api::SpanContext>) -> Self::Span {
-        BoxedSpan(self.0.start_boxed(name, parent_span))
+    fn start_from_context(&self, name: &str, cx: &api::Context) -> Self::Span {
+        BoxedSpan(self.0.start_with_context_boxed(name, cx))
     }
 
     /// Creates a span builder
@@ -196,31 +170,8 @@ impl api::Tracer for BoxedTracer {
     }
 
     /// Create a span from a `SpanBuilder`
-    fn build(&self, builder: api::SpanBuilder) -> Self::Span {
-        BoxedSpan(self.0.build_boxed(builder))
-    }
-
-    /// Returns the current active span.
-    ///
-    /// When getting the current `Span`, the `Tracer` will return a placeholder
-    /// `Span` with an invalid `SpanContext` if there is no currently active `Span`.
-    fn get_active_span(&self) -> Self::Span {
-        BoxedSpan(self.0.get_active_span_boxed())
-    }
-
-    /// Mark a given `Span` as active.
-    fn mark_span_as_active(&self, span: &Self::Span) {
-        self.0.mark_span_as_active_boxed(span)
-    }
-
-    /// Mark a given `Span` as inactive.
-    fn mark_span_as_inactive(&self, span_id: api::SpanId) {
-        self.0.mark_span_as_inactive_boxed(span_id)
-    }
-
-    /// Clone span
-    fn clone_span(&self, span: &Self::Span) -> Self::Span {
-        BoxedSpan(self.0.clone_span_boxed(span))
+    fn build_with_context(&self, builder: api::SpanBuilder, cx: &api::Context) -> Self::Span {
+        BoxedSpan(self.0.build_with_context_boxed(builder, cx))
     }
 }
 
@@ -235,23 +186,15 @@ pub trait GenericTracer: fmt::Debug + 'static {
 
     /// Returns a trait object so the underlying implementation can be swapped
     /// out at runtime.
-    fn start_boxed(&self, name: &str, parent: Option<api::SpanContext>) -> Box<DynSpan>;
+    fn start_with_context_boxed(&self, name: &str, cx: &api::Context) -> Box<DynSpan>;
 
     /// Returns a trait object so the underlying implementation can be swapped
     /// out at runtime.
-    fn build_boxed(&self, builder: api::SpanBuilder) -> Box<DynSpan>;
-
-    /// Returns the currently active span as a BoxedSpan
-    fn get_active_span_boxed(&self) -> Box<DynSpan>;
-
-    /// Returns the currently active span as a BoxedSpan
-    fn mark_span_as_active_boxed(&self, span: &DynSpan);
-
-    /// Marks the current span as inactive
-    fn mark_span_as_inactive_boxed(&self, span_id: api::SpanId);
-
-    /// Clone span
-    fn clone_span_boxed(&self, span: &DynSpan) -> Box<DynSpan>;
+    fn build_with_context_boxed(
+        &self,
+        builder: api::SpanBuilder,
+        cx: &api::Context,
+    ) -> Box<DynSpan>;
 }
 
 impl<S, T> GenericTracer for T
@@ -266,40 +209,18 @@ where
 
     /// Returns a trait object so the underlying implementation can be swapped
     /// out at runtime.
-    fn start_boxed(&self, name: &str, parent: Option<api::SpanContext>) -> Box<DynSpan> {
-        Box::new(self.start(name, parent))
+    fn start_with_context_boxed(&self, name: &str, cx: &api::Context) -> Box<DynSpan> {
+        Box::new(self.start_from_context(name, cx))
     }
 
     /// Returns a trait object so the underlying implementation can be swapped
     /// out at runtime.
-    fn build_boxed(&self, builder: api::SpanBuilder) -> Box<DynSpan> {
-        Box::new(self.build(builder))
-    }
-
-    /// Returns the current active span.
-    fn get_active_span_boxed(&self) -> Box<DynSpan> {
-        Box::new(self.get_active_span())
-    }
-
-    /// Mark span as active.
-    fn mark_span_as_active_boxed(&self, some_span: &DynSpan) {
-        if let Some(span) = some_span.as_any().downcast_ref::<S>() {
-            self.mark_span_as_active(span)
-        };
-    }
-
-    /// Mark span as inactive.
-    fn mark_span_as_inactive_boxed(&self, span_id: api::SpanId) {
-        self.mark_span_as_inactive(span_id)
-    }
-
-    /// Clone span
-    fn clone_span_boxed(&self, some_span: &DynSpan) -> Box<DynSpan> {
-        if let Some(span) = some_span.as_any().downcast_ref::<S>() {
-            Box::new(self.clone_span(span))
-        } else {
-            self.invalid_boxed()
-        }
+    fn build_with_context_boxed(
+        &self,
+        builder: api::SpanBuilder,
+        cx: &api::Context,
+    ) -> Box<DynSpan> {
+        Box::new(self.build_with_context(builder, cx))
     }
 }
 

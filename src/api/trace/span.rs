@@ -55,7 +55,7 @@ pub trait Span: fmt::Debug + 'static {
 
     /// Returns the `SpanContext` for the given `Span`. The returned value may be used even after
     /// the `Span is finished. The returned value MUST be the same for the entire `Span` lifetime.
-    fn get_context(&self) -> api::SpanContext;
+    fn span_context(&self) -> api::SpanContext;
 
     /// Returns true if this `Span` is recording information like events with the `add_event`
     /// operation, attributes using `set_attributes`, status with `set_status`, etc.
@@ -122,25 +122,6 @@ pub trait Span: fmt::Debug + 'static {
     ///
     ///This API MUST be non-blocking.
     fn end(&self);
-
-    /// Used by global tracer to downcast to specific span type.
-    fn as_any(&self) -> &dyn std::any::Any;
-
-    /// Mark as currently active span.
-    ///
-    /// This is the _synchronous_ api. If you are using futures, you
-    /// need to use the async api via [`instrument`].
-    ///
-    /// [`instrument`]: ../futures/trait.Instrument.html#method.instrument
-    fn mark_as_active(&self);
-
-    /// Mark as no longer active.
-    ///
-    /// This is the _synchronous_ api. If you are using futures, you
-    /// need to use the async api via [`instrument`].
-    ///
-    /// [`instrument`]: ../futures/trait.Instrument.html#method.instrument
-    fn mark_as_inactive(&self);
 }
 
 /// `SpanKind` describes the relationship between the Span, its parents,

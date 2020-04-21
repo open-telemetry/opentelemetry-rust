@@ -12,7 +12,7 @@
 //! That association cannot be changed later. When associated with a `Provider`, all `Span`s
 //! produced by any `Tracer` from the provider are associated with this `Resource`.
 //!
-//! [`Provider`]: ../../../api/trace/provider/trait.Provider.html
+//! [`Provider`]: ../../api/trace/provider/trait.Provider.html
 use crate::api;
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};

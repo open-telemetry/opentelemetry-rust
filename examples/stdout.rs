@@ -1,6 +1,6 @@
 use opentelemetry::exporter::trace::stdout;
 use opentelemetry::{
-    api::{Provider, TracerGenerics},
+    api::{Provider, Tracer},
     global, sdk,
 };
 
@@ -21,5 +21,5 @@ fn main() {
 
     global::trace_provider()
         .get_tracer("component-main")
-        .with_span("operation", move |_span| {});
+        .in_span("operation", |_cx| {});
 }

@@ -1,4 +1,4 @@
-use opentelemetry::api::{Span, Tracer, TracerGenerics};
+use opentelemetry::api::{Span, Tracer};
 use opentelemetry::{global, sdk};
 use std::thread;
 use std::time::Duration;
@@ -25,7 +25,7 @@ fn init_tracer() {
 
 fn bar() {
     let tracer = global::tracer("component-bar");
-    let span = tracer.start("bar", None);
+    let span = tracer.start("bar");
     thread::sleep(Duration::from_millis(6));
     span.end()
 }
@@ -34,7 +34,7 @@ fn main() {
     init_tracer();
     let tracer = global::tracer("component-main");
 
-    tracer.with_span("foo", |_span| {
+    tracer.in_span("foo", |_cx| {
         thread::sleep(Duration::from_millis(6));
         bar();
         thread::sleep(Duration::from_millis(6));

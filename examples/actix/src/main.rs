@@ -1,9 +1,8 @@
-use opentelemetry::api::{Key, Span, TracerGenerics};
-use opentelemetry::{global, sdk};
-
 use actix_service::Service;
 use actix_web::{web, App, HttpServer};
 use futures::future::Future;
+use opentelemetry::api::{Key, TraceContextExt, Tracer};
+use opentelemetry::{global, sdk};
 
 fn init_tracer() -> thrift::Result<()> {
     let exporter = opentelemetry_jaeger::Exporter::builder()
@@ -30,9 +29,8 @@ fn init_tracer() -> thrift::Result<()> {
 
 fn index() -> &'static str {
     let tracer = global::tracer("request");
-
-    tracer.with_span("index", move |span| {
-        span.set_attribute(Key::new("parameter").i64(10));
+    tracer.in_span("index", |ctx| {
+        ctx.span().set_attribute(Key::new("parameter").i64(10));
         "Index"
     })
 }
@@ -44,8 +42,8 @@ fn main() -> thrift::Result<()> {
         App::new()
             .wrap_fn(|req, srv| {
                 let tracer = global::tracer("request");
-                tracer.with_span("middleware", move |span| {
-                    span.set_attribute(Key::new("path").string(req.path()));
+                tracer.in_span("middleware", move |cx| {
+                    cx.span().set_attribute(Key::new("path").string(req.path()));
                     srv.call(req).map(|res| res)
                 })
             })

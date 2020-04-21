@@ -105,7 +105,7 @@ use self::thrift::jaeger;
 use opentelemetry::{api, exporter::trace, sdk};
 use std::sync::{Arc, Mutex};
 use std::{
-    any, net,
+    net,
     time::{Duration, SystemTime},
 };
 
@@ -167,11 +167,6 @@ impl trace::SpanExporter for Exporter {
 
     /// Ignored for now.
     fn shutdown(&self) {}
-
-    /// Allows `Exporter` to be downcast from trait object.
-    fn as_any(&self) -> &dyn any::Any {
-        self
-    }
 }
 
 /// Jaeger exporter builder
@@ -328,17 +323,17 @@ impl Into<jaeger::Log> for api::Event {
 impl Into<jaeger::Span> for Arc<trace::SpanData> {
     /// Convert spans to jaeger thrift span for exporting.
     fn into(self) -> jaeger::Span {
-        let trace_id = self.context.trace_id().to_u128();
+        let trace_id = self.span_context.trace_id().to_u128();
         let trace_id_high = (trace_id >> 64) as i64;
         let trace_id_low = trace_id as i64;
         jaeger::Span {
             trace_id_low,
             trace_id_high,
-            span_id: self.context.span_id().to_u64() as i64,
+            span_id: self.span_context.span_id().to_u64() as i64,
             parent_span_id: self.parent_span_id.to_u64() as i64,
             operation_name: self.name.clone(),
             references: links_to_references(&self.links),
-            flags: self.context.trace_flags() as i32,
+            flags: self.span_context.trace_flags() as i32,
             start_time: self
                 .start_time
                 .duration_since(SystemTime::UNIX_EPOCH)

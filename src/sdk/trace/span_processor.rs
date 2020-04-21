@@ -120,7 +120,7 @@ impl api::SpanProcessor for SimpleSpanProcessor {
     }
 
     fn on_end(&self, span: Arc<exporter::trace::SpanData>) {
-        if span.context.is_sampled() {
+        if span.span_context.is_sampled() {
             self.exporter.export(vec![span]);
         }
     }

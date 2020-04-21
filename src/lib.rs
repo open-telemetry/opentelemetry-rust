@@ -190,8 +190,7 @@
 //! from the backend.
 //!
 //! OpenTelemetry defines the naming convention for metric names as well as a
-//! well-known metric names in [Semantic Conventions](data-semantic-conventions.md)
-//! document.
+//! well-known metric names in [Semantic Conventions] document.
 //!
 //!
 //! ## Resources
@@ -215,6 +214,7 @@
 //! - `HTTPTextFormat` which is used to inject and extract a value as text into carriers that travel
 //!   in-band across process boundaries.
 //!
+//! [Semantic Conventions]: https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/resource/semantic_conventions/README.md
 #![recursion_limit = "256"]
 #![allow(clippy::needless_doctest_main)]
 #![deny(missing_docs, unreachable_pub, missing_debug_implementations)]

@@ -1,8 +1,7 @@
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Request, Response, Server};
 use opentelemetry::{
-    api,
-    api::{HttpTextFormat, Span, Tracer},
+    api::{self, HttpTextFormat, Span, Tracer},
     exporter::trace::stdout,
     global, sdk,
 };
@@ -21,8 +20,8 @@ impl<'a> api::Carrier for HttpHeaderMapCarrier<'a> {
 
 async fn handle(req: Request<Body>) -> Result<Response<Body>, Infallible> {
     let propagator = api::TraceContextPropagator::new();
-    let parent_context = propagator.extract(&HttpHeaderMapCarrier(req.headers()));
-    let span = global::tracer("example/server").start("hello", Some(parent_context));
+    let parent_cx = propagator.extract(&HttpHeaderMapCarrier(req.headers()));
+    let span = global::tracer("example/server").start_from_context("hello", &parent_cx);
     span.add_event("handling this...".to_string(), Vec::new());
 
     Ok(Response::new("Hello, World!".into()))

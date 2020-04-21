@@ -54,9 +54,6 @@ pub trait SpanExporter: Send + Sync + std::fmt::Debug {
     /// data and the destination is unavailable). SDK authors can
     /// decide if they want to make the shutdown timeout to be configurable.
     fn shutdown(&self);
-
-    /// Allows exporter to be downcast
-    fn as_any(&self) -> &dyn std::any::Any;
 }
 
 /// `SpanData` contains all the information collected by a `Span` and can be used
@@ -65,7 +62,7 @@ pub trait SpanExporter: Send + Sync + std::fmt::Debug {
 #[derive(Clone, Debug, PartialEq)]
 pub struct SpanData {
     /// Exportable `SpanContext`
-    pub context: api::SpanContext,
+    pub span_context: api::SpanContext,
     /// Span parent id
     pub parent_span_id: api::SpanId,
     /// Span kind
@@ -102,7 +99,7 @@ mod tests {
 
         let trace_flags = 0;
         let remote = false;
-        let context = api::SpanContext::new(
+        let span_context = api::SpanContext::new(
             api::TraceId::from_u128(trace_id),
             api::SpanId::from_u64(span_id),
             trace_flags,
@@ -125,7 +122,7 @@ mod tests {
         let resource = Arc::new(sdk::Resource::default());
 
         let span_data = SpanData {
-            context,
+            span_context,
             parent_span_id: api::SpanId::from_u64(parent_span_id),
             span_kind,
             name,

@@ -7,7 +7,7 @@
 //! and deserializes values from base64 strings. There is a blanket implementation
 //! for any implementors of `BinaryFormat`
 use crate::api;
-use crate::api::propagation::binary_propagator::BinaryFormat;
+use crate::api::BinaryFormat;
 use base64::{decode, encode};
 
 /// Used to serialize and deserialize `SpanContext`s to and from a base64
@@ -39,8 +39,8 @@ where
 
 #[cfg(test)]
 mod tests {
+    use super::super::binary_propagator::BinaryPropagator;
     use super::*;
-    use crate::api::propagation::binary_propagator::BinaryPropagator;
 
     #[rustfmt::skip]
     fn to_base64_data() -> Vec<(api::SpanContext, String)> {

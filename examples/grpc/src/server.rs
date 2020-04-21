@@ -20,8 +20,8 @@ impl Greeter for MyGreeter {
         request: Request<HelloRequest>, // Accept request of type HelloRequest
     ) -> Result<Response<HelloReply>, Status> {
         let propagator = api::TraceContextPropagator::new();
-        let parent = propagator.extract(&HttpHeaderMapCarrier(request.metadata()));
-        let span = global::tracer("greeter").start("Processing reply", Some(parent));
+        let parent_cx = propagator.extract(&HttpHeaderMapCarrier(request.metadata()));
+        let span = global::tracer("greeter").start_from_context("Processing reply", &parent_cx);
         span.set_attribute(KeyValue::new("request", format!("{:?}", request)));
 
         // Return an instance of type HelloReply

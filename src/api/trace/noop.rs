@@ -4,7 +4,6 @@
 //! has been set. It is also useful for testing purposes as it is intended
 //! to have minimal resource utilization and runtime impact.
 use crate::{api, exporter};
-use std::any::Any;
 use std::sync::Arc;
 use std::time::SystemTime;
 
@@ -64,7 +63,7 @@ impl api::Span for NoopSpan {
     }
 
     /// Returns an invalid `SpanContext`.
-    fn get_context(&self) -> api::SpanContext {
+    fn span_context(&self) -> api::SpanContext {
         self.span_context.clone()
     }
 
@@ -92,21 +91,6 @@ impl api::Span for NoopSpan {
     fn end(&self) {
         // Ignored
     }
-
-    /// Returns self as dyn Any
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    /// Ignores being marked as active
-    fn mark_as_active(&self) {
-        // Ignored
-    }
-
-    /// Ignores being marked as inactive
-    fn mark_as_inactive(&self) {
-        // Ignored
-    }
 }
 
 /// A no-op instance of a `Tracer`.
@@ -122,8 +106,8 @@ impl api::Tracer for NoopTracer {
     }
 
     /// Starts a new `NoopSpan`.
-    fn start(&self, _name: &str, _context: Option<api::SpanContext>) -> Self::Span {
-        api::NoopSpan::new()
+    fn start_from_context(&self, _name: &str, _context: &api::Context) -> Self::Span {
+        self.invalid()
     }
 
     /// Starts a SpanBuilder
@@ -132,26 +116,7 @@ impl api::Tracer for NoopTracer {
     }
 
     /// Builds a `NoopSpan` from a `SpanBuilder`
-    fn build(&self, _builder: api::SpanBuilder) -> Self::Span {
-        self.invalid()
-    }
-
-    /// Returns a new `NoopSpan` as this tracer does not maintain a registry.
-    fn get_active_span(&self) -> Self::Span {
-        api::NoopSpan::new()
-    }
-
-    /// Ignores active span state.
-    fn mark_span_as_active(&self, _span: &Self::Span) {
-        // Noop
-    }
-
-    /// Ignores active span state.
-    fn mark_span_as_inactive(&self, _span_id: api::SpanId) {
-        // Noop
-    }
-
-    fn clone_span(&self, _span: &Self::Span) -> Self::Span {
+    fn build_with_context(&self, _builder: api::SpanBuilder, _cx: &api::Context) -> Self::Span {
         self.invalid()
     }
 }
@@ -169,9 +134,5 @@ impl exporter::trace::SpanExporter for NoopSpanExporter {
 
     fn shutdown(&self) {
         // Noop
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
     }
 }
