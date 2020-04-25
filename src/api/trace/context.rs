@@ -8,7 +8,7 @@ lazy_static::lazy_static! {
 struct Span(Box<dyn api::Span>);
 struct RemoteSpanContext(api::SpanContext);
 
-/// Methods for soring and retrieving trace data in a context.
+/// Methods for storing and retrieving trace data in a context.
 pub trait TraceContextExt {
     /// Returns a clone of the current context with the included span.
     ///
