@@ -15,6 +15,7 @@
 //! so that the SDK knows where and how to deliver the telemetry.
 pub mod context;
 pub mod core;
+pub mod correlation;
 pub mod metrics;
 pub mod trace;
 
@@ -25,6 +26,7 @@ pub use context::{
     propagation::{binary_propagator::BinaryFormat, text_propagator::HttpTextFormat, Carrier},
     Context,
 };
+pub use correlation::{CorrelationContext, CorrelationContextExt, CorrelationContextPropagator};
 
 pub use metrics::{
     counter::{Counter, CounterHandle},

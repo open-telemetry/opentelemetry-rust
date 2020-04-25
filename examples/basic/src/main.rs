@@ -1,5 +1,6 @@
 use opentelemetry::api::{
-    Gauge, GaugeHandle, Key, Measure, MeasureHandle, Meter, MetricOptions, TraceContextExt, Tracer,
+    Context, CorrelationContextExt, Gauge, GaugeHandle, Key, Measure, MeasureHandle, Meter,
+    MetricOptions, TraceContextExt, Tracer,
 };
 use opentelemetry::{global, sdk};
 
@@ -33,6 +34,8 @@ fn main() -> thrift::Result<()> {
     init_tracer()?;
     let meter = sdk::Meter::new("ex_com_basic");
 
+    let foo_key = Key::new("ex.com/foo");
+    let bar_key = Key::new("ex.com/bar");
     let lemons_key = Key::new("ex_com_lemons");
     let another_key = Key::new("ex_com_another");
 
@@ -53,6 +56,10 @@ fn main() -> thrift::Result<()> {
     let gauge = one_metric.acquire_handle(&common_labels);
 
     let measure = measure_two.acquire_handle(&common_labels);
+
+    let _correlations =
+        Context::current_with_correlations(vec![foo_key.string("foo1"), bar_key.string("bar1")])
+            .attach();
 
     global::tracer("component-main").in_span("operation", move |cx| {
         let span = cx.span();
