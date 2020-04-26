@@ -126,7 +126,7 @@ from_values!(
 );
 
 impl From<&str> for Value {
-    /// Convenience method for creating a `Value` form a `&str`.
+    /// Convenience method for creating a `Value` from a `&str`.
     fn from(value_str: &str) -> Self {
         Value::String(value_str.to_string())
     }

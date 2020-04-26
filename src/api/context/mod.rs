@@ -140,8 +140,12 @@ impl Context {
     /// assert_eq!(all_current_and_b.get::<ValueB>(), Some(&ValueB(42)));
     /// ```
     pub fn current_with_value<T: 'static>(value: T) -> Self {
-        let mut value = Some(value);
-        get_current(|cx| cx.with_value(value.take().unwrap()))
+        let mut new_context = Context::current();
+        new_context
+            .entries
+            .insert(TypeId::of::<T>(), Rc::new(value));
+
+        new_context
     }
 
     /// Returns a reference to the entry for the corresponding value type.
