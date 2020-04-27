@@ -131,7 +131,7 @@ impl api::SpanProcessor for SimpleSpanProcessor {
 }
 
 /// A [`SpanProcessor`] that asynchronously buffers finished spans and reports
-/// them at a preconfigured interval.
+/// them when the batch is full or times out.
 ///
 /// [`SpanProcessor`]: ../../../api/trace/span_processor/trait.SpanProcessor.html
 #[derive(Debug)]
@@ -199,14 +199,17 @@ impl Future for BatchSpanProcessorWorker {
             match futures::ready!(self.messages.poll_next_unpin(cx)) {
                 // Span has finished, add to buffer of pending spans.
                 Some(BatchMessage::ExportSpan(span)) => {
-                    if self.buffer.len() < self.config.max_queue_size {
-                        self.buffer.push(span);
+                    self.buffer.push(span);
+
+                    if self.buffer.len() >= self.config.max_export_batch_size {
+                        self.export_spans();
                     }
                 }
                 // Span batch interval time reached, export current spans.
                 Some(BatchMessage::Tick) => self.export_spans(),
                 // Stream has terminated or processor is shutdown, return to finish execution.
                 None | Some(BatchMessage::Shutdown) => {
+                    self.export_spans();
                     self.exporter.shutdown();
                     return Poll::Ready(());
                 }
