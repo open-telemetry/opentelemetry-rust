@@ -38,10 +38,10 @@ pub trait TraceContextExt {
     /// ```
     fn span(&self) -> &dyn api::Span;
 
-    /// Returns a copy of the current context with the span context included.
+    /// Returns a copy of this context with the span context included.
     ///
     /// This is useful for building propagators.
-    fn current_with_remote_span_context(span_context: api::SpanContext) -> Self;
+    fn with_remote_span_context(&self, span_context: api::SpanContext) -> Self;
 
     /// Returns a reference to the remote span context data stored in this context,
     /// or none if no remote span context has been set.
@@ -67,8 +67,8 @@ impl TraceContextExt for api::Context {
         }
     }
 
-    fn current_with_remote_span_context(span_context: api::SpanContext) -> Self {
-        api::Context::current_with_value(RemoteSpanContext(span_context))
+    fn with_remote_span_context(&self, span_context: api::SpanContext) -> Self {
+        self.with_value(RemoteSpanContext(span_context))
     }
 
     fn remote_span_context(&self) -> Option<&api::SpanContext> {

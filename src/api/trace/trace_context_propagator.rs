@@ -103,10 +103,10 @@ impl api::HttpTextFormat for TraceContextPropagator {
     /// the `SpanContext` and returns it. If no `SpanContext` was retrieved
     /// OR if the retrieved SpanContext is invalid then an empty `SpanContext`
     /// is returned.
-    fn extract(&self, carrier: &dyn api::Carrier) -> api::Context {
+    fn extract_with_context(&self, cx: &api::Context, carrier: &dyn api::Carrier) -> api::Context {
         self.extract_span_context(carrier)
-            .map(api::Context::current_with_remote_span_context)
-            .unwrap_or_else(|_| api::Context::current())
+            .map(|sc| cx.with_remote_span_context(sc))
+            .unwrap_or_else(|_| cx.clone())
     }
 }
 

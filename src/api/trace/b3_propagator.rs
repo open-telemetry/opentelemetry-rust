@@ -161,7 +161,7 @@ impl api::HttpTextFormat for B3Propagator {
     /// Retrieves encoded data using the provided `Carrier`. If no data for this
     /// format was retrieved OR if the retrieved data is invalid, then the current
     /// `Context` is returned.
-    fn extract(&self, carrier: &dyn api::Carrier) -> api::Context {
+    fn extract_with_context(&self, cx: &api::Context, carrier: &dyn api::Carrier) -> api::Context {
         let span_context = if self.single_header {
             self.extract_single_header(carrier)
                 .unwrap_or_else(|_| api::SpanContext::empty_context())
@@ -170,7 +170,7 @@ impl api::HttpTextFormat for B3Propagator {
                 .unwrap_or_else(|_| api::SpanContext::empty_context())
         };
 
-        api::Context::current_with_remote_span_context(span_context)
+        cx.with_remote_span_context(span_context)
     }
 }
 
