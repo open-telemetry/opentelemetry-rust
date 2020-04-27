@@ -45,14 +45,14 @@ use std::fmt::Debug;
 /// ```
 #[derive(Debug)]
 pub struct HttpTextCompositePropagator {
-    propagators: Vec<Box<dyn HttpTextFormat>>,
+    propagators: Vec<Box<dyn HttpTextFormat + Send + Sync>>,
 }
 
 impl HttpTextCompositePropagator {
     /// Constructs a new propagator out of instances of [`HttpTextFormat`].
     ///
     /// [`HttpTextFormat`]: ../../trait.HttpTextFormat.html
-    pub fn new(propagators: Vec<Box<dyn HttpTextFormat>>) -> Self {
+    pub fn new(propagators: Vec<Box<dyn HttpTextFormat + Send + Sync>>) -> Self {
         HttpTextCompositePropagator { propagators }
     }
 }
