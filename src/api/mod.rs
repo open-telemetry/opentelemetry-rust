@@ -23,7 +23,10 @@ pub use self::core::{Key, KeyValue, Unit, Value};
 #[cfg(feature = "base64_format")]
 pub use context::propagation::base64_format::Base64Format;
 pub use context::{
-    propagation::{binary_propagator::BinaryFormat, text_propagator::HttpTextFormat, Carrier},
+    propagation::{
+        binary_propagator::BinaryFormat, composite_propagator::HttpTextCompositePropagator,
+        text_propagator::HttpTextFormat, Carrier,
+    },
     Context,
 };
 pub use correlation::{CorrelationContext, CorrelationContextExt, CorrelationContextPropagator};
