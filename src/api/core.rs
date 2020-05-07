@@ -75,10 +75,17 @@ impl From<&'static str> for Key {
     }
 }
 
-impl Into<String> for Key {
+impl From<String> for Key {
+    /// Convert a `String` to a `Key`.
+    fn from(string: String) -> Self {
+        Key(Cow::from(string))
+    }
+}
+
+impl From<Key> for String {
     /// Converts `Key` instances into `String`.
-    fn into(self) -> String {
-        self.0.to_string()
+    fn from(key: Key) -> Self {
+        key.0.into_owned()
     }
 }
 
@@ -132,17 +139,34 @@ impl From<&str> for Value {
     }
 }
 
-impl Into<String> for Value {
+impl From<Value> for String {
     /// Convert `Value` types to `String` for use by exporters that only use
     /// `String` values.
-    fn into(self) -> String {
-        match self {
+    fn from(value: Value) -> Self {
+        match value {
             Value::Bool(value) => value.to_string(),
             Value::I64(value) => value.to_string(),
             Value::U64(value) => value.to_string(),
             Value::F64(value) => value.to_string(),
             Value::String(value) => value,
             Value::Bytes(value) => String::from_utf8(value).unwrap_or_else(|_| String::new()),
+        }
+    }
+}
+
+impl From<&Value> for String {
+    /// Convert `&Value` types to `String` for use by exporters that only use
+    /// `String` values.
+    fn from(value: &Value) -> Self {
+        match value {
+            Value::Bool(value) => value.to_string(),
+            Value::I64(value) => value.to_string(),
+            Value::U64(value) => value.to_string(),
+            Value::F64(value) => value.to_string(),
+            Value::String(value) => value.clone(),
+            Value::Bytes(value) => {
+                String::from_utf8(value.clone()).unwrap_or_else(|_| String::new())
+            }
         }
     }
 }
