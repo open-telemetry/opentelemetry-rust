@@ -31,8 +31,8 @@
 //!   +-----+--------------+   +---------------------+
 //! ```
 //!
-//! [`is_recording`]: trait.Span.html#is_recording
-//! [`Provider`]: trait.Provider.html
+//! [`is_recording`]: ../span/trait.Span.html#method.is_recording
+//! [`Provider`]: ../provider/trait.Provider.html
 
 use crate::exporter;
 use std::sync::Arc;

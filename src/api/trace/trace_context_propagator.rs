@@ -18,7 +18,7 @@
 //!
 //! [w3c trace-context docs]: https://w3c.github.io/trace-context/
 
-use crate::api;
+use crate::{api, api::TraceContextExt};
 
 static SUPPORTED_VERSION: u8 = 0;
 static MAX_VERSION: u8 = 254;
@@ -85,14 +85,15 @@ impl TraceContextPropagator {
 impl api::HttpTextFormat for TraceContextPropagator {
     /// Properly encodes the values of the `SpanContext` and injects them
     /// into the `Carrier`.
-    fn inject(&self, context: api::SpanContext, carrier: &mut dyn api::Carrier) {
-        if context.is_valid() {
+    fn inject_context(&self, context: &api::Context, carrier: &mut dyn api::Carrier) {
+        let span_context = context.span().span_context();
+        if span_context.is_valid() {
             let header_value = format!(
                 "{:02x}-{:032x}-{:016x}-{:02x}",
                 SUPPORTED_VERSION,
-                context.trace_id().to_u128(),
-                context.span_id().to_u64(),
-                context.trace_flags() & api::TRACE_FLAG_SAMPLED
+                span_context.trace_id().to_u128(),
+                span_context.span_id().to_u64(),
+                span_context.trace_flags() & api::TRACE_FLAG_SAMPLED
             );
             carrier.set(TRACEPARENT_HEADER, header_value)
         }
@@ -102,9 +103,10 @@ impl api::HttpTextFormat for TraceContextPropagator {
     /// the `SpanContext` and returns it. If no `SpanContext` was retrieved
     /// OR if the retrieved SpanContext is invalid then an empty `SpanContext`
     /// is returned.
-    fn extract(&self, carrier: &dyn api::Carrier) -> api::SpanContext {
+    fn extract_with_context(&self, cx: &api::Context, carrier: &dyn api::Carrier) -> api::Context {
         self.extract_span_context(carrier)
-            .unwrap_or_else(|_| api::SpanContext::empty_context())
+            .map(|sc| cx.with_remote_span_context(sc))
+            .unwrap_or_else(|_| cx.clone())
     }
 }
 
@@ -144,8 +146,33 @@ mod tests {
         for (header, expected_context) in extract_data() {
             let mut carrier: HashMap<&'static str, String> = HashMap::new();
             carrier.insert(TRACEPARENT_HEADER, header.to_owned());
-            assert_eq!(propagator.extract(&carrier), expected_context)
+            assert_eq!(
+                propagator.extract(&carrier).remote_span_context(),
+                Some(&expected_context)
+            )
         }
+    }
+
+    #[derive(Debug)]
+    struct TestSpan(api::SpanContext);
+    impl api::Span for TestSpan {
+        fn add_event_with_timestamp(
+            &self,
+            _name: String,
+            _timestamp: std::time::SystemTime,
+            _attributes: Vec<api::KeyValue>,
+        ) {
+        }
+        fn span_context(&self) -> api::SpanContext {
+            self.0.clone()
+        }
+        fn is_recording(&self) -> bool {
+            false
+        }
+        fn set_attribute(&self, _attribute: api::KeyValue) {}
+        fn set_status(&self, _code: api::StatusCode, _message: String) {}
+        fn update_name(&self, _new_name: String) {}
+        fn end(&self) {}
     }
 
     #[test]
@@ -154,7 +181,10 @@ mod tests {
 
         for (expected_header, context) in inject_data() {
             let mut carrier = HashMap::new();
-            propagator.inject(context, &mut carrier);
+            propagator.inject_context(
+                &api::Context::current_with_span(TestSpan(context)),
+                &mut carrier,
+            );
 
             assert_eq!(
                 Carrier::get(&carrier, TRACEPARENT_HEADER).unwrap_or(""),

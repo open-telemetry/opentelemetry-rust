@@ -7,11 +7,9 @@
 //! and exposes methods for creating and activating new `Spans`.
 //!
 //! Docs: https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/api-tracing.md#tracer
-use crate::api::trace::span::Span;
+use crate::api::TraceContextExt;
 use crate::sdk;
-use crate::{api, exporter};
-use std::cell::RefCell;
-use std::collections::HashSet;
+use crate::{api, api::context::Context, exporter};
 use std::fmt;
 use std::sync::Arc;
 use std::time::SystemTime;
@@ -86,11 +84,6 @@ impl Tracer {
     }
 }
 
-thread_local! {
-    /// Track currently active `Span` per thread via a `SpanStack`.
-    static CURRENT_SPANS: RefCell<SpanStack> = RefCell::new(SpanStack::new());
-}
-
 impl api::Tracer for Tracer {
     /// This implementation of `api::Tracer` produces `sdk::Span` instances.
     type Span = sdk::Span;
@@ -101,18 +94,17 @@ impl api::Tracer for Tracer {
         sdk::Span::new(api::SpanId::invalid(), None, self.clone())
     }
 
-    /// Starts a new `Span`.
+    /// Starts a new `Span` in a given context.
     ///
     /// Each span has zero or one parent spans and zero or more child spans, which
     /// represent causally related operations. A tree of related spans comprises a
     /// trace. A span is said to be a _root span_ if it does not have a parent. Each
     /// trace includes a single root span, which is the shared ancestor of all other
     /// spans in the trace.
-    fn start(&self, name: &str, parent_span: Option<api::SpanContext>) -> Self::Span {
-        let mut builder = self.span_builder(name);
-        builder.parent_context = parent_span;
+    fn start_from_context(&self, name: &str, cx: &Context) -> Self::Span {
+        let builder = self.span_builder(name);
 
-        self.build(builder)
+        self.build_with_context(builder, cx)
     }
 
     /// Creates a span builder
@@ -129,7 +121,7 @@ impl api::Tracer for Tracer {
     /// trace. A span is said to be a _root span_ if it does not have a parent. Each
     /// trace includes a single root span, which is the shared ancestor of all other
     /// spans in the trace.
-    fn build(&self, mut builder: api::SpanBuilder) -> Self::Span {
+    fn build_with_context(&self, mut builder: api::SpanBuilder, cx: &Context) -> Self::Span {
         let config = self.provider.config();
         let span_id = builder
             .span_id
@@ -140,35 +132,39 @@ impl api::Tracer for Tracer {
         let mut attribute_options = builder.attributes.take().unwrap_or_else(Vec::new);
         let mut link_options = builder.links.take().unwrap_or_else(Vec::new);
 
-        // Build context for sampling decision
-        let (no_parent, trace_id, parent_span_id, remote_parent, parent_trace_flags) = builder
+        let parent_span_context = builder
             .parent_context
-            .clone()
-            .or_else(|| Some(self.get_active_span().get_context()))
-            .filter(|ctx| ctx.is_valid())
-            .map(|ctx| {
-                (
+            .take()
+            .or_else(|| Some(cx.span().span_context()).filter(|cx| cx.is_valid()))
+            .or_else(|| cx.remote_span_context().cloned())
+            .filter(|cx| cx.is_valid());
+        // Build context for sampling decision
+        let (no_parent, trace_id, parent_span_id, remote_parent, parent_trace_flags) =
+            parent_span_context
+                .as_ref()
+                .map(|ctx| {
+                    (
+                        false,
+                        ctx.trace_id(),
+                        ctx.span_id(),
+                        ctx.is_remote(),
+                        ctx.trace_flags(),
+                    )
+                })
+                .unwrap_or((
+                    true,
+                    builder
+                        .trace_id
+                        .unwrap_or_else(|| self.provider().config().id_generator.new_trace_id()),
+                    api::SpanId::invalid(),
                     false,
-                    ctx.trace_id(),
-                    ctx.span_id(),
-                    ctx.is_remote(),
-                    ctx.trace_flags(),
-                )
-            })
-            .unwrap_or((
-                true,
-                builder
-                    .trace_id
-                    .unwrap_or_else(|| self.provider().config().id_generator.new_trace_id()),
-                api::SpanId::invalid(),
-                false,
-                0,
-            ));
+                    0,
+                ));
 
         // Make new sampling decision or use parent sampling decision
         let sampling_decision = if no_parent || remote_parent {
             self.make_sampling_decision(
-                builder.parent_context.as_ref(),
+                parent_span_context.as_ref(),
                 trace_id,
                 span_id,
                 &builder.name,
@@ -177,7 +173,10 @@ impl api::Tracer for Tracer {
                 &link_options,
             )
         } else {
-            Some((parent_trace_flags, Vec::new()))
+            // has parent that is local: use parent if sampled, else `None`.
+            parent_span_context
+                .filter(|span_context| span_context.is_sampled())
+                .map(|_| (parent_trace_flags, Vec::new()))
         };
 
         // Build optional inner context, `None` if not recording.
@@ -200,7 +199,7 @@ impl api::Tracer for Tracer {
             let resource = config.resource.clone();
 
             exporter::trace::SpanData {
-                context: api::SpanContext::new(trace_id, span_id, trace_flags, false),
+                span_context: api::SpanContext::new(trace_id, span_id, trace_flags, false),
                 parent_span_id,
                 span_kind,
                 name: builder.name,
@@ -224,88 +223,5 @@ impl api::Tracer for Tracer {
         }
 
         sdk::Span::new(span_id, inner, self.clone())
-    }
-
-    /// Returns the current active span.
-    ///
-    /// When getting the current `Span`, the `Tracer` will return a placeholder
-    /// `Span` with an invalid `SpanContext` if there is no currently active `Span`.
-    fn get_active_span(&self) -> Self::Span {
-        CURRENT_SPANS
-            .with(|spans| spans.borrow().current())
-            .unwrap_or_else(|| self.invalid())
-    }
-
-    /// Mark a given `Span` as active.
-    fn mark_span_as_active(&self, span: &Self::Span) {
-        CURRENT_SPANS.with(|spans| {
-            spans.borrow_mut().push(span.clone());
-        })
-    }
-
-    /// Mark a given `Span` as inactive.
-    fn mark_span_as_inactive(&self, span_id: api::SpanId) {
-        CURRENT_SPANS.with(|spans| {
-            spans.borrow_mut().pop(span_id);
-        })
-    }
-
-    /// Clone span
-    fn clone_span(&self, span: &Self::Span) -> Self::Span {
-        span.clone()
-    }
-}
-
-/// Used to track `Span` and its status in the stack
-struct ContextId {
-    span: sdk::Span,
-    duplicate: bool,
-}
-
-/// A stack of `Span`s that can be used to track active `Span`s per thread.
-pub(crate) struct SpanStack {
-    stack: Vec<ContextId>,
-    ids: HashSet<api::SpanId>,
-}
-
-impl SpanStack {
-    /// Create a new `SpanStack`
-    fn new() -> Self {
-        SpanStack {
-            stack: vec![],
-            ids: HashSet::new(),
-        }
-    }
-
-    /// Push a `Span` to the stack
-    fn push(&mut self, span: sdk::Span) {
-        let duplicate = self.ids.contains(&span.id());
-        if !duplicate {
-            self.ids.insert(span.id());
-        }
-        self.stack.push(ContextId { span, duplicate })
-    }
-
-    /// Pop a `Span` from the stack
-    fn pop(&mut self, expected_id: api::SpanId) -> Option<sdk::Span> {
-        if self.stack.last()?.span.id() == expected_id {
-            let ContextId { span, duplicate } = self.stack.pop()?;
-            if !duplicate {
-                self.ids.remove(&span.id());
-            }
-            Some(span)
-        } else {
-            None
-        }
-    }
-
-    /// Find the latest `Span` that is not doubly marked as active (pushed twice)
-    #[inline]
-    fn current(&self) -> Option<sdk::Span> {
-        self.stack
-            .iter()
-            .rev()
-            .find(|context_id| !context_id.duplicate)
-            .map(|context_id| context_id.span.clone())
     }
 }

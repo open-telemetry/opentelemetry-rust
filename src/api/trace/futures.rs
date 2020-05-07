@@ -3,51 +3,116 @@
 //! This module provides utilities for instrumenting asynchronous code written
 //! using [`futures`] and async/await.
 //!
-//! This main trait is [`Instrument`], which allows a [`Tracer`], and a [`Span`]
-//! to be attached to a future, sink, stream, or executor.
+//! This main trait is [`FutureExt`], which allows a [`Context`],
+//! to be attached to a future, sink, or stream.
 //!
 //! [`futures`]: https://doc.rust-lang.org/std/future/trait.Future.html
-//! [`Instrument`]: trait.Instrument.html
-//! [`Tracer`]: ../tracer/trait.Tracer.html
-//! [`Span`]: ../span/trait.Span.html
-
-use crate::api;
+//! [`FutureExt`]: trait.FutureExt.html
+//! [`Context`]: ../../context/struct.Context.html
+use crate::api::context::Context as OpenTelemetryContext;
 use pin_project::pin_project;
-use std::{pin::Pin, task::Context};
+use std::{
+    pin::Pin,
+    task::{Context as TaskContext, Poll},
+};
 
-/// A future, stream, sink, or executor that has been instrumented with a tracer and span.
+/// A future, stream, or sink that has an associated context.
 #[pin_project]
-#[derive(Debug, Clone)]
-pub struct Instrumented<F, S: api::Span> {
+#[derive(Clone, Debug)]
+pub struct WithContext<T> {
     #[pin]
-    inner: F,
-    span: S,
+    inner: T,
+    otel_cx: OpenTelemetryContext,
 }
 
-impl<F: Sized> Instrument for F {}
+impl<T: Sized> FutureExt for T {}
 
-impl<F: std::future::Future, S: api::Span> std::future::Future for Instrumented<F, S> {
-    type Output = F::Output;
+impl<T: std::future::Future> std::future::Future for WithContext<T> {
+    type Output = T::Output;
 
-    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> std::task::Poll<Self::Output> {
+    fn poll(self: Pin<&mut Self>, task_cx: &mut TaskContext<'_>) -> Poll<Self::Output> {
         let this = self.project();
-        this.span.mark_as_active();
-        let res = this.inner.poll(cx);
-        this.span.mark_as_inactive();
-        res
+        let _guard = this.otel_cx.clone().attach();
+
+        this.inner.poll(task_cx)
     }
 }
 
-/// Extension trait allowing futures, streams, sinks, and executors to be traced with a span.
-pub trait Instrument: Sized {
-    /// Traces this type with the provided `Span`, returning a `Instrumented` wrapper.
-    fn instrument<S: api::Span>(self, span: S) -> Instrumented<Self, S> {
-        Instrumented { inner: self, span }
+impl<T: futures::Stream> futures::Stream for WithContext<T> {
+    type Item = T::Item;
+
+    fn poll_next(self: Pin<&mut Self>, task_cx: &mut TaskContext<'_>) -> Poll<Option<Self::Item>> {
+        let this = self.project();
+        let _guard = this.otel_cx.clone().attach();
+        T::poll_next(this.inner, task_cx)
+    }
+}
+
+impl<I, T: futures::Sink<I>> futures::Sink<I> for WithContext<T>
+where
+    T: futures::Sink<I>,
+{
+    type Error = T::Error;
+
+    fn poll_ready(
+        self: Pin<&mut Self>,
+        task_cx: &mut TaskContext<'_>,
+    ) -> Poll<Result<(), Self::Error>> {
+        let this = self.project();
+        let _guard = this.otel_cx.clone().attach();
+        T::poll_ready(this.inner, task_cx)
     }
 
-    /// Traces this type with the provided `Tracer`'s active span, returning a `Instrumented` wrapper.
-    fn in_active_span<T: api::Tracer>(self, tracer: T) -> Instrumented<Self, T::Span> {
-        let span = tracer.get_active_span();
-        self.instrument(span)
+    fn start_send(self: Pin<&mut Self>, item: I) -> Result<(), Self::Error> {
+        let this = self.project();
+        let _guard = this.otel_cx.clone().attach();
+        T::start_send(this.inner, item)
+    }
+
+    fn poll_flush(
+        self: Pin<&mut Self>,
+        task_cx: &mut TaskContext<'_>,
+    ) -> Poll<Result<(), Self::Error>> {
+        let this = self.project();
+        let _guard = this.otel_cx.clone().attach();
+        T::poll_flush(this.inner, task_cx)
+    }
+
+    fn poll_close(
+        self: Pin<&mut Self>,
+        task_cx: &mut TaskContext<'_>,
+    ) -> futures::task::Poll<Result<(), Self::Error>> {
+        let this = self.project();
+        let _enter = this.otel_cx.clone().attach();
+        T::poll_close(this.inner, task_cx)
+    }
+}
+
+/// Extension trait allowing futures, streams, and sinks to be traced with a span.
+pub trait FutureExt: Sized {
+    /// Attaches the provided [`Context`] to this type, returning a `WithContext`
+    /// wrapper.
+    ///
+    /// When the wrapped type is a future, stream, or sink, the attached context
+    /// will be set as current while it is being polled.
+    ///
+    /// [`Context`]: ../../context/struct.Context.html
+    fn with_context(self, otel_cx: OpenTelemetryContext) -> WithContext<Self> {
+        WithContext {
+            inner: self,
+            otel_cx,
+        }
+    }
+
+    /// Attaches the current [`Context`] to this type, returning a `WithContext`
+    /// wrapper.
+    ///
+    /// When the wrapped type is a future, stream, or sink, the attached context
+    /// will be set as the default while it is being polled.
+    ///
+    /// [`Context`]: ../../context/struct.Context.html
+    fn with_current_context(self) -> WithContext<Self> {
+        let otel_cx = OpenTelemetryContext::current();
+        self.with_context(otel_cx)
     }
 }

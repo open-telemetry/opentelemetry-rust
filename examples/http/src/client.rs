@@ -1,5 +1,5 @@
 use hyper::{body::Body, Client};
-use opentelemetry::api::{HttpTextFormat, Span, Tracer};
+use opentelemetry::api::{Context, HttpTextFormat, TraceContextExt, Tracer};
 use opentelemetry::{api, exporter::trace::stdout, global, sdk};
 
 struct ClientHeaderMapCarrier<'a>(&'a mut hyper::header::HeaderMap);
@@ -36,16 +36,14 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error + Send + Sy
 
     let client = Client::new();
     let propagator = api::TraceContextPropagator::new();
-    let span = global::tracer("example/client").start("say hello", None);
+    let span = global::tracer("example/client").start("say hello");
+    let cx = Context::current_with_span(span);
 
     let mut req = hyper::Request::builder().uri("http://127.0.0.1:3000");
-    propagator.inject(
-        span.get_context(),
-        &mut ClientHeaderMapCarrier(req.headers_mut().unwrap()),
-    );
+    propagator.inject_context(&cx, &mut ClientHeaderMapCarrier(req.headers_mut().unwrap()));
     let res = client.request(req.body(Body::from("Hallo!"))?).await?;
 
-    span.add_event(
+    cx.span().add_event(
         "Got response!".to_string(),
         vec![api::KeyValue::new("status", res.status().to_string())],
     );

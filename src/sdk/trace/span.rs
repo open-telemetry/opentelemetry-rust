@@ -8,9 +8,7 @@
 //! start time is set to the current time on span creation. After the `Span` is created, it
 //! is possible to change its name, set its `Attributes`, and add `Links` and `Events`.
 //! These cannot be changed after the `Span`'s end time has been set.
-use crate::api::Tracer;
 use crate::{api, exporter, sdk};
-use std::any::Any;
 use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
 
@@ -41,11 +39,6 @@ impl Span {
                 tracer,
             }),
         }
-    }
-
-    /// Return span id
-    pub(crate) fn id(&self) -> api::SpanId {
-        self.id
     }
 
     /// Operate on reference to span inner
@@ -90,8 +83,8 @@ impl api::Span for Span {
     }
 
     /// Returns the `SpanContext` for the given `Span`.
-    fn get_context(&self) -> api::SpanContext {
-        self.with_data(|data| data.context.clone())
+    fn span_context(&self) -> api::SpanContext {
+        self.with_data(|data| data.span_context.clone())
             .unwrap_or_else(|| {
                 api::SpanContext::new(api::TraceId::invalid(), api::SpanId::invalid(), 0, false)
             })
@@ -135,31 +128,6 @@ impl api::Span for Span {
         self.with_data_mut(|data| {
             data.end_time = SystemTime::now();
         });
-    }
-
-    /// Returns self as any
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    /// Mark as currently active span.
-    ///
-    /// This is the _synchronous_ api. If you are using futures, you
-    /// need to use the async api via [`instrument`].
-    ///
-    /// [`instrument`]: ../../api/trace/futures/trait.Instrument.html#method.instrument
-    fn mark_as_active(&self) {
-        self.inner.tracer.mark_span_as_active(&self);
-    }
-
-    /// Mark span as inactive
-    ///
-    /// This is the _synchronous_ api. If you are using futures, you
-    /// need to use the async api via [`instrument`].
-    ///
-    /// [`instrument`]: ../futures/trait.Instrument.html#method.instrument
-    fn mark_as_inactive(&self) {
-        self.inner.tracer.mark_span_as_inactive(self.id);
     }
 }
 

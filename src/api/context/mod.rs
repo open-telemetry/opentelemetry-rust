@@ -70,6 +70,8 @@ use std::fmt;
 use std::hash::{BuildHasherDefault, Hasher};
 use std::rc::Rc;
 
+pub mod propagation;
+
 thread_local! {
     static CURRENT_CONTEXT: RefCell<Context> = RefCell::new(Context::default());
     static DEFAULT_CONTEXT: Context = Context::default();

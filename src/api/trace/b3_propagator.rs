@@ -13,7 +13,7 @@
 //!
 //! If `single_header` is set to `true` then `X-B3` header is used to inject
 //! and extract. Otherwise, separate headers are used to inject and extract.
-use crate::api;
+use crate::{api, api::TraceContextExt};
 
 static B3_SINGLE_HEADER: &str = "X-B3";
 static B3_DEBUG_FLAG_HEADER: &str = "X-B3-Flags";
@@ -126,49 +126,51 @@ impl B3Propagator {
 }
 
 impl api::HttpTextFormat for B3Propagator {
-    /// Properly encodes the values of the `SpanContext` and injects them
-    /// into the `Carrier`.
-    fn inject(&self, context: api::SpanContext, carrier: &mut dyn api::Carrier) {
-        if context.is_valid() {
+    /// Properly encodes the values of the `Context`'s `SpanContext` and injects
+    /// them into the `Carrier`.
+    fn inject_context(&self, context: &api::Context, carrier: &mut dyn api::Carrier) {
+        let span_context = context.span().span_context();
+        if span_context.is_valid() {
             if self.single_header {
-                let sampled = context.trace_flags() & api::TRACE_FLAG_SAMPLED;
+                let sampled = span_context.trace_flags() & api::TRACE_FLAG_SAMPLED;
                 carrier.set(
                     B3_SINGLE_HEADER,
                     format!(
                         "{:032x}-{:016x}-{:01}",
-                        context.trace_id().to_u128(),
-                        context.span_id().to_u64(),
+                        span_context.trace_id().to_u128(),
+                        span_context.span_id().to_u64(),
                         sampled
                     ),
                 );
             } else {
                 carrier.set(
                     B3_TRACE_ID_HEADER,
-                    format!("{:032x}", context.trace_id().to_u128()),
+                    format!("{:032x}", span_context.trace_id().to_u128()),
                 );
                 carrier.set(
                     B3_SPAN_ID_HEADER,
-                    format!("{:016x}", context.span_id().to_u64()),
+                    format!("{:016x}", span_context.span_id().to_u64()),
                 );
 
-                let sampled = if context.is_sampled() { "1" } else { "0" };
+                let sampled = if span_context.is_sampled() { "1" } else { "0" };
                 carrier.set(B3_SAMPLED_HEADER, sampled.to_string())
             }
         }
     }
 
-    /// Retrieves encoded `SpanContext`s using the `Carrier`. It decodes
-    /// the `SpanContext` and returns it. If no `SpanContext` was retrieved
-    /// OR if the retrieved SpanContext is invalid then an empty `SpanContext`
-    /// is returned.
-    fn extract(&self, carrier: &dyn api::Carrier) -> api::SpanContext {
-        if self.single_header {
+    /// Retrieves encoded data using the provided `Carrier`. If no data for this
+    /// format was retrieved OR if the retrieved data is invalid, then the current
+    /// `Context` is returned.
+    fn extract_with_context(&self, cx: &api::Context, carrier: &dyn api::Carrier) -> api::Context {
+        let span_context = if self.single_header {
             self.extract_single_header(carrier)
                 .unwrap_or_else(|_| api::SpanContext::empty_context())
         } else {
             self.extract_multi_header(carrier)
                 .unwrap_or_else(|_| api::SpanContext::empty_context())
-        }
+        };
+
+        cx.with_remote_span_context(span_context)
     }
 }
 
@@ -231,7 +233,12 @@ mod tests {
         for (header, expected_context) in single_header_extract_data() {
             let mut carrier: HashMap<&'static str, String> = HashMap::new();
             carrier.insert(B3_SINGLE_HEADER, header.to_owned());
-            assert_eq!(single_header_propagator.extract(&carrier), expected_context)
+            assert_eq!(
+                single_header_propagator
+                    .extract(&carrier)
+                    .remote_span_context(),
+                Some(&expected_context)
+            )
         }
 
         for ((trace, span, sampled, debug, parent), expected_context) in multi_header_extract_data()
@@ -252,8 +259,35 @@ mod tests {
             if let Some(parent) = parent {
                 carrier.insert(B3_PARENT_SPAN_ID_HEADER, parent.to_owned());
             }
-            assert_eq!(multi_header_propagator.extract(&carrier), expected_context)
+            assert_eq!(
+                multi_header_propagator
+                    .extract(&carrier)
+                    .remote_span_context(),
+                Some(&expected_context)
+            )
         }
+    }
+
+    #[derive(Debug)]
+    struct TestSpan(api::SpanContext);
+    impl api::Span for TestSpan {
+        fn add_event_with_timestamp(
+            &self,
+            _name: String,
+            _timestamp: std::time::SystemTime,
+            _attributes: Vec<api::KeyValue>,
+        ) {
+        }
+        fn span_context(&self) -> api::SpanContext {
+            self.0.clone()
+        }
+        fn is_recording(&self) -> bool {
+            false
+        }
+        fn set_attribute(&self, _attribute: api::KeyValue) {}
+        fn set_status(&self, _code: api::StatusCode, _message: String) {}
+        fn update_name(&self, _new_name: String) {}
+        fn end(&self) {}
     }
 
     #[test]
@@ -263,7 +297,10 @@ mod tests {
 
         for (expected_header, context) in single_header_inject_data() {
             let mut carrier = HashMap::new();
-            single_header_propagator.inject(context, &mut carrier);
+            single_header_propagator.inject_context(
+                &api::Context::current_with_span(TestSpan(context)),
+                &mut carrier,
+            );
 
             assert_eq!(
                 carrier.get(B3_SINGLE_HEADER),
@@ -273,7 +310,10 @@ mod tests {
 
         for (trace_id, span_id, sampled, context) in multi_header_inject_data() {
             let mut carrier = HashMap::new();
-            multi_header_propagator.inject(context, &mut carrier);
+            multi_header_propagator.inject_context(
+                &api::Context::current_with_span(TestSpan(context)),
+                &mut carrier,
+            );
 
             assert_eq!(carrier.get(B3_TRACE_ID_HEADER), Some(&trace_id.to_owned()));
             assert_eq!(carrier.get(B3_SPAN_ID_HEADER), Some(&span_id.to_owned()));

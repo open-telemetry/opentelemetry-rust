@@ -40,7 +40,6 @@ extern crate typed_builder;
 mod model;
 mod uploader;
 
-use core::any;
 use model::{annotation, endpoint, span};
 use opentelemetry::api;
 use opentelemetry::exporter::trace;
@@ -170,10 +169,6 @@ impl trace::SpanExporter for Exporter {
     }
 
     fn shutdown(&self) {}
-
-    fn as_any(&self) -> &dyn any::Any {
-        self
-    }
 }
 
 /// Converts `api::Event` into an `annotation::Annotation`
@@ -207,9 +202,15 @@ fn into_zipkin_span_kind(kind: api::SpanKind) -> Option<span::Kind> {
 /// be ingested into a Zipkin collector.
 fn into_zipkin_span(config: &ExporterConfig, span_data: Arc<trace::SpanData>) -> span::Span {
     span::Span::builder()
-        .trace_id(format!("{:032x}", span_data.context.trace_id().to_u128()))
+        .trace_id(format!(
+            "{:032x}",
+            span_data.span_context.trace_id().to_u128()
+        ))
         .parent_id(format!("{:016x}", span_data.parent_span_id.to_u64()))
-        .id(format!("{:016x}", span_data.context.span_id().to_u64()))
+        .id(format!(
+            "{:016x}",
+            span_data.span_context.span_id().to_u64()
+        ))
         .name(span_data.name.clone())
         .kind(into_zipkin_span_kind(span_data.span_kind.clone()))
         .timestamp(

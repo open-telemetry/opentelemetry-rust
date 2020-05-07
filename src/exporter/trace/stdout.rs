@@ -22,7 +22,6 @@
 //! global::set_provider(provider);
 //! ```
 use crate::exporter::trace;
-use std::any;
 use std::fmt::Debug;
 use std::io::{self, stdout, Stdout, Write};
 use std::sync::{Arc, Mutex};
@@ -113,9 +112,4 @@ where
 
     /// Ignored for now.
     fn shutdown(&self) {}
-
-    /// Allows `Exporter` to be downcast from trait object.
-    fn as_any(&self) -> &dyn any::Any {
-        self
-    }
 }

@@ -1,27 +1,155 @@
 //! # OpenTelemetry Tracer interface
 //!
-//! The OpenTelemetry library achieves in-process context propagation of
-//! `Span`s by way of the `Tracer`.
+//! The OpenTelemetry library achieves in-process context propagation of `Span`s
+//! by way of the `Tracer`.
 //!
-//! The `Tracer` is responsible for tracking the currently active `Span`,
-//! and exposes methods for creating and activating new `Spans`. The
-//! `Tracer` is configured with `Propagators` which support transferring
-//! span context across process boundaries.
+//! The `Tracer` is responsible for tracking the currently active `Span`, and
+//! exposes methods for creating and activating new `Spans`. The `Tracer` is
+//! configured with `Propagators` which support transferring span context across
+//! process boundaries.
 //!
-//! `Tracer`s are generally expected to be used as singletons.
-//! Implementations SHOULD provide a single global default Tracer.
+//! `Tracer`s are generally expected to be used as singletons. Implementations
+//! SHOULD provide a single global default Tracer.
 //!
-//! Some applications may require multiple `Tracer` instances, e.g. to
-//! create `Span`s on behalf of other applications. Implementations MAY
-//! provide a global registry of Tracers for such applications.
+//! Some applications may require multiple `Tracer` instances, e.g. to create
+//! `Span`s on behalf of other applications. Implementations MAY provide a
+//! global registry of Tracers for such applications.
 //!
-//! The `Tracer` SHOULD allow end users to configure other tracing components that
-//! control how `Span`s are passed across process boundaries, including the binary
-//! and text format `Propagator`s used to serialize `Span`s created by the
-//! `Tracer`.
+//! The `Tracer` SHOULD allow end users to configure other tracing components
+//! that control how `Span`s are passed across process boundaries, including the
+//! binary and text format `Propagator`s used to serialize `Span`s created by
+//! the `Tracer`.
 //!
-//! Docs: https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/api-tracing.md#tracer
-use crate::api::{self, Span};
+//! ## In Synchronous Code
+//!
+//! Spans can be created and nested manually:
+//!
+//! ```
+//! use opentelemetry::{global, api::{Span, Tracer}};
+//! let tracer = global::tracer("my-component");
+//!
+//! let parent = tracer.start("foo");
+//! let child = tracer.span_builder("bar")
+//!     .with_parent(parent.span_context())
+//!     .start(&tracer);
+//!
+//! // ...
+//!
+//! child.end();
+//! parent.end();
+//! ```
+//!
+//! Spans can also use the current thread's [`Context`] to track which span is active:
+//!
+//! ```
+//! use opentelemetry::{global, api::{Tracer, SpanKind}};
+//! let tracer = global::tracer("my-component");
+//!
+//! // Create simple spans with `in_span`
+//! tracer.in_span("foo", |_foo_cx| {
+//!     // parent span is active
+//!     tracer.in_span("bar", |_bar_cx| {
+//!         // child span is now the active span and associated with the parent span
+//!     });
+//!     // child has ended, parent now the active span again
+//! });
+//! // parent has ended, no active spans
+//!
+//! // -- OR --
+//!
+//! // create complex spans with span builder and `with_span`
+//! let parent_span = tracer.span_builder("foo").with_kind(SpanKind::Server).start(&tracer);
+//! tracer.with_span(parent_span, |_foo_cx| {
+//!     // parent span is active
+//!     let child_span = tracer.span_builder("bar").with_kind(SpanKind::Client).start(&tracer);
+//!     tracer.with_span(child_span, |_bar_cx| {
+//!         // child span is now the active span and associated with the parent span
+//!     });
+//!     // child has ended, parent now the active span again
+//! });
+//! // parent has ended, no active spans
+//! ```
+//!
+//! Spans can also be marked as active, and the resulting guard allows for
+//! greater control over when the span is no longer considered active.
+//!
+//! ```
+//! use opentelemetry::{global, api::{Span, Tracer}};
+//! let tracer = global::tracer("my-component");
+//!
+//! let parent_span = tracer.start("foo");
+//! let parent_active = tracer.mark_span_as_active(parent_span);
+//!
+//! {
+//!     let child = tracer.start("bar");
+//!     let _child_active = tracer.mark_span_as_active(child);
+//!
+//!     // do work in the context of the child span...
+//!
+//!     // exiting the scope drops the guard, child is no longer active
+//! }
+//! // Parent is active span again
+//!
+//! // Parent can be dropped manually, or allowed to go out of scope as well.
+//! drop(parent_active);
+//!
+//! // no active span
+//! ```
+//!
+//! ## In Asynchronous Code
+//!
+//! If you are instrumenting code that make use of [`std::future::Future`] or
+//! async/await, be sure to use the [`FutureExt`] trait. This is needed because
+//! the following example _will not_ work:
+//!
+//! ```no_run
+//! # use opentelemetry::{global, api::Tracer};
+//! # let tracer = global::tracer("foo");
+//! # let span = tracer.start("foo-span");
+//! async {
+//!     // Does not work
+//!     let _g = tracer.mark_span_as_active(span);
+//!     // ...
+//! };
+//! ```
+//!
+//! The context guard `_g` will not exit until the future generated by the
+//! `async` block is complete. Since futures can be entered and exited
+//! _multiple_ times without them completing, the span remains active for as
+//! long as the future exists, rather than only when it is polled, leading to
+//! very confusing and incorrect output.
+//!
+//! In order to trace asynchronous code, the [`Future::with_context`] combinator
+//! can be used:
+//!
+//! ```
+//! # async fn run() -> Result<(), ()> {
+//! use opentelemetry::api::{Context, FutureExt};
+//! let cx = Context::current();
+//!
+//! let my_future = async {
+//!     // ...
+//! };
+//!
+//! my_future
+//!     .with_context(cx)
+//!     .await;
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! [`Future::with_context`] attaches a context to the future, ensuring that the
+//! context's lifetime is as long as the future's.
+//!
+//! [`std::future::Future`]: https://doc.rust-lang.org/stable/std/future/trait.Future.html
+//! [`FutureExt`]: ../futures/trait.FutureExt.html
+//! [`Future::with_context`]: ../futures/trait.FutureExt.html#method.with_context
+//! [`Context`]: ../../context/struct.Context.html
+use crate::api::{
+    self,
+    context::{Context, ContextGuard},
+    TraceContextExt,
+};
 use std::fmt;
 use std::time::SystemTime;
 
@@ -57,7 +185,34 @@ pub trait Tracer: fmt::Debug + 'static {
     /// created in another process. Each propagators' deserialization must set
     /// `is_remote` to true on a parent `SpanContext` so `Span` creation knows if the
     /// parent is remote.
-    fn start(&self, name: &str, parent_span: Option<api::SpanContext>) -> Self::Span;
+    fn start(&self, name: &str) -> Self::Span {
+        self.start_from_context(name, &Context::current())
+    }
+
+    /// Starts a new `Span` in a given context
+    ///
+    /// By default the currently active `Span` is set as the new `Span`'s
+    /// parent. The `Tracer` MAY provide other default options for newly
+    /// created `Span`s.
+    ///
+    /// `Span` creation MUST NOT set the newly created `Span` as the currently
+    /// active `Span` by default, but this functionality MAY be offered additionally
+    /// as a separate operation.
+    ///
+    /// Each span has zero or one parent spans and zero or more child spans, which
+    /// represent causally related operations. A tree of related spans comprises a
+    /// trace. A span is said to be a _root span_ if it does not have a parent. Each
+    /// trace includes a single root span, which is the shared ancestor of all other
+    /// spans in the trace. Implementations MUST provide an option to create a `Span` as
+    /// a root span, and MUST generate a new `TraceId` for each root span created.
+    /// For a Span with a parent, the `TraceId` MUST be the same as the parent.
+    /// Also, the child span MUST inherit all `TraceState` values of its parent by default.
+    ///
+    /// A `Span` is said to have a _remote parent_ if it is the child of a `Span`
+    /// created in another process. Each propagators' deserialization must set
+    /// `is_remote` to true on a parent `SpanContext` so `Span` creation knows if the
+    /// parent is remote.
+    fn start_from_context(&self, name: &str, context: &Context) -> Self::Span;
 
     /// Creates a span builder
     ///
@@ -65,13 +220,12 @@ pub trait Tracer: fmt::Debug + 'static {
     fn span_builder(&self, name: &str) -> SpanBuilder;
 
     /// Create a span from a `SpanBuilder`
-    fn build(&self, builder: SpanBuilder) -> Self::Span;
+    fn build(&self, builder: SpanBuilder) -> Self::Span {
+        self.build_with_context(builder, &Context::current())
+    }
 
-    /// Returns the current active span.
-    ///
-    /// When getting the current `Span`, the `Tracer` MUST return a placeholder
-    /// `Span` with an invalid `SpanContext` if there is no currently active `Span`.
-    fn get_active_span(&self) -> Self::Span;
+    /// Create a span from a `SpanBuilder`
+    fn build_with_context(&self, builder: SpanBuilder, cx: &Context) -> Self::Span;
 
     /// Mark a given `Span` as active.
     ///
@@ -81,57 +235,139 @@ pub trait Tracer: fmt::Debug + 'static {
     /// maybe finished (i.e. have a non-null end time) but still be active. A `Span` may be active
     /// on one thread after it has been made inactive on another.
     ///
-    /// NOTE: The `mark_span_as_active`/`mark_span_as_inactive` functions MUST be used
-    /// together or you can end up retaining references to the currently active `Span`.
-    /// If you do not want to manage active state of `Span`s manually, use the `with_span`
-    /// API defined for all `Tracer`s via `TracerGenerics`
-    fn mark_span_as_active(&self, span: &Self::Span);
-
-    /// Remove span from active span
+    /// # Examples
     ///
-    /// When an active `Span` is made inactive, the previously-active `Span` SHOULD be
-    /// made active. A `Span` maybe finished (i.e. have a non-null end time) but still
-    /// be active. A `Span` may be active on one thread after it has been made inactive
-    /// on another.
+    /// ```
+    /// use opentelemetry::{global, api::{Span, Tracer, KeyValue}};
     ///
-    /// NOTE: The `mark_span_as_active`/`mark_span_as_inactive` functions MUST be used
-    /// together or you can end up retaining references to the currently active `Span`.
-    /// If you do not want to manage active state of `Span`s manually, use the `with_span`
-    /// API defined for all `Tracer`s via `TracerGenerics`
-    fn mark_span_as_inactive(&self, span_id: api::SpanId);
+    /// fn my_function() {
+    ///     let tracer = global::tracer("my-component-a");
+    ///     // start an active span in one function
+    ///     let span = tracer.start("span-name");
+    ///     let _guard = tracer.mark_span_as_active(span);
+    ///     // anything happening in functions we call can still access the active span...
+    ///     my_other_function();
+    /// }
+    ///
+    /// fn my_other_function() {
+    ///     // call methods on the current span from
+    ///     global::tracer("my-component-b").get_active_span(|span| {
+    ///         span.add_event("An event!".to_string(), vec![KeyValue::new("happened", true)]);
+    ///     });
+    /// }
+    /// ```
+    #[must_use = "Dropping the guard detaches the context."]
+    fn mark_span_as_active(&self, span: Self::Span) -> ContextGuard {
+        let cx = Context::current_with_span(span);
+        cx.attach()
+    }
 
-    /// Clone a span created by this tracer.
-    fn clone_span(&self, span: &Self::Span) -> Self::Span;
-}
-
-/// TracerGenerics are functions that have generic type parameters. They are a separate
-/// trait so that `Tracer` can be used as a trait object in `GlobalTracer`.
-pub trait TracerGenerics: Tracer {
-    /// Wraps the execution of the function body with a span.
-    /// It starts a new span and sets it as the active span for the given function.
-    /// It then executes the body. It closes the span before returning the execution result.
-    fn with_span<T, F>(&self, name: &'static str, f: F) -> T
+    /// Executes a closure with a reference to this thread's current span.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use opentelemetry::{global, api::{Span, Tracer, KeyValue}};
+    ///
+    /// fn my_function() {
+    ///     // start an active span in one function
+    ///     global::tracer("my-component").in_span("span-name", |_cx| {
+    ///         // anything happening in functions we call can still access the active span...
+    ///         my_other_function();
+    ///     })
+    /// }
+    ///
+    /// fn my_other_function() {
+    ///     // call methods on the current span from
+    ///     global::tracer("my-component").get_active_span(|span| {
+    ///         span.add_event("An event!".to_string(), vec![KeyValue::new("happened", true)]);
+    ///     })
+    /// }
+    /// ```
+    fn get_active_span<F, T>(&self, f: F) -> T
     where
-        F: FnOnce(&Self::Span) -> T;
-}
-
-// These functions can be implemented for all tracers to allow for convenient `with_span` syntax.
-impl<S: Tracer> TracerGenerics for S {
-    /// Wraps the execution of the function body with a span.
-    /// It starts a new span and sets it as the active span for the given function.
-    /// It then executes the body. It closes the span before returning the execution result.
-    fn with_span<T, F>(&self, name: &'static str, f: F) -> T
-    where
-        F: FnOnce(&Self::Span) -> T,
+        F: FnOnce(&dyn api::Span) -> T,
+        Self: Sized,
     {
-        let span = self.start(name, None);
-        self.mark_span_as_active(&span);
+        f(Context::current().span())
+    }
 
-        let result = f(&span);
-        span.end();
-        self.mark_span_as_inactive(span.get_context().span_id());
+    /// Start a new span and execute the given closure with reference to the span's
+    /// context.
+    ///
+    /// This method starts a new span and sets it as the active span for the given
+    /// function. It then executes the body. It closes the span before returning the
+    /// execution result.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use opentelemetry::{global, api::{Span, Tracer, KeyValue}};
+    ///
+    /// fn my_function() {
+    ///     // start an active span in one function
+    ///     global::tracer("my-component").in_span("span-name", |_cx| {
+    ///         // anything happening in functions we call can still access the active span...
+    ///         my_other_function();
+    ///     })
+    /// }
+    ///
+    /// fn my_other_function() {
+    ///     // call methods on the current span from
+    ///     global::tracer("my-component").get_active_span(|span| {
+    ///         span.add_event("An event!".to_string(), vec![KeyValue::new("happened", true)]);
+    ///     })
+    /// }
+    /// ```
+    fn in_span<T, F>(&self, name: &'static str, f: F) -> T
+    where
+        F: FnOnce(Context) -> T,
+        Self::Span: Send + Sync,
+    {
+        let span = self.start(name);
+        let cx = Context::current_with_span(span);
+        let _guard = cx.clone().attach();
+        f(cx)
+    }
 
-        result
+    /// Start a new span and execute the given closure with reference to the span's
+    /// context.
+    ///
+    /// This method starts a new span and sets it as the active span for the given
+    /// function. It then executes the body. It closes the span before returning the
+    /// execution result.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use opentelemetry::{global, api::{Span, SpanKind, Tracer, KeyValue}};
+    ///
+    /// fn my_function() {
+    ///     let tracer = global::tracer("my-component");
+    ///     // start a span with custom attributes via span bulder
+    ///     let span = tracer.span_builder("span-name").with_kind(SpanKind::Server).start(&tracer);
+    ///     // Mark the span as active for the duration of the closure
+    ///     global::tracer("my-component").with_span(span, |_cx| {
+    ///         // anything happening in functions we call can still access the active span...
+    ///         my_other_function();
+    ///     })
+    /// }
+    ///
+    /// fn my_other_function() {
+    ///     // call methods on the current span from
+    ///     global::tracer("my-component").get_active_span(|span| {
+    ///         span.add_event("An event!".to_string(), vec![KeyValue::new("happened", true)]);
+    ///     })
+    /// }
+    /// ```
+    fn with_span<T, F>(&self, span: Self::Span, f: F) -> T
+    where
+        F: FnOnce(Context) -> T,
+        Self::Span: Send + Sync,
+    {
+        let cx = Context::current_with_span(span);
+        let _guard = cx.clone().attach();
+        f(cx)
     }
 }
 

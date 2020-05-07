@@ -1,6 +1,8 @@
 use hello_world::greeter_client::GreeterClient;
 use hello_world::HelloRequest;
-use opentelemetry::api::{HttpTextFormat, KeyValue, Span, TraceContextPropagator, Tracer};
+use opentelemetry::api::{
+    Context, HttpTextFormat, KeyValue, TraceContextExt, TraceContextPropagator, Tracer,
+};
 use opentelemetry::sdk::Sampler;
 use opentelemetry::{api, global, sdk};
 
@@ -55,19 +57,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_init()?;
     let mut client = GreeterClient::connect("http://[::1]:50051").await?;
     let propagator = TraceContextPropagator::new();
-    let request_span = global::tracer("client").start("client-request", None);
+    let span = global::tracer("client").start("client-request");
+    let cx = Context::current_with_span(span);
 
     let mut request = tonic::Request::new(HelloRequest {
         name: "Tonic".into(),
     });
-    propagator.inject(
-        request_span.get_context(),
-        &mut TonicMetadataMapCarrier(request.metadata_mut()),
-    );
+    propagator.inject_context(&cx, &mut TonicMetadataMapCarrier(request.metadata_mut()));
 
     let response = client.say_hello(request).await?;
 
-    request_span.add_event(
+    cx.span().add_event(
         "response-received".to_string(),
         vec![KeyValue::new("response", format!("{:?}", response))],
     );

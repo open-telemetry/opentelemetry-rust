@@ -1,5 +1,5 @@
 use opentelemetry::api::{
-    Gauge, GaugeHandle, Key, Measure, MeasureHandle, Meter, MetricOptions, Span, TracerGenerics,
+    Gauge, GaugeHandle, Key, Measure, MeasureHandle, Meter, MetricOptions, TraceContextExt, Tracer,
 };
 use opentelemetry::{global, sdk};
 
@@ -54,7 +54,8 @@ fn main() -> thrift::Result<()> {
 
     let measure = measure_two.acquire_handle(&common_labels);
 
-    global::tracer("component-main").with_span("operation", move |span| {
+    global::tracer("component-main").in_span("operation", move |cx| {
+        let span = cx.span();
         span.add_event(
             "Nice operation!".to_string(),
             vec![Key::new("bogons").i64(100)],
@@ -68,7 +69,8 @@ fn main() -> thrift::Result<()> {
             vec![one_metric.measurement(1.0), measure_two.measurement(2.0)],
         );
 
-        global::tracer("component-bar").with_span("Sub operation...", move |span| {
+        global::tracer("component-bar").in_span("Sub operation...", move |cx| {
+            let span = cx.span();
             span.set_attribute(lemons_key.string("five"));
 
             span.add_event("Sub span event".to_string(), vec![]);
