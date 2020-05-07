@@ -22,7 +22,7 @@ use crate::{api, api::TraceContextExt};
 
 static SUPPORTED_VERSION: u8 = 0;
 static MAX_VERSION: u8 = 254;
-static TRACEPARENT_HEADER: &str = "Traceparent";
+static TRACEPARENT_HEADER: &str = "traceparent";
 
 /// Extracts and injects `SpanContext`s into `Carrier`s using the
 /// trace-context format.
