@@ -39,9 +39,9 @@ use std::fmt::Debug;
 /// // with the current context, call inject to add the headers
 /// composite_propagator.inject_context(&Context::current_with_span(example_span), &mut carrier);
 ///
-/// // The carrier now has both `X-B3` and `Traceparent` headers
+/// // The carrier now has both `X-B3` and `traceparent` headers
 /// assert!(carrier.get("X-B3").is_some());
-/// assert!(carrier.get("Traceparent").is_some());
+/// assert!(carrier.get("traceparent").is_some());
 /// ```
 #[derive(Debug)]
 pub struct HttpTextCompositePropagator {
@@ -91,7 +91,7 @@ mod tests {
                 "00000000000000000000000000000001-0000000000000001-0",
             ),
             (
-                "Traceparent",
+                "traceparent",
                 "00-00000000000000000000000000000001-0000000000000001-00",
             ),
         ]
