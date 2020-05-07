@@ -163,6 +163,7 @@ use std::collections::HashMap;
 #[cfg(feature = "base64")]
 pub mod base64_format;
 pub mod binary_propagator;
+pub mod composite_propagator;
 pub mod text_propagator;
 
 /// Carriers provide an interface for adding and removing fields from an
