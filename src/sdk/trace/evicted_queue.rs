@@ -17,7 +17,7 @@ pub struct EvictedQueue<T> {
 
 impl<T> EvictedQueue<T> {
     /// Create a new `EvictedQueue` with a given capacity.
-    pub(crate) fn new(capacity: u32) -> Self {
+    pub fn new(capacity: u32) -> Self {
         EvictedQueue {
             queue: Default::default(),
             capacity,
