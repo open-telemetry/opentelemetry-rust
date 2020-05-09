@@ -1,5 +1,46 @@
 # Changelog
 
+## [v0.5.0](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.4.0...v0.5.0)
+
+### Added
+- Derive `Clone` for `B3Propagator`, `SamplingResult`, and `SpanBuilder`
+- Ability to configure the span id / trace id generator
+- impl `From<T>` for common `Key` and `Value` types
+- Add global `tracer` method
+- Add `Resource` API
+- Add `Context` API
+- Add `Correlations` API
+- Add `HttpTextCompositePropagator` for composing `HttpTextPropagator`s
+- Add `GlobalPropagator` for globally configuring a propagator
+- Add `TraceContextExt` to provide methods for working with trace data in a context
+- Expose `EvictedQueue` constructor
+
+### Changed
+- Ensure that impls of `Span` are `Send` and `Sync` when used in `global`
+- Changed `Key` and `Value` method signatures to remove `Cow` references
+- Tracer's `start` now uses the implicit current context instead of an explicit span context.
+  `start_with_context` may be used to specify a context if desired.
+- `with_span` now accepts a span for naming consistency and managing the active state of a more
+  complex span (likely produced by a builder), and the previous functionality that accepts a
+  `&str` has been renamed to `in_span`, both of which now yield a context to the provided closure.
+- Tracer's `get_active_span` now accepts a closure
+- The `Instrument` trait has been renamed to `FutureExt` to avoid clashing with metric instruments,
+  and instead accepts contexts via `with_context`.
+- Span's `get_context` method has been renamed to `span_context` to avoid ambiguity.
+- `HttpTextPropagators` inject the current context instead of an explicit span context. The context
+  can be specified with `inject_context`.
+- `SpanData`'s `context` has been renamed to `span_context`
+
+### Fixed
+- Update the probability sampler to match the spec
+- Rename `Traceparent` header to `traceparent`
+
+### Removed
+- `TracerGenerics` methods have been folded in to the `Tracer` trait so it is longer needed
+- Tracer's `mark_span_as_inactive` has been removed
+- Exporters no longer require an `as_any` method
+- Span's `mark_as_active`, `mark_as_inactive`, and `as_any` have been removed
+
 ## [v0.4.0](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.3.0...v0.4.0)
 
 ### Added
