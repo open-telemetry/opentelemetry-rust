@@ -53,7 +53,7 @@ impl Tracer {
         links: &[api::Link],
     ) -> Option<(u8, Vec<api::KeyValue>)> {
         let sampler = &self.provider.config().default_sampler;
-        match sampler.should_sample(
+        let sampling_result = sampler.should_sample(
             parent_context,
             trace_id,
             span_id,
@@ -61,7 +61,17 @@ impl Tracer {
             span_kind,
             attributes,
             links,
-        ) {
+        );
+
+        self.process_sampling_result(sampling_result, parent_context)
+    }
+
+    fn process_sampling_result(
+        &self,
+        sampling_result: api::SamplingResult,
+        parent_context: Option<&api::SpanContext>,
+    ) -> Option<(u8, Vec<api::KeyValue>)> {
+        match sampling_result {
             api::SamplingResult {
                 decision: api::SamplingDecision::NotRecord,
                 ..
@@ -161,8 +171,14 @@ impl api::Tracer for Tracer {
                     0,
                 ));
 
-        // Make new sampling decision or use parent sampling decision
-        let sampling_decision = if no_parent || remote_parent {
+        // There are 3 paths for sampling.
+        //
+        // * Sampling has occurred elsewhere and is already stored in the builder
+        // * There is no parent or a remote parent, in which case make decision now
+        // * There is a local parent, in which case defer to the parent's decision
+        let sampling_decision = if let Some(sampling_result) = builder.sampling_result.take() {
+            self.process_sampling_result(sampling_result, parent_span_context.as_ref())
+        } else if no_parent || remote_parent {
             self.make_sampling_decision(
                 parent_span_context.as_ref(),
                 trace_id,
@@ -173,7 +189,7 @@ impl api::Tracer for Tracer {
                 &link_options,
             )
         } else {
-            // has parent that is local: use parent if sampled, else `None`.
+            // has parent that is local: use parent if sampled, or don't record.
             parent_span_context
                 .filter(|span_context| span_context.is_sampled())
                 .map(|_| (parent_trace_flags, Vec::new()))
