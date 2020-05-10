@@ -421,6 +421,8 @@ pub struct SpanBuilder {
     pub status_code: Option<api::StatusCode>,
     /// Span status message
     pub status_message: Option<String>,
+    /// Sampling result
+    pub sampling_result: Option<api::SamplingResult>,
 }
 
 /// SpanBuilder methods
@@ -440,6 +442,7 @@ impl SpanBuilder {
             links: None,
             status_code: None,
             status_message: None,
+            sampling_result: None,
         }
     }
 
@@ -527,6 +530,14 @@ impl SpanBuilder {
     pub fn with_status_message(self, message: String) -> Self {
         SpanBuilder {
             status_message: Some(message),
+            ..self
+        }
+    }
+
+    /// Assign sampling result
+    pub fn with_sampling_result(self, sampling_result: api::SamplingResult) -> Self {
+        SpanBuilder {
+            sampling_result: Some(sampling_result),
             ..self
         }
     }

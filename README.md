@@ -22,9 +22,9 @@ use opentelemetry::{api::TracerGenerics, global, sdk};
 fn main() {
     global::set_provider(sdk::Provider::default());
 
-    global::tracer("component-a").with_span("foo", |_span| {
-        global::tracer("component-b").with_span("bar", |_span| {
-            global::tracer("component-c").with_span("baz", |_span| {
+    global::tracer("component-a").in_span("foo", |_context| {
+        global::tracer("component-b").in_span("bar", |_context| {
+            global::tracer("component-c").in_span("baz", |_context| {
 
             })
         })
