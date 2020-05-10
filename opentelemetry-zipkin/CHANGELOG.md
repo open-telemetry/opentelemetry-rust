@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.2.0
+
+### Added
+- Support for resource attributes
+
+### Changed
+- Update to opentelemetry v0.5.0
+
+### Removed
+- `as_any` method on exporter
+
 ## v0.1.0
 
 ### Changed
