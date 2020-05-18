@@ -170,19 +170,59 @@ pub mod text_propagator;
 /// underlying struct like `HashMap`.
 pub trait Carrier {
     /// Get a value for a key from the underlying data.
-    fn get(&self, key: &'static str) -> Option<&str>;
+    fn get(&self, key: &str) -> Option<&str>;
     /// Add a key and value to the underlying.
-    fn set(&mut self, key: &'static str, value: String);
+    fn set(&mut self, key: &str, value: String);
 }
 
-impl<S: std::hash::BuildHasher> api::Carrier for HashMap<&'static str, String, S> {
+impl<S: std::hash::BuildHasher> api::Carrier for HashMap<String, String, S> {
     /// Get a value for a key from the HashMap.
-    fn get(&self, key: &'static str) -> Option<&str> {
+    fn get(&self, key: &str) -> Option<&str> {
         self.get(key).map(|v| v.as_str())
     }
 
     /// Set a key and value in the HashMap.
-    fn set(&mut self, key: &'static str, value: String) {
-        self.insert(key, value);
+    fn set(&mut self, key: &str, value: String) {
+        self.insert(String::from(key), value);
+    }
+}
+
+#[cfg(feature = "http_context")]
+impl api::Carrier for http::HeaderMap {
+    /// Get a value for a key from the HeaderMap.  If the value is not valid ASCII, returns None.
+    fn get(&self, key: &str) -> Option<&str> {
+        match self.get(key) {
+            Some(val) => match val.to_str() {
+                Ok(ascii) => Some(ascii),
+                Err(_) => None,
+            },
+            None => None,
+        }
+    }
+
+    /// Set a key and value in the HeaderMap.  Does nothing if the key or value are not valid inputs.
+    fn set(&mut self, key: &str, value: String) {
+        if let Ok(name) = http::header::HeaderName::from_bytes(key.as_bytes()) {
+            if let Ok(val) = http::header::HeaderValue::from_str(&value) {
+                self.insert(name, val);
+            }
+        }
+    }
+}
+
+#[cfg(feature = "tonic_context")]
+impl api::Carrier for tonic::metadata::MetadataMap {
+    /// Get a value for a key from the HeaderMap.  If the value is not valid ASCII, returns None.
+    fn get(&self, key: &str) -> Option<&str> {
+        self.get(key).and_then(|metadata| metadata.to_str().ok())
+    }
+
+    /// Set a key and value in the HeaderMap.  Does nothing if the key or value are not valid inputs.
+    fn set(&mut self, key: &str, value: String) {
+        if let Ok(key) = tonic::metadata::MetadataKey::from_bytes(key.to_lowercase().as_bytes()) {
+            if let Ok(val) = tonic::metadata::MetadataValue::from_str(&value) {
+                self.insert(key, val);
+            }
+        }
     }
 }

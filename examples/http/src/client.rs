@@ -2,17 +2,6 @@ use hyper::{body::Body, Client};
 use opentelemetry::api::{Context, HttpTextFormat, TraceContextExt, Tracer};
 use opentelemetry::{api, exporter::trace::stdout, global, sdk};
 
-struct ClientHeaderMapCarrier<'a>(&'a mut hyper::header::HeaderMap);
-impl<'a> api::Carrier for ClientHeaderMapCarrier<'a> {
-    fn get(&self, key: &'static str) -> Option<&str> {
-        self.0.get(key).and_then(|value| value.to_str().ok())
-    }
-
-    fn set(&mut self, key: &'static str, value: String) {
-        self.0.insert(key, value.parse().unwrap());
-    }
-}
-
 fn init_tracer() {
     // Create stdout exporter to be able to retrieve the collected spans.
     let exporter = stdout::Builder::default().init();
@@ -40,7 +29,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error + Send + Sy
     let cx = Context::current_with_span(span);
 
     let mut req = hyper::Request::builder().uri("http://127.0.0.1:3000");
-    propagator.inject_context(&cx, &mut ClientHeaderMapCarrier(req.headers_mut().unwrap()));
+    propagator.inject_context(&cx, req.headers_mut().unwrap());
     let res = client.request(req.body(Body::from("Hallo!"))?).await?;
 
     cx.span().add_event(

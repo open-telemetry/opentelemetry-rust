@@ -4,7 +4,7 @@ use opentelemetry::api::{
     Context, HttpTextFormat, KeyValue, TraceContextExt, TraceContextPropagator, Tracer,
 };
 use opentelemetry::sdk::Sampler;
-use opentelemetry::{api, global, sdk};
+use opentelemetry::{global, sdk};
 
 pub mod hello_world {
     tonic::include_proto!("helloworld");
@@ -36,22 +36,6 @@ fn tracing_init() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-struct TonicMetadataMapCarrier<'a>(&'a mut tonic::metadata::MetadataMap);
-impl<'a> api::Carrier for TonicMetadataMapCarrier<'a> {
-    fn get(&self, key: &'static str) -> Option<&str> {
-        self.0.get(key).and_then(|metadata| metadata.to_str().ok())
-    }
-
-    fn set(&mut self, key: &'static str, value: String) {
-        if let Ok(key) = tonic::metadata::MetadataKey::from_bytes(key.to_lowercase().as_bytes()) {
-            self.0.insert(
-                key,
-                tonic::metadata::MetadataValue::from_str(&value).unwrap(),
-            );
-        }
-    }
-}
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_init()?;
@@ -63,7 +47,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut request = tonic::Request::new(HelloRequest {
         name: "Tonic".into(),
     });
-    propagator.inject_context(&cx, &mut TonicMetadataMapCarrier(request.metadata_mut()));
+    propagator.inject_context(&cx, request.metadata_mut());
 
     let response = client.say_hello(request).await?;
 

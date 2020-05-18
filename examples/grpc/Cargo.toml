@@ -16,7 +16,7 @@ http = "0.2"
 tonic = "0.2"
 prost = "0.6"
 tokio = { version = "0.2", features = ["full"] }
-opentelemetry = { path = "../../" }
+opentelemetry = { path = "../../", features = ["tonic_context"] }
 opentelemetry-jaeger = { path = "../../opentelemetry-jaeger" }
 
 [build-dependencies]
