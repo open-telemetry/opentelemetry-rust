@@ -187,7 +187,7 @@ impl<S: std::hash::BuildHasher> api::Carrier for HashMap<String, String, S> {
     }
 }
 
-#[cfg(feature = "http_context")]
+#[cfg(feature = "http")]
 impl api::Carrier for http::HeaderMap {
     /// Get a value for a key from the HeaderMap.  If the value is not valid ASCII, returns None.
     fn get(&self, key: &str) -> Option<&str> {
@@ -210,14 +210,14 @@ impl api::Carrier for http::HeaderMap {
     }
 }
 
-#[cfg(feature = "tonic_context")]
+#[cfg(feature = "tonic")]
 impl api::Carrier for tonic::metadata::MetadataMap {
-    /// Get a value for a key from the HeaderMap.  If the value is not valid ASCII, returns None.
+    /// Get a value for a key from the MetadataMap.  If the value can't be converted to &str, returns None.
     fn get(&self, key: &str) -> Option<&str> {
         self.get(key).and_then(|metadata| metadata.to_str().ok())
     }
 
-    /// Set a key and value in the HeaderMap.  Does nothing if the key or value are not valid inputs.
+    /// Set a key and value in the MetadataMap.  Does nothing if the key or value are not valid inputs.
     fn set(&mut self, key: &str, value: String) {
         if let Ok(key) = tonic::metadata::MetadataKey::from_bytes(key.to_lowercase().as_bytes()) {
             if let Ok(val) = tonic::metadata::MetadataValue::from_str(&value) {

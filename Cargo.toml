@@ -38,8 +38,6 @@ base64_format = ["base64"]
 trace = ["futures", "rand", "pin-project"]
 metrics = ["prometheus"]
 serialize = ["serde", "bincode"]
-http_context = ["http"]
-tonic_context = ["tonic"]
 
 [workspace]
 members = [
