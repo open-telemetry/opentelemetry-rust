@@ -7,7 +7,7 @@ use opentelemetry::global;
 use opentelemetry::sdk::{self, Sampler};
 
 pub mod hello_world {
-    tonic::include_proto!("helloworld"); // The string specified here must match the proto package name
+    tonic::include_proto!("helloworld"); // The string specified here must match the proto package name.
 }
 
 #[derive(Debug, Default)]
