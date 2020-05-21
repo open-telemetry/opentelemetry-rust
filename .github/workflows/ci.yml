@@ -6,12 +6,15 @@ on:
     - master
 jobs:
   test:
+    continue-on-error: ${{ matrix.nightly }}
     strategy:
       fail-fast: false
       matrix:
-        image:
-        - rust:latest
-        - rustlang/rust:nightly
+        image: ["rust:latest"]
+        nightly: [false]
+        include:
+        - image: "rustlang/rust:nightly"
+          nightly: true
     runs-on: ubuntu-latest
     container:
       image: ${{ matrix.image }}
@@ -22,12 +25,15 @@ jobs:
     - name: Test
       run: ./scripts/test.sh
   lint:
+    continue-on-error: ${{ matrix.nightly }}
     strategy:
       fail-fast: false
       matrix:
-        image:
-        - rust:latest
-        - rustlang/rust:nightly
+        image: ["rust:latest"]
+        nightly: [false]
+        include:
+        - image: "rustlang/rust:nightly"
+          nightly: true
     runs-on: ubuntu-latest
     container:
       image: ${{ matrix.image }}
