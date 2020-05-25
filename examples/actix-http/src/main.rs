@@ -1,10 +1,10 @@
 use actix_service::Service;
 use actix_web::middleware::Logger;
 use actix_web::{web, App, HttpServer};
-use futures::FutureExt;
 use opentelemetry::api::{Key, TraceContextExt, Tracer};
 use opentelemetry::sdk::BatchSpanProcessor;
 use opentelemetry::{global, sdk};
+use opentelemetry::api::trace::futures::FutureExt;
 
 fn init_tracer() -> thrift::Result<()> {
     let exporter = opentelemetry_jaeger::Exporter::builder()
@@ -54,7 +54,7 @@ async fn main() -> std::io::Result<()> {
                 let tracer = global::tracer("request");
                 tracer.in_span("middleware", move |cx| {
                     cx.span().set_attribute(Key::new("path").string(req.path()));
-                    srv.call(req)
+                    srv.call(req).with_context(cx)
                 })
             })
             .route("/", web::get().to(index))

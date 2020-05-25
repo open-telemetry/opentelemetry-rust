@@ -49,7 +49,7 @@ async fn main() -> std::io::Result<()> {
                 let tracer = global::tracer("request");
                 tracer.in_span("middleware", move |cx| {
                     cx.span().set_attribute(Key::new("path").string(req.path()));
-                    srv.call(req)
+                    srv.call(req).with_context(cx)
                 })
             })
             .route("/", web::get().to(index))
