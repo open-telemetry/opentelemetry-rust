@@ -126,15 +126,19 @@ impl std::io::Write for THttpChannel {
 
         write_buffer.clear();
 
-        let has_content = resp.header("Content-Length")
-            .and_then(|s| s.parse::<usize>().ok()).map(|len| len > 0).unwrap_or(false);
+        let has_content = resp
+            .header("Content-Length")
+            .and_then(|s| s.parse::<usize>().ok())
+            .map(|len| len > 0)
+            .unwrap_or(false);
         if has_content {
             let mut response_reader = resp.into_reader();
             let mut read_buffer = self
                 .read_buffer
                 .lock()
                 .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err.to_string()))?;
-            std::io::copy(&mut response_reader, &mut *read_buffer).map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
+            std::io::copy(&mut response_reader, &mut *read_buffer)
+                .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
         }
 
         Ok(())

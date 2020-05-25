@@ -3,21 +3,26 @@ use actix_web::middleware::Logger;
 use actix_web::{web, App, HttpServer};
 use futures::FutureExt;
 use opentelemetry::api::{Key, TraceContextExt, Tracer};
+use opentelemetry::sdk::BatchSpanProcessor;
 use opentelemetry::{global, sdk};
 
 fn init_tracer() -> thrift::Result<()> {
     let exporter = opentelemetry_jaeger::Exporter::builder()
-        .with_agent_endpoint("127.0.0.1:6831".parse().unwrap())
+        .with_collector_endpoint("http://127.0.0.1:14268/api/traces")
         .with_process(opentelemetry_jaeger::Process {
-            service_name: "trace-demo".to_string(),
+            service_name: "trace-http-demo".to_string(),
             tags: vec![
                 Key::new("exporter").string("jaeger"),
                 Key::new("float").f64(312.23),
             ],
         })
         .init()?;
+
+    let batch_exporter = BatchSpanProcessor::builder(exporter, tokio::spawn, tokio::time::interval)
+        .build();
+
     let provider = sdk::Provider::builder()
-        .with_simple_exporter(exporter)
+        .with_batch_exporter(batch_exporter)
         .with_config(sdk::Config {
             default_sampler: Box::new(sdk::Sampler::Always),
             ..Default::default()

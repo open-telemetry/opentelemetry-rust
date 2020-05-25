@@ -42,6 +42,7 @@ members = [
     "opentelemetry-jaeger",
     "opentelemetry-zipkin",
     "examples/actix-udp",
+    "examples/actix-http",
     "examples/async",
     "examples/basic",
     "examples/grpc",

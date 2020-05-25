@@ -277,7 +277,10 @@ impl<T: net::ToSocketAddrs> Builder<T> {
                 self.collector_username,
                 self.collector_password,
             )?;
-            Ok((self.process, uploader::BatchUploader::Collector(Box::new(collector))))
+            Ok((
+                self.process,
+                uploader::BatchUploader::Collector(Box::new(collector)),
+            ))
         } else {
             Err(::thrift::Error::from(
                 "Collector endpoint or agent endpoint must be set",

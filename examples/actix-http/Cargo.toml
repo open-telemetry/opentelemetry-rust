@@ -1,14 +1,15 @@
 [package]
-name = "actix-udp-example"
+name = "actix-http-example"
 version = "0.1.0"
 edition = "2018"
 
 [dependencies]
 opentelemetry = { path = "../../" }
-opentelemetry-jaeger = { path = "../../opentelemetry-jaeger" }
+opentelemetry-jaeger = { path = "../../opentelemetry-jaeger", features = ["collector_client"] }
 thrift = "0.13.0"
 futures = "0.3"
 actix-web = "2"
 actix-service = "1"
 actix-rt = "1"
 env_logger = "0.7.1"
+tokio = { version = "0.2.21", features = ["full"] }
