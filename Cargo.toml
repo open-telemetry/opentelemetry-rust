@@ -41,7 +41,7 @@ serialize = ["serde", "bincode"]
 members = [
     "opentelemetry-jaeger",
     "opentelemetry-zipkin",
-    "examples/actix",
+    "examples/actix-udp",
     "examples/async",
     "examples/basic",
     "examples/grpc",
