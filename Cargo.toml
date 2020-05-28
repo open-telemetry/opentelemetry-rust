@@ -47,6 +47,7 @@ members = [
     "examples/grpc",
     "examples/http",
     "examples/zipkin",
+    "examples/tracing-grpc"
 ]
 
 [[bench]]

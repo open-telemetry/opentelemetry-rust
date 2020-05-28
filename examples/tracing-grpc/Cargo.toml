@@ -1,0 +1,27 @@
+[package]
+name = "tracing-grpc"
+version = "0.1.0"
+edition = "2018"
+
+[[bin]] # Bin to run the gRPC server
+name = "grpc-server"
+path = "src/server.rs"
+
+[[bin]] # Bin to run the gRPC client
+name = "grpc-client"
+path = "src/client.rs"
+
+[dependencies]
+http = "0.2"
+tonic = "0.2"
+prost = "0.6"
+tokio = { version = "0.2", features = ["full"] }
+opentelemetry = "0.5"
+opentelemetry-jaeger ="0.4" 
+tracing = "0.1.14"
+tracing-subscriber = "0.2.5"
+tracing-opentelemetry = "0.4.0"
+tracing-futures = "0.2.4"
+
+[build-dependencies]
+tonic-build = "0.2"
