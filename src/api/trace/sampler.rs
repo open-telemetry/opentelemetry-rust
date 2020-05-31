@@ -49,7 +49,6 @@ pub trait Sampler: Send + Sync + std::fmt::Debug {
         &self,
         parent_context: Option<&api::SpanContext>,
         trace_id: api::TraceId,
-        span_id: api::SpanId,
         name: &str,
         span_kind: &api::SpanKind,
         attributes: &[api::KeyValue],
