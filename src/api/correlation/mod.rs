@@ -20,7 +20,7 @@
 //!
 //! // Example correlation value passed in externally via http headers
 //! let mut headers = HashMap::new();
-//! headers.insert("Correlation-Context", "user_id=1".to_string());
+//! headers.insert("Correlation-Context".to_string(), "user_id=1".to_string());
 //!
 //! let propagator = CorrelationContextPropagator::new();
 //! // can extract from any type that impls `Carrier`, usually an HTTP header map

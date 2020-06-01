@@ -223,8 +223,11 @@ mod tests {
         let propagator = CorrelationContextPropagator::new();
 
         for (header_value, kvs) in valid_extract_data() {
-            let mut carrier: HashMap<&'static str, String> = HashMap::new();
-            carrier.insert(CORRELATION_CONTEXT_HEADER, header_value.to_string());
+            let mut carrier: HashMap<String, String> = HashMap::new();
+            carrier.insert(
+                CORRELATION_CONTEXT_HEADER.to_string(),
+                header_value.to_string(),
+            );
             let context = propagator.extract(&carrier);
             let correlations = context.correlation_context();
 
@@ -240,7 +243,7 @@ mod tests {
         let propagator = CorrelationContextPropagator::new();
 
         for (kvs, header_parts) in valid_inject_data() {
-            let mut carrier: HashMap<&'static str, String> = HashMap::new();
+            let mut carrier = HashMap::new();
             let cx = Context::current_with_correlations(kvs);
             propagator.inject_context(&cx, &mut carrier);
             let header_value = carrier.get(CORRELATION_CONTEXT_HEADER).unwrap();

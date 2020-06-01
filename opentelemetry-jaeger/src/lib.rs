@@ -367,8 +367,8 @@ fn links_to_references(links: &sdk::EvictedQueue<api::Link>) -> Option<Vec<jaege
                 //  see https://github.com/open-telemetry/opentelemetry-specification/issues/65
                 jaeger::SpanRef::new(
                     jaeger::SpanRefType::ChildOf,
-                    trace_id_high,
                     trace_id_low,
+                    trace_id_high,
                     span_context.span_id().to_u64() as i64,
                 )
             })

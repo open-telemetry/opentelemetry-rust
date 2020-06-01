@@ -7,20 +7,9 @@ use opentelemetry::{
 };
 use std::{convert::Infallible, net::SocketAddr};
 
-struct HttpHeaderMapCarrier<'a>(&'a hyper::header::HeaderMap);
-impl<'a> api::Carrier for HttpHeaderMapCarrier<'a> {
-    fn get(&self, key: &'static str) -> Option<&str> {
-        self.0.get(key).and_then(|value| value.to_str().ok())
-    }
-
-    fn set(&mut self, _key: &'static str, _value: String) {
-        unimplemented!()
-    }
-}
-
 async fn handle(req: Request<Body>) -> Result<Response<Body>, Infallible> {
     let propagator = api::TraceContextPropagator::new();
-    let parent_cx = propagator.extract(&HttpHeaderMapCarrier(req.headers()));
+    let parent_cx = propagator.extract(req.headers());
     let span = global::tracer("example/server").start_from_context("hello", &parent_cx);
     span.add_event("handling this...".to_string(), Vec::new());
 
