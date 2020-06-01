@@ -17,9 +17,9 @@ edition = "2018"
 
 [dependencies]
 opentelemetry = { version = "0.5.0", default-features = false, features = ["trace"], path = ".." }
-reqwest = { version = "0.10.1", features = ["blocking"], optional = true }
+ureq = { version = "1.0.0", optional = true }
 thrift = "0.13.0"
 
 [features]
 default = []
-collector_client = ["reqwest"]
+collector_client = ["ureq"]
