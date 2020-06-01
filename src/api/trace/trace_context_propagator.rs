@@ -144,8 +144,8 @@ mod tests {
         let propagator = TraceContextPropagator::new();
 
         for (header, expected_context) in extract_data() {
-            let mut carrier: HashMap<&'static str, String> = HashMap::new();
-            carrier.insert(TRACEPARENT_HEADER, header.to_owned());
+            let mut carrier = HashMap::new();
+            carrier.insert(TRACEPARENT_HEADER.to_string(), header.to_owned());
             assert_eq!(
                 propagator.extract(&carrier).remote_span_context(),
                 Some(&expected_context)

@@ -21,7 +21,6 @@ impl api::Sampler for Sampler {
         &self,
         parent_context: Option<&api::SpanContext>,
         trace_id: api::TraceId,
-        _span_id: api::SpanId,
         _name: &str,
         _span_kind: &api::SpanKind,
         _attributes: &[api::KeyValue],
@@ -128,7 +127,6 @@ mod tests {
                     .should_sample(
                         parent_context.as_ref(),
                         trace_id,
-                        api::SpanId::from_u64(1),
                         name,
                         &api::SpanKind::Internal,
                         &[],

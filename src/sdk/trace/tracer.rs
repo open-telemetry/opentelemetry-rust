@@ -46,22 +46,14 @@ impl Tracer {
         &self,
         parent_context: Option<&api::SpanContext>,
         trace_id: api::TraceId,
-        span_id: api::SpanId,
         name: &str,
         span_kind: &api::SpanKind,
         attributes: &[api::KeyValue],
         links: &[api::Link],
     ) -> Option<(u8, Vec<api::KeyValue>)> {
         let sampler = &self.provider.config().default_sampler;
-        let sampling_result = sampler.should_sample(
-            parent_context,
-            trace_id,
-            span_id,
-            name,
-            span_kind,
-            attributes,
-            links,
-        );
+        let sampling_result =
+            sampler.should_sample(parent_context, trace_id, name, span_kind, attributes, links);
 
         self.process_sampling_result(sampling_result, parent_context)
     }
@@ -182,7 +174,6 @@ impl api::Tracer for Tracer {
             self.make_sampling_decision(
                 parent_span_context.as_ref(),
                 trace_id,
-                span_id,
                 &builder.name,
                 &span_kind,
                 &attribute_options,

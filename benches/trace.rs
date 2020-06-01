@@ -64,7 +64,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     });
 }
 
-fn trace_benchmark_group<F: Fn(&sdk::Tracer) -> ()>(c: &mut Criterion, name: &str, f: F) {
+fn trace_benchmark_group<F: Fn(&sdk::Tracer)>(c: &mut Criterion, name: &str, f: F) {
     let mut group = c.benchmark_group(name);
 
     group.bench_function("always-sample", |b| {

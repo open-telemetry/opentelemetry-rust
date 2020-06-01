@@ -151,7 +151,7 @@ mod tests {
 
         for (header_name, header_value) in test_data() {
             let mut carrier = HashMap::new();
-            carrier.insert(header_name, header_value.to_string());
+            carrier.insert(header_name.to_string(), header_value.to_string());
             assert_eq!(
                 composite_propagator.extract(&carrier).remote_span_context(),
                 Some(&SpanContext::new(
