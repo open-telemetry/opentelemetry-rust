@@ -11,7 +11,7 @@ pub(crate) enum BatchUploader {
     Agent(agent::AgentSyncClientUDP),
     /// Collector sync client
     #[cfg(feature = "collector_client")]
-    Collector(collector::CollectorSyncClientHttp),
+    Collector(Box<collector::CollectorSyncClientHttp>),
 }
 
 impl BatchUploader {
