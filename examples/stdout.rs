@@ -8,12 +8,12 @@ fn main() {
     // Create stdout exporter to be able to retrieve the collected spans.
     let exporter = stdout::Builder::default().init();
 
-    // For the demonstration, use `Sampler::Always` sampler to sample all traces. In a production
-    // application, use `Sampler::Parent` or `Sampler::Probability` with a desired probability.
+    // For the demonstration, use `Sampler::AlwaysOn` sampler to sample all traces. In a production
+    // application, use `Sampler::ParentOrElse` or `Sampler::Probability` with a desired probability.
     let provider = sdk::Provider::builder()
         .with_simple_exporter(exporter)
         .with_config(sdk::Config {
-            default_sampler: Box::new(sdk::Sampler::Always),
+            default_sampler: Box::new(sdk::Sampler::AlwaysOn),
             ..Default::default()
         })
         .build();

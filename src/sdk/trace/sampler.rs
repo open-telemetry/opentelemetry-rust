@@ -5,11 +5,11 @@ use crate::api;
 #[derive(Clone, Debug)]
 pub enum Sampler {
     /// Always sample the trace
-    Always,
+    AlwaysOn,
     /// Never sample the trace
-    Never,
+    AlwaysOff,
     /// Sample if the parent span is sampled
-    Parent,
+    ParentOrElse,
     /// Sample a given fraction of traces. Fractions >= 1 will always sample. If the parent span is
     /// sampled, then it's child spans will automatically be sampled. Fractions < 0 are treated as
     /// zero, but spans may still be sampled if their parent is.
@@ -28,11 +28,11 @@ impl api::Sampler for Sampler {
     ) -> api::SamplingResult {
         let decision = match self {
             // Always sample the trace
-            Sampler::Always => api::SamplingDecision::RecordAndSampled,
+            Sampler::AlwaysOn => api::SamplingDecision::RecordAndSampled,
             // Never sample the trace
-            Sampler::Never => api::SamplingDecision::NotRecord,
+            Sampler::AlwaysOff => api::SamplingDecision::NotRecord,
             // Sample if the parent span is sampled
-            Sampler::Parent => {
+            Sampler::ParentOrElse => {
                 if parent_context.map(|ctx| ctx.is_sampled()).unwrap_or(false) {
                     api::SamplingDecision::RecordAndSampled
                 } else {
@@ -75,8 +75,8 @@ mod tests {
     fn sampler_data() -> Vec<(&'static str, Sampler, f64, bool, bool)> {
         vec![
             // Span w/o a parent
-            ("never_sample",    Sampler::Never,             0.0,  false, false),
-            ("always_sample",   Sampler::Always,            1.0,  false, false),
+            ("never_sample", Sampler::AlwaysOff, 0.0, false, false),
+            ("always_sample", Sampler::AlwaysOn, 1.0, false, false),
             ("probability_-1",  Sampler::Probability(-1.0), 0.0,  false, false),
             ("probability_.25", Sampler::Probability(0.25), 0.25, false, false),
             ("probability_.50", Sampler::Probability(0.50), 0.5,  false, false),
@@ -96,7 +96,7 @@ mod tests {
             ("sampled_parent_with_probability_2.0", Sampler::Probability(2.0),  1.0, true, true),
 
             // Spans with a sampled parent, but when using the NeverSample Sampler, aren't sampled
-            ("sampled_parent_span_with_never_sample", Sampler::Never, 0.0, true, true),
+            ("sampled_parent_span_with_never_sample", Sampler::AlwaysOff, 0.0, true, true),
         ]
     }
 
