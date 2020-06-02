@@ -5,7 +5,7 @@ lazy_static::lazy_static! {
     static ref NOOP_SPAN: api::NoopSpan = api::NoopSpan::new();
 }
 
-struct Span(Box<dyn api::Span>);
+struct Span(Box<dyn api::Span + Send + Sync>);
 struct RemoteSpanContext(api::SpanContext);
 
 /// Methods for storing and retrieving trace data in a context.
@@ -13,12 +13,12 @@ pub trait TraceContextExt {
     /// Returns a clone of the current context with the included span.
     ///
     /// This is useful for building tracers.
-    fn current_with_span<T: api::Span>(span: T) -> Self;
+    fn current_with_span<T: api::Span + Send + Sync>(span: T) -> Self;
 
     /// Returns a clone of this context with the included span.
     ///
     /// This is useful for building tracers.
-    fn with_span<T: api::Span>(&self, span: T) -> Self;
+    fn with_span<T: api::Span + Send + Sync>(&self, span: T) -> Self;
 
     /// Returns a reference to this context's span, or the default no-op span if
     /// none has been set.
@@ -51,11 +51,11 @@ pub trait TraceContextExt {
 }
 
 impl TraceContextExt for api::Context {
-    fn current_with_span<T: api::Span>(span: T) -> Self {
+    fn current_with_span<T: api::Span + Send + Sync>(span: T) -> Self {
         api::Context::current_with_value(Span(Box::new(span)))
     }
 
-    fn with_span<T: api::Span>(&self, span: T) -> Self {
+    fn with_span<T: api::Span + Send + Sync>(&self, span: T) -> Self {
         self.with_value(Span(Box::new(span)))
     }
 
