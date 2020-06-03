@@ -66,12 +66,12 @@ fn init_tracer() -> thrift::Result<()> {
         .with_scheduled_delay(Duration::from_millis(100))
         .build();
 
-    // For the demonstration, use `Sampler::Always` sampler to sample all traces. In a production
-    // application, use `Sampler::Parent` or `Sampler::Probability` with a desired probability.
+    // For the demonstration, use `Sampler::AlwaysOn` sampler to sample all traces. In a production
+    // application, use `Sampler::ParentOrElse` or `Sampler::Probability` with a desired probability.
     let provider = sdk::Provider::builder()
         .with_batch_exporter(batch)
         .with_config(sdk::Config {
-            default_sampler: Box::new(sdk::Sampler::Always),
+            default_sampler: Box::new(sdk::Sampler::AlwaysOn),
             ..Default::default()
         })
         .build();

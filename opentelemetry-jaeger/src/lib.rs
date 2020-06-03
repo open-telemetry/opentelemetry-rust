@@ -25,7 +25,7 @@
 //!     let provider = sdk::Provider::builder()
 //!         .with_simple_exporter(exporter)
 //!         .with_config(sdk::Config {
-//!             default_sampler: Box::new(sdk::Sampler::Always),
+//!             default_sampler: Box::new(sdk::Sampler::AlwaysOn),
 //!             ..Default::default()
 //!         })
 //!         .build();
@@ -73,7 +73,7 @@
 //!     let provider = sdk::Provider::builder()
 //!         .with_simple_exporter(exporter)
 //!         .with_config(sdk::Config {
-//!             default_sampler: Box::new(sdk::Sampler::Always),
+//!             default_sampler: Box::new(sdk::Sampler::AlwaysOn),
 //!             ..Default::default()
 //!         })
 //!         .build();

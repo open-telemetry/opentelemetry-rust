@@ -1,10 +1,10 @@
 use actix_service::Service;
 use actix_web::middleware::Logger;
 use actix_web::{web, App, HttpServer};
+use opentelemetry::api::trace::futures::FutureExt;
 use opentelemetry::api::{Key, TraceContextExt, Tracer};
 use opentelemetry::sdk::BatchSpanProcessor;
 use opentelemetry::{global, sdk};
-use opentelemetry::api::trace::futures::FutureExt;
 
 fn init_tracer() -> thrift::Result<()> {
     let exporter = opentelemetry_jaeger::Exporter::builder()
@@ -18,13 +18,13 @@ fn init_tracer() -> thrift::Result<()> {
         })
         .init()?;
 
-    let batch_exporter = BatchSpanProcessor::builder(exporter, tokio::spawn, tokio::time::interval)
-        .build();
+    let batch_exporter =
+        BatchSpanProcessor::builder(exporter, tokio::spawn, tokio::time::interval).build();
 
     let provider = sdk::Provider::builder()
         .with_batch_exporter(batch_exporter)
         .with_config(sdk::Config {
-            default_sampler: Box::new(sdk::Sampler::Always),
+            default_sampler: Box::new(sdk::Sampler::AlwaysOn),
             ..Default::default()
         })
         .build();
