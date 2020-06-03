@@ -22,7 +22,7 @@ use opentelemetry::{
     global, sdk,
 };
 use std::time::Duration;
-use std::{error::Error, io, net::SocketAddr, thread};
+use std::{error::Error, io, net::SocketAddr};
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
 
@@ -95,7 +95,8 @@ pub async fn main() -> Result<(), Box<dyn Error>> {
     run1?;
     run2?;
 
-    thread::sleep(Duration::from_millis(250));
+    tokio::time::delay_for(Duration::from_millis(250)).await;
+    // or async_std::task::sleep(Duration::from_millis(250)).await;
 
     Ok(())
 }
