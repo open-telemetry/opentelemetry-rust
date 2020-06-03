@@ -22,7 +22,7 @@ use opentelemetry::{
     global, sdk,
 };
 use std::time::Duration;
-use std::{error::Error, io, net::SocketAddr, thread};
+use std::{error::Error, io, net::SocketAddr};
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
 
@@ -66,12 +66,12 @@ fn init_tracer() -> thrift::Result<()> {
         .with_scheduled_delay(Duration::from_millis(100))
         .build();
 
-    // For the demonstration, use `Sampler::Always` sampler to sample all traces. In a production
-    // application, use `Sampler::Parent` or `Sampler::Probability` with a desired probability.
+    // For the demonstration, use `Sampler::AlwaysOn` sampler to sample all traces. In a production
+    // application, use `Sampler::ParentOrElse` or `Sampler::Probability` with a desired probability.
     let provider = sdk::Provider::builder()
         .with_batch_exporter(batch)
         .with_config(sdk::Config {
-            default_sampler: Box::new(sdk::Sampler::Always),
+            default_sampler: Box::new(sdk::Sampler::AlwaysOn),
             ..Default::default()
         })
         .build();
@@ -95,7 +95,8 @@ pub async fn main() -> Result<(), Box<dyn Error>> {
     run1?;
     run2?;
 
-    thread::sleep(Duration::from_millis(250));
+    tokio::time::delay_for(Duration::from_millis(250)).await;
+    // or async_std::task::sleep(Duration::from_millis(250)).await;
 
     Ok(())
 }

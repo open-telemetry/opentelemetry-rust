@@ -5,11 +5,11 @@ use crate::api;
 #[derive(Clone, Debug)]
 pub enum Sampler {
     /// Always sample the trace
-    Always,
+    AlwaysOn,
     /// Never sample the trace
-    Never,
-    /// Sample if the parent span is sampled
-    Parent,
+    AlwaysOff,
+    /// Respects the parent span's sampling decision or delegates a delegate sampler for root spans.
+    ParentOrElse(Box<Sampler>),
     /// Sample a given fraction of traces. Fractions >= 1 will always sample. If the parent span is
     /// sampled, then it's child spans will automatically be sampled. Fractions < 0 are treated as
     /// zero, but spans may still be sampled if their parent is.
@@ -21,25 +21,29 @@ impl api::Sampler for Sampler {
         &self,
         parent_context: Option<&api::SpanContext>,
         trace_id: api::TraceId,
-        _span_id: api::SpanId,
-        _name: &str,
-        _span_kind: &api::SpanKind,
-        _attributes: &[api::KeyValue],
-        _links: &[api::Link],
+        name: &str,
+        span_kind: &api::SpanKind,
+        attributes: &[api::KeyValue],
+        links: &[api::Link],
     ) -> api::SamplingResult {
         let decision = match self {
             // Always sample the trace
-            Sampler::Always => api::SamplingDecision::RecordAndSampled,
+            Sampler::AlwaysOn => api::SamplingDecision::RecordAndSampled,
             // Never sample the trace
-            Sampler::Never => api::SamplingDecision::NotRecord,
-            // Sample if the parent span is sampled
-            Sampler::Parent => {
-                if parent_context.map(|ctx| ctx.is_sampled()).unwrap_or(false) {
-                    api::SamplingDecision::RecordAndSampled
-                } else {
-                    api::SamplingDecision::NotRecord
-                }
-            }
+            Sampler::AlwaysOff => api::SamplingDecision::NotRecord,
+            // The parent decision if sampled; otherwise the decision of delegate_sampler
+            Sampler::ParentOrElse(delegate_sampler) => parent_context.map_or(
+                delegate_sampler
+                    .should_sample(parent_context, trace_id, name, span_kind, attributes, links)
+                    .decision,
+                |ctx| {
+                    if ctx.is_sampled() {
+                        api::SamplingDecision::RecordAndSampled
+                    } else {
+                        api::SamplingDecision::NotRecord
+                    }
+                },
+            ),
             // Match parent or probabilistically sample the trace.
             Sampler::Probability(prob) => {
                 if *prob >= 1.0 || parent_context.map(|ctx| ctx.is_sampled()).unwrap_or(false) {
@@ -76,13 +80,22 @@ mod tests {
     fn sampler_data() -> Vec<(&'static str, Sampler, f64, bool, bool)> {
         vec![
             // Span w/o a parent
-            ("never_sample",    Sampler::Never,             0.0,  false, false),
-            ("always_sample",   Sampler::Always,            1.0,  false, false),
+            ("never_sample", Sampler::AlwaysOff, 0.0, false, false),
+            ("always_sample", Sampler::AlwaysOn, 1.0, false, false),
             ("probability_-1",  Sampler::Probability(-1.0), 0.0,  false, false),
             ("probability_.25", Sampler::Probability(0.25), 0.25, false, false),
             ("probability_.50", Sampler::Probability(0.50), 0.5,  false, false),
             ("probability_.75", Sampler::Probability(0.75), 0.75, false, false),
             ("probability_2.0", Sampler::Probability(2.0),  1.0,  false, false),
+
+            // Spans w/o a parent delegate
+            ("delegate_to_always_on", Sampler::ParentOrElse(Box::new(Sampler::AlwaysOn)), 1.0, false, false),
+            ("delegate_to_always_off", Sampler::ParentOrElse(Box::new(Sampler::AlwaysOff)), 0.0, false, false),
+            ("delegate_to_probability_-1", Sampler::ParentOrElse(Box::new(Sampler::Probability(-1.0))), 0.0, false, false),
+            ("delegate_to_probability_.25", Sampler::ParentOrElse(Box::new(Sampler::Probability(0.25))), 0.25, false, false),
+            ("delegate_to_probability_.50", Sampler::ParentOrElse(Box::new(Sampler::Probability(0.50))), 0.50, false, false),
+            ("delegate_to_probability_.75", Sampler::ParentOrElse(Box::new(Sampler::Probability(0.75))), 0.75, false, false),
+            ("delegate_to_probability_2.0", Sampler::ParentOrElse(Box::new(Sampler::Probability(2.0))), 1.0, false, false),
 
             // Spans with a parent that is *not* sampled act like spans w/o a parent
             ("unsampled_parent_with_probability_-1",  Sampler::Probability(-1.0), 0.0, true, false),
@@ -90,14 +103,22 @@ mod tests {
             ("unsampled_parent_with_probability_.50", Sampler::Probability(0.50), 0.5, true, false),
             ("unsampled_parent_with_probability_.75", Sampler::Probability(0.75), 0.75, true, false),
             ("unsampled_parent_with_probability_2.0", Sampler::Probability(2.0),  1.0, true, false),
+            ("unsampled_parent_or_else_with_always_on", Sampler::ParentOrElse(Box::new(Sampler::AlwaysOn)), 0.0, true, false),
+            ("unsampled_parent_or_else_with_always_off", Sampler::ParentOrElse(Box::new(Sampler::AlwaysOff)), 0.0, true, false),
+            ("unsampled_parent_or_else_with_probability", Sampler::ParentOrElse(Box::new(Sampler::Probability(0.25))), 0.0, true, false),
 
             // Spans with a parent that is sampled, will always sample, regardless of the probability
             ("sampled_parent_with_probability_-1",  Sampler::Probability(-1.0), 1.0, true, true),
             ("sampled_parent_with_probability_.25", Sampler::Probability(0.25), 1.0, true, true),
             ("sampled_parent_with_probability_2.0", Sampler::Probability(2.0),  1.0, true, true),
 
+            // Spans with a parent that is sampled, will always sample, regardless of the delegate sampler
+            ("sampled_parent_or_else_with_always_on", Sampler::ParentOrElse(Box::new(Sampler::AlwaysOn)), 1.0, true, true),
+            ("sampled_parent_or_else_with_always_off", Sampler::ParentOrElse(Box::new(Sampler::AlwaysOff)), 1.0, true, true),
+            ("sampled_parent_or_else_with_probability_.25", Sampler::ParentOrElse(Box::new(Sampler::Probability(0.25))), 1.0, true, true),
+
             // Spans with a sampled parent, but when using the NeverSample Sampler, aren't sampled
-            ("sampled_parent_span_with_never_sample", Sampler::Never, 0.0, true, true),
+            ("sampled_parent_span_with_never_sample", Sampler::AlwaysOff, 0.0, true, true),
         ]
     }
 
@@ -128,7 +149,6 @@ mod tests {
                     .should_sample(
                         parent_context.as_ref(),
                         trace_id,
-                        api::SpanId::from_u64(1),
                         name,
                         &api::SpanKind::Internal,
                         &[],

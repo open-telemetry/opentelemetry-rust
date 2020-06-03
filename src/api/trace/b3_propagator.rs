@@ -231,8 +231,8 @@ mod tests {
         let multi_header_propagator = B3Propagator::new(false);
 
         for (header, expected_context) in single_header_extract_data() {
-            let mut carrier: HashMap<&'static str, String> = HashMap::new();
-            carrier.insert(B3_SINGLE_HEADER, header.to_owned());
+            let mut carrier: HashMap<String, String> = HashMap::new();
+            carrier.insert(B3_SINGLE_HEADER.to_string(), header.to_owned());
             assert_eq!(
                 single_header_propagator
                     .extract(&carrier)
@@ -243,21 +243,21 @@ mod tests {
 
         for ((trace, span, sampled, debug, parent), expected_context) in multi_header_extract_data()
         {
-            let mut carrier: HashMap<&'static str, String> = HashMap::new();
+            let mut carrier = HashMap::new();
             if let Some(trace_id) = trace {
-                carrier.insert(B3_TRACE_ID_HEADER, trace_id.to_owned());
+                carrier.insert(B3_TRACE_ID_HEADER.to_string(), trace_id.to_owned());
             }
             if let Some(span_id) = span {
-                carrier.insert(B3_SPAN_ID_HEADER, span_id.to_owned());
+                carrier.insert(B3_SPAN_ID_HEADER.to_string(), span_id.to_owned());
             }
             if let Some(sampled) = sampled {
-                carrier.insert(B3_SAMPLED_HEADER, sampled.to_owned());
+                carrier.insert(B3_SAMPLED_HEADER.to_string(), sampled.to_owned());
             }
             if let Some(debug) = debug {
-                carrier.insert(B3_DEBUG_FLAG_HEADER, debug.to_owned());
+                carrier.insert(B3_DEBUG_FLAG_HEADER.to_string(), debug.to_owned());
             }
             if let Some(parent) = parent {
-                carrier.insert(B3_PARENT_SPAN_ID_HEADER, parent.to_owned());
+                carrier.insert(B3_PARENT_SPAN_ID_HEADER.to_string(), parent.to_owned());
             }
             assert_eq!(
                 multi_header_propagator

@@ -7,20 +7,9 @@ use opentelemetry::{
 };
 use std::{convert::Infallible, net::SocketAddr};
 
-struct HttpHeaderMapCarrier<'a>(&'a hyper::header::HeaderMap);
-impl<'a> api::Carrier for HttpHeaderMapCarrier<'a> {
-    fn get(&self, key: &'static str) -> Option<&str> {
-        self.0.get(key).and_then(|value| value.to_str().ok())
-    }
-
-    fn set(&mut self, _key: &'static str, _value: String) {
-        unimplemented!()
-    }
-}
-
 async fn handle(req: Request<Body>) -> Result<Response<Body>, Infallible> {
     let propagator = api::TraceContextPropagator::new();
-    let parent_cx = propagator.extract(&HttpHeaderMapCarrier(req.headers()));
+    let parent_cx = propagator.extract(req.headers());
     let span = global::tracer("example/server").start_from_context("hello", &parent_cx);
     span.add_event("handling this...".to_string(), Vec::new());
 
@@ -31,12 +20,12 @@ fn init_tracer() {
     // Create stdout exporter to be able to retrieve the collected spans.
     let exporter = stdout::Builder::default().init();
 
-    // For the demonstration, use `Sampler::Always` sampler to sample all traces. In a production
-    // application, use `Sampler::Parent` or `Sampler::Probability` with a desired probability.
+    // For the demonstration, use `Sampler::AlwaysOn` sampler to sample all traces. In a production
+    // application, use `Sampler::ParentOrElse` or `Sampler::Probability` with a desired probability.
     let provider = sdk::Provider::builder()
         .with_simple_exporter(exporter)
         .with_config(sdk::Config {
-            default_sampler: Box::new(sdk::Sampler::Always),
+            default_sampler: Box::new(sdk::Sampler::AlwaysOn),
             ..Default::default()
         })
         .build();

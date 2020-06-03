@@ -68,7 +68,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt;
 use std::hash::{BuildHasherDefault, Hasher};
-use std::rc::Rc;
+use std::sync::Arc;
 
 pub mod propagation;
 
@@ -80,7 +80,7 @@ thread_local! {
 /// An execution-scoped collection of values.
 #[derive(Clone, Default)]
 pub struct Context {
-    entries: HashMap<TypeId, Rc<dyn Any>, BuildHasherDefault<IdHasher>>,
+    entries: HashMap<TypeId, Arc<dyn Any + Sync + Send>, BuildHasherDefault<IdHasher>>,
 }
 
 impl Context {
@@ -141,11 +141,11 @@ impl Context {
     /// assert_eq!(all_current_and_b.get::<ValueA>(), Some(&ValueA("a")));
     /// assert_eq!(all_current_and_b.get::<ValueB>(), Some(&ValueB(42)));
     /// ```
-    pub fn current_with_value<T: 'static>(value: T) -> Self {
+    pub fn current_with_value<T: 'static + Send + Sync>(value: T) -> Self {
         let mut new_context = Context::current();
         new_context
             .entries
-            .insert(TypeId::of::<T>(), Rc::new(value));
+            .insert(TypeId::of::<T>(), Arc::new(value));
 
         new_context
     }
@@ -204,11 +204,11 @@ impl Context {
     /// assert_eq!(cx_with_a_and_b.get::<ValueA>(), Some(&ValueA("a")));
     /// assert_eq!(cx_with_a_and_b.get::<ValueB>(), Some(&ValueB(42)));
     /// ```
-    pub fn with_value<T: 'static>(&self, value: T) -> Self {
+    pub fn with_value<T: 'static + Send + Sync>(&self, value: T) -> Self {
         let mut new_context = self.clone();
         new_context
             .entries
-            .insert(TypeId::of::<T>(), Rc::new(value));
+            .insert(TypeId::of::<T>(), Arc::new(value));
 
         new_context
     }

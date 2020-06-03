@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry"
-version = "0.5.0"
+version = "0.6.0"
 authors = ["OpenTelemetry Authors <cncf-opentelemetry-contributors@lists.cncf.io>"]
 description = "A metrics collection and distributed tracing framework"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust"
@@ -25,6 +25,8 @@ prometheus = { version = "0.7", optional = true }
 rand = { version = "0.7", optional = true }
 serde = { version = "1.0", features = ["derive", "rc"], optional = true }
 bincode = { version = "1.2", optional = true }
+http = { version = "0.2.1", optional = true }
+tonic = { version = "0.2.1", optional = true }
 
 [dev-dependencies]
 criterion = "0.3.1"
@@ -41,12 +43,14 @@ serialize = ["serde", "bincode"]
 members = [
     "opentelemetry-jaeger",
     "opentelemetry-zipkin",
-    "examples/actix",
+    "examples/actix-udp",
+    "examples/actix-http",
     "examples/async",
     "examples/basic",
     "examples/grpc",
     "examples/http",
     "examples/zipkin",
+    "examples/tracing-grpc"
 ]
 
 [[bench]]

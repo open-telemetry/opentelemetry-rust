@@ -7,7 +7,7 @@ use opentelemetry::global;
 use opentelemetry::sdk::{self, Sampler};
 
 pub mod hello_world {
-    tonic::include_proto!("helloworld"); // The string specified here must match the proto package name
+    tonic::include_proto!("helloworld"); // The string specified here must match the proto package name.
 }
 
 #[derive(Debug, Default)]
@@ -20,7 +20,7 @@ impl Greeter for MyGreeter {
         request: Request<HelloRequest>, // Accept request of type HelloRequest
     ) -> Result<Response<HelloReply>, Status> {
         let propagator = api::TraceContextPropagator::new();
-        let parent_cx = propagator.extract(&HttpHeaderMapCarrier(request.metadata()));
+        let parent_cx = propagator.extract(request.metadata());
         let span = global::tracer("greeter").start_from_context("Processing reply", &parent_cx);
         span.set_attribute(KeyValue::new("request", format!("{:?}", request)));
 
@@ -44,12 +44,12 @@ fn tracing_init() -> Result<(), Box<dyn std::error::Error>> {
         })
         .init()?;
 
-    // For the demonstration, use `Sampler::Always` sampler to sample all traces. In a production
-    // application, use `Sampler::Parent` or `Sampler::Probability` with a desired probability.
+    // For the demonstration, use `Sampler::AlwaysOn` sampler to sample all traces. In a production
+    // application, use `Sampler::ParentOrElse` or `Sampler::Probability` with a desired probability.
     let provider = sdk::Provider::builder()
         .with_simple_exporter(exporter)
         .with_config(sdk::Config {
-            default_sampler: Box::new(Sampler::Always),
+            default_sampler: Box::new(Sampler::AlwaysOn),
             ..Default::default()
         })
         .build();
@@ -57,19 +57,6 @@ fn tracing_init() -> Result<(), Box<dyn std::error::Error>> {
     global::set_provider(provider);
 
     Ok(())
-}
-
-struct HttpHeaderMapCarrier<'a>(&'a tonic::metadata::MetadataMap);
-impl<'a> api::Carrier for HttpHeaderMapCarrier<'a> {
-    fn get(&self, key: &'static str) -> Option<&str> {
-        self.0
-            .get(key.to_lowercase().as_str())
-            .and_then(|value| value.to_str().ok())
-    }
-
-    fn set(&mut self, _key: &'static str, _value: String) {
-        unimplemented!()
-    }
 }
 
 #[tokio::main]

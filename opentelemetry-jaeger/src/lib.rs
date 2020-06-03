@@ -25,7 +25,7 @@
 //!     let provider = sdk::Provider::builder()
 //!         .with_simple_exporter(exporter)
 //!         .with_config(sdk::Config {
-//!             default_sampler: Box::new(sdk::Sampler::Always),
+//!             default_sampler: Box::new(sdk::Sampler::AlwaysOn),
 //!             ..Default::default()
 //!         })
 //!         .build();
@@ -73,7 +73,7 @@
 //!     let provider = sdk::Provider::builder()
 //!         .with_simple_exporter(exporter)
 //!         .with_config(sdk::Config {
-//!             default_sampler: Box::new(sdk::Sampler::Always),
+//!             default_sampler: Box::new(sdk::Sampler::AlwaysOn),
 //!             ..Default::default()
 //!         })
 //!         .build();
@@ -277,7 +277,10 @@ impl<T: net::ToSocketAddrs> Builder<T> {
                 self.collector_username,
                 self.collector_password,
             )?;
-            Ok((self.process, uploader::BatchUploader::Collector(collector)))
+            Ok((
+                self.process,
+                uploader::BatchUploader::Collector(Box::new(collector)),
+            ))
         } else {
             Err(::thrift::Error::from(
                 "Collector endpoint or agent endpoint must be set",
@@ -364,8 +367,8 @@ fn links_to_references(links: &sdk::EvictedQueue<api::Link>) -> Option<Vec<jaege
                 //  see https://github.com/open-telemetry/opentelemetry-specification/issues/65
                 jaeger::SpanRef::new(
                     jaeger::SpanRefType::ChildOf,
-                    trace_id_high,
                     trace_id_low,
+                    trace_id_high,
                     span_context.span_id().to_u64() as i64,
                 )
             })

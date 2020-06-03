@@ -1,16 +1,14 @@
 //! Thrift HTTP transport
-use reqwest::header;
 use std::fmt;
 use std::sync::{Arc, Mutex};
-use thrift::{TransportError, TransportErrorKind};
 
 /// Thrift channel over HTTP
 #[derive(Clone)]
 pub(crate) struct THttpChannel {
-    client: reqwest::blocking::Client,
     endpoint: String,
     username: Option<String>,
     password: Option<String>,
+    request: ureq::Request,
     read_buffer: Arc<Mutex<Vec<u8>>>,
     write_buffer: Arc<Mutex<Vec<u8>>>,
 }
@@ -19,7 +17,6 @@ impl fmt::Debug for THttpChannel {
     /// Debug info
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt.debug_struct("THttpChannel")
-            .field("client", &self.client)
             .field("endpoint", &self.endpoint)
             .field("username", &self.username)
             .field("password", &self.password.as_ref().map(|_| "************"))
@@ -36,24 +33,21 @@ impl THttpChannel {
         username: Option<String>,
         password: Option<String>,
     ) -> thrift::Result<Self> {
-        let mut headers = header::HeaderMap::new();
-        headers.insert(
-            header::CONTENT_TYPE,
-            header::HeaderValue::from_static("application/vnd.apache.thrift.binary"),
-        );
-        let client = reqwest::blocking::Client::builder()
-            .default_headers(headers)
-            .build()
-            .map_err(|err| {
-                thrift::Error::Transport(TransportError::new(
-                    TransportErrorKind::Unknown,
-                    err.to_string(),
-                ))
-            })?;
+        let endpoint: String = endpoint.into();
+        let mut request = ureq::post(&endpoint);
+        request.set("Content-Type", "application/vnd.apache.thrift.binary");
+        // Some arbitrary default timeouts to avoid hanging forever
+        request.timeout_connect(10000);
+        request.timeout_read(10000);
+        request.timeout_write(10000);
+
+        if let (Some(username), Some(password)) = (username.as_ref(), password.as_ref()) {
+            request.auth(&username, &password);
+        }
 
         Ok(THttpChannel {
-            client,
-            endpoint: endpoint.into(),
+            request,
+            endpoint,
             username,
             password,
             read_buffer: Default::default(),
@@ -120,30 +114,30 @@ impl std::io::Write for THttpChannel {
             .write_buffer
             .lock()
             .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err.to_string()))?;
-        let mut req = self.client.post(&self.endpoint).body(write_buffer.clone());
-        if let (Some(username), Some(password)) = (self.username.as_ref(), self.password.as_ref()) {
-            req = req.basic_auth(username, Some(password));
-        }
-        let mut resp = req
-            .send()
-            .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
 
-        if !resp.status().is_success() {
+        let mut req = self.request.build();
+        let resp = req.send_bytes(&write_buffer.clone());
+        if !resp.ok() {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::Other,
-                format!("Expected success response, got {:?}", 1),
+                format!("Expected success response, got {:?}", resp.status()),
             ));
         }
 
         write_buffer.clear();
 
-        if resp.content_length().filter(|len| *len > 0).is_some() {
+        let has_content = resp
+            .header("Content-Length")
+            .and_then(|s| s.parse::<usize>().ok())
+            .map(|len| len > 0)
+            .unwrap_or(false);
+        if has_content {
+            let mut response_reader = resp.into_reader();
             let mut read_buffer = self
                 .read_buffer
                 .lock()
                 .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err.to_string()))?;
-
-            resp.copy_to(&mut *read_buffer)
+            std::io::copy(&mut response_reader, &mut *read_buffer)
                 .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
         }
 
