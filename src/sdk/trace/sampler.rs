@@ -21,10 +21,10 @@ impl api::Sampler for Sampler {
         &self,
         parent_context: Option<&api::SpanContext>,
         trace_id: api::TraceId,
-        _name: &str,
-        _span_kind: &api::SpanKind,
-        _attributes: &[api::KeyValue],
-        _links: &[api::Link],
+        name: &str,
+        span_kind: &api::SpanKind,
+        attributes: &[api::KeyValue],
+        links: &[api::Link],
     ) -> api::SamplingResult {
         let decision = match self {
             // Always sample the trace
@@ -34,14 +34,7 @@ impl api::Sampler for Sampler {
             // The parent decision if sampled; otherwise the decision of delegate_sampler
             Sampler::ParentOrElse(delegate_sampler) => parent_context.map_or(
                 delegate_sampler
-                    .should_sample(
-                        parent_context,
-                        trace_id,
-                        _name,
-                        _span_kind,
-                        _attributes,
-                        _links,
-                    )
+                    .should_sample(parent_context, trace_id, name, span_kind, attributes, links)
                     .decision,
                 |ctx| {
                     if ctx.is_sampled() {
