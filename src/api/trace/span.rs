@@ -22,7 +22,7 @@ use std::fmt;
 use std::time::SystemTime;
 
 /// Interface for a single operation within a trace.
-pub trait Span: fmt::Debug + 'static {
+pub trait Span: fmt::Debug + 'static + Send + Sync {
     /// An API to record events in the context of a given `Span`.
     ///
     /// Events have a time associated with the moment when they are
