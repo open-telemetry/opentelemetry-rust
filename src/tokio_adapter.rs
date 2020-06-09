@@ -1,5 +1,7 @@
-use futures::future::FutureObj;
-use futures::task::{Spawn, SpawnError};
+use futures::{
+  future::FutureObj,
+  task::{Spawn, SpawnError},
+};
 use tokio::runtime::Handle;
 
 /// Tokio doesn't provide anything that implements `futures::task::Spawn`
