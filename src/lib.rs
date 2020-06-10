@@ -90,6 +90,7 @@ impl StackDriverExporter {
   /// If `num_concurrent_requests` is set to `0` or `None` then no limit is enforced.
   pub async fn connect<S: futures::task::Spawn>(
     credentials_path: impl AsRef<std::path::Path>,
+    persistent_token_file: impl Into<Option<std::path::PathBuf>>,
     spawn: &S,
     maximum_shutdown_duration: Option<Duration>,
     num_concurrent_requests: impl Into<Option<usize>>,
@@ -99,9 +100,11 @@ impl StackDriverExporter {
 
     let service_account_key = yup_oauth2::read_service_account_key(&credentials_path).await?;
     let project_name = service_account_key.project_id.as_ref().ok_or("project_id is missing")?.clone();
-    let authenticator = yup_oauth2::ServiceAccountAuthenticator::builder(service_account_key)
-      .build()
-      .await?;
+    let mut authenticator = yup_oauth2::ServiceAccountAuthenticator::builder(service_account_key);
+    if let Some(persistent_token_file) = persistent_token_file.into() {
+      authenticator = authenticator.persist_tokens_to_disk(persistent_token_file);
+    }
+    let authenticator = authenticator.build().await?;
 
     let mut rustls_config = rustls::ClientConfig::new();
     rustls_config.root_store.add_server_trust_anchors(&webpki_roots::TLS_SERVER_ROOTS);
@@ -156,6 +159,7 @@ impl StackDriverExporter {
         };
         let scopes = &["https://www.googleapis.com/auth/trace.append"];
         let token = authenticator.token(scopes).await;
+        log::trace!("Got StackDriver auth token: {:?}", token);
         let bearer_token = match token {
           Ok(token) => format!("Bearer {}", token.as_str()),
           Err(e) => {

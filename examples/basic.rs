@@ -4,10 +4,11 @@ use tracing::{span, Level};
 use tracing_opentelemetry::OpenTelemetryLayer;
 use tracing_subscriber::{Layer, Registry};
 
-use std::{path::Path, thread::sleep, time::Duration};
+use std::{path::{Path, PathBuf}, thread::sleep, time::Duration};
 
 #[tokio::main]
 async fn main() {
+  simple_logger::init_with_level(log::Level::Debug).unwrap();
   let args = std::env::args().collect::<Vec<_>>();
   if args.len() < 2 {
     eprintln!("This example requires a path to your stackdriver json credentials as the first argument.");
@@ -20,10 +21,11 @@ async fn main() {
       sleep(Duration::from_secs(2));
     });
   });
+  sleep(Duration::from_secs(5));
 }
 
 async fn init_tracing(stackdriver_creds: impl AsRef<Path>) {
-  StackDriverExporter::connect(stackdriver_creds, &TokioSpawner, None, 5)
+  StackDriverExporter::connect(stackdriver_creds, PathBuf::from("tokens.json"), &TokioSpawner, None, 5)
     .await
     .map_err(|e| panic!("Error connecting to stackdriver: {:?}", e))
     .and_then(|exporter| {
