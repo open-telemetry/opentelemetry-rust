@@ -7,6 +7,7 @@
 //! and deserializes values from base64 strings. There is a blanket implementation
 //! for any implementors of `BinaryFormat`
 use crate::api;
+#[cfg(feature = "binary_propagator")]
 use crate::experimental::api::BinaryFormat;
 use base64::{decode, encode};
 

@@ -217,14 +217,14 @@ fn into_zipkin_span(config: &ExporterConfig, span_data: Arc<trace::SpanData>) ->
             span_data
                 .start_time
                 .duration_since(SystemTime::UNIX_EPOCH)
-                .unwrap_or(Duration::from_secs(0))
+                .unwrap_or_else(|_| Duration::from_secs(0))
                 .as_micros() as u64,
         )
         .duration(
             span_data
                 .end_time
                 .duration_since(span_data.start_time)
-                .unwrap_or(Duration::from_secs(0))
+                .unwrap_or_else(|_| Duration::from_secs(0))
                 .as_micros() as u64,
         )
         .local_endpoint(config.local_endpoint.clone())
