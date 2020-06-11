@@ -7,7 +7,7 @@
 //! and deserializes values from base64 strings. There is a blanket implementation
 //! for any implementors of `BinaryFormat`
 use crate::api;
-use crate::api::BinaryFormat;
+use crate::experimental::api::BinaryFormat;
 use base64::{decode, encode};
 
 /// Used to serialize and deserialize `SpanContext`s to and from a base64
