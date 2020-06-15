@@ -382,10 +382,14 @@ fn links_to_references(links: &sdk::EvictedQueue<api::Link>) -> Option<Vec<jaege
 fn build_tags(span_data: &Arc<trace::SpanData>) -> Option<Vec<jaeger::Tag>> {
     let mut tags = Vec::with_capacity(span_data.attributes.len() + span_data.resource.len() + 4);
     let mut user_specified_error = false;
+    let mut user_specified_span_kind = false;
     for (key, value) in span_data.attributes.iter() {
         tags.push(api::KeyValue::new(key.clone(), value.clone()).into());
         if key == &api::Key::new("error") {
             user_specified_error = true;
+        }
+        if key == &api::Key::new("span.kind") {
+            user_specified_span_kind = true;
         }
     }
 
@@ -399,15 +403,18 @@ fn build_tags(span_data: &Arc<trace::SpanData>) -> Option<Vec<jaeger::Tag>> {
         tags.push(api::Key::new("error").bool(true).into())
     }
 
+    if !user_specified_span_kind {
+        tags.push(
+            api::Key::new("span.kind")
+                .string(span_data.span_kind.to_string())
+                .into(),
+        );
+    }
+
     tags.push(api::KeyValue::new("status.code", span_data.status_code.clone() as i64).into());
     tags.push(
         api::Key::new("status.message")
             .string(span_data.status_message.clone())
-            .into(),
-    );
-    tags.push(
-        api::Key::new("span.kind")
-            .string(span_data.span_kind.to_string())
             .into(),
     );
 
