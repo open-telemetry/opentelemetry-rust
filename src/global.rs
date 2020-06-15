@@ -84,7 +84,7 @@ impl api::Span for BoxedSpan {
     /// Records events at a specific time in the context of a given `Span`.
     ///
     /// Note that the OpenTelemetry project documents certain ["standard event names and
-    /// keys"](https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/data-semantic-conventions.md)
+    /// keys"](https://github.com/open-telemetry/opentelemetry-specification/tree/v0.5.0/specification/trace/semantic_conventions/README.md)
     /// which have prescribed semantic meanings.
     fn add_event_with_timestamp(
         &self,
@@ -109,7 +109,7 @@ impl api::Span for BoxedSpan {
     /// Sets a single `Attribute` where the attribute properties are passed as arguments.
     ///
     /// Note that the OpenTelemetry project documents certain ["standard
-    /// attributes"](https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/data-semantic-conventions.md)
+    /// attributes"](https://github.com/open-telemetry/opentelemetry-specification/tree/v0.5.0/specification/trace/semantic_conventions/README.md)
     /// that have prescribed semantic meanings.
     fn set_attribute(&self, attribute: api::KeyValue) {
         self.0.set_attribute(attribute)
