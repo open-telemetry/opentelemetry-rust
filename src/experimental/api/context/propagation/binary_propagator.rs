@@ -86,7 +86,6 @@ impl BinaryFormat for BinaryPropagator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::api::BinaryFormat;
 
     #[rustfmt::skip]
     fn to_bytes_data() -> Vec<(api::SpanContext, [u8; 29])> {
