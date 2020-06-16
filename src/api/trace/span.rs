@@ -32,7 +32,7 @@ pub trait Span: fmt::Debug + 'static + Send + Sync {
     /// the ordering of the events' timestamps.
     ///
     /// Note that the OpenTelemetry project documents certain ["standard event names and
-    /// keys"](https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/data-semantic-conventions.md)
+    /// keys"](https://github.com/open-telemetry/opentelemetry-specification/tree/v0.5.0/specification/trace/semantic_conventions/README.md)
     /// which have prescribed semantic meanings.
     fn add_event(&self, name: String, attributes: Vec<api::KeyValue>) {
         self.add_event_with_timestamp(name, SystemTime::now(), attributes)
@@ -44,7 +44,7 @@ pub trait Span: fmt::Debug + 'static + Send + Sync {
     /// the ordering of the events' timestamps.
     ///
     /// Note that the OpenTelemetry project documents certain ["standard event names and
-    /// keys"](https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/data-semantic-conventions.md)
+    /// keys"](https://github.com/open-telemetry/opentelemetry-specification/tree/v0.5.0/specification/trace/semantic_conventions/README.md)
     /// which have prescribed semantic meanings.
     fn add_event_with_timestamp(
         &self,
@@ -86,7 +86,7 @@ pub trait Span: fmt::Debug + 'static + Send + Sync {
     /// attribute's value.
     ///
     /// Note that the OpenTelemetry project documents certain ["standard
-    /// attributes"](https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/data-semantic-conventions.md)
+    /// attributes"](https://github.com/open-telemetry/opentelemetry-specification/tree/v0.5.0/specification/trace/semantic_conventions/README.md)
     /// that have prescribed semantic meanings.
     fn set_attribute(&self, attribute: api::KeyValue);
 
