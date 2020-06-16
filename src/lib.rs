@@ -221,6 +221,7 @@
 #![cfg_attr(test, deny(warnings))]
 
 pub mod api;
+pub mod experimental;
 pub mod exporter;
 pub mod global;
 pub mod sdk;

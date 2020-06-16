@@ -34,10 +34,11 @@ tokio = { version = "0.2", features = ["full"] }
 
 [features]
 default = ["metrics", "trace"]
-base64_format = ["base64"]
+base64_format = ["base64", "binary_propagator"]
 trace = ["futures", "rand", "pin-project"]
 metrics = ["prometheus"]
 serialize = ["serde", "bincode"]
+binary_propagator = []
 
 [workspace]
 members = [
