@@ -6,34 +6,40 @@ on:
     - master
 jobs:
   test:
+    continue-on-error: ${{ matrix.nightly }}
     strategy:
-      fail-fast: false
       matrix:
-        image:
-        - rust:latest
-        - rustlang/rust:nightly
+        rust: [stable, beta]
+        nightly: [false]
+        include:
+          - rust: nightly
+            nightly: true
     runs-on: ubuntu-latest
-    container:
-      image: ${{ matrix.image }}
     steps:
     - uses: actions/checkout@v1
-    - name: Install rustfmt
-      run: rustup component add rustfmt
+    - uses: actions-rs/toolchain@v1
+      with:
+        toolchain: ${{ matrix.rust }}
+        components: rustfmt
+        profile: minimal
     - name: Test
       run: ./scripts/test.sh
   lint:
+    continue-on-error: ${{ matrix.nightly }}
     strategy:
-      fail-fast: false
       matrix:
-        image:
-        - rust:latest
-        - rustlang/rust:nightly
+        rust: [stable, beta]
+        nightly: [false]
+        include:
+          - rust: nightly
+            nightly: true
     runs-on: ubuntu-latest
-    container:
-      image: ${{ matrix.image }}
     steps:
     - uses: actions/checkout@v1
-    - name: Install rustfmt
-      run: rustup component add rustfmt
+    - uses: actions-rs/toolchain@v1
+      with:
+        toolchain: ${{ matrix.rust }}
+        components: rustfmt
+        profile: minimal
     - name: Lint
       run: ./scripts/lint.sh
