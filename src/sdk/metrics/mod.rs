@@ -1,210 +1,572 @@
 //! # OpenTelemetry Metrics SDK
-//!
-//! The metrics SDK supports producing diagnostic measurements
-//! using three basic kinds of `Instrument`s. "Metrics" are the thing being
-//! produced--mathematical, statistical summaries of certain observable
-//! behavior in the program. `Instrument`s are the devices used by the
-//! program to record observations about their behavior. Therefore, we use
-//! "metric instrument" to refer to a program object, allocated through the
-//! `Meter` struct, used for recording metrics. There are three distinct
-//! instruments in the Metrics API, commonly known as `Counter`s, `Gauge`s,
-//! and `Measure`s.
-use crate::api;
-use crate::exporter::metrics::prometheus;
-use std::borrow::Cow;
+use crate::api::metrics::{
+    sdk_api::{self, InstrumentCore as _, SyncBoundInstrumentCore as _},
+    AsyncRunner, Descriptor, Measurement, Number, NumberKind, Observation, Result,
+};
+use crate::api::{labels, Context, KeyValue};
+use crate::global;
+use crate::sdk::{
+    export::{
+        self,
+        metrics::{Aggregator, Integrator, LockedIntegrator},
+    },
+    resource::Resource,
+};
+use std::any::Any;
+use std::cmp::Ordering;
+use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
+use std::hash::{Hash, Hasher};
+use std::sync::{Arc, Mutex};
 
-/// Collection of label key and value types.
-pub type LabelSet = HashMap<Cow<'static, str>, Cow<'static, str>>;
-impl api::LabelSet for LabelSet {}
+pub mod aggregators;
+pub mod controllers;
+pub mod integrators;
+pub mod selectors;
 
-/// `Meter` implementation to create manage metric instruments and record
-/// batch measurements
-#[allow(missing_debug_implementations)]
-pub struct Meter {
-    registry: &'static prometheus::Registry,
-    component: &'static str,
+pub use controllers::{PullController, PushController, PushControllerWorker};
+
+/// Creates a new accumulator builder
+pub fn accumulator(integrator: Arc<dyn Integrator + Send + Sync>) -> AccumulatorBuilder {
+    AccumulatorBuilder {
+        integrator,
+        resource: None,
+    }
 }
 
-impl Meter {
-    /// Create a new `Meter` instance with a component name and empty registry.
-    pub fn new(component: &'static str) -> Self {
-        Meter {
-            registry: prometheus::default_registry(),
-            component,
+/// Configuration for an accumulator
+#[derive(Debug)]
+pub struct AccumulatorBuilder {
+    integrator: Arc<dyn Integrator + Send + Sync>,
+    resource: Option<Resource>,
+}
+
+impl AccumulatorBuilder {
+    /// The resource that will be applied to all records in this accumulator.
+    pub fn with_resource(self, resource: Resource) -> Self {
+        AccumulatorBuilder {
+            resource: Some(resource),
+            ..self
         }
     }
 
-    /// Build prometheus `Opts` from `name` and `description`.
-    fn build_opts(
-        &self,
-        mut name: String,
-        unit: api::Unit,
-        description: String,
-    ) -> prometheus::Opts {
-        if !unit.as_str().is_empty() {
-            name.push_str(&format!("_{}", unit.as_str()));
+    /// Create a new accumulator from this configuration
+    pub fn build(self) -> Accumulator {
+        Accumulator(Arc::new(AccumulatorCore::new(
+            self.integrator,
+            self.resource.unwrap_or_default(),
+        )))
+    }
+}
+
+/// Accumulator implements the OpenTelemetry Meter API. The Accumulator is bound
+/// to a single `Integrator`.
+///
+/// The Accumulator supports a collect API to gather and export current data.
+/// `Collect` should be arranged according to the integrator model. Push-based
+/// integrators will setup a timer to call `collect` periodically. Pull-based
+/// integrators will call `collect` when a pull request arrives.
+#[derive(Debug, Clone)]
+pub struct Accumulator(Arc<AccumulatorCore>);
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+struct MapKey {
+    descriptor_hash: u64,
+    ordered_hash: u64,
+}
+
+#[derive(Default, Debug)]
+struct AsyncInstrumentState {
+    /// runners maintains the set of runners in the order they were
+    /// registered.
+    runners: Vec<(
+        AsyncRunner,
+        Arc<dyn sdk_api::AsyncInstrumentCore + Send + Sync>,
+    )>,
+}
+
+fn collect_async(labels: &[KeyValue], observations: &[Observation]) {
+    let labels = labels::Set::from(labels);
+
+    for observation in observations {
+        if let Some(instrument) = observation
+            .instrument()
+            .as_any()
+            .downcast_ref::<AsyncInstrument>()
+        {
+            instrument.observe(observation.number(), &labels)
         }
-        // Prometheus cannot have empty help strings
-        let help = if !description.is_empty() {
-            description
+    }
+}
+
+impl AsyncInstrumentState {
+    fn run(&self) {
+        for (runner, instrument) in self.runners.iter() {
+            // TODO see if batch needs other logic
+            runner.run(instrument.clone(), collect_async)
+        }
+    }
+}
+
+#[derive(Debug)]
+struct AccumulatorCore {
+    /// A concurrent map of current sync instrument state.
+    current: flurry::HashMap<MapKey, Arc<Record>>,
+    /// A collection of async instrument state
+    async_instruments: Mutex<AsyncInstrumentState>,
+
+    /// The current epoch number. It is incremented in `collect`.
+    current_epoch: Number,
+    /// THe configured integrator.
+    integrator: Arc<dyn Integrator + Send + Sync>,
+    /// The resource applied to all records in this Accumulator.
+    resource: Resource,
+}
+
+impl AccumulatorCore {
+    fn new(integrator: Arc<dyn Integrator + Send + Sync>, resource: Resource) -> Self {
+        AccumulatorCore {
+            current: flurry::HashMap::new(),
+            async_instruments: Mutex::new(AsyncInstrumentState::default()),
+            current_epoch: NumberKind::U64.zero(),
+            integrator,
+            resource,
+        }
+    }
+
+    fn register(
+        &self,
+        instrument: Arc<dyn sdk_api::AsyncInstrumentCore + Send + Sync>,
+        runner: AsyncRunner,
+    ) -> Result<()> {
+        self.async_instruments
+            .lock()
+            .map_err(Into::into)
+            .map(|mut async_instruments| {
+                async_instruments.runners.push((runner, instrument));
+            })
+    }
+
+    fn collect(&self, locked_integrator: &mut dyn LockedIntegrator) -> usize {
+        let mut checkpointed = self.observe_async_instruments(locked_integrator);
+        checkpointed += self.collect_sync_instruments(locked_integrator);
+        self.current_epoch
+            .saturating_add(&NumberKind::U64, &1u64.into());
+
+        checkpointed
+    }
+
+    fn observe_async_instruments(&self, locked_integrator: &mut dyn LockedIntegrator) -> usize {
+        self.async_instruments
+            .lock()
+            .map_or(0, |async_instruments| {
+                let mut async_collected = 0;
+
+                async_instruments.run();
+
+                for (_runner, instrument) in &async_instruments.runners {
+                    if let Some(a) = instrument.as_any().downcast_ref::<AsyncInstrument>() {
+                        async_collected += self.checkpoint_async(a, locked_integrator);
+                    }
+                }
+
+                async_collected
+            })
+    }
+
+    fn collect_sync_instruments(&self, locked_integrator: &mut dyn LockedIntegrator) -> usize {
+        let mut checkpointed = 0;
+        let current_pin = self.current.pin();
+
+        for (key, value) in current_pin.iter() {
+            let mods = &value.update_count;
+            let coll = &value.collected_count;
+
+            if mods.partial_cmp(&NumberKind::U64, coll) != Some(Ordering::Equal) {
+                // Updates happened in this interval,
+                // checkpoint and continue.
+                checkpointed += self.checkpoint_record(value, locked_integrator);
+                value.collected_count.assign(&NumberKind::U64, mods);
+            } else {
+                // Having no updates since last collection, try to remove if
+                // there are no bound handles
+                if Arc::strong_count(&value) == 1 {
+                    current_pin.remove(key);
+
+                    // There's a potential race between loading collected count and
+                    // loading the strong count in this function.  Since this is the
+                    // last we'll see of this record, checkpoint.
+                    if mods.partial_cmp(&NumberKind::U64, coll) != Some(Ordering::Equal) {
+                        checkpointed += self.checkpoint_record(value, locked_integrator);
+                    }
+                }
+            }
+        }
+
+        checkpointed
+    }
+
+    fn checkpoint_record(
+        &self,
+        record: &Record,
+        locked_integrator: &mut dyn LockedIntegrator,
+    ) -> usize {
+        if let (Some(current), Some(checkpoint)) = (&record.current, &record.checkpoint) {
+            if let Err(err) = current.synchronized_copy(checkpoint, record.instrument.descriptor())
+            {
+                global::handle(err);
+
+                return 0;
+            }
+
+            let export_record = export::metrics::record(
+                record.instrument.descriptor(),
+                &record.labels,
+                &self.resource,
+                &checkpoint,
+            );
+            if let Err(err) = locked_integrator.process(export_record) {
+                global::handle(err);
+            }
+
+            1
         } else {
-            format!("{} metric", name)
-        };
-        prometheus::Opts::new(name, help).namespace(self.component)
+            0
+        }
+    }
+
+    fn checkpoint_async(
+        &self,
+        instrument: &AsyncInstrument,
+        locked_integrator: &mut dyn LockedIntegrator,
+    ) -> usize {
+        instrument.recorders.lock().map_or(0, |mut recorders| {
+            let mut checkpointed = 0;
+            match recorders.as_mut() {
+                None => return checkpointed,
+                Some(recorders) => {
+                    recorders.retain(|_key, label_recorder| {
+                        let epoch_diff = self
+                            .current_epoch
+                            .partial_cmp(&NumberKind::U64, &label_recorder.observed_epoch.into());
+                        if epoch_diff == Some(Ordering::Equal) {
+                            if let Some(observed) = &label_recorder.observed {
+                                let export_record = export::metrics::record(
+                                    instrument.descriptor(),
+                                    &label_recorder.labels,
+                                    &self.resource,
+                                    observed,
+                                );
+
+                                if let Err(err) = locked_integrator.process(export_record) {
+                                    global::handle(err);
+                                }
+                                checkpointed += 1;
+                            }
+                        }
+
+                        // Retain if this is not second collection cycle with no
+                        // observations for this labelset.
+                        epoch_diff == Some(Ordering::Greater)
+                    });
+                }
+            }
+            if recorders.as_ref().map_or(false, |map| map.is_empty()) {
+                *recorders = None;
+            }
+
+            checkpointed
+        })
     }
 }
 
-impl api::Meter for Meter {
-    /// The label set used by this `Meter`.
-    type LabelSet = LabelSet;
-    /// This implementation of `api::Meter` produces `prometheus::IntCounterVec;` instances.
-    type I64Counter = prometheus::IntCounterVec;
-    /// This implementation of `api::Meter` produces `prometheus::CounterVec;` instances.
-    type F64Counter = prometheus::CounterVec;
-    /// This implementation of `api::Meter` produces `prometheus::IntGaugeVec;` instances.
-    type I64Gauge = prometheus::IntGaugeVec;
-    /// This implementation of `api::Meter` produces `prometheus::GaugeVec;` instances.
-    type F64Gauge = prometheus::GaugeVec;
-    /// This implementation of `api::Meter` produces `prometheus::IntMeasure;` instances.
-    type I64Measure = prometheus::IntMeasure;
-    /// This implementation of `api::Meter` produces `prometheus::HistogramVec;` instances.
-    type F64Measure = prometheus::HistogramVec;
+#[derive(Debug, Clone)]
+struct SyncInstrument {
+    instrument: Arc<Instrument>,
+}
 
-    /// Builds a `LabelSet` from `KeyValue`s.
-    fn labels(&self, key_values: Vec<api::KeyValue>) -> Self::LabelSet {
-        let mut label_set: Self::LabelSet = Default::default();
+impl SyncInstrument {
+    fn acquire_handle(&self, labels: &[KeyValue]) -> Arc<Record> {
+        let mut hasher = DefaultHasher::new();
+        self.instrument.descriptor.hash(&mut hasher);
+        let descriptor_hash = hasher.finish();
 
-        for api::KeyValue { key, value } in key_values.into_iter() {
-            label_set.insert(Cow::Owned(key.into()), Cow::Owned(value.into()));
+        let distinct = labels::Distinct::from(labels);
+
+        let mut hasher = DefaultHasher::new();
+        distinct.hash(&mut hasher);
+        let ordered_hash = hasher.finish();
+
+        let map_key = MapKey {
+            descriptor_hash,
+            ordered_hash,
+        };
+        let current_pin = self.instrument.meter.0.current.pin();
+        if let Some(existing_record) = current_pin.get(&map_key) {
+            return existing_record.clone();
         }
 
-        label_set
-    }
+        let record = Arc::new(Record {
+            update_count: Number::default(),
+            collected_count: Number::default(),
+            labels: labels::Set::with_equivalent(distinct),
+            instrument: self.clone(),
+            current: self
+                .instrument
+                .meter
+                .0
+                .integrator
+                .aggregation_selector()
+                .aggregator_for(&self.instrument.descriptor),
+            checkpoint: self
+                .instrument
+                .meter
+                .0
+                .integrator
+                .aggregation_selector()
+                .aggregator_for(&self.instrument.descriptor),
+        });
+        current_pin.insert(map_key, record.clone());
 
-    /// Creates a new `i64` counter with a given name and customized with passed options.
-    fn new_i64_counter<S: Into<String>>(
+        record
+    }
+}
+
+impl sdk_api::InstrumentCore for SyncInstrument {
+    fn descriptor(&self) -> &Descriptor {
+        self.instrument.descriptor()
+    }
+}
+
+impl sdk_api::SyncInstrumentCore for SyncInstrument {
+    fn bind<'a>(
         &self,
-        name: S,
-        opts: api::MetricOptions,
-    ) -> Self::I64Counter {
-        let api::MetricOptions {
-            description,
-            unit,
-            keys,
-            alternate: _alternative,
-        } = opts;
-        let counter_opts = self.build_opts(name.into(), unit, description);
-        let labels = prometheus::convert_labels(&keys);
-        let counter = prometheus::IntCounterVec::new(counter_opts, &labels).unwrap();
-        self.registry.register(Box::new(counter.clone())).unwrap();
-
-        counter
+        labels: &'a [crate::api::KeyValue],
+    ) -> Arc<dyn sdk_api::SyncBoundInstrumentCore + Send + Sync> {
+        self.acquire_handle(labels)
     }
-
-    /// Creates a new `f64` counter with a given name and customized with passed options.
-    fn new_f64_counter<S: Into<String>>(
+    fn record_one_with_context<'a>(
         &self,
-        name: S,
-        opts: api::MetricOptions,
-    ) -> Self::F64Counter {
-        let api::MetricOptions {
-            description,
-            unit,
-            keys,
-            alternate: _alternative,
-        } = opts;
-        let counter_opts = self.build_opts(name.into(), unit, description);
-        let labels = prometheus::convert_labels(&keys);
-        let counter = prometheus::CounterVec::new(counter_opts, &labels).unwrap();
-        self.registry.register(Box::new(counter.clone())).unwrap();
-
-        counter
-    }
-
-    /// Creates a new `i64` gauge with a given name and customized with passed options.
-    fn new_i64_gauge<S: Into<String>>(&self, name: S, opts: api::MetricOptions) -> Self::I64Gauge {
-        let api::MetricOptions {
-            description,
-            unit,
-            keys,
-            alternate: _alternative,
-        } = opts;
-        let gauge_opts = self.build_opts(name.into(), unit, description);
-        let labels = prometheus::convert_labels(&keys);
-        let gauge = prometheus::IntGaugeVec::new(gauge_opts, &labels).unwrap();
-        self.registry.register(Box::new(gauge.clone())).unwrap();
-
-        gauge
-    }
-
-    /// Creates a new `f64` gauge with a given name and customized with passed options.
-    fn new_f64_gauge<S: Into<String>>(&self, name: S, opts: api::MetricOptions) -> Self::F64Gauge {
-        let api::MetricOptions {
-            description,
-            unit,
-            keys,
-            alternate: _alternative,
-        } = opts;
-        let gauge_opts = self.build_opts(name.into(), unit, description);
-        let labels = prometheus::convert_labels(&keys);
-        let gauge = prometheus::GaugeVec::new(gauge_opts, &labels).unwrap();
-        self.registry.register(Box::new(gauge.clone())).unwrap();
-
-        gauge
-    }
-
-    /// Creates a new `i64` measure with a given name and customized with passed options.
-    fn new_i64_measure<S: Into<String>>(
-        &self,
-        name: S,
-        opts: api::MetricOptions,
-    ) -> Self::I64Measure {
-        let api::MetricOptions {
-            description,
-            unit,
-            keys,
-            alternate: _alternative,
-        } = opts;
-        let common_opts = self.build_opts(name.into(), unit, description);
-        let labels = prometheus::convert_labels(&keys);
-        let histogram_opts = prometheus::HistogramOpts::from(common_opts);
-        let histogram = prometheus::HistogramVec::new(histogram_opts, &labels).unwrap();
-        self.registry.register(Box::new(histogram.clone())).unwrap();
-
-        prometheus::IntMeasure::new(histogram)
-    }
-
-    /// Creates a new `f64` measure with a given name and customized with passed options.
-    fn new_f64_measure<S: Into<String>>(
-        &self,
-        name: S,
-        opts: api::MetricOptions,
-    ) -> Self::F64Measure {
-        let api::MetricOptions {
-            description,
-            unit,
-            keys,
-            alternate: _alternative,
-        } = opts;
-        let common_opts = self.build_opts(name.into(), unit, description);
-        let labels = prometheus::convert_labels(&keys);
-        let histogram_opts = prometheus::HistogramOpts::from(common_opts);
-        let histogram = prometheus::HistogramVec::new(histogram_opts, &labels).unwrap();
-        self.registry.register(Box::new(histogram.clone())).unwrap();
-
-        histogram
-    }
-
-    /// Records a batch of measurements.
-    fn record_batch<M: IntoIterator<Item = api::Measurement<Self::LabelSet>>>(
-        &self,
-        label_set: &Self::LabelSet,
-        measurements: M,
+        cx: &crate::api::Context,
+        number: crate::api::metrics::Number,
+        labels: &'a [crate::api::KeyValue],
     ) {
-        for measure in measurements.into_iter() {
-            let instrument = measure.instrument();
-            instrument.record_one(measure.into_value(), &label_set);
+        let handle = self.acquire_handle(labels);
+        handle.record_one_with_context(cx, number)
+    }
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+#[derive(Debug)]
+struct LabeledRecorder {
+    observed_epoch: u64,
+    labels: labels::Set,
+    observed: Option<Arc<dyn Aggregator + Send + Sync>>,
+}
+
+#[derive(Debug, Clone)]
+struct AsyncInstrument {
+    instrument: Arc<Instrument>,
+    recorders: Arc<Mutex<Option<HashMap<u64, LabeledRecorder>>>>,
+}
+
+impl AsyncInstrument {
+    fn observe(&self, number: &Number, labels: &labels::Set) {
+        if let Err(err) = aggregators::range_test(number, &self.instrument.descriptor) {
+            global::handle(err);
         }
+        if let Some(recorder) = self.get_recorder(labels) {
+            if let Err(err) = recorder.update(number, &self.instrument.descriptor) {
+                global::handle(err)
+            }
+        }
+    }
+
+    fn get_recorder(&self, labels: &labels::Set) -> Option<Arc<dyn Aggregator + Send + Sync>> {
+        self.recorders.lock().map_or(None, |mut recorders| {
+            let mut hasher = DefaultHasher::new();
+            labels.equivalent().hash(&mut hasher);
+            let label_hash = hasher.finish();
+            if let Some(recorder) = recorders.as_mut().and_then(|rec| rec.get_mut(&label_hash)) {
+                let current_epoch = self
+                    .instrument
+                    .meter
+                    .0
+                    .current_epoch
+                    .to_u64(&NumberKind::U64);
+                if recorder.observed_epoch == current_epoch {
+                    // last value wins for Observers, so if we see the same labels
+                    // in the current epoch, we replace the old recorder
+                    return self
+                        .instrument
+                        .meter
+                        .0
+                        .integrator
+                        .aggregation_selector()
+                        .aggregator_for(&self.instrument.descriptor);
+                } else {
+                    recorder.observed_epoch = current_epoch;
+                }
+                return recorder.observed.clone();
+            }
+
+            let recorder = self
+                .instrument
+                .meter
+                .0
+                .integrator
+                .aggregation_selector()
+                .aggregator_for(&self.instrument.descriptor);
+            if recorders.is_none() {
+                *recorders = Some(HashMap::new());
+            }
+            // This may store nil recorder in the map, thus disabling the
+            // asyncInstrument for the labelset for good. This is intentional,
+            // but will be revisited later.
+            let observed_epoch = self
+                .instrument
+                .meter
+                .0
+                .current_epoch
+                .to_u64(&NumberKind::U64);
+            recorders.as_mut().unwrap().insert(
+                label_hash,
+                LabeledRecorder {
+                    observed: recorder.clone(),
+                    labels: labels::Set::with_equivalent(labels.equivalent().clone()),
+                    observed_epoch,
+                },
+            );
+
+            recorder
+        })
+    }
+}
+
+impl sdk_api::InstrumentCore for AsyncInstrument {
+    fn descriptor(&self) -> &Descriptor {
+        self.instrument.descriptor()
+    }
+}
+
+impl sdk_api::AsyncInstrumentCore for AsyncInstrument {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+/// record maintains the state of one metric instrument.  Due
+/// the use of lock-free algorithms, there may be more than one
+/// `record` in existence at a time, although at most one can
+/// be referenced from the `Accumulator.current` map.
+#[derive(Debug)]
+struct Record {
+    /// Incremented on every call to `update`.
+    update_count: Number,
+
+    /// Set to `update_count` on collection, supports checking for no updates during
+    /// a round.
+    collected_count: Number,
+
+    /// The processed label set for this record.
+    ///
+    /// TODO: look at perf here.
+    labels: labels::Set,
+
+    /// The corresponding instrument.
+    instrument: SyncInstrument,
+
+    /// current implements the actual `record_one` API, depending on the type of
+    /// aggregation. If `None`, the metric was disabled by the exporter.
+    current: Option<Arc<dyn Aggregator + Send + Sync>>,
+    checkpoint: Option<Arc<dyn Aggregator + Send + Sync>>,
+}
+
+impl sdk_api::SyncBoundInstrumentCore for Record {
+    fn record_one_with_context<'a>(&self, cx: &Context, number: Number) {
+        // check if the instrument is disabled according to the AggregationSelector.
+        if let Some(recorder) = &self.current {
+            if let Err(err) = aggregators::range_test(
+                &number,
+                &self.instrument.instrument.descriptor,
+            )
+            .and_then(|_| {
+                recorder.update_with_context(cx, &number, &self.instrument.instrument.descriptor)
+            }) {
+                global::handle(err);
+                return;
+            }
+
+            // Record was modified, inform the collect() that things need
+            // to be collected while the record is still mapped.
+            self.update_count
+                .saturating_add(&NumberKind::U64, &1u64.into());
+        }
+    }
+}
+
+#[derive(Debug)]
+struct Instrument {
+    descriptor: Descriptor,
+    meter: Accumulator,
+}
+
+impl sdk_api::InstrumentCore for Instrument {
+    fn descriptor(&self) -> &Descriptor {
+        &self.descriptor
+    }
+}
+
+impl sdk_api::MeterCore for Accumulator {
+    fn new_sync_instrument(
+        &self,
+        descriptor: Descriptor,
+    ) -> Result<Arc<dyn sdk_api::SyncInstrumentCore + Send + Sync>> {
+        Ok(Arc::new(SyncInstrument {
+            instrument: Arc::new(Instrument {
+                descriptor,
+                meter: self.clone(),
+            }),
+        }))
+    }
+
+    fn record_batch_with_context(
+        &self,
+        cx: &Context,
+        labels: &[KeyValue],
+        measurements: Vec<Measurement>,
+    ) {
+        // var labelsPtr *label.Set
+        for measure in measurements.into_iter() {
+            if let Some(instrument) = measure
+                .instrument()
+                .as_any()
+                .downcast_ref::<SyncInstrument>()
+            {
+                let handle = instrument.acquire_handle(labels);
+
+                handle.record_one_with_context(cx, measure.into_number());
+            }
+        }
+    }
+
+    fn new_async_instrument(
+        &self,
+        descriptor: Descriptor,
+        runner: AsyncRunner,
+    ) -> Result<Arc<dyn sdk_api::AsyncInstrumentCore + Send + Sync>> {
+        let instrument = Arc::new(AsyncInstrument {
+            instrument: Arc::new(Instrument {
+                descriptor,
+                meter: self.clone(),
+            }),
+            recorders: Arc::new(Mutex::new(None)),
+        });
+
+        self.0.register(instrument.clone(), runner)?;
+
+        Ok(instrument)
     }
 }

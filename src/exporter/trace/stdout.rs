@@ -88,7 +88,7 @@ where
     fn export(&self, batch: Vec<Arc<trace::SpanData>>) -> trace::ExportResult {
         let writer = self
             .writer
-            .try_lock()
+            .lock()
             .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()));
         let result = writer.and_then(|mut w| {
             for span in batch {

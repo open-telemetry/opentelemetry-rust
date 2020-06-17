@@ -70,6 +70,7 @@ use std::fmt;
 use std::hash::{BuildHasherDefault, Hasher};
 use std::sync::Arc;
 
+#[cfg(feature = "trace")]
 pub mod propagation;
 
 thread_local! {

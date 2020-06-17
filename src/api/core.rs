@@ -196,7 +196,7 @@ impl KeyValue {
 }
 
 /// Units denote underlying data units tracked by `Meter`s.
-#[derive(Default, Debug)]
+#[derive(Clone, Default, Debug, PartialEq, Hash)]
 pub struct Unit(String);
 
 impl Unit {
@@ -208,5 +208,12 @@ impl Unit {
     /// View unit as &str
     pub fn as_str(&self) -> &str {
         &self.0
+    }
+}
+
+impl AsRef<str> for Unit {
+    #[inline]
+    fn as_ref(&self) -> &str {
+        self.0.as_ref()
     }
 }
