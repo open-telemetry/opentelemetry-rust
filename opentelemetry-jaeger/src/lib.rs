@@ -103,6 +103,7 @@ mod uploader;
 
 use self::thrift::jaeger;
 use opentelemetry::{api, exporter::trace, sdk};
+use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 use std::{
     net,
@@ -380,30 +381,29 @@ fn links_to_references(links: &sdk::EvictedQueue<api::Link>) -> Option<Vec<jaege
 }
 
 fn build_tags(span_data: &Arc<trace::SpanData>) -> Option<Vec<jaeger::Tag>> {
-    let mut tags = Vec::with_capacity(span_data.attributes.len() + span_data.resource.len() + 4);
-    let mut user_specified_error = false;
-    let mut user_specified_span_kind = false;
-    for (key, value) in span_data.attributes.iter() {
-        tags.push(api::KeyValue::new(key.clone(), value.clone()).into());
-        if key == &api::Key::new("error") {
-            user_specified_error = true;
-        }
-        if key == &api::Key::new("span.kind") {
-            user_specified_span_kind = true;
-        }
-    }
-
-    // TODO determine if namespacing is required to avoid colisions with set attributes
-    for (key, value) in span_data.resource.iter() {
-        tags.push(api::KeyValue::new(key.clone(), value.clone()).into());
-    }
+    let mut user_specified = HashSet::new();
+    // TODO determine if namespacing is required to avoid collisions with set attributes
+    let mut tags = span_data
+        .attributes
+        .iter()
+        .map(|(k, v)| {
+            user_specified.insert(k.as_str());
+            api::KeyValue::new(k.clone(), v.clone()).into()
+        })
+        .chain(
+            span_data
+                .resource
+                .iter()
+                .map(|(k, v)| api::KeyValue::new(k.clone(), v.clone()).into()),
+        )
+        .collect::<Vec<_>>();
 
     // Ensure error status is set
-    if span_data.status_code != api::StatusCode::OK && !user_specified_error {
+    if span_data.status_code != api::StatusCode::OK && !user_specified.contains("error") {
         tags.push(api::Key::new("error").bool(true).into())
     }
 
-    if !user_specified_span_kind {
+    if !user_specified.contains("span.kind") {
         tags.push(
             api::Key::new("span.kind")
                 .string(span_data.span_kind.to_string())
@@ -411,12 +411,17 @@ fn build_tags(span_data: &Arc<trace::SpanData>) -> Option<Vec<jaeger::Tag>> {
         );
     }
 
-    tags.push(api::KeyValue::new("status.code", span_data.status_code.clone() as i64).into());
-    tags.push(
-        api::Key::new("status.message")
-            .string(span_data.status_message.clone())
-            .into(),
-    );
+    if !user_specified.contains("status.code") {
+        tags.push(api::KeyValue::new("status.code", span_data.status_code.clone() as i64).into());
+    }
+
+    if !user_specified.contains("status.message") {
+        tags.push(
+            api::Key::new("status.message")
+                .string(span_data.status_message.clone())
+                .into(),
+        );
+    }
 
     Some(tags)
 }
