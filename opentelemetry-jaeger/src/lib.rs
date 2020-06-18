@@ -103,7 +103,6 @@ mod uploader;
 
 use self::thrift::jaeger;
 use opentelemetry::{api, exporter::trace, sdk};
-use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 use std::{
     net,
