@@ -430,22 +430,12 @@ const SPAN_KIND: &str = "span.kind";
 const STATUS_CODE: &str = "status.code";
 const STATUS_MESSAGE: &str = "status.message";
 
+#[derive(Default)]
 struct UserOverrides {
     error: bool,
     span_kind: bool,
     status_code: bool,
     status_message: bool,
-}
-
-impl Default for UserOverrides {
-    fn default() -> Self {
-        Self {
-            error: false,
-            span_kind: false,
-            status_code: false,
-            status_message: false,
-        }
-    }
 }
 
 impl UserOverrides {
