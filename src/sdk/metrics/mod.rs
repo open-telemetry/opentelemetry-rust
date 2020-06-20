@@ -219,13 +219,13 @@ impl AccumulatorCore {
                 return 0;
             }
 
-            let export_record = export::metrics::record(
+            let accumulation = export::metrics::accumulation(
                 record.instrument.descriptor(),
                 &record.labels,
                 &self.resource,
                 &checkpoint,
             );
-            if let Err(err) = locked_integrator.process(export_record) {
+            if let Err(err) = locked_integrator.process(accumulation) {
                 global::handle(err);
             }
 
@@ -251,14 +251,14 @@ impl AccumulatorCore {
                             .partial_cmp(&NumberKind::U64, &label_recorder.observed_epoch.into());
                         if epoch_diff == Some(Ordering::Equal) {
                             if let Some(observed) = &label_recorder.observed {
-                                let export_record = export::metrics::record(
+                                let accumulation = export::metrics::accumulation(
                                     instrument.descriptor(),
                                     &label_recorder.labels,
                                     &self.resource,
                                     observed,
                                 );
 
-                                if let Err(err) = locked_integrator.process(export_record) {
+                                if let Err(err) = locked_integrator.process(accumulation) {
                                     global::handle(err);
                                 }
                                 checkpointed += 1;

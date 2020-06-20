@@ -8,6 +8,7 @@ use crate::sdk::resource::Resource;
 use std::any::Any;
 use std::fmt;
 use std::sync::Arc;
+use std::time::SystemTime;
 
 mod aggregation;
 
@@ -54,21 +55,24 @@ pub trait Integrator: fmt::Debug {
 /// integrator to build the set of metrics currently being exported.
 pub trait LockedIntegrator {
     /// Process is called by the SDK once per internal record, passing the export
-    /// Record (a Descriptor, the corresponding Labels, and the checkpointed
+    /// Accumulation (a Descriptor, the corresponding Labels, and the checkpointed
     /// Aggregator).
     ///
     /// The Context argument originates from the controller that orchestrates
     /// collection.
-    fn process(&mut self, record: Record) -> Result<()>;
+    fn process(&mut self, accumulation: Accumulation) -> Result<()>;
 
     /// Allows a controller to access a complete checkpoint of aggregated metrics
     /// from the Integrator. This is passed to the Exporter which may then iterate
     /// over the collection of aggregated metrics.
     fn checkpoint_set(&mut self) -> &mut dyn CheckpointSet;
 
+    /// Logic to be run at the start of an integration cycle.
+    fn start_collection(&mut self);
+
     /// Cleanup logic or other behavior that needs to be run by the integrator after
     /// collection is complete.
-    fn finished_collection(&mut self);
+    fn finished_collection(&mut self) -> Result<()>;
 }
 
 /// AggregationSelector supports selecting the kind of `Aggregator` to use at
@@ -180,26 +184,133 @@ pub trait CheckpointSet: fmt::Debug {
     fn try_for_each(&mut self, f: &mut dyn FnMut(&Record) -> Result<()>) -> Result<()>;
 }
 
-/// Create a new `Record` instance.
+/// Allows `Accumulator` implementations to construct new `Accumulation`s to
+/// send to `Integrators`. The `Descriptor`, `Labels`, `Resource`, and
+/// `Aggregator` represent aggregate metric events received over a single
+/// collection period.
+pub fn accumulation<'a>(
+    descriptor: &'a Descriptor,
+    labels: &'a labels::Set,
+    resource: &'a Resource,
+    aggregator: &'a Arc<dyn Aggregator + Send + Sync>,
+) -> Accumulation<'a> {
+    Accumulation::new(descriptor, labels, resource, aggregator)
+}
+
+/// Allows `Integrator` implementations to construct export records. The
+/// `Descriptor`, `Labels`, and `Aggregator` represent aggregate metric events
+/// received over a single collection period.
 pub fn record<'a>(
     descriptor: &'a Descriptor,
     labels: &'a labels::Set,
     resource: &'a Resource,
     aggregator: &'a Arc<dyn Aggregator + Send + Sync>,
+    start: SystemTime,
+    end: SystemTime,
 ) -> Record<'a> {
-    Record::new(descriptor, labels, resource, aggregator)
+    Record {
+        metadata: Metadata::new(descriptor, labels, resource),
+        aggregator,
+        start,
+        end,
+    }
 }
 
-/// Record contains the exported data for a single metric instrument and label set.
+impl Record<'_> {
+    /// The aggregator for this metric
+    pub fn aggregator(&self) -> &Arc<dyn Aggregator + Send + Sync> {
+        self.aggregator
+    }
+}
+
+/// A container for the common elements for exported metric data that are shared
+/// by the `Accumulator`->`Integrator` and `Integrator`->`Exporter` steps.
 #[derive(Debug)]
-pub struct Record<'a> {
+pub struct Metadata<'a> {
     descriptor: &'a Descriptor,
     labels: &'a labels::Set,
     resource: &'a Resource,
+}
+
+impl<'a> Metadata<'a> {
+    /// Create a new `Metadata` instance.
+    pub fn new(
+        descriptor: &'a Descriptor,
+        labels: &'a labels::Set,
+        resource: &'a Resource,
+    ) -> Self {
+        {
+            Metadata {
+                descriptor,
+                labels,
+                resource,
+            }
+        }
+    }
+
+    /// A description of the metric instrument being exported.
+    pub fn descriptor(&self) -> &Descriptor {
+        self.descriptor
+    }
+
+    /// The labels associated with the instrument and the aggregated data.
+    pub fn labels(&self) -> &labels::Set {
+        self.labels
+    }
+
+    /// Common attributes that apply to this metric event.
+    pub fn resource(&self) -> &Resource {
+        self.resource
+    }
+}
+
+/// A container for the exported data for a single metric instrument and label
+/// set, as prepared by the `Integrator` for the `Exporter`. This includes the
+/// effective start and end time for the aggregation.
+#[derive(Debug)]
+pub struct Record<'a> {
+    metadata: Metadata<'a>,
+    aggregator: &'a Arc<dyn Aggregator + Send + Sync>,
+    start: SystemTime,
+    end: SystemTime,
+}
+
+impl Record<'_> {
+    /// A description of the metric instrument being exported.
+    pub fn descriptor(&self) -> &Descriptor {
+        self.metadata.descriptor
+    }
+
+    /// The labels associated with the instrument and the aggregated data.
+    pub fn labels(&self) -> &labels::Set {
+        self.metadata.labels
+    }
+
+    /// Common attributes that apply to this metric event.
+    pub fn resource(&self) -> &Resource {
+        self.metadata.resource
+    }
+
+    /// The start time of the interval covered by this aggregation.
+    pub fn start_time(&self) -> &SystemTime {
+        &self.start
+    }
+
+    /// The end time of the interval covered by this aggregation.
+    pub fn end_time(&self) -> &SystemTime {
+        &self.end
+    }
+}
+
+/// A container for the exported data for a single metric instrument and label
+/// set, as prepared by an `Accumulator` for the `Integrator`.
+#[derive(Debug)]
+pub struct Accumulation<'a> {
+    metadata: Metadata<'a>,
     aggregator: &'a Arc<dyn Aggregator + Send + Sync>,
 }
 
-impl<'a> Record<'a> {
+impl<'a> Accumulation<'a> {
     /// Create a new `Record` instance.
     pub fn new(
         descriptor: &'a Descriptor,
@@ -207,30 +318,28 @@ impl<'a> Record<'a> {
         resource: &'a Resource,
         aggregator: &'a Arc<dyn Aggregator + Send + Sync>,
     ) -> Self {
-        Record {
-            descriptor,
-            labels,
-            resource,
+        Accumulation {
+            metadata: Metadata::new(descriptor, labels, resource),
             aggregator,
         }
     }
 
-    /// The descriptor for this metric.
+    /// A description of the metric instrument being exported.
     pub fn descriptor(&self) -> &Descriptor {
-        self.descriptor
+        self.metadata.descriptor
     }
 
-    /// The labels for this metric.
+    /// The labels associated with the instrument and the aggregated data.
     pub fn labels(&self) -> &labels::Set {
-        self.labels
+        self.metadata.labels
     }
 
-    /// The resource for this metric.
+    /// Common attributes that apply to this metric event.
     pub fn resource(&self) -> &Resource {
-        self.resource
+        self.metadata.resource
     }
 
-    /// The aggregator for this metric.
+    /// The checkpointed aggregator for this metric.
     pub fn aggregator(&self) -> &Arc<dyn Aggregator + Send + Sync> {
         self.aggregator
     }

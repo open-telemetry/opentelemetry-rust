@@ -261,8 +261,12 @@ impl prometheus::core::Collector for Collector {
     /// Collect all otel metrics and convert to prometheus metrics.
     fn collect(&self) -> Vec<prometheus::proto::MetricFamily> {
         if let Ok(mut controller) = self.controller.lock() {
-            controller.collect();
             let mut metrics = Vec::new();
+
+            if let Err(err) = controller.collect() {
+                global::handle(err);
+                return metrics;
+            }
 
             if let Err(err) = controller.try_for_each(&mut |record| {
                 let agg = record.aggregator();

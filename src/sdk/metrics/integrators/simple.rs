@@ -1,17 +1,18 @@
 use crate::api::{
     labels,
-    metrics::{Descriptor, Result},
+    metrics::{Descriptor, MetricsError, Result},
 };
 use crate::sdk::{
     export::metrics::{
-        self, AggregationSelector, Aggregator, CheckpointSet, Integrator, LockedIntegrator, Record,
+        self, Accumulation, AggregationSelector, Aggregator, CheckpointSet, Integrator,
+        LockedIntegrator, Record,
     },
     Resource,
 };
-// use dashmap::DashMap;
 use std::collections::{hash_map::DefaultHasher, HashMap};
 use std::hash::{Hash, Hasher};
 use std::sync::{Arc, Mutex, MutexGuard};
+use std::time::SystemTime;
 
 /// Create a new simple integrator
 pub fn simple(
@@ -60,21 +61,24 @@ pub struct SimpleLockedIntegrator<'a> {
 }
 
 impl<'a> LockedIntegrator for SimpleLockedIntegrator<'a> {
-    fn process(&mut self, record: Record) -> Result<()> {
-        let desc = record.descriptor();
+    fn process(&mut self, accumulation: Accumulation) -> Result<()> {
+        if self.batch.started_collection != self.batch.finished_collection.wrapping_add(1) {
+            return Err(MetricsError::InconsistentState);
+        }
+
+        let desc = accumulation.descriptor();
         let mut hasher = DefaultHasher::new();
         desc.hash(&mut hasher);
-        record.labels().equivalent().hash(&mut hasher);
+        accumulation.labels().equivalent().hash(&mut hasher);
         // FIXME: convert resource to use labels::Set
-        // record.resource().equivalent().hash(&mut hasher);
+        // accumulation.resource().equivalent().hash(&mut hasher);
         let key = BatchKey(hasher.finish());
-        let agg = record.aggregator();
+        let agg = accumulation.aggregator();
         let mut new_agg = None;
-        if let Some(value) = self.batch.0.get(&key) {
-            // Note: The call to Merge here combines only
-            // identical records.  It is required even for a
-            // stateless Integrator because such identical records
-            // may arise in the Meter implementation due to race
+        if let Some(value) = self.batch.values.get(&key) {
+            // Note: The call to Merge here combines only identical accumulations.
+            // It is required even for a stateless Integrator because such identical
+            // accumulations may arise in the Meter implementation due to race
             // conditions.
             if self.parent.stateful {
                 return value.aggregator.merge(agg.as_ref(), desc);
@@ -84,10 +88,9 @@ impl<'a> LockedIntegrator for SimpleLockedIntegrator<'a> {
                 return Ok(());
             }
         }
-        // If this integrator is stateful, create a copy of the
-        // Aggregator for long-term storage.  Otherwise the
-        // Meter implementation will checkpoint the aggregator
-        // again, overwriting the long-lived state.
+        // If this integrator is stateful, create a copy of the Aggregator for
+        // long-term storage.  Otherwise the Meter implementation will checkpoint
+        // the aggregator again, overwriting the long-lived state.
 
         if self.parent.stateful {
             // Note: the call to AggregatorFor() followed by Merge
@@ -98,14 +101,14 @@ impl<'a> LockedIntegrator for SimpleLockedIntegrator<'a> {
             }
         }
 
-        self.batch.0.insert(
+        self.batch.values.insert(
             key,
             BatchValue {
                 // FIXME consider perf of all this
                 aggregator: new_agg.unwrap_or_else(|| agg.clone()),
                 descriptor: desc.clone(),
-                labels: record.labels().clone(),
-                resource: record.resource().clone(),
+                labels: accumulation.labels().clone(),
+                resource: accumulation.resource().clone(),
             },
         );
 
@@ -116,24 +119,59 @@ impl<'a> LockedIntegrator for SimpleLockedIntegrator<'a> {
         &mut *self.batch
     }
 
-    fn finished_collection(&mut self) {
+    fn start_collection(&mut self) {
+        if self.batch.started_collection != 0 {
+            self.batch.interval_start = self.batch.interval_end;
+        }
+        self.batch.started_collection = self.batch.started_collection.wrapping_add(1);
         if !self.parent.stateful {
-            self.batch.0.clear();
+            self.batch.values.clear();
+        }
+    }
+
+    fn finished_collection(&mut self) -> Result<()> {
+        self.batch.finished_collection = self.batch.finished_collection.wrapping_add(1);
+        self.batch.interval_end = SystemTime::now();
+
+        if self.batch.started_collection != self.batch.finished_collection {
+            return Err(MetricsError::InconsistentState);
+        }
+
+        Ok(())
+    }
+}
+
+#[derive(Debug)]
+struct SimpleIntegratorBatch {
+    values: HashMap<BatchKey, BatchValue>,
+    interval_start: SystemTime,
+    interval_end: SystemTime,
+    started_collection: u64,
+    finished_collection: u64,
+}
+
+impl Default for SimpleIntegratorBatch {
+    fn default() -> Self {
+        SimpleIntegratorBatch {
+            values: HashMap::default(),
+            interval_start: SystemTime::now(),
+            interval_end: SystemTime::now(),
+            started_collection: 0,
+            finished_collection: 0,
         }
     }
 }
 
-#[derive(Debug, Default)]
-struct SimpleIntegratorBatch(HashMap<BatchKey, BatchValue>);
-
 impl CheckpointSet for SimpleIntegratorBatch {
     fn try_for_each(&mut self, f: &mut dyn FnMut(&Record) -> Result<()>) -> Result<()> {
-        self.0.iter().try_for_each(|(_key, value)| {
+        self.values.iter().try_for_each(|(_key, value)| {
             f(&metrics::record(
                 &value.descriptor,
                 &value.labels,
                 &value.resource,
                 &value.aggregator,
+                self.interval_start,
+                self.interval_end,
             ))
         })
     }

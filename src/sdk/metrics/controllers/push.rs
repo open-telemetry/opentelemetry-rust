@@ -72,10 +72,10 @@ impl PushControllerWorker {
         // TODO handle timeout
 
         if let Err(err) = self.integrator.lock().and_then(|mut locked_integrator| {
+            locked_integrator.start_collection();
             self.accumulator.0.collect(&mut locked_integrator);
-            self.exporter.export(locked_integrator.checkpoint_set())?;
-            locked_integrator.finished_collection();
-            Ok(())
+            locked_integrator.finished_collection()?;
+            self.exporter.export(locked_integrator.checkpoint_set())
         }) {
             global::handle(err)
         }

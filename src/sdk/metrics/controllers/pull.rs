@@ -1,5 +1,4 @@
 use crate::api::metrics::{registry, Result};
-use crate::global;
 use crate::sdk::{
     export::metrics::{AggregationSelector, CheckpointSet, LockedIntegrator, Record},
     metrics::{
@@ -36,18 +35,19 @@ impl PullController {
     }
 
     /// Collects all metrics if the last collected at time is past the current period
-    pub fn collect(&self) {
+    pub fn collect(&self) -> Result<()> {
         if self
             .last_collect
             .elapsed()
             .map_or(true, |elapsed| elapsed > self.period)
         {
-            match self.integrator.lock() {
-                Ok(mut locked_integrator) => {
-                    self.accumulator.0.collect(&mut locked_integrator);
-                }
-                Err(err) => global::handle(err),
-            }
+            self.integrator.lock().and_then(|mut locked_integrator| {
+                locked_integrator.start_collection();
+                self.accumulator.0.collect(&mut locked_integrator);
+                locked_integrator.finished_collection()
+            })
+        } else {
+            Ok(())
         }
     }
 }

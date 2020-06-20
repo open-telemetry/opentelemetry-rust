@@ -65,6 +65,9 @@ pub enum MetricsError {
     /// Errors when registering to instruments with the same name and kind
     #[error("A metric was already registered by this name with another kind or number type: {0}")]
     MetricKindMismatch(String),
+    /// Errors when integration logic is incorrect
+    #[error("Inconsistent integrator state")]
+    InconsistentState,
 }
 
 impl<T> From<PoisonError<T>> for MetricsError {
