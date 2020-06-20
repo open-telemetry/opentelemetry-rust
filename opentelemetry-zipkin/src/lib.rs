@@ -201,6 +201,25 @@ fn into_zipkin_span_kind(kind: api::SpanKind) -> Option<span::Kind> {
 /// Converts a `trace::SpanData` to a `span::SpanData` for a given `ExporterConfig`, which can then
 /// be ingested into a Zipkin collector.
 fn into_zipkin_span(config: &ExporterConfig, span_data: Arc<trace::SpanData>) -> span::Span {
+    let mut user_defined_span_kind = false;
+    let tags = map_from_kvs(
+        span_data
+            .attributes
+            .iter()
+            .map(|(k, v)| {
+                if k == &api::Key::new("span.kind") {
+                    user_defined_span_kind = true;
+                }
+                api::KeyValue::new(k.clone(), v.clone())
+            })
+            .chain(
+                span_data
+                    .resource
+                    .iter()
+                    .map(|(k, v)| api::KeyValue::new(k.clone(), v.clone())),
+            ),
+    );
+
     span::Span::builder()
         .trace_id(format!(
             "{:032x}",
@@ -212,7 +231,11 @@ fn into_zipkin_span(config: &ExporterConfig, span_data: Arc<trace::SpanData>) ->
             span_data.span_context.span_id().to_u64()
         ))
         .name(span_data.name.clone())
-        .kind(into_zipkin_span_kind(span_data.span_kind.clone()))
+        .kind(if user_defined_span_kind {
+            None
+        } else {
+            into_zipkin_span_kind(span_data.span_kind.clone())
+        })
         .timestamp(
             span_data
                 .start_time
@@ -236,18 +259,7 @@ fn into_zipkin_span(config: &ExporterConfig, span_data: Arc<trace::SpanData>) ->
                 .map(Into::into)
                 .collect(),
         )
-        .tags(map_from_kvs(
-            span_data
-                .attributes
-                .iter()
-                .map(|(k, v)| api::KeyValue::new(k.clone(), v.clone()))
-                .chain(
-                    span_data
-                        .resource
-                        .iter()
-                        .map(|(k, v)| api::KeyValue::new(k.clone(), v.clone())),
-                ),
-        ))
+        .tags(tags)
         .build()
 }
 

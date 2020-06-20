@@ -380,38 +380,74 @@ fn links_to_references(links: &sdk::EvictedQueue<api::Link>) -> Option<Vec<jaege
 }
 
 fn build_tags(span_data: &Arc<trace::SpanData>) -> Option<Vec<jaeger::Tag>> {
-    let mut tags = Vec::with_capacity(span_data.attributes.len() + span_data.resource.len() + 4);
-    let mut user_specified_error = false;
-    for (key, value) in span_data.attributes.iter() {
-        tags.push(api::KeyValue::new(key.clone(), value.clone()).into());
-        if key == &api::Key::new("error") {
-            user_specified_error = true;
-        }
-    }
-
-    // TODO determine if namespacing is required to avoid colisions with set attributes
-    for (key, value) in span_data.resource.iter() {
-        tags.push(api::KeyValue::new(key.clone(), value.clone()).into());
-    }
+    let mut user_overrides = UserOverrides::default();
+    // TODO determine if namespacing is required to avoid collisions with set attributes
+    let mut tags = span_data
+        .attributes
+        .iter()
+        .map(|(k, v)| {
+            user_overrides.record_attr(k.as_str());
+            api::KeyValue::new(k.clone(), v.clone()).into()
+        })
+        .chain(
+            span_data
+                .resource
+                .iter()
+                .map(|(k, v)| api::KeyValue::new(k.clone(), v.clone()).into()),
+        )
+        .collect::<Vec<_>>();
 
     // Ensure error status is set
-    if span_data.status_code != api::StatusCode::OK && !user_specified_error {
-        tags.push(api::Key::new("error").bool(true).into())
+    if span_data.status_code != api::StatusCode::OK && !user_overrides.error {
+        tags.push(api::Key::new(ERROR).bool(true).into())
     }
 
-    tags.push(api::KeyValue::new("status.code", span_data.status_code.clone() as i64).into());
-    tags.push(
-        api::Key::new("status.message")
-            .string(span_data.status_message.clone())
-            .into(),
-    );
-    tags.push(
-        api::Key::new("span.kind")
-            .string(span_data.span_kind.to_string())
-            .into(),
-    );
+    if !user_overrides.span_kind {
+        tags.push(
+            api::Key::new(SPAN_KIND)
+                .string(span_data.span_kind.to_string())
+                .into(),
+        );
+    }
+
+    if !user_overrides.status_code {
+        tags.push(api::KeyValue::new(STATUS_CODE, span_data.status_code.clone() as i64).into());
+    }
+
+    if !user_overrides.status_message {
+        tags.push(
+            api::Key::new(STATUS_MESSAGE)
+                .string(span_data.status_message.clone())
+                .into(),
+        );
+    }
 
     Some(tags)
+}
+
+const ERROR: &str = "error";
+const SPAN_KIND: &str = "span.kind";
+const STATUS_CODE: &str = "status.code";
+const STATUS_MESSAGE: &str = "status.message";
+
+#[derive(Default)]
+struct UserOverrides {
+    error: bool,
+    span_kind: bool,
+    status_code: bool,
+    status_message: bool,
+}
+
+impl UserOverrides {
+    fn record_attr(&mut self, attr: &str) {
+        match attr {
+            ERROR => self.error = true,
+            SPAN_KIND => self.span_kind = true,
+            STATUS_CODE => self.status_code = true,
+            STATUS_MESSAGE => self.status_message = true,
+            _ => (),
+        }
+    }
 }
 
 fn events_to_logs(events: &sdk::EvictedQueue<api::Event>) -> Option<Vec<jaeger::Log>> {
