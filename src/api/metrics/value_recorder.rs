@@ -81,7 +81,7 @@ impl<'a, T> ValueRecorderBuilder<'a, T> {
             meter,
             descriptor: Descriptor::new(
                 name,
-                meter.instrumentation_name.clone(),
+                meter.instrumentation_name().to_string(),
                 InstrumentKind::ValueRecorder,
                 number_kind,
             ),

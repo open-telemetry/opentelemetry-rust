@@ -56,7 +56,7 @@ impl<'a, T> SumObserverBuilder<'a, T> {
             meter,
             descriptor: Descriptor::new(
                 name,
-                meter.instrumentation_name.clone(),
+                meter.instrumentation_name().to_string(),
                 InstrumentKind::SumObserver,
                 number_kind,
             ),
@@ -142,7 +142,7 @@ impl<'a, T> UpDownSumObserverBuilder<'a, T> {
             meter,
             descriptor: Descriptor::new(
                 name,
-                meter.instrumentation_name.clone(),
+                meter.instrumentation_name().to_string(),
                 InstrumentKind::UpDownSumObserver,
                 number_kind,
             ),
@@ -227,7 +227,7 @@ impl<'a, T> ValueObserverBuilder<'a, T> {
             meter,
             descriptor: Descriptor::new(
                 name,
-                meter.instrumentation_name.clone(),
+                meter.instrumentation_name().to_string(),
                 InstrumentKind::ValueObserver,
                 number_kind,
             ),

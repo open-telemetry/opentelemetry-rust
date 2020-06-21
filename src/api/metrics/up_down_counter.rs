@@ -69,7 +69,7 @@ impl<'a, T> UpDownCounterBuilder<'a, T> {
             meter,
             descriptor: Descriptor::new(
                 name,
-                meter.instrumentation_name.clone(),
+                meter.instrumentation_name().to_string(),
                 InstrumentKind::UpDownCounter,
                 number_kind,
             ),

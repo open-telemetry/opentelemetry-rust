@@ -69,7 +69,7 @@ impl<'a, T> CounterBuilder<'a, T> {
             meter,
             descriptor: Descriptor::new(
                 name,
-                meter.instrumentation_name.clone(),
+                meter.instrumentation_name().to_string(),
                 InstrumentKind::Counter,
                 number_kind,
             ),

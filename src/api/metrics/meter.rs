@@ -25,8 +25,8 @@ pub trait MeterProvider: fmt::Debug {
 /// implementation and the `Meter` library name.
 #[derive(Debug)]
 pub struct Meter {
-    pub(crate) instrumentation_name: String,
-    pub(crate) core: Arc<dyn sdk_api::MeterCore + Send + Sync>,
+    instrumentation_name: String,
+    core: Arc<dyn sdk_api::MeterCore + Send + Sync>,
 }
 
 impl Meter {
@@ -39,6 +39,10 @@ impl Meter {
             instrumentation_name: instrumentation_name.into(),
             core,
         }
+    }
+
+    pub(crate) fn instrumentation_name(&self) -> &str {
+        self.instrumentation_name.as_str()
     }
 
     /// Creates a new floating point `ValueObserverBuilder` instrument with the

@@ -59,3 +59,7 @@ members = [
 [[bench]]
 name = "trace"
 harness = false
+
+[[bench]]
+name = "metric"
+harness = false
