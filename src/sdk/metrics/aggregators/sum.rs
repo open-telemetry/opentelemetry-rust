@@ -2,7 +2,7 @@ use crate::api::{
     metrics::{Descriptor, MetricsError, Number, Result},
     Context,
 };
-use crate::sdk::export::metrics::{Aggregator, Sum};
+use crate::sdk::export::metrics::{Aggregator, Subtractor, Sum};
 use std::any::Any;
 use std::sync::Arc;
 
@@ -23,6 +23,31 @@ impl Sum for SumAggregator {
     }
 }
 
+impl Subtractor for SumAggregator {
+    fn subtract(
+        &self,
+        operand: &(dyn Aggregator + Send + Sync),
+        result: &(dyn Aggregator + Send + Sync),
+        descriptor: &Descriptor,
+    ) -> Result<()> {
+        match (
+            operand.as_any().downcast_ref::<Self>(),
+            result.as_any().downcast_ref::<Self>(),
+        ) {
+            (Some(op), Some(res)) => {
+                res.value.assign(descriptor.number_kind(), &self.value);
+                res.value
+                    .saturating_sub(descriptor.number_kind(), &op.value);
+                Ok(())
+            }
+            _ => Err(MetricsError::InconsistentAggregator(format!(
+                "Expected {:?}, got: {:?} and {:?}",
+                self, operand, result
+            ))),
+        }
+    }
+}
+
 impl Aggregator for SumAggregator {
     fn update_with_context(
         &self,
@@ -33,7 +58,7 @@ impl Aggregator for SumAggregator {
         self.value.saturating_add(descriptor.number_kind(), number);
         Ok(())
     }
-    fn synchronized_copy(
+    fn synchronized_move(
         &self,
         other: &Arc<dyn Aggregator + Send + Sync>,
         descriptor: &Descriptor,

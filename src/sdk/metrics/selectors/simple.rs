@@ -1,6 +1,6 @@
 //! Simple Metric Selectors
 use crate::api::metrics::{Descriptor, InstrumentKind};
-use crate::sdk::export::metrics::{AggregationSelector, Aggregator};
+use crate::sdk::export::metrics::{AggregatorSelector, Aggregator};
 use crate::sdk::metrics::aggregators;
 use std::sync::Arc;
 
@@ -21,7 +21,7 @@ pub enum Selector {
     Histogram(Vec<f64>),
 }
 
-impl AggregationSelector for Selector {
+impl AggregatorSelector for Selector {
     fn aggregator_for(&self, descriptor: &Descriptor) -> Option<Arc<dyn Aggregator + Send + Sync>> {
         match self {
             Selector::Inexpensive => match descriptor.instrument_kind() {

@@ -1,4 +1,4 @@
-/// Kinds of OpenTelemetry metric inetruments
+/// Kinds of OpenTelemetry metric instruments
 ///
 /// | **Name** | Instrument kind | Function(argument) | Default aggregation | Notes |
 /// | ----------------------- | ----- | --------- | ------------- | --- |
@@ -22,4 +22,48 @@ pub enum InstrumentKind {
     SumObserver,
     /// An asynchronous per-interval recorder of a non-monotonic sum.
     UpDownSumObserver,
+}
+
+impl InstrumentKind {
+    /// Whether this is a synchronous kind of instrument.
+    pub fn synchronous(&self) -> bool {
+        match self {
+            InstrumentKind::Counter
+            | InstrumentKind::UpDownCounter
+            | InstrumentKind::ValueRecorder => true,
+            _ => false,
+        }
+    }
+
+    /// Whether this is a synchronous kind of instrument.
+    pub fn asynchronous(&self) -> bool {
+        !self.synchronous()
+    }
+
+    /// Whether this kind of instrument adds its inputs (as opposed to grouping).
+    pub fn adding(&self) -> bool {
+        match self {
+            InstrumentKind::Counter
+            | InstrumentKind::UpDownCounter
+            | InstrumentKind::SumObserver
+            | InstrumentKind::UpDownSumObserver => true,
+            _ => false,
+        }
+    }
+
+    /// Whether this kind of instrument groups its inputs (as opposed to adding).
+    pub fn grouping(&self) -> bool {
+        match self {
+            InstrumentKind::Counter
+            | InstrumentKind::UpDownCounter
+            | InstrumentKind::SumObserver
+            | InstrumentKind::UpDownSumObserver => true,
+            _ => false,
+        }
+    }
+
+    /// Whether this kind of instrument receives precomputed sums.
+    pub fn precomputed_sum(&self) -> bool {
+        self.adding() && self.asynchronous()
+    }
 }

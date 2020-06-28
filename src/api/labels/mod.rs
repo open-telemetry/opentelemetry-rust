@@ -125,7 +125,7 @@ impl<'a> IntoIterator for &'a Set {
         Iter(self.equivalent.0.iter())
     }
 }
-/// An iterator over the entries of a `SimpleIntegratorInner`.
+/// An iterator over the entries of a `Set`.
 #[allow(missing_debug_implementations)]
 pub struct Iter<'a>(std::slice::Iter<'a, KeyValue>);
 impl<'a> Iterator for Iter<'a> {

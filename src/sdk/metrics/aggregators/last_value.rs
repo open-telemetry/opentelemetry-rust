@@ -34,7 +34,7 @@ impl Aggregator for LastValueAggregator {
             });
         })
     }
-    fn synchronized_copy(
+    fn synchronized_move(
         &self,
         other: &Arc<dyn Aggregator + Send + Sync>,
         _descriptor: &Descriptor,

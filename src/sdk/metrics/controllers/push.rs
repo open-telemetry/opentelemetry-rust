@@ -1,10 +1,10 @@
 use crate::api::metrics::registry;
 use crate::global;
 use crate::sdk::{
-    export::metrics::{AggregationSelector, Exporter, LockedIntegrator},
+    export::metrics::{AggregatorSelector, ExportKindSelector, Exporter, LockedProcessor},
     metrics::{
         self,
-        integrators::{self, SimpleIntegrator},
+        processors::{self, BasicProcessor},
         Accumulator,
     },
     Resource,
@@ -19,20 +19,23 @@ lazy_static::lazy_static! {
 }
 
 /// Create a new `PushControllerBuilder`.
-pub fn push<S, E, SP, SO, I, IO>(
-    selector: S,
+pub fn push<AS, ES, E, SP, SO, I, IO>(
+    aggregator_selector: AS,
+    export_selector: ES,
     exporter: E,
     spawn: SP,
     interval: I,
 ) -> PushControllerBuilder<SP, I>
 where
-    S: AggregationSelector + Send + Sync + 'static,
+    AS: AggregatorSelector + Send + Sync + 'static,
+    ES: ExportKindSelector + Send + Sync + 'static,
     E: Exporter + Send + Sync + 'static,
     SP: Fn(PushControllerWorker) -> SO,
     I: Fn(time::Duration) -> IO,
 {
     PushControllerBuilder {
-        selector: Box::new(selector),
+        aggregator_selector: Box::new(aggregator_selector),
+        export_selector: Box::new(export_selector),
         exporter: Box::new(exporter),
         spawn,
         interval,
@@ -62,7 +65,7 @@ enum PushMessage {
 pub struct PushControllerWorker {
     messages: Pin<Box<dyn Stream<Item = PushMessage> + Send>>,
     accumulator: Accumulator,
-    integrator: Arc<SimpleIntegrator>,
+    processor: Arc<BasicProcessor>,
     exporter: Box<dyn Exporter + Send + Sync>,
     _timeout: time::Duration,
 }
@@ -71,11 +74,11 @@ impl PushControllerWorker {
     fn on_tick(&mut self) {
         // TODO handle timeout
 
-        if let Err(err) = self.integrator.lock().and_then(|mut locked_integrator| {
-            locked_integrator.start_collection();
-            self.accumulator.0.collect(&mut locked_integrator);
-            locked_integrator.finished_collection()?;
-            self.exporter.export(locked_integrator.checkpoint_set())
+        if let Err(err) = self.processor.lock().and_then(|mut locked_processor| {
+            locked_processor.start_collection();
+            self.accumulator.0.collect(&mut locked_processor);
+            locked_processor.finished_collection()?;
+            self.exporter.export(locked_processor.checkpoint_set())
         }) {
             global::handle(err)
         }
@@ -123,7 +126,8 @@ impl Drop for PushController {
 /// Configuration for building a new `PushController`.
 #[derive(Debug)]
 pub struct PushControllerBuilder<S, I> {
-    selector: Box<dyn AggregationSelector + Send + Sync>,
+    aggregator_selector: Box<dyn AggregatorSelector + Send + Sync>,
+    export_selector: Box<dyn ExportKindSelector + Send + Sync>,
     exporter: Box<dyn Exporter + Send + Sync>,
     spawn: S,
     interval: I,
@@ -165,9 +169,9 @@ where
 
     /// Build a new `PushController` with this configuration.
     pub fn build(self) -> PushController {
-        let integrator = integrators::simple(self.selector, self.stateful.unwrap_or(false));
-        let integrator = Arc::new(integrator);
-        let mut accumulator = metrics::accumulator(integrator.clone());
+        let processor = processors::basic(self.aggregator_selector, self.export_selector);
+        let processor = Arc::new(processor);
+        let mut accumulator = metrics::accumulator(processor.clone());
 
         if let Some(resource) = self.resource {
             accumulator = accumulator.with_resource(resource);
@@ -182,7 +186,7 @@ where
         (self.spawn)(PushControllerWorker {
             messages: Box::pin(futures::stream::select(message_receiver, ticker)),
             accumulator,
-            integrator,
+            processor,
             exporter: self.exporter,
             _timeout: self.timeout.unwrap_or(*DEFAULT_PUSH_PERIOD),
         });

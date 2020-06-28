@@ -68,6 +68,41 @@ impl Number {
         }
     }
 
+    /// Subtract this number from the given other number. Both should be of the same kind.
+    pub fn saturating_sub(&self, number_kind: &NumberKind, other: &Number) {
+        match number_kind {
+            NumberKind::I64 => loop {
+                let current = self.0.load(Ordering::Acquire);
+                let other = other.0.load(Ordering::Acquire);
+                let new = (current as i64).saturating_sub(other as i64) as u64;
+                let swapped = self.0.compare_and_swap(current, new, Ordering::Release);
+                if swapped == current {
+                    return;
+                }
+            },
+            NumberKind::F64 => loop {
+                let current = self.0.load(Ordering::Acquire);
+                let other = other.0.load(Ordering::Acquire);
+                let new = u64_to_f64(current) - u64_to_f64(other);
+                let swapped = self
+                    .0
+                    .compare_and_swap(current, f64_to_u64(new), Ordering::Release);
+                if swapped == current {
+                    return;
+                }
+            },
+            NumberKind::U64 => loop {
+                let current = self.0.load(Ordering::Acquire);
+                let other = other.0.load(Ordering::Acquire);
+                let new = current.saturating_sub(other);
+                let swapped = self.0.compare_and_swap(current, new, Ordering::Release);
+                if swapped == current {
+                    return;
+                }
+            },
+        }
+    }
+
     /// Casts the number to `i64`. May result in data/precision loss.
     pub fn to_i64(&self, number_kind: &NumberKind) -> i64 {
         let current = self.0.load(Ordering::SeqCst);

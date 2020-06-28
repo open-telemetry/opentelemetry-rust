@@ -1,6 +1,5 @@
 //! # OpenTelemetry Metrics API
 
-use std::io;
 use std::result;
 use std::sync::PoisonError;
 use thiserror::Error;
@@ -39,7 +38,7 @@ pub use value_recorder::{BoundValueRecorder, ValueRecorder, ValueRecorderBuilder
 pub type Result<T> = result::Result<T, MetricsError>;
 
 /// Errors returned by the metrics API.
-#[derive(Error, Debug)]
+#[derive(Error, Debug, PartialEq)]
 pub enum MetricsError {
     /// Other errors not covered by specific cases.
     #[error("Metrics error: {0}")]
@@ -56,18 +55,18 @@ pub enum MetricsError {
     /// Errors when merging aggregators of incompatible types.
     #[error("Inconsistent aggregator types: {0}")]
     InconsistentAggregator(String),
-    /// Errors when interacting with std::io
-    #[error("I/O error: {0}")]
-    IO(#[from] io::Error),
     /// Errors when requesting data when no data has been collected
     #[error("No data collected by this aggregator")]
     NoDataCollected,
     /// Errors when registering to instruments with the same name and kind
     #[error("A metric was already registered by this name with another kind or number type: {0}")]
     MetricKindMismatch(String),
-    /// Errors when integration logic is incorrect
-    #[error("Inconsistent integrator state")]
+    /// Errors when processor logic is incorrect
+    #[error("Inconsistent processor state")]
     InconsistentState,
+    /// Errors when aggregator cannot subtract
+    #[error("Aggregator does not subtract")]
+    NoSubtraction,
 }
 
 impl<T> From<PoisonError<T>> for MetricsError {

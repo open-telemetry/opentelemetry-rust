@@ -121,7 +121,7 @@ impl Aggregator for HistogramAggregator {
             })
     }
 
-    fn synchronized_copy(
+    fn synchronized_move(
         &self,
         other: &Arc<dyn Aggregator + Send + Sync>,
         _descriptor: &crate::api::metrics::Descriptor,

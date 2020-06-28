@@ -108,7 +108,7 @@ impl Aggregator for MinMaxSumCountAggregator {
             .map_err(From::from)
     }
 
-    fn synchronized_copy(
+    fn synchronized_move(
         &self,
         other: &Arc<dyn Aggregator + Send + Sync>,
         _descriptor: &Descriptor,

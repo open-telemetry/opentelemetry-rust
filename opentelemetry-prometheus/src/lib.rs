@@ -49,15 +49,19 @@
 //! // a_value_recorder_sum{R="V",key="value"} 100
 //! // a_value_recorder_count{R="V",key="value"} 1
 //! ```
+#![deny(missing_docs, unreachable_pub, missing_debug_implementations)]
+#![cfg_attr(test, deny(warnings))]
 
 use opentelemetry::api::{
     labels,
-    metrics::{registry::RegistryMeterProvider, MetricsError, NumberKind},
+    metrics::{
+        registry::RegistryMeterProvider, Descriptor, InstrumentKind, MetricsError, NumberKind,
+    },
     KeyValue,
 };
 use opentelemetry::global;
 use opentelemetry::sdk::{
-    export::metrics::{CheckpointSet, Histogram, Record, Sum},
+    export::metrics::{CheckpointSet, ExportKind, Histogram, Record, Sum},
     metrics::{
         aggregators::{HistogramAggregator, SumAggregator},
         controllers,
@@ -76,6 +80,7 @@ use sanitize::sanitize;
 
 /// Cache disabled by default.
 const DEFAULT_CACHE_PERIOD: Duration = Duration::from_secs(0);
+const EXPORT_KIND: ExportKind = ExportKind::Cumulative;
 
 /// Create a new prometheus exporter builder.
 pub fn exporter() -> ExporterBuilder {
@@ -155,7 +160,7 @@ impl ExporterBuilder {
     }
 
     /// Sets up a complete export pipeline with the recommended setup, using the
-    /// recommended selector and standard integrator.
+    /// recommended selector and standard processor.
     pub fn try_init(self) -> Result<PrometheusExporter, MetricsError> {
         let registry = self.registry.unwrap_or_else(prometheus::Registry::new);
         let default_summary_quantiles = self
@@ -165,8 +170,7 @@ impl ExporterBuilder {
             .default_histogram_boundaries
             .unwrap_or_else(|| vec![0.5, 0.9, 0.99]);
         let selector = Box::new(Selector::Histogram(default_histogram_boundaries.clone()));
-        let mut controller_builder = controllers::pull(selector)
-            .with_stateful(true)
+        let mut controller_builder = controllers::pull(selector, Box::new(EXPORT_KIND))
             .with_cache_period(self.cache_period.unwrap_or(DEFAULT_CACHE_PERIOD));
         if let Some(resource) = self.resource {
             controller_builder = controller_builder.with_resource(resource);
@@ -184,7 +188,7 @@ impl ExporterBuilder {
     }
 
     /// Sets up a complete export pipeline with the recommended setup, using the
-    /// recommended selector and standard integrator.
+    /// recommended selector and standard processor.
     ///
     /// # Panics
     ///
@@ -233,11 +237,23 @@ impl PrometheusExporter {
         &self.registry
     }
 
+    /// Get this exporter's provider.
     pub fn provider(&self) -> Result<RegistryMeterProvider, MetricsError> {
         self.controller
             .lock()
             .map_err(Into::into)
             .map(|locked| locked.provider())
+    }
+
+    /// Determine the export kind this exporter should use for a given instrument
+    /// and descriptor.
+    pub fn export_kind_for(&self, _descriptor: &Descriptor, _kind: &InstrumentKind) -> ExportKind {
+        // NOTE: Summary values should use Delta aggregation, then be
+        // combined into a sliding window, see the TODO below.
+        // NOTE: Prometheus also supports a "GaugeDelta" exposition format,
+        // which is expressed as a delta histogram.  Need to understand if this
+        // should be a default behavior for ValueRecorder/ValueObserver.
+        EXPORT_KIND
     }
 }
 
@@ -268,8 +284,8 @@ impl prometheus::core::Collector for Collector {
                 return metrics;
             }
 
-            if let Err(err) = controller.try_for_each(&mut |record| {
-                let agg = record.aggregator();
+            if let Err(err) = controller.try_for_each(&EXPORT_KIND, &mut |record| {
+                let agg = record.aggregator().ok_or(MetricsError::NoDataCollected)?;
                 let number_kind = record.descriptor().number_kind();
 
                 let mut label_keys = Vec::new();

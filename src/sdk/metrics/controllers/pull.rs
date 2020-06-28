@@ -1,9 +1,11 @@
 use crate::api::metrics::{registry, Result};
 use crate::sdk::{
-    export::metrics::{AggregationSelector, CheckpointSet, LockedIntegrator, Record},
+    export::metrics::{
+        AggregatorSelector, CheckpointSet, ExportKindSelector, LockedProcessor, Record,
+    },
     metrics::{
         accumulator,
-        integrators::{self, SimpleIntegrator},
+        processors::{self, BasicProcessor},
         Accumulator,
     },
     Resource,
@@ -14,15 +16,18 @@ use std::time::{Duration, SystemTime};
 const DEFAULT_CACHE_DURATION: Duration = Duration::from_secs(10);
 
 /// Returns a builder for creating a `PullController` with the configured and options.
-pub fn pull(selector: Box<dyn AggregationSelector + Send + Sync>) -> PullControllerBuilder {
-    PullControllerBuilder::with_selector(selector)
+pub fn pull(
+    aggregator_selector: Box<dyn AggregatorSelector + Send + Sync>,
+    export_selector: Box<dyn ExportKindSelector + Send + Sync>,
+) -> PullControllerBuilder {
+    PullControllerBuilder::with_selectors(aggregator_selector, export_selector)
 }
 
-/// Controller manages access to an `Accumulator` and `Integrator`.  
+/// Controller manages access to an `Accumulator` and `Processor`.
 #[derive(Debug)]
 pub struct PullController {
     accumulator: Accumulator,
-    integrator: Arc<SimpleIntegrator>,
+    processor: Arc<BasicProcessor>,
     provider: registry::RegistryMeterProvider,
     period: Duration,
     last_collect: SystemTime,
@@ -41,10 +46,10 @@ impl PullController {
             .elapsed()
             .map_or(true, |elapsed| elapsed > self.period)
         {
-            self.integrator.lock().and_then(|mut locked_integrator| {
-                locked_integrator.start_collection();
-                self.accumulator.0.collect(&mut locked_integrator);
-                locked_integrator.finished_collection()
+            self.processor.lock().and_then(|mut locked_processor| {
+                locked_processor.start_collection();
+                self.accumulator.0.collect(&mut locked_processor);
+                locked_processor.finished_collection()
             })
         } else {
             Ok(())
@@ -55,26 +60,29 @@ impl PullController {
 impl CheckpointSet for PullController {
     fn try_for_each(
         &mut self,
+        export_selector: &dyn ExportKindSelector,
         f: &mut dyn FnMut(&Record) -> Result<()>,
-    ) -> crate::api::metrics::Result<()> {
-        self.integrator
-            .lock()
-            .and_then(|mut locked_integrator| locked_integrator.checkpoint_set().try_for_each(f))
+    ) -> Result<()> {
+        self.processor.lock().and_then(|mut locked_processor| {
+            locked_processor
+                .checkpoint_set()
+                .try_for_each(export_selector, f)
+        })
     }
 }
 
 /// Configuration for a `PullController`.
 #[derive(Debug)]
 pub struct PullControllerBuilder {
-    /// The selector used by the controller
-    selector: Box<dyn AggregationSelector + Send + Sync>,
+    /// The aggregator selector used by the controller
+    aggregator_selector: Box<dyn AggregatorSelector + Send + Sync>,
+
+    /// The export kind selector used by this controller
+    export_selector: Box<dyn ExportKindSelector + Send + Sync>,
+
     /// Resource is the OpenTelemetry resource associated with all Meters created by
     /// the controller.
     resource: Option<Resource>,
-
-    /// Stateful causes the controller to maintain state across collection events,
-    /// so that records in the exported checkpoint set are cumulative.
-    stateful: bool,
 
     /// CachePeriod is the period which a recently-computed result will be returned
     /// without gathering metric data again.
@@ -85,12 +93,15 @@ pub struct PullControllerBuilder {
 }
 
 impl PullControllerBuilder {
-    /// Configure the sector for this controller
-    pub fn with_selector(selector: Box<dyn AggregationSelector + Send + Sync>) -> Self {
+    /// Configure the sectors for this controller
+    pub fn with_selectors(
+        aggregator_selector: Box<dyn AggregatorSelector + Send + Sync>,
+        export_selector: Box<dyn ExportKindSelector + Send + Sync>,
+    ) -> Self {
         PullControllerBuilder {
-            selector,
+            aggregator_selector,
+            export_selector,
             resource: None,
-            stateful: false,
             cache_period: None,
         }
     }
@@ -111,23 +122,21 @@ impl PullControllerBuilder {
         }
     }
 
-    /// Configure the statefulness of this controller
-    pub fn with_stateful(self, stateful: bool) -> Self {
-        PullControllerBuilder { stateful, ..self }
-    }
-
-    /// Build a new `PushController` from the current configuration.
+    /// Build a new `PullController` from the current configuration.
     pub fn build(self) -> PullController {
-        let integrator = Arc::new(integrators::simple(self.selector, self.stateful));
+        let processor = Arc::new(processors::basic(
+            self.aggregator_selector,
+            self.export_selector,
+        ));
 
-        let accumulator = accumulator(integrator.clone())
+        let accumulator = accumulator(processor.clone())
             .with_resource(self.resource.unwrap_or_default())
             .build();
         let provider = registry::meter_provider(Arc::new(accumulator.clone()));
 
         PullController {
             accumulator,
-            integrator,
+            processor,
             provider,
             period: self.cache_period.unwrap_or(DEFAULT_CACHE_DURATION),
             last_collect: SystemTime::now(),

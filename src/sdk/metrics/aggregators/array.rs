@@ -103,7 +103,7 @@ impl Aggregator for ArrayAggregator {
         })
     }
 
-    fn synchronized_copy(
+    fn synchronized_move(
         &self,
         other: &Arc<dyn Aggregator + Send + Sync>,
         descriptor: &Descriptor,

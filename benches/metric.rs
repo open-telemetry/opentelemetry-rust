@@ -8,7 +8,7 @@ use opentelemetry::{
         Key, KeyValue,
     },
     sdk::{
-        export::metrics::{AggregationSelector, Integrator},
+        export::metrics::{AggregatorSelector, Processor},
         metrics::{accumulator, aggregators},
     },
 };
@@ -93,9 +93,9 @@ thread_local! {
 }
 
 #[derive(Debug, Default)]
-struct BenchAggregationSelector;
+struct BenchAggregatorSelector;
 
-impl AggregationSelector for BenchAggregationSelector {
+impl AggregatorSelector for BenchAggregatorSelector {
     fn aggregator_for(
         &self,
         descriptor: &Descriptor,
@@ -112,7 +112,7 @@ impl AggregationSelector for BenchAggregationSelector {
             }
             name if name.ends_with(".exact") => Some(Arc::new(aggregators::array())),
             _ => panic!(
-                "Invalid instrument name for test AggregationSelector: {}",
+                "Invalid instrument name for test AggregatorSelector: {}",
                 descriptor.name()
             ),
         }
@@ -120,19 +120,19 @@ impl AggregationSelector for BenchAggregationSelector {
 }
 
 #[derive(Debug, Default)]
-struct BenchIntegrator {
-    aggregation_selector: BenchAggregationSelector,
+struct BenchProcessor {
+    aggregation_selector: BenchAggregatorSelector,
 }
 
-impl Integrator for BenchIntegrator {
-    fn aggregation_selector(&self) -> &dyn AggregationSelector {
+impl Processor for BenchProcessor {
+    fn aggregation_selector(&self) -> &dyn AggregatorSelector {
         &self.aggregation_selector
     }
 }
 
 fn build_meter() -> Meter {
-    let integrator = Arc::new(BenchIntegrator::default());
-    let core = accumulator(integrator).build();
+    let processor = Arc::new(BenchProcessor::default());
+    let core = accumulator(processor).build();
     Meter::new("benches", Arc::new(core))
 }
 

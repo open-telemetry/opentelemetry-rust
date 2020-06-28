@@ -8,7 +8,7 @@ use crate::global;
 use crate::sdk::{
     export::{
         self,
-        metrics::{Aggregator, Integrator, LockedIntegrator},
+        metrics::{Aggregator, LockedProcessor, Processor},
     },
     resource::Resource,
 };
@@ -21,15 +21,15 @@ use std::sync::{Arc, Mutex};
 
 pub mod aggregators;
 pub mod controllers;
-pub mod integrators;
+pub mod processors;
 pub mod selectors;
 
 pub use controllers::{PullController, PushController, PushControllerWorker};
 
 /// Creates a new accumulator builder
-pub fn accumulator(integrator: Arc<dyn Integrator + Send + Sync>) -> AccumulatorBuilder {
+pub fn accumulator(processor: Arc<dyn Processor + Send + Sync>) -> AccumulatorBuilder {
     AccumulatorBuilder {
-        integrator,
+        processor,
         resource: None,
     }
 }
@@ -37,7 +37,7 @@ pub fn accumulator(integrator: Arc<dyn Integrator + Send + Sync>) -> Accumulator
 /// Configuration for an accumulator
 #[derive(Debug)]
 pub struct AccumulatorBuilder {
-    integrator: Arc<dyn Integrator + Send + Sync>,
+    processor: Arc<dyn Processor + Send + Sync>,
     resource: Option<Resource>,
 }
 
@@ -53,19 +53,19 @@ impl AccumulatorBuilder {
     /// Create a new accumulator from this configuration
     pub fn build(self) -> Accumulator {
         Accumulator(Arc::new(AccumulatorCore::new(
-            self.integrator,
+            self.processor,
             self.resource.unwrap_or_default(),
         )))
     }
 }
 
 /// Accumulator implements the OpenTelemetry Meter API. The Accumulator is bound
-/// to a single `Integrator`.
+/// to a single `Processor`.
 ///
 /// The Accumulator supports a collect API to gather and export current data.
-/// `Collect` should be arranged according to the integrator model. Push-based
-/// integrators will setup a timer to call `collect` periodically. Pull-based
-/// integrators will call `collect` when a pull request arrives.
+/// `Collect` should be arranged according to the processor model. Push-based
+/// processors will setup a timer to call `collect` periodically. Pull-based
+/// processors will call `collect` when a pull request arrives.
 #[derive(Debug, Clone)]
 pub struct Accumulator(Arc<AccumulatorCore>);
 
@@ -117,19 +117,19 @@ struct AccumulatorCore {
 
     /// The current epoch number. It is incremented in `collect`.
     current_epoch: Number,
-    /// THe configured integrator.
-    integrator: Arc<dyn Integrator + Send + Sync>,
+    /// THe configured processor.
+    processor: Arc<dyn Processor + Send + Sync>,
     /// The resource applied to all records in this Accumulator.
     resource: Resource,
 }
 
 impl AccumulatorCore {
-    fn new(integrator: Arc<dyn Integrator + Send + Sync>, resource: Resource) -> Self {
+    fn new(processor: Arc<dyn Processor + Send + Sync>, resource: Resource) -> Self {
         AccumulatorCore {
             current: flurry::HashMap::new(),
             async_instruments: Mutex::new(AsyncInstrumentState::default()),
             current_epoch: NumberKind::U64.zero(),
-            integrator,
+            processor,
             resource,
         }
     }
@@ -147,16 +147,16 @@ impl AccumulatorCore {
             })
     }
 
-    fn collect(&self, locked_integrator: &mut dyn LockedIntegrator) -> usize {
-        let mut checkpointed = self.observe_async_instruments(locked_integrator);
-        checkpointed += self.collect_sync_instruments(locked_integrator);
+    fn collect(&self, locked_processor: &mut dyn LockedProcessor) -> usize {
+        let mut checkpointed = self.observe_async_instruments(locked_processor);
+        checkpointed += self.collect_sync_instruments(locked_processor);
         self.current_epoch
             .saturating_add(&NumberKind::U64, &1u64.into());
 
         checkpointed
     }
 
-    fn observe_async_instruments(&self, locked_integrator: &mut dyn LockedIntegrator) -> usize {
+    fn observe_async_instruments(&self, locked_processor: &mut dyn LockedProcessor) -> usize {
         self.async_instruments
             .lock()
             .map_or(0, |async_instruments| {
@@ -166,7 +166,7 @@ impl AccumulatorCore {
 
                 for (_runner, instrument) in &async_instruments.runners {
                     if let Some(a) = instrument.as_any().downcast_ref::<AsyncInstrument>() {
-                        async_collected += self.checkpoint_async(a, locked_integrator);
+                        async_collected += self.checkpoint_async(a, locked_processor);
                     }
                 }
 
@@ -174,7 +174,7 @@ impl AccumulatorCore {
             })
     }
 
-    fn collect_sync_instruments(&self, locked_integrator: &mut dyn LockedIntegrator) -> usize {
+    fn collect_sync_instruments(&self, locked_processor: &mut dyn LockedProcessor) -> usize {
         let mut checkpointed = 0;
         let current_pin = self.current.pin();
 
@@ -185,7 +185,7 @@ impl AccumulatorCore {
             if mods.partial_cmp(&NumberKind::U64, coll) != Some(Ordering::Equal) {
                 // Updates happened in this interval,
                 // checkpoint and continue.
-                checkpointed += self.checkpoint_record(value, locked_integrator);
+                checkpointed += self.checkpoint_record(value, locked_processor);
                 value.collected_count.assign(&NumberKind::U64, mods);
             } else {
                 // Having no updates since last collection, try to remove if
@@ -197,7 +197,7 @@ impl AccumulatorCore {
                     // loading the strong count in this function.  Since this is the
                     // last we'll see of this record, checkpoint.
                     if mods.partial_cmp(&NumberKind::U64, coll) != Some(Ordering::Equal) {
-                        checkpointed += self.checkpoint_record(value, locked_integrator);
+                        checkpointed += self.checkpoint_record(value, locked_processor);
                     }
                 }
             }
@@ -209,10 +209,10 @@ impl AccumulatorCore {
     fn checkpoint_record(
         &self,
         record: &Record,
-        locked_integrator: &mut dyn LockedIntegrator,
+        locked_processor: &mut dyn LockedProcessor,
     ) -> usize {
         if let (Some(current), Some(checkpoint)) = (&record.current, &record.checkpoint) {
-            if let Err(err) = current.synchronized_copy(checkpoint, record.instrument.descriptor())
+            if let Err(err) = current.synchronized_move(checkpoint, record.instrument.descriptor())
             {
                 global::handle(err);
 
@@ -225,7 +225,7 @@ impl AccumulatorCore {
                 &self.resource,
                 &checkpoint,
             );
-            if let Err(err) = locked_integrator.process(accumulation) {
+            if let Err(err) = locked_processor.process(accumulation) {
                 global::handle(err);
             }
 
@@ -238,7 +238,7 @@ impl AccumulatorCore {
     fn checkpoint_async(
         &self,
         instrument: &AsyncInstrument,
-        locked_integrator: &mut dyn LockedIntegrator,
+        locked_processor: &mut dyn LockedProcessor,
     ) -> usize {
         instrument.recorders.lock().map_or(0, |mut recorders| {
             let mut checkpointed = 0;
@@ -258,7 +258,7 @@ impl AccumulatorCore {
                                     observed,
                                 );
 
-                                if let Err(err) = locked_integrator.process(accumulation) {
+                                if let Err(err) = locked_processor.process(accumulation) {
                                     global::handle(err);
                                 }
                                 checkpointed += 1;
@@ -315,14 +315,14 @@ impl SyncInstrument {
                 .instrument
                 .meter
                 .0
-                .integrator
+                .processor
                 .aggregation_selector()
                 .aggregator_for(&self.instrument.descriptor),
             checkpoint: self
                 .instrument
                 .meter
                 .0
-                .integrator
+                .processor
                 .aggregation_selector()
                 .aggregator_for(&self.instrument.descriptor),
         });
@@ -403,7 +403,7 @@ impl AsyncInstrument {
                         .instrument
                         .meter
                         .0
-                        .integrator
+                        .processor
                         .aggregation_selector()
                         .aggregator_for(&self.instrument.descriptor);
                 } else {
@@ -416,7 +416,7 @@ impl AsyncInstrument {
                 .instrument
                 .meter
                 .0
-                .integrator
+                .processor
                 .aggregation_selector()
                 .aggregator_for(&self.instrument.descriptor);
             if recorders.is_none() {
@@ -486,7 +486,7 @@ struct Record {
 
 impl sdk_api::SyncBoundInstrumentCore for Record {
     fn record_one_with_context<'a>(&self, cx: &Context, number: Number) {
-        // check if the instrument is disabled according to the AggregationSelector.
+        // check if the instrument is disabled according to the AggregatorSelector.
         if let Some(recorder) = &self.current {
             if let Err(err) = aggregators::range_test(
                 &number,

@@ -1,12 +1,15 @@
 //! Stdout Metrics Exporter
 use crate::api::{
     labels, metrics,
-    metrics::{MetricsError, Result},
+    metrics::{Descriptor, MetricsError, Result},
     KeyValue,
 };
 use crate::global;
 use crate::sdk::{
-    export::metrics::{CheckpointSet, Count, Exporter, LastValue, Max, Min, Quantile, Sum},
+    export::metrics::{
+        CheckpointSet, Count, ExportKind, ExportKindSelector, Exporter, LastValue, Max, Min,
+        Quantile, Sum,
+    },
     metrics::{
         aggregators::{
             ArrayAggregator, HistogramAggregator, LastValueAggregator, MinMaxSumCountAggregator,
@@ -122,9 +125,9 @@ where
         if !self.do_not_print_time {
             batch.timestamp = Some(SystemTime::now());
         }
-        checkpoint_set.try_for_each(&mut |record| {
+        checkpoint_set.try_for_each(self, &mut |record| {
+            let agg = record.aggregator().ok_or(MetricsError::NoDataCollected)?;
             let desc = record.descriptor();
-            let agg = record.aggregator();
             let kind = desc.number_kind();
             let encoded_resource = record.resource().encoded(self.label_encoder.as_ref());
             let encoded_inst_labels = if !desc.instrumentation_name().is_empty() {
@@ -224,8 +227,18 @@ where
                 Some(formatter) => formatter.0(batch)?,
                 None => format!("{:?}\n", batch),
             };
-            w.write_all(formatted.as_bytes()).map_err(From::from)
+            w.write_all(formatted.as_bytes())
+                .map_err(|e| MetricsError::Other(e.to_string()))
         })
+    }
+}
+
+impl<W> ExportKindSelector for StdoutExporter<W>
+where
+    W: fmt::Debug + io::Write,
+{
+    fn export_kind_for(&self, _descriptor: &Descriptor) -> ExportKind {
+        ExportKind::PassThrough
     }
 }
 
@@ -344,9 +357,14 @@ where
     pub fn try_init(mut self) -> metrics::Result<PushController> {
         let period = self.period.take();
         let (spawn, interval, exporter) = self.try_build()?;
-        let mut push_builder =
-            controllers::push(simple::Selector::Exact, exporter, spawn, interval)
-                .with_stateful(true);
+        let mut push_builder = controllers::push(
+            simple::Selector::Exact,
+            ExportKind::PassThrough,
+            exporter,
+            spawn,
+            interval,
+        )
+        .with_stateful(true);
         if let Some(period) = period {
             push_builder = push_builder.with_period(period);
         }
