@@ -3,7 +3,7 @@ use crate::api::{self, Context, KeyValue};
 use percent_encoding::{percent_decode_str, utf8_percent_encode, AsciiSet, CONTROLS};
 use std::iter;
 
-static CORRELATION_CONTEXT_HEADER: &str = "Correlation-Context";
+static CORRELATION_CONTEXT_HEADER: &str = "otcorrelations";
 const FRAGMENT: &AsciiSet = &CONTROLS.add(b' ').add(b'"').add(b';').add(b',').add(b'=');
 
 lazy_static::lazy_static! {
