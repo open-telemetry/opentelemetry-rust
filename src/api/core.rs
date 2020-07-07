@@ -62,6 +62,14 @@ impl Key {
         }
     }
 
+    /// Create a `KeyValue` pair for arrays.
+    pub fn array<T: Into<Vec<Value>>>(&self, value: T) -> KeyValue {
+        KeyValue {
+            key: self.clone(),
+            value: Value::Array(value.into()),
+        }
+    }
+
     /// Returns a reference to the underlying key name
     pub fn as_str(&self) -> &str {
         self.0.as_ref()
@@ -105,6 +113,8 @@ pub enum Value {
     String(String),
     /// Byte array values
     Bytes(Vec<u8>),
+    /// Array of homogeneous values
+    Array(Vec<Value>),
 }
 
 macro_rules! from_values {
@@ -130,6 +140,7 @@ from_values!(
     (f64, Value::F64);
     (String, Value::String);
     (Vec<u8>, Value::Bytes);
+    (Vec<Value>, Value::Array);
 );
 
 impl From<&str> for Value {
@@ -150,6 +161,10 @@ impl From<Value> for String {
             Value::F64(value) => value.to_string(),
             Value::String(value) => value,
             Value::Bytes(value) => String::from_utf8(value).unwrap_or_else(|_| String::new()),
+            Value::Array(value) => format!(
+                "[{}]",
+                value.iter().map(String::from).collect::<Vec<_>>().join(",")
+            ),
         }
     }
 }
@@ -167,6 +182,10 @@ impl From<&Value> for String {
             Value::Bytes(value) => {
                 String::from_utf8(value.clone()).unwrap_or_else(|_| String::new())
             }
+            Value::Array(value) => format!(
+                "[{}]",
+                value.iter().map(String::from).collect::<Vec<_>>().join(",")
+            ),
         }
     }
 }

@@ -200,7 +200,7 @@ mod tests {
             (vec![KeyValue::new("key1", "val1"), KeyValue::new("key2", "val2")], vec!["key1=val1", "key2=val2"]),
 	    // "two values with escaped chars"
             (vec![KeyValue::new("key1", "val1,val2"), KeyValue::new("key2", "val3=4")], vec!["key1=val1%2Cval2", "key2=val3%3D4"]),
-	    // "values of non-string types"
+	    // "values of non-string non-array types"
             (
                 vec![
                     KeyValue::new("key1", true),
@@ -215,6 +215,19 @@ mod tests {
                         "key4=123.567",
                 ],
             ),
+        // "values of array types"
+            (
+                vec![
+                    KeyValue::new("key1", Value::Array(vec![Value::Bool(true), Value::Bool(false)])),
+                    KeyValue::new("key2", Value::Array(vec![Value::String("val1".to_string()), Value::String("val2".to_string())])),
+                    KeyValue::new("key3", Value::Array(vec![Value::I64(123), Value::I64(456)])),
+                ],
+                vec![
+                        "key1=[true%2Cfalse]",
+                        "key2=[val1%2Cval2]",
+                        "key3=[123%2C456]",
+                ],
+            )
         ]
     }
 
