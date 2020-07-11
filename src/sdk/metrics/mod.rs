@@ -111,7 +111,7 @@ impl AsyncInstrumentState {
 #[derive(Debug)]
 struct AccumulatorCore {
     /// A concurrent map of current sync instrument state.
-    current: flurry::HashMap<MapKey, Arc<Record>>,
+    current: dashmap::DashMap<MapKey, Arc<Record>>,
     /// A collection of async instrument state
     async_instruments: Mutex<AsyncInstrumentState>,
 
@@ -126,7 +126,7 @@ struct AccumulatorCore {
 impl AccumulatorCore {
     fn new(processor: Arc<dyn Processor + Send + Sync>, resource: Resource) -> Self {
         AccumulatorCore {
-            current: flurry::HashMap::new(),
+            current: dashmap::DashMap::new(),
             async_instruments: Mutex::new(AsyncInstrumentState::default()),
             current_epoch: NumberKind::U64.zero(),
             processor,
@@ -176,9 +176,9 @@ impl AccumulatorCore {
 
     fn collect_sync_instruments(&self, locked_processor: &mut dyn LockedProcessor) -> usize {
         let mut checkpointed = 0;
-        let current_pin = self.current.pin();
 
-        for (key, value) in current_pin.iter() {
+        for element in self.current.iter() {
+            let (key, value) = element.pair();
             let mods = &value.update_count;
             let coll = &value.collected_count;
 
@@ -191,7 +191,7 @@ impl AccumulatorCore {
                 // Having no updates since last collection, try to remove if
                 // there are no bound handles
                 if Arc::strong_count(&value) == 1 {
-                    current_pin.remove(key);
+                    self.current.remove(key);
 
                     // There's a potential race between loading collected count and
                     // loading the strong count in this function.  Since this is the
@@ -301,9 +301,9 @@ impl SyncInstrument {
             descriptor_hash,
             ordered_hash,
         };
-        let current_pin = self.instrument.meter.0.current.pin();
-        if let Some(existing_record) = current_pin.get(&map_key) {
-            return existing_record.clone();
+        let current = &self.instrument.meter.0.current;
+        if let Some(existing_record) = current.get(&map_key) {
+            return existing_record.value().clone();
         }
 
         let record = Arc::new(Record {
@@ -326,7 +326,7 @@ impl SyncInstrument {
                 .aggregation_selector()
                 .aggregator_for(&self.instrument.descriptor),
         });
-        current_pin.insert(map_key, record.clone());
+        current.insert(map_key, record.clone());
 
         record
     }

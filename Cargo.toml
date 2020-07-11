@@ -18,7 +18,7 @@ edition = "2018"
 [dependencies]
 base64 = { version = "0.12", optional = true }
 bincode = { version = "1.2", optional = true }
-flurry = { version = "0.3", optional = true }
+dashmap = { version = "4.0.0-rc6", optional = true }
 futures = "0.3"
 lazy_static = "1.4"
 percent-encoding = "2.0"
@@ -37,7 +37,7 @@ tokio = { version = "0.2", features = ["full"] }
 default = ["metrics", "trace"]
 base64_format = ["base64", "binary_propagator"]
 trace = ["rand", "pin-project"]
-metrics = ["thiserror", "flurry"]
+metrics = ["thiserror", "dashmap"]
 serialize = ["serde", "bincode"]
 binary_propagator = []
 
