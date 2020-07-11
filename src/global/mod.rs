@@ -73,6 +73,8 @@ mod error_handler;
 #[cfg(feature = "metrics")]
 mod metrics;
 #[cfg(feature = "trace")]
+mod propagation;
+#[cfg(feature = "trace")]
 mod trace;
 
 #[cfg(feature = "metrics")]
@@ -80,7 +82,6 @@ pub use error_handler::{handle, set_handler};
 #[cfg(feature = "metrics")]
 pub use metrics::{meter, meter_provider, set_meter_provider};
 #[cfg(feature = "trace")]
-pub use trace::{
-    get_http_text_propagator, set_http_text_propagator, set_provider, trace_provider, tracer,
-    GenericProvider,
-};
+pub use propagation::{get_http_text_propagator, set_http_text_propagator};
+#[cfg(feature = "trace")]
+pub use trace::{set_provider, trace_provider, tracer, GenericProvider};

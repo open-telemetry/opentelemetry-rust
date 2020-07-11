@@ -49,7 +49,7 @@ impl PullController {
             self.processor.lock().and_then(|mut locked_processor| {
                 locked_processor.start_collection();
                 self.accumulator.0.collect(&mut locked_processor);
-                locked_processor.finished_collection()
+                locked_processor.finish_collection()
             })
         } else {
             Ok(())
@@ -127,6 +127,7 @@ impl PullControllerBuilder {
         let processor = Arc::new(processors::basic(
             self.aggregator_selector,
             self.export_selector,
+            true,
         ));
 
         let accumulator = accumulator(processor.clone())

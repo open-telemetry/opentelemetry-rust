@@ -77,7 +77,7 @@ impl PushControllerWorker {
         if let Err(err) = self.processor.lock().and_then(|mut locked_processor| {
             locked_processor.start_collection();
             self.accumulator.0.collect(&mut locked_processor);
-            locked_processor.finished_collection()?;
+            locked_processor.finish_collection()?;
             self.exporter.export(locked_processor.checkpoint_set())
         }) {
             global::handle(err)
@@ -169,7 +169,7 @@ where
 
     /// Build a new `PushController` with this configuration.
     pub fn build(self) -> PushController {
-        let processor = processors::basic(self.aggregator_selector, self.export_selector);
+        let processor = processors::basic(self.aggregator_selector, self.export_selector, false);
         let processor = Arc::new(processor);
         let mut accumulator = metrics::accumulator(processor.clone());
 

@@ -66,6 +66,7 @@ impl Aggregator for SumAggregator {
         if let Some(other) = other.as_any().downcast_ref::<Self>() {
             let kind = descriptor.number_kind();
             other.value.assign(kind, &self.value);
+            self.value.assign(kind, &kind.zero());
             Ok(())
         } else {
             Err(MetricsError::InconsistentAggregator(format!(

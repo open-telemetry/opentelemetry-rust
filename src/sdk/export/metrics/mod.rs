@@ -72,7 +72,7 @@ pub trait LockedProcessor {
 
     /// Cleanup logic or other behavior that needs to be run by the processor after
     /// collection is complete.
-    fn finished_collection(&mut self) -> Result<()>;
+    fn finish_collection(&mut self) -> Result<()>;
 }
 
 /// AggregatorSelector supports selecting the kind of `Aggregator` to use at

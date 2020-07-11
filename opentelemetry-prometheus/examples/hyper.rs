@@ -27,13 +27,14 @@ async fn serve_req(
     _req: Request<Body>,
     state: Arc<AppState>,
 ) -> Result<Response<Body>, hyper::Error> {
-    let encoder = TextEncoder::new();
     let request_start = SystemTime::now();
-    state.http_counter.add(1);
 
     let mut buffer = vec![];
+    let encoder = TextEncoder::new();
     let metric_families = state.exporter.registry().gather();
     encoder.encode(&metric_families, &mut buffer).unwrap();
+
+    state.http_counter.add(1);
     state.http_body_gauge.record(buffer.len() as u64);
 
     let response = Response::builder()

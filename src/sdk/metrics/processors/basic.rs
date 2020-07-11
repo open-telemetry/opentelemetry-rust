@@ -19,11 +19,12 @@ use std::time::SystemTime;
 pub fn basic(
     aggregator_selector: Box<dyn AggregatorSelector + Send + Sync>,
     export_selector: Box<dyn ExportKindSelector + Send + Sync>,
+    memory: bool,
 ) -> BasicProcessor {
     BasicProcessor {
         aggregator_selector,
         export_selector,
-        state: Mutex::new(BasicProcessorState::default()),
+        state: Mutex::new(BasicProcessorState::with_memory(memory)),
     }
 }
 
@@ -224,13 +225,14 @@ impl<'a> LockedProcessor for BasicLockedProcessor<'a> {
         self.state.started_collection = self.state.started_collection.wrapping_add(1);
     }
 
-    fn finished_collection(&mut self) -> Result<()> {
+    fn finish_collection(&mut self) -> Result<()> {
         self.state.interval_end = SystemTime::now();
         if self.state.started_collection != self.state.finished_collection.wrapping_add(1) {
             return Err(MetricsError::InconsistentState);
         }
         let finished_collection = self.state.finished_collection;
         self.state.finished_collection = self.state.finished_collection.wrapping_add(1);
+        let has_memory = self.state.config.memory;
 
         let mut result = Ok(());
 
@@ -242,9 +244,18 @@ impl<'a> LockedProcessor for BasicLockedProcessor<'a> {
 
             let mkind = value.descriptor.instrument_kind();
 
-            if !value.stateful && value.updated != finished_collection {
-                // Remove item if it is not updated
-                return false;
+            let stale = value.updated != finished_collection;
+            let stateless = !value.stateful;
+
+            // The following branch updates stateful aggregators. Skip these updates
+            // if the aggregator is not stateful or if the aggregator is stale.
+            if stale || stateless {
+                // If this processor does not require memory, stale, stateless
+                // entries can be removed. This implies that they were not updated
+                // over the previous full collection interval.
+                if stale && stateless && has_memory {
+                    return false;
+                }
             }
 
             // Update Aggregator state to support exporting either a
@@ -284,8 +295,18 @@ impl<'a> LockedProcessor for BasicLockedProcessor<'a> {
     }
 }
 
+#[derive(Debug, Default)]
+struct BasicProcessorConfig {
+    /// Memory controls whether the processor remembers metric instruments and label
+    /// sets that were previously reported. When Memory is true,
+    /// `CheckpointSet::try_for_each` will visit metrics that were not updated in
+    /// the most recent interval.
+    memory: bool,
+}
+
 #[derive(Debug)]
 struct BasicProcessorState {
+    config: BasicProcessorConfig,
     values: HashMap<StateKey, StateValue>,
     // Note: the timestamp logic currently assumes all exports are deltas.
     process_start: SystemTime,
@@ -295,9 +316,18 @@ struct BasicProcessorState {
     finished_collection: u64,
 }
 
+impl BasicProcessorState {
+    fn with_memory(memory: bool) -> Self {
+        let mut state = BasicProcessorState::default();
+        state.config.memory = memory;
+        state
+    }
+}
+
 impl Default for BasicProcessorState {
     fn default() -> Self {
         BasicProcessorState {
+            config: BasicProcessorConfig::default(),
             values: HashMap::default(),
             process_start: SystemTime::now(),
             interval_start: SystemTime::now(),
@@ -323,6 +353,12 @@ impl CheckpointSet for BasicProcessorState {
 
             let agg;
             let start;
+
+            // If the processor does not have memory and it was not updated in the
+            // prior round, do not visit this value.
+            if !self.config.memory && value.updated != self.finished_collection.wrapping_sub(1) {
+                return Ok(());
+            }
 
             match exporter.export_kind_for(&value.descriptor) {
                 ExportKind::PassThrough => {

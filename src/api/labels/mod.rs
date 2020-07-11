@@ -41,7 +41,7 @@ impl Set {
         self.equivalent.len()
     }
 
-    /// Returns the underlying distinct set of labels for equivilence checks..
+    /// Returns the underlying distinct set of labels for equivalence checks..
     pub fn equivalent(&self) -> &Distinct {
         &self.equivalent
     }
