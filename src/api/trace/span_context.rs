@@ -14,13 +14,20 @@
 use serde::{Deserialize, Serialize};
 
 const TRACE_FLAGS_BIT_MASK_SAMPLED: u8 = 0x01;
-const TRACE_FLAGS_BIT_MASK_UNUSED: u8 = 0xFE;
+const TRACE_FLAGS_BIT_MASK_DEFERRED: u8 = 0x02;
+const TRACE_FLAGS_BIT_MASK_DEBUG: u8 = 0x04;
 
-/// TraceFlagsSampled is a byte with sampled bit set. It is a convenient value initializer
-/// for SpanContext TraceFlags field when a trace is sampled.
+/// A SpanContext with TRACE_FLAG_NOT_SAMPLED means the span is not sampled.
+pub const TRACE_FLAG_NOT_SAMPLED: u8 = 0x00;
+/// TRACE_FLAG_SAMPLED is a bitmask with the sampled bit set. A SpanContext
+/// with the sampling bit set means the span is sampled.
 pub const TRACE_FLAG_SAMPLED: u8 = TRACE_FLAGS_BIT_MASK_SAMPLED;
-/// Useful for extracting trace context
-pub const TRACE_FLAGS_UNUSED: u8 = TRACE_FLAGS_BIT_MASK_UNUSED;
+/// TRACE_FLAGS_DEFERRED is a bitmask with the deferred bit set. A SpanContext
+/// with the deferred bit set means the sampling decision has been
+/// defered to the receiver.
+pub const TRACE_FLAG_DEFERRED: u8 = TRACE_FLAGS_BIT_MASK_DEFERRED;
+/// TRACE_FLAGS_DEBUG is a bitmask with the debug bit set. Note that debug implies sampled
+pub const TRACE_FLAG_DEBUG: u8 = TRACE_FLAGS_BIT_MASK_DEBUG | TRACE_FLAGS_BIT_MASK_SAMPLED;
 
 /// TraceId is an 16-byte value which uniquely identifies a given trace
 /// The actual `u128` value is wrapped in a tuple struct in order to leverage the newtype pattern
@@ -121,8 +128,18 @@ impl SpanContext {
         self.is_remote
     }
 
+    /// Returns if the deferred bit is set in the trace flags
+    pub fn is_deferred(&self) -> bool {
+        (self.trace_flags & TRACE_FLAG_DEFERRED) == TRACE_FLAG_DEFERRED
+    }
+
+    /// Returns if the debug bit is set in the trace flags
+    pub fn is_debug(&self) -> bool {
+        (self.trace_flags & TRACE_FLAG_DEBUG) == TRACE_FLAG_DEBUG
+    }
+
     /// Returns true if the `SpanContext` is sampled.
     pub fn is_sampled(&self) -> bool {
-        (self.trace_flags & TRACE_FLAGS_BIT_MASK_SAMPLED) == TRACE_FLAGS_BIT_MASK_SAMPLED
+        (self.trace_flags & TRACE_FLAG_SAMPLED) == TRACE_FLAG_SAMPLED
     }
 }

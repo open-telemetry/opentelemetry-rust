@@ -19,9 +19,10 @@ use std::fmt::Debug;
 /// use opentelemetry::api::*;
 /// use opentelemetry::sdk;
 /// use std::collections::HashMap;
+/// use opentelemetry::api::trace::b3_propagator::B3Encoding;
 ///
 /// // First create 1 or more propagators
-/// let b3_propagator = B3Propagator::new(true);
+/// let b3_propagator = B3Propagator::new(B3Encoding::B3SingleHeader);
 /// let trace_context_propagator = TraceContextPropagator::new();
 ///
 /// // Then create a composite propagator
@@ -40,7 +41,7 @@ use std::fmt::Debug;
 /// composite_propagator.inject_context(&Context::current_with_span(example_span), &mut carrier);
 ///
 /// // The carrier now has both `X-B3` and `traceparent` headers
-/// assert!(carrier.get("X-B3").is_some());
+/// assert!(carrier.get("b3").is_some());
 /// assert!(carrier.get("traceparent").is_some());
 /// ```
 #[derive(Debug)]
@@ -80,6 +81,7 @@ impl HttpTextFormat for HttpTextCompositePropagator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::api::trace::b3_propagator::B3Encoding;
     use crate::api::TraceContextExt;
     use crate::api::{B3Propagator, Context, SpanContext, SpanId, TraceContextPropagator, TraceId};
     use std::collections::HashMap;
@@ -87,7 +89,7 @@ mod tests {
     fn test_data() -> Vec<(&'static str, &'static str)> {
         vec![
             (
-                "X-B3",
+                "b3",
                 "00000000000000000000000000000001-0000000000000001-0",
             ),
             (
@@ -121,7 +123,7 @@ mod tests {
 
     #[test]
     fn inject_multiple_propagators() {
-        let b3 = B3Propagator::new(true);
+        let b3 = B3Propagator::new(B3Encoding::B3SingleHeader);
         let trace_context = TraceContextPropagator::new();
         let composite_propagator = HttpTextCompositePropagator {
             propagators: vec![Box::new(b3), Box::new(trace_context)],
@@ -143,7 +145,7 @@ mod tests {
 
     #[test]
     fn extract_multiple_propagators() {
-        let b3 = B3Propagator::new(true);
+        let b3 = B3Propagator::new(B3Encoding::B3SingleHeader);
         let trace_context = TraceContextPropagator::new();
         let composite_propagator = HttpTextCompositePropagator {
             propagators: vec![Box::new(b3), Box::new(trace_context)],

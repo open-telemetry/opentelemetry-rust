@@ -68,7 +68,7 @@ impl TraceContextPropagator {
             return Err(());
         }
         // Build trace flags
-        let trace_flags = opts & !api::TRACE_FLAGS_UNUSED;
+        let trace_flags = opts & api::TRACE_FLAG_SAMPLED;
 
         // create context
         let span_context = api::SpanContext::new(trace_id, span_id, trace_flags, true);
