@@ -184,7 +184,15 @@ impl From<&Value> for String {
             }
             Value::Array(value) => format!(
                 "[{}]",
-                value.iter().map(String::from).collect::<Vec<_>>().join(",")
+                value
+                    .iter()
+                    .map(|elem| match elem {
+                        v @ Value::String(_) | v @ Value::Bytes(_) =>
+                            format!(r#""{}""#, String::from(v)),
+                        v => String::from(v),
+                    })
+                    .collect::<Vec<_>>()
+                    .join(",")
             ),
         }
     }

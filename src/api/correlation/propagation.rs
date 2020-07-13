@@ -219,13 +219,15 @@ mod tests {
             (
                 vec![
                     KeyValue::new("key1", Value::Array(vec![Value::Bool(true), Value::Bool(false)])),
-                    KeyValue::new("key2", Value::Array(vec![Value::String("val1".to_string()), Value::String("val2".to_string())])),
-                    KeyValue::new("key3", Value::Array(vec![Value::I64(123), Value::I64(456)])),
+                    KeyValue::new("key2", Value::Array(vec![Value::I64(123), Value::I64(456)])),
+                    KeyValue::new("key3", Value::Array(vec![Value::String("val1".to_string()), Value::String("val2".to_string())])),
+                    KeyValue::new("key4", Value::Array(vec![Value::Bytes(vec![118, 97, 108, 49]), Value::Bytes(vec![118, 97, 108, 50])])),
                 ],
                 vec![
                         "key1=[true%2Cfalse]",
-                        "key2=[val1%2Cval2]",
-                        "key3=[123%2C456]",
+                        "key2=[123%2C456]",
+                        "key3=[%22val1%22%2C%22val2%22]",
+                        "key4=[%22val1%22%2C%22val2%22]",
                 ],
             )
         ]
