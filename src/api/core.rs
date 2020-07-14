@@ -161,10 +161,7 @@ impl From<Value> for String {
             Value::F64(value) => value.to_string(),
             Value::String(value) => value,
             Value::Bytes(value) => String::from_utf8(value).unwrap_or_else(|_| String::new()),
-            Value::Array(value) => format!(
-                "[{}]",
-                value.iter().map(String::from).collect::<Vec<_>>().join(",")
-            ),
+            Value::Array(value) => format_value_array_as_string(&value),
         }
     }
 }
@@ -182,20 +179,22 @@ impl From<&Value> for String {
             Value::Bytes(value) => {
                 String::from_utf8(value.clone()).unwrap_or_else(|_| String::new())
             }
-            Value::Array(value) => format!(
-                "[{}]",
-                value
-                    .iter()
-                    .map(|elem| match elem {
-                        v @ Value::String(_) | v @ Value::Bytes(_) =>
-                            format!(r#""{}""#, String::from(v)),
-                        v => String::from(v),
-                    })
-                    .collect::<Vec<_>>()
-                    .join(",")
-            ),
+            Value::Array(value) => format_value_array_as_string(value),
         }
     }
+}
+
+fn format_value_array_as_string(v: &Vec<Value>) -> String {
+    format!(
+        "[{}]",
+        v.iter()
+            .map(|elem| match elem {
+                v @ Value::String(_) | v @ Value::Bytes(_) => format!(r#""{}""#, String::from(v)),
+                v => String::from(v),
+            })
+            .collect::<Vec<_>>()
+            .join(",")
+    )
 }
 
 /// `KeyValue` pairs are used by `LabelSet`s and `Span` attributes.
