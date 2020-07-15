@@ -184,7 +184,7 @@ impl From<&Value> for String {
     }
 }
 
-fn format_value_array_as_string(v: &Vec<Value>) -> String {
+fn format_value_array_as_string(v: &[Value]) -> String {
     format!(
         "[{}]",
         v.iter()
