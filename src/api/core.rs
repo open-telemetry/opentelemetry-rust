@@ -62,6 +62,14 @@ impl Key {
         }
     }
 
+    /// Create a `KeyValue` pair for arrays.
+    pub fn array<T: Into<Vec<Value>>>(&self, value: T) -> KeyValue {
+        KeyValue {
+            key: self.clone(),
+            value: Value::Array(value.into()),
+        }
+    }
+
     /// Returns a reference to the underlying key name
     pub fn as_str(&self) -> &str {
         self.0.as_ref()
@@ -105,6 +113,8 @@ pub enum Value {
     String(String),
     /// Byte array values
     Bytes(Vec<u8>),
+    /// Array of homogeneous values
+    Array(Vec<Value>),
 }
 
 macro_rules! from_values {
@@ -130,6 +140,7 @@ from_values!(
     (f64, Value::F64);
     (String, Value::String);
     (Vec<u8>, Value::Bytes);
+    (Vec<Value>, Value::Array);
 );
 
 impl From<&str> for Value {
@@ -150,6 +161,7 @@ impl From<Value> for String {
             Value::F64(value) => value.to_string(),
             Value::String(value) => value,
             Value::Bytes(value) => String::from_utf8(value).unwrap_or_else(|_| String::new()),
+            Value::Array(value) => format_value_array_as_string(&value),
         }
     }
 }
@@ -167,8 +179,22 @@ impl From<&Value> for String {
             Value::Bytes(value) => {
                 String::from_utf8(value.clone()).unwrap_or_else(|_| String::new())
             }
+            Value::Array(value) => format_value_array_as_string(value),
         }
     }
+}
+
+fn format_value_array_as_string(v: &[Value]) -> String {
+    format!(
+        "[{}]",
+        v.iter()
+            .map(|elem| match elem {
+                v @ Value::String(_) | v @ Value::Bytes(_) => format!(r#""{}""#, String::from(v)),
+                v => String::from(v),
+            })
+            .collect::<Vec<_>>()
+            .join(",")
+    )
 }
 
 /// `KeyValue` pairs are used by `LabelSet`s and `Span` attributes.
