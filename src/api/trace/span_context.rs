@@ -13,21 +13,18 @@
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
 
-const TRACE_FLAGS_BIT_MASK_SAMPLED: u8 = 0x01;
-const TRACE_FLAGS_BIT_MASK_DEFERRED: u8 = 0x02;
-const TRACE_FLAGS_BIT_MASK_DEBUG: u8 = 0x04;
 
 /// A SpanContext with TRACE_FLAG_NOT_SAMPLED means the span is not sampled.
 pub const TRACE_FLAG_NOT_SAMPLED: u8 = 0x00;
 /// TRACE_FLAG_SAMPLED is a bitmask with the sampled bit set. A SpanContext
 /// with the sampling bit set means the span is sampled.
-pub const TRACE_FLAG_SAMPLED: u8 = TRACE_FLAGS_BIT_MASK_SAMPLED;
+pub const TRACE_FLAG_SAMPLED: u8 = 0x01;
 /// TRACE_FLAGS_DEFERRED is a bitmask with the deferred bit set. A SpanContext
 /// with the deferred bit set means the sampling decision has been
 /// defered to the receiver.
-pub const TRACE_FLAG_DEFERRED: u8 = TRACE_FLAGS_BIT_MASK_DEFERRED;
-/// TRACE_FLAGS_DEBUG is a bitmask with the debug bit set. Note that debug implies sampled
-pub const TRACE_FLAG_DEBUG: u8 = TRACE_FLAGS_BIT_MASK_DEBUG | TRACE_FLAGS_BIT_MASK_SAMPLED;
+pub const TRACE_FLAG_DEFERRED: u8 = 0x02;
+/// TRACE_FLAGS_DEBUG is a bitmask with the debug bit set.
+pub const TRACE_FLAG_DEBUG: u8 = 0x04;
 
 /// TraceId is an 16-byte value which uniquely identifies a given trace
 /// The actual `u128` value is wrapped in a tuple struct in order to leverage the newtype pattern
