@@ -15,6 +15,7 @@
 //! and extract. Otherwise, separate headers are used to inject and extract.
 use crate::{api, api::TraceContextExt};
 use crate::api::TRACE_FLAG_DEFERRED;
+use crate::api::trace::b3_propagator::B3Encoding::MultipleHeader;
 
 static B3_SINGLE_HEADER: &str = "b3";
 /// As per spec, the multiple header should be case sensitive. But different protocol will use
@@ -28,26 +29,26 @@ static B3_SAMPLED_HEADER: &str = "x-b3-sampled";
 static B3_PARENT_SPAN_ID_HEADER: &str = "x-b3-parentspanid";
 
 /// B3Encoding is a bitmask to represent B3 encoding type
-#[derive(Clone, Debug, Copy)]
+#[derive(Clone, Debug)]
 pub enum B3Encoding {
-    /// B3Unspecified is an unspecified B3 encoding
-    B3Unspecified = 0,
-    /// B3MultipleHeader is a B3 encoding that uses multiple headers
+    /// Unspecified is an unspecified B3 encoding
+    UnSpecified = 0,
+    /// MultipleHeader is a B3 encoding that uses multiple headers
     /// to transmit tracing information prefixed with `X-B3-`
-    B3MultipleHeader = 1,
-    /// B3SingleHeader is B3 encoding that uses a single header named `b3`
+    MultipleHeader = 1,
+    /// SingleHeader is B3 encoding that uses a single header named `b3`
     /// to transmit tracing information
-    B3SingleHeader = 2,
-    /// B3SingleAndMultiHeader is B3 encoding that uses both single header and multiple headers
+    SingleHeader = 2,
+    /// SingleAndMultiHeader is B3 encoding that uses both single header and multiple headers
     /// to transmit tracing information. Note that if both single header and multiple headers are
     /// provided, the single header will take precedence when extracted
-    B3SingleAndMultiHeader = 3,
+    SingleAndMultiHeader = 3,
 }
 
 impl B3Encoding {
     /// support determines if current encoding supports the `e`
-    pub fn support(&self, e: B3Encoding) -> bool {
-        *self as u8 & e as u8 == e as u8
+    pub fn support(&self, other: &Self) -> bool {
+        (self.clone() as u8) & (other.clone() as u8) == (other.clone() as u8)
     }
 }
 
@@ -57,9 +58,22 @@ pub struct B3Propagator {
     inject_encoding: B3Encoding,
 }
 
+impl Default for B3Propagator {
+    fn default() -> Self {
+        B3Propagator {
+            inject_encoding: MultipleHeader,
+        }
+    }
+}
+
 impl B3Propagator {
-    /// Create a new `HttpB3Propagator`.
-    pub fn new(encoding: B3Encoding) -> Self {
+    /// Create a new `HttpB3Propagator` that uses multiple headers.
+    pub fn new() -> Self {
+        B3Propagator::default()
+    }
+
+    /// Create a new `HttpB3Propagator` that uses `encoding` as encoding method
+    pub fn with_encoding(encoding: B3Encoding) -> Self {
         B3Propagator {
             inject_encoding: encoding,
         }
@@ -97,10 +111,10 @@ impl B3Propagator {
         match sampled {
             "0" | "false" => Ok(api::TRACE_FLAG_NOT_SAMPLED),
             "1" => Ok(api::TRACE_FLAG_SAMPLED),
-            "true" if !self.inject_encoding.support(B3Encoding::B3SingleHeader) => {
+            "true" if !self.inject_encoding.support(&B3Encoding::SingleHeader) => {
                 Ok(api::TRACE_FLAG_SAMPLED)
             }
-            "d" if self.inject_encoding.support(B3Encoding::B3SingleHeader) => {
+            "d" if self.inject_encoding.support(&B3Encoding::SingleHeader) => {
                 Ok(api::TRACE_FLAG_DEBUG)
             }
             _ => Err(()),
@@ -190,7 +204,7 @@ impl api::HttpTextFormat for B3Propagator {
     fn inject_context(&self, context: &api::Context, carrier: &mut dyn api::Carrier) {
         let span_context = context.span().span_context();
         if span_context.is_valid() {
-            if self.inject_encoding.support(B3Encoding::B3SingleHeader) {
+            if self.inject_encoding.support(&B3Encoding::SingleHeader) {
                 let mut value = format!(
                     "{:032x}-{:016x}",
                     span_context.trace_id().to_u128(),
@@ -209,8 +223,8 @@ impl api::HttpTextFormat for B3Propagator {
 
                 carrier.set(B3_SINGLE_HEADER, value);
             }
-            if self.inject_encoding.support(B3Encoding::B3MultipleHeader) ||
-                self.inject_encoding.support(B3Encoding::B3Unspecified) {
+            if self.inject_encoding.support(&B3Encoding::MultipleHeader) ||
+                self.inject_encoding.support(&B3Encoding::UnSpecified) {
                 // if inject_encoding is Unspecified, default to use MultipleHeader
                 carrier.set(
                     B3_TRACE_ID_HEADER,
@@ -230,11 +244,11 @@ impl api::HttpTextFormat for B3Propagator {
             }
         } else {
             let flag = if span_context.is_sampled() { "1" } else { "0" };
-            if self.inject_encoding.support(B3Encoding::B3SingleHeader) {
+            if self.inject_encoding.support(&B3Encoding::SingleHeader) {
                 carrier.set(B3_SINGLE_HEADER, flag.to_string())
             }
-            if self.inject_encoding.support(B3Encoding::B3MultipleHeader) ||
-                self.inject_encoding.support(B3Encoding::B3Unspecified) {
+            if self.inject_encoding.support(&B3Encoding::MultipleHeader) ||
+                self.inject_encoding.support(&B3Encoding::UnSpecified) {
                 carrier.set(B3_SAMPLED_HEADER, flag.to_string())
             }
         }
@@ -244,7 +258,7 @@ impl api::HttpTextFormat for B3Propagator {
     /// format was retrieved OR if the retrieved data is invalid, then the current
     /// `Context` is returned.
     fn extract_with_context(&self, cx: &api::Context, carrier: &dyn api::Carrier) -> api::Context {
-        let span_context = if self.inject_encoding.support(B3Encoding::B3SingleHeader) {
+        let span_context = if self.inject_encoding.support(&B3Encoding::SingleHeader) {
             self.extract_single_header(carrier)
                 .unwrap_or_else(|_|
                     // if invalid single header should fallback to multiple
@@ -415,10 +429,10 @@ mod tests {
 
     #[test]
     fn extract_b3() {
-        let single_header_propagator = B3Propagator::new(B3Encoding::B3SingleHeader);
-        let multi_header_propagator = B3Propagator::new(B3Encoding::B3MultipleHeader);
-        let single_multi_propagator = B3Propagator::new(B3Encoding::B3SingleAndMultiHeader);
-        let unspecific_header_propagator = B3Propagator::new(B3Encoding::B3Unspecified);
+        let single_header_propagator = B3Propagator::with_encoding(B3Encoding::SingleHeader);
+        let multi_header_propagator = B3Propagator::with_encoding(B3Encoding::MultipleHeader);
+        let single_multi_propagator = B3Propagator::with_encoding(B3Encoding::SingleAndMultiHeader);
+        let unspecific_header_propagator = B3Propagator::with_encoding(B3Encoding::UnSpecified);
 
         for (header, expected_context) in single_header_extract_data() {
             let mut carrier: HashMap<String, String> = HashMap::new();
@@ -465,7 +479,7 @@ mod tests {
             )
         }
 
-        for invalid_single_header in single_header_extrace_invalid_data(){
+        for invalid_single_header in single_header_extrace_invalid_data() {
             let mut carrier = HashMap::new();
             carrier.insert(B3_SINGLE_HEADER.to_string(), invalid_single_header.to_string());
             assert_eq!(
@@ -512,10 +526,10 @@ mod tests {
 
     #[test]
     fn inject_b3() {
-        let single_header_propagator = B3Propagator::new(B3Encoding::B3SingleHeader);
-        let multi_header_propagator = B3Propagator::new(B3Encoding::B3MultipleHeader);
-        let single_multi_header_propagator = B3Propagator::new(B3Encoding::B3SingleAndMultiHeader);
-        let unspecified_header_propagator = B3Propagator::new(B3Encoding::B3Unspecified);
+        let single_header_propagator = B3Propagator::with_encoding(B3Encoding::SingleHeader);
+        let multi_header_propagator = B3Propagator::with_encoding(B3Encoding::MultipleHeader);
+        let single_multi_header_propagator = B3Propagator::with_encoding(B3Encoding::SingleAndMultiHeader);
+        let unspecified_header_propagator = B3Propagator::with_encoding(B3Encoding::UnSpecified);
 
         for (expected_header, context) in single_header_inject_data() {
             let mut carrier = HashMap::new();

@@ -22,7 +22,7 @@ use std::fmt::Debug;
 /// use opentelemetry::api::trace::b3_propagator::B3Encoding;
 ///
 /// // First create 1 or more propagators
-/// let b3_propagator = B3Propagator::new(B3Encoding::B3SingleHeader);
+/// let b3_propagator = B3Propagator::with_encoding(B3Encoding::SingleHeader);
 /// let trace_context_propagator = TraceContextPropagator::new();
 ///
 /// // Then create a composite propagator
@@ -123,7 +123,7 @@ mod tests {
 
     #[test]
     fn inject_multiple_propagators() {
-        let b3 = B3Propagator::new(B3Encoding::B3SingleHeader);
+        let b3 = B3Propagator::with_encoding(B3Encoding::SingleHeader);
         let trace_context = TraceContextPropagator::new();
         let composite_propagator = HttpTextCompositePropagator {
             propagators: vec![Box::new(b3), Box::new(trace_context)],
@@ -145,7 +145,7 @@ mod tests {
 
     #[test]
     fn extract_multiple_propagators() {
-        let b3 = B3Propagator::new(B3Encoding::B3SingleHeader);
+        let b3 = B3Propagator::with_encoding(B3Encoding::SingleHeader);
         let trace_context = TraceContextPropagator::new();
         let composite_propagator = HttpTextCompositePropagator {
             propagators: vec![Box::new(b3), Box::new(trace_context)],
