@@ -11,7 +11,7 @@
 //!    X-B3-Sampled: {sampling_state}
 //!    X-B3-Flags: {debug_flag}
 //!
-//! If `inject_encoding` is set to `B3Encoding::B3SingleHeader` then `b3` header is used to inject
+//! If `inject_encoding` is set to `B3Encoding::SingleHeader` then `b3` header is used to inject
 //! and extract. Otherwise, separate headers are used to inject and extract.
 use crate::{api, api::TraceContextExt};
 use crate::api::TRACE_FLAG_DEFERRED;
