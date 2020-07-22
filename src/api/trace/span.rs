@@ -18,6 +18,7 @@
 use crate::api;
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
+use std::error::Error;
 use std::fmt;
 use std::time::SystemTime;
 
@@ -36,6 +37,42 @@ pub trait Span: fmt::Debug + 'static + Send + Sync {
     /// which have prescribed semantic meanings.
     fn add_event(&self, name: String, attributes: Vec<api::KeyValue>) {
         self.add_event_with_timestamp(name, SystemTime::now(), attributes)
+    }
+
+    /// Convenience method to record an exception/error as an `Event`
+    ///
+    /// An exception SHOULD be recorded as an Event on the span during which it occurred.
+    /// The name of the event MUST be "exception".
+    ///
+    /// The semantic conventions for Errors are described in ["Semantic Conventions for Exceptions"](https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/trace/semantic_conventions/exceptions.md)
+    ///
+    /// If user doesn't provide `error_type` or `stacktrace`, the corresponding attributes will not be set.
+    ///
+    /// User can custom exception message by overriding error's `fmt` method.
+    fn record_exception(
+        &self,
+        err: &dyn Error,
+        error_type: Option<String>,
+        stacktrace: Option<String>,
+    ) {
+        // build up attributes
+        let mut attributes = vec![api::KeyValue::new(
+            "exception.message",
+            format!("{:?}", err),
+        )];
+
+        // if user provide stacktrace, then we set it.
+        // In the future, we can use `Error::stacktrace()` method if it's stabilized.
+        if let Some(_stacktrace) = stacktrace {
+            attributes.push(api::KeyValue::new("exception.stacktrace", _stacktrace));
+        }
+
+        // if user provide error type, then we set it. Otherwise, omit it.
+        if let Some(_error_type) = error_type {
+            attributes.push(api::KeyValue::new("exception.type", _error_type));
+        }
+
+        self.add_event("exception".to_string(), attributes);
     }
 
     /// An API to record events at a specific time in the context of a given `Span`.
