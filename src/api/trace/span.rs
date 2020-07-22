@@ -46,30 +46,25 @@ pub trait Span: fmt::Debug + 'static + Send + Sync {
     ///
     /// The semantic conventions for Errors are described in ["Semantic Conventions for Exceptions"](https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/trace/semantic_conventions/exceptions.md)
     ///
-    /// If user doesn't provide `error_type` or `stacktrace`, the corresponding attributes will not be set.
+    /// If user doesn't provide `stacktrace`, the corresponding attributes will not be set.
     ///
-    /// User can custom exception message by overriding error's `fmt` method.
+    /// User can custom exception message by overriding `fmt::Display` trait's `fmt` method for error.
     fn record_exception(
         &self,
         err: &dyn Error,
-        error_type: Option<String>,
         stacktrace: Option<String>,
     ) {
         // build up attributes
         let mut attributes = vec![api::KeyValue::new(
             "exception.message",
-            format!("{:?}", err),
+            err.to_string(),
         )];
 
         // if user provide stacktrace, then we set it.
-        // In the future, we can use `Error::stacktrace()` method if it's stabilized.
+        // In the future, we can use `Error::backtrace()` method if it's stabilized.
+        // See https://doc.rust-lang.org/std/error/trait.Error.html#method.backtrace for details
         if let Some(_stacktrace) = stacktrace {
             attributes.push(api::KeyValue::new("exception.stacktrace", _stacktrace));
-        }
-
-        // if user provide error type, then we set it. Otherwise, omit it.
-        if let Some(_error_type) = error_type {
-            attributes.push(api::KeyValue::new("exception.type", _error_type));
         }
 
         self.add_event("exception".to_string(), attributes);
