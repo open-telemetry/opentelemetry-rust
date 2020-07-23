@@ -44,9 +44,9 @@ impl api::Sampler for Sampler {
                     }
                 },
             ),
-            // Match parent or probabilistically sample the trace.
+            // Probabilistically sample the trace.
             Sampler::Probability(prob) => {
-                if *prob >= 1.0 || parent_context.map(|ctx| ctx.is_sampled()).unwrap_or(false) {
+                if *prob >= 1.0 {
                     api::SamplingDecision::RecordAndSampled
                 } else {
                     let prob_upper_bound = (prob.max(0.0) * (1u64 << 63) as f64) as u64;
@@ -107,9 +107,9 @@ mod tests {
             ("unsampled_parent_or_else_with_always_off", Sampler::ParentOrElse(Box::new(Sampler::AlwaysOff)), 0.0, true, false),
             ("unsampled_parent_or_else_with_probability", Sampler::ParentOrElse(Box::new(Sampler::Probability(0.25))), 0.0, true, false),
 
-            // Spans with a parent that is sampled, will always sample, regardless of the probability
-            ("sampled_parent_with_probability_-1",  Sampler::Probability(-1.0), 1.0, true, true),
-            ("sampled_parent_with_probability_.25", Sampler::Probability(0.25), 1.0, true, true),
+            // A probability sampler with a parent that is sampled will ignore the parent
+            ("sampled_parent_with_probability_-1",  Sampler::Probability(-1.0), 0.0, true, true),
+            ("sampled_parent_with_probability_.25", Sampler::Probability(0.25), 0.25, true, true),
             ("sampled_parent_with_probability_2.0", Sampler::Probability(2.0),  1.0, true, true),
 
             // Spans with a parent that is sampled, will always sample, regardless of the delegate sampler
