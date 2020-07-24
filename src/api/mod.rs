@@ -44,7 +44,9 @@ pub use trace::{
     provider::Provider,
     sampler::{Sampler, SamplingDecision, SamplingResult},
     span::{Span, SpanKind, StatusCode},
-    span_context::{SpanContext, SpanId, TraceId, TRACE_FLAGS_UNUSED, TRACE_FLAG_SAMPLED},
+    span_context::{
+        SpanContext, SpanId, TraceId, TRACE_FLAG_DEBUG, TRACE_FLAG_DEFERRED, TRACE_FLAG_SAMPLED, TRACE_FLAG_NOT_SAMPLED
+    },
     span_processor::SpanProcessor,
     trace_context_propagator::TraceContextPropagator,
     tracer::{SpanBuilder, Tracer},

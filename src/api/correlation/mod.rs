@@ -20,7 +20,7 @@
 //!
 //! // Example correlation value passed in externally via http headers
 //! let mut headers = HashMap::new();
-//! headers.insert("Correlation-Context".to_string(), "user_id=1".to_string());
+//! headers.insert("otcorrelations".to_string(), "user_id=1".to_string());
 //!
 //! let propagator = CorrelationContextPropagator::new();
 //! // can extract from any type that impls `Carrier`, usually an HTTP header map
@@ -37,7 +37,7 @@
 //! // Inject correlations into http request
 //! propagator.inject_context(&cx_with_additions, &mut headers);
 //!
-//! let header_value = headers.get("Correlation-Context").expect("header is injected");
+//! let header_value = headers.get("otcorrelations").expect("header is injected");
 //! assert!(header_value.contains("user_id=1"), "still contains previous name / value");
 //! assert!(header_value.contains("server_id=42"), "contains new name / value pair");
 //! ```
