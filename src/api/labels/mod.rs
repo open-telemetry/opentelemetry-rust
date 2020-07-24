@@ -69,17 +69,26 @@ pub fn hash_labels<'a, H: Hasher, I: IntoIterator<Item = (&'a Key, &'a Value)>>(
 ) {
     for (key, value) in labels.into_iter() {
         key.hash(state);
+        hash_value(state, value);
+    }
+}
 
-        match value {
-            Value::Bool(b) => b.hash(state),
-            Value::I64(i) => i.hash(state),
-            Value::U64(u) => u.hash(state),
-            Value::F64(f) => {
-                // FIXME: f64 does not impl hash, this impl may have incorrect outcomes.
-                f.to_bits().hash(state)
+fn hash_value<H: Hasher>(state: &mut H, value: &Value) {
+    match value {
+        Value::Bool(b) => b.hash(state),
+        Value::I64(i) => i.hash(state),
+        Value::U64(u) => u.hash(state),
+        Value::F64(f) => {
+            // FIXME: f64 does not impl hash, this impl may have incorrect outcomes.
+            f.to_bits().hash(state)
+        }
+        Value::String(s) => s.hash(state),
+        Value::Bytes(b) => state.write(b),
+        Value::Array(arr) => {
+            // recursively hash array values
+            for val in arr {
+                hash_value(state, val);
             }
-            Value::String(s) => s.hash(state),
-            Value::Bytes(b) => state.write(b),
         }
     }
 }

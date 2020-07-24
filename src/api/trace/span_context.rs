@@ -13,7 +13,6 @@
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
 
-
 /// A SpanContext with TRACE_FLAG_NOT_SAMPLED means the span is not sampled.
 pub const TRACE_FLAG_NOT_SAMPLED: u8 = 0x00;
 /// TRACE_FLAG_SAMPLED is a bitmask with the sampled bit set. A SpanContext
