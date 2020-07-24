@@ -1,7 +1,4 @@
-use crate::api::{
-    metrics::{Descriptor, MetricsError, Number, Result},
-    Context,
-};
+use crate::api::metrics::{Descriptor, MetricsError, Number, Result};
 use crate::sdk::export::metrics::{Aggregator, LastValue};
 use std::any::Any;
 use std::sync::{Arc, Mutex};
@@ -21,12 +18,7 @@ pub struct LastValueAggregator {
 }
 
 impl Aggregator for LastValueAggregator {
-    fn update_with_context(
-        &self,
-        _cx: &Context,
-        number: &Number,
-        _descriptor: &Descriptor,
-    ) -> Result<()> {
+    fn update(&self, number: &Number, _descriptor: &Descriptor) -> Result<()> {
         self.inner.lock().map_err(Into::into).map(|mut inner| {
             inner.state = Some(LastValueData {
                 value: number.clone(),

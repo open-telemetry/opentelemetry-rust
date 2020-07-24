@@ -71,18 +71,10 @@ impl InstrumentCore for NoopSyncInstrument {
 }
 
 impl SyncInstrumentCore for NoopSyncInstrument {
-    fn bind<'a>(
-        &self,
-        _labels: &'a [crate::api::KeyValue],
-    ) -> Arc<dyn SyncBoundInstrumentCore + Send + Sync> {
+    fn bind<'a>(&self, _labels: &'a [KeyValue]) -> Arc<dyn SyncBoundInstrumentCore + Send + Sync> {
         Arc::new(NoopBoundSyncInstrument)
     }
-    fn record_one_with_context<'a>(
-        &self,
-        _cx: &crate::api::Context,
-        _number: super::Number,
-        _labels: &'a [crate::api::KeyValue],
-    ) {
+    fn record_one<'a>(&self, _number: Number, _labels: &'a [KeyValue]) {
         // Ignored
     }
     fn as_any(&self) -> &dyn Any {
@@ -95,7 +87,7 @@ impl SyncInstrumentCore for NoopSyncInstrument {
 pub struct NoopBoundSyncInstrument;
 
 impl SyncBoundInstrumentCore for NoopBoundSyncInstrument {
-    fn record_one_with_context<'a>(&self, _cx: &Context, _number: Number) {
+    fn record_one<'a>(&self, _number: Number) {
         // Ignored
     }
 }

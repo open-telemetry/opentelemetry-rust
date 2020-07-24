@@ -1,7 +1,4 @@
-use crate::api::{
-    metrics::{Descriptor, MetricsError, Number, NumberKind, Result},
-    Context,
-};
+use crate::api::metrics::{AtomicNumber, Descriptor, MetricsError, Number, NumberKind, Result};
 use crate::sdk::{
     export::metrics::{Count, Distribution, Max, Min, MinMaxSumCount, Points, Quantile, Sum},
     metrics::Aggregator,
@@ -49,7 +46,7 @@ impl Sum for ArrayAggregator {
         self.inner
             .lock()
             .map_err(Into::into)
-            .map(|inner| inner.sum.clone())
+            .map(|inner| inner.sum.load())
     }
 }
 
@@ -87,19 +84,14 @@ impl Points for ArrayAggregator {
 }
 
 impl Aggregator for ArrayAggregator {
-    fn update_with_context(
-        &self,
-        _cx: &Context,
-        number: &Number,
-        descriptor: &Descriptor,
-    ) -> Result<()> {
+    fn update(&self, number: &Number, descriptor: &Descriptor) -> Result<()> {
         self.inner.lock().map_err(Into::into).map(|mut inner| {
             if let Some(points) = inner.points.as_mut() {
                 points.push(number.clone());
             } else {
                 inner.points = Some(PointsData::with_number(number.clone()));
             }
-            inner.sum.saturating_add(descriptor.number_kind(), number)
+            inner.sum.fetch_add(descriptor.number_kind(), number)
         })
     }
 
@@ -116,7 +108,10 @@ impl Aggregator for ArrayAggregator {
                 .and_then(|mut other| {
                     self.inner.lock().map_err(Into::into).map(|mut inner| {
                         other.points = mem::take(&mut inner.points);
-                        other.sum = mem::replace(&mut inner.sum, descriptor.number_kind().zero());
+                        other.sum = mem::replace(
+                            &mut inner.sum,
+                            descriptor.number_kind().zero().to_atomic(),
+                        );
 
                         // TODO: This sort should be done lazily, only when quantiles are
                         // requested. The SDK specification says you can use this aggregator to
@@ -147,7 +142,7 @@ impl Aggregator for ArrayAggregator {
                         // this is an open question.
                         inner
                             .sum
-                            .saturating_add(desc.number_kind(), &other_inner.sum);
+                            .fetch_add(desc.number_kind(), &other_inner.sum.load());
                         match (inner.points.as_mut(), other_inner.points.as_ref()) {
                             (Some(points), Some(other_points)) => {
                                 points.combine(desc.number_kind(), other_points)
@@ -173,7 +168,7 @@ impl Aggregator for ArrayAggregator {
 
 #[derive(Debug, Default)]
 struct Inner {
-    sum: Number,
+    sum: AtomicNumber,
     points: Option<PointsData>,
 }
 

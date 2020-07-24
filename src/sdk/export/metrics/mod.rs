@@ -2,7 +2,6 @@
 use crate::api::{
     labels,
     metrics::{Descriptor, InstrumentKind, Number, Result},
-    Context,
 };
 use crate::sdk::resource::Resource;
 use std::any::Any;
@@ -110,24 +109,7 @@ pub trait Aggregator: fmt::Debug {
     ///
     /// The current Context could be inspected for a `CorrelationContext` or
     /// `SpanContext`.
-    fn update(&self, number: &Number, descriptor: &Descriptor) -> Result<()> {
-        self.update_with_context(&Context::current(), number, descriptor)
-    }
-
-    /// Update receives a new measured value and incorporates it into the
-    /// aggregation. Update calls may be called concurrently.
-    ///
-    /// `Descriptor::number_kind` should be consulted to determine whether the
-    /// provided number is an `i64`, `u64` or `f64`.
-    ///
-    /// The Context argument comes from user-level code and could be inspected for a
-    /// `CorrelationContext` or `SpanContext`.
-    fn update_with_context(
-        &self,
-        cx: &Context,
-        number: &Number,
-        descriptor: &Descriptor,
-    ) -> Result<()>;
+    fn update(&self, number: &Number, descriptor: &Descriptor) -> Result<()>;
 
     /// This method is called during collection to finish one period of aggregation
     /// by atomically saving the currently-updating state into the argument
@@ -222,7 +204,7 @@ pub trait CheckpointSet: fmt::Debug {
 /// collection period.
 pub fn accumulation<'a>(
     descriptor: &'a Descriptor,
-    labels: &'a labels::Set,
+    labels: &'a labels::LabelSet,
     resource: &'a Resource,
     aggregator: &'a Arc<dyn Aggregator + Send + Sync>,
 ) -> Accumulation<'a> {
@@ -234,7 +216,7 @@ pub fn accumulation<'a>(
 /// received over a single collection period.
 pub fn record<'a>(
     descriptor: &'a Descriptor,
-    labels: &'a labels::Set,
+    labels: &'a labels::LabelSet,
     resource: &'a Resource,
     aggregator: Option<&'a Arc<dyn Aggregator + Send + Sync>>,
     start: SystemTime,
@@ -260,7 +242,7 @@ impl Record<'_> {
 #[derive(Debug)]
 pub struct Metadata<'a> {
     descriptor: &'a Descriptor,
-    labels: &'a labels::Set,
+    labels: &'a labels::LabelSet,
     resource: &'a Resource,
 }
 
@@ -268,7 +250,7 @@ impl<'a> Metadata<'a> {
     /// Create a new `Metadata` instance.
     pub fn new(
         descriptor: &'a Descriptor,
-        labels: &'a labels::Set,
+        labels: &'a labels::LabelSet,
         resource: &'a Resource,
     ) -> Self {
         {
@@ -286,7 +268,7 @@ impl<'a> Metadata<'a> {
     }
 
     /// The labels associated with the instrument and the aggregated data.
-    pub fn labels(&self) -> &labels::Set {
+    pub fn labels(&self) -> &labels::LabelSet {
         self.labels
     }
 
@@ -314,7 +296,7 @@ impl Record<'_> {
     }
 
     /// The labels associated with the instrument and the aggregated data.
-    pub fn labels(&self) -> &labels::Set {
+    pub fn labels(&self) -> &labels::LabelSet {
         self.metadata.labels
     }
 
@@ -346,7 +328,7 @@ impl<'a> Accumulation<'a> {
     /// Create a new `Record` instance.
     pub fn new(
         descriptor: &'a Descriptor,
-        labels: &'a labels::Set,
+        labels: &'a labels::LabelSet,
         resource: &'a Resource,
         aggregator: &'a Arc<dyn Aggregator + Send + Sync>,
     ) -> Self {
@@ -362,7 +344,7 @@ impl<'a> Accumulation<'a> {
     }
 
     /// The labels associated with the instrument and the aggregated data.
-    pub fn labels(&self) -> &labels::Set {
+    pub fn labels(&self) -> &labels::LabelSet {
         self.metadata.labels
     }
 

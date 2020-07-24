@@ -1,6 +1,6 @@
 //! Simple Metric Selectors
 use crate::api::metrics::{Descriptor, InstrumentKind};
-use crate::sdk::export::metrics::{AggregatorSelector, Aggregator};
+use crate::sdk::export::metrics::{Aggregator, AggregatorSelector};
 use crate::sdk::metrics::aggregators;
 use std::sync::Arc;
 

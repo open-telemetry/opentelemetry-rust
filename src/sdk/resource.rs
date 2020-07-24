@@ -91,13 +91,7 @@ impl Resource {
     /// Encoded labels
     pub fn encoded(&self, encoder: &dyn labels::Encoder) -> String {
         // FIXME: convert to label set to avoid this
-        encoder.encode(
-            &mut self
-                .into_iter()
-                .map(|(key, value)| api::KeyValue::new(key.clone(), value.clone()))
-                .collect::<Vec<_>>()
-                .iter(),
-        )
+        encoder.encode(&mut self.into_iter())
     }
 
     /// Insert a key-value pair into a `Resource`

@@ -1,7 +1,4 @@
-use crate::api::{
-    metrics::{Descriptor, MetricsError, Number, NumberKind, Result},
-    Context,
-};
+use crate::api::metrics::{AtomicNumber, Descriptor, MetricsError, Number, NumberKind, Result};
 use crate::sdk::export::metrics::{Aggregator, Count, Max, Min, MinMaxSumCount, Sum};
 use std::any::Any;
 use std::cmp::Ordering;
@@ -35,7 +32,7 @@ impl Min for MinMaxSumCountAggregator {
             inner
                 .state
                 .as_ref()
-                .map_or(0u64.into(), |state| state.min.clone())
+                .map_or(0u64.into(), |state| state.min.load())
         })
     }
 }
@@ -46,7 +43,7 @@ impl Max for MinMaxSumCountAggregator {
             inner
                 .state
                 .as_ref()
-                .map_or(0u64.into(), |state| state.max.clone())
+                .map_or(0u64.into(), |state| state.max.load())
         })
     }
 }
@@ -57,7 +54,7 @@ impl Sum for MinMaxSumCountAggregator {
             inner
                 .state
                 .as_ref()
-                .map_or(0u64.into(), |state| state.sum.clone())
+                .map_or(0u64.into(), |state| state.sum.load())
         })
     }
 }
@@ -74,12 +71,7 @@ impl Count for MinMaxSumCountAggregator {
 impl MinMaxSumCount for MinMaxSumCountAggregator {}
 
 impl Aggregator for MinMaxSumCountAggregator {
-    fn update_with_context(
-        &self,
-        _cx: &Context,
-        number: &Number,
-        descriptor: &Descriptor,
-    ) -> Result<()> {
+    fn update(&self, number: &Number, descriptor: &Descriptor) -> Result<()> {
         self.inner
             .lock()
             .and_then(|mut inner| {
@@ -87,19 +79,19 @@ impl Aggregator for MinMaxSumCountAggregator {
                     let kind = descriptor.number_kind();
 
                     state.count = state.count.saturating_add(1);
-                    state.sum.saturating_add(kind, number);
-                    if number.partial_cmp(kind, &state.min) == Some(Ordering::Less) {
-                        state.min = number.clone();
+                    state.sum.fetch_add(kind, number);
+                    if number.partial_cmp(kind, &state.min.load()) == Some(Ordering::Less) {
+                        state.min = number.to_atomic();
                     }
-                    if number.partial_cmp(kind, &state.max) == Some(Ordering::Greater) {
-                        state.max = number.clone();
+                    if number.partial_cmp(kind, &state.max.load()) == Some(Ordering::Greater) {
+                        state.max = number.to_atomic();
                     }
                 } else {
                     inner.state = Some(State {
                         count: 1,
-                        sum: number.clone(),
-                        min: number.clone(),
-                        max: number.clone(),
+                        sum: number.to_atomic(),
+                        min: number.to_atomic(),
+                        max: number.to_atomic(),
                     })
                 }
 
@@ -138,17 +130,19 @@ impl Aggregator for MinMaxSumCountAggregator {
                         (Some(_), None) | (None, None) => (),
                         (Some(state), Some(other)) => {
                             state.count = state.count.saturating_add(other.count);
-                            state.sum.saturating_add(desc.number_kind(), &other.sum);
+                            state.sum.fetch_add(desc.number_kind(), &other.sum.load());
 
-                            if state.min.partial_cmp(desc.number_kind(), &other.min)
+                            let other_min = other.min.load();
+                            let other_max = other.max.load();
+                            if state.min.load().partial_cmp(desc.number_kind(), &other_min)
                                 == Some(Ordering::Greater)
                             {
-                                state.min.assign(desc.number_kind(), &other.min);
+                                state.min.store(&other_min);
                             }
-                            if state.max.partial_cmp(desc.number_kind(), &other.max)
+                            if state.max.load().partial_cmp(desc.number_kind(), &other_max)
                                 == Some(Ordering::Less)
                             {
-                                state.max.assign(desc.number_kind(), &other.max);
+                                state.max.store(&other_max);
                             }
                         }
                     }
@@ -171,7 +165,7 @@ impl Aggregator for MinMaxSumCountAggregator {
 #[derive(Clone, Debug)]
 struct State {
     count: u64,
-    sum: Number,
-    min: Number,
-    max: Number,
+    sum: AtomicNumber,
+    min: AtomicNumber,
+    max: AtomicNumber,
 }

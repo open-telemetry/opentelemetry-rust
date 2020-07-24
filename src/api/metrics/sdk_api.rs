@@ -43,12 +43,7 @@ pub trait SyncInstrumentCore: InstrumentCore {
     fn bind<'a>(&self, labels: &'a [KeyValue]) -> Arc<dyn SyncBoundInstrumentCore + Send + Sync>;
 
     /// Capture a single synchronous metric event.
-    fn record_one<'a>(&self, number: Number, labels: &'a [KeyValue]) {
-        self.record_one_with_context(&Context::current(), number, labels)
-    }
-
-    /// Capture a single synchronous metric event with context.
-    fn record_one_with_context<'a>(&self, cx: &Context, number: Number, labels: &'a [KeyValue]);
+    fn record_one<'a>(&self, number: Number, labels: &'a [KeyValue]);
 
     /// Returns self as any
     fn as_any(&self) -> &dyn Any;
@@ -57,12 +52,7 @@ pub trait SyncInstrumentCore: InstrumentCore {
 /// The implementation-level interface to a generic synchronous bound instrument
 pub trait SyncBoundInstrumentCore: fmt::Debug + Send + Sync {
     /// Capture a single synchronous metric event.
-    fn record_one(&self, number: Number) {
-        self.record_one_with_context(&Context::current(), number)
-    }
-
-    /// Capture a single synchronous metric event with context.
-    fn record_one_with_context(&self, cx: &Context, number: Number);
+    fn record_one(&self, number: Number);
 }
 
 /// An implementation-level interface to an asynchronous instrument (e.g.,

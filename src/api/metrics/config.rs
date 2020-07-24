@@ -28,8 +28,8 @@ impl InstrumentConfig {
         self.unit.as_ref()
     }
 
-    /// Library name is the name given to the Meter that created this instrument.
-    pub fn library_name(&self) -> &String {
+    /// Instrumentation name is the name given to the Meter that created this instrument.
+    pub fn instrumentation_name(&self) -> &String {
         &self.instrumentation_name
     }
 }

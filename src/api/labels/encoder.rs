@@ -1,4 +1,4 @@
-use crate::api::KeyValue;
+use crate::api::{Key, Value};
 use std::fmt;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -11,7 +11,7 @@ static ENCODER_ID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 pub trait Encoder: fmt::Debug {
     /// Encode returns the serialized encoding of the label
     /// set using its Iterator. This result may be cached.
-    fn encode(&self, labels: &mut dyn Iterator<Item = &KeyValue>) -> String;
+    fn encode(&self, labels: &mut dyn Iterator<Item = (&Key, &Value)>) -> String;
 
     /// A value that is unique for each class of label encoder. Label encoders
     /// allocate these using `new_encoder_id`.
@@ -35,17 +35,16 @@ impl EncoderId {
 pub struct DefaultLabelEncoder;
 
 impl Encoder for DefaultLabelEncoder {
-    fn encode(&self, labels: &mut dyn Iterator<Item = &KeyValue>) -> String {
-        // TODO fix horrible perf
+    fn encode(&self, labels: &mut dyn Iterator<Item = (&Key, &Value)>) -> String {
         labels
             .enumerate()
-            .fold(String::new(), |mut acc, (idx, kv)| {
+            .fold(String::new(), |mut acc, (idx, (key, value))| {
                 if idx > 0 {
                     acc.push_str(",")
                 }
-                acc.push_str(kv.key.as_str());
+                acc.push_str(key.as_str());
                 acc.push_str("=");
-                acc.push_str(String::from(&kv.value).as_str());
+                acc.push_str(String::from(value).as_str());
                 acc
             })
     }
@@ -62,6 +61,6 @@ pub fn default_encoder() -> Box<dyn Encoder + Send + Sync> {
 
 /// Build a new encoder id
 pub fn new_encoder_id() -> EncoderId {
-    let old_encoder_id = ENCODER_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+    let old_encoder_id = ENCODER_ID_COUNTER.fetch_add(1, Ordering::AcqRel);
     EncoderId(old_encoder_id + 1)
 }

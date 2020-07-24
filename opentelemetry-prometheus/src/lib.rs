@@ -391,19 +391,11 @@ fn merge_labels(record: &Record, keys: &mut Vec<String>, mut values: Option<&mut
     // Duplicate keys are resolved by taking the record label value over
     // the resource value.
 
-    // FIXME: Resource label set
-    let record_labels = labels::Set::from(
-        record
-            .resource()
-            .iter()
-            .map(|(key, value)| KeyValue::new(key.clone(), value.clone()))
-            .collect::<Vec<_>>(),
-    );
-    let iter = labels::merge_iters(record.labels().iter(), record_labels.iter());
-    for label in iter {
-        keys.push(sanitize(label.key.as_str()));
+    let iter = labels::merge_iters(record.labels().iter(), record.resource().iter());
+    for (key, value) in iter {
+        keys.push(sanitize(key.as_str()));
         if let Some(ref mut values) = values {
-            values.push(label.clone());
+            values.push(KeyValue::new(key.clone(), value.clone()));
         }
     }
 }

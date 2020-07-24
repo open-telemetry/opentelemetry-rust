@@ -2,7 +2,7 @@ use crate::api::metrics::{
     sync_instrument::{SyncBoundInstrument, SyncInstrument},
     Descriptor, InstrumentKind, Measurement, Meter, Number, NumberKind, Result,
 };
-use crate::api::{Context, KeyValue};
+use crate::api::KeyValue;
 use std::marker;
 
 /// ValueRecorder is a metric that records per-request non-additive values.
@@ -25,11 +25,6 @@ where
 
     /// Record a new metric value
     pub fn record(&self, value: T, labels: &[KeyValue]) {
-        self.record_with_context(&Context::current(), value, labels)
-    }
-
-    /// Record a new metric value with context
-    pub fn record_with_context(&self, _cx: &Context, value: T, labels: &[KeyValue]) {
         self.0.direct_record(value.into(), labels)
     }
 
@@ -56,13 +51,6 @@ where
     /// Adds a new value to the list of ValueRecorder's records. The labels
     /// should contain the keys and values to be associated with this value.
     pub fn record(&self, value: T) {
-        self.record_with_context(&Context::current(), value)
-    }
-
-    /// Adds a new value to the list of ValueRecorder's records with context.
-    /// The labels should contain the keys and values to be associated with this
-    /// value.
-    pub fn record_with_context(&self, _cx: &Context, value: T) {
         self.bound_instrument.direct_record(value.into())
     }
 }

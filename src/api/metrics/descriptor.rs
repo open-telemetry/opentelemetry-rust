@@ -1,28 +1,38 @@
 use crate::api::metrics::{InstrumentConfig, InstrumentKind, NumberKind};
+use fnv::FnvHasher;
+use std::hash::{Hash, Hasher};
 
 /// Descriptor contains all the settings that describe an instrument, including
 /// its name, metric kind, number kind, and the configurable options.
-#[derive(Clone, Debug, PartialEq, Hash)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Descriptor {
     name: String,
     instrument_kind: InstrumentKind,
     number_kind: NumberKind,
     config: InstrumentConfig,
+    attribute_hash: u64,
 }
 
 impl Descriptor {
     /// Create a new descriptor
     pub fn new(
         name: String,
-        library_name: String,
+        instrumentation_name: String,
         instrument_kind: InstrumentKind,
         number_kind: NumberKind,
     ) -> Self {
+        let mut hasher = FnvHasher::default();
+        name.hash(&mut hasher);
+        instrumentation_name.hash(&mut hasher);
+        instrument_kind.hash(&mut hasher);
+        number_kind.hash(&mut hasher);
+
         Descriptor {
             name,
             instrument_kind,
             number_kind,
-            config: InstrumentConfig::with_instrumentation_name(library_name),
+            config: InstrumentConfig::with_instrumentation_name(instrumentation_name),
+            attribute_hash: hasher.finish(),
         }
     }
 
@@ -60,5 +70,10 @@ impl Descriptor {
     /// The name of the library that provided instrumentation for this instrument.
     pub fn instrumentation_name(&self) -> &str {
         self.config.instrumentation_name.as_str()
+    }
+
+    /// The pre-computed hash of the descriptor data
+    pub fn attribute_hash(&self) -> u64 {
+        self.attribute_hash
     }
 }

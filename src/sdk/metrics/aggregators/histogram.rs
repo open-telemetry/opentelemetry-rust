@@ -1,7 +1,4 @@
-use crate::api::{
-    metrics::{Descriptor, MetricsError, Number, NumberKind, Result},
-    Context,
-};
+use crate::api::metrics::{AtomicNumber, Descriptor, MetricsError, Number, NumberKind, Result};
 use crate::sdk::export::metrics::{Buckets, Count, Histogram, Sum};
 use crate::sdk::metrics::export::metrics::Aggregator;
 use std::mem;
@@ -39,16 +36,16 @@ struct Inner {
 #[derive(Debug)]
 struct State {
     bucket_counts: Vec<f64>,
-    count: Number,
-    sum: Number,
+    count: AtomicNumber,
+    sum: AtomicNumber,
 }
 
 impl State {
     fn empty(boundaries: &[f64]) -> Self {
         State {
             bucket_counts: vec![0.0; boundaries.len() + 1],
-            count: NumberKind::U64.zero(),
-            sum: NumberKind::U64.zero(),
+            count: NumberKind::U64.zero().to_atomic(),
+            sum: NumberKind::U64.zero().to_atomic(),
         }
     }
 }
@@ -58,7 +55,7 @@ impl Sum for HistogramAggregator {
         self.inner
             .read()
             .map_err(From::from)
-            .map(|inner| inner.state.sum.clone())
+            .map(|inner| inner.state.sum.load())
     }
 }
 impl Count for HistogramAggregator {
@@ -66,7 +63,7 @@ impl Count for HistogramAggregator {
         self.inner
             .read()
             .map_err(From::from)
-            .map(|inner| inner.state.sum.to_u64(&NumberKind::U64))
+            .map(|inner| inner.state.sum.load().to_u64(&NumberKind::U64))
     }
 }
 impl Histogram for HistogramAggregator {
@@ -79,12 +76,7 @@ impl Histogram for HistogramAggregator {
 }
 
 impl Aggregator for HistogramAggregator {
-    fn update_with_context(
-        &self,
-        _cx: &Context,
-        number: &Number,
-        descriptor: &Descriptor,
-    ) -> Result<()> {
+    fn update(&self, number: &Number, descriptor: &Descriptor) -> Result<()> {
         self.inner
             .write()
             .map_err(From::from)
@@ -111,11 +103,8 @@ impl Aggregator for HistogramAggregator {
                 // 256 and 512 elements, which is a relatively large histogram, so we
                 // continue to prefer linear search.
 
-                inner
-                    .state
-                    .count
-                    .saturating_add(&NumberKind::U64, &1u64.into());
-                inner.state.sum.saturating_add(kind, number);
+                inner.state.count.fetch_add(&NumberKind::U64, &1u64.into());
+                inner.state.sum.fetch_add(kind, number);
                 inner.state.bucket_counts[bucket_id] += 1.0;
                 Ok(())
             })
@@ -154,11 +143,11 @@ impl Aggregator for HistogramAggregator {
                         inner
                             .state
                             .sum
-                            .saturating_add(desc.number_kind(), &other.state.sum);
+                            .fetch_add(desc.number_kind(), &other.state.sum.load());
                         inner
                             .state
                             .count
-                            .saturating_add(&NumberKind::U64, &other.state.count);
+                            .fetch_add(&NumberKind::U64, &other.state.count.load());
 
                         for idx in 0..inner.state.bucket_counts.len() {
                             inner.state.bucket_counts[idx] += other.state.bucket_counts[idx];

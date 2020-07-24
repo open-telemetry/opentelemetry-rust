@@ -25,7 +25,7 @@ pub use counter::{BoundCounter, Counter, CounterBuilder};
 pub use descriptor::Descriptor;
 pub use kind::InstrumentKind;
 pub use meter::{Meter, MeterProvider};
-pub use number::{Number, NumberKind};
+pub use number::{AtomicNumber, Number, NumberKind};
 pub use observer::{
     BatchObserver, SumObserver, SumObserverBuilder, UpDownSumObserver, UpDownSumObserverBuilder,
     ValueObserver, ValueObserverBuilder,

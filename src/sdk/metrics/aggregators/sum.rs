@@ -1,7 +1,4 @@
-use crate::api::{
-    metrics::{Descriptor, MetricsError, Number, Result},
-    Context,
-};
+use crate::api::metrics::{AtomicNumber, Descriptor, MetricsError, Number, Result};
 use crate::sdk::export::metrics::{Aggregator, Subtractor, Sum};
 use std::any::Any;
 use std::sync::Arc;
@@ -14,12 +11,12 @@ pub fn sum() -> SumAggregator {
 /// An aggregator for counter events.
 #[derive(Debug, Default)]
 pub struct SumAggregator {
-    value: Number,
+    value: AtomicNumber,
 }
 
 impl Sum for SumAggregator {
     fn sum(&self) -> Result<Number> {
-        Ok(self.value.clone())
+        Ok(self.value.load())
     }
 }
 
@@ -35,9 +32,9 @@ impl Subtractor for SumAggregator {
             result.as_any().downcast_ref::<Self>(),
         ) {
             (Some(op), Some(res)) => {
-                res.value.assign(descriptor.number_kind(), &self.value);
+                res.value.store(&self.value.load());
                 res.value
-                    .saturating_sub(descriptor.number_kind(), &op.value);
+                    .fetch_add(descriptor.number_kind(), &op.value.load());
                 Ok(())
             }
             _ => Err(MetricsError::InconsistentAggregator(format!(
@@ -49,13 +46,8 @@ impl Subtractor for SumAggregator {
 }
 
 impl Aggregator for SumAggregator {
-    fn update_with_context(
-        &self,
-        _cx: &Context,
-        number: &Number,
-        descriptor: &Descriptor,
-    ) -> Result<()> {
-        self.value.saturating_add(descriptor.number_kind(), number);
+    fn update(&self, number: &Number, descriptor: &Descriptor) -> Result<()> {
+        self.value.fetch_add(descriptor.number_kind(), number);
         Ok(())
     }
     fn synchronized_move(
@@ -65,8 +57,8 @@ impl Aggregator for SumAggregator {
     ) -> Result<()> {
         if let Some(other) = other.as_any().downcast_ref::<Self>() {
             let kind = descriptor.number_kind();
-            other.value.assign(kind, &self.value);
-            self.value.assign(kind, &kind.zero());
+            other.value.store(&self.value.load());
+            self.value.store(&kind.zero());
             Ok(())
         } else {
             Err(MetricsError::InconsistentAggregator(format!(
@@ -78,7 +70,7 @@ impl Aggregator for SumAggregator {
     fn merge(&self, other: &(dyn Aggregator + Send + Sync), descriptor: &Descriptor) -> Result<()> {
         if let Some(other_sum) = other.as_any().downcast_ref::<SumAggregator>() {
             self.value
-                .saturating_add(descriptor.number_kind(), &other_sum.value)
+                .fetch_add(descriptor.number_kind(), &other_sum.value.load())
         }
 
         Ok(())

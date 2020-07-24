@@ -1,9 +1,12 @@
 //! # OpenTelemetry Metrics SDK
 use crate::api::metrics::{
     sdk_api::{self, InstrumentCore as _, SyncBoundInstrumentCore as _},
-    AsyncRunner, Descriptor, Measurement, Number, NumberKind, Observation, Result,
+    AsyncRunner, AtomicNumber, Descriptor, Measurement, Number, NumberKind, Observation, Result,
 };
-use crate::api::{labels, Context, KeyValue};
+use crate::api::{
+    labels::{hash_labels, LabelSet},
+    Context, KeyValue,
+};
 use crate::global;
 use crate::sdk::{
     export::{
@@ -12,9 +15,9 @@ use crate::sdk::{
     },
     resource::Resource,
 };
+use fnv::FnvHasher;
 use std::any::Any;
 use std::cmp::Ordering;
-use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::sync::{Arc, Mutex};
@@ -71,8 +74,7 @@ pub struct Accumulator(Arc<AccumulatorCore>);
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 struct MapKey {
-    descriptor_hash: u64,
-    ordered_hash: u64,
+    instrument_hash: u64,
 }
 
 #[derive(Default, Debug)]
@@ -86,7 +88,7 @@ struct AsyncInstrumentState {
 }
 
 fn collect_async(labels: &[KeyValue], observations: &[Observation]) {
-    let labels = labels::Set::from(labels);
+    let labels = LabelSet::from_labels(labels.iter().cloned());
 
     for observation in observations {
         if let Some(instrument) = observation
@@ -116,7 +118,7 @@ struct AccumulatorCore {
     async_instruments: Mutex<AsyncInstrumentState>,
 
     /// The current epoch number. It is incremented in `collect`.
-    current_epoch: Number,
+    current_epoch: AtomicNumber,
     /// THe configured processor.
     processor: Arc<dyn Processor + Send + Sync>,
     /// The resource applied to all records in this Accumulator.
@@ -128,7 +130,7 @@ impl AccumulatorCore {
         AccumulatorCore {
             current: dashmap::DashMap::new(),
             async_instruments: Mutex::new(AsyncInstrumentState::default()),
-            current_epoch: NumberKind::U64.zero(),
+            current_epoch: NumberKind::U64.zero().to_atomic(),
             processor,
             resource,
         }
@@ -150,8 +152,7 @@ impl AccumulatorCore {
     fn collect(&self, locked_processor: &mut dyn LockedProcessor) -> usize {
         let mut checkpointed = self.observe_async_instruments(locked_processor);
         checkpointed += self.collect_sync_instruments(locked_processor);
-        self.current_epoch
-            .saturating_add(&NumberKind::U64, &1u64.into());
+        self.current_epoch.fetch_add(&NumberKind::U64, &1u64.into());
 
         checkpointed
     }
@@ -179,14 +180,14 @@ impl AccumulatorCore {
 
         for element in self.current.iter() {
             let (key, value) = element.pair();
-            let mods = &value.update_count;
-            let coll = &value.collected_count;
+            let mods = &value.update_count.load();
+            let coll = &value.collected_count.load();
 
             if mods.partial_cmp(&NumberKind::U64, coll) != Some(Ordering::Equal) {
                 // Updates happened in this interval,
                 // checkpoint and continue.
                 checkpointed += self.checkpoint_record(value, locked_processor);
-                value.collected_count.assign(&NumberKind::U64, mods);
+                value.collected_count.store(mods);
             } else {
                 // Having no updates since last collection, try to remove if
                 // there are no bound handles
@@ -248,6 +249,7 @@ impl AccumulatorCore {
                     recorders.retain(|_key, label_recorder| {
                         let epoch_diff = self
                             .current_epoch
+                            .load()
                             .partial_cmp(&NumberKind::U64, &label_recorder.observed_epoch.into());
                         if epoch_diff == Some(Ordering::Equal) {
                             if let Some(observed) = &label_recorder.observed {
@@ -287,19 +289,16 @@ struct SyncInstrument {
 
 impl SyncInstrument {
     fn acquire_handle(&self, labels: &[KeyValue]) -> Arc<Record> {
-        let mut hasher = DefaultHasher::new();
-        self.instrument.descriptor.hash(&mut hasher);
-        let descriptor_hash = hasher.finish();
+        let mut hasher = FnvHasher::default();
+        self.instrument
+            .descriptor
+            .attribute_hash()
+            .hash(&mut hasher);
 
-        let distinct = labels::Distinct::from(labels);
-
-        let mut hasher = DefaultHasher::new();
-        distinct.hash(&mut hasher);
-        let ordered_hash = hasher.finish();
+        hash_labels(&mut hasher, labels.iter().map(|kv| (&kv.key, &kv.value)));
 
         let map_key = MapKey {
-            descriptor_hash,
-            ordered_hash,
+            instrument_hash: hasher.finish(),
         };
         let current = &self.instrument.meter.0.current;
         if let Some(existing_record) = current.get(&map_key) {
@@ -307,9 +306,9 @@ impl SyncInstrument {
         }
 
         let record = Arc::new(Record {
-            update_count: Number::default(),
-            collected_count: Number::default(),
-            labels: labels::Set::with_equivalent(distinct),
+            update_count: NumberKind::U64.zero().to_atomic(),
+            collected_count: NumberKind::U64.zero().to_atomic(),
+            labels: LabelSet::from_labels(labels.iter().cloned()),
             instrument: self.clone(),
             current: self
                 .instrument
@@ -341,18 +340,13 @@ impl sdk_api::InstrumentCore for SyncInstrument {
 impl sdk_api::SyncInstrumentCore for SyncInstrument {
     fn bind<'a>(
         &self,
-        labels: &'a [crate::api::KeyValue],
+        labels: &'a [KeyValue],
     ) -> Arc<dyn sdk_api::SyncBoundInstrumentCore + Send + Sync> {
         self.acquire_handle(labels)
     }
-    fn record_one_with_context<'a>(
-        &self,
-        cx: &crate::api::Context,
-        number: crate::api::metrics::Number,
-        labels: &'a [crate::api::KeyValue],
-    ) {
+    fn record_one<'a>(&self, number: Number, labels: &'a [KeyValue]) {
         let handle = self.acquire_handle(labels);
-        handle.record_one_with_context(cx, number)
+        handle.record_one(number)
     }
     fn as_any(&self) -> &dyn Any {
         self
@@ -362,7 +356,7 @@ impl sdk_api::SyncInstrumentCore for SyncInstrument {
 #[derive(Debug)]
 struct LabeledRecorder {
     observed_epoch: u64,
-    labels: labels::Set,
+    labels: LabelSet,
     observed: Option<Arc<dyn Aggregator + Send + Sync>>,
 }
 
@@ -373,7 +367,7 @@ struct AsyncInstrument {
 }
 
 impl AsyncInstrument {
-    fn observe(&self, number: &Number, labels: &labels::Set) {
+    fn observe(&self, number: &Number, labels: &LabelSet) {
         if let Err(err) = aggregators::range_test(number, &self.instrument.descriptor) {
             global::handle(err);
         }
@@ -384,10 +378,10 @@ impl AsyncInstrument {
         }
     }
 
-    fn get_recorder(&self, labels: &labels::Set) -> Option<Arc<dyn Aggregator + Send + Sync>> {
+    fn get_recorder(&self, labels: &LabelSet) -> Option<Arc<dyn Aggregator + Send + Sync>> {
         self.recorders.lock().map_or(None, |mut recorders| {
-            let mut hasher = DefaultHasher::new();
-            labels.equivalent().hash(&mut hasher);
+            let mut hasher = FnvHasher::default();
+            hash_labels(&mut hasher, labels.into_iter());
             let label_hash = hasher.finish();
             if let Some(recorder) = recorders.as_mut().and_then(|rec| rec.get_mut(&label_hash)) {
                 let current_epoch = self
@@ -395,6 +389,7 @@ impl AsyncInstrument {
                     .meter
                     .0
                     .current_epoch
+                    .load()
                     .to_u64(&NumberKind::U64);
                 if recorder.observed_epoch == current_epoch {
                     // last value wins for Observers, so if we see the same labels
@@ -430,12 +425,13 @@ impl AsyncInstrument {
                 .meter
                 .0
                 .current_epoch
+                .load()
                 .to_u64(&NumberKind::U64);
             recorders.as_mut().unwrap().insert(
                 label_hash,
                 LabeledRecorder {
                     observed: recorder.clone(),
-                    labels: labels::Set::with_equivalent(labels.equivalent().clone()),
+                    labels: labels.clone(),
                     observed_epoch,
                 },
             );
@@ -464,16 +460,16 @@ impl sdk_api::AsyncInstrumentCore for AsyncInstrument {
 #[derive(Debug)]
 struct Record {
     /// Incremented on every call to `update`.
-    update_count: Number,
+    update_count: AtomicNumber,
 
     /// Set to `update_count` on collection, supports checking for no updates during
     /// a round.
-    collected_count: Number,
+    collected_count: AtomicNumber,
 
     /// The processed label set for this record.
     ///
     /// TODO: look at perf here.
-    labels: labels::Set,
+    labels: LabelSet,
 
     /// The corresponding instrument.
     instrument: SyncInstrument,
@@ -485,24 +481,20 @@ struct Record {
 }
 
 impl sdk_api::SyncBoundInstrumentCore for Record {
-    fn record_one_with_context<'a>(&self, cx: &Context, number: Number) {
+    fn record_one<'a>(&self, number: Number) {
         // check if the instrument is disabled according to the AggregatorSelector.
         if let Some(recorder) = &self.current {
-            if let Err(err) = aggregators::range_test(
-                &number,
-                &self.instrument.instrument.descriptor,
-            )
-            .and_then(|_| {
-                recorder.update_with_context(cx, &number, &self.instrument.instrument.descriptor)
-            }) {
+            if let Err(err) =
+                aggregators::range_test(&number, &self.instrument.instrument.descriptor)
+                    .and_then(|_| recorder.update(&number, &self.instrument.instrument.descriptor))
+            {
                 global::handle(err);
                 return;
             }
 
             // Record was modified, inform the collect() that things need
             // to be collected while the record is still mapped.
-            self.update_count
-                .saturating_add(&NumberKind::U64, &1u64.into());
+            self.update_count.fetch_add(&NumberKind::U64, &1u64.into());
         }
     }
 }
@@ -534,7 +526,7 @@ impl sdk_api::MeterCore for Accumulator {
 
     fn record_batch_with_context(
         &self,
-        cx: &Context,
+        _cx: &Context,
         labels: &[KeyValue],
         measurements: Vec<Measurement>,
     ) {
@@ -547,7 +539,7 @@ impl sdk_api::MeterCore for Accumulator {
             {
                 let handle = instrument.acquire_handle(labels);
 
-                handle.record_one_with_context(cx, measure.into_number());
+                handle.record_one(measure.into_number());
             }
         }
     }

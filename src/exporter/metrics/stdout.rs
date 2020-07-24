@@ -1,6 +1,7 @@
 //! Stdout Metrics Exporter
 use crate::api::{
-    labels, metrics,
+    labels::{default_encoder, Encoder, LabelSet},
+    metrics,
     metrics::{Descriptor, MetricsError, Result},
     KeyValue,
 };
@@ -24,6 +25,7 @@ use futures::Stream;
 use serde::{Serialize, Serializer};
 use std::fmt;
 use std::io;
+use std::iter;
 use std::sync::Mutex;
 use std::time::{Duration, SystemTime};
 
@@ -54,7 +56,7 @@ pub struct StdoutExporter<W> {
     /// configure quantiles on a per-metric basis.
     quantiles: Vec<f64>,
     /// Encodes the labels.
-    label_encoder: Box<dyn labels::Encoder + Send + Sync>,
+    label_encoder: Box<dyn Encoder + Send + Sync>,
     /// An optional user-defined funtion to format a given export batch.
     formatter: Option<Formatter>,
 }
@@ -131,10 +133,10 @@ where
             let kind = desc.number_kind();
             let encoded_resource = record.resource().encoded(self.label_encoder.as_ref());
             let encoded_inst_labels = if !desc.instrumentation_name().is_empty() {
-                let inst_labels = labels::Set::from([KeyValue::new(
+                let inst_labels = LabelSet::from_labels(iter::once(KeyValue::new(
                     "instrumentation.name",
                     desc.instrumentation_name(),
-                )]);
+                )));
                 inst_labels.encoded(Some(self.label_encoder.as_ref()))
             } else {
                 String::new()
@@ -259,7 +261,7 @@ pub struct StdoutExporterBuilder<W, S, I> {
     pretty_print: bool,
     do_not_print_time: bool,
     quantiles: Option<Vec<f64>>,
-    label_encoder: Option<Box<dyn labels::Encoder + Send + Sync>>,
+    label_encoder: Option<Box<dyn Encoder + Send + Sync>>,
     period: Option<Duration>,
     formatter: Option<Formatter>,
 }
@@ -326,7 +328,7 @@ where
     /// Set the label encoder that this exporter will use.
     pub fn with_label_encoder<E>(self, label_encoder: E) -> Self
     where
-        E: labels::Encoder + Send + Sync + 'static,
+        E: Encoder + Send + Sync + 'static,
     {
         StdoutExporterBuilder {
             label_encoder: Some(Box::new(label_encoder)),
@@ -391,7 +393,7 @@ where
                 pretty_print: self.pretty_print,
                 do_not_print_time: self.do_not_print_time,
                 quantiles: self.quantiles.unwrap_or_else(|| vec![0.5, 0.9, 0.99]),
-                label_encoder: self.label_encoder.unwrap_or_else(labels::default_encoder),
+                label_encoder: self.label_encoder.unwrap_or_else(default_encoder),
                 formatter: self.formatter,
             },
         ))

@@ -1,5 +1,5 @@
 use crate::api::{
-    labels,
+    labels::{hash_labels, LabelSet},
     metrics::{Descriptor, MetricsError, Result},
 };
 use crate::sdk::{
@@ -10,7 +10,8 @@ use crate::sdk::{
     metrics::aggregators::SumAggregator,
     Resource,
 };
-use std::collections::{hash_map::DefaultHasher, HashMap};
+use fnv::FnvHasher;
+use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::SystemTime;
@@ -69,9 +70,9 @@ impl<'a> LockedProcessor for BasicLockedProcessor<'a> {
         }
 
         let desc = accumulation.descriptor();
-        let mut hasher = DefaultHasher::new();
-        desc.hash(&mut hasher);
-        accumulation.labels().equivalent().hash(&mut hasher);
+        let mut hasher = FnvHasher::default();
+        desc.attribute_hash().hash(&mut hasher);
+        hash_labels(&mut hasher, accumulation.labels().into_iter());
         // FIXME: convert resource to use labels::Set
         // accumulation.resource().equivalent().hash(&mut hasher);
         let key = StateKey(hasher.finish());
@@ -451,6 +452,6 @@ struct StateValue {
     cumulative: Option<Arc<dyn Aggregator + Send + Sync>>,
 
     descriptor: Descriptor,
-    labels: labels::Set,
+    labels: LabelSet,
     resource: Resource,
 }
