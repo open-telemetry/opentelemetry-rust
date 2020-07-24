@@ -132,26 +132,21 @@ impl Aggregator for ArrayAggregator {
     fn merge(&self, other: &(dyn Aggregator + Send + Sync), desc: &Descriptor) -> Result<()> {
         if let Some(other) = other.as_any().downcast_ref::<Self>() {
             self.inner.lock().map_err(Into::into).and_then(|mut inner| {
-                other
-                    .inner
-                    .lock()
-                    .map_err(From::from)
-                    .and_then(|other_inner| {
-                        // Note: Current assumption is that `o` was checkpointed,
-                        // therefore is already sorted.  See the TODO above, since
-                        // this is an open question.
-                        inner
-                            .sum
-                            .fetch_add(desc.number_kind(), &other_inner.sum.load());
-                        match (inner.points.as_mut(), other_inner.points.as_ref()) {
-                            (Some(points), Some(other_points)) => {
-                                points.combine(desc.number_kind(), other_points)
-                            }
-                            (None, Some(other_points)) => inner.points = Some(other_points.clone()),
-                            _ => (),
+                other.inner.lock().map_err(From::from).map(|other_inner| {
+                    // Note: Current assumption is that `o` was checkpointed,
+                    // therefore is already sorted.  See the TODO above, since
+                    // this is an open question.
+                    inner
+                        .sum
+                        .fetch_add(desc.number_kind(), &other_inner.sum.load());
+                    match (inner.points.as_mut(), other_inner.points.as_ref()) {
+                        (Some(points), Some(other_points)) => {
+                            points.combine(desc.number_kind(), other_points)
                         }
-                        Ok(())
-                    })
+                        (None, Some(other_points)) => inner.points = Some(other_points.clone()),
+                        _ => (),
+                    }
+                })
             })
         } else {
             Err(MetricsError::InconsistentAggregator(format!(

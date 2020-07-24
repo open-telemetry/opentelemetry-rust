@@ -74,7 +74,7 @@ impl Aggregator for MinMaxSumCountAggregator {
     fn update(&self, number: &Number, descriptor: &Descriptor) -> Result<()> {
         self.inner
             .lock()
-            .and_then(|mut inner| {
+            .map(|mut inner| {
                 if let Some(state) = &mut inner.state {
                     let kind = descriptor.number_kind();
 
@@ -94,8 +94,6 @@ impl Aggregator for MinMaxSumCountAggregator {
                         max: number.to_atomic(),
                     })
                 }
-
-                Ok(())
             })
             .map_err(From::from)
     }
@@ -122,7 +120,7 @@ impl Aggregator for MinMaxSumCountAggregator {
     fn merge(&self, aggregator: &(dyn Aggregator + Send + Sync), desc: &Descriptor) -> Result<()> {
         if let Some(other) = aggregator.as_any().downcast_ref::<Self>() {
             self.inner.lock().map_err(From::from).and_then(|mut inner| {
-                other.inner.lock().map_err(From::from).and_then(|oi| {
+                other.inner.lock().map_err(From::from).map(|oi| {
                     match (inner.state.as_mut(), oi.state.as_ref()) {
                         (None, Some(other_checkpoint)) => {
                             inner.state = Some(other_checkpoint.clone());
@@ -146,7 +144,6 @@ impl Aggregator for MinMaxSumCountAggregator {
                             }
                         }
                     }
-                    Ok(())
                 })
             })
         } else {

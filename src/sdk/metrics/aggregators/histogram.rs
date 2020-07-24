@@ -77,37 +77,33 @@ impl Histogram for HistogramAggregator {
 
 impl Aggregator for HistogramAggregator {
     fn update(&self, number: &Number, descriptor: &Descriptor) -> Result<()> {
-        self.inner
-            .write()
-            .map_err(From::from)
-            .and_then(|mut inner| {
-                let kind = descriptor.number_kind();
-                let as_float = number.to_f64(kind);
+        self.inner.write().map_err(From::from).map(|mut inner| {
+            let kind = descriptor.number_kind();
+            let as_float = number.to_f64(kind);
 
-                let mut bucket_id = inner.boundaries.len();
-                for (idx, boundary) in inner.boundaries.iter().enumerate() {
-                    if as_float < *boundary {
-                        bucket_id = idx;
-                        break;
-                    }
+            let mut bucket_id = inner.boundaries.len();
+            for (idx, boundary) in inner.boundaries.iter().enumerate() {
+                if as_float < *boundary {
+                    bucket_id = idx;
+                    break;
                 }
-                // Note: Binary-search was compared using the benchmarks. The following
-                // code is equivalent to the linear search above:
-                //
-                //     bucketID := sort.Search(len(c.boundaries), func(i int) bool {
-                //         return asFloat < c.boundaries[i]
-                //     })
-                //
-                // The binary search wins for very large boundary sets, but
-                // the linear search performs better up through arrays between
-                // 256 and 512 elements, which is a relatively large histogram, so we
-                // continue to prefer linear search.
+            }
+            // Note: Binary-search was compared using the benchmarks. The following
+            // code is equivalent to the linear search above:
+            //
+            //     bucketID := sort.Search(len(c.boundaries), func(i int) bool {
+            //         return asFloat < c.boundaries[i]
+            //     })
+            //
+            // The binary search wins for very large boundary sets, but
+            // the linear search performs better up through arrays between
+            // 256 and 512 elements, which is a relatively large histogram, so we
+            // continue to prefer linear search.
 
-                inner.state.count.fetch_add(&NumberKind::U64, &1u64.into());
-                inner.state.sum.fetch_add(kind, number);
-                inner.state.bucket_counts[bucket_id] += 1.0;
-                Ok(())
-            })
+            inner.state.count.fetch_add(&NumberKind::U64, &1u64.into());
+            inner.state.sum.fetch_add(kind, number);
+            inner.state.bucket_counts[bucket_id] += 1.0;
+        })
     }
 
     fn synchronized_move(
@@ -139,7 +135,7 @@ impl Aggregator for HistogramAggregator {
                 .write()
                 .map_err(From::from)
                 .and_then(|mut inner| {
-                    other.inner.read().map_err(From::from).and_then(|other| {
+                    other.inner.read().map_err(From::from).map(|other| {
                         inner
                             .state
                             .sum
@@ -152,8 +148,6 @@ impl Aggregator for HistogramAggregator {
                         for idx in 0..inner.state.bucket_counts.len() {
                             inner.state.bucket_counts[idx] += other.state.bucket_counts[idx];
                         }
-
-                        Ok(())
                     })
                 })
         } else {
