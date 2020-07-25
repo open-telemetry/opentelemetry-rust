@@ -46,26 +46,30 @@ pub trait Span: fmt::Debug + 'static + Send + Sync {
     ///
     /// The semantic conventions for Errors are described in ["Semantic Conventions for Exceptions"](https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/trace/semantic_conventions/exceptions.md)
     ///
-    /// If user doesn't provide `stacktrace`, the corresponding attributes will not be set.
+    /// For now we will not set `exception.stacktrace` attribute since the `Error::backtrace`
+    /// method is still in nightly. User can provide stacktrace by using `record_exception_with_stacktrace`
+    /// method.
     ///
     /// User can custom exception message by overriding `fmt::Display` trait's `fmt` method for error.
-    fn record_exception(
-        &self,
-        err: &dyn Error,
-        stacktrace: Option<String>,
-    ) {
-        // build up attributes
+    fn record_exception(&self, err: &dyn Error) {
+        let attributes = vec![api::KeyValue::new(
+            "exception.message",
+            err.to_string(),
+        )];
+
+        self.add_event("exception".to_string(), attributes);
+    }
+
+    /// Convenience method to record a exception/error as an `Event` with custom stacktrace
+    ///
+    /// See `Span:record_exception` method for more details.
+    fn record_exception_with_stacktrace(&self, err: &dyn Error, stacktrace: String) {
         let mut attributes = vec![api::KeyValue::new(
             "exception.message",
             err.to_string(),
         )];
 
-        // if user provide stacktrace, then we set it.
-        // In the future, we can use `Error::backtrace()` method if it's stabilized.
-        // See https://doc.rust-lang.org/std/error/trait.Error.html#method.backtrace for details
-        if let Some(_stacktrace) = stacktrace {
-            attributes.push(api::KeyValue::new("exception.stacktrace", _stacktrace));
-        }
+        attributes.push(api::KeyValue::new("exception.stacktrace", stacktrace));
 
         self.add_event("exception".to_string(), attributes);
     }
