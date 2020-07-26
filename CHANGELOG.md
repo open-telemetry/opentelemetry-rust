@@ -1,5 +1,20 @@
 # Changelog
 
+## [v0.7.0](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.6.0...v0.7.0)
+
+### Added
+- New `ParentOrElse` sampler for fallback logic if parent is not sampled. #128
+- Attributes can now have array values #146
+- Added `record_exception` and `record_exception_with_stacktrace` methods to `Span` #152
+
+### Changed
+- Update sampler types #128
+  - `Always` is now `AlwaysOn`. `Never` is now `AlwaysOff`. `Probability` now ignores parent 
+    sampled state.
+- `base64` and `binary_propagator` have been moved to `experimental` module. #134
+- `Correlation-Context` header has been updated to `otcorrelations` #145
+- `B3Propagator` has been updated to more closely follow the spec  #148
+
 ## [v0.6.0](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.5.0...v0.6.0)
 
 ### Added

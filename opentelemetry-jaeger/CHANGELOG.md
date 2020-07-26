@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.6.0
+
+### Changed
+- Update to opentelemetry v0.7.0
+
+### Fixed
+- Do not add `span.kind` tag if it has been set as an attribute #140
+
 ## v0.5.0
 
 ### Changed

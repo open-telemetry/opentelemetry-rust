@@ -16,7 +16,7 @@ license = "Apache-2.0"
 edition = "2018"
 
 [dependencies]
-opentelemetry = { version = "0.6.0", default-features = false, features = ["trace"], path = ".." }
+opentelemetry = { version = "0.7.0", default-features = false, features = ["trace"], path = ".." }
 ureq = { version = "1.0.0", optional = true }
 thrift = "0.13.0"
 
