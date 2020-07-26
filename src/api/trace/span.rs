@@ -47,10 +47,11 @@ pub trait Span: fmt::Debug + 'static + Send + Sync {
     /// The semantic conventions for Errors are described in ["Semantic Conventions for Exceptions"](https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/trace/semantic_conventions/exceptions.md)
     ///
     /// For now we will not set `exception.stacktrace` attribute since the `Error::backtrace`
-    /// method is still in nightly. User can provide stacktrace by using `record_exception_with_stacktrace`
-    /// method.
+    /// method is still in nightly. Users can provide a stacktrace by using the
+    /// `record_exception_with_stacktrace` method.
     ///
-    /// User can custom exception message by overriding `fmt::Display` trait's `fmt` method for error.
+    /// Users can custom the exception message by overriding the `fmt::Display` trait's `fmt` method
+    /// for the error.
     fn record_exception(&self, err: &dyn Error) {
         let attributes = vec![api::KeyValue::new(
             "exception.message",
@@ -64,12 +65,10 @@ pub trait Span: fmt::Debug + 'static + Send + Sync {
     ///
     /// See `Span:record_exception` method for more details.
     fn record_exception_with_stacktrace(&self, err: &dyn Error, stacktrace: String) {
-        let mut attributes = vec![api::KeyValue::new(
+        let attributes = vec![api::KeyValue::new(
             "exception.message",
             err.to_string(),
-        )];
-
-        attributes.push(api::KeyValue::new("exception.stacktrace", stacktrace));
+        ), api::KeyValue::new("exception.stacktrace", stacktrace)];
 
         self.add_event("exception".to_string(), attributes);
     }
