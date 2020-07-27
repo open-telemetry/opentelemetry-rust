@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.4.0
+
+### Added
+- Added a `with_collector_endpoint` endpoint to config builder #155
+
+### Changed
+- Update to opentelemetry v0.7.0
+
 ## v0.3.0
 
 ### Changed
