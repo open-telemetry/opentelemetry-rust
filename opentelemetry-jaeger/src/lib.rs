@@ -97,6 +97,7 @@ mod agent;
 #[cfg(feature = "collector_client")]
 mod collector;
 #[allow(clippy::all, unreachable_pub, dead_code)]
+#[rustfmt::skip]
 mod thrift;
 pub(crate) mod transport;
 mod uploader;

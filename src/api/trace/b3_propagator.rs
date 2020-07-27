@@ -13,9 +13,9 @@
 //!
 //! If `inject_encoding` is set to `B3Encoding::SingleHeader` then `b3` header is used to inject
 //! and extract. Otherwise, separate headers are used to inject and extract.
-use crate::{api, api::TraceContextExt};
-use crate::api::TRACE_FLAG_DEFERRED;
 use crate::api::trace::b3_propagator::B3Encoding::MultipleHeader;
+use crate::api::TRACE_FLAG_DEFERRED;
+use crate::{api, api::TraceContextExt};
 
 static B3_SINGLE_HEADER: &str = "b3";
 /// As per spec, the multiple header should be case sensitive. But different protocol will use
@@ -82,8 +82,7 @@ impl B3Propagator {
     /// Extract trace id from hex encoded &str value.
     fn extract_trace_id(&self, trace_id: &str) -> Result<api::TraceId, ()> {
         // Only allow lower case hex string
-        if trace_id.to_lowercase() != trace_id ||
-            (trace_id.len() != 16 && trace_id.len() != 32) {
+        if trace_id.to_lowercase() != trace_id || (trace_id.len() != 16 && trace_id.len() != 32) {
             Err(())
         } else {
             u128::from_str_radix(trace_id, 16)
@@ -223,8 +222,9 @@ impl api::HttpTextFormat for B3Propagator {
 
                 carrier.set(B3_SINGLE_HEADER, value);
             }
-            if self.inject_encoding.support(&B3Encoding::MultipleHeader) ||
-                self.inject_encoding.support(&B3Encoding::UnSpecified) {
+            if self.inject_encoding.support(&B3Encoding::MultipleHeader)
+                || self.inject_encoding.support(&B3Encoding::UnSpecified)
+            {
                 // if inject_encoding is Unspecified, default to use MultipleHeader
                 carrier.set(
                     B3_TRACE_ID_HEADER,
@@ -247,8 +247,9 @@ impl api::HttpTextFormat for B3Propagator {
             if self.inject_encoding.support(&B3Encoding::SingleHeader) {
                 carrier.set(B3_SINGLE_HEADER, flag.to_string())
             }
-            if self.inject_encoding.support(&B3Encoding::MultipleHeader) ||
-                self.inject_encoding.support(&B3Encoding::UnSpecified) {
+            if self.inject_encoding.support(&B3Encoding::MultipleHeader)
+                || self.inject_encoding.support(&B3Encoding::UnSpecified)
+            {
                 carrier.set(B3_SAMPLED_HEADER, flag.to_string())
             }
         }
@@ -259,8 +260,7 @@ impl api::HttpTextFormat for B3Propagator {
     /// `Context` is returned.
     fn extract_with_context(&self, cx: &api::Context, carrier: &dyn api::Carrier) -> api::Context {
         let span_context = if self.inject_encoding.support(&B3Encoding::SingleHeader) {
-            self.extract_single_header(carrier)
-                .unwrap_or_else(|_|
+            self.extract_single_header(carrier).unwrap_or_else(|_|
                     // if invalid single header should fallback to multiple
                     self.extract_multi_header(carrier)
                         .unwrap_or_else(|_| api::SpanContext::empty_context()))
@@ -284,7 +284,6 @@ mod tests {
     const SPAN_ID_STR: &str = "00f067aa0ba902b7";
     const TRACE_ID_HEX: u128 = 0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736;
     const SPAN_ID_HEX: u64 = 0x00f0_67aa_0ba9_02b7;
-
 
     #[rustfmt::skip]
     fn single_header_extract_data() -> Vec<(&'static str, api::SpanContext)> {
@@ -407,7 +406,13 @@ mod tests {
         ]
     }
 
-    fn extract_carrier_from_test_data(trace: Option<&'static str>, span: Option<&'static str>, sampled: Option<&'static str>, debug: Option<&'static str>, parent: Option<&'static str>) -> HashMap<String, String> {
+    fn extract_carrier_from_test_data(
+        trace: Option<&'static str>,
+        span: Option<&'static str>,
+        sampled: Option<&'static str>,
+        debug: Option<&'static str>,
+        parent: Option<&'static str>,
+    ) -> HashMap<String, String> {
         let mut carrier = HashMap::new();
         if let Some(trace_id) = trace {
             carrier.insert(B3_TRACE_ID_HEADER.to_string(), trace_id.to_owned());
@@ -462,7 +467,9 @@ mod tests {
             )
         }
 
-        for ((trace, span, sampled, debug, parent), single_header, expected_context) in single_multi_header_extract_data() {
+        for ((trace, span, sampled, debug, parent), single_header, expected_context) in
+            single_multi_header_extract_data()
+        {
             let mut carrier = extract_carrier_from_test_data(trace, span, sampled, debug, parent);
             carrier.insert(B3_SINGLE_HEADER.to_string(), single_header.to_owned());
             assert_eq!(
@@ -481,7 +488,10 @@ mod tests {
 
         for invalid_single_header in single_header_extrace_invalid_data() {
             let mut carrier = HashMap::new();
-            carrier.insert(B3_SINGLE_HEADER.to_string(), invalid_single_header.to_string());
+            carrier.insert(
+                B3_SINGLE_HEADER.to_string(),
+                invalid_single_header.to_string(),
+            );
             assert_eq!(
                 single_header_propagator
                     .extract(&carrier)
@@ -511,7 +521,8 @@ mod tests {
             _name: String,
             _timestamp: std::time::SystemTime,
             _attributes: Vec<api::KeyValue>,
-        ) {}
+        ) {
+        }
         fn span_context(&self) -> api::SpanContext {
             self.0.clone()
         }
@@ -528,7 +539,8 @@ mod tests {
     fn inject_b3() {
         let single_header_propagator = B3Propagator::with_encoding(B3Encoding::SingleHeader);
         let multi_header_propagator = B3Propagator::with_encoding(B3Encoding::MultipleHeader);
-        let single_multi_header_propagator = B3Propagator::with_encoding(B3Encoding::SingleAndMultiHeader);
+        let single_multi_header_propagator =
+            B3Propagator::with_encoding(B3Encoding::SingleAndMultiHeader);
         let unspecified_header_propagator = B3Propagator::with_encoding(B3Encoding::UnSpecified);
 
         for (expected_header, context) in single_header_inject_data() {
@@ -558,16 +570,28 @@ mod tests {
 
             assert_eq!(carrier_multi_header, carrier_unspecific);
 
-            assert_eq!(carrier_multi_header.get(B3_TRACE_ID_HEADER).map(|s| s.to_owned()),
-                       trace_id.map(|s| s.to_string()));
-            assert_eq!(carrier_multi_header.get(B3_SPAN_ID_HEADER).map(|s| s.to_owned()),
-                       span_id.map(|s| s.to_string()));
             assert_eq!(
-                carrier_multi_header.get(B3_SAMPLED_HEADER).map(|s| s.to_owned()),
+                carrier_multi_header
+                    .get(B3_TRACE_ID_HEADER)
+                    .map(|s| s.to_owned()),
+                trace_id.map(|s| s.to_string())
+            );
+            assert_eq!(
+                carrier_multi_header
+                    .get(B3_SPAN_ID_HEADER)
+                    .map(|s| s.to_owned()),
+                span_id.map(|s| s.to_string())
+            );
+            assert_eq!(
+                carrier_multi_header
+                    .get(B3_SAMPLED_HEADER)
+                    .map(|s| s.to_owned()),
                 sampled.map(|s| s.to_string())
             );
             assert_eq!(
-                carrier_multi_header.get(B3_DEBUG_FLAG_HEADER).map(|s| s.to_owned()),
+                carrier_multi_header
+                    .get(B3_DEBUG_FLAG_HEADER)
+                    .map(|s| s.to_owned()),
                 flag.map(|s| s.to_string())
             );
             assert_eq!(carrier_multi_header.get(B3_PARENT_SPAN_ID_HEADER), None);
@@ -580,10 +604,14 @@ mod tests {
                 &mut carrier,
             );
 
-            assert_eq!(carrier.get(B3_TRACE_ID_HEADER).map(|s| s.to_owned()),
-                       trace_id.map(|s| s.to_string()));
-            assert_eq!(carrier.get(B3_SPAN_ID_HEADER).map(|s| s.to_owned()),
-                       span_id.map(|s| s.to_string()));
+            assert_eq!(
+                carrier.get(B3_TRACE_ID_HEADER).map(|s| s.to_owned()),
+                trace_id.map(|s| s.to_string())
+            );
+            assert_eq!(
+                carrier.get(B3_SPAN_ID_HEADER).map(|s| s.to_owned()),
+                span_id.map(|s| s.to_string())
+            );
             assert_eq!(
                 carrier.get(B3_SAMPLED_HEADER).map(|s| s.to_owned()),
                 sampled.map(|s| s.to_string())
