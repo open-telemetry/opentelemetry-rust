@@ -53,10 +53,7 @@ pub trait Span: fmt::Debug + 'static + Send + Sync {
     /// Users can custom the exception message by overriding the `fmt::Display` trait's `fmt` method
     /// for the error.
     fn record_exception(&self, err: &dyn Error) {
-        let attributes = vec![api::KeyValue::new(
-            "exception.message",
-            err.to_string(),
-        )];
+        let attributes = vec![api::KeyValue::new("exception.message", err.to_string())];
 
         self.add_event("exception".to_string(), attributes);
     }
@@ -65,10 +62,10 @@ pub trait Span: fmt::Debug + 'static + Send + Sync {
     ///
     /// See `Span:record_exception` method for more details.
     fn record_exception_with_stacktrace(&self, err: &dyn Error, stacktrace: String) {
-        let attributes = vec![api::KeyValue::new(
-            "exception.message",
-            err.to_string(),
-        ), api::KeyValue::new("exception.stacktrace", stacktrace)];
+        let attributes = vec![
+            api::KeyValue::new("exception.message", err.to_string()),
+            api::KeyValue::new("exception.stacktrace", stacktrace),
+        ];
 
         self.add_event("exception".to_string(), attributes);
     }
