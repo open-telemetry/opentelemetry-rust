@@ -9,3 +9,6 @@ edition = "2018"
 [dependencies]
 grpcio = "0.6"
 opentelemetry = { version = "0.7.0", default-features = false, features = ["trace"], path = ".." }
+
+[build-dependencies]
+protobuf-codegen-pure = "2.16"

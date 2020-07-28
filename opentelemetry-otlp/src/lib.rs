@@ -1,6 +1,8 @@
 use opentelemetry::exporter::trace::{SpanExporter, SpanData, ExportResult};
 use std::sync::Arc;
 
+mod proto;
+
 #[derive(Debug)]
 pub struct Exporter {
 
