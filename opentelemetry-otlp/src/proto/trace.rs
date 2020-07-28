@@ -2160,40 +2160,46 @@ impl ::protobuf::reflect::ProtobufValue for Status_StatusCode {
 
 static file_descriptor_proto_data: &'static [u8] = b"\
     \n(opentelemetry/proto/trace/v1/trace.proto\x12\x1copentelemetry.proto.t\
-    race.v1\"\xb4\x01\n\rResourceSpans\x12=\n\x08resource\x18\x01\x20\x01(\
-    \x0b2).opentelemetry.proto.resource.v1.ResourceB\0\x12b\n\x1dinstrumenta\
-    tion_library_spans\x18\x02\x20\x03(\x0b29.opentelemetry.proto.trace.v1.I\
-    nstrumentationLibrarySpansB\0:\0\"\xae\x01\n\x1bInstrumentationLibrarySp\
-    ans\x12X\n\x17instrumentation_library\x18\x01\x20\x01(\x0b25.opentelemet\
-    ry.proto.common.v1.InstrumentationLibraryB\0\x123\n\x05spans\x18\x02\x20\
-    \x03(\x0b2\".opentelemetry.proto.trace.v1.SpanB\0:\0\"\xeb\x07\n\x04Span\
-    \x12\x12\n\x08trace_id\x18\x01\x20\x01(\x0cB\0\x12\x11\n\x07span_id\x18\
-    \x02\x20\x01(\x0cB\0\x12\x15\n\x0btrace_state\x18\x03\x20\x01(\tB\0\x12\
-    \x18\n\x0eparent_span_id\x18\x04\x20\x01(\x0cB\0\x12\x0e\n\x04name\x18\
-    \x05\x20\x01(\tB\0\x12;\n\x04kind\x18\x06\x20\x01(\x0e2+.opentelemetry.p\
-    roto.trace.v1.Span.SpanKindB\0\x12\x1e\n\x14start_time_unix_nano\x18\x07\
-    \x20\x01(\x06B\0\x12\x1c\n\x12end_time_unix_nano\x18\x08\x20\x01(\x06B\0\
-    \x12=\n\nattributes\x18\t\x20\x03(\x0b2'.opentelemetry.proto.common.v1.K\
-    eyValueB\0\x12\"\n\x18dropped_attributes_count\x18\n\x20\x01(\rB\0\x12:\
-    \n\x06events\x18\x0b\x20\x03(\x0b2(.opentelemetry.proto.trace.v1.Span.Ev\
-    entB\0\x12\x1e\n\x14dropped_events_count\x18\x0c\x20\x01(\rB\0\x128\n\
-    \x05links\x18\r\x20\x03(\x0b2'.opentelemetry.proto.trace.v1.Span.LinkB\0\
-    \x12\x1d\n\x13dropped_links_count\x18\x0e\x20\x01(\rB\0\x126\n\x06status\
-    \x18\x0f\x20\x01(\x0b2$.opentelemetry.proto.trace.v1.StatusB\0\x1a\x96\
-    \x01\n\x05Event\x12\x18\n\x0etime_unix_nano\x18\x01\x20\x01(\x06B\0\x12\
-    \x0e\n\x04name\x18\x02\x20\x01(\tB\0\x12=\n\nattributes\x18\x03\x20\x03(\
-    \x0b2'.opentelemetry.proto.common.v1.KeyValueB\0\x12\"\n\x18dropped_attr\
-    ibutes_count\x18\x04\x20\x01(\rB\0:\0\x1a\xa9\x01\n\x04Link\x12\x12\n\
-    \x08trace_id\x18\x01\x20\x01(\x0cB\0\x12\x11\n\x07span_id\x18\x02\x20\
-    \x01(\x0cB\0\x12\x15\n\x0btrace_state\x18\x03\x20\x01(\tB\0\x12=\n\nattr\
-    ibutes\x18\x04\x20\x03(\x0b2'.opentelemetry.proto.common.v1.KeyValueB\0\
-    \x12\"\n\x18dropped_attributes_count\x18\x05\x20\x01(\rB\0:\0\"i\n\x08Sp\
-    anKind\x12\x19\n\x15SPAN_KIND_UNSPECIFIED\x10\0\x12\x0c\n\x08INTERNAL\
-    \x10\x01\x12\n\n\x06SERVER\x10\x02\x12\n\n\x06CLIENT\x10\x03\x12\x0c\n\
-    \x08PRODUCER\x10\x04\x12\x0c\n\x08CONSUMER\x10\x05\x1a\0:\0\"\xa0\x03\n\
-    \x06Status\x12?\n\x04code\x18\x01\x20\x01(\x0e2/.opentelemetry.proto.tra\
-    ce.v1.Status.StatusCodeB\0\x12\x11\n\x07message\x18\x02\x20\x01(\tB\0\"\
-    \xbf\x02\n\nStatusCode\x12\x06\n\x02Ok\x10\0\x12\r\n\tCancelled\x10\x01\
+    race.v1\x1a*opentelemetry/proto/common/v1/common.proto\x1a.opentelemetry\
+    /proto/resource/v1/resource.proto\"\xd5\x01\n\rResourceSpans\x12E\n\x08r\
+    esource\x18\x01\x20\x01(\x0b2).opentelemetry.proto.resource.v1.ResourceR\
+    \x08resource\x12}\n\x1dinstrumentation_library_spans\x18\x02\x20\x03(\
+    \x0b29.opentelemetry.proto.trace.v1.InstrumentationLibrarySpansR\x1binst\
+    rumentationLibrarySpans\"\xc7\x01\n\x1bInstrumentationLibrarySpans\x12n\
+    \n\x17instrumentation_library\x18\x01\x20\x01(\x0b25.opentelemetry.proto\
+    .common.v1.InstrumentationLibraryR\x16instrumentationLibrary\x128\n\x05s\
+    pans\x18\x02\x20\x03(\x0b2\".opentelemetry.proto.trace.v1.SpanR\x05spans\
+    \"\xe9\t\n\x04Span\x12\x19\n\x08trace_id\x18\x01\x20\x01(\x0cR\x07traceI\
+    d\x12\x17\n\x07span_id\x18\x02\x20\x01(\x0cR\x06spanId\x12\x1f\n\x0btrac\
+    e_state\x18\x03\x20\x01(\tR\ntraceState\x12$\n\x0eparent_span_id\x18\x04\
+    \x20\x01(\x0cR\x0cparentSpanId\x12\x12\n\x04name\x18\x05\x20\x01(\tR\x04\
+    name\x12?\n\x04kind\x18\x06\x20\x01(\x0e2+.opentelemetry.proto.trace.v1.\
+    Span.SpanKindR\x04kind\x12/\n\x14start_time_unix_nano\x18\x07\x20\x01(\
+    \x06R\x11startTimeUnixNano\x12+\n\x12end_time_unix_nano\x18\x08\x20\x01(\
+    \x06R\x0fendTimeUnixNano\x12G\n\nattributes\x18\t\x20\x03(\x0b2'.opentel\
+    emetry.proto.common.v1.KeyValueR\nattributes\x128\n\x18dropped_attribute\
+    s_count\x18\n\x20\x01(\rR\x16droppedAttributesCount\x12@\n\x06events\x18\
+    \x0b\x20\x03(\x0b2(.opentelemetry.proto.trace.v1.Span.EventR\x06events\
+    \x120\n\x14dropped_events_count\x18\x0c\x20\x01(\rR\x12droppedEventsCoun\
+    t\x12=\n\x05links\x18\r\x20\x03(\x0b2'.opentelemetry.proto.trace.v1.Span\
+    .LinkR\x05links\x12.\n\x13dropped_links_count\x18\x0e\x20\x01(\rR\x11dro\
+    ppedLinksCount\x12<\n\x06status\x18\x0f\x20\x01(\x0b2$.opentelemetry.pro\
+    to.trace.v1.StatusR\x06status\x1a\xc4\x01\n\x05Event\x12$\n\x0etime_unix\
+    _nano\x18\x01\x20\x01(\x06R\x0ctimeUnixNano\x12\x12\n\x04name\x18\x02\
+    \x20\x01(\tR\x04name\x12G\n\nattributes\x18\x03\x20\x03(\x0b2'.opentelem\
+    etry.proto.common.v1.KeyValueR\nattributes\x128\n\x18dropped_attributes_\
+    count\x18\x04\x20\x01(\rR\x16droppedAttributesCount\x1a\xde\x01\n\x04Lin\
+    k\x12\x19\n\x08trace_id\x18\x01\x20\x01(\x0cR\x07traceId\x12\x17\n\x07sp\
+    an_id\x18\x02\x20\x01(\x0cR\x06spanId\x12\x1f\n\x0btrace_state\x18\x03\
+    \x20\x01(\tR\ntraceState\x12G\n\nattributes\x18\x04\x20\x03(\x0b2'.opent\
+    elemetry.proto.common.v1.KeyValueR\nattributes\x128\n\x18dropped_attribu\
+    tes_count\x18\x05\x20\x01(\rR\x16droppedAttributesCount\"g\n\x08SpanKind\
+    \x12\x19\n\x15SPAN_KIND_UNSPECIFIED\x10\0\x12\x0c\n\x08INTERNAL\x10\x01\
+    \x12\n\n\x06SERVER\x10\x02\x12\n\n\x06CLIENT\x10\x03\x12\x0c\n\x08PRODUC\
+    ER\x10\x04\x12\x0c\n\x08CONSUMER\x10\x05\"\xa7\x03\n\x06Status\x12C\n\
+    \x04code\x18\x01\x20\x01(\x0e2/.opentelemetry.proto.trace.v1.Status.Stat\
+    usCodeR\x04code\x12\x18\n\x07message\x18\x02\x20\x01(\tR\x07message\"\
+    \xbd\x02\n\nStatusCode\x12\x06\n\x02Ok\x10\0\x12\r\n\tCancelled\x10\x01\
     \x12\x10\n\x0cUnknownError\x10\x02\x12\x13\n\x0fInvalidArgument\x10\x03\
     \x12\x14\n\x10DeadlineExceeded\x10\x04\x12\x0c\n\x08NotFound\x10\x05\x12\
     \x11\n\rAlreadyExists\x10\x06\x12\x14\n\x10PermissionDenied\x10\x07\x12\
@@ -2201,7 +2207,8 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     \t\x12\x0b\n\x07Aborted\x10\n\x12\x0e\n\nOutOfRange\x10\x0b\x12\x11\n\rU\
     nimplemented\x10\x0c\x12\x11\n\rInternalError\x10\r\x12\x0f\n\x0bUnavail\
     able\x10\x0e\x12\x0c\n\x08DataLoss\x10\x0f\x12\x13\n\x0fUnauthenticated\
-    \x10\x10\x1a\0:\0B\0b\x06proto3\
+    \x10\x10Bn\n\x1fio.opentelemetry.proto.trace.v1B\nTraceProtoP\x01Z=githu\
+    b.com/open-telemetry/opentelemetry-proto/gen/go/trace/v1b\x06proto3\
 ";
 
 static file_descriptor_proto_lazy: ::protobuf::rt::LazyV2<::protobuf::descriptor::FileDescriptorProto> = ::protobuf::rt::LazyV2::INIT;
