@@ -129,7 +129,10 @@ impl B3Propagator {
     }
 
     /// Extract a `SpanContext` from a single B3 header.
-    fn extract_single_header(&self, extractor: &dyn api::Extractor) -> Result<api::SpanContext, ()> {
+    fn extract_single_header(
+        &self,
+        extractor: &dyn api::Extractor,
+    ) -> Result<api::SpanContext, ()> {
         let header_value = extractor.get(B3_SINGLE_HEADER).unwrap_or("");
         let parts = header_value.split_terminator('-').collect::<Vec<&str>>();
         // Ensure length is within range.
@@ -258,7 +261,11 @@ impl api::HttpTextFormat for B3Propagator {
     /// Retrieves encoded data using the provided `Extractor`. If no data for this
     /// format was retrieved OR if the retrieved data is invalid, then the current
     /// `Context` is returned.
-    fn extract_with_context(&self, cx: &api::Context, extractor: &dyn api::Extractor) -> api::Context {
+    fn extract_with_context(
+        &self,
+        cx: &api::Context,
+        extractor: &dyn api::Extractor,
+    ) -> api::Context {
         let span_context = if self.inject_encoding.support(&B3Encoding::SingleHeader) {
             self.extract_single_header(extractor).unwrap_or_else(|_|
                     // if invalid single header should fallback to multiple

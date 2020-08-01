@@ -163,13 +163,6 @@ use std::collections::HashMap;
 pub mod composite_propagator;
 pub mod text_propagator;
 
-// /// Carriers provide an interface for adding and removing fields from an
-// /// underlying struct like `HashMap`.
-// pub trait Carrier {
-//     /// Get a value for a key from the underlying data.
-//     fn get(&self, key: &str) -> Option<&str>;
-// }
-
 /// Injector provides an interface for adding fields from an underlying struct like `HashMap`
 pub trait Injector {
     /// Add a key and value to the underlying.

@@ -103,7 +103,11 @@ impl api::HttpTextFormat for TraceContextPropagator {
     /// the `SpanContext` and returns it. If no `SpanContext` was retrieved
     /// OR if the retrieved SpanContext is invalid then an empty `SpanContext`
     /// is returned.
-    fn extract_with_context(&self, cx: &api::Context, extractor: &dyn api::Extractor) -> api::Context {
+    fn extract_with_context(
+        &self,
+        cx: &api::Context,
+        extractor: &dyn api::Extractor,
+    ) -> api::Context {
         self.extract_span_context(extractor)
             .map(|sc| cx.with_remote_span_context(sc))
             .unwrap_or_else(|_| cx.clone())
@@ -113,7 +117,7 @@ impl api::HttpTextFormat for TraceContextPropagator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::api::{HttpTextFormat, Extractor};
+    use crate::api::{Extractor, HttpTextFormat};
     use std::collections::HashMap;
 
     #[rustfmt::skip]

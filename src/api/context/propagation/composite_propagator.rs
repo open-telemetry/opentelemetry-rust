@@ -69,7 +69,11 @@ impl HttpTextFormat for HttpTextCompositePropagator {
     /// Retrieves encoded `Context` information using the `Extractor`. If no data was
     /// retrieved OR if the retrieved data is invalid, then the current `Context` is
     /// returned.
-    fn extract_with_context(&self, cx: &api::Context, extractor: &dyn api::Extractor) -> api::Context {
+    fn extract_with_context(
+        &self,
+        cx: &api::Context,
+        extractor: &dyn api::Extractor,
+    ) -> api::Context {
         self.propagators
             .iter()
             .fold(cx.clone(), |current_cx, propagator| {
