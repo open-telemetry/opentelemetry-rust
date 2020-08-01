@@ -59,21 +59,21 @@ impl HttpTextCompositePropagator {
 }
 
 impl HttpTextFormat for HttpTextCompositePropagator {
-    /// Encodes the values of the `Context` and injects them into the `Carrier`.
-    fn inject_context(&self, context: &api::Context, carrier: &mut dyn api::Carrier) {
+    /// Encodes the values of the `Context` and injects them into the `Injector`.
+    fn inject_context(&self, context: &api::Context, injector: &mut dyn api::Injector) {
         for propagator in &self.propagators {
-            propagator.inject_context(context, carrier)
+            propagator.inject_context(context, injector)
         }
     }
 
-    /// Retrieves encoded `Context` information using the `Carrier`. If no data was
+    /// Retrieves encoded `Context` information using the `Extractor`. If no data was
     /// retrieved OR if the retrieved data is invalid, then the current `Context` is
     /// returned.
-    fn extract_with_context(&self, cx: &api::Context, carrier: &dyn api::Carrier) -> api::Context {
+    fn extract_with_context(&self, cx: &api::Context, extractor: &dyn api::Extractor) -> api::Context {
         self.propagators
             .iter()
             .fold(cx.clone(), |current_cx, propagator| {
-                propagator.extract_with_context(&current_cx, carrier)
+                propagator.extract_with_context(&current_cx, extractor)
             })
     }
 }

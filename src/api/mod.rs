@@ -22,7 +22,8 @@ pub mod trace;
 pub use self::core::{Key, KeyValue, Unit, Value};
 pub use context::{
     propagation::{
-        composite_propagator::HttpTextCompositePropagator, text_propagator::HttpTextFormat, Carrier,
+        composite_propagator::HttpTextCompositePropagator, text_propagator::HttpTextFormat, Injector,
+        Extractor,
     },
     Context,
 };

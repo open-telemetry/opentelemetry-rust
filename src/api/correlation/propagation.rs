@@ -26,8 +26,8 @@ impl CorrelationContextPropagator {
 }
 
 impl api::HttpTextFormat for CorrelationContextPropagator {
-    /// Encodes the values of the `Context` and injects them into the provided `Carrier`.
-    fn inject_context(&self, cx: &Context, carrier: &mut dyn api::Carrier) {
+    /// Encodes the values of the `Context` and injects them into the provided `Injector`.
+    fn inject_context(&self, cx: &Context, injector: &mut dyn api::Injector) {
         let correlation_cx = cx.correlation_context();
         if !correlation_cx.is_empty() {
             let header_value = correlation_cx
@@ -40,13 +40,13 @@ impl api::HttpTextFormat for CorrelationContextPropagator {
                 })
                 .collect::<Vec<String>>()
                 .join(",");
-            carrier.set(CORRELATION_CONTEXT_HEADER, header_value);
+            injector.set(CORRELATION_CONTEXT_HEADER, header_value);
         }
     }
 
-    /// Extracts a `Context` with correlation context values from a `Carrier`.
-    fn extract_with_context(&self, cx: &Context, carrier: &dyn api::Carrier) -> Context {
-        if let Some(header_value) = carrier.get(CORRELATION_CONTEXT_HEADER) {
+    /// Extracts a `Context` with correlation context values from a `Extractor`.
+    fn extract_with_context(&self, cx: &Context, extractor: &dyn api::Extractor) -> Context {
+        if let Some(header_value) = extractor.get(CORRELATION_CONTEXT_HEADER) {
             let correlations = header_value.split(',').flat_map(|context_value| {
                 if let Some((name_and_value, props)) = context_value
                     .split(';')

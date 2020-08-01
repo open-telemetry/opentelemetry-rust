@@ -129,8 +129,8 @@ impl B3Propagator {
     }
 
     /// Extract a `SpanContext` from a single B3 header.
-    fn extract_single_header(&self, carrier: &dyn api::Carrier) -> Result<api::SpanContext, ()> {
-        let header_value = carrier.get(B3_SINGLE_HEADER).unwrap_or("");
+    fn extract_single_header(&self, extractor: &dyn api::Extractor) -> Result<api::SpanContext, ()> {
+        let header_value = extractor.get(B3_SINGLE_HEADER).unwrap_or("");
         let parts = header_value.split_terminator('-').collect::<Vec<&str>>();
         // Ensure length is within range.
         if parts.len() > 4 || parts.len() < 2 {
@@ -161,20 +161,20 @@ impl B3Propagator {
     }
 
     /// Extract a `SpanContext` from multiple B3 headers.
-    fn extract_multi_header(&self, carrier: &dyn api::Carrier) -> Result<api::SpanContext, ()> {
+    fn extract_multi_header(&self, extractor: &dyn api::Extractor) -> Result<api::SpanContext, ()> {
         let trace_id = self
-            .extract_trace_id(carrier.get(B3_TRACE_ID_HEADER).unwrap_or(""))
+            .extract_trace_id(extractor.get(B3_TRACE_ID_HEADER).unwrap_or(""))
             .map_err(|_| ())?;
         let span_id = self
-            .extract_span_id(carrier.get(B3_SPAN_ID_HEADER).unwrap_or(""))
+            .extract_span_id(extractor.get(B3_SPAN_ID_HEADER).unwrap_or(""))
             .map_err(|_| ())?;
         // Only ensure valid parent span header if present.
-        if let Some(parent) = carrier.get(B3_PARENT_SPAN_ID_HEADER) {
+        if let Some(parent) = extractor.get(B3_PARENT_SPAN_ID_HEADER) {
             let _ = self.extract_span_id(parent).map_err(|_| ());
         }
 
-        let debug = self.extract_debug_flag(carrier.get(B3_DEBUG_FLAG_HEADER).unwrap_or(""));
-        let sampled_opt = carrier.get(B3_SAMPLED_HEADER);
+        let debug = self.extract_debug_flag(extractor.get(B3_DEBUG_FLAG_HEADER).unwrap_or(""));
+        let sampled_opt = extractor.get(B3_SAMPLED_HEADER);
 
         let flag = if let Ok(debug_flag) = debug {
             // if debug is set, then X-B3-Sampled should not be sent. Will ignore
@@ -199,8 +199,8 @@ impl B3Propagator {
 
 impl api::HttpTextFormat for B3Propagator {
     /// Properly encodes the values of the `Context`'s `SpanContext` and injects
-    /// them into the `Carrier`.
-    fn inject_context(&self, context: &api::Context, carrier: &mut dyn api::Carrier) {
+    /// them into the `Injector`.
+    fn inject_context(&self, context: &api::Context, injector: &mut dyn api::Injector) {
         let span_context = context.span().span_context();
         if span_context.is_valid() {
             if self.inject_encoding.support(&B3Encoding::SingleHeader) {
@@ -220,52 +220,52 @@ impl api::HttpTextFormat for B3Propagator {
                     value = format!("{}-{:01}", value, flag)
                 }
 
-                carrier.set(B3_SINGLE_HEADER, value);
+                injector.set(B3_SINGLE_HEADER, value);
             }
             if self.inject_encoding.support(&B3Encoding::MultipleHeader)
                 || self.inject_encoding.support(&B3Encoding::UnSpecified)
             {
                 // if inject_encoding is Unspecified, default to use MultipleHeader
-                carrier.set(
+                injector.set(
                     B3_TRACE_ID_HEADER,
                     format!("{:032x}", span_context.trace_id().to_u128()),
                 );
-                carrier.set(
+                injector.set(
                     B3_SPAN_ID_HEADER,
                     format!("{:016x}", span_context.span_id().to_u64()),
                 );
 
                 if span_context.is_debug() {
-                    carrier.set(B3_DEBUG_FLAG_HEADER, "1".to_string());
+                    injector.set(B3_DEBUG_FLAG_HEADER, "1".to_string());
                 } else if !span_context.is_deferred() {
                     let sampled = if span_context.is_sampled() { "1" } else { "0" };
-                    carrier.set(B3_SAMPLED_HEADER, sampled.to_string());
+                    injector.set(B3_SAMPLED_HEADER, sampled.to_string());
                 }
             }
         } else {
             let flag = if span_context.is_sampled() { "1" } else { "0" };
             if self.inject_encoding.support(&B3Encoding::SingleHeader) {
-                carrier.set(B3_SINGLE_HEADER, flag.to_string())
+                injector.set(B3_SINGLE_HEADER, flag.to_string())
             }
             if self.inject_encoding.support(&B3Encoding::MultipleHeader)
                 || self.inject_encoding.support(&B3Encoding::UnSpecified)
             {
-                carrier.set(B3_SAMPLED_HEADER, flag.to_string())
+                injector.set(B3_SAMPLED_HEADER, flag.to_string())
             }
         }
     }
 
-    /// Retrieves encoded data using the provided `Carrier`. If no data for this
+    /// Retrieves encoded data using the provided `Extractor`. If no data for this
     /// format was retrieved OR if the retrieved data is invalid, then the current
     /// `Context` is returned.
-    fn extract_with_context(&self, cx: &api::Context, carrier: &dyn api::Carrier) -> api::Context {
+    fn extract_with_context(&self, cx: &api::Context, extractor: &dyn api::Extractor) -> api::Context {
         let span_context = if self.inject_encoding.support(&B3Encoding::SingleHeader) {
-            self.extract_single_header(carrier).unwrap_or_else(|_|
+            self.extract_single_header(extractor).unwrap_or_else(|_|
                     // if invalid single header should fallback to multiple
-                    self.extract_multi_header(carrier)
+                    self.extract_multi_header(extractor)
                         .unwrap_or_else(|_| api::SpanContext::empty_context()))
         } else {
-            self.extract_multi_header(carrier)
+            self.extract_multi_header(extractor)
                 .unwrap_or_else(|_| api::SpanContext::empty_context())
         };
 

@@ -163,40 +163,41 @@ use std::collections::HashMap;
 pub mod composite_propagator;
 pub mod text_propagator;
 
-/// Carriers provide an interface for adding and removing fields from an
-/// underlying struct like `HashMap`.
-pub trait Carrier {
-    /// Get a value for a key from the underlying data.
-    fn get(&self, key: &str) -> Option<&str>;
+// /// Carriers provide an interface for adding and removing fields from an
+// /// underlying struct like `HashMap`.
+// pub trait Carrier {
+//     /// Get a value for a key from the underlying data.
+//     fn get(&self, key: &str) -> Option<&str>;
+// }
+
+/// Injector provides an interface for adding fields from an underlying struct like `HashMap`
+pub trait Injector {
     /// Add a key and value to the underlying.
     fn set(&mut self, key: &str, value: String);
 }
 
-impl<S: std::hash::BuildHasher> api::Carrier for HashMap<String, String, S> {
-    /// Get a value for a key from the HashMap.
-    fn get(&self, key: &str) -> Option<&str> {
-        self.get(key).map(|v| v.as_str())
-    }
+/// Extractor provides an interface for removing fields from an underlying struct like `HashMap`
+pub trait Extractor {
+    /// Get a value from a key from the underlying data.
+    fn get(&self, key: &str) -> Option<&str>;
+}
 
+impl<S: std::hash::BuildHasher> api::Injector for HashMap<String, String, S> {
     /// Set a key and value in the HashMap.
     fn set(&mut self, key: &str, value: String) {
         self.insert(String::from(key), value);
     }
 }
 
-#[cfg(feature = "http")]
-impl api::Carrier for http::HeaderMap {
-    /// Get a value for a key from the HeaderMap.  If the value is not valid ASCII, returns None.
+impl<S: std::hash::BuildHasher> api::Extractor for HashMap<String, String, S> {
+    /// Get a value for a key from the HashMap.
     fn get(&self, key: &str) -> Option<&str> {
-        match self.get(key) {
-            Some(val) => match val.to_str() {
-                Ok(ascii) => Some(ascii),
-                Err(_) => None,
-            },
-            None => None,
-        }
+        self.get(key).map(|v| v.as_str())
     }
+}
 
+#[cfg(feature = "http")]
+impl api::Injector for http::HeaderMap {
     /// Set a key and value in the HeaderMap.  Does nothing if the key or value are not valid inputs.
     fn set(&mut self, key: &str, value: String) {
         if let Ok(name) = http::header::HeaderName::from_bytes(key.as_bytes()) {
@@ -207,13 +208,22 @@ impl api::Carrier for http::HeaderMap {
     }
 }
 
-#[cfg(feature = "tonic")]
-impl api::Carrier for tonic::metadata::MetadataMap {
-    /// Get a value for a key from the MetadataMap.  If the value can't be converted to &str, returns None
+#[cfg(feature = "http")]
+impl api::Extractor for http::HeaderMap {
+    /// Get a value for a key from the HeaderMap.  If the value is not valid ASCII, returns None.
     fn get(&self, key: &str) -> Option<&str> {
-        self.get(key).and_then(|metadata| metadata.to_str().ok())
+        match self.get(key) {
+            Some(val) => match val.to_str() {
+                Ok(ascii) => Some(ascii),
+                Err(_) => None,
+            },
+            None => None,
+        }
     }
+}
 
+#[cfg(feature = "tonic")]
+impl api::Injector for tonic::metadata::MetadataMap {
     /// Set a key and value in the MetadataMap.  Does nothing if the key or value are not valid inputs
     fn set(&mut self, key: &str, value: String) {
         if let Ok(key) = tonic::metadata::MetadataKey::from_bytes(key.to_lowercase().as_bytes()) {
@@ -221,5 +231,13 @@ impl api::Carrier for tonic::metadata::MetadataMap {
                 self.insert(key, val);
             }
         }
+    }
+}
+
+#[cfg(feature = "tonic")]
+impl api::Extractor for tonic::metadata::MetadataMap {
+    /// Get a value for a key from the MetadataMap.  If the value can't be converted to &str, returns None
+    fn get(&self, key: &str) -> Option<&str> {
+        self.get(key).and_then(|metadata| metadata.to_str().ok())
     }
 }

@@ -36,8 +36,8 @@ impl TraceContextPropagator {
     }
 
     /// Extract span context from w3c trace-context header.
-    fn extract_span_context(&self, carrier: &dyn api::Carrier) -> Result<api::SpanContext, ()> {
-        let header_value = carrier.get(TRACEPARENT_HEADER).unwrap_or("").trim();
+    fn extract_span_context(&self, extractor: &dyn api::Extractor) -> Result<api::SpanContext, ()> {
+        let header_value = extractor.get(TRACEPARENT_HEADER).unwrap_or("").trim();
         let parts = header_value.split_terminator('-').collect::<Vec<&str>>();
         // Ensure parts are not out of range.
         if parts.len() < 4 {
@@ -84,8 +84,8 @@ impl TraceContextPropagator {
 
 impl api::HttpTextFormat for TraceContextPropagator {
     /// Properly encodes the values of the `SpanContext` and injects them
-    /// into the `Carrier`.
-    fn inject_context(&self, context: &api::Context, carrier: &mut dyn api::Carrier) {
+    /// into the `Injector`.
+    fn inject_context(&self, context: &api::Context, injector: &mut dyn api::Injector) {
         let span_context = context.span().span_context();
         if span_context.is_valid() {
             let header_value = format!(
@@ -95,16 +95,16 @@ impl api::HttpTextFormat for TraceContextPropagator {
                 span_context.span_id().to_u64(),
                 span_context.trace_flags() & api::TRACE_FLAG_SAMPLED
             );
-            carrier.set(TRACEPARENT_HEADER, header_value)
+            injector.set(TRACEPARENT_HEADER, header_value)
         }
     }
 
-    /// Retrieves encoded `SpanContext`s using the `Carrier`. It decodes
+    /// Retrieves encoded `SpanContext`s using the `Extractor`. It decodes
     /// the `SpanContext` and returns it. If no `SpanContext` was retrieved
     /// OR if the retrieved SpanContext is invalid then an empty `SpanContext`
     /// is returned.
-    fn extract_with_context(&self, cx: &api::Context, carrier: &dyn api::Carrier) -> api::Context {
-        self.extract_span_context(carrier)
+    fn extract_with_context(&self, cx: &api::Context, extractor: &dyn api::Extractor) -> api::Context {
+        self.extract_span_context(extractor)
             .map(|sc| cx.with_remote_span_context(sc))
             .unwrap_or_else(|_| cx.clone())
     }
@@ -113,7 +113,7 @@ impl api::HttpTextFormat for TraceContextPropagator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::api::{Carrier, HttpTextFormat};
+    use crate::api::{HttpTextFormat, Extractor};
     use std::collections::HashMap;
 
     #[rustfmt::skip]
@@ -187,7 +187,7 @@ mod tests {
             );
 
             assert_eq!(
-                Carrier::get(&carrier, TRACEPARENT_HEADER).unwrap_or(""),
+                Extractor::get(&carrier, TRACEPARENT_HEADER).unwrap_or(""),
                 expected_header
             )
         }
