@@ -211,8 +211,8 @@
 //! `DistributedContext` into a binary or text format. Currently there are two types of propagators:
 //!
 //! - `BinaryFormat` which is used to serialize and deserialize a value into a binary representation.
-//! - `HTTPTextFormat` which is used to inject and extract a value as text into carriers that travel
-//!   in-band across process boundaries.
+//! - `HTTPTextFormat` which is used to inject and extract a value as text into injectors or extractors
+//!    that travel in-band across process boundaries.
 //!
 //! [Semantic Conventions]: https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/resource/semantic_conventions/README.md
 #![recursion_limit = "256"]
