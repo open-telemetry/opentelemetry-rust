@@ -23,7 +23,7 @@
 //! headers.insert("otcorrelations".to_string(), "user_id=1".to_string());
 //!
 //! let propagator = CorrelationContextPropagator::new();
-//! // can extract from any type that impls `Carrier`, usually an HTTP header map
+//! // can extract from any type that impls `Extractor`, usually an HTTP header map
 //! let cx = propagator.extract(&headers);
 //!
 //! // Iterate over extracted name / value pairs

@@ -26,8 +26,8 @@ impl CorrelationContextPropagator {
 }
 
 impl api::HttpTextFormat for CorrelationContextPropagator {
-    /// Encodes the values of the `Context` and injects them into the provided `Carrier`.
-    fn inject_context(&self, cx: &Context, carrier: &mut dyn api::Carrier) {
+    /// Encodes the values of the `Context` and injects them into the provided `Injector`.
+    fn inject_context(&self, cx: &Context, injector: &mut dyn api::Injector) {
         let correlation_cx = cx.correlation_context();
         if !correlation_cx.is_empty() {
             let header_value = correlation_cx
@@ -40,13 +40,13 @@ impl api::HttpTextFormat for CorrelationContextPropagator {
                 })
                 .collect::<Vec<String>>()
                 .join(",");
-            carrier.set(CORRELATION_CONTEXT_HEADER, header_value);
+            injector.set(CORRELATION_CONTEXT_HEADER, header_value);
         }
     }
 
-    /// Extracts a `Context` with correlation context values from a `Carrier`.
-    fn extract_with_context(&self, cx: &Context, carrier: &dyn api::Carrier) -> Context {
-        if let Some(header_value) = carrier.get(CORRELATION_CONTEXT_HEADER) {
+    /// Extracts a `Context` with correlation context values from a `Extractor`.
+    fn extract_with_context(&self, cx: &Context, extractor: &dyn api::Extractor) -> Context {
+        if let Some(header_value) = extractor.get(CORRELATION_CONTEXT_HEADER) {
             let correlations = header_value.split(',').flat_map(|context_value| {
                 if let Some((name_and_value, props)) = context_value
                     .split(';')
@@ -238,12 +238,12 @@ mod tests {
         let propagator = CorrelationContextPropagator::new();
 
         for (header_value, kvs) in valid_extract_data() {
-            let mut carrier: HashMap<String, String> = HashMap::new();
-            carrier.insert(
+            let mut extractor: HashMap<String, String> = HashMap::new();
+            extractor.insert(
                 CORRELATION_CONTEXT_HEADER.to_string(),
                 header_value.to_string(),
             );
-            let context = propagator.extract(&carrier);
+            let context = propagator.extract(&extractor);
             let correlations = context.correlation_context();
 
             assert_eq!(kvs.len(), correlations.len());
@@ -258,10 +258,10 @@ mod tests {
         let propagator = CorrelationContextPropagator::new();
 
         for (kvs, header_parts) in valid_inject_data() {
-            let mut carrier = HashMap::new();
+            let mut injector = HashMap::new();
             let cx = Context::current_with_correlations(kvs);
-            propagator.inject_context(&cx, &mut carrier);
-            let header_value = carrier.get(CORRELATION_CONTEXT_HEADER).unwrap();
+            propagator.inject_context(&cx, &mut injector);
+            let header_value = injector.get(CORRELATION_CONTEXT_HEADER).unwrap();
 
             assert_eq!(header_parts.join(",").len(), header_value.len(),);
             for header_part in &header_parts {

@@ -52,7 +52,7 @@ impl B3Encoding {
     }
 }
 
-/// Extracts and injects `SpanContext`s into `Carrier`s using B3 header format.
+/// Extracts and injects `SpanContext`s into `Extractor`s or `Injector`s using B3 header format.
 #[derive(Clone, Debug)]
 pub struct B3Propagator {
     inject_encoding: B3Encoding,
@@ -129,8 +129,11 @@ impl B3Propagator {
     }
 
     /// Extract a `SpanContext` from a single B3 header.
-    fn extract_single_header(&self, carrier: &dyn api::Carrier) -> Result<api::SpanContext, ()> {
-        let header_value = carrier.get(B3_SINGLE_HEADER).unwrap_or("");
+    fn extract_single_header(
+        &self,
+        extractor: &dyn api::Extractor,
+    ) -> Result<api::SpanContext, ()> {
+        let header_value = extractor.get(B3_SINGLE_HEADER).unwrap_or("");
         let parts = header_value.split_terminator('-').collect::<Vec<&str>>();
         // Ensure length is within range.
         if parts.len() > 4 || parts.len() < 2 {
@@ -161,20 +164,20 @@ impl B3Propagator {
     }
 
     /// Extract a `SpanContext` from multiple B3 headers.
-    fn extract_multi_header(&self, carrier: &dyn api::Carrier) -> Result<api::SpanContext, ()> {
+    fn extract_multi_header(&self, extractor: &dyn api::Extractor) -> Result<api::SpanContext, ()> {
         let trace_id = self
-            .extract_trace_id(carrier.get(B3_TRACE_ID_HEADER).unwrap_or(""))
+            .extract_trace_id(extractor.get(B3_TRACE_ID_HEADER).unwrap_or(""))
             .map_err(|_| ())?;
         let span_id = self
-            .extract_span_id(carrier.get(B3_SPAN_ID_HEADER).unwrap_or(""))
+            .extract_span_id(extractor.get(B3_SPAN_ID_HEADER).unwrap_or(""))
             .map_err(|_| ())?;
         // Only ensure valid parent span header if present.
-        if let Some(parent) = carrier.get(B3_PARENT_SPAN_ID_HEADER) {
+        if let Some(parent) = extractor.get(B3_PARENT_SPAN_ID_HEADER) {
             let _ = self.extract_span_id(parent).map_err(|_| ());
         }
 
-        let debug = self.extract_debug_flag(carrier.get(B3_DEBUG_FLAG_HEADER).unwrap_or(""));
-        let sampled_opt = carrier.get(B3_SAMPLED_HEADER);
+        let debug = self.extract_debug_flag(extractor.get(B3_DEBUG_FLAG_HEADER).unwrap_or(""));
+        let sampled_opt = extractor.get(B3_SAMPLED_HEADER);
 
         let flag = if let Ok(debug_flag) = debug {
             // if debug is set, then X-B3-Sampled should not be sent. Will ignore
@@ -199,8 +202,8 @@ impl B3Propagator {
 
 impl api::HttpTextFormat for B3Propagator {
     /// Properly encodes the values of the `Context`'s `SpanContext` and injects
-    /// them into the `Carrier`.
-    fn inject_context(&self, context: &api::Context, carrier: &mut dyn api::Carrier) {
+    /// them into the `Injector`.
+    fn inject_context(&self, context: &api::Context, injector: &mut dyn api::Injector) {
         let span_context = context.span().span_context();
         if span_context.is_valid() {
             if self.inject_encoding.support(&B3Encoding::SingleHeader) {
@@ -220,52 +223,56 @@ impl api::HttpTextFormat for B3Propagator {
                     value = format!("{}-{:01}", value, flag)
                 }
 
-                carrier.set(B3_SINGLE_HEADER, value);
+                injector.set(B3_SINGLE_HEADER, value);
             }
             if self.inject_encoding.support(&B3Encoding::MultipleHeader)
                 || self.inject_encoding.support(&B3Encoding::UnSpecified)
             {
                 // if inject_encoding is Unspecified, default to use MultipleHeader
-                carrier.set(
+                injector.set(
                     B3_TRACE_ID_HEADER,
                     format!("{:032x}", span_context.trace_id().to_u128()),
                 );
-                carrier.set(
+                injector.set(
                     B3_SPAN_ID_HEADER,
                     format!("{:016x}", span_context.span_id().to_u64()),
                 );
 
                 if span_context.is_debug() {
-                    carrier.set(B3_DEBUG_FLAG_HEADER, "1".to_string());
+                    injector.set(B3_DEBUG_FLAG_HEADER, "1".to_string());
                 } else if !span_context.is_deferred() {
                     let sampled = if span_context.is_sampled() { "1" } else { "0" };
-                    carrier.set(B3_SAMPLED_HEADER, sampled.to_string());
+                    injector.set(B3_SAMPLED_HEADER, sampled.to_string());
                 }
             }
         } else {
             let flag = if span_context.is_sampled() { "1" } else { "0" };
             if self.inject_encoding.support(&B3Encoding::SingleHeader) {
-                carrier.set(B3_SINGLE_HEADER, flag.to_string())
+                injector.set(B3_SINGLE_HEADER, flag.to_string())
             }
             if self.inject_encoding.support(&B3Encoding::MultipleHeader)
                 || self.inject_encoding.support(&B3Encoding::UnSpecified)
             {
-                carrier.set(B3_SAMPLED_HEADER, flag.to_string())
+                injector.set(B3_SAMPLED_HEADER, flag.to_string())
             }
         }
     }
 
-    /// Retrieves encoded data using the provided `Carrier`. If no data for this
+    /// Retrieves encoded data using the provided `Extractor`. If no data for this
     /// format was retrieved OR if the retrieved data is invalid, then the current
     /// `Context` is returned.
-    fn extract_with_context(&self, cx: &api::Context, carrier: &dyn api::Carrier) -> api::Context {
+    fn extract_with_context(
+        &self,
+        cx: &api::Context,
+        extractor: &dyn api::Extractor,
+    ) -> api::Context {
         let span_context = if self.inject_encoding.support(&B3Encoding::SingleHeader) {
-            self.extract_single_header(carrier).unwrap_or_else(|_|
+            self.extract_single_header(extractor).unwrap_or_else(|_|
                     // if invalid single header should fallback to multiple
-                    self.extract_multi_header(carrier)
+                    self.extract_multi_header(extractor)
                         .unwrap_or_else(|_| api::SpanContext::empty_context()))
         } else {
-            self.extract_multi_header(carrier)
+            self.extract_multi_header(extractor)
                 .unwrap_or_else(|_| api::SpanContext::empty_context())
         };
 
@@ -406,30 +413,30 @@ mod tests {
         ]
     }
 
-    fn extract_carrier_from_test_data(
+    fn extract_extrator_from_test_data(
         trace: Option<&'static str>,
         span: Option<&'static str>,
         sampled: Option<&'static str>,
         debug: Option<&'static str>,
         parent: Option<&'static str>,
     ) -> HashMap<String, String> {
-        let mut carrier = HashMap::new();
+        let mut extractor = HashMap::new();
         if let Some(trace_id) = trace {
-            carrier.insert(B3_TRACE_ID_HEADER.to_string(), trace_id.to_owned());
+            extractor.insert(B3_TRACE_ID_HEADER.to_string(), trace_id.to_owned());
         }
         if let Some(span_id) = span {
-            carrier.insert(B3_SPAN_ID_HEADER.to_string(), span_id.to_owned());
+            extractor.insert(B3_SPAN_ID_HEADER.to_string(), span_id.to_owned());
         }
         if let Some(sampled) = sampled {
-            carrier.insert(B3_SAMPLED_HEADER.to_string(), sampled.to_owned());
+            extractor.insert(B3_SAMPLED_HEADER.to_string(), sampled.to_owned());
         }
         if let Some(debug) = debug {
-            carrier.insert(B3_DEBUG_FLAG_HEADER.to_string(), debug.to_owned());
+            extractor.insert(B3_DEBUG_FLAG_HEADER.to_string(), debug.to_owned());
         }
         if let Some(parent) = parent {
-            carrier.insert(B3_PARENT_SPAN_ID_HEADER.to_string(), parent.to_owned());
+            extractor.insert(B3_PARENT_SPAN_ID_HEADER.to_string(), parent.to_owned());
         }
-        carrier
+        extractor
     }
 
     #[test]
@@ -440,11 +447,11 @@ mod tests {
         let unspecific_header_propagator = B3Propagator::with_encoding(B3Encoding::UnSpecified);
 
         for (header, expected_context) in single_header_extract_data() {
-            let mut carrier: HashMap<String, String> = HashMap::new();
-            carrier.insert(B3_SINGLE_HEADER.to_string(), header.to_owned());
+            let mut extractor: HashMap<String, String> = HashMap::new();
+            extractor.insert(B3_SINGLE_HEADER.to_string(), header.to_owned());
             assert_eq!(
                 single_header_propagator
-                    .extract(&carrier)
+                    .extract(&extractor)
                     .remote_span_context(),
                 Some(&expected_context)
             )
@@ -452,16 +459,16 @@ mod tests {
 
         for ((trace, span, sampled, debug, parent), expected_context) in multi_header_extract_data()
         {
-            let carrier = extract_carrier_from_test_data(trace, span, sampled, debug, parent);
+            let extractor = extract_extrator_from_test_data(trace, span, sampled, debug, parent);
             assert_eq!(
                 multi_header_propagator
-                    .extract(&carrier)
+                    .extract(&extractor)
                     .remote_span_context(),
                 Some(&expected_context)
             );
             assert_eq!(
                 unspecific_header_propagator
-                    .extract(&carrier)
+                    .extract(&extractor)
                     .remote_span_context(),
                 Some(&expected_context)
             )
@@ -470,31 +477,32 @@ mod tests {
         for ((trace, span, sampled, debug, parent), single_header, expected_context) in
             single_multi_header_extract_data()
         {
-            let mut carrier = extract_carrier_from_test_data(trace, span, sampled, debug, parent);
-            carrier.insert(B3_SINGLE_HEADER.to_string(), single_header.to_owned());
+            let mut extractor =
+                extract_extrator_from_test_data(trace, span, sampled, debug, parent);
+            extractor.insert(B3_SINGLE_HEADER.to_string(), single_header.to_owned());
             assert_eq!(
                 single_header_propagator
-                    .extract(&carrier)
+                    .extract(&extractor)
                     .remote_span_context(),
                 Some(&expected_context)
             );
             assert_eq!(
                 single_multi_propagator
-                    .extract(&carrier)
+                    .extract(&extractor)
                     .remote_span_context(),
                 Some(&expected_context)
             )
         }
 
         for invalid_single_header in single_header_extrace_invalid_data() {
-            let mut carrier = HashMap::new();
-            carrier.insert(
+            let mut extractor = HashMap::new();
+            extractor.insert(
                 B3_SINGLE_HEADER.to_string(),
                 invalid_single_header.to_string(),
             );
             assert_eq!(
                 single_header_propagator
-                    .extract(&carrier)
+                    .extract(&extractor)
                     .remote_span_context(),
                 Some(&api::SpanContext::empty_context())
             )
@@ -502,10 +510,10 @@ mod tests {
 
         // Test invalid multiple headers
         for (trace, span, sampled, debug, parent) in multi_header_extract_invalid_data() {
-            let carrier = extract_carrier_from_test_data(trace, span, sampled, debug, parent);
+            let extractor = extract_extrator_from_test_data(trace, span, sampled, debug, parent);
             assert_eq!(
                 multi_header_propagator
-                    .extract(&carrier)
+                    .extract(&extractor)
                     .remote_span_context(),
                 Some(&api::SpanContext::empty_context())
             )
@@ -544,87 +552,87 @@ mod tests {
         let unspecified_header_propagator = B3Propagator::with_encoding(B3Encoding::UnSpecified);
 
         for (expected_header, context) in single_header_inject_data() {
-            let mut carrier = HashMap::new();
+            let mut injector = HashMap::new();
             single_header_propagator.inject_context(
                 &api::Context::current_with_span(TestSpan(context)),
-                &mut carrier,
+                &mut injector,
             );
 
             assert_eq!(
-                carrier.get(B3_SINGLE_HEADER),
+                injector.get(B3_SINGLE_HEADER),
                 Some(&expected_header.to_owned())
             )
         }
 
         for (trace_id, span_id, sampled, flag, context) in multi_header_inject_data() {
-            let mut carrier_multi_header = HashMap::new();
-            let mut carrier_unspecific = HashMap::new();
+            let mut injector_multi_header = HashMap::new();
+            let mut injector_unspecific = HashMap::new();
             multi_header_propagator.inject_context(
                 &api::Context::current_with_span(TestSpan(context.clone())),
-                &mut carrier_multi_header,
+                &mut injector_multi_header,
             );
             unspecified_header_propagator.inject_context(
                 &api::Context::current_with_span(TestSpan(context)),
-                &mut carrier_unspecific,
+                &mut injector_unspecific,
             );
 
-            assert_eq!(carrier_multi_header, carrier_unspecific);
+            assert_eq!(injector_multi_header, injector_unspecific);
 
             assert_eq!(
-                carrier_multi_header
+                injector_multi_header
                     .get(B3_TRACE_ID_HEADER)
                     .map(|s| s.to_owned()),
                 trace_id.map(|s| s.to_string())
             );
             assert_eq!(
-                carrier_multi_header
+                injector_multi_header
                     .get(B3_SPAN_ID_HEADER)
                     .map(|s| s.to_owned()),
                 span_id.map(|s| s.to_string())
             );
             assert_eq!(
-                carrier_multi_header
+                injector_multi_header
                     .get(B3_SAMPLED_HEADER)
                     .map(|s| s.to_owned()),
                 sampled.map(|s| s.to_string())
             );
             assert_eq!(
-                carrier_multi_header
+                injector_multi_header
                     .get(B3_DEBUG_FLAG_HEADER)
                     .map(|s| s.to_owned()),
                 flag.map(|s| s.to_string())
             );
-            assert_eq!(carrier_multi_header.get(B3_PARENT_SPAN_ID_HEADER), None);
+            assert_eq!(injector_multi_header.get(B3_PARENT_SPAN_ID_HEADER), None);
         }
 
         for (trace_id, span_id, sampled, flag, b3, context) in single_multi_header_inject_data() {
-            let mut carrier = HashMap::new();
+            let mut injector = HashMap::new();
             single_multi_header_propagator.inject_context(
                 &api::Context::current_with_span(TestSpan(context)),
-                &mut carrier,
+                &mut injector,
             );
 
             assert_eq!(
-                carrier.get(B3_TRACE_ID_HEADER).map(|s| s.to_owned()),
+                injector.get(B3_TRACE_ID_HEADER).map(|s| s.to_owned()),
                 trace_id.map(|s| s.to_string())
             );
             assert_eq!(
-                carrier.get(B3_SPAN_ID_HEADER).map(|s| s.to_owned()),
+                injector.get(B3_SPAN_ID_HEADER).map(|s| s.to_owned()),
                 span_id.map(|s| s.to_string())
             );
             assert_eq!(
-                carrier.get(B3_SAMPLED_HEADER).map(|s| s.to_owned()),
+                injector.get(B3_SAMPLED_HEADER).map(|s| s.to_owned()),
                 sampled.map(|s| s.to_string())
             );
             assert_eq!(
-                carrier.get(B3_DEBUG_FLAG_HEADER).map(|s| s.to_owned()),
+                injector.get(B3_DEBUG_FLAG_HEADER).map(|s| s.to_owned()),
                 flag.map(|s| s.to_string())
             );
             assert_eq!(
-                carrier.get(B3_SINGLE_HEADER).map(|s| s.to_owned()),
+                injector.get(B3_SINGLE_HEADER).map(|s| s.to_owned()),
                 b3.map(|s| s.to_string())
             );
-            assert_eq!(carrier.get(B3_PARENT_SPAN_ID_HEADER), None);
+            assert_eq!(injector.get(B3_PARENT_SPAN_ID_HEADER), None);
         }
     }
 }
