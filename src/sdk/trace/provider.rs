@@ -110,8 +110,16 @@ impl Builder {
         Builder { processors, ..self }
     }
 
-    /// The `SpanExporter` that this provider should use.
+    /// The `BatchProcessor` that this provider should use.
     pub fn with_batch_exporter(self, processor: sdk::BatchSpanProcessor) -> Self {
+        let mut processors = self.processors;
+        processors.push(Box::new(processor));
+
+        Builder { processors, ..self }
+    }
+
+    /// The `SpanProcessor` that this provider should use.
+    pub fn with_span_processor<T: api::SpanProcessor + 'static>(self, processor: T) -> Self {
         let mut processors = self.processors;
         processors.push(Box::new(processor));
 
