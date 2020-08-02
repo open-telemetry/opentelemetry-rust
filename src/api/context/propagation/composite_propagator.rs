@@ -31,18 +31,18 @@ use std::fmt::Debug;
 ///     Box::new(trace_context_propagator),
 /// ]);
 ///
-/// // Then for a given implementation of `Carrier`
-/// let mut carrier = HashMap::new();
+/// // Then for a given implementation of `Injector`
+/// let mut injector = HashMap::new();
 ///
 /// // And a given span
 /// let example_span = sdk::Provider::default().get_tracer("example-component").start("span-name");
 ///
 /// // with the current context, call inject to add the headers
-/// composite_propagator.inject_context(&Context::current_with_span(example_span), &mut carrier);
+/// composite_propagator.inject_context(&Context::current_with_span(example_span), &mut injector);
 ///
-/// // The carrier now has both `X-B3` and `traceparent` headers
-/// assert!(carrier.get("b3").is_some());
-/// assert!(carrier.get("traceparent").is_some());
+/// // The injector now has both `X-B3` and `traceparent` headers
+/// assert!(injector.get("b3").is_some());
+/// assert!(injector.get("traceparent").is_some());
 /// ```
 #[derive(Debug)]
 pub struct HttpTextCompositePropagator {
@@ -136,11 +136,11 @@ mod tests {
             0,
             false,
         )));
-        let mut carrier = HashMap::new();
-        composite_propagator.inject_context(&cx, &mut carrier);
+        let mut injector = HashMap::new();
+        composite_propagator.inject_context(&cx, &mut injector);
 
         for (header_name, header_value) in test_data() {
-            assert_eq!(carrier.get(header_name), Some(&header_value.to_string()));
+            assert_eq!(injector.get(header_name), Some(&header_value.to_string()));
         }
     }
 
@@ -153,10 +153,12 @@ mod tests {
         };
 
         for (header_name, header_value) in test_data() {
-            let mut carrier = HashMap::new();
-            carrier.insert(header_name.to_string(), header_value.to_string());
+            let mut extractor = HashMap::new();
+            extractor.insert(header_name.to_string(), header_value.to_string());
             assert_eq!(
-                composite_propagator.extract(&carrier).remote_span_context(),
+                composite_propagator
+                    .extract(&extractor)
+                    .remote_span_context(),
                 Some(&SpanContext::new(
                     TraceId::from_u128(1),
                     SpanId::from_u64(1),

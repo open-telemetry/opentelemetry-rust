@@ -24,7 +24,7 @@ static SUPPORTED_VERSION: u8 = 0;
 static MAX_VERSION: u8 = 254;
 static TRACEPARENT_HEADER: &str = "traceparent";
 
-/// Extracts and injects `SpanContext`s into `Carrier`s using the
+/// Extracts and injects `SpanContext`s into `Extractor`s and `Injector`s using the
 /// trace-context format.
 #[derive(Debug, Default)]
 pub struct TraceContextPropagator {}
@@ -148,10 +148,10 @@ mod tests {
         let propagator = TraceContextPropagator::new();
 
         for (header, expected_context) in extract_data() {
-            let mut carrier = HashMap::new();
-            carrier.insert(TRACEPARENT_HEADER.to_string(), header.to_owned());
+            let mut extractor = HashMap::new();
+            extractor.insert(TRACEPARENT_HEADER.to_string(), header.to_owned());
             assert_eq!(
-                propagator.extract(&carrier).remote_span_context(),
+                propagator.extract(&extractor).remote_span_context(),
                 Some(&expected_context)
             )
         }
@@ -184,14 +184,14 @@ mod tests {
         let propagator = TraceContextPropagator::new();
 
         for (expected_header, context) in inject_data() {
-            let mut carrier = HashMap::new();
+            let mut injector = HashMap::new();
             propagator.inject_context(
                 &api::Context::current_with_span(TestSpan(context)),
-                &mut carrier,
+                &mut injector,
             );
 
             assert_eq!(
-                Extractor::get(&carrier, TRACEPARENT_HEADER).unwrap_or(""),
+                Extractor::get(&injector, TRACEPARENT_HEADER).unwrap_or(""),
                 expected_header
             )
         }

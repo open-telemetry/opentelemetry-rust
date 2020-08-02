@@ -359,14 +359,14 @@ pub fn set_http_text_propagator<P: api::HttpTextFormat + Send + Sync + 'static>(
 /// use opentelemetry::{api, api::HttpTextFormat, global};
 /// use std::collections::HashMap;
 ///
-/// let example_carrier = HashMap::new();
+/// let example_extractor = HashMap::new();
 ///
 /// // create your http text propagator
 /// let tc_propagator = api::TraceContextPropagator::new();
 /// global::set_http_text_propagator(tc_propagator);
 ///
 /// // use the global http text propagator to extract contexts
-/// let _cx = global::get_http_text_propagator(|propagator| propagator.extract(&example_carrier));
+/// let _cx = global::get_http_text_propagator(|propagator| propagator.extract(&example_extractor));
 /// ```
 pub fn get_http_text_propagator<T, F>(mut f: F) -> T
 where

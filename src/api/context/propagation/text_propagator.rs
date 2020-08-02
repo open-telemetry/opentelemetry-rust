@@ -5,7 +5,7 @@
 use crate::{api, api::Context};
 use std::fmt::Debug;
 
-/// Methods to inject and extract a value as text into carriers that travel
+/// Methods to inject and extract a value as text into injectors and extractors that travel
 /// in-band across process boundaries.
 pub trait HttpTextFormat: Debug {
     /// Properly encodes the values of the current [`Context`] and injects them into
@@ -21,7 +21,7 @@ pub trait HttpTextFormat: Debug {
     /// [`Injector`].
     ///
     /// [`Context`]: ../../struct.Context.html
-    /// [`Injector`]: ../trait.Carrier.html
+    /// [`Injector`]: ../trait.Injector.html
     fn inject_context(&self, cx: &Context, injector: &mut dyn api::Injector);
 
     /// Retrieves encoded data using the provided [`Extractor`]. If no data for this
@@ -29,7 +29,7 @@ pub trait HttpTextFormat: Debug {
     /// [`Context`] is returned.
     ///
     /// [`Context`]: ../../struct.Context.html
-    /// [`Extractor`]: ../trait.Carrier.html
+    /// [`Extractor`]: ../trait.Extractor.html
     fn extract(&self, extractor: &dyn api::Extractor) -> Context {
         self.extract_with_context(&Context::current(), extractor)
     }
@@ -39,6 +39,6 @@ pub trait HttpTextFormat: Debug {
     /// [`Context`] is returned.
     ///
     /// [`Context`]: ../../struct.Context.html
-    /// [`Extractor`]: ../trait.Carrier.html
+    /// [`Extractor`]: ../trait.Extractor.html
     fn extract_with_context(&self, cx: &Context, extractor: &dyn api::Extractor) -> Context;
 }

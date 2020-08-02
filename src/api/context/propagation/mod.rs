@@ -5,7 +5,7 @@
 //! - `BinaryFormat` is used to serialize and deserialize a value
 //! into a binary representation.
 //! - `HttpTextFormat` is used to inject and extract a value as
-//! text into carriers that travel in-band across process boundaries.
+//! text into injectors and extractors that travel in-band across process boundaries.
 //!
 //! Deserializing must set `is_remote` to true on the returned
 //! `SpanContext`.
@@ -45,25 +45,25 @@
 //! ## HTTP Text Format
 //!
 //! `HttpTextFormat` is a formatter that injects and extracts a value
-//! as text into carriers that travel in-band across process boundaries.
+//! as text into injectors and extractors that travel in-band across process boundaries.
 //!
 //! Encoding is expected to conform to the HTTP Header Field semantics.
 //! Values are often encoded as RPC/HTTP request headers.
 //!
 //! The carrier of propagated data on both the client (injector) and
-//! server (extractor) side is usually an http request. Propagation is
+//! server (extractor) side is usually a http request. Propagation is
 //! usually implemented via library-specific request interceptors, where
 //! the client-side injects values and the server-side extracts them.
 //!
-//! `HttpTextFormat` MUST expose the APIs that injects values into carriers,
-//! and extracts values from carriers.
+//! `HttpTextFormat` MUST expose the APIs that injects values into injectors,
+//! and extracts values from extractors.
 //!
 //! ### Fields
 //!
-//! The propagation fields defined. If your carrier is reused, you should
+//! The propagation fields defined. If your injector is reused, you should
 //! delete the fields here before calling `inject`.
 //!
-//! For example, if the carrier is a single-use or immutable request object,
+//! For example, if the injector is a single-use or immutable request object,
 //! you don't need to clear fields as they couldn't have been set before.
 //! If it is a mutable, retryable object, successive calls should clear
 //! these fields first.
@@ -83,7 +83,7 @@
 //! Required arguments:
 //!
 //! - the `SpanContext` to be injected.
-//! - the carrier that holds propagation fields. For example, an outgoing
+//! - the injector that holds propagation fields. For example, an outgoing
 //! message or http request.
 //! - the `Setter` invoked for each propagation key to add or remove.
 //!
@@ -92,7 +92,7 @@
 //! Setter is an argument in `Inject` that puts value into given field.
 //!
 //! `Setter` allows a `HttpTextFormat` to set propagated fields into a
-//! carrier.
+//! injector.
 //!
 //! `Setter` MUST be stateless and allowed to be saved as a constant to
 //! avoid runtime allocations. One of the ways to implement it is `Setter`
@@ -104,7 +104,7 @@
 //!
 //! Required arguments:
 //!
-//! - the carrier holds propagation fields. For example, an outgoing message
+//! - the injector holds propagation fields. For example, an outgoing message
 //! or http request.
 //! - the key of the field.
 //! - the value of the field.
@@ -123,7 +123,7 @@
 //!
 //! Required arguments:
 //!
-//! - the carrier holds propagation fields. For example, an outgoing message
+//! - the extractor holds propagation fields. For example, an outgoing message
 //! or http request.
 //! - the instance of `Getter` invoked for each propagation key to get.
 //!
@@ -134,7 +134,7 @@
 //! Getter is an argument in `Extract` that get value from given field
 //!
 //! `Getter` allows a `HttpTextFormat` to read propagated fields from a
-//! carrier.
+//! extractor.
 //!
 //! `Getter` MUST be stateless and allowed to be saved as a constant to avoid
 //! runtime allocations. One of the ways to implement it is `Getter` class
@@ -147,7 +147,7 @@
 //!
 //! Required arguments:
 //!
-//! - the carrier of propagation fields, such as an HTTP request.
+//! - the extractor of propagation fields, such as an HTTP request.
 //! - the key of the field.
 //!
 //! The `get` function is responsible for handling case sensitivity. If

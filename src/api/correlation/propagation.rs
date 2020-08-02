@@ -238,12 +238,12 @@ mod tests {
         let propagator = CorrelationContextPropagator::new();
 
         for (header_value, kvs) in valid_extract_data() {
-            let mut carrier: HashMap<String, String> = HashMap::new();
-            carrier.insert(
+            let mut extractor: HashMap<String, String> = HashMap::new();
+            extractor.insert(
                 CORRELATION_CONTEXT_HEADER.to_string(),
                 header_value.to_string(),
             );
-            let context = propagator.extract(&carrier);
+            let context = propagator.extract(&extractor);
             let correlations = context.correlation_context();
 
             assert_eq!(kvs.len(), correlations.len());
@@ -258,10 +258,10 @@ mod tests {
         let propagator = CorrelationContextPropagator::new();
 
         for (kvs, header_parts) in valid_inject_data() {
-            let mut carrier = HashMap::new();
+            let mut injector = HashMap::new();
             let cx = Context::current_with_correlations(kvs);
-            propagator.inject_context(&cx, &mut carrier);
-            let header_value = carrier.get(CORRELATION_CONTEXT_HEADER).unwrap();
+            propagator.inject_context(&cx, &mut injector);
+            let header_value = injector.get(CORRELATION_CONTEXT_HEADER).unwrap();
 
             assert_eq!(header_parts.join(",").len(), header_value.len(),);
             for header_part in &header_parts {
