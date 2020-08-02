@@ -1,7 +1,9 @@
+use crate::proto::common::{AnyValue, KeyValue};
 use crate::proto::resource::Resource;
 use crate::proto::trace::{InstrumentationLibrarySpans, ResourceSpans, Span, Span_SpanKind};
-use opentelemetry::api::SpanKind;
+use opentelemetry::api::{SpanKind, Value};
 use opentelemetry::exporter::trace::SpanData;
+use protobuf::reflect::ProtobufValue;
 use protobuf::{RepeatedField, SingularPtrField};
 use std::sync::Arc;
 use std::time::UNIX_EPOCH;
@@ -15,6 +17,24 @@ impl From<SpanKind> for Span_SpanKind {
             SpanKind::Producer => Span_SpanKind::PRODUCER,
             SpanKind::Server => Span_SpanKind::SERVER,
         }
+    }
+}
+
+impl Into<Option<AnyValue>> for Value {
+    fn into(self) -> Option<AnyValue> {
+        let mut any_value = AnyValue::new();
+        match self {
+            Value::Bool(val) => any_value.set_bool_value(val),
+            Value::I64(val) => any_value.set_int_value(val),
+            Value::U64(val) => any_value.set_int_value(val as i64),
+            Value::F64(val) => any_value.set_double_value(val),
+            Value::String(val) => any_value.set_string_value(val),
+            Value::Bytes(val) => return None,
+            Value::Array(vals) => any_value
+                .set_array_value({ vals.into_iter().filter_map(|val| val.into()).collect() }),
+        };
+
+        Some(any_value)
     }
 }
 
@@ -44,7 +64,22 @@ impl From<Arc<SpanData>> for ResourceSpans {
                             .to_be_bytes()
                             .to_vec(),
                         trace_state: "".to_string(),
-                        parent_span_id: source_span.parent_span_id.to_u64().to_be_bytes().to_vec(),
+                        parent_span_id: {
+                            println!("Parent Span ID: {:?}", source_span.parent_span_id);
+                            if !source_span.parent_span_id.to_u64().is_non_zero() {
+                                vec![]
+                            } else {
+                                println!(
+                                    "Parent Span to BigEndian Bytes: {:?}",
+                                    source_span.parent_span_id.to_u64().to_be_bytes()
+                                );
+                                println!(
+                                    "Parent Span bytes vec: {:?}",
+                                    source_span.parent_span_id.to_u64().to_be_bytes().to_vec()
+                                );
+                                source_span.parent_span_id.to_u64().to_be_bytes().to_vec()
+                            }
+                        },
                         name: source_span.name.clone(),
                         kind: source_span.span_kind.clone().into(),
                         start_time_unix_nano: source_span
@@ -57,7 +92,18 @@ impl From<Arc<SpanData>> for ResourceSpans {
                             .duration_since(UNIX_EPOCH)
                             .unwrap()
                             .as_nanos() as u64,
-                        attributes: Default::default(),
+                        attributes: RepeatedField::from_vec(
+                            source_span
+                                .attributes
+                                .into_iter()
+                                .map(|(key, value)| {
+                                    let mut kv: KeyValue = KeyValue::new();
+                                    kv.set_key(key.as_str().to_string());
+                                    kv.set_value(value.into());
+                                    kv
+                                })
+                                .collect(),
+                        ),
                         dropped_attributes_count: 0,
                         events: Default::default(),
                         dropped_events_count: 0,
