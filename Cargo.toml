@@ -49,6 +49,7 @@ members = [
     "examples/actix-http",
     "examples/async",
     "examples/basic",
+    "examples/basic-otlp",
     "examples/grpc",
     "examples/http",
     "examples/zipkin",
