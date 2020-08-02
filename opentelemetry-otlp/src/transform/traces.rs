@@ -1,4 +1,4 @@
-use crate::proto::common::{AnyValue, KeyValue};
+use crate::proto::common::{AnyValue, ArrayValue, KeyValue};
 use crate::proto::resource::Resource;
 use crate::proto::trace::{InstrumentationLibrarySpans, ResourceSpans, Span, Span_SpanKind};
 use opentelemetry::api::{SpanKind, Value};
@@ -20,21 +20,26 @@ impl From<SpanKind> for Span_SpanKind {
     }
 }
 
-impl Into<Option<AnyValue>> for Value {
-    fn into(self) -> Option<AnyValue> {
+impl From<Value> for AnyValue {
+    fn from(value: Value) -> Self {
         let mut any_value = AnyValue::new();
-        match self {
+        match value {
             Value::Bool(val) => any_value.set_bool_value(val),
             Value::I64(val) => any_value.set_int_value(val),
             Value::U64(val) => any_value.set_int_value(val as i64),
             Value::F64(val) => any_value.set_double_value(val),
             Value::String(val) => any_value.set_string_value(val),
-            Value::Bytes(val) => return None,
-            Value::Array(vals) => any_value
-                .set_array_value({ vals.into_iter().filter_map(|val| val.into()).collect() }),
+            Value::Bytes(_val) => any_value.set_string_value("INVALID".to_string()),
+            Value::Array(vals) => any_value.set_array_value({
+                let mut array_value = ArrayValue::new();
+                array_value.set_values(RepeatedField::from_vec(
+                    vals.into_iter().map(|val| AnyValue::from(val)).collect(),
+                ));
+                array_value
+            }),
         };
 
-        Some(any_value)
+        any_value
     }
 }
 
@@ -95,6 +100,7 @@ impl From<Arc<SpanData>> for ResourceSpans {
                         attributes: RepeatedField::from_vec(
                             source_span
                                 .attributes
+                                .clone()
                                 .into_iter()
                                 .map(|(key, value)| {
                                     let mut kv: KeyValue = KeyValue::new();
