@@ -18,6 +18,7 @@
 use crate::api;
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
+use std::error::Error;
 use std::fmt;
 use std::time::SystemTime;
 
@@ -36,6 +37,37 @@ pub trait Span: fmt::Debug + 'static + Send + Sync {
     /// which have prescribed semantic meanings.
     fn add_event(&self, name: String, attributes: Vec<api::KeyValue>) {
         self.add_event_with_timestamp(name, SystemTime::now(), attributes)
+    }
+
+    /// Convenience method to record an exception/error as an `Event`
+    ///
+    /// An exception SHOULD be recorded as an Event on the span during which it occurred.
+    /// The name of the event MUST be "exception".
+    ///
+    /// The semantic conventions for Errors are described in ["Semantic Conventions for Exceptions"](https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/trace/semantic_conventions/exceptions.md)
+    ///
+    /// For now we will not set `exception.stacktrace` attribute since the `Error::backtrace`
+    /// method is still in nightly. Users can provide a stacktrace by using the
+    /// `record_exception_with_stacktrace` method.
+    ///
+    /// Users can custom the exception message by overriding the `fmt::Display` trait's `fmt` method
+    /// for the error.
+    fn record_exception(&self, err: &dyn Error) {
+        let attributes = vec![api::KeyValue::new("exception.message", err.to_string())];
+
+        self.add_event("exception".to_string(), attributes);
+    }
+
+    /// Convenience method to record a exception/error as an `Event` with custom stacktrace
+    ///
+    /// See `Span:record_exception` method for more details.
+    fn record_exception_with_stacktrace(&self, err: &dyn Error, stacktrace: String) {
+        let attributes = vec![
+            api::KeyValue::new("exception.message", err.to_string()),
+            api::KeyValue::new("exception.stacktrace", stacktrace),
+        ];
+
+        self.add_event("exception".to_string(), attributes);
     }
 
     /// An API to record events at a specific time in the context of a given `Span`.

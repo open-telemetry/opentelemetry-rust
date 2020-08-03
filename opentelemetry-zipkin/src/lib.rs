@@ -143,6 +143,12 @@ impl ExporterConfigBuilder {
         self.service_endpoint = Some(endpoint);
         self
     }
+
+    /// Assign the collector endpoint for `ConfigBuilder`
+    pub fn with_collector_endpoint(&mut self, endpoint: String) -> &mut Self {
+        self.collector_endpoint = Some(endpoint);
+        self
+    }
 }
 
 impl Exporter {

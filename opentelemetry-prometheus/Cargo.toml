@@ -16,7 +16,7 @@ license = "Apache-2.0"
 edition = "2018"
 
 [dependencies]
-opentelemetry = { version = "0.6.0", path = "..", default-features = false, features = ["metrics"] }
+opentelemetry = { version = "0.7.0", path = "..", default-features = false, features = ["metrics"] }
 prometheus = "0.9"
 protobuf = "2.14"
 
