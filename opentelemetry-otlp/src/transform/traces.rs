@@ -1,13 +1,15 @@
 use crate::proto::common::{AnyValue, ArrayValue, KeyValue};
 use crate::proto::resource::Resource;
-use crate::proto::trace::{InstrumentationLibrarySpans, ResourceSpans, Span, Span_SpanKind};
+use crate::proto::trace::{
+    InstrumentationLibrarySpans, ResourceSpans, Span, Span_Event, Span_SpanKind,
+};
 use opentelemetry::api::{SpanKind, Value};
 use opentelemetry::exporter::trace::SpanData;
 use opentelemetry::sdk::EvictedHashMap;
 use protobuf::reflect::ProtobufValue;
 use protobuf::{RepeatedField, SingularPtrField};
 use std::sync::Arc;
-use std::time::UNIX_EPOCH;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 impl From<SpanKind> for Span_SpanKind {
     fn from(span_kind: SpanKind) -> Self {
@@ -39,6 +41,21 @@ impl From<EvictedHashMap> for Attributes {
     }
 }
 
+impl From<Vec<opentelemetry::api::KeyValue>> for Attributes {
+    fn from(kvs: Vec<opentelemetry::api::KeyValue>) -> Self {
+        Attributes(RepeatedField::from_vec(
+            kvs.into_iter()
+                .map(|api_kv| {
+                    let mut kv: KeyValue = KeyValue::new();
+                    kv.set_key(api_kv.key.as_str().to_string());
+                    kv.set_value(api_kv.value.into());
+                    kv
+                })
+                .collect(),
+        ))
+    }
+}
+
 impl From<Value> for AnyValue {
     fn from(value: Value) -> Self {
         let mut any_value = AnyValue::new();
@@ -60,6 +77,10 @@ impl From<Value> for AnyValue {
 
         any_value
     }
+}
+
+pub(crate) fn to_nanos(time: SystemTime) -> u64 {
+    time.duration_since(UNIX_EPOCH).unwrap().as_nanos() as u64
 }
 
 impl From<Arc<SpanData>> for ResourceSpans {
@@ -106,19 +127,25 @@ impl From<Arc<SpanData>> for ResourceSpans {
                         },
                         name: source_span.name.clone(),
                         kind: source_span.span_kind.clone().into(),
-                        start_time_unix_nano: source_span
-                            .start_time
-                            .duration_since(UNIX_EPOCH)
-                            .unwrap()
-                            .as_nanos() as u64,
-                        end_time_unix_nano: source_span
-                            .end_time
-                            .duration_since(UNIX_EPOCH)
-                            .unwrap()
-                            .as_nanos() as u64,
+                        start_time_unix_nano: to_nanos(source_span.start_time),
+                        end_time_unix_nano: to_nanos(source_span.end_time),
                         attributes: Attributes::from(source_span.attributes.clone()).0,
                         dropped_attributes_count: source_span.attributes.dropped_count(),
-                        events: Default::default(),
+                        events: RepeatedField::from_vec(
+                            source_span
+                                .message_events
+                                .clone()
+                                .into_iter()
+                                .map(|event| Span_Event {
+                                    time_unix_nano: to_nanos(event.timestamp),
+                                    name: event.name,
+                                    attributes: Attributes::from(event.attributes).0,
+                                    dropped_attributes_count: 0,
+                                    unknown_fields: Default::default(),
+                                    cached_size: Default::default(),
+                                })
+                                .collect(),
+                        ),
                         dropped_events_count: 0,
                         links: Default::default(),
                         dropped_links_count: 0,
