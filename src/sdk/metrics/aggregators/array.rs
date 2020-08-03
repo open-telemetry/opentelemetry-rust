@@ -4,7 +4,6 @@ use crate::sdk::{
     metrics::Aggregator,
 };
 use std::any::Any;
-use std::cmp;
 use std::mem;
 use std::sync::{Arc, Mutex};
 
