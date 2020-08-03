@@ -50,10 +50,6 @@ async fn serve_req(
     Ok(response)
 }
 
-fn init_meter() -> PrometheusExporter {
-    opentelemetry_prometheus::exporter().init()
-}
-
 struct AppState {
     exporter: PrometheusExporter,
     http_counter: BoundCounter<'static, u64>,
@@ -63,7 +59,7 @@ struct AppState {
 
 #[tokio::main]
 pub async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let exporter = init_meter();
+    let exporter = opentelemetry_prometheus::exporter().init();
 
     let meter = global::meter("ex.com/hyper");
     let state = Arc::new(AppState {

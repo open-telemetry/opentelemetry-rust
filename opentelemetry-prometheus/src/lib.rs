@@ -126,8 +126,7 @@ impl ExporterBuilder {
     /// Set the period which a recently-computed result will be returned without
     /// gathering metric data again.
     ///
-    /// If the period is zero, caching of the result is disabled. The default value
-    /// is 10 seconds.
+    /// If the period is zero, caching of the result is disabled (default).
     pub fn with_cache_period(self, period: Duration) -> Self {
         ExporterBuilder {
             cache_period: Some(period),
