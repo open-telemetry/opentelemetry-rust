@@ -417,9 +417,9 @@ impl AsyncInstrument {
             if recorders.is_none() {
                 *recorders = Some(HashMap::new());
             }
-            // This may store nil recorder in the map, thus disabling the
-            // asyncInstrument for the labelset for good. This is intentional,
-            // but will be revisited later.
+            // This may store a recorder with no aggregator in the map, thus disabling the
+            // async_instrument for the LabelSet for good. This is intentional, but will be
+            // revisited later.
             let observed_epoch = self
                 .instrument
                 .meter

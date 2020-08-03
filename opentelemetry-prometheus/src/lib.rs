@@ -403,7 +403,6 @@ fn to_desc(record: &Record, label_keys: Vec<String>) -> prometheus::core::Desc {
     let desc = record.descriptor();
     prometheus::core::Desc::new(
         sanitize(desc.name()),
-        // FIXME: default help value?
         desc.description()
             .cloned()
             .unwrap_or_else(|| desc.name().to_string()),

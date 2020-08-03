@@ -88,17 +88,6 @@ impl Aggregator for HistogramAggregator {
                     break;
                 }
             }
-            // Note: Binary-search was compared using the benchmarks. The following
-            // code is equivalent to the linear search above:
-            //
-            //     bucketID := sort.Search(len(c.boundaries), func(i int) bool {
-            //         return asFloat < c.boundaries[i]
-            //     })
-            //
-            // The binary search wins for very large boundary sets, but
-            // the linear search performs better up through arrays between
-            // 256 and 512 elements, which is a relatively large histogram, so we
-            // continue to prefer linear search.
 
             inner.state.count.fetch_add(&NumberKind::U64, &1u64.into());
             inner.state.sum.fetch_add(kind, number);

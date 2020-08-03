@@ -73,8 +73,7 @@ impl<'a> LockedProcessor for BasicLockedProcessor<'a> {
         let mut hasher = FnvHasher::default();
         desc.attribute_hash().hash(&mut hasher);
         hash_labels(&mut hasher, accumulation.labels().into_iter());
-        // FIXME: convert resource to use labels::Set
-        // accumulation.resource().equivalent().hash(&mut hasher);
+        hash_labels(&mut hasher, accumulation.resource().into_iter());
         let key = StateKey(hasher.finish());
         let agg = accumulation.aggregator();
         let finished_collection = self.state.finished_collection;
@@ -200,7 +199,6 @@ impl<'a> LockedProcessor for BasicLockedProcessor<'a> {
         self.state.values.insert(
             key,
             StateValue {
-                // FIXME consider perf of all this
                 current: agg.clone(),
                 delta,
                 cumulative,
