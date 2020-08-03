@@ -57,6 +57,11 @@ impl EvictedHashMap {
         self.map.is_empty()
     }
 
+    /// Returns the dropped attribute count
+    pub fn dropped_count(&self) -> u32 {
+        self.dropped_count
+    }
+
     /// Returns a front-to-back iterator.
     pub fn iter(&self) -> std::collections::hash_map::Iter<api::Key, api::Value> {
         self.map.iter()

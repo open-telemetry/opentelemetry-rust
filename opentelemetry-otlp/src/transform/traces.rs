@@ -3,6 +3,7 @@ use crate::proto::resource::Resource;
 use crate::proto::trace::{InstrumentationLibrarySpans, ResourceSpans, Span, Span_SpanKind};
 use opentelemetry::api::{SpanKind, Value};
 use opentelemetry::exporter::trace::SpanData;
+use opentelemetry::sdk::EvictedHashMap;
 use protobuf::reflect::ProtobufValue;
 use protobuf::{RepeatedField, SingularPtrField};
 use std::sync::Arc;
@@ -17,6 +18,24 @@ impl From<SpanKind> for Span_SpanKind {
             SpanKind::Producer => Span_SpanKind::PRODUCER,
             SpanKind::Server => Span_SpanKind::SERVER,
         }
+    }
+}
+
+struct Attributes(::protobuf::RepeatedField<crate::proto::common::KeyValue>);
+
+impl From<EvictedHashMap> for Attributes {
+    fn from(attributes: EvictedHashMap) -> Self {
+        Attributes(RepeatedField::from_vec(
+            attributes
+                .into_iter()
+                .map(|(key, value)| {
+                    let mut kv: KeyValue = KeyValue::new();
+                    kv.set_key(key.as_str().to_string());
+                    kv.set_value(value.into());
+                    kv
+                })
+                .collect(),
+        ))
     }
 }
 
@@ -97,20 +116,8 @@ impl From<Arc<SpanData>> for ResourceSpans {
                             .duration_since(UNIX_EPOCH)
                             .unwrap()
                             .as_nanos() as u64,
-                        attributes: RepeatedField::from_vec(
-                            source_span
-                                .attributes
-                                .clone()
-                                .into_iter()
-                                .map(|(key, value)| {
-                                    let mut kv: KeyValue = KeyValue::new();
-                                    kv.set_key(key.as_str().to_string());
-                                    kv.set_value(value.into());
-                                    kv
-                                })
-                                .collect(),
-                        ),
-                        dropped_attributes_count: 0,
+                        attributes: Attributes::from(source_span.attributes.clone()).0,
+                        dropped_attributes_count: source_span.attributes.dropped_count(),
                         events: Default::default(),
                         dropped_events_count: 0,
                         links: Default::default(),
