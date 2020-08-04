@@ -1,13 +1,14 @@
-use crate::proto::common::{AnyValue, ArrayValue, KeyValue};
 use crate::proto::resource::Resource;
-use crate::proto::trace::{InstrumentationLibrarySpans, ResourceSpans, Span, Span_Event, Span_SpanKind, Status, Status_StatusCode, Span_Link};
-use opentelemetry::api::{SpanKind, Value, StatusCode, Link};
+use crate::proto::trace::{
+    InstrumentationLibrarySpans, ResourceSpans, Span, Span_Event, Span_Link, Span_SpanKind, Status,
+    Status_StatusCode,
+};
+use crate::transform::common::{to_nanos, Attributes};
+use opentelemetry::api::{Link, SpanKind, StatusCode};
 use opentelemetry::exporter::trace::SpanData;
-use opentelemetry::sdk::EvictedHashMap;
 use protobuf::reflect::ProtobufValue;
 use protobuf::{RepeatedField, SingularPtrField};
 use std::sync::Arc;
-use std::time::{SystemTime, UNIX_EPOCH, Duration};
 
 impl From<SpanKind> for Span_SpanKind {
     fn from(span_kind: SpanKind) -> Self {
@@ -45,71 +46,21 @@ impl From<StatusCode> for Status_StatusCode {
     }
 }
 
-struct Attributes(::protobuf::RepeatedField<crate::proto::common::KeyValue>);
-
-impl From<EvictedHashMap> for Attributes {
-    fn from(attributes: EvictedHashMap) -> Self {
-        Attributes(RepeatedField::from_vec(
-            attributes
-                .into_iter()
-                .map(|(key, value)| {
-                    let mut kv: KeyValue = KeyValue::new();
-                    kv.set_key(key.as_str().to_string());
-                    kv.set_value(value.into());
-                    kv
-                })
-                .collect(),
-        ))
-    }
-}
-
-impl From<Vec<opentelemetry::api::KeyValue>> for Attributes {
-    fn from(kvs: Vec<opentelemetry::api::KeyValue>) -> Self {
-        Attributes(RepeatedField::from_vec(
-            kvs.into_iter()
-                .map(|api_kv| {
-                    let mut kv: KeyValue = KeyValue::new();
-                    kv.set_key(api_kv.key.as_str().to_string());
-                    kv.set_value(api_kv.value.into());
-                    kv
-                })
-                .collect(),
-        ))
-    }
-}
-
-impl From<Value> for AnyValue {
-    fn from(value: Value) -> Self {
-        let mut any_value = AnyValue::new();
-        match value {
-            Value::Bool(val) => any_value.set_bool_value(val),
-            Value::I64(val) => any_value.set_int_value(val),
-            Value::U64(val) => any_value.set_int_value(val as i64),
-            Value::F64(val) => any_value.set_double_value(val),
-            Value::String(val) => any_value.set_string_value(val),
-            Value::Bytes(_val) => any_value.set_string_value("INVALID".to_string()),
-            Value::Array(vals) => any_value.set_array_value({
-                let mut array_value = ArrayValue::new();
-                array_value.set_values(RepeatedField::from_vec(
-                    vals.into_iter().map(|val| AnyValue::from(val)).collect(),
-                ));
-                array_value
-            }),
-        };
-
-        any_value
-    }
-}
-
-pub(crate) fn to_nanos(time: SystemTime) -> u64 {
-    time.duration_since(UNIX_EPOCH).unwrap_or_else(|_| Duration::from_secs(0)).as_nanos() as u64
-}
-
 impl From<Link> for Span_Link {
     fn from(link: Link) -> Self {
         Span_Link {
-            trace_id: link.span_context().trace_id().to_u128().to_be_bytes().to_vec(),
-            span_id: link.span_context().span_id().to_u64().to_be_bytes().to_vec(),
+            trace_id: link
+                .span_context()
+                .trace_id()
+                .to_u128()
+                .to_be_bytes()
+                .to_vec(),
+            span_id: link
+                .span_context()
+                .span_id()
+                .to_u64()
+                .to_be_bytes()
+                .to_vec(),
             // TODO Add TraceState to SpanContext API: https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/trace/api.md#spancontext
             trace_state: "".to_string(),
             attributes: Attributes::from(link.attributes().clone()).0,
@@ -173,7 +124,14 @@ impl From<Arc<SpanData>> for ResourceSpans {
                                 .collect(),
                         ),
                         dropped_events_count: 0,
-                        links: RepeatedField::from_vec(source_span.links.clone().into_iter().map(Into::into).collect()),
+                        links: RepeatedField::from_vec(
+                            source_span
+                                .links
+                                .clone()
+                                .into_iter()
+                                .map(Into::into)
+                                .collect(),
+                        ),
                         dropped_links_count: 0,
                         status: SingularPtrField::some(Status {
                             code: Status_StatusCode::from(source_span.status_code.clone()),

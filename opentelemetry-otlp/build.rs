@@ -1,5 +1,6 @@
 extern crate protoc_grpcio;
 
+use protobuf_codegen::Customize;
 use protoc_grpcio::compile_grpc_protos;
 
 fn main() {
@@ -15,7 +16,11 @@ fn main() {
         ],
         &["src/proto/opentelemetry-proto/"],
         "src/proto",
-        None,
+        Some(Customize {
+            expose_fields: Some(true),
+            serde_derive: Some(true),
+            ..Default::default()
+        }),
     )
     .expect("Error generating protobuf");
 }

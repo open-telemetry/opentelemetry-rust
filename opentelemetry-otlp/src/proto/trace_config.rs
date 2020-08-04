@@ -24,6 +24,7 @@
 // const _PROTOBUF_VERSION_CHECK: () = ::protobuf::VERSION_2_16_2;
 
 #[derive(PartialEq,Clone,Default)]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct TraceConfig {
     // message fields
     pub max_number_of_attributes: i64,
@@ -34,7 +35,9 @@ pub struct TraceConfig {
     // message oneof groups
     pub sampler: ::std::option::Option<TraceConfig_oneof_sampler>,
     // special fields
+    #[cfg_attr(feature = "with-serde", serde(skip))]
     pub unknown_fields: ::protobuf::UnknownFields,
+    #[cfg_attr(feature = "with-serde", serde(skip))]
     pub cached_size: ::protobuf::CachedSize,
 }
 
@@ -45,6 +48,7 @@ impl<'a> ::std::default::Default for &'a TraceConfig {
 }
 
 #[derive(Clone,PartialEq,Debug)]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub enum TraceConfig_oneof_sampler {
     constant_sampler(ConstantSampler),
     probability_sampler(ProbabilitySampler),
@@ -558,11 +562,14 @@ impl ::protobuf::reflect::ProtobufValue for TraceConfig {
 }
 
 #[derive(PartialEq,Clone,Default)]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct ConstantSampler {
     // message fields
     pub decision: ConstantSampler_ConstantDecision,
     // special fields
+    #[cfg_attr(feature = "with-serde", serde(skip))]
     pub unknown_fields: ::protobuf::UnknownFields,
+    #[cfg_attr(feature = "with-serde", serde(skip))]
     pub cached_size: ::protobuf::CachedSize,
 }
 
@@ -706,6 +713,7 @@ impl ::protobuf::reflect::ProtobufValue for ConstantSampler {
 }
 
 #[derive(Clone,PartialEq,Eq,Debug,Hash)]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub enum ConstantSampler_ConstantDecision {
     ALWAYS_OFF = 0,
     ALWAYS_ON = 1,
@@ -759,11 +767,14 @@ impl ::protobuf::reflect::ProtobufValue for ConstantSampler_ConstantDecision {
 }
 
 #[derive(PartialEq,Clone,Default)]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct ProbabilitySampler {
     // message fields
     pub samplingProbability: f64,
     // special fields
+    #[cfg_attr(feature = "with-serde", serde(skip))]
     pub unknown_fields: ::protobuf::UnknownFields,
+    #[cfg_attr(feature = "with-serde", serde(skip))]
     pub cached_size: ::protobuf::CachedSize,
 }
 
@@ -911,11 +922,14 @@ impl ::protobuf::reflect::ProtobufValue for ProbabilitySampler {
 }
 
 #[derive(PartialEq,Clone,Default)]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct RateLimitingSampler {
     // message fields
     pub qps: i64,
     // special fields
+    #[cfg_attr(feature = "with-serde", serde(skip))]
     pub unknown_fields: ::protobuf::UnknownFields,
+    #[cfg_attr(feature = "with-serde", serde(skip))]
     pub cached_size: ::protobuf::CachedSize,
 }
 

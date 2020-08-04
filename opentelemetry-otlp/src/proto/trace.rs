@@ -24,12 +24,15 @@
 // const _PROTOBUF_VERSION_CHECK: () = ::protobuf::VERSION_2_16_2;
 
 #[derive(PartialEq,Clone,Default)]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct ResourceSpans {
     // message fields
     pub resource: ::protobuf::SingularPtrField<super::resource::Resource>,
     pub instrumentation_library_spans: ::protobuf::RepeatedField<InstrumentationLibrarySpans>,
     // special fields
+    #[cfg_attr(feature = "with-serde", serde(skip))]
     pub unknown_fields: ::protobuf::UnknownFields,
+    #[cfg_attr(feature = "with-serde", serde(skip))]
     pub cached_size: ::protobuf::CachedSize,
 }
 
@@ -247,12 +250,15 @@ impl ::protobuf::reflect::ProtobufValue for ResourceSpans {
 }
 
 #[derive(PartialEq,Clone,Default)]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct InstrumentationLibrarySpans {
     // message fields
     pub instrumentation_library: ::protobuf::SingularPtrField<super::common::InstrumentationLibrary>,
     pub spans: ::protobuf::RepeatedField<Span>,
     // special fields
+    #[cfg_attr(feature = "with-serde", serde(skip))]
     pub unknown_fields: ::protobuf::UnknownFields,
+    #[cfg_attr(feature = "with-serde", serde(skip))]
     pub cached_size: ::protobuf::CachedSize,
 }
 
@@ -470,6 +476,7 @@ impl ::protobuf::reflect::ProtobufValue for InstrumentationLibrarySpans {
 }
 
 #[derive(PartialEq,Clone,Default)]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct Span {
     // message fields
     pub trace_id: ::std::vec::Vec<u8>,
@@ -488,7 +495,9 @@ pub struct Span {
     pub dropped_links_count: u32,
     pub status: ::protobuf::SingularPtrField<Status>,
     // special fields
+    #[cfg_attr(feature = "with-serde", serde(skip))]
     pub unknown_fields: ::protobuf::UnknownFields,
+    #[cfg_attr(feature = "with-serde", serde(skip))]
     pub cached_size: ::protobuf::CachedSize,
 }
 
@@ -1207,6 +1216,7 @@ impl ::protobuf::reflect::ProtobufValue for Span {
 }
 
 #[derive(PartialEq,Clone,Default)]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct Span_Event {
     // message fields
     pub time_unix_nano: u64,
@@ -1214,7 +1224,9 @@ pub struct Span_Event {
     pub attributes: ::protobuf::RepeatedField<super::common::KeyValue>,
     pub dropped_attributes_count: u32,
     // special fields
+    #[cfg_attr(feature = "with-serde", serde(skip))]
     pub unknown_fields: ::protobuf::UnknownFields,
+    #[cfg_attr(feature = "with-serde", serde(skip))]
     pub cached_size: ::protobuf::CachedSize,
 }
 
@@ -1485,6 +1497,7 @@ impl ::protobuf::reflect::ProtobufValue for Span_Event {
 }
 
 #[derive(PartialEq,Clone,Default)]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct Span_Link {
     // message fields
     pub trace_id: ::std::vec::Vec<u8>,
@@ -1493,7 +1506,9 @@ pub struct Span_Link {
     pub attributes: ::protobuf::RepeatedField<super::common::KeyValue>,
     pub dropped_attributes_count: u32,
     // special fields
+    #[cfg_attr(feature = "with-serde", serde(skip))]
     pub unknown_fields: ::protobuf::UnknownFields,
+    #[cfg_attr(feature = "with-serde", serde(skip))]
     pub cached_size: ::protobuf::CachedSize,
 }
 
@@ -1812,6 +1827,7 @@ impl ::protobuf::reflect::ProtobufValue for Span_Link {
 }
 
 #[derive(Clone,PartialEq,Eq,Debug,Hash)]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub enum Span_SpanKind {
     SPAN_KIND_UNSPECIFIED = 0,
     INTERNAL = 1,
@@ -1874,12 +1890,15 @@ impl ::protobuf::reflect::ProtobufValue for Span_SpanKind {
 }
 
 #[derive(PartialEq,Clone,Default)]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct Status {
     // message fields
     pub code: Status_StatusCode,
     pub message: ::std::string::String,
     // special fields
+    #[cfg_attr(feature = "with-serde", serde(skip))]
     pub unknown_fields: ::protobuf::UnknownFields,
+    #[cfg_attr(feature = "with-serde", serde(skip))]
     pub cached_size: ::protobuf::CachedSize,
 }
 
@@ -2064,6 +2083,7 @@ impl ::protobuf::reflect::ProtobufValue for Status {
 }
 
 #[derive(Clone,PartialEq,Eq,Debug,Hash)]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub enum Status_StatusCode {
     Ok = 0,
     Cancelled = 1,

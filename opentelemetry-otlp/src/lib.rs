@@ -13,6 +13,7 @@ mod proto;
 mod transform;
 
 pub struct Exporter {
+    config: ExporterConfig,
     trace_exporter: TraceServiceClient,
 }
 
@@ -23,8 +24,22 @@ pub struct ExporterConfig {
     pub insecure: bool,
     pub certificate_file: Option<String>,
     pub headers: Option<String>,
-    pub compression: Option<String>,
+    pub compression: Option<Compression>,
     pub timeout: Duration,
+    pub completion_queue_count: usize,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum Protocol {
+    Grpc,
+    // TODO add support for other protocols
+    // HttpJson,
+    // HttpProto,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum Compression {
+    Gzip,
 }
 
 impl Default for ExporterConfig {
@@ -37,31 +52,32 @@ impl Default for ExporterConfig {
             headers: None,
             compression: None,
             timeout: Duration::from_secs(60),
+            completion_queue_count: 2,
         }
-    }
-}
-
-#[derive(Clone, Copy, Debug)]
-pub enum Protocol {
-    Grpc,
-    HttpJson,
-    HttpProto,
-}
-
-impl Debug for Exporter {
-    fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
-        unimplemented!()
     }
 }
 
 impl Default for Exporter {
     fn default() -> Self {
         let config: ExporterConfig = ExporterConfig::default();
-        let channel: Channel = ChannelBuilder::new(Arc::new(Environment::new(2_usize)))
-            .connect(config.endpoint.as_str());
+
+        let channel: Channel =
+            ChannelBuilder::new(Arc::new(Environment::new(config.completion_queue_count)))
+                .connect(config.endpoint.as_str());
         Exporter {
-            trace_exporter: TraceServiceClient::new(channel.clone()),
+            trace_exporter: TraceServiceClient::new(channel),
+            config,
         }
+    }
+}
+
+impl Debug for Exporter {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("Exporter")
+            .field("config", &self.config)
+            .field("metrics_exporter", &String::from("MetricsServiceClient"))
+            .field("trace_exporter", &String::from("TraceServiceClient"))
+            .finish()
     }
 }
 
@@ -70,7 +86,8 @@ impl Exporter {
         let channel: Channel = ChannelBuilder::new(Arc::new(Environment::new(2_usize)))
             .connect(config.endpoint.as_str());
         Exporter {
-            trace_exporter: TraceServiceClient::new(channel.clone()),
+            trace_exporter: TraceServiceClient::new(channel),
+            config,
         }
     }
 }
@@ -91,15 +108,6 @@ impl SpanExporter for Exporter {
         }
     }
 
-    fn shutdown(&self) {
-        unimplemented!()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
-    }
+    /// Unimplemented for now. Channel will shutdown on drop
+    fn shutdown(&self) {}
 }

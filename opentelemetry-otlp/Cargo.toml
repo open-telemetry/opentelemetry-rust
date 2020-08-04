@@ -1,7 +1,13 @@
 [package]
 name = "opentelemetry-otlp"
 version = "0.1.0"
-authors = ["Andreas Wiede <andreas.s.wiede@gmail.com>"]
+authors = ["OpenTelemetry Authors <cncf-opentelemetry-contributors@lists.cncf.io>"]
+description = "A metrics collection and distributed tracing framework"
+homepage = "https://github.com/open-telemetry/opentelemetry-rust/opentelemetry-otlp"
+repository = "https://github.com/open-telemetry/opentelemetry-rust/opentelemetry-otlp"
+readme = "README.md"
+keywords = ["opentelemetry", "otel", "otlp", "logging", "tracing", "metrics", "async"]
+license = "Apache-2.0"
 edition = "2018"
 build = "build.rs"
 
@@ -14,4 +20,5 @@ opentelemetry = { version = "0.7.0", default-features = false, features = ["trac
 protobuf = "~2"
 
 [build-dependencies]
+protobuf-codegen = "2.16"
 protoc-grpcio = "2.0"

@@ -24,12 +24,15 @@
 // const _PROTOBUF_VERSION_CHECK: () = ::protobuf::VERSION_2_16_2;
 
 #[derive(PartialEq,Clone,Default)]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct ResourceMetrics {
     // message fields
     pub resource: ::protobuf::SingularPtrField<super::resource::Resource>,
     pub instrumentation_library_metrics: ::protobuf::RepeatedField<InstrumentationLibraryMetrics>,
     // special fields
+    #[cfg_attr(feature = "with-serde", serde(skip))]
     pub unknown_fields: ::protobuf::UnknownFields,
+    #[cfg_attr(feature = "with-serde", serde(skip))]
     pub cached_size: ::protobuf::CachedSize,
 }
 
@@ -247,12 +250,15 @@ impl ::protobuf::reflect::ProtobufValue for ResourceMetrics {
 }
 
 #[derive(PartialEq,Clone,Default)]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct InstrumentationLibraryMetrics {
     // message fields
     pub instrumentation_library: ::protobuf::SingularPtrField<super::common::InstrumentationLibrary>,
     pub metrics: ::protobuf::RepeatedField<Metric>,
     // special fields
+    #[cfg_attr(feature = "with-serde", serde(skip))]
     pub unknown_fields: ::protobuf::UnknownFields,
+    #[cfg_attr(feature = "with-serde", serde(skip))]
     pub cached_size: ::protobuf::CachedSize,
 }
 
@@ -470,6 +476,7 @@ impl ::protobuf::reflect::ProtobufValue for InstrumentationLibraryMetrics {
 }
 
 #[derive(PartialEq,Clone,Default)]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct Metric {
     // message fields
     pub metric_descriptor: ::protobuf::SingularPtrField<MetricDescriptor>,
@@ -478,7 +485,9 @@ pub struct Metric {
     pub histogram_data_points: ::protobuf::RepeatedField<HistogramDataPoint>,
     pub summary_data_points: ::protobuf::RepeatedField<SummaryDataPoint>,
     // special fields
+    #[cfg_attr(feature = "with-serde", serde(skip))]
     pub unknown_fields: ::protobuf::UnknownFields,
+    #[cfg_attr(feature = "with-serde", serde(skip))]
     pub cached_size: ::protobuf::CachedSize,
 }
 
@@ -840,6 +849,7 @@ impl ::protobuf::reflect::ProtobufValue for Metric {
 }
 
 #[derive(PartialEq,Clone,Default)]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct MetricDescriptor {
     // message fields
     pub name: ::std::string::String,
@@ -848,7 +858,9 @@ pub struct MetricDescriptor {
     pub field_type: MetricDescriptor_Type,
     pub temporality: MetricDescriptor_Temporality,
     // special fields
+    #[cfg_attr(feature = "with-serde", serde(skip))]
     pub unknown_fields: ::protobuf::UnknownFields,
+    #[cfg_attr(feature = "with-serde", serde(skip))]
     pub cached_size: ::protobuf::CachedSize,
 }
 
@@ -1145,6 +1157,7 @@ impl ::protobuf::reflect::ProtobufValue for MetricDescriptor {
 }
 
 #[derive(Clone,PartialEq,Eq,Debug,Hash)]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub enum MetricDescriptor_Type {
     INVALID_TYPE = 0,
     INT64 = 1,
@@ -1210,6 +1223,7 @@ impl ::protobuf::reflect::ProtobufValue for MetricDescriptor_Type {
 }
 
 #[derive(Clone,PartialEq,Eq,Debug,Hash)]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub enum MetricDescriptor_Temporality {
     INVALID_TEMPORALITY = 0,
     INSTANTANEOUS = 1,
@@ -1266,6 +1280,7 @@ impl ::protobuf::reflect::ProtobufValue for MetricDescriptor_Temporality {
 }
 
 #[derive(PartialEq,Clone,Default)]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct Int64DataPoint {
     // message fields
     pub labels: ::protobuf::RepeatedField<super::common::StringKeyValue>,
@@ -1273,7 +1288,9 @@ pub struct Int64DataPoint {
     pub time_unix_nano: u64,
     pub value: i64,
     // special fields
+    #[cfg_attr(feature = "with-serde", serde(skip))]
     pub unknown_fields: ::protobuf::UnknownFields,
+    #[cfg_attr(feature = "with-serde", serde(skip))]
     pub cached_size: ::protobuf::CachedSize,
 }
 
@@ -1537,6 +1554,7 @@ impl ::protobuf::reflect::ProtobufValue for Int64DataPoint {
 }
 
 #[derive(PartialEq,Clone,Default)]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct DoubleDataPoint {
     // message fields
     pub labels: ::protobuf::RepeatedField<super::common::StringKeyValue>,
@@ -1544,7 +1562,9 @@ pub struct DoubleDataPoint {
     pub time_unix_nano: u64,
     pub value: f64,
     // special fields
+    #[cfg_attr(feature = "with-serde", serde(skip))]
     pub unknown_fields: ::protobuf::UnknownFields,
+    #[cfg_attr(feature = "with-serde", serde(skip))]
     pub cached_size: ::protobuf::CachedSize,
 }
 
@@ -1808,6 +1828,7 @@ impl ::protobuf::reflect::ProtobufValue for DoubleDataPoint {
 }
 
 #[derive(PartialEq,Clone,Default)]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct HistogramDataPoint {
     // message fields
     pub labels: ::protobuf::RepeatedField<super::common::StringKeyValue>,
@@ -1818,7 +1839,9 @@ pub struct HistogramDataPoint {
     pub buckets: ::protobuf::RepeatedField<HistogramDataPoint_Bucket>,
     pub explicit_bounds: ::std::vec::Vec<f64>,
     // special fields
+    #[cfg_attr(feature = "with-serde", serde(skip))]
     pub unknown_fields: ::protobuf::UnknownFields,
+    #[cfg_attr(feature = "with-serde", serde(skip))]
     pub cached_size: ::protobuf::CachedSize,
 }
 
@@ -2202,12 +2225,15 @@ impl ::protobuf::reflect::ProtobufValue for HistogramDataPoint {
 }
 
 #[derive(PartialEq,Clone,Default)]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct HistogramDataPoint_Bucket {
     // message fields
     pub count: u64,
     pub exemplar: ::protobuf::SingularPtrField<HistogramDataPoint_Bucket_Exemplar>,
     // special fields
+    #[cfg_attr(feature = "with-serde", serde(skip))]
     pub unknown_fields: ::protobuf::UnknownFields,
+    #[cfg_attr(feature = "with-serde", serde(skip))]
     pub cached_size: ::protobuf::CachedSize,
 }
 
@@ -2411,13 +2437,16 @@ impl ::protobuf::reflect::ProtobufValue for HistogramDataPoint_Bucket {
 }
 
 #[derive(PartialEq,Clone,Default)]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct HistogramDataPoint_Bucket_Exemplar {
     // message fields
     pub value: f64,
     pub time_unix_nano: u64,
     pub attachments: ::protobuf::RepeatedField<super::common::StringKeyValue>,
     // special fields
+    #[cfg_attr(feature = "with-serde", serde(skip))]
     pub unknown_fields: ::protobuf::UnknownFields,
+    #[cfg_attr(feature = "with-serde", serde(skip))]
     pub cached_size: ::protobuf::CachedSize,
 }
 
@@ -2647,6 +2676,7 @@ impl ::protobuf::reflect::ProtobufValue for HistogramDataPoint_Bucket_Exemplar {
 }
 
 #[derive(PartialEq,Clone,Default)]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct SummaryDataPoint {
     // message fields
     pub labels: ::protobuf::RepeatedField<super::common::StringKeyValue>,
@@ -2656,7 +2686,9 @@ pub struct SummaryDataPoint {
     pub sum: f64,
     pub quantile_values: ::protobuf::RepeatedField<SummaryDataPoint_ValueAtQuantile>,
     // special fields
+    #[cfg_attr(feature = "with-serde", serde(skip))]
     pub unknown_fields: ::protobuf::UnknownFields,
+    #[cfg_attr(feature = "with-serde", serde(skip))]
     pub cached_size: ::protobuf::CachedSize,
 }
 
@@ -3002,12 +3034,15 @@ impl ::protobuf::reflect::ProtobufValue for SummaryDataPoint {
 }
 
 #[derive(PartialEq,Clone,Default)]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct SummaryDataPoint_ValueAtQuantile {
     // message fields
     pub quantile: f64,
     pub value: f64,
     // special fields
+    #[cfg_attr(feature = "with-serde", serde(skip))]
     pub unknown_fields: ::protobuf::UnknownFields,
+    #[cfg_attr(feature = "with-serde", serde(skip))]
     pub cached_size: ::protobuf::CachedSize,
 }
 
