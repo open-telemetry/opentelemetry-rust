@@ -1,15 +1,13 @@
 use crate::proto::common::{AnyValue, ArrayValue, KeyValue};
 use crate::proto::resource::Resource;
-use crate::proto::trace::{
-    InstrumentationLibrarySpans, ResourceSpans, Span, Span_Event, Span_SpanKind,
-};
-use opentelemetry::api::{SpanKind, Value};
+use crate::proto::trace::{InstrumentationLibrarySpans, ResourceSpans, Span, Span_Event, Span_SpanKind, Status, Status_StatusCode};
+use opentelemetry::api::{SpanKind, Value, StatusCode};
 use opentelemetry::exporter::trace::SpanData;
 use opentelemetry::sdk::EvictedHashMap;
 use protobuf::reflect::ProtobufValue;
 use protobuf::{RepeatedField, SingularPtrField};
 use std::sync::Arc;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{SystemTime, UNIX_EPOCH, Duration};
 
 impl From<SpanKind> for Span_SpanKind {
     fn from(span_kind: SpanKind) -> Self {
@@ -19,6 +17,30 @@ impl From<SpanKind> for Span_SpanKind {
             SpanKind::Internal => Span_SpanKind::INTERNAL,
             SpanKind::Producer => Span_SpanKind::PRODUCER,
             SpanKind::Server => Span_SpanKind::SERVER,
+        }
+    }
+}
+
+impl From<StatusCode> for Status_StatusCode {
+    fn from(status_code: StatusCode) -> Self {
+        match status_code {
+            StatusCode::OK => Status_StatusCode::Ok,
+            StatusCode::Canceled => Status_StatusCode::Cancelled,
+            StatusCode::Unknown => Status_StatusCode::UnknownError,
+            StatusCode::InvalidArgument => Status_StatusCode::InvalidArgument,
+            StatusCode::DeadlineExceeded => Status_StatusCode::DeadlineExceeded,
+            StatusCode::NotFound => Status_StatusCode::NotFound,
+            StatusCode::AlreadyExists => Status_StatusCode::AlreadyExists,
+            StatusCode::PermissionDenied => Status_StatusCode::PermissionDenied,
+            StatusCode::ResourceExhausted => Status_StatusCode::ResourceExhausted,
+            StatusCode::FailedPrecondition => Status_StatusCode::FailedPrecondition,
+            StatusCode::Aborted => Status_StatusCode::Aborted,
+            StatusCode::OutOfRange => Status_StatusCode::OutOfRange,
+            StatusCode::Unimplemented => Status_StatusCode::Unimplemented,
+            StatusCode::Internal => Status_StatusCode::InternalError,
+            StatusCode::Unavailable => Status_StatusCode::Unavailable,
+            StatusCode::DataLoss => Status_StatusCode::DataLoss,
+            StatusCode::Unauthenticated => Status_StatusCode::Unauthenticated,
         }
     }
 }
@@ -80,7 +102,7 @@ impl From<Value> for AnyValue {
 }
 
 pub(crate) fn to_nanos(time: SystemTime) -> u64 {
-    time.duration_since(UNIX_EPOCH).unwrap().as_nanos() as u64
+    time.duration_since(UNIX_EPOCH).unwrap_or_else(|_| Duration::from_secs(0)).as_nanos() as u64
 }
 
 impl From<Arc<SpanData>> for ResourceSpans {
@@ -89,8 +111,7 @@ impl From<Arc<SpanData>> for ResourceSpans {
             resource: SingularPtrField::from(Some(Resource {
                 attributes: Default::default(),
                 dropped_attributes_count: 0,
-                unknown_fields: Default::default(),
-                cached_size: Default::default(),
+                ..Default::default()
             })),
             instrumentation_library_spans: RepeatedField::from_vec(vec![
                 InstrumentationLibrarySpans {
@@ -141,24 +162,24 @@ impl From<Arc<SpanData>> for ResourceSpans {
                                     name: event.name,
                                     attributes: Attributes::from(event.attributes).0,
                                     dropped_attributes_count: 0,
-                                    unknown_fields: Default::default(),
-                                    cached_size: Default::default(),
+                                    ..Default::default()
                                 })
                                 .collect(),
                         ),
                         dropped_events_count: 0,
                         links: Default::default(),
                         dropped_links_count: 0,
-                        status: Default::default(),
-                        unknown_fields: Default::default(),
-                        cached_size: Default::default(),
+                        status: SingularPtrField::some(Status {
+                            code: Status_StatusCode::from(source_span.status_code.clone()),
+                            message: source_span.status_message.clone(),
+                            ..Default::default()
+                        }),
+                        ..Default::default()
                     }]),
-                    unknown_fields: Default::default(),
-                    cached_size: Default::default(),
+                    ..Default::default()
                 },
             ]),
-            unknown_fields: Default::default(),
-            cached_size: Default::default(),
+            ..Default::default()
         }
     }
 }
