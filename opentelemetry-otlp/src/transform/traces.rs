@@ -1,7 +1,7 @@
 use crate::proto::common::{AnyValue, ArrayValue, KeyValue};
 use crate::proto::resource::Resource;
-use crate::proto::trace::{InstrumentationLibrarySpans, ResourceSpans, Span, Span_Event, Span_SpanKind, Status, Status_StatusCode};
-use opentelemetry::api::{SpanKind, Value, StatusCode};
+use crate::proto::trace::{InstrumentationLibrarySpans, ResourceSpans, Span, Span_Event, Span_SpanKind, Status, Status_StatusCode, Span_Link};
+use opentelemetry::api::{SpanKind, Value, StatusCode, Link};
 use opentelemetry::exporter::trace::SpanData;
 use opentelemetry::sdk::EvictedHashMap;
 use protobuf::reflect::ProtobufValue;
@@ -105,6 +105,20 @@ pub(crate) fn to_nanos(time: SystemTime) -> u64 {
     time.duration_since(UNIX_EPOCH).unwrap_or_else(|_| Duration::from_secs(0)).as_nanos() as u64
 }
 
+impl From<Link> for Span_Link {
+    fn from(link: Link) -> Self {
+        Span_Link {
+            trace_id: link.span_context().trace_id().to_u128().to_be_bytes().to_vec(),
+            span_id: link.span_context().span_id().to_u64().to_be_bytes().to_vec(),
+            // TODO Add TraceState to SpanContext API: https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/trace/api.md#spancontext
+            trace_state: "".to_string(),
+            attributes: Attributes::from(link.attributes().clone()).0,
+            dropped_attributes_count: 0,
+            ..Default::default()
+        }
+    }
+}
+
 impl From<Arc<SpanData>> for ResourceSpans {
     fn from(source_span: Arc<SpanData>) -> Self {
         ResourceSpans {
@@ -129,21 +143,13 @@ impl From<Arc<SpanData>> for ResourceSpans {
                             .to_u64()
                             .to_be_bytes()
                             .to_vec(),
+                        // TODO Add TraceState to SpanContext API: https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/trace/api.md#spancontext
                         trace_state: "".to_string(),
                         parent_span_id: {
-                            println!("Parent Span ID: {:?}", source_span.parent_span_id);
-                            if !source_span.parent_span_id.to_u64().is_non_zero() {
-                                vec![]
-                            } else {
-                                println!(
-                                    "Parent Span to BigEndian Bytes: {:?}",
-                                    source_span.parent_span_id.to_u64().to_be_bytes()
-                                );
-                                println!(
-                                    "Parent Span bytes vec: {:?}",
-                                    source_span.parent_span_id.to_u64().to_be_bytes().to_vec()
-                                );
+                            if source_span.parent_span_id.to_u64().is_non_zero() {
                                 source_span.parent_span_id.to_u64().to_be_bytes().to_vec()
+                            } else {
+                                vec![]
                             }
                         },
                         name: source_span.name.clone(),
@@ -167,7 +173,7 @@ impl From<Arc<SpanData>> for ResourceSpans {
                                 .collect(),
                         ),
                         dropped_events_count: 0,
-                        links: Default::default(),
+                        links: RepeatedField::from_vec(source_span.links.clone().into_iter().map(Into::into).collect()),
                         dropped_links_count: 0,
                         status: SingularPtrField::some(Status {
                             code: Status_StatusCode::from(source_span.status_code.clone()),
