@@ -60,23 +60,23 @@ impl Tracer {
 
     fn process_sampling_result(
         &self,
-        sampling_result: api::SamplingResult,
+        sampling_result: sdk::SamplingResult,
         parent_context: Option<&api::SpanContext>,
     ) -> Option<(u8, Vec<api::KeyValue>)> {
         match sampling_result {
-            api::SamplingResult {
-                decision: api::SamplingDecision::NotRecord,
+            sdk::SamplingResult {
+                decision: sdk::SamplingDecision::NotRecord,
                 ..
             } => None,
-            api::SamplingResult {
-                decision: api::SamplingDecision::Record,
+            sdk::SamplingResult {
+                decision: sdk::SamplingDecision::Record,
                 attributes,
             } => {
                 let trace_flags = parent_context.map(|ctx| ctx.trace_flags()).unwrap_or(0);
                 Some((trace_flags & !api::TRACE_FLAG_SAMPLED, attributes))
             }
-            api::SamplingResult {
-                decision: api::SamplingDecision::RecordAndSampled,
+            sdk::SamplingResult {
+                decision: sdk::SamplingDecision::RecordAndSampled,
                 attributes,
             } => {
                 let trace_flags = parent_context.map(|ctx| ctx.trace_flags()).unwrap_or(0);
