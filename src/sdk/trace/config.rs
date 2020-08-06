@@ -9,7 +9,7 @@ use std::sync::Arc;
 #[derive(Debug)]
 pub struct Config {
     /// The sampler that the sdk should use
-    pub default_sampler: Box<dyn api::Sampler>,
+    pub default_sampler: Box<dyn sdk::ShouldSample>,
     /// The id generator that the sdk should use
     pub id_generator: Box<dyn api::IdGenerator>,
     /// The max events that can be added to a `Span`.

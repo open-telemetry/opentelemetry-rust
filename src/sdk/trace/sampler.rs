@@ -1,5 +1,81 @@
-//! # Sampler
+//! # OpenTelemetry ShouldSample Interface
+//!
+//! ## Sampling
+//!
+//! Sampling is a mechanism to control the noise and overhead introduced by
+//! OpenTelemetry by reducing the number of samples of traces collected and
+//! sent to the backend.
+//!
+//! Sampling may be implemented on different stages of a trace collection.
+//! OpenTelemetry SDK defines a `ShouldSample` interface that can be used at
+//! instrumentation points by libraries to check the sampling `SamplingDecision`
+//! early and optimize the amount of telemetry that needs to be collected.
+//!
+//! All other sampling algorithms may be implemented on SDK layer in exporters,
+//! or even out of process in Agent or Collector.
+//!
+//! The OpenTelemetry API has two properties responsible for the data collection:
+//!
+//! * `is_recording` method on a `Span`. If `true` the current `Span` records
+//!   tracing events (attributes, events, status, etc.), otherwise all tracing
+//!   events are dropped. Users can use this property to determine if expensive
+//!   trace events can be avoided. `SpanProcessor`s will receive
+//!   all spans with this flag set. However, `SpanExporter`s will
+//!   not receive them unless the `Sampled` flag was set.
+//! * `Sampled` flag in `trace_flags` on `SpanContext`. This flag is propagated
+//!   via the `SpanContext` to child Spans. For more details see the [W3C
+//!   specification](https://w3c.github.io/trace-context/). This flag indicates
+//!   that the `Span` has been `sampled` and will be exported. `SpanProcessor`s
+//!   and `SpanExporter`s will receive spans with the `Sampled` flag set for
+//!   processing.
+//!
+//! The flag combination `Sampled == false` and `is_recording` == true` means
+//! that the current `Span` does record information, but most likely the child
+//! `Span` will not.
+//!
+//! The flag combination `Sampled == true` and `is_recording == false` could
+//! cause gaps in the distributed trace, and because of this OpenTelemetry API
+//! MUST NOT allow this combination.
+
 use crate::api;
+
+/// The `ShouldSample` interface allows implementations to provide samplers
+/// which will return a sampling `SamplingResult` based on information that
+/// is typically available just before the `Span` was created.
+pub trait ShouldSample: Send + Sync + std::fmt::Debug {
+    /// Returns the `SamplingDecision` for a `Span` to be created.
+    #[allow(clippy::too_many_arguments)]
+    fn should_sample(
+        &self,
+        parent_context: Option<&api::SpanContext>,
+        trace_id: api::TraceId,
+        name: &str,
+        span_kind: &api::SpanKind,
+        attributes: &[api::KeyValue],
+        links: &[api::Link],
+    ) -> SamplingResult;
+}
+
+/// The result of sampling logic for a given `Span`.
+#[derive(Clone, Debug, PartialEq)]
+pub struct SamplingResult {
+    /// `SamplingDecision` reached by this result
+    pub decision: SamplingDecision,
+    /// Extra attributes added by this result
+    pub attributes: Vec<api::KeyValue>,
+}
+
+/// Decision about whether or not to sample
+#[derive(Clone, Debug, PartialEq)]
+pub enum SamplingDecision {
+    /// `is_recording() == false`, span will not be recorded and all events and
+    /// attributes will be dropped.
+    NotRecord,
+    /// `is_recording() == true`, but `Sampled` flag MUST NOT be set.
+    Record,
+    /// `is_recording() == true` AND `Sampled` flag` MUST be set.
+    RecordAndSampled,
+}
 
 /// Sampling options
 #[derive(Clone, Debug)]
@@ -16,7 +92,7 @@ pub enum Sampler {
     Probability(f64),
 }
 
-impl api::Sampler for Sampler {
+impl ShouldSample for Sampler {
     fn should_sample(
         &self,
         parent_context: Option<&api::SpanContext>,
@@ -25,12 +101,12 @@ impl api::Sampler for Sampler {
         span_kind: &api::SpanKind,
         attributes: &[api::KeyValue],
         links: &[api::Link],
-    ) -> api::SamplingResult {
+    ) -> SamplingResult {
         let decision = match self {
             // Always sample the trace
-            Sampler::AlwaysOn => api::SamplingDecision::RecordAndSampled,
+            Sampler::AlwaysOn => SamplingDecision::RecordAndSampled,
             // Never sample the trace
-            Sampler::AlwaysOff => api::SamplingDecision::NotRecord,
+            Sampler::AlwaysOff => SamplingDecision::NotRecord,
             // The parent decision if sampled; otherwise the decision of delegate_sampler
             Sampler::ParentOrElse(delegate_sampler) => parent_context.map_or(
                 delegate_sampler
@@ -38,31 +114,31 @@ impl api::Sampler for Sampler {
                     .decision,
                 |ctx| {
                     if ctx.is_sampled() {
-                        api::SamplingDecision::RecordAndSampled
+                        SamplingDecision::RecordAndSampled
                     } else {
-                        api::SamplingDecision::NotRecord
+                        SamplingDecision::NotRecord
                     }
                 },
             ),
             // Probabilistically sample the trace.
             Sampler::Probability(prob) => {
                 if *prob >= 1.0 {
-                    api::SamplingDecision::RecordAndSampled
+                    SamplingDecision::RecordAndSampled
                 } else {
                     let prob_upper_bound = (prob.max(0.0) * (1u64 << 63) as f64) as u64;
                     // The trace_id is already randomly generated, so we don't need a new one here
                     let rnd_from_trace_id = (trace_id.to_u128() as u64) >> 1;
 
                     if rnd_from_trace_id < prob_upper_bound {
-                        api::SamplingDecision::RecordAndSampled
+                        SamplingDecision::RecordAndSampled
                     } else {
-                        api::SamplingDecision::NotRecord
+                        SamplingDecision::NotRecord
                     }
                 }
             }
         };
 
-        api::SamplingResult {
+        SamplingResult {
             decision,
             // No extra attributes ever set by the SDK samplers.
             attributes: Vec::new(),
@@ -72,8 +148,8 @@ impl api::Sampler for Sampler {
 
 #[cfg(test)]
 mod tests {
-    use crate::api::{self, Sampler as _};
-    use crate::sdk::Sampler;
+    use crate::api;
+    use crate::sdk::{Sampler, SamplingDecision, ShouldSample};
     use rand::Rng;
 
     #[rustfmt::skip]
@@ -155,7 +231,7 @@ mod tests {
                         &[],
                     )
                     .decision
-                    == api::SamplingDecision::RecordAndSampled
+                    == SamplingDecision::RecordAndSampled
                 {
                     sampled += 1;
                 }
