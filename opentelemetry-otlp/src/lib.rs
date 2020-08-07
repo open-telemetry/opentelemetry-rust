@@ -1,3 +1,8 @@
+//! # OpenTelemetry OTLP Exporter
+//!
+//! The OpenTelemetry OTLP Exporter supports exporting of trace and metric data in the OTLP format.
 mod proto;
-pub mod span;
+mod span;
 mod transform;
+
+pub use crate::span::Exporter;
