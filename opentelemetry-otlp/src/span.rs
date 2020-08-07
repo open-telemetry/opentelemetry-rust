@@ -1,5 +1,6 @@
 //! # OTLP - Span Exporter
 //!
+//! Defines a [SpanExporter] to send trace data via the OpenTelemetry Protocol (OTLP)
 use crate::proto::trace_service::ExportTraceServiceRequest;
 use crate::proto::trace_service_grpc::TraceServiceClient;
 use grpcio::{
