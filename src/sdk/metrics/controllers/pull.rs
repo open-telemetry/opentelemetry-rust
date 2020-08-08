@@ -40,12 +40,13 @@ impl PullController {
     }
 
     /// Collects all metrics if the last collected at time is past the current period
-    pub fn collect(&self) -> Result<()> {
+    pub fn collect(&mut self) -> Result<()> {
         if self
             .last_collect
             .elapsed()
             .map_or(true, |elapsed| elapsed > self.period)
         {
+            self.last_collect = SystemTime::now();
             self.processor.lock().and_then(|mut locked_processor| {
                 locked_processor.start_collection();
                 self.accumulator.0.collect(&mut locked_processor);
