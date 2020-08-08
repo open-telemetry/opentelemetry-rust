@@ -119,7 +119,7 @@ struct AccumulatorCore {
 
     /// The current epoch number. It is incremented in `collect`.
     current_epoch: AtomicNumber,
-    /// THe configured processor.
+    /// The configured processor.
     processor: Arc<dyn Processor + Send + Sync>,
     /// The resource applied to all records in this Accumulator.
     resource: Resource,

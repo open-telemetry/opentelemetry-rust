@@ -207,7 +207,7 @@ impl Meter {
     }
 
     /// Creates a new floating point `UpDownCounterBuilder` for an `f64` up down counter with the given name.
-    pub fn f64_up_down_counter<T>(&self, name: T) -> UpDownCounterBuilder<i64>
+    pub fn f64_up_down_counter<T>(&self, name: T) -> UpDownCounterBuilder<f64>
     where
         T: Into<String>,
     {

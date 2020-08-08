@@ -39,13 +39,13 @@ pub trait LastValue {
     fn last_value(&self) -> Result<(Number, SystemTime)>;
 }
 
-/// Points returns the raw set of values that were aggregated.
+/// Points return the raw set of values that were aggregated.
 pub trait Points {
     /// The raw set of points currently aggregated
     fn points(&self) -> Result<Vec<Number>>;
 }
 
-/// Buckets represents histogram buckets boundaries and counts.
+/// Buckets represent histogram buckets boundaries and counts.
 ///
 /// For a Histogram with N defined boundaries, e.g, [x, y, z].
 /// There are N+1 counts: [-inf, x), [x, y), [y, z), [z, +inf]

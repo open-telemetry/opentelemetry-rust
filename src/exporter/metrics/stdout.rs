@@ -57,7 +57,7 @@ pub struct StdoutExporter<W> {
     quantiles: Vec<f64>,
     /// Encodes the labels.
     label_encoder: Box<dyn Encoder + Send + Sync>,
-    /// An optional user-defined funtion to format a given export batch.
+    /// An optional user-defined function to format a given export batch.
     formatter: Option<Formatter>,
 }
 

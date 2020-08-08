@@ -179,11 +179,11 @@ impl From<u64> for Number {
 /// A descriptor for the encoded data type of a `Number`
 #[derive(Clone, Debug, PartialEq, Hash)]
 pub enum NumberKind {
-    /// An Number that stores `i64` values.
+    /// A Number that stores `i64` values.
     I64,
-    /// An Number that stores `f64` values.
+    /// A Number that stores `f64` values.
     F64,
-    /// An Number that stores `u64` values.
+    /// A Number that stores `u64` values.
     U64,
 }
 

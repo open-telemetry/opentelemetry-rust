@@ -4,7 +4,7 @@ use crate::sdk::export::metrics::{Aggregator, AggregatorSelector};
 use crate::sdk::metrics::aggregators;
 use std::sync::Arc;
 
-/// Aggregtion selection strategies.
+/// Aggregation selection strategies.
 #[derive(Debug)]
 pub enum Selector {
     /// A simple aggregation selector that uses sum, and minmaxsumcount

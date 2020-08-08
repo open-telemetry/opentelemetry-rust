@@ -143,7 +143,7 @@ pub trait Aggregator: fmt::Debug {
 }
 
 /// An optional interface implemented by some Aggregators. An Aggregator must
-/// support `Subtract()` in order to be configured for a Precomputed-Sum
+/// support `subtract()` in order to be configured for a Precomputed-Sum
 /// instrument (SumObserver, UpDownSumObserver) using a DeltaExporter.
 pub trait Subtractor {
     /// Subtract subtracts the `operand` from this Aggregator and outputs the value
