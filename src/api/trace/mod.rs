@@ -118,7 +118,6 @@ pub mod id_generator;
 pub mod link;
 pub mod noop;
 pub mod provider;
-pub mod sampler;
 pub mod span;
 pub mod span_context;
 pub mod span_processor;

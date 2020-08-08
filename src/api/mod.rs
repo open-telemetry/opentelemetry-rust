@@ -43,7 +43,6 @@ pub use trace::{
     link::Link,
     noop::{NoopProvider, NoopSpan, NoopSpanExporter, NoopTracer},
     provider::Provider,
-    sampler::{Sampler, SamplingDecision, SamplingResult},
     span::{Span, SpanKind, StatusCode},
     span_context::{
         SpanContext, SpanId, TraceId, TRACE_FLAG_DEBUG, TRACE_FLAG_DEFERRED,

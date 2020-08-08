@@ -21,7 +21,7 @@ pub use trace::{
     evicted_queue::EvictedQueue,
     id_generator::IdGenerator,
     provider::Provider,
-    sampler::Sampler,
+    sampler::{Sampler, SamplingDecision, SamplingResult, ShouldSample},
     span::Span,
     span_processor::{BatchSpanProcessor, SimpleSpanProcessor},
     tracer::Tracer,
