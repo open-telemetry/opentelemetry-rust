@@ -22,6 +22,7 @@ jobs:
         toolchain: ${{ matrix.rust }}
         components: rustfmt
         profile: minimal
+    - uses: arduino/setup-protoc@v1
     - name: Test
       run: ./scripts/test.sh
   lint:
@@ -41,5 +42,6 @@ jobs:
         toolchain: ${{ matrix.rust }}
         components: rustfmt
         profile: minimal
+    - uses: arduino/setup-protoc@v1
     - name: Lint
       run: ./scripts/lint.sh
