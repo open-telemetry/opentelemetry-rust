@@ -74,6 +74,7 @@ impl Default for ExporterConfig {
 }
 
 impl Default for Exporter {
+    /// Return a Span Exporter with the default configuration
     fn default() -> Self {
         let config: ExporterConfig = ExporterConfig::default();
 
@@ -99,6 +100,7 @@ impl Debug for Exporter {
 }
 
 impl Exporter {
+    /// Builds a new span exporter with the given configuration
     pub fn new(config: ExporterConfig) -> Self {
         let mut builder: ChannelBuilder =
             ChannelBuilder::new(Arc::new(Environment::new(config.completion_queue_count)));
