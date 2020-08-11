@@ -43,7 +43,7 @@ impl Resource {
     }
 
     /// Create a new `Resource` from resource detectors.
-    pub fn from_detectors(detectors: Vec<Box<dyn ResourceDetector>>){
+    pub fn from_detectors(_detectors: Vec<Box<dyn ResourceDetector>>) -> Self{
         unimplemented!();
     }
 
@@ -207,7 +207,7 @@ mod tests {
         expected_attrs.insert(api::Key::new("c"), api::Value::from("c-value"));
 
         assert_eq!(
-            resource_a.merge(resource_b)
+            resource_a.merge(&resource_b),
             Resource {
                 attrs: expected_attrs
             }

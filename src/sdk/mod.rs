@@ -9,12 +9,14 @@
 #[cfg(feature = "metrics")]
 pub mod metrics;
 pub mod resource;
+pub mod env;
 #[cfg(feature = "trace")]
 pub mod trace;
 
 #[cfg(feature = "metrics")]
 pub use metrics::{LabelSet, Meter};
 pub use resource::Resource;
+pub use env::EnvResourceDetector;
 #[cfg(feature = "trace")]
 pub use trace::{
     config::Config,
