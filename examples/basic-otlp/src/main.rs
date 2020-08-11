@@ -4,7 +4,7 @@ use opentelemetry::api::{
 };
 use opentelemetry::{global, sdk};
 
-fn init_tracer() -> thrift::Result<()> {
+fn init_tracer() {
     let exporter = opentelemetry_otlp::Exporter::default();
 
     // For the demonstration, use `Sampler::AlwaysOn` sampler to sample all traces. In a production
@@ -17,12 +17,10 @@ fn init_tracer() -> thrift::Result<()> {
         })
         .build();
     global::set_provider(provider);
-
-    Ok(())
 }
 
-fn main() -> thrift::Result<()> {
-    init_tracer()?;
+fn main() {
+    init_tracer();
     let meter = sdk::Meter::new("ex_com_basic");
 
     let foo_key = Key::new("otlp.com/foo");
@@ -76,6 +74,4 @@ fn main() -> thrift::Result<()> {
             measure.record(1.3);
         });
     });
-
-    Ok(())
 }

@@ -4,6 +4,5 @@ version = "0.1.0"
 edition = "2018"
 
 [dependencies]
-thrift = "0.13"
 opentelemetry = { path = "../../" }
 opentelemetry-otlp = { path = "../../opentelemetry-otlp" }
