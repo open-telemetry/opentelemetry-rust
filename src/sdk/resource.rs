@@ -32,7 +32,7 @@ impl Resource {
     ///
     /// Values are de-duplicated by key, and the first key-value pair with a non-empty string value
     /// will be retained
-    pub fn new<T: IntoIterator<Item = api::KeyValue>>(kvs: T) -> Self {
+    pub fn new<T: IntoIterator<Item=api::KeyValue>>(kvs: T) -> Self {
         let mut resource = Resource::default();
 
         for kv in kvs.into_iter() {
@@ -40,6 +40,11 @@ impl Resource {
         }
 
         resource
+    }
+
+    /// Create a new `Resource` from resource detectors.
+    pub fn from_detectors(detectors: Vec<Box<dyn ResourceDetector>>){
+        unimplemented!();
     }
 
     /// Create a new `Resource` by combining two resources.
@@ -107,6 +112,7 @@ impl Resource {
 /// An owned iterator over the entries of a `Resource`.
 #[derive(Debug)]
 pub struct IntoIter(btree_map::IntoIter<api::Key, api::Value>);
+
 impl Iterator for IntoIter {
     type Item = (api::Key, api::Value);
 
@@ -127,6 +133,7 @@ impl IntoIterator for Resource {
 /// An iterator over the entries of a `Resource`.
 #[derive(Debug)]
 pub struct Iter<'a>(btree_map::Iter<'a, api::Key, api::Value>);
+
 impl<'a> Iterator for Iter<'a> {
     type Item = (&'a api::Key, &'a api::Value);
 
@@ -142,6 +149,20 @@ impl<'a> IntoIterator for &'a Resource {
     fn into_iter(self) -> Self::IntoIter {
         Iter(self.attrs.iter())
     }
+}
+
+/// ResourceDetector detects OpenTelemetry resource information
+///
+/// Implementations of this trait can be passed to
+/// the `Resource::from_detectors` function to generate a Resource from the merged information.
+pub trait ResourceDetector {
+    /// detect returns an initialized Resource based on gathered information.
+    ///
+    /// If source information to construct a Resource is inaccessible, None will be returned.
+    ///
+    /// If source information to construct a Resource is invalid, for example,
+    /// missing required values. None will be returned.
+    fn detect(&self) -> Option<Resource>;
 }
 
 #[cfg(test)]
