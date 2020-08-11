@@ -20,7 +20,7 @@ use std::collections::{btree_map, btree_map::Entry, BTreeMap};
 
 /// Describes an entity about which identifying information and metadata is exposed.
 ///
-/// Items are sorted by key, and are only overwritten if the value is an empty string.
+/// Items are sorted by keys, and are only overwritten if the value is an empty string.
 #[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Resource {
@@ -144,9 +144,11 @@ impl<'a> IntoIterator for &'a Resource {
     }
 }
 
-#[cfg(Test)]
+#[cfg(test)]
 mod tests {
     use super::Resource;
+    use crate::api;
+    use std::collections::BTreeMap;
 
     #[test]
     fn new_resource() {
