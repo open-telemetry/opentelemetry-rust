@@ -44,11 +44,13 @@ binary_propagator = []
 [workspace]
 members = [
     "opentelemetry-jaeger",
+    "opentelemetry-otlp",
     "opentelemetry-zipkin",
     "examples/actix-udp",
     "examples/actix-http",
     "examples/async",
     "examples/basic",
+    "examples/basic-otlp",
     "examples/grpc",
     "examples/http",
     "examples/zipkin",
