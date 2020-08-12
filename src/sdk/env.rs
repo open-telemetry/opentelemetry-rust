@@ -6,7 +6,7 @@ use crate::sdk::Resource;
 use crate::api::{KeyValue, Key, Value};
 use std::env;
 
-const OTEL_RESOURCE_ATTRIBUTES: &'static str = "OTEL_RESOURCE_ATTRIBUTES";
+const OTEL_RESOURCE_ATTRIBUTES: &str = "OTEL_RESOURCE_ATTRIBUTES";
 
 /// Resource detector implements ResourceDetector and is used to extractor general SDK configuration from environment
 /// See https://github.com/open-telemetry/opentelemetry-specification/tree/master/specification/resource/semantic_conventions#telemetry-sdk for semantic conventions.
@@ -16,8 +16,8 @@ pub struct EnvResourceDetector {}
 impl ResourceDetector for EnvResourceDetector {
     fn detect(&self) -> Option<Resource> {
         match env::var(OTEL_RESOURCE_ATTRIBUTES) {
-            Ok(s) => Some(construct_otel_resources(s)),
-            Err(_) => None
+            Ok(s) if !s.is_empty() => Some(construct_otel_resources(s)),
+            Ok(_) | Err(_) => None
         }
     }
 }
@@ -29,10 +29,16 @@ impl EnvResourceDetector {
     }
 }
 
+impl Default for EnvResourceDetector {
+    fn default() -> Self {
+        EnvResourceDetector {}
+    }
+}
+
 fn construct_otel_resources(s: String) -> Resource {
     let mut key_values = vec![];
-    for entries in s.split(",") {
-        let key_value_strs = entries.split("=").map(str::trim).collect::<Vec<&str>>();
+    for entries in s.split(',') {
+        let key_value_strs = entries.split('=').map(str::trim).collect::<Vec<&str>>();
         if key_value_strs.len() != 2 {
             continue;
         }
@@ -72,6 +78,8 @@ mod tests {
 
     #[test]
     fn test_empty() {
+        env::set_var(OTEL_RESOURCE_ATTRIBUTES, "");
+
         let detector = EnvResourceDetector::new();
         let resource = detector.detect();
         assert!(resource.is_none())

@@ -17,6 +17,7 @@ use crate::api;
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
 use std::collections::{btree_map, btree_map::Entry, BTreeMap};
+use crate::api::KeyValue;
 
 /// Describes an entity about which identifying information and metadata is exposed.
 ///
@@ -43,8 +44,18 @@ impl Resource {
     }
 
     /// Create a new `Resource` from resource detectors.
-    pub fn from_detectors(_detectors: Vec<Box<dyn ResourceDetector>>) -> Self{
-        unimplemented!();
+    pub fn from_detectors(detectors: Vec<Box<dyn ResourceDetector>>) -> Self {
+        let mut resource = Resource::default();
+
+        for detector in detectors {
+            if let Some(detected_res) = detector.detect() {
+                for (key, value) in detected_res.into_iter() {
+                    resource.insert(KeyValue::new(key, value));
+                }
+            }
+        }
+
+        resource
     }
 
     /// Create a new `Resource` by combining two resources.
@@ -170,6 +181,8 @@ mod tests {
     use super::Resource;
     use crate::api;
     use std::collections::BTreeMap;
+    use std::env;
+    use crate::sdk::EnvResourceDetector;
 
     #[test]
     fn new_resource() {
@@ -212,5 +225,21 @@ mod tests {
                 attrs: expected_attrs
             }
         );
+    }
+
+    #[test]
+    fn detect_resource() {
+        env::set_var("OTEL_RESOURCE_ATTRIBUTES", "key=value, k = v , a= x, a=z");
+        env::set_var("irrelevant".to_uppercase(), "20200810");
+
+        let detector = EnvResourceDetector::new();
+        let resource = Resource::from_detectors(vec![Box::new(detector)]);
+        assert_eq!(resource, Resource::new(vec![
+            api::KeyValue::new(api::Key::new("key".to_string()), api::Value::String("value".to_string())),
+            api::KeyValue::new(api::Key::new("k".to_string()), api::Value::String("v".to_string())),
+            api::KeyValue::new(api::Key::new("a".to_string()), api::Value::String("x".to_string())),
+            api::KeyValue::new(api::Key::new("a".to_string()), api::Value::String("z".to_string()))
+        ]))
+
     }
 }
