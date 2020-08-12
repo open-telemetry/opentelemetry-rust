@@ -5,4 +5,4 @@ mod proto;
 mod span;
 mod transform;
 
-pub use crate::span::Exporter;
+pub use crate::span::{Compression, Credentials, Exporter, ExporterConfig, Protocol};
