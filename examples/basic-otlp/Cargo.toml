@@ -1,0 +1,8 @@
+[package]
+name = "basic-otlp"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+opentelemetry = { path = "../../" }
+opentelemetry-otlp = { path = "../../opentelemetry-otlp" }
