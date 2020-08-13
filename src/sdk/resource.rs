@@ -45,11 +45,14 @@ impl Resource {
     }
 
     /// Create a new `Resource` from resource detectors.
+    ///
+    /// timeout will be applied to each detector.
     pub fn from_detectors(timeout: Duration, detectors: Vec<Box<dyn ResourceDetector>>) -> Self {
         let mut resource = Resource::default();
         for detector in detectors {
             let detected_res = detector.detect(timeout);
             for (key, value) in detected_res.into_iter() {
+                // using insert instead of merge to avoid clone.
                 resource.insert(KeyValue::new(key, value));
             }
         }
@@ -168,10 +171,12 @@ impl<'a> IntoIterator for &'a Resource {
 pub trait ResourceDetector {
     /// detect returns an initialized Resource based on gathered information.
     ///
-    /// If source information to construct a Resource is inaccessible, None will be returned.
+    /// timeout is used in case the detection operation takes too much time.
+    ///
+    /// If source information to construct a Resource is inaccessible, an empty Resource should be returned
     ///
     /// If source information to construct a Resource is invalid, for example,
-    /// missing required values. None will be returned.
+    /// missing required values. an empty Resource should be returned.
     fn detect(&self, timeout: Duration) -> Resource;
 }
 

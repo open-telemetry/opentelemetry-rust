@@ -36,6 +36,7 @@ impl Default for EnvResourceDetector {
     }
 }
 
+/// Extract key value pairs and construct a resource from resources string like key1=value1,key2=value2,...
 fn construct_otel_resources(s: String) -> Resource {
     let mut key_values = vec![];
     for entries in s.split(',') {
