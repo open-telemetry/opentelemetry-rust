@@ -5,6 +5,7 @@ use crate::sdk::resource::ResourceDetector;
 use crate::sdk::Resource;
 use crate::api::{KeyValue, Key, Value};
 use std::env;
+use std::time::Duration;
 
 const OTEL_RESOURCE_ATTRIBUTES: &str = "OTEL_RESOURCE_ATTRIBUTES";
 
@@ -14,10 +15,10 @@ const OTEL_RESOURCE_ATTRIBUTES: &str = "OTEL_RESOURCE_ATTRIBUTES";
 pub struct EnvResourceDetector {}
 
 impl ResourceDetector for EnvResourceDetector {
-    fn detect(&self) -> Option<Resource> {
+    fn detect(&self, _timeout: Duration) -> Resource {
         match env::var(OTEL_RESOURCE_ATTRIBUTES) {
-            Ok(s) if !s.is_empty() => Some(construct_otel_resources(s)),
-            Ok(_) | Err(_) => None
+            Ok(s) if !s.is_empty() => construct_otel_resources(s),
+            Ok(_) | Err(_) => Resource::new(vec![]), // return empty resource
         }
     }
 }
@@ -54,7 +55,7 @@ fn construct_otel_resources(s: String) -> Resource {
 
 #[cfg(test)]
 mod tests {
-    use std::env;
+    use std::{env, time};
     use crate::sdk::env::OTEL_RESOURCE_ATTRIBUTES;
     use crate::sdk::EnvResourceDetector;
     use crate::sdk::resource::{Resource, ResourceDetector};
@@ -66,9 +67,8 @@ mod tests {
         env::set_var("irrelevant".to_uppercase(), "20200810");
 
         let detector = EnvResourceDetector::new();
-        let resource = detector.detect();
-        assert!(resource.is_some());
-        assert_eq!(resource.unwrap(), Resource::new(vec![
+        let resource = detector.detect(time::Duration::from_secs(5));
+        assert_eq!(resource, Resource::new(vec![
             KeyValue::new(Key::new("key".to_string()), Value::String("value".to_string())),
             KeyValue::new(Key::new("k".to_string()), Value::String("v".to_string())),
             KeyValue::new(Key::new("a".to_string()), Value::String("x".to_string())),
@@ -81,7 +81,7 @@ mod tests {
         env::set_var(OTEL_RESOURCE_ATTRIBUTES, "");
 
         let detector = EnvResourceDetector::new();
-        let resource = detector.detect();
-        assert!(resource.is_none())
+        let resource = detector.detect(time::Duration::from_secs(5));
+        assert!(resource.is_empty())
     }
 }

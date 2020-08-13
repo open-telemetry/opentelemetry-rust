@@ -18,6 +18,7 @@ use crate::api;
 use serde::{Deserialize, Serialize};
 use std::collections::{btree_map, btree_map::Entry, BTreeMap};
 use crate::api::KeyValue;
+use std::time::Duration;
 
 /// Describes an entity about which identifying information and metadata is exposed.
 ///
@@ -44,14 +45,12 @@ impl Resource {
     }
 
     /// Create a new `Resource` from resource detectors.
-    pub fn from_detectors(detectors: Vec<Box<dyn ResourceDetector>>) -> Self {
+    pub fn from_detectors(timeout: Duration, detectors: Vec<Box<dyn ResourceDetector>>) -> Self {
         let mut resource = Resource::default();
-
         for detector in detectors {
-            if let Some(detected_res) = detector.detect() {
-                for (key, value) in detected_res.into_iter() {
-                    resource.insert(KeyValue::new(key, value));
-                }
+            let detected_res = detector.detect(timeout);
+            for (key, value) in detected_res.into_iter() {
+                resource.insert(KeyValue::new(key, value));
             }
         }
 
@@ -173,7 +172,7 @@ pub trait ResourceDetector {
     ///
     /// If source information to construct a Resource is invalid, for example,
     /// missing required values. None will be returned.
-    fn detect(&self) -> Option<Resource>;
+    fn detect(&self, timeout: Duration) -> Resource;
 }
 
 #[cfg(test)]
@@ -181,7 +180,7 @@ mod tests {
     use super::Resource;
     use crate::api;
     use std::collections::BTreeMap;
-    use std::env;
+    use std::{env, time};
     use crate::sdk::EnvResourceDetector;
 
     #[test]
@@ -233,13 +232,12 @@ mod tests {
         env::set_var("irrelevant".to_uppercase(), "20200810");
 
         let detector = EnvResourceDetector::new();
-        let resource = Resource::from_detectors(vec![Box::new(detector)]);
+        let resource = Resource::from_detectors(time::Duration::from_secs(5), vec![Box::new(detector)]);
         assert_eq!(resource, Resource::new(vec![
             api::KeyValue::new(api::Key::new("key".to_string()), api::Value::String("value".to_string())),
             api::KeyValue::new(api::Key::new("k".to_string()), api::Value::String("v".to_string())),
             api::KeyValue::new(api::Key::new("a".to_string()), api::Value::String("x".to_string())),
             api::KeyValue::new(api::Key::new("a".to_string()), api::Value::String("z".to_string()))
         ]))
-
     }
 }
