@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry"
-version = "0.7.0"
+version = "0.8.0"
 authors = ["OpenTelemetry Authors <cncf-opentelemetry-contributors@lists.cncf.io>"]
 description = "A metrics collection and distributed tracing framework"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust"
@@ -9,6 +9,7 @@ readme = "README.md"
 categories = [
     "development-tools::debugging",
     "development-tools::profiling",
+    "api-bindings",
     "asynchronous",
 ]
 keywords = ["opentelemetry", "logging", "tracing", "metrics", "async"]
@@ -45,12 +46,14 @@ binary_propagator = []
 [workspace]
 members = [
     "opentelemetry-jaeger",
+    "opentelemetry-otlp",
     "opentelemetry-prometheus",
     "opentelemetry-zipkin",
     "examples/actix-udp",
     "examples/actix-http",
     "examples/async",
     "examples/basic",
+    "examples/basic-otlp",
     "examples/grpc",
     "examples/http",
     "examples/zipkin",

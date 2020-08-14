@@ -1,0 +1,27 @@
+[package]
+name = "opentelemetry-otlp"
+version = "0.1.0"
+authors = ["OpenTelemetry Authors <cncf-opentelemetry-contributors@lists.cncf.io>"]
+description = "Exporter for the OpenTelemetry Collector"
+homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/master/opentelemetry-otlp"
+repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/master/opentelemetry-otlp"
+readme = "README.md"
+categories = [
+    "development-tools::debugging",
+    "development-tools::profiling",
+    "asynchronous",
+]
+keywords = ["opentelemetry", "otlp", "logging", "tracing", "metrics"]
+license = "Apache-2.0"
+edition = "2018"
+build = "build.rs"
+
+[dependencies]
+futures = "0.3.5"
+grpcio = "0.6"
+opentelemetry = { version = "0.8.0", default-features = false, features = ["trace"], path = ".." }
+protobuf = "~2"
+
+[build-dependencies]
+protobuf-codegen = "2.16"
+protoc-grpcio = "2.0"
