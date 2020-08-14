@@ -3,8 +3,8 @@ name = "opentelemetry-zipkin"
 version = "0.5.0"
 authors = ["OpenTelemetry Authors <cncf-opentelemetry-contributors@lists.cncf.io>"]
 description = "Zipkin exporter for OpenTelemetry"
-homepage = "https://github.com/open-telemetry/opentelemetry-rust"
-repository = "https://github.com/open-telemetry/opentelemetry-rust"
+homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/master/opentelemetry-zipkin"
+repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/master/opentelemetry-zipkin"
 readme = "README.md"
 categories = [
     "development-tools::debugging",

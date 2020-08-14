@@ -3,8 +3,8 @@ name = "opentelemetry-jaeger"
 version = "0.7.0"
 authors = ["OpenTelemetry Authors <cncf-opentelemetry-contributors@lists.cncf.io>"]
 description = "Jaeger exporter for OpenTelemetry"
-homepage = "https://github.com/open-telemetry/opentelemetry-rust"
-repository = "https://github.com/open-telemetry/opentelemetry-rust"
+homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/master/opentelemetry-jaeger"
+repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/master/opentelemetry-jaeger"
 readme = "README.md"
 categories = [
     "development-tools::debugging",
