@@ -1,6 +1,6 @@
 //! EnvResourceDetector
 //!
-//! Implementation of ResourceDetector in extract information from environment.
+//! Implementation of `ResourceDetector` to extract a `Resource` from environment variables.
 use crate::sdk::resource::ResourceDetector;
 use crate::sdk::Resource;
 use crate::api::{KeyValue, Key, Value};
@@ -9,10 +9,16 @@ use std::time::Duration;
 
 const OTEL_RESOURCE_ATTRIBUTES: &str = "OTEL_RESOURCE_ATTRIBUTES";
 
-/// Resource detector implements ResourceDetector and is used to extractor general SDK configuration from environment
-/// See https://github.com/open-telemetry/opentelemetry-specification/tree/master/specification/resource/semantic_conventions#telemetry-sdk for semantic conventions.
+/// Resource detector implements ResourceDetector and is used to extract
+/// general SDK configuration from environment.
+///
+/// See
+/// [semantic conventions](https://github.com/open-telemetry/opentelemetry-specification/tree/master/specification/resource/semantic_conventions#telemetry-sdk)
+/// for details.
 #[derive(Debug)]
-pub struct EnvResourceDetector {}
+pub struct EnvResourceDetector {
+    _private: (),
+}
 
 impl ResourceDetector for EnvResourceDetector {
     fn detect(&self, _timeout: Duration) -> Resource {
@@ -26,20 +32,22 @@ impl ResourceDetector for EnvResourceDetector {
 impl EnvResourceDetector {
     /// Create `EnvResourceDetector` instance.
     pub fn new() -> Self {
-        EnvResourceDetector {}
+        EnvResourceDetector {
+            _private: (),
+        }
     }
 }
 
 impl Default for EnvResourceDetector {
     fn default() -> Self {
-        EnvResourceDetector {}
+        EnvResourceDetector::new()
     }
 }
 
 /// Extract key value pairs and construct a resource from resources string like key1=value1,key2=value2,...
 fn construct_otel_resources(s: String) -> Resource {
     let mut key_values = vec![];
-    for entries in s.split(',') {
+    for entries in s.split_terminator(',') {
         let key_value_strs = entries.split('=').map(str::trim).collect::<Vec<&str>>();
         if key_value_strs.len() != 2 {
             continue;

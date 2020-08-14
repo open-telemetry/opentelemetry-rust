@@ -22,7 +22,7 @@ use std::time::Duration;
 
 /// Describes an entity about which identifying information and metadata is exposed.
 ///
-/// Items are sorted by keys, and are only overwritten if the value is an empty string.
+/// Items are sorted by their key, and are only overwritten if the value is an empty string.
 #[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Resource {
