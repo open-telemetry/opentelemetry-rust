@@ -23,12 +23,12 @@ fn tracing_init() -> Result<(), Box<dyn std::error::Error>> {
         })
         .init()?;
 
-    // For the demonstration, use `Sampler::Always` sampler to sample all traces. In a production
-    // application, use `Sampler::Parent` or `Sampler::Probability` with a desired probability.
+    // For the demonstration, use `Sampler::AlwaysOn` sampler to sample all traces. In a production
+    // application, use `Sampler::ParentOrElse` or `Sampler::Probability` with a desired probability.
     let provider = sdk::Provider::builder()
         .with_simple_exporter(exporter)
         .with_config(sdk::Config {
-            default_sampler: Box::new(Sampler::Always),
+            default_sampler: Box::new(Sampler::AlwaysOn),
             ..Default::default()
         })
         .build();
@@ -42,13 +42,9 @@ fn tracing_init() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-struct TonicMetadataMapCarrier<'a>(&'a mut tonic::metadata::MetadataMap);
-impl<'a> api::Carrier for TonicMetadataMapCarrier<'a> {
-    fn get(&self, key: &'static str) -> Option<&str> {
-        self.0.get(key).and_then(|metadata| metadata.to_str().ok())
-    }
-
-    fn set(&mut self, key: &'static str, value: String) {
+struct TonicMetadataMapInjector<'a>(&'a mut tonic::metadata::MetadataMap);
+impl<'a> api::Injector for TonicMetadataMapInjector<'a> {
+    fn set(&mut self, key: &str, value: String) {
         if let Ok(key) = tonic::metadata::MetadataKey::from_bytes(key.to_lowercase().as_bytes()) {
             self.0.insert(
                 key,
@@ -69,7 +65,7 @@ async fn greet() -> Result<(), Box<dyn std::error::Error>> {
     let mut request = tonic::Request::new(HelloRequest {
         name: "Tonic".into(),
     });
-    propagator.inject_context(&cx, &mut TonicMetadataMapCarrier(request.metadata_mut()));
+    propagator.inject_context(&cx, &mut TonicMetadataMapInjector(request.metadata_mut()));
 
     let response = client
         .say_hello(request)
