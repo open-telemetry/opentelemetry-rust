@@ -1,7 +1,7 @@
 use crate::api::metrics::{registry, Result};
 use crate::sdk::{
     export::metrics::{
-        AggregatorSelector, CheckpointSet, ExportKindSelector, LockedProcessor, Record,
+        AggregatorSelector, CheckpointSet, Checkpointer, ExportKindSelector, Record,
     },
     metrics::{
         accumulator,
@@ -23,7 +23,11 @@ pub fn pull(
     PullControllerBuilder::with_selectors(aggregator_selector, export_selector)
 }
 
-/// Controller manages access to an `Accumulator` and `Processor`.
+/// Pull controllers are typically used in an environment where there are
+/// multiple readers. It is common, therefore, when configuring a
+/// `BasicProcessor` for use with this controller, to use a
+/// `ExportKind::Cumulative` strategy and the `with_memory(true)` builder
+/// option, which ensures that every `CheckpointSet` includes full state.
 #[derive(Debug)]
 pub struct PullController {
     accumulator: Accumulator,
@@ -47,10 +51,10 @@ impl PullController {
             .map_or(true, |elapsed| elapsed > self.period)
         {
             self.last_collect = SystemTime::now();
-            self.processor.lock().and_then(|mut locked_processor| {
-                locked_processor.start_collection();
-                self.accumulator.0.collect(&mut locked_processor);
-                locked_processor.finish_collection()
+            self.processor.lock().and_then(|mut checkpointer| {
+                checkpointer.start_collection();
+                self.accumulator.0.collect(&mut checkpointer);
+                checkpointer.finish_collection()
             })
         } else {
             Ok(())
@@ -91,6 +95,12 @@ pub struct PullControllerBuilder {
     /// If the period is zero, caching of the result is disabled. The default value
     /// is 10 seconds.
     cache_period: Option<Duration>,
+
+    /// Memory controls whether the controller's processor remembers metric
+    /// instruments and label sets that were previously reported. When memory is
+    /// `true`, `CheckpointSet::try_for_each` will visit metrics that were not
+    /// updated in the most recent interval. Default true.
+    memory: bool,
 }
 
 impl PullControllerBuilder {
@@ -104,6 +114,7 @@ impl PullControllerBuilder {
             export_selector,
             resource: None,
             cache_period: None,
+            memory: true,
         }
     }
 
@@ -123,12 +134,19 @@ impl PullControllerBuilder {
         }
     }
 
+    /// Sets the memory behavior of the controller's `Processor`.  If this is
+    /// `true`, the processor will report metric instruments and label sets that
+    /// were previously reported but not updated in the most recent interval.
+    pub fn with_memory(self, memory: bool) -> Self {
+        PullControllerBuilder { memory, ..self }
+    }
+
     /// Build a new `PullController` from the current configuration.
     pub fn build(self) -> PullController {
         let processor = Arc::new(processors::basic(
             self.aggregator_selector,
             self.export_selector,
-            true,
+            self.memory,
         ));
 
         let accumulator = accumulator(processor.clone())

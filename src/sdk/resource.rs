@@ -15,10 +15,10 @@
 //! [`Provider`]: ../../api/trace/provider/trait.Provider.html
 use crate::api;
 use crate::api::labels;
+use crate::api::KeyValue;
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
 use std::collections::{btree_map, btree_map::Entry, BTreeMap};
-use crate::api::KeyValue;
 use std::time::Duration;
 
 /// Describes an entity about which identifying information and metadata is exposed.
@@ -35,7 +35,7 @@ impl Resource {
     ///
     /// Values are de-duplicated by key, and the first key-value pair with a non-empty string value
     /// will be retained
-    pub fn new<T: IntoIterator<Item=api::KeyValue>>(kvs: T) -> Self {
+    pub fn new<T: IntoIterator<Item = api::KeyValue>>(kvs: T) -> Self {
         let mut resource = Resource::default();
 
         for kv in kvs.into_iter() {
@@ -190,9 +190,9 @@ pub trait ResourceDetector {
 mod tests {
     use super::Resource;
     use crate::api;
+    use crate::sdk::EnvResourceDetector;
     use std::collections::BTreeMap;
     use std::{env, time};
-    use crate::sdk::EnvResourceDetector;
 
     #[test]
     fn new_resource() {
@@ -243,12 +243,28 @@ mod tests {
         env::set_var("irrelevant".to_uppercase(), "20200810");
 
         let detector = EnvResourceDetector::new();
-        let resource = Resource::from_detectors(time::Duration::from_secs(5), vec![Box::new(detector)]);
-        assert_eq!(resource, Resource::new(vec![
-            api::KeyValue::new(api::Key::new("key".to_string()), api::Value::String("value".to_string())),
-            api::KeyValue::new(api::Key::new("k".to_string()), api::Value::String("v".to_string())),
-            api::KeyValue::new(api::Key::new("a".to_string()), api::Value::String("x".to_string())),
-            api::KeyValue::new(api::Key::new("a".to_string()), api::Value::String("z".to_string()))
-        ]))
+        let resource =
+            Resource::from_detectors(time::Duration::from_secs(5), vec![Box::new(detector)]);
+        assert_eq!(
+            resource,
+            Resource::new(vec![
+                api::KeyValue::new(
+                    api::Key::new("key".to_string()),
+                    api::Value::String("value".to_string())
+                ),
+                api::KeyValue::new(
+                    api::Key::new("k".to_string()),
+                    api::Value::String("v".to_string())
+                ),
+                api::KeyValue::new(
+                    api::Key::new("a".to_string()),
+                    api::Value::String("x".to_string())
+                ),
+                api::KeyValue::new(
+                    api::Key::new("a".to_string()),
+                    api::Value::String("z".to_string())
+                )
+            ])
+        )
     }
 }

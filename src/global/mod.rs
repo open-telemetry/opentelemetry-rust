@@ -78,7 +78,7 @@ mod propagation;
 mod trace;
 
 #[cfg(feature = "metrics")]
-pub use error_handler::{handle, set_handler};
+pub use error_handler::{handle_error, set_error_handler};
 #[cfg(feature = "metrics")]
 pub use metrics::{meter, meter_provider, set_meter_provider};
 #[cfg(feature = "trace")]

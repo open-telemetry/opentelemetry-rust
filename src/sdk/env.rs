@@ -1,13 +1,14 @@
 //! EnvResourceDetector
 //!
-//! Implementation of `ResourceDetector` to extract a `Resource` from environment variables.
+//! Implementation of `ResourceDetector` to extract a `Resource` from environment
+//! variables.
+use crate::api::{Key, KeyValue, Value};
 use crate::sdk::resource::ResourceDetector;
 use crate::sdk::Resource;
-use crate::api::{KeyValue, Key, Value};
 use std::env;
 use std::time::Duration;
 
-const OTEL_RESOURCE_ATTRIBUTES: &str = "OTEL_RESOURCE_ATTRIBUTES";
+static OTEL_RESOURCE_ATTRIBUTES: &str = "OTEL_RESOURCE_ATTRIBUTES";
 
 /// Resource detector implements ResourceDetector and is used to extract
 /// general SDK configuration from environment.
@@ -32,9 +33,7 @@ impl ResourceDetector for EnvResourceDetector {
 impl EnvResourceDetector {
     /// Create `EnvResourceDetector` instance.
     pub fn new() -> Self {
-        EnvResourceDetector {
-            _private: (),
-        }
+        EnvResourceDetector { _private: () }
     }
 }
 
@@ -44,7 +43,8 @@ impl Default for EnvResourceDetector {
     }
 }
 
-/// Extract key value pairs and construct a resource from resources string like key1=value1,key2=value2,...
+/// Extract key value pairs and construct a resource from resources string like
+/// key1=value1,key2=value2,...
 fn construct_otel_resources(s: String) -> Resource {
     let mut key_values = vec![];
     for entries in s.split_terminator(',') {
@@ -64,11 +64,11 @@ fn construct_otel_resources(s: String) -> Resource {
 
 #[cfg(test)]
 mod tests {
-    use std::{env, time};
+    use crate::api::{Key, KeyValue, Value};
     use crate::sdk::env::OTEL_RESOURCE_ATTRIBUTES;
-    use crate::sdk::EnvResourceDetector;
     use crate::sdk::resource::{Resource, ResourceDetector};
-    use crate::api::{KeyValue, Key, Value};
+    use crate::sdk::EnvResourceDetector;
+    use std::{env, time};
 
     #[test]
     fn test_read_from_env() {
@@ -77,20 +77,24 @@ mod tests {
 
         let detector = EnvResourceDetector::new();
         let resource = detector.detect(time::Duration::from_secs(5));
-        assert_eq!(resource, Resource::new(vec![
-            KeyValue::new(Key::new("key".to_string()), Value::String("value".to_string())),
-            KeyValue::new(Key::new("k".to_string()), Value::String("v".to_string())),
-            KeyValue::new(Key::new("a".to_string()), Value::String("x".to_string())),
-            KeyValue::new(Key::new("a".to_string()), Value::String("z".to_string()))
-        ]))
-    }
+        assert_eq!(
+            resource,
+            Resource::new(vec![
+                KeyValue::new(
+                    Key::new("key".to_string()),
+                    Value::String("value".to_string())
+                ),
+                KeyValue::new(Key::new("k".to_string()), Value::String("v".to_string())),
+                KeyValue::new(Key::new("a".to_string()), Value::String("x".to_string())),
+                KeyValue::new(Key::new("a".to_string()), Value::String("z".to_string()))
+            ])
+        );
 
-    #[test]
-    fn test_empty() {
+        // Test this case in same test to avoid race condition when running tests in parallel.
         env::set_var(OTEL_RESOURCE_ATTRIBUTES, "");
 
         let detector = EnvResourceDetector::new();
         let resource = detector.detect(time::Duration::from_secs(5));
-        assert!(resource.is_empty())
+        assert!(resource.is_empty());
     }
 }

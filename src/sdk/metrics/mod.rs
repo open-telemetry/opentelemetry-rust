@@ -215,7 +215,7 @@ impl AccumulatorCore {
         if let (Some(current), Some(checkpoint)) = (&record.current, &record.checkpoint) {
             if let Err(err) = current.synchronized_move(checkpoint, record.instrument.descriptor())
             {
-                global::handle(err);
+                global::handle_error(err);
 
                 return 0;
             }
@@ -227,7 +227,7 @@ impl AccumulatorCore {
                 &checkpoint,
             );
             if let Err(err) = locked_processor.process(accumulation) {
-                global::handle(err);
+                global::handle_error(err);
             }
 
             1
@@ -261,7 +261,7 @@ impl AccumulatorCore {
                                 );
 
                                 if let Err(err) = locked_processor.process(accumulation) {
-                                    global::handle(err);
+                                    global::handle_error(err);
                                 }
                                 checkpointed += 1;
                             }
@@ -369,11 +369,11 @@ struct AsyncInstrument {
 impl AsyncInstrument {
     fn observe(&self, number: &Number, labels: &LabelSet) {
         if let Err(err) = aggregators::range_test(number, &self.instrument.descriptor) {
-            global::handle(err);
+            global::handle_error(err);
         }
         if let Some(recorder) = self.get_recorder(labels) {
             if let Err(err) = recorder.update(number, &self.instrument.descriptor) {
-                global::handle(err)
+                global::handle_error(err)
             }
         }
     }
@@ -488,7 +488,7 @@ impl sdk_api::SyncBoundInstrumentCore for Record {
                 aggregators::range_test(&number, &self.instrument.instrument.descriptor)
                     .and_then(|_| recorder.update(&number, &self.instrument.instrument.descriptor))
             {
-                global::handle(err);
+                global::handle_error(err);
                 return;
             }
 
