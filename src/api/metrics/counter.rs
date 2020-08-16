@@ -1,55 +1,103 @@
-//! # Metrics Counter Interface
-//!
-//! Counters support `add(value, label_set)`. Choose this kind of metric when
-//! the value is a quantity, the sum is of primary interest, and
-//! the event count and value distribution are not of primary interest.
-//!
-//! `Counter`s are defined as `monotonic = true` by default, meaning
-//! that positive values are expected. `monotonic = true` counters are
-//! typically used because they can automatically be interpreted as a rate.
-//!
-//! When passing `MetricOptions`, counters can be declared as `with_monotonic(false)`,
-//! in which case they support positive and negative increments.
-//! `monotonic = false` counters are useful to report changes in an
-//! accounting scheme, such as the number of bytes allocated and
-//! deallocated.
-use crate::api::metrics;
+use crate::api::{
+    metrics::{
+        sync_instrument::{SyncBoundInstrument, SyncInstrument},
+        Descriptor, InstrumentKind, Measurement, Meter, Number, NumberKind, Result,
+    },
+    KeyValue,
+};
+use std::marker;
 
-/// An interface for recording values where the sum is of primary interest.
-pub trait Counter<T, LS>: metrics::Instrument<LS>
+/// A metric that accumulates values.
+#[derive(Debug)]
+pub struct Counter<T>(SyncInstrument<T>);
+
+impl<T> Counter<T>
 where
-    T: Into<metrics::value::MeasurementValue>,
-    LS: metrics::LabelSet,
+    T: Into<Number>,
 {
-    /// The handle type for the implementing `Counter`.
-    type Handle: CounterHandle<T>;
+    /// Creates a bound instrument for this counter. The labels are associated with
+    /// values recorded via subsequent calls to record.
+    pub fn bind<'a>(&self, labels: &'a [KeyValue]) -> BoundCounter<'a, T> {
+        let bound_instrument = self.0.bind(labels);
 
-    /// Creates a `Measurement` object to be used by a `Meter` when batch recording.
-    fn measurement(&self, value: T) -> metrics::Measurement<LS>;
+        BoundCounter {
+            labels,
+            bound_instrument,
+        }
+    }
 
-    /// Creates a handle for this counter. The labels should contain the
-    /// keys and values for each key specified in the `LabelSet`.
-    ///
-    /// If the labels do not contain a value for the key specified in the
-    /// `LabelSet`, then the missing value will be treated as unspecified.
-    fn acquire_handle(&self, labels: &LS) -> Self::Handle;
+    /// Increment this counter by a given T
+    pub fn add(&self, value: T, labels: &[KeyValue]) {
+        self.0.direct_record(value.into(), labels)
+    }
 
-    /// Adds the value to the `Counter`'s sum.
-    fn add(&self, value: T, label_set: &LS) {
-        self.record_one(value.into(), label_set)
+    /// Creates a Measurement for use with batch recording.
+    pub fn measurement(&self, value: T) -> Measurement {
+        Measurement::new(value.into(), self.0.instrument().clone())
     }
 }
 
-/// `CounterHandle` is a handle for `Counter` instances.
-///
-/// It allows for repeated `add` calls for a pre-determined `LabelSet`.
-pub trait CounterHandle<T>: metrics::InstrumentHandle
+/// BoundCounter is a bound instrument for counters.
+#[derive(Debug)]
+pub struct BoundCounter<'a, T> {
+    labels: &'a [KeyValue],
+    bound_instrument: SyncBoundInstrument<T>,
+}
+
+impl<'a, T> BoundCounter<'a, T>
 where
-    T: Into<metrics::value::MeasurementValue>,
+    T: Into<Number>,
 {
-    /// Add works by calling the underlying `record_one` method
-    /// available because this trait also implements `InstrumentHandle`.
-    fn add(&self, value: T) {
-        self.record_one(value.into())
+    /// Increment this counter by a given T
+    pub fn add(&self, value: T) {
+        self.bound_instrument.direct_record(value.into())
+    }
+}
+
+/// Configuration for building a counter.
+#[derive(Debug)]
+pub struct CounterBuilder<'a, T> {
+    meter: &'a Meter,
+    descriptor: Descriptor,
+    _marker: marker::PhantomData<T>,
+}
+
+impl<'a, T> CounterBuilder<'a, T> {
+    /// Create a new counter builder
+    pub(crate) fn new(meter: &'a Meter, name: String, number_kind: NumberKind) -> Self {
+        CounterBuilder {
+            meter,
+            descriptor: Descriptor::new(
+                name,
+                meter.instrumentation_name().to_string(),
+                InstrumentKind::Counter,
+                number_kind,
+            ),
+            _marker: marker::PhantomData,
+        }
+    }
+
+    /// Set the description for this counter
+    pub fn with_description<S: Into<String>>(mut self, description: S) -> Self {
+        self.descriptor.set_description(description.into());
+        self
+    }
+
+    /// Creates a new counter instrument.
+    pub fn try_init(self) -> Result<Counter<T>> {
+        let instrument = self.meter.new_sync_instrument(self.descriptor)?;
+        Ok(Counter(SyncInstrument::new(instrument)))
+    }
+
+    /// Creates a new counter instrument.
+    ///
+    /// # Panics
+    ///
+    /// This function panics if the instrument cannot be created. Use try_init if you want to
+    /// handle errors.
+    pub fn init(self) -> Counter<T> {
+        Counter(SyncInstrument::new(
+            self.meter.new_sync_instrument(self.descriptor).unwrap(),
+        ))
     }
 }

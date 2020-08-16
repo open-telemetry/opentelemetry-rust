@@ -145,13 +145,13 @@ impl api::SpanProcessor for BatchSpanProcessor {
     }
 
     fn on_end(&self, span: Arc<exporter::trace::SpanData>) {
-        if let Ok(mut sender) = self.message_sender.try_lock() {
+        if let Ok(mut sender) = self.message_sender.lock() {
             let _ = sender.try_send(BatchMessage::ExportSpan(span));
         }
     }
 
     fn shutdown(&self) {
-        if let Ok(mut sender) = self.message_sender.try_lock() {
+        if let Ok(mut sender) = self.message_sender.lock() {
             let _ = sender.try_send(BatchMessage::Shutdown);
         }
     }
