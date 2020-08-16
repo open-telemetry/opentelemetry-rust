@@ -1,5 +1,17 @@
 # Changelog
 
+## [v0.8.0](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.7.0...v0.8.0)
+
+## Added
+
+- Add custom span processors to `Provider::Builder` #166
+
+### Changed
+
+-  Separate `Carrier` into `Injector` and `Extractor` #164
+-  Change the default sampler to be `ParentOrElse(AlwaysOn)` #163
+-  Move the `Sampler` interface to the SDK #169
+
 ## [v0.7.0](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.6.0...v0.7.0)
 
 ### Added

@@ -1,10 +1,10 @@
 [package]
 name = "opentelemetry-zipkin"
-version = "0.4.0"
+version = "0.5.0"
 authors = ["OpenTelemetry Authors <cncf-opentelemetry-contributors@lists.cncf.io>"]
 description = "Zipkin exporter for OpenTelemetry"
-homepage = "https://github.com/open-telemetry/opentelemetry-rust"
-repository = "https://github.com/open-telemetry/opentelemetry-rust"
+homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/master/opentelemetry-zipkin"
+repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/master/opentelemetry-zipkin"
 readme = "README.md"
 categories = [
     "development-tools::debugging",
@@ -16,7 +16,7 @@ license = "Apache-2.0"
 edition = "2018"
 
 [dependencies]
-opentelemetry = { version = "0.7.0", path = ".." }
+opentelemetry = { version = "0.8.0", path = ".." }
 reqwest = { version = "0.10.4", features = ["blocking"] }
 serde_json = "1.0"
 serde = { version = "1.0.104", features = ["derive"] }
