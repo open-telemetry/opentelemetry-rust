@@ -268,15 +268,27 @@ impl api::HttpTextFormat for B3Propagator {
     ) -> api::Context {
         let span_context = if self.inject_encoding.support(&B3Encoding::SingleHeader) {
             self.extract_single_header(extractor).unwrap_or_else(|_|
-                    // if invalid single header should fallback to multiple
-                    self.extract_multi_header(extractor)
-                        .unwrap_or_else(|_| api::SpanContext::empty_context()))
+                // if invalid single header should fallback to multiple
+                self.extract_multi_header(extractor)
+                    .unwrap_or_else(|_| api::SpanContext::empty_context()))
         } else {
             self.extract_multi_header(extractor)
                 .unwrap_or_else(|_| api::SpanContext::empty_context())
         };
 
         cx.with_remote_span_context(span_context)
+    }
+
+    fn get_fields(&self) -> Vec<String> {
+        let mut fields = Vec::with_capacity(5);
+        if self.inject_encoding.support(&B3Encoding::SingleHeader) {
+            fields.push(B3_SINGLE_HEADER);
+        }
+        if self.inject_encoding.support(&B3Encoding::MultipleHeader)
+            || (self.inject_encoding.clone() as u8) == (B3Encoding::UnSpecified as u8) {
+            fields.extend(vec![B3_TRACE_ID_HEADER, B3_SPAN_ID_HEADER, B3_SAMPLED_HEADER, B3_DEBUG_FLAG_HEADER])
+        }
+        fields.into_iter().map(|s| s.into()).collect()
     }
 }
 
@@ -475,7 +487,7 @@ mod tests {
         }
 
         for ((trace, span, sampled, debug, parent), single_header, expected_context) in
-            single_multi_header_extract_data()
+        single_multi_header_extract_data()
         {
             let mut extractor =
                 extract_extrator_from_test_data(trace, span, sampled, debug, parent);
@@ -529,8 +541,7 @@ mod tests {
             _name: String,
             _timestamp: std::time::SystemTime,
             _attributes: Vec<api::KeyValue>,
-        ) {
-        }
+        ) {}
         fn span_context(&self) -> api::SpanContext {
             self.0.clone()
         }
@@ -634,5 +645,28 @@ mod tests {
             );
             assert_eq!(injector.get(B3_PARENT_SPAN_ID_HEADER), None);
         }
+    }
+
+    #[test]
+    fn test_get_fields() {
+        let single_header_propagator = B3Propagator::with_encoding(B3Encoding::SingleHeader);
+        let multi_header_propagator = B3Propagator::with_encoding(B3Encoding::MultipleHeader);
+        let single_multi_header_propagator = B3Propagator::with_encoding(B3Encoding::SingleAndMultiHeader);
+
+        assert_eq!(single_header_propagator.get_fields(), vec![B3_SINGLE_HEADER.to_string()]);
+        assert_eq!(
+            multi_header_propagator.get_fields(),
+            vec![B3_TRACE_ID_HEADER, B3_SPAN_ID_HEADER, B3_SAMPLED_HEADER, B3_DEBUG_FLAG_HEADER]
+                .into_iter()
+                .map(|s| s.into())
+                .collect::<Vec<String>>()
+        );
+        assert_eq!(
+            single_multi_header_propagator.get_fields(),
+            vec![B3_SINGLE_HEADER, B3_TRACE_ID_HEADER, B3_SPAN_ID_HEADER, B3_SAMPLED_HEADER, B3_DEBUG_FLAG_HEADER]
+                .into_iter()
+                .map(|s| s.into())
+                .collect::<Vec<String>>()
+        );
     }
 }

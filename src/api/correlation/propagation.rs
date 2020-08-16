@@ -84,6 +84,10 @@ impl api::HttpTextFormat for CorrelationContextPropagator {
             cx.clone()
         }
     }
+
+    fn get_fields(&self) -> Vec<String> {
+        return vec![CORRELATION_CONTEXT_HEADER.into()]
+    }
 }
 
 struct Correlations(CorrelationContext);

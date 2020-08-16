@@ -41,4 +41,9 @@ pub trait HttpTextFormat: Debug {
     /// [`Context`]: ../../struct.Context.html
     /// [`Extractor`]: ../trait.Extractor.html
     fn extract_with_context(&self, cx: &Context, extractor: &dyn api::Extractor) -> Context;
+
+    /// Returns list of fields used by [`HttpTextFormat`]
+    ///
+    /// [`HttpTextFormat`]: ./trait.HttpTextFormat.html
+    fn get_fields(&self) -> Vec<String>;
 }

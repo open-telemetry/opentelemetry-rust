@@ -112,6 +112,10 @@ impl api::HttpTextFormat for TraceContextPropagator {
             .map(|sc| cx.with_remote_span_context(sc))
             .unwrap_or_else(|_| cx.clone())
     }
+
+    fn get_fields(&self) -> Vec<String> {
+        return vec![TRACEPARENT_HEADER.into()]
+    }
 }
 
 #[cfg(test)]
