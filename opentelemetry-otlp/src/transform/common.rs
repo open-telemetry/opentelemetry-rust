@@ -1,5 +1,5 @@
 use crate::proto::common::{AnyValue, ArrayValue, KeyValue};
-use opentelemetry::api::{LabelSet, Value};
+use opentelemetry::api::Value;
 use opentelemetry::sdk::EvictedHashMap;
 use protobuf::RepeatedField;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -59,8 +59,6 @@ impl From<Value> for AnyValue {
         any_value
     }
 }
-
-impl LabelSet for KeyValue {}
 
 pub(crate) fn to_nanos(time: SystemTime) -> u64 {
     time.duration_since(UNIX_EPOCH)

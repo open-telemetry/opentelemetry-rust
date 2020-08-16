@@ -14,6 +14,7 @@
 //!
 //! [`Provider`]: ../../api/trace/provider/trait.Provider.html
 use crate::api;
+use crate::api::labels;
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
 use std::collections::{btree_map, btree_map::Entry, BTreeMap};
@@ -103,6 +104,11 @@ impl Resource {
     /// Gets an iterator over the attributes of this resource, sorted by key.
     pub fn iter(&self) -> Iter {
         self.into_iter()
+    }
+
+    /// Encoded labels
+    pub fn encoded(&self, encoder: &dyn labels::Encoder) -> String {
+        encoder.encode(&mut self.into_iter())
     }
 
     /// Insert a key-value pair into a `Resource`
