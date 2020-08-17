@@ -1,9 +1,9 @@
 use super::CorrelationContext;
+use crate::api::context::propagation::text_propagator::FieldIter;
 use crate::api::{self, Context, KeyValue};
 use percent_encoding::{percent_decode_str, utf8_percent_encode, AsciiSet, CONTROLS};
 use std::iter;
 use std::ops::Deref;
-use crate::api::context::propagation::text_propagator::FieldIter;
 
 static CORRELATION_CONTEXT_HEADER: &str = "otcorrelations";
 const FRAGMENT: &AsciiSet = &CONTROLS.add(b' ').add(b'"').add(b';').add(b',').add(b'=');
@@ -111,7 +111,7 @@ pub trait CorrelationContextExt {
     ///     Some(&Value::String("my-value".to_string())),
     /// )
     /// ```
-    fn current_with_correlations<T: IntoIterator<Item=KeyValue>>(correlations: T) -> Self;
+    fn current_with_correlations<T: IntoIterator<Item = KeyValue>>(correlations: T) -> Self;
 
     /// Returns a clone of the given context with the included name / value pairs.
     ///
@@ -128,7 +128,7 @@ pub trait CorrelationContextExt {
     ///     Some(&Value::String("my-value".to_string())),
     /// )
     /// ```
-    fn with_correlations<T: IntoIterator<Item=KeyValue>>(&self, correlations: T) -> Self;
+    fn with_correlations<T: IntoIterator<Item = KeyValue>>(&self, correlations: T) -> Self;
 
     /// Returns a clone of the given context with the included name / value pairs.
     ///
@@ -149,11 +149,11 @@ pub trait CorrelationContextExt {
 }
 
 impl CorrelationContextExt for Context {
-    fn current_with_correlations<T: IntoIterator<Item=KeyValue>>(kvs: T) -> Self {
+    fn current_with_correlations<T: IntoIterator<Item = KeyValue>>(kvs: T) -> Self {
         Context::current().with_correlations(kvs)
     }
 
-    fn with_correlations<T: IntoIterator<Item=KeyValue>>(&self, kvs: T) -> Self {
+    fn with_correlations<T: IntoIterator<Item = KeyValue>>(&self, kvs: T) -> Self {
         let merged = self
             .correlation_context()
             .iter()
@@ -270,7 +270,7 @@ mod tests {
             propagator.inject_context(&cx, &mut injector);
             let header_value = injector.get(CORRELATION_CONTEXT_HEADER).unwrap();
 
-            assert_eq!(header_parts.join(",").len(), header_value.len(), );
+            assert_eq!(header_parts.join(",").len(), header_value.len(),);
             for header_part in &header_parts {
                 assert!(header_value.contains(header_part),)
             }

@@ -2,10 +2,10 @@
 //!
 //! The composite propagator allows multiple propagators to be used stacked
 //! together to inject or extract from multiple implementations.
-use crate::api::{self, HttpTextFormat};
-use std::fmt::Debug;
-use std::collections::HashSet;
 use crate::api::context::propagation::text_propagator::FieldIter;
+use crate::api::{self, HttpTextFormat};
+use std::collections::HashSet;
+use std::fmt::Debug;
 
 /// A propagator that chains multiple [`HttpTextFormat`] propagators together,
 /// injecting or extracting by their respective HTTP header names.
@@ -126,7 +126,8 @@ mod tests {
             _name: String,
             _timestamp: std::time::SystemTime,
             _attributes: Vec<api::KeyValue>,
-        ) {}
+        ) {
+        }
         fn span_context(&self) -> api::SpanContext {
             self.0.clone()
         }
@@ -143,7 +144,8 @@ mod tests {
     fn inject_multiple_propagators() {
         let b3 = B3Propagator::with_encoding(B3Encoding::SingleHeader);
         let trace_context = TraceContextPropagator::new();
-        let composite_propagator = HttpTextCompositePropagator::new(vec![Box::new(b3), Box::new(trace_context)]);
+        let composite_propagator =
+            HttpTextCompositePropagator::new(vec![Box::new(b3), Box::new(trace_context)]);
 
         let cx = Context::default().with_span(TestSpan(SpanContext::new(
             TraceId::from_u128(1),
@@ -163,7 +165,8 @@ mod tests {
     fn extract_multiple_propagators() {
         let b3 = B3Propagator::with_encoding(B3Encoding::SingleHeader);
         let trace_context = TraceContextPropagator::new();
-        let composite_propagator = HttpTextCompositePropagator::new(vec![Box::new(b3), Box::new(trace_context)]);
+        let composite_propagator =
+            HttpTextCompositePropagator::new(vec![Box::new(b3), Box::new(trace_context)]);
 
         for (header_name, header_value) in test_data() {
             let mut extractor = HashMap::new();
@@ -185,26 +188,32 @@ mod tests {
     #[test]
     fn test_get_fields() {
         let b3 = B3Propagator::with_encoding(B3Encoding::SingleHeader);
-        let b3_fields = b3.get_field_iter()
+        let b3_fields = b3
+            .get_field_iter()
             .map(|s| s.to_string())
             .collect::<Vec<String>>();
 
         let trace_context = TraceContextPropagator::new();
-        let trace_context_fields = trace_context.get_field_iter()
+        let trace_context_fields = trace_context
+            .get_field_iter()
             .map(|s| s.to_string())
             .collect::<Vec<String>>();
 
-        let composite_propagator = HttpTextCompositePropagator::new(vec![Box::new(b3), Box::new(trace_context)]);
+        let composite_propagator =
+            HttpTextCompositePropagator::new(vec![Box::new(b3), Box::new(trace_context)]);
 
-        let mut fields = composite_propagator.get_field_iter().map(|s| s.to_string()).collect::<Vec<String>>();
+        let mut fields = composite_propagator
+            .get_field_iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<String>>();
         fields.sort();
 
-        let mut expected = vec![b3_fields, trace_context_fields].into_iter()
+        let mut expected = vec![b3_fields, trace_context_fields]
+            .into_iter()
             .flatten()
             .collect::<Vec<String>>();
         expected.sort();
         expected.dedup();
-
 
         assert_eq!(fields, expected);
     }

@@ -18,9 +18,9 @@
 //!
 //! [w3c trace-context docs]: https://w3c.github.io/trace-context/
 
+use crate::api::context::propagation::text_propagator::FieldIter;
 use crate::{api, api::TraceContextExt};
 use std::ops::Deref;
-use crate::api::context::propagation::text_propagator::FieldIter;
 
 static SUPPORTED_VERSION: u8 = 0;
 static MAX_VERSION: u8 = 254;
@@ -177,7 +177,8 @@ mod tests {
             _name: String,
             _timestamp: std::time::SystemTime,
             _attributes: Vec<api::KeyValue>,
-        ) {}
+        ) {
+        }
         fn span_context(&self) -> api::SpanContext {
             self.0.clone()
         }

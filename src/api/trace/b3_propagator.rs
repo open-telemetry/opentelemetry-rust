@@ -13,11 +13,11 @@
 //!
 //! If `inject_encoding` is set to `B3Encoding::SingleHeader` then `b3` header is used to inject
 //! and extract. Otherwise, separate headers are used to inject and extract.
+use crate::api::context::propagation::text_propagator::FieldIter;
 use crate::api::trace::b3_propagator::B3Encoding::MultipleHeader;
 use crate::api::TRACE_FLAG_DEFERRED;
 use crate::{api, api::TraceContextExt};
 use std::ops::Deref;
-use crate::api::context::propagation::text_propagator::FieldIter;
 
 static B3_SINGLE_HEADER: &str = "b3";
 /// As per spec, the multiple header should be case sensitive. But different protocol will use
@@ -288,7 +288,10 @@ impl api::HttpTextFormat for B3Propagator {
     }
 
     fn get_field_iter(&self) -> FieldIter {
-        let field_slice = if self.inject_encoding.support(&B3Encoding::SingleAndMultiHeader) {
+        let field_slice = if self
+            .inject_encoding
+            .support(&B3Encoding::SingleAndMultiHeader)
+        {
             B3_SINGLE_MULTI_FIELDS.deref().as_ref()
         } else if self.inject_encoding.support(&B3Encoding::MultipleHeader) {
             B3_MULTI_FIELDS.deref().as_ref()
@@ -497,7 +500,7 @@ mod tests {
         }
 
         for ((trace, span, sampled, debug, parent), single_header, expected_context) in
-        single_multi_header_extract_data()
+            single_multi_header_extract_data()
         {
             let mut extractor =
                 extract_extrator_from_test_data(trace, span, sampled, debug, parent);
@@ -551,7 +554,8 @@ mod tests {
             _name: String,
             _timestamp: std::time::SystemTime,
             _attributes: Vec<api::KeyValue>,
-        ) {}
+        ) {
+        }
         fn span_context(&self) -> api::SpanContext {
             self.0.clone()
         }
@@ -661,16 +665,37 @@ mod tests {
     fn test_get_fields() {
         let single_header_propagator = B3Propagator::with_encoding(B3Encoding::SingleHeader);
         let multi_header_propagator = B3Propagator::with_encoding(B3Encoding::MultipleHeader);
-        let single_multi_header_propagator = B3Propagator::with_encoding(B3Encoding::SingleAndMultiHeader);
+        let single_multi_header_propagator =
+            B3Propagator::with_encoding(B3Encoding::SingleAndMultiHeader);
 
-        assert_eq!(single_header_propagator.get_field_iter().collect::<Vec<&str>>(), vec![B3_SINGLE_HEADER]);
         assert_eq!(
-            multi_header_propagator.get_field_iter().collect::<Vec<&str>>(),
-            vec![B3_TRACE_ID_HEADER, B3_SPAN_ID_HEADER, B3_SAMPLED_HEADER, B3_DEBUG_FLAG_HEADER]
+            single_header_propagator
+                .get_field_iter()
+                .collect::<Vec<&str>>(),
+            vec![B3_SINGLE_HEADER]
         );
         assert_eq!(
-            single_multi_header_propagator.get_field_iter().collect::<Vec<&str>>(),
-            vec![B3_SINGLE_HEADER, B3_TRACE_ID_HEADER, B3_SPAN_ID_HEADER, B3_SAMPLED_HEADER, B3_DEBUG_FLAG_HEADER]
+            multi_header_propagator
+                .get_field_iter()
+                .collect::<Vec<&str>>(),
+            vec![
+                B3_TRACE_ID_HEADER,
+                B3_SPAN_ID_HEADER,
+                B3_SAMPLED_HEADER,
+                B3_DEBUG_FLAG_HEADER
+            ]
+        );
+        assert_eq!(
+            single_multi_header_propagator
+                .get_field_iter()
+                .collect::<Vec<&str>>(),
+            vec![
+                B3_SINGLE_HEADER,
+                B3_TRACE_ID_HEADER,
+                B3_SPAN_ID_HEADER,
+                B3_SAMPLED_HEADER,
+                B3_DEBUG_FLAG_HEADER
+            ]
         );
     }
 }
