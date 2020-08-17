@@ -16,10 +16,12 @@
 use crate::api::trace::b3_propagator::B3Encoding::MultipleHeader;
 use crate::api::TRACE_FLAG_DEFERRED;
 use crate::{api, api::TraceContextExt};
+use std::ops::Deref;
+use crate::api::context::propagation::text_propagator::FieldIter;
 
 static B3_SINGLE_HEADER: &str = "b3";
 /// As per spec, the multiple header should be case sensitive. But different protocol will use
-/// different format. For example, HTTP will use X-B3-$name while gRPC will use x-b3-$name. So here
+/// different formats. For example, HTTP will use X-B3-$name while gRPC will use x-b3-$name. So here
 /// we leave it to be lower case since we cannot tell what kind of protocol will be used.
 /// Go implementation also uses lower case.
 static B3_DEBUG_FLAG_HEADER: &str = "x-b3-flags";
@@ -27,6 +29,12 @@ static B3_TRACE_ID_HEADER: &str = "x-b3-traceid";
 static B3_SPAN_ID_HEADER: &str = "x-b3-spanid";
 static B3_SAMPLED_HEADER: &str = "x-b3-sampled";
 static B3_PARENT_SPAN_ID_HEADER: &str = "x-b3-parentspanid";
+
+lazy_static::lazy_static! {
+static ref B3_SINGLE_FIELDS: [String; 1] = [B3_SINGLE_HEADER.to_string()];
+static ref B3_MULTI_FIELDS: [String; 4] = [B3_TRACE_ID_HEADER.to_string(), B3_SPAN_ID_HEADER.to_string(), B3_SAMPLED_HEADER.to_string(), B3_DEBUG_FLAG_HEADER.to_string()];
+static ref B3_SINGLE_MULTI_FIELDS: [String; 5] = [B3_SINGLE_HEADER.to_string(), B3_TRACE_ID_HEADER.to_string(), B3_SPAN_ID_HEADER.to_string(), B3_SAMPLED_HEADER.to_string(), B3_DEBUG_FLAG_HEADER.to_string()];
+}
 
 /// B3Encoding is a bitmask to represent B3 encoding type
 #[derive(Clone, Debug)]
@@ -279,16 +287,18 @@ impl api::HttpTextFormat for B3Propagator {
         cx.with_remote_span_context(span_context)
     }
 
-    fn get_fields(&self) -> Vec<String> {
-        let mut fields = Vec::with_capacity(5);
-        if self.inject_encoding.support(&B3Encoding::SingleHeader) {
-            fields.push(B3_SINGLE_HEADER);
-        }
-        if self.inject_encoding.support(&B3Encoding::MultipleHeader)
-            || (self.inject_encoding.clone() as u8) == (B3Encoding::UnSpecified as u8) {
-            fields.extend(vec![B3_TRACE_ID_HEADER, B3_SPAN_ID_HEADER, B3_SAMPLED_HEADER, B3_DEBUG_FLAG_HEADER])
-        }
-        fields.into_iter().map(|s| s.into()).collect()
+    fn get_field_iter(&self) -> FieldIter {
+        let field_slice = if self.inject_encoding.support(&B3Encoding::SingleAndMultiHeader) {
+            B3_SINGLE_MULTI_FIELDS.deref().as_ref()
+        } else if self.inject_encoding.support(&B3Encoding::MultipleHeader) {
+            B3_MULTI_FIELDS.deref().as_ref()
+        } else if self.inject_encoding.support(&B3Encoding::SingleHeader) {
+            B3_SINGLE_FIELDS.deref().as_ref()
+        } else {
+            B3_MULTI_FIELDS.deref().as_ref()
+        };
+
+        FieldIter::new(field_slice)
     }
 }
 
@@ -653,20 +663,14 @@ mod tests {
         let multi_header_propagator = B3Propagator::with_encoding(B3Encoding::MultipleHeader);
         let single_multi_header_propagator = B3Propagator::with_encoding(B3Encoding::SingleAndMultiHeader);
 
-        assert_eq!(single_header_propagator.get_fields(), vec![B3_SINGLE_HEADER.to_string()]);
+        assert_eq!(single_header_propagator.get_field_iter().collect::<Vec<&str>>(), vec![B3_SINGLE_HEADER]);
         assert_eq!(
-            multi_header_propagator.get_fields(),
+            multi_header_propagator.get_field_iter().collect::<Vec<&str>>(),
             vec![B3_TRACE_ID_HEADER, B3_SPAN_ID_HEADER, B3_SAMPLED_HEADER, B3_DEBUG_FLAG_HEADER]
-                .into_iter()
-                .map(|s| s.into())
-                .collect::<Vec<String>>()
         );
         assert_eq!(
-            single_multi_header_propagator.get_fields(),
+            single_multi_header_propagator.get_field_iter().collect::<Vec<&str>>(),
             vec![B3_SINGLE_HEADER, B3_TRACE_ID_HEADER, B3_SPAN_ID_HEADER, B3_SAMPLED_HEADER, B3_DEBUG_FLAG_HEADER]
-                .into_iter()
-                .map(|s| s.into())
-                .collect::<Vec<String>>()
         );
     }
 }

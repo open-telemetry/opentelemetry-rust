@@ -4,6 +4,7 @@
 //! text format.
 use crate::{api, api::Context};
 use std::fmt::Debug;
+use std::slice;
 
 /// Methods to inject and extract a value as text into injectors and extractors that travel
 /// in-band across process boundaries.
@@ -42,8 +43,28 @@ pub trait HttpTextFormat: Debug {
     /// [`Extractor`]: ../trait.Extractor.html
     fn extract_with_context(&self, cx: &Context, extractor: &dyn api::Extractor) -> Context;
 
-    /// Returns list of fields used by [`HttpTextFormat`]
+    /// Returns iter of fields used by [`HttpTextFormat`]
     ///
     /// [`HttpTextFormat`]: ./trait.HttpTextFormat.html
-    fn get_fields(&self) -> Vec<String>;
+    fn get_field_iter(&self) -> FieldIter;
+}
+
+/// An iterator over fields of a [`HttpTextFormat`]
+///
+/// [`HttpTextFormat`]: ./trait.HttpTextFormat.html
+#[derive(Debug)]
+pub struct FieldIter<'a>(slice::Iter<'a, String>);
+
+impl<'a> FieldIter<'a> {
+    /// Create a new `FieldIter` from a slice of propagator fields
+    pub fn new(fields: &'a [String]) -> Self {
+        FieldIter(fields.iter())
+    }
+}
+
+impl<'a> Iterator for FieldIter<'a> {
+    type Item = &'a str;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next().map(|field| field.as_str())
+    }
 }

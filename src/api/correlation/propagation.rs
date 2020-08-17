@@ -2,12 +2,15 @@ use super::CorrelationContext;
 use crate::api::{self, Context, KeyValue};
 use percent_encoding::{percent_decode_str, utf8_percent_encode, AsciiSet, CONTROLS};
 use std::iter;
+use std::ops::Deref;
+use crate::api::context::propagation::text_propagator::FieldIter;
 
 static CORRELATION_CONTEXT_HEADER: &str = "otcorrelations";
 const FRAGMENT: &AsciiSet = &CONTROLS.add(b' ').add(b'"').add(b';').add(b',').add(b'=');
 
 lazy_static::lazy_static! {
     static ref DEFAULT_CORRELATION_CONTEXT: CorrelationContext = CorrelationContext::default();
+    static ref CORRELATION_CONTEXT_FIELDS: [String; 1] = [CORRELATION_CONTEXT_HEADER.to_string()];
 }
 
 /// Propagates name/value pairs in [W3C Correlation Context] format.
@@ -85,8 +88,8 @@ impl api::HttpTextFormat for CorrelationContextPropagator {
         }
     }
 
-    fn get_fields(&self) -> Vec<String> {
-        return vec![CORRELATION_CONTEXT_HEADER.into()]
+    fn get_field_iter(&self) -> FieldIter {
+        FieldIter::new(CORRELATION_CONTEXT_FIELDS.deref().as_ref())
     }
 }
 
@@ -108,7 +111,7 @@ pub trait CorrelationContextExt {
     ///     Some(&Value::String("my-value".to_string())),
     /// )
     /// ```
-    fn current_with_correlations<T: IntoIterator<Item = KeyValue>>(correlations: T) -> Self;
+    fn current_with_correlations<T: IntoIterator<Item=KeyValue>>(correlations: T) -> Self;
 
     /// Returns a clone of the given context with the included name / value pairs.
     ///
@@ -125,7 +128,7 @@ pub trait CorrelationContextExt {
     ///     Some(&Value::String("my-value".to_string())),
     /// )
     /// ```
-    fn with_correlations<T: IntoIterator<Item = KeyValue>>(&self, correlations: T) -> Self;
+    fn with_correlations<T: IntoIterator<Item=KeyValue>>(&self, correlations: T) -> Self;
 
     /// Returns a clone of the given context with the included name / value pairs.
     ///
@@ -146,11 +149,11 @@ pub trait CorrelationContextExt {
 }
 
 impl CorrelationContextExt for Context {
-    fn current_with_correlations<T: IntoIterator<Item = KeyValue>>(kvs: T) -> Self {
+    fn current_with_correlations<T: IntoIterator<Item=KeyValue>>(kvs: T) -> Self {
         Context::current().with_correlations(kvs)
     }
 
-    fn with_correlations<T: IntoIterator<Item = KeyValue>>(&self, kvs: T) -> Self {
+    fn with_correlations<T: IntoIterator<Item=KeyValue>>(&self, kvs: T) -> Self {
         let merged = self
             .correlation_context()
             .iter()
@@ -202,9 +205,9 @@ mod tests {
         vec![
             // "two simple values"
             (vec![KeyValue::new("key1", "val1"), KeyValue::new("key2", "val2")], vec!["key1=val1", "key2=val2"]),
-	    // "two values with escaped chars"
+            // "two values with escaped chars"
             (vec![KeyValue::new("key1", "val1,val2"), KeyValue::new("key2", "val3=4")], vec!["key1=val1%2Cval2", "key2=val3%3D4"]),
-	    // "values of non-string non-array types"
+            // "values of non-string non-array types"
             (
                 vec![
                     KeyValue::new("key1", true),
@@ -213,13 +216,13 @@ mod tests {
                     KeyValue::new("key4", Value::F64(123.567)),
                 ],
                 vec![
-                        "key1=true",
-                        "key2=123",
-                        "key3=123",
-                        "key4=123.567",
+                    "key1=true",
+                    "key2=123",
+                    "key3=123",
+                    "key4=123.567",
                 ],
             ),
-        // "values of array types"
+            // "values of array types"
             (
                 vec![
                     KeyValue::new("key1", Value::Array(vec![Value::Bool(true), Value::Bool(false)])),
@@ -228,10 +231,10 @@ mod tests {
                     KeyValue::new("key4", Value::Array(vec![Value::Bytes(vec![118, 97, 108, 49]), Value::Bytes(vec![118, 97, 108, 50])])),
                 ],
                 vec![
-                        "key1=[true%2Cfalse]",
-                        "key2=[123%2C456]",
-                        "key3=[%22val1%22%2C%22val2%22]",
-                        "key4=[%22val1%22%2C%22val2%22]",
+                    "key1=[true%2Cfalse]",
+                    "key2=[123%2C456]",
+                    "key3=[%22val1%22%2C%22val2%22]",
+                    "key4=[%22val1%22%2C%22val2%22]",
                 ],
             )
         ]
@@ -267,7 +270,7 @@ mod tests {
             propagator.inject_context(&cx, &mut injector);
             let header_value = injector.get(CORRELATION_CONTEXT_HEADER).unwrap();
 
-            assert_eq!(header_parts.join(",").len(), header_value.len(),);
+            assert_eq!(header_parts.join(",").len(), header_value.len(), );
             for header_part in &header_parts {
                 assert!(header_value.contains(header_part),)
             }
