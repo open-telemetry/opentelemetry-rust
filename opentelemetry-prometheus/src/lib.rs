@@ -170,7 +170,8 @@ impl ExporterBuilder {
             .unwrap_or_else(|| vec![0.5, 0.9, 0.99]);
         let selector = Box::new(Selector::Histogram(default_histogram_boundaries.clone()));
         let mut controller_builder = controllers::pull(selector, Box::new(EXPORT_KIND))
-            .with_cache_period(self.cache_period.unwrap_or(DEFAULT_CACHE_PERIOD));
+            .with_cache_period(self.cache_period.unwrap_or(DEFAULT_CACHE_PERIOD))
+            .with_memory(true);
         if let Some(resource) = self.resource {
             controller_builder = controller_builder.with_resource(resource);
         }
@@ -279,7 +280,7 @@ impl prometheus::core::Collector for Collector {
             let mut metrics = Vec::new();
 
             if let Err(err) = controller.collect() {
-                global::handle(err);
+                global::handle_error(err);
                 return metrics;
             }
 
@@ -301,7 +302,7 @@ impl prometheus::core::Collector for Collector {
 
                 Ok(())
             }) {
-                global::handle(err);
+                global::handle_error(err);
             }
 
             metrics

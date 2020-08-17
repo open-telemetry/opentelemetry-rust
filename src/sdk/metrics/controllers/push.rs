@@ -1,7 +1,7 @@
 use crate::api::metrics::registry;
 use crate::global;
 use crate::sdk::{
-    export::metrics::{AggregatorSelector, ExportKindSelector, Exporter, LockedProcessor},
+    export::metrics::{AggregatorSelector, Checkpointer, ExportKindSelector, Exporter},
     metrics::{
         self,
         processors::{self, BasicProcessor},
@@ -74,13 +74,13 @@ impl PushControllerWorker {
     fn on_tick(&mut self) {
         // TODO handle timeout
 
-        if let Err(err) = self.processor.lock().and_then(|mut locked_processor| {
-            locked_processor.start_collection();
-            self.accumulator.0.collect(&mut locked_processor);
-            locked_processor.finish_collection()?;
-            self.exporter.export(locked_processor.checkpoint_set())
+        if let Err(err) = self.processor.lock().and_then(|mut checkpointer| {
+            checkpointer.start_collection();
+            self.accumulator.0.collect(&mut checkpointer);
+            checkpointer.finish_collection()?;
+            self.exporter.export(checkpointer.checkpoint_set())
         }) {
-            global::handle(err)
+            global::handle_error(err)
         }
     }
 }

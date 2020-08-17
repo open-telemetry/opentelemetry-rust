@@ -4,8 +4,8 @@ use crate::api::{
 };
 use crate::sdk::{
     export::metrics::{
-        self, Accumulation, Aggregator, AggregatorSelector, CheckpointSet, ExportKind,
-        ExportKindSelector, LockedProcessor, Processor, Record, Subtractor,
+        self, Accumulation, Aggregator, AggregatorSelector, CheckpointSet, Checkpointer,
+        ExportKind, ExportKindSelector, LockedProcessor, Processor, Record, Subtractor,
     },
     metrics::aggregators::SumAggregator,
     Resource,
@@ -107,72 +107,35 @@ impl<'a> LockedProcessor for BasicLockedProcessor<'a> {
             // Case (b) occurs when the variable `sameCollection` is true,
             // indicating that the stateKey for Accumulation has already
             // been seen in the same collection.  When this happens, it
-            // implies that multiple Accumulators are being used because
-            // the Accumulator outputs a maximum of one Accumulation per
-            // instrument and label set.
-            //
-            // The following logic distinguishes between asynchronous and
-            // synchronous instruments in order to ensure that the use of
-            // multiple Accumulators does not change instrument semantics.
-            // To maintain the instrument semantics, multiple synchronous
-            // Accumulations should be merged, whereas when multiple
-            // asynchronous Accumulations are processed, the last value
-            // should be kept.
+            // implies that multiple Accumulators are being used, or that
+            // a single Accumulator has been configured with a label key
+            // filter.
 
             if !same_collection {
-                // This is the first Accumulation we've seen for this
-                // stateKey during this collection.  Just keep a
-                // reference to the Accumulator's Aggregator.
-                value.current = agg.clone();
-                return Ok(());
-            }
-            if desc.instrument_kind().asynchronous() {
-                // The last value across multiple accumulators is taken.
-                // Just keep a reference to the Accumulator's Aggregator.
-                value.current = agg.clone();
-                return Ok(());
+                if !value.current_owned {
+                    // This is the first Accumulation we've seen for this
+                    // stateKey during this collection.  Just keep a
+                    // reference to the Accumulator's Aggregator. All the other cases
+                    // copy Aggregator state.
+                    value.current = agg.clone();
+                    return Ok(());
+                }
+                return agg.synchronized_move(&value.current, desc);
             }
 
-            // The above two cases are keeping a reference to the
-            // Accumulator's Aggregator.  The remaining cases address
-            // synchronous instruments, which always merge multiple
-            // Accumulations using `value.delta` for temporary storage.
+            // If the current is not owned, take ownership of a copy
+            // before merging below.
+            if !value.current_owned {
+                let tmp = value.current.clone();
+                if let Some(current) = self.parent.aggregation_selector().aggregator_for(desc) {
+                    value.current = current;
+                    value.current_owned = true;
+                    tmp.synchronized_move(&value.current, &desc)?;
+                }
+            }
 
-            if value.delta.is_none() {
-                // The temporary `value.delta` may have been allocated
-                // already, either in a prior pass through this block of
-                // code or in the `!ok` branch above.  It would be
-                // allocated in the `!ok` branch if this is stateful
-                // PrecomputedSum instrument (in which case the exporter
-                // is requesting a delta so we allocate it up front),
-                // and it would be allocated in this block when multiple
-                // accumulators are used and the first condition is not
-                // met.
-                value.delta = self.parent.aggregation_selector().aggregator_for(desc);
-            }
-            if Some(value.current.as_any().type_id())
-                != value.delta.as_ref().map(|d| d.as_any().type_id())
-            {
-                // If the current and delta Aggregators are not the same it
-                // implies that multiple Accumulators were used.  The first
-                // Accumulation seen for a given stateKey will return in
-                // one of the cases above after assigning `value.current
-                // = agg` (i.e., after taking a reference to the
-                // Accumulator's Aggregator).
-                //
-                // The second time through this branch copies the
-                // Accumulator's Aggregator into `value.delta` and sets
-                // `value.current` appropriately to avoid this branch if
-                // a third Accumulator is used.
-                value
-                    .current
-                    .synchronized_move(value.delta.as_ref().unwrap(), desc)?;
-                value.current = value.delta.clone().unwrap();
-            }
-            // The two statements above ensures that `value.current` refers
-            // to `value.delta` and not to an Accumulator's Aggregator.  Now
-            // combine this Accumulation with the prior Accumulation.
-            return value.delta.as_ref().unwrap().merge(agg.as_ref(), desc);
+            // Combine this `Accumulation` with the prior `Accumulation`.
+            return value.current.merge(agg.as_ref(), desc);
         }
 
         let stateful = self
@@ -184,13 +147,10 @@ impl<'a> LockedProcessor for BasicLockedProcessor<'a> {
         let mut delta = None;
         let cumulative = if stateful {
             if desc.instrument_kind().precomputed_sum() {
-                // If we know we need to compute deltas, allocate two aggregators.
+                // If we know we need to compute deltas, allocate one.
                 delta = self.parent.aggregation_selector().aggregator_for(desc);
             }
-            // In this case we are not certain to need a delta, only allocate a
-            // cumulative aggregator.  We _may_ need a delta accumulator if
-            // multiple synchronous Accumulators produce an Accumulation (handled
-            // below), which requires merging them into a temporary Aggregator.
+            // Always allocate a cumulative aggregator if stateful
             self.parent.aggregation_selector().aggregator_for(desc)
         } else {
             None
@@ -199,20 +159,23 @@ impl<'a> LockedProcessor for BasicLockedProcessor<'a> {
         self.state.values.insert(
             key,
             StateValue {
+                descriptor: desc.clone(),
+                labels: accumulation.labels().clone(),
+                resource: accumulation.resource().clone(),
+                current_owned: false,
                 current: agg.clone(),
                 delta,
                 cumulative,
                 stateful,
                 updated: finished_collection,
-                descriptor: desc.clone(),
-                labels: accumulation.labels().clone(),
-                resource: accumulation.resource().clone(),
             },
         );
 
         Ok(())
     }
+}
 
+impl Checkpointer for BasicLockedProcessor<'_> {
     fn checkpoint_set(&mut self) -> &mut dyn CheckpointSet {
         &mut *self.state
     }
@@ -418,6 +381,15 @@ struct StateKey(u64);
 
 #[derive(Debug)]
 struct StateValue {
+    /// Instrument descriptor
+    descriptor: Descriptor,
+
+    /// Instrument labels
+    labels: LabelSet,
+
+    /// Resource that created the instrument
+    resource: Resource,
+
     /// Indicates the last sequence number when this value had process called by an
     /// accumulator.
     updated: u64,
@@ -426,30 +398,25 @@ struct StateValue {
     /// process start time.
     stateful: bool,
 
-    // TODO: as seen in lengthy comments below, both the `current` and `delta`
-    // fields have multiple uses depending on the specific configuration of
-    // instrument, exporter, and accumulator.  It is possible to simplify this
-    // situation by declaring explicit fields that are not used with a dual purpose.
-    // Improve this situation?
-    //
-    // 1. "delta" is used to combine deltas from multiple accumulators, and it is
-    //    also used to store the output of subtraction when computing deltas of
-    //    PrecomputedSum instruments.
-    //
-    // 2. "current" either refers to the Aggregator passed to process() by a single
-    //    accumulator (when either there is just one Accumulator, or the instrument
-    //    is Asynchronous), or it refers to "delta", depending on configuration.
-    //
-    /// Refers to single-accumulator checkpoint or delta.
+    /// Indicates that "current" was allocated
+    /// by the processor in order to merge results from
+    /// multiple `Accumulator`s during a single collection
+    /// round, which may happen either because:
+    ///
+    /// (1) multiple `Accumulator`s output the same `Accumulation.
+    /// (2) one `Accumulator` is configured with dimensionality reduction.
+    current_owned: bool,
+
+    /// The output from a single `Accumulator` (if !current_owned) or an
+    /// `Aggregator` owned by the processor used to accumulate multiple values in a
+    /// single collection round.
     current: Arc<dyn Aggregator + Send + Sync>,
 
-    /// Owned if multi accumulator else `None`.
+    /// If `Some`, refers to an `Aggregator` owned by the processor used to compute
+    /// deltas between precomputed sums.
     delta: Option<Arc<dyn Aggregator + Send + Sync>>,
 
-    /// Owned if stateful else `None`.
+    /// If `Some`, refers to an `Aggregator` owned by the processor used to store
+    /// the last cumulative value.
     cumulative: Option<Arc<dyn Aggregator + Send + Sync>>,
-
-    descriptor: Descriptor,
-    labels: LabelSet,
-    resource: Resource,
 }

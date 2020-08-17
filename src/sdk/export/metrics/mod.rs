@@ -60,18 +60,6 @@ pub trait LockedProcessor {
     /// The Context argument originates from the controller that orchestrates
     /// collection.
     fn process(&mut self, accumulation: Accumulation) -> Result<()>;
-
-    /// Allows a controller to access a complete checkpoint of aggregated metrics
-    /// from the `Processor`. This is passed to the Exporter which may then iterate
-    /// over the collection of aggregated metrics.
-    fn checkpoint_set(&mut self) -> &mut dyn CheckpointSet;
-
-    /// Logic to be run at the start of an integration cycle.
-    fn start_collection(&mut self);
-
-    /// Cleanup logic or other behavior that needs to be run by the processor after
-    /// collection is complete.
-    fn finish_collection(&mut self) -> Result<()>;
 }
 
 /// AggregatorSelector supports selecting the kind of `Aggregator` to use at
@@ -88,6 +76,25 @@ pub trait AggregatorSelector: fmt::Debug {
     ///
     /// This call should not block.
     fn aggregator_for(&self, descriptor: &Descriptor) -> Option<Arc<dyn Aggregator + Send + Sync>>;
+}
+
+/// The interface used by a `Controller` to coordinate the `Processor` with
+/// `Accumulator`(s) and `Exporter`(s). The `start_collection` and
+/// `finish_collection` methods start and finish a collection interval.
+/// `Controller`s call the `Accumulator`(s) during collection to process
+/// `Accumulation`s.
+pub trait Checkpointer: LockedProcessor {
+    /// A checkpoint of the current data set. This may be called before and after
+    /// collection. The implementation is required to return the same value
+    /// throughout its lifetime.
+    fn checkpoint_set(&mut self) -> &mut dyn CheckpointSet;
+
+    /// Logic to be run at the start of a collection interval.
+    fn start_collection(&mut self);
+
+    /// Cleanup logic or other behavior that needs to be run after a collection
+    /// interval is complete.
+    fn finish_collection(&mut self) -> Result<()>;
 }
 
 /// Aggregator implements a specific aggregation behavior, i.e., a behavior to

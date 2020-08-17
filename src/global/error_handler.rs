@@ -11,7 +11,7 @@ struct ErrorHandler(Box<dyn Fn(MetricsError) + Send + Sync>);
 /// Handle error using the globally configured error handler.
 ///
 /// Writes to stderr if unset.
-pub fn handle(err: MetricsError) {
+pub fn handle_error(err: MetricsError) {
     match GLOBAL_ERROR_HANDLER.read() {
         Ok(handler) if handler.is_some() => (handler.as_ref().unwrap().0)(err),
         _ => eprintln!("OpenTelemetry metrics error occurred {:?}", err),
@@ -19,7 +19,7 @@ pub fn handle(err: MetricsError) {
 }
 
 /// Set global error handler.
-pub fn set_handler<F>(f: F) -> Result<()>
+pub fn set_error_handler<F>(f: F) -> Result<()>
 where
     F: Fn(MetricsError) + Send + Sync + 'static,
 {
