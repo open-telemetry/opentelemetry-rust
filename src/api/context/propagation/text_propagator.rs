@@ -46,7 +46,7 @@ pub trait HttpTextFormat: Debug {
     /// Returns iter of fields used by [`HttpTextFormat`]
     ///
     /// [`HttpTextFormat`]: ./trait.HttpTextFormat.html
-    fn get_field_iter(&self) -> FieldIter;
+    fn fields(&self) -> FieldIter;
 }
 
 /// An iterator over fields of a [`HttpTextFormat`]

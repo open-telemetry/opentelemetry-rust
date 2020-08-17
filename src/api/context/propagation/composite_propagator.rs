@@ -2,8 +2,7 @@
 //!
 //! The composite propagator allows multiple propagators to be used stacked
 //! together to inject or extract from multiple implementations.
-use crate::api::context::propagation::text_propagator::FieldIter;
-use crate::api::{self, HttpTextFormat};
+use crate::api::{self, FieldIter, HttpTextFormat};
 use std::collections::HashSet;
 use std::fmt::Debug;
 
@@ -59,8 +58,8 @@ impl HttpTextCompositePropagator {
     pub fn new(propagators: Vec<Box<dyn HttpTextFormat + Send + Sync>>) -> Self {
         let mut fields = HashSet::new();
         for propagator in &propagators {
-            for s in propagator.get_field_iter() {
-                fields.insert(s.to_string());
+            for field in propagator.fields() {
+                fields.insert(field.to_string());
             }
         }
 
@@ -94,7 +93,7 @@ impl HttpTextFormat for HttpTextCompositePropagator {
             })
     }
 
-    fn get_field_iter(&self) -> FieldIter {
+    fn fields(&self) -> FieldIter {
         FieldIter::new(self.fields.as_slice())
     }
 }
@@ -188,14 +187,11 @@ mod tests {
     #[test]
     fn test_get_fields() {
         let b3 = B3Propagator::with_encoding(B3Encoding::SingleHeader);
-        let b3_fields = b3
-            .get_field_iter()
-            .map(|s| s.to_string())
-            .collect::<Vec<String>>();
+        let b3_fields = b3.fields().map(|s| s.to_string()).collect::<Vec<String>>();
 
         let trace_context = TraceContextPropagator::new();
         let trace_context_fields = trace_context
-            .get_field_iter()
+            .fields()
             .map(|s| s.to_string())
             .collect::<Vec<String>>();
 
@@ -203,7 +199,7 @@ mod tests {
             HttpTextCompositePropagator::new(vec![Box::new(b3), Box::new(trace_context)]);
 
         let mut fields = composite_propagator
-            .get_field_iter()
+            .fields()
             .map(|s| s.to_string())
             .collect::<Vec<String>>();
         fields.sort();

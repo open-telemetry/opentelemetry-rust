@@ -20,7 +20,6 @@
 
 use crate::api::context::propagation::text_propagator::FieldIter;
 use crate::{api, api::TraceContextExt};
-use std::ops::Deref;
 
 static SUPPORTED_VERSION: u8 = 0;
 static MAX_VERSION: u8 = 254;
@@ -119,8 +118,8 @@ impl api::HttpTextFormat for TraceContextPropagator {
             .unwrap_or_else(|_| cx.clone())
     }
 
-    fn get_field_iter(&self) -> FieldIter {
-        FieldIter::new(TRANSPARENT_HEADER_FIELD.deref().as_ref())
+    fn fields(&self) -> FieldIter {
+        FieldIter::new(TRANSPARENT_HEADER_FIELD.as_ref())
     }
 }
 

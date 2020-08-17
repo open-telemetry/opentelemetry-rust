@@ -17,7 +17,6 @@ use crate::api::context::propagation::text_propagator::FieldIter;
 use crate::api::trace::b3_propagator::B3Encoding::MultipleHeader;
 use crate::api::TRACE_FLAG_DEFERRED;
 use crate::{api, api::TraceContextExt};
-use std::ops::Deref;
 
 static B3_SINGLE_HEADER: &str = "b3";
 /// As per spec, the multiple header should be case sensitive. But different protocol will use
@@ -31,9 +30,9 @@ static B3_SAMPLED_HEADER: &str = "x-b3-sampled";
 static B3_PARENT_SPAN_ID_HEADER: &str = "x-b3-parentspanid";
 
 lazy_static::lazy_static! {
-static ref B3_SINGLE_FIELDS: [String; 1] = [B3_SINGLE_HEADER.to_string()];
-static ref B3_MULTI_FIELDS: [String; 4] = [B3_TRACE_ID_HEADER.to_string(), B3_SPAN_ID_HEADER.to_string(), B3_SAMPLED_HEADER.to_string(), B3_DEBUG_FLAG_HEADER.to_string()];
-static ref B3_SINGLE_MULTI_FIELDS: [String; 5] = [B3_SINGLE_HEADER.to_string(), B3_TRACE_ID_HEADER.to_string(), B3_SPAN_ID_HEADER.to_string(), B3_SAMPLED_HEADER.to_string(), B3_DEBUG_FLAG_HEADER.to_string()];
+    static ref B3_SINGLE_FIELDS: [String; 1] = [B3_SINGLE_HEADER.to_string()];
+    static ref B3_MULTI_FIELDS: [String; 4] = [B3_TRACE_ID_HEADER.to_string(), B3_SPAN_ID_HEADER.to_string(), B3_SAMPLED_HEADER.to_string(), B3_DEBUG_FLAG_HEADER.to_string()];
+    static ref B3_SINGLE_AND_MULTI_FIELDS: [String; 5] = [B3_SINGLE_HEADER.to_string(), B3_TRACE_ID_HEADER.to_string(), B3_SPAN_ID_HEADER.to_string(), B3_SAMPLED_HEADER.to_string(), B3_DEBUG_FLAG_HEADER.to_string()];
 }
 
 /// B3Encoding is a bitmask to represent B3 encoding type
@@ -287,18 +286,18 @@ impl api::HttpTextFormat for B3Propagator {
         cx.with_remote_span_context(span_context)
     }
 
-    fn get_field_iter(&self) -> FieldIter {
+    fn fields(&self) -> FieldIter {
         let field_slice = if self
             .inject_encoding
             .support(&B3Encoding::SingleAndMultiHeader)
         {
-            B3_SINGLE_MULTI_FIELDS.deref().as_ref()
+            B3_SINGLE_AND_MULTI_FIELDS.as_ref()
         } else if self.inject_encoding.support(&B3Encoding::MultipleHeader) {
-            B3_MULTI_FIELDS.deref().as_ref()
+            B3_MULTI_FIELDS.as_ref()
         } else if self.inject_encoding.support(&B3Encoding::SingleHeader) {
-            B3_SINGLE_FIELDS.deref().as_ref()
+            B3_SINGLE_FIELDS.as_ref()
         } else {
-            B3_MULTI_FIELDS.deref().as_ref()
+            B3_MULTI_FIELDS.as_ref()
         };
 
         FieldIter::new(field_slice)
@@ -669,15 +668,11 @@ mod tests {
             B3Propagator::with_encoding(B3Encoding::SingleAndMultiHeader);
 
         assert_eq!(
-            single_header_propagator
-                .get_field_iter()
-                .collect::<Vec<&str>>(),
+            single_header_propagator.fields().collect::<Vec<&str>>(),
             vec![B3_SINGLE_HEADER]
         );
         assert_eq!(
-            multi_header_propagator
-                .get_field_iter()
-                .collect::<Vec<&str>>(),
+            multi_header_propagator.fields().collect::<Vec<&str>>(),
             vec![
                 B3_TRACE_ID_HEADER,
                 B3_SPAN_ID_HEADER,
@@ -687,7 +682,7 @@ mod tests {
         );
         assert_eq!(
             single_multi_header_propagator
-                .get_field_iter()
+                .fields()
                 .collect::<Vec<&str>>(),
             vec![
                 B3_SINGLE_HEADER,

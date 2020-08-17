@@ -3,7 +3,6 @@ use crate::api::context::propagation::text_propagator::FieldIter;
 use crate::api::{self, Context, KeyValue};
 use percent_encoding::{percent_decode_str, utf8_percent_encode, AsciiSet, CONTROLS};
 use std::iter;
-use std::ops::Deref;
 
 static CORRELATION_CONTEXT_HEADER: &str = "otcorrelations";
 const FRAGMENT: &AsciiSet = &CONTROLS.add(b' ').add(b'"').add(b';').add(b',').add(b'=');
@@ -88,8 +87,8 @@ impl api::HttpTextFormat for CorrelationContextPropagator {
         }
     }
 
-    fn get_field_iter(&self) -> FieldIter {
-        FieldIter::new(CORRELATION_CONTEXT_FIELDS.deref().as_ref())
+    fn fields(&self) -> FieldIter {
+        FieldIter::new(CORRELATION_CONTEXT_FIELDS.as_ref())
     }
 }
 
