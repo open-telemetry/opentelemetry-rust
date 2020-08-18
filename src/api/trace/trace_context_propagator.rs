@@ -18,11 +18,16 @@
 //!
 //! [w3c trace-context docs]: https://w3c.github.io/trace-context/
 
+use crate::api::context::propagation::text_propagator::FieldIter;
 use crate::{api, api::TraceContextExt};
 
 static SUPPORTED_VERSION: u8 = 0;
 static MAX_VERSION: u8 = 254;
 static TRACEPARENT_HEADER: &str = "traceparent";
+
+lazy_static::lazy_static! {
+    static ref TRANSPARENT_HEADER_FIELD: [String; 1] = [TRACEPARENT_HEADER.to_string()];
+}
 
 /// Extracts and injects `SpanContext`s into `Extractor`s and `Injector`s using the
 /// trace-context format.
@@ -112,6 +117,10 @@ impl api::HttpTextFormat for TraceContextPropagator {
             .map(|sc| cx.with_remote_span_context(sc))
             .unwrap_or_else(|_| cx.clone())
     }
+
+    fn fields(&self) -> FieldIter {
+        FieldIter::new(TRANSPARENT_HEADER_FIELD.as_ref())
+    }
 }
 
 #[cfg(test)]
@@ -133,6 +142,7 @@ mod tests {
             ("01-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-09-", api::SpanContext::new(api::TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), api::SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 1, true)),
         ]
     }
+
     #[rustfmt::skip]
     fn inject_data() -> Vec<(&'static str, api::SpanContext)> {
         vec![
@@ -159,6 +169,7 @@ mod tests {
 
     #[derive(Debug)]
     struct TestSpan(api::SpanContext);
+
     impl api::Span for TestSpan {
         fn add_event_with_timestamp(
             &self,

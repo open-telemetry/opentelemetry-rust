@@ -26,8 +26,8 @@ pub mod trace;
 pub use self::core::{Key, KeyValue, Unit, Value};
 #[cfg(feature = "trace")]
 pub use context::propagation::{
-    composite_propagator::HttpTextCompositePropagator, text_propagator::HttpTextFormat, Extractor,
-    Injector,
+    composite_propagator::HttpTextCompositePropagator, text_propagator::FieldIter,
+    text_propagator::HttpTextFormat, Extractor, Injector,
 };
 pub use context::Context;
 #[cfg(feature = "trace")]

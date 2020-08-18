@@ -2,7 +2,8 @@
 //!
 //! The composite propagator allows multiple propagators to be used stacked
 //! together to inject or extract from multiple implementations.
-use crate::api::{self, HttpTextFormat};
+use crate::api::{self, FieldIter, HttpTextFormat};
+use std::collections::HashSet;
 use std::fmt::Debug;
 
 /// A propagator that chains multiple [`HttpTextFormat`] propagators together,
@@ -47,6 +48,7 @@ use std::fmt::Debug;
 #[derive(Debug)]
 pub struct HttpTextCompositePropagator {
     propagators: Vec<Box<dyn HttpTextFormat + Send + Sync>>,
+    fields: Vec<String>,
 }
 
 impl HttpTextCompositePropagator {
@@ -54,7 +56,17 @@ impl HttpTextCompositePropagator {
     ///
     /// [`HttpTextFormat`]: ../../trait.HttpTextFormat.html
     pub fn new(propagators: Vec<Box<dyn HttpTextFormat + Send + Sync>>) -> Self {
-        HttpTextCompositePropagator { propagators }
+        let mut fields = HashSet::new();
+        for propagator in &propagators {
+            for field in propagator.fields() {
+                fields.insert(field.to_string());
+            }
+        }
+
+        HttpTextCompositePropagator {
+            propagators,
+            fields: fields.into_iter().collect(),
+        }
     }
 }
 
@@ -80,6 +92,10 @@ impl HttpTextFormat for HttpTextCompositePropagator {
                 propagator.extract_with_context(&current_cx, extractor)
             })
     }
+
+    fn fields(&self) -> FieldIter {
+        FieldIter::new(self.fields.as_slice())
+    }
 }
 
 #[cfg(test)]
@@ -102,6 +118,7 @@ mod tests {
 
     #[derive(Debug)]
     struct TestSpan(api::SpanContext);
+
     impl api::Span for TestSpan {
         fn add_event_with_timestamp(
             &self,
@@ -126,9 +143,8 @@ mod tests {
     fn inject_multiple_propagators() {
         let b3 = B3Propagator::with_encoding(B3Encoding::SingleHeader);
         let trace_context = TraceContextPropagator::new();
-        let composite_propagator = HttpTextCompositePropagator {
-            propagators: vec![Box::new(b3), Box::new(trace_context)],
-        };
+        let composite_propagator =
+            HttpTextCompositePropagator::new(vec![Box::new(b3), Box::new(trace_context)]);
 
         let cx = Context::default().with_span(TestSpan(SpanContext::new(
             TraceId::from_u128(1),
@@ -148,9 +164,8 @@ mod tests {
     fn extract_multiple_propagators() {
         let b3 = B3Propagator::with_encoding(B3Encoding::SingleHeader);
         let trace_context = TraceContextPropagator::new();
-        let composite_propagator = HttpTextCompositePropagator {
-            propagators: vec![Box::new(b3), Box::new(trace_context)],
-        };
+        let composite_propagator =
+            HttpTextCompositePropagator::new(vec![Box::new(b3), Box::new(trace_context)]);
 
         for (header_name, header_value) in test_data() {
             let mut extractor = HashMap::new();
@@ -167,5 +182,35 @@ mod tests {
                 ))
             );
         }
+    }
+
+    #[test]
+    fn test_get_fields() {
+        let b3 = B3Propagator::with_encoding(B3Encoding::SingleHeader);
+        let b3_fields = b3.fields().map(|s| s.to_string()).collect::<Vec<String>>();
+
+        let trace_context = TraceContextPropagator::new();
+        let trace_context_fields = trace_context
+            .fields()
+            .map(|s| s.to_string())
+            .collect::<Vec<String>>();
+
+        let composite_propagator =
+            HttpTextCompositePropagator::new(vec![Box::new(b3), Box::new(trace_context)]);
+
+        let mut fields = composite_propagator
+            .fields()
+            .map(|s| s.to_string())
+            .collect::<Vec<String>>();
+        fields.sort();
+
+        let mut expected = vec![b3_fields, trace_context_fields]
+            .into_iter()
+            .flatten()
+            .collect::<Vec<String>>();
+        expected.sort();
+        expected.dedup();
+
+        assert_eq!(fields, expected);
     }
 }
