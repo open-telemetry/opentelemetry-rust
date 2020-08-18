@@ -217,10 +217,6 @@ pub const HTTP_STATUS_TEXT: Key = Key::from_static_str("http.status_text");
 /// Kind of HTTP protocol used: `"1.0"`, `"1.1"`, `"2"`, `"SPDY"` or `"QUIC"`.
 pub const HTTP_FLAVOR: Key = Key::from_static_str("http.flavor");
 
-/// The matched route (path template). (TODO: Define whether to prepend
-/// application root) E.g. `"/users/:userID?"`.
-pub const HTTP_ROUTE: Key = Key::from_static_str("http.route");
-
 /// Value of the HTTP [User-Agent] header sent by the client.
 ///
 /// [User-Agent]: https://tools.ietf.org/html/rfc7231#section-5.5.3
