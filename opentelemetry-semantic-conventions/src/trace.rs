@@ -134,6 +134,24 @@ pub const DB_REDIS_DATABASE_INDEX: Key = Key::from_static_str("db.redis.database
 /// The collection being accessed within the database stated in `db.name`.
 pub const DB_MONGODB_COLLECTION: Key = Key::from_static_str("db.mongodb.collection");
 
+/// The type of the exception (its fully-qualified class name, if applicable).
+/// The dynamic type of the exception should be preferred over the static type
+/// in languages that support it. E.g. "java.net.ConnectException", "OSError"
+pub const EXCEPTION_TYPE: Key = Key::from_static_str("exception.type");
+
+/// The exception message. E.g. `"Division by zero"`, `"Can't convert 'int'
+/// object to str implicitly"`
+pub const EXCEPTION_MESSAGE: Key = Key::from_static_str("exception.message");
+
+/// A stacktrace as a string in the natural representation for the language
+/// runtime. The representation is to be determined and documented by each
+/// language SIG. E.g. `"Exception in thread \"main\" java.lang.RuntimeException:
+/// Test exception\n at
+/// com.example.GenerateTrace.methodB(GenerateTrace.java:13)\n at
+/// com.example.GenerateTrace.methodA(GenerateTrace.java:9)\n at
+/// com.example.GenerateTrace.main(GenerateTrace.java:5)"`.
+pub const EXCEPTION_STACKTRACE: Key = Key::from_static_str("exception.stacktrace");
+
 /// Type of the trigger on which the function is executed.
 /// It SHOULD be one of the following strings: "datasource", "http", "pubsub",
 /// "timer", or "other".
