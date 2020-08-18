@@ -48,6 +48,7 @@ members = [
     "opentelemetry-jaeger",
     "opentelemetry-otlp",
     "opentelemetry-prometheus",
+    "opentelemetry-semantic-conventions",
     "opentelemetry-zipkin",
     "examples/actix-udp",
     "examples/actix-http",
