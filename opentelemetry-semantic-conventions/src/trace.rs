@@ -147,7 +147,7 @@ pub const EXCEPTION_MESSAGE: Key = Key::from_static_str("exception.message");
 /// runtime. The representation is to be determined and documented by each
 /// language SIG. E.g.:
 ///
-/// ```
+/// ```text
 /// stack backtrace:
 ///    0: <std::sys_common::backtrace::_print::DisplayBacktrace as core::fmt::Display>::fmt
 ///    1: core::fmt::write
