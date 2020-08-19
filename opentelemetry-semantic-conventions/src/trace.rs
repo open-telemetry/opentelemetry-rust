@@ -145,14 +145,27 @@ pub const EXCEPTION_MESSAGE: Key = Key::from_static_str("exception.message");
 
 /// A stacktrace as a string in the natural representation for the language
 /// runtime. The representation is to be determined and documented by each
-/// language SIG. E.g. `"Exception in thread \"main\" java.lang.RuntimeException:
-/// Test exception\n at
-/// com.example.GenerateTrace.methodB(GenerateTrace.java:13)\n at
-/// com.example.GenerateTrace.methodA(GenerateTrace.java:9)\n at
-/// com.example.GenerateTrace.main(GenerateTrace.java:5)"`.
+/// language SIG. E.g.:
+///
+/// ```
+/// stack backtrace:
+///    0: <std::sys_common::backtrace::_print::DisplayBacktrace as core::fmt::Display>::fmt
+///    1: core::fmt::write
+///    2: std::io::Write::write_fmt
+///    3: std::panicking::default_hook::{{closure}}
+///    4: std::panicking::default_hook
+///    5: std::panicking::rust_panic_with_hook
+///    6: std::panicking::begin_panic
+///    7: test::main
+///    8: std::rt::lang_start::{{closure}}
+///    9: std::rt::lang_start_internal
+///   10: std::rt::lang_start
+///   11: main
+/// ```
 pub const EXCEPTION_STACKTRACE: Key = Key::from_static_str("exception.stacktrace");
 
 /// Type of the trigger on which the function is executed.
+///
 /// It SHOULD be one of the following strings: "datasource", "http", "pubsub",
 /// "timer", or "other".
 pub const FAAS_TRIGGER: Key = Key::from_static_str("faas.trigger");
@@ -165,13 +178,14 @@ pub const FAAS_EXECUTION: Key = Key::from_static_str("faas.execution");
 /// time (aka cold start).
 pub const FAAS_COLDSTART: Key = Key::from_static_str("faas.coldstart");
 
-/// The name of the source on which the operation was perfomed. For example, in
+/// The name of the source on which the operation was performed. For example, in
 /// Cloud Storage or S3 corresponds to the bucket name, and in Cosmos DB to the
 /// database name.
 pub const FAAS_DOCUMENT_COLLECTION: Key = Key::from_static_str("faas.document.collection");
 
-/// Describes the type of the operation that was performed on the data.<br /> It
-/// SHOULD be one of the following strings: "insert", "edit", "delete".
+/// Describes the type of the operation that was performed on the data.
+///
+/// It SHOULD be one of the following strings: "insert", "edit", "delete".
 pub const FAAS_DOCUMENT_OPERATION: Key = Key::from_static_str("faas.document.operation");
 
 /// A string containing the time when the data was accessed in the [ISO 8601]
@@ -182,6 +196,7 @@ pub const FAAS_DOCUMENT_OPERATION: Key = Key::from_static_str("faas.document.ope
 pub const FAAS_DOCUMENT_TIME: Key = Key::from_static_str("faas.document.time");
 
 /// The document name/table subjected to the operation.
+///
 /// For example, in Cloud Storage or S3 is the name of the file, and in Cosmos
 /// DB the table name.
 pub const FAAS_DOCUMENT_NAME: Key = Key::from_static_str("faas.document.name");

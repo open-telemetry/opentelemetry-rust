@@ -28,33 +28,42 @@
 use opentelemetry::api::Key;
 
 /// Logical name of the service.
+///
 /// MUST be the same for all instances of horizontally scaled services.
 pub const SERVICE_NAME: Key = Key::from_static_str("service.name");
 
 /// A namespace for `service.name`.
+///
 /// A string value having a meaning that helps to distinguish a group of
 /// services, for example the team name that owns a group of services.
 /// `service.name` is expected to be unique within the same namespace. The field
-/// is optional. If `service.namespace` is not specified in the Resource then
-/// `service.name` is expected to be unique for all services that have no
-/// explicit namespace defined (so the empty/unspecified namespace is simply one
-/// more valid namespace). Zero-length namespace string is assumed equal to
-/// unspecified namespace.
+/// is optional.
+///
+/// If `service.namespace` is not specified in the Resource then `service.name`
+/// is expected to be unique for all services that have no explicit namespace
+/// defined (so the empty/unspecified namespace is simply one more valid
+/// namespace). Zero-length namespace string is assumed equal to unspecified
+/// namespace.
 pub const SERVICE_NAMESPACE: Key = Key::from_static_str("service.namespace");
 
 /// The string ID of the service instance.
+///
 /// MUST be unique for each instance of the same
 /// `service.namespace,service.name` pair (in other words
-/// `service.namespace,service.name,service.id` triplet MUST be globally
-/// unique). The ID helps to distinguish instances of the same service that
-/// exist at the same time (e.g. instances of a horizontally scaled service). It
-/// is preferable for the ID to be persistent and stay the same for the lifetime
-/// of the service instance, however it is acceptable that the ID is ephemeral
-/// and changes during important lifetime events for the service (e.g. service
-/// restarts). If the service has no inherent unique ID that can be used as the
-/// value of this attribute it is recommended to generate a random Version 1 or
-/// Version 4 RFC 4122 UUID (services aiming for reproducible UUIDs may also use
-/// Version 5, see RFC 4122 for more recommendations).
+/// `service.namespace,service.name,service.instance.id` triplet MUST be
+/// globally unique).
+///
+/// The ID helps to distinguish instances of the same service that exist at the
+/// same time (e.g. instances of a horizontally scaled service). It is
+/// preferable for the ID to be persistent and stay the same for the lifetime of
+/// the service instance, however it is acceptable that the ID is ephemeral and
+/// changes during important lifetime events for the service (e.g. service
+/// restarts).
+///
+/// If the service has no inherent unique ID that can be used as the value of
+/// this attribute it is recommended to generate a random Version 1 or Version 4
+/// RFC 4122 UUID (services aiming for reproducible UUIDs may also use Version
+/// 5, see RFC 4122 for more recommendations).
 pub const SERVICE_INSTANCE_ID: Key = Key::from_static_str("service.instance.id");
 
 /// The version string of the service API or implementation as defined in
@@ -83,6 +92,7 @@ pub const TELEMETRY_SDK_VERSION: Key = Key::from_static_str("telemetry.sdk.versi
 pub const TELEMETRY_AUTO_VERSION: Key = Key::from_static_str("telemetry.auto.version");
 
 /// Name of the cloud provider.
+///
 /// Example values are aws, azure, gcp.
 pub const CLOUD_PROVIDER: Key = Key::from_static_str("cloud.provider");
 
@@ -115,6 +125,7 @@ pub const CONTAINER_IMAGE_TAG: Key = Key::from_static_str("container.image.tag")
 pub const FAAS_NAME: Key = Key::from_static_str("faas.name");
 
 /// The unique name of the function being executed.
+///
 /// For example, in AWS Lambda this field corresponds to the [ARN] value, in GCP
 /// to the URI of the resource, and in Azure to the [FunctionDirectory] field.
 ///
@@ -132,14 +143,17 @@ pub const FAAS_VERSION: Key = Key::from_static_str("faas.version");
 pub const FAAS_INSTANCE: Key = Key::from_static_str("faas.instance");
 
 /// Hostname of the host.
+///
 /// It contains what the `hostname` command returns on the host machine.
 pub const HOST_HOSTNAME: Key = Key::from_static_str("host.hostname");
 
 /// Unique host id.
+///
 /// For Cloud this must be the instance_id assigned by the cloud provider
 pub const HOST_ID: Key = Key::from_static_str("host.id");
 
 /// Name of the host.
+///
 /// It may contain what `hostname` returns on Unix systems, the fully qualified,
 /// or a name specified by the user.
 pub const HOST_NAME: Key = Key::from_static_str("host.name");
