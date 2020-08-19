@@ -14,6 +14,11 @@ impl Key {
         Key(value.into())
     }
 
+    /// Create a new const `Key`.
+    pub const fn from_static_str(value: &'static str) -> Self {
+        Key(Cow::Borrowed(value))
+    }
+
     /// Create a `KeyValue` pair for `bool` values.
     pub fn bool<T: Into<bool>>(&self, value: T) -> KeyValue {
         KeyValue {
