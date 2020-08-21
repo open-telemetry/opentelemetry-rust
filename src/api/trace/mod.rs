@@ -111,6 +111,7 @@
 //! field](https://www.w3.org/TR/trace-context/#tracestate-field).
 //!
 pub mod b3_propagator;
+pub mod jaeger_propagator;
 pub mod context;
 pub mod event;
 pub mod futures;
