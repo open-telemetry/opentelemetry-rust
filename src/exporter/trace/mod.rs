@@ -53,7 +53,7 @@ pub trait SpanExporter: Send + Sync + std::fmt::Debug {
     /// Shutdown should not block indefinitely (e.g. if it attempts to flush the
     /// data and the destination is unavailable). SDK authors can
     /// decide if they want to make the shutdown timeout to be configurable.
-    fn shutdown(&self);
+    fn shutdown(&self) {}
 }
 
 /// `SpanData` contains all the information collected by a `Span` and can be used

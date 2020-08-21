@@ -4,28 +4,13 @@ use actix_web::{web, App, HttpServer};
 use opentelemetry::api::trace::futures::FutureExt;
 use opentelemetry::api::{Key, TraceContextExt, Tracer};
 use opentelemetry::{global, sdk};
+use std::error::Error;
 
-fn init_tracer() -> thrift::Result<()> {
-    let exporter = opentelemetry_jaeger::Exporter::builder()
-        .with_agent_endpoint("127.0.0.1:6831".parse().unwrap())
-        .with_process(opentelemetry_jaeger::Process {
-            service_name: "trace-demo".to_string(),
-            tags: vec![
-                Key::new("exporter").string("jaeger"),
-                Key::new("float").f64(312.23),
-            ],
-        })
-        .init()?;
-    let provider = sdk::Provider::builder()
-        .with_simple_exporter(exporter)
-        .with_config(sdk::Config {
-            default_sampler: Box::new(sdk::Sampler::AlwaysOn),
-            ..Default::default()
-        })
-        .build();
-    global::set_provider(provider);
-
-    Ok(())
+fn init_tracer() -> Result<sdk::Tracer, Box<dyn Error>> {
+    opentelemetry_jaeger::new_pipeline()
+        .with_agent_endpoint("localhost:6831")
+        .with_service_name("trace-http-demo")
+        .install()
 }
 
 async fn index() -> &'static str {
