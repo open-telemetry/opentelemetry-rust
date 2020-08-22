@@ -39,6 +39,7 @@ pub type Result<T> = result::Result<T, MetricsError>;
 
 /// Errors returned by the metrics API.
 #[derive(Error, Debug, PartialEq)]
+#[non_exhaustive]
 pub enum MetricsError {
     /// Other errors not covered by specific cases.
     #[error("Metrics error: {0}")]
