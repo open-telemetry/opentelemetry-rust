@@ -9,7 +9,7 @@ use std::error::Error;
 fn init_tracer() -> Result<sdk::Tracer, Box<dyn Error>> {
     opentelemetry_jaeger::new_pipeline()
         .with_agent_endpoint("localhost:6831")
-        .with_service_name("trace-http-demo")
+        .with_service_name("trace-udp-demo")
         .install()
 }
 
