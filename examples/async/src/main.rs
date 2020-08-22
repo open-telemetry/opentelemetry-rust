@@ -67,7 +67,7 @@ fn init_tracer() -> thrift::Result<()> {
         .build();
 
     // For the demonstration, use `Sampler::AlwaysOn` sampler to sample all traces. In a production
-    // application, use `Sampler::ParentOrElse` or `Sampler::Probability` with a desired probability.
+    // application, use `Sampler::ParentBased` or `Sampler::Probability` with a desired probability.
     let provider = sdk::Provider::builder()
         .with_batch_exporter(batch)
         .with_config(sdk::Config {
