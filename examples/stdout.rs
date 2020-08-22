@@ -9,7 +9,7 @@ fn main() {
     let exporter = stdout::Builder::default().init();
 
     // For the demonstration, use `Sampler::AlwaysOn` sampler to sample all traces. In a production
-    // application, use `Sampler::ParentOrElse` or `Sampler::Probability` with a desired probability.
+    // application, use `Sampler::ParentOrElse` or `Sampler::TraceIdRatioBased` with a desired ratio.
     let provider = sdk::Provider::builder()
         .with_simple_exporter(exporter)
         .with_config(sdk::Config {
