@@ -4,6 +4,23 @@
 //! `agent` or `collector` endpoint. See the [Jaeger Docs] for details
 //! and deployment information.
 //!
+//! [Jaeger Docs]: https://www.jaegertracing.io/docs/
+//!
+//! ## Performance
+//!
+//! For optimal performance, a batch exporter is recommended as the simple
+//! exporter will export each span synchronously on drop. You can enable the
+//! [`tokio`] or [`async-std`] features to have a batch exporter configured for
+//! you automatically for either executor when you install the pipeline.
+//!
+//! ```toml
+//! [dependencies]
+//! opentelemetry-jaeger = { version = "..", features = ["tokio"] }
+//! ```
+//!
+//! [`tokio`]: https://tokio.rs
+//! [`async-std`]: https://async.rs
+//!
 //! ### Jaeger Exporter Example
 //!
 //! This example expects a Jaeger agent running on `localhost:6831`.
@@ -29,6 +46,32 @@
 //! }
 //! ```
 //!
+//! ### Jaeger Exporter From Environment Variables
+//!
+//! The jaeger pipeline builder can be configured dynamically via the
+//! [`from_env`] method. All variables are optinal, a full list of accepted
+//! methods can be found in the [jaeger variables spec].
+//!
+//! [`from_env`]: struct.PipelineBuilder.html#method.from_env
+//! [jaeger variables spec]: https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/sdk-environment-variables.md#jaeger-exporter
+//!
+//! ```rust,no_run
+//! use opentelemetry::{api::KeyValue, global, sdk};
+//!
+//! fn init_tracer() -> Result<sdk::Tracer, Box<dyn std::error::Error>> {
+//!     // `OTEL_SERVICE_NAME=my-service-name`
+//!     opentelemetry_jaeger::new_pipeline()
+//!         .from_env()
+//!         .install()
+//! }
+//!
+//! fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     let tracer = init_tracer()?;
+//!     // Use configured tracer
+//!     Ok(())
+//! }
+//! ```
+//!
 //! ### Jaeger Collector Example
 //!
 //! If you want to skip the agent and submit spans directly to a Jaeger collector,
@@ -37,10 +80,12 @@
 //!
 //! ```toml
 //! [dependencies]
-//! opentelemetry-jaeger = { version = "0.1", features = ["collector_client"] }
+//! opentelemetry-jaeger = { version = "..", features = ["collector_client"] }
 //! ```
 //!
 //! Then you can use the [`with_collector_endpoint`] method to specify the endpoint:
+//!
+//! [`with_collector_endpoint`]: struct.PipelineBuilder.html#method.with_collector_endpoint
 //!
 //! ```rust,ignore
 //! // Note that this requires the `collector_client` feature.
@@ -64,9 +109,6 @@
 //!     Ok(())
 //! }
 //! ```
-//!
-//! [Jaeger Docs]: https://www.jaegertracing.io/docs/
-//! [`with_collector_endpoint`]: struct.Builder.html#with_collector_endpoint
 #![deny(missing_docs, unreachable_pub, missing_debug_implementations)]
 #![cfg_attr(test, deny(warnings))]
 mod agent;
