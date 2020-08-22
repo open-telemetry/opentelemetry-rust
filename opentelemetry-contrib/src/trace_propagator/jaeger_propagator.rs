@@ -6,7 +6,7 @@
 //!
 //! [`Jaeger documentation`]: https://www.jaegertracing.io/docs/1.18/client-libraries/#propagation-format
 
-use crate::api::{
+use opentelemetry::api::{
     Context, Extractor, FieldIter, HttpTextFormat, Injector, SpanContext, SpanId, TraceContextExt,
     TraceId, TRACE_FLAG_DEBUG, TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
 };
@@ -39,6 +39,7 @@ impl Default for JaegerPropagator {
 
 impl JaegerPropagator {
     /// Create a Jaeger propagator
+    #[allow(unused)]
     pub fn new() -> Self {
         JaegerPropagator::default()
     }
@@ -151,9 +152,9 @@ impl HttpTextFormat for JaegerPropagator {
 
 #[cfg(test)]
 mod tests {
-    use crate::api;
-    use crate::api::trace::jaeger_propagator::{JaegerPropagator, JAEGER_HEADER};
-    use crate::api::{
+    use crate::trace_propagator::jaeger_propagator::{JaegerPropagator, JAEGER_HEADER};
+    use opentelemetry::api;
+    use opentelemetry::api::{
         Context, HttpTextFormat, Injector, Span, SpanContext, SpanId, TraceContextExt, TraceId,
         TRACE_FLAG_DEBUG, TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
     };

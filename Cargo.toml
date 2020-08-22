@@ -45,6 +45,7 @@ binary_propagator = []
 
 [workspace]
 members = [
+    "opentelemetry-contrib",
     "opentelemetry-jaeger",
     "opentelemetry-otlp",
     "opentelemetry-prometheus",

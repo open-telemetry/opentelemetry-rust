@@ -13,10 +13,10 @@
 //!
 //! If `inject_encoding` is set to `B3Encoding::SingleHeader` then `b3` header is used to inject
 //! and extract. Otherwise, separate headers are used to inject and extract.
-use crate::api::context::propagation::text_propagator::FieldIter;
-use crate::api::trace::b3_propagator::B3Encoding::MultipleHeader;
-use crate::api::TRACE_FLAG_DEFERRED;
-use crate::{api, api::TraceContextExt};
+use opentelemetry::{
+    api,
+    api::{context::propagation::text_propagator::FieldIter, TraceContextExt, TRACE_FLAG_DEFERRED},
+};
 
 static B3_SINGLE_HEADER: &str = "b3";
 /// As per spec, the multiple header should be case sensitive. But different protocol will use
@@ -68,18 +68,20 @@ pub struct B3Propagator {
 impl Default for B3Propagator {
     fn default() -> Self {
         B3Propagator {
-            inject_encoding: MultipleHeader,
+            inject_encoding: B3Encoding::MultipleHeader,
         }
     }
 }
 
 impl B3Propagator {
     /// Create a new `HttpB3Propagator` that uses multiple headers.
+    #[allow(unused)]
     pub fn new() -> Self {
         B3Propagator::default()
     }
 
     /// Create a new `HttpB3Propagator` that uses `encoding` as encoding method
+    #[allow(unused)]
     pub fn with_encoding(encoding: B3Encoding) -> Self {
         B3Propagator {
             inject_encoding: encoding,
@@ -307,8 +309,10 @@ impl api::HttpTextFormat for B3Propagator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::api::trace::span_context::{SpanId, TraceId, TRACE_FLAG_NOT_SAMPLED};
-    use crate::api::{HttpTextFormat, TRACE_FLAG_DEBUG, TRACE_FLAG_DEFERRED, TRACE_FLAG_SAMPLED};
+    use opentelemetry::api::trace::span_context::{SpanId, TraceId, TRACE_FLAG_NOT_SAMPLED};
+    use opentelemetry::api::{
+        HttpTextFormat, TRACE_FLAG_DEBUG, TRACE_FLAG_DEFERRED, TRACE_FLAG_SAMPLED,
+    };
     use std::collections::HashMap;
 
     const TRACE_ID_STR: &str = "4bf92f3577b34da6a3ce929d0e0e4736";
