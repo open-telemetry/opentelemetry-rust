@@ -26,7 +26,7 @@ impl Default for Config {
     /// Create default global sdk configuration.
     fn default() -> Self {
         Config {
-            default_sampler: Box::new(sdk::Sampler::ParentOrElse(Box::new(sdk::Sampler::AlwaysOn))),
+            default_sampler: Box::new(sdk::Sampler::ParentBased(Box::new(sdk::Sampler::AlwaysOn))),
             id_generator: Box::new(sdk::IdGenerator::default()),
             max_events_per_span: 128,
             max_attributes_per_span: 32,
