@@ -21,7 +21,6 @@ use opentelemetry::{
     api::{trace::futures::FutureExt, Context, TraceContextExt, Tracer},
     global, sdk,
 };
-use std::time::Duration;
 use std::{error::Error, io, net::SocketAddr};
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
@@ -51,41 +50,17 @@ async fn run(addr: &SocketAddr) -> io::Result<usize> {
     write(&mut stream).with_context(cx).await
 }
 
-fn init_tracer() -> thrift::Result<()> {
-    let exporter = opentelemetry_jaeger::Exporter::builder()
-        .with_agent_endpoint("127.0.0.1:6831".parse().unwrap())
-        .with_process(opentelemetry_jaeger::Process {
-            service_name: "trace-demo".to_string(),
-            tags: vec![],
-        })
-        .init()?;
-
-    // Configure your async library of choice. E.g. `async_std::spawn` or similar function can be
-    // used here in place of `tokio::spawn`, etc.
-    let batch = sdk::BatchSpanProcessor::builder(exporter, tokio::spawn, tokio::time::interval)
-        .with_scheduled_delay(Duration::from_millis(100))
-        .build();
-
-    // For the demonstration, use `Sampler::AlwaysOn` sampler to sample all traces. In a production
-    // application, use `Sampler::ParentBased` or `Sampler::TraceIdRatioBased` with a desired ratio.
-    let provider = sdk::Provider::builder()
-        .with_batch_exporter(batch)
-        .with_config(sdk::Config {
-            default_sampler: Box::new(sdk::Sampler::AlwaysOn),
-            ..Default::default()
-        })
-        .build();
-    global::set_provider(provider);
-
-    Ok(())
+fn init_tracer() -> Result<sdk::Tracer, Box<dyn Error>> {
+    opentelemetry_jaeger::new_pipeline()
+        .with_service_name("trace-demo")
+        .install()
 }
 
 #[tokio::main]
 pub async fn main() -> Result<(), Box<dyn Error>> {
-    init_tracer()?;
+    let tracer = init_tracer()?;
     let addr = "127.0.0.1:6142".parse()?;
     let addr2 = "127.0.0.1:6143".parse()?;
-    let tracer = global::tracer("async_example");
     let span = tracer.start("root");
     let cx = Context::current_with_span(span);
 
@@ -94,9 +69,6 @@ pub async fn main() -> Result<(), Box<dyn Error>> {
         .await;
     run1?;
     run2?;
-
-    tokio::time::delay_for(Duration::from_millis(250)).await;
-    // or async_std::task::sleep(Duration::from_millis(250)).await;
 
     Ok(())
 }

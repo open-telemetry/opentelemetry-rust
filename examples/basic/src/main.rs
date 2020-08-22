@@ -4,32 +4,17 @@ use opentelemetry::api::{Context, CorrelationContextExt, Key, KeyValue, TraceCon
 use opentelemetry::exporter;
 use opentelemetry::sdk::metrics::PushController;
 use opentelemetry::{global, sdk};
+use std::error::Error;
 use std::time::Duration;
 
-fn init_tracer() -> thrift::Result<()> {
-    let exporter = opentelemetry_jaeger::Exporter::builder()
-        .with_agent_endpoint("127.0.0.1:6831".parse().unwrap())
-        .with_process(opentelemetry_jaeger::Process {
-            service_name: "trace-demo".to_string(),
-            tags: vec![
-                Key::new("exporter").string("jaeger"),
-                Key::new("float").f64(312.23),
-            ],
-        })
-        .init()?;
-
-    // For the demonstration, use `Sampler::AlwaysOn` sampler to sample all traces. In a production
-    // application, use `Sampler::ParentBased` or `Sampler::TraceIdRatioBased` with a desired ratio.
-    let provider = sdk::Provider::builder()
-        .with_simple_exporter(exporter)
-        .with_config(sdk::Config {
-            default_sampler: Box::new(sdk::Sampler::AlwaysOn),
-            ..Default::default()
-        })
-        .build();
-    global::set_provider(provider);
-
-    Ok(())
+fn init_tracer() -> Result<sdk::Tracer, Box<dyn Error>> {
+    opentelemetry_jaeger::new_pipeline()
+        .with_service_name("trace-demo")
+        .with_tags(vec![
+            KeyValue::new("exporter", "jaeger"),
+            KeyValue::new("float", 312.23),
+        ])
+        .install()
 }
 
 // Skip first immediate tick from tokio, not needed for async_std.
@@ -48,11 +33,12 @@ fn init_meter() -> metrics::Result<PushController> {
         .try_init()
 }
 
+const FOO_KEY: Key = Key::from_static_str("ex.com/foo");
+const BAR_KEY: Key = Key::from_static_str("ex.com/bar");
+const LEMONS_KEY: Key = Key::from_static_str("ex.com/lemons");
+const ANOTHER_KEY: Key = Key::from_static_str("ex.com/another");
+
 lazy_static::lazy_static! {
-    static ref FOO_KEY: Key = Key::new("ex.com/foo");
-    static ref BAR_KEY: Key = Key::new("ex.com/bar");
-    static ref LEMONS_KEY: Key = Key::new("ex.com/lemons");
-    static ref ANOTHER_KEY: Key = Key::new("ex.com/another");
     static ref COMMON_LABELS: [KeyValue; 4] = [
         LEMONS_KEY.i64(10),
         KeyValue::new("A", "1"),
@@ -62,8 +48,8 @@ lazy_static::lazy_static! {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    init_tracer()?;
+async fn main() -> Result<(), Box<dyn Error>> {
+    let _ = init_tracer()?;
     let _started = init_meter()?;
 
     let tracer = global::tracer("ex.com/basic");
