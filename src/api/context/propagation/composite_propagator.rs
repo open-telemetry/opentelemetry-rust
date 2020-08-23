@@ -2,17 +2,17 @@
 //!
 //! The composite propagator allows multiple propagators to be used stacked
 //! together to inject or extract from multiple implementations.
-use crate::api::{self, FieldIter, HttpTextFormat};
+use crate::api::{self, FieldIter, TextMapFormat};
 use std::collections::HashSet;
 use std::fmt::Debug;
 
-/// A propagator that chains multiple [`HttpTextFormat`] propagators together,
+/// A propagator that chains multiple [`TextMapFormat`] propagators together,
 /// injecting or extracting by their respective HTTP header names.
 ///
 /// Injection and extraction from this propagator will preserve the order of the
 /// injectors and extractors passed in during initialization.
 ///
-/// [`HttpTextFormat`]: ../../trait.HttpTextFormat.html
+/// [`TextMapFormat`]: ../../trait.TextMapFormat.html
 ///
 /// # Examples
 ///
@@ -27,7 +27,7 @@ use std::fmt::Debug;
 /// let trace_context_propagator = TraceContextPropagator::new();
 ///
 /// // Then create a composite propagator
-/// let composite_propagator = HttpTextCompositePropagator::new(vec![
+/// let composite_propagator = TextMapCompositePropagator::new(vec![
 ///     Box::new(b3_propagator),
 ///     Box::new(trace_context_propagator),
 /// ]);
@@ -46,16 +46,16 @@ use std::fmt::Debug;
 /// assert!(injector.get("traceparent").is_some());
 /// ```
 #[derive(Debug)]
-pub struct HttpTextCompositePropagator {
-    propagators: Vec<Box<dyn HttpTextFormat + Send + Sync>>,
+pub struct TextMapCompositePropagator {
+    propagators: Vec<Box<dyn TextMapFormat + Send + Sync>>,
     fields: Vec<String>,
 }
 
-impl HttpTextCompositePropagator {
-    /// Constructs a new propagator out of instances of [`HttpTextFormat`].
+impl TextMapCompositePropagator {
+    /// Constructs a new propagator out of instances of [`TextMapFormat`].
     ///
-    /// [`HttpTextFormat`]: ../../trait.HttpTextFormat.html
-    pub fn new(propagators: Vec<Box<dyn HttpTextFormat + Send + Sync>>) -> Self {
+    /// [`TextMapFormat`]: ../../trait.TextMapFormat.html
+    pub fn new(propagators: Vec<Box<dyn TextMapFormat + Send + Sync>>) -> Self {
         let mut fields = HashSet::new();
         for propagator in &propagators {
             for field in propagator.fields() {
@@ -63,14 +63,14 @@ impl HttpTextCompositePropagator {
             }
         }
 
-        HttpTextCompositePropagator {
+        TextMapCompositePropagator {
             propagators,
             fields: fields.into_iter().collect(),
         }
     }
 }
 
-impl HttpTextFormat for HttpTextCompositePropagator {
+impl TextMapFormat for TextMapCompositePropagator {
     /// Encodes the values of the `Context` and injects them into the `Injector`.
     fn inject_context(&self, context: &api::Context, injector: &mut dyn api::Injector) {
         for propagator in &self.propagators {
@@ -144,7 +144,7 @@ mod tests {
         let b3 = B3Propagator::with_encoding(B3Encoding::SingleHeader);
         let trace_context = TraceContextPropagator::new();
         let composite_propagator =
-            HttpTextCompositePropagator::new(vec![Box::new(b3), Box::new(trace_context)]);
+            TextMapCompositePropagator::new(vec![Box::new(b3), Box::new(trace_context)]);
 
         let cx = Context::default().with_span(TestSpan(SpanContext::new(
             TraceId::from_u128(1),
@@ -165,7 +165,7 @@ mod tests {
         let b3 = B3Propagator::with_encoding(B3Encoding::SingleHeader);
         let trace_context = TraceContextPropagator::new();
         let composite_propagator =
-            HttpTextCompositePropagator::new(vec![Box::new(b3), Box::new(trace_context)]);
+            TextMapCompositePropagator::new(vec![Box::new(b3), Box::new(trace_context)]);
 
         for (header_name, header_value) in test_data() {
             let mut extractor = HashMap::new();
@@ -196,7 +196,7 @@ mod tests {
             .collect::<Vec<String>>();
 
         let composite_propagator =
-            HttpTextCompositePropagator::new(vec![Box::new(b3), Box::new(trace_context)]);
+            TextMapCompositePropagator::new(vec![Box::new(b3), Box::new(trace_context)]);
 
         let mut fields = composite_propagator
             .fields()

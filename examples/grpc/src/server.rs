@@ -2,7 +2,7 @@ use tonic::{transport::Server, Request, Response, Status};
 
 use hello_world::greeter_server::{Greeter, GreeterServer};
 use hello_world::{HelloReply, HelloRequest};
-use opentelemetry::api::{self, HttpTextFormat, KeyValue, Span, Tracer};
+use opentelemetry::api::{self, TextMapFormat, KeyValue, Span, Tracer};
 use opentelemetry::global;
 use opentelemetry::sdk::{self, Sampler};
 

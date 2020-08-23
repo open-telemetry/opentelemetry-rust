@@ -207,7 +207,7 @@ impl B3Propagator {
     }
 }
 
-impl api::HttpTextFormat for B3Propagator {
+impl api::TextMapFormat for B3Propagator {
     /// Properly encodes the values of the `Context`'s `SpanContext` and injects
     /// them into the `Injector`.
     fn inject_context(&self, context: &api::Context, injector: &mut dyn api::Injector) {
@@ -308,7 +308,7 @@ impl api::HttpTextFormat for B3Propagator {
 mod tests {
     use super::*;
     use crate::api::trace::span_context::{SpanId, TraceId, TRACE_FLAG_NOT_SAMPLED};
-    use crate::api::{HttpTextFormat, TRACE_FLAG_DEBUG, TRACE_FLAG_DEFERRED, TRACE_FLAG_SAMPLED};
+    use crate::api::{TextMapFormat, TRACE_FLAG_DEBUG, TRACE_FLAG_DEFERRED, TRACE_FLAG_SAMPLED};
     use std::collections::HashMap;
 
     const TRACE_ID_STR: &str = "4bf92f3577b34da6a3ce929d0e0e4736";

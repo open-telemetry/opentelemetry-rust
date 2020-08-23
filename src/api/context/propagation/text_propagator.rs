@@ -1,6 +1,6 @@
 //! # Text Propagator
 //!
-//! `HttpTextFormat` is a formatter to serialize and deserialize a value into a
+//! `TextMapFormat` is a formatter to serialize and deserialize a value into a
 //! text format.
 use crate::{api, api::Context};
 use std::fmt::Debug;
@@ -8,7 +8,7 @@ use std::slice;
 
 /// Methods to inject and extract a value as text into injectors and extractors that travel
 /// in-band across process boundaries.
-pub trait HttpTextFormat: Debug {
+pub trait TextMapFormat: Debug {
     /// Properly encodes the values of the current [`Context`] and injects them into
     /// the [`Injector`].
     ///
@@ -43,15 +43,15 @@ pub trait HttpTextFormat: Debug {
     /// [`Extractor`]: ../trait.Extractor.html
     fn extract_with_context(&self, cx: &Context, extractor: &dyn api::Extractor) -> Context;
 
-    /// Returns iter of fields used by [`HttpTextFormat`]
+    /// Returns iter of fields used by [`TextMapFormat`]
     ///
-    /// [`HttpTextFormat`]: ./trait.HttpTextFormat.html
+    /// [`TextMapFormat`]: ./trait.TextMapFormat.html
     fn fields(&self) -> FieldIter;
 }
 
-/// An iterator over fields of a [`HttpTextFormat`]
+/// An iterator over fields of a [`TextMapFormat`]
 ///
-/// [`HttpTextFormat`]: ./trait.HttpTextFormat.html
+/// [`TextMapFormat`]: ./trait.TextMapFormat.html
 #[derive(Debug)]
 pub struct FieldIter<'a>(slice::Iter<'a, String>);
 

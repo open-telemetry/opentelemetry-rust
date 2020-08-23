@@ -1,7 +1,7 @@
 use hello_world::greeter_client::GreeterClient;
 use hello_world::HelloRequest;
 use opentelemetry::api::{
-    Context, HttpTextFormat, KeyValue, TraceContextExt, TraceContextPropagator, Tracer,
+    Context, TextMapFormat, KeyValue, TraceContextExt, TraceContextPropagator, Tracer,
 };
 use opentelemetry::sdk::Sampler;
 use opentelemetry::{global, sdk};

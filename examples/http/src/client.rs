@@ -1,5 +1,5 @@
 use hyper::{body::Body, Client};
-use opentelemetry::api::{Context, HttpTextFormat, TraceContextExt, Tracer};
+use opentelemetry::api::{Context, TextMapFormat, TraceContextExt, Tracer};
 use opentelemetry::{api, exporter::trace::stdout, global, sdk};
 
 fn init_tracer() {
