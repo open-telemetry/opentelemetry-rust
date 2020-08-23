@@ -146,19 +146,21 @@ impl api::HttpTextFormat for TraceContextPropagator {
         cx: &api::Context,
         extractor: &dyn api::Extractor,
     ) -> api::Context {
-        let cx = self
-            .extract_span_context(extractor)
-            .map(|sc| cx.with_remote_span_context(sc))
-            .unwrap_or_else(|_| cx.clone());
+        self.extract_span_context(extractor)
+            .map(|sc| {
+                let cx = cx.with_remote_span_context(sc);
 
-        if let Some(state) = extractor
-            .get(TRACESTATE_HEADER)
-            .filter(|val| !val.is_empty())
-        {
-            cx.with_value(TraceState(state.to_string()))
-        } else {
-            cx
-        }
+                // If successfully parsed span context, check trace state
+                if let Some(state) = extractor
+                    .get(TRACESTATE_HEADER)
+                    .filter(|val| !val.is_empty())
+                {
+                    cx.with_value(TraceState(state.to_string()))
+                } else {
+                    cx
+                }
+            })
+            .unwrap_or_else(|_| cx.clone())
     }
 
     fn fields(&self) -> FieldIter {
@@ -237,8 +239,10 @@ mod tests {
     fn extract_w3c_tracestate() {
         let propagator = TraceContextPropagator::new();
         let state = "opaque_value".to_string();
+        let parent = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-00".to_string();
 
         let mut extractor = HashMap::new();
+        extractor.insert(TRACEPARENT_HEADER.to_string(), parent);
         extractor.insert(TRACESTATE_HEADER.to_string(), state.clone());
 
         assert_eq!(
