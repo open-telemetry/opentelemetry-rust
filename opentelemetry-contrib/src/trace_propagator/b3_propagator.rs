@@ -75,7 +75,6 @@ impl Default for B3Propagator {
 
 impl B3Propagator {
     /// Create a new `HttpB3Propagator` that uses multiple headers.
-    #[allow(unused)]
     pub fn new() -> Self {
         B3Propagator::default()
     }

@@ -1,8 +1,8 @@
 //! # Jaeger Propagator
 //!
-//! Extract and inject value from Jaeger header `uber-trace-id`
+//! Extract and inject values from Jaeger's `uber-trace-id` header.
 //!
-//! See [`Jaeger documentation`] for detail of Jaeger propagation format
+//! See [`Jaeger documentation`] for detail of Jaeger propagation format.
 //!
 //! [`Jaeger documentation`]: https://www.jaegertracing.io/docs/1.18/client-libraries/#propagation-format
 
@@ -19,7 +19,7 @@ lazy_static::lazy_static! {
     static ref JAEGER_HEADER_FIELD: [String; 1] = [JAEGER_HEADER.to_string()];
 }
 
-/// Jaeger propagator propagate span context in jaeger propagation format.
+/// The Jaeger propagator propagates span contexts in jaeger's propagation format.
 ///
 /// See [`Jaeger documentation`] for format details.
 ///
@@ -39,7 +39,6 @@ impl Default for JaegerPropagator {
 
 impl JaegerPropagator {
     /// Create a Jaeger propagator
-    #[allow(unused)]
     pub fn new() -> Self {
         JaegerPropagator::default()
     }

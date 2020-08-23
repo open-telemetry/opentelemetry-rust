@@ -1,4 +1,4 @@
-//! Vendor specific context propagator
+//! External context propagators
 //!
 //!
 

@@ -1,8 +1,8 @@
 //! # OpenTelemetry Contrib
 //!
-//! This is a library for extensions that is not part of core api. But still may be found useful by
+//! This is a library for extensions that are not part of the core API, but still may be useful for
 //! some users.
 //!
-//! Typically, those include vendor specific propagators
+//! Typically, those include vendor specific propagators.
 
 pub mod trace_propagator;

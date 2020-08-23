@@ -98,3 +98,187 @@ impl HttpTextFormat for HttpTextCompositePropagator {
         FieldIter::new(self.fields.as_slice())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::api;
+    use crate::api::{
+        Context, Extractor, FieldIter, HttpTextCompositePropagator, HttpTextFormat, Injector,
+        SpanContext, SpanId, TraceContextExt, TraceContextPropagator, TraceId,
+    };
+    use std::collections::HashMap;
+    use std::str::FromStr;
+
+    /// Dummy propagator for testing
+    ///
+    /// The format we are using is {trace id(in base10 u128)}-{span id(in base10 u64)}-{flag(in u8)}
+    #[derive(Debug)]
+    struct TestPropagator {
+        fields: [String; 1],
+    }
+
+    impl TestPropagator {
+        #[allow(unreachable_pub)]
+        pub fn new() -> Self {
+            TestPropagator {
+                fields: ["testheader".to_string()],
+            }
+        }
+    }
+
+    impl HttpTextFormat for TestPropagator {
+        fn inject_context(&self, cx: &Context, injector: &mut dyn Injector) {
+            let span = cx.span().span_context();
+            injector.set(
+                "testheader",
+                format!(
+                    "{}-{}-{}",
+                    span.trace_id().to_u128(),
+                    span.span_id().to_u64(),
+                    span.trace_flags()
+                ),
+            )
+        }
+
+        fn extract_with_context(&self, cx: &Context, extractor: &dyn Extractor) -> Context {
+            let span = if let Some(val) = extractor.get("testheader") {
+                let parts = val.split_terminator('-').collect::<Vec<&str>>();
+                if parts.len() != 3 {
+                    SpanContext::empty_context()
+                } else {
+                    SpanContext::new(
+                        TraceId::from_u128(u128::from_str(parts[0]).unwrap_or(0)),
+                        SpanId::from_u64(u64::from_str(parts[1]).unwrap_or(0)),
+                        u8::from_str(parts[2]).unwrap_or(0),
+                        true,
+                    )
+                }
+            } else {
+                SpanContext::empty_context()
+            };
+
+            cx.with_remote_span_context(span)
+        }
+
+        fn fields(&self) -> FieldIter {
+            FieldIter::new(&self.fields)
+        }
+    }
+
+    fn test_data() -> Vec<(&'static str, &'static str)> {
+        vec![
+            ("testheader", "1-1-0"),
+            (
+                "traceparent",
+                "00-00000000000000000000000000000001-0000000000000001-00",
+            ),
+        ]
+    }
+
+    #[derive(Debug)]
+    struct TestSpan(api::SpanContext);
+
+    impl api::Span for TestSpan {
+        fn add_event_with_timestamp(
+            &self,
+            _name: String,
+            _timestamp: std::time::SystemTime,
+            _attributes: Vec<api::KeyValue>,
+        ) {
+        }
+        fn span_context(&self) -> api::SpanContext {
+            self.0.clone()
+        }
+        fn is_recording(&self) -> bool {
+            false
+        }
+        fn set_attribute(&self, _attribute: api::KeyValue) {}
+        fn set_status(&self, _code: api::StatusCode, _message: String) {}
+        fn update_name(&self, _new_name: String) {}
+        fn end(&self) {}
+    }
+
+    #[test]
+    fn inject_multiple_propagators() {
+        let test_propagator = TestPropagator::new();
+        let trace_context = TraceContextPropagator::new();
+        let composite_propagator = HttpTextCompositePropagator::new(vec![
+            Box::new(test_propagator),
+            Box::new(trace_context),
+        ]);
+
+        let cx = Context::default().with_span(TestSpan(SpanContext::new(
+            TraceId::from_u128(1),
+            SpanId::from_u64(1),
+            0,
+            false,
+        )));
+        let mut injector = HashMap::new();
+        composite_propagator.inject_context(&cx, &mut injector);
+
+        for (header_name, header_value) in test_data() {
+            assert_eq!(injector.get(header_name), Some(&header_value.to_string()));
+        }
+    }
+
+    #[test]
+    fn extract_multiple_propagators() {
+        let test_propagator = TestPropagator::new();
+        let trace_context = TraceContextPropagator::new();
+        let composite_propagator = HttpTextCompositePropagator::new(vec![
+            Box::new(test_propagator),
+            Box::new(trace_context),
+        ]);
+
+        for (header_name, header_value) in test_data() {
+            let mut extractor = HashMap::new();
+            extractor.insert(header_name.to_string(), header_value.to_string());
+            assert_eq!(
+                composite_propagator
+                    .extract(&extractor)
+                    .remote_span_context(),
+                Some(&SpanContext::new(
+                    TraceId::from_u128(1),
+                    SpanId::from_u64(1),
+                    0,
+                    true,
+                ))
+            );
+        }
+    }
+
+    #[test]
+    fn test_get_fields() {
+        let test_propagator = TestPropagator::new();
+        let b3_fields = test_propagator
+            .fields()
+            .map(|s| s.to_string())
+            .collect::<Vec<String>>();
+
+        let trace_context = TraceContextPropagator::new();
+        let trace_context_fields = trace_context
+            .fields()
+            .map(|s| s.to_string())
+            .collect::<Vec<String>>();
+
+        let composite_propagator = HttpTextCompositePropagator::new(vec![
+            Box::new(test_propagator),
+            Box::new(trace_context),
+        ]);
+
+        let mut fields = composite_propagator
+            .fields()
+            .map(|s| s.to_string())
+            .collect::<Vec<String>>();
+        fields.sort();
+
+        let mut expected = vec![b3_fields, trace_context_fields]
+            .into_iter()
+            .flatten()
+            .collect::<Vec<String>>();
+        expected.sort();
+        expected.dedup();
+
+        assert_eq!(fields, expected);
+    }
+}
