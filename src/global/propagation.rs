@@ -17,7 +17,7 @@ lazy_static::lazy_static! {
 /// ```
 /// use opentelemetry::{api, global};
 ///
-/// // create your http text propagator
+/// // create your text map propagator
 /// let propagator = api::TraceContextPropagator::new();
 ///
 /// // assign it as the global propagator
@@ -41,11 +41,11 @@ pub fn set_text_map_propagator<P: api::TextMapFormat + Send + Sync + 'static>(pr
 ///
 /// let example_carrier = HashMap::new();
 ///
-/// // create your http text propagator
+/// // create your text map propagator
 /// let tc_propagator = api::TraceContextPropagator::new();
 /// global::set_text_map_propagator(tc_propagator);
 ///
-/// // use the global http text propagator to extract contexts
+/// // use the global text map propagator to extract contexts
 /// let _cx = global::get_text_map_propagator(|propagator| propagator.extract(&example_carrier));
 /// ```
 pub fn get_text_map_propagator<T, F>(mut f: F) -> T
