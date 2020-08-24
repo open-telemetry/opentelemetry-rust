@@ -21,9 +21,9 @@ lazy_static::lazy_static! {
 /// let propagator = api::TraceContextPropagator::new();
 ///
 /// // assign it as the global propagator
-/// global::set_http_text_propagator(propagator);
+/// global::set_text_map_propagator(propagator);
 /// ```
-pub fn set_http_text_propagator<P: api::TextMapFormat + Send + Sync + 'static>(propagator: P) {
+pub fn set_text_map_propagator<P: api::TextMapFormat + Send + Sync + 'static>(propagator: P) {
     let _lock = GLOBAL_TEXT_MAP_PROPAGATOR
         .write()
         .map(|mut global_propagator| *global_propagator = Box::new(propagator));
@@ -43,12 +43,12 @@ pub fn set_http_text_propagator<P: api::TextMapFormat + Send + Sync + 'static>(p
 ///
 /// // create your http text propagator
 /// let tc_propagator = api::TraceContextPropagator::new();
-/// global::set_http_text_propagator(tc_propagator);
+/// global::set_text_map_propagator(tc_propagator);
 ///
 /// // use the global http text propagator to extract contexts
-/// let _cx = global::get_http_text_propagator(|propagator| propagator.extract(&example_carrier));
+/// let _cx = global::get_text_map_propagator(|propagator| propagator.extract(&example_carrier));
 /// ```
-pub fn get_http_text_propagator<T, F>(mut f: F) -> T
+pub fn get_text_map_propagator<T, F>(mut f: F) -> T
 where
     F: FnMut(&dyn api::TextMapFormat) -> T,
 {
