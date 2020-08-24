@@ -57,7 +57,7 @@ fn tracing_init() -> Result<(), Box<dyn std::error::Error>> {
         .init()?;
 
     // For the demonstration, use `Sampler::Always` sampler to sample all traces. In a production
-    // application, use `Sampler::Parent` or `Sampler::Probability` with a desired probability.
+    // application, use `Sampler::Parent` or `Sampler::TraceIdRatioBased` with a desired ratio.
     let provider = sdk::Provider::builder()
         .with_simple_exporter(exporter)
         .with_config(sdk::Config {

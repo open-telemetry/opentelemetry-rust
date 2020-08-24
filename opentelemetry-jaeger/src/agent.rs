@@ -7,6 +7,9 @@ use thrift::protocol;
 use thrift::protocol::{TCompactInputProtocol, TCompactOutputProtocol};
 use thrift::transport::{ReadHalf, TIoChannel, WriteHalf};
 
+/// The max size of UDP packet we want to send, synced with jaeger-agent.
+const UDP_MAX_PACKET_SIZE: usize = 65000;
+
 /// `AgentSyncClientUDP` implements the `TAgentSyncClient` interface over UDP
 pub(crate) struct AgentSyncClientUDP {
     client: agent::AgentSyncClient<
@@ -30,7 +33,7 @@ impl AgentSyncClientUDP {
         host_port: T,
         max_packet_size: Option<usize>,
     ) -> thrift::Result<Self> {
-        let transport = TUdpChannel::new(host_port, max_packet_size)?;
+        let transport = TUdpChannel::new(host_port, max_packet_size.or(Some(UDP_MAX_PACKET_SIZE)))?;
         let (read, write) = transport.split()?;
         let client = agent::AgentSyncClient::new(
             protocol::TCompactInputProtocol::new(read),

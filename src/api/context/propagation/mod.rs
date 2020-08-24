@@ -178,14 +178,14 @@ pub trait Extractor {
 impl<S: std::hash::BuildHasher> api::Injector for HashMap<String, String, S> {
     /// Set a key and value in the HashMap.
     fn set(&mut self, key: &str, value: String) {
-        self.insert(String::from(key), value);
+        self.insert(key.to_lowercase(), value);
     }
 }
 
 impl<S: std::hash::BuildHasher> api::Extractor for HashMap<String, String, S> {
     /// Get a value for a key from the HashMap.
     fn get(&self, key: &str) -> Option<&str> {
-        self.get(key).map(|v| v.as_str())
+        self.get(&key.to_lowercase()).map(|v| v.as_str())
     }
 }
 
@@ -205,13 +205,7 @@ impl api::Injector for http::HeaderMap {
 impl api::Extractor for http::HeaderMap {
     /// Get a value for a key from the HeaderMap.  If the value is not valid ASCII, returns None.
     fn get(&self, key: &str) -> Option<&str> {
-        match self.get(key) {
-            Some(val) => match val.to_str() {
-                Ok(ascii) => Some(ascii),
-                Err(_) => None,
-            },
-            None => None,
-        }
+        self.get(key).and_then(|value| value.to_str().ok())
     }
 }
 
@@ -219,7 +213,7 @@ impl api::Extractor for http::HeaderMap {
 impl api::Injector for tonic::metadata::MetadataMap {
     /// Set a key and value in the MetadataMap.  Does nothing if the key or value are not valid inputs
     fn set(&mut self, key: &str, value: String) {
-        if let Ok(key) = tonic::metadata::MetadataKey::from_bytes(key.to_lowercase().as_bytes()) {
+        if let Ok(key) = tonic::metadata::MetadataKey::from_bytes(key.as_bytes()) {
             if let Ok(val) = tonic::metadata::MetadataValue::from_str(&value) {
                 self.insert(key, val);
             }
@@ -232,5 +226,49 @@ impl api::Extractor for tonic::metadata::MetadataMap {
     /// Get a value for a key from the MetadataMap.  If the value can't be converted to &str, returns None
     fn get(&self, key: &str) -> Option<&str> {
         self.get(key).and_then(|metadata| metadata.to_str().ok())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashMap;
+
+    #[test]
+    fn hash_map() {
+        let mut carrier = HashMap::new();
+        carrier.set("headerName", "value".to_string());
+
+        assert_eq!(
+            Extractor::get(&carrier, "HEADERNAME"),
+            Some("value"),
+            "case insensitive extraction"
+        )
+    }
+
+    #[test]
+    #[cfg(feature = "http")]
+    fn http_headers() {
+        let mut carrier = http::HeaderMap::new();
+        carrier.set("headerName", "value".to_string());
+
+        assert_eq!(
+            Extractor::get(&carrier, "HEADERNAME"),
+            Some("value"),
+            "case insensitive extraction"
+        )
+    }
+
+    #[test]
+    #[cfg(feature = "tonic")]
+    fn tonic_headers() {
+        let mut carrier = tonic::metadata::MetadataMap::new();
+        carrier.set("headerName", "value".to_string());
+
+        assert_eq!(
+            Extractor::get(&carrier, "HEADERNAME"),
+            Some("value"),
+            "case insensitive extraction"
+        )
     }
 }
