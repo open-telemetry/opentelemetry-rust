@@ -8,4 +8,4 @@ futures = "0.3"
 thrift = "0.13"
 tokio = { version = "0.2", features = ["full"] }
 opentelemetry = { path = "../../" }
-opentelemetry-jaeger = { path = "../../opentelemetry-jaeger" }
+opentelemetry-jaeger = { path = "../../opentelemetry-jaeger", features = ["tokio"] }

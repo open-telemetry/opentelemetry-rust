@@ -10,7 +10,7 @@ fn init_tracer() {
     let exporter = opentelemetry_otlp::Exporter::default();
 
     // For the demonstration, use `Sampler::AlwaysOn` sampler to sample all traces. In a production
-    // application, use `Sampler::ParentOrElse` or `Sampler::Probability` with a desired probability.
+    // application, use `Sampler::ParentBased` or `Sampler::TraceIdRatioBased` with a desired ratio.
     let provider = sdk::Provider::builder()
         .with_simple_exporter(exporter)
         .with_config(sdk::Config {
@@ -37,11 +37,12 @@ fn init_meter() -> metrics::Result<PushController> {
         .try_init()
 }
 
+const FOO_KEY: Key = Key::from_static_str("ex.com/foo");
+const BAR_KEY: Key = Key::from_static_str("ex.com/bar");
+const LEMONS_KEY: Key = Key::from_static_str("ex.com/lemons");
+const ANOTHER_KEY: Key = Key::from_static_str("ex.com/another");
+
 lazy_static::lazy_static! {
-    static ref FOO_KEY: Key = Key::new("ex.com/foo");
-    static ref BAR_KEY: Key = Key::new("ex.com/bar");
-    static ref LEMONS_KEY: Key = Key::new("ex.com/lemons");
-    static ref ANOTHER_KEY: Key = Key::new("ex.com/another");
     static ref COMMON_LABELS: [KeyValue; 4] = [
         LEMONS_KEY.i64(10),
         KeyValue::new("A", "1"),

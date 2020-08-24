@@ -3,34 +3,14 @@ use actix_web::middleware::Logger;
 use actix_web::{web, App, HttpServer};
 use opentelemetry::api::trace::futures::FutureExt;
 use opentelemetry::api::{Key, TraceContextExt, Tracer};
-use opentelemetry::sdk::BatchSpanProcessor;
 use opentelemetry::{global, sdk};
+use std::error::Error;
 
-fn init_tracer() -> thrift::Result<()> {
-    let exporter = opentelemetry_jaeger::Exporter::builder()
+fn init_tracer() -> Result<sdk::Tracer, Box<dyn Error>> {
+    opentelemetry_jaeger::new_pipeline()
         .with_collector_endpoint("http://127.0.0.1:14268/api/traces")
-        .with_process(opentelemetry_jaeger::Process {
-            service_name: "trace-http-demo".to_string(),
-            tags: vec![
-                Key::new("exporter").string("jaeger"),
-                Key::new("float").f64(312.23),
-            ],
-        })
-        .init()?;
-
-    let batch_exporter =
-        BatchSpanProcessor::builder(exporter, tokio::spawn, tokio::time::interval).build();
-
-    let provider = sdk::Provider::builder()
-        .with_batch_exporter(batch_exporter)
-        .with_config(sdk::Config {
-            default_sampler: Box::new(sdk::Sampler::AlwaysOn),
-            ..Default::default()
-        })
-        .build();
-    global::set_provider(provider);
-
-    Ok(())
+        .with_service_name("trace-http-demo")
+        .install()
 }
 
 async fn index() -> &'static str {
@@ -45,13 +25,13 @@ async fn index() -> &'static str {
 async fn main() -> std::io::Result<()> {
     std::env::set_var("RUST_LOG", "debug");
     env_logger::init();
-    init_tracer().expect("Failed to initialise tracer.");
+    let tracer = init_tracer().expect("Failed to initialise tracer.");
 
-    HttpServer::new(|| {
+    HttpServer::new(move || {
+        let tracer = tracer.clone();
         App::new()
             .wrap(Logger::default())
-            .wrap_fn(|req, srv| {
-                let tracer = global::tracer("request");
+            .wrap_fn(move |req, srv| {
                 tracer.in_span("middleware", move |cx| {
                     cx.span().set_attribute(Key::new("path").string(req.path()));
                     srv.call(req).with_context(cx)
