@@ -20,15 +20,14 @@ use std::fmt::Debug;
 /// use opentelemetry::api::*;
 /// use opentelemetry::sdk;
 /// use std::collections::HashMap;
-/// use opentelemetry::api::trace::b3_propagator::B3Encoding;
 ///
 /// // First create 1 or more propagators
-/// let b3_propagator = B3Propagator::with_encoding(B3Encoding::SingleHeader);
+/// let correlation_propagator = CorrelationContextPropagator::new();
 /// let trace_context_propagator = TraceContextPropagator::new();
 ///
 /// // Then create a composite propagator
 /// let composite_propagator = TextMapCompositePropagator::new(vec![
-///     Box::new(b3_propagator),
+///     Box::new(correlation_propagator),
 ///     Box::new(trace_context_propagator),
 /// ]);
 ///
@@ -39,10 +38,12 @@ use std::fmt::Debug;
 /// let example_span = sdk::Provider::default().get_tracer("example-component").start("span-name");
 ///
 /// // with the current context, call inject to add the headers
-/// composite_propagator.inject_context(&Context::current_with_span(example_span), &mut injector);
+/// composite_propagator.inject_context(&Context::current_with_span(example_span)
+///                                     .with_correlations(vec![KeyValue::new("test", "example")]),
+///                                     &mut injector);
 ///
-/// // The injector now has both `X-B3` and `traceparent` headers
-/// assert!(injector.get("b3").is_some());
+/// // The injector now has both `otcorrelations` and `traceparent` headers
+/// assert!(injector.get("otcorrelations").is_some());
 /// assert!(injector.get("traceparent").is_some());
 /// ```
 #[derive(Debug)]
@@ -100,15 +101,73 @@ impl TextMapFormat for TextMapCompositePropagator {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::api::trace::b3_propagator::B3Encoding;
-    use crate::api::TraceContextExt;
-    use crate::api::{B3Propagator, Context, SpanContext, SpanId, TraceContextPropagator, TraceId};
+    use crate::api;
+    use crate::api::{
+        Context, Extractor, FieldIter, HttpTextCompositePropagator, HttpTextFormat, Injector,
+        SpanContext, SpanId, TraceContextExt, TraceContextPropagator, TraceId,
+    };
     use std::collections::HashMap;
+    use std::str::FromStr;
+
+    /// Dummy propagator for testing
+    ///
+    /// The format we are using is {trace id(in base10 u128)}-{span id(in base10 u64)}-{flag(in u8)}
+    #[derive(Debug)]
+    struct TestPropagator {
+        fields: [String; 1],
+    }
+
+    impl TestPropagator {
+        #[allow(unreachable_pub)]
+        pub fn new() -> Self {
+            TestPropagator {
+                fields: ["testheader".to_string()],
+            }
+        }
+    }
+
+    impl HttpTextFormat for TestPropagator {
+        fn inject_context(&self, cx: &Context, injector: &mut dyn Injector) {
+            let span = cx.span().span_context();
+            injector.set(
+                "testheader",
+                format!(
+                    "{}-{}-{}",
+                    span.trace_id().to_u128(),
+                    span.span_id().to_u64(),
+                    span.trace_flags()
+                ),
+            )
+        }
+
+        fn extract_with_context(&self, cx: &Context, extractor: &dyn Extractor) -> Context {
+            let span = if let Some(val) = extractor.get("testheader") {
+                let parts = val.split_terminator('-').collect::<Vec<&str>>();
+                if parts.len() != 3 {
+                    SpanContext::empty_context()
+                } else {
+                    SpanContext::new(
+                        TraceId::from_u128(u128::from_str(parts[0]).unwrap_or(0)),
+                        SpanId::from_u64(u64::from_str(parts[1]).unwrap_or(0)),
+                        u8::from_str(parts[2]).unwrap_or(0),
+                        true,
+                    )
+                }
+            } else {
+                SpanContext::empty_context()
+            };
+
+            cx.with_remote_span_context(span)
+        }
+
+        fn fields(&self) -> FieldIter {
+            FieldIter::new(&self.fields)
+        }
+    }
 
     fn test_data() -> Vec<(&'static str, &'static str)> {
         vec![
-            ("b3", "00000000000000000000000000000001-0000000000000001-0"),
+            ("testheader", "1-1-0"),
             (
                 "traceparent",
                 "00-00000000000000000000000000000001-0000000000000001-00",
@@ -141,10 +200,10 @@ mod tests {
 
     #[test]
     fn inject_multiple_propagators() {
-        let b3 = B3Propagator::with_encoding(B3Encoding::SingleHeader);
+        let test_propagator = TestPropagator::new();
         let trace_context = TraceContextPropagator::new();
         let composite_propagator =
-            TextMapCompositePropagator::new(vec![Box::new(b3), Box::new(trace_context)]);
+            TextMapCompositePropagator::new(vec![Box::new(test_propagator), Box::new(trace_context)]);
 
         let cx = Context::default().with_span(TestSpan(SpanContext::new(
             TraceId::from_u128(1),
@@ -162,10 +221,10 @@ mod tests {
 
     #[test]
     fn extract_multiple_propagators() {
-        let b3 = B3Propagator::with_encoding(B3Encoding::SingleHeader);
+        let test_propagator = TestPropagator::new();
         let trace_context = TraceContextPropagator::new();
         let composite_propagator =
-            TextMapCompositePropagator::new(vec![Box::new(b3), Box::new(trace_context)]);
+            TextMapCompositePropagator::new(vec![Box::new(test_propagator), Box::new(trace_context)]);
 
         for (header_name, header_value) in test_data() {
             let mut extractor = HashMap::new();
@@ -186,8 +245,11 @@ mod tests {
 
     #[test]
     fn test_get_fields() {
-        let b3 = B3Propagator::with_encoding(B3Encoding::SingleHeader);
-        let b3_fields = b3.fields().map(|s| s.to_string()).collect::<Vec<String>>();
+        let test_propagator = TestPropagator::new();
+        let b3_fields = test_propagator
+            .fields()
+            .map(|s| s.to_string())
+            .collect::<Vec<String>>();
 
         let trace_context = TraceContextPropagator::new();
         let trace_context_fields = trace_context
@@ -196,7 +258,7 @@ mod tests {
             .collect::<Vec<String>>();
 
         let composite_propagator =
-            TextMapCompositePropagator::new(vec![Box::new(b3), Box::new(trace_context)]);
+            TextMapCompositePropagator::new(vec![Box::new(test_propagator), Box::new(trace_context)]);
 
         let mut fields = composite_propagator
             .fields()
