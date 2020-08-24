@@ -22,7 +22,7 @@ pub use trace::{
     evicted_hash_map::EvictedHashMap,
     evicted_queue::EvictedQueue,
     id_generator::IdGenerator,
-    provider::Provider,
+    provider::{Builder, Provider},
     sampler::{Sampler, SamplingDecision, SamplingResult, ShouldSample},
     span::Span,
     span_processor::{BatchSpanProcessor, SimpleSpanProcessor},

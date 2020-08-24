@@ -4,7 +4,8 @@ use hello_world::greeter_server::{Greeter, GreeterServer};
 use hello_world::{HelloReply, HelloRequest};
 use opentelemetry::api::{self, KeyValue, Span, TextMapFormat, Tracer};
 use opentelemetry::global;
-use opentelemetry::sdk::{self, Sampler};
+use opentelemetry::sdk;
+use std::error::Error;
 
 pub mod hello_world {
     tonic::include_proto!("helloworld"); // The string specified here must match the proto package name.
@@ -33,35 +34,15 @@ impl Greeter for MyGreeter {
     }
 }
 
-fn tracing_init() -> Result<(), Box<dyn std::error::Error>> {
-    let builder = opentelemetry_jaeger::Exporter::builder()
-        .with_agent_endpoint("127.0.0.1:6831".parse().unwrap());
-
-    let exporter = builder
-        .with_process(opentelemetry_jaeger::Process {
-            service_name: "grpc-server".to_string(),
-            tags: vec![KeyValue::new("version", "0.1.0")],
-        })
-        .init()?;
-
-    // For the demonstration, use `Sampler::AlwaysOn` sampler to sample all traces. In a production
-    // application, use `Sampler::ParentOrElse` or `Sampler::Probability` with a desired probability.
-    let provider = sdk::Provider::builder()
-        .with_simple_exporter(exporter)
-        .with_config(sdk::Config {
-            default_sampler: Box::new(Sampler::AlwaysOn),
-            ..Default::default()
-        })
-        .build();
-
-    global::set_provider(provider);
-
-    Ok(())
+fn tracing_init() -> Result<sdk::Tracer, Box<dyn Error>> {
+    opentelemetry_jaeger::new_pipeline()
+        .with_service_name("grpc-server")
+        .install()
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    tracing_init()?;
+async fn main() -> Result<(), Box<dyn Error>> {
+    let _ = tracing_init()?;
     let addr = "[::1]:50051".parse()?;
     let greeter = MyGreeter::default();
 
