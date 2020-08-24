@@ -2,8 +2,5 @@
 //!
 //!
 
-mod b3_propagator;
-mod jaeger_propagator;
-
-pub use b3_propagator::{B3Encoding, B3Propagator};
-pub use jaeger_propagator::JaegerPropagator;
+pub mod b3_propagator;
+pub mod jaeger_propagator;

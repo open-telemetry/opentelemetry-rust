@@ -5,4 +5,9 @@
 //!
 //! Typically, those include vendor specific propagators.
 
-pub mod trace_propagator;
+mod trace_propagator;
+
+pub use trace_propagator::{
+    b3_propagator::{B3Encoding, B3Propagator},
+    jaeger_propagator::JaegerPropagator,
+};

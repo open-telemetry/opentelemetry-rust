@@ -80,7 +80,6 @@ impl B3Propagator {
     }
 
     /// Create a new `HttpB3Propagator` that uses `encoding` as encoding method
-    #[allow(unused)]
     pub fn with_encoding(encoding: B3Encoding) -> Self {
         B3Propagator {
             inject_encoding: encoding,
