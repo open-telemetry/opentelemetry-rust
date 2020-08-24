@@ -35,7 +35,6 @@ pub use correlation::{CorrelationContext, CorrelationContextExt, CorrelationCont
 
 #[cfg(feature = "trace")]
 pub use trace::{
-    b3_propagator::B3Propagator,
     context::TraceContextExt,
     event::Event,
     futures::FutureExt,
