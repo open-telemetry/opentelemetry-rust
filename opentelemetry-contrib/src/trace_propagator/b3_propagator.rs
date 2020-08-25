@@ -309,7 +309,7 @@ mod tests {
     use super::*;
     use opentelemetry::api::trace::span_context::{SpanId, TraceId, TRACE_FLAG_NOT_SAMPLED};
     use opentelemetry::api::{
-        HttpTextFormat, TRACE_FLAG_DEBUG, TRACE_FLAG_DEFERRED, TRACE_FLAG_SAMPLED,
+        TextMapFormat, TRACE_FLAG_DEBUG, TRACE_FLAG_DEFERRED, TRACE_FLAG_SAMPLED,
     };
     use std::collections::HashMap;
 

@@ -7,7 +7,7 @@
 //! [`Jaeger documentation`]: https://www.jaegertracing.io/docs/1.18/client-libraries/#propagation-format
 
 use opentelemetry::api::{
-    Context, Extractor, FieldIter, HttpTextFormat, Injector, SpanContext, SpanId, TraceContextExt,
+    Context, Extractor, FieldIter, Injector, SpanContext, SpanId, TextMapFormat, TraceContextExt,
     TraceId, TRACE_FLAG_DEBUG, TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
 };
 use std::str::FromStr;
@@ -109,7 +109,7 @@ impl JaegerPropagator {
     }
 }
 
-impl HttpTextFormat for JaegerPropagator {
+impl TextMapFormat for JaegerPropagator {
     fn inject_context(&self, cx: &Context, injector: &mut dyn Injector) {
         let span_context = cx.span().span_context();
         if span_context.is_valid() {
@@ -154,7 +154,7 @@ mod tests {
     use crate::trace_propagator::jaeger_propagator::{JaegerPropagator, JAEGER_HEADER};
     use opentelemetry::api;
     use opentelemetry::api::{
-        Context, HttpTextFormat, Injector, Span, SpanContext, SpanId, TraceContextExt, TraceId,
+        Context, Injector, Span, SpanContext, SpanId, TextMapFormat, TraceContextExt, TraceId,
         TRACE_FLAG_DEBUG, TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
     };
     use std::collections::HashMap;

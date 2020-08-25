@@ -103,8 +103,8 @@ impl TextMapFormat for TextMapCompositePropagator {
 mod tests {
     use crate::api;
     use crate::api::{
-        Context, Extractor, FieldIter, HttpTextCompositePropagator, HttpTextFormat, Injector,
-        SpanContext, SpanId, TraceContextExt, TraceContextPropagator, TraceId,
+        Context, Extractor, FieldIter, Injector, SpanContext, SpanId, TextMapCompositePropagator,
+        TextMapFormat, TraceContextExt, TraceContextPropagator, TraceId,
     };
     use std::collections::HashMap;
     use std::str::FromStr;
@@ -126,7 +126,7 @@ mod tests {
         }
     }
 
-    impl HttpTextFormat for TestPropagator {
+    impl TextMapFormat for TestPropagator {
         fn inject_context(&self, cx: &Context, injector: &mut dyn Injector) {
             let span = cx.span().span_context();
             injector.set(
@@ -202,8 +202,10 @@ mod tests {
     fn inject_multiple_propagators() {
         let test_propagator = TestPropagator::new();
         let trace_context = TraceContextPropagator::new();
-        let composite_propagator =
-            TextMapCompositePropagator::new(vec![Box::new(test_propagator), Box::new(trace_context)]);
+        let composite_propagator = TextMapCompositePropagator::new(vec![
+            Box::new(test_propagator),
+            Box::new(trace_context),
+        ]);
 
         let cx = Context::default().with_span(TestSpan(SpanContext::new(
             TraceId::from_u128(1),
@@ -223,8 +225,10 @@ mod tests {
     fn extract_multiple_propagators() {
         let test_propagator = TestPropagator::new();
         let trace_context = TraceContextPropagator::new();
-        let composite_propagator =
-            TextMapCompositePropagator::new(vec![Box::new(test_propagator), Box::new(trace_context)]);
+        let composite_propagator = TextMapCompositePropagator::new(vec![
+            Box::new(test_propagator),
+            Box::new(trace_context),
+        ]);
 
         for (header_name, header_value) in test_data() {
             let mut extractor = HashMap::new();
@@ -257,8 +261,10 @@ mod tests {
             .map(|s| s.to_string())
             .collect::<Vec<String>>();
 
-        let composite_propagator =
-            TextMapCompositePropagator::new(vec![Box::new(test_propagator), Box::new(trace_context)]);
+        let composite_propagator = TextMapCompositePropagator::new(vec![
+            Box::new(test_propagator),
+            Box::new(trace_context),
+        ]);
 
         let mut fields = composite_propagator
             .fields()
