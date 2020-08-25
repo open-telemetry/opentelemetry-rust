@@ -82,6 +82,6 @@ pub use error_handler::{handle_error, set_error_handler};
 #[cfg(feature = "metrics")]
 pub use metrics::{meter, meter_provider, set_meter_provider};
 #[cfg(feature = "trace")]
-pub use propagation::{get_http_text_propagator, set_http_text_propagator};
+pub use propagation::{get_text_map_propagator, set_text_map_propagator};
 #[cfg(feature = "trace")]
 pub use trace::{set_provider, trace_provider, tracer, GenericProvider};

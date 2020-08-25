@@ -4,7 +4,7 @@
 //!
 //! - `BinaryFormat` is used to serialize and deserialize a value
 //! into a binary representation.
-//! - `HttpTextFormat` is used to inject and extract a value as
+//! - `TextMapFormat` is used to inject and extract a value as
 //! text into injectors and extractors that travel in-band across process boundaries.
 //!
 //! Deserializing must set `is_remote` to true on the returned
@@ -42,9 +42,9 @@
 //!
 //! Returns a value deserialized from bytes.
 //!
-//! ## HTTP Text Format
+//! ## TextMap Format
 //!
-//! `HttpTextFormat` is a formatter that injects and extracts a value
+//! `TextMapFormat` is a formatter that injects and extracts a value
 //! as text into injectors and extractors that travel in-band across process boundaries.
 //!
 //! Encoding is expected to conform to the HTTP Header Field semantics.
@@ -55,7 +55,7 @@
 //! usually implemented via library-specific request interceptors, where
 //! the client-side injects values and the server-side extracts them.
 //!
-//! `HttpTextFormat` MUST expose the APIs that injects values into injectors,
+//! `TextMapFormat` MUST expose the APIs that injects values into injectors,
 //! and extracts values from extractors.
 //!
 //! ### Fields
@@ -91,7 +91,7 @@
 //!
 //! Setter is an argument in `Inject` that puts value into given field.
 //!
-//! `Setter` allows a `HttpTextFormat` to set propagated fields into a
+//! `Setter` allows a `TextMapFormat` to set propagated fields into a
 //! injector.
 //!
 //! `Setter` MUST be stateless and allowed to be saved as a constant to
@@ -133,7 +133,7 @@
 //!
 //! Getter is an argument in `Extract` that get value from given field
 //!
-//! `Getter` allows a `HttpTextFormat` to read propagated fields from a
+//! `Getter` allows a `TextMapFormat` to read propagated fields from a
 //! extractor.
 //!
 //! `Getter` MUST be stateless and allowed to be saved as a constant to avoid

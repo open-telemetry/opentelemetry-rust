@@ -2,17 +2,17 @@
 //!
 //! The composite propagator allows multiple propagators to be used stacked
 //! together to inject or extract from multiple implementations.
-use crate::api::{self, FieldIter, HttpTextFormat};
+use crate::api::{self, FieldIter, TextMapFormat};
 use std::collections::HashSet;
 use std::fmt::Debug;
 
-/// A propagator that chains multiple [`HttpTextFormat`] propagators together,
+/// A propagator that chains multiple [`TextMapFormat`] propagators together,
 /// injecting or extracting by their respective HTTP header names.
 ///
 /// Injection and extraction from this propagator will preserve the order of the
 /// injectors and extractors passed in during initialization.
 ///
-/// [`HttpTextFormat`]: ../../trait.HttpTextFormat.html
+/// [`TextMapFormat`]: ../../trait.TextMapFormat.html
 ///
 /// # Examples
 ///
@@ -26,7 +26,7 @@ use std::fmt::Debug;
 /// let trace_context_propagator = TraceContextPropagator::new();
 ///
 /// // Then create a composite propagator
-/// let composite_propagator = HttpTextCompositePropagator::new(vec![
+/// let composite_propagator = TextMapCompositePropagator::new(vec![
 ///     Box::new(correlation_propagator),
 ///     Box::new(trace_context_propagator),
 /// ]);
@@ -47,16 +47,16 @@ use std::fmt::Debug;
 /// assert!(injector.get("traceparent").is_some());
 /// ```
 #[derive(Debug)]
-pub struct HttpTextCompositePropagator {
-    propagators: Vec<Box<dyn HttpTextFormat + Send + Sync>>,
+pub struct TextMapCompositePropagator {
+    propagators: Vec<Box<dyn TextMapFormat + Send + Sync>>,
     fields: Vec<String>,
 }
 
-impl HttpTextCompositePropagator {
-    /// Constructs a new propagator out of instances of [`HttpTextFormat`].
+impl TextMapCompositePropagator {
+    /// Constructs a new propagator out of instances of [`TextMapFormat`].
     ///
-    /// [`HttpTextFormat`]: ../../trait.HttpTextFormat.html
-    pub fn new(propagators: Vec<Box<dyn HttpTextFormat + Send + Sync>>) -> Self {
+    /// [`TextMapFormat`]: ../../trait.TextMapFormat.html
+    pub fn new(propagators: Vec<Box<dyn TextMapFormat + Send + Sync>>) -> Self {
         let mut fields = HashSet::new();
         for propagator in &propagators {
             for field in propagator.fields() {
@@ -64,14 +64,14 @@ impl HttpTextCompositePropagator {
             }
         }
 
-        HttpTextCompositePropagator {
+        TextMapCompositePropagator {
             propagators,
             fields: fields.into_iter().collect(),
         }
     }
 }
 
-impl HttpTextFormat for HttpTextCompositePropagator {
+impl TextMapFormat for TextMapCompositePropagator {
     /// Encodes the values of the `Context` and injects them into the `Injector`.
     fn inject_context(&self, context: &api::Context, injector: &mut dyn api::Injector) {
         for propagator in &self.propagators {
@@ -103,8 +103,8 @@ impl HttpTextFormat for HttpTextCompositePropagator {
 mod tests {
     use crate::api;
     use crate::api::{
-        Context, Extractor, FieldIter, HttpTextCompositePropagator, HttpTextFormat, Injector,
-        SpanContext, SpanId, TraceContextExt, TraceContextPropagator, TraceId,
+        Context, Extractor, FieldIter, Injector, SpanContext, SpanId, TextMapCompositePropagator,
+        TextMapFormat, TraceContextExt, TraceContextPropagator, TraceId,
     };
     use std::collections::HashMap;
     use std::str::FromStr;
@@ -126,7 +126,7 @@ mod tests {
         }
     }
 
-    impl HttpTextFormat for TestPropagator {
+    impl TextMapFormat for TestPropagator {
         fn inject_context(&self, cx: &Context, injector: &mut dyn Injector) {
             let span = cx.span().span_context();
             injector.set(
@@ -202,7 +202,7 @@ mod tests {
     fn inject_multiple_propagators() {
         let test_propagator = TestPropagator::new();
         let trace_context = TraceContextPropagator::new();
-        let composite_propagator = HttpTextCompositePropagator::new(vec![
+        let composite_propagator = TextMapCompositePropagator::new(vec![
             Box::new(test_propagator),
             Box::new(trace_context),
         ]);
@@ -225,7 +225,7 @@ mod tests {
     fn extract_multiple_propagators() {
         let test_propagator = TestPropagator::new();
         let trace_context = TraceContextPropagator::new();
-        let composite_propagator = HttpTextCompositePropagator::new(vec![
+        let composite_propagator = TextMapCompositePropagator::new(vec![
             Box::new(test_propagator),
             Box::new(trace_context),
         ]);
@@ -261,7 +261,7 @@ mod tests {
             .map(|s| s.to_string())
             .collect::<Vec<String>>();
 
-        let composite_propagator = HttpTextCompositePropagator::new(vec![
+        let composite_propagator = TextMapCompositePropagator::new(vec![
             Box::new(test_propagator),
             Box::new(trace_context),
         ]);

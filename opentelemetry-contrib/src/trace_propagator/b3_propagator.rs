@@ -207,7 +207,7 @@ impl B3Propagator {
     }
 }
 
-impl api::HttpTextFormat for B3Propagator {
+impl api::TextMapFormat for B3Propagator {
     /// Properly encodes the values of the `Context`'s `SpanContext` and injects
     /// them into the `Injector`.
     fn inject_context(&self, context: &api::Context, injector: &mut dyn api::Injector) {
@@ -309,7 +309,7 @@ mod tests {
     use super::*;
     use opentelemetry::api::trace::span_context::{SpanId, TraceId, TRACE_FLAG_NOT_SAMPLED};
     use opentelemetry::api::{
-        HttpTextFormat, TRACE_FLAG_DEBUG, TRACE_FLAG_DEFERRED, TRACE_FLAG_SAMPLED,
+        TextMapFormat, TRACE_FLAG_DEBUG, TRACE_FLAG_DEFERRED, TRACE_FLAG_SAMPLED,
     };
     use std::collections::HashMap;
 
