@@ -62,6 +62,11 @@ impl api::Span for BoxedSpan {
     fn end(&self) {
         self.0.end()
     }
+
+    /// Finishes the span with given timestamp.
+    fn end_with_timestamp(&self, timestamp: SystemTime){
+        self.0.end_with_timestamp(timestamp);
+    }
 }
 
 /// Wraps the [`GlobalProvider`]'s [`Tracer`] so it can be used generically by

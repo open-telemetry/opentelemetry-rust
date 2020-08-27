@@ -152,8 +152,15 @@ pub trait Span: fmt::Debug + 'static + Send + Sync {
     /// Calls to `end` a Span MUST not have any effects on child `Span`s as they may
     /// still be running and can be ended later.
     ///
-    ///This API MUST be non-blocking.
+    /// This API MUST be non-blocking.
     fn end(&self);
+
+    /// Finishes the `Span` with given timestamp
+    ///
+    /// For more details, refer to [`Span::end`]
+    ///
+    /// [`Span::end`]: trait.Span.html#method.end
+    fn end_with_timestamp(&self, timestamp: SystemTime);
 }
 
 /// `SpanKind` describes the relationship between the Span, its parents,

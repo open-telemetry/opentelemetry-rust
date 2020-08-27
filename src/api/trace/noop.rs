@@ -91,6 +91,11 @@ impl api::Span for NoopSpan {
     fn end(&self) {
         // Ignored
     }
+
+    /// Ignores `Span` endings
+    fn end_with_timestamp(&self, _timestamp: SystemTime) {
+        // Ignored
+    }
 }
 
 /// A no-op instance of a `Tracer`.

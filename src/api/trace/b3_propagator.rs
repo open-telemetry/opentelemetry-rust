@@ -499,7 +499,7 @@ mod tests {
         }
 
         for ((trace, span, sampled, debug, parent), single_header, expected_context) in
-            single_multi_header_extract_data()
+        single_multi_header_extract_data()
         {
             let mut extractor =
                 extract_extrator_from_test_data(trace, span, sampled, debug, parent);
@@ -553,8 +553,7 @@ mod tests {
             _name: String,
             _timestamp: std::time::SystemTime,
             _attributes: Vec<api::KeyValue>,
-        ) {
-        }
+        ) {}
         fn span_context(&self) -> api::SpanContext {
             self.0.clone()
         }
@@ -565,6 +564,7 @@ mod tests {
         fn set_status(&self, _code: api::StatusCode, _message: String) {}
         fn update_name(&self, _new_name: String) {}
         fn end(&self) {}
+        fn end_with_timestamp(&self, _timestamp: std::time::SystemTime) {}
     }
 
     #[test]
