@@ -116,7 +116,7 @@ impl TraceContextPropagator {
     }
 }
 
-impl api::HttpTextFormat for TraceContextPropagator {
+impl api::TextMapFormat for TraceContextPropagator {
     /// Properly encodes the values of the `SpanContext` and injects them
     /// into the `Injector`.
     fn inject_context(&self, cx: &api::Context, injector: &mut dyn api::Injector) {
@@ -171,7 +171,7 @@ impl api::HttpTextFormat for TraceContextPropagator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::api::{Extractor, HttpTextFormat};
+    use crate::api::{Extractor, TextMapFormat};
     use std::collections::HashMap;
 
     #[rustfmt::skip]

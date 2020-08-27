@@ -26,8 +26,8 @@ pub mod trace;
 pub use self::core::{Key, KeyValue, Unit, Value};
 #[cfg(feature = "trace")]
 pub use context::propagation::{
-    composite_propagator::HttpTextCompositePropagator, text_propagator::FieldIter,
-    text_propagator::HttpTextFormat, Extractor, Injector,
+    composite_propagator::TextMapCompositePropagator, text_propagator::FieldIter,
+    text_propagator::TextMapFormat, Extractor, Injector,
 };
 pub use context::Context;
 #[cfg(feature = "trace")]
@@ -35,7 +35,6 @@ pub use correlation::{CorrelationContext, CorrelationContextExt, CorrelationCont
 
 #[cfg(feature = "trace")]
 pub use trace::{
-    b3_propagator::B3Propagator,
     context::TraceContextExt,
     event::Event,
     futures::FutureExt,

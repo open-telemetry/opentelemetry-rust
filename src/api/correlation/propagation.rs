@@ -27,7 +27,7 @@ impl CorrelationContextPropagator {
     }
 }
 
-impl api::HttpTextFormat for CorrelationContextPropagator {
+impl api::TextMapFormat for CorrelationContextPropagator {
     /// Encodes the values of the `Context` and injects them into the provided `Injector`.
     fn inject_context(&self, cx: &Context, injector: &mut dyn api::Injector) {
         let correlation_cx = cx.correlation_context();
@@ -177,7 +177,7 @@ impl CorrelationContextExt for Context {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::api::HttpTextFormat;
+    use crate::api::TextMapFormat;
     use crate::api::{Key, Value};
     use std::collections::HashMap;
 

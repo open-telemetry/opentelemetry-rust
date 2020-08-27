@@ -14,7 +14,7 @@
 //!
 //! ```
 //! use opentelemetry::api::{
-//!     CorrelationContextExt, CorrelationContextPropagator, HttpTextFormat, Key
+//!     CorrelationContextExt, CorrelationContextPropagator, TextMapFormat, Key
 //! };
 //! use std::collections::HashMap;
 //!
