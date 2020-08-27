@@ -153,7 +153,9 @@ pub trait Span: fmt::Debug + 'static + Send + Sync {
     /// still be running and can be ended later.
     ///
     /// This API MUST be non-blocking.
-    fn end(&self);
+    fn end(&self) {
+        self.end_with_timestamp(SystemTime::now());
+    }
 
     /// Finishes the `Span` with given timestamp
     ///

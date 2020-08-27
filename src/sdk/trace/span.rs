@@ -123,11 +123,6 @@ impl api::Span for Span {
         });
     }
 
-    /// Finishes the span.
-    fn end(&self) {
-        self.end_with_timestamp(SystemTime::now());
-    }
-
     /// Finishes the span with given timestamp.
     fn end_with_timestamp(&self, timestamp: SystemTime) {
         self.with_data_mut(|data| {
