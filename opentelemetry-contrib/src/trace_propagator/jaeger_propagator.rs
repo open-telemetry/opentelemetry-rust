@@ -158,6 +158,7 @@ mod tests {
         TRACE_FLAG_DEBUG, TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
     };
     use std::collections::HashMap;
+    use std::time::SystemTime;
 
     const LONG_TRACE_ID_STR: &str = "000000000000004d0000000000000016";
     const SHORT_TRACE_ID_STR: &str = "4d0000000000000016";
@@ -360,6 +361,7 @@ mod tests {
         fn set_status(&self, _code: api::StatusCode, _message: String) {}
         fn update_name(&self, _new_name: String) {}
         fn end(&self) {}
+        fn end_with_timestamp(&self, _timestamp: SystemTime) {}
     }
 
     #[test]

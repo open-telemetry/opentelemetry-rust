@@ -64,7 +64,7 @@ impl api::Span for BoxedSpan {
     }
 
     /// Finishes the span with given timestamp.
-    fn end_with_timestamp(&self, timestamp: SystemTime){
+    fn end_with_timestamp(&self, timestamp: SystemTime) {
         self.0.end_with_timestamp(timestamp);
     }
 }
