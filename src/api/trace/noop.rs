@@ -3,6 +3,7 @@
 //! This implementation is returned as the global tracer if no `Tracer`
 //! has been set. It is also useful for testing purposes as it is intended
 //! to have minimal resource utilization and runtime impact.
+use crate::api::TraceContextExt;
 use crate::{api, exporter};
 use std::sync::Arc;
 use std::time::SystemTime;
@@ -105,19 +106,34 @@ impl api::Tracer for NoopTracer {
         api::NoopSpan::new()
     }
 
-    /// Starts a new `NoopSpan`.
-    fn start_from_context(&self, _name: &str, _context: &api::Context) -> Self::Span {
-        self.invalid()
+    /// Starts a new `NoopSpan` in a given context.
+    ///
+    /// If the context contains a valid span context, it is progagated.
+    fn start_from_context(&self, name: &str, cx: &api::Context) -> Self::Span {
+        let builder = self.span_builder(name);
+        self.build_with_context(builder, cx)
     }
 
-    /// Starts a SpanBuilder
+    /// Starts a `SpanBuilder`.
     fn span_builder(&self, name: &str) -> api::SpanBuilder {
         api::SpanBuilder::from_name(name.to_string())
     }
 
-    /// Builds a `NoopSpan` from a `SpanBuilder`
-    fn build_with_context(&self, _builder: api::SpanBuilder, _cx: &api::Context) -> Self::Span {
-        self.invalid()
+    /// Builds a `NoopSpan` from a `SpanBuilder`.
+    ///
+    /// If the span builder or context contains a valid span context, it is progagated.
+    fn build_with_context(&self, mut builder: api::SpanBuilder, cx: &api::Context) -> Self::Span {
+        let parent_span_context = builder
+            .parent_context
+            .take()
+            .or_else(|| Some(cx.span().span_context()).filter(|cx| cx.is_valid()))
+            .or_else(|| cx.remote_span_context().cloned())
+            .filter(|cx| cx.is_valid());
+        if let Some(span_context) = parent_span_context {
+            api::NoopSpan { span_context }
+        } else {
+            self.invalid()
+        }
     }
 }
 
@@ -134,5 +150,53 @@ impl exporter::trace::SpanExporter for NoopSpanExporter {
 
     fn shutdown(&self) {
         // Noop
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::api::{Span, Tracer};
+
+    fn valid_span_context() -> api::SpanContext {
+        api::SpanContext::new(
+            api::TraceId::from_u128(42),
+            api::SpanId::from_u64(42),
+            0,
+            true,
+        )
+    }
+
+    #[test]
+    fn noop_tracer_defaults_to_invalid_span() {
+        let tracer = NoopTracer {};
+        let span = tracer.start_from_context("foo", &api::Context::new());
+        assert!(!span.span_context().is_valid());
+    }
+
+    #[test]
+    fn noop_tracer_propagates_valid_span_context_from_builder() {
+        let tracer = NoopTracer {};
+        let builder = tracer.span_builder("foo").with_parent(valid_span_context());
+        let span = tracer.build_with_context(builder, &api::Context::new());
+        assert!(span.span_context().is_valid());
+    }
+
+    #[test]
+    fn noop_tracer_propagates_valid_span_context_from_span() {
+        let tracer = NoopTracer {};
+        let cx = api::Context::new().with_span(NoopSpan {
+            span_context: valid_span_context(),
+        });
+        let span = tracer.start_from_context("foo", &cx);
+        assert!(span.span_context().is_valid());
+    }
+
+    #[test]
+    fn noop_tracer_propagates_valid_span_context_from_remote_span_context() {
+        let tracer = NoopTracer {};
+        let cx = api::Context::new().with_remote_span_context(valid_span_context());
+        let span = tracer.start_from_context("foo", &cx);
+        assert!(span.span_context().is_valid());
     }
 }
