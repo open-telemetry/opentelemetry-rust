@@ -58,9 +58,9 @@ impl api::Span for BoxedSpan {
         self.0.update_name(new_name)
     }
 
-    /// Finishes the span.
-    fn end(&self) {
-        self.0.end()
+    /// Finishes the span with given timestamp.
+    fn end_with_timestamp(&self, timestamp: SystemTime) {
+        self.0.end_with_timestamp(timestamp);
     }
 }
 

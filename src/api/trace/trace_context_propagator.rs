@@ -292,7 +292,7 @@ mod tests {
         fn set_attribute(&self, _attribute: api::KeyValue) {}
         fn set_status(&self, _code: api::StatusCode, _message: String) {}
         fn update_name(&self, _new_name: String) {}
-        fn end(&self) {}
+        fn end_with_timestamp(&self, _timestamp: std::time::SystemTime) {}
     }
 
     #[test]
