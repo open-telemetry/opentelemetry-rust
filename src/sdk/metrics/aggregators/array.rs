@@ -184,13 +184,13 @@ impl PointsData {
 
     fn sort(&mut self, kind: &NumberKind) {
         match kind {
-            NumberKind::I64 => self.0.sort_by(|a, b| a.to_i64(kind).cmp(&b.to_i64(kind))),
+            NumberKind::I64 => self.0.sort_by_key(|a| a.to_u64(kind)),
             NumberKind::F64 => self.0.sort_by(|a, b| {
                 a.to_f64(kind)
                     .partial_cmp(&b.to_f64(kind))
                     .expect("nan values should be rejected. This is a bug.")
             }),
-            NumberKind::U64 => self.0.sort_by(|a, b| a.to_u64(kind).cmp(&b.to_u64(kind))),
+            NumberKind::U64 => self.0.sort_by_key(|a| a.to_u64(kind)),
         }
     }
     fn combine(&mut self, kind: &NumberKind, other: &PointsData) {
