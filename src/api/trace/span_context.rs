@@ -46,6 +46,16 @@ impl TraceId {
     pub fn to_u128(self) -> u128 {
         self.0
     }
+
+    /// Convert from TraceId to Hexadecimal String
+    pub fn to_hex(self) -> String {
+        format!("{:032x}", self.0)
+    }
+
+    /// Convert from TraceId to Big-Endian byte array
+    pub fn to_byte_array(self) -> [u8; 16] {
+        self.0.to_be_bytes()
+    }
 }
 
 /// SpanId is an 8-byte value which uniquely identifies a given span within a trace
@@ -68,6 +78,16 @@ impl SpanId {
     /// Convert from SpanId to u64
     pub fn to_u64(self) -> u64 {
         self.0
+    }
+
+    /// Convert from TraceId to Hexadecimal String
+    pub fn to_hex(self) -> String {
+        format!("{:016x}", self.0)
+    }
+
+    /// Convert from TraceId to Big-Endian byte array
+    pub fn to_byte_array(self) -> [u8; 8] {
+        self.0.to_be_bytes()
     }
 }
 
@@ -137,5 +157,44 @@ impl SpanContext {
     /// Returns true if the `SpanContext` is sampled.
     pub fn is_sampled(&self) -> bool {
         (self.trace_flags & TRACE_FLAG_SAMPLED) == TRACE_FLAG_SAMPLED
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[rustfmt::skip]
+    fn trace_id_test_data() -> Vec<(TraceId, &'static str, [u8; 16])> {
+        vec![
+            (TraceId(0), "00000000000000000000000000000000", [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+            (TraceId(42), "0000000000000000000000000000002a", [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,0, 0, 42]),
+            (TraceId(126642714606581564793456114182061442190), "5f467fe7bf42676c05e20ba4a90e448e", [95, 70, 127, 231, 191, 66, 103, 108, 5, 226, 11, 164, 169, 14, 68, 142])
+        ]
+    }
+
+    #[rustfmt::skip]
+    fn span_id_test_data() -> Vec<(SpanId, &'static str, [u8; 8])> {
+        vec![
+            (SpanId(0), "0000000000000000", [0, 0, 0, 0, 0, 0, 0, 0]),
+            (SpanId(42), "000000000000002a", [0, 0, 0, 0, 0, 0, 0, 42]),
+            (SpanId(5508496025762705295), "4c721bf33e3caf8f", [76, 114, 27, 243, 62, 60, 175, 143])
+        ]
+    }
+
+    #[test]
+    fn test_trace_id() {
+        for test_case in trace_id_test_data() {
+            assert_eq!(test_case.0.to_hex(), test_case.1);
+            assert_eq!(test_case.0.to_byte_array(), test_case.2);
+        }
+    }
+
+    #[test]
+    fn test_span_id() {
+        for test_case in span_id_test_data() {
+            assert_eq!(test_case.0.to_hex(), test_case.1);
+            assert_eq!(test_case.0.to_byte_array(), test_case.2);
+        }
     }
 }
