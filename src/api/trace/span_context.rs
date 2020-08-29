@@ -56,6 +56,16 @@ impl TraceId {
     pub fn to_byte_array(self) -> [u8; 16] {
         self.0.to_be_bytes()
     }
+
+    /// Construct a new TraceId from Hexadecimal String
+    pub fn from_hex(hex: &str) -> Self {
+        TraceId(u128::from_str_radix(hex, 16).unwrap_or(0))
+    }
+
+    /// Construct a new TraceId from Big-Endian byte array
+    pub fn from_byte_array(byte_array: [u8; 16]) -> Self {
+        TraceId(u128::from_be_bytes(byte_array))
+    }
 }
 
 /// SpanId is an 8-byte value which uniquely identifies a given span within a trace
@@ -80,14 +90,24 @@ impl SpanId {
         self.0
     }
 
-    /// Convert from TraceId to Hexadecimal String
+    /// Convert from SpanId to Hexadecimal String
     pub fn to_hex(self) -> String {
         format!("{:016x}", self.0)
     }
 
-    /// Convert from TraceId to Big-Endian byte array
+    /// Convert from SpanId to Big-Endian byte array
     pub fn to_byte_array(self) -> [u8; 8] {
         self.0.to_be_bytes()
+    }
+
+    /// Construct a new SpanId from Hexadecimal String
+    pub fn from_hex(hex: &str) -> Self {
+        SpanId(u64::from_str_radix(hex, 16).unwrap_or(0))
+    }
+
+    /// Construct a new SpanId from Big-Endian byte array
+    pub fn from_byte_array(byte_array: [u8; 8]) -> Self {
+        SpanId(u64::from_be_bytes(byte_array))
     }
 }
 
@@ -187,6 +207,9 @@ mod tests {
         for test_case in trace_id_test_data() {
             assert_eq!(test_case.0.to_hex(), test_case.1);
             assert_eq!(test_case.0.to_byte_array(), test_case.2);
+
+            assert_eq!(test_case.0, TraceId::from_hex(test_case.1));
+            assert_eq!(test_case.0, TraceId::from_byte_array(test_case.2));
         }
     }
 
@@ -195,6 +218,9 @@ mod tests {
         for test_case in span_id_test_data() {
             assert_eq!(test_case.0.to_hex(), test_case.1);
             assert_eq!(test_case.0.to_byte_array(), test_case.2);
+
+            assert_eq!(test_case.0, SpanId::from_hex(test_case.1));
+            assert_eq!(test_case.0, SpanId::from_byte_array(test_case.2));
         }
     }
 }
