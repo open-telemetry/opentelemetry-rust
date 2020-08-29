@@ -88,8 +88,8 @@ impl api::Span for NoopSpan {
         // Ignored
     }
 
-    /// Ignores `Span` endings.
-    fn end(&self) {
+    /// Ignores `Span` endings
+    fn end_with_timestamp(&self, _timestamp: SystemTime) {
         // Ignored
     }
 }
