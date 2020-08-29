@@ -1,5 +1,5 @@
 use hyper::{body::Body, Client};
-use opentelemetry::api::{Context, HttpTextFormat, TraceContextExt, Tracer};
+use opentelemetry::api::{Context, TextMapFormat, TraceContextExt, Tracer};
 use opentelemetry::{api, exporter::trace::stdout, global, sdk};
 
 fn init_tracer() {
@@ -7,7 +7,7 @@ fn init_tracer() {
     let exporter = stdout::Builder::default().init();
 
     // For the demonstration, use `Sampler::AlwaysOn` sampler to sample all traces. In a production
-    // application, use `Sampler::ParentOrElse` or `Sampler::Probability` with a desired probability.
+    // application, use `Sampler::ParentBased` or `Sampler::TraceIdRatioBased` with a desired ratio.
     let provider = sdk::Provider::builder()
         .with_simple_exporter(exporter)
         .with_config(sdk::Config {

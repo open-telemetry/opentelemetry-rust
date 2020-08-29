@@ -145,13 +145,13 @@ impl api::SpanProcessor for BatchSpanProcessor {
     }
 
     fn on_end(&self, span: Arc<exporter::trace::SpanData>) {
-        if let Ok(mut sender) = self.message_sender.try_lock() {
+        if let Ok(mut sender) = self.message_sender.lock() {
             let _ = sender.try_send(BatchMessage::ExportSpan(span));
         }
     }
 
     fn shutdown(&self) {
-        if let Ok(mut sender) = self.message_sender.try_lock() {
+        if let Ok(mut sender) = self.message_sender.lock() {
             let _ = sender.try_send(BatchMessage::Shutdown);
         }
     }
@@ -170,6 +170,27 @@ pub struct BatchSpanProcessorWorker {
     buffer: Vec<Arc<exporter::trace::SpanData>>,
 }
 
+impl BatchSpanProcessorWorker {
+    fn export_spans(&mut self) {
+        if !self.buffer.is_empty() {
+            let mut spans = std::mem::replace(&mut self.buffer, Vec::new());
+            while !spans.is_empty() {
+                let batch_idx = spans
+                    .len()
+                    .saturating_sub(self.config.max_export_batch_size);
+                let batch = spans.split_off(batch_idx);
+                self.exporter.export(batch);
+            }
+        }
+    }
+}
+
+impl Drop for BatchSpanProcessorWorker {
+    fn drop(&mut self) {
+        self.export_spans();
+    }
+}
+
 impl Future for BatchSpanProcessorWorker {
     type Output = ();
 
@@ -183,18 +204,7 @@ impl Future for BatchSpanProcessorWorker {
                     }
                 }
                 // Span batch interval time reached, export current spans.
-                Some(BatchMessage::Tick) => {
-                    if !self.buffer.is_empty() {
-                        let mut spans = std::mem::replace(&mut self.buffer, Vec::new());
-                        while !spans.is_empty() {
-                            let batch_idx = spans
-                                .len()
-                                .saturating_sub(self.config.max_export_batch_size);
-                            let batch = spans.split_off(batch_idx);
-                            self.exporter.export(batch);
-                        }
-                    }
-                }
+                Some(BatchMessage::Tick) => self.export_spans(),
                 // Stream has terminated or processor is shutdown, return to finish execution.
                 None | Some(BatchMessage::Shutdown) => {
                     self.exporter.shutdown();

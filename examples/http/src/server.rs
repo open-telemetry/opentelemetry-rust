@@ -1,7 +1,7 @@
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Request, Response, Server};
 use opentelemetry::{
-    api::{self, HttpTextFormat, Span, Tracer},
+    api::{self, Span, TextMapFormat, Tracer},
     exporter::trace::stdout,
     global, sdk,
 };
@@ -21,7 +21,7 @@ fn init_tracer() {
     let exporter = stdout::Builder::default().init();
 
     // For the demonstration, use `Sampler::AlwaysOn` sampler to sample all traces. In a production
-    // application, use `Sampler::ParentOrElse` or `Sampler::Probability` with a desired probability.
+    // application, use `Sampler::ParentBased` or `Sampler::TraceIdRatioBased` with a desired ratio.
     let provider = sdk::Provider::builder()
         .with_simple_exporter(exporter)
         .with_config(sdk::Config {

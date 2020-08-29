@@ -211,7 +211,7 @@
 //! `DistributedContext` into a binary or text format. Currently there are two types of propagators:
 //!
 //! - `BinaryFormat` which is used to serialize and deserialize a value into a binary representation.
-//! - `HTTPTextFormat` which is used to inject and extract a value as text into injectors or extractors
+//! - `TextMapFormat` which is used to inject and extract a value as text into injectors or extractors
 //!    that travel in-band across process boundaries.
 //!
 //! [Semantic Conventions]: https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/resource/semantic_conventions/README.md
@@ -221,6 +221,7 @@
 #![cfg_attr(test, deny(warnings))]
 
 pub mod api;
+#[cfg(feature = "trace")]
 pub mod experimental;
 pub mod exporter;
 pub mod global;

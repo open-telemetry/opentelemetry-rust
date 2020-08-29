@@ -14,13 +14,16 @@
 //!
 //! [`Provider`]: ../../api/trace/provider/trait.Provider.html
 use crate::api;
+use crate::api::labels;
+use crate::api::KeyValue;
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
 use std::collections::{btree_map, btree_map::Entry, BTreeMap};
+use std::time::Duration;
 
 /// Describes an entity about which identifying information and metadata is exposed.
 ///
-/// Items are sorted by key, and are only overwritten if the value is an empty string.
+/// Items are sorted by their key, and are only overwritten if the value is an empty string.
 #[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Resource {
@@ -37,6 +40,22 @@ impl Resource {
 
         for kv in kvs.into_iter() {
             resource.insert(kv);
+        }
+
+        resource
+    }
+
+    /// Create a new `Resource` from resource detectors.
+    ///
+    /// timeout will be applied to each detector.
+    pub fn from_detectors(timeout: Duration, detectors: Vec<Box<dyn ResourceDetector>>) -> Self {
+        let mut resource = Resource::default();
+        for detector in detectors {
+            let detected_res = detector.detect(timeout);
+            for (key, value) in detected_res.into_iter() {
+                // using insert instead of merge to avoid clone.
+                resource.insert(KeyValue::new(key, value));
+            }
         }
 
         resource
@@ -87,6 +106,11 @@ impl Resource {
         self.into_iter()
     }
 
+    /// Encoded labels
+    pub fn encoded(&self, encoder: &dyn labels::Encoder) -> String {
+        encoder.encode(&mut self.into_iter())
+    }
+
     /// Insert a key-value pair into a `Resource`
     fn insert(&mut self, item: api::KeyValue) {
         match self.attrs.entry(item.key) {
@@ -107,6 +131,7 @@ impl Resource {
 /// An owned iterator over the entries of a `Resource`.
 #[derive(Debug)]
 pub struct IntoIter(btree_map::IntoIter<api::Key, api::Value>);
+
 impl Iterator for IntoIter {
     type Item = (api::Key, api::Value);
 
@@ -127,6 +152,7 @@ impl IntoIterator for Resource {
 /// An iterator over the entries of a `Resource`.
 #[derive(Debug)]
 pub struct Iter<'a>(btree_map::Iter<'a, api::Key, api::Value>);
+
 impl<'a> Iterator for Iter<'a> {
     type Item = (&'a api::Key, &'a api::Value);
 
@@ -144,9 +170,29 @@ impl<'a> IntoIterator for &'a Resource {
     }
 }
 
-#[cfg(Test)]
+/// ResourceDetector detects OpenTelemetry resource information
+///
+/// Implementations of this trait can be passed to
+/// the `Resource::from_detectors` function to generate a Resource from the merged information.
+pub trait ResourceDetector {
+    /// detect returns an initialized Resource based on gathered information.
+    ///
+    /// timeout is used in case the detection operation takes too much time.
+    ///
+    /// If source information to construct a Resource is inaccessible, an empty Resource should be returned
+    ///
+    /// If source information to construct a Resource is invalid, for example,
+    /// missing required values. an empty Resource should be returned.
+    fn detect(&self, timeout: Duration) -> Resource;
+}
+
+#[cfg(test)]
 mod tests {
     use super::Resource;
+    use crate::api;
+    use crate::sdk::EnvResourceDetector;
+    use std::collections::BTreeMap;
+    use std::{env, time};
 
     #[test]
     fn new_resource() {
@@ -184,10 +230,41 @@ mod tests {
         expected_attrs.insert(api::Key::new("c"), api::Value::from("c-value"));
 
         assert_eq!(
-            resource_a.merge(resource_b)
+            resource_a.merge(&resource_b),
             Resource {
                 attrs: expected_attrs
             }
         );
+    }
+
+    #[test]
+    fn detect_resource() {
+        env::set_var("OTEL_RESOURCE_ATTRIBUTES", "key=value, k = v , a= x, a=z");
+        env::set_var("irrelevant".to_uppercase(), "20200810");
+
+        let detector = EnvResourceDetector::new();
+        let resource =
+            Resource::from_detectors(time::Duration::from_secs(5), vec![Box::new(detector)]);
+        assert_eq!(
+            resource,
+            Resource::new(vec![
+                api::KeyValue::new(
+                    api::Key::new("key".to_string()),
+                    api::Value::String("value".to_string())
+                ),
+                api::KeyValue::new(
+                    api::Key::new("k".to_string()),
+                    api::Value::String("v".to_string())
+                ),
+                api::KeyValue::new(
+                    api::Key::new("a".to_string()),
+                    api::Value::String("x".to_string())
+                ),
+                api::KeyValue::new(
+                    api::Key::new("a".to_string()),
+                    api::Value::String("z".to_string())
+                )
+            ])
+        )
     }
 }

@@ -1,14 +1,16 @@
-use opentelemetry::api::{
-    Context, CorrelationContextExt, Gauge, GaugeHandle, Key, Measure, MeasureHandle, Meter,
-    MetricOptions, TraceContextExt, Tracer,
-};
+use futures::stream::{Stream, StreamExt};
+use opentelemetry::api::metrics::{self, MetricsError, ObserverResult};
+use opentelemetry::api::{Context, CorrelationContextExt, Key, KeyValue, TraceContextExt, Tracer};
+use opentelemetry::exporter;
+use opentelemetry::sdk::metrics::PushController;
 use opentelemetry::{global, sdk};
+use std::time::Duration;
 
 fn init_tracer() {
     let exporter = opentelemetry_otlp::Exporter::default();
 
     // For the demonstration, use `Sampler::AlwaysOn` sampler to sample all traces. In a production
-    // application, use `Sampler::ParentOrElse` or `Sampler::Probability` with a desired probability.
+    // application, use `Sampler::ParentBased` or `Sampler::TraceIdRatioBased` with a desired ratio.
     let provider = sdk::Provider::builder()
         .with_simple_exporter(exporter)
         .with_config(sdk::Config {
@@ -19,59 +21,82 @@ fn init_tracer() {
     global::set_provider(provider);
 }
 
-fn main() {
+// Skip first immediate tick from tokio, not needed for async_std.
+fn delayed_interval(duration: Duration) -> impl Stream<Item = tokio::time::Instant> {
+    tokio::time::interval(duration).skip(1)
+}
+
+fn init_meter() -> metrics::Result<PushController> {
+    exporter::metrics::stdout(tokio::spawn, delayed_interval)
+        .with_quantiles(vec![0.5, 0.9, 0.99])
+        .with_formatter(|batch| {
+            serde_json::to_value(batch)
+                .map(|value| value.to_string())
+                .map_err(|err| MetricsError::Other(err.to_string()))
+        })
+        .try_init()
+}
+
+const FOO_KEY: Key = Key::from_static_str("ex.com/foo");
+const BAR_KEY: Key = Key::from_static_str("ex.com/bar");
+const LEMONS_KEY: Key = Key::from_static_str("ex.com/lemons");
+const ANOTHER_KEY: Key = Key::from_static_str("ex.com/another");
+
+lazy_static::lazy_static! {
+    static ref COMMON_LABELS: [KeyValue; 4] = [
+        LEMONS_KEY.i64(10),
+        KeyValue::new("A", "1"),
+        KeyValue::new("B", "2"),
+        KeyValue::new("C", "3"),
+    ];
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     init_tracer();
-    let meter = sdk::Meter::new("ex_com_basic");
+    let _started = init_meter()?;
 
-    let foo_key = Key::new("otlp.com/foo");
-    let bar_key = Key::new("otlp.com/bar");
-    let lemons_key = Key::new("otlp_com_lemons");
-    let another_key = Key::new("otlp_com_another");
+    let tracer = global::tracer("ex.com/basic");
+    let meter = global::meter("ex.com/basic");
 
-    let one_metric = meter.new_f64_gauge(
-        "ex_com_one",
-        MetricOptions::default()
-            .with_keys(vec![lemons_key.clone()])
-            .with_description("A gauge set to 1.0"),
-    );
+    let one_metric_callback = |res: ObserverResult<f64>| res.observe(1.0, COMMON_LABELS.as_ref());
+    let _ = meter
+        .f64_value_observer("ex.com.one", one_metric_callback)
+        .with_description("A ValueObserver set to 1.0")
+        .init();
 
-    let measure_two = meter.new_f64_measure(
-        "ex_com_two",
-        MetricOptions::default().with_keys(vec![lemons_key.clone()]),
-    );
-
-    let common_labels = meter.labels(vec![lemons_key.i64(10)]);
-
-    let gauge = one_metric.acquire_handle(&common_labels);
-
-    let measure = measure_two.acquire_handle(&common_labels);
+    let value_recorder_two = meter.f64_value_recorder("ex.com.two").init();
 
     let _correlations =
-        Context::current_with_correlations(vec![foo_key.string("foo1"), bar_key.string("bar1")])
+        Context::current_with_correlations(vec![FOO_KEY.string("foo1"), BAR_KEY.string("bar1")])
             .attach();
 
-    global::tracer("component-main").in_span("operation", move |cx| {
+    let value_recorder = value_recorder_two.bind(COMMON_LABELS.as_ref());
+
+    tracer.in_span("operation", |cx| {
         let span = cx.span();
         span.add_event(
             "Nice operation!".to_string(),
             vec![Key::new("bogons").i64(100)],
         );
-        span.set_attribute(another_key.string("yes"));
+        span.set_attribute(ANOTHER_KEY.string("yes"));
 
-        gauge.set(1.0);
-
-        meter.record_batch(
-            &common_labels,
-            vec![one_metric.measurement(1.0), measure_two.measurement(2.0)],
+        meter.record_batch_with_context(
+            // Note: call-site variables added as context Entries:
+            &Context::current_with_correlations(vec![ANOTHER_KEY.string("xyz")]),
+            COMMON_LABELS.as_ref(),
+            vec![value_recorder_two.measurement(2.0)],
         );
 
-        global::tracer("component-bar").in_span("Sub operation...", move |cx| {
+        tracer.in_span("Sub operation...", |cx| {
             let span = cx.span();
-            span.set_attribute(lemons_key.string("five"));
+            span.set_attribute(LEMONS_KEY.string("five"));
 
             span.add_event("Sub span event".to_string(), vec![]);
 
-            measure.record(1.3);
+            value_recorder.record(1.3);
         });
     });
+
+    Ok(())
 }

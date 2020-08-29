@@ -15,30 +15,26 @@
 //! so that the SDK knows where and how to deliver the telemetry.
 pub mod context;
 pub mod core;
+#[cfg(feature = "trace")]
 pub mod correlation;
+pub mod labels;
+#[cfg(feature = "metrics")]
 pub mod metrics;
+#[cfg(feature = "trace")]
 pub mod trace;
 
 pub use self::core::{Key, KeyValue, Unit, Value};
-pub use context::{
-    propagation::{
-        composite_propagator::HttpTextCompositePropagator, text_propagator::HttpTextFormat,
-        Extractor, Injector,
-    },
-    Context,
+#[cfg(feature = "trace")]
+pub use context::propagation::{
+    composite_propagator::TextMapCompositePropagator, text_propagator::FieldIter,
+    text_propagator::TextMapFormat, Extractor, Injector,
 };
+pub use context::Context;
+#[cfg(feature = "trace")]
 pub use correlation::{CorrelationContext, CorrelationContextExt, CorrelationContextPropagator};
 
-pub use metrics::{
-    counter::{Counter, CounterHandle},
-    gauge::{Gauge, GaugeHandle},
-    measure::{Measure, MeasureHandle},
-    noop::NoopMeter,
-    value::MeasurementValue,
-    Instrument, InstrumentHandle, LabelSet, Measurement, Meter, MetricOptions,
-};
+#[cfg(feature = "trace")]
 pub use trace::{
-    b3_propagator::B3Propagator,
     context::TraceContextExt,
     event::Event,
     futures::FutureExt,

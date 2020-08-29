@@ -14,7 +14,7 @@
 //!
 //! ```
 //! use opentelemetry::api::{
-//!     CorrelationContextExt, CorrelationContextPropagator, HttpTextFormat, Key
+//!     CorrelationContextExt, CorrelationContextPropagator, TextMapFormat, Key
 //! };
 //! use std::collections::HashMap;
 //!
@@ -47,6 +47,7 @@ use std::iter::FromIterator;
 
 mod propagation;
 
+#[cfg(feature = "trace")]
 pub use propagation::{CorrelationContextExt, CorrelationContextPropagator};
 
 /// A set of name/value pairs describing user-defined properties across systems.

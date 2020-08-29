@@ -13,13 +13,14 @@
 //!
 //! If `inject_encoding` is set to `B3Encoding::SingleHeader` then `b3` header is used to inject
 //! and extract. Otherwise, separate headers are used to inject and extract.
-use crate::api::trace::b3_propagator::B3Encoding::MultipleHeader;
-use crate::api::TRACE_FLAG_DEFERRED;
-use crate::{api, api::TraceContextExt};
+use opentelemetry::{
+    api,
+    api::{context::propagation::text_propagator::FieldIter, TraceContextExt, TRACE_FLAG_DEFERRED},
+};
 
 static B3_SINGLE_HEADER: &str = "b3";
 /// As per spec, the multiple header should be case sensitive. But different protocol will use
-/// different format. For example, HTTP will use X-B3-$name while gRPC will use x-b3-$name. So here
+/// different formats. For example, HTTP will use X-B3-$name while gRPC will use x-b3-$name. So here
 /// we leave it to be lower case since we cannot tell what kind of protocol will be used.
 /// Go implementation also uses lower case.
 static B3_DEBUG_FLAG_HEADER: &str = "x-b3-flags";
@@ -27,6 +28,12 @@ static B3_TRACE_ID_HEADER: &str = "x-b3-traceid";
 static B3_SPAN_ID_HEADER: &str = "x-b3-spanid";
 static B3_SAMPLED_HEADER: &str = "x-b3-sampled";
 static B3_PARENT_SPAN_ID_HEADER: &str = "x-b3-parentspanid";
+
+lazy_static::lazy_static! {
+    static ref B3_SINGLE_FIELDS: [String; 1] = [B3_SINGLE_HEADER.to_string()];
+    static ref B3_MULTI_FIELDS: [String; 4] = [B3_TRACE_ID_HEADER.to_string(), B3_SPAN_ID_HEADER.to_string(), B3_SAMPLED_HEADER.to_string(), B3_DEBUG_FLAG_HEADER.to_string()];
+    static ref B3_SINGLE_AND_MULTI_FIELDS: [String; 5] = [B3_SINGLE_HEADER.to_string(), B3_TRACE_ID_HEADER.to_string(), B3_SPAN_ID_HEADER.to_string(), B3_SAMPLED_HEADER.to_string(), B3_DEBUG_FLAG_HEADER.to_string()];
+}
 
 /// B3Encoding is a bitmask to represent B3 encoding type
 #[derive(Clone, Debug)]
@@ -61,7 +68,7 @@ pub struct B3Propagator {
 impl Default for B3Propagator {
     fn default() -> Self {
         B3Propagator {
-            inject_encoding: MultipleHeader,
+            inject_encoding: B3Encoding::MultipleHeader,
         }
     }
 }
@@ -200,7 +207,7 @@ impl B3Propagator {
     }
 }
 
-impl api::HttpTextFormat for B3Propagator {
+impl api::TextMapFormat for B3Propagator {
     /// Properly encodes the values of the `Context`'s `SpanContext` and injects
     /// them into the `Injector`.
     fn inject_context(&self, context: &api::Context, injector: &mut dyn api::Injector) {
@@ -268,9 +275,9 @@ impl api::HttpTextFormat for B3Propagator {
     ) -> api::Context {
         let span_context = if self.inject_encoding.support(&B3Encoding::SingleHeader) {
             self.extract_single_header(extractor).unwrap_or_else(|_|
-                    // if invalid single header should fallback to multiple
-                    self.extract_multi_header(extractor)
-                        .unwrap_or_else(|_| api::SpanContext::empty_context()))
+                // if invalid single header should fallback to multiple
+                self.extract_multi_header(extractor)
+                    .unwrap_or_else(|_| api::SpanContext::empty_context()))
         } else {
             self.extract_multi_header(extractor)
                 .unwrap_or_else(|_| api::SpanContext::empty_context())
@@ -278,13 +285,32 @@ impl api::HttpTextFormat for B3Propagator {
 
         cx.with_remote_span_context(span_context)
     }
+
+    fn fields(&self) -> FieldIter {
+        let field_slice = if self
+            .inject_encoding
+            .support(&B3Encoding::SingleAndMultiHeader)
+        {
+            B3_SINGLE_AND_MULTI_FIELDS.as_ref()
+        } else if self.inject_encoding.support(&B3Encoding::MultipleHeader) {
+            B3_MULTI_FIELDS.as_ref()
+        } else if self.inject_encoding.support(&B3Encoding::SingleHeader) {
+            B3_SINGLE_FIELDS.as_ref()
+        } else {
+            B3_MULTI_FIELDS.as_ref()
+        };
+
+        FieldIter::new(field_slice)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::api::trace::span_context::{SpanId, TraceId, TRACE_FLAG_NOT_SAMPLED};
-    use crate::api::{HttpTextFormat, TRACE_FLAG_DEBUG, TRACE_FLAG_DEFERRED, TRACE_FLAG_SAMPLED};
+    use opentelemetry::api::trace::span_context::{SpanId, TraceId, TRACE_FLAG_NOT_SAMPLED};
+    use opentelemetry::api::{
+        TextMapFormat, TRACE_FLAG_DEBUG, TRACE_FLAG_DEFERRED, TRACE_FLAG_SAMPLED,
+    };
     use std::collections::HashMap;
 
     const TRACE_ID_STR: &str = "4bf92f3577b34da6a3ce929d0e0e4736";
@@ -540,7 +566,7 @@ mod tests {
         fn set_attribute(&self, _attribute: api::KeyValue) {}
         fn set_status(&self, _code: api::StatusCode, _message: String) {}
         fn update_name(&self, _new_name: String) {}
-        fn end(&self) {}
+        fn end_with_timestamp(&self, _timestamp: std::time::SystemTime) {}
     }
 
     #[test]
@@ -634,5 +660,39 @@ mod tests {
             );
             assert_eq!(injector.get(B3_PARENT_SPAN_ID_HEADER), None);
         }
+    }
+
+    #[test]
+    fn test_get_fields() {
+        let single_header_propagator = B3Propagator::with_encoding(B3Encoding::SingleHeader);
+        let multi_header_propagator = B3Propagator::with_encoding(B3Encoding::MultipleHeader);
+        let single_multi_header_propagator =
+            B3Propagator::with_encoding(B3Encoding::SingleAndMultiHeader);
+
+        assert_eq!(
+            single_header_propagator.fields().collect::<Vec<&str>>(),
+            vec![B3_SINGLE_HEADER]
+        );
+        assert_eq!(
+            multi_header_propagator.fields().collect::<Vec<&str>>(),
+            vec![
+                B3_TRACE_ID_HEADER,
+                B3_SPAN_ID_HEADER,
+                B3_SAMPLED_HEADER,
+                B3_DEBUG_FLAG_HEADER
+            ]
+        );
+        assert_eq!(
+            single_multi_header_propagator
+                .fields()
+                .collect::<Vec<&str>>(),
+            vec![
+                B3_SINGLE_HEADER,
+                B3_TRACE_ID_HEADER,
+                B3_SPAN_ID_HEADER,
+                B3_SAMPLED_HEADER,
+                B3_DEBUG_FLAG_HEADER
+            ]
+        );
     }
 }
