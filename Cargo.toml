@@ -54,6 +54,7 @@ members = [
     "examples/actix-udp",
     "examples/actix-http",
     "examples/async",
+    "examples/aws-xray",
     "examples/basic",
     "examples/basic-otlp",
     "examples/grpc",
