@@ -44,6 +44,10 @@ pub struct XrayTraceContextPropagator {
 }
 
 impl XrayTraceContextPropagator {
+    pub fn new() -> Self {
+        XrayTraceContextPropagator::default()
+    }
+
     fn extract_span_context(&self, extractor: &dyn Extractor) -> Result<SpanContext, ()> {
         let header_value: &str = extractor.get(AWS_XRAY_TRACE_HEADER).unwrap_or("").trim();
 
@@ -94,14 +98,6 @@ impl TextMapFormat for XrayTraceContextPropagator {
         let span_context: SpanContext = cx.span().span_context();
         if span_context.is_valid() {
             let xray_trace_id: XrayTraceId = span_context.trace_id().into();
-            let mut components: Vec<String> =
-                vec![format!("{}={}", HEADER_ROOT_KEY, xray_trace_id.0)];
-
-            components.push(format!(
-                "{}={:016x}",
-                HEADER_PARENT_KEY,
-                span_context.span_id().to_u64()
-            ));
 
             let sampling_decision: &str = if span_context.is_deferred() {
                 REQUESTED_SAMPLE_DECISION
@@ -111,9 +107,18 @@ impl TextMapFormat for XrayTraceContextPropagator {
                 NOT_SAMPLED
             };
 
-            components.push(format!("{}={}", HEADER_SAMPLED_KEY, sampling_decision));
-
-            injector.set(AWS_XRAY_TRACE_HEADER, components.join(";"));
+            injector.set(
+                AWS_XRAY_TRACE_HEADER,
+                format!(
+                    "{}={};{}={};{}={}",
+                    HEADER_ROOT_KEY,
+                    xray_trace_id.0,
+                    HEADER_PARENT_KEY,
+                    span_context.span_id().to_hex(),
+                    HEADER_SAMPLED_KEY,
+                    sampling_decision
+                ),
+            );
         }
     }
 
@@ -130,6 +135,19 @@ impl TextMapFormat for XrayTraceContextPropagator {
     }
 }
 
+/// Holds an X-Ray formatted Trace ID
+///
+/// A `trace_id` consists of three numbers separated by hyphens. For example, `1-58406520-a006649127e371903a2de979`.
+/// This includes:
+///
+/// * The version number, that is, 1.
+/// * The time of the original request, in Unix epoch time, in 8 hexadecimal digits.
+/// * For example, 10:00AM December 1st, 2016 PST in epoch time is 1480615200 seconds, or 58406520 in hexadecimal digits.
+/// * A 96-bit identifier for the trace, globally unique, in 24 hexadecimal digits.
+///
+/// See the [AWS X-Ray Documentation][xray-trace-id] for more details.
+///
+/// [xray-trace-id]: https://docs.aws.amazon.com/xray/latest/devguide/xray-api-sendingdata.html#xray-api-traceids
 #[derive(Clone, Debug, PartialEq)]
 struct XrayTraceId(String);
 
