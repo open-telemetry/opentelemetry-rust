@@ -16,7 +16,7 @@ use std::sync::{Arc, RwLock};
 /// Default tracer name if empty string is provided.
 const DEFAULT_COMPONENT_NAME: &str = "rust.opentelemetry.io/sdk/tracer";
 
-/// Provider
+/// TracerProvider inner type
 #[derive(Debug)]
 struct ProviderInner {
     named_tracers: RwLock<HashMap<&'static str, sdk::Tracer>>,
@@ -45,7 +45,7 @@ impl Default for TracerProvider {
 }
 
 impl TracerProvider {
-    /// Create a new `Provider` builder.
+    /// Create a new `TracerProvider` builder.
     pub fn builder() -> Builder {
         Builder::default()
     }
@@ -62,7 +62,7 @@ impl TracerProvider {
 }
 
 impl api::TracerProvider for TracerProvider {
-    /// This implementation of `api::Provider` produces `sdk::Tracer` instances.
+    /// This implementation of `api::TraceProvider` produces `sdk::Tracer` instances.
     type Tracer = sdk::Tracer;
 
     /// Find or create `Tracer` instance by name.

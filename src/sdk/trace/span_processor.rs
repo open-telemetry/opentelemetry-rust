@@ -5,9 +5,9 @@
 //! is `true`.
 //! Built-in span processors are responsible for batching and conversion of
 //! spans to exportable representation and passing batches to exporters.
-//! Span processors can be registered directly on SDK [`Provider`] and they are
+//! Span processors can be registered directly on SDK [`TracerProvider`] and they are
 //! invoked in the same order as they were registered.
-//! All [`Tracer`] instances created by a [`Provider`] share the same span
+//! All [`Tracer`] instances created by a [`TracerProvider`] share the same span
 //! processors. Changes to this collection reflect in all [`Tracer`] instances.
 //! The following diagram shows [`SpanProcessor`]'s relationship to other
 //! components in the SDK:
@@ -82,7 +82,7 @@
 //! ```
 //!
 //! [`is_recording`]: ../../../api/trace/span/trait.Span.html#tymethod.is_recording
-//! [`Provider`]: ../../../api/trace/provider/trait.Provider.html
+//! [`TracerProvider`]: ../../../api/trace/provider/trait.TracerProvider.html
 //! [`Tracer`]: ../../../api/trace/tracer/trait.Tracer.html
 //! [`SpanProcessor`]: ../../../api/trace/span_processor/trait.SpanProcessor.html
 //! [`SimpleSpanProcessor`]: struct.SimpleSpanProcessor.html

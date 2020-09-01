@@ -1,7 +1,7 @@
 //! # OpenTelemetry Global API
 //!
 //! The global API **provides applications access to their configured
-//! [`Provider`] instance from anywhere in the codebase**. This allows
+//! [`TracerProvider`] instance from anywhere in the codebase**. This allows
 //! applications to be less coupled to the specific Open Telemetry SDK as
 //! well as not manually pass references to each part of the code that needs
 //! to create [`Span`]s. Additionally, **3rd party middleware** or **library code**
@@ -18,7 +18,7 @@
 //! fn init_tracer() {
 //!     let provider = opentelemetry::api::NoopProvider {};
 //!
-//!     // Configure the global `Provider` singleton when your app starts
+//!     // Configure the global `TracerProvider` singleton when your app starts
 //!     // (there is a no-op default if this is not set by your application)
 //!     global::set_provider(provider);
 //! }
@@ -57,7 +57,7 @@
 //! [`GenericTracer`], and [`Span`] respectively allowing the underlying
 //! implementation to be set at runtime.
 //!
-//! [`Provider`]: ../api/trace/provider/trait.Provider.html
+//! [`TracerProvider`]: ../api/trace/provider/trait.TracerProvider.html
 //! [`Tracer`]: ../api/trace/tracer/trait.Tracer.html
 //! [`Span`]: ../api/trace/span/trait.Span.html
 //! [`GenericProvider`]: trait.GenericProvider.html

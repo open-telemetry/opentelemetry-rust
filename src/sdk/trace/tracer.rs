@@ -30,12 +30,12 @@ impl fmt::Debug for Tracer {
 }
 
 impl Tracer {
-    /// Create a new tracer (used internally by `Provider`s.
+    /// Create a new tracer (used internally by `TracerProvider`s.
     pub(crate) fn new(name: &'static str, provider: sdk::TracerProvider) -> Self {
         Tracer { name, provider }
     }
 
-    /// Provider associated with this tracer
+    /// TracerProvider associated with this tracer
     pub fn provider(&self) -> &sdk::TracerProvider {
         &self.provider
     }
