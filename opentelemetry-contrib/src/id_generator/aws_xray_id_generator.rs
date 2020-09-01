@@ -26,10 +26,10 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 /// extern crate opentelemetry;
 /// use opentelemetry::api::NoopSpanExporter;
 /// use opentelemetry::sdk::Config;
-/// use opentelemetry::sdk::trace::provider::Provider;
+/// use opentelemetry::sdk::trace::provider::TracerProvider;
 /// use opentelemetry_contrib::XrayIdGenerator;
 ///
-/// let _provider: Provider = Provider::builder()
+/// let _provider: TracerProvider = TracerProvider::builder()
 ///     .with_simple_exporter(NoopSpanExporter {})
 ///     .with_config(Config {
 ///          id_generator: Box::new(XrayIdGenerator::default()),

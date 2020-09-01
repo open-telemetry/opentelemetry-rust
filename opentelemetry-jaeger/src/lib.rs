@@ -126,7 +126,7 @@ use agent::AgentSyncClientUDP;
 #[cfg(feature = "collector_client")]
 use collector::CollectorSyncClientHttp;
 use opentelemetry::{
-    api::{self, Provider},
+    api::{self, TracerProvider},
     exporter::trace,
     global, sdk,
 };
@@ -312,11 +312,11 @@ impl PipelineBuilder {
     }
 
     /// Build a configured `sdk::Provider` with the recommended defaults.
-    pub fn build(mut self) -> Result<sdk::Provider, Box<dyn Error>> {
+    pub fn build(mut self) -> Result<sdk::TracerProvider, Box<dyn Error>> {
         let config = self.config.take();
         let exporter = self.init_exporter()?;
 
-        let mut builder = configure_exporter(sdk::Provider::builder(), exporter);
+        let mut builder = configure_exporter(sdk::TracerProvider::builder(), exporter);
 
         if let Some(config) = config {
             builder = builder.with_config(config)

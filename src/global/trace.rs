@@ -1,4 +1,4 @@
-use crate::{api, api::Provider};
+use crate::{api, api::TracerProvider};
 use std::fmt;
 use std::sync::{Arc, RwLock};
 use std::time::SystemTime;
@@ -170,7 +170,7 @@ impl<S, T, P> GenericProvider for P
 where
     S: api::Span + Send + Sync,
     T: api::Tracer<Span = S> + Send + Sync,
-    P: api::Provider<Tracer = T>,
+    P: api::TracerProvider<Tracer = T>,
 {
     /// Return a boxed generic tracer
     fn get_tracer_boxed(&self, name: &'static str) -> Box<dyn GenericTracer + Send + Sync> {
@@ -195,7 +195,7 @@ impl GlobalProvider {
     where
         S: api::Span + Send + Sync,
         T: api::Tracer<Span = S> + Send + Sync,
-        P: api::Provider<Tracer = T> + Send + Sync,
+        P: api::TracerProvider<Tracer = T> + Send + Sync,
     {
         GlobalProvider {
             provider: Arc::new(provider),
@@ -203,7 +203,7 @@ impl GlobalProvider {
     }
 }
 
-impl api::Provider for GlobalProvider {
+impl api::TracerProvider for GlobalProvider {
     type Tracer = BoxedTracer;
 
     /// Find or create a named tracer using the global provider.
@@ -248,7 +248,7 @@ pub fn set_provider<P, T, S>(new_provider: P)
 where
     S: api::Span + Send + Sync,
     T: api::Tracer<Span = S> + Send + Sync,
-    P: api::Provider<Tracer = T> + Send + Sync,
+    P: api::TracerProvider<Tracer = T> + Send + Sync,
 {
     let mut global_provider = GLOBAL_TRACER_PROVIDER
         .write()

@@ -11,7 +11,7 @@
 //! ## Usage
 //!
 //! ```rust
-//! use opentelemetry::api::{Provider, Tracer};
+//! use opentelemetry::api::{TracerProvider, Tracer};
 //! use opentelemetry::api::metrics::{Meter, MeterProvider};
 //! use opentelemetry::global;
 //!

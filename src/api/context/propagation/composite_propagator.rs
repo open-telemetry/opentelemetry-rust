@@ -35,7 +35,7 @@ use std::fmt::Debug;
 /// let mut injector = HashMap::new();
 ///
 /// // And a given span
-/// let example_span = sdk::Provider::default().get_tracer("example-component").start("span-name");
+/// let example_span = sdk::TracerProvider::default().get_tracer("example-component").start("span-name");
 ///
 /// // with the current context, call inject to add the headers
 /// composite_propagator.inject_context(&Context::current_with_span(example_span)

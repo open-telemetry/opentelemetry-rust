@@ -2,12 +2,12 @@
 //!
 //! ## Tracer Creation
 //!
-//! New `Tracer` instances are always created through a `Provider`.
+//! New `Tracer` instances are always created through a `TracerProvider`.
 //!
 //! All configuration objects and extension points (span processors,
-//! propagators) are provided by the `Provider`. `Tracer` instances do
+//! propagators) are provided by the `TracerProvider`. `Tracer` instances do
 //! not duplicate this data to avoid that different `Tracer` instances
-//! of the `Provider` have different versions of these data.
+//! of the `TracerProvider` have different versions of these data.
 use crate::exporter::trace::SpanExporter;
 use crate::{api, sdk};
 use std::collections::HashMap;
@@ -34,17 +34,17 @@ impl Drop for ProviderInner {
 
 /// Creator and registry of named `Tracer` instances.
 #[derive(Clone, Debug)]
-pub struct Provider {
+pub struct TracerProvider {
     inner: Arc<ProviderInner>,
 }
 
-impl Default for Provider {
+impl Default for TracerProvider {
     fn default() -> Self {
-        Provider::builder().build()
+        TracerProvider::builder().build()
     }
 }
 
-impl Provider {
+impl TracerProvider {
     /// Create a new `Provider` builder.
     pub fn builder() -> Builder {
         Builder::default()
@@ -61,7 +61,7 @@ impl Provider {
     }
 }
 
-impl api::Provider for Provider {
+impl api::TracerProvider for TracerProvider {
     /// This implementation of `api::Provider` produces `sdk::Tracer` instances.
     type Tracer = sdk::Tracer;
 
@@ -132,8 +132,8 @@ impl Builder {
     }
 
     /// Create a new provider from this configuration.
-    pub fn build(self) -> Provider {
-        Provider {
+    pub fn build(self) -> TracerProvider {
+        TracerProvider {
             inner: Arc::new(ProviderInner {
                 named_tracers: Default::default(),
                 processors: self.processors,

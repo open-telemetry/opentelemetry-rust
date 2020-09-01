@@ -12,7 +12,7 @@ use std::time::SystemTime;
 #[derive(Debug)]
 pub struct NoopProvider {}
 
-impl api::Provider for NoopProvider {
+impl api::TracerProvider for NoopProvider {
     type Tracer = NoopTracer;
 
     /// Returns a new `NoopTracer` instance.

@@ -41,7 +41,7 @@
 //! let exporter = api::NoopSpanExporter {};
 //!
 //! // Then use the `with_simple_exporter` method to have the provider export when spans finish.
-//! let provider = sdk::Provider::builder()
+//! let provider = sdk::TracerProvider::builder()
 //!     .with_simple_exporter(exporter)
 //!     .build();
 //!
@@ -73,7 +73,7 @@
 //!         .build();
 //!
 //!     // Then use the `with_batch_exporter` method to have the provider export spans in batches.
-//!     let provider = sdk::Provider::builder()
+//!     let provider = sdk::TracerProvider::builder()
 //!         .with_batch_exporter(batch)
 //!         .build();
 //!

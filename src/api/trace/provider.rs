@@ -23,7 +23,7 @@ use crate::api;
 use std::fmt;
 
 /// An interface to create `Tracer` instances.
-pub trait Provider: fmt::Debug + 'static {
+pub trait TracerProvider: fmt::Debug + 'static {
     /// The `Tracer` type that this `Provider` will return.
     type Tracer: api::Tracer;
 
