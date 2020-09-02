@@ -13,6 +13,7 @@ pub mod metrics;
 pub mod resource;
 #[cfg(feature = "trace")]
 pub mod trace;
+pub mod instrumentation;
 
 pub use env::EnvResourceDetector;
 pub use resource::Resource;
@@ -28,3 +29,4 @@ pub use trace::{
     span_processor::{BatchSpanProcessor, SimpleSpanProcessor},
     tracer::Tracer,
 };
+pub use instrumentation::InstrumentationLibrary;

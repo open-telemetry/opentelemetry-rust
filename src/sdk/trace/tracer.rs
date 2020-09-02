@@ -17,7 +17,7 @@ use std::time::SystemTime;
 /// `Tracer` implementation to create and manage spans
 #[derive(Clone)]
 pub struct Tracer {
-    name: &'static str,
+    instrumentation_lib: sdk::InstrumentationLibrary,
     provider: sdk::TracerProvider,
 }
 
@@ -25,19 +25,30 @@ impl fmt::Debug for Tracer {
     /// Formats the `Tracer` using the given formatter.
     /// Omitting `provider` here is necessary to avoid cycles.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Tracer").field("name", &self.name).finish()
+        f.debug_struct("Tracer")
+            .field("name", &self.instrumentation_lib.name)
+            .field("version", &self.instrumentation_lib.version)
+            .finish()
     }
 }
 
 impl Tracer {
-    /// Create a new tracer (used internally by `TracerProvider`s.
-    pub(crate) fn new(name: &'static str, provider: sdk::TracerProvider) -> Self {
-        Tracer { name, provider }
+    /// Create a new tracer (used internally by `TracerProvider`s).
+    pub(crate) fn new(instrumentation_lib: sdk::InstrumentationLibrary, provider: sdk::TracerProvider) -> Self {
+        Tracer {
+            instrumentation_lib,
+            provider,
+        }
     }
 
-    /// TracerProvider associated with this tracer
+    /// TracerProvider associated with this tracer.
     pub fn provider(&self) -> &sdk::TracerProvider {
         &self.provider
+    }
+
+    /// instrumentation library information of this tracer.
+    pub fn instrumentation_library(&self) -> &sdk::InstrumentationLibrary {
+        &self.instrumentation_lib
     }
 
     /// Make a sampling decision using the provided sampler for the span and context.

@@ -16,7 +16,7 @@ impl api::TracerProvider for NoopProvider {
     type Tracer = NoopTracer;
 
     /// Returns a new `NoopTracer` instance.
-    fn get_tracer(&self, _name: &'static str) -> Self::Tracer {
+    fn get_tracer(&self, _name: &'static str, _version: Option<&'static str>) -> Self::Tracer {
         NoopTracer {}
     }
 }
