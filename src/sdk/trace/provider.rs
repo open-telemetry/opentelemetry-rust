@@ -75,7 +75,7 @@ impl api::TracerProvider for TracerProvider {
         };
 
         let instrumentation_lib =
-            sdk::InstrumentationLibrary::new(component_name, version.unwrap_or(""));
+            sdk::InstrumentationLibrary::new(component_name, version);
 
         // Return named tracer if already initialized
         if let Some(tracer) = self
