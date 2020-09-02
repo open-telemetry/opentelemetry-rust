@@ -20,9 +20,6 @@ pub struct InstrumentationLibrary {
 impl InstrumentationLibrary {
     /// Create an InstrumentationLibrary from name and version.
     pub fn new(name: &'static str, version: Option<&'static str>) -> InstrumentationLibrary {
-        InstrumentationLibrary {
-            name,
-            version,
-        }
+        InstrumentationLibrary { name, version }
     }
 }
