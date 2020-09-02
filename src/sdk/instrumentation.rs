@@ -28,7 +28,7 @@ impl InstrumentationLibrary {
     }
 }
 
-impl PartialEq for InstrumentationLibrary{
+impl PartialEq for InstrumentationLibrary {
     fn eq(&self, other: &Self) -> bool {
         self.name.eq(other.name) && self.version.eq(other.version)
     }

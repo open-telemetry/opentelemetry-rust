@@ -163,7 +163,11 @@ where
 /// [`GlobalProvider`]: struct.GlobalProvider.html
 pub trait GenericProvider: fmt::Debug + 'static {
     /// Creates a named tracer instance that is a trait object through the underlying `TracerProvider`.
-    fn get_tracer_boxed(&self, name: &'static str, version: Option<&'static str>) -> Box<dyn GenericTracer + Send + Sync>;
+    fn get_tracer_boxed(
+        &self,
+        name: &'static str,
+        version: Option<&'static str>,
+    ) -> Box<dyn GenericTracer + Send + Sync>;
 }
 
 impl<S, T, P> GenericProvider for P
@@ -173,7 +177,11 @@ where
     P: api::TracerProvider<Tracer = T>,
 {
     /// Return a boxed generic tracer
-    fn get_tracer_boxed(&self, name: &'static str, version: Option<&'static str>) -> Box<dyn GenericTracer + Send + Sync> {
+    fn get_tracer_boxed(
+        &self,
+        name: &'static str,
+        version: Option<&'static str>,
+    ) -> Box<dyn GenericTracer + Send + Sync> {
         Box::new(self.get_tracer(name, version))
     }
 }

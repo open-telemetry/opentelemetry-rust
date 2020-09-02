@@ -34,7 +34,10 @@ impl fmt::Debug for Tracer {
 
 impl Tracer {
     /// Create a new tracer (used internally by `TracerProvider`s).
-    pub(crate) fn new(instrumentation_lib: sdk::InstrumentationLibrary, provider: sdk::TracerProvider) -> Self {
+    pub(crate) fn new(
+        instrumentation_lib: sdk::InstrumentationLibrary,
+        provider: sdk::TracerProvider,
+    ) -> Self {
         Tracer {
             instrumentation_lib,
             provider,
