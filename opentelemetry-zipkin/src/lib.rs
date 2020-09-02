@@ -19,7 +19,7 @@
 //!            .with_service_name("opentelemetry-backend".to_owned())
 //!            .with_service_endpoint(SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080))
 //!            .build());
-//!     let provider = sdk::Provider::builder()
+//!     let provider = sdk::TracerProvider::builder()
 //!         .with_simple_exporter(exporter)
 //!         .with_config(sdk::Config {
 //!             default_sampler: Box::new(sdk::Sampler::AlwaysOn),

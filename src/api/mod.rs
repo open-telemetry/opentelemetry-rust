@@ -41,7 +41,7 @@ pub use trace::{
     id_generator::IdGenerator,
     link::Link,
     noop::{NoopProvider, NoopSpan, NoopSpanExporter, NoopTracer},
-    provider::Provider,
+    provider::TracerProvider,
     span::{Span, SpanKind, StatusCode},
     span_context::{
         SpanContext, SpanId, TraceId, TRACE_FLAG_DEBUG, TRACE_FLAG_DEFERRED,

@@ -13,7 +13,7 @@
 //! use std::sync::Arc;
 //!
 //! let exporter = opentelemetry::exporter::trace::stdout::Builder::default().init();
-//! let provider = sdk::Provider::builder()
+//! let provider = sdk::TracerProvider::builder()
 //!    .with_simple_exporter(exporter)
 //!    .with_config(sdk::Config {
 //!        resource: Arc::new(sdk::Resource::new(vec![

@@ -16,7 +16,7 @@
 //!
 //! // Create a new stdout exporter that writes pretty printed span output
 //! let exporter = stdout::Builder::default().with_pretty_print(true).init();
-//! let provider = sdk::Provider::builder()
+//! let provider = sdk::TracerProvider::builder()
 //!     .with_simple_exporter(exporter)
 //!     .build();
 //! global::set_provider(provider);

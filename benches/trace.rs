@@ -1,6 +1,6 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use opentelemetry::{
-    api::{Key, Provider, Span, Tracer},
+    api::{Key, Span, Tracer, TracerProvider},
     sdk,
 };
 
@@ -68,7 +68,7 @@ fn trace_benchmark_group<F: Fn(&sdk::Tracer)>(c: &mut Criterion, name: &str, f: 
     let mut group = c.benchmark_group(name);
 
     group.bench_function("always-sample", |b| {
-        let always_sample = sdk::Provider::builder()
+        let always_sample = sdk::TracerProvider::builder()
             .with_config(sdk::Config {
                 default_sampler: Box::new(sdk::Sampler::AlwaysOn),
                 ..Default::default()
@@ -80,7 +80,7 @@ fn trace_benchmark_group<F: Fn(&sdk::Tracer)>(c: &mut Criterion, name: &str, f: 
     });
 
     group.bench_function("never-sample", |b| {
-        let never_sample = sdk::Provider::builder()
+        let never_sample = sdk::TracerProvider::builder()
             .with_config(sdk::Config {
                 default_sampler: Box::new(sdk::Sampler::AlwaysOff),
                 ..Default::default()

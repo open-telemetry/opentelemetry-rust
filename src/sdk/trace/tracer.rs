@@ -18,7 +18,7 @@ use std::time::SystemTime;
 #[derive(Clone)]
 pub struct Tracer {
     name: &'static str,
-    provider: sdk::Provider,
+    provider: sdk::TracerProvider,
 }
 
 impl fmt::Debug for Tracer {
@@ -30,13 +30,13 @@ impl fmt::Debug for Tracer {
 }
 
 impl Tracer {
-    /// Create a new tracer (used internally by `Provider`s.
-    pub(crate) fn new(name: &'static str, provider: sdk::Provider) -> Self {
+    /// Create a new tracer (used internally by `TracerProvider`s.
+    pub(crate) fn new(name: &'static str, provider: sdk::TracerProvider) -> Self {
         Tracer { name, provider }
     }
 
-    /// Provider associated with this tracer
-    pub fn provider(&self) -> &sdk::Provider {
+    /// TracerProvider associated with this tracer
+    pub fn provider(&self) -> &sdk::TracerProvider {
         &self.provider
     }
 

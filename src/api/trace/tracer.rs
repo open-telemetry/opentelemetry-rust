@@ -377,7 +377,7 @@ pub trait Tracer: fmt::Debug + 'static {
 ///
 /// ```rust
 /// use opentelemetry::{
-///     api::{Provider, SpanBuilder, SpanKind, Tracer},
+///     api::{TracerProvider, SpanBuilder, SpanKind, Tracer},
 ///     global,
 /// };
 ///
