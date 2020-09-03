@@ -3,9 +3,9 @@ use std::sync::RwLock;
 
 lazy_static::lazy_static! {
     /// The current global `TextMapFormat` propagator.
-    static ref GLOBAL_TEXT_MAP_PROPAGATOR: RwLock<Box<dyn api::TextMapFormat + Send + Sync>> = RwLock::new(Box::new(api::TextMapCompositePropagator::new(vec![Box::new(api::TraceContextPropagator::new()), Box::new(api::CorrelationContextPropagator::new())])));
+    static ref GLOBAL_TEXT_MAP_PROPAGATOR: RwLock<Box<dyn api::TextMapFormat + Send + Sync>> = RwLock::new(Box::new(api::TextMapCompositePropagator::new(vec![Box::new(api::TraceContextPropagator::new()), Box::new(api::BaggagePropagator::new())])));
     /// The global default `TextMapFormat` propagator.
-    static ref DEFAULT_TEXT_MAP_PROPAGATOR: api::TextMapCompositePropagator = api::TextMapCompositePropagator::new(vec![Box::new(api::TraceContextPropagator::new()), Box::new(api::CorrelationContextPropagator::new())]);
+    static ref DEFAULT_TEXT_MAP_PROPAGATOR: api::TextMapCompositePropagator = api::TextMapCompositePropagator::new(vec![Box::new(api::TraceContextPropagator::new()), Box::new(api::BaggagePropagator::new())]);
 }
 
 /// Sets the given [`TextMapFormat`] propagator as the current global propagator.

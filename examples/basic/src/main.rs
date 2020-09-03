@@ -1,6 +1,6 @@
 use futures::stream::{Stream, StreamExt};
 use opentelemetry::api::metrics::{self, MetricsError, ObserverResult};
-use opentelemetry::api::{Context, CorrelationContextExt, Key, KeyValue, TraceContextExt, Tracer};
+use opentelemetry::api::{Context, BaggageExt, Key, KeyValue, TraceContextExt, Tracer};
 use opentelemetry::exporter;
 use opentelemetry::sdk::metrics::PushController;
 use opentelemetry::{global, sdk};
@@ -64,7 +64,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let value_recorder_two = meter.f64_value_recorder("ex.com.two").init();
 
     let _correlations =
-        Context::current_with_correlations(vec![FOO_KEY.string("foo1"), BAR_KEY.string("bar1")])
+        Context::current_with_baggage(vec![FOO_KEY.string("foo1"), BAR_KEY.string("bar1")])
             .attach();
 
     let value_recorder = value_recorder_two.bind(COMMON_LABELS.as_ref());
@@ -79,7 +79,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
         meter.record_batch_with_context(
             // Note: call-site variables added as context Entries:
-            &Context::current_with_correlations(vec![ANOTHER_KEY.string("xyz")]),
+            &Context::current_with_baggage(vec![ANOTHER_KEY.string("xyz")]),
             COMMON_LABELS.as_ref(),
             vec![value_recorder_two.measurement(2.0)],
         );

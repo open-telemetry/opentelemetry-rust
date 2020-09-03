@@ -114,7 +114,7 @@ pub trait Aggregator: fmt::Debug {
     /// `Descriptor::number_kind` should be consulted to determine whether the
     /// provided number is an `i64`, `u64` or `f64`.
     ///
-    /// The current Context could be inspected for a `CorrelationContext` or
+    /// The current Context could be inspected for a `Baggage` or
     /// `SpanContext`.
     fn update(&self, number: &Number, descriptor: &Descriptor) -> Result<()>;
 
