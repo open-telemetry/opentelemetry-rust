@@ -19,8 +19,6 @@ edition = "2018"
 opentelemetry = { version = "0.8", default-features = false, features = ["trace"], path = ".." }
 ureq = { version = "1.4", optional = true }
 thrift = "0.13"
-tokio = { version = "0.2", features = ["rt-core", "time", "stream"], optional = true }
-async-std = { version = "1.6", features = ["unstable"], optional = true }
 
 [features]
 default = []
