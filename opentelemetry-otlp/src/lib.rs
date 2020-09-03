@@ -1,4 +1,5 @@
-//! The OTLP Exporter supports exporting trace and metric data in the OTLP format to the OpenTelemetry collector. The OpenTelemetry Collector offers a
+//! The OTLP Exporter supports exporting trace and metric data in the 
+//! OTLP format to the OpenTelemetry collector. The OpenTelemetry Collector offers a
 //! vendor-agnostic implementation on how to receive, process, and export
 //! telemetry data. In addition, it removes the need to run, operate, and
 //! maintain multiple agents/collectors in order to support open-source
