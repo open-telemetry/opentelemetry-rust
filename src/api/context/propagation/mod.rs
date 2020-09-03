@@ -163,6 +163,7 @@
 //!
 use crate::api;
 use std::collections::HashMap;
+use std::iter::Iterator;
 
 pub mod composite_propagator;
 pub mod text_propagator;
@@ -179,7 +180,7 @@ pub trait Extractor {
     fn get(&self, key: &str) -> Option<&str>;
 
     /// Collect all the keys from the underlying data.
-    fn keys(&self) -> Vec<&str>;
+    fn keys(&self) -> Box<dyn Iterator<Item = &str> + '_>;
 }
 
 impl<S: std::hash::BuildHasher> api::Injector for HashMap<String, String, S> {
@@ -195,9 +196,9 @@ impl<S: std::hash::BuildHasher> api::Extractor for HashMap<String, String, S> {
         self.get(&key.to_lowercase()).map(|v| v.as_str())
     }
 
-    /// Collect all the keys from the HashMap.
-    fn keys(&self) -> Vec<&str> {
-        self.keys().map(|k| k.as_str()).collect::<Vec<_>>()
+    /// Return an iterator of all the keys from the HashMap.
+    fn keys(&self) -> Box<dyn Iterator<Item = &str> + '_> {
+        Box::new(self.keys().map(|k| k.as_str()))
     }
 }
 
@@ -220,9 +221,9 @@ impl api::Extractor for http::HeaderMap {
         self.get(key).and_then(|value| value.to_str().ok())
     }
 
-    /// Collect all the keys from the HeaderMap.
-    fn keys(&self) -> Vec<&str> {
-        self.keys().map(|value| value.as_str()).collect::<Vec<_>>()
+    /// Return an iterator of all the keys from the HeaderMap.
+    fn keys(&self) -> Box<dyn Iterator<Item = &str> + '_> {
+        Box::new(self.keys().map(|value| value.as_str()))
     }
 }
 
@@ -245,12 +246,12 @@ impl api::Extractor for tonic::metadata::MetadataMap {
         self.get(key).and_then(|metadata| metadata.to_str().ok())
     }
 
-    /// Collect all the keys from the MetadataMap.
-    fn keys(&self) -> Vec<&str> {
-        self.keys().map(|key| match key {
+    /// Return an iterator of all the keys from the MetadataMap.
+    fn keys(&self) -> Box<dyn Iterator<Item = &str> + '_> {
+        Box::new(self.keys().map(|key| match key {
             tonic::metadata::KeyRef::Ascii(v) => v.as_str(),
             tonic::metadata::KeyRef::Binary(v) => v.as_str(),
-        }).collect::<Vec<_>>()
+        }))
     }
 }
 
@@ -277,7 +278,8 @@ mod tests {
         carrier.set("headerName1", "value1".to_string());
         carrier.set("headerName2", "value2".to_string());
 
-        let got = Extractor::keys(&carrier);
+        let got = Extractor::keys(&carrier).collect::<Vec<_>>();
+
         assert_eq!(got.len(), 2);
         assert!(got.contains(&"headername1"));
         assert!(got.contains(&"headername2"));
@@ -303,7 +305,8 @@ mod tests {
         carrier.set("headerName1", "value1".to_string());
         carrier.set("headerName2", "value2".to_string());
 
-        let got = Extractor::keys(&carrier);
+        let got = Extractor::keys(&carrier).collect::<Vec<_>>();
+
         assert_eq!(got.len(), 2);
         assert!(got.contains(&"headername1"));
         assert!(got.contains(&"headername2"));
@@ -329,7 +332,8 @@ mod tests {
         carrier.set("headerName1", "value1".to_string());
         carrier.set("headerName2", "value2".to_string());
 
-        let got = Extractor::keys(&carrier);
+        let got = Extractor::keys(&carrier).collect::<Vec<_>>();
+
         assert_eq!(got.len(), 2);
         assert!(got.contains(&"headername1"));
         assert!(got.contains(&"headername2"));
