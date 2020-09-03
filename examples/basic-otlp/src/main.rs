@@ -1,24 +1,13 @@
 use futures::stream::{Stream, StreamExt};
 use opentelemetry::api::metrics::{self, MetricsError, ObserverResult};
-use opentelemetry::api::{Context, BaggageExt, Key, KeyValue, TraceContextExt, Tracer};
+use opentelemetry::api::{BaggageExt, Context, Key, KeyValue, TraceContextExt, Tracer};
 use opentelemetry::exporter;
 use opentelemetry::sdk::metrics::PushController;
 use opentelemetry::{global, sdk};
 use std::time::Duration;
 
-fn init_tracer() {
-    let exporter = opentelemetry_otlp::Exporter::default();
-
-    // For the demonstration, use `Sampler::AlwaysOn` sampler to sample all traces. In a production
-    // application, use `Sampler::ParentBased` or `Sampler::TraceIdRatioBased` with a desired ratio.
-    let provider = sdk::TracerProvider::builder()
-        .with_simple_exporter(exporter)
-        .with_config(sdk::Config {
-            default_sampler: Box::new(sdk::Sampler::AlwaysOn),
-            ..Default::default()
-        })
-        .build();
-    global::set_provider(provider);
+fn init_tracer() -> Result<sdk::Tracer, Box<dyn std::error::Error>> {
+    opentelemetry_otlp::new_pipeline().install()
 }
 
 // Skip first immediate tick from tokio, not needed for async_std.
@@ -53,7 +42,7 @@ lazy_static::lazy_static! {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    init_tracer();
+    let _ = init_tracer()?;
     let _started = init_meter()?;
 
     let tracer = global::tracer("ex.com/basic");

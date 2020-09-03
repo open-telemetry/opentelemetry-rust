@@ -13,10 +13,10 @@
 //! In order to enable telemetry the application must take a dependency on the OpenTelemetry SDK,
 //! which implements the delivery of the telemetry. The application must also configure exporters
 //! so that the SDK knows where and how to deliver the telemetry.
-pub mod context;
-pub mod core;
 #[cfg(feature = "trace")]
 pub mod baggage;
+pub mod context;
+pub mod core;
 pub mod labels;
 #[cfg(feature = "metrics")]
 pub mod metrics;
@@ -25,13 +25,13 @@ pub mod trace;
 
 pub use self::core::{Key, KeyValue, Unit, Value};
 #[cfg(feature = "trace")]
+pub use baggage::{Baggage, BaggageExt, BaggagePropagator};
+#[cfg(feature = "trace")]
 pub use context::propagation::{
     composite_propagator::TextMapCompositePropagator, text_propagator::FieldIter,
     text_propagator::TextMapFormat, Extractor, Injector,
 };
 pub use context::Context;
-#[cfg(feature = "trace")]
-pub use baggage::{Baggage, BaggageExt, BaggagePropagator};
 
 #[cfg(feature = "trace")]
 pub use trace::{

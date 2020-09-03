@@ -120,6 +120,28 @@ impl Builder {
         Builder { processors, ..self }
     }
 
+    /// Add a configured `SpanExporter`
+    #[cfg(feature = "tokio")]
+    pub fn with_exporter<T: SpanExporter + 'static>(self, exporter: T) -> Self {
+        let spawn = |future| tokio::task::spawn_blocking(|| future);
+        let batch = sdk::BatchSpanProcessor::builder(exporter, spawn, tokio::time::interval);
+        self.with_batch_exporter(batch.build())
+    }
+
+    /// Add a configured `SpanExporter`
+    #[cfg(all(feature = "async-std", not(feature = "tokio")))]
+    pub fn with_exporter<T: SpanExporter + 'static>(self, exporter: T) -> Self {
+        let spawn = |future| async_std::task::spawn_blocking(|| future);
+        let batch = sdk::BatchSpanProcessor::builder(exporter, spawn, async_std::stream::interval);
+        self.with_batch_exporter(batch.build())
+    }
+
+    /// Add a configured `SpanExporter`
+    #[cfg(all(not(feature = "async-std"), not(feature = "tokio")))]
+    pub fn with_exporter<T: SpanExporter + 'static>(self, exporter: T) -> Self {
+        self.with_simple_exporter(exporter)
+    }
+
     /// The `SpanProcessor` that this provider should use.
     pub fn with_span_processor<T: api::SpanProcessor + 'static>(self, processor: T) -> Self {
         let mut processors = self.processors;

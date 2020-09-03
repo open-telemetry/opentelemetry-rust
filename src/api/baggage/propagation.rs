@@ -92,7 +92,6 @@ impl api::TextMapFormat for BaggagePropagator {
     }
 }
 
-
 /// Methods for sorting and retrieving baggage data in a context.
 pub trait BaggageExt {
     /// Returns a clone of the current context with the included name / value pairs.
@@ -167,8 +166,7 @@ impl BaggageExt for Context {
     }
 
     fn baggage(&self) -> &Baggage {
-        self.get::<Baggage>()
-            .unwrap_or_else(|| &DEFAULT_BAGGAGE)
+        self.get::<Baggage>().unwrap_or_else(|| &DEFAULT_BAGGAGE)
     }
 }
 
@@ -243,10 +241,7 @@ mod tests {
 
         for (header_value, kvs) in valid_extract_data() {
             let mut extractor: HashMap<String, String> = HashMap::new();
-            extractor.insert(
-                BAGGAGE_HEADER.to_string(),
-                header_value.to_string(),
-            );
+            extractor.insert(BAGGAGE_HEADER.to_string(), header_value.to_string());
             let context = propagator.extract(&extractor);
             let baggage = context.baggage();
 
