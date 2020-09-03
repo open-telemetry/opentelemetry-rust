@@ -92,7 +92,6 @@ impl api::TextMapFormat for BaggagePropagator {
     }
 }
 
-struct BaggageWrapper(Baggage);
 
 /// Methods for sorting and retrieving baggage data in a context.
 pub trait BaggageExt {
@@ -153,23 +152,22 @@ impl BaggageExt for Context {
     }
 
     fn with_baggage<T: IntoIterator<Item = KeyValue>>(&self, kvs: T) -> Self {
-        let merged = self
+        let merged: Baggage = self
             .baggage()
             .iter()
             .map(|(key, value)| KeyValue::new(key.clone(), value.clone()))
             .chain(kvs.into_iter())
             .collect();
 
-        self.with_value(BaggageWrapper(merged))
+        self.with_value(merged)
     }
 
     fn with_cleared_baggage(&self) -> Self {
-        self.with_value(BaggageWrapper(Baggage::new()))
+        self.with_value(Baggage::new())
     }
 
     fn baggage(&self) -> &Baggage {
-        self.get::<BaggageWrapper>()
-            .map(|baggage| &baggage.0)
+        self.get::<Baggage>()
             .unwrap_or_else(|| &DEFAULT_BAGGAGE)
     }
 }
