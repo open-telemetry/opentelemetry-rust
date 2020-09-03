@@ -27,10 +27,13 @@
 //!     // Then you can use the global provider to create a tracer via `tracer`.
 //!     let _span = global::tracer("my-component").start("span-name");
 //!
+//!     // You can also get the tracer via name and version.
+//!     let _tracer = global::tracer_with_version("another-component", "1.1.1");
+//!
 //!     // Or access the configured provider via `trace_provider`.
 //!     let provider = global::trace_provider();
-//!     let _tracer_a = provider.get_tracer("my-component-a");
-//!     let _tracer_b = provider.get_tracer("my-component-b");
+//!     let _tracer_a = provider.get_tracer("my-component-a", None);
+//!     let _tracer_b = provider.get_tracer("my-component-b", None);
 //! }
 //!
 //! // in main or other app start
@@ -84,4 +87,4 @@ pub use metrics::{meter, meter_provider, set_meter_provider};
 #[cfg(feature = "trace")]
 pub use propagation::{get_text_map_propagator, set_text_map_propagator};
 #[cfg(feature = "trace")]
-pub use trace::{set_provider, trace_provider, tracer, GenericProvider};
+pub use trace::{set_provider, trace_provider, tracer, tracer_with_version, GenericProvider};

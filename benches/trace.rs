@@ -74,7 +74,7 @@ fn trace_benchmark_group<F: Fn(&sdk::Tracer)>(c: &mut Criterion, name: &str, f: 
                 ..Default::default()
             })
             .build()
-            .get_tracer("always-sample");
+            .get_tracer("always-sample", None);
 
         b.iter(|| f(&always_sample));
     });
@@ -86,7 +86,7 @@ fn trace_benchmark_group<F: Fn(&sdk::Tracer)>(c: &mut Criterion, name: &str, f: 
                 ..Default::default()
             })
             .build()
-            .get_tracer("never-sample");
+            .get_tracer("never-sample", None);
         b.iter(|| f(&never_sample));
     });
 

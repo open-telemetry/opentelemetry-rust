@@ -10,6 +10,7 @@ use std::time::SystemTime;
 /// [`Span`]: ../api/trace/span/trait.Span.html
 #[derive(Debug)]
 pub struct BoxedSpan(Box<DynSpan>);
+
 type DynSpan = dyn api::Span + Send + Sync;
 
 impl api::Span for BoxedSpan {
@@ -163,7 +164,11 @@ where
 /// [`GlobalProvider`]: struct.GlobalProvider.html
 pub trait GenericProvider: fmt::Debug + 'static {
     /// Creates a named tracer instance that is a trait object through the underlying `TracerProvider`.
-    fn get_tracer_boxed(&self, name: &'static str) -> Box<dyn GenericTracer + Send + Sync>;
+    fn get_tracer_boxed(
+        &self,
+        name: &'static str,
+        version: Option<&'static str>,
+    ) -> Box<dyn GenericTracer + Send + Sync>;
 }
 
 impl<S, T, P> GenericProvider for P
@@ -173,8 +178,12 @@ where
     P: api::TracerProvider<Tracer = T>,
 {
     /// Return a boxed generic tracer
-    fn get_tracer_boxed(&self, name: &'static str) -> Box<dyn GenericTracer + Send + Sync> {
-        Box::new(self.get_tracer(name))
+    fn get_tracer_boxed(
+        &self,
+        name: &'static str,
+        version: Option<&'static str>,
+    ) -> Box<dyn GenericTracer + Send + Sync> {
+        Box::new(self.get_tracer(name, version))
     }
 }
 
@@ -207,8 +216,8 @@ impl api::TracerProvider for GlobalProvider {
     type Tracer = BoxedTracer;
 
     /// Find or create a named tracer using the global provider.
-    fn get_tracer(&self, name: &'static str) -> Self::Tracer {
-        BoxedTracer(self.provider.get_tracer_boxed(name))
+    fn get_tracer(&self, name: &'static str, version: Option<&'static str>) -> Self::Tracer {
+        BoxedTracer(self.provider.get_tracer_boxed(name, version))
     }
 }
 
@@ -233,12 +242,23 @@ pub fn trace_provider() -> GlobalProvider {
 ///
 /// If the name is an empty string, the provider will use a default name.
 ///
-/// This is a more convenient way of expressing `global::trace_provider().get_tracer(name)`.
+/// This is a more convenient way of expressing `global::trace_provider().get_tracer(name, None)`.
 ///
 /// [`Tracer`]: ../api/trace/tracer/trait.Tracer.html
 /// [`GlobalProvider`]: struct.GlobalProvider.html
 pub fn tracer(name: &'static str) -> BoxedTracer {
-    trace_provider().get_tracer(name)
+    trace_provider().get_tracer(name, None)
+}
+
+/// Creates a named instance of [`Tracer`] with version info via the configured [`GlobalProvider`]
+///
+/// If the name is an empty string, the provider will use a default name.
+/// If the version is an empty string, it will be used as part of instrumentation library information.
+///
+/// [`Tracer`]: ../api/trace/tracer/trait.Tracer.html
+/// [`GlobalProvider`]: struct.GlobalProvider.html
+pub fn tracer_with_version(name: &'static str, version: &'static str) -> BoxedTracer {
+    trace_provider().get_tracer(name, Some(version))
 }
 
 /// Sets the given [`TracerProvider`] instance as the current global provider.

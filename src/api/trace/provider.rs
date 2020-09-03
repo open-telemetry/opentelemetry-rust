@@ -18,7 +18,7 @@
 //!   the SDK to suppress telemetry produced by this library.
 //!
 //! Implementations might require the user to specify configuration properties at
-//! `TracerProvider` creation time, or rely on external configuration.
+//! `TracerProvider` creation time, or rely on external configurations.
 use crate::api;
 use std::fmt;
 
@@ -29,5 +29,5 @@ pub trait TracerProvider: fmt::Debug + 'static {
 
     /// Creates a named tracer instance of `Self::Tracer`.
     /// If the name is an empty string then provider uses default name.
-    fn get_tracer(&self, name: &'static str) -> Self::Tracer;
+    fn get_tracer(&self, name: &'static str, version: Option<&'static str>) -> Self::Tracer;
 }
