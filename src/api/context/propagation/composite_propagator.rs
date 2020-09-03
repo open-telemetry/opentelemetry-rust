@@ -22,12 +22,12 @@ use std::fmt::Debug;
 /// use std::collections::HashMap;
 ///
 /// // First create 1 or more propagators
-/// let correlation_propagator = CorrelationContextPropagator::new();
+/// let baggage_propagator = BaggagePropagator::new();
 /// let trace_context_propagator = TraceContextPropagator::new();
 ///
 /// // Then create a composite propagator
 /// let composite_propagator = TextMapCompositePropagator::new(vec![
-///     Box::new(correlation_propagator),
+///     Box::new(baggage_propagator),
 ///     Box::new(trace_context_propagator),
 /// ]);
 ///
@@ -35,11 +35,11 @@ use std::fmt::Debug;
 /// let mut injector = HashMap::new();
 ///
 /// // And a given span
-/// let example_span = sdk::TracerProvider::default().get_tracer("example-component").start("span-name");
+/// let example_span = sdk::TracerProvider::default().get_tracer("example-component", None).start("span-name");
 ///
 /// // with the current context, call inject to add the headers
 /// composite_propagator.inject_context(&Context::current_with_span(example_span)
-///                                     .with_correlations(vec![KeyValue::new("test", "example")]),
+///                                     .with_baggage(vec![KeyValue::new("test", "example")]),
 ///                                     &mut injector);
 ///
 /// // The injector now has both `otcorrelations` and `traceparent` headers

@@ -10,6 +10,7 @@ use std::time::SystemTime;
 /// [`Span`]: ../api/trace/span/trait.Span.html
 #[derive(Debug)]
 pub struct BoxedSpan(Box<DynSpan>);
+
 type DynSpan = dyn api::Span + Send + Sync;
 
 impl api::Span for BoxedSpan {
@@ -241,12 +242,23 @@ pub fn trace_provider() -> GlobalProvider {
 ///
 /// If the name is an empty string, the provider will use a default name.
 ///
-/// This is a more convenient way of expressing `global::trace_provider().get_tracer(name)`.
+/// This is a more convenient way of expressing `global::trace_provider().get_tracer(name, None)`.
 ///
 /// [`Tracer`]: ../api/trace/tracer/trait.Tracer.html
 /// [`GlobalProvider`]: struct.GlobalProvider.html
-pub fn tracer(name: &'static str, version: Option<&'static str>) -> BoxedTracer {
-    trace_provider().get_tracer(name, version)
+pub fn tracer(name: &'static str) -> BoxedTracer {
+    trace_provider().get_tracer(name, None)
+}
+
+/// Creates a named instance of [`Tracer`] with version info via the configured [`GlobalProvider`]
+///
+/// If the name is an empty string, the provider will use a default name.
+/// If the version is an empty string, it will be used as part of instrumentation library information.
+///
+/// [`Tracer`]: ../api/trace/tracer/trait.Tracer.html
+/// [`GlobalProvider`]: struct.GlobalProvider.html
+pub fn tracer_with_version(name: &'static str, version: &'static str) -> BoxedTracer {
+    trace_provider().get_tracer(name, Some(version))
 }
 
 /// Sets the given [`TracerProvider`] instance as the current global provider.

@@ -16,7 +16,7 @@
 pub mod context;
 pub mod core;
 #[cfg(feature = "trace")]
-pub mod correlation;
+pub mod baggage;
 pub mod labels;
 #[cfg(feature = "metrics")]
 pub mod metrics;
@@ -31,7 +31,7 @@ pub use context::propagation::{
 };
 pub use context::Context;
 #[cfg(feature = "trace")]
-pub use correlation::{CorrelationContext, CorrelationContextExt, CorrelationContextPropagator};
+pub use baggage::{Baggage, BaggageExt, BaggagePropagator};
 
 #[cfg(feature = "trace")]
 pub use trace::{

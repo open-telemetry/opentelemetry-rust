@@ -304,7 +304,7 @@ impl PipelineBuilder {
     /// Install a Jaeger pipeline with the recommended defaults.
     pub fn install(self) -> Result<sdk::Tracer, Box<dyn Error>> {
         let trace_provider = self.build()?;
-        let tracer = trace_provider.get_tracer("opentelemetry-jaeger");
+        let tracer = trace_provider.get_tracer("opentelemetry-jaeger", None);
 
         global::set_provider(trace_provider);
 
