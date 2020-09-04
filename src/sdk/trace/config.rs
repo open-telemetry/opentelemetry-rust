@@ -5,6 +5,11 @@
 use crate::{api, sdk};
 use std::sync::Arc;
 
+/// Default trace configuration
+pub fn config() -> Config {
+    Config::default()
+}
+
 /// Tracer configuration
 #[derive(Debug)]
 pub struct Config {
@@ -20,6 +25,44 @@ pub struct Config {
     pub max_links_per_span: u32,
     /// Contains attributes representing an entity that produces telemetry.
     pub resource: Arc<sdk::Resource>,
+}
+
+impl Config {
+    /// Specify the default sampler to be used.
+    pub fn with_default_sampler<T: sdk::ShouldSample + 'static>(mut self, sampler: T) -> Self {
+        self.default_sampler = Box::new(sampler);
+        self
+    }
+
+    /// Specify the id generator to be used.
+    pub fn with_id_generator<T: api::IdGenerator + 'static>(mut self, id_generator: T) -> Self {
+        self.id_generator = Box::new(id_generator);
+        self
+    }
+
+    /// Specify the number of events to be recorded per span.
+    pub fn with_max_events_per_span(mut self, max_events: u32) -> Self {
+        self.max_events_per_span = max_events;
+        self
+    }
+
+    /// Specify the number of attributes to be recorded per span.
+    pub fn with_max_attributes_per_span(mut self, max_attributes: u32) -> Self {
+        self.max_attributes_per_span = max_attributes;
+        self
+    }
+
+    /// Specify the number of events to be recorded per span.
+    pub fn with_max_links_per_span(mut self, max_links: u32) -> Self {
+        self.max_links_per_span = max_links;
+        self
+    }
+
+    /// Specify the attributes representing the entity that produces telemetry
+    pub fn with_resource(mut self, resource: sdk::Resource) -> Self {
+        self.resource = Arc::new(resource);
+        self
+    }
 }
 
 impl Default for Config {

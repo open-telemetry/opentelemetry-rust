@@ -20,6 +20,6 @@ fn main() {
     global::set_provider(provider);
 
     global::trace_provider()
-        .get_tracer("component-main")
+        .get_tracer("component-main", None)
         .in_span("operation", |_cx| {});
 }

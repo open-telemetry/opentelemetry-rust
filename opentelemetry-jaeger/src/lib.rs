@@ -1,5 +1,3 @@
-//! # OpenTelemetry Jaeger Exporter
-//!
 //! Collects OpenTelemetry spans and reports them to a given Jaeger
 //! `agent` or `collector` endpoint. See the [Jaeger Docs] for details
 //! and deployment information.
@@ -15,7 +13,8 @@
 //!
 //! ```toml
 //! [dependencies]
-//! opentelemetry-jaeger = { version = "..", features = ["tokio"] }
+//! opentelemetry = { version = "*", features = ["tokio"] }
+//! opentelemetry-jaeger = "*"
 //! ```
 //!
 //! [`tokio`]: https://tokio.rs
@@ -304,7 +303,7 @@ impl PipelineBuilder {
     /// Install a Jaeger pipeline with the recommended defaults.
     pub fn install(self) -> Result<sdk::Tracer, Box<dyn Error>> {
         let trace_provider = self.build()?;
-        let tracer = trace_provider.get_tracer("opentelemetry-jaeger");
+        let tracer = trace_provider.get_tracer("opentelemetry-jaeger", None);
 
         global::set_provider(trace_provider);
 
@@ -316,7 +315,7 @@ impl PipelineBuilder {
         let config = self.config.take();
         let exporter = self.init_exporter()?;
 
-        let mut builder = configure_exporter(sdk::TracerProvider::builder(), exporter);
+        let mut builder = sdk::TracerProvider::builder().with_exporter(exporter);
 
         if let Some(config) = config {
             builder = builder.with_config(config)
@@ -361,28 +360,6 @@ impl PipelineBuilder {
             Ok((self.process, BatchUploader::Agent(agent)))
         }
     }
-}
-
-#[cfg(feature = "tokio")]
-fn configure_exporter(builder: sdk::Builder, exporter: Exporter) -> sdk::Builder {
-    let batch = sdk::BatchSpanProcessor::builder(exporter, tokio::spawn, tokio::time::interval);
-    builder.with_batch_exporter(batch.build())
-}
-
-#[cfg(all(feature = "async-std", not(feature = "tokio")))]
-fn configure_exporter(builder: sdk::Builder, exporter: Exporter) -> sdk::Builder {
-    let batch = sdk::BatchSpanProcessor::builder(
-        exporter,
-        async_std::task::spawn,
-        async_std::stream::interval,
-    )
-    .build();
-    builder.with_batch_exporter(batch)
-}
-
-#[cfg(all(not(feature = "async-std"), not(feature = "tokio")))]
-fn configure_exporter(builder: sdk::Builder, exporter: Exporter) -> sdk::Builder {
-    builder.with_simple_exporter(exporter)
 }
 
 #[rustfmt::skip]
