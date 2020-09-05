@@ -10,8 +10,10 @@
 //! The spec can be viewed here: https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/api-tracing.md#spancontext
 //!
 //! [w3c TraceContext specification]: https://www.w3.org/TR/trace-context/
+use crate::api::KeyValue;
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// A SpanContext with TRACE_FLAG_NOT_SAMPLED means the span is not sampled.
 pub const TRACE_FLAG_NOT_SAMPLED: u8 = 0x00;
@@ -111,6 +113,84 @@ impl SpanId {
     }
 }
 
+/// `TraceState` carries vendor-specific trace identification data, represented as a list of
+/// key-value pairs. `TraceState` allows multiple tracing systems to participate in the same trace.
+/// It is fully described in the [W3C Trace Context specification]['trace-state'].
+///
+/// ['trace-state']: https://www.w3.org/TR/trace-context/#tracestate-header
+#[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct TraceState {
+    data: HashMap<String, String>,
+    ordered_keys: Vec<String>,
+}
+
+impl TraceState {
+    /// Creates a new `TraceState` from the given key-value collection.
+    pub fn new(trace_state: Vec<KeyValue>) -> Self {
+        let mut data: HashMap<String, String> = HashMap::with_capacity(trace_state.len());
+        let mut ordered_keys: Vec<String> = Vec::with_capacity(trace_state.len());
+
+        for kv in trace_state {
+            data.insert(kv.key.clone().into(), kv.value.into());
+            ordered_keys.push(kv.key.into());
+        }
+
+        TraceState { data, ordered_keys }
+    }
+
+    /// Retrieves a value for a given key from the `TraceState` if it exists.
+    pub fn get(&self, key: String) -> Option<String> {
+        self.data.get(&key).cloned()
+    }
+
+    /// Inserts the given key-value pair into the `TraceState`. If a value already exists for the
+    /// given key, this updates the value and updates the value's position. Returns the updated
+    /// `TraceState`.
+    pub fn insert(mut self, key: String, value: String) -> TraceState {
+        if let Some(index) = self.ordered_keys.iter().position(|x| *x == *key) {
+            self.ordered_keys.remove(index);
+        }
+
+        self.data.insert(key.clone(), value);
+        self.ordered_keys.push(key);
+
+        self
+    }
+
+    /// Removes the given key-value pair from the `TraceState`, returning the removed value if it
+    /// exists.
+    pub fn delete(mut self, key: String) -> TraceState {
+        if let Some(index) = self.ordered_keys.iter().position(|x| *x == *key) {
+            self.ordered_keys.remove(index);
+            self.data.remove(&key);
+        }
+
+        self
+    }
+
+    /// Creates a new `TraceState` header string, delimiting each key and value with a `=` and each
+    /// entry with a `,`.
+    pub fn header(self) -> String {
+        self.header_delimited("=", ",")
+    }
+
+    /// Creates a new `TraceState` header string with the given delimiters.
+    pub fn header_delimited(mut self, key_value_delimiter: &str, entry_delimiter: &str) -> String {
+        let mut ordered: Vec<String> = Vec::with_capacity(self.ordered_keys.len());
+        while let Some(next) = self.ordered_keys.pop() {
+            ordered.push(format!(
+                "{}{}{}",
+                next,
+                key_value_delimiter,
+                self.data.remove(next.as_str()).unwrap()
+            ))
+        }
+
+        ordered.join(entry_delimiter)
+    }
+}
+
 /// Immutable portion of a `Span` which can be serialized and propagated.
 #[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
 #[derive(Clone, Debug, PartialEq)]
@@ -119,6 +199,7 @@ pub struct SpanContext {
     span_id: SpanId,
     trace_flags: u8,
     is_remote: bool,
+    trace_state: TraceState,
 }
 
 impl SpanContext {
@@ -134,6 +215,7 @@ impl SpanContext {
             span_id,
             trace_flags,
             is_remote,
+            trace_state: TraceState::default(),
         }
     }
 
@@ -177,6 +259,11 @@ impl SpanContext {
     /// Returns true if the `SpanContext` is sampled.
     pub fn is_sampled(&self) -> bool {
         (self.trace_flags & TRACE_FLAG_SAMPLED) == TRACE_FLAG_SAMPLED
+    }
+
+    /// Returns the context's `TraceState`.
+    pub fn trace_state(&self) -> TraceState {
+        self.trace_state.clone()
     }
 }
 

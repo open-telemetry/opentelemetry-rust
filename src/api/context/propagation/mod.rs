@@ -247,10 +247,12 @@ impl api::Extractor for tonic::metadata::MetadataMap {
 
     /// Collect all the keys from the MetadataMap.
     fn keys(&self) -> Vec<&str> {
-        self.keys().map(|key| match key {
-            tonic::metadata::KeyRef::Ascii(v) => v.as_str(),
-            tonic::metadata::KeyRef::Binary(v) => v.as_str(),
-        }).collect::<Vec<_>>()
+        self.keys()
+            .map(|key| match key {
+                tonic::metadata::KeyRef::Ascii(v) => v.as_str(),
+                tonic::metadata::KeyRef::Binary(v) => v.as_str(),
+            })
+            .collect::<Vec<_>>()
     }
 }
 
