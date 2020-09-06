@@ -1,5 +1,5 @@
 use serde::Serialize;
-use std::net::{Ipv4Addr, Ipv6Addr};
+use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr};
 
 #[derive(TypedBuilder, Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -18,8 +18,26 @@ pub(crate) struct Endpoint {
     port: Option<u16>,
 }
 
+impl Endpoint {
+    pub(crate) fn new(service_name: String, socket_addr: Option<SocketAddr>) -> Self {
+        match socket_addr {
+            Some(SocketAddr::V4(v4)) => Endpoint::builder()
+                .service_name(service_name)
+                .ipv4(*v4.ip())
+                .port(v4.port())
+                .build(),
+            Some(SocketAddr::V6(v6)) => Endpoint::builder()
+                .service_name(service_name)
+                .ipv6(*v6.ip())
+                .port(v6.port())
+                .build(),
+            None => Endpoint::builder().service_name(service_name).build(),
+        }
+    }
+}
+
 #[cfg(test)]
-mod endpoint_serialization_tests {
+mod tests {
     use crate::model::endpoint::Endpoint;
     use std::net::Ipv4Addr;
 

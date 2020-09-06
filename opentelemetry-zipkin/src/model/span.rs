@@ -2,9 +2,6 @@ use crate::model::{annotation::Annotation, endpoint::Endpoint};
 use serde::Serialize;
 use std::collections::HashMap;
 
-#[derive(Serialize)]
-pub(crate) struct ListOfSpans(pub(crate) Vec<Span>);
-
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub(crate) enum Kind {
@@ -57,7 +54,7 @@ pub(crate) struct Span {
 }
 
 #[cfg(test)]
-mod span_serialization_tests {
+mod tests {
     use crate::model::annotation::Annotation;
     use crate::model::endpoint::Endpoint;
     use crate::model::span::{Kind, Span};

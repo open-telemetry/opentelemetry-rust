@@ -1,5 +1,5 @@
-//! The OTLP Exporter supports exporting trace and metric data in the 
-//! OTLP format to the OpenTelemetry collector. The OpenTelemetry Collector offers a
+//! The OTLP Exporter supports exporting trace and metric data in the OTLP
+//! format to the OpenTelemetry collector. The OpenTelemetry Collector offers a
 //! vendor-agnostic implementation on how to receive, process, and export
 //! telemetry data. In addition, it removes the need to run, operate, and
 //! maintain multiple agents/collectors in order to support open-source
@@ -31,6 +31,7 @@
 //!     Ok(())
 //! }
 //! ```
+//!
 //! ## Performance
 //!
 //! For optimal performance, a batch exporter is recommended as the simple
@@ -192,7 +193,7 @@ impl OtlpPipelineBuilder {
 
     /// Install the OTLP exporter pipeline with the recommended defaults.
     pub fn install(mut self) -> Result<sdk::Tracer, Box<dyn Error>> {
-        let exporter = Exporter::default();
+        let exporter = Exporter::new(self.exporter_config);
 
         let mut provider_builder = sdk::TracerProvider::builder().with_exporter(exporter);
         if let Some(config) = self.trace_config.take() {
