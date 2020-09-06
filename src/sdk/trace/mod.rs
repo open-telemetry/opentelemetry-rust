@@ -15,3 +15,5 @@ pub mod sampler;
 pub mod span;
 pub mod span_processor;
 pub mod tracer;
+
+pub use config::config;
