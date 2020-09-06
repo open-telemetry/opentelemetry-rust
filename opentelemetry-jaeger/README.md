@@ -53,7 +53,7 @@ opentelemetry-jaeger = "*"
 ### Jaeger Exporter From Environment Variables
 
 The jaeger pipeline builder can be configured dynamically via the [`from_env`]
-method. All variables are optinal, a full list of accepted options can be found
+method. All variables are optional, a full list of accepted options can be found
 in the [jaeger variables spec].
 
 [`from_env`]: https://docs.rs/opentelemetry-jaeger/latest/opentelemetry_jaeger/struct.PipelineBuilder.html#method.from_env
