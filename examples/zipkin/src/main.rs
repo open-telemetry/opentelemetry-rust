@@ -1,27 +1,7 @@
 use opentelemetry::api::{Span, Tracer};
-use opentelemetry::{global, sdk};
+use opentelemetry::global;
 use std::thread;
 use std::time::Duration;
-
-fn init_tracer() {
-    let exporter = opentelemetry_zipkin::Exporter::from_config(
-        opentelemetry_zipkin::ExporterConfig::builder()
-            .with_service_name("trace-demo".to_owned())
-            .with_service_endpoint("127.0.0.7:9411".parse().unwrap())
-            .build(),
-    );
-
-    // For the demonstration, use `Sampler::AlwaysOn` sampler to sample all traces. In a production
-    // application, use `Sampler::ParentBased` or `Sampler::TraceIdRatioBasedSampler` with a desired ratio.
-    let provider = sdk::TracerProvider::builder()
-        .with_simple_exporter(exporter)
-        .with_config(sdk::Config {
-            default_sampler: Box::new(sdk::Sampler::AlwaysOn),
-            ..Default::default()
-        })
-        .build();
-    global::set_provider(provider);
-}
 
 fn bar() {
     let tracer = global::tracer("component-bar");
@@ -30,13 +10,16 @@ fn bar() {
     span.end()
 }
 
-fn main() {
-    init_tracer();
-    let tracer = global::tracer("component-main");
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let tracer = opentelemetry_zipkin::new_pipeline()
+        .with_service_name("trace-demo")
+        .install()?;
 
     tracer.in_span("foo", |_cx| {
         thread::sleep(Duration::from_millis(6));
         bar();
         thread::sleep(Duration::from_millis(6));
     });
+
+    Ok(())
 }

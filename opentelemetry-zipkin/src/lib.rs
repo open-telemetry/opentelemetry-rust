@@ -1,36 +1,85 @@
 //! # OpenTelemetry Zipkin Exporter
 //!
-//! Collects OpenTelemetry spans and reports them to a given Zipkin
-//! `collector` endpoint. See the [Zipkin Docs](https://zipkin.io/) for details
-//! and deployment information.
+//! Collects OpenTelemetry spans and reports them to a given Zipkin collector
+//! endpoint. See the [Zipkin Docs](https://zipkin.io/) for details and
+//! deployment information.
 //!
-//! ### Zipkin collector example
+//! ## Quickstart
 //!
-//! This example expects a Zipkin collector running on `localhost:9411`.
+//! First make sure you have a running version of the zipkin process you want to
+//! send data to:
 //!
-//! ```rust,no_run
-//! use opentelemetry::{api::Key, global, sdk};
-//! use opentelemetry_zipkin::ExporterConfig;
-//! use std::net::{SocketAddr, IpAddr, Ipv4Addr};
+//! ```shell
+//! $ docker run -d -p 9411:9411 openzipkin/zipkin
+//! ```
 //!
-//! fn init_tracer() {
-//!     let exporter = opentelemetry_zipkin::Exporter::from_config(
-//!        ExporterConfig::builder()
-//!            .with_service_name("opentelemetry-backend".to_owned())
-//!            .with_service_endpoint(SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080))
-//!            .build());
-//!     let provider = sdk::TracerProvider::builder()
-//!         .with_simple_exporter(exporter)
-//!         .with_config(sdk::Config {
-//!             default_sampler: Box::new(sdk::Sampler::AlwaysOn),
-//!             ..Default::default()
-//!         })
-//!         .build();
+//! Then install a new pipeline with the recommended defaults to start exporting
+//! telemetry:
 //!
-//!     global::set_provider(provider);
+//! ```no_run
+//! use opentelemetry::api::Tracer;
+//!
+//! fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     let tracer = opentelemetry_zipkin::new_pipeline().install()?;
+//!
+//!     tracer.in_span("doing_work", |cx| {
+//!         // Traced app logic here...
+//!     });
+//!
+//!     Ok(())
 //! }
 //! ```
 //!
+//! ## Performance
+//!
+//! For optimal performance, a batch exporter is recommended as the simple
+//! exporter will export each span synchronously on drop. You can enable the
+//! [`tokio`] or [`async-std`] features to have a batch exporter configured for
+//! you automatically for either executor when you install the pipeline.
+//!
+//! ```toml
+//! [dependencies]
+//! opentelemetry = { version = "*", features = ["tokio"] }
+//! opentelemetry-zipkin = "*"
+//! ```
+//!
+//! [`tokio`]: https://tokio.rs
+//! [`async-std`]: https://async.rs
+//!
+//! ## Kitchen Sink Full Configuration
+//!
+//! Example showing how to override all configuration options. See the
+//! [`ZipkinPipelineBuilder`] docs for details of each option.
+//!
+//! [`ZipkinPipelineBuilder`]: struct.ZipkinPipelineBuilder.html
+//!
+//! ```no_run
+//! use opentelemetry::api::{KeyValue, Tracer};
+//! use opentelemetry::sdk::{trace, IdGenerator, Resource, Sampler};
+//!
+//! fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     let tracer = opentelemetry_zipkin::new_pipeline()
+//!         .with_service_name("my_app")
+//!         .with_service_address("127.0.0.1:8080".parse()?)
+//!         .with_collector_endpoint("http://localhost:9411/api/v2/spans")
+//!         .with_trace_config(
+//!             trace::config()
+//!                 .with_default_sampler(Sampler::AlwaysOn)
+//!                 .with_id_generator(IdGenerator::default())
+//!                 .with_max_events_per_span(64)
+//!                 .with_max_attributes_per_span(16)
+//!                 .with_max_events_per_span(16)
+//!                 .with_resource(Resource::new(vec![KeyValue::new("key", "value")])),
+//!         )
+//!         .install()?;
+//!
+//!     tracer.in_span("doing_work", |cx| {
+//!         // Traced app logic here...
+//!     });
+//!
+//!     Ok(())
+//! }
+//! ```
 #![deny(missing_docs, unreachable_pub, missing_debug_implementations)]
 #![cfg_attr(test, deny(warnings))]
 
@@ -40,242 +89,110 @@ extern crate typed_builder;
 mod model;
 mod uploader;
 
-use model::{annotation, endpoint, span};
-use opentelemetry::api;
-use opentelemetry::exporter::trace;
-use std::collections::HashMap;
-use std::net;
+use model::endpoint::Endpoint;
+use opentelemetry::{api::TracerProvider, exporter::trace, global, sdk};
+use reqwest::Url;
+use std::error::Error;
+use std::net::SocketAddr;
 use std::sync::Arc;
-use std::time::{Duration, SystemTime};
 
-/// Default Zipkin collector endpoint if none specified
-static DEFAULT_COLLECTOR_ENDPOINT: &str = "127.0.0.1:9411";
+/// Default Zipkin collector endpoint
+const DEFAULT_COLLECTOR_ENDPOINT: &str = "http://127.0.0.1:9411/api/v2/spans";
+
+/// Default service name if no service is configured.
+const DEFAULT_SERVICE_NAME: &str = "OpenTelemetry";
 
 /// Zipkin span exporter
 #[derive(Debug)]
 pub struct Exporter {
-    config: ExporterConfig,
+    local_endpoint: Endpoint,
     uploader: uploader::Uploader,
 }
 
-/// Zipkin-specific configuration used to initialize the `Exporter`.
-#[derive(Clone, Debug)]
-pub struct ExporterConfig {
-    local_endpoint: endpoint::Endpoint,
-    collector_endpoint: String,
+impl Exporter {
+    fn new(local_endpoint: Endpoint, collector_endpoint: Url) -> Self {
+        Exporter {
+            local_endpoint,
+            uploader: uploader::Uploader::with_http_endpoint(collector_endpoint),
+        }
+    }
+}
+
+/// Create a new Zipkin exporter pipeline builder.
+pub fn new_pipeline() -> ZipkinPipelineBuilder {
+    ZipkinPipelineBuilder::default()
 }
 
 /// Builder for `ExporterConfig` struct.
 #[derive(Debug)]
-pub struct ExporterConfigBuilder {
-    service_name: Option<String>,
-    service_endpoint: Option<net::SocketAddr>,
-    collector_endpoint: Option<String>,
+pub struct ZipkinPipelineBuilder {
+    service_name: String,
+    service_addr: Option<SocketAddr>,
+    collector_endpoint: String,
+    trace_config: Option<sdk::Config>,
 }
 
-impl Default for ExporterConfigBuilder {
+impl Default for ZipkinPipelineBuilder {
     fn default() -> Self {
-        ExporterConfigBuilder {
-            collector_endpoint: None,
-            service_name: None,
-            service_endpoint: None,
+        ZipkinPipelineBuilder {
+            service_name: DEFAULT_SERVICE_NAME.to_string(),
+            service_addr: None,
+            collector_endpoint: DEFAULT_COLLECTOR_ENDPOINT.to_string(),
+            trace_config: None,
         }
     }
 }
 
-impl ExporterConfig {
-    /// Create an export config builder
-    pub fn builder() -> ExporterConfigBuilder {
-        ExporterConfigBuilder::default()
-    }
-}
-
-impl ExporterConfigBuilder {
+impl ZipkinPipelineBuilder {
     /// Create `ExporterConfig` struct from current `ExporterConfigBuilder`
-    pub fn build(&self) -> ExporterConfig {
-        let local_endpoint: endpoint::Endpoint;
-        let service_name = self
-            .service_name
-            .clone()
-            .unwrap_or_else(|| "DEFAULT".to_owned());
-        match self.service_endpoint {
-            Some(socket_addr) => {
-                match socket_addr.ip() {
-                    net::IpAddr::V4(addr) => {
-                        local_endpoint = endpoint::Endpoint::builder()
-                            .service_name(service_name)
-                            .ipv4(addr)
-                            .port(socket_addr.port())
-                            .build()
-                    }
-                    net::IpAddr::V6(addr) => {
-                        local_endpoint = endpoint::Endpoint::builder()
-                            .service_name(service_name)
-                            .ipv6(addr)
-                            .port(socket_addr.port())
-                            .build()
-                    }
-                };
-            }
-            None => {
-                local_endpoint = endpoint::Endpoint::builder()
-                    .service_name(service_name)
-                    .build()
-            }
-        };
-        ExporterConfig {
-            collector_endpoint: self
-                .collector_endpoint
-                .clone()
-                .unwrap_or_else(|| DEFAULT_COLLECTOR_ENDPOINT.parse().unwrap()),
-            local_endpoint,
+    pub fn install(mut self) -> Result<sdk::Tracer, Box<dyn Error>> {
+        let endpoint = Endpoint::new(self.service_name, self.service_addr);
+        let exporter = Exporter::new(endpoint, self.collector_endpoint.parse()?);
+
+        let mut provider_builder = sdk::TracerProvider::builder().with_exporter(exporter);
+        if let Some(config) = self.trace_config.take() {
+            provider_builder = provider_builder.with_config(config);
         }
+        let provider = provider_builder.build();
+        let tracer = provider.get_tracer("opentelemetry-zipkin", Some(env!("CARGO_PKG_VERSION")));
+        global::set_provider(provider);
+
+        Ok(tracer)
     }
 
-    /// Assign the service name for `ConfigBuilder`
-    pub fn with_service_name(&mut self, name: String) -> &mut Self {
-        self.service_name = Some(name);
+    /// Assign the service name under which to group traces.
+    pub fn with_service_name<T: Into<String>>(mut self, name: T) -> Self {
+        self.service_name = name.into();
         self
     }
 
-    /// Assign the service endpoint for `ConfigBuilder`
-    pub fn with_service_endpoint(&mut self, endpoint: net::SocketAddr) -> &mut Self {
-        self.service_endpoint = Some(endpoint);
+    /// Assign the service name under which to group traces.
+    pub fn with_service_address(mut self, addr: SocketAddr) -> Self {
+        self.service_addr = Some(addr);
         self
     }
 
-    /// Assign the collector endpoint for `ConfigBuilder`
-    pub fn with_collector_endpoint(&mut self, endpoint: String) -> &mut Self {
-        self.collector_endpoint = Some(endpoint);
+    /// Assign the Zipkin collector endpoint
+    pub fn with_collector_endpoint<T: Into<String>>(mut self, endpoint: T) -> Self {
+        self.collector_endpoint = endpoint.into();
         self
     }
-}
 
-impl Exporter {
-    /// Creates new `Exporter` from a given `ExporterConfig`.
-    pub fn from_config(config: ExporterConfig) -> Self {
-        Exporter {
-            config: config.clone(),
-            uploader: uploader::Uploader::new(
-                config.collector_endpoint,
-                uploader::UploaderFormat::HTTP,
-            ),
-        }
+    /// Assign the SDK trace configuration.
+    pub fn with_trace_config(mut self, config: sdk::Config) -> Self {
+        self.trace_config = Some(config);
+        self
     }
 }
 
 impl trace::SpanExporter for Exporter {
     /// Export spans to Zipkin collector.
     fn export(&self, batch: Vec<Arc<trace::SpanData>>) -> trace::ExportResult {
-        let zipkin_spans: Vec<span::Span> = batch
+        let zipkin_spans = batch
             .into_iter()
-            .map(|span| into_zipkin_span(&self.config, span))
+            .map(|span| model::into_zipkin_span(self.local_endpoint.clone(), span))
             .collect();
-        self.uploader.upload(span::ListOfSpans(zipkin_spans))
+
+        self.uploader.upload(zipkin_spans)
     }
-
-    fn shutdown(&self) {}
-}
-
-/// Converts `api::Event` into an `annotation::Annotation`
-impl Into<annotation::Annotation> for api::Event {
-    fn into(self) -> annotation::Annotation {
-        let timestamp = self
-            .timestamp
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap_or_else(|_| Duration::from_secs(0))
-            .as_micros() as u64;
-
-        annotation::Annotation::builder()
-            .timestamp(timestamp)
-            .value(self.name)
-            .build()
-    }
-}
-
-/// Converts `api::SpanKind` into an `Option<span::Kind>`
-fn into_zipkin_span_kind(kind: api::SpanKind) -> Option<span::Kind> {
-    match kind {
-        api::SpanKind::Client => Some(span::Kind::Client),
-        api::SpanKind::Server => Some(span::Kind::Server),
-        api::SpanKind::Producer => Some(span::Kind::Producer),
-        api::SpanKind::Consumer => Some(span::Kind::Consumer),
-        api::SpanKind::Internal => None,
-    }
-}
-
-/// Converts a `trace::SpanData` to a `span::SpanData` for a given `ExporterConfig`, which can then
-/// be ingested into a Zipkin collector.
-fn into_zipkin_span(config: &ExporterConfig, span_data: Arc<trace::SpanData>) -> span::Span {
-    let mut user_defined_span_kind = false;
-    let tags = map_from_kvs(
-        span_data
-            .attributes
-            .iter()
-            .map(|(k, v)| {
-                if k == &api::Key::new("span.kind") {
-                    user_defined_span_kind = true;
-                }
-                api::KeyValue::new(k.clone(), v.clone())
-            })
-            .chain(
-                span_data
-                    .resource
-                    .iter()
-                    .map(|(k, v)| api::KeyValue::new(k.clone(), v.clone())),
-            ),
-    );
-
-    span::Span::builder()
-        .trace_id(format!(
-            "{:032x}",
-            span_data.span_context.trace_id().to_u128()
-        ))
-        .parent_id(format!("{:016x}", span_data.parent_span_id.to_u64()))
-        .id(format!(
-            "{:016x}",
-            span_data.span_context.span_id().to_u64()
-        ))
-        .name(span_data.name.clone())
-        .kind(if user_defined_span_kind {
-            None
-        } else {
-            into_zipkin_span_kind(span_data.span_kind.clone())
-        })
-        .timestamp(
-            span_data
-                .start_time
-                .duration_since(SystemTime::UNIX_EPOCH)
-                .unwrap_or_else(|_| Duration::from_secs(0))
-                .as_micros() as u64,
-        )
-        .duration(
-            span_data
-                .end_time
-                .duration_since(span_data.start_time)
-                .unwrap_or_else(|_| Duration::from_secs(0))
-                .as_micros() as u64,
-        )
-        .local_endpoint(config.local_endpoint.clone())
-        .annotations(
-            span_data
-                .message_events
-                .iter()
-                .cloned()
-                .map(Into::into)
-                .collect(),
-        )
-        .tags(tags)
-        .build()
-}
-
-fn map_from_kvs<T>(kvs: T) -> HashMap<String, String>
-where
-    T: IntoIterator<Item = api::KeyValue>,
-{
-    let mut map: HashMap<String, String> = HashMap::new();
-    for kv in kvs {
-        map.insert(kv.key.into(), kv.value.into());
-    }
-    map
 }
