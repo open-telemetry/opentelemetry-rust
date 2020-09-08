@@ -13,7 +13,7 @@
 use crate::api::KeyValue;
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 
 /// A SpanContext with TRACE_FLAG_NOT_SAMPLED means the span is not sampled.
 pub const TRACE_FLAG_NOT_SAMPLED: u8 = 0x00;
@@ -122,18 +122,18 @@ impl SpanId {
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct TraceState {
     data: HashMap<String, String>,
-    ordered_keys: Vec<String>,
+    ordered_keys: VecDeque<String>,
 }
 
 impl TraceState {
     /// Creates a new `TraceState` from the given key-value collection.
     pub fn new(trace_state: Vec<KeyValue>) -> Self {
         let mut data: HashMap<String, String> = HashMap::with_capacity(trace_state.len());
-        let mut ordered_keys: Vec<String> = Vec::with_capacity(trace_state.len());
+        let mut ordered_keys: VecDeque<String> = VecDeque::with_capacity(trace_state.len());
 
         for kv in trace_state {
             data.insert(kv.key.clone().into(), kv.value.into());
-            ordered_keys.push(kv.key.into());
+            ordered_keys.push_back(kv.key.into());
         }
 
         TraceState { data, ordered_keys }
@@ -153,7 +153,7 @@ impl TraceState {
         }
 
         self.data.insert(key.clone(), value);
-        self.ordered_keys.push(key);
+        self.ordered_keys.push_front(key);
 
         self
     }
@@ -178,7 +178,7 @@ impl TraceState {
     /// Creates a new `TraceState` header string with the given delimiters.
     pub fn header_delimited(mut self, key_value_delimiter: &str, entry_delimiter: &str) -> String {
         let mut ordered: Vec<String> = Vec::with_capacity(self.ordered_keys.len());
-        while let Some(next) = self.ordered_keys.pop() {
+        while let Some(next) = self.ordered_keys.pop_front() {
             ordered.push(format!(
                 "{}{}{}",
                 next,
@@ -289,6 +289,15 @@ mod tests {
         ]
     }
 
+    #[rustfmt::skip]
+    fn trace_state_test_data() -> Vec<(TraceState, &'static str, &'static str)> {
+        vec![
+            (TraceState::new(vec![KeyValue::new("foo", "bar")]), "foo=bar", "foo"),
+            (TraceState::new(vec![KeyValue::new("foo", ""), KeyValue::new("apple", "banana")]), "foo=,apple=banana", "apple"),
+            (TraceState::new(vec![KeyValue::new("foo", "bar"), KeyValue::new("apple", "banana")]), "foo=bar,apple=banana", "apple"),
+        ]
+    }
+
     #[test]
     fn test_trace_id() {
         for test_case in trace_id_test_data() {
@@ -308,6 +317,32 @@ mod tests {
 
             assert_eq!(test_case.0, SpanId::from_hex(test_case.1));
             assert_eq!(test_case.0, SpanId::from_byte_array(test_case.2));
+        }
+    }
+
+    #[test]
+    fn test_trace_state() {
+        for test_case in trace_state_test_data() {
+            assert_eq!(test_case.0.clone().header(), test_case.1);
+
+            let new_key = format!(
+                "{}-{}",
+                test_case.0.get(test_case.2.to_string()).unwrap(),
+                "test"
+            );
+
+            let updated_trace_state = test_case.0.insert(test_case.2.into(), new_key.clone());
+
+            let updated = format!("{}={}", test_case.2, new_key);
+
+            let index = updated_trace_state.clone().header().find(&updated);
+
+            assert!(index.is_some());
+            assert_eq!(index.unwrap(), 0);
+
+            let deleted_trace_state = updated_trace_state.delete(test_case.2.to_string());
+
+            assert!(deleted_trace_state.get(test_case.2.to_string()).is_none());
         }
     }
 }
