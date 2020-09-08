@@ -1,8 +1,34 @@
 //! Collects OpenTelemetry spans and reports them to a given Jaeger
 //! `agent` or `collector` endpoint. See the [Jaeger Docs] for details
-//! and deployment information.
+//! about Jaeger and deployment information.
 //!
 //! [Jaeger Docs]: https://www.jaegertracing.io/docs/
+//!
+//! ### Quickstart
+//!
+//! First make sure you have a running version of the Jaeger instance
+//! you want to send data to:
+//!
+//! ```shell
+//! $ docker run -d -p6831:6831/udp -p6832:6832/udp -p16686:16686 -p14268:14268 jaegertracing/all-in-one:latest
+//! ```
+//!
+//! Then install a new jaeger pipeline with the recommended defaults to start
+//! exporting telemetry:
+//!
+//! ```no_run
+//! use opentelemetry::api::Tracer;
+//!
+//! fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     let tracer = opentelemetry_jaeger::new_pipeline().install()?;
+//!
+//!     tracer.in_span("doing_work", |cx| {
+//!         // Traced app logic here...
+//!     });
+//!
+//!     Ok(())
+//! }
+//! ```
 //!
 //! ## Performance
 //!
@@ -20,53 +46,26 @@
 //! [`tokio`]: https://tokio.rs
 //! [`async-std`]: https://async.rs
 //!
-//! ### Jaeger Exporter Example
-//!
-//! This example expects a Jaeger agent running on `localhost:6831`.
-//!
-//! ```rust,no_run
-//! use opentelemetry::{api::KeyValue, global, sdk};
-//!
-//! fn init_tracer() -> Result<sdk::Tracer, Box<dyn std::error::Error>> {
-//!     opentelemetry_jaeger::new_pipeline()
-//!         .with_agent_endpoint("localhost:6831")
-//!         .with_service_name("trace-demo")
-//!         .with_tags(vec![
-//!             KeyValue::new("exporter", "jaeger"),
-//!             KeyValue::new("float", 312.23),
-//!         ])
-//!         .install()
-//! }
-//!
-//! fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     let tracer = init_tracer()?;
-//!     // Use configured tracer
-//!     Ok(())
-//! }
-//! ```
-//!
 //! ### Jaeger Exporter From Environment Variables
 //!
 //! The jaeger pipeline builder can be configured dynamically via the
 //! [`from_env`] method. All variables are optinal, a full list of accepted
-//! methods can be found in the [jaeger variables spec].
+//! options can be found in the [jaeger variables spec].
 //!
 //! [`from_env`]: struct.PipelineBuilder.html#method.from_env
 //! [jaeger variables spec]: https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/sdk-environment-variables.md#jaeger-exporter
 //!
-//! ```rust,no_run
-//! use opentelemetry::{api::KeyValue, global, sdk};
-//!
-//! fn init_tracer() -> Result<sdk::Tracer, Box<dyn std::error::Error>> {
-//!     // `OTEL_SERVICE_NAME=my-service-name`
-//!     opentelemetry_jaeger::new_pipeline()
-//!         .from_env()
-//!         .install()
-//! }
+//! ```no_run
+//! use opentelemetry::api::Tracer;
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     let tracer = init_tracer()?;
-//!     // Use configured tracer
+//!     // export OTEL_SERVICE_NAME=my-service-name
+//!     let tracer = opentelemetry_jaeger::new_pipeline().from_env().install()?;
+//!
+//!     tracer.in_span("doing_work", |cx| {
+//!         // Traced app logic here...
+//!     });
+//!
 //!     Ok(())
 //! }
 //! ```
@@ -86,25 +85,59 @@
 //!
 //! [`with_collector_endpoint`]: struct.PipelineBuilder.html#method.with_collector_endpoint
 //!
-//! ```rust,ignore
+//! ```ignore
 //! // Note that this requires the `collector_client` feature.
-//!
-//! use opentelemetry::{api::KeyValue, sdk};
-//!
-//! fn init_tracer() -> Result<sdk::Tracer, <Box<dyn std::error::Error>>> {
-//!     opentelemetry_jaeger::new_pipeline()
-//!         .with_collector_endpoint("http://localhost:14268/api/traces")
-//!         .with_service_name("trace-demo")
-//!         .with_tags(vec![
-//!             KeyValue::new("exporter", "jaeger"),
-//!             KeyValue::new("float", 312.23),
-//!         ])
-//!         .install()
-//! }
+//! use opentelemetry::api::Tracer;
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     let tracer = init_tracer()?;
-//!     // Use configured tracer
+//!     let tracer = opentelemetry_jaeger::new_pipeline()
+//!         .with_collector_endpoint("http://localhost:14268/api/traces")
+//!         // optionally set username and password as well.
+//!         .with_collector_username("username")
+//!         .with_collector_password("s3cr3t")
+//!         .install()?;
+//!
+//!     tracer.in_span("doing_work", |cx| {
+//!         // Traced app logic here...
+//!     });
+//!
+//!     Ok(())
+//! }
+//! ```
+//!
+//! ## Kitchen Sink Full Configuration
+//!
+//! Example showing how to override all configuration options. See the
+//! [`PipelineBuilder`] docs for details of each option.
+//!
+//! [`PipelineBuilder`]: struct.PipelineBuilder.html
+//!
+//! ```no_run
+//! use opentelemetry::api::{KeyValue, Tracer};
+//! use opentelemetry::sdk::{trace, IdGenerator, Resource, Sampler};
+//!
+//! fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     let tracer = opentelemetry_jaeger::new_pipeline()
+//!         .from_env()
+//!         .with_agent_endpoint("localhost:6831")
+//!         .with_service_name("my_app")
+//!         .with_tags(vec![KeyValue::new("process_key", "process_value")])
+//!         .with_max_packet_size(65_000)
+//!         .with_trace_config(
+//!             trace::config()
+//!                 .with_default_sampler(Sampler::AlwaysOn)
+//!                 .with_id_generator(IdGenerator::default())
+//!                 .with_max_events_per_span(64)
+//!                 .with_max_attributes_per_span(16)
+//!                 .with_max_events_per_span(16)
+//!                 .with_resource(Resource::new(vec![KeyValue::new("key", "value")])),
+//!         )
+//!         .install()?;
+//!
+//!     tracer.in_span("doing_work", |cx| {
+//!         // Traced app logic here...
+//!     });
+//!
 //!     Ok(())
 //! }
 //! ```
@@ -293,7 +326,7 @@ impl PipelineBuilder {
     }
 
     /// Assign the SDK config for the exporter pipeline.
-    pub fn with_sdk_config(self, config: sdk::Config) -> Self {
+    pub fn with_trace_config(self, config: sdk::Config) -> Self {
         PipelineBuilder {
             config: Some(config),
             ..self

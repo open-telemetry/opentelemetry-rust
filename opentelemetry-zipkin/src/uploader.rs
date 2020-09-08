@@ -1,57 +1,47 @@
 //! # Zipkin Span Exporter
-use crate::model::span::ListOfSpans;
-use opentelemetry::exporter::trace;
-
-/// Default v2 HTTP Zipkin API route for recording spans
-static API_V2_COLLECTOR_ROUTE: &str = "/api/v2/spans";
-
-#[derive(Clone, Debug)]
-pub(crate) enum UploaderFormat {
-    HTTP,
-}
+use crate::model::span::Span;
+use opentelemetry::exporter::trace::ExportResult;
+use reqwest::Url;
 
 #[derive(Debug)]
-pub(crate) struct Uploader {
-    client: reqwest::blocking::Client,
-    collector_endpoint: String,
-    format: UploaderFormat,
+pub(crate) enum Uploader {
+    Http(JsonV2Client),
 }
 
 impl Uploader {
-    pub(crate) fn new(collector_endpoint: String, format: UploaderFormat) -> Self {
-        Uploader {
-            format,
+    /// Create a new http uploader
+    pub(crate) fn with_http_endpoint(collector_endpoint: Url) -> Self {
+        Uploader::Http(JsonV2Client {
             client: reqwest::blocking::Client::new(),
-            collector_endpoint: format!("http://{}{}", collector_endpoint, API_V2_COLLECTOR_ROUTE),
-        }
+            collector_endpoint,
+        })
     }
 
-    /// Upload a `ListOfSpans` to the designated Zipkin collector
-    pub(crate) fn upload(&self, spans: ListOfSpans) -> trace::ExportResult {
-        match self.format {
-            UploaderFormat::HTTP => self.upload_http(spans),
+    /// Upload spans to Zipkin
+    pub(crate) fn upload(&self, spans: Vec<Span>) -> ExportResult {
+        match self {
+            Uploader::Http(client) => client.upload(spans),
         }
     }
+}
 
-    fn upload_http(&self, spans: ListOfSpans) -> trace::ExportResult {
-        let zipkin_span_json = match serde_json::to_string(&spans) {
-            Ok(json) => json,
-            Err(_) => return trace::ExportResult::FailedNotRetryable,
-        };
+#[derive(Debug)]
+pub(crate) struct JsonV2Client {
+    client: reqwest::blocking::Client,
+    collector_endpoint: Url,
+}
 
+impl JsonV2Client {
+    fn upload(&self, spans: Vec<Span>) -> ExportResult {
         let resp = self
             .client
-            .post(&self.collector_endpoint)
-            .header(reqwest::header::CONTENT_TYPE, "application/json")
-            .body(zipkin_span_json)
+            .post(self.collector_endpoint.clone())
+            .json(&spans)
             .send();
 
-        if let Ok(response) = resp {
-            if response.status().is_success() {
-                return trace::ExportResult::Success;
-            }
+        match resp {
+            Ok(response) if response.status().is_success() => ExportResult::Success,
+            _ => ExportResult::FailedRetryable,
         }
-
-        trace::ExportResult::FailedRetryable
     }
 }

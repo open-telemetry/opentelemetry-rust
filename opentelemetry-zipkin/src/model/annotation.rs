@@ -12,7 +12,7 @@ pub struct Annotation {
 }
 
 #[cfg(test)]
-mod annotation_serialization_tests {
+mod tests {
     use crate::model::annotation::Annotation;
 
     #[test]
