@@ -14,6 +14,7 @@ use crate::api::KeyValue;
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
+use std::str::FromStr;
 
 /// A SpanContext with TRACE_FLAG_NOT_SAMPLED means the span is not sampled.
 pub const TRACE_FLAG_NOT_SAMPLED: u8 = 0x00;
@@ -113,11 +114,13 @@ impl SpanId {
     }
 }
 
-/// `TraceState` carries vendor-specific trace identification data, represented as a list of
-/// key-value pairs. `TraceState` allows multiple tracing systems to participate in the same trace.
-/// It is fully described in the [W3C Trace Context specification]['trace-state'].
+/// TraceState carries system-specific configuration data, represented as a list
+/// of key-value pairs. TraceState allows multiple tracing systems to
+/// participate in the same trace.
 ///
-/// ['trace-state']: https://www.w3.org/TR/trace-context/#tracestate-header
+/// Please review the [W3C specification] for details on this field.
+///
+/// [W3C specification]: https://www.w3.org/TR/trace-context/#tracestate-header
 #[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct TraceState {
@@ -127,7 +130,7 @@ pub struct TraceState {
 
 impl TraceState {
     /// Creates a new `TraceState` from the given key-value collection.
-    pub fn new(trace_state: Vec<KeyValue>) -> Self {
+    pub fn from_key_value(trace_state: Vec<KeyValue>) -> Self {
         let mut data: HashMap<String, String> = HashMap::with_capacity(trace_state.len());
         let mut ordered_keys: VecDeque<String> = VecDeque::with_capacity(trace_state.len());
 
@@ -171,23 +174,42 @@ impl TraceState {
 
     /// Creates a new `TraceState` header string, delimiting each key and value with a `=` and each
     /// entry with a `,`.
-    pub fn header(self) -> String {
-        self.header_delimited("=", ",")
-    }
-
-    /// Creates a new `TraceState` header string with the given delimiters.
-    pub fn header_delimited(mut self, key_value_delimiter: &str, entry_delimiter: &str) -> String {
+    pub fn header(&self) -> String {
         let mut ordered: Vec<String> = Vec::with_capacity(self.ordered_keys.len());
-        while let Some(next) = self.ordered_keys.pop_front() {
+        for key in self.ordered_keys.clone() {
             ordered.push(format!(
                 "{}{}{}",
-                next,
-                key_value_delimiter,
-                self.data.remove(next.as_str()).unwrap()
+                key,
+                "=",
+                self.data.get(key.as_str()).cloned().unwrap()
             ))
         }
 
-        ordered.join(entry_delimiter)
+        ordered.join(",")
+    }
+}
+
+impl FromStr for TraceState {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let list_members: Vec<&str> = s.split_terminator(',').collect();
+        let mut key_value_pairs: Vec<KeyValue> = Vec::with_capacity(list_members.len());
+
+        for list_member in list_members {
+            match list_member.find('=') {
+                None => return Err(()),
+                Some(separator_index) => {
+                    let (key, value) = list_member.split_at(separator_index);
+                    key_value_pairs.push(KeyValue::new(
+                        key.to_string(),
+                        value.trim_start_matches('='),
+                    ));
+                }
+            }
+        }
+
+        Ok(TraceState::from_key_value(key_value_pairs))
     }
 }
 
@@ -205,17 +227,29 @@ pub struct SpanContext {
 impl SpanContext {
     /// Create an invalid empty span context
     pub fn empty_context() -> Self {
-        SpanContext::new(TraceId::invalid(), SpanId::invalid(), 0, false)
+        SpanContext::new(
+            TraceId::invalid(),
+            SpanId::invalid(),
+            0,
+            false,
+            TraceState::default(),
+        )
     }
 
     /// Construct a new `SpanContext`
-    pub fn new(trace_id: TraceId, span_id: SpanId, trace_flags: u8, is_remote: bool) -> Self {
+    pub fn new(
+        trace_id: TraceId,
+        span_id: SpanId,
+        trace_flags: u8,
+        is_remote: bool,
+        trace_state: TraceState,
+    ) -> Self {
         SpanContext {
             trace_id,
             span_id,
             trace_flags,
             is_remote,
-            trace_state: TraceState::default(),
+            trace_state,
         }
     }
 
@@ -229,7 +263,7 @@ impl SpanContext {
         self.span_id
     }
 
-    /// Returns details about the trace. Unlike `Tracestate` values, these are
+    /// Returns details about the trace. Unlike `TraceState` values, these are
     /// present in all traces. Currently, the only option is a boolean sampled flag.
     pub fn trace_flags(&self) -> u8 {
         self.trace_flags
@@ -292,9 +326,9 @@ mod tests {
     #[rustfmt::skip]
     fn trace_state_test_data() -> Vec<(TraceState, &'static str, &'static str)> {
         vec![
-            (TraceState::new(vec![KeyValue::new("foo", "bar")]), "foo=bar", "foo"),
-            (TraceState::new(vec![KeyValue::new("foo", ""), KeyValue::new("apple", "banana")]), "foo=,apple=banana", "apple"),
-            (TraceState::new(vec![KeyValue::new("foo", "bar"), KeyValue::new("apple", "banana")]), "foo=bar,apple=banana", "apple"),
+            (TraceState::from_key_value(vec![KeyValue::new("foo", "bar")]), "foo=bar", "foo"),
+            (TraceState::from_key_value(vec![KeyValue::new("foo", ""), KeyValue::new("apple", "banana")]), "foo=,apple=banana", "apple"),
+            (TraceState::from_key_value(vec![KeyValue::new("foo", "bar"), KeyValue::new("apple", "banana")]), "foo=bar,apple=banana", "apple"),
         ]
     }
 

@@ -6,6 +6,7 @@
 //! `BinaryFormat` MUST expose the APIs that serializes values into bytes,
 //! and deserializes values from bytes.
 use crate::api;
+use crate::api::trace::span_context::TraceState;
 use std::convert::TryInto;
 
 /// Used to serialize and deserialize `SpanContext`s to and from a binary
@@ -73,6 +74,8 @@ impl BinaryFormat for BinaryPropagator {
             api::SpanId::from_u64(span_id),
             trace_flags,
             true,
+            // TODO traceparent and tracestate should both begin with a 0 byte, figure out how to differentiate
+            TraceState::default(),
         );
 
         if span_context.is_valid() {
@@ -86,6 +89,7 @@ impl BinaryFormat for BinaryPropagator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::api::trace::span_context::TraceState;
 
     #[rustfmt::skip]
     fn to_bytes_data() -> Vec<(api::SpanContext, [u8; 29])> {
@@ -93,7 +97,7 @@ mod tests {
             // Context with sampled
             (api::SpanContext::new(
                 api::TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736),
-                api::SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 1, true), [
+                api::SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 1, true, TraceState::default()), [
                 0x00, 0x00, 0x4b, 0xf9, 0x2f, 0x35, 0x77, 0xb3, 0x4d, 0xa6, 0xa3, 0xce, 0x92, 0x9d, 0x0e, 0x0e, 0x47, 0x36,
                 0x01, 0x00, 0xf0, 0x67, 0xaa, 0x0b, 0xa9, 0x02, 0xb7,
                 0x02, 0x01,
@@ -101,7 +105,7 @@ mod tests {
             // Context without sampled
             (api::SpanContext::new(
                 api::TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736),
-                api::SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 0, true), [
+                api::SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 0, true, TraceState::default()), [
                 0x00, 0x00, 0x4b, 0xf9, 0x2f, 0x35, 0x77, 0xb3, 0x4d, 0xa6, 0xa3, 0xce, 0x92, 0x9d, 0x0e, 0x0e, 0x47, 0x36,
                 0x01, 0x00, 0xf0, 0x67, 0xaa, 0x0b, 0xa9, 0x02, 0xb7,
                 0x02, 0x00,
@@ -115,19 +119,19 @@ mod tests {
     fn from_bytes_data() -> Vec<(api::SpanContext, Vec<u8>)> {
         vec![
             // Future version of the proto
-            (api::SpanContext::new(api::TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), api::SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 1, true), vec![
+            (api::SpanContext::new(api::TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), api::SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 1, true, TraceState::default()), vec![
                 0x02, 0x00, 0x4b, 0xf9, 0x2f, 0x35, 0x77, 0xb3, 0x4d, 0xa6, 0xa3, 0xce, 0x92, 0x9d, 0x0e, 0x0e, 0x47, 0x36,
                 0x01, 0x00, 0xf0, 0x67, 0xaa, 0x0b, 0xa9, 0x02, 0xb7,
                 0x02, 0x01,
             ]),
             // current version with sampled
-            (api::SpanContext::new(api::TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), api::SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 1, true), vec![
+            (api::SpanContext::new(api::TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), api::SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 1, true, TraceState::default()), vec![
                 0x02, 0x00, 0x4b, 0xf9, 0x2f, 0x35, 0x77, 0xb3, 0x4d, 0xa6, 0xa3, 0xce, 0x92, 0x9d, 0x0e, 0x0e, 0x47, 0x36,
                 0x01, 0x00, 0xf0, 0x67, 0xaa, 0x0b, 0xa9, 0x02, 0xb7,
                 0x02, 0x01,
             ]),
             // valid context without option
-            (api::SpanContext::new(api::TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), api::SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 0, true), vec![
+            (api::SpanContext::new(api::TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), api::SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 0, true, TraceState::default()), vec![
                 0x00, 0x00, 0x4b, 0xf9, 0x2f, 0x35, 0x77, 0xb3, 0x4d, 0xa6, 0xa3, 0xce, 0x92, 0x9d, 0x0e, 0x0e, 0x47, 0x36,
                 0x01, 0x00, 0xf0, 0x67, 0xaa, 0x0b, 0xa9, 0x02, 0xb7,
             ]),

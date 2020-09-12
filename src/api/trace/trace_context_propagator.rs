@@ -19,7 +19,9 @@
 //! [w3c trace-context docs]: https://w3c.github.io/trace-context/
 
 use crate::api::context::propagation::text_propagator::FieldIter;
+use crate::api::trace::span_context::TraceState;
 use crate::{api, api::TraceContextExt};
+use std::str::FromStr;
 
 const SUPPORTED_VERSION: u8 = 0;
 const MAX_VERSION: u8 = 254;
@@ -40,16 +42,6 @@ lazy_static::lazy_static! {
 pub struct TraceContextPropagator {
     _private: (),
 }
-
-/// TraceState carries system-specific configuration data, represented as a list
-/// of key-value pairs. TraceState allows multiple tracing systems to
-/// participate in the same trace.
-///
-/// Please review the [W3C specification] for details on this field.
-///
-/// [W3C specification]: https://www.w3.org/TR/trace-context/#tracestate-header
-#[derive(Debug)]
-struct TraceState(String);
 
 impl TraceContextPropagator {
     /// Create a new `TraceContextPropagator`.
@@ -104,8 +96,12 @@ impl TraceContextPropagator {
         // supported sampling bit.
         let trace_flags = opts & api::TRACE_FLAG_SAMPLED;
 
+        let trace_state: TraceState =
+            TraceState::from_str(extractor.get(TRACESTATE_HEADER).unwrap_or(""))
+                .unwrap_or_else(|_| TraceState::default());
+
         // create context
-        let span_context = api::SpanContext::new(trace_id, span_id, trace_flags, true);
+        let span_context = api::SpanContext::new(trace_id, span_id, trace_flags, true, trace_state);
 
         // Ensure span is valid
         if !span_context.is_valid() {
@@ -120,10 +116,6 @@ impl api::TextMapFormat for TraceContextPropagator {
     /// Properly encodes the values of the `SpanContext` and injects them
     /// into the `Injector`.
     fn inject_context(&self, cx: &api::Context, injector: &mut dyn api::Injector) {
-        if let Some(TraceState(header_value)) = cx.get() {
-            injector.set(TRACESTATE_HEADER, header_value.clone());
-        }
-
         let span_context = cx.span().span_context();
         if span_context.is_valid() {
             let header_value = format!(
@@ -133,7 +125,8 @@ impl api::TextMapFormat for TraceContextPropagator {
                 span_context.span_id().to_u64(),
                 span_context.trace_flags() & api::TRACE_FLAG_SAMPLED
             );
-            injector.set(TRACEPARENT_HEADER, header_value)
+            injector.set(TRACEPARENT_HEADER, header_value);
+            injector.set(TRACESTATE_HEADER, span_context.trace_state().header());
         }
     }
 
@@ -147,19 +140,7 @@ impl api::TextMapFormat for TraceContextPropagator {
         extractor: &dyn api::Extractor,
     ) -> api::Context {
         self.extract_span_context(extractor)
-            .map(|sc| {
-                let cx = cx.with_remote_span_context(sc);
-
-                // If successfully parsed span context, check trace state
-                if let Some(state) = extractor
-                    .get(TRACESTATE_HEADER)
-                    .filter(|val| !val.is_empty())
-                {
-                    cx.with_value(TraceState(state.to_string()))
-                } else {
-                    cx
-                }
-            })
+            .map(|sc| cx.with_remote_span_context(sc))
             .unwrap_or_else(|_| cx.clone())
     }
 
@@ -171,20 +152,21 @@ impl api::TextMapFormat for TraceContextPropagator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::api::{Extractor, TextMapFormat};
+    use crate::api::{Extractor, Injector, TextMapFormat};
     use std::collections::HashMap;
+    use std::str::FromStr;
 
     #[rustfmt::skip]
-    fn extract_data() -> Vec<(&'static str, api::SpanContext)> {
+    fn  extract_data() -> Vec<(&'static str, &'static str, api::SpanContext)> {
         vec![
-            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-00", api::SpanContext::new(api::TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), api::SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 0, true)),
-            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01", api::SpanContext::new(api::TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), api::SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 1, true)),
-            ("02-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01", api::SpanContext::new(api::TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), api::SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 1, true)),
-            ("02-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-09", api::SpanContext::new(api::TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), api::SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 1, true)),
-            ("02-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-08", api::SpanContext::new(api::TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), api::SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 0, true)),
-            ("02-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-09-XYZxsf09", api::SpanContext::new(api::TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), api::SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 1, true)),
-            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01-", api::SpanContext::new(api::TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), api::SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 1, true)),
-            ("01-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-09-", api::SpanContext::new(api::TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), api::SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 1, true)),
+            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-00", "foo=bar", api::SpanContext::new(api::TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), api::SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 0, true, TraceState::from_str("foo=bar").unwrap())),
+            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01", "foo=bar", api::SpanContext::new(api::TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), api::SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 1, true, TraceState::from_str("foo=bar").unwrap())),
+            ("02-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01", "foo=bar", api::SpanContext::new(api::TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), api::SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 1, true, TraceState::from_str("foo=bar").unwrap())),
+            ("02-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-09", "foo=bar", api::SpanContext::new(api::TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), api::SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 1, true, TraceState::from_str("foo=bar").unwrap())),
+            ("02-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-08", "foo=bar", api::SpanContext::new(api::TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), api::SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 0, true, TraceState::from_str("foo=bar").unwrap())),
+            ("02-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-09-XYZxsf09", "foo=bar", api::SpanContext::new(api::TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), api::SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 1, true, TraceState::from_str("foo=bar").unwrap())),
+            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01-", "foo=bar", api::SpanContext::new(api::TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), api::SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 1, true, TraceState::from_str("foo=bar").unwrap())),
+            ("01-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-09-", "foo=bar", api::SpanContext::new(api::TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), api::SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 1, true, TraceState::from_str("foo=bar").unwrap())),
         ]
     }
 
@@ -211,12 +193,12 @@ mod tests {
     }
 
     #[rustfmt::skip]
-    fn inject_data() -> Vec<(&'static str, api::SpanContext)> {
+    fn inject_data() -> Vec<(&'static str, &'static str, api::SpanContext)> {
         vec![
-            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01", api::SpanContext::new(api::TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), api::SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 1, true)),
-            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-00", api::SpanContext::new(api::TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), api::SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 0, true)),
-            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01", api::SpanContext::new(api::TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), api::SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 0xff, true)),
-            ("", api::SpanContext::empty_context()),
+            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01", "foo=bar", api::SpanContext::new(api::TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), api::SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 1, true, TraceState::from_str("foo=bar").unwrap())),
+            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-00", "foo=bar", api::SpanContext::new(api::TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), api::SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 0, true, TraceState::from_str("foo=bar").unwrap())),
+            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01", "foo=bar", api::SpanContext::new(api::TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), api::SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 0xff, true, TraceState::from_str("foo=bar").unwrap())),
+            ("", "", api::SpanContext::empty_context()),
         ]
     }
 
@@ -224,9 +206,10 @@ mod tests {
     fn extract_w3c() {
         let propagator = TraceContextPropagator::new();
 
-        for (header, expected_context) in extract_data() {
+        for (trace_parent, trace_state, expected_context) in extract_data() {
             let mut extractor = HashMap::new();
-            extractor.insert(TRACEPARENT_HEADER.to_string(), header.to_string());
+            extractor.insert(TRACEPARENT_HEADER.to_string(), trace_parent.to_string());
+            extractor.insert(TRACESTATE_HEADER.to_string(), trace_state.to_string());
 
             assert_eq!(
                 propagator.extract(&extractor).remote_span_context(),
@@ -238,7 +221,7 @@ mod tests {
     #[test]
     fn extract_w3c_tracestate() {
         let propagator = TraceContextPropagator::new();
-        let state = "opaque_value".to_string();
+        let state = "foo=bar".to_string();
         let parent = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-00".to_string();
 
         let mut extractor = HashMap::new();
@@ -248,9 +231,10 @@ mod tests {
         assert_eq!(
             propagator
                 .extract(&extractor)
-                .get::<TraceState>()
+                .remote_span_context()
                 .unwrap()
-                .0,
+                .trace_state()
+                .header(),
             state
         )
     }
@@ -299,7 +283,7 @@ mod tests {
     fn inject_w3c() {
         let propagator = TraceContextPropagator::new();
 
-        for (expected_header, context) in inject_data() {
+        for (expected_trace_parent, expected_trace_state, context) in inject_data() {
             let mut injector = HashMap::new();
             propagator.inject_context(
                 &api::Context::current_with_span(TestSpan(context)),
@@ -308,21 +292,25 @@ mod tests {
 
             assert_eq!(
                 Extractor::get(&injector, TRACEPARENT_HEADER).unwrap_or(""),
-                expected_header
-            )
+                expected_trace_parent
+            );
+
+            assert_eq!(
+                Extractor::get(&injector, TRACESTATE_HEADER).unwrap_or(""),
+                expected_trace_state
+            );
         }
     }
 
     #[test]
     fn inject_w3c_tracestate() {
         let propagator = TraceContextPropagator::new();
-        let state = "opaque_value";
+        let state = "foo=bar";
 
-        let mut injector = HashMap::new();
-        propagator.inject_context(
-            &api::Context::current_with_value(TraceState(state.to_string())),
-            &mut injector,
-        );
+        let mut injector: HashMap<String, String> = HashMap::new();
+        injector.set(TRACESTATE_HEADER, state.to_string());
+
+        propagator.inject_context(&api::Context::current(), &mut injector);
 
         assert_eq!(Extractor::get(&injector, TRACESTATE_HEADER), Some(state))
     }

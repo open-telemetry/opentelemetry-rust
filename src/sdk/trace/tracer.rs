@@ -7,6 +7,7 @@
 //! and exposes methods for creating and activating new `Spans`.
 //!
 //! Docs: https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/api-tracing.md#tracer
+use crate::api::trace::span_context::TraceState;
 use crate::api::TraceContextExt;
 use crate::sdk;
 use crate::{api, api::context::Context, exporter};
@@ -155,7 +156,7 @@ impl api::Tracer for Tracer {
             .or_else(|| cx.remote_span_context().cloned())
             .filter(|cx| cx.is_valid());
         // Build context for sampling decision
-        let (no_parent, trace_id, parent_span_id, remote_parent, parent_trace_flags) =
+        let (no_parent, trace_id, parent_span_id, remote_parent, parent_trace_flags, trace_state) =
             parent_span_context
                 .as_ref()
                 .map(|ctx| {
@@ -165,6 +166,7 @@ impl api::Tracer for Tracer {
                         ctx.span_id(),
                         ctx.is_remote(),
                         ctx.trace_flags(),
+                        ctx.trace_state(),
                     )
                 })
                 .unwrap_or((
@@ -175,6 +177,7 @@ impl api::Tracer for Tracer {
                     api::SpanId::invalid(),
                     false,
                     0,
+                    TraceState::default(),
                 ));
 
         // There are 3 paths for sampling.
@@ -220,7 +223,13 @@ impl api::Tracer for Tracer {
             let resource = config.resource.clone();
 
             exporter::trace::SpanData {
-                span_context: api::SpanContext::new(trace_id, span_id, trace_flags, false),
+                span_context: api::SpanContext::new(
+                    trace_id,
+                    span_id,
+                    trace_flags,
+                    false,
+                    trace_state,
+                ),
                 parent_span_id,
                 span_kind,
                 name: builder.name,
