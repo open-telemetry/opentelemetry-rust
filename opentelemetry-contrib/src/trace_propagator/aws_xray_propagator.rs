@@ -1,8 +1,8 @@
+use opentelemetry::api::trace::span_context::TraceState;
 use opentelemetry::api::{
-    Context, Extractor, FieldIter, Injector, SpanContext, SpanId, TextMapFormat, TraceContextExt,
-    TraceId, TRACE_FLAG_DEFERRED, TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
+    Context, Extractor, FieldIter, Injector, KeyValue, SpanContext, SpanId, TextMapFormat,
+    TraceContextExt, TraceId, TRACE_FLAG_DEFERRED, TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
 };
-use std::collections::HashMap;
 
 const AWS_XRAY_TRACE_HEADER: &str = "x-amzn-trace-id";
 const AWS_XRAY_VERSION_KEY: &str = "1";
@@ -51,45 +51,54 @@ impl XrayTraceContextPropagator {
     fn extract_span_context(&self, extractor: &dyn Extractor) -> Result<SpanContext, ()> {
         let header_value: &str = extractor.get(AWS_XRAY_TRACE_HEADER).unwrap_or("").trim();
 
-        let parts: HashMap<&str, &str> = header_value
+        let parts: Vec<(&str, &str)> = header_value
             .split_terminator(';')
             .filter_map(from_key_value_pair)
             .collect();
 
-        let trace_id: TraceId = match parts.get(HEADER_ROOT_KEY) {
-            None => return Err(()),
-            Some(root) => {
-                let trace_id: Result<TraceId, ()> = XrayTraceId(root.to_string()).into();
-                match trace_id {
-                    Err(_) => return Err(()),
-                    Ok(trace_id) => trace_id,
-                }
-            }
-        };
-
+        let mut trace_id: TraceId = TraceId::invalid();
         let mut parent_segment_id: SpanId = SpanId::invalid();
-
-        if let Some(parent) = parts.get(HEADER_PARENT_KEY) {
-            parent_segment_id = SpanId::from_hex(parent);
-        }
-
         let mut sampling_decision: u8 = TRACE_FLAG_DEFERRED;
+        let mut kv_vec: Vec<KeyValue> = Vec::with_capacity(parts.len());
 
-        if let Some(sampled_flag) = parts.get(HEADER_SAMPLED_KEY) {
-            sampling_decision = match sampled_flag.to_owned() {
-                NOT_SAMPLED => TRACE_FLAG_NOT_SAMPLED,
-                SAMPLED => TRACE_FLAG_SAMPLED,
-                REQUESTED_SAMPLE_DECISION => TRACE_FLAG_DEFERRED,
-                _ => TRACE_FLAG_DEFERRED,
+        for (key, value) in parts {
+            match key {
+                HEADER_ROOT_KEY => {
+                    let converted_trace_id: Result<TraceId, ()> =
+                        XrayTraceId(value.to_string()).into();
+                    match converted_trace_id {
+                        Err(_) => return Err(()),
+                        Ok(parsed) => trace_id = parsed,
+                    }
+                }
+                HEADER_PARENT_KEY => parent_segment_id = SpanId::from_hex(value),
+                HEADER_SAMPLED_KEY => {
+                    sampling_decision = match value {
+                        NOT_SAMPLED => TRACE_FLAG_NOT_SAMPLED,
+                        SAMPLED => TRACE_FLAG_SAMPLED,
+                        REQUESTED_SAMPLE_DECISION => TRACE_FLAG_DEFERRED,
+                        _ => TRACE_FLAG_DEFERRED,
+                    }
+                }
+                _ => kv_vec.push(KeyValue::new(key.to_string(), value.to_string())),
             }
         }
 
-        Ok(SpanContext::new(
+        let trace_state: TraceState = TraceState::from_key_value(kv_vec);
+
+        if trace_id.to_u128() == 0 {
+            return Err(());
+        }
+
+        let context: SpanContext = SpanContext::new(
             trace_id,
             parent_segment_id,
             sampling_decision,
             true,
-        ))
+            trace_state,
+        );
+
+        Ok(context)
     }
 }
 
@@ -107,16 +116,23 @@ impl TextMapFormat for XrayTraceContextPropagator {
                 NOT_SAMPLED
             };
 
+            let mut trace_state_header: String =
+                span_context.trace_state().header_delimited("=", ";");
+            if !trace_state_header.is_empty() {
+                trace_state_header = format!(";{}", trace_state_header);
+            }
+
             injector.set(
                 AWS_XRAY_TRACE_HEADER,
                 format!(
-                    "{}={};{}={};{}={}",
+                    "{}={};{}={};{}={}{}",
                     HEADER_ROOT_KEY,
                     xray_trace_id.0,
                     HEADER_PARENT_KEY,
                     span_context.span_id().to_hex(),
                     HEADER_SAMPLED_KEY,
-                    sampling_decision
+                    sampling_decision,
+                    trace_state_header
                 ),
             );
         }
@@ -196,6 +212,7 @@ mod tests {
     use super::*;
     use opentelemetry::api;
     use opentelemetry::api::trace::span_context::TraceState;
+    use std::collections::HashMap;
     use std::str::FromStr;
     use std::time::SystemTime;
 

@@ -6,13 +6,15 @@
 //!
 //! [`Jaeger documentation`]: https://www.jaegertracing.io/docs/1.18/client-libraries/#propagation-format
 
+use opentelemetry::api::trace::span_context::TraceState;
 use opentelemetry::api::{
-    Context, Extractor, FieldIter, Injector, SpanContext, SpanId, TextMapFormat, TraceContextExt,
-    TraceId, TRACE_FLAG_DEBUG, TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
+    Context, Extractor, FieldIter, Injector, KeyValue, SpanContext, SpanId, TextMapFormat,
+    TraceContextExt, TraceId, TRACE_FLAG_DEBUG, TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
 };
 use std::str::FromStr;
 
 const JAEGER_HEADER: &str = "uber-trace-id";
+const JAEGER_BAGGAGE_PREFIX: &str = "uberctx-";
 const DEPRECATED_PARENT_SPAN: &str = "0";
 
 lazy_static::lazy_static! {
@@ -44,7 +46,13 @@ impl JaegerPropagator {
     }
 
     /// Extract span context from header value
-    fn extract_span_context(&self, header_value: &str) -> Result<SpanContext, ()> {
+    fn extract_span_context(&self, extractor: &dyn Extractor) -> Result<SpanContext, ()> {
+        let mut header_value: String = extractor.get(JAEGER_HEADER).unwrap_or("").to_string();
+        // if there is no :, it means header_value could be encoded as url, try decode first
+        if !header_value.contains(':') {
+            header_value = header_value.replace("%3A", ":");
+        }
+
         let parts = header_value.split_terminator(':').collect::<Vec<&str>>();
         if parts.len() != 4 {
             return Err(());
@@ -55,8 +63,9 @@ impl JaegerPropagator {
         let span_id = self.extract_span_id(parts[1])?;
         // Ignore parent span id since it's deprecated.
         let flag = self.extract_flag(parts[3])?;
+        let trace_state = self.extract_trace_state(extractor)?;
 
-        Ok(SpanContext::new(trace_id, span_id, flag, true))
+        Ok(SpanContext::new(trace_id, span_id, flag, true, trace_state))
     }
 
     /// Extract trace id from the header.
@@ -107,6 +116,24 @@ impl JaegerPropagator {
             Ok(TRACE_FLAG_NOT_SAMPLED)
         }
     }
+
+    fn extract_trace_state(&self, extractor: &dyn Extractor) -> Result<TraceState, ()> {
+        let uber_context_keys: Vec<&str> = extractor
+            .keys()
+            .into_iter()
+            .filter(|key| key.starts_with(JAEGER_BAGGAGE_PREFIX))
+            .collect();
+
+        let mut kv: Vec<KeyValue> = Vec::with_capacity(uber_context_keys.len());
+
+        for key in uber_context_keys {
+            if let Some(value) = extractor.get(key) {
+                kv.push(KeyValue::new(key.to_string(), value.to_string()));
+            }
+        }
+
+        Ok(TraceState::from_key_value(kv))
+    }
 }
 
 impl TextMapFormat for JaegerPropagator {
@@ -134,14 +161,10 @@ impl TextMapFormat for JaegerPropagator {
     }
 
     fn extract_with_context(&self, cx: &Context, extractor: &dyn Extractor) -> Context {
-        let header_value = extractor.get(JAEGER_HEADER).unwrap_or("");
-        // if there is no :, it means header_value could be encoded as url, try decode first
-        let extract_result = if !header_value.contains(':') {
-            self.extract_span_context(header_value.replace("%3A", ":").as_str())
-        } else {
-            self.extract_span_context(header_value)
-        };
-        cx.with_remote_span_context(extract_result.unwrap_or_else(|_| SpanContext::empty_context()))
+        cx.with_remote_span_context(
+            self.extract_span_context(extractor)
+                .unwrap_or_else(|_| SpanContext::empty_context()),
+        )
     }
 
     fn fields(&self) -> FieldIter {
@@ -153,6 +176,7 @@ impl TextMapFormat for JaegerPropagator {
 mod tests {
     use crate::trace_propagator::jaeger_propagator::{JaegerPropagator, JAEGER_HEADER};
     use opentelemetry::api;
+    use opentelemetry::api::trace::span_context::TraceState;
     use opentelemetry::api::{
         Context, Injector, Span, SpanContext, SpanId, TextMapFormat, TraceContextExt, TraceId,
         TRACE_FLAG_DEBUG, TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
@@ -177,6 +201,7 @@ mod tests {
                     SpanId::from_u64(SPAN_ID),
                     TRACE_FLAG_SAMPLED,
                     true,
+                    TraceState::default(),
                 ),
             ),
             (
@@ -188,6 +213,7 @@ mod tests {
                     SpanId::from_u64(SPAN_ID),
                     TRACE_FLAG_SAMPLED,
                     true,
+                    TraceState::default(),
                 ),
             ),
             (
@@ -199,6 +225,7 @@ mod tests {
                     SpanId::from_u64(SPAN_ID),
                     TRACE_FLAG_DEBUG | TRACE_FLAG_SAMPLED,
                     true,
+                    TraceState::default(),
                 ),
             ),
             (
@@ -210,6 +237,7 @@ mod tests {
                     SpanId::from_u64(SPAN_ID),
                     TRACE_FLAG_NOT_SAMPLED,
                     true,
+                    TraceState::default(),
                 ),
             ),
             (
@@ -241,6 +269,7 @@ mod tests {
                     SpanId::from_u64(SPAN_ID),
                     TRACE_FLAG_SAMPLED,
                     true,
+                    TraceState::default(),
                 ),
                 format!("{}:{}:0:1", LONG_TRACE_ID_STR, SPAN_ID_STR),
             ),
@@ -250,6 +279,7 @@ mod tests {
                     SpanId::from_u64(SPAN_ID),
                     TRACE_FLAG_NOT_SAMPLED,
                     true,
+                    TraceState::default(),
                 ),
                 format!("{}:{}:0:0", LONG_TRACE_ID_STR, SPAN_ID_STR),
             ),
@@ -259,6 +289,7 @@ mod tests {
                     SpanId::from_u64(SPAN_ID),
                     TRACE_FLAG_DEBUG | TRACE_FLAG_SAMPLED,
                     true,
+                    TraceState::default(),
                 ),
                 format!("{}:{}:0:3", LONG_TRACE_ID_STR, SPAN_ID_STR),
             ),
@@ -335,7 +366,8 @@ mod tests {
                 TraceId::from_u128(TRACE_ID),
                 SpanId::from_u64(SPAN_ID),
                 1,
-                true
+                true,
+                TraceState::default(),
             ))
         );
     }

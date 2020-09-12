@@ -175,17 +175,22 @@ impl TraceState {
     /// Creates a new `TraceState` header string, delimiting each key and value with a `=` and each
     /// entry with a `,`.
     pub fn header(&self) -> String {
+        self.header_delimited("=", ",")
+    }
+
+    /// Creates a new `TraceState` header string, with the given key/value delimiter and entry delimiter.
+    pub fn header_delimited(&self, entry_delimiter: &str, list_delimiter: &str) -> String {
         let mut ordered: Vec<String> = Vec::with_capacity(self.ordered_keys.len());
         for key in self.ordered_keys.clone() {
             ordered.push(format!(
                 "{}{}{}",
                 key,
-                "=",
+                entry_delimiter,
                 self.data.get(key.as_str()).cloned().unwrap()
             ))
         }
 
-        ordered.join(",")
+        ordered.join(list_delimiter)
     }
 }
 
