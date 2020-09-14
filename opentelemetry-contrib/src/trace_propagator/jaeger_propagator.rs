@@ -8,8 +8,8 @@
 
 use opentelemetry::api::trace::span_context::TraceState;
 use opentelemetry::api::{
-    Context, Extractor, FieldIter, Injector, KeyValue, SpanContext, SpanId, TextMapFormat,
-    TraceContextExt, TraceId, TRACE_FLAG_DEBUG, TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
+    Context, Extractor, FieldIter, Injector, SpanContext, SpanId, TextMapFormat, TraceContextExt,
+    TraceId, TRACE_FLAG_DEBUG, TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
 };
 use std::borrow::Cow;
 use std::str::FromStr;
@@ -119,16 +119,15 @@ impl JaegerPropagator {
     }
 
     fn extract_trace_state(&self, extractor: &dyn Extractor) -> Result<TraceState, ()> {
-        let uber_context_keys: Vec<KeyValue> = extractor
+        let uber_context_keys = extractor
             .keys()
             .into_iter()
             .filter(|key| key.starts_with(JAEGER_BAGGAGE_PREFIX))
             .filter_map(|key| {
                 extractor
                     .get(key)
-                    .map(|value| KeyValue::new(key.to_string(), value.to_string()))
-            })
-            .collect();
+                    .map(|value| (key.to_string(), value.to_string()))
+            });
 
         Ok(TraceState::from_key_value(uber_context_keys))
     }

@@ -10,10 +10,9 @@
 //! The spec can be viewed here: https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/api-tracing.md#spancontext
 //!
 //! [w3c TraceContext specification]: https://www.w3.org/TR/trace-context/
-use crate::api::KeyValue;
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, VecDeque};
+use std::collections::VecDeque;
 use std::str::FromStr;
 
 /// A SpanContext with TRACE_FLAG_NOT_SAMPLED means the span is not sampled.
@@ -124,49 +123,52 @@ impl SpanId {
 #[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct TraceState {
-    data: HashMap<String, String>,
-    ordered_keys: VecDeque<String>,
+    ordered_data: VecDeque<(String, String)>,
 }
 
 impl TraceState {
     /// Creates a new `TraceState` from the given key-value collection.
-    pub fn from_key_value(trace_state: Vec<KeyValue>) -> Self {
-        let mut data: HashMap<String, String> = HashMap::with_capacity(trace_state.len());
-        let mut ordered_keys: VecDeque<String> = VecDeque::with_capacity(trace_state.len());
-
-        for kv in trace_state {
-            data.insert(kv.key.clone().into(), kv.value.into());
-            ordered_keys.push_back(kv.key.into());
+    pub fn from_key_value<T, K, V>(trace_state: T) -> Self
+    where
+        T: IntoIterator<Item = (K, V)>,
+        K: ToString,
+        V: ToString,
+    {
+        TraceState {
+            ordered_data: trace_state
+                .into_iter()
+                .map(|(key, value)| (key.to_string(), value.to_string()))
+                .collect(),
         }
-
-        TraceState { data, ordered_keys }
     }
 
     /// Retrieves a value for a given key from the `TraceState` if it exists.
-    pub fn get(&self, key: String) -> Option<String> {
-        self.data.get(&key).cloned()
+    pub fn get(&self, key: String) -> Option<&str> {
+        self.ordered_data.iter().find_map(|item| {
+            if item.0.as_str() == key.as_str() {
+                Some(item.1.as_str())
+            } else {
+                None
+            }
+        })
     }
 
     /// Inserts the given key-value pair into the `TraceState`. If a value already exists for the
     /// given key, this updates the value and updates the value's position. Returns the updated
     /// `TraceState`.
-    pub fn insert(mut self, key: String, value: String) -> TraceState {
-        if let Some(index) = self.ordered_keys.iter().position(|x| *x == *key) {
-            self.ordered_keys.remove(index);
-        }
+    pub fn insert(self, key: String, value: String) -> TraceState {
+        let mut trace_state = self.delete(key.clone());
 
-        self.data.insert(key.clone(), value);
-        self.ordered_keys.push_front(key);
+        trace_state.ordered_data.push_front((key, value));
 
-        self
+        trace_state
     }
 
     /// Removes the given key-value pair from the `TraceState`, returning the removed value if it
     /// exists.
     pub fn delete(mut self, key: String) -> TraceState {
-        if let Some(index) = self.ordered_keys.iter().position(|x| *x == *key) {
-            self.ordered_keys.remove(index);
-            self.data.remove(&key);
+        if let Some(index) = self.ordered_data.iter().position(|x| *x.0 == *key) {
+            self.ordered_data.remove(index);
         }
 
         self
@@ -180,17 +182,11 @@ impl TraceState {
 
     /// Creates a new `TraceState` header string, with the given key/value delimiter and entry delimiter.
     pub fn header_delimited(&self, entry_delimiter: &str, list_delimiter: &str) -> String {
-        let mut ordered: Vec<String> = Vec::with_capacity(self.ordered_keys.len());
-        for key in self.ordered_keys.clone() {
-            ordered.push(format!(
-                "{}{}{}",
-                key,
-                entry_delimiter,
-                self.data.get(key.as_str()).cloned().unwrap()
-            ))
-        }
-
-        ordered.join(list_delimiter)
+        self.ordered_data
+            .iter()
+            .map(|(key, value)| format!("{}{}{}", key, entry_delimiter, value))
+            .collect::<Vec<String>>()
+            .join(list_delimiter)
     }
 }
 
@@ -199,17 +195,15 @@ impl FromStr for TraceState {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let list_members: Vec<&str> = s.split_terminator(',').collect();
-        let mut key_value_pairs: Vec<KeyValue> = Vec::with_capacity(list_members.len());
+        let mut key_value_pairs: Vec<(String, String)> = Vec::with_capacity(list_members.len());
 
         for list_member in list_members {
             match list_member.find('=') {
                 None => return Err(()),
                 Some(separator_index) => {
                     let (key, value) = list_member.split_at(separator_index);
-                    key_value_pairs.push(KeyValue::new(
-                        key.to_string(),
-                        value.trim_start_matches('='),
-                    ));
+                    key_value_pairs
+                        .push((key.to_string(), value.trim_start_matches('=').to_string()));
                 }
             }
         }
@@ -331,9 +325,9 @@ mod tests {
     #[rustfmt::skip]
     fn trace_state_test_data() -> Vec<(TraceState, &'static str, &'static str)> {
         vec![
-            (TraceState::from_key_value(vec![KeyValue::new("foo", "bar")]), "foo=bar", "foo"),
-            (TraceState::from_key_value(vec![KeyValue::new("foo", ""), KeyValue::new("apple", "banana")]), "foo=,apple=banana", "apple"),
-            (TraceState::from_key_value(vec![KeyValue::new("foo", "bar"), KeyValue::new("apple", "banana")]), "foo=bar,apple=banana", "apple"),
+            (TraceState::from_key_value(vec![("foo", "bar")]), "foo=bar", "foo"),
+            (TraceState::from_key_value(vec![("foo", ""), ("apple", "banana")]), "foo=,apple=banana", "apple"),
+            (TraceState::from_key_value(vec![("foo", "bar"), ("apple", "banana")]), "foo=bar,apple=banana", "apple"),
         ]
     }
 

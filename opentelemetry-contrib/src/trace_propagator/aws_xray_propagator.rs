@@ -1,7 +1,7 @@
 use opentelemetry::api::trace::span_context::TraceState;
 use opentelemetry::api::{
-    Context, Extractor, FieldIter, Injector, KeyValue, SpanContext, SpanId, TextMapFormat,
-    TraceContextExt, TraceId, TRACE_FLAG_DEFERRED, TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
+    Context, Extractor, FieldIter, Injector, SpanContext, SpanId, TextMapFormat, TraceContextExt,
+    TraceId, TRACE_FLAG_DEFERRED, TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
 };
 
 const AWS_XRAY_TRACE_HEADER: &str = "x-amzn-trace-id";
@@ -59,7 +59,7 @@ impl XrayTraceContextPropagator {
         let mut trace_id: TraceId = TraceId::invalid();
         let mut parent_segment_id: SpanId = SpanId::invalid();
         let mut sampling_decision: u8 = TRACE_FLAG_DEFERRED;
-        let mut kv_vec: Vec<KeyValue> = Vec::with_capacity(parts.len());
+        let mut kv_vec: Vec<(String, String)> = Vec::with_capacity(parts.len());
 
         for (key, value) in parts {
             match key {
@@ -80,7 +80,7 @@ impl XrayTraceContextPropagator {
                         _ => TRACE_FLAG_DEFERRED,
                     }
                 }
-                _ => kv_vec.push(KeyValue::new(key.to_string(), value.to_string())),
+                _ => kv_vec.push((key.to_string(), value.to_string())),
             }
         }
 
