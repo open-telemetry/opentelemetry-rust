@@ -157,7 +157,7 @@ mod tests {
     use std::str::FromStr;
 
     #[rustfmt::skip]
-    fn  extract_data() -> Vec<(&'static str, &'static str, api::SpanContext)> {
+    fn extract_data() -> Vec<(&'static str, &'static str, api::SpanContext)> {
         vec![
             ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-00", "foo=bar", api::SpanContext::new(api::TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), api::SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 0, true, TraceState::from_str("foo=bar").unwrap())),
             ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01", "foo=bar", api::SpanContext::new(api::TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), api::SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 1, true, TraceState::from_str("foo=bar").unwrap())),

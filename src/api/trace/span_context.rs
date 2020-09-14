@@ -154,9 +154,9 @@ impl TraceState {
     }
 
     /// Retrieves a value for a given key from the `TraceState` if it exists.
-    pub fn get(&self, key: String) -> Option<&str> {
+    pub fn get(&self, key: &str) -> Option<&str> {
         self.ordered_data.iter().find_map(|item| {
-            if item.0.as_str() == key.as_str() {
+            if item.0.as_str() == key {
                 Some(item.1.as_str())
             } else {
                 None
@@ -369,11 +369,7 @@ mod tests {
         for test_case in trace_state_test_data() {
             assert_eq!(test_case.0.clone().header(), test_case.1);
 
-            let new_key = format!(
-                "{}-{}",
-                test_case.0.get(test_case.2.to_string()).unwrap(),
-                "test"
-            );
+            let new_key = format!("{}-{}", test_case.0.get(test_case.2).unwrap(), "test");
 
             let updated_trace_state = test_case.0.insert(test_case.2.into(), new_key.clone());
 
@@ -386,7 +382,7 @@ mod tests {
 
             let deleted_trace_state = updated_trace_state.delete(test_case.2.to_string());
 
-            assert!(deleted_trace_state.get(test_case.2.to_string()).is_none());
+            assert!(deleted_trace_state.get(test_case.2).is_none());
         }
     }
 }
