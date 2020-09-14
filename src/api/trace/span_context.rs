@@ -128,6 +128,17 @@ pub struct TraceState {
 
 impl TraceState {
     /// Creates a new `TraceState` from the given key-value collection.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use opentelemetry::api;
+    ///
+    /// let kvs = vec![("foo", "bar"), ("apple", "banana")];
+    /// let trace_state: api::TraceState = api::TraceState::from_key_value(kvs);
+    ///
+    /// assert_eq!(trace_state.header(), String::from("foo=bar,apple=banana"))
+    /// ```
     pub fn from_key_value<T, K, V>(trace_state: T) -> Self
     where
         T: IntoIterator<Item = (K, V)>,
