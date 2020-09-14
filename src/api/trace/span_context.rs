@@ -301,8 +301,8 @@ impl SpanContext {
     }
 
     /// Returns the context's `TraceState`.
-    pub fn trace_state(&self) -> TraceState {
-        self.trace_state.clone()
+    pub fn trace_state(&self) -> &TraceState {
+        &self.trace_state
     }
 }
 

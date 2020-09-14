@@ -116,22 +116,24 @@ impl TextMapFormat for XrayTraceContextPropagator {
                 NOT_SAMPLED
             };
 
-            let mut trace_state_header: String =
-                span_context.trace_state().header_delimited("=", ";");
-            if !trace_state_header.is_empty() {
-                trace_state_header = format!(";{}", trace_state_header);
-            }
+            let trace_state_header: String = span_context.trace_state().header_delimited("=", ";");
+            let trace_state_prefix = if trace_state_header.is_empty() {
+                ""
+            } else {
+                ";"
+            };
 
             injector.set(
                 AWS_XRAY_TRACE_HEADER,
                 format!(
-                    "{}={};{}={};{}={}{}",
+                    "{}={};{}={};{}={}{}{}",
                     HEADER_ROOT_KEY,
                     xray_trace_id.0,
                     HEADER_PARENT_KEY,
                     span_context.span_id().to_hex(),
                     HEADER_SAMPLED_KEY,
                     sampling_decision,
+                    trace_state_prefix,
                     trace_state_header
                 ),
             );

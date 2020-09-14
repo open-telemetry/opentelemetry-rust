@@ -11,6 +11,7 @@ use opentelemetry::api::{
     Context, Extractor, FieldIter, Injector, KeyValue, SpanContext, SpanId, TextMapFormat,
     TraceContextExt, TraceId, TRACE_FLAG_DEBUG, TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
 };
+use std::borrow::Cow;
 use std::str::FromStr;
 
 const JAEGER_HEADER: &str = "uber-trace-id";
@@ -47,10 +48,10 @@ impl JaegerPropagator {
 
     /// Extract span context from header value
     fn extract_span_context(&self, extractor: &dyn Extractor) -> Result<SpanContext, ()> {
-        let mut header_value: String = extractor.get(JAEGER_HEADER).unwrap_or("").to_string();
+        let mut header_value = Cow::from(extractor.get(JAEGER_HEADER).unwrap_or(""));
         // if there is no :, it means header_value could be encoded as url, try decode first
         if !header_value.contains(':') {
-            header_value = header_value.replace("%3A", ":");
+            header_value = Cow::from(header_value.replace("%3A", ":"));
         }
 
         let parts = header_value.split_terminator(':').collect::<Vec<&str>>();
@@ -118,21 +119,18 @@ impl JaegerPropagator {
     }
 
     fn extract_trace_state(&self, extractor: &dyn Extractor) -> Result<TraceState, ()> {
-        let uber_context_keys: Vec<&str> = extractor
+        let uber_context_keys: Vec<KeyValue> = extractor
             .keys()
             .into_iter()
             .filter(|key| key.starts_with(JAEGER_BAGGAGE_PREFIX))
+            .filter_map(|key| {
+                extractor
+                    .get(key)
+                    .map(|value| KeyValue::new(key.to_string(), value.to_string()))
+            })
             .collect();
 
-        let mut kv: Vec<KeyValue> = Vec::with_capacity(uber_context_keys.len());
-
-        for key in uber_context_keys {
-            if let Some(value) = extractor.get(key) {
-                kv.push(KeyValue::new(key.to_string(), value.to_string()));
-            }
-        }
-
-        Ok(TraceState::from_key_value(kv))
+        Ok(TraceState::from_key_value(uber_context_keys))
     }
 }
 

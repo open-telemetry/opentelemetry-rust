@@ -166,7 +166,7 @@ impl api::Tracer for Tracer {
                         ctx.span_id(),
                         ctx.is_remote(),
                         ctx.trace_flags(),
-                        ctx.trace_state(),
+                        ctx.trace_state().clone(),
                     )
                 })
                 .unwrap_or((
