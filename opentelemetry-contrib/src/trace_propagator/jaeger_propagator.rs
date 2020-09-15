@@ -129,7 +129,7 @@ impl JaegerPropagator {
                     .map(|value| (key.to_string(), value.to_string()))
             });
 
-        Ok(TraceState::from_key_value(uber_context_keys))
+        TraceState::from_key_value(uber_context_keys)
     }
 }
 

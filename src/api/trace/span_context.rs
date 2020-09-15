@@ -126,9 +126,7 @@ impl SpanId {
 /// [W3C specification]: https://www.w3.org/TR/trace-context/#tracestate-header
 #[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
-pub struct TraceState {
-    ordered_data: VecDeque<(String, String)>,
-}
+pub struct TraceState(VecDeque<(String, String)>);
 
 impl TraceState {
     /// Validates that the given `TraceState` list-member key is valid per the [W3 Spec]['spec'].
@@ -161,27 +159,36 @@ impl TraceState {
     /// use opentelemetry::api;
     ///
     /// let kvs = vec![("foo", "bar"), ("apple", "banana")];
-    /// let trace_state: api::TraceState = api::TraceState::from_key_value(kvs);
+    /// let trace_state: Result<api::TraceState, ()> = api::TraceState::from_key_value(kvs);
     ///
-    /// assert_eq!(trace_state.header(), String::from("foo=bar,apple=banana"))
+    /// assert!(trace_state.is_ok());
+    /// assert_eq!(trace_state.unwrap().header(), String::from("foo=bar,apple=banana"))
     /// ```
-    pub fn from_key_value<T, K, V>(trace_state: T) -> Self
+    pub fn from_key_value<T, K, V>(trace_state: T) -> Result<Self, ()>
     where
         T: IntoIterator<Item = (K, V)>,
         K: ToString,
         V: ToString,
     {
-        TraceState {
-            ordered_data: trace_state
-                .into_iter()
-                .map(|(key, value)| (key.to_string(), value.to_string()))
-                .collect(),
-        }
+        let ordered_data: Result<VecDeque<(String, String)>, ()> = trace_state
+            .into_iter()
+            .map(|(key, value)| {
+                let (key, value) = (key.to_string(), value.to_string());
+                if !TraceState::valid_key(key.as_str()) || !TraceState::valid_value(value.as_str())
+                {
+                    return Err(());
+                }
+
+                Ok((key, value))
+            })
+            .collect();
+
+        ordered_data.map(TraceState)
     }
 
     /// Retrieves a value for a given key from the `TraceState` if it exists.
     pub fn get(&self, key: &str) -> Option<&str> {
-        self.ordered_data.iter().find_map(|item| {
+        self.0.iter().find_map(|item| {
             if item.0.as_str() == key {
                 Some(item.1.as_str())
             } else {
@@ -191,28 +198,38 @@ impl TraceState {
     }
 
     /// Inserts the given key-value pair into the `TraceState`. If a value already exists for the
-    /// given key, this updates the value and updates the value's position. Returns the updated
-    /// `TraceState`.
-    pub fn insert(self, key: String, value: String) -> TraceState {
+    /// given key, this updates the value and updates the value's position. If the key or value are
+    /// invalid per the [W3 Spec]['spec'] an unmodified copy of the `TraceState` is returned, else
+    /// a new `TraceState` with the updated key/value is returned.
+    ///
+    /// ['spec']: https://www.w3.org/TR/trace-context/#list
+    pub fn insert(self, key: String, value: String) -> Result<TraceState, TraceState> {
         if !TraceState::valid_key(key.as_str()) || !TraceState::valid_value(value.as_str()) {
-            return self;
+            return Err(self);
         }
 
-        let mut trace_state = self.delete(key.clone());
+        let mut trace_state = self.delete(key.clone())?;
 
-        trace_state.ordered_data.push_front((key, value));
+        trace_state.0.push_front((key, value));
 
-        trace_state
+        Ok(trace_state)
     }
 
-    /// Removes the given key-value pair from the `TraceState`, returning the removed value if it
-    /// exists.
-    pub fn delete(mut self, key: String) -> TraceState {
-        if let Some(index) = self.ordered_data.iter().position(|x| *x.0 == *key) {
-            self.ordered_data.remove(index);
+    /// Removes the given key-value pair from the `TraceState`. If the key is invalid per the
+    /// [W3 Spec]['spec'] or the key does not exist an unmodified copy of the `TraceState` is
+    /// returned. Else, a new `TraceState` with the removed entry is returned.
+    ///
+    /// ['spec']: https://www.w3.org/TR/trace-context/#list
+    pub fn delete(mut self, key: String) -> Result<TraceState, TraceState> {
+        if !TraceState::valid_key(key.as_str()) {
+            return Err(self);
         }
 
-        self
+        if let Some(index) = self.0.iter().position(|x| *x.0 == *key) {
+            self.0.remove(index);
+        }
+
+        Ok(self)
     }
 
     /// Creates a new `TraceState` header string, delimiting each key and value with a `=` and each
@@ -223,7 +240,7 @@ impl TraceState {
 
     /// Creates a new `TraceState` header string, with the given key/value delimiter and entry delimiter.
     pub fn header_delimited(&self, entry_delimiter: &str, list_delimiter: &str) -> String {
-        self.ordered_data
+        self.0
             .iter()
             .map(|(key, value)| format!("{}{}{}", key, entry_delimiter, value))
             .collect::<Vec<String>>()
@@ -249,7 +266,7 @@ impl FromStr for TraceState {
             }
         }
 
-        Ok(TraceState::from_key_value(key_value_pairs))
+        Ok(TraceState::from_key_value(key_value_pairs)?)
     }
 }
 
@@ -366,9 +383,9 @@ mod tests {
     #[rustfmt::skip]
     fn trace_state_test_data() -> Vec<(TraceState, &'static str, &'static str)> {
         vec![
-            (TraceState::from_key_value(vec![("foo", "bar")]), "foo=bar", "foo"),
-            (TraceState::from_key_value(vec![("foo", ""), ("apple", "banana")]), "foo=,apple=banana", "apple"),
-            (TraceState::from_key_value(vec![("foo", "bar"), ("apple", "banana")]), "foo=bar,apple=banana", "apple"),
+            (TraceState::from_key_value(vec![("foo", "bar")]).unwrap(), "foo=bar", "foo"),
+            (TraceState::from_key_value(vec![("foo", ""), ("apple", "banana")]).unwrap(), "foo=,apple=banana", "apple"),
+            (TraceState::from_key_value(vec![("foo", "bar"), ("apple", "banana")]).unwrap(), "foo=bar,apple=banana", "apple"),
         ]
     }
 
@@ -402,6 +419,8 @@ mod tests {
             let new_key = format!("{}-{}", test_case.0.get(test_case.2).unwrap(), "test");
 
             let updated_trace_state = test_case.0.insert(test_case.2.into(), new_key.clone());
+            assert!(updated_trace_state.is_ok());
+            let updated_trace_state = updated_trace_state.unwrap();
 
             let updated = format!("{}={}", test_case.2, new_key);
 
@@ -411,6 +430,9 @@ mod tests {
             assert_eq!(index.unwrap(), 0);
 
             let deleted_trace_state = updated_trace_state.delete(test_case.2.to_string());
+            assert!(deleted_trace_state.is_ok());
+
+            let deleted_trace_state = deleted_trace_state.unwrap();
 
             assert!(deleted_trace_state.get(test_case.2).is_none());
         }

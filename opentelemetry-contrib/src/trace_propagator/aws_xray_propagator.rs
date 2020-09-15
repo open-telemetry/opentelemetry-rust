@@ -84,7 +84,7 @@ impl XrayTraceContextPropagator {
             }
         }
 
-        let trace_state: TraceState = TraceState::from_key_value(kv_vec);
+        let trace_state: TraceState = TraceState::from_key_value(kv_vec)?;
 
         if trace_id.to_u128() == 0 {
             return Err(());
