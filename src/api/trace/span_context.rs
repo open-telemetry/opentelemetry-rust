@@ -27,6 +27,10 @@ pub const TRACE_FLAG_DEFERRED: u8 = 0x02;
 /// TRACE_FLAGS_DEBUG is a bitmask with the debug bit set.
 pub const TRACE_FLAG_DEBUG: u8 = 0x04;
 
+lazy_static::lazy_static! {
+    static ref TRACE_STATE_KEY: regex::Regex = regex::Regex::new(r#"^[a-zA-Z0-9]+[a-zA-Z0-9|\\_|\\-|\\*|\\/]*$"#).unwrap();
+}
+
 /// TraceId is an 16-byte value which uniquely identifies a given trace
 /// The actual `u128` value is wrapped in a tuple struct in order to leverage the newtype pattern
 #[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
@@ -127,6 +131,28 @@ pub struct TraceState {
 }
 
 impl TraceState {
+    /// Validates that the given `TraceState` list-member key is valid per the [W3 Spec]['spec'].
+    ///
+    /// ['spec']: https://www.w3.org/TR/trace-context/#key
+    fn valid_key(key: &str) -> bool {
+        if key.len() > 256 {
+            return false;
+        }
+
+        TRACE_STATE_KEY.is_match(key)
+    }
+
+    /// Validates that the given `TraceState` list-member value is valid per the [W3 Spec]['spec'].
+    ///
+    /// ['spec']: https://www.w3.org/TR/trace-context/#value
+    fn valid_value(value: &str) -> bool {
+        if value.len() > 256 {
+            return false;
+        }
+
+        !(value.contains(',') || value.contains('='))
+    }
+
     /// Creates a new `TraceState` from the given key-value collection.
     ///
     /// # Examples
@@ -168,6 +194,10 @@ impl TraceState {
     /// given key, this updates the value and updates the value's position. Returns the updated
     /// `TraceState`.
     pub fn insert(self, key: String, value: String) -> TraceState {
+        if !TraceState::valid_key(key.as_str()) || !TraceState::valid_value(value.as_str()) {
+            return self;
+        }
+
         let mut trace_state = self.delete(key.clone());
 
         trace_state.ordered_data.push_front((key, value));
@@ -319,7 +349,7 @@ mod tests {
     fn trace_id_test_data() -> Vec<(TraceId, &'static str, [u8; 16])> {
         vec![
             (TraceId(0), "00000000000000000000000000000000", [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
-            (TraceId(42), "0000000000000000000000000000002a", [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,0, 0, 42]),
+            (TraceId(42), "0000000000000000000000000000002a", [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 42]),
             (TraceId(126642714606581564793456114182061442190), "5f467fe7bf42676c05e20ba4a90e448e", [95, 70, 127, 231, 191, 66, 103, 108, 5, 226, 11, 164, 169, 14, 68, 142])
         ]
     }
