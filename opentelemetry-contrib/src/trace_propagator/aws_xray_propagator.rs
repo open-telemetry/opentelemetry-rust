@@ -80,7 +80,7 @@ impl XrayTraceContextPropagator {
                         _ => TRACE_FLAG_DEFERRED,
                     }
                 }
-                _ => kv_vec.push((key.to_string(), value.to_string())),
+                _ => kv_vec.push((key.to_ascii_lowercase(), value.to_string())),
             }
         }
 
@@ -116,7 +116,13 @@ impl TextMapFormat for XrayTraceContextPropagator {
                 NOT_SAMPLED
             };
 
-            let trace_state_header: String = span_context.trace_state().header_delimited("=", ";");
+            let trace_state_header: String = span_context
+                .trace_state()
+                .header_delimited("=", ";")
+                .split_terminator(';')
+                .map(title_case)
+                .collect::<Vec<String>>()
+                .join(";");
             let trace_state_prefix = if trace_state_header.is_empty() {
                 ""
             } else {
@@ -209,6 +215,21 @@ fn from_key_value_pair(pair: &str) -> Option<(&str, &str)> {
     key_value_pair
 }
 
+fn title_case(s: &str) -> String {
+    let mut capitalized: String = String::with_capacity(s.len());
+
+    if !s.is_empty() {
+        let mut characters = s.chars();
+
+        if let Some(first) = characters.next() {
+            capitalized.push(first.to_ascii_uppercase())
+        }
+        capitalized.extend(characters);
+    }
+
+    capitalized
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -231,8 +252,8 @@ mod tests {
             ("Root=1-58406520-a006649127e371903a2de979;Parent=4c721bf33e3caf8f;Sampled=1", SpanContext::new(TraceId::from_hex("58406520a006649127e371903a2de979"), SpanId::from_hex("4c721bf33e3caf8f"), TRACE_FLAG_SAMPLED, true, TraceState::default())),
             ("Root=1-58406520-a006649127e371903a2de979;Parent=4c721bf33e3caf8f", SpanContext::new(TraceId::from_hex("58406520a006649127e371903a2de979"), SpanId::from_hex("4c721bf33e3caf8f"), TRACE_FLAG_DEFERRED, true, TraceState::default())),
             ("Root=1-58406520-a006649127e371903a2de979;Parent=4c721bf33e3caf8f;Sampled=?", SpanContext::new(TraceId::from_hex("58406520a006649127e371903a2de979"), SpanId::from_hex("4c721bf33e3caf8f"), TRACE_FLAG_DEFERRED, true, TraceState::default())),
-            ("Root=1-58406520-a006649127e371903a2de979;Self=1-58406520-bf42676c05e20ba4a90e448e;Parent=4c721bf33e3caf8f;Sampled=1", SpanContext::new(TraceId::from_hex("58406520a006649127e371903a2de979"), SpanId::from_hex("4c721bf33e3caf8f"), TRACE_FLAG_SAMPLED, true, TraceState::from_str("Self=1-58406520-bf42676c05e20ba4a90e448e").unwrap())),
-            ("Root=1-58406520-a006649127e371903a2de979;Self=1-58406520-bf42676c05e20ba4a90e448e;Parent=4c721bf33e3caf8f;Sampled=1;RandomKey=RandomValue", SpanContext::new(TraceId::from_hex("58406520a006649127e371903a2de979"), SpanId::from_hex("4c721bf33e3caf8f"), TRACE_FLAG_SAMPLED, true, TraceState::from_str("Self=1-58406520-bf42676c05e20ba4a90e448e,RandomKey=RandomValue").unwrap())),
+            ("Root=1-58406520-a006649127e371903a2de979;Self=1-58406520-bf42676c05e20ba4a90e448e;Parent=4c721bf33e3caf8f;Sampled=1", SpanContext::new(TraceId::from_hex("58406520a006649127e371903a2de979"), SpanId::from_hex("4c721bf33e3caf8f"), TRACE_FLAG_SAMPLED, true, TraceState::from_str("self=1-58406520-bf42676c05e20ba4a90e448e").unwrap())),
+            ("Root=1-58406520-a006649127e371903a2de979;Self=1-58406520-bf42676c05e20ba4a90e448e;Parent=4c721bf33e3caf8f;Sampled=1;RandomKey=RandomValue", SpanContext::new(TraceId::from_hex("58406520a006649127e371903a2de979"), SpanId::from_hex("4c721bf33e3caf8f"), TRACE_FLAG_SAMPLED, true, TraceState::from_str("self=1-58406520-bf42676c05e20ba4a90e448e,randomkey=RandomValue").unwrap())),
         ]
     }
 
@@ -245,7 +266,7 @@ mod tests {
             ("", SpanContext::new(TraceId::from_hex("58406520a006649127e371903a2de979"), SpanId::invalid(), TRACE_FLAG_SAMPLED, true, TraceState::default())),
             ("Root=1-58406520-a006649127e371903a2de979;Parent=4c721bf33e3caf8f;Sampled=0", SpanContext::new(TraceId::from_hex("58406520a006649127e371903a2de979"), SpanId::from_hex("4c721bf33e3caf8f"), TRACE_FLAG_NOT_SAMPLED, true, TraceState::default())),
             ("Root=1-58406520-a006649127e371903a2de979;Parent=4c721bf33e3caf8f;Sampled=1", SpanContext::new(TraceId::from_hex("58406520a006649127e371903a2de979"), SpanId::from_hex("4c721bf33e3caf8f"), TRACE_FLAG_SAMPLED, true, TraceState::default())),
-            ("Root=1-58406520-a006649127e371903a2de979;Parent=4c721bf33e3caf8f;Sampled=?;Self=1-58406520-bf42676c05e20ba4a90e448e;RandomKey=RandomValue", SpanContext::new(TraceId::from_hex("58406520a006649127e371903a2de979"), SpanId::from_hex("4c721bf33e3caf8f"), TRACE_FLAG_DEFERRED, true, TraceState::from_str("Self=1-58406520-bf42676c05e20ba4a90e448e,RandomKey=RandomValue").unwrap())),
+            ("Root=1-58406520-a006649127e371903a2de979;Parent=4c721bf33e3caf8f;Sampled=?;Self=1-58406520-bf42676c05e20ba4a90e448e;Randomkey=RandomValue", SpanContext::new(TraceId::from_hex("58406520a006649127e371903a2de979"), SpanId::from_hex("4c721bf33e3caf8f"), TRACE_FLAG_DEFERRED, true, TraceState::from_str("self=1-58406520-bf42676c05e20ba4a90e448e,randomkey=RandomValue").unwrap())),
         ]
     }
 

@@ -28,7 +28,7 @@ pub const TRACE_FLAG_DEFERRED: u8 = 0x02;
 pub const TRACE_FLAG_DEBUG: u8 = 0x04;
 
 lazy_static::lazy_static! {
-    static ref TRACE_STATE_KEY: regex::Regex = regex::Regex::new(r#"^[a-zA-Z0-9]+[a-zA-Z0-9|\\_|\\-|\\*|\\/]*$"#).unwrap();
+    static ref TRACE_STATE_KEY: regex::Regex = regex::Regex::new(r#"^[a-z0-9]+[a-z0-9|\\_|\\-|\\*|\\/]*$"#).unwrap();
 }
 
 /// TraceId is an 16-byte value which uniquely identifies a given trace
