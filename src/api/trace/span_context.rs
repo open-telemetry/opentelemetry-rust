@@ -199,13 +199,13 @@ impl TraceState {
 
     /// Inserts the given key-value pair into the `TraceState`. If a value already exists for the
     /// given key, this updates the value and updates the value's position. If the key or value are
-    /// invalid per the [W3 Spec]['spec'] an unmodified copy of the `TraceState` is returned, else
-    /// a new `TraceState` with the updated key/value is returned.
+    /// invalid per the [W3 Spec]['spec'] an `Err` is returned, else a new `TraceState` with the
+    /// updated key/value is returned.
     ///
     /// ['spec']: https://www.w3.org/TR/trace-context/#list
-    pub fn insert(self, key: String, value: String) -> Result<TraceState, TraceState> {
+    pub fn insert(&self, key: String, value: String) -> Result<TraceState, ()> {
         if !TraceState::valid_key(key.as_str()) || !TraceState::valid_value(value.as_str()) {
-            return Err(self);
+            return Err(());
         }
 
         let mut trace_state = self.delete(key.clone())?;
@@ -216,20 +216,22 @@ impl TraceState {
     }
 
     /// Removes the given key-value pair from the `TraceState`. If the key is invalid per the
-    /// [W3 Spec]['spec'] or the key does not exist an unmodified copy of the `TraceState` is
-    /// returned. Else, a new `TraceState` with the removed entry is returned.
+    /// [W3 Spec]['spec'] or the key does not exist an `Err` is returned. Else, a new `TraceState`
+    /// with the removed entry is returned.
     ///
     /// ['spec']: https://www.w3.org/TR/trace-context/#list
-    pub fn delete(mut self, key: String) -> Result<TraceState, TraceState> {
+    pub fn delete(&self, key: String) -> Result<TraceState, ()> {
         if !TraceState::valid_key(key.as_str()) {
-            return Err(self);
+            return Err(());
         }
 
-        if let Some(index) = self.0.iter().position(|x| *x.0 == *key) {
-            self.0.remove(index);
+        let mut owned = self.clone();
+
+        if let Some(index) = owned.0.iter().position(|x| *x.0 == *key) {
+            owned.0.remove(index);
         }
 
-        Ok(self)
+        Ok(owned)
     }
 
     /// Creates a new `TraceState` header string, delimiting each key and value with a `=` and each
