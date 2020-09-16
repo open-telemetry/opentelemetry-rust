@@ -15,4 +15,3 @@ path = "src/client.rs"
 hyper = "0.13"
 tokio = { version = "0.2", features = ["full"] }
 opentelemetry = { path = "../../", features = ["http"] }
-opentelemetry-jaeger = { path = "../../opentelemetry-jaeger" }
