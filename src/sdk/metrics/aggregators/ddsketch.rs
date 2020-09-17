@@ -10,8 +10,13 @@
 //! DDSKetch, on the contrary, employs relative error rate that could work well on long tail dataset.
 //!
 
-use std::ops::AddAssign;
-use std::sync::{Arc, RwLock};
+use std::{
+    any::Any,
+    cmp::Ordering,
+    mem,
+    ops::AddAssign,
+    sync::{Arc, RwLock},
+};
 
 use crate::{
     api::metrics::{Descriptor, MetricsError, Number, NumberKind, Result},
@@ -19,9 +24,6 @@ use crate::{
         Aggregator, Count, Distribution, Max, Min, MinMaxSumCount, Quantile, Sum,
     },
 };
-use std::any::Any;
-use std::cmp::Ordering;
-use std::mem;
 
 const INITIAL_NUM_BINS: usize = 128;
 const GROW_LEFT_BY: i64 = 128;
@@ -120,7 +122,7 @@ impl Quantile for DDSKetchAggregator {
                 return Ok(inner.max_value.clone());
             }
 
-            let rank = (q * (inner.store.count - 1) as f64).ceil() as u64 + 1;
+            let rank = (q * (inner.store.count - 1) as f64 + 1.0).floor() as u64;
             let mut key = inner.store.key_at_rank(rank);
             // Calculate the actual value based on the key of bins.
             let quantile_val = match key.cmp(&0) {
@@ -351,7 +353,7 @@ impl Inner {
 
     /// get the index of the bucket based on num
     fn log_gamma(&self, num: f64) -> f64 {
-       num.ln() / self.gamma_ln
+        num.ln() / self.gamma_ln
     }
 }
 
@@ -561,8 +563,157 @@ impl Store {
 }
 
 #[cfg(test)]
+#[allow(warnings)] // FIXME
 mod tests {
+    use crate::api::metrics::{Descriptor, InstrumentKind, Number, NumberKind};
+    use crate::sdk::export::metrics::{Aggregator, Count, Max, Min, Quantile, Sum};
     use crate::sdk::metrics::aggregators::ddsketch::Store;
+    use crate::sdk::metrics::aggregators::DDSKetchAggregator;
+    use std::cmp::Ordering;
+
+    const TEST_MAX_BINS: i64 = 1024;
+    const TEST_ALPHA: f64 = 0.01;
+    const TEST_MIN_BOUNDARY: f64 = 1.0e-9;
+
+    struct Dataset {
+        data: Vec<Number>,
+        kind: NumberKind,
+    }
+
+    impl Dataset {
+        fn from_f64_vec(data: Vec<f64>) -> Dataset {
+            Dataset {
+                data: data.into_iter().map(Number::from).collect::<Vec<Number>>(),
+                kind: NumberKind::F64,
+            }
+        }
+
+        fn from_u64_vec(data: Vec<u64>) -> Dataset {
+            Dataset {
+                data: data.into_iter().map(Number::from).collect::<Vec<Number>>(),
+                kind: NumberKind::U64,
+            }
+        }
+
+        fn from_i64_vec(data: Vec<i64>) -> Dataset {
+            Dataset {
+                data: data.into_iter().map(Number::from).collect::<Vec<Number>>(),
+                kind: NumberKind::I64,
+            }
+        }
+        // Given a quantile, get the minimum possible value that not exceed error range.
+        // data must have at least one element and should be sorted.
+        // q must in range [0,1]
+        fn lower_quantile(&self, q: f64, alpha: f64) -> f64 {
+            let rank = q * (self.data.len() - 1) as f64;
+            let number = self
+                .data
+                .get(rank.floor() as usize)
+                .expect("data should at least contains one element, quantile should be in [0,1]")
+                .clone()
+                .to_f64(&self.kind);
+            if number < 0.0 {
+                number * (1.0 + alpha)
+            } else {
+                number * (1.0 - alpha)
+            }
+        }
+
+        // Given a quantile, get the maximum possible value that not exceed error range.
+        // data must have at least one element and should be sorted.
+        // q must in range [0,1]
+        fn upper_quantile(&self, q: f64, alpha: f64) -> f64 {
+            let rank = q * (self.data.len() - 1) as f64;
+            let number = self
+                .data
+                .get(rank.ceil() as usize)
+                .expect("data should at least contains one element, quantile should be in [0,1]")
+                .clone()
+                .to_f64(&self.kind);
+            if number > 0.0 {
+                number * (1.0 + alpha)
+            } else {
+                number * (1.0 - alpha)
+            }
+        }
+
+        fn sum(&self) -> Number {
+            match self.kind {
+                NumberKind::F64 => {
+                    Number::from(self.data.iter().map(|e| e.to_f64(&self.kind)).sum::<f64>())
+                }
+                NumberKind::U64 => {
+                    Number::from(self.data.iter().map(|e| e.to_u64(&self.kind)).sum::<u64>())
+                }
+                NumberKind::I64 => {
+                    Number::from(self.data.iter().map(|e| e.to_i64(&self.kind)).sum::<i64>())
+                }
+            }
+        }
+    }
+
+    fn generate_linear_dataset(start: f64, step: f64, num: u64) -> Vec<f64> {
+        let mut vec = Vec::with_capacity(num as usize);
+        for i in 0..num {
+            vec.push((start + i as f64 * step) as f64);
+        }
+        vec
+    }
+
+    fn test_quantiles() -> &'static [f64] {
+        &[0.0, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99, 0.999, 1.0]
+    }
+
+    /// Insert all element of data into ddsketch and assert the quantile result is within the error range.
+    /// Note that data must be sorted.
+    fn evaluate_sketch(dataset: Dataset) {
+        let kind = &dataset.kind;
+        let ddsketch =
+            DDSKetchAggregator::new(TEST_ALPHA, TEST_MAX_BINS, TEST_MIN_BOUNDARY, kind.clone());
+        let descriptor = Descriptor::new(
+            "test".to_string(),
+            "test".to_string(),
+            InstrumentKind::ValueRecorder,
+            kind.clone(),
+        );
+
+        for i in &dataset.data {
+            let _ = ddsketch.update(i, &descriptor);
+        }
+
+        // assert
+        for q in test_quantiles() {
+            let lower = dataset.lower_quantile(*q, TEST_ALPHA);
+            let upper = dataset.upper_quantile(*q, TEST_ALPHA);
+            let result = ddsketch
+                .quantile(*q)
+                .expect("Error when calculate quantile");
+            assert!(result.to_f64(kind) - lower > 0.0);
+            assert!(upper - result.to_f64(kind) > 0.0);
+        }
+
+        assert_eq!(
+            ddsketch
+                .min()
+                .unwrap()
+                .partial_cmp(kind, dataset.data.get(0).unwrap()),
+            Some(Ordering::Equal)
+        );
+        assert_eq!(
+            ddsketch
+                .max()
+                .unwrap()
+                .partial_cmp(kind, dataset.data.last().unwrap()),
+            Some(Ordering::Equal)
+        );
+        assert_eq!(
+            ddsketch.sum().unwrap().partial_cmp(kind, &dataset.sum()),
+            Some(Ordering::Equal)
+        );
+        assert_eq!(ddsketch.count().unwrap(), dataset.data.len() as u64);
+    }
+
+    // Test basic operation
 
     /// First set max_num_bins < number of keys, test to see if the store will collapse to left
     /// most bin instead of expending beyond the max_num_bins
