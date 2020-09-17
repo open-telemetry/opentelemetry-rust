@@ -3,6 +3,7 @@
 //! This implementation is returned as the global tracer if no `Tracer`
 //! has been set. It is also useful for testing purposes as it is intended
 //! to have minimal resource utilization and runtime impact.
+use crate::api::trace::span_context::TraceState;
 use crate::api::TraceContextExt;
 use crate::{api, exporter};
 use std::sync::Arc;
@@ -42,6 +43,7 @@ impl NoopSpan {
                 api::SpanId::invalid(),
                 0,
                 false,
+                TraceState::default(),
             ),
         }
     }
@@ -156,6 +158,7 @@ impl exporter::trace::SpanExporter for NoopSpanExporter {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::api::trace::span_context::TraceState;
     use crate::api::{Span, Tracer};
 
     fn valid_span_context() -> api::SpanContext {
@@ -164,6 +167,7 @@ mod tests {
             api::SpanId::from_u64(42),
             0,
             true,
+            TraceState::default(),
         )
     }
 

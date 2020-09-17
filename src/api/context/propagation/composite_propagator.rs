@@ -102,6 +102,7 @@ impl TextMapFormat for TextMapCompositePropagator {
 #[cfg(test)]
 mod tests {
     use crate::api;
+    use crate::api::trace::span_context::TraceState;
     use crate::api::{
         Context, Extractor, FieldIter, Injector, SpanContext, SpanId, TextMapCompositePropagator,
         TextMapFormat, TraceContextExt, TraceContextPropagator, TraceId,
@@ -151,6 +152,7 @@ mod tests {
                         SpanId::from_u64(u64::from_str(parts[1]).unwrap_or(0)),
                         u8::from_str(parts[2]).unwrap_or(0),
                         true,
+                        TraceState::default(),
                     )
                 }
             } else {
@@ -212,6 +214,7 @@ mod tests {
             SpanId::from_u64(1),
             0,
             false,
+            TraceState::default(),
         )));
         let mut injector = HashMap::new();
         composite_propagator.inject_context(&cx, &mut injector);
@@ -242,6 +245,7 @@ mod tests {
                     SpanId::from_u64(1),
                     0,
                     true,
+                    TraceState::default(),
                 ))
             );
         }

@@ -149,6 +149,7 @@ impl ShouldSample for Sampler {
 #[cfg(test)]
 mod tests {
     use crate::api;
+    use crate::api::trace::span_context::TraceState;
     use crate::sdk::{Sampler, SamplingDecision, ShouldSample};
     use rand::Rng;
 
@@ -216,6 +217,7 @@ mod tests {
                         api::SpanId::from_u64(1),
                         trace_flags,
                         false,
+                        TraceState::default(),
                     ))
                 } else {
                     None
