@@ -67,6 +67,11 @@ impl EvictedHashMap {
         self.map.iter()
     }
 
+    /// Returns a reference to the value corresponding to the key if it exists
+    pub fn get(&self, key: &api::Key) -> Option<&api::Value> {
+        self.map.get(key)
+    }
+
     fn move_key_to_front(&mut self, key: api::Key) {
         if self.evict_list.is_empty() {
             // If empty, push front

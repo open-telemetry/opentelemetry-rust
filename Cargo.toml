@@ -61,6 +61,7 @@ members = [
     "examples/aws-xray",
     "examples/basic",
     "examples/basic-otlp",
+    "examples/datadog",
     "examples/grpc",
     "examples/http",
     "examples/zipkin",

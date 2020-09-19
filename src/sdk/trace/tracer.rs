@@ -241,6 +241,7 @@ impl api::Tracer for Tracer {
                 status_code,
                 status_message,
                 resource,
+                instrumentation_lib: self.instrumentation_lib,
             }
         });
 
