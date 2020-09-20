@@ -73,3 +73,7 @@ harness = false
 [[bench]]
 name = "metric"
 harness = false
+
+[[bench]]
+name = "ddsketch"
+harness = false

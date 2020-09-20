@@ -1,15 +1,13 @@
 //! DDSketch quantile sketch with relative-error guarantees.
 //! DDSketch is a fast and fully-mergeable quantile sketch with relative-error guarantees.
 //!
-//! The detail of this algorithm can be found in https://arxiv.org/pdf/1908.10693
-//!
-//!
 //! The main difference between this approach and previous art is DDSKetch employ a new method to
 //! compute the error. Traditionally, the error rate of one sketch is evaluated by rank accuracy,
 //! which can still generate a relative large variance if the dataset has long tail.
 //!
 //! DDSKetch, on the contrary, employs relative error rate that could work well on long tail dataset.
 //!
+//! The detail of this algorithm can be found in https://arxiv.org/pdf/1908.10693
 
 use std::{
     any::Any,
@@ -33,6 +31,16 @@ const DEFAULT_MAX_NUM_BINS: i64 = 2048;
 const DEFAULT_ALPHA: f64 = 0.01;
 const DEFAULT_MIN_BOUNDARY: f64 = 1.0e-9;
 
+/// An aggregator to calculate quantile
+pub fn ddsketch(
+    alpha: f64,
+    max_num_bins: i64,
+    key_epsilon: f64,
+    kind: NumberKind,
+) -> DDSKetchAggregator {
+    DDSKetchAggregator::new(alpha, max_num_bins, key_epsilon, kind)
+}
+
 /// DDSKetch quantile sketch algorithm
 ///
 /// It can give q-quantiles with α-accurate for any 0<=q<=1.
@@ -44,9 +52,7 @@ const DEFAULT_MIN_BOUNDARY: f64 = 1.0e-9;
 /// second. But if the actual percentile is 1 millisecond, with the same relative-error
 /// guarantee, the value returned should within the range of 0.98 to 1.02 millisecond.
 ///
-/// Currently, DDSketchAggregator only support input with all positive value or all
-/// negative value. For data sets that contains both positive and negative number, it may
-/// yield result with relative error larger than α.
+/// In order to support both negative and positive inputs, DDSketchAggregator has two DDSketch store within itself to store the negative and positive inputs.
 #[derive(Debug)]
 pub struct DDSKetchAggregator {
     inner: RwLock<Inner>,
@@ -112,7 +118,7 @@ impl Count for DDSKetchAggregator {
         self.inner
             .read()
             .map_err(From::from)
-            .map(|inner| inner.store.count)
+            .map(|inner| inner.count())
     }
 }
 
@@ -126,7 +132,7 @@ impl Quantile for DDSKetchAggregator {
             return Err(MetricsError::InvalidQuantile);
         }
         self.inner.read().map_err(From::from).and_then(|inner| {
-            if inner.store.count == 0 {
+            if inner.count() == 0 {
                 return Err(MetricsError::NoDataCollected);
             }
             if q == 0.0 {
@@ -137,8 +143,16 @@ impl Quantile for DDSKetchAggregator {
                 return Ok(inner.max_value.clone());
             }
 
-            let rank = (q * (inner.store.count - 1) as f64 + 1.0).floor() as u64;
-            let mut key = inner.store.key_at_rank(rank);
+            // determine whether the quantile will fall in positive or negative
+            let rank = (q * (inner.count() - 1) as f64 + 1.0).floor() as u64;
+
+            let mut key = if rank > inner.negative_store.count {
+                inner
+                    .positive_store
+                    .key_at_rank(rank - inner.negative_store.count)
+            } else {
+                inner.negative_store.key_at_rank(rank)
+            };
             // Calculate the actual value based on the key of bins.
             let quantile_val = match key.cmp(&0) {
                 Ordering::Less => {
@@ -199,7 +213,8 @@ impl Aggregator for DDSKetchAggregator {
                         other.offset = mem::take(&mut inner.offset);
                         other.gamma = mem::take(&mut inner.gamma);
                         other.gamma_ln = mem::take(&mut inner.gamma_ln);
-                        other.store = mem::take(&mut inner.store);
+                        other.positive_store = mem::take(&mut inner.positive_store);
+                        other.negative_store = mem::take(&mut inner.negative_store);
                         other.sum = mem::replace(&mut inner.sum, kind.zero());
                     })
                 })
@@ -223,30 +238,40 @@ impl Aggregator for DDSKetchAggregator {
                     other.inner.read()
                         .map_err(From::from)
                         .and_then(|other| {
-// assert that it can merge
-                            if inner.store.max_num_bins != other.store.max_num_bins {
+                            // assert that it can merge
+                            if inner.positive_store.max_num_bins != other.positive_store.max_num_bins {
                                 return Err(MetricsError::InconsistentAggregator(format!(
-                                    "When merging two DDSKetchAggregators, their max number of bins must be the same. Expect max number of bins to be {:?}, but get {:?}", inner.store.max_num_bins, other.store.max_num_bins
+                                    "When merging two DDSKetchAggregators, their max number of bins must be the same. Expect max number of bins to be {:?}, but get {:?}", inner.positive_store.max_num_bins, other.positive_store.max_num_bins
                                 )));
                             }
+                            if inner.negative_store.max_num_bins != other.negative_store.max_num_bins {
+                                return Err(MetricsError::InconsistentAggregator(format!(
+                                    "When merging two DDSKetchAggregators, their max number of bins must be the same. Expect max number of bins to be {:?}, but get {:?}", inner.negative_store.max_num_bins, other.negative_store.max_num_bins
+                                )));
+                            }
+
+
                             if (inner.gamma - other.gamma).abs() > f64::EPSILON {
                                 return Err(MetricsError::InconsistentAggregator(format!(
                                     "When merging two DDSKetchAggregators, their gamma must be the same. Expect max number of bins to be {:?}, but get {:?}", inner.gamma, other.gamma
                                 )));
                             }
 
-                            if other.store.count == 0 {
+                            if other.count() == 0 {
                                 return Ok(());
                             }
 
-                            if inner.store.count == 0 {
-                                inner.store.merge(&other.store);
+                            if inner.count() == 0 {
+                                inner.positive_store.merge(&other.positive_store);
+                                inner.negative_store.merge(&other.negative_store);
                                 inner.sum = other.sum.clone();
                                 inner.min_value = other.min_value.clone();
                                 inner.max_value = other.max_value.clone();
+                                return Ok(());
                             }
 
-                            inner.store.merge(&other.store);
+                            inner.positive_store.merge(&other.positive_store);
+                            inner.negative_store.merge(&other.negative_store);
 
                             inner.sum = match inner.kind {
                                 NumberKind::F64 =>
@@ -290,7 +315,8 @@ impl Aggregator for DDSKetchAggregator {
 /// both positive and negative number.
 #[derive(Debug)]
 struct Inner {
-    store: Store,
+    positive_store: Store,
+    negative_store: Store,
     kind: NumberKind,
     // sum of all value within store
     sum: Number,
@@ -298,7 +324,8 @@ struct Inner {
     gamma: f64,
     // ln(γ)
     gamma_ln: f64,
-    // The epsilon when map value to bin key. Any value between [-key_epsilon, key_epsilon] will be mapped to bin key 0. Must be a positive number.
+    // The epsilon when map value to bin key. Any value between [-key_epsilon, key_epsilon] will
+    // be mapped to bin key 0. Must be a positive number.
     key_epsilon: f64,
     // offset is here to ensure that keys for positive numbers that are larger than min_value are
     // greater than or equal to 1 while the keys for negative numbers are less than or equal to -1.
@@ -314,7 +341,8 @@ impl Inner {
     fn new(alpha: f64, max_num_bins: i64, key_epsilon: f64, kind: NumberKind) -> Inner {
         let gamma: f64 = 1.0 + 2.0 * alpha / (1.0 - alpha);
         let mut inner = Inner {
-            store: Store::new(max_num_bins),
+            positive_store: Store::new(max_num_bins / 2),
+            negative_store: Store::new(max_num_bins / 2),
             min_value: kind.max(),
             max_value: kind.min(),
             sum: kind.zero(),
@@ -324,14 +352,25 @@ impl Inner {
             offset: 0,
             kind,
         };
-        // reset offset based on min_value
+        // reset offset based on key_epsilon
         inner.offset = -(inner.log_gamma(inner.key_epsilon)).ceil() as i64 + 1i64;
         inner
     }
 
     fn add(&mut self, v: &Number, kind: &NumberKind) {
         let key = self.key(v, kind);
-        self.store.add(key);
+        match v.partial_cmp(kind, &Number::from(0.0)) {
+            Some(Ordering::Greater) | Some(Ordering::Equal) => {
+                self.positive_store.add(key);
+            }
+            Some(Ordering::Less) => {
+                self.negative_store.add(key);
+            }
+            _ => {
+                // if return none. Do nothing and return
+                return;
+            }
+        }
 
         // update min and max
         if self.min_value.partial_cmp(&self.kind, v) == Some(Ordering::Greater) {
@@ -374,6 +413,10 @@ impl Inner {
     fn log_gamma(&self, num: f64) -> f64 {
         num.ln() / self.gamma_ln
     }
+
+    fn count(&self) -> u64 {
+        self.negative_store.count + self.positive_store.count
+    }
 }
 
 #[derive(Debug)]
@@ -404,7 +447,14 @@ impl Default for Store {
 impl Store {
     fn new(max_num_bins: i64) -> Store {
         Store {
-            bins: vec![0; INITIAL_NUM_BINS],
+            bins: vec![
+                0;
+                if max_num_bins as usize > INITIAL_NUM_BINS {
+                    INITIAL_NUM_BINS
+                } else {
+                    max_num_bins as usize
+                }
+            ],
             count: 0u64,
             min_key: 0i64,
             max_key: 0i64,
@@ -475,13 +525,15 @@ impl Store {
             return;
         }
 
-        // Adjust max key
         if key - self.max_key >= self.max_num_bins {
+            // if currently key minus currently max key is larger than maximum number of bins.
+            // Move all elements in current bins into the first bin
             self.bins = vec![0; self.max_num_bins as usize];
             self.max_key = key;
             self.min_key = key - self.max_num_bins + 1;
             self.bins.get_mut(0).unwrap().add_assign(self.count);
         } else if key - self.min_key >= self.max_num_bins {
+
             let min_key = key - self.max_num_bins + 1;
             let upper_bound = if min_key < self.max_key + 1 {
                 min_key
@@ -492,12 +544,13 @@ impl Store {
 
             if self.bins.len() < self.max_num_bins as usize {
                 let mut new_bins = vec![0; self.max_num_bins as usize];
-                new_bins.copy_from_slice(&self.bins[(min_key - self.min_key) as usize..]);
+                new_bins[0..self.bins.len() - (min_key - self.min_key) as usize]
+                    .as_mut()
+                    .copy_from_slice(&self.bins[(min_key - self.min_key) as usize..]);
                 self.bins = new_bins;
             } else {
                 // bins length is equal to max number of bins
                 self.bins.drain(0..(min_key - self.min_key) as usize);
-
                 for _ in self.max_key - min_key + 1..self.max_num_bins {
                     self.bins.push(0);
                 }
@@ -582,18 +635,20 @@ impl Store {
 }
 
 #[cfg(test)]
-#[allow(warnings)] // FIXME
 mod tests {
     use crate::api::metrics::{Descriptor, InstrumentKind, Number, NumberKind};
     use crate::sdk::export::metrics::{Aggregator, Count, Max, Min, Quantile, Sum};
     use crate::sdk::metrics::aggregators::ddsketch::Store;
     use crate::sdk::metrics::aggregators::DDSKetchAggregator;
-    use rand_distr::{Distribution, LogNormal, Normal};
+    use rand_distr::{Distribution, LogNormal, Normal, Exp};
     use std::cmp::Ordering;
+    use std::sync::Arc;
 
     const TEST_MAX_BINS: i64 = 1024;
     const TEST_ALPHA: f64 = 0.01;
-    const TEST_MIN_BOUNDARY: f64 = 1.0e-9;
+    const TEST_KEY_EPSILON: f64 = 1.0e-9;
+
+    // Test utils
 
     struct Dataset {
         data: Vec<Number>,
@@ -701,7 +756,7 @@ mod tests {
     fn generate_normal_dataset(mean: f64, stddev: f64, num: usize) -> Vec<f64> {
         let normal = Normal::new(mean, stddev).unwrap();
         let mut data = Vec::with_capacity(num);
-        for i in 0..num {
+        for _ in 0..num {
             data.push(normal.sample(&mut rand::thread_rng()));
         }
         data.as_mut_slice()
@@ -713,8 +768,20 @@ mod tests {
     fn generate_log_normal_dataset(mean: f64, stddev: f64, num: usize) -> Vec<f64> {
         let normal = LogNormal::new(mean, stddev).unwrap();
         let mut data = Vec::with_capacity(num);
-        for i in 0..num {
+        for _ in 0..num {
             data.push(normal.sample(&mut rand::thread_rng()));
+        }
+        data.as_mut_slice()
+            .sort_by(|a, b| a.partial_cmp(b).unwrap());
+        data
+    }
+
+
+    fn generate_exponential_dataset(rate: f64, num: usize) -> Vec<f64> {
+        let exponential = Exp::new(rate).unwrap();
+        let mut data = Vec::with_capacity(num);
+        for _ in 0..num {
+            data.push(exponential.sample(&mut rand::thread_rng()));
         }
         data.as_mut_slice()
             .sort_by(|a, b| a.partial_cmp(b).unwrap());
@@ -730,7 +797,7 @@ mod tests {
     fn evaluate_sketch(dataset: Dataset) {
         let kind = &dataset.kind;
         let ddsketch =
-            DDSKetchAggregator::new(TEST_ALPHA, TEST_MAX_BINS, TEST_MIN_BOUNDARY, kind.clone());
+            DDSKetchAggregator::new(TEST_ALPHA, TEST_MAX_BINS, TEST_KEY_EPSILON, kind.clone());
         let descriptor = Descriptor::new(
             "test".to_string(),
             "test".to_string(),
@@ -742,7 +809,6 @@ mod tests {
             let _ = ddsketch.update(i, &descriptor);
         }
 
-        // assert
         for q in test_quantiles() {
             let lower = dataset.lower_quantile(*q, TEST_ALPHA);
             let upper = dataset.upper_quantile(*q, TEST_ALPHA);
@@ -789,44 +855,38 @@ mod tests {
         assert_eq!(ddsketch.count().unwrap(), dataset.data.len() as u64);
     }
 
-    #[test]
-    fn test_linear_distribution() {
-        // test u64
-        let mut dataset = Dataset::from_u64_vec(generate_linear_dataset_u64(12, 3, 100));
-        evaluate_sketch(dataset);
-
-        // test i64
-        dataset = Dataset::from_i64_vec(generate_linear_dataset_i64(-12, 3, 100));
-        evaluate_sketch(dataset);
-    }
-
-    #[test]
-    fn test_normal_distribution() {
-        let mut dataset = Dataset::from_f64_vec(generate_normal_dataset(150.0, 1.2, 100));
-        evaluate_sketch(dataset);
-
-        dataset = Dataset::from_f64_vec(generate_normal_dataset(-30.0, 4.4, 100));
-        evaluate_sketch(dataset);
-    }
-
-    #[test]
-    fn test_log_normal_distribution() {
-        let dataset = Dataset::from_f64_vec(generate_normal_dataset(180.4, 6.5, 100));
-        evaluate_sketch(dataset);
-    }
-
-    // Test basic operation
+    // Test basic operation of Store
 
     /// First set max_num_bins < number of keys, test to see if the store will collapse to left
     /// most bin instead of expending beyond the max_num_bins
     #[test]
     fn test_insert_into_store() {
         let mut store = Store::new(200);
-        for i in 0..1400 {
+        for i in -100..1300 {
             store.add(i)
         }
         assert_eq!(store.count, 1400);
         assert_eq!(store.bins.len(), 200 as usize);
+    }
+
+    /// Test to see if copy_from_slice will panic because the range size is different in left and right
+    #[test]
+    fn test_grow_right() {
+        let mut store = Store::new(150);
+        for i in &[-100, -50, 150, -20, 10] {
+            store.add(*i)
+        }
+        assert_eq!(store.count, 5);
+    }
+
+    /// Test to see if copy_from_slice will panic because the range size is different in left and right
+    #[test]
+    fn test_grow_left() {
+        let mut store = Store::new(150);
+        for i in &[500, 150, 10] {
+            store.add(*i)
+        }
+        assert_eq!(store.count, 3);
     }
 
     /// Before merge, store1 should hold 300 bins that looks like [201,1,1,1,...],
@@ -854,5 +914,86 @@ mod tests {
         assert_eq!(store1.bins[100], 302);
         assert_eq!(&store1.bins[101..], vec![2u64; 199].as_slice());
         assert_eq!(store1.count, 1000);
+    }
+
+    // Test ddsketch with different distribution
+
+    #[test]
+    fn test_linear_distribution() {
+        // test u64
+        let mut dataset = Dataset::from_u64_vec(generate_linear_dataset_u64(12, 3, 5000));
+        evaluate_sketch(dataset);
+
+        // test i64
+        dataset = Dataset::from_i64_vec(generate_linear_dataset_i64(-12, 3, 5000));
+        evaluate_sketch(dataset);
+
+        // test f64
+        dataset = Dataset::from_f64_vec(generate_linear_dataset_f64(-12.0, 3.0, 5000));
+        evaluate_sketch(dataset);
+    }
+
+    #[test]
+    fn test_normal_distribution() {
+        let mut dataset = Dataset::from_f64_vec(generate_normal_dataset(150.0, 1.2, 100));
+        evaluate_sketch(dataset);
+
+        dataset = Dataset::from_f64_vec(generate_normal_dataset(-30.0, 4.4, 100));
+        evaluate_sketch(dataset);
+    }
+
+    #[test]
+    fn test_log_normal_distribution() {
+        let dataset = Dataset::from_f64_vec(generate_log_normal_dataset(120.0, 0.5, 100));
+        evaluate_sketch(dataset);
+    }
+
+    #[test]
+    fn test_exponential_distribution() {
+        let dataset = Dataset::from_f64_vec(generate_exponential_dataset(2.0, 500));
+        evaluate_sketch(dataset);
+    }
+
+    // Test Aggregator operation of DDSketch
+    #[test]
+    fn test_synchronized_move() {
+        let dataset = Dataset::from_f64_vec(generate_normal_dataset(1.0, 3.5, 100));
+        let kind = &dataset.kind;
+        let ddsketch =
+            DDSKetchAggregator::new(TEST_ALPHA, TEST_MAX_BINS, TEST_KEY_EPSILON, kind.clone());
+        let descriptor = Descriptor::new(
+            "test".to_string(),
+            "test".to_string(),
+            InstrumentKind::ValueRecorder,
+            kind.clone(),
+        );
+        for i in &dataset.data {
+            let _ = ddsketch.update(i, &descriptor);
+        }
+        let mut expected = vec![];
+        for q in test_quantiles() {
+            expected.push(ddsketch.quantile(*q).unwrap().to_f64(&NumberKind::F64));
+        }
+        let mut expected_iter = expected.iter();
+        let expected_sum = ddsketch.sum().unwrap().to_f64(&NumberKind::F64);
+        let expected_count = ddsketch.count().unwrap();
+        let expected_min = ddsketch.min().unwrap().to_f64(&NumberKind::F64);
+        let expected_max = ddsketch.max().unwrap().to_f64(&NumberKind::F64);
+
+        let moved_ddsketch: Arc<(dyn Aggregator + Send + Sync)> =
+            Arc::new(DDSKetchAggregator::new(TEST_ALPHA, TEST_MAX_BINS, TEST_KEY_EPSILON, NumberKind::F64));
+        let _ = ddsketch.synchronized_move(&moved_ddsketch, &descriptor).expect("Fail to sync move");
+        let moved_ddsketch = moved_ddsketch.as_any().downcast_ref::<DDSKetchAggregator>().expect("Fail to cast dyn Aggregator down to DDSketchAggregator");
+
+        // assert sum, max, min and count
+        assert!((moved_ddsketch.max().unwrap().to_f64(&NumberKind::F64) - expected_max).abs() < f64::EPSILON);
+        assert!((moved_ddsketch.min().unwrap().to_f64(&NumberKind::F64) - expected_min).abs() < f64::EPSILON);
+        assert!((moved_ddsketch.sum().unwrap().to_f64(&NumberKind::F64) - expected_sum).abs() < f64::EPSILON);
+        assert_eq!(moved_ddsketch.count(), Ok(expected_count));
+
+        // assert can generate same result
+        for q in test_quantiles() {
+            assert!((moved_ddsketch.quantile(*q).unwrap().to_f64(&NumberKind::F64) - expected_iter.next().unwrap()).abs() < f64::EPSILON);
+        }
     }
 }
