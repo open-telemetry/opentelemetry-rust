@@ -211,8 +211,25 @@ impl trace::SpanExporter for Exporter {
     fn export(&self, batch: Vec<Arc<trace::SpanData>>) -> trace::ExportResult {
         match self.uploader.lock() {
             Ok(mut uploader) => {
-                let jaeger_spans = batch.into_iter().map(Into::into).collect();
-                uploader.upload(jaeger::Batch::new(self.process.clone(), jaeger_spans))
+                let mut jaeger_spans: Vec<jaeger::Span> = Vec::with_capacity(batch.len());
+                let mut process_tags: Vec<jaeger::Tag> = Vec::new();
+
+                for (idx, span) in batch.into_iter().enumerate() {
+                    if idx == 0 {
+                        process_tags.extend(build_process_tags(&span));
+                    }
+                    jaeger_spans.push(span.into());
+                }
+                let mut process = self.process.clone();
+                let tags: Vec<jaeger::Tag> = match process.tags {
+                    Some(mut item) => {
+                        item.extend(process_tags);
+                        item
+                    }
+                    None => process_tags,
+                };
+                process.tags = Some(tags);
+                uploader.upload(jaeger::Batch::new(process, jaeger_spans))
             }
             Err(_) => trace::ExportResult::FailedNotRetryable,
         }
@@ -455,7 +472,7 @@ impl Into<jaeger::Span> for Arc<trace::SpanData> {
                 .duration_since(self.start_time)
                 .unwrap_or_else(|_| Duration::from_secs(0))
                 .as_micros() as i64,
-            tags: build_tags(&self),
+            tags: build_span_tags(&self),
             logs: events_to_logs(&self.message_events),
         }
     }
@@ -487,7 +504,16 @@ fn links_to_references(links: &sdk::EvictedQueue<api::Link>) -> Option<Vec<jaege
     }
 }
 
-fn build_tags(span_data: &Arc<trace::SpanData>) -> Option<Vec<jaeger::Tag>> {
+fn build_process_tags(span_data: &Arc<trace::SpanData>) -> Vec<jaeger::Tag> {
+    let tags = span_data
+        .resource
+        .iter()
+        .map(|(k, v)| api::KeyValue::new(k.clone(), v.clone()).into())
+        .collect::<Vec<_>>();
+    tags
+}
+
+fn build_span_tags(span_data: &Arc<trace::SpanData>) -> Option<Vec<jaeger::Tag>> {
     let mut user_overrides = UserOverrides::default();
     // TODO determine if namespacing is required to avoid collisions with set attributes
     let mut tags = span_data
@@ -497,12 +523,6 @@ fn build_tags(span_data: &Arc<trace::SpanData>) -> Option<Vec<jaeger::Tag>> {
             user_overrides.record_attr(k.as_str());
             api::KeyValue::new(k.clone(), v.clone()).into()
         })
-        .chain(
-            span_data
-                .resource
-                .iter()
-                .map(|(k, v)| api::KeyValue::new(k.clone(), v.clone()).into()),
-        )
         .collect::<Vec<_>>();
 
     // Ensure error status is set
