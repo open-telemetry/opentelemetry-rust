@@ -3,6 +3,7 @@
 //!
 //! The detail of this algorithm can be found in https://arxiv.org/pdf/1908.10693
 //!
+//!
 //! The main difference between this approach and previous art is DDSKetch employ a new method to
 //! compute the error. Traditionally, the error rate of one sketch is evaluated by rank accuracy,
 //! which can still generate a relative large variance if the dataset has long tail.
@@ -34,22 +35,36 @@ const DEFAULT_MIN_BOUNDARY: f64 = 1.0e-9;
 
 /// DDSKetch quantile sketch algorithm
 ///
-/// It can give q-quantiles with α-accurate for any 0<=q<=1
+/// It can give q-quantiles with α-accurate for any 0<=q<=1.
+///
+/// Here the accurate is calculated based on relative-error rate. Thus, the error guarantee adapts the scale of the output data. With relative error guarantee, the histogram can be more accurate in the area of low data density. For example, the long tail of response time data.
+///
+/// For example, if the actual percentile is 1 second, and relative-error guarantee
+/// is 2%, then the value should within the range of 0.98 to 1.02
+/// second. But if the actual percentile is 1 millisecond, with the same relative-error
+/// guarantee, the value returned should within the range of 0.98 to 1.02 millisecond.
+///
+/// Currently, DDSketchAggregator only support input with all positive value or all
+/// negative value. For data sets that contains both positive and negative number, it may
+/// yield result with relative error larger than α.
 #[derive(Debug)]
 pub struct DDSKetchAggregator {
     inner: RwLock<Inner>,
 }
 
 impl DDSKetchAggregator {
-    /// Create a new DDSKetchAggregator.
+    /// Create a new DDSKetchAggregator that would yield a quantile with relative error rate less
+    /// than `alpha`
+    ///
+    /// The input should have a granularity larger than `key_epsilon`
     pub fn new(
         alpha: f64,
         max_num_bins: i64,
-        min_boundary: f64,
+        key_epsilon: f64,
         kind: NumberKind,
     ) -> DDSKetchAggregator {
         DDSKetchAggregator {
-            inner: RwLock::new(Inner::new(alpha, max_num_bins, min_boundary, kind)),
+            inner: RwLock::new(Inner::new(alpha, max_num_bins, key_epsilon, kind)),
         }
     }
 }
@@ -128,11 +143,11 @@ impl Quantile for DDSKetchAggregator {
             let quantile_val = match key.cmp(&0) {
                 Ordering::Less => {
                     key += inner.offset;
-                    -2.0 * inner.gamma_ln * (-key as f64) / (1.0 + inner.gamma)
+                    -2.0 * (inner.gamma_ln * (-key as f64)).exp() / (1.0 + inner.gamma)
                 }
                 Ordering::Greater => {
                     key -= inner.offset;
-                    2.0 * inner.gamma_ln * (key as f64) / (1.0 + inner.gamma)
+                    2.0 * (inner.gamma_ln * (key as f64)).exp() / (1.0 + inner.gamma)
                 }
                 Ordering::Equal => 0f64,
             };
@@ -180,7 +195,7 @@ impl Aggregator for DDSKetchAggregator {
                         let kind = descriptor.number_kind();
                         other.max_value = mem::replace(&mut inner.max_value, kind.zero());
                         other.min_value = mem::replace(&mut inner.min_value, kind.zero());
-                        other.min_boundary = mem::take(&mut inner.min_boundary);
+                        other.key_epsilon = mem::take(&mut inner.key_epsilon);
                         other.offset = mem::take(&mut inner.offset);
                         other.gamma = mem::take(&mut inner.gamma);
                         other.gamma_ln = mem::take(&mut inner.gamma_ln);
@@ -269,6 +284,10 @@ impl Aggregator for DDSKetchAggregator {
 /// synchronization.
 ///
 /// Inner will also convert all Number into actual primitive type and back.
+///
+/// According to the paper, the DDSKetch only support positive number. Inner support
+/// either positive or negative number. But cannot yield actual result when input has
+/// both positive and negative number.
 #[derive(Debug)]
 struct Inner {
     store: Store,
@@ -279,8 +298,8 @@ struct Inner {
     gamma: f64,
     // ln(γ)
     gamma_ln: f64,
-    // The minimum possible value that could be stored in DDSKetch
-    min_boundary: f64,
+    // The epsilon when map value to bin key. Any value between [-key_epsilon, key_epsilon] will be mapped to bin key 0. Must be a positive number.
+    key_epsilon: f64,
     // offset is here to ensure that keys for positive numbers that are larger than min_value are
     // greater than or equal to 1 while the keys for negative numbers are less than or equal to -1.
     offset: i64,
@@ -292,7 +311,7 @@ struct Inner {
 }
 
 impl Inner {
-    fn new(alpha: f64, max_num_bins: i64, min_boundary: f64, kind: NumberKind) -> Inner {
+    fn new(alpha: f64, max_num_bins: i64, key_epsilon: f64, kind: NumberKind) -> Inner {
         let gamma: f64 = 1.0 + 2.0 * alpha / (1.0 - alpha);
         let mut inner = Inner {
             store: Store::new(max_num_bins),
@@ -301,12 +320,12 @@ impl Inner {
             sum: kind.zero(),
             gamma,
             gamma_ln: gamma.ln(),
-            min_boundary,
+            key_epsilon,
             offset: 0,
             kind,
         };
         // reset offset based on min_value
-        inner.offset = -(inner.log_gamma(inner.min_boundary)).ceil() as i64 + 1i64;
+        inner.offset = -(inner.log_gamma(inner.key_epsilon)).ceil() as i64 + 1i64;
         inner
     }
 
@@ -337,14 +356,14 @@ impl Inner {
     }
 
     fn key(&self, num: &Number, kind: &NumberKind) -> i64 {
-        if num.to_f64(kind) < -self.min_boundary {
+        if num.to_f64(kind) < -self.key_epsilon {
             let positive_num = match kind {
                 NumberKind::F64 => Number::from(-num.to_f64(kind)),
                 NumberKind::U64 => Number::from(num.to_u64(kind)),
                 NumberKind::I64 => Number::from(-num.to_i64(kind)),
             };
             (-self.log_gamma(positive_num.to_f64(kind)).ceil()) as i64 - self.offset
-        } else if num.to_f64(kind) > self.min_boundary {
+        } else if num.to_f64(kind) > self.key_epsilon {
             self.log_gamma(num.to_f64(&kind)).ceil() as i64 + self.offset
         } else {
             0i64
@@ -400,7 +419,7 @@ impl Store {
     ///
     /// The bins are essentially working in a round-robin fashion where we can use all space in bins
     /// to represent any continuous space within length. That's why we need to offset the key
-    /// with `min_key` before add 1 in bins.
+    /// with `min_key` so that we get the actual bin index.
     fn add(&mut self, key: i64) {
         if self.count == 0 {
             self.max_key = key;
@@ -569,6 +588,7 @@ mod tests {
     use crate::sdk::export::metrics::{Aggregator, Count, Max, Min, Quantile, Sum};
     use crate::sdk::metrics::aggregators::ddsketch::Store;
     use crate::sdk::metrics::aggregators::DDSKetchAggregator;
+    use rand_distr::{Distribution, LogNormal, Normal};
     use std::cmp::Ordering;
 
     const TEST_MAX_BINS: i64 = 1024;
@@ -601,6 +621,7 @@ mod tests {
                 kind: NumberKind::I64,
             }
         }
+
         // Given a quantile, get the minimum possible value that not exceed error range.
         // data must have at least one element and should be sorted.
         // q must in range [0,1]
@@ -652,12 +673,52 @@ mod tests {
         }
     }
 
-    fn generate_linear_dataset(start: f64, step: f64, num: u64) -> Vec<f64> {
-        let mut vec = Vec::with_capacity(num as usize);
+    fn generate_linear_dataset_f64(start: f64, step: f64, num: usize) -> Vec<f64> {
+        let mut vec = Vec::with_capacity(num);
         for i in 0..num {
             vec.push((start + i as f64 * step) as f64);
         }
         vec
+    }
+
+    fn generate_linear_dataset_u64(start: u64, step: u64, num: usize) -> Vec<u64> {
+        let mut vec = Vec::with_capacity(num);
+        for i in 0..num {
+            vec.push(start + i as u64 * step);
+        }
+        vec
+    }
+
+    fn generate_linear_dataset_i64(start: i64, step: i64, num: usize) -> Vec<i64> {
+        let mut vec = Vec::with_capacity(num);
+        for i in 0..num {
+            vec.push(start + i as i64 * step);
+        }
+        vec
+    }
+
+    /// generate a dataset with normal distribution. Return sorted dataset.
+    fn generate_normal_dataset(mean: f64, stddev: f64, num: usize) -> Vec<f64> {
+        let normal = Normal::new(mean, stddev).unwrap();
+        let mut data = Vec::with_capacity(num);
+        for i in 0..num {
+            data.push(normal.sample(&mut rand::thread_rng()));
+        }
+        data.as_mut_slice()
+            .sort_by(|a, b| a.partial_cmp(b).unwrap());
+        data
+    }
+
+    /// generate a dataset with log normal distribution. Return sorted dataset.
+    fn generate_log_normal_dataset(mean: f64, stddev: f64, num: usize) -> Vec<f64> {
+        let normal = LogNormal::new(mean, stddev).unwrap();
+        let mut data = Vec::with_capacity(num);
+        for i in 0..num {
+            data.push(normal.sample(&mut rand::thread_rng()));
+        }
+        data.as_mut_slice()
+            .sort_by(|a, b| a.partial_cmp(b).unwrap());
+        data
     }
 
     fn test_quantiles() -> &'static [f64] {
@@ -688,8 +749,23 @@ mod tests {
             let result = ddsketch
                 .quantile(*q)
                 .expect("Error when calculate quantile");
-            assert!(result.to_f64(kind) - lower > 0.0);
-            assert!(upper - result.to_f64(kind) > 0.0);
+            match kind {
+                NumberKind::F64 => {
+                    let result_f64 = result.to_f64(kind);
+                    assert!(result_f64 - lower >= 0.0);
+                    assert!(upper - result_f64 >= 0.0);
+                }
+                NumberKind::U64 => {
+                    let result_u64 = result.to_u64(kind);
+                    assert!(result_u64 >= lower as u64);
+                    assert!(upper as u64 >= result_u64);
+                }
+                NumberKind::I64 => {
+                    let result_i64 = result.to_i64(kind);
+                    assert!(result_i64 - lower as i64 >= 0);
+                    assert!(upper as i64 - result_i64 >= 0);
+                }
+            }
         }
 
         assert_eq!(
@@ -711,6 +787,32 @@ mod tests {
             Some(Ordering::Equal)
         );
         assert_eq!(ddsketch.count().unwrap(), dataset.data.len() as u64);
+    }
+
+    #[test]
+    fn test_linear_distribution() {
+        // test u64
+        let mut dataset = Dataset::from_u64_vec(generate_linear_dataset_u64(12, 3, 100));
+        evaluate_sketch(dataset);
+
+        // test i64
+        dataset = Dataset::from_i64_vec(generate_linear_dataset_i64(-12, 3, 100));
+        evaluate_sketch(dataset);
+    }
+
+    #[test]
+    fn test_normal_distribution() {
+        let mut dataset = Dataset::from_f64_vec(generate_normal_dataset(150.0, 1.2, 100));
+        evaluate_sketch(dataset);
+
+        dataset = Dataset::from_f64_vec(generate_normal_dataset(-30.0, 4.4, 100));
+        evaluate_sketch(dataset);
+    }
+
+    #[test]
+    fn test_log_normal_distribution() {
+        let dataset = Dataset::from_f64_vec(generate_normal_dataset(180.4, 6.5, 100));
+        evaluate_sketch(dataset);
     }
 
     // Test basic operation
