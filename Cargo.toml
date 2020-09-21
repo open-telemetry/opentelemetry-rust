@@ -36,6 +36,7 @@ tonic = { version = "0.2.1", optional = true }
 
 [dev-dependencies]
 criterion = "0.3.1"
+rand_distr = "0.3.0"
 tokio = { version = "0.2", features = ["full"] }
 
 [features]
@@ -72,4 +73,8 @@ harness = false
 
 [[bench]]
 name = "metric"
+harness = false
+
+[[bench]]
+name = "ddsketch"
 harness = false
