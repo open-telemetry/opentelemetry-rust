@@ -91,6 +91,7 @@ pub struct SpanData {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::api::trace::span_context::TraceState;
 
     #[test]
     fn test_serialise() {
@@ -104,6 +105,7 @@ mod tests {
             api::SpanId::from_u64(span_id),
             trace_flags,
             remote,
+            TraceState::default(),
         );
 
         let parent_span_id = 1;

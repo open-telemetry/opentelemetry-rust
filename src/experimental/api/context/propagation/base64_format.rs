@@ -42,18 +42,19 @@ where
 mod tests {
     use super::super::binary_propagator::BinaryPropagator;
     use super::*;
+    use crate::api::trace::span_context::TraceState;
 
     #[rustfmt::skip]
     fn to_base64_data() -> Vec<(api::SpanContext, String)> {
         vec![
             (api::SpanContext::new(
                 api::TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736),
-                api::SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 1, true),
+                api::SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 1, true, TraceState::default()),
                 "AABL+S81d7NNpqPOkp0ODkc2AQDwZ6oLqQK3AgE=".to_string()
             ),
             (api::SpanContext::new(
                 api::TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736),
-                api::SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 0, true),
+                api::SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 0, true, TraceState::default()),
                 "AABL+S81d7NNpqPOkp0ODkc2AQDwZ6oLqQK3AgA=".to_string()
             ),
         ]
