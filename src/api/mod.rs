@@ -44,7 +44,7 @@ pub use trace::{
     provider::TracerProvider,
     span::{Span, SpanKind, StatusCode},
     span_context::{
-        SpanContext, SpanId, TraceId, TRACE_FLAG_DEBUG, TRACE_FLAG_DEFERRED,
+        SpanContext, SpanId, TraceId, TraceState, TRACE_FLAG_DEBUG, TRACE_FLAG_DEFERRED,
         TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
     },
     span_processor::SpanProcessor,
