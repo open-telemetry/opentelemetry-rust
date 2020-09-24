@@ -1,5 +1,6 @@
 use crate::{api, api::TracerProvider};
 use std::fmt;
+use std::mem;
 use std::sync::{Arc, RwLock};
 use std::time::SystemTime;
 
@@ -231,7 +232,7 @@ lazy_static::lazy_static! {
 ///
 /// [`TracerProvider`]: ../api/trace/provider/trait.TracerProvider.html
 /// [`GlobalProvider`]: struct.GlobalProvider.html
-pub fn trace_provider() -> GlobalProvider {
+pub fn tracer_provider() -> GlobalProvider {
     GLOBAL_TRACER_PROVIDER
         .read()
         .expect("GLOBAL_TRACER_PROVIDER RwLock poisoned")
@@ -242,12 +243,12 @@ pub fn trace_provider() -> GlobalProvider {
 ///
 /// If the name is an empty string, the provider will use a default name.
 ///
-/// This is a more convenient way of expressing `global::trace_provider().get_tracer(name, None)`.
+/// This is a more convenient way of expressing `global::tracer_provider().get_tracer(name, None)`.
 ///
 /// [`Tracer`]: ../api/trace/tracer/trait.Tracer.html
 /// [`GlobalProvider`]: struct.GlobalProvider.html
 pub fn tracer(name: &'static str) -> BoxedTracer {
-    trace_provider().get_tracer(name, None)
+    tracer_provider().get_tracer(name, None)
 }
 
 /// Creates a named instance of [`Tracer`] with version info via the configured [`GlobalProvider`]
@@ -258,13 +259,32 @@ pub fn tracer(name: &'static str) -> BoxedTracer {
 /// [`Tracer`]: ../api/trace/tracer/trait.Tracer.html
 /// [`GlobalProvider`]: struct.GlobalProvider.html
 pub fn tracer_with_version(name: &'static str, version: &'static str) -> BoxedTracer {
-    trace_provider().get_tracer(name, Some(version))
+    tracer_provider().get_tracer(name, Some(version))
+}
+
+/// Restores the previous tracer provider on drop.
+///
+/// This is commonly used to uninstall pipelines. As you can only have one active tracer provider,
+/// the previous provider is usually the default no-op provider.
+#[derive(Debug)]
+pub struct TracerProviderGuard(Option<GlobalProvider>);
+
+impl Drop for TracerProviderGuard {
+    fn drop(&mut self) {
+        if let Some(previous) = self.0.take() {
+            let mut global_provider = GLOBAL_TRACER_PROVIDER
+                .write()
+                .expect("GLOBAL_TRACER_PROVIDER RwLock poisoned");
+            *global_provider = previous;
+        }
+    }
 }
 
 /// Sets the given [`TracerProvider`] instance as the current global provider.
 ///
 /// [`TracerProvider`]: ../api/trace/provider/trait.TracerProvider.html
-pub fn set_provider<P, T, S>(new_provider: P)
+#[must_use]
+pub fn set_tracer_provider<P, T, S>(new_provider: P) -> TracerProviderGuard
 where
     S: api::Span + Send + Sync,
     T: api::Tracer<Span = S> + Send + Sync,
@@ -273,5 +293,6 @@ where
     let mut global_provider = GLOBAL_TRACER_PROVIDER
         .write()
         .expect("GLOBAL_TRACER_PROVIDER RwLock poisoned");
-    *global_provider = GlobalProvider::new(new_provider);
+    let previous = mem::replace(&mut *global_provider, GlobalProvider::new(new_provider));
+    TracerProviderGuard(Some(previous))
 }

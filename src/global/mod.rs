@@ -15,12 +15,12 @@
 //! use opentelemetry::api::metrics::{Meter, MeterProvider};
 //! use opentelemetry::global;
 //!
-//! fn init_tracer() {
+//! fn init_tracer() -> global::TracerProviderGuard {
 //!     let provider = opentelemetry::api::NoopProvider {};
 //!
 //!     // Configure the global `TracerProvider` singleton when your app starts
 //!     // (there is a no-op default if this is not set by your application)
-//!     global::set_provider(provider);
+//!     global::set_tracer_provider(provider)
 //! }
 //!
 //! fn do_something_tracked() {
@@ -30,14 +30,14 @@
 //!     // You can also get the tracer via name and version.
 //!     let _tracer = global::tracer_with_version("another-component", "1.1.1");
 //!
-//!     // Or access the configured provider via `trace_provider`.
-//!     let provider = global::trace_provider();
+//!     // Or access the configured provider via `tracer_provider`.
+//!     let provider = global::tracer_provider();
 //!     let _tracer_a = provider.get_tracer("my-component-a", None);
 //!     let _tracer_b = provider.get_tracer("my-component-b", None);
 //! }
 //!
 //! // in main or other app start
-//! init_tracer();
+//! let _guard = init_tracer();
 //! do_something_tracked();
 //! ```
 //!
@@ -54,7 +54,7 @@
 //! ### Generic interface
 //!
 //! The generic interface is provided by the [`GlobalProvider`] struct which
-//! can be accessed anywhere via [`trace_provider`] and allows applications to
+//! can be accessed anywhere via [`tracer_provider`] and allows applications to
 //! use the [`BoxedTracer`] and [`BoxedSpan`] instances that implement
 //! [`Tracer`] and [`Span`]. They wrap a boxed dyn [`GenericProvider`],
 //! [`GenericTracer`], and [`Span`] respectively allowing the underlying
@@ -68,7 +68,7 @@
 //! [`GlobalProvider`]: struct.GlobalProvider.html
 //! [`BoxedTracer`]: struct.BoxedTracer.html
 //! [`BoxedSpan`]: struct.BoxedSpan.html
-//! [`trace_provider`]: fn.trace_provider.html
+//! [`tracer_provider`]: fn.tracer_provider.html
 //! [trait objects]: https://doc.rust-lang.org/reference/types/trait-object.html#trait-objects
 
 #[cfg(feature = "metrics")]
@@ -87,4 +87,7 @@ pub use metrics::{meter, meter_provider, set_meter_provider};
 #[cfg(feature = "trace")]
 pub use propagation::{get_text_map_propagator, set_text_map_propagator};
 #[cfg(feature = "trace")]
-pub use trace::{set_provider, trace_provider, tracer, tracer_with_version, GenericProvider};
+pub use trace::{
+    set_tracer_provider, tracer, tracer_provider, tracer_with_version, GenericProvider,
+    TracerProviderGuard,
+};

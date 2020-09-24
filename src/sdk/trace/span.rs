@@ -147,8 +147,10 @@ impl Drop for SpanInner {
                     inner.end_time = SystemTime::now();
                 }
                 let exportable_span = Arc::new(inner.clone());
-                for processor in self.tracer.provider().span_processors() {
-                    processor.on_end(exportable_span.clone())
+                if let Some(provider) = self.tracer.provider() {
+                    for processor in provider.span_processors() {
+                        processor.on_end(exportable_span.clone())
+                    }
                 }
             }
         }

@@ -59,7 +59,7 @@
 //! use opentelemetry::sdk::{trace, IdGenerator, Resource, Sampler};
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     let tracer = opentelemetry_contrib::datadog::new_pipeline()
+//!     let (tracer, _uninstall) = opentelemetry_contrib::datadog::new_pipeline()
 //!         .with_service_name("my_app")
 //!         .with_version(opentelemetry_contrib::datadog::ApiVersion::Version05)
 //!         .with_agent_endpoint("http://localhost:8126")
@@ -147,7 +147,7 @@ impl Default for DatadogPipelineBuilder {
 
 impl DatadogPipelineBuilder {
     /// Create `ExporterConfig` struct from current `ExporterConfigBuilder`
-    pub fn install(mut self) -> Result<sdk::Tracer, Box<dyn Error>> {
+    pub fn install(mut self) -> Result<(sdk::Tracer, Uninstall), Box<dyn Error>> {
         let exporter = DatadogExporter::new(
             self.service_name.clone(),
             self.agent_endpoint.parse()?,
@@ -160,9 +160,9 @@ impl DatadogPipelineBuilder {
         }
         let provider = provider_builder.build();
         let tracer = provider.get_tracer("opentelemetry-datadog", Some(env!("CARGO_PKG_VERSION")));
-        global::set_provider(provider);
+        let provider_guard = global::set_tracer_provider(provider);
 
-        Ok(tracer)
+        Ok((tracer, Uninstall(provider_guard)))
     }
 
     /// Assign the service name under which to group traces
@@ -211,3 +211,7 @@ impl trace::SpanExporter for DatadogExporter {
         }
     }
 }
+
+/// Uninstalls the Datadog pipeline on drop
+#[derive(Debug)]
+pub struct Uninstall(global::TracerProviderGuard);

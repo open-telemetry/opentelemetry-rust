@@ -18,13 +18,13 @@ const DEFAULT_COMPONENT_NAME: &str = "rust.opentelemetry.io/sdk/tracer";
 
 /// TracerProvider inner type
 #[derive(Debug)]
-struct ProviderInner {
+pub(crate) struct TracerProviderInner {
     named_tracers: RwLock<HashMap<sdk::InstrumentationLibrary, sdk::Tracer>>,
     processors: Vec<Box<dyn api::SpanProcessor>>,
     config: sdk::Config,
 }
 
-impl Drop for ProviderInner {
+impl Drop for TracerProviderInner {
     fn drop(&mut self) {
         for processor in &self.processors {
             processor.shutdown();
@@ -35,7 +35,7 @@ impl Drop for ProviderInner {
 /// Creator and registry of named `Tracer` instances.
 #[derive(Clone, Debug)]
 pub struct TracerProvider {
-    inner: Arc<ProviderInner>,
+    inner: Arc<TracerProviderInner>,
 }
 
 impl Default for TracerProvider {
@@ -45,6 +45,11 @@ impl Default for TracerProvider {
 }
 
 impl TracerProvider {
+    /// Build a new tracer provider
+    pub(crate) fn new(inner: Arc<TracerProviderInner>) -> Self {
+        TracerProvider { inner }
+    }
+
     /// Create a new `TracerProvider` builder.
     pub fn builder() -> Builder {
         Builder::default()
@@ -89,7 +94,7 @@ impl api::TracerProvider for TracerProvider {
 
         // Else construct new named tracer
         let mut tracers = self.inner.named_tracers.write().expect("RwLock poisoned");
-        let new_tracer = sdk::Tracer::new(instrumentation_lib, self.clone());
+        let new_tracer = sdk::Tracer::new(instrumentation_lib, Arc::downgrade(&self.inner));
         tracers.insert(instrumentation_lib, new_tracer.clone());
 
         new_tracer
@@ -123,7 +128,7 @@ impl Builder {
     /// Add a configured `SpanExporter`
     #[cfg(feature = "tokio")]
     pub fn with_exporter<T: SpanExporter + 'static>(self, exporter: T) -> Self {
-        let spawn = |future| tokio::task::spawn_blocking(|| future);
+        let spawn = |future| tokio::task::spawn_blocking(|| futures::executor::block_on(future));
         let batch = sdk::BatchSpanProcessor::builder(exporter, spawn, tokio::time::interval);
         self.with_batch_exporter(batch.build())
     }
@@ -131,7 +136,7 @@ impl Builder {
     /// Add a configured `SpanExporter`
     #[cfg(all(feature = "async-std", not(feature = "tokio")))]
     pub fn with_exporter<T: SpanExporter + 'static>(self, exporter: T) -> Self {
-        let spawn = |future| async_std::task::spawn_blocking(|| future);
+        let spawn = |fut| async_std::task::spawn_blocking(|| futures::executor::block_on(fut));
         let batch = sdk::BatchSpanProcessor::builder(exporter, spawn, async_std::stream::interval);
         self.with_batch_exporter(batch.build())
     }
@@ -158,7 +163,7 @@ impl Builder {
     /// Create a new provider from this configuration.
     pub fn build(self) -> TracerProvider {
         TracerProvider {
-            inner: Arc::new(ProviderInner {
+            inner: Arc::new(TracerProviderInner {
                 named_tracers: Default::default(),
                 processors: self.processors,
                 config: self.config,

@@ -27,7 +27,9 @@ async fn handle(req: Request<Body>) -> Result<Response<Body>, Infallible> {
     ))
 }
 
-fn init_tracer() {
+fn init_tracer() -> (sdk::Tracer, stdout::Uninstall) {
+    global::set_text_map_propagator(XrayTraceContextPropagator::new());
+
     // Install stdout exporter pipeline to be able to retrieve the collected spans.
     // For the demonstration, use `Sampler::AlwaysOn` sampler to sample all traces. In a production
     // application, use `Sampler::ParentBased` or `Sampler::TraceIdRatioBased` with a desired ratio.
@@ -37,14 +39,12 @@ fn init_tracer() {
             id_generator: Box::new(XrayIdGenerator::default()),
             ..Default::default()
         })
-        .install();
-
-    global::set_text_map_propagator(XrayTraceContextPropagator::new());
+        .install()
 }
 
 #[tokio::main]
 async fn main() {
-    init_tracer();
+    let _guard = init_tracer();
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
 
     let make_svc = make_service_fn(|_conn| async { Ok::<_, Infallible>(service_fn(handle)) });

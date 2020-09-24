@@ -20,7 +20,7 @@
 //! use opentelemetry::api::Tracer;
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     let tracer = opentelemetry_jaeger::new_pipeline().install()?;
+//!     let (tracer, _uninstall) = opentelemetry_jaeger::new_pipeline().install()?;
 //!
 //!     tracer.in_span("doing_work", |cx| {
 //!         // Traced app logic here...
@@ -60,7 +60,7 @@
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     // export OTEL_SERVICE_NAME=my-service-name
-//!     let tracer = opentelemetry_jaeger::new_pipeline().from_env().install()?;
+//!     let (tracer, _uninstall) = opentelemetry_jaeger::new_pipeline().from_env().install()?;
 //!
 //!     tracer.in_span("doing_work", |cx| {
 //!         // Traced app logic here...
@@ -90,7 +90,7 @@
 //! use opentelemetry::api::Tracer;
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     let tracer = opentelemetry_jaeger::new_pipeline()
+//!     let (tracer, _uninstall) = opentelemetry_jaeger::new_pipeline()
 //!         .with_collector_endpoint("http://localhost:14268/api/traces")
 //!         // optionally set username and password as well.
 //!         .with_collector_username("username")
@@ -117,7 +117,7 @@
 //! use opentelemetry::sdk::{trace, IdGenerator, Resource, Sampler};
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     let tracer = opentelemetry_jaeger::new_pipeline()
+//!     let (tracer, _uninstall) = opentelemetry_jaeger::new_pipeline()
 //!         .from_env()
 //!         .with_agent_endpoint("localhost:6831")
 //!         .with_service_name("my_app")
@@ -180,6 +180,10 @@ const DEFAULT_AGENT_ENDPOINT: &str = "127.0.0.1:6831";
 pub fn new_pipeline() -> PipelineBuilder {
     PipelineBuilder::default()
 }
+
+/// Guard that uninstalls the Jaeger trace pipeline when dropped
+#[derive(Debug)]
+pub struct Uninstall(global::TracerProviderGuard);
 
 /// Jaeger span exporter
 #[derive(Debug)]
@@ -351,13 +355,13 @@ impl PipelineBuilder {
     }
 
     /// Install a Jaeger pipeline with the recommended defaults.
-    pub fn install(self) -> Result<sdk::Tracer, Box<dyn Error>> {
-        let trace_provider = self.build()?;
-        let tracer = trace_provider.get_tracer("opentelemetry-jaeger", None);
+    pub fn install(self) -> Result<(sdk::Tracer, Uninstall), Box<dyn Error>> {
+        let tracer_provider = self.build()?;
+        let tracer = tracer_provider.get_tracer("opentelemetry-jaeger", None);
 
-        global::set_provider(trace_provider);
+        let provider_guard = global::set_tracer_provider(tracer_provider);
 
-        Ok(tracer)
+        Ok((tracer, Uninstall(provider_guard)))
     }
 
     /// Build a configured `sdk::TraceProvider` with the recommended defaults.

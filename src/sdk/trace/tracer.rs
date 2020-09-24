@@ -12,14 +12,14 @@ use crate::api::TraceContextExt;
 use crate::sdk;
 use crate::{api, api::context::Context, exporter};
 use std::fmt;
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 use std::time::SystemTime;
 
 /// `Tracer` implementation to create and manage spans
 #[derive(Clone)]
 pub struct Tracer {
     instrumentation_lib: sdk::InstrumentationLibrary,
-    provider: sdk::TracerProvider,
+    provider: Weak<sdk::trace::provider::TracerProviderInner>,
 }
 
 impl fmt::Debug for Tracer {
@@ -37,7 +37,7 @@ impl Tracer {
     /// Create a new tracer (used internally by `TracerProvider`s).
     pub(crate) fn new(
         instrumentation_lib: sdk::InstrumentationLibrary,
-        provider: sdk::TracerProvider,
+        provider: Weak<sdk::trace::provider::TracerProviderInner>,
     ) -> Self {
         Tracer {
             instrumentation_lib,
@@ -46,8 +46,8 @@ impl Tracer {
     }
 
     /// TracerProvider associated with this tracer.
-    pub fn provider(&self) -> &sdk::TracerProvider {
-        &self.provider
+    pub fn provider(&self) -> Option<sdk::TracerProvider> {
+        self.provider.upgrade().map(sdk::TracerProvider::new)
     }
 
     /// instrumentation library information of this tracer.
@@ -66,7 +66,8 @@ impl Tracer {
         attributes: &[api::KeyValue],
         links: &[api::Link],
     ) -> Option<(u8, Vec<api::KeyValue>)> {
-        let sampler = &self.provider.config().default_sampler;
+        let provider = self.provider()?;
+        let sampler = &provider.config().default_sampler;
         let sampling_result =
             sampler.should_sample(parent_context, trace_id, name, span_kind, attributes, links);
 
@@ -139,11 +140,17 @@ impl api::Tracer for Tracer {
     /// trace includes a single root span, which is the shared ancestor of all other
     /// spans in the trace.
     fn build_with_context(&self, mut builder: api::SpanBuilder, cx: &Context) -> Self::Span {
-        let config = self.provider.config();
+        let provider = self.provider();
+        if provider.is_none() {
+            return sdk::Span::new(api::SpanId::invalid(), None, self.clone());
+        }
+
+        let provider = provider.unwrap();
+        let config = provider.config();
         let span_id = builder
             .span_id
             .take()
-            .unwrap_or_else(|| self.provider().config().id_generator.new_span_id());
+            .unwrap_or_else(|| config.id_generator.new_span_id());
 
         let span_kind = builder.span_kind.take().unwrap_or(api::SpanKind::Internal);
         let mut attribute_options = builder.attributes.take().unwrap_or_else(Vec::new);
@@ -173,7 +180,7 @@ impl api::Tracer for Tracer {
                     true,
                     builder
                         .trace_id
-                        .unwrap_or_else(|| self.provider().config().id_generator.new_trace_id()),
+                        .unwrap_or_else(|| config.id_generator.new_trace_id()),
                     api::SpanId::invalid(),
                     false,
                     0,
@@ -248,7 +255,7 @@ impl api::Tracer for Tracer {
         // Call `on_start` for all processors
         if let Some(inner) = inner.as_ref().cloned() {
             let inner_data = Arc::new(inner);
-            for processor in self.provider.span_processors() {
+            for processor in provider.span_processors() {
                 processor.on_start(inner_data.clone())
             }
         }

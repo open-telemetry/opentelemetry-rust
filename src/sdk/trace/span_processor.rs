@@ -45,7 +45,8 @@
 //!     .with_simple_exporter(exporter)
 //!     .build();
 //!
-//! global::set_provider(provider);
+//! let guard = global::set_tracer_provider(provider);
+//! # drop(guard)
 //! ```
 //!
 //! #### Exporting spans asynchronously in batches:
@@ -77,7 +78,8 @@
 //!         .with_batch_exporter(batch)
 //!         .build();
 //!
-//!     global::set_provider(provider);
+//!     let guard = global::set_tracer_provider(provider);
+//!     # drop(guard)
 //! }
 //! ```
 //!
