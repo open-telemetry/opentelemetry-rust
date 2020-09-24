@@ -1,12 +1,8 @@
-use criterion::{
-    criterion_group, criterion_main, Criterion
-};
+use criterion::{criterion_group, criterion_main, Criterion};
 use opentelemetry::api::metrics::{InstrumentKind, Number, NumberKind};
 use opentelemetry::sdk::export::metrics::Aggregator;
 use opentelemetry::{
-    api::{
-        metrics::Descriptor,
-    },
+    api::metrics::Descriptor,
     sdk::{
         export::metrics::Quantile,
         metrics::aggregators::{ArrayAggregator, DDSKetchAggregator},
@@ -40,7 +36,9 @@ fn ddsketch(data: Vec<f64>) {
     }
     let new_aggregator: Arc<(dyn Aggregator + Send + Sync)> =
         Arc::new(DDSKetchAggregator::new(0.001, 2048, 1e-9, NumberKind::F64));
-    aggregator.synchronized_move(&new_aggregator, &descriptor).unwrap();
+    aggregator
+        .synchronized_move(&new_aggregator, &descriptor)
+        .unwrap();
     for quantile in get_test_quantile() {
         if let Some(new_aggregator) = new_aggregator.as_any().downcast_ref::<DDSKetchAggregator>() {
             let _ = new_aggregator.quantile(*quantile);
@@ -60,7 +58,9 @@ fn array(data: Vec<f64>) {
         aggregator.update(&Number::from(f), &descriptor).unwrap();
     }
     let new_aggregator: Arc<(dyn Aggregator + Send + Sync)> = Arc::new(ArrayAggregator::default());
-    aggregator.synchronized_move(&new_aggregator, &descriptor).unwrap();
+    aggregator
+        .synchronized_move(&new_aggregator, &descriptor)
+        .unwrap();
     for quantile in get_test_quantile() {
         if let Some(new_aggregator) = new_aggregator.as_any().downcast_ref::<ArrayAggregator>() {
             let _ = new_aggregator.quantile(*quantile);

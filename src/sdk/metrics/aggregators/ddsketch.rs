@@ -533,7 +533,6 @@ impl Store {
             self.min_key = key - self.max_num_bins + 1;
             self.bins.get_mut(0).unwrap().add_assign(self.count);
         } else if key - self.min_key >= self.max_num_bins {
-
             let min_key = key - self.max_num_bins + 1;
             let upper_bound = if min_key < self.max_key + 1 {
                 min_key
@@ -640,7 +639,7 @@ mod tests {
     use crate::sdk::export::metrics::{Aggregator, Count, Max, Min, Quantile, Sum};
     use crate::sdk::metrics::aggregators::ddsketch::Store;
     use crate::sdk::metrics::aggregators::DDSKetchAggregator;
-    use rand_distr::{Distribution, LogNormal, Normal, Exp};
+    use rand_distr::{Distribution, Exp, LogNormal, Normal};
     use std::cmp::Ordering;
     use std::sync::Arc;
 
@@ -775,7 +774,6 @@ mod tests {
             .sort_by(|a, b| a.partial_cmp(b).unwrap());
         data
     }
-
 
     fn generate_exponential_dataset(rate: f64, num: usize) -> Vec<f64> {
         let exponential = Exp::new(rate).unwrap();
@@ -980,20 +978,43 @@ mod tests {
         let expected_min = ddsketch.min().unwrap().to_f64(&NumberKind::F64);
         let expected_max = ddsketch.max().unwrap().to_f64(&NumberKind::F64);
 
-        let moved_ddsketch: Arc<(dyn Aggregator + Send + Sync)> =
-            Arc::new(DDSKetchAggregator::new(TEST_ALPHA, TEST_MAX_BINS, TEST_KEY_EPSILON, NumberKind::F64));
-        let _ = ddsketch.synchronized_move(&moved_ddsketch, &descriptor).expect("Fail to sync move");
-        let moved_ddsketch = moved_ddsketch.as_any().downcast_ref::<DDSKetchAggregator>().expect("Fail to cast dyn Aggregator down to DDSketchAggregator");
+        let moved_ddsketch: Arc<(dyn Aggregator + Send + Sync)> = Arc::new(
+            DDSKetchAggregator::new(TEST_ALPHA, TEST_MAX_BINS, TEST_KEY_EPSILON, NumberKind::F64),
+        );
+        let _ = ddsketch
+            .synchronized_move(&moved_ddsketch, &descriptor)
+            .expect("Fail to sync move");
+        let moved_ddsketch = moved_ddsketch
+            .as_any()
+            .downcast_ref::<DDSKetchAggregator>()
+            .expect("Fail to cast dyn Aggregator down to DDSketchAggregator");
 
         // assert sum, max, min and count
-        assert!((moved_ddsketch.max().unwrap().to_f64(&NumberKind::F64) - expected_max).abs() < f64::EPSILON);
-        assert!((moved_ddsketch.min().unwrap().to_f64(&NumberKind::F64) - expected_min).abs() < f64::EPSILON);
-        assert!((moved_ddsketch.sum().unwrap().to_f64(&NumberKind::F64) - expected_sum).abs() < f64::EPSILON);
+        assert!(
+            (moved_ddsketch.max().unwrap().to_f64(&NumberKind::F64) - expected_max).abs()
+                < f64::EPSILON
+        );
+        assert!(
+            (moved_ddsketch.min().unwrap().to_f64(&NumberKind::F64) - expected_min).abs()
+                < f64::EPSILON
+        );
+        assert!(
+            (moved_ddsketch.sum().unwrap().to_f64(&NumberKind::F64) - expected_sum).abs()
+                < f64::EPSILON
+        );
         assert_eq!(moved_ddsketch.count(), Ok(expected_count));
 
         // assert can generate same result
         for q in test_quantiles() {
-            assert!((moved_ddsketch.quantile(*q).unwrap().to_f64(&NumberKind::F64) - expected_iter.next().unwrap()).abs() < f64::EPSILON);
+            assert!(
+                (moved_ddsketch
+                    .quantile(*q)
+                    .unwrap()
+                    .to_f64(&NumberKind::F64)
+                    - expected_iter.next().unwrap())
+                .abs()
+                    < f64::EPSILON
+            );
         }
     }
 }

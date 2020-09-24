@@ -85,6 +85,9 @@ pub struct SpanData {
     pub status_message: String,
     /// Resource contains attributes representing an entity that produced this span.
     pub resource: Arc<sdk::Resource>,
+    /// Instrumentation library that produced this span
+    #[cfg_attr(feature = "serialize", serde(skip))]
+    pub instrumentation_lib: sdk::InstrumentationLibrary,
 }
 
 #[cfg(feature = "serialize")]
@@ -136,6 +139,7 @@ mod tests {
             status_code,
             status_message,
             resource,
+            instrumentation_lib: sdk::InstrumentationLibrary::new("", None),
         };
 
         let encoded: Vec<u8> = bincode::serialize(&span_data).unwrap();
