@@ -108,7 +108,8 @@ pub struct Exporter<W: Write> {
 }
 
 impl<W: Write> Exporter<W> {
-    fn new(writer: W, pretty_print: bool) -> Self {
+    /// Create a new stdout `Exporter`.
+    pub fn new(writer: W, pretty_print: bool) -> Self {
         Self {
             writer: Mutex::new(writer),
             pretty_print,
