@@ -7,22 +7,20 @@
 //!
 //! ## Usage
 //!
-//! ```rust
+//! ```rust,no_run
 //! use opentelemetry::sdk;
 //! use opentelemetry_semantic_conventions as semcov;
 //! use std::sync::Arc;
 //!
-//! let exporter = opentelemetry::exporter::trace::stdout::Builder::default().init();
-//! let provider = sdk::TracerProvider::builder()
-//!    .with_simple_exporter(exporter)
-//!    .with_config(sdk::Config {
-//!        resource: Arc::new(sdk::Resource::new(vec![
-//!            semcov::resource::SERVICE_NAME.string("my-service"),
-//!            semcov::resource::SERVICE_NAMESPACE.string("my-namespace"),
-//!        ])),
-//!        ..sdk::Config::default()
-//!    })
-//!    .build();
+//! let _tracer = opentelemetry::exporter::trace::stdout::new_pipeline()
+//!     .with_trace_config(sdk::Config {
+//!         resource: Arc::new(sdk::Resource::new(vec![
+//!             semcov::resource::SERVICE_NAME.string("my-service"),
+//!             semcov::resource::SERVICE_NAMESPACE.string("my-namespace"),
+//!         ])),
+//!         ..sdk::Config::default()
+//!     })
+//!     .install();
 //! ```
 
 use opentelemetry::api::Key;
