@@ -20,7 +20,7 @@ fn init_tracer() -> (sdk::Tracer, stdout::Uninstall) {
 
 #[tokio::main]
 async fn main() -> std::result::Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let _guard = init_tracer();
+    let (_tracer, _guard) = init_tracer();
 
     let client = Client::new();
     let span = global::tracer("example/client").start("say hello");
