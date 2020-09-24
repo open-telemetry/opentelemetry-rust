@@ -3,20 +3,15 @@ use opentelemetry::api::{Context, TextMapFormat, TraceContextExt, Tracer};
 use opentelemetry::{api, exporter::trace::stdout, global, sdk};
 
 fn init_tracer() {
-    // Create stdout exporter to be able to retrieve the collected spans.
-    let exporter = stdout::Builder::default().init();
-
+    // Install stdout exporter pipeline to be able to retrieve the collected spans.
     // For the demonstration, use `Sampler::AlwaysOn` sampler to sample all traces. In a production
     // application, use `Sampler::ParentBased` or `Sampler::TraceIdRatioBased` with a desired ratio.
-    let provider = sdk::TracerProvider::builder()
-        .with_simple_exporter(exporter)
-        .with_config(sdk::Config {
+    stdout::new_pipeline()
+        .with_trace_config(sdk::Config {
             default_sampler: Box::new(sdk::Sampler::AlwaysOn),
             ..Default::default()
         })
-        .build();
-
-    global::set_provider(provider);
+        .install();
 }
 
 #[tokio::main]
