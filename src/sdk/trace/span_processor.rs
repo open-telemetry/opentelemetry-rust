@@ -179,7 +179,7 @@ impl api::SpanProcessor for BatchSpanProcessor {
 #[allow(missing_debug_implementations)]
 pub struct BatchSpanProcessorWorker {
     exporter: Box<dyn exporter::trace::SpanExporter>,
-    messages: Pin<Box<dyn Stream<Item=BatchMessage> + Send>>,
+    messages: Pin<Box<dyn Stream<Item = BatchMessage> + Send>>,
     config: BatchConfig,
     buffer: Vec<Arc<exporter::trace::SpanData>>,
 }
@@ -243,10 +243,10 @@ impl BatchSpanProcessor {
         interval: I,
         config: BatchConfig,
     ) -> Self
-        where
-            S: Fn(BatchSpanProcessorWorker) -> SO,
-            I: Fn(time::Duration) -> IS,
-            IS: Stream<Item=ISI> + Send + 'static,
+    where
+        S: Fn(BatchSpanProcessorWorker) -> SO,
+        I: Fn(time::Duration) -> IS,
+        IS: Stream<Item = ISI> + Send + 'static,
     {
         let (message_sender, message_receiver) = mpsc::channel(config.max_queue_size);
         let ticker = interval(config.scheduled_delay).map(|_| BatchMessage::Tick);
@@ -271,16 +271,66 @@ impl BatchSpanProcessor {
         spawn: S,
         interval: I,
     ) -> BatchSpanProcessorBuilder<E, S, I>
-        where
-            E: exporter::trace::SpanExporter,
-            S: Fn(BatchSpanProcessorWorker) -> SO,
-            I: Fn(time::Duration) -> IO,
+    where
+        E: exporter::trace::SpanExporter,
+        S: Fn(BatchSpanProcessorWorker) -> SO,
+        I: Fn(time::Duration) -> IO,
     {
         BatchSpanProcessorBuilder {
             exporter,
             spawn,
             interval,
             config: Default::default(),
+        }
+    }
+
+    /// Create a new batch processor builder and set the config value based on environment variables.
+    pub fn from_env<E, S, SO, I, IO>(
+        exporter: E,
+        spawn: S,
+        interval: I,
+    ) -> BatchSpanProcessorBuilder<E, S, I>
+        where
+            E: exporter::trace::SpanExporter,
+            S: Fn(BatchSpanProcessorWorker) -> SO,
+            I: Fn(time::Duration) -> IO,
+    {
+        let mut config = BatchConfig::default();
+        let schedule_delay = u64::from_str(
+            std::env::var(OTEL_BSP_SCHEDULE_DELAY_MILLIS)
+                .unwrap_or_else(|_| "".to_string())
+                .as_str(),
+        )
+            .unwrap_or(OTEL_BSP_SCHEDULE_DELAY_MILLIS_DEFAULT);
+        config.scheduled_delay = time::Duration::from_millis(schedule_delay);
+
+        let max_queue_size = usize::from_str(
+            std::env::var(OTEL_BSP_MAX_QUEUE_SIZE)
+                .unwrap_or_else(|_| "".to_string())
+                .as_str(),
+        )
+            .unwrap_or(OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT);
+        config.max_queue_size = max_queue_size;
+
+        let max_export_batch_size = usize::from_str(
+            std::env::var(OTEL_BSP_MAX_EXPORT_BATCH_SIZE)
+                .unwrap_or_else(|_| "".to_string())
+                .as_str(),
+        )
+            .unwrap_or(OTEL_BSP_MAX_EXPORT_BATCH_SIZE_DEFAULT);
+        // max export batch size must be less or equal to max queue size.
+        // we set max export batch size to max queue size if it's larger than max queue size.
+        if max_export_batch_size > max_queue_size {
+            config.max_export_batch_size = max_queue_size;
+        } else {
+            config.max_export_batch_size = max_export_batch_size;
+        }
+
+        BatchSpanProcessorBuilder {
+            config,
+            exporter,
+            spawn,
+            interval,
         }
     }
 }
@@ -325,48 +375,12 @@ pub struct BatchSpanProcessorBuilder<E, S, I> {
 }
 
 impl<E, S, SO, I, IS, ISI> BatchSpanProcessorBuilder<E, S, I>
-    where
-        E: exporter::trace::SpanExporter + 'static,
-        S: Fn(BatchSpanProcessorWorker) -> SO,
-        I: Fn(time::Duration) -> IS,
-        IS: Stream<Item=ISI> + Send + 'static,
+where
+    E: exporter::trace::SpanExporter + 'static,
+    S: Fn(BatchSpanProcessorWorker) -> SO,
+    I: Fn(time::Duration) -> IS,
+    IS: Stream<Item = ISI> + Send + 'static,
 {
-    /// Detect configurations from environment variable
-    pub fn with_env(self) -> Self {
-        let mut config = self.config;
-        let schedule_delay = u64::from_str(
-            std::env::var(OTEL_BSP_SCHEDULE_DELAY_MILLIS)
-                .unwrap_or_else(|_| "".to_string())
-                .as_str(),
-        )
-            .unwrap_or(OTEL_BSP_SCHEDULE_DELAY_MILLIS_DEFAULT);
-        config.scheduled_delay = time::Duration::from_millis(schedule_delay);
-
-        let max_queue_size = usize::from_str(
-            std::env::var(OTEL_BSP_MAX_QUEUE_SIZE)
-                .unwrap_or_else(|_| "".to_string())
-                .as_str(),
-        )
-            .unwrap_or(OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT);
-        config.max_queue_size = max_queue_size;
-
-        let max_export_batch_size = usize::from_str(
-            std::env::var(OTEL_BSP_MAX_EXPORT_BATCH_SIZE)
-                .unwrap_or_else(|_| "".to_string())
-                .as_str(),
-        )
-            .unwrap_or(OTEL_BSP_MAX_EXPORT_BATCH_SIZE_DEFAULT);
-        // max export batch size must be less or equal to max queue size.
-        // we set max export batch size to max queue size if it's larger than max queue size.
-        if max_export_batch_size > max_queue_size {
-            config.max_export_batch_size = max_queue_size;
-        } else {
-            config.max_export_batch_size = max_export_batch_size;
-        }
-
-        BatchSpanProcessorBuilder { config, ..self }
-    }
-
     /// Set max queue size for batches
     pub fn with_max_queue_size(self, size: usize) -> Self {
         let mut config = self.config;
@@ -404,20 +418,27 @@ impl<E, S, SO, I, IS, ISI> BatchSpanProcessorBuilder<E, S, I>
 
 #[cfg(test)]
 mod tests {
-    use crate::sdk::trace::span_processor::{OTEL_BSP_MAX_EXPORT_BATCH_SIZE, OTEL_BSP_SCHEDULE_DELAY_MILLIS};
-    use crate::sdk::BatchSpanProcessor;
     use crate::exporter::trace::stdout;
-    use tokio;
+    use crate::sdk::trace::span_processor::{
+        OTEL_BSP_MAX_EXPORT_BATCH_SIZE, OTEL_BSP_SCHEDULE_DELAY_MILLIS,
+    };
     use std::time;
+    use crate::sdk::BatchSpanProcessor;
 
     #[test]
     fn test_build_batch_span_processor_from_env() {
         std::env::set_var(OTEL_BSP_MAX_EXPORT_BATCH_SIZE, "5000");
         std::env::set_var(OTEL_BSP_SCHEDULE_DELAY_MILLIS, "120");
 
-        let mut builder = BatchSpanProcessor::builder(stdout::Builder::default().init(), tokio::spawn, tokio::time::interval);
-        builder = builder.with_env();
+        let builder = BatchSpanProcessor::from_env(
+            stdout::Builder::default().init(),
+            tokio::spawn,
+            tokio::time::interval,
+        );
         assert_eq!(builder.config.max_export_batch_size, 2048);
-        assert_eq!(builder.config.scheduled_delay, time::Duration::from_millis(120));
+        assert_eq!(
+            builder.config.scheduled_delay,
+            time::Duration::from_millis(120)
+        );
     }
 }
