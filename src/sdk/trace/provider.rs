@@ -10,8 +10,7 @@
 //! of the `TracerProvider` have different versions of these data.
 use crate::exporter::trace::SpanExporter;
 use crate::{api, sdk};
-use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 
 /// Default tracer name if empty string is provided.
 const DEFAULT_COMPONENT_NAME: &str = "rust.opentelemetry.io/sdk/tracer";
@@ -19,7 +18,6 @@ const DEFAULT_COMPONENT_NAME: &str = "rust.opentelemetry.io/sdk/tracer";
 /// TracerProvider inner type
 #[derive(Debug)]
 pub(crate) struct TracerProviderInner {
-    named_tracers: RwLock<HashMap<sdk::InstrumentationLibrary, sdk::Tracer>>,
     processors: Vec<Box<dyn api::SpanProcessor>>,
     config: sdk::Config,
 }
@@ -78,26 +76,9 @@ impl api::TracerProvider for TracerProvider {
         } else {
             name
         };
-
         let instrumentation_lib = sdk::InstrumentationLibrary::new(component_name, version);
 
-        // Return named tracer if already initialized
-        if let Some(tracer) = self
-            .inner
-            .named_tracers
-            .read()
-            .expect("RwLock poisoned")
-            .get(&instrumentation_lib)
-        {
-            return tracer.clone();
-        };
-
-        // Else construct new named tracer
-        let mut tracers = self.inner.named_tracers.write().expect("RwLock poisoned");
-        let new_tracer = sdk::Tracer::new(instrumentation_lib, Arc::downgrade(&self.inner));
-        tracers.insert(instrumentation_lib, new_tracer.clone());
-
-        new_tracer
+        sdk::Tracer::new(instrumentation_lib, Arc::downgrade(&self.inner))
     }
 }
 
@@ -164,7 +145,6 @@ impl Builder {
     pub fn build(self) -> TracerProvider {
         TracerProvider {
             inner: Arc::new(TracerProviderInner {
-                named_tracers: Default::default(),
                 processors: self.processors,
                 config: self.config,
             }),
