@@ -109,16 +109,18 @@ impl Builder {
     /// Add a configured `SpanExporter`
     #[cfg(feature = "tokio")]
     pub fn with_exporter<T: SpanExporter + 'static>(self, exporter: T) -> Self {
-        let spawn = |future| tokio::task::spawn_blocking(|| futures::executor::block_on(future));
-        let batch = sdk::BatchSpanProcessor::builder(exporter, spawn, tokio::time::interval);
+        let batch = sdk::BatchSpanProcessor::builder(exporter, tokio::spawn, tokio::time::interval);
         self.with_batch_exporter(batch.build())
     }
 
     /// Add a configured `SpanExporter`
     #[cfg(all(feature = "async-std", not(feature = "tokio")))]
     pub fn with_exporter<T: SpanExporter + 'static>(self, exporter: T) -> Self {
-        let spawn = |fut| async_std::task::spawn_blocking(|| futures::executor::block_on(fut));
-        let batch = sdk::BatchSpanProcessor::builder(exporter, spawn, async_std::stream::interval);
+        let batch = sdk::BatchSpanProcessor::builder(
+            exporter,
+            async_std::task::spawn,
+            async_std::stream::interval,
+        );
         self.with_batch_exporter(batch.build())
     }
 

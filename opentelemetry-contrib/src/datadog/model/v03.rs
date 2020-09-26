@@ -4,10 +4,7 @@ use opentelemetry::exporter::trace;
 use std::sync::Arc;
 use std::time::SystemTime;
 
-pub(crate) fn encode(
-    service_name: &str,
-    spans: Vec<Arc<trace::SpanData>>,
-) -> Result<Vec<u8>, Error> {
+pub(crate) fn encode(service_name: &str, spans: &[Arc<trace::SpanData>]) -> Result<Vec<u8>, Error> {
     let mut encoded = Vec::new();
     rmp::encode::write_array_len(&mut encoded, spans.len() as u32)?;
 

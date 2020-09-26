@@ -6,6 +6,7 @@
 use crate::api::trace::span_context::TraceState;
 use crate::api::TraceContextExt;
 use crate::{api, exporter};
+use async_trait::async_trait;
 use std::sync::Arc;
 use std::time::SystemTime;
 
@@ -145,13 +146,13 @@ impl api::Tracer for NoopTracer {
 #[derive(Debug)]
 pub struct NoopSpanExporter {}
 
+#[async_trait]
 impl exporter::trace::SpanExporter for NoopSpanExporter {
-    fn export(&self, _batch: Vec<Arc<exporter::trace::SpanData>>) -> exporter::trace::ExportResult {
+    async fn export(
+        &self,
+        _batch: &[Arc<exporter::trace::SpanData>],
+    ) -> exporter::trace::ExportResult {
         exporter::trace::ExportResult::Success
-    }
-
-    fn shutdown(&self) {
-        // Noop
     }
 }
 

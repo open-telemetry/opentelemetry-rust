@@ -53,7 +53,7 @@ impl ApiVersion {
     pub(crate) fn encode(
         self,
         service_name: &str,
-        spans: Vec<Arc<trace::SpanData>>,
+        spans: &[Arc<trace::SpanData>],
     ) -> Result<Vec<u8>, Error> {
         match self {
             Self::Version03 => v03::encode(service_name, spans),
@@ -115,7 +115,7 @@ mod tests {
     #[test]
     fn test_encode_v03() -> Result<(), Box<dyn std::error::Error>> {
         let spans = get_spans();
-        let encoded = base64::encode(ApiVersion::Version03.encode("service_name", spans)?);
+        let encoded = base64::encode(ApiVersion::Version03.encode("service_name", &spans)?);
 
         assert_eq!(encoded.as_str(), "kZGLpHR5cGWjd2Vip3NlcnZpY2Wsc2VydmljZV9uYW1lpG5hbWWpY29tcG9uZW50qHJlc291cmNlqHJlc291cmNlqHRyYWNlX2lkzwAAAAAAAAAHp3NwYW5faWTPAAAAAAAAAGOpcGFyZW50X2lkzwAAAAAAAAABpXN0YXJ00wAAAAAAAAAAqGR1cmF0aW9u0wAAAAA7msoApWVycm9y0gAAAACkbWV0YYGpc3Bhbi50eXBlo3dlYg==");
 
@@ -125,7 +125,7 @@ mod tests {
     #[test]
     fn test_encode_v05() -> Result<(), Box<dyn std::error::Error>> {
         let spans = get_spans();
-        let encoded = base64::encode(ApiVersion::Version05.encode("service_name", spans)?);
+        let encoded = base64::encode(ApiVersion::Version05.encode("service_name", &spans)?);
 
         assert_eq!(encoded.as_str(), "kpWsc2VydmljZV9uYW1lo3dlYqljb21wb25lbnSocmVzb3VyY2Wpc3Bhbi50eXBlkZGczgAAAADOAAAAAs4AAAADzwAAAAAAAAAHzwAAAAAAAABjzwAAAAAAAAAB0wAAAAAAAAAA0wAAAAA7msoA0gAAAACBzgAAAATOAAAAAYDOAAAAAQ==");
 

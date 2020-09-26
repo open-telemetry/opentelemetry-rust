@@ -155,6 +155,7 @@ mod uploader;
 
 use self::thrift::jaeger;
 use agent::AgentSyncClientUDP;
+use async_trait::async_trait;
 #[cfg(feature = "collector_client")]
 use collector::CollectorSyncClientHttp;
 use opentelemetry::{
@@ -210,15 +211,16 @@ impl Into<jaeger::Process> for Process {
     }
 }
 
+#[async_trait]
 impl trace::SpanExporter for Exporter {
     /// Export spans to Jaeger
-    fn export(&self, batch: Vec<Arc<trace::SpanData>>) -> trace::ExportResult {
+    async fn export(&self, batch: &[Arc<trace::SpanData>]) -> trace::ExportResult {
         match self.uploader.lock() {
             Ok(mut uploader) => {
                 let mut jaeger_spans: Vec<jaeger::Span> = Vec::with_capacity(batch.len());
                 let mut process_tags: Vec<jaeger::Tag> = Vec::new();
 
-                for (idx, span) in batch.into_iter().enumerate() {
+                for (idx, span) in batch.iter().enumerate() {
                     if idx == 0 {
                         process_tags.extend(build_process_tags(&span));
                     }
@@ -452,7 +454,7 @@ impl Into<jaeger::Log> for api::Event {
     }
 }
 
-impl Into<jaeger::Span> for Arc<trace::SpanData> {
+impl Into<jaeger::Span> for &Arc<trace::SpanData> {
     /// Convert spans to jaeger thrift span for exporting.
     fn into(self) -> jaeger::Span {
         let trace_id = self.span_context.trace_id().to_u128();

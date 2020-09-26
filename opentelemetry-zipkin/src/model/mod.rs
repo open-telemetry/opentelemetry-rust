@@ -40,7 +40,7 @@ fn into_zipkin_span_kind(kind: api::SpanKind) -> Option<span::Kind> {
 /// be ingested into a Zipkin collector.
 pub(crate) fn into_zipkin_span(
     local_endpoint: Endpoint,
-    span_data: Arc<trace::SpanData>,
+    span_data: &Arc<trace::SpanData>,
 ) -> span::Span {
     let mut user_defined_span_kind = false;
     let tags = map_from_kvs(
