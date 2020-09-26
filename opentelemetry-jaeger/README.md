@@ -22,7 +22,7 @@ exporting telemetry:
 use opentelemetry::api::Tracer;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let tracer = opentelemetry_jaeger::new_pipeline().install()?;
+    let (tracer, _uninstall) = opentelemetry_jaeger::new_pipeline().install()?;
 
     tracer.in_span("doing_work", |cx| {
         // Traced app logic here...
@@ -64,7 +64,7 @@ use opentelemetry::api::Tracer;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // export OTEL_SERVICE_NAME=my-service-name
-    let tracer = opentelemetry_jaeger::new_pipeline().from_env().install()?;
+    let (tracer, _uninstall) = opentelemetry_jaeger::new_pipeline().from_env().install()?;
 
     tracer.in_span("doing_work", |cx| {
         // Traced app logic here...
@@ -94,7 +94,7 @@ Then you can use the [`with_collector_endpoint`] method to specify the endpoint:
 use opentelemetry::api::Tracer;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let tracer = opentelemetry_jaeger::new_pipeline()
+    let (tracer, _uninstall) = opentelemetry_jaeger::new_pipeline()
         .with_collector_endpoint("http://localhost:14268/api/traces")
         // optionally set username and password as well.
         .with_collector_username("username")
@@ -121,7 +121,7 @@ use opentelemetry::api::{KeyValue, Tracer};
 use opentelemetry::sdk::{trace, IdGenerator, Resource, Sampler};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let tracer = opentelemetry_jaeger::new_pipeline()
+    let (tracer, _uninstall) = opentelemetry_jaeger::new_pipeline()
         .from_env()
         .with_agent_endpoint("localhost:6831")
         .with_service_name("my_app")
