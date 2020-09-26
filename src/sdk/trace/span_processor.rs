@@ -96,8 +96,9 @@ use crate::{api, exporter};
 use futures::{
     channel::mpsc,
     task::{Context, Poll},
-    Future, Stream, StreamExt,
+    Future, FutureExt, Stream, StreamExt,
 };
+use std::fmt;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use std::time;
@@ -136,9 +137,17 @@ impl api::SpanProcessor for SimpleSpanProcessor {
 /// them at a preconfigured interval.
 ///
 /// [`SpanProcessor`]: ../../../api/trace/span_processor/trait.SpanProcessor.html
-#[derive(Debug)]
 pub struct BatchSpanProcessor {
     message_sender: Mutex<mpsc::Sender<BatchMessage>>,
+    worker_handle: Mutex<Option<Pin<Box<dyn Future<Output = ()> + Send + Sync>>>>,
+}
+
+impl fmt::Debug for BatchSpanProcessor {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("BatchSpanProcessor")
+            .field("message_sender", &self.message_sender)
+            .finish()
+    }
 }
 
 impl api::SpanProcessor for BatchSpanProcessor {
@@ -155,6 +164,14 @@ impl api::SpanProcessor for BatchSpanProcessor {
     fn shutdown(&self) {
         if let Ok(mut sender) = self.message_sender.lock() {
             let _ = sender.try_send(BatchMessage::Shutdown);
+        }
+        if let Some(worker_handle) = self
+            .worker_handle
+            .lock()
+            .expect("worker_handle Mutex panicked")
+            .take()
+        {
+            futures::executor::block_on(worker_handle);
         }
     }
 }
@@ -225,14 +242,15 @@ enum BatchMessage {
 }
 
 impl BatchSpanProcessor {
-    pub(crate) fn new<S, SO, I, IS, ISI>(
+    pub(crate) fn new<S, SH, SO, I, IS, ISI>(
         exporter: Box<dyn exporter::trace::SpanExporter>,
         spawn: S,
         interval: I,
         config: BatchConfig,
     ) -> Self
     where
-        S: Fn(BatchSpanProcessorWorker) -> SO,
+        S: Fn(BatchSpanProcessorWorker) -> SH,
+        SH: Future<Output = SO> + Send + Sync + 'static,
         I: Fn(time::Duration) -> IS,
         IS: Stream<Item = ISI> + Send + 'static,
     {
@@ -240,28 +258,31 @@ impl BatchSpanProcessor {
         let ticker = interval(config.scheduled_delay).map(|_| BatchMessage::Tick);
 
         // Spawn worker process via user-defined spawn function.
-        spawn(BatchSpanProcessorWorker {
+        let worker_handle = spawn(BatchSpanProcessorWorker {
             exporter,
             messages: Box::pin(futures::stream::select(message_receiver, ticker)),
             config,
             buffer: Vec::new(),
-        });
+        })
+        .map(|_| ());
 
         // Return batch processor with link to worker
         BatchSpanProcessor {
             message_sender: Mutex::new(message_sender),
+            worker_handle: Mutex::new(Some(Box::pin(worker_handle))),
         }
     }
 
     /// Create a new batch processor builder
-    pub fn builder<E, S, SO, I, IO>(
+    pub fn builder<E, S, SH, SO, I, IO>(
         exporter: E,
         spawn: S,
         interval: I,
     ) -> BatchSpanProcessorBuilder<E, S, I>
     where
         E: exporter::trace::SpanExporter,
-        S: Fn(BatchSpanProcessorWorker) -> SO,
+        S: Fn(BatchSpanProcessorWorker) -> SH,
+        SH: Future<Output = SO> + Send + Sync + 'static,
         I: Fn(time::Duration) -> IO,
     {
         BatchSpanProcessorBuilder {
@@ -312,10 +333,11 @@ pub struct BatchSpanProcessorBuilder<E, S, I> {
     config: BatchConfig,
 }
 
-impl<E, S, SO, I, IS, ISI> BatchSpanProcessorBuilder<E, S, I>
+impl<E, S, SH, SO, I, IS, ISI> BatchSpanProcessorBuilder<E, S, I>
 where
     E: exporter::trace::SpanExporter + 'static,
-    S: Fn(BatchSpanProcessorWorker) -> SO,
+    S: Fn(BatchSpanProcessorWorker) -> SH,
+    SH: Future<Output = SO> + Send + Sync + 'static,
     I: Fn(time::Duration) -> IS,
     IS: Stream<Item = ISI> + Send + 'static,
 {
