@@ -142,7 +142,7 @@ impl api::SpanProcessor for SimpleSpanProcessor {
         }
     }
 
-    fn shutdown(&self) {
+    fn shutdown(&mut self) {
         self.exporter.shutdown();
     }
 }
@@ -153,7 +153,7 @@ impl api::SpanProcessor for SimpleSpanProcessor {
 /// [`SpanProcessor`]: ../../../api/trace/span_processor/trait.SpanProcessor.html
 pub struct BatchSpanProcessor {
     message_sender: Mutex<mpsc::Sender<BatchMessage>>,
-    worker_handle: Mutex<Option<Pin<Box<dyn Future<Output = ()> + Send + Sync>>>>,
+    worker_handle: Option<Pin<Box<dyn Future<Output = ()> + Send + Sync>>>,
 }
 
 impl fmt::Debug for BatchSpanProcessor {
@@ -175,17 +175,13 @@ impl api::SpanProcessor for BatchSpanProcessor {
         }
     }
 
-    fn shutdown(&self) {
+    fn shutdown(&mut self) {
         if let Ok(mut sender) = self.message_sender.lock() {
             let _ = sender.try_send(BatchMessage::Shutdown);
         }
-        if let Some(worker_handle) = self
-            .worker_handle
-            .lock()
-            .expect("worker_handle Mutex panicked")
-            .take()
-        {
-            futures::executor::block_on(worker_handle);
+
+        if let Some(worker_handle) = self.worker_handle.take() {
+            futures::executor::block_on(worker_handle)
         }
     }
 }
@@ -283,7 +279,7 @@ impl BatchSpanProcessor {
         // Return batch processor with link to worker
         BatchSpanProcessor {
             message_sender: Mutex::new(message_sender),
-            worker_handle: Mutex::new(Some(Box::pin(worker_handle))),
+            worker_handle: Some(Box::pin(worker_handle)),
         }
     }
 
