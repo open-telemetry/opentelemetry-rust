@@ -10,7 +10,7 @@ pub mod hello_world {
     tonic::include_proto!("helloworld");
 }
 
-fn tracing_init() -> Result<sdk::Tracer, Box<dyn Error>> {
+fn tracing_init() -> Result<(sdk::Tracer, opentelemetry_jaeger::Uninstall), Box<dyn Error>> {
     opentelemetry_jaeger::new_pipeline()
         .with_service_name("grpc-client")
         .install()
@@ -18,7 +18,7 @@ fn tracing_init() -> Result<sdk::Tracer, Box<dyn Error>> {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let tracer = tracing_init()?;
+    let (tracer, _uninstall) = tracing_init()?;
     let mut client = GreeterClient::connect("http://[::1]:50051").await?;
     let propagator = TraceContextPropagator::new();
     let span = tracer.start("client-request");

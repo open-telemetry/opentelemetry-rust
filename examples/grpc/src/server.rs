@@ -34,7 +34,7 @@ impl Greeter for MyGreeter {
     }
 }
 
-fn tracing_init() -> Result<sdk::Tracer, Box<dyn Error>> {
+fn tracing_init() -> Result<(sdk::Tracer, opentelemetry_jaeger::Uninstall), Box<dyn Error>> {
     opentelemetry_jaeger::new_pipeline()
         .with_service_name("grpc-server")
         .install()
@@ -42,7 +42,7 @@ fn tracing_init() -> Result<sdk::Tracer, Box<dyn Error>> {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    let _ = tracing_init()?;
+    let _uninstall = tracing_init()?;
     let addr = "[::1]:50051".parse()?;
     let greeter = MyGreeter::default();
 

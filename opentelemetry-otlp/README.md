@@ -24,7 +24,7 @@ telemetry:
 use opentelemetry::api::Tracer;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let tracer = opentelemetry_otlp::new_pipeline().install()?;
+    let (tracer, _uninstall) = opentelemetry_otlp::new_pipeline().install()?;
 
     tracer.in_span("doing_work", |cx| {
         // Traced app logic here...
@@ -67,7 +67,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .into_iter()
         .collect();
 
-    let tracer = opentelemetry_otlp::new_pipeline()
+    let (tracer, _uninstall) = opentelemetry_otlp::new_pipeline()
         .with_endpoint("localhost:55680")
         .with_protocol(Protocol::Grpc)
         .with_headers(headers)

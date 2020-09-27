@@ -4,9 +4,10 @@ use opentelemetry::api::{BaggageExt, Context, Key, KeyValue, TraceContextExt, Tr
 use opentelemetry::exporter;
 use opentelemetry::sdk::metrics::PushController;
 use opentelemetry::{global, sdk};
+use std::error::Error;
 use std::time::Duration;
 
-fn init_tracer() -> Result<sdk::Tracer, Box<dyn std::error::Error>> {
+fn init_tracer() -> Result<(sdk::Tracer, opentelemetry_otlp::Uninstall), Box<dyn Error>> {
     opentelemetry_otlp::new_pipeline().install()
 }
 
@@ -41,8 +42,8 @@ lazy_static::lazy_static! {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let _ = init_tracer()?;
+async fn main() -> Result<(), Box<dyn Error>> {
+    let _guard = init_tracer()?;
     let _started = init_meter()?;
 
     let tracer = global::tracer("ex.com/basic");

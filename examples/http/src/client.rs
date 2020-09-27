@@ -2,7 +2,7 @@ use hyper::{body::Body, Client};
 use opentelemetry::api::{Context, TextMapFormat, TraceContextExt, Tracer};
 use opentelemetry::{api, exporter::trace::stdout, global, sdk};
 
-fn init_tracer() {
+fn init_tracer() -> (sdk::Tracer, stdout::Uninstall) {
     // Install stdout exporter pipeline to be able to retrieve the collected spans.
     // For the demonstration, use `Sampler::AlwaysOn` sampler to sample all traces. In a production
     // application, use `Sampler::ParentBased` or `Sampler::TraceIdRatioBased` with a desired ratio.
@@ -11,12 +11,12 @@ fn init_tracer() {
             default_sampler: Box::new(sdk::Sampler::AlwaysOn),
             ..Default::default()
         })
-        .install();
+        .install()
 }
 
 #[tokio::main]
 async fn main() -> std::result::Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    init_tracer();
+    let _guard = init_tracer();
 
     let client = Client::new();
     let propagator = api::TraceContextPropagator::new();

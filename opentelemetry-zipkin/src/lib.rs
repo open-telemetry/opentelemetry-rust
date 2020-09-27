@@ -20,7 +20,7 @@
 //! use opentelemetry::api::Tracer;
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     let tracer = opentelemetry_zipkin::new_pipeline().install()?;
+//!     let (tracer, _uninstall) = opentelemetry_zipkin::new_pipeline().install()?;
 //!
 //!     tracer.in_span("doing_work", |cx| {
 //!         // Traced app logic here...
@@ -58,7 +58,7 @@
 //! use opentelemetry::sdk::{trace, IdGenerator, Resource, Sampler};
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     let tracer = opentelemetry_zipkin::new_pipeline()
+//!     let (tracer, _uninstall) = opentelemetry_zipkin::new_pipeline()
 //!         .with_service_name("my_app")
 //!         .with_service_address("127.0.0.1:8080".parse()?)
 //!         .with_collector_endpoint("http://localhost:9411/api/v2/spans")
@@ -145,7 +145,7 @@ impl Default for ZipkinPipelineBuilder {
 
 impl ZipkinPipelineBuilder {
     /// Create `ExporterConfig` struct from current `ExporterConfigBuilder`
-    pub fn install(mut self) -> Result<sdk::Tracer, Box<dyn Error>> {
+    pub fn install(mut self) -> Result<(sdk::Tracer, Uninstall), Box<dyn Error>> {
         let endpoint = Endpoint::new(self.service_name, self.service_addr);
         let exporter = Exporter::new(endpoint, self.collector_endpoint.parse()?);
 
@@ -155,9 +155,9 @@ impl ZipkinPipelineBuilder {
         }
         let provider = provider_builder.build();
         let tracer = provider.get_tracer("opentelemetry-zipkin", Some(env!("CARGO_PKG_VERSION")));
-        global::set_provider(provider);
+        let provider_guard = global::set_tracer_provider(provider);
 
-        Ok(tracer)
+        Ok((tracer, Uninstall(provider_guard)))
     }
 
     /// Assign the service name under which to group traces.
@@ -196,3 +196,7 @@ impl trace::SpanExporter for Exporter {
         self.uploader.upload(zipkin_spans)
     }
 }
+
+/// Uninstalls the Zipkin pipeline on drop.
+#[derive(Debug)]
+pub struct Uninstall(global::TracerProviderGuard);

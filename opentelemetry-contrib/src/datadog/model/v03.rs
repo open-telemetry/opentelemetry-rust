@@ -1,8 +1,8 @@
 use crate::datadog::model::Error;
+use opentelemetry::api::{Key, Value};
 use opentelemetry::exporter::trace;
 use std::sync::Arc;
 use std::time::SystemTime;
-use opentelemetry::api::{Key, Value};
 
 pub(crate) fn encode(
     service_name: &str,

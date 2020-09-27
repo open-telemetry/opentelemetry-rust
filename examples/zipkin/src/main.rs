@@ -11,7 +11,7 @@ fn bar() {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let tracer = opentelemetry_zipkin::new_pipeline()
+    let (tracer, _uninstall) = opentelemetry_zipkin::new_pipeline()
         .with_service_name("trace-demo")
         .install()?;
 

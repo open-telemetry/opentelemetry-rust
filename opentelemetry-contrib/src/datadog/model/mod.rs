@@ -65,10 +65,10 @@ impl ApiVersion {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use opentelemetry::api::Key;
     use opentelemetry::sdk::InstrumentationLibrary;
     use opentelemetry::{api, sdk};
     use std::time::{Duration, SystemTime};
-    use opentelemetry::api::Key;
 
     fn get_spans() -> Vec<Arc<trace::SpanData>> {
         let parent_span_id = 1;

@@ -1,8 +1,8 @@
 use opentelemetry::api::{Key, Span, TraceContextExt, Tracer};
 use opentelemetry::global;
+use opentelemetry_contrib::datadog::ApiVersion;
 use std::thread;
 use std::time::Duration;
-use opentelemetry_contrib::datadog::ApiVersion;
 
 fn bar() {
     let tracer = global::tracer("component-bar");
@@ -14,7 +14,7 @@ fn bar() {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let tracer = opentelemetry_contrib::datadog::new_pipeline()
+    let (tracer, _uninstall) = opentelemetry_contrib::datadog::new_pipeline()
         .with_service_name("trace-demo")
         .with_version(ApiVersion::Version05)
         .install()?;

@@ -7,7 +7,7 @@ use opentelemetry::{global, sdk};
 use std::error::Error;
 use std::time::Duration;
 
-fn init_tracer() -> Result<sdk::Tracer, Box<dyn Error>> {
+fn init_tracer() -> Result<(sdk::Tracer, opentelemetry_jaeger::Uninstall), Box<dyn Error>> {
     opentelemetry_jaeger::new_pipeline()
         .with_service_name("trace-demo")
         .with_tags(vec![
@@ -49,7 +49,7 @@ lazy_static::lazy_static! {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    let _ = init_tracer()?;
+    let _uninstall = init_tracer()?;
     let _started = init_meter()?;
 
     let tracer = global::tracer("ex.com/basic");

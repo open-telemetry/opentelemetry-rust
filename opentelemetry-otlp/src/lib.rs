@@ -22,7 +22,7 @@
 //! use opentelemetry::api::Tracer;
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     let tracer = opentelemetry_otlp::new_pipeline().install()?;
+//!     let (tracer, _uninstall) = opentelemetry_otlp::new_pipeline().install()?;
 //!
 //!     tracer.in_span("doing_work", |cx| {
 //!         // Traced app logic here...
@@ -66,7 +66,7 @@
 //!         .into_iter()
 //!         .collect();
 //!
-//!     let tracer = opentelemetry_otlp::new_pipeline()
+//!     let (tracer, _uninstall) = opentelemetry_otlp::new_pipeline()
 //!         .with_endpoint("localhost:55680")
 //!         .with_protocol(Protocol::Grpc)
 //!         .with_headers(headers)
@@ -116,7 +116,7 @@ pub use crate::span::{Compression, Credentials, Exporter, ExporterConfig, Protoc
 ///
 /// ```no_run
 /// fn main() -> Result<(), Box<dyn std::error::Error>> {
-///     let tracer = opentelemetry_otlp::new_pipeline().install()?;
+///     let (tracer, _uninstall) = opentelemetry_otlp::new_pipeline().install()?;
 ///
 ///     Ok(())
 /// }
@@ -131,7 +131,7 @@ pub fn new_pipeline() -> OtlpPipelineBuilder {
 ///
 /// ```no_run
 /// fn main() -> Result<(), Box<dyn std::error::Error>> {
-///     let tracer = opentelemetry_otlp::new_pipeline().install()?;
+///     let (tracer, _uninstall) = opentelemetry_otlp::new_pipeline().install()?;
 ///
 ///     Ok(())
 /// }
@@ -192,7 +192,7 @@ impl OtlpPipelineBuilder {
     }
 
     /// Install the OTLP exporter pipeline with the recommended defaults.
-    pub fn install(mut self) -> Result<sdk::Tracer, Box<dyn Error>> {
+    pub fn install(mut self) -> Result<(sdk::Tracer, Uninstall), Box<dyn Error>> {
         let exporter = Exporter::new(self.exporter_config);
 
         let mut provider_builder = sdk::TracerProvider::builder().with_exporter(exporter);
@@ -201,8 +201,12 @@ impl OtlpPipelineBuilder {
         }
         let provider = provider_builder.build();
         let tracer = provider.get_tracer("opentelemetry-otlp", Some(env!("CARGO_PKG_VERSION")));
-        global::set_provider(provider);
+        let provider_guard = global::set_tracer_provider(provider);
 
-        Ok(tracer)
+        Ok((tracer, Uninstall(provider_guard)))
     }
 }
+
+/// Uninstalls the OTLP pipeline on drop
+#[derive(Debug)]
+pub struct Uninstall(global::TracerProviderGuard);

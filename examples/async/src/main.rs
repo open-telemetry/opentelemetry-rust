@@ -50,7 +50,7 @@ async fn run(addr: &SocketAddr) -> io::Result<usize> {
     write(&mut stream).with_context(cx).await
 }
 
-fn init_tracer() -> Result<sdk::Tracer, Box<dyn Error>> {
+fn init_tracer() -> Result<(sdk::Tracer, opentelemetry_jaeger::Uninstall), Box<dyn Error>> {
     opentelemetry_jaeger::new_pipeline()
         .with_service_name("trace-demo")
         .install()
@@ -58,7 +58,7 @@ fn init_tracer() -> Result<sdk::Tracer, Box<dyn Error>> {
 
 #[tokio::main]
 pub async fn main() -> Result<(), Box<dyn Error>> {
-    let tracer = init_tracer()?;
+    let (tracer, _uninstall) = init_tracer()?;
     let addr = "127.0.0.1:6142".parse()?;
     let addr2 = "127.0.0.1:6143".parse()?;
     let span = tracer.start("root");

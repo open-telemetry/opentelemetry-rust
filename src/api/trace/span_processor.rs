@@ -46,5 +46,5 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
     /// Shutdown is invoked when SDK shuts down. Use this call to cleanup any
     /// processor data. No calls to `on_start` and `on_end` method is invoked
     /// after `shutdown` call is made.
-    fn shutdown(&self);
+    fn shutdown(&mut self);
 }
