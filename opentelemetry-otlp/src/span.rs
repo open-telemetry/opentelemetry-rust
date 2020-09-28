@@ -167,7 +167,10 @@ impl SpanExporter for Exporter {
         }
 
         match self.trace_exporter.export_async_opt(&request, call_options) {
-            Ok(_) => Success,
+            Ok(receiver) => match receiver.await {
+                Ok(_) => Success,
+                Err(_) => FailedNotRetryable,
+            },
             Err(_) => FailedNotRetryable,
         }
     }
