@@ -189,7 +189,7 @@ enum BatchMessage {
 
 impl BatchSpanProcessor {
     pub(crate) fn new<S, SH, SO, I, IS, ISI>(
-        exporter: Box<dyn exporter::trace::SpanExporter>,
+        mut exporter: Box<dyn exporter::trace::SpanExporter>,
         spawn: S,
         interval: I,
         config: BatchConfig,
@@ -228,6 +228,7 @@ impl BatchSpanProcessor {
                         for batch in spans.chunks(config.max_export_batch_size) {
                             exporter.export(batch).await;
                         }
+                        exporter.shutdown();
                         break;
                     }
                 }
