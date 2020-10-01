@@ -122,7 +122,6 @@
 //!         .with_agent_endpoint("localhost:6831")
 //!         .with_service_name("my_app")
 //!         .with_tags(vec![KeyValue::new("process_key", "process_value")])
-//!         .with_max_packet_size(65_000)
 //!         .with_trace_config(
 //!             trace::config()
 //!                 .with_default_sampler(Sampler::AlwaysOn)
@@ -154,7 +153,7 @@ pub(crate) mod transport;
 mod uploader;
 
 use self::thrift::jaeger;
-use agent::AgentSyncClientUDP;
+use agent::AgentAsyncClientUDP;
 use async_trait::async_trait;
 #[cfg(feature = "collector_client")]
 use collector::CollectorSyncClientHttp;
@@ -164,7 +163,7 @@ use opentelemetry::{
     global, sdk,
 };
 use std::error::Error;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::{
     net,
     time::{Duration, SystemTime},
@@ -190,7 +189,7 @@ pub struct Uninstall(global::TracerProviderGuard);
 #[derive(Debug)]
 pub struct Exporter {
     process: jaeger::Process,
-    uploader: Mutex<uploader::BatchUploader>,
+    uploader: uploader::BatchUploader,
 }
 
 /// Jaeger process configuration
@@ -215,30 +214,25 @@ impl Into<jaeger::Process> for Process {
 impl trace::SpanExporter for Exporter {
     /// Export spans to Jaeger
     async fn export(&self, batch: &[Arc<trace::SpanData>]) -> trace::ExportResult {
-        match self.uploader.lock() {
-            Ok(mut uploader) => {
-                let mut jaeger_spans: Vec<jaeger::Span> = Vec::with_capacity(batch.len());
-                let mut process_tags: Vec<jaeger::Tag> = Vec::new();
+        let mut jaeger_spans: Vec<jaeger::Span> = Vec::with_capacity(batch.len());
+        let mut process = self.process.clone();
 
-                for (idx, span) in batch.iter().enumerate() {
-                    if idx == 0 {
-                        process_tags.extend(build_process_tags(&span));
+        for (idx, span) in batch.iter().enumerate() {
+            if idx == 0 {
+                if let Some(span_process_tags) = build_process_tags(&span) {
+                    if let Some(process_tags) = &mut process.tags {
+                        process_tags.extend(span_process_tags);
+                    } else {
+                        process.tags = Some(span_process_tags.collect())
                     }
-                    jaeger_spans.push(span.into());
                 }
-                let mut process = self.process.clone();
-                let tags: Vec<jaeger::Tag> = match process.tags {
-                    Some(mut item) => {
-                        item.extend(process_tags);
-                        item
-                    }
-                    None => process_tags,
-                };
-                process.tags = Some(tags);
-                uploader.upload(jaeger::Batch::new(process, jaeger_spans))
             }
-            Err(_) => trace::ExportResult::FailedNotRetryable,
+            jaeger_spans.push(span.into());
         }
+
+        self.uploader
+            .upload(jaeger::Batch::new(process, jaeger_spans))
+            .await
     }
 }
 
@@ -247,13 +241,12 @@ impl trace::SpanExporter for Exporter {
 pub struct PipelineBuilder {
     agent_endpoint: Vec<net::SocketAddr>,
     #[cfg(feature = "collector_client")]
-    collector_endpoint: Option<String>,
+    collector_endpoint: Option<http::Uri>,
     #[cfg(feature = "collector_client")]
     collector_username: Option<String>,
     #[cfg(feature = "collector_client")]
     collector_password: Option<String>,
     process: Process,
-    max_packet_size: Option<usize>,
     config: Option<sdk::Config>,
 }
 
@@ -272,7 +265,6 @@ impl Default for PipelineBuilder {
                 service_name: DEFAULT_SERVICE_NAME.to_string(),
                 tags: Vec::new(),
             },
-            max_packet_size: None,
             config: None,
         }
     }
@@ -302,10 +294,15 @@ impl PipelineBuilder {
     }
 
     /// Assign the collector endpoint.
+    ///
+    /// E.g. "http://localhost:14268/api/traces"
     #[cfg(feature = "collector_client")]
-    pub fn with_collector_endpoint<S: Into<String>>(self, collector_endpoint: S) -> Self {
+    pub fn with_collector_endpoint<T>(self, collector_endpoint: T) -> Self
+    where
+        http::Uri: core::convert::TryFrom<T>,
+    {
         PipelineBuilder {
-            collector_endpoint: Some(collector_endpoint.into()),
+            collector_endpoint: core::convert::TryFrom::try_from(collector_endpoint).ok(),
             ..self
         }
     }
@@ -338,14 +335,6 @@ impl PipelineBuilder {
     pub fn with_tags<T: IntoIterator<Item = api::KeyValue>>(mut self, tags: T) -> Self {
         self.process.tags = tags.into_iter().collect();
         self
-    }
-
-    /// Assign the agent max udp packet size.
-    pub fn with_max_packet_size(self, max_packet_size: usize) -> Self {
-        PipelineBuilder {
-            max_packet_size: Some(max_packet_size),
-            ..self
-        }
     }
 
     /// Assign the SDK config for the exporter pipeline.
@@ -388,13 +377,13 @@ impl PipelineBuilder {
 
         Ok(Exporter {
             process: process.into(),
-            uploader: Mutex::new(uploader),
+            uploader,
         })
     }
 
     #[cfg(not(feature = "collector_client"))]
     fn init_uploader(self) -> Result<(Process, BatchUploader), Box<dyn Error>> {
-        let agent = AgentSyncClientUDP::new(self.agent_endpoint.as_slice(), self.max_packet_size)?;
+        let agent = AgentAsyncClientUDP::new(self.agent_endpoint.as_slice())?;
         Ok((self.process, BatchUploader::Agent(agent)))
     }
 
@@ -406,13 +395,10 @@ impl PipelineBuilder {
                 self.collector_username,
                 self.collector_password,
             )?;
-            Ok((
-                self.process,
-                uploader::BatchUploader::Collector(Box::new(collector)),
-            ))
+            Ok((self.process, uploader::BatchUploader::Collector(collector)))
         } else {
             let endpoint = self.agent_endpoint.as_slice();
-            let agent = AgentSyncClientUDP::new(endpoint, self.max_packet_size)?;
+            let agent = AgentAsyncClientUDP::new(endpoint)?;
             Ok((self.process, BatchUploader::Agent(agent)))
         }
     }
@@ -510,13 +496,19 @@ fn links_to_references(links: &sdk::EvictedQueue<api::Link>) -> Option<Vec<jaege
     }
 }
 
-fn build_process_tags(span_data: &Arc<trace::SpanData>) -> Vec<jaeger::Tag> {
-    let tags = span_data
-        .resource
-        .iter()
-        .map(|(k, v)| api::KeyValue::new(k.clone(), v.clone()).into())
-        .collect::<Vec<_>>();
-    tags
+fn build_process_tags(
+    span_data: &Arc<trace::SpanData>,
+) -> Option<impl Iterator<Item = jaeger::Tag> + '_> {
+    if span_data.resource.is_empty() {
+        None
+    } else {
+        Some(
+            span_data
+                .resource
+                .iter()
+                .map(|(k, v)| api::KeyValue::new(k.clone(), v.clone()).into()),
+        )
+    }
 }
 
 fn build_span_tags(span_data: &Arc<trace::SpanData>) -> Option<Vec<jaeger::Tag>> {

@@ -1,8 +1,4 @@
 //! Additional Thrift transport implementations
-#[cfg(feature = "collector_client")]
-mod http;
-mod udp;
+mod noop;
 
-#[cfg(feature = "collector_client")]
-pub(crate) use http::THttpChannel;
-pub(crate) use udp::TUdpChannel;
+pub(crate) use noop::TNoopChannel;

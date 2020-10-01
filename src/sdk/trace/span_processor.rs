@@ -93,7 +93,7 @@
 //! [`tokio`]: https://tokio.rs
 //! [`async-std`]: https://async.rs
 use crate::{api, exporter};
-use futures::{channel::mpsc, future::BoxFuture, Future, FutureExt, Stream, StreamExt};
+use futures::{channel::mpsc, executor, future::BoxFuture, Future, FutureExt, Stream, StreamExt};
 use std::fmt;
 use std::pin::Pin;
 use std::str::FromStr;
@@ -133,9 +133,7 @@ impl api::SpanProcessor for SimpleSpanProcessor {
     }
 
     fn on_end(&self, span: Arc<exporter::trace::SpanData>) {
-        if span.span_context.is_sampled() {
-            futures::executor::block_on(self.exporter.export(&[span]));
-        }
+        executor::block_on(self.exporter.export(&[span]));
     }
 
     fn shutdown(&mut self) {
