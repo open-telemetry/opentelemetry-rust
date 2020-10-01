@@ -20,7 +20,19 @@ struct BufferClient {
     >,
 }
 
-/// `AgentSyncClientUDP` implements the `TAgentSyncClient` interface over UDP
+impl fmt::Debug for BufferClient {
+    /// Debug info
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt.debug_struct("BufferClient")
+            .field("buffer", &self.buffer)
+            .field("client", &"AgentSyncClient")
+            .finish()
+    }
+}
+
+/// `AgentAsyncClientUDP` implements an async version of the `TAgentSyncClient`
+/// interface over UDP.
+#[derive(Debug)]
 pub(crate) struct AgentAsyncClientUDP {
     #[cfg(all(not(feature = "async-std"), not(feature = "tokio")))]
     conn: UdpSocket,
@@ -29,15 +41,6 @@ pub(crate) struct AgentAsyncClientUDP {
     #[cfg(all(feature = "async-std", not(feature = "tokio")))]
     conn: async_std::sync::Mutex<async_std::net::UdpSocket>,
     buffer_client: Mutex<BufferClient>,
-}
-
-impl fmt::Debug for AgentAsyncClientUDP {
-    /// Debug info
-    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt.debug_struct("AgentClientUDP")
-            .field("client", &"AgentSyncClient")
-            .finish()
-    }
 }
 
 impl AgentAsyncClientUDP {

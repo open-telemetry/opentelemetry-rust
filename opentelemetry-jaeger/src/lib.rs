@@ -156,7 +156,7 @@ use self::thrift::jaeger;
 use agent::AgentAsyncClientUDP;
 use async_trait::async_trait;
 #[cfg(feature = "collector_client")]
-use collector::CollectorSyncClientHttp;
+use collector::CollectorAsyncClientHttp;
 use opentelemetry::{
     api::{self, TracerProvider},
     exporter::trace,
@@ -390,7 +390,7 @@ impl PipelineBuilder {
     #[cfg(feature = "collector_client")]
     fn init_uploader(self) -> Result<(Process, uploader::BatchUploader), Box<dyn Error>> {
         if let Some(collector_endpoint) = self.collector_endpoint {
-            let collector = CollectorSyncClientHttp::new(
+            let collector = CollectorAsyncClientHttp::new(
                 collector_endpoint,
                 self.collector_username,
                 self.collector_password,

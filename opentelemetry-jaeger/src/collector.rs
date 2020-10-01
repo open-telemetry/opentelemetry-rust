@@ -6,28 +6,20 @@ use isahc::{
     config::Configurable,
     HttpClient,
 };
-use std::fmt;
 use std::io::{self, Cursor};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use thrift::protocol::TBinaryOutputProtocol;
 
-/// `CollectorSyncClientHttp` implements the `TCollectorSyncClient` interface over HTTP
-pub(crate) struct CollectorSyncClientHttp {
+/// `CollectorAsyncClientHttp` implements an async version of the
+/// `TCollectorSyncClient` interface over HTTP
+#[derive(Debug)]
+pub(crate) struct CollectorAsyncClientHttp {
     endpoint: Uri,
     client: HttpClient,
     payload_size_estimate: AtomicUsize,
 }
 
-impl fmt::Debug for CollectorSyncClientHttp {
-    /// Debug info
-    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt.debug_struct("CollectorSyncClientHttp")
-            .field("client", &"CollectorSyncClient")
-            .finish()
-    }
-}
-
-impl CollectorSyncClientHttp {
+impl CollectorAsyncClientHttp {
     /// Create a new HTTP collector client
     pub(crate) fn new(
         endpoint: Uri,
@@ -45,7 +37,7 @@ impl CollectorSyncClientHttp {
             .map_err(|err| io::Error::new(io::ErrorKind::Other, err.to_string()))?;
         let payload_size_estimate = AtomicUsize::new(512);
 
-        Ok(CollectorSyncClientHttp {
+        Ok(CollectorAsyncClientHttp {
             endpoint,
             client,
             payload_size_estimate,
