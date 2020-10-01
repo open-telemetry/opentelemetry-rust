@@ -40,7 +40,7 @@
 //! ```toml
 //! [dependencies]
 //! opentelemetry = { version = "*", features = ["tokio"] }
-//! opentelemetry-jaeger = "*"
+//! opentelemetry-jaeger = { version = "*", features = ["tokio"] }
 //! ```
 //!
 //! [`tokio`]: https://tokio.rs
