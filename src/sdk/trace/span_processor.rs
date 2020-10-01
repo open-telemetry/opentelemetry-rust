@@ -221,6 +221,7 @@ impl BatchSpanProcessor {
                         for batch in spans.chunks(config.max_export_batch_size) {
                             exporter.export(batch).await;
                         }
+                        spans.clear();
                     }
                     // Stream has terminated or processor is shutdown, return to finish execution.
                     BatchMessage::Shutdown => {
