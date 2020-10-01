@@ -50,10 +50,7 @@ use std::time::SystemTime;
 //
 // 		The dictionary in this case would be []string{""}, having only the empty string at index 0.
 //
-pub(crate) fn encode(
-    service_name: &str,
-    spans: Vec<Arc<trace::SpanData>>,
-) -> Result<Vec<u8>, Error> {
+pub(crate) fn encode(service_name: &str, spans: &[Arc<trace::SpanData>]) -> Result<Vec<u8>, Error> {
     let mut interner = StringInterner::new();
     let mut encoded_spans = encode_spans(&mut interner, service_name, spans)?;
 
@@ -73,7 +70,7 @@ pub(crate) fn encode(
 fn encode_spans(
     interner: &mut StringInterner,
     service_name: &str,
-    spans: Vec<Arc<trace::SpanData>>,
+    spans: &[Arc<trace::SpanData>],
 ) -> Result<Vec<u8>, Error> {
     let mut encoded = Vec::new();
     rmp::encode::write_array_len(&mut encoded, spans.len() as u32)?;

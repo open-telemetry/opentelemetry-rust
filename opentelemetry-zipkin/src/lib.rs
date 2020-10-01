@@ -89,6 +89,7 @@ extern crate typed_builder;
 mod model;
 mod uploader;
 
+use async_trait::async_trait;
 use model::endpoint::Endpoint;
 use opentelemetry::{api::TracerProvider, exporter::trace, global, sdk};
 use reqwest::Url;
@@ -185,15 +186,16 @@ impl ZipkinPipelineBuilder {
     }
 }
 
+#[async_trait]
 impl trace::SpanExporter for Exporter {
     /// Export spans to Zipkin collector.
-    fn export(&self, batch: Vec<Arc<trace::SpanData>>) -> trace::ExportResult {
+    async fn export(&self, batch: &[Arc<trace::SpanData>]) -> trace::ExportResult {
         let zipkin_spans = batch
-            .into_iter()
+            .iter()
             .map(|span| model::into_zipkin_span(self.local_endpoint.clone(), span))
             .collect();
 
-        self.uploader.upload(zipkin_spans)
+        self.uploader.upload(zipkin_spans).await
     }
 }
 

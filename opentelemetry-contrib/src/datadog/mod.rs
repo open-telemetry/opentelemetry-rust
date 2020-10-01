@@ -85,6 +85,7 @@ mod model;
 
 pub use model::ApiVersion;
 
+use async_trait::async_trait;
 use opentelemetry::{api::TracerProvider, exporter::trace, global, sdk};
 use reqwest::header::CONTENT_TYPE;
 use reqwest::Url;
@@ -100,7 +101,7 @@ const DEFAULT_SERVICE_NAME: &str = "OpenTelemetry";
 /// Datadog span exporter
 #[derive(Debug)]
 pub struct DatadogExporter {
-    client: reqwest::blocking::Client,
+    client: reqwest::Client,
     request_url: Url,
     service_name: String,
     version: ApiVersion,
@@ -112,7 +113,7 @@ impl DatadogExporter {
         request_url.set_path(version.path());
 
         DatadogExporter {
-            client: reqwest::blocking::Client::new(),
+            client: reqwest::Client::new(),
             request_url,
             service_name,
             version,
@@ -190,9 +191,10 @@ impl DatadogPipelineBuilder {
     }
 }
 
+#[async_trait]
 impl trace::SpanExporter for DatadogExporter {
     /// Export spans to datadog-agent
-    fn export(&self, batch: Vec<Arc<trace::SpanData>>) -> trace::ExportResult {
+    async fn export(&self, batch: &[Arc<trace::SpanData>]) -> trace::ExportResult {
         let data = match self.version.encode(&self.service_name, batch) {
             Ok(data) => data,
             Err(_) => return trace::ExportResult::FailedNotRetryable,
@@ -203,7 +205,8 @@ impl trace::SpanExporter for DatadogExporter {
             .post(self.request_url.clone())
             .header(CONTENT_TYPE, self.version.content_type())
             .body(data)
-            .send();
+            .send()
+            .await;
 
         match resp {
             Ok(response) if response.status().is_success() => trace::ExportResult::Success,

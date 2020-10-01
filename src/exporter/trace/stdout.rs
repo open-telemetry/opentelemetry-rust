@@ -25,6 +25,7 @@
 //! }
 //! ```
 use crate::{api::TracerProvider, exporter::trace, global, sdk};
+use async_trait::async_trait;
 use std::fmt::Debug;
 use std::io::{self, stdout, Stdout, Write};
 use std::sync::{Arc, Mutex};
@@ -117,12 +118,13 @@ impl<W: Write> Exporter<W> {
     }
 }
 
+#[async_trait]
 impl<W> trace::SpanExporter for Exporter<W>
 where
     W: Write + Debug + Send + 'static,
 {
     /// Export spans to stdout
-    fn export(&self, batch: Vec<Arc<trace::SpanData>>) -> trace::ExportResult {
+    async fn export(&self, batch: &[Arc<trace::SpanData>]) -> trace::ExportResult {
         let writer = self
             .writer
             .lock()

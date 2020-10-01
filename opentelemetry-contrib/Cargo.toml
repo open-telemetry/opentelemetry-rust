@@ -18,12 +18,13 @@ edition = "2018"
 
 [features]
 default = []
-datadog = ["indexmap", "reqwest", "rmp"]
+datadog = ["indexmap", "reqwest", "rmp", "async-trait"]
 
 [dependencies]
+async-trait = { version = "0.1", optional = true }
 indexmap = { version = "1.6.0", optional = true }
 opentelemetry = { version = "0.8.0", path = ".." }
-reqwest = { version = "0.10", features = ["blocking"], optional = true }
+reqwest = { version = "0.10", optional = true }
 rmp = { version = "0.8", optional = true }
 lazy_static = "1.4"
 

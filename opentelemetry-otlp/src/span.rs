@@ -3,6 +3,7 @@
 //! Defines a [SpanExporter] to send trace data via the OpenTelemetry Protocol (OTLP)
 use crate::proto::trace_service::ExportTraceServiceRequest;
 use crate::proto::trace_service_grpc::TraceServiceClient;
+use async_trait::async_trait;
 use grpcio::{
     CallOption, Channel, ChannelBuilder, ChannelCredentialsBuilder, Environment, MetadataBuilder,
 };
@@ -144,12 +145,11 @@ impl Exporter {
     }
 }
 
+#[async_trait]
 impl SpanExporter for Exporter {
-    fn export(&self, batch: Vec<Arc<SpanData>>) -> ExportResult {
+    async fn export(&self, batch: &[Arc<SpanData>]) -> ExportResult {
         let request = ExportTraceServiceRequest {
-            resource_spans: RepeatedField::from_vec(
-                batch.into_iter().map(|span| span.into()).collect(),
-            ),
+            resource_spans: RepeatedField::from_vec(batch.iter().map(|span| span.into()).collect()),
             unknown_fields: Default::default(),
             cached_size: Default::default(),
         };
@@ -166,8 +166,11 @@ impl SpanExporter for Exporter {
             call_options = call_options.headers(metadata_builder.build());
         }
 
-        match self.trace_exporter.export_opt(&request, call_options) {
-            Ok(_) => Success,
+        match self.trace_exporter.export_async_opt(&request, call_options) {
+            Ok(receiver) => match receiver.await {
+                Ok(_) => Success,
+                Err(_) => FailedNotRetryable,
+            },
             Err(_) => FailedNotRetryable,
         }
     }

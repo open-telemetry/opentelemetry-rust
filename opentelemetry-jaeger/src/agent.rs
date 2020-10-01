@@ -1,57 +1,120 @@
 //! # UDP Jaeger Agent Client
-use crate::thrift::{agent, jaeger, zipkincore};
-use crate::transport::TUdpChannel;
+use crate::thrift::{
+    agent::{self, TAgentSyncClient},
+    jaeger,
+};
+use crate::transport::TNoopChannel;
 use std::fmt;
-use std::net::ToSocketAddrs;
-use thrift::protocol;
-use thrift::protocol::{TCompactInputProtocol, TCompactOutputProtocol};
-use thrift::transport::{ReadHalf, TIoChannel, WriteHalf};
+use std::net::{ToSocketAddrs, UdpSocket};
+use std::sync::Mutex;
+use thrift::{
+    protocol::{TCompactInputProtocol, TCompactOutputProtocol},
+    transport::{ReadHalf, TBufferChannel, TIoChannel, WriteHalf},
+};
 
-/// The max size of UDP packet we want to send, synced with jaeger-agent.
-const UDP_MAX_PACKET_SIZE: usize = 65000;
-
-/// `AgentSyncClientUDP` implements the `TAgentSyncClient` interface over UDP
-pub(crate) struct AgentSyncClientUDP {
+struct BufferClient {
+    buffer: ReadHalf<TBufferChannel>,
     client: agent::AgentSyncClient<
-        TCompactInputProtocol<ReadHalf<TUdpChannel>>,
-        TCompactOutputProtocol<WriteHalf<TUdpChannel>>,
+        TCompactInputProtocol<TNoopChannel>,
+        TCompactOutputProtocol<WriteHalf<TBufferChannel>>,
     >,
 }
 
-impl fmt::Debug for AgentSyncClientUDP {
+impl fmt::Debug for BufferClient {
     /// Debug info
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt.debug_struct("AgentClientUDP")
+        fmt.debug_struct("BufferClient")
+            .field("buffer", &self.buffer)
             .field("client", &"AgentSyncClient")
             .finish()
     }
 }
 
-impl AgentSyncClientUDP {
-    /// Create a new UDP agent client
-    pub(crate) fn new<T: ToSocketAddrs>(
-        host_port: T,
-        max_packet_size: Option<usize>,
-    ) -> thrift::Result<Self> {
-        let transport = TUdpChannel::new(host_port, max_packet_size.or(Some(UDP_MAX_PACKET_SIZE)))?;
-        let (read, write) = transport.split()?;
-        let client = agent::AgentSyncClient::new(
-            protocol::TCompactInputProtocol::new(read),
-            protocol::TCompactOutputProtocol::new(write),
-        );
-
-        Ok(AgentSyncClientUDP { client })
-    }
+/// `AgentAsyncClientUDP` implements an async version of the `TAgentSyncClient`
+/// interface over UDP.
+#[derive(Debug)]
+pub(crate) struct AgentAsyncClientUDP {
+    #[cfg(all(not(feature = "async-std"), not(feature = "tokio")))]
+    conn: UdpSocket,
+    #[cfg(feature = "tokio")]
+    conn: tokio::sync::Mutex<tokio::net::UdpSocket>,
+    #[cfg(all(feature = "async-std", not(feature = "tokio")))]
+    conn: async_std::sync::Mutex<async_std::net::UdpSocket>,
+    buffer_client: Mutex<BufferClient>,
 }
 
-impl agent::TAgentSyncClient for AgentSyncClientUDP {
-    /// Emit zipkin batch (Deprecated)
-    fn emit_zipkin_batch(&mut self, spans: Vec<zipkincore::Span>) -> thrift::Result<()> {
-        self.client.emit_zipkin_batch(spans)
+impl AgentAsyncClientUDP {
+    /// Create a new UDP agent client
+    pub(crate) fn new<T: ToSocketAddrs>(host_port: T) -> thrift::Result<Self> {
+        let (buffer, write) = TBufferChannel::with_capacity(0, 512).split()?;
+        let client = agent::AgentSyncClient::new(
+            TCompactInputProtocol::new(TNoopChannel),
+            TCompactOutputProtocol::new(write),
+        );
+
+        let conn = UdpSocket::bind("0.0.0.0:0")?;
+        conn.connect(host_port)?;
+
+        Ok(AgentAsyncClientUDP {
+            #[cfg(all(not(feature = "async-std"), not(feature = "tokio")))]
+            conn,
+            #[cfg(feature = "tokio")]
+            conn: tokio::sync::Mutex::new(tokio::net::UdpSocket::from_std(conn)?),
+            #[cfg(all(feature = "async-std", not(feature = "tokio")))]
+            conn: async_std::sync::Mutex::new(async_std::net::UdpSocket::from(conn)),
+            buffer_client: Mutex::new(BufferClient { buffer, client }),
+        })
     }
 
     /// Emit standard Jaeger batch
-    fn emit_batch(&mut self, batch: jaeger::Batch) -> thrift::Result<()> {
-        self.client.emit_batch(batch)
+    pub(crate) async fn emit_batch(&self, batch: jaeger::Batch) -> thrift::Result<()> {
+        // Write payload to buffer
+        let payload = self
+            .buffer_client
+            .lock()
+            .map_err(|err| {
+                thrift::Error::from(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    err.to_string(),
+                ))
+            })
+            .and_then(|mut buffer_client| {
+                // Write to tmp buffer
+                buffer_client.client.emit_batch(batch)?;
+                // extract written payload
+                let payload = buffer_client.buffer.write_bytes();
+                // reset
+                buffer_client.buffer.empty_write_buffer();
+
+                Ok(payload)
+            })?;
+
+        // Write async to socket, reading from buffer
+        write_to_socket(self, payload).await?;
+
+        Ok(())
     }
+}
+
+#[cfg(all(not(feature = "async-std"), not(feature = "tokio")))]
+async fn write_to_socket(client: &AgentAsyncClientUDP, payload: Vec<u8>) -> thrift::Result<()> {
+    client.conn.send(&payload)?;
+
+    Ok(())
+}
+
+#[cfg(feature = "tokio")]
+async fn write_to_socket(client: &AgentAsyncClientUDP, payload: Vec<u8>) -> thrift::Result<()> {
+    let mut conn = client.conn.lock().await;
+    conn.send(&payload).await?;
+
+    Ok(())
+}
+
+#[cfg(all(feature = "async-std", not(feature = "tokio")))]
+async fn write_to_socket(client: &AgentAsyncClientUDP, payload: Vec<u8>) -> thrift::Result<()> {
+    let conn = client.conn.lock().await;
+    conn.send(&payload).await?;
+
+    Ok(())
 }

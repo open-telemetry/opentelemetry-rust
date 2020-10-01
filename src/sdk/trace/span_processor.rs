@@ -93,11 +93,7 @@
 //! [`tokio`]: https://tokio.rs
 //! [`async-std`]: https://async.rs
 use crate::{api, exporter};
-use futures::{
-    channel::mpsc,
-    task::{Context, Poll},
-    Future, FutureExt, Stream, StreamExt,
-};
+use futures::{channel::mpsc, executor, future::BoxFuture, Future, FutureExt, Stream, StreamExt};
 use std::fmt;
 use std::pin::Pin;
 use std::str::FromStr;
@@ -137,9 +133,7 @@ impl api::SpanProcessor for SimpleSpanProcessor {
     }
 
     fn on_end(&self, span: Arc<exporter::trace::SpanData>) {
-        if span.span_context.is_sampled() {
-            self.exporter.export(vec![span]);
-        }
+        executor::block_on(self.exporter.export(&[span]));
     }
 
     fn shutdown(&mut self) {
@@ -186,64 +180,6 @@ impl api::SpanProcessor for BatchSpanProcessor {
     }
 }
 
-/// A worker process that batches and processes spans as they are reported.
-///
-/// This process is implemented as a [`Future`] that returns when the accompanying
-/// [`BatchSpanProcessor`] is shut down, and allows systems like [`tokio`] and [`async-std`] to
-/// process the work in the background without requiring dedicated system threads.
-#[allow(missing_debug_implementations)]
-pub struct BatchSpanProcessorWorker {
-    exporter: Box<dyn exporter::trace::SpanExporter>,
-    messages: Pin<Box<dyn Stream<Item = BatchMessage> + Send>>,
-    config: BatchConfig,
-    buffer: Vec<Arc<exporter::trace::SpanData>>,
-}
-
-impl BatchSpanProcessorWorker {
-    fn export_spans(&mut self) {
-        if !self.buffer.is_empty() {
-            let mut spans = std::mem::replace(&mut self.buffer, Vec::new());
-            while !spans.is_empty() {
-                let batch_idx = spans
-                    .len()
-                    .saturating_sub(self.config.max_export_batch_size);
-                let batch = spans.split_off(batch_idx);
-                self.exporter.export(batch);
-            }
-        }
-    }
-}
-
-impl Drop for BatchSpanProcessorWorker {
-    fn drop(&mut self) {
-        self.export_spans();
-    }
-}
-
-impl Future for BatchSpanProcessorWorker {
-    type Output = ();
-
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        loop {
-            match futures::ready!(self.messages.poll_next_unpin(cx)) {
-                // Span has finished, add to buffer of pending spans.
-                Some(BatchMessage::ExportSpan(span)) => {
-                    if self.buffer.len() < self.config.max_queue_size {
-                        self.buffer.push(span);
-                    }
-                }
-                // Span batch interval time reached, export current spans.
-                Some(BatchMessage::Tick) => self.export_spans(),
-                // Stream has terminated or processor is shutdown, return to finish execution.
-                None | Some(BatchMessage::Shutdown) => {
-                    self.exporter.shutdown();
-                    return Poll::Ready(());
-                }
-            }
-        }
-    }
-}
-
 #[derive(Debug)]
 enum BatchMessage {
     ExportSpan(Arc<exporter::trace::SpanData>),
@@ -253,13 +189,13 @@ enum BatchMessage {
 
 impl BatchSpanProcessor {
     pub(crate) fn new<S, SH, SO, I, IS, ISI>(
-        exporter: Box<dyn exporter::trace::SpanExporter>,
+        mut exporter: Box<dyn exporter::trace::SpanExporter>,
         spawn: S,
         interval: I,
         config: BatchConfig,
     ) -> Self
     where
-        S: Fn(BatchSpanProcessorWorker) -> SH,
+        S: Fn(BoxFuture<'static, ()>) -> SH,
         SH: Future<Output = SO> + Send + Sync + 'static,
         I: Fn(time::Duration) -> IS,
         IS: Stream<Item = ISI> + Send + 'static,
@@ -268,12 +204,36 @@ impl BatchSpanProcessor {
         let ticker = interval(config.scheduled_delay).map(|_| BatchMessage::Tick);
 
         // Spawn worker process via user-defined spawn function.
-        let worker_handle = spawn(BatchSpanProcessorWorker {
-            exporter,
-            messages: Box::pin(futures::stream::select(message_receiver, ticker)),
-            config,
-            buffer: Vec::new(),
-        })
+        let worker_handle = spawn(Box::pin(async move {
+            let mut spans = Vec::new();
+            let mut messages = Box::pin(futures::stream::select(message_receiver, ticker));
+
+            while let Some(message) = messages.next().await {
+                match message {
+                    // Span has finished, add to buffer of pending spans.
+                    BatchMessage::ExportSpan(span) => {
+                        if spans.len() < config.max_queue_size {
+                            spans.push(span);
+                        }
+                    }
+                    // Span batch interval time reached, export current spans.
+                    BatchMessage::Tick => {
+                        for batch in spans.chunks(config.max_export_batch_size) {
+                            exporter.export(batch).await;
+                        }
+                        spans.clear();
+                    }
+                    // Stream has terminated or processor is shutdown, return to finish execution.
+                    BatchMessage::Shutdown => {
+                        for batch in spans.chunks(config.max_export_batch_size) {
+                            exporter.export(batch).await;
+                        }
+                        exporter.shutdown();
+                        break;
+                    }
+                }
+            }
+        }))
         .map(|_| ());
 
         // Return batch processor with link to worker
@@ -291,7 +251,7 @@ impl BatchSpanProcessor {
     ) -> BatchSpanProcessorBuilder<E, S, I>
     where
         E: exporter::trace::SpanExporter,
-        S: Fn(BatchSpanProcessorWorker) -> SH,
+        S: Fn(BoxFuture<'static, ()>) -> SH,
         SH: Future<Output = SO> + Send + Sync + 'static,
         I: Fn(time::Duration) -> IO,
     {
@@ -310,14 +270,15 @@ impl BatchSpanProcessor {
     /// Note that export batch size should be less than or equals to max queue size.
     /// If export batch size is larger than max queue size, we will lower to be the same as max
     /// queue size
-    pub fn from_env<E, S, SO, I, IO>(
+    pub fn from_env<E, S, SH, SO, I, IO>(
         exporter: E,
         spawn: S,
         interval: I,
     ) -> BatchSpanProcessorBuilder<E, S, I>
     where
         E: exporter::trace::SpanExporter,
-        S: Fn(BatchSpanProcessorWorker) -> SO,
+        S: Fn(BoxFuture<'static, ()>) -> SH,
+        SH: Future<Output = SO> + Send + Sync + 'static,
         I: Fn(time::Duration) -> IO,
     {
         let mut config = BatchConfig::default();
@@ -397,7 +358,7 @@ pub struct BatchSpanProcessorBuilder<E, S, I> {
 impl<E, S, SH, SO, I, IS, ISI> BatchSpanProcessorBuilder<E, S, I>
 where
     E: exporter::trace::SpanExporter + 'static,
-    S: Fn(BatchSpanProcessorWorker) -> SH,
+    S: Fn(BoxFuture<'static, ()>) -> SH,
     SH: Future<Output = SO> + Send + Sync + 'static,
     I: Fn(time::Duration) -> IS,
     IS: Stream<Item = ISI> + Send + 'static,
@@ -447,9 +408,8 @@ where
 mod tests {
     use crate::exporter::trace::stdout;
     use crate::sdk::trace::span_processor::{
-        OTEL_BSP_MAX_EXPORT_BATCH_SIZE, OTEL_BSP_MAX_QUEUE_SIZE,
-        OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT, OTEL_BSP_SCHEDULE_DELAY_MILLIS,
-        OTEL_BSP_SCHEDULE_DELAY_MILLIS_DEFAULT,
+        OTEL_BSP_MAX_EXPORT_BATCH_SIZE, OTEL_BSP_MAX_QUEUE_SIZE, OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT,
+        OTEL_BSP_SCHEDULE_DELAY_MILLIS, OTEL_BSP_SCHEDULE_DELAY_MILLIS_DEFAULT,
     };
     use crate::sdk::BatchSpanProcessor;
     use std::time;
