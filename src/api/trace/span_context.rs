@@ -126,7 +126,7 @@ impl SpanId {
 /// [W3C specification]: https://www.w3.org/TR/trace-context/#tracestate-header
 #[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
-pub struct TraceState(VecDeque<(String, String)>);
+pub struct TraceState(Option<VecDeque<(String, String)>>);
 
 impl TraceState {
     /// Validates that the given `TraceState` list-member key is valid per the [W3 Spec]['spec'].
@@ -170,7 +170,7 @@ impl TraceState {
         K: ToString,
         V: ToString,
     {
-        let ordered_data: Result<VecDeque<(String, String)>, ()> = trace_state
+        let ordered_data = trace_state
             .into_iter()
             .map(|(key, value)| {
                 let (key, value) = (key.to_string(), value.to_string());
@@ -181,19 +181,25 @@ impl TraceState {
 
                 Ok((key, value))
             })
-            .collect();
+            .collect::<Result<VecDeque<_>, ()>>()?;
 
-        ordered_data.map(TraceState)
+        if ordered_data.is_empty() {
+            Ok(TraceState(None))
+        } else {
+            Ok(TraceState(Some(ordered_data)))
+        }
     }
 
     /// Retrieves a value for a given key from the `TraceState` if it exists.
     pub fn get(&self, key: &str) -> Option<&str> {
-        self.0.iter().find_map(|item| {
-            if item.0.as_str() == key {
-                Some(item.1.as_str())
-            } else {
-                None
-            }
+        self.0.as_ref().and_then(|kvs| {
+            kvs.iter().find_map(|item| {
+                if item.0.as_str() == key {
+                    Some(item.1.as_str())
+                } else {
+                    None
+                }
+            })
         })
     }
 
@@ -209,8 +215,9 @@ impl TraceState {
         }
 
         let mut trace_state = self.delete(key.clone())?;
+        let kvs = trace_state.0.get_or_insert(VecDeque::with_capacity(1));
 
-        trace_state.0.push_front((key, value));
+        kvs.push_front((key, value));
 
         Ok(trace_state)
     }
@@ -226,9 +233,12 @@ impl TraceState {
         }
 
         let mut owned = self.clone();
+        let kvs = owned.0.as_mut().ok_or(())?;
 
-        if let Some(index) = owned.0.iter().position(|x| *x.0 == *key) {
-            owned.0.remove(index);
+        if let Some(index) = kvs.iter().position(|x| *x.0 == *key) {
+            kvs.remove(index);
+        } else {
+            return Err(());
         }
 
         Ok(owned)
@@ -243,10 +253,14 @@ impl TraceState {
     /// Creates a new `TraceState` header string, with the given key/value delimiter and entry delimiter.
     pub fn header_delimited(&self, entry_delimiter: &str, list_delimiter: &str) -> String {
         self.0
-            .iter()
-            .map(|(key, value)| format!("{}{}{}", key, entry_delimiter, value))
-            .collect::<Vec<String>>()
-            .join(list_delimiter)
+            .as_ref()
+            .map(|kvs| {
+                kvs.iter()
+                    .map(|(key, value)| format!("{}{}{}", key, entry_delimiter, value))
+                    .collect::<Vec<String>>()
+                    .join(list_delimiter)
+            })
+            .unwrap_or_default()
     }
 }
 
