@@ -68,6 +68,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt;
 use std::hash::{BuildHasherDefault, Hasher};
+use std::marker::PhantomData;
 use std::sync::Arc;
 
 #[cfg(feature = "trace")]
@@ -290,10 +291,14 @@ impl Context {
     /// assert_eq!(Context::current().get::<ValueA>(), None);
     /// ```
     pub fn attach(self) -> ContextGuard {
-        let prior = CURRENT_CONTEXT
+        let previous_cx = CURRENT_CONTEXT
             .try_with(|current| current.replace(self))
             .ok();
-        ContextGuard(prior)
+
+        ContextGuard {
+            previous_cx,
+            _marker: PhantomData,
+        }
     }
 }
 
@@ -307,11 +312,15 @@ impl fmt::Debug for Context {
 
 /// A guard that resets the current context to the prior context when dropped.
 #[allow(missing_debug_implementations)]
-pub struct ContextGuard(Option<Context>);
+pub struct ContextGuard {
+    previous_cx: Option<Context>,
+    // ensure this type is !Send as it relies on thread locals
+    _marker: PhantomData<*const ()>,
+}
 
 impl Drop for ContextGuard {
     fn drop(&mut self) {
-        if let Some(previous_cx) = self.0.take() {
+        if let Some(previous_cx) = self.previous_cx.take() {
             let _ = CURRENT_CONTEXT.try_with(|current| current.replace(previous_cx));
         }
     }
