@@ -38,6 +38,7 @@
 //! MUST NOT allow this combination.
 
 use crate::api;
+use crate::api::TraceState;
 
 /// The `ShouldSample` interface allows implementations to provide samplers
 /// which will return a sampling `SamplingResult` based on information that
@@ -63,6 +64,8 @@ pub struct SamplingResult {
     pub decision: SamplingDecision,
     /// Extra attributes added by this result
     pub attributes: Vec<api::KeyValue>,
+    /// Trace state from parent context, might be modified by sampler
+    pub trace_state: TraceState,
 }
 
 /// Decision about whether or not to sample
@@ -142,6 +145,11 @@ impl ShouldSample for Sampler {
             decision,
             // No extra attributes ever set by the SDK samplers.
             attributes: Vec::new(),
+            // all sampler in SDK will not modify trace state.
+            trace_state: match parent_context {
+                Some(ctx) => ctx.trace_state().clone(),
+                None => TraceState::default(),
+            },
         }
     }
 }
