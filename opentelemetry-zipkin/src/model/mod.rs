@@ -25,6 +25,29 @@ impl Into<annotation::Annotation> for api::Event {
     }
 }
 
+/// Converts StatusCode to str
+fn from_statuscode_to_str(status_code: api::StatusCode) -> &'static str {
+    match status_code {
+        api::StatusCode::OK => "OK",
+        api::StatusCode::Canceled => "CANCELLED",
+        api::StatusCode::Unknown => "UNKNOWN",
+        api::StatusCode::InvalidArgument => "INVALID_ARGUMENT",
+        api::StatusCode::DeadlineExceeded => "DEADLINE_EXCEEDED",
+        api::StatusCode::NotFound => "NOT_FOUND",
+        api::StatusCode::AlreadyExists => "ALREADY_EXISTS",
+        api::StatusCode::PermissionDenied => "PERMISSION_DENIED",
+        api::StatusCode::ResourceExhausted => "RESOURSE_EXHAUSTED",
+        api::StatusCode::FailedPrecondition => "FAILED_PRECONDITION",
+        api::StatusCode::Aborted => "ABORTED",
+        api::StatusCode::OutOfRange => "OUT_OF_RANGE",
+        api::StatusCode::Unimplemented => "UNINPLEMENTED",
+        api::StatusCode::Internal => "INTERNAL",
+        api::StatusCode::Unavailable => "UNAVAILABLE",
+        api::StatusCode::DataLoss => "DATA_LOSS",
+        api::StatusCode::Unauthenticated => "UNAUTHENTICATED",
+    }
+}
+
 /// Converts `api::SpanKind` into an `Option<span::Kind>`
 fn into_zipkin_span_kind(kind: api::SpanKind) -> Option<span::Kind> {
     match kind {
@@ -43,7 +66,7 @@ pub(crate) fn into_zipkin_span(
     span_data: &Arc<trace::SpanData>,
 ) -> span::Span {
     let mut user_defined_span_kind = false;
-    let tags = map_from_kvs(
+    let mut tags = map_from_kvs(
         span_data
             .attributes
             .iter()
@@ -59,6 +82,15 @@ pub(crate) fn into_zipkin_span(
                     .iter()
                     .map(|(k, v)| api::KeyValue::new(k.clone(), v.clone())),
             ),
+    );
+
+    tags.insert(
+        "otel.status_code".into(),
+        from_statuscode_to_str(span_data.status_code.clone()).into(),
+    );
+    tags.insert(
+        "otel.status_description".into(),
+        span_data.status_message.clone(),
     );
 
     span::Span::builder()
