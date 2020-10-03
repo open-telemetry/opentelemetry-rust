@@ -161,9 +161,16 @@ impl api::Tracer for NoopTracer {
 /// A no-op instance of an [`SpanExporter`].
 ///
 /// [`SpanExporter`]: ../../../exporter/trace/trait.SpanExporter.html
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct NoopSpanExporter {
     _private: (),
+}
+
+impl NoopSpanExporter {
+    /// Create a new noop span exporter
+    pub fn new() -> Self {
+        NoopSpanExporter { _private: () }
+    }
 }
 
 #[async_trait]

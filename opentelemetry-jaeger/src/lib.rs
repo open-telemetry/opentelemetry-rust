@@ -355,7 +355,7 @@ impl PipelineBuilder {
         Ok((tracer, Uninstall(provider_guard)))
     }
 
-    /// Build a configured `sdk::TraceProvider` with the recommended defaults.
+    /// Build a configured `sdk::TracerProvider` with the recommended defaults.
     pub fn build(mut self) -> Result<sdk::TracerProvider, Box<dyn Error>> {
         let config = self.config.take();
         let exporter = self.init_exporter()?;
