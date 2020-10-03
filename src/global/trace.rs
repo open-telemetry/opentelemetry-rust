@@ -195,11 +195,11 @@ where
 /// [`TracerProvider`]: ../api/trace/provider/trait.TracerProvider.html
 /// [`BoxedTracer`]: struct.BoxedTracer.html
 #[derive(Clone, Debug)]
-pub struct GlobalProvider {
+pub struct GlobalTracerProvider {
     provider: Arc<dyn GenericProvider + Send + Sync>,
 }
 
-impl GlobalProvider {
+impl GlobalTracerProvider {
     /// Create a new GlobalProvider instance from a struct that implements `TracerProvider`.
     fn new<P, T, S>(provider: P) -> Self
     where
@@ -207,13 +207,13 @@ impl GlobalProvider {
         T: api::Tracer<Span = S> + Send + Sync,
         P: api::TracerProvider<Tracer = T> + Send + Sync,
     {
-        GlobalProvider {
+        GlobalTracerProvider {
             provider: Arc::new(provider),
         }
     }
 }
 
-impl api::TracerProvider for GlobalProvider {
+impl api::TracerProvider for GlobalTracerProvider {
     type Tracer = BoxedTracer;
 
     /// Find or create a named tracer using the global provider.
@@ -224,7 +224,7 @@ impl api::TracerProvider for GlobalProvider {
 
 lazy_static::lazy_static! {
     /// The global `Tracer` provider singleton.
-    static ref GLOBAL_TRACER_PROVIDER: RwLock<GlobalProvider> = RwLock::new(GlobalProvider::new(api::NoopProvider {}));
+    static ref GLOBAL_TRACER_PROVIDER: RwLock<GlobalTracerProvider> = RwLock::new(GlobalTracerProvider::new(api::NoopTracerProvider::new()));
 }
 
 /// Returns an instance of the currently configured global [`TracerProvider`] through
@@ -232,7 +232,7 @@ lazy_static::lazy_static! {
 ///
 /// [`TracerProvider`]: ../api/trace/provider/trait.TracerProvider.html
 /// [`GlobalProvider`]: struct.GlobalProvider.html
-pub fn tracer_provider() -> GlobalProvider {
+pub fn tracer_provider() -> GlobalTracerProvider {
     GLOBAL_TRACER_PROVIDER
         .read()
         .expect("GLOBAL_TRACER_PROVIDER RwLock poisoned")
@@ -267,7 +267,7 @@ pub fn tracer_with_version(name: &'static str, version: &'static str) -> BoxedTr
 /// This is commonly used to uninstall pipelines. As you can only have one active tracer provider,
 /// the previous provider is usually the default no-op provider.
 #[derive(Debug)]
-pub struct TracerProviderGuard(Option<GlobalProvider>);
+pub struct TracerProviderGuard(Option<GlobalTracerProvider>);
 
 impl Drop for TracerProviderGuard {
     fn drop(&mut self) {
@@ -290,9 +290,12 @@ where
     T: api::Tracer<Span = S> + Send + Sync,
     P: api::TracerProvider<Tracer = T> + Send + Sync,
 {
-    let mut global_provider = GLOBAL_TRACER_PROVIDER
+    let mut tracer_provider = GLOBAL_TRACER_PROVIDER
         .write()
         .expect("GLOBAL_TRACER_PROVIDER RwLock poisoned");
-    let previous = mem::replace(&mut *global_provider, GlobalProvider::new(new_provider));
+    let previous = mem::replace(
+        &mut *tracer_provider,
+        GlobalTracerProvider::new(new_provider),
+    );
     TracerProviderGuard(Some(previous))
 }
