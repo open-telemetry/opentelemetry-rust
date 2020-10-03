@@ -79,7 +79,7 @@ impl Buckets {
 }
 
 /// Histogram returns the count of events in pre-determined buckets.
-pub trait Histogram: Sum {
+pub trait Histogram: Sum + Count {
     /// Buckets for this histogram.
     fn histogram(&self) -> Result<Buckets>;
 }

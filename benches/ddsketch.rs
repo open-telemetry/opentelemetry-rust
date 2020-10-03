@@ -5,7 +5,7 @@ use opentelemetry::{
     api::metrics::Descriptor,
     sdk::{
         export::metrics::Quantile,
-        metrics::aggregators::{ArrayAggregator, DDSKetchAggregator},
+        metrics::aggregators::{ArrayAggregator, DDSKetchAggregator, DDSketchConfig},
     },
 };
 use rand::Rng;
@@ -24,7 +24,8 @@ fn get_test_quantile() -> &'static [f64] {
 }
 
 fn ddsketch(data: Vec<f64>) {
-    let aggregator = DDSKetchAggregator::new(0.001, 2048, 1e-9, NumberKind::F64);
+    let aggregator =
+        DDSKetchAggregator::new(&DDSketchConfig::new(0.001, 2048, 1e-9), NumberKind::F64);
     let descriptor = Descriptor::new(
         "test".to_string(),
         "test".to_string(),
@@ -34,8 +35,10 @@ fn ddsketch(data: Vec<f64>) {
     for f in data {
         aggregator.update(&Number::from(f), &descriptor).unwrap();
     }
-    let new_aggregator: Arc<(dyn Aggregator + Send + Sync)> =
-        Arc::new(DDSKetchAggregator::new(0.001, 2048, 1e-9, NumberKind::F64));
+    let new_aggregator: Arc<(dyn Aggregator + Send + Sync)> = Arc::new(DDSKetchAggregator::new(
+        &DDSketchConfig::new(0.001, 2048, 1e-9),
+        NumberKind::F64,
+    ));
     aggregator
         .synchronized_move(&new_aggregator, &descriptor)
         .unwrap();

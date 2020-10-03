@@ -32,13 +32,8 @@ const DEFAULT_ALPHA: f64 = 0.01;
 const DEFAULT_MIN_BOUNDARY: f64 = 1.0e-9;
 
 /// An aggregator to calculate quantile
-pub fn ddsketch(
-    alpha: f64,
-    max_num_bins: i64,
-    key_epsilon: f64,
-    kind: NumberKind,
-) -> DDSKetchAggregator {
-    DDSKetchAggregator::new(alpha, max_num_bins, key_epsilon, kind)
+pub fn ddsketch(config: &DDSketchConfig, kind: NumberKind) -> DDSKetchAggregator {
+    DDSKetchAggregator::new(config, kind)
 }
 
 /// DDSKetch quantile sketch algorithm
@@ -63,14 +58,9 @@ impl DDSKetchAggregator {
     /// than `alpha`
     ///
     /// The input should have a granularity larger than `key_epsilon`
-    pub fn new(
-        alpha: f64,
-        max_num_bins: i64,
-        key_epsilon: f64,
-        kind: NumberKind,
-    ) -> DDSKetchAggregator {
+    pub fn new(config: &DDSketchConfig, kind: NumberKind) -> DDSKetchAggregator {
         DDSKetchAggregator {
-            inner: RwLock::new(Inner::new(alpha, max_num_bins, key_epsilon, kind)),
+            inner: RwLock::new(Inner::new(config, kind)),
         }
     }
 }
@@ -78,9 +68,7 @@ impl DDSKetchAggregator {
 impl Default for DDSKetchAggregator {
     fn default() -> Self {
         DDSKetchAggregator::new(
-            DEFAULT_ALPHA,
-            DEFAULT_MAX_NUM_BINS,
-            DEFAULT_MIN_BOUNDARY,
+            &DDSketchConfig::new(DEFAULT_ALPHA, DEFAULT_MAX_NUM_BINS, DEFAULT_MIN_BOUNDARY),
             NumberKind::F64,
         )
     }
@@ -304,7 +292,27 @@ impl Aggregator for DDSKetchAggregator {
     }
 }
 
+/// DDSKetch Configuration.
+#[derive(Debug)]
+pub struct DDSketchConfig {
+    alpha: f64,
+    max_num_bins: i64,
+    key_epsilon: f64,
+}
+
+impl DDSketchConfig {
+    /// Create a new DDSKetch config
+    pub fn new(alpha: f64, max_num_bins: i64, key_epsilon: f64) -> Self {
+        DDSketchConfig {
+            alpha,
+            max_num_bins,
+            key_epsilon,
+        }
+    }
+}
+
 /// DDSKetch implementation.
+///
 /// Note that Inner is not thread-safe. All operation should be protected by a lock or other
 /// synchronization.
 ///
@@ -338,17 +346,17 @@ struct Inner {
 }
 
 impl Inner {
-    fn new(alpha: f64, max_num_bins: i64, key_epsilon: f64, kind: NumberKind) -> Inner {
-        let gamma: f64 = 1.0 + 2.0 * alpha / (1.0 - alpha);
+    fn new(config: &DDSketchConfig, kind: NumberKind) -> Inner {
+        let gamma: f64 = 1.0 + 2.0 * config.alpha / (1.0 - config.alpha);
         let mut inner = Inner {
-            positive_store: Store::new(max_num_bins / 2),
-            negative_store: Store::new(max_num_bins / 2),
+            positive_store: Store::new(config.max_num_bins / 2),
+            negative_store: Store::new(config.max_num_bins / 2),
             min_value: kind.max(),
             max_value: kind.min(),
             sum: kind.zero(),
             gamma,
             gamma_ln: gamma.ln(),
-            key_epsilon,
+            key_epsilon: config.key_epsilon,
             offset: 0,
             kind,
         };
@@ -635,10 +643,9 @@ impl Store {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::api::metrics::{Descriptor, InstrumentKind, Number, NumberKind};
     use crate::sdk::export::metrics::{Aggregator, Count, Max, Min, Quantile, Sum};
-    use crate::sdk::metrics::aggregators::ddsketch::Store;
-    use crate::sdk::metrics::aggregators::DDSKetchAggregator;
     use rand_distr::{Distribution, Exp, LogNormal, Normal};
     use std::cmp::Ordering;
     use std::sync::Arc;
@@ -794,8 +801,10 @@ mod tests {
     /// Note that data must be sorted.
     fn evaluate_sketch(dataset: Dataset) {
         let kind = &dataset.kind;
-        let ddsketch =
-            DDSKetchAggregator::new(TEST_ALPHA, TEST_MAX_BINS, TEST_KEY_EPSILON, kind.clone());
+        let ddsketch = DDSKetchAggregator::new(
+            &DDSketchConfig::new(TEST_ALPHA, TEST_MAX_BINS, TEST_KEY_EPSILON),
+            kind.clone(),
+        );
         let descriptor = Descriptor::new(
             "test".to_string(),
             "test".to_string(),
@@ -957,8 +966,10 @@ mod tests {
     fn test_synchronized_move() {
         let dataset = Dataset::from_f64_vec(generate_normal_dataset(1.0, 3.5, 100));
         let kind = &dataset.kind;
-        let ddsketch =
-            DDSKetchAggregator::new(TEST_ALPHA, TEST_MAX_BINS, TEST_KEY_EPSILON, kind.clone());
+        let ddsketch = DDSKetchAggregator::new(
+            &DDSketchConfig::new(TEST_ALPHA, TEST_MAX_BINS, TEST_KEY_EPSILON),
+            kind.clone(),
+        );
         let descriptor = Descriptor::new(
             "test".to_string(),
             "test".to_string(),
@@ -978,9 +989,11 @@ mod tests {
         let expected_min = ddsketch.min().unwrap().to_f64(&NumberKind::F64);
         let expected_max = ddsketch.max().unwrap().to_f64(&NumberKind::F64);
 
-        let moved_ddsketch: Arc<(dyn Aggregator + Send + Sync)> = Arc::new(
-            DDSKetchAggregator::new(TEST_ALPHA, TEST_MAX_BINS, TEST_KEY_EPSILON, NumberKind::F64),
-        );
+        let moved_ddsketch: Arc<(dyn Aggregator + Send + Sync)> =
+            Arc::new(DDSKetchAggregator::new(
+                &DDSketchConfig::new(TEST_ALPHA, TEST_MAX_BINS, TEST_KEY_EPSILON),
+                NumberKind::F64,
+            ));
         let _ = ddsketch
             .synchronized_move(&moved_ddsketch, &descriptor)
             .expect("Fail to sync move");
