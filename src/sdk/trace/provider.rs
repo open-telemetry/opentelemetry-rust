@@ -65,7 +65,7 @@ impl TracerProvider {
 }
 
 impl api::TracerProvider for TracerProvider {
-    /// This implementation of `api::TraceProvider` produces `sdk::Tracer` instances.
+    /// This implementation of `api::TracerProvider` produces `sdk::Tracer` instances.
     type Tracer = sdk::Tracer;
 
     /// Find or create `Tracer` instance by name.

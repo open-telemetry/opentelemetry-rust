@@ -40,7 +40,7 @@ pub use trace::{
     futures::FutureExt,
     id_generator::IdGenerator,
     link::Link,
-    noop::{NoopProvider, NoopSpan, NoopSpanExporter, NoopTracer},
+    noop::{NoopSpan, NoopSpanExporter, NoopTracer, NoopTracerProvider},
     provider::TracerProvider,
     span::{Span, SpanKind, StatusCode},
     span_context::{

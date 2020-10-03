@@ -30,7 +30,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 /// use opentelemetry_contrib::XrayIdGenerator;
 ///
 /// let _provider: TracerProvider = TracerProvider::builder()
-///     .with_simple_exporter(NoopSpanExporter {})
+///     .with_simple_exporter(NoopSpanExporter::new())
 ///     .with_config(Config {
 ///          id_generator: Box::new(XrayIdGenerator::default()),
 ///          ..Default::default()

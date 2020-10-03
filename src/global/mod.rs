@@ -16,7 +16,7 @@
 //! use opentelemetry::global;
 //!
 //! fn init_tracer() -> global::TracerProviderGuard {
-//!     let provider = opentelemetry::api::NoopProvider {};
+//!     let provider = opentelemetry::api::NoopTracerProvider::new();
 //!
 //!     // Configure the global `TracerProvider` singleton when your app starts
 //!     // (there is a no-op default if this is not set by your application)

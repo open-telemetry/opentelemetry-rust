@@ -11,15 +11,24 @@ use std::sync::Arc;
 use std::time::SystemTime;
 
 /// A no-op instance of a `TracerProvider`.
-#[derive(Debug)]
-pub struct NoopProvider {}
+#[derive(Debug, Default)]
+pub struct NoopTracerProvider {
+    _private: (),
+}
 
-impl api::TracerProvider for NoopProvider {
+impl NoopTracerProvider {
+    /// Create a new no-op tracer provider
+    pub fn new() -> Self {
+        NoopTracerProvider { _private: () }
+    }
+}
+
+impl api::TracerProvider for NoopTracerProvider {
     type Tracer = NoopTracer;
 
     /// Returns a new `NoopTracer` instance.
     fn get_tracer(&self, _name: &'static str, _version: Option<&'static str>) -> Self::Tracer {
-        NoopTracer {}
+        NoopTracer::new()
     }
 }
 
@@ -98,8 +107,17 @@ impl api::Span for NoopSpan {
 }
 
 /// A no-op instance of a `Tracer`.
-#[derive(Debug)]
-pub struct NoopTracer {}
+#[derive(Debug, Default)]
+pub struct NoopTracer {
+    _private: (),
+}
+
+impl NoopTracer {
+    /// Create a new no-op tracer
+    pub fn new() -> Self {
+        NoopTracer { _private: () }
+    }
+}
 
 impl api::Tracer for NoopTracer {
     type Span = api::NoopSpan;
@@ -143,8 +161,17 @@ impl api::Tracer for NoopTracer {
 /// A no-op instance of an [`SpanExporter`].
 ///
 /// [`SpanExporter`]: ../../../exporter/trace/trait.SpanExporter.html
-#[derive(Debug)]
-pub struct NoopSpanExporter {}
+#[derive(Debug, Default)]
+pub struct NoopSpanExporter {
+    _private: (),
+}
+
+impl NoopSpanExporter {
+    /// Create a new noop span exporter
+    pub fn new() -> Self {
+        NoopSpanExporter { _private: () }
+    }
+}
 
 #[async_trait]
 impl exporter::trace::SpanExporter for NoopSpanExporter {
@@ -174,14 +201,14 @@ mod tests {
 
     #[test]
     fn noop_tracer_defaults_to_invalid_span() {
-        let tracer = NoopTracer {};
+        let tracer = NoopTracer::new();
         let span = tracer.start_from_context("foo", &api::Context::new());
         assert!(!span.span_context().is_valid());
     }
 
     #[test]
     fn noop_tracer_propagates_valid_span_context_from_builder() {
-        let tracer = NoopTracer {};
+        let tracer = NoopTracer::new();
         let builder = tracer.span_builder("foo").with_parent(valid_span_context());
         let span = tracer.build_with_context(builder, &api::Context::new());
         assert!(span.span_context().is_valid());
@@ -189,7 +216,7 @@ mod tests {
 
     #[test]
     fn noop_tracer_propagates_valid_span_context_from_span() {
-        let tracer = NoopTracer {};
+        let tracer = NoopTracer::new();
         let cx = api::Context::new().with_span(NoopSpan {
             span_context: valid_span_context(),
         });
@@ -199,7 +226,7 @@ mod tests {
 
     #[test]
     fn noop_tracer_propagates_valid_span_context_from_remote_span_context() {
-        let tracer = NoopTracer {};
+        let tracer = NoopTracer::new();
         let cx = api::Context::new().with_remote_span_context(valid_span_context());
         let span = tracer.start_from_context("foo", &cx);
         assert!(span.span_context().is_valid());

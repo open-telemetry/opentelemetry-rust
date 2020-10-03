@@ -38,7 +38,7 @@
 //! use opentelemetry::{api, sdk, global};
 //!
 //! // Configure your preferred exporter
-//! let exporter = api::NoopSpanExporter {};
+//! let exporter = api::NoopSpanExporter::new();
 //!
 //! // Then use the `with_simple_exporter` method to have the provider export when spans finish.
 //! let provider = sdk::TracerProvider::builder()
@@ -64,7 +64,7 @@
 //! #[tokio::main]
 //! async fn main() {
 //!     // Configure your preferred exporter
-//!     let exporter = api::NoopSpanExporter {};
+//!     let exporter = api::NoopSpanExporter::new();
 //!
 //!     // Then build a batch processor. You can use whichever executor you have available, for
 //!     // example if you are using `async-std` instead of `tokio` you can replace the spawn and
