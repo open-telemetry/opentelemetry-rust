@@ -70,8 +70,8 @@ impl From<Link> for Span_Link {
     }
 }
 
-impl From<Arc<SpanData>> for ResourceSpans {
-    fn from(source_span: Arc<SpanData>) -> Self {
+impl From<&Arc<SpanData>> for ResourceSpans {
+    fn from(source_span: &Arc<SpanData>) -> Self {
         ResourceSpans {
             resource: SingularPtrField::from(Some(Resource {
                 attributes: Default::default(),

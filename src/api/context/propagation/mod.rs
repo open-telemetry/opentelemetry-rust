@@ -142,7 +142,7 @@
 //!
 //! ##### Get
 //!
-//!  The Get function MUST return the first value of the given propagation
+//! The Get function MUST return the first value of the given propagation
 //! key or return `None` if the key doesn't exist.
 //!
 //! Required arguments:
@@ -157,6 +157,10 @@
 //! canonical casing for their attributes. NOTE: Canonical casing for HTTP
 //! headers is usually title case (e.g. `Content-Type` instead of `content-type`).
 //!
+//! ##### Keys
+//!
+//! The Keys function returns a vector of the propagation keys.
+//!
 use crate::api;
 use std::collections::HashMap;
 
@@ -165,7 +169,7 @@ pub mod text_propagator;
 
 /// Injector provides an interface for adding fields from an underlying struct like `HashMap`
 pub trait Injector {
-    /// Add a key and value to the underlying.
+    /// Add a key and value to the underlying data.
     fn set(&mut self, key: &str, value: String);
 }
 
@@ -173,6 +177,9 @@ pub trait Injector {
 pub trait Extractor {
     /// Get a value from a key from the underlying data.
     fn get(&self, key: &str) -> Option<&str>;
+
+    /// Collect all the keys from the underlying data.
+    fn keys(&self) -> Vec<&str>;
 }
 
 impl<S: std::hash::BuildHasher> api::Injector for HashMap<String, String, S> {
@@ -186,6 +193,11 @@ impl<S: std::hash::BuildHasher> api::Extractor for HashMap<String, String, S> {
     /// Get a value for a key from the HashMap.
     fn get(&self, key: &str) -> Option<&str> {
         self.get(&key.to_lowercase()).map(|v| v.as_str())
+    }
+
+    /// Collect all the keys from the HashMap.
+    fn keys(&self) -> Vec<&str> {
+        self.keys().map(|k| k.as_str()).collect::<Vec<_>>()
     }
 }
 
@@ -207,6 +219,11 @@ impl api::Extractor for http::HeaderMap {
     fn get(&self, key: &str) -> Option<&str> {
         self.get(key).and_then(|value| value.to_str().ok())
     }
+
+    /// Collect all the keys from the HeaderMap.
+    fn keys(&self) -> Vec<&str> {
+        self.keys().map(|value| value.as_str()).collect::<Vec<_>>()
+    }
 }
 
 #[cfg(feature = "tonic")]
@@ -227,6 +244,16 @@ impl api::Extractor for tonic::metadata::MetadataMap {
     fn get(&self, key: &str) -> Option<&str> {
         self.get(key).and_then(|metadata| metadata.to_str().ok())
     }
+
+    /// Collect all the keys from the MetadataMap.
+    fn keys(&self) -> Vec<&str> {
+        self.keys()
+            .map(|key| match key {
+                tonic::metadata::KeyRef::Ascii(v) => v.as_str(),
+                tonic::metadata::KeyRef::Binary(v) => v.as_str(),
+            })
+            .collect::<Vec<_>>()
+    }
 }
 
 #[cfg(test)]
@@ -235,7 +262,7 @@ mod tests {
     use std::collections::HashMap;
 
     #[test]
-    fn hash_map() {
+    fn hash_map_get() {
         let mut carrier = HashMap::new();
         carrier.set("headerName", "value".to_string());
 
@@ -243,12 +270,24 @@ mod tests {
             Extractor::get(&carrier, "HEADERNAME"),
             Some("value"),
             "case insensitive extraction"
-        )
+        );
+    }
+
+    #[test]
+    fn hash_map_keys() {
+        let mut carrier = HashMap::new();
+        carrier.set("headerName1", "value1".to_string());
+        carrier.set("headerName2", "value2".to_string());
+
+        let got = Extractor::keys(&carrier);
+        assert_eq!(got.len(), 2);
+        assert!(got.contains(&"headername1"));
+        assert!(got.contains(&"headername2"));
     }
 
     #[test]
     #[cfg(feature = "http")]
-    fn http_headers() {
+    fn http_headers_get() {
         let mut carrier = http::HeaderMap::new();
         carrier.set("headerName", "value".to_string());
 
@@ -260,8 +299,21 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "http")]
+    fn http_headers_keys() {
+        let mut carrier = http::HeaderMap::new();
+        carrier.set("headerName1", "value1".to_string());
+        carrier.set("headerName2", "value2".to_string());
+
+        let got = Extractor::keys(&carrier);
+        assert_eq!(got.len(), 2);
+        assert!(got.contains(&"headername1"));
+        assert!(got.contains(&"headername2"));
+    }
+
+    #[test]
     #[cfg(feature = "tonic")]
-    fn tonic_headers() {
+    fn tonic_headers_get() {
         let mut carrier = tonic::metadata::MetadataMap::new();
         carrier.set("headerName", "value".to_string());
 
@@ -270,5 +322,18 @@ mod tests {
             Some("value"),
             "case insensitive extraction"
         )
+    }
+
+    #[test]
+    #[cfg(feature = "tonic")]
+    fn tonic_headers_keys() {
+        let mut carrier = tonic::metadata::MetadataMap::new();
+        carrier.set("headerName1", "value1".to_string());
+        carrier.set("headerName2", "value2".to_string());
+
+        let got = Extractor::keys(&carrier);
+        assert_eq!(got.len(), 2);
+        assert!(got.contains(&"headername1"));
+        assert!(got.contains(&"headername2"));
     }
 }

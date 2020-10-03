@@ -1,24 +1,14 @@
 use futures::stream::{Stream, StreamExt};
 use opentelemetry::api::metrics::{self, MetricsError, ObserverResult};
-use opentelemetry::api::{Context, CorrelationContextExt, Key, KeyValue, TraceContextExt, Tracer};
+use opentelemetry::api::{BaggageExt, Context, Key, KeyValue, TraceContextExt, Tracer};
 use opentelemetry::exporter;
 use opentelemetry::sdk::metrics::PushController;
 use opentelemetry::{global, sdk};
+use std::error::Error;
 use std::time::Duration;
 
-fn init_tracer() {
-    let exporter = opentelemetry_otlp::Exporter::default();
-
-    // For the demonstration, use `Sampler::AlwaysOn` sampler to sample all traces. In a production
-    // application, use `Sampler::ParentBased` or `Sampler::TraceIdRatioBased` with a desired ratio.
-    let provider = sdk::Provider::builder()
-        .with_simple_exporter(exporter)
-        .with_config(sdk::Config {
-            default_sampler: Box::new(sdk::Sampler::AlwaysOn),
-            ..Default::default()
-        })
-        .build();
-    global::set_provider(provider);
+fn init_tracer() -> Result<(sdk::Tracer, opentelemetry_otlp::Uninstall), Box<dyn Error>> {
+    opentelemetry_otlp::new_pipeline().install()
 }
 
 // Skip first immediate tick from tokio, not needed for async_std.
@@ -52,8 +42,8 @@ lazy_static::lazy_static! {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    init_tracer();
+async fn main() -> Result<(), Box<dyn Error>> {
+    let _guard = init_tracer()?;
     let _started = init_meter()?;
 
     let tracer = global::tracer("ex.com/basic");
@@ -68,7 +58,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let value_recorder_two = meter.f64_value_recorder("ex.com.two").init();
 
     let _correlations =
-        Context::current_with_correlations(vec![FOO_KEY.string("foo1"), BAR_KEY.string("bar1")])
+        Context::current_with_baggage(vec![FOO_KEY.string("foo1"), BAR_KEY.string("bar1")])
             .attach();
 
     let value_recorder = value_recorder_two.bind(COMMON_LABELS.as_ref());
@@ -83,7 +73,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         meter.record_batch_with_context(
             // Note: call-site variables added as context Entries:
-            &Context::current_with_correlations(vec![ANOTHER_KEY.string("xyz")]),
+            &Context::current_with_baggage(vec![ANOTHER_KEY.string("xyz")]),
             COMMON_LABELS.as_ref(),
             vec![value_recorder_two.measurement(2.0)],
         );

@@ -3,21 +3,32 @@
 //! This implementation is returned as the global tracer if no `Tracer`
 //! has been set. It is also useful for testing purposes as it is intended
 //! to have minimal resource utilization and runtime impact.
+use crate::api::trace::span_context::TraceState;
 use crate::api::TraceContextExt;
 use crate::{api, exporter};
+use async_trait::async_trait;
 use std::sync::Arc;
 use std::time::SystemTime;
 
-/// A no-op instance of a `Provider`.
-#[derive(Debug)]
-pub struct NoopProvider {}
+/// A no-op instance of a `TracerProvider`.
+#[derive(Debug, Default)]
+pub struct NoopTracerProvider {
+    _private: (),
+}
 
-impl api::Provider for NoopProvider {
+impl NoopTracerProvider {
+    /// Create a new no-op tracer provider
+    pub fn new() -> Self {
+        NoopTracerProvider { _private: () }
+    }
+}
+
+impl api::TracerProvider for NoopTracerProvider {
     type Tracer = NoopTracer;
 
     /// Returns a new `NoopTracer` instance.
-    fn get_tracer(&self, _name: &'static str) -> Self::Tracer {
-        NoopTracer {}
+    fn get_tracer(&self, _name: &'static str, _version: Option<&'static str>) -> Self::Tracer {
+        NoopTracer::new()
     }
 }
 
@@ -42,6 +53,7 @@ impl NoopSpan {
                 api::SpanId::invalid(),
                 0,
                 false,
+                TraceState::default(),
             ),
         }
     }
@@ -95,8 +107,17 @@ impl api::Span for NoopSpan {
 }
 
 /// A no-op instance of a `Tracer`.
-#[derive(Debug)]
-pub struct NoopTracer {}
+#[derive(Debug, Default)]
+pub struct NoopTracer {
+    _private: (),
+}
+
+impl NoopTracer {
+    /// Create a new no-op tracer
+    pub fn new() -> Self {
+        NoopTracer { _private: () }
+    }
+}
 
 impl api::Tracer for NoopTracer {
     type Span = api::NoopSpan;
@@ -140,22 +161,32 @@ impl api::Tracer for NoopTracer {
 /// A no-op instance of an [`SpanExporter`].
 ///
 /// [`SpanExporter`]: ../../../exporter/trace/trait.SpanExporter.html
-#[derive(Debug)]
-pub struct NoopSpanExporter {}
+#[derive(Debug, Default)]
+pub struct NoopSpanExporter {
+    _private: (),
+}
 
-impl exporter::trace::SpanExporter for NoopSpanExporter {
-    fn export(&self, _batch: Vec<Arc<exporter::trace::SpanData>>) -> exporter::trace::ExportResult {
-        exporter::trace::ExportResult::Success
+impl NoopSpanExporter {
+    /// Create a new noop span exporter
+    pub fn new() -> Self {
+        NoopSpanExporter { _private: () }
     }
+}
 
-    fn shutdown(&self) {
-        // Noop
+#[async_trait]
+impl exporter::trace::SpanExporter for NoopSpanExporter {
+    async fn export(
+        &self,
+        _batch: &[Arc<exporter::trace::SpanData>],
+    ) -> exporter::trace::ExportResult {
+        exporter::trace::ExportResult::Success
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::api::trace::span_context::TraceState;
     use crate::api::{Span, Tracer};
 
     fn valid_span_context() -> api::SpanContext {
@@ -164,19 +195,20 @@ mod tests {
             api::SpanId::from_u64(42),
             0,
             true,
+            TraceState::default(),
         )
     }
 
     #[test]
     fn noop_tracer_defaults_to_invalid_span() {
-        let tracer = NoopTracer {};
+        let tracer = NoopTracer::new();
         let span = tracer.start_from_context("foo", &api::Context::new());
         assert!(!span.span_context().is_valid());
     }
 
     #[test]
     fn noop_tracer_propagates_valid_span_context_from_builder() {
-        let tracer = NoopTracer {};
+        let tracer = NoopTracer::new();
         let builder = tracer.span_builder("foo").with_parent(valid_span_context());
         let span = tracer.build_with_context(builder, &api::Context::new());
         assert!(span.span_context().is_valid());
@@ -184,7 +216,7 @@ mod tests {
 
     #[test]
     fn noop_tracer_propagates_valid_span_context_from_span() {
-        let tracer = NoopTracer {};
+        let tracer = NoopTracer::new();
         let cx = api::Context::new().with_span(NoopSpan {
             span_context: valid_span_context(),
         });
@@ -194,7 +226,7 @@ mod tests {
 
     #[test]
     fn noop_tracer_propagates_valid_span_context_from_remote_span_context() {
-        let tracer = NoopTracer {};
+        let tracer = NoopTracer::new();
         let cx = api::Context::new().with_remote_span_context(valid_span_context());
         let span = tracer.start_from_context("foo", &cx);
         assert!(span.span_context().is_valid());

@@ -2,12 +2,14 @@
 use crate::api::metrics::{Descriptor, InstrumentKind, MetricsError, Number, NumberKind, Result};
 
 mod array;
+mod ddsketch;
 mod histogram;
 mod last_value;
 mod min_max_sum_count;
 mod sum;
 
 pub use array::{array, ArrayAggregator};
+pub use ddsketch::{ddsketch, DDSKetchAggregator, DDSketchConfig};
 pub use histogram::{histogram, HistogramAggregator};
 pub use last_value::{last_value, LastValueAggregator};
 pub use min_max_sum_count::{min_max_sum_count, MinMaxSumCountAggregator};

@@ -10,62 +10,90 @@
 //!
 //! # Examples
 //!
-//! ```
+//! ```no_run
+//! use opentelemetry::api::Tracer;
 //! use opentelemetry::exporter::trace::stdout;
-//! use opentelemetry::{sdk, global};
 //!
-//! // Create a new stdout exporter that writes pretty printed span output
-//! let exporter = stdout::Builder::default().with_pretty_print(true).init();
-//! let provider = sdk::Provider::builder()
-//!     .with_simple_exporter(exporter)
-//!     .build();
-//! global::set_provider(provider);
+//! fn main() {
+//!     let (tracer, _uninstall) = stdout::new_pipeline()
+//!         .with_pretty_print(true)
+//!         .install();
+//!
+//!     tracer.in_span("doing_work", |cx| {
+//!         // Traced app logic here...
+//!     });
+//! }
 //! ```
-use crate::exporter::trace;
+use crate::{api::TracerProvider, exporter::trace, global, sdk};
+use async_trait::async_trait;
 use std::fmt::Debug;
 use std::io::{self, stdout, Stdout, Write};
 use std::sync::{Arc, Mutex};
 
-/// Builder
+/// Pipeline builder
 #[derive(Debug)]
-pub struct Builder<W: Write + Debug> {
-    writer: Mutex<W>,
+pub struct PipelineBuilder<W: Write> {
     pretty_print: bool,
+    trace_config: Option<sdk::Config>,
+    writer: W,
 }
 
-impl<W: Write + Debug> Builder<W> {
-    /// Specify the writer to use with this exporter
-    pub fn with_writer<T: Write + Debug>(self, writer: T) -> Builder<T> {
-        Builder {
-            writer: Mutex::new(writer),
-            pretty_print: self.pretty_print,
-        }
-    }
-
-    /// Specify the pretty print setting for this exporter
-    pub fn with_pretty_print(self, pretty_print: bool) -> Self {
-        Builder {
-            pretty_print,
-            ..self
-        }
-    }
-
-    /// Build a new exporter
-    pub fn init(self) -> Exporter<W> {
-        Exporter {
-            writer: self.writer,
-            pretty_print: self.pretty_print,
-        }
-    }
+/// Create a new stdout exporter pipeline builder.
+pub fn new_pipeline() -> PipelineBuilder<Stdout> {
+    PipelineBuilder::default()
 }
 
-impl Default for Builder<Stdout> {
-    /// Return the default Exporter Builder.
+impl Default for PipelineBuilder<Stdout> {
+    /// Return the default pipeline builder.
     fn default() -> Self {
-        Builder {
-            writer: Mutex::new(stdout()),
+        Self {
             pretty_print: false,
+            trace_config: None,
+            writer: stdout(),
         }
+    }
+}
+
+impl<W: Write> PipelineBuilder<W> {
+    /// Specify the pretty print setting.
+    pub fn with_pretty_print(mut self, pretty_print: bool) -> Self {
+        self.pretty_print = pretty_print;
+        self
+    }
+
+    /// Assign the SDK trace configuration.
+    pub fn with_trace_config(mut self, config: sdk::Config) -> Self {
+        self.trace_config = Some(config);
+        self
+    }
+
+    /// Specify the writer to use.
+    pub fn with_writer<T: Write>(self, writer: T) -> PipelineBuilder<T> {
+        PipelineBuilder {
+            pretty_print: self.pretty_print,
+            trace_config: self.trace_config,
+            writer,
+        }
+    }
+}
+
+impl<W> PipelineBuilder<W>
+where
+    W: Write + Debug + Send + 'static,
+{
+    /// Install the stdout exporter pipeline with the recommended defaults.
+    pub fn install(mut self) -> (sdk::Tracer, Uninstall) {
+        let exporter = Exporter::new(self.writer, self.pretty_print);
+
+        let mut provider_builder = sdk::TracerProvider::builder().with_exporter(exporter);
+        if let Some(config) = self.trace_config.take() {
+            provider_builder = provider_builder.with_config(config);
+        }
+        let provider = provider_builder.build();
+        let tracer = provider.get_tracer("opentelemetry", Some(env!("CARGO_PKG_VERSION")));
+        let provider_guard = global::set_tracer_provider(provider);
+
+        (tracer, Uninstall(provider_guard))
     }
 }
 
@@ -80,12 +108,23 @@ pub struct Exporter<W: Write> {
     pretty_print: bool,
 }
 
+impl<W: Write> Exporter<W> {
+    /// Create a new stdout `Exporter`.
+    pub fn new(writer: W, pretty_print: bool) -> Self {
+        Self {
+            writer: Mutex::new(writer),
+            pretty_print,
+        }
+    }
+}
+
+#[async_trait]
 impl<W> trace::SpanExporter for Exporter<W>
 where
     W: Write + Debug + Send + 'static,
 {
     /// Export spans to stdout
-    fn export(&self, batch: Vec<Arc<trace::SpanData>>) -> trace::ExportResult {
+    async fn export(&self, batch: &[Arc<trace::SpanData>]) -> trace::ExportResult {
         let writer = self
             .writer
             .lock()
@@ -99,7 +138,7 @@ where
                 }
             }
 
-            Ok(0)
+            Ok(())
         });
 
         if result.is_ok() {
@@ -109,7 +148,8 @@ where
             trace::ExportResult::FailedNotRetryable
         }
     }
-
-    /// Ignored for now.
-    fn shutdown(&self) {}
 }
+
+/// Uninstalls the stdout pipeline on drop.
+#[derive(Debug)]
+pub struct Uninstall(global::TracerProviderGuard);

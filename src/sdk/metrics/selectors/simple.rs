@@ -7,10 +7,15 @@ use std::sync::Arc;
 /// Aggregation selection strategies.
 #[derive(Debug)]
 pub enum Selector {
-    /// A simple aggregation selector that uses sum, and minmaxsumcount
-    /// aggregators for metrics. This selector is faster and uses less memory
-    /// than the others because minmaxsumcount does not aggregate quantile
-    /// information.
+    /// A simple aggregation selector that uses counter, ddsketch, and ddsketch
+    /// aggregators for the three kinds of metric.  This selector uses more cpu
+    /// and memory than the NewWithInexpensiveDistribution because it uses one
+    /// DDSketch per distinct instrument and label set.
+    Sketch(aggregators::DDSketchConfig),
+    /// A simple aggregation selector that uses last_value, sum, and
+    /// minmaxsumcount aggregators for metrics. This selector is faster and uses
+    /// less memory than the others because minmaxsumcount does not aggregate
+    /// quantile information.
     Inexpensive,
     /// A simple aggregation selector that uses sum and array aggregators for
     /// metrics. This selector is able to compute exact quantiles.
@@ -24,21 +29,30 @@ pub enum Selector {
 impl AggregatorSelector for Selector {
     fn aggregator_for(&self, descriptor: &Descriptor) -> Option<Arc<dyn Aggregator + Send + Sync>> {
         match self {
+            Selector::Sketch(config) => match descriptor.instrument_kind() {
+                InstrumentKind::ValueObserver => Some(Arc::new(aggregators::last_value())),
+                InstrumentKind::ValueRecorder => Some(Arc::new(aggregators::ddsketch(
+                    config,
+                    descriptor.number_kind().clone(),
+                ))),
+                _ => Some(Arc::new(aggregators::sum())),
+            },
             Selector::Inexpensive => match descriptor.instrument_kind() {
-                InstrumentKind::ValueObserver | InstrumentKind::ValueRecorder => {
+                InstrumentKind::ValueObserver => Some(Arc::new(aggregators::last_value())),
+                InstrumentKind::ValueRecorder => {
                     Some(Arc::new(aggregators::min_max_sum_count(descriptor)))
                 }
                 _ => Some(Arc::new(aggregators::sum())),
             },
             Selector::Exact => match descriptor.instrument_kind() {
-                InstrumentKind::ValueObserver | InstrumentKind::ValueRecorder => {
-                    Some(Arc::new(aggregators::array()))
-                }
+                InstrumentKind::ValueObserver => Some(Arc::new(aggregators::last_value())),
+                InstrumentKind::ValueRecorder => Some(Arc::new(aggregators::array())),
                 _ => Some(Arc::new(aggregators::sum())),
             },
             Selector::Histogram(boundaries) => match descriptor.instrument_kind() {
-                InstrumentKind::ValueObserver | InstrumentKind::ValueRecorder => {
-                    Some(Arc::new(aggregators::histogram(descriptor, &boundaries)))
+                InstrumentKind::ValueObserver => Some(Arc::new(aggregators::last_value())),
+                InstrumentKind::ValueRecorder => {
+                    Some(Arc::new(aggregators::histogram(descriptor, boundaries)))
                 }
                 _ => Some(Arc::new(aggregators::sum())),
             },

@@ -1,5 +1,6 @@
 //! Trace exporters
 use crate::{api, sdk};
+use async_trait::async_trait;
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -31,6 +32,7 @@ pub enum ExportResult {
 /// chainable Exporter interface. SDK authors are encouraged to implement common
 /// functionality such as queuing, batching, tagging, etc. as helpers. This
 /// functionality will be applicable regardless of what protocol exporter is used.
+#[async_trait]
 pub trait SpanExporter: Send + Sync + std::fmt::Debug {
     /// Exports a batch of telemetry data. Protocol exporters that will implement
     /// this function are typically expected to serialize and transmit the data
@@ -41,7 +43,7 @@ pub trait SpanExporter: Send + Sync + std::fmt::Debug {
     ///
     /// This function must not block indefinitely, there must be a reasonable
     /// upper limit after which the call must time out with an error result.
-    fn export(&self, batch: Vec<Arc<SpanData>>) -> ExportResult;
+    async fn export(&self, batch: &[Arc<SpanData>]) -> ExportResult;
 
     /// Shuts down the exporter. Called when SDK is shut down. This is an
     /// opportunity for exporter to do any cleanup required.
@@ -53,7 +55,7 @@ pub trait SpanExporter: Send + Sync + std::fmt::Debug {
     /// Shutdown should not block indefinitely (e.g. if it attempts to flush the
     /// data and the destination is unavailable). SDK authors can
     /// decide if they want to make the shutdown timeout to be configurable.
-    fn shutdown(&self) {}
+    fn shutdown(&mut self) {}
 }
 
 /// `SpanData` contains all the information collected by a `Span` and can be used
@@ -85,12 +87,16 @@ pub struct SpanData {
     pub status_message: String,
     /// Resource contains attributes representing an entity that produced this span.
     pub resource: Arc<sdk::Resource>,
+    /// Instrumentation library that produced this span
+    #[cfg_attr(feature = "serialize", serde(skip))]
+    pub instrumentation_lib: sdk::InstrumentationLibrary,
 }
 
 #[cfg(feature = "serialize")]
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::api::trace::span_context::TraceState;
 
     #[test]
     fn test_serialise() {
@@ -104,6 +110,7 @@ mod tests {
             api::SpanId::from_u64(span_id),
             trace_flags,
             remote,
+            TraceState::default(),
         );
 
         let parent_span_id = 1;
@@ -134,6 +141,7 @@ mod tests {
             status_code,
             status_message,
             resource,
+            instrumentation_lib: sdk::InstrumentationLibrary::new("", None),
         };
 
         let encoded: Vec<u8> = bincode::serialize(&span_data).unwrap();

@@ -1,5 +1,6 @@
-use crate::{api, api::Provider};
+use crate::{api, api::TracerProvider};
 use std::fmt;
+use std::mem;
 use std::sync::{Arc, RwLock};
 use std::time::SystemTime;
 
@@ -10,6 +11,7 @@ use std::time::SystemTime;
 /// [`Span`]: ../api/trace/span/trait.Span.html
 #[derive(Debug)]
 pub struct BoxedSpan(Box<DynSpan>);
+
 type DynSpan = dyn api::Span + Send + Sync;
 
 impl api::Span for BoxedSpan {
@@ -156,73 +158,81 @@ where
     }
 }
 
-/// Allows a specific [`Provider`] to be used generically by the
+/// Allows a specific [`TracerProvider`] to be used generically by the
 /// [`GlobalProvider`] by mirroring the interface and boxing the return types.
 ///
-/// [`Provider`]: ../api/trace/provider/trait.Provider.html
+/// [`TracerProvider`]: ../api/trace/provider/trait.TracerProvider.html
 /// [`GlobalProvider`]: struct.GlobalProvider.html
 pub trait GenericProvider: fmt::Debug + 'static {
-    /// Creates a named tracer instance that is a trait object through the underlying `Provider`.
-    fn get_tracer_boxed(&self, name: &'static str) -> Box<dyn GenericTracer + Send + Sync>;
+    /// Creates a named tracer instance that is a trait object through the underlying `TracerProvider`.
+    fn get_tracer_boxed(
+        &self,
+        name: &'static str,
+        version: Option<&'static str>,
+    ) -> Box<dyn GenericTracer + Send + Sync>;
 }
 
 impl<S, T, P> GenericProvider for P
 where
     S: api::Span + Send + Sync,
     T: api::Tracer<Span = S> + Send + Sync,
-    P: api::Provider<Tracer = T>,
+    P: api::TracerProvider<Tracer = T>,
 {
     /// Return a boxed generic tracer
-    fn get_tracer_boxed(&self, name: &'static str) -> Box<dyn GenericTracer + Send + Sync> {
-        Box::new(self.get_tracer(name))
+    fn get_tracer_boxed(
+        &self,
+        name: &'static str,
+        version: Option<&'static str>,
+    ) -> Box<dyn GenericTracer + Send + Sync> {
+        Box::new(self.get_tracer(name, version))
     }
 }
 
-/// Represents the globally configured [`Provider`] instance for this
+/// Represents the globally configured [`TracerProvider`] instance for this
 /// application. This allows generic tracing through the returned
 /// [`BoxedTracer`] instances.
 ///
-/// [`Provider`]: ../api/trace/provider/trait.Provider.html
+/// [`TracerProvider`]: ../api/trace/provider/trait.TracerProvider.html
 /// [`BoxedTracer`]: struct.BoxedTracer.html
 #[derive(Clone, Debug)]
-pub struct GlobalProvider {
+pub struct GlobalTracerProvider {
     provider: Arc<dyn GenericProvider + Send + Sync>,
 }
 
-impl GlobalProvider {
-    /// Create a new GlobalProvider instance from a struct that implements `Provider`.
+impl GlobalTracerProvider {
+    /// Create a new GlobalProvider instance from a struct that implements `TracerProvider`.
     fn new<P, T, S>(provider: P) -> Self
     where
         S: api::Span + Send + Sync,
         T: api::Tracer<Span = S> + Send + Sync,
-        P: api::Provider<Tracer = T> + Send + Sync,
+        P: api::TracerProvider<Tracer = T> + Send + Sync,
     {
-        GlobalProvider {
+        GlobalTracerProvider {
             provider: Arc::new(provider),
         }
     }
 }
 
-impl api::Provider for GlobalProvider {
+impl api::TracerProvider for GlobalTracerProvider {
     type Tracer = BoxedTracer;
 
     /// Find or create a named tracer using the global provider.
-    fn get_tracer(&self, name: &'static str) -> Self::Tracer {
-        BoxedTracer(self.provider.get_tracer_boxed(name))
+    fn get_tracer(&self, name: &'static str, version: Option<&'static str>) -> Self::Tracer {
+        BoxedTracer(self.provider.get_tracer_boxed(name, version))
     }
 }
 
 lazy_static::lazy_static! {
     /// The global `Tracer` provider singleton.
-    static ref GLOBAL_TRACER_PROVIDER: RwLock<GlobalProvider> = RwLock::new(GlobalProvider::new(api::NoopProvider {}));
+    static ref GLOBAL_TRACER_PROVIDER: RwLock<GlobalTracerProvider> = RwLock::new(GlobalTracerProvider::new(api::NoopTracerProvider::new()));
 }
 
-/// Returns an instance of the currently configured global [`Provider`] through
+/// Returns an instance of the currently configured global [`TracerProvider`] through
 /// [`GlobalProvider`].
 ///
-/// [`Provider`]: ../api/trace/provider/trait.Provider.html
+/// [`TracerProvider`]: ../api/trace/provider/trait.TracerProvider.html
 /// [`GlobalProvider`]: struct.GlobalProvider.html
-pub fn trace_provider() -> GlobalProvider {
+pub fn tracer_provider() -> GlobalTracerProvider {
     GLOBAL_TRACER_PROVIDER
         .read()
         .expect("GLOBAL_TRACER_PROVIDER RwLock poisoned")
@@ -233,25 +243,59 @@ pub fn trace_provider() -> GlobalProvider {
 ///
 /// If the name is an empty string, the provider will use a default name.
 ///
-/// This is a more convenient way of expressing `global::trace_provider().get_tracer(name)`.
+/// This is a more convenient way of expressing `global::tracer_provider().get_tracer(name, None)`.
 ///
 /// [`Tracer`]: ../api/trace/tracer/trait.Tracer.html
 /// [`GlobalProvider`]: struct.GlobalProvider.html
 pub fn tracer(name: &'static str) -> BoxedTracer {
-    trace_provider().get_tracer(name)
+    tracer_provider().get_tracer(name, None)
 }
 
-/// Sets the given [`Provider`] instance as the current global provider.
+/// Creates a named instance of [`Tracer`] with version info via the configured [`GlobalProvider`]
 ///
-/// [`Provider`]: ../api/trace/provider/trait.Provider.html
-pub fn set_provider<P, T, S>(new_provider: P)
+/// If the name is an empty string, the provider will use a default name.
+/// If the version is an empty string, it will be used as part of instrumentation library information.
+///
+/// [`Tracer`]: ../api/trace/tracer/trait.Tracer.html
+/// [`GlobalProvider`]: struct.GlobalProvider.html
+pub fn tracer_with_version(name: &'static str, version: &'static str) -> BoxedTracer {
+    tracer_provider().get_tracer(name, Some(version))
+}
+
+/// Restores the previous tracer provider on drop.
+///
+/// This is commonly used to uninstall pipelines. As you can only have one active tracer provider,
+/// the previous provider is usually the default no-op provider.
+#[derive(Debug)]
+pub struct TracerProviderGuard(Option<GlobalTracerProvider>);
+
+impl Drop for TracerProviderGuard {
+    fn drop(&mut self) {
+        if let Some(previous) = self.0.take() {
+            let mut global_provider = GLOBAL_TRACER_PROVIDER
+                .write()
+                .expect("GLOBAL_TRACER_PROVIDER RwLock poisoned");
+            *global_provider = previous;
+        }
+    }
+}
+
+/// Sets the given [`TracerProvider`] instance as the current global provider.
+///
+/// [`TracerProvider`]: ../api/trace/provider/trait.TracerProvider.html
+#[must_use]
+pub fn set_tracer_provider<P, T, S>(new_provider: P) -> TracerProviderGuard
 where
     S: api::Span + Send + Sync,
     T: api::Tracer<Span = S> + Send + Sync,
-    P: api::Provider<Tracer = T> + Send + Sync,
+    P: api::TracerProvider<Tracer = T> + Send + Sync,
 {
-    let mut global_provider = GLOBAL_TRACER_PROVIDER
+    let mut tracer_provider = GLOBAL_TRACER_PROVIDER
         .write()
         .expect("GLOBAL_TRACER_PROVIDER RwLock poisoned");
-    *global_provider = GlobalProvider::new(new_provider);
+    let previous = mem::replace(
+        &mut *tracer_provider,
+        GlobalTracerProvider::new(new_provider),
+    );
+    TracerProviderGuard(Some(previous))
 }

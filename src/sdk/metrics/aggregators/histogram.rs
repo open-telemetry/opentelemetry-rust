@@ -58,6 +58,7 @@ impl Sum for HistogramAggregator {
             .map(|inner| inner.state.sum.load())
     }
 }
+
 impl Count for HistogramAggregator {
     fn count(&self) -> Result<u64> {
         self.inner
@@ -66,6 +67,7 @@ impl Count for HistogramAggregator {
             .map(|inner| inner.state.sum.load().to_u64(&NumberKind::U64))
     }
 }
+
 impl Histogram for HistogramAggregator {
     fn histogram(&self) -> Result<Buckets> {
         self.inner

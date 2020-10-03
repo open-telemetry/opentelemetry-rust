@@ -1,8 +1,8 @@
 use hello_world::greeter_client::GreeterClient;
 use hello_world::HelloRequest;
 use opentelemetry::api::{HttpTextFormat, KeyValue, Provider, TraceContextPropagator};
+use opentelemetry::sdk;
 use opentelemetry::sdk::Sampler;
-use opentelemetry::{api, sdk};
 use tracing::*;
 use tracing_futures::Instrument;
 use tracing_opentelemetry::OpenTelemetrySpanExt;
@@ -23,7 +23,6 @@ fn tracing_init() -> Result<(), Box<dyn std::error::Error>> {
         })
         .init()?;
 
-
     // For the demonstration, use `Sampler::Always` sampler to sample all traces. In a production
     // application, use `Sampler::Parent` or `Sampler::TraceIdRatioBased` with a desired ratio.
     let provider = sdk::Provider::builder()
@@ -43,18 +42,6 @@ fn tracing_init() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-struct TonicMetadataMapInjector<'a>(&'a mut tonic::metadata::MetadataMap);
-impl<'a> api::Injector for TonicMetadataMapInjector<'a> {
-    fn set(&mut self, key: &str, value: String) {
-        if let Ok(key) = tonic::metadata::MetadataKey::from_bytes(key.to_lowercase().as_bytes()) {
-            self.0.insert(
-                key,
-                tonic::metadata::MetadataValue::from_str(&value).unwrap(),
-            );
-        }
-    }
-}
-
 #[instrument]
 async fn greet() -> Result<(), Box<dyn std::error::Error>> {
     let mut client = GreeterClient::connect("http://[::1]:50051")
@@ -66,7 +53,7 @@ async fn greet() -> Result<(), Box<dyn std::error::Error>> {
     let mut request = tonic::Request::new(HelloRequest {
         name: "Tonic".into(),
     });
-    propagator.inject_context(&cx, &mut TonicMetadataMapInjector(request.metadata_mut()));
+    propagator.inject_context(&cx, request.metadata_mut());
 
     let response = client
         .say_hello(request)

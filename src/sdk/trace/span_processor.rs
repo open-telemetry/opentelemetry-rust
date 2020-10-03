@@ -5,9 +5,9 @@
 //! is `true`.
 //! Built-in span processors are responsible for batching and conversion of
 //! spans to exportable representation and passing batches to exporters.
-//! Span processors can be registered directly on SDK [`Provider`] and they are
+//! Span processors can be registered directly on SDK [`TracerProvider`] and they are
 //! invoked in the same order as they were registered.
-//! All [`Tracer`] instances created by a [`Provider`] share the same span
+//! All [`Tracer`] instances created by a [`TracerProvider`] share the same span
 //! processors. Changes to this collection reflect in all [`Tracer`] instances.
 //! The following diagram shows [`SpanProcessor`]'s relationship to other
 //! components in the SDK:
@@ -38,14 +38,15 @@
 //! use opentelemetry::{api, sdk, global};
 //!
 //! // Configure your preferred exporter
-//! let exporter = api::NoopSpanExporter {};
+//! let exporter = api::NoopSpanExporter::new();
 //!
 //! // Then use the `with_simple_exporter` method to have the provider export when spans finish.
-//! let provider = sdk::Provider::builder()
+//! let provider = sdk::TracerProvider::builder()
 //!     .with_simple_exporter(exporter)
 //!     .build();
 //!
-//! global::set_provider(provider);
+//! let guard = global::set_tracer_provider(provider);
+//! # drop(guard)
 //! ```
 //!
 //! #### Exporting spans asynchronously in batches:
@@ -63,7 +64,7 @@
 //! #[tokio::main]
 //! async fn main() {
 //!     // Configure your preferred exporter
-//!     let exporter = api::NoopSpanExporter {};
+//!     let exporter = api::NoopSpanExporter::new();
 //!
 //!     // Then build a batch processor. You can use whichever executor you have available, for
 //!     // example if you are using `async-std` instead of `tokio` you can replace the spawn and
@@ -73,16 +74,17 @@
 //!         .build();
 //!
 //!     // Then use the `with_batch_exporter` method to have the provider export spans in batches.
-//!     let provider = sdk::Provider::builder()
+//!     let provider = sdk::TracerProvider::builder()
 //!         .with_batch_exporter(batch)
 //!         .build();
 //!
-//!     global::set_provider(provider);
+//!     let guard = global::set_tracer_provider(provider);
+//!     # drop(guard)
 //! }
 //! ```
 //!
 //! [`is_recording`]: ../../../api/trace/span/trait.Span.html#tymethod.is_recording
-//! [`Provider`]: ../../../api/trace/provider/trait.Provider.html
+//! [`TracerProvider`]: ../../../api/trace/provider/trait.TracerProvider.html
 //! [`Tracer`]: ../../../api/trace/tracer/trait.Tracer.html
 //! [`SpanProcessor`]: ../../../api/trace/span_processor/trait.SpanProcessor.html
 //! [`SimpleSpanProcessor`]: struct.SimpleSpanProcessor.html
@@ -91,14 +93,25 @@
 //! [`tokio`]: https://tokio.rs
 //! [`async-std`]: https://async.rs
 use crate::{api, exporter};
-use futures::{
-    channel::mpsc,
-    task::{Context, Poll},
-    Future, Stream, StreamExt,
-};
+use futures::{channel::mpsc, executor, future::BoxFuture, Future, FutureExt, Stream, StreamExt};
+use std::fmt;
 use std::pin::Pin;
+use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 use std::time;
+
+/// Delay interval between two consecutive exports, default to be 5000.
+const OTEL_BSP_SCHEDULE_DELAY_MILLIS: &str = "OTEL_BSP_SCHEDULE_DELAY_MILLIS";
+/// Default delay interval between two consecutive exports.
+const OTEL_BSP_SCHEDULE_DELAY_MILLIS_DEFAULT: u64 = 5000;
+/// Maximum queue size, default to be 2048
+const OTEL_BSP_MAX_QUEUE_SIZE: &str = "OTEL_BSP_MAX_QUEUE_SIZE";
+/// Default maximum queue size
+const OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT: usize = 2048;
+/// Maximum batch size, must be less than or equal to OTEL_BSP_MAX_QUEUE_SIZE, default to be 512
+const OTEL_BSP_MAX_EXPORT_BATCH_SIZE: &str = "OTEL_BSP_MAX_EXPORT_BATCH_SIZE";
+/// Default maximum batch size
+const OTEL_BSP_MAX_EXPORT_BATCH_SIZE_DEFAULT: usize = 512;
 
 /// A [`SpanProcessor`] that exports synchronously when spans are finished.
 ///
@@ -120,12 +133,10 @@ impl api::SpanProcessor for SimpleSpanProcessor {
     }
 
     fn on_end(&self, span: Arc<exporter::trace::SpanData>) {
-        if span.span_context.is_sampled() {
-            self.exporter.export(vec![span]);
-        }
+        executor::block_on(self.exporter.export(&[span]));
     }
 
-    fn shutdown(&self) {
+    fn shutdown(&mut self) {
         self.exporter.shutdown();
     }
 }
@@ -134,9 +145,17 @@ impl api::SpanProcessor for SimpleSpanProcessor {
 /// them at a preconfigured interval.
 ///
 /// [`SpanProcessor`]: ../../../api/trace/span_processor/trait.SpanProcessor.html
-#[derive(Debug)]
 pub struct BatchSpanProcessor {
     message_sender: Mutex<mpsc::Sender<BatchMessage>>,
+    worker_handle: Option<Pin<Box<dyn Future<Output = ()> + Send + Sync>>>,
+}
+
+impl fmt::Debug for BatchSpanProcessor {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("BatchSpanProcessor")
+            .field("message_sender", &self.message_sender)
+            .finish()
+    }
 }
 
 impl api::SpanProcessor for BatchSpanProcessor {
@@ -150,67 +169,13 @@ impl api::SpanProcessor for BatchSpanProcessor {
         }
     }
 
-    fn shutdown(&self) {
+    fn shutdown(&mut self) {
         if let Ok(mut sender) = self.message_sender.lock() {
             let _ = sender.try_send(BatchMessage::Shutdown);
         }
-    }
-}
 
-/// A worker process that batches and processes spans as they are reported.
-///
-/// This process is implemented as a [`Future`] that returns when the accompanying
-/// [`BatchSpanProcessor`] is shut down, and allows systems like [`tokio`] and [`async-std`] to
-/// process the work in the background without requiring dedicated system threads.
-#[allow(missing_debug_implementations)]
-pub struct BatchSpanProcessorWorker {
-    exporter: Box<dyn exporter::trace::SpanExporter>,
-    messages: Pin<Box<dyn Stream<Item = BatchMessage> + Send>>,
-    config: BatchConfig,
-    buffer: Vec<Arc<exporter::trace::SpanData>>,
-}
-
-impl BatchSpanProcessorWorker {
-    fn export_spans(&mut self) {
-        if !self.buffer.is_empty() {
-            let mut spans = std::mem::replace(&mut self.buffer, Vec::new());
-            while !spans.is_empty() {
-                let batch_idx = spans
-                    .len()
-                    .saturating_sub(self.config.max_export_batch_size);
-                let batch = spans.split_off(batch_idx);
-                self.exporter.export(batch);
-            }
-        }
-    }
-}
-
-impl Drop for BatchSpanProcessorWorker {
-    fn drop(&mut self) {
-        self.export_spans();
-    }
-}
-
-impl Future for BatchSpanProcessorWorker {
-    type Output = ();
-
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        loop {
-            match futures::ready!(self.messages.poll_next_unpin(cx)) {
-                // Span has finished, add to buffer of pending spans.
-                Some(BatchMessage::ExportSpan(span)) => {
-                    if self.buffer.len() < self.config.max_queue_size {
-                        self.buffer.push(span);
-                    }
-                }
-                // Span batch interval time reached, export current spans.
-                Some(BatchMessage::Tick) => self.export_spans(),
-                // Stream has terminated or processor is shutdown, return to finish execution.
-                None | Some(BatchMessage::Shutdown) => {
-                    self.exporter.shutdown();
-                    return Poll::Ready(());
-                }
-            }
+        if let Some(worker_handle) = self.worker_handle.take() {
+            futures::executor::block_on(worker_handle)
         }
     }
 }
@@ -223,14 +188,15 @@ enum BatchMessage {
 }
 
 impl BatchSpanProcessor {
-    pub(crate) fn new<S, SO, I, IS, ISI>(
-        exporter: Box<dyn exporter::trace::SpanExporter>,
+    pub(crate) fn new<S, SH, SO, I, IS, ISI>(
+        mut exporter: Box<dyn exporter::trace::SpanExporter>,
         spawn: S,
         interval: I,
         config: BatchConfig,
     ) -> Self
     where
-        S: Fn(BatchSpanProcessorWorker) -> SO,
+        S: Fn(BoxFuture<'static, ()>) -> SH,
+        SH: Future<Output = SO> + Send + Sync + 'static,
         I: Fn(time::Duration) -> IS,
         IS: Stream<Item = ISI> + Send + 'static,
     {
@@ -238,28 +204,55 @@ impl BatchSpanProcessor {
         let ticker = interval(config.scheduled_delay).map(|_| BatchMessage::Tick);
 
         // Spawn worker process via user-defined spawn function.
-        spawn(BatchSpanProcessorWorker {
-            exporter,
-            messages: Box::pin(futures::stream::select(message_receiver, ticker)),
-            config,
-            buffer: Vec::new(),
-        });
+        let worker_handle = spawn(Box::pin(async move {
+            let mut spans = Vec::new();
+            let mut messages = Box::pin(futures::stream::select(message_receiver, ticker));
+
+            while let Some(message) = messages.next().await {
+                match message {
+                    // Span has finished, add to buffer of pending spans.
+                    BatchMessage::ExportSpan(span) => {
+                        if spans.len() < config.max_queue_size {
+                            spans.push(span);
+                        }
+                    }
+                    // Span batch interval time reached, export current spans.
+                    BatchMessage::Tick => {
+                        for batch in spans.chunks(config.max_export_batch_size) {
+                            exporter.export(batch).await;
+                        }
+                        spans.clear();
+                    }
+                    // Stream has terminated or processor is shutdown, return to finish execution.
+                    BatchMessage::Shutdown => {
+                        for batch in spans.chunks(config.max_export_batch_size) {
+                            exporter.export(batch).await;
+                        }
+                        exporter.shutdown();
+                        break;
+                    }
+                }
+            }
+        }))
+        .map(|_| ());
 
         // Return batch processor with link to worker
         BatchSpanProcessor {
             message_sender: Mutex::new(message_sender),
+            worker_handle: Some(Box::pin(worker_handle)),
         }
     }
 
     /// Create a new batch processor builder
-    pub fn builder<E, S, SO, I, IO>(
+    pub fn builder<E, S, SH, SO, I, IO>(
         exporter: E,
         spawn: S,
         interval: I,
     ) -> BatchSpanProcessorBuilder<E, S, I>
     where
         E: exporter::trace::SpanExporter,
-        S: Fn(BatchSpanProcessorWorker) -> SO,
+        S: Fn(BoxFuture<'static, ()>) -> SH,
+        SH: Future<Output = SO> + Send + Sync + 'static,
         I: Fn(time::Duration) -> IO,
     {
         BatchSpanProcessorBuilder {
@@ -267,6 +260,58 @@ impl BatchSpanProcessor {
             spawn,
             interval,
             config: Default::default(),
+        }
+    }
+
+    /// Create a new batch processor builder and set the config value based on environment variables.
+    ///
+    /// If the value in environment variables is illegal, will fall back to use default value.
+    ///
+    /// Note that export batch size should be less than or equals to max queue size.
+    /// If export batch size is larger than max queue size, we will lower to be the same as max
+    /// queue size
+    pub fn from_env<E, S, SH, SO, I, IO>(
+        exporter: E,
+        spawn: S,
+        interval: I,
+    ) -> BatchSpanProcessorBuilder<E, S, I>
+    where
+        E: exporter::trace::SpanExporter,
+        S: Fn(BoxFuture<'static, ()>) -> SH,
+        SH: Future<Output = SO> + Send + Sync + 'static,
+        I: Fn(time::Duration) -> IO,
+    {
+        let mut config = BatchConfig::default();
+        let schedule_delay = std::env::var(OTEL_BSP_SCHEDULE_DELAY_MILLIS)
+            .map(|delay| u64::from_str(&delay).unwrap_or(OTEL_BSP_SCHEDULE_DELAY_MILLIS_DEFAULT))
+            .unwrap_or(OTEL_BSP_SCHEDULE_DELAY_MILLIS_DEFAULT);
+        config.scheduled_delay = time::Duration::from_millis(schedule_delay);
+
+        let max_queue_size = std::env::var(OTEL_BSP_MAX_QUEUE_SIZE)
+            .map(|queue_size| {
+                usize::from_str(&queue_size).unwrap_or(OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT)
+            })
+            .unwrap_or(OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT);
+        config.max_queue_size = max_queue_size;
+
+        let max_export_batch_size = std::env::var(OTEL_BSP_MAX_EXPORT_BATCH_SIZE)
+            .map(|batch_size| {
+                usize::from_str(&batch_size).unwrap_or(OTEL_BSP_MAX_EXPORT_BATCH_SIZE_DEFAULT)
+            })
+            .unwrap_or(OTEL_BSP_MAX_EXPORT_BATCH_SIZE_DEFAULT);
+        // max export batch size must be less or equal to max queue size.
+        // we set max export batch size to max queue size if it's larger than max queue size.
+        if max_export_batch_size > max_queue_size {
+            config.max_export_batch_size = max_queue_size;
+        } else {
+            config.max_export_batch_size = max_export_batch_size;
+        }
+
+        BatchSpanProcessorBuilder {
+            config,
+            exporter,
+            spawn,
+            interval,
         }
     }
 }
@@ -292,9 +337,9 @@ pub struct BatchConfig {
 impl Default for BatchConfig {
     fn default() -> Self {
         BatchConfig {
-            max_queue_size: 2048,
-            scheduled_delay: time::Duration::from_secs(5),
-            max_export_batch_size: 512,
+            max_queue_size: OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT,
+            scheduled_delay: time::Duration::from_millis(OTEL_BSP_SCHEDULE_DELAY_MILLIS_DEFAULT),
+            max_export_batch_size: OTEL_BSP_MAX_EXPORT_BATCH_SIZE_DEFAULT,
         }
     }
 }
@@ -310,10 +355,11 @@ pub struct BatchSpanProcessorBuilder<E, S, I> {
     config: BatchConfig,
 }
 
-impl<E, S, SO, I, IS, ISI> BatchSpanProcessorBuilder<E, S, I>
+impl<E, S, SH, SO, I, IS, ISI> BatchSpanProcessorBuilder<E, S, I>
 where
     E: exporter::trace::SpanExporter + 'static,
-    S: Fn(BatchSpanProcessorWorker) -> SO,
+    S: Fn(BoxFuture<'static, ()>) -> SH,
+    SH: Future<Output = SO> + Send + Sync + 'static,
     I: Fn(time::Duration) -> IS,
     IS: Stream<Item = ISI> + Send + 'static,
 {
@@ -333,10 +379,16 @@ where
         BatchSpanProcessorBuilder { config, ..self }
     }
 
-    /// Set max export size for batches
+    /// Set max export size for batches, should always less than or equals to max queue size.
+    ///
+    /// If input is larger than max queue size, will lower it to be equal to max queue size
     pub fn with_max_export_batch_size(self, size: usize) -> Self {
         let mut config = self.config;
-        config.max_export_batch_size = size;
+        if size > config.max_queue_size {
+            config.max_export_batch_size = config.max_queue_size;
+        } else {
+            config.max_export_batch_size = size;
+        }
 
         BatchSpanProcessorBuilder { config, ..self }
     }
@@ -349,5 +401,48 @@ where
             self.interval,
             self.config,
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::exporter::trace::stdout;
+    use crate::sdk::trace::span_processor::{
+        OTEL_BSP_MAX_EXPORT_BATCH_SIZE, OTEL_BSP_MAX_QUEUE_SIZE, OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT,
+        OTEL_BSP_SCHEDULE_DELAY_MILLIS, OTEL_BSP_SCHEDULE_DELAY_MILLIS_DEFAULT,
+    };
+    use crate::sdk::BatchSpanProcessor;
+    use std::time;
+
+    #[test]
+    fn test_build_batch_span_processor_from_env() {
+        std::env::set_var(OTEL_BSP_MAX_EXPORT_BATCH_SIZE, "500");
+        std::env::set_var(OTEL_BSP_SCHEDULE_DELAY_MILLIS, "I am not number");
+
+        let mut builder = BatchSpanProcessor::from_env(
+            stdout::Exporter::new(std::io::stdout(), true),
+            tokio::spawn,
+            tokio::time::interval,
+        );
+        // export batch size cannot exceed max queue size
+        assert_eq!(builder.config.max_export_batch_size, 500);
+        assert_eq!(
+            builder.config.scheduled_delay,
+            time::Duration::from_millis(OTEL_BSP_SCHEDULE_DELAY_MILLIS_DEFAULT)
+        );
+        assert_eq!(
+            builder.config.max_queue_size,
+            OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT
+        );
+
+        std::env::set_var(OTEL_BSP_MAX_QUEUE_SIZE, "120");
+        builder = BatchSpanProcessor::from_env(
+            stdout::Exporter::new(std::io::stdout(), true),
+            tokio::spawn,
+            tokio::time::interval,
+        );
+
+        assert_eq!(builder.config.max_export_batch_size, 120);
+        assert_eq!(builder.config.max_queue_size, 120);
     }
 }

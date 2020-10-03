@@ -1,38 +1,38 @@
-use super::CorrelationContext;
+use super::Baggage;
 use crate::api::context::propagation::text_propagator::FieldIter;
 use crate::api::{self, Context, KeyValue};
 use percent_encoding::{percent_decode_str, utf8_percent_encode, AsciiSet, CONTROLS};
 use std::iter;
 
-static CORRELATION_CONTEXT_HEADER: &str = "otcorrelations";
+static BAGGAGE_HEADER: &str = "otcorrelations";
 const FRAGMENT: &AsciiSet = &CONTROLS.add(b' ').add(b'"').add(b';').add(b',').add(b'=');
 
 lazy_static::lazy_static! {
-    static ref DEFAULT_CORRELATION_CONTEXT: CorrelationContext = CorrelationContext::default();
-    static ref CORRELATION_CONTEXT_FIELDS: [String; 1] = [CORRELATION_CONTEXT_HEADER.to_string()];
+    static ref DEFAULT_BAGGAGE: Baggage = Baggage::default();
+    static ref BAGGAGE_FIELDS: [String; 1] = [BAGGAGE_HEADER.to_string()];
 }
 
-/// Propagates name/value pairs in [W3C Correlation Context] format.
+/// Propagates name/value pairs in [W3C Baggage] format.
 ///
-/// [W3C Correlation Context]: https://w3c.github.io/correlation-context/
+/// [W3C Baggage]: https://w3c.github.io/baggage
 #[derive(Debug, Default)]
-pub struct CorrelationContextPropagator {
+pub struct BaggagePropagator {
     _private: (),
 }
 
-impl CorrelationContextPropagator {
-    /// Construct a new correlation context provider.
+impl BaggagePropagator {
+    /// Construct a new baggage propagator.
     pub fn new() -> Self {
-        CorrelationContextPropagator { _private: () }
+        BaggagePropagator { _private: () }
     }
 }
 
-impl api::TextMapFormat for CorrelationContextPropagator {
+impl api::TextMapFormat for BaggagePropagator {
     /// Encodes the values of the `Context` and injects them into the provided `Injector`.
     fn inject_context(&self, cx: &Context, injector: &mut dyn api::Injector) {
-        let correlation_cx = cx.correlation_context();
-        if !correlation_cx.is_empty() {
-            let header_value = correlation_cx
+        let baggage = cx.baggage();
+        if !baggage.is_empty() {
+            let header_value = baggage
                 .iter()
                 .map(|(name, value)| {
                     utf8_percent_encode(name.as_str().trim(), FRAGMENT)
@@ -42,14 +42,14 @@ impl api::TextMapFormat for CorrelationContextPropagator {
                 })
                 .collect::<Vec<String>>()
                 .join(",");
-            injector.set(CORRELATION_CONTEXT_HEADER, header_value);
+            injector.set(BAGGAGE_HEADER, header_value);
         }
     }
 
-    /// Extracts a `Context` with correlation context values from a `Extractor`.
+    /// Extracts a `Context` with baggage values from a `Extractor`.
     fn extract_with_context(&self, cx: &Context, extractor: &dyn api::Extractor) -> Context {
-        if let Some(header_value) = extractor.get(CORRELATION_CONTEXT_HEADER) {
-            let correlations = header_value.split(',').flat_map(|context_value| {
+        if let Some(header_value) = extractor.get(BAGGAGE_HEADER) {
+            let baggage = header_value.split(',').flat_map(|context_value| {
                 if let Some((name_and_value, props)) = context_value
                     .split(';')
                     .collect::<Vec<&str>>()
@@ -60,7 +60,7 @@ impl api::TextMapFormat for CorrelationContextPropagator {
                         let name = percent_decode_str(name).decode_utf8().map_err(|_| ())?;
                         let value = percent_decode_str(value).decode_utf8().map_err(|_| ())?;
 
-                        // TODO: handle props from https://w3c.github.io/correlation-context/
+                        // TODO: handle props from https://w3c.github.io/baggage/
                         // for now just append to value
                         let decoded_props = props
                             .iter()
@@ -77,100 +77,96 @@ impl api::TextMapFormat for CorrelationContextPropagator {
                         Err(())
                     }
                 } else {
-                    // Invalid correlation context value format
+                    // Invalid baggage value format
                     Err(())
                 }
             });
-            cx.with_correlations(correlations)
+            cx.with_baggage(baggage)
         } else {
             cx.clone()
         }
     }
 
     fn fields(&self) -> FieldIter {
-        FieldIter::new(CORRELATION_CONTEXT_FIELDS.as_ref())
+        FieldIter::new(BAGGAGE_FIELDS.as_ref())
     }
 }
 
-struct Correlations(CorrelationContext);
-
-/// Methods for soring and retrieving correlation data in a context.
-pub trait CorrelationContextExt {
+/// Methods for sorting and retrieving baggage data in a context.
+pub trait BaggageExt {
     /// Returns a clone of the current context with the included name / value pairs.
     ///
     /// # Examples
     ///
     /// ```
-    /// use opentelemetry::api::{Context, CorrelationContextExt, KeyValue, Value};
+    /// use opentelemetry::api::{Context, BaggageExt, KeyValue, Value};
     ///
-    /// let cx = Context::current_with_correlations(vec![KeyValue::new("my-name", "my-value")]);
+    /// let cx = Context::current_with_baggage(vec![KeyValue::new("my-name", "my-value")]);
     ///
     /// assert_eq!(
-    ///     cx.correlation_context().get("my-name"),
+    ///     cx.baggage().get("my-name"),
     ///     Some(&Value::String("my-value".to_string())),
     /// )
     /// ```
-    fn current_with_correlations<T: IntoIterator<Item = KeyValue>>(correlations: T) -> Self;
+    fn current_with_baggage<T: IntoIterator<Item = KeyValue>>(baggage: T) -> Self;
 
     /// Returns a clone of the given context with the included name / value pairs.
     ///
     /// # Examples
     ///
     /// ```
-    /// use opentelemetry::api::{Context, CorrelationContextExt, KeyValue, Value};
+    /// use opentelemetry::api::{Context, BaggageExt, KeyValue, Value};
     ///
     /// let some_context = Context::current();
-    /// let cx = some_context.with_correlations(vec![KeyValue::new("my-name", "my-value")]);
+    /// let cx = some_context.with_baggage(vec![KeyValue::new("my-name", "my-value")]);
     ///
     /// assert_eq!(
-    ///     cx.correlation_context().get("my-name"),
+    ///     cx.baggage().get("my-name"),
     ///     Some(&Value::String("my-value".to_string())),
     /// )
     /// ```
-    fn with_correlations<T: IntoIterator<Item = KeyValue>>(&self, correlations: T) -> Self;
+    fn with_baggage<T: IntoIterator<Item = KeyValue>>(&self, baggage: T) -> Self;
 
     /// Returns a clone of the given context with the included name / value pairs.
     ///
     /// # Examples
     ///
     /// ```
-    /// use opentelemetry::api::{Context, CorrelationContextExt, KeyValue, Value};
+    /// use opentelemetry::api::{Context, BaggageExt, KeyValue, Value};
     ///
-    /// let cx = Context::current().with_cleared_correlations();
+    /// let cx = Context::current().with_cleared_baggage();
     ///
-    /// assert_eq!(cx.correlation_context().len(), 0);
+    /// assert_eq!(cx.baggage().len(), 0);
     /// ```
-    fn with_cleared_correlations(&self) -> Self;
+    fn with_cleared_baggage(&self) -> Self;
 
-    /// Returns a reference to this context's correlation context, or the default
-    /// empty correlation context if none has been set.
-    fn correlation_context(&self) -> &CorrelationContext;
+    /// Returns a reference to this context's baggage, or the default
+    /// empty baggage if none has been set.
+    fn baggage(&self) -> &Baggage;
 }
 
-impl CorrelationContextExt for Context {
-    fn current_with_correlations<T: IntoIterator<Item = KeyValue>>(kvs: T) -> Self {
-        Context::current().with_correlations(kvs)
+impl BaggageExt for Context {
+    fn current_with_baggage<T: IntoIterator<Item = KeyValue>>(kvs: T) -> Self {
+        Context::current().with_baggage(kvs)
     }
 
-    fn with_correlations<T: IntoIterator<Item = KeyValue>>(&self, kvs: T) -> Self {
-        let merged = self
-            .correlation_context()
+    fn with_baggage<T: IntoIterator<Item = KeyValue>>(&self, kvs: T) -> Self {
+        let merged: Baggage = self
+            .baggage()
             .iter()
             .map(|(key, value)| KeyValue::new(key.clone(), value.clone()))
             .chain(kvs.into_iter())
             .collect();
 
-        self.with_value(Correlations(merged))
+        self.with_value(merged)
     }
 
-    fn with_cleared_correlations(&self) -> Self {
-        self.with_value(Correlations(CorrelationContext::new()))
+    fn with_cleared_baggage(&self) -> Self {
+        self.with_value(Baggage::new())
     }
 
-    fn correlation_context(&self) -> &CorrelationContext {
-        self.get::<Correlations>()
-            .map(|correlations| &correlations.0)
-            .unwrap_or_else(|| &DEFAULT_CORRELATION_CONTEXT)
+    fn baggage(&self) -> &Baggage {
+        self.get::<Baggage>().unwrap_or_else(|| &DEFAULT_BAGGAGE)
     }
 }
 
@@ -240,34 +236,31 @@ mod tests {
     }
 
     #[test]
-    fn extract_correlations() {
-        let propagator = CorrelationContextPropagator::new();
+    fn extract_baggage() {
+        let propagator = BaggagePropagator::new();
 
         for (header_value, kvs) in valid_extract_data() {
             let mut extractor: HashMap<String, String> = HashMap::new();
-            extractor.insert(
-                CORRELATION_CONTEXT_HEADER.to_string(),
-                header_value.to_string(),
-            );
+            extractor.insert(BAGGAGE_HEADER.to_string(), header_value.to_string());
             let context = propagator.extract(&extractor);
-            let correlations = context.correlation_context();
+            let baggage = context.baggage();
 
-            assert_eq!(kvs.len(), correlations.len());
-            for (key, value) in correlations {
+            assert_eq!(kvs.len(), baggage.len());
+            for (key, value) in baggage {
                 assert_eq!(Some(value), kvs.get(key))
             }
         }
     }
 
     #[test]
-    fn inject_correlations() {
-        let propagator = CorrelationContextPropagator::new();
+    fn inject_baggage() {
+        let propagator = BaggagePropagator::new();
 
         for (kvs, header_parts) in valid_inject_data() {
             let mut injector = HashMap::new();
-            let cx = Context::current_with_correlations(kvs);
+            let cx = Context::current_with_baggage(kvs);
             propagator.inject_context(&cx, &mut injector);
-            let header_value = injector.get(CORRELATION_CONTEXT_HEADER).unwrap();
+            let header_value = injector.get(BAGGAGE_HEADER).unwrap();
 
             assert_eq!(header_parts.join(",").len(), header_value.len(),);
             for header_part in &header_parts {

@@ -20,7 +20,7 @@ and metrics from your application. You can analyze them using [Prometheus], [Jae
 use opentelemetry::{api::TracerGenerics, global, sdk};
 
 fn main() {
-    global::set_provider(sdk::Provider::default());
+    let _guard = global::set_tracer_provider(sdk::Provider::default());
 
     global::tracer("component-a").in_span("foo", |_context| {
         global::tracer("component-b").in_span("bar", |_context| {

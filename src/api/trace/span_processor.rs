@@ -7,10 +7,10 @@
 //! Built-in span processors are responsible for batching and conversion of spans to
 //! exportable representation and passing batches to exporters.
 //!
-//! Span processors can be registered directly on SDK [`Provider`] and they are
+//! Span processors can be registered directly on SDK [`TracerProvider`] and they are
 //! invoked in the same order as they were registered.
 //!
-//! All `Tracer` instances created by a `Provider` share the same span processors.
+//! All `Tracer` instances created by a `TracerProvider` share the same span processors.
 //! Changes to this collection reflect in all `Tracer` instances.
 //!
 //! The following diagram shows `SpanProcessor`'s relationship to other components
@@ -32,7 +32,7 @@
 //! ```
 //!
 //! [`is_recording`]: ../span/trait.Span.html#method.is_recording
-//! [`Provider`]: ../provider/trait.Provider.html
+//! [`TracerProvider`]: ../provider/trait.TracerProvider.html
 
 use crate::exporter;
 use std::sync::Arc;
@@ -46,5 +46,5 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
     /// Shutdown is invoked when SDK shuts down. Use this call to cleanup any
     /// processor data. No calls to `on_start` and `on_end` method is invoked
     /// after `shutdown` call is made.
-    fn shutdown(&self);
+    fn shutdown(&mut self);
 }

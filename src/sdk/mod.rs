@@ -8,6 +8,7 @@
 //! `Meter` creation.
 pub mod env;
 pub mod export;
+pub mod instrumentation;
 #[cfg(feature = "metrics")]
 pub mod metrics;
 pub mod resource;
@@ -15,6 +16,7 @@ pub mod resource;
 pub mod trace;
 
 pub use env::EnvResourceDetector;
+pub use instrumentation::InstrumentationLibrary;
 pub use resource::Resource;
 #[cfg(feature = "trace")]
 pub use trace::{
@@ -22,7 +24,7 @@ pub use trace::{
     evicted_hash_map::EvictedHashMap,
     evicted_queue::EvictedQueue,
     id_generator::IdGenerator,
-    provider::{Builder, Provider},
+    provider::{Builder, TracerProvider},
     sampler::{Sampler, SamplingDecision, SamplingResult, ShouldSample},
     span::Span,
     span_processor::{BatchSpanProcessor, SimpleSpanProcessor},

@@ -30,7 +30,7 @@ impl Greeter for MyGreeter {
         request: Request<HelloRequest>, // Accept request of type HelloRequest
     ) -> Result<Response<HelloReply>, Status> {
         let propagator = api::TraceContextPropagator::new();
-        let parent_cx = propagator.extract(&HttpHeaderMapExtractor(request.metadata()));
+        let parent_cx = propagator.extract(request.metadata());
         let span = tracing::Span::current();
         span.set_parent(&parent_cx);
         let name = request.into_inner().name;
@@ -56,7 +56,6 @@ fn tracing_init() -> Result<(), Box<dyn std::error::Error>> {
         })
         .init()?;
 
-
     // For the demonstration, use `Sampler::Always` sampler to sample all traces. In a production
     // application, use `Sampler::Parent` or `Sampler::TraceIdRatioBased` with a desired ratio.
     let provider = sdk::Provider::builder()
@@ -74,15 +73,6 @@ fn tracing_init() -> Result<(), Box<dyn std::error::Error>> {
         .try_init()?;
 
     Ok(())
-}
-
-struct HttpHeaderMapExtractor<'a>(&'a tonic::metadata::MetadataMap);
-impl<'a> api::Extractor for HttpHeaderMapExtractor<'a> {
-    fn get(&self, key: &str) -> Option<&str> {
-        self.0
-            .get(key.to_lowercase().as_str())
-            .and_then(|value| value.to_str().ok())
-    }
 }
 
 #[tokio::main]

@@ -8,11 +8,11 @@
 //! The primary purpose of resources as a first-class concept in the SDK is decoupling of discovery
 //! of resource information from exporters. This allows for independent development and easy
 //! customization for users that need to integrate with closed source environments. When used with
-//! distributed tracing, a resource can be associated with the [`Provider`] when it is created.
-//! That association cannot be changed later. When associated with a `Provider`, all `Span`s
+//! distributed tracing, a resource can be associated with the [`TracerProvider`] when it is created.
+//! That association cannot be changed later. When associated with a `TracerProvider`, all `Span`s
 //! produced by any `Tracer` from the provider are associated with this `Resource`.
 //!
-//! [`Provider`]: ../../api/trace/provider/trait.Provider.html
+//! [`TracerProvider`]: ../../api/trace/provider/trait.TracerProvider.html
 use crate::api;
 use crate::api::labels;
 use crate::api::KeyValue;

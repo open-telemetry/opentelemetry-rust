@@ -1,10 +1,34 @@
-//! # OpenTelemetry Jaeger Exporter
-//!
 //! Collects OpenTelemetry spans and reports them to a given Jaeger
 //! `agent` or `collector` endpoint. See the [Jaeger Docs] for details
-//! and deployment information.
+//! about Jaeger and deployment information.
 //!
 //! [Jaeger Docs]: https://www.jaegertracing.io/docs/
+//!
+//! ### Quickstart
+//!
+//! First make sure you have a running version of the Jaeger instance
+//! you want to send data to:
+//!
+//! ```shell
+//! $ docker run -d -p6831:6831/udp -p6832:6832/udp -p16686:16686 -p14268:14268 jaegertracing/all-in-one:latest
+//! ```
+//!
+//! Then install a new jaeger pipeline with the recommended defaults to start
+//! exporting telemetry:
+//!
+//! ```no_run
+//! use opentelemetry::api::Tracer;
+//!
+//! fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     let (tracer, _uninstall) = opentelemetry_jaeger::new_pipeline().install()?;
+//!
+//!     tracer.in_span("doing_work", |cx| {
+//!         // Traced app logic here...
+//!     });
+//!
+//!     Ok(())
+//! }
+//! ```
 //!
 //! ## Performance
 //!
@@ -15,59 +39,33 @@
 //!
 //! ```toml
 //! [dependencies]
-//! opentelemetry-jaeger = { version = "..", features = ["tokio"] }
+//! opentelemetry = { version = "*", features = ["tokio"] }
+//! opentelemetry-jaeger = { version = "*", features = ["tokio"] }
 //! ```
 //!
 //! [`tokio`]: https://tokio.rs
 //! [`async-std`]: https://async.rs
 //!
-//! ### Jaeger Exporter Example
-//!
-//! This example expects a Jaeger agent running on `localhost:6831`.
-//!
-//! ```rust,no_run
-//! use opentelemetry::{api::KeyValue, global, sdk};
-//!
-//! fn init_tracer() -> Result<sdk::Tracer, Box<dyn std::error::Error>> {
-//!     opentelemetry_jaeger::new_pipeline()
-//!         .with_agent_endpoint("localhost:6831")
-//!         .with_service_name("trace-demo")
-//!         .with_tags(vec![
-//!             KeyValue::new("exporter", "jaeger"),
-//!             KeyValue::new("float", 312.23),
-//!         ])
-//!         .install()
-//! }
-//!
-//! fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     let tracer = init_tracer()?;
-//!     // Use configured tracer
-//!     Ok(())
-//! }
-//! ```
-//!
 //! ### Jaeger Exporter From Environment Variables
 //!
 //! The jaeger pipeline builder can be configured dynamically via the
 //! [`from_env`] method. All variables are optinal, a full list of accepted
-//! methods can be found in the [jaeger variables spec].
+//! options can be found in the [jaeger variables spec].
 //!
 //! [`from_env`]: struct.PipelineBuilder.html#method.from_env
 //! [jaeger variables spec]: https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/sdk-environment-variables.md#jaeger-exporter
 //!
-//! ```rust,no_run
-//! use opentelemetry::{api::KeyValue, global, sdk};
-//!
-//! fn init_tracer() -> Result<sdk::Tracer, Box<dyn std::error::Error>> {
-//!     // `OTEL_SERVICE_NAME=my-service-name`
-//!     opentelemetry_jaeger::new_pipeline()
-//!         .from_env()
-//!         .install()
-//! }
+//! ```no_run
+//! use opentelemetry::api::Tracer;
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     let tracer = init_tracer()?;
-//!     // Use configured tracer
+//!     // export OTEL_SERVICE_NAME=my-service-name
+//!     let (tracer, _uninstall) = opentelemetry_jaeger::new_pipeline().from_env().install()?;
+//!
+//!     tracer.in_span("doing_work", |cx| {
+//!         // Traced app logic here...
+//!     });
+//!
 //!     Ok(())
 //! }
 //! ```
@@ -87,25 +85,58 @@
 //!
 //! [`with_collector_endpoint`]: struct.PipelineBuilder.html#method.with_collector_endpoint
 //!
-//! ```rust,ignore
+//! ```ignore
 //! // Note that this requires the `collector_client` feature.
-//!
-//! use opentelemetry::{api::KeyValue, sdk};
-//!
-//! fn init_tracer() -> Result<sdk::Tracer, <Box<dyn std::error::Error>>> {
-//!     opentelemetry_jaeger::new_pipeline()
-//!         .with_collector_endpoint("http://localhost:14268/api/traces")
-//!         .with_service_name("trace-demo")
-//!         .with_tags(vec![
-//!             KeyValue::new("exporter", "jaeger"),
-//!             KeyValue::new("float", 312.23),
-//!         ])
-//!         .install()
-//! }
+//! use opentelemetry::api::Tracer;
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     let tracer = init_tracer()?;
-//!     // Use configured tracer
+//!     let (tracer, _uninstall) = opentelemetry_jaeger::new_pipeline()
+//!         .with_collector_endpoint("http://localhost:14268/api/traces")
+//!         // optionally set username and password as well.
+//!         .with_collector_username("username")
+//!         .with_collector_password("s3cr3t")
+//!         .install()?;
+//!
+//!     tracer.in_span("doing_work", |cx| {
+//!         // Traced app logic here...
+//!     });
+//!
+//!     Ok(())
+//! }
+//! ```
+//!
+//! ## Kitchen Sink Full Configuration
+//!
+//! Example showing how to override all configuration options. See the
+//! [`PipelineBuilder`] docs for details of each option.
+//!
+//! [`PipelineBuilder`]: struct.PipelineBuilder.html
+//!
+//! ```no_run
+//! use opentelemetry::api::{KeyValue, Tracer};
+//! use opentelemetry::sdk::{trace, IdGenerator, Resource, Sampler};
+//!
+//! fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     let (tracer, _uninstall) = opentelemetry_jaeger::new_pipeline()
+//!         .from_env()
+//!         .with_agent_endpoint("localhost:6831")
+//!         .with_service_name("my_app")
+//!         .with_tags(vec![KeyValue::new("process_key", "process_value")])
+//!         .with_trace_config(
+//!             trace::config()
+//!                 .with_default_sampler(Sampler::AlwaysOn)
+//!                 .with_id_generator(IdGenerator::default())
+//!                 .with_max_events_per_span(64)
+//!                 .with_max_attributes_per_span(16)
+//!                 .with_max_events_per_span(16)
+//!                 .with_resource(Resource::new(vec![KeyValue::new("key", "value")])),
+//!         )
+//!         .install()?;
+//!
+//!     tracer.in_span("doing_work", |cx| {
+//!         // Traced app logic here...
+//!     });
+//!
 //!     Ok(())
 //! }
 //! ```
@@ -122,16 +153,17 @@ pub(crate) mod transport;
 mod uploader;
 
 use self::thrift::jaeger;
-use agent::AgentSyncClientUDP;
+use agent::AgentAsyncClientUDP;
+use async_trait::async_trait;
 #[cfg(feature = "collector_client")]
-use collector::CollectorSyncClientHttp;
+use collector::CollectorAsyncClientHttp;
 use opentelemetry::{
-    api::{self, Provider},
+    api::{self, TracerProvider},
     exporter::trace,
     global, sdk,
 };
 use std::error::Error;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::{
     net,
     time::{Duration, SystemTime},
@@ -149,11 +181,15 @@ pub fn new_pipeline() -> PipelineBuilder {
     PipelineBuilder::default()
 }
 
+/// Guard that uninstalls the Jaeger trace pipeline when dropped
+#[derive(Debug)]
+pub struct Uninstall(global::TracerProviderGuard);
+
 /// Jaeger span exporter
 #[derive(Debug)]
 pub struct Exporter {
     process: jaeger::Process,
-    uploader: Mutex<uploader::BatchUploader>,
+    uploader: uploader::BatchUploader,
 }
 
 /// Jaeger process configuration
@@ -174,16 +210,29 @@ impl Into<jaeger::Process> for Process {
     }
 }
 
+#[async_trait]
 impl trace::SpanExporter for Exporter {
     /// Export spans to Jaeger
-    fn export(&self, batch: Vec<Arc<trace::SpanData>>) -> trace::ExportResult {
-        match self.uploader.lock() {
-            Ok(mut uploader) => {
-                let jaeger_spans = batch.into_iter().map(Into::into).collect();
-                uploader.upload(jaeger::Batch::new(self.process.clone(), jaeger_spans))
+    async fn export(&self, batch: &[Arc<trace::SpanData>]) -> trace::ExportResult {
+        let mut jaeger_spans: Vec<jaeger::Span> = Vec::with_capacity(batch.len());
+        let mut process = self.process.clone();
+
+        for (idx, span) in batch.iter().enumerate() {
+            if idx == 0 {
+                if let Some(span_process_tags) = build_process_tags(&span) {
+                    if let Some(process_tags) = &mut process.tags {
+                        process_tags.extend(span_process_tags);
+                    } else {
+                        process.tags = Some(span_process_tags.collect())
+                    }
+                }
             }
-            Err(_) => trace::ExportResult::FailedNotRetryable,
+            jaeger_spans.push(span.into());
         }
+
+        self.uploader
+            .upload(jaeger::Batch::new(process, jaeger_spans))
+            .await
     }
 }
 
@@ -192,13 +241,12 @@ impl trace::SpanExporter for Exporter {
 pub struct PipelineBuilder {
     agent_endpoint: Vec<net::SocketAddr>,
     #[cfg(feature = "collector_client")]
-    collector_endpoint: Option<String>,
+    collector_endpoint: Option<http::Uri>,
     #[cfg(feature = "collector_client")]
     collector_username: Option<String>,
     #[cfg(feature = "collector_client")]
     collector_password: Option<String>,
     process: Process,
-    max_packet_size: Option<usize>,
     config: Option<sdk::Config>,
 }
 
@@ -217,7 +265,6 @@ impl Default for PipelineBuilder {
                 service_name: DEFAULT_SERVICE_NAME.to_string(),
                 tags: Vec::new(),
             },
-            max_packet_size: None,
             config: None,
         }
     }
@@ -247,10 +294,15 @@ impl PipelineBuilder {
     }
 
     /// Assign the collector endpoint.
+    ///
+    /// E.g. "http://localhost:14268/api/traces"
     #[cfg(feature = "collector_client")]
-    pub fn with_collector_endpoint<S: Into<String>>(self, collector_endpoint: S) -> Self {
+    pub fn with_collector_endpoint<T>(self, collector_endpoint: T) -> Self
+    where
+        http::Uri: core::convert::TryFrom<T>,
+    {
         PipelineBuilder {
-            collector_endpoint: Some(collector_endpoint.into()),
+            collector_endpoint: core::convert::TryFrom::try_from(collector_endpoint).ok(),
             ..self
         }
     }
@@ -285,16 +337,8 @@ impl PipelineBuilder {
         self
     }
 
-    /// Assign the agent max udp packet size.
-    pub fn with_max_packet_size(self, max_packet_size: usize) -> Self {
-        PipelineBuilder {
-            max_packet_size: Some(max_packet_size),
-            ..self
-        }
-    }
-
     /// Assign the SDK config for the exporter pipeline.
-    pub fn with_sdk_config(self, config: sdk::Config) -> Self {
+    pub fn with_trace_config(self, config: sdk::Config) -> Self {
         PipelineBuilder {
             config: Some(config),
             ..self
@@ -302,21 +346,21 @@ impl PipelineBuilder {
     }
 
     /// Install a Jaeger pipeline with the recommended defaults.
-    pub fn install(self) -> Result<sdk::Tracer, Box<dyn Error>> {
-        let trace_provider = self.build()?;
-        let tracer = trace_provider.get_tracer("opentelemetry-jaeger");
+    pub fn install(self) -> Result<(sdk::Tracer, Uninstall), Box<dyn Error>> {
+        let tracer_provider = self.build()?;
+        let tracer = tracer_provider.get_tracer("opentelemetry-jaeger", None);
 
-        global::set_provider(trace_provider);
+        let provider_guard = global::set_tracer_provider(tracer_provider);
 
-        Ok(tracer)
+        Ok((tracer, Uninstall(provider_guard)))
     }
 
-    /// Build a configured `sdk::Provider` with the recommended defaults.
-    pub fn build(mut self) -> Result<sdk::Provider, Box<dyn Error>> {
+    /// Build a configured `sdk::TracerProvider` with the recommended defaults.
+    pub fn build(mut self) -> Result<sdk::TracerProvider, Box<dyn Error>> {
         let config = self.config.take();
         let exporter = self.init_exporter()?;
 
-        let mut builder = configure_exporter(sdk::Provider::builder(), exporter);
+        let mut builder = sdk::TracerProvider::builder().with_exporter(exporter);
 
         if let Some(config) = config {
             builder = builder.with_config(config)
@@ -333,56 +377,31 @@ impl PipelineBuilder {
 
         Ok(Exporter {
             process: process.into(),
-            uploader: Mutex::new(uploader),
+            uploader,
         })
     }
 
     #[cfg(not(feature = "collector_client"))]
     fn init_uploader(self) -> Result<(Process, BatchUploader), Box<dyn Error>> {
-        let agent = AgentSyncClientUDP::new(self.agent_endpoint.as_slice(), self.max_packet_size)?;
+        let agent = AgentAsyncClientUDP::new(self.agent_endpoint.as_slice())?;
         Ok((self.process, BatchUploader::Agent(agent)))
     }
 
     #[cfg(feature = "collector_client")]
     fn init_uploader(self) -> Result<(Process, uploader::BatchUploader), Box<dyn Error>> {
         if let Some(collector_endpoint) = self.collector_endpoint {
-            let collector = CollectorSyncClientHttp::new(
+            let collector = CollectorAsyncClientHttp::new(
                 collector_endpoint,
                 self.collector_username,
                 self.collector_password,
             )?;
-            Ok((
-                self.process,
-                uploader::BatchUploader::Collector(Box::new(collector)),
-            ))
+            Ok((self.process, uploader::BatchUploader::Collector(collector)))
         } else {
             let endpoint = self.agent_endpoint.as_slice();
-            let agent = AgentSyncClientUDP::new(endpoint, self.max_packet_size)?;
+            let agent = AgentAsyncClientUDP::new(endpoint)?;
             Ok((self.process, BatchUploader::Agent(agent)))
         }
     }
-}
-
-#[cfg(feature = "tokio")]
-fn configure_exporter(builder: sdk::Builder, exporter: Exporter) -> sdk::Builder {
-    let batch = sdk::BatchSpanProcessor::builder(exporter, tokio::spawn, tokio::time::interval);
-    builder.with_batch_exporter(batch.build())
-}
-
-#[cfg(all(feature = "async-std", not(feature = "tokio")))]
-fn configure_exporter(builder: sdk::Builder, exporter: Exporter) -> sdk::Builder {
-    let batch = sdk::BatchSpanProcessor::builder(
-        exporter,
-        async_std::task::spawn,
-        async_std::stream::interval,
-    )
-    .build();
-    builder.with_batch_exporter(batch)
-}
-
-#[cfg(all(not(feature = "async-std"), not(feature = "tokio")))]
-fn configure_exporter(builder: sdk::Builder, exporter: Exporter) -> sdk::Builder {
-    builder.with_simple_exporter(exporter)
 }
 
 #[rustfmt::skip]
@@ -421,7 +440,7 @@ impl Into<jaeger::Log> for api::Event {
     }
 }
 
-impl Into<jaeger::Span> for Arc<trace::SpanData> {
+impl Into<jaeger::Span> for &Arc<trace::SpanData> {
     /// Convert spans to jaeger thrift span for exporting.
     fn into(self) -> jaeger::Span {
         let trace_id = self.span_context.trace_id().to_u128();
@@ -445,7 +464,7 @@ impl Into<jaeger::Span> for Arc<trace::SpanData> {
                 .duration_since(self.start_time)
                 .unwrap_or_else(|_| Duration::from_secs(0))
                 .as_micros() as i64,
-            tags: build_tags(&self),
+            tags: build_span_tags(&self),
             logs: events_to_logs(&self.message_events),
         }
     }
@@ -477,7 +496,22 @@ fn links_to_references(links: &sdk::EvictedQueue<api::Link>) -> Option<Vec<jaege
     }
 }
 
-fn build_tags(span_data: &Arc<trace::SpanData>) -> Option<Vec<jaeger::Tag>> {
+fn build_process_tags(
+    span_data: &Arc<trace::SpanData>,
+) -> Option<impl Iterator<Item = jaeger::Tag> + '_> {
+    if span_data.resource.is_empty() {
+        None
+    } else {
+        Some(
+            span_data
+                .resource
+                .iter()
+                .map(|(k, v)| api::KeyValue::new(k.clone(), v.clone()).into()),
+        )
+    }
+}
+
+fn build_span_tags(span_data: &Arc<trace::SpanData>) -> Option<Vec<jaeger::Tag>> {
     let mut user_overrides = UserOverrides::default();
     // TODO determine if namespacing is required to avoid collisions with set attributes
     let mut tags = span_data
@@ -487,12 +521,6 @@ fn build_tags(span_data: &Arc<trace::SpanData>) -> Option<Vec<jaeger::Tag>> {
             user_overrides.record_attr(k.as_str());
             api::KeyValue::new(k.clone(), v.clone()).into()
         })
-        .chain(
-            span_data
-                .resource
-                .iter()
-                .map(|(k, v)| api::KeyValue::new(k.clone(), v.clone()).into()),
-        )
         .collect::<Vec<_>>();
 
     // Ensure error status is set
