@@ -6,7 +6,6 @@ use opentelemetry::{
     global,
     sdk::trace as sdktrace,
 };
-use opentelemetry_contrib::XrayTraceContextPropagator;
 use std::{convert::Infallible, net::SocketAddr};
 
 async fn handle(req: Request<Body>) -> Result<Response<Body>, Infallible> {
@@ -29,7 +28,7 @@ async fn handle(req: Request<Body>) -> Result<Response<Body>, Infallible> {
 }
 
 fn init_tracer() -> (sdktrace::Tracer, stdout::Uninstall) {
-    global::set_text_map_propagator(XrayTraceContextPropagator::new());
+    global::set_text_map_propagator(sdktrace::XrayPropagator::new());
 
     // Install stdout exporter pipeline to be able to retrieve the collected spans.
     // For the demonstration, use `Sampler::AlwaysOn` sampler to sample all traces. In a production

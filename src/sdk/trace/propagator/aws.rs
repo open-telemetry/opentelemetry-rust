@@ -1,3 +1,22 @@
+//! # AWS X-Ray Trace Propagator
+//!
+//! Extracts and injects values to/from the `x-amzn-trace-id` header. Converting between
+//! OpenTelemetry [SpanContext][otel-spec] and [X-Ray Trace format][xray-trace-id].
+//!
+//! For details on the [`x-amzn-trace-id` header][xray-header] see the AWS X-Ray Docs.
+//!
+//! ## Example
+//!
+//! ```
+//! use opentelemetry::global;
+//! use opentelemetry::sdk::propagator::aws::XrayPropagator;
+//!
+//! global::set_text_map_propagator(XrayPropagator::default());
+//! ```
+//!
+//! [otel-spec]: https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/trace/api.md#spancontext
+//! [xray-trace-id]: https://docs.aws.amazon.com/xray/latest/devguide/xray-api-sendingdata.html#xray-api-traceids
+//! [xray-header]: https://docs.aws.amazon.com/xray/latest/devguide/xray-concepts.html#xray-concepts-tracingheader
 use opentelemetry::api::{
     trace::{
         SpanContext, SpanId, TraceContextExt, TraceId, TraceState, TRACE_FLAG_DEFERRED,
@@ -20,34 +39,16 @@ lazy_static::lazy_static! {
     static ref AWS_XRAY_HEADER_FIELD: [String; 1] = [AWS_XRAY_TRACE_HEADER.to_string()];
 }
 
-/// # AWS X-Ray Trace Propagator
-///
-/// Extracts and injects values to/from the `x-amzn-trace-id` header. Converting between
-/// OpenTelemetry [SpanContext][otel-spec] and [X-Ray Trace format][xray-trace-id].
-///
-/// For details on the [`x-amzn-trace-id` header][xray-header] see the AWS X-Ray Docs.
-///
-/// ## Example
-///
-/// ```
-/// extern crate opentelemetry;
-/// use opentelemetry::global;
-/// use opentelemetry_contrib::XrayTraceContextPropagator;
-///
-/// global::set_text_map_propagator(XrayTraceContextPropagator::default());
-/// ```
-///
-/// [otel-spec]: https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/trace/api.md#spancontext
-/// [xray-trace-id]: https://docs.aws.amazon.com/xray/latest/devguide/xray-api-sendingdata.html#xray-api-traceids
-/// [xray-header]: https://docs.aws.amazon.com/xray/latest/devguide/xray-concepts.html#xray-concepts-tracingheader
+/// Extracts and injects `SpanContext`s into `Extractor`s or `Injector`s using AWS X-Ray header format.
 #[derive(Clone, Debug, Default)]
-pub struct XrayTraceContextPropagator {
+pub struct XrayPropagator {
     _private: (),
 }
 
-impl XrayTraceContextPropagator {
+impl XrayPropagator {
+    /// Creates a new `XrayTraceContextPropagator`.
     pub fn new() -> Self {
-        XrayTraceContextPropagator::default()
+        XrayPropagator::default()
     }
 
     fn extract_span_context(&self, extractor: &dyn Extractor) -> Result<SpanContext, ()> {
@@ -104,7 +105,7 @@ impl XrayTraceContextPropagator {
     }
 }
 
-impl TextMapFormat for XrayTraceContextPropagator {
+impl TextMapFormat for XrayPropagator {
     fn inject_context(&self, cx: &Context, injector: &mut dyn Injector) {
         let span_context: SpanContext = cx.span().span_context();
         if span_context.is_valid() {
@@ -235,8 +236,13 @@ fn title_case(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+<<<<<<< HEAD:opentelemetry-contrib/src/trace_propagator/aws_xray_propagator.rs
     use opentelemetry::api;
     use opentelemetry::api::trace::TraceState;
+=======
+    use crate::api;
+    use crate::api::trace::span_context::TraceState;
+>>>>>>> Move propagators to SDK:src/sdk/trace/propagator/aws.rs
     use std::collections::HashMap;
     use std::str::FromStr;
     use std::time::SystemTime;
@@ -280,7 +286,7 @@ mod tests {
                     .into_iter()
                     .collect();
 
-            let propagator = XrayTraceContextPropagator::default();
+            let propagator = XrayPropagator::default();
             let context = propagator.extract(&map);
             assert_eq!(context.remote_span_context(), Some(&expected));
         }
@@ -289,7 +295,7 @@ mod tests {
     #[test]
     fn test_extract_empty() {
         let map: HashMap<String, String> = HashMap::new();
-        let propagator = XrayTraceContextPropagator::default();
+        let propagator = XrayPropagator::default();
         let context = propagator.extract(&map);
         assert_eq!(
             context.remote_span_context(),
@@ -322,7 +328,7 @@ mod tests {
 
     #[test]
     fn test_inject() {
-        let propagator = XrayTraceContextPropagator::default();
+        let propagator = XrayPropagator::default();
         for (header_value, span_context) in inject_test_data() {
             let mut injector: HashMap<String, String> = HashMap::new();
             propagator.inject_context(

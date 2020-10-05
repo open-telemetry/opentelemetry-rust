@@ -10,6 +10,7 @@ mod config;
 mod evicted_hash_map;
 mod evicted_queue;
 mod id_generator;
+mod propagator;
 mod provider;
 mod sampler;
 mod span;
@@ -20,6 +21,11 @@ pub use config::{config, Config};
 pub use evicted_hash_map::EvictedHashMap;
 pub use evicted_queue::EvictedQueue;
 pub use id_generator::{aws::XrayIdGenerator, IdGenerator};
+pub use propagator::{
+    aws::XrayPropagator,
+    b3::{B3Encoding, B3Propagator},
+    jaeger::JaegerPropagator,
+};
 pub use provider::{Builder, TracerProvider};
 pub use sampler::{Sampler, SamplingDecision, SamplingResult, ShouldSample};
 pub use span::Span;

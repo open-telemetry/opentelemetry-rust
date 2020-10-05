@@ -6,4 +6,7 @@
 //! more information see the [OpenTelemetry Spec]['spec'].
 //!
 //! ['spec']: https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/context/api-propagators.md#overview
+pub mod aws;
+pub mod b3;
+pub mod jaeger;
 pub mod w3;
