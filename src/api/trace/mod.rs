@@ -120,7 +120,6 @@ mod provider;
 mod span;
 mod span_context;
 mod span_processor;
-mod trace_context_propagator;
 mod tracer;
 
 pub use self::{

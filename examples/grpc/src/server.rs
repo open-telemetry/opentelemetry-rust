@@ -8,7 +8,7 @@ use opentelemetry::api::{
     KeyValue, TextMapFormat,
 };
 use opentelemetry::global;
-use opentelemetry::sdk::trace as sdktrace;
+use opentelemetry::sdk::{propagator, trace as sdktrace};
 use std::error::Error;
 
 pub mod hello_world {
@@ -24,7 +24,7 @@ impl Greeter for MyGreeter {
         &self,
         request: Request<HelloRequest>, // Accept request of type HelloRequest
     ) -> Result<Response<HelloReply>, Status> {
-        let propagator = api::trace::TraceContextPropagator::new();
+        let propagator = propagator::w3::TraceContextPropagator::new();
         let parent_cx = propagator.extract(request.metadata());
         let span = global::tracer("greeter").start_from_context("Processing reply", &parent_cx);
         span.set_attribute(KeyValue::new("request", format!("{:?}", request)));

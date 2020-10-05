@@ -4,6 +4,7 @@ use opentelemetry::api::{
     trace::{TraceContextExt, TraceContextPropagator, Tracer},
     Context, KeyValue, TextMapFormat,
 };
+use opentelemetry::sdk;
 use opentelemetry::sdk::trace as sdktrace;
 use std::error::Error;
 
@@ -21,7 +22,7 @@ fn tracing_init() -> Result<(sdktrace::Tracer, opentelemetry_jaeger::Uninstall),
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (tracer, _uninstall) = tracing_init()?;
     let mut client = GreeterClient::connect("http://[::1]:50051").await?;
-    let propagator = TraceContextPropagator::new();
+    let propagator = sdk::propagator::w3::TraceContextPropagator::new();
     let span = tracer.start("client-request");
     let cx = Context::current_with_span(span);
 

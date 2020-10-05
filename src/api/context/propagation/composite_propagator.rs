@@ -18,12 +18,12 @@ use std::fmt::Debug;
 ///
 /// ```
 /// use opentelemetry::api::{*, trace::*};
-/// use opentelemetry::sdk::trace as sdktrace;
+/// use opentelemetry::sdk::{propagator, trace as sdktrace};
 /// use std::collections::HashMap;
 ///
 /// // First create 1 or more propagators
 /// let baggage_propagator = BaggagePropagator::new();
-/// let trace_context_propagator = TraceContextPropagator::new();
+/// let trace_context_propagator = propagator::w3::TraceContextPropagator::new();
 ///
 /// // Then create a composite propagator
 /// let composite_propagator = TextMapCompositePropagator::new(vec![
@@ -108,6 +108,7 @@ mod tests {
         },
         Context, Extractor, FieldIter, Injector, TextMapCompositePropagator, TextMapFormat,
     };
+    use crate::sdk::propagator::w3::TraceContextPropagator;
     use std::collections::HashMap;
     use std::str::FromStr;
 

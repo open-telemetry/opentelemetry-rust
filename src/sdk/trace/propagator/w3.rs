@@ -1,4 +1,4 @@
-//! # Trace Context Propagator
+//! # W3 Trace Context Propagator
 //!
 //! The `traceparent` header represents the incoming request in a
 //! tracing system in a common format, understood by all vendors.

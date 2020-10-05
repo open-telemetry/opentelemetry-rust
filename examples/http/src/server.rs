@@ -12,7 +12,7 @@ use opentelemetry::{
 use std::{convert::Infallible, net::SocketAddr};
 
 async fn handle(req: Request<Body>) -> Result<Response<Body>, Infallible> {
-    let propagator = api::trace::TraceContextPropagator::new();
+    let propagator = sdk::propagator::w3::TraceContextPropagator::new();
     let parent_cx = propagator.extract(req.headers());
     let span = global::tracer("example/server").start_from_context("hello", &parent_cx);
     span.add_event("handling this...".to_string(), Vec::new());
