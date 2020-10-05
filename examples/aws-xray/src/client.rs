@@ -9,7 +9,7 @@ use opentelemetry::{
     global,
     sdk::trace as sdktrace,
 };
-use opentelemetry_contrib::{XrayIdGenerator, XrayTraceContextPropagator};
+use opentelemetry_contrib::XrayTraceContextPropagator;
 
 fn init_tracer() -> (sdktrace::Tracer, stdout::Uninstall) {
     global::set_text_map_propagator(XrayTraceContextPropagator::new());
@@ -20,7 +20,7 @@ fn init_tracer() -> (sdktrace::Tracer, stdout::Uninstall) {
     stdout::new_pipeline()
         .with_trace_config(sdktrace::Config {
             default_sampler: Box::new(sdktrace::Sampler::AlwaysOn),
-            id_generator: Box::new(XrayIdGenerator::default()),
+            id_generator: Box::new(sdktrace::XrayIdGenerator::default()),
             ..Default::default()
         })
         .install()

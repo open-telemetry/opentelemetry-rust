@@ -1,45 +1,44 @@
-use opentelemetry::api::trace::{IdGenerator, SpanId, TraceId};
-use opentelemetry::sdk;
+//! # AWS X-Ray ID Generator
+//!
+//! Generates OpenTelemetry formatted `TraceId`'s and `SpanId`'s. The `TraceId`'s are generated so
+//! they can be backed out into X-Ray format by the [AWS X-Ray Exporter][xray-exporter] in the
+//! [OpenTelemetry Collector][otel-collector].
+//!
+//! ## Trace ID Format
+//!
+//! A `trace_id` consists of three numbers separated by hyphens. For example, `1-58406520-a006649127e371903a2de979`.
+//! This includes:
+//!
+//! * The version number, that is, 1.
+//! * The time of the original request, in Unix epoch time, in 8 hexadecimal digits.
+//! * For example, 10:00AM December 1st, 2016 PST in epoch time is 1480615200 seconds, or 58406520 in hexadecimal digits.
+//! * A 96-bit identifier for the trace, globally unique, in 24 hexadecimal digits.
+//!
+//! See the [AWS X-Ray Documentation][xray-trace-id] for more details.
+//!
+//! ## Example
+//!
+//! ```
+//! use opentelemetry::api::trace::NoopSpanExporter;
+//! use opentelemetry::sdk::trace::{Config, TracerProvider, XrayIdGenerator};
+//!
+//! let _provider: TracerProvider = TracerProvider::builder()
+//!     .with_simple_exporter(NoopSpanExporter::new())
+//!     .with_config(Config {
+//!          id_generator: Box::new(XrayIdGenerator::default()),
+//!          ..Default::default()
+//!     })
+//!     .build();
+//! ```
+//!
+//! [otel-collector]: https://github.com/open-telemetry/opentelemetry-collector-contrib#opentelemetry-collector-contrib
+//! [xray-exporter]: https://godoc.org/github.com/open-telemetry/opentelemetry-collector-contrib/exporter/awsxrayexporter
+//! [xray-trace-id]: https://docs.aws.amazon.com/xray/latest/devguide/xray-api-sendingdata.html#xray-api-traceids
+use crate::api::trace::{IdGenerator, SpanId, TraceId};
+use crate::sdk;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-/// # AWS X-Ray ID Generator
-///
-/// Generates OpenTelemetry formatted `TraceId`'s and `SpanId`'s. The `TraceId`'s are generated so
-/// they can be backed out into X-Ray format by the [AWS X-Ray Exporter][xray-exporter] in the
-/// [OpenTelemetry Collector][otel-collector].
-///
-/// ## Trace ID Format
-///
-/// A `trace_id` consists of three numbers separated by hyphens. For example, `1-58406520-a006649127e371903a2de979`.
-/// This includes:
-///
-/// * The version number, that is, 1.
-/// * The time of the original request, in Unix epoch time, in 8 hexadecimal digits.
-/// * For example, 10:00AM December 1st, 2016 PST in epoch time is 1480615200 seconds, or 58406520 in hexadecimal digits.
-/// * A 96-bit identifier for the trace, globally unique, in 24 hexadecimal digits.
-///
-/// See the [AWS X-Ray Documentation][xray-trace-id] for more details.
-///
-/// ## Example
-///
-/// ```
-/// extern crate opentelemetry;
-/// use opentelemetry::api::trace::NoopSpanExporter;
-/// use opentelemetry::sdk::trace::{Config, TracerProvider};
-/// use opentelemetry_contrib::XrayIdGenerator;
-///
-/// let _provider: TracerProvider = TracerProvider::builder()
-///     .with_simple_exporter(NoopSpanExporter::new())
-///     .with_config(Config {
-///          id_generator: Box::new(XrayIdGenerator::default()),
-///          ..Default::default()
-///     })
-///     .build();
-/// ```
-///
-/// [otel-collector]: https://github.com/open-telemetry/opentelemetry-collector-contrib#opentelemetry-collector-contrib
-/// [xray-exporter]: https://godoc.org/github.com/open-telemetry/opentelemetry-collector-contrib/exporter/awsxrayexporter
-/// [xray-trace-id]: https://docs.aws.amazon.com/xray/latest/devguide/xray-api-sendingdata.html#xray-api-traceids
+/// Generates AWS X-Ray compliant Trace and Span ids.
 #[derive(Debug, Default)]
 pub struct XrayIdGenerator {
     sdk_default_generator: sdk::trace::IdGenerator,
