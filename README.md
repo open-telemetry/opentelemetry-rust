@@ -18,7 +18,7 @@ can analyze them using [Prometheus], [Jaeger], and other observability tools.
 ## Getting Started
 
 ```rust
-use crate::{api::trace::Tracer, exporter::trace::stdout};
+use opentelemetry::{api::trace::Tracer, exporter::trace::stdout};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create a new instrumentation pipeline
