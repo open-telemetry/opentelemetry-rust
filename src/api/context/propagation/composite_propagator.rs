@@ -42,8 +42,8 @@ use std::fmt::Debug;
 ///                                     .with_baggage(vec![KeyValue::new("test", "example")]),
 ///                                     &mut injector);
 ///
-/// // The injector now has both `otcorrelations` and `traceparent` headers
-/// assert!(injector.get("otcorrelations").is_some());
+/// // The injector now has both `baggage` and `traceparent` headers
+/// assert!(injector.get("baggage").is_some());
 /// assert!(injector.get("traceparent").is_some());
 /// ```
 #[derive(Debug)]
