@@ -5,10 +5,10 @@ use opentelemetry::api::{
     trace::{FutureExt, TraceContextExt, Tracer},
     Key,
 };
-use opentelemetry::{global, sdk};
+use opentelemetry::{global, sdk::trace as sdktrace};
 use std::error::Error;
 
-fn init_tracer() -> Result<(sdk::trace::Tracer, opentelemetry_jaeger::Uninstall), Box<dyn Error>> {
+fn init_tracer() -> Result<(sdktrace::Tracer, opentelemetry_jaeger::Uninstall), Box<dyn Error>> {
     opentelemetry_jaeger::new_pipeline()
         .with_collector_endpoint("http://127.0.0.1:14268/api/traces")
         .with_service_name("trace-http-demo")

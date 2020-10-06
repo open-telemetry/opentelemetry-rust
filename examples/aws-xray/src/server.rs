@@ -3,7 +3,8 @@ use hyper::{Body, Request, Response, Server};
 use opentelemetry::{
     api::trace::{Span, Tracer},
     exporter::trace::stdout,
-    global, sdk,
+    global,
+    sdk::trace as sdktrace,
 };
 use opentelemetry_contrib::{XrayIdGenerator, XrayTraceContextPropagator};
 use std::{convert::Infallible, net::SocketAddr};
@@ -27,15 +28,15 @@ async fn handle(req: Request<Body>) -> Result<Response<Body>, Infallible> {
     ))
 }
 
-fn init_tracer() -> (sdk::trace::Tracer, stdout::Uninstall) {
+fn init_tracer() -> (sdktrace::Tracer, stdout::Uninstall) {
     global::set_text_map_propagator(XrayTraceContextPropagator::new());
 
     // Install stdout exporter pipeline to be able to retrieve the collected spans.
     // For the demonstration, use `Sampler::AlwaysOn` sampler to sample all traces. In a production
     // application, use `Sampler::ParentBased` or `Sampler::TraceIdRatioBased` with a desired ratio.
     stdout::new_pipeline()
-        .with_trace_config(sdk::trace::Config {
-            default_sampler: Box::new(sdk::trace::Sampler::AlwaysOn),
+        .with_trace_config(sdktrace::Config {
+            default_sampler: Box::new(sdktrace::Sampler::AlwaysOn),
             id_generator: Box::new(XrayIdGenerator::default()),
             ..Default::default()
         })

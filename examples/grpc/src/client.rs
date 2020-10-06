@@ -4,14 +4,14 @@ use opentelemetry::api::{
     trace::{TraceContextExt, TraceContextPropagator, Tracer},
     Context, KeyValue, TextMapFormat,
 };
-use opentelemetry::sdk;
+use opentelemetry::sdk::trace as sdktrace;
 use std::error::Error;
 
 pub mod hello_world {
     tonic::include_proto!("helloworld");
 }
 
-fn tracing_init() -> Result<(sdk::trace::Tracer, opentelemetry_jaeger::Uninstall), Box<dyn Error>> {
+fn tracing_init() -> Result<(sdktrace::Tracer, opentelemetry_jaeger::Uninstall), Box<dyn Error>> {
     opentelemetry_jaeger::new_pipeline()
         .with_service_name("grpc-client")
         .install()

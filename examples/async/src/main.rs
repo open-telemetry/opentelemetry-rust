@@ -22,7 +22,8 @@ use opentelemetry::{
         trace::{FutureExt, TraceContextExt, Tracer},
         Context,
     },
-    global, sdk,
+    global,
+    sdk::trace as sdktrace,
 };
 use std::{error::Error, io, net::SocketAddr};
 use tokio::io::AsyncWriteExt;
@@ -53,7 +54,7 @@ async fn run(addr: &SocketAddr) -> io::Result<usize> {
     write(&mut stream).with_context(cx).await
 }
 
-fn init_tracer() -> Result<(sdk::trace::Tracer, opentelemetry_jaeger::Uninstall), Box<dyn Error>> {
+fn init_tracer() -> Result<(sdktrace::Tracer, opentelemetry_jaeger::Uninstall), Box<dyn Error>> {
     opentelemetry_jaeger::new_pipeline()
         .with_service_name("trace-demo")
         .install()

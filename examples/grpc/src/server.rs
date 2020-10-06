@@ -8,7 +8,7 @@ use opentelemetry::api::{
     KeyValue, TextMapFormat,
 };
 use opentelemetry::global;
-use opentelemetry::sdk;
+use opentelemetry::sdk::trace as sdktrace;
 use std::error::Error;
 
 pub mod hello_world {
@@ -38,7 +38,7 @@ impl Greeter for MyGreeter {
     }
 }
 
-fn tracing_init() -> Result<(sdk::trace::Tracer, opentelemetry_jaeger::Uninstall), Box<dyn Error>> {
+fn tracing_init() -> Result<(sdktrace::Tracer, opentelemetry_jaeger::Uninstall), Box<dyn Error>> {
     opentelemetry_jaeger::new_pipeline()
         .with_service_name("grpc-server")
         .install()

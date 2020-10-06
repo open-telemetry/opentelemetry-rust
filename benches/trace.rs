@@ -4,7 +4,7 @@ use opentelemetry::{
         trace::{Span, Tracer, TracerProvider},
         Key,
     },
-    sdk,
+    sdk::trace as sdktrace,
 };
 
 fn criterion_benchmark(c: &mut Criterion) {
@@ -67,13 +67,13 @@ fn criterion_benchmark(c: &mut Criterion) {
     });
 }
 
-fn trace_benchmark_group<F: Fn(&sdk::trace::Tracer)>(c: &mut Criterion, name: &str, f: F) {
+fn trace_benchmark_group<F: Fn(&sdktrace::Tracer)>(c: &mut Criterion, name: &str, f: F) {
     let mut group = c.benchmark_group(name);
 
     group.bench_function("always-sample", |b| {
-        let always_sample = sdk::trace::TracerProvider::builder()
-            .with_config(sdk::trace::Config {
-                default_sampler: Box::new(sdk::trace::Sampler::AlwaysOn),
+        let always_sample = sdktrace::TracerProvider::builder()
+            .with_config(sdktrace::Config {
+                default_sampler: Box::new(sdktrace::Sampler::AlwaysOn),
                 ..Default::default()
             })
             .build()
@@ -83,9 +83,9 @@ fn trace_benchmark_group<F: Fn(&sdk::trace::Tracer)>(c: &mut Criterion, name: &s
     });
 
     group.bench_function("never-sample", |b| {
-        let never_sample = sdk::trace::TracerProvider::builder()
-            .with_config(sdk::trace::Config {
-                default_sampler: Box::new(sdk::trace::Sampler::AlwaysOff),
+        let never_sample = sdktrace::TracerProvider::builder()
+            .with_config(sdktrace::Config {
+                default_sampler: Box::new(sdktrace::Sampler::AlwaysOff),
                 ..Default::default()
             })
             .build()

@@ -6,11 +6,11 @@ use opentelemetry::api::{
 };
 use opentelemetry::exporter;
 use opentelemetry::sdk::metrics::PushController;
-use opentelemetry::{global, sdk};
+use opentelemetry::{global, sdk::trace as sdktrace};
 use std::error::Error;
 use std::time::Duration;
 
-fn init_tracer() -> Result<(sdk::trace::Tracer, opentelemetry_otlp::Uninstall), Box<dyn Error>> {
+fn init_tracer() -> Result<(sdktrace::Tracer, opentelemetry_otlp::Uninstall), Box<dyn Error>> {
     opentelemetry_otlp::new_pipeline().install()
 }
 

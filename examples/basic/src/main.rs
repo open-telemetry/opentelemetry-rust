@@ -5,12 +5,13 @@ use opentelemetry::api::{
     BaggageExt, Context, Key, KeyValue,
 };
 use opentelemetry::exporter;
+use opentelemetry::global;
 use opentelemetry::sdk::metrics::PushController;
-use opentelemetry::{global, sdk};
+use opentelemetry::sdk::trace as sdktrace;
 use std::error::Error;
 use std::time::Duration;
 
-fn init_tracer() -> Result<(sdk::trace::Tracer, opentelemetry_jaeger::Uninstall), Box<dyn Error>> {
+fn init_tracer() -> Result<(sdktrace::Tracer, opentelemetry_jaeger::Uninstall), Box<dyn Error>> {
     opentelemetry_jaeger::new_pipeline()
         .with_service_name("trace-demo")
         .with_tags(vec![
