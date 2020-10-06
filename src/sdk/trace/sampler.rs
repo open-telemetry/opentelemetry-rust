@@ -73,11 +73,11 @@ pub struct SamplingResult {
 pub enum SamplingDecision {
     /// `is_recording() == false`, span will not be recorded and all events and
     /// attributes will be dropped.
-    NotRecord,
+    Drop,
     /// `is_recording() == true`, but `Sampled` flag MUST NOT be set.
-    Record,
+    RecordOnly,
     /// `is_recording() == true` AND `Sampled` flag` MUST be set.
-    RecordAndSampled,
+    RecordAndSample,
 }
 
 /// Sampling options
@@ -107,9 +107,9 @@ impl ShouldSample for Sampler {
     ) -> SamplingResult {
         let decision = match self {
             // Always sample the trace
-            Sampler::AlwaysOn => SamplingDecision::RecordAndSampled,
+            Sampler::AlwaysOn => SamplingDecision::RecordAndSample,
             // Never sample the trace
-            Sampler::AlwaysOff => SamplingDecision::NotRecord,
+            Sampler::AlwaysOff => SamplingDecision::Drop,
             // The parent decision if sampled; otherwise the decision of delegate_sampler
             Sampler::ParentBased(delegate_sampler) => parent_context.map_or(
                 delegate_sampler
@@ -117,25 +117,25 @@ impl ShouldSample for Sampler {
                     .decision,
                 |ctx| {
                     if ctx.is_sampled() {
-                        SamplingDecision::RecordAndSampled
+                        SamplingDecision::RecordAndSample
                     } else {
-                        SamplingDecision::NotRecord
+                        SamplingDecision::Drop
                     }
                 },
             ),
             // Probabilistically sample the trace.
             Sampler::TraceIdRatioBased(prob) => {
                 if *prob >= 1.0 {
-                    SamplingDecision::RecordAndSampled
+                    SamplingDecision::RecordAndSample
                 } else {
                     let prob_upper_bound = (prob.max(0.0) * (1u64 << 63) as f64) as u64;
                     // The trace_id is already randomly generated, so we don't need a new one here
                     let rnd_from_trace_id = (trace_id.to_u128() as u64) >> 1;
 
                     if rnd_from_trace_id < prob_upper_bound {
-                        SamplingDecision::RecordAndSampled
+                        SamplingDecision::RecordAndSample
                     } else {
-                        SamplingDecision::NotRecord
+                        SamplingDecision::Drop
                     }
                 }
             }
@@ -241,7 +241,7 @@ mod tests {
                         &[],
                     )
                     .decision
-                    == SamplingDecision::RecordAndSampled
+                    == SamplingDecision::RecordAndSample
                 {
                     sampled += 1;
                 }
