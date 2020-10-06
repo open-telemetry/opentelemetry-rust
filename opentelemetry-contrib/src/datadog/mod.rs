@@ -55,7 +55,7 @@
 //! [`DatadogPipelineBuilder`]: struct.DatadogPipelineBuilder.html
 //!
 //! ```no_run
-//! use opentelemetry::api::{KeyValue, Tracer};
+//! use opentelemetry::api::{KeyValue, trace::Tracer};
 //! use opentelemetry::sdk::{trace::{self, IdGenerator, Sampler}, Resource};
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -86,7 +86,7 @@ mod model;
 pub use model::ApiVersion;
 
 use async_trait::async_trait;
-use opentelemetry::{api::TracerProvider, exporter::trace, global, sdk};
+use opentelemetry::{api::trace::TracerProvider, exporter::trace, global, sdk};
 use reqwest::header::CONTENT_TYPE;
 use reqwest::Url;
 use std::error::Error;

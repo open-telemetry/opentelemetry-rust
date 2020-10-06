@@ -9,15 +9,15 @@ pub struct IdGenerator {
     _private: (),
 }
 
-impl api::IdGenerator for IdGenerator {
+impl api::trace::IdGenerator for IdGenerator {
     /// Generate new `TraceId` using thread local rng
-    fn new_trace_id(&self) -> api::TraceId {
-        CURRENT_RNG.with(|rng| api::TraceId::from_u128(rng.borrow_mut().gen()))
+    fn new_trace_id(&self) -> api::trace::TraceId {
+        CURRENT_RNG.with(|rng| api::trace::TraceId::from_u128(rng.borrow_mut().gen()))
     }
 
     /// Generate new `SpanId` using thread local rng
-    fn new_span_id(&self) -> api::SpanId {
-        CURRENT_RNG.with(|rng| api::SpanId::from_u64(rng.borrow_mut().gen()))
+    fn new_span_id(&self) -> api::trace::SpanId {
+        CURRENT_RNG.with(|rng| api::trace::SpanId::from_u64(rng.borrow_mut().gen()))
     }
 }
 

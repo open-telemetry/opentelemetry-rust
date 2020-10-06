@@ -3,8 +3,8 @@
 //! This implementation is returned as the global tracer if no `Tracer`
 //! has been set. It is also useful for testing purposes as it is intended
 //! to have minimal resource utilization and runtime impact.
-use crate::api::trace::span_context::TraceState;
-use crate::api::TraceContextExt;
+use crate::api::trace::TraceContextExt;
+use crate::api::trace::TraceState;
 use crate::{api, exporter};
 use async_trait::async_trait;
 use std::sync::Arc;
@@ -23,7 +23,7 @@ impl NoopTracerProvider {
     }
 }
 
-impl api::TracerProvider for NoopTracerProvider {
+impl api::trace::TracerProvider for NoopTracerProvider {
     type Tracer = NoopTracer;
 
     /// Returns a new `NoopTracer` instance.
@@ -35,7 +35,7 @@ impl api::TracerProvider for NoopTracerProvider {
 /// A no-op instance of a `Span`.
 #[derive(Debug)]
 pub struct NoopSpan {
-    span_context: api::SpanContext,
+    span_context: api::trace::SpanContext,
 }
 
 impl Default for NoopSpan {
@@ -48,9 +48,9 @@ impl NoopSpan {
     /// Creates a new `NoopSpan` instance.
     pub fn new() -> Self {
         NoopSpan {
-            span_context: api::SpanContext::new(
-                api::TraceId::invalid(),
-                api::SpanId::invalid(),
+            span_context: api::trace::SpanContext::new(
+                api::trace::TraceId::invalid(),
+                api::trace::SpanId::invalid(),
                 0,
                 false,
                 TraceState::default(),
@@ -59,7 +59,7 @@ impl NoopSpan {
     }
 }
 
-impl api::Span for NoopSpan {
+impl api::trace::Span for NoopSpan {
     /// Ignores all events
     fn add_event(&self, _name: String, _attributes: Vec<api::KeyValue>) {
         // Ignore
@@ -76,7 +76,7 @@ impl api::Span for NoopSpan {
     }
 
     /// Returns an invalid `SpanContext`.
-    fn span_context(&self) -> api::SpanContext {
+    fn span_context(&self) -> api::trace::SpanContext {
         self.span_context.clone()
     }
 
@@ -91,7 +91,7 @@ impl api::Span for NoopSpan {
     }
 
     /// Ignores status
-    fn set_status(&self, _code: api::StatusCode, _message: String) {
+    fn set_status(&self, _code: api::trace::StatusCode, _message: String) {
         // Ignored
     }
 
@@ -119,12 +119,12 @@ impl NoopTracer {
     }
 }
 
-impl api::Tracer for NoopTracer {
-    type Span = api::NoopSpan;
+impl api::trace::Tracer for NoopTracer {
+    type Span = api::trace::NoopSpan;
 
     /// Returns a `NoopSpan` as they are always invalid.
     fn invalid(&self) -> Self::Span {
-        api::NoopSpan::new()
+        api::trace::NoopSpan::new()
     }
 
     /// Starts a new `NoopSpan` in a given context.
@@ -136,14 +136,18 @@ impl api::Tracer for NoopTracer {
     }
 
     /// Starts a `SpanBuilder`.
-    fn span_builder(&self, name: &str) -> api::SpanBuilder {
-        api::SpanBuilder::from_name(name.to_string())
+    fn span_builder(&self, name: &str) -> api::trace::SpanBuilder {
+        api::trace::SpanBuilder::from_name(name.to_string())
     }
 
     /// Builds a `NoopSpan` from a `SpanBuilder`.
     ///
     /// If the span builder or context contains a valid span context, it is progagated.
-    fn build_with_context(&self, mut builder: api::SpanBuilder, cx: &api::Context) -> Self::Span {
+    fn build_with_context(
+        &self,
+        mut builder: api::trace::SpanBuilder,
+        cx: &api::Context,
+    ) -> Self::Span {
         let parent_span_context = builder
             .parent_context
             .take()
@@ -151,7 +155,7 @@ impl api::Tracer for NoopTracer {
             .or_else(|| cx.remote_span_context().cloned())
             .filter(|cx| cx.is_valid());
         if let Some(span_context) = parent_span_context {
-            api::NoopSpan { span_context }
+            api::trace::NoopSpan { span_context }
         } else {
             self.invalid()
         }
@@ -186,13 +190,12 @@ impl exporter::trace::SpanExporter for NoopSpanExporter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::api::trace::span_context::TraceState;
-    use crate::api::{Span, Tracer};
+    use crate::api::trace::{Span, TraceState, Tracer};
 
-    fn valid_span_context() -> api::SpanContext {
-        api::SpanContext::new(
-            api::TraceId::from_u128(42),
-            api::SpanId::from_u64(42),
+    fn valid_span_context() -> api::trace::SpanContext {
+        api::trace::SpanContext::new(
+            api::trace::TraceId::from_u128(42),
+            api::trace::SpanId::from_u64(42),
             0,
             true,
             TraceState::default(),

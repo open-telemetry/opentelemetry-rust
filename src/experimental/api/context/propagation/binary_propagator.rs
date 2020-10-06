@@ -6,17 +6,17 @@
 //! `BinaryFormat` MUST expose the APIs that serializes values into bytes,
 //! and deserializes values from bytes.
 use crate::api;
-use crate::api::trace::span_context::TraceState;
+use crate::api::trace::TraceState;
 use std::convert::TryInto;
 
 /// Used to serialize and deserialize `SpanContext`s to and from a binary
 /// representation.
 pub trait BinaryFormat {
     /// Serializes span context into a byte array and returns the array.
-    fn to_bytes(&self, context: &api::SpanContext) -> [u8; 29];
+    fn to_bytes(&self, context: &api::trace::SpanContext) -> [u8; 29];
 
     /// Deserializes a span context from a byte array.
-    fn from_bytes(&self, bytes: Vec<u8>) -> api::SpanContext;
+    fn from_bytes(&self, bytes: Vec<u8>) -> api::trace::SpanContext;
 }
 
 /// Extracts and injects `SpanContext`s from byte arrays.
@@ -32,7 +32,7 @@ impl BinaryPropagator {
 
 impl BinaryFormat for BinaryPropagator {
     /// Serializes span context into a byte array and returns the array.
-    fn to_bytes(&self, context: &api::SpanContext) -> [u8; 29] {
+    fn to_bytes(&self, context: &api::trace::SpanContext) -> [u8; 29] {
         let mut res = [0u8; 29];
         if !context.is_valid() {
             return res;
@@ -47,9 +47,9 @@ impl BinaryFormat for BinaryPropagator {
     }
 
     /// Deserializes a span context from a byte array.
-    fn from_bytes(&self, bytes: Vec<u8>) -> api::SpanContext {
+    fn from_bytes(&self, bytes: Vec<u8>) -> api::trace::SpanContext {
         if bytes.is_empty() {
-            return api::SpanContext::empty_context();
+            return api::trace::SpanContext::empty_context();
         }
         let trace_id: u128;
         let mut span_id = 0;
@@ -59,7 +59,7 @@ impl BinaryFormat for BinaryPropagator {
             trace_id = u128::from_be_bytes(b[1..17].try_into().unwrap());
             b = &b[17..];
         } else {
-            return api::SpanContext::empty_context();
+            return api::trace::SpanContext::empty_context();
         }
         if b.len() >= 9 && b[0] == 1 {
             span_id = u64::from_be_bytes(b[1..9].try_into().unwrap());
@@ -69,9 +69,9 @@ impl BinaryFormat for BinaryPropagator {
             trace_flags = b[1]
         }
 
-        let span_context = api::SpanContext::new(
-            api::TraceId::from_u128(trace_id),
-            api::SpanId::from_u64(span_id),
+        let span_context = api::trace::SpanContext::new(
+            api::trace::TraceId::from_u128(trace_id),
+            api::trace::SpanId::from_u64(span_id),
             trace_flags,
             true,
             // TODO traceparent and tracestate should both begin with a 0 byte, figure out how to differentiate
@@ -81,7 +81,7 @@ impl BinaryFormat for BinaryPropagator {
         if span_context.is_valid() {
             span_context
         } else {
-            api::SpanContext::empty_context()
+            api::trace::SpanContext::empty_context()
         }
     }
 }
@@ -89,71 +89,71 @@ impl BinaryFormat for BinaryPropagator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::api::trace::span_context::TraceState;
+    use crate::api::trace::TraceState;
 
     #[rustfmt::skip]
-    fn to_bytes_data() -> Vec<(api::SpanContext, [u8; 29])> {
+    fn to_bytes_data() -> Vec<(api::trace::SpanContext, [u8; 29])> {
         vec![
             // Context with sampled
-            (api::SpanContext::new(
-                api::TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736),
-                api::SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 1, true, TraceState::default()), [
+            (api::trace::SpanContext::new(
+                api::trace::TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736),
+                api::trace::SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 1, true, TraceState::default()), [
                 0x00, 0x00, 0x4b, 0xf9, 0x2f, 0x35, 0x77, 0xb3, 0x4d, 0xa6, 0xa3, 0xce, 0x92, 0x9d, 0x0e, 0x0e, 0x47, 0x36,
                 0x01, 0x00, 0xf0, 0x67, 0xaa, 0x0b, 0xa9, 0x02, 0xb7,
                 0x02, 0x01,
             ]),
             // Context without sampled
-            (api::SpanContext::new(
-                api::TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736),
-                api::SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 0, true, TraceState::default()), [
+            (api::trace::SpanContext::new(
+                api::trace::TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736),
+                api::trace::SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 0, true, TraceState::default()), [
                 0x00, 0x00, 0x4b, 0xf9, 0x2f, 0x35, 0x77, 0xb3, 0x4d, 0xa6, 0xa3, 0xce, 0x92, 0x9d, 0x0e, 0x0e, 0x47, 0x36,
                 0x01, 0x00, 0xf0, 0x67, 0xaa, 0x0b, 0xa9, 0x02, 0xb7,
                 0x02, 0x00,
             ]),
             // Invalid context
-            (api::SpanContext::empty_context(), [0u8; 29]),
+            (api::trace::SpanContext::empty_context(), [0u8; 29]),
         ]
     }
 
     #[rustfmt::skip]
-    fn from_bytes_data() -> Vec<(api::SpanContext, Vec<u8>)> {
+    fn from_bytes_data() -> Vec<(api::trace::SpanContext, Vec<u8>)> {
         vec![
             // Future version of the proto
-            (api::SpanContext::new(api::TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), api::SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 1, true, TraceState::default()), vec![
+            (api::trace::SpanContext::new(api::trace::TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), api::trace::SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 1, true, TraceState::default()), vec![
                 0x02, 0x00, 0x4b, 0xf9, 0x2f, 0x35, 0x77, 0xb3, 0x4d, 0xa6, 0xa3, 0xce, 0x92, 0x9d, 0x0e, 0x0e, 0x47, 0x36,
                 0x01, 0x00, 0xf0, 0x67, 0xaa, 0x0b, 0xa9, 0x02, 0xb7,
                 0x02, 0x01,
             ]),
             // current version with sampled
-            (api::SpanContext::new(api::TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), api::SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 1, true, TraceState::default()), vec![
+            (api::trace::SpanContext::new(api::trace::TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), api::trace::SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 1, true, TraceState::default()), vec![
                 0x02, 0x00, 0x4b, 0xf9, 0x2f, 0x35, 0x77, 0xb3, 0x4d, 0xa6, 0xa3, 0xce, 0x92, 0x9d, 0x0e, 0x0e, 0x47, 0x36,
                 0x01, 0x00, 0xf0, 0x67, 0xaa, 0x0b, 0xa9, 0x02, 0xb7,
                 0x02, 0x01,
             ]),
             // valid context without option
-            (api::SpanContext::new(api::TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), api::SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 0, true, TraceState::default()), vec![
+            (api::trace::SpanContext::new(api::trace::TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), api::trace::SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 0, true, TraceState::default()), vec![
                 0x00, 0x00, 0x4b, 0xf9, 0x2f, 0x35, 0x77, 0xb3, 0x4d, 0xa6, 0xa3, 0xce, 0x92, 0x9d, 0x0e, 0x0e, 0x47, 0x36,
                 0x01, 0x00, 0xf0, 0x67, 0xaa, 0x0b, 0xa9, 0x02, 0xb7,
             ]),
             // zero trace id
-            (api::SpanContext::empty_context(), vec![
+            (api::trace::SpanContext::empty_context(), vec![
                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                 0x02, 0x01,
             ]),
             // zero span id
-            (api::SpanContext::empty_context(), vec![
+            (api::trace::SpanContext::empty_context(), vec![
                 0x00, 0x00, 0x4b, 0xf9, 0x2f, 0x35, 0x77, 0xb3, 0x4d, 0xa6, 0xa3, 0xce, 0x92, 0x9d, 0x0e, 0x0e, 0x47, 0x36,
                 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                 0x02, 0x01,
             ]),
             // wrong trace id field number
-            (api::SpanContext::empty_context(), vec![
+            (api::trace::SpanContext::empty_context(), vec![
                 0x00, 0x01, 0x4b, 0xf9, 0x2f, 0x35, 0x77, 0xb3, 0x4d, 0xa6, 0xa3, 0xce, 0x92, 0x9d, 0x0e, 0x0e, 0x47, 0x36,
                 0x01, 0x00, 0xf0, 0x67, 0xaa, 0x0b, 0xa9, 0x02, 0xb7,
             ]),
             // short byte array
-            (api::SpanContext::empty_context(), vec![
+            (api::trace::SpanContext::empty_context(), vec![
                 0x00, 0x00, 0x4b, 0xf9, 0x2f, 0x35, 0x77, 0xb3, 0x4d,
             ]),
         ]

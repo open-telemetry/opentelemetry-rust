@@ -19,7 +19,7 @@
 //! telemetry:
 //!
 //! ```no_run
-//! use opentelemetry::api::Tracer;
+//! use opentelemetry::api::trace::Tracer;
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     let (tracer, _uninstall) = opentelemetry_otlp::new_pipeline().install()?;
@@ -56,7 +56,7 @@
 //! [`OtlpPipelineBuilder`]: struct.OtlpPipelineBuilder.html
 //!
 //! ```no_run
-//! use opentelemetry::api::{KeyValue, Tracer};
+//! use opentelemetry::api::{KeyValue, trace::Tracer};
 //! use opentelemetry::sdk::{trace::{self, IdGenerator, Sampler}, Resource};
 //! use opentelemetry_otlp::{Compression, Credentials, Protocol};
 //! use std::time::Duration;
@@ -97,7 +97,7 @@
 //! ```
 #![deny(missing_docs, unreachable_pub, missing_debug_implementations)]
 #![cfg_attr(test, deny(warnings))]
-use opentelemetry::{api::TracerProvider, global, sdk};
+use opentelemetry::{api::trace::TracerProvider, global, sdk};
 use std::collections::HashMap;
 use std::error::Error;
 use std::time::Duration;

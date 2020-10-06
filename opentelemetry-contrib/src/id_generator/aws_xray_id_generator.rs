@@ -1,4 +1,4 @@
-use opentelemetry::api::{IdGenerator, SpanId, TraceId};
+use opentelemetry::api::trace::{IdGenerator, SpanId, TraceId};
 use opentelemetry::sdk;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -24,9 +24,8 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 ///
 /// ```
 /// extern crate opentelemetry;
-/// use opentelemetry::api::NoopSpanExporter;
-/// use opentelemetry::sdk::trace::Config;
-/// use opentelemetry::sdk::trace::TracerProvider;
+/// use opentelemetry::api::trace::NoopSpanExporter;
+/// use opentelemetry::sdk::trace::{Config, TracerProvider};
 /// use opentelemetry_contrib::XrayIdGenerator;
 ///
 /// let _provider: TracerProvider = TracerProvider::builder()

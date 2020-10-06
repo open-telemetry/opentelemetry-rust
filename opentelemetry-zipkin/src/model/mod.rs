@@ -15,8 +15,8 @@ const INSTRUMENTATION_LIBRARY_NAME: &str = "otel.library.name";
 /// Instrument Library version MUST be reported in Jaeger Span tags with the following key
 const INSTRUMENTATION_LIBRARY_VERSION: &str = "otel.library.version";
 
-/// Converts `api::Event` into an `annotation::Annotation`
-impl Into<annotation::Annotation> for api::Event {
+/// Converts `api::trace::Event` into an `annotation::Annotation`
+impl Into<annotation::Annotation> for api::trace::Event {
     fn into(self) -> annotation::Annotation {
         let timestamp = self
             .timestamp
@@ -32,36 +32,36 @@ impl Into<annotation::Annotation> for api::Event {
 }
 
 /// Converts StatusCode to str
-fn from_statuscode_to_str(status_code: api::StatusCode) -> &'static str {
+fn from_statuscode_to_str(status_code: api::trace::StatusCode) -> &'static str {
     match status_code {
-        api::StatusCode::OK => "OK",
-        api::StatusCode::Canceled => "CANCELLED",
-        api::StatusCode::Unknown => "UNKNOWN",
-        api::StatusCode::InvalidArgument => "INVALID_ARGUMENT",
-        api::StatusCode::DeadlineExceeded => "DEADLINE_EXCEEDED",
-        api::StatusCode::NotFound => "NOT_FOUND",
-        api::StatusCode::AlreadyExists => "ALREADY_EXISTS",
-        api::StatusCode::PermissionDenied => "PERMISSION_DENIED",
-        api::StatusCode::ResourceExhausted => "RESOURSE_EXHAUSTED",
-        api::StatusCode::FailedPrecondition => "FAILED_PRECONDITION",
-        api::StatusCode::Aborted => "ABORTED",
-        api::StatusCode::OutOfRange => "OUT_OF_RANGE",
-        api::StatusCode::Unimplemented => "UNINPLEMENTED",
-        api::StatusCode::Internal => "INTERNAL",
-        api::StatusCode::Unavailable => "UNAVAILABLE",
-        api::StatusCode::DataLoss => "DATA_LOSS",
-        api::StatusCode::Unauthenticated => "UNAUTHENTICATED",
+        api::trace::StatusCode::OK => "OK",
+        api::trace::StatusCode::Canceled => "CANCELLED",
+        api::trace::StatusCode::Unknown => "UNKNOWN",
+        api::trace::StatusCode::InvalidArgument => "INVALID_ARGUMENT",
+        api::trace::StatusCode::DeadlineExceeded => "DEADLINE_EXCEEDED",
+        api::trace::StatusCode::NotFound => "NOT_FOUND",
+        api::trace::StatusCode::AlreadyExists => "ALREADY_EXISTS",
+        api::trace::StatusCode::PermissionDenied => "PERMISSION_DENIED",
+        api::trace::StatusCode::ResourceExhausted => "RESOURSE_EXHAUSTED",
+        api::trace::StatusCode::FailedPrecondition => "FAILED_PRECONDITION",
+        api::trace::StatusCode::Aborted => "ABORTED",
+        api::trace::StatusCode::OutOfRange => "OUT_OF_RANGE",
+        api::trace::StatusCode::Unimplemented => "UNINPLEMENTED",
+        api::trace::StatusCode::Internal => "INTERNAL",
+        api::trace::StatusCode::Unavailable => "UNAVAILABLE",
+        api::trace::StatusCode::DataLoss => "DATA_LOSS",
+        api::trace::StatusCode::Unauthenticated => "UNAUTHENTICATED",
     }
 }
 
-/// Converts `api::SpanKind` into an `Option<span::Kind>`
-fn into_zipkin_span_kind(kind: api::SpanKind) -> Option<span::Kind> {
+/// Converts `api::trace::SpanKind` into an `Option<span::Kind>`
+fn into_zipkin_span_kind(kind: api::trace::SpanKind) -> Option<span::Kind> {
     match kind {
-        api::SpanKind::Client => Some(span::Kind::Client),
-        api::SpanKind::Server => Some(span::Kind::Server),
-        api::SpanKind::Producer => Some(span::Kind::Producer),
-        api::SpanKind::Consumer => Some(span::Kind::Consumer),
-        api::SpanKind::Internal => None,
+        api::trace::SpanKind::Client => Some(span::Kind::Client),
+        api::trace::SpanKind::Server => Some(span::Kind::Server),
+        api::trace::SpanKind::Producer => Some(span::Kind::Producer),
+        api::trace::SpanKind::Consumer => Some(span::Kind::Consumer),
+        api::trace::SpanKind::Internal => None,
     }
 }
 

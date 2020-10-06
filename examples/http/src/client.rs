@@ -1,5 +1,8 @@
 use hyper::{body::Body, Client};
-use opentelemetry::api::{Context, TextMapFormat, TraceContextExt, Tracer};
+use opentelemetry::api::{
+    trace::{TraceContextExt, Tracer},
+    Context, TextMapFormat,
+};
 use opentelemetry::{api, exporter::trace::stdout, global, sdk};
 
 fn init_tracer() -> (sdk::trace::Tracer, stdout::Uninstall) {
@@ -19,7 +22,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error + Send + Sy
     let _guard = init_tracer();
 
     let client = Client::new();
-    let propagator = api::TraceContextPropagator::new();
+    let propagator = api::trace::TraceContextPropagator::new();
     let span = global::tracer("example/client").start("say hello");
     let cx = Context::current_with_span(span);
 

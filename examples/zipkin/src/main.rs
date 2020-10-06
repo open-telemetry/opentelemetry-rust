@@ -1,4 +1,4 @@
-use opentelemetry::api::{Span, Tracer};
+use opentelemetry::api::trace::{Span, Tracer};
 use opentelemetry::global;
 use std::thread;
 use std::time::Duration;

@@ -2,7 +2,11 @@ use tonic::{transport::Server, Request, Response, Status};
 
 use hello_world::greeter_server::{Greeter, GreeterServer};
 use hello_world::{HelloReply, HelloRequest};
-use opentelemetry::api::{self, KeyValue, Span, TextMapFormat, Tracer};
+use opentelemetry::api::{
+    self,
+    trace::{Span, Tracer},
+    KeyValue, TextMapFormat,
+};
 use opentelemetry::global;
 use opentelemetry::sdk;
 use std::error::Error;
@@ -20,7 +24,7 @@ impl Greeter for MyGreeter {
         &self,
         request: Request<HelloRequest>, // Accept request of type HelloRequest
     ) -> Result<Response<HelloReply>, Status> {
-        let propagator = api::TraceContextPropagator::new();
+        let propagator = api::trace::TraceContextPropagator::new();
         let parent_cx = propagator.extract(request.metadata());
         let span = global::tracer("greeter").start_from_context("Processing reply", &parent_cx);
         span.set_attribute(KeyValue::new("request", format!("{:?}", request)));

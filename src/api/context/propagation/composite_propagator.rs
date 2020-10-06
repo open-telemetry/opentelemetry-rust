@@ -17,7 +17,7 @@ use std::fmt::Debug;
 /// # Examples
 ///
 /// ```
-/// use opentelemetry::api::*;
+/// use opentelemetry::api::{*, trace::*};
 /// use opentelemetry::sdk;
 /// use std::collections::HashMap;
 ///
@@ -101,11 +101,12 @@ impl TextMapFormat for TextMapCompositePropagator {
 
 #[cfg(test)]
 mod tests {
-    use crate::api;
-    use crate::api::trace::span_context::TraceState;
     use crate::api::{
-        Context, Extractor, FieldIter, Injector, SpanContext, SpanId, TextMapCompositePropagator,
-        TextMapFormat, TraceContextExt, TraceContextPropagator, TraceId,
+        self,
+        trace::{
+            SpanContext, SpanId, TraceContextExt, TraceContextPropagator, TraceId, TraceState,
+        },
+        Context, Extractor, FieldIter, Injector, TextMapCompositePropagator, TextMapFormat,
     };
     use std::collections::HashMap;
     use std::str::FromStr;
@@ -178,9 +179,9 @@ mod tests {
     }
 
     #[derive(Debug)]
-    struct TestSpan(api::SpanContext);
+    struct TestSpan(api::trace::SpanContext);
 
-    impl api::Span for TestSpan {
+    impl api::trace::Span for TestSpan {
         fn add_event_with_timestamp(
             &self,
             _name: String,
@@ -188,14 +189,14 @@ mod tests {
             _attributes: Vec<api::KeyValue>,
         ) {
         }
-        fn span_context(&self) -> api::SpanContext {
+        fn span_context(&self) -> api::trace::SpanContext {
             self.0.clone()
         }
         fn is_recording(&self) -> bool {
             false
         }
         fn set_attribute(&self, _attribute: api::KeyValue) {}
-        fn set_status(&self, _code: api::StatusCode, _message: String) {}
+        fn set_status(&self, _code: api::trace::StatusCode, _message: String) {}
         fn update_name(&self, _new_name: String) {}
         fn end_with_timestamp(&self, _timestamp: std::time::SystemTime) {}
     }

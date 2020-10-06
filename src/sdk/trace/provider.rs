@@ -18,7 +18,7 @@ const DEFAULT_COMPONENT_NAME: &str = "rust.opentelemetry.io/sdk/tracer";
 /// TracerProvider inner type
 #[derive(Debug)]
 pub(crate) struct TracerProviderInner {
-    processors: Vec<Box<dyn api::SpanProcessor>>,
+    processors: Vec<Box<dyn api::trace::SpanProcessor>>,
     config: sdk::trace::Config,
 }
 
@@ -54,7 +54,7 @@ impl TracerProvider {
     }
 
     /// Span processors associated with this provider
-    pub fn span_processors(&self) -> &Vec<Box<dyn api::SpanProcessor>> {
+    pub fn span_processors(&self) -> &Vec<Box<dyn api::trace::SpanProcessor>> {
         &self.inner.processors
     }
 
@@ -64,8 +64,8 @@ impl TracerProvider {
     }
 }
 
-impl api::TracerProvider for TracerProvider {
-    /// This implementation of `api::TracerProvider` produces `sdk::trace::Tracer` instances.
+impl api::trace::TracerProvider for TracerProvider {
+    /// This implementation of `api::trace::TracerProvider` produces `sdk::trace::Tracer` instances.
     type Tracer = sdk::trace::Tracer;
 
     /// Find or create `Tracer` instance by name.
@@ -85,7 +85,7 @@ impl api::TracerProvider for TracerProvider {
 /// Builder for provider attributes.
 #[derive(Default, Debug)]
 pub struct Builder {
-    processors: Vec<Box<dyn api::SpanProcessor>>,
+    processors: Vec<Box<dyn api::trace::SpanProcessor>>,
     config: sdk::trace::Config,
 }
 
@@ -134,7 +134,7 @@ impl Builder {
     }
 
     /// The `SpanProcessor` that this provider should use.
-    pub fn with_span_processor<T: api::SpanProcessor + 'static>(self, processor: T) -> Self {
+    pub fn with_span_processor<T: api::trace::SpanProcessor + 'static>(self, processor: T) -> Self {
         let mut processors = self.processors;
         processors.push(Box::new(processor));
 

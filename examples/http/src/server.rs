@@ -1,14 +1,18 @@
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Request, Response, Server};
 use opentelemetry::{
-    api::{self, Span, TextMapFormat, Tracer},
+    api::{
+        self,
+        trace::{Span, Tracer},
+        TextMapFormat,
+    },
     exporter::trace::stdout,
     global, sdk,
 };
 use std::{convert::Infallible, net::SocketAddr};
 
 async fn handle(req: Request<Body>) -> Result<Response<Body>, Infallible> {
-    let propagator = api::TraceContextPropagator::new();
+    let propagator = api::trace::TraceContextPropagator::new();
     let parent_cx = propagator.extract(req.headers());
     let span = global::tracer("example/server").start_from_context("hello", &parent_cx);
     span.add_event("handling this...".to_string(), Vec::new());

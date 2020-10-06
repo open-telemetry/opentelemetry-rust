@@ -1,6 +1,9 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use opentelemetry::{
-    api::{Key, Span, Tracer, TracerProvider},
+    api::{
+        trace::{Span, Tracer, TracerProvider},
+        Key,
+    },
     sdk,
 };
 

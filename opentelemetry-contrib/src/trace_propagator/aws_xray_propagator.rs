@@ -1,7 +1,9 @@
-use opentelemetry::api::trace::span_context::TraceState;
 use opentelemetry::api::{
-    Context, Extractor, FieldIter, Injector, SpanContext, SpanId, TextMapFormat, TraceContextExt,
-    TraceId, TRACE_FLAG_DEFERRED, TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
+    trace::{
+        SpanContext, SpanId, TraceContextExt, TraceId, TraceState, TRACE_FLAG_DEFERRED,
+        TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
+    },
+    Context, Extractor, FieldIter, Injector, TextMapFormat,
 };
 
 const AWS_XRAY_TRACE_HEADER: &str = "x-amzn-trace-id";
@@ -234,7 +236,7 @@ fn title_case(s: &str) -> String {
 mod tests {
     use super::*;
     use opentelemetry::api;
-    use opentelemetry::api::trace::span_context::TraceState;
+    use opentelemetry::api::trace::TraceState;
     use std::collections::HashMap;
     use std::str::FromStr;
     use std::time::SystemTime;
@@ -298,7 +300,7 @@ mod tests {
     #[derive(Debug)]
     struct TestSpan(SpanContext);
 
-    impl api::Span for TestSpan {
+    impl api::trace::Span for TestSpan {
         fn add_event_with_timestamp(
             &self,
             _name: String,
@@ -313,7 +315,7 @@ mod tests {
             false
         }
         fn set_attribute(&self, _attribute: api::KeyValue) {}
-        fn set_status(&self, _code: api::StatusCode, _message: String) {}
+        fn set_status(&self, _code: api::trace::StatusCode, _message: String) {}
         fn update_name(&self, _new_name: String) {}
         fn end_with_timestamp(&self, _timestamp: SystemTime) {}
     }

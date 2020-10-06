@@ -32,22 +32,3 @@ pub use context::propagation::{
     text_propagator::TextMapFormat, Extractor, Injector,
 };
 pub use context::Context;
-
-#[cfg(feature = "trace")]
-pub use trace::{
-    context::TraceContextExt,
-    event::Event,
-    futures::FutureExt,
-    id_generator::IdGenerator,
-    link::Link,
-    noop::{NoopSpan, NoopSpanExporter, NoopTracer, NoopTracerProvider},
-    provider::TracerProvider,
-    span::{Span, SpanKind, StatusCode},
-    span_context::{
-        SpanContext, SpanId, TraceId, TraceState, TRACE_FLAG_DEBUG, TRACE_FLAG_DEFERRED,
-        TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
-    },
-    span_processor::SpanProcessor,
-    trace_context_propagator::TraceContextPropagator,
-    tracer::{SpanBuilder, Tracer},
-};

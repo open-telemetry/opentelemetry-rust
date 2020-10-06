@@ -1,7 +1,8 @@
 use hello_world::greeter_client::GreeterClient;
 use hello_world::HelloRequest;
 use opentelemetry::api::{
-    Context, KeyValue, TextMapFormat, TraceContextExt, TraceContextPropagator, Tracer,
+    trace::{TraceContextExt, TraceContextPropagator, Tracer},
+    Context, KeyValue, TextMapFormat,
 };
 use opentelemetry::sdk;
 use std::error::Error;

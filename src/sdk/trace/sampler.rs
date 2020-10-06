@@ -38,7 +38,7 @@
 //! MUST NOT allow this combination.
 
 use crate::api;
-use crate::api::TraceState;
+use crate::api::trace::TraceState;
 
 /// The `ShouldSample` interface allows implementations to provide samplers
 /// which will return a sampling `SamplingResult` based on information that
@@ -48,12 +48,12 @@ pub trait ShouldSample: Send + Sync + std::fmt::Debug {
     #[allow(clippy::too_many_arguments)]
     fn should_sample(
         &self,
-        parent_context: Option<&api::SpanContext>,
-        trace_id: api::TraceId,
+        parent_context: Option<&api::trace::SpanContext>,
+        trace_id: api::trace::TraceId,
         name: &str,
-        span_kind: &api::SpanKind,
+        span_kind: &api::trace::SpanKind,
         attributes: &[api::KeyValue],
-        links: &[api::Link],
+        links: &[api::trace::Link],
     ) -> SamplingResult;
 }
 
@@ -98,12 +98,12 @@ pub enum Sampler {
 impl ShouldSample for Sampler {
     fn should_sample(
         &self,
-        parent_context: Option<&api::SpanContext>,
-        trace_id: api::TraceId,
+        parent_context: Option<&api::trace::SpanContext>,
+        trace_id: api::trace::TraceId,
         name: &str,
-        span_kind: &api::SpanKind,
+        span_kind: &api::trace::SpanKind,
         attributes: &[api::KeyValue],
-        links: &[api::Link],
+        links: &[api::trace::Link],
     ) -> SamplingResult {
         let decision = match self {
             // Always sample the trace
@@ -157,7 +157,7 @@ impl ShouldSample for Sampler {
 #[cfg(test)]
 mod tests {
     use crate::api;
-    use crate::api::trace::span_context::TraceState;
+    use crate::api::trace::TraceState;
     use crate::sdk::trace::{Sampler, SamplingDecision, ShouldSample};
     use rand::Rng;
 
@@ -216,13 +216,13 @@ mod tests {
             for _ in 0..total {
                 let parent_context = if parent {
                     let trace_flags = if sample_parent {
-                        api::TRACE_FLAG_SAMPLED
+                        api::trace::TRACE_FLAG_SAMPLED
                     } else {
                         0
                     };
-                    Some(api::SpanContext::new(
-                        api::TraceId::from_u128(1),
-                        api::SpanId::from_u64(1),
+                    Some(api::trace::SpanContext::new(
+                        api::trace::TraceId::from_u128(1),
+                        api::trace::SpanId::from_u64(1),
                         trace_flags,
                         false,
                         TraceState::default(),
@@ -230,13 +230,13 @@ mod tests {
                 } else {
                     None
                 };
-                let trace_id = api::TraceId::from_u128(rng.gen());
+                let trace_id = api::trace::TraceId::from_u128(rng.gen());
                 if sampler
                     .should_sample(
                         parent_context.as_ref(),
                         trace_id,
                         name,
-                        &api::SpanKind::Internal,
+                        &api::trace::SpanKind::Internal,
                         &[],
                         &[],
                     )

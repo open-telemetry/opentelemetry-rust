@@ -1,6 +1,13 @@
 use hyper::{body::Body, Client};
-use opentelemetry::api::{Context, TraceContextExt, Tracer};
-use opentelemetry::{api, exporter::trace::stdout, global, sdk};
+use opentelemetry::{
+    api::{
+        self,
+        trace::{TraceContextExt, Tracer},
+        Context,
+    },
+    exporter::trace::stdout,
+    global, sdk,
+};
 use opentelemetry_contrib::{XrayIdGenerator, XrayTraceContextPropagator};
 
 fn init_tracer() -> (sdk::trace::Tracer, stdout::Uninstall) {

@@ -11,7 +11,7 @@
 //! # Examples
 //!
 //! ```no_run
-//! use opentelemetry::api::Tracer;
+//! use opentelemetry::api::trace::Tracer;
 //! use opentelemetry::exporter::trace::stdout;
 //!
 //! fn main() {
@@ -24,7 +24,7 @@
 //!     });
 //! }
 //! ```
-use crate::{api::TracerProvider, exporter::trace, global, sdk};
+use crate::{api::trace::TracerProvider, exporter::trace, global, sdk};
 use async_trait::async_trait;
 use std::fmt::Debug;
 use std::io::{self, stdout, Stdout, Write};

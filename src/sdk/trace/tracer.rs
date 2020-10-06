@@ -7,8 +7,8 @@
 //! and exposes methods for creating and activating new `Spans`.
 //!
 //! Docs: https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/api-tracing.md#tracer
-use crate::api::trace::span_context::TraceState;
-use crate::api::TraceContextExt;
+use crate::api::trace::TraceContextExt;
+use crate::api::trace::TraceState;
 use crate::sdk;
 use crate::{api, api::context::Context, exporter};
 use std::fmt;
@@ -59,12 +59,12 @@ impl Tracer {
     #[allow(clippy::too_many_arguments)]
     fn make_sampling_decision(
         &self,
-        parent_context: Option<&api::SpanContext>,
-        trace_id: api::TraceId,
+        parent_context: Option<&api::trace::SpanContext>,
+        trace_id: api::trace::TraceId,
         name: &str,
-        span_kind: &api::SpanKind,
+        span_kind: &api::trace::SpanKind,
         attributes: &[api::KeyValue],
-        links: &[api::Link],
+        links: &[api::trace::Link],
     ) -> Option<(u8, Vec<api::KeyValue>, TraceState)> {
         let provider = self.provider()?;
         let sampler = &provider.config().default_sampler;
@@ -77,7 +77,7 @@ impl Tracer {
     fn process_sampling_result(
         &self,
         sampling_result: sdk::trace::SamplingResult,
-        parent_context: Option<&api::SpanContext>,
+        parent_context: Option<&api::trace::SpanContext>,
     ) -> Option<(u8, Vec<api::KeyValue>, TraceState)> {
         match sampling_result {
             sdk::trace::SamplingResult {
@@ -91,7 +91,7 @@ impl Tracer {
             } => {
                 let trace_flags = parent_context.map(|ctx| ctx.trace_flags()).unwrap_or(0);
                 Some((
-                    trace_flags & !api::TRACE_FLAG_SAMPLED,
+                    trace_flags & !api::trace::TRACE_FLAG_SAMPLED,
                     attributes,
                     trace_state,
                 ))
@@ -103,7 +103,7 @@ impl Tracer {
             } => {
                 let trace_flags = parent_context.map(|ctx| ctx.trace_flags()).unwrap_or(0);
                 Some((
-                    trace_flags | api::TRACE_FLAG_SAMPLED,
+                    trace_flags | api::trace::TRACE_FLAG_SAMPLED,
                     attributes,
                     trace_state,
                 ))
@@ -112,14 +112,14 @@ impl Tracer {
     }
 }
 
-impl api::Tracer for Tracer {
-    /// This implementation of `api::Tracer` produces `sdk::Span` instances.
+impl api::trace::Tracer for Tracer {
+    /// This implementation of `api::trace::Tracer` produces `sdk::Span` instances.
     type Span = sdk::trace::Span;
 
     /// Returns a span with an inactive `SpanContext`. Used by functions that
     /// need to return a default span like `get_active_span` if no span is present.
     fn invalid(&self) -> Self::Span {
-        sdk::trace::Span::new(api::SpanId::invalid(), None, self.clone())
+        sdk::trace::Span::new(api::trace::SpanId::invalid(), None, self.clone())
     }
 
     /// Starts a new `Span` in a given context.
@@ -138,8 +138,8 @@ impl api::Tracer for Tracer {
     /// Creates a span builder
     ///
     /// An ergonomic way for attributes to be configured before the `Span` is started.
-    fn span_builder(&self, name: &str) -> api::SpanBuilder {
-        api::SpanBuilder::from_name(name.to_string())
+    fn span_builder(&self, name: &str) -> api::trace::SpanBuilder {
+        api::trace::SpanBuilder::from_name(name.to_string())
     }
 
     /// Starts a span from a `SpanBuilder`.
@@ -149,10 +149,10 @@ impl api::Tracer for Tracer {
     /// trace. A span is said to be a _root span_ if it does not have a parent. Each
     /// trace includes a single root span, which is the shared ancestor of all other
     /// spans in the trace.
-    fn build_with_context(&self, mut builder: api::SpanBuilder, cx: &Context) -> Self::Span {
+    fn build_with_context(&self, mut builder: api::trace::SpanBuilder, cx: &Context) -> Self::Span {
         let provider = self.provider();
         if provider.is_none() {
-            return sdk::trace::Span::new(api::SpanId::invalid(), None, self.clone());
+            return sdk::trace::Span::new(api::trace::SpanId::invalid(), None, self.clone());
         }
 
         let provider = provider.unwrap();
@@ -162,7 +162,10 @@ impl api::Tracer for Tracer {
             .take()
             .unwrap_or_else(|| config.id_generator.new_span_id());
 
-        let span_kind = builder.span_kind.take().unwrap_or(api::SpanKind::Internal);
+        let span_kind = builder
+            .span_kind
+            .take()
+            .unwrap_or(api::trace::SpanKind::Internal);
         let mut attribute_options = builder.attributes.take().unwrap_or_else(Vec::new);
         let mut link_options = builder.links.take().unwrap_or_else(Vec::new);
 
@@ -190,7 +193,7 @@ impl api::Tracer for Tracer {
                     builder
                         .trace_id
                         .unwrap_or_else(|| config.id_generator.new_trace_id()),
-                    api::SpanId::invalid(),
+                    api::trace::SpanId::invalid(),
                     false,
                     0,
                 ));
@@ -239,12 +242,12 @@ impl api::Tracer for Tracer {
             if let Some(mut events) = builder.message_events {
                 message_events.append_vec(&mut events);
             }
-            let status_code = builder.status_code.unwrap_or(api::StatusCode::OK);
+            let status_code = builder.status_code.unwrap_or(api::trace::StatusCode::OK);
             let status_message = builder.status_message.unwrap_or_else(String::new);
             let resource = config.resource.clone();
 
             exporter::trace::SpanData {
-                span_context: api::SpanContext::new(
+                span_context: api::trace::SpanContext::new(
                     trace_id,
                     span_id,
                     trace_flags,
@@ -281,11 +284,16 @@ impl api::Tracer for Tracer {
 #[cfg(test)]
 mod tests {
     use crate::api::{
-        Context, KeyValue, Link, Span, SpanBuilder, SpanContext, SpanId, SpanKind, TraceId,
-        TraceState, Tracer, TracerProvider, TRACE_FLAG_SAMPLED,
+        trace::{
+            Link, Span, SpanBuilder, SpanContext, SpanId, SpanKind, TraceId, TraceState, Tracer,
+            TracerProvider, TRACE_FLAG_SAMPLED,
+        },
+        Context, KeyValue,
     };
-    use crate::sdk;
-    use crate::sdk::trace::{Config, SamplingDecision, SamplingResult, ShouldSample};
+    use crate::sdk::{
+        self,
+        trace::{Config, SamplingDecision, SamplingResult, ShouldSample},
+    };
 
     #[derive(Debug)]
     struct TestSampler {}

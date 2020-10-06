@@ -17,7 +17,7 @@
 //! exporting telemetry:
 //!
 //! ```no_run
-//! use opentelemetry::api::Tracer;
+//! use opentelemetry::api::trace::Tracer;
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     let (tracer, _uninstall) = opentelemetry_jaeger::new_pipeline().install()?;
@@ -56,7 +56,7 @@
 //! [jaeger variables spec]: https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/sdk-environment-variables.md#jaeger-exporter
 //!
 //! ```no_run
-//! use opentelemetry::api::Tracer;
+//! use opentelemetry::api::trace::Tracer;
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     // export OTEL_SERVICE_NAME=my-service-name
@@ -87,7 +87,7 @@
 //!
 //! ```ignore
 //! // Note that this requires the `collector_client` feature.
-//! use opentelemetry::api::Tracer;
+//! use opentelemetry::api::trace::Tracer;
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     let (tracer, _uninstall) = opentelemetry_jaeger::new_pipeline()
@@ -113,7 +113,7 @@
 //! [`PipelineBuilder`]: struct.PipelineBuilder.html
 //!
 //! ```no_run
-//! use opentelemetry::api::{KeyValue, Tracer};
+//! use opentelemetry::api::{KeyValue, trace::Tracer};
 //! use opentelemetry::sdk::{trace::{self, IdGenerator, Sampler}, Resource};
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -159,7 +159,7 @@ use async_trait::async_trait;
 #[cfg(feature = "collector_client")]
 use collector::CollectorAsyncClientHttp;
 use opentelemetry::{
-    api::{self, TracerProvider},
+    api::{self, trace::TracerProvider},
     exporter::trace,
     global, sdk,
 };
@@ -430,7 +430,7 @@ impl Into<jaeger::Tag> for api::KeyValue {
     }
 }
 
-impl Into<jaeger::Log> for api::Event {
+impl Into<jaeger::Log> for api::trace::Event {
     fn into(self) -> jaeger::Log {
         let timestamp = self
             .timestamp
@@ -479,7 +479,7 @@ impl Into<jaeger::Span> for &Arc<trace::SpanData> {
 }
 
 fn links_to_references(
-    links: &sdk::trace::EvictedQueue<api::Link>,
+    links: &sdk::trace::EvictedQueue<api::trace::Link>,
 ) -> Option<Vec<jaeger::SpanRef>> {
     if !links.is_empty() {
         let refs = links
@@ -546,7 +546,7 @@ fn build_span_tags(span_data: &Arc<trace::SpanData>) -> Option<Vec<jaeger::Tag>>
     }
 
     // Ensure error status is set
-    if span_data.status_code != api::StatusCode::OK && !user_overrides.error {
+    if span_data.status_code != api::trace::StatusCode::OK && !user_overrides.error {
         tags.push(api::Key::new(ERROR).bool(true).into())
     }
 
@@ -598,7 +598,9 @@ impl UserOverrides {
     }
 }
 
-fn events_to_logs(events: &sdk::trace::EvictedQueue<api::Event>) -> Option<Vec<jaeger::Log>> {
+fn events_to_logs(
+    events: &sdk::trace::EvictedQueue<api::trace::Event>,
+) -> Option<Vec<jaeger::Log>> {
     if events.is_empty() {
         None
     } else {

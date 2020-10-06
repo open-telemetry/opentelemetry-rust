@@ -1,5 +1,5 @@
 use opentelemetry::{
-    api::Tracer,
+    api::trace::Tracer,
     exporter::trace::stdout,
     sdk::trace::{self, Sampler},
 };

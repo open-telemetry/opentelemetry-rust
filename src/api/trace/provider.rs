@@ -25,7 +25,7 @@ use std::fmt;
 /// An interface to create `Tracer` instances.
 pub trait TracerProvider: fmt::Debug + 'static {
     /// The `Tracer` type that this `TracerProvider` will return.
-    type Tracer: api::Tracer;
+    type Tracer: api::trace::Tracer;
 
     /// Creates a named tracer instance of `Self::Tracer`.
     /// If the name is an empty string then provider uses default name.

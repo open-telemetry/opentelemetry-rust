@@ -1,6 +1,9 @@
 use futures::stream::{Stream, StreamExt};
-use opentelemetry::api::metrics::{self, MetricsError, ObserverResult};
-use opentelemetry::api::{BaggageExt, Context, Key, KeyValue, TraceContextExt, Tracer};
+use opentelemetry::api::{
+    metrics::{self, MetricsError, ObserverResult},
+    trace::{TraceContextExt, Tracer},
+    BaggageExt, Context, Key, KeyValue,
+};
 use opentelemetry::exporter;
 use opentelemetry::sdk::metrics::PushController;
 use opentelemetry::{global, sdk};

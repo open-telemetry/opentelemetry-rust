@@ -1,4 +1,7 @@
-use opentelemetry::api::{Key, Span, TraceContextExt, Tracer};
+use opentelemetry::api::{
+    trace::{Span, TraceContextExt, Tracer},
+    Key,
+};
 use opentelemetry::global;
 use opentelemetry_contrib::datadog::ApiVersion;
 use std::thread;
