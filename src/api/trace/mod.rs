@@ -136,6 +136,5 @@ pub use self::{
         TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
     },
     span_processor::SpanProcessor,
-    trace_context_propagator::TraceContextPropagator,
     tracer::{SpanBuilder, Tracer},
 };

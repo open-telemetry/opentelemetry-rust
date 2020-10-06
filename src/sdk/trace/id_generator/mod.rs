@@ -1,5 +1,5 @@
 //! Id Generator
-pub mod aws;
+pub(super) mod aws;
 
 use crate::api;
 use rand::{rngs, Rng};

@@ -25,6 +25,7 @@ pub use propagator::{
     aws::XrayPropagator,
     b3::{B3Encoding, B3Propagator},
     jaeger::JaegerPropagator,
+    w3c::W3CPropagator,
 };
 pub use provider::{Builder, TracerProvider};
 pub use sampler::{Sampler, SamplingDecision, SamplingResult, ShouldSample};

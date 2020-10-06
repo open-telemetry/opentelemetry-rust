@@ -9,7 +9,7 @@
 //!
 //! ```
 //! use opentelemetry::global;
-//! use opentelemetry::sdk::propagator::aws::XrayPropagator;
+//! use opentelemetry::sdk::trace::XrayPropagator;
 //!
 //! global::set_text_map_propagator(XrayPropagator::default());
 //! ```
@@ -17,7 +17,7 @@
 //! [otel-spec]: https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/trace/api.md#spancontext
 //! [xray-trace-id]: https://docs.aws.amazon.com/xray/latest/devguide/xray-api-sendingdata.html#xray-api-traceids
 //! [xray-header]: https://docs.aws.amazon.com/xray/latest/devguide/xray-concepts.html#xray-concepts-tracingheader
-use opentelemetry::api::{
+use crate::api::{
     trace::{
         SpanContext, SpanId, TraceContextExt, TraceId, TraceState, TRACE_FLAG_DEFERRED,
         TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
@@ -236,13 +236,8 @@ fn title_case(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-<<<<<<< HEAD:opentelemetry-contrib/src/trace_propagator/aws_xray_propagator.rs
-    use opentelemetry::api;
-    use opentelemetry::api::trace::TraceState;
-=======
     use crate::api;
-    use crate::api::trace::span_context::TraceState;
->>>>>>> Move propagators to SDK:src/sdk/trace/propagator/aws.rs
+    use crate::api::trace::TraceState;
     use std::collections::HashMap;
     use std::str::FromStr;
     use std::time::SystemTime;

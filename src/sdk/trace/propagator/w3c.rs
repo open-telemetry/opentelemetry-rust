@@ -1,4 +1,4 @@
-//! # W3 Trace Context Propagator
+//! # W3C Trace Context Propagator
 //!
 //! The `traceparent` header represents the incoming request in a
 //! tracing system in a common format, understood by all vendors.
@@ -17,7 +17,6 @@
 //! See the [w3c trace-context docs] for more details.
 //!
 //! [w3c trace-context docs]: https://w3c.github.io/trace-context/
-
 use crate::api::context::propagation::text_propagator::FieldIter;
 use crate::api::trace::TraceState;
 use crate::{api, api::trace::TraceContextExt};
@@ -39,14 +38,14 @@ lazy_static::lazy_static! {
 ///
 /// [W3C TraceContext]: https://www.w3.org/TR/trace-context/
 #[derive(Clone, Debug, Default)]
-pub struct TraceContextPropagator {
+pub struct W3CPropagator {
     _private: (),
 }
 
-impl TraceContextPropagator {
+impl W3CPropagator {
     /// Create a new `TraceContextPropagator`.
     pub fn new() -> Self {
-        TraceContextPropagator { _private: () }
+        W3CPropagator { _private: () }
     }
 
     /// Extract span context from w3c trace-context header.
@@ -116,7 +115,7 @@ impl TraceContextPropagator {
     }
 }
 
-impl api::TextMapFormat for TraceContextPropagator {
+impl api::TextMapFormat for W3CPropagator {
     /// Properly encodes the values of the `SpanContext` and injects them
     /// into the `Injector`.
     fn inject_context(&self, cx: &api::Context, injector: &mut dyn api::Injector) {
@@ -208,7 +207,7 @@ mod tests {
 
     #[test]
     fn extract_w3c() {
-        let propagator = TraceContextPropagator::new();
+        let propagator = W3CPropagator::new();
 
         for (trace_parent, trace_state, expected_context) in extract_data() {
             let mut extractor = HashMap::new();
@@ -224,7 +223,7 @@ mod tests {
 
     #[test]
     fn extract_w3c_tracestate() {
-        let propagator = TraceContextPropagator::new();
+        let propagator = W3CPropagator::new();
         let state = "foo=bar".to_string();
         let parent = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-00".to_string();
 
@@ -245,7 +244,7 @@ mod tests {
 
     #[test]
     fn extract_w3c_reject_invalid() {
-        let propagator = TraceContextPropagator::new();
+        let propagator = W3CPropagator::new();
 
         for (invalid_header, reason) in extract_data_invalid() {
             let mut extractor = HashMap::new();
@@ -285,7 +284,7 @@ mod tests {
 
     #[test]
     fn inject_w3c() {
-        let propagator = TraceContextPropagator::new();
+        let propagator = W3CPropagator::new();
 
         for (expected_trace_parent, expected_trace_state, context) in inject_data() {
             let mut injector = HashMap::new();
@@ -308,7 +307,7 @@ mod tests {
 
     #[test]
     fn inject_w3c_tracestate() {
-        let propagator = TraceContextPropagator::new();
+        let propagator = W3CPropagator::new();
         let state = "foo=bar";
 
         let mut injector: HashMap<String, String> = HashMap::new();

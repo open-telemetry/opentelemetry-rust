@@ -18,12 +18,12 @@ use std::fmt::Debug;
 ///
 /// ```
 /// use opentelemetry::api::{*, trace::*};
-/// use opentelemetry::sdk::{propagator, trace as sdktrace};
+/// use opentelemetry::sdk::trace as sdktrace;
 /// use std::collections::HashMap;
 ///
 /// // First create 1 or more propagators
 /// let baggage_propagator = BaggagePropagator::new();
-/// let trace_context_propagator = propagator::w3::TraceContextPropagator::new();
+/// let trace_context_propagator = sdktrace::W3CPropagator::new();
 ///
 /// // Then create a composite propagator
 /// let composite_propagator = TextMapCompositePropagator::new(vec![
@@ -103,12 +103,10 @@ impl TextMapFormat for TextMapCompositePropagator {
 mod tests {
     use crate::api::{
         self,
-        trace::{
-            SpanContext, SpanId, TraceContextExt, TraceContextPropagator, TraceId, TraceState,
-        },
+        trace::{SpanContext, SpanId, TraceContextExt, TraceId, TraceState},
         Context, Extractor, FieldIter, Injector, TextMapCompositePropagator, TextMapFormat,
     };
-    use crate::sdk::propagator::w3::TraceContextPropagator;
+    use crate::sdk::trace::W3CPropagator;
     use std::collections::HashMap;
     use std::str::FromStr;
 
@@ -205,7 +203,7 @@ mod tests {
     #[test]
     fn inject_multiple_propagators() {
         let test_propagator = TestPropagator::new();
-        let trace_context = TraceContextPropagator::new();
+        let trace_context = W3CPropagator::new();
         let composite_propagator = TextMapCompositePropagator::new(vec![
             Box::new(test_propagator),
             Box::new(trace_context),
@@ -229,7 +227,7 @@ mod tests {
     #[test]
     fn extract_multiple_propagators() {
         let test_propagator = TestPropagator::new();
-        let trace_context = TraceContextPropagator::new();
+        let trace_context = W3CPropagator::new();
         let composite_propagator = TextMapCompositePropagator::new(vec![
             Box::new(test_propagator),
             Box::new(trace_context),
@@ -261,7 +259,7 @@ mod tests {
             .map(|s| s.to_string())
             .collect::<Vec<String>>();
 
-        let trace_context = TraceContextPropagator::new();
+        let trace_context = W3CPropagator::new();
         let trace_context_fields = trace_context
             .fields()
             .map(|s| s.to_string())
