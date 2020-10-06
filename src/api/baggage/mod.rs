@@ -20,7 +20,7 @@
 //!
 //! // Example baggage value passed in externally via http headers
 //! let mut headers = HashMap::new();
-//! headers.insert("otcorrelations".to_string(), "user_id=1".to_string());
+//! headers.insert("baggage".to_string(), "user_id=1".to_string());
 //!
 //! let propagator = BaggagePropagator::new();
 //! // can extract from any type that impls `Extractor`, usually an HTTP header map
@@ -37,7 +37,7 @@
 //! // Inject aggage into http request
 //! propagator.inject_context(&cx_with_additions, &mut headers);
 //!
-//! let header_value = headers.get("otcorrelations").expect("header is injected");
+//! let header_value = headers.get("baggage").expect("header is injected");
 //! assert!(header_value.contains("user_id=1"), "still contains previous name / value");
 //! assert!(header_value.contains("server_id=42"), "contains new name / value pair");
 //! ```

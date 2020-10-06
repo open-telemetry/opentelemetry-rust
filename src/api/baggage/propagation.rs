@@ -4,7 +4,7 @@ use crate::api::{self, Context, KeyValue};
 use percent_encoding::{percent_decode_str, utf8_percent_encode, AsciiSet, CONTROLS};
 use std::iter;
 
-static BAGGAGE_HEADER: &str = "otcorrelations";
+static BAGGAGE_HEADER: &str = "baggage";
 const FRAGMENT: &AsciiSet = &CONTROLS.add(b' ').add(b'"').add(b';').add(b',').add(b'=');
 
 lazy_static::lazy_static! {
