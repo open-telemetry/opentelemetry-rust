@@ -142,6 +142,7 @@
 //! ```
 #![deny(missing_docs, unreachable_pub, missing_debug_implementations)]
 #![cfg_attr(test, deny(warnings))]
+
 mod agent;
 #[cfg(feature = "collector_client")]
 mod collector;
@@ -175,6 +176,12 @@ const DEFAULT_SERVICE_NAME: &str = "OpenTelemetry";
 
 /// Default agent endpoint if none is provided
 const DEFAULT_AGENT_ENDPOINT: &str = "127.0.0.1:6831";
+
+/// Instrument Library name MUST be reported in Jaeger Span tags with the following key
+const INSTRUMENTATION_LIBRARY_NAME: &str = "otel.library.name";
+
+/// Instrument Library version MUST be reported in Jaeger Span tags with the following key
+const INSTRUMENTATION_LIBRARY_VERSION: &str = "otel.library.version";
 
 /// Create a new Jaeger exporter pipeline builder.
 pub fn new_pipeline() -> PipelineBuilder {
@@ -348,7 +355,8 @@ impl PipelineBuilder {
     /// Install a Jaeger pipeline with the recommended defaults.
     pub fn install(self) -> Result<(sdk::Tracer, Uninstall), Box<dyn Error>> {
         let tracer_provider = self.build()?;
-        let tracer = tracer_provider.get_tracer("opentelemetry-jaeger", None);
+        let tracer =
+            tracer_provider.get_tracer("opentelemetry-jaeger", Some(env!("CARGO_PKG_VERSION")));
 
         let provider_guard = global::set_tracer_provider(tracer_provider);
 
@@ -522,6 +530,18 @@ fn build_span_tags(span_data: &Arc<trace::SpanData>) -> Option<Vec<jaeger::Tag>>
             api::KeyValue::new(k.clone(), v.clone()).into()
         })
         .collect::<Vec<_>>();
+
+    // Set instrument library tags
+    tags.push(
+        api::KeyValue::new(
+            INSTRUMENTATION_LIBRARY_NAME,
+            span_data.instrumentation_lib.name,
+        )
+        .into(),
+    );
+    if let Some(version) = span_data.instrumentation_lib.version {
+        tags.push(api::KeyValue::new(INSTRUMENTATION_LIBRARY_VERSION, version).into())
+    }
 
     // Ensure error status is set
     if span_data.status_code != api::StatusCode::OK && !user_overrides.error {

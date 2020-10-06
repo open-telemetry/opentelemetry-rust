@@ -9,6 +9,12 @@ pub(crate) mod span;
 
 use endpoint::Endpoint;
 
+/// Instrument Library name MUST be reported in Jaeger Span tags with the following key
+const INSTRUMENTATION_LIBRARY_NAME: &str = "otel.library.name";
+
+/// Instrument Library version MUST be reported in Jaeger Span tags with the following key
+const INSTRUMENTATION_LIBRARY_VERSION: &str = "otel.library.version";
+
 /// Converts `api::Event` into an `annotation::Annotation`
 impl Into<annotation::Annotation> for api::Event {
     fn into(self) -> annotation::Annotation {
@@ -81,6 +87,21 @@ pub(crate) fn into_zipkin_span(
                     .resource
                     .iter()
                     .map(|(k, v)| api::KeyValue::new(k.clone(), v.clone())),
+            )
+            .chain(
+                [
+                    (
+                        INSTRUMENTATION_LIBRARY_NAME,
+                        Some(span_data.instrumentation_lib.name),
+                    ),
+                    (
+                        INSTRUMENTATION_LIBRARY_VERSION,
+                        span_data.instrumentation_lib.version,
+                    ),
+                ]
+                .iter()
+                .filter(|(_, val)| val.is_some())
+                .map(|(k, v)| api::KeyValue::new(<&str>::clone(k), v.unwrap_or(""))),
             ),
     );
 
