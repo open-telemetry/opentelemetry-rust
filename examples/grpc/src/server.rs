@@ -34,7 +34,7 @@ impl Greeter for MyGreeter {
     }
 }
 
-fn tracing_init() -> Result<(sdk::Tracer, opentelemetry_jaeger::Uninstall), Box<dyn Error>> {
+fn tracing_init() -> Result<(sdk::trace::Tracer, opentelemetry_jaeger::Uninstall), Box<dyn Error>> {
     opentelemetry_jaeger::new_pipeline()
         .with_service_name("grpc-server")
         .install()

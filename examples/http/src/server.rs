@@ -16,14 +16,14 @@ async fn handle(req: Request<Body>) -> Result<Response<Body>, Infallible> {
     Ok(Response::new("Hello, World!".into()))
 }
 
-fn init_tracer() -> (sdk::Tracer, stdout::Uninstall) {
+fn init_tracer() -> (sdk::trace::Tracer, stdout::Uninstall) {
     // Install stdout exporter pipeline to be able to retrieve the collected spans.
 
     // For the demonstration, use `Sampler::AlwaysOn` sampler to sample all traces. In a production
     // application, use `Sampler::ParentBased` or `Sampler::TraceIdRatioBased` with a desired ratio.
     stdout::new_pipeline()
-        .with_trace_config(sdk::Config {
-            default_sampler: Box::new(sdk::Sampler::AlwaysOn),
+        .with_trace_config(sdk::trace::Config {
+            default_sampler: Box::new(sdk::trace::Sampler::AlwaysOn),
             ..Default::default()
         })
         .install()

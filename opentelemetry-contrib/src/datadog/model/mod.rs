@@ -87,11 +87,11 @@ mod tests {
         let end_time = start_time.checked_add(Duration::from_secs(1)).unwrap();
 
         let capacity = 3;
-        let mut attributes = sdk::EvictedHashMap::new(capacity);
+        let mut attributes = sdk::trace::EvictedHashMap::new(capacity);
         attributes.insert(Key::new("span.type").string("web"));
 
-        let message_events = sdk::EvictedQueue::new(capacity);
-        let links = sdk::EvictedQueue::new(capacity);
+        let message_events = sdk::trace::EvictedQueue::new(capacity);
+        let links = sdk::trace::EvictedQueue::new(capacity);
 
         let span_data = trace::SpanData {
             span_context,

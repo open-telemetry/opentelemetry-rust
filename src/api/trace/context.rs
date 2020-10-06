@@ -31,7 +31,7 @@ pub trait TraceContextExt {
     /// // returns a reference to an empty span by default
     /// assert_eq!(Context::current().span().span_context(), api::SpanContext::empty_context());
     ///
-    /// sdk::TracerProvider::default().get_tracer("my-component", None).in_span("my-span", |cx| {
+    /// sdk::trace::TracerProvider::default().get_tracer("my-component", None).in_span("my-span", |cx| {
     ///     // Returns a reference to the current span if set
     ///     assert_ne!(cx.span().span_context(), api::SpanContext::empty_context());
     /// });

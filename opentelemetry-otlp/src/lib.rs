@@ -57,7 +57,7 @@
 //!
 //! ```no_run
 //! use opentelemetry::api::{KeyValue, Tracer};
-//! use opentelemetry::sdk::{trace, IdGenerator, Resource, Sampler};
+//! use opentelemetry::sdk::{trace::{self, IdGenerator, Sampler}, Resource};
 //! use opentelemetry_otlp::{Compression, Credentials, Protocol};
 //! use std::time::Duration;
 //!
@@ -139,7 +139,7 @@ pub fn new_pipeline() -> OtlpPipelineBuilder {
 #[derive(Default, Debug)]
 pub struct OtlpPipelineBuilder {
     exporter_config: ExporterConfig,
-    trace_config: Option<sdk::Config>,
+    trace_config: Option<sdk::trace::Config>,
 }
 
 impl OtlpPipelineBuilder {
@@ -186,16 +186,16 @@ impl OtlpPipelineBuilder {
     }
 
     /// Set the trace provider configuration.
-    pub fn with_trace_config(mut self, trace_config: sdk::Config) -> Self {
+    pub fn with_trace_config(mut self, trace_config: sdk::trace::Config) -> Self {
         self.trace_config = Some(trace_config);
         self
     }
 
     /// Install the OTLP exporter pipeline with the recommended defaults.
-    pub fn install(mut self) -> Result<(sdk::Tracer, Uninstall), Box<dyn Error>> {
+    pub fn install(mut self) -> Result<(sdk::trace::Tracer, Uninstall), Box<dyn Error>> {
         let exporter = Exporter::new(self.exporter_config);
 
-        let mut provider_builder = sdk::TracerProvider::builder().with_exporter(exporter);
+        let mut provider_builder = sdk::trace::TracerProvider::builder().with_exporter(exporter);
         if let Some(config) = self.trace_config.take() {
             provider_builder = provider_builder.with_config(config);
         }

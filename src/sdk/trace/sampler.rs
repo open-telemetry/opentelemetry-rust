@@ -158,7 +158,7 @@ impl ShouldSample for Sampler {
 mod tests {
     use crate::api;
     use crate::api::trace::span_context::TraceState;
-    use crate::sdk::{Sampler, SamplingDecision, ShouldSample};
+    use crate::sdk::trace::{Sampler, SamplingDecision, ShouldSample};
     use rand::Rng;
 
     #[rustfmt::skip]

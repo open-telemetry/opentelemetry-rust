@@ -3,15 +3,15 @@ use opentelemetry::api::{Context, TraceContextExt, Tracer};
 use opentelemetry::{api, exporter::trace::stdout, global, sdk};
 use opentelemetry_contrib::{XrayIdGenerator, XrayTraceContextPropagator};
 
-fn init_tracer() -> (sdk::Tracer, stdout::Uninstall) {
+fn init_tracer() -> (sdk::trace::Tracer, stdout::Uninstall) {
     global::set_text_map_propagator(XrayTraceContextPropagator::new());
 
     // Install stdout exporter pipeline to be able to retrieve the collected spans.
     // For the demonstration, use `Sampler::AlwaysOn` sampler to sample all traces. In a production
     // application, use `Sampler::ParentBased` or `Sampler::TraceIdRatioBased` with a desired ratio.
     stdout::new_pipeline()
-        .with_trace_config(sdk::Config {
-            default_sampler: Box::new(sdk::Sampler::AlwaysOn),
+        .with_trace_config(sdk::trace::Config {
+            default_sampler: Box::new(sdk::trace::Sampler::AlwaysOn),
             id_generator: Box::new(XrayIdGenerator::default()),
             ..Default::default()
         })

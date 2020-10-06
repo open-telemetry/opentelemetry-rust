@@ -41,7 +41,7 @@
 //! let exporter = api::NoopSpanExporter::new();
 //!
 //! // Then use the `with_simple_exporter` method to have the provider export when spans finish.
-//! let provider = sdk::TracerProvider::builder()
+//! let provider = sdk::trace::TracerProvider::builder()
 //!     .with_simple_exporter(exporter)
 //!     .build();
 //!
@@ -69,12 +69,12 @@
 //!     // Then build a batch processor. You can use whichever executor you have available, for
 //!     // example if you are using `async-std` instead of `tokio` you can replace the spawn and
 //!     // interval functions with `async_std::task::spawn` and `async_std::stream::interval`.
-//!     let batch = sdk::BatchSpanProcessor::builder(exporter, tokio::spawn, tokio::time::interval)
+//!     let batch = sdk::trace::BatchSpanProcessor::builder(exporter, tokio::spawn, tokio::time::interval)
 //!         .with_max_queue_size(4096)
 //!         .build();
 //!
 //!     // Then use the `with_batch_exporter` method to have the provider export spans in batches.
-//!     let provider = sdk::TracerProvider::builder()
+//!     let provider = sdk::trace::TracerProvider::builder()
 //!         .with_batch_exporter(batch)
 //!         .build();
 //!
@@ -411,7 +411,7 @@ mod tests {
         OTEL_BSP_MAX_EXPORT_BATCH_SIZE, OTEL_BSP_MAX_QUEUE_SIZE, OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT,
         OTEL_BSP_SCHEDULE_DELAY_MILLIS, OTEL_BSP_SCHEDULE_DELAY_MILLIS_DEFAULT,
     };
-    use crate::sdk::BatchSpanProcessor;
+    use crate::sdk::trace::BatchSpanProcessor;
     use std::time;
 
     #[test]

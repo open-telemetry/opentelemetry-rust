@@ -114,7 +114,7 @@
 //!
 //! ```no_run
 //! use opentelemetry::api::{KeyValue, Tracer};
-//! use opentelemetry::sdk::{trace, IdGenerator, Resource, Sampler};
+//! use opentelemetry::sdk::{trace::{self, IdGenerator, Sampler}, Resource};
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     let (tracer, _uninstall) = opentelemetry_jaeger::new_pipeline()
@@ -254,7 +254,7 @@ pub struct PipelineBuilder {
     #[cfg(feature = "collector_client")]
     collector_password: Option<String>,
     process: Process,
-    config: Option<sdk::Config>,
+    config: Option<sdk::trace::Config>,
 }
 
 impl Default for PipelineBuilder {
@@ -345,7 +345,7 @@ impl PipelineBuilder {
     }
 
     /// Assign the SDK config for the exporter pipeline.
-    pub fn with_trace_config(self, config: sdk::Config) -> Self {
+    pub fn with_trace_config(self, config: sdk::trace::Config) -> Self {
         PipelineBuilder {
             config: Some(config),
             ..self
@@ -353,7 +353,7 @@ impl PipelineBuilder {
     }
 
     /// Install a Jaeger pipeline with the recommended defaults.
-    pub fn install(self) -> Result<(sdk::Tracer, Uninstall), Box<dyn Error>> {
+    pub fn install(self) -> Result<(sdk::trace::Tracer, Uninstall), Box<dyn Error>> {
         let tracer_provider = self.build()?;
         let tracer =
             tracer_provider.get_tracer("opentelemetry-jaeger", Some(env!("CARGO_PKG_VERSION")));
@@ -363,12 +363,12 @@ impl PipelineBuilder {
         Ok((tracer, Uninstall(provider_guard)))
     }
 
-    /// Build a configured `sdk::TracerProvider` with the recommended defaults.
-    pub fn build(mut self) -> Result<sdk::TracerProvider, Box<dyn Error>> {
+    /// Build a configured `sdk::trace::TracerProvider` with the recommended defaults.
+    pub fn build(mut self) -> Result<sdk::trace::TracerProvider, Box<dyn Error>> {
         let config = self.config.take();
         let exporter = self.init_exporter()?;
 
-        let mut builder = sdk::TracerProvider::builder().with_exporter(exporter);
+        let mut builder = sdk::trace::TracerProvider::builder().with_exporter(exporter);
 
         if let Some(config) = config {
             builder = builder.with_config(config)
@@ -478,7 +478,9 @@ impl Into<jaeger::Span> for &Arc<trace::SpanData> {
     }
 }
 
-fn links_to_references(links: &sdk::EvictedQueue<api::Link>) -> Option<Vec<jaeger::SpanRef>> {
+fn links_to_references(
+    links: &sdk::trace::EvictedQueue<api::Link>,
+) -> Option<Vec<jaeger::SpanRef>> {
     if !links.is_empty() {
         let refs = links
             .iter()
@@ -596,7 +598,7 @@ impl UserOverrides {
     }
 }
 
-fn events_to_logs(events: &sdk::EvictedQueue<api::Event>) -> Option<Vec<jaeger::Log>> {
+fn events_to_logs(events: &sdk::trace::EvictedQueue<api::Event>) -> Option<Vec<jaeger::Log>> {
     if events.is_empty() {
         None
     } else {

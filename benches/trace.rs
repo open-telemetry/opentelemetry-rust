@@ -64,13 +64,13 @@ fn criterion_benchmark(c: &mut Criterion) {
     });
 }
 
-fn trace_benchmark_group<F: Fn(&sdk::Tracer)>(c: &mut Criterion, name: &str, f: F) {
+fn trace_benchmark_group<F: Fn(&sdk::trace::Tracer)>(c: &mut Criterion, name: &str, f: F) {
     let mut group = c.benchmark_group(name);
 
     group.bench_function("always-sample", |b| {
-        let always_sample = sdk::TracerProvider::builder()
-            .with_config(sdk::Config {
-                default_sampler: Box::new(sdk::Sampler::AlwaysOn),
+        let always_sample = sdk::trace::TracerProvider::builder()
+            .with_config(sdk::trace::Config {
+                default_sampler: Box::new(sdk::trace::Sampler::AlwaysOn),
                 ..Default::default()
             })
             .build()
@@ -80,9 +80,9 @@ fn trace_benchmark_group<F: Fn(&sdk::Tracer)>(c: &mut Criterion, name: &str, f: 
     });
 
     group.bench_function("never-sample", |b| {
-        let never_sample = sdk::TracerProvider::builder()
-            .with_config(sdk::Config {
-                default_sampler: Box::new(sdk::Sampler::AlwaysOff),
+        let never_sample = sdk::trace::TracerProvider::builder()
+            .with_config(sdk::trace::Config {
+                default_sampler: Box::new(sdk::trace::Sampler::AlwaysOff),
                 ..Default::default()
             })
             .build()

@@ -423,7 +423,7 @@ pub struct SpanBuilder {
     /// Span status message
     pub status_message: Option<String>,
     /// Sampling result
-    pub sampling_result: Option<sdk::SamplingResult>,
+    pub sampling_result: Option<sdk::trace::SamplingResult>,
 }
 
 /// SpanBuilder methods
@@ -536,7 +536,7 @@ impl SpanBuilder {
     }
 
     /// Assign sampling result
-    pub fn with_sampling_result(self, sampling_result: sdk::SamplingResult) -> Self {
+    pub fn with_sampling_result(self, sampling_result: sdk::trace::SamplingResult) -> Self {
         SpanBuilder {
             sampling_result: Some(sampling_result),
             ..self

@@ -25,8 +25,8 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 /// ```
 /// extern crate opentelemetry;
 /// use opentelemetry::api::NoopSpanExporter;
-/// use opentelemetry::sdk::Config;
-/// use opentelemetry::sdk::trace::provider::TracerProvider;
+/// use opentelemetry::sdk::trace::Config;
+/// use opentelemetry::sdk::trace::TracerProvider;
 /// use opentelemetry_contrib::XrayIdGenerator;
 ///
 /// let _provider: TracerProvider = TracerProvider::builder()
@@ -43,7 +43,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 /// [xray-trace-id]: https://docs.aws.amazon.com/xray/latest/devguide/xray-api-sendingdata.html#xray-api-traceids
 #[derive(Debug, Default)]
 pub struct XrayIdGenerator {
-    sdk_default_generator: sdk::IdGenerator,
+    sdk_default_generator: sdk::trace::IdGenerator,
 }
 
 impl IdGenerator for XrayIdGenerator {

@@ -46,8 +46,8 @@ impl Tracer {
     }
 
     /// TracerProvider associated with this tracer.
-    pub fn provider(&self) -> Option<sdk::TracerProvider> {
-        self.provider.upgrade().map(sdk::TracerProvider::new)
+    pub fn provider(&self) -> Option<sdk::trace::TracerProvider> {
+        self.provider.upgrade().map(sdk::trace::TracerProvider::new)
     }
 
     /// instrumentation library information of this tracer.
@@ -76,16 +76,16 @@ impl Tracer {
 
     fn process_sampling_result(
         &self,
-        sampling_result: sdk::SamplingResult,
+        sampling_result: sdk::trace::SamplingResult,
         parent_context: Option<&api::SpanContext>,
     ) -> Option<(u8, Vec<api::KeyValue>, TraceState)> {
         match sampling_result {
-            sdk::SamplingResult {
-                decision: sdk::SamplingDecision::Drop,
+            sdk::trace::SamplingResult {
+                decision: sdk::trace::SamplingDecision::Drop,
                 ..
             } => None,
-            sdk::SamplingResult {
-                decision: sdk::SamplingDecision::RecordOnly,
+            sdk::trace::SamplingResult {
+                decision: sdk::trace::SamplingDecision::RecordOnly,
                 attributes,
                 trace_state,
             } => {
@@ -96,8 +96,8 @@ impl Tracer {
                     trace_state,
                 ))
             }
-            sdk::SamplingResult {
-                decision: sdk::SamplingDecision::RecordAndSample,
+            sdk::trace::SamplingResult {
+                decision: sdk::trace::SamplingDecision::RecordAndSample,
                 attributes,
                 trace_state,
             } => {
@@ -114,12 +114,12 @@ impl Tracer {
 
 impl api::Tracer for Tracer {
     /// This implementation of `api::Tracer` produces `sdk::Span` instances.
-    type Span = sdk::Span;
+    type Span = sdk::trace::Span;
 
     /// Returns a span with an inactive `SpanContext`. Used by functions that
     /// need to return a default span like `get_active_span` if no span is present.
     fn invalid(&self) -> Self::Span {
-        sdk::Span::new(api::SpanId::invalid(), None, self.clone())
+        sdk::trace::Span::new(api::SpanId::invalid(), None, self.clone())
     }
 
     /// Starts a new `Span` in a given context.
@@ -152,7 +152,7 @@ impl api::Tracer for Tracer {
     fn build_with_context(&self, mut builder: api::SpanBuilder, cx: &Context) -> Self::Span {
         let provider = self.provider();
         if provider.is_none() {
-            return sdk::Span::new(api::SpanId::invalid(), None, self.clone());
+            return sdk::trace::Span::new(api::SpanId::invalid(), None, self.clone());
         }
 
         let provider = provider.unwrap();
@@ -227,15 +227,15 @@ impl api::Tracer for Tracer {
         // Build optional inner context, `None` if not recording.
         let inner = sampling_decision.map(move |(trace_flags, mut extra_attrs, trace_state)| {
             attribute_options.append(&mut extra_attrs);
-            let mut attributes = sdk::EvictedHashMap::new(config.max_attributes_per_span);
+            let mut attributes = sdk::trace::EvictedHashMap::new(config.max_attributes_per_span);
             for attribute in attribute_options {
                 attributes.insert(attribute);
             }
-            let mut links = sdk::EvictedQueue::new(config.max_links_per_span);
+            let mut links = sdk::trace::EvictedQueue::new(config.max_links_per_span);
             links.append_vec(&mut link_options);
             let start_time = builder.start_time.unwrap_or_else(SystemTime::now);
             let end_time = builder.end_time.unwrap_or(start_time);
-            let mut message_events = sdk::EvictedQueue::new(config.max_events_per_span);
+            let mut message_events = sdk::trace::EvictedQueue::new(config.max_events_per_span);
             if let Some(mut events) = builder.message_events {
                 message_events.append_vec(&mut events);
             }
@@ -274,7 +274,7 @@ impl api::Tracer for Tracer {
             }
         }
 
-        sdk::Span::new(span_id, inner, self.clone())
+        sdk::trace::Span::new(span_id, inner, self.clone())
     }
 }
 
@@ -285,7 +285,7 @@ mod tests {
         TraceState, Tracer, TracerProvider, TRACE_FLAG_SAMPLED,
     };
     use crate::sdk;
-    use crate::sdk::{Config, SamplingDecision, SamplingResult, ShouldSample};
+    use crate::sdk::trace::{Config, SamplingDecision, SamplingResult, ShouldSample};
 
     #[derive(Debug)]
     struct TestSampler {}
@@ -314,7 +314,9 @@ mod tests {
         // Setup
         let sampler = TestSampler {};
         let config = Config::default().with_default_sampler(sampler);
-        let tracer_provider = sdk::TracerProvider::builder().with_config(config).build();
+        let tracer_provider = sdk::trace::TracerProvider::builder()
+            .with_config(config)
+            .build();
         let tracer = tracer_provider.get_tracer("test", None);
         let context = Context::default();
         let trace_state = TraceState::from_key_value(vec![("foo", "bar")]).unwrap();

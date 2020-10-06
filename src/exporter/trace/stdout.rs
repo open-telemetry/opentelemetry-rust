@@ -34,7 +34,7 @@ use std::sync::{Arc, Mutex};
 #[derive(Debug)]
 pub struct PipelineBuilder<W: Write> {
     pretty_print: bool,
-    trace_config: Option<sdk::Config>,
+    trace_config: Option<sdk::trace::Config>,
     writer: W,
 }
 
@@ -62,7 +62,7 @@ impl<W: Write> PipelineBuilder<W> {
     }
 
     /// Assign the SDK trace configuration.
-    pub fn with_trace_config(mut self, config: sdk::Config) -> Self {
+    pub fn with_trace_config(mut self, config: sdk::trace::Config) -> Self {
         self.trace_config = Some(config);
         self
     }
@@ -82,10 +82,10 @@ where
     W: Write + Debug + Send + 'static,
 {
     /// Install the stdout exporter pipeline with the recommended defaults.
-    pub fn install(mut self) -> (sdk::Tracer, Uninstall) {
+    pub fn install(mut self) -> (sdk::trace::Tracer, Uninstall) {
         let exporter = Exporter::new(self.writer, self.pretty_print);
 
-        let mut provider_builder = sdk::TracerProvider::builder().with_exporter(exporter);
+        let mut provider_builder = sdk::trace::TracerProvider::builder().with_exporter(exporter);
         if let Some(config) = self.trace_config.take() {
             provider_builder = provider_builder.with_config(config);
         }

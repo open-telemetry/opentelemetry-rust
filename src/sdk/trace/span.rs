@@ -24,14 +24,14 @@ pub struct Span {
 #[derive(Debug)]
 struct SpanInner {
     data: Option<Mutex<exporter::trace::SpanData>>,
-    tracer: sdk::Tracer,
+    tracer: sdk::trace::Tracer,
 }
 
 impl Span {
     pub(crate) fn new(
         id: api::SpanId,
         data: Option<exporter::trace::SpanData>,
-        tracer: sdk::Tracer,
+        tracer: sdk::trace::Tracer,
     ) -> Self {
         Span {
             id,
