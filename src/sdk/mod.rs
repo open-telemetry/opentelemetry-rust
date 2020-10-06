@@ -18,15 +18,3 @@ pub mod trace;
 pub use env::EnvResourceDetector;
 pub use instrumentation::InstrumentationLibrary;
 pub use resource::Resource;
-#[cfg(feature = "trace")]
-pub use trace::{
-    config::Config,
-    evicted_hash_map::EvictedHashMap,
-    evicted_queue::EvictedQueue,
-    id_generator::IdGenerator,
-    provider::{Builder, TracerProvider},
-    sampler::{Sampler, SamplingDecision, SamplingResult, ShouldSample},
-    span::Span,
-    span_processor::{BatchSpanProcessor, SimpleSpanProcessor},
-    tracer::Tracer,
-};

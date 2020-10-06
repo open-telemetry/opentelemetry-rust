@@ -35,13 +35,13 @@
 //! limiting, consider the batch processor instead.
 //!
 //! ```
-//! use opentelemetry::{api, sdk, global};
+//! use opentelemetry::{api::trace as apitrace, sdk::trace as sdktrace, global};
 //!
 //! // Configure your preferred exporter
-//! let exporter = api::NoopSpanExporter::new();
+//! let exporter = apitrace::NoopSpanExporter::new();
 //!
 //! // Then use the `with_simple_exporter` method to have the provider export when spans finish.
-//! let provider = sdk::TracerProvider::builder()
+//! let provider = sdktrace::TracerProvider::builder()
 //!     .with_simple_exporter(exporter)
 //!     .build();
 //!
@@ -58,23 +58,23 @@
 //!
 //! ```
 //! use futures::{stream};
-//! use opentelemetry::{api, sdk, global};
+//! use opentelemetry::{api::trace as apitrace, sdk::trace as sdktrace, global};
 //! use std::time::Duration;
 //!
 //! #[tokio::main]
 //! async fn main() {
 //!     // Configure your preferred exporter
-//!     let exporter = api::NoopSpanExporter::new();
+//!     let exporter = apitrace::NoopSpanExporter::new();
 //!
 //!     // Then build a batch processor. You can use whichever executor you have available, for
 //!     // example if you are using `async-std` instead of `tokio` you can replace the spawn and
 //!     // interval functions with `async_std::task::spawn` and `async_std::stream::interval`.
-//!     let batch = sdk::BatchSpanProcessor::builder(exporter, tokio::spawn, tokio::time::interval)
+//!     let batch = sdktrace::BatchSpanProcessor::builder(exporter, tokio::spawn, tokio::time::interval)
 //!         .with_max_queue_size(4096)
 //!         .build();
 //!
 //!     // Then use the `with_batch_exporter` method to have the provider export spans in batches.
-//!     let provider = sdk::TracerProvider::builder()
+//!     let provider = sdktrace::TracerProvider::builder()
 //!         .with_batch_exporter(batch)
 //!         .build();
 //!
@@ -127,7 +127,7 @@ impl SimpleSpanProcessor {
     }
 }
 
-impl api::SpanProcessor for SimpleSpanProcessor {
+impl api::trace::SpanProcessor for SimpleSpanProcessor {
     fn on_start(&self, _span: Arc<exporter::trace::SpanData>) {
         // Ignored
     }
@@ -158,7 +158,7 @@ impl fmt::Debug for BatchSpanProcessor {
     }
 }
 
-impl api::SpanProcessor for BatchSpanProcessor {
+impl api::trace::SpanProcessor for BatchSpanProcessor {
     fn on_start(&self, _span: Arc<exporter::trace::SpanData>) {
         // Ignored
     }
@@ -411,7 +411,7 @@ mod tests {
         OTEL_BSP_MAX_EXPORT_BATCH_SIZE, OTEL_BSP_MAX_QUEUE_SIZE, OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT,
         OTEL_BSP_SCHEDULE_DELAY_MILLIS, OTEL_BSP_SCHEDULE_DELAY_MILLIS_DEFAULT,
     };
-    use crate::sdk::BatchSpanProcessor;
+    use crate::sdk::trace::BatchSpanProcessor;
     use std::time;
 
     #[test]

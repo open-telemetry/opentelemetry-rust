@@ -6,14 +6,24 @@
 //! * The `Span` struct with is a mutable object storing information about the
 //! current operation execution.
 //! * The `TracerProvider` struct which configures and produces `Tracer`s.
-pub mod config;
-pub mod evicted_hash_map;
-pub mod evicted_queue;
-pub mod id_generator;
-pub mod provider;
-pub mod sampler;
-pub mod span;
-pub mod span_processor;
-pub mod tracer;
+mod config;
+mod evicted_hash_map;
+mod evicted_queue;
+mod id_generator;
+mod provider;
+mod sampler;
+mod span;
+mod span_processor;
+mod tracer;
 
-pub use config::config;
+pub use config::{config, Config};
+pub use evicted_hash_map::EvictedHashMap;
+pub use evicted_queue::EvictedQueue;
+pub use id_generator::IdGenerator;
+pub use provider::{Builder, TracerProvider};
+pub use sampler::{Sampler, SamplingDecision, SamplingResult, ShouldSample};
+pub use span::Span;
+pub use span_processor::{
+    BatchConfig, BatchSpanProcessor, BatchSpanProcessorBuilder, SimpleSpanProcessor,
+};
+pub use tracer::Tracer;

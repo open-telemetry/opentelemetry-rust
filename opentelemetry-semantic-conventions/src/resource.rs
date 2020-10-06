@@ -13,12 +13,12 @@
 //! use std::sync::Arc;
 //!
 //! let _tracer = opentelemetry::exporter::trace::stdout::new_pipeline()
-//!     .with_trace_config(sdk::Config {
+//!     .with_trace_config(sdk::trace::Config {
 //!         resource: Arc::new(sdk::Resource::new(vec![
 //!             semcov::resource::SERVICE_NAME.string("my-service"),
 //!             semcov::resource::SERVICE_NAMESPACE.string("my-namespace"),
 //!         ])),
-//!         ..sdk::Config::default()
+//!         ..sdk::trace::Config::default()
 //!     })
 //!     .install();
 //! ```

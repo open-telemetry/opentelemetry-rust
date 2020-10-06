@@ -8,7 +8,7 @@
 //! start time is set to the current time on span creation. After the `Span` is created, it
 //! is possible to change its name, set its `Attributes`, and add `Links` and `Events`.
 //! These cannot be changed after the `Span`'s end time has been set.
-use crate::api::trace::span_context::TraceState;
+use crate::api::trace::TraceState;
 use crate::{api, exporter, sdk};
 use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
@@ -16,7 +16,7 @@ use std::time::SystemTime;
 /// Single operation within a trace.
 #[derive(Clone, Debug)]
 pub struct Span {
-    id: api::SpanId,
+    id: api::trace::SpanId,
     inner: Arc<SpanInner>,
 }
 
@@ -24,14 +24,14 @@ pub struct Span {
 #[derive(Debug)]
 struct SpanInner {
     data: Option<Mutex<exporter::trace::SpanData>>,
-    tracer: sdk::Tracer,
+    tracer: sdk::trace::Tracer,
 }
 
 impl Span {
     pub(crate) fn new(
-        id: api::SpanId,
+        id: api::trace::SpanId,
         data: Option<exporter::trace::SpanData>,
-        tracer: sdk::Tracer,
+        tracer: sdk::trace::Tracer,
     ) -> Self {
         Span {
             id,
@@ -65,7 +65,7 @@ impl Span {
     }
 }
 
-impl api::Span for Span {
+impl api::trace::Span for Span {
     /// Records events at a specific time in the context of a given `Span`.
     ///
     /// Note that the OpenTelemetry project documents certain ["standard event names and
@@ -79,17 +79,17 @@ impl api::Span for Span {
     ) {
         self.with_data_mut(|data| {
             data.message_events
-                .push_back(api::Event::new(name, timestamp, attributes))
+                .push_back(api::trace::Event::new(name, timestamp, attributes))
         });
     }
 
     /// Returns the `SpanContext` for the given `Span`.
-    fn span_context(&self) -> api::SpanContext {
+    fn span_context(&self) -> api::trace::SpanContext {
         self.with_data(|data| data.span_context.clone())
             .unwrap_or_else(|| {
-                api::SpanContext::new(
-                    api::TraceId::invalid(),
-                    api::SpanId::invalid(),
+                api::trace::SpanContext::new(
+                    api::trace::TraceId::invalid(),
+                    api::trace::SpanId::invalid(),
                     0,
                     false,
                     TraceState::default(),
@@ -116,7 +116,7 @@ impl api::Span for Span {
 
     /// Sets the status of the `Span`. If used, this will override the default `Span`
     /// status, which is `OK`.
-    fn set_status(&self, code: api::StatusCode, message: String) {
+    fn set_status(&self, code: api::trace::StatusCode, message: String) {
         self.with_data_mut(|data| {
             data.status_code = code;
             data.status_message = message

@@ -1,7 +1,7 @@
 use opentelemetry::{
-    api::Tracer,
+    api::trace::Tracer,
     exporter::trace::stdout,
-    sdk::{trace, Sampler},
+    sdk::trace::{self, Sampler},
 };
 
 fn main() {

@@ -110,15 +110,33 @@
 //! Please review the W3C specification for details on the [Tracestate
 //! field](https://www.w3.org/TR/trace-context/#tracestate-field).
 //!
-pub mod context;
-pub mod event;
-pub mod futures;
-pub mod id_generator;
-pub mod link;
-pub mod noop;
-pub mod provider;
-pub mod span;
-pub mod span_context;
-pub mod span_processor;
-pub mod trace_context_propagator;
-pub mod tracer;
+mod context;
+mod event;
+mod futures;
+mod id_generator;
+mod link;
+mod noop;
+mod provider;
+mod span;
+mod span_context;
+mod span_processor;
+mod trace_context_propagator;
+mod tracer;
+
+pub use self::{
+    context::TraceContextExt,
+    event::Event,
+    futures::FutureExt,
+    id_generator::IdGenerator,
+    link::Link,
+    noop::{NoopSpan, NoopSpanExporter, NoopTracer, NoopTracerProvider},
+    provider::TracerProvider,
+    span::{Span, SpanKind, StatusCode},
+    span_context::{
+        SpanContext, SpanId, TraceId, TraceState, TRACE_FLAG_DEBUG, TRACE_FLAG_DEFERRED,
+        TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
+    },
+    span_processor::SpanProcessor,
+    trace_context_propagator::TraceContextPropagator,
+    tracer::{SpanBuilder, Tracer},
+};

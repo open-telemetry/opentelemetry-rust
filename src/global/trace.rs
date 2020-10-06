@@ -1,4 +1,4 @@
-use crate::{api, api::TracerProvider};
+use crate::{api, api::trace::TracerProvider};
 use std::fmt;
 use std::mem;
 use std::sync::{Arc, RwLock};
@@ -12,9 +12,9 @@ use std::time::SystemTime;
 #[derive(Debug)]
 pub struct BoxedSpan(Box<DynSpan>);
 
-type DynSpan = dyn api::Span + Send + Sync;
+type DynSpan = dyn api::trace::Span + Send + Sync;
 
-impl api::Span for BoxedSpan {
+impl api::trace::Span for BoxedSpan {
     /// Records events at a specific time in the context of a given `Span`.
     ///
     /// Note that the OpenTelemetry project documents certain ["standard event names and
@@ -30,7 +30,7 @@ impl api::Span for BoxedSpan {
     }
 
     /// Returns the `SpanContext` for the given `Span`.
-    fn span_context(&self) -> api::SpanContext {
+    fn span_context(&self) -> api::trace::SpanContext {
         self.0.span_context()
     }
 
@@ -51,7 +51,7 @@ impl api::Span for BoxedSpan {
 
     /// Sets the status of the `Span`. If used, this will override the default `Span`
     /// status, which is `OK`.
-    fn set_status(&self, code: api::StatusCode, message: String) {
+    fn set_status(&self, code: api::trace::StatusCode, message: String) {
         self.0.set_status(code, message)
     }
 
@@ -74,7 +74,7 @@ impl api::Span for BoxedSpan {
 #[derive(Debug)]
 pub struct BoxedTracer(Box<dyn GenericTracer + Send + Sync>);
 
-impl api::Tracer for BoxedTracer {
+impl api::trace::Tracer for BoxedTracer {
     /// Global tracer uses `BoxedSpan`s so that it can be a global singleton,
     /// which is not possible if it takes generic type parameters.
     type Span = BoxedSpan;
@@ -99,12 +99,16 @@ impl api::Tracer for BoxedTracer {
     /// Creates a span builder
     ///
     /// An ergonomic way for attributes to be configured before the `Span` is started.
-    fn span_builder(&self, name: &str) -> api::SpanBuilder {
-        api::SpanBuilder::from_name(name.to_string())
+    fn span_builder(&self, name: &str) -> api::trace::SpanBuilder {
+        api::trace::SpanBuilder::from_name(name.to_string())
     }
 
     /// Create a span from a `SpanBuilder`
-    fn build_with_context(&self, builder: api::SpanBuilder, cx: &api::Context) -> Self::Span {
+    fn build_with_context(
+        &self,
+        builder: api::trace::SpanBuilder,
+        cx: &api::Context,
+    ) -> Self::Span {
         BoxedSpan(self.0.build_with_context_boxed(builder, cx))
     }
 }
@@ -126,15 +130,15 @@ pub trait GenericTracer: fmt::Debug + 'static {
     /// out at runtime.
     fn build_with_context_boxed(
         &self,
-        builder: api::SpanBuilder,
+        builder: api::trace::SpanBuilder,
         cx: &api::Context,
     ) -> Box<DynSpan>;
 }
 
 impl<S, T> GenericTracer for T
 where
-    S: api::Span + Send + Sync,
-    T: api::Tracer<Span = S>,
+    S: api::trace::Span + Send + Sync,
+    T: api::trace::Tracer<Span = S>,
 {
     /// Create a new invalid span for use in cases where there are no active spans.
     fn invalid_boxed(&self) -> Box<DynSpan> {
@@ -151,7 +155,7 @@ where
     /// out at runtime.
     fn build_with_context_boxed(
         &self,
-        builder: api::SpanBuilder,
+        builder: api::trace::SpanBuilder,
         cx: &api::Context,
     ) -> Box<DynSpan> {
         Box::new(self.build_with_context(builder, cx))
@@ -174,9 +178,9 @@ pub trait GenericProvider: fmt::Debug + 'static {
 
 impl<S, T, P> GenericProvider for P
 where
-    S: api::Span + Send + Sync,
-    T: api::Tracer<Span = S> + Send + Sync,
-    P: api::TracerProvider<Tracer = T>,
+    S: api::trace::Span + Send + Sync,
+    T: api::trace::Tracer<Span = S> + Send + Sync,
+    P: api::trace::TracerProvider<Tracer = T>,
 {
     /// Return a boxed generic tracer
     fn get_tracer_boxed(
@@ -203,9 +207,9 @@ impl GlobalTracerProvider {
     /// Create a new GlobalProvider instance from a struct that implements `TracerProvider`.
     fn new<P, T, S>(provider: P) -> Self
     where
-        S: api::Span + Send + Sync,
-        T: api::Tracer<Span = S> + Send + Sync,
-        P: api::TracerProvider<Tracer = T> + Send + Sync,
+        S: api::trace::Span + Send + Sync,
+        T: api::trace::Tracer<Span = S> + Send + Sync,
+        P: api::trace::TracerProvider<Tracer = T> + Send + Sync,
     {
         GlobalTracerProvider {
             provider: Arc::new(provider),
@@ -213,7 +217,7 @@ impl GlobalTracerProvider {
     }
 }
 
-impl api::TracerProvider for GlobalTracerProvider {
+impl api::trace::TracerProvider for GlobalTracerProvider {
     type Tracer = BoxedTracer;
 
     /// Find or create a named tracer using the global provider.
@@ -224,7 +228,7 @@ impl api::TracerProvider for GlobalTracerProvider {
 
 lazy_static::lazy_static! {
     /// The global `Tracer` provider singleton.
-    static ref GLOBAL_TRACER_PROVIDER: RwLock<GlobalTracerProvider> = RwLock::new(GlobalTracerProvider::new(api::NoopTracerProvider::new()));
+    static ref GLOBAL_TRACER_PROVIDER: RwLock<GlobalTracerProvider> = RwLock::new(GlobalTracerProvider::new(api::trace::NoopTracerProvider::new()));
 }
 
 /// Returns an instance of the currently configured global [`TracerProvider`] through
@@ -286,9 +290,9 @@ impl Drop for TracerProviderGuard {
 #[must_use]
 pub fn set_tracer_provider<P, T, S>(new_provider: P) -> TracerProviderGuard
 where
-    S: api::Span + Send + Sync,
-    T: api::Tracer<Span = S> + Send + Sync,
-    P: api::TracerProvider<Tracer = T> + Send + Sync,
+    S: api::trace::Span + Send + Sync,
+    T: api::trace::Tracer<Span = S> + Send + Sync,
+    P: api::trace::TracerProvider<Tracer = T> + Send + Sync,
 {
     let mut tracer_provider = GLOBAL_TRACER_PROVIDER
         .write()

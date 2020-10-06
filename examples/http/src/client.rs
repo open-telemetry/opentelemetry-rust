@@ -1,14 +1,17 @@
 use hyper::{body::Body, Client};
-use opentelemetry::api::{Context, TextMapFormat, TraceContextExt, Tracer};
-use opentelemetry::{api, exporter::trace::stdout, global, sdk};
+use opentelemetry::api::{
+    trace::{TraceContextExt, Tracer},
+    Context, TextMapFormat,
+};
+use opentelemetry::{api, exporter::trace::stdout, global, sdk::trace as sdktrace};
 
-fn init_tracer() -> (sdk::Tracer, stdout::Uninstall) {
+fn init_tracer() -> (sdktrace::Tracer, stdout::Uninstall) {
     // Install stdout exporter pipeline to be able to retrieve the collected spans.
     // For the demonstration, use `Sampler::AlwaysOn` sampler to sample all traces. In a production
     // application, use `Sampler::ParentBased` or `Sampler::TraceIdRatioBased` with a desired ratio.
     stdout::new_pipeline()
-        .with_trace_config(sdk::Config {
-            default_sampler: Box::new(sdk::Sampler::AlwaysOn),
+        .with_trace_config(sdktrace::Config {
+            default_sampler: Box::new(sdktrace::Sampler::AlwaysOn),
             ..Default::default()
         })
         .install()
@@ -19,7 +22,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error + Send + Sy
     let _guard = init_tracer();
 
     let client = Client::new();
-    let propagator = api::TraceContextPropagator::new();
+    let propagator = api::trace::TraceContextPropagator::new();
     let span = global::tracer("example/client").start("say hello");
     let cx = Context::current_with_span(span);
 

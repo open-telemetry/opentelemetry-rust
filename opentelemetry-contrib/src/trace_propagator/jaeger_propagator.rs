@@ -6,10 +6,12 @@
 //!
 //! [`Jaeger documentation`]: https://www.jaegertracing.io/docs/1.18/client-libraries/#propagation-format
 
-use opentelemetry::api::trace::span_context::TraceState;
 use opentelemetry::api::{
-    Context, Extractor, FieldIter, Injector, SpanContext, SpanId, TextMapFormat, TraceContextExt,
-    TraceId, TRACE_FLAG_DEBUG, TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
+    trace::{
+        SpanContext, SpanId, TraceContextExt, TraceId, TraceState, TRACE_FLAG_DEBUG,
+        TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
+    },
+    Context, Extractor, FieldIter, Injector, TextMapFormat,
 };
 use std::borrow::Cow;
 use std::str::FromStr;
@@ -172,11 +174,13 @@ impl TextMapFormat for JaegerPropagator {
 #[cfg(test)]
 mod tests {
     use crate::trace_propagator::jaeger_propagator::{JaegerPropagator, JAEGER_HEADER};
-    use opentelemetry::api;
-    use opentelemetry::api::trace::span_context::TraceState;
     use opentelemetry::api::{
-        Context, Injector, Span, SpanContext, SpanId, TextMapFormat, TraceContextExt, TraceId,
-        TRACE_FLAG_DEBUG, TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
+        self,
+        trace::{
+            Span, SpanContext, SpanId, TraceContextExt, TraceId, TraceState, TRACE_FLAG_DEBUG,
+            TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
+        },
+        Context, Injector, TextMapFormat,
     };
     use std::collections::HashMap;
     use std::time::SystemTime;
@@ -380,14 +384,14 @@ mod tests {
             _attributes: Vec<api::KeyValue>,
         ) {
         }
-        fn span_context(&self) -> api::SpanContext {
+        fn span_context(&self) -> api::trace::SpanContext {
             self.0.clone()
         }
         fn is_recording(&self) -> bool {
             false
         }
         fn set_attribute(&self, _attribute: api::KeyValue) {}
-        fn set_status(&self, _code: api::StatusCode, _message: String) {}
+        fn set_status(&self, _code: api::trace::StatusCode, _message: String) {}
         fn update_name(&self, _new_name: String) {}
         fn end_with_timestamp(&self, _timestamp: SystemTime) {}
     }

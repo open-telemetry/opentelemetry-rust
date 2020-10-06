@@ -1,6 +1,6 @@
 use crate::proto::common::{AnyValue, ArrayValue, KeyValue};
 use opentelemetry::api::Value;
-use opentelemetry::sdk::EvictedHashMap;
+use opentelemetry::sdk::trace::EvictedHashMap;
 use protobuf::RepeatedField;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 

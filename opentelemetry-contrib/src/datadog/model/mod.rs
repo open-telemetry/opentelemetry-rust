@@ -75,35 +75,35 @@ mod tests {
         let trace_id = 7;
         let span_id = 99;
 
-        let span_context = api::SpanContext::new(
-            api::TraceId::from_u128(trace_id),
-            api::SpanId::from_u64(span_id),
+        let span_context = api::trace::SpanContext::new(
+            api::trace::TraceId::from_u128(trace_id),
+            api::trace::SpanId::from_u64(span_id),
             0,
             false,
-            api::TraceState::default(),
+            api::trace::TraceState::default(),
         );
 
         let start_time = SystemTime::UNIX_EPOCH;
         let end_time = start_time.checked_add(Duration::from_secs(1)).unwrap();
 
         let capacity = 3;
-        let mut attributes = sdk::EvictedHashMap::new(capacity);
+        let mut attributes = sdk::trace::EvictedHashMap::new(capacity);
         attributes.insert(Key::new("span.type").string("web"));
 
-        let message_events = sdk::EvictedQueue::new(capacity);
-        let links = sdk::EvictedQueue::new(capacity);
+        let message_events = sdk::trace::EvictedQueue::new(capacity);
+        let links = sdk::trace::EvictedQueue::new(capacity);
 
         let span_data = trace::SpanData {
             span_context,
-            parent_span_id: api::SpanId::from_u64(parent_span_id),
-            span_kind: api::SpanKind::Client,
+            parent_span_id: api::trace::SpanId::from_u64(parent_span_id),
+            span_kind: api::trace::SpanKind::Client,
             name: "resource".to_string(),
             start_time,
             end_time,
             attributes,
             message_events,
             links,
-            status_code: api::StatusCode::OK,
+            status_code: api::trace::StatusCode::OK,
             status_message: String::new(),
             resource: Arc::new(sdk::Resource::default()),
             instrumentation_lib: InstrumentationLibrary::new("component", None),

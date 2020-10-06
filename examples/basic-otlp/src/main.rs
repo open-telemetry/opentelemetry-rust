@@ -1,13 +1,16 @@
 use futures::stream::{Stream, StreamExt};
-use opentelemetry::api::metrics::{self, MetricsError, ObserverResult};
-use opentelemetry::api::{BaggageExt, Context, Key, KeyValue, TraceContextExt, Tracer};
+use opentelemetry::api::{
+    metrics::{self, MetricsError, ObserverResult},
+    trace::{TraceContextExt, Tracer},
+    BaggageExt, Context, Key, KeyValue,
+};
 use opentelemetry::exporter;
 use opentelemetry::sdk::metrics::PushController;
-use opentelemetry::{global, sdk};
+use opentelemetry::{global, sdk::trace as sdktrace};
 use std::error::Error;
 use std::time::Duration;
 
-fn init_tracer() -> Result<(sdk::Tracer, opentelemetry_otlp::Uninstall), Box<dyn Error>> {
+fn init_tracer() -> Result<(sdktrace::Tracer, opentelemetry_otlp::Uninstall), Box<dyn Error>> {
     opentelemetry_otlp::new_pipeline().install()
 }
 

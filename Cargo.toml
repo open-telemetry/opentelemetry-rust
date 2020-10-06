@@ -41,7 +41,7 @@ rand_distr = "0.3.0"
 tokio = { version = "0.2", features = ["full"] }
 
 [features]
-default = ["metrics", "trace"]
+default = ["trace"]
 base64_format = ["base64", "binary_propagator"]
 trace = ["rand", "pin-project", "async-trait"]
 metrics = ["thiserror", "dashmap", "fnv"]

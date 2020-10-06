@@ -17,7 +17,7 @@
 //! telemetry:
 //!
 //! ```no_run
-//! use opentelemetry::api::Tracer;
+//! use opentelemetry::api::trace::Tracer;
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     let (tracer, _uninstall) = opentelemetry_zipkin::new_pipeline().install()?;
@@ -54,8 +54,8 @@
 //! [`ZipkinPipelineBuilder`]: struct.ZipkinPipelineBuilder.html
 //!
 //! ```no_run
-//! use opentelemetry::api::{KeyValue, Tracer};
-//! use opentelemetry::sdk::{trace, IdGenerator, Resource, Sampler};
+//! use opentelemetry::api::{KeyValue, trace::Tracer};
+//! use opentelemetry::sdk::{trace::{self, IdGenerator, Sampler}, Resource};
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     let (tracer, _uninstall) = opentelemetry_zipkin::new_pipeline()
@@ -91,7 +91,7 @@ mod uploader;
 
 use async_trait::async_trait;
 use model::endpoint::Endpoint;
-use opentelemetry::{api::TracerProvider, exporter::trace, global, sdk};
+use opentelemetry::{api::trace::TracerProvider, exporter::trace, global, sdk};
 use reqwest::Url;
 use std::error::Error;
 use std::net::SocketAddr;
@@ -130,7 +130,7 @@ pub struct ZipkinPipelineBuilder {
     service_name: String,
     service_addr: Option<SocketAddr>,
     collector_endpoint: String,
-    trace_config: Option<sdk::Config>,
+    trace_config: Option<sdk::trace::Config>,
 }
 
 impl Default for ZipkinPipelineBuilder {
@@ -146,11 +146,11 @@ impl Default for ZipkinPipelineBuilder {
 
 impl ZipkinPipelineBuilder {
     /// Create `ExporterConfig` struct from current `ExporterConfigBuilder`
-    pub fn install(mut self) -> Result<(sdk::Tracer, Uninstall), Box<dyn Error>> {
+    pub fn install(mut self) -> Result<(sdk::trace::Tracer, Uninstall), Box<dyn Error>> {
         let endpoint = Endpoint::new(self.service_name, self.service_addr);
         let exporter = Exporter::new(endpoint, self.collector_endpoint.parse()?);
 
-        let mut provider_builder = sdk::TracerProvider::builder().with_exporter(exporter);
+        let mut provider_builder = sdk::trace::TracerProvider::builder().with_exporter(exporter);
         if let Some(config) = self.trace_config.take() {
             provider_builder = provider_builder.with_config(config);
         }
@@ -180,7 +180,7 @@ impl ZipkinPipelineBuilder {
     }
 
     /// Assign the SDK trace configuration.
-    pub fn with_trace_config(mut self, config: sdk::Config) -> Self {
+    pub fn with_trace_config(mut self, config: sdk::trace::Config) -> Self {
         self.trace_config = Some(config);
         self
     }

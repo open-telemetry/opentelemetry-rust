@@ -87,7 +87,7 @@ pub trait Span: fmt::Debug + 'static + Send + Sync {
 
     /// Returns the `SpanContext` for the given `Span`. The returned value may be used even after
     /// the `Span is finished. The returned value MUST be the same for the entire `Span` lifetime.
-    fn span_context(&self) -> api::SpanContext;
+    fn span_context(&self) -> api::trace::SpanContext;
 
     /// Returns true if this `Span` is recording information like events with the `add_event`
     /// operation, attributes using `set_attributes`, status with `set_status`, etc.
@@ -127,7 +127,7 @@ pub trait Span: fmt::Debug + 'static + Send + Sync {
     ///
     /// Only the value of the last call will be recorded, and implementations are free
     /// to ignore previous calls.
-    fn set_status(&self, code: api::StatusCode, message: String);
+    fn set_status(&self, code: api::trace::StatusCode, message: String);
 
     /// Updates the `Span`'s name. After this update, any sampling behavior based on the
     /// name will depend on the implementation.

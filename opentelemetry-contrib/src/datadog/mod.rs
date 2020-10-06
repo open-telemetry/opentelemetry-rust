@@ -55,8 +55,8 @@
 //! [`DatadogPipelineBuilder`]: struct.DatadogPipelineBuilder.html
 //!
 //! ```no_run
-//! use opentelemetry::api::{KeyValue, Tracer};
-//! use opentelemetry::sdk::{trace, IdGenerator, Resource, Sampler};
+//! use opentelemetry::api::{KeyValue, trace::Tracer};
+//! use opentelemetry::sdk::{trace::{self, IdGenerator, Sampler}, Resource};
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     let (tracer, _uninstall) = opentelemetry_contrib::datadog::new_pipeline()
@@ -86,7 +86,7 @@ mod model;
 pub use model::ApiVersion;
 
 use async_trait::async_trait;
-use opentelemetry::{api::TracerProvider, exporter::trace, global, sdk};
+use opentelemetry::{api::trace::TracerProvider, exporter::trace, global, sdk};
 use reqwest::header::CONTENT_TYPE;
 use reqwest::Url;
 use std::error::Error;
@@ -131,7 +131,7 @@ pub fn new_pipeline() -> DatadogPipelineBuilder {
 pub struct DatadogPipelineBuilder {
     service_name: String,
     agent_endpoint: String,
-    trace_config: Option<sdk::Config>,
+    trace_config: Option<sdk::trace::Config>,
     version: ApiVersion,
 }
 
@@ -148,14 +148,14 @@ impl Default for DatadogPipelineBuilder {
 
 impl DatadogPipelineBuilder {
     /// Create `ExporterConfig` struct from current `ExporterConfigBuilder`
-    pub fn install(mut self) -> Result<(sdk::Tracer, Uninstall), Box<dyn Error>> {
+    pub fn install(mut self) -> Result<(sdk::trace::Tracer, Uninstall), Box<dyn Error>> {
         let exporter = DatadogExporter::new(
             self.service_name.clone(),
             self.agent_endpoint.parse()?,
             self.version,
         );
 
-        let mut provider_builder = sdk::TracerProvider::builder().with_exporter(exporter);
+        let mut provider_builder = sdk::trace::TracerProvider::builder().with_exporter(exporter);
         if let Some(config) = self.trace_config.take() {
             provider_builder = provider_builder.with_config(config);
         }
@@ -179,7 +179,7 @@ impl DatadogPipelineBuilder {
     }
 
     /// Assign the SDK trace configuration
-    pub fn with_trace_config(mut self, config: sdk::Config) -> Self {
+    pub fn with_trace_config(mut self, config: sdk::trace::Config) -> Self {
         self.trace_config = Some(config);
         self
     }

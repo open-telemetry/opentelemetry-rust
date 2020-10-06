@@ -18,8 +18,8 @@ const DEFAULT_COMPONENT_NAME: &str = "rust.opentelemetry.io/sdk/tracer";
 /// TracerProvider inner type
 #[derive(Debug)]
 pub(crate) struct TracerProviderInner {
-    processors: Vec<Box<dyn api::SpanProcessor>>,
-    config: sdk::Config,
+    processors: Vec<Box<dyn api::trace::SpanProcessor>>,
+    config: sdk::trace::Config,
 }
 
 impl Drop for TracerProviderInner {
@@ -54,19 +54,19 @@ impl TracerProvider {
     }
 
     /// Span processors associated with this provider
-    pub fn span_processors(&self) -> &Vec<Box<dyn api::SpanProcessor>> {
+    pub fn span_processors(&self) -> &Vec<Box<dyn api::trace::SpanProcessor>> {
         &self.inner.processors
     }
 
     /// Config associated with this tracer
-    pub fn config(&self) -> &sdk::Config {
+    pub fn config(&self) -> &sdk::trace::Config {
         &self.inner.config
     }
 }
 
-impl api::TracerProvider for TracerProvider {
-    /// This implementation of `api::TracerProvider` produces `sdk::Tracer` instances.
-    type Tracer = sdk::Tracer;
+impl api::trace::TracerProvider for TracerProvider {
+    /// This implementation of `api::trace::TracerProvider` produces `sdk::trace::Tracer` instances.
+    type Tracer = sdk::trace::Tracer;
 
     /// Find or create `Tracer` instance by name.
     fn get_tracer(&self, name: &'static str, version: Option<&'static str>) -> Self::Tracer {
@@ -78,28 +78,30 @@ impl api::TracerProvider for TracerProvider {
         };
         let instrumentation_lib = sdk::InstrumentationLibrary::new(component_name, version);
 
-        sdk::Tracer::new(instrumentation_lib, Arc::downgrade(&self.inner))
+        sdk::trace::Tracer::new(instrumentation_lib, Arc::downgrade(&self.inner))
     }
 }
 
 /// Builder for provider attributes.
 #[derive(Default, Debug)]
 pub struct Builder {
-    processors: Vec<Box<dyn api::SpanProcessor>>,
-    config: sdk::Config,
+    processors: Vec<Box<dyn api::trace::SpanProcessor>>,
+    config: sdk::trace::Config,
 }
 
 impl Builder {
     /// The `SpanExporter` that this provider should use.
     pub fn with_simple_exporter<T: SpanExporter + 'static>(self, exporter: T) -> Self {
         let mut processors = self.processors;
-        processors.push(Box::new(sdk::SimpleSpanProcessor::new(Box::new(exporter))));
+        processors.push(Box::new(sdk::trace::SimpleSpanProcessor::new(Box::new(
+            exporter,
+        ))));
 
         Builder { processors, ..self }
     }
 
     /// The `BatchProcessor` that this provider should use.
-    pub fn with_batch_exporter(self, processor: sdk::BatchSpanProcessor) -> Self {
+    pub fn with_batch_exporter(self, processor: sdk::trace::BatchSpanProcessor) -> Self {
         let mut processors = self.processors;
         processors.push(Box::new(processor));
 
@@ -109,7 +111,8 @@ impl Builder {
     /// Add a configured `SpanExporter`
     #[cfg(feature = "tokio")]
     pub fn with_exporter<T: SpanExporter + 'static>(self, exporter: T) -> Self {
-        let batch = sdk::BatchSpanProcessor::builder(exporter, tokio::spawn, tokio::time::interval);
+        let batch =
+            sdk::trace::BatchSpanProcessor::builder(exporter, tokio::spawn, tokio::time::interval);
         self.with_batch_exporter(batch.build())
     }
 
@@ -131,7 +134,7 @@ impl Builder {
     }
 
     /// The `SpanProcessor` that this provider should use.
-    pub fn with_span_processor<T: api::SpanProcessor + 'static>(self, processor: T) -> Self {
+    pub fn with_span_processor<T: api::trace::SpanProcessor + 'static>(self, processor: T) -> Self {
         let mut processors = self.processors;
         processors.push(Box::new(processor));
 
@@ -139,7 +142,7 @@ impl Builder {
     }
 
     /// The sdk `Config` that this provider will use.
-    pub fn with_config(self, config: sdk::Config) -> Self {
+    pub fn with_config(self, config: sdk::trace::Config) -> Self {
         Builder { config, ..self }
     }
 

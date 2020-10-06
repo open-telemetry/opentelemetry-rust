@@ -5,8 +5,8 @@ use std::fmt;
 /// Interface for generating IDs
 pub trait IdGenerator: Send + Sync + fmt::Debug {
     /// Generate a new `TraceId`
-    fn new_trace_id(&self) -> api::TraceId;
+    fn new_trace_id(&self) -> api::trace::TraceId;
 
     /// Generate a new `SpanId`
-    fn new_span_id(&self) -> api::SpanId;
+    fn new_span_id(&self) -> api::trace::SpanId;
 }
