@@ -81,11 +81,11 @@ impl Tracer {
     ) -> Option<(u8, Vec<api::KeyValue>, TraceState)> {
         match sampling_result {
             sdk::SamplingResult {
-                decision: sdk::SamplingDecision::NotRecord,
+                decision: sdk::SamplingDecision::Drop,
                 ..
             } => None,
             sdk::SamplingResult {
-                decision: sdk::SamplingDecision::Record,
+                decision: sdk::SamplingDecision::RecordOnly,
                 attributes,
                 trace_state,
             } => {
@@ -97,7 +97,7 @@ impl Tracer {
                 ))
             }
             sdk::SamplingResult {
-                decision: sdk::SamplingDecision::RecordAndSampled,
+                decision: sdk::SamplingDecision::RecordAndSample,
                 attributes,
                 trace_state,
             } => {
@@ -302,7 +302,7 @@ mod tests {
         ) -> SamplingResult {
             let trace_state = parent_context.unwrap().trace_state().clone();
             SamplingResult {
-                decision: SamplingDecision::RecordAndSampled,
+                decision: SamplingDecision::RecordAndSample,
                 attributes: Vec::new(),
                 trace_state: trace_state.insert("foo".into(), "notbar".into()).unwrap(),
             }
