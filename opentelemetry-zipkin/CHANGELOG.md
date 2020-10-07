@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.6.0
+
+### Added
+
+- Add `otel.status_code` and `otel.status_message` tags #236
+- Export instrument library information #243
+
+### Changed
+
+- Update to opentelemetry v0.9.0
+- Update to use pipeline builder #214
+
 ## v0.5.0
 
 ### Changed

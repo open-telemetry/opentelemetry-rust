@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.8.0
+
+### Added
+
+- Map `Resource`s to jaeger process tags #215
+- Export instrument library information #243
+
+### Changed
+
+- Switch to pipeline configuration #189
+- Update to opentelemetry v0.9.0
+
 ## v0.7.0
 
 ### Changed

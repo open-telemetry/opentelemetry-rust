@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry"
-version = "0.8.0"
+version = "0.9.0"
 authors = ["OpenTelemetry Authors <cncf-opentelemetry-contributors@lists.cncf.io>"]
 description = "A metrics collection and distributed tracing framework"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust"
