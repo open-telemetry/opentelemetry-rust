@@ -90,9 +90,9 @@ mod model;
 mod uploader;
 
 use async_trait::async_trait;
+use isahc::http::Uri;
 use model::endpoint::Endpoint;
 use opentelemetry::{api::trace::TracerProvider, exporter::trace, global, sdk};
-use reqwest::Url;
 use std::error::Error;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -111,7 +111,7 @@ pub struct Exporter {
 }
 
 impl Exporter {
-    fn new(local_endpoint: Endpoint, collector_endpoint: Url) -> Self {
+    fn new(local_endpoint: Endpoint, collector_endpoint: Uri) -> Self {
         Exporter {
             local_endpoint,
             uploader: uploader::Uploader::with_http_endpoint(collector_endpoint),

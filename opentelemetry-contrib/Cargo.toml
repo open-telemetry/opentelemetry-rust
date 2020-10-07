@@ -10,7 +10,7 @@ categories = [
     "development-tools::debugging",
     "development-tools::profiling",
 ]
-keywords = ["opentelemetry","tracing"]
+keywords = ["opentelemetry", "tracing"]
 license = "Apache-2.0"
 edition = "2018"
 
@@ -18,13 +18,13 @@ edition = "2018"
 
 [features]
 default = []
-datadog = ["indexmap", "reqwest", "rmp", "async-trait"]
+datadog = ["indexmap", "isahc", "rmp", "async-trait"]
 
 [dependencies]
 async-trait = { version = "0.1", optional = true }
 indexmap = { version = "1.6.0", optional = true }
 opentelemetry = { version = "0.8.0", path = ".." }
-reqwest = { version = "0.10", optional = true }
+isahc = { version = "0.9.10", features = ["json"], optional = true }
 rmp = { version = "0.8", optional = true }
 lazy_static = "1.4"
 

@@ -1,7 +1,7 @@
 //! # Zipkin Span Exporter
 use crate::model::span::Span;
+use isahc::http::Uri;
 use opentelemetry::exporter::trace::ExportResult;
-use reqwest::Url;
 
 #[derive(Debug)]
 pub(crate) enum Uploader {
@@ -10,9 +10,9 @@ pub(crate) enum Uploader {
 
 impl Uploader {
     /// Create a new http uploader
-    pub(crate) fn with_http_endpoint(collector_endpoint: Url) -> Self {
+    pub(crate) fn with_http_endpoint(collector_endpoint: Uri) -> Self {
         Uploader::Http(JsonV2Client {
-            client: reqwest::Client::new(),
+            client: isahc::HttpClient::new().expect("isahc default client should always build without error"),
             collector_endpoint,
         })
     }
@@ -20,29 +20,34 @@ impl Uploader {
     /// Upload spans to Zipkin
     pub(crate) async fn upload(&self, spans: Vec<Span>) -> ExportResult {
         match self {
-            Uploader::Http(client) => client.upload(spans).await,
+            Uploader::Http(client) => client
+                .upload(spans)
+                .await
+                .unwrap_or(ExportResult::FailedNotRetryable),
         }
     }
 }
 
 #[derive(Debug)]
 pub(crate) struct JsonV2Client {
-    client: reqwest::Client,
-    collector_endpoint: Url,
+    client: isahc::HttpClient,
+    collector_endpoint: isahc::http::Uri,
 }
 
 impl JsonV2Client {
-    async fn upload(&self, spans: Vec<Span>) -> ExportResult {
+    async fn upload(&self, spans: Vec<Span>) -> Result<ExportResult, Box<dyn std::error::Error>> {
         let resp = self
             .client
-            .post(self.collector_endpoint.clone())
-            .json(&spans)
-            .send()
+            .send_async(
+                isahc::http::Request::post(self.collector_endpoint.clone())
+                    .header("content-type", "application/json")
+                    .body(serde_json::to_vec(&spans)?)?,
+            )
             .await;
 
-        match resp {
+        Ok(match resp {
             Ok(response) if response.status().is_success() => ExportResult::Success,
             _ => ExportResult::FailedRetryable,
-        }
+        })
     }
 }

@@ -86,9 +86,8 @@ mod model;
 pub use model::ApiVersion;
 
 use async_trait::async_trait;
+use isahc::http::{Request, Uri};
 use opentelemetry::{api::trace::TracerProvider, exporter::trace, global, sdk};
-use reqwest::header::CONTENT_TYPE;
-use reqwest::Url;
 use std::error::Error;
 use std::sync::Arc;
 
@@ -101,19 +100,17 @@ const DEFAULT_SERVICE_NAME: &str = "OpenTelemetry";
 /// Datadog span exporter
 #[derive(Debug)]
 pub struct DatadogExporter {
-    client: reqwest::Client,
-    request_url: Url,
+    client: isahc::HttpClient,
+    request_url: Uri,
     service_name: String,
     version: ApiVersion,
 }
 
 impl DatadogExporter {
-    fn new(service_name: String, agent_endpoint: Url, version: ApiVersion) -> Self {
-        let mut request_url = agent_endpoint;
-        request_url.set_path(version.path());
-
+    fn new(service_name: String, request_url: Uri, version: ApiVersion) -> Self {
         DatadogExporter {
-            client: reqwest::Client::new(),
+            client: isahc::HttpClient::new()
+                .expect("isahc default client should always build without error"),
             request_url,
             service_name,
             version,
@@ -149,11 +146,9 @@ impl Default for DatadogPipelineBuilder {
 impl DatadogPipelineBuilder {
     /// Create `ExporterConfig` struct from current `ExporterConfigBuilder`
     pub fn install(mut self) -> Result<(sdk::trace::Tracer, Uninstall), Box<dyn Error>> {
-        let exporter = DatadogExporter::new(
-            self.service_name.clone(),
-            self.agent_endpoint.parse()?,
-            self.version,
-        );
+        let endpoint = self.agent_endpoint + self.version.path();
+        let exporter =
+            DatadogExporter::new(self.service_name.clone(), endpoint.parse()?, self.version);
 
         let mut provider_builder = sdk::trace::TracerProvider::builder().with_exporter(exporter);
         if let Some(config) = self.trace_config.take() {
@@ -200,13 +195,15 @@ impl trace::SpanExporter for DatadogExporter {
             Err(_) => return trace::ExportResult::FailedNotRetryable,
         };
 
-        let resp = self
-            .client
-            .post(self.request_url.clone())
-            .header(CONTENT_TYPE, self.version.content_type())
+        let req = match Request::builder()
+            .header("content-type", self.version.content_type())
             .body(data)
-            .send()
-            .await;
+        {
+            Ok(req) => req,
+            _ => return trace::ExportResult::FailedNotRetryable,
+        };
+
+        let resp = self.client.send_async(req).await;
 
         match resp {
             Ok(response) if response.status().is_success() => trace::ExportResult::Success,
