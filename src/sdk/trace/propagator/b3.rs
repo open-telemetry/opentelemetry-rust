@@ -13,13 +13,10 @@
 //!
 //! If `inject_encoding` is set to `B3Encoding::SingleHeader` then `b3` header is used to inject
 //! and extract. Otherwise, separate headers are used to inject and extract.
-use opentelemetry::api::trace::TraceState;
-use opentelemetry::{
+use crate::{
     api,
-    api::{
-        context::propagation::text_propagator::FieldIter,
-        trace::{TraceContextExt, TRACE_FLAG_DEFERRED},
-    },
+    api::trace::{TraceContextExt, TraceState, TRACE_FLAG_DEFERRED},
+    api::FieldIter,
 };
 
 static B3_SINGLE_HEADER: &str = "b3";
@@ -321,7 +318,7 @@ impl api::TextMapFormat for B3Propagator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use opentelemetry::api::{
+    use crate::api::{
         trace::{
             SpanId, TraceId, TRACE_FLAG_DEBUG, TRACE_FLAG_DEFERRED, TRACE_FLAG_NOT_SAMPLED,
             TRACE_FLAG_SAMPLED,

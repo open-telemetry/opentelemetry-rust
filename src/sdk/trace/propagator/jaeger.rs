@@ -5,8 +5,7 @@
 //! See [`Jaeger documentation`] for detail of Jaeger propagation format.
 //!
 //! [`Jaeger documentation`]: https://www.jaegertracing.io/docs/1.18/client-libraries/#propagation-format
-
-use opentelemetry::api::{
+use crate::api::{
     trace::{
         SpanContext, SpanId, TraceContextExt, TraceId, TraceState, TRACE_FLAG_DEBUG,
         TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
@@ -173,8 +172,8 @@ impl TextMapFormat for JaegerPropagator {
 
 #[cfg(test)]
 mod tests {
-    use crate::trace_propagator::jaeger_propagator::{JaegerPropagator, JAEGER_HEADER};
-    use opentelemetry::api::{
+    use super::*;
+    use crate::api::{
         self,
         trace::{
             Span, SpanContext, SpanId, TraceContextExt, TraceId, TraceState, TRACE_FLAG_DEBUG,
@@ -182,6 +181,7 @@ mod tests {
         },
         Context, Injector, TextMapFormat,
     };
+    use crate::sdk::trace::JaegerPropagator;
     use std::collections::HashMap;
     use std::time::SystemTime;
 
