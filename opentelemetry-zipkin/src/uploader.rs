@@ -12,8 +12,7 @@ impl Uploader {
     /// Create a new http uploader
     pub(crate) fn with_http_endpoint(collector_endpoint: Uri) -> Self {
         Uploader::Http(JsonV2Client {
-            client: isahc::HttpClient::new()
-                .expect("isahc default client should always build without error"),
+            client: isahc::HttpClient::new().expect("isahc default client should always build without error"),
             collector_endpoint,
         })
     }

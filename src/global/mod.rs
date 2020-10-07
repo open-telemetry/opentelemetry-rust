@@ -10,7 +10,7 @@
 //!
 //! ## Usage
 //!
-//! ```rust
+//! ```ignore
 //! use opentelemetry::api::trace::{TracerProvider, Tracer};
 //! use opentelemetry::api::metrics::{Meter, MeterProvider};
 //! use opentelemetry::global;
