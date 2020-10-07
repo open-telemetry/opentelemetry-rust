@@ -9,7 +9,7 @@
 //!
 //! ## Getting Started
 //!
-//! ```rust
+//! ```no_run
 //! use opentelemetry::{api::trace::Tracer, exporter::trace::stdout};
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error>> {
