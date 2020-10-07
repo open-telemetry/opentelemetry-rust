@@ -30,7 +30,7 @@ impl Greeter for MyGreeter {
         request: Request<HelloRequest>, // Accept request of type HelloRequest
     ) -> Result<Response<HelloReply>, Status> {
         let propagator = api::TraceContextPropagator::new();
-        let parent_cx = propagator.extract(&HttpHeaderMapCarrier(request.metadata()));
+        let parent_cx = propagator.extract(request.metadata());
         let span = tracing::Span::current();
         span.set_parent(&parent_cx);
         let name = request.into_inner().name;
@@ -61,7 +61,7 @@ fn tracing_init() -> Result<(), Box<dyn std::error::Error>> {
     let provider = sdk::Provider::builder()
         .with_simple_exporter(exporter)
         .with_config(sdk::Config {
-            default_sampler: Box::new(Sampler::Always),
+            default_sampler: Box::new(Sampler::AlwaysOn),
             ..Default::default()
         })
         .build();
@@ -73,19 +73,6 @@ fn tracing_init() -> Result<(), Box<dyn std::error::Error>> {
         .try_init()?;
 
     Ok(())
-}
-
-struct HttpHeaderMapCarrier<'a>(&'a tonic::metadata::MetadataMap);
-impl<'a> api::Carrier for HttpHeaderMapCarrier<'a> {
-    fn get(&self, key: &'static str) -> Option<&str> {
-        self.0
-            .get(key.to_lowercase().as_str())
-            .and_then(|value| value.to_str().ok())
-    }
-
-    fn set(&mut self, _key: &'static str, _value: String) {
-        unimplemented!()
-    }
 }
 
 #[tokio::main]
