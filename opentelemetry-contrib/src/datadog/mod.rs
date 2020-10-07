@@ -195,7 +195,7 @@ impl trace::SpanExporter for DatadogExporter {
             Err(_) => return trace::ExportResult::FailedNotRetryable,
         };
 
-        let req = match Request::builder()
+        let req = match Request::post(self.request_url.clone())
             .header("content-type", self.version.content_type())
             .body(data)
         {
