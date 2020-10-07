@@ -1,9 +1,12 @@
 //! Id Generator
+pub(super) mod aws;
+
 use crate::api;
 use rand::{rngs, Rng};
 use std::cell::RefCell;
 
-/// Generates Trace and Span ids
+/// Default [api::IdGenerator] implementation.
+/// Generates Trace and Span ids using a random number generator.
 #[derive(Clone, Debug, Default)]
 pub struct IdGenerator {
     _private: (),

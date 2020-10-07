@@ -22,7 +22,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error + Send + Sy
     let _guard = init_tracer();
 
     let client = Client::new();
-    let propagator = api::trace::TraceContextPropagator::new();
+    let propagator = sdktrace::W3CPropagator::new();
     let span = global::tracer("example/client").start("say hello");
     let cx = Context::current_with_span(span);
 

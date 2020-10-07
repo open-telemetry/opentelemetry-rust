@@ -120,7 +120,6 @@ mod provider;
 mod span;
 mod span_context;
 mod span_processor;
-mod trace_context_propagator;
 mod tracer;
 
 pub use self::{
@@ -137,6 +136,5 @@ pub use self::{
         TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
     },
     span_processor::SpanProcessor,
-    trace_context_propagator::TraceContextPropagator,
     tracer::{SpanBuilder, Tracer},
 };

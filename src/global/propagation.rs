@@ -1,11 +1,12 @@
 use crate::api;
+use crate::sdk;
 use std::sync::RwLock;
 
 lazy_static::lazy_static! {
     /// The current global `TextMapFormat` propagator.
-    static ref GLOBAL_TEXT_MAP_PROPAGATOR: RwLock<Box<dyn api::TextMapFormat + Send + Sync>> = RwLock::new(Box::new(api::TextMapCompositePropagator::new(vec![Box::new(api::trace::TraceContextPropagator::new()), Box::new(api::BaggagePropagator::new())])));
+    static ref GLOBAL_TEXT_MAP_PROPAGATOR: RwLock<Box<dyn api::TextMapFormat + Send + Sync>> = RwLock::new(Box::new(api::TextMapCompositePropagator::new(vec![Box::new(sdk::trace::W3CPropagator::new()), Box::new(api::BaggagePropagator::new())])));
     /// The global default `TextMapFormat` propagator.
-    static ref DEFAULT_TEXT_MAP_PROPAGATOR: api::TextMapCompositePropagator = api::TextMapCompositePropagator::new(vec![Box::new(api::trace::TraceContextPropagator::new()), Box::new(api::BaggagePropagator::new())]);
+    static ref DEFAULT_TEXT_MAP_PROPAGATOR: api::TextMapCompositePropagator = api::TextMapCompositePropagator::new(vec![Box::new(sdk::trace::W3CPropagator::new()), Box::new(api::BaggagePropagator::new())]);
 }
 
 /// Sets the given [`TextMapFormat`] propagator as the current global propagator.
@@ -15,10 +16,10 @@ lazy_static::lazy_static! {
 /// # Examples
 ///
 /// ```
-/// use opentelemetry::{api, global};
+/// use opentelemetry::{global, sdk};
 ///
 /// // create your text map propagator
-/// let propagator = api::trace::TraceContextPropagator::new();
+/// let propagator = sdk::trace::W3CPropagator::new();
 ///
 /// // assign it as the global propagator
 /// global::set_text_map_propagator(propagator);
@@ -36,13 +37,13 @@ pub fn set_text_map_propagator<P: api::TextMapFormat + Send + Sync + 'static>(pr
 /// # Examples
 ///
 /// ```
-/// use opentelemetry::{api, api::TextMapFormat, global};
+/// use opentelemetry::{api::TextMapFormat, global, sdk};
 /// use std::collections::HashMap;
 ///
 /// let example_carrier = HashMap::new();
 ///
 /// // create your text map propagator
-/// let tc_propagator = api::trace::TraceContextPropagator::new();
+/// let tc_propagator = sdk::trace::W3CPropagator::new();
 /// global::set_text_map_propagator(tc_propagator);
 ///
 /// // use the global text map propagator to extract contexts
