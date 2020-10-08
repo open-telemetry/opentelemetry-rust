@@ -18,7 +18,8 @@ edition = "2018"
 [dependencies]
 async-trait = "0.1"
 opentelemetry = { version = "0.8.0", path = ".." }
-isahc = { version = "0.9.10", features = ["json"] }
+http-client = "6.0.0"
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 typed-builder = "0.5"
+lazy_static = "1.4.0"
