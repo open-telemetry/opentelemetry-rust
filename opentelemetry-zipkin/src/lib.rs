@@ -90,14 +90,13 @@ mod model;
 mod uploader;
 
 use async_trait::async_trait;
+use http_client::http_types::url;
 use model::endpoint::Endpoint;
 use opentelemetry::{api::trace::TracerProvider, exporter::trace, global, sdk};
 use std::error::Error;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use http_client::http_types::{url, StatusCode};
-use http_client::{Response, Request, http_types};
-use std::ops::Deref;
+use http_client::h1::H1Client;
 
 /// Default Zipkin collector endpoint
 const DEFAULT_COLLECTOR_ENDPOINT: &str = "http://127.0.0.1:9411/api/v2/spans";
@@ -105,19 +104,19 @@ const DEFAULT_COLLECTOR_ENDPOINT: &str = "http://127.0.0.1:9411/api/v2/spans";
 /// Default service name if no service is configured.
 const DEFAULT_SERVICE_NAME: &str = "OpenTelemetry";
 
-lazy_static::lazy_static! {
-    static ref DEFAULT_NOOP_HTTP_CLIENT: NoopHttpClient = NoopHttpClient::default();
-}
-
 /// Zipkin span exporter
 #[derive(Debug)]
-pub struct Exporter<'a> {
+pub struct Exporter {
     local_endpoint: Endpoint,
-    uploader: uploader::Uploader<'a>,
+    uploader: uploader::Uploader,
 }
 
-impl<'a> Exporter<'a> {
-    fn new(local_endpoint: Endpoint, client: &'a dyn http_client::HttpClient, collector_endpoint: url::Url) -> Self {
+impl Exporter {
+    fn new(
+        local_endpoint: Endpoint,
+        client: Box<dyn http_client::HttpClient + Send + Sync>,
+        collector_endpoint: url::Url,
+    ) -> Self {
         Exporter {
             local_endpoint,
             uploader: uploader::Uploader::new(client, collector_endpoint),
@@ -137,7 +136,7 @@ pub struct ZipkinPipelineBuilder {
     service_addr: Option<SocketAddr>,
     collector_endpoint: String,
     trace_config: Option<sdk::trace::Config>,
-    client: &'static (dyn http_client::HttpClient + Send + Sync),
+    client: Box<dyn http_client::HttpClient + Send + Sync>,
 }
 
 impl Default for ZipkinPipelineBuilder {
@@ -147,7 +146,7 @@ impl Default for ZipkinPipelineBuilder {
             service_addr: None,
             collector_endpoint: DEFAULT_COLLECTOR_ENDPOINT.to_string(),
             trace_config: None,
-            client: DEFAULT_NOOP_HTTP_CLIENT.deref(),
+            client: Box::new(H1Client::new()),
         }
     }
 }
@@ -176,8 +175,8 @@ impl ZipkinPipelineBuilder {
     }
 
     /// Assign client implementation
-    pub fn with_client<T: http_client::HttpClient + Send + Sync>(mut self, client: &'static T) -> Self {
-        self.client = client;
+    pub fn with_client<T: http_client::HttpClient + Send + Sync>(mut self, client: T) -> Self {
+        self.client = Box::new(client);
         self
     }
 
@@ -201,7 +200,7 @@ impl ZipkinPipelineBuilder {
 }
 
 #[async_trait]
-impl<'a> trace::SpanExporter for Exporter<'a> {
+impl<'a> trace::SpanExporter for Exporter {
     /// Export spans to Zipkin collector.
     async fn export(&self, batch: &[Arc<trace::SpanData>]) -> trace::ExportResult {
         let zipkin_spans = batch
@@ -216,14 +215,3 @@ impl<'a> trace::SpanExporter for Exporter<'a> {
 /// Uninstalls the Zipkin pipeline on drop.
 #[derive(Debug)]
 pub struct Uninstall(global::TracerProviderGuard);
-
-/// Noop http client will do nothing but return an error when sending request with it.
-#[derive(Debug, Default)]
-pub struct NoopHttpClient {}
-
-#[async_trait]
-impl http_client::HttpClient for NoopHttpClient {
-    async fn send(&self, _req: Request) -> Result<Response, http_types::Error> {
-        Err(http_types::Error::from_str(StatusCode::NotImplemented, "No client has been provide"))
-    }
-}
