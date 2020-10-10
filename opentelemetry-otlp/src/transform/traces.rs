@@ -13,11 +13,11 @@ use std::sync::Arc;
 impl From<SpanKind> for Span_SpanKind {
     fn from(span_kind: SpanKind) -> Self {
         match span_kind {
-            SpanKind::Client => Span_SpanKind::CLIENT,
-            SpanKind::Consumer => Span_SpanKind::CONSUMER,
-            SpanKind::Internal => Span_SpanKind::INTERNAL,
-            SpanKind::Producer => Span_SpanKind::PRODUCER,
-            SpanKind::Server => Span_SpanKind::SERVER,
+            SpanKind::Client => Span_SpanKind::SPAN_KIND_CLIENT,
+            SpanKind::Consumer => Span_SpanKind::SPAN_KIND_CONSUMER,
+            SpanKind::Internal => Span_SpanKind::SPAN_KIND_INTERNAL,
+            SpanKind::Producer => Span_SpanKind::SPAN_KIND_PRODUCER,
+            SpanKind::Server => Span_SpanKind::SPAN_KIND_SERVER,
         }
     }
 }
@@ -25,23 +25,23 @@ impl From<SpanKind> for Span_SpanKind {
 impl From<StatusCode> for Status_StatusCode {
     fn from(status_code: StatusCode) -> Self {
         match status_code {
-            StatusCode::OK => Status_StatusCode::Ok,
-            StatusCode::Canceled => Status_StatusCode::Cancelled,
-            StatusCode::Unknown => Status_StatusCode::UnknownError,
-            StatusCode::InvalidArgument => Status_StatusCode::InvalidArgument,
-            StatusCode::DeadlineExceeded => Status_StatusCode::DeadlineExceeded,
-            StatusCode::NotFound => Status_StatusCode::NotFound,
-            StatusCode::AlreadyExists => Status_StatusCode::AlreadyExists,
-            StatusCode::PermissionDenied => Status_StatusCode::PermissionDenied,
-            StatusCode::ResourceExhausted => Status_StatusCode::ResourceExhausted,
-            StatusCode::FailedPrecondition => Status_StatusCode::FailedPrecondition,
-            StatusCode::Aborted => Status_StatusCode::Aborted,
-            StatusCode::OutOfRange => Status_StatusCode::OutOfRange,
-            StatusCode::Unimplemented => Status_StatusCode::Unimplemented,
-            StatusCode::Internal => Status_StatusCode::InternalError,
-            StatusCode::Unavailable => Status_StatusCode::Unavailable,
-            StatusCode::DataLoss => Status_StatusCode::DataLoss,
-            StatusCode::Unauthenticated => Status_StatusCode::Unauthenticated,
+            StatusCode::OK => Status_StatusCode::STATUS_CODE_OK,
+            StatusCode::Canceled => Status_StatusCode::STATUS_CODE_CANCELLED,
+            StatusCode::Unknown => Status_StatusCode::STATUS_CODE_UNKNOWN_ERROR,
+            StatusCode::InvalidArgument => Status_StatusCode::STATUS_CODE_INVALID_ARGUMENT,
+            StatusCode::DeadlineExceeded => Status_StatusCode::STATUS_CODE_DEADLINE_EXCEEDED,
+            StatusCode::NotFound => Status_StatusCode::STATUS_CODE_NOT_FOUND,
+            StatusCode::AlreadyExists => Status_StatusCode::STATUS_CODE_ALREADY_EXISTS,
+            StatusCode::PermissionDenied => Status_StatusCode::STATUS_CODE_PERMISSION_DENIED,
+            StatusCode::ResourceExhausted => Status_StatusCode::STATUS_CODE_RESOURCE_EXHAUSTED,
+            StatusCode::FailedPrecondition => Status_StatusCode::STATUS_CODE_FAILED_PRECONDITION,
+            StatusCode::Aborted => Status_StatusCode::STATUS_CODE_ABORTED,
+            StatusCode::OutOfRange => Status_StatusCode::STATUS_CODE_OUT_OF_RANGE,
+            StatusCode::Unimplemented => Status_StatusCode::STATUS_CODE_UNIMPLEMENTED,
+            StatusCode::Internal => Status_StatusCode::STATUS_CODE_INTERNAL_ERROR,
+            StatusCode::Unavailable => Status_StatusCode::STATUS_CODE_UNAVAILABLE,
+            StatusCode::DataLoss => Status_StatusCode::STATUS_CODE_DATA_LOSS,
+            StatusCode::Unauthenticated => Status_StatusCode::STATUS_CODE_UNAUTHENTICATED,
         }
     }
 }
