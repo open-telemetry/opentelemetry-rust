@@ -558,8 +558,8 @@ impl Store {
             } else {
                 // bins length is equal to max number of bins
                 self.bins.drain(0..(min_key - self.min_key) as usize);
-                for _ in self.max_key - min_key + 1..self.max_num_bins {
-                    self.bins.push(0);
+                if self.max_num_bins > self.max_key - min_key + 1 {
+                    self.bins.resize(self.bins.len() + (self.max_num_bins - (self.max_key - min_key + 1)) as usize, 0)
                 }
             }
             self.max_key = key;
@@ -1025,7 +1025,7 @@ mod tests {
                     .unwrap()
                     .to_f64(&NumberKind::F64)
                     - expected_iter.next().unwrap())
-                .abs()
+                    .abs()
                     < f64::EPSILON
             );
         }
