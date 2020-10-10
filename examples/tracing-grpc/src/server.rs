@@ -1,6 +1,7 @@
 use hello_world::greeter_server::{Greeter, GreeterServer};
 use hello_world::{HelloReply, HelloRequest};
-use opentelemetry::api::{self, HttpTextFormat, KeyValue, Provider};
+use opentelemetry::api::{self, KeyValue, Provider};
+use opentelemetry::global;
 use opentelemetry::sdk::{self, Sampler};
 use tonic::{transport::Server, Request, Response, Status};
 use tracing::*;
@@ -29,8 +30,7 @@ impl Greeter for MyGreeter {
         &self,
         request: Request<HelloRequest>, // Accept request of type HelloRequest
     ) -> Result<Response<HelloReply>, Status> {
-        let propagator = api::TraceContextPropagator::new();
-        let parent_cx = propagator.extract(request.metadata());
+        let parent_cx = global::get_http_text_propagator(|prop| prop.extract(request.metadata()));
         let span = tracing::Span::current();
         span.set_parent(&parent_cx);
         let name = request.into_inner().name;
@@ -46,6 +46,7 @@ impl Greeter for MyGreeter {
 }
 
 fn tracing_init() -> Result<(), Box<dyn std::error::Error>> {
+    global::set_http_text_propagator(api::TraceContextPropagator::new());
     let builder = opentelemetry_jaeger::Exporter::builder()
         .with_agent_endpoint("127.0.0.1:6831".parse().unwrap());
 

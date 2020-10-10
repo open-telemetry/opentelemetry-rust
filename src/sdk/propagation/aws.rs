@@ -9,7 +9,7 @@
 //!
 //! ```
 //! use opentelemetry::global;
-//! use opentelemetry::sdk::trace::XrayPropagator;
+//! use opentelemetry::sdk::propagation::aws::XrayPropagator;
 //!
 //! global::set_text_map_propagator(XrayPropagator::default());
 //! ```
@@ -18,11 +18,12 @@
 //! [xray-trace-id]: https://docs.aws.amazon.com/xray/latest/devguide/xray-api-sendingdata.html#xray-api-traceids
 //! [xray-header]: https://docs.aws.amazon.com/xray/latest/devguide/xray-concepts.html#xray-concepts-tracingheader
 use crate::api::{
+    propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
     trace::{
         SpanContext, SpanId, TraceContextExt, TraceId, TraceState, TRACE_FLAG_DEFERRED,
         TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
     },
-    Context, Extractor, FieldIter, Injector, TextMapFormat,
+    Context,
 };
 
 const AWS_XRAY_TRACE_HEADER: &str = "x-amzn-trace-id";
@@ -105,7 +106,7 @@ impl XrayPropagator {
     }
 }
 
-impl TextMapFormat for XrayPropagator {
+impl TextMapPropagator for XrayPropagator {
     fn inject_context(&self, cx: &Context, injector: &mut dyn Injector) {
         let span_context: SpanContext = cx.span().span_context();
         if span_context.is_valid() {

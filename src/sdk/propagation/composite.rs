@@ -1,29 +1,28 @@
-//! # Composite Propagator
-//!
-//! The composite propagator allows multiple propagators to be used stacked
-//! together to inject or extract from multiple implementations.
-use crate::api::{self, FieldIter, TextMapFormat};
-use std::collections::HashSet;
-use std::fmt::Debug;
-
-/// A propagator that chains multiple [`TextMapFormat`] propagators together,
+/// A propagator that chains multiple [`TextMapPropagator`] propagators together,
 /// injecting or extracting by their respective HTTP header names.
 ///
 /// Injection and extraction from this propagator will preserve the order of the
 /// injectors and extractors passed in during initialization.
 ///
-/// [`TextMapFormat`]: ../../trait.TextMapFormat.html
+/// [`TextMapPropagator`]: ../../trait.TextMapPropagator.html
 ///
 /// # Examples
 ///
 /// ```
-/// use opentelemetry::api::{*, trace::*};
+/// use opentelemetry::api::{
+///     propagation::TextMapPropagator,
+///     trace::{TraceContextExt, Tracer, TracerProvider},
+///     Context, KeyValue,BaggageExt,
+/// };
+/// use opentelemetry::sdk::propagation::{
+///     BaggagePropagator, TextMapCompositePropagator, TraceContextPropagator,
+/// };
 /// use opentelemetry::sdk::trace as sdktrace;
 /// use std::collections::HashMap;
 ///
 /// // First create 1 or more propagators
 /// let baggage_propagator = BaggagePropagator::new();
-/// let trace_context_propagator = sdktrace::W3CPropagator::new();
+/// let trace_context_propagator = TraceContextPropagator::new();
 ///
 /// // Then create a composite propagator
 /// let composite_propagator = TextMapCompositePropagator::new(vec![
@@ -35,28 +34,39 @@ use std::fmt::Debug;
 /// let mut injector = HashMap::new();
 ///
 /// // And a given span
-/// let example_span = sdktrace::TracerProvider::default().get_tracer("example-component", None).start("span-name");
+/// let example_span = sdktrace::TracerProvider::default()
+///     .get_tracer("example-component", None)
+///     .start("span-name");
 ///
 /// // with the current context, call inject to add the headers
-/// composite_propagator.inject_context(&Context::current_with_span(example_span)
-///                                     .with_baggage(vec![KeyValue::new("test", "example")]),
-///                                     &mut injector);
+/// composite_propagator.inject_context(
+///     &Context::current_with_span(example_span)
+///         .with_baggage(vec![KeyValue::new("test", "example")]),
+///     &mut injector,
+/// );
 ///
 /// // The injector now has both `baggage` and `traceparent` headers
 /// assert!(injector.get("baggage").is_some());
 /// assert!(injector.get("traceparent").is_some());
 /// ```
+use crate::api::{
+    propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
+    Context,
+};
+use std::collections::HashSet;
+
+/// Composite propagator
 #[derive(Debug)]
 pub struct TextMapCompositePropagator {
-    propagators: Vec<Box<dyn TextMapFormat + Send + Sync>>,
+    propagators: Vec<Box<dyn TextMapPropagator + Send + Sync>>,
     fields: Vec<String>,
 }
 
 impl TextMapCompositePropagator {
-    /// Constructs a new propagator out of instances of [`TextMapFormat`].
+    /// Constructs a new propagator out of instances of [`TextMapPropagator`].
     ///
-    /// [`TextMapFormat`]: ../../trait.TextMapFormat.html
-    pub fn new(propagators: Vec<Box<dyn TextMapFormat + Send + Sync>>) -> Self {
+    /// [`TextMapPropagator`]: ../../trait.TextMapPropagator.html
+    pub fn new(propagators: Vec<Box<dyn TextMapPropagator + Send + Sync>>) -> Self {
         let mut fields = HashSet::new();
         for propagator in &propagators {
             for field in propagator.fields() {
@@ -71,9 +81,9 @@ impl TextMapCompositePropagator {
     }
 }
 
-impl TextMapFormat for TextMapCompositePropagator {
+impl TextMapPropagator for TextMapCompositePropagator {
     /// Encodes the values of the `Context` and injects them into the `Injector`.
-    fn inject_context(&self, context: &api::Context, injector: &mut dyn api::Injector) {
+    fn inject_context(&self, context: &Context, injector: &mut dyn Injector) {
         for propagator in &self.propagators {
             propagator.inject_context(context, injector)
         }
@@ -82,11 +92,7 @@ impl TextMapFormat for TextMapCompositePropagator {
     /// Retrieves encoded `Context` information using the `Extractor`. If no data was
     /// retrieved OR if the retrieved data is invalid, then the current `Context` is
     /// returned.
-    fn extract_with_context(
-        &self,
-        cx: &api::Context,
-        extractor: &dyn api::Extractor,
-    ) -> api::Context {
+    fn extract_with_context(&self, cx: &Context, extractor: &dyn Extractor) -> Context {
         self.propagators
             .iter()
             .fold(cx.clone(), |current_cx, propagator| {
@@ -102,11 +108,11 @@ impl TextMapFormat for TextMapCompositePropagator {
 #[cfg(test)]
 mod tests {
     use crate::api::{
-        self,
-        trace::{SpanContext, SpanId, TraceContextExt, TraceId, TraceState},
-        Context, Extractor, FieldIter, Injector, TextMapCompositePropagator, TextMapFormat,
+        propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
+        trace::{Span, SpanContext, SpanId, StatusCode, TraceContextExt, TraceId, TraceState},
+        Context, KeyValue,
     };
-    use crate::sdk::trace::W3CPropagator;
+    use crate::sdk::propagation::{TextMapCompositePropagator, TraceContextPropagator};
     use std::collections::HashMap;
     use std::str::FromStr;
 
@@ -127,7 +133,7 @@ mod tests {
         }
     }
 
-    impl TextMapFormat for TestPropagator {
+    impl TextMapPropagator for TestPropagator {
         fn inject_context(&self, cx: &Context, injector: &mut dyn Injector) {
             let span = cx.span().span_context();
             injector.set(
@@ -178,24 +184,24 @@ mod tests {
     }
 
     #[derive(Debug)]
-    struct TestSpan(api::trace::SpanContext);
+    struct TestSpan(SpanContext);
 
-    impl api::trace::Span for TestSpan {
+    impl Span for TestSpan {
         fn add_event_with_timestamp(
             &self,
             _name: String,
             _timestamp: std::time::SystemTime,
-            _attributes: Vec<api::KeyValue>,
+            _attributes: Vec<KeyValue>,
         ) {
         }
-        fn span_context(&self) -> api::trace::SpanContext {
+        fn span_context(&self) -> SpanContext {
             self.0.clone()
         }
         fn is_recording(&self) -> bool {
             false
         }
-        fn set_attribute(&self, _attribute: api::KeyValue) {}
-        fn set_status(&self, _code: api::trace::StatusCode, _message: String) {}
+        fn set_attribute(&self, _attribute: KeyValue) {}
+        fn set_status(&self, _code: StatusCode, _message: String) {}
         fn update_name(&self, _new_name: String) {}
         fn end_with_timestamp(&self, _timestamp: std::time::SystemTime) {}
     }
@@ -203,7 +209,7 @@ mod tests {
     #[test]
     fn inject_multiple_propagators() {
         let test_propagator = TestPropagator::new();
-        let trace_context = W3CPropagator::new();
+        let trace_context = TraceContextPropagator::new();
         let composite_propagator = TextMapCompositePropagator::new(vec![
             Box::new(test_propagator),
             Box::new(trace_context),
@@ -227,7 +233,7 @@ mod tests {
     #[test]
     fn extract_multiple_propagators() {
         let test_propagator = TestPropagator::new();
-        let trace_context = W3CPropagator::new();
+        let trace_context = TraceContextPropagator::new();
         let composite_propagator = TextMapCompositePropagator::new(vec![
             Box::new(test_propagator),
             Box::new(trace_context),
@@ -259,7 +265,7 @@ mod tests {
             .map(|s| s.to_string())
             .collect::<Vec<String>>();
 
-        let trace_context = W3CPropagator::new();
+        let trace_context = TraceContextPropagator::new();
         let trace_context_fields = trace_context
             .fields()
             .map(|s| s.to_string())
