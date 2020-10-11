@@ -3,13 +3,13 @@ use crate::thrift::{
     agent::{self, TAgentSyncClient},
     jaeger,
 };
-use crate::transport::TNoopChannel;
+use crate::transport::{TBufferChannel, TNoopChannel};
 use std::fmt;
 use std::net::{ToSocketAddrs, UdpSocket};
 use std::sync::Mutex;
 use thrift::{
     protocol::{TCompactInputProtocol, TCompactOutputProtocol},
-    transport::{ReadHalf, TBufferChannel, TIoChannel, WriteHalf},
+    transport::{ReadHalf, TIoChannel, WriteHalf},
 };
 
 struct BufferClient {
@@ -46,7 +46,7 @@ pub(crate) struct AgentAsyncClientUDP {
 impl AgentAsyncClientUDP {
     /// Create a new UDP agent client
     pub(crate) fn new<T: ToSocketAddrs>(host_port: T) -> thrift::Result<Self> {
-        let (buffer, write) = TBufferChannel::with_capacity(0, 512).split()?;
+        let (buffer, write) = TBufferChannel::with_capacity(512).split()?;
         let client = agent::AgentSyncClient::new(
             TCompactInputProtocol::new(TNoopChannel),
             TCompactOutputProtocol::new(write),
@@ -81,10 +81,8 @@ impl AgentAsyncClientUDP {
             .and_then(|mut buffer_client| {
                 // Write to tmp buffer
                 buffer_client.client.emit_batch(batch)?;
-                // extract written payload
-                let payload = buffer_client.buffer.write_bytes();
-                // reset
-                buffer_client.buffer.empty_write_buffer();
+                // extract written payload, clearing buffer
+                let payload = buffer_client.buffer.take_bytes();
 
                 Ok(payload)
             })?;

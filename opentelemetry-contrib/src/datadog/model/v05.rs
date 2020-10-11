@@ -2,7 +2,6 @@ use crate::datadog::intern::StringInterner;
 use crate::datadog::model::Error;
 use opentelemetry::api::{Key, Value};
 use opentelemetry::exporter::trace;
-use std::sync::Arc;
 use std::time::SystemTime;
 
 // Protocol documentation sourced from https://github.com/DataDog/datadog-agent/blob/c076ea9a1ffbde4c76d35343dbc32aecbbf99cb9/pkg/trace/api/version.go
@@ -50,7 +49,7 @@ use std::time::SystemTime;
 //
 // 		The dictionary in this case would be []string{""}, having only the empty string at index 0.
 //
-pub(crate) fn encode(service_name: &str, spans: &[Arc<trace::SpanData>]) -> Result<Vec<u8>, Error> {
+pub(crate) fn encode(service_name: &str, spans: Vec<trace::SpanData>) -> Result<Vec<u8>, Error> {
     let mut interner = StringInterner::new();
     let mut encoded_spans = encode_spans(&mut interner, service_name, spans)?;
 
@@ -70,14 +69,14 @@ pub(crate) fn encode(service_name: &str, spans: &[Arc<trace::SpanData>]) -> Resu
 fn encode_spans(
     interner: &mut StringInterner,
     service_name: &str,
-    spans: &[Arc<trace::SpanData>],
+    spans: Vec<trace::SpanData>,
 ) -> Result<Vec<u8>, Error> {
     let mut encoded = Vec::new();
     rmp::encode::write_array_len(&mut encoded, spans.len() as u32)?;
 
     let service_interned = interner.intern(&service_name);
 
-    for span in spans.iter() {
+    for span in spans.into_iter() {
         // API supports but doesn't mandate grouping spans with the same trace ID
         rmp::encode::write_array_len(&mut encoded, 1)?;
 
@@ -109,7 +108,7 @@ fn encode_spans(
         rmp::encode::write_u64(&mut encoded, span.parent_span_id.to_u64())?;
         rmp::encode::write_i64(&mut encoded, start)?;
         rmp::encode::write_i64(&mut encoded, duration)?;
-        rmp::encode::write_i32(&mut encoded, span.status_code.clone() as i32)?;
+        rmp::encode::write_i32(&mut encoded, span.status_code as i32)?;
         rmp::encode::write_map_len(&mut encoded, span.attributes.len() as u32)?;
         for (key, value) in span.attributes.iter() {
             let value_string: String = value.into();
