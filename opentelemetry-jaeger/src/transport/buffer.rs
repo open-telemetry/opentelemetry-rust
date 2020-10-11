@@ -30,6 +30,7 @@ impl io::Read for TBufferChannel {
         unreachable!("jaeger protocol never reads")
     }
 }
+
 impl io::Write for TBufferChannel {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         if let Ok(mut inner) = self.inner.lock() {

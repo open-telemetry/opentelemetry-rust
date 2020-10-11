@@ -154,9 +154,9 @@ impl Drop for SpanInner {
                             data.end_time = SystemTime::now();
                         }
                     }
-                    let last_processor_idx = provider.span_processors().len().saturating_sub(1);
-                    for (idx, processor) in provider.span_processors().iter().enumerate() {
-                        let span_data = if idx == last_processor_idx {
+                    let mut processors = provider.span_processors().iter().peekable();
+                    while let Some(processor) = processors.next() {
+                        let span_data = if processors.peek().is_none() {
                             // last loop or single processor/exporter, move data
                             span_data.take()
                         } else {
