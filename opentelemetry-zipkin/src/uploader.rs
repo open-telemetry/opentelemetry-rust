@@ -1,8 +1,12 @@
 //! # Zipkin Span Exporter
 use crate::model::span::Span;
-use http_client::http_types::{url, Method, Mime};
-use http_client::Body;
+use async_trait::async_trait;
+use http::{header::CONTENT_TYPE, Request, Uri, Method};
 use opentelemetry::exporter::trace::ExportResult;
+use std::fmt::Debug;
+use std::error::Error;
+#[cfg(feature = "reqwest")]
+use std::convert::TryInto;
 
 #[derive(Debug)]
 pub(crate) enum Uploader {
@@ -12,8 +16,8 @@ pub(crate) enum Uploader {
 impl Uploader {
     /// Create a new http uploader
     pub(crate) fn new(
-        client: Box<dyn http_client::HttpClient + Send + Sync>,
-        collector_endpoint: url::Url,
+        client: Box<dyn HttpClient>,
+        collector_endpoint: Uri,
     ) -> Self {
         Uploader::Http(JsonV2Client {
             client,
@@ -34,21 +38,72 @@ impl Uploader {
 
 #[derive(Debug)]
 pub(crate) struct JsonV2Client {
-    client: Box<dyn http_client::HttpClient + Send + Sync>,
-    collector_endpoint: url::Url,
+    client: Box<dyn HttpClient>,
+    collector_endpoint: Uri,
 }
 
 impl JsonV2Client {
     async fn upload(&self, spans: Vec<Span>) -> Result<ExportResult, Box<dyn std::error::Error>> {
-        let mut req = http_client::Request::new(Method::Post, self.collector_endpoint.clone());
-        req.set_body(Body::from_json(&spans)?);
-        req.set_content_type(Mime::from("application/json"));
+        let req = Request::builder()
+            .method(Method::POST)
+            .uri(self.collector_endpoint.clone())
+            .header(CONTENT_TYPE, "application/json")
+            .body(serde_json::to_vec(&spans).unwrap_or_default())?;
+        self.client.send(req).await
+    }
+}
 
-        let resp = self.client.send(req).await;
+/// A minimal interface necessary for uploading Zipkin spans over HTTP.
+#[async_trait]
+pub trait HttpClient: Debug + Send + Sync {
+    /// Send a batch of spans to Zipkin
+    async fn send(&self, request: Request<Vec<u8>>) -> Result<ExportResult, Box<dyn Error>>;
+}
 
-        Ok(match resp {
-            Ok(response) if response.status().is_success() => ExportResult::Success,
-            _ => ExportResult::FailedRetryable,
-        })
+#[cfg(feature = "reqwest")]
+#[async_trait]
+impl HttpClient for reqwest::Client {
+    async fn send(&self, request: Request<Vec<u8>>) -> Result<ExportResult, Box<dyn Error>> {
+        let result = self.execute(request.try_into()?).await?;
+
+        if result.status().is_success() {
+            Ok(ExportResult::Success)
+        } else {
+            Ok(ExportResult::FailedNotRetryable)
+        }
+    }
+}
+
+#[cfg(feature = "reqwest")]
+#[async_trait]
+impl HttpClient for reqwest::blocking::Client {
+    async fn send(&self, request: Request<Vec<u8>>) -> Result<ExportResult, Box<dyn Error>> {
+        let result = self.execute(request.try_into()?)?;
+
+        if result.status().is_success() {
+            Ok(ExportResult::Success)
+        } else {
+            Ok(ExportResult::FailedNotRetryable)
+        }
+    }
+}
+
+#[cfg(feature = "surf")]
+#[async_trait]
+impl HttpClient for surf::Client {
+    async fn send(&self, request: Request<Vec<u8>>) -> Result<ExportResult, Box<dyn Error>> {
+        let (parts, body) = request.into_parts();
+        let uri = parts.uri.to_string().parse()?;
+
+        let req = surf::Request::builder(surf::http::Method::Post, uri)
+            .content_type("application/json")
+            .body(body);
+        let result = self.send(req).await?;
+
+        if result.status().is_success() {
+            Ok(ExportResult::Success)
+        } else {
+            Ok(ExportResult::FailedNotRetryable)
+        }
     }
 }

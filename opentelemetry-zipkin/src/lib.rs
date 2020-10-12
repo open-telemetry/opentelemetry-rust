@@ -46,6 +46,13 @@
 //! [`tokio`]: https://tokio.rs
 //! [`async-std`]: https://async.rs
 //!
+//! ## Bring your own http clients
+//! Users can choose appropriate http clients to align with their runtime. By default, the opentelemetry-zipkin will use blocking reqwest http client. Other than that, opentelemtry-zipkin also provide support for async reqwest http client surf http client.
+//!
+//! The async reqwest http client and blocking reqwest http client is enabled by default. Users can enable `surf` feature to use surf http client.
+//!
+//! Users can also use their own http clients by implementing `HttpClient` trait.
+//!
 //! ## Kitchen Sink Full Configuration
 //!
 //! Example showing how to override all configuration options. See the
@@ -56,9 +63,33 @@
 //! ```no_run
 //! use opentelemetry::api::{KeyValue, trace::Tracer};
 //! use opentelemetry::sdk::{trace::{self, IdGenerator, Sampler}, Resource};
+//! use opentelemetry::exporter::trace::ExportResult;
+//! use opentelemetry_zipkin::HttpClient;
+//! use async_trait::async_trait;
+//! use std::error::Error;
 //!
-//! fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! // `reqwest` and `surf` are supported through features, if you prefer an
+//! // alternate http client you can add support by implementing `HttpClient` as
+//! // shown here.
+//! #[derive(Debug)]
+//! struct IsahcClient(isahc::HttpClient);
+//!
+//! #[async_trait]
+//! impl HttpClient for IsahcClient {
+//!   async fn send(&self, request: http::Request<Vec<u8>>) -> Result<ExportResult, Box<dyn Error>> {
+//!     let result = self.0.send_async(request).await?;
+//!
+//!     if result.status().is_success() {
+//!       Ok(ExportResult::Success)
+//!     } else {
+//!       Ok(ExportResult::FailedNotRetryable)
+//!     }
+//!   }
+//! }
+//!
+//! fn main() -> Result<(), Box<dyn Error>> {
 //!     let (tracer, _uninstall) = opentelemetry_zipkin::new_pipeline()
+//!         .with_http_client(IsahcClient(isahc::HttpClient::new()?))
 //!         .with_service_name("my_app")
 //!         .with_service_address("127.0.0.1:8080".parse()?)
 //!         .with_collector_endpoint("http://localhost:9411/api/v2/spans")
@@ -90,13 +121,13 @@ mod model;
 mod uploader;
 
 use async_trait::async_trait;
-use http_client::http_types::url;
 use model::endpoint::Endpoint;
 use opentelemetry::{api::trace::TracerProvider, exporter::trace, global, sdk};
 use std::error::Error;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use http_client::h1::H1Client;
+use http::Uri;
+pub use crate::uploader::HttpClient;
 
 /// Default Zipkin collector endpoint
 const DEFAULT_COLLECTOR_ENDPOINT: &str = "http://127.0.0.1:9411/api/v2/spans";
@@ -114,8 +145,8 @@ pub struct Exporter {
 impl Exporter {
     fn new(
         local_endpoint: Endpoint,
-        client: Box<dyn http_client::HttpClient + Send + Sync>,
-        collector_endpoint: url::Url,
+        client: Box<dyn HttpClient>,
+        collector_endpoint: Uri,
     ) -> Self {
         Exporter {
             local_endpoint,
@@ -136,7 +167,7 @@ pub struct ZipkinPipelineBuilder {
     service_addr: Option<SocketAddr>,
     collector_endpoint: String,
     trace_config: Option<sdk::trace::Config>,
-    client: Box<dyn http_client::HttpClient + Send + Sync>,
+    client: Box<dyn HttpClient>,
 }
 
 impl Default for ZipkinPipelineBuilder {
@@ -146,7 +177,7 @@ impl Default for ZipkinPipelineBuilder {
             service_addr: None,
             collector_endpoint: DEFAULT_COLLECTOR_ENDPOINT.to_string(),
             trace_config: None,
-            client: Box::new(H1Client::new()),
+            client: Box::new(reqwest::blocking::Client::new()),
         }
     }
 }
@@ -175,7 +206,7 @@ impl ZipkinPipelineBuilder {
     }
 
     /// Assign client implementation
-    pub fn with_client<T: http_client::HttpClient + Send + Sync>(mut self, client: T) -> Self {
+    pub fn with_http_client<T: HttpClient + 'static>(mut self, client: T) -> Self {
         self.client = Box::new(client);
         self
     }
