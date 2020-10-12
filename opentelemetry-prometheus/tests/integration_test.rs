@@ -50,8 +50,8 @@ fn compare_export(exporter: &PrometheusExporter, mut expected: Vec<&'static str>
         .filter(|line| !line.starts_with('#') && !line.is_empty())
         .collect::<Vec<_>>();
 
-    metrics_only.sort();
-    expected.sort();
+    metrics_only.sort_unstable();
+    expected.sort_unstable();
 
     assert_eq!(expected.join("\n"), metrics_only.join("\n"))
 }

@@ -27,10 +27,10 @@ pub enum InstrumentKind {
 impl InstrumentKind {
     /// Whether this is a synchronous kind of instrument.
     pub fn synchronous(&self) -> bool {
-        matches!(self,
-                InstrumentKind::Counter
-                    | InstrumentKind::UpDownCounter
-                    | InstrumentKind::ValueRecorder)
+        matches! (self,
+            InstrumentKind::Counter
+            | InstrumentKind::UpDownCounter
+            | InstrumentKind::ValueRecorder)
     }
 
     /// Whether this is a synchronous kind of instrument.
@@ -44,7 +44,7 @@ impl InstrumentKind {
             InstrumentKind::Counter
             | InstrumentKind::UpDownCounter
             | InstrumentKind::SumObserver
-            | InstrumentKind::UpDownSumObserver )
+            | InstrumentKind::UpDownSumObserver)
     }
 
     /// Whether this kind of instrument groups its inputs (as opposed to adding).
