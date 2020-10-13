@@ -303,4 +303,3 @@ impl AgentEmitBatchArgs {
     o_prot.write_struct_end()
   }
 }
-

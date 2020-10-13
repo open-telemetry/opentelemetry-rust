@@ -164,7 +164,6 @@ use opentelemetry::{
     global, sdk,
 };
 use std::error::Error;
-use std::sync::Arc;
 use std::{
     net,
     time::{Duration, SystemTime},
@@ -220,11 +219,11 @@ impl Into<jaeger::Process> for Process {
 #[async_trait]
 impl trace::SpanExporter for Exporter {
     /// Export spans to Jaeger
-    async fn export(&self, batch: &[Arc<trace::SpanData>]) -> trace::ExportResult {
+    async fn export(&self, batch: Vec<trace::SpanData>) -> trace::ExportResult {
         let mut jaeger_spans: Vec<jaeger::Span> = Vec::with_capacity(batch.len());
         let mut process = self.process.clone();
 
-        for (idx, span) in batch.iter().enumerate() {
+        for (idx, span) in batch.into_iter().enumerate() {
             if idx == 0 {
                 if let Some(span_process_tags) = build_process_tags(&span) {
                     if let Some(process_tags) = &mut process.tags {
@@ -448,7 +447,7 @@ impl Into<jaeger::Log> for api::trace::Event {
     }
 }
 
-impl Into<jaeger::Span> for &Arc<trace::SpanData> {
+impl Into<jaeger::Span> for trace::SpanData {
     /// Convert spans to jaeger thrift span for exporting.
     fn into(self) -> jaeger::Span {
         let trace_id = self.span_context.trace_id().to_u128();
@@ -459,8 +458,8 @@ impl Into<jaeger::Span> for &Arc<trace::SpanData> {
             trace_id_high,
             span_id: self.span_context.span_id().to_u64() as i64,
             parent_span_id: self.parent_span_id.to_u64() as i64,
-            operation_name: self.name.clone(),
-            references: links_to_references(&self.links),
+            operation_name: self.name,
+            references: links_to_references(self.links),
             flags: self.span_context.trace_flags() as i32,
             start_time: self
                 .start_time
@@ -472,14 +471,20 @@ impl Into<jaeger::Span> for &Arc<trace::SpanData> {
                 .duration_since(self.start_time)
                 .unwrap_or_else(|_| Duration::from_secs(0))
                 .as_micros() as i64,
-            tags: build_span_tags(&self),
-            logs: events_to_logs(&self.message_events),
+            tags: build_span_tags(
+                self.attributes,
+                self.instrumentation_lib,
+                self.status_code,
+                self.status_message,
+                self.span_kind,
+            ),
+            logs: events_to_logs(self.message_events),
         }
     }
 }
 
 fn links_to_references(
-    links: &sdk::trace::EvictedQueue<api::trace::Link>,
+    links: sdk::trace::EvictedQueue<api::trace::Link>,
 ) -> Option<Vec<jaeger::SpanRef>> {
     if !links.is_empty() {
         let refs = links
@@ -507,7 +512,7 @@ fn links_to_references(
 }
 
 fn build_process_tags(
-    span_data: &Arc<trace::SpanData>,
+    span_data: &trace::SpanData,
 ) -> Option<impl Iterator<Item = jaeger::Tag> + '_> {
     if span_data.resource.is_empty() {
         None
@@ -521,53 +526,44 @@ fn build_process_tags(
     }
 }
 
-fn build_span_tags(span_data: &Arc<trace::SpanData>) -> Option<Vec<jaeger::Tag>> {
+fn build_span_tags(
+    attrs: sdk::trace::EvictedHashMap,
+    instrumentation_lib: sdk::InstrumentationLibrary,
+    status_code: api::trace::StatusCode,
+    status_message: String,
+    kind: api::trace::SpanKind,
+) -> Option<Vec<jaeger::Tag>> {
     let mut user_overrides = UserOverrides::default();
     // TODO determine if namespacing is required to avoid collisions with set attributes
-    let mut tags = span_data
-        .attributes
-        .iter()
+    let mut tags = attrs
+        .into_iter()
         .map(|(k, v)| {
             user_overrides.record_attr(k.as_str());
-            api::KeyValue::new(k.clone(), v.clone()).into()
+            api::KeyValue::new(k, v).into()
         })
         .collect::<Vec<_>>();
 
     // Set instrument library tags
-    tags.push(
-        api::KeyValue::new(
-            INSTRUMENTATION_LIBRARY_NAME,
-            span_data.instrumentation_lib.name,
-        )
-        .into(),
-    );
-    if let Some(version) = span_data.instrumentation_lib.version {
+    tags.push(api::KeyValue::new(INSTRUMENTATION_LIBRARY_NAME, instrumentation_lib.name).into());
+    if let Some(version) = instrumentation_lib.version {
         tags.push(api::KeyValue::new(INSTRUMENTATION_LIBRARY_VERSION, version).into())
     }
 
     // Ensure error status is set
-    if span_data.status_code != api::trace::StatusCode::OK && !user_overrides.error {
+    if status_code != api::trace::StatusCode::OK && !user_overrides.error {
         tags.push(api::Key::new(ERROR).bool(true).into())
     }
 
     if !user_overrides.span_kind {
-        tags.push(
-            api::Key::new(SPAN_KIND)
-                .string(span_data.span_kind.to_string())
-                .into(),
-        );
+        tags.push(api::Key::new(SPAN_KIND).string(kind.to_string()).into());
     }
 
     if !user_overrides.status_code {
-        tags.push(api::KeyValue::new(STATUS_CODE, span_data.status_code.clone() as i64).into());
+        tags.push(api::KeyValue::new(STATUS_CODE, status_code as i64).into());
     }
 
     if !user_overrides.status_message {
-        tags.push(
-            api::Key::new(STATUS_MESSAGE)
-                .string(span_data.status_message.clone())
-                .into(),
-        );
+        tags.push(api::Key::new(STATUS_MESSAGE).string(status_message).into());
     }
 
     Some(tags)
@@ -598,12 +594,10 @@ impl UserOverrides {
     }
 }
 
-fn events_to_logs(
-    events: &sdk::trace::EvictedQueue<api::trace::Event>,
-) -> Option<Vec<jaeger::Log>> {
+fn events_to_logs(events: sdk::trace::EvictedQueue<api::trace::Event>) -> Option<Vec<jaeger::Log>> {
     if events.is_empty() {
         None
     } else {
-        Some(events.iter().cloned().map(Into::into).collect())
+        Some(events.into_iter().map(Into::into).collect())
     }
 }

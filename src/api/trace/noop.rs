@@ -5,9 +5,11 @@
 //! to have minimal resource utilization and runtime impact.
 use crate::api::trace::TraceContextExt;
 use crate::api::trace::TraceState;
-use crate::{api, exporter};
+use crate::{
+    api,
+    exporter::trace::{ExportResult, SpanData, SpanExporter},
+};
 use async_trait::async_trait;
-use std::sync::Arc;
 use std::time::SystemTime;
 
 /// A no-op instance of a `TracerProvider`.
@@ -178,12 +180,9 @@ impl NoopSpanExporter {
 }
 
 #[async_trait]
-impl exporter::trace::SpanExporter for NoopSpanExporter {
-    async fn export(
-        &self,
-        _batch: &[Arc<exporter::trace::SpanData>],
-    ) -> exporter::trace::ExportResult {
-        exporter::trace::ExportResult::Success
+impl SpanExporter for NoopSpanExporter {
+    async fn export(&self, _batch: Vec<SpanData>) -> ExportResult {
+        ExportResult::Success
     }
 }
 
