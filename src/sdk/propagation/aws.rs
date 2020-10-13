@@ -9,7 +9,7 @@
 //!
 //! ```
 //! use opentelemetry::global;
-//! use opentelemetry::sdk::propagation::aws::XrayPropagator;
+//! use opentelemetry::sdk::propagation::XrayPropagator;
 //!
 //! global::set_text_map_propagator(XrayPropagator::default());
 //! ```

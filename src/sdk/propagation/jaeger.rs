@@ -182,7 +182,6 @@ mod tests {
         },
         Context, KeyValue,
     };
-    use crate::sdk::propagation::jaeger::JaegerPropagator;
     use std::collections::HashMap;
     use std::time::SystemTime;
 

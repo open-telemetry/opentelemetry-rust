@@ -7,7 +7,7 @@ use opentelemetry::{
     },
     exporter::trace::stdout,
     global,
-    sdk::{propagation::aws::XrayPropagator, trace as sdktrace},
+    sdk::{propagation::XrayPropagator, trace as sdktrace},
 };
 
 fn init_tracer() -> (sdktrace::Tracer, stdout::Uninstall) {

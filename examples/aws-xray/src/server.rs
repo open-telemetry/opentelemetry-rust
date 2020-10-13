@@ -4,7 +4,7 @@ use opentelemetry::{
     api::trace::{Span, Tracer},
     exporter::trace::stdout,
     global,
-    sdk::{propagation::aws::XrayPropagator, trace as sdktrace},
+    sdk::{propagation::XrayPropagator, trace as sdktrace},
 };
 use std::{convert::Infallible, net::SocketAddr};
 
