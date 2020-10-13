@@ -33,6 +33,9 @@
 - Ensure trace noop structs use `new` constructor #240
 - Switch to w3c `baggage` header #246
 - Move trace module imports from `api` to `api::trace` #255
+- Update `tonic` feature to use version `0.3.x` #258
+- Update exporters to receive owned span data #264
+- Move propagators to `sdk::propagation` #266
 - Rename `SamplingDecision`'s `NotRecord`, `Record` and `RecordAndSampled` to
   `Drop` `RecordOnly` and `RecordAndSample` #247
 
