@@ -11,6 +11,7 @@ pub mod export;
 pub mod instrumentation;
 #[cfg(feature = "metrics")]
 pub mod metrics;
+#[cfg(feature = "trace")]
 pub mod propagation;
 pub mod resource;
 #[cfg(feature = "trace")]
