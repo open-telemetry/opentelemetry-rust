@@ -4,10 +4,10 @@ use hello_world::greeter_server::{Greeter, GreeterServer};
 use hello_world::{HelloReply, HelloRequest};
 use opentelemetry::api::{
     trace::{Span, Tracer},
-    KeyValue, TextMapFormat,
+    KeyValue,
 };
 use opentelemetry::global;
-use opentelemetry::sdk::trace as sdktrace;
+use opentelemetry::sdk::propagation::TraceContextPropagator;
 use std::error::Error;
 
 pub mod hello_world {
@@ -23,8 +23,7 @@ impl Greeter for MyGreeter {
         &self,
         request: Request<HelloRequest>, // Accept request of type HelloRequest
     ) -> Result<Response<HelloReply>, Status> {
-        let propagator = sdktrace::W3CPropagator::new();
-        let parent_cx = propagator.extract(request.metadata());
+        let parent_cx = global::get_text_map_propagator(|prop| prop.extract(request.metadata()));
         let span = global::tracer("greeter").start_from_context("Processing reply", &parent_cx);
         span.set_attribute(KeyValue::new("request", format!("{:?}", request)));
 
@@ -37,7 +36,8 @@ impl Greeter for MyGreeter {
     }
 }
 
-fn tracing_init() -> Result<(sdktrace::Tracer, opentelemetry_jaeger::Uninstall), Box<dyn Error>> {
+fn tracing_init() -> Result<(impl Tracer, opentelemetry_jaeger::Uninstall), Box<dyn Error>> {
+    global::set_text_map_propagator(TraceContextPropagator::new());
     opentelemetry_jaeger::new_pipeline()
         .with_service_name("grpc-server")
         .install()

@@ -2,17 +2,18 @@ use hello_world::greeter_client::GreeterClient;
 use hello_world::HelloRequest;
 use opentelemetry::api::{
     trace::{TraceContextExt, Tracer},
-    Context, KeyValue, TextMapFormat,
+    Context, KeyValue,
 };
-use opentelemetry::sdk;
-use opentelemetry::sdk::trace as sdktrace;
+use opentelemetry::global;
+use opentelemetry::sdk::propagation::TraceContextPropagator;
 use std::error::Error;
 
 pub mod hello_world {
     tonic::include_proto!("helloworld");
 }
 
-fn tracing_init() -> Result<(sdktrace::Tracer, opentelemetry_jaeger::Uninstall), Box<dyn Error>> {
+fn tracing_init() -> Result<(impl Tracer, opentelemetry_jaeger::Uninstall), Box<dyn Error>> {
+    global::set_text_map_propagator(TraceContextPropagator::new());
     opentelemetry_jaeger::new_pipeline()
         .with_service_name("grpc-client")
         .install()
@@ -22,14 +23,15 @@ fn tracing_init() -> Result<(sdktrace::Tracer, opentelemetry_jaeger::Uninstall),
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (tracer, _uninstall) = tracing_init()?;
     let mut client = GreeterClient::connect("http://[::1]:50051").await?;
-    let propagator = sdk::trace::W3CPropagator::new();
     let span = tracer.start("client-request");
     let cx = Context::current_with_span(span);
 
     let mut request = tonic::Request::new(HelloRequest {
         name: "Tonic".into(),
     });
-    propagator.inject_context(&cx, request.metadata_mut());
+    global::get_text_map_propagator(|propagator| {
+        propagator.inject_context(&cx, request.metadata_mut())
+    });
 
     let response = client.say_hello(request).await?;
 

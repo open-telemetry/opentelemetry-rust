@@ -10,7 +10,7 @@
 use crate::api::trace::TraceContextExt;
 use crate::api::trace::TraceState;
 use crate::sdk;
-use crate::{api, api::context::Context, exporter};
+use crate::{api, api::Context, exporter};
 use std::fmt;
 use std::sync::Weak;
 use std::time::SystemTime;

@@ -1,20 +1,23 @@
 //! # Text Propagator
 //!
-//! `TextMapFormat` is a formatter to serialize and deserialize a value into a
+//! `TextMapPropagator` is a formatter to serialize and deserialize a value into a
 //! text format.
-use crate::{api, api::Context};
+use crate::api::{
+    propagation::{Extractor, Injector},
+    Context,
+};
 use std::fmt::Debug;
 use std::slice;
 
 /// Methods to inject and extract a value as text into injectors and extractors that travel
 /// in-band across process boundaries.
-pub trait TextMapFormat: Debug {
+pub trait TextMapPropagator: Debug {
     /// Properly encodes the values of the current [`Context`] and injects them into
     /// the [`Injector`].
     ///
     /// [`Context`]: ../../struct.Context.html
     /// [`Injector`]: ../trait.Injector.html
-    fn inject(&self, injector: &mut dyn api::Injector) {
+    fn inject(&self, injector: &mut dyn Injector) {
         self.inject_context(&Context::current(), injector)
     }
 
@@ -23,7 +26,7 @@ pub trait TextMapFormat: Debug {
     ///
     /// [`Context`]: ../../struct.Context.html
     /// [`Injector`]: ../trait.Injector.html
-    fn inject_context(&self, cx: &Context, injector: &mut dyn api::Injector);
+    fn inject_context(&self, cx: &Context, injector: &mut dyn Injector);
 
     /// Retrieves encoded data using the provided [`Extractor`]. If no data for this
     /// format was retrieved OR if the retrieved data is invalid, then the current
@@ -31,7 +34,7 @@ pub trait TextMapFormat: Debug {
     ///
     /// [`Context`]: ../../struct.Context.html
     /// [`Extractor`]: ../trait.Extractor.html
-    fn extract(&self, extractor: &dyn api::Extractor) -> Context {
+    fn extract(&self, extractor: &dyn Extractor) -> Context {
         self.extract_with_context(&Context::current(), extractor)
     }
 
@@ -41,17 +44,17 @@ pub trait TextMapFormat: Debug {
     ///
     /// [`Context`]: ../../struct.Context.html
     /// [`Extractor`]: ../trait.Extractor.html
-    fn extract_with_context(&self, cx: &Context, extractor: &dyn api::Extractor) -> Context;
+    fn extract_with_context(&self, cx: &Context, extractor: &dyn Extractor) -> Context;
 
-    /// Returns iter of fields used by [`TextMapFormat`]
+    /// Returns iter of fields used by [`TextMapPropagator`]
     ///
-    /// [`TextMapFormat`]: ./trait.TextMapFormat.html
+    /// [`TextMapPropagator`]: ./trait.TextMapPropagator.html
     fn fields(&self) -> FieldIter;
 }
 
-/// An iterator over fields of a [`TextMapFormat`]
+/// An iterator over fields of a [`TextMapPropagator`]
 ///
-/// [`TextMapFormat`]: ./trait.TextMapFormat.html
+/// [`TextMapPropagator`]: ./trait.TextMapPropagator.html
 #[derive(Debug)]
 pub struct FieldIter<'a>(slice::Iter<'a, String>);
 

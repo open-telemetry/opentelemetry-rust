@@ -161,11 +161,11 @@
 //!
 //! The Keys function returns a vector of the propagation keys.
 //!
-use crate::api;
 use std::collections::HashMap;
 
-pub mod composite_propagator;
-pub mod text_propagator;
+pub mod text_map_propagator;
+
+pub use text_map_propagator::TextMapPropagator;
 
 /// Injector provides an interface for adding fields from an underlying struct like `HashMap`
 pub trait Injector {
@@ -182,14 +182,14 @@ pub trait Extractor {
     fn keys(&self) -> Vec<&str>;
 }
 
-impl<S: std::hash::BuildHasher> api::Injector for HashMap<String, String, S> {
+impl<S: std::hash::BuildHasher> Injector for HashMap<String, String, S> {
     /// Set a key and value in the HashMap.
     fn set(&mut self, key: &str, value: String) {
         self.insert(key.to_lowercase(), value);
     }
 }
 
-impl<S: std::hash::BuildHasher> api::Extractor for HashMap<String, String, S> {
+impl<S: std::hash::BuildHasher> Extractor for HashMap<String, String, S> {
     /// Get a value for a key from the HashMap.
     fn get(&self, key: &str) -> Option<&str> {
         self.get(&key.to_lowercase()).map(|v| v.as_str())
@@ -202,7 +202,7 @@ impl<S: std::hash::BuildHasher> api::Extractor for HashMap<String, String, S> {
 }
 
 #[cfg(feature = "http")]
-impl api::Injector for http::HeaderMap {
+impl Injector for http::HeaderMap {
     /// Set a key and value in the HeaderMap.  Does nothing if the key or value are not valid inputs.
     fn set(&mut self, key: &str, value: String) {
         if let Ok(name) = http::header::HeaderName::from_bytes(key.as_bytes()) {
@@ -214,7 +214,7 @@ impl api::Injector for http::HeaderMap {
 }
 
 #[cfg(feature = "http")]
-impl api::Extractor for http::HeaderMap {
+impl Extractor for http::HeaderMap {
     /// Get a value for a key from the HeaderMap.  If the value is not valid ASCII, returns None.
     fn get(&self, key: &str) -> Option<&str> {
         self.get(key).and_then(|value| value.to_str().ok())
@@ -227,7 +227,7 @@ impl api::Extractor for http::HeaderMap {
 }
 
 #[cfg(feature = "tonic")]
-impl api::Injector for tonic::metadata::MetadataMap {
+impl Injector for tonic::metadata::MetadataMap {
     /// Set a key and value in the MetadataMap.  Does nothing if the key or value are not valid inputs
     fn set(&mut self, key: &str, value: String) {
         if let Ok(key) = tonic::metadata::MetadataKey::from_bytes(key.as_bytes()) {
@@ -239,7 +239,7 @@ impl api::Injector for tonic::metadata::MetadataMap {
 }
 
 #[cfg(feature = "tonic")]
-impl api::Extractor for tonic::metadata::MetadataMap {
+impl Extractor for tonic::metadata::MetadataMap {
     /// Get a value for a key from the MetadataMap.  If the value can't be converted to &str, returns None
     fn get(&self, key: &str) -> Option<&str> {
         self.get(key).and_then(|metadata| metadata.to_str().ok())
