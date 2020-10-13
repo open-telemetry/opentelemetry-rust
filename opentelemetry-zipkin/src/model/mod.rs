@@ -1,6 +1,5 @@
 use opentelemetry::{api, exporter::trace};
 use std::collections::HashMap;
-use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
 pub(crate) mod annotation;
@@ -67,20 +66,17 @@ fn into_zipkin_span_kind(kind: api::trace::SpanKind) -> Option<span::Kind> {
 
 /// Converts a `trace::SpanData` to a `span::SpanData` for a given `ExporterConfig`, which can then
 /// be ingested into a Zipkin collector.
-pub(crate) fn into_zipkin_span(
-    local_endpoint: Endpoint,
-    span_data: &Arc<trace::SpanData>,
-) -> span::Span {
+pub(crate) fn into_zipkin_span(local_endpoint: Endpoint, span_data: trace::SpanData) -> span::Span {
     let mut user_defined_span_kind = false;
     let mut tags = map_from_kvs(
         span_data
             .attributes
-            .iter()
+            .into_iter()
             .map(|(k, v)| {
-                if k == &api::Key::new("span.kind") {
+                if k == api::Key::new("span.kind") {
                     user_defined_span_kind = true;
                 }
-                api::KeyValue::new(k.clone(), v.clone())
+                api::KeyValue::new(k, v)
             })
             .chain(
                 span_data
@@ -100,29 +96,25 @@ pub(crate) fn into_zipkin_span(
                     ),
                 ]
                 .iter()
-                .filter(|(_, val)| val.is_some())
-                .map(|(k, v)| api::KeyValue::new(<&str>::clone(k), v.unwrap_or(""))),
+                .filter_map(|(key, val)| val.map(|val| api::KeyValue::new(*key, val))),
             ),
     );
 
     tags.insert(
         "otel.status_code".into(),
-        from_statuscode_to_str(span_data.status_code.clone()).into(),
+        from_statuscode_to_str(span_data.status_code).into(),
     );
-    tags.insert(
-        "otel.status_description".into(),
-        span_data.status_message.clone(),
-    );
+    tags.insert("otel.status_description".into(), span_data.status_message);
 
     span::Span::builder()
         .trace_id(span_data.span_context.trace_id().to_hex())
         .parent_id(span_data.parent_span_id.to_hex())
         .id(span_data.span_context.span_id().to_hex())
-        .name(span_data.name.clone())
+        .name(span_data.name)
         .kind(if user_defined_span_kind {
             None
         } else {
-            into_zipkin_span_kind(span_data.span_kind.clone())
+            into_zipkin_span_kind(span_data.span_kind)
         })
         .timestamp(
             span_data
@@ -142,8 +134,7 @@ pub(crate) fn into_zipkin_span(
         .annotations(
             span_data
                 .message_events
-                .iter()
-                .cloned()
+                .into_iter()
                 .map(Into::into)
                 .collect(),
         )
