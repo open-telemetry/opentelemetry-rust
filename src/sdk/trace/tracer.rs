@@ -10,9 +10,9 @@
 use crate::api::trace::TraceContextExt;
 use crate::api::trace::TraceState;
 use crate::sdk;
-use crate::{api, api::context::Context, exporter};
+use crate::{api, api::Context, exporter};
 use std::fmt;
-use std::sync::{Arc, Weak};
+use std::sync::Weak;
 use std::time::SystemTime;
 
 /// `Tracer` implementation to create and manage spans
@@ -271,9 +271,8 @@ impl api::trace::Tracer for Tracer {
 
         // Call `on_start` for all processors
         if let Some(inner) = inner.as_ref().cloned() {
-            let inner_data = Arc::new(inner);
             for processor in provider.span_processors() {
-                processor.on_start(inner_data.clone())
+                processor.on_start(&inner)
             }
         }
 

@@ -43,7 +43,7 @@ pub trait SpanExporter: Send + Sync + std::fmt::Debug {
     ///
     /// This function must not block indefinitely, there must be a reasonable
     /// upper limit after which the call must time out with an error result.
-    async fn export(&self, batch: &[Arc<SpanData>]) -> ExportResult;
+    async fn export(&self, batch: Vec<SpanData>) -> ExportResult;
 
     /// Shuts down the exporter. Called when SDK is shut down. This is an
     /// opportunity for exporter to do any cleanup required.

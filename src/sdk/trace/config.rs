@@ -2,7 +2,7 @@
 //!
 //! Configuration represents the global tracing configuration, overrides
 //! can be set for the default OpenTelemetry limits and Sampler.
-use crate::{api, sdk};
+use crate::{api, sdk, sdk::trace::Sampler};
 use std::sync::Arc;
 
 /// Default trace configuration
@@ -75,9 +75,7 @@ impl Default for Config {
     /// Create default global sdk configuration.
     fn default() -> Self {
         Config {
-            default_sampler: Box::new(sdk::trace::Sampler::ParentBased(Box::new(
-                sdk::trace::Sampler::AlwaysOn,
-            ))),
+            default_sampler: Box::new(Sampler::ParentBased(Box::new(Sampler::AlwaysOn))),
             id_generator: Box::new(sdk::trace::IdGenerator::default()),
             max_events_per_span: 128,
             max_attributes_per_span: 32,

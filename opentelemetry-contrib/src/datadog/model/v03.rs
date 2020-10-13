@@ -1,14 +1,13 @@
 use crate::datadog::model::Error;
 use opentelemetry::api::{Key, Value};
 use opentelemetry::exporter::trace;
-use std::sync::Arc;
 use std::time::SystemTime;
 
-pub(crate) fn encode(service_name: &str, spans: &[Arc<trace::SpanData>]) -> Result<Vec<u8>, Error> {
+pub(crate) fn encode(service_name: &str, spans: Vec<trace::SpanData>) -> Result<Vec<u8>, Error> {
     let mut encoded = Vec::new();
     rmp::encode::write_array_len(&mut encoded, spans.len() as u32)?;
 
-    for span in spans.iter() {
+    for span in spans.into_iter() {
         // API supports but doesn't mandate grouping spans with the same trace ID
         rmp::encode::write_array_len(&mut encoded, 1)?;
 
@@ -59,7 +58,7 @@ pub(crate) fn encode(service_name: &str, spans: &[Arc<trace::SpanData>]) -> Resu
         rmp::encode::write_i64(&mut encoded, duration)?;
 
         rmp::encode::write_str(&mut encoded, "error")?;
-        rmp::encode::write_i32(&mut encoded, span.status_code.clone() as i32)?;
+        rmp::encode::write_i32(&mut encoded, span.status_code as i32)?;
 
         rmp::encode::write_str(&mut encoded, "meta")?;
         rmp::encode::write_map_len(&mut encoded, span.attributes.len() as u32)?;

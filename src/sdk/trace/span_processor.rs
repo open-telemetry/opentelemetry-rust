@@ -92,12 +92,15 @@
 //! [`executor`]: https://docs.rs/futures/0.3.4/futures/executor/index.html
 //! [`tokio`]: https://tokio.rs
 //! [`async-std`]: https://async.rs
-use crate::{api, exporter};
+use crate::{
+    api,
+    exporter::trace::{SpanData, SpanExporter},
+};
 use futures::{channel::mpsc, executor, future::BoxFuture, Future, FutureExt, Stream, StreamExt};
 use std::fmt;
 use std::pin::Pin;
 use std::str::FromStr;
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 use std::time;
 
 /// Delay interval between two consecutive exports, default to be 5000.
@@ -118,22 +121,22 @@ const OTEL_BSP_MAX_EXPORT_BATCH_SIZE_DEFAULT: usize = 512;
 /// [`SpanProcessor`]: ../../../api/trace/span_processor/trait.SpanProcessor.html
 #[derive(Debug)]
 pub struct SimpleSpanProcessor {
-    exporter: Box<dyn exporter::trace::SpanExporter>,
+    exporter: Box<dyn SpanExporter>,
 }
 
 impl SimpleSpanProcessor {
-    pub(crate) fn new(exporter: Box<dyn exporter::trace::SpanExporter>) -> Self {
+    pub(crate) fn new(exporter: Box<dyn SpanExporter>) -> Self {
         SimpleSpanProcessor { exporter }
     }
 }
 
 impl api::trace::SpanProcessor for SimpleSpanProcessor {
-    fn on_start(&self, _span: Arc<exporter::trace::SpanData>) {
+    fn on_start(&self, _span: &SpanData) {
         // Ignored
     }
 
-    fn on_end(&self, span: Arc<exporter::trace::SpanData>) {
-        executor::block_on(self.exporter.export(&[span]));
+    fn on_end(&self, span: SpanData) {
+        executor::block_on(self.exporter.export(vec![span]));
     }
 
     fn shutdown(&mut self) {
@@ -159,11 +162,11 @@ impl fmt::Debug for BatchSpanProcessor {
 }
 
 impl api::trace::SpanProcessor for BatchSpanProcessor {
-    fn on_start(&self, _span: Arc<exporter::trace::SpanData>) {
+    fn on_start(&self, _span: &SpanData) {
         // Ignored
     }
 
-    fn on_end(&self, span: Arc<exporter::trace::SpanData>) {
+    fn on_end(&self, span: SpanData) {
         if let Ok(mut sender) = self.message_sender.lock() {
             let _ = sender.try_send(BatchMessage::ExportSpan(span));
         }
@@ -182,14 +185,14 @@ impl api::trace::SpanProcessor for BatchSpanProcessor {
 
 #[derive(Debug)]
 enum BatchMessage {
-    ExportSpan(Arc<exporter::trace::SpanData>),
+    ExportSpan(SpanData),
     Tick,
     Shutdown,
 }
 
 impl BatchSpanProcessor {
     pub(crate) fn new<S, SH, SO, I, IS, ISI>(
-        mut exporter: Box<dyn exporter::trace::SpanExporter>,
+        mut exporter: Box<dyn SpanExporter>,
         spawn: S,
         interval: I,
         config: BatchConfig,
@@ -218,14 +221,19 @@ impl BatchSpanProcessor {
                     }
                     // Span batch interval time reached, export current spans.
                     BatchMessage::Tick => {
-                        for batch in spans.chunks(config.max_export_batch_size) {
+                        while !spans.is_empty() {
+                            let batch = spans.split_off(
+                                spans.len().saturating_sub(config.max_export_batch_size),
+                            );
                             exporter.export(batch).await;
                         }
-                        spans.clear();
                     }
                     // Stream has terminated or processor is shutdown, return to finish execution.
                     BatchMessage::Shutdown => {
-                        for batch in spans.chunks(config.max_export_batch_size) {
+                        while !spans.is_empty() {
+                            let batch = spans.split_off(
+                                spans.len().saturating_sub(config.max_export_batch_size),
+                            );
                             exporter.export(batch).await;
                         }
                         exporter.shutdown();
@@ -250,7 +258,7 @@ impl BatchSpanProcessor {
         interval: I,
     ) -> BatchSpanProcessorBuilder<E, S, I>
     where
-        E: exporter::trace::SpanExporter,
+        E: SpanExporter,
         S: Fn(BoxFuture<'static, ()>) -> SH,
         SH: Future<Output = SO> + Send + Sync + 'static,
         I: Fn(time::Duration) -> IO,
@@ -276,7 +284,7 @@ impl BatchSpanProcessor {
         interval: I,
     ) -> BatchSpanProcessorBuilder<E, S, I>
     where
-        E: exporter::trace::SpanExporter,
+        E: SpanExporter,
         S: Fn(BoxFuture<'static, ()>) -> SH,
         SH: Future<Output = SO> + Send + Sync + 'static,
         I: Fn(time::Duration) -> IO,
@@ -357,7 +365,7 @@ pub struct BatchSpanProcessorBuilder<E, S, I> {
 
 impl<E, S, SH, SO, I, IS, ISI> BatchSpanProcessorBuilder<E, S, I>
 where
-    E: exporter::trace::SpanExporter + 'static,
+    E: SpanExporter + 'static,
     S: Fn(BoxFuture<'static, ()>) -> SH,
     SH: Future<Output = SO> + Send + Sync + 'static,
     I: Fn(time::Duration) -> IS,

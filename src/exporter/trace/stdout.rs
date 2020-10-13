@@ -24,11 +24,15 @@
 //!     });
 //! }
 //! ```
-use crate::{api::trace::TracerProvider, exporter::trace, global, sdk};
+use crate::{
+    api::trace::TracerProvider,
+    exporter::trace::{ExportResult, SpanData, SpanExporter},
+    global, sdk,
+};
 use async_trait::async_trait;
 use std::fmt::Debug;
 use std::io::{self, stdout, Stdout, Write};
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 
 /// Pipeline builder
 #[derive(Debug)]
@@ -119,12 +123,12 @@ impl<W: Write> Exporter<W> {
 }
 
 #[async_trait]
-impl<W> trace::SpanExporter for Exporter<W>
+impl<W> SpanExporter for Exporter<W>
 where
     W: Write + Debug + Send + 'static,
 {
     /// Export spans to stdout
-    async fn export(&self, batch: &[Arc<trace::SpanData>]) -> trace::ExportResult {
+    async fn export(&self, batch: Vec<SpanData>) -> ExportResult {
         let writer = self
             .writer
             .lock()
@@ -142,10 +146,10 @@ where
         });
 
         if result.is_ok() {
-            trace::ExportResult::Success
+            ExportResult::Success
         } else {
             // FIXME: determine retryable io::Error types
-            trace::ExportResult::FailedNotRetryable
+            ExportResult::FailedNotRetryable
         }
     }
 }

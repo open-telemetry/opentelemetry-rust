@@ -5,13 +5,13 @@
 //! See [`Jaeger documentation`] for detail of Jaeger propagation format.
 //!
 //! [`Jaeger documentation`]: https://www.jaegertracing.io/docs/1.18/client-libraries/#propagation-format
-
-use opentelemetry::api::{
+use crate::api::{
+    propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
     trace::{
         SpanContext, SpanId, TraceContextExt, TraceId, TraceState, TRACE_FLAG_DEBUG,
         TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
     },
-    Context, Extractor, FieldIter, Injector, TextMapFormat,
+    Context,
 };
 use std::borrow::Cow;
 use std::str::FromStr;
@@ -135,7 +135,7 @@ impl JaegerPropagator {
     }
 }
 
-impl TextMapFormat for JaegerPropagator {
+impl TextMapPropagator for JaegerPropagator {
     fn inject_context(&self, cx: &Context, injector: &mut dyn Injector) {
         let span_context = cx.span().span_context();
         if span_context.is_valid() {
@@ -173,14 +173,14 @@ impl TextMapFormat for JaegerPropagator {
 
 #[cfg(test)]
 mod tests {
-    use crate::trace_propagator::jaeger_propagator::{JaegerPropagator, JAEGER_HEADER};
-    use opentelemetry::api::{
-        self,
+    use super::*;
+    use crate::api::{
+        propagation::{Injector, TextMapPropagator},
         trace::{
-            Span, SpanContext, SpanId, TraceContextExt, TraceId, TraceState, TRACE_FLAG_DEBUG,
-            TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
+            Span, SpanContext, SpanId, StatusCode, TraceContextExt, TraceId, TraceState,
+            TRACE_FLAG_DEBUG, TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
         },
-        Context, Injector, TextMapFormat,
+        Context, KeyValue,
     };
     use std::collections::HashMap;
     use std::time::SystemTime;
@@ -381,17 +381,17 @@ mod tests {
             &self,
             _name: String,
             _timestamp: std::time::SystemTime,
-            _attributes: Vec<api::KeyValue>,
+            _attributes: Vec<KeyValue>,
         ) {
         }
-        fn span_context(&self) -> api::trace::SpanContext {
+        fn span_context(&self) -> SpanContext {
             self.0.clone()
         }
         fn is_recording(&self) -> bool {
             false
         }
-        fn set_attribute(&self, _attribute: api::KeyValue) {}
-        fn set_status(&self, _code: api::trace::StatusCode, _message: String) {}
+        fn set_attribute(&self, _attribute: KeyValue) {}
+        fn set_status(&self, _code: StatusCode, _message: String) {}
         fn update_name(&self, _new_name: String) {}
         fn end_with_timestamp(&self, _timestamp: SystemTime) {}
     }

@@ -1,8 +1,8 @@
 use hello_world::greeter_client::GreeterClient;
 use hello_world::HelloRequest;
-use opentelemetry::api::{HttpTextFormat, KeyValue, Provider, TraceContextPropagator};
-use opentelemetry::sdk::Sampler;
-use opentelemetry::{api, sdk};
+use opentelemetry::api::{KeyValue, Provider, TraceContextPropagator};
+use opentelemetry::global;
+use opentelemetry::sdk::{self, Sampler};
 use tracing::*;
 use tracing_futures::Instrument;
 use tracing_opentelemetry::OpenTelemetrySpanExt;
@@ -28,11 +28,12 @@ fn tracing_init() -> Result<(), Box<dyn std::error::Error>> {
     let provider = sdk::Provider::builder()
         .with_simple_exporter(exporter)
         .with_config(sdk::Config {
-            default_sampler: Box::new(Sampler::Always),
+            default_sampler: Box::new(Sampler::AlwaysOn),
             ..Default::default()
         })
         .build();
     let tracer = provider.get_tracer("grpc-client");
+    global::set_http_text_propagator(TraceContextPropagator::new());
 
     let opentelemetry = tracing_opentelemetry::layer().with_tracer(tracer);
     tracing_subscriber::registry()
@@ -42,34 +43,19 @@ fn tracing_init() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-struct TonicMetadataMapCarrier<'a>(&'a mut tonic::metadata::MetadataMap);
-impl<'a> api::Carrier for TonicMetadataMapCarrier<'a> {
-    fn get(&self, key: &'static str) -> Option<&str> {
-        self.0.get(key).and_then(|metadata| metadata.to_str().ok())
-    }
-
-    fn set(&mut self, key: &'static str, value: String) {
-        if let Ok(key) = tonic::metadata::MetadataKey::from_bytes(key.to_lowercase().as_bytes()) {
-            self.0.insert(
-                key,
-                tonic::metadata::MetadataValue::from_str(&value).unwrap(),
-            );
-        }
-    }
-}
-
 #[instrument]
 async fn greet() -> Result<(), Box<dyn std::error::Error>> {
     let mut client = GreeterClient::connect("http://[::1]:50051")
         .instrument(info_span!("client connect"))
         .await?;
-    let propagator = TraceContextPropagator::new();
     let cx = tracing::Span::current().context();
 
     let mut request = tonic::Request::new(HelloRequest {
         name: "Tonic".into(),
     });
-    propagator.inject_context(&cx, &mut TonicMetadataMapCarrier(request.metadata_mut()));
+    global::get_http_text_propagator(|propagator| {
+        propagator.inject_context(&cx, request.metadata_mut())
+    });
 
     let response = client
         .say_hello(request)

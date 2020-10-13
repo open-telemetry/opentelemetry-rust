@@ -8,16 +8,15 @@ use opentelemetry::api::trace::{Link, SpanKind, StatusCode};
 use opentelemetry::exporter::trace::SpanData;
 use protobuf::reflect::ProtobufValue;
 use protobuf::{RepeatedField, SingularPtrField};
-use std::sync::Arc;
 
 impl From<SpanKind> for Span_SpanKind {
     fn from(span_kind: SpanKind) -> Self {
         match span_kind {
-            SpanKind::Client => Span_SpanKind::CLIENT,
-            SpanKind::Consumer => Span_SpanKind::CONSUMER,
-            SpanKind::Internal => Span_SpanKind::INTERNAL,
-            SpanKind::Producer => Span_SpanKind::PRODUCER,
-            SpanKind::Server => Span_SpanKind::SERVER,
+            SpanKind::Client => Span_SpanKind::SPAN_KIND_CLIENT,
+            SpanKind::Consumer => Span_SpanKind::SPAN_KIND_CONSUMER,
+            SpanKind::Internal => Span_SpanKind::SPAN_KIND_INTERNAL,
+            SpanKind::Producer => Span_SpanKind::SPAN_KIND_PRODUCER,
+            SpanKind::Server => Span_SpanKind::SPAN_KIND_SERVER,
         }
     }
 }
@@ -25,23 +24,23 @@ impl From<SpanKind> for Span_SpanKind {
 impl From<StatusCode> for Status_StatusCode {
     fn from(status_code: StatusCode) -> Self {
         match status_code {
-            StatusCode::OK => Status_StatusCode::Ok,
-            StatusCode::Canceled => Status_StatusCode::Cancelled,
-            StatusCode::Unknown => Status_StatusCode::UnknownError,
-            StatusCode::InvalidArgument => Status_StatusCode::InvalidArgument,
-            StatusCode::DeadlineExceeded => Status_StatusCode::DeadlineExceeded,
-            StatusCode::NotFound => Status_StatusCode::NotFound,
-            StatusCode::AlreadyExists => Status_StatusCode::AlreadyExists,
-            StatusCode::PermissionDenied => Status_StatusCode::PermissionDenied,
-            StatusCode::ResourceExhausted => Status_StatusCode::ResourceExhausted,
-            StatusCode::FailedPrecondition => Status_StatusCode::FailedPrecondition,
-            StatusCode::Aborted => Status_StatusCode::Aborted,
-            StatusCode::OutOfRange => Status_StatusCode::OutOfRange,
-            StatusCode::Unimplemented => Status_StatusCode::Unimplemented,
-            StatusCode::Internal => Status_StatusCode::InternalError,
-            StatusCode::Unavailable => Status_StatusCode::Unavailable,
-            StatusCode::DataLoss => Status_StatusCode::DataLoss,
-            StatusCode::Unauthenticated => Status_StatusCode::Unauthenticated,
+            StatusCode::OK => Status_StatusCode::STATUS_CODE_OK,
+            StatusCode::Canceled => Status_StatusCode::STATUS_CODE_CANCELLED,
+            StatusCode::Unknown => Status_StatusCode::STATUS_CODE_UNKNOWN_ERROR,
+            StatusCode::InvalidArgument => Status_StatusCode::STATUS_CODE_INVALID_ARGUMENT,
+            StatusCode::DeadlineExceeded => Status_StatusCode::STATUS_CODE_DEADLINE_EXCEEDED,
+            StatusCode::NotFound => Status_StatusCode::STATUS_CODE_NOT_FOUND,
+            StatusCode::AlreadyExists => Status_StatusCode::STATUS_CODE_ALREADY_EXISTS,
+            StatusCode::PermissionDenied => Status_StatusCode::STATUS_CODE_PERMISSION_DENIED,
+            StatusCode::ResourceExhausted => Status_StatusCode::STATUS_CODE_RESOURCE_EXHAUSTED,
+            StatusCode::FailedPrecondition => Status_StatusCode::STATUS_CODE_FAILED_PRECONDITION,
+            StatusCode::Aborted => Status_StatusCode::STATUS_CODE_ABORTED,
+            StatusCode::OutOfRange => Status_StatusCode::STATUS_CODE_OUT_OF_RANGE,
+            StatusCode::Unimplemented => Status_StatusCode::STATUS_CODE_UNIMPLEMENTED,
+            StatusCode::Internal => Status_StatusCode::STATUS_CODE_INTERNAL_ERROR,
+            StatusCode::Unavailable => Status_StatusCode::STATUS_CODE_UNAVAILABLE,
+            StatusCode::DataLoss => Status_StatusCode::STATUS_CODE_DATA_LOSS,
+            StatusCode::Unauthenticated => Status_StatusCode::STATUS_CODE_UNAUTHENTICATED,
         }
     }
 }
@@ -61,8 +60,7 @@ impl From<Link> for Span_Link {
                 .to_u64()
                 .to_be_bytes()
                 .to_vec(),
-            // TODO Add TraceState to SpanContext API: https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/trace/api.md#spancontext
-            trace_state: "".to_string(),
+            trace_state: link.span_context().trace_state().header(),
             attributes: Attributes::from(link.attributes().clone()).0,
             dropped_attributes_count: 0,
             ..Default::default()
@@ -70,8 +68,8 @@ impl From<Link> for Span_Link {
     }
 }
 
-impl From<&Arc<SpanData>> for ResourceSpans {
-    fn from(source_span: &Arc<SpanData>) -> Self {
+impl From<SpanData> for ResourceSpans {
+    fn from(source_span: SpanData) -> Self {
         ResourceSpans {
             resource: SingularPtrField::from(Some(Resource {
                 attributes: Default::default(),
@@ -94,8 +92,7 @@ impl From<&Arc<SpanData>> for ResourceSpans {
                             .to_u64()
                             .to_be_bytes()
                             .to_vec(),
-                        // TODO Add TraceState to SpanContext API: https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/trace/api.md#spancontext
-                        trace_state: "".to_string(),
+                        trace_state: source_span.span_context.trace_state().header(),
                         parent_span_id: {
                             if source_span.parent_span_id.to_u64().is_non_zero() {
                                 source_span.parent_span_id.to_u64().to_be_bytes().to_vec()
@@ -103,16 +100,16 @@ impl From<&Arc<SpanData>> for ResourceSpans {
                                 vec![]
                             }
                         },
-                        name: source_span.name.clone(),
-                        kind: source_span.span_kind.clone().into(),
+                        name: source_span.name,
+                        kind: source_span.span_kind.into(),
                         start_time_unix_nano: to_nanos(source_span.start_time),
                         end_time_unix_nano: to_nanos(source_span.end_time),
-                        attributes: Attributes::from(source_span.attributes.clone()).0,
                         dropped_attributes_count: source_span.attributes.dropped_count(),
+                        attributes: Attributes::from(source_span.attributes).0,
+                        dropped_events_count: source_span.message_events.dropped_count(),
                         events: RepeatedField::from_vec(
                             source_span
                                 .message_events
-                                .clone()
                                 .into_iter()
                                 .map(|event| Span_Event {
                                     time_unix_nano: to_nanos(event.timestamp),
@@ -123,19 +120,13 @@ impl From<&Arc<SpanData>> for ResourceSpans {
                                 })
                                 .collect(),
                         ),
-                        dropped_events_count: 0,
+                        dropped_links_count: source_span.links.dropped_count(),
                         links: RepeatedField::from_vec(
-                            source_span
-                                .links
-                                .clone()
-                                .into_iter()
-                                .map(Into::into)
-                                .collect(),
+                            source_span.links.into_iter().map(Into::into).collect(),
                         ),
-                        dropped_links_count: 0,
                         status: SingularPtrField::some(Status {
-                            code: Status_StatusCode::from(source_span.status_code.clone()),
-                            message: source_span.status_message.clone(),
+                            code: Status_StatusCode::from(source_span.status_code),
+                            message: source_span.status_message,
                             ..Default::default()
                         }),
                         ..Default::default()
