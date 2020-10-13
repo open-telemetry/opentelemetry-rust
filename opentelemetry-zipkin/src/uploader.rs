@@ -1,12 +1,12 @@
 //! # Zipkin Span Exporter
 use crate::model::span::Span;
 use async_trait::async_trait;
-use http::{header::CONTENT_TYPE, Request, Uri, Method};
+use http::{header::CONTENT_TYPE, Method, Request, Uri};
 use opentelemetry::exporter::trace::ExportResult;
-use std::fmt::Debug;
-use std::error::Error;
 #[cfg(feature = "reqwest")]
 use std::convert::TryInto;
+use std::error::Error;
+use std::fmt::Debug;
 
 #[derive(Debug)]
 pub(crate) enum Uploader {
@@ -15,10 +15,7 @@ pub(crate) enum Uploader {
 
 impl Uploader {
     /// Create a new http uploader
-    pub(crate) fn new(
-        client: Box<dyn HttpClient>,
-        collector_endpoint: Uri,
-    ) -> Self {
+    pub(crate) fn new(client: Box<dyn HttpClient>, collector_endpoint: Uri) -> Self {
         Uploader::Http(JsonV2Client {
             client,
             collector_endpoint,
