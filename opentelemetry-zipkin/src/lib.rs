@@ -47,9 +47,7 @@
 //! [`async-std`]: https://async.rs
 //!
 //! ## Bring your own http clients
-//! Users can choose appropriate http clients to align with their runtime. By default, the
-//! opentelemetry-zipkin will use blocking reqwest http client. Other than that, opentelemtry-zipkin
-//! also provide support for async reqwest http client surf http client.
+//! Users can choose appropriate http clients to align with their runtime.
 //!
 //! Based on the feature enabled. The default http client will be different. If user doesn't specific
 //! features or enabled `reqwest-blocking` feature. The blocking reqwest http client will be used as

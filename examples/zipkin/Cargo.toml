@@ -6,6 +6,3 @@ edition = "2018"
 [dependencies]
 opentelemetry = { path = "../../" }
 opentelemetry-zipkin = { path = "../../opentelemetry-zipkin" }
-http-client = "6.0.0"
-async-trait = "0.1"
-lazy_static = "1.4.0"

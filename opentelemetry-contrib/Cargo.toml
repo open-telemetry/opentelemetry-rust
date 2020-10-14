@@ -34,4 +34,3 @@ http = "0.2"
 [dev-dependencies]
 base64 = "0.12.3"
 isahc = "0.9"
-

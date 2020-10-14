@@ -1,15 +1,15 @@
 //! Trace exporters
 use crate::{api, sdk};
 use async_trait::async_trait;
-use http::Request;
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
-#[cfg(feature = "reqwest")]
+#[cfg(all(feature = "http", feature = "reqwest"))]
 use std::convert::TryInto;
-use std::error::Error;
 use std::fmt::Debug;
 use std::sync::Arc;
 use std::time::SystemTime;
+#[cfg(feature = "http")]
+use {http::Request, std::error::Error};
 
 pub mod stdout;
 
@@ -67,6 +67,7 @@ pub trait SpanExporter: Send + Sync + std::fmt::Debug {
 ///
 /// Users sometime choose http clients that relay on certain runtime. This trait allows users to bring
 /// their choice of http clients.
+#[cfg(feature = "http")]
 #[async_trait]
 pub trait HttpClient: Debug + Send + Sync {
     /// Send a batch of spans to collectors
@@ -107,7 +108,7 @@ pub struct SpanData {
     pub instrumentation_lib: sdk::InstrumentationLibrary,
 }
 
-#[cfg(feature = "reqwest")]
+#[cfg(all(feature = "reqwest", feature = "http"))]
 #[async_trait]
 impl HttpClient for reqwest::Client {
     async fn send(&self, request: Request<Vec<u8>>) -> Result<ExportResult, Box<dyn Error>> {
@@ -121,7 +122,7 @@ impl HttpClient for reqwest::Client {
     }
 }
 
-#[cfg(feature = "reqwest")]
+#[cfg(all(feature = "reqwest", feature = "http"))]
 #[async_trait]
 impl HttpClient for reqwest::blocking::Client {
     async fn send(&self, request: Request<Vec<u8>>) -> Result<ExportResult, Box<dyn Error>> {
@@ -135,7 +136,7 @@ impl HttpClient for reqwest::blocking::Client {
     }
 }
 
-#[cfg(feature = "surf")]
+#[cfg(all(feature = "surf", feature = "http"))]
 #[async_trait]
 impl HttpClient for surf::Client {
     async fn send(&self, request: Request<Vec<u8>>) -> Result<ExportResult, Box<dyn Error>> {
