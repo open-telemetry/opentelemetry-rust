@@ -136,7 +136,6 @@ use opentelemetry::{api::trace::TracerProvider, exporter::trace, global, sdk};
 use std::error::Error;
 use std::io;
 use std::net::SocketAddr;
-use std::sync::Arc;
 
 /// Default Zipkin collector endpoint
 const DEFAULT_COLLECTOR_ENDPOINT: &str = "http://127.0.0.1:9411/api/v2/spans";
@@ -268,9 +267,9 @@ impl ZipkinPipelineBuilder {
 #[async_trait]
 impl trace::SpanExporter for Exporter {
     /// Export spans to Zipkin collector.
-    async fn export(&self, batch: &[Arc<trace::SpanData>]) -> trace::ExportResult {
+    async fn export(&self, batch: Vec<trace::SpanData>) -> trace::ExportResult {
         let zipkin_spans = batch
-            .iter()
+            .into_iter()
             .map(|span| model::into_zipkin_span(self.local_endpoint.clone(), span))
             .collect();
 

@@ -7,11 +7,11 @@ use opentelemetry::{
     },
     exporter::trace::stdout,
     global,
-    sdk::trace as sdktrace,
+    sdk::{propagation::XrayPropagator, trace as sdktrace},
 };
 
 fn init_tracer() -> (sdktrace::Tracer, stdout::Uninstall) {
-    global::set_text_map_propagator(sdktrace::XrayPropagator::new());
+    global::set_text_map_propagator(XrayPropagator::new());
 
     // Install stdout exporter pipeline to be able to retrieve the collected spans.
     // For the demonstration, use `Sampler::AlwaysOn` sampler to sample all traces. In a production

@@ -54,6 +54,11 @@ impl<T> EvictedQueue<T> {
     pub fn len(&self) -> usize {
         self.queue.len()
     }
+
+    /// Count of dropped attributes
+    pub fn dropped_count(&self) -> u32 {
+        self.dropped_count
+    }
 }
 
 impl<T> IntoIterator for EvictedQueue<T> {

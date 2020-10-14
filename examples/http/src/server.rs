@@ -1,30 +1,33 @@
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Request, Response, Server};
-use opentelemetry::api::TextMapFormat;
 use opentelemetry::{
     api::trace::{Span, Tracer},
     exporter::trace::stdout,
-    global, sdk,
+    global,
+    sdk::{
+        propagation::TraceContextPropagator,
+        trace::{Config, Sampler},
+    },
 };
 use std::{convert::Infallible, net::SocketAddr};
 
 async fn handle(req: Request<Body>) -> Result<Response<Body>, Infallible> {
-    let propagator = sdk::trace::W3CPropagator::new();
-    let parent_cx = propagator.extract(req.headers());
+    let parent_cx = global::get_text_map_propagator(|propagator| propagator.extract(req.headers()));
     let span = global::tracer("example/server").start_from_context("hello", &parent_cx);
     span.add_event("handling this...".to_string(), Vec::new());
 
     Ok(Response::new("Hello, World!".into()))
 }
 
-fn init_tracer() -> (sdk::trace::Tracer, stdout::Uninstall) {
-    // Install stdout exporter pipeline to be able to retrieve the collected spans.
+fn init_tracer() -> (impl Tracer, stdout::Uninstall) {
+    global::set_text_map_propagator(TraceContextPropagator::new());
 
+    // Install stdout exporter pipeline to be able to retrieve the collected spans.
     // For the demonstration, use `Sampler::AlwaysOn` sampler to sample all traces. In a production
     // application, use `Sampler::ParentBased` or `Sampler::TraceIdRatioBased` with a desired ratio.
     stdout::new_pipeline()
-        .with_trace_config(sdk::trace::Config {
-            default_sampler: Box::new(sdk::trace::Sampler::AlwaysOn),
+        .with_trace_config(Config {
+            default_sampler: Box::new(Sampler::AlwaysOn),
             ..Default::default()
         })
         .install()

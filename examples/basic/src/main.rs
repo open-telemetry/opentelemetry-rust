@@ -6,8 +6,7 @@ use opentelemetry::api::{
 };
 use opentelemetry::exporter;
 use opentelemetry::global;
-use opentelemetry::sdk::metrics::PushController;
-use opentelemetry::sdk::trace as sdktrace;
+use opentelemetry::sdk::{metrics::PushController, trace as sdktrace};
 use std::error::Error;
 use std::time::Duration;
 

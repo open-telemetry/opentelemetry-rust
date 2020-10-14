@@ -23,7 +23,7 @@ pub struct Span {
 /// Inner data, processed and exported on drop
 #[derive(Debug)]
 struct SpanInner {
-    data: Option<Mutex<exporter::trace::SpanData>>,
+    data: Option<Mutex<Option<exporter::trace::SpanData>>>,
     tracer: sdk::trace::Tracer,
 }
 
@@ -36,7 +36,7 @@ impl Span {
         Span {
             id,
             inner: Arc::new(SpanInner {
-                data: data.map(Mutex::new),
+                data: data.map(|data| Mutex::new(Some(data))),
                 tracer,
             }),
         }
@@ -47,10 +47,12 @@ impl Span {
     where
         F: FnOnce(&exporter::trace::SpanData) -> T,
     {
-        self.inner
-            .data
-            .as_ref()
-            .and_then(|inner| inner.lock().ok().map(|span_data| f(&span_data)))
+        self.inner.data.as_ref().and_then(|inner| {
+            inner
+                .lock()
+                .ok()
+                .and_then(|span_data| span_data.as_ref().map(f))
+        })
     }
 
     /// Operate on mutable reference to span inner
@@ -58,10 +60,12 @@ impl Span {
     where
         F: FnOnce(&mut exporter::trace::SpanData) -> T,
     {
-        self.inner
-            .data
-            .as_ref()
-            .and_then(|inner| inner.lock().ok().map(|mut span_data| f(&mut span_data)))
+        self.inner.data.as_ref().and_then(|inner| {
+            inner
+                .lock()
+                .ok()
+                .and_then(|mut span_data| span_data.as_mut().map(f))
+        })
     }
 }
 
@@ -142,14 +146,27 @@ impl Drop for SpanInner {
     /// Report span on inner drop
     fn drop(&mut self) {
         if let Some(data) = self.data.take() {
-            if let Ok(mut inner) = data.lock() {
-                if inner.end_time == inner.start_time {
-                    inner.end_time = SystemTime::now();
-                }
-                let exportable_span = Arc::new(inner.clone());
+            if let Ok(mut span_data) = data.lock().map(|mut data| data.take()) {
                 if let Some(provider) = self.tracer.provider() {
-                    for processor in provider.span_processors() {
-                        processor.on_end(exportable_span.clone())
+                    // Set end time if unset or invalid
+                    if let Some(data) = span_data.as_mut() {
+                        if data.end_time <= data.start_time {
+                            data.end_time = SystemTime::now();
+                        }
+                    }
+                    let mut processors = provider.span_processors().iter().peekable();
+                    while let Some(processor) = processors.next() {
+                        let span_data = if processors.peek().is_none() {
+                            // last loop or single processor/exporter, move data
+                            span_data.take()
+                        } else {
+                            // clone so each exporter gets owned data
+                            span_data.clone()
+                        };
+
+                        if let Some(span_data) = span_data {
+                            processor.on_end(span_data);
+                        }
                     }
                 }
             }

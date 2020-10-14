@@ -1,6 +1,7 @@
 use hello_world::greeter_client::GreeterClient;
 use hello_world::HelloRequest;
-use opentelemetry::api::{HttpTextFormat, KeyValue, Provider, TraceContextPropagator};
+use opentelemetry::api::{KeyValue, Provider, TraceContextPropagator};
+use opentelemetry::global;
 use opentelemetry::sdk::{self, Sampler};
 use tracing::*;
 use tracing_futures::Instrument;
@@ -32,6 +33,7 @@ fn tracing_init() -> Result<(), Box<dyn std::error::Error>> {
         })
         .build();
     let tracer = provider.get_tracer("grpc-client");
+    global::set_http_text_propagator(TraceContextPropagator::new());
 
     let opentelemetry = tracing_opentelemetry::layer().with_tracer(tracer);
     tracing_subscriber::registry()
@@ -46,13 +48,14 @@ async fn greet() -> Result<(), Box<dyn std::error::Error>> {
     let mut client = GreeterClient::connect("http://[::1]:50051")
         .instrument(info_span!("client connect"))
         .await?;
-    let propagator = TraceContextPropagator::new();
     let cx = tracing::Span::current().context();
 
     let mut request = tonic::Request::new(HelloRequest {
         name: "Tonic".into(),
     });
-    propagator.inject_context(&cx, request.metadata_mut());
+    global::get_http_text_propagator(|propagator| {
+        propagator.inject_context(&cx, request.metadata_mut())
+    });
 
     let response = client
         .say_hello(request)

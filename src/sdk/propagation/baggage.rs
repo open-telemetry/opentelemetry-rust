@@ -1,6 +1,49 @@
-use super::Baggage;
-use crate::api::context::propagation::text_propagator::FieldIter;
-use crate::api::{self, Context, KeyValue};
+//! # OpenTelemetry Baggage API
+//!
+//! Baggage is used to annotate telemetry, adding context and
+//! information to metrics, traces, and logs. It is an abstract data type
+//! represented by a set of name/value pairs describing user-defined properties.
+//! Each name in a [`Baggage`] is associated with exactly one value.
+//! `Baggage`s are serialized according to the editor's draft of
+//! the [W3C Baggage] specification.
+//!
+//! [`CorrelationContext`]: struct.Baggage.html
+//! [W3C Baggage]: https://w3c.github.io/baggage/
+//!
+//! # Examples
+//!
+//! ```
+//! use opentelemetry::api::{BaggageExt, Key, propagation::TextMapPropagator};
+//! use opentelemetry::sdk::propagation::BaggagePropagator;
+//! use std::collections::HashMap;
+//!
+//! // Example baggage value passed in externally via http headers
+//! let mut headers = HashMap::new();
+//! headers.insert("baggage".to_string(), "user_id=1".to_string());
+//!
+//! let propagator = BaggagePropagator::new();
+//! // can extract from any type that impls `Extractor`, usually an HTTP header map
+//! let cx = propagator.extract(&headers);
+//!
+//! // Iterate over extracted name / value pairs
+//! for (name, value) in cx.baggage() {
+//!     // ...
+//! }
+//!
+//! // Add new baggage
+//! let cx_with_additions = cx.with_baggage(vec![Key::new("server_id").u64(42)]);
+//!
+//! // Inject aggage into http request
+//! propagator.inject_context(&cx_with_additions, &mut headers);
+//!
+//! let header_value = headers.get("baggage").expect("header is injected");
+//! assert!(header_value.contains("user_id=1"), "still contains previous name / value");
+//! assert!(header_value.contains("server_id=42"), "contains new name / value pair");
+//! ```
+use crate::api::{
+    propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
+    BaggageExt, Context, KeyValue,
+};
 use percent_encoding::{percent_decode_str, utf8_percent_encode, AsciiSet, CONTROLS};
 use std::iter;
 
@@ -8,7 +51,6 @@ static BAGGAGE_HEADER: &str = "baggage";
 const FRAGMENT: &AsciiSet = &CONTROLS.add(b' ').add(b'"').add(b';').add(b',').add(b'=');
 
 lazy_static::lazy_static! {
-    static ref DEFAULT_BAGGAGE: Baggage = Baggage::default();
     static ref BAGGAGE_FIELDS: [String; 1] = [BAGGAGE_HEADER.to_string()];
 }
 
@@ -27,9 +69,9 @@ impl BaggagePropagator {
     }
 }
 
-impl api::TextMapFormat for BaggagePropagator {
+impl TextMapPropagator for BaggagePropagator {
     /// Encodes the values of the `Context` and injects them into the provided `Injector`.
-    fn inject_context(&self, cx: &Context, injector: &mut dyn api::Injector) {
+    fn inject_context(&self, cx: &Context, injector: &mut dyn Injector) {
         let baggage = cx.baggage();
         if !baggage.is_empty() {
             let header_value = baggage
@@ -47,7 +89,7 @@ impl api::TextMapFormat for BaggagePropagator {
     }
 
     /// Extracts a `Context` with baggage values from a `Extractor`.
-    fn extract_with_context(&self, cx: &Context, extractor: &dyn api::Extractor) -> Context {
+    fn extract_with_context(&self, cx: &Context, extractor: &dyn Extractor) -> Context {
         if let Some(header_value) = extractor.get(BAGGAGE_HEADER) {
             let baggage = header_value.split(',').flat_map(|context_value| {
                 if let Some((name_and_value, props)) = context_value
@@ -92,89 +134,10 @@ impl api::TextMapFormat for BaggagePropagator {
     }
 }
 
-/// Methods for sorting and retrieving baggage data in a context.
-pub trait BaggageExt {
-    /// Returns a clone of the current context with the included name / value pairs.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use opentelemetry::api::{Context, BaggageExt, KeyValue, Value};
-    ///
-    /// let cx = Context::current_with_baggage(vec![KeyValue::new("my-name", "my-value")]);
-    ///
-    /// assert_eq!(
-    ///     cx.baggage().get("my-name"),
-    ///     Some(&Value::String("my-value".to_string())),
-    /// )
-    /// ```
-    fn current_with_baggage<T: IntoIterator<Item = KeyValue>>(baggage: T) -> Self;
-
-    /// Returns a clone of the given context with the included name / value pairs.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use opentelemetry::api::{Context, BaggageExt, KeyValue, Value};
-    ///
-    /// let some_context = Context::current();
-    /// let cx = some_context.with_baggage(vec![KeyValue::new("my-name", "my-value")]);
-    ///
-    /// assert_eq!(
-    ///     cx.baggage().get("my-name"),
-    ///     Some(&Value::String("my-value".to_string())),
-    /// )
-    /// ```
-    fn with_baggage<T: IntoIterator<Item = KeyValue>>(&self, baggage: T) -> Self;
-
-    /// Returns a clone of the given context with the included name / value pairs.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use opentelemetry::api::{Context, BaggageExt, KeyValue, Value};
-    ///
-    /// let cx = Context::current().with_cleared_baggage();
-    ///
-    /// assert_eq!(cx.baggage().len(), 0);
-    /// ```
-    fn with_cleared_baggage(&self) -> Self;
-
-    /// Returns a reference to this context's baggage, or the default
-    /// empty baggage if none has been set.
-    fn baggage(&self) -> &Baggage;
-}
-
-impl BaggageExt for Context {
-    fn current_with_baggage<T: IntoIterator<Item = KeyValue>>(kvs: T) -> Self {
-        Context::current().with_baggage(kvs)
-    }
-
-    fn with_baggage<T: IntoIterator<Item = KeyValue>>(&self, kvs: T) -> Self {
-        let merged: Baggage = self
-            .baggage()
-            .iter()
-            .map(|(key, value)| KeyValue::new(key.clone(), value.clone()))
-            .chain(kvs.into_iter())
-            .collect();
-
-        self.with_value(merged)
-    }
-
-    fn with_cleared_baggage(&self) -> Self {
-        self.with_value(Baggage::new())
-    }
-
-    fn baggage(&self) -> &Baggage {
-        self.get::<Baggage>().unwrap_or_else(|| &DEFAULT_BAGGAGE)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::api::TextMapFormat;
-    use crate::api::{Key, Value};
+    use crate::api::{propagation::TextMapPropagator, Key, Value};
     use std::collections::HashMap;
 
     #[rustfmt::skip]
