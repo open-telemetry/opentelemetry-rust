@@ -1,11 +1,7 @@
 //! # Zipkin Span Exporter
 use crate::model::span::Span;
-use async_trait::async_trait;
 use http::{header::CONTENT_TYPE, Method, Request, Uri};
-use opentelemetry::exporter::trace::ExportResult;
-#[cfg(feature = "reqwest")]
-use std::convert::TryInto;
-use std::error::Error;
+use opentelemetry::exporter::trace::{ExportResult, HttpClient};
 use std::fmt::Debug;
 
 #[derive(Debug)]
@@ -47,60 +43,5 @@ impl JsonV2Client {
             .header(CONTENT_TYPE, "application/json")
             .body(serde_json::to_vec(&spans).unwrap_or_default())?;
         self.client.send(req).await
-    }
-}
-
-/// A minimal interface necessary for uploading Zipkin spans over HTTP.
-#[async_trait]
-pub trait HttpClient: Debug + Send + Sync {
-    /// Send a batch of spans to Zipkin
-    async fn send(&self, request: Request<Vec<u8>>) -> Result<ExportResult, Box<dyn Error>>;
-}
-
-#[cfg(feature = "reqwest")]
-#[async_trait]
-impl HttpClient for reqwest::Client {
-    async fn send(&self, request: Request<Vec<u8>>) -> Result<ExportResult, Box<dyn Error>> {
-        let result = self.execute(request.try_into()?).await?;
-
-        if result.status().is_success() {
-            Ok(ExportResult::Success)
-        } else {
-            Ok(ExportResult::FailedNotRetryable)
-        }
-    }
-}
-
-#[cfg(feature = "reqwest")]
-#[async_trait]
-impl HttpClient for reqwest::blocking::Client {
-    async fn send(&self, request: Request<Vec<u8>>) -> Result<ExportResult, Box<dyn Error>> {
-        let result = self.execute(request.try_into()?)?;
-
-        if result.status().is_success() {
-            Ok(ExportResult::Success)
-        } else {
-            Ok(ExportResult::FailedNotRetryable)
-        }
-    }
-}
-
-#[cfg(feature = "surf")]
-#[async_trait]
-impl HttpClient for surf::Client {
-    async fn send(&self, request: Request<Vec<u8>>) -> Result<ExportResult, Box<dyn Error>> {
-        let (parts, body) = request.into_parts();
-        let uri = parts.uri.to_string().parse()?;
-
-        let req = surf::Request::builder(surf::http::Method::Post, uri)
-            .content_type("application/json")
-            .body(body);
-        let result = self.send(req).await?;
-
-        if result.status().is_success() {
-            Ok(ExportResult::Success)
-        } else {
-            Ok(ExportResult::FailedNotRetryable)
-        }
     }
 }

@@ -18,15 +18,20 @@ edition = "2018"
 
 [features]
 default = []
-datadog = ["indexmap", "isahc", "rmp", "async-trait"]
+datadog = ["indexmap", "rmp", "async-trait", "reqwest-blocking"]
+reqwest-blocking = ["reqwest/blocking"]
 
 [dependencies]
 async-trait = { version = "0.1", optional = true }
 indexmap = { version = "1.6.0", optional = true }
-opentelemetry = { version = "0.8.0", path = ".." }
-isahc = { version = "0.9.10", features = ["json"], optional = true }
+opentelemetry = { version = "0.8.0", path = "..", features = ["trace", "reqwest", "surf"] }
 rmp = { version = "0.8", optional = true }
 lazy_static = "1.4"
+reqwest = { version = "0.10", optional = true }
+surf = { version = "2.0", optional = true }
+http = "0.2"
 
 [dev-dependencies]
 base64 = "0.12.3"
+isahc = "0.9"
+

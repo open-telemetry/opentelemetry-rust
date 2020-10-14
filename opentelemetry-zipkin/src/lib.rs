@@ -72,7 +72,7 @@
 //! use opentelemetry::api::{KeyValue, trace::Tracer};
 //! use opentelemetry::sdk::{trace::{self, IdGenerator, Sampler}, Resource};
 //! use opentelemetry::exporter::trace::ExportResult;
-//! use opentelemetry_zipkin::HttpClient;
+//! use opentelemetry::sdk::trace::HttpClient;
 //! use async_trait::async_trait;
 //! use std::error::Error;
 //!
@@ -128,10 +128,10 @@ extern crate typed_builder;
 mod model;
 mod uploader;
 
-pub use crate::uploader::HttpClient;
 use async_trait::async_trait;
 use http::Uri;
 use model::endpoint::Endpoint;
+use opentelemetry::exporter::trace::HttpClient;
 use opentelemetry::{api::trace::TracerProvider, exporter::trace, global, sdk};
 use std::error::Error;
 use std::io;

@@ -47,6 +47,22 @@
 //! [`tokio`]: https://tokio.rs
 //! [`async-std`]: https://async.rs
 //!
+//! ## Bring your own http client
+//!
+//! Users can choose appropriate http clients to align with their runtime. By default, the
+//! datadog exporter will use blocking reqwest http client. Other than that, datadog exporter
+//! also provide support for async reqwest http client surf http client.
+//!
+//! Based on the feature enabled. The default http client will be different. If user doesn't specific
+//! features or enabled `reqwest-blocking` feature. The blocking reqwest http client will be used as
+//! default client. If `reqwest` feature is enabled. The async reqwest http client will be used. If
+//! `surf` feature is enabled. The surf http client will be used.
+//!
+//! Note that async http clients may need specific runtime otherwise it will panic. User should make
+//! sure the http client is running in appropriate runime.
+//!
+//! Users can always use their own http clients by implementing `HttpClient` trait.
+//!
 //! ## Kitchen Sink Full Configuration
 //!
 //! Example showing how to override all configuration options. See the
@@ -57,10 +73,34 @@
 //! ```no_run
 //! use opentelemetry::api::{KeyValue, trace::Tracer};
 //! use opentelemetry::sdk::{trace::{self, IdGenerator, Sampler}, Resource};
+//! use opentelemetry::exporter::trace::ExportResult;
+//! use opentelemetry::sdk::trace::HttpClient;
+//! use async_trait::async_trait;
+//! use std::error::Error;
+//!
+//! // `reqwest` and `surf` are supported through features, if you prefer an
+//! // alternate http client you can add support by implementing `HttpClient` as
+//! // shown here.
+//! #[derive(Debug)]
+//! struct IsahcClient(isahc::HttpClient);
+//!
+//! #[async_trait]
+//! impl HttpClient for IsahcClient {
+//!   async fn send(&self, request: http::Request<Vec<u8>>) -> Result<ExportResult, Box<dyn Error>> {
+//!     let result = self.0.send_async(request).await?;
+//!
+//!     if result.status().is_success() {
+//!       Ok(ExportResult::Success)
+//!     } else {
+//!       Ok(ExportResult::FailedNotRetryable)
+//!     }
+//!   }
+//! }
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     let (tracer, _uninstall) = opentelemetry_contrib::datadog::new_pipeline()
 //!         .with_service_name("my_app")
+//!         .with_http_client(IsahcClient(isahc::HttpClient::new()?))
 //!         .with_version(opentelemetry_contrib::datadog::ApiVersion::Version05)
 //!         .with_agent_endpoint("http://localhost:8126")
 //!         .with_trace_config(
@@ -86,9 +126,11 @@ mod model;
 pub use model::ApiVersion;
 
 use async_trait::async_trait;
-use isahc::http::{Request, Uri};
+use http::{Method, Request, Uri};
+use opentelemetry::exporter::trace::HttpClient;
 use opentelemetry::{api::trace::TracerProvider, exporter::trace, global, sdk};
 use std::error::Error;
+use std::io;
 use std::sync::Arc;
 
 /// Default Datadog collector endpoint
@@ -100,17 +142,21 @@ const DEFAULT_SERVICE_NAME: &str = "OpenTelemetry";
 /// Datadog span exporter
 #[derive(Debug)]
 pub struct DatadogExporter {
-    client: isahc::HttpClient,
+    client: Box<dyn HttpClient>,
     request_url: Uri,
     service_name: String,
     version: ApiVersion,
 }
 
 impl DatadogExporter {
-    fn new(service_name: String, request_url: Uri, version: ApiVersion) -> Self {
+    fn new(
+        service_name: String,
+        request_url: Uri,
+        version: ApiVersion,
+        client: Box<dyn HttpClient>,
+    ) -> Self {
         DatadogExporter {
-            client: isahc::HttpClient::new()
-                .expect("isahc default client should always build without error"),
+            client,
             request_url,
             service_name,
             version,
@@ -130,6 +176,7 @@ pub struct DatadogPipelineBuilder {
     agent_endpoint: String,
     trace_config: Option<sdk::trace::Config>,
     version: ApiVersion,
+    client: Option<Box<dyn HttpClient>>,
 }
 
 impl Default for DatadogPipelineBuilder {
@@ -139,6 +186,26 @@ impl Default for DatadogPipelineBuilder {
             agent_endpoint: DEFAULT_AGENT_ENDPOINT.to_string(),
             trace_config: None,
             version: ApiVersion::Version05,
+            #[cfg(feature = "reqwest-blocking")]
+            client: Some(Box::new(reqwest::blocking::Client::new())),
+            #[cfg(all(
+                not(feature = "reqwest-blocking"),
+                not(feature = "surf"),
+                feature = "reqwest"
+            ))]
+            client: Some(Box::new(reqwest::Client::new())),
+            #[cfg(all(
+                not(feature = "reqwest"),
+                not(feature = "reqwest-blocking"),
+                feature = "surf"
+            ))]
+            client: Some(Box::new(surf::Client::new())),
+            #[cfg(all(
+                not(feature = "reqwest"),
+                not(feature = "reqwest-blocking"),
+                not(feature = "surf"),
+            ))]
+            client: None,
         }
     }
 }
@@ -146,24 +213,44 @@ impl Default for DatadogPipelineBuilder {
 impl DatadogPipelineBuilder {
     /// Create `ExporterConfig` struct from current `ExporterConfigBuilder`
     pub fn install(mut self) -> Result<(sdk::trace::Tracer, Uninstall), Box<dyn Error>> {
-        let endpoint = self.agent_endpoint + self.version.path();
-        let exporter =
-            DatadogExporter::new(self.service_name.clone(), endpoint.parse()?, self.version);
+        if let Some(client) = self.client {
+            let endpoint = self.agent_endpoint + self.version.path();
+            let exporter = DatadogExporter::new(
+                self.service_name.clone(),
+                endpoint.parse()?,
+                self.version,
+                client,
+            );
 
-        let mut provider_builder = sdk::trace::TracerProvider::builder().with_exporter(exporter);
-        if let Some(config) = self.trace_config.take() {
-            provider_builder = provider_builder.with_config(config);
+            let mut provider_builder =
+                sdk::trace::TracerProvider::builder().with_exporter(exporter);
+            if let Some(config) = self.trace_config.take() {
+                provider_builder = provider_builder.with_config(config);
+            }
+            let provider = provider_builder.build();
+            let tracer =
+                provider.get_tracer("opentelemetry-datadog", Some(env!("CARGO_PKG_VERSION")));
+            let provider_guard = global::set_tracer_provider(provider);
+
+            Ok((tracer, Uninstall(provider_guard)))
+        } else {
+            Err(Box::new(io::Error::new(
+                io::ErrorKind::Other,
+                "http client must be set, users can enable datadog-reqwest or datadog-surf feature\
+                 to use http client implementation within create",
+            )))
         }
-        let provider = provider_builder.build();
-        let tracer = provider.get_tracer("opentelemetry-datadog", Some(env!("CARGO_PKG_VERSION")));
-        let provider_guard = global::set_tracer_provider(provider);
-
-        Ok((tracer, Uninstall(provider_guard)))
     }
 
     /// Assign the service name under which to group traces
     pub fn with_service_name<T: Into<String>>(mut self, name: T) -> Self {
         self.service_name = name.into();
+        self
+    }
+
+    /// Assign the underlying http client used.
+    pub fn with_http_client<T: HttpClient + 'static>(mut self, client: T) -> Self {
+        self.client = Some(Box::new(client));
         self
     }
 
@@ -195,7 +282,9 @@ impl trace::SpanExporter for DatadogExporter {
             Err(_) => return trace::ExportResult::FailedNotRetryable,
         };
 
-        let req = match Request::post(self.request_url.clone())
+        let req = match Request::builder()
+            .method(Method::POST)
+            .uri(self.request_url.clone())
             .header("content-type", self.version.content_type())
             .body(data)
         {
@@ -203,12 +292,10 @@ impl trace::SpanExporter for DatadogExporter {
             _ => return trace::ExportResult::FailedNotRetryable,
         };
 
-        let resp = self.client.send_async(req).await;
-
-        match resp {
-            Ok(response) if response.status().is_success() => trace::ExportResult::Success,
-            _ => trace::ExportResult::FailedRetryable,
-        }
+        self.client
+            .send(req)
+            .await
+            .unwrap_or(trace::ExportResult::FailedNotRetryable)
     }
 }
 
