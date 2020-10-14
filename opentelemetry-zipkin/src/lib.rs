@@ -72,7 +72,7 @@
 //! use opentelemetry::api::{KeyValue, trace::Tracer};
 //! use opentelemetry::sdk::{trace::{self, IdGenerator, Sampler}, Resource};
 //! use opentelemetry::exporter::trace::ExportResult;
-//! use opentelemetry::sdk::trace::HttpClient;
+//! use opentelemetry::exporter::trace::HttpClient;
 //! use async_trait::async_trait;
 //! use std::error::Error;
 //!

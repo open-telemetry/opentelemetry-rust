@@ -45,7 +45,7 @@ tokio = { version = "0.2", features = ["full"] }
 [features]
 default = ["trace"]
 base64_format = ["base64", "binary_propagator"]
-trace = ["rand", "pin-project", "async-trait", "http"]
+trace = ["rand", "pin-project", "async-trait"]
 metrics = ["thiserror", "dashmap", "fnv"]
 serialize = ["serde", "bincode"]
 binary_propagator = []

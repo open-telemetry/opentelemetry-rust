@@ -86,11 +86,11 @@ mod model;
 pub use model::ApiVersion;
 
 use async_trait::async_trait;
+use opentelemetry::exporter::trace::SpanData;
 use opentelemetry::{api::trace::TracerProvider, exporter::trace, global, sdk};
 use reqwest::header::CONTENT_TYPE;
 use reqwest::Url;
 use std::error::Error;
-use std::sync::Arc;
 
 /// Default Datadog collector endpoint
 const DEFAULT_AGENT_ENDPOINT: &str = "http://127.0.0.1:8126";
@@ -194,7 +194,7 @@ impl DatadogPipelineBuilder {
 #[async_trait]
 impl trace::SpanExporter for DatadogExporter {
     /// Export spans to datadog-agent
-    async fn export(&self, batch: &[Arc<trace::SpanData>]) -> trace::ExportResult {
+    async fn export(&self, batch: Vec<SpanData>) -> trace::ExportResult {
         let data = match self.version.encode(&self.service_name, batch) {
             Ok(data) => data,
             Err(_) => return trace::ExportResult::FailedNotRetryable,
