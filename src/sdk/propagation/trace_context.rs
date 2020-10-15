@@ -19,7 +19,7 @@
 //! [w3c trace-context docs]: https://w3c.github.io/trace-context/
 use crate::api::{
     propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
-    trace::{SpanContext, SpanId, TraceContextExt, TraceId, TraceState, TRACE_FLAG_SAMPLED},
+    trace::{SpanReference, SpanId, TraceContextExt, TraceId, TraceState, TRACE_FLAG_SAMPLED},
     Context,
 };
 use std::str::FromStr;
@@ -36,7 +36,7 @@ lazy_static::lazy_static! {
     ];
 }
 
-/// Propagates `SpanContext`s in [W3C TraceContext] format.
+/// Propagates `SpanReference`s in [W3C TraceContext] format.
 ///
 /// [W3C TraceContext]: https://www.w3.org/TR/trace-context/
 #[derive(Clone, Debug, Default)]
@@ -51,7 +51,7 @@ impl TraceContextPropagator {
     }
 
     /// Extract span context from w3c trace-context header.
-    fn extract_span_context(&self, extractor: &dyn Extractor) -> Result<SpanContext, ()> {
+    fn extract_span_context(&self, extractor: &dyn Extractor) -> Result<SpanReference, ()> {
         let header_value = extractor.get(TRACEPARENT_HEADER).unwrap_or("").trim();
         let parts = header_value.split_terminator('-').collect::<Vec<&str>>();
         // Ensure parts are not out of range.
@@ -102,7 +102,7 @@ impl TraceContextPropagator {
                 .unwrap_or_else(|_| TraceState::default());
 
         // create context
-        let span_context = SpanContext::new(trace_id, span_id, trace_flags, true, trace_state);
+        let span_context = SpanReference::new(trace_id, span_id, trace_flags, true, trace_state);
 
         // Ensure span is valid
         if !span_context.is_valid() {
@@ -114,7 +114,7 @@ impl TraceContextPropagator {
 }
 
 impl TextMapPropagator for TraceContextPropagator {
-    /// Properly encodes the values of the `SpanContext` and injects them
+    /// Properly encodes the values of the `SpanReference` and injects them
     /// into the `Injector`.
     fn inject_context(&self, cx: &Context, injector: &mut dyn Injector) {
         let span_context = cx.span().span_context();
@@ -131,9 +131,9 @@ impl TextMapPropagator for TraceContextPropagator {
         }
     }
 
-    /// Retrieves encoded `SpanContext`s using the `Extractor`. It decodes
-    /// the `SpanContext` and returns it. If no `SpanContext` was retrieved
-    /// OR if the retrieved SpanContext is invalid then an empty `SpanContext`
+    /// Retrieves encoded `SpanReference`s using the `Extractor`. It decodes
+    /// the `SpanReference` and returns it. If no `SpanReference` was retrieved
+    /// OR if the retrieved SpanReference is invalid then an empty `SpanReference`
     /// is returned.
     fn extract_with_context(&self, cx: &Context, extractor: &dyn Extractor) -> Context {
         self.extract_span_context(extractor)
@@ -151,23 +151,23 @@ mod tests {
     use super::*;
     use crate::api::{
         propagation::{Extractor, Injector, TextMapPropagator},
-        trace::{Span, SpanContext, SpanId, StatusCode, TraceId},
+        trace::{Span, SpanReference, SpanId, StatusCode, TraceId},
         KeyValue,
     };
     use std::collections::HashMap;
     use std::str::FromStr;
 
     #[rustfmt::skip]
-    fn extract_data() -> Vec<(&'static str, &'static str, SpanContext)> {
+    fn extract_data() -> Vec<(&'static str, &'static str, SpanReference)> {
         vec![
-            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-00", "foo=bar", SpanContext::new(TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 0, true, TraceState::from_str("foo=bar").unwrap())),
-            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01", "foo=bar", SpanContext::new(TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 1, true, TraceState::from_str("foo=bar").unwrap())),
-            ("02-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01", "foo=bar", SpanContext::new(TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 1, true, TraceState::from_str("foo=bar").unwrap())),
-            ("02-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-09", "foo=bar", SpanContext::new(TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 1, true, TraceState::from_str("foo=bar").unwrap())),
-            ("02-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-08", "foo=bar", SpanContext::new(TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 0, true, TraceState::from_str("foo=bar").unwrap())),
-            ("02-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-09-XYZxsf09", "foo=bar", SpanContext::new(TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 1, true, TraceState::from_str("foo=bar").unwrap())),
-            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01-", "foo=bar", SpanContext::new(TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 1, true, TraceState::from_str("foo=bar").unwrap())),
-            ("01-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-09-", "foo=bar", SpanContext::new(TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 1, true, TraceState::from_str("foo=bar").unwrap())),
+            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-00", "foo=bar", SpanReference::new(TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 0, true, TraceState::from_str("foo=bar").unwrap())),
+            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01", "foo=bar", SpanReference::new(TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 1, true, TraceState::from_str("foo=bar").unwrap())),
+            ("02-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01", "foo=bar", SpanReference::new(TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 1, true, TraceState::from_str("foo=bar").unwrap())),
+            ("02-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-09", "foo=bar", SpanReference::new(TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 1, true, TraceState::from_str("foo=bar").unwrap())),
+            ("02-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-08", "foo=bar", SpanReference::new(TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 0, true, TraceState::from_str("foo=bar").unwrap())),
+            ("02-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-09-XYZxsf09", "foo=bar", SpanReference::new(TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 1, true, TraceState::from_str("foo=bar").unwrap())),
+            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01-", "foo=bar", SpanReference::new(TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 1, true, TraceState::from_str("foo=bar").unwrap())),
+            ("01-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-09-", "foo=bar", SpanReference::new(TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 1, true, TraceState::from_str("foo=bar").unwrap())),
         ]
     }
 
@@ -194,12 +194,12 @@ mod tests {
     }
 
     #[rustfmt::skip]
-    fn inject_data() -> Vec<(&'static str, &'static str, SpanContext)> {
+    fn inject_data() -> Vec<(&'static str, &'static str, SpanReference)> {
         vec![
-            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01", "foo=bar", SpanContext::new(TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 1, true, TraceState::from_str("foo=bar").unwrap())),
-            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-00", "foo=bar", SpanContext::new(TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 0, true, TraceState::from_str("foo=bar").unwrap())),
-            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01", "foo=bar", SpanContext::new(TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 0xff, true, TraceState::from_str("foo=bar").unwrap())),
-            ("", "", SpanContext::empty_context()),
+            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01", "foo=bar", SpanReference::new(TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 1, true, TraceState::from_str("foo=bar").unwrap())),
+            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-00", "foo=bar", SpanReference::new(TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 0, true, TraceState::from_str("foo=bar").unwrap())),
+            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01", "foo=bar", SpanReference::new(TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 0xff, true, TraceState::from_str("foo=bar").unwrap())),
+            ("", "", SpanReference::empty_context()),
         ]
     }
 
@@ -258,7 +258,7 @@ mod tests {
     }
 
     #[derive(Debug)]
-    struct TestSpan(SpanContext);
+    struct TestSpan(SpanReference);
 
     impl Span for TestSpan {
         fn add_event_with_timestamp(
@@ -268,7 +268,7 @@ mod tests {
             _attributes: Vec<KeyValue>,
         ) {
         }
-        fn span_context(&self) -> SpanContext {
+        fn span_context(&self) -> SpanReference {
             self.0.clone()
         }
         fn is_recording(&self) -> bool {

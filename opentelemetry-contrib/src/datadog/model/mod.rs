@@ -75,7 +75,7 @@ mod tests {
         let trace_id = 7;
         let span_id = 99;
 
-        let span_context = api::trace::SpanContext::new(
+        let span_context = api::trace::SpanReference::new(
             api::trace::TraceId::from_u128(trace_id),
             api::trace::SpanId::from_u64(span_id),
             0,

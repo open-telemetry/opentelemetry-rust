@@ -59,7 +59,7 @@ impl Tracer {
     #[allow(clippy::too_many_arguments)]
     fn make_sampling_decision(
         &self,
-        parent_context: Option<&api::trace::SpanContext>,
+        parent_context: Option<&api::trace::SpanReference>,
         trace_id: api::trace::TraceId,
         name: &str,
         span_kind: &api::trace::SpanKind,
@@ -77,7 +77,7 @@ impl Tracer {
     fn process_sampling_result(
         &self,
         sampling_result: sdk::trace::SamplingResult,
-        parent_context: Option<&api::trace::SpanContext>,
+        parent_context: Option<&api::trace::SpanReference>,
     ) -> Option<(u8, Vec<api::KeyValue>, TraceState)> {
         match sampling_result {
             sdk::trace::SamplingResult {
@@ -116,7 +116,7 @@ impl api::trace::Tracer for Tracer {
     /// This implementation of `api::trace::Tracer` produces `sdk::Span` instances.
     type Span = sdk::trace::Span;
 
-    /// Returns a span with an inactive `SpanContext`. Used by functions that
+    /// Returns a span with an inactive `SpanReference`. Used by functions that
     /// need to return a default span like `get_active_span` if no span is present.
     fn invalid(&self) -> Self::Span {
         sdk::trace::Span::new(api::trace::SpanId::invalid(), None, self.clone())
@@ -247,7 +247,7 @@ impl api::trace::Tracer for Tracer {
             let resource = config.resource.clone();
 
             exporter::trace::SpanData {
-                span_context: api::trace::SpanContext::new(
+                span_context: api::trace::SpanReference::new(
                     trace_id,
                     span_id,
                     trace_flags,
@@ -284,7 +284,7 @@ impl api::trace::Tracer for Tracer {
 mod tests {
     use crate::api::{
         trace::{
-            Link, Span, SpanBuilder, SpanContext, SpanId, SpanKind, TraceId, TraceState, Tracer,
+            Link, Span, SpanBuilder, SpanReference, SpanId, SpanKind, TraceId, TraceState, Tracer,
             TracerProvider, TRACE_FLAG_SAMPLED,
         },
         Context, KeyValue,
@@ -300,7 +300,7 @@ mod tests {
     impl ShouldSample for TestSampler {
         fn should_sample(
             &self,
-            parent_context: Option<&SpanContext>,
+            parent_context: Option<&SpanReference>,
             _trace_id: TraceId,
             _name: &str,
             _span_kind: &SpanKind,
@@ -328,7 +328,7 @@ mod tests {
         let context = Context::default();
         let trace_state = TraceState::from_key_value(vec![("foo", "bar")]).unwrap();
         let mut span_builder = SpanBuilder::default();
-        span_builder.parent_context = Some(SpanContext::new(
+        span_builder.parent_context = Some(SpanReference::new(
             TraceId::from_u128(128),
             SpanId::from_u64(64),
             TRACE_FLAG_SAMPLED,

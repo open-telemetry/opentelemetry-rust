@@ -29,8 +29,8 @@ impl api::trace::Span for BoxedSpan {
         self.0.add_event_with_timestamp(name, timestamp, attributes)
     }
 
-    /// Returns the `SpanContext` for the given `Span`.
-    fn span_context(&self) -> api::trace::SpanContext {
+    /// Returns the `SpanReference` for the given `Span`.
+    fn span_context(&self) -> api::trace::SpanReference {
         self.0.span_context()
     }
 
@@ -79,7 +79,7 @@ impl api::trace::Tracer for BoxedTracer {
     /// which is not possible if it takes generic type parameters.
     type Span = BoxedSpan;
 
-    /// Returns a span with an inactive `SpanContext`. Used by functions that
+    /// Returns a span with an inactive `SpanReference`. Used by functions that
     /// need to return a default span like `get_active_span` if no span is present.
     fn invalid(&self) -> Self::Span {
         BoxedSpan(self.0.invalid_boxed())

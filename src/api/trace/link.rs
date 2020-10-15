@@ -8,13 +8,13 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
 #[derive(Clone, Debug, PartialEq)]
 pub struct Link {
-    span_context: api::trace::SpanContext,
+    span_context: api::trace::SpanReference,
     attributes: Vec<api::KeyValue>,
 }
 
 impl Link {
     /// Create a new link
-    pub fn new(span_context: api::trace::SpanContext, attributes: Vec<api::KeyValue>) -> Self {
+    pub fn new(span_context: api::trace::SpanReference, attributes: Vec<api::KeyValue>) -> Self {
         Link {
             span_context,
             attributes,
@@ -22,7 +22,7 @@ impl Link {
     }
 
     /// The span context of the linked span
-    pub fn span_context(&self) -> &api::trace::SpanContext {
+    pub fn span_context(&self) -> &api::trace::SpanReference {
         &self.span_context
     }
 

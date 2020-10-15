@@ -1,13 +1,13 @@
-//! # OpenTelemetry SpanContext interface
+//! # OpenTelemetry SpanReference interface
 //!
-//! A `SpanContext` represents the portion of a `Span` which must be serialized and propagated along
-//! side of a distributed context. `SpanContext`s are immutable.
+//! A `SpanReference` represents the portion of a `Span` which must be serialized and propagated along
+//! side of a distributed context. `SpanReference`s are immutable.
 //!
-//! The OpenTelemetry `SpanContext` representation conforms to the [w3c TraceContext specification].
+//! The OpenTelemetry `SpanReference` representation conforms to the [w3c TraceContext specification].
 //! It contains two identifiers - a `TraceId` and a `SpanId` - along with a set of common
 //! `TraceFlags` and system-specific `TraceState` values.
 //!
-//! The spec can be viewed here: https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/api-tracing.md#spancontext
+//! The spec can be viewed here: https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/api-tracing.md#SpanReference
 //!
 //! [w3c TraceContext specification]: https://www.w3.org/TR/trace-context/
 #[cfg(feature = "serialize")]
@@ -15,12 +15,12 @@ use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 use std::str::FromStr;
 
-/// A SpanContext with TRACE_FLAG_NOT_SAMPLED means the span is not sampled.
+/// A SpanReference with TRACE_FLAG_NOT_SAMPLED means the span is not sampled.
 pub const TRACE_FLAG_NOT_SAMPLED: u8 = 0x00;
-/// TRACE_FLAG_SAMPLED is a bitmask with the sampled bit set. A SpanContext
+/// TRACE_FLAG_SAMPLED is a bitmask with the sampled bit set. A SpanReference
 /// with the sampling bit set means the span is sampled.
 pub const TRACE_FLAG_SAMPLED: u8 = 0x01;
-/// TRACE_FLAGS_DEFERRED is a bitmask with the deferred bit set. A SpanContext
+/// TRACE_FLAGS_DEFERRED is a bitmask with the deferred bit set. A SpanReference
 /// with the deferred bit set means the sampling decision has been
 /// defered to the receiver.
 pub const TRACE_FLAG_DEFERRED: u8 = 0x02;
@@ -289,7 +289,7 @@ impl FromStr for TraceState {
 /// Immutable portion of a `Span` which can be serialized and propagated.
 #[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
 #[derive(Clone, Debug, PartialEq)]
-pub struct SpanContext {
+pub struct SpanReference {
     trace_id: TraceId,
     span_id: SpanId,
     trace_flags: u8,
@@ -297,10 +297,10 @@ pub struct SpanContext {
     trace_state: TraceState,
 }
 
-impl SpanContext {
+impl SpanReference {
     /// Create an invalid empty span context
     pub fn empty_context() -> Self {
-        SpanContext::new(
+        SpanReference::new(
             TraceId::invalid(),
             SpanId::invalid(),
             0,
@@ -309,7 +309,7 @@ impl SpanContext {
         )
     }
 
-    /// Construct a new `SpanContext`
+    /// Construct a new `SpanReference`
     pub fn new(
         trace_id: TraceId,
         span_id: SpanId,
@@ -317,7 +317,7 @@ impl SpanContext {
         is_remote: bool,
         trace_state: TraceState,
     ) -> Self {
-        SpanContext {
+        SpanReference {
             trace_id,
             span_id,
             trace_flags,
@@ -342,13 +342,13 @@ impl SpanContext {
         self.trace_flags
     }
 
-    /// Returns a bool flag which is true if the `SpanContext` has a valid (non-zero) `trace_id`
+    /// Returns a bool flag which is true if the `SpanReference` has a valid (non-zero) `trace_id`
     /// and a valid (non-zero) `span_id`.
     pub fn is_valid(&self) -> bool {
         self.trace_id.0 != 0 && self.span_id.0 != 0
     }
 
-    /// Returns true if the `SpanContext` was propagated from a remote parent.
+    /// Returns true if the `SpanReference` was propagated from a remote parent.
     pub fn is_remote(&self) -> bool {
         self.is_remote
     }
@@ -363,7 +363,7 @@ impl SpanContext {
         (self.trace_flags & TRACE_FLAG_DEBUG) == TRACE_FLAG_DEBUG
     }
 
-    /// Returns true if the `SpanContext` is sampled.
+    /// Returns true if the `SpanReference` is sampled.
     pub fn is_sampled(&self) -> bool {
         (self.trace_flags & TRACE_FLAG_SAMPLED) == TRACE_FLAG_SAMPLED
     }

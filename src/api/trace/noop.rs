@@ -37,7 +37,7 @@ impl api::trace::TracerProvider for NoopTracerProvider {
 /// A no-op instance of a `Span`.
 #[derive(Debug)]
 pub struct NoopSpan {
-    span_context: api::trace::SpanContext,
+    span_context: api::trace::SpanReference,
 }
 
 impl Default for NoopSpan {
@@ -50,7 +50,7 @@ impl NoopSpan {
     /// Creates a new `NoopSpan` instance.
     pub fn new() -> Self {
         NoopSpan {
-            span_context: api::trace::SpanContext::new(
+            span_context: api::trace::SpanReference::new(
                 api::trace::TraceId::invalid(),
                 api::trace::SpanId::invalid(),
                 0,
@@ -77,8 +77,8 @@ impl api::trace::Span for NoopSpan {
         // Ignored
     }
 
-    /// Returns an invalid `SpanContext`.
-    fn span_context(&self) -> api::trace::SpanContext {
+    /// Returns an invalid `SpanReference`.
+    fn span_context(&self) -> api::trace::SpanReference {
         self.span_context.clone()
     }
 
@@ -191,8 +191,8 @@ mod tests {
     use super::*;
     use crate::api::trace::{Span, TraceState, Tracer};
 
-    fn valid_span_context() -> api::trace::SpanContext {
-        api::trace::SpanContext::new(
+    fn valid_span_context() -> api::trace::SpanReference {
+        api::trace::SpanReference::new(
             api::trace::TraceId::from_u128(42),
             api::trace::SpanId::from_u64(42),
             0,
