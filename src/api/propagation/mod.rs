@@ -8,7 +8,7 @@
 //! text into injectors and extractors that travel in-band across process boundaries.
 //!
 //! Deserializing must set `is_remote` to true on the returned
-//! `SpanContext`.
+//! `SpanReference`.
 //!
 //! ## Binary Format
 //!
@@ -24,7 +24,7 @@
 //!
 //! Required arguments:
 //!
-//! - the value to serialize, can be `SpanContext` or `DistributedContext`.
+//! - the value to serialize, can be `SpanReference` or `DistributedContext`.
 //!
 //! Returns the on-the-wire byte representation of the value.
 //!
@@ -82,7 +82,7 @@
 //!
 //! Required arguments:
 //!
-//! - the `SpanContext` to be injected.
+//! - the `SpanReference` to be injected.
 //! - the injector that holds propagation fields. For example, an outgoing
 //! message or http request.
 //! - the `Setter` invoked for each propagation key to add or remove.
