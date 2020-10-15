@@ -107,9 +107,9 @@ pub(crate) fn into_zipkin_span(local_endpoint: Endpoint, span_data: trace::SpanD
     tags.insert("otel.status_description".into(), span_data.status_message);
 
     span::Span::builder()
-        .trace_id(span_data.span_context.trace_id().to_hex())
+        .trace_id(span_data.span_reference.trace_id().to_hex())
         .parent_id(span_data.parent_span_id.to_hex())
-        .id(span_data.span_context.span_id().to_hex())
+        .id(span_data.span_reference.span_id().to_hex())
         .name(span_data.name)
         .kind(if user_defined_span_kind {
             None

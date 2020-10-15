@@ -37,7 +37,7 @@ impl api::trace::TracerProvider for NoopTracerProvider {
 /// A no-op instance of a `Span`.
 #[derive(Debug)]
 pub struct NoopSpan {
-    span_context: api::trace::SpanContext,
+    span_reference: api::trace::SpanReference,
 }
 
 impl Default for NoopSpan {
@@ -50,7 +50,7 @@ impl NoopSpan {
     /// Creates a new `NoopSpan` instance.
     pub fn new() -> Self {
         NoopSpan {
-            span_context: api::trace::SpanContext::new(
+            span_reference: api::trace::SpanReference::new(
                 api::trace::TraceId::invalid(),
                 api::trace::SpanId::invalid(),
                 0,
@@ -77,9 +77,9 @@ impl api::trace::Span for NoopSpan {
         // Ignored
     }
 
-    /// Returns an invalid `SpanContext`.
-    fn span_context(&self) -> api::trace::SpanContext {
-        self.span_context.clone()
+    /// Returns an invalid `SpanReference`.
+    fn span_reference(&self) -> api::trace::SpanReference {
+        self.span_reference.clone()
     }
 
     /// Returns false, signifying that this span is never recording.
@@ -150,14 +150,14 @@ impl api::trace::Tracer for NoopTracer {
         mut builder: api::trace::SpanBuilder,
         cx: &api::Context,
     ) -> Self::Span {
-        let parent_span_context = builder
-            .parent_context
+        let parent_span_reference = builder
+            .parent_reference
             .take()
-            .or_else(|| Some(cx.span().span_context()).filter(|cx| cx.is_valid()))
-            .or_else(|| cx.remote_span_context().cloned())
+            .or_else(|| Some(cx.span().span_reference()).filter(|cx| cx.is_valid()))
+            .or_else(|| cx.remote_span_reference().cloned())
             .filter(|cx| cx.is_valid());
-        if let Some(span_context) = parent_span_context {
-            api::trace::NoopSpan { span_context }
+        if let Some(span_reference) = parent_span_reference {
+            api::trace::NoopSpan { span_reference }
         } else {
             self.invalid()
         }
@@ -191,8 +191,8 @@ mod tests {
     use super::*;
     use crate::api::trace::{Span, TraceState, Tracer};
 
-    fn valid_span_context() -> api::trace::SpanContext {
-        api::trace::SpanContext::new(
+    fn valid_span_reference() -> api::trace::SpanReference {
+        api::trace::SpanReference::new(
             api::trace::TraceId::from_u128(42),
             api::trace::SpanId::from_u64(42),
             0,
@@ -205,32 +205,32 @@ mod tests {
     fn noop_tracer_defaults_to_invalid_span() {
         let tracer = NoopTracer::new();
         let span = tracer.start_from_context("foo", &api::Context::new());
-        assert!(!span.span_context().is_valid());
+        assert!(!span.span_reference().is_valid());
     }
 
     #[test]
-    fn noop_tracer_propagates_valid_span_context_from_builder() {
+    fn noop_tracer_propagates_valid_span_reference_from_builder() {
         let tracer = NoopTracer::new();
-        let builder = tracer.span_builder("foo").with_parent(valid_span_context());
+        let builder = tracer.span_builder("foo").with_parent(valid_span_reference());
         let span = tracer.build_with_context(builder, &api::Context::new());
-        assert!(span.span_context().is_valid());
+        assert!(span.span_reference().is_valid());
     }
 
     #[test]
-    fn noop_tracer_propagates_valid_span_context_from_span() {
+    fn noop_tracer_propagates_valid_span_reference_from_span() {
         let tracer = NoopTracer::new();
         let cx = api::Context::new().with_span(NoopSpan {
-            span_context: valid_span_context(),
+            span_reference: valid_span_reference(),
         });
         let span = tracer.start_from_context("foo", &cx);
-        assert!(span.span_context().is_valid());
+        assert!(span.span_reference().is_valid());
     }
 
     #[test]
-    fn noop_tracer_propagates_valid_span_context_from_remote_span_context() {
+    fn noop_tracer_propagates_valid_span_reference_from_remote_span_reference() {
         let tracer = NoopTracer::new();
-        let cx = api::Context::new().with_remote_span_context(valid_span_context());
+        let cx = api::Context::new().with_remote_span_reference(valid_span_reference());
         let span = tracer.start_from_context("foo", &cx);
-        assert!(span.span_context().is_valid());
+        assert!(span.span_reference().is_valid());
     }
 }

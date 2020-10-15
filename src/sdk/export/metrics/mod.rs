@@ -115,7 +115,7 @@ pub trait Aggregator: fmt::Debug {
     /// provided number is an `i64`, `u64` or `f64`.
     ///
     /// The current Context could be inspected for a `Baggage` or
-    /// `SpanContext`.
+    /// `SpanReference`.
     fn update(&self, number: &Number, descriptor: &Descriptor) -> Result<()>;
 
     /// This method is called during collection to finish one period of aggregation

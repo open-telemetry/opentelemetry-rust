@@ -1,6 +1,6 @@
 //! # B3 Propagator
 //!
-//! The `B3Propagator` facilitates `SpanContext` propagation using
+//! The `B3Propagator` facilitates `SpanReference` propagation using
 //! B3 Headers. This propagator supports both version of B3 headers,
 //!  1. Single Header:
 //!    b3: {trace_id}-{span_id}-{sampling_state}-{parent_span_id}
@@ -16,7 +16,7 @@
 use crate::api::{
     propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
     trace::{
-        SpanContext, SpanId, TraceContextExt, TraceId, TraceState, TRACE_FLAG_DEBUG,
+        SpanReference, SpanId, TraceContextExt, TraceId, TraceState, TRACE_FLAG_DEBUG,
         TRACE_FLAG_DEFERRED, TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
     },
     Context,
@@ -63,7 +63,7 @@ impl B3Encoding {
     }
 }
 
-/// Extracts and injects `SpanContext`s into `Extractor`s or `Injector`s using B3 header format.
+/// Extracts and injects `SpanReference`s into `Extractor`s or `Injector`s using B3 header format.
 #[derive(Clone, Debug)]
 pub struct B3Propagator {
     inject_encoding: B3Encoding,
@@ -137,8 +137,8 @@ impl B3Propagator {
         }
     }
 
-    /// Extract a `SpanContext` from a single B3 header.
-    fn extract_single_header(&self, extractor: &dyn Extractor) -> Result<SpanContext, ()> {
+    /// Extract a `SpanReference` from a single B3 header.
+    fn extract_single_header(&self, extractor: &dyn Extractor) -> Result<SpanReference, ()> {
         let header_value = extractor.get(B3_SINGLE_HEADER).unwrap_or("");
         let parts = header_value.split_terminator('-').collect::<Vec<&str>>();
         // Ensure length is within range.
@@ -159,19 +159,19 @@ impl B3Propagator {
             let _ = self.extract_span_id(parts[3])?;
         }
 
-        let span_context =
-            SpanContext::new(trace_id, span_id, trace_flags, true, TraceState::default());
+        let span_reference =
+            SpanReference::new(trace_id, span_id, trace_flags, true, TraceState::default());
 
         // Ensure span is valid
-        if !span_context.is_valid() {
+        if !span_reference.is_valid() {
             return Err(());
         }
 
-        Ok(span_context)
+        Ok(span_reference)
     }
 
-    /// Extract a `SpanContext` from multiple B3 headers.
-    fn extract_multi_header(&self, extractor: &dyn Extractor) -> Result<SpanContext, ()> {
+    /// Extract a `SpanReference` from multiple B3 headers.
+    fn extract_multi_header(&self, extractor: &dyn Extractor) -> Result<SpanReference, ()> {
         let trace_id = self
             .extract_trace_id(extractor.get(B3_TRACE_ID_HEADER).unwrap_or(""))
             .map_err(|_| ())?;
@@ -197,10 +197,10 @@ impl B3Propagator {
             TRACE_FLAG_DEFERRED
         };
 
-        let span_context = SpanContext::new(trace_id, span_id, flag, true, TraceState::default());
+        let span_reference = SpanReference::new(trace_id, span_id, flag, true, TraceState::default());
 
-        if span_context.is_valid() {
-            Ok(span_context)
+        if span_reference.is_valid() {
+            Ok(span_reference)
         } else {
             Err(())
         }
@@ -208,21 +208,21 @@ impl B3Propagator {
 }
 
 impl TextMapPropagator for B3Propagator {
-    /// Properly encodes the values of the `Context`'s `SpanContext` and injects
+    /// Properly encodes the values of the `Context`'s `SpanReference` and injects
     /// them into the `Injector`.
     fn inject_context(&self, context: &Context, injector: &mut dyn Injector) {
-        let span_context = context.span().span_context();
-        if span_context.is_valid() {
+        let span_reference = context.span().span_reference();
+        if span_reference.is_valid() {
             if self.inject_encoding.support(&B3Encoding::SingleHeader) {
                 let mut value = format!(
                     "{:032x}-{:016x}",
-                    span_context.trace_id().to_u128(),
-                    span_context.span_id().to_u64(),
+                    span_reference.trace_id().to_u128(),
+                    span_reference.span_id().to_u64(),
                 );
-                if !span_context.is_deferred() {
-                    let flag = if span_context.is_debug() {
+                if !span_reference.is_deferred() {
+                    let flag = if span_reference.is_debug() {
                         "d"
-                    } else if span_context.is_sampled() {
+                    } else if span_reference.is_sampled() {
                         "1"
                     } else {
                         "0"
@@ -238,22 +238,22 @@ impl TextMapPropagator for B3Propagator {
                 // if inject_encoding is Unspecified, default to use MultipleHeader
                 injector.set(
                     B3_TRACE_ID_HEADER,
-                    format!("{:032x}", span_context.trace_id().to_u128()),
+                    format!("{:032x}", span_reference.trace_id().to_u128()),
                 );
                 injector.set(
                     B3_SPAN_ID_HEADER,
-                    format!("{:016x}", span_context.span_id().to_u64()),
+                    format!("{:016x}", span_reference.span_id().to_u64()),
                 );
 
-                if span_context.is_debug() {
+                if span_reference.is_debug() {
                     injector.set(B3_DEBUG_FLAG_HEADER, "1".to_string());
-                } else if !span_context.is_deferred() {
-                    let sampled = if span_context.is_sampled() { "1" } else { "0" };
+                } else if !span_reference.is_deferred() {
+                    let sampled = if span_reference.is_sampled() { "1" } else { "0" };
                     injector.set(B3_SAMPLED_HEADER, sampled.to_string());
                 }
             }
         } else {
-            let flag = if span_context.is_sampled() { "1" } else { "0" };
+            let flag = if span_reference.is_sampled() { "1" } else { "0" };
             if self.inject_encoding.support(&B3Encoding::SingleHeader) {
                 injector.set(B3_SINGLE_HEADER, flag.to_string())
             }
@@ -269,17 +269,17 @@ impl TextMapPropagator for B3Propagator {
     /// format was retrieved OR if the retrieved data is invalid, then the current
     /// `Context` is returned.
     fn extract_with_context(&self, cx: &Context, extractor: &dyn Extractor) -> Context {
-        let span_context = if self.inject_encoding.support(&B3Encoding::SingleHeader) {
+        let span_reference = if self.inject_encoding.support(&B3Encoding::SingleHeader) {
             self.extract_single_header(extractor).unwrap_or_else(|_|
                 // if invalid single header should fallback to multiple
                 self.extract_multi_header(extractor)
-                    .unwrap_or_else(|_| SpanContext::empty_context()))
+                    .unwrap_or_else(|_| SpanReference::empty_context()))
         } else {
             self.extract_multi_header(extractor)
-                .unwrap_or_else(|_| SpanContext::empty_context())
+                .unwrap_or_else(|_| SpanReference::empty_context())
         };
 
-        cx.with_remote_span_context(span_context)
+        cx.with_remote_span_reference(span_reference)
     }
 
     fn fields(&self) -> FieldIter {
@@ -306,7 +306,7 @@ mod tests {
     use crate::api::{
         propagation::TextMapPropagator,
         trace::{
-            Span, SpanContext, SpanId, StatusCode, TraceId, TRACE_FLAG_DEBUG, TRACE_FLAG_DEFERRED,
+            Span, SpanReference, SpanId, StatusCode, TraceId, TRACE_FLAG_DEBUG, TRACE_FLAG_DEFERRED,
             TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
         },
         KeyValue,
@@ -319,33 +319,33 @@ mod tests {
     const SPAN_ID_HEX: u64 = 0x00f0_67aa_0ba9_02b7;
 
     #[rustfmt::skip]
-    fn single_header_extract_data() -> Vec<(&'static str, SpanContext)> {
+    fn single_header_extract_data() -> Vec<(&'static str, SpanReference)> {
         vec![
-            ("4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7", SpanContext::new(TraceId::from_u128(TRACE_ID_HEX), SpanId::from_u64(SPAN_ID_HEX), TRACE_FLAG_DEFERRED, true, TraceState::default())), // deferred
-            ("4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-0", SpanContext::new(TraceId::from_u128(TRACE_ID_HEX), SpanId::from_u64(SPAN_ID_HEX), TRACE_FLAG_NOT_SAMPLED, true, TraceState::default())), // not sampled
-            ("4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-1", SpanContext::new(TraceId::from_u128(TRACE_ID_HEX), SpanId::from_u64(SPAN_ID_HEX), TRACE_FLAG_SAMPLED, true, TraceState::default())), // sampled
-            ("4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-d", SpanContext::new(TraceId::from_u128(TRACE_ID_HEX), SpanId::from_u64(SPAN_ID_HEX), TRACE_FLAG_DEBUG, true, TraceState::default())), // debug
-            ("4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-1-00000000000000cd", SpanContext::new(TraceId::from_u128(TRACE_ID_HEX), SpanId::from_u64(SPAN_ID_HEX), 1, true, TraceState::default())), // with parent span id
-            ("a3ce929d0e0e4736-00f067aa0ba902b7-1-00000000000000cd", SpanContext::new(TraceId::from_u128(0x0000_0000_0000_0000_a3ce_929d_0e0e_4736), SpanId::from_u64(SPAN_ID_HEX), 1, true, TraceState::default())), // padding 64 bit traceID
-            ("0", SpanContext::empty_context()),
-            ("-", SpanContext::empty_context()),
+            ("4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7", SpanReference::new(TraceId::from_u128(TRACE_ID_HEX), SpanId::from_u64(SPAN_ID_HEX), TRACE_FLAG_DEFERRED, true, TraceState::default())), // deferred
+            ("4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-0", SpanReference::new(TraceId::from_u128(TRACE_ID_HEX), SpanId::from_u64(SPAN_ID_HEX), TRACE_FLAG_NOT_SAMPLED, true, TraceState::default())), // not sampled
+            ("4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-1", SpanReference::new(TraceId::from_u128(TRACE_ID_HEX), SpanId::from_u64(SPAN_ID_HEX), TRACE_FLAG_SAMPLED, true, TraceState::default())), // sampled
+            ("4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-d", SpanReference::new(TraceId::from_u128(TRACE_ID_HEX), SpanId::from_u64(SPAN_ID_HEX), TRACE_FLAG_DEBUG, true, TraceState::default())), // debug
+            ("4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-1-00000000000000cd", SpanReference::new(TraceId::from_u128(TRACE_ID_HEX), SpanId::from_u64(SPAN_ID_HEX), 1, true, TraceState::default())), // with parent span id
+            ("a3ce929d0e0e4736-00f067aa0ba902b7-1-00000000000000cd", SpanReference::new(TraceId::from_u128(0x0000_0000_0000_0000_a3ce_929d_0e0e_4736), SpanId::from_u64(SPAN_ID_HEX), 1, true, TraceState::default())), // padding 64 bit traceID
+            ("0", SpanReference::empty_context()),
+            ("-", SpanReference::empty_context()),
         ]
     }
 
     #[rustfmt::skip]
     #[allow(clippy::type_complexity)]
-    fn multi_header_extract_data() -> Vec<((Option<&'static str>, Option<&'static str>, Option<&'static str>, Option<&'static str>, Option<&'static str>), SpanContext)> {
+    fn multi_header_extract_data() -> Vec<((Option<&'static str>, Option<&'static str>, Option<&'static str>, Option<&'static str>, Option<&'static str>), SpanReference)> {
         // (TraceId, SpanId, Sampled, FlagId, ParentSpanId)
         vec![
-            ((Some(TRACE_ID_STR), Some(SPAN_ID_STR), None, None, None), SpanContext::new(TraceId::from_u128(TRACE_ID_HEX), SpanId::from_u64(SPAN_ID_HEX), TRACE_FLAG_DEFERRED, true, TraceState::default())), // deferred
-            ((Some(TRACE_ID_STR), Some(SPAN_ID_STR), Some("0"), None, None), SpanContext::new(TraceId::from_u128(TRACE_ID_HEX), SpanId::from_u64(SPAN_ID_HEX), TRACE_FLAG_NOT_SAMPLED, true, TraceState::default())), // not sampled
-            ((Some(TRACE_ID_STR), Some(SPAN_ID_STR), Some("1"), None, None), SpanContext::new(TraceId::from_u128(TRACE_ID_HEX), SpanId::from_u64(SPAN_ID_HEX), TRACE_FLAG_SAMPLED, true, TraceState::default())), // sampled
-            ((Some(TRACE_ID_STR), Some(SPAN_ID_STR), Some("true"), None, None), SpanContext::new(TraceId::from_u128(TRACE_ID_HEX), SpanId::from_u64(SPAN_ID_HEX), TRACE_FLAG_SAMPLED, true, TraceState::default())),
-            ((Some(TRACE_ID_STR), Some(SPAN_ID_STR), Some("false"), None, None), SpanContext::new(TraceId::from_u128(TRACE_ID_HEX), SpanId::from_u64(SPAN_ID_HEX), TRACE_FLAG_NOT_SAMPLED, true, TraceState::default())), // use true/false to set sample
-            ((Some(TRACE_ID_STR), Some(SPAN_ID_STR), None, Some("1"), None), SpanContext::new(TraceId::from_u128(TRACE_ID_HEX), SpanId::from_u64(SPAN_ID_HEX), TRACE_FLAG_DEBUG | TRACE_FLAG_SAMPLED, true, TraceState::default())), // debug
-            ((Some(TRACE_ID_STR), Some(SPAN_ID_STR), Some("0"), Some("1"), Some("00f067aa0ba90200")), SpanContext::new(TraceId::from_u128(TRACE_ID_HEX), SpanId::from_u64(SPAN_ID_HEX), TRACE_FLAG_DEBUG | TRACE_FLAG_SAMPLED, true, TraceState::default())),  // debug flag should override sample flag
-            ((Some(TRACE_ID_STR), Some(SPAN_ID_STR), Some("1"), Some("2"), Some("00f067aa0ba90200")), SpanContext::new(TraceId::from_u128(TRACE_ID_HEX), SpanId::from_u64(SPAN_ID_HEX), TRACE_FLAG_SAMPLED, true, TraceState::default())), // invalid debug flag, should ignore
-            ((None, None, Some("0"), None, None), SpanContext::empty_context()),
+            ((Some(TRACE_ID_STR), Some(SPAN_ID_STR), None, None, None), SpanReference::new(TraceId::from_u128(TRACE_ID_HEX), SpanId::from_u64(SPAN_ID_HEX), TRACE_FLAG_DEFERRED, true, TraceState::default())), // deferred
+            ((Some(TRACE_ID_STR), Some(SPAN_ID_STR), Some("0"), None, None), SpanReference::new(TraceId::from_u128(TRACE_ID_HEX), SpanId::from_u64(SPAN_ID_HEX), TRACE_FLAG_NOT_SAMPLED, true, TraceState::default())), // not sampled
+            ((Some(TRACE_ID_STR), Some(SPAN_ID_STR), Some("1"), None, None), SpanReference::new(TraceId::from_u128(TRACE_ID_HEX), SpanId::from_u64(SPAN_ID_HEX), TRACE_FLAG_SAMPLED, true, TraceState::default())), // sampled
+            ((Some(TRACE_ID_STR), Some(SPAN_ID_STR), Some("true"), None, None), SpanReference::new(TraceId::from_u128(TRACE_ID_HEX), SpanId::from_u64(SPAN_ID_HEX), TRACE_FLAG_SAMPLED, true, TraceState::default())),
+            ((Some(TRACE_ID_STR), Some(SPAN_ID_STR), Some("false"), None, None), SpanReference::new(TraceId::from_u128(TRACE_ID_HEX), SpanId::from_u64(SPAN_ID_HEX), TRACE_FLAG_NOT_SAMPLED, true, TraceState::default())), // use true/false to set sample
+            ((Some(TRACE_ID_STR), Some(SPAN_ID_STR), None, Some("1"), None), SpanReference::new(TraceId::from_u128(TRACE_ID_HEX), SpanId::from_u64(SPAN_ID_HEX), TRACE_FLAG_DEBUG | TRACE_FLAG_SAMPLED, true, TraceState::default())), // debug
+            ((Some(TRACE_ID_STR), Some(SPAN_ID_STR), Some("0"), Some("1"), Some("00f067aa0ba90200")), SpanReference::new(TraceId::from_u128(TRACE_ID_HEX), SpanId::from_u64(SPAN_ID_HEX), TRACE_FLAG_DEBUG | TRACE_FLAG_SAMPLED, true, TraceState::default())),  // debug flag should override sample flag
+            ((Some(TRACE_ID_STR), Some(SPAN_ID_STR), Some("1"), Some("2"), Some("00f067aa0ba90200")), SpanReference::new(TraceId::from_u128(TRACE_ID_HEX), SpanId::from_u64(SPAN_ID_HEX), TRACE_FLAG_SAMPLED, true, TraceState::default())), // invalid debug flag, should ignore
+            ((None, None, Some("0"), None, None), SpanReference::empty_context()),
         ]
     }
 
@@ -388,54 +388,54 @@ mod tests {
 
     #[rustfmt::skip]
     #[allow(clippy::type_complexity)]
-    fn single_multi_header_extract_data() -> Vec<((Option<&'static str>, Option<&'static str>, Option<&'static str>, Option<&'static str>, Option<&'static str>), &'static str, SpanContext)> {
+    fn single_multi_header_extract_data() -> Vec<((Option<&'static str>, Option<&'static str>, Option<&'static str>, Option<&'static str>, Option<&'static str>), &'static str, SpanReference)> {
         // (TraceId, SpanId, Sampled, FlagId, ParentSpanId), b3
         vec![
             ((Some(TRACE_ID_STR), Some(SPAN_ID_STR), None, None, None), "4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-0",
-             SpanContext::new(TraceId::from_u128(TRACE_ID_HEX), SpanId::from_u64(SPAN_ID_HEX), TRACE_FLAG_NOT_SAMPLED, true, TraceState::default())), // single header take precedence
-            ((Some(TRACE_ID_STR), Some(SPAN_ID_STR), Some("0"), None, None), "-", SpanContext::new(TraceId::from_u128(TRACE_ID_HEX), SpanId::from_u64(SPAN_ID_HEX), TRACE_FLAG_NOT_SAMPLED, true, TraceState::default())), // when single header is invalid, fall back to multiple headers
-            ((Some("0"), Some("0"), Some("0"), None, None), "4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-0", SpanContext::new(TraceId::from_u128(TRACE_ID_HEX), SpanId::from_u64(SPAN_ID_HEX), TRACE_FLAG_NOT_SAMPLED, true, TraceState::default())) // invalid multiple header should go unnoticed since single header take precedence.
+             SpanReference::new(TraceId::from_u128(TRACE_ID_HEX), SpanId::from_u64(SPAN_ID_HEX), TRACE_FLAG_NOT_SAMPLED, true, TraceState::default())), // single header take precedence
+            ((Some(TRACE_ID_STR), Some(SPAN_ID_STR), Some("0"), None, None), "-", SpanReference::new(TraceId::from_u128(TRACE_ID_HEX), SpanId::from_u64(SPAN_ID_HEX), TRACE_FLAG_NOT_SAMPLED, true, TraceState::default())), // when single header is invalid, fall back to multiple headers
+            ((Some("0"), Some("0"), Some("0"), None, None), "4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-0", SpanReference::new(TraceId::from_u128(TRACE_ID_HEX), SpanId::from_u64(SPAN_ID_HEX), TRACE_FLAG_NOT_SAMPLED, true, TraceState::default())) // invalid multiple header should go unnoticed since single header take precedence.
         ]
     }
 
     #[rustfmt::skip]
-    fn single_header_inject_data() -> Vec<(&'static str, SpanContext)> {
+    fn single_header_inject_data() -> Vec<(&'static str, SpanReference)> {
         vec![
-            ("4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-1", SpanContext::new(TraceId::from_u128(TRACE_ID_HEX), SpanId::from_u64(SPAN_ID_HEX), TRACE_FLAG_SAMPLED, true, TraceState::default())),
-            ("4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-d", SpanContext::new(TraceId::from_u128(TRACE_ID_HEX), SpanId::from_u64(SPAN_ID_HEX), TRACE_FLAG_DEBUG, true, TraceState::default())),
-            ("4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7", SpanContext::new(TraceId::from_u128(TRACE_ID_HEX), SpanId::from_u64(SPAN_ID_HEX), TRACE_FLAG_DEFERRED, true, TraceState::default())),
-            ("4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-0", SpanContext::new(TraceId::from_u128(TRACE_ID_HEX), SpanId::from_u64(SPAN_ID_HEX), TRACE_FLAG_NOT_SAMPLED, true, TraceState::default())),
-            ("1", SpanContext::new(TraceId::invalid(), SpanId::invalid(), TRACE_FLAG_SAMPLED, true, TraceState::default())),
-            ("0", SpanContext::new(TraceId::invalid(), SpanId::invalid(), TRACE_FLAG_NOT_SAMPLED, true, TraceState::default())),
+            ("4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-1", SpanReference::new(TraceId::from_u128(TRACE_ID_HEX), SpanId::from_u64(SPAN_ID_HEX), TRACE_FLAG_SAMPLED, true, TraceState::default())),
+            ("4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-d", SpanReference::new(TraceId::from_u128(TRACE_ID_HEX), SpanId::from_u64(SPAN_ID_HEX), TRACE_FLAG_DEBUG, true, TraceState::default())),
+            ("4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7", SpanReference::new(TraceId::from_u128(TRACE_ID_HEX), SpanId::from_u64(SPAN_ID_HEX), TRACE_FLAG_DEFERRED, true, TraceState::default())),
+            ("4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-0", SpanReference::new(TraceId::from_u128(TRACE_ID_HEX), SpanId::from_u64(SPAN_ID_HEX), TRACE_FLAG_NOT_SAMPLED, true, TraceState::default())),
+            ("1", SpanReference::new(TraceId::invalid(), SpanId::invalid(), TRACE_FLAG_SAMPLED, true, TraceState::default())),
+            ("0", SpanReference::new(TraceId::invalid(), SpanId::invalid(), TRACE_FLAG_NOT_SAMPLED, true, TraceState::default())),
         ]
     }
 
     #[rustfmt::skip]
     #[allow(clippy::type_complexity)]
-    fn multi_header_inject_data() -> Vec<(Option<&'static str>, Option<&'static str>, Option<&'static str>, Option<&'static str>, SpanContext)> {
+    fn multi_header_inject_data() -> Vec<(Option<&'static str>, Option<&'static str>, Option<&'static str>, Option<&'static str>, SpanReference)> {
         // TraceId, SpanId, isSampled, isDebug
         vec![
-            (Some(TRACE_ID_STR), Some(SPAN_ID_STR), Some("1"), None, SpanContext::new(TraceId::from_u128(TRACE_ID_HEX), SpanId::from_u64(SPAN_ID_HEX), TRACE_FLAG_SAMPLED, true, TraceState::default())),
-            (Some(TRACE_ID_STR), Some(SPAN_ID_STR), None, Some("1"), SpanContext::new(TraceId::from_u128(TRACE_ID_HEX), SpanId::from_u64(SPAN_ID_HEX), TRACE_FLAG_DEBUG, true, TraceState::default())),
-            (Some(TRACE_ID_STR), Some(SPAN_ID_STR), None, None, SpanContext::new(TraceId::from_u128(TRACE_ID_HEX), SpanId::from_u64(SPAN_ID_HEX), TRACE_FLAG_DEFERRED, true, TraceState::default())),
-            (Some(TRACE_ID_STR), Some(SPAN_ID_STR), Some("0"), None, SpanContext::new(TraceId::from_u128(TRACE_ID_HEX), SpanId::from_u64(SPAN_ID_HEX), TRACE_FLAG_NOT_SAMPLED, true, TraceState::default())),
-            (None, None, Some("0"), None, SpanContext::empty_context()),
-            (None, None, Some("1"), None, SpanContext::new(TraceId::invalid(), SpanId::invalid(), TRACE_FLAG_SAMPLED, true, TraceState::default()))
+            (Some(TRACE_ID_STR), Some(SPAN_ID_STR), Some("1"), None, SpanReference::new(TraceId::from_u128(TRACE_ID_HEX), SpanId::from_u64(SPAN_ID_HEX), TRACE_FLAG_SAMPLED, true, TraceState::default())),
+            (Some(TRACE_ID_STR), Some(SPAN_ID_STR), None, Some("1"), SpanReference::new(TraceId::from_u128(TRACE_ID_HEX), SpanId::from_u64(SPAN_ID_HEX), TRACE_FLAG_DEBUG, true, TraceState::default())),
+            (Some(TRACE_ID_STR), Some(SPAN_ID_STR), None, None, SpanReference::new(TraceId::from_u128(TRACE_ID_HEX), SpanId::from_u64(SPAN_ID_HEX), TRACE_FLAG_DEFERRED, true, TraceState::default())),
+            (Some(TRACE_ID_STR), Some(SPAN_ID_STR), Some("0"), None, SpanReference::new(TraceId::from_u128(TRACE_ID_HEX), SpanId::from_u64(SPAN_ID_HEX), TRACE_FLAG_NOT_SAMPLED, true, TraceState::default())),
+            (None, None, Some("0"), None, SpanReference::empty_context()),
+            (None, None, Some("1"), None, SpanReference::new(TraceId::invalid(), SpanId::invalid(), TRACE_FLAG_SAMPLED, true, TraceState::default()))
         ]
     }
 
     #[rustfmt::skip]
     #[allow(clippy::type_complexity)]
-    fn single_multi_header_inject_data() -> Vec<(Option<&'static str>, Option<&'static str>, Option<&'static str>, Option<&'static str>, Option<&'static str>, SpanContext)> {
+    fn single_multi_header_inject_data() -> Vec<(Option<&'static str>, Option<&'static str>, Option<&'static str>, Option<&'static str>, Option<&'static str>, SpanReference)> {
         let trace_id: TraceId = TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736);
         let span_id: SpanId = SpanId::from_u64(0x00f0_67aa_0ba9_02b7);
         vec![
-            (Some(TRACE_ID_STR), Some(SPAN_ID_STR), Some("1"), None, Some("4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-1"), SpanContext::new(trace_id, span_id, TRACE_FLAG_SAMPLED, true, TraceState::default())), // sampled
-            (Some(TRACE_ID_STR), Some(SPAN_ID_STR), None, Some("1"), Some("4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-d"), SpanContext::new(trace_id, span_id, TRACE_FLAG_DEBUG, true, TraceState::default())), // debug
-            (Some(TRACE_ID_STR), Some(SPAN_ID_STR), Some("0"), None, Some("4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-0"), SpanContext::new(trace_id, span_id, TRACE_FLAG_NOT_SAMPLED, true, TraceState::default())), // not sampled
-            (Some(TRACE_ID_STR), Some(SPAN_ID_STR), None, None, Some("4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7"), SpanContext::new(trace_id, span_id, TRACE_FLAG_DEFERRED, true, TraceState::default())), // unset sampled
-            (None, None, Some("0"), None, Some("0"), SpanContext::empty_context()),
-            (None, None, Some("1"), None, Some("1"), SpanContext::new(TraceId::invalid(), SpanId::invalid(), TRACE_FLAG_SAMPLED, true, TraceState::default())),
+            (Some(TRACE_ID_STR), Some(SPAN_ID_STR), Some("1"), None, Some("4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-1"), SpanReference::new(trace_id, span_id, TRACE_FLAG_SAMPLED, true, TraceState::default())), // sampled
+            (Some(TRACE_ID_STR), Some(SPAN_ID_STR), None, Some("1"), Some("4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-d"), SpanReference::new(trace_id, span_id, TRACE_FLAG_DEBUG, true, TraceState::default())), // debug
+            (Some(TRACE_ID_STR), Some(SPAN_ID_STR), Some("0"), None, Some("4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-0"), SpanReference::new(trace_id, span_id, TRACE_FLAG_NOT_SAMPLED, true, TraceState::default())), // not sampled
+            (Some(TRACE_ID_STR), Some(SPAN_ID_STR), None, None, Some("4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7"), SpanReference::new(trace_id, span_id, TRACE_FLAG_DEFERRED, true, TraceState::default())), // unset sampled
+            (None, None, Some("0"), None, Some("0"), SpanReference::empty_context()),
+            (None, None, Some("1"), None, Some("1"), SpanReference::new(TraceId::invalid(), SpanId::invalid(), TRACE_FLAG_SAMPLED, true, TraceState::default())),
         ]
     }
 
@@ -478,7 +478,7 @@ mod tests {
             assert_eq!(
                 single_header_propagator
                     .extract(&extractor)
-                    .remote_span_context(),
+                    .remote_span_reference(),
                 Some(&expected_context)
             )
         }
@@ -489,13 +489,13 @@ mod tests {
             assert_eq!(
                 multi_header_propagator
                     .extract(&extractor)
-                    .remote_span_context(),
+                    .remote_span_reference(),
                 Some(&expected_context)
             );
             assert_eq!(
                 unspecific_header_propagator
                     .extract(&extractor)
-                    .remote_span_context(),
+                    .remote_span_reference(),
                 Some(&expected_context)
             )
         }
@@ -509,13 +509,13 @@ mod tests {
             assert_eq!(
                 single_header_propagator
                     .extract(&extractor)
-                    .remote_span_context(),
+                    .remote_span_reference(),
                 Some(&expected_context)
             );
             assert_eq!(
                 single_multi_propagator
                     .extract(&extractor)
-                    .remote_span_context(),
+                    .remote_span_reference(),
                 Some(&expected_context)
             )
         }
@@ -529,8 +529,8 @@ mod tests {
             assert_eq!(
                 single_header_propagator
                     .extract(&extractor)
-                    .remote_span_context(),
-                Some(&SpanContext::empty_context())
+                    .remote_span_reference(),
+                Some(&SpanReference::empty_context())
             )
         }
 
@@ -540,14 +540,14 @@ mod tests {
             assert_eq!(
                 multi_header_propagator
                     .extract(&extractor)
-                    .remote_span_context(),
-                Some(&SpanContext::empty_context())
+                    .remote_span_reference(),
+                Some(&SpanReference::empty_context())
             )
         }
     }
 
     #[derive(Debug)]
-    struct TestSpan(SpanContext);
+    struct TestSpan(SpanReference);
 
     impl Span for TestSpan {
         fn add_event_with_timestamp(
@@ -557,7 +557,7 @@ mod tests {
             _attributes: Vec<KeyValue>,
         ) {
         }
-        fn span_context(&self) -> SpanContext {
+        fn span_reference(&self) -> SpanReference {
             self.0.clone()
         }
         fn is_recording(&self) -> bool {

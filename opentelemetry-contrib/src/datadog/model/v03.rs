@@ -43,10 +43,10 @@ pub(crate) fn encode(service_name: &str, spans: Vec<trace::SpanData>) -> Result<
         rmp::encode::write_str(&mut encoded, &span.name)?;
 
         rmp::encode::write_str(&mut encoded, "trace_id")?;
-        rmp::encode::write_u64(&mut encoded, span.span_context.trace_id().to_u128() as u64)?;
+        rmp::encode::write_u64(&mut encoded, span.span_reference.trace_id().to_u128() as u64)?;
 
         rmp::encode::write_str(&mut encoded, "span_id")?;
-        rmp::encode::write_u64(&mut encoded, span.span_context.span_id().to_u64())?;
+        rmp::encode::write_u64(&mut encoded, span.span_reference.span_id().to_u64())?;
 
         rmp::encode::write_str(&mut encoded, "parent_id")?;
         rmp::encode::write_u64(&mut encoded, span.parent_span_id.to_u64())?;

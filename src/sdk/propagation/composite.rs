@@ -109,7 +109,7 @@ impl TextMapPropagator for TextMapCompositePropagator {
 mod tests {
     use crate::api::{
         propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
-        trace::{Span, SpanContext, SpanId, StatusCode, TraceContextExt, TraceId, TraceState},
+        trace::{Span, SpanReference, SpanId, StatusCode, TraceContextExt, TraceId, TraceState},
         Context, KeyValue,
     };
     use crate::sdk::propagation::{TextMapCompositePropagator, TraceContextPropagator};
@@ -135,7 +135,7 @@ mod tests {
 
     impl TextMapPropagator for TestPropagator {
         fn inject_context(&self, cx: &Context, injector: &mut dyn Injector) {
-            let span = cx.span().span_context();
+            let span = cx.span().span_reference();
             injector.set(
                 "testheader",
                 format!(
@@ -151,9 +151,9 @@ mod tests {
             let span = if let Some(val) = extractor.get("testheader") {
                 let parts = val.split_terminator('-').collect::<Vec<&str>>();
                 if parts.len() != 3 {
-                    SpanContext::empty_context()
+                    SpanReference::empty_context()
                 } else {
-                    SpanContext::new(
+                    SpanReference::new(
                         TraceId::from_u128(u128::from_str(parts[0]).unwrap_or(0)),
                         SpanId::from_u64(u64::from_str(parts[1]).unwrap_or(0)),
                         u8::from_str(parts[2]).unwrap_or(0),
@@ -162,10 +162,10 @@ mod tests {
                     )
                 }
             } else {
-                SpanContext::empty_context()
+                SpanReference::empty_context()
             };
 
-            cx.with_remote_span_context(span)
+            cx.with_remote_span_reference(span)
         }
 
         fn fields(&self) -> FieldIter {
@@ -184,7 +184,7 @@ mod tests {
     }
 
     #[derive(Debug)]
-    struct TestSpan(SpanContext);
+    struct TestSpan(SpanReference);
 
     impl Span for TestSpan {
         fn add_event_with_timestamp(
@@ -194,7 +194,7 @@ mod tests {
             _attributes: Vec<KeyValue>,
         ) {
         }
-        fn span_context(&self) -> SpanContext {
+        fn span_reference(&self) -> SpanReference {
             self.0.clone()
         }
         fn is_recording(&self) -> bool {
@@ -215,7 +215,7 @@ mod tests {
             Box::new(trace_context),
         ]);
 
-        let cx = Context::default().with_span(TestSpan(SpanContext::new(
+        let cx = Context::default().with_span(TestSpan(SpanReference::new(
             TraceId::from_u128(1),
             SpanId::from_u64(1),
             0,
@@ -245,8 +245,8 @@ mod tests {
             assert_eq!(
                 composite_propagator
                     .extract(&extractor)
-                    .remote_span_context(),
-                Some(&SpanContext::new(
+                    .remote_span_reference(),
+                Some(&SpanReference::new(
                     TraceId::from_u128(1),
                     SpanId::from_u64(1),
                     0,

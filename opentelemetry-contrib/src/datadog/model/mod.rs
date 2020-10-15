@@ -75,7 +75,7 @@ mod tests {
         let trace_id = 7;
         let span_id = 99;
 
-        let span_context = api::trace::SpanContext::new(
+        let span_reference = api::trace::SpanReference::new(
             api::trace::TraceId::from_u128(trace_id),
             api::trace::SpanId::from_u64(span_id),
             0,
@@ -94,7 +94,7 @@ mod tests {
         let links = sdk::trace::EvictedQueue::new(capacity);
 
         let span_data = trace::SpanData {
-            span_context,
+            span_reference,
             parent_span_id: api::trace::SpanId::from_u64(parent_span_id),
             span_kind: api::trace::SpanKind::Client,
             name: "resource".to_string(),
