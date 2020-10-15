@@ -46,6 +46,19 @@
 //! [`tokio`]: https://tokio.rs
 //! [`async-std`]: https://async.rs
 //!
+//! ## Bring your own http clients
+//! Users can choose appropriate http clients to align with their runtime.
+//!
+//! Based on the feature enabled. The default http client will be different. If user doesn't specific
+//! features or enabled `reqwest-blocking-client` feature. The blocking reqwest http client will be used as
+//! default client. If `reqwest-client` feature is enabled. The async reqwest http client will be used. If
+//! `surf-client` feature is enabled. The surf http client will be used.
+//!
+//! Note that async http clients may need specific runtime otherwise it will panic. User should make
+//! sure the http client is running in appropriate runime.
+//!
+//! Users can always use their own http clients by implementing `HttpClient` trait.
+//!
 //! ## Kitchen Sink Full Configuration
 //!
 //! Example showing how to override all configuration options. See the
@@ -56,9 +69,33 @@
 //! ```no_run
 //! use opentelemetry::api::{KeyValue, trace::Tracer};
 //! use opentelemetry::sdk::{trace::{self, IdGenerator, Sampler}, Resource};
+//! use opentelemetry::exporter::trace::ExportResult;
+//! use opentelemetry::exporter::trace::HttpClient;
+//! use async_trait::async_trait;
+//! use std::error::Error;
 //!
-//! fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! // `reqwest` and `surf` are supported through features, if you prefer an
+//! // alternate http client you can add support by implementing `HttpClient` as
+//! // shown here.
+//! #[derive(Debug)]
+//! struct IsahcClient(isahc::HttpClient);
+//!
+//! #[async_trait]
+//! impl HttpClient for IsahcClient {
+//!   async fn send(&self, request: http::Request<Vec<u8>>) -> Result<ExportResult, Box<dyn Error>> {
+//!     let result = self.0.send_async(request).await?;
+//!
+//!     if result.status().is_success() {
+//!       Ok(ExportResult::Success)
+//!     } else {
+//!       Ok(ExportResult::FailedNotRetryable)
+//!     }
+//!   }
+//! }
+//!
+//! fn main() -> Result<(), Box<dyn Error>> {
 //!     let (tracer, _uninstall) = opentelemetry_zipkin::new_pipeline()
+//!         .with_http_client(IsahcClient(isahc::HttpClient::new()?))
 //!         .with_service_name("my_app")
 //!         .with_service_address("127.0.0.1:8080".parse()?)
 //!         .with_collector_endpoint("http://localhost:9411/api/v2/spans")
@@ -90,10 +127,12 @@ mod model;
 mod uploader;
 
 use async_trait::async_trait;
+use http::Uri;
 use model::endpoint::Endpoint;
+use opentelemetry::exporter::trace::HttpClient;
 use opentelemetry::{api::trace::TracerProvider, exporter::trace, global, sdk};
-use reqwest::Url;
 use std::error::Error;
+use std::io;
 use std::net::SocketAddr;
 
 /// Default Zipkin collector endpoint
@@ -110,10 +149,10 @@ pub struct Exporter {
 }
 
 impl Exporter {
-    fn new(local_endpoint: Endpoint, collector_endpoint: Url) -> Self {
+    fn new(local_endpoint: Endpoint, client: Box<dyn HttpClient>, collector_endpoint: Uri) -> Self {
         Exporter {
             local_endpoint,
-            uploader: uploader::Uploader::with_http_endpoint(collector_endpoint),
+            uploader: uploader::Uploader::new(client, collector_endpoint),
         }
     }
 }
@@ -130,11 +169,33 @@ pub struct ZipkinPipelineBuilder {
     service_addr: Option<SocketAddr>,
     collector_endpoint: String,
     trace_config: Option<sdk::trace::Config>,
+    client: Option<Box<dyn HttpClient>>,
 }
 
 impl Default for ZipkinPipelineBuilder {
     fn default() -> Self {
         ZipkinPipelineBuilder {
+            #[cfg(feature = "reqwest-blocking-client")]
+            client: Some(Box::new(reqwest::blocking::Client::new())),
+            #[cfg(all(
+                not(feature = "reqwest-blocking-client"),
+                not(feature = "surf-client"),
+                feature = "reqwest-client"
+            ))]
+            client: Some(Box::new(reqwest::Client::new())),
+            #[cfg(all(
+                not(feature = "reqwest-client"),
+                not(feature = "reqwest-blocking-client"),
+                feature = "surf-client"
+            ))]
+            client: Some(Box::new(surf::Client::new())),
+            #[cfg(all(
+                not(feature = "reqwest-client"),
+                not(feature = "surf-client"),
+                not(feature = "reqwest-blocking-client")
+            ))]
+            client: None,
+
             service_name: DEFAULT_SERVICE_NAME.to_string(),
             service_addr: None,
             collector_endpoint: DEFAULT_COLLECTOR_ENDPOINT.to_string(),
@@ -146,23 +207,39 @@ impl Default for ZipkinPipelineBuilder {
 impl ZipkinPipelineBuilder {
     /// Create `ExporterConfig` struct from current `ExporterConfigBuilder`
     pub fn install(mut self) -> Result<(sdk::trace::Tracer, Uninstall), Box<dyn Error>> {
-        let endpoint = Endpoint::new(self.service_name, self.service_addr);
-        let exporter = Exporter::new(endpoint, self.collector_endpoint.parse()?);
+        if let Some(client) = self.client {
+            let endpoint = Endpoint::new(self.service_name, self.service_addr);
+            let exporter = Exporter::new(endpoint, client, self.collector_endpoint.parse()?);
 
-        let mut provider_builder = sdk::trace::TracerProvider::builder().with_exporter(exporter);
-        if let Some(config) = self.trace_config.take() {
-            provider_builder = provider_builder.with_config(config);
+            let mut provider_builder =
+                sdk::trace::TracerProvider::builder().with_exporter(exporter);
+            if let Some(config) = self.trace_config.take() {
+                provider_builder = provider_builder.with_config(config);
+            }
+            let provider = provider_builder.build();
+            let tracer =
+                provider.get_tracer("opentelemetry-zipkin", Some(env!("CARGO_PKG_VERSION")));
+            let provider_guard = global::set_tracer_provider(provider);
+
+            Ok((tracer, Uninstall(provider_guard)))
+        } else {
+            Err(Box::new(io::Error::new(
+                io::ErrorKind::Other,
+                "http client must be set, users can enable reqwest or surf feature to use http \
+                    client implementation within create",
+            )))
         }
-        let provider = provider_builder.build();
-        let tracer = provider.get_tracer("opentelemetry-zipkin", Some(env!("CARGO_PKG_VERSION")));
-        let provider_guard = global::set_tracer_provider(provider);
-
-        Ok((tracer, Uninstall(provider_guard)))
     }
 
     /// Assign the service name under which to group traces.
     pub fn with_service_name<T: Into<String>>(mut self, name: T) -> Self {
         self.service_name = name.into();
+        self
+    }
+
+    /// Assign client implementation
+    pub fn with_http_client<T: HttpClient + 'static>(mut self, client: T) -> Self {
+        self.client = Some(Box::new(client));
         self
     }
 
