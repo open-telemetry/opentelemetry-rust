@@ -49,7 +49,7 @@ impl JaegerPropagator {
     }
 
     /// Extract span context from header value
-    fn extract_span_context(&self, extractor: &dyn Extractor) -> Result<SpanReference, ()> {
+    fn extract_span_reference(&self, extractor: &dyn Extractor) -> Result<SpanReference, ()> {
         let mut header_value = Cow::from(extractor.get(JAEGER_HEADER).unwrap_or(""));
         // if there is no :, it means header_value could be encoded as url, try decode first
         if !header_value.contains(':') {
@@ -137,10 +137,10 @@ impl JaegerPropagator {
 
 impl TextMapPropagator for JaegerPropagator {
     fn inject_context(&self, cx: &Context, injector: &mut dyn Injector) {
-        let span_context = cx.span().span_context();
-        if span_context.is_valid() {
-            let flag: u8 = if span_context.is_sampled() {
-                if span_context.is_debug() {
+        let span_reference = cx.span().span_reference();
+        if span_reference.is_valid() {
+            let flag: u8 = if span_reference.is_sampled() {
+                if span_reference.is_debug() {
                     0x03
                 } else {
                     0x01
@@ -150,8 +150,8 @@ impl TextMapPropagator for JaegerPropagator {
             };
             let header_value = format!(
                 "{:032x}:{:016x}:{:01}:{:01}",
-                span_context.trace_id().to_u128(),
-                span_context.span_id().to_u64(),
+                span_reference.trace_id().to_u128(),
+                span_reference.span_id().to_u64(),
                 DEPRECATED_PARENT_SPAN,
                 flag,
             );
@@ -160,8 +160,8 @@ impl TextMapPropagator for JaegerPropagator {
     }
 
     fn extract_with_context(&self, cx: &Context, extractor: &dyn Extractor) -> Context {
-        cx.with_remote_span_context(
-            self.extract_span_context(extractor)
+        cx.with_remote_span_reference(
+            self.extract_span_reference(extractor)
                 .unwrap_or_else(|_| SpanReference::empty_context()),
         )
     }
@@ -303,7 +303,7 @@ mod tests {
         let propagator = JaegerPropagator::new();
         let context = propagator.extract(&map);
         assert_eq!(
-            context.remote_span_context(),
+            context.remote_span_reference(),
             Some(&SpanReference::empty_context())
         )
     }
@@ -318,7 +318,7 @@ mod tests {
             );
             let propagator = JaegerPropagator::new();
             let context = propagator.extract(&map);
-            assert_eq!(context.remote_span_context(), Some(&expected));
+            assert_eq!(context.remote_span_reference(), Some(&expected));
         }
     }
 
@@ -332,7 +332,7 @@ mod tests {
         let propagator = JaegerPropagator::new();
         let context = propagator.extract(&map);
         assert_eq!(
-            context.remote_span_context(),
+            context.remote_span_reference(),
             Some(&SpanReference::empty_context())
         );
     }
@@ -347,7 +347,7 @@ mod tests {
         let propagator = JaegerPropagator::new();
         let context = propagator.extract(&map);
         assert_eq!(
-            context.remote_span_context(),
+            context.remote_span_reference(),
             Some(&SpanReference::empty_context())
         );
     }
@@ -362,7 +362,7 @@ mod tests {
         let propagator = JaegerPropagator::new();
         let context = propagator.extract(&map);
         assert_eq!(
-            context.remote_span_context(),
+            context.remote_span_reference(),
             Some(&SpanReference::new(
                 TraceId::from_u128(TRACE_ID),
                 SpanId::from_u64(SPAN_ID),
@@ -384,7 +384,7 @@ mod tests {
             _attributes: Vec<KeyValue>,
         ) {
         }
-        fn span_context(&self) -> SpanReference {
+        fn span_reference(&self) -> SpanReference {
             self.0.clone()
         }
         fn is_recording(&self) -> bool {
@@ -399,10 +399,10 @@ mod tests {
     #[test]
     fn test_inject() {
         let propagator = JaegerPropagator::new();
-        for (span_context, header_value) in get_inject_data() {
+        for (span_reference, header_value) in get_inject_data() {
             let mut injector = HashMap::new();
             propagator.inject_context(
-                &Context::current_with_span(TestSpan(span_context)),
+                &Context::current_with_span(TestSpan(span_reference)),
                 &mut injector,
             );
             assert_eq!(injector.get(JAEGER_HEADER), Some(&header_value));

@@ -69,7 +69,7 @@ impl BinaryFormat for BinaryPropagator {
             trace_flags = b[1]
         }
 
-        let span_context = api::trace::SpanReference::new(
+        let span_reference = api::trace::SpanReference::new(
             api::trace::TraceId::from_u128(trace_id),
             api::trace::SpanId::from_u64(span_id),
             trace_flags,
@@ -78,8 +78,8 @@ impl BinaryFormat for BinaryPropagator {
             TraceState::default(),
         );
 
-        if span_context.is_valid() {
-            span_context
+        if span_reference.is_valid() {
+            span_reference
         } else {
             api::trace::SpanReference::empty_context()
         }

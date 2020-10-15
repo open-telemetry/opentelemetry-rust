@@ -52,7 +52,7 @@ impl XrayPropagator {
         XrayPropagator::default()
     }
 
-    fn extract_span_context(&self, extractor: &dyn Extractor) -> Result<SpanReference, ()> {
+    fn extract_span_reference(&self, extractor: &dyn Extractor) -> Result<SpanReference, ()> {
         let header_value: &str = extractor.get(AWS_XRAY_TRACE_HEADER).unwrap_or("").trim();
 
         let parts: Vec<(&str, &str)> = header_value
@@ -108,19 +108,19 @@ impl XrayPropagator {
 
 impl TextMapPropagator for XrayPropagator {
     fn inject_context(&self, cx: &Context, injector: &mut dyn Injector) {
-        let span_context: SpanReference = cx.span().span_context();
-        if span_context.is_valid() {
-            let xray_trace_id: XrayTraceId = span_context.trace_id().into();
+        let span_reference: SpanReference = cx.span().span_reference();
+        if span_reference.is_valid() {
+            let xray_trace_id: XrayTraceId = span_reference.trace_id().into();
 
-            let sampling_decision: &str = if span_context.is_deferred() {
+            let sampling_decision: &str = if span_reference.is_deferred() {
                 REQUESTED_SAMPLE_DECISION
-            } else if span_context.is_sampled() {
+            } else if span_reference.is_sampled() {
                 SAMPLED
             } else {
                 NOT_SAMPLED
             };
 
-            let trace_state_header: String = span_context
+            let trace_state_header: String = span_reference
                 .trace_state()
                 .header_delimited("=", ";")
                 .split_terminator(';')
@@ -140,7 +140,7 @@ impl TextMapPropagator for XrayPropagator {
                     HEADER_ROOT_KEY,
                     xray_trace_id.0,
                     HEADER_PARENT_KEY,
-                    span_context.span_id().to_hex(),
+                    span_reference.span_id().to_hex(),
                     HEADER_SAMPLED_KEY,
                     sampling_decision,
                     trace_state_prefix,
@@ -152,10 +152,10 @@ impl TextMapPropagator for XrayPropagator {
 
     fn extract_with_context(&self, cx: &Context, extractor: &dyn Extractor) -> Context {
         let extracted = self
-            .extract_span_context(extractor)
+            .extract_span_reference(extractor)
             .unwrap_or_else(|_| SpanReference::empty_context());
 
-        cx.with_remote_span_context(extracted)
+        cx.with_remote_span_reference(extracted)
     }
 
     fn fields(&self) -> FieldIter {
@@ -284,7 +284,7 @@ mod tests {
 
             let propagator = XrayPropagator::default();
             let context = propagator.extract(&map);
-            assert_eq!(context.remote_span_context(), Some(&expected));
+            assert_eq!(context.remote_span_reference(), Some(&expected));
         }
     }
 
@@ -294,7 +294,7 @@ mod tests {
         let propagator = XrayPropagator::default();
         let context = propagator.extract(&map);
         assert_eq!(
-            context.remote_span_context(),
+            context.remote_span_reference(),
             Some(&SpanReference::empty_context())
         )
     }
@@ -310,7 +310,7 @@ mod tests {
             _attributes: Vec<api::KeyValue>,
         ) {
         }
-        fn span_context(&self) -> SpanReference {
+        fn span_reference(&self) -> SpanReference {
             self.0.clone()
         }
         fn is_recording(&self) -> bool {
@@ -325,10 +325,10 @@ mod tests {
     #[test]
     fn test_inject() {
         let propagator = XrayPropagator::default();
-        for (header_value, span_context) in inject_test_data() {
+        for (header_value, span_reference) in inject_test_data() {
             let mut injector: HashMap<String, String> = HashMap::new();
             propagator.inject_context(
-                &Context::current_with_span(TestSpan(span_context)),
+                &Context::current_with_span(TestSpan(span_reference)),
                 &mut injector,
             );
 

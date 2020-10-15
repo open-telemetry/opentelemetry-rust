@@ -87,7 +87,7 @@ pub trait Span: fmt::Debug + 'static + Send + Sync {
 
     /// Returns the `SpanReference` for the given `Span`. The returned value may be used even after
     /// the `Span is finished. The returned value MUST be the same for the entire `Span` lifetime.
-    fn span_context(&self) -> api::trace::SpanReference;
+    fn span_reference(&self) -> api::trace::SpanReference;
 
     /// Returns true if this `Span` is recording information like events with the `add_event`
     /// operation, attributes using `set_attributes`, status with `set_status`, etc.

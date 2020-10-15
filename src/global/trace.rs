@@ -30,8 +30,8 @@ impl api::trace::Span for BoxedSpan {
     }
 
     /// Returns the `SpanReference` for the given `Span`.
-    fn span_context(&self) -> api::trace::SpanReference {
-        self.0.span_context()
+    fn span_reference(&self) -> api::trace::SpanReference {
+        self.0.span_reference()
     }
 
     /// Returns true if this `Span` is recording information like events with the `add_event`

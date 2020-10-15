@@ -159,15 +159,15 @@ impl B3Propagator {
             let _ = self.extract_span_id(parts[3])?;
         }
 
-        let span_context =
+        let span_reference =
             SpanReference::new(trace_id, span_id, trace_flags, true, TraceState::default());
 
         // Ensure span is valid
-        if !span_context.is_valid() {
+        if !span_reference.is_valid() {
             return Err(());
         }
 
-        Ok(span_context)
+        Ok(span_reference)
     }
 
     /// Extract a `SpanReference` from multiple B3 headers.
@@ -197,10 +197,10 @@ impl B3Propagator {
             TRACE_FLAG_DEFERRED
         };
 
-        let span_context = SpanReference::new(trace_id, span_id, flag, true, TraceState::default());
+        let span_reference = SpanReference::new(trace_id, span_id, flag, true, TraceState::default());
 
-        if span_context.is_valid() {
-            Ok(span_context)
+        if span_reference.is_valid() {
+            Ok(span_reference)
         } else {
             Err(())
         }
@@ -211,18 +211,18 @@ impl TextMapPropagator for B3Propagator {
     /// Properly encodes the values of the `Context`'s `SpanReference` and injects
     /// them into the `Injector`.
     fn inject_context(&self, context: &Context, injector: &mut dyn Injector) {
-        let span_context = context.span().span_context();
-        if span_context.is_valid() {
+        let span_reference = context.span().span_reference();
+        if span_reference.is_valid() {
             if self.inject_encoding.support(&B3Encoding::SingleHeader) {
                 let mut value = format!(
                     "{:032x}-{:016x}",
-                    span_context.trace_id().to_u128(),
-                    span_context.span_id().to_u64(),
+                    span_reference.trace_id().to_u128(),
+                    span_reference.span_id().to_u64(),
                 );
-                if !span_context.is_deferred() {
-                    let flag = if span_context.is_debug() {
+                if !span_reference.is_deferred() {
+                    let flag = if span_reference.is_debug() {
                         "d"
-                    } else if span_context.is_sampled() {
+                    } else if span_reference.is_sampled() {
                         "1"
                     } else {
                         "0"
@@ -238,22 +238,22 @@ impl TextMapPropagator for B3Propagator {
                 // if inject_encoding is Unspecified, default to use MultipleHeader
                 injector.set(
                     B3_TRACE_ID_HEADER,
-                    format!("{:032x}", span_context.trace_id().to_u128()),
+                    format!("{:032x}", span_reference.trace_id().to_u128()),
                 );
                 injector.set(
                     B3_SPAN_ID_HEADER,
-                    format!("{:016x}", span_context.span_id().to_u64()),
+                    format!("{:016x}", span_reference.span_id().to_u64()),
                 );
 
-                if span_context.is_debug() {
+                if span_reference.is_debug() {
                     injector.set(B3_DEBUG_FLAG_HEADER, "1".to_string());
-                } else if !span_context.is_deferred() {
-                    let sampled = if span_context.is_sampled() { "1" } else { "0" };
+                } else if !span_reference.is_deferred() {
+                    let sampled = if span_reference.is_sampled() { "1" } else { "0" };
                     injector.set(B3_SAMPLED_HEADER, sampled.to_string());
                 }
             }
         } else {
-            let flag = if span_context.is_sampled() { "1" } else { "0" };
+            let flag = if span_reference.is_sampled() { "1" } else { "0" };
             if self.inject_encoding.support(&B3Encoding::SingleHeader) {
                 injector.set(B3_SINGLE_HEADER, flag.to_string())
             }
@@ -269,7 +269,7 @@ impl TextMapPropagator for B3Propagator {
     /// format was retrieved OR if the retrieved data is invalid, then the current
     /// `Context` is returned.
     fn extract_with_context(&self, cx: &Context, extractor: &dyn Extractor) -> Context {
-        let span_context = if self.inject_encoding.support(&B3Encoding::SingleHeader) {
+        let span_reference = if self.inject_encoding.support(&B3Encoding::SingleHeader) {
             self.extract_single_header(extractor).unwrap_or_else(|_|
                 // if invalid single header should fallback to multiple
                 self.extract_multi_header(extractor)
@@ -279,7 +279,7 @@ impl TextMapPropagator for B3Propagator {
                 .unwrap_or_else(|_| SpanReference::empty_context())
         };
 
-        cx.with_remote_span_context(span_context)
+        cx.with_remote_span_reference(span_reference)
     }
 
     fn fields(&self) -> FieldIter {
@@ -478,7 +478,7 @@ mod tests {
             assert_eq!(
                 single_header_propagator
                     .extract(&extractor)
-                    .remote_span_context(),
+                    .remote_span_reference(),
                 Some(&expected_context)
             )
         }
@@ -489,13 +489,13 @@ mod tests {
             assert_eq!(
                 multi_header_propagator
                     .extract(&extractor)
-                    .remote_span_context(),
+                    .remote_span_reference(),
                 Some(&expected_context)
             );
             assert_eq!(
                 unspecific_header_propagator
                     .extract(&extractor)
-                    .remote_span_context(),
+                    .remote_span_reference(),
                 Some(&expected_context)
             )
         }
@@ -509,13 +509,13 @@ mod tests {
             assert_eq!(
                 single_header_propagator
                     .extract(&extractor)
-                    .remote_span_context(),
+                    .remote_span_reference(),
                 Some(&expected_context)
             );
             assert_eq!(
                 single_multi_propagator
                     .extract(&extractor)
-                    .remote_span_context(),
+                    .remote_span_reference(),
                 Some(&expected_context)
             )
         }
@@ -529,7 +529,7 @@ mod tests {
             assert_eq!(
                 single_header_propagator
                     .extract(&extractor)
-                    .remote_span_context(),
+                    .remote_span_reference(),
                 Some(&SpanReference::empty_context())
             )
         }
@@ -540,7 +540,7 @@ mod tests {
             assert_eq!(
                 multi_header_propagator
                     .extract(&extractor)
-                    .remote_span_context(),
+                    .remote_span_reference(),
                 Some(&SpanReference::empty_context())
             )
         }
@@ -557,7 +557,7 @@ mod tests {
             _attributes: Vec<KeyValue>,
         ) {
         }
-        fn span_context(&self) -> SpanReference {
+        fn span_reference(&self) -> SpanReference {
             self.0.clone()
         }
         fn is_recording(&self) -> bool {

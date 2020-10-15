@@ -450,17 +450,17 @@ impl Into<jaeger::Log> for api::trace::Event {
 impl Into<jaeger::Span> for trace::SpanData {
     /// Convert spans to jaeger thrift span for exporting.
     fn into(self) -> jaeger::Span {
-        let trace_id = self.span_context.trace_id().to_u128();
+        let trace_id = self.span_reference.trace_id().to_u128();
         let trace_id_high = (trace_id >> 64) as i64;
         let trace_id_low = trace_id as i64;
         jaeger::Span {
             trace_id_low,
             trace_id_high,
-            span_id: self.span_context.span_id().to_u64() as i64,
+            span_id: self.span_reference.span_id().to_u64() as i64,
             parent_span_id: self.parent_span_id.to_u64() as i64,
             operation_name: self.name,
             references: links_to_references(self.links),
-            flags: self.span_context.trace_flags() as i32,
+            flags: self.span_reference.trace_flags() as i32,
             start_time: self
                 .start_time
                 .duration_since(SystemTime::UNIX_EPOCH)
@@ -490,8 +490,8 @@ fn links_to_references(
         let refs = links
             .iter()
             .map(|link| {
-                let span_context = link.span_context();
-                let trace_id = span_context.trace_id().to_u128();
+                let span_reference = link.span_reference();
+                let trace_id = span_reference.trace_id().to_u128();
                 let trace_id_high = (trace_id >> 64) as i64;
                 let trace_id_low = trace_id as i64;
 
@@ -501,7 +501,7 @@ fn links_to_references(
                     jaeger::SpanRefType::ChildOf,
                     trace_id_low,
                     trace_id_high,
-                    span_context.span_id().to_u64() as i64,
+                    span_reference.span_id().to_u64() as i64,
                 )
             })
             .collect();

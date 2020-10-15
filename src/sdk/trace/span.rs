@@ -88,8 +88,8 @@ impl api::trace::Span for Span {
     }
 
     /// Returns the `SpanReference` for the given `Span`.
-    fn span_context(&self) -> api::trace::SpanReference {
-        self.with_data(|data| data.span_context.clone())
+    fn span_reference(&self) -> api::trace::SpanReference {
+        self.with_data(|data| data.span_reference.clone())
             .unwrap_or_else(|| {
                 api::trace::SpanReference::new(
                     api::trace::TraceId::invalid(),

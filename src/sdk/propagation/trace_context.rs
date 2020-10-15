@@ -51,7 +51,7 @@ impl TraceContextPropagator {
     }
 
     /// Extract span context from w3c trace-context header.
-    fn extract_span_context(&self, extractor: &dyn Extractor) -> Result<SpanReference, ()> {
+    fn extract_span_reference(&self, extractor: &dyn Extractor) -> Result<SpanReference, ()> {
         let header_value = extractor.get(TRACEPARENT_HEADER).unwrap_or("").trim();
         let parts = header_value.split_terminator('-').collect::<Vec<&str>>();
         // Ensure parts are not out of range.
@@ -102,14 +102,14 @@ impl TraceContextPropagator {
                 .unwrap_or_else(|_| TraceState::default());
 
         // create context
-        let span_context = SpanReference::new(trace_id, span_id, trace_flags, true, trace_state);
+        let span_reference = SpanReference::new(trace_id, span_id, trace_flags, true, trace_state);
 
         // Ensure span is valid
-        if !span_context.is_valid() {
+        if !span_reference.is_valid() {
             return Err(());
         }
 
-        Ok(span_context)
+        Ok(span_reference)
     }
 }
 
@@ -117,17 +117,17 @@ impl TextMapPropagator for TraceContextPropagator {
     /// Properly encodes the values of the `SpanReference` and injects them
     /// into the `Injector`.
     fn inject_context(&self, cx: &Context, injector: &mut dyn Injector) {
-        let span_context = cx.span().span_context();
-        if span_context.is_valid() {
+        let span_reference = cx.span().span_reference();
+        if span_reference.is_valid() {
             let header_value = format!(
                 "{:02x}-{:032x}-{:016x}-{:02x}",
                 SUPPORTED_VERSION,
-                span_context.trace_id().to_u128(),
-                span_context.span_id().to_u64(),
-                span_context.trace_flags() & TRACE_FLAG_SAMPLED
+                span_reference.trace_id().to_u128(),
+                span_reference.span_id().to_u64(),
+                span_reference.trace_flags() & TRACE_FLAG_SAMPLED
             );
             injector.set(TRACEPARENT_HEADER, header_value);
-            injector.set(TRACESTATE_HEADER, span_context.trace_state().header());
+            injector.set(TRACESTATE_HEADER, span_reference.trace_state().header());
         }
     }
 
@@ -136,8 +136,8 @@ impl TextMapPropagator for TraceContextPropagator {
     /// OR if the retrieved SpanReference is invalid then an empty `SpanReference`
     /// is returned.
     fn extract_with_context(&self, cx: &Context, extractor: &dyn Extractor) -> Context {
-        self.extract_span_context(extractor)
-            .map(|sc| cx.with_remote_span_context(sc))
+        self.extract_span_reference(extractor)
+            .map(|sr| cx.with_remote_span_reference(sr))
             .unwrap_or_else(|_| cx.clone())
     }
 
@@ -213,7 +213,7 @@ mod tests {
             extractor.insert(TRACESTATE_HEADER.to_string(), trace_state.to_string());
 
             assert_eq!(
-                propagator.extract(&extractor).remote_span_context(),
+                propagator.extract(&extractor).remote_span_reference(),
                 Some(&expected_context)
             )
         }
@@ -232,7 +232,7 @@ mod tests {
         assert_eq!(
             propagator
                 .extract(&extractor)
-                .remote_span_context()
+                .remote_span_reference()
                 .unwrap()
                 .trace_state()
                 .header(),
@@ -249,7 +249,7 @@ mod tests {
             extractor.insert(TRACEPARENT_HEADER.to_string(), invalid_header.to_string());
 
             assert_eq!(
-                propagator.extract(&extractor).remote_span_context(),
+                propagator.extract(&extractor).remote_span_reference(),
                 None,
                 "{}",
                 reason
@@ -268,7 +268,7 @@ mod tests {
             _attributes: Vec<KeyValue>,
         ) {
         }
-        fn span_context(&self) -> SpanReference {
+        fn span_reference(&self) -> SpanReference {
             self.0.clone()
         }
         fn is_recording(&self) -> bool {

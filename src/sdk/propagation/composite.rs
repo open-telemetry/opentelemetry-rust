@@ -135,7 +135,7 @@ mod tests {
 
     impl TextMapPropagator for TestPropagator {
         fn inject_context(&self, cx: &Context, injector: &mut dyn Injector) {
-            let span = cx.span().span_context();
+            let span = cx.span().span_reference();
             injector.set(
                 "testheader",
                 format!(
@@ -165,7 +165,7 @@ mod tests {
                 SpanReference::empty_context()
             };
 
-            cx.with_remote_span_context(span)
+            cx.with_remote_span_reference(span)
         }
 
         fn fields(&self) -> FieldIter {
@@ -194,7 +194,7 @@ mod tests {
             _attributes: Vec<KeyValue>,
         ) {
         }
-        fn span_context(&self) -> SpanReference {
+        fn span_reference(&self) -> SpanReference {
             self.0.clone()
         }
         fn is_recording(&self) -> bool {
@@ -245,7 +245,7 @@ mod tests {
             assert_eq!(
                 composite_propagator
                     .extract(&extractor)
-                    .remote_span_context(),
+                    .remote_span_reference(),
                 Some(&SpanReference::new(
                     TraceId::from_u128(1),
                     SpanId::from_u64(1),

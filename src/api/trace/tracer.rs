@@ -30,7 +30,7 @@
 //!
 //! let parent = tracer.start("foo");
 //! let child = tracer.span_builder("bar")
-//!     .with_parent(parent.span_context())
+//!     .with_parent(parent.span_reference())
 //!     .start(&tracer);
 //!
 //! // ...
@@ -399,7 +399,7 @@ pub trait Tracer: fmt::Debug + 'static {
 #[derive(Clone, Debug, Default)]
 pub struct SpanBuilder {
     /// Parent `SpanReference`
-    pub parent_context: Option<api::trace::SpanReference>,
+    pub parent_reference: Option<api::trace::SpanReference>,
     /// Trace id, useful for integrations with external tracing systems.
     pub trace_id: Option<api::trace::TraceId>,
     /// Span id, useful for integrations with external tracing systems.
@@ -431,7 +431,7 @@ impl SpanBuilder {
     /// Create a new span builder from a span name
     pub fn from_name(name: String) -> Self {
         SpanBuilder {
-            parent_context: None,
+            parent_reference: None,
             trace_id: None,
             span_id: None,
             span_kind: None,
@@ -448,9 +448,9 @@ impl SpanBuilder {
     }
 
     /// Assign parent context
-    pub fn with_parent(self, parent_context: api::trace::SpanReference) -> Self {
+    pub fn with_parent(self, parent_reference: api::trace::SpanReference) -> Self {
         SpanBuilder {
-            parent_context: Some(parent_context),
+            parent_reference: Some(parent_reference),
             ..self
         }
     }
