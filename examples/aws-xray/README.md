@@ -8,7 +8,7 @@ shows key aspects of tracing such as:
 - Child Span (on Client)
 - Child Span from a Remote Parent (on Server)
   - Extracting parent information from `x-amzn-trace-id`
-- SpanContext Propagation (from Client to Server)
+- SpanReference Propagation (from Client to Server)
 - Span Events
 - Span Attributes
 
