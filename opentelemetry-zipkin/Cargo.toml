@@ -16,12 +16,14 @@ license = "Apache-2.0"
 edition = "2018"
 
 [features]
-default = ["reqwest-blocking"]
-reqwest-blocking = ["reqwest/blocking"]
+default = ["reqwest-blocking-client"]
+reqwest-blocking-client = ["reqwest/blocking", "opentelemetry/reqwest"]
+reqwest-client = ["opentelemetry/reqwest"]
+surf-client = ["opentelemetry/surf"]
 
 [dependencies]
 async-trait = "0.1"
-opentelemetry = { version = "0.8.0", path = "..", features = ["trace", "reqwest", "http"] }
+opentelemetry = { version = "0.8.0", path = "..", features = ["trace", "http"] }
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 typed-builder = "0.5"

@@ -53,9 +53,9 @@
 //! Users can choose appropriate http clients to align with their runtime.
 //!
 //! Based on the feature enabled. The default http client will be different. If user doesn't specific
-//! features or enabled `reqwest-blocking` feature. The blocking reqwest http client will be used as
-//! default client. If `reqwest` feature is enabled. The async reqwest http client will be used. If
-//! `surf` feature is enabled. The surf http client will be used.
+//! features or enabled `reqwest-blocking-client` feature. The blocking reqwest http client will be used as
+//! default client. If `reqwest-client` feature is enabled. The async reqwest http client will be used. If
+//! `surf-client` feature is enabled. The surf http client will be used.
 //!
 //! Note that async http clients may need specific runtime otherwise it will panic. User should make
 //! sure the http client is running in appropriate runime.
@@ -149,13 +149,10 @@ pub struct DatadogExporter {
 impl DatadogExporter {
     fn new(
         service_name: String,
-        agent_endpoint: Uri,
+        request_url: Uri,
         version: ApiVersion,
         client: Box<dyn HttpClient>,
     ) -> Self {
-        let request_url = agent_endpoint;
-        // request_url.set_path(version.path());
-
         DatadogExporter {
             client,
             request_url,
@@ -187,22 +184,26 @@ impl Default for DatadogPipelineBuilder {
             agent_endpoint: DEFAULT_AGENT_ENDPOINT.to_string(),
             trace_config: None,
             version: ApiVersion::Version05,
-            #[cfg(all(not(feature = "reqwest"), feature = "surf"))]
-            client: Some(Box::new(surf::Client::new())),
             #[cfg(all(
-                not(feature = "surf"),
-                not(feature = "reqwest-blocking"),
-                feature = "reqwest"
-            ))]
-            client: Some(Box::new(reqwest::Client::new())),
-            #[cfg(feature = "reqwest-blocking")]
-            client: Some(Box::new(reqwest::blocking::Client::new())),
-            #[cfg(all(
-                not(feature = "reqwest"),
-                not(feature = "reqwest-blocking"),
-                not(feature = "surf"),
+                not(feature = "reqwest-client"),
+                not(feature = "reqwest-blocking-client"),
+                not(feature = "surf-client"),
             ))]
             client: None,
+            #[cfg(all(
+                not(feature = "reqwest-client"),
+                not(feature = "reqwest-blocking-client"),
+                feature = "surf-client"
+            ))]
+            client: Some(Box::new(surf::Client::new())),
+            #[cfg(all(
+                not(feature = "surf-client"),
+                not(feature = "reqwest-blocking-client"),
+                feature = "reqwest-client"
+            ))]
+            client: Some(Box::new(reqwest::Client::new())),
+            #[cfg(feature = "reqwest-blocking-client")]
+            client: Some(Box::new(reqwest::blocking::Client::new())),
         }
     }
 }
