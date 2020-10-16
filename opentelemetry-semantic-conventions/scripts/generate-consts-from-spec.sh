@@ -20,7 +20,8 @@ md_to_rs() {
 		# Regex explanation:
 		# Find markdown tables (lines starting with "|") and take the first 2 columns
 		# - The 1st column is the attribute name consisting of a-z0-9._
-		# - The 2nd column is the description
+		# - The 2nd column is (usually) the type
+		# - The 3rd column is (usually) the description
 		if [[ "$line" =~ ^\|\ \[?\`?([a-z0-9._]+)\`?\]?(:?\([^|]+\))?\ +\|\ ([^|]+)\ +\|\ ([^|]+) ]]; then
 			name="${BASH_REMATCH[1]}"
 			const_name=$(echo "$name" | tr a-z A-Z | sed "s/\\./_/g")
