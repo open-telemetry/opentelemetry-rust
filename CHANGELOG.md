@@ -36,6 +36,7 @@
 - Update `tonic` feature to use version `0.3.x` #258
 - Update exporters to receive owned span data #264
 - Move propagators to `sdk::propagation` #266
+- Rename SpanContext to SpanReference #270
 - Rename `SamplingDecision`'s `NotRecord`, `Record` and `RecordAndSampled` to
   `Drop` `RecordOnly` and `RecordAndSample` #247
 

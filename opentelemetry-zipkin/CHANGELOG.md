@@ -6,6 +6,7 @@
 
 - Add `otel.status_code` and `otel.status_message` tags #236
 - Export instrument library information #243
+- Allow users to choose a custom http client #259
 
 ### Changed
 
