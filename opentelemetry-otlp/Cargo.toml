@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-otlp"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["OpenTelemetry Authors <cncf-opentelemetry-contributors@lists.cncf.io>"]
 description = "Exporter for the OpenTelemetry Collector"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/master/opentelemetry-otlp"
@@ -20,7 +20,7 @@ build = "build.rs"
 async-trait = "0.1"
 futures = "0.3.5"
 grpcio = "0.6"
-opentelemetry = { version = "0.8.0", default-features = false, features = ["trace"], path = ".." }
+opentelemetry = { version = "0.9.0", default-features = false, features = ["trace"], path = ".." }
 protobuf = "2.18"
 
 [build-dependencies]

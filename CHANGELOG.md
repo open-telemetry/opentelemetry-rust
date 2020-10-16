@@ -1,5 +1,45 @@
 # Changelog
 
+## [v0.9.0](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.8.0...v0.9.0)
+
+## Added
+
+- Add resource detector #174
+- Add `fields` method to TextMapFormat #178
+- Add support for `tracestate` in `TraceContextPropagator` #191
+- Propagate valid span context in noop tracer #197
+- Add end_with_timestamp method for trace span #199
+- Add ID methods for hex and byte array formatting #200
+- Add AWS X-Ray ID Generator #201
+- AWS X-Ray Trace Context Propagator #202
+- Add instrumentation library information to spans #207
+- Add keys method to extractors #209
+- Add `TraceState` to `SpanContext` #217
+- Add `from_env` config option for `BatchSpanProcessor` #228
+- Add pipeline uninstall mechanism to shut down trace pipelines #229
+
+### Changed
+
+- Re-write metrics sdk to be spec compliant #179
+- Rename `Sampler::Probability` to `Sampler::TraceIdRatioBased` #188
+- Rename `HTTPTextPropagator` to `TextMapPropagator` #192
+- Ensure extractors are case insensitive #193
+- Rename `Provider` to `TracerProvider` #206
+- Rename `CorrelationContext` into `Baggage` #208
+- Pipeline builder for stdout trace exporter #224
+- Switch to async exporters #232
+- Allow `ShouldSample` implementation to modify trace state #237
+- Ensure context guard is `!Send` #239
+- Ensure trace noop structs use `new` constructor #240
+- Switch to w3c `baggage` header #246
+- Move trace module imports from `api` to `api::trace` #255
+- Update `tonic` feature to use version `0.3.x` #258
+- Update exporters to receive owned span data #264
+- Move propagators to `sdk::propagation` #266
+- Rename SpanContext to SpanReference #270
+- Rename `SamplingDecision`'s `NotRecord`, `Record` and `RecordAndSampled` to
+  `Drop` `RecordOnly` and `RecordAndSample` #247
+
 ## [v0.8.0](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.7.0...v0.8.0)
 
 ## Added
