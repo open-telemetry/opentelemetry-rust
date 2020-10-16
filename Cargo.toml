@@ -34,6 +34,8 @@ http = { version = "0.2", optional = true }
 thiserror = { version = "1.0", optional = true }
 tokio = { version = "0.2", features = ["rt-core", "blocking", "time", "stream"], optional = true }
 tonic = { version = "0.3", optional = true }
+reqwest = { version = "0.10", features = ["blocking"], optional = true }
+surf = { version = "2.0", optional = true }
 
 [dev-dependencies]
 criterion = "0.3.1"

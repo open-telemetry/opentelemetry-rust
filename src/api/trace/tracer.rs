@@ -30,7 +30,7 @@
 //!
 //! let parent = tracer.start("foo");
 //! let child = tracer.span_builder("bar")
-//!     .with_parent(parent.span_context())
+//!     .with_parent(parent.span_reference())
 //!     .start(&tracer);
 //!
 //! // ...
@@ -159,7 +159,7 @@ pub trait Tracer: fmt::Debug + 'static {
     /// The `Span` type used by this `Tracer`.
     type Span: api::trace::Span;
 
-    /// Returns a span with an invalid `SpanContext`. Used by functions that
+    /// Returns a span with an invalid `SpanReference`. Used by functions that
     /// need to return a default span like `get_active_span` if no span is present.
     fn invalid(&self) -> Self::Span;
 
@@ -184,7 +184,7 @@ pub trait Tracer: fmt::Debug + 'static {
     ///
     /// A `Span` is said to have a _remote parent_ if it is the child of a `Span`
     /// created in another process. Each propagators' deserialization must set
-    /// `is_remote` to true on a parent `SpanContext` so `Span` creation knows if the
+    /// `is_remote` to true on a parent `SpanReference` so `Span` creation knows if the
     /// parent is remote.
     fn start(&self, name: &str) -> Self::Span {
         self.start_from_context(name, &Context::current())
@@ -211,7 +211,7 @@ pub trait Tracer: fmt::Debug + 'static {
     ///
     /// A `Span` is said to have a _remote parent_ if it is the child of a `Span`
     /// created in another process. Each propagators' deserialization must set
-    /// `is_remote` to true on a parent `SpanContext` so `Span` creation knows if the
+    /// `is_remote` to true on a parent `SpanReference` so `Span` creation knows if the
     /// parent is remote.
     fn start_from_context(&self, name: &str, context: &Context) -> Self::Span;
 
@@ -398,8 +398,8 @@ pub trait Tracer: fmt::Debug + 'static {
 /// ```
 #[derive(Clone, Debug, Default)]
 pub struct SpanBuilder {
-    /// Parent `SpanContext`
-    pub parent_context: Option<api::trace::SpanContext>,
+    /// Parent `SpanReference`
+    pub parent_reference: Option<api::trace::SpanReference>,
     /// Trace id, useful for integrations with external tracing systems.
     pub trace_id: Option<api::trace::TraceId>,
     /// Span id, useful for integrations with external tracing systems.
@@ -431,7 +431,7 @@ impl SpanBuilder {
     /// Create a new span builder from a span name
     pub fn from_name(name: String) -> Self {
         SpanBuilder {
-            parent_context: None,
+            parent_reference: None,
             trace_id: None,
             span_id: None,
             span_kind: None,
@@ -448,9 +448,9 @@ impl SpanBuilder {
     }
 
     /// Assign parent context
-    pub fn with_parent(self, parent_context: api::trace::SpanContext) -> Self {
+    pub fn with_parent(self, parent_reference: api::trace::SpanReference) -> Self {
         SpanBuilder {
-            parent_context: Some(parent_context),
+            parent_reference: Some(parent_reference),
             ..self
         }
     }

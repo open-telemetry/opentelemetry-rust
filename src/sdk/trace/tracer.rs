@@ -59,7 +59,7 @@ impl Tracer {
     #[allow(clippy::too_many_arguments)]
     fn make_sampling_decision(
         &self,
-        parent_context: Option<&api::trace::SpanContext>,
+        parent_context: Option<&api::trace::SpanReference>,
         trace_id: api::trace::TraceId,
         name: &str,
         span_kind: &api::trace::SpanKind,
@@ -77,7 +77,7 @@ impl Tracer {
     fn process_sampling_result(
         &self,
         sampling_result: sdk::trace::SamplingResult,
-        parent_context: Option<&api::trace::SpanContext>,
+        parent_context: Option<&api::trace::SpanReference>,
     ) -> Option<(u8, Vec<api::KeyValue>, TraceState)> {
         match sampling_result {
             sdk::trace::SamplingResult {
@@ -116,7 +116,7 @@ impl api::trace::Tracer for Tracer {
     /// This implementation of `api::trace::Tracer` produces `sdk::Span` instances.
     type Span = sdk::trace::Span;
 
-    /// Returns a span with an inactive `SpanContext`. Used by functions that
+    /// Returns a span with an inactive `SpanReference`. Used by functions that
     /// need to return a default span like `get_active_span` if no span is present.
     fn invalid(&self) -> Self::Span {
         sdk::trace::Span::new(api::trace::SpanId::invalid(), None, self.clone())
@@ -169,15 +169,15 @@ impl api::trace::Tracer for Tracer {
         let mut attribute_options = builder.attributes.take().unwrap_or_else(Vec::new);
         let mut link_options = builder.links.take().unwrap_or_else(Vec::new);
 
-        let parent_span_context = builder
-            .parent_context
+        let parent_span_reference = builder
+            .parent_reference
             .take()
-            .or_else(|| Some(cx.span().span_context()).filter(|cx| cx.is_valid()))
-            .or_else(|| cx.remote_span_context().cloned())
+            .or_else(|| Some(cx.span().span_reference()).filter(|cx| cx.is_valid()))
+            .or_else(|| cx.remote_span_reference().cloned())
             .filter(|cx| cx.is_valid());
         // Build context for sampling decision
         let (no_parent, trace_id, parent_span_id, remote_parent, parent_trace_flags) =
-            parent_span_context
+            parent_span_reference
                 .as_ref()
                 .map(|ctx| {
                     (
@@ -204,10 +204,10 @@ impl api::trace::Tracer for Tracer {
         // * There is no parent or a remote parent, in which case make decision now
         // * There is a local parent, in which case defer to the parent's decision
         let sampling_decision = if let Some(sampling_result) = builder.sampling_result.take() {
-            self.process_sampling_result(sampling_result, parent_span_context.as_ref())
+            self.process_sampling_result(sampling_result, parent_span_reference.as_ref())
         } else if no_parent || remote_parent {
             self.make_sampling_decision(
-                parent_span_context.as_ref(),
+                parent_span_reference.as_ref(),
                 trace_id,
                 &builder.name,
                 &span_kind,
@@ -216,13 +216,13 @@ impl api::trace::Tracer for Tracer {
             )
         } else {
             // has parent that is local: use parent if sampled, or don't record.
-            parent_span_context
-                .filter(|span_context| span_context.is_sampled())
-                .map(|span_context| {
+            parent_span_reference
+                .filter(|span_reference| span_reference.is_sampled())
+                .map(|span_reference| {
                     (
                         parent_trace_flags,
                         Vec::new(),
-                        span_context.trace_state().clone(),
+                        span_reference.trace_state().clone(),
                     )
                 })
         };
@@ -247,7 +247,7 @@ impl api::trace::Tracer for Tracer {
             let resource = config.resource.clone();
 
             exporter::trace::SpanData {
-                span_context: api::trace::SpanContext::new(
+                span_reference: api::trace::SpanReference::new(
                     trace_id,
                     span_id,
                     trace_flags,
@@ -284,7 +284,7 @@ impl api::trace::Tracer for Tracer {
 mod tests {
     use crate::api::{
         trace::{
-            Link, Span, SpanBuilder, SpanContext, SpanId, SpanKind, TraceId, TraceState, Tracer,
+            Link, Span, SpanBuilder, SpanReference, SpanId, SpanKind, TraceId, TraceState, Tracer,
             TracerProvider, TRACE_FLAG_SAMPLED,
         },
         Context, KeyValue,
@@ -300,14 +300,14 @@ mod tests {
     impl ShouldSample for TestSampler {
         fn should_sample(
             &self,
-            parent_context: Option<&SpanContext>,
+            parent_reference: Option<&SpanReference>,
             _trace_id: TraceId,
             _name: &str,
             _span_kind: &SpanKind,
             _attributes: &[KeyValue],
             _links: &[Link],
         ) -> SamplingResult {
-            let trace_state = parent_context.unwrap().trace_state().clone();
+            let trace_state = parent_reference.unwrap().trace_state().clone();
             SamplingResult {
                 decision: SamplingDecision::RecordAndSample,
                 attributes: Vec::new(),
@@ -328,7 +328,7 @@ mod tests {
         let context = Context::default();
         let trace_state = TraceState::from_key_value(vec![("foo", "bar")]).unwrap();
         let mut span_builder = SpanBuilder::default();
-        span_builder.parent_context = Some(SpanContext::new(
+        span_builder.parent_reference = Some(SpanReference::new(
             TraceId::from_u128(128),
             SpanId::from_u64(64),
             TRACE_FLAG_SAMPLED,
@@ -338,8 +338,8 @@ mod tests {
 
         // Test sampler should change trace state
         let span = tracer.build_with_context(span_builder, &context);
-        let span_context = span.span_context();
-        let expected = span_context.trace_state();
+        let span_reference = span.span_reference();
+        let expected = span_reference.trace_state();
         assert_eq!(expected.get("foo"), Some("notbar"))
     }
 }

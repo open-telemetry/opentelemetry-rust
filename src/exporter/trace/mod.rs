@@ -3,8 +3,13 @@ use crate::{api, sdk};
 use async_trait::async_trait;
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
+#[cfg(all(feature = "http", feature = "reqwest"))]
+use std::convert::TryInto;
+use std::fmt::Debug;
 use std::sync::Arc;
 use std::time::SystemTime;
+#[cfg(feature = "http")]
+use {http::Request, std::error::Error};
 
 pub mod stdout;
 
@@ -58,13 +63,24 @@ pub trait SpanExporter: Send + Sync + std::fmt::Debug {
     fn shutdown(&mut self) {}
 }
 
+/// A minimal interface necessary for export spans over HTTP.
+///
+/// Users sometime choose http clients that relay on certain runtime. This trait allows users to bring
+/// their choice of http clients.
+#[cfg(feature = "http")]
+#[async_trait]
+pub trait HttpClient: Debug + Send + Sync {
+    /// Send a batch of spans to collectors
+    async fn send(&self, request: Request<Vec<u8>>) -> Result<ExportResult, Box<dyn Error>>;
+}
+
 /// `SpanData` contains all the information collected by a `Span` and can be used
 /// by exporters as a standard input.
 #[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
 #[derive(Clone, Debug, PartialEq)]
 pub struct SpanData {
-    /// Exportable `SpanContext`
-    pub span_context: api::trace::SpanContext,
+    /// Exportable `SpanReference`
+    pub span_reference: api::trace::SpanReference,
     /// Span parent id
     pub parent_span_id: api::trace::SpanId,
     /// Span kind
@@ -92,6 +108,54 @@ pub struct SpanData {
     pub instrumentation_lib: sdk::InstrumentationLibrary,
 }
 
+#[cfg(all(feature = "reqwest", feature = "http"))]
+#[async_trait]
+impl HttpClient for reqwest::Client {
+    async fn send(&self, request: Request<Vec<u8>>) -> Result<ExportResult, Box<dyn Error>> {
+        let result = self.execute(request.try_into()?).await?;
+
+        if result.status().is_success() {
+            Ok(ExportResult::Success)
+        } else {
+            Ok(ExportResult::FailedNotRetryable)
+        }
+    }
+}
+
+#[cfg(all(feature = "reqwest", feature = "http"))]
+#[async_trait]
+impl HttpClient for reqwest::blocking::Client {
+    async fn send(&self, request: Request<Vec<u8>>) -> Result<ExportResult, Box<dyn Error>> {
+        let result = self.execute(request.try_into()?)?;
+
+        if result.status().is_success() {
+            Ok(ExportResult::Success)
+        } else {
+            Ok(ExportResult::FailedNotRetryable)
+        }
+    }
+}
+
+#[cfg(all(feature = "surf", feature = "http"))]
+#[async_trait]
+impl HttpClient for surf::Client {
+    async fn send(&self, request: Request<Vec<u8>>) -> Result<ExportResult, Box<dyn Error>> {
+        let (parts, body) = request.into_parts();
+        let uri = parts.uri.to_string().parse()?;
+
+        let req = surf::Request::builder(surf::http::Method::Post, uri)
+            .content_type("application/json")
+            .body(body);
+        let result = self.send(req).await?;
+
+        if result.status().is_success() {
+            Ok(ExportResult::Success)
+        } else {
+            Ok(ExportResult::FailedNotRetryable)
+        }
+    }
+}
+
 #[cfg(feature = "serialize")]
 #[cfg(test)]
 mod tests {
@@ -105,7 +169,7 @@ mod tests {
 
         let trace_flags = 0;
         let remote = false;
-        let span_context = api::trace::SpanContext::new(
+        let span_reference = api::trace::SpanReference::new(
             api::trace::TraceId::from_u128(trace_id),
             api::trace::SpanId::from_u64(span_id),
             trace_flags,
@@ -129,7 +193,7 @@ mod tests {
         let resource = Arc::new(sdk::Resource::default());
 
         let span_data = SpanData {
-            span_context,
+            span_reference,
             parent_span_id: api::trace::SpanId::from_u64(parent_span_id),
             span_kind,
             name,

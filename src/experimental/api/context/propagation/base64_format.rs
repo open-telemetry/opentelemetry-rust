@@ -11,29 +11,29 @@ use crate::api;
 use crate::experimental::api::BinaryFormat;
 use base64::{decode, encode};
 
-/// Used to serialize and deserialize `SpanContext`s to and from a base64
+/// Used to serialize and deserialize `SpanReference`s to and from a base64
 /// representation.
 pub trait Base64Format {
     /// Serializes span context into a base64 encoded string
-    fn to_base64(&self, context: &api::trace::SpanContext) -> String;
+    fn to_base64(&self, context: &api::trace::SpanReference) -> String;
 
     /// Deserialize a span context from a base64 encoded string
-    fn from_base64(&self, base64: &str) -> api::trace::SpanContext;
+    fn from_base64(&self, base64: &str) -> api::trace::SpanReference;
 }
 
 impl<Format> Base64Format for Format
 where
     Format: BinaryFormat,
 {
-    fn to_base64(&self, context: &api::trace::SpanContext) -> String {
+    fn to_base64(&self, context: &api::trace::SpanReference) -> String {
         encode(&self.to_bytes(context))
     }
 
-    fn from_base64(&self, base64: &str) -> api::trace::SpanContext {
+    fn from_base64(&self, base64: &str) -> api::trace::SpanReference {
         if let Ok(bytes) = decode(base64.as_bytes()) {
             self.from_bytes(bytes)
         } else {
-            api::trace::SpanContext::empty_context()
+            api::trace::SpanReference::empty_context()
         }
     }
 }
@@ -45,14 +45,14 @@ mod tests {
     use crate::api::trace::TraceState;
 
     #[rustfmt::skip]
-    fn to_base64_data() -> Vec<(api::trace::SpanContext, String)> {
+    fn to_base64_data() -> Vec<(api::trace::SpanReference, String)> {
         vec![
-            (api::trace::SpanContext::new(
+            (api::trace::SpanReference::new(
                 api::trace::TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736),
                 api::trace::SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 1, true, TraceState::default()),
                 "AABL+S81d7NNpqPOkp0ODkc2AQDwZ6oLqQK3AgE=".to_string()
             ),
-            (api::trace::SpanContext::new(
+            (api::trace::SpanReference::new(
                 api::trace::TraceId::from_u128(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736),
                 api::trace::SpanId::from_u64(0x00f0_67aa_0ba9_02b7), 0, true, TraceState::default()),
                 "AABL+S81d7NNpqPOkp0ODkc2AQDwZ6oLqQK3AgA=".to_string()
@@ -61,9 +61,9 @@ mod tests {
     }
 
     #[rustfmt::skip]
-    fn from_base64_data() -> Vec<(api::trace::SpanContext, String)> {
+    fn from_base64_data() -> Vec<(api::trace::SpanReference, String)> {
         vec![
-            (api::trace::SpanContext::empty_context(), "invalid base64 string".to_string())
+            (api::trace::SpanReference::empty_context(), "invalid base64 string".to_string())
         ]
     }
 

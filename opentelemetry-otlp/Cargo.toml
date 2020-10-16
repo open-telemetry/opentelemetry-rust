@@ -21,7 +21,7 @@ async-trait = "0.1"
 futures = "0.3.5"
 grpcio = "0.6"
 opentelemetry = { version = "0.9.0", default-features = false, features = ["trace"], path = ".." }
-protobuf = "~2"
+protobuf = "2.18"
 
 [build-dependencies]
 protobuf-codegen = "2.16"

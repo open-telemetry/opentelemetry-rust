@@ -22,8 +22,8 @@
 //!   trace events can be avoided. `SpanProcessor`s will receive
 //!   all spans with this flag set. However, `SpanExporter`s will
 //!   not receive them unless the `Sampled` flag was set.
-//! * `Sampled` flag in `trace_flags` on `SpanContext`. This flag is propagated
-//!   via the `SpanContext` to child Spans. For more details see the [W3C
+//! * `Sampled` flag in `trace_flags` on `SpanReference`. This flag is propagated
+//!   via the `SpanReference` to child Spans. For more details see the [W3C
 //!   specification](https://w3c.github.io/trace-context/). This flag indicates
 //!   that the `Span` has been `sampled` and will be exported. `SpanProcessor`s
 //!   and `SpanExporter`s will receive spans with the `Sampled` flag set for
@@ -48,7 +48,7 @@ pub trait ShouldSample: Send + Sync + std::fmt::Debug {
     #[allow(clippy::too_many_arguments)]
     fn should_sample(
         &self,
-        parent_context: Option<&api::trace::SpanContext>,
+        parent_context: Option<&api::trace::SpanReference>,
         trace_id: api::trace::TraceId,
         name: &str,
         span_kind: &api::trace::SpanKind,
@@ -98,7 +98,7 @@ pub enum Sampler {
 impl ShouldSample for Sampler {
     fn should_sample(
         &self,
-        parent_context: Option<&api::trace::SpanContext>,
+        parent_context: Option<&api::trace::SpanReference>,
         trace_id: api::trace::TraceId,
         name: &str,
         span_kind: &api::trace::SpanKind,
@@ -220,7 +220,7 @@ mod tests {
                     } else {
                         0
                     };
-                    Some(api::trace::SpanContext::new(
+                    Some(api::trace::SpanReference::new(
                         api::trace::TraceId::from_u128(1),
                         api::trace::SpanId::from_u64(1),
                         trace_flags,

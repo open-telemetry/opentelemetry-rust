@@ -1,7 +1,8 @@
 //! # Zipkin Span Exporter
 use crate::model::span::Span;
-use opentelemetry::exporter::trace::ExportResult;
-use reqwest::Url;
+use http::{header::CONTENT_TYPE, Method, Request, Uri};
+use opentelemetry::exporter::trace::{ExportResult, HttpClient};
+use std::fmt::Debug;
 
 #[derive(Debug)]
 pub(crate) enum Uploader {
@@ -10,9 +11,9 @@ pub(crate) enum Uploader {
 
 impl Uploader {
     /// Create a new http uploader
-    pub(crate) fn with_http_endpoint(collector_endpoint: Url) -> Self {
+    pub(crate) fn new(client: Box<dyn HttpClient>, collector_endpoint: Uri) -> Self {
         Uploader::Http(JsonV2Client {
-            client: reqwest::Client::new(),
+            client,
             collector_endpoint,
         })
     }
@@ -20,29 +21,27 @@ impl Uploader {
     /// Upload spans to Zipkin
     pub(crate) async fn upload(&self, spans: Vec<Span>) -> ExportResult {
         match self {
-            Uploader::Http(client) => client.upload(spans).await,
+            Uploader::Http(client) => client
+                .upload(spans)
+                .await
+                .unwrap_or(ExportResult::FailedNotRetryable),
         }
     }
 }
 
 #[derive(Debug)]
 pub(crate) struct JsonV2Client {
-    client: reqwest::Client,
-    collector_endpoint: Url,
+    client: Box<dyn HttpClient>,
+    collector_endpoint: Uri,
 }
 
 impl JsonV2Client {
-    async fn upload(&self, spans: Vec<Span>) -> ExportResult {
-        let resp = self
-            .client
-            .post(self.collector_endpoint.clone())
-            .json(&spans)
-            .send()
-            .await;
-
-        match resp {
-            Ok(response) if response.status().is_success() => ExportResult::Success,
-            _ => ExportResult::FailedRetryable,
-        }
+    async fn upload(&self, spans: Vec<Span>) -> Result<ExportResult, Box<dyn std::error::Error>> {
+        let req = Request::builder()
+            .method(Method::POST)
+            .uri(self.collector_endpoint.clone())
+            .header(CONTENT_TYPE, "application/json")
+            .body(serde_json::to_vec(&spans).unwrap_or_default())?;
+        self.client.send(req).await
     }
 }
