@@ -21,10 +21,10 @@ md_to_rs() {
 		# Find markdown tables (lines starting with "|") and take the first 2 columns
 		# - The 1st column is the attribute name consisting of a-z0-9._
 		# - The 2nd column is the description
-		if [[ "$line" =~ ^\|\ \`?([a-z0-9._]+)\`?\ +\|\ ([^|]+) ]]; then
+		if [[ "$line" =~ ^\|\ \[?\`?([a-z0-9._]+)\`?\]?(:?\([^|]+\))?\ +\|\ ([^|]+)\ +\|\ ([^|]+) ]]; then
 			name="${BASH_REMATCH[1]}"
 			const_name=$(echo "$name" | tr a-z A-Z | sed "s/\\./_/g")
-			doc="${BASH_REMATCH[2]}"
+			doc="${BASH_REMATCH[4]}"
 			echo ""
 			echo "/// $doc"
 			echo "pub const $const_name: Key = Key::from_static_str(\"$name\");"
@@ -41,6 +41,7 @@ case "$1" in
 		md_url_to_rs "resource/semantic_conventions/README.md"
 		md_url_to_rs "resource/semantic_conventions/cloud.md"
 		md_url_to_rs "resource/semantic_conventions/container.md"
+		md_url_to_rs "resource/semantic_conventions/deployment_environment.md"
 		md_url_to_rs "resource/semantic_conventions/faas.md"
 		md_url_to_rs "resource/semantic_conventions/host.md"
 		md_url_to_rs "resource/semantic_conventions/k8s.md"
@@ -48,13 +49,13 @@ case "$1" in
 		md_url_to_rs "resource/semantic_conventions/process.md"
 		;;
 	"trace")
-		md_url_to_rs "trace/semantic_conventions/span-general.md"
 		md_url_to_rs "trace/semantic_conventions/database.md"
 		md_url_to_rs "trace/semantic_conventions/exceptions.md"
 		md_url_to_rs "trace/semantic_conventions/faas.md"
 		md_url_to_rs "trace/semantic_conventions/http.md"
 		md_url_to_rs "trace/semantic_conventions/messaging.md"
 		md_url_to_rs "trace/semantic_conventions/rpc.md"
+		md_url_to_rs "trace/semantic_conventions/span-general.md"
 		;;
 	*)
 		echo "Usage: $0 <resource|trace>"
