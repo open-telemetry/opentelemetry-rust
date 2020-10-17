@@ -177,7 +177,7 @@ impl api::trace::SpanProcessor for BatchSpanProcessor {
             // Send shutdown message to worker future
             if sender.try_send(BatchMessage::Shutdown).is_ok() {
                 if let Some(worker_handle) = self.worker_handle.take() {
-                    // Wait for future to shut down if sending was successful
+                    // Block waiting for worker to shut down if sending was successful
                     futures::executor::block_on(worker_handle)
                 }
             }
