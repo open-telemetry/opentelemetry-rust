@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.7.0
+
+### Changed
+
+- Update typed-builder to 0.7.x #279
+
 ## v0.6.0
 
 ### Added
