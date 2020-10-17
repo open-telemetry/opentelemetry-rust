@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-prometheus"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["OpenTelemetry Authors <cncf-opentelemetry-contributors@lists.cncf.io>"]
 description = "Prometheus exporter for OpenTelemetry"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust"
