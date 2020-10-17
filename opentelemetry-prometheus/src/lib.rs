@@ -202,7 +202,7 @@ impl ExporterBuilder {
 ///
 /// This exporter supports Prometheus pulls, as such it does not
 /// implement the export.Exporter interface.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct PrometheusExporter {
     registry: prometheus::Registry,
     controller: Arc<Mutex<PullController>>,

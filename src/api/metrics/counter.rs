@@ -8,7 +8,7 @@ use crate::api::{
 use std::marker;
 
 /// A metric that accumulates values.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Counter<T>(SyncInstrument<T>);
 
 impl<T> Counter<T>
@@ -38,7 +38,7 @@ where
 }
 
 /// BoundCounter is a bound instrument for counters.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct BoundCounter<'a, T> {
     labels: &'a [KeyValue],
     bound_instrument: SyncBoundInstrument<T>,
