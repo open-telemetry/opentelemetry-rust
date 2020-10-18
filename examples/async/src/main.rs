@@ -54,7 +54,10 @@ async fn run(addr: &SocketAddr) -> io::Result<usize> {
     write(&mut stream).with_context(cx).await
 }
 
-fn init_tracer() -> Result<(sdktrace::Tracer, opentelemetry_jaeger::Uninstall), Box<dyn Error + Send + Sync + 'static>> {
+fn init_tracer() -> Result<
+    (sdktrace::Tracer, opentelemetry_jaeger::Uninstall),
+    Box<dyn Error + Send + Sync + 'static>,
+> {
     opentelemetry_jaeger::new_pipeline()
         .with_service_name("trace-demo")
         .install()

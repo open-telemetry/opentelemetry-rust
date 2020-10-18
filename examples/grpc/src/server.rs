@@ -36,7 +36,9 @@ impl Greeter for MyGreeter {
     }
 }
 
-fn tracing_init() -> Result<(impl Tracer, opentelemetry_jaeger::Uninstall), Box<dyn Error + Send + Sync + 'static>> {
+fn tracing_init(
+) -> Result<(impl Tracer, opentelemetry_jaeger::Uninstall), Box<dyn Error + Send + Sync + 'static>>
+{
     global::set_text_map_propagator(TraceContextPropagator::new());
     opentelemetry_jaeger::new_pipeline()
         .with_service_name("grpc-server")

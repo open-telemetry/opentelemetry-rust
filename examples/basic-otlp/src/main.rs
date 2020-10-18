@@ -10,7 +10,9 @@ use opentelemetry::{global, sdk::trace as sdktrace};
 use std::error::Error;
 use std::time::Duration;
 
-fn init_tracer() -> Result<(sdktrace::Tracer, opentelemetry_otlp::Uninstall), Box<dyn Error + Send + Sync + 'static>> {
+fn init_tracer(
+) -> Result<(sdktrace::Tracer, opentelemetry_otlp::Uninstall), Box<dyn Error + Send + Sync + 'static>>
+{
     opentelemetry_otlp::new_pipeline().install()
 }
 
