@@ -211,7 +211,9 @@ mod tests {
     #[test]
     fn noop_tracer_propagates_valid_span_reference_from_builder() {
         let tracer = NoopTracer::new();
-        let builder = tracer.span_builder("foo").with_parent(valid_span_reference());
+        let builder = tracer
+            .span_builder("foo")
+            .with_parent(valid_span_reference());
         let span = tracer.build_with_context(builder, &api::Context::new());
         assert!(span.span_reference().is_valid());
     }

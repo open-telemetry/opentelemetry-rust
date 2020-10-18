@@ -284,7 +284,7 @@ impl api::trace::Tracer for Tracer {
 mod tests {
     use crate::api::{
         trace::{
-            Link, Span, SpanBuilder, SpanReference, SpanId, SpanKind, TraceId, TraceState, Tracer,
+            Link, Span, SpanBuilder, SpanId, SpanKind, SpanReference, TraceId, TraceState, Tracer,
             TracerProvider, TRACE_FLAG_SAMPLED,
         },
         Context, KeyValue,

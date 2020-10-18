@@ -85,7 +85,7 @@
 //!
 //! #[async_trait]
 //! impl HttpClient for IsahcClient {
-//!   async fn send(&self, request: http::Request<Vec<u8>>) -> Result<ExportResult, Box<dyn Error>> {
+//!   async fn send(&self, request: http::Request<Vec<u8>>) -> Result<ExportResult, Box<dyn Error + Send + Sync + 'static>> {
 //!     let result = self.0.send_async(request).await?;
 //!
 //!     if result.status().is_success() {
@@ -96,7 +96,7 @@
 //!   }
 //! }
 //!
-//! fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 //!     let (tracer, _uninstall) = opentelemetry_contrib::datadog::new_pipeline()
 //!         .with_service_name("my_app")
 //!         .with_version(opentelemetry_contrib::datadog::ApiVersion::Version05)
@@ -210,7 +210,9 @@ impl Default for DatadogPipelineBuilder {
 
 impl DatadogPipelineBuilder {
     /// Create `ExporterConfig` struct from current `ExporterConfigBuilder`
-    pub fn install(mut self) -> Result<(sdk::trace::Tracer, Uninstall), Box<dyn Error>> {
+    pub fn install(
+        mut self,
+    ) -> Result<(sdk::trace::Tracer, Uninstall), Box<dyn Error + Send + Sync + 'static>> {
         if let Some(client) = self.client {
             let endpoint = self.agent_endpoint + self.version.path();
             let exporter = DatadogExporter::new(

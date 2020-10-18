@@ -21,7 +21,7 @@
 //! ```no_run
 //! use opentelemetry::api::trace::Tracer;
 //!
-//! fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 //!     let (tracer, _uninstall) = opentelemetry_otlp::new_pipeline().install()?;
 //!
 //!     tracer.in_span("doing_work", |cx| {
@@ -61,7 +61,7 @@
 //! use opentelemetry_otlp::{Compression, Credentials, Protocol};
 //! use std::time::Duration;
 //!
-//! fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 //!     let headers = vec![("X-Custom".to_string(), "Custom-Value".to_string())]
 //!         .into_iter()
 //!         .collect();
@@ -130,7 +130,7 @@ pub fn new_pipeline() -> OtlpPipelineBuilder {
 /// ## Examples
 ///
 /// ```no_run
-/// fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 ///     let (tracer, _uninstall) = opentelemetry_otlp::new_pipeline().install()?;
 ///
 ///     Ok(())
@@ -192,7 +192,9 @@ impl OtlpPipelineBuilder {
     }
 
     /// Install the OTLP exporter pipeline with the recommended defaults.
-    pub fn install(mut self) -> Result<(sdk::trace::Tracer, Uninstall), Box<dyn Error>> {
+    pub fn install(
+        mut self,
+    ) -> Result<(sdk::trace::Tracer, Uninstall), Box<dyn Error + Send + Sync + 'static>> {
         let exporter = Exporter::new(self.exporter_config);
 
         let mut provider_builder = sdk::trace::TracerProvider::builder().with_exporter(exporter);

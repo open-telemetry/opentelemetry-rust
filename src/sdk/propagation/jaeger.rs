@@ -8,7 +8,7 @@
 use crate::api::{
     propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
     trace::{
-        SpanReference, SpanId, TraceContextExt, TraceId, TraceState, TRACE_FLAG_DEBUG,
+        SpanId, SpanReference, TraceContextExt, TraceId, TraceState, TRACE_FLAG_DEBUG,
         TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
     },
     Context,
@@ -68,7 +68,13 @@ impl JaegerPropagator {
         let flag = self.extract_flag(parts[3])?;
         let trace_state = self.extract_trace_state(extractor)?;
 
-        Ok(SpanReference::new(trace_id, span_id, flag, true, trace_state))
+        Ok(SpanReference::new(
+            trace_id,
+            span_id,
+            flag,
+            true,
+            trace_state,
+        ))
     }
 
     /// Extract trace id from the header.
@@ -177,7 +183,7 @@ mod tests {
     use crate::api::{
         propagation::{Injector, TextMapPropagator},
         trace::{
-            Span, SpanReference, SpanId, StatusCode, TraceContextExt, TraceId, TraceState,
+            Span, SpanId, SpanReference, StatusCode, TraceContextExt, TraceId, TraceState,
             TRACE_FLAG_DEBUG, TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
         },
         Context, KeyValue,

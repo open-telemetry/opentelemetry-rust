@@ -71,7 +71,10 @@ pub trait SpanExporter: Send + Sync + std::fmt::Debug {
 #[async_trait]
 pub trait HttpClient: Debug + Send + Sync {
     /// Send a batch of spans to collectors
-    async fn send(&self, request: Request<Vec<u8>>) -> Result<ExportResult, Box<dyn Error>>;
+    async fn send(
+        &self,
+        request: Request<Vec<u8>>,
+    ) -> Result<ExportResult, Box<dyn Error + Send + Sync + 'static>>;
 }
 
 /// `SpanData` contains all the information collected by a `Span` and can be used
@@ -111,7 +114,10 @@ pub struct SpanData {
 #[cfg(all(feature = "reqwest", feature = "http"))]
 #[async_trait]
 impl HttpClient for reqwest::Client {
-    async fn send(&self, request: Request<Vec<u8>>) -> Result<ExportResult, Box<dyn Error>> {
+    async fn send(
+        &self,
+        request: Request<Vec<u8>>,
+    ) -> Result<ExportResult, Box<dyn Error + Send + Sync + 'static>> {
         let result = self.execute(request.try_into()?).await?;
 
         if result.status().is_success() {
@@ -125,7 +131,10 @@ impl HttpClient for reqwest::Client {
 #[cfg(all(feature = "reqwest", feature = "http"))]
 #[async_trait]
 impl HttpClient for reqwest::blocking::Client {
-    async fn send(&self, request: Request<Vec<u8>>) -> Result<ExportResult, Box<dyn Error>> {
+    async fn send(
+        &self,
+        request: Request<Vec<u8>>,
+    ) -> Result<ExportResult, Box<dyn Error + Send + Sync + 'static>> {
         let result = self.execute(request.try_into()?)?;
 
         if result.status().is_success() {
@@ -139,7 +148,10 @@ impl HttpClient for reqwest::blocking::Client {
 #[cfg(all(feature = "surf", feature = "http"))]
 #[async_trait]
 impl HttpClient for surf::Client {
-    async fn send(&self, request: Request<Vec<u8>>) -> Result<ExportResult, Box<dyn Error>> {
+    async fn send(
+        &self,
+        request: Request<Vec<u8>>,
+    ) -> Result<ExportResult, Box<dyn Error + Send + Sync + 'static>> {
         let (parts, body) = request.into_parts();
         let uri = parts.uri.to_string().parse()?;
 

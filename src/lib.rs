@@ -12,7 +12,7 @@
 //! ```no_run
 //! use opentelemetry::{api::trace::Tracer, exporter::trace::stdout};
 //!
-//! fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 //!     // Create a new instrumentation pipeline
 //!     let (tracer, _uninstall) = stdout::new_pipeline().install();
 //!
