@@ -37,7 +37,7 @@ pub trait InstrumentCore: fmt::Debug {
 
 /// The implementation-level interface to a generic synchronous instrument
 /// (e.g., ValueRecorder and Counter instruments).
-pub trait SyncInstrumentCore: InstrumentCore {
+pub trait SyncInstrumentCore: InstrumentCore + Send + Sync {
     /// Creates an implementation-level bound instrument, binding a label set
     /// with this instrument implementation.
     fn bind<'a>(&self, labels: &'a [KeyValue]) -> Arc<dyn SyncBoundInstrumentCore + Send + Sync>;

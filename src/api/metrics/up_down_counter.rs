@@ -8,7 +8,7 @@ use crate::api::{
 use std::marker;
 
 /// A metric instrument that sums non-monotonic values.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct UpDownCounter<T>(SyncInstrument<T>);
 
 impl<T> UpDownCounter<T>
@@ -38,7 +38,7 @@ where
 }
 
 /// BoundUpDownCounter is a bound instrument for counters.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct BoundUpDownCounter<'a, T> {
     labels: &'a [KeyValue],
     bound_instrument: SyncBoundInstrument<T>,
