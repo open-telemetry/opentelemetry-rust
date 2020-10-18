@@ -37,7 +37,7 @@ impl Measurement {
 }
 
 /// Wrapper around a sdk-implemented sync instrument for a given type
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub(crate) struct SyncInstrument<T> {
     instrument: Arc<dyn sdk_api::SyncInstrumentCore>,
     _marker: marker::PhantomData<T>,
@@ -73,7 +73,7 @@ impl<T> SyncInstrument<T> {
 }
 
 /// Wrapper around a sdk-implemented sync bound instrument
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub(crate) struct SyncBoundInstrument<T> {
     bound_instrument: Arc<dyn sdk_api::SyncBoundInstrumentCore>,
     _marker: marker::PhantomData<T>,
