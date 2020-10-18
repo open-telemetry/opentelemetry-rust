@@ -19,7 +19,7 @@
 //! ```no_run
 //! use opentelemetry::api::trace::Tracer;
 //!
-//! fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 //!     let (tracer, _uninstall) = opentelemetry_jaeger::new_pipeline().install()?;
 //!
 //!     tracer.in_span("doing_work", |cx| {
@@ -58,7 +58,7 @@
 //! ```no_run
 //! use opentelemetry::api::trace::Tracer;
 //!
-//! fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 //!     // export OTEL_SERVICE_NAME=my-service-name
 //!     let (tracer, _uninstall) = opentelemetry_jaeger::new_pipeline().from_env().install()?;
 //!
@@ -89,7 +89,7 @@
 //! // Note that this requires the `collector_client` feature.
 //! use opentelemetry::api::trace::Tracer;
 //!
-//! fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 //!     let (tracer, _uninstall) = opentelemetry_jaeger::new_pipeline()
 //!         .with_collector_endpoint("http://localhost:14268/api/traces")
 //!         // optionally set username and password as well.
@@ -116,7 +116,7 @@
 //! use opentelemetry::api::{KeyValue, trace::Tracer};
 //! use opentelemetry::sdk::{trace::{self, IdGenerator, Sampler}, Resource};
 //!
-//! fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 //!     let (tracer, _uninstall) = opentelemetry_jaeger::new_pipeline()
 //!         .from_env()
 //!         .with_agent_endpoint("localhost:6831")
@@ -352,7 +352,9 @@ impl PipelineBuilder {
     }
 
     /// Install a Jaeger pipeline with the recommended defaults.
-    pub fn install(self) -> Result<(sdk::trace::Tracer, Uninstall), Box<dyn Error>> {
+    pub fn install(
+        self,
+    ) -> Result<(sdk::trace::Tracer, Uninstall), Box<dyn Error + Send + Sync + 'static>> {
         let tracer_provider = self.build()?;
         let tracer =
             tracer_provider.get_tracer("opentelemetry-jaeger", Some(env!("CARGO_PKG_VERSION")));
@@ -363,7 +365,9 @@ impl PipelineBuilder {
     }
 
     /// Build a configured `sdk::trace::TracerProvider` with the recommended defaults.
-    pub fn build(mut self) -> Result<sdk::trace::TracerProvider, Box<dyn Error>> {
+    pub fn build(
+        mut self,
+    ) -> Result<sdk::trace::TracerProvider, Box<dyn Error + Send + Sync + 'static>> {
         let config = self.config.take();
         let exporter = self.init_exporter()?;
 
@@ -379,7 +383,7 @@ impl PipelineBuilder {
     /// Initialize a new exporter.
     ///
     /// This is useful if you are manually constructing a pipeline.
-    pub fn init_exporter(self) -> Result<Exporter, Box<dyn Error>> {
+    pub fn init_exporter(self) -> Result<Exporter, Box<dyn Error + Send + Sync + 'static>> {
         let (process, uploader) = self.init_uploader()?;
 
         Ok(Exporter {
@@ -389,13 +393,17 @@ impl PipelineBuilder {
     }
 
     #[cfg(not(feature = "collector_client"))]
-    fn init_uploader(self) -> Result<(Process, BatchUploader), Box<dyn Error>> {
+    fn init_uploader(
+        self,
+    ) -> Result<(Process, BatchUploader), Box<dyn Error + Send + Sync + 'static>> {
         let agent = AgentAsyncClientUDP::new(self.agent_endpoint.as_slice())?;
         Ok((self.process, BatchUploader::Agent(agent)))
     }
 
     #[cfg(feature = "collector_client")]
-    fn init_uploader(self) -> Result<(Process, uploader::BatchUploader), Box<dyn Error>> {
+    fn init_uploader(
+        self,
+    ) -> Result<(Process, uploader::BatchUploader), Box<dyn Error + Send + Sync + 'static>> {
         if let Some(collector_endpoint) = self.collector_endpoint {
             let collector = CollectorAsyncClientHttp::new(
                 collector_endpoint,

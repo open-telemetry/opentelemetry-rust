@@ -20,7 +20,7 @@
 use crate::api::{
     propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
     trace::{
-        SpanReference, SpanId, TraceContextExt, TraceId, TraceState, TRACE_FLAG_DEFERRED,
+        SpanId, SpanReference, TraceContextExt, TraceId, TraceState, TRACE_FLAG_DEFERRED,
         TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
     },
     Context,

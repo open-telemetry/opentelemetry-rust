@@ -109,7 +109,7 @@ impl TextMapPropagator for TextMapCompositePropagator {
 mod tests {
     use crate::api::{
         propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
-        trace::{Span, SpanReference, SpanId, StatusCode, TraceContextExt, TraceId, TraceState},
+        trace::{Span, SpanId, SpanReference, StatusCode, TraceContextExt, TraceId, TraceState},
         Context, KeyValue,
     };
     use crate::sdk::propagation::{TextMapCompositePropagator, TraceContextPropagator};
