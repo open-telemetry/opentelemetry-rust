@@ -23,6 +23,6 @@ pub mod propagation;
 #[cfg(feature = "trace")]
 pub mod trace;
 
-pub use self::baggage::{Baggage, BaggageExt};
+pub use self::baggage::{AddBaggage, Baggage, BaggageExt};
 pub use self::context::Context;
-pub use self::core::{Key, KeyValue, Unit, Value};
+pub use self::core::{Key, KeyValue, KeyValueMetadata, Metadata, Unit, Value};

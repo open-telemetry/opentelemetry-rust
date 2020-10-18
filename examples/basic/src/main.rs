@@ -2,7 +2,7 @@ use futures::stream::{Stream, StreamExt};
 use opentelemetry::api::{
     metrics::{self, MetricsError, ObserverResult},
     trace::{TraceContextExt, Tracer},
-    BaggageExt, Context, Key, KeyValue,
+    AddBaggage, Context, Key, KeyValue,
 };
 use opentelemetry::exporter;
 use opentelemetry::global;

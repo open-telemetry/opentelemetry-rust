@@ -13,7 +13,7 @@
 //! # Examples
 //!
 //! ```
-//! use opentelemetry::api::{BaggageExt, Key, propagation::TextMapPropagator};
+//! use opentelemetry::api::{BaggageExt, Key, propagation::TextMapPropagator, AddBaggage};
 //! use opentelemetry::sdk::propagation::BaggagePropagator;
 //! use std::collections::HashMap;
 //!
@@ -42,7 +42,7 @@
 //! ```
 use crate::api::{
     propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
-    BaggageExt, Context, KeyValue,
+    AddBaggage, BaggageExt, Context, KeyValueMetadata,
 };
 use percent_encoding::{percent_decode_str, utf8_percent_encode, AsciiSet, CONTROLS};
 use std::iter;
@@ -76,10 +76,11 @@ impl TextMapPropagator for BaggagePropagator {
         if !baggage.is_empty() {
             let header_value = baggage
                 .iter()
-                .map(|(name, value)| {
+                .map(|(name, (value, metadata))| {
                     utf8_percent_encode(name.as_str().trim(), FRAGMENT)
                         .chain(iter::once("="))
                         .chain(utf8_percent_encode(String::from(value).trim(), FRAGMENT))
+                        .chain(iter::once(metadata.as_str()))
                         .collect()
                 })
                 .collect::<Vec<String>>()
@@ -102,7 +103,6 @@ impl TextMapPropagator for BaggagePropagator {
                         let name = percent_decode_str(name).decode_utf8().map_err(|_| ())?;
                         let value = percent_decode_str(value).decode_utf8().map_err(|_| ())?;
 
-                        // TODO: handle props from https://w3c.github.io/baggage/
                         // for now just append to value
                         let decoded_props = props
                             .iter()
@@ -110,9 +110,10 @@ impl TextMapPropagator for BaggagePropagator {
                             .map(|prop| format!(";{}", prop.as_ref().trim()))
                             .collect::<String>();
 
-                        Ok(KeyValue::new(
+                        Ok(KeyValueMetadata::new(
                             name.trim().to_owned(),
-                            value.trim().to_string() + decoded_props.as_str(),
+                            value.trim().to_string(),
+                            decoded_props.as_str(),
                         ))
                     } else {
                         // Invalid name / value format
@@ -137,7 +138,7 @@ impl TextMapPropagator for BaggagePropagator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::api::{propagation::TextMapPropagator, Key, Value};
+    use crate::api::{propagation::TextMapPropagator, Key, KeyValue, Metadata, Value};
     use std::collections::HashMap;
 
     #[rustfmt::skip]
@@ -147,14 +148,23 @@ mod tests {
             ("key1=val1,key2=val2", vec![(Key::new("key1"), Value::from("val1")), (Key::new("key2"), Value::from("val2"))].into_iter().collect()),
             // "valid w3cHeader with spaces"
             ("key1 =   val1,  key2 =val2   ", vec![(Key::new("key1"), Value::from("val1")), (Key::new("key2"), Value::from("val2"))].into_iter().collect()),
-            // "valid w3cHeader with properties"
-            ("key1=val1,key2=val2;prop=1", vec![(Key::new("key1"), Value::from("val1")), (Key::new("key2"), Value::from("val2;prop=1"))].into_iter().collect()),
             // "valid header with url-escaped comma"
             ("key1=val1,key2=val2%2Cval3", vec![(Key::new("key1"), Value::from("val1")), (Key::new("key2"), Value::from("val2,val3"))].into_iter().collect()),
             // "valid header with an invalid header"
             ("key1=val1,key2=val2,a,val3", vec![(Key::new("key1"), Value::from("val1")), (Key::new("key2"), Value::from("val2"))].into_iter().collect()),
             // "valid header with no value"
             ("key1=,key2=val2", vec![(Key::new("key1"), Value::from("")), (Key::new("key2"), Value::from("val2"))].into_iter().collect()),
+        ]
+    }
+
+    #[rustfmt::skip]
+    #[allow(clippy::type_complexity)]
+    fn valid_extract_data_with_metadata() -> Vec<(&'static str, HashMap<Key, (Value, Metadata)>)> {
+        vec![
+            // "valid w3cHeader with properties"
+            ("key1=val1,key2=val2;prop=1", vec![(Key::new("key1"), (Value::from("val1"), Metadata::default())), (Key::new("key2"), (Value::from("val2"), Metadata::from(";prop=1")))].into_iter().collect()),
+            // prop can don't need to be key value pair
+            ("key1=val1,key2=val2;prop1", vec![(Key::new("key1"), (Value::from("val1"), Metadata::default())), (Key::new("key2"), (Value::from("val2"), Metadata::from(";prop1")))].into_iter().collect())
         ]
     }
 
@@ -198,6 +208,20 @@ mod tests {
         ]
     }
 
+    #[rustfmt::skip]
+    fn valid_inject_data_metadata() -> Vec<(Vec<KeyValueMetadata>, Vec<&'static str>)> {
+        vec![
+            (
+                vec![KeyValueMetadata::new("key1", "val1", ";prop1"),
+                     KeyValue::new("key2", "val2").into()],
+             vec![
+                 "key1=val1;prop1",
+                 "key2=val2"
+             ],
+            )
+        ]
+    }
+
     #[test]
     fn extract_baggage() {
         let propagator = BaggagePropagator::new();
@@ -209,7 +233,7 @@ mod tests {
             let baggage = context.baggage();
 
             assert_eq!(kvs.len(), baggage.len());
-            for (key, value) in baggage {
+            for (key, (value, _metadata)) in baggage {
                 assert_eq!(Some(value), kvs.get(key))
             }
         }
@@ -219,9 +243,42 @@ mod tests {
     fn inject_baggage() {
         let propagator = BaggagePropagator::new();
 
-        for (kvs, header_parts) in valid_inject_data() {
+        for (kvm, header_parts) in valid_inject_data() {
             let mut injector = HashMap::new();
-            let cx = Context::current_with_baggage(kvs);
+            let cx = Context::current_with_baggage(kvm);
+            propagator.inject_context(&cx, &mut injector);
+            let header_value = injector.get(BAGGAGE_HEADER).unwrap();
+
+            assert_eq!(header_parts.join(",").len(), header_value.len(),);
+            for header_part in &header_parts {
+                assert!(header_value.contains(header_part),)
+            }
+        }
+    }
+
+    #[test]
+    fn extract_baggage_with_metadata() {
+        let propagator = BaggagePropagator::new();
+        for (header_value, kvm) in valid_extract_data_with_metadata() {
+            let mut extractor: HashMap<String, String> = HashMap::new();
+            extractor.insert(BAGGAGE_HEADER.to_string(), header_value.to_string());
+            let context = propagator.extract(&extractor);
+            let baggage = context.baggage();
+
+            assert_eq!(kvm.len(), baggage.len());
+            for (key, value_and_prop) in baggage {
+                assert_eq!(Some(value_and_prop), kvm.get(key))
+            }
+        }
+    }
+
+    #[test]
+    fn inject_baggage_with_metadata() {
+        let propagator = BaggagePropagator::new();
+
+        for (kvm, header_parts) in valid_inject_data_metadata() {
+            let mut injector = HashMap::new();
+            let cx = Context::current_with_baggage(kvm);
             propagator.inject_context(&cx, &mut injector);
             let header_value = injector.get(BAGGAGE_HEADER).unwrap();
 

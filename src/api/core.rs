@@ -202,6 +202,30 @@ fn format_value_array_as_string(v: &[Value]) -> String {
     )
 }
 
+/// `Metadata` uses by `KeyValue` pairs to represent related metadata.
+#[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
+#[derive(Clone, Debug, PartialOrd, PartialEq, Default)]
+pub struct Metadata(String);
+
+impl Metadata {
+    /// Return underlying string
+    pub fn as_str(&self) -> &str {
+        self.0.as_str()
+    }
+}
+
+impl Into<Metadata> for String {
+    fn into(self) -> Metadata {
+        Metadata(self)
+    }
+}
+
+impl From<&str> for Metadata {
+    fn from(s: &str) -> Self {
+        Metadata(s.to_string())
+    }
+}
+
 /// `KeyValue` pairs are used by `LabelSet`s and `Span` attributes.
 #[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
 #[derive(Clone, Debug, PartialEq)]
@@ -222,6 +246,44 @@ impl KeyValue {
         KeyValue {
             key: key.into(),
             value: value.into(),
+        }
+    }
+}
+
+/// `KeyValue` pairs with metadata
+#[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
+#[derive(Clone, Debug, PartialEq)]
+pub struct KeyValueMetadata {
+    /// Dimension or event key
+    pub key: Key,
+    /// Dimension or event value
+    pub value: Value,
+    /// Metadata associate with this key value pair
+    pub metadata: Metadata,
+}
+
+impl KeyValueMetadata {
+    /// Create a new `KeyValue` pair with metadata
+    pub fn new<K, V, S>(key: K, value: V, metadata: S) -> Self
+    where
+        K: Into<Key>,
+        V: Into<Value>,
+        S: Into<Metadata>,
+    {
+        KeyValueMetadata {
+            key: key.into(),
+            value: value.into(),
+            metadata: metadata.into(),
+        }
+    }
+}
+
+impl From<KeyValue> for KeyValueMetadata {
+    fn from(kv: KeyValue) -> Self {
+        KeyValueMetadata {
+            key: kv.key,
+            value: kv.value,
+            metadata: Metadata::default(),
         }
     }
 }
