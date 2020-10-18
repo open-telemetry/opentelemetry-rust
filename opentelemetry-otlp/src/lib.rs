@@ -115,7 +115,7 @@ pub use crate::span::{Compression, Credentials, Exporter, ExporterConfig, Protoc
 /// ## Examples
 ///
 /// ```no_run
-/// fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 ///     let (tracer, _uninstall) = opentelemetry_otlp::new_pipeline().install()?;
 ///
 ///     Ok(())
