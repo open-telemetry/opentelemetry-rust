@@ -12,7 +12,7 @@ pub mod hello_world {
     tonic::include_proto!("helloworld");
 }
 
-fn tracing_init() -> Result<(), Box<dyn std::error::Error>> {
+fn tracing_init() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let builder = opentelemetry_jaeger::Exporter::builder()
         .with_agent_endpoint("127.0.0.1:6831".parse().unwrap());
 
@@ -44,7 +44,7 @@ fn tracing_init() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[instrument]
-async fn greet() -> Result<(), Box<dyn std::error::Error>> {
+async fn greet() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let mut client = GreeterClient::connect("http://[::1]:50051")
         .instrument(info_span!("client connect"))
         .await?;
@@ -66,7 +66,7 @@ async fn greet() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     tracing_init()?;
     greet().await?;
 

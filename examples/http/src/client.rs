@@ -24,7 +24,7 @@ fn init_tracer() -> (impl Tracer, stdout::Uninstall) {
 }
 
 #[tokio::main]
-async fn main() -> std::result::Result<(), Box<dyn std::error::Error + Send + Sync>> {
+async fn main() -> std::result::Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let _guard = init_tracer();
 
     let client = Client::new();

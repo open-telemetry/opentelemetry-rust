@@ -8,7 +8,7 @@ use opentelemetry::api::{
 use opentelemetry::{global, sdk::trace as sdktrace};
 use std::error::Error;
 
-fn init_tracer() -> Result<(sdktrace::Tracer, opentelemetry_jaeger::Uninstall), Box<dyn Error>> {
+fn init_tracer() -> Result<(sdktrace::Tracer, opentelemetry_jaeger::Uninstall), Box<dyn Error + Send + Sync + 'static>> {
     opentelemetry_jaeger::new_pipeline()
         .with_agent_endpoint("localhost:6831")
         .with_service_name("trace-udp-demo")
