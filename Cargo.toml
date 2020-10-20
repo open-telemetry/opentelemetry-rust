@@ -16,6 +16,9 @@ keywords = ["opentelemetry", "logging", "tracing", "metrics", "async"]
 license = "Apache-2.0"
 edition = "2018"
 
+[package.metadata.docs.rs]
+all-features = true
+
 [dependencies]
 async-std = { version = "1.6", features = ["unstable"], optional = true }
 async-trait = { version = "0.1", optional = true }
