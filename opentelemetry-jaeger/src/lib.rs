@@ -307,7 +307,7 @@ impl PipelineBuilder {
     }
 
     /// Config whether to export information of instrumentation library.
-    pub fn export_instrumentation_library(self, export: bool) -> Self {
+    pub fn with_instrumentation_library_tags(self, export: bool) -> Self {
         PipelineBuilder {
             export_instrument_library: export,
             ..self
@@ -497,12 +497,6 @@ fn links_to_references(
         Some(refs)
     } else {
         None
-    }
-}
-
-impl Into<jaeger::Span> for trace::SpanData {
-    fn into(self) -> jaeger::Span {
-        convert_otel_span_into_jaeger_span(self, true)
     }
 }
 
