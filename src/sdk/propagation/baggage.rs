@@ -13,7 +13,7 @@
 //! # Examples
 //!
 //! ```
-//! use opentelemetry::api::{BaggageExt, Key, propagation::TextMapPropagator, AddBaggage};
+//! use opentelemetry::api::{Key, propagation::TextMapPropagator, BaggageExt};
 //! use opentelemetry::sdk::propagation::BaggagePropagator;
 //! use std::collections::HashMap;
 //!
@@ -33,7 +33,7 @@
 //! // Add new baggage
 //! let cx_with_additions = cx.with_baggage(vec![Key::new("server_id").u64(42)]);
 //!
-//! // Inject aggage into http request
+//! // Inject baggage into http request
 //! propagator.inject_context(&cx_with_additions, &mut headers);
 //!
 //! let header_value = headers.get("baggage").expect("header is injected");
@@ -42,7 +42,7 @@
 //! ```
 use crate::api::{
     propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
-    AddBaggage, BaggageExt, Context, KeyValueMetadata,
+    BaggageExt, Context, KeyValueMetadata,
 };
 use percent_encoding::{percent_decode_str, utf8_percent_encode, AsciiSet, CONTROLS};
 use std::iter;
@@ -214,10 +214,10 @@ mod tests {
             (
                 vec![KeyValueMetadata::new("key1", "val1", ";prop1"),
                      KeyValue::new("key2", "val2").into()],
-             vec![
-                 "key1=val1;prop1",
-                 "key2=val2"
-             ],
+                vec![
+                    "key1=val1;prop1",
+                    "key2=val2"
+                ],
             )
         ]
     }

@@ -12,7 +12,7 @@
 /// use opentelemetry::api::{
 ///     propagation::TextMapPropagator,
 ///     trace::{TraceContextExt, Tracer, TracerProvider},
-///     Context, KeyValue,AddBaggage,
+///     Context, KeyValue,BaggageExt,
 /// };
 /// use opentelemetry::sdk::propagation::{
 ///     BaggagePropagator, TextMapCompositePropagator, TraceContextPropagator,

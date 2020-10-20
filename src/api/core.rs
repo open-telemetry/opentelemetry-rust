@@ -214,9 +214,9 @@ impl Metadata {
     }
 }
 
-impl Into<Metadata> for String {
-    fn into(self) -> Metadata {
-        Metadata(self)
+impl From<String> for Metadata {
+    fn from(s: String) -> Metadata {
+        Metadata(s)
     }
 }
 
