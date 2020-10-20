@@ -15,6 +15,9 @@ keywords = ["opentelemetry", "zipkin", "tracing", "async"]
 license = "Apache-2.0"
 edition = "2018"
 
+[package.metadata.docs.rs]
+all-features = true
+
 [features]
 default = ["reqwest-blocking-client"]
 reqwest-blocking-client = ["reqwest/blocking", "opentelemetry/reqwest"]
