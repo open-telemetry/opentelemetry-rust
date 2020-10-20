@@ -49,7 +49,7 @@ pub trait TextMapPropagator: Debug {
     /// Returns iter of fields used by [`TextMapPropagator`]
     ///
     /// [`TextMapPropagator`]: ./trait.TextMapPropagator.html
-    fn fields(&self) -> FieldIter;
+    fn fields(&self) -> FieldIter<'_>;
 }
 
 /// An iterator over fields of a [`TextMapPropagator`]

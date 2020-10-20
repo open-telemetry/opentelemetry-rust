@@ -129,7 +129,7 @@ impl TextMapPropagator for BaggagePropagator {
         }
     }
 
-    fn fields(&self) -> FieldIter {
+    fn fields(&self) -> FieldIter<'_> {
         FieldIter::new(BAGGAGE_FIELDS.as_ref())
     }
 }
