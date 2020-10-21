@@ -13,7 +13,7 @@
 //! # Examples
 //!
 //! ```
-//! use opentelemetry::api::{Key, propagation::TextMapPropagator, BaggageExt};
+//! use opentelemetry::api::{propagation::TextMapPropagator, BaggageExt, Key};
 //! use opentelemetry::sdk::propagation::BaggagePropagator;
 //! use std::collections::HashMap;
 //!
@@ -77,10 +77,15 @@ impl TextMapPropagator for BaggagePropagator {
             let header_value = baggage
                 .iter()
                 .map(|(name, (value, metadata))| {
+                    let metadata_str = if metadata.as_str().trim().is_empty() {
+                        "".to_string()
+                    } else {
+                        format!(";{}", metadata.as_str().trim())
+                    };
                     utf8_percent_encode(name.as_str().trim(), FRAGMENT)
                         .chain(iter::once("="))
                         .chain(utf8_percent_encode(String::from(value).trim(), FRAGMENT))
-                        .chain(iter::once(metadata.as_str()))
+                        .chain(iter::once(metadata_str.as_str()))
                         .collect()
                 })
                 .collect::<Vec<String>>()
@@ -103,12 +108,14 @@ impl TextMapPropagator for BaggagePropagator {
                         let name = percent_decode_str(name).decode_utf8().map_err(|_| ())?;
                         let value = percent_decode_str(value).decode_utf8().map_err(|_| ())?;
 
-                        // for now just append to value
+                        // Here we don't store the first ; into baggage since it should be treated
+                        // as separator rather part of metadata
                         let decoded_props = props
                             .iter()
                             .flat_map(|prop| percent_decode_str(prop).decode_utf8())
-                            .map(|prop| format!(";{}", prop.as_ref().trim()))
-                            .collect::<String>();
+                            .map(|prop| prop.trim().to_string())
+                            .collect::<Vec<String>>()
+                            .join(";"); // join with ; because we deleted all ; when calling split above
 
                         Ok(KeyValueMetadata::new(
                             name.trim().to_owned(),
@@ -162,9 +169,15 @@ mod tests {
     fn valid_extract_data_with_metadata() -> Vec<(&'static str, HashMap<Key, (Value, Metadata)>)> {
         vec![
             // "valid w3cHeader with properties"
-            ("key1=val1,key2=val2;prop=1", vec![(Key::new("key1"), (Value::from("val1"), Metadata::default())), (Key::new("key2"), (Value::from("val2"), Metadata::from(";prop=1")))].into_iter().collect()),
+            ("key1=val1,key2=val2;prop=1", vec![(Key::new("key1"), (Value::from("val1"), Metadata::default())), (Key::new("key2"), (Value::from("val2"), Metadata::from("prop=1")))].into_iter().collect()),
             // prop can don't need to be key value pair
-            ("key1=val1,key2=val2;prop1", vec![(Key::new("key1"), (Value::from("val1"), Metadata::default())), (Key::new("key2"), (Value::from("val2"), Metadata::from(";prop1")))].into_iter().collect())
+            ("key1=val1,key2=val2;prop1", vec![(Key::new("key1"), (Value::from("val1"), Metadata::default())), (Key::new("key2"), (Value::from("val2"), Metadata::from("prop1")))].into_iter().collect()),
+            ("key1=value1;property1;property2, key2 = value2, key3=value3; propertyKey=propertyValue",
+             vec![
+                 (Key::new("key1"), (Value::from("value1"), Metadata::from("property1;property2"))),
+                 (Key::new("key2"), (Value::from("value2"), Metadata::default())),
+                 (Key::new("key3"), (Value::from("value3"), Metadata::from("propertyKey=propertyValue")))
+             ].into_iter().collect()),
         ]
     }
 
@@ -204,7 +217,7 @@ mod tests {
                     "key3=[%22val1%22%2C%22val2%22]",
                     "key4=[%22val1%22%2C%22val2%22]",
                 ],
-            )
+            ),
         ]
     }
 
@@ -212,11 +225,15 @@ mod tests {
     fn valid_inject_data_metadata() -> Vec<(Vec<KeyValueMetadata>, Vec<&'static str>)> {
         vec![
             (
-                vec![KeyValueMetadata::new("key1", "val1", ";prop1"),
-                     KeyValue::new("key2", "val2").into()],
+                vec![
+                    KeyValueMetadata::new("key1", "val1", "prop1"),
+                    KeyValue::new("key2", "val2").into(),
+                    KeyValueMetadata::new("key3", "val3", "anykey=anyvalue")
+                ],
                 vec![
                     "key1=val1;prop1",
-                    "key2=val2"
+                    "key2=val2",
+                    "key3=val3;anykey=anyvalue"
                 ],
             )
         ]
@@ -248,7 +265,6 @@ mod tests {
             let cx = Context::current_with_baggage(kvm);
             propagator.inject_context(&cx, &mut injector);
             let header_value = injector.get(BAGGAGE_HEADER).unwrap();
-
             assert_eq!(header_parts.join(",").len(), header_value.len(),);
             for header_part in &header_parts {
                 assert!(header_value.contains(header_part),)
@@ -282,7 +298,7 @@ mod tests {
             propagator.inject_context(&cx, &mut injector);
             let header_value = injector.get(BAGGAGE_HEADER).unwrap();
 
-            assert_eq!(header_parts.join(",").len(), header_value.len(),);
+            assert_eq!(header_parts.join(",").len(), header_value.len());
             for header_part in &header_parts {
                 assert!(header_value.contains(header_part),)
             }
