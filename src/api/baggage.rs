@@ -15,7 +15,7 @@ const MAX_LEN_OF_ALL_PAIRS: usize = 8192;
 /// A set of name/value pairs describing user-defined properties across systems.
 #[derive(Debug, Default)]
 pub struct Baggage {
-    inner: HashMap<Key, (Value, Metadata)>,
+    inner: HashMap<Key, (Value, BaggageMetadata)>,
     len: usize,
 }
 
@@ -56,7 +56,7 @@ impl Baggage {
     /// // By default, the metadata is empty
     /// assert_eq!(cc.get_with_metadata("my-name"), Some(&(Value::String("my-value".to_string()), "".into())))
     /// ```
-    pub fn get_with_metadata<T: Into<Key>>(&self, key: T) -> Option<&(Value, Metadata)> {
+    pub fn get_with_metadata<T: Into<Key>>(&self, key: T) -> Option<&(Value, BaggageMetadata)> {
         self.inner.get(&key.into())
     }
 
@@ -76,11 +76,11 @@ impl Baggage {
     /// assert_eq!(cc.get("my-name"), Some(&Value::String("my-value".to_string())))
     /// ```
     pub fn insert<K, V>(&mut self, key: K, value: V) -> Option<Value>
-        where
-            K: Into<Key>,
-            V: Into<Value>,
+    where
+        K: Into<Key>,
+        V: Into<Value>,
     {
-        self.insert_with_metadata(key, value, Metadata::default())
+        self.insert_with_metadata(key, value, BaggageMetadata::default())
             .map(|pair| pair.0)
     }
 
@@ -104,11 +104,11 @@ impl Baggage {
         key: K,
         value: V,
         metadata: S,
-    ) -> Option<(Value, Metadata)>
-        where
-            K: Into<Key>,
-            V: Into<Value>,
-            S: Into<Metadata>,
+    ) -> Option<(Value, BaggageMetadata)>
+    where
+        K: Into<Key>,
+        V: Into<Value>,
+        S: Into<BaggageMetadata>,
     {
         let (key, value, metadata) = (key.into(), value.into(), metadata.into());
         if self.insertable(&key, &value, &metadata) {
@@ -120,7 +120,7 @@ impl Baggage {
 
     /// Removes a name from the baggage, returning the value
     /// corresponding to the name if the pair was previously in the map.
-    pub fn remove<K: Into<Key>>(&mut self, key: K) -> Option<(Value, Metadata)> {
+    pub fn remove<K: Into<Key>>(&mut self, key: K) -> Option<(Value, BaggageMetadata)> {
         self.inner.remove(&key.into())
     }
 
@@ -141,7 +141,7 @@ impl Baggage {
 
     /// Determine whether the key value pair exceed one of the [limits](https://w3c.github.io/baggage/#limits).
     /// If not, update the total length of key values
-    fn insertable(&mut self, key: &Key, value: &Value, metadata: &Metadata) -> bool {
+    fn insertable(&mut self, key: &Key, value: &Value, metadata: &BaggageMetadata) -> bool {
         let value = String::from(value);
         if key_value_metadata_bytes_size(key.as_str(), value.as_str(), metadata.as_str())
             < MAX_BYTES_FOR_ONE_PAIR
@@ -188,10 +188,10 @@ fn key_value_metadata_bytes_size(key: &str, value: &str, metadata: &str) -> usiz
 
 /// An iterator over the entries of a `Baggage`.
 #[derive(Debug)]
-pub struct Iter<'a>(hash_map::Iter<'a, Key, (Value, Metadata)>);
+pub struct Iter<'a>(hash_map::Iter<'a, Key, (Value, BaggageMetadata)>);
 
 impl<'a> Iterator for Iter<'a> {
-    type Item = (&'a Key, &'a (Value, Metadata));
+    type Item = (&'a Key, &'a (Value, BaggageMetadata));
 
     fn next(&mut self) -> Option<Self::Item> {
         self.0.next()
@@ -199,7 +199,7 @@ impl<'a> Iterator for Iter<'a> {
 }
 
 impl<'a> IntoIterator for &'a Baggage {
-    type Item = (&'a Key, &'a (Value, Metadata));
+    type Item = (&'a Key, &'a (Value, BaggageMetadata));
     type IntoIter = Iter<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -207,8 +207,8 @@ impl<'a> IntoIterator for &'a Baggage {
     }
 }
 
-impl FromIterator<(Key, (Value, Metadata))> for Baggage {
-    fn from_iter<I: IntoIterator<Item=(Key, (Value, Metadata))>>(iter: I) -> Self {
+impl FromIterator<(Key, (Value, BaggageMetadata))> for Baggage {
+    fn from_iter<I: IntoIterator<Item = (Key, (Value, BaggageMetadata))>>(iter: I) -> Self {
         let mut baggage = Baggage::default();
         for (key, (value, metadata)) in iter.into_iter() {
             baggage.insert_with_metadata(key, value, metadata);
@@ -218,7 +218,7 @@ impl FromIterator<(Key, (Value, Metadata))> for Baggage {
 }
 
 impl FromIterator<KeyValue> for Baggage {
-    fn from_iter<I: IntoIterator<Item=KeyValue>>(iter: I) -> Self {
+    fn from_iter<I: IntoIterator<Item = KeyValue>>(iter: I) -> Self {
         let mut baggage = Baggage::default();
         for kv in iter.into_iter() {
             baggage.insert(kv.key, kv.value);
@@ -228,7 +228,7 @@ impl FromIterator<KeyValue> for Baggage {
 }
 
 impl FromIterator<KeyValueMetadata> for Baggage {
-    fn from_iter<I: IntoIterator<Item=KeyValueMetadata>>(iter: I) -> Self {
+    fn from_iter<I: IntoIterator<Item = KeyValueMetadata>>(iter: I) -> Self {
         let mut baggage = Baggage::default();
         for kvm in iter.into_iter() {
             baggage.insert_with_metadata(kvm.key, kvm.value, kvm.metadata);
@@ -254,7 +254,7 @@ pub trait BaggageExt {
     ///     Some(&Value::String("my-value".to_string())),
     /// )
     /// ```
-    fn with_baggage<T: IntoIterator<Item=I>, I: Into<KeyValueMetadata>>(
+    fn with_baggage<T: IntoIterator<Item = I>, I: Into<KeyValueMetadata>>(
         &self,
         baggage: T,
     ) -> Self;
@@ -273,7 +273,7 @@ pub trait BaggageExt {
     ///     Some(&Value::String("my-value".to_string())),
     /// )
     /// ```
-    fn current_with_baggage<T: IntoIterator<Item=I>, I: Into<KeyValueMetadata>>(
+    fn current_with_baggage<T: IntoIterator<Item = I>, I: Into<KeyValueMetadata>>(
         baggage: T,
     ) -> Self;
 
@@ -296,7 +296,7 @@ pub trait BaggageExt {
 }
 
 impl BaggageExt for Context {
-    fn with_baggage<T: IntoIterator<Item=I>, I: Into<KeyValueMetadata>>(
+    fn with_baggage<T: IntoIterator<Item = I>, I: Into<KeyValueMetadata>>(
         &self,
         baggage: T,
     ) -> Self {
@@ -315,7 +315,7 @@ impl BaggageExt for Context {
         self.with_value(merged)
     }
 
-    fn current_with_baggage<T: IntoIterator<Item=I>, I: Into<KeyValueMetadata>>(kvs: T) -> Self {
+    fn current_with_baggage<T: IntoIterator<Item = I>, I: Into<KeyValueMetadata>>(kvs: T) -> Self {
         Context::current().with_baggage(kvs)
     }
 
@@ -331,24 +331,24 @@ impl BaggageExt for Context {
 /// `Metadata` uses by `KeyValue` pairs to represent related metadata.
 #[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
 #[derive(Clone, Debug, PartialOrd, PartialEq, Default)]
-pub struct Metadata(String);
+pub struct BaggageMetadata(String);
 
-impl Metadata {
+impl BaggageMetadata {
     /// Return underlying string
     pub fn as_str(&self) -> &str {
         self.0.as_str()
     }
 }
 
-impl From<String> for Metadata {
-    fn from(s: String) -> Metadata {
-        Metadata(s.trim().to_string())
+impl From<String> for BaggageMetadata {
+    fn from(s: String) -> BaggageMetadata {
+        BaggageMetadata(s.trim().to_string())
     }
 }
 
-impl From<&str> for Metadata {
+impl From<&str> for BaggageMetadata {
     fn from(s: &str) -> Self {
-        Metadata(s.trim().to_string())
+        BaggageMetadata(s.trim().to_string())
     }
 }
 
@@ -361,16 +361,16 @@ pub struct KeyValueMetadata {
     /// Dimension or event value
     pub value: Value,
     /// Metadata associate with this key value pair
-    pub metadata: Metadata,
+    pub metadata: BaggageMetadata,
 }
 
 impl KeyValueMetadata {
     /// Create a new `KeyValue` pair with metadata
     pub fn new<K, V, S>(key: K, value: V, metadata: S) -> Self
-        where
-            K: Into<Key>,
-            V: Into<Value>,
-            S: Into<Metadata>,
+    where
+        K: Into<Key>,
+        V: Into<Value>,
+        S: Into<BaggageMetadata>,
     {
         KeyValueMetadata {
             key: key.into(),
@@ -385,7 +385,7 @@ impl From<KeyValue> for KeyValueMetadata {
         KeyValueMetadata {
             key: kv.key,
             value: kv.value,
-            metadata: Metadata::default(),
+            metadata: BaggageMetadata::default(),
         }
     }
 }

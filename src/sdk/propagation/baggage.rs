@@ -145,7 +145,7 @@ impl TextMapPropagator for BaggagePropagator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::api::{propagation::TextMapPropagator, Key, KeyValue, Metadata, Value};
+    use crate::api::{propagation::TextMapPropagator, BaggageMetadata, Key, KeyValue, Value};
     use std::collections::HashMap;
 
     #[rustfmt::skip]
@@ -166,17 +166,17 @@ mod tests {
 
     #[rustfmt::skip]
     #[allow(clippy::type_complexity)]
-    fn valid_extract_data_with_metadata() -> Vec<(&'static str, HashMap<Key, (Value, Metadata)>)> {
+    fn valid_extract_data_with_metadata() -> Vec<(&'static str, HashMap<Key, (Value, BaggageMetadata)>)> {
         vec![
             // "valid w3cHeader with properties"
-            ("key1=val1,key2=val2;prop=1", vec![(Key::new("key1"), (Value::from("val1"), Metadata::default())), (Key::new("key2"), (Value::from("val2"), Metadata::from("prop=1")))].into_iter().collect()),
+            ("key1=val1,key2=val2;prop=1", vec![(Key::new("key1"), (Value::from("val1"), BaggageMetadata::default())), (Key::new("key2"), (Value::from("val2"), BaggageMetadata::from("prop=1")))].into_iter().collect()),
             // prop can don't need to be key value pair
-            ("key1=val1,key2=val2;prop1", vec![(Key::new("key1"), (Value::from("val1"), Metadata::default())), (Key::new("key2"), (Value::from("val2"), Metadata::from("prop1")))].into_iter().collect()),
+            ("key1=val1,key2=val2;prop1", vec![(Key::new("key1"), (Value::from("val1"), BaggageMetadata::default())), (Key::new("key2"), (Value::from("val2"), BaggageMetadata::from("prop1")))].into_iter().collect()),
             ("key1=value1;property1;property2, key2 = value2, key3=value3; propertyKey=propertyValue",
              vec![
-                 (Key::new("key1"), (Value::from("value1"), Metadata::from("property1;property2"))),
-                 (Key::new("key2"), (Value::from("value2"), Metadata::default())),
-                 (Key::new("key3"), (Value::from("value3"), Metadata::from("propertyKey=propertyValue")))
+                 (Key::new("key1"), (Value::from("value1"), BaggageMetadata::from("property1;property2"))),
+                 (Key::new("key2"), (Value::from("value2"), BaggageMetadata::default())),
+                 (Key::new("key3"), (Value::from("value3"), BaggageMetadata::from("propertyKey=propertyValue")))
              ].into_iter().collect()),
         ]
     }
