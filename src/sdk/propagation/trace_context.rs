@@ -153,7 +153,7 @@ mod tests {
         propagation::{Extractor, Injector, TextMapPropagator},
         trace::{SpanId, SpanReference, TraceId},
     };
-    use crate::testing::utils::TestSpan;
+    use crate::testing::trace::TestSpan;
     use std::collections::HashMap;
     use std::str::FromStr;
 

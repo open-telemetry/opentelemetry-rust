@@ -113,7 +113,7 @@ mod tests {
         Context,
     };
     use crate::sdk::propagation::{TextMapCompositePropagator, TraceContextPropagator};
-    use crate::testing::utils::TestSpan;
+    use crate::testing::trace::TestSpan;
     use std::collections::HashMap;
     use std::str::FromStr;
 

@@ -319,7 +319,7 @@ mod tests {
             TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
         },
     };
-    use crate::testing::utils::TestSpan;
+    use crate::testing::trace::TestSpan;
     use std::collections::HashMap;
 
     const TRACE_ID_STR: &str = "4bf92f3577b34da6a3ce929d0e0e4736";

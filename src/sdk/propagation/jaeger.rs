@@ -188,7 +188,7 @@ mod tests {
         },
         Context,
     };
-    use crate::testing::utils::TestSpan;
+    use crate::testing::trace::TestSpan;
     use std::collections::HashMap;
 
     const LONG_TRACE_ID_STR: &str = "000000000000004d0000000000000016";

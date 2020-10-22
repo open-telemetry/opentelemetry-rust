@@ -238,7 +238,7 @@ fn title_case(s: &str) -> String {
 mod tests {
     use super::*;
     use crate::api::trace::TraceState;
-    use crate::testing::utils::TestSpan;
+    use crate::testing::trace::TestSpan;
     use std::collections::HashMap;
     use std::str::FromStr;
 
