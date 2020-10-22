@@ -237,11 +237,10 @@ fn title_case(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::api;
     use crate::api::trace::TraceState;
+    use crate::testing::utils::TestSpan;
     use std::collections::HashMap;
     use std::str::FromStr;
-    use std::time::SystemTime;
 
     #[rustfmt::skip]
     fn extract_test_data() -> Vec<(&'static str, SpanReference)> {
@@ -297,29 +296,6 @@ mod tests {
             context.remote_span_reference(),
             Some(&SpanReference::empty_context())
         )
-    }
-
-    #[derive(Debug)]
-    struct TestSpan(SpanReference);
-
-    impl api::trace::Span for TestSpan {
-        fn add_event_with_timestamp(
-            &self,
-            _name: String,
-            _timestamp: std::time::SystemTime,
-            _attributes: Vec<api::KeyValue>,
-        ) {
-        }
-        fn span_reference(&self) -> SpanReference {
-            self.0.clone()
-        }
-        fn is_recording(&self) -> bool {
-            false
-        }
-        fn set_attribute(&self, _attribute: api::KeyValue) {}
-        fn set_status(&self, _code: api::trace::StatusCode, _message: String) {}
-        fn update_name(&self, _new_name: String) {}
-        fn end_with_timestamp(&self, _timestamp: SystemTime) {}
     }
 
     #[test]
