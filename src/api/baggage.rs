@@ -76,9 +76,9 @@ impl Baggage {
     /// assert_eq!(cc.get("my-name"), Some(&Value::String("my-value".to_string())))
     /// ```
     pub fn insert<K, V>(&mut self, key: K, value: V) -> Option<Value>
-    where
-        K: Into<Key>,
-        V: Into<Value>,
+        where
+            K: Into<Key>,
+            V: Into<Value>,
     {
         self.insert_with_metadata(key, value, Metadata::default())
             .map(|pair| pair.0)
@@ -105,10 +105,10 @@ impl Baggage {
         value: V,
         metadata: S,
     ) -> Option<(Value, Metadata)>
-    where
-        K: Into<Key>,
-        V: Into<Value>,
-        S: Into<Metadata>,
+        where
+            K: Into<Key>,
+            V: Into<Value>,
+            S: Into<Metadata>,
     {
         let (key, value, metadata) = (key.into(), value.into(), metadata.into());
         if self.insertable(&key, &value, &metadata) {
@@ -208,7 +208,7 @@ impl<'a> IntoIterator for &'a Baggage {
 }
 
 impl FromIterator<(Key, (Value, Metadata))> for Baggage {
-    fn from_iter<I: IntoIterator<Item = (Key, (Value, Metadata))>>(iter: I) -> Self {
+    fn from_iter<I: IntoIterator<Item=(Key, (Value, Metadata))>>(iter: I) -> Self {
         let mut baggage = Baggage::default();
         for (key, (value, metadata)) in iter.into_iter() {
             baggage.insert_with_metadata(key, value, metadata);
@@ -218,7 +218,7 @@ impl FromIterator<(Key, (Value, Metadata))> for Baggage {
 }
 
 impl FromIterator<KeyValue> for Baggage {
-    fn from_iter<I: IntoIterator<Item = KeyValue>>(iter: I) -> Self {
+    fn from_iter<I: IntoIterator<Item=KeyValue>>(iter: I) -> Self {
         let mut baggage = Baggage::default();
         for kv in iter.into_iter() {
             baggage.insert(kv.key, kv.value);
@@ -228,7 +228,7 @@ impl FromIterator<KeyValue> for Baggage {
 }
 
 impl FromIterator<KeyValueMetadata> for Baggage {
-    fn from_iter<I: IntoIterator<Item = KeyValueMetadata>>(iter: I) -> Self {
+    fn from_iter<I: IntoIterator<Item=KeyValueMetadata>>(iter: I) -> Self {
         let mut baggage = Baggage::default();
         for kvm in iter.into_iter() {
             baggage.insert_with_metadata(kvm.key, kvm.value, kvm.metadata);
@@ -254,7 +254,7 @@ pub trait BaggageExt {
     ///     Some(&Value::String("my-value".to_string())),
     /// )
     /// ```
-    fn with_baggage<T: IntoIterator<Item = I>, I: Into<KeyValueMetadata>>(
+    fn with_baggage<T: IntoIterator<Item=I>, I: Into<KeyValueMetadata>>(
         &self,
         baggage: T,
     ) -> Self;
@@ -273,7 +273,7 @@ pub trait BaggageExt {
     ///     Some(&Value::String("my-value".to_string())),
     /// )
     /// ```
-    fn current_with_baggage<T: IntoIterator<Item = I>, I: Into<KeyValueMetadata>>(
+    fn current_with_baggage<T: IntoIterator<Item=I>, I: Into<KeyValueMetadata>>(
         baggage: T,
     ) -> Self;
 
@@ -296,7 +296,7 @@ pub trait BaggageExt {
 }
 
 impl BaggageExt for Context {
-    fn with_baggage<T: IntoIterator<Item = I>, I: Into<KeyValueMetadata>>(
+    fn with_baggage<T: IntoIterator<Item=I>, I: Into<KeyValueMetadata>>(
         &self,
         baggage: T,
     ) -> Self {
@@ -315,7 +315,7 @@ impl BaggageExt for Context {
         self.with_value(merged)
     }
 
-    fn current_with_baggage<T: IntoIterator<Item = I>, I: Into<KeyValueMetadata>>(kvs: T) -> Self {
+    fn current_with_baggage<T: IntoIterator<Item=I>, I: Into<KeyValueMetadata>>(kvs: T) -> Self {
         Context::current().with_baggage(kvs)
     }
 
@@ -342,13 +342,13 @@ impl Metadata {
 
 impl From<String> for Metadata {
     fn from(s: String) -> Metadata {
-        Metadata(s)
+        Metadata(s.trim().to_string())
     }
 }
 
 impl From<&str> for Metadata {
     fn from(s: &str) -> Self {
-        Metadata(s.to_string())
+        Metadata(s.trim().to_string())
     }
 }
 
@@ -367,10 +367,10 @@ pub struct KeyValueMetadata {
 impl KeyValueMetadata {
     /// Create a new `KeyValue` pair with metadata
     pub fn new<K, V, S>(key: K, value: V, metadata: S) -> Self
-    where
-        K: Into<Key>,
-        V: Into<Value>,
-        S: Into<Metadata>,
+        where
+            K: Into<Key>,
+            V: Into<Value>,
+            S: Into<Metadata>,
     {
         KeyValueMetadata {
             key: key.into(),
