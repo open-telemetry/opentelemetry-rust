@@ -109,10 +109,11 @@ impl TextMapPropagator for TextMapCompositePropagator {
 mod tests {
     use crate::api::{
         propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
-        trace::{Span, SpanId, SpanReference, StatusCode, TraceContextExt, TraceId, TraceState},
-        Context, KeyValue,
+        trace::{SpanId, SpanReference, TraceContextExt, TraceId, TraceState},
+        Context,
     };
     use crate::sdk::propagation::{TextMapCompositePropagator, TraceContextPropagator};
+    use crate::testing::trace::TestSpan;
     use std::collections::HashMap;
     use std::str::FromStr;
 
@@ -181,29 +182,6 @@ mod tests {
                 "00-00000000000000000000000000000001-0000000000000001-00",
             ),
         ]
-    }
-
-    #[derive(Debug)]
-    struct TestSpan(SpanReference);
-
-    impl Span for TestSpan {
-        fn add_event_with_timestamp(
-            &self,
-            _name: String,
-            _timestamp: std::time::SystemTime,
-            _attributes: Vec<KeyValue>,
-        ) {
-        }
-        fn span_reference(&self) -> SpanReference {
-            self.0.clone()
-        }
-        fn is_recording(&self) -> bool {
-            false
-        }
-        fn set_attribute(&self, _attribute: KeyValue) {}
-        fn set_status(&self, _code: StatusCode, _message: String) {}
-        fn update_name(&self, _new_name: String) {}
-        fn end_with_timestamp(&self, _timestamp: std::time::SystemTime) {}
     }
 
     #[test]

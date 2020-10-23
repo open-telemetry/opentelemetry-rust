@@ -46,3 +46,6 @@ pub mod experimental;
 pub mod exporter;
 pub mod global;
 pub mod sdk;
+
+#[cfg(test)]
+pub mod testing;
