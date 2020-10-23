@@ -96,27 +96,18 @@
 //! }
 //! ```
 #![warn(
+    future_incompatible,
     missing_debug_implementations,
     missing_docs,
+    nonstandard_style,
+    rust_2018_idioms,
+    rustdoc,
     unreachable_pub,
-    bad_style,
-    const_err,
-    dead_code,
-    improper_ctypes,
-    non_shorthand_field_patterns,
-    no_mangle_generic_items,
-    overflowing_literals,
-    path_statements,
-    patterns_in_fns_without_body,
-    private_in_public,
-    unconditional_recursion,
-    unused,
-    unused_allocation,
-    unused_comparisons,
-    unused_parens,
-    while_true
+    unused
 )]
+#![allow(elided_lifetimes_in_paths)]
 #![cfg_attr(test, deny(warnings))]
+
 use opentelemetry::{api::trace::TracerProvider, global, sdk};
 use std::collections::HashMap;
 use std::error::Error;
