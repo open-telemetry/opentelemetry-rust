@@ -158,7 +158,7 @@ impl TextMapPropagator for XrayPropagator {
         cx.with_remote_span_reference(extracted)
     }
 
-    fn fields(&self) -> FieldIter {
+    fn fields(&self) -> FieldIter<'_> {
         FieldIter::new(AWS_XRAY_HEADER_FIELD.as_ref())
     }
 }

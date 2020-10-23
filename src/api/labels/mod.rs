@@ -33,7 +33,7 @@ impl LabelSet {
     }
 
     /// Iterate over the label key value pairs.
-    pub fn iter(&self) -> Iter {
+    pub fn iter(&self) -> Iter<'_> {
         self.into_iter()
     }
 

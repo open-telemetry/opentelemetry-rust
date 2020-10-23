@@ -66,7 +66,7 @@ impl CheckpointSet for PullController {
     fn try_for_each(
         &mut self,
         export_selector: &dyn ExportKindSelector,
-        f: &mut dyn FnMut(&Record) -> Result<()>,
+        f: &mut dyn FnMut(&Record<'_>) -> Result<()>,
     ) -> Result<()> {
         self.processor.lock().and_then(|mut locked_processor| {
             locked_processor

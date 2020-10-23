@@ -141,7 +141,7 @@ impl TextMapPropagator for TraceContextPropagator {
             .unwrap_or_else(|_| cx.clone())
     }
 
-    fn fields(&self) -> FieldIter {
+    fn fields(&self) -> FieldIter<'_> {
         FieldIter::new(TRACE_CONTEXT_HEADER_FIELDS.as_ref())
     }
 }
