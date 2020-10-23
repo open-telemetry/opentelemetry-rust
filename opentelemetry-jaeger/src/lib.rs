@@ -470,12 +470,21 @@ impl Into<jaeger::Log> for api::trace::Event {
             .duration_since(SystemTime::UNIX_EPOCH)
             .unwrap_or_else(|_| Duration::from_secs(0))
             .as_micros() as i64;
+        let mut event_set_via_attribute = false;
         let mut fields = self
             .attributes
             .into_iter()
-            .map(Into::into)
+            .map(|attr| {
+                if attr.key.as_str() == "event" {
+                    event_set_via_attribute = true;
+                };
+                attr.into()
+            })
             .collect::<Vec<_>>();
-        fields.push(api::Key::new("name").string(self.name).into());
+
+        if !event_set_via_attribute {
+            fields.push(api::Key::new("event").string(self.name).into());
+        }
 
         jaeger::Log::new(timestamp, fields)
     }
