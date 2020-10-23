@@ -9,7 +9,6 @@
     missing_docs,
     nonstandard_style,
     rust_2018_idioms,
-    rustdoc,
     unreachable_pub,
     unused
 )]

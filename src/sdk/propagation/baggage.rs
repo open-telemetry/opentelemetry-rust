@@ -21,7 +21,7 @@ lazy_static::lazy_static! {
 /// `Baggage`s are serialized according to the editor's draft of
 /// the [W3C Baggage] specification.
 ///
-/// [`CorrelationContext`]: struct.Baggage.html
+/// [`Baggage`]: struct.Baggage.html
 /// [W3C Baggage]: https://w3c.github.io/baggage/
 ///
 /// # Examples
