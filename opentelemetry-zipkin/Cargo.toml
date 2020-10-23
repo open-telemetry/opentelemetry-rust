@@ -17,6 +17,7 @@ edition = "2018"
 
 [package.metadata.docs.rs]
 all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = ["reqwest-blocking-client"]

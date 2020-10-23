@@ -110,6 +110,7 @@ impl Builder {
 
     /// Add a configured `SpanExporter`
     #[cfg(feature = "tokio")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "tokio")))]
     pub fn with_exporter<T: SpanExporter + 'static>(self, exporter: T) -> Self {
         // This future blocks currently when remaining spans are exported on processor
         // drop. We cannot assume we are in a multi-threaded tokio runtime here, so use
@@ -121,6 +122,7 @@ impl Builder {
 
     /// Add a configured `SpanExporter`
     #[cfg(all(feature = "async-std", not(feature = "tokio")))]
+    #[cfg_attr(docsrs, doc(cfg(feature = "async-std")))]
     pub fn with_exporter<T: SpanExporter + 'static>(self, exporter: T) -> Self {
         let batch = sdk::trace::BatchSpanProcessor::builder(
             exporter,

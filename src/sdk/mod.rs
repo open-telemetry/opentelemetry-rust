@@ -10,11 +10,14 @@ pub mod env;
 pub mod export;
 pub mod instrumentation;
 #[cfg(feature = "metrics")]
+#[cfg_attr(docsrs, doc(cfg(feature = "metrics")))]
 pub mod metrics;
 #[cfg(feature = "trace")]
+#[cfg_attr(docsrs, doc(cfg(feature = "trace")))]
 pub mod propagation;
 pub mod resource;
 #[cfg(feature = "trace")]
+#[cfg_attr(docsrs, doc(cfg(feature = "trace")))]
 pub mod trace;
 
 pub use env::EnvResourceDetector;

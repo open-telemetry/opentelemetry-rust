@@ -1,22 +1,3 @@
-//! # AWS X-Ray Trace Propagator
-//!
-//! Extracts and injects values to/from the `x-amzn-trace-id` header. Converting between
-//! OpenTelemetry [SpanReference][otel-spec] and [X-Ray Trace format][xray-trace-id].
-//!
-//! For details on the [`x-amzn-trace-id` header][xray-header] see the AWS X-Ray Docs.
-//!
-//! ## Example
-//!
-//! ```
-//! use opentelemetry::global;
-//! use opentelemetry::sdk::propagation::XrayPropagator;
-//!
-//! global::set_text_map_propagator(XrayPropagator::default());
-//! ```
-//!
-//! [otel-spec]: https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/trace/api.md#SpanReference
-//! [xray-trace-id]: https://docs.aws.amazon.com/xray/latest/devguide/xray-api-sendingdata.html#xray-api-traceids
-//! [xray-header]: https://docs.aws.amazon.com/xray/latest/devguide/xray-concepts.html#xray-concepts-tracingheader
 use crate::api::{
     propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
     trace::{
@@ -41,6 +22,24 @@ lazy_static::lazy_static! {
 }
 
 /// Extracts and injects `SpanReference`s into `Extractor`s or `Injector`s using AWS X-Ray header format.
+///
+/// Extracts and injects values to/from the `x-amzn-trace-id` header. Converting between
+/// OpenTelemetry [SpanReference][otel-spec] and [X-Ray Trace format][xray-trace-id].
+///
+/// For details on the [`x-amzn-trace-id` header][xray-header] see the AWS X-Ray Docs.
+///
+/// ## Example
+///
+/// ```
+/// use opentelemetry::global;
+/// use opentelemetry::sdk::propagation::XrayPropagator;
+///
+/// global::set_text_map_propagator(XrayPropagator::default());
+/// ```
+///
+/// [otel-spec]: https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/trace/api.md#SpanReference
+/// [xray-trace-id]: https://docs.aws.amazon.com/xray/latest/devguide/xray-api-sendingdata.html#xray-api-traceids
+/// [xray-header]: https://docs.aws.amazon.com/xray/latest/devguide/xray-concepts.html#xray-concepts-tracingheader
 #[derive(Clone, Debug, Default)]
 pub struct XrayPropagator {
     _private: (),

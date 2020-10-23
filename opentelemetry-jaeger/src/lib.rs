@@ -344,6 +344,7 @@ impl PipelineBuilder {
     ///
     /// E.g. "http://localhost:14268/api/traces"
     #[cfg(feature = "collector_client")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "collector_client")))]
     pub fn with_collector_endpoint<T>(self, collector_endpoint: T) -> Self
     where
         http::Uri: core::convert::TryFrom<T>,
@@ -356,6 +357,7 @@ impl PipelineBuilder {
 
     /// Assign the collector username
     #[cfg(feature = "collector_client")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "collector_client")))]
     pub fn with_collector_username<S: Into<String>>(self, collector_username: S) -> Self {
         PipelineBuilder {
             collector_username: Some(collector_username.into()),
@@ -365,6 +367,7 @@ impl PipelineBuilder {
 
     /// Assign the collector password
     #[cfg(feature = "collector_client")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "collector_client")))]
     pub fn with_collector_password<S: Into<String>>(self, collector_password: S) -> Self {
         PipelineBuilder {
             collector_password: Some(collector_password.into()),

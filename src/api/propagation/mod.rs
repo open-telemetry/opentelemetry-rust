@@ -202,6 +202,7 @@ impl<S: std::hash::BuildHasher> Extractor for HashMap<String, String, S> {
 }
 
 #[cfg(feature = "http")]
+#[cfg_attr(docsrs, doc(cfg(feature = "http")))]
 impl Injector for http::HeaderMap {
     /// Set a key and value in the HeaderMap.  Does nothing if the key or value are not valid inputs.
     fn set(&mut self, key: &str, value: String) {
@@ -214,6 +215,7 @@ impl Injector for http::HeaderMap {
 }
 
 #[cfg(feature = "http")]
+#[cfg_attr(docsrs, doc(cfg(feature = "http")))]
 impl Extractor for http::HeaderMap {
     /// Get a value for a key from the HeaderMap.  If the value is not valid ASCII, returns None.
     fn get(&self, key: &str) -> Option<&str> {
@@ -227,6 +229,7 @@ impl Extractor for http::HeaderMap {
 }
 
 #[cfg(feature = "tonic")]
+#[cfg_attr(docsrs, doc(cfg(feature = "tonic")))]
 impl Injector for tonic::metadata::MetadataMap {
     /// Set a key and value in the MetadataMap.  Does nothing if the key or value are not valid inputs
     fn set(&mut self, key: &str, value: String) {
@@ -239,6 +242,7 @@ impl Injector for tonic::metadata::MetadataMap {
 }
 
 #[cfg(feature = "tonic")]
+#[cfg_attr(docsrs, doc(cfg(feature = "tonic")))]
 impl Extractor for tonic::metadata::MetadataMap {
     /// Get a value for a key from the MetadataMap.  If the value can't be converted to &str, returns None
     fn get(&self, key: &str) -> Option<&str> {

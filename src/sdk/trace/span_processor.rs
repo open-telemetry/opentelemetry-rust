@@ -1,97 +1,3 @@
-//! # Span Processor
-//!
-//! Span processor is an interface which allows hooks for span start and end
-//! method invocations. Span processors are invoked only when [`is_recording`]
-//! is `true`.
-//! Built-in span processors are responsible for batching and conversion of
-//! spans to exportable representation and passing batches to exporters.
-//! Span processors can be registered directly on SDK [`TracerProvider`] and they are
-//! invoked in the same order as they were registered.
-//! All [`Tracer`] instances created by a [`TracerProvider`] share the same span
-//! processors. Changes to this collection reflect in all [`Tracer`] instances.
-//! The following diagram shows [`SpanProcessor`]'s relationship to other
-//! components in the SDK:
-//!
-//! ```ascii
-//! +-----+--------------+   +-------------------------+   +-------------------+
-//! |     |              |   |                         |   |                   |
-//! |     |              |   | BatchExporterProcessor  |   |    SpanExporter   |
-//! |     |              +---> SimpleExporterProcessor +--->  (JaegerExporter) |
-//! |     |              |   |                         |   |                   |
-//! | SDK | Span.start() |   +-------------------------+   +-------------------+
-//! |     | Span.end()   |
-//! |     |              |   +---------------------+
-//! |     |              |   |                     |
-//! |     |              +---> ZPagesProcessor     |
-//! |     |              |   |                     |
-//! +-----+--------------+   +---------------------+
-//! ```
-//!
-//! # Examples
-//!
-//! #### Exporting spans with a simple exporter:
-//!
-//! Note that the simple processor exports synchronously every time a span is ended. If you find this
-//! limiting, consider the batch processor instead.
-//!
-//! ```
-//! use opentelemetry::{api::trace as apitrace, sdk::trace as sdktrace, global};
-//!
-//! // Configure your preferred exporter
-//! let exporter = apitrace::NoopSpanExporter::new();
-//!
-//! // Then use the `with_simple_exporter` method to have the provider export when spans finish.
-//! let provider = sdktrace::TracerProvider::builder()
-//!     .with_simple_exporter(exporter)
-//!     .build();
-//!
-//! let guard = global::set_tracer_provider(provider);
-//! # drop(guard)
-//! ```
-//!
-//! #### Exporting spans asynchronously in batches:
-//!
-//! This processor can be configured with an [`executor`] of your choice to batch and upload spans
-//! asynchronously when they end. If you have added a library like [`tokio`] or [`async-std`], you
-//! can pass in their respective `spawn` and `interval` functions to have batching performed in
-//! those contexts.
-//!
-//! ```
-//! use futures::{stream};
-//! use opentelemetry::{api::trace as apitrace, sdk::trace as sdktrace, global};
-//! use std::time::Duration;
-//!
-//! #[tokio::main]
-//! async fn main() {
-//!     // Configure your preferred exporter
-//!     let exporter = apitrace::NoopSpanExporter::new();
-//!
-//!     // Then build a batch processor. You can use whichever executor you have available, for
-//!     // example if you are using `async-std` instead of `tokio` you can replace the spawn and
-//!     // interval functions with `async_std::task::spawn` and `async_std::stream::interval`.
-//!     let batch = sdktrace::BatchSpanProcessor::builder(exporter, tokio::spawn, tokio::time::interval)
-//!         .with_max_queue_size(4096)
-//!         .build();
-//!
-//!     // Then use the `with_batch_exporter` method to have the provider export spans in batches.
-//!     let provider = sdktrace::TracerProvider::builder()
-//!         .with_batch_exporter(batch)
-//!         .build();
-//!
-//!     let guard = global::set_tracer_provider(provider);
-//!     # drop(guard)
-//! }
-//! ```
-//!
-//! [`is_recording`]: ../../../api/trace/span/trait.Span.html#tymethod.is_recording
-//! [`TracerProvider`]: ../../../api/trace/provider/trait.TracerProvider.html
-//! [`Tracer`]: ../../../api/trace/tracer/trait.Tracer.html
-//! [`SpanProcessor`]: ../../../api/trace/span_processor/trait.SpanProcessor.html
-//! [`SimpleSpanProcessor`]: struct.SimpleSpanProcessor.html
-//! [`BatchSpanProcessor`]: struct.BatchSpanProcessor.html
-//! [`executor`]: https://docs.rs/futures/0.3.4/futures/executor/index.html
-//! [`tokio`]: https://tokio.rs
-//! [`async-std`]: https://async.rs
 use crate::{
     api,
     exporter::trace::{SpanData, SpanExporter},
@@ -118,7 +24,27 @@ const OTEL_BSP_MAX_EXPORT_BATCH_SIZE_DEFAULT: usize = 512;
 
 /// A [`SpanProcessor`] that exports synchronously when spans are finished.
 ///
-/// [`SpanProcessor`]: ../../../api/trace/span_processor/trait.SpanProcessor.html
+/// # Examples
+///
+/// Note that the simple processor exports synchronously every time a span is
+/// ended. If you find this limiting, consider the batch processor instead.
+///
+/// ```
+/// use opentelemetry::{api::trace as apitrace, sdk::trace as sdktrace, global};
+///
+/// // Configure your preferred exporter
+/// let exporter = apitrace::NoopSpanExporter::new();
+///
+/// // Then use the `with_simple_exporter` method to have the provider export when spans finish.
+/// let provider = sdktrace::TracerProvider::builder()
+///     .with_simple_exporter(exporter)
+///     .build();
+///
+/// let guard = global::set_tracer_provider(provider);
+/// # drop(guard)
+/// ```
+///
+/// [`SpanProcessor`]: ../../api/trace/span_processor/trait.SpanProcessor.html
 #[derive(Debug)]
 pub struct SimpleSpanProcessor {
     exporter: Box<dyn SpanExporter>,
@@ -147,7 +73,45 @@ impl api::trace::SpanProcessor for SimpleSpanProcessor {
 /// A [`SpanProcessor`] that asynchronously buffers finished spans and reports
 /// them at a preconfigured interval.
 ///
-/// [`SpanProcessor`]: ../../../api/trace/span_processor/trait.SpanProcessor.html
+/// # Examples
+///
+/// This processor can be configured with an [`executor`] of your choice to
+/// batch and upload spans asynchronously when they end. If you have added a
+/// library like [`tokio`] or [`async-std`], you can pass in their respective
+/// `spawn` and `interval` functions to have batching performed in those
+/// contexts.
+///
+/// ```
+/// use futures::{stream};
+/// use opentelemetry::{api::trace as apitrace, sdk::trace as sdktrace, global};
+/// use std::time::Duration;
+///
+/// #[tokio::main]
+/// async fn main() {
+///     // Configure your preferred exporter
+///     let exporter = apitrace::NoopSpanExporter::new();
+///
+///     // Then build a batch processor. You can use whichever executor you have available, for
+///     // example if you are using `async-std` instead of `tokio` you can replace the spawn and
+///     // interval functions with `async_std::task::spawn` and `async_std::stream::interval`.
+///     let batch = sdktrace::BatchSpanProcessor::builder(exporter, tokio::spawn, tokio::time::interval)
+///         .with_max_queue_size(4096)
+///         .build();
+///
+///     // Then use the `with_batch_exporter` method to have the provider export spans in batches.
+///     let provider = sdktrace::TracerProvider::builder()
+///         .with_batch_exporter(batch)
+///         .build();
+///
+///     let guard = global::set_tracer_provider(provider);
+///     # drop(guard)
+/// }
+/// ```
+///
+/// [`SpanProcessor`]: ../../api/trace/span_processor/trait.SpanProcessor.html
+/// [`executor`]: https://docs.rs/futures/0.3/futures/executor/index.html
+/// [`tokio`]: https://tokio.rs
+/// [`async-std`]: https://async.rs
 pub struct BatchSpanProcessor {
     message_sender: Mutex<mpsc::Sender<BatchMessage>>,
     worker_handle: Option<Pin<Box<dyn Future<Output = ()> + Send + Sync>>>,

@@ -17,4 +17,5 @@
 #![cfg_attr(test, deny(warnings))]
 
 #[cfg(feature = "datadog")]
+#[cfg_attr(docsrs, doc(cfg(feature = "datadog")))]
 pub mod datadog;

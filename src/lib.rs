@@ -44,7 +44,6 @@
 //! supported compiler version is not considered a semver breaking change as
 //! long as doing so complies with this policy.
 #![recursion_limit = "256"]
-#![allow(clippy::needless_doctest_main)]
 #![warn(
     future_incompatible,
     missing_debug_implementations,
@@ -55,10 +54,12 @@
     unreachable_pub,
     unused
 )]
+#![allow(clippy::needless_doctest_main, private_doc_tests)]
 #![cfg_attr(test, deny(warnings))]
 
 pub mod api;
 #[cfg(feature = "trace")]
+#[cfg_attr(docsrs, doc(cfg(feature = "trace")))]
 pub mod experimental;
 pub mod exporter;
 pub mod global;

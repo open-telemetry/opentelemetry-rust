@@ -81,12 +81,16 @@ mod propagation;
 mod trace;
 
 #[cfg(feature = "metrics")]
+#[cfg_attr(docsrs, doc(cfg(feature = "metrics")))]
 pub use error_handler::{handle_error, set_error_handler};
 #[cfg(feature = "metrics")]
+#[cfg_attr(docsrs, doc(cfg(feature = "metrics")))]
 pub use metrics::{meter, meter_provider, set_meter_provider};
 #[cfg(feature = "trace")]
+#[cfg_attr(docsrs, doc(cfg(feature = "trace")))]
 pub use propagation::{get_text_map_propagator, set_text_map_propagator};
 #[cfg(feature = "trace")]
+#[cfg_attr(docsrs, doc(cfg(feature = "trace")))]
 pub use trace::{
     set_tracer_provider, tracer, tracer_provider, tracer_with_version, GenericProvider,
     TracerProviderGuard,
