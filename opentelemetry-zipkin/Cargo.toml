@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-zipkin"
-version = "0.6.0"
+version = "0.7.0"
 authors = ["OpenTelemetry Authors <cncf-opentelemetry-contributors@lists.cncf.io>"]
 description = "Zipkin exporter for OpenTelemetry"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/master/opentelemetry-zipkin"
@@ -14,6 +14,9 @@ categories = [
 keywords = ["opentelemetry", "zipkin", "tracing", "async"]
 license = "Apache-2.0"
 edition = "2018"
+
+[package.metadata.docs.rs]
+all-features = true
 
 [features]
 default = ["reqwest-blocking-client"]

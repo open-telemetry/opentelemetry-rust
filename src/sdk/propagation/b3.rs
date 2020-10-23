@@ -16,7 +16,7 @@
 use crate::api::{
     propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
     trace::{
-        SpanReference, SpanId, TraceContextExt, TraceId, TraceState, TRACE_FLAG_DEBUG,
+        SpanId, SpanReference, TraceContextExt, TraceId, TraceState, TRACE_FLAG_DEBUG,
         TRACE_FLAG_DEFERRED, TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
     },
     Context,
@@ -197,7 +197,8 @@ impl B3Propagator {
             TRACE_FLAG_DEFERRED
         };
 
-        let span_reference = SpanReference::new(trace_id, span_id, flag, true, TraceState::default());
+        let span_reference =
+            SpanReference::new(trace_id, span_id, flag, true, TraceState::default());
 
         if span_reference.is_valid() {
             Ok(span_reference)
@@ -248,12 +249,20 @@ impl TextMapPropagator for B3Propagator {
                 if span_reference.is_debug() {
                     injector.set(B3_DEBUG_FLAG_HEADER, "1".to_string());
                 } else if !span_reference.is_deferred() {
-                    let sampled = if span_reference.is_sampled() { "1" } else { "0" };
+                    let sampled = if span_reference.is_sampled() {
+                        "1"
+                    } else {
+                        "0"
+                    };
                     injector.set(B3_SAMPLED_HEADER, sampled.to_string());
                 }
             }
         } else {
-            let flag = if span_reference.is_sampled() { "1" } else { "0" };
+            let flag = if span_reference.is_sampled() {
+                "1"
+            } else {
+                "0"
+            };
             if self.inject_encoding.support(&B3Encoding::SingleHeader) {
                 injector.set(B3_SINGLE_HEADER, flag.to_string())
             }
@@ -282,7 +291,7 @@ impl TextMapPropagator for B3Propagator {
         cx.with_remote_span_reference(span_reference)
     }
 
-    fn fields(&self) -> FieldIter {
+    fn fields(&self) -> FieldIter<'_> {
         let field_slice = if self
             .inject_encoding
             .support(&B3Encoding::SingleAndMultiHeader)
@@ -306,8 +315,8 @@ mod tests {
     use crate::api::{
         propagation::TextMapPropagator,
         trace::{
-            Span, SpanReference, SpanId, StatusCode, TraceId, TRACE_FLAG_DEBUG, TRACE_FLAG_DEFERRED,
-            TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
+            Span, SpanId, SpanReference, StatusCode, TraceId, TRACE_FLAG_DEBUG,
+            TRACE_FLAG_DEFERRED, TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
         },
         KeyValue,
     };

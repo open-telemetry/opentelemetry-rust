@@ -19,7 +19,7 @@
 //! ```no_run
 //! use opentelemetry::api::trace::Tracer;
 //!
-//! fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 //!     let (tracer, _uninstall) = opentelemetry_zipkin::new_pipeline().install()?;
 //!
 //!     tracer.in_span("doing_work", |cx| {
@@ -82,7 +82,7 @@
 //!
 //! #[async_trait]
 //! impl HttpClient for IsahcClient {
-//!   async fn send(&self, request: http::Request<Vec<u8>>) -> Result<ExportResult, Box<dyn Error>> {
+//!   async fn send(&self, request: http::Request<Vec<u8>>) -> Result<ExportResult, Box<dyn Error + Send + Sync + 'static>> {
 //!     let result = self.0.send_async(request).await?;
 //!
 //!     if result.status().is_success() {
@@ -93,7 +93,7 @@
 //!   }
 //! }
 //!
-//! fn main() -> Result<(), Box<dyn Error>> {
+//! fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
 //!     let (tracer, _uninstall) = opentelemetry_zipkin::new_pipeline()
 //!         .with_http_client(IsahcClient(isahc::HttpClient::new()?))
 //!         .with_service_name("my_app")
@@ -117,7 +117,16 @@
 //!     Ok(())
 //! }
 //! ```
-#![deny(missing_docs, unreachable_pub, missing_debug_implementations)]
+#![warn(
+    future_incompatible,
+    missing_debug_implementations,
+    missing_docs,
+    nonstandard_style,
+    rust_2018_idioms,
+    rustdoc,
+    unreachable_pub,
+    unused
+)]
 #![cfg_attr(test, deny(warnings))]
 
 #[macro_use]
@@ -206,7 +215,9 @@ impl Default for ZipkinPipelineBuilder {
 
 impl ZipkinPipelineBuilder {
     /// Create `ExporterConfig` struct from current `ExporterConfigBuilder`
-    pub fn install(mut self) -> Result<(sdk::trace::Tracer, Uninstall), Box<dyn Error>> {
+    pub fn install(
+        mut self,
+    ) -> Result<(sdk::trace::Tracer, Uninstall), Box<dyn Error + Send + Sync + 'static>> {
         if let Some(client) = self.client {
             let endpoint = Endpoint::new(self.service_name, self.service_addr);
             let exporter = Exporter::new(endpoint, client, self.collector_endpoint.parse()?);

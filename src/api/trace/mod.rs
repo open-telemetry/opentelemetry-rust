@@ -118,8 +118,8 @@ mod link;
 mod noop;
 mod provider;
 mod span;
-mod span_reference;
 mod span_processor;
+mod span_reference;
 mod tracer;
 
 pub use self::{
@@ -131,10 +131,10 @@ pub use self::{
     noop::{NoopSpan, NoopSpanExporter, NoopTracer, NoopTracerProvider},
     provider::TracerProvider,
     span::{Span, SpanKind, StatusCode},
+    span_processor::SpanProcessor,
     span_reference::{
-        SpanReference, SpanId, TraceId, TraceState, TRACE_FLAG_DEBUG, TRACE_FLAG_DEFERRED,
+        SpanId, SpanReference, TraceId, TraceState, TRACE_FLAG_DEBUG, TRACE_FLAG_DEFERRED,
         TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
     },
-    span_processor::SpanProcessor,
     tracer::{SpanBuilder, Tracer},
 };

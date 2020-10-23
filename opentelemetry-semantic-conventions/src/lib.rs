@@ -3,7 +3,17 @@
 //! OpenTelemetry semantic conventions are agreed standardized naming patterns
 //! for OpenTelemetry things. This crate aims to be the centralized place to
 //! interact with these conventions.
-#![deny(missing_docs, unreachable_pub, missing_debug_implementations)]
+#![warn(
+    future_incompatible,
+    missing_debug_implementations,
+    missing_docs,
+    nonstandard_style,
+    rust_2018_idioms,
+    rustdoc,
+    unreachable_pub,
+    unused
+)]
+#![cfg_attr(test, deny(warnings))]
 
 pub mod resource;
 pub mod trace;

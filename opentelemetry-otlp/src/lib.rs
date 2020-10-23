@@ -21,7 +21,7 @@
 //! ```no_run
 //! use opentelemetry::api::trace::Tracer;
 //!
-//! fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 //!     let (tracer, _uninstall) = opentelemetry_otlp::new_pipeline().install()?;
 //!
 //!     tracer.in_span("doing_work", |cx| {
@@ -61,7 +61,7 @@
 //! use opentelemetry_otlp::{Compression, Credentials, Protocol};
 //! use std::time::Duration;
 //!
-//! fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 //!     let headers = vec![("X-Custom".to_string(), "Custom-Value".to_string())]
 //!         .into_iter()
 //!         .collect();
@@ -95,8 +95,19 @@
 //!     Ok(())
 //! }
 //! ```
-#![deny(missing_docs, unreachable_pub, missing_debug_implementations)]
+#![warn(
+    future_incompatible,
+    missing_debug_implementations,
+    missing_docs,
+    nonstandard_style,
+    rust_2018_idioms,
+    rustdoc,
+    unreachable_pub,
+    unused
+)]
+#![allow(elided_lifetimes_in_paths)]
 #![cfg_attr(test, deny(warnings))]
+
 use opentelemetry::{api::trace::TracerProvider, global, sdk};
 use std::collections::HashMap;
 use std::error::Error;
@@ -115,7 +126,7 @@ pub use crate::span::{Compression, Credentials, Exporter, ExporterConfig, Protoc
 /// ## Examples
 ///
 /// ```no_run
-/// fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 ///     let (tracer, _uninstall) = opentelemetry_otlp::new_pipeline().install()?;
 ///
 ///     Ok(())
@@ -130,7 +141,7 @@ pub fn new_pipeline() -> OtlpPipelineBuilder {
 /// ## Examples
 ///
 /// ```no_run
-/// fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 ///     let (tracer, _uninstall) = opentelemetry_otlp::new_pipeline().install()?;
 ///
 ///     Ok(())
@@ -192,7 +203,9 @@ impl OtlpPipelineBuilder {
     }
 
     /// Install the OTLP exporter pipeline with the recommended defaults.
-    pub fn install(mut self) -> Result<(sdk::trace::Tracer, Uninstall), Box<dyn Error>> {
+    pub fn install(
+        mut self,
+    ) -> Result<(sdk::trace::Tracer, Uninstall), Box<dyn Error + Send + Sync + 'static>> {
         let exporter = Exporter::new(self.exporter_config);
 
         let mut provider_builder = sdk::trace::TracerProvider::builder().with_exporter(exporter);

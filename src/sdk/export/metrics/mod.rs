@@ -59,7 +59,7 @@ pub trait LockedProcessor {
     ///
     /// The Context argument originates from the controller that orchestrates
     /// collection.
-    fn process(&mut self, accumulation: Accumulation) -> Result<()>;
+    fn process(&mut self, accumulation: Accumulation<'_>) -> Result<()>;
 }
 
 /// AggregatorSelector supports selecting the kind of `Aggregator` to use at
@@ -201,7 +201,7 @@ pub trait CheckpointSet: fmt::Debug {
     fn try_for_each(
         &mut self,
         export_selector: &dyn ExportKindSelector,
-        f: &mut dyn FnMut(&Record) -> Result<()>,
+        f: &mut dyn FnMut(&Record<'_>) -> Result<()>,
     ) -> Result<()>;
 }
 

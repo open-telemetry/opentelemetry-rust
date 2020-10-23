@@ -64,7 +64,7 @@ pub struct BasicLockedProcessor<'a> {
 }
 
 impl<'a> LockedProcessor for BasicLockedProcessor<'a> {
-    fn process(&mut self, accumulation: Accumulation) -> Result<()> {
+    fn process(&mut self, accumulation: Accumulation<'_>) -> Result<()> {
         if self.state.started_collection != self.state.finished_collection.wrapping_add(1) {
             return Err(MetricsError::InconsistentState);
         }
@@ -304,7 +304,7 @@ impl CheckpointSet for BasicProcessorState {
     fn try_for_each(
         &mut self,
         exporter: &dyn ExportKindSelector,
-        f: &mut dyn FnMut(&Record) -> Result<()>,
+        f: &mut dyn FnMut(&Record<'_>) -> Result<()>,
     ) -> Result<()> {
         if self.started_collection != self.finished_collection {
             return Err(MetricsError::InconsistentState);

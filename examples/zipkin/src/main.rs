@@ -10,7 +10,7 @@ fn bar() {
     span.end()
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let (tracer, _uninstall) = opentelemetry_zipkin::new_pipeline()
         .with_service_name("trace-demo")
         .install()?;

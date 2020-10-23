@@ -1,5 +1,15 @@
 # Changelog
 
+## [v0.9.1](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.9.0...v0.9.1)
+
+## Added
+
+- Allow metric instruments to be cloned #280
+
+### Fixed
+
+- Fix single threaded runtime tokio feature bug #278
+
 ## [v0.9.0](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.8.0...v0.9.0)
 
 ## Added

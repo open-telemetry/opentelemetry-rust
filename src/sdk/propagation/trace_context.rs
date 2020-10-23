@@ -19,7 +19,7 @@
 //! [w3c trace-context docs]: https://w3c.github.io/trace-context/
 use crate::api::{
     propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
-    trace::{SpanReference, SpanId, TraceContextExt, TraceId, TraceState, TRACE_FLAG_SAMPLED},
+    trace::{SpanId, SpanReference, TraceContextExt, TraceId, TraceState, TRACE_FLAG_SAMPLED},
     Context,
 };
 use std::str::FromStr;
@@ -141,7 +141,7 @@ impl TextMapPropagator for TraceContextPropagator {
             .unwrap_or_else(|_| cx.clone())
     }
 
-    fn fields(&self) -> FieldIter {
+    fn fields(&self) -> FieldIter<'_> {
         FieldIter::new(TRACE_CONTEXT_HEADER_FIELDS.as_ref())
     }
 }
@@ -151,7 +151,7 @@ mod tests {
     use super::*;
     use crate::api::{
         propagation::{Extractor, Injector, TextMapPropagator},
-        trace::{Span, SpanReference, SpanId, StatusCode, TraceId},
+        trace::{Span, SpanId, SpanReference, StatusCode, TraceId},
         KeyValue,
     };
     use std::collections::HashMap;

@@ -6,7 +6,7 @@ use crate::api::KeyValue;
 use std::marker;
 
 /// ValueRecorder is a metric that records per-request non-additive values.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct ValueRecorder<T>(SyncInstrument<T>);
 
 impl<T> ValueRecorder<T>
@@ -38,7 +38,7 @@ where
 /// non-additive values.
 ///
 /// It inherits the Unbind function from syncBoundInstrument.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct BoundValueRecorder<'a, T> {
     labels: &'a [KeyValue],
     bound_instrument: SyncBoundInstrument<T>,

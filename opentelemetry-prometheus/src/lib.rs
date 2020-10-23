@@ -49,7 +49,16 @@
 //! // a_value_recorder_sum{R="V",key="value"} 100
 //! // a_value_recorder_count{R="V",key="value"} 1
 //! ```
-#![deny(missing_docs, unreachable_pub, missing_debug_implementations)]
+#![warn(
+    future_incompatible,
+    missing_debug_implementations,
+    missing_docs,
+    nonstandard_style,
+    rust_2018_idioms,
+    rustdoc,
+    unreachable_pub,
+    unused
+)]
 #![cfg_attr(test, deny(warnings))]
 
 use opentelemetry::api::{
@@ -202,7 +211,7 @@ impl ExporterBuilder {
 ///
 /// This exporter supports Prometheus pulls, as such it does not
 /// implement the export.Exporter interface.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct PrometheusExporter {
     registry: prometheus::Registry,
     controller: Arc<Mutex<PullController>>,
@@ -387,7 +396,11 @@ fn build_label_pair(label: KeyValue) -> prometheus::proto::LabelPair {
     lp
 }
 
-fn merge_labels(record: &Record, keys: &mut Vec<String>, mut values: Option<&mut Vec<KeyValue>>) {
+fn merge_labels(
+    record: &Record<'_>,
+    keys: &mut Vec<String>,
+    mut values: Option<&mut Vec<KeyValue>>,
+) {
     // Duplicate keys are resolved by taking the record label value over
     // the resource value.
 
@@ -400,7 +413,7 @@ fn merge_labels(record: &Record, keys: &mut Vec<String>, mut values: Option<&mut
     }
 }
 
-fn to_desc(record: &Record, label_keys: Vec<String>) -> prometheus::core::Desc {
+fn to_desc(record: &Record<'_>, label_keys: Vec<String>) -> prometheus::core::Desc {
     let desc = record.descriptor();
     prometheus::core::Desc::new(
         sanitize(desc.name()),

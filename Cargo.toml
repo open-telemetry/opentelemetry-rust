@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry"
-version = "0.9.0"
+version = "0.9.1"
 authors = ["OpenTelemetry Authors <cncf-opentelemetry-contributors@lists.cncf.io>"]
 description = "A metrics collection and distributed tracing framework"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust"
@@ -15,6 +15,9 @@ categories = [
 keywords = ["opentelemetry", "logging", "tracing", "metrics", "async"]
 license = "Apache-2.0"
 edition = "2018"
+
+[package.metadata.docs.rs]
+all-features = true
 
 [dependencies]
 async-std = { version = "1.6", features = ["unstable"], optional = true }

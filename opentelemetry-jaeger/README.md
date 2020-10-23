@@ -21,7 +21,7 @@ exporting telemetry:
 ```rust
 use opentelemetry::api::Tracer;
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let (tracer, _uninstall) = opentelemetry_jaeger::new_pipeline().install()?;
 
     tracer.in_span("doing_work", |cx| {
@@ -62,7 +62,7 @@ in the [jaeger variables spec].
 ```rust
 use opentelemetry::api::Tracer;
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     // export OTEL_SERVICE_NAME=my-service-name
     let (tracer, _uninstall) = opentelemetry_jaeger::new_pipeline().from_env().install()?;
 
@@ -93,7 +93,7 @@ Then you can use the [`with_collector_endpoint`] method to specify the endpoint:
 // Note that this requires the `collector_client` feature.
 use opentelemetry::api::Tracer;
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let (tracer, _uninstall) = opentelemetry_jaeger::new_pipeline()
         .with_collector_endpoint("http://localhost:14268/api/traces")
         // optionally set username and password as well.
@@ -120,7 +120,7 @@ Example showing how to override all configuration options. See the
 use opentelemetry::api::{KeyValue, Tracer};
 use opentelemetry::sdk::{trace, IdGenerator, Resource, Sampler};
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let (tracer, _uninstall) = opentelemetry_jaeger::new_pipeline()
         .from_env()
         .with_agent_endpoint("localhost:6831")

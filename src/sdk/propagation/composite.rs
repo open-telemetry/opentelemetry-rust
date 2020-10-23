@@ -100,7 +100,7 @@ impl TextMapPropagator for TextMapCompositePropagator {
             })
     }
 
-    fn fields(&self) -> FieldIter {
+    fn fields(&self) -> FieldIter<'_> {
         FieldIter::new(self.fields.as_slice())
     }
 }
@@ -109,7 +109,7 @@ impl TextMapPropagator for TextMapCompositePropagator {
 mod tests {
     use crate::api::{
         propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
-        trace::{Span, SpanReference, SpanId, StatusCode, TraceContextExt, TraceId, TraceState},
+        trace::{Span, SpanId, SpanReference, StatusCode, TraceContextExt, TraceId, TraceState},
         Context, KeyValue,
     };
     use crate::sdk::propagation::{TextMapCompositePropagator, TraceContextPropagator};
@@ -168,7 +168,7 @@ mod tests {
             cx.with_remote_span_reference(span)
         }
 
-        fn fields(&self) -> FieldIter {
+        fn fields(&self) -> FieldIter<'_> {
             FieldIter::new(&self.fields)
         }
     }

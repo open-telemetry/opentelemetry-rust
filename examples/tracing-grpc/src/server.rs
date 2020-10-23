@@ -45,7 +45,7 @@ impl Greeter for MyGreeter {
     }
 }
 
-fn tracing_init() -> Result<(), Box<dyn std::error::Error>> {
+fn tracing_init() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     global::set_http_text_propagator(api::TraceContextPropagator::new());
     let builder = opentelemetry_jaeger::Exporter::builder()
         .with_agent_endpoint("127.0.0.1:6831".parse().unwrap());
@@ -77,7 +77,7 @@ fn tracing_init() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     tracing_init()?;
     let addr = "[::1]:50051".parse()?;
     let greeter = MyGreeter::default();
