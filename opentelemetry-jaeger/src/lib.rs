@@ -471,7 +471,7 @@ impl Into<jaeger::Log> for api::trace::Event {
             .unwrap_or_else(|_| Duration::from_secs(0))
             .as_micros() as i64;
         let mut event_set_via_attribute = false;
-        let mut fields: std::vec::Vec<jaeger::Tag> = self
+        let mut fields = self
             .attributes
             .into_iter()
             .map(|attr| {
