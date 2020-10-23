@@ -19,7 +19,7 @@
 //! ```no_run
 //! use opentelemetry::api::trace::Tracer;
 //!
-//! fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 //!     let (tracer, _uninstall) = opentelemetry_jaeger::new_pipeline().install()?;
 //!
 //!     tracer.in_span("doing_work", |cx| {
@@ -58,7 +58,7 @@
 //! ```no_run
 //! use opentelemetry::api::trace::Tracer;
 //!
-//! fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 //!     // export OTEL_SERVICE_NAME=my-service-name
 //!     let (tracer, _uninstall) = opentelemetry_jaeger::new_pipeline().from_env().install()?;
 //!
@@ -89,7 +89,7 @@
 //! // Note that this requires the `collector_client` feature.
 //! use opentelemetry::api::trace::Tracer;
 //!
-//! fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 //!     let (tracer, _uninstall) = opentelemetry_jaeger::new_pipeline()
 //!         .with_collector_endpoint("http://localhost:14268/api/traces")
 //!         // optionally set username and password as well.
@@ -116,7 +116,7 @@
 //! use opentelemetry::api::{KeyValue, trace::Tracer};
 //! use opentelemetry::sdk::{trace::{self, IdGenerator, Sampler}, Resource};
 //!
-//! fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 //!     let (tracer, _uninstall) = opentelemetry_jaeger::new_pipeline()
 //!         .from_env()
 //!         .with_agent_endpoint("localhost:6831")
@@ -216,6 +216,8 @@ pub struct Uninstall(global::TracerProviderGuard);
 #[derive(Debug)]
 pub struct Exporter {
     process: jaeger::Process,
+    /// Whether or not to export instrumentation information.
+    export_instrumentation_lib: bool,
     uploader: uploader::BatchUploader,
 }
 
@@ -254,7 +256,10 @@ impl trace::SpanExporter for Exporter {
                     }
                 }
             }
-            jaeger_spans.push(span.into());
+            jaeger_spans.push(convert_otel_span_into_jaeger_span(
+                span,
+                self.export_instrumentation_lib,
+            ));
         }
 
         self.uploader
@@ -273,6 +278,7 @@ pub struct PipelineBuilder {
     collector_username: Option<String>,
     #[cfg(feature = "collector_client")]
     collector_password: Option<String>,
+    export_instrument_library: bool,
     process: Process,
     config: Option<sdk::trace::Config>,
 }
@@ -288,6 +294,7 @@ impl Default for PipelineBuilder {
             collector_username: None,
             #[cfg(feature = "collector_client")]
             collector_password: None,
+            export_instrument_library: true,
             process: Process {
                 service_name: DEFAULT_SERVICE_NAME.to_string(),
                 tags: Vec::new(),
@@ -316,6 +323,14 @@ impl PipelineBuilder {
                 .map(|addrs| addrs.collect())
                 .unwrap_or_default(),
 
+            ..self
+        }
+    }
+
+    /// Config whether to export information of instrumentation library.
+    pub fn with_instrumentation_library_tags(self, export: bool) -> Self {
+        PipelineBuilder {
+            export_instrument_library: export,
             ..self
         }
     }
@@ -373,7 +388,9 @@ impl PipelineBuilder {
     }
 
     /// Install a Jaeger pipeline with the recommended defaults.
-    pub fn install(self) -> Result<(sdk::trace::Tracer, Uninstall), Box<dyn Error>> {
+    pub fn install(
+        self,
+    ) -> Result<(sdk::trace::Tracer, Uninstall), Box<dyn Error + Send + Sync + 'static>> {
         let tracer_provider = self.build()?;
         let tracer =
             tracer_provider.get_tracer("opentelemetry-jaeger", Some(env!("CARGO_PKG_VERSION")));
@@ -384,7 +401,9 @@ impl PipelineBuilder {
     }
 
     /// Build a configured `sdk::trace::TracerProvider` with the recommended defaults.
-    pub fn build(mut self) -> Result<sdk::trace::TracerProvider, Box<dyn Error>> {
+    pub fn build(
+        mut self,
+    ) -> Result<sdk::trace::TracerProvider, Box<dyn Error + Send + Sync + 'static>> {
         let config = self.config.take();
         let exporter = self.init_exporter()?;
 
@@ -400,23 +419,29 @@ impl PipelineBuilder {
     /// Initialize a new exporter.
     ///
     /// This is useful if you are manually constructing a pipeline.
-    pub fn init_exporter(self) -> Result<Exporter, Box<dyn Error>> {
+    pub fn init_exporter(self) -> Result<Exporter, Box<dyn Error + Send + Sync + 'static>> {
+        let export_instrumentation_lib = self.export_instrument_library;
         let (process, uploader) = self.init_uploader()?;
 
         Ok(Exporter {
             process: process.into(),
+            export_instrumentation_lib,
             uploader,
         })
     }
 
     #[cfg(not(feature = "collector_client"))]
-    fn init_uploader(self) -> Result<(Process, BatchUploader), Box<dyn Error>> {
+    fn init_uploader(
+        self,
+    ) -> Result<(Process, BatchUploader), Box<dyn Error + Send + Sync + 'static>> {
         let agent = AgentAsyncClientUDP::new(self.agent_endpoint.as_slice())?;
         Ok((self.process, BatchUploader::Agent(agent)))
     }
 
     #[cfg(feature = "collector_client")]
-    fn init_uploader(self) -> Result<(Process, uploader::BatchUploader), Box<dyn Error>> {
+    fn init_uploader(
+        self,
+    ) -> Result<(Process, uploader::BatchUploader), Box<dyn Error + Send + Sync + 'static>> {
         if let Some(collector_endpoint) = self.collector_endpoint {
             let collector = CollectorAsyncClientHttp::new(
                 collector_endpoint,
@@ -468,42 +493,6 @@ impl Into<jaeger::Log> for api::trace::Event {
     }
 }
 
-impl Into<jaeger::Span> for trace::SpanData {
-    /// Convert spans to jaeger thrift span for exporting.
-    fn into(self) -> jaeger::Span {
-        let trace_id = self.span_reference.trace_id().to_u128();
-        let trace_id_high = (trace_id >> 64) as i64;
-        let trace_id_low = trace_id as i64;
-        jaeger::Span {
-            trace_id_low,
-            trace_id_high,
-            span_id: self.span_reference.span_id().to_u64() as i64,
-            parent_span_id: self.parent_span_id.to_u64() as i64,
-            operation_name: self.name,
-            references: links_to_references(self.links),
-            flags: self.span_reference.trace_flags() as i32,
-            start_time: self
-                .start_time
-                .duration_since(SystemTime::UNIX_EPOCH)
-                .unwrap_or_else(|_| Duration::from_secs(0))
-                .as_micros() as i64,
-            duration: self
-                .end_time
-                .duration_since(self.start_time)
-                .unwrap_or_else(|_| Duration::from_secs(0))
-                .as_micros() as i64,
-            tags: build_span_tags(
-                self.attributes,
-                self.instrumentation_lib,
-                self.status_code,
-                self.status_message,
-                self.span_kind,
-            ),
-            logs: events_to_logs(self.message_events),
-        }
-    }
-}
-
 fn links_to_references(
     links: sdk::trace::EvictedQueue<api::trace::Link>,
 ) -> Option<Vec<jaeger::SpanRef>> {
@@ -532,6 +521,47 @@ fn links_to_references(
     }
 }
 
+/// Convert spans to jaeger thrift span for exporting.
+fn convert_otel_span_into_jaeger_span(
+    span: trace::SpanData,
+    export_instrument_lib: bool,
+) -> jaeger::Span {
+    let trace_id = span.span_reference.trace_id().to_u128();
+    let trace_id_high = (trace_id >> 64) as i64;
+    let trace_id_low = trace_id as i64;
+    jaeger::Span {
+        trace_id_low,
+        trace_id_high,
+        span_id: span.span_reference.span_id().to_u64() as i64,
+        parent_span_id: span.parent_span_id.to_u64() as i64,
+        operation_name: span.name,
+        references: links_to_references(span.links),
+        flags: span.span_reference.trace_flags() as i32,
+        start_time: span
+            .start_time
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap_or_else(|_| Duration::from_secs(0))
+            .as_micros() as i64,
+        duration: span
+            .end_time
+            .duration_since(span.start_time)
+            .unwrap_or_else(|_| Duration::from_secs(0))
+            .as_micros() as i64,
+        tags: build_span_tags(
+            span.attributes,
+            if export_instrument_lib {
+                Some(span.instrumentation_lib)
+            } else {
+                None
+            },
+            span.status_code,
+            span.status_message,
+            span.span_kind,
+        ),
+        logs: events_to_logs(span.message_events),
+    }
+}
+
 fn build_process_tags(
     span_data: &trace::SpanData,
 ) -> Option<impl Iterator<Item = jaeger::Tag> + '_> {
@@ -549,7 +579,7 @@ fn build_process_tags(
 
 fn build_span_tags(
     attrs: sdk::trace::EvictedHashMap,
-    instrumentation_lib: sdk::InstrumentationLibrary,
+    instrumentation_lib: Option<sdk::InstrumentationLibrary>,
     status_code: api::trace::StatusCode,
     status_message: String,
     kind: api::trace::SpanKind,
@@ -564,10 +594,14 @@ fn build_span_tags(
         })
         .collect::<Vec<_>>();
 
-    // Set instrument library tags
-    tags.push(api::KeyValue::new(INSTRUMENTATION_LIBRARY_NAME, instrumentation_lib.name).into());
-    if let Some(version) = instrumentation_lib.version {
-        tags.push(api::KeyValue::new(INSTRUMENTATION_LIBRARY_VERSION, version).into())
+    if let Some(instrumentation_lib) = instrumentation_lib {
+        // Set instrument library tags
+        tags.push(
+            api::KeyValue::new(INSTRUMENTATION_LIBRARY_NAME, instrumentation_lib.name).into(),
+        );
+        if let Some(version) = instrumentation_lib.version {
+            tags.push(api::KeyValue::new(INSTRUMENTATION_LIBRARY_VERSION, version).into())
+        }
     }
 
     // Ensure error status is set

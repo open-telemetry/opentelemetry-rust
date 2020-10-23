@@ -36,7 +36,10 @@ pub(crate) struct JsonV2Client {
 }
 
 impl JsonV2Client {
-    async fn upload(&self, spans: Vec<Span>) -> Result<ExportResult, Box<dyn std::error::Error>> {
+    async fn upload(
+        &self,
+        spans: Vec<Span>,
+    ) -> Result<ExportResult, Box<dyn std::error::Error + Send + Sync + 'static>> {
         let req = Request::builder()
             .method(Method::POST)
             .uri(self.collector_endpoint.clone())

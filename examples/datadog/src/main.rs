@@ -16,7 +16,7 @@ fn bar() {
     span.end()
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let (tracer, _uninstall) = opentelemetry_contrib::datadog::new_pipeline()
         .with_service_name("trace-demo")
         .with_version(ApiVersion::Version05)
