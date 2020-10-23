@@ -200,18 +200,18 @@ impl NumberKind {
     /// Returns the max value for each kind
     pub fn max(&self) -> Number {
         match self {
-            NumberKind::I64 => i64::MAX.into(),
-            NumberKind::F64 => f64::MAX.into(),
-            NumberKind::U64 => u64::MAX.into(),
+            NumberKind::I64 => std::i64::MAX.into(),
+            NumberKind::F64 => std::f64::MAX.into(),
+            NumberKind::U64 => std::u64::MAX.into(),
         }
     }
 
     /// Returns the min value for each kind
     pub fn min(&self) -> Number {
         match self {
-            NumberKind::I64 => i64::MIN.into(),
-            NumberKind::F64 => f64::MIN.into(),
-            NumberKind::U64 => u64::MIN.into(),
+            NumberKind::I64 => std::i64::MIN.into(),
+            NumberKind::F64 => std::f64::MIN.into(),
+            NumberKind::U64 => std::u64::MIN.into(),
         }
     }
 }

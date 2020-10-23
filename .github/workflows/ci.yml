@@ -49,3 +49,16 @@ jobs:
     - uses: arduino/setup-protoc@v1
     - name: Lint
       run: ./scripts/lint.sh
+  msrv:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+      with:
+        submodules: true
+    - uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: 1.42.0
+        components: clippy
+    - name: Run tests
+      run: cargo test --verbose --features base64_format,trace,metrics,serialize,binary_propagator,tokio,async-std,serde,http,tonic,reqwest -p opentelemetry -p opentelemetry-jaeger -p opentelemetry-zipkin

@@ -4,7 +4,10 @@ Collects OpenTelemetry spans and reports them to a given Jaeger `agent` or
 `collector` endpoint. See the [Jaeger Docs] for details about Jaeger and
 deployment information.
 
+*Compiler support: [requires `rustc` 1.42+][msrv]*
+
 [Jaeger Docs]: https://www.jaegertracing.io/docs/
+[msrv]: #supported-rust-versions
 
 ### Quickstart
 
@@ -145,3 +148,16 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     Ok(())
 }
 ```
+
+## Supported Rust Versions
+
+OpenTelemetry is built against the latest stable release. The minimum supported
+version is 1.42. The current OpenTelemetry version is not guaranteed to build
+on Rust versions earlier than the minimum supported version.
+
+The current stable Rust compiler and the three most recent minor versions
+before it will always be supported. For example, if the current stable compiler
+version is 1.45, the minimum supported version will not be increased past 1.42,
+three minor versions prior. Increasing the minimum supported compiler version
+is not considered a semver breaking change as long as doing so complies with
+this policy.

@@ -39,18 +39,24 @@ pub(crate) fn assign_attrs(mut builder: PipelineBuilder) -> PipelineBuilder {
     }
 
     #[cfg(feature = "collector_client")]
-    if let Some(endpoint) = env::var(ENV_ENDPOINT).ok().filter(|var| !var.is_empty()) {
-        builder = builder.with_collector_endpoint(endpoint);
+    {
+        if let Some(endpoint) = env::var(ENV_ENDPOINT).ok().filter(|var| !var.is_empty()) {
+            builder = builder.with_collector_endpoint(endpoint);
+        }
     }
 
     #[cfg(feature = "collector_client")]
-    if let Some(user) = env::var(ENV_USER).ok().filter(|var| !var.is_empty()) {
-        builder = builder.with_collector_username(user);
+    {
+        if let Some(user) = env::var(ENV_USER).ok().filter(|var| !var.is_empty()) {
+            builder = builder.with_collector_username(user);
+        }
     }
 
     #[cfg(feature = "collector_client")]
-    if let Some(password) = env::var(ENV_PASSWORD).ok().filter(|var| !var.is_empty()) {
-        builder = builder.with_collector_password(password);
+    {
+        if let Some(password) = env::var(ENV_PASSWORD).ok().filter(|var| !var.is_empty()) {
+            builder = builder.with_collector_password(password);
+        }
     }
 
     builder
