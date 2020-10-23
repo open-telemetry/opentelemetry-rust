@@ -102,7 +102,7 @@ impl Resource {
     }
 
     /// Gets an iterator over the attributes of this resource, sorted by key.
-    pub fn iter(&self) -> Iter {
+    pub fn iter(&self) -> Iter<'_> {
         self.into_iter()
     }
 

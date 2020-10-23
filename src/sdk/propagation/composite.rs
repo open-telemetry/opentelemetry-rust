@@ -100,7 +100,7 @@ impl TextMapPropagator for TextMapCompositePropagator {
             })
     }
 
-    fn fields(&self) -> FieldIter {
+    fn fields(&self) -> FieldIter<'_> {
         FieldIter::new(self.fields.as_slice())
     }
 }
@@ -169,7 +169,7 @@ mod tests {
             cx.with_remote_span_reference(span)
         }
 
-        fn fields(&self) -> FieldIter {
+        fn fields(&self) -> FieldIter<'_> {
             FieldIter::new(&self.fields)
         }
     }

@@ -63,7 +63,7 @@ impl EvictedHashMap {
     }
 
     /// Returns a front-to-back iterator.
-    pub fn iter(&self) -> std::collections::hash_map::Iter<api::Key, api::Value> {
+    pub fn iter(&self) -> std::collections::hash_map::Iter<'_, api::Key, api::Value> {
         self.map.iter()
     }
 

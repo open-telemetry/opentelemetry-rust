@@ -172,7 +172,7 @@ impl TextMapPropagator for JaegerPropagator {
         )
     }
 
-    fn fields(&self) -> FieldIter {
+    fn fields(&self) -> FieldIter<'_> {
         FieldIter::new(JAEGER_HEADER_FIELD.as_ref())
     }
 }

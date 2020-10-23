@@ -291,7 +291,7 @@ impl TextMapPropagator for B3Propagator {
         cx.with_remote_span_reference(span_reference)
     }
 
-    fn fields(&self) -> FieldIter {
+    fn fields(&self) -> FieldIter<'_> {
         let field_slice = if self
             .inject_encoding
             .support(&B3Encoding::SingleAndMultiHeader)

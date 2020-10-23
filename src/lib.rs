@@ -28,7 +28,16 @@
 //! directory for different integration patterns.
 #![recursion_limit = "256"]
 #![allow(clippy::needless_doctest_main)]
-#![deny(missing_docs, unreachable_pub, missing_debug_implementations)]
+#![warn(
+    future_incompatible,
+    missing_debug_implementations,
+    missing_docs,
+    nonstandard_style,
+    rust_2018_idioms,
+    rustdoc,
+    unreachable_pub,
+    unused
+)]
 #![cfg_attr(test, deny(warnings))]
 
 pub mod api;
