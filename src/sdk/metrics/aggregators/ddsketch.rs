@@ -127,7 +127,7 @@ impl Quantile for DDSKetchAggregator {
                 return Ok(inner.min_value.clone());
             }
 
-            if (q - 1.0).abs() < f64::EPSILON {
+            if (q - 1.0).abs() < std::f64::EPSILON {
                 return Ok(inner.max_value.clone());
             }
 
@@ -239,7 +239,7 @@ impl Aggregator for DDSKetchAggregator {
                             }
 
 
-                            if (inner.gamma - other.gamma).abs() > f64::EPSILON {
+                            if (inner.gamma - other.gamma).abs() > std::f64::EPSILON {
                                 return Err(MetricsError::InconsistentAggregator(format!(
                                     "When merging two DDSKetchAggregators, their gamma must be the same. Expect max number of bins to be {:?}, but get {:?}", inner.gamma, other.gamma
                                 )));
@@ -1009,15 +1009,15 @@ mod tests {
         // assert sum, max, min and count
         assert!(
             (moved_ddsketch.max().unwrap().to_f64(&NumberKind::F64) - expected_max).abs()
-                < f64::EPSILON
+                < std::f64::EPSILON
         );
         assert!(
             (moved_ddsketch.min().unwrap().to_f64(&NumberKind::F64) - expected_min).abs()
-                < f64::EPSILON
+                < std::f64::EPSILON
         );
         assert!(
             (moved_ddsketch.sum().unwrap().to_f64(&NumberKind::F64) - expected_sum).abs()
-                < f64::EPSILON
+                < std::f64::EPSILON
         );
         assert_eq!(moved_ddsketch.count(), Ok(expected_count));
 
@@ -1030,7 +1030,7 @@ mod tests {
                     .to_f64(&NumberKind::F64)
                     - expected_iter.next().unwrap())
                 .abs()
-                    < f64::EPSILON
+                    < std::f64::EPSILON
             );
         }
     }
