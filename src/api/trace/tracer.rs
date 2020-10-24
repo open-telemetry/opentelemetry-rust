@@ -39,7 +39,7 @@ use std::time::SystemTime;
 ///
 /// let parent = tracer.start("foo");
 /// let child = tracer.span_builder("bar")
-///     .with_parent(parent.span_reference())
+///     .with_parent(parent.span_context())
 ///     .start(&tracer);
 ///
 /// // ...

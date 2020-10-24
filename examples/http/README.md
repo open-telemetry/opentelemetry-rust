@@ -6,7 +6,7 @@ shows key aspects of tracing such as:
 - Root Span (on Client)
 - Child Span (on Client)
 - Child Span from a Remote Parent (on Server)
-- SpanReference Propagation (from Client to Server)
+- SpanContext Propagation (from Client to Server)
 - Span Events
 - Span Attributes
 
