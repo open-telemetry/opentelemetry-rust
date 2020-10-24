@@ -14,7 +14,7 @@
 //!
 //! Required arguments:
 //!
-//! - the value to serialize, can be `SpanReference` or `DistributedContext`.
+//! - the value to serialize, can be `SpanContext` or `DistributedContext`.
 //!
 //! Returns the on-the-wire byte representation of the value.
 //!

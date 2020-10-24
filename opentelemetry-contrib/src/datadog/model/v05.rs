@@ -105,9 +105,9 @@ fn encode_spans(
         rmp::encode::write_u32(&mut encoded, interner.intern(&span.name))?;
         rmp::encode::write_u64(
             &mut encoded,
-            span.span_reference.trace_id().to_u128() as u64,
+            span.span_context.trace_id().to_u128() as u64,
         )?;
-        rmp::encode::write_u64(&mut encoded, span.span_reference.span_id().to_u64())?;
+        rmp::encode::write_u64(&mut encoded, span.span_context.span_id().to_u64())?;
         rmp::encode::write_u64(&mut encoded, span.parent_span_id.to_u64())?;
         rmp::encode::write_i64(&mut encoded, start)?;
         rmp::encode::write_i64(&mut encoded, duration)?;

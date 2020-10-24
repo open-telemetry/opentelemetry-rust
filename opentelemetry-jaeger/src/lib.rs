@@ -517,8 +517,8 @@ fn links_to_references(
         let refs = links
             .iter()
             .map(|link| {
-                let span_reference = link.span_reference();
-                let trace_id = span_reference.trace_id().to_u128();
+                let span_context = link.span_context();
+                let trace_id = span_context.trace_id().to_u128();
                 let trace_id_high = (trace_id >> 64) as i64;
                 let trace_id_low = trace_id as i64;
 
@@ -528,7 +528,7 @@ fn links_to_references(
                     jaeger::SpanRefType::ChildOf,
                     trace_id_low,
                     trace_id_high,
-                    span_reference.span_id().to_u64() as i64,
+                    span_context.span_id().to_u64() as i64,
                 )
             })
             .collect();
@@ -543,17 +543,17 @@ fn convert_otel_span_into_jaeger_span(
     span: trace::SpanData,
     export_instrument_lib: bool,
 ) -> jaeger::Span {
-    let trace_id = span.span_reference.trace_id().to_u128();
+    let trace_id = span.span_context.trace_id().to_u128();
     let trace_id_high = (trace_id >> 64) as i64;
     let trace_id_low = trace_id as i64;
     jaeger::Span {
         trace_id_low,
         trace_id_high,
-        span_id: span.span_reference.span_id().to_u64() as i64,
+        span_id: span.span_context.span_id().to_u64() as i64,
         parent_span_id: span.parent_span_id.to_u64() as i64,
         operation_name: span.name,
         references: links_to_references(span.links),
-        flags: span.span_reference.trace_flags() as i32,
+        flags: span.span_context.trace_flags() as i32,
         start_time: span
             .start_time
             .duration_since(SystemTime::UNIX_EPOCH)

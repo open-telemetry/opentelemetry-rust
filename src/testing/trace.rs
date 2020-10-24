@@ -1,10 +1,10 @@
 use crate::api::{
-    trace::{Span, SpanReference, StatusCode},
+    trace::{Span, SpanContext, StatusCode},
     KeyValue,
 };
 
 #[derive(Debug)]
-pub struct TestSpan(pub SpanReference);
+pub struct TestSpan(pub SpanContext);
 
 impl Span for TestSpan {
     fn add_event_with_timestamp(
@@ -14,7 +14,7 @@ impl Span for TestSpan {
         _attributes: Vec<KeyValue>,
     ) {
     }
-    fn span_reference(&self) -> SpanReference {
+    fn span_context(&self) -> SpanContext {
         self.0.clone()
     }
     fn is_recording(&self) -> bool {

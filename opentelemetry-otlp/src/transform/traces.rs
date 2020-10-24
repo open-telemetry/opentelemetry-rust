@@ -49,18 +49,18 @@ impl From<Link> for Span_Link {
     fn from(link: Link) -> Self {
         Span_Link {
             trace_id: link
-                .span_reference()
+                .span_context()
                 .trace_id()
                 .to_u128()
                 .to_be_bytes()
                 .to_vec(),
             span_id: link
-                .span_reference()
+                .span_context()
                 .span_id()
                 .to_u64()
                 .to_be_bytes()
                 .to_vec(),
-            trace_state: link.span_reference().trace_state().header(),
+            trace_state: link.span_context().trace_state().header(),
             attributes: Attributes::from(link.attributes().clone()).0,
             dropped_attributes_count: 0,
             ..Default::default()
@@ -81,18 +81,18 @@ impl From<SpanData> for ResourceSpans {
                     instrumentation_library: Default::default(),
                     spans: RepeatedField::from_vec(vec![Span {
                         trace_id: source_span
-                            .span_reference
+                            .span_context
                             .trace_id()
                             .to_u128()
                             .to_be_bytes()
                             .to_vec(),
                         span_id: source_span
-                            .span_reference
+                            .span_context
                             .span_id()
                             .to_u64()
                             .to_be_bytes()
                             .to_vec(),
-                        trace_state: source_span.span_reference.trace_state().header(),
+                        trace_state: source_span.span_context.trace_state().header(),
                         parent_span_id: {
                             if source_span.parent_span_id.to_u64().is_non_zero() {
                                 source_span.parent_span_id.to_u64().to_be_bytes().to_vec()
