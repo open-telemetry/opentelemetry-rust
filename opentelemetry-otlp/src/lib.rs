@@ -95,8 +95,19 @@
 //!     Ok(())
 //! }
 //! ```
-#![deny(missing_docs, unreachable_pub, missing_debug_implementations)]
+#![warn(
+    future_incompatible,
+    missing_debug_implementations,
+    missing_docs,
+    nonstandard_style,
+    rust_2018_idioms,
+    unreachable_pub,
+    unused
+)]
+#![allow(elided_lifetimes_in_paths)]
+#![cfg_attr(docsrs, feature(doc_cfg), deny(broken_intra_doc_links))]
 #![cfg_attr(test, deny(warnings))]
+
 use opentelemetry::{api::trace::TracerProvider, global, sdk};
 use std::collections::HashMap;
 use std::error::Error;

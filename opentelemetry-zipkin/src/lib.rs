@@ -1,8 +1,12 @@
-//! # OpenTelemetry Zipkin Exporter
+//! # OpenTelemetry Zipkin
 //!
 //! Collects OpenTelemetry spans and reports them to a given Zipkin collector
-//! endpoint. See the [Zipkin Docs](https://zipkin.io/) for details and
-//! deployment information.
+//! endpoint. See the [Zipkin Docs] for details and deployment information.
+//!
+//! *Compiler support: [requires `rustc` 1.42+][msrv]*
+//!
+//! [Zipkin Docs]: https://zipkin.io/
+//! [msrv]: #supported-rust-versions
 //!
 //! ## Quickstart
 //!
@@ -40,24 +44,28 @@
 //! ```toml
 //! [dependencies]
 //! opentelemetry = { version = "*", features = ["tokio"] }
-//! opentelemetry-zipkin = "*"
+//! opentelemetry-zipkin = { version = "*", features = ["reqwest-client"], default-features = false }
 //! ```
 //!
 //! [`tokio`]: https://tokio.rs
 //! [`async-std`]: https://async.rs
 //!
-//! ## Bring your own http clients
-//! Users can choose appropriate http clients to align with their runtime.
+//! ## Choosing an HTTP client
 //!
-//! Based on the feature enabled. The default http client will be different. If user doesn't specific
-//! features or enabled `reqwest-blocking-client` feature. The blocking reqwest http client will be used as
-//! default client. If `reqwest-client` feature is enabled. The async reqwest http client will be used. If
-//! `surf-client` feature is enabled. The surf http client will be used.
+//! The HTTP client that this exporter will use can be overridden using features
+//! or a manual implementation of the [`HttpClient`] trait. By default the
+//! `reqwest-blocking-client` feature is enabled which will use the `reqwest`
+//! crate. While this is compatible with both async and non-async projects, it
+//! is not optimal for high-performance async applications as it will block the
+//! executor thread. Consider using the `reqwest-client` (without blocking)
+//! or `surf-client` features if you are in the `tokio` or `async-std`
+//! ecosystems respectively, or select whichever client you prefer as shown
+//! below.
 //!
-//! Note that async http clients may need specific runtime otherwise it will panic. User should make
-//! sure the http client is running in appropriate runime.
+//! Note that async http clients may require a specific async runtime to be
+//! available so be sure to match them appropriately.
 //!
-//! Users can always use their own http clients by implementing `HttpClient` trait.
+//! [`HttpClient`]: https://docs.rs/opentelemetry/0.9/opentelemetry/exporter/trace/trait.HttpClient.html
 //!
 //! ## Kitchen Sink Full Configuration
 //!
@@ -69,8 +77,7 @@
 //! ```no_run
 //! use opentelemetry::api::{KeyValue, trace::Tracer};
 //! use opentelemetry::sdk::{trace::{self, IdGenerator, Sampler}, Resource};
-//! use opentelemetry::exporter::trace::ExportResult;
-//! use opentelemetry::exporter::trace::HttpClient;
+//! use opentelemetry::exporter::trace::{ExportResult, HttpClient};
 //! use async_trait::async_trait;
 //! use std::error::Error;
 //!
@@ -117,7 +124,30 @@
 //!     Ok(())
 //! }
 //! ```
-#![deny(missing_docs, unreachable_pub, missing_debug_implementations)]
+//!
+//! ## Supported Rust Versions
+//!
+//! OpenTelemetry is built against the latest stable release. The minimum
+//! supported version is 1.42. The current OpenTelemetry version is not
+//! guaranteed to build on Rust versions earlier than the minimum supported
+//! version.
+//!
+//! The current stable Rust compiler and the three most recent minor versions
+//! before it will always be supported. For example, if the current stable
+//! compiler version is 1.45, the minimum supported version will not be
+//! increased past 1.42, three minor versions prior. Increasing the minimum
+//! supported compiler version is not considered a semver breaking change as
+//! long as doing so complies with this policy.
+#![warn(
+    future_incompatible,
+    missing_debug_implementations,
+    missing_docs,
+    nonstandard_style,
+    rust_2018_idioms,
+    unreachable_pub,
+    unused
+)]
+#![cfg_attr(docsrs, feature(doc_cfg), deny(broken_intra_doc_links))]
 #![cfg_attr(test, deny(warnings))]
 
 #[macro_use]

@@ -9,6 +9,8 @@
 //! implement so that they can be plugged into OpenTelemetry SDK and support
 //! sending of telemetry data.
 #[cfg(feature = "metrics")]
+#[cfg_attr(docsrs, doc(cfg(feature = "metrics")))]
 pub mod metrics;
 #[cfg(feature = "trace")]
+#[cfg_attr(docsrs, doc(cfg(feature = "trace")))]
 pub mod trace;

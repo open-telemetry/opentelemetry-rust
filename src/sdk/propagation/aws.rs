@@ -1,22 +1,3 @@
-//! # AWS X-Ray Trace Propagator
-//!
-//! Extracts and injects values to/from the `x-amzn-trace-id` header. Converting between
-//! OpenTelemetry [SpanReference][otel-spec] and [X-Ray Trace format][xray-trace-id].
-//!
-//! For details on the [`x-amzn-trace-id` header][xray-header] see the AWS X-Ray Docs.
-//!
-//! ## Example
-//!
-//! ```
-//! use opentelemetry::global;
-//! use opentelemetry::sdk::propagation::XrayPropagator;
-//!
-//! global::set_text_map_propagator(XrayPropagator::default());
-//! ```
-//!
-//! [otel-spec]: https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/trace/api.md#SpanReference
-//! [xray-trace-id]: https://docs.aws.amazon.com/xray/latest/devguide/xray-api-sendingdata.html#xray-api-traceids
-//! [xray-header]: https://docs.aws.amazon.com/xray/latest/devguide/xray-concepts.html#xray-concepts-tracingheader
 use crate::api::{
     propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
     trace::{
@@ -41,6 +22,24 @@ lazy_static::lazy_static! {
 }
 
 /// Extracts and injects `SpanReference`s into `Extractor`s or `Injector`s using AWS X-Ray header format.
+///
+/// Extracts and injects values to/from the `x-amzn-trace-id` header. Converting between
+/// OpenTelemetry [SpanReference][otel-spec] and [X-Ray Trace format][xray-trace-id].
+///
+/// For details on the [`x-amzn-trace-id` header][xray-header] see the AWS X-Ray Docs.
+///
+/// ## Example
+///
+/// ```
+/// use opentelemetry::global;
+/// use opentelemetry::sdk::propagation::XrayPropagator;
+///
+/// global::set_text_map_propagator(XrayPropagator::default());
+/// ```
+///
+/// [otel-spec]: https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/trace/api.md#SpanReference
+/// [xray-trace-id]: https://docs.aws.amazon.com/xray/latest/devguide/xray-api-sendingdata.html#xray-api-traceids
+/// [xray-header]: https://docs.aws.amazon.com/xray/latest/devguide/xray-concepts.html#xray-concepts-tracingheader
 #[derive(Clone, Debug, Default)]
 pub struct XrayPropagator {
     _private: (),
@@ -158,7 +157,7 @@ impl TextMapPropagator for XrayPropagator {
         cx.with_remote_span_reference(extracted)
     }
 
-    fn fields(&self) -> FieldIter {
+    fn fields(&self) -> FieldIter<'_> {
         FieldIter::new(AWS_XRAY_HEADER_FIELD.as_ref())
     }
 }
@@ -237,11 +236,10 @@ fn title_case(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::api;
     use crate::api::trace::TraceState;
+    use crate::testing::trace::TestSpan;
     use std::collections::HashMap;
     use std::str::FromStr;
-    use std::time::SystemTime;
 
     #[rustfmt::skip]
     fn extract_test_data() -> Vec<(&'static str, SpanReference)> {
@@ -297,29 +295,6 @@ mod tests {
             context.remote_span_reference(),
             Some(&SpanReference::empty_context())
         )
-    }
-
-    #[derive(Debug)]
-    struct TestSpan(SpanReference);
-
-    impl api::trace::Span for TestSpan {
-        fn add_event_with_timestamp(
-            &self,
-            _name: String,
-            _timestamp: std::time::SystemTime,
-            _attributes: Vec<api::KeyValue>,
-        ) {
-        }
-        fn span_reference(&self) -> SpanReference {
-            self.0.clone()
-        }
-        fn is_recording(&self) -> bool {
-            false
-        }
-        fn set_attribute(&self, _attribute: api::KeyValue) {}
-        fn set_status(&self, _code: api::trace::StatusCode, _message: String) {}
-        fn update_name(&self, _new_name: String) {}
-        fn end_with_timestamp(&self, _timestamp: SystemTime) {}
     }
 
     #[test]

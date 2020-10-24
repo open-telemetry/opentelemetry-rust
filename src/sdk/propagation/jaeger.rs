@@ -172,7 +172,7 @@ impl TextMapPropagator for JaegerPropagator {
         )
     }
 
-    fn fields(&self) -> FieldIter {
+    fn fields(&self) -> FieldIter<'_> {
         FieldIter::new(JAEGER_HEADER_FIELD.as_ref())
     }
 }
@@ -183,13 +183,13 @@ mod tests {
     use crate::api::{
         propagation::{Injector, TextMapPropagator},
         trace::{
-            Span, SpanId, SpanReference, StatusCode, TraceContextExt, TraceId, TraceState,
-            TRACE_FLAG_DEBUG, TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
+            SpanId, SpanReference, TraceContextExt, TraceId, TraceState, TRACE_FLAG_DEBUG,
+            TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
         },
-        Context, KeyValue,
+        Context,
     };
+    use crate::testing::trace::TestSpan;
     use std::collections::HashMap;
-    use std::time::SystemTime;
 
     const LONG_TRACE_ID_STR: &str = "000000000000004d0000000000000016";
     const SHORT_TRACE_ID_STR: &str = "4d0000000000000016";
@@ -378,30 +378,6 @@ mod tests {
             ))
         );
     }
-
-    #[derive(Debug)]
-    struct TestSpan(SpanReference);
-
-    impl Span for TestSpan {
-        fn add_event_with_timestamp(
-            &self,
-            _name: String,
-            _timestamp: std::time::SystemTime,
-            _attributes: Vec<KeyValue>,
-        ) {
-        }
-        fn span_reference(&self) -> SpanReference {
-            self.0.clone()
-        }
-        fn is_recording(&self) -> bool {
-            false
-        }
-        fn set_attribute(&self, _attribute: KeyValue) {}
-        fn set_status(&self, _code: StatusCode, _message: String) {}
-        fn update_name(&self, _new_name: String) {}
-        fn end_with_timestamp(&self, _timestamp: SystemTime) {}
-    }
-
     #[test]
     fn test_inject() {
         let propagator = JaegerPropagator::new();

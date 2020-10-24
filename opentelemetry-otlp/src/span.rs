@@ -108,7 +108,7 @@ impl Default for Exporter {
 }
 
 impl Debug for Exporter {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Exporter")
             .field("headers", &self.headers)
             .field("timeout", &self.timeout)

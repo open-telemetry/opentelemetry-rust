@@ -135,7 +135,7 @@ impl Baggage {
     }
 
     /// Gets an iterator over the baggage items, sorted by name.
-    pub fn iter(&self) -> Iter {
+    pub fn iter(&self) -> Iter<'_> {
         self.into_iter()
     }
 

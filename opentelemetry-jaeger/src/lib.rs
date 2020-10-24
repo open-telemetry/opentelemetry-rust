@@ -2,7 +2,10 @@
 //! `agent` or `collector` endpoint. See the [Jaeger Docs] for details
 //! about Jaeger and deployment information.
 //!
+//! *Compiler support: [requires `rustc` 1.42+][msrv]*
+//!
 //! [Jaeger Docs]: https://www.jaegertracing.io/docs/
+//! [msrv]: #supported-rust-versions
 //!
 //! ### Quickstart
 //!
@@ -140,7 +143,30 @@
 //!     Ok(())
 //! }
 //! ```
-#![deny(missing_docs, unreachable_pub, missing_debug_implementations)]
+//!
+//! ## Supported Rust Versions
+//!
+//! OpenTelemetry is built against the latest stable release. The minimum
+//! supported version is 1.42. The current OpenTelemetry version is not
+//! guaranteed to build on Rust versions earlier than the minimum supported
+//! version.
+//!
+//! The current stable Rust compiler and the three most recent minor versions
+//! before it will always be supported. For example, if the current stable
+//! compiler version is 1.45, the minimum supported version will not be
+//! increased past 1.42, three minor versions prior. Increasing the minimum
+//! supported compiler version is not considered a semver breaking change as
+//! long as doing so complies with this policy.
+#![warn(
+    future_incompatible,
+    missing_debug_implementations,
+    missing_docs,
+    nonstandard_style,
+    rust_2018_idioms,
+    unreachable_pub,
+    unused
+)]
+#![cfg_attr(docsrs, feature(doc_cfg), deny(broken_intra_doc_links))]
 #![cfg_attr(test, deny(warnings))]
 
 mod agent;
@@ -195,6 +221,8 @@ pub struct Uninstall(global::TracerProviderGuard);
 #[derive(Debug)]
 pub struct Exporter {
     process: jaeger::Process,
+    /// Whether or not to export instrumentation information.
+    export_instrumentation_lib: bool,
     uploader: uploader::BatchUploader,
 }
 
@@ -233,7 +261,10 @@ impl trace::SpanExporter for Exporter {
                     }
                 }
             }
-            jaeger_spans.push(span.into());
+            jaeger_spans.push(convert_otel_span_into_jaeger_span(
+                span,
+                self.export_instrumentation_lib,
+            ));
         }
 
         self.uploader
@@ -252,6 +283,7 @@ pub struct PipelineBuilder {
     collector_username: Option<String>,
     #[cfg(feature = "collector_client")]
     collector_password: Option<String>,
+    export_instrument_library: bool,
     process: Process,
     config: Option<sdk::trace::Config>,
 }
@@ -267,6 +299,7 @@ impl Default for PipelineBuilder {
             collector_username: None,
             #[cfg(feature = "collector_client")]
             collector_password: None,
+            export_instrument_library: true,
             process: Process {
                 service_name: DEFAULT_SERVICE_NAME.to_string(),
                 tags: Vec::new(),
@@ -299,10 +332,19 @@ impl PipelineBuilder {
         }
     }
 
+    /// Config whether to export information of instrumentation library.
+    pub fn with_instrumentation_library_tags(self, export: bool) -> Self {
+        PipelineBuilder {
+            export_instrument_library: export,
+            ..self
+        }
+    }
+
     /// Assign the collector endpoint.
     ///
     /// E.g. "http://localhost:14268/api/traces"
     #[cfg(feature = "collector_client")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "collector_client")))]
     pub fn with_collector_endpoint<T>(self, collector_endpoint: T) -> Self
     where
         http::Uri: core::convert::TryFrom<T>,
@@ -315,6 +357,7 @@ impl PipelineBuilder {
 
     /// Assign the collector username
     #[cfg(feature = "collector_client")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "collector_client")))]
     pub fn with_collector_username<S: Into<String>>(self, collector_username: S) -> Self {
         PipelineBuilder {
             collector_username: Some(collector_username.into()),
@@ -324,6 +367,7 @@ impl PipelineBuilder {
 
     /// Assign the collector password
     #[cfg(feature = "collector_client")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "collector_client")))]
     pub fn with_collector_password<S: Into<String>>(self, collector_password: S) -> Self {
         PipelineBuilder {
             collector_password: Some(collector_password.into()),
@@ -384,10 +428,12 @@ impl PipelineBuilder {
     ///
     /// This is useful if you are manually constructing a pipeline.
     pub fn init_exporter(self) -> Result<Exporter, Box<dyn Error + Send + Sync + 'static>> {
+        let export_instrumentation_lib = self.export_instrument_library;
         let (process, uploader) = self.init_uploader()?;
 
         Ok(Exporter {
             process: process.into(),
+            export_instrumentation_lib,
             uploader,
         })
     }
@@ -444,50 +490,23 @@ impl Into<jaeger::Log> for api::trace::Event {
             .duration_since(SystemTime::UNIX_EPOCH)
             .unwrap_or_else(|_| Duration::from_secs(0))
             .as_micros() as i64;
+        let mut event_set_via_attribute = false;
         let mut fields = self
             .attributes
             .into_iter()
-            .map(Into::into)
+            .map(|attr| {
+                if attr.key.as_str() == "event" {
+                    event_set_via_attribute = true;
+                };
+                attr.into()
+            })
             .collect::<Vec<_>>();
-        fields.push(api::Key::new("name").string(self.name).into());
+
+        if !event_set_via_attribute {
+            fields.push(api::Key::new("event").string(self.name).into());
+        }
 
         jaeger::Log::new(timestamp, fields)
-    }
-}
-
-impl Into<jaeger::Span> for trace::SpanData {
-    /// Convert spans to jaeger thrift span for exporting.
-    fn into(self) -> jaeger::Span {
-        let trace_id = self.span_reference.trace_id().to_u128();
-        let trace_id_high = (trace_id >> 64) as i64;
-        let trace_id_low = trace_id as i64;
-        jaeger::Span {
-            trace_id_low,
-            trace_id_high,
-            span_id: self.span_reference.span_id().to_u64() as i64,
-            parent_span_id: self.parent_span_id.to_u64() as i64,
-            operation_name: self.name,
-            references: links_to_references(self.links),
-            flags: self.span_reference.trace_flags() as i32,
-            start_time: self
-                .start_time
-                .duration_since(SystemTime::UNIX_EPOCH)
-                .unwrap_or_else(|_| Duration::from_secs(0))
-                .as_micros() as i64,
-            duration: self
-                .end_time
-                .duration_since(self.start_time)
-                .unwrap_or_else(|_| Duration::from_secs(0))
-                .as_micros() as i64,
-            tags: build_span_tags(
-                self.attributes,
-                self.instrumentation_lib,
-                self.status_code,
-                self.status_message,
-                self.span_kind,
-            ),
-            logs: events_to_logs(self.message_events),
-        }
     }
 }
 
@@ -519,6 +538,47 @@ fn links_to_references(
     }
 }
 
+/// Convert spans to jaeger thrift span for exporting.
+fn convert_otel_span_into_jaeger_span(
+    span: trace::SpanData,
+    export_instrument_lib: bool,
+) -> jaeger::Span {
+    let trace_id = span.span_reference.trace_id().to_u128();
+    let trace_id_high = (trace_id >> 64) as i64;
+    let trace_id_low = trace_id as i64;
+    jaeger::Span {
+        trace_id_low,
+        trace_id_high,
+        span_id: span.span_reference.span_id().to_u64() as i64,
+        parent_span_id: span.parent_span_id.to_u64() as i64,
+        operation_name: span.name,
+        references: links_to_references(span.links),
+        flags: span.span_reference.trace_flags() as i32,
+        start_time: span
+            .start_time
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap_or_else(|_| Duration::from_secs(0))
+            .as_micros() as i64,
+        duration: span
+            .end_time
+            .duration_since(span.start_time)
+            .unwrap_or_else(|_| Duration::from_secs(0))
+            .as_micros() as i64,
+        tags: build_span_tags(
+            span.attributes,
+            if export_instrument_lib {
+                Some(span.instrumentation_lib)
+            } else {
+                None
+            },
+            span.status_code,
+            span.status_message,
+            span.span_kind,
+        ),
+        logs: events_to_logs(span.message_events),
+    }
+}
+
 fn build_process_tags(
     span_data: &trace::SpanData,
 ) -> Option<impl Iterator<Item = jaeger::Tag> + '_> {
@@ -536,7 +596,7 @@ fn build_process_tags(
 
 fn build_span_tags(
     attrs: sdk::trace::EvictedHashMap,
-    instrumentation_lib: sdk::InstrumentationLibrary,
+    instrumentation_lib: Option<sdk::InstrumentationLibrary>,
     status_code: api::trace::StatusCode,
     status_message: String,
     kind: api::trace::SpanKind,
@@ -551,10 +611,14 @@ fn build_span_tags(
         })
         .collect::<Vec<_>>();
 
-    // Set instrument library tags
-    tags.push(api::KeyValue::new(INSTRUMENTATION_LIBRARY_NAME, instrumentation_lib.name).into());
-    if let Some(version) = instrumentation_lib.version {
-        tags.push(api::KeyValue::new(INSTRUMENTATION_LIBRARY_VERSION, version).into())
+    if let Some(instrumentation_lib) = instrumentation_lib {
+        // Set instrument library tags
+        tags.push(
+            api::KeyValue::new(INSTRUMENTATION_LIBRARY_NAME, instrumentation_lib.name).into(),
+        );
+        if let Some(version) = instrumentation_lib.version {
+            tags.push(api::KeyValue::new(INSTRUMENTATION_LIBRARY_VERSION, version).into())
+        }
     }
 
     // Ensure error status is set

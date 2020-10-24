@@ -291,7 +291,7 @@ impl TextMapPropagator for B3Propagator {
         cx.with_remote_span_reference(span_reference)
     }
 
-    fn fields(&self) -> FieldIter {
+    fn fields(&self) -> FieldIter<'_> {
         let field_slice = if self
             .inject_encoding
             .support(&B3Encoding::SingleAndMultiHeader)
@@ -315,11 +315,11 @@ mod tests {
     use crate::api::{
         propagation::TextMapPropagator,
         trace::{
-            Span, SpanId, SpanReference, StatusCode, TraceId, TRACE_FLAG_DEBUG,
-            TRACE_FLAG_DEFERRED, TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
+            SpanId, SpanReference, TraceId, TRACE_FLAG_DEBUG, TRACE_FLAG_DEFERRED,
+            TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
         },
-        KeyValue,
     };
+    use crate::testing::trace::TestSpan;
     use std::collections::HashMap;
 
     const TRACE_ID_STR: &str = "4bf92f3577b34da6a3ce929d0e0e4736";
@@ -553,29 +553,6 @@ mod tests {
                 Some(&SpanReference::empty_context())
             )
         }
-    }
-
-    #[derive(Debug)]
-    struct TestSpan(SpanReference);
-
-    impl Span for TestSpan {
-        fn add_event_with_timestamp(
-            &self,
-            _name: String,
-            _timestamp: std::time::SystemTime,
-            _attributes: Vec<KeyValue>,
-        ) {
-        }
-        fn span_reference(&self) -> SpanReference {
-            self.0.clone()
-        }
-        fn is_recording(&self) -> bool {
-            false
-        }
-        fn set_attribute(&self, _attribute: KeyValue) {}
-        fn set_status(&self, _code: StatusCode, _message: String) {}
-        fn update_name(&self, _new_name: String) {}
-        fn end_with_timestamp(&self, _timestamp: std::time::SystemTime) {}
     }
 
     #[test]

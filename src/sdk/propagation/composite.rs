@@ -1,10 +1,18 @@
+use crate::api::{
+    propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
+    Context,
+};
+use std::collections::HashSet;
+
+/// Composite propagator
+///
 /// A propagator that chains multiple [`TextMapPropagator`] propagators together,
 /// injecting or extracting by their respective HTTP header names.
 ///
 /// Injection and extraction from this propagator will preserve the order of the
 /// injectors and extractors passed in during initialization.
 ///
-/// [`TextMapPropagator`]: ../../trait.TextMapPropagator.html
+/// [`TextMapPropagator`]: ../../api/propagation/text_map_propagator/trait.TextMapPropagator.html
 ///
 /// # Examples
 ///
@@ -49,13 +57,6 @@
 /// assert!(injector.get("baggage").is_some());
 /// assert!(injector.get("traceparent").is_some());
 /// ```
-use crate::api::{
-    propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
-    Context,
-};
-use std::collections::HashSet;
-
-/// Composite propagator
 #[derive(Debug)]
 pub struct TextMapCompositePropagator {
     propagators: Vec<Box<dyn TextMapPropagator + Send + Sync>>,
@@ -65,7 +66,7 @@ pub struct TextMapCompositePropagator {
 impl TextMapCompositePropagator {
     /// Constructs a new propagator out of instances of [`TextMapPropagator`].
     ///
-    /// [`TextMapPropagator`]: ../../trait.TextMapPropagator.html
+    /// [`TextMapPropagator`]: ../../api/propagation/text_map_propagator/trait.TextMapPropagator.html
     pub fn new(propagators: Vec<Box<dyn TextMapPropagator + Send + Sync>>) -> Self {
         let mut fields = HashSet::new();
         for propagator in &propagators {
@@ -100,7 +101,7 @@ impl TextMapPropagator for TextMapCompositePropagator {
             })
     }
 
-    fn fields(&self) -> FieldIter {
+    fn fields(&self) -> FieldIter<'_> {
         FieldIter::new(self.fields.as_slice())
     }
 }
@@ -109,10 +110,11 @@ impl TextMapPropagator for TextMapCompositePropagator {
 mod tests {
     use crate::api::{
         propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
-        trace::{Span, SpanId, SpanReference, StatusCode, TraceContextExt, TraceId, TraceState},
-        Context, KeyValue,
+        trace::{SpanId, SpanReference, TraceContextExt, TraceId, TraceState},
+        Context,
     };
     use crate::sdk::propagation::{TextMapCompositePropagator, TraceContextPropagator};
+    use crate::testing::trace::TestSpan;
     use std::collections::HashMap;
     use std::str::FromStr;
 
@@ -168,7 +170,7 @@ mod tests {
             cx.with_remote_span_reference(span)
         }
 
-        fn fields(&self) -> FieldIter {
+        fn fields(&self) -> FieldIter<'_> {
             FieldIter::new(&self.fields)
         }
     }
@@ -181,29 +183,6 @@ mod tests {
                 "00-00000000000000000000000000000001-0000000000000001-00",
             ),
         ]
-    }
-
-    #[derive(Debug)]
-    struct TestSpan(SpanReference);
-
-    impl Span for TestSpan {
-        fn add_event_with_timestamp(
-            &self,
-            _name: String,
-            _timestamp: std::time::SystemTime,
-            _attributes: Vec<KeyValue>,
-        ) {
-        }
-        fn span_reference(&self) -> SpanReference {
-            self.0.clone()
-        }
-        fn is_recording(&self) -> bool {
-            false
-        }
-        fn set_attribute(&self, _attribute: KeyValue) {}
-        fn set_status(&self, _code: StatusCode, _message: String) {}
-        fn update_name(&self, _new_name: String) {}
-        fn end_with_timestamp(&self, _timestamp: std::time::SystemTime) {}
     }
 
     #[test]
