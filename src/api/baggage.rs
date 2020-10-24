@@ -329,7 +329,7 @@ impl BaggageExt for Context {
     }
 
     fn baggage(&self) -> &Baggage {
-        self.get::<Baggage>().unwrap_or_else(|| &DEFAULT_BAGGAGE)
+        self.get::<Baggage>().unwrap_or(&DEFAULT_BAGGAGE)
     }
 }
 
