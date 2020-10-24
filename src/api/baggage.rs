@@ -311,7 +311,6 @@ impl BaggageExt for Context {
             .map(|(key, (value, metadata))| {
                 KeyValueMetadata::new(key.clone(), value.clone(), metadata.clone())
             })
-            // .chain(baggage.into_iter().map(|kv| kv.into()))
             .collect();
         for kvm in baggage.into_iter().map(|kv| kv.into()) {
             merged.insert_with_metadata(kvm.key, kvm.value, kvm.metadata);
