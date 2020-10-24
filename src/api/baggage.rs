@@ -16,7 +16,7 @@ const MAX_LEN_OF_ALL_PAIRS: usize = 8192;
 #[derive(Debug, Default)]
 pub struct Baggage {
     inner: HashMap<Key, (Value, BaggageMetadata)>,
-    len: usize,
+    kv_content_len: usize, // the length of key-value-metadata string in `inner`
 }
 
 impl Baggage {
@@ -24,7 +24,7 @@ impl Baggage {
     pub fn new() -> Self {
         Baggage {
             inner: HashMap::default(),
-            len: 0,
+            kv_content_len: 0,
         }
     }
 
@@ -48,13 +48,13 @@ impl Baggage {
     ///
     /// # Examples
     /// ```
-    /// use opentelemetry::api::{Baggage, Value};
+    /// use opentelemetry::api::{Baggage, BaggageMetadata, Value};
     ///
     /// let mut cc = Baggage::new();
     /// let _ = cc.insert("my-name", "my-value");
     ///
     /// // By default, the metadata is empty
-    /// assert_eq!(cc.get_with_metadata("my-name"), Some(&(Value::String("my-value".to_string()), "".into())))
+    /// assert_eq!(cc.get_with_metadata("my-name"), Some(&(Value::String("my-value".to_string()), BaggageMetadata::from(""))))
     /// ```
     pub fn get_with_metadata<T: Into<Key>>(&self, key: T) -> Option<&(Value, BaggageMetadata)> {
         self.inner.get(&key.into())
@@ -92,12 +92,12 @@ impl Baggage {
     /// # Examples
     ///
     /// ```
-    /// use opentelemetry::api::{Baggage, Value};
+    /// use opentelemetry::api::{Baggage, BaggageMetadata, Value};
     ///
     /// let mut cc = Baggage::new();
     /// let _ = cc.insert_with_metadata("my-name", "my-value", "test");
     ///
-    /// assert_eq!(cc.get_with_metadata("my-name"), Some(&(Value::String("my-value".to_string()), "test".into())))
+    /// assert_eq!(cc.get_with_metadata("my-name"), Some(&(Value::String("my-value".to_string()), BaggageMetadata::from("test"))))
     /// ```
     pub fn insert_with_metadata<K, V, S>(
         &mut self,
@@ -149,7 +149,10 @@ impl Baggage {
             match self.inner.get(key) {
                 None => {
                     // check total length
-                    if self.len + metadata.as_str().len() + value.len() + key.as_str().len()
+                    if self.kv_content_len
+                        + metadata.as_str().len()
+                        + value.len()
+                        + key.as_str().len()
                         > MAX_LEN_OF_ALL_PAIRS
                     {
                         return false;
@@ -158,20 +161,22 @@ impl Baggage {
                     if self.inner.len() + 1 > MAX_KEY_VALUE_PAIRS {
                         return false;
                     }
-                    self.len += metadata.as_str().len() + value.len() + key.as_str().len()
+                    self.kv_content_len +=
+                        metadata.as_str().len() + value.len() + key.as_str().len()
                 }
                 Some((old_value, old_metadata)) => {
                     let old_value = String::from(old_value);
-                    if self.len - old_metadata.as_str().len() - old_value.len()
+                    if self.kv_content_len - old_metadata.as_str().len() - old_value.len()
                         + metadata.as_str().len()
                         + value.len()
                         > MAX_LEN_OF_ALL_PAIRS
                     {
                         return false;
                     }
-                    self.len = self.len - old_metadata.as_str().len() - old_value.len()
-                        + metadata.as_str().len()
-                        + value.len()
+                    self.kv_content_len =
+                        self.kv_content_len - old_metadata.as_str().len() - old_value.len()
+                            + metadata.as_str().len()
+                            + value.len()
                 }
             }
             true
