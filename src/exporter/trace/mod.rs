@@ -68,6 +68,7 @@ pub trait SpanExporter: Send + Sync + std::fmt::Debug {
 /// Users sometime choose http clients that relay on certain runtime. This trait allows users to bring
 /// their choice of http clients.
 #[cfg(feature = "http")]
+#[cfg_attr(docsrs, doc(cfg(feature = "http")))]
 #[async_trait]
 pub trait HttpClient: Debug + Send + Sync {
     /// Send a batch of spans to collectors

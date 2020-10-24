@@ -18,9 +18,11 @@ mod context;
 mod core;
 pub mod labels;
 #[cfg(feature = "metrics")]
+#[cfg_attr(docsrs, doc(cfg(feature = "metrics")))]
 pub mod metrics;
 pub mod propagation;
 #[cfg(feature = "trace")]
+#[cfg_attr(docsrs, doc(cfg(feature = "trace")))]
 pub mod trace;
 
 pub use self::baggage::{Baggage, BaggageExt};

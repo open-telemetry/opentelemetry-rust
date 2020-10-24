@@ -1,10 +1,18 @@
+use crate::api::{
+    propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
+    Context,
+};
+use std::collections::HashSet;
+
+/// Composite propagator
+///
 /// A propagator that chains multiple [`TextMapPropagator`] propagators together,
 /// injecting or extracting by their respective HTTP header names.
 ///
 /// Injection and extraction from this propagator will preserve the order of the
 /// injectors and extractors passed in during initialization.
 ///
-/// [`TextMapPropagator`]: ../../trait.TextMapPropagator.html
+/// [`TextMapPropagator`]: ../../api/propagation/text_map_propagator/trait.TextMapPropagator.html
 ///
 /// # Examples
 ///
@@ -49,13 +57,6 @@
 /// assert!(injector.get("baggage").is_some());
 /// assert!(injector.get("traceparent").is_some());
 /// ```
-use crate::api::{
-    propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
-    Context,
-};
-use std::collections::HashSet;
-
-/// Composite propagator
 #[derive(Debug)]
 pub struct TextMapCompositePropagator {
     propagators: Vec<Box<dyn TextMapPropagator + Send + Sync>>,
@@ -65,7 +66,7 @@ pub struct TextMapCompositePropagator {
 impl TextMapCompositePropagator {
     /// Constructs a new propagator out of instances of [`TextMapPropagator`].
     ///
-    /// [`TextMapPropagator`]: ../../trait.TextMapPropagator.html
+    /// [`TextMapPropagator`]: ../../api/propagation/text_map_propagator/trait.TextMapPropagator.html
     pub fn new(propagators: Vec<Box<dyn TextMapPropagator + Send + Sync>>) -> Self {
         let mut fields = HashSet::new();
         for propagator in &propagators {

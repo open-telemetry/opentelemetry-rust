@@ -101,11 +101,11 @@
     missing_docs,
     nonstandard_style,
     rust_2018_idioms,
-    rustdoc,
     unreachable_pub,
     unused
 )]
 #![allow(elided_lifetimes_in_paths)]
+#![cfg_attr(docsrs, feature(doc_cfg), deny(broken_intra_doc_links))]
 #![cfg_attr(test, deny(warnings))]
 
 use opentelemetry::{api::trace::TracerProvider, global, sdk};

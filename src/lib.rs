@@ -43,22 +43,22 @@
 //! increased past 1.42, three minor versions prior. Increasing the minimum
 //! supported compiler version is not considered a semver breaking change as
 //! long as doing so complies with this policy.
-#![recursion_limit = "256"]
-#![allow(clippy::needless_doctest_main)]
 #![warn(
     future_incompatible,
     missing_debug_implementations,
     missing_docs,
     nonstandard_style,
     rust_2018_idioms,
-    rustdoc,
     unreachable_pub,
     unused
 )]
+#![allow(clippy::needless_doctest_main)]
+#![cfg_attr(docsrs, feature(doc_cfg), deny(broken_intra_doc_links))]
 #![cfg_attr(test, deny(warnings))]
 
 pub mod api;
 #[cfg(feature = "trace")]
+#[cfg_attr(docsrs, doc(cfg(feature = "trace")))]
 pub mod experimental;
 pub mod exporter;
 pub mod global;

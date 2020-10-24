@@ -1,68 +1,3 @@
-//! # OpenTelemetry Context API
-//!
-//! A [`Context`] is a propagation mechanism which carries execution-scoped
-//! values across API boundaries and between logically associated execution
-//! units. Cross-cutting concerns access their data in-process using the same
-//! shared context object.
-//!
-//! [`Context`]s are immutable, and their write operations result in the creation
-//! of a new context containing the original values and the new specified values.
-//!
-//! ## Context state
-//!
-//! Concerns can create and retrieve their local state in the current execution
-//! state represented by a context through the [`get`] and [`with_value`]
-//! methods. It is recommended to use application-specific types when storing new
-//! context values to avoid unintentionally overwriting existing state.
-//!
-//! ## Managing the current context
-//!
-//! Contexts can be associated with the caller's current execution unit on a
-//! given thread via the [`attach`] method, and previous contexts can be restored
-//! by dropping the returned [`ContextGuard`]. Context can be nested, and will
-//! restore their parent outer context when detached on drop. To access the
-//! values of the context, a snapshot can be created via the [`Context::current`]
-//! method.
-//!
-//! [`Context`]: struct.Context.html
-//! [`Context::current`]: struct.Context.html#method.current
-//! [`ContextGuard`]: struct.ContextGuard.html
-//! [`get`]: struct.Context.html#method.get
-//! [`with_value`]: struct.Context.html#method.with_value
-//! [`attach`]: struct.Context.html#method.attach
-//!
-//! # Examples
-//!
-//! ```
-//! use opentelemetry::api::Context;
-//!
-//! // Application-specific `a` and `b` values
-//! #[derive(Debug, PartialEq)]
-//! struct ValueA(&'static str);
-//! #[derive(Debug, PartialEq)]
-//! struct ValueB(u64);
-//!
-//! let _outer_guard = Context::new().with_value(ValueA("a")).attach();
-//!
-//! // Only value a has been set
-//! let current = Context::current();
-//! assert_eq!(current.get::<ValueA>(), Some(&ValueA("a")));
-//! assert_eq!(current.get::<ValueB>(), None);
-//!
-//! {
-//!     let _inner_guard = Context::current_with_value(ValueB(42)).attach();
-//!     // Both values are set in inner context
-//!     let current = Context::current();
-//!     assert_eq!(current.get::<ValueA>(), Some(&ValueA("a")));
-//!     assert_eq!(current.get::<ValueB>(), Some(&ValueB(42)));
-//! }
-//!
-//! // Resets to only the `a` value when inner guard is dropped
-//! let current = Context::current();
-//! assert_eq!(current.get::<ValueA>(), Some(&ValueA("a")));
-//! assert_eq!(current.get::<ValueB>(), None);
-//! ```
-
 use std::any::{Any, TypeId};
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -77,6 +12,69 @@ thread_local! {
 }
 
 /// An execution-scoped collection of values.
+///
+/// A [`Context`] is a propagation mechanism which carries execution-scoped
+/// values across API boundaries and between logically associated execution
+/// units. Cross-cutting concerns access their data in-process using the same
+/// shared context object.
+///
+/// [`Context`]s are immutable, and their write operations result in the creation
+/// of a new context containing the original values and the new specified values.
+///
+/// ## Context state
+///
+/// Concerns can create and retrieve their local state in the current execution
+/// state represented by a context through the [`get`] and [`with_value`]
+/// methods. It is recommended to use application-specific types when storing new
+/// context values to avoid unintentionally overwriting existing state.
+///
+/// ## Managing the current context
+///
+/// Contexts can be associated with the caller's current execution unit on a
+/// given thread via the [`attach`] method, and previous contexts can be restored
+/// by dropping the returned [`ContextGuard`]. Context can be nested, and will
+/// restore their parent outer context when detached on drop. To access the
+/// values of the context, a snapshot can be created via the [`Context::current`]
+/// method.
+///
+/// [`Context`]: struct.Context.html
+/// [`Context::current`]: struct.Context.html#method.current
+/// [`ContextGuard`]: struct.ContextGuard.html
+/// [`get`]: struct.Context.html#method.get
+/// [`with_value`]: struct.Context.html#method.with_value
+/// [`attach`]: struct.Context.html#method.attach
+///
+/// # Examples
+///
+/// ```
+/// use opentelemetry::api::Context;
+///
+/// // Application-specific `a` and `b` values
+/// #[derive(Debug, PartialEq)]
+/// struct ValueA(&'static str);
+/// #[derive(Debug, PartialEq)]
+/// struct ValueB(u64);
+///
+/// let _outer_guard = Context::new().with_value(ValueA("a")).attach();
+///
+/// // Only value a has been set
+/// let current = Context::current();
+/// assert_eq!(current.get::<ValueA>(), Some(&ValueA("a")));
+/// assert_eq!(current.get::<ValueB>(), None);
+///
+/// {
+///     let _inner_guard = Context::current_with_value(ValueB(42)).attach();
+///     // Both values are set in inner context
+///     let current = Context::current();
+///     assert_eq!(current.get::<ValueA>(), Some(&ValueA("a")));
+///     assert_eq!(current.get::<ValueB>(), Some(&ValueB(42)));
+/// }
+///
+/// // Resets to only the `a` value when inner guard is dropped
+/// let current = Context::current();
+/// assert_eq!(current.get::<ValueA>(), Some(&ValueA("a")));
+/// assert_eq!(current.get::<ValueB>(), None);
+/// ```
 #[derive(Clone, Default)]
 pub struct Context {
     entries: HashMap<TypeId, Arc<dyn Any + Sync + Send>, BuildHasherDefault<IdHasher>>,
