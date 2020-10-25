@@ -5,7 +5,7 @@
 //! * The `Tracer` trait which describes all tracing operations.
 //! * The `Span` trait with is a mutable object storing information about the
 //! current operation execution.
-//! * The `SpanReference` struct is the portion of a `Span` which must be
+//! * The `SpanContext` struct is the portion of a `Span` which must be
 //! serialized and propagated along side of a distributed context
 //!
 //! ## Tracer
@@ -35,8 +35,8 @@
 //! `Span`s encapsulate:
 //!
 //! - The span name
-//! - An immutable `SpanReference` that uniquely identifies the `Span`
-//! - A parent span in the form of a `SpanReference`, or None
+//! - An immutable `SpanContext` that uniquely identifies the `Span`
+//! - A parent span in the form of a `SpanContext`, or None
 //! - A start timestamp
 //! - An end timestamp
 //! - An ordered mapping of `Attribute`s
@@ -70,19 +70,19 @@
 //!
 //! `Span`s are not meant to be used to propagate information within a process. To
 //! prevent misuse, implementations SHOULD NOT provide access to a `Span`'s
-//! attributes besides its `SpanReference`.
+//! attributes besides its `SpanContext`.
 //!
 //! Vendors may implement the `Span` interface to effect vendor-specific logic.
 //! However, alternative implementations MUST NOT allow callers to create `Span`s
 //! directly. All `Span`s MUST be created via a `Tracer`.
 //!
-//! ## SpanReference
+//! ## SpanContext
 //!
-//! A `SpanReference` represents the portion of a `Span` which must be serialized and
-//! propagated along side of a distributed context. `SpanReference`s are immutable.
-//! `SpanReference`.
+//! A `SpanContext` represents the portion of a `Span` which must be serialized and
+//! propagated along side of a distributed context. `SpanContext`s are immutable.
+//! `SpanContext`.
 //!
-//! The OpenTelemetry `SpanReference` representation conforms to the [w3c TraceContext
+//! The OpenTelemetry `SpanContext` representation conforms to the [w3c TraceContext
 //! specification](https://www.w3.org/TR/trace-context/). It contains two
 //! identifiers - a `TraceId` and a `SpanId` - along with a set of common
 //! `TraceFlags` and system-specific `TraceState` values.
@@ -100,10 +100,10 @@
 //! of key-value pairs. TraceState allows multiple tracing systems to participate in
 //! the same trace.
 //!
-//! `IsValid` is a boolean flag which returns true if the SpanReference has a non-zero
+//! `IsValid` is a boolean flag which returns true if the SpanContext has a non-zero
 //! TraceID and a non-zero SpanID.
 //!
-//! `IsRemote` is a boolean flag which returns true if the SpanReference was propagated
+//! `IsRemote` is a boolean flag which returns true if the SpanContext was propagated
 //! from a remote parent. When creating children from remote spans, their IsRemote
 //! flag MUST be set to false.
 //!
@@ -119,7 +119,7 @@ mod noop;
 mod provider;
 mod span;
 mod span_processor;
-mod span_reference;
+mod span_context;
 mod tracer;
 
 pub use self::{
@@ -132,8 +132,8 @@ pub use self::{
     provider::TracerProvider,
     span::{Span, SpanKind, StatusCode},
     span_processor::SpanProcessor,
-    span_reference::{
-        SpanId, SpanReference, TraceId, TraceState, TRACE_FLAG_DEBUG, TRACE_FLAG_DEFERRED,
+    span_context::{
+        SpanId, SpanContext, TraceId, TraceState, TRACE_FLAG_DEBUG, TRACE_FLAG_DEFERRED,
         TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
     },
     tracer::{SpanBuilder, Tracer},

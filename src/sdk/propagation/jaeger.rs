@@ -8,7 +8,7 @@
 use crate::api::{
     propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
     trace::{
-        SpanId, SpanReference, TraceContextExt, TraceId, TraceState, TRACE_FLAG_DEBUG,
+        SpanId, SpanContext, TraceContextExt, TraceId, TraceState, TRACE_FLAG_DEBUG,
         TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
     },
     Context,
@@ -49,7 +49,7 @@ impl JaegerPropagator {
     }
 
     /// Extract span context from header value
-    fn extract_span_reference(&self, extractor: &dyn Extractor) -> Result<SpanReference, ()> {
+    fn extract_span_context(&self, extractor: &dyn Extractor) -> Result<SpanContext, ()> {
         let mut header_value = Cow::from(extractor.get(JAEGER_HEADER).unwrap_or(""));
         // if there is no :, it means header_value could be encoded as url, try decode first
         if !header_value.contains(':') {
@@ -68,7 +68,7 @@ impl JaegerPropagator {
         let flag = self.extract_flag(parts[3])?;
         let trace_state = self.extract_trace_state(extractor)?;
 
-        Ok(SpanReference::new(
+        Ok(SpanContext::new(
             trace_id,
             span_id,
             flag,
@@ -143,10 +143,10 @@ impl JaegerPropagator {
 
 impl TextMapPropagator for JaegerPropagator {
     fn inject_context(&self, cx: &Context, injector: &mut dyn Injector) {
-        let span_reference = cx.span().span_reference();
-        if span_reference.is_valid() {
-            let flag: u8 = if span_reference.is_sampled() {
-                if span_reference.is_debug() {
+        let span_context = cx.span().span_context();
+        if span_context.is_valid() {
+            let flag: u8 = if span_context.is_sampled() {
+                if span_context.is_debug() {
                     0x03
                 } else {
                     0x01
@@ -156,8 +156,8 @@ impl TextMapPropagator for JaegerPropagator {
             };
             let header_value = format!(
                 "{:032x}:{:016x}:{:01}:{:01}",
-                span_reference.trace_id().to_u128(),
-                span_reference.span_id().to_u64(),
+                span_context.trace_id().to_u128(),
+                span_context.span_id().to_u64(),
                 DEPRECATED_PARENT_SPAN,
                 flag,
             );
@@ -166,9 +166,9 @@ impl TextMapPropagator for JaegerPropagator {
     }
 
     fn extract_with_context(&self, cx: &Context, extractor: &dyn Extractor) -> Context {
-        cx.with_remote_span_reference(
-            self.extract_span_reference(extractor)
-                .unwrap_or_else(|_| SpanReference::empty_context()),
+        cx.with_remote_span_context(
+            self.extract_span_context(extractor)
+                .unwrap_or_else(|_| SpanContext::empty_context()),
         )
     }
 
@@ -183,7 +183,7 @@ mod tests {
     use crate::api::{
         propagation::{Injector, TextMapPropagator},
         trace::{
-            SpanId, SpanReference, TraceContextExt, TraceId, TraceState, TRACE_FLAG_DEBUG,
+            SpanId, SpanContext, TraceContextExt, TraceId, TraceState, TRACE_FLAG_DEBUG,
             TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
         },
         Context,
@@ -197,13 +197,13 @@ mod tests {
     const SPAN_ID_STR: &str = "0000000000017c29";
     const SPAN_ID: u64 = 0x0000_0000_0001_7c29;
 
-    fn get_extract_data() -> Vec<(&'static str, &'static str, u8, SpanReference)> {
+    fn get_extract_data() -> Vec<(&'static str, &'static str, u8, SpanContext)> {
         vec![
             (
                 LONG_TRACE_ID_STR,
                 SPAN_ID_STR,
                 1,
-                SpanReference::new(
+                SpanContext::new(
                     TraceId::from_u128(TRACE_ID),
                     SpanId::from_u64(SPAN_ID),
                     TRACE_FLAG_SAMPLED,
@@ -215,7 +215,7 @@ mod tests {
                 SHORT_TRACE_ID_STR,
                 SPAN_ID_STR,
                 1,
-                SpanReference::new(
+                SpanContext::new(
                     TraceId::from_u128(TRACE_ID),
                     SpanId::from_u64(SPAN_ID),
                     TRACE_FLAG_SAMPLED,
@@ -227,7 +227,7 @@ mod tests {
                 LONG_TRACE_ID_STR,
                 SPAN_ID_STR,
                 3,
-                SpanReference::new(
+                SpanContext::new(
                     TraceId::from_u128(TRACE_ID),
                     SpanId::from_u64(SPAN_ID),
                     TRACE_FLAG_DEBUG | TRACE_FLAG_SAMPLED,
@@ -239,7 +239,7 @@ mod tests {
                 LONG_TRACE_ID_STR,
                 SPAN_ID_STR,
                 0,
-                SpanReference::new(
+                SpanContext::new(
                     TraceId::from_u128(TRACE_ID),
                     SpanId::from_u64(SPAN_ID),
                     TRACE_FLAG_NOT_SAMPLED,
@@ -251,27 +251,27 @@ mod tests {
                 "invalidtractid",
                 SPAN_ID_STR,
                 0,
-                SpanReference::empty_context(),
+                SpanContext::empty_context(),
             ),
             (
                 LONG_TRACE_ID_STR,
                 "invalidspanID",
                 0,
-                SpanReference::empty_context(),
+                SpanContext::empty_context(),
             ),
             (
                 LONG_TRACE_ID_STR,
                 SPAN_ID_STR,
                 120,
-                SpanReference::empty_context(),
+                SpanContext::empty_context(),
             ),
         ]
     }
 
-    fn get_inject_data() -> Vec<(SpanReference, String)> {
+    fn get_inject_data() -> Vec<(SpanContext, String)> {
         vec![
             (
-                SpanReference::new(
+                SpanContext::new(
                     TraceId::from_u128(TRACE_ID),
                     SpanId::from_u64(SPAN_ID),
                     TRACE_FLAG_SAMPLED,
@@ -281,7 +281,7 @@ mod tests {
                 format!("{}:{}:0:1", LONG_TRACE_ID_STR, SPAN_ID_STR),
             ),
             (
-                SpanReference::new(
+                SpanContext::new(
                     TraceId::from_u128(TRACE_ID),
                     SpanId::from_u64(SPAN_ID),
                     TRACE_FLAG_NOT_SAMPLED,
@@ -291,7 +291,7 @@ mod tests {
                 format!("{}:{}:0:0", LONG_TRACE_ID_STR, SPAN_ID_STR),
             ),
             (
-                SpanReference::new(
+                SpanContext::new(
                     TraceId::from_u128(TRACE_ID),
                     SpanId::from_u64(SPAN_ID),
                     TRACE_FLAG_DEBUG | TRACE_FLAG_SAMPLED,
@@ -309,8 +309,8 @@ mod tests {
         let propagator = JaegerPropagator::new();
         let context = propagator.extract(&map);
         assert_eq!(
-            context.remote_span_reference(),
-            Some(&SpanReference::empty_context())
+            context.remote_span_context(),
+            Some(&SpanContext::empty_context())
         )
     }
 
@@ -324,7 +324,7 @@ mod tests {
             );
             let propagator = JaegerPropagator::new();
             let context = propagator.extract(&map);
-            assert_eq!(context.remote_span_reference(), Some(&expected));
+            assert_eq!(context.remote_span_context(), Some(&expected));
         }
     }
 
@@ -338,8 +338,8 @@ mod tests {
         let propagator = JaegerPropagator::new();
         let context = propagator.extract(&map);
         assert_eq!(
-            context.remote_span_reference(),
-            Some(&SpanReference::empty_context())
+            context.remote_span_context(),
+            Some(&SpanContext::empty_context())
         );
     }
 
@@ -353,8 +353,8 @@ mod tests {
         let propagator = JaegerPropagator::new();
         let context = propagator.extract(&map);
         assert_eq!(
-            context.remote_span_reference(),
-            Some(&SpanReference::empty_context())
+            context.remote_span_context(),
+            Some(&SpanContext::empty_context())
         );
     }
 
@@ -368,8 +368,8 @@ mod tests {
         let propagator = JaegerPropagator::new();
         let context = propagator.extract(&map);
         assert_eq!(
-            context.remote_span_reference(),
-            Some(&SpanReference::new(
+            context.remote_span_context(),
+            Some(&SpanContext::new(
                 TraceId::from_u128(TRACE_ID),
                 SpanId::from_u64(SPAN_ID),
                 1,
@@ -381,10 +381,10 @@ mod tests {
     #[test]
     fn test_inject() {
         let propagator = JaegerPropagator::new();
-        for (span_reference, header_value) in get_inject_data() {
+        for (span_context, header_value) in get_inject_data() {
             let mut injector = HashMap::new();
             propagator.inject_context(
-                &Context::current_with_span(TestSpan(span_reference)),
+                &Context::current_with_span(TestSpan(span_context)),
                 &mut injector,
             );
             assert_eq!(injector.get(JAEGER_HEADER), Some(&header_value));

@@ -10,7 +10,7 @@
 //! These MUST NOT be changed after the `Span`'s end time has been set.
 //!
 //! `Spans` are not meant to be used to propagate information within a process. To prevent misuse,
-//! implementations SHOULD NOT provide access to a `Span`'s attributes besides its `SpanReference`.
+//! implementations SHOULD NOT provide access to a `Span`'s attributes besides its `SpanContext`.
 //!
 //! Vendors may implement the `Span` interface to effect vendor-specific logic. However, alternative
 //! implementations MUST NOT allow callers to create Spans directly. All `Span`s MUST be created
@@ -85,9 +85,9 @@ pub trait Span: fmt::Debug + 'static + Send + Sync {
         attributes: Vec<api::KeyValue>,
     );
 
-    /// Returns the `SpanReference` for the given `Span`. The returned value may be used even after
+    /// Returns the `SpanContext` for the given `Span`. The returned value may be used even after
     /// the `Span is finished. The returned value MUST be the same for the entire `Span` lifetime.
-    fn span_reference(&self) -> api::trace::SpanReference;
+    fn span_context(&self) -> api::trace::SpanContext;
 
     /// Returns true if this `Span` is recording information like events with the `add_event`
     /// operation, attributes using `set_attributes`, status with `set_status`, etc.
@@ -95,7 +95,7 @@ pub trait Span: fmt::Debug + 'static + Send + Sync {
     /// This flag SHOULD be used to avoid expensive computations of a `Span` attributes or events in
     /// case when a `Span` is definitely not recorded. Note that any child span's recording is
     /// determined independently from the value of this flag (typically based on the sampled flag of
-    /// a `TraceFlag` on `SpanReference`).
+    /// a `TraceFlag` on `SpanContext`).
     ///
     /// This flag may be true despite the entire trace being sampled out. This allows to record and
     /// process information about the individual Span without sending it to the backend. An example

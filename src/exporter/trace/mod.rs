@@ -83,8 +83,8 @@ pub trait HttpClient: Debug + Send + Sync {
 #[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
 #[derive(Clone, Debug, PartialEq)]
 pub struct SpanData {
-    /// Exportable `SpanReference`
-    pub span_reference: api::trace::SpanReference,
+    /// Exportable `SpanContext`
+    pub span_context: api::trace::SpanContext,
     /// Span parent id
     pub parent_span_id: api::trace::SpanId,
     /// Span kind
@@ -182,7 +182,7 @@ mod tests {
 
         let trace_flags = 0;
         let remote = false;
-        let span_reference = api::trace::SpanReference::new(
+        let span_context = api::trace::SpanContext::new(
             api::trace::TraceId::from_u128(trace_id),
             api::trace::SpanId::from_u64(span_id),
             trace_flags,
@@ -206,7 +206,7 @@ mod tests {
         let resource = Arc::new(sdk::Resource::default());
 
         let span_data = SpanData {
-            span_reference,
+            span_context,
             parent_span_id: api::trace::SpanId::from_u64(parent_span_id),
             span_kind,
             name,
