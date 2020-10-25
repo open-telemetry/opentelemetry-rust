@@ -1,4 +1,4 @@
-use crate::api::metrics::{self, Meter, MeterProvider};
+use crate::metrics::{self, Meter, MeterProvider};
 use std::sync::{Arc, RwLock};
 
 lazy_static::lazy_static! {

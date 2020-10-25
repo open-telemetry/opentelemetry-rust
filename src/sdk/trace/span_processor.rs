@@ -1,6 +1,6 @@
 use crate::{
-    api,
     exporter::trace::{SpanData, SpanExporter},
+    trace::SpanProcessor,
 };
 use futures::{channel::mpsc, executor, future::BoxFuture, Future, FutureExt, Stream, StreamExt};
 use std::fmt;
@@ -30,7 +30,7 @@ const OTEL_BSP_MAX_EXPORT_BATCH_SIZE_DEFAULT: usize = 512;
 /// ended. If you find this limiting, consider the batch processor instead.
 ///
 /// ```
-/// use opentelemetry::{api::trace as apitrace, sdk::trace as sdktrace, global};
+/// use opentelemetry::{trace as apitrace, sdk::trace as sdktrace, global};
 ///
 /// // Configure your preferred exporter
 /// let exporter = apitrace::NoopSpanExporter::new();
@@ -56,7 +56,7 @@ impl SimpleSpanProcessor {
     }
 }
 
-impl api::trace::SpanProcessor for SimpleSpanProcessor {
+impl SpanProcessor for SimpleSpanProcessor {
     fn on_start(&self, _span: &SpanData) {
         // Ignored
     }
@@ -83,7 +83,7 @@ impl api::trace::SpanProcessor for SimpleSpanProcessor {
 ///
 /// ```
 /// use futures::{stream};
-/// use opentelemetry::{api::trace as apitrace, sdk::trace as sdktrace, global};
+/// use opentelemetry::{trace as apitrace, sdk::trace as sdktrace, global};
 /// use std::time::Duration;
 ///
 /// #[tokio::main]
@@ -125,7 +125,7 @@ impl fmt::Debug for BatchSpanProcessor {
     }
 }
 
-impl api::trace::SpanProcessor for BatchSpanProcessor {
+impl SpanProcessor for BatchSpanProcessor {
     fn on_start(&self, _span: &SpanData) {
         // Ignored
     }

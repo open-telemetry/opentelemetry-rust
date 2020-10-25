@@ -1,10 +1,4 @@
 //! Stdout Metrics Exporter
-use crate::api::{
-    labels::{default_encoder, Encoder, LabelSet},
-    metrics,
-    metrics::{Descriptor, MetricsError, Result},
-    KeyValue,
-};
 use crate::global;
 use crate::sdk::{
     export::metrics::{
@@ -19,6 +13,12 @@ use crate::sdk::{
         controllers::{self, PushController, PushControllerWorker},
         selectors::simple,
     },
+};
+use crate::{
+    labels::{default_encoder, Encoder, LabelSet},
+    metrics,
+    metrics::{Descriptor, MetricsError, Result},
+    KeyValue,
 };
 use futures::Stream;
 #[cfg(feature = "serialize")]

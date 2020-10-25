@@ -15,7 +15,7 @@
 //! Vendors may implement the `Span` interface to effect vendor-specific logic. However, alternative
 //! implementations MUST NOT allow callers to create Spans directly. All `Span`s MUST be created
 //! via a Tracer.
-use crate::api;
+use crate::{trace::SpanContext, KeyValue};
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
 use std::error::Error;
@@ -35,7 +35,7 @@ pub trait Span: fmt::Debug + 'static + Send + Sync {
     /// Note that the OpenTelemetry project documents certain ["standard event names and
     /// keys"](https://github.com/open-telemetry/opentelemetry-specification/tree/v0.5.0/specification/trace/semantic_conventions/README.md)
     /// which have prescribed semantic meanings.
-    fn add_event(&self, name: String, attributes: Vec<api::KeyValue>) {
+    fn add_event(&self, name: String, attributes: Vec<KeyValue>) {
         self.add_event_with_timestamp(name, SystemTime::now(), attributes)
     }
 
@@ -53,7 +53,7 @@ pub trait Span: fmt::Debug + 'static + Send + Sync {
     /// Users can custom the exception message by overriding the `fmt::Display` trait's `fmt` method
     /// for the error.
     fn record_exception(&self, err: &dyn Error) {
-        let attributes = vec![api::KeyValue::new("exception.message", err.to_string())];
+        let attributes = vec![KeyValue::new("exception.message", err.to_string())];
 
         self.add_event("exception".to_string(), attributes);
     }
@@ -63,8 +63,8 @@ pub trait Span: fmt::Debug + 'static + Send + Sync {
     /// See `Span:record_exception` method for more details.
     fn record_exception_with_stacktrace(&self, err: &dyn Error, stacktrace: String) {
         let attributes = vec![
-            api::KeyValue::new("exception.message", err.to_string()),
-            api::KeyValue::new("exception.stacktrace", stacktrace),
+            KeyValue::new("exception.message", err.to_string()),
+            KeyValue::new("exception.stacktrace", stacktrace),
         ];
 
         self.add_event("exception".to_string(), attributes);
@@ -82,12 +82,12 @@ pub trait Span: fmt::Debug + 'static + Send + Sync {
         &self,
         name: String,
         timestamp: SystemTime,
-        attributes: Vec<api::KeyValue>,
+        attributes: Vec<KeyValue>,
     );
 
     /// Returns the `SpanContext` for the given `Span`. The returned value may be used even after
     /// the `Span is finished. The returned value MUST be the same for the entire `Span` lifetime.
-    fn span_context(&self) -> api::trace::SpanContext;
+    fn span_context(&self) -> SpanContext;
 
     /// Returns true if this `Span` is recording information like events with the `add_event`
     /// operation, attributes using `set_attributes`, status with `set_status`, etc.
@@ -120,14 +120,14 @@ pub trait Span: fmt::Debug + 'static + Send + Sync {
     /// Note that the OpenTelemetry project documents certain ["standard
     /// attributes"](https://github.com/open-telemetry/opentelemetry-specification/tree/v0.5.0/specification/trace/semantic_conventions/README.md)
     /// that have prescribed semantic meanings.
-    fn set_attribute(&self, attribute: api::KeyValue);
+    fn set_attribute(&self, attribute: KeyValue);
 
     /// Sets the status of the `Span`. If used, this will override the default `Span`
     /// status, which is `OK`.
     ///
     /// Only the value of the last call will be recorded, and implementations are free
     /// to ignore previous calls.
-    fn set_status(&self, code: api::trace::StatusCode, message: String);
+    fn set_status(&self, code: StatusCode, message: String);
 
     /// Updates the `Span`'s name. After this update, any sampling behavior based on the
     /// name will depend on the implementation.

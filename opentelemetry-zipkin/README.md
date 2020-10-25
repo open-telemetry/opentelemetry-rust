@@ -21,7 +21,7 @@ Then install a new pipeline with the recommended defaults to start exporting
 telemetry:
 
 ```rust
-use opentelemetry::api::trace::Tracer;
+use opentelemetry::trace::Tracer;
 
 fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let (tracer, _uninstall) = opentelemetry_zipkin::new_pipeline().install()?;
@@ -74,7 +74,7 @@ Example showing how to override all configuration options. See the
 [`ZipkinPipelineBuilder`]: struct.ZipkinPipelineBuilder.html
 
 ```rust
-use opentelemetry::api::{KeyValue, trace::Tracer};
+use opentelemetry::{KeyValue, trace::Tracer};
 use opentelemetry::sdk::{trace::{self, IdGenerator, Sampler}, Resource};
 use opentelemetry::exporter::trace::{ExportResult, HttpClient};
 use async_trait::async_trait;

@@ -1,4 +1,4 @@
-use crate::api::metrics::{AtomicNumber, Descriptor, MetricsError, Number, NumberKind, Result};
+use crate::metrics::{AtomicNumber, Descriptor, MetricsError, Number, NumberKind, Result};
 use crate::sdk::export::metrics::{Buckets, Count, Histogram, Sum};
 use crate::sdk::metrics::export::metrics::Aggregator;
 use std::mem;
@@ -100,7 +100,7 @@ impl Aggregator for HistogramAggregator {
     fn synchronized_move(
         &self,
         other: &Arc<dyn Aggregator + Send + Sync>,
-        _descriptor: &crate::api::metrics::Descriptor,
+        _descriptor: &crate::metrics::Descriptor,
     ) -> Result<()> {
         if let Some(other) = other.as_any().downcast_ref::<Self>() {
             self.inner

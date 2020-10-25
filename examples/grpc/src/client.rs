@@ -1,11 +1,11 @@
 use hello_world::greeter_client::GreeterClient;
 use hello_world::HelloRequest;
-use opentelemetry::api::{
+use opentelemetry::global;
+use opentelemetry::sdk::propagation::TraceContextPropagator;
+use opentelemetry::{
     trace::{TraceContextExt, Tracer},
     Context, KeyValue,
 };
-use opentelemetry::global;
-use opentelemetry::sdk::propagation::TraceContextPropagator;
 use std::error::Error;
 
 pub mod hello_world {

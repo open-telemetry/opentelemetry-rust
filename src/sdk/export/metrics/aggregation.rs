@@ -1,5 +1,5 @@
 //! Metrics SDK Aggregator export API
-use crate::api::metrics::{Number, Result};
+use crate::metrics::{Number, Result};
 use std::time::SystemTime;
 
 /// Sum returns an aggregated sum.

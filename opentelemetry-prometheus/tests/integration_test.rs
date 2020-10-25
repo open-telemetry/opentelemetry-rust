@@ -1,5 +1,5 @@
-use opentelemetry::api::{metrics::MeterProvider, KeyValue};
 use opentelemetry::sdk::Resource;
+use opentelemetry::{metrics::MeterProvider, KeyValue};
 use opentelemetry_prometheus::PrometheusExporter;
 use prometheus::{Encoder, TextEncoder};
 

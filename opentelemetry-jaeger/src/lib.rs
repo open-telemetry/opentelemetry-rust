@@ -20,7 +20,7 @@
 //! exporting telemetry:
 //!
 //! ```no_run
-//! use opentelemetry::api::trace::Tracer;
+//! use opentelemetry::trace::Tracer;
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 //!     let (tracer, _uninstall) = opentelemetry_jaeger::new_pipeline().install()?;
@@ -59,7 +59,7 @@
 //! [jaeger variables spec]: https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/sdk-environment-variables.md#jaeger-exporter
 //!
 //! ```no_run
-//! use opentelemetry::api::trace::Tracer;
+//! use opentelemetry::trace::Tracer;
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 //!     // export OTEL_SERVICE_NAME=my-service-name
@@ -90,7 +90,7 @@
 //!
 //! ```ignore
 //! // Note that this requires the `collector_client` feature.
-//! use opentelemetry::api::trace::Tracer;
+//! use opentelemetry::trace::Tracer;
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 //!     let (tracer, _uninstall) = opentelemetry_jaeger::new_pipeline()
@@ -116,7 +116,7 @@
 //! [`PipelineBuilder`]: struct.PipelineBuilder.html
 //!
 //! ```no_run
-//! use opentelemetry::api::{KeyValue, trace::Tracer};
+//! use opentelemetry::{KeyValue, trace::Tracer};
 //! use opentelemetry::sdk::{trace::{self, IdGenerator, Sampler}, Resource};
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
@@ -185,9 +185,10 @@ use async_trait::async_trait;
 #[cfg(feature = "collector_client")]
 use collector::CollectorAsyncClientHttp;
 use opentelemetry::{
-    api::{self, trace::TracerProvider},
     exporter::trace,
     global, sdk,
+    trace::{Event, Link, SpanKind, StatusCode, TracerProvider},
+    Key, KeyValue, Value,
 };
 use std::error::Error;
 use std::{
@@ -232,7 +233,7 @@ pub struct Process {
     /// Jaeger service name
     pub service_name: String,
     /// Jaeger tags
-    pub tags: Vec<api::KeyValue>,
+    pub tags: Vec<KeyValue>,
 }
 
 impl Into<jaeger::Process> for Process {
@@ -382,7 +383,7 @@ impl PipelineBuilder {
     }
 
     /// Assign the process service tags.
-    pub fn with_tags<T: IntoIterator<Item = api::KeyValue>>(mut self, tags: T) -> Self {
+    pub fn with_tags<T: IntoIterator<Item = KeyValue>>(mut self, tags: T) -> Self {
         self.process.tags = tags.into_iter().collect();
         self
     }
@@ -466,24 +467,24 @@ impl PipelineBuilder {
 }
 
 #[rustfmt::skip]
-impl Into<jaeger::Tag> for api::KeyValue {
+impl Into<jaeger::Tag> for KeyValue {
     fn into(self) -> jaeger::Tag {
-        let api::KeyValue { key, value } = self;
+        let KeyValue { key, value } = self;
         match value {
-            api::Value::String(s) => jaeger::Tag::new(key.into(), jaeger::TagType::String, Some(s), None, None, None, None),
-            api::Value::F64(f) => jaeger::Tag::new(key.into(), jaeger::TagType::Double, None, Some(f.into()), None, None, None),
-            api::Value::Bool(b) => jaeger::Tag::new(key.into(), jaeger::TagType::Bool, None, None, Some(b), None, None),
-            api::Value::I64(i) => jaeger::Tag::new(key.into(), jaeger::TagType::Long, None, None, None, Some(i), None),
-            api::Value::Bytes(b) => jaeger::Tag::new(key.into(), jaeger::TagType::Binary, None, None, None, None, Some(b)),
+            Value::String(s) => jaeger::Tag::new(key.into(), jaeger::TagType::String, Some(s), None, None, None, None),
+            Value::F64(f) => jaeger::Tag::new(key.into(), jaeger::TagType::Double, None, Some(f.into()), None, None, None),
+            Value::Bool(b) => jaeger::Tag::new(key.into(), jaeger::TagType::Bool, None, None, Some(b), None, None),
+            Value::I64(i) => jaeger::Tag::new(key.into(), jaeger::TagType::Long, None, None, None, Some(i), None),
+            Value::Bytes(b) => jaeger::Tag::new(key.into(), jaeger::TagType::Binary, None, None, None, None, Some(b)),
             // TODO: better u64 handling, jaeger thrift only has i64 support
-            api::Value::U64(u) => jaeger::Tag::new(key.into(), jaeger::TagType::String, Some(u.to_string()), None, None, None, None),
+            Value::U64(u) => jaeger::Tag::new(key.into(), jaeger::TagType::String, Some(u.to_string()), None, None, None, None),
             // TODO: better Array handling, jaeger thrift doesn't support arrays
-            v @ api::Value::Array(_) => jaeger::Tag::new(key.into(), jaeger::TagType::String, Some(v.into()), None, None, None, None),
+            v @ Value::Array(_) => jaeger::Tag::new(key.into(), jaeger::TagType::String, Some(v.into()), None, None, None, None),
         }
     }
 }
 
-impl Into<jaeger::Log> for api::trace::Event {
+impl Into<jaeger::Log> for Event {
     fn into(self) -> jaeger::Log {
         let timestamp = self
             .timestamp
@@ -503,16 +504,14 @@ impl Into<jaeger::Log> for api::trace::Event {
             .collect::<Vec<_>>();
 
         if !event_set_via_attribute {
-            fields.push(api::Key::new("event").string(self.name).into());
+            fields.push(Key::new("event").string(self.name).into());
         }
 
         jaeger::Log::new(timestamp, fields)
     }
 }
 
-fn links_to_references(
-    links: sdk::trace::EvictedQueue<api::trace::Link>,
-) -> Option<Vec<jaeger::SpanRef>> {
+fn links_to_references(links: sdk::trace::EvictedQueue<Link>) -> Option<Vec<jaeger::SpanRef>> {
     if !links.is_empty() {
         let refs = links
             .iter()
@@ -589,7 +588,7 @@ fn build_process_tags(
             span_data
                 .resource
                 .iter()
-                .map(|(k, v)| api::KeyValue::new(k.clone(), v.clone()).into()),
+                .map(|(k, v)| KeyValue::new(k.clone(), v.clone()).into()),
         )
     }
 }
@@ -597,9 +596,9 @@ fn build_process_tags(
 fn build_span_tags(
     attrs: sdk::trace::EvictedHashMap,
     instrumentation_lib: Option<sdk::InstrumentationLibrary>,
-    status_code: api::trace::StatusCode,
+    status_code: StatusCode,
     status_message: String,
-    kind: api::trace::SpanKind,
+    kind: SpanKind,
 ) -> Option<Vec<jaeger::Tag>> {
     let mut user_overrides = UserOverrides::default();
     // TODO determine if namespacing is required to avoid collisions with set attributes
@@ -607,35 +606,33 @@ fn build_span_tags(
         .into_iter()
         .map(|(k, v)| {
             user_overrides.record_attr(k.as_str());
-            api::KeyValue::new(k, v).into()
+            KeyValue::new(k, v).into()
         })
         .collect::<Vec<_>>();
 
     if let Some(instrumentation_lib) = instrumentation_lib {
         // Set instrument library tags
-        tags.push(
-            api::KeyValue::new(INSTRUMENTATION_LIBRARY_NAME, instrumentation_lib.name).into(),
-        );
+        tags.push(KeyValue::new(INSTRUMENTATION_LIBRARY_NAME, instrumentation_lib.name).into());
         if let Some(version) = instrumentation_lib.version {
-            tags.push(api::KeyValue::new(INSTRUMENTATION_LIBRARY_VERSION, version).into())
+            tags.push(KeyValue::new(INSTRUMENTATION_LIBRARY_VERSION, version).into())
         }
     }
 
     // Ensure error status is set
-    if status_code != api::trace::StatusCode::OK && !user_overrides.error {
-        tags.push(api::Key::new(ERROR).bool(true).into())
+    if status_code != StatusCode::OK && !user_overrides.error {
+        tags.push(Key::new(ERROR).bool(true).into())
     }
 
     if !user_overrides.span_kind {
-        tags.push(api::Key::new(SPAN_KIND).string(kind.to_string()).into());
+        tags.push(Key::new(SPAN_KIND).string(kind.to_string()).into());
     }
 
     if !user_overrides.status_code {
-        tags.push(api::KeyValue::new(STATUS_CODE, status_code as i64).into());
+        tags.push(KeyValue::new(STATUS_CODE, status_code as i64).into());
     }
 
     if !user_overrides.status_message {
-        tags.push(api::Key::new(STATUS_MESSAGE).string(status_message).into());
+        tags.push(Key::new(STATUS_MESSAGE).string(status_message).into());
     }
 
     Some(tags)
@@ -666,7 +663,7 @@ impl UserOverrides {
     }
 }
 
-fn events_to_logs(events: sdk::trace::EvictedQueue<api::trace::Event>) -> Option<Vec<jaeger::Log>> {
+fn events_to_logs(events: sdk::trace::EvictedQueue<Event>) -> Option<Vec<jaeger::Log>> {
     if events.is_empty() {
         None
     } else {

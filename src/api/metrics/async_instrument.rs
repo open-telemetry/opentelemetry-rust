@@ -1,6 +1,6 @@
 //! Async metrics
-use crate::api::metrics::{sdk_api, Number};
-use crate::api::KeyValue;
+use crate::metrics::{sdk_api, Number};
+use crate::KeyValue;
 use std::fmt;
 use std::marker;
 use std::sync::Arc;

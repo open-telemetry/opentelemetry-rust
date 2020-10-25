@@ -2,12 +2,12 @@ use tonic::{transport::Server, Request, Response, Status};
 
 use hello_world::greeter_server::{Greeter, GreeterServer};
 use hello_world::{HelloReply, HelloRequest};
-use opentelemetry::api::{
+use opentelemetry::global;
+use opentelemetry::sdk::propagation::TraceContextPropagator;
+use opentelemetry::{
     trace::{Span, Tracer},
     KeyValue,
 };
-use opentelemetry::global;
-use opentelemetry::sdk::propagation::TraceContextPropagator;
 use std::error::Error;
 
 pub mod hello_world {

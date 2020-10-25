@@ -1,4 +1,4 @@
-use crate::api::metrics::{
+use crate::metrics::{
     sdk_api, AsyncRunner, Descriptor, InstrumentKind, Meter, Number, NumberKind, Observation,
     Result,
 };

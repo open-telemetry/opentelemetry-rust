@@ -9,7 +9,7 @@
 //! not duplicate this data to avoid that different `Tracer` instances
 //! of the `TracerProvider` have different versions of these data.
 use crate::exporter::trace::SpanExporter;
-use crate::{api, sdk};
+use crate::{sdk, trace::SpanProcessor};
 use std::sync::Arc;
 
 /// Default tracer name if empty string is provided.
@@ -18,7 +18,7 @@ const DEFAULT_COMPONENT_NAME: &str = "rust.opentelemetry.io/sdk/tracer";
 /// TracerProvider inner type
 #[derive(Debug)]
 pub(crate) struct TracerProviderInner {
-    processors: Vec<Box<dyn api::trace::SpanProcessor>>,
+    processors: Vec<Box<dyn SpanProcessor>>,
     config: sdk::trace::Config,
 }
 
@@ -54,7 +54,7 @@ impl TracerProvider {
     }
 
     /// Span processors associated with this provider
-    pub fn span_processors(&self) -> &Vec<Box<dyn api::trace::SpanProcessor>> {
+    pub fn span_processors(&self) -> &Vec<Box<dyn SpanProcessor>> {
         &self.inner.processors
     }
 
@@ -64,8 +64,8 @@ impl TracerProvider {
     }
 }
 
-impl api::trace::TracerProvider for TracerProvider {
-    /// This implementation of `api::trace::TracerProvider` produces `sdk::trace::Tracer` instances.
+impl crate::trace::TracerProvider for TracerProvider {
+    /// This implementation of `TracerProvider` produces `Tracer` instances.
     type Tracer = sdk::trace::Tracer;
 
     /// Find or create `Tracer` instance by name.
@@ -85,7 +85,7 @@ impl api::trace::TracerProvider for TracerProvider {
 /// Builder for provider attributes.
 #[derive(Default, Debug)]
 pub struct Builder {
-    processors: Vec<Box<dyn api::trace::SpanProcessor>>,
+    processors: Vec<Box<dyn SpanProcessor>>,
     config: sdk::trace::Config,
 }
 
@@ -139,7 +139,7 @@ impl Builder {
     }
 
     /// The `SpanProcessor` that this provider should use.
-    pub fn with_span_processor<T: api::trace::SpanProcessor + 'static>(self, processor: T) -> Self {
+    pub fn with_span_processor<T: SpanProcessor + 'static>(self, processor: T) -> Self {
         let mut processors = self.processors;
         processors.push(Box::new(processor));
 

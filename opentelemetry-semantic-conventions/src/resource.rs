@@ -23,7 +23,7 @@
 //!     .install();
 //! ```
 
-use opentelemetry::api::Key;
+use opentelemetry::Key;
 
 /// Logical name of the service.
 ///

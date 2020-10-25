@@ -21,7 +21,7 @@
 //! telemetry:
 //!
 //! ```no_run
-//! use opentelemetry::api::trace::Tracer;
+//! use opentelemetry::trace::Tracer;
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 //!     let (tracer, _uninstall) = opentelemetry_zipkin::new_pipeline().install()?;
@@ -75,7 +75,7 @@
 //! [`ZipkinPipelineBuilder`]: struct.ZipkinPipelineBuilder.html
 //!
 //! ```no_run
-//! use opentelemetry::api::{KeyValue, trace::Tracer};
+//! use opentelemetry::{KeyValue, trace::Tracer};
 //! use opentelemetry::sdk::{trace::{self, IdGenerator, Sampler}, Resource};
 //! use opentelemetry::exporter::trace::{ExportResult, HttpClient};
 //! use async_trait::async_trait;
@@ -160,7 +160,7 @@ use async_trait::async_trait;
 use http::Uri;
 use model::endpoint::Endpoint;
 use opentelemetry::exporter::trace::HttpClient;
-use opentelemetry::{api::trace::TracerProvider, exporter::trace, global, sdk};
+use opentelemetry::{exporter::trace, global, sdk, trace::TracerProvider};
 use std::error::Error;
 use std::io;
 use std::net::SocketAddr;

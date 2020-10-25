@@ -156,10 +156,10 @@ impl TraceState {
     /// # Examples
     ///
     /// ```
-    /// use opentelemetry::api;
+    /// use opentelemetry::trace::TraceState;
     ///
     /// let kvs = vec![("foo", "bar"), ("apple", "banana")];
-    /// let trace_state: Result<api::trace::TraceState, ()> = api::trace::TraceState::from_key_value(kvs);
+    /// let trace_state: Result<TraceState, ()> = TraceState::from_key_value(kvs);
     ///
     /// assert!(trace_state.is_ok());
     /// assert_eq!(trace_state.unwrap().header(), String::from("foo=bar,apple=banana"))

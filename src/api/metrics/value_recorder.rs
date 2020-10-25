@@ -1,8 +1,8 @@
-use crate::api::metrics::{
+use crate::metrics::{
     sync_instrument::{SyncBoundInstrument, SyncInstrument},
     Descriptor, InstrumentKind, Measurement, Meter, Number, NumberKind, Result,
 };
-use crate::api::KeyValue;
+use crate::KeyValue;
 use std::marker;
 
 /// ValueRecorder is a metric that records per-request non-additive values.

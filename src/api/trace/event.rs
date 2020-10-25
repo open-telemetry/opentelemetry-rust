@@ -1,6 +1,6 @@
 //! # OpenTelemetry Trace Event Interface
 
-use crate::api;
+use crate::KeyValue;
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
 use std::time::SystemTime;
@@ -15,12 +15,12 @@ pub struct Event {
     /// Event timestamp
     pub timestamp: SystemTime,
     /// Event attributes
-    pub attributes: Vec<api::KeyValue>,
+    pub attributes: Vec<KeyValue>,
 }
 
 impl Event {
     /// Create new `Event`
-    pub fn new(name: String, timestamp: SystemTime, attributes: Vec<api::KeyValue>) -> Self {
+    pub fn new(name: String, timestamp: SystemTime, attributes: Vec<KeyValue>) -> Self {
         Event {
             name,
             timestamp,

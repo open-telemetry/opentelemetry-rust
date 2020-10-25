@@ -1,7 +1,7 @@
 use crate::datadog::intern::StringInterner;
 use crate::datadog::model::Error;
-use opentelemetry::api::{Key, Value};
 use opentelemetry::exporter::trace;
+use opentelemetry::{Key, Value};
 use std::time::SystemTime;
 
 // Protocol documentation sourced from https://github.com/DataDog/datadog-agent/blob/c076ea9a1ffbde4c76d35343dbc32aecbbf99cb9/pkg/trace/api/version.go
@@ -103,10 +103,7 @@ fn encode_spans(
         rmp::encode::write_u32(&mut encoded, service_interned)?;
         rmp::encode::write_u32(&mut encoded, interner.intern(span.instrumentation_lib.name))?;
         rmp::encode::write_u32(&mut encoded, interner.intern(&span.name))?;
-        rmp::encode::write_u64(
-            &mut encoded,
-            span.span_context.trace_id().to_u128() as u64,
-        )?;
+        rmp::encode::write_u64(&mut encoded, span.span_context.trace_id().to_u128() as u64)?;
         rmp::encode::write_u64(&mut encoded, span.span_context.span_id().to_u64())?;
         rmp::encode::write_u64(&mut encoded, span.parent_span_id.to_u64())?;
         rmp::encode::write_i64(&mut encoded, start)?;

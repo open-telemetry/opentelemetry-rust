@@ -3,7 +3,7 @@
 //! ### Prometheus Exporter Example
 //!
 //! ```rust
-//! use opentelemetry::{global, api::KeyValue, sdk::Resource};
+//! use opentelemetry::{global, KeyValue, sdk::Resource};
 //! use opentelemetry_prometheus::PrometheusExporter;
 //! use prometheus::{TextEncoder, Encoder};
 //!
@@ -61,13 +61,6 @@
 #![cfg_attr(docsrs, feature(doc_cfg), deny(broken_intra_doc_links))]
 #![cfg_attr(test, deny(warnings))]
 
-use opentelemetry::api::{
-    labels,
-    metrics::{
-        registry::RegistryMeterProvider, Descriptor, InstrumentKind, MetricsError, NumberKind,
-    },
-    KeyValue,
-};
 use opentelemetry::global;
 use opentelemetry::sdk::{
     export::metrics::{CheckpointSet, ExportKind, Histogram, Record, Sum},
@@ -78,6 +71,13 @@ use opentelemetry::sdk::{
         PullController,
     },
     Resource,
+};
+use opentelemetry::{
+    labels,
+    metrics::{
+        registry::RegistryMeterProvider, Descriptor, InstrumentKind, MetricsError, NumberKind,
+    },
+    KeyValue,
 };
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};

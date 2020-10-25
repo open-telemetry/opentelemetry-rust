@@ -1,5 +1,8 @@
 //! Trace exporters
-use crate::{api, sdk};
+use crate::{
+    sdk,
+    trace::{Event, Link, SpanContext, SpanId, SpanKind, StatusCode},
+};
 use async_trait::async_trait;
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
@@ -84,11 +87,11 @@ pub trait HttpClient: Debug + Send + Sync {
 #[derive(Clone, Debug, PartialEq)]
 pub struct SpanData {
     /// Exportable `SpanContext`
-    pub span_context: api::trace::SpanContext,
+    pub span_context: SpanContext,
     /// Span parent id
-    pub parent_span_id: api::trace::SpanId,
+    pub parent_span_id: SpanId,
     /// Span kind
-    pub span_kind: api::trace::SpanKind,
+    pub span_kind: SpanKind,
     /// Span name
     pub name: String,
     /// Span start time
@@ -98,11 +101,11 @@ pub struct SpanData {
     /// Span attributes
     pub attributes: sdk::trace::EvictedHashMap,
     /// Span Message events
-    pub message_events: sdk::trace::EvictedQueue<api::trace::Event>,
+    pub message_events: sdk::trace::EvictedQueue<Event>,
     /// Span Links
-    pub links: sdk::trace::EvictedQueue<api::trace::Link>,
+    pub links: sdk::trace::EvictedQueue<Link>,
     /// Span status code
-    pub status_code: api::trace::StatusCode,
+    pub status_code: StatusCode,
     /// Span status message
     pub status_message: String,
     /// Resource contains attributes representing an entity that produced this span.
@@ -173,7 +176,7 @@ impl HttpClient for surf::Client {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::api::trace::TraceState;
+    use crate::trace::{TraceId, TraceState};
 
     #[test]
     fn test_serialise() {
@@ -182,16 +185,16 @@ mod tests {
 
         let trace_flags = 0;
         let remote = false;
-        let span_context = api::trace::SpanContext::new(
-            api::trace::TraceId::from_u128(trace_id),
-            api::trace::SpanId::from_u64(span_id),
+        let span_context = SpanContext::new(
+            TraceId::from_u128(trace_id),
+            SpanId::from_u64(span_id),
             trace_flags,
             remote,
             TraceState::default(),
         );
 
         let parent_span_id = 1;
-        let span_kind = api::trace::SpanKind::Client;
+        let span_kind = SpanKind::Client;
         let name = "foo/bar baz 人?!".to_string();
         let start_time = SystemTime::now();
         let end_time = SystemTime::now();
@@ -201,13 +204,13 @@ mod tests {
         let message_events = sdk::trace::EvictedQueue::new(capacity);
         let links = sdk::trace::EvictedQueue::new(capacity);
 
-        let status_code = api::trace::StatusCode::OK;
+        let status_code = StatusCode::OK;
         let status_message = String::new();
         let resource = Arc::new(sdk::Resource::default());
 
         let span_data = SpanData {
             span_context,
-            parent_span_id: api::trace::SpanId::from_u64(parent_span_id),
+            parent_span_id: SpanId::from_u64(parent_span_id),
             span_kind,
             name,
             start_time,

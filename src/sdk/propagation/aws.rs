@@ -1,7 +1,7 @@
-use crate::api::{
+use crate::{
     propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
     trace::{
-        SpanId, SpanContext, TraceContextExt, TraceId, TraceState, TRACE_FLAG_DEFERRED,
+        SpanContext, SpanId, TraceContextExt, TraceId, TraceState, TRACE_FLAG_DEFERRED,
         TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
     },
     Context,
@@ -21,10 +21,10 @@ lazy_static::lazy_static! {
     static ref AWS_XRAY_HEADER_FIELD: [String; 1] = [AWS_XRAY_TRACE_HEADER.to_string()];
 }
 
-/// Extracts and injects `SpanReference`s into `Extractor`s or `Injector`s using AWS X-Ray header format.
+/// Extracts and injects `SpanContext`s into `Extractor`s or `Injector`s using AWS X-Ray header format.
 ///
 /// Extracts and injects values to/from the `x-amzn-trace-id` header. Converting between
-/// OpenTelemetry [SpanReference][otel-spec] and [X-Ray Trace format][xray-trace-id].
+/// OpenTelemetry [SpanContext][otel-spec] and [X-Ray Trace format][xray-trace-id].
 ///
 /// For details on the [`x-amzn-trace-id` header][xray-header] see the AWS X-Ray Docs.
 ///
@@ -37,7 +37,7 @@ lazy_static::lazy_static! {
 /// global::set_text_map_propagator(XrayPropagator::default());
 /// ```
 ///
-/// [otel-spec]: https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/trace/api.md#SpanReference
+/// [otel-spec]: https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/trace/api.md#SpanContext
 /// [xray-trace-id]: https://docs.aws.amazon.com/xray/latest/devguide/xray-api-sendingdata.html#xray-api-traceids
 /// [xray-header]: https://docs.aws.amazon.com/xray/latest/devguide/xray-concepts.html#xray-concepts-tracingheader
 #[derive(Clone, Debug, Default)]
@@ -236,8 +236,8 @@ fn title_case(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::api::trace::TraceState;
     use crate::testing::trace::TestSpan;
+    use crate::trace::TraceState;
     use std::collections::HashMap;
     use std::str::FromStr;
 

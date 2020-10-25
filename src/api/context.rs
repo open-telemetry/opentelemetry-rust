@@ -47,7 +47,7 @@ thread_local! {
 /// # Examples
 ///
 /// ```
-/// use opentelemetry::api::Context;
+/// use opentelemetry::Context;
 ///
 /// // Application-specific `a` and `b` values
 /// #[derive(Debug, PartialEq)]
@@ -96,7 +96,7 @@ impl Context {
     /// # Examples
     ///
     /// ```
-    /// use opentelemetry::api::Context;
+    /// use opentelemetry::Context;
     ///
     /// #[derive(Debug, PartialEq)]
     /// struct ValueA(&'static str);
@@ -120,7 +120,7 @@ impl Context {
     /// # Examples
     ///
     /// ```
-    /// use opentelemetry::api::Context;
+    /// use opentelemetry::Context;
     ///
     /// // Given some value types defined in your application
     /// #[derive(Debug, PartialEq)]
@@ -152,7 +152,7 @@ impl Context {
     /// # Examples
     ///
     /// ```
-    /// use opentelemetry::api::Context;
+    /// use opentelemetry::Context;
     ///
     /// // Given some value types defined in your application
     /// #[derive(Debug, PartialEq)]
@@ -179,7 +179,7 @@ impl Context {
     /// # Examples
     ///
     /// ```
-    /// use opentelemetry::api::Context;
+    /// use opentelemetry::Context;
     ///
     /// // Given some value types defined in your application
     /// #[derive(Debug, PartialEq)]
@@ -220,7 +220,7 @@ impl Context {
     /// # Examples
     ///
     /// ```
-    /// use opentelemetry::api::Context;
+    /// use opentelemetry::Context;
     ///
     /// #[derive(Debug, PartialEq)]
     /// struct ValueA(&'static str);
@@ -239,7 +239,7 @@ impl Context {
     /// Guards do not need to be explicitly dropped:
     ///
     /// ```
-    /// use opentelemetry::api::Context;
+    /// use opentelemetry::Context;
     ///
     /// #[derive(Debug, PartialEq)]
     /// struct ValueA(&'static str);
@@ -266,7 +266,7 @@ impl Context {
     /// entered:
     ///
     /// ```
-    /// use opentelemetry::api::Context;
+    /// use opentelemetry::Context;
     ///
     /// #[derive(Debug, PartialEq)]
     /// struct ValueA(&'static str);

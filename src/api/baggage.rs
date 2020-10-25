@@ -1,4 +1,5 @@
-use crate::api::{Context, Key, KeyValue, Value};
+//! OpenTelemetry Baggage API
+use crate::{Context, Key, KeyValue, Value};
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
 use std::collections::{hash_map, HashMap};
@@ -33,7 +34,7 @@ impl Baggage {
     /// # Examples
     ///
     /// ```
-    /// use opentelemetry::api::{Baggage, Value};
+    /// use opentelemetry::{baggage::Baggage, Value};
     ///
     /// let mut cc = Baggage::new();
     /// let _ = cc.insert("my-name", "my-value");
@@ -48,7 +49,7 @@ impl Baggage {
     ///
     /// # Examples
     /// ```
-    /// use opentelemetry::api::{Baggage, BaggageMetadata, Value};
+    /// use opentelemetry::{baggage::{Baggage, BaggageMetadata}, Value};
     ///
     /// let mut cc = Baggage::new();
     /// let _ = cc.insert("my-name", "my-value");
@@ -68,7 +69,7 @@ impl Baggage {
     /// # Examples
     ///
     /// ```
-    /// use opentelemetry::api::{Baggage, Value};
+    /// use opentelemetry::{baggage::Baggage, Value};
     ///
     /// let mut cc = Baggage::new();
     /// let _ = cc.insert("my-name", "my-value");
@@ -92,7 +93,7 @@ impl Baggage {
     /// # Examples
     ///
     /// ```
-    /// use opentelemetry::api::{Baggage, BaggageMetadata, Value};
+    /// use opentelemetry::{baggage::{Baggage, BaggageMetadata}, Value};
     ///
     /// let mut cc = Baggage::new();
     /// let _ = cc.insert_with_metadata("my-name", "my-value", "test");
@@ -249,7 +250,7 @@ pub trait BaggageExt {
     /// # Examples
     ///
     /// ```
-    /// use opentelemetry::api::{Context, KeyValue, Value, BaggageExt};
+    /// use opentelemetry::{baggage::BaggageExt, Context, KeyValue, Value};
     ///
     /// let some_context = Context::current();
     /// let cx = some_context.with_baggage(vec![KeyValue::new("my-name", "my-value")]);
@@ -269,7 +270,7 @@ pub trait BaggageExt {
     /// # Examples
     ///
     /// ```
-    /// use opentelemetry::api::{Context, KeyValue, Value, BaggageExt};
+    /// use opentelemetry::{baggage::BaggageExt, Context, KeyValue, Value};
     ///
     /// let cx = Context::current_with_baggage(vec![KeyValue::new("my-name", "my-value")]);
     ///
@@ -287,7 +288,7 @@ pub trait BaggageExt {
     /// # Examples
     ///
     /// ```
-    /// use opentelemetry::api::{BaggageExt, Context, KeyValue, Value};
+    /// use opentelemetry::{baggage::BaggageExt, Context, KeyValue, Value};
     ///
     /// let cx = Context::current().with_cleared_baggage();
     ///
@@ -396,8 +397,7 @@ impl From<KeyValue> for KeyValueMetadata {
 
 #[cfg(test)]
 mod tests {
-    use crate::api::baggage::{MAX_BYTES_FOR_ONE_PAIR, MAX_LEN_OF_ALL_PAIRS};
-    use crate::api::{Baggage, KeyValue, Value};
+    use super::*;
     use std::iter::FromIterator;
 
     #[test]

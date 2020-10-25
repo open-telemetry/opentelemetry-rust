@@ -1,4 +1,4 @@
-use crate::api::{
+use crate::{
     trace::{Span, SpanContext, StatusCode},
     KeyValue,
 };

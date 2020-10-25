@@ -7,11 +7,9 @@ use hyper::{
     Body, Request, Response, Server,
 };
 use opentelemetry::{
-    api::{
-        metrics::{BoundCounter, BoundValueRecorder},
-        KeyValue,
-    },
     global,
+    metrics::{BoundCounter, BoundValueRecorder},
+    KeyValue,
 };
 use opentelemetry_prometheus::PrometheusExporter;
 use prometheus::{Encoder, TextEncoder};

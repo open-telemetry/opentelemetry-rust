@@ -2,7 +2,7 @@
 //!
 //! Configuration represents the global tracing configuration, overrides
 //! can be set for the default OpenTelemetry limits and Sampler.
-use crate::{api, sdk, sdk::trace::Sampler};
+use crate::{sdk, sdk::trace::Sampler, trace::IdGenerator};
 use std::sync::Arc;
 
 /// Default trace configuration
@@ -16,7 +16,7 @@ pub struct Config {
     /// The sampler that the sdk should use
     pub default_sampler: Box<dyn sdk::trace::ShouldSample>,
     /// The id generator that the sdk should use
-    pub id_generator: Box<dyn api::trace::IdGenerator>,
+    pub id_generator: Box<dyn IdGenerator>,
     /// The max events that can be added to a `Span`.
     pub max_events_per_span: u32,
     /// The max attributes that can be added to a `Span`.
@@ -38,10 +38,7 @@ impl Config {
     }
 
     /// Specify the id generator to be used.
-    pub fn with_id_generator<T: api::trace::IdGenerator + 'static>(
-        mut self,
-        id_generator: T,
-    ) -> Self {
+    pub fn with_id_generator<T: IdGenerator + 'static>(mut self, id_generator: T) -> Self {
         self.id_generator = Box::new(id_generator);
         self
     }

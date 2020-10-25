@@ -1,3 +1,3 @@
 //! # OpenTelemetry Experimental Features
 
-pub mod api;
+pub mod propagation;

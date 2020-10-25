@@ -18,7 +18,7 @@ use std::{
 };
 
 use crate::{
-    api::metrics::{Descriptor, MetricsError, Number, NumberKind, Result},
+    metrics::{Descriptor, MetricsError, Number, NumberKind, Result},
     sdk::export::metrics::{
         Aggregator, Count, Distribution, Max, Min, MinMaxSumCount, Quantile, Sum,
     },
@@ -648,7 +648,7 @@ impl Store {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::api::metrics::{Descriptor, InstrumentKind, Number, NumberKind};
+    use crate::metrics::{Descriptor, InstrumentKind, Number, NumberKind};
     use crate::sdk::export::metrics::{Aggregator, Count, Max, Min, Quantile, Sum};
     use rand_distr::{Distribution, Exp, LogNormal, Normal};
     use std::cmp::Ordering;

@@ -70,7 +70,7 @@
 //! [`DatadogPipelineBuilder`]: struct.DatadogPipelineBuilder.html
 //!
 //! ```no_run
-//! use opentelemetry::api::{KeyValue, trace::Tracer};
+//! use opentelemetry::{KeyValue, trace::Tracer};
 //! use opentelemetry::sdk::{trace::{self, IdGenerator, Sampler}, Resource};
 //! use opentelemetry::exporter::trace::ExportResult;
 //! use opentelemetry::exporter::trace::HttpClient;
@@ -127,7 +127,7 @@ use async_trait::async_trait;
 use http::{Method, Request, Uri};
 use opentelemetry::exporter::trace;
 use opentelemetry::exporter::trace::{HttpClient, SpanData};
-use opentelemetry::{api::trace::TracerProvider, global, sdk};
+use opentelemetry::{global, sdk, trace::TracerProvider};
 use std::error::Error;
 use std::io;
 

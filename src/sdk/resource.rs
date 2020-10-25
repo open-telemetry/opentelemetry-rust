@@ -13,9 +13,7 @@
 //! produced by any `Tracer` from the provider are associated with this `Resource`.
 //!
 //! [`TracerProvider`]: ../../api/trace/provider/trait.TracerProvider.html
-use crate::api;
-use crate::api::labels;
-use crate::api::KeyValue;
+use crate::{labels, Key, KeyValue, Value};
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
 use std::collections::{btree_map, btree_map::Entry, BTreeMap};
@@ -27,7 +25,7 @@ use std::time::Duration;
 #[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Resource {
-    attrs: BTreeMap<api::Key, api::Value>,
+    attrs: BTreeMap<Key, Value>,
 }
 
 impl Resource {
@@ -35,7 +33,7 @@ impl Resource {
     ///
     /// Values are de-duplicated by key, and the first key-value pair with a non-empty string value
     /// will be retained
-    pub fn new<T: IntoIterator<Item = api::KeyValue>>(kvs: T) -> Self {
+    pub fn new<T: IntoIterator<Item = KeyValue>>(kvs: T) -> Self {
         let mut resource = Resource::default();
 
         for kv in kvs.into_iter() {
@@ -76,13 +74,13 @@ impl Resource {
 
         // attrs from self must be added first so they have priority
         for (k, v) in self.attrs.iter() {
-            resource.insert(api::KeyValue {
+            resource.insert(KeyValue {
                 key: k.clone(),
                 value: v.clone(),
             });
         }
         for (k, v) in other.attrs.iter() {
-            resource.insert(api::KeyValue {
+            resource.insert(KeyValue {
                 key: k.clone(),
                 value: v.clone(),
             });
@@ -112,10 +110,10 @@ impl Resource {
     }
 
     /// Insert a key-value pair into a `Resource`
-    fn insert(&mut self, item: api::KeyValue) {
+    fn insert(&mut self, item: KeyValue) {
         match self.attrs.entry(item.key) {
             Entry::Occupied(mut existing_item) => {
-                if let api::Value::String(s) = existing_item.get() {
+                if let Value::String(s) = existing_item.get() {
                     if s.is_empty() {
                         existing_item.insert(item.value);
                     }
@@ -130,10 +128,10 @@ impl Resource {
 
 /// An owned iterator over the entries of a `Resource`.
 #[derive(Debug)]
-pub struct IntoIter(btree_map::IntoIter<api::Key, api::Value>);
+pub struct IntoIter(btree_map::IntoIter<Key, Value>);
 
 impl Iterator for IntoIter {
-    type Item = (api::Key, api::Value);
+    type Item = (Key, Value);
 
     fn next(&mut self) -> Option<Self::Item> {
         self.0.next()
@@ -141,7 +139,7 @@ impl Iterator for IntoIter {
 }
 
 impl IntoIterator for Resource {
-    type Item = (api::Key, api::Value);
+    type Item = (Key, Value);
     type IntoIter = IntoIter;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -151,10 +149,10 @@ impl IntoIterator for Resource {
 
 /// An iterator over the entries of a `Resource`.
 #[derive(Debug)]
-pub struct Iter<'a>(btree_map::Iter<'a, api::Key, api::Value>);
+pub struct Iter<'a>(btree_map::Iter<'a, Key, Value>);
 
 impl<'a> Iterator for Iter<'a> {
-    type Item = (&'a api::Key, &'a api::Value);
+    type Item = (&'a Key, &'a Value);
 
     fn next(&mut self) -> Option<Self::Item> {
         self.0.next()
@@ -162,7 +160,7 @@ impl<'a> Iterator for Iter<'a> {
 }
 
 impl<'a> IntoIterator for &'a Resource {
-    type Item = (&'a api::Key, &'a api::Value);
+    type Item = (&'a Key, &'a Value);
     type IntoIter = Iter<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -188,21 +186,17 @@ pub trait ResourceDetector {
 
 #[cfg(test)]
 mod tests {
-    use super::Resource;
-    use crate::api;
+    use super::*;
     use crate::sdk::EnvResourceDetector;
     use std::collections::BTreeMap;
     use std::{env, time};
 
     #[test]
     fn new_resource() {
-        let args_with_dupe_keys = vec![
-            api::KeyValue::new("a", ""),
-            api::KeyValue::new("a", "final"),
-        ];
+        let args_with_dupe_keys = vec![KeyValue::new("a", ""), KeyValue::new("a", "final")];
 
         let mut expected_attrs = BTreeMap::new();
-        expected_attrs.insert(api::Key::new("a"), api::Value::from("final"));
+        expected_attrs.insert(Key::new("a"), Value::from("final"));
 
         assert_eq!(
             Resource::new(args_with_dupe_keys),
@@ -214,20 +208,17 @@ mod tests {
 
     #[test]
     fn merge_resource() {
-        let resource_a = Resource::new(vec![
-            api::KeyValue::new("a", ""),
-            api::KeyValue::new("b", "b-value"),
-        ]);
+        let resource_a = Resource::new(vec![KeyValue::new("a", ""), KeyValue::new("b", "b-value")]);
 
         let resource_b = Resource::new(vec![
-            api::KeyValue::new("a", "final"),
-            api::KeyValue::new("c", "c-value"),
+            KeyValue::new("a", "final"),
+            KeyValue::new("c", "c-value"),
         ]);
 
         let mut expected_attrs = BTreeMap::new();
-        expected_attrs.insert(api::Key::new("a"), api::Value::from("final"));
-        expected_attrs.insert(api::Key::new("b"), api::Value::from("b-value"));
-        expected_attrs.insert(api::Key::new("c"), api::Value::from("c-value"));
+        expected_attrs.insert(Key::new("a"), Value::from("final"));
+        expected_attrs.insert(Key::new("b"), Value::from("b-value"));
+        expected_attrs.insert(Key::new("c"), Value::from("c-value"));
 
         assert_eq!(
             resource_a.merge(&resource_b),
@@ -248,22 +239,13 @@ mod tests {
         assert_eq!(
             resource,
             Resource::new(vec![
-                api::KeyValue::new(
-                    api::Key::new("key".to_string()),
-                    api::Value::String("value".to_string())
+                KeyValue::new(
+                    Key::new("key".to_string()),
+                    Value::String("value".to_string())
                 ),
-                api::KeyValue::new(
-                    api::Key::new("k".to_string()),
-                    api::Value::String("v".to_string())
-                ),
-                api::KeyValue::new(
-                    api::Key::new("a".to_string()),
-                    api::Value::String("x".to_string())
-                ),
-                api::KeyValue::new(
-                    api::Key::new("a".to_string()),
-                    api::Value::String("z".to_string())
-                )
+                KeyValue::new(Key::new("k".to_string()), Value::String("v".to_string())),
+                KeyValue::new(Key::new("a".to_string()), Value::String("x".to_string())),
+                KeyValue::new(Key::new("a".to_string()), Value::String("z".to_string()))
             ])
         )
     }

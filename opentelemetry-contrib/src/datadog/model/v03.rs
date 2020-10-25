@@ -1,6 +1,6 @@
 use crate::datadog::model::Error;
-use opentelemetry::api::{Key, Value};
 use opentelemetry::exporter::trace;
+use opentelemetry::{Key, Value};
 use std::time::SystemTime;
 
 pub(crate) fn encode(service_name: &str, spans: Vec<trace::SpanData>) -> Result<Vec<u8>, Error> {
@@ -43,10 +43,7 @@ pub(crate) fn encode(service_name: &str, spans: Vec<trace::SpanData>) -> Result<
         rmp::encode::write_str(&mut encoded, &span.name)?;
 
         rmp::encode::write_str(&mut encoded, "trace_id")?;
-        rmp::encode::write_u64(
-            &mut encoded,
-            span.span_context.trace_id().to_u128() as u64,
-        )?;
+        rmp::encode::write_u64(&mut encoded, span.span_context.trace_id().to_u128() as u64)?;
 
         rmp::encode::write_str(&mut encoded, "span_id")?;
         rmp::encode::write_u64(&mut encoded, span.span_context.span_id().to_u64())?;

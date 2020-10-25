@@ -1,4 +1,4 @@
-use crate::api::propagation::TextMapPropagator;
+use crate::propagation::TextMapPropagator;
 use crate::sdk::propagation::{
     BaggagePropagator, TextMapCompositePropagator, TraceContextPropagator,
 };
@@ -39,7 +39,7 @@ pub fn set_text_map_propagator<P: TextMapPropagator + Send + Sync + 'static>(pro
 /// # Examples
 ///
 /// ```
-/// use opentelemetry::{api::propagation::TextMapPropagator, global};
+/// use opentelemetry::{propagation::TextMapPropagator, global};
 /// use opentelemetry::sdk::propagation::TraceContextPropagator;
 /// use std::collections::HashMap;
 ///

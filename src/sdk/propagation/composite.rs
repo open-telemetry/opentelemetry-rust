@@ -1,4 +1,4 @@
-use crate::api::{
+use crate::{
     propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
     Context,
 };
@@ -17,10 +17,11 @@ use std::collections::HashSet;
 /// # Examples
 ///
 /// ```
-/// use opentelemetry::api::{
+/// use opentelemetry::{
+///     baggage::BaggageExt,
 ///     propagation::TextMapPropagator,
 ///     trace::{TraceContextExt, Tracer, TracerProvider},
-///     Context, KeyValue,BaggageExt,
+///     Context, KeyValue,
 /// };
 /// use opentelemetry::sdk::propagation::{
 ///     BaggagePropagator, TextMapCompositePropagator, TraceContextPropagator,
@@ -108,13 +109,13 @@ impl TextMapPropagator for TextMapCompositePropagator {
 
 #[cfg(test)]
 mod tests {
-    use crate::api::{
-        propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
-        trace::{SpanId, SpanContext, TraceContextExt, TraceId, TraceState},
-        Context,
-    };
     use crate::sdk::propagation::{TextMapCompositePropagator, TraceContextPropagator};
     use crate::testing::trace::TestSpan;
+    use crate::{
+        propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
+        trace::{SpanContext, SpanId, TraceContextExt, TraceId, TraceState},
+        Context,
+    };
     use std::collections::HashMap;
     use std::str::FromStr;
 

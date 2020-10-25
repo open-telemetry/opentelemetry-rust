@@ -13,10 +13,10 @@
 //!
 //! If `inject_encoding` is set to `B3Encoding::SingleHeader` then `b3` header is used to inject
 //! and extract. Otherwise, separate headers are used to inject and extract.
-use crate::api::{
+use crate::{
     propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
     trace::{
-        SpanId, SpanContext, TraceContextExt, TraceId, TraceState, TRACE_FLAG_DEBUG,
+        SpanContext, SpanId, TraceContextExt, TraceId, TraceState, TRACE_FLAG_DEBUG,
         TRACE_FLAG_DEFERRED, TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
     },
     Context,
@@ -197,8 +197,7 @@ impl B3Propagator {
             TRACE_FLAG_DEFERRED
         };
 
-        let span_context =
-            SpanContext::new(trace_id, span_id, flag, true, TraceState::default());
+        let span_context = SpanContext::new(trace_id, span_id, flag, true, TraceState::default());
 
         if span_context.is_valid() {
             Ok(span_context)
@@ -249,20 +248,12 @@ impl TextMapPropagator for B3Propagator {
                 if span_context.is_debug() {
                     injector.set(B3_DEBUG_FLAG_HEADER, "1".to_string());
                 } else if !span_context.is_deferred() {
-                    let sampled = if span_context.is_sampled() {
-                        "1"
-                    } else {
-                        "0"
-                    };
+                    let sampled = if span_context.is_sampled() { "1" } else { "0" };
                     injector.set(B3_SAMPLED_HEADER, sampled.to_string());
                 }
             }
         } else {
-            let flag = if span_context.is_sampled() {
-                "1"
-            } else {
-                "0"
-            };
+            let flag = if span_context.is_sampled() { "1" } else { "0" };
             if self.inject_encoding.support(&B3Encoding::SingleHeader) {
                 injector.set(B3_SINGLE_HEADER, flag.to_string())
             }
@@ -312,14 +303,14 @@ impl TextMapPropagator for B3Propagator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::api::{
+    use crate::testing::trace::TestSpan;
+    use crate::{
         propagation::TextMapPropagator,
         trace::{
-            SpanId, SpanContext, TraceId, TRACE_FLAG_DEBUG, TRACE_FLAG_DEFERRED,
+            SpanContext, SpanId, TraceId, TRACE_FLAG_DEBUG, TRACE_FLAG_DEFERRED,
             TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
         },
     };
-    use crate::testing::trace::TestSpan;
     use std::collections::HashMap;
 
     const TRACE_ID_STR: &str = "4bf92f3577b34da6a3ce929d0e0e4736";

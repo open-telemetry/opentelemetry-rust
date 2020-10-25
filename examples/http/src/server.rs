@@ -1,13 +1,13 @@
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Request, Response, Server};
 use opentelemetry::{
-    api::trace::{Span, Tracer},
     exporter::trace::stdout,
     global,
     sdk::{
         propagation::TraceContextPropagator,
         trace::{Config, Sampler},
     },
+    trace::{Span, Tracer},
 };
 use std::{convert::Infallible, net::SocketAddr};
 

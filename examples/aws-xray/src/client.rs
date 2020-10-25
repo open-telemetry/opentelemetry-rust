@@ -1,13 +1,10 @@
 use hyper::{body::Body, Client};
 use opentelemetry::{
-    api::{
-        self,
-        trace::{TraceContextExt, Tracer},
-        Context,
-    },
     exporter::trace::stdout,
     global,
     sdk::{propagation::XrayPropagator, trace as sdktrace},
+    trace::{TraceContextExt, Tracer},
+    Context, KeyValue,
 };
 
 fn init_tracer() -> (sdktrace::Tracer, stdout::Uninstall) {
@@ -45,7 +42,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error + Send + Sy
 
     cx.span().add_event(
         "Got response!".to_string(),
-        vec![api::KeyValue::new("status", res.status().to_string())],
+        vec![KeyValue::new("status", res.status().to_string())],
     );
 
     Ok(())

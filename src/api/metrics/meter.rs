@@ -1,4 +1,4 @@
-use crate::api::{
+use crate::{
     metrics::{
         sdk_api, AsyncRunner, BatchObserver, BatchObserverCallback, CounterBuilder, Descriptor,
         Measurement, NumberKind, ObserverResult, Result, SumObserverBuilder, UpDownCounterBuilder,
