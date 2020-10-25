@@ -110,7 +110,7 @@ impl TextMapPropagator for TextMapCompositePropagator {
 mod tests {
     use crate::api::{
         propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
-        trace::{SpanId, SpanReference, TraceContextExt, TraceId, TraceState},
+        trace::{SpanId, SpanContext, TraceContextExt, TraceId, TraceState},
         Context,
     };
     use crate::sdk::propagation::{TextMapCompositePropagator, TraceContextPropagator};
@@ -137,7 +137,7 @@ mod tests {
 
     impl TextMapPropagator for TestPropagator {
         fn inject_context(&self, cx: &Context, injector: &mut dyn Injector) {
-            let span = cx.span().span_reference();
+            let span = cx.span().span_context();
             injector.set(
                 "testheader",
                 format!(
@@ -153,9 +153,9 @@ mod tests {
             let span = if let Some(val) = extractor.get("testheader") {
                 let parts = val.split_terminator('-').collect::<Vec<&str>>();
                 if parts.len() != 3 {
-                    SpanReference::empty_context()
+                    SpanContext::empty_context()
                 } else {
-                    SpanReference::new(
+                    SpanContext::new(
                         TraceId::from_u128(u128::from_str(parts[0]).unwrap_or(0)),
                         SpanId::from_u64(u64::from_str(parts[1]).unwrap_or(0)),
                         u8::from_str(parts[2]).unwrap_or(0),
@@ -164,10 +164,10 @@ mod tests {
                     )
                 }
             } else {
-                SpanReference::empty_context()
+                SpanContext::empty_context()
             };
 
-            cx.with_remote_span_reference(span)
+            cx.with_remote_span_context(span)
         }
 
         fn fields(&self) -> FieldIter<'_> {
@@ -194,7 +194,7 @@ mod tests {
             Box::new(trace_context),
         ]);
 
-        let cx = Context::default().with_span(TestSpan(SpanReference::new(
+        let cx = Context::default().with_span(TestSpan(SpanContext::new(
             TraceId::from_u128(1),
             SpanId::from_u64(1),
             0,
@@ -224,8 +224,8 @@ mod tests {
             assert_eq!(
                 composite_propagator
                     .extract(&extractor)
-                    .remote_span_reference(),
-                Some(&SpanReference::new(
+                    .remote_span_context(),
+                Some(&SpanContext::new(
                     TraceId::from_u128(1),
                     SpanId::from_u64(1),
                     0,
