@@ -53,7 +53,7 @@ use std::time::SystemTime;
 /// Spans can also use the current thread's [`Context`] to track which span is active:
 ///
 /// ```
-/// use opentelemetry::{global, trace::{Tracer, SpanKind}};
+/// use opentelemetry::{global, trace::{SpanKind, Tracer}};
 ///
 /// let tracer = global::tracer("my-component");
 ///
@@ -86,7 +86,7 @@ use std::time::SystemTime;
 /// greater control over when the span is no longer considered active.
 ///
 /// ```
-/// use opentelemetry::{trace::{Span, Tracer}, global};
+/// use opentelemetry::{global, trace::{Span, Tracer}};
 /// let tracer = global::tracer("my-component");
 ///
 /// let parent_span = tracer.start("foo");
@@ -241,7 +241,7 @@ pub trait Tracer: fmt::Debug + 'static {
     /// # Examples
     ///
     /// ```
-    /// use opentelemetry::{trace::{Span, Tracer}, global, KeyValue};
+    /// use opentelemetry::{global, trace::{Span, Tracer}, KeyValue};
     ///
     /// fn my_function() {
     ///     let tracer = global::tracer("my-component-a");
@@ -270,7 +270,7 @@ pub trait Tracer: fmt::Debug + 'static {
     /// # Examples
     ///
     /// ```
-    /// use opentelemetry::{trace::{Span, Tracer}, global, KeyValue};
+    /// use opentelemetry::{global, trace::{Span, Tracer}, KeyValue};
     ///
     /// fn my_function() {
     ///     // start an active span in one function
@@ -305,7 +305,7 @@ pub trait Tracer: fmt::Debug + 'static {
     /// # Examples
     ///
     /// ```
-    /// use opentelemetry::{trace::{Span, Tracer}, global, KeyValue};
+    /// use opentelemetry::{global, trace::{Span, Tracer}, KeyValue};
     ///
     /// fn my_function() {
     ///     // start an active span in one function
@@ -343,7 +343,7 @@ pub trait Tracer: fmt::Debug + 'static {
     /// # Examples
     ///
     /// ```
-    /// use opentelemetry::{trace::{Span, SpanKind, Tracer}, global, KeyValue};
+    /// use opentelemetry::{global, trace::{Span, SpanKind, Tracer}, KeyValue};
     ///
     /// fn my_function() {
     ///     let tracer = global::tracer("my-component");
@@ -379,8 +379,8 @@ pub trait Tracer: fmt::Debug + 'static {
 ///
 /// ```rust
 /// use opentelemetry::{
-///     trace::{TracerProvider, SpanBuilder, SpanKind, Tracer},
 ///     global,
+///     trace::{TracerProvider, SpanBuilder, SpanKind, Tracer},
 /// };
 ///
 /// let tracer = global::tracer("example-tracer");

@@ -11,7 +11,7 @@
 //! ## Usage
 //!
 //! ```ignore
-//! use opentelemetry::trace::{TracerProvider, Tracer};
+//! use opentelemetry::trace::{Tracer, TracerProvider};
 //! use opentelemetry::metrics::{Meter, MeterProvider};
 //! use opentelemetry::global;
 //!

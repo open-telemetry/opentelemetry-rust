@@ -13,7 +13,7 @@
 //! ## Getting Started
 //!
 //! ```no_run
-//! use opentelemetry::{trace::Tracer, exporter::trace::stdout};
+//! use opentelemetry::{exporter::trace::stdout, trace::Tracer};
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 //!     // Create a new instrumentation pipeline
