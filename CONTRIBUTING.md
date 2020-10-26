@@ -13,6 +13,14 @@ join the meeting or get in touch on
 
 ## Pull Requests
 
+### Prerequisites
+
+Crate `opentelemetry-otlp` uses gRPC. So you will need the following to build:
+
+- [protoc](https://github.com/protocolbuffers/protobuf)
+- [cmake](https://cmake.org)
+- [llvm](https://releases.llvm.org/download.html) (and `LIBCLANG_PATH` environment variable pointing to the `bin` directory of LLVM install)
+
 ### How to Send Pull Requests
 
 Everyone is welcome to contribute code to `opentelemetry-rust` via
