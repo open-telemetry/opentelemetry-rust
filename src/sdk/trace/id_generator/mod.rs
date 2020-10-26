@@ -5,7 +5,7 @@ use crate::trace::{SpanId, TraceId};
 use rand::{rngs, Rng};
 use std::cell::RefCell;
 
-/// Default [`trace::IdGenerator`] implementation.
+/// Default [`crate::trace::IdGenerator`] implementation.
 /// Generates Trace and Span ids using a random number generator.
 #[derive(Clone, Debug, Default)]
 pub struct IdGenerator {
