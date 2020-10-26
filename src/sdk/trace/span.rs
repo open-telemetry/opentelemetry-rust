@@ -28,11 +28,7 @@ struct SpanInner {
 }
 
 impl Span {
-    pub(crate) fn new(
-        id: SpanId,
-        data: Option<SpanData>,
-        tracer: sdk::trace::Tracer,
-    ) -> Self {
+    pub(crate) fn new(id: SpanId, data: Option<SpanData>, tracer: sdk::trace::Tracer) -> Self {
         Span {
             id,
             inner: Arc::new(SpanInner {
@@ -177,15 +173,21 @@ impl Drop for SpanInner {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{api, api::core::KeyValue, api::trace::Span as _, api::trace::TracerProvider};
     use std::time::Duration;
-    use crate::{api, api::trace::TracerProvider, api::trace::Span as _, api::core::KeyValue};
 
     fn init() -> (sdk::trace::Tracer, SpanData) {
         let provider = sdk::trace::TracerProvider::default();
         let config = provider.config();
         let tracer = provider.get_tracer("opentelemetry", Some(env!("CARGO_PKG_VERSION")));
         let data = SpanData {
-            span_context: SpanContext::new(TraceId::from_u128(0), SpanId::from_u64(0), api::trace::TRACE_FLAG_NOT_SAMPLED, false, TraceState::default()),
+            span_context: SpanContext::new(
+                TraceId::from_u128(0),
+                SpanId::from_u64(0),
+                api::trace::TRACE_FLAG_NOT_SAMPLED,
+                false,
+                TraceState::default(),
+            ),
             parent_span_id: SpanId::from_u64(0),
             span_kind: api::trace::SpanKind::Internal,
             name: "opentelemetry".to_string(),
@@ -243,7 +245,7 @@ mod tests {
         let name = "some_event".to_string();
         let attributes = vec![KeyValue::new("k", "v")];
         let timestamp = SystemTime::now();
-        span.add_event_with_timestamp(name.clone(), timestamp.clone(), attributes.clone());
+        span.add_event_with_timestamp(name.clone(), timestamp, attributes.clone());
         span.with_data(|data| {
             if let Some(event) = data.message_events.iter().next() {
                 assert_eq!(event.timestamp, timestamp);
@@ -263,7 +265,10 @@ mod tests {
         span.with_data(|data| {
             if let Some(event) = data.message_events.iter().next() {
                 assert_eq!(event.name, "exception");
-                assert_eq!(event.attributes, vec![KeyValue::new("exception.message", err.to_string())]);
+                assert_eq!(
+                    event.attributes,
+                    vec![KeyValue::new("exception.message", err.to_string())]
+                );
             } else {
                 panic!("no event");
             }
@@ -279,10 +284,13 @@ mod tests {
         span.with_data(|data| {
             if let Some(event) = data.message_events.iter().next() {
                 assert_eq!(event.name, "exception");
-                assert_eq!(event.attributes, vec![
-                    KeyValue::new("exception.message", err.to_string()),
-                    KeyValue::new("exception.stacktrace", stacktrace),
-                ]);
+                assert_eq!(
+                    event.attributes,
+                    vec![
+                        KeyValue::new("exception.message", err.to_string()),
+                        KeyValue::new("exception.stacktrace", stacktrace),
+                    ]
+                );
             } else {
                 panic!("no event");
             }
@@ -356,7 +364,11 @@ mod tests {
         let initial = span.with_data(|data| data.clone()).unwrap();
         span.end();
         span.add_event("some_event".to_string(), vec![KeyValue::new("k", "v")]);
-        span.add_event_with_timestamp("some_event".to_string(), SystemTime::now(), vec![KeyValue::new("k", "v")]);
+        span.add_event_with_timestamp(
+            "some_event".to_string(),
+            SystemTime::now(),
+            vec![KeyValue::new("k", "v")],
+        );
         let err = std::io::Error::from(std::io::ErrorKind::Other);
         span.record_exception(&err);
         span.record_exception_with_stacktrace(&err, "stacktrace...".to_string());
