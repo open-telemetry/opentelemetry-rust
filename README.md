@@ -1,4 +1,10 @@
-# OpenTelemetry-Rust
+![OpenTelemetry — An observability framework for cloud-native software.][splash]
+
+[splash]: https://raw.githubusercontent.com/open-telemetry/opentelemetry-rust/master/assets/logo-text.png
+
+# OpenTelemetry Rust
+
+The Rust [OpenTelemetry](https://opentelemetry.io/) implementation.
 
 [![Crates.io: opentelemetry](https://img.shields.io/crates/v/opentelemetry.svg)](https://crates.io/crates/opentelemetry)
 [![Documentation](https://docs.rs/opentelemetry/badge.svg)](https://docs.rs/opentelemetry)
@@ -6,11 +12,17 @@
 [![GitHub Actions CI](https://github.com/open-telemetry/opentelemetry-rust/workflows/CI/badge.svg)](https://github.com/open-telemetry/opentelemetry-rust/actions?query=workflow%3ACI+branch%3Amaster)
 [![Gitter chat](https://img.shields.io/badge/gitter-join%20chat%20%E2%86%92-brightgreen.svg)](https://gitter.im/open-telemetry/opentelemetry-rust)
 
-The Rust [OpenTelemetry](https://opentelemetry.io/) implementation.
+[Website](https://opentelemetry.io/) |
+[Chat](https://gitter.im/open-telemetry/opentelemetry-rust) |
+[Documentation](https://docs.rs/opentelemetry)
 
-OpenTelemetry provides a single set of APIs, libraries, agents, and collector
-services to capture distributed traces and metrics from your application. You
-can analyze them using [Prometheus], [Jaeger], and other observability tools.
+## Overview
+
+OpenTelemetry is a collection of tools, APIs, and SDKs used to instrument,
+generate, collect, and export telemetry data (metrics, logs, and traces) for
+analysis in order to understand your software's performance and behavior. You
+can exporter and analyze them using [Prometheus], [Jaeger], and other
+observability tools.
 
 *Compiler support: [requires `rustc` 1.42+][msrv]*
 
