@@ -154,7 +154,7 @@ pub trait Span: fmt::Debug + 'static + Send + Sync {
     ///
     /// This API MUST be non-blocking.
     fn end(&self) {
-        self.end_with_timestamp(SystemTime::now());
+        self.end_with_timestamp(Some(SystemTime::now()));
     }
 
     /// Finishes the `Span` with given timestamp
@@ -162,7 +162,7 @@ pub trait Span: fmt::Debug + 'static + Send + Sync {
     /// For more details, refer to [`Span::end`]
     ///
     /// [`Span::end`]: trait.Span.html#method.end
-    fn end_with_timestamp(&self, timestamp: SystemTime);
+    fn end_with_timestamp(&self, timestamp: Option<SystemTime>);
 }
 
 /// `SpanKind` describes the relationship between the Span, its parents,

@@ -103,7 +103,7 @@ impl trace::Span for NoopSpan {
     }
 
     /// Ignores `Span` endings
-    fn end_with_timestamp(&self, _timestamp: SystemTime) {
+    fn end_with_timestamp(&self, _timestamp: Option<SystemTime>) {
         // Ignored
     }
 }

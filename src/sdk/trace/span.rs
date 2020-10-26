@@ -135,9 +135,9 @@ impl crate::trace::Span for Span {
     }
 
     /// Finishes the span with given timestamp.
-    fn end_with_timestamp(&self, timestamp: SystemTime) {
+    fn end_with_timestamp(&self, timestamp: Option<SystemTime>) {
         self.with_data_mut(|data| {
-            data.end_time = timestamp;
+            data.end_time = timestamp.unwrap_or(SystemTime::now());
         });
     }
 }

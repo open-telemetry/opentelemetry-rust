@@ -61,7 +61,7 @@ impl trace::Span for BoxedSpan {
     }
 
     /// Finishes the span with given timestamp.
-    fn end_with_timestamp(&self, timestamp: SystemTime) {
+    fn end_with_timestamp(&self, timestamp: Option<SystemTime>) {
         self.0.end_with_timestamp(timestamp);
     }
 }
