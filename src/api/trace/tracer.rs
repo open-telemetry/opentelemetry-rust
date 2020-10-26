@@ -1,9 +1,10 @@
-use crate::api::{
-    self,
-    context::{Context, ContextGuard},
-    trace::TraceContextExt,
-};
 use crate::sdk;
+use crate::{
+    trace::{
+        Event, Link, Span, SpanContext, SpanId, SpanKind, StatusCode, TraceContextExt, TraceId,
+    },
+    Context, ContextGuard, KeyValue,
+};
 use std::fmt;
 use std::time::SystemTime;
 
@@ -34,7 +35,8 @@ use std::time::SystemTime;
 /// Spans can be created and nested manually:
 ///
 /// ```
-/// use opentelemetry::{global, api::trace::{Span, Tracer}};
+/// use opentelemetry::{global, trace::{Span, Tracer}};
+///
 /// let tracer = global::tracer("my-component");
 ///
 /// let parent = tracer.start("foo");
@@ -51,7 +53,8 @@ use std::time::SystemTime;
 /// Spans can also use the current thread's [`Context`] to track which span is active:
 ///
 /// ```
-/// use opentelemetry::{global, api::trace::{Tracer, SpanKind}};
+/// use opentelemetry::{global, trace::{SpanKind, Tracer}};
+///
 /// let tracer = global::tracer("my-component");
 ///
 /// // Create simple spans with `in_span`
@@ -83,7 +86,7 @@ use std::time::SystemTime;
 /// greater control over when the span is no longer considered active.
 ///
 /// ```
-/// use opentelemetry::{global, api::trace::{Span, Tracer}};
+/// use opentelemetry::{global, trace::{Span, Tracer}};
 /// let tracer = global::tracer("my-component");
 ///
 /// let parent_span = tracer.start("foo");
@@ -112,7 +115,7 @@ use std::time::SystemTime;
 /// the following example _will not_ work:
 ///
 /// ```no_run
-/// # use opentelemetry::{global, api::trace::Tracer};
+/// # use opentelemetry::{global, trace::Tracer};
 /// # let tracer = global::tracer("foo");
 /// # let span = tracer.start("foo-span");
 /// async {
@@ -133,7 +136,7 @@ use std::time::SystemTime;
 ///
 /// ```
 /// # async fn run() -> Result<(), ()> {
-/// use opentelemetry::api::{Context, trace::FutureExt};
+/// use opentelemetry::{trace::FutureExt, Context};
 /// let cx = Context::current();
 ///
 /// let my_future = async {
@@ -156,7 +159,7 @@ use std::time::SystemTime;
 /// [`Context`]: ../../context/struct.Context.html
 pub trait Tracer: fmt::Debug + 'static {
     /// The `Span` type used by this `Tracer`.
-    type Span: api::trace::Span;
+    type Span: Span;
 
     /// Returns a span with an invalid `SpanContext`. Used by functions that
     /// need to return a default span like `get_active_span` if no span is present.
@@ -238,7 +241,7 @@ pub trait Tracer: fmt::Debug + 'static {
     /// # Examples
     ///
     /// ```
-    /// use opentelemetry::{global, api::{trace::{Span, Tracer}, KeyValue}};
+    /// use opentelemetry::{global, trace::{Span, Tracer}, KeyValue};
     ///
     /// fn my_function() {
     ///     let tracer = global::tracer("my-component-a");
@@ -267,7 +270,7 @@ pub trait Tracer: fmt::Debug + 'static {
     /// # Examples
     ///
     /// ```
-    /// use opentelemetry::{global, api::{trace::{Span, Tracer}, KeyValue}};
+    /// use opentelemetry::{global, trace::{Span, Tracer}, KeyValue};
     ///
     /// fn my_function() {
     ///     // start an active span in one function
@@ -286,7 +289,7 @@ pub trait Tracer: fmt::Debug + 'static {
     /// ```
     fn get_active_span<F, T>(&self, f: F) -> T
     where
-        F: FnOnce(&dyn api::trace::Span) -> T,
+        F: FnOnce(&dyn Span) -> T,
         Self: Sized,
     {
         f(Context::current().span())
@@ -302,7 +305,7 @@ pub trait Tracer: fmt::Debug + 'static {
     /// # Examples
     ///
     /// ```
-    /// use opentelemetry::{global, api::{trace::{Span, Tracer}, KeyValue}};
+    /// use opentelemetry::{global, trace::{Span, Tracer}, KeyValue};
     ///
     /// fn my_function() {
     ///     // start an active span in one function
@@ -340,7 +343,7 @@ pub trait Tracer: fmt::Debug + 'static {
     /// # Examples
     ///
     /// ```
-    /// use opentelemetry::{global, api::{trace::{Span, SpanKind, Tracer}, KeyValue}};
+    /// use opentelemetry::{global, trace::{Span, SpanKind, Tracer}, KeyValue};
     ///
     /// fn my_function() {
     ///     let tracer = global::tracer("my-component");
@@ -376,8 +379,8 @@ pub trait Tracer: fmt::Debug + 'static {
 ///
 /// ```rust
 /// use opentelemetry::{
-///     api::trace::{TracerProvider, SpanBuilder, SpanKind, Tracer},
 ///     global,
+///     trace::{TracerProvider, SpanBuilder, SpanKind, Tracer},
 /// };
 ///
 /// let tracer = global::tracer("example-tracer");
@@ -398,13 +401,13 @@ pub trait Tracer: fmt::Debug + 'static {
 #[derive(Clone, Debug, Default)]
 pub struct SpanBuilder {
     /// Parent `SpanContext`
-    pub parent_context: Option<api::trace::SpanContext>,
+    pub parent_context: Option<SpanContext>,
     /// Trace id, useful for integrations with external tracing systems.
-    pub trace_id: Option<api::trace::TraceId>,
+    pub trace_id: Option<TraceId>,
     /// Span id, useful for integrations with external tracing systems.
-    pub span_id: Option<api::trace::SpanId>,
+    pub span_id: Option<SpanId>,
     /// Span kind
-    pub span_kind: Option<api::trace::SpanKind>,
+    pub span_kind: Option<SpanKind>,
     /// Span name
     pub name: String,
     /// Span start time
@@ -412,13 +415,13 @@ pub struct SpanBuilder {
     /// Span end time
     pub end_time: Option<SystemTime>,
     /// Span attributes
-    pub attributes: Option<Vec<api::KeyValue>>,
+    pub attributes: Option<Vec<KeyValue>>,
     /// Span Message events
-    pub message_events: Option<Vec<api::trace::Event>>,
+    pub message_events: Option<Vec<Event>>,
     /// Span Links
-    pub links: Option<Vec<api::trace::Link>>,
+    pub links: Option<Vec<Link>>,
     /// Span status code
-    pub status_code: Option<api::trace::StatusCode>,
+    pub status_code: Option<StatusCode>,
     /// Span status message
     pub status_message: Option<String>,
     /// Sampling result
@@ -447,7 +450,7 @@ impl SpanBuilder {
     }
 
     /// Assign parent context
-    pub fn with_parent(self, parent_context: api::trace::SpanContext) -> Self {
+    pub fn with_parent(self, parent_context: SpanContext) -> Self {
         SpanBuilder {
             parent_context: Some(parent_context),
             ..self
@@ -455,7 +458,7 @@ impl SpanBuilder {
     }
 
     /// Specify trace id to use if no parent context exists
-    pub fn with_trace_id(self, trace_id: api::trace::TraceId) -> Self {
+    pub fn with_trace_id(self, trace_id: TraceId) -> Self {
         SpanBuilder {
             trace_id: Some(trace_id),
             ..self
@@ -463,7 +466,7 @@ impl SpanBuilder {
     }
 
     /// Assign span id
-    pub fn with_span_id(self, span_id: api::trace::SpanId) -> Self {
+    pub fn with_span_id(self, span_id: SpanId) -> Self {
         SpanBuilder {
             span_id: Some(span_id),
             ..self
@@ -471,7 +474,7 @@ impl SpanBuilder {
     }
 
     /// Assign span kind
-    pub fn with_kind(self, span_kind: api::trace::SpanKind) -> Self {
+    pub fn with_kind(self, span_kind: SpanKind) -> Self {
         SpanBuilder {
             span_kind: Some(span_kind),
             ..self
@@ -495,7 +498,7 @@ impl SpanBuilder {
     }
 
     /// Assign span attributes
-    pub fn with_attributes(self, attributes: Vec<api::KeyValue>) -> Self {
+    pub fn with_attributes(self, attributes: Vec<KeyValue>) -> Self {
         SpanBuilder {
             attributes: Some(attributes),
             ..self
@@ -503,7 +506,7 @@ impl SpanBuilder {
     }
 
     /// Assign message events
-    pub fn with_message_events(self, message_events: Vec<api::trace::Event>) -> Self {
+    pub fn with_message_events(self, message_events: Vec<Event>) -> Self {
         SpanBuilder {
             message_events: Some(message_events),
             ..self
@@ -511,7 +514,7 @@ impl SpanBuilder {
     }
 
     /// Assign links
-    pub fn with_links(self, links: Vec<api::trace::Link>) -> Self {
+    pub fn with_links(self, links: Vec<Link>) -> Self {
         SpanBuilder {
             links: Some(links),
             ..self
@@ -519,7 +522,7 @@ impl SpanBuilder {
     }
 
     /// Assign status code
-    pub fn with_status_code(self, code: api::trace::StatusCode) -> Self {
+    pub fn with_status_code(self, code: StatusCode) -> Self {
         SpanBuilder {
             status_code: Some(code),
             ..self
@@ -543,7 +546,7 @@ impl SpanBuilder {
     }
 
     /// Builds a span with the given tracer from this configuration.
-    pub fn start<T: api::trace::Tracer>(self, tracer: &T) -> T::Span {
+    pub fn start<T: Tracer>(self, tracer: &T) -> T::Span {
         tracer.build(self)
     }
 }

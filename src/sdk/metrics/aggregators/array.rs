@@ -1,4 +1,4 @@
-use crate::api::metrics::{AtomicNumber, Descriptor, MetricsError, Number, NumberKind, Result};
+use crate::metrics::{AtomicNumber, Descriptor, MetricsError, Number, NumberKind, Result};
 use crate::sdk::{
     export::metrics::{Count, Distribution, Max, Min, MinMaxSumCount, Points, Quantile, Sum},
     metrics::Aggregator,

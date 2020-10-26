@@ -3,7 +3,7 @@
 //! This implementation is returned as the global Meter if no `Meter`
 //! has been set. It is also useful for testing purposes as it is intended
 //! to have minimal resource utilization and runtime impact.
-use crate::api::{
+use crate::{
     metrics::{
         sdk_api::{
             AsyncInstrumentCore, InstrumentCore, MeterCore, SyncBoundInstrumentCore,

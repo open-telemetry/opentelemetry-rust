@@ -37,8 +37,8 @@
 //! cause gaps in the distributed trace, and because of this OpenTelemetry API
 //! MUST NOT allow this combination.
 
-use crate::api;
-use crate::api::trace::TraceState;
+use crate::trace::{Link, SpanContext, SpanKind, TraceId, TraceState};
+use crate::KeyValue;
 
 /// The `ShouldSample` interface allows implementations to provide samplers
 /// which will return a sampling `SamplingResult` based on information that
@@ -48,12 +48,12 @@ pub trait ShouldSample: Send + Sync + std::fmt::Debug {
     #[allow(clippy::too_many_arguments)]
     fn should_sample(
         &self,
-        parent_context: Option<&api::trace::SpanContext>,
-        trace_id: api::trace::TraceId,
+        parent_context: Option<&SpanContext>,
+        trace_id: TraceId,
         name: &str,
-        span_kind: &api::trace::SpanKind,
-        attributes: &[api::KeyValue],
-        links: &[api::trace::Link],
+        span_kind: &SpanKind,
+        attributes: &[KeyValue],
+        links: &[Link],
     ) -> SamplingResult;
 }
 
@@ -63,7 +63,7 @@ pub struct SamplingResult {
     /// `SamplingDecision` reached by this result
     pub decision: SamplingDecision,
     /// Extra attributes added by this result
-    pub attributes: Vec<api::KeyValue>,
+    pub attributes: Vec<KeyValue>,
     /// Trace state from parent context, might be modified by sampler
     pub trace_state: TraceState,
 }
@@ -98,12 +98,12 @@ pub enum Sampler {
 impl ShouldSample for Sampler {
     fn should_sample(
         &self,
-        parent_context: Option<&api::trace::SpanContext>,
-        trace_id: api::trace::TraceId,
+        parent_context: Option<&SpanContext>,
+        trace_id: TraceId,
         name: &str,
-        span_kind: &api::trace::SpanKind,
-        attributes: &[api::KeyValue],
-        links: &[api::trace::Link],
+        span_kind: &SpanKind,
+        attributes: &[KeyValue],
+        links: &[Link],
     ) -> SamplingResult {
         let decision = match self {
             // Always sample the trace
@@ -156,9 +156,9 @@ impl ShouldSample for Sampler {
 
 #[cfg(test)]
 mod tests {
-    use crate::api;
-    use crate::api::trace::TraceState;
+    use super::*;
     use crate::sdk::trace::{Sampler, SamplingDecision, ShouldSample};
+    use crate::trace::{SpanId, TraceState, TRACE_FLAG_SAMPLED};
     use rand::Rng;
 
     #[rustfmt::skip]
@@ -215,14 +215,10 @@ mod tests {
             let mut sampled = 0;
             for _ in 0..total {
                 let parent_context = if parent {
-                    let trace_flags = if sample_parent {
-                        api::trace::TRACE_FLAG_SAMPLED
-                    } else {
-                        0
-                    };
-                    Some(api::trace::SpanContext::new(
-                        api::trace::TraceId::from_u128(1),
-                        api::trace::SpanId::from_u64(1),
+                    let trace_flags = if sample_parent { TRACE_FLAG_SAMPLED } else { 0 };
+                    Some(SpanContext::new(
+                        TraceId::from_u128(1),
+                        SpanId::from_u64(1),
                         trace_flags,
                         false,
                         TraceState::default(),
@@ -230,13 +226,13 @@ mod tests {
                 } else {
                     None
                 };
-                let trace_id = api::trace::TraceId::from_u128(rng.gen());
+                let trace_id = TraceId::from_u128(rng.gen());
                 if sampler
                     .should_sample(
                         parent_context.as_ref(),
                         trace_id,
                         name,
-                        &api::trace::SpanKind::Internal,
+                        &SpanKind::Internal,
                         &[],
                         &[],
                     )

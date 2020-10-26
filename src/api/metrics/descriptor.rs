@@ -1,4 +1,4 @@
-use crate::api::metrics::{InstrumentConfig, InstrumentKind, NumberKind};
+use crate::metrics::{InstrumentConfig, InstrumentKind, NumberKind};
 use fnv::FnvHasher;
 use std::hash::{Hash, Hasher};
 

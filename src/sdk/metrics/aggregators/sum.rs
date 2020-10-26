@@ -1,4 +1,4 @@
-use crate::api::metrics::{AtomicNumber, Descriptor, MetricsError, Number, Result};
+use crate::metrics::{AtomicNumber, Descriptor, MetricsError, Number, Result};
 use crate::sdk::export::metrics::{Aggregator, Subtractor, Sum};
 use std::any::Any;
 use std::sync::Arc;

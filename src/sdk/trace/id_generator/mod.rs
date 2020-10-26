@@ -1,26 +1,26 @@
 //! Id Generator
 pub(super) mod aws;
 
-use crate::api;
+use crate::trace::{SpanId, TraceId};
 use rand::{rngs, Rng};
 use std::cell::RefCell;
 
-/// Default [`api::trace::IdGenerator`] implementation.
+/// Default [`crate::trace::IdGenerator`] implementation.
 /// Generates Trace and Span ids using a random number generator.
 #[derive(Clone, Debug, Default)]
 pub struct IdGenerator {
     _private: (),
 }
 
-impl api::trace::IdGenerator for IdGenerator {
+impl crate::trace::IdGenerator for IdGenerator {
     /// Generate new `TraceId` using thread local rng
-    fn new_trace_id(&self) -> api::trace::TraceId {
-        CURRENT_RNG.with(|rng| api::trace::TraceId::from_u128(rng.borrow_mut().gen()))
+    fn new_trace_id(&self) -> TraceId {
+        CURRENT_RNG.with(|rng| TraceId::from_u128(rng.borrow_mut().gen()))
     }
 
     /// Generate new `SpanId` using thread local rng
-    fn new_span_id(&self) -> api::trace::SpanId {
-        CURRENT_RNG.with(|rng| api::trace::SpanId::from_u64(rng.borrow_mut().gen()))
+    fn new_span_id(&self) -> SpanId {
+        CURRENT_RNG.with(|rng| SpanId::from_u64(rng.borrow_mut().gen()))
     }
 }
 

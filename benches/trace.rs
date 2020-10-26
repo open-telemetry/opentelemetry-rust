@@ -1,10 +1,8 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use opentelemetry::{
-    api::{
-        trace::{Span, Tracer, TracerProvider},
-        Key,
-    },
     sdk::trace as sdktrace,
+    trace::{Span, Tracer, TracerProvider},
+    Key,
 };
 
 fn criterion_benchmark(c: &mut Criterion) {

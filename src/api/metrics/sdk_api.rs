@@ -1,6 +1,6 @@
 //! Metrics SDK API
-use crate::api::metrics::{AsyncRunner, Descriptor, Measurement, Number, Result};
-use crate::api::{Context, KeyValue};
+use crate::metrics::{AsyncRunner, Descriptor, Measurement, Number, Result};
+use crate::{Context, KeyValue};
 use std::any::Any;
 use std::fmt;
 use std::sync::Arc;

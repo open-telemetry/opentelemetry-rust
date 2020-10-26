@@ -1,4 +1,4 @@
-use crate::api::metrics::{registry, Result};
+use crate::metrics::{registry, Result};
 use crate::sdk::{
     export::metrics::{
         AggregatorSelector, CheckpointSet, Checkpointer, ExportKindSelector, Record,

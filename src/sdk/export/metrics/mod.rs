@@ -1,9 +1,9 @@
 //! Metrics Export
-use crate::api::{
+use crate::sdk::resource::Resource;
+use crate::{
     labels,
     metrics::{Descriptor, InstrumentKind, Number, Result},
 };
-use crate::sdk::resource::Resource;
 use std::any::Any;
 use std::fmt;
 use std::sync::Arc;

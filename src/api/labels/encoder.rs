@@ -1,4 +1,4 @@
-use crate::api::{Key, Value};
+use crate::{Key, Value};
 use std::fmt;
 use std::sync::atomic::{AtomicUsize, Ordering};
 

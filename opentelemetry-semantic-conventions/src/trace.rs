@@ -8,7 +8,7 @@
 //! ## Usage
 //!
 //! ```rust
-//! use opentelemetry::api::trace::Tracer;
+//! use opentelemetry::trace::Tracer;
 //! use opentelemetry::global;
 //! use opentelemetry_semantic_conventions as semcov;
 //!
@@ -22,7 +22,7 @@
 //!     .start(&tracer);
 //! ```
 
-use opentelemetry::api::Key;
+use opentelemetry::Key;
 
 /// An identifier for the database management system (DBMS) product being used.
 pub const DB_SYSTEM: Key = Key::from_static_str("db.system");

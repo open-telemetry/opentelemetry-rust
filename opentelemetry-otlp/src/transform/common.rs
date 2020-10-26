@@ -1,6 +1,6 @@
 use crate::proto::common::{AnyValue, ArrayValue, KeyValue};
-use opentelemetry::api::Value;
 use opentelemetry::sdk::trace::EvictedHashMap;
+use opentelemetry::Value;
 use protobuf::RepeatedField;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -22,8 +22,8 @@ impl From<EvictedHashMap> for Attributes {
     }
 }
 
-impl From<Vec<opentelemetry::api::KeyValue>> for Attributes {
-    fn from(kvs: Vec<opentelemetry::api::KeyValue>) -> Self {
+impl From<Vec<opentelemetry::KeyValue>> for Attributes {
+    fn from(kvs: Vec<opentelemetry::KeyValue>) -> Self {
         Attributes(RepeatedField::from_vec(
             kvs.into_iter()
                 .map(|api_kv| {

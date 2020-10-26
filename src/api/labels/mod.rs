@@ -1,5 +1,5 @@
 //! OpenTelemetry Labels
-use crate::api::{Key, KeyValue, Value};
+use crate::{Key, KeyValue, Value};
 use std::cmp::Ordering;
 use std::collections::{btree_map, BTreeMap};
 use std::hash::{Hash, Hasher};

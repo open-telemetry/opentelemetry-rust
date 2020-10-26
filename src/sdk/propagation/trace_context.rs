@@ -17,9 +17,9 @@
 //! See the [w3c trace-context docs] for more details.
 //!
 //! [w3c trace-context docs]: https://w3c.github.io/trace-context/
-use crate::api::{
+use crate::{
     propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
-    trace::{SpanId, SpanContext, TraceContextExt, TraceId, TraceState, TRACE_FLAG_SAMPLED},
+    trace::{SpanContext, SpanId, TraceContextExt, TraceId, TraceState, TRACE_FLAG_SAMPLED},
     Context,
 };
 use std::str::FromStr;
@@ -149,11 +149,11 @@ impl TextMapPropagator for TraceContextPropagator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::api::{
-        propagation::{Extractor, Injector, TextMapPropagator},
-        trace::{SpanId, SpanContext, TraceId},
-    };
     use crate::testing::trace::TestSpan;
+    use crate::{
+        propagation::{Extractor, Injector, TextMapPropagator},
+        trace::{SpanContext, SpanId, TraceId},
+    };
     use std::collections::HashMap;
     use std::str::FromStr;
 

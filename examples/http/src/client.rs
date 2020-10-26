@@ -1,13 +1,13 @@
 use hyper::{body::Body, Client};
-use opentelemetry::api::{
-    trace::{TraceContextExt, Tracer},
-    Context, KeyValue,
-};
 use opentelemetry::exporter::trace::stdout;
 use opentelemetry::global;
 use opentelemetry::sdk::{
     propagation::TraceContextPropagator,
     trace::{Config, Sampler},
+};
+use opentelemetry::{
+    trace::{TraceContextExt, Tracer},
+    Context, KeyValue,
 };
 
 fn init_tracer() -> (impl Tracer, stdout::Uninstall) {

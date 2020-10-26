@@ -1,5 +1,5 @@
-use crate::api::metrics::registry;
 use crate::global;
+use crate::metrics::registry;
 use crate::sdk::{
     export::metrics::{AggregatorSelector, Checkpointer, ExportKindSelector, Exporter},
     metrics::{

@@ -19,13 +19,13 @@
 //!
 //! Implementations might require the user to specify configuration properties at
 //! `TracerProvider` creation time, or rely on external configurations.
-use crate::api;
+use crate::trace::Tracer;
 use std::fmt;
 
 /// An interface to create `Tracer` instances.
 pub trait TracerProvider: fmt::Debug + 'static {
     /// The `Tracer` type that this `TracerProvider` will return.
-    type Tracer: api::trace::Tracer;
+    type Tracer: Tracer;
 
     /// Creates a named tracer instance of `Self::Tracer`.
     /// If the name is an empty string then provider uses default name.

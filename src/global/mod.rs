@@ -11,12 +11,12 @@
 //! ## Usage
 //!
 //! ```ignore
-//! use opentelemetry::api::trace::{TracerProvider, Tracer};
-//! use opentelemetry::api::metrics::{Meter, MeterProvider};
+//! use opentelemetry::trace::{Tracer, TracerProvider};
+//! use opentelemetry::metrics::{Meter, MeterProvider};
 //! use opentelemetry::global;
 //!
 //! fn init_tracer() -> global::TracerProviderGuard {
-//!     let provider = opentelemetry::api::trace::NoopTracerProvider::new();
+//!     let provider = opentelemetry::trace::NoopTracerProvider::new();
 //!
 //!     // Configure the global `TracerProvider` singleton when your app starts
 //!     // (there is a no-op default if this is not set by your application)

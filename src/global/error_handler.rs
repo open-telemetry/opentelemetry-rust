@@ -1,4 +1,4 @@
-use crate::api::metrics::{MetricsError, Result};
+use crate::metrics::{MetricsError, Result};
 use std::sync::RwLock;
 
 lazy_static::lazy_static! {

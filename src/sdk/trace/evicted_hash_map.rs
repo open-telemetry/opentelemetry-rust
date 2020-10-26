@@ -1,6 +1,6 @@
 //! # Evicted Map
 
-use crate::api;
+use crate::{Key, KeyValue, Value};
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, LinkedList};
@@ -10,8 +10,8 @@ use std::collections::{HashMap, LinkedList};
 #[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
 #[derive(Clone, Debug, PartialEq)]
 pub struct EvictedHashMap {
-    map: HashMap<api::Key, api::Value>,
-    evict_list: LinkedList<api::Key>,
+    map: HashMap<Key, Value>,
+    evict_list: LinkedList<Key>,
     capacity: u32,
     dropped_count: u32,
 }
@@ -28,7 +28,7 @@ impl EvictedHashMap {
     }
 
     /// Inserts a key-value pair into the map.
-    pub fn insert(&mut self, item: api::KeyValue) {
+    pub fn insert(&mut self, item: KeyValue) {
         // Check for existing item
         if let Some(value) = self.map.get_mut(&item.key) {
             *value = item.value;
@@ -63,16 +63,16 @@ impl EvictedHashMap {
     }
 
     /// Returns a front-to-back iterator.
-    pub fn iter(&self) -> std::collections::hash_map::Iter<'_, api::Key, api::Value> {
+    pub fn iter(&self) -> std::collections::hash_map::Iter<'_, Key, Value> {
         self.map.iter()
     }
 
     /// Returns a reference to the value corresponding to the key if it exists
-    pub fn get(&self, key: &api::Key) -> Option<&api::Value> {
+    pub fn get(&self, key: &Key) -> Option<&Value> {
         self.map.get(key)
     }
 
-    fn move_key_to_front(&mut self, key: api::Key) {
+    fn move_key_to_front(&mut self, key: Key) {
         if self.evict_list.is_empty() {
             // If empty, push front
             self.evict_list.push_front(key);
@@ -100,8 +100,8 @@ impl EvictedHashMap {
 }
 
 impl IntoIterator for EvictedHashMap {
-    type Item = (api::Key, api::Value);
-    type IntoIter = std::collections::hash_map::IntoIter<api::Key, api::Value>;
+    type Item = (Key, Value);
+    type IntoIter = std::collections::hash_map::IntoIter<Key, Value>;
 
     /// Creates a consuming iterator, that is, one that moves each key-value
     /// pair out of the map in arbitrary order. The map cannot be used after
@@ -112,8 +112,8 @@ impl IntoIterator for EvictedHashMap {
 }
 
 impl<'a> IntoIterator for &'a EvictedHashMap {
-    type Item = (&'a api::Key, &'a api::Value);
-    type IntoIter = std::collections::hash_map::Iter<'a, api::Key, api::Value>;
+    type Item = (&'a Key, &'a Value);
+    type IntoIter = std::collections::hash_map::Iter<'a, Key, Value>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.map.iter()
@@ -121,8 +121,8 @@ impl<'a> IntoIterator for &'a EvictedHashMap {
 }
 
 impl<'a> IntoIterator for &'a mut EvictedHashMap {
-    type Item = (&'a api::Key, &'a mut api::Value);
-    type IntoIter = std::collections::hash_map::IterMut<'a, api::Key, api::Value>;
+    type Item = (&'a Key, &'a mut Value);
+    type IntoIter = std::collections::hash_map::IterMut<'a, Key, Value>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.map.iter_mut()
@@ -131,8 +131,7 @@ impl<'a> IntoIterator for &'a mut EvictedHashMap {
 
 #[cfg(test)]
 mod tests {
-    use super::EvictedHashMap;
-    use crate::api::Key;
+    use super::*;
     use std::collections::HashSet;
 
     #[test]

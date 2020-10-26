@@ -1,11 +1,11 @@
 use actix_service::Service;
 use actix_web::middleware::Logger;
 use actix_web::{web, App, HttpServer};
-use opentelemetry::api::{
+use opentelemetry::{global, sdk::trace as sdktrace};
+use opentelemetry::{
     trace::{FutureExt, TraceContextExt, Tracer},
     Key,
 };
-use opentelemetry::{global, sdk::trace as sdktrace};
 use std::error::Error;
 
 fn init_tracer() -> Result<

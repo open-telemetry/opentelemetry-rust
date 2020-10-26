@@ -18,12 +18,10 @@
 //!
 //! [`hello_world`]: https://github.com/tokio-rs/tokio/blob/132e9f1da5965530b63554d7a1c59824c3de4e30/tokio/examples/hello_world.rs
 use opentelemetry::{
-    api::{
-        trace::{FutureExt, TraceContextExt, Tracer},
-        Context,
-    },
     global,
     sdk::trace as sdktrace,
+    trace::{FutureExt, TraceContextExt, Tracer},
+    Context,
 };
 use std::{error::Error, io, net::SocketAddr};
 use tokio::io::AsyncWriteExt;

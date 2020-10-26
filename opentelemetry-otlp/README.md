@@ -21,7 +21,7 @@ Then install a new pipeline with the recommended defaults to start exporting
 telemetry:
 
 ```rust
-use opentelemetry::api::Tracer;
+use opentelemetry::tracer;
 
 fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let (tracer, _uninstall) = opentelemetry_otlp::new_pipeline().install()?;
@@ -57,7 +57,7 @@ Example showing how to override all configuration options. See the
 [`OtlpPipelineBuilder`]: struct.OtlpPipelineBuilder.html
 
 ```rust
-use opentelemetry::api::{KeyValue, Tracer};
+use opentelemetry::{KeyValue, Tracer};
 use opentelemetry::sdk::{trace, IdGenerator, Resource, Sampler};
 use opentelemetry_otlp::{Compression, Credentials, Protocol};
 use std::time::Duration;

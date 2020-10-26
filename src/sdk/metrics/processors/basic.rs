@@ -1,7 +1,3 @@
-use crate::api::{
-    labels::{hash_labels, LabelSet},
-    metrics::{Descriptor, MetricsError, Result},
-};
 use crate::sdk::{
     export::metrics::{
         self, Accumulation, Aggregator, AggregatorSelector, CheckpointSet, Checkpointer,
@@ -9,6 +5,10 @@ use crate::sdk::{
     },
     metrics::aggregators::SumAggregator,
     Resource,
+};
+use crate::{
+    labels::{hash_labels, LabelSet},
+    metrics::{Descriptor, MetricsError, Result},
 };
 use fnv::FnvHasher;
 use std::collections::HashMap;

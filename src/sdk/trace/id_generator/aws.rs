@@ -1,5 +1,5 @@
-use crate::api::trace::{IdGenerator, SpanId, TraceId};
 use crate::sdk;
+use crate::trace::{IdGenerator, SpanId, TraceId};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 /// Generates AWS X-Ray compliant Trace and Span ids.
@@ -23,7 +23,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 /// ## Example
 ///
 /// ```
-/// use opentelemetry::api::trace::NoopSpanExporter;
+/// use opentelemetry::trace::NoopSpanExporter;
 /// use opentelemetry::sdk::trace::{Config, TracerProvider, XrayIdGenerator};
 ///
 /// let _provider: TracerProvider = TracerProvider::builder()

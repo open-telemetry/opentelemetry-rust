@@ -1,12 +1,13 @@
 use futures::stream::{Stream, StreamExt};
-use opentelemetry::api::{
-    metrics::{self, MetricsError, ObserverResult},
-    trace::{TraceContextExt, Tracer},
-    BaggageExt, Context, Key, KeyValue,
-};
 use opentelemetry::exporter;
 use opentelemetry::global;
 use opentelemetry::sdk::{metrics::PushController, trace as sdktrace};
+use opentelemetry::{
+    baggage::BaggageExt,
+    metrics::{self, MetricsError, ObserverResult},
+    trace::{TraceContextExt, Tracer},
+    Context, Key, KeyValue,
+};
 use std::error::Error;
 use std::time::Duration;
 

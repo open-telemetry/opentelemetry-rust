@@ -1,8 +1,8 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use opentelemetry::api::metrics::{InstrumentKind, Number, NumberKind};
+use opentelemetry::metrics::{InstrumentKind, Number, NumberKind};
 use opentelemetry::sdk::export::metrics::Aggregator;
 use opentelemetry::{
-    api::metrics::Descriptor,
+    metrics::Descriptor,
     sdk::{
         export::metrics::Quantile,
         metrics::aggregators::{ArrayAggregator, DDSKetchAggregator, DDSketchConfig},

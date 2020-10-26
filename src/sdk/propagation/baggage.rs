@@ -7,13 +7,13 @@
 //! `Baggage`s are serialized according to the editor's draft of
 //! the [W3C Baggage] specification.
 //!
-//! [`CorrelationContext`]: struct.Baggage.html
+//! [`Baggage`]: struct.Baggage.html
 //! [W3C Baggage]: https://w3c.github.io/baggage/
 //!
 //! # Examples
 //!
 //! ```
-//! use opentelemetry::api::{BaggageExt, Key, propagation::TextMapPropagator};
+//! use opentelemetry::{baggage::BaggageExt, Key, propagation::TextMapPropagator};
 //! use opentelemetry::sdk::propagation::BaggagePropagator;
 //! use std::collections::HashMap;
 //!
@@ -40,9 +40,10 @@
 //! assert!(header_value.contains("user_id=1"), "still contains previous name / value");
 //! assert!(header_value.contains("server_id=42"), "contains new name / value pair");
 //! ```
-use crate::api::{
+use crate::{
+    baggage::{BaggageExt, KeyValueMetadata},
     propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
-    BaggageExt, Context, KeyValueMetadata,
+    Context,
 };
 use percent_encoding::{percent_decode_str, utf8_percent_encode, AsciiSet, CONTROLS};
 use std::iter;
@@ -69,7 +70,7 @@ lazy_static::lazy_static! {
 /// # Examples
 ///
 /// ```
-/// use opentelemetry::api::{BaggageExt, Key, propagation::TextMapPropagator};
+/// use opentelemetry::{baggage::BaggageExt, Key, propagation::TextMapPropagator};
 /// use opentelemetry::sdk::propagation::BaggagePropagator;
 /// use std::collections::HashMap;
 ///
@@ -184,7 +185,7 @@ impl TextMapPropagator for BaggagePropagator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::api::{propagation::TextMapPropagator, BaggageMetadata, Key, KeyValue, Value};
+    use crate::{baggage::BaggageMetadata, propagation::TextMapPropagator, Key, KeyValue, Value};
     use std::collections::HashMap;
 
     #[rustfmt::skip]

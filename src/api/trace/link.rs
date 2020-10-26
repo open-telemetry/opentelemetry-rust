@@ -1,5 +1,5 @@
 //! # OpenTelemetry Trace Link Interface
-use crate::api;
+use crate::{trace::SpanContext, KeyValue};
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
 
@@ -8,13 +8,13 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
 #[derive(Clone, Debug, PartialEq)]
 pub struct Link {
-    span_context: api::trace::SpanContext,
-    attributes: Vec<api::KeyValue>,
+    span_context: SpanContext,
+    attributes: Vec<KeyValue>,
 }
 
 impl Link {
     /// Create a new link
-    pub fn new(span_context: api::trace::SpanContext, attributes: Vec<api::KeyValue>) -> Self {
+    pub fn new(span_context: SpanContext, attributes: Vec<KeyValue>) -> Self {
         Link {
             span_context,
             attributes,
@@ -22,12 +22,12 @@ impl Link {
     }
 
     /// The span context of the linked span
-    pub fn span_context(&self) -> &api::trace::SpanContext {
+    pub fn span_context(&self) -> &SpanContext {
         &self.span_context
     }
 
     /// Attributes of the span link
-    pub fn attributes(&self) -> &Vec<api::KeyValue> {
+    pub fn attributes(&self) -> &Vec<KeyValue> {
         &self.attributes
     }
 }

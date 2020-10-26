@@ -1,4 +1,4 @@
-use crate::api::metrics::{Descriptor, MetricsError, Number, Result};
+use crate::metrics::{Descriptor, MetricsError, Number, Result};
 use crate::sdk::export::metrics::{Aggregator, LastValue};
 use std::any::Any;
 use std::sync::{Arc, Mutex};

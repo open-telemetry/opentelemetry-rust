@@ -2,9 +2,8 @@
 //!
 //! Implementation of `ResourceDetector` to extract a `Resource` from environment
 //! variables.
-use crate::api::{Key, KeyValue, Value};
-use crate::sdk::resource::ResourceDetector;
-use crate::sdk::Resource;
+use crate::sdk::{resource::ResourceDetector, Resource};
+use crate::{Key, KeyValue, Value};
 use std::env;
 use std::time::Duration;
 
@@ -64,10 +63,10 @@ fn construct_otel_resources(s: String) -> Resource {
 
 #[cfg(test)]
 mod tests {
-    use crate::api::{Key, KeyValue, Value};
     use crate::sdk::env::OTEL_RESOURCE_ATTRIBUTES;
     use crate::sdk::resource::{Resource, ResourceDetector};
     use crate::sdk::EnvResourceDetector;
+    use crate::{Key, KeyValue, Value};
     use std::{env, time};
 
     #[test]

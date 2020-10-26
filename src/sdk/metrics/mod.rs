@@ -1,19 +1,19 @@
 //! # OpenTelemetry Metrics SDK
-use crate::api::metrics::{
+use crate::global;
+use crate::metrics::{
     sdk_api::{self, InstrumentCore as _, SyncBoundInstrumentCore as _},
     AsyncRunner, AtomicNumber, Descriptor, Measurement, Number, NumberKind, Observation, Result,
 };
-use crate::api::{
-    labels::{hash_labels, LabelSet},
-    Context, KeyValue,
-};
-use crate::global;
 use crate::sdk::{
     export::{
         self,
         metrics::{Aggregator, LockedProcessor, Processor},
     },
     resource::Resource,
+};
+use crate::{
+    labels::{hash_labels, LabelSet},
+    Context, KeyValue,
 };
 use fnv::FnvHasher;
 use std::any::Any;

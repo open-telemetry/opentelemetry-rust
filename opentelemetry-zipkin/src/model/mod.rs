@@ -1,4 +1,8 @@
-use opentelemetry::{api, exporter::trace};
+use opentelemetry::{
+    exporter::trace,
+    trace::{Event, SpanKind, StatusCode},
+    Key, KeyValue,
+};
 use std::collections::HashMap;
 use std::time::{Duration, SystemTime};
 
@@ -14,8 +18,8 @@ const INSTRUMENTATION_LIBRARY_NAME: &str = "otel.library.name";
 /// Instrument Library version MUST be reported in Jaeger Span tags with the following key
 const INSTRUMENTATION_LIBRARY_VERSION: &str = "otel.library.version";
 
-/// Converts `api::trace::Event` into an `annotation::Annotation`
-impl Into<annotation::Annotation> for api::trace::Event {
+/// Converts `Event` into an `annotation::Annotation`
+impl Into<annotation::Annotation> for Event {
     fn into(self) -> annotation::Annotation {
         let timestamp = self
             .timestamp
@@ -31,36 +35,36 @@ impl Into<annotation::Annotation> for api::trace::Event {
 }
 
 /// Converts StatusCode to str
-fn from_statuscode_to_str(status_code: api::trace::StatusCode) -> &'static str {
+fn from_statuscode_to_str(status_code: StatusCode) -> &'static str {
     match status_code {
-        api::trace::StatusCode::OK => "OK",
-        api::trace::StatusCode::Canceled => "CANCELLED",
-        api::trace::StatusCode::Unknown => "UNKNOWN",
-        api::trace::StatusCode::InvalidArgument => "INVALID_ARGUMENT",
-        api::trace::StatusCode::DeadlineExceeded => "DEADLINE_EXCEEDED",
-        api::trace::StatusCode::NotFound => "NOT_FOUND",
-        api::trace::StatusCode::AlreadyExists => "ALREADY_EXISTS",
-        api::trace::StatusCode::PermissionDenied => "PERMISSION_DENIED",
-        api::trace::StatusCode::ResourceExhausted => "RESOURSE_EXHAUSTED",
-        api::trace::StatusCode::FailedPrecondition => "FAILED_PRECONDITION",
-        api::trace::StatusCode::Aborted => "ABORTED",
-        api::trace::StatusCode::OutOfRange => "OUT_OF_RANGE",
-        api::trace::StatusCode::Unimplemented => "UNINPLEMENTED",
-        api::trace::StatusCode::Internal => "INTERNAL",
-        api::trace::StatusCode::Unavailable => "UNAVAILABLE",
-        api::trace::StatusCode::DataLoss => "DATA_LOSS",
-        api::trace::StatusCode::Unauthenticated => "UNAUTHENTICATED",
+        StatusCode::OK => "OK",
+        StatusCode::Canceled => "CANCELLED",
+        StatusCode::Unknown => "UNKNOWN",
+        StatusCode::InvalidArgument => "INVALID_ARGUMENT",
+        StatusCode::DeadlineExceeded => "DEADLINE_EXCEEDED",
+        StatusCode::NotFound => "NOT_FOUND",
+        StatusCode::AlreadyExists => "ALREADY_EXISTS",
+        StatusCode::PermissionDenied => "PERMISSION_DENIED",
+        StatusCode::ResourceExhausted => "RESOURSE_EXHAUSTED",
+        StatusCode::FailedPrecondition => "FAILED_PRECONDITION",
+        StatusCode::Aborted => "ABORTED",
+        StatusCode::OutOfRange => "OUT_OF_RANGE",
+        StatusCode::Unimplemented => "UNINPLEMENTED",
+        StatusCode::Internal => "INTERNAL",
+        StatusCode::Unavailable => "UNAVAILABLE",
+        StatusCode::DataLoss => "DATA_LOSS",
+        StatusCode::Unauthenticated => "UNAUTHENTICATED",
     }
 }
 
-/// Converts `api::trace::SpanKind` into an `Option<span::Kind>`
-fn into_zipkin_span_kind(kind: api::trace::SpanKind) -> Option<span::Kind> {
+/// Converts `SpanKind` into an `Option<span::Kind>`
+fn into_zipkin_span_kind(kind: SpanKind) -> Option<span::Kind> {
     match kind {
-        api::trace::SpanKind::Client => Some(span::Kind::Client),
-        api::trace::SpanKind::Server => Some(span::Kind::Server),
-        api::trace::SpanKind::Producer => Some(span::Kind::Producer),
-        api::trace::SpanKind::Consumer => Some(span::Kind::Consumer),
-        api::trace::SpanKind::Internal => None,
+        SpanKind::Client => Some(span::Kind::Client),
+        SpanKind::Server => Some(span::Kind::Server),
+        SpanKind::Producer => Some(span::Kind::Producer),
+        SpanKind::Consumer => Some(span::Kind::Consumer),
+        SpanKind::Internal => None,
     }
 }
 
@@ -73,16 +77,16 @@ pub(crate) fn into_zipkin_span(local_endpoint: Endpoint, span_data: trace::SpanD
             .attributes
             .into_iter()
             .map(|(k, v)| {
-                if k == api::Key::new("span.kind") {
+                if k == Key::new("span.kind") {
                     user_defined_span_kind = true;
                 }
-                api::KeyValue::new(k, v)
+                KeyValue::new(k, v)
             })
             .chain(
                 span_data
                     .resource
                     .iter()
-                    .map(|(k, v)| api::KeyValue::new(k.clone(), v.clone())),
+                    .map(|(k, v)| KeyValue::new(k.clone(), v.clone())),
             )
             .chain(
                 [
@@ -96,7 +100,7 @@ pub(crate) fn into_zipkin_span(local_endpoint: Endpoint, span_data: trace::SpanD
                     ),
                 ]
                 .iter()
-                .filter_map(|(key, val)| val.map(|val| api::KeyValue::new(*key, val))),
+                .filter_map(|(key, val)| val.map(|val| KeyValue::new(*key, val))),
             ),
     );
 
@@ -144,7 +148,7 @@ pub(crate) fn into_zipkin_span(local_endpoint: Endpoint, span_data: trace::SpanD
 
 fn map_from_kvs<T>(kvs: T) -> HashMap<String, String>
 where
-    T: IntoIterator<Item = api::KeyValue>,
+    T: IntoIterator<Item = KeyValue>,
 {
     let mut map: HashMap<String, String> = HashMap::new();
     for kv in kvs {

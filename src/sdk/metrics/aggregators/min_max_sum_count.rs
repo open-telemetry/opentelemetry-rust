@@ -1,4 +1,4 @@
-use crate::api::metrics::{AtomicNumber, Descriptor, MetricsError, Number, NumberKind, Result};
+use crate::metrics::{AtomicNumber, Descriptor, MetricsError, Number, NumberKind, Result};
 use crate::sdk::export::metrics::{Aggregator, Count, Max, Min, MinMaxSumCount, Sum};
 use std::any::Any;
 use std::cmp::Ordering;

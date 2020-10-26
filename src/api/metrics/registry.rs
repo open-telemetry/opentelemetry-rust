@@ -1,5 +1,5 @@
 //! Metrics Registry API
-use crate::api::{
+use crate::{
     metrics::{
         sdk_api::{AsyncInstrumentCore, MeterCore, SyncInstrumentCore},
         Meter, MeterProvider,

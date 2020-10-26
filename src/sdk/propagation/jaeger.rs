@@ -5,10 +5,10 @@
 //! See [`Jaeger documentation`] for detail of Jaeger propagation format.
 //!
 //! [`Jaeger documentation`]: https://www.jaegertracing.io/docs/1.18/client-libraries/#propagation-format
-use crate::api::{
+use crate::{
     propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
     trace::{
-        SpanId, SpanContext, TraceContextExt, TraceId, TraceState, TRACE_FLAG_DEBUG,
+        SpanContext, SpanId, TraceContextExt, TraceId, TraceState, TRACE_FLAG_DEBUG,
         TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
     },
     Context,
@@ -68,13 +68,7 @@ impl JaegerPropagator {
         let flag = self.extract_flag(parts[3])?;
         let trace_state = self.extract_trace_state(extractor)?;
 
-        Ok(SpanContext::new(
-            trace_id,
-            span_id,
-            flag,
-            true,
-            trace_state,
-        ))
+        Ok(SpanContext::new(trace_id, span_id, flag, true, trace_state))
     }
 
     /// Extract trace id from the header.
@@ -180,15 +174,15 @@ impl TextMapPropagator for JaegerPropagator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::api::{
+    use crate::testing::trace::TestSpan;
+    use crate::{
         propagation::{Injector, TextMapPropagator},
         trace::{
-            SpanId, SpanContext, TraceContextExt, TraceId, TraceState, TRACE_FLAG_DEBUG,
+            SpanContext, SpanId, TraceContextExt, TraceId, TraceState, TRACE_FLAG_DEBUG,
             TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
         },
         Context,
     };
-    use crate::testing::trace::TestSpan;
     use std::collections::HashMap;
 
     const LONG_TRACE_ID_STR: &str = "000000000000004d0000000000000016";

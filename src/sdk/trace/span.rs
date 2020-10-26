@@ -8,15 +8,15 @@
 //! start time is set to the current time on span creation. After the `Span` is created, it
 //! is possible to change its name, set its `Attributes`, and add `Links` and `Events`.
 //! These cannot be changed after the `Span`'s end time has been set.
-use crate::api::trace::TraceState;
-use crate::{api, exporter, sdk};
+use crate::trace::{Event, SpanContext, SpanId, StatusCode, TraceId, TraceState};
+use crate::{exporter, sdk, KeyValue};
 use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
 
 /// Single operation within a trace.
 #[derive(Clone, Debug)]
 pub struct Span {
-    id: api::trace::SpanId,
+    id: SpanId,
     inner: Arc<SpanInner>,
 }
 
@@ -29,7 +29,7 @@ struct SpanInner {
 
 impl Span {
     pub(crate) fn new(
-        id: api::trace::SpanId,
+        id: SpanId,
         data: Option<exporter::trace::SpanData>,
         tracer: sdk::trace::Tracer,
     ) -> Self {
@@ -69,7 +69,7 @@ impl Span {
     }
 }
 
-impl api::trace::Span for Span {
+impl crate::trace::Span for Span {
     /// Records events at a specific time in the context of a given `Span`.
     ///
     /// Note that the OpenTelemetry project documents certain ["standard event names and
@@ -79,21 +79,21 @@ impl api::trace::Span for Span {
         &self,
         name: String,
         timestamp: SystemTime,
-        attributes: Vec<api::KeyValue>,
+        attributes: Vec<KeyValue>,
     ) {
         self.with_data_mut(|data| {
             data.message_events
-                .push_back(api::trace::Event::new(name, timestamp, attributes))
+                .push_back(Event::new(name, timestamp, attributes))
         });
     }
 
     /// Returns the `SpanContext` for the given `Span`.
-    fn span_context(&self) -> api::trace::SpanContext {
+    fn span_context(&self) -> SpanContext {
         self.with_data(|data| data.span_context.clone())
             .unwrap_or_else(|| {
-                api::trace::SpanContext::new(
-                    api::trace::TraceId::invalid(),
-                    api::trace::SpanId::invalid(),
+                SpanContext::new(
+                    TraceId::invalid(),
+                    SpanId::invalid(),
                     0,
                     false,
                     TraceState::default(),
@@ -112,7 +112,7 @@ impl api::trace::Span for Span {
     /// Note that the OpenTelemetry project documents certain ["standard
     /// attributes"](https://github.com/open-telemetry/opentelemetry-specification/tree/v0.5.0/specification/trace/semantic_conventions/README.md)
     /// that have prescribed semantic meanings.
-    fn set_attribute(&self, attribute: api::KeyValue) {
+    fn set_attribute(&self, attribute: KeyValue) {
         self.with_data_mut(|data| {
             data.attributes.insert(attribute);
         });
@@ -120,7 +120,7 @@ impl api::trace::Span for Span {
 
     /// Sets the status of the `Span`. If used, this will override the default `Span`
     /// status, which is `OK`.
-    fn set_status(&self, code: api::trace::StatusCode, message: String) {
+    fn set_status(&self, code: StatusCode, message: String) {
         self.with_data_mut(|data| {
             data.status_code = code;
             data.status_message = message

@@ -2,7 +2,7 @@
 //!
 //! `TextMapPropagator` is a formatter to serialize and deserialize a value into a
 //! text format.
-use crate::api::{
+use crate::{
     propagation::{Extractor, Injector},
     Context,
 };

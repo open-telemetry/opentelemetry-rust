@@ -9,7 +9,7 @@
 //! [`futures`]: https://doc.rust-lang.org/std/future/trait.Future.html
 //! [`FutureExt`]: trait.FutureExt.html
 //! [`Context`]: ../../context/struct.Context.html
-use crate::api::context::Context as OpenTelemetryContext;
+use crate::Context as OpenTelemetryContext;
 use pin_project::pin_project;
 use std::{
     pin::Pin,

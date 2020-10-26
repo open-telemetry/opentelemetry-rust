@@ -3,14 +3,12 @@ use criterion::{
     Criterion,
 };
 use opentelemetry::{
-    api::{
-        metrics::{Descriptor, Meter},
-        Key, KeyValue,
-    },
+    metrics::{Descriptor, Meter},
     sdk::{
         export::metrics::{AggregatorSelector, Processor},
         metrics::{accumulator, aggregators},
     },
+    Key, KeyValue,
 };
 use rand::{rngs, Rng};
 use std::cell::RefCell;

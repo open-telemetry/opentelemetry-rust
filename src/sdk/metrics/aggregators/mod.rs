@@ -1,5 +1,5 @@
 //! Metric Aggregators
-use crate::api::metrics::{Descriptor, InstrumentKind, MetricsError, Number, NumberKind, Result};
+use crate::metrics::{Descriptor, InstrumentKind, MetricsError, Number, NumberKind, Result};
 
 mod array;
 mod ddsketch;
