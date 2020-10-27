@@ -8,7 +8,7 @@ Semantic conventions for applications instrumented with [`OpenTelemetry`].
 
 [![Crates.io: opentelemetry-semantic-conventions](https://img.shields.io/crates/v/opentelemetry-semantic-conventions.svg)](https://crates.io/crates/opentelemetry-semantic-conventions)
 [![Documentation](https://docs.rs/opentelemetry-semantic-conventions/badge.svg)](https://docs.rs/opentelemetry-semantic-conventions)
-[![Crates.io](https://img.shields.io/crates/l/opentelemetry-semantic-conventions)](./LICENSE)
+[![LICENSE](https://img.shields.io/crates/l/opentelemetry-semantic-conventions)](./LICENSE)
 [![GitHub Actions CI](https://github.com/open-telemetry/opentelemetry-rust/workflows/CI/badge.svg)](https://github.com/open-telemetry/opentelemetry-rust/actions?query=workflow%3ACI+branch%3Amaster)
 [![Gitter chat](https://img.shields.io/badge/gitter-join%20chat%20%E2%86%92-brightgreen.svg)](https://gitter.im/open-telemetry/opentelemetry-rust)
 
