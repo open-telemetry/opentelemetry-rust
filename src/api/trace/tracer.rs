@@ -115,7 +115,7 @@ use std::time::SystemTime;
 /// the following example _will not_ work:
 ///
 /// ```no_run
-/// # use opentelemetry::{global, trace::{Tracer, mark_span_as_active}};///
+/// # use opentelemetry::{global, trace::{Tracer, mark_span_as_active}};
 /// # let tracer = global::tracer("foo");
 /// # let span = tracer.start("foo-span");
 /// async {
