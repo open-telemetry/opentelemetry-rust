@@ -1,12 +1,36 @@
+![OpenTelemetry — An observability framework for cloud-native software.][splash]
+
+[splash]: https://raw.githubusercontent.com/open-telemetry/opentelemetry-rust/master/assets/logo-text.png
+
 # OpenTelemetry Collector Rust Exporter
 
-The OTLP Exporter supports exporting trace and metric data in the OTLP format to
-the OpenTelemetry collector. The OpenTelemetry Collector offers a
+[`OTLP`] integration for applications instrumented with [`OpenTelemetry`].
+
+[![Crates.io: opentelemetry-otlp](https://img.shields.io/crates/v/opentelemetry-otlp.svg)](https://crates.io/crates/opentelemetry-otlp)
+[![Documentation](https://docs.rs/opentelemetry-otlp/badge.svg)](https://docs.rs/opentelemetry-otlp)
+[![LICENSE](https://img.shields.io/crates/l/opentelemetry-otlp)](./LICENSE)
+[![GitHub Actions CI](https://github.com/open-telemetry/opentelemetry-rust/workflows/CI/badge.svg)](https://github.com/open-telemetry/opentelemetry-rust/actions?query=workflow%3ACI+branch%3Amaster)
+[![Gitter chat](https://img.shields.io/badge/gitter-join%20chat%20%E2%86%92-brightgreen.svg)](https://gitter.im/open-telemetry/opentelemetry-rust)
+
+[Documentation](https://docs.rs/opentelemetry-otlp) |
+[Chat](https://gitter.im/open-telemetry/opentelemetry-rust)
+
+## Overview
+
+[`OpenTelemetry`] is a collection of tools, APIs, and SDKs used to instrument,
+generate, collect, and export telemetry data (metrics, logs, and traces) for
+analysis in order to understand your software's performance and behavior.
+
+This crate provides an exporter for sending trace and metric data in the OTLP
+format to the OpenTelemetry collector. The OpenTelemetry Collector offers a
 vendor-agnostic implementation on how to receive, process, and export telemetry
 data. In addition, it removes the need to run, operate, and maintain multiple
 agents/collectors in order to support open-source telemetry data formats (e.g.
 Jaeger, Prometheus, etc.) sending to multiple open-source or commercial
 back-ends.
+
+[`OTLP`]: https://github.com/open-telemetry/opentelemetry-collector
+[`OpenTelemetry`]: https://crates.io/crates/opentelemetry
 
 ## Quickstart
 
