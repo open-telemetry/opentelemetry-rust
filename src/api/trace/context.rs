@@ -1,10 +1,11 @@
 //! Context extensions for tracing
-use crate::Context;
+use crate::{Context, ContextGuard};
 lazy_static::lazy_static! {
     static ref NOOP_SPAN: crate::trace::NoopSpan = crate::trace::NoopSpan::new();
 }
 
 struct Span(Box<dyn crate::trace::Span + Send + Sync>);
+
 struct RemoteSpanContext(crate::trace::SpanContext);
 
 /// Methods for storing and retrieving trace data in a context.
@@ -78,4 +79,70 @@ impl TraceContextExt for Context {
         self.get::<RemoteSpanContext>()
             .map(|span_context| &span_context.0)
     }
+}
+
+/// Mark a given `Span` as active.
+///
+/// The `Tracer` MUST provide a way to update its active `Span`, and MAY provide convenience
+/// methods to manage a `Span`'s lifetime and the scope in which a `Span` is active. When an
+/// active `Span` is made inactive, the previously-active `Span` SHOULD be made active. A `Span`
+/// maybe finished (i.e. have a non-null end time) but still be active. A `Span` may be active
+/// on one thread after it has been made inactive on another.
+///
+/// # Examples
+///
+/// ```
+/// use opentelemetry::{global, trace::{Span, Tracer}, KeyValue};
+/// use opentelemetry::trace::{get_active_span, mark_span_as_active};
+///
+/// fn my_function() {
+///     let tracer = global::tracer("my-component-a");
+///     // start an active span in one function
+///     let span = tracer.start("span-name");
+///     let _guard = mark_span_as_active(span);
+///     // anything happening in functions we call can still access the active span...
+///     my_other_function();
+/// }
+///
+/// fn my_other_function() {
+///     // call methods on the current span from
+///     get_active_span(|span| {
+///         span.add_event("An event!".to_string(), vec![KeyValue::new("happened", true)]);
+///     });
+/// }
+/// ```
+#[must_use = "Dropping the guard detaches the context."]
+pub fn mark_span_as_active<T: crate::trace::Span + Send + Sync>(span: T) -> ContextGuard {
+    let cx = Context::current_with_span(span);
+    cx.attach()
+}
+
+/// Executes a closure with a reference to this thread's current span.
+///
+/// # Examples
+///
+/// ```
+/// use opentelemetry::{global, trace::{Span, Tracer}, KeyValue};
+/// use opentelemetry::trace::get_active_span;
+///
+/// fn my_function() {
+///     // start an active span in one function
+///     global::tracer("my-component").in_span("span-name", |_cx| {
+///         // anything happening in functions we call can still access the active span...
+///         my_other_function();
+///     })
+/// }
+///
+/// fn my_other_function() {
+///     // call methods on the current span from
+///     get_active_span(|span| {
+///         span.add_event("An event!".to_string(), vec![KeyValue::new("happened", true)]);
+///     })
+/// }
+/// ```
+pub fn get_active_span<F, T>(f: F) -> T
+where
+    F: FnOnce(&dyn crate::trace::Span) -> T,
+{
+    f(Context::current().span())
 }
