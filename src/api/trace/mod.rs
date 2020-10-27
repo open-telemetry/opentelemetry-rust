@@ -123,7 +123,7 @@ mod span_processor;
 mod tracer;
 
 pub use self::{
-    context::TraceContextExt,
+    context::{get_active_span, mark_span_as_active, TraceContextExt},
     event::Event,
     futures::FutureExt,
     id_generator::IdGenerator,
