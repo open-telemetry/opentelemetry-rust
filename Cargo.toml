@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-stackdriver"
-version = "0.6.0"
+version = "0.6.1"
 description = "A Rust opentelemetry exporter that uploads traces to Google Stackdriver trace."
 documentation = "https://vivint-smarthome.github.io/opentelemetry-stackdriver/opentelemetry_stackdriver/"
 repository = "https://github.com/vivint-smarthome/opentelemetry-stackdriver"
@@ -12,6 +12,7 @@ edition = "2018"
 
 [build-dependencies]
 tonic-build = "0.1"
+which = "4.0.2"
 
 [dev-dependencies]
 futures = { version = "0.3", features = ["thread-pool"] }
