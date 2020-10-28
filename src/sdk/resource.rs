@@ -13,7 +13,9 @@
 //! produced by any `Tracer` from the provider are associated with this `Resource`.
 //!
 //! [`TracerProvider`]: ../../api/trace/provider/trait.TracerProvider.html
-use crate::{labels, Key, KeyValue, Value};
+#[cfg(feature = "metrics")]
+use crate::labels;
+use crate::{Key, KeyValue, Value};
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
 use std::collections::{btree_map, btree_map::Entry, BTreeMap};
@@ -105,6 +107,8 @@ impl Resource {
     }
 
     /// Encoded labels
+    #[cfg(feature = "metrics")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "metrics")))]
     pub fn encoded(&self, encoder: &dyn labels::Encoder) -> String {
         encoder.encode(&mut self.into_iter())
     }

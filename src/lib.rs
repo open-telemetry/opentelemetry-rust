@@ -72,6 +72,9 @@ pub mod testing;
 
 #[cfg(feature = "metrics")]
 #[cfg_attr(docsrs, doc(cfg(feature = "metrics")))]
+pub use api::labels;
+#[cfg(feature = "metrics")]
+#[cfg_attr(docsrs, doc(cfg(feature = "metrics")))]
 pub use api::metrics;
 #[cfg(feature = "trace")]
 #[cfg_attr(docsrs, doc(cfg(feature = "trace")))]
@@ -80,5 +83,5 @@ pub use api::{
     baggage,
     context::{Context, ContextGuard},
     core::{Key, KeyValue, Unit, Value},
-    labels, propagation,
+    propagation,
 };
