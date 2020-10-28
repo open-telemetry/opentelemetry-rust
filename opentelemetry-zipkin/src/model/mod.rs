@@ -37,23 +37,9 @@ impl Into<annotation::Annotation> for Event {
 /// Converts StatusCode to str
 fn from_statuscode_to_str(status_code: StatusCode) -> &'static str {
     match status_code {
-        StatusCode::OK => "OK",
-        StatusCode::Canceled => "CANCELLED",
-        StatusCode::Unknown => "UNKNOWN",
-        StatusCode::InvalidArgument => "INVALID_ARGUMENT",
-        StatusCode::DeadlineExceeded => "DEADLINE_EXCEEDED",
-        StatusCode::NotFound => "NOT_FOUND",
-        StatusCode::AlreadyExists => "ALREADY_EXISTS",
-        StatusCode::PermissionDenied => "PERMISSION_DENIED",
-        StatusCode::ResourceExhausted => "RESOURSE_EXHAUSTED",
-        StatusCode::FailedPrecondition => "FAILED_PRECONDITION",
-        StatusCode::Aborted => "ABORTED",
-        StatusCode::OutOfRange => "OUT_OF_RANGE",
-        StatusCode::Unimplemented => "UNINPLEMENTED",
-        StatusCode::Internal => "INTERNAL",
-        StatusCode::Unavailable => "UNAVAILABLE",
-        StatusCode::DataLoss => "DATA_LOSS",
-        StatusCode::Unauthenticated => "UNAUTHENTICATED",
+        StatusCode::Ok => "OK",
+        StatusCode::Unset => "UNSET",
+        StatusCode::Error => "ERROR",
     }
 }
 
