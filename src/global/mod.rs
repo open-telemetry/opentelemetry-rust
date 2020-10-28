@@ -56,14 +56,14 @@
 //! The generic interface is provided by the [`GlobalProvider`] struct which
 //! can be accessed anywhere via [`tracer_provider`] and allows applications to
 //! use the [`BoxedTracer`] and [`BoxedSpan`] instances that implement
-//! [`Tracer`] and [`Span`]. They wrap a boxed dyn [`GenericProvider`],
+//! [`Tracer`] and [`Span`]. They wrap a boxed dyn [`GenericTracerProvider`],
 //! [`GenericTracer`], and [`Span`] respectively allowing the underlying
 //! implementation to be set at runtime.
 //!
 //! [`TracerProvider`]: ../api/trace/provider/trait.TracerProvider.html
 //! [`Tracer`]: ../api/trace/tracer/trait.Tracer.html
 //! [`Span`]: ../api/trace/span/trait.Span.html
-//! [`GenericProvider`]: trait.GenericProvider.html
+//! [`GenericTracerProvider`]: trait.GenericTracerProvider.html
 //! [`GenericTracer`]: trait.GenericTracer.html
 //! [`GlobalProvider`]: struct.GlobalProvider.html
 //! [`BoxedTracer`]: struct.BoxedTracer.html
@@ -85,13 +85,13 @@ mod trace;
 pub use error_handler::{handle_error, set_error_handler};
 #[cfg(feature = "metrics")]
 #[cfg_attr(docsrs, doc(cfg(feature = "metrics")))]
-pub use metrics::{meter, meter_provider, set_meter_provider};
+pub use metrics::{meter, meter_provider, set_meter_provider, GlobalMeterProvider};
 #[cfg(feature = "trace")]
 #[cfg_attr(docsrs, doc(cfg(feature = "trace")))]
 pub use propagation::{get_text_map_propagator, set_text_map_propagator};
 #[cfg(feature = "trace")]
 #[cfg_attr(docsrs, doc(cfg(feature = "trace")))]
 pub use trace::{
-    set_tracer_provider, tracer, tracer_provider, tracer_with_version, GenericProvider,
-    TracerProviderGuard,
+    set_tracer_provider, tracer, tracer_provider, tracer_with_version, BoxedSpan, BoxedTracer,
+    GenericTracer, GenericTracerProvider, GlobalTracerProvider, TracerProviderGuard,
 };
