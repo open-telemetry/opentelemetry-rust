@@ -1,6 +1,8 @@
 pub mod baggage;
 pub(crate) mod context;
 pub(crate) mod core;
+#[cfg(feature = "metrics")]
+#[cfg_attr(docsrs, doc(cfg(feature = "metrics")))]
 pub mod labels;
 #[cfg(feature = "metrics")]
 #[cfg_attr(docsrs, doc(cfg(feature = "metrics")))]
