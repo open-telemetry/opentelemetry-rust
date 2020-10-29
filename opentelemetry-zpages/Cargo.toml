@@ -1,0 +1,28 @@
+[package]
+name = "opentelemetry-zpages"
+version = "0.1.0"
+authors = ["OpenTelemetry Authors <cncf-opentelemetry-contributors@lists.cncf.io>"]
+description = "ZPages implementation for OpenTelemetry"
+homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/master/opentelemetry-zpages"
+repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/master/opentelemetry-zpages"
+readme = "README.md"
+categories = [
+    "development-tools::debugging",
+    "development-tools::profiling",
+    "asynchronous",
+]
+keywords = ["opentelemetry", "zipkin", "tracing", "async"]
+license = "Apache-2.0"
+edition = "2018"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+opentelemetry = { version = "0.9.1", path = "..", default-features = false, features = ["trace"] }
+futures = "0.3"
+lazy_static = "1.4.0"
+
+[dev-dependencies]
+tokio = { version = "0.3.2", features = ["full"] }
