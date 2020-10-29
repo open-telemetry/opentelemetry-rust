@@ -8,7 +8,10 @@ use std::{path::{Path, PathBuf}, thread::sleep, time::Duration};
 
 #[tokio::main]
 async fn main() {
-  simple_logger::init_with_level(log::Level::Debug).unwrap();
+  simple_logger::SimpleLogger::new()
+    .with_level(log::LevelFilter::Debug)
+    .init()
+    .unwrap();
   let args = std::env::args().collect::<Vec<_>>();
   if args.len() < 2 {
     eprintln!("This example requires a path to your stackdriver json credentials as the first argument.");
