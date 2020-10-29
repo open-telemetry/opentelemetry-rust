@@ -1,8 +1,7 @@
 use opentelemetry::{api::Provider, sdk};
 use opentelemetry_stackdriver::StackDriverExporter;
 use tracing::{span, Level};
-use tracing_opentelemetry::OpenTelemetryLayer;
-use tracing_subscriber::{Layer, Registry};
+use tracing_subscriber::prelude::*;
 
 use std::{
   path::{Path, PathBuf},
@@ -32,21 +31,14 @@ async fn main() {
 }
 
 async fn init_tracing(stackdriver_creds: impl AsRef<Path>) {
-  StackDriverExporter::connect(stackdriver_creds, PathBuf::from("tokens.json"), &TokioSpawner, None, 5)
+  let exporter = StackDriverExporter::connect(stackdriver_creds, PathBuf::from("tokens.json"), &TokioSpawner, None, 5)
     .await
-    .map_err(|e| panic!("Error connecting to stackdriver: {:?}", e))
-    .and_then(|exporter| {
-      tracing::subscriber::set_global_default(
-        OpenTelemetryLayer::with_tracer(
-          sdk::Provider::builder()
-            .with_simple_exporter(exporter)
-            .build()
-            .get_tracer("example"),
-        )
-        .with_subscriber(Registry::default()),
-      )
-      .map_err(|e| panic!("Error setting subscriber: {:?}", e))
-    })
+    .unwrap();
+
+  let provider = sdk::Provider::builder().with_simple_exporter(exporter).build();
+  tracing_subscriber::registry()
+    .with(tracing_opentelemetry::layer().with_tracer(provider.get_tracer("tracing")))
+    .try_init()
     .unwrap();
 }
 

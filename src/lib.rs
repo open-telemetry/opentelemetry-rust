@@ -29,7 +29,6 @@ use opentelemetry::{
 };
 use proto::google::devtools::cloudtrace::v2::BatchWriteSpansRequest;
 use std::{
-  any::Any,
   sync::{
     atomic::{AtomicUsize, Ordering},
     Arc,
@@ -175,7 +174,7 @@ impl StackDriverExporter {
               attribute_map: span
                 .attributes
                 .iter()
-                .map(|(key, value)| (key.inner().clone().into_owned(), attribute_value_conversion(value.clone())))
+                .map(|(key, value)| (key.as_str().to_owned(), attribute_value_conversion(value.clone())))
                 .collect(),
               ..Default::default()
             };
@@ -198,11 +197,11 @@ impl StackDriverExporter {
               name: format!(
                 "projects/{}/traces/{}/spans/{}",
                 project_name,
-                hex::encode(span.context.trace_id().to_u128().to_be_bytes()),
-                hex::encode(span.context.span_id().to_u64().to_be_bytes())
+                hex::encode(span.span_context.trace_id().to_u128().to_be_bytes()),
+                hex::encode(span.span_context.span_id().to_u64().to_be_bytes())
               ),
               display_name: Some(to_truncate(span.name.clone())),
-              span_id: hex::encode(span.context.span_id().to_u64().to_be_bytes()),
+              span_id: hex::encode(span.span_context.span_id().to_u64().to_be_bytes()),
               parent_span_id: hex::encode(span.parent_span_id.to_u64().to_be_bytes()),
               start_time: Some(span.start_time.into()),
               end_time: Some(span.end_time.into()),
@@ -277,10 +276,6 @@ impl SpanExporter for StackDriverExporter {
       // Spin for a bit and give the inner export some time to upload, with a timeout.
     }
   }
-
-  fn as_any(&self) -> &dyn Any {
-    self
-  }
 }
 
 fn attribute_value_conversion(v: Value) -> AttributeValue {
@@ -292,6 +287,7 @@ fn attribute_value_conversion(v: Value) -> AttributeValue {
     Value::I64(v) => attribute_value::Value::IntValue(v),
     Value::String(v) => attribute_value::Value::StringValue(to_truncate(v)),
     Value::U64(v) => attribute_value::Value::IntValue(v as i64),
+    Value::Array(_) => attribute_value::Value::StringValue(to_truncate(String::from(v))),
   };
   AttributeValue { value: Some(new_value) }
 }
