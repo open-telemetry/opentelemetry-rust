@@ -27,7 +27,7 @@ Everyone is welcome to contribute code to `opentelemetry-rust` via
 GitHub pull requests (PRs).
 
 ```sh
-$ git clone https://github.com/open-telemetry/opentelemetry-rust
+$ git clone --recurse-submodule https://github.com/open-telemetry/opentelemetry-rust
 ```
 
 Enter the newly created directory and add your fork as a new remote:
