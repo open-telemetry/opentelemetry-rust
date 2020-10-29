@@ -4,7 +4,11 @@ use tracing::{span, Level};
 use tracing_opentelemetry::OpenTelemetryLayer;
 use tracing_subscriber::{Layer, Registry};
 
-use std::{path::{Path, PathBuf}, thread::sleep, time::Duration};
+use std::{
+  path::{Path, PathBuf},
+  thread::sleep,
+  time::Duration,
+};
 
 #[tokio::main]
 async fn main() {
