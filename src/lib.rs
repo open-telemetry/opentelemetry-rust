@@ -111,7 +111,7 @@ impl StackDriverExporter {
     rustls_config.set_protocols(&[Vec::from("h2".as_bytes())]);
     let tls_config = ClientTlsConfig::new().rustls_client_config(rustls_config);
 
-    let channel = Channel::builder(uri).tls_config(tls_config).connect().await?;
+    let channel = Channel::builder(uri).tls_config(tls_config)?.connect().await?;
     let (tx, rx) = futures::channel::mpsc::channel(64);
     let pending_count = Arc::new(AtomicUsize::new(0));
     spawn.spawn_obj(
