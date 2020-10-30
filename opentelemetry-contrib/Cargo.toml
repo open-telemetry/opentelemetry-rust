@@ -22,7 +22,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 default = []
 datadog = ["indexmap", "rmp", "async-trait"]
 reqwest-blocking-client = ["reqwest/blocking", "opentelemetry/reqwest"]
-reqwest-client = ["opentelemetry/reqwest"]
+reqwest-client = ["reqwest", "opentelemetry/reqwest"]
 surf-client = ["opentelemetry/surf"]
 
 [dependencies]
