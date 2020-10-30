@@ -55,28 +55,30 @@ jobs:
     continue-on-error: true
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v1
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: nightly
-          components: rustfmt, clippy
-          override: true
-      - run: cargo fmt -- --check
-      - uses: arduino/setup-protoc@v1
-      - uses: actions-rs/clippy-check@v1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          args: --all-features --all-targets --all
-      - uses: actions-rs/cargo@v1
-        with:
-          command: clean
-      - uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --all-features --all-targets --all --no-fail-fast
-        env:
-          CARGO_INCREMENTAL: '0'
-          RUSTFLAGS: '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
-          RUSTDOCFLAGS: '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
-      - uses: actions-rs/grcov@v0.1
-      - uses: codecov/codecov-action@v1
+    - uses: actions/checkout@v1
+      with:
+        submodules: true
+    - uses: actions-rs/toolchain@v1
+      with:
+        toolchain: nightly
+        components: rustfmt, clippy
+        override: true
+    - run: cargo fmt -- --check
+    - uses: arduino/setup-protoc@v1
+    - uses: actions-rs/clippy-check@v1
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        args: --all-features --all-targets --all
+    - uses: actions-rs/cargo@v1
+      with:
+        command: clean
+    - uses: actions-rs/cargo@v1
+      with:
+        command: test
+        args: --all-features --all-targets --all --no-fail-fast
+      env:
+        CARGO_INCREMENTAL: '0'
+        RUSTFLAGS: '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
+        RUSTDOCFLAGS: '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
+    - uses: actions-rs/grcov@v0.1
+    - uses: codecov/codecov-action@v1
