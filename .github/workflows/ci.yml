@@ -59,7 +59,7 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly
-          components: rustfmt clippy
+          components: rustfmt, clippy
           override: true
       - run: cargo fmt -- --check
       - uses: actions-rs/clippy-check@v1
