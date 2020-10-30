@@ -6,14 +6,9 @@ on:
     - master
 jobs:
   test:
-    continue-on-error: ${{ matrix.nightly }}
     strategy:
       matrix:
         rust: [stable, beta]
-        nightly: [false]
-        include:
-          - rust: nightly
-            nightly: true
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
@@ -28,14 +23,9 @@ jobs:
     - name: Test
       run: ./scripts/test.sh
   lint:
-    continue-on-error: ${{ matrix.nightly }}
     strategy:
       matrix:
         rust: [stable, beta]
-        nightly: [false]
-        include:
-          - rust: nightly
-            nightly: true
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
@@ -59,6 +49,31 @@ jobs:
       with:
         profile: minimal
         toolchain: 1.42.0
-        components: clippy
     - name: Run tests
       run: cargo test --verbose --features base64_format,trace,metrics,serialize,binary_propagator,tokio,async-std,serde,http,tonic,reqwest -p opentelemetry -p opentelemetry-jaeger -p opentelemetry-zipkin
+  meta:
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          override: true
+      - uses: actions-rs/clippy-check@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          args: --all-features --all-targets --all
+      - uses: actions-rs/cargo@v1
+        with:
+          command: clean
+      - uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --all-features --all-targets --all --no-fail-fast
+        env:
+          CARGO_INCREMENTAL: '0'
+          RUSTFLAGS: '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
+          RUSTDOCFLAGS: '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
+      - uses: actions-rs/grcov@v0.1
+      - uses: codecov/codecov-action@v1
