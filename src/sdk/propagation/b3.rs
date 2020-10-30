@@ -269,12 +269,12 @@ impl TextMapPropagator for B3Propagator {
     /// format was retrieved OR if the retrieved data is invalid, then the current
     /// `Context` is returned.
     fn extract_with_context(&self, cx: &Context, extractor: &dyn Extractor) -> Context {
-        let span_context = self.extract_single_header(extractor).unwrap_or_else(|_|
+        let extract_result = self.extract_single_header(extractor).or_else(|_| {
             // if invalid single header should fallback to multiple
             self.extract_multi_header(extractor)
-                .unwrap_or_else(|_| SpanContext::empty_context()));
+        });
 
-        if span_context.is_valid() {
+        if let Some(span_context) = extract_result.ok().filter(|cx| cx.is_valid()) {
             cx.with_remote_span_context(span_context)
         } else {
             cx.clone()
