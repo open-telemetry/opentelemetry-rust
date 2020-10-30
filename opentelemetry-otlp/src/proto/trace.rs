@@ -1893,8 +1893,9 @@ impl ::protobuf::reflect::ProtobufValue for Span_SpanKind {
 #[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct Status {
     // message fields
-    pub code: Status_StatusCode,
+    pub deprecated_code: Status_DeprecatedStatusCode,
     pub message: ::std::string::String,
+    pub code: Status_StatusCode,
     // special fields
     #[cfg_attr(feature = "with-serde", serde(skip))]
     pub unknown_fields: ::protobuf::UnknownFields,
@@ -1913,19 +1914,19 @@ impl Status {
         ::std::default::Default::default()
     }
 
-    // .opentelemetry.proto.trace.v1.Status.StatusCode code = 1;
+    // .opentelemetry.proto.trace.v1.Status.DeprecatedStatusCode deprecated_code = 1;
 
 
-    pub fn get_code(&self) -> Status_StatusCode {
-        self.code
+    pub fn get_deprecated_code(&self) -> Status_DeprecatedStatusCode {
+        self.deprecated_code
     }
-    pub fn clear_code(&mut self) {
-        self.code = Status_StatusCode::STATUS_CODE_OK;
+    pub fn clear_deprecated_code(&mut self) {
+        self.deprecated_code = Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_OK;
     }
 
     // Param is passed by value, moved
-    pub fn set_code(&mut self, v: Status_StatusCode) {
-        self.code = v;
+    pub fn set_deprecated_code(&mut self, v: Status_DeprecatedStatusCode) {
+        self.deprecated_code = v;
     }
 
     // string message = 2;
@@ -1953,6 +1954,21 @@ impl Status {
     pub fn take_message(&mut self) -> ::std::string::String {
         ::std::mem::replace(&mut self.message, ::std::string::String::new())
     }
+
+    // .opentelemetry.proto.trace.v1.Status.StatusCode code = 3;
+
+
+    pub fn get_code(&self) -> Status_StatusCode {
+        self.code
+    }
+    pub fn clear_code(&mut self) {
+        self.code = Status_StatusCode::STATUS_CODE_UNSET;
+    }
+
+    // Param is passed by value, moved
+    pub fn set_code(&mut self, v: Status_StatusCode) {
+        self.code = v;
+    }
 }
 
 impl ::protobuf::Message for Status {
@@ -1965,10 +1981,13 @@ impl ::protobuf::Message for Status {
             let (field_number, wire_type) = is.read_tag_unpack()?;
             match field_number {
                 1 => {
-                    ::protobuf::rt::read_proto3_enum_with_unknown_fields_into(wire_type, is, &mut self.code, 1, &mut self.unknown_fields)?
+                    ::protobuf::rt::read_proto3_enum_with_unknown_fields_into(wire_type, is, &mut self.deprecated_code, 1, &mut self.unknown_fields)?
                 },
                 2 => {
                     ::protobuf::rt::read_singular_proto3_string_into(wire_type, is, &mut self.message)?;
+                },
+                3 => {
+                    ::protobuf::rt::read_proto3_enum_with_unknown_fields_into(wire_type, is, &mut self.code, 3, &mut self.unknown_fields)?
                 },
                 _ => {
                     ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
@@ -1982,11 +2001,14 @@ impl ::protobuf::Message for Status {
     #[allow(unused_variables)]
     fn compute_size(&self) -> u32 {
         let mut my_size = 0;
-        if self.code != Status_StatusCode::STATUS_CODE_OK {
-            my_size += ::protobuf::rt::enum_size(1, self.code);
+        if self.deprecated_code != Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_OK {
+            my_size += ::protobuf::rt::enum_size(1, self.deprecated_code);
         }
         if !self.message.is_empty() {
             my_size += ::protobuf::rt::string_size(2, &self.message);
+        }
+        if self.code != Status_StatusCode::STATUS_CODE_UNSET {
+            my_size += ::protobuf::rt::enum_size(3, self.code);
         }
         my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
         self.cached_size.set(my_size);
@@ -1994,11 +2016,14 @@ impl ::protobuf::Message for Status {
     }
 
     fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
-        if self.code != Status_StatusCode::STATUS_CODE_OK {
-            os.write_enum(1, ::protobuf::ProtobufEnum::value(&self.code))?;
+        if self.deprecated_code != Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_OK {
+            os.write_enum(1, ::protobuf::ProtobufEnum::value(&self.deprecated_code))?;
         }
         if !self.message.is_empty() {
             os.write_string(2, &self.message)?;
+        }
+        if self.code != Status_StatusCode::STATUS_CODE_UNSET {
+            os.write_enum(3, ::protobuf::ProtobufEnum::value(&self.code))?;
         }
         os.write_unknown_fields(self.get_unknown_fields())?;
         ::std::result::Result::Ok(())
@@ -2038,15 +2063,20 @@ impl ::protobuf::Message for Status {
         static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
         descriptor.get(|| {
             let mut fields = ::std::vec::Vec::new();
-            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeEnum<Status_StatusCode>>(
-                "code",
-                |m: &Status| { &m.code },
-                |m: &mut Status| { &mut m.code },
+            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeEnum<Status_DeprecatedStatusCode>>(
+                "deprecated_code",
+                |m: &Status| { &m.deprecated_code },
+                |m: &mut Status| { &mut m.deprecated_code },
             ));
             fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeString>(
                 "message",
                 |m: &Status| { &m.message },
                 |m: &mut Status| { &mut m.message },
+            ));
+            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeEnum<Status_StatusCode>>(
+                "code",
+                |m: &Status| { &m.code },
+                |m: &mut Status| { &mut m.code },
             ));
             ::protobuf::reflect::MessageDescriptor::new_pb_name::<Status>(
                 "Status",
@@ -2064,8 +2094,9 @@ impl ::protobuf::Message for Status {
 
 impl ::protobuf::Clear for Status {
     fn clear(&mut self) {
-        self.code = Status_StatusCode::STATUS_CODE_OK;
+        self.deprecated_code = Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_OK;
         self.message.clear();
+        self.code = Status_StatusCode::STATUS_CODE_UNSET;
         self.unknown_fields.clear();
     }
 }
@@ -2084,24 +2115,106 @@ impl ::protobuf::reflect::ProtobufValue for Status {
 
 #[derive(Clone,PartialEq,Eq,Debug,Hash)]
 #[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
+pub enum Status_DeprecatedStatusCode {
+    DEPRECATED_STATUS_CODE_OK = 0,
+    DEPRECATED_STATUS_CODE_CANCELLED = 1,
+    DEPRECATED_STATUS_CODE_UNKNOWN_ERROR = 2,
+    DEPRECATED_STATUS_CODE_INVALID_ARGUMENT = 3,
+    DEPRECATED_STATUS_CODE_DEADLINE_EXCEEDED = 4,
+    DEPRECATED_STATUS_CODE_NOT_FOUND = 5,
+    DEPRECATED_STATUS_CODE_ALREADY_EXISTS = 6,
+    DEPRECATED_STATUS_CODE_PERMISSION_DENIED = 7,
+    DEPRECATED_STATUS_CODE_RESOURCE_EXHAUSTED = 8,
+    DEPRECATED_STATUS_CODE_FAILED_PRECONDITION = 9,
+    DEPRECATED_STATUS_CODE_ABORTED = 10,
+    DEPRECATED_STATUS_CODE_OUT_OF_RANGE = 11,
+    DEPRECATED_STATUS_CODE_UNIMPLEMENTED = 12,
+    DEPRECATED_STATUS_CODE_INTERNAL_ERROR = 13,
+    DEPRECATED_STATUS_CODE_UNAVAILABLE = 14,
+    DEPRECATED_STATUS_CODE_DATA_LOSS = 15,
+    DEPRECATED_STATUS_CODE_UNAUTHENTICATED = 16,
+}
+
+impl ::protobuf::ProtobufEnum for Status_DeprecatedStatusCode {
+    fn value(&self) -> i32 {
+        *self as i32
+    }
+
+    fn from_i32(value: i32) -> ::std::option::Option<Status_DeprecatedStatusCode> {
+        match value {
+            0 => ::std::option::Option::Some(Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_OK),
+            1 => ::std::option::Option::Some(Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_CANCELLED),
+            2 => ::std::option::Option::Some(Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_UNKNOWN_ERROR),
+            3 => ::std::option::Option::Some(Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_INVALID_ARGUMENT),
+            4 => ::std::option::Option::Some(Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_DEADLINE_EXCEEDED),
+            5 => ::std::option::Option::Some(Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_NOT_FOUND),
+            6 => ::std::option::Option::Some(Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_ALREADY_EXISTS),
+            7 => ::std::option::Option::Some(Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_PERMISSION_DENIED),
+            8 => ::std::option::Option::Some(Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_RESOURCE_EXHAUSTED),
+            9 => ::std::option::Option::Some(Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_FAILED_PRECONDITION),
+            10 => ::std::option::Option::Some(Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_ABORTED),
+            11 => ::std::option::Option::Some(Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_OUT_OF_RANGE),
+            12 => ::std::option::Option::Some(Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_UNIMPLEMENTED),
+            13 => ::std::option::Option::Some(Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_INTERNAL_ERROR),
+            14 => ::std::option::Option::Some(Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_UNAVAILABLE),
+            15 => ::std::option::Option::Some(Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_DATA_LOSS),
+            16 => ::std::option::Option::Some(Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_UNAUTHENTICATED),
+            _ => ::std::option::Option::None
+        }
+    }
+
+    fn values() -> &'static [Self] {
+        static values: &'static [Status_DeprecatedStatusCode] = &[
+            Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_OK,
+            Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_CANCELLED,
+            Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_UNKNOWN_ERROR,
+            Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_INVALID_ARGUMENT,
+            Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_DEADLINE_EXCEEDED,
+            Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_NOT_FOUND,
+            Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_ALREADY_EXISTS,
+            Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_PERMISSION_DENIED,
+            Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_RESOURCE_EXHAUSTED,
+            Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_FAILED_PRECONDITION,
+            Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_ABORTED,
+            Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_OUT_OF_RANGE,
+            Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_UNIMPLEMENTED,
+            Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_INTERNAL_ERROR,
+            Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_UNAVAILABLE,
+            Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_DATA_LOSS,
+            Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_UNAUTHENTICATED,
+        ];
+        values
+    }
+
+    fn enum_descriptor_static() -> &'static ::protobuf::reflect::EnumDescriptor {
+        static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::EnumDescriptor> = ::protobuf::rt::LazyV2::INIT;
+        descriptor.get(|| {
+            ::protobuf::reflect::EnumDescriptor::new_pb_name::<Status_DeprecatedStatusCode>("Status.DeprecatedStatusCode", file_descriptor_proto())
+        })
+    }
+}
+
+impl ::std::marker::Copy for Status_DeprecatedStatusCode {
+}
+
+impl ::std::default::Default for Status_DeprecatedStatusCode {
+    fn default() -> Self {
+        Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_OK
+    }
+}
+
+impl ::protobuf::reflect::ProtobufValue for Status_DeprecatedStatusCode {
+    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
+        ::protobuf::reflect::ReflectValueRef::Enum(::protobuf::ProtobufEnum::descriptor(self))
+    }
+}
+
+#[derive(Clone,PartialEq,Eq,Debug,Hash)]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub enum Status_StatusCode {
-    STATUS_CODE_OK = 0,
-    STATUS_CODE_CANCELLED = 1,
-    STATUS_CODE_UNKNOWN_ERROR = 2,
-    STATUS_CODE_INVALID_ARGUMENT = 3,
-    STATUS_CODE_DEADLINE_EXCEEDED = 4,
-    STATUS_CODE_NOT_FOUND = 5,
-    STATUS_CODE_ALREADY_EXISTS = 6,
-    STATUS_CODE_PERMISSION_DENIED = 7,
-    STATUS_CODE_RESOURCE_EXHAUSTED = 8,
-    STATUS_CODE_FAILED_PRECONDITION = 9,
-    STATUS_CODE_ABORTED = 10,
-    STATUS_CODE_OUT_OF_RANGE = 11,
-    STATUS_CODE_UNIMPLEMENTED = 12,
-    STATUS_CODE_INTERNAL_ERROR = 13,
-    STATUS_CODE_UNAVAILABLE = 14,
-    STATUS_CODE_DATA_LOSS = 15,
-    STATUS_CODE_UNAUTHENTICATED = 16,
+    STATUS_CODE_UNSET = 0,
+    STATUS_CODE_OK = 1,
+    STATUS_CODE_ERROR = 2,
 }
 
 impl ::protobuf::ProtobufEnum for Status_StatusCode {
@@ -2111,46 +2224,18 @@ impl ::protobuf::ProtobufEnum for Status_StatusCode {
 
     fn from_i32(value: i32) -> ::std::option::Option<Status_StatusCode> {
         match value {
-            0 => ::std::option::Option::Some(Status_StatusCode::STATUS_CODE_OK),
-            1 => ::std::option::Option::Some(Status_StatusCode::STATUS_CODE_CANCELLED),
-            2 => ::std::option::Option::Some(Status_StatusCode::STATUS_CODE_UNKNOWN_ERROR),
-            3 => ::std::option::Option::Some(Status_StatusCode::STATUS_CODE_INVALID_ARGUMENT),
-            4 => ::std::option::Option::Some(Status_StatusCode::STATUS_CODE_DEADLINE_EXCEEDED),
-            5 => ::std::option::Option::Some(Status_StatusCode::STATUS_CODE_NOT_FOUND),
-            6 => ::std::option::Option::Some(Status_StatusCode::STATUS_CODE_ALREADY_EXISTS),
-            7 => ::std::option::Option::Some(Status_StatusCode::STATUS_CODE_PERMISSION_DENIED),
-            8 => ::std::option::Option::Some(Status_StatusCode::STATUS_CODE_RESOURCE_EXHAUSTED),
-            9 => ::std::option::Option::Some(Status_StatusCode::STATUS_CODE_FAILED_PRECONDITION),
-            10 => ::std::option::Option::Some(Status_StatusCode::STATUS_CODE_ABORTED),
-            11 => ::std::option::Option::Some(Status_StatusCode::STATUS_CODE_OUT_OF_RANGE),
-            12 => ::std::option::Option::Some(Status_StatusCode::STATUS_CODE_UNIMPLEMENTED),
-            13 => ::std::option::Option::Some(Status_StatusCode::STATUS_CODE_INTERNAL_ERROR),
-            14 => ::std::option::Option::Some(Status_StatusCode::STATUS_CODE_UNAVAILABLE),
-            15 => ::std::option::Option::Some(Status_StatusCode::STATUS_CODE_DATA_LOSS),
-            16 => ::std::option::Option::Some(Status_StatusCode::STATUS_CODE_UNAUTHENTICATED),
+            0 => ::std::option::Option::Some(Status_StatusCode::STATUS_CODE_UNSET),
+            1 => ::std::option::Option::Some(Status_StatusCode::STATUS_CODE_OK),
+            2 => ::std::option::Option::Some(Status_StatusCode::STATUS_CODE_ERROR),
             _ => ::std::option::Option::None
         }
     }
 
     fn values() -> &'static [Self] {
         static values: &'static [Status_StatusCode] = &[
+            Status_StatusCode::STATUS_CODE_UNSET,
             Status_StatusCode::STATUS_CODE_OK,
-            Status_StatusCode::STATUS_CODE_CANCELLED,
-            Status_StatusCode::STATUS_CODE_UNKNOWN_ERROR,
-            Status_StatusCode::STATUS_CODE_INVALID_ARGUMENT,
-            Status_StatusCode::STATUS_CODE_DEADLINE_EXCEEDED,
-            Status_StatusCode::STATUS_CODE_NOT_FOUND,
-            Status_StatusCode::STATUS_CODE_ALREADY_EXISTS,
-            Status_StatusCode::STATUS_CODE_PERMISSION_DENIED,
-            Status_StatusCode::STATUS_CODE_RESOURCE_EXHAUSTED,
-            Status_StatusCode::STATUS_CODE_FAILED_PRECONDITION,
-            Status_StatusCode::STATUS_CODE_ABORTED,
-            Status_StatusCode::STATUS_CODE_OUT_OF_RANGE,
-            Status_StatusCode::STATUS_CODE_UNIMPLEMENTED,
-            Status_StatusCode::STATUS_CODE_INTERNAL_ERROR,
-            Status_StatusCode::STATUS_CODE_UNAVAILABLE,
-            Status_StatusCode::STATUS_CODE_DATA_LOSS,
-            Status_StatusCode::STATUS_CODE_UNAUTHENTICATED,
+            Status_StatusCode::STATUS_CODE_ERROR,
         ];
         values
     }
@@ -2168,7 +2253,7 @@ impl ::std::marker::Copy for Status_StatusCode {
 
 impl ::std::default::Default for Status_StatusCode {
     fn default() -> Self {
-        Status_StatusCode::STATUS_CODE_OK
+        Status_StatusCode::STATUS_CODE_UNSET
     }
 }
 
@@ -2217,22 +2302,28 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     panKind\x12\x19\n\x15SPAN_KIND_UNSPECIFIED\x10\0\x12\x16\n\x12SPAN_KIND_\
     INTERNAL\x10\x01\x12\x14\n\x10SPAN_KIND_SERVER\x10\x02\x12\x14\n\x10SPAN\
     _KIND_CLIENT\x10\x03\x12\x16\n\x12SPAN_KIND_PRODUCER\x10\x04\x12\x16\n\
-    \x12SPAN_KIND_CONSUMER\x10\x05\"\xff\x04\n\x06Status\x12C\n\x04code\x18\
-    \x01\x20\x01(\x0e2/.opentelemetry.proto.trace.v1.Status.StatusCodeR\x04c\
-    ode\x12\x18\n\x07message\x18\x02\x20\x01(\tR\x07message\"\x95\x04\n\nSta\
-    tusCode\x12\x12\n\x0eSTATUS_CODE_OK\x10\0\x12\x19\n\x15STATUS_CODE_CANCE\
-    LLED\x10\x01\x12\x1d\n\x19STATUS_CODE_UNKNOWN_ERROR\x10\x02\x12\x20\n\
-    \x1cSTATUS_CODE_INVALID_ARGUMENT\x10\x03\x12!\n\x1dSTATUS_CODE_DEADLINE_\
-    EXCEEDED\x10\x04\x12\x19\n\x15STATUS_CODE_NOT_FOUND\x10\x05\x12\x1e\n\
-    \x1aSTATUS_CODE_ALREADY_EXISTS\x10\x06\x12!\n\x1dSTATUS_CODE_PERMISSION_\
-    DENIED\x10\x07\x12\"\n\x1eSTATUS_CODE_RESOURCE_EXHAUSTED\x10\x08\x12#\n\
-    \x1fSTATUS_CODE_FAILED_PRECONDITION\x10\t\x12\x17\n\x13STATUS_CODE_ABORT\
-    ED\x10\n\x12\x1c\n\x18STATUS_CODE_OUT_OF_RANGE\x10\x0b\x12\x1d\n\x19STAT\
-    US_CODE_UNIMPLEMENTED\x10\x0c\x12\x1e\n\x1aSTATUS_CODE_INTERNAL_ERROR\
-    \x10\r\x12\x1b\n\x17STATUS_CODE_UNAVAILABLE\x10\x0e\x12\x19\n\x15STATUS_\
-    CODE_DATA_LOSS\x10\x0f\x12\x1f\n\x1bSTATUS_CODE_UNAUTHENTICATED\x10\x10B\
-    n\n\x1fio.opentelemetry.proto.trace.v1B\nTraceProtoP\x01Z=github.com/ope\
-    n-telemetry/opentelemetry-proto/gen/go/trace/v1b\x06proto3\
+    \x12SPAN_KIND_CONSUMER\x10\x05\"\xfc\x07\n\x06Status\x12f\n\x0fdeprecate\
+    d_code\x18\x01\x20\x01(\x0e29.opentelemetry.proto.trace.v1.Status.Deprec\
+    atedStatusCodeR\x0edeprecatedCodeB\x02\x18\x01\x12\x18\n\x07message\x18\
+    \x02\x20\x01(\tR\x07message\x12C\n\x04code\x18\x03\x20\x01(\x0e2/.opente\
+    lemetry.proto.trace.v1.Status.StatusCodeR\x04code\"\xda\x05\n\x14Depreca\
+    tedStatusCode\x12\x1d\n\x19DEPRECATED_STATUS_CODE_OK\x10\0\x12$\n\x20DEP\
+    RECATED_STATUS_CODE_CANCELLED\x10\x01\x12(\n$DEPRECATED_STATUS_CODE_UNKN\
+    OWN_ERROR\x10\x02\x12+\n'DEPRECATED_STATUS_CODE_INVALID_ARGUMENT\x10\x03\
+    \x12,\n(DEPRECATED_STATUS_CODE_DEADLINE_EXCEEDED\x10\x04\x12$\n\x20DEPRE\
+    CATED_STATUS_CODE_NOT_FOUND\x10\x05\x12)\n%DEPRECATED_STATUS_CODE_ALREAD\
+    Y_EXISTS\x10\x06\x12,\n(DEPRECATED_STATUS_CODE_PERMISSION_DENIED\x10\x07\
+    \x12-\n)DEPRECATED_STATUS_CODE_RESOURCE_EXHAUSTED\x10\x08\x12.\n*DEPRECA\
+    TED_STATUS_CODE_FAILED_PRECONDITION\x10\t\x12\"\n\x1eDEPRECATED_STATUS_C\
+    ODE_ABORTED\x10\n\x12'\n#DEPRECATED_STATUS_CODE_OUT_OF_RANGE\x10\x0b\x12\
+    (\n$DEPRECATED_STATUS_CODE_UNIMPLEMENTED\x10\x0c\x12)\n%DEPRECATED_STATU\
+    S_CODE_INTERNAL_ERROR\x10\r\x12&\n\"DEPRECATED_STATUS_CODE_UNAVAILABLE\
+    \x10\x0e\x12$\n\x20DEPRECATED_STATUS_CODE_DATA_LOSS\x10\x0f\x12*\n&DEPRE\
+    CATED_STATUS_CODE_UNAUTHENTICATED\x10\x10\"N\n\nStatusCode\x12\x15\n\x11\
+    STATUS_CODE_UNSET\x10\0\x12\x12\n\x0eSTATUS_CODE_OK\x10\x01\x12\x15\n\
+    \x11STATUS_CODE_ERROR\x10\x02Bn\n\x1fio.opentelemetry.proto.trace.v1B\nT\
+    raceProtoP\x01Z=github.com/open-telemetry/opentelemetry-proto/gen/go/tra\
+    ce/v1b\x06proto3\
 ";
 
 static file_descriptor_proto_lazy: ::protobuf::rt::LazyV2<::protobuf::descriptor::FileDescriptorProto> = ::protobuf::rt::LazyV2::INIT;

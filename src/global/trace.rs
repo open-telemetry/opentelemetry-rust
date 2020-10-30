@@ -50,7 +50,7 @@ impl trace::Span for BoxedSpan {
     }
 
     /// Sets the status of the `Span`. If used, this will override the default `Span`
-    /// status, which is `OK`.
+    /// status, which is `Unset`.
     fn set_status(&self, code: trace::StatusCode, message: String) {
         self.0.set_status(code, message)
     }

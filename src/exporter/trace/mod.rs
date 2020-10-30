@@ -204,7 +204,7 @@ mod tests {
         let message_events = sdk::trace::EvictedQueue::new(capacity);
         let links = sdk::trace::EvictedQueue::new(capacity);
 
-        let status_code = StatusCode::OK;
+        let status_code = StatusCode::Ok;
         let status_message = String::new();
         let resource = Arc::new(sdk::Resource::default());
 

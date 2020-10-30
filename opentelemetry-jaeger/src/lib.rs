@@ -622,7 +622,7 @@ fn build_span_tags(
     }
 
     // Ensure error status is set
-    if status_code != StatusCode::OK && !user_overrides.error {
+    if status_code == StatusCode::Error && !user_overrides.error {
         tags.push(Key::new(ERROR).bool(true).into())
     }
 

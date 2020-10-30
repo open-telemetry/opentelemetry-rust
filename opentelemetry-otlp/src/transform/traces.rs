@@ -24,23 +24,9 @@ impl From<SpanKind> for Span_SpanKind {
 impl From<StatusCode> for Status_StatusCode {
     fn from(status_code: StatusCode) -> Self {
         match status_code {
-            StatusCode::OK => Status_StatusCode::STATUS_CODE_OK,
-            StatusCode::Canceled => Status_StatusCode::STATUS_CODE_CANCELLED,
-            StatusCode::Unknown => Status_StatusCode::STATUS_CODE_UNKNOWN_ERROR,
-            StatusCode::InvalidArgument => Status_StatusCode::STATUS_CODE_INVALID_ARGUMENT,
-            StatusCode::DeadlineExceeded => Status_StatusCode::STATUS_CODE_DEADLINE_EXCEEDED,
-            StatusCode::NotFound => Status_StatusCode::STATUS_CODE_NOT_FOUND,
-            StatusCode::AlreadyExists => Status_StatusCode::STATUS_CODE_ALREADY_EXISTS,
-            StatusCode::PermissionDenied => Status_StatusCode::STATUS_CODE_PERMISSION_DENIED,
-            StatusCode::ResourceExhausted => Status_StatusCode::STATUS_CODE_RESOURCE_EXHAUSTED,
-            StatusCode::FailedPrecondition => Status_StatusCode::STATUS_CODE_FAILED_PRECONDITION,
-            StatusCode::Aborted => Status_StatusCode::STATUS_CODE_ABORTED,
-            StatusCode::OutOfRange => Status_StatusCode::STATUS_CODE_OUT_OF_RANGE,
-            StatusCode::Unimplemented => Status_StatusCode::STATUS_CODE_UNIMPLEMENTED,
-            StatusCode::Internal => Status_StatusCode::STATUS_CODE_INTERNAL_ERROR,
-            StatusCode::Unavailable => Status_StatusCode::STATUS_CODE_UNAVAILABLE,
-            StatusCode::DataLoss => Status_StatusCode::STATUS_CODE_DATA_LOSS,
-            StatusCode::Unauthenticated => Status_StatusCode::STATUS_CODE_UNAUTHENTICATED,
+            StatusCode::Ok => Status_StatusCode::STATUS_CODE_OK,
+            StatusCode::Unset => Status_StatusCode::STATUS_CODE_UNSET,
+            StatusCode::Error => Status_StatusCode::STATUS_CODE_ERROR,
         }
     }
 }
