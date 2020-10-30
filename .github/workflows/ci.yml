@@ -68,14 +68,11 @@ jobs:
     - uses: actions-rs/clippy-check@v1
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
-        args: --all-features --all-targets --all
-    - uses: actions-rs/cargo@v1
-      with:
-        command: clean
+        args: --all-features --all
     - uses: actions-rs/cargo@v1
       with:
         command: test
-        args: --all-features --all-targets --all --no-fail-fast
+        args: --all-features --all --no-fail-fast
       env:
         CARGO_INCREMENTAL: '0'
         RUSTFLAGS: '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
