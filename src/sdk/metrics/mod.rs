@@ -338,13 +338,13 @@ impl sdk_api::InstrumentCore for SyncInstrument {
 }
 
 impl sdk_api::SyncInstrumentCore for SyncInstrument {
-    fn bind<'a>(
+    fn bind(
         &self,
-        labels: &'a [KeyValue],
+        labels: &'_ [KeyValue],
     ) -> Arc<dyn sdk_api::SyncBoundInstrumentCore + Send + Sync> {
         self.acquire_handle(labels)
     }
-    fn record_one<'a>(&self, number: Number, labels: &'a [KeyValue]) {
+    fn record_one(&self, number: Number, labels: &'_ [KeyValue]) {
         let handle = self.acquire_handle(labels);
         handle.record_one(number)
     }

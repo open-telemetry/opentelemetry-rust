@@ -40,10 +40,10 @@ pub trait InstrumentCore: fmt::Debug {
 pub trait SyncInstrumentCore: InstrumentCore + Send + Sync {
     /// Creates an implementation-level bound instrument, binding a label set
     /// with this instrument implementation.
-    fn bind<'a>(&self, labels: &'a [KeyValue]) -> Arc<dyn SyncBoundInstrumentCore + Send + Sync>;
+    fn bind(&self, labels: &'_ [KeyValue]) -> Arc<dyn SyncBoundInstrumentCore + Send + Sync>;
 
     /// Capture a single synchronous metric event.
-    fn record_one<'a>(&self, number: Number, labels: &'a [KeyValue]);
+    fn record_one(&self, number: Number, labels: &'_ [KeyValue]);
 
     /// Returns self as any
     fn as_any(&self) -> &dyn Any;
