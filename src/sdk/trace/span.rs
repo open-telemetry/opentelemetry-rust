@@ -115,7 +115,7 @@ impl crate::trace::Span for Span {
     }
 
     /// Sets the status of the `Span`. If used, this will override the default `Span`
-    /// status, which is `OK`.
+    /// status, which is `Unset`.
     fn set_status(&self, code: StatusCode, message: String) {
         self.with_data_mut(|data| {
             data.status_code = code;
@@ -196,7 +196,7 @@ mod tests {
             attributes: sdk::trace::EvictedHashMap::new(config.max_attributes_per_span),
             message_events: sdk::trace::EvictedQueue::new(config.max_events_per_span),
             links: sdk::trace::EvictedQueue::new(config.max_links_per_span),
-            status_code: StatusCode::OK,
+            status_code: StatusCode::Unset,
             status_message: "".to_string(),
             resource: config.resource.clone(),
             instrumentation_lib: *tracer.instrumentation_library(),
@@ -314,8 +314,8 @@ mod tests {
     #[test]
     fn set_status() {
         let span = create_span();
-        let status = StatusCode::Unknown;
-        let message = "UNKNOWN".to_string();
+        let status = StatusCode::Ok;
+        let message = "OK".to_string();
         span.set_status(status.clone(), message.clone());
         span.with_data(|data| {
             assert_eq!(data.status_code, status);
@@ -373,7 +373,7 @@ mod tests {
         span.record_exception(&err);
         span.record_exception_with_stacktrace(&err, "stacktrace...".to_string());
         span.set_attribute(KeyValue::new("k", "v"));
-        span.set_status(StatusCode::Unknown, "UNKNOWN".to_string());
+        span.set_status(StatusCode::Error, "ERROR".to_string());
         span.update_name("new_name".to_string());
         span.with_data(|data| {
             assert_eq!(data.message_events, initial.message_events);
