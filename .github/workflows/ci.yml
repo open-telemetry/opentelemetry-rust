@@ -63,12 +63,7 @@ jobs:
         toolchain: nightly
         components: rustfmt, clippy
         override: true
-    - run: cargo fmt -- --check
     - uses: arduino/setup-protoc@v1
-    - uses: actions-rs/clippy-check@v1
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-        args: --all-features --workspace
     - uses: actions-rs/cargo@v1
       with:
         command: test
@@ -79,3 +74,8 @@ jobs:
         RUSTDOCFLAGS: '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
     - uses: actions-rs/grcov@v0.1
     - uses: codecov/codecov-action@v1
+    - run: cargo fmt -- --check
+    - uses: actions-rs/clippy-check@v1
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        args: --all-features --workspace
