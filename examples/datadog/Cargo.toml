@@ -4,5 +4,5 @@ version = "0.1.0"
 edition = "2018"
 
 [dependencies]
-opentelemetry = { path = "../../" }
+opentelemetry = { path = "../../opentelemetry" }
 opentelemetry-contrib = { path = "../../opentelemetry-contrib", features = ["datadog"] }

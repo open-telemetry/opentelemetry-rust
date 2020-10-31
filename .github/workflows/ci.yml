@@ -49,8 +49,12 @@ jobs:
       with:
         profile: minimal
         toolchain: 1.42.0
+        override: true
     - name: Run tests
-      run: cargo test --verbose --features base64_format,trace,metrics,serialize,binary_propagator,tokio,async-std,serde,http,tonic,reqwest -p opentelemetry -p opentelemetry-jaeger -p opentelemetry-zipkin
+      run: cargo --version &&
+        cargo test --verbose --manifest-path=opentelemetry/Cargo.toml --features base64_format,trace,metrics,serialize,binary_propagator,tokio,async-std,serde,http,tonic,reqwest &&
+        cargo test --manifest-path=opentelemetry-jaeger/Cargo.toml &&
+        cargo test --manifest-path=opentelemetry-zipkin/Cargo.toml
   meta:
     continue-on-error: true
     runs-on: ubuntu-latest
@@ -67,7 +71,7 @@ jobs:
     - uses: actions-rs/cargo@v1
       with:
         command: test
-        args: --all-features --no-fail-fast
+        args: -p opentelemetry --all-features --no-fail-fast
       env:
         CARGO_INCREMENTAL: '0'
         RUSTFLAGS: '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
