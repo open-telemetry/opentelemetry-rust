@@ -31,7 +31,7 @@
 //! }
 //!
 //! // Add new baggage
-//! let cx_with_additions = cx.with_baggage(vec![Key::new("server_id").u64(42)]);
+//! let cx_with_additions = cx.with_baggage(vec![Key::new("server_id").i64(42)]);
 //!
 //! // Inject aggage into http request
 //! propagator.inject_context(&cx_with_additions, &mut headers);
@@ -88,7 +88,7 @@ lazy_static::lazy_static! {
 /// }
 ///
 /// // Add new baggage
-/// let cx_with_additions = cx.with_baggage(vec![Key::new("server_id").u64(42)]);
+/// let cx_with_additions = cx.with_baggage(vec![Key::new("server_id").i64(42)]);
 ///
 /// // Inject aggage into http request
 /// propagator.inject_context(&cx_with_additions, &mut headers);
@@ -233,14 +233,12 @@ mod tests {
                 vec![
                     KeyValue::new("key1", true),
                     KeyValue::new("key2", Value::I64(123)),
-                    KeyValue::new("key3", Value::U64(123)),
-                    KeyValue::new("key4", Value::F64(123.567)),
+                    KeyValue::new("key3", Value::F64(123.567)),
                 ],
                 vec![
                     "key1=true",
                     "key2=123",
-                    "key3=123",
-                    "key4=123.567",
+                    "key3=123.567",
                 ],
             ),
             // "values of array types"
@@ -249,13 +247,11 @@ mod tests {
                     KeyValue::new("key1", Value::Array(vec![Value::Bool(true), Value::Bool(false)])),
                     KeyValue::new("key2", Value::Array(vec![Value::I64(123), Value::I64(456)])),
                     KeyValue::new("key3", Value::Array(vec![Value::String("val1".to_string()), Value::String("val2".to_string())])),
-                    KeyValue::new("key4", Value::Array(vec![Value::Bytes(vec![118, 97, 108, 49]), Value::Bytes(vec![118, 97, 108, 50])])),
                 ],
                 vec![
                     "key1=[true%2Cfalse]",
                     "key2=[123%2C456]",
                     "key3=[%22val1%22%2C%22val2%22]",
-                    "key4=[%22val1%22%2C%22val2%22]",
                 ],
             ),
         ]

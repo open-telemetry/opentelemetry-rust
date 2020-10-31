@@ -247,6 +247,6 @@ pub enum StatusCode {
     Ok = 0,
     /// The default status.
     Unset = 1,
-    /// The operation contains an error. 
+    /// The operation contains an error.
     Error = 2,
 }

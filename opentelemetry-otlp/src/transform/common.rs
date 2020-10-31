@@ -43,10 +43,8 @@ impl From<Value> for AnyValue {
         match value {
             Value::Bool(val) => any_value.set_bool_value(val),
             Value::I64(val) => any_value.set_int_value(val),
-            Value::U64(val) => any_value.set_int_value(val as i64),
             Value::F64(val) => any_value.set_double_value(val),
             Value::String(val) => any_value.set_string_value(val),
-            Value::Bytes(_val) => any_value.set_string_value("INVALID".to_string()),
             Value::Array(vals) => any_value.set_array_value({
                 let mut array_value = ArrayValue::new();
                 array_value.set_values(RepeatedField::from_vec(

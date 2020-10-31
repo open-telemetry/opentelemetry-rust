@@ -12,7 +12,6 @@ fn criterion_benchmark(c: &mut Criterion) {
         let span = tracer.start("foo");
         span.set_attribute(Key::new("key1").bool(false));
         span.set_attribute(Key::new("key2").string("hello"));
-        span.set_attribute(Key::new("key3").u64(123));
         span.set_attribute(Key::new("key4").f64(123.456));
         span.end();
     });
@@ -21,11 +20,9 @@ fn criterion_benchmark(c: &mut Criterion) {
         let span = tracer.start("foo");
         span.set_attribute(Key::new("key1").bool(false));
         span.set_attribute(Key::new("key2").string("hello"));
-        span.set_attribute(Key::new("key3").u64(123));
         span.set_attribute(Key::new("key4").f64(123.456));
         span.set_attribute(Key::new("key11").bool(false));
         span.set_attribute(Key::new("key12").string("hello"));
-        span.set_attribute(Key::new("key13").u64(123));
         span.set_attribute(Key::new("key14").f64(123.456));
         span.end();
     });
@@ -35,11 +32,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         span.set_attribute(Key::new("key1").bool(false));
         span.set_attribute(Key::new("key2").string("hello"));
         span.set_attribute(Key::new("key3").i64(123));
-        span.set_attribute(Key::new("key4").u64(123));
         span.set_attribute(Key::new("key5").f64(123.456));
-        span.set_attribute(
-            Key::new("key6").bytes(vec![104, 101, 108, 108, 111, 32, 119, 111, 114, 108, 100]),
-        );
         span.end();
     });
 
@@ -48,19 +41,11 @@ fn criterion_benchmark(c: &mut Criterion) {
         span.set_attribute(Key::new("key1").bool(false));
         span.set_attribute(Key::new("key2").string("hello"));
         span.set_attribute(Key::new("key3").i64(123));
-        span.set_attribute(Key::new("key4").u64(123));
         span.set_attribute(Key::new("key5").f64(123.456));
-        span.set_attribute(
-            Key::new("key6").bytes(vec![104, 101, 108, 108, 111, 32, 119, 111, 114, 108, 100]),
-        );
         span.set_attribute(Key::new("key11").bool(false));
         span.set_attribute(Key::new("key12").string("hello"));
         span.set_attribute(Key::new("key13").i64(123));
-        span.set_attribute(Key::new("key14").u64(123));
         span.set_attribute(Key::new("key15").f64(123.456));
-        span.set_attribute(
-            Key::new("key16").bytes(vec![104, 101, 108, 108, 111, 32, 119, 111, 114, 108, 100]),
-        );
         span.end();
     });
 }

@@ -77,13 +77,11 @@ fn hash_value<H: Hasher>(state: &mut H, value: &Value) {
     match value {
         Value::Bool(b) => b.hash(state),
         Value::I64(i) => i.hash(state),
-        Value::U64(u) => u.hash(state),
         Value::F64(f) => {
             // FIXME: f64 does not impl hash, this impl may have incorrect outcomes.
             f.to_bits().hash(state)
         }
         Value::String(s) => s.hash(state),
-        Value::Bytes(b) => state.write(b),
         Value::Array(arr) => {
             // recursively hash array values
             for val in arr {
