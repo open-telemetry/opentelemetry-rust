@@ -35,14 +35,6 @@ impl Key {
         }
     }
 
-    /// Create a `KeyValue` pair for `u64` values.
-    pub fn u64(&self, value: u64) -> KeyValue {
-        KeyValue {
-            key: self.clone(),
-            value: Value::U64(value),
-        }
-    }
-
     /// Create a `KeyValue` pair for `f64` values.
     pub fn f64(&self, value: f64) -> KeyValue {
         KeyValue {
@@ -56,14 +48,6 @@ impl Key {
         KeyValue {
             key: self.clone(),
             value: Value::String(value.into()),
-        }
-    }
-
-    /// Create a `KeyValue` pair for byte arrays.
-    pub fn bytes<T: Into<Vec<u8>>>(&self, value: T) -> KeyValue {
-        KeyValue {
-            key: self.clone(),
-            value: Value::Bytes(value.into()),
         }
     }
 
@@ -110,14 +94,10 @@ pub enum Value {
     Bool(bool),
     /// i64 values
     I64(i64),
-    /// u64 values
-    U64(u64),
     /// f64 values
     F64(f64),
     /// String values
     String(String),
-    /// Byte array values
-    Bytes(Vec<u8>),
     /// Array of homogeneous values
     Array(Vec<Value>),
 }
@@ -141,10 +121,8 @@ macro_rules! from_values {
 from_values!(
     (bool, Value::Bool);
     (i64, Value::I64);
-    (u64, Value::U64);
     (f64, Value::F64);
     (String, Value::String);
-    (Vec<u8>, Value::Bytes);
     (Vec<Value>, Value::Array);
 );
 
@@ -162,10 +140,8 @@ impl From<Value> for String {
         match value {
             Value::Bool(value) => value.to_string(),
             Value::I64(value) => value.to_string(),
-            Value::U64(value) => value.to_string(),
             Value::F64(value) => value.to_string(),
             Value::String(value) => value,
-            Value::Bytes(value) => String::from_utf8(value).unwrap_or_else(|_| String::new()),
             Value::Array(value) => format_value_array_as_string(&value),
         }
     }
@@ -178,12 +154,8 @@ impl From<&Value> for String {
         match value {
             Value::Bool(value) => value.to_string(),
             Value::I64(value) => value.to_string(),
-            Value::U64(value) => value.to_string(),
             Value::F64(value) => value.to_string(),
             Value::String(value) => value.clone(),
-            Value::Bytes(value) => {
-                String::from_utf8(value.clone()).unwrap_or_else(|_| String::new())
-            }
             Value::Array(value) => format_value_array_as_string(value),
         }
     }
@@ -194,7 +166,7 @@ fn format_value_array_as_string(v: &[Value]) -> String {
         "[{}]",
         v.iter()
             .map(|elem| match elem {
-                v @ Value::String(_) | v @ Value::Bytes(_) => format!(r#""{}""#, String::from(v)),
+                Value::String(s) => format!(r#""{}""#, s),
                 v => String::from(v),
             })
             .collect::<Vec<_>>()

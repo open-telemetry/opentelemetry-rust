@@ -478,9 +478,6 @@ impl Into<jaeger::Tag> for KeyValue {
             Value::F64(f) => jaeger::Tag::new(key.into(), jaeger::TagType::Double, None, Some(f.into()), None, None, None),
             Value::Bool(b) => jaeger::Tag::new(key.into(), jaeger::TagType::Bool, None, None, Some(b), None, None),
             Value::I64(i) => jaeger::Tag::new(key.into(), jaeger::TagType::Long, None, None, None, Some(i), None),
-            Value::Bytes(b) => jaeger::Tag::new(key.into(), jaeger::TagType::Binary, None, None, None, None, Some(b)),
-            // TODO: better u64 handling, jaeger thrift only has i64 support
-            Value::U64(u) => jaeger::Tag::new(key.into(), jaeger::TagType::String, Some(u.to_string()), None, None, None, None),
             // TODO: better Array handling, jaeger thrift doesn't support arrays
             v @ Value::Array(_) => jaeger::Tag::new(key.into(), jaeger::TagType::String, Some(v.into()), None, None, None, None),
         }
