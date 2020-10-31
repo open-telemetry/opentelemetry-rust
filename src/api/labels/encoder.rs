@@ -40,10 +40,10 @@ impl Encoder for DefaultLabelEncoder {
             .enumerate()
             .fold(String::new(), |mut acc, (idx, (key, value))| {
                 if idx > 0 {
-                    acc.push_str(",")
+                    acc.push(',')
                 }
                 acc.push_str(key.as_str());
-                acc.push_str("=");
+                acc.push('=');
                 acc.push_str(String::from(value).as_str());
                 acc
             })

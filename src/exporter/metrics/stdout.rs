@@ -203,19 +203,19 @@ where
                 || !encoded_resource.is_empty()
                 || !encoded_inst_labels.is_empty()
             {
-                sb.push_str("{");
+                sb.push('{');
                 sb.push_str(&encoded_resource);
                 if !encoded_inst_labels.is_empty() && !encoded_resource.is_empty() {
-                    sb.push_str(",");
+                    sb.push(',');
                 }
                 sb.push_str(&encoded_inst_labels);
                 if !encoded_labels.is_empty()
                     && (!encoded_inst_labels.is_empty() || !encoded_resource.is_empty())
                 {
-                    sb.push_str(",");
+                    sb.push(',');
                 }
                 sb.push_str(&encoded_labels);
-                sb.push_str("}");
+                sb.push('}');
             }
 
             expose.name = sb;
