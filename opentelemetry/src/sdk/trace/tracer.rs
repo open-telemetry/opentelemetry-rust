@@ -165,7 +165,7 @@ impl crate::trace::Tracer for Tracer {
 
         let span_kind = builder.span_kind.take().unwrap_or(SpanKind::Internal);
         let mut attribute_options = builder.attributes.take().unwrap_or_else(Vec::new);
-        let mut link_options = builder.links.take().unwrap_or_else(Vec::new);
+        let mut link_options = builder.links.take();
         let mut flags = 0;
         let mut span_trace_state = Default::default();
 
@@ -212,7 +212,10 @@ impl crate::trace::Tracer for Tracer {
                 &builder.name,
                 &span_kind,
                 &attribute_options,
-                &link_options,
+                link_options
+                    .as_ref()
+                    .map(|links| links.as_slice())
+                    .unwrap_or(&[]),
             )
         } else {
             // has parent that is local: use parent if sampled, or don't record.
@@ -232,12 +235,15 @@ impl crate::trace::Tracer for Tracer {
             flags = trace_flags;
             span_trace_state = trace_state;
             attribute_options.append(&mut extra_attrs);
-            let mut attributes = EvictedHashMap::new(config.max_attributes_per_span);
+            let mut attributes =
+                EvictedHashMap::new(config.max_attributes_per_span, attribute_options.len());
             for attribute in attribute_options {
                 attributes.insert(attribute);
             }
             let mut links = EvictedQueue::new(config.max_links_per_span);
-            links.append_vec(&mut link_options);
+            if let Some(link_options) = &mut link_options {
+                links.append_vec(link_options);
+            }
             let start_time = builder.start_time.unwrap_or_else(SystemTime::now);
             let end_time = builder.end_time.unwrap_or(start_time);
             let mut message_events = EvictedQueue::new(config.max_events_per_span);
