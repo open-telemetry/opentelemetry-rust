@@ -24,7 +24,7 @@ async-std = { version = "1.6", optional = true }
 async-trait = "0.1"
 http = { version = "0.2", optional = true }
 isahc = { version = "0.9", default-features = false, optional = true }
-opentelemetry = { version = "0.9", default-features = false, features = ["trace"], path = ".." }
+opentelemetry = { version = "0.9", default-features = false, features = ["trace"], path = "../opentelemetry" }
 thrift = "0.13"
 tokio = { version = "0.2", features = ["udp", "sync"], optional = true }
 

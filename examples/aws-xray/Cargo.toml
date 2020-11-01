@@ -16,5 +16,5 @@ path = "src/client.rs"
 [dependencies]
 hyper = "0.13"
 tokio = { version = "0.2", features = ["full"] }
-opentelemetry = { path = "../../", features = ["http"] }
+opentelemetry = { path = "../../opentelemetry", features = ["http"] }
 opentelemetry-contrib = { path = "../../opentelemetry-contrib" }
