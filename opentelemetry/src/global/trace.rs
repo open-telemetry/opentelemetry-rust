@@ -30,7 +30,7 @@ impl trace::Span for BoxedSpan {
     }
 
     /// Returns the `SpanContext` for the given `Span`.
-    fn span_context(&self) -> trace::SpanContext {
+    fn span_context(&self) -> &trace::SpanContext {
         self.0.span_context()
     }
 

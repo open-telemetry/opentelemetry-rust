@@ -35,11 +35,12 @@
 //! [`TracerProvider`]: ../provider/trait.TracerProvider.html
 
 use crate::exporter::trace::SpanData;
+use crate::{trace::Span, Context};
 
 /// `SpanProcessor`s allow finished spans to be processed.
 pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
     /// `on_start` method is invoked when a `Span` is started.
-    fn on_start(&self, span: &SpanData);
+    fn on_start(&self, span: &dyn Span, cx: &Context);
     /// `on_end` method is invoked when a `Span` is ended.
     fn on_end(&self, span: SpanData);
     /// Shutdown is invoked when SDK shuts down. Use this call to cleanup any

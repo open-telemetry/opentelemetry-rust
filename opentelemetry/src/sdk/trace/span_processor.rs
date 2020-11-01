@@ -1,6 +1,7 @@
 use crate::{
     exporter::trace::{SpanData, SpanExporter},
-    trace::SpanProcessor,
+    trace::{Span, SpanProcessor},
+    Context,
 };
 use futures::{channel::mpsc, executor, future::BoxFuture, Future, FutureExt, Stream, StreamExt};
 use std::fmt;
@@ -57,7 +58,7 @@ impl SimpleSpanProcessor {
 }
 
 impl SpanProcessor for SimpleSpanProcessor {
-    fn on_start(&self, _span: &SpanData) {
+    fn on_start(&self, _span: &dyn Span, _cx: &Context) {
         // Ignored
     }
 
@@ -126,7 +127,7 @@ impl fmt::Debug for BatchSpanProcessor {
 }
 
 impl SpanProcessor for BatchSpanProcessor {
-    fn on_start(&self, _span: &SpanData) {
+    fn on_start(&self, _span: &dyn Span, _cx: &Context) {
         // Ignored
     }
 
