@@ -8,51 +8,68 @@
 //! start time is set to the current time on span creation. After the `Span` is created, it
 //! is possible to change its name, set its `Attributes`, and add `Links` and `Events`.
 //! These cannot be changed after the `Span`'s end time has been set.
-use crate::trace::{Event, SpanContext, SpanId, StatusCode, TraceId, TraceState};
-use crate::{exporter::trace::SpanData, sdk, KeyValue};
+use crate::trace::{Event, SpanContext, SpanId, SpanKind, StatusCode};
+use crate::{api, exporter, sdk, KeyValue};
 use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
 
 /// Single operation within a trace.
 #[derive(Clone, Debug)]
 pub struct Span {
-    id: SpanId,
     inner: Arc<SpanInner>,
 }
 
 /// Inner data, processed and exported on drop
 #[derive(Debug)]
 struct SpanInner {
+    span_context: SpanContext,
     data: Option<Mutex<Option<SpanData>>>,
     tracer: sdk::trace::Tracer,
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct SpanData {
+    /// Span parent id
+    pub(crate) parent_span_id: SpanId,
+    /// Span kind
+    pub(crate) span_kind: SpanKind,
+    /// Span name
+    pub(crate) name: String,
+    /// Span start time
+    pub(crate) start_time: SystemTime,
+    /// Span end time
+    pub(crate) end_time: SystemTime,
+    /// Span attributes
+    pub(crate) attributes: sdk::trace::EvictedHashMap,
+    /// Span Message events
+    pub(crate) message_events: sdk::trace::EvictedQueue<api::trace::Event>,
+    /// Span Links
+    pub(crate) links: sdk::trace::EvictedQueue<api::trace::Link>,
+    /// Span status code
+    pub(crate) status_code: StatusCode,
+    /// Span status message
+    pub(crate) status_message: String,
+    /// Resource contains attributes representing an entity that produced this span.
+    pub(crate) resource: Arc<sdk::Resource>,
+}
+
 impl Span {
-    pub(crate) fn new(id: SpanId, data: Option<SpanData>, tracer: sdk::trace::Tracer) -> Self {
+    pub(crate) fn new(
+        span_context: SpanContext,
+        data: Option<SpanData>,
+        tracer: sdk::trace::Tracer,
+    ) -> Self {
         Span {
-            id,
             inner: Arc::new(SpanInner {
+                span_context,
                 data: data.map(|data| Mutex::new(Some(data))),
                 tracer,
             }),
         }
     }
 
-    /// Operate on reference to span inner
+    /// Operate on a mutable reference to span data
     fn with_data<T, F>(&self, f: F) -> Option<T>
-    where
-        F: FnOnce(&SpanData) -> T,
-    {
-        self.inner.data.as_ref().and_then(|inner| {
-            inner
-                .lock()
-                .ok()
-                .and_then(|span_data| span_data.as_ref().map(f))
-        })
-    }
-
-    /// Operate on mutable reference to span inner
-    fn with_data_mut<T, F>(&self, f: F) -> Option<T>
     where
         F: FnOnce(&mut SpanData) -> T,
     {
@@ -77,24 +94,15 @@ impl crate::trace::Span for Span {
         timestamp: SystemTime,
         attributes: Vec<KeyValue>,
     ) {
-        self.with_data_mut(|data| {
+        self.with_data(|data| {
             data.message_events
                 .push_back(Event::new(name, timestamp, attributes))
         });
     }
 
     /// Returns the `SpanContext` for the given `Span`.
-    fn span_context(&self) -> SpanContext {
-        self.with_data(|data| data.span_context.clone())
-            .unwrap_or_else(|| {
-                SpanContext::new(
-                    TraceId::invalid(),
-                    SpanId::invalid(),
-                    0,
-                    false,
-                    TraceState::default(),
-                )
-            })
+    fn span_context(&self) -> &SpanContext {
+        &self.inner.span_context
     }
 
     /// Returns true if this `Span` is recording information like events with the `add_event`
@@ -109,7 +117,7 @@ impl crate::trace::Span for Span {
     /// attributes"](https://github.com/open-telemetry/opentelemetry-specification/tree/v0.5.0/specification/trace/semantic_conventions/README.md)
     /// that have prescribed semantic meanings.
     fn set_attribute(&self, attribute: KeyValue) {
-        self.with_data_mut(|data| {
+        self.with_data(|data| {
             data.attributes.insert(attribute);
         });
     }
@@ -117,7 +125,7 @@ impl crate::trace::Span for Span {
     /// Sets the status of the `Span`. If used, this will override the default `Span`
     /// status, which is `Unset`.
     fn set_status(&self, code: StatusCode, message: String) {
-        self.with_data_mut(|data| {
+        self.with_data(|data| {
             data.status_code = code;
             data.status_message = message
         });
@@ -125,14 +133,14 @@ impl crate::trace::Span for Span {
 
     /// Updates the `Span`'s name.
     fn update_name(&self, new_name: String) {
-        self.with_data_mut(|data| {
+        self.with_data(|data| {
             data.name = new_name;
         });
     }
 
     /// Finishes the span with given timestamp.
     fn end_with_timestamp(&self, timestamp: SystemTime) {
-        self.with_data_mut(|data| {
+        self.with_data(|data| {
             data.end_time = timestamp;
         });
     }
@@ -161,12 +169,38 @@ impl Drop for SpanInner {
                         };
 
                         if let Some(span_data) = span_data {
-                            processor.on_end(span_data);
+                            processor.on_end(build_export_data(
+                                span_data,
+                                self.span_context.clone(),
+                                &self.tracer,
+                            ));
                         }
                     }
                 }
             }
         }
+    }
+}
+
+fn build_export_data(
+    data: SpanData,
+    span_context: SpanContext,
+    tracer: &sdk::trace::Tracer,
+) -> exporter::trace::SpanData {
+    exporter::trace::SpanData {
+        span_context,
+        parent_span_id: data.parent_span_id,
+        span_kind: data.span_kind,
+        name: data.name,
+        start_time: data.start_time,
+        end_time: data.end_time,
+        attributes: data.attributes,
+        message_events: data.message_events,
+        links: data.links,
+        status_code: data.status_code,
+        status_message: data.status_message,
+        resource: data.resource,
+        instrumentation_lib: tracer.instrumentation_library().clone(),
     }
 }
 
@@ -181,13 +215,6 @@ mod tests {
         let config = provider.config();
         let tracer = provider.get_tracer("opentelemetry", Some(env!("CARGO_PKG_VERSION")));
         let data = SpanData {
-            span_context: SpanContext::new(
-                TraceId::from_u128(0),
-                SpanId::from_u64(0),
-                api::trace::TRACE_FLAG_NOT_SAMPLED,
-                false,
-                TraceState::default(),
-            ),
             parent_span_id: SpanId::from_u64(0),
             span_kind: api::trace::SpanKind::Internal,
             name: "opentelemetry".to_string(),
@@ -199,27 +226,26 @@ mod tests {
             status_code: StatusCode::Unset,
             status_message: "".to_string(),
             resource: config.resource.clone(),
-            instrumentation_lib: *tracer.instrumentation_library(),
         };
         (tracer, data)
     }
 
     fn create_span() -> Span {
         let (tracer, data) = init();
-        Span::new(SpanId::from_u64(0), Some(data), tracer)
+        Span::new(SpanContext::empty_context(), Some(data), tracer)
     }
 
     #[test]
     fn create_span_without_data() {
         let (tracer, _) = init();
-        let span = Span::new(SpanId::from_u64(0), None, tracer);
+        let span = Span::new(SpanContext::empty_context(), None, tracer);
         span.with_data(|_data| panic!("there are data"));
     }
 
     #[test]
-    fn create_span_with_data() {
+    fn create_span_with_data_mut() {
         let (tracer, data) = init();
-        let span = Span::new(SpanId::from_u64(0), Some(data.clone()), tracer);
+        let span = Span::new(SpanContext::empty_context(), Some(data.clone()), tracer);
         span.with_data(|d| assert_eq!(*d, data));
     }
 

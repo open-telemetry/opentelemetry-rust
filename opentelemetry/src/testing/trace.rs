@@ -14,8 +14,8 @@ impl Span for TestSpan {
         _attributes: Vec<KeyValue>,
     ) {
     }
-    fn span_context(&self) -> SpanContext {
-        self.0.clone()
+    fn span_context(&self) -> &SpanContext {
+        &self.0
     }
     fn is_recording(&self) -> bool {
         false

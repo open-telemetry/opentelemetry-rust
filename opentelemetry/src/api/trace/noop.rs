@@ -78,8 +78,8 @@ impl trace::Span for NoopSpan {
     }
 
     /// Returns an invalid `SpanContext`.
-    fn span_context(&self) -> trace::SpanContext {
-        self.span_context.clone()
+    fn span_context(&self) -> &trace::SpanContext {
+        &self.span_context
     }
 
     /// Returns false, signifying that this span is never recording.
@@ -131,7 +131,7 @@ impl trace::Tracer for NoopTracer {
 
     /// Starts a new `NoopSpan` in a given context.
     ///
-    /// If the context contains a valid span context, it is progagated.
+    /// If the context contains a valid span context, it is propagated.
     fn start_from_context(&self, name: &str, cx: &Context) -> Self::Span {
         let builder = self.span_builder(name);
         self.build_with_context(builder, cx)
@@ -144,13 +144,17 @@ impl trace::Tracer for NoopTracer {
 
     /// Builds a `NoopSpan` from a `SpanBuilder`.
     ///
-    /// If the span builder or context contains a valid span context, it is progagated.
+    /// If the span builder or context contains a valid span context, it is propagated.
     fn build_with_context(&self, mut builder: trace::SpanBuilder, cx: &Context) -> Self::Span {
         let parent_span_context = builder
             .parent_context
             .take()
-            .or_else(|| Some(cx.span().span_context()).filter(|cx| cx.is_valid()))
-            .or_else(|| cx.remote_span_context().cloned())
+            .or_else(|| {
+                Some(cx.span().span_context())
+                    .filter(|sc| sc.is_valid())
+                    .cloned()
+            })
+            .or_else(|| cx.remote_span_context().filter(|sc| sc.is_valid()).cloned())
             .filter(|cx| cx.is_valid());
         if let Some(span_context) = parent_span_context {
             trace::NoopSpan { span_context }
