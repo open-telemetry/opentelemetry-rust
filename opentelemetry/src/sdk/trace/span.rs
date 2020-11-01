@@ -200,7 +200,7 @@ fn build_export_data(
         status_code: data.status_code,
         status_message: data.status_message,
         resource: data.resource,
-        instrumentation_lib: tracer.instrumentation_library().clone(),
+        instrumentation_lib: *tracer.instrumentation_library(),
     }
 }
 
