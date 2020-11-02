@@ -89,8 +89,8 @@ const MAP_KEYS: [Key; 20] = [
 ];
 
 fn insert_keys(mut map: sdktrace::EvictedHashMap, n: usize) {
-    for idx in 0..n {
-        map.insert(KeyValue::new(MAP_KEYS[idx].clone(), idx as i64));
+    for (idx, key) in MAP_KEYS.iter().enumerate().take(n) {
+        map.insert(KeyValue::new(key.clone(), idx as i64));
     }
 }
 
