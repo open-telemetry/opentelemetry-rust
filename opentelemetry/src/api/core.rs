@@ -2,6 +2,7 @@
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
+use std::fmt;
 
 /// Key used for metric `LabelSet`s and trace `Span` attributes.
 #[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
@@ -52,7 +53,7 @@ impl Key {
     }
 
     /// Create a `KeyValue` pair for arrays.
-    pub fn array<T: Into<Vec<Value>>>(&self, value: T) -> KeyValue {
+    pub fn array<T: Into<Array>>(&self, value: T) -> KeyValue {
         KeyValue {
             key: self.clone(),
             value: Value::Array(value.into()),
@@ -86,6 +87,83 @@ impl From<Key> for String {
     }
 }
 
+/// Array of homogeneous values
+#[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
+#[derive(Clone, Debug, PartialEq)]
+pub enum Array {
+    /// Array of bools
+    Bool(Vec<Option<bool>>),
+    /// Array of integers
+    I64(Vec<Option<i64>>),
+    /// Array of floats
+    F64(Vec<Option<f64>>),
+    /// Array of strings
+    String(Vec<Option<Cow<'static, str>>>),
+}
+
+impl fmt::Display for Array {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Array::Bool(values) => display_array_str(&values, fmt),
+            Array::I64(values) => display_array_str(&values, fmt),
+            Array::F64(values) => display_array_str(&values, fmt),
+            Array::String(values) => {
+                write!(fmt, "[")?;
+                for (i, t) in values.iter().enumerate() {
+                    if i > 0 {
+                        write!(fmt, ",")?;
+                    }
+                    match t {
+                        Some(t) => write!(fmt, "{:?}", t)?,
+                        None => write!(fmt, "null")?,
+                    }
+                }
+                write!(fmt, "]")
+            }
+        }
+    }
+}
+
+fn display_array_str<T: fmt::Display>(
+    slice: &[Option<T>],
+    fmt: &mut fmt::Formatter<'_>,
+) -> fmt::Result {
+    write!(fmt, "[")?;
+    for (i, t) in slice.iter().enumerate() {
+        if i > 0 {
+            write!(fmt, ",")?;
+        }
+        match t {
+            Some(t) => write!(fmt, "{}", t)?,
+            None => write!(fmt, "null")?,
+        }
+    }
+    write!(fmt, "]")
+}
+
+macro_rules! into_array {
+    ($(($t:ty, $val:expr, $src:ident, $convert:expr),)+) => {
+        $(
+            impl From<$t> for Array {
+                fn from($src: $t) -> Self {
+                    $val($convert)
+                }
+            }
+        )+
+    }
+}
+
+into_array!(
+    (Vec<Option<bool>>, Array::Bool, t, t),
+    (Vec<Option<i64>>, Array::I64, t, t),
+    (Vec<Option<f64>>, Array::F64, t, t),
+    (Vec<Option<Cow<'static, str>>>, Array::String, t, t),
+    (Vec<bool>, Array::Bool, t, t.into_iter().map(Some).collect()),
+    (Vec<i64>, Array::I64, t, t.into_iter().map(Some).collect()),
+    (Vec<f64>, Array::F64, t, t.into_iter().map(Some).collect()),
+    (Vec<Cow<'static, str>>, Array::String, t, t.into_iter().map(Some).collect()),
+);
+
 /// Value types for use in `KeyValue` pairs.
 #[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
 #[derive(Clone, Debug, PartialEq)]
@@ -99,7 +177,7 @@ pub enum Value {
     /// String values
     String(Cow<'static, str>),
     /// Array of homogeneous values
-    Array(Vec<Value>),
+    Array(Array),
 }
 
 macro_rules! from_values {
@@ -122,7 +200,7 @@ from_values!(
     (bool, Value::Bool);
     (i64, Value::I64);
     (f64, Value::F64);
-    (Vec<Value>, Value::Array);
+    (Cow<'static, str>, Value::String);
 );
 
 impl From<&'static str> for Value {
@@ -148,7 +226,7 @@ impl From<Value> for String {
             Value::I64(value) => value.to_string(),
             Value::F64(value) => value.to_string(),
             Value::String(value) => value.into_owned(),
-            Value::Array(value) => format_value_array_as_string(&value),
+            Value::Array(value) => value.to_string(),
         }
     }
 }
@@ -162,22 +240,9 @@ impl From<&Value> for String {
             Value::I64(value) => value.to_string(),
             Value::F64(value) => value.to_string(),
             Value::String(value) => value.to_string(),
-            Value::Array(value) => format_value_array_as_string(value),
+            Value::Array(value) => value.to_string(),
         }
     }
-}
-
-fn format_value_array_as_string(v: &[Value]) -> String {
-    format!(
-        "[{}]",
-        v.iter()
-            .map(|elem| match elem {
-                Value::String(s) => format!(r#""{}""#, s),
-                v => String::from(v),
-            })
-            .collect::<Vec<_>>()
-            .join(",")
-    )
 }
 
 /// `KeyValue` pairs are used by `LabelSet`s and `Span` attributes.

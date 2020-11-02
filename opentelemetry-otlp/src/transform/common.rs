@@ -1,6 +1,6 @@
 use crate::proto::common::{AnyValue, ArrayValue, KeyValue};
 use opentelemetry::sdk::trace::EvictedHashMap;
-use opentelemetry::Value;
+use opentelemetry::{Array, Value};
 use protobuf::RepeatedField;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -45,17 +45,34 @@ impl From<Value> for AnyValue {
             Value::I64(val) => any_value.set_int_value(val),
             Value::F64(val) => any_value.set_double_value(val),
             Value::String(val) => any_value.set_string_value(val.into_owned()),
-            Value::Array(vals) => any_value.set_array_value({
-                let mut array_value = ArrayValue::new();
-                array_value.set_values(RepeatedField::from_vec(
-                    vals.into_iter().map(AnyValue::from).collect(),
-                ));
-                array_value
+            Value::Array(array) => any_value.set_array_value(match array {
+                Array::Bool(vals) => array_into_proto(vals),
+                Array::I64(vals) => array_into_proto(vals),
+                Array::F64(vals) => array_into_proto(vals),
+                Array::String(vals) => array_into_proto(vals),
             }),
         };
 
         any_value
     }
+}
+
+fn array_into_proto<T>(vals: Vec<Option<T>>) -> ArrayValue
+where
+    Value: From<T>,
+{
+    let values = RepeatedField::from_vec(
+        vals.into_iter()
+            .map(|val| match val {
+                Some(v) => AnyValue::from(Value::from(v)),
+                None => AnyValue::new(),
+            })
+            .collect(),
+    );
+
+    let mut array_value = ArrayValue::new();
+    array_value.set_values(values);
+    array_value
 }
 
 pub(crate) fn to_nanos(time: SystemTime) -> u64 {

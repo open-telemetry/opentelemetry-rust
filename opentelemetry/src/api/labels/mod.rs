@@ -1,5 +1,5 @@
 //! OpenTelemetry Labels
-use crate::{Key, KeyValue, Value};
+use crate::{Array, Key, KeyValue, Value};
 use std::cmp::Ordering;
 use std::collections::{btree_map, BTreeMap};
 use std::hash::{Hash, Hasher};
@@ -82,12 +82,15 @@ fn hash_value<H: Hasher>(state: &mut H, value: &Value) {
             f.to_bits().hash(state)
         }
         Value::String(s) => s.hash(state),
-        Value::Array(arr) => {
+        Value::Array(arr) => match arr {
             // recursively hash array values
-            for val in arr {
-                hash_value(state, val);
-            }
-        }
+            Array::Bool(values) => values.iter().for_each(|v| v.hash(state)),
+            Array::I64(values) => values.iter().for_each(|v| v.hash(state)),
+            Array::F64(values) => values
+                .iter()
+                .for_each(|v| v.map(|f| f.to_bits()).hash(state)),
+            Array::String(values) => values.iter().for_each(|v| v.hash(state)),
+        },
     }
 }
 
