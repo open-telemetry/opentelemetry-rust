@@ -212,10 +212,7 @@ impl crate::trace::Tracer for Tracer {
                 &builder.name,
                 &span_kind,
                 &attribute_options,
-                link_options
-                    .as_ref()
-                    .map(|links| links.as_slice())
-                    .unwrap_or(&[]),
+                link_options.as_deref().unwrap_or(&[]),
             )
         } else {
             // has parent that is local: use parent if sampled, or don't record.
