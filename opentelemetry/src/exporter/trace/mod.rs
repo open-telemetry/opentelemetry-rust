@@ -200,7 +200,7 @@ mod tests {
         let end_time = SystemTime::now();
 
         let capacity = 3;
-        let attributes = sdk::trace::EvictedHashMap::new(capacity);
+        let attributes = sdk::trace::EvictedHashMap::new(capacity, 0);
         let message_events = sdk::trace::EvictedQueue::new(capacity);
         let links = sdk::trace::EvictedQueue::new(capacity);
 

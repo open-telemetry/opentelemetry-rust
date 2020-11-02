@@ -3,6 +3,7 @@
 use crate::{Key, KeyValue, Value};
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
+use std::collections::hash_map::Entry;
 use std::collections::{HashMap, LinkedList};
 
 /// A hash map with a capped number of attributes that retains the most
@@ -12,36 +13,45 @@ use std::collections::{HashMap, LinkedList};
 pub struct EvictedHashMap {
     map: HashMap<Key, Value>,
     evict_list: LinkedList<Key>,
-    capacity: u32,
+    max_len: u32,
     dropped_count: u32,
 }
 
 impl EvictedHashMap {
-    /// Create a new `EvictedHashMap` with a given capacity.
-    pub fn new(capacity: u32) -> Self {
+    /// Create a new `EvictedHashMap` with a given max length and capacity.
+    pub fn new(max_len: u32, capacity: usize) -> Self {
         EvictedHashMap {
-            map: HashMap::new(),
-            evict_list: Default::default(),
-            capacity,
+            map: HashMap::with_capacity(capacity),
+            evict_list: LinkedList::new(),
+            max_len,
             dropped_count: 0,
         }
     }
 
     /// Inserts a key-value pair into the map.
     pub fn insert(&mut self, item: KeyValue) {
+        let KeyValue { key, value } = item;
+        let mut already_exists = false;
         // Check for existing item
-        if let Some(value) = self.map.get_mut(&item.key) {
-            *value = item.value;
-            self.move_key_to_front(item.key);
-            return;
+        match self.map.entry(key.clone()) {
+            Entry::Occupied(mut occupied) => {
+                occupied.insert(value);
+                already_exists = true;
+            }
+            Entry::Vacant(entry) => {
+                entry.insert(value);
+            }
         }
 
-        // Add new item
-        self.evict_list.push_front(item.key.clone());
-        self.map.insert(item.key, item.value);
+        if already_exists {
+            self.move_key_to_front(key);
+        } else {
+            // Add new item
+            self.evict_list.push_front(key);
+        }
 
         // Verify size not exceeded
-        if self.evict_list.len() as u32 > self.capacity {
+        if self.evict_list.len() as u32 > self.max_len {
             self.remove_oldest();
             self.dropped_count += 1;
         }
@@ -63,8 +73,8 @@ impl EvictedHashMap {
     }
 
     /// Returns a front-to-back iterator.
-    pub fn iter(&self) -> std::collections::hash_map::Iter<'_, Key, Value> {
-        self.map.iter()
+    pub fn iter(&self) -> Iter<'_> {
+        Iter(self.map.iter())
     }
 
     /// Returns a reference to the value corresponding to the key if it exists
@@ -99,33 +109,45 @@ impl EvictedHashMap {
     }
 }
 
+/// An owned iterator over the entries of a `EvictedHashMap`.
+#[derive(Debug)]
+pub struct IntoIter(std::collections::hash_map::IntoIter<Key, Value>);
+
+impl Iterator for IntoIter {
+    type Item = (Key, Value);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next()
+    }
+}
+
 impl IntoIterator for EvictedHashMap {
     type Item = (Key, Value);
-    type IntoIter = std::collections::hash_map::IntoIter<Key, Value>;
+    type IntoIter = IntoIter;
 
-    /// Creates a consuming iterator, that is, one that moves each key-value
-    /// pair out of the map in arbitrary order. The map cannot be used after
-    /// calling this.
     fn into_iter(self) -> Self::IntoIter {
-        self.map.into_iter()
+        IntoIter(self.map.into_iter())
     }
 }
 
 impl<'a> IntoIterator for &'a EvictedHashMap {
     type Item = (&'a Key, &'a Value);
-    type IntoIter = std::collections::hash_map::Iter<'a, Key, Value>;
+    type IntoIter = Iter<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.map.iter()
+        Iter(self.map.iter())
     }
 }
 
-impl<'a> IntoIterator for &'a mut EvictedHashMap {
-    type Item = (&'a Key, &'a mut Value);
-    type IntoIter = std::collections::hash_map::IterMut<'a, Key, Value>;
+/// An iterator over the entries of an `EvictedHashMap`.
+#[derive(Debug)]
+pub struct Iter<'a>(std::collections::hash_map::Iter<'a, Key, Value>);
 
-    fn into_iter(self) -> Self::IntoIter {
-        self.map.iter_mut()
+impl<'a> Iterator for Iter<'a> {
+    type Item = (&'a Key, &'a Value);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next()
     }
 }
 
@@ -136,18 +158,18 @@ mod tests {
 
     #[test]
     fn insert_over_capacity_test() {
-        let capacity = 10;
-        let mut map = EvictedHashMap::new(capacity);
+        let max_len = 10;
+        let mut map = EvictedHashMap::new(max_len, max_len as usize);
 
-        for i in 0..=capacity {
+        for i in 0..=max_len {
             map.insert(Key::new(i.to_string()).bool(true))
         }
 
         assert_eq!(map.dropped_count, 1);
-        assert_eq!(map.len(), capacity as usize);
+        assert_eq!(map.len(), max_len as usize);
         assert_eq!(
             map.map.keys().cloned().collect::<HashSet<_>>(),
-            (1..=capacity)
+            (1..=max_len)
                 .map(|i| Key::new(i.to_string()))
                 .collect::<HashSet<_>>()
         );
