@@ -187,6 +187,34 @@ mod tests {
     }
 
     #[test]
+    fn zero_propogators_are_noop() {
+        let composite_propagator = TextMapCompositePropagator::new(vec![]);
+
+        let cx = Context::default().with_span(TestSpan(SpanContext::new(
+            TraceId::from_u128(1),
+            SpanId::from_u64(1),
+            0,
+            false,
+            TraceState::default(),
+        )));
+        let mut injector = HashMap::new();
+        composite_propagator.inject_context(&cx, &mut injector);
+
+        assert_eq!(injector.len(), 0);
+
+        for (header_name, header_value) in test_data() {
+            let mut extractor = HashMap::new();
+            extractor.insert(header_name.to_string(), header_value.to_string());
+            assert_eq!(
+                composite_propagator
+                    .extract(&extractor)
+                    .remote_span_context(),
+                None
+            );
+        }
+    }
+
+    #[test]
     fn inject_multiple_propagators() {
         let test_propagator = TestPropagator::new();
         let trace_context = TraceContextPropagator::new();

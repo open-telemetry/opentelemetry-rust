@@ -1,14 +1,12 @@
 use crate::propagation::TextMapPropagator;
-use crate::sdk::propagation::{
-    BaggagePropagator, TextMapCompositePropagator, TraceContextPropagator,
-};
+use crate::sdk::propagation::TextMapCompositePropagator;
 use std::sync::RwLock;
 
 lazy_static::lazy_static! {
     /// The current global `TextMapPropagator` propagator.
-    static ref GLOBAL_TEXT_MAP_PROPAGATOR: RwLock<Box<dyn TextMapPropagator + Send + Sync>> = RwLock::new(Box::new(TextMapCompositePropagator::new(vec![Box::new(TraceContextPropagator::new()), Box::new(BaggagePropagator::new())])));
+    static ref GLOBAL_TEXT_MAP_PROPAGATOR: RwLock<Box<dyn TextMapPropagator + Send + Sync>> = RwLock::new(Box::new(TextMapCompositePropagator::new(vec![])));
     /// The global default `TextMapPropagator` propagator.
-    static ref DEFAULT_TEXT_MAP_PROPAGATOR: TextMapCompositePropagator = TextMapCompositePropagator::new(vec![Box::new(TraceContextPropagator::new()), Box::new(BaggagePropagator::new())]);
+    static ref DEFAULT_TEXT_MAP_PROPAGATOR: TextMapCompositePropagator = TextMapCompositePropagator::new(vec![]);
 }
 
 /// Sets the given [`TextMapPropagator`] propagator as the current global propagator.
