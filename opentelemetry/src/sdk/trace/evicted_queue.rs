@@ -16,7 +16,7 @@ pub struct EvictedQueue<T> {
 }
 
 impl<T> EvictedQueue<T> {
-    /// Create a new `EvictedQueue` with a given capacity.
+    /// Create a new `EvictedQueue` with a given max length.
     pub fn new(max_len: u32) -> Self {
         EvictedQueue {
             queue: None,
