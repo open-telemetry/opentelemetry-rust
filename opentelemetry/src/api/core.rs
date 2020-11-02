@@ -44,7 +44,7 @@ impl Key {
     }
 
     /// Create a `KeyValue` pair for `String` values.
-    pub fn string<T: Into<String>>(&self, value: T) -> KeyValue {
+    pub fn string<T: Into<Cow<'static, str>>>(&self, value: T) -> KeyValue {
         KeyValue {
             key: self.clone(),
             value: Value::String(value.into()),
@@ -97,7 +97,7 @@ pub enum Value {
     /// f64 values
     F64(f64),
     /// String values
-    String(String),
+    String(Cow<'static, str>),
     /// Array of homogeneous values
     Array(Vec<Value>),
 }
@@ -122,14 +122,20 @@ from_values!(
     (bool, Value::Bool);
     (i64, Value::I64);
     (f64, Value::F64);
-    (String, Value::String);
     (Vec<Value>, Value::Array);
 );
 
-impl From<&str> for Value {
-    /// Convenience method for creating a `Value` from a `&str`.
-    fn from(value_str: &str) -> Self {
-        Value::String(value_str.to_string())
+impl From<&'static str> for Value {
+    /// Convenience method for creating a `Value` from a `&'static str`.
+    fn from(s: &'static str) -> Self {
+        Value::String(s.into())
+    }
+}
+
+impl From<String> for Value {
+    /// Convenience method for creating a `Value` from a `String`.
+    fn from(s: String) -> Self {
+        Value::String(s.into())
     }
 }
 
@@ -141,7 +147,7 @@ impl From<Value> for String {
             Value::Bool(value) => value.to_string(),
             Value::I64(value) => value.to_string(),
             Value::F64(value) => value.to_string(),
-            Value::String(value) => value,
+            Value::String(value) => value.into_owned(),
             Value::Array(value) => format_value_array_as_string(&value),
         }
     }
@@ -155,7 +161,7 @@ impl From<&Value> for String {
             Value::Bool(value) => value.to_string(),
             Value::I64(value) => value.to_string(),
             Value::F64(value) => value.to_string(),
-            Value::String(value) => value.clone(),
+            Value::String(value) => value.to_string(),
             Value::Array(value) => format_value_array_as_string(value),
         }
     }

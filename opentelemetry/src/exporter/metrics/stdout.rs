@@ -135,7 +135,7 @@ where
             let encoded_inst_labels = if !desc.instrumentation_name().is_empty() {
                 let inst_labels = LabelSet::from_labels(iter::once(KeyValue::new(
                     "instrumentation.name",
-                    desc.instrumentation_name(),
+                    desc.instrumentation_name().to_owned(),
                 )));
                 inst_labels.encoded(Some(self.label_encoder.as_ref()))
             } else {

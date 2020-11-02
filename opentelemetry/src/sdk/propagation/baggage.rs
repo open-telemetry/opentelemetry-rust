@@ -246,7 +246,7 @@ mod tests {
                 vec![
                     KeyValue::new("key1", Value::Array(vec![Value::Bool(true), Value::Bool(false)])),
                     KeyValue::new("key2", Value::Array(vec![Value::I64(123), Value::I64(456)])),
-                    KeyValue::new("key3", Value::Array(vec![Value::String("val1".to_string()), Value::String("val2".to_string())])),
+                    KeyValue::new("key3", Value::Array(vec!["val1".into(), "val2".into()])),
                 ],
                 vec![
                     "key1=[true%2Cfalse]",

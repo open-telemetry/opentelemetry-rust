@@ -38,7 +38,8 @@ async fn main() -> std::io::Result<()> {
             .wrap_fn(|req, srv| {
                 let tracer = global::tracer("request");
                 tracer.in_span("middleware", move |cx| {
-                    cx.span().set_attribute(Key::new("path").string(req.path()));
+                    cx.span()
+                        .set_attribute(Key::new("path").string(req.path().to_string()));
                     srv.call(req).with_context(cx)
                 })
             })

@@ -39,7 +39,7 @@ impl Baggage {
     /// let mut cc = Baggage::new();
     /// let _ = cc.insert("my-name", "my-value");
     ///
-    /// assert_eq!(cc.get("my-name"), Some(&Value::String("my-value".to_string())))
+    /// assert_eq!(cc.get("my-name"), Some(&Value::from("my-value")))
     /// ```
     pub fn get<T: Into<Key>>(&self, key: T) -> Option<&Value> {
         self.inner.get(&key.into()).map(|(value, _metadata)| value)
@@ -55,7 +55,7 @@ impl Baggage {
     /// let _ = cc.insert("my-name", "my-value");
     ///
     /// // By default, the metadata is empty
-    /// assert_eq!(cc.get_with_metadata("my-name"), Some(&(Value::String("my-value".to_string()), BaggageMetadata::from(""))))
+    /// assert_eq!(cc.get_with_metadata("my-name"), Some(&(Value::from("my-value"), BaggageMetadata::from(""))))
     /// ```
     pub fn get_with_metadata<T: Into<Key>>(&self, key: T) -> Option<&(Value, BaggageMetadata)> {
         self.inner.get(&key.into())
@@ -74,7 +74,7 @@ impl Baggage {
     /// let mut cc = Baggage::new();
     /// let _ = cc.insert("my-name", "my-value");
     ///
-    /// assert_eq!(cc.get("my-name"), Some(&Value::String("my-value".to_string())))
+    /// assert_eq!(cc.get("my-name"), Some(&Value::from("my-value")))
     /// ```
     pub fn insert<K, V>(&mut self, key: K, value: V) -> Option<Value>
     where
@@ -98,7 +98,7 @@ impl Baggage {
     /// let mut cc = Baggage::new();
     /// let _ = cc.insert_with_metadata("my-name", "my-value", "test");
     ///
-    /// assert_eq!(cc.get_with_metadata("my-name"), Some(&(Value::String("my-value".to_string()), BaggageMetadata::from("test"))))
+    /// assert_eq!(cc.get_with_metadata("my-name"), Some(&(Value::from("my-value"), BaggageMetadata::from("test"))))
     /// ```
     pub fn insert_with_metadata<K, V, S>(
         &mut self,
@@ -257,7 +257,7 @@ pub trait BaggageExt {
     ///
     /// assert_eq!(
     ///     cx.baggage().get("my-name"),
-    ///     Some(&Value::String("my-value".to_string())),
+    ///     Some(&Value::from("my-value")),
     /// )
     /// ```
     fn with_baggage<T: IntoIterator<Item = I>, I: Into<KeyValueMetadata>>(
@@ -276,7 +276,7 @@ pub trait BaggageExt {
     ///
     /// assert_eq!(
     ///     cx.baggage().get("my-name"),
-    ///     Some(&Value::String("my-value".to_string())),
+    ///     Some(&Value::from("my-value")),
     /// )
     /// ```
     fn current_with_baggage<T: IntoIterator<Item = I>, I: Into<KeyValueMetadata>>(
