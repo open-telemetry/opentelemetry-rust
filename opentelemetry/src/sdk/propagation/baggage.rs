@@ -186,6 +186,7 @@ impl TextMapPropagator for BaggagePropagator {
 mod tests {
     use super::*;
     use crate::{baggage::BaggageMetadata, propagation::TextMapPropagator, Key, KeyValue, Value};
+    use std::borrow::Cow;
     use std::collections::HashMap;
 
     #[rustfmt::skip]
@@ -244,9 +245,9 @@ mod tests {
             // "values of array types"
             (
                 vec![
-                    KeyValue::new("key1", Value::Array(vec![Value::Bool(true), Value::Bool(false)])),
-                    KeyValue::new("key2", Value::Array(vec![Value::I64(123), Value::I64(456)])),
-                    KeyValue::new("key3", Value::Array(vec!["val1".into(), "val2".into()])),
+                    KeyValue::new("key1", Value::Array(vec![true, false].into())),
+                    KeyValue::new("key2", Value::Array(vec![123, 456].into())),
+                    KeyValue::new("key3", Value::Array(vec![Cow::from("val1"), Cow::from("val2")].into())),
                 ],
                 vec![
                     "key1=[true%2Cfalse]",
