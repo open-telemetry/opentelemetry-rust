@@ -94,7 +94,7 @@ fn encode_spans(
             .unwrap_or(0);
 
         let span_type = match span.attributes.get(&Key::new("span.type")) {
-            Some(Value::String(s)) => interner.intern(s.as_str()),
+            Some(Value::String(s)) => interner.intern(s.as_ref()),
             _ => interner.intern(""),
         };
 

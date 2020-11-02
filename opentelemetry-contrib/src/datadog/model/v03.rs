@@ -27,7 +27,7 @@ pub(crate) fn encode(service_name: &str, spans: Vec<trace::SpanData>) -> Result<
         if let Some(Value::String(s)) = span.attributes.get(&Key::new("span.type")) {
             rmp::encode::write_map_len(&mut encoded, 11)?;
             rmp::encode::write_str(&mut encoded, "type")?;
-            rmp::encode::write_str(&mut encoded, s.as_str())?;
+            rmp::encode::write_str(&mut encoded, s.as_ref())?;
         } else {
             rmp::encode::write_map_len(&mut encoded, 10)?;
         }

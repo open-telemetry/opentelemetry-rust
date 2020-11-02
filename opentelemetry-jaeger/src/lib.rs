@@ -474,7 +474,7 @@ impl Into<jaeger::Tag> for KeyValue {
     fn into(self) -> jaeger::Tag {
         let KeyValue { key, value } = self;
         match value {
-            Value::String(s) => jaeger::Tag::new(key.into(), jaeger::TagType::String, Some(s), None, None, None, None),
+            Value::String(s) => jaeger::Tag::new(key.into(), jaeger::TagType::String, Some(s.into()), None, None, None, None),
             Value::F64(f) => jaeger::Tag::new(key.into(), jaeger::TagType::Double, None, Some(f.into()), None, None, None),
             Value::Bool(b) => jaeger::Tag::new(key.into(), jaeger::TagType::Bool, None, None, Some(b), None, None),
             Value::I64(i) => jaeger::Tag::new(key.into(), jaeger::TagType::Long, None, None, None, Some(i), None),
