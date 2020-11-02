@@ -220,7 +220,7 @@ mod tests {
             name: "opentelemetry".to_string(),
             start_time: SystemTime::now(),
             end_time: SystemTime::now(),
-            attributes: sdk::trace::EvictedHashMap::new(config.max_attributes_per_span),
+            attributes: sdk::trace::EvictedHashMap::new(config.max_attributes_per_span, 0),
             message_events: sdk::trace::EvictedQueue::new(config.max_events_per_span),
             links: sdk::trace::EvictedQueue::new(config.max_links_per_span),
             status_code: StatusCode::Unset,

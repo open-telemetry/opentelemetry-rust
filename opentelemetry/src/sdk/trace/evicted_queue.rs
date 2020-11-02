@@ -10,17 +10,17 @@ use std::collections::VecDeque;
 #[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
 #[derive(Clone, Debug, PartialEq)]
 pub struct EvictedQueue<T> {
-    queue: VecDeque<T>,
-    capacity: u32,
+    queue: Option<VecDeque<T>>,
+    max_len: u32,
     dropped_count: u32,
 }
 
 impl<T> EvictedQueue<T> {
-    /// Create a new `EvictedQueue` with a given capacity.
-    pub fn new(capacity: u32) -> Self {
+    /// Create a new `EvictedQueue` with a given max length.
+    pub fn new(max_len: u32) -> Self {
         EvictedQueue {
-            queue: Default::default(),
-            capacity,
+            queue: None,
+            max_len,
             dropped_count: 0,
         }
     }
@@ -28,11 +28,12 @@ impl<T> EvictedQueue<T> {
     /// Push a new element to the back of the queue, dropping and
     /// recording dropped count if over capacity.
     pub(crate) fn push_back(&mut self, value: T) {
-        if self.queue.len() as u32 == self.capacity {
-            self.queue.pop_front();
+        let queue = self.queue.get_or_insert_with(Default::default);
+        if queue.len() as u32 == self.max_len {
+            queue.pop_front();
             self.dropped_count += 1;
         }
-        self.queue.push_back(value);
+        queue.push_back(value);
     }
 
     /// Moves all the elements of other into self, leaving other empty.
@@ -42,17 +43,17 @@ impl<T> EvictedQueue<T> {
 
     /// Returns `true` if the `EvictedQueue` is empty.
     pub fn is_empty(&self) -> bool {
-        self.queue.is_empty()
+        self.queue.as_ref().map_or(true, |queue| queue.is_empty())
     }
 
     /// Returns a front-to-back iterator.
-    pub fn iter(&self) -> std::collections::vec_deque::Iter<'_, T> {
-        self.queue.iter()
+    pub fn iter(&self) -> Iter<'_, T> {
+        Iter(self.queue.as_ref().map(|queue| queue.iter()))
     }
 
     /// Returns the number of elements in the `EvictedQueue`.
     pub fn len(&self) -> usize {
-        self.queue.len()
+        self.queue.as_ref().map_or(0, |queue| queue.len())
     }
 
     /// Count of dropped attributes
@@ -61,32 +62,36 @@ impl<T> EvictedQueue<T> {
     }
 }
 
+/// An owned iterator over the entries of a `EvictedQueue`.
+#[derive(Debug)]
+pub struct IntoIter<T>(Option<std::collections::vec_deque::IntoIter<T>>);
+
+impl<T> Iterator for IntoIter<T> {
+    type Item = T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.as_mut().and_then(|iter| iter.next())
+    }
+}
+
 impl<T> IntoIterator for EvictedQueue<T> {
     type Item = T;
-    type IntoIter = std::collections::vec_deque::IntoIter<T>;
+    type IntoIter = IntoIter<T>;
 
-    /// Consumes the `EvictedQueue` into a front-to-back iterator yielding elements by
-    /// value.
     fn into_iter(self) -> Self::IntoIter {
-        self.queue.into_iter()
+        IntoIter(self.queue.map(|queue| queue.into_iter()))
     }
 }
 
-impl<'a, T> IntoIterator for &'a EvictedQueue<T> {
+/// An iterator over the entries of an `EvictedQueue`.
+#[derive(Debug)]
+pub struct Iter<'a, T>(Option<std::collections::vec_deque::Iter<'a, T>>);
+
+impl<'a, T: 'static> Iterator for Iter<'a, T> {
     type Item = &'a T;
-    type IntoIter = std::collections::vec_deque::Iter<'a, T>;
 
-    fn into_iter(self) -> Self::IntoIter {
-        self.queue.iter()
-    }
-}
-
-impl<'a, T> IntoIterator for &'a mut EvictedQueue<T> {
-    type Item = &'a mut T;
-    type IntoIter = std::collections::vec_deque::IterMut<'a, T>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.queue.iter_mut()
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.as_mut().and_then(|iter| iter.next())
     }
 }
 
@@ -112,6 +117,9 @@ mod tests {
 
         assert_eq!(queue.dropped_count, 1);
         assert_eq!(queue.len(), capacity as usize);
-        assert_eq!(queue.queue, (1..=capacity).collect::<VecDeque<_>>());
+        assert_eq!(
+            queue.queue.unwrap(),
+            (1..=capacity).collect::<VecDeque<_>>()
+        );
     }
 }

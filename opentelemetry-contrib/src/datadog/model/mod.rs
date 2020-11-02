@@ -90,7 +90,7 @@ mod tests {
         let end_time = start_time.checked_add(Duration::from_secs(1)).unwrap();
 
         let capacity = 3;
-        let mut attributes = sdk::trace::EvictedHashMap::new(capacity);
+        let mut attributes = sdk::trace::EvictedHashMap::new(capacity, capacity as usize);
         attributes.insert(Key::new("span.type").string("web"));
 
         let message_events = sdk::trace::EvictedQueue::new(capacity);
