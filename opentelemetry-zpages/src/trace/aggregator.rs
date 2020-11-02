@@ -9,7 +9,7 @@ use futures::channel::mpsc;
 use futures::StreamExt;
 
 use opentelemetry::exporter::trace::SpanData;
-use opentelemetry::trace::{SpanId, StatusCode};
+use opentelemetry::trace::StatusCode;
 
 use crate::trace::span_processor::TracezMessage;
 
@@ -67,9 +67,13 @@ impl SpanAggregator {
                             if summary
                                 .running_sample_span
                                 .as_ref()
-                                .map(|span| span.span_context.span_id())
-                                .unwrap_or(SpanId::invalid())
-                                == span.span_context.span_id()
+                                .map(|sampled_span| {
+                                    sampled_span.span_context.span_id()
+                                        == span.span_context.span_id()
+                                        && sampled_span.span_context.trace_id()
+                                            == span.span_context.trace_id()
+                                })
+                                .unwrap_or(false)
                             {
                                 // clear current running span if it ended.
                                 summary.running_sample_span = None;
@@ -86,10 +90,6 @@ impl SpanAggregator {
                         TracezMessage::SampleSpan(span) => {
                             let summary = self.summaries.entry(span.name.clone()).or_default();
                             summary.running_sample_span = Some(span);
-                            summary.running_num += 1;
-                        }
-                        TracezMessage::SpanStart { span_name, .. } => {
-                            let summary = self.summaries.entry(span_name).or_default();
                             summary.running_num += 1;
                         }
                     }
@@ -191,7 +191,7 @@ mod tests {
             name: "test-service".to_string(),
             start_time: SystemTime::now(),
             end_time: SystemTime::now(),
-            attributes: EvictedHashMap::new(12),
+            attributes: EvictedHashMap::new(12, 20),
             message_events: EvictedQueue::new(12),
             links: EvictedQueue::new(12),
             status_code: StatusCode::Ok,

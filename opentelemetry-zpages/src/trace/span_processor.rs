@@ -4,21 +4,18 @@
 //! for further process.
 //!
 //! [`SpanAggregator`]:../struct.SpanAggregator.html
-use futures::channel::mpsc;
-use opentelemetry::{
-    exporter::trace::SpanData,
-    trace::{SpanId, SpanProcessor},
-};
-use std::collections::HashMap;
 use std::fmt::Formatter;
 use std::sync::Mutex;
+
+use futures::channel::mpsc;
+
+use opentelemetry::sdk::trace::{Span, SpanProcessor};
+use opentelemetry::{exporter::trace::SpanData, Context};
 
 #[derive(Debug)]
 pub enum TracezMessage {
     // Sample span on start
     SampleSpan(SpanData),
-    // Send span information on start
-    SpanStart { span_name: String, span_id: SpanId },
     SpanEnd(SpanData),
     ShutDown,
 }
@@ -39,39 +36,19 @@ impl std::fmt::Debug for ZPagesProcessor {
 
 struct Inner {
     channel: mpsc::Sender<TracezMessage>,
-    current_sampled_span: HashMap<String, SpanId>,
 }
 
 impl SpanProcessor for ZPagesProcessor {
-    fn on_start(&self, span: &SpanData) {
-        if let Ok(mut inner) = self.0.lock() {
-            // if we already have span sampled for this span name, just send span name, span id.
-            // if not, then send the whole span for sampling.
-            if inner.current_sampled_span.contains_key(&span.name) {
-                let _ = inner.channel.try_send(TracezMessage::SpanStart {
-                    span_name: span.name.clone(),
-                    span_id: span.span_context.span_id(),
-                });
-            } else {
-                let _ = inner
-                    .channel
-                    .try_send(TracezMessage::SampleSpan(span.clone()))
-                    .and_then(|_| {
-                        inner
-                            .current_sampled_span
-                            .insert(span.name.clone(), span.span_context.span_id());
-                        Ok(())
-                    });
+    fn on_start(&self, span: &Span, _cx: &Context) {
+        if let Some(data) = span.exported_data() {
+            if let Ok(mut inner) = self.0.lock() {
+                let _ = inner.channel.try_send(TracezMessage::SampleSpan(data));
             }
         }
     }
 
     fn on_end(&self, span: SpanData) {
         if let Ok(mut inner) = self.0.lock() {
-            // if the sampled span ends, remove it from map so that next span can be sampled.
-            if inner.current_sampled_span.contains_key(&span.name) {
-                inner.current_sampled_span.remove(&span.name);
-            }
             let _ = inner.channel.try_send(TracezMessage::SpanEnd(span));
         }
     }
