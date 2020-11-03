@@ -1,6 +1,41 @@
+//! # OpenTelemetry Span Processor Interface
+//!
+//! Span processor is an interface which allows hooks for span start and end method
+//! invocations. The span processors are invoked only when
+//! [`is_recording`] is true.
+//!
+//! Built-in span processors are responsible for batching and conversion of spans to
+//! exportable representation and passing batches to exporters.
+//!
+//! Span processors can be registered directly on SDK [`TracerProvider`] and they are
+//! invoked in the same order as they were registered.
+//!
+//! All `Tracer` instances created by a `TracerProvider` share the same span processors.
+//! Changes to this collection reflect in all `Tracer` instances.
+//!
+//! The following diagram shows `SpanProcessor`'s relationship to other components
+//! in the SDK:
+//!
+//! ```ascii
+//!   +-----+--------------+   +-----------------------+   +-------------------+
+//!   |     |              |   |                       |   |                   |
+//!   |     |              |   | (Batch)SpanProcessor  |   |    SpanExporter   |
+//!   |     |              +---> (Simple)SpanProcessor +--->  (JaegerExporter) |
+//!   |     |              |   |                       |   |                   |
+//!   | SDK | Tracer.span()|   +-----------------------+   +-------------------+
+//!   |     | Span.end()   |
+//!   |     |              |   +---------------------+
+//!   |     |              |   |                     |
+//!   |     |              +---> ZPagesProcessor     |
+//!   |     |              |   |                     |
+//!   +-----+--------------+   +---------------------+
+//! ```
+//!
+//! [`is_recording`]: ../span/trait.Span.html#method.is_recording
+//! [`TracerProvider`]: ../provider/trait.TracerProvider.html
+use crate::sdk::trace::Span;
 use crate::{
     exporter::trace::{SpanData, SpanExporter},
-    trace::{Span, SpanProcessor},
     Context,
 };
 use futures::{channel::mpsc, executor, future::BoxFuture, Future, FutureExt, Stream, StreamExt};
@@ -22,6 +57,18 @@ const OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT: usize = 2048;
 const OTEL_BSP_MAX_EXPORT_BATCH_SIZE: &str = "OTEL_BSP_MAX_EXPORT_BATCH_SIZE";
 /// Default maximum batch size
 const OTEL_BSP_MAX_EXPORT_BATCH_SIZE_DEFAULT: usize = 512;
+
+/// `SpanProcessor`s allow hooks for span start and end method invocations.
+pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
+    /// `on_start` method is invoked when a `Span` is started.
+    fn on_start(&self, span: &Span, cx: &Context);
+    /// `on_end` method is invoked when a `Span` is ended.
+    fn on_end(&self, span: SpanData);
+    /// Shutdown is invoked when SDK shuts down. Use this call to cleanup any
+    /// processor data. No calls to `on_start` and `on_end` method is invoked
+    /// after `shutdown` call is made.
+    fn shutdown(&mut self);
+}
 
 /// A [`SpanProcessor`] that exports synchronously when spans are finished.
 ///
@@ -58,7 +105,7 @@ impl SimpleSpanProcessor {
 }
 
 impl SpanProcessor for SimpleSpanProcessor {
-    fn on_start(&self, _span: &dyn Span, _cx: &Context) {
+    fn on_start(&self, _span: &Span, _cx: &Context) {
         // Ignored
     }
 
@@ -127,7 +174,7 @@ impl fmt::Debug for BatchSpanProcessor {
 }
 
 impl SpanProcessor for BatchSpanProcessor {
-    fn on_start(&self, _span: &dyn Span, _cx: &Context) {
+    fn on_start(&self, _span: &Span, _cx: &Context) {
         // Ignored
     }
 
