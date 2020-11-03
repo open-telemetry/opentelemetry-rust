@@ -30,6 +30,18 @@
 //! See the [examples](https://github.com/open-telemetry/opentelemetry-rust/tree/master/examples)
 //! directory for different integration patterns.
 //!
+//! ## Crate Feature Flags
+//!
+//! The following crate feature flags are available:
+//!
+//! * `trace`: Includes the trace API and SDK (enabled by default).
+//! * `metrics`: Includes the unstable metrics API and SDK.
+//! * `base64_format`: Adds experimental support for encoding span context
+//!   information in base64.
+//! * `serialize`: Adds serde serializers for common types.
+//! * `binary_propagator`: Adds experimental support for the trace binary
+//!   propagator.
+//!
 //! ## Related Crates
 //!
 //! In addition to `opentelemetry`, the [`open-telemetry/opentelemetry-rust`]

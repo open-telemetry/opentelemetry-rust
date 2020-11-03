@@ -125,6 +125,15 @@
 //! }
 //! ```
 //!
+//! ## Crate Feature Flags
+//!
+//! The following crate feature flags are available:
+//!
+//! * `reqwest-blocking-client`: Export spans using the reqwest blocking http
+//!   client (enabled by default).
+//! * `reqwest-client`: Export spans using the reqwest non-blocking http client.
+//! * `surf-client`: Export spans using the surf non-blocking http client.
+//!
 //! ## Supported Rust Versions
 //!
 //! OpenTelemetry is built against the latest stable release. The minimum
