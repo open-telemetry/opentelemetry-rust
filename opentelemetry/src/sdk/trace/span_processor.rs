@@ -58,7 +58,7 @@ const OTEL_BSP_MAX_EXPORT_BATCH_SIZE: &str = "OTEL_BSP_MAX_EXPORT_BATCH_SIZE";
 /// Default maximum batch size
 const OTEL_BSP_MAX_EXPORT_BATCH_SIZE_DEFAULT: usize = 512;
 
-/// `SpanProcessor`s allow finished spans to be processed.
+/// `SpanProcessor`s allow hooks for span start and end method invocations.
 pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
     /// `on_start` method is invoked when a `Span` is started.
     fn on_start(&self, span: &Span, cx: &Context);
