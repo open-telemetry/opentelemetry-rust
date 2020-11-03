@@ -142,6 +142,6 @@ pub use api::trace;
 pub use api::{
     baggage,
     context::{Context, ContextGuard},
-    core::{Key, KeyValue, Unit, Value},
+    core::{Array, Key, KeyValue, Unit, Value},
     propagation,
 };
