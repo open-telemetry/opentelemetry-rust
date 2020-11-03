@@ -148,7 +148,8 @@
 //!
 //! The following crate feature flags are available:
 //!
-//! * `collector_client`: Export span data directly to a Jaeger collector using isahc http client.
+//! * `collector_client`: Export span data directly to a Jaeger collector using
+//!   isahc http client.
 //!
 //! ## Supported Rust Versions
 //!
