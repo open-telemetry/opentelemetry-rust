@@ -9,7 +9,7 @@
 //! not duplicate this data to avoid that different `Tracer` instances
 //! of the `TracerProvider` have different versions of these data.
 use crate::exporter::trace::SpanExporter;
-use crate::{sdk, trace::SpanProcessor};
+use crate::{sdk, sdk::trace::SpanProcessor};
 use std::sync::Arc;
 
 /// Default tracer name if empty string is provided.
