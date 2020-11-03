@@ -1,4 +1,47 @@
-//! OpenTelemetry Baggage API
+//! Primitives for sending name-value data across system boundaries.
+//!
+//! Main types in this module are:
+//!
+//! * [`Baggage`]: Baggage is used to annotate telemetry, adding context and
+//!   information to metrics, traces, and logs.
+//! * [`BaggageExt`]: Extensions for managing `Baggage` in a [`Context`].
+//!
+//! Baggage can be sent between systems using the [`BaggagePropagator`] in
+//! accordance with the [W3C Baggage] specification.
+//!
+//! [`BaggagePropagator`]: crate::sdk::propagation::BaggagePropagator
+//! [W3C Baggage]: https://w3c.github.io/baggage
+//!
+//! # Examples
+//!
+//! ```
+//! use opentelemetry::{baggage::BaggageExt, Key, propagation::TextMapPropagator};
+//! use opentelemetry::sdk::propagation::BaggagePropagator;
+//! use std::collections::HashMap;
+//!
+//! // Example baggage value passed in externally via http headers
+//! let mut headers = HashMap::new();
+//! headers.insert("baggage".to_string(), "user_id=1".to_string());
+//!
+//! let propagator = BaggagePropagator::new();
+//! // can extract from any type that impls `Extractor`, usually an HTTP header map
+//! let cx = propagator.extract(&headers);
+//!
+//! // Iterate over extracted name-value pairs
+//! for (name, value) in cx.baggage() {
+//!     // ...
+//! }
+//!
+//! // Add new baggage
+//! let cx_with_additions = cx.with_baggage(vec![Key::new("server_id").i64(42)]);
+//!
+//! // Inject baggage into http request
+//! propagator.inject_context(&cx_with_additions, &mut headers);
+//!
+//! let header_value = headers.get("baggage").expect("header is injected");
+//! assert!(header_value.contains("user_id=1"), "still contains previous name-value");
+//! assert!(header_value.contains("server_id=42"), "contains new name-value pair");
+//! ```
 use crate::{Context, Key, KeyValue, Value};
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
@@ -13,7 +56,29 @@ const MAX_KEY_VALUE_PAIRS: usize = 180;
 const MAX_BYTES_FOR_ONE_PAIR: usize = 4096;
 const MAX_LEN_OF_ALL_PAIRS: usize = 8192;
 
-/// A set of name/value pairs describing user-defined properties across systems.
+/// A set of name-value pairs describing user-defined properties.
+///
+/// ### Baggage Names
+///
+/// * ASCII strings according to the token format, defined in [RFC2616, Section 2.2]
+///
+/// ### Baggage Values
+///
+/// * URL encoded UTF-8 strings.
+///
+/// ### Baggage Value Metadata
+///
+/// Additional metadata can be added to values in the form of a property set,
+/// represented as semi-colon `;` delimited list of names and/or name-value pairs,
+/// e.g. `;k1=v1;k2;k3=v3`.
+///
+/// ### Limits
+///
+/// * Maximum number of name-value pairs: `180`.
+/// * Maximum number of bytes per a single name-value pair: `4096`.
+/// * Maximum total length of all name-value pairs: `8192`.
+///
+/// [RFC2616, Section 2.2]: https://tools.ietf.org/html/rfc2616#section-2.2
 #[derive(Debug, Default)]
 pub struct Baggage {
     inner: HashMap<Key, (Value, BaggageMetadata)>,
@@ -143,6 +208,9 @@ impl Baggage {
     /// Determine whether the key value pair exceed one of the [limits](https://w3c.github.io/baggage/#limits).
     /// If not, update the total length of key values
     fn insertable(&mut self, key: &Key, value: &Value, metadata: &BaggageMetadata) -> bool {
+        if !key.as_str().is_ascii() {
+            return false;
+        }
         let value = String::from(value);
         if key_value_metadata_bytes_size(key.as_str(), value.as_str(), metadata.as_str())
             < MAX_BYTES_FOR_ONE_PAIR
@@ -192,7 +260,7 @@ fn key_value_metadata_bytes_size(key: &str, value: &str, metadata: &str) -> usiz
     key.bytes().len() + value.bytes().len() + metadata.bytes().len()
 }
 
-/// An iterator over the entries of a `Baggage`.
+/// An iterator over the entries of a [`Baggage`].
 #[derive(Debug)]
 pub struct Iter<'a>(hash_map::Iter<'a, Key, (Value, BaggageMetadata)>);
 
@@ -245,7 +313,7 @@ impl FromIterator<KeyValueMetadata> for Baggage {
 
 /// Methods for sorting and retrieving baggage data in a context.
 pub trait BaggageExt {
-    /// Returns a clone of the given context with the included name / value pairs.
+    /// Returns a clone of the given context with the included name-value pairs.
     ///
     /// # Examples
     ///
@@ -265,7 +333,7 @@ pub trait BaggageExt {
         baggage: T,
     ) -> Self;
 
-    /// Returns a clone of the current context with the included name / value pairs.
+    /// Returns a clone of the current context with the included name-value pairs.
     ///
     /// # Examples
     ///
@@ -283,7 +351,7 @@ pub trait BaggageExt {
         baggage: T,
     ) -> Self;
 
-    /// Returns a clone of the given context with the included name / value pairs.
+    /// Returns a clone of the given context with the included name-value pairs.
     ///
     /// # Examples
     ///
@@ -333,7 +401,11 @@ impl BaggageExt for Context {
     }
 }
 
-/// `Metadata` uses by `KeyValue` pairs to represent related metadata.
+/// An optional property set that can be added to [`Baggage`] values.
+///
+/// `BaggageMetadata` can be added to values in the form of a property set,
+/// represented as semi-colon `;` delimited list of names and/or name-value
+/// pairs, e.g. `;k1=v1;k2;k3=v3`.
 #[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
 #[derive(Clone, Debug, PartialOrd, PartialEq, Default)]
 pub struct BaggageMetadata(String);
@@ -357,7 +429,7 @@ impl From<&str> for BaggageMetadata {
     }
 }
 
-/// `KeyValue` pairs with metadata
+/// [`Baggage`] name-value pairs with their associated metadata.
 #[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
 #[derive(Clone, Debug, PartialEq)]
 pub struct KeyValueMetadata {
@@ -401,14 +473,22 @@ mod tests {
     use std::iter::FromIterator;
 
     #[test]
+    fn insert_non_ascii_key() {
+        let mut baggage = Baggage::new();
+        baggage.insert("🚫", "not ascii key");
+        assert_eq!(baggage.len(), 0, "did not insert invalid key");
+    }
+
+    #[test]
     fn insert_too_much_baggage() {
-        // too much key pairs
-        let mut data = Vec::with_capacity(200);
-        for i in 0..200 {
+        // too many key pairs
+        let over_limit = MAX_KEY_VALUE_PAIRS + 1;
+        let mut data = Vec::with_capacity(over_limit);
+        for i in 0..over_limit {
             data.push(KeyValue::new(format!("key{}", i), format!("key{}", i)))
         }
         let baggage = Baggage::from_iter(data.into_iter());
-        assert_eq!(baggage.len(), 180)
+        assert_eq!(baggage.len(), MAX_KEY_VALUE_PAIRS)
     }
 
     #[test]
