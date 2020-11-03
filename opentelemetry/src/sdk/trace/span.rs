@@ -157,7 +157,6 @@ impl SpanInner {
     fn finish_and_process(&self) {
         if let Some(data) = &self.data {
             if let Ok(mut span_data) = data.lock().map(|mut data| data.take()) {
-
                 // Ensure end time is set via explicit end or implicitly on drop
                 if let Some(span_data) = span_data.as_mut() {
                     if span_data.end_time == span_data.start_time {
