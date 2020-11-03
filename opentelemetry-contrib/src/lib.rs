@@ -4,6 +4,16 @@
 //! some users.
 //!
 //! Typically, those include vendor specific propagators.
+//!
+//! ## Crate Feature Flags
+//!
+//! The following crate feature flags are available:
+//!
+//! * `datadog`: Adds a Datadog trace exporter.
+//! * `reqwest-blocking-client`: Export spans using the reqwest blocking http
+//!   client.
+//! * `reqwest-client`: Export spans using the reqwest non-blocking http client.
+//! * `surf-client`: Export spans using the surf non-blocking http client.
 #![warn(
     future_incompatible,
     missing_debug_implementations,

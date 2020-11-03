@@ -144,6 +144,12 @@
 //! }
 //! ```
 //!
+//! ## Crate Feature Flags
+//!
+//! The following crate feature flags are available:
+//!
+//! * `collector_client`: Export span data directly to a Jaeger collector.
+//!
 //! ## Supported Rust Versions
 //!
 //! OpenTelemetry is built against the latest stable release. The minimum
