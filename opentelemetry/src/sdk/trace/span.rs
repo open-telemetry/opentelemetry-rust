@@ -27,14 +27,6 @@ struct SpanInner {
     tracer: sdk::trace::Tracer,
 }
 
-/// ReadableSpan trait allows users to retrieve all information from Span. For example, span name,
-/// span kind etc. In particular, it has access to InstrumentationLibrary and Resource information
-///
-pub trait ReadableSpan: api::trace::Span {
-    /// Retrieve information added into span.
-    fn span_data(&self) -> Option<exporter::trace::SpanData>;
-}
-
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct SpanData {
     /// Span parent id
@@ -151,22 +143,6 @@ impl crate::trace::Span for Span {
         self.with_data(|data| {
             data.end_time = timestamp;
         });
-    }
-}
-
-impl ReadableSpan for Span {
-    fn span_data(&self) -> Option<exporter::trace::SpanData> {
-        self.inner.data.as_ref().and_then(|mux| {
-            mux.lock().ok().and_then(|lock| {
-                lock.as_ref().map(|span_data| {
-                    build_export_data(
-                        span_data.clone(),
-                        api::trace::Span::span_context(self).clone(),
-                        &self.inner.tracer,
-                    )
-                })
-            })
-        })
     }
 }
 
@@ -446,21 +422,5 @@ mod tests {
         let span = create_span();
         span.end();
         assert!(!span.is_recording());
-    }
-
-    #[test]
-    fn get_span_data_from_readable_span() {
-        let span = create_span();
-        assert!(span.span_data().is_some());
-        let span_data = span.span_data().unwrap();
-        // make sure we include the instrumentation library
-        assert_eq!(
-            span_data.instrumentation_lib,
-            span.inner.tracer.instrumentation_library().clone()
-        );
-        // make sure we include the resource
-        span.with_data(|data| {
-            assert_eq!(data.resource, span_data.resource);
-        });
     }
 }

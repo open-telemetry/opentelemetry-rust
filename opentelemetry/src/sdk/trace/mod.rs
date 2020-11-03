@@ -22,7 +22,7 @@ pub use evicted_queue::EvictedQueue;
 pub use id_generator::{aws::XrayIdGenerator, IdGenerator};
 pub use provider::{Builder, TracerProvider};
 pub use sampler::{Sampler, SamplingDecision, SamplingResult, ShouldSample};
-pub use span::{ReadableSpan, Span};
+pub use span::Span;
 pub use span_processor::{
     BatchConfig, BatchSpanProcessor, BatchSpanProcessorBuilder, SimpleSpanProcessor, SpanProcessor,
 };

@@ -33,9 +33,9 @@
 //!
 //! [`is_recording`]: ../span/trait.Span.html#method.is_recording
 //! [`TracerProvider`]: ../provider/trait.TracerProvider.html
+use crate::sdk::trace::Span;
 use crate::{
     exporter::trace::{SpanData, SpanExporter},
-    sdk::trace::ReadableSpan,
     Context,
 };
 use futures::{channel::mpsc, executor, future::BoxFuture, Future, FutureExt, Stream, StreamExt};
@@ -61,7 +61,7 @@ const OTEL_BSP_MAX_EXPORT_BATCH_SIZE_DEFAULT: usize = 512;
 /// `SpanProcessor`s allow finished spans to be processed.
 pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
     /// `on_start` method is invoked when a `Span` is started.
-    fn on_start(&self, span: &dyn ReadableSpan, cx: &Context);
+    fn on_start(&self, span: &Span, cx: &Context);
     /// `on_end` method is invoked when a `Span` is ended.
     fn on_end(&self, span: SpanData);
     /// Shutdown is invoked when SDK shuts down. Use this call to cleanup any
@@ -105,7 +105,7 @@ impl SimpleSpanProcessor {
 }
 
 impl SpanProcessor for SimpleSpanProcessor {
-    fn on_start(&self, _span: &dyn ReadableSpan, _cx: &Context) {
+    fn on_start(&self, _span: &Span, _cx: &Context) {
         // Ignored
     }
 
@@ -174,7 +174,7 @@ impl fmt::Debug for BatchSpanProcessor {
 }
 
 impl SpanProcessor for BatchSpanProcessor {
-    fn on_start(&self, _span: &dyn ReadableSpan, _cx: &Context) {
+    fn on_start(&self, _span: &Span, _cx: &Context) {
         // Ignored
     }
 
