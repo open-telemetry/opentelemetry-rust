@@ -146,20 +146,19 @@ impl crate::trace::Span for Span {
 
     /// Finishes the span with given timestamp.
     fn end_with_timestamp(&self, timestamp: SystemTime) {
-        self.with_data(|data| {
-            data.end_time = timestamp;
-        });
-        self.inner.finish_and_process();
+        self.inner.ensure_ended_and_exported(Some(timestamp));
     }
 }
 
 impl SpanInner {
-    fn finish_and_process(&self) {
+    fn ensure_ended_and_exported(&self, timestamp: Option<SystemTime>) {
         if let Some(data) = &self.data {
             if let Ok(mut span_data) = data.lock().map(|mut data| data.take()) {
                 // Ensure end time is set via explicit end or implicitly on drop
                 if let Some(span_data) = span_data.as_mut() {
-                    if span_data.end_time == span_data.start_time {
+                    if let Some(timestamp) = timestamp {
+                        span_data.end_time = timestamp;
+                    } else if span_data.end_time == span_data.start_time {
                         span_data.end_time = SystemTime::now();
                     }
                 }
@@ -193,7 +192,7 @@ impl SpanInner {
 impl Drop for SpanInner {
     /// Report span on inner drop
     fn drop(&mut self) {
-        self.finish_and_process();
+        self.ensure_ended_and_exported(None);
     }
 }
 
