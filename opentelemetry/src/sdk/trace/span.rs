@@ -19,7 +19,7 @@ pub struct Span {
     inner: Arc<SpanInner>,
 }
 
-/// Inner data, processed and exported on drop
+/// Inner data, processed and exported on end
 #[derive(Debug)]
 struct SpanInner {
     span_context: SpanContext,
@@ -107,8 +107,14 @@ impl crate::trace::Span for Span {
 
     /// Returns true if this `Span` is recording information like events with the `add_event`
     /// operation, attributes using `set_attributes`, status with `set_status`, etc.
+    /// Always returns false after span `end`.
     fn is_recording(&self) -> bool {
-        self.inner.data.is_some()
+        if let Some(data) = &self.inner.data {
+            if let Ok(span_data) = data.lock() {
+                return span_data.is_some();
+            }
+        }
+        false
     }
 
     /// Sets a single `Attribute` where the attribute properties are passed as arguments.
@@ -140,24 +146,25 @@ impl crate::trace::Span for Span {
 
     /// Finishes the span with given timestamp.
     fn end_with_timestamp(&self, timestamp: SystemTime) {
-        self.with_data(|data| {
-            data.end_time = timestamp;
-        });
+        self.inner.ensure_ended_and_exported(Some(timestamp));
     }
 }
 
-impl Drop for SpanInner {
-    /// Report span on inner drop
-    fn drop(&mut self) {
-        if let Some(data) = self.data.take() {
+impl SpanInner {
+    fn ensure_ended_and_exported(&self, timestamp: Option<SystemTime>) {
+        if let Some(data) = &self.data {
             if let Ok(mut span_data) = data.lock().map(|mut data| data.take()) {
-                if let Some(provider) = self.tracer.provider() {
-                    // Set end time if unset or invalid
-                    if let Some(data) = span_data.as_mut() {
-                        if data.end_time <= data.start_time {
-                            data.end_time = SystemTime::now();
-                        }
+                // Ensure end time is set via explicit end or implicitly on drop
+                if let Some(span_data) = span_data.as_mut() {
+                    if let Some(timestamp) = timestamp {
+                        span_data.end_time = timestamp;
+                    } else if span_data.end_time == span_data.start_time {
+                        span_data.end_time = SystemTime::now();
                     }
+                }
+
+                // Notify each span processor that the span has ended
+                if let Some(provider) = self.tracer.provider() {
                     let mut processors = provider.span_processors().iter().peekable();
                     while let Some(processor) = processors.next() {
                         let span_data = if processors.peek().is_none() {
@@ -179,6 +186,13 @@ impl Drop for SpanInner {
                 }
             }
         }
+    }
+}
+
+impl Drop for SpanInner {
+    /// Report span on inner drop
+    fn drop(&mut self) {
+        self.ensure_ended_and_exported(None);
     }
 }
 
@@ -374,7 +388,20 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "not yet implemented"]
+    fn allows_to_get_span_context_after_end() {
+        let span = create_span();
+        span.end();
+        assert_eq!(span.span_context(), &SpanContext::empty_context());
+    }
+
+    #[test]
+    fn allows_to_get_span_context_after_clone_drop() {
+        let span = create_span();
+        drop(span.clone());
+        assert_eq!(span.span_context(), &SpanContext::empty_context());
+    }
+
+    #[test]
     fn end_only_once() {
         let span = create_span();
         let timestamp = SystemTime::now();
@@ -384,7 +411,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "not yet implemented"]
     fn noop_after_end() {
         let span = create_span();
         let initial = span.with_data(|data| data.clone()).unwrap();
@@ -417,7 +443,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "not yet implemented"]
     fn is_recording_false_after_end() {
         let span = create_span();
         span.end();
