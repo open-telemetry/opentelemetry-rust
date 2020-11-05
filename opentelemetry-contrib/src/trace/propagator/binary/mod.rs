@@ -34,5 +34,9 @@
 //!
 
 #[cfg(feature = "base64")]
-pub mod base64_format;
-pub mod binary_propagator;
+mod base64_format;
+mod binary_propagator;
+
+#[cfg(feature = "base64")]
+pub use base64_format::Base64Format;
+pub use binary_propagator::{BinaryFormat, BinaryPropagator};

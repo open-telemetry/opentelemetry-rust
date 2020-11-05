@@ -97,9 +97,9 @@
 //! }
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-//!     let (tracer, _uninstall) = opentelemetry_contrib::datadog::new_pipeline()
+//!     let (tracer, _uninstall) = opentelemetry_contrib::trace::exporter::datadog::new_pipeline()
 //!         .with_service_name("my_app")
-//!         .with_version(opentelemetry_contrib::datadog::ApiVersion::Version05)
+//!         .with_version(opentelemetry_contrib::trace::exporter::datadog::ApiVersion::Version05)
 //!         .with_agent_endpoint("http://localhost:8126")
 //!         .with_trace_config(
 //!             trace::config()

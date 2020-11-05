@@ -5,7 +5,7 @@
 //!
 //! `BinaryFormat` MUST expose the APIs that serializes values into bytes,
 //! and deserializes values from bytes.
-use crate::trace::{SpanContext, SpanId, TraceId, TraceState};
+use opentelemetry::trace::{SpanContext, SpanId, TraceId, TraceState};
 use std::convert::TryInto;
 
 /// Used to serialize and deserialize `SpanContext`s to and from a binary
@@ -88,7 +88,7 @@ impl BinaryFormat for BinaryPropagator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::trace::TraceState;
+    use opentelemetry::trace::TraceState;
 
     #[rustfmt::skip]
     fn to_bytes_data() -> Vec<(SpanContext, [u8; 29])> {

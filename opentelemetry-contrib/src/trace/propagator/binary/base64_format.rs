@@ -7,9 +7,10 @@
 //! and deserializes values from base64 strings. There is a blanket implementation
 //! for any implementors of `BinaryFormat`
 #[cfg(feature = "binary_propagator")]
-use crate::experimental::propagation::binary_propagator::BinaryFormat;
-use crate::trace::SpanContext;
+use crate::trace::propagator::binary::binary_propagator::BinaryFormat;
+
 use base64::{decode, encode};
+use opentelemetry::trace::SpanContext;
 
 /// Used to serialize and deserialize `SpanContext`s to and from a base64
 /// representation.
@@ -41,8 +42,8 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::experimental::propagation::binary_propagator::BinaryPropagator;
-    use crate::trace::{SpanId, TraceId, TraceState};
+    use crate::trace::propagator::binary::binary_propagator::BinaryPropagator;
+    use opentelemetry::trace::{SpanId, TraceId, TraceState};
 
     #[rustfmt::skip]
     fn to_base64_data() -> Vec<(SpanContext, String)> {
