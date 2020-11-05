@@ -77,7 +77,7 @@ pub mod tokio_adapter;
 /// As of the time of this writing, the opentelemetry crate exposes no link information
 /// so this struct does not send link information.
 #[derive(Derivative)]
-#[derivative(Debug)]
+#[derivative(Clone, Debug)]
 pub struct StackDriverExporter {
   #[derivative(Debug = "ignore")]
   tx: futures::channel::mpsc::Sender<Vec<Arc<SpanData>>>,
