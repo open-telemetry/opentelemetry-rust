@@ -74,6 +74,7 @@
 //! use opentelemetry::sdk::{trace::{self, IdGenerator, Sampler}, Resource};
 //! use opentelemetry::exporter::trace::ExportResult;
 //! use opentelemetry::exporter::trace::HttpClient;
+//! use opentelemetry_contrib::trace::exporter::datadog::{new_pipeline, ApiVersion};
 //! use async_trait::async_trait;
 //! use std::error::Error;
 //!
@@ -97,9 +98,9 @@
 //! }
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-//!     let (tracer, _uninstall) = opentelemetry_contrib::datadog::new_pipeline()
+//!     let (tracer, _uninstall) = new_pipeline()
 //!         .with_service_name("my_app")
-//!         .with_version(opentelemetry_contrib::datadog::ApiVersion::Version05)
+//!         .with_version(ApiVersion::Version05)
 //!         .with_agent_endpoint("http://localhost:8126")
 //!         .with_trace_config(
 //!             trace::config()

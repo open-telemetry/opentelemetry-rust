@@ -132,9 +132,6 @@
 #![cfg_attr(test, deny(warnings))]
 
 mod api;
-#[cfg(feature = "trace")]
-#[cfg_attr(docsrs, doc(cfg(feature = "trace")))]
-pub mod experimental;
 pub mod exporter;
 pub mod global;
 pub mod sdk;
