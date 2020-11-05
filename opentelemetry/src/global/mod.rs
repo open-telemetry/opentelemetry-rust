@@ -1,22 +1,26 @@
-//! # OpenTelemetry Global API
+//! Utilities for working with global telemetry primitives
 //!
-//! The global API **provides applications access to their configured
+//! ## Global Trace API
+//!
+//! The global trace API **provides applications access to their configured
 //! [`TracerProvider`] instance from anywhere in the codebase**. This allows
-//! applications to be less coupled to the specific Open Telemetry SDK as
-//! well as not manually pass references to each part of the code that needs
-//! to create [`Span`]s. Additionally, **3rd party middleware** or **library code**
-//! can be written against this generic API and not constrain users to a
-//! specific implementation choice.
+//! applications to be less coupled to the specific Open Telemetry SDK while not
+//! manually passing references to each part of the code that needs to create
+//! [`Span`]s. Additionally, **3rd party middleware** or **library code** can be
+//! written against this generic API and not constrain users to a specific
+//! implementation choice.
 //!
-//! ## Usage
+//! ### Usage in Applications
 //!
-//! ```ignore
-//! use opentelemetry::trace::{Tracer, TracerProvider};
-//! use opentelemetry::metrics::{Meter, MeterProvider};
+//! Applications configure their tracer either by [installing a trace pipeline],
+//! or calling [`set_tracer_provider`].
+//!
+//! ```
+//! use opentelemetry::trace::{Tracer, NoopTracerProvider};
 //! use opentelemetry::global;
 //!
 //! fn init_tracer() -> global::TracerProviderGuard {
-//!     let provider = opentelemetry::trace::NoopTracerProvider::new();
+//!     let provider = NoopTracerProvider::new();
 //!
 //!     // Configure the global `TracerProvider` singleton when your app starts
 //!     // (there is a no-op default if this is not set by your application)
@@ -24,16 +28,12 @@
 //! }
 //!
 //! fn do_something_tracked() {
-//!     // Then you can use the global provider to create a tracer via `tracer`.
-//!     let _span = global::tracer("my-component").start("span-name");
+//!     // Then you can get a named tracer instance anywhere in your codebase.
+//!     let tracer = global::tracer("my-component");
 //!
-//!     // You can also get the tracer via name and version.
-//!     let _tracer = global::tracer_with_version("another-component", "1.1.1");
-//!
-//!     // Or access the configured provider via `tracer_provider`.
-//!     let provider = global::tracer_provider();
-//!     let _tracer_a = provider.get_tracer("my-component-a", None);
-//!     let _tracer_b = provider.get_tracer("my-component-b", None);
+//!     tracer.in_span("doing_work", |cx| {
+//!         // Traced app logic here...
+//!     });
 //! }
 //!
 //! // in main or other app start
@@ -41,35 +41,93 @@
 //! do_something_tracked();
 //! ```
 //!
-//! ## Implementation
+//! ### Usage in Libraries
 //!
-//! This module provides types for working with the Open Telemetry API in an
-//! abstract implementation-agnostic way through the use of [trait objects].
-//! There is a **performance penalty** due to global synchronization as well
-//! as heap allocation and dynamic dispatch (e.g. `Box<DynSpan>` vs
-//! `sdk::Span`), but for many applications this overhead is likely either
-//! insignificant or unavoidable as it is in the case of 3rd party integrations
-//! that do not know the span type at compile time.
+//! ```
+//! use opentelemetry::trace::Tracer;
+//! use opentelemetry::global;
 //!
-//! ### Generic interface
+//! pub fn my_traced_library_function() {
+//!     // End users of your library will configure their global tracer provider
+//!     // so you can use the global tracer without any setup
+//!     let tracer = global::tracer_with_version("my-library-name", env!("CARGO_PKG_VERSION"));
 //!
-//! The generic interface is provided by the [`GlobalProvider`] struct which
-//! can be accessed anywhere via [`tracer_provider`] and allows applications to
-//! use the [`BoxedTracer`] and [`BoxedSpan`] instances that implement
-//! [`Tracer`] and [`Span`]. They wrap a boxed dyn [`GenericTracerProvider`],
-//! [`GenericTracer`], and [`Span`] respectively allowing the underlying
-//! implementation to be set at runtime.
+//!     tracer.in_span("doing_library_work", |cx| {
+//!         // Traced library logic here...
+//!     });
+//! }
+//! ```
 //!
-//! [`TracerProvider`]: ../api/trace/provider/trait.TracerProvider.html
-//! [`Tracer`]: ../api/trace/tracer/trait.Tracer.html
-//! [`Span`]: ../api/trace/span/trait.Span.html
-//! [`GenericTracerProvider`]: trait.GenericTracerProvider.html
-//! [`GenericTracer`]: trait.GenericTracer.html
-//! [`GlobalProvider`]: struct.GlobalProvider.html
-//! [`BoxedTracer`]: struct.BoxedTracer.html
-//! [`BoxedSpan`]: struct.BoxedSpan.html
-//! [`tracer_provider`]: fn.tracer_provider.html
-//! [trait objects]: https://doc.rust-lang.org/reference/types/trait-object.html#trait-objects
+//! [installing a trace pipeline]: crate::exporter::trace::stdout::PipelineBuilder::install
+//! [`TracerProvider`]: crate::trace::TracerProvider
+//! [`Span`]: crate::trace::Span
+//!
+//! ## Global Metrics API
+//!
+//! The global metrics API **provides applications access to their configured
+//! [`MeterProvider`] instance from anywhere in the codebase**. This allows
+//! applications to be less coupled to the specific Open Telemetry SDK while not
+//! manually passing references to each part of the code that needs to create
+//! metric instruments. Additionally, **3rd party middleware** or **library code** can be
+//! written against this generic API and not constrain users to a specific
+//! implementation choice.
+//!
+//! ### Usage in Applications
+//!
+//! Applications configure their tracer either by [installing a metrics pipeline],
+//! or calling [`set_meter_provider`].
+//!
+//! ```
+//! # #[cfg(feature="metrics")]
+//! # {
+//! use opentelemetry::metrics::{Meter, noop::NoopMeterProvider};
+//! use opentelemetry::{global, KeyValue};
+//!
+//! fn init_meter() {
+//!     let provider = NoopMeterProvider;
+//!
+//!     // Configure the global `MeterProvider` singleton when your app starts
+//!     // (there is a no-op default if this is not set by your application)
+//!     global::set_meter_provider(provider)
+//! }
+//!
+//! fn do_something_instrumented() {
+//!     // Then you can get a named tracer instance anywhere in your codebase.
+//!     let tracer = global::meter("my-component");
+//!     let counter = tracer.u64_counter("my_counter").init();
+//!
+//!     // record metrics
+//!     counter.add(1, &[KeyValue::new("mykey", "myvalue")]);
+//! }
+//!
+//! // in main or other app start
+//! init_meter();
+//! do_something_instrumented();
+//! # }
+//! ```
+//!
+//! ### Usage in Libraries
+//!
+//! ```
+//! # #[cfg(feature="metrics")]
+//! # {
+//! use opentelemetry::trace::Tracer;
+//! use opentelemetry::{global, KeyValue};
+//!
+//! pub fn my_traced_library_function() {
+//!     // End users of your library will configure their global meter provider
+//!     // so you can use the global meter without any setup
+//!     let tracer = global::meter("my-library-name");
+//!     let counter = tracer.u64_counter("my_counter").init();
+//!
+//!     // record metrics
+//!     counter.add(1, &[KeyValue::new("mykey", "myvalue")]);
+//! }
+//! # }
+//! ```
+//!
+//! [installing a metrics pipeline]: crate::exporter::metrics::stdout::StdoutExporterBuilder::try_init
+//! [`MeterProvider`]: crate::metrics::MeterProvider
 
 #[cfg(feature = "metrics")]
 mod error_handler;
