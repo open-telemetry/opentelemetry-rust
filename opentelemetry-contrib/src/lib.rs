@@ -9,9 +9,9 @@
 //!
 //! The following crate feature flags are available:
 //!
+//! * `binary-propagator`: Adds Experimental binary propagator to propagate trace context using binary format.
+//! * `base64-format`: Enables base64 format support for binary propagators.
 //! * `datadog`: Adds a Datadog trace exporter.
-//! * `binary-propagator`: experimental binary propagator to propagate trace context using binary format.
-//! * `base64-format`: enables base64 format support for binary propagators.
 //! * `reqwest-blocking-client`: Export spans using the reqwest blocking http
 //!   client.
 //! * `reqwest-client`: Export spans using the reqwest non-blocking http client.
