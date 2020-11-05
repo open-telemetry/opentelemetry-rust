@@ -80,11 +80,11 @@
 //! ```
 //! # #[cfg(feature="metrics")]
 //! # {
-//! use opentelemetry::metrics::{Meter, NoopMeterProvider};
+//! use opentelemetry::metrics::{Meter, noop::NoopMeterProvider};
 //! use opentelemetry::{global, KeyValue};
 //!
-//! fn init_meter() -> global::TracerProviderGuard {
-//!     let provider = NoopMeterProvider::new();
+//! fn init_meter() {
+//!     let provider = NoopMeterProvider;
 //!
 //!     // Configure the global `MeterProvider` singleton when your app starts
 //!     // (there is a no-op default if this is not set by your application)
@@ -94,7 +94,7 @@
 //! fn do_something_instrumented() {
 //!     // Then you can get a named tracer instance anywhere in your codebase.
 //!     let tracer = global::meter("my-component");
-//!     let counter = tracer.i64_counter("my_counter").init();
+//!     let counter = tracer.u64_counter("my_counter").init();
 //!
 //!     // record metrics
 //!     counter.add(1, &[KeyValue::new("mykey", "myvalue")]);
@@ -112,13 +112,13 @@
 //! # #[cfg(feature="metrics")]
 //! # {
 //! use opentelemetry::trace::Tracer;
-//! use opentelemetry::global;
+//! use opentelemetry::{global, KeyValue};
 //!
 //! pub fn my_traced_library_function() {
 //!     // End users of your library will configure their global meter provider
 //!     // so you can use the global meter without any setup
 //!     let tracer = global::meter("my-library-name");
-//!     let counter = tracer.i64_counter("my_counter").init();
+//!     let counter = tracer.u64_counter("my_counter").init();
 //!
 //!     // record metrics
 //!     counter.add(1, &[KeyValue::new("mykey", "myvalue")]);
