@@ -5,4 +5,4 @@ edition = "2018"
 
 [dependencies]
 opentelemetry = { path = "../../opentelemetry" }
-opentelemetry-contrib = { path = "../../opentelemetry-contrib", features = ["datadog"] }
+opentelemetry-contrib = { path = "../../opentelemetry-contrib", features = ["datadog", "reqwest-blocking-client"] }
