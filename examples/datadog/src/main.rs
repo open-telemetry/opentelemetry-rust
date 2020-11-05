@@ -3,7 +3,7 @@ use opentelemetry::{
     trace::{Span, TraceContextExt, Tracer},
     Key,
 };
-use opentelemetry_contrib::trace::exporter::datadog::ApiVersion;
+use opentelemetry_contrib::trace::exporter::datadog::{new_pipeline, ApiVersion};
 use std::thread;
 use std::time::Duration;
 
@@ -17,7 +17,7 @@ fn bar() {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let (tracer, _uninstall) = opentelemetry_contrib::trace::exporter::datadog::new_pipeline()
+    let (tracer, _uninstall) = new_pipeline()
         .with_service_name("trace-demo")
         .with_version(ApiVersion::Version05)
         .install()?;
