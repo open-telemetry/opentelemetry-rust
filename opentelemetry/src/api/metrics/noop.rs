@@ -23,23 +23,42 @@ lazy_static::lazy_static! {
 
 /// A no-op instance of a `MetricProvider`
 #[derive(Debug)]
-pub struct NoopMeterProvider;
+pub struct NoopMeterProvider {
+    _private: (),
+}
+
+impl NoopMeterProvider {
+    /// Create a new no-op meter provider.
+    pub fn new() -> Self {
+        NoopMeterProvider { _private: () }
+    }
+}
+
 impl MeterProvider for NoopMeterProvider {
     fn meter(&self, name: &str) -> Meter {
-        Meter::new(name, Arc::new(NoopMeterCore))
+        Meter::new(name, Arc::new(NoopMeterCore::new()))
     }
 }
 
 /// A no-op instance of a `Meter`
 #[derive(Debug)]
-pub struct NoopMeterCore;
+pub struct NoopMeterCore {
+    _private: (),
+}
+
+impl NoopMeterCore {
+    /// Create a new no-op meter core.
+    pub fn new() -> Self {
+        NoopMeterCore { _private: () }
+    }
+}
 
 impl MeterCore for NoopMeterCore {
     fn new_sync_instrument(
         &self,
         _descriptor: Descriptor,
     ) -> Result<Arc<dyn SyncInstrumentCore + Send + Sync>> {
-        Ok(Arc::new(NoopSyncInstrument))
+        Ok(Arc::new(NoopSyncInstrument::new()))
     }
 
     fn new_async_instrument(
@@ -47,7 +66,7 @@ impl MeterCore for NoopMeterCore {
         _descriptor: Descriptor,
         _runner: AsyncRunner,
     ) -> Result<Arc<dyn AsyncInstrumentCore + Send + Sync>> {
-        Ok(Arc::new(NoopAsyncInstrument))
+        Ok(Arc::new(NoopAsyncInstrument::new()))
     }
 
     fn record_batch_with_context(
@@ -62,7 +81,16 @@ impl MeterCore for NoopMeterCore {
 
 /// A no-op sync instrument
 #[derive(Debug)]
-pub struct NoopSyncInstrument;
+pub struct NoopSyncInstrument {
+    _private: (),
+}
+
+impl NoopSyncInstrument {
+    /// Create a new no-op sync instrument
+    pub fn new() -> Self {
+        NoopSyncInstrument { _private: () }
+    }
+}
 
 impl InstrumentCore for NoopSyncInstrument {
     fn descriptor(&self) -> &Descriptor {
@@ -72,7 +100,7 @@ impl InstrumentCore for NoopSyncInstrument {
 
 impl SyncInstrumentCore for NoopSyncInstrument {
     fn bind(&self, _labels: &'_ [KeyValue]) -> Arc<dyn SyncBoundInstrumentCore + Send + Sync> {
-        Arc::new(NoopBoundSyncInstrument)
+        Arc::new(NoopBoundSyncInstrument::new())
     }
     fn record_one(&self, _number: Number, _labels: &'_ [KeyValue]) {
         // Ignored
@@ -84,7 +112,16 @@ impl SyncInstrumentCore for NoopSyncInstrument {
 
 /// A no-op bound sync instrument
 #[derive(Debug)]
-pub struct NoopBoundSyncInstrument;
+pub struct NoopBoundSyncInstrument {
+    _private: (),
+}
+
+impl NoopBoundSyncInstrument {
+    /// Create a new no-op bound sync instrument
+    pub fn new() -> Self {
+        NoopBoundSyncInstrument { _private: () }
+    }
+}
 
 impl SyncBoundInstrumentCore for NoopBoundSyncInstrument {
     fn record_one(&self, _number: Number) {
@@ -94,7 +131,16 @@ impl SyncBoundInstrumentCore for NoopBoundSyncInstrument {
 
 /// A no-op async instrument.
 #[derive(Debug)]
-pub struct NoopAsyncInstrument;
+pub struct NoopAsyncInstrument {
+    _private: (),
+}
+
+impl NoopAsyncInstrument {
+    /// Create a new no-op async instrument
+    pub fn new() -> Self {
+        NoopAsyncInstrument { _private: () }
+    }
+}
 
 impl InstrumentCore for NoopAsyncInstrument {
     fn descriptor(&self) -> &Descriptor {
