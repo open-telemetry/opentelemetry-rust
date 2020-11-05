@@ -22,7 +22,7 @@ lazy_static::lazy_static! {
 }
 
 /// A no-op instance of a `MetricProvider`
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct NoopMeterProvider {
     _private: (),
 }
@@ -41,7 +41,7 @@ impl MeterProvider for NoopMeterProvider {
 }
 
 /// A no-op instance of a `Meter`
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct NoopMeterCore {
     _private: (),
 }
@@ -80,7 +80,7 @@ impl MeterCore for NoopMeterCore {
 }
 
 /// A no-op sync instrument
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct NoopSyncInstrument {
     _private: (),
 }
@@ -111,7 +111,7 @@ impl SyncInstrumentCore for NoopSyncInstrument {
 }
 
 /// A no-op bound sync instrument
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct NoopBoundSyncInstrument {
     _private: (),
 }
@@ -130,7 +130,7 @@ impl SyncBoundInstrumentCore for NoopBoundSyncInstrument {
 }
 
 /// A no-op async instrument.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct NoopAsyncInstrument {
     _private: (),
 }
