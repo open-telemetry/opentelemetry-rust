@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.9.0
+
+### Added
+
+- Option to disable exporting instrumentation library information #288
+
+### Changed
+
+- Update to opentelemetry v0.10.0
+- Update mapping otel events to Jaeger logs attributes #285
+- Add MSRV 1.42.0 #296
+
 ## v0.8.0
 
 ### Added
