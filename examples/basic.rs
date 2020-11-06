@@ -11,10 +11,6 @@ use std::{
 
 #[tokio::main]
 async fn main() {
-  simple_logger::SimpleLogger::new()
-    .with_level(log::LevelFilter::Debug)
-    .init()
-    .unwrap();
   let args = std::env::args().collect::<Vec<_>>();
   if args.len() < 2 {
     eprintln!("This example requires a path to your stackdriver json credentials as the first argument.");
@@ -38,6 +34,8 @@ async fn init_tracing(stackdriver_creds: impl AsRef<Path>) {
   let provider = sdk::Provider::builder().with_simple_exporter(exporter).build();
   tracing_subscriber::registry()
     .with(tracing_opentelemetry::layer().with_tracer(provider.get_tracer("tracing")))
+    .with(tracing_subscriber::filter::LevelFilter::DEBUG)
+    .with(tracing_subscriber::fmt::Layer::new().pretty())
     .try_init()
     .unwrap();
 }
