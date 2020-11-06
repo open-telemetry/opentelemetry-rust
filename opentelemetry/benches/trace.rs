@@ -6,20 +6,11 @@ use opentelemetry::{
 };
 
 fn criterion_benchmark(c: &mut Criterion) {
-    let mut group = c.benchmark_group("EvictedHashMap");
-    group.bench_function("insert 1", |b| {
-        b.iter(|| insert_keys(sdktrace::EvictedHashMap::new(32, 1), 1))
-    });
-    group.bench_function("insert 5", |b| {
-        b.iter(|| insert_keys(sdktrace::EvictedHashMap::new(32, 5), 5))
-    });
-    group.bench_function("insert 10", |b| {
-        b.iter(|| insert_keys(sdktrace::EvictedHashMap::new(32, 10), 10))
-    });
-    group.bench_function("insert 20", |b| {
-        b.iter(|| insert_keys(sdktrace::EvictedHashMap::new(32, 20), 20))
-    });
-    group.finish();
+    evicted_hashmap_benchmark(c);
+    let tracer = sdktrace::TracerProvider::builder()
+        .build()
+        .get_tracer("tracer", None);
+    set_attribute_in_batch(c, &tracer);
 
     trace_benchmark_group(c, "start-end-span", |tracer| tracer.start("foo").end());
 
@@ -92,6 +83,46 @@ fn insert_keys(mut map: sdktrace::EvictedHashMap, n: usize) {
     for (idx, key) in MAP_KEYS.iter().enumerate().take(n) {
         map.insert(KeyValue::new(key.clone(), idx as i64));
     }
+}
+
+fn evicted_hashmap_benchmark(c: &mut Criterion) {
+    let mut group = c.benchmark_group("EvictedHashMap");
+    group.bench_function("insert 1", |b| {
+        b.iter(|| insert_keys(sdktrace::EvictedHashMap::new(32, 1), 1))
+    });
+    group.bench_function("insert 5", |b| {
+        b.iter(|| insert_keys(sdktrace::EvictedHashMap::new(32, 5), 5))
+    });
+    group.bench_function("insert 10", |b| {
+        b.iter(|| insert_keys(sdktrace::EvictedHashMap::new(32, 10), 10))
+    });
+    group.bench_function("insert 20", |b| {
+        b.iter(|| insert_keys(sdktrace::EvictedHashMap::new(32, 20), 20))
+    });
+    group.finish();
+}
+
+fn set_attribute_in_batch(c: &mut Criterion, tracer: &sdktrace::Tracer) {
+    let mut group = c.benchmark_group("set attributes in batch");
+    // generate data
+    let mut attributes = Vec::with_capacity(1000);
+    for i in 0..1000 {
+        attributes.push(Key::new(format!("key{}", i)).i64(i));
+    }
+    group.bench_function("insert in batch", |b| {
+        b.iter(|| {
+            let span = Box::new(tracer.start("span1"));
+            span.extend_attributes(attributes.clone().into_iter());
+        })
+    });
+    group.bench_function("insert one by one", |b| {
+        b.iter(|| {
+            let span = Box::new(tracer.start("span1"));
+            for attr in attributes.clone().into_iter() {
+                span.set_attribute(attr)
+            }
+        })
+    });
 }
 
 fn trace_benchmark_group<F: Fn(&sdktrace::Tracer)>(c: &mut Criterion, name: &str, f: F) {

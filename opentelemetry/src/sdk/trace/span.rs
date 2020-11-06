@@ -128,6 +128,16 @@ impl crate::trace::Span for Span {
         });
     }
 
+    /// An API to set multiple `Attribute`. This function works similar with `set_attribute` but can
+    /// add multiple attributes at once. For more details, refer to `set_attribute`.
+    fn extend_attributes(&self, attributes: impl Iterator<Item = KeyValue>) {
+        self.with_data(|data| {
+            attributes.for_each(|attr| {
+                data.attributes.insert(attr);
+            });
+        });
+    }
+
     /// Sets the status of the `Span`. If used, this will override the default `Span`
     /// status, which is `Unset`.
     fn set_status(&self, code: StatusCode, message: String) {
