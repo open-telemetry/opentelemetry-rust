@@ -84,7 +84,7 @@
 //! use opentelemetry::{global, KeyValue};
 //!
 //! fn init_meter() {
-//!     let provider = NoopMeterProvider;
+//!     let provider = NoopMeterProvider::new();
 //!
 //!     // Configure the global `MeterProvider` singleton when your app starts
 //!     // (there is a no-op default if this is not set by your application)
