@@ -111,8 +111,8 @@ fn set_attribute_in_batch(c: &mut Criterion, tracer: &sdktrace::Tracer) {
     }
     group.bench_function("insert in batch", |b| {
         b.iter(|| {
-            let span = Box::new(tracer.start("span1"));
-            span.extend_attributes(attributes.clone().into_iter());
+            let span = tracer.start("span1");
+            span.extend_attributes(attributes.clone());
         })
     });
     group.bench_function("insert one by one", |b| {

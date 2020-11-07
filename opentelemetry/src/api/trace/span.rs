@@ -122,13 +122,10 @@ pub trait Span: fmt::Debug + 'static + Send + Sync {
     /// that have prescribed semantic meanings.
     fn set_attribute(&self, attribute: KeyValue);
 
-    /// An API to set multiple `Attribute`. This function works similar with `set_attribute` but can
+    /// An API to set multiple `Attribute`s. This function works similar to `set_attribute` but can
     /// add multiple attributes at once. For more details, refer to `set_attribute`.
-    fn extend_attributes(&self, attributes: impl Iterator<Item = KeyValue>)
-    where
-        Self: Sized,
-    {
-        attributes.for_each(|attr| {
+    fn extend_attributes(&self, attributes: Vec<KeyValue>){
+        attributes.into_iter().for_each(|attr| {
             self.set_attribute(attr);
         });
     }
@@ -174,76 +171,6 @@ pub trait Span: fmt::Debug + 'static + Send + Sync {
     ///
     /// [`Span::end`]: trait.Span.html#method.end
     fn end_with_timestamp(&self, timestamp: SystemTime);
-}
-
-impl Span for Box<dyn Span + Send + Sync> {
-    fn add_event_with_timestamp(
-        &self,
-        name: String,
-        timestamp: SystemTime,
-        attributes: Vec<KeyValue>,
-    ) {
-        (**self).add_event_with_timestamp(name, timestamp, attributes);
-    }
-
-    fn span_context(&self) -> &SpanContext {
-        (**self).span_context()
-    }
-
-    fn is_recording(&self) -> bool {
-        (**self).is_recording()
-    }
-
-    fn set_attribute(&self, attribute: KeyValue) {
-        (**self).set_attribute(attribute)
-    }
-
-    fn set_status(&self, code: StatusCode, message: String) {
-        (**self).set_status(code, message)
-    }
-
-    fn update_name(&self, new_name: String) {
-        (**self).update_name(new_name)
-    }
-
-    fn end_with_timestamp(&self, timestamp: SystemTime) {
-        (**self).end_with_timestamp(timestamp)
-    }
-}
-
-impl Span for &'static dyn Span {
-    fn add_event_with_timestamp(
-        &self,
-        name: String,
-        timestamp: SystemTime,
-        attributes: Vec<KeyValue>,
-    ) {
-        (*self).add_event_with_timestamp(name, timestamp, attributes);
-    }
-
-    fn span_context(&self) -> &SpanContext {
-        (*self).span_context()
-    }
-
-    fn is_recording(&self) -> bool {
-        (*self).is_recording()
-    }
-
-    fn set_attribute(&self, attribute: KeyValue) {
-        (*self).set_attribute(attribute)
-    }
-
-    fn set_status(&self, code: StatusCode, message: String) {
-        (*self).set_status(code, message)
-    }
-
-    fn update_name(&self, new_name: String) {
-        (*self).update_name(new_name)
-    }
-
-    fn end_with_timestamp(&self, timestamp: SystemTime) {
-        (*self).end_with_timestamp(timestamp)
-    }
 }
 
 /// `SpanKind` describes the relationship between the Span, its parents,
