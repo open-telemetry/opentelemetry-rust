@@ -3,7 +3,7 @@ use std::sync::{Arc, RwLock};
 
 lazy_static::lazy_static! {
     /// The global `Meter` provider singleton.
-    static ref GLOBAL_METER_PROVIDER: RwLock<GlobalMeterProvider> = RwLock::new(GlobalMeterProvider::new(metrics::noop::NoopMeterProvider));
+    static ref GLOBAL_METER_PROVIDER: RwLock<GlobalMeterProvider> = RwLock::new(GlobalMeterProvider::new(metrics::noop::NoopMeterProvider::new()));
 }
 
 /// Represents the globally configured [`MeterProvider`] instance for this
