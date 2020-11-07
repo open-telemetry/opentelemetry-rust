@@ -70,8 +70,8 @@ impl Span {
 
     /// Operate on a mutable reference to span data
     fn with_data<T, F>(&self, f: F) -> Option<T>
-        where
-            F: FnOnce(&mut SpanData) -> T,
+    where
+        F: FnOnce(&mut SpanData) -> T,
     {
         self.inner.data.as_ref().and_then(|inner| {
             inner
@@ -365,17 +365,17 @@ mod tests {
     }
 
     #[test]
-    fn extend_attributes(){
+    fn extend_attributes() {
         let span = create_span();
         let attributes = vec![
             KeyValue::new("k2", "v1"),
             KeyValue::new("k3", "v2"),
-            KeyValue::new("k1","v3"),
+            KeyValue::new("k1", "v3"),
         ];
         span.extend_attributes(attributes.clone());
-        span.with_data(|data|{
-            for kv in attributes{
-                if let Some(val) = data.attributes.get(&kv.key){
+        span.with_data(|data| {
+            for kv in attributes {
+                if let Some(val) = data.attributes.get(&kv.key) {
                     assert_eq!(*val, kv.value);
                 } else {
                     panic!("no such attribute");

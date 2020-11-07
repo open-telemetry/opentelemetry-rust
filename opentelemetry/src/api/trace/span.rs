@@ -124,7 +124,7 @@ pub trait Span: fmt::Debug + 'static + Send + Sync {
 
     /// An API to set multiple `Attribute`s. This function works similar to `set_attribute` but can
     /// add multiple attributes at once. For more details, refer to `set_attribute`.
-    fn extend_attributes(&self, attributes: Vec<KeyValue>){
+    fn extend_attributes(&self, attributes: Vec<KeyValue>) {
         attributes.into_iter().for_each(|attr| {
             self.set_attribute(attr);
         });
