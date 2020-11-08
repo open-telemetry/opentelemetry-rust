@@ -7,7 +7,6 @@ use async_trait::async_trait;
 use grpcio::{
     CallOption, Channel, ChannelBuilder, ChannelCredentialsBuilder, Environment, MetadataBuilder,
 };
-use opentelemetry::exporter::trace::ExportResult::{FailedNotRetryable, Success};
 use opentelemetry::exporter::trace::{ExportResult, SpanData, SpanExporter};
 use protobuf::RepeatedField;
 use std::collections::HashMap;
@@ -154,7 +153,7 @@ impl SpanExporter for Exporter {
             cached_size: Default::default(),
         };
 
-        let mut call_options: CallOption = CallOption::default().timeout(self.timeout);
+        let mut call_options = CallOption::default().timeout(self.timeout);
 
         if let Some(headers) = self.headers.clone() {
             let mut metadata_builder: MetadataBuilder = MetadataBuilder::new();
@@ -166,12 +165,10 @@ impl SpanExporter for Exporter {
             call_options = call_options.headers(metadata_builder.build());
         }
 
-        match self.trace_exporter.export_async_opt(&request, call_options) {
-            Ok(receiver) => match receiver.await {
-                Ok(_) => Success,
-                Err(_) => FailedNotRetryable,
-            },
-            Err(_) => FailedNotRetryable,
-        }
+        let receiver = self
+            .trace_exporter
+            .export_async_opt(&request, call_options)?;
+        receiver.await?;
+        Ok(())
     }
 }

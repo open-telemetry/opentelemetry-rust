@@ -129,28 +129,19 @@ where
 {
     /// Export spans to stdout
     async fn export(&self, batch: Vec<SpanData>) -> ExportResult {
-        let writer = self
+        let mut writer = self
             .writer
             .lock()
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()));
-        let result = writer.and_then(|mut w| {
-            for span in batch {
-                if self.pretty_print {
-                    w.write_all(format!("{:#?}\n", span).as_bytes())?;
-                } else {
-                    w.write_all(format!("{:?}\n", span).as_bytes())?;
-                }
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
+        for span in batch {
+            if self.pretty_print {
+                writer.write_all(format!("{:#?}\n", span).as_bytes())?;
+            } else {
+                writer.write_all(format!("{:?}\n", span).as_bytes())?;
             }
-
-            Ok(())
-        });
-
-        if result.is_ok() {
-            ExportResult::Success
-        } else {
-            // FIXME: determine retryable io::Error types
-            ExportResult::FailedNotRetryable
         }
+
+        Ok(())
     }
 }
 

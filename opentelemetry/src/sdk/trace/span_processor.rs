@@ -110,7 +110,8 @@ impl SpanProcessor for SimpleSpanProcessor {
     }
 
     fn on_end(&self, span: SpanData) {
-        executor::block_on(self.exporter.export(vec![span]));
+        // TODO: Surface error through global error handler
+        let _result = executor::block_on(self.exporter.export(vec![span]));
     }
 
     fn shutdown(&mut self) {
@@ -239,7 +240,9 @@ impl BatchSpanProcessor {
                             let batch = spans.split_off(
                                 spans.len().saturating_sub(config.max_export_batch_size),
                             );
-                            exporter.export(batch).await;
+
+                            // TODO: Surface error through global error handler
+                            let _result = exporter.export(batch).await;
                         }
                     }
                     // Stream has terminated or processor is shutdown, return to finish execution.
@@ -248,7 +251,9 @@ impl BatchSpanProcessor {
                             let batch = spans.split_off(
                                 spans.len().saturating_sub(config.max_export_batch_size),
                             );
-                            exporter.export(batch).await;
+
+                            // TODO: Surface error through global error handler
+                            let _result = exporter.export(batch).await;
                         }
                         exporter.shutdown();
                         break;

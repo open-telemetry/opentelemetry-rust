@@ -86,13 +86,13 @@
 //!
 //! #[async_trait]
 //! impl HttpClient for IsahcClient {
-//!   async fn send(&self, request: http::Request<Vec<u8>>) -> Result<ExportResult, Box<dyn Error + Send + Sync + 'static>> {
+//!   async fn send(&self, request: http::Request<Vec<u8>>) -> ExportResult {
 //!     let result = self.0.send_async(request).await?;
 //!
 //!     if result.status().is_success() {
-//!       Ok(ExportResult::Success)
+//!       Ok(())
 //!     } else {
-//!       Ok(ExportResult::FailedNotRetryable)
+//!       Err(result.status().as_str().into())
 //!     }
 //!   }
 //! }
@@ -279,24 +279,13 @@ impl DatadogPipelineBuilder {
 impl trace::SpanExporter for DatadogExporter {
     /// Export spans to datadog-agent
     async fn export(&self, batch: Vec<SpanData>) -> trace::ExportResult {
-        let data = match self.version.encode(&self.service_name, batch) {
-            Ok(data) => data,
-            Err(_) => return trace::ExportResult::FailedNotRetryable,
-        };
-
-        let req = match Request::builder()
+        let data = self.version.encode(&self.service_name, batch)?;
+        let req = Request::builder()
             .method(Method::POST)
             .uri(self.request_url.clone())
             .header(http::header::CONTENT_TYPE, self.version.content_type())
-            .body(data)
-        {
-            Ok(req) => req,
-            _ => return trace::ExportResult::FailedNotRetryable,
-        };
-        self.client
-            .send(req)
-            .await
-            .unwrap_or(trace::ExportResult::FailedNotRetryable)
+            .body(data)?;
+        self.client.send(req).await
     }
 }
 

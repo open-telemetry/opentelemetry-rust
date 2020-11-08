@@ -21,10 +21,7 @@ impl Uploader {
     /// Upload spans to Zipkin
     pub(crate) async fn upload(&self, spans: Vec<Span>) -> ExportResult {
         match self {
-            Uploader::Http(client) => client
-                .upload(spans)
-                .await
-                .unwrap_or(ExportResult::FailedNotRetryable),
+            Uploader::Http(client) => client.upload(spans).await,
         }
     }
 }
@@ -36,10 +33,7 @@ pub(crate) struct JsonV2Client {
 }
 
 impl JsonV2Client {
-    async fn upload(
-        &self,
-        spans: Vec<Span>,
-    ) -> Result<ExportResult, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    async fn upload(&self, spans: Vec<Span>) -> ExportResult {
         let req = Request::builder()
             .method(Method::POST)
             .uri(self.collector_endpoint.clone())

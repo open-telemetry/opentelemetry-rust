@@ -4,6 +4,8 @@ use crate::{
     trace::{Event, Link, SpanContext, SpanId, SpanKind, StatusCode},
 };
 use async_trait::async_trait;
+#[cfg(feature = "http")]
+use http::Request;
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
 #[cfg(all(feature = "http", feature = "reqwest"))]
@@ -11,21 +13,11 @@ use std::convert::TryInto;
 use std::fmt::Debug;
 use std::sync::Arc;
 use std::time::SystemTime;
-#[cfg(feature = "http")]
-use {http::Request, std::error::Error};
 
 pub mod stdout;
 
 /// Describes the result of an export.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum ExportResult {
-    /// Batch is successfully exported.
-    Success,
-    /// Batch export failed. Caller must not retry.
-    FailedNotRetryable,
-    /// Batch export failed transiently. Caller should record error and may retry.
-    FailedRetryable,
-}
+pub type ExportResult = Result<(), Box<dyn std::error::Error + Send + Sync + 'static>>;
 
 /// `SpanExporter` defines the interface that protocol-specific exporters must
 /// implement so that they can be plugged into OpenTelemetry SDK and support
@@ -75,10 +67,7 @@ pub trait SpanExporter: Send + Sync + std::fmt::Debug {
 #[async_trait]
 pub trait HttpClient: Debug + Send + Sync {
     /// Send a batch of spans to collectors
-    async fn send(
-        &self,
-        request: Request<Vec<u8>>,
-    ) -> Result<ExportResult, Box<dyn Error + Send + Sync + 'static>>;
+    async fn send(&self, request: Request<Vec<u8>>) -> ExportResult;
 }
 
 /// `SpanData` contains all the information collected by a `Span` and can be used
@@ -118,44 +107,28 @@ pub struct SpanData {
 #[cfg(all(feature = "reqwest", feature = "http"))]
 #[async_trait]
 impl HttpClient for reqwest::Client {
-    async fn send(
-        &self,
-        request: Request<Vec<u8>>,
-    ) -> Result<ExportResult, Box<dyn Error + Send + Sync + 'static>> {
-        let result = self.execute(request.try_into()?).await?;
-
-        if result.status().is_success() {
-            Ok(ExportResult::Success)
-        } else {
-            Ok(ExportResult::FailedNotRetryable)
-        }
+    async fn send(&self, request: Request<Vec<u8>>) -> ExportResult {
+        let _result = self
+            .execute(request.try_into()?)
+            .await?
+            .error_for_status()?;
+        Ok(())
     }
 }
 
 #[cfg(all(feature = "reqwest", feature = "http"))]
 #[async_trait]
 impl HttpClient for reqwest::blocking::Client {
-    async fn send(
-        &self,
-        request: Request<Vec<u8>>,
-    ) -> Result<ExportResult, Box<dyn Error + Send + Sync + 'static>> {
-        let result = self.execute(request.try_into()?)?;
-
-        if result.status().is_success() {
-            Ok(ExportResult::Success)
-        } else {
-            Ok(ExportResult::FailedNotRetryable)
-        }
+    async fn send(&self, request: Request<Vec<u8>>) -> ExportResult {
+        let _result = self.execute(request.try_into()?)?.error_for_status()?;
+        Ok(())
     }
 }
 
 #[cfg(all(feature = "surf", feature = "http"))]
 #[async_trait]
 impl HttpClient for surf::Client {
-    async fn send(
-        &self,
-        request: Request<Vec<u8>>,
-    ) -> Result<ExportResult, Box<dyn Error + Send + Sync + 'static>> {
+    async fn send(&self, request: Request<Vec<u8>>) -> ExportResult {
         let (parts, body) = request.into_parts();
         let uri = parts.uri.to_string().parse()?;
 
@@ -165,9 +138,9 @@ impl HttpClient for surf::Client {
         let result = self.send(req).await?;
 
         if result.status().is_success() {
-            Ok(ExportResult::Success)
+            Ok(())
         } else {
-            Ok(ExportResult::FailedNotRetryable)
+            Err(result.status().canonical_reason().into())
         }
     }
 }

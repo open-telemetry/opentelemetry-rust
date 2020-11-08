@@ -89,13 +89,13 @@
 //!
 //! #[async_trait]
 //! impl HttpClient for IsahcClient {
-//!   async fn send(&self, request: http::Request<Vec<u8>>) -> Result<ExportResult, Box<dyn Error + Send + Sync + 'static>> {
+//!   async fn send(&self, request: http::Request<Vec<u8>>) -> ExportResult {
 //!     let result = self.0.send_async(request).await?;
 //!
 //!     if result.status().is_success() {
-//!       Ok(ExportResult::Success)
+//!       Ok(())
 //!     } else {
-//!       Ok(ExportResult::FailedNotRetryable)
+//!       Err(result.status().as_str().into())
 //!     }
 //!   }
 //! }
