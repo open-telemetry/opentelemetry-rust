@@ -58,15 +58,20 @@ const OTEL_BSP_MAX_EXPORT_BATCH_SIZE: &str = "OTEL_BSP_MAX_EXPORT_BATCH_SIZE";
 /// Default maximum batch size
 const OTEL_BSP_MAX_EXPORT_BATCH_SIZE_DEFAULT: usize = 512;
 
-/// `SpanProcessor`s allow hooks for span start and end method invocations.
+/// `SpanProcessor` is an interface which allows hooks for span start and end
+/// method invocations. The span processors are invoked only when is_recording
+/// is true.
 pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
-    /// `on_start` method is invoked when a `Span` is started.
+    /// `on_start` is called when a `Span` is started.  This method is called
+    /// synchronously on the thread that started the span, therefore it should
+    /// not block or throw exceptions.
     fn on_start(&self, span: &Span, cx: &Context);
-    /// `on_end` method is invoked when a `Span` is ended.
+    /// `on_end` is called after a `Span` is ended (i.e., the end timestamp is
+    /// already set). This method is called synchronously within the `Span::end`
+    /// API, therefore it should not block or throw an exception.
     fn on_end(&self, span: SpanData);
-    /// Shutdown is invoked when SDK shuts down. Use this call to cleanup any
-    /// processor data. No calls to `on_start` and `on_end` method is invoked
-    /// after `shutdown` call is made.
+    /// Shuts down the processor. Called when SDK is shut down. This is an
+    /// opportunity for processor to do any cleanup required.
     fn shutdown(&mut self);
 }
 
@@ -95,12 +100,14 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
 /// [`SpanProcessor`]: ../../api/trace/span_processor/trait.SpanProcessor.html
 #[derive(Debug)]
 pub struct SimpleSpanProcessor {
-    exporter: Box<dyn SpanExporter>,
+    exporter: Mutex<Box<dyn SpanExporter>>,
 }
 
 impl SimpleSpanProcessor {
     pub(crate) fn new(exporter: Box<dyn SpanExporter>) -> Self {
-        SimpleSpanProcessor { exporter }
+        SimpleSpanProcessor {
+            exporter: Mutex::new(exporter),
+        }
     }
 }
 
@@ -110,12 +117,16 @@ impl SpanProcessor for SimpleSpanProcessor {
     }
 
     fn on_end(&self, span: SpanData) {
-        // TODO: Surface error through global error handler
-        let _result = executor::block_on(self.exporter.export(vec![span]));
+        if let Ok(mut exporter) = self.exporter.lock() {
+            // TODO: Surface error through global error handler
+            let _result = executor::block_on(exporter.export(vec![span]));
+        }
     }
 
     fn shutdown(&mut self) {
-        self.exporter.shutdown();
+        if let Ok(mut exporter) = self.exporter.lock() {
+            exporter.shutdown();
+        }
     }
 }
 

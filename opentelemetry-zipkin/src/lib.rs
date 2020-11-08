@@ -309,7 +309,7 @@ impl ZipkinPipelineBuilder {
 #[async_trait]
 impl trace::SpanExporter for Exporter {
     /// Export spans to Zipkin collector.
-    async fn export(&self, batch: Vec<trace::SpanData>) -> trace::ExportResult {
+    async fn export(&mut self, batch: Vec<trace::SpanData>) -> trace::ExportResult {
         let zipkin_spans = batch
             .into_iter()
             .map(|span| model::into_zipkin_span(self.local_endpoint.clone(), span))

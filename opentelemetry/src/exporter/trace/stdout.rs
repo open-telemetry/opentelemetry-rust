@@ -128,7 +128,7 @@ where
     W: Write + Debug + Send + 'static,
 {
     /// Export spans to stdout
-    async fn export(&self, batch: Vec<SpanData>) -> ExportResult {
+    async fn export(&mut self, batch: Vec<SpanData>) -> ExportResult {
         let mut writer = self
             .writer
             .lock()
