@@ -11,13 +11,19 @@
     unreachable_pub,
     unused
 )]
+#![allow(elided_lifetimes_in_paths)]
 #![cfg_attr(docsrs, feature(doc_cfg), deny(broken_intra_doc_links))]
 #![doc(
     html_logo_url = "https://raw.githubusercontent.com/open-telemetry/opentelemetry-rust/master/assets/logo.svg"
 )]
-#![cfg_attr(test, deny(warnings))]
+// #![cfg_attr(test, deny(warnings))]
+
+use trace::span_queue::SpanQueue;
 
 pub mod trace;
+#[allow(clippy::all, unreachable_pub, dead_code)]
+#[rustfmt::skip]
+mod proto;
 
 #[macro_use]
 extern crate lazy_static;
