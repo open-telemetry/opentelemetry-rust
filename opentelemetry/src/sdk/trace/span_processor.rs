@@ -444,13 +444,30 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::exporter::trace::stdout;
-    use crate::sdk::trace::span_processor::{
-        OTEL_BSP_MAX_EXPORT_BATCH_SIZE, OTEL_BSP_MAX_QUEUE_SIZE, OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT,
-        OTEL_BSP_SCHEDULE_DELAY_MILLIS, OTEL_BSP_SCHEDULE_DELAY_MILLIS_DEFAULT,
+    use super::{
+        BatchSpanProcessor, SimpleSpanProcessor, SpanProcessor, OTEL_BSP_MAX_EXPORT_BATCH_SIZE,
+        OTEL_BSP_MAX_QUEUE_SIZE, OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT, OTEL_BSP_SCHEDULE_DELAY_MILLIS,
+        OTEL_BSP_SCHEDULE_DELAY_MILLIS_DEFAULT,
     };
-    use crate::sdk::trace::BatchSpanProcessor;
+    use crate::exporter::trace::stdout;
+    use crate::testing::trace::{new_test_export_span_data, new_test_exporter};
     use std::time;
+
+    #[test]
+    fn simple_span_processor_on_end_calls_export() {
+        let (exporter, rx_export, _rx_shutdown) = new_test_exporter();
+        let processor = SimpleSpanProcessor::new(Box::new(exporter));
+        processor.on_end(new_test_export_span_data());
+        assert!(rx_export.try_recv().is_ok());
+    }
+
+    #[test]
+    fn simple_span_processor_shutdown_calls_shutdown() {
+        let (exporter, _rx_export, rx_shutdown) = new_test_exporter();
+        let mut processor = SimpleSpanProcessor::new(Box::new(exporter));
+        processor.shutdown();
+        assert!(rx_shutdown.try_recv().is_ok());
+    }
 
     #[test]
     fn test_build_batch_span_processor_from_env() {
