@@ -23,45 +23,43 @@ pub type ExportResult = Result<(), Box<dyn std::error::Error + Send + Sync + 'st
 /// implement so that they can be plugged into OpenTelemetry SDK and support
 /// sending of telemetry data.
 ///
-/// The goals of the interface are:
-///
-/// - Minimize burden of implementation for protocol-dependent telemetry
-///  exporters. The protocol exporter is expected to be primarily a simple
-/// telemetry data encoder and transmitter.
-/// - Allow implementing helpers as composable components that use the same
-/// chainable Exporter interface. SDK authors are encouraged to implement common
-/// functionality such as queuing, batching, tagging, etc. as helpers. This
-/// functionality will be applicable regardless of what protocol exporter is used.
+/// The goal of the interface is to minimize burden of implementation for
+/// protocol-dependent telemetry exporters. The protocol exporter is expected to
+/// be primarily a simple telemetry data encoder and transmitter.
 #[async_trait]
-pub trait SpanExporter: Send + Sync + std::fmt::Debug {
-    /// Exports a batch of telemetry data. Protocol exporters that will implement
-    /// this function are typically expected to serialize and transmit the data
-    /// to the destination.
+pub trait SpanExporter: Send + Debug {
+    /// Exports a batch of readable spans. Protocol exporters that will
+    /// implement this function are typically expected to serialize and transmit
+    /// the data to the destination.
     ///
     /// This function will never be called concurrently for the same exporter
     /// instance. It can be called again only after the current call returns.
     ///
     /// This function must not block indefinitely, there must be a reasonable
     /// upper limit after which the call must time out with an error result.
-    async fn export(&self, batch: Vec<SpanData>) -> ExportResult;
+    ///
+    /// Any retry logic that is required by the exporter is the responsibility
+    /// of the exporter.
+    async fn export(&mut self, batch: Vec<SpanData>) -> ExportResult;
 
     /// Shuts down the exporter. Called when SDK is shut down. This is an
     /// opportunity for exporter to do any cleanup required.
     ///
-    /// `shutdown` should be called only once for each Exporter instance. After
-    /// the call to `shutdown`, subsequent calls to `SpanExport` are not allowed
-    /// and should return an error.
+    /// This function should be called only once for each `SpanExporter`
+    /// instance. After the call to `shutdown`, subsequent calls to `export` are
+    /// not allowed and should return an error.
     ///
-    /// Shutdown should not block indefinitely (e.g. if it attempts to flush the
-    /// data and the destination is unavailable). SDK authors can
-    /// decide if they want to make the shutdown timeout to be configurable.
+    /// This function should not block indefinitely (e.g. if it attempts to
+    /// flush the data and the destination is unavailable). SDK authors
+    /// can decide if they want to make the shutdown timeout
+    /// configurable.
     fn shutdown(&mut self) {}
 }
 
 /// A minimal interface necessary for export spans over HTTP.
 ///
-/// Users sometime choose http clients that relay on certain runtime. This trait allows users to bring
-/// their choice of http clients.
+/// Users sometime choose http clients that relay on certain runtime. This trait
+/// allows users to bring their choice of http clients.
 #[cfg(feature = "http")]
 #[cfg_attr(docsrs, doc(cfg(feature = "http")))]
 #[async_trait]

@@ -146,7 +146,7 @@ impl Exporter {
 
 #[async_trait]
 impl SpanExporter for Exporter {
-    async fn export(&self, batch: Vec<SpanData>) -> ExportResult {
+    async fn export(&mut self, batch: Vec<SpanData>) -> ExportResult {
         let request = ExportTraceServiceRequest {
             resource_spans: RepeatedField::from_vec(batch.into_iter().map(Into::into).collect()),
             unknown_fields: Default::default(),
