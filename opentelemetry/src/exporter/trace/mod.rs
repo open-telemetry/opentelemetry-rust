@@ -50,8 +50,8 @@ pub trait SpanExporter: Send + Debug {
     /// not allowed and should return an error.
     ///
     /// This function should not block indefinitely (e.g. if it attempts to
-    /// flush the data and the destination is unavailable). Language library
-    /// authors can decide if they want to make the shutdown timeout
+    /// flush the data and the destination is unavailable). SDK authors
+    /// can decide if they want to make the shutdown timeout
     /// configurable.
     fn shutdown(&mut self) {}
 }
