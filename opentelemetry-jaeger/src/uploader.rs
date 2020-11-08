@@ -16,7 +16,7 @@ pub(crate) enum BatchUploader {
 
 impl BatchUploader {
     /// Emit a jaeger batch for the given uploader
-    pub(crate) async fn upload(&self, batch: jaeger::Batch) -> trace::ExportResult {
+    pub(crate) async fn upload(&mut self, batch: jaeger::Batch) -> trace::ExportResult {
         match self {
             BatchUploader::Agent(client) => {
                 // TODO Implement retry behaviour

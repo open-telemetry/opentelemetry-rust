@@ -181,7 +181,7 @@ impl NoopSpanExporter {
 
 #[async_trait]
 impl SpanExporter for NoopSpanExporter {
-    async fn export(&self, _batch: Vec<SpanData>) -> ExportResult {
+    async fn export(&mut self, _batch: Vec<SpanData>) -> ExportResult {
         Ok(())
     }
 }

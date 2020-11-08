@@ -258,7 +258,7 @@ impl Into<jaeger::Process> for Process {
 #[async_trait]
 impl trace::SpanExporter for Exporter {
     /// Export spans to Jaeger
-    async fn export(&self, batch: Vec<trace::SpanData>) -> trace::ExportResult {
+    async fn export(&mut self, batch: Vec<trace::SpanData>) -> trace::ExportResult {
         let mut jaeger_spans: Vec<jaeger::Span> = Vec::with_capacity(batch.len());
         let mut process = self.process.clone();
 

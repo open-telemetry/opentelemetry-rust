@@ -278,7 +278,7 @@ impl DatadogPipelineBuilder {
 #[async_trait]
 impl trace::SpanExporter for DatadogExporter {
     /// Export spans to datadog-agent
-    async fn export(&self, batch: Vec<SpanData>) -> trace::ExportResult {
+    async fn export(&mut self, batch: Vec<SpanData>) -> trace::ExportResult {
         let data = self.version.encode(&self.service_name, batch)?;
         let req = Request::builder()
             .method(Method::POST)
