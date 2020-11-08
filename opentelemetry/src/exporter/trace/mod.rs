@@ -27,7 +27,7 @@ pub type ExportResult = Result<(), Box<dyn std::error::Error + Send + Sync + 'st
 /// protocol-dependent telemetry exporters. The protocol exporter is expected to
 /// be primarily a simple telemetry data encoder and transmitter.
 #[async_trait]
-pub trait SpanExporter: Send + Sync + Debug {
+pub trait SpanExporter: Send + Debug {
     /// Exports a batch of readable spans. Protocol exporters that will
     /// implement this function are typically expected to serialize and transmit
     /// the data to the destination.

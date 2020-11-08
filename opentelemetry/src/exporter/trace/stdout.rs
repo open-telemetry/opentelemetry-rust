@@ -31,8 +31,7 @@ use crate::{
 };
 use async_trait::async_trait;
 use std::fmt::Debug;
-use std::io::{self, stdout, Stdout, Write};
-use std::sync::Mutex;
+use std::io::{stdout, Stdout, Write};
 
 /// Pipeline builder
 #[derive(Debug)]
@@ -108,7 +107,7 @@ where
 /// [`Stdout`]: std::io::Stdout
 #[derive(Debug)]
 pub struct Exporter<W: Write> {
-    writer: Mutex<W>,
+    writer: W,
     pretty_print: bool,
 }
 
@@ -116,7 +115,7 @@ impl<W: Write> Exporter<W> {
     /// Create a new stdout `Exporter`.
     pub fn new(writer: W, pretty_print: bool) -> Self {
         Self {
-            writer: Mutex::new(writer),
+            writer,
             pretty_print,
         }
     }
@@ -129,15 +128,11 @@ where
 {
     /// Export spans to stdout
     async fn export(&mut self, batch: Vec<SpanData>) -> ExportResult {
-        let mut writer = self
-            .writer
-            .lock()
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
         for span in batch {
             if self.pretty_print {
-                writer.write_all(format!("{:#?}\n", span).as_bytes())?;
+                self.writer.write_all(format!("{:#?}\n", span).as_bytes())?;
             } else {
-                writer.write_all(format!("{:?}\n", span).as_bytes())?;
+                self.writer.write_all(format!("{:?}\n", span).as_bytes())?;
             }
         }
 
