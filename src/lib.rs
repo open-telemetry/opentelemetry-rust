@@ -20,8 +20,8 @@
 // When this PR is merged we should be able to remove this attribute:
 // https://github.com/danburkert/prost/pull/291
 
+use async_trait::async_trait;
 use futures::stream::StreamExt;
-use hyper::client::connect::Connect;
 use opentelemetry::{
   api::core::Value,
   exporter::trace::{ExportResult, SpanData, SpanExporter},
@@ -38,7 +38,7 @@ use std::{
 use tonic::{
   metadata::MetadataValue,
   transport::{Channel, ClientTlsConfig},
-  IntoRequest, Request,
+  Request,
 };
 use yup_oauth2::authenticator::Authenticator;
 
@@ -102,22 +102,13 @@ impl fmt::Debug for StackDriverExporter {
 impl StackDriverExporter {
   /// If `num_concurrent_requests` is set to `0` or `None` then no limit is enforced.
   pub async fn connect<S: futures::task::Spawn>(
-    credentials_path: impl AsRef<std::path::Path>,
-    persistent_token_file: impl Into<Option<std::path::PathBuf>>,
+    authenticator: impl Authorizer,
     spawn: &S,
     maximum_shutdown_duration: Option<Duration>,
     num_concurrent_requests: impl Into<Option<usize>>,
   ) -> Result<Self, Box<dyn std::error::Error>> {
     let num_concurrent_requests = num_concurrent_requests.into();
     let uri = http::uri::Uri::from_static("https://cloudtrace.googleapis.com:443");
-
-    let service_account_key = yup_oauth2::read_service_account_key(&credentials_path).await?;
-    let project_name = service_account_key.project_id.as_ref().ok_or("project_id is missing")?.clone();
-    let mut authenticator = yup_oauth2::ServiceAccountAuthenticator::builder(service_account_key);
-    if let Some(persistent_token_file) = persistent_token_file.into() {
-      authenticator = authenticator.persist_tokens_to_disk(persistent_token_file);
-    }
-    let authenticator = authenticator.build().await?;
 
     let mut rustls_config = rustls::ClientConfig::new();
     rustls_config.root_store.add_server_trust_anchors(&webpki_roots::TLS_SERVER_ROOTS);
@@ -131,7 +122,6 @@ impl StackDriverExporter {
       Box::new(Self::export_inner(
         TraceServiceClient::new(channel),
         authenticator,
-        project_name,
         rx,
         pending_count.clone(),
         num_concurrent_requests,
@@ -150,35 +140,21 @@ impl StackDriverExporter {
     self.pending_count.load(Ordering::Relaxed)
   }
 
-  async fn export_inner<C>(
+  async fn export_inner(
     client: TraceServiceClient<Channel>,
-    authenticator: Authenticator<C>,
-    project_name: String,
+    authorizer: impl Authorizer,
     rx: futures::channel::mpsc::Receiver<Vec<Arc<SpanData>>>,
     pending_count: Arc<AtomicUsize>,
     num_concurrent: impl Into<Option<usize>>,
-  ) where
-    C: Connect + Clone + Send + Sync + 'static,
-  {
-    let authenticator = &authenticator;
+  ) {
+    let authorizer = &authorizer;
     rx.for_each_concurrent(num_concurrent, move |batch| {
       let mut client = client.clone(); // This clone is cheap and allows for concurrent requests (see https://github.com/hyperium/tonic/issues/285#issuecomment-595880400)
-      let project_name = project_name.clone();
       let pending_count = pending_count.clone();
       async move {
         use proto::google::devtools::cloudtrace::v2::{
           span::{time_event::Value, Attributes, TimeEvents},
           Span,
-        };
-        let scopes = &["https://www.googleapis.com/auth/trace.append"];
-        let token = authenticator.token(scopes).await;
-        log::trace!("Got StackDriver auth token: {:?}", token);
-        let bearer_token = match token {
-          Ok(token) => format!("Bearer {}", token.as_str()),
-          Err(e) => {
-            log::error!("StackDriver authentication failed {:?}", e);
-            return;
-          }
         };
 
         let spans = batch
@@ -210,7 +186,7 @@ impl StackDriverExporter {
             Span {
               name: format!(
                 "projects/{}/traces/{}/spans/{}",
-                project_name,
+                authorizer.project_id(),
                 hex::encode(span.span_context.trace_id().to_u128().to_be_bytes()),
                 hex::encode(span.span_context.span_id().to_u64().to_be_bytes())
               ),
@@ -226,42 +202,27 @@ impl StackDriverExporter {
           })
           .collect::<Vec<_>>();
 
-        let req = BatchWriteSpansRequest {
-          name: format!("projects/{}", project_name),
+        let mut req = Request::new(BatchWriteSpansRequest {
+          name: format!("projects/{}", authorizer.project_id()),
           spans,
-        };
+        });
+
+        if let Err(e) = authorizer.authorize(&mut req).await {
+          log::error!("StackDriver authentication failed {}", e);
+          return;
+        }
+
         client
-          .batch_write_spans(AuthenticatedRequest::new(req, &bearer_token))
+          .batch_write_spans(req)
           .await
           .map_err(|e| {
-            log::error!("StackDriver push failed {:?}", e);
+            log::error!("StackDriver push failed {}", e);
           })
           .ok();
         pending_count.fetch_sub(1, Ordering::Relaxed);
       }
     })
     .await;
-  }
-}
-
-struct AuthenticatedRequest<'a, T> {
-  inner: T,
-  auth: &'a str,
-}
-
-impl<'a, T> AuthenticatedRequest<'a, T> {
-  pub fn new(inner: T, auth: &'a str) -> Self {
-    Self { inner, auth }
-  }
-}
-
-impl<T> IntoRequest<T> for AuthenticatedRequest<'_, T> {
-  fn into_request(self) -> Request<T> {
-    let mut req = Request::new(self.inner);
-    req
-      .metadata_mut()
-      .insert("authorization", MetadataValue::from_str(&self.auth).unwrap());
-    req
   }
 }
 
@@ -289,6 +250,57 @@ impl SpanExporter for StackDriverExporter {
       std::thread::yield_now();
       // Spin for a bit and give the inner export some time to upload, with a timeout.
     }
+  }
+}
+
+#[async_trait]
+pub trait Authorizer: Sync + Send + 'static {
+  type Error: fmt::Display + fmt::Debug + Send;
+
+  fn project_id(&self) -> &str;
+  async fn authorize<T: Send + Sync>(&self, request: &mut Request<T>) -> Result<(), Self::Error>;
+}
+
+pub struct YupAuthorizer {
+  authenticator: Authenticator<hyper_rustls::HttpsConnector<hyper::client::HttpConnector>>,
+  project_id: String,
+}
+
+impl YupAuthorizer {
+  pub async fn new(
+    credentials_path: impl AsRef<std::path::Path>,
+    persistent_token_file: impl Into<Option<std::path::PathBuf>>,
+  ) -> Result<Self, Box<dyn std::error::Error>> {
+    let service_account_key = yup_oauth2::read_service_account_key(&credentials_path).await?;
+    let project_id = service_account_key.project_id.as_ref().ok_or("project_id is missing")?.clone();
+    let mut authenticator = yup_oauth2::ServiceAccountAuthenticator::builder(service_account_key);
+    if let Some(persistent_token_file) = persistent_token_file.into() {
+      authenticator = authenticator.persist_tokens_to_disk(persistent_token_file);
+    }
+
+    Ok(Self {
+      authenticator: authenticator.build().await?,
+      project_id,
+    })
+  }
+}
+
+#[async_trait]
+impl Authorizer for YupAuthorizer {
+  type Error = Box<dyn std::error::Error + Send + Sync>;
+
+  fn project_id(&self) -> &str {
+    &self.project_id
+  }
+
+  async fn authorize<T: Send + Sync>(&self, req: &mut Request<T>) -> Result<(), Self::Error> {
+    let scopes = &["https://www.googleapis.com/auth/trace.append"];
+    let token = self.authenticator.token(scopes).await?;
+    req.metadata_mut().insert(
+      "authorization",
+      MetadataValue::from_str(&format!("Bearer {}", token.as_str())).unwrap(),
+    );
+    Ok(())
   }
 }
 

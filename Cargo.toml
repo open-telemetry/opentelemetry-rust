@@ -23,10 +23,12 @@ tracing-opentelemetry = "0.8"
 tracing-subscriber = { version = "0.2.15", features = ["ansi"] }
 
 [dependencies]
+async-trait = "0.1.41"
 futures = "0.3"
 hex = "0.4"
 http = "0.2"
 hyper = "0.13"
+hyper-rustls = "0.20"
 log = "0.4"
 opentelemetry = "0.8"
 prost = "0.6"
