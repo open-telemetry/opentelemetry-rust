@@ -205,7 +205,7 @@ impl Quantile for PointsData {
             return Err(MetricsError::NoDataCollected);
         }
 
-        if q < 0.0 || q > 1.0 {
+        if !(0.0..=1.0).contains(&q) {
             return Err(MetricsError::InvalidQuantile);
         }
 
