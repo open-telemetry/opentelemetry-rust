@@ -164,7 +164,7 @@ impl TraceState {
     /// assert!(trace_state.is_ok());
     /// assert_eq!(trace_state.unwrap().header(), String::from("foo=bar,apple=banana"))
     /// ```
-    #[allow(clippy::result_unit_err)]
+    #[allow(clippy::all)]
     pub fn from_key_value<T, K, V>(trace_state: T) -> Result<Self, ()>
     where
         T: IntoIterator<Item = (K, V)>,
@@ -210,7 +210,7 @@ impl TraceState {
     /// updated key/value is returned.
     ///
     /// ['spec']: https://www.w3.org/TR/trace-context/#list
-    #[allow(clippy::result_unit_err)]
+    #[allow(clippy::all)]
     pub fn insert(&self, key: String, value: String) -> Result<TraceState, ()> {
         if !TraceState::valid_key(key.as_str()) || !TraceState::valid_value(value.as_str()) {
             return Err(());
@@ -229,7 +229,7 @@ impl TraceState {
     /// with the removed entry is returned.
     ///
     /// ['spec']: https://www.w3.org/TR/trace-context/#list
-    #[allow(clippy::result_unit_err)]
+    #[allow(clippy::all)]
     pub fn delete(&self, key: String) -> Result<TraceState, ()> {
         if !TraceState::valid_key(key.as_str()) {
             return Err(());
