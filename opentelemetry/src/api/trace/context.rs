@@ -42,6 +42,11 @@ pub trait TraceContextExt {
     /// ```
     fn span(&self) -> &dyn crate::trace::Span;
 
+    /// Used to see if a span has been marked as active
+    ///
+    /// This is useful for building tracers.
+    fn has_active_span(&self) -> bool;
+
     /// Returns a copy of this context with the span context included.
     ///
     /// This is useful for building propagators.
@@ -69,6 +74,10 @@ impl TraceContextExt for Context {
         } else {
             &*NOOP_SPAN
         }
+    }
+
+    fn has_active_span(&self) -> bool {
+        self.get::<Span>().is_some()
     }
 
     fn with_remote_span_context(&self, span_context: crate::trace::SpanContext) -> Self {

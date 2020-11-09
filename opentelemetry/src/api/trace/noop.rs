@@ -150,12 +150,13 @@ impl trace::Tracer for NoopTracer {
             .parent_context
             .take()
             .or_else(|| {
-                Some(cx.span().span_context())
-                    .filter(|sc| sc.is_valid())
-                    .cloned()
+                if cx.has_active_span() {
+                    Some(cx.span().span_context().clone())
+                } else {
+                    None
+                }
             })
-            .or_else(|| cx.remote_span_context().filter(|sc| sc.is_valid()).cloned())
-            .filter(|cx| cx.is_valid());
+            .or_else(|| cx.remote_span_context().cloned());
         if let Some(span_context) = parent_span_context {
             trace::NoopSpan { span_context }
         } else {
