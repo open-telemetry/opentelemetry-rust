@@ -394,7 +394,7 @@ fn build_histogram(
 fn build_label_pair(label: KeyValue) -> prometheus::proto::LabelPair {
     let mut lp = prometheus::proto::LabelPair::new();
     lp.set_name(label.key.into());
-    lp.set_value(label.value.into());
+    lp.set_value(label.value.to_string());
 
     lp
 }

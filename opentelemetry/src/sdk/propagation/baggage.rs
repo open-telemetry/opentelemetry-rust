@@ -123,7 +123,7 @@ impl TextMapPropagator for BaggagePropagator {
                     let metadata_prefix = if metadata_str.is_empty() { "" } else { ";" };
                     utf8_percent_encode(name.as_str().trim(), FRAGMENT)
                         .chain(iter::once("="))
-                        .chain(utf8_percent_encode(String::from(value).trim(), FRAGMENT))
+                        .chain(utf8_percent_encode(value.as_str().trim(), FRAGMENT))
                         .chain(iter::once(metadata_prefix))
                         .chain(iter::once(metadata_str))
                         .collect()

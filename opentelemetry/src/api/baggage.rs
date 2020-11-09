@@ -211,8 +211,8 @@ impl Baggage {
         if !key.as_str().is_ascii() {
             return false;
         }
-        let value = String::from(value);
-        if key_value_metadata_bytes_size(key.as_str(), value.as_str(), metadata.as_str())
+        let value = value.as_str();
+        if key_value_metadata_bytes_size(key.as_str(), value.as_ref(), metadata.as_str())
             < MAX_BYTES_FOR_ONE_PAIR
         {
             match self.inner.get(key) {
@@ -234,7 +234,7 @@ impl Baggage {
                         metadata.as_str().len() + value.len() + key.as_str().len()
                 }
                 Some((old_value, old_metadata)) => {
-                    let old_value = String::from(old_value);
+                    let old_value = old_value.as_str();
                     if self.kv_content_len - old_metadata.as_str().len() - old_value.len()
                         + metadata.as_str().len()
                         + value.len()
