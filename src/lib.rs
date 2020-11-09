@@ -20,7 +20,6 @@
 // When this PR is merged we should be able to remove this attribute:
 // https://github.com/danburkert/prost/pull/291
 
-use derivative::Derivative;
 use futures::stream::StreamExt;
 use hyper::client::connect::Connect;
 use opentelemetry::{
@@ -29,6 +28,7 @@ use opentelemetry::{
 };
 use proto::google::devtools::cloudtrace::v2::BatchWriteSpansRequest;
 use std::{
+  fmt,
   sync::{
     atomic::{AtomicUsize, Ordering},
     Arc,
@@ -76,13 +76,27 @@ pub mod tokio_adapter;
 ///
 /// As of the time of this writing, the opentelemetry crate exposes no link information
 /// so this struct does not send link information.
-#[derive(Derivative)]
-#[derivative(Clone, Debug)]
+#[derive(Clone)]
 pub struct StackDriverExporter {
-  #[derivative(Debug = "ignore")]
   tx: futures::channel::mpsc::Sender<Vec<Arc<SpanData>>>,
   pending_count: Arc<AtomicUsize>,
   maximum_shutdown_duration: Duration,
+}
+
+impl fmt::Debug for StackDriverExporter {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    #[allow(clippy::unneeded_field_pattern)]
+    let Self {
+      maximum_shutdown_duration,
+      pending_count,
+      tx: _,
+    } = self;
+    f.debug_struct("StackDriverExporter")
+      .field("tx", &"(elided)")
+      .field("pending_count", pending_count)
+      .field("maximum_shutdown_duration", maximum_shutdown_duration)
+      .finish()
+  }
 }
 
 impl StackDriverExporter {

@@ -23,7 +23,6 @@ tracing-opentelemetry = "0.8"
 tracing-subscriber = "0.2"
 
 [dependencies]
-derivative = "2.1.1"
 futures = "0.3"
 hex = "0.4"
 http = "0.2"
