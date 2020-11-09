@@ -63,9 +63,8 @@ pub(crate) fn encode(service_name: &str, spans: Vec<trace::SpanData>) -> Result<
         rmp::encode::write_str(&mut encoded, "meta")?;
         rmp::encode::write_map_len(&mut encoded, span.attributes.len() as u32)?;
         for (key, value) in span.attributes.iter() {
-            let value_string: String = value.into();
             rmp::encode::write_str(&mut encoded, key.as_str())?;
-            rmp::encode::write_str(&mut encoded, value_string.as_str())?;
+            rmp::encode::write_str(&mut encoded, value.as_str().as_ref())?;
         }
     }
 

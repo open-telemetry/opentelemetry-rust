@@ -111,9 +111,8 @@ fn encode_spans(
         rmp::encode::write_i32(&mut encoded, span.status_code as i32)?;
         rmp::encode::write_map_len(&mut encoded, span.attributes.len() as u32)?;
         for (key, value) in span.attributes.iter() {
-            let value_string: String = value.into();
             rmp::encode::write_u32(&mut encoded, interner.intern(key.as_str()))?;
-            rmp::encode::write_u32(&mut encoded, interner.intern(value_string.as_str()))?;
+            rmp::encode::write_u32(&mut encoded, interner.intern(value.as_str().as_ref()))?;
         }
         rmp::encode::write_map_len(&mut encoded, 0)?;
         rmp::encode::write_u32(&mut encoded, span_type)?;

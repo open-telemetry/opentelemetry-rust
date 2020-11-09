@@ -1,5 +1,5 @@
 use crate::{Key, Value};
-use std::fmt;
+use std::fmt::{self, Write};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 static ENCODER_ID_COUNTER: AtomicUsize = AtomicUsize::new(0);
@@ -39,12 +39,22 @@ impl Encoder for DefaultLabelEncoder {
         labels
             .enumerate()
             .fold(String::new(), |mut acc, (idx, (key, value))| {
+                let offset = acc.len();
                 if idx > 0 {
                     acc.push(',')
                 }
-                acc.push_str(key.as_str());
+
+                if write!(acc, "{}", key).is_err() {
+                    acc.truncate(offset);
+                    return acc;
+                }
+
                 acc.push('=');
-                acc.push_str(String::from(value).as_str());
+                if write!(acc, "{}", value).is_err() {
+                    acc.truncate(offset);
+                    return acc;
+                }
+
                 acc
             })
     }
