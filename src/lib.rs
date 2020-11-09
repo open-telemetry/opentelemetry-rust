@@ -296,12 +296,12 @@ fn attribute_value_conversion(v: Value) -> AttributeValue {
   use proto::google::devtools::cloudtrace::v2::attribute_value;
   let new_value = match v {
     Value::Bool(v) => attribute_value::Value::BoolValue(v),
-    Value::Bytes(v) => attribute_value::Value::StringValue(to_truncate(hex::encode(&v))),
-    Value::F64(v) => attribute_value::Value::StringValue(to_truncate(v.to_string())),
+    Value::Bytes(_) => attribute_value::Value::StringValue(to_truncate(v.into())),
+    Value::F64(_) => attribute_value::Value::StringValue(to_truncate(v.into())),
     Value::I64(v) => attribute_value::Value::IntValue(v),
     Value::String(v) => attribute_value::Value::StringValue(to_truncate(v)),
     Value::U64(v) => attribute_value::Value::IntValue(v as i64),
-    Value::Array(_) => attribute_value::Value::StringValue(to_truncate(String::from(v))),
+    Value::Array(_) => attribute_value::Value::StringValue(to_truncate(v.into())),
   };
   AttributeValue { value: Some(new_value) }
 }
