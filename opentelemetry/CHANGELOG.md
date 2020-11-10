@@ -19,11 +19,18 @@
 - update B3 propagator to more closely match spec #319
 - Export missing pub global trace types #313
 - Ensure kv array values are homogeneous #333
+- Implement `Display` trait for `Key` and `Value` types #353
 - Move `SpanProcessor` trait into `sdk` module #334
 - Ensure `is_recording` is `false` and span is no-op after `end` #341
 - Move binary propagator and base64 format to contrib #343
 - Ensure metrics noop types go through constructors #345
+- Change `ExportResult` to use `std::result::Result` #347
+- Change `SpanExporter::export` to take `&mut self` instead of `&self` #350
 - Add MSRV 1.42.0 #296
+
+## Fixed
+
+- Fix parent based sampling #354
 
 ## Removed
 
