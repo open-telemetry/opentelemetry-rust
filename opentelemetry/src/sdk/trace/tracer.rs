@@ -172,9 +172,14 @@ impl crate::trace::Tracer for Tracer {
         let parent_span_context = builder
             .parent_context
             .as_ref()
-            .or_else(|| Some(cx.span().span_context()).filter(|cx| cx.is_valid()))
-            .or_else(|| cx.remote_span_context())
-            .filter(|cx| cx.is_valid());
+            .or_else(|| {
+                if cx.has_active_span() {
+                    Some(cx.span().span_context())
+                } else {
+                    None
+                }
+            })
+            .or_else(|| cx.remote_span_context());
         // Build context for sampling decision
         let (no_parent, trace_id, parent_span_id, remote_parent, parent_trace_flags) =
             parent_span_context
@@ -283,11 +288,12 @@ mod tests {
     use crate::{
         sdk::{
             self,
-            trace::{Config, SamplingDecision, SamplingResult, ShouldSample},
+            trace::{Config, Sampler, SamplingDecision, SamplingResult, ShouldSample},
         },
+        testing::trace::TestSpan,
         trace::{
-            Link, Span, SpanBuilder, SpanContext, SpanId, SpanKind, TraceId, TraceState, Tracer,
-            TracerProvider, TRACE_FLAG_SAMPLED,
+            Link, Span, SpanBuilder, SpanContext, SpanId, SpanKind, TraceContextExt, TraceId,
+            TraceState, Tracer, TracerProvider, TRACE_FLAG_SAMPLED,
         },
         Context, KeyValue,
     };
@@ -339,5 +345,20 @@ mod tests {
         let span_context = span.span_context();
         let expected = span_context.trace_state();
         assert_eq!(expected.get("foo"), Some("notbar"))
+    }
+
+    #[test]
+    fn drop_parent_based_children() {
+        let sampler = Sampler::ParentBased(Box::new(Sampler::AlwaysOn));
+        let config = Config::default().with_default_sampler(sampler);
+        let tracer_provider = sdk::trace::TracerProvider::builder()
+            .with_config(config)
+            .build();
+
+        let context = Context::current_with_span(TestSpan(SpanContext::empty_context()));
+        let tracer = tracer_provider.get_tracer("test", None);
+        let span = tracer.start_from_context("must_not_be_sampled", &context);
+
+        assert!(!span.span_context().is_sampled());
     }
 }

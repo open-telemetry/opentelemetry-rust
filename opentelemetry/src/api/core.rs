@@ -87,6 +87,12 @@ impl From<Key> for String {
     }
 }
 
+impl fmt::Display for Key {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(fmt)
+    }
+}
+
 /// Array of homogeneous values
 #[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
 #[derive(Clone, Debug, PartialEq)]
@@ -180,6 +186,21 @@ pub enum Value {
     Array(Array),
 }
 
+impl Value {
+    /// String representation of the `Value`
+    ///
+    /// This will allocate iff the underlying value is not a `String`.
+    pub fn as_str(&self) -> Cow<'_, str> {
+        match self {
+            Value::Bool(v) => format!("{}", v).into(),
+            Value::I64(v) => format!("{}", v).into(),
+            Value::F64(v) => format!("{}", v).into(),
+            Value::String(v) => Cow::Borrowed(v.as_ref()),
+            Value::Array(v) => format!("{}", v).into(),
+        }
+    }
+}
+
 macro_rules! from_values {
    (
         $(
@@ -217,30 +238,14 @@ impl From<String> for Value {
     }
 }
 
-impl From<Value> for String {
-    /// Convert `Value` types to `String` for use by exporters that only use
-    /// `String` values.
-    fn from(value: Value) -> Self {
-        match value {
-            Value::Bool(value) => value.to_string(),
-            Value::I64(value) => value.to_string(),
-            Value::F64(value) => value.to_string(),
-            Value::String(value) => value.into_owned(),
-            Value::Array(value) => value.to_string(),
-        }
-    }
-}
-
-impl From<&Value> for String {
-    /// Convert `&Value` types to `String` for use by exporters that only use
-    /// `String` values.
-    fn from(value: &Value) -> Self {
-        match value {
-            Value::Bool(value) => value.to_string(),
-            Value::I64(value) => value.to_string(),
-            Value::F64(value) => value.to_string(),
-            Value::String(value) => value.to_string(),
-            Value::Array(value) => value.to_string(),
+impl fmt::Display for Value {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Value::Bool(v) => fmt.write_fmt(format_args!("{}", v)),
+            Value::I64(v) => fmt.write_fmt(format_args!("{}", v)),
+            Value::F64(v) => fmt.write_fmt(format_args!("{}", v)),
+            Value::String(v) => fmt.write_fmt(format_args!("{}", v)),
+            Value::Array(v) => fmt.write_fmt(format_args!("{}", v)),
         }
     }
 }

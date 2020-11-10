@@ -116,7 +116,7 @@ impl Distribution for DDSKetchAggregator {}
 
 impl Quantile for DDSKetchAggregator {
     fn quantile(&self, q: f64) -> Result<Number> {
-        if q < 0.0 || q > 1.0 {
+        if !(0.0..=1.0).contains(&q) {
             return Err(MetricsError::InvalidQuantile);
         }
         self.inner.read().map_err(From::from).and_then(|inner| {
