@@ -85,7 +85,7 @@ select whichever client you prefer as shown below.
 Note that async http clients may require a specific async runtime to be
 available so be sure to match them appropriately.
 
-[`HttpClient`]: https://docs.rs/opentelemetry/0.9/opentelemetry/exporter/trace/trait.HttpClient.html
+[`HttpClient`]: https://docs.rs/opentelemetry/0.10/opentelemetry/exporter/trace/trait.HttpClient.html
 
 ## Kitchen Sink Full Configuration
 

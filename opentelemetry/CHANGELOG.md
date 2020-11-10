@@ -1,5 +1,42 @@
 # Changelog
 
+## [v0.10.0](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.9.1...v0.10.0)
+
+## Added
+
+- Add support for baggage metadata #287
+
+## Changed
+
+- Remove `api` prefix from modules #305
+- Move `mark_as_active_span` and `get_active_span` functions into trace module  #310
+- Revert renaming of `SpanContext` to `SpanReference` #299
+- Default trace propagator is now a no-op #329
+- Return references to span contexts instead of clones #325
+- Update exporter errors to be `Box<dyn Error + Send + Sync + 'static>` #284
+- Rename `GenericProvider` to `GenericTracerProvider` #313
+- Reduce `SpanStatus` enum to `Ok`, `Error`, and `Unset` variants #315
+- update B3 propagator to more closely match spec #319
+- Export missing pub global trace types #313
+- Ensure kv array values are homogeneous #333
+- Implement `Display` trait for `Key` and `Value` types #353
+- Move `SpanProcessor` trait into `sdk` module #334
+- Ensure `is_recording` is `false` and span is no-op after `end` #341
+- Move binary propagator and base64 format to contrib #343
+- Ensure metrics noop types go through constructors #345
+- Change `ExportResult` to use `std::result::Result` #347
+- Change `SpanExporter::export` to take `&mut self` instead of `&self` #350
+- Add MSRV 1.42.0 #296
+
+## Fixed
+
+- Fix parent based sampling #354
+
+## Removed
+
+- Remove support for `u64` and `bytes` kv values #323
+- Remove kv value conversion from `&str` #332
+
 ## [v0.9.1](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.9.0...v0.9.1)
 
 ## Added
