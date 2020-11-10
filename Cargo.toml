@@ -28,7 +28,7 @@ futures = "0.3"
 hex = "0.4"
 http = "0.2"
 hyper = "0.13"
-hyper-rustls = "0.20"
+hyper-rustls = { version = "0.20", optional = true }
 log = "0.4"
 opentelemetry = "0.8"
 prost = "0.6"
@@ -36,9 +36,10 @@ prost-types = "0.6"
 rustls = "0.18"
 tonic = { version = "0.3.1", features = ["transport", "tls"] }
 tokio = { version = "0.2", optional = true }
-yup-oauth2 = "4.1"
+yup-oauth2 = { version = "4.1", optional = true }
 webpki-roots = "0.20"
 
 [features]
-default = []
+default = ["yup-authorizer"]
+yup-authorizer = ["hyper-rustls", "yup-oauth2"]
 tokio_adapter = ["tokio"]
