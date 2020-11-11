@@ -126,9 +126,8 @@ impl SpanProcessor for SimpleSpanProcessor {
     }
 
     fn force_flush(&self) {
-        // Ignored since all span in Simple Processor will be exported as they ended.
+        // Ignored since all spans in Simple Processor will be exported as they ended.
     }
-
 
     fn shutdown(&mut self) {
         if let Ok(mut exporter) = self.exporter.lock() {
@@ -181,7 +180,7 @@ impl SpanProcessor for SimpleSpanProcessor {
 /// [`async-std`]: https://async.rs
 pub struct BatchSpanProcessor {
     message_sender: Mutex<mpsc::Sender<BatchMessage>>,
-    worker_handle: Option<Pin<Box<dyn Future<Output=()> + Send + Sync>>>,
+    worker_handle: Option<Pin<Box<dyn Future<Output = ()> + Send + Sync>>>,
 }
 
 impl fmt::Debug for BatchSpanProcessor {
@@ -236,11 +235,11 @@ impl BatchSpanProcessor {
         interval: I,
         config: BatchConfig,
     ) -> Self
-        where
-            S: Fn(BoxFuture<'static, ()>) -> SH,
-            SH: Future<Output=SO> + Send + Sync + 'static,
-            I: Fn(time::Duration) -> IS,
-            IS: Stream<Item=ISI> + Send + 'static,
+    where
+        S: Fn(BoxFuture<'static, ()>) -> SH,
+        SH: Future<Output = SO> + Send + Sync + 'static,
+        I: Fn(time::Duration) -> IS,
+        IS: Stream<Item = ISI> + Send + 'static,
     {
         let (message_sender, message_receiver) = mpsc::channel(config.max_queue_size);
         let ticker = interval(config.scheduled_delay).map(|_| BatchMessage::Flush);
@@ -285,7 +284,7 @@ impl BatchSpanProcessor {
                 }
             }
         }))
-            .map(|_| ());
+        .map(|_| ());
 
         // Return batch processor with link to worker
         BatchSpanProcessor {
@@ -300,11 +299,11 @@ impl BatchSpanProcessor {
         spawn: S,
         interval: I,
     ) -> BatchSpanProcessorBuilder<E, S, I>
-        where
-            E: SpanExporter,
-            S: Fn(BoxFuture<'static, ()>) -> SH,
-            SH: Future<Output=SO> + Send + Sync + 'static,
-            I: Fn(time::Duration) -> IO,
+    where
+        E: SpanExporter,
+        S: Fn(BoxFuture<'static, ()>) -> SH,
+        SH: Future<Output = SO> + Send + Sync + 'static,
+        I: Fn(time::Duration) -> IO,
     {
         BatchSpanProcessorBuilder {
             exporter,
@@ -326,11 +325,11 @@ impl BatchSpanProcessor {
         spawn: S,
         interval: I,
     ) -> BatchSpanProcessorBuilder<E, S, I>
-        where
-            E: SpanExporter,
-            S: Fn(BoxFuture<'static, ()>) -> SH,
-            SH: Future<Output=SO> + Send + Sync + 'static,
-            I: Fn(time::Duration) -> IO,
+    where
+        E: SpanExporter,
+        S: Fn(BoxFuture<'static, ()>) -> SH,
+        SH: Future<Output = SO> + Send + Sync + 'static,
+        I: Fn(time::Duration) -> IO,
     {
         let mut config = BatchConfig::default();
         let schedule_delay = std::env::var(OTEL_BSP_SCHEDULE_DELAY_MILLIS)
@@ -407,12 +406,12 @@ pub struct BatchSpanProcessorBuilder<E, S, I> {
 }
 
 impl<E, S, SH, SO, I, IS, ISI> BatchSpanProcessorBuilder<E, S, I>
-    where
-        E: SpanExporter + 'static,
-        S: Fn(BoxFuture<'static, ()>) -> SH,
-        SH: Future<Output=SO> + Send + Sync + 'static,
-        I: Fn(time::Duration) -> IS,
-        IS: Stream<Item=ISI> + Send + 'static,
+where
+    E: SpanExporter + 'static,
+    S: Fn(BoxFuture<'static, ()>) -> SH,
+    SH: Future<Output = SO> + Send + Sync + 'static,
+    I: Fn(time::Duration) -> IS,
+    IS: Stream<Item = ISI> + Send + 'static,
 {
     /// Set max queue size for batches
     pub fn with_max_queue_size(self, size: usize) -> Self {
@@ -463,9 +462,11 @@ mod tests {
         OTEL_BSP_SCHEDULE_DELAY_MILLIS_DEFAULT,
     };
     use crate::exporter::trace::stdout;
-    use crate::testing::trace::{new_test_export_span_data, new_test_exporter, new_tokio_test_exporter};
-    use std::time;
     use crate::sdk::trace::BatchConfig;
+    use crate::testing::trace::{
+        new_test_export_span_data, new_test_exporter, new_tokio_test_exporter,
+    };
+    use std::time;
     use tokio::time::Duration;
 
     #[test]
@@ -527,7 +528,7 @@ mod tests {
             tokio::time::interval,
             config,
         );
-        let handle = tokio::spawn(async move{
+        let handle = tokio::spawn(async move {
             loop {
                 if let Some(span) = export_receiver.recv().await {
                     assert_eq!(span.span_context, new_test_export_span_data().span_context);
@@ -539,6 +540,11 @@ mod tests {
         processor.on_end(new_test_export_span_data());
         processor.force_flush();
 
-        assert!(tokio::time::timeout(Duration::from_secs(5), handle).await.is_ok());
+        assert!(
+            tokio::time::timeout(Duration::from_secs(5), handle)
+                .await
+                .is_ok(),
+            "timed out in 5 seconds. force_flush may not export any data when called"
+        );
     }
 }

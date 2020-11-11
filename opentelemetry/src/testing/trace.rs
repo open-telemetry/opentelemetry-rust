@@ -1,3 +1,4 @@
+use crate::exporter::trace::SpanData;
 use crate::{
     exporter::trace::{self as exporter, ExportResult, SpanExporter},
     sdk::{
@@ -10,7 +11,6 @@ use crate::{
 use async_trait::async_trait;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::time::SystemTime;
-use crate::exporter::trace::SpanData;
 
 #[derive(Debug)]
 pub struct TestSpan(pub SpanContext);
@@ -21,7 +21,8 @@ impl Span for TestSpan {
         _name: String,
         _timestamp: std::time::SystemTime,
         _attributes: Vec<KeyValue>,
-    ) {}
+    ) {
+    }
     fn span_context(&self) -> &SpanContext {
         &self.0
     }
@@ -103,13 +104,16 @@ impl SpanExporter for TokioSpanExporter {
     }
 }
 
-pub fn new_tokio_test_exporter() -> (TokioSpanExporter, tokio::sync::mpsc::UnboundedReceiver<exporter::SpanData>, tokio::sync::mpsc::UnboundedReceiver<()>) {
+pub fn new_tokio_test_exporter() -> (
+    TokioSpanExporter,
+    tokio::sync::mpsc::UnboundedReceiver<exporter::SpanData>,
+    tokio::sync::mpsc::UnboundedReceiver<()>,
+) {
     let (tx_export, rx_export) = tokio::sync::mpsc::unbounded_channel();
     let (tx_shutdown, rx_shutdown) = tokio::sync::mpsc::unbounded_channel();
-    let exporter = TokioSpanExporter{
+    let exporter = TokioSpanExporter {
         tx_export,
         tx_shutdown,
     };
     (exporter, rx_export, rx_shutdown)
 }
-
