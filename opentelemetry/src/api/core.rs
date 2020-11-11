@@ -98,13 +98,13 @@ impl fmt::Display for Key {
 #[derive(Clone, Debug, PartialEq)]
 pub enum Array {
     /// Array of bools
-    Bool(Vec<Option<bool>>),
+    Bool(Vec<bool>),
     /// Array of integers
-    I64(Vec<Option<i64>>),
+    I64(Vec<i64>),
     /// Array of floats
-    F64(Vec<Option<f64>>),
+    F64(Vec<f64>),
     /// Array of strings
-    String(Vec<Option<Cow<'static, str>>>),
+    String(Vec<Cow<'static, str>>),
 }
 
 impl fmt::Display for Array {
@@ -119,10 +119,7 @@ impl fmt::Display for Array {
                     if i > 0 {
                         write!(fmt, ",")?;
                     }
-                    match t {
-                        Some(t) => write!(fmt, "{:?}", t)?,
-                        None => write!(fmt, "null")?,
-                    }
+                    write!(fmt, "{:?}", t)?;
                 }
                 write!(fmt, "]")
             }
@@ -130,29 +127,23 @@ impl fmt::Display for Array {
     }
 }
 
-fn display_array_str<T: fmt::Display>(
-    slice: &[Option<T>],
-    fmt: &mut fmt::Formatter<'_>,
-) -> fmt::Result {
+fn display_array_str<T: fmt::Display>(slice: &[T], fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
     write!(fmt, "[")?;
     for (i, t) in slice.iter().enumerate() {
         if i > 0 {
             write!(fmt, ",")?;
         }
-        match t {
-            Some(t) => write!(fmt, "{}", t)?,
-            None => write!(fmt, "null")?,
-        }
+        write!(fmt, "{}", t)?;
     }
     write!(fmt, "]")
 }
 
 macro_rules! into_array {
-    ($(($t:ty, $val:expr, $src:ident, $convert:expr),)+) => {
+    ($(($t:ty, $val:expr),)+) => {
         $(
             impl From<$t> for Array {
-                fn from($src: $t) -> Self {
-                    $val($convert)
+                fn from(t: $t) -> Self {
+                    $val(t)
                 }
             }
         )+
@@ -160,14 +151,10 @@ macro_rules! into_array {
 }
 
 into_array!(
-    (Vec<Option<bool>>, Array::Bool, t, t),
-    (Vec<Option<i64>>, Array::I64, t, t),
-    (Vec<Option<f64>>, Array::F64, t, t),
-    (Vec<Option<Cow<'static, str>>>, Array::String, t, t),
-    (Vec<bool>, Array::Bool, t, t.into_iter().map(Some).collect()),
-    (Vec<i64>, Array::I64, t, t.into_iter().map(Some).collect()),
-    (Vec<f64>, Array::F64, t, t.into_iter().map(Some).collect()),
-    (Vec<Cow<'static, str>>, Array::String, t, t.into_iter().map(Some).collect()),
+    (Vec<bool>, Array::Bool),
+    (Vec<i64>, Array::I64),
+    (Vec<f64>, Array::F64),
+    (Vec<Cow<'static, str>>, Array::String),
 );
 
 /// Value types for use in `KeyValue` pairs.
