@@ -99,6 +99,8 @@
 //!   Application Insights] exporter.
 //! - [`opentelemetry-tide`] provides integration for the [`Tide`] web server
 //!   and ecosystem.
+//! - [`opentelemetry-stackdriver`] provides an exporter for Google's [Cloud Trace]
+//!   (which used to be called StackDriver).
 //!
 //! If you're the maintainer of an `opentelemetry` ecosystem crate not listed
 //! above, please let us know! We'd love to add your project to the list!
@@ -123,6 +125,8 @@
 //! [Azure Application Insights]: https://docs.microsoft.com/en-us/azure/azure-monitor/app/app-insights-overview
 //! [`opentelemetry-tide`]: https://crates.io/crates/opentelemetry-tide
 //! [`Tide`]: https://crates.io/crates/tide
+//! [`opentelemetry-stackdriver`]: https://crates.io/crates/opentelemetry-stackdriver
+//! [Cloud Trace]: https://cloud.google.com/trace/
 //!
 //! ## Supported Rust Versions
 //!
