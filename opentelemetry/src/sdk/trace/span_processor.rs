@@ -521,7 +521,7 @@ mod tests {
     async fn test_batch_span_processor() {
         let (exporter, mut export_receiver, _shutdown_receiver) = new_tokio_test_exporter();
         let mut config = BatchConfig::default();
-        config.scheduled_delay = Duration::from_secs(60 * 60 * 24); // set the tick to 24 hours so we know the span must be exported vis force_flush
+        config.scheduled_delay = Duration::from_secs(60 * 60 * 24); // set the tick to 24 hours so we know the span must be exported via force_flush
         let processor = BatchSpanProcessor::new(
             Box::new(exporter),
             tokio::spawn,
