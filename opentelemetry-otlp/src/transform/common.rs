@@ -57,16 +57,13 @@ impl From<Value> for AnyValue {
     }
 }
 
-fn array_into_proto<T>(vals: Vec<Option<T>>) -> ArrayValue
+fn array_into_proto<T>(vals: Vec<T>) -> ArrayValue
 where
     Value: From<T>,
 {
     let values = RepeatedField::from_vec(
         vals.into_iter()
-            .map(|val| match val {
-                Some(v) => AnyValue::from(Value::from(v)),
-                None => AnyValue::new(),
-            })
+            .map(|val| AnyValue::from(Value::from(val)))
             .collect(),
     );
 
