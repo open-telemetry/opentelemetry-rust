@@ -86,9 +86,7 @@ fn hash_value<H: Hasher>(state: &mut H, value: &Value) {
             // recursively hash array values
             Array::Bool(values) => values.iter().for_each(|v| v.hash(state)),
             Array::I64(values) => values.iter().for_each(|v| v.hash(state)),
-            Array::F64(values) => values
-                .iter()
-                .for_each(|v| v.map(|f| f.to_bits()).hash(state)),
+            Array::F64(values) => values.iter().for_each(|v| v.to_bits().hash(state)),
             Array::String(values) => values.iter().for_each(|v| v.hash(state)),
         },
     }
