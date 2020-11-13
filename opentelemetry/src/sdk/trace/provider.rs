@@ -116,7 +116,12 @@ impl Builder {
         // drop. We cannot assume we are in a multi-threaded tokio runtime here, so use
         // `spawn_blocking` to avoid blocking the main thread.
         let spawn = |fut| tokio::task::spawn_blocking(|| futures::executor::block_on(fut));
-        let batch = sdk::trace::BatchSpanProcessor::builder(exporter, spawn, tokio::time::interval);
+        let batch = sdk::trace::BatchSpanProcessor::builder(
+            exporter,
+            spawn,
+            tokio::time::delay_for,
+            tokio::time::interval,
+        );
         self.with_batch_exporter(batch.build())
     }
 
@@ -127,6 +132,7 @@ impl Builder {
         let batch = sdk::trace::BatchSpanProcessor::builder(
             exporter,
             async_std::task::spawn,
+            async_std::task::sleep,
             async_std::stream::interval,
         );
         self.with_batch_exporter(batch.build())
