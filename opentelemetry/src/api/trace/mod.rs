@@ -136,3 +136,14 @@ pub use self::{
     },
     tracer::{SpanBuilder, Tracer},
 };
+
+use thiserror::Error;
+
+/// Errors returned by the trace API.
+#[derive(Error, Debug, PartialEq)]
+#[non_exhaustive]
+pub enum TraceError {
+    /// Other errors not covered by specific cases.
+    #[error("Trace error: {0}")]
+    Other(String),
+}
