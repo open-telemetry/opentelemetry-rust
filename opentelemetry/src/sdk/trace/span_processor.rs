@@ -59,7 +59,7 @@ const OTEL_BSP_MAX_EXPORT_BATCH_SIZE: &str = "OTEL_BSP_MAX_EXPORT_BATCH_SIZE";
 /// Default maximum batch size
 const OTEL_BSP_MAX_EXPORT_BATCH_SIZE_DEFAULT: usize = 512;
 /// Maximum allowed time to export data
-// const OTEL_BSP_EXPORT_TIMEOUT_MILLIS: &str = "OTEL_BSP_EXPORT_TIMEOUT_MILLIS";
+const OTEL_BSP_EXPORT_TIMEOUT_MILLIS: &str = "OTEL_BSP_EXPORT_TIMEOUT_MILLIS";
 /// Default maximum allowed time to export data
 const OTEL_BSP_EXPORT_TIMEOUT_MILLIS_DEFAULT: u64 = 30000;
 
@@ -419,6 +419,13 @@ impl BatchSpanProcessor {
             config.max_export_batch_size = max_export_batch_size;
         }
 
+        let max_export_time_out = std::env::var(OTEL_BSP_EXPORT_TIMEOUT_MILLIS)
+            .map(|timeout| {
+                u64::from_str(&timeout).unwrap_or(OTEL_BSP_EXPORT_TIMEOUT_MILLIS_DEFAULT)
+            })
+            .unwrap_or(OTEL_BSP_EXPORT_TIMEOUT_MILLIS_DEFAULT);
+        config.max_export_timeout = time::Duration::from_millis(max_export_time_out);
+
         BatchSpanProcessorBuilder {
             config,
             exporter,
@@ -563,6 +570,7 @@ mod tests {
         OTEL_BSP_SCHEDULE_DELAY_MILLIS_DEFAULT,
     };
     use crate::exporter::trace::{stdout, ExportResult, SpanData, SpanExporter};
+    use crate::sdk::trace::span_processor::OTEL_BSP_EXPORT_TIMEOUT_MILLIS;
     use crate::sdk::trace::BatchConfig;
     use crate::testing::trace::{
         new_test_export_span_data, new_test_exporter, new_tokio_test_exporter,
@@ -592,6 +600,7 @@ mod tests {
     #[test]
     fn test_build_batch_span_processor_from_env() {
         std::env::set_var(OTEL_BSP_MAX_EXPORT_BATCH_SIZE, "500");
+        std::env::set_var(OTEL_BSP_EXPORT_TIMEOUT_MILLIS, "2046");
         std::env::set_var(OTEL_BSP_SCHEDULE_DELAY_MILLIS, "I am not number");
 
         let mut builder = BatchSpanProcessor::from_env(
@@ -609,6 +618,10 @@ mod tests {
         assert_eq!(
             builder.config.max_queue_size,
             OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT
+        );
+        assert_eq!(
+            builder.config.max_export_timeout,
+            time::Duration::from_millis(2046)
         );
 
         std::env::set_var(OTEL_BSP_MAX_QUEUE_SIZE, "120");
