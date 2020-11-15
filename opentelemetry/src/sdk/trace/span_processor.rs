@@ -33,17 +33,18 @@
 //!
 //! [`is_recording`]: ../span/trait.Span.html#method.is_recording
 //! [`TracerProvider`]: ../provider/trait.TracerProvider.html
+use crate::api::trace::TraceError;
+use crate::exporter::trace::ExportTimedOutError;
 use crate::sdk::trace::Span;
 use crate::{
     exporter::trace::{ExportResult, SpanData, SpanExporter},
     Context,
 };
 use futures::{
-    channel::mpsc, executor, future::BoxFuture, future::Either, pin_mut, Future, FutureExt, Stream,
-    StreamExt,
+    channel::mpsc, channel::oneshot, executor, future::BoxFuture, future::Either, pin_mut, Future,
+    FutureExt, Stream, StreamExt,
 };
-use std::fmt::Display;
-use std::{error::Error, fmt, pin::Pin, str::FromStr, sync::Mutex, time};
+use std::{fmt, pin::Pin, str::FromStr, sync::Mutex, time};
 
 /// Delay interval between two consecutive exports, default to be 5000.
 const OTEL_BSP_SCHEDULE_DELAY_MILLIS: &str = "OTEL_BSP_SCHEDULE_DELAY_MILLIS";
@@ -75,10 +76,10 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
     /// API, therefore it should not block or throw an exception.
     fn on_end(&self, span: SpanData);
     /// Force the spans lying in the cache to be exported.
-    fn force_flush(&self);
+    fn force_flush(&self) -> ExportResult;
     /// Shuts down the processor. Called when SDK is shut down. This is an
     /// opportunity for processors to do any cleanup required.
-    fn shutdown(&mut self);
+    fn shutdown(&mut self) -> ExportResult;
 }
 
 /// A [`SpanProcessor`] that exports synchronously when spans are finished.
@@ -129,13 +130,17 @@ impl SpanProcessor for SimpleSpanProcessor {
         }
     }
 
-    fn force_flush(&self) {
+    fn force_flush(&self) -> ExportResult {
         // Ignored since all spans in Simple Processor will be exported as they ended.
+        Ok(())
     }
 
-    fn shutdown(&mut self) {
+    fn shutdown(&mut self) -> ExportResult {
         if let Ok(mut exporter) = self.exporter.lock() {
             exporter.shutdown();
+            Ok(())
+        } else {
+            Err(TraceError::Other("When force flushing the SimpleSpanProcessor, the exporter's lock has been positioned".into()).into())
         }
     }
 }
@@ -184,7 +189,7 @@ impl SpanProcessor for SimpleSpanProcessor {
 /// [`async-std`]: https://async.rs
 pub struct BatchSpanProcessor {
     message_sender: Mutex<mpsc::Sender<BatchMessage>>,
-    worker_handle: Option<Pin<Box<dyn Future<Output=()> + Send + Sync>>>,
+    _worker_handle: Option<Pin<Box<dyn Future<Output = ()> + Send + Sync>>>,
 }
 
 impl fmt::Debug for BatchSpanProcessor {
@@ -206,42 +211,37 @@ impl SpanProcessor for BatchSpanProcessor {
         }
     }
 
-    fn force_flush(&self) {
-        if let Ok(mut sender) = self.message_sender.lock() {
-            let _ = sender.try_send(BatchMessage::Flush);
-        }
-    }
-
-    fn shutdown(&mut self) {
-        if let Ok(mut sender) = self.message_sender.lock() {
-            // Send shutdown message to worker future
-            if sender.try_send(BatchMessage::Shutdown).is_ok() {
-                if let Some(worker_handle) = self.worker_handle.take() {
-                    // Block waiting for worker to shut down if sending was successful
-                    futures::executor::block_on(worker_handle)
-                }
+    fn force_flush(&self) -> ExportResult {
+        let mut sender = self.message_sender.lock().map_err(|_| TraceError::Other("When force flushing the BatchSpanProcessor, the message sender's lock has been positioned".into()))?;
+        let (res_sender, res_receiver) = oneshot::channel::<Vec<ExportResult>>();
+        sender.try_send(BatchMessage::Flush(Some(res_sender)))?;
+        for result in futures::executor::block_on(res_receiver)? {
+            if result.is_err() {
+                return result;
             }
         }
+        Ok(())
+    }
+
+    fn shutdown(&mut self) -> ExportResult {
+        let mut sender = self.message_sender.lock().map_err(|_| TraceError::Other("When force flushing the BatchSpanProcessor, the message sender's lock has been positioned".into()))?;
+        let (res_sender, res_receiver) = oneshot::channel::<Vec<ExportResult>>();
+        sender.try_send(BatchMessage::Shutdown(res_sender))?;
+        for result in futures::executor::block_on(res_receiver)? {
+            if result.is_err() {
+                return result;
+            }
+        }
+        Ok(())
     }
 }
 
 #[derive(Debug)]
 enum BatchMessage {
     ExportSpan(SpanData),
-    Flush,
-    Shutdown,
+    Flush(Option<oneshot::Sender<Vec<ExportResult>>>),
+    Shutdown(oneshot::Sender<Vec<ExportResult>>),
 }
-
-#[derive(Debug, Default)]
-struct TimeoutErr {}
-
-impl Display for TimeoutErr {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("timed out")
-    }
-}
-
-impl Error for TimeoutErr {}
 
 impl BatchSpanProcessor {
     pub(crate) fn new<S, SH, SO, I, IS, ISI, D, DS>(
@@ -251,16 +251,16 @@ impl BatchSpanProcessor {
         delay: D,
         config: BatchConfig,
     ) -> Self
-        where
-            S: Fn(BoxFuture<'static, ()>) -> SH,
-            SH: Future<Output=SO> + Send + Sync + 'static,
-            I: Fn(time::Duration) -> IS,
-            IS: Stream<Item=ISI> + Send + 'static,
-            D: (Fn(time::Duration) -> DS) + Send + Sync + 'static,
-            DS: Future<Output=()> + 'static + Send + Sync,
+    where
+        S: Fn(BoxFuture<'static, ()>) -> SH,
+        SH: Future<Output = SO> + Send + Sync + 'static,
+        I: Fn(time::Duration) -> IS,
+        IS: Stream<Item = ISI> + Send + 'static,
+        D: (Fn(time::Duration) -> DS) + Send + Sync + 'static,
+        DS: Future<Output = ()> + 'static + Send + Sync,
     {
         let (message_sender, message_receiver) = mpsc::channel(config.max_queue_size);
-        let ticker = interval(config.scheduled_delay).map(|_| BatchMessage::Flush);
+        let ticker = interval(config.scheduled_delay).map(|_| BatchMessage::Flush(None));
 
         // Spawn worker process via user-defined spawn function.
         let worker_handle = spawn(Box::pin(async move {
@@ -276,36 +276,75 @@ impl BatchSpanProcessor {
                         }
                     }
                     // Span batch interval time reached or a force flush has been invoked, export current spans.
-                    BatchMessage::Flush => {
+                    BatchMessage::Flush(Some(ch)) => {
+                        let mut results = Vec::with_capacity(
+                            spans.len() / config.max_export_batch_size + 1 as usize,
+                        );
                         while !spans.is_empty() {
                             let batch = spans.split_off(
                                 spans.len().saturating_sub(config.max_export_batch_size),
                             );
 
-                            let _result = export_with_timeout(config.max_export_timeout, exporter.as_mut(), &delay, batch).await;
+                            results.push(
+                                export_with_timeout(
+                                    config.max_export_timeout,
+                                    exporter.as_mut(),
+                                    &delay,
+                                    batch,
+                                )
+                                .await,
+                            );
+                        }
+                        let _send_result = ch.send(results);
+                    }
+                    BatchMessage::Flush(None) => {
+                        while !spans.is_empty() {
+                            let batch = spans.split_off(
+                                spans.len().saturating_sub(config.max_export_batch_size),
+                            );
+
+                            let _result = export_with_timeout(
+                                config.max_export_timeout,
+                                exporter.as_mut(),
+                                &delay,
+                                batch,
+                            )
+                            .await;
                         }
                     }
                     // Stream has terminated or processor is shutdown, return to finish execution.
-                    BatchMessage::Shutdown => {
+                    BatchMessage::Shutdown(ch) => {
+                        let mut results = Vec::with_capacity(
+                            spans.len() / config.max_export_batch_size + 1 as usize,
+                        );
                         while !spans.is_empty() {
                             let batch = spans.split_off(
                                 spans.len().saturating_sub(config.max_export_batch_size),
                             );
 
-                            let _result = export_with_timeout(config.max_export_timeout, exporter.as_mut(), &delay, batch).await;
+                            results.push(
+                                export_with_timeout(
+                                    config.max_export_timeout,
+                                    exporter.as_mut(),
+                                    &delay,
+                                    batch,
+                                )
+                                .await,
+                            );
                         }
                         exporter.shutdown();
+                        let _send_result = ch.send(results);
                         break;
                     }
                 }
             }
         }))
-            .map(|_| ());
+        .map(|_| ());
 
         // Return batch processor with link to worker
         BatchSpanProcessor {
             message_sender: Mutex::new(message_sender),
-            worker_handle: Some(Box::pin(worker_handle)),
+            _worker_handle: Some(Box::pin(worker_handle)),
         }
     }
 
@@ -316,13 +355,13 @@ impl BatchSpanProcessor {
         delay: D,
         interval: I,
     ) -> BatchSpanProcessorBuilder<E, S, I, D>
-        where
-            E: SpanExporter,
-            S: Fn(BoxFuture<'static, ()>) -> SH,
-            SH: Future<Output=SO> + Send + Sync + 'static,
-            I: Fn(time::Duration) -> IO,
-            D: (Fn(time::Duration) -> DS) + Send + Sync + 'static,
-            DS: Future<Output=()> + 'static + Send + Sync,
+    where
+        E: SpanExporter,
+        S: Fn(BoxFuture<'static, ()>) -> SH,
+        SH: Future<Output = SO> + Send + Sync + 'static,
+        I: Fn(time::Duration) -> IO,
+        D: (Fn(time::Duration) -> DS) + Send + Sync + 'static,
+        DS: Future<Output = ()> + 'static + Send + Sync,
     {
         BatchSpanProcessorBuilder {
             exporter,
@@ -346,13 +385,13 @@ impl BatchSpanProcessor {
         interval: I,
         delay: D,
     ) -> BatchSpanProcessorBuilder<E, S, I, D>
-        where
-            E: SpanExporter,
-            S: Fn(BoxFuture<'static, ()>) -> SH,
-            SH: Future<Output=SO> + Send + Sync + 'static,
-            I: Fn(time::Duration) -> IO,
-            D: (Fn(time::Duration) -> DS) + Send + Sync + 'static,
-            DS: Future<Output=()> + 'static + Send + Sync,
+    where
+        E: SpanExporter,
+        S: Fn(BoxFuture<'static, ()>) -> SH,
+        SH: Future<Output = SO> + Send + Sync + 'static,
+        I: Fn(time::Duration) -> IO,
+        D: (Fn(time::Duration) -> DS) + Send + Sync + 'static,
+        DS: Future<Output = ()> + 'static + Send + Sync,
     {
         let mut config = BatchConfig::default();
         let schedule_delay = std::env::var(OTEL_BSP_SCHEDULE_DELAY_MILLIS)
@@ -396,10 +435,10 @@ async fn export_with_timeout<D, DS, E>(
     delay: &D,
     batch: Vec<SpanData>,
 ) -> ExportResult
-    where
-        D: (Fn(time::Duration) -> DS) + Send + Sync + 'static,
-        DS: Future<Output=()> + 'static + Send + Sync,
-        E: SpanExporter + ?Sized,
+where
+    D: (Fn(time::Duration) -> DS) + Send + Sync + 'static,
+    DS: Future<Output = ()> + 'static + Send + Sync,
+    E: SpanExporter + ?Sized,
 {
     let export = exporter.export(batch);
     let timeout = delay(time_out);
@@ -408,7 +447,7 @@ async fn export_with_timeout<D, DS, E>(
     // TODO: Surface error through global error handler
     match futures::future::select(export, timeout).await {
         Either::Left((export_res, _)) => export_res,
-        Either::Right((_, _)) => ExportResult::Err(Box::new(TimeoutErr::default())),
+        Either::Right((_, _)) => ExportResult::Err(Box::new(ExportTimedOutError::default())),
     }
 }
 
@@ -457,14 +496,14 @@ pub struct BatchSpanProcessorBuilder<E, S, I, D> {
 }
 
 impl<E, S, SH, SO, I, IS, ISI, D, DS> BatchSpanProcessorBuilder<E, S, I, D>
-    where
-        E: SpanExporter + 'static,
-        S: Fn(BoxFuture<'static, ()>) -> SH,
-        SH: Future<Output=SO> + Send + Sync + 'static,
-        I: Fn(time::Duration) -> IS,
-        IS: Stream<Item=ISI> + Send + 'static,
-        D: (Fn(time::Duration) -> DS) + Send + Sync + 'static,
-        DS: Future<Output=()> + 'static + Send + Sync,
+where
+    E: SpanExporter + 'static,
+    S: Fn(BoxFuture<'static, ()>) -> SH,
+    SH: Future<Output = SO> + Send + Sync + 'static,
+    I: Fn(time::Duration) -> IS,
+    IS: Stream<Item = ISI> + Send + 'static,
+    D: (Fn(time::Duration) -> DS) + Send + Sync + 'static,
+    DS: Future<Output = ()> + 'static + Send + Sync,
 {
     /// Set max queue size for batches
     pub fn with_max_queue_size(self, size: usize) -> Self {
@@ -531,9 +570,8 @@ mod tests {
     use async_std::prelude::*;
     use async_trait::async_trait;
     use std::fmt::Debug;
-    use std::ops::Sub;
     use std::time;
-    use std::time::{Duration, Instant};
+    use std::time::Duration;
 
     #[test]
     fn simple_span_processor_on_end_calls_export() {
@@ -547,7 +585,7 @@ mod tests {
     fn simple_span_processor_shutdown_calls_shutdown() {
         let (exporter, _rx_export, rx_shutdown) = new_test_exporter();
         let mut processor = SimpleSpanProcessor::new(Box::new(exporter));
-        processor.shutdown();
+        let _result = processor.shutdown();
         assert!(rx_shutdown.try_recv().is_ok());
     }
 
@@ -590,9 +628,10 @@ mod tests {
         let (exporter, mut export_receiver, _shutdown_receiver) = new_tokio_test_exporter();
         let mut config = BatchConfig::default();
         config.scheduled_delay = Duration::from_secs(60 * 60 * 24); // set the tick to 24 hours so we know the span must be exported via force_flush
-        let processor = BatchSpanProcessor::new(
+        let spawn = |fut| tokio::task::spawn_blocking(|| futures::executor::block_on(fut));
+        let mut processor = BatchSpanProcessor::new(
             Box::new(exporter),
-            tokio::spawn,
+            spawn,
             tokio::time::interval,
             tokio::time::delay_for,
             config,
@@ -607,7 +646,9 @@ mod tests {
         });
         tokio::time::delay_for(Duration::from_secs(1)).await; // skip the first
         processor.on_end(new_test_export_span_data());
-        processor.force_flush();
+        let flush_res = processor.force_flush();
+        assert!(flush_res.is_ok());
+        let _shutdown_result = processor.shutdown();
 
         assert!(
             tokio::time::timeout(Duration::from_secs(5), handle)
@@ -623,9 +664,9 @@ mod tests {
     }
 
     impl<D, DS> Debug for BlockingExporter<D>
-        where
-            D: Fn(time::Duration) -> DS + 'static + Send + Sync,
-            DS: Future<Output=()> + Send + Sync + 'static,
+    where
+        D: Fn(time::Duration) -> DS + 'static + Send + Sync,
+        DS: Future<Output = ()> + Send + Sync + 'static,
     {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             f.write_str("blocking exporter for testing")
@@ -634,9 +675,9 @@ mod tests {
 
     #[async_trait]
     impl<D, DS> SpanExporter for BlockingExporter<D>
-        where
-            D: Fn(time::Duration) -> DS + 'static + Send + Sync,
-            DS: Future<Output=()> + Send + Sync + 'static,
+    where
+        D: Fn(time::Duration) -> DS + 'static + Send + Sync,
+        DS: Future<Output = ()> + Send + Sync + 'static,
     {
         async fn export(&mut self, batch: Vec<SpanData>) -> ExportResult {
             println!("Accepting {} spans", batch.len());
@@ -650,8 +691,7 @@ mod tests {
     fn test_timeout() {
         // If time_out is true, then we ask exporter to block for 60s and set timeout to 5s.
         // If time_out is false, then we ask the exporter to block for 5s and set timeout to 60s.
-        // Either way, the test should be finished within 5s. But given the delay functions are not
-        // always accurate. We set the threshold to 7s.
+        // Either way, the test should be finished within 5s.
         let mut runtime = tokio::runtime::Builder::new()
             .threaded_scheduler()
             .enable_all()
@@ -664,7 +704,8 @@ mod tests {
         async_std::task::block_on(timeout_test_std_async(false));
     }
 
-    // If the time_out is true, then the result suppose to ended with timeout. otherwise the exporter should be able to export within time out duration.
+    // If the time_out is true, then the result suppose to ended with timeout.
+    // otherwise the exporter should be able to export within time out duration.
     async fn timeout_test_std_async(time_out: bool) {
         let mut config = BatchConfig::default();
         config.max_export_timeout = time::Duration::from_secs(if time_out { 5 } else { 60 });
@@ -680,15 +721,19 @@ mod tests {
             async_std::task::sleep,
             config,
         );
-        let start_time = Instant::now();
         processor.on_end(new_test_export_span_data());
-        processor.force_flush();
-        processor.shutdown();
-        let end_time = Instant::now();
-        assert!(end_time.sub(start_time).as_secs() < 7);
+        let flush_res = processor.force_flush();
+        if time_out {
+            assert!(flush_res.is_err());
+        } else {
+            assert!(flush_res.is_ok());
+        }
+        let shutdown_res = processor.shutdown();
+        assert!(shutdown_res.is_ok());
     }
 
-    // If the time_out is true, then the result suppose to ended with timeout. otherwise the exporter should be able to export within time out duration.
+    // If the time_out is true, then the result suppose to ended with timeout.
+    // otherwise the exporter should be able to export within time out duration.
     async fn timeout_test_tokio(time_out: bool) {
         let mut config = BatchConfig::default();
         config.max_export_timeout = time::Duration::from_secs(if time_out { 5 } else { 60 });
@@ -706,11 +751,14 @@ mod tests {
             config,
         );
         tokio::time::delay_for(time::Duration::from_secs(1)).await; // skip the first
-        let start_time = Instant::now();
         processor.on_end(new_test_export_span_data());
-        processor.force_flush();
-        processor.shutdown();
-        let end_time = Instant::now();
-        assert!(end_time.sub(start_time).as_secs() < 7);
+        let flush_res = processor.force_flush();
+        if time_out {
+            assert!(flush_res.is_err());
+        } else {
+            assert!(flush_res.is_ok());
+        }
+        let shutdown_res = processor.shutdown();
+        assert!(shutdown_res.is_ok());
     }
 }

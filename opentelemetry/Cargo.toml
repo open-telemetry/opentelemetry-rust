@@ -48,7 +48,7 @@ async-std = { version = "1.6", features = ["unstable"] }
 
 [features]
 default = ["trace"]
-trace = ["rand", "pin-project", "async-trait", "regex", "percent-encoding"]
+trace = ["rand", "pin-project", "async-trait", "regex", "percent-encoding", "thiserror"]
 metrics = ["thiserror", "dashmap", "fnv"]
 serialize = ["serde", "bincode"]
 

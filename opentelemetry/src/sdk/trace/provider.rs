@@ -25,7 +25,7 @@ pub(crate) struct TracerProviderInner {
 impl Drop for TracerProviderInner {
     fn drop(&mut self) {
         for processor in &mut self.processors {
-            processor.shutdown();
+            let _result = processor.shutdown();
         }
     }
 }
