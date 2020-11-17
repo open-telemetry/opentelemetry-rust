@@ -20,12 +20,13 @@
 // When this PR is merged we should be able to remove this attribute:
 // https://github.com/danburkert/prost/pull/291
 
+use async_trait::async_trait;
 use derivative::Derivative;
 use futures::stream::StreamExt;
 use hyper::client::connect::Connect;
 use opentelemetry::{
-  api::core::Value,
   exporter::trace::{ExportResult, SpanData, SpanExporter},
+  Value,
 };
 use proto::google::devtools::cloudtrace::v2::BatchWriteSpansRequest;
 use std::{
@@ -80,7 +81,7 @@ pub mod tokio_adapter;
 #[derivative(Clone, Debug)]
 pub struct StackDriverExporter {
   #[derivative(Debug = "ignore")]
-  tx: futures::channel::mpsc::Sender<Vec<Arc<SpanData>>>,
+  tx: futures::channel::mpsc::Sender<Vec<SpanData>>,
   pending_count: Arc<AtomicUsize>,
   maximum_shutdown_duration: Duration,
 }
@@ -140,7 +141,7 @@ impl StackDriverExporter {
     client: TraceServiceClient<Channel>,
     authenticator: Authenticator<C>,
     project_name: String,
-    rx: futures::channel::mpsc::Receiver<Vec<Arc<SpanData>>>,
+    rx: futures::channel::mpsc::Receiver<Vec<SpanData>>,
     pending_count: Arc<AtomicUsize>,
     num_concurrent: impl Into<Option<usize>>,
   ) where
@@ -173,19 +174,19 @@ impl StackDriverExporter {
             let new_attributes = Attributes {
               attribute_map: span
                 .attributes
-                .iter()
-                .map(|(key, value)| (key.as_str().to_owned(), attribute_value_conversion(value.clone())))
+                .into_iter()
+                .map(|(key, value)| (key.as_str().to_owned(), attribute_value_conversion(value)))
                 .collect(),
               ..Default::default()
             };
             let new_time_events = TimeEvents {
               time_event: span
                 .message_events
-                .iter()
+                .into_iter()
                 .map(|event| TimeEvent {
                   time: Some(event.timestamp.into()),
                   value: Some(Value::Annotation(Annotation {
-                    description: Some(to_truncate(event.name.clone())),
+                    description: Some(to_truncate(event.name)),
                     ..Default::default()
                   })),
                 })
@@ -251,25 +252,22 @@ impl<T> IntoRequest<T> for AuthenticatedRequest<'_, T> {
   }
 }
 
+#[async_trait]
 impl SpanExporter for StackDriverExporter {
-  fn export(&self, batch: Vec<Arc<SpanData>>) -> ExportResult {
-    match self.tx.clone().try_send(batch) {
+  async fn export(&mut self, batch: Vec<SpanData>) -> ExportResult {
+    match self.tx.try_send(batch) {
       Err(e) => {
         log::error!("Unable to send to export_inner {:?}", e);
-        if e.is_disconnected() {
-          ExportResult::FailedNotRetryable
-        } else {
-          ExportResult::FailedRetryable
-        }
+        Err(e.into())
       }
-      _ => {
+      Ok(()) => {
         self.pending_count.fetch_add(1, Ordering::Relaxed);
-        ExportResult::Success
+        Ok(())
       }
     }
   }
 
-  fn shutdown(&self) {
+  fn shutdown(&mut self) {
     let start = Instant::now();
     while (Instant::now() - start) < self.maximum_shutdown_duration && self.pending_count() > 0 {
       std::thread::yield_now();
@@ -282,12 +280,10 @@ fn attribute_value_conversion(v: Value) -> AttributeValue {
   use proto::google::devtools::cloudtrace::v2::attribute_value;
   let new_value = match v {
     Value::Bool(v) => attribute_value::Value::BoolValue(v),
-    Value::Bytes(v) => attribute_value::Value::StringValue(to_truncate(hex::encode(&v))),
     Value::F64(v) => attribute_value::Value::StringValue(to_truncate(v.to_string())),
     Value::I64(v) => attribute_value::Value::IntValue(v),
-    Value::String(v) => attribute_value::Value::StringValue(to_truncate(v)),
-    Value::U64(v) => attribute_value::Value::IntValue(v as i64),
-    Value::Array(_) => attribute_value::Value::StringValue(to_truncate(String::from(v))),
+    Value::String(v) => attribute_value::Value::StringValue(to_truncate(v.into_owned())),
+    Value::Array(_) => attribute_value::Value::StringValue(to_truncate(v.to_string())),
   };
   AttributeValue { value: Some(new_value) }
 }

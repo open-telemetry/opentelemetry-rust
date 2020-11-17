@@ -1,4 +1,5 @@
-use opentelemetry::{api::Provider, sdk};
+use opentelemetry::sdk::trace::TracerProvider;
+use opentelemetry::trace::TracerProvider as _;
 use opentelemetry_stackdriver::StackDriverExporter;
 use tracing::{span, Level};
 use tracing_subscriber::prelude::*;
@@ -31,9 +32,9 @@ async fn init_tracing(stackdriver_creds: impl AsRef<Path>) {
     .await
     .unwrap();
 
-  let provider = sdk::Provider::builder().with_simple_exporter(exporter).build();
+  let provider = TracerProvider::builder().with_simple_exporter(exporter).build();
   tracing_subscriber::registry()
-    .with(tracing_opentelemetry::layer().with_tracer(provider.get_tracer("tracing")))
+    .with(tracing_opentelemetry::layer().with_tracer(provider.get_tracer("tracing", None)))
     .with(tracing_subscriber::filter::LevelFilter::DEBUG)
     .with(tracing_subscriber::fmt::Layer::new().pretty())
     .try_init()
