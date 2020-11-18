@@ -76,10 +76,10 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
     /// API, therefore it should not block or throw an exception.
     fn on_end(&self, span: SpanData);
     /// Force the spans lying in the cache to be exported.
-    fn force_flush(&self) -> ExportResult;
+    fn force_flush(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>>;
     /// Shuts down the processor. Called when SDK is shut down. This is an
     /// opportunity for processors to do any cleanup required.
-    fn shutdown(&mut self) -> ExportResult;
+    fn shutdown(&mut self) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>>;
 }
 
 /// A [`SpanProcessor`] that exports synchronously when spans are finished.
@@ -130,17 +130,17 @@ impl SpanProcessor for SimpleSpanProcessor {
         }
     }
 
-    fn force_flush(&self) -> ExportResult {
+    fn force_flush(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         // Ignored since all spans in Simple Processor will be exported as they ended.
         Ok(())
     }
 
-    fn shutdown(&mut self) -> ExportResult {
+    fn shutdown(&mut self) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         if let Ok(mut exporter) = self.exporter.lock() {
             exporter.shutdown();
             Ok(())
         } else {
-            Err(TraceError::Other("When force flushing the SimpleSpanProcessor, the exporter's lock has been positioned".into()).into())
+            Err(TraceError::Other("When force flushing the SimpleSpanProcessor, the exporter's lock has been poisoned".into()).into())
         }
     }
 }
@@ -211,8 +211,8 @@ impl SpanProcessor for BatchSpanProcessor {
         }
     }
 
-    fn force_flush(&self) -> ExportResult {
-        let mut sender = self.message_sender.lock().map_err(|_| TraceError::Other("When force flushing the BatchSpanProcessor, the message sender's lock has been positioned".into()))?;
+    fn force_flush(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+        let mut sender = self.message_sender.lock().map_err(|_| TraceError::Other("When force flushing the BatchSpanProcessor, the message sender's lock has been poisoned".into()))?;
         let (res_sender, res_receiver) = oneshot::channel::<Vec<ExportResult>>();
         sender.try_send(BatchMessage::Flush(Some(res_sender)))?;
         for result in futures::executor::block_on(res_receiver)? {
@@ -223,8 +223,8 @@ impl SpanProcessor for BatchSpanProcessor {
         Ok(())
     }
 
-    fn shutdown(&mut self) -> ExportResult {
-        let mut sender = self.message_sender.lock().map_err(|_| TraceError::Other("When force flushing the BatchSpanProcessor, the message sender's lock has been positioned".into()))?;
+    fn shutdown(&mut self) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+        let mut sender = self.message_sender.lock().map_err(|_| TraceError::Other("When force flushing the BatchSpanProcessor, the message sender's lock has been poisoned".into()))?;
         let (res_sender, res_receiver) = oneshot::channel::<Vec<ExportResult>>();
         sender.try_send(BatchMessage::Shutdown(res_sender))?;
         for result in futures::executor::block_on(res_receiver)? {
@@ -295,6 +295,7 @@ impl BatchSpanProcessor {
                                 .await,
                             );
                         }
+                        // TODO: Surface error through global error handler
                         let _send_result = ch.send(results);
                     }
                     BatchMessage::Flush(None) => {
@@ -333,6 +334,7 @@ impl BatchSpanProcessor {
                             );
                         }
                         exporter.shutdown();
+                        // TODO: Surface error through global error handler
                         let _send_result = ch.send(results);
                         break;
                     }
@@ -451,7 +453,6 @@ where
     let timeout = delay(time_out);
     pin_mut!(export);
     pin_mut!(timeout);
-    // TODO: Surface error through global error handler
     match futures::future::select(export, timeout).await {
         Either::Left((export_res, _)) => export_res,
         Either::Right((_, _)) => ExportResult::Err(Box::new(ExportTimedOutError::default())),
@@ -701,7 +702,7 @@ mod tests {
     }
 
     #[test]
-    fn test_timeout() {
+    fn test_timeout_tokio_timeout() {
         // If time_out is true, then we ask exporter to block for 60s and set timeout to 5s.
         // If time_out is false, then we ask the exporter to block for 5s and set timeout to 60s.
         // Either way, the test should be finished within 5s.
@@ -711,9 +712,25 @@ mod tests {
             .build()
             .unwrap();
         runtime.block_on(timeout_test_tokio(true));
-        runtime.block_on(timeout_test_tokio(false));
+    }
 
+    #[test]
+    fn test_timeout_tokio_not_timeout() {
+        let mut runtime = tokio::runtime::Builder::new()
+            .threaded_scheduler()
+            .enable_all()
+            .build()
+            .unwrap();
+        runtime.block_on(timeout_test_tokio(false));
+    }
+
+    #[test]
+    fn test_timeout_async_std_timeout() {
         async_std::task::block_on(timeout_test_std_async(true));
+    }
+
+    #[test]
+    fn test_timeout_async_std_not_timeout() {
         async_std::task::block_on(timeout_test_std_async(false));
     }
 
