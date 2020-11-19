@@ -506,6 +506,7 @@ pub enum Metric_oneof_data {
     double_sum(DoubleSum),
     int_histogram(IntHistogram),
     double_histogram(DoubleHistogram),
+    double_summary(DoubleSummary),
 }
 
 impl Metric {
@@ -884,6 +885,55 @@ impl Metric {
             DoubleHistogram::new()
         }
     }
+
+    // .opentelemetry.proto.metrics.v1.DoubleSummary double_summary = 11;
+
+
+    pub fn get_double_summary(&self) -> &DoubleSummary {
+        match self.data {
+            ::std::option::Option::Some(Metric_oneof_data::double_summary(ref v)) => v,
+            _ => <DoubleSummary as ::protobuf::Message>::default_instance(),
+        }
+    }
+    pub fn clear_double_summary(&mut self) {
+        self.data = ::std::option::Option::None;
+    }
+
+    pub fn has_double_summary(&self) -> bool {
+        match self.data {
+            ::std::option::Option::Some(Metric_oneof_data::double_summary(..)) => true,
+            _ => false,
+        }
+    }
+
+    // Param is passed by value, moved
+    pub fn set_double_summary(&mut self, v: DoubleSummary) {
+        self.data = ::std::option::Option::Some(Metric_oneof_data::double_summary(v))
+    }
+
+    // Mutable pointer to the field.
+    pub fn mut_double_summary(&mut self) -> &mut DoubleSummary {
+        if let ::std::option::Option::Some(Metric_oneof_data::double_summary(_)) = self.data {
+        } else {
+            self.data = ::std::option::Option::Some(Metric_oneof_data::double_summary(DoubleSummary::new()));
+        }
+        match self.data {
+            ::std::option::Option::Some(Metric_oneof_data::double_summary(ref mut v)) => v,
+            _ => panic!(),
+        }
+    }
+
+    // Take field
+    pub fn take_double_summary(&mut self) -> DoubleSummary {
+        if self.has_double_summary() {
+            match self.data.take() {
+                ::std::option::Option::Some(Metric_oneof_data::double_summary(v)) => v,
+                _ => panic!(),
+            }
+        } else {
+            DoubleSummary::new()
+        }
+    }
 }
 
 impl ::protobuf::Message for Metric {
@@ -914,6 +964,11 @@ impl ::protobuf::Message for Metric {
             }
         }
         if let Some(Metric_oneof_data::double_histogram(ref v)) = self.data {
+            if !v.is_initialized() {
+                return false;
+            }
+        }
+        if let Some(Metric_oneof_data::double_summary(ref v)) = self.data {
             if !v.is_initialized() {
                 return false;
             }
@@ -970,6 +1025,12 @@ impl ::protobuf::Message for Metric {
                     }
                     self.data = ::std::option::Option::Some(Metric_oneof_data::double_histogram(is.read_message()?));
                 },
+                11 => {
+                    if wire_type != ::protobuf::wire_format::WireTypeLengthDelimited {
+                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
+                    }
+                    self.data = ::std::option::Option::Some(Metric_oneof_data::double_summary(is.read_message()?));
+                },
                 _ => {
                     ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
                 },
@@ -1014,6 +1075,10 @@ impl ::protobuf::Message for Metric {
                     my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
                 },
                 &Metric_oneof_data::double_histogram(ref v) => {
+                    let len = v.compute_size();
+                    my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
+                },
+                &Metric_oneof_data::double_summary(ref v) => {
                     let len = v.compute_size();
                     my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
                 },
@@ -1063,6 +1128,11 @@ impl ::protobuf::Message for Metric {
                 },
                 &Metric_oneof_data::double_histogram(ref v) => {
                     os.write_tag(9, ::protobuf::wire_format::WireTypeLengthDelimited)?;
+                    os.write_raw_varint32(v.get_cached_size())?;
+                    v.write_to_with_cached_sizes(os)?;
+                },
+                &Metric_oneof_data::double_summary(ref v) => {
+                    os.write_tag(11, ::protobuf::wire_format::WireTypeLengthDelimited)?;
                     os.write_raw_varint32(v.get_cached_size())?;
                     v.write_to_with_cached_sizes(os)?;
                 },
@@ -1151,6 +1221,11 @@ impl ::protobuf::Message for Metric {
                 Metric::has_double_histogram,
                 Metric::get_double_histogram,
             ));
+            fields.push(::protobuf::reflect::accessor::make_singular_message_accessor::<_, DoubleSummary>(
+                "double_summary",
+                Metric::has_double_summary,
+                Metric::get_double_summary,
+            ));
             ::protobuf::reflect::MessageDescriptor::new_pb_name::<Metric>(
                 "Metric",
                 fields,
@@ -1170,6 +1245,7 @@ impl ::protobuf::Clear for Metric {
         self.name.clear();
         self.description.clear();
         self.unit.clear();
+        self.data = ::std::option::Option::None;
         self.data = ::std::option::Option::None;
         self.data = ::std::option::Option::None;
         self.data = ::std::option::Option::None;
@@ -2395,6 +2471,175 @@ impl ::std::fmt::Debug for DoubleHistogram {
 }
 
 impl ::protobuf::reflect::ProtobufValue for DoubleHistogram {
+    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
+        ::protobuf::reflect::ReflectValueRef::Message(self)
+    }
+}
+
+#[derive(PartialEq,Clone,Default)]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
+pub struct DoubleSummary {
+    // message fields
+    pub data_points: ::protobuf::RepeatedField<DoubleSummaryDataPoint>,
+    // special fields
+    #[cfg_attr(feature = "with-serde", serde(skip))]
+    pub unknown_fields: ::protobuf::UnknownFields,
+    #[cfg_attr(feature = "with-serde", serde(skip))]
+    pub cached_size: ::protobuf::CachedSize,
+}
+
+impl<'a> ::std::default::Default for &'a DoubleSummary {
+    fn default() -> &'a DoubleSummary {
+        <DoubleSummary as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl DoubleSummary {
+    pub fn new() -> DoubleSummary {
+        ::std::default::Default::default()
+    }
+
+    // repeated .opentelemetry.proto.metrics.v1.DoubleSummaryDataPoint data_points = 1;
+
+
+    pub fn get_data_points(&self) -> &[DoubleSummaryDataPoint] {
+        &self.data_points
+    }
+    pub fn clear_data_points(&mut self) {
+        self.data_points.clear();
+    }
+
+    // Param is passed by value, moved
+    pub fn set_data_points(&mut self, v: ::protobuf::RepeatedField<DoubleSummaryDataPoint>) {
+        self.data_points = v;
+    }
+
+    // Mutable pointer to the field.
+    pub fn mut_data_points(&mut self) -> &mut ::protobuf::RepeatedField<DoubleSummaryDataPoint> {
+        &mut self.data_points
+    }
+
+    // Take field
+    pub fn take_data_points(&mut self) -> ::protobuf::RepeatedField<DoubleSummaryDataPoint> {
+        ::std::mem::replace(&mut self.data_points, ::protobuf::RepeatedField::new())
+    }
+}
+
+impl ::protobuf::Message for DoubleSummary {
+    fn is_initialized(&self) -> bool {
+        for v in &self.data_points {
+            if !v.is_initialized() {
+                return false;
+            }
+        };
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::ProtobufResult<()> {
+        while !is.eof()? {
+            let (field_number, wire_type) = is.read_tag_unpack()?;
+            match field_number {
+                1 => {
+                    ::protobuf::rt::read_repeated_message_into(wire_type, is, &mut self.data_points)?;
+                },
+                _ => {
+                    ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u32 {
+        let mut my_size = 0;
+        for value in &self.data_points {
+            let len = value.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
+        };
+        my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
+        self.cached_size.set(my_size);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
+        for v in &self.data_points {
+            os.write_tag(1, ::protobuf::wire_format::WireTypeLengthDelimited)?;
+            os.write_raw_varint32(v.get_cached_size())?;
+            v.write_to_with_cached_sizes(os)?;
+        };
+        os.write_unknown_fields(self.get_unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn get_cached_size(&self) -> u32 {
+        self.cached_size.get()
+    }
+
+    fn get_unknown_fields(&self) -> &::protobuf::UnknownFields {
+        &self.unknown_fields
+    }
+
+    fn mut_unknown_fields(&mut self) -> &mut ::protobuf::UnknownFields {
+        &mut self.unknown_fields
+    }
+
+    fn as_any(&self) -> &dyn (::std::any::Any) {
+        self as &dyn (::std::any::Any)
+    }
+    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
+        self as &mut dyn (::std::any::Any)
+    }
+    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
+        self
+    }
+
+    fn descriptor(&self) -> &'static ::protobuf::reflect::MessageDescriptor {
+        Self::descriptor_static()
+    }
+
+    fn new() -> DoubleSummary {
+        DoubleSummary::new()
+    }
+
+    fn descriptor_static() -> &'static ::protobuf::reflect::MessageDescriptor {
+        static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
+        descriptor.get(|| {
+            let mut fields = ::std::vec::Vec::new();
+            fields.push(::protobuf::reflect::accessor::make_repeated_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<DoubleSummaryDataPoint>>(
+                "data_points",
+                |m: &DoubleSummary| { &m.data_points },
+                |m: &mut DoubleSummary| { &mut m.data_points },
+            ));
+            ::protobuf::reflect::MessageDescriptor::new_pb_name::<DoubleSummary>(
+                "DoubleSummary",
+                fields,
+                file_descriptor_proto()
+            )
+        })
+    }
+
+    fn default_instance() -> &'static DoubleSummary {
+        static instance: ::protobuf::rt::LazyV2<DoubleSummary> = ::protobuf::rt::LazyV2::INIT;
+        instance.get(DoubleSummary::new)
+    }
+}
+
+impl ::protobuf::Clear for DoubleSummary {
+    fn clear(&mut self) {
+        self.data_points.clear();
+        self.unknown_fields.clear();
+    }
+}
+
+impl ::std::fmt::Debug for DoubleSummary {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        ::protobuf::text_format::fmt(self, f)
+    }
+}
+
+impl ::protobuf::reflect::ProtobufValue for DoubleSummary {
     fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
         ::protobuf::reflect::ReflectValueRef::Message(self)
     }
@@ -3920,6 +4165,554 @@ impl ::protobuf::reflect::ProtobufValue for DoubleHistogramDataPoint {
 
 #[derive(PartialEq,Clone,Default)]
 #[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
+pub struct DoubleSummaryDataPoint {
+    // message fields
+    pub labels: ::protobuf::RepeatedField<super::common::StringKeyValue>,
+    pub start_time_unix_nano: u64,
+    pub time_unix_nano: u64,
+    pub count: u64,
+    pub sum: f64,
+    pub quantile_values: ::protobuf::RepeatedField<DoubleSummaryDataPoint_ValueAtQuantile>,
+    // special fields
+    #[cfg_attr(feature = "with-serde", serde(skip))]
+    pub unknown_fields: ::protobuf::UnknownFields,
+    #[cfg_attr(feature = "with-serde", serde(skip))]
+    pub cached_size: ::protobuf::CachedSize,
+}
+
+impl<'a> ::std::default::Default for &'a DoubleSummaryDataPoint {
+    fn default() -> &'a DoubleSummaryDataPoint {
+        <DoubleSummaryDataPoint as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl DoubleSummaryDataPoint {
+    pub fn new() -> DoubleSummaryDataPoint {
+        ::std::default::Default::default()
+    }
+
+    // repeated .opentelemetry.proto.common.v1.StringKeyValue labels = 1;
+
+
+    pub fn get_labels(&self) -> &[super::common::StringKeyValue] {
+        &self.labels
+    }
+    pub fn clear_labels(&mut self) {
+        self.labels.clear();
+    }
+
+    // Param is passed by value, moved
+    pub fn set_labels(&mut self, v: ::protobuf::RepeatedField<super::common::StringKeyValue>) {
+        self.labels = v;
+    }
+
+    // Mutable pointer to the field.
+    pub fn mut_labels(&mut self) -> &mut ::protobuf::RepeatedField<super::common::StringKeyValue> {
+        &mut self.labels
+    }
+
+    // Take field
+    pub fn take_labels(&mut self) -> ::protobuf::RepeatedField<super::common::StringKeyValue> {
+        ::std::mem::replace(&mut self.labels, ::protobuf::RepeatedField::new())
+    }
+
+    // fixed64 start_time_unix_nano = 2;
+
+
+    pub fn get_start_time_unix_nano(&self) -> u64 {
+        self.start_time_unix_nano
+    }
+    pub fn clear_start_time_unix_nano(&mut self) {
+        self.start_time_unix_nano = 0;
+    }
+
+    // Param is passed by value, moved
+    pub fn set_start_time_unix_nano(&mut self, v: u64) {
+        self.start_time_unix_nano = v;
+    }
+
+    // fixed64 time_unix_nano = 3;
+
+
+    pub fn get_time_unix_nano(&self) -> u64 {
+        self.time_unix_nano
+    }
+    pub fn clear_time_unix_nano(&mut self) {
+        self.time_unix_nano = 0;
+    }
+
+    // Param is passed by value, moved
+    pub fn set_time_unix_nano(&mut self, v: u64) {
+        self.time_unix_nano = v;
+    }
+
+    // fixed64 count = 4;
+
+
+    pub fn get_count(&self) -> u64 {
+        self.count
+    }
+    pub fn clear_count(&mut self) {
+        self.count = 0;
+    }
+
+    // Param is passed by value, moved
+    pub fn set_count(&mut self, v: u64) {
+        self.count = v;
+    }
+
+    // double sum = 5;
+
+
+    pub fn get_sum(&self) -> f64 {
+        self.sum
+    }
+    pub fn clear_sum(&mut self) {
+        self.sum = 0.;
+    }
+
+    // Param is passed by value, moved
+    pub fn set_sum(&mut self, v: f64) {
+        self.sum = v;
+    }
+
+    // repeated .opentelemetry.proto.metrics.v1.DoubleSummaryDataPoint.ValueAtQuantile quantile_values = 6;
+
+
+    pub fn get_quantile_values(&self) -> &[DoubleSummaryDataPoint_ValueAtQuantile] {
+        &self.quantile_values
+    }
+    pub fn clear_quantile_values(&mut self) {
+        self.quantile_values.clear();
+    }
+
+    // Param is passed by value, moved
+    pub fn set_quantile_values(&mut self, v: ::protobuf::RepeatedField<DoubleSummaryDataPoint_ValueAtQuantile>) {
+        self.quantile_values = v;
+    }
+
+    // Mutable pointer to the field.
+    pub fn mut_quantile_values(&mut self) -> &mut ::protobuf::RepeatedField<DoubleSummaryDataPoint_ValueAtQuantile> {
+        &mut self.quantile_values
+    }
+
+    // Take field
+    pub fn take_quantile_values(&mut self) -> ::protobuf::RepeatedField<DoubleSummaryDataPoint_ValueAtQuantile> {
+        ::std::mem::replace(&mut self.quantile_values, ::protobuf::RepeatedField::new())
+    }
+}
+
+impl ::protobuf::Message for DoubleSummaryDataPoint {
+    fn is_initialized(&self) -> bool {
+        for v in &self.labels {
+            if !v.is_initialized() {
+                return false;
+            }
+        };
+        for v in &self.quantile_values {
+            if !v.is_initialized() {
+                return false;
+            }
+        };
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::ProtobufResult<()> {
+        while !is.eof()? {
+            let (field_number, wire_type) = is.read_tag_unpack()?;
+            match field_number {
+                1 => {
+                    ::protobuf::rt::read_repeated_message_into(wire_type, is, &mut self.labels)?;
+                },
+                2 => {
+                    if wire_type != ::protobuf::wire_format::WireTypeFixed64 {
+                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
+                    }
+                    let tmp = is.read_fixed64()?;
+                    self.start_time_unix_nano = tmp;
+                },
+                3 => {
+                    if wire_type != ::protobuf::wire_format::WireTypeFixed64 {
+                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
+                    }
+                    let tmp = is.read_fixed64()?;
+                    self.time_unix_nano = tmp;
+                },
+                4 => {
+                    if wire_type != ::protobuf::wire_format::WireTypeFixed64 {
+                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
+                    }
+                    let tmp = is.read_fixed64()?;
+                    self.count = tmp;
+                },
+                5 => {
+                    if wire_type != ::protobuf::wire_format::WireTypeFixed64 {
+                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
+                    }
+                    let tmp = is.read_double()?;
+                    self.sum = tmp;
+                },
+                6 => {
+                    ::protobuf::rt::read_repeated_message_into(wire_type, is, &mut self.quantile_values)?;
+                },
+                _ => {
+                    ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u32 {
+        let mut my_size = 0;
+        for value in &self.labels {
+            let len = value.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
+        };
+        if self.start_time_unix_nano != 0 {
+            my_size += 9;
+        }
+        if self.time_unix_nano != 0 {
+            my_size += 9;
+        }
+        if self.count != 0 {
+            my_size += 9;
+        }
+        if self.sum != 0. {
+            my_size += 9;
+        }
+        for value in &self.quantile_values {
+            let len = value.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
+        };
+        my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
+        self.cached_size.set(my_size);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
+        for v in &self.labels {
+            os.write_tag(1, ::protobuf::wire_format::WireTypeLengthDelimited)?;
+            os.write_raw_varint32(v.get_cached_size())?;
+            v.write_to_with_cached_sizes(os)?;
+        };
+        if self.start_time_unix_nano != 0 {
+            os.write_fixed64(2, self.start_time_unix_nano)?;
+        }
+        if self.time_unix_nano != 0 {
+            os.write_fixed64(3, self.time_unix_nano)?;
+        }
+        if self.count != 0 {
+            os.write_fixed64(4, self.count)?;
+        }
+        if self.sum != 0. {
+            os.write_double(5, self.sum)?;
+        }
+        for v in &self.quantile_values {
+            os.write_tag(6, ::protobuf::wire_format::WireTypeLengthDelimited)?;
+            os.write_raw_varint32(v.get_cached_size())?;
+            v.write_to_with_cached_sizes(os)?;
+        };
+        os.write_unknown_fields(self.get_unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn get_cached_size(&self) -> u32 {
+        self.cached_size.get()
+    }
+
+    fn get_unknown_fields(&self) -> &::protobuf::UnknownFields {
+        &self.unknown_fields
+    }
+
+    fn mut_unknown_fields(&mut self) -> &mut ::protobuf::UnknownFields {
+        &mut self.unknown_fields
+    }
+
+    fn as_any(&self) -> &dyn (::std::any::Any) {
+        self as &dyn (::std::any::Any)
+    }
+    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
+        self as &mut dyn (::std::any::Any)
+    }
+    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
+        self
+    }
+
+    fn descriptor(&self) -> &'static ::protobuf::reflect::MessageDescriptor {
+        Self::descriptor_static()
+    }
+
+    fn new() -> DoubleSummaryDataPoint {
+        DoubleSummaryDataPoint::new()
+    }
+
+    fn descriptor_static() -> &'static ::protobuf::reflect::MessageDescriptor {
+        static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
+        descriptor.get(|| {
+            let mut fields = ::std::vec::Vec::new();
+            fields.push(::protobuf::reflect::accessor::make_repeated_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<super::common::StringKeyValue>>(
+                "labels",
+                |m: &DoubleSummaryDataPoint| { &m.labels },
+                |m: &mut DoubleSummaryDataPoint| { &mut m.labels },
+            ));
+            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeFixed64>(
+                "start_time_unix_nano",
+                |m: &DoubleSummaryDataPoint| { &m.start_time_unix_nano },
+                |m: &mut DoubleSummaryDataPoint| { &mut m.start_time_unix_nano },
+            ));
+            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeFixed64>(
+                "time_unix_nano",
+                |m: &DoubleSummaryDataPoint| { &m.time_unix_nano },
+                |m: &mut DoubleSummaryDataPoint| { &mut m.time_unix_nano },
+            ));
+            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeFixed64>(
+                "count",
+                |m: &DoubleSummaryDataPoint| { &m.count },
+                |m: &mut DoubleSummaryDataPoint| { &mut m.count },
+            ));
+            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeDouble>(
+                "sum",
+                |m: &DoubleSummaryDataPoint| { &m.sum },
+                |m: &mut DoubleSummaryDataPoint| { &mut m.sum },
+            ));
+            fields.push(::protobuf::reflect::accessor::make_repeated_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<DoubleSummaryDataPoint_ValueAtQuantile>>(
+                "quantile_values",
+                |m: &DoubleSummaryDataPoint| { &m.quantile_values },
+                |m: &mut DoubleSummaryDataPoint| { &mut m.quantile_values },
+            ));
+            ::protobuf::reflect::MessageDescriptor::new_pb_name::<DoubleSummaryDataPoint>(
+                "DoubleSummaryDataPoint",
+                fields,
+                file_descriptor_proto()
+            )
+        })
+    }
+
+    fn default_instance() -> &'static DoubleSummaryDataPoint {
+        static instance: ::protobuf::rt::LazyV2<DoubleSummaryDataPoint> = ::protobuf::rt::LazyV2::INIT;
+        instance.get(DoubleSummaryDataPoint::new)
+    }
+}
+
+impl ::protobuf::Clear for DoubleSummaryDataPoint {
+    fn clear(&mut self) {
+        self.labels.clear();
+        self.start_time_unix_nano = 0;
+        self.time_unix_nano = 0;
+        self.count = 0;
+        self.sum = 0.;
+        self.quantile_values.clear();
+        self.unknown_fields.clear();
+    }
+}
+
+impl ::std::fmt::Debug for DoubleSummaryDataPoint {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        ::protobuf::text_format::fmt(self, f)
+    }
+}
+
+impl ::protobuf::reflect::ProtobufValue for DoubleSummaryDataPoint {
+    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
+        ::protobuf::reflect::ReflectValueRef::Message(self)
+    }
+}
+
+#[derive(PartialEq,Clone,Default)]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
+pub struct DoubleSummaryDataPoint_ValueAtQuantile {
+    // message fields
+    pub quantile: f64,
+    pub value: f64,
+    // special fields
+    #[cfg_attr(feature = "with-serde", serde(skip))]
+    pub unknown_fields: ::protobuf::UnknownFields,
+    #[cfg_attr(feature = "with-serde", serde(skip))]
+    pub cached_size: ::protobuf::CachedSize,
+}
+
+impl<'a> ::std::default::Default for &'a DoubleSummaryDataPoint_ValueAtQuantile {
+    fn default() -> &'a DoubleSummaryDataPoint_ValueAtQuantile {
+        <DoubleSummaryDataPoint_ValueAtQuantile as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl DoubleSummaryDataPoint_ValueAtQuantile {
+    pub fn new() -> DoubleSummaryDataPoint_ValueAtQuantile {
+        ::std::default::Default::default()
+    }
+
+    // double quantile = 1;
+
+
+    pub fn get_quantile(&self) -> f64 {
+        self.quantile
+    }
+    pub fn clear_quantile(&mut self) {
+        self.quantile = 0.;
+    }
+
+    // Param is passed by value, moved
+    pub fn set_quantile(&mut self, v: f64) {
+        self.quantile = v;
+    }
+
+    // double value = 2;
+
+
+    pub fn get_value(&self) -> f64 {
+        self.value
+    }
+    pub fn clear_value(&mut self) {
+        self.value = 0.;
+    }
+
+    // Param is passed by value, moved
+    pub fn set_value(&mut self, v: f64) {
+        self.value = v;
+    }
+}
+
+impl ::protobuf::Message for DoubleSummaryDataPoint_ValueAtQuantile {
+    fn is_initialized(&self) -> bool {
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::ProtobufResult<()> {
+        while !is.eof()? {
+            let (field_number, wire_type) = is.read_tag_unpack()?;
+            match field_number {
+                1 => {
+                    if wire_type != ::protobuf::wire_format::WireTypeFixed64 {
+                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
+                    }
+                    let tmp = is.read_double()?;
+                    self.quantile = tmp;
+                },
+                2 => {
+                    if wire_type != ::protobuf::wire_format::WireTypeFixed64 {
+                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
+                    }
+                    let tmp = is.read_double()?;
+                    self.value = tmp;
+                },
+                _ => {
+                    ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u32 {
+        let mut my_size = 0;
+        if self.quantile != 0. {
+            my_size += 9;
+        }
+        if self.value != 0. {
+            my_size += 9;
+        }
+        my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
+        self.cached_size.set(my_size);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
+        if self.quantile != 0. {
+            os.write_double(1, self.quantile)?;
+        }
+        if self.value != 0. {
+            os.write_double(2, self.value)?;
+        }
+        os.write_unknown_fields(self.get_unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn get_cached_size(&self) -> u32 {
+        self.cached_size.get()
+    }
+
+    fn get_unknown_fields(&self) -> &::protobuf::UnknownFields {
+        &self.unknown_fields
+    }
+
+    fn mut_unknown_fields(&mut self) -> &mut ::protobuf::UnknownFields {
+        &mut self.unknown_fields
+    }
+
+    fn as_any(&self) -> &dyn (::std::any::Any) {
+        self as &dyn (::std::any::Any)
+    }
+    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
+        self as &mut dyn (::std::any::Any)
+    }
+    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
+        self
+    }
+
+    fn descriptor(&self) -> &'static ::protobuf::reflect::MessageDescriptor {
+        Self::descriptor_static()
+    }
+
+    fn new() -> DoubleSummaryDataPoint_ValueAtQuantile {
+        DoubleSummaryDataPoint_ValueAtQuantile::new()
+    }
+
+    fn descriptor_static() -> &'static ::protobuf::reflect::MessageDescriptor {
+        static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
+        descriptor.get(|| {
+            let mut fields = ::std::vec::Vec::new();
+            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeDouble>(
+                "quantile",
+                |m: &DoubleSummaryDataPoint_ValueAtQuantile| { &m.quantile },
+                |m: &mut DoubleSummaryDataPoint_ValueAtQuantile| { &mut m.quantile },
+            ));
+            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeDouble>(
+                "value",
+                |m: &DoubleSummaryDataPoint_ValueAtQuantile| { &m.value },
+                |m: &mut DoubleSummaryDataPoint_ValueAtQuantile| { &mut m.value },
+            ));
+            ::protobuf::reflect::MessageDescriptor::new_pb_name::<DoubleSummaryDataPoint_ValueAtQuantile>(
+                "DoubleSummaryDataPoint.ValueAtQuantile",
+                fields,
+                file_descriptor_proto()
+            )
+        })
+    }
+
+    fn default_instance() -> &'static DoubleSummaryDataPoint_ValueAtQuantile {
+        static instance: ::protobuf::rt::LazyV2<DoubleSummaryDataPoint_ValueAtQuantile> = ::protobuf::rt::LazyV2::INIT;
+        instance.get(DoubleSummaryDataPoint_ValueAtQuantile::new)
+    }
+}
+
+impl ::protobuf::Clear for DoubleSummaryDataPoint_ValueAtQuantile {
+    fn clear(&mut self) {
+        self.quantile = 0.;
+        self.value = 0.;
+        self.unknown_fields.clear();
+    }
+}
+
+impl ::std::fmt::Debug for DoubleSummaryDataPoint_ValueAtQuantile {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        ::protobuf::text_format::fmt(self, f)
+    }
+}
+
+impl ::protobuf::reflect::ProtobufValue for DoubleSummaryDataPoint_ValueAtQuantile {
+    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
+        ::protobuf::reflect::ReflectValueRef::Message(self)
+    }
+}
+
+#[derive(PartialEq,Clone,Default)]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct IntExemplar {
     // message fields
     pub filtered_labels: ::protobuf::RepeatedField<super::common::StringKeyValue>,
@@ -4629,7 +5422,7 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     tationLibraryMetrics\x12n\n\x17instrumentation_library\x18\x01\x20\x01(\
     \x0b25.opentelemetry.proto.common.v1.InstrumentationLibraryR\x16instrume\
     ntationLibrary\x12@\n\x07metrics\x18\x02\x20\x03(\x0b2&.opentelemetry.pr\
-    oto.metrics.v1.MetricR\x07metrics\"\xb7\x04\n\x06Metric\x12\x12\n\x04nam\
+    oto.metrics.v1.MetricR\x07metrics\"\x8f\x05\n\x06Metric\x12\x12\n\x04nam\
     e\x18\x01\x20\x01(\tR\x04name\x12\x20\n\x0bdescription\x18\x02\x20\x01(\
     \tR\x0bdescription\x12\x12\n\x04unit\x18\x03\x20\x01(\tR\x04unit\x12G\n\
     \tint_gauge\x18\x04\x20\x01(\x0b2(.opentelemetry.proto.metrics.v1.IntGau\
@@ -4640,70 +5433,83 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     s.v1.DoubleSumH\0R\tdoubleSum\x12S\n\rint_histogram\x18\x08\x20\x01(\x0b\
     2,.opentelemetry.proto.metrics.v1.IntHistogramH\0R\x0cintHistogram\x12\\\
     \n\x10double_histogram\x18\t\x20\x01(\x0b2/.opentelemetry.proto.metrics.\
-    v1.DoubleHistogramH\0R\x0fdoubleHistogramB\x06\n\x04data\"Y\n\x08IntGaug\
-    e\x12M\n\x0bdata_points\x18\x01\x20\x03(\x0b2,.opentelemetry.proto.metri\
-    cs.v1.IntDataPointR\ndataPoints\"_\n\x0bDoubleGauge\x12P\n\x0bdata_point\
-    s\x18\x01\x20\x03(\x0b2/.opentelemetry.proto.metrics.v1.DoubleDataPointR\
-    \ndataPoints\"\xeb\x01\n\x06IntSum\x12M\n\x0bdata_points\x18\x01\x20\x03\
-    (\x0b2,.opentelemetry.proto.metrics.v1.IntDataPointR\ndataPoints\x12o\n\
-    \x17aggregation_temporality\x18\x02\x20\x01(\x0e26.opentelemetry.proto.m\
-    etrics.v1.AggregationTemporalityR\x16aggregationTemporality\x12!\n\x0cis\
-    _monotonic\x18\x03\x20\x01(\x08R\x0bisMonotonic\"\xf1\x01\n\tDoubleSum\
-    \x12P\n\x0bdata_points\x18\x01\x20\x03(\x0b2/.opentelemetry.proto.metric\
-    s.v1.DoubleDataPointR\ndataPoints\x12o\n\x17aggregation_temporality\x18\
-    \x02\x20\x01(\x0e26.opentelemetry.proto.metrics.v1.AggregationTemporalit\
-    yR\x16aggregationTemporality\x12!\n\x0cis_monotonic\x18\x03\x20\x01(\x08\
-    R\x0bisMonotonic\"\xd7\x01\n\x0cIntHistogram\x12V\n\x0bdata_points\x18\
-    \x01\x20\x03(\x0b25.opentelemetry.proto.metrics.v1.IntHistogramDataPoint\
-    R\ndataPoints\x12o\n\x17aggregation_temporality\x18\x02\x20\x01(\x0e26.o\
-    pentelemetry.proto.metrics.v1.AggregationTemporalityR\x16aggregationTemp\
-    orality\"\xdd\x01\n\x0fDoubleHistogram\x12Y\n\x0bdata_points\x18\x01\x20\
-    \x03(\x0b28.opentelemetry.proto.metrics.v1.DoubleHistogramDataPointR\nda\
-    taPoints\x12o\n\x17aggregation_temporality\x18\x02\x20\x01(\x0e26.opente\
-    lemetry.proto.metrics.v1.AggregationTemporalityR\x16aggregationTemporali\
-    ty\"\x8d\x02\n\x0cIntDataPoint\x12E\n\x06labels\x18\x01\x20\x03(\x0b2-.o\
-    pentelemetry.proto.common.v1.StringKeyValueR\x06labels\x12/\n\x14start_t\
-    ime_unix_nano\x18\x02\x20\x01(\x06R\x11startTimeUnixNano\x12$\n\x0etime_\
-    unix_nano\x18\x03\x20\x01(\x06R\x0ctimeUnixNano\x12\x14\n\x05value\x18\
-    \x04\x20\x01(\x10R\x05value\x12I\n\texemplars\x18\x05\x20\x03(\x0b2+.ope\
-    ntelemetry.proto.metrics.v1.IntExemplarR\texemplars\"\x93\x02\n\x0fDoubl\
-    eDataPoint\x12E\n\x06labels\x18\x01\x20\x03(\x0b2-.opentelemetry.proto.c\
-    ommon.v1.StringKeyValueR\x06labels\x12/\n\x14start_time_unix_nano\x18\
-    \x02\x20\x01(\x06R\x11startTimeUnixNano\x12$\n\x0etime_unix_nano\x18\x03\
-    \x20\x01(\x06R\x0ctimeUnixNano\x12\x14\n\x05value\x18\x04\x20\x01(\x01R\
-    \x05value\x12L\n\texemplars\x18\x05\x20\x03(\x0b2..opentelemetry.proto.m\
-    etrics.v1.DoubleExemplarR\texemplars\"\xf6\x02\n\x15IntHistogramDataPoin\
-    t\x12E\n\x06labels\x18\x01\x20\x03(\x0b2-.opentelemetry.proto.common.v1.\
-    StringKeyValueR\x06labels\x12/\n\x14start_time_unix_nano\x18\x02\x20\x01\
-    (\x06R\x11startTimeUnixNano\x12$\n\x0etime_unix_nano\x18\x03\x20\x01(\
-    \x06R\x0ctimeUnixNano\x12\x14\n\x05count\x18\x04\x20\x01(\x06R\x05count\
-    \x12\x10\n\x03sum\x18\x05\x20\x01(\x10R\x03sum\x12#\n\rbucket_counts\x18\
-    \x06\x20\x03(\x06R\x0cbucketCounts\x12'\n\x0fexplicit_bounds\x18\x07\x20\
-    \x03(\x01R\x0eexplicitBounds\x12I\n\texemplars\x18\x08\x20\x03(\x0b2+.op\
-    entelemetry.proto.metrics.v1.IntExemplarR\texemplars\"\xfc\x02\n\x18Doub\
-    leHistogramDataPoint\x12E\n\x06labels\x18\x01\x20\x03(\x0b2-.opentelemet\
-    ry.proto.common.v1.StringKeyValueR\x06labels\x12/\n\x14start_time_unix_n\
-    ano\x18\x02\x20\x01(\x06R\x11startTimeUnixNano\x12$\n\x0etime_unix_nano\
-    \x18\x03\x20\x01(\x06R\x0ctimeUnixNano\x12\x14\n\x05count\x18\x04\x20\
-    \x01(\x06R\x05count\x12\x10\n\x03sum\x18\x05\x20\x01(\x01R\x03sum\x12#\n\
-    \rbucket_counts\x18\x06\x20\x03(\x06R\x0cbucketCounts\x12'\n\x0fexplicit\
-    _bounds\x18\x07\x20\x03(\x01R\x0eexplicitBounds\x12L\n\texemplars\x18\
-    \x08\x20\x03(\x0b2..opentelemetry.proto.metrics.v1.DoubleExemplarR\texem\
-    plars\"\xd5\x01\n\x0bIntExemplar\x12V\n\x0ffiltered_labels\x18\x01\x20\
-    \x03(\x0b2-.opentelemetry.proto.common.v1.StringKeyValueR\x0efilteredLab\
-    els\x12$\n\x0etime_unix_nano\x18\x02\x20\x01(\x06R\x0ctimeUnixNano\x12\
-    \x14\n\x05value\x18\x03\x20\x01(\x10R\x05value\x12\x17\n\x07span_id\x18\
-    \x04\x20\x01(\x0cR\x06spanId\x12\x19\n\x08trace_id\x18\x05\x20\x01(\x0cR\
-    \x07traceId\"\xd8\x01\n\x0eDoubleExemplar\x12V\n\x0ffiltered_labels\x18\
-    \x01\x20\x03(\x0b2-.opentelemetry.proto.common.v1.StringKeyValueR\x0efil\
-    teredLabels\x12$\n\x0etime_unix_nano\x18\x02\x20\x01(\x06R\x0ctimeUnixNa\
-    no\x12\x14\n\x05value\x18\x03\x20\x01(\x01R\x05value\x12\x17\n\x07span_i\
-    d\x18\x04\x20\x01(\x0cR\x06spanId\x12\x19\n\x08trace_id\x18\x05\x20\x01(\
-    \x0cR\x07traceId*\x8c\x01\n\x16AggregationTemporality\x12'\n#AGGREGATION\
-    _TEMPORALITY_UNSPECIFIED\x10\0\x12!\n\x1dAGGREGATION_TEMPORALITY_DELTA\
-    \x10\x01\x12&\n\"AGGREGATION_TEMPORALITY_CUMULATIVE\x10\x02Bt\n!io.opent\
-    elemetry.proto.metrics.v1B\x0cMetricsProtoP\x01Z?github.com/open-telemet\
-    ry/opentelemetry-proto/gen/go/metrics/v1b\x06proto3\
+    v1.DoubleHistogramH\0R\x0fdoubleHistogram\x12V\n\x0edouble_summary\x18\
+    \x0b\x20\x01(\x0b2-.opentelemetry.proto.metrics.v1.DoubleSummaryH\0R\rdo\
+    ubleSummaryB\x06\n\x04data\"Y\n\x08IntGauge\x12M\n\x0bdata_points\x18\
+    \x01\x20\x03(\x0b2,.opentelemetry.proto.metrics.v1.IntDataPointR\ndataPo\
+    ints\"_\n\x0bDoubleGauge\x12P\n\x0bdata_points\x18\x01\x20\x03(\x0b2/.op\
+    entelemetry.proto.metrics.v1.DoubleDataPointR\ndataPoints\"\xeb\x01\n\
+    \x06IntSum\x12M\n\x0bdata_points\x18\x01\x20\x03(\x0b2,.opentelemetry.pr\
+    oto.metrics.v1.IntDataPointR\ndataPoints\x12o\n\x17aggregation_temporali\
+    ty\x18\x02\x20\x01(\x0e26.opentelemetry.proto.metrics.v1.AggregationTemp\
+    oralityR\x16aggregationTemporality\x12!\n\x0cis_monotonic\x18\x03\x20\
+    \x01(\x08R\x0bisMonotonic\"\xf1\x01\n\tDoubleSum\x12P\n\x0bdata_points\
+    \x18\x01\x20\x03(\x0b2/.opentelemetry.proto.metrics.v1.DoubleDataPointR\
+    \ndataPoints\x12o\n\x17aggregation_temporality\x18\x02\x20\x01(\x0e26.op\
+    entelemetry.proto.metrics.v1.AggregationTemporalityR\x16aggregationTempo\
+    rality\x12!\n\x0cis_monotonic\x18\x03\x20\x01(\x08R\x0bisMonotonic\"\xd7\
+    \x01\n\x0cIntHistogram\x12V\n\x0bdata_points\x18\x01\x20\x03(\x0b25.open\
+    telemetry.proto.metrics.v1.IntHistogramDataPointR\ndataPoints\x12o\n\x17\
+    aggregation_temporality\x18\x02\x20\x01(\x0e26.opentelemetry.proto.metri\
+    cs.v1.AggregationTemporalityR\x16aggregationTemporality\"\xdd\x01\n\x0fD\
+    oubleHistogram\x12Y\n\x0bdata_points\x18\x01\x20\x03(\x0b28.opentelemetr\
+    y.proto.metrics.v1.DoubleHistogramDataPointR\ndataPoints\x12o\n\x17aggre\
+    gation_temporality\x18\x02\x20\x01(\x0e26.opentelemetry.proto.metrics.v1\
+    .AggregationTemporalityR\x16aggregationTemporality\"h\n\rDoubleSummary\
+    \x12W\n\x0bdata_points\x18\x01\x20\x03(\x0b26.opentelemetry.proto.metric\
+    s.v1.DoubleSummaryDataPointR\ndataPoints\"\x8d\x02\n\x0cIntDataPoint\x12\
+    E\n\x06labels\x18\x01\x20\x03(\x0b2-.opentelemetry.proto.common.v1.Strin\
+    gKeyValueR\x06labels\x12/\n\x14start_time_unix_nano\x18\x02\x20\x01(\x06\
+    R\x11startTimeUnixNano\x12$\n\x0etime_unix_nano\x18\x03\x20\x01(\x06R\
+    \x0ctimeUnixNano\x12\x14\n\x05value\x18\x04\x20\x01(\x10R\x05value\x12I\
+    \n\texemplars\x18\x05\x20\x03(\x0b2+.opentelemetry.proto.metrics.v1.IntE\
+    xemplarR\texemplars\"\x93\x02\n\x0fDoubleDataPoint\x12E\n\x06labels\x18\
+    \x01\x20\x03(\x0b2-.opentelemetry.proto.common.v1.StringKeyValueR\x06lab\
+    els\x12/\n\x14start_time_unix_nano\x18\x02\x20\x01(\x06R\x11startTimeUni\
+    xNano\x12$\n\x0etime_unix_nano\x18\x03\x20\x01(\x06R\x0ctimeUnixNano\x12\
+    \x14\n\x05value\x18\x04\x20\x01(\x01R\x05value\x12L\n\texemplars\x18\x05\
+    \x20\x03(\x0b2..opentelemetry.proto.metrics.v1.DoubleExemplarR\texemplar\
+    s\"\xf6\x02\n\x15IntHistogramDataPoint\x12E\n\x06labels\x18\x01\x20\x03(\
+    \x0b2-.opentelemetry.proto.common.v1.StringKeyValueR\x06labels\x12/\n\
+    \x14start_time_unix_nano\x18\x02\x20\x01(\x06R\x11startTimeUnixNano\x12$\
+    \n\x0etime_unix_nano\x18\x03\x20\x01(\x06R\x0ctimeUnixNano\x12\x14\n\x05\
+    count\x18\x04\x20\x01(\x06R\x05count\x12\x10\n\x03sum\x18\x05\x20\x01(\
+    \x10R\x03sum\x12#\n\rbucket_counts\x18\x06\x20\x03(\x06R\x0cbucketCounts\
+    \x12'\n\x0fexplicit_bounds\x18\x07\x20\x03(\x01R\x0eexplicitBounds\x12I\
+    \n\texemplars\x18\x08\x20\x03(\x0b2+.opentelemetry.proto.metrics.v1.IntE\
+    xemplarR\texemplars\"\xfc\x02\n\x18DoubleHistogramDataPoint\x12E\n\x06la\
+    bels\x18\x01\x20\x03(\x0b2-.opentelemetry.proto.common.v1.StringKeyValue\
+    R\x06labels\x12/\n\x14start_time_unix_nano\x18\x02\x20\x01(\x06R\x11star\
+    tTimeUnixNano\x12$\n\x0etime_unix_nano\x18\x03\x20\x01(\x06R\x0ctimeUnix\
+    Nano\x12\x14\n\x05count\x18\x04\x20\x01(\x06R\x05count\x12\x10\n\x03sum\
+    \x18\x05\x20\x01(\x01R\x03sum\x12#\n\rbucket_counts\x18\x06\x20\x03(\x06\
+    R\x0cbucketCounts\x12'\n\x0fexplicit_bounds\x18\x07\x20\x03(\x01R\x0eexp\
+    licitBounds\x12L\n\texemplars\x18\x08\x20\x03(\x0b2..opentelemetry.proto\
+    .metrics.v1.DoubleExemplarR\texemplars\"\x94\x03\n\x16DoubleSummaryDataP\
+    oint\x12E\n\x06labels\x18\x01\x20\x03(\x0b2-.opentelemetry.proto.common.\
+    v1.StringKeyValueR\x06labels\x12/\n\x14start_time_unix_nano\x18\x02\x20\
+    \x01(\x06R\x11startTimeUnixNano\x12$\n\x0etime_unix_nano\x18\x03\x20\x01\
+    (\x06R\x0ctimeUnixNano\x12\x14\n\x05count\x18\x04\x20\x01(\x06R\x05count\
+    \x12\x10\n\x03sum\x18\x05\x20\x01(\x01R\x03sum\x12o\n\x0fquantile_values\
+    \x18\x06\x20\x03(\x0b2F.opentelemetry.proto.metrics.v1.DoubleSummaryData\
+    Point.ValueAtQuantileR\x0equantileValues\x1aC\n\x0fValueAtQuantile\x12\
+    \x1a\n\x08quantile\x18\x01\x20\x01(\x01R\x08quantile\x12\x14\n\x05value\
+    \x18\x02\x20\x01(\x01R\x05value\"\xd5\x01\n\x0bIntExemplar\x12V\n\x0ffil\
+    tered_labels\x18\x01\x20\x03(\x0b2-.opentelemetry.proto.common.v1.String\
+    KeyValueR\x0efilteredLabels\x12$\n\x0etime_unix_nano\x18\x02\x20\x01(\
+    \x06R\x0ctimeUnixNano\x12\x14\n\x05value\x18\x03\x20\x01(\x10R\x05value\
+    \x12\x17\n\x07span_id\x18\x04\x20\x01(\x0cR\x06spanId\x12\x19\n\x08trace\
+    _id\x18\x05\x20\x01(\x0cR\x07traceId\"\xd8\x01\n\x0eDoubleExemplar\x12V\
+    \n\x0ffiltered_labels\x18\x01\x20\x03(\x0b2-.opentelemetry.proto.common.\
+    v1.StringKeyValueR\x0efilteredLabels\x12$\n\x0etime_unix_nano\x18\x02\
+    \x20\x01(\x06R\x0ctimeUnixNano\x12\x14\n\x05value\x18\x03\x20\x01(\x01R\
+    \x05value\x12\x17\n\x07span_id\x18\x04\x20\x01(\x0cR\x06spanId\x12\x19\n\
+    \x08trace_id\x18\x05\x20\x01(\x0cR\x07traceId*\x8c\x01\n\x16AggregationT\
+    emporality\x12'\n#AGGREGATION_TEMPORALITY_UNSPECIFIED\x10\0\x12!\n\x1dAG\
+    GREGATION_TEMPORALITY_DELTA\x10\x01\x12&\n\"AGGREGATION_TEMPORALITY_CUMU\
+    LATIVE\x10\x02Bt\n!io.opentelemetry.proto.metrics.v1B\x0cMetricsProtoP\
+    \x01Z?github.com/open-telemetry/opentelemetry-proto/gen/go/metrics/v1b\
+    \x06proto3\
 ";
 
 static file_descriptor_proto_lazy: ::protobuf::rt::LazyV2<::protobuf::descriptor::FileDescriptorProto> = ::protobuf::rt::LazyV2::INIT;

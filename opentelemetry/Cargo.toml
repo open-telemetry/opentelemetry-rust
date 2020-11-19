@@ -26,7 +26,7 @@ async-trait = { version = "0.1", optional = true }
 bincode = { version = "1.2", optional = true }
 dashmap = { version = "4.0.0-rc6", optional = true }
 fnv = { version = "1.0", optional = true }
-futures = { version = "0.3", features = ["std"] }
+futures = "0.3"
 lazy_static = "1.4"
 percent-encoding = { version = "2.0", optional = true }
 pin-project = { version = "0.4", optional = true }

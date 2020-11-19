@@ -44,7 +44,7 @@ use futures::{
     channel::mpsc, channel::oneshot, executor, future::BoxFuture, future::Either, pin_mut, Future,
     FutureExt, Stream, StreamExt,
 };
-use std::{fmt, pin::Pin, str::FromStr, sync::Mutex, time};
+use std::{fmt, str::FromStr, sync::Mutex, time};
 
 /// Delay interval between two consecutive exports, default to be 5000.
 const OTEL_BSP_SCHEDULE_DELAY_MILLIS: &str = "OTEL_BSP_SCHEDULE_DELAY_MILLIS";
@@ -140,7 +140,11 @@ impl SpanProcessor for SimpleSpanProcessor {
             exporter.shutdown();
             Ok(())
         } else {
-            Err(TraceError::Other("When force flushing the SimpleSpanProcessor, the exporter's lock has been poisoned".into()).into())
+            Err(TraceError::Other(
+                "When shutting down the SimpleSpanProcessor, the exporter's lock has been poisoned"
+                    .into(),
+            )
+            .into())
         }
     }
 }
@@ -189,7 +193,6 @@ impl SpanProcessor for SimpleSpanProcessor {
 /// [`async-std`]: https://async.rs
 pub struct BatchSpanProcessor {
     message_sender: Mutex<mpsc::Sender<BatchMessage>>,
-    _worker_handle: Option<Pin<Box<dyn Future<Output = ()> + Send + Sync>>>,
 }
 
 impl fmt::Debug for BatchSpanProcessor {
@@ -224,7 +227,7 @@ impl SpanProcessor for BatchSpanProcessor {
     }
 
     fn shutdown(&mut self) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-        let mut sender = self.message_sender.lock().map_err(|_| TraceError::Other("When force flushing the BatchSpanProcessor, the message sender's lock has been poisoned".into()))?;
+        let mut sender = self.message_sender.lock().map_err(|_| TraceError::Other("When shutting down the BatchSpanProcessor, the message sender's lock has been poisoned".into()))?;
         let (res_sender, res_receiver) = oneshot::channel::<Vec<ExportResult>>();
         sender.try_send(BatchMessage::Shutdown(res_sender))?;
         for result in futures::executor::block_on(res_receiver)? {
@@ -263,7 +266,7 @@ impl BatchSpanProcessor {
         let ticker = interval(config.scheduled_delay).map(|_| BatchMessage::Flush(None));
 
         // Spawn worker process via user-defined spawn function.
-        let worker_handle = spawn(Box::pin(async move {
+        let _worker_handle = spawn(Box::pin(async move {
             let mut spans = Vec::new();
             let mut messages = Box::pin(futures::stream::select(message_receiver, ticker));
 
@@ -344,7 +347,6 @@ impl BatchSpanProcessor {
         // Return batch processor with link to worker
         BatchSpanProcessor {
             message_sender: Mutex::new(message_sender),
-            _worker_handle: Some(Box::pin(worker_handle)),
         }
     }
 
