@@ -277,9 +277,8 @@ impl BatchSpanProcessor {
                     }
                     // Span batch interval time reached or a force flush has been invoked, export current spans.
                     BatchMessage::Flush(Some(ch)) => {
-                        let mut results = Vec::with_capacity(
-                            spans.len() / config.max_export_batch_size + 1,
-                        );
+                        let mut results =
+                            Vec::with_capacity(spans.len() / config.max_export_batch_size + 1);
                         while !spans.is_empty() {
                             let batch = spans.split_off(
                                 spans.len().saturating_sub(config.max_export_batch_size),
@@ -315,9 +314,8 @@ impl BatchSpanProcessor {
                     }
                     // Stream has terminated or processor is shutdown, return to finish execution.
                     BatchMessage::Shutdown(ch) => {
-                        let mut results = Vec::with_capacity(
-                            spans.len() / config.max_export_batch_size + 1,
-                        );
+                        let mut results =
+                            Vec::with_capacity(spans.len() / config.max_export_batch_size + 1);
                         while !spans.is_empty() {
                             let batch = spans.split_off(
                                 spans.len().saturating_sub(config.max_export_batch_size),
