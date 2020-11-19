@@ -125,7 +125,7 @@ where
     fn export(&self, checkpoint_set: &mut dyn CheckpointSet) -> Result<()> {
         let mut batch = ExportBatch::default();
         if !self.do_not_print_time {
-            batch.timestamp = Some(SystemTime::now());
+            batch.timestamp = Some(crate::time::now());
         }
         checkpoint_set.try_for_each(self, &mut |record| {
             let agg = record.aggregator().ok_or(MetricsError::NoDataCollected)?;

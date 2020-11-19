@@ -22,7 +22,7 @@ impl Aggregator for LastValueAggregator {
         self.inner.lock().map_err(Into::into).map(|mut inner| {
             inner.state = Some(LastValueData {
                 value: number.clone(),
-                timestamp: SystemTime::now(),
+                timestamp: crate::time::now(),
             });
         })
     }
