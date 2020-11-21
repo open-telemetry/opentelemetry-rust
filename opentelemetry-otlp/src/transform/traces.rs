@@ -58,7 +58,6 @@ impl From<SpanData> for ResourceSpans {
     fn from(source_span: SpanData) -> Self {
         let resource_attributes: Attributes = source_span
             .resource
-            .clone()
             .iter()
             .map(|(k, v)| opentelemetry::KeyValue::new(k.clone(), v.clone()))
             .collect::<Vec<_>>()
