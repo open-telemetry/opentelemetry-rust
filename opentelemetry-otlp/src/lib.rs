@@ -95,6 +95,18 @@
 //!     Ok(())
 //! }
 //! ```
+//! ## Feature flags
+//! 
+//! By default `opentelemetry-otlp` uses `boringssl` for grpc crypto. You can switch
+//! this to use `openssl` by enabling the `openssl` feature:
+//! 
+//! ```toml
+//! [dependencies]
+//! opentelemetry-otlp = { version = "*", features = ["openssl"] }
+//! ```
+//! 
+//! If you would like to use a vendored `openssl` version, use the `openssl-vendored` feature.
+//! For more info, see https://github.com/tikv/grpc-rs#feature-openssl-and-openssl-vendored.
 #![warn(
     future_incompatible,
     missing_debug_implementations,
