@@ -33,18 +33,20 @@
 //!
 //! [`is_recording`]: ../span/trait.Span.html#method.is_recording
 //! [`TracerProvider`]: ../provider/trait.TracerProvider.html
-use crate::api::trace::TraceError;
+use std::{fmt, str::FromStr, sync::Mutex, time};
+
+use futures::{
+    channel::mpsc, channel::oneshot, executor, future::BoxFuture, future::Either, pin_mut, Future,
+    FutureExt, Stream, StreamExt,
+};
+
+use crate::api::trace::{TraceError, TraceResult};
 use crate::exporter::trace::ExportTimedOutError;
 use crate::sdk::trace::Span;
 use crate::{
     exporter::trace::{ExportResult, SpanData, SpanExporter},
     Context,
 };
-use futures::{
-    channel::mpsc, channel::oneshot, executor, future::BoxFuture, future::Either, pin_mut, Future,
-    FutureExt, Stream, StreamExt,
-};
-use std::{fmt, str::FromStr, sync::Mutex, time};
 
 /// Delay interval between two consecutive exports, default to be 5000.
 const OTEL_BSP_SCHEDULE_DELAY_MILLIS: &str = "OTEL_BSP_SCHEDULE_DELAY_MILLIS";
@@ -76,10 +78,10 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
     /// API, therefore it should not block or throw an exception.
     fn on_end(&self, span: SpanData);
     /// Force the spans lying in the cache to be exported.
-    fn force_flush(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>>;
+    fn force_flush(&self) -> TraceResult<()>;
     /// Shuts down the processor. Called when SDK is shut down. This is an
     /// opportunity for processors to do any cleanup required.
-    fn shutdown(&mut self) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>>;
+    fn shutdown(&mut self) -> TraceResult<()>;
 }
 
 /// A [`SpanProcessor`] that exports synchronously when spans are finished.
@@ -130,12 +132,12 @@ impl SpanProcessor for SimpleSpanProcessor {
         }
     }
 
-    fn force_flush(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    fn force_flush(&self) -> TraceResult<()> {
         // Ignored since all spans in Simple Processor will be exported as they ended.
         Ok(())
     }
 
-    fn shutdown(&mut self) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    fn shutdown(&mut self) -> TraceResult<()> {
         if let Ok(mut exporter) = self.exporter.lock() {
             exporter.shutdown();
             Ok(())
@@ -143,8 +145,7 @@ impl SpanProcessor for SimpleSpanProcessor {
             Err(TraceError::Other(
                 "When shutting down the SimpleSpanProcessor, the exporter's lock has been poisoned"
                     .into(),
-            )
-            .into())
+            ))
         }
     }
 }
@@ -214,26 +215,24 @@ impl SpanProcessor for BatchSpanProcessor {
         }
     }
 
-    fn force_flush(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    fn force_flush(&self) -> TraceResult<()> {
         let mut sender = self.message_sender.lock().map_err(|_| TraceError::Other("When force flushing the BatchSpanProcessor, the message sender's lock has been poisoned".into()))?;
         let (res_sender, res_receiver) = oneshot::channel::<Vec<ExportResult>>();
-        sender.try_send(BatchMessage::Flush(Some(res_sender)))?;
+        sender
+            .try_send(BatchMessage::Flush(Some(res_sender)))
+            .map_err(|err| Box::new(err))?;
         for result in futures::executor::block_on(res_receiver)? {
-            if result.is_err() {
-                return result;
-            }
+            result?;
         }
         Ok(())
     }
 
-    fn shutdown(&mut self) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    fn shutdown(&mut self) -> TraceResult<()> {
         let mut sender = self.message_sender.lock().map_err(|_| TraceError::Other("When shutting down the BatchSpanProcessor, the message sender's lock has been poisoned".into()))?;
         let (res_sender, res_receiver) = oneshot::channel::<Vec<ExportResult>>();
         sender.try_send(BatchMessage::Shutdown(res_sender))?;
         for result in futures::executor::block_on(res_receiver)? {
-            if result.is_err() {
-                return result;
-            }
+            result?;
         }
         Ok(())
     }
@@ -565,22 +564,25 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        BatchSpanProcessor, SimpleSpanProcessor, SpanProcessor, OTEL_BSP_MAX_EXPORT_BATCH_SIZE,
-        OTEL_BSP_MAX_QUEUE_SIZE, OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT, OTEL_BSP_SCHEDULE_DELAY_MILLIS,
-        OTEL_BSP_SCHEDULE_DELAY_MILLIS_DEFAULT,
-    };
+    use std::fmt::Debug;
+    use std::time;
+    use std::time::Duration;
+
+    use async_std::prelude::*;
+    use async_trait::async_trait;
+
     use crate::exporter::trace::{stdout, ExportResult, SpanData, SpanExporter};
     use crate::sdk::trace::span_processor::OTEL_BSP_EXPORT_TIMEOUT_MILLIS;
     use crate::sdk::trace::BatchConfig;
     use crate::testing::trace::{
         new_test_export_span_data, new_test_exporter, new_tokio_test_exporter,
     };
-    use async_std::prelude::*;
-    use async_trait::async_trait;
-    use std::fmt::Debug;
-    use std::time;
-    use std::time::Duration;
+
+    use super::{
+        BatchSpanProcessor, SimpleSpanProcessor, SpanProcessor, OTEL_BSP_MAX_EXPORT_BATCH_SIZE,
+        OTEL_BSP_MAX_QUEUE_SIZE, OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT, OTEL_BSP_SCHEDULE_DELAY_MILLIS,
+        OTEL_BSP_SCHEDULE_DELAY_MILLIS_DEFAULT,
+    };
 
     #[test]
     fn simple_span_processor_on_end_calls_export() {

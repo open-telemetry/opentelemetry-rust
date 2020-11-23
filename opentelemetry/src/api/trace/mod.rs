@@ -110,6 +110,7 @@
 //! Please review the W3C specification for details on the [Tracestate
 //! field](https://www.w3.org/TR/trace-context/#tracestate-field).
 //!
+use ::futures::channel::{mpsc::TrySendError, oneshot::Canceled};
 use thiserror::Error;
 
 mod context;
@@ -139,11 +140,39 @@ pub use self::{
     tracer::{SpanBuilder, Tracer},
 };
 
+/// Describe the result of operations in tracing API.
+pub type TraceResult<T> = Result<T, TraceError>;
+
 /// Errors returned by the trace API.
-#[derive(Error, Debug, PartialEq)]
+#[derive(Error, Debug)]
 #[non_exhaustive]
 pub enum TraceError {
     /// Other errors not covered by specific cases.
     #[error("Trace error: {0}")]
     Other(String),
+
+    /// Error propagated from trace SDK
+    #[error(transparent)]
+    Boxed(#[from] Box<dyn std::error::Error + Send + Sync + 'static>),
+}
+
+impl<T> From<Box<T>> for TraceError
+where
+    T: std::error::Error + Send + Sync + 'static,
+{
+    fn from(error: Box<T>) -> Self {
+        TraceError::Boxed(error)
+    }
+}
+
+impl<T> From<TrySendError<T>> for TraceError {
+    fn from(err: TrySendError<T>) -> Self {
+        TraceError::Boxed(Box::new(err.into_send_error()))
+    }
+}
+
+impl From<Canceled> for TraceError {
+    fn from(err: Canceled) -> Self {
+        TraceError::Boxed(Box::new(err))
+    }
 }
