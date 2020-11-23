@@ -9,7 +9,7 @@ pub(crate) struct CollectorAsyncClientHttp {
     endpoint: Uri,
     #[cfg(feature = "collector_client")]
     client: isahc::HttpClient,
-    #[cfg(feature = "wasm_collector_client")]
+    #[cfg(all(feature = "wasm_collector_client", not(feature = "collector_client")))]
     client: WasmHttpClient,
     payload_size_estimate: AtomicUsize,
 }
@@ -103,7 +103,7 @@ mod collector_client {
     }
 }
 
-#[cfg(feature = "wasm_collector_client")]
+#[cfg(all(feature = "wasm_collector_client", not(feature = "collector_client")))]
 mod wasm_collector_client {
     use super::*;
     use crate::thrift::jaeger;
