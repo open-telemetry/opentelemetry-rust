@@ -175,7 +175,7 @@ mod wasm_collector_client {
             options.method("POST");
             options.mode(RequestMode::Cors);
 
-            let body = unsafe { Uint8Array::view(protocol.transport.get_ref()) };
+            let body: Uint8Array = protocol.transport.get_ref().as_slice().into();
             options.body(Some(body.as_ref()));
 
             if self.client.auth.is_some() {
