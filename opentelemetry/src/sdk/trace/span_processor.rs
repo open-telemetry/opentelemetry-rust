@@ -41,7 +41,7 @@ use futures::{
 };
 
 use crate::api::trace::{TraceError, TraceResult};
-use crate::exporter::trace::ExportTimedOutError;
+use crate::global;
 use crate::sdk::trace::Span;
 use crate::{
     exporter::trace::{ExportResult, SpanData, SpanExporter},
@@ -127,8 +127,9 @@ impl SpanProcessor for SimpleSpanProcessor {
 
     fn on_end(&self, span: SpanData) {
         if let Ok(mut exporter) = self.exporter.lock() {
-            // TODO: Surface error through global error handler
             let _result = executor::block_on(exporter.export(vec![span]));
+        } else {
+            global::handle_error(TraceError::Other("When export span with the SimpleSpanProcessor, the exporter's lock has been poisoned".to_string()));
         }
     }
 
@@ -219,8 +220,7 @@ impl SpanProcessor for BatchSpanProcessor {
         let mut sender = self.message_sender.lock().map_err(|_| TraceError::Other("When force flushing the BatchSpanProcessor, the message sender's lock has been poisoned".into()))?;
         let (res_sender, res_receiver) = oneshot::channel::<Vec<ExportResult>>();
         sender
-            .try_send(BatchMessage::Flush(Some(res_sender)))
-            .map_err(|err| Box::new(err))?;
+            .try_send(BatchMessage::Flush(Some(res_sender)))?;
         for result in futures::executor::block_on(res_receiver)? {
             result?;
         }
@@ -253,13 +253,13 @@ impl BatchSpanProcessor {
         delay: D,
         config: BatchConfig,
     ) -> Self
-    where
-        S: Fn(BoxFuture<'static, ()>) -> SH,
-        SH: Future<Output = SO> + Send + Sync + 'static,
-        I: Fn(time::Duration) -> IS,
-        IS: Stream<Item = ISI> + Send + 'static,
-        D: (Fn(time::Duration) -> DS) + Send + Sync + 'static,
-        DS: Future<Output = ()> + 'static + Send + Sync,
+        where
+            S: Fn(BoxFuture<'static, ()>) -> SH,
+            SH: Future<Output=SO> + Send + Sync + 'static,
+            I: Fn(time::Duration) -> IS,
+            IS: Stream<Item=ISI> + Send + 'static,
+            D: (Fn(time::Duration) -> DS) + Send + Sync + 'static,
+            DS: Future<Output=()> + 'static + Send + Sync,
     {
         let (message_sender, message_receiver) = mpsc::channel(config.max_queue_size);
         let ticker = interval(config.scheduled_delay).map(|_| BatchMessage::Flush(None));
@@ -293,11 +293,13 @@ impl BatchSpanProcessor {
                                     &delay,
                                     batch,
                                 )
-                                .await,
+                                    .await,
                             );
                         }
-                        // TODO: Surface error through global error handler
-                        let _send_result = ch.send(results);
+                        let send_result = ch.send(results);
+                        if let Err(_) = send_result {
+                            global::handle_error(TraceError::Other("fail to send the export response from worker handle in BatchProcessor".to_string()))
+                        }
                     }
                     BatchMessage::Flush(None) => {
                         while !spans.is_empty() {
@@ -311,7 +313,7 @@ impl BatchSpanProcessor {
                                 &delay,
                                 batch,
                             )
-                            .await;
+                                .await;
                         }
                     }
                     // Stream has terminated or processor is shutdown, return to finish execution.
@@ -330,18 +332,20 @@ impl BatchSpanProcessor {
                                     &delay,
                                     batch,
                                 )
-                                .await,
+                                    .await,
                             );
                         }
                         exporter.shutdown();
-                        // TODO: Surface error through global error handler
-                        let _send_result = ch.send(results);
+                        let send_result = ch.send(results);
+                        if let Err(_) = send_result {
+                            global::handle_error(TraceError::Other("fail to send the export response from worker handle in BatchProcessor".to_string()))
+                        }
                         break;
                     }
                 }
             }
         }))
-        .map(|_| ());
+            .map(|_| ());
 
         // Return batch processor with link to worker
         BatchSpanProcessor {
@@ -356,13 +360,13 @@ impl BatchSpanProcessor {
         delay: D,
         interval: I,
     ) -> BatchSpanProcessorBuilder<E, S, I, D>
-    where
-        E: SpanExporter,
-        S: Fn(BoxFuture<'static, ()>) -> SH,
-        SH: Future<Output = SO> + Send + Sync + 'static,
-        I: Fn(time::Duration) -> IO,
-        D: (Fn(time::Duration) -> DS) + Send + Sync + 'static,
-        DS: Future<Output = ()> + 'static + Send + Sync,
+        where
+            E: SpanExporter,
+            S: Fn(BoxFuture<'static, ()>) -> SH,
+            SH: Future<Output=SO> + Send + Sync + 'static,
+            I: Fn(time::Duration) -> IO,
+            D: (Fn(time::Duration) -> DS) + Send + Sync + 'static,
+            DS: Future<Output=()> + 'static + Send + Sync,
     {
         BatchSpanProcessorBuilder {
             exporter,
@@ -386,13 +390,13 @@ impl BatchSpanProcessor {
         interval: I,
         delay: D,
     ) -> BatchSpanProcessorBuilder<E, S, I, D>
-    where
-        E: SpanExporter,
-        S: Fn(BoxFuture<'static, ()>) -> SH,
-        SH: Future<Output = SO> + Send + Sync + 'static,
-        I: Fn(time::Duration) -> IO,
-        D: (Fn(time::Duration) -> DS) + Send + Sync + 'static,
-        DS: Future<Output = ()> + 'static + Send + Sync,
+        where
+            E: SpanExporter,
+            S: Fn(BoxFuture<'static, ()>) -> SH,
+            SH: Future<Output=SO> + Send + Sync + 'static,
+            I: Fn(time::Duration) -> IO,
+            D: (Fn(time::Duration) -> DS) + Send + Sync + 'static,
+            DS: Future<Output=()> + 'static + Send + Sync,
     {
         let mut config = BatchConfig::default();
         let schedule_delay = std::env::var(OTEL_BSP_SCHEDULE_DELAY_MILLIS)
@@ -443,10 +447,10 @@ async fn export_with_timeout<D, DS, E>(
     delay: &D,
     batch: Vec<SpanData>,
 ) -> ExportResult
-where
-    D: (Fn(time::Duration) -> DS) + Send + Sync + 'static,
-    DS: Future<Output = ()> + 'static + Send + Sync,
-    E: SpanExporter + ?Sized,
+    where
+        D: (Fn(time::Duration) -> DS) + Send + Sync + 'static,
+        DS: Future<Output=()> + 'static + Send + Sync,
+        E: SpanExporter + ?Sized,
 {
     let export = exporter.export(batch);
     let timeout = delay(time_out);
@@ -454,7 +458,7 @@ where
     pin_mut!(timeout);
     match futures::future::select(export, timeout).await {
         Either::Left((export_res, _)) => export_res,
-        Either::Right((_, _)) => ExportResult::Err(Box::new(ExportTimedOutError::default())),
+        Either::Right((_, _)) => ExportResult::Err(TraceError::ExportTimedOut(time_out)),
     }
 }
 
@@ -503,14 +507,14 @@ pub struct BatchSpanProcessorBuilder<E, S, I, D> {
 }
 
 impl<E, S, SH, SO, I, IS, ISI, D, DS> BatchSpanProcessorBuilder<E, S, I, D>
-where
-    E: SpanExporter + 'static,
-    S: Fn(BoxFuture<'static, ()>) -> SH,
-    SH: Future<Output = SO> + Send + Sync + 'static,
-    I: Fn(time::Duration) -> IS,
-    IS: Stream<Item = ISI> + Send + 'static,
-    D: (Fn(time::Duration) -> DS) + Send + Sync + 'static,
-    DS: Future<Output = ()> + 'static + Send + Sync,
+    where
+        E: SpanExporter + 'static,
+        S: Fn(BoxFuture<'static, ()>) -> SH,
+        SH: Future<Output=SO> + Send + Sync + 'static,
+        I: Fn(time::Duration) -> IS,
+        IS: Stream<Item=ISI> + Send + 'static,
+        D: (Fn(time::Duration) -> DS) + Send + Sync + 'static,
+        DS: Future<Output=()> + 'static + Send + Sync,
 {
     /// Set max queue size for batches
     pub fn with_max_queue_size(self, size: usize) -> Self {
@@ -680,9 +684,9 @@ mod tests {
     }
 
     impl<D, DS> Debug for BlockingExporter<D>
-    where
-        D: Fn(time::Duration) -> DS + 'static + Send + Sync,
-        DS: Future<Output = ()> + Send + Sync + 'static,
+        where
+            D: Fn(time::Duration) -> DS + 'static + Send + Sync,
+            DS: Future<Output=()> + Send + Sync + 'static,
     {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             f.write_str("blocking exporter for testing")
@@ -691,9 +695,9 @@ mod tests {
 
     #[async_trait]
     impl<D, DS> SpanExporter for BlockingExporter<D>
-    where
-        D: Fn(time::Duration) -> DS + 'static + Send + Sync,
-        DS: Future<Output = ()> + Send + Sync + 'static,
+        where
+            D: Fn(time::Duration) -> DS + 'static + Send + Sync,
+            DS: Future<Output=()> + Send + Sync + 'static,
     {
         async fn export(&mut self, batch: Vec<SpanData>) -> ExportResult {
             println!("Accepting {} spans", batch.len());

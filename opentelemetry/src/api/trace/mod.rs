@@ -139,6 +139,8 @@ pub use self::{
     },
     tracer::{SpanBuilder, Tracer},
 };
+use std::time;
+use crate::exporter::trace::ExportError;
 
 /// Describe the result of operations in tracing API.
 pub type TraceResult<T> = Result<T, TraceError>;
@@ -151,17 +153,23 @@ pub enum TraceError {
     #[error("Trace error: {0}")]
     Other(String),
 
-    /// Error propagated from trace SDK
+    /// Export failed with the error returned by the exporter
+    #[error("Exporting failed with {0}")]
+    ExportFailed(Box<dyn ExportError>),
+
+    /// Export failed to finish after certain period and processor stopped the export.
+    #[error("Exporting timed out after {} seconds", .0.as_secs())]
+    ExportTimedOut(time::Duration),
+
+    /// Other errors propagated from trace SDK that weren't covered above
     #[error(transparent)]
     Boxed(#[from] Box<dyn std::error::Error + Send + Sync + 'static>),
 }
 
-impl<T> From<Box<T>> for TraceError
-where
-    T: std::error::Error + Send + Sync + 'static,
-{
-    fn from(error: Box<T>) -> Self {
-        TraceError::Boxed(error)
+impl<T> From<T> for TraceError
+    where T: ExportError {
+    fn from(err: T) -> Self {
+        TraceError::ExportFailed(Box::new(err))
     }
 }
 

@@ -30,8 +30,10 @@ use crate::{
     trace::TracerProvider,
 };
 use async_trait::async_trait;
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 use std::io::{stdout, Stdout, Write};
+use crate::exporter::trace::ExportError;
+use serde::export::Formatter;
 
 /// Pipeline builder
 #[derive(Debug)]
@@ -81,8 +83,8 @@ impl<W: Write> PipelineBuilder<W> {
 }
 
 impl<W> PipelineBuilder<W>
-where
-    W: Write + Debug + Send + 'static,
+    where
+        W: Write + Debug + Send + 'static,
 {
     /// Install the stdout exporter pipeline with the recommended defaults.
     pub fn install(mut self) -> (sdk::trace::Tracer, Uninstall) {
@@ -123,16 +125,16 @@ impl<W: Write> Exporter<W> {
 
 #[async_trait]
 impl<W> SpanExporter for Exporter<W>
-where
-    W: Write + Debug + Send + 'static,
+    where
+        W: Write + Debug + Send + 'static,
 {
     /// Export spans to stdout
     async fn export(&mut self, batch: Vec<SpanData>) -> ExportResult {
         for span in batch {
             if self.pretty_print {
-                self.writer.write_all(format!("{:#?}\n", span).as_bytes())?;
+                self.writer.write_all(format!("{:#?}\n", span).as_bytes()).map_err(|err| Error::from(err))?;
             } else {
-                self.writer.write_all(format!("{:?}\n", span).as_bytes())?;
+                self.writer.write_all(format!("{:?}\n", span).as_bytes()).map_err(|err| Error::from(err))?;
             }
         }
 
@@ -140,6 +142,31 @@ where
     }
 }
 
-/// Uninstalls the stdout pipeline on drop.
+/// Uninstalls the stdout pipeline on dropping.
 #[derive(Debug)]
 pub struct Uninstall(global::TracerProviderGuard);
+
+/// Stdout exporter's error
+#[derive(Debug)]
+struct Error(std::io::Error);
+
+impl Display for Error {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.0.to_string().as_str())
+    }
+}
+
+impl std::error::Error for Error {}
+
+impl From<std::io::Error> for Error {
+    fn from(err: std::io::Error) -> Self {
+        Error(err)
+    }
+}
+
+impl ExportError for Error {
+    fn exporter_name(&self) -> &'static str {
+        "stdout"
+    }
+}
+
