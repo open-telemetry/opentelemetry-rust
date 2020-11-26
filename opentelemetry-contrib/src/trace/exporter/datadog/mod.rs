@@ -97,8 +97,8 @@
 //!   }
 //! }
 //!
-//! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-//!     let (tracer, _uninstall) = new_pipeline()
+//! fn main() -> Result<(), opentelemetry::trace::TraceError> {
+//! let (tracer, _uninstall) = new_pipeline()
 //!         .with_service_name("my_app")
 //!         .with_version(ApiVersion::Version05)
 //!         .with_agent_endpoint("http://localhost:8126")
@@ -129,8 +129,8 @@ use http::{Method, Request, Uri};
 use opentelemetry::exporter::trace;
 use opentelemetry::exporter::trace::{HttpClient, SpanData};
 use opentelemetry::{global, sdk, trace::TracerProvider};
-use std::error::Error;
-use std::io;
+use opentelemetry::trace::TraceError;
+use crate::trace::exporter::datadog::model::Error;
 
 /// Default Datadog collector endpoint
 const DEFAULT_AGENT_ENDPOINT: &str = "http://127.0.0.1:8126";
@@ -213,12 +213,12 @@ impl DatadogPipelineBuilder {
     /// Create `ExporterConfig` struct from current `ExporterConfigBuilder`
     pub fn install(
         mut self,
-    ) -> Result<(sdk::trace::Tracer, Uninstall), Box<dyn Error + Send + Sync + 'static>> {
+    ) -> Result<(sdk::trace::Tracer, Uninstall), TraceError> {
         if let Some(client) = self.client {
             let endpoint = self.agent_endpoint + self.version.path();
             let exporter = DatadogExporter::new(
                 self.service_name.clone(),
-                endpoint.parse()?,
+                endpoint.parse().map_err::<Error, _>(Into::into)?,
                 self.version,
                 client,
             );
@@ -233,11 +233,7 @@ impl DatadogPipelineBuilder {
             let provider_guard = global::set_tracer_provider(provider);
             Ok((tracer, Uninstall(provider_guard)))
         } else {
-            Err(Box::new(io::Error::new(
-                io::ErrorKind::Other,
-                "http client must be set, users can enable reqwest or surf feature to use http\
-                 client implementation within create",
-            )))
+            Err(Error::NoHttpClient.into())
         }
     }
 
@@ -284,7 +280,7 @@ impl trace::SpanExporter for DatadogExporter {
             .method(Method::POST)
             .uri(self.request_url.clone())
             .header(http::header::CONTENT_TYPE, self.version.content_type())
-            .body(data)?;
+            .body(data).map_err::<Error, _>(Into::into)?;
         self.client.send(req).await
     }
 }

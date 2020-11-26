@@ -1,23 +1,50 @@
 use opentelemetry::exporter::trace;
 use std::fmt;
+use opentelemetry::exporter::trace::ExportError;
+use http::uri::InvalidUri;
 
 mod v03;
 mod v05;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub(crate) enum Error {
     MessagePackError,
+    NoHttpClient,
+    RequestError(http::Error),
+    InvalidUri(http::uri::InvalidUri)
 }
 
 impl std::error::Error for Error {}
+
+impl ExportError for Error {
+    fn exporter_name(&self) -> &'static str {
+        "datadog"
+    }
+}
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Error::MessagePackError => write!(f, "message pack error"),
+            Error::NoHttpClient => write!(f, "http client must be set, users can enable reqwest or surf feature to use http client implementation within create"),
+            Error::RequestError(err) => write!(f, "{}", err),
+            Error::InvalidUri(err) => write!(f, "{}", err),
         }
     }
 }
+
+impl From<http::uri::InvalidUri> for Error{
+    fn from(err: InvalidUri) -> Self {
+        Error::InvalidUri(err)
+    }
+}
+
+impl From<http::Error> for Error{
+    fn from(err: http::Error) -> Self {
+        Error::RequestError(err)
+    }
+}
+
 
 impl From<rmp::encode::ValueWriteError> for Error {
     fn from(_: rmp::encode::ValueWriteError) -> Self {
