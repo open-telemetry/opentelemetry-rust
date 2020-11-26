@@ -167,9 +167,9 @@ impl SpanExporter for Exporter {
 
         let receiver = self
             .trace_exporter
-            .export_async_opt(&request, call_options).map_err::<crate::Error, _>(Into::into)?;
+            .export_async_opt(&request, call_options)
+            .map_err::<crate::Error, _>(Into::into)?;
         receiver.await.map_err::<crate::Error, _>(Into::into)?;
         Ok(())
     }
 }
-

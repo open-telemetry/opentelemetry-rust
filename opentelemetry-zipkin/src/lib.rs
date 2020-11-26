@@ -148,17 +148,17 @@
 //! supported compiler version is not considered a semver breaking change as
 //! long as doing so complies with this policy.
 #![warn(
-future_incompatible,
-missing_debug_implementations,
-missing_docs,
-nonstandard_style,
-rust_2018_idioms,
-unreachable_pub,
-unused
+    future_incompatible,
+    missing_debug_implementations,
+    missing_docs,
+    nonstandard_style,
+    rust_2018_idioms,
+    unreachable_pub,
+    unused
 )]
 #![cfg_attr(docsrs, feature(doc_cfg), deny(broken_intra_doc_links))]
 #![doc(
-html_logo_url = "https://raw.githubusercontent.com/open-telemetry/opentelemetry-rust/master/assets/logo.svg"
+    html_logo_url = "https://raw.githubusercontent.com/open-telemetry/opentelemetry-rust/master/assets/logo.svg"
 )]
 #![cfg_attr(test, deny(warnings))]
 
@@ -171,10 +171,10 @@ mod uploader;
 use async_trait::async_trait;
 use http::Uri;
 use model::endpoint::Endpoint;
-use opentelemetry::exporter::trace::{HttpClient, ExportError};
+use opentelemetry::exporter::trace::{ExportError, HttpClient};
+use opentelemetry::trace::TraceError;
 use opentelemetry::{exporter::trace, global, sdk, trace::TracerProvider};
 use std::net::SocketAddr;
-use opentelemetry::trace::TraceError;
 
 /// Default Zipkin collector endpoint
 const DEFAULT_COLLECTOR_ENDPOINT: &str = "http://127.0.0.1:9411/api/v2/spans";
@@ -219,21 +219,21 @@ impl Default for ZipkinPipelineBuilder {
             #[cfg(feature = "reqwest-blocking-client")]
             client: Some(Box::new(reqwest::blocking::Client::new())),
             #[cfg(all(
-            not(feature = "reqwest-blocking-client"),
-            not(feature = "surf-client"),
-            feature = "reqwest-client"
+                not(feature = "reqwest-blocking-client"),
+                not(feature = "surf-client"),
+                feature = "reqwest-client"
             ))]
             client: Some(Box::new(reqwest::Client::new())),
             #[cfg(all(
-            not(feature = "reqwest-client"),
-            not(feature = "reqwest-blocking-client"),
-            feature = "surf-client"
+                not(feature = "reqwest-client"),
+                not(feature = "reqwest-blocking-client"),
+                feature = "surf-client"
             ))]
             client: Some(Box::new(surf::Client::new())),
             #[cfg(all(
-            not(feature = "reqwest-client"),
-            not(feature = "surf-client"),
-            not(feature = "reqwest-blocking-client")
+                not(feature = "reqwest-client"),
+                not(feature = "surf-client"),
+                not(feature = "reqwest-blocking-client")
             ))]
             client: None,
 
@@ -247,12 +247,16 @@ impl Default for ZipkinPipelineBuilder {
 
 impl ZipkinPipelineBuilder {
     /// Create `ExporterConfig` struct from current `ExporterConfigBuilder`
-    pub fn install(
-        mut self,
-    ) -> Result<(sdk::trace::Tracer, Uninstall), TraceError> {
+    pub fn install(mut self) -> Result<(sdk::trace::Tracer, Uninstall), TraceError> {
         if let Some(client) = self.client {
             let endpoint = Endpoint::new(self.service_name, self.service_addr);
-            let exporter = Exporter::new(endpoint, client, self.collector_endpoint.parse().map_err::<Error, _>(Into::into)?);
+            let exporter = Exporter::new(
+                endpoint,
+                client,
+                self.collector_endpoint
+                    .parse()
+                    .map_err::<Error, _>(Into::into)?,
+            );
 
             let mut provider_builder =
                 sdk::trace::TracerProvider::builder().with_exporter(exporter);

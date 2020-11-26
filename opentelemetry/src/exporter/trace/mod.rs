@@ -1,4 +1,5 @@
 //! Trace exporters
+use crate::api::trace::TraceError;
 use crate::{
     sdk,
     trace::{Event, Link, SpanContext, SpanId, SpanKind, StatusCode},
@@ -13,7 +14,6 @@ use std::convert::TryInto;
 use std::fmt::Debug;
 use std::sync::Arc;
 use std::time::SystemTime;
-use crate::api::trace::TraceError;
 
 pub mod stdout;
 

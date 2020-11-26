@@ -1,7 +1,7 @@
-use crate::api::trace::TraceError;
 #[cfg(feature = "metrics")]
 #[cfg_attr(docsrs, doc(cfg(feature = "metrics")))]
 use crate::api::metrics::MetricsError;
+use crate::api::trace::TraceError;
 use std::sync::PoisonError;
 
 pub mod baggage;

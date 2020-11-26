@@ -1,7 +1,7 @@
-use opentelemetry::exporter::trace;
-use std::fmt;
-use opentelemetry::exporter::trace::ExportError;
 use http::uri::InvalidUri;
+use opentelemetry::exporter::trace;
+use opentelemetry::exporter::trace::ExportError;
+use std::fmt;
 
 mod v03;
 mod v05;
@@ -52,7 +52,6 @@ impl From<http::Error> for Error {
         Error::RequestError(err)
     }
 }
-
 
 impl From<rmp::encode::ValueWriteError> for Error {
     fn from(_: rmp::encode::ValueWriteError) -> Self {

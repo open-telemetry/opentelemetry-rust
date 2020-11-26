@@ -24,16 +24,16 @@
 //!     });
 //! }
 //! ```
+use crate::exporter::trace::ExportError;
 use crate::{
     exporter::trace::{ExportResult, SpanData, SpanExporter},
     global, sdk,
     trace::TracerProvider,
 };
 use async_trait::async_trait;
+use serde::export::Formatter;
 use std::fmt::{Debug, Display};
 use std::io::{stdout, Stdout, Write};
-use crate::exporter::trace::ExportError;
-use serde::export::Formatter;
 
 /// Pipeline builder
 #[derive(Debug)]
@@ -83,8 +83,8 @@ impl<W: Write> PipelineBuilder<W> {
 }
 
 impl<W> PipelineBuilder<W>
-    where
-        W: Write + Debug + Send + 'static,
+where
+    W: Write + Debug + Send + 'static,
 {
     /// Install the stdout exporter pipeline with the recommended defaults.
     pub fn install(mut self) -> (sdk::trace::Tracer, Uninstall) {
@@ -125,16 +125,20 @@ impl<W: Write> Exporter<W> {
 
 #[async_trait]
 impl<W> SpanExporter for Exporter<W>
-    where
-        W: Write + Debug + Send + 'static,
+where
+    W: Write + Debug + Send + 'static,
 {
     /// Export spans to stdout
     async fn export(&mut self, batch: Vec<SpanData>) -> ExportResult {
         for span in batch {
             if self.pretty_print {
-                self.writer.write_all(format!("{:#?}\n", span).as_bytes()).map_err(|err| Error::from(err))?;
+                self.writer
+                    .write_all(format!("{:#?}\n", span).as_bytes())
+                    .map_err(|err| Error::from(err))?;
             } else {
-                self.writer.write_all(format!("{:?}\n", span).as_bytes()).map_err(|err| Error::from(err))?;
+                self.writer
+                    .write_all(format!("{:?}\n", span).as_bytes())
+                    .map_err(|err| Error::from(err))?;
             }
         }
 
@@ -169,4 +173,3 @@ impl ExportError for Error {
         "stdout"
     }
 }
-

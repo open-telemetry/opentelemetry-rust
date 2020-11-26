@@ -139,8 +139,8 @@ pub use self::{
     },
     tracer::{SpanBuilder, Tracer},
 };
-use std::time;
 use crate::exporter::trace::ExportError;
+use std::time;
 
 /// Describe the result of operations in tracing API.
 pub type TraceResult<T> = Result<T, TraceError>;
@@ -167,7 +167,9 @@ pub enum TraceError {
 }
 
 impl<T> From<T> for TraceError
-    where T: ExportError {
+where
+    T: ExportError,
+{
     fn from(err: T) -> Self {
         TraceError::ExportFailed(Box::new(err))
     }

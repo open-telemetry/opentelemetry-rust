@@ -129,8 +129,8 @@ use async_trait::async_trait;
 use http::{Method, Request, Uri};
 use opentelemetry::exporter::trace;
 use opentelemetry::exporter::trace::{HttpClient, SpanData};
-use opentelemetry::{global, sdk, trace::TracerProvider};
 use opentelemetry::trace::TraceError;
+use opentelemetry::{global, sdk, trace::TracerProvider};
 
 /// Default Datadog collector endpoint
 const DEFAULT_AGENT_ENDPOINT: &str = "http://127.0.0.1:8126";
@@ -211,9 +211,7 @@ impl Default for DatadogPipelineBuilder {
 
 impl DatadogPipelineBuilder {
     /// Create `ExporterConfig` struct from current `ExporterConfigBuilder`
-    pub fn install(
-        mut self,
-    ) -> Result<(sdk::trace::Tracer, Uninstall), TraceError> {
+    pub fn install(mut self) -> Result<(sdk::trace::Tracer, Uninstall), TraceError> {
         if let Some(client) = self.client {
             let endpoint = self.agent_endpoint + self.version.path();
             let exporter = DatadogExporter::new(
@@ -280,7 +278,8 @@ impl trace::SpanExporter for DatadogExporter {
             .method(Method::POST)
             .uri(self.request_url.clone())
             .header(http::header::CONTENT_TYPE, self.version.content_type())
-            .body(data).map_err::<Error, _>(Into::into)?;
+            .body(data)
+            .map_err::<Error, _>(Into::into)?;
         self.client.send(req).await
     }
 }
