@@ -1,4 +1,4 @@
-use crate::exporter::trace::SpanData;
+use crate::exporter::trace::{SpanData, ExportError};
 use crate::{
     exporter::trace::{self as exporter, ExportResult, SpanExporter},
     sdk::{
@@ -11,6 +11,8 @@ use crate::{
 use async_trait::async_trait;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::time::SystemTime;
+use std::fmt::Display;
+use serde::export::Formatter;
 
 #[derive(Debug)]
 pub struct TestSpan(pub SpanContext);
@@ -21,8 +23,7 @@ impl Span for TestSpan {
         _name: String,
         _timestamp: std::time::SystemTime,
         _attributes: Vec<KeyValue>,
-    ) {
-    }
+    ) {}
     fn span_context(&self) -> &SpanContext {
         &self.0
     }
@@ -64,7 +65,7 @@ pub struct TestSpanExporter {
 impl SpanExporter for TestSpanExporter {
     async fn export(&mut self, batch: Vec<exporter::SpanData>) -> ExportResult {
         for span_data in batch {
-            self.tx_export.send(span_data)?;
+            self.tx_export.send(span_data).map_err::<TestExportError, _>(Into::into)?;
         }
         Ok(())
     }
@@ -94,7 +95,7 @@ pub struct TokioSpanExporter {
 impl SpanExporter for TokioSpanExporter {
     async fn export(&mut self, batch: Vec<SpanData>) -> ExportResult {
         for span_data in batch {
-            self.tx_export.send(span_data)?;
+            self.tx_export.send(span_data).map_err::<TestExportError, _>(Into::into)?;
         }
         Ok(())
     }
@@ -116,4 +117,33 @@ pub fn new_tokio_test_exporter() -> (
         tx_shutdown,
     };
     (exporter, rx_export, rx_shutdown)
+}
+
+#[derive(Debug)]
+pub struct TestExportError(String);
+
+impl std::error::Error for TestExportError {}
+
+impl ExportError for TestExportError {
+    fn exporter_name(&self) -> &'static str {
+        "test"
+    }
+}
+
+impl Display for TestExportError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl<T> From<tokio::sync::mpsc::error::SendError<T>> for TestExportError {
+    fn from(err: tokio::sync::mpsc::error::SendError<T>) -> Self {
+        TestExportError(err.to_string())
+    }
+}
+
+impl<T> From<std::sync::mpsc::SendError<T>> for TestExportError {
+    fn from(err: std::sync::mpsc::SendError<T>) -> Self {
+        TestExportError(err.to_string())
+    }
 }
