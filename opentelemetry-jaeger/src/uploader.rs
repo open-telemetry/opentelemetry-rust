@@ -20,14 +20,14 @@ impl BatchUploader {
         match self {
             BatchUploader::Agent(client) => {
                 // TODO Implement retry behaviour
-                client.emit_batch(batch).await?;
+                client.emit_batch(batch).await.map_err::<crate::Error, _>(Into::into)?;
             }
             #[cfg(feature = "collector_client")]
             BatchUploader::Collector(collector) => {
                 // TODO Implement retry behaviour
-                collector.submit_batch(batch).await?;
+                collector.submit_batch(batch).await.map_err::<crate::Error, _>(Into::into)?;
             }
-        };
+        }
         Ok(())
     }
 }

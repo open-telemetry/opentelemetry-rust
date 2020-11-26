@@ -165,17 +165,17 @@
 //! supported compiler version is not considered a semver breaking change as
 //! long as doing so complies with this policy.
 #![warn(
-    future_incompatible,
-    missing_debug_implementations,
-    missing_docs,
-    nonstandard_style,
-    rust_2018_idioms,
-    unreachable_pub,
-    unused
+future_incompatible,
+missing_debug_implementations,
+missing_docs,
+nonstandard_style,
+rust_2018_idioms,
+unreachable_pub,
+unused
 )]
 #![cfg_attr(docsrs, feature(doc_cfg), deny(broken_intra_doc_links))]
 #![doc(
-    html_logo_url = "https://raw.githubusercontent.com/open-telemetry/opentelemetry-rust/master/assets/logo.svg"
+html_logo_url = "https://raw.githubusercontent.com/open-telemetry/opentelemetry-rust/master/assets/logo.svg"
 )]
 #![cfg_attr(test, deny(warnings))]
 
@@ -200,12 +200,12 @@ use opentelemetry::{
     trace::{Event, Link, SpanKind, StatusCode, TracerProvider},
     Key, KeyValue, Value,
 };
-use std::error::Error;
 use std::{
     net,
     time::{Duration, SystemTime},
 };
 use uploader::BatchUploader;
+use opentelemetry::exporter::trace::ExportError;
 
 /// Default service name if no service is configured.
 const DEFAULT_SERVICE_NAME: &str = "OpenTelemetry";
@@ -357,8 +357,8 @@ impl PipelineBuilder {
     #[cfg(feature = "collector_client")]
     #[cfg_attr(docsrs, doc(cfg(feature = "collector_client")))]
     pub fn with_collector_endpoint<T>(self, collector_endpoint: T) -> Self
-    where
-        http::Uri: core::convert::TryFrom<T>,
+        where
+            http::Uri: core::convert::TryFrom<T>,
     {
         PipelineBuilder {
             collector_endpoint: core::convert::TryFrom::try_from(collector_endpoint).ok(),
@@ -393,7 +393,7 @@ impl PipelineBuilder {
     }
 
     /// Assign the process service tags.
-    pub fn with_tags<T: IntoIterator<Item = KeyValue>>(mut self, tags: T) -> Self {
+    pub fn with_tags<T: IntoIterator<Item=KeyValue>>(mut self, tags: T) -> Self {
         self.process.tags = tags.into_iter().collect();
         self
     }
@@ -409,7 +409,7 @@ impl PipelineBuilder {
     /// Install a Jaeger pipeline with the recommended defaults.
     pub fn install(
         self,
-    ) -> Result<(sdk::trace::Tracer, Uninstall), Box<dyn Error + Send + Sync + 'static>> {
+    ) -> Result<(sdk::trace::Tracer, Uninstall), Box<dyn std::error::Error + Send + Sync + 'static>> {
         let tracer_provider = self.build()?;
         let tracer =
             tracer_provider.get_tracer("opentelemetry-jaeger", Some(env!("CARGO_PKG_VERSION")));
@@ -422,7 +422,7 @@ impl PipelineBuilder {
     /// Build a configured `sdk::trace::TracerProvider` with the recommended defaults.
     pub fn build(
         mut self,
-    ) -> Result<sdk::trace::TracerProvider, Box<dyn Error + Send + Sync + 'static>> {
+    ) -> Result<sdk::trace::TracerProvider, Box<dyn std::error::Error + Send + Sync + 'static>> {
         let config = self.config.take();
         let exporter = self.init_exporter()?;
 
@@ -438,7 +438,7 @@ impl PipelineBuilder {
     /// Initialize a new exporter.
     ///
     /// This is useful if you are manually constructing a pipeline.
-    pub fn init_exporter(self) -> Result<Exporter, Box<dyn Error + Send + Sync + 'static>> {
+    pub fn init_exporter(self) -> Result<Exporter, Box<dyn std::error::Error + Send + Sync + 'static>> {
         let export_instrumentation_lib = self.export_instrument_library;
         let (process, uploader) = self.init_uploader()?;
 
@@ -452,7 +452,7 @@ impl PipelineBuilder {
     #[cfg(not(feature = "collector_client"))]
     fn init_uploader(
         self,
-    ) -> Result<(Process, BatchUploader), Box<dyn Error + Send + Sync + 'static>> {
+    ) -> Result<(Process, BatchUploader), Box<dyn std::error::Error + Send + Sync + 'static>> {
         let agent = AgentAsyncClientUDP::new(self.agent_endpoint.as_slice())?;
         Ok((self.process, BatchUploader::Agent(agent)))
     }
@@ -460,7 +460,7 @@ impl PipelineBuilder {
     #[cfg(feature = "collector_client")]
     fn init_uploader(
         self,
-    ) -> Result<(Process, uploader::BatchUploader), Box<dyn Error + Send + Sync + 'static>> {
+    ) -> Result<(Process, uploader::BatchUploader), Box<dyn std::error::Error + Send + Sync + 'static>> {
         if let Some(collector_endpoint) = self.collector_endpoint {
             let collector = CollectorAsyncClientHttp::new(
                 collector_endpoint,
@@ -587,7 +587,7 @@ fn convert_otel_span_into_jaeger_span(
 
 fn build_process_tags(
     span_data: &trace::SpanData,
-) -> Option<impl Iterator<Item = jaeger::Tag> + '_> {
+) -> Option<impl Iterator<Item=jaeger::Tag> + '_> {
     if span_data.resource.is_empty() {
         None
     } else {
@@ -675,5 +675,19 @@ fn events_to_logs(events: sdk::trace::EvictedQueue<Event>) -> Option<Vec<jaeger:
         None
     } else {
         Some(events.into_iter().map(Into::into).collect())
+    }
+}
+
+/// Wrap type for errors from opentelemetry jaeger
+#[derive(thiserror::Error, Debug)]
+pub enum Error {
+    /// Error from thrift agents.
+    #[error("thrift agent failed with {0}")]
+    ThriftAgentError(#[from] ::thrift::Error)
+}
+
+impl ExportError for Error {
+    fn exporter_name(&self) -> &'static str {
+        "jaeger"
     }
 }
