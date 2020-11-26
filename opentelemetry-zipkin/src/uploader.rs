@@ -3,6 +3,7 @@ use crate::model::span::Span;
 use http::{header::CONTENT_TYPE, Method, Request, Uri};
 use opentelemetry::exporter::trace::{ExportResult, HttpClient};
 use std::fmt::Debug;
+use crate::Error;
 
 #[derive(Debug)]
 pub(crate) enum Uploader {
@@ -38,7 +39,7 @@ impl JsonV2Client {
             .method(Method::POST)
             .uri(self.collector_endpoint.clone())
             .header(CONTENT_TYPE, "application/json")
-            .body(serde_json::to_vec(&spans).unwrap_or_default())?;
+            .body(serde_json::to_vec(&spans).unwrap_or_default()).map_err::<Error, _>(Into::into)?;
         self.client.send(req).await
     }
 }
