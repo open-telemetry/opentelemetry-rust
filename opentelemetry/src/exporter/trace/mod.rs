@@ -12,6 +12,8 @@ use serde::{Deserialize, Serialize};
 #[cfg(all(feature = "http", feature = "reqwest"))]
 use std::convert::TryInto;
 use std::fmt::Debug;
+#[cfg(feature = "http")]
+use std::fmt::{Display, Formatter};
 use std::sync::Arc;
 use std::time::SystemTime;
 
@@ -27,10 +29,6 @@ pub trait ExportError: std::error::Error + Send + Sync + 'static {
         "N/A"
     }
 }
-
-#[cfg(all(feature = "reqwest", feature = "http"))]
-#[async_trait]
-impl ExportError for reqwest::Error {}
 
 /// `SpanExporter` defines the interface that protocol-specific exporters must
 /// implement so that they can be plugged into OpenTelemetry SDK and support
@@ -81,6 +79,65 @@ pub trait HttpClient: Debug + Send + Sync {
     async fn send(&self, request: Request<Vec<u8>>) -> ExportResult;
 }
 
+/// Error when sending http requests visa HttpClient implementation
+#[cfg(feature = "http")]
+#[cfg_attr(docsrs, doc(cfg(feature = "http")))]
+#[derive(Debug)]
+pub enum HttpClientError {
+    /// Errors from reqwest
+    #[cfg(all(feature = "reqwest", feature = "http"))]
+    ReqwestError(reqwest::Error),
+
+    /// Errors from surf
+    #[cfg(all(feature = "surf", feature = "http"))]
+    SurfError(surf::Error),
+
+    /// Other errors
+    Other(String),
+}
+
+#[cfg(feature = "http")]
+#[cfg_attr(docsrs, doc(cfg(feature = "http")))]
+impl std::error::Error for HttpClientError {}
+
+#[cfg(feature = "http")]
+#[cfg_attr(docsrs, doc(cfg(feature = "http")))]
+impl ExportError for HttpClientError {}
+
+#[cfg(feature = "http")]
+#[cfg_attr(docsrs, doc(cfg(feature = "http")))]
+impl Display for HttpClientError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            #[cfg(all(feature = "reqwest", feature = "http"))]
+            HttpClientError::ReqwestError(err) => {
+                write!(f, "error when sending requests using reqwest, {}", err)
+            }
+            #[cfg(all(feature = "surf", feature = "http"))]
+            HttpClientError::SurfError(err) => write!(
+                f,
+                "error when sending requests using surf, {}",
+                err.to_string()
+            ),
+            HttpClientError::Other(msg) => write!(f, "{}", msg),
+        }
+    }
+}
+
+#[cfg(all(feature = "reqwest", feature = "http"))]
+impl From<reqwest::Error> for HttpClientError {
+    fn from(err: reqwest::Error) -> Self {
+        HttpClientError::ReqwestError(err)
+    }
+}
+
+#[cfg(all(feature = "surf", feature = "http"))]
+impl From<surf::Error> for HttpClientError {
+    fn from(err: surf::Error) -> Self {
+        HttpClientError::SurfError(err)
+    }
+}
+
 /// `SpanData` contains all the information collected by a `Span` and can be used
 /// by exporters as a standard input.
 #[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
@@ -120,9 +177,15 @@ pub struct SpanData {
 impl HttpClient for reqwest::Client {
     async fn send(&self, request: Request<Vec<u8>>) -> ExportResult {
         let _result = self
-            .execute(request.try_into()?)
-            .await?
-            .error_for_status()?;
+            .execute(
+                request
+                    .try_into()
+                    .map_err::<HttpClientError, _>(Into::into)?,
+            )
+            .await
+            .map_err::<HttpClientError, _>(Into::into)?
+            .error_for_status()
+            .map_err::<HttpClientError, _>(Into::into)?;
         Ok(())
     }
 }
@@ -131,7 +194,15 @@ impl HttpClient for reqwest::Client {
 #[async_trait]
 impl HttpClient for reqwest::blocking::Client {
     async fn send(&self, request: Request<Vec<u8>>) -> ExportResult {
-        let _result = self.execute(request.try_into()?)?.error_for_status()?;
+        let _result = self
+            .execute(
+                request
+                    .try_into()
+                    .map_err::<HttpClientError, _>(Into::into)?,
+            )
+            .map_err::<HttpClientError, _>(Into::into)?
+            .error_for_status()
+            .map_err::<HttpClientError, _>(Into::into)?;
         Ok(())
     }
 }
@@ -141,17 +212,28 @@ impl HttpClient for reqwest::blocking::Client {
 impl HttpClient for surf::Client {
     async fn send(&self, request: Request<Vec<u8>>) -> ExportResult {
         let (parts, body) = request.into_parts();
-        let uri = parts.uri.to_string().parse()?;
+        let uri = parts
+            .uri
+            .to_string()
+            .parse()
+            .map_err(|err: surf::http::url::ParseError| HttpClientError::Other(err.to_string()))?;
 
         let req = surf::Request::builder(surf::http::Method::Post, uri)
             .content_type("application/json")
             .body(body);
-        let result = self.send(req).await?;
+        let result = self
+            .send(req)
+            .await
+            .map_err::<HttpClientError, _>(Into::into)?;
 
         if result.status().is_success() {
             Ok(())
         } else {
-            Err(result.status().canonical_reason().into())
+            Err(HttpClientError::SurfError(surf::Error::from_str(
+                result.status(),
+                result.status().canonical_reason(),
+            ))
+            .into())
         }
     }
 }

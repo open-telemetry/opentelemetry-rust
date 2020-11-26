@@ -296,7 +296,7 @@ impl BatchSpanProcessor {
                             );
                         }
                         let send_result = ch.send(results);
-                        if let Err(_) = send_result {
+                        if send_result.is_err() {
                             global::handle_error(TraceError::Other("fail to send the export response from worker handle in BatchProcessor".to_string()))
                         }
                     }
@@ -336,7 +336,7 @@ impl BatchSpanProcessor {
                         }
                         exporter.shutdown();
                         let send_result = ch.send(results);
-                        if let Err(_) = send_result {
+                        if send_result.is_err() {
                             global::handle_error(TraceError::Other("fail to send the export response from worker handle in BatchProcessor".to_string()))
                         }
                         break;

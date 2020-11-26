@@ -15,9 +15,13 @@ pub fn handle_error<T: Into<OpenTelemetryError>>(err: T) {
     match GLOBAL_ERROR_HANDLER.read() {
         Ok(handler) if handler.is_some() => (handler.as_ref().unwrap().0)(err.into()),
         _ => match err.into() {
+            #[cfg(feature = "metrics")]
+            #[cfg_attr(docsrs, doc(cfg(feature = "metrics")))]
             OpenTelemetryError::MetricErr(err) => {
                 eprintln!("OpenTelemetry metrics error occurred {:?}", err)
             }
+            #[cfg(feature = "trace")]
+            #[cfg_attr(docsrs, doc(cfg(feature = "trace")))]
             OpenTelemetryError::TraceErr(err) => {
                 eprintln!("OpenTelemetry trace error occurred {:?}", err)
             }

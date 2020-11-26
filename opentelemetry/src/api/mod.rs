@@ -30,12 +30,16 @@ pub enum OpenTelemetryError {
     Other(String),
 }
 
+#[cfg(feature = "trace")]
+#[cfg_attr(docsrs, doc(cfg(feature = "trace")))]
 impl From<TraceError> for OpenTelemetryError {
     fn from(err: TraceError) -> Self {
         OpenTelemetryError::TraceErr(err)
     }
 }
 
+#[cfg(feature = "metrics")]
+#[cfg_attr(docsrs, doc(cfg(feature = "metrics")))]
 impl From<MetricsError> for OpenTelemetryError {
     fn from(err: MetricsError) -> Self {
         OpenTelemetryError::MetricErr(err)

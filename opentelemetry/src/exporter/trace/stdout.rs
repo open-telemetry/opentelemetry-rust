@@ -31,8 +31,7 @@ use crate::{
     trace::TracerProvider,
 };
 use async_trait::async_trait;
-use serde::export::Formatter;
-use std::fmt::{Debug, Display};
+use std::fmt::{Debug, Display, Formatter};
 use std::io::{stdout, Stdout, Write};
 
 /// Pipeline builder
@@ -134,11 +133,11 @@ where
             if self.pretty_print {
                 self.writer
                     .write_all(format!("{:#?}\n", span).as_bytes())
-                    .map_err(|err| Error::from(err))?;
+                    .map_err::<Error, _>(Into::into)?;
             } else {
                 self.writer
                     .write_all(format!("{:?}\n", span).as_bytes())
-                    .map_err(|err| Error::from(err))?;
+                    .map_err::<Error, _>(Into::into)?;
             }
         }
 

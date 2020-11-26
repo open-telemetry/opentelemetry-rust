@@ -9,8 +9,7 @@ use crate::{
     KeyValue,
 };
 use async_trait::async_trait;
-use serde::export::Formatter;
-use std::fmt::Display;
+use std::fmt::{Display, Formatter};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::time::SystemTime;
 
