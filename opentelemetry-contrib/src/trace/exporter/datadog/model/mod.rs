@@ -6,12 +6,19 @@ use http::uri::InvalidUri;
 mod v03;
 mod v05;
 
+/// Wrap type for errors from opentelemetry datadog exporter
 #[derive(Debug)]
-pub(crate) enum Error {
+pub enum Error {
+    /// Message pack error
     MessagePackError,
+    /// No http client founded. User should provide one or enbale features
     NoHttpClient,
+    /// Http requests failed with following errors
     RequestError(http::Error),
-    InvalidUri(http::uri::InvalidUri)
+    /// The Uri was invalid.
+    InvalidUri(http::uri::InvalidUri),
+    /// Other errors
+    Other(String),
 }
 
 impl std::error::Error for Error {}
@@ -29,17 +36,18 @@ impl fmt::Display for Error {
             Error::NoHttpClient => write!(f, "http client must be set, users can enable reqwest or surf feature to use http client implementation within create"),
             Error::RequestError(err) => write!(f, "{}", err),
             Error::InvalidUri(err) => write!(f, "{}", err),
+            Error::Other(msg) => write!(f, "{}", msg)
         }
     }
 }
 
-impl From<http::uri::InvalidUri> for Error{
+impl From<http::uri::InvalidUri> for Error {
     fn from(err: InvalidUri) -> Self {
         Error::InvalidUri(err)
     }
 }
 
-impl From<http::Error> for Error{
+impl From<http::Error> for Error {
     fn from(err: http::Error) -> Self {
         Error::RequestError(err)
     }

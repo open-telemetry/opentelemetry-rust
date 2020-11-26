@@ -76,7 +76,7 @@
 //! use opentelemetry::exporter::trace::HttpClient;
 //! use opentelemetry_contrib::trace::exporter::datadog::{new_pipeline, ApiVersion};
 //! use async_trait::async_trait;
-//! use std::error::Error;
+//! use opentelemetry_contrib::trace::exporter::datadog::Error;
 //!
 //! // `reqwest` and `surf` are supported through features, if you prefer an
 //! // alternate http client you can add support by implementing `HttpClient` as
@@ -87,12 +87,12 @@
 //! #[async_trait]
 //! impl HttpClient for IsahcClient {
 //!   async fn send(&self, request: http::Request<Vec<u8>>) -> ExportResult {
-//!     let result = self.0.send_async(request).await?;
+//!     let result = self.0.send_async(request).await.map_err(|err| Error::Other(err.to_string()))?;
 //!
 //!     if result.status().is_success() {
 //!       Ok(())
 //!     } else {
-//!       Err(result.status().as_str().into())
+//!       Err(Error::Other(result.status().to_string()).into())
 //!     }
 //!   }
 //! }
@@ -123,6 +123,7 @@ mod intern;
 mod model;
 
 pub use model::ApiVersion;
+pub use model::Error;
 
 use async_trait::async_trait;
 use http::{Method, Request, Uri};
@@ -130,7 +131,6 @@ use opentelemetry::exporter::trace;
 use opentelemetry::exporter::trace::{HttpClient, SpanData};
 use opentelemetry::{global, sdk, trace::TracerProvider};
 use opentelemetry::trace::TraceError;
-use crate::trace::exporter::datadog::model::Error;
 
 /// Default Datadog collector endpoint
 const DEFAULT_AGENT_ENDPOINT: &str = "http://127.0.0.1:8126";

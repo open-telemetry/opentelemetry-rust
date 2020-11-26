@@ -90,12 +90,12 @@
 //! #[async_trait]
 //! impl HttpClient for IsahcClient {
 //!   async fn send(&self, request: http::Request<Vec<u8>>) -> ExportResult {
-//!     let result = self.0.send_async(request).await?;
+//!     let result = self.0.send_async(request).await.map_err(|err| opentelemetry_zipkin::Error::Other(err.to_string()))?;
 //!
 //!     if result.status().is_success() {
 //!       Ok(())
 //!     } else {
-//!       Err(result.status().as_str().into())
+//!       Err(opentelemetry_zipkin::Error::Other(result.status().to_string()).into())
 //!     }
 //!   }
 //! }
