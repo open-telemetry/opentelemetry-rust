@@ -10,7 +10,8 @@ use http::Request;
 use serde::{Deserialize, Serialize};
 #[cfg(all(feature = "http", feature = "reqwest"))]
 use std::convert::TryInto;
-use std::fmt::Debug;
+use std::error::Error;
+use std::fmt::{Debug, Display};
 use std::sync::Arc;
 use std::time::SystemTime;
 
@@ -18,6 +19,18 @@ pub mod stdout;
 
 /// Describes the result of an export.
 pub type ExportResult = Result<(), Box<dyn std::error::Error + Send + Sync + 'static>>;
+
+/// Timed out when exporting spans to remote
+#[derive(Debug, Default)]
+pub struct ExportTimedOutError {}
+
+impl Display for ExportTimedOutError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("export timed out")
+    }
+}
+
+impl Error for ExportTimedOutError {}
 
 /// `SpanExporter` defines the interface that protocol-specific exporters must
 /// implement so that they can be plugged into OpenTelemetry SDK and support

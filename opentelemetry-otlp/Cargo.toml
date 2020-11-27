@@ -27,6 +27,10 @@ grpcio = "0.6"
 opentelemetry = { version = "0.10", default-features = false, features = ["trace"], path = "../opentelemetry" }
 protobuf = "2.18"
 
+[features]
+openssl = ["grpcio/openssl"]
+openssl-vendored = ["grpcio/openssl-vendored"]
+
 [build-dependencies]
 protobuf-codegen = "2.16"
 protoc-grpcio = "2.0"

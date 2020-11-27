@@ -110,6 +110,8 @@
 //! Please review the W3C specification for details on the [Tracestate
 //! field](https://www.w3.org/TR/trace-context/#tracestate-field).
 //!
+use thiserror::Error;
+
 mod context;
 mod event;
 mod futures;
@@ -136,3 +138,12 @@ pub use self::{
     },
     tracer::{SpanBuilder, Tracer},
 };
+
+/// Errors returned by the trace API.
+#[derive(Error, Debug, PartialEq)]
+#[non_exhaustive]
+pub enum TraceError {
+    /// Other errors not covered by specific cases.
+    #[error("Trace error: {0}")]
+    Other(String),
+}

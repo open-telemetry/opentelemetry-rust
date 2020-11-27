@@ -56,9 +56,15 @@ impl From<Link> for Span_Link {
 
 impl From<SpanData> for ResourceSpans {
     fn from(source_span: SpanData) -> Self {
+        let resource_attributes: Attributes = source_span
+            .resource
+            .iter()
+            .map(|(k, v)| opentelemetry::KeyValue::new(k.clone(), v.clone()))
+            .collect::<Vec<_>>()
+            .into();
         ResourceSpans {
             resource: SingularPtrField::from(Some(Resource {
-                attributes: Default::default(),
+                attributes: resource_attributes.0,
                 dropped_attributes_count: 0,
                 ..Default::default()
             })),
