@@ -37,6 +37,9 @@ use opentelemetry::{exporter::trace::stdout, trace::Tracer};
 
 fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     // Create a new instrumentation pipeline
+    // Note: uninstalling the tracer happens when the _uninstall
+    // variable is dropped. Assigning it to _ will immediately
+    // drop it and uninstall the tracer
     let (tracer, _uninstall) = stdout::new_pipeline().install();
 
     tracer.in_span("doing_work", |cx| {
