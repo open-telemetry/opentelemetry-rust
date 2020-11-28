@@ -1,55 +1,32 @@
-use http::uri::InvalidUri;
 use opentelemetry::exporter::trace;
 use opentelemetry::exporter::trace::ExportError;
-use std::fmt;
 
 mod v03;
 mod v05;
 
 /// Wrap type for errors from opentelemetry datadog exporter
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum Error {
     /// Message pack error
+    #[error("message pack error")]
     MessagePackError,
-    /// No http client founded. User should provide one or enbale features
+    /// No http client founded. User should provide one or enable features
+    #[error("http client must be set, users can enable reqwest or surf feature to use http client implementation within create")]
     NoHttpClient,
     /// Http requests failed with following errors
-    RequestError(http::Error),
-    /// The Uri was invalid.
-    InvalidUri(http::uri::InvalidUri),
+    #[error(transparent)]
+    RequestError(#[from] http::Error),
+    /// The Uri was invalid
+    #[error(transparent)]
+    InvalidUri(#[from] http::uri::InvalidUri),
     /// Other errors
+    #[error("{0}")]
     Other(String),
 }
-
-impl std::error::Error for Error {}
 
 impl ExportError for Error {
     fn exporter_name(&self) -> &'static str {
         "datadog"
-    }
-}
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Error::MessagePackError => write!(f, "message pack error"),
-            Error::NoHttpClient => write!(f, "http client must be set, users can enable reqwest or surf feature to use http client implementation within create"),
-            Error::RequestError(err) => write!(f, "{}", err),
-            Error::InvalidUri(err) => write!(f, "{}", err),
-            Error::Other(msg) => write!(f, "{}", msg)
-        }
-    }
-}
-
-impl From<http::uri::InvalidUri> for Error {
-    fn from(err: InvalidUri) -> Self {
-        Error::InvalidUri(err)
-    }
-}
-
-impl From<http::Error> for Error {
-    fn from(err: http::Error) -> Self {
-        Error::RequestError(err)
     }
 }
 

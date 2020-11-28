@@ -19,35 +19,23 @@ pub mod propagation;
 pub mod trace;
 
 /// Wrapper for error from both tracing and metrics part of open telemetry.
-#[derive(Debug)]
-pub enum OpenTelemetryError {
+#[derive(thiserror::Error, Debug)]
+#[non_exhaustive]
+pub enum Error {
     #[cfg(feature = "trace")]
     #[cfg_attr(docsrs, doc(cfg(feature = "trace")))]
-    TraceErr(TraceError),
+    #[error(transparent)]
+    Trace(#[from] TraceError),
     #[cfg(feature = "metrics")]
     #[cfg_attr(docsrs, doc(cfg(feature = "metrics")))]
-    MetricErr(MetricsError),
+    #[error(transparent)]
+    Metric(#[from] MetricsError),
+    #[error("{0}")]
     Other(String),
 }
 
-#[cfg(feature = "trace")]
-#[cfg_attr(docsrs, doc(cfg(feature = "trace")))]
-impl From<TraceError> for OpenTelemetryError {
-    fn from(err: TraceError) -> Self {
-        OpenTelemetryError::TraceErr(err)
-    }
-}
-
-#[cfg(feature = "metrics")]
-#[cfg_attr(docsrs, doc(cfg(feature = "metrics")))]
-impl From<MetricsError> for OpenTelemetryError {
-    fn from(err: MetricsError) -> Self {
-        OpenTelemetryError::MetricErr(err)
-    }
-}
-
-impl<T> From<PoisonError<T>> for OpenTelemetryError {
+impl<T> From<PoisonError<T>> for Error {
     fn from(err: PoisonError<T>) -> Self {
-        OpenTelemetryError::Other(err.to_string())
+        Error::Other(err.to_string())
     }
 }

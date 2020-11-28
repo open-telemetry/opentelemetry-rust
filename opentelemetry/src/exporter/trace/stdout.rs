@@ -31,8 +31,8 @@ use crate::{
     trace::TracerProvider,
 };
 use async_trait::async_trait;
-use std::fmt::{Debug, Display, Formatter};
 use std::io::{stdout, Stdout, Write};
+use std::fmt::Debug;
 
 /// Pipeline builder
 #[derive(Debug)]
@@ -150,22 +150,9 @@ where
 pub struct Uninstall(global::TracerProviderGuard);
 
 /// Stdout exporter's error
-#[derive(Debug)]
-struct Error(std::io::Error);
-
-impl Display for Error {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.0.to_string().as_str())
-    }
-}
-
-impl std::error::Error for Error {}
-
-impl From<std::io::Error> for Error {
-    fn from(err: std::io::Error) -> Self {
-        Error(err)
-    }
-}
+#[derive(thiserror::Error, Debug)]
+#[error(transparent)]
+struct Error(#[from] std::io::Error);
 
 impl ExportError for Error {
     fn exporter_name(&self) -> &'static str {

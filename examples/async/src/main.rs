@@ -26,6 +26,7 @@ use opentelemetry::{
 use std::{error::Error, io, net::SocketAddr};
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
+use opentelemetry::trace::TraceError;
 
 async fn connect(addr: &SocketAddr) -> io::Result<TcpStream> {
     let tracer = global::tracer("connector");
@@ -54,7 +55,7 @@ async fn run(addr: &SocketAddr) -> io::Result<usize> {
 
 fn init_tracer() -> Result<
     (sdktrace::Tracer, opentelemetry_jaeger::Uninstall),
-    Box<dyn Error + Send + Sync + 'static>,
+    TraceError
 > {
     opentelemetry_jaeger::new_pipeline()
         .with_service_name("trace-demo")

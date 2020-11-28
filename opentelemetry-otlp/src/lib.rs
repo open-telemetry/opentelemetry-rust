@@ -246,6 +246,6 @@ pub enum Error {
 
 impl ExportError for Error {
     fn exporter_name(&self) -> &'static str {
-        "otel"
+        "otlp"
     }
 }

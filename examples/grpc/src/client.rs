@@ -6,14 +6,14 @@ use opentelemetry::{
     trace::{TraceContextExt, Tracer},
     Context, KeyValue,
 };
-use std::error::Error;
+use opentelemetry::trace::TraceError;
 
 pub mod hello_world {
     tonic::include_proto!("helloworld");
 }
 
 fn tracing_init(
-) -> Result<(impl Tracer, opentelemetry_jaeger::Uninstall), Box<dyn Error + Send + Sync + 'static>>
+) -> Result<(impl Tracer, opentelemetry_jaeger::Uninstall),TraceError>
 {
     global::set_text_map_propagator(TraceContextPropagator::new());
     opentelemetry_jaeger::new_pipeline()

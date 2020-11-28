@@ -10,13 +10,13 @@ use opentelemetry::{
 use opentelemetry::{global, sdk::trace as sdktrace};
 use std::error::Error;
 use std::time::Duration;
+use opentelemetry::trace::TraceError;
 
 fn init_tracer(
-) -> Result<(sdktrace::Tracer, opentelemetry_otlp::Uninstall), Box<dyn Error + Send + Sync + 'static>>
+) -> Result<(sdktrace::Tracer, opentelemetry_otlp::Uninstall), TraceError>
 {
     opentelemetry_otlp::new_pipeline()
         .install()
-        .map_err::<Box<dyn Error + Send + Sync + 'static>, _>(|err| Box::new(err))
 }
 
 // Skip first immediate tick from tokio, not needed for async_std.

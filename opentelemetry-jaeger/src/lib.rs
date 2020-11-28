@@ -206,6 +206,7 @@ use std::{
     time::{Duration, SystemTime},
 };
 use uploader::BatchUploader;
+use opentelemetry::trace::TraceError;
 
 /// Default service name if no service is configured.
 const DEFAULT_SERVICE_NAME: &str = "OpenTelemetry";
@@ -409,7 +410,7 @@ impl PipelineBuilder {
     /// Install a Jaeger pipeline with the recommended defaults.
     pub fn install(
         self,
-    ) -> Result<(sdk::trace::Tracer, Uninstall), Box<dyn std::error::Error + Send + Sync + 'static>>
+    ) -> Result<(sdk::trace::Tracer, Uninstall), TraceError>
     {
         let tracer_provider = self.build()?;
         let tracer =

@@ -6,11 +6,11 @@ use opentelemetry::{
     trace::{FutureExt, TraceContextExt, Tracer},
     Key,
 };
-use std::error::Error;
+use opentelemetry::trace::TraceError;
 
 fn init_tracer() -> Result<
     (sdktrace::Tracer, opentelemetry_jaeger::Uninstall),
-    Box<dyn Error + Send + Sync + 'static>,
+    TraceError
 > {
     opentelemetry_jaeger::new_pipeline()
         .with_agent_endpoint("localhost:6831")

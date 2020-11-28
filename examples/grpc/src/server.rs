@@ -9,6 +9,7 @@ use opentelemetry::{
     KeyValue,
 };
 use std::error::Error;
+use opentelemetry::trace::TraceError;
 
 pub mod hello_world {
     tonic::include_proto!("helloworld"); // The string specified here must match the proto package name.
@@ -37,7 +38,7 @@ impl Greeter for MyGreeter {
 }
 
 fn tracing_init(
-) -> Result<(impl Tracer, opentelemetry_jaeger::Uninstall), Box<dyn Error + Send + Sync + 'static>>
+) -> Result<(impl Tracer, opentelemetry_jaeger::Uninstall), TraceError>
 {
     global::set_text_map_propagator(TraceContextPropagator::new());
     opentelemetry_jaeger::new_pipeline()

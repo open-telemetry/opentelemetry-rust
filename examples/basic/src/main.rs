@@ -10,10 +10,11 @@ use opentelemetry::{
 };
 use std::error::Error;
 use std::time::Duration;
+use opentelemetry::trace::TraceError;
 
 fn init_tracer() -> Result<
     (sdktrace::Tracer, opentelemetry_jaeger::Uninstall),
-    Box<dyn Error + Send + Sync + 'static>,
+    TraceError,
 > {
     opentelemetry_jaeger::new_pipeline()
         .with_service_name("trace-demo")
