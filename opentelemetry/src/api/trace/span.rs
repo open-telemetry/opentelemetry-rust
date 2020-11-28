@@ -36,7 +36,7 @@ pub trait Span: fmt::Debug + 'static + Send + Sync {
     /// keys"](https://github.com/open-telemetry/opentelemetry-specification/tree/v0.5.0/specification/trace/semantic_conventions/README.md)
     /// which have prescribed semantic meanings.
     fn add_event(&self, name: String, attributes: Vec<KeyValue>) {
-        self.add_event_with_timestamp(name, SystemTime::now(), attributes)
+        self.add_event_with_timestamp(name, crate::time::now(), attributes)
     }
 
     /// Convenience method to record an exception/error as an `Event`
@@ -154,7 +154,7 @@ pub trait Span: fmt::Debug + 'static + Send + Sync {
     ///
     /// This API MUST be non-blocking.
     fn end(&self) {
-        self.end_with_timestamp(SystemTime::now());
+        self.end_with_timestamp(crate::time::now());
     }
 
     /// Finishes the `Span` with given timestamp

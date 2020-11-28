@@ -188,7 +188,7 @@ impl Checkpointer for BasicLockedProcessor<'_> {
     }
 
     fn finish_collection(&mut self) -> Result<()> {
-        self.state.interval_end = SystemTime::now();
+        self.state.interval_end = crate::time::now();
         if self.state.started_collection != self.state.finished_collection.wrapping_add(1) {
             return Err(MetricsError::InconsistentState);
         }
@@ -291,9 +291,9 @@ impl Default for BasicProcessorState {
         BasicProcessorState {
             config: BasicProcessorConfig::default(),
             values: HashMap::default(),
-            process_start: SystemTime::now(),
-            interval_start: SystemTime::now(),
-            interval_end: SystemTime::now(),
+            process_start: crate::time::now(),
+            interval_start: crate::time::now(),
+            interval_end: crate::time::now(),
             started_collection: 0,
             finished_collection: 0,
         }
