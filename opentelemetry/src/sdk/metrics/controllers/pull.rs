@@ -50,7 +50,7 @@ impl PullController {
             .elapsed()
             .map_or(true, |elapsed| elapsed > self.period)
         {
-            self.last_collect = SystemTime::now();
+            self.last_collect = crate::time::now();
             self.processor.lock().and_then(|mut checkpointer| {
                 checkpointer.start_collection();
                 self.accumulator.0.collect(&mut checkpointer);
@@ -159,7 +159,7 @@ impl PullControllerBuilder {
             processor,
             provider,
             period: self.cache_period.unwrap_or(DEFAULT_CACHE_DURATION),
-            last_collect: SystemTime::now(),
+            last_collect: crate::time::now(),
         }
     }
 }

@@ -180,7 +180,7 @@
 #![cfg_attr(test, deny(warnings))]
 
 mod agent;
-#[cfg(feature = "collector_client")]
+#[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
 mod collector;
 #[allow(clippy::all, unreachable_pub, dead_code)]
 #[rustfmt::skip]
@@ -192,7 +192,7 @@ mod uploader;
 use self::thrift::jaeger;
 use agent::AgentAsyncClientUDP;
 use async_trait::async_trait;
-#[cfg(feature = "collector_client")]
+#[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
 use collector::CollectorAsyncClientHttp;
 use opentelemetry::exporter::trace::ExportError;
 use opentelemetry::{
@@ -289,11 +289,11 @@ impl trace::SpanExporter for Exporter {
 #[derive(Debug)]
 pub struct PipelineBuilder {
     agent_endpoint: Vec<net::SocketAddr>,
-    #[cfg(feature = "collector_client")]
+    #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
     collector_endpoint: Option<http::Uri>,
-    #[cfg(feature = "collector_client")]
+    #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
     collector_username: Option<String>,
-    #[cfg(feature = "collector_client")]
+    #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
     collector_password: Option<String>,
     export_instrument_library: bool,
     process: Process,
@@ -305,11 +305,11 @@ impl Default for PipelineBuilder {
     fn default() -> Self {
         PipelineBuilder {
             agent_endpoint: vec![DEFAULT_AGENT_ENDPOINT.parse().unwrap()],
-            #[cfg(feature = "collector_client")]
+            #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
             collector_endpoint: None,
-            #[cfg(feature = "collector_client")]
+            #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
             collector_username: None,
-            #[cfg(feature = "collector_client")]
+            #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
             collector_password: None,
             export_instrument_library: true,
             process: Process {
@@ -355,8 +355,11 @@ impl PipelineBuilder {
     /// Assign the collector endpoint.
     ///
     /// E.g. "http://localhost:14268/api/traces"
-    #[cfg(feature = "collector_client")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "collector_client")))]
+    #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
+    #[cfg_attr(
+        docsrs,
+        doc(cfg(any(feature = "collector_client", feature = "wasm_collector_client")))
+    )]
     pub fn with_collector_endpoint<T>(self, collector_endpoint: T) -> Self
     where
         http::Uri: core::convert::TryFrom<T>,
@@ -368,8 +371,11 @@ impl PipelineBuilder {
     }
 
     /// Assign the collector username
-    #[cfg(feature = "collector_client")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "collector_client")))]
+    #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
+    #[cfg_attr(
+        docsrs,
+        doc(any(feature = "collector_client", feature = "wasm_collector_client"))
+    )]
     pub fn with_collector_username<S: Into<String>>(self, collector_username: S) -> Self {
         PipelineBuilder {
             collector_username: Some(collector_username.into()),
@@ -378,8 +384,11 @@ impl PipelineBuilder {
     }
 
     /// Assign the collector password
-    #[cfg(feature = "collector_client")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "collector_client")))]
+    #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
+    #[cfg_attr(
+        docsrs,
+        doc(any(feature = "collector_client", feature = "wasm_collector_client"))
+    )]
     pub fn with_collector_password<S: Into<String>>(self, collector_password: S) -> Self {
         PipelineBuilder {
             collector_password: Some(collector_password.into()),
@@ -454,7 +463,7 @@ impl PipelineBuilder {
         })
     }
 
-    #[cfg(not(feature = "collector_client"))]
+    #[cfg(not(any(feature = "collector_client", feature = "wasm_collector_client")))]
     fn init_uploader(
         self,
     ) -> Result<(Process, BatchUploader), Box<dyn std::error::Error + Send + Sync + 'static>> {
@@ -462,7 +471,7 @@ impl PipelineBuilder {
         Ok((self.process, BatchUploader::Agent(agent)))
     }
 
-    #[cfg(feature = "collector_client")]
+    #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
     fn init_uploader(
         self,
     ) -> Result<

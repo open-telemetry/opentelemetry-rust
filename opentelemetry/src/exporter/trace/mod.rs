@@ -262,8 +262,8 @@ mod tests {
         let parent_span_id = 1;
         let span_kind = SpanKind::Client;
         let name = "foo/bar baz 人?!".to_string();
-        let start_time = SystemTime::now();
-        let end_time = SystemTime::now();
+        let start_time = crate::time::now();
+        let end_time = crate::time::now();
 
         let capacity = 3;
         let attributes = sdk::trace::EvictedHashMap::new(capacity, 0);

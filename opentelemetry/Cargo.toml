@@ -40,6 +40,9 @@ tonic = { version = "0.3", default-features = false, optional = true }
 reqwest = { version = "0.10", default-features = false, features = ["blocking"], optional = true }
 surf = { version = "2.0", default-features = false, optional = true }
 
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+js-sys = "0.3"
+
 [dev-dependencies]
 criterion = "0.3.1"
 rand_distr = "0.3.0"

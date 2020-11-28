@@ -22,7 +22,6 @@ use crate::trace::{
 use crate::{Context, KeyValue};
 use std::fmt;
 use std::sync::Weak;
-use std::time::SystemTime;
 
 /// `Tracer` implementation to create and manage spans
 #[derive(Clone)]
@@ -246,7 +245,7 @@ impl crate::trace::Tracer for Tracer {
             if let Some(link_options) = &mut link_options {
                 links.append_vec(link_options);
             }
-            let start_time = builder.start_time.unwrap_or_else(SystemTime::now);
+            let start_time = builder.start_time.unwrap_or_else(crate::time::now);
             let end_time = builder.end_time.unwrap_or(start_time);
             let mut message_events = EvictedQueue::new(config.max_events_per_span);
             if let Some(mut events) = builder.message_events {

@@ -11,7 +11,6 @@ use crate::{
 use async_trait::async_trait;
 use std::fmt::{Display, Formatter};
 use std::sync::mpsc::{channel, Receiver, Sender};
-use std::time::SystemTime;
 
 #[derive(Debug)]
 pub struct TestSpan(pub SpanContext);
@@ -43,8 +42,8 @@ pub fn new_test_export_span_data() -> exporter::SpanData {
         parent_span_id: SpanId::from_u64(0),
         span_kind: SpanKind::Internal,
         name: "opentelemetry".to_string(),
-        start_time: SystemTime::now(),
-        end_time: SystemTime::now(),
+        start_time: crate::time::now(),
+        end_time: crate::time::now(),
         attributes: EvictedHashMap::new(config.max_attributes_per_span, 0),
         message_events: EvictedQueue::new(config.max_events_per_span),
         links: EvictedQueue::new(config.max_links_per_span),
