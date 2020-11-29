@@ -1,5 +1,6 @@
 //! Trace exporters
 use crate::api::trace::TraceError;
+use crate::exporter::ExportError;
 use crate::{
     sdk,
     trace::{Event, Link, SpanContext, SpanId, SpanKind, StatusCode},
@@ -21,14 +22,6 @@ pub mod stdout;
 
 /// Describes the result of an export.
 pub type ExportResult = Result<(), TraceError>;
-
-/// Marker trait for errors returned by exporters
-pub trait ExportError: std::error::Error + Send + Sync + 'static {
-    /// The name of exporter that returned this error
-    fn exporter_name(&self) -> &'static str {
-        "N/A"
-    }
-}
 
 /// `SpanExporter` defines the interface that protocol-specific exporters must
 /// implement so that they can be plugged into OpenTelemetry SDK and support
@@ -102,7 +95,11 @@ impl std::error::Error for HttpClientError {}
 
 #[cfg(feature = "http")]
 #[cfg_attr(docsrs, doc(cfg(feature = "http")))]
-impl ExportError for HttpClientError {}
+impl ExportError for HttpClientError {
+    fn exporter_name(&self) -> &'static str {
+        "http client"
+    }
+}
 
 #[cfg(feature = "http")]
 #[cfg_attr(docsrs, doc(cfg(feature = "http")))]

@@ -17,17 +17,11 @@ pub fn handle_error<T: Into<Error>>(err: T) {
         _ => match err.into() {
             #[cfg(feature = "metrics")]
             #[cfg_attr(docsrs, doc(cfg(feature = "metrics")))]
-            Error::Metric(err) => {
-                eprintln!("OpenTelemetry metrics error occurred {:?}", err)
-            }
+            Error::Metric(err) => eprintln!("OpenTelemetry metrics error occurred {:?}", err),
             #[cfg(feature = "trace")]
             #[cfg_attr(docsrs, doc(cfg(feature = "trace")))]
-            Error::Trace(err) => {
-                eprintln!("OpenTelemetry trace error occurred {:?}", err)
-            }
-            Error::Other(err_msg) => {
-                println!("OpenTelemetry error occurred {}", err_msg)
-            }
+            Error::Trace(err) => eprintln!("OpenTelemetry trace error occurred {:?}", err),
+            Error::Other(err_msg) => println!("OpenTelemetry error occurred {}", err_msg),
         },
     }
 }

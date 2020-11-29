@@ -4,12 +4,12 @@ use hello_world::greeter_server::{Greeter, GreeterServer};
 use hello_world::{HelloReply, HelloRequest};
 use opentelemetry::global;
 use opentelemetry::sdk::propagation::TraceContextPropagator;
+use opentelemetry::trace::TraceError;
 use opentelemetry::{
     trace::{Span, Tracer},
     KeyValue,
 };
 use std::error::Error;
-use opentelemetry::trace::TraceError;
 
 pub mod hello_world {
     tonic::include_proto!("helloworld"); // The string specified here must match the proto package name.
@@ -37,9 +37,7 @@ impl Greeter for MyGreeter {
     }
 }
 
-fn tracing_init(
-) -> Result<(impl Tracer, opentelemetry_jaeger::Uninstall), TraceError>
-{
+fn tracing_init() -> Result<(impl Tracer, opentelemetry_jaeger::Uninstall), TraceError> {
     global::set_text_map_propagator(TraceContextPropagator::new());
     opentelemetry_jaeger::new_pipeline()
         .with_service_name("grpc-server")

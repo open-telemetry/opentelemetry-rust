@@ -24,15 +24,17 @@
 //!     });
 //! }
 //! ```
-use crate::exporter::trace::ExportError;
 use crate::{
-    exporter::trace::{ExportResult, SpanData, SpanExporter},
+    exporter::{
+        trace::{ExportResult, SpanData, SpanExporter},
+        ExportError,
+    },
     global, sdk,
     trace::TracerProvider,
 };
 use async_trait::async_trait;
-use std::io::{stdout, Stdout, Write};
 use std::fmt::Debug;
+use std::io::{stdout, Stdout, Write};
 
 /// Pipeline builder
 #[derive(Debug)]

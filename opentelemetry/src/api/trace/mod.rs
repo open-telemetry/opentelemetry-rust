@@ -139,7 +139,7 @@ pub use self::{
     },
     tracer::{SpanBuilder, Tracer},
 };
-use crate::exporter::trace::ExportError;
+use crate::exporter::ExportError;
 use std::time;
 
 /// Describe the result of operations in tracing API.
@@ -149,10 +149,6 @@ pub type TraceResult<T> = Result<T, TraceError>;
 #[derive(Error, Debug)]
 #[non_exhaustive]
 pub enum TraceError {
-    /// Other errors not covered by specific cases.
-    #[error("Trace error: {0}")]
-    Other(String),
-
     /// Export failed with the error returned by the exporter
     #[error("Exporting failed with {0}")]
     ExportFailed(Box<dyn ExportError>),
@@ -163,7 +159,7 @@ pub enum TraceError {
 
     /// Other errors propagated from trace SDK that weren't covered above
     #[error(transparent)]
-    Boxed(#[from] Box<dyn std::error::Error + Send + Sync + 'static>),
+    Other(#[from] Box<dyn std::error::Error + Send + Sync + 'static>),
 }
 
 impl<T> From<T> for TraceError
@@ -177,12 +173,29 @@ where
 
 impl<T> From<TrySendError<T>> for TraceError {
     fn from(err: TrySendError<T>) -> Self {
-        TraceError::Boxed(Box::new(err.into_send_error()))
+        TraceError::Other(Box::new(err.into_send_error()))
     }
 }
 
 impl From<Canceled> for TraceError {
     fn from(err: Canceled) -> Self {
-        TraceError::Boxed(Box::new(err))
+        TraceError::Other(Box::new(err))
     }
 }
+
+impl From<String> for TraceError {
+    fn from(err_msg: String) -> Self {
+        TraceError::Other(Box::new(Custom(err_msg)))
+    }
+}
+
+impl From<&'static str> for TraceError {
+    fn from(err_msg: &'static str) -> Self {
+        TraceError::Other(Box::new(Custom(err_msg.into())))
+    }
+}
+
+/// Wrap type for string
+#[derive(Error, Debug)]
+#[error("{0}")]
+struct Custom(String);

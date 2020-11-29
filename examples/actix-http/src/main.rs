@@ -1,17 +1,14 @@
 use actix_service::Service;
 use actix_web::middleware::Logger;
 use actix_web::{web, App, HttpServer};
+use opentelemetry::trace::TraceError;
 use opentelemetry::{global, sdk::trace as sdktrace};
 use opentelemetry::{
     trace::{FutureExt, TraceContextExt, Tracer},
     Key,
 };
-use opentelemetry::trace::TraceError;
 
-fn init_tracer() -> Result<
-    (sdktrace::Tracer, opentelemetry_jaeger::Uninstall),
-    TraceError
-> {
+fn init_tracer() -> Result<(sdktrace::Tracer, opentelemetry_jaeger::Uninstall), TraceError> {
     opentelemetry_jaeger::new_pipeline()
         .with_collector_endpoint("http://127.0.0.1:14268/api/traces")
         .with_service_name("trace-http-demo")

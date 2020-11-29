@@ -129,7 +129,7 @@ impl SpanProcessor for SimpleSpanProcessor {
         if let Ok(mut exporter) = self.exporter.lock() {
             let _result = executor::block_on(exporter.export(vec![span]));
         } else {
-            global::handle_error(TraceError::Other("When export span with the SimpleSpanProcessor, the exporter's lock has been poisoned".to_string()));
+            global::handle_error(TraceError::from("When export span with the SimpleSpanProcessor, the exporter's lock has been poisoned"));
         }
     }
 
@@ -217,7 +217,7 @@ impl SpanProcessor for BatchSpanProcessor {
     }
 
     fn force_flush(&self) -> TraceResult<()> {
-        let mut sender = self.message_sender.lock().map_err(|_| TraceError::Other("When force flushing the BatchSpanProcessor, the message sender's lock has been poisoned".into()))?;
+        let mut sender = self.message_sender.lock().map_err(|_| TraceError::from("When force flushing the BatchSpanProcessor, the message sender's lock has been poisoned"))?;
         let (res_sender, res_receiver) = oneshot::channel::<Vec<ExportResult>>();
         sender.try_send(BatchMessage::Flush(Some(res_sender)))?;
         for result in futures::executor::block_on(res_receiver)? {
@@ -227,7 +227,7 @@ impl SpanProcessor for BatchSpanProcessor {
     }
 
     fn shutdown(&mut self) -> TraceResult<()> {
-        let mut sender = self.message_sender.lock().map_err(|_| TraceError::Other("When shutting down the BatchSpanProcessor, the message sender's lock has been poisoned".into()))?;
+        let mut sender = self.message_sender.lock().map_err(|_| TraceError::from("When shutting down the BatchSpanProcessor, the message sender's lock has been poisoned"))?;
         let (res_sender, res_receiver) = oneshot::channel::<Vec<ExportResult>>();
         sender.try_send(BatchMessage::Shutdown(res_sender))?;
         for result in futures::executor::block_on(res_receiver)? {
@@ -297,7 +297,7 @@ impl BatchSpanProcessor {
                         }
                         let send_result = ch.send(results);
                         if send_result.is_err() {
-                            global::handle_error(TraceError::Other("fail to send the export response from worker handle in BatchProcessor".to_string()))
+                            global::handle_error(TraceError::from("fail to send the export response from worker handle in BatchProcessor"))
                         }
                     }
                     BatchMessage::Flush(None) => {
@@ -337,7 +337,7 @@ impl BatchSpanProcessor {
                         exporter.shutdown();
                         let send_result = ch.send(results);
                         if send_result.is_err() {
-                            global::handle_error(TraceError::Other("fail to send the export response from worker handle in BatchProcessor".to_string()))
+                            global::handle_error(TraceError::from("fail to send the export response from worker handle in BatchProcessor"))
                         }
                         break;
                     }

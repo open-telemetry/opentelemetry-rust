@@ -367,7 +367,7 @@ impl CheckpointSet for BasicProcessorState {
                 start,
                 self.interval_end,
             ));
-            if res == Err(MetricsError::NoDataCollected) {
+            if let Err(MetricsError::NoDataCollected) = res {
                 Ok(())
             } else {
                 res

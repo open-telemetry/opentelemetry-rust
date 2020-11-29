@@ -1,6 +1,7 @@
 use futures::stream::{Stream, StreamExt};
 use opentelemetry::exporter;
 use opentelemetry::sdk::metrics::PushController;
+use opentelemetry::trace::TraceError;
 use opentelemetry::{
     baggage::BaggageExt,
     metrics::{self, MetricsError, ObserverResult},
@@ -10,13 +11,9 @@ use opentelemetry::{
 use opentelemetry::{global, sdk::trace as sdktrace};
 use std::error::Error;
 use std::time::Duration;
-use opentelemetry::trace::TraceError;
 
-fn init_tracer(
-) -> Result<(sdktrace::Tracer, opentelemetry_otlp::Uninstall), TraceError>
-{
-    opentelemetry_otlp::new_pipeline()
-        .install()
+fn init_tracer() -> Result<(sdktrace::Tracer, opentelemetry_otlp::Uninstall), TraceError> {
+    opentelemetry_otlp::new_pipeline().install()
 }
 
 // Skip first immediate tick from tokio, not needed for async_std.

@@ -194,7 +194,8 @@ use agent::AgentAsyncClientUDP;
 use async_trait::async_trait;
 #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
 use collector::CollectorAsyncClientHttp;
-use opentelemetry::exporter::trace::ExportError;
+use opentelemetry::exporter::ExportError;
+use opentelemetry::trace::TraceError;
 use opentelemetry::{
     exporter::trace,
     global, sdk,
@@ -206,7 +207,6 @@ use std::{
     time::{Duration, SystemTime},
 };
 use uploader::BatchUploader;
-use opentelemetry::trace::TraceError;
 
 /// Default service name if no service is configured.
 const DEFAULT_SERVICE_NAME: &str = "OpenTelemetry";
@@ -417,10 +417,7 @@ impl PipelineBuilder {
     }
 
     /// Install a Jaeger pipeline with the recommended defaults.
-    pub fn install(
-        self,
-    ) -> Result<(sdk::trace::Tracer, Uninstall), TraceError>
-    {
+    pub fn install(self) -> Result<(sdk::trace::Tracer, Uninstall), TraceError> {
         let tracer_provider = self.build()?;
         let tracer =
             tracer_provider.get_tracer("opentelemetry-jaeger", Some(env!("CARGO_PKG_VERSION")));

@@ -131,7 +131,7 @@ mod span;
 mod transform;
 
 pub use crate::span::{Compression, Credentials, Exporter, ExporterConfig, Protocol};
-use opentelemetry::exporter::trace::ExportError;
+use opentelemetry::exporter::ExportError;
 use opentelemetry::trace::TraceError;
 
 /// Create a new pipeline builder with the recommended configuration.

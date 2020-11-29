@@ -1,5 +1,4 @@
-use opentelemetry::exporter::trace;
-use opentelemetry::exporter::trace::ExportError;
+use opentelemetry::exporter::{trace, ExportError};
 
 mod v03;
 mod v05;

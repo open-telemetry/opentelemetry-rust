@@ -171,9 +171,14 @@ mod uploader;
 use async_trait::async_trait;
 use http::Uri;
 use model::endpoint::Endpoint;
-use opentelemetry::exporter::trace::{ExportError, HttpClient};
-use opentelemetry::trace::TraceError;
-use opentelemetry::{exporter::trace, global, sdk, trace::TracerProvider};
+use opentelemetry::{
+    exporter::{
+        trace::{self, HttpClient},
+        ExportError,
+    },
+    global, sdk,
+    trace::{TraceError, TracerProvider},
+};
 use std::net::SocketAddr;
 
 /// Default Zipkin collector endpoint

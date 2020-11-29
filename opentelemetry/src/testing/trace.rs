@@ -1,6 +1,8 @@
-use crate::exporter::trace::{ExportError, SpanData};
 use crate::{
-    exporter::trace::{self as exporter, ExportResult, SpanExporter},
+    exporter::{
+        trace::{self as exporter, ExportResult, SpanData, SpanExporter},
+        ExportError,
+    },
     sdk::{
         trace::{Config, EvictedHashMap, EvictedQueue},
         InstrumentationLibrary,
