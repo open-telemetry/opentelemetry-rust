@@ -93,6 +93,13 @@ patterns in the spec.
 For a deeper discussion, see:
 https://github.com/open-telemetry/opentelemetry-specification/issues/165
 
+### Error Handling
+Currently, the Opentelemetry Rust SDK has two ways to handle errors. In the situation where errors are not allowed to return. One should call global error handler to process the errors. Otherwise, one should return the errors. 
+
+The Opentelemetry Rust SDK comes with an error type `openetelemetry::Error`. For different function, one error has been defined. All error returned by trace module MUST be wrapped in `opentelemetry::api::trace::TraceError`. All errors returned by metrics module MUST be wrapped in `opentelemetry::api::trace::MetricsError`. 
+
+For users that want to implement their own exporters. It's RECOMMENDED to wrap all errors from the exporter into a crate-level error type, and implement `ExporterError` trait.  
+
 ## Style Guide
 
 * Run `cargo clippy --all` - this will catch common mistakes and improve

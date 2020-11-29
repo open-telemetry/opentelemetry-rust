@@ -428,10 +428,7 @@ impl PipelineBuilder {
     }
 
     /// Build a configured `sdk::trace::TracerProvider` with the recommended defaults.
-    pub fn build(
-        mut self,
-    ) -> Result<sdk::trace::TracerProvider, Box<dyn std::error::Error + Send + Sync + 'static>>
-    {
+    pub fn build(mut self) -> Result<sdk::trace::TracerProvider, TraceError> {
         let config = self.config.take();
         let exporter = self.init_exporter()?;
 

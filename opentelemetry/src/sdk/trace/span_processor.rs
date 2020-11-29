@@ -291,8 +291,7 @@ impl BatchSpanProcessor {
                                     exporter.as_mut(),
                                     &delay,
                                     batch,
-                                )
-                                    .await,
+                                ).await,
                             );
                         }
                         let send_result = ch.send(results);
