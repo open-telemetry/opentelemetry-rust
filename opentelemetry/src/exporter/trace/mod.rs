@@ -1,5 +1,6 @@
 //! Trace exporters
 use crate::api::trace::TraceError;
+#[cfg(feature = "http")]
 use crate::exporter::ExportError;
 use crate::{
     sdk,
@@ -13,7 +14,7 @@ use serde::{Deserialize, Serialize};
 #[cfg(all(feature = "http", feature = "reqwest"))]
 use std::convert::TryInto;
 use std::fmt::Debug;
-#[cfg(feature = "http")]
+#[cfg(all(feature = "surf", feature = "http"))]
 use std::fmt::{Display, Formatter};
 use std::sync::Arc;
 use std::time::SystemTime;
@@ -72,66 +73,38 @@ pub trait HttpClient: Debug + Send + Sync {
     async fn send(&self, request: Request<Vec<u8>>) -> ExportResult;
 }
 
-/// Error when sending http requests visa HttpClient implementation
-#[cfg(feature = "http")]
-#[cfg_attr(docsrs, doc(cfg(feature = "http")))]
-#[derive(Debug)]
-pub enum HttpClientError {
-    /// Errors from reqwest
-    #[cfg(all(feature = "reqwest", feature = "http"))]
-    ReqwestError(reqwest::Error),
-
-    /// Errors from surf
-    #[cfg(all(feature = "surf", feature = "http"))]
-    SurfError(surf::Error),
-
-    /// Other errors
-    Other(String),
-}
-
-#[cfg(feature = "http")]
-#[cfg_attr(docsrs, doc(cfg(feature = "http")))]
-impl std::error::Error for HttpClientError {}
-
-#[cfg(feature = "http")]
-#[cfg_attr(docsrs, doc(cfg(feature = "http")))]
-impl ExportError for HttpClientError {
-    fn exporter_name(&self) -> &'static str {
-        "http client"
-    }
-}
-
-#[cfg(feature = "http")]
-#[cfg_attr(docsrs, doc(cfg(feature = "http")))]
-impl Display for HttpClientError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            #[cfg(all(feature = "reqwest", feature = "http"))]
-            HttpClientError::ReqwestError(err) => {
-                write!(f, "error when sending requests using reqwest, {}", err)
-            }
-            #[cfg(all(feature = "surf", feature = "http"))]
-            HttpClientError::SurfError(err) => write!(
-                f,
-                "error when sending requests using surf, {}",
-                err.to_string()
-            ),
-            HttpClientError::Other(msg) => write!(f, "{}", msg),
-        }
-    }
-}
-
 #[cfg(all(feature = "reqwest", feature = "http"))]
-impl From<reqwest::Error> for HttpClientError {
-    fn from(err: reqwest::Error) -> Self {
-        HttpClientError::ReqwestError(err)
+impl ExportError for reqwest::Error {
+    fn exporter_name(&self) -> &'static str {
+        "reqwest"
     }
 }
 
 #[cfg(all(feature = "surf", feature = "http"))]
-impl From<surf::Error> for HttpClientError {
+impl ExportError for SurfError {
+    fn exporter_name(&self) -> &'static str {
+        "surf"
+    }
+}
+
+#[cfg(all(feature = "surf", feature = "http"))]
+#[derive(Debug)]
+struct SurfError(surf::Error);
+
+#[cfg(all(feature = "surf", feature = "http"))]
+impl Display for SurfError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0.to_string())
+    }
+}
+
+#[cfg(all(feature = "surf", feature = "http"))]
+impl std::error::Error for SurfError {}
+
+#[cfg(all(feature = "surf", feature = "http"))]
+impl From<surf::Error> for SurfError {
     fn from(err: surf::Error) -> Self {
-        HttpClientError::SurfError(err)
+        SurfError(err)
     }
 }
 
@@ -174,15 +147,9 @@ pub struct SpanData {
 impl HttpClient for reqwest::Client {
     async fn send(&self, request: Request<Vec<u8>>) -> ExportResult {
         let _result = self
-            .execute(
-                request
-                    .try_into()
-                    .map_err::<HttpClientError, _>(Into::into)?,
-            )
-            .await
-            .map_err::<HttpClientError, _>(Into::into)?
-            .error_for_status()
-            .map_err::<HttpClientError, _>(Into::into)?;
+            .execute(request.try_into()?)
+            .await?
+            .error_for_status()?;
         Ok(())
     }
 }
@@ -191,15 +158,7 @@ impl HttpClient for reqwest::Client {
 #[async_trait]
 impl HttpClient for reqwest::blocking::Client {
     async fn send(&self, request: Request<Vec<u8>>) -> ExportResult {
-        let _result = self
-            .execute(
-                request
-                    .try_into()
-                    .map_err::<HttpClientError, _>(Into::into)?,
-            )
-            .map_err::<HttpClientError, _>(Into::into)?
-            .error_for_status()
-            .map_err::<HttpClientError, _>(Into::into)?;
+        let _result = self.execute(request.try_into()?)?.error_for_status()?;
         Ok(())
     }
 }
@@ -213,20 +172,17 @@ impl HttpClient for surf::Client {
             .uri
             .to_string()
             .parse()
-            .map_err(|err: surf::http::url::ParseError| HttpClientError::Other(err.to_string()))?;
+            .map_err(|_err: surf::http::url::ParseError| TraceError::from("error parse url"))?;
 
         let req = surf::Request::builder(surf::http::Method::Post, uri)
             .content_type("application/json")
             .body(body);
-        let result = self
-            .send(req)
-            .await
-            .map_err::<HttpClientError, _>(Into::into)?;
+        let result = self.send(req).await.map_err::<SurfError, _>(Into::into)?;
 
         if result.status().is_success() {
             Ok(())
         } else {
-            Err(HttpClientError::SurfError(surf::Error::from_str(
+            Err(SurfError(surf::Error::from_str(
                 result.status(),
                 result.status().canonical_reason(),
             ))
