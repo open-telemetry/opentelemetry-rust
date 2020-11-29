@@ -7,8 +7,9 @@ members = [
     "opentelemetry-prometheus",
     "opentelemetry-semantic-conventions",
     "opentelemetry-zipkin",
-    "examples/actix-udp",
     "examples/actix-http",
+    "examples/actix-http-tracing",
+    "examples/actix-udp",
     "examples/async",
     "examples/aws-xray",
     "examples/basic",
@@ -16,6 +17,6 @@ members = [
     "examples/datadog",
     "examples/grpc",
     "examples/http",
+    "examples/tracing-grpc",
     "examples/zipkin",
-    "examples/tracing-grpc"
 ]
