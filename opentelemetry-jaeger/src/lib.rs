@@ -22,7 +22,7 @@
 //! ```no_run
 //! use opentelemetry::trace::Tracer;
 //!
-//! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+//! fn main() -> Result<(), opentelemetry::trace::TraceError> {
 //!     let (tracer, _uninstall) = opentelemetry_jaeger::new_pipeline().install()?;
 //!
 //!     tracer.in_span("doing_work", |cx| {
@@ -59,9 +59,9 @@
 //! [jaeger variables spec]: https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/sdk-environment-variables.md#jaeger-exporter
 //!
 //! ```no_run
-//! use opentelemetry::trace::Tracer;
+//! use opentelemetry::trace::{Tracer, TraceError};
 //!
-//! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+//! fn main() -> Result<(), TraceError> {
 //!     // export OTEL_SERVICE_NAME=my-service-name
 //!     let (tracer, _uninstall) = opentelemetry_jaeger::new_pipeline().from_env().install()?;
 //!
@@ -90,9 +90,9 @@
 //!
 //! ```ignore
 //! // Note that this requires the `collector_client` feature.
-//! use opentelemetry::trace::Tracer;
+//! use opentelemetry::trace::{Tracer, TraceError};
 //!
-//! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+//! fn main() -> Result<(), TraceError> {
 //!     let (tracer, _uninstall) = opentelemetry_jaeger::new_pipeline()
 //!         .with_collector_endpoint("http://localhost:14268/api/traces")
 //!         // optionally set username and password as well.
@@ -116,10 +116,10 @@
 //! [`PipelineBuilder`]: struct.PipelineBuilder.html
 //!
 //! ```no_run
-//! use opentelemetry::{KeyValue, trace::Tracer};
+//! use opentelemetry::{KeyValue, trace::{Tracer, TraceError}};
 //! use opentelemetry::sdk::{trace::{self, IdGenerator, Sampler}, Resource};
 //!
-//! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+//! fn main() -> Result<(), TraceError> {
 //!     let (tracer, _uninstall) = opentelemetry_jaeger::new_pipeline()
 //!         .from_env()
 //!         .with_agent_endpoint("localhost:6831")
@@ -444,9 +444,7 @@ impl PipelineBuilder {
     /// Initialize a new exporter.
     ///
     /// This is useful if you are manually constructing a pipeline.
-    pub fn init_exporter(
-        self,
-    ) -> Result<Exporter, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    pub fn init_exporter(self) -> Result<Exporter, TraceError> {
         let export_instrumentation_lib = self.export_instrument_library;
         let (process, uploader) = self.init_uploader()?;
 
@@ -458,30 +456,25 @@ impl PipelineBuilder {
     }
 
     #[cfg(not(any(feature = "collector_client", feature = "wasm_collector_client")))]
-    fn init_uploader(
-        self,
-    ) -> Result<(Process, BatchUploader), Box<dyn std::error::Error + Send + Sync + 'static>> {
-        let agent = AgentAsyncClientUDP::new(self.agent_endpoint.as_slice())?;
+    fn init_uploader(self) -> Result<(Process, BatchUploader), TraceError> {
+        let agent = AgentAsyncClientUDP::new(self.agent_endpoint.as_slice())
+            .map_err::<Error, _>(Into::into)?;
         Ok((self.process, BatchUploader::Agent(agent)))
     }
 
     #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
-    fn init_uploader(
-        self,
-    ) -> Result<
-        (Process, uploader::BatchUploader),
-        Box<dyn std::error::Error + Send + Sync + 'static>,
-    > {
+    fn init_uploader(self) -> Result<(Process, uploader::BatchUploader), TraceError> {
         if let Some(collector_endpoint) = self.collector_endpoint {
             let collector = CollectorAsyncClientHttp::new(
                 collector_endpoint,
                 self.collector_username,
                 self.collector_password,
-            )?;
+            )
+            .map_err::<Error, _>(Into::into)?;
             Ok((self.process, uploader::BatchUploader::Collector(collector)))
         } else {
             let endpoint = self.agent_endpoint.as_slice();
-            let agent = AgentAsyncClientUDP::new(endpoint)?;
+            let agent = AgentAsyncClientUDP::new(endpoint).map_err::<Error, _>(Into::into)?;
             Ok((self.process, BatchUploader::Agent(agent)))
         }
     }

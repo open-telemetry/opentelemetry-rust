@@ -21,9 +21,9 @@
 //! telemetry:
 //!
 //! ```no_run
-//! use opentelemetry::trace::Tracer;
+//! use opentelemetry::trace::{Tracer, TraceError};
 //!
-//! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+//! fn main() -> Result<(), TraceError> {
 //!     let (tracer, _uninstall) = opentelemetry_zipkin::new_pipeline().install()?;
 //!
 //!     tracer.in_span("doing_work", |cx| {
