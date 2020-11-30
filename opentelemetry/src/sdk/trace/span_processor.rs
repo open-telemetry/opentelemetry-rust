@@ -567,7 +567,6 @@ mod tests {
     use std::time;
     use std::time::Duration;
 
-    use async_std::prelude::*;
     use async_trait::async_trait;
 
     use crate::exporter::trace::{stdout, ExportResult, SpanData, SpanExporter};
@@ -576,6 +575,8 @@ mod tests {
     use crate::testing::trace::{
         new_test_export_span_data, new_test_exporter, new_tokio_test_exporter,
     };
+
+    use futures::Future;
 
     use super::{
         BatchSpanProcessor, SimpleSpanProcessor, SpanProcessor, OTEL_BSP_MAX_EXPORT_BATCH_SIZE,
@@ -726,17 +727,20 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "async-std")]
     fn test_timeout_async_std_timeout() {
         async_std::task::block_on(timeout_test_std_async(true));
     }
 
     #[test]
+    #[cfg(feature = "async-std")]
     fn test_timeout_async_std_not_timeout() {
         async_std::task::block_on(timeout_test_std_async(false));
     }
 
     // If the time_out is true, then the result suppose to ended with timeout.
     // otherwise the exporter should be able to export within time out duration.
+    #[cfg(feature = "async-std")]
     async fn timeout_test_std_async(time_out: bool) {
         let mut config = BatchConfig::default();
         config.max_export_timeout = time::Duration::from_millis(if time_out { 5 } else { 60 });
