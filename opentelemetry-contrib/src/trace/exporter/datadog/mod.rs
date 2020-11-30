@@ -98,7 +98,7 @@
 //! }
 //!
 //! fn main() -> Result<(), opentelemetry::trace::TraceError> {
-//! let (tracer, _uninstall) = new_pipeline()
+//!     let (tracer, _uninstall) = new_pipeline()
 //!         .with_service_name("my_app")
 //!         .with_version(ApiVersion::Version05)
 //!         .with_agent_endpoint("http://localhost:8126")

@@ -310,8 +310,7 @@ impl BatchSpanProcessor {
                                 exporter.as_mut(),
                                 &delay,
                                 batch,
-                            )
-                                .await;
+                            ).await;
                         }
                     }
                     // Stream has terminated or processor is shutdown, return to finish execution.
@@ -329,8 +328,7 @@ impl BatchSpanProcessor {
                                     exporter.as_mut(),
                                     &delay,
                                     batch,
-                                )
-                                    .await,
+                                ).await,
                             );
                         }
                         exporter.shutdown();
@@ -342,8 +340,7 @@ impl BatchSpanProcessor {
                     }
                 }
             }
-        }))
-            .map(|_| ());
+        })).map(|_| ());
 
         // Return batch processor with link to worker
         BatchSpanProcessor {
