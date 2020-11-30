@@ -25,7 +25,10 @@
 //! }
 //! ```
 use crate::{
-    exporter::trace::{ExportResult, SpanData, SpanExporter},
+    exporter::{
+        trace::{ExportResult, SpanData, SpanExporter},
+        ExportError,
+    },
     global, sdk,
     trace::TracerProvider,
 };
@@ -130,9 +133,13 @@ where
     async fn export(&mut self, batch: Vec<SpanData>) -> ExportResult {
         for span in batch {
             if self.pretty_print {
-                self.writer.write_all(format!("{:#?}\n", span).as_bytes())?;
+                self.writer
+                    .write_all(format!("{:#?}\n", span).as_bytes())
+                    .map_err::<Error, _>(Into::into)?;
             } else {
-                self.writer.write_all(format!("{:?}\n", span).as_bytes())?;
+                self.writer
+                    .write_all(format!("{:?}\n", span).as_bytes())
+                    .map_err::<Error, _>(Into::into)?;
             }
         }
 
@@ -140,6 +147,17 @@ where
     }
 }
 
-/// Uninstalls the stdout pipeline on drop.
+/// Uninstalls the stdout pipeline on dropping.
 #[derive(Debug)]
 pub struct Uninstall(global::TracerProviderGuard);
+
+/// Stdout exporter's error
+#[derive(thiserror::Error, Debug)]
+#[error(transparent)]
+struct Error(#[from] std::io::Error);
+
+impl ExportError for Error {
+    fn exporter_name(&self) -> &'static str {
+        "stdout"
+    }
+}

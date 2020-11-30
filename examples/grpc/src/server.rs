@@ -4,6 +4,7 @@ use hello_world::greeter_server::{Greeter, GreeterServer};
 use hello_world::{HelloReply, HelloRequest};
 use opentelemetry::global;
 use opentelemetry::sdk::propagation::TraceContextPropagator;
+use opentelemetry::trace::TraceError;
 use opentelemetry::{
     trace::{Span, Tracer},
     KeyValue,
@@ -36,9 +37,7 @@ impl Greeter for MyGreeter {
     }
 }
 
-fn tracing_init(
-) -> Result<(impl Tracer, opentelemetry_jaeger::Uninstall), Box<dyn Error + Send + Sync + 'static>>
-{
+fn tracing_init() -> Result<(impl Tracer, opentelemetry_jaeger::Uninstall), TraceError> {
     global::set_text_map_propagator(TraceContextPropagator::new());
     opentelemetry_jaeger::new_pipeline()
         .with_service_name("grpc-server")

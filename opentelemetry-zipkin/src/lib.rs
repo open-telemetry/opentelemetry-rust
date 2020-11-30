@@ -21,9 +21,9 @@
 //! telemetry:
 //!
 //! ```no_run
-//! use opentelemetry::trace::Tracer;
+//! use opentelemetry::trace::{Tracer, TraceError};
 //!
-//! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+//! fn main() -> Result<(), TraceError> {
 //!     let (tracer, _uninstall) = opentelemetry_zipkin::new_pipeline().install()?;
 //!
 //!     tracer.in_span("doing_work", |cx| {
@@ -90,12 +90,12 @@
 //! #[async_trait]
 //! impl HttpClient for IsahcClient {
 //!   async fn send(&self, request: http::Request<Vec<u8>>) -> ExportResult {
-//!     let result = self.0.send_async(request).await?;
+//!     let result = self.0.send_async(request).await.map_err(|err| opentelemetry_zipkin::Error::Other(err.to_string()))?;
 //!
 //!     if result.status().is_success() {
 //!       Ok(())
 //!     } else {
-//!       Err(result.status().as_str().into())
+//!       Err(opentelemetry_zipkin::Error::Other(result.status().to_string()).into())
 //!     }
 //!   }
 //! }
@@ -171,10 +171,14 @@ mod uploader;
 use async_trait::async_trait;
 use http::Uri;
 use model::endpoint::Endpoint;
-use opentelemetry::exporter::trace::HttpClient;
-use opentelemetry::{exporter::trace, global, sdk, trace::TracerProvider};
-use std::error::Error;
-use std::io;
+use opentelemetry::{
+    exporter::{
+        trace::{self, HttpClient},
+        ExportError,
+    },
+    global, sdk,
+    trace::{TraceError, TracerProvider},
+};
 use std::net::SocketAddr;
 
 /// Default Zipkin collector endpoint
@@ -248,12 +252,16 @@ impl Default for ZipkinPipelineBuilder {
 
 impl ZipkinPipelineBuilder {
     /// Create `ExporterConfig` struct from current `ExporterConfigBuilder`
-    pub fn install(
-        mut self,
-    ) -> Result<(sdk::trace::Tracer, Uninstall), Box<dyn Error + Send + Sync + 'static>> {
+    pub fn install(mut self) -> Result<(sdk::trace::Tracer, Uninstall), TraceError> {
         if let Some(client) = self.client {
             let endpoint = Endpoint::new(self.service_name, self.service_addr);
-            let exporter = Exporter::new(endpoint, client, self.collector_endpoint.parse()?);
+            let exporter = Exporter::new(
+                endpoint,
+                client,
+                self.collector_endpoint
+                    .parse()
+                    .map_err::<Error, _>(Into::into)?,
+            );
 
             let mut provider_builder =
                 sdk::trace::TracerProvider::builder().with_exporter(exporter);
@@ -267,11 +275,7 @@ impl ZipkinPipelineBuilder {
 
             Ok((tracer, Uninstall(provider_guard)))
         } else {
-            Err(Box::new(io::Error::new(
-                io::ErrorKind::Other,
-                "http client must be set, users can enable reqwest or surf feature to use http \
-                    client implementation within create",
-            )))
+            Err(Error::NoHttpClient.into())
         }
     }
 
@@ -322,3 +326,30 @@ impl trace::SpanExporter for Exporter {
 /// Uninstalls the Zipkin pipeline on drop.
 #[derive(Debug)]
 pub struct Uninstall(global::TracerProviderGuard);
+
+/// Wrap type for errors from opentelemetry zipkin
+#[derive(thiserror::Error, Debug)]
+#[non_exhaustive]
+pub enum Error {
+    /// No http client implementation found. User should provide one or enable features.
+    #[error("http client must be set, users can enable reqwest or surf feature to use http client implementation within create")]
+    NoHttpClient,
+
+    /// Http requests failed
+    #[error("http request failed with {0}")]
+    RequestFailed(#[from] http::Error),
+
+    /// The uri provided is invalid
+    #[error("invalid uri")]
+    InvalidUri(#[from] http::uri::InvalidUri),
+
+    /// Other errors
+    #[error("export error: {0}")]
+    Other(String),
+}
+
+impl ExportError for Error {
+    fn exporter_name(&self) -> &'static str {
+        "zipkin"
+    }
+}

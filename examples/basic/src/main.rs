@@ -2,6 +2,7 @@ use futures::stream::{Stream, StreamExt};
 use opentelemetry::exporter;
 use opentelemetry::global;
 use opentelemetry::sdk::{metrics::PushController, trace as sdktrace};
+use opentelemetry::trace::TraceError;
 use opentelemetry::{
     baggage::BaggageExt,
     metrics::{self, MetricsError, ObserverResult},
@@ -11,10 +12,7 @@ use opentelemetry::{
 use std::error::Error;
 use std::time::Duration;
 
-fn init_tracer() -> Result<
-    (sdktrace::Tracer, opentelemetry_jaeger::Uninstall),
-    Box<dyn Error + Send + Sync + 'static>,
-> {
+fn init_tracer() -> Result<(sdktrace::Tracer, opentelemetry_jaeger::Uninstall), TraceError> {
     opentelemetry_jaeger::new_pipeline()
         .with_service_name("trace-demo")
         .with_tags(vec![

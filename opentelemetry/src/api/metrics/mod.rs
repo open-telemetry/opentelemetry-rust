@@ -19,6 +19,7 @@ mod sync_instrument;
 mod up_down_counter;
 mod value_recorder;
 
+use crate::exporter::ExportError;
 pub use async_instrument::{AsyncRunner, BatchObserverCallback, Observation, ObserverResult};
 pub use config::InstrumentConfig;
 pub use counter::{BoundCounter, Counter, CounterBuilder};
@@ -38,7 +39,7 @@ pub use value_recorder::{BoundValueRecorder, ValueRecorder, ValueRecorderBuilder
 pub type Result<T> = result::Result<T, MetricsError>;
 
 /// Errors returned by the metrics API.
-#[derive(Error, Debug, PartialEq)]
+#[derive(Error, Debug)]
 #[non_exhaustive]
 pub enum MetricsError {
     /// Other errors not covered by specific cases.
@@ -68,6 +69,15 @@ pub enum MetricsError {
     /// Errors when aggregator cannot subtract
     #[error("Aggregator does not subtract")]
     NoSubtraction,
+    /// Fail to export metrics
+    #[error("Export metrics failed with {0}")]
+    ExportErr(Box<dyn ExportError>),
+}
+
+impl<T: ExportError> From<T> for MetricsError {
+    fn from(err: T) -> Self {
+        MetricsError::ExportErr(Box::new(err))
+    }
 }
 
 impl<T> From<PoisonError<T>> for MetricsError {

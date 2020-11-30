@@ -110,6 +110,7 @@
 //! Please review the W3C specification for details on the [Tracestate
 //! field](https://www.w3.org/TR/trace-context/#tracestate-field).
 //!
+use ::futures::channel::{mpsc::TrySendError, oneshot::Canceled};
 use thiserror::Error;
 
 mod context;
@@ -138,12 +139,63 @@ pub use self::{
     },
     tracer::{SpanBuilder, Tracer},
 };
+use crate::exporter::ExportError;
+use std::time;
+
+/// Describe the result of operations in tracing API.
+pub type TraceResult<T> = Result<T, TraceError>;
 
 /// Errors returned by the trace API.
-#[derive(Error, Debug, PartialEq)]
+#[derive(Error, Debug)]
 #[non_exhaustive]
 pub enum TraceError {
-    /// Other errors not covered by specific cases.
-    #[error("Trace error: {0}")]
-    Other(String),
+    /// Export failed with the error returned by the exporter
+    #[error("Exporting failed with {0}")]
+    ExportFailed(Box<dyn ExportError>),
+
+    /// Export failed to finish after certain period and processor stopped the export.
+    #[error("Exporting timed out after {} seconds", .0.as_secs())]
+    ExportTimedOut(time::Duration),
+
+    /// Other errors propagated from trace SDK that weren't covered above
+    #[error(transparent)]
+    Other(#[from] Box<dyn std::error::Error + Send + Sync + 'static>),
 }
+
+impl<T> From<T> for TraceError
+where
+    T: ExportError,
+{
+    fn from(err: T) -> Self {
+        TraceError::ExportFailed(Box::new(err))
+    }
+}
+
+impl<T> From<TrySendError<T>> for TraceError {
+    fn from(err: TrySendError<T>) -> Self {
+        TraceError::Other(Box::new(err.into_send_error()))
+    }
+}
+
+impl From<Canceled> for TraceError {
+    fn from(err: Canceled) -> Self {
+        TraceError::Other(Box::new(err))
+    }
+}
+
+impl From<String> for TraceError {
+    fn from(err_msg: String) -> Self {
+        TraceError::Other(Box::new(Custom(err_msg)))
+    }
+}
+
+impl From<&'static str> for TraceError {
+    fn from(err_msg: &'static str) -> Self {
+        TraceError::Other(Box::new(Custom(err_msg.into())))
+    }
+}
+
+/// Wrap type for string
+#[derive(Error, Debug)]
+#[error("{0}")]
+struct Custom(String);

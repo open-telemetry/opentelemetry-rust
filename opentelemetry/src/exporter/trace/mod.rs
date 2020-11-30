@@ -1,4 +1,7 @@
 //! Trace exporters
+use crate::api::trace::TraceError;
+#[cfg(feature = "http")]
+use crate::exporter::ExportError;
 use crate::{
     sdk,
     trace::{Event, Link, SpanContext, SpanId, SpanKind, StatusCode},
@@ -10,27 +13,16 @@ use http::Request;
 use serde::{Deserialize, Serialize};
 #[cfg(all(feature = "http", feature = "reqwest"))]
 use std::convert::TryInto;
-use std::error::Error;
-use std::fmt::{Debug, Display};
+use std::fmt::Debug;
+#[cfg(all(feature = "surf", feature = "http"))]
+use std::fmt::{Display, Formatter};
 use std::sync::Arc;
 use std::time::SystemTime;
 
 pub mod stdout;
 
 /// Describes the result of an export.
-pub type ExportResult = Result<(), Box<dyn std::error::Error + Send + Sync + 'static>>;
-
-/// Timed out when exporting spans to remote
-#[derive(Debug, Default)]
-pub struct ExportTimedOutError {}
-
-impl Display for ExportTimedOutError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("export timed out")
-    }
-}
-
-impl Error for ExportTimedOutError {}
+pub type ExportResult = Result<(), TraceError>;
 
 /// `SpanExporter` defines the interface that protocol-specific exporters must
 /// implement so that they can be plugged into OpenTelemetry SDK and support
@@ -79,6 +71,41 @@ pub trait SpanExporter: Send + Debug {
 pub trait HttpClient: Debug + Send + Sync {
     /// Send a batch of spans to collectors
     async fn send(&self, request: Request<Vec<u8>>) -> ExportResult;
+}
+
+#[cfg(all(feature = "reqwest", feature = "http"))]
+impl ExportError for reqwest::Error {
+    fn exporter_name(&self) -> &'static str {
+        "reqwest"
+    }
+}
+
+#[cfg(all(feature = "surf", feature = "http"))]
+impl ExportError for SurfError {
+    fn exporter_name(&self) -> &'static str {
+        "surf"
+    }
+}
+
+#[cfg(all(feature = "surf", feature = "http"))]
+#[derive(Debug)]
+struct SurfError(surf::Error);
+
+#[cfg(all(feature = "surf", feature = "http"))]
+impl Display for SurfError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0.to_string())
+    }
+}
+
+#[cfg(all(feature = "surf", feature = "http"))]
+impl std::error::Error for SurfError {}
+
+#[cfg(all(feature = "surf", feature = "http"))]
+impl From<surf::Error> for SurfError {
+    fn from(err: surf::Error) -> Self {
+        SurfError(err)
+    }
 }
 
 /// `SpanData` contains all the information collected by a `Span` and can be used
@@ -141,17 +168,25 @@ impl HttpClient for reqwest::blocking::Client {
 impl HttpClient for surf::Client {
     async fn send(&self, request: Request<Vec<u8>>) -> ExportResult {
         let (parts, body) = request.into_parts();
-        let uri = parts.uri.to_string().parse()?;
+        let uri = parts
+            .uri
+            .to_string()
+            .parse()
+            .map_err(|_err: surf::http::url::ParseError| TraceError::from("error parse url"))?;
 
         let req = surf::Request::builder(surf::http::Method::Post, uri)
             .content_type("application/json")
             .body(body);
-        let result = self.send(req).await?;
+        let result = self.send(req).await.map_err::<SurfError, _>(Into::into)?;
 
         if result.status().is_success() {
             Ok(())
         } else {
-            Err(result.status().canonical_reason().into())
+            Err(SurfError(surf::Error::from_str(
+                result.status(),
+                result.status().canonical_reason(),
+            ))
+            .into())
         }
     }
 }
