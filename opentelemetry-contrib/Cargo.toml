@@ -22,7 +22,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 default = []
 base64_format = ["base64", "binary_propagator"]
 binary_propagator = []
-datadog = ["indexmap", "rmp", "async-trait"]
+datadog = ["indexmap", "rmp", "async-trait", "thiserror"]
 reqwest-blocking-client = ["reqwest/blocking", "opentelemetry/reqwest"]
 reqwest-client = ["reqwest", "opentelemetry/reqwest"]
 surf-client = ["surf", "opentelemetry/surf"]
@@ -37,6 +37,7 @@ reqwest = { version = "0.10", optional = true }
 surf = { version = "2.0", optional = true }
 http = "0.2"
 base64 = { version = "0.13", optional = true }
+thiserror = { version = "1.0", optional = true }
 
 [dev-dependencies]
 base64 = "0.13"

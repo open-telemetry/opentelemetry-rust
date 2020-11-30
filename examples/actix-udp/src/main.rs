@@ -1,17 +1,14 @@
 use actix_service::Service;
 use actix_web::middleware::Logger;
 use actix_web::{web, App, HttpServer};
+use opentelemetry::trace::TraceError;
 use opentelemetry::{global, sdk::trace as sdktrace};
 use opentelemetry::{
     trace::{FutureExt, TraceContextExt, Tracer},
     Key,
 };
-use std::error::Error;
 
-fn init_tracer() -> Result<
-    (sdktrace::Tracer, opentelemetry_jaeger::Uninstall),
-    Box<dyn Error + Send + Sync + 'static>,
-> {
+fn init_tracer() -> Result<(sdktrace::Tracer, opentelemetry_jaeger::Uninstall), TraceError> {
     opentelemetry_jaeger::new_pipeline()
         .with_agent_endpoint("localhost:6831")
         .with_service_name("trace-udp-demo")

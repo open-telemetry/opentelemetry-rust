@@ -33,6 +33,7 @@ thrift = "0.13"
 tokio = { version = "0.2", features = ["udp", "sync"], optional = true }
 wasm-bindgen = { version = "0.2", optional = true }
 wasm-bindgen-futures = { version = "0.4.18", optional = true }
+thiserror = "1.0"
 
 [dependencies.web-sys]
 version = "0.3.4"

@@ -17,6 +17,7 @@
 //!     cargo run --example async_fn
 //!
 //! [`hello_world`]: https://github.com/tokio-rs/tokio/blob/132e9f1da5965530b63554d7a1c59824c3de4e30/tokio/examples/hello_world.rs
+use opentelemetry::trace::TraceError;
 use opentelemetry::{
     global,
     sdk::trace as sdktrace,
@@ -52,10 +53,7 @@ async fn run(addr: &SocketAddr) -> io::Result<usize> {
     write(&mut stream).with_context(cx).await
 }
 
-fn init_tracer() -> Result<
-    (sdktrace::Tracer, opentelemetry_jaeger::Uninstall),
-    Box<dyn Error + Send + Sync + 'static>,
-> {
+fn init_tracer() -> Result<(sdktrace::Tracer, opentelemetry_jaeger::Uninstall), TraceError> {
     opentelemetry_jaeger::new_pipeline()
         .with_service_name("trace-demo")
         .install()
