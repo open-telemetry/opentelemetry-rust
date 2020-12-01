@@ -290,5 +290,6 @@ impl trace::SpanExporter for DatadogExporter {
 }
 
 /// Uninstalls the Datadog pipeline on drop
+#[must_use]
 #[derive(Debug)]
 pub struct Uninstall(global::TracerProviderGuard);
