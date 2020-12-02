@@ -11,11 +11,11 @@
 //! * `JaegerPropagator`, propagating via Jaeger protocol and headers.
 //!
 //! This module also provides relative types for those propagators.
-pub mod binary;
 #[cfg(feature = "aws-xray")]
 mod aws;
 #[cfg(feature = "zipkin")]
 mod b3;
+pub mod binary;
 #[cfg(feature = "jaeger")]
 mod jaeger;
 

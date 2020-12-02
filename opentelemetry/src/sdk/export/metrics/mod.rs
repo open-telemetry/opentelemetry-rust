@@ -12,11 +12,11 @@ use std::time::SystemTime;
 mod aggregation;
 pub mod stdout;
 
-pub use stdout::stdout;
 pub use aggregation::{
     Buckets, Count, Distribution, Histogram, LastValue, Max, Min, MinMaxSumCount, Points, Quantile,
     Sum,
 };
+pub use stdout::stdout;
 
 /// Processor is responsible for deciding which kind of aggregation to use (via
 /// `aggregation_selector`), gathering exported results from the SDK during

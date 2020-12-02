@@ -172,11 +172,11 @@ use async_trait::async_trait;
 use http::Uri;
 use model::endpoint::Endpoint;
 use opentelemetry::{
+    global, sdk,
     sdk::export::{
         trace::{self, HttpClient},
         ExportError,
     },
-    global, sdk,
     trace::{TraceError, TracerProvider},
 };
 use std::net::SocketAddr;

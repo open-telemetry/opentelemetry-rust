@@ -25,11 +25,11 @@
 //! }
 //! ```
 use crate::{
+    global, sdk,
     sdk::export::{
         trace::{ExportResult, SpanData, SpanExporter},
         ExportError,
     },
-    global, sdk,
     trace::TracerProvider,
 };
 use async_trait::async_trait;

@@ -142,18 +142,18 @@
 //! supported compiler version is not considered a semver breaking change as
 //! long as doing so complies with this policy.
 #![warn(
-future_incompatible,
-missing_debug_implementations,
-missing_docs,
-nonstandard_style,
-rust_2018_idioms,
-unreachable_pub,
-unused
+    future_incompatible,
+    missing_debug_implementations,
+    missing_docs,
+    nonstandard_style,
+    rust_2018_idioms,
+    unreachable_pub,
+    unused
 )]
 #![allow(clippy::needless_doctest_main)]
 #![cfg_attr(docsrs, feature(doc_cfg), deny(broken_intra_doc_links))]
 #![doc(
-html_logo_url = "https://raw.githubusercontent.com/open-telemetry/opentelemetry-rust/master/assets/logo.svg"
+    html_logo_url = "https://raw.githubusercontent.com/open-telemetry/opentelemetry-rust/master/assets/logo.svg"
 )]
 #![cfg_attr(test, deny(warnings))]
 

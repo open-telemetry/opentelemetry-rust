@@ -176,12 +176,12 @@ mod tests {
     use super::*;
     use opentelemetry::{
         propagation::{Injector, TextMapPropagator},
+        testing::trace::TestSpan,
         trace::{
             SpanContext, SpanId, TraceContextExt, TraceId, TraceState, TRACE_FLAG_DEBUG,
             TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
         },
         Context,
-        testing::trace::TestSpan
     };
     use std::collections::HashMap;
 

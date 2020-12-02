@@ -1,7 +1,7 @@
 use hyper::{body::Body, Client};
 use opentelemetry::{
-    sdk::export::trace::stdout,
     global,
+    sdk::export::trace::stdout,
     sdk::trace as sdktrace,
     trace::{TraceContextExt, Tracer},
     Context, KeyValue,
