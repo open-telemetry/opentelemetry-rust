@@ -159,7 +159,7 @@ impl SpanInner {
                     if let Some(timestamp) = timestamp {
                         span_data.end_time = timestamp;
                     } else if span_data.end_time == span_data.start_time {
-                        span_data.end_time = SystemTime::now();
+                        span_data.end_time = crate::time::now();
                     }
                 }
 
@@ -232,8 +232,8 @@ mod tests {
             parent_span_id: SpanId::from_u64(0),
             span_kind: api::trace::SpanKind::Internal,
             name: "opentelemetry".to_string(),
-            start_time: SystemTime::now(),
-            end_time: SystemTime::now(),
+            start_time: crate::time::now(),
+            end_time: crate::time::now(),
             attributes: sdk::trace::EvictedHashMap::new(config.max_attributes_per_span, 0),
             message_events: sdk::trace::EvictedQueue::new(config.max_events_per_span),
             links: sdk::trace::EvictedQueue::new(config.max_links_per_span),
@@ -284,7 +284,7 @@ mod tests {
         let span = create_span();
         let name = "some_event".to_string();
         let attributes = vec![KeyValue::new("k", "v")];
-        let timestamp = SystemTime::now();
+        let timestamp = crate::time::now();
         span.add_event_with_timestamp(name.clone(), timestamp, attributes.clone());
         span.with_data(|data| {
             if let Some(event) = data.message_events.iter().next() {
@@ -382,7 +382,7 @@ mod tests {
     #[test]
     fn end_with_timestamp() {
         let span = create_span();
-        let timestamp = SystemTime::now();
+        let timestamp = crate::time::now();
         span.end_with_timestamp(timestamp);
         span.with_data(|data| assert_eq!(data.end_time, timestamp));
     }
@@ -404,7 +404,7 @@ mod tests {
     #[test]
     fn end_only_once() {
         let span = create_span();
-        let timestamp = SystemTime::now();
+        let timestamp = crate::time::now();
         span.end_with_timestamp(timestamp);
         span.end_with_timestamp(timestamp.checked_add(Duration::from_secs(10)).unwrap());
         span.with_data(|data| assert_eq!(data.end_time, timestamp));
@@ -418,7 +418,7 @@ mod tests {
         span.add_event("some_event".to_string(), vec![KeyValue::new("k", "v")]);
         span.add_event_with_timestamp(
             "some_event".to_string(),
-            SystemTime::now(),
+            crate::time::now(),
             vec![KeyValue::new("k", "v")],
         );
         let err = std::io::Error::from(std::io::ErrorKind::Other);

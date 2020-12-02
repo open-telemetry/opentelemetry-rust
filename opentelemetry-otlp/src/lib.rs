@@ -122,7 +122,6 @@
 
 use opentelemetry::{global, sdk, trace::TracerProvider};
 use std::collections::HashMap;
-use std::error::Error;
 use std::time::Duration;
 
 #[allow(clippy::all, unreachable_pub, dead_code)]
@@ -132,6 +131,8 @@ mod span;
 mod transform;
 
 pub use crate::span::{Compression, Credentials, Exporter, ExporterConfig, Protocol};
+use opentelemetry::exporter::ExportError;
+use opentelemetry::trace::TraceError;
 
 /// Create a new pipeline builder with the recommended configuration.
 ///
@@ -215,9 +216,7 @@ impl OtlpPipelineBuilder {
     }
 
     /// Install the OTLP exporter pipeline with the recommended defaults.
-    pub fn install(
-        mut self,
-    ) -> Result<(sdk::trace::Tracer, Uninstall), Box<dyn Error + Send + Sync + 'static>> {
+    pub fn install(mut self) -> Result<(sdk::trace::Tracer, Uninstall), TraceError> {
         let exporter = Exporter::new(self.exporter_config);
 
         let mut provider_builder = sdk::trace::TracerProvider::builder().with_exporter(exporter);
@@ -236,3 +235,18 @@ impl OtlpPipelineBuilder {
 #[must_use]
 #[derive(Debug)]
 pub struct Uninstall(global::TracerProviderGuard);
+
+/// Wrap type for errors from opentelemetry otel
+#[derive(thiserror::Error, Debug)]
+pub enum Error {
+    // FIXME: wait until https://github.com/open-telemetry/opentelemetry-rust/pull/352 merged
+    /// Error from grpcio module
+    #[error("grpcio error {0}")]
+    Grpcio(#[from] grpcio::Error),
+}
+
+impl ExportError for Error {
+    fn exporter_name(&self) -> &'static str {
+        "otlp"
+    }
+}

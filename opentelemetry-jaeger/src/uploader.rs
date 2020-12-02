@@ -1,5 +1,5 @@
 //! # Jaeger Span Uploader
-#[cfg(feature = "collector_client")]
+#[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
 use crate::collector;
 use crate::{agent, jaeger};
 use opentelemetry::exporter::trace;
@@ -10,7 +10,7 @@ pub(crate) enum BatchUploader {
     /// Agent sync client
     Agent(agent::AgentAsyncClientUDP),
     /// Collector sync client
-    #[cfg(feature = "collector_client")]
+    #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
     Collector(collector::CollectorAsyncClientHttp),
 }
 
@@ -20,14 +20,20 @@ impl BatchUploader {
         match self {
             BatchUploader::Agent(client) => {
                 // TODO Implement retry behaviour
-                client.emit_batch(batch).await?;
+                client
+                    .emit_batch(batch)
+                    .await
+                    .map_err::<crate::Error, _>(Into::into)?;
             }
-            #[cfg(feature = "collector_client")]
+            #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
             BatchUploader::Collector(collector) => {
                 // TODO Implement retry behaviour
-                collector.submit_batch(batch).await?;
+                collector
+                    .submit_batch(batch)
+                    .await
+                    .map_err::<crate::Error, _>(Into::into)?;
             }
-        };
+        }
         Ok(())
     }
 }

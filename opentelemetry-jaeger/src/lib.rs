@@ -22,7 +22,7 @@
 //! ```no_run
 //! use opentelemetry::trace::Tracer;
 //!
-//! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+//! fn main() -> Result<(), opentelemetry::trace::TraceError> {
 //!     let (tracer, _uninstall) = opentelemetry_jaeger::new_pipeline().install()?;
 //!
 //!     tracer.in_span("doing_work", |cx| {
@@ -59,9 +59,9 @@
 //! [jaeger variables spec]: https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/sdk-environment-variables.md#jaeger-exporter
 //!
 //! ```no_run
-//! use opentelemetry::trace::Tracer;
+//! use opentelemetry::trace::{Tracer, TraceError};
 //!
-//! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+//! fn main() -> Result<(), TraceError> {
 //!     // export OTEL_SERVICE_NAME=my-service-name
 //!     let (tracer, _uninstall) = opentelemetry_jaeger::new_pipeline().from_env().install()?;
 //!
@@ -90,9 +90,9 @@
 //!
 //! ```ignore
 //! // Note that this requires the `collector_client` feature.
-//! use opentelemetry::trace::Tracer;
+//! use opentelemetry::trace::{Tracer, TraceError};
 //!
-//! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+//! fn main() -> Result<(), TraceError> {
 //!     let (tracer, _uninstall) = opentelemetry_jaeger::new_pipeline()
 //!         .with_collector_endpoint("http://localhost:14268/api/traces")
 //!         // optionally set username and password as well.
@@ -116,10 +116,10 @@
 //! [`PipelineBuilder`]: struct.PipelineBuilder.html
 //!
 //! ```no_run
-//! use opentelemetry::{KeyValue, trace::Tracer};
+//! use opentelemetry::{KeyValue, trace::{Tracer, TraceError}};
 //! use opentelemetry::sdk::{trace::{self, IdGenerator, Sampler}, Resource};
 //!
-//! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+//! fn main() -> Result<(), TraceError> {
 //!     let (tracer, _uninstall) = opentelemetry_jaeger::new_pipeline()
 //!         .from_env()
 //!         .with_agent_endpoint("localhost:6831")
@@ -180,7 +180,7 @@
 #![cfg_attr(test, deny(warnings))]
 
 mod agent;
-#[cfg(feature = "collector_client")]
+#[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
 mod collector;
 #[allow(clippy::all, unreachable_pub, dead_code)]
 #[rustfmt::skip]
@@ -192,15 +192,16 @@ mod uploader;
 use self::thrift::jaeger;
 use agent::AgentAsyncClientUDP;
 use async_trait::async_trait;
-#[cfg(feature = "collector_client")]
+#[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
 use collector::CollectorAsyncClientHttp;
+use opentelemetry::exporter::ExportError;
+use opentelemetry::trace::TraceError;
 use opentelemetry::{
     exporter::trace,
     global, sdk,
     trace::{Event, Link, SpanKind, StatusCode, TracerProvider},
     Key, KeyValue, Value,
 };
-use std::error::Error;
 use std::{
     net,
     time::{Duration, SystemTime},
@@ -289,11 +290,11 @@ impl trace::SpanExporter for Exporter {
 #[derive(Debug)]
 pub struct PipelineBuilder {
     agent_endpoint: Vec<net::SocketAddr>,
-    #[cfg(feature = "collector_client")]
+    #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
     collector_endpoint: Option<http::Uri>,
-    #[cfg(feature = "collector_client")]
+    #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
     collector_username: Option<String>,
-    #[cfg(feature = "collector_client")]
+    #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
     collector_password: Option<String>,
     export_instrument_library: bool,
     process: Process,
@@ -305,11 +306,11 @@ impl Default for PipelineBuilder {
     fn default() -> Self {
         PipelineBuilder {
             agent_endpoint: vec![DEFAULT_AGENT_ENDPOINT.parse().unwrap()],
-            #[cfg(feature = "collector_client")]
+            #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
             collector_endpoint: None,
-            #[cfg(feature = "collector_client")]
+            #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
             collector_username: None,
-            #[cfg(feature = "collector_client")]
+            #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
             collector_password: None,
             export_instrument_library: true,
             process: Process {
@@ -355,8 +356,11 @@ impl PipelineBuilder {
     /// Assign the collector endpoint.
     ///
     /// E.g. "http://localhost:14268/api/traces"
-    #[cfg(feature = "collector_client")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "collector_client")))]
+    #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
+    #[cfg_attr(
+        docsrs,
+        doc(cfg(any(feature = "collector_client", feature = "wasm_collector_client")))
+    )]
     pub fn with_collector_endpoint<T>(self, collector_endpoint: T) -> Self
     where
         http::Uri: core::convert::TryFrom<T>,
@@ -368,8 +372,11 @@ impl PipelineBuilder {
     }
 
     /// Assign the collector username
-    #[cfg(feature = "collector_client")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "collector_client")))]
+    #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
+    #[cfg_attr(
+        docsrs,
+        doc(any(feature = "collector_client", feature = "wasm_collector_client"))
+    )]
     pub fn with_collector_username<S: Into<String>>(self, collector_username: S) -> Self {
         PipelineBuilder {
             collector_username: Some(collector_username.into()),
@@ -378,8 +385,11 @@ impl PipelineBuilder {
     }
 
     /// Assign the collector password
-    #[cfg(feature = "collector_client")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "collector_client")))]
+    #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
+    #[cfg_attr(
+        docsrs,
+        doc(any(feature = "collector_client", feature = "wasm_collector_client"))
+    )]
     pub fn with_collector_password<S: Into<String>>(self, collector_password: S) -> Self {
         PipelineBuilder {
             collector_password: Some(collector_password.into()),
@@ -408,9 +418,7 @@ impl PipelineBuilder {
     }
 
     /// Install a Jaeger pipeline with the recommended defaults.
-    pub fn install(
-        self,
-    ) -> Result<(sdk::trace::Tracer, Uninstall), Box<dyn Error + Send + Sync + 'static>> {
+    pub fn install(self) -> Result<(sdk::trace::Tracer, Uninstall), TraceError> {
         let tracer_provider = self.build()?;
         let tracer =
             tracer_provider.get_tracer("opentelemetry-jaeger", Some(env!("CARGO_PKG_VERSION")));
@@ -421,9 +429,7 @@ impl PipelineBuilder {
     }
 
     /// Build a configured `sdk::trace::TracerProvider` with the recommended defaults.
-    pub fn build(
-        mut self,
-    ) -> Result<sdk::trace::TracerProvider, Box<dyn Error + Send + Sync + 'static>> {
+    pub fn build(mut self) -> Result<sdk::trace::TracerProvider, TraceError> {
         let config = self.config.take();
         let exporter = self.init_exporter()?;
 
@@ -439,7 +445,7 @@ impl PipelineBuilder {
     /// Initialize a new exporter.
     ///
     /// This is useful if you are manually constructing a pipeline.
-    pub fn init_exporter(self) -> Result<Exporter, Box<dyn Error + Send + Sync + 'static>> {
+    pub fn init_exporter(self) -> Result<Exporter, TraceError> {
         let export_instrumentation_lib = self.export_instrument_library;
         let (process, uploader) = self.init_uploader()?;
 
@@ -450,28 +456,26 @@ impl PipelineBuilder {
         })
     }
 
-    #[cfg(not(feature = "collector_client"))]
-    fn init_uploader(
-        self,
-    ) -> Result<(Process, BatchUploader), Box<dyn Error + Send + Sync + 'static>> {
-        let agent = AgentAsyncClientUDP::new(self.agent_endpoint.as_slice())?;
+    #[cfg(not(any(feature = "collector_client", feature = "wasm_collector_client")))]
+    fn init_uploader(self) -> Result<(Process, BatchUploader), TraceError> {
+        let agent = AgentAsyncClientUDP::new(self.agent_endpoint.as_slice())
+            .map_err::<Error, _>(Into::into)?;
         Ok((self.process, BatchUploader::Agent(agent)))
     }
 
-    #[cfg(feature = "collector_client")]
-    fn init_uploader(
-        self,
-    ) -> Result<(Process, uploader::BatchUploader), Box<dyn Error + Send + Sync + 'static>> {
+    #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
+    fn init_uploader(self) -> Result<(Process, uploader::BatchUploader), TraceError> {
         if let Some(collector_endpoint) = self.collector_endpoint {
             let collector = CollectorAsyncClientHttp::new(
                 collector_endpoint,
                 self.collector_username,
                 self.collector_password,
-            )?;
+            )
+            .map_err::<Error, _>(Into::into)?;
             Ok((self.process, uploader::BatchUploader::Collector(collector)))
         } else {
             let endpoint = self.agent_endpoint.as_slice();
-            let agent = AgentAsyncClientUDP::new(endpoint)?;
+            let agent = AgentAsyncClientUDP::new(endpoint).map_err::<Error, _>(Into::into)?;
             Ok((self.process, BatchUploader::Agent(agent)))
         }
     }
@@ -676,5 +680,19 @@ fn events_to_logs(events: sdk::trace::EvictedQueue<Event>) -> Option<Vec<jaeger:
         None
     } else {
         Some(events.into_iter().map(Into::into).collect())
+    }
+}
+
+/// Wrap type for errors from opentelemetry jaeger
+#[derive(thiserror::Error, Debug)]
+pub enum Error {
+    /// Error from thrift agents.
+    #[error("thrift agent failed with {0}")]
+    ThriftAgentError(#[from] ::thrift::Error),
+}
+
+impl ExportError for Error {
+    fn exporter_name(&self) -> &'static str {
+        "jaeger"
     }
 }

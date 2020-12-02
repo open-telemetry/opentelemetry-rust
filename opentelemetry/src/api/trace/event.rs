@@ -32,7 +32,7 @@ impl Event {
     pub fn with_name(name: String) -> Self {
         Event {
             name,
-            timestamp: SystemTime::now(),
+            timestamp: crate::time::now(),
             attributes: Vec::new(),
         }
     }

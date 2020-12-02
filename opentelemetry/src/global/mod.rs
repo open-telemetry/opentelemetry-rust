@@ -129,7 +129,6 @@
 //! [installing a metrics pipeline]: crate::exporter::metrics::stdout::StdoutExporterBuilder::try_init
 //! [`MeterProvider`]: crate::metrics::MeterProvider
 
-#[cfg(feature = "metrics")]
 mod error_handler;
 #[cfg(feature = "metrics")]
 mod metrics;
@@ -138,8 +137,6 @@ mod propagation;
 #[cfg(feature = "trace")]
 mod trace;
 
-#[cfg(feature = "metrics")]
-#[cfg_attr(docsrs, doc(cfg(feature = "metrics")))]
 pub use error_handler::{handle_error, set_error_handler};
 #[cfg(feature = "metrics")]
 #[cfg_attr(docsrs, doc(cfg(feature = "metrics")))]

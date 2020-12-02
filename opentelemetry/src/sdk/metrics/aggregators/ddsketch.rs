@@ -1019,7 +1019,7 @@ mod tests {
             (moved_ddsketch.sum().unwrap().to_f64(&NumberKind::F64) - expected_sum).abs()
                 < std::f64::EPSILON
         );
-        assert_eq!(moved_ddsketch.count(), Ok(expected_count));
+        assert_eq!(moved_ddsketch.count().unwrap(), expected_count);
 
         // assert can generate same result
         for q in test_quantiles() {

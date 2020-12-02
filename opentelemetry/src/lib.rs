@@ -180,3 +180,17 @@ pub use api::{
     core::{Array, Key, KeyValue, Unit, Value},
     propagation,
 };
+
+pub(crate) mod time {
+    use std::time::SystemTime;
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) fn now() -> SystemTime {
+        SystemTime::now()
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    pub(crate) fn now() -> SystemTime {
+        SystemTime::UNIX_EPOCH + std::time::Duration::from_millis(js_sys::Date::now() as u64)
+    }
+}
