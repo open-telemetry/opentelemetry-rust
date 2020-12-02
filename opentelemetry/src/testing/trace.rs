@@ -1,6 +1,6 @@
 use crate::{
-    exporter::{
-        trace::{self as exporter, ExportResult, SpanData, SpanExporter},
+    sdk::export::{
+        trace::{ExportResult, SpanData, SpanExporter},
         ExportError,
     },
     sdk::{
@@ -37,9 +37,9 @@ impl Span for TestSpan {
     fn end_with_timestamp(&self, _timestamp: std::time::SystemTime) {}
 }
 
-pub fn new_test_export_span_data() -> exporter::SpanData {
+pub fn new_test_export_span_data() -> SpanData {
     let config = Config::default();
-    exporter::SpanData {
+    SpanData {
         span_context: SpanContext::empty_context(),
         parent_span_id: SpanId::from_u64(0),
         span_kind: SpanKind::Internal,
@@ -58,13 +58,13 @@ pub fn new_test_export_span_data() -> exporter::SpanData {
 
 #[derive(Debug)]
 pub struct TestSpanExporter {
-    tx_export: Sender<exporter::SpanData>,
+    tx_export: Sender<SpanData>,
     tx_shutdown: Sender<()>,
 }
 
 #[async_trait]
 impl SpanExporter for TestSpanExporter {
-    async fn export(&mut self, batch: Vec<exporter::SpanData>) -> ExportResult {
+    async fn export(&mut self, batch: Vec<SpanData>) -> ExportResult {
         for span_data in batch {
             self.tx_export
                 .send(span_data)
@@ -78,7 +78,7 @@ impl SpanExporter for TestSpanExporter {
     }
 }
 
-pub fn new_test_exporter() -> (TestSpanExporter, Receiver<exporter::SpanData>, Receiver<()>) {
+pub fn new_test_exporter() -> (TestSpanExporter, Receiver<SpanData>, Receiver<()>) {
     let (tx_export, rx_export) = channel();
     let (tx_shutdown, rx_shutdown) = channel();
     let exporter = TestSpanExporter {
@@ -90,7 +90,7 @@ pub fn new_test_exporter() -> (TestSpanExporter, Receiver<exporter::SpanData>, R
 
 #[derive(Debug)]
 pub struct TokioSpanExporter {
-    tx_export: tokio::sync::mpsc::UnboundedSender<exporter::SpanData>,
+    tx_export: tokio::sync::mpsc::UnboundedSender<SpanData>,
     tx_shutdown: tokio::sync::mpsc::UnboundedSender<()>,
 }
 
@@ -112,7 +112,7 @@ impl SpanExporter for TokioSpanExporter {
 
 pub fn new_tokio_test_exporter() -> (
     TokioSpanExporter,
-    tokio::sync::mpsc::UnboundedReceiver<exporter::SpanData>,
+    tokio::sync::mpsc::UnboundedReceiver<SpanData>,
     tokio::sync::mpsc::UnboundedReceiver<()>,
 ) {
     let (tx_export, rx_export) = tokio::sync::mpsc::unbounded_channel();

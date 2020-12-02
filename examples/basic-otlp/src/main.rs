@@ -1,5 +1,4 @@
 use futures::stream::{Stream, StreamExt};
-use opentelemetry::exporter;
 use opentelemetry::sdk::metrics::PushController;
 use opentelemetry::trace::TraceError;
 use opentelemetry::{
@@ -22,7 +21,7 @@ fn delayed_interval(duration: Duration) -> impl Stream<Item = tokio::time::Insta
 }
 
 fn init_meter() -> metrics::Result<PushController> {
-    exporter::metrics::stdout(tokio::spawn, delayed_interval)
+    opentelemetry::sdk::export::metrics::stdout(tokio::spawn, delayed_interval)
         .with_quantiles(vec![0.5, 0.9, 0.99])
         .with_formatter(|batch| {
             serde_json::to_value(batch)

@@ -58,7 +58,7 @@
 //! }
 //! ```
 //!
-//! [installing a trace pipeline]: crate::exporter::trace::stdout::PipelineBuilder::install
+//! [installing a trace pipeline]: crate::sdk::export::trace::stdout::PipelineBuilder::install
 //! [`TracerProvider`]: crate::trace::TracerProvider
 //! [`Span`]: crate::trace::Span
 //!
@@ -126,7 +126,7 @@
 //! # }
 //! ```
 //!
-//! [installing a metrics pipeline]: crate::exporter::metrics::stdout::StdoutExporterBuilder::try_init
+//! [installing a metrics pipeline]: crate::sdk::export::metrics::stdout::StdoutExporterBuilder::try_init
 //! [`MeterProvider`]: crate::metrics::MeterProvider
 
 mod error_handler;

@@ -1,7 +1,7 @@
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Request, Response, Server};
 use opentelemetry::{
-    exporter::trace::stdout,
+    sdk::export::trace::stdout,
     global,
     sdk:: trace as sdktrace,
     trace::{Span, Tracer},

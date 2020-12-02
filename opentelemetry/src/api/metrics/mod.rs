@@ -19,7 +19,7 @@ mod sync_instrument;
 mod up_down_counter;
 mod value_recorder;
 
-use crate::exporter::ExportError;
+use crate::sdk::export::ExportError;
 pub use async_instrument::{AsyncRunner, BatchObserverCallback, Observation, ObserverResult};
 pub use config::InstrumentConfig;
 pub use counter::{BoundCounter, Counter, CounterBuilder};

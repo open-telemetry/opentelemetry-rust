@@ -97,7 +97,7 @@ Example showing how to override all configuration options. See the
 ```rust
 use opentelemetry::{KeyValue, trace::Tracer};
 use opentelemetry::sdk::{trace::{self, IdGenerator, Sampler}, Resource};
-use opentelemetry::exporter::trace::{ExportResult, HttpClient};
+use opentelemetry::sdk::export::trace::{ExportResult, HttpClient};
 use async_trait::async_trait;
 use std::error::Error;
 

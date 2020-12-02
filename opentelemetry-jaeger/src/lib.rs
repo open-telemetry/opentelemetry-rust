@@ -194,10 +194,10 @@ use agent::AgentAsyncClientUDP;
 use async_trait::async_trait;
 #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
 use collector::CollectorAsyncClientHttp;
-use opentelemetry::exporter::ExportError;
+use opentelemetry::sdk::export::ExportError;
 use opentelemetry::trace::TraceError;
 use opentelemetry::{
-    exporter::trace,
+    sdk::export::trace,
     global, sdk,
     trace::{Event, Link, SpanKind, StatusCode, TracerProvider},
     Key, KeyValue, Value,

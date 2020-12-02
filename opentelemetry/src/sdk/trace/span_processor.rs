@@ -44,7 +44,7 @@ use crate::api::trace::{TraceError, TraceResult};
 use crate::global;
 use crate::sdk::trace::Span;
 use crate::{
-    exporter::trace::{ExportResult, SpanData, SpanExporter},
+    sdk::export::trace::{ExportResult, SpanData, SpanExporter},
     Context,
 };
 
@@ -569,7 +569,7 @@ mod tests {
 
     use async_trait::async_trait;
 
-    use crate::exporter::trace::{stdout, ExportResult, SpanData, SpanExporter};
+    use crate::sdk::export::trace::{stdout, ExportResult, SpanData, SpanExporter};
     use crate::sdk::trace::span_processor::OTEL_BSP_EXPORT_TIMEOUT_MILLIS;
     use crate::sdk::trace::BatchConfig;
     use crate::testing::trace::{

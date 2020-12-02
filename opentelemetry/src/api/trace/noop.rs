@@ -4,7 +4,7 @@
 //! has been set. It is also useful for testing purposes as it is intended
 //! to have minimal resource utilization and runtime impact.
 use crate::{
-    exporter::trace::{ExportResult, SpanData, SpanExporter},
+    sdk::export::trace::{ExportResult, SpanData, SpanExporter},
     trace,
     trace::{TraceContextExt, TraceState},
     Context, KeyValue,

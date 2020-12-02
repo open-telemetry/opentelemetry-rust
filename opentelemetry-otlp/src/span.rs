@@ -7,7 +7,7 @@ use async_trait::async_trait;
 use grpcio::{
     CallOption, Channel, ChannelBuilder, ChannelCredentialsBuilder, Environment, MetadataBuilder,
 };
-use opentelemetry::exporter::trace::{ExportResult, SpanData, SpanExporter};
+use opentelemetry::sdk::export::trace::{ExportResult, SpanData, SpanExporter};
 use protobuf::RepeatedField;
 use std::collections::HashMap;
 use std::fmt;

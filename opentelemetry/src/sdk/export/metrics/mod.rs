@@ -10,7 +10,9 @@ use std::sync::Arc;
 use std::time::SystemTime;
 
 mod aggregation;
+pub mod stdout;
 
+pub use stdout::stdout;
 pub use aggregation::{
     Buckets, Count, Distribution, Histogram, LastValue, Max, Min, MinMaxSumCount, Points, Quantile,
     Sum,

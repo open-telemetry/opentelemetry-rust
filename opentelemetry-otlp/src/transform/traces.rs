@@ -4,7 +4,7 @@ use crate::proto::trace::{
     Status_StatusCode,
 };
 use crate::transform::common::{to_nanos, Attributes};
-use opentelemetry::exporter::trace::SpanData;
+use opentelemetry::sdk::export::trace::SpanData;
 use opentelemetry::trace::{Link, SpanKind, StatusCode};
 use protobuf::reflect::ProtobufValue;
 use protobuf::{RepeatedField, SingularPtrField};

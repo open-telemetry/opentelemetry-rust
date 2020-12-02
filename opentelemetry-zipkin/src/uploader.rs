@@ -2,7 +2,7 @@
 use crate::model::span::Span;
 use crate::Error;
 use http::{header::CONTENT_TYPE, Method, Request, Uri};
-use opentelemetry::exporter::trace::{ExportResult, HttpClient};
+use opentelemetry::sdk::export::trace::{ExportResult, HttpClient};
 use std::fmt::Debug;
 
 #[derive(Debug)]
