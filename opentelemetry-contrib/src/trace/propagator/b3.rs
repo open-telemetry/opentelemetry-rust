@@ -304,11 +304,11 @@ mod tests {
     use super::*;
     use opentelemetry::{
         propagation::TextMapPropagator,
+        testing::trace::TestSpan,
         trace::{
             SpanContext, SpanId, TraceId, TRACE_FLAG_DEBUG, TRACE_FLAG_DEFERRED,
             TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
         },
-        testing::trace::TestSpan
     };
     use std::collections::HashMap;
 

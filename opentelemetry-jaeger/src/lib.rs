@@ -197,8 +197,8 @@ use collector::CollectorAsyncClientHttp;
 use opentelemetry::sdk::export::ExportError;
 use opentelemetry::trace::TraceError;
 use opentelemetry::{
-    sdk::export::trace,
     global, sdk,
+    sdk::export::trace,
     trace::{Event, Link, SpanKind, StatusCode, TracerProvider},
     Key, KeyValue, Value,
 };
