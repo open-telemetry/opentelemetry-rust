@@ -13,7 +13,7 @@
 //!
 //! If `inject_encoding` is set to `B3Encoding::SingleHeader` then `b3` header is used to inject
 //! and extract. Otherwise, separate headers are used to inject and extract.
-use crate::{
+use opentelemetry::{
     propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
     trace::{
         SpanContext, SpanId, TraceContextExt, TraceId, TraceState, TRACE_FLAG_DEBUG,
@@ -302,13 +302,13 @@ impl TextMapPropagator for B3Propagator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::testing::trace::TestSpan;
-    use crate::{
+    use opentelemetry::{
         propagation::TextMapPropagator,
         trace::{
             SpanContext, SpanId, TraceId, TRACE_FLAG_DEBUG, TRACE_FLAG_DEFERRED,
             TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
         },
+        testing::trace::TestSpan
     };
     use std::collections::HashMap;
 

@@ -1,4 +1,4 @@
-use crate::{
+use opentelemetry::{
     propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
     trace::{
         SpanContext, SpanId, TraceContextExt, TraceId, TraceState, TRACE_FLAG_DEFERRED,
@@ -32,7 +32,7 @@ lazy_static::lazy_static! {
 ///
 /// ```
 /// use opentelemetry::global;
-/// use opentelemetry::sdk::propagation::XrayPropagator;
+/// use opentelemetry_contrib::trace::propagator::XrayPropagator;
 ///
 /// global::set_text_map_propagator(XrayPropagator::default());
 /// ```
@@ -236,8 +236,8 @@ fn title_case(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::testing::trace::TestSpan;
-    use crate::trace::TraceState;
+    use opentelemetry::testing::trace::TestSpan;
+    use opentelemetry::trace::TraceState;
     use std::collections::HashMap;
     use std::str::FromStr;
 

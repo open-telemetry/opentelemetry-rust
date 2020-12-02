@@ -3,10 +3,11 @@ use hyper::{Body, Request, Response, Server};
 use opentelemetry::{
     exporter::trace::stdout,
     global,
-    sdk::{propagation::XrayPropagator, trace as sdktrace},
+    sdk:: trace as sdktrace,
     trace::{Span, Tracer},
 };
 use std::{convert::Infallible, net::SocketAddr};
+use opentelemetry_contrib::trace::propagator::XrayPropagator;
 
 async fn handle(req: Request<Body>) -> Result<Response<Body>, Infallible> {
     let parent_context =
