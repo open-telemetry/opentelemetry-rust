@@ -226,6 +226,7 @@ pub fn new_pipeline() -> PipelineBuilder {
 }
 
 /// Guard that uninstalls the Jaeger trace pipeline when dropped
+#[must_use]
 #[derive(Debug)]
 pub struct Uninstall(global::TracerProviderGuard);
 

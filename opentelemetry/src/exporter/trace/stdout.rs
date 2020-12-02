@@ -147,7 +147,8 @@ where
     }
 }
 
-/// Uninstalls the stdout pipeline on dropping.
+/// Uninstalls the stdout pipeline on drop.
+#[must_use]
 #[derive(Debug)]
 pub struct Uninstall(global::TracerProviderGuard);
 

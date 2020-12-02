@@ -324,6 +324,7 @@ impl trace::SpanExporter for Exporter {
 }
 
 /// Uninstalls the Zipkin pipeline on drop.
+#[must_use]
 #[derive(Debug)]
 pub struct Uninstall(global::TracerProviderGuard);
 
