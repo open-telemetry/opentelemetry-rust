@@ -1,5 +1,5 @@
 use opentelemetry::{
-    exporter::trace,
+    sdk::export::trace,
     trace::{Event, SpanKind, StatusCode},
     Key, KeyValue,
 };

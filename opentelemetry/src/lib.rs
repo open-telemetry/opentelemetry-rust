@@ -13,7 +13,7 @@
 //! ## Getting Started
 //!
 //! ```no_run
-//! use opentelemetry::{exporter::trace::stdout, trace::Tracer};
+//! use opentelemetry::{sdk::export::trace::stdout, trace::Tracer};
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 //!     // Create a new instrumentation pipeline
@@ -60,7 +60,7 @@
 //! [serde]: https://crates.io/crates/serde
 //! [http]: https://crates.io/crates/http
 //! [tonic]: https://crates.io/crates/tonic
-//! [`HttpClient`]: crate::exporter::trace::HttpClient
+//! [`HttpClient`]: crate::sdk::export::trace::HttpClient
 //! [reqwest]: https://crates.io/crates/reqwest
 //! [surf]: https://crates.io/crates/surf
 //!
@@ -158,7 +158,6 @@ html_logo_url = "https://raw.githubusercontent.com/open-telemetry/opentelemetry-
 #![cfg_attr(test, deny(warnings))]
 
 mod api;
-pub mod exporter;
 pub mod global;
 pub mod sdk;
 

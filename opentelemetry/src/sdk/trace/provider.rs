@@ -8,7 +8,7 @@
 //! propagators) are provided by the `TracerProvider`. `Tracer` instances do
 //! not duplicate this data to avoid that different `Tracer` instances
 //! of the `TracerProvider` have different versions of these data.
-use crate::exporter::trace::SpanExporter;
+use crate::sdk::export::trace::SpanExporter;
 use crate::{sdk, sdk::trace::SpanProcessor};
 use std::sync::Arc;
 

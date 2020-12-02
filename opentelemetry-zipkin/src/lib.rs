@@ -77,7 +77,7 @@
 //! ```no_run
 //! use opentelemetry::{KeyValue, trace::Tracer};
 //! use opentelemetry::sdk::{trace::{self, IdGenerator, Sampler}, Resource};
-//! use opentelemetry::exporter::trace::{ExportResult, HttpClient};
+//! use opentelemetry::sdk::export::trace::{ExportResult, HttpClient};
 //! use async_trait::async_trait;
 //! use std::error::Error;
 //!
@@ -172,7 +172,7 @@ use async_trait::async_trait;
 use http::Uri;
 use model::endpoint::Endpoint;
 use opentelemetry::{
-    exporter::{
+    sdk::export::{
         trace::{self, HttpClient},
         ExportError,
     },

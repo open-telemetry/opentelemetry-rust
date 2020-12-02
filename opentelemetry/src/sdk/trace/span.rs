@@ -9,7 +9,7 @@
 //! is possible to change its name, set its `Attributes`, and add `Links` and `Events`.
 //! These cannot be changed after the `Span`'s end time has been set.
 use crate::trace::{Event, SpanContext, SpanId, SpanKind, StatusCode};
-use crate::{api, exporter, sdk, KeyValue};
+use crate::{api, sdk, KeyValue};
 use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
 
@@ -200,8 +200,8 @@ fn build_export_data(
     data: SpanData,
     span_context: SpanContext,
     tracer: &sdk::trace::Tracer,
-) -> exporter::trace::SpanData {
-    exporter::trace::SpanData {
+) -> sdk::export::trace::SpanData {
+    sdk::export::trace::SpanData {
         span_context,
         parent_span_id: data.parent_span_id,
         span_kind: data.span_kind,

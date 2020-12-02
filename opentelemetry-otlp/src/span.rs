@@ -29,6 +29,7 @@ use grpcio::{
 };
 
 #[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
+use opentelemetry::sdk::export::trace::{ExportResult, SpanData, SpanExporter};
 use protobuf::RepeatedField;
 
 use async_trait::async_trait;

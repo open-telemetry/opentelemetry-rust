@@ -1,5 +1,5 @@
 use hyper::{body::Body, Client};
-use opentelemetry::exporter::trace::stdout;
+use opentelemetry::sdk::export::trace::stdout;
 use opentelemetry::global;
 use opentelemetry::sdk::{
     propagation::TraceContextPropagator,
