@@ -15,7 +15,14 @@ join the meeting or get in touch on
 
 ### Prerequisites
 
-Crate `opentelemetry-otlp` uses gRPC. So you will need the following to build:
+Crate `opentelemetry-otlp` uses gRPC + Protocol Buffers.<br>
+You can provide the protocol compiler protoc path programmatically (only works with tonic) or build it from source
+
+```sh
+export PROTOC=$(which protoc)
+```
+
+Prerequisites to build the protocol compiler protoc from source
 
 - [protoc](https://github.com/protocolbuffers/protobuf)
 - [cmake](https://cmake.org)
