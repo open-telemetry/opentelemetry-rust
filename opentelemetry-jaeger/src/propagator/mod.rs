@@ -32,20 +32,20 @@ lazy_static::lazy_static! {
 ///
 ///  [`Jaeger documentation`]: https://www.jaegertracing.io/docs/1.18/client-libraries/#propagation-format
 #[derive(Clone, Debug)]
-pub struct JaegerPropagator {
+pub struct Propagator {
     _private: (),
 }
 
-impl Default for JaegerPropagator {
+impl Default for Propagator {
     fn default() -> Self {
-        JaegerPropagator { _private: () }
+        Propagator { _private: () }
     }
 }
 
-impl JaegerPropagator {
+impl Propagator {
     /// Create a Jaeger propagator
     pub fn new() -> Self {
-        JaegerPropagator::default()
+        Propagator::default()
     }
 
     /// Extract span context from header value
@@ -135,7 +135,7 @@ impl JaegerPropagator {
     }
 }
 
-impl TextMapPropagator for JaegerPropagator {
+impl TextMapPropagator for Propagator {
     fn inject_context(&self, cx: &Context, injector: &mut dyn Injector) {
         let span_context = cx.span().span_context();
         if span_context.is_valid() {
@@ -300,7 +300,7 @@ mod tests {
     #[test]
     fn test_extract_empty() {
         let map: HashMap<String, String> = HashMap::new();
-        let propagator = JaegerPropagator::new();
+        let propagator = Propagator::new();
         let context = propagator.extract(&map);
         assert_eq!(
             context.remote_span_context(),
@@ -316,7 +316,7 @@ mod tests {
                 JAEGER_HEADER,
                 format!("{}:{}:0:{}", trace_id, span_id, flag),
             );
-            let propagator = JaegerPropagator::new();
+            let propagator = Propagator::new();
             let context = propagator.extract(&map);
             assert_eq!(context.remote_span_context(), Some(&expected));
         }
@@ -329,7 +329,7 @@ mod tests {
             JAEGER_HEADER,
             format!("{}:{}:0:1:aa", LONG_TRACE_ID_STR, SPAN_ID_STR),
         );
-        let propagator = JaegerPropagator::new();
+        let propagator = Propagator::new();
         let context = propagator.extract(&map);
         assert_eq!(
             context.remote_span_context(),
@@ -344,7 +344,7 @@ mod tests {
             JAEGER_HEADER,
             format!("{}:{}:0:aa", LONG_TRACE_ID_STR, SPAN_ID_STR),
         );
-        let propagator = JaegerPropagator::new();
+        let propagator = Propagator::new();
         let context = propagator.extract(&map);
         assert_eq!(
             context.remote_span_context(),
@@ -359,7 +359,7 @@ mod tests {
             JAEGER_HEADER,
             format!("{}%3A{}%3A0%3A1", LONG_TRACE_ID_STR, SPAN_ID_STR),
         );
-        let propagator = JaegerPropagator::new();
+        let propagator = Propagator::new();
         let context = propagator.extract(&map);
         assert_eq!(
             context.remote_span_context(),
@@ -374,7 +374,7 @@ mod tests {
     }
     #[test]
     fn test_inject() {
-        let propagator = JaegerPropagator::new();
+        let propagator = Propagator::new();
         for (span_context, header_value) in get_inject_data() {
             let mut injector = HashMap::new();
             propagator.inject_context(

@@ -13,15 +13,7 @@
 //! This module also provides relative types for those propagators.
 #[cfg(feature = "aws-xray")]
 mod aws;
-#[cfg(feature = "zipkin")]
-mod b3;
 pub mod binary;
-#[cfg(feature = "jaeger")]
-mod jaeger;
 
 #[cfg(feature = "aws-xray")]
 pub use aws::XrayPropagator;
-#[cfg(feature = "zipkin")]
-pub use b3::{B3Encoding, B3Propagator};
-#[cfg(feature = "jaeger")]
-pub use jaeger::JaegerPropagator;

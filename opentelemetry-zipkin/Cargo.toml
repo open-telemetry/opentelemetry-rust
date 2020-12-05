@@ -39,3 +39,4 @@ thiserror = { version = "1.0"}
 
 [dev-dependencies]
 isahc = "=0.9.6"
+opentelemetry = { version = "0.10", default-features = false, features = ["trace", "testing"], path = "../opentelemetry" }

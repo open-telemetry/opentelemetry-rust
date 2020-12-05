@@ -23,7 +23,7 @@ struct WasmHttpClient {
 #[cfg(feature = "collector_client")]
 mod collector_client {
     use super::*;
-    use crate::thrift::jaeger;
+    use crate::exporter::thrift::jaeger;
     use http::{Request, Uri};
     use isahc::{
         auth::{Authentication, Credentials},
@@ -106,7 +106,7 @@ mod collector_client {
 #[cfg(all(feature = "wasm_collector_client", not(feature = "collector_client")))]
 mod wasm_collector_client {
     use super::*;
-    use crate::thrift::jaeger;
+    use crate::exporter::thrift::jaeger;
     use futures_util::future;
     use http::Uri;
     use js_sys::Uint8Array;

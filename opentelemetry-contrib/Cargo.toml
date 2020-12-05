@@ -26,8 +26,6 @@ datadog = ["indexmap", "rmp", "async-trait", "thiserror"]
 reqwest-blocking-client = ["reqwest/blocking", "opentelemetry/reqwest"]
 reqwest-client = ["reqwest", "opentelemetry/reqwest"]
 surf-client = ["surf", "opentelemetry/surf"]
-jaeger = []
-zipkin = []
 aws-xray = []
 
 [dependencies]
