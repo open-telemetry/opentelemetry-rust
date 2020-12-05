@@ -29,7 +29,6 @@ use grpcio::{
 };
 
 #[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
-use opentelemetry::sdk::export::trace::{ExportResult, SpanData, SpanExporter};
 use protobuf::RepeatedField;
 
 use async_trait::async_trait;
@@ -43,9 +42,8 @@ use std::fmt::Debug;
 #[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
 use std::sync::Arc;
 
+use opentelemetry::sdk::export::trace::{ExportResult, SpanData, SpanExporter};
 use std::time::Duration;
-
-use opentelemetry::exporter::trace::{ExportResult, SpanData, SpanExporter};
 
 /// Exporter that sends data in OTLP format.
 pub struct Exporter {
