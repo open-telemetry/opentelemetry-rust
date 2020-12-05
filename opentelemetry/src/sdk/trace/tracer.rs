@@ -73,11 +73,18 @@ impl Tracer {
         span_kind: &SpanKind,
         attributes: &[KeyValue],
         links: &[Link],
+        ctx: &Context,
     ) -> Option<(u8, Vec<KeyValue>, TraceState)> {
         let provider = self.provider()?;
         let sampler = &provider.config().default_sampler;
+
+        let ctx = parent_context.map(|span_context| {
+            let span = Span::new(span_context.clone(), None, self.clone());
+            ctx.with_span(span)
+        });
+
         let sampling_result =
-            sampler.should_sample(parent_context, trace_id, name, span_kind, attributes, links);
+            sampler.should_sample(ctx.as_ref(), trace_id, name, span_kind, attributes, links);
 
         self.process_sampling_result(sampling_result, parent_context)
     }
@@ -217,6 +224,7 @@ impl crate::trace::Tracer for Tracer {
                 &span_kind,
                 &attribute_options,
                 link_options.as_deref().unwrap_or(&[]),
+                cx,
             )
         } else {
             // has parent that is local: use parent if sampled, or don't record.
@@ -303,14 +311,19 @@ mod tests {
     impl ShouldSample for TestSampler {
         fn should_sample(
             &self,
-            parent_context: Option<&SpanContext>,
+            parent_context: Option<&Context>,
             _trace_id: TraceId,
             _name: &str,
             _span_kind: &SpanKind,
             _attributes: &[KeyValue],
             _links: &[Link],
         ) -> SamplingResult {
-            let trace_state = parent_context.unwrap().trace_state().clone();
+            let trace_state = parent_context
+                .unwrap()
+                .span()
+                .span_context()
+                .trace_state()
+                .clone();
             SamplingResult {
                 decision: SamplingDecision::RecordAndSample,
                 attributes: Vec::new(),
