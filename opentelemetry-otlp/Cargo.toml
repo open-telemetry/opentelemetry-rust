@@ -16,6 +16,9 @@ license = "Apache-2.0"
 edition = "2018"
 build = "build.rs"
 
+[lib]
+doctest = false
+
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
@@ -23,15 +26,24 @@ rustdoc-args = ["--cfg", "docsrs"]
 [dependencies]
 async-trait = "0.1"
 futures = "0.3"
-grpcio = "0.6"
+grpcio = { version = "0.7", optional = true }
 opentelemetry = { version = "0.10", default-features = false, features = ["trace"], path = "../opentelemetry" }
-protobuf = "2.18"
+prost = { version = "0.6", optional = true }
+protobuf = { version = "2.18", optional = true }
 thiserror = "1.0"
+tonic = { package = "tonic", version = "0.3", optional = true }
+tokio = { version = "0.2", features = ["full"], optional = true }
 
 [features]
+async = ["default"]
+default = ["tonic", "tonic-build", "prost", "tokio"]
+grpc-sys = ["grpcio", "protobuf", "protobuf-codegen", "protoc-grpcio"]
+tls = ["tonic/tls"]
+tls-roots = ["tls", "tonic/tls-roots"]
 openssl = ["grpcio/openssl"]
 openssl-vendored = ["grpcio/openssl-vendored"]
 
 [build-dependencies]
-protobuf-codegen = "2.16"
-protoc-grpcio = "2.0"
+protobuf-codegen = { version = "2.16", optional = true }
+protoc-grpcio = { version = "2.0", optional = true }
+tonic-build = { version = "0.3", optional = true }

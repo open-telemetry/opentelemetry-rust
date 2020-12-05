@@ -57,17 +57,33 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     Ok(())
 }
 ```
+
+## Options
+
+Multiple gRPC transport layers are available. [`tonic`](https://crates.io/crates/tonic) is the default gRPC transport 
+layer and is enabled by default. [`grpcio`](https://crates.io/crates/grpcio) is optional.
+
+| gRPC transport layer | [hyperium/tonic](https://github.com/hyperium/tonic) | [tikv/grpc-rs](https://github.com/tikv/grpc-rs) |
+|---|---|---|
+| Feature | --features=default | --features=grpc-sys |
+| gRPC library | [`tonic`](https://crates.io/crates/tonic) | [`grpcio`](https://crates.io/crates/grpcio) |
+| Transport | [hyperium/hyper](https://github.com/hyperium/hyper) (Rust) | [grpc/grpc](https://github.com/grpc/grpc) (C++ binding) |
+| TLS support | yes | yes |
+| TLS library | rustls | OpenSSL |
+| TLS optional | yes | yes |
+| Supported .proto generator | [`prost`](https://crates.io/crates/prost) | [`prost`](https://crates.io/crates/prost), [`protobuf`](https://crates.io/crates/protobuf) |
+
 ## Performance
 
 For optimal performance, a batch exporter is recommended as the simple
-exporter will export each span synchronously on drop. You can enable the
-[`tokio`] or [`async-std`] features to have a batch exporter configured for
-you automatically for either executor when you install the pipeline.
+exporter will export each span synchronously on drop. Enable a runtime
+to have a batch exporter configured automatically for either executor
+when using the pipeline.
 
 ```toml
 [dependencies]
-opentelemetry = { version = "*", features = ["tokio"] }
-opentelemetry-otlp = "*"
+opentelemetry = { version = "*", features = ["async-std"] }
+opentelemetry-otlp = { version = "*", features = ["grpc-sys"] }
 ```
 
 [`tokio`]: https://tokio.rs
@@ -83,25 +99,31 @@ Example showing how to override all configuration options. See the
 ```rust
 use opentelemetry::{KeyValue, Tracer};
 use opentelemetry::sdk::{trace, IdGenerator, Resource, Sampler};
-use opentelemetry_otlp::{Compression, Credentials, Protocol};
+use opentelemetry_otlp::{Protocol};
 use std::time::Duration;
+use tonic::{
+    metadata::*,
+    transport::{Certificate, ClientTlsConfig},
+};
 
 fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let headers = vec![("X-Custom".to_string(), "Custom-Value".to_string())]
-        .into_iter()
-        .collect();
+    let cert = std::fs::read_to_string("ca.pem")?;
+
+    let mut map = MetadataMap::with_capacity(3);
+
+    map.insert("x-host", "example.com".parse().unwrap());
+    map.insert("x-number", "123".parse().unwrap());
+    map.insert_bin("trace-proto-bin", MetadataValue::from_bytes(b"[binary data]"));
 
     let (tracer, _uninstall) = opentelemetry_otlp::new_pipeline()
         .with_endpoint("localhost:55680")
         .with_protocol(Protocol::Grpc)
-        .with_headers(headers)
-        .with_compression(Compression::Gzip)
+        .with_metadata(map)
         .with_timeout(Duration::from_secs(3))
-        .with_completion_queue_count(2)
-        .with_credentials(Credentials {
-            cert: "tls.cert".to_string(),
-            key: "tls.key".to_string(),
-        })
+        .with_tls_config(ClientTlsConfig::new()
+            .ca_certificate(Certificate::from_pem(&cert))
+            .domain_name("example.com".to_string())
+        )
         .with_trace_config(
             trace::config()
                 .with_default_sampler(Sampler::AlwaysOn)
@@ -120,16 +142,3 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     Ok(())
 }
 ```
-
-## Feature flags
-
-By default `opentelemetry-otlp` uses `boringssl` for grpc crypto. You can switch
-this to use `openssl` by enabling the `openssl` feature:
-
-```toml
-[dependencies]
-opentelemetry-otlp = { version = "*", features = ["openssl"] }
-```
-
-If you would like to use a vendored `openssl` version, use the `openssl-vendored` feature.
-For more info, see https://github.com/tikv/grpc-rs#feature-openssl-and-openssl-vendored.
