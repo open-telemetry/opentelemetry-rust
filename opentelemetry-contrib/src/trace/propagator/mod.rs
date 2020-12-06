@@ -7,8 +7,6 @@
 //!
 //! * `binary_propagator`, propagating trace context in the binary format.
 //! * `XrayPropagator`, propagating via AWS XRay protocol.
-//! * `B3Propagator`, propagating via B3 protocol and headers.
-//! * `JaegerPropagator`, propagating via Jaeger protocol and headers.
 //!
 //! This module also provides relative types for those propagators.
 #[cfg(feature = "aws-xray")]
