@@ -72,8 +72,8 @@
 //! ```no_run
 //! use opentelemetry::{KeyValue, trace::Tracer};
 //! use opentelemetry::sdk::{trace::{self, IdGenerator, Sampler}, Resource};
-//! use opentelemetry::exporter::trace::ExportResult;
-//! use opentelemetry::exporter::trace::HttpClient;
+//! use opentelemetry::sdk::export::trace::ExportResult;
+//! use opentelemetry::sdk::export::trace::HttpClient;
 //! use opentelemetry_contrib::trace::exporter::datadog::{new_pipeline, ApiVersion};
 //! use async_trait::async_trait;
 //! use opentelemetry_contrib::trace::exporter::datadog::Error;
@@ -127,8 +127,8 @@ pub use model::Error;
 
 use async_trait::async_trait;
 use http::{Method, Request, Uri};
-use opentelemetry::exporter::trace;
-use opentelemetry::exporter::trace::{HttpClient, SpanData};
+use opentelemetry::sdk::export::trace;
+use opentelemetry::sdk::export::trace::{HttpClient, SpanData};
 use opentelemetry::trace::TraceError;
 use opentelemetry::{global, sdk, trace::TracerProvider};
 

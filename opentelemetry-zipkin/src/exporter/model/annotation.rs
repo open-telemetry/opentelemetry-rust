@@ -13,7 +13,7 @@ pub struct Annotation {
 
 #[cfg(test)]
 mod tests {
-    use crate::model::annotation::Annotation;
+    use crate::exporter::model::annotation::Annotation;
 
     #[test]
     fn test_empty() {

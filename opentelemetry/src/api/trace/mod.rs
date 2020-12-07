@@ -139,7 +139,7 @@ pub use self::{
     },
     tracer::{SpanBuilder, Tracer},
 };
-use crate::exporter::ExportError;
+use crate::sdk::export::ExportError;
 use std::time;
 
 /// Describe the result of operations in tracing API.

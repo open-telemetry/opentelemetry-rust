@@ -38,7 +38,7 @@ impl Endpoint {
 
 #[cfg(test)]
 mod tests {
-    use crate::model::endpoint::Endpoint;
+    use crate::exporter::model::endpoint::Endpoint;
     use std::net::Ipv4Addr;
 
     #[test]

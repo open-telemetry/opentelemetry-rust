@@ -13,7 +13,7 @@
 //!
 //! If `inject_encoding` is set to `B3Encoding::SingleHeader` then `b3` header is used to inject
 //! and extract. Otherwise, separate headers are used to inject and extract.
-use crate::{
+use opentelemetry::{
     propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
     trace::{
         SpanContext, SpanId, TraceContextExt, TraceId, TraceState, TRACE_FLAG_DEBUG,
@@ -65,27 +65,27 @@ impl B3Encoding {
 
 /// Extracts and injects `SpanContext`s into `Extractor`s or `Injector`s using B3 header format.
 #[derive(Clone, Debug)]
-pub struct B3Propagator {
+pub struct Propagator {
     inject_encoding: B3Encoding,
 }
 
-impl Default for B3Propagator {
+impl Default for Propagator {
     fn default() -> Self {
-        B3Propagator {
+        Propagator {
             inject_encoding: B3Encoding::MultipleHeader,
         }
     }
 }
 
-impl B3Propagator {
+impl Propagator {
     /// Create a new `HttpB3Propagator` that uses multiple headers.
     pub fn new() -> Self {
-        B3Propagator::default()
+        Propagator::default()
     }
 
     /// Create a new `HttpB3Propagator` that uses `encoding` as encoding method
     pub fn with_encoding(encoding: B3Encoding) -> Self {
-        B3Propagator {
+        Propagator {
             inject_encoding: encoding,
         }
     }
@@ -207,7 +207,7 @@ impl B3Propagator {
     }
 }
 
-impl TextMapPropagator for B3Propagator {
+impl TextMapPropagator for Propagator {
     /// Properly encodes the values of the `Context`'s `SpanContext` and injects
     /// them into the `Injector`.
     fn inject_context(&self, context: &Context, injector: &mut dyn Injector) {
@@ -302,9 +302,9 @@ impl TextMapPropagator for B3Propagator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::testing::trace::TestSpan;
-    use crate::{
+    use opentelemetry::{
         propagation::TextMapPropagator,
+        testing::trace::TestSpan,
         trace::{
             SpanContext, SpanId, TraceId, TRACE_FLAG_DEBUG, TRACE_FLAG_DEFERRED,
             TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
@@ -466,10 +466,10 @@ mod tests {
 
     #[test]
     fn extract_b3() {
-        let single_header_propagator = B3Propagator::with_encoding(B3Encoding::SingleHeader);
-        let multi_header_propagator = B3Propagator::with_encoding(B3Encoding::MultipleHeader);
-        let single_multi_propagator = B3Propagator::with_encoding(B3Encoding::SingleAndMultiHeader);
-        let unspecific_header_propagator = B3Propagator::with_encoding(B3Encoding::UnSpecified);
+        let single_header_propagator = Propagator::with_encoding(B3Encoding::SingleHeader);
+        let multi_header_propagator = Propagator::with_encoding(B3Encoding::MultipleHeader);
+        let single_multi_propagator = Propagator::with_encoding(B3Encoding::SingleAndMultiHeader);
+        let unspecific_header_propagator = Propagator::with_encoding(B3Encoding::UnSpecified);
 
         for (header, expected_context) in single_header_extract_data() {
             let mut extractor: HashMap<String, String> = HashMap::new();
@@ -552,11 +552,11 @@ mod tests {
 
     #[test]
     fn inject_b3() {
-        let single_header_propagator = B3Propagator::with_encoding(B3Encoding::SingleHeader);
-        let multi_header_propagator = B3Propagator::with_encoding(B3Encoding::MultipleHeader);
+        let single_header_propagator = Propagator::with_encoding(B3Encoding::SingleHeader);
+        let multi_header_propagator = Propagator::with_encoding(B3Encoding::MultipleHeader);
         let single_multi_header_propagator =
-            B3Propagator::with_encoding(B3Encoding::SingleAndMultiHeader);
-        let unspecified_header_propagator = B3Propagator::with_encoding(B3Encoding::UnSpecified);
+            Propagator::with_encoding(B3Encoding::SingleAndMultiHeader);
+        let unspecified_header_propagator = Propagator::with_encoding(B3Encoding::UnSpecified);
 
         for (expected_header, context) in single_header_inject_data() {
             let mut injector = HashMap::new();
@@ -645,10 +645,10 @@ mod tests {
 
     #[test]
     fn test_get_fields() {
-        let single_header_propagator = B3Propagator::with_encoding(B3Encoding::SingleHeader);
-        let multi_header_propagator = B3Propagator::with_encoding(B3Encoding::MultipleHeader);
+        let single_header_propagator = Propagator::with_encoding(B3Encoding::SingleHeader);
+        let multi_header_propagator = Propagator::with_encoding(B3Encoding::MultipleHeader);
         let single_multi_header_propagator =
-            B3Propagator::with_encoding(B3Encoding::SingleAndMultiHeader);
+            Propagator::with_encoding(B3Encoding::SingleAndMultiHeader);
 
         assert_eq!(
             single_header_propagator.fields().collect::<Vec<&str>>(),

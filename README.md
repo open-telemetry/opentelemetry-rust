@@ -33,7 +33,7 @@ observability tools.
 ## Getting Started
 
 ```rust
-use opentelemetry::{exporter::trace::stdout, trace::Tracer};
+use opentelemetry::{sdk::export::trace::stdout, trace::Tracer};
 
 fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     // Create a new instrumentation pipeline

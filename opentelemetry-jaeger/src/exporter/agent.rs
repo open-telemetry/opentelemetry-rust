@@ -1,9 +1,9 @@
 //! # UDP Jaeger Agent Client
-use crate::thrift::{
+use crate::exporter::thrift::{
     agent::{self, TAgentSyncClient},
     jaeger,
 };
-use crate::transport::{TBufferChannel, TNoopChannel};
+use crate::exporter::transport::{TBufferChannel, TNoopChannel};
 use std::fmt;
 use std::net::{ToSocketAddrs, UdpSocket};
 use thrift::{

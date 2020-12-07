@@ -1,11 +1,12 @@
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Request, Response, Server};
 use opentelemetry::{
-    exporter::trace::stdout,
     global,
-    sdk::{propagation::XrayPropagator, trace as sdktrace},
+    sdk::export::trace::stdout,
+    sdk::trace as sdktrace,
     trace::{Span, Tracer},
 };
+use opentelemetry_contrib::trace::propagator::XrayPropagator;
 use std::{convert::Infallible, net::SocketAddr};
 
 async fn handle(req: Request<Body>) -> Result<Response<Body>, Infallible> {

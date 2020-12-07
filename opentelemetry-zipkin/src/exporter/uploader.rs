@@ -1,8 +1,8 @@
 //! # Zipkin Span Exporter
-use crate::model::span::Span;
-use crate::Error;
+use crate::exporter::model::span::Span;
+use crate::exporter::Error;
 use http::{header::CONTENT_TYPE, Method, Request, Uri};
-use opentelemetry::exporter::trace::{ExportResult, HttpClient};
+use opentelemetry::sdk::export::trace::{ExportResult, HttpClient};
 use std::fmt::Debug;
 
 #[derive(Debug)]

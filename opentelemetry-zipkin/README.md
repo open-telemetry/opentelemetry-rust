@@ -43,8 +43,10 @@ telemetry:
 
 ```rust
 use opentelemetry::trace::Tracer;
+use opentelemetry::global;
 
 fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    global::set_text_map_propagator(opentelemetry_zipkin::Propagator::new());
     let (tracer, _uninstall) = opentelemetry_zipkin::new_pipeline().install()?;
 
     tracer.in_span("doing_work", |cx| {
@@ -97,7 +99,8 @@ Example showing how to override all configuration options. See the
 ```rust
 use opentelemetry::{KeyValue, trace::Tracer};
 use opentelemetry::sdk::{trace::{self, IdGenerator, Sampler}, Resource};
-use opentelemetry::exporter::trace::{ExportResult, HttpClient};
+use opentelemetry::sdk::export::trace::{ExportResult, HttpClient};
+use opentelemetry::global;
 use async_trait::async_trait;
 use std::error::Error;
 
@@ -121,6 +124,7 @@ impl HttpClient for IsahcClient {
 }
 
 fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
+    global::set_text_map_propagator(opentelemetry_zipkin::Propagator::new());
     let (tracer, _uninstall) = opentelemetry_zipkin::new_pipeline()
         .with_http_client(IsahcClient(isahc::HttpClient::new()?))
         .with_service_name("my_app")

@@ -1,8 +1,8 @@
 //! # Jaeger Span Uploader
 #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
-use crate::collector;
-use crate::{agent, jaeger};
-use opentelemetry::exporter::trace;
+use crate::exporter::collector;
+use crate::exporter::{agent, jaeger};
+use opentelemetry::sdk::export::trace;
 
 /// Uploads a batch of spans to Jaeger
 #[derive(Debug)]

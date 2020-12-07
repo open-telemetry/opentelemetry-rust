@@ -4,7 +4,7 @@
 
 # OpenTelemetry Jaeger
 
-[`Jaeger`] integration for applications instrumented with [`OpenTelemetry`].
+[`Jaeger`] integration for applications instrumented with [`OpenTelemetry`]. This includes a jaeger exporter and a jaeger propagator.
 
 [![Crates.io: opentelemetry-jaeger](https://img.shields.io/crates/v/opentelemetry-jaeger.svg)](https://crates.io/crates/opentelemetry-jaeger)
 [![Documentation](https://docs.rs/opentelemetry-jaeger/badge.svg)](https://docs.rs/opentelemetry-jaeger)
@@ -43,8 +43,10 @@ exporting telemetry:
 
 ```rust
 use opentelemetry::tracer;
+use opentelemetry::global;
 
 fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    global::set_text_map_propagator(opentelemetry_jaeger::Propagator::new());
     let (tracer, _uninstall) = opentelemetry_jaeger::new_pipeline().install()?;
 
     tracer.in_span("doing_work", |cx| {
@@ -84,8 +86,10 @@ in the [jaeger variables spec].
 
 ```rust
 use opentelemetry::tracer;
+use opentelemetry::global;
 
 fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    global::set_text_map_propagator(opentelemetry_jaeger::Propagator::new());
     // export OTEL_SERVICE_NAME=my-service-name
     let (tracer, _uninstall) = opentelemetry_jaeger::new_pipeline().from_env().install()?;
 
@@ -142,8 +146,10 @@ Example showing how to override all configuration options. See the
 ```rust
 use opentelemetry::{KeyValue, Tracer};
 use opentelemetry::sdk::{trace, IdGenerator, Resource, Sampler};
+use opentelemetry::global;
 
 fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    global::set_text_map_propagator(opentelemetry_jaeger::Propagator::new());
     let (tracer, _uninstall) = opentelemetry_jaeger::new_pipeline()
         .from_env()
         .with_agent_endpoint("localhost:6831")

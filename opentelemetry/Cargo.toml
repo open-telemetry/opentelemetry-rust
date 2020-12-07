@@ -53,6 +53,7 @@ default = ["trace"]
 trace = ["rand", "pin-project", "async-trait", "regex", "percent-encoding", "thiserror"]
 metrics = ["thiserror", "dashmap", "fnv"]
 serialize = ["serde", "bincode"]
+testing = ["trace", "metrics", "tokio/full" ]
 
 [[bench]]
 name = "trace"

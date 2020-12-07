@@ -12,7 +12,7 @@
 //!
 //! ```no_run
 //! use opentelemetry::trace::Tracer;
-//! use opentelemetry::exporter::trace::stdout;
+//! use opentelemetry::sdk::export::trace::stdout;
 //!
 //! fn main() {
 //!     let (tracer, _uninstall) = stdout::new_pipeline()
@@ -25,11 +25,11 @@
 //! }
 //! ```
 use crate::{
-    exporter::{
+    global, sdk,
+    sdk::export::{
         trace::{ExportResult, SpanData, SpanExporter},
         ExportError,
     },
-    global, sdk,
     trace::TracerProvider,
 };
 use async_trait::async_trait;

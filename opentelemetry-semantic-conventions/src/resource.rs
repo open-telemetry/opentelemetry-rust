@@ -12,7 +12,7 @@
 //! use opentelemetry_semantic_conventions as semcov;
 //! use std::sync::Arc;
 //!
-//! let _tracer = opentelemetry::exporter::trace::stdout::new_pipeline()
+//! let _tracer = opentelemetry::sdk::export::trace::stdout::new_pipeline()
 //!     .with_trace_config(sdk::trace::Config {
 //!         resource: Arc::new(sdk::Resource::new(vec![
 //!             semcov::resource::SERVICE_NAME.string("my-service"),

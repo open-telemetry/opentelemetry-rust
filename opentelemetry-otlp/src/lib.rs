@@ -148,7 +148,7 @@ pub use crate::span::{Exporter, ExporterConfig, Protocol};
 #[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
 pub use crate::span::{Compression, Credentials};
 
-use opentelemetry::exporter::ExportError;
+use opentelemetry::sdk::export::ExportError;
 use opentelemetry::trace::TraceError;
 
 /// Create a new pipeline builder with the recommended configuration.

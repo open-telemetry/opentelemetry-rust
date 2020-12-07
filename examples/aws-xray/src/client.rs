@@ -1,11 +1,12 @@
 use hyper::{body::Body, Client};
 use opentelemetry::{
-    exporter::trace::stdout,
     global,
-    sdk::{propagation::XrayPropagator, trace as sdktrace},
+    sdk::export::trace::stdout,
+    sdk::trace as sdktrace,
     trace::{TraceContextExt, Tracer},
     Context, KeyValue,
 };
+use opentelemetry_contrib::trace::propagator::XrayPropagator;
 
 fn init_tracer() -> (sdktrace::Tracer, stdout::Uninstall) {
     global::set_text_map_propagator(XrayPropagator::new());

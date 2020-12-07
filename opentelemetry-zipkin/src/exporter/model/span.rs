@@ -1,4 +1,4 @@
-use crate::model::{annotation::Annotation, endpoint::Endpoint};
+use crate::exporter::model::{annotation::Annotation, endpoint::Endpoint};
 use serde::Serialize;
 use std::collections::HashMap;
 
@@ -55,9 +55,9 @@ pub(crate) struct Span {
 
 #[cfg(test)]
 mod tests {
-    use crate::model::annotation::Annotation;
-    use crate::model::endpoint::Endpoint;
-    use crate::model::span::{Kind, Span};
+    use crate::exporter::model::annotation::Annotation;
+    use crate::exporter::model::endpoint::Endpoint;
+    use crate::exporter::model::span::{Kind, Span};
     use std::collections::HashMap;
     use std::net::Ipv4Addr;
 

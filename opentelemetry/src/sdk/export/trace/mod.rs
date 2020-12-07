@@ -1,7 +1,7 @@
 //! Trace exporters
 use crate::api::trace::TraceError;
 #[cfg(feature = "http")]
-use crate::exporter::ExportError;
+use crate::sdk::export::ExportError;
 use crate::{
     sdk,
     trace::{Event, Link, SpanContext, SpanId, SpanKind, StatusCode},
