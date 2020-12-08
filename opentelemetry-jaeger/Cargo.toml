@@ -54,7 +54,7 @@ optional = true
 
 [features]
 default = []
-collector_client = ["isahc", "http"]
+collector_client = ["http", "opentelemetry/http"]
 wasm_collector_client = [
     "base64",
     "futures-util",

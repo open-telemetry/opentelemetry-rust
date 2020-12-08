@@ -15,6 +15,15 @@ use agent::AgentAsyncClientUDP;
 use async_trait::async_trait;
 #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
 use collector::CollectorAsyncClientHttp;
+#[cfg(all(feature = "collector_client", feature = "isahc"))]
+use http::Request;
+#[cfg(feature = "isahc")]
+use isahc::{
+    auth::{Authentication, Credentials},
+    prelude::Configurable,
+};
+#[cfg(all(feature = "collector_client", feature = "isahc"))]
+use opentelemetry::sdk::export::trace::ExportResult;
 use opentelemetry::sdk::export::ExportError;
 use opentelemetry::trace::TraceError;
 use opentelemetry::{
@@ -28,6 +37,8 @@ use std::{
     time::{Duration, SystemTime},
 };
 use uploader::BatchUploader;
+#[cfg(feature = "collector_client")]
+use opentelemetry::sdk::export::trace::HttpClient;
 
 /// Default service name if no service is configured.
 const DEFAULT_SERVICE_NAME: &str = "OpenTelemetry";
@@ -117,6 +128,8 @@ pub struct PipelineBuilder {
     collector_username: Option<String>,
     #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
     collector_password: Option<String>,
+    #[cfg(feature = "collector_client")]
+    client: Option<Box<dyn opentelemetry::sdk::export::trace::HttpClient>>,
     export_instrument_library: bool,
     process: Process,
     config: Option<sdk::trace::Config>,
@@ -133,6 +146,8 @@ impl Default for PipelineBuilder {
             collector_username: None,
             #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
             collector_password: None,
+            #[cfg(feature = "collector_client")]
+            client: None,
             export_instrument_library: true,
             process: Process {
                 service_name: DEFAULT_SERVICE_NAME.to_string(),
@@ -179,12 +194,12 @@ impl PipelineBuilder {
     /// E.g. "http://localhost:14268/api/traces"
     #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
     #[cfg_attr(
-        docsrs,
-        doc(cfg(any(feature = "collector_client", feature = "wasm_collector_client")))
+    docsrs,
+    doc(cfg(any(feature = "collector_client", feature = "wasm_collector_client")))
     )]
     pub fn with_collector_endpoint<T>(self, collector_endpoint: T) -> Self
-    where
-        http::Uri: core::convert::TryFrom<T>,
+        where
+            http::Uri: core::convert::TryFrom<T>,
     {
         PipelineBuilder {
             collector_endpoint: core::convert::TryFrom::try_from(collector_endpoint).ok(),
@@ -195,8 +210,8 @@ impl PipelineBuilder {
     /// Assign the collector username
     #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
     #[cfg_attr(
-        docsrs,
-        doc(any(feature = "collector_client", feature = "wasm_collector_client"))
+    docsrs,
+    doc(any(feature = "collector_client", feature = "wasm_collector_client"))
     )]
     pub fn with_collector_username<S: Into<String>>(self, collector_username: S) -> Self {
         PipelineBuilder {
@@ -208,8 +223,8 @@ impl PipelineBuilder {
     /// Assign the collector password
     #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
     #[cfg_attr(
-        docsrs,
-        doc(any(feature = "collector_client", feature = "wasm_collector_client"))
+    docsrs,
+    doc(any(feature = "collector_client", feature = "wasm_collector_client"))
     )]
     pub fn with_collector_password<S: Into<String>>(self, collector_password: S) -> Self {
         PipelineBuilder {
@@ -225,7 +240,7 @@ impl PipelineBuilder {
     }
 
     /// Assign the process service tags.
-    pub fn with_tags<T: IntoIterator<Item = KeyValue>>(mut self, tags: T) -> Self {
+    pub fn with_tags<T: IntoIterator<Item=KeyValue>>(mut self, tags: T) -> Self {
         self.process.tags = tags.into_iter().collect();
         self
     }
@@ -236,6 +251,13 @@ impl PipelineBuilder {
             config: Some(config),
             ..self
         }
+    }
+
+    /// Assign the http client to use
+    #[cfg(feature = "collector_client")]
+    pub fn with_http_client<T: HttpClient + 'static>(mut self, client: T) -> Self {
+        self.client = Some(Box::new(client));
+        self
     }
 
     /// Install a Jaeger pipeline with the recommended defaults.
@@ -284,7 +306,43 @@ impl PipelineBuilder {
         Ok((self.process, BatchUploader::Agent(agent)))
     }
 
-    #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
+    #[cfg(feature = "collector_client")]
+    fn init_uploader(self) -> Result<(Process, uploader::BatchUploader), TraceError> {
+        if let Some(collector_endpoint) = self.collector_endpoint {
+            #[cfg(all(feature = "isahc"))]
+                let client = {
+                let mut builder = isahc::HttpClient::builder();
+                if let (Some(username), Some(password)) =
+                (self.collector_username, self.collector_password)
+                {
+                    builder = builder
+                        .authentication(Authentication::basic())
+                        .credentials(Credentials::new(username, password));
+                }
+
+                Box::new(IsahcHttpClient(builder.build().map_err(|err| {
+                    crate::Error::ThriftAgentError(::thrift::Error::from(std::io::Error::new(
+                        std::io::ErrorKind::Other,
+                        err.to_string(),
+                    )))
+                })?))
+            };
+            #[cfg(not(feature = "isahc"))]
+                let client = match self.client {
+                Some(client) => Ok(client),
+                None => Err(crate::Error::NoHttpClient)
+            }?;
+            let collector = CollectorAsyncClientHttp::new(collector_endpoint, client)
+                .map_err::<Error, _>(Into::into)?;
+            Ok((self.process, uploader::BatchUploader::Collector(collector)))
+        } else {
+            let endpoint = self.agent_endpoint.as_slice();
+            let agent = AgentAsyncClientUDP::new(endpoint).map_err::<Error, _>(Into::into)?;
+            Ok((self.process, BatchUploader::Agent(agent)))
+        }
+    }
+
+    #[cfg(all(feature = "wasm_collector_client", not(feature = "collector_client")))]
     fn init_uploader(self) -> Result<(Process, uploader::BatchUploader), TraceError> {
         if let Some(collector_endpoint) = self.collector_endpoint {
             let collector = CollectorAsyncClientHttp::new(
@@ -292,13 +350,48 @@ impl PipelineBuilder {
                 self.collector_username,
                 self.collector_password,
             )
-            .map_err::<Error, _>(Into::into)?;
+                .map_err::<Error, _>(Into::into)?;
             Ok((self.process, uploader::BatchUploader::Collector(collector)))
         } else {
             let endpoint = self.agent_endpoint.as_slice();
             let agent = AgentAsyncClientUDP::new(endpoint).map_err::<Error, _>(Into::into)?;
             Ok((self.process, BatchUploader::Agent(agent)))
         }
+    }
+}
+
+#[derive(Debug)]
+#[cfg(all(feature = "collector_client", feature = "isahc"))]
+struct IsahcHttpClient(isahc::HttpClient);
+
+#[async_trait]
+#[cfg(all(feature = "collector_client", feature = "isahc"))]
+impl opentelemetry::sdk::export::trace::HttpClient for IsahcHttpClient {
+    async fn send(&self, request: Request<Vec<u8>>) -> ExportResult {
+        let res = self
+            .0
+            .send_async(request)
+            .await
+            .map_err::<crate::Error, _>(|err| {
+                ::thrift::Error::from(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    err.to_string(),
+                ))
+                    .into()
+            })
+            .map_err::<TraceError, _>(TraceError::from)?;
+
+        if !res.status().is_success() {
+            return Err(crate::Error::ThriftAgentError(::thrift::Error::from(
+                std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    format!("Expected success response, got {:?}", res.status()),
+                ),
+            ))
+                .into());
+        }
+
+        Ok(())
     }
 }
 
@@ -413,7 +506,7 @@ fn convert_otel_span_into_jaeger_span(
 
 fn build_process_tags(
     span_data: &trace::SpanData,
-) -> Option<impl Iterator<Item = jaeger::Tag> + '_> {
+) -> Option<impl Iterator<Item=jaeger::Tag> + '_> {
     if span_data.resource.is_empty() {
         None
     } else {
@@ -510,6 +603,11 @@ pub enum Error {
     /// Error from thrift agents.
     #[error("thrift agent failed with {0}")]
     ThriftAgentError(#[from] ::thrift::Error),
+    /// No http client provided.
+    #[cfg(feature = "collector_client")]
+    #[error("No http client provided. Please enable isahc feature to use a default isahc http \
+    client implementation, or use set_http_client method to provide one")]
+    NoHttpClient,
 }
 
 impl ExportError for Error {

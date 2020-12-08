@@ -1,5 +1,7 @@
 //! # HTTP Jaeger Collector Client
 use http::Uri;
+#[cfg(feature = "collector_client")]
+use opentelemetry::sdk::export::trace::HttpClient;
 use std::sync::atomic::AtomicUsize;
 
 /// `CollectorAsyncClientHttp` implements an async version of the
@@ -8,7 +10,7 @@ use std::sync::atomic::AtomicUsize;
 pub(crate) struct CollectorAsyncClientHttp {
     endpoint: Uri,
     #[cfg(feature = "collector_client")]
-    client: isahc::HttpClient,
+    client: Box<dyn HttpClient>,
     #[cfg(all(feature = "wasm_collector_client", not(feature = "collector_client")))]
     client: WasmHttpClient,
     payload_size_estimate: AtomicUsize,
@@ -24,13 +26,8 @@ struct WasmHttpClient {
 mod collector_client {
     use super::*;
     use crate::exporter::thrift::jaeger;
-    use http::{Request, Uri};
-    use isahc::{
-        auth::{Authentication, Credentials},
-        config::Configurable,
-        HttpClient,
-    };
-    use std::io::{self, Cursor};
+    use opentelemetry::sdk::export::trace::ExportResult;
+    use std::io::Cursor;
     use std::sync::atomic::{AtomicUsize, Ordering};
     use thrift::protocol::TBinaryOutputProtocol;
 
@@ -38,18 +35,8 @@ mod collector_client {
         /// Create a new HTTP collector client
         pub(crate) fn new(
             endpoint: Uri,
-            username: Option<String>,
-            password: Option<String>,
+            client: Box<dyn HttpClient>,
         ) -> thrift::Result<Self> {
-            let mut builder = HttpClient::builder();
-            if let (Some(username), Some(password)) = (username, password) {
-                builder = builder
-                    .authentication(Authentication::basic())
-                    .credentials(Credentials::new(username, password));
-            }
-            let client = builder
-                .build()
-                .map_err(|err| io::Error::new(io::ErrorKind::Other, err.to_string()))?;
             let payload_size_estimate = AtomicUsize::new(512);
 
             Ok(CollectorAsyncClientHttp {
@@ -60,45 +47,31 @@ mod collector_client {
         }
 
         /// Submit list of Jaeger batches
-        pub(crate) async fn submit_batch(
-            &self,
-            batch: jaeger::Batch,
-        ) -> thrift::Result<jaeger::BatchSubmitResponse> {
+        pub(crate) async fn submit_batch(&self, batch: jaeger::Batch) -> ExportResult {
             // estimate transport capacity based on last request
             let estimate = self.payload_size_estimate.load(Ordering::Relaxed);
 
             // Write payload to transport buffer
             let transport = Cursor::new(Vec::with_capacity(estimate));
             let mut protocol = TBinaryOutputProtocol::new(transport, true);
-            batch.write_to_out_protocol(&mut protocol)?;
+            batch
+                .write_to_out_protocol(&mut protocol)
+                .map_err(crate::Error::from)?;
 
             // Use current batch capacity as new estimate
             self.payload_size_estimate
                 .store(protocol.transport.get_ref().len(), Ordering::Relaxed);
 
             // Build collector request
-            let req = Request::builder()
-                .method("POST")
+            let req = http::Request::builder()
+                .method(http::Method::POST)
                 .uri(&self.endpoint)
                 .header("Content-Type", "application/vnd.apache.thrift.binary")
                 .body(protocol.transport.into_inner())
                 .expect("request should always be valid");
 
             // Send request to collector
-            let res = self
-                .client
-                .send_async(req)
-                .await
-                .map_err(|err| io::Error::new(io::ErrorKind::Other, err.to_string()))?;
-
-            if !res.status().is_success() {
-                return Err(thrift::Error::from(io::Error::new(
-                    io::ErrorKind::Other,
-                    format!("Expected success response, got {:?}", res.status()),
-                )));
-            }
-
-            Ok(jaeger::BatchSubmitResponse { ok: true })
+            self.client.send(req).await
         }
     }
 }
@@ -149,7 +122,7 @@ mod wasm_collector_client {
         pub(crate) fn submit_batch(
             &self,
             batch: jaeger::Batch,
-        ) -> impl Future<Output = thrift::Result<jaeger::BatchSubmitResponse>> + Send + 'static
+        ) -> impl Future<Output=thrift::Result<jaeger::BatchSubmitResponse>> + Send + 'static
         {
             self.build_request(batch)
                 .map(post_request)
