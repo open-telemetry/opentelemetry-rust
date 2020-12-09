@@ -254,7 +254,7 @@ impl PipelineBuilder {
     }
 
     /// Assign the http client to use
-    #[cfg(feature = "collector_client")]
+    #[cfg(all(feature = "collector_client", not(feature = "isahc")))]
     pub fn with_http_client<T: HttpClient + 'static>(mut self, client: T) -> Self {
         self.client = Some(Box::new(client));
         self
@@ -613,5 +613,52 @@ pub enum Error {
 impl ExportError for Error {
     fn exporter_name(&self) -> &'static str {
         "jaeger"
+    }
+}
+
+
+#[cfg(test)]
+#[cfg(feature = "collector_client")]
+mod tests {
+    use crate::new_pipeline;
+    use opentelemetry::trace::TraceError;
+    use crate::exporter::thrift::jaeger::Batch;
+
+    mod test_http_client {
+        use opentelemetry::sdk::export::trace::{HttpClient, ExportResult};
+        use opentelemetry::trace::TraceError;
+        use http::Request;
+        use std::fmt::Debug;
+        use async_trait::async_trait;
+
+        pub(crate) struct TestHttpClient;
+
+        impl Debug for TestHttpClient {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                f.write_str("test http client")
+            }
+        }
+
+        #[async_trait]
+        impl HttpClient for TestHttpClient {
+            async fn send(&self, _request: Request<Vec<u8>>) -> ExportResult {
+                Err(TraceError::from("wrong uri set in http client"))
+            }
+        }
+    }
+
+
+    #[test]
+    fn test_bring_your_own_client() -> Result<(), TraceError> {
+        let (process, mut uploader) = new_pipeline()
+            .with_collector_endpoint("localhost:6831")
+            .with_http_client(test_http_client::TestHttpClient)
+            .init_uploader()?;
+        let res = futures::executor::block_on(async {
+            uploader.upload(Batch::new(process.into(), Vec::new())).await
+        });
+        assert_eq!(format!("{:?}", res.err().unwrap()), "Other(Custom(\"wrong uri set in http client\"))");
+
+        Ok(())
     }
 }
