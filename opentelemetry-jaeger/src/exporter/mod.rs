@@ -685,8 +685,10 @@ pub enum Error {
     /// No http client provided.
     #[cfg(feature = "collector_client")]
     #[error(
-        "No http client provided. Please enable isahc feature to use a default isahc http \
-    client implementation, or use set_http_client method to provide one"
+        "No http client provided. Consider enable one of the `surf_collector_client`, \
+        `reqwest_collector_client`, `reqwest_blocking_collector_client`, `isahc_collector_client` \
+        feature to have a default implementation. Or use with_http_client method in pipeline to \
+        provide your own implementation."
     )]
     NoHttpClient,
     /// reqwest client errors
