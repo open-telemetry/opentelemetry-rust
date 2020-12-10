@@ -33,10 +33,7 @@ mod collector_client {
 
     impl CollectorAsyncClientHttp {
         /// Create a new HTTP collector client
-        pub(crate) fn new(
-            endpoint: Uri,
-            client: Box<dyn HttpClient>,
-        ) -> thrift::Result<Self> {
+        pub(crate) fn new(endpoint: Uri, client: Box<dyn HttpClient>) -> thrift::Result<Self> {
             let payload_size_estimate = AtomicUsize::new(512);
 
             Ok(CollectorAsyncClientHttp {
@@ -122,7 +119,7 @@ mod wasm_collector_client {
         pub(crate) fn submit_batch(
             &self,
             batch: jaeger::Batch,
-        ) -> impl Future<Output=thrift::Result<jaeger::BatchSubmitResponse>> + Send + 'static
+        ) -> impl Future<Output = thrift::Result<jaeger::BatchSubmitResponse>> + Send + 'static
         {
             self.build_request(batch)
                 .map(post_request)

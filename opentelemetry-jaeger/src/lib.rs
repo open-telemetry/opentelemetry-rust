@@ -156,8 +156,15 @@
 //!
 //! The following crate feature flags are available:
 //!
-//! * `collector_client`: Export span data directly to a Jaeger collector. User MUST provide the http client
-//!     to be used or enable `isahc` featue to use the default http client implementation.
+//! * `collector_client`: Export span data directly to a Jaeger collector. User MUST provide the http client.
+//!
+//! * `surf_collector_client`: Export span data with Jaeger collector backed by a surf default http client.
+//!
+//! * `reqwest_collector_client`: Export span data with Jaeger collector backed by a reqwest http client.
+//!
+//! * `reqwest_blocking_collector_client`: Export span data with Jaeger collector backed by a reqwest blocking http client.
+//!
+//! * `isahc_collector_client`: Export span data with Jaeger collector backed by a isahc http client.
 //!
 //! * `wasm_collector_client`: Enable collector in wasm.
 //!
