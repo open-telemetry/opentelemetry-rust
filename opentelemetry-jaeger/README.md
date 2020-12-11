@@ -109,7 +109,7 @@ example expects a Jaeger collector running on `http://localhost:14268`.
 
 ```toml
 [dependencies]
-opentelemetry-jaeger = { version = "..", features = ["collector_client"] }
+opentelemetry-jaeger = { version = "..", features = ["isahc_collector_client"] }
 ```
 
 Then you can use the [`with_collector_endpoint`] method to specify the endpoint:
@@ -117,7 +117,15 @@ Then you can use the [`with_collector_endpoint`] method to specify the endpoint:
 [`with_collector_endpoint`]: https://docs.rs/opentelemetry-jaeger/latest/opentelemetry_jaeger/struct.PipelineBuilder.html#method.with_collector_endpoint
 
 ```rust
-// Note that this requires the `collector_client` feature.
+// Note that this requires one of the following features enabled so that there is a default http client implementation
+// * surf_collector_client
+// * reqwest_collector_client
+// * reqwest_blocking_collector_client
+// * isahc_collector_client
+
+// You can also provide your own implementation by enable 
+// `collecor_client` and set it with 
+// new_pipeline().with_http_client() method.
 use opentelemetry::tracer;
 
 fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
