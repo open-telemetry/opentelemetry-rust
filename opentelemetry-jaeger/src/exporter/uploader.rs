@@ -25,7 +25,12 @@ impl BatchUploader {
                     .await
                     .map_err::<crate::Error, _>(Into::into)?;
             }
-            #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
+            #[cfg(feature = "collector_client")]
+            BatchUploader::Collector(collector) => {
+                // TODO Implement retry behaviour
+                collector.submit_batch(batch).await?;
+            }
+            #[cfg(all(not(feature = "collector_client"), feature = "wasm_collector_client"))]
             BatchUploader::Collector(collector) => {
                 // TODO Implement retry behaviour
                 collector

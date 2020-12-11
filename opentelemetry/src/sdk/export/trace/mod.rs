@@ -1,6 +1,6 @@
 //! Trace exporters
 use crate::api::trace::TraceError;
-#[cfg(feature = "http")]
+#[cfg(all(feature = "http", any(feature = "surf", feature = "reqwest")))]
 use crate::sdk::export::ExportError;
 use crate::{
     sdk,

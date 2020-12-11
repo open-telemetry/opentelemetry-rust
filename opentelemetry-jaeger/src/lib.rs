@@ -85,7 +85,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! opentelemetry-jaeger = { version = "..", features = ["collector_client"] }
+//! opentelemetry-jaeger = { version = "..", features = ["collector_client", "isahc"] }
 //! ```
 //!
 //! Then you can use the [`with_collector_endpoint`] method to specify the endpoint:
@@ -94,6 +94,8 @@
 //!
 //! ```ignore
 //! // Note that this requires the `collector_client` feature.
+//! // We enabled the `isahc` feature for a default isahc http client.
+//! // You can also provide your own implementation via new_pipeline().with_http_client() method.
 //! use opentelemetry::trace::{Tracer, TraceError};
 //!
 //! fn main() -> Result<(), TraceError> {
@@ -154,8 +156,17 @@
 //!
 //! The following crate feature flags are available:
 //!
-//! * `collector_client`: Export span data directly to a Jaeger collector using
-//!   isahc http client.
+//! * `collector_client`: Export span data directly to a Jaeger collector. User MUST provide the http client.
+//!
+//! * `surf_collector_client`: Export span data with Jaeger collector backed by a surf default http client.
+//!
+//! * `reqwest_collector_client`: Export span data with Jaeger collector backed by a reqwest http client.
+//!
+//! * `reqwest_blocking_collector_client`: Export span data with Jaeger collector backed by a reqwest blocking http client.
+//!
+//! * `isahc_collector_client`: Export span data with Jaeger collector backed by a isahc http client.
+//!
+//! * `wasm_collector_client`: Enable collector in wasm.
 //!
 //! ## Supported Rust Versions
 //!

@@ -1,5 +1,11 @@
 # Changelog
 
+## Master
+
+
+### Added
+- Allow user to use their own http clients or use 4 of the default implementation(`surf_collector_client`, `reqwest_collector_client`, `reqwest_blocking_collector_client`, `isahc_collector_client`). 
+
 ## v0.9.0
 
 ### Added

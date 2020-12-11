@@ -15,6 +15,12 @@ use agent::AgentAsyncClientUDP;
 use async_trait::async_trait;
 #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
 use collector::CollectorAsyncClientHttp;
+
+#[cfg(feature = "isahc_collector_client")]
+use isahc::prelude::Configurable;
+
+#[cfg(feature = "collector_client")]
+use opentelemetry::sdk::export::trace::HttpClient;
 use opentelemetry::sdk::export::ExportError;
 use opentelemetry::trace::TraceError;
 use opentelemetry::{
@@ -28,6 +34,16 @@ use std::{
     time::{Duration, SystemTime},
 };
 use uploader::BatchUploader;
+
+#[cfg(all(
+    any(
+        feature = "reqwest_collector_client",
+        feature = "reqwest_blocking_collector_client"
+    ),
+    not(feature = "surf_collector_client"),
+    not(feature = "isahc_collector_client")
+))]
+use headers::authorization::Credentials;
 
 /// Default service name if no service is configured.
 const DEFAULT_SERVICE_NAME: &str = "OpenTelemetry";
@@ -117,6 +133,8 @@ pub struct PipelineBuilder {
     collector_username: Option<String>,
     #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
     collector_password: Option<String>,
+    #[cfg(feature = "collector_client")]
+    client: Option<Box<dyn opentelemetry::sdk::export::trace::HttpClient>>,
     export_instrument_library: bool,
     process: Process,
     config: Option<sdk::trace::Config>,
@@ -133,6 +151,8 @@ impl Default for PipelineBuilder {
             collector_username: None,
             #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
             collector_password: None,
+            #[cfg(feature = "collector_client")]
+            client: None,
             export_instrument_library: true,
             process: Process {
                 service_name: DEFAULT_SERVICE_NAME.to_string(),
@@ -238,6 +258,13 @@ impl PipelineBuilder {
         }
     }
 
+    /// Assign the http client to use
+    #[cfg(feature = "collector_client")]
+    pub fn with_http_client<T: HttpClient + 'static>(mut self, client: T) -> Self {
+        self.client = Some(Box::new(client));
+        self
+    }
+
     /// Install a Jaeger pipeline with the recommended defaults.
     pub fn install(self) -> Result<(sdk::trace::Tracer, Uninstall), TraceError> {
         let tracer_provider = self.build()?;
@@ -284,7 +311,96 @@ impl PipelineBuilder {
         Ok((self.process, BatchUploader::Agent(agent)))
     }
 
-    #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
+    #[cfg(feature = "collector_client")]
+    fn init_uploader(self) -> Result<(Process, uploader::BatchUploader), TraceError> {
+        if let Some(collector_endpoint) = self.collector_endpoint {
+            #[cfg(all(
+                not(feature = "isahc_collector_client"),
+                not(feature = "surf_collector_client"),
+                not(feature = "reqwest_collector_client"),
+                not(feature = "reqwest_blocking_collector_client")
+            ))]
+            let client = self.client.ok_or(crate::Error::NoHttpClient)?;
+
+            #[cfg(feature = "isahc_collector_client")]
+            let client = self.client.unwrap_or({
+                let mut builder = isahc::HttpClient::builder();
+                if let (Some(username), Some(password)) =
+                    (self.collector_username, self.collector_password)
+                {
+                    builder = builder
+                        .authentication(isahc::auth::Authentication::basic())
+                        .credentials(isahc::auth::Credentials::new(username, password));
+                }
+
+                Box::new(IsahcHttpClient(builder.build().map_err(|err| {
+                    crate::Error::ThriftAgentError(::thrift::Error::from(std::io::Error::new(
+                        std::io::ErrorKind::Other,
+                        err.to_string(),
+                    )))
+                })?))
+            });
+
+            #[cfg(all(
+                not(feature = "isahc_collector_client"),
+                not(feature = "surf_collector_client"),
+                any(
+                    feature = "reqwest_collector_client",
+                    feature = "reqwest_blocking_collector_client"
+                )
+            ))]
+            let client = self.client.unwrap_or({
+                #[cfg(feature = "reqwest_collector_client")]
+                let mut builder = reqwest::ClientBuilder::new();
+                #[cfg(all(
+                    not(feature = "reqwest_collector_client"),
+                    feature = "reqwest_blocking_collector_client"
+                ))]
+                let mut builder = reqwest::blocking::ClientBuilder::new();
+                if let (Some(username), Some(password)) =
+                    (self.collector_username, self.collector_password)
+                {
+                    let mut map = http::HeaderMap::with_capacity(1);
+                    let auth_header_val =
+                        headers::Authorization::basic(username.as_str(), password.as_str());
+                    map.insert(http::header::AUTHORIZATION, auth_header_val.0.encode());
+                    builder = builder.default_headers(map);
+                }
+                let client: Box<dyn HttpClient> =
+                    Box::new(builder.build().map_err::<crate::Error, _>(Into::into)?);
+                client
+            });
+
+            #[cfg(all(
+                not(feature = "isahc_collector_client"),
+                feature = "surf_collector_client",
+                not(feature = "reqwest_collector_client"),
+                not(feature = "reqwest_blocking_collector_client")
+            ))]
+            let client = self.client.unwrap_or({
+                let client = if let (Some(username), Some(password)) =
+                    (self.collector_username, self.collector_password)
+                {
+                    let auth = surf::http::auth::BasicAuth::new(username, password);
+                    surf::Client::new().with(BasicAuthMiddleware(auth))
+                } else {
+                    surf::Client::new()
+                };
+
+                Box::new(client)
+            });
+
+            let collector = CollectorAsyncClientHttp::new(collector_endpoint, client)
+                .map_err::<Error, _>(Into::into)?;
+            Ok((self.process, uploader::BatchUploader::Collector(collector)))
+        } else {
+            let endpoint = self.agent_endpoint.as_slice();
+            let agent = AgentAsyncClientUDP::new(endpoint).map_err::<Error, _>(Into::into)?;
+            Ok((self.process, BatchUploader::Agent(agent)))
+        }
+    }
+
+    #[cfg(all(feature = "wasm_collector_client", not(feature = "collector_client")))]
     fn init_uploader(self) -> Result<(Process, uploader::BatchUploader), TraceError> {
         if let Some(collector_endpoint) = self.collector_endpoint {
             let collector = CollectorAsyncClientHttp::new(
@@ -299,6 +415,62 @@ impl PipelineBuilder {
             let agent = AgentAsyncClientUDP::new(endpoint).map_err::<Error, _>(Into::into)?;
             Ok((self.process, BatchUploader::Agent(agent)))
         }
+    }
+}
+
+#[derive(Debug)]
+#[cfg(feature = "surf_collector_client")]
+struct BasicAuthMiddleware(surf::http::auth::BasicAuth);
+
+#[async_trait]
+#[cfg(feature = "surf_collector_client")]
+impl surf::middleware::Middleware for BasicAuthMiddleware {
+    async fn handle(
+        &self,
+        mut req: surf::Request,
+        client: surf::Client,
+        next: surf::middleware::Next<'_>,
+    ) -> surf::Result<surf::Response> {
+        req.insert_header(self.0.name(), self.0.value());
+        next.run(req, client).await
+    }
+}
+
+#[derive(Debug)]
+#[cfg(feature = "isahc_collector_client")]
+struct IsahcHttpClient(isahc::HttpClient);
+
+#[async_trait]
+#[cfg(feature = "isahc_collector_client")]
+impl opentelemetry::sdk::export::trace::HttpClient for IsahcHttpClient {
+    async fn send(
+        &self,
+        request: http::Request<Vec<u8>>,
+    ) -> opentelemetry::sdk::export::trace::ExportResult {
+        let res = self
+            .0
+            .send_async(request)
+            .await
+            .map_err::<crate::Error, _>(|err| {
+                ::thrift::Error::from(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    err.to_string(),
+                ))
+                .into()
+            })
+            .map_err::<TraceError, _>(TraceError::from)?;
+
+        if !res.status().is_success() {
+            return Err(crate::Error::ThriftAgentError(::thrift::Error::from(
+                std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    format!("Expected success response, got {:?}", res.status()),
+                ),
+            ))
+            .into());
+        }
+
+        Ok(())
     }
 }
 
@@ -510,10 +682,76 @@ pub enum Error {
     /// Error from thrift agents.
     #[error("thrift agent failed with {0}")]
     ThriftAgentError(#[from] ::thrift::Error),
+    /// No http client provided.
+    #[cfg(feature = "collector_client")]
+    #[error(
+        "No http client provided. Consider enable one of the `surf_collector_client`, \
+        `reqwest_collector_client`, `reqwest_blocking_collector_client`, `isahc_collector_client` \
+        feature to have a default implementation. Or use with_http_client method in pipeline to \
+        provide your own implementation."
+    )]
+    NoHttpClient,
+    /// reqwest client errors
+    #[error("reqwest failed with {0}")]
+    #[cfg(any(
+        feature = "reqwest_collector_client",
+        feature = "reqwest_blocking_collector_client"
+    ))]
+    ReqwestClientError(#[from] reqwest::Error),
 }
 
 impl ExportError for Error {
     fn exporter_name(&self) -> &'static str {
         "jaeger"
+    }
+}
+
+#[cfg(test)]
+#[cfg(feature = "collector_client")]
+mod tests {
+    use crate::exporter::thrift::jaeger::Batch;
+    use crate::new_pipeline;
+    use opentelemetry::trace::TraceError;
+
+    mod test_http_client {
+        use async_trait::async_trait;
+        use http::Request;
+        use opentelemetry::sdk::export::trace::{ExportResult, HttpClient};
+        use opentelemetry::trace::TraceError;
+        use std::fmt::Debug;
+
+        pub(crate) struct TestHttpClient;
+
+        impl Debug for TestHttpClient {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                f.write_str("test http client")
+            }
+        }
+
+        #[async_trait]
+        impl HttpClient for TestHttpClient {
+            async fn send(&self, _request: Request<Vec<u8>>) -> ExportResult {
+                Err(TraceError::from("wrong uri set in http client"))
+            }
+        }
+    }
+
+    #[test]
+    fn test_bring_your_own_client() -> Result<(), TraceError> {
+        let (process, mut uploader) = new_pipeline()
+            .with_collector_endpoint("localhost:6831")
+            .with_http_client(test_http_client::TestHttpClient)
+            .init_uploader()?;
+        let res = futures::executor::block_on(async {
+            uploader
+                .upload(Batch::new(process.into(), Vec::new()))
+                .await
+        });
+        assert_eq!(
+            format!("{:?}", res.err().unwrap()),
+            "Other(Custom(\"wrong uri set in http client\"))"
+        );
+
+        Ok(())
     }
 }
