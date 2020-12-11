@@ -109,7 +109,7 @@ example expects a Jaeger collector running on `http://localhost:14268`.
 
 ```toml
 [dependencies]
-opentelemetry-jaeger = { version = "..", features = ["collector_client", "isahc"] }
+opentelemetry-jaeger = { version = "..", features = ["isahc_collector_client"] }
 ```
 
 Then you can use the [`with_collector_endpoint`] method to specify the endpoint:
