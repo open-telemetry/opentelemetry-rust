@@ -243,10 +243,10 @@ impl fmt::Display for SpanKind {
 #[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
 #[derive(Clone, Debug, PartialEq)]
 pub enum StatusCode {
-    /// OK is returned on success.
-    Ok = 0,
     /// The default status.
-    Unset = 1,
+    Unset = 0,
+    /// OK is returned on success.
+    Ok = 1,
     /// The operation contains an error.
     Error = 2,
 }
