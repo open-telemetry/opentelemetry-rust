@@ -34,12 +34,13 @@ impl Into<annotation::Annotation> for Event {
     }
 }
 
-/// Converts StatusCode to str
-fn from_statuscode_to_str(status_code: StatusCode) -> &'static str {
+/// Converts StatusCode to Option<&'static str>
+/// `Unset` status code is unused.
+fn from_statuscode_to_str(status_code: StatusCode) -> Option<&'static str> {
     match status_code {
-        StatusCode::Ok => "OK",
-        StatusCode::Unset => "UNSET",
-        StatusCode::Error => "ERROR",
+        StatusCode::Ok => Some("OK"),
+        StatusCode::Unset => None,
+        StatusCode::Error => Some("ERROR"),
     }
 }
 
@@ -90,10 +91,10 @@ pub(crate) fn into_zipkin_span(local_endpoint: Endpoint, span_data: trace::SpanD
             ),
     );
 
-    tags.insert(
-        "otel.status_code".into(),
-        from_statuscode_to_str(span_data.status_code).into(),
-    );
+    if let Some(status_code) = from_statuscode_to_str(span_data.status_code) {
+        tags.insert("otel.status_code".into(), status_code.into());
+    }
+
     tags.insert("otel.status_description".into(), span_data.status_message);
 
     span::Span::builder()
