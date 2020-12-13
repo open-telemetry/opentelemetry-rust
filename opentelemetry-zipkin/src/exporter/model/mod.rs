@@ -12,11 +12,10 @@ pub(crate) mod span;
 
 use endpoint::Endpoint;
 
-/// Instrument Library name MUST be reported in Jaeger Span tags with the following key
 const INSTRUMENTATION_LIBRARY_NAME: &str = "otel.library.name";
-
-/// Instrument Library version MUST be reported in Jaeger Span tags with the following key
 const INSTRUMENTATION_LIBRARY_VERSION: &str = "otel.library.version";
+const OTEL_ERROR_DESCRIPTION: &str = "error";
+const OTEL_STATUS_CODE: &str = "otel.status_code";
 
 /// Converts `Event` into an `annotation::Annotation`
 impl Into<annotation::Annotation> for Event {
@@ -88,14 +87,16 @@ pub(crate) fn into_zipkin_span(local_endpoint: Endpoint, span_data: trace::SpanD
                 ]
                 .iter()
                 .filter_map(|(key, val)| val.map(|val| KeyValue::new(*key, val))),
-            ),
+            )
+            .filter(|kv| kv.key.as_str() == "error" && kv.value.as_str() == "false"),
     );
 
     if let Some(status_code) = from_statuscode_to_str(span_data.status_code) {
-        tags.insert("otel.status_code".into(), status_code.into());
+        if status_code == "ERROR" {
+            tags.insert(OTEL_ERROR_DESCRIPTION.into(), span_data.status_message);
+        }
+        tags.insert(OTEL_STATUS_CODE.into(), status_code.into());
     }
-
-    tags.insert("otel.status_description".into(), span_data.status_message);
 
     span::Span::builder()
         .trace_id(span_data.span_context.trace_id().to_hex())

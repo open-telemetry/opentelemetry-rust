@@ -123,7 +123,7 @@ pub trait Span: fmt::Debug + 'static + Send + Sync {
     fn set_attribute(&self, attribute: KeyValue);
 
     /// Sets the status of the `Span`. If used, this will override the default `Span`
-    /// status, which is `OK`.
+    /// status, which is `Unset`. `message` MUST be ignored when the status is `OK` or `Unset`
     ///
     /// Only the value of the last call will be recorded, and implementations are free
     /// to ignore previous calls.
@@ -241,7 +241,7 @@ impl fmt::Display for SpanKind {
 /// It's composed of a canonical code in conjunction with an optional
 /// descriptive message.
 #[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Copy)]
 pub enum StatusCode {
     /// The default status.
     Unset = 0,
@@ -249,4 +249,14 @@ pub enum StatusCode {
     Ok = 1,
     /// The operation contains an error.
     Error = 2,
+}
+
+impl Into<String> for StatusCode {
+    fn into(self) -> String {
+        match self {
+            StatusCode::Unset => "".to_string(),
+            StatusCode::Ok => "OK".to_string(),
+            StatusCode::Error => "Error".to_string(),
+        }
+    }
 }

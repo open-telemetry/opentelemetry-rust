@@ -623,11 +623,6 @@ fn build_span_tags(
         }
     }
 
-    // Ensure error status is set
-    if status_code == StatusCode::Error && !user_overrides.error {
-        tags.push(Key::new(ERROR).bool(true).into())
-    }
-
     if !user_overrides.span_kind {
         tags.push(Key::new(SPAN_KIND).string(kind.to_string()).into());
     }
@@ -636,8 +631,31 @@ fn build_span_tags(
         tags.push(KeyValue::new(STATUS_CODE, status_code as i64).into());
     }
 
-    if !user_overrides.status_message {
-        tags.push(Key::new(STATUS_MESSAGE).string(status_message).into());
+    if status_code != StatusCode::Unset {
+        // Ensure error status is set
+        if status_code == StatusCode::Error {
+            tags.push(Key::new(ERROR).bool(true).into());
+        }
+        tags.push(
+            Key::new(OTEL_STATUS_CODE)
+                .string::<String>(status_code.into())
+                .into(),
+        );
+        // set status message if there is one
+        if status_message.len() > 0 {
+            if !user_overrides.status_message {
+                tags.push(
+                    Key::new(STATUS_MESSAGE)
+                        .string(status_message.clone())
+                        .into(),
+                );
+            }
+            tags.push(
+                Key::new(OTEL_STATUS_DESCRIPTION)
+                    .string(status_message)
+                    .into(),
+            );
+        }
     }
 
     Some(tags)
@@ -647,6 +665,8 @@ const ERROR: &str = "error";
 const SPAN_KIND: &str = "span.kind";
 const STATUS_CODE: &str = "status.code";
 const STATUS_MESSAGE: &str = "status.message";
+const OTEL_STATUS_CODE: &str = "otel.status_code";
+const OTEL_STATUS_DESCRIPTION: &str = "otel.status_description";
 
 #[derive(Default)]
 struct UserOverrides {

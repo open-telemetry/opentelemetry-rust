@@ -129,11 +129,13 @@ impl crate::trace::Span for Span {
     }
 
     /// Sets the status of the `Span`. If used, this will override the default `Span`
-    /// status, which is `Unset`.
+    /// status, which is `Unset`. `message` MUST be ignored when the status is `OK` or `Unset`
     fn set_status(&self, code: StatusCode, message: String) {
         self.with_data(|data| {
+            if code == StatusCode::Error {
+                data.status_message = message;
+            }
             data.status_code = code;
-            data.status_message = message
         });
     }
 
