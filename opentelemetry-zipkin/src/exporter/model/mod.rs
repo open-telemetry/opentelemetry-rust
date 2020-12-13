@@ -57,6 +57,7 @@ fn into_zipkin_span_kind(kind: SpanKind) -> Option<span::Kind> {
 /// Converts a `trace::SpanData` to a `span::SpanData` for a given `ExporterConfig`, which can then
 /// be ingested into a Zipkin collector.
 pub(crate) fn into_zipkin_span(local_endpoint: Endpoint, span_data: trace::SpanData) -> span::Span {
+    // see tests in create/exporter/model/span.rs
     let mut user_defined_span_kind = false;
     let mut tags = map_from_kvs(
         span_data
@@ -88,9 +89,8 @@ pub(crate) fn into_zipkin_span(local_endpoint: Endpoint, span_data: trace::SpanD
                 .iter()
                 .filter_map(|(key, val)| val.map(|val| KeyValue::new(*key, val))),
             )
-            .filter(|kv| kv.key.as_str() == "error" && kv.value.as_str() == "false"),
+            .filter(|kv| kv.key.as_str() != "error"),
     );
-
     if let Some(status_code) = from_statuscode_to_str(span_data.status_code) {
         if status_code == "ERROR" {
             tags.insert(OTEL_ERROR_DESCRIPTION.into(), span_data.status_message);

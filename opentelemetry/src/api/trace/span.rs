@@ -251,12 +251,13 @@ pub enum StatusCode {
     Error = 2,
 }
 
-impl Into<String> for StatusCode {
-    fn into(self) -> String {
+impl StatusCode {
+    /// Return a static str that represent the status code
+    pub fn as_str(&self) -> &'static str {
         match self {
-            StatusCode::Unset => "".to_string(),
-            StatusCode::Ok => "OK".to_string(),
-            StatusCode::Error => "Error".to_string(),
+            StatusCode::Unset => "",
+            StatusCode::Ok => "OK",
+            StatusCode::Error => "ERROR",
         }
     }
 }
