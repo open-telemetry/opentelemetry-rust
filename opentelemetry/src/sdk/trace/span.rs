@@ -129,11 +129,13 @@ impl crate::trace::Span for Span {
     }
 
     /// Sets the status of the `Span`. If used, this will override the default `Span`
-    /// status, which is `Unset`.
+    /// status, which is `Unset`. `message` MUST be ignored when the status is `OK` or `Unset`
     fn set_status(&self, code: StatusCode, message: String) {
         self.with_data(|data| {
+            if code == StatusCode::Error {
+                data.status_message = message;
+            }
             data.status_code = code;
-            data.status_message = message
         });
     }
 
@@ -353,14 +355,36 @@ mod tests {
 
     #[test]
     fn set_status() {
-        let span = create_span();
-        let status = StatusCode::Ok;
-        let message = "OK".to_string();
-        span.set_status(status.clone(), message.clone());
-        span.with_data(|data| {
-            assert_eq!(data.status_code, status);
-            assert_eq!(data.status_message, message);
-        });
+        {
+            let span = create_span();
+            let status = StatusCode::Ok;
+            let message = "OK".to_string();
+            span.set_status(status, message);
+            span.with_data(|data| {
+                assert_eq!(data.status_code, status);
+                assert_eq!(data.status_message, "");
+            });
+        }
+        {
+            let span = create_span();
+            let status = StatusCode::Unset;
+            let message = "OK".to_string();
+            span.set_status(status, message);
+            span.with_data(|data| {
+                assert_eq!(data.status_code, status);
+                assert_eq!(data.status_message, "");
+            });
+        }
+        {
+            let span = create_span();
+            let status = StatusCode::Error;
+            let message = "Error".to_string();
+            span.set_status(status, message);
+            span.with_data(|data| {
+                assert_eq!(data.status_code, status);
+                assert_eq!(data.status_message, "Error");
+            });
+        }
     }
 
     #[test]
