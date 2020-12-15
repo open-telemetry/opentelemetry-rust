@@ -168,7 +168,7 @@ pub trait Subtractor {
 /// Exporter handles presentation of the checkpoint of aggregate metrics. This
 /// is the final stage of a metrics export pipeline, where metric data are
 /// formatted for a specific system.
-pub trait Exporter: ExportKindSelector {
+pub trait Exporter: ExportKindFor {
     /// Export is called immediately after completing a collection pass in the SDK.
     ///
     /// The CheckpointSet interface refers to the Processor that just completed
@@ -179,7 +179,7 @@ pub trait Exporter: ExportKindSelector {
 /// ExportKindSelector is a sub-interface of Exporter used to indicate
 /// whether the Processor should compute Delta or Cumulative
 /// Aggregations.
-pub trait ExportKindSelector: fmt::Debug {
+pub trait ExportKindFor: fmt::Debug {
     /// Determines the correct `ExportKind` that should be used when exporting data
     /// for the given metric instrument.
     fn export_kind_for(&self, descriptor: &Descriptor) -> ExportKind;
@@ -202,7 +202,7 @@ pub trait CheckpointSet: fmt::Debug {
     /// return the error to the caller.
     fn try_for_each(
         &mut self,
-        export_selector: &dyn ExportKindSelector,
+        export_selector: &dyn ExportKindFor,
         f: &mut dyn FnMut(&Record<'_>) -> Result<()>,
     ) -> Result<()>;
 }
@@ -373,15 +373,22 @@ impl<'a> Accumulation<'a> {
 #[derive(Clone, Debug)]
 pub enum ExportKind {
     /// Indicates that the `Exporter` expects a cumulative `Aggregation`.
-    Cumulative = 1, // e.g., Prometheus
+    Cumulative = 1,
 
     /// Indicates that the `Exporter` expects a delta `Aggregation`.
-    Delta = 2, // e.g., StatsD
+    Delta = 2,
+}
 
-    /// Indicates that the `Exporter` expects either a cumulative or a delta
-    /// `Aggregation`, whichever does not require maintaining state for the
-    /// given instrument.
-    PassThrough = 4, // e.g., OTLP
+/// Strategies for selecting which export kind is used for an instrument.
+#[derive(Debug)]
+pub enum ExportKindSelector {
+    /// A selector that always returns [`ExportKind::Cumulative`].
+    Cumulative,
+    /// A selector that always returns [`ExportKind::Delta`].
+    Delta,
+    /// A selector that returns cumulative or delta based on a given instrument
+    /// kind.
+    Stateless,
 }
 
 impl ExportKind {
@@ -409,8 +416,18 @@ impl ExportKind {
     }
 }
 
-impl ExportKindSelector for ExportKind {
-    fn export_kind_for(&self, _descriptor: &Descriptor) -> ExportKind {
-        self.clone()
+impl ExportKindFor for ExportKindSelector {
+    fn export_kind_for(&self, descriptor: &Descriptor) -> ExportKind {
+        match self {
+            ExportKindSelector::Cumulative => ExportKind::Cumulative,
+            ExportKindSelector::Delta => ExportKind::Delta,
+            ExportKindSelector::Stateless => {
+                if descriptor.instrument_kind().precomputed_sum() {
+                    ExportKind::Cumulative
+                } else {
+                    ExportKind::Delta
+                }
+            }
+        }
     }
 }

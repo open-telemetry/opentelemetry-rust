@@ -2,8 +2,8 @@
 use crate::global;
 use crate::sdk::{
     export::metrics::{
-        CheckpointSet, Count, ExportKind, ExportKindSelector, Exporter, LastValue, Max, Min,
-        Quantile, Sum,
+        CheckpointSet, Count, ExportKind, ExportKindFor, ExportKindSelector, Exporter, LastValue,
+        Max, Min, Quantile, Sum,
     },
     metrics::{
         aggregators::{
@@ -235,16 +235,16 @@ where
     }
 }
 
-impl<W> ExportKindSelector for StdoutExporter<W>
+impl<W> ExportKindFor for StdoutExporter<W>
 where
     W: fmt::Debug + io::Write,
 {
-    fn export_kind_for(&self, _descriptor: &Descriptor) -> ExportKind {
-        ExportKind::PassThrough
+    fn export_kind_for(&self, descriptor: &Descriptor) -> ExportKind {
+        ExportKindSelector::Stateless.export_kind_for(descriptor)
     }
 }
 
-/// A formatter for user-defined batch serilization.
+/// A formatter for user-defined batch serialization.
 pub struct Formatter(Box<dyn Fn(ExportBatch) -> Result<String> + Send + Sync>);
 impl fmt::Debug for Formatter {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -361,7 +361,7 @@ where
         let (spawn, interval, exporter) = self.try_build()?;
         let mut push_builder = controllers::push(
             simple::Selector::Exact,
-            ExportKind::PassThrough,
+            ExportKindSelector::Stateless,
             exporter,
             spawn,
             interval,

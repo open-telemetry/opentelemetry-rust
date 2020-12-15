@@ -67,7 +67,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
 
     let value_recorder_two = meter.f64_value_recorder("ex.com.two").init();
 
-    let _correlations =
+    let _baggage =
         Context::current_with_baggage(vec![FOO_KEY.string("foo1"), BAR_KEY.string("bar1")])
             .attach();
 
