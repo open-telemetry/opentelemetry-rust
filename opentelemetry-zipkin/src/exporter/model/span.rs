@@ -58,8 +58,14 @@ mod tests {
     use crate::exporter::model::annotation::Annotation;
     use crate::exporter::model::endpoint::Endpoint;
     use crate::exporter::model::span::{Kind, Span};
+    use crate::exporter::model::{into_zipkin_span, OTEL_ERROR_DESCRIPTION, OTEL_STATUS_CODE};
+    use opentelemetry::sdk::export::trace::SpanData;
+    use opentelemetry::sdk::trace::{EvictedHashMap, EvictedQueue};
+    use opentelemetry::trace::{SpanContext, SpanId, SpanKind, StatusCode, TraceId};
     use std::collections::HashMap;
     use std::net::Ipv4Addr;
+    use std::sync::Arc;
+    use std::time::SystemTime;
 
     #[test]
     fn test_empty() {
@@ -111,5 +117,78 @@ mod tests {
     fn test_json_serialization(span: Span, desired: &str) {
         let result = serde_json::to_string(&span).unwrap();
         assert_eq!(result, desired.to_owned());
+    }
+
+    fn assert_tag_contains(
+        tags: &HashMap<String, String>,
+        key: &'static str,
+        expected_val: Option<&'static str>,
+    ) {
+        let val = tags.get::<String>(&key.to_string()).map(|s| s.as_str());
+        assert_eq!(
+            val,
+            expected_val,
+            "expect value of key {} to be {}, but got {}",
+            key,
+            expected_val.unwrap_or("none"),
+            val.unwrap_or("none")
+        );
+    }
+
+    fn get_set_status_test_data() -> Vec<(
+        StatusCode,
+        String,
+        Option<&'static str>,
+        Option<&'static str>,
+    )> {
+        // status code, status message, whether OTEL_STATUS_CODE is set, whether OTEL_ERROR_DESCRIPTION is set, whether error tag is set
+        vec![
+            (StatusCode::Ok, "".into(), Some("OK"), None),
+            (StatusCode::Error, "".into(), Some("ERROR"), Some("")),
+            (
+                StatusCode::Error,
+                "error msg".into(),
+                Some("ERROR"),
+                Some("error msg"),
+            ),
+            (StatusCode::Unset, "whatever".into(), None, None),
+        ]
+    }
+
+    #[test]
+    fn test_set_status() -> Result<(), Box<dyn std::error::Error>> {
+        for (status_code, status_msg, status_tag_val, status_msg_tag_val) in
+            get_set_status_test_data()
+        {
+            let span_data = SpanData {
+                span_context: SpanContext::new(
+                    TraceId::from_u128(1),
+                    SpanId::from_u64(1),
+                    0,
+                    false,
+                    Default::default(),
+                ),
+                parent_span_id: SpanId::from_u64(1),
+                span_kind: SpanKind::Client,
+                name: "".to_string(),
+                start_time: SystemTime::now(),
+                end_time: SystemTime::now(),
+                attributes: EvictedHashMap::new(20, 20),
+                message_events: EvictedQueue::new(20),
+                links: EvictedQueue::new(20),
+                status_code,
+                status_message: status_msg,
+                resource: Arc::new(Default::default()),
+                instrumentation_lib: Default::default(),
+            };
+            let local_endpoint = Endpoint::new("test".into(), None);
+            let span = into_zipkin_span(local_endpoint, span_data);
+            if let Some(tags) = span.tags.as_ref() {
+                assert_tag_contains(tags, OTEL_STATUS_CODE, status_tag_val);
+                assert_tag_contains(tags, OTEL_ERROR_DESCRIPTION, status_msg_tag_val);
+            };
+        }
+
+        Ok(())
     }
 }
