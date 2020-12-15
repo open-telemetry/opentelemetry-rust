@@ -51,13 +51,12 @@ impl InstrumentKind {
 
     /// Whether this kind of instrument groups its inputs (as opposed to adding).
     pub fn grouping(&self) -> bool {
-        matches!(
-            self,
-            InstrumentKind::Counter
-                | InstrumentKind::UpDownCounter
-                | InstrumentKind::SumObserver
-                | InstrumentKind::UpDownSumObserver
-        )
+        !self.adding()
+    }
+
+    /// Whether this kind of instrument exposes a non-decreasing sum.
+    pub fn monotonic(&self) -> bool {
+        matches!(self, InstrumentKind::Counter | InstrumentKind::SumObserver)
     }
 
     /// Whether this kind of instrument receives precomputed sums.

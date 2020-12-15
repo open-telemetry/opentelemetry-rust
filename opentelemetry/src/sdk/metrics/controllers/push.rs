@@ -1,7 +1,7 @@
 use crate::global;
 use crate::metrics::registry;
 use crate::sdk::{
-    export::metrics::{AggregatorSelector, Checkpointer, ExportKindSelector, Exporter},
+    export::metrics::{AggregatorSelector, Checkpointer, ExportKindFor, Exporter},
     metrics::{
         self,
         processors::{self, BasicProcessor},
@@ -28,7 +28,7 @@ pub fn push<AS, ES, E, SP, SO, I, IO>(
 ) -> PushControllerBuilder<SP, I>
 where
     AS: AggregatorSelector + Send + Sync + 'static,
-    ES: ExportKindSelector + Send + Sync + 'static,
+    ES: ExportKindFor + Send + Sync + 'static,
     E: Exporter + Send + Sync + 'static,
     SP: Fn(PushControllerWorker) -> SO,
     I: Fn(time::Duration) -> IO,
@@ -127,7 +127,7 @@ impl Drop for PushController {
 #[derive(Debug)]
 pub struct PushControllerBuilder<S, I> {
     aggregator_selector: Box<dyn AggregatorSelector + Send + Sync>,
-    export_selector: Box<dyn ExportKindSelector + Send + Sync>,
+    export_selector: Box<dyn ExportKindFor + Send + Sync>,
     exporter: Box<dyn Exporter + Send + Sync>,
     spawn: S,
     interval: I,

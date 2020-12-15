@@ -1,8 +1,6 @@
 use crate::metrics::{registry, Result};
 use crate::sdk::{
-    export::metrics::{
-        AggregatorSelector, CheckpointSet, Checkpointer, ExportKindSelector, Record,
-    },
+    export::metrics::{AggregatorSelector, CheckpointSet, Checkpointer, ExportKindFor, Record},
     metrics::{
         accumulator,
         processors::{self, BasicProcessor},
@@ -18,7 +16,7 @@ const DEFAULT_CACHE_DURATION: Duration = Duration::from_secs(10);
 /// Returns a builder for creating a `PullController` with the configured and options.
 pub fn pull(
     aggregator_selector: Box<dyn AggregatorSelector + Send + Sync>,
-    export_selector: Box<dyn ExportKindSelector + Send + Sync>,
+    export_selector: Box<dyn ExportKindFor + Send + Sync>,
 ) -> PullControllerBuilder {
     PullControllerBuilder::with_selectors(aggregator_selector, export_selector)
 }
@@ -65,7 +63,7 @@ impl PullController {
 impl CheckpointSet for PullController {
     fn try_for_each(
         &mut self,
-        export_selector: &dyn ExportKindSelector,
+        export_selector: &dyn ExportKindFor,
         f: &mut dyn FnMut(&Record<'_>) -> Result<()>,
     ) -> Result<()> {
         self.processor.lock().and_then(|mut locked_processor| {
@@ -83,7 +81,7 @@ pub struct PullControllerBuilder {
     aggregator_selector: Box<dyn AggregatorSelector + Send + Sync>,
 
     /// The export kind selector used by this controller
-    export_selector: Box<dyn ExportKindSelector + Send + Sync>,
+    export_selector: Box<dyn ExportKindFor + Send + Sync>,
 
     /// Resource is the OpenTelemetry resource associated with all Meters created by
     /// the controller.
@@ -107,7 +105,7 @@ impl PullControllerBuilder {
     /// Configure the sectors for this controller
     pub fn with_selectors(
         aggregator_selector: Box<dyn AggregatorSelector + Send + Sync>,
-        export_selector: Box<dyn ExportKindSelector + Send + Sync>,
+        export_selector: Box<dyn ExportKindFor + Send + Sync>,
     ) -> Self {
         PullControllerBuilder {
             aggregator_selector,

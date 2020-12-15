@@ -66,9 +66,9 @@
 
 use opentelemetry::global;
 use opentelemetry::sdk::{
-    export::metrics::{CheckpointSet, ExportKind, Histogram, Record, Sum},
+    export::metrics::{CheckpointSet, ExportKindSelector, Histogram, LastValue, Record, Sum},
     metrics::{
-        aggregators::{HistogramAggregator, SumAggregator},
+        aggregators::{HistogramAggregator, LastValueAggregator, SumAggregator},
         controllers,
         selectors::simple::Selector,
         PullController,
@@ -77,9 +77,7 @@ use opentelemetry::sdk::{
 };
 use opentelemetry::{
     labels,
-    metrics::{
-        registry::RegistryMeterProvider, Descriptor, InstrumentKind, MetricsError, NumberKind,
-    },
+    metrics::{registry::RegistryMeterProvider, MetricsError, NumberKind},
     KeyValue,
 };
 use std::collections::HashMap;
@@ -92,7 +90,8 @@ use sanitize::sanitize;
 
 /// Cache disabled by default.
 const DEFAULT_CACHE_PERIOD: Duration = Duration::from_secs(0);
-const EXPORT_KIND: ExportKind = ExportKind::Cumulative;
+
+const EXPORT_KIND_SELECTOR: ExportKindSelector = ExportKindSelector::Cumulative;
 
 /// Create a new prometheus exporter builder.
 pub fn exporter() -> ExporterBuilder {
@@ -181,7 +180,7 @@ impl ExporterBuilder {
             .default_histogram_boundaries
             .unwrap_or_else(|| vec![0.5, 0.9, 0.99]);
         let selector = Box::new(Selector::Histogram(default_histogram_boundaries.clone()));
-        let mut controller_builder = controllers::pull(selector, Box::new(EXPORT_KIND))
+        let mut controller_builder = controllers::pull(selector, Box::new(EXPORT_KIND_SELECTOR))
             .with_cache_period(self.cache_period.unwrap_or(DEFAULT_CACHE_PERIOD))
             .with_memory(true);
         if let Some(resource) = self.resource {
@@ -256,17 +255,6 @@ impl PrometheusExporter {
             .map_err(Into::into)
             .map(|locked| locked.provider())
     }
-
-    /// Determine the export kind this exporter should use for a given instrument
-    /// and descriptor.
-    pub fn export_kind_for(&self, _descriptor: &Descriptor, _kind: &InstrumentKind) -> ExportKind {
-        // NOTE: Summary values should use Delta aggregation, then be
-        // combined into a sliding window, see the TODO below.
-        // NOTE: Prometheus also supports a "GaugeDelta" exposition format,
-        // which is expressed as a delta histogram.  Need to understand if this
-        // should be a default behavior for ValueRecorder/ValueObserver.
-        EXPORT_KIND
-    }
 }
 
 #[derive(Debug)]
@@ -296,9 +284,10 @@ impl prometheus::core::Collector for Collector {
                 return metrics;
             }
 
-            if let Err(err) = controller.try_for_each(&EXPORT_KIND, &mut |record| {
+            if let Err(err) = controller.try_for_each(&EXPORT_KIND_SELECTOR, &mut |record| {
                 let agg = record.aggregator().ok_or(MetricsError::NoDataCollected)?;
                 let number_kind = record.descriptor().number_kind();
+                let instrument_kind = record.descriptor().instrument_kind();
 
                 let mut label_keys = Vec::new();
                 let mut label_values = Vec::new();
@@ -309,7 +298,15 @@ impl prometheus::core::Collector for Collector {
                 if let Some(hist) = agg.as_any().downcast_ref::<HistogramAggregator>() {
                     metrics.push(build_histogram(hist, number_kind, desc, label_values)?);
                 } else if let Some(sum) = agg.as_any().downcast_ref::<SumAggregator>() {
-                    metrics.push(build_counter(sum, number_kind, desc, label_values)?);
+                    let counter = if instrument_kind.monotonic() {
+                        build_monotonic_counter(sum, number_kind, desc, label_values)?
+                    } else {
+                        build_non_monotonic_counter(sum, number_kind, desc, label_values)?
+                    };
+
+                    metrics.push(counter);
+                } else if let Some(last) = agg.as_any().downcast_ref::<LastValueAggregator>() {
+                    metrics.push(build_last_value(last, number_kind, desc, label_values)?);
                 }
 
                 Ok(())
@@ -324,7 +321,59 @@ impl prometheus::core::Collector for Collector {
     }
 }
 
-fn build_counter(
+fn build_last_value(
+    lv: &LastValueAggregator,
+    kind: &NumberKind,
+    desc: prometheus::core::Desc,
+    labels: Vec<KeyValue>,
+) -> Result<prometheus::proto::MetricFamily, MetricsError> {
+    let (last_value, _) = lv.last_value()?;
+
+    let mut g = prometheus::proto::Gauge::default();
+    g.set_value(last_value.to_f64(kind));
+
+    let mut m = prometheus::proto::Metric::default();
+    m.set_label(protobuf::RepeatedField::from_vec(
+        labels.into_iter().map(build_label_pair).collect(),
+    ));
+    m.set_gauge(g);
+
+    let mut mf = prometheus::proto::MetricFamily::default();
+    mf.set_name(desc.fq_name);
+    mf.set_help(desc.help);
+    mf.set_field_type(prometheus::proto::MetricType::GAUGE);
+    mf.set_metric(protobuf::RepeatedField::from_vec(vec![m]));
+
+    Ok(mf)
+}
+
+fn build_non_monotonic_counter(
+    sum: &SumAggregator,
+    kind: &NumberKind,
+    desc: prometheus::core::Desc,
+    labels: Vec<KeyValue>,
+) -> Result<prometheus::proto::MetricFamily, MetricsError> {
+    let sum = sum.sum()?;
+
+    let mut g = prometheus::proto::Gauge::default();
+    g.set_value(sum.to_f64(kind));
+
+    let mut m = prometheus::proto::Metric::default();
+    m.set_label(protobuf::RepeatedField::from_vec(
+        labels.into_iter().map(build_label_pair).collect(),
+    ));
+    m.set_gauge(g);
+
+    let mut mf = prometheus::proto::MetricFamily::default();
+    mf.set_name(desc.fq_name);
+    mf.set_help(desc.help);
+    mf.set_field_type(prometheus::proto::MetricType::GAUGE);
+    mf.set_metric(protobuf::RepeatedField::from_vec(vec![m]));
+
+    Ok(mf)
+}
+
+fn build_monotonic_counter(
     sum: &SumAggregator,
     kind: &NumberKind,
     desc: prometheus::core::Desc,

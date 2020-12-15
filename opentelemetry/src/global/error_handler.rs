@@ -21,7 +21,7 @@ pub fn handle_error<T: Into<Error>>(err: T) {
             #[cfg(feature = "trace")]
             #[cfg_attr(docsrs, doc(cfg(feature = "trace")))]
             Error::Trace(err) => eprintln!("OpenTelemetry trace error occurred {:?}", err),
-            Error::Other(err_msg) => println!("OpenTelemetry error occurred {}", err_msg),
+            Error::Other(err_msg) => eprintln!("OpenTelemetry error occurred {}", err_msg),
         },
     }
 }
