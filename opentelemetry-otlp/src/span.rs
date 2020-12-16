@@ -42,11 +42,12 @@ use std::fmt::Debug;
 #[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
 use std::sync::Arc;
 
+use crate::Protocol;
 use opentelemetry::sdk::export::trace::{ExportResult, SpanData, SpanExporter};
 use std::time::Duration;
 
 /// Exporter that sends data in OTLP format.
-pub struct Exporter {
+pub struct TraceExporter {
     #[cfg(feature = "tonic")]
     metadata: Option<MetadataMap>,
 
@@ -67,7 +68,7 @@ pub struct Exporter {
 
 /// Configuration for the OTLP exporter.
 #[derive(Debug)]
-pub struct ExporterConfig {
+pub struct TraceExporterConfig {
     /// The address of the OTLP collector. If not set, the default address is used.
     pub endpoint: String,
 
@@ -116,16 +117,6 @@ pub struct Credentials {
     pub key: String,
 }
 
-/// The communication protocol to use when sending data.
-#[derive(Clone, Copy, Debug)]
-pub enum Protocol {
-    /// GRPC protocol
-    Grpc,
-    // TODO add support for other protocols
-    // HttpJson,
-    // HttpProto,
-}
-
 /// The compression algorithm to use when sending data.
 #[derive(Clone, Copy, Debug)]
 #[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
@@ -145,10 +136,10 @@ impl Into<grpcio::CompressionAlgorithms> for Compression {
 
 const DEFAULT_OTLP_PORT: u16 = 4317;
 
-impl Default for ExporterConfig {
+impl Default for TraceExporterConfig {
     #[cfg(feature = "tonic")]
     fn default() -> Self {
-        ExporterConfig {
+        TraceExporterConfig {
             endpoint: format!("localhost:{}", DEFAULT_OTLP_PORT),
             protocol: Protocol::Grpc,
             #[cfg(all(feature = "tonic", feature = "tls"))]
@@ -162,7 +153,7 @@ impl Default for ExporterConfig {
 
     #[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
     fn default() -> Self {
-        ExporterConfig {
+        TraceExporterConfig {
             endpoint: format!("localhost:{}", DEFAULT_OTLP_PORT),
             protocol: Protocol::Grpc,
             credentials: None,
@@ -174,17 +165,17 @@ impl Default for ExporterConfig {
     }
 }
 
-impl Default for Exporter {
+impl Default for TraceExporter {
     /// Return a Span Exporter with the default configuration
     #[cfg(feature = "tonic")]
     fn default() -> Self {
-        let config: ExporterConfig = ExporterConfig::default();
+        let config: TraceExporterConfig = TraceExporterConfig::default();
 
         let endpoint = Channel::from_shared(config.endpoint).unwrap();
 
         let channel = endpoint.timeout(config.timeout).connect_lazy().unwrap();
 
-        Exporter {
+        TraceExporter {
             trace_exporter: TraceServiceClient::new(channel),
             timeout: config.timeout,
             metadata: config.metadata,
@@ -202,13 +193,13 @@ impl Default for Exporter {
     /// Return a Span Exporter with the default configuration
     #[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
     fn default() -> Self {
-        let config: ExporterConfig = ExporterConfig::default();
+        let config: TraceExporterConfig = TraceExporterConfig::default();
 
         let channel: Channel =
             ChannelBuilder::new(Arc::new(Environment::new(config.completion_queue_count)))
                 .connect(config.endpoint.as_str());
 
-        Exporter {
+        TraceExporter {
             trace_exporter: TraceServiceClient::new(channel),
             timeout: config.timeout,
             headers: None,
@@ -216,7 +207,7 @@ impl Default for Exporter {
     }
 }
 
-impl Debug for Exporter {
+impl Debug for TraceExporter {
     #[cfg(feature = "tonic")]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Exporter")
@@ -236,10 +227,10 @@ impl Debug for Exporter {
     }
 }
 
-impl Exporter {
+impl TraceExporter {
     /// Builds a new span exporter with the given configuration
     #[cfg(feature = "tonic")]
-    pub fn new(config: ExporterConfig) -> Result<Self, crate::Error> {
+    pub fn new(config: TraceExporterConfig) -> Result<Self, crate::Error> {
         let endpoint = Channel::from_shared(config.endpoint)?;
 
         #[cfg(all(feature = "tonic", feature = "tls"))]
@@ -273,7 +264,7 @@ impl Exporter {
             }
         };
 
-        Ok(Exporter {
+        Ok(TraceExporter {
             trace_exporter: client,
             timeout: config.timeout,
             metadata: config.metadata,
@@ -290,7 +281,7 @@ impl Exporter {
 
     /// Builds a new span exporter with the given configuration
     #[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
-    pub fn new(config: ExporterConfig) -> Self {
+    pub fn new(config: TraceExporterConfig) -> Self {
         let mut builder: ChannelBuilder =
             ChannelBuilder::new(Arc::new(Environment::new(config.completion_queue_count)));
 
@@ -308,7 +299,7 @@ impl Exporter {
             ),
         };
 
-        Exporter {
+        TraceExporter {
             trace_exporter: TraceServiceClient::new(channel),
             timeout: config.timeout,
             headers: config.headers,
@@ -317,7 +308,7 @@ impl Exporter {
 }
 
 #[async_trait]
-impl SpanExporter for Exporter {
+impl SpanExporter for TraceExporter {
     #[cfg(feature = "tonic")]
     async fn export(&mut self, batch: Vec<SpanData>) -> ExportResult {
         let request = Request::new(ExportTraceServiceRequest {

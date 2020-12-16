@@ -1,4 +1,5 @@
 use crate::metrics::{InstrumentConfig, InstrumentKind, NumberKind};
+use crate::sdk::InstrumentationLibrary;
 use fnv::FnvHasher;
 use std::hash::{Hash, Hasher};
 
@@ -75,6 +76,16 @@ impl Descriptor {
     /// The name of the library that provided instrumentation for this instrument.
     pub fn instrumentation_name(&self) -> &'static str {
         self.config.instrumentation_name()
+    }
+
+    /// The version of library that provided instrumentation for this instrument. Optional
+    pub fn instrumentation_version(&self) -> Option<&'static str> {
+        self.config.instrumentation_library.version
+    }
+
+    /// Instrumentation library reference
+    pub fn instrumentation_library(&self) -> &InstrumentationLibrary {
+        &self.config.instrumentation_library
     }
 
     /// The pre-computed hash of the descriptor data

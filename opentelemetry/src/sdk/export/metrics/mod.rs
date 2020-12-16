@@ -173,7 +173,7 @@ pub trait Exporter: ExportKindFor {
     ///
     /// The CheckpointSet interface refers to the Processor that just completed
     /// collection.
-    fn export(&self, checkpoint_set: &mut dyn CheckpointSet) -> Result<()>;
+    fn export(&mut self, checkpoint_set: &mut dyn CheckpointSet) -> Result<()>;
 }
 
 /// ExportKindSelector is a sub-interface of Exporter used to indicate
