@@ -16,7 +16,7 @@ use crate::proto::grpcio::trace::{
 };
 
 use crate::transform::common::{to_nanos, Attributes};
-use opentelemetry::sdk::export::trace::SpanData;
+use opentelemetry::sdk::{export::trace::SpanData, self};
 use opentelemetry::trace::{Link, SpanKind, StatusCode};
 
 #[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
@@ -120,13 +120,21 @@ impl From<Link> for Span_Link {
     }
 }
 
+fn resource_attributes(resource: &sdk::Resource) -> Attributes {
+    resource
+        .iter()
+        .map(|(k, v)| opentelemetry::KeyValue::new(k.clone(), v.clone()))
+        .collect::<Vec<_>>()
+        .into()
+}
+
 impl From<SpanData> for ResourceSpans {
     #[cfg(feature = "tonic")]
     fn from(source_span: SpanData) -> Self {
         let span_kind: span::SpanKind = source_span.span_kind.into();
         ResourceSpans {
             resource: Some(Resource {
-                attributes: Default::default(),
+                attributes: resource_attributes(&source_span.resource).0,
                 dropped_attributes_count: 0,
             }),
             instrumentation_library_spans: vec![InstrumentationLibrarySpans {
@@ -183,15 +191,9 @@ impl From<SpanData> for ResourceSpans {
 
     #[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
     fn from(source_span: SpanData) -> Self {
-        let resource_attributes: Attributes = source_span
-            .resource
-            .iter()
-            .map(|(k, v)| opentelemetry::KeyValue::new(k.clone(), v.clone()))
-            .collect::<Vec<_>>()
-            .into();
         ResourceSpans {
             resource: SingularPtrField::from(Some(Resource {
-                attributes: resource_attributes.0,
+                attributes: resource_attributes(&source_span.resource).0,
                 dropped_attributes_count: 0,
                 ..Default::default()
             })),
