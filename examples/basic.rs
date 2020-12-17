@@ -1,6 +1,6 @@
 use opentelemetry::sdk::trace::TracerProvider;
 use opentelemetry::trace::TracerProvider as _;
-use opentelemetry_stackdriver::StackDriverExporter;
+use opentelemetry_stackdriver::{StackDriverExporter, YupAuthorizer};
 use tracing::{span, Level};
 use tracing_subscriber::prelude::*;
 
@@ -28,9 +28,8 @@ async fn main() {
 }
 
 async fn init_tracing(stackdriver_creds: impl AsRef<Path>) {
-  let exporter = StackDriverExporter::connect(stackdriver_creds, PathBuf::from("tokens.json"), &TokioSpawner, None, 5)
-    .await
-    .unwrap();
+  let authorizer = YupAuthorizer::new(stackdriver_creds, PathBuf::from("tokens.json")).await.unwrap();
+  let exporter = StackDriverExporter::connect(authorizer, &TokioSpawner, None, 5).await.unwrap();
 
   let provider = TracerProvider::builder().with_simple_exporter(exporter).build();
   tracing_subscriber::registry()
