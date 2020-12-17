@@ -1,6 +1,6 @@
 use opentelemetry::sdk::trace::TracerProvider;
 use opentelemetry::trace::TracerProvider as _;
-use opentelemetry_stackdriver::{StackDriverExporter, YupAuthorizer;
+use opentelemetry_stackdriver::{StackDriverExporter, YupAuthorizer};
 use tracing::{span, Level};
 use tracing_subscriber::prelude::*;
 
