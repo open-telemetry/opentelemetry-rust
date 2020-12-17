@@ -1,3 +1,4 @@
 [submodule "proto/googleapis"]
 	path = proto/googleapis
 	url = https://github.com/googleapis/googleapis/
+	shallow = true

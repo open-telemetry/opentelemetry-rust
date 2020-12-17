@@ -21,7 +21,6 @@
 // https://github.com/danburkert/prost/pull/291
 
 use async_trait::async_trait;
-use derivative::Derivative;
 use futures::stream::StreamExt;
 use hyper::client::connect::Connect;
 use opentelemetry::{
@@ -30,6 +29,7 @@ use opentelemetry::{
 };
 use proto::google::devtools::cloudtrace::v2::BatchWriteSpansRequest;
 use std::{
+  fmt,
   sync::{
     atomic::{AtomicUsize, Ordering},
     Arc,
@@ -77,13 +77,27 @@ pub mod tokio_adapter;
 ///
 /// As of the time of this writing, the opentelemetry crate exposes no link information
 /// so this struct does not send link information.
-#[derive(Derivative)]
-#[derivative(Clone, Debug)]
+#[derive(Clone)]
 pub struct StackDriverExporter {
-  #[derivative(Debug = "ignore")]
   tx: futures::channel::mpsc::Sender<Vec<SpanData>>,
   pending_count: Arc<AtomicUsize>,
   maximum_shutdown_duration: Duration,
+}
+
+impl fmt::Debug for StackDriverExporter {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    #[allow(clippy::unneeded_field_pattern)]
+    let Self {
+      maximum_shutdown_duration,
+      pending_count,
+      tx: _,
+    } = self;
+    f.debug_struct("StackDriverExporter")
+      .field("tx", &"(elided)")
+      .field("pending_count", pending_count)
+      .field("maximum_shutdown_duration", maximum_shutdown_duration)
+      .finish()
+  }
 }
 
 impl StackDriverExporter {
@@ -174,8 +188,8 @@ impl StackDriverExporter {
             let new_attributes = Attributes {
               attribute_map: span
                 .attributes
-                .into_iter()
-                .map(|(key, value)| (key.as_str().to_owned(), attribute_value_conversion(value)))
+                .iter()
+                .map(|(key, value)| (key.as_str().to_owned(), value.clone().into()))
                 .collect(),
               ..Default::default()
             };
@@ -276,16 +290,18 @@ impl SpanExporter for StackDriverExporter {
   }
 }
 
-fn attribute_value_conversion(v: Value) -> AttributeValue {
-  use proto::google::devtools::cloudtrace::v2::attribute_value;
-  let new_value = match v {
-    Value::Bool(v) => attribute_value::Value::BoolValue(v),
-    Value::F64(v) => attribute_value::Value::StringValue(to_truncate(v.to_string())),
-    Value::I64(v) => attribute_value::Value::IntValue(v),
-    Value::String(v) => attribute_value::Value::StringValue(to_truncate(v.into_owned())),
-    Value::Array(_) => attribute_value::Value::StringValue(to_truncate(v.to_string())),
-  };
-  AttributeValue { value: Some(new_value) }
+impl From<Value> for AttributeValue {
+  fn from(v: Value) -> AttributeValue {
+    use proto::google::devtools::cloudtrace::v2::attribute_value;
+    let new_value = match v {
+      Value::Bool(v) => attribute_value::Value::BoolValue(v),
+      Value::F64(v) => attribute_value::Value::StringValue(to_truncate(v.to_string())),
+      Value::I64(v) => attribute_value::Value::IntValue(v),
+      Value::String(v) => attribute_value::Value::StringValue(to_truncate(v.into_owned())),
+      Value::Array(_) => attribute_value::Value::StringValue(to_truncate(v.to_string())),
+    };
+    AttributeValue { value: Some(new_value) }
+  }
 }
 
 fn to_truncate(s: String) -> TruncatableString {
