@@ -271,7 +271,7 @@ impl YupAuthorizer {
   pub async fn new(
     credentials_path: impl AsRef<std::path::Path>,
     persistent_token_file: impl Into<Option<std::path::PathBuf>>,
-  ) -> Result<Self, Box<dyn std::error::Error>> {
+  ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
     let service_account_key = yup_oauth2::read_service_account_key(&credentials_path).await?;
     let project_id = service_account_key.project_id.as_ref().ok_or("project_id is missing")?.clone();
     let mut authenticator = yup_oauth2::ServiceAccountAuthenticator::builder(service_account_key);
