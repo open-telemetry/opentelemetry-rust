@@ -209,19 +209,14 @@ impl StackDriverExporter {
           spans,
         });
 
+        pending_count.fetch_sub(1, Ordering::Relaxed);
         if let Err(e) = authorizer.authorize(&mut req).await {
           log::error!("StackDriver authentication failed {}", e);
           return;
+        } else if let Err(e) = client.batch_write_spans(req).await {
+          log::error!("StackDriver push failed {}", e);
+          return;
         }
-
-        client
-          .batch_write_spans(req)
-          .await
-          .map_err(|e| {
-            log::error!("StackDriver push failed {}", e);
-          })
-          .ok();
-        pending_count.fetch_sub(1, Ordering::Relaxed);
       }
     })
     .await;
