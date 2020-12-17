@@ -162,28 +162,23 @@ impl StackDriverExporter {
         let spans = batch
           .into_iter()
           .map(|span| {
-            let new_attributes = Attributes {
-              attribute_map: span
-                .attributes
-                .iter()
-                .map(|(key, value)| (key.as_str().to_owned(), value.clone().into()))
-                .collect(),
-              ..Default::default()
-            };
-            let new_time_events = TimeEvents {
-              time_event: span
-                .message_events
-                .into_iter()
-                .map(|event| TimeEvent {
-                  time: Some(event.timestamp.into()),
-                  value: Some(Value::Annotation(Annotation {
-                    description: Some(to_truncate(event.name)),
-                    ..Default::default()
-                  })),
-                })
-                .collect(),
-              ..Default::default()
-            };
+            let attribute_map = span
+              .attributes
+              .into_iter()
+              .map(|(key, value)| (key.as_str().to_owned(), value.into()))
+              .collect();
+
+            let time_event = span
+              .message_events
+              .into_iter()
+              .map(|event| TimeEvent {
+                time: Some(event.timestamp.into()),
+                value: Some(Value::Annotation(Annotation {
+                  description: Some(to_truncate(event.name)),
+                  ..Default::default()
+                })),
+              })
+              .collect();
 
             Span {
               name: format!(
@@ -197,8 +192,14 @@ impl StackDriverExporter {
               parent_span_id: hex::encode(span.parent_span_id.to_u64().to_be_bytes()),
               start_time: Some(span.start_time.into()),
               end_time: Some(span.end_time.into()),
-              attributes: Some(new_attributes),
-              time_events: Some(new_time_events),
+              attributes: Some(Attributes {
+                attribute_map,
+                ..Default::default()
+              }),
+              time_events: Some(TimeEvents {
+                time_event,
+                ..Default::default()
+              }),
               ..Default::default()
             }
           })
