@@ -25,6 +25,7 @@ async-trait = "0.1.41"
 tracing-opentelemetry = "0.9"
 tracing-subscriber = { version = "0.2.15", features = ["ansi"] }
 futures = "0.3"
+gcp_auth = { version = "0.3.2", optional = true }
 hex = "0.4"
 http = "0.2"
 hyper = "0.13"
