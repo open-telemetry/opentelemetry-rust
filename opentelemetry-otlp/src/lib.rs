@@ -12,7 +12,7 @@
 //! you want to send data to:
 //!
 //! ```shell
-//! $ docker run -p 55680:55680 otel/opentelemetry-collector-dev:latest
+//! $ docker run -p 4317:4317 otel/opentelemetry-collector-dev:latest
 //! ```
 //!
 //! Then install a new pipeline with the recommended defaults to start exporting
@@ -83,7 +83,7 @@
 //!     map.insert_bin("trace-proto-bin", MetadataValue::from_bytes(b"[binary data]"));
 //!
 //!     let (tracer, _uninstall) = opentelemetry_otlp::new_pipeline()
-//!         .with_endpoint("localhost:55680")
+//!         .with_endpoint("localhost:4317")
 //!         .with_protocol(Protocol::Grpc)
 //!         .with_metadata(map)
 //!         .with_timeout(Duration::from_secs(3))
