@@ -108,7 +108,7 @@ impl StackDriverExporter {
     spawn: &S,
     maximum_shutdown_duration: Option<Duration>,
     num_concurrent_requests: impl Into<Option<usize>>,
-  ) -> Result<Self, Box<dyn std::error::Error>> {
+  ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
     let num_concurrent_requests = num_concurrent_requests.into();
     let uri = http::uri::Uri::from_static("https://cloudtrace.googleapis.com:443");
 
