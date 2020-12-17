@@ -70,12 +70,6 @@ pub(crate) fn into_zipkin_span(local_endpoint: Endpoint, span_data: trace::SpanD
                 KeyValue::new(k, v)
             })
             .chain(
-                span_data
-                    .resource
-                    .iter()
-                    .map(|(k, v)| KeyValue::new(k.clone(), v.clone())),
-            )
-            .chain(
                 [
                     (
                         INSTRUMENTATION_LIBRARY_NAME,
