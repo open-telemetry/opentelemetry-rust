@@ -306,6 +306,43 @@ impl Authorizer for YupAuthorizer {
   }
 }
 
+#[cfg(feature = "gcp_auth")]
+struct GcpAuthorizer {
+  manager: gcp_auth::AuthenticationManager,
+  project_id: String,
+}
+
+#[cfg(feature = "gcp_auth")]
+impl GcpAuthorizer {
+  async fn new() -> Result<Self, gcp_auth::Error> {
+      let manager = gcp_auth::init()?;
+      let project_id = manager.project_id().await?;
+      Ok(Self {
+          manager,
+          project_id,
+      })
+  }
+}
+
+#[cfg(feature = "gcp_auth")]
+#[async_trait]
+impl Authorizer for GcpAuthorizer {
+  type Error = Box<dyn std::error::Error + Sync + Send>;
+
+  fn project_id(&self) -> &str {
+    &self.project_id
+  }
+
+  async fn authorize<T: Send + Sync>(&self, req: &mut GrpcRequest<T>) -> Result<(), Self::Error> {
+    let token = self.manager.get_token(&["https://www.googleapis.com/auth/trace.append"]).await?;
+    req.metadata_mut().insert(
+      "authorization",
+      MetadataValue::from_str(&format!("Bearer {}", token.as_str())).unwrap(),
+    );
+    Ok(())
+  }
+}
+
 impl From<Value> for AttributeValue {
   fn from(v: Value) -> AttributeValue {
     use proto::google::devtools::cloudtrace::v2::attribute_value;
