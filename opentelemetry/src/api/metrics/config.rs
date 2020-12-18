@@ -6,6 +6,7 @@ pub struct InstrumentConfig {
     pub(crate) description: Option<String>,
     pub(crate) unit: Option<Unit>,
     pub(crate) instrumentation_name: String,
+    pub(crate) instrumentation_version: Option<String>,
 }
 
 impl InstrumentConfig {
@@ -15,6 +16,20 @@ impl InstrumentConfig {
             description: None,
             unit: None,
             instrumentation_name,
+            instrumentation_version: None,
+        }
+    }
+
+    /// Create a new config with instrumentation name and version
+    pub fn with_instrumentation(
+        instrumentation_name: String,
+        instrumentation_version: String,
+    ) -> Self {
+        InstrumentConfig {
+            description: None,
+            unit: None,
+            instrumentation_name,
+            instrumentation_version: Some(instrumentation_version),
         }
     }
 
@@ -31,5 +46,10 @@ impl InstrumentConfig {
     /// Instrumentation name is the name given to the Meter that created this instrument.
     pub fn instrumentation_name(&self) -> &String {
         &self.instrumentation_name
+    }
+
+    /// Instrumentation version returns the version of instrumentation
+    pub fn instrumentation_version(&self) -> Option<&String> {
+        self.instrumentation_version.as_ref()
     }
 }
