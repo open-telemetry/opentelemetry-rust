@@ -16,7 +16,7 @@ use crate::proto::grpcio::trace::{
 };
 
 use crate::transform::common::{to_nanos, Attributes};
-use opentelemetry::sdk::{export::trace::SpanData, self};
+use opentelemetry::sdk::{self, export::trace::SpanData};
 use opentelemetry::trace::{Link, SpanKind, StatusCode};
 
 #[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
