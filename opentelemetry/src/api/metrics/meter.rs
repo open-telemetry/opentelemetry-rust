@@ -1,3 +1,4 @@
+use crate::sdk::InstrumentationLibrary;
 use crate::{
     metrics::{
         sdk_api, AsyncRunner, BatchObserver, BatchObserverCallback, CounterBuilder, Descriptor,
@@ -18,31 +19,45 @@ pub trait MeterProvider: fmt::Debug {
     /// empty, then a implementation defined default name will be used instead.
     ///
     /// [`Meter`]: struct.Meter.html
-    fn meter(&self, instrumentation_name: &str) -> Meter;
+    fn meter(
+        &self,
+        instrumentation_name: &'static str,
+        instrumentation_version: Option<&'static str>,
+    ) -> Meter;
 }
 
 /// Meter is the OpenTelemetry metric API, based on a sdk-defined `MeterCore`
 /// implementation and the `Meter` library name.
 #[derive(Debug)]
 pub struct Meter {
-    instrumentation_name: String,
+    instrumentation_library: InstrumentationLibrary,
     core: Arc<dyn sdk_api::MeterCore + Send + Sync>,
 }
 
 impl Meter {
     /// Create a new named meter from a sdk implemented core
-    pub fn new<T: Into<String>>(
+    pub fn new<T: Into<&'static str>>(
         instrumentation_name: T,
+        instrumentation_version: Option<T>,
         core: Arc<dyn sdk_api::MeterCore + Send + Sync>,
     ) -> Self {
         Meter {
-            instrumentation_name: instrumentation_name.into(),
+            instrumentation_library: InstrumentationLibrary::new(
+                instrumentation_name.into(),
+                instrumentation_version.map(Into::into),
+            ),
             core,
         }
     }
 
+    #[deprecated(note = "use instrumentation_library() instead")]
+    #[allow(dead_code)]
     pub(crate) fn instrumentation_name(&self) -> &str {
-        self.instrumentation_name.as_str()
+        self.instrumentation_library.name
+    }
+
+    pub(crate) fn instrumentation_library(&self) -> InstrumentationLibrary {
+        self.instrumentation_library
     }
 
     /// Creates a new floating point `ValueObserverBuilder` instrument with the
