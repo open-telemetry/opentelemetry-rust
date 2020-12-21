@@ -13,7 +13,7 @@ fn test_add() {
         .with_resource(Resource::new(vec![KeyValue::new("R", "V")]))
         .init();
 
-    let meter = exporter.provider().unwrap().meter("test");
+    let meter = exporter.provider().unwrap().meter("test", None);
 
     let up_down_counter = meter.f64_up_down_counter("updowncounter").init();
     let counter = meter.f64_counter("counter").init();

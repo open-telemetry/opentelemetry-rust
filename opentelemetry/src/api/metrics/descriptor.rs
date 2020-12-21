@@ -17,13 +17,15 @@ impl Descriptor {
     /// Create a new descriptor
     pub fn new(
         name: String,
-        instrumentation_name: String,
+        instrumentation_name: &'static str,
+        instrumentation_version: Option<&'static str>,
         instrument_kind: InstrumentKind,
         number_kind: NumberKind,
     ) -> Self {
         let mut hasher = FnvHasher::default();
         name.hash(&mut hasher);
         instrumentation_name.hash(&mut hasher);
+        instrumentation_version.hash(&mut hasher);
         instrument_kind.hash(&mut hasher);
         number_kind.hash(&mut hasher);
 
@@ -31,7 +33,10 @@ impl Descriptor {
             name,
             instrument_kind,
             number_kind,
-            config: InstrumentConfig::with_instrumentation_name(instrumentation_name),
+            config: InstrumentConfig::with_instrumentation(
+                instrumentation_name,
+                instrumentation_version,
+            ),
             attribute_hash: hasher.finish(),
         }
     }
@@ -68,8 +73,8 @@ impl Descriptor {
     }
 
     /// The name of the library that provided instrumentation for this instrument.
-    pub fn instrumentation_name(&self) -> &str {
-        self.config.instrumentation_name.as_str()
+    pub fn instrumentation_name(&self) -> &'static str {
+        self.config.instrumentation_name()
     }
 
     /// The pre-computed hash of the descriptor data

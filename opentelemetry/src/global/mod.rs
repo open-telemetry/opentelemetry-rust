@@ -140,7 +140,9 @@ mod trace;
 pub use error_handler::{handle_error, set_error_handler};
 #[cfg(feature = "metrics")]
 #[cfg_attr(docsrs, doc(cfg(feature = "metrics")))]
-pub use metrics::{meter, meter_provider, set_meter_provider, GlobalMeterProvider};
+pub use metrics::{
+    meter, meter_provider, meter_with_version, set_meter_provider, GlobalMeterProvider,
+};
 #[cfg(feature = "trace")]
 #[cfg_attr(docsrs, doc(cfg(feature = "trace")))]
 pub use propagation::{get_text_map_propagator, set_text_map_propagator};

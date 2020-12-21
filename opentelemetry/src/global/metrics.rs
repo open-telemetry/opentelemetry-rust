@@ -16,8 +16,8 @@ pub struct GlobalMeterProvider {
 }
 
 impl MeterProvider for GlobalMeterProvider {
-    fn meter(&self, name: &str) -> Meter {
-        self.provider.meter(name)
+    fn meter(&self, name: &'static str, version: Option<&'static str>) -> Meter {
+        self.provider.meter(name, version)
     }
 }
 
@@ -67,6 +67,13 @@ pub fn meter_provider() -> GlobalMeterProvider {
 ///
 /// [`Meter`]: ../../api/metrics/meter/struct.Meter.html
 /// [`GlobalMeterProvider`]: struct.GlobalMeterProvider.html
-pub fn meter(name: &str) -> Meter {
-    meter_provider().meter(name)
+pub fn meter(name: &'static str) -> Meter {
+    meter_provider().meter(name, None)
+}
+
+/// Creates a [`Meter`] with the name and version.
+///
+/// [`Meter`]: ../../api/metrics/meter/struct.Meter.html
+pub fn meter_with_version(name: &'static str, version: &'static str) -> Meter {
+    meter_provider().meter(name, Some(version))
 }
