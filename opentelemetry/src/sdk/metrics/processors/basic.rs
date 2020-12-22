@@ -215,9 +215,10 @@ impl Checkpointer for BasicLockedProcessor<'_> {
                 // If this processor does not require memory, stale, stateless
                 // entries can be removed. This implies that they were not updated
                 // over the previous full collection interval.
-                if stale && stateless && has_memory {
+                if stale && stateless && !has_memory {
                     return false;
                 }
+                return true;
             }
 
             // Update Aggregator state to support exporting either a
