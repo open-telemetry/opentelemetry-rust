@@ -131,7 +131,7 @@ impl Processor for BenchProcessor {
 fn build_meter() -> Meter {
     let processor = Arc::new(BenchProcessor::default());
     let core = accumulator(processor).build();
-    Meter::new("benches", Arc::new(core))
+    Meter::new("benches", None, Arc::new(core))
 }
 
 criterion_group!(benches, counters);

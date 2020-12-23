@@ -1,3 +1,4 @@
+use crate::sdk::InstrumentationLibrary;
 use crate::Unit;
 
 /// Config contains some options for metrics of any kind.
@@ -5,16 +6,34 @@ use crate::Unit;
 pub struct InstrumentConfig {
     pub(crate) description: Option<String>,
     pub(crate) unit: Option<Unit>,
-    pub(crate) instrumentation_name: String,
+    pub(crate) instrumentation_library: InstrumentationLibrary,
 }
 
 impl InstrumentConfig {
     /// Create a new config from instrumentation name
-    pub fn with_instrumentation_name(instrumentation_name: String) -> Self {
+    pub fn with_instrumentation_name(instrumentation_name: &'static str) -> Self {
         InstrumentConfig {
             description: None,
             unit: None,
-            instrumentation_name,
+            instrumentation_library: InstrumentationLibrary {
+                name: instrumentation_name,
+                version: None,
+            },
+        }
+    }
+
+    /// Create a new config with instrumentation name and optional version
+    pub fn with_instrumentation(
+        instrumentation_name: &'static str,
+        instrumentation_version: Option<&'static str>,
+    ) -> Self {
+        InstrumentConfig {
+            description: None,
+            unit: None,
+            instrumentation_library: InstrumentationLibrary {
+                name: instrumentation_name,
+                version: instrumentation_version,
+            },
         }
     }
 
@@ -29,7 +48,12 @@ impl InstrumentConfig {
     }
 
     /// Instrumentation name is the name given to the Meter that created this instrument.
-    pub fn instrumentation_name(&self) -> &String {
-        &self.instrumentation_name
+    pub fn instrumentation_name(&self) -> &'static str {
+        self.instrumentation_library.name
+    }
+
+    /// Instrumentation version returns the version of instrumentation
+    pub fn instrumentation_version(&self) -> Option<&'static str> {
+        self.instrumentation_library.version
     }
 }

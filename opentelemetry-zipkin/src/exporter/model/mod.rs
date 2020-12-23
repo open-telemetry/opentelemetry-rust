@@ -12,11 +12,10 @@ pub(crate) mod span;
 
 use endpoint::Endpoint;
 
-/// Instrument Library name MUST be reported in Jaeger Span tags with the following key
 const INSTRUMENTATION_LIBRARY_NAME: &str = "otel.library.name";
-
-/// Instrument Library version MUST be reported in Jaeger Span tags with the following key
 const INSTRUMENTATION_LIBRARY_VERSION: &str = "otel.library.version";
+const OTEL_ERROR_DESCRIPTION: &str = "error";
+const OTEL_STATUS_CODE: &str = "otel.status_code";
 
 /// Converts `Event` into an `annotation::Annotation`
 impl Into<annotation::Annotation> for Event {
@@ -34,12 +33,13 @@ impl Into<annotation::Annotation> for Event {
     }
 }
 
-/// Converts StatusCode to str
-fn from_statuscode_to_str(status_code: StatusCode) -> &'static str {
+/// Converts StatusCode to Option<&'static str>
+/// `Unset` status code is unused.
+fn from_statuscode_to_str(status_code: StatusCode) -> Option<&'static str> {
     match status_code {
-        StatusCode::Ok => "OK",
-        StatusCode::Unset => "UNSET",
-        StatusCode::Error => "ERROR",
+        StatusCode::Ok => Some("OK"),
+        StatusCode::Unset => None,
+        StatusCode::Error => Some("ERROR"),
     }
 }
 
@@ -57,6 +57,7 @@ fn into_zipkin_span_kind(kind: SpanKind) -> Option<span::Kind> {
 /// Converts a `trace::SpanData` to a `span::SpanData` for a given `ExporterConfig`, which can then
 /// be ingested into a Zipkin collector.
 pub(crate) fn into_zipkin_span(local_endpoint: Endpoint, span_data: trace::SpanData) -> span::Span {
+    // see tests in create/exporter/model/span.rs
     let mut user_defined_span_kind = false;
     let mut tags = map_from_kvs(
         span_data
@@ -68,12 +69,6 @@ pub(crate) fn into_zipkin_span(local_endpoint: Endpoint, span_data: trace::SpanD
                 }
                 KeyValue::new(k, v)
             })
-            .chain(
-                span_data
-                    .resource
-                    .iter()
-                    .map(|(k, v)| KeyValue::new(k.clone(), v.clone())),
-            )
             .chain(
                 [
                     (
@@ -87,14 +82,15 @@ pub(crate) fn into_zipkin_span(local_endpoint: Endpoint, span_data: trace::SpanD
                 ]
                 .iter()
                 .filter_map(|(key, val)| val.map(|val| KeyValue::new(*key, val))),
-            ),
+            )
+            .filter(|kv| kv.key.as_str() != "error"),
     );
-
-    tags.insert(
-        "otel.status_code".into(),
-        from_statuscode_to_str(span_data.status_code).into(),
-    );
-    tags.insert("otel.status_description".into(), span_data.status_message);
+    if let Some(status_code) = from_statuscode_to_str(span_data.status_code) {
+        if status_code == "ERROR" {
+            tags.insert(OTEL_ERROR_DESCRIPTION.into(), span_data.status_message);
+        }
+        tags.insert(OTEL_STATUS_CODE.into(), status_code.into());
+    }
 
     span::Span::builder()
         .trace_id(span_data.span_context.trace_id().to_hex())

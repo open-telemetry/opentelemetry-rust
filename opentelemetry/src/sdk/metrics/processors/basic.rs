@@ -1,7 +1,7 @@
 use crate::sdk::{
     export::metrics::{
         self, Accumulation, Aggregator, AggregatorSelector, CheckpointSet, Checkpointer,
-        ExportKind, ExportKindSelector, LockedProcessor, Processor, Record, Subtractor,
+        ExportKind, ExportKindFor, LockedProcessor, Processor, Record, Subtractor,
     },
     metrics::aggregators::SumAggregator,
     Resource,
@@ -19,7 +19,7 @@ use std::time::SystemTime;
 /// Create a new basic processor
 pub fn basic(
     aggregator_selector: Box<dyn AggregatorSelector + Send + Sync>,
-    export_selector: Box<dyn ExportKindSelector + Send + Sync>,
+    export_selector: Box<dyn ExportKindFor + Send + Sync>,
     memory: bool,
 ) -> BasicProcessor {
     BasicProcessor {
@@ -33,7 +33,7 @@ pub fn basic(
 #[derive(Debug)]
 pub struct BasicProcessor {
     aggregator_selector: Box<dyn AggregatorSelector + Send + Sync>,
-    export_selector: Box<dyn ExportKindSelector + Send + Sync>,
+    export_selector: Box<dyn ExportKindFor + Send + Sync>,
     state: Mutex<BasicProcessorState>,
 }
 
@@ -215,9 +215,10 @@ impl Checkpointer for BasicLockedProcessor<'_> {
                 // If this processor does not require memory, stale, stateless
                 // entries can be removed. This implies that they were not updated
                 // over the previous full collection interval.
-                if stale && stateless && has_memory {
+                if stale && stateless && !has_memory {
                     return false;
                 }
+                return true;
             }
 
             // Update Aggregator state to support exporting either a
@@ -303,7 +304,7 @@ impl Default for BasicProcessorState {
 impl CheckpointSet for BasicProcessorState {
     fn try_for_each(
         &mut self,
-        exporter: &dyn ExportKindSelector,
+        exporter: &dyn ExportKindFor,
         f: &mut dyn FnMut(&Record<'_>) -> Result<()>,
     ) -> Result<()> {
         if self.started_collection != self.finished_collection {
@@ -323,17 +324,6 @@ impl CheckpointSet for BasicProcessorState {
             }
 
             match exporter.export_kind_for(&value.descriptor) {
-                ExportKind::PassThrough => {
-                    // No state is required, pass through the checkpointed value.
-                    agg = Some(&value.current);
-
-                    if instrument_kind.precomputed_sum() {
-                        start = self.process_start;
-                    } else {
-                        start = self.interval_start;
-                    }
-                }
-
                 ExportKind::Cumulative => {
                     // If stateful, the sum has been computed.  If stateless, the
                     // input was already cumulative. Either way, use the

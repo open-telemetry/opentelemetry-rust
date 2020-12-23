@@ -1,5 +1,8 @@
 use opentelemetry::sdk::Resource;
-use opentelemetry::{metrics::MeterProvider, KeyValue};
+use opentelemetry::{
+    metrics::{MeterProvider, ObserverResult},
+    KeyValue,
+};
 use opentelemetry_prometheus::PrometheusExporter;
 use prometheus::{Encoder, TextEncoder};
 
@@ -10,8 +13,9 @@ fn test_add() {
         .with_resource(Resource::new(vec![KeyValue::new("R", "V")]))
         .init();
 
-    let meter = exporter.provider().unwrap().meter("test");
+    let meter = exporter.provider().unwrap().meter("test", None);
 
+    let up_down_counter = meter.f64_up_down_counter("updowncounter").init();
     let counter = meter.f64_counter("counter").init();
     let value_recorder = meter.f64_value_recorder("value_recorder").init();
 
@@ -22,18 +26,32 @@ fn test_add() {
     counter.add(10.0, &labels);
     counter.add(5.3, &labels);
 
-    expected.push("counter{A=\"B\",C=\"D\",R=\"V\"} 15.3");
+    expected.push(r#"counter{A="B",C="D",R="V"} 15.3"#);
+
+    let cb_labels = labels.clone();
+    let _observer = meter
+        .i64_value_observer("intobserver", move |result: ObserverResult<i64>| {
+            result.observe(1, cb_labels.as_ref())
+        })
+        .init();
+
+    expected.push(r#"intobserver{A="B",C="D",R="V"} 1"#);
 
     value_recorder.record(-0.6, &labels);
     value_recorder.record(-0.4, &labels);
     value_recorder.record(0.6, &labels);
     value_recorder.record(20.0, &labels);
 
-    expected.push("value_recorder_bucket{A=\"B\",C=\"D\",R=\"V\",le=\"+Inf\"} 4");
-    expected.push("value_recorder_bucket{A=\"B\",C=\"D\",R=\"V\",le=\"-0.5\"} 1");
-    expected.push("value_recorder_bucket{A=\"B\",C=\"D\",R=\"V\",le=\"1\"} 3");
-    expected.push("value_recorder_count{A=\"B\",C=\"D\",R=\"V\"} 4");
-    expected.push("value_recorder_sum{A=\"B\",C=\"D\",R=\"V\"} 19.6");
+    expected.push(r#"value_recorder_bucket{A="B",C="D",R="V",le="+Inf"} 4"#);
+    expected.push(r#"value_recorder_bucket{A="B",C="D",R="V",le="-0.5"} 1"#);
+    expected.push(r#"value_recorder_bucket{A="B",C="D",R="V",le="1"} 3"#);
+    expected.push(r#"value_recorder_count{A="B",C="D",R="V"} 4"#);
+    expected.push(r#"value_recorder_sum{A="B",C="D",R="V"} 19.6"#);
+
+    up_down_counter.add(10.0, &labels);
+    up_down_counter.add(-3.2, &labels);
+
+    expected.push(r#"updowncounter{A="B",C="D",R="V"} 6.8"#);
 
     compare_export(&exporter, expected)
 }

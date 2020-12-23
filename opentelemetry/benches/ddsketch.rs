@@ -28,7 +28,8 @@ fn ddsketch(data: Vec<f64>) {
         DDSKetchAggregator::new(&DDSketchConfig::new(0.001, 2048, 1e-9), NumberKind::F64);
     let descriptor = Descriptor::new(
         "test".to_string(),
-        "test".to_string(),
+        "test",
+        None,
         InstrumentKind::ValueRecorder,
         NumberKind::F64,
     );
@@ -53,7 +54,8 @@ fn array(data: Vec<f64>) {
     let aggregator = ArrayAggregator::default();
     let descriptor = Descriptor::new(
         "test".to_string(),
-        "test".to_string(),
+        "test",
+        None,
         InstrumentKind::ValueRecorder,
         NumberKind::F64,
     );

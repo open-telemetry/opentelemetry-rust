@@ -1,6 +1,8 @@
 #[cfg(feature = "metrics")]
 #[cfg_attr(docsrs, doc(cfg(feature = "metrics")))]
 use crate::api::metrics::MetricsError;
+#[cfg(feature = "trace")]
+#[cfg_attr(docsrs, doc(cfg(feature = "trace")))]
 use crate::api::trace::TraceError;
 use std::sync::PoisonError;
 

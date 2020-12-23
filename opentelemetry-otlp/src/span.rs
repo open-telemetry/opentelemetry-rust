@@ -143,11 +143,13 @@ impl Into<grpcio::CompressionAlgorithms> for Compression {
     }
 }
 
+const DEFAULT_OTLP_PORT: u16 = 4317;
+
 impl Default for ExporterConfig {
     #[cfg(feature = "tonic")]
     fn default() -> Self {
         ExporterConfig {
-            endpoint: String::from("localhost:55680"),
+            endpoint: format!("localhost:{}", DEFAULT_OTLP_PORT),
             protocol: Protocol::Grpc,
             #[cfg(all(feature = "tonic", feature = "tls"))]
             tls_config: None,
@@ -161,7 +163,7 @@ impl Default for ExporterConfig {
     #[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
     fn default() -> Self {
         ExporterConfig {
-            endpoint: String::from("localhost:55680"),
+            endpoint: format!("localhost:{}", DEFAULT_OTLP_PORT),
             protocol: Protocol::Grpc,
             credentials: None,
             headers: None,

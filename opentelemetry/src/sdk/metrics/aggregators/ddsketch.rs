@@ -811,7 +811,8 @@ mod tests {
         );
         let descriptor = Descriptor::new(
             "test".to_string(),
-            "test".to_string(),
+            "test",
+            None,
             InstrumentKind::ValueRecorder,
             kind.clone(),
         );
@@ -976,7 +977,8 @@ mod tests {
         );
         let descriptor = Descriptor::new(
             "test".to_string(),
-            "test".to_string(),
+            "test",
+            None,
             InstrumentKind::ValueRecorder,
             kind.clone(),
         );

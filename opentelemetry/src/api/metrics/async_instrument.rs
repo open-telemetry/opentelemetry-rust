@@ -69,8 +69,8 @@ where
         }
     }
 
-    /// Observe captures a single integer value from the associated instrument
-    /// callback, with the given labels.
+    /// Observe captures a single value from the associated instrument callback,
+    /// with the given labels.
     pub fn observe(&self, value: T, labels: &[KeyValue]) {
         (self.f)(
             labels,
