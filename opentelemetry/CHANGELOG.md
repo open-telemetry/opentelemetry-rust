@@ -1,5 +1,29 @@
 # Changelog
 
+## [v0.11.0](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.10.0...v0.11.0)
+
+## Added
+
+- Add `force_flush` method to span processors #358
+- Add timeout for `force_flush` and `shutdown` #362 
+
+## Changed
+
+- Implement Display trait for Key and Value types #353
+- Remove Option from Array values #359
+- Update `ShouldSample`'s parent parameter to be `Context` #368
+- Consolidate error types in `trace` module into `TraceError` #371
+- Add `#[must_use]` to uninstall structs #372
+- Move 3rd party propagators and merge exporter into `sdk::export` #375
+- Add instrumentation version to instrument config #392
+- Use instrumentation library in metrics #393
+
+# Fixed
+
+- Fix parent based sampling in tracer #354
+- StatusCode enum value ordering #377
+- Counter adding the delta from last collection #395
+
 ## [v0.10.0](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.9.1...v0.10.0)
 
 ## Added
