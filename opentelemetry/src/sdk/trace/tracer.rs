@@ -68,7 +68,6 @@ impl Tracer {
     fn make_sampling_decision(
         &self,
         parent_cx: Option<&Context>,
-        parent_span_context: Option<&SpanContext>,
         trace_id: TraceId,
         name: &str,
         span_kind: &SpanKind,
@@ -78,39 +77,16 @@ impl Tracer {
         let provider = self.provider()?;
         let sampler = &provider.config().default_sampler;
 
-        // Sampler needs to be able to access remote span context as parent span
-        let sampling_result = if parent_cx.map_or(false, |cx| {
-            !cx.has_active_span() && cx.remote_span_context().is_some()
-        }) {
-            let parent_cx = parent_cx.map(|cx| {
-                let span = Span::new(
-                    parent_span_context
-                        .cloned()
-                        .unwrap_or_else(SpanContext::empty_context),
-                    None,
-                    self.clone(),
-                );
-                cx.with_span(span)
-            });
-            sampler.should_sample(
-                parent_cx.as_ref(),
-                trace_id,
-                name,
-                span_kind,
-                attributes,
-                links,
-            )
-        } else {
-            sampler.should_sample(parent_cx, trace_id, name, span_kind, attributes, links)
-        };
+        let sampling_result =
+            sampler.should_sample(parent_cx, trace_id, name, span_kind, attributes, links);
 
-        self.process_sampling_result(sampling_result, parent_span_context)
+        self.process_sampling_result(sampling_result, parent_cx)
     }
 
     fn process_sampling_result(
         &self,
         sampling_result: SamplingResult,
-        parent_context: Option<&SpanContext>,
+        parent_cx: Option<&Context>,
     ) -> Option<(u8, Vec<KeyValue>, TraceState)> {
         match sampling_result {
             SamplingResult {
@@ -122,7 +98,9 @@ impl Tracer {
                 attributes,
                 trace_state,
             } => {
-                let trace_flags = parent_context.map(|ctx| ctx.trace_flags()).unwrap_or(0);
+                let trace_flags = parent_cx
+                    .map(|ctx| ctx.span().span_context().trace_flags())
+                    .unwrap_or(0);
                 Some((trace_flags & !TRACE_FLAG_SAMPLED, attributes, trace_state))
             }
             SamplingResult {
@@ -130,7 +108,9 @@ impl Tracer {
                 attributes,
                 trace_state,
             } => {
-                let trace_flags = parent_context.map(|ctx| ctx.trace_flags()).unwrap_or(0);
+                let trace_flags = parent_cx
+                    .map(|ctx| ctx.span().span_context().trace_flags())
+                    .unwrap_or(0);
                 Some((trace_flags | TRACE_FLAG_SAMPLED, attributes, trace_state))
             }
         }
@@ -194,12 +174,22 @@ impl crate::trace::Tracer for Tracer {
         let mut flags = 0;
         let mut span_trace_state = Default::default();
 
-        let parent_cx = builder.parent_context.take();
+        let parent_cx = builder.parent_context.take().map(|cx| {
+            // Sampling expects to be able to access the parent span via `span` so wrap remote span
+            // context in a wrapper span if necessary. Remote span contexts will be passed to
+            // subsequent context's, so wrapping is only necessary if there is no active span.
+            match cx.remote_span_context() {
+                Some(remote_sc) if !cx.has_active_span() => {
+                    cx.with_span(Span::new(remote_sc.clone(), None, self.clone()))
+                }
+                _ => cx,
+            }
+        });
         let parent_span_context = parent_cx.as_ref().and_then(|parent_cx| {
             if parent_cx.has_active_span() {
                 Some(parent_cx.span().span_context())
             } else {
-                parent_cx.remote_span_context()
+                None
             }
         });
         // Build context for sampling decision
@@ -231,11 +221,10 @@ impl crate::trace::Tracer for Tracer {
         // * There is no parent or a remote parent, in which case make decision now
         // * There is a local parent, in which case defer to the parent's decision
         let sampling_decision = if let Some(sampling_result) = builder.sampling_result.take() {
-            self.process_sampling_result(sampling_result, parent_span_context)
+            self.process_sampling_result(sampling_result, parent_cx.as_ref())
         } else if no_parent || remote_parent {
             self.make_sampling_decision(
                 parent_cx.as_ref(),
-                parent_span_context,
                 trace_id,
                 &builder.name,
                 &span_kind,

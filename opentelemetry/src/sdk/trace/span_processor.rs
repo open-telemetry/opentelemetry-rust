@@ -695,10 +695,8 @@ mod tests {
         D: Fn(time::Duration) -> DS + 'static + Send + Sync,
         DS: Future<Output = ()> + Send + Sync + 'static,
     {
-        async fn export(&mut self, batch: Vec<SpanData>) -> ExportResult {
-            println!("Accepting {} spans", batch.len());
+        async fn export(&mut self, _batch: Vec<SpanData>) -> ExportResult {
             (self.delay_fn)(self.delay_for).await;
-            println!("Finish exporting, return result from exporter");
             Ok(())
         }
     }
