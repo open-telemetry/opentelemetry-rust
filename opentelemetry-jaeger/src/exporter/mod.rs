@@ -837,8 +837,7 @@ mod tests {
                 status_code,
                 error_msg,
                 SpanKind::Client,
-            )
-            .unwrap_or_default();
+            );
             if let Some(val) = status_tag_val {
                 assert_tag_contains(tags.clone(), OTEL_STATUS_CODE, val);
             } else {
