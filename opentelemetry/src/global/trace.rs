@@ -92,7 +92,7 @@ impl trace::Tracer for BoxedTracer {
     /// trace. A span is said to be a _root span_ if it does not have a parent. Each
     /// trace includes a single root span, which is the shared ancestor of all other
     /// spans in the trace.
-    fn start_from_context(&self, name: &str, cx: &Context) -> Self::Span {
+    fn start_with_context(&self, name: &str, cx: Context) -> Self::Span {
         BoxedSpan(self.0.start_with_context_boxed(name, cx))
     }
 
@@ -104,8 +104,8 @@ impl trace::Tracer for BoxedTracer {
     }
 
     /// Create a span from a `SpanBuilder`
-    fn build_with_context(&self, builder: trace::SpanBuilder, cx: &Context) -> Self::Span {
-        BoxedSpan(self.0.build_with_context_boxed(builder, cx))
+    fn build(&self, builder: trace::SpanBuilder) -> Self::Span {
+        BoxedSpan(self.0.build_boxed(builder))
     }
 }
 
@@ -120,11 +120,11 @@ pub trait GenericTracer: fmt::Debug + 'static {
 
     /// Returns a trait object so the underlying implementation can be swapped
     /// out at runtime.
-    fn start_with_context_boxed(&self, name: &str, cx: &Context) -> Box<DynSpan>;
+    fn start_with_context_boxed(&self, name: &str, cx: Context) -> Box<DynSpan>;
 
     /// Returns a trait object so the underlying implementation can be swapped
     /// out at runtime.
-    fn build_with_context_boxed(&self, builder: trace::SpanBuilder, cx: &Context) -> Box<DynSpan>;
+    fn build_boxed(&self, builder: trace::SpanBuilder) -> Box<DynSpan>;
 }
 
 impl<S, T> GenericTracer for T
@@ -139,14 +139,14 @@ where
 
     /// Returns a trait object so the underlying implementation can be swapped
     /// out at runtime.
-    fn start_with_context_boxed(&self, name: &str, cx: &Context) -> Box<DynSpan> {
-        Box::new(self.start_from_context(name, cx))
+    fn start_with_context_boxed(&self, name: &str, cx: Context) -> Box<DynSpan> {
+        Box::new(self.start_with_context(name, cx))
     }
 
     /// Returns a trait object so the underlying implementation can be swapped
     /// out at runtime.
-    fn build_with_context_boxed(&self, builder: trace::SpanBuilder, cx: &Context) -> Box<DynSpan> {
-        Box::new(self.build_with_context(builder, cx))
+    fn build_boxed(&self, builder: trace::SpanBuilder) -> Box<DynSpan> {
+        Box::new(self.build(builder))
     }
 }
 
