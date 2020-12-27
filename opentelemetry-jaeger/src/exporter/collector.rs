@@ -33,14 +33,14 @@ mod collector_client {
 
     impl CollectorAsyncClientHttp {
         /// Create a new HTTP collector client
-        pub(crate) fn new(endpoint: Uri, client: Box<dyn HttpClient>) -> thrift::Result<Self> {
+        pub(crate) fn new(endpoint: Uri, client: Box<dyn HttpClient>) -> Self {
             let payload_size_estimate = AtomicUsize::new(512);
 
-            Ok(CollectorAsyncClientHttp {
+            CollectorAsyncClientHttp {
                 endpoint,
                 client,
                 payload_size_estimate,
-            })
+            }
         }
 
         /// Submit list of Jaeger batches

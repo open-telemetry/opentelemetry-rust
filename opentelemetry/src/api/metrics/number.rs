@@ -92,24 +92,36 @@ impl AtomicNumber {
     /// `inf` for `f64`.
     pub fn fetch_add(&self, number_kind: &NumberKind, val: &Number) {
         match number_kind {
-            NumberKind::I64 => loop {
-                let current = self.0.load(Ordering::Acquire);
-                let new = (current as i64).wrapping_add(val.0 as i64) as u64;
-                let swapped = self.0.compare_and_swap(current, new, Ordering::Release);
-                if swapped == current {
-                    return;
+            NumberKind::I64 => {
+                let mut old = self.0.load(Ordering::Acquire);
+                loop {
+                    let new = (old as i64).wrapping_add(val.0 as i64) as u64;
+                    match self.0.compare_exchange_weak(
+                        old,
+                        new,
+                        Ordering::AcqRel,
+                        Ordering::Acquire,
+                    ) {
+                        Ok(_) => break,
+                        Err(x) => old = x,
+                    };
                 }
-            },
-            NumberKind::F64 => loop {
-                let current = self.0.load(Ordering::Acquire);
-                let new = u64_to_f64(current) + u64_to_f64(val.0);
-                let swapped = self
-                    .0
-                    .compare_and_swap(current, f64_to_u64(new), Ordering::Release);
-                if swapped == current {
-                    return;
+            }
+            NumberKind::F64 => {
+                let mut old = self.0.load(Ordering::Acquire);
+                loop {
+                    let new = u64_to_f64(old) + u64_to_f64(val.0);
+                    match self.0.compare_exchange_weak(
+                        old,
+                        f64_to_u64(new),
+                        Ordering::AcqRel,
+                        Ordering::Acquire,
+                    ) {
+                        Ok(_) => break,
+                        Err(x) => old = x,
+                    };
                 }
-            },
+            }
             NumberKind::U64 => {
                 self.0.fetch_add(val.0, Ordering::AcqRel);
             }
@@ -122,24 +134,36 @@ impl AtomicNumber {
     /// `-inf` for `f64`.
     pub fn fetch_sub(&self, number_kind: &NumberKind, val: &Number) {
         match number_kind {
-            NumberKind::I64 => loop {
-                let current = self.0.load(Ordering::Acquire);
-                let new = (current as i64).wrapping_sub(val.0 as i64) as u64;
-                let swapped = self.0.compare_and_swap(current, new, Ordering::Release);
-                if swapped == current {
-                    return;
+            NumberKind::I64 => {
+                let mut old = self.0.load(Ordering::Acquire);
+                loop {
+                    let new = (old as i64).wrapping_sub(val.0 as i64) as u64;
+                    match self.0.compare_exchange_weak(
+                        old,
+                        new,
+                        Ordering::AcqRel,
+                        Ordering::Relaxed,
+                    ) {
+                        Ok(_) => break,
+                        Err(x) => old = x,
+                    };
                 }
-            },
-            NumberKind::F64 => loop {
-                let current = self.0.load(Ordering::Acquire);
-                let new = u64_to_f64(current) - u64_to_f64(val.0);
-                let swapped = self
-                    .0
-                    .compare_and_swap(current, f64_to_u64(new), Ordering::Release);
-                if swapped == current {
-                    return;
+            }
+            NumberKind::F64 => {
+                let mut old = self.0.load(Ordering::Acquire);
+                loop {
+                    let new = u64_to_f64(old) - u64_to_f64(val.0);
+                    match self.0.compare_exchange_weak(
+                        old,
+                        f64_to_u64(new),
+                        Ordering::AcqRel,
+                        Ordering::Acquire,
+                    ) {
+                        Ok(_) => break,
+                        Err(x) => old = x,
+                    };
                 }
-            },
+            }
             NumberKind::U64 => {
                 self.0.fetch_sub(val.0, Ordering::AcqRel);
             }
