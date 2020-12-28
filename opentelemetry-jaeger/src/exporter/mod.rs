@@ -390,8 +390,7 @@ impl PipelineBuilder {
                 Box::new(client)
             });
 
-            let collector = CollectorAsyncClientHttp::new(collector_endpoint, client)
-                .map_err::<Error, _>(Into::into)?;
+            let collector = CollectorAsyncClientHttp::new(collector_endpoint, client);
             Ok((self.process, uploader::BatchUploader::Collector(collector)))
         } else {
             let endpoint = self.agent_endpoint.as_slice();
@@ -568,7 +567,7 @@ fn convert_otel_span_into_jaeger_span(
             .duration_since(span.start_time)
             .unwrap_or_else(|_| Duration::from_secs(0))
             .as_micros() as i64,
-        tags: build_span_tags(
+        tags: Some(build_span_tags(
             span.attributes,
             if export_instrument_lib {
                 Some(span.instrumentation_lib)
@@ -578,7 +577,7 @@ fn convert_otel_span_into_jaeger_span(
             span.status_code,
             span.status_message,
             span.span_kind,
-        ),
+        )),
         logs: events_to_logs(span.message_events),
     }
 }
@@ -604,7 +603,7 @@ fn build_span_tags(
     status_code: StatusCode,
     status_message: String,
     kind: SpanKind,
-) -> Option<Vec<jaeger::Tag>> {
+) -> Vec<jaeger::Tag> {
     let mut user_overrides = UserOverrides::default();
     // TODO determine if namespacing is required to avoid collisions with set attributes
     let mut tags = attrs
@@ -658,7 +657,7 @@ fn build_span_tags(
         }
     }
 
-    Some(tags)
+    tags
 }
 
 const ERROR: &str = "error";
@@ -838,8 +837,7 @@ mod tests {
                 status_code,
                 error_msg,
                 SpanKind::Client,
-            )
-            .unwrap_or_default();
+            );
             if let Some(val) = status_tag_val {
                 assert_tag_contains(tags.clone(), OTEL_STATUS_CODE, val);
             } else {
