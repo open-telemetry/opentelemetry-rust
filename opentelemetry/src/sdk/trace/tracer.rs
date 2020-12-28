@@ -67,32 +67,26 @@ impl Tracer {
     #[allow(clippy::too_many_arguments)]
     fn make_sampling_decision(
         &self,
-        parent_context: Option<&SpanContext>,
+        parent_cx: Option<&Context>,
         trace_id: TraceId,
         name: &str,
         span_kind: &SpanKind,
         attributes: &[KeyValue],
         links: &[Link],
-        ctx: &Context,
     ) -> Option<(u8, Vec<KeyValue>, TraceState)> {
         let provider = self.provider()?;
         let sampler = &provider.config().default_sampler;
 
-        let ctx = parent_context.map(|span_context| {
-            let span = Span::new(span_context.clone(), None, self.clone());
-            ctx.with_span(span)
-        });
-
         let sampling_result =
-            sampler.should_sample(ctx.as_ref(), trace_id, name, span_kind, attributes, links);
+            sampler.should_sample(parent_cx, trace_id, name, span_kind, attributes, links);
 
-        self.process_sampling_result(sampling_result, parent_context)
+        self.process_sampling_result(sampling_result, parent_cx)
     }
 
     fn process_sampling_result(
         &self,
         sampling_result: SamplingResult,
-        parent_context: Option<&SpanContext>,
+        parent_cx: Option<&Context>,
     ) -> Option<(u8, Vec<KeyValue>, TraceState)> {
         match sampling_result {
             SamplingResult {
@@ -104,7 +98,9 @@ impl Tracer {
                 attributes,
                 trace_state,
             } => {
-                let trace_flags = parent_context.map(|ctx| ctx.trace_flags()).unwrap_or(0);
+                let trace_flags = parent_cx
+                    .map(|ctx| ctx.span().span_context().trace_flags())
+                    .unwrap_or(0);
                 Some((trace_flags & !TRACE_FLAG_SAMPLED, attributes, trace_state))
             }
             SamplingResult {
@@ -112,7 +108,9 @@ impl Tracer {
                 attributes,
                 trace_state,
             } => {
-                let trace_flags = parent_context.map(|ctx| ctx.trace_flags()).unwrap_or(0);
+                let trace_flags = parent_cx
+                    .map(|ctx| ctx.span().span_context().trace_flags())
+                    .unwrap_or(0);
                 Some((trace_flags | TRACE_FLAG_SAMPLED, attributes, trace_state))
             }
         }
@@ -129,17 +127,18 @@ impl crate::trace::Tracer for Tracer {
         Span::new(SpanContext::empty_context(), None, self.clone())
     }
 
-    /// Starts a new `Span` in a given context.
+    /// Starts a new `Span` with a given context.
     ///
     /// Each span has zero or one parent spans and zero or more child spans, which
     /// represent causally related operations. A tree of related spans comprises a
     /// trace. A span is said to be a _root span_ if it does not have a parent. Each
     /// trace includes a single root span, which is the shared ancestor of all other
     /// spans in the trace.
-    fn start_from_context(&self, name: &str, cx: &Context) -> Self::Span {
-        let builder = self.span_builder(name);
+    fn start_with_context(&self, name: &str, cx: Context) -> Self::Span {
+        let mut builder = self.span_builder(name);
+        builder.parent_context = Some(cx);
 
-        self.build_with_context(builder, cx)
+        self.build(builder)
     }
 
     /// Creates a span builder
@@ -156,7 +155,7 @@ impl crate::trace::Tracer for Tracer {
     /// trace. A span is said to be a _root span_ if it does not have a parent. Each
     /// trace includes a single root span, which is the shared ancestor of all other
     /// spans in the trace.
-    fn build_with_context(&self, mut builder: SpanBuilder, cx: &Context) -> Self::Span {
+    fn build(&self, mut builder: SpanBuilder) -> Self::Span {
         let provider = self.provider();
         if provider.is_none() {
             return Span::new(SpanContext::empty_context(), None, self.clone());
@@ -175,17 +174,24 @@ impl crate::trace::Tracer for Tracer {
         let mut flags = 0;
         let mut span_trace_state = Default::default();
 
-        let parent_span_context = builder
-            .parent_context
-            .as_ref()
-            .or_else(|| {
-                if cx.has_active_span() {
-                    Some(cx.span().span_context())
-                } else {
-                    None
+        let parent_cx = builder.parent_context.take().map(|cx| {
+            // Sampling expects to be able to access the parent span via `span` so wrap remote span
+            // context in a wrapper span if necessary. Remote span contexts will be passed to
+            // subsequent context's, so wrapping is only necessary if there is no active span.
+            match cx.remote_span_context() {
+                Some(remote_sc) if !cx.has_active_span() => {
+                    cx.with_span(Span::new(remote_sc.clone(), None, self.clone()))
                 }
-            })
-            .or_else(|| cx.remote_span_context());
+                _ => cx,
+            }
+        });
+        let parent_span_context = parent_cx.as_ref().and_then(|parent_cx| {
+            if parent_cx.has_active_span() {
+                Some(parent_cx.span().span_context())
+            } else {
+                None
+            }
+        });
         // Build context for sampling decision
         let (no_parent, trace_id, parent_span_id, remote_parent, parent_trace_flags) =
             parent_span_context
@@ -215,16 +221,15 @@ impl crate::trace::Tracer for Tracer {
         // * There is no parent or a remote parent, in which case make decision now
         // * There is a local parent, in which case defer to the parent's decision
         let sampling_decision = if let Some(sampling_result) = builder.sampling_result.take() {
-            self.process_sampling_result(sampling_result, parent_span_context)
+            self.process_sampling_result(sampling_result, parent_cx.as_ref())
         } else if no_parent || remote_parent {
             self.make_sampling_decision(
-                parent_span_context,
+                parent_cx.as_ref(),
                 trace_id,
                 &builder.name,
                 &span_kind,
                 &attribute_options,
                 link_options.as_deref().unwrap_or(&[]),
-                cx,
             )
         } else {
             // has parent that is local: use parent if sampled, or don't record.
@@ -283,7 +288,7 @@ impl crate::trace::Tracer for Tracer {
 
         // Call `on_start` for all processors
         for processor in provider.span_processors() {
-            processor.on_start(&span, cx)
+            processor.on_start(&span, parent_cx.as_ref().unwrap_or(&Context::new()))
         }
 
         span
@@ -341,19 +346,18 @@ mod tests {
             .with_config(config)
             .build();
         let tracer = tracer_provider.get_tracer("test", None);
-        let context = Context::default();
         let trace_state = TraceState::from_key_value(vec![("foo", "bar")]).unwrap();
         let mut span_builder = SpanBuilder::default();
-        span_builder.parent_context = Some(SpanContext::new(
+        span_builder.parent_context = Some(Context::current_with_span(TestSpan(SpanContext::new(
             TraceId::from_u128(128),
             SpanId::from_u64(64),
             TRACE_FLAG_SAMPLED,
             true,
             trace_state,
-        ));
+        ))));
 
         // Test sampler should change trace state
-        let span = tracer.build_with_context(span_builder, &context);
+        let span = tracer.build(span_builder);
         let span_context = span.span_context();
         let expected = span_context.trace_state();
         assert_eq!(expected.get("foo"), Some("notbar"))
@@ -369,7 +373,7 @@ mod tests {
 
         let context = Context::current_with_span(TestSpan(SpanContext::empty_context()));
         let tracer = tracer_provider.get_tracer("test", None);
-        let span = tracer.start_from_context("must_not_be_sampled", &context);
+        let span = tracer.start_with_context("must_not_be_sampled", context);
 
         assert!(!span.span_context().is_sampled());
     }

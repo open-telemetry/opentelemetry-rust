@@ -1,8 +1,6 @@
 use crate::sdk;
 use crate::{
-    trace::{
-        Event, Link, Span, SpanContext, SpanId, SpanKind, StatusCode, TraceContextExt, TraceId,
-    },
+    trace::{Event, Link, Span, SpanId, SpanKind, StatusCode, TraceContextExt, TraceId},
     Context, KeyValue,
 };
 use std::fmt;
@@ -35,19 +33,20 @@ use std::time::SystemTime;
 /// Spans can be created and nested manually:
 ///
 /// ```
-/// use opentelemetry::{global, trace::{Span, Tracer}};
+/// use opentelemetry::{global, trace::{Span, Tracer, TraceContextExt}, Context};
 ///
 /// let tracer = global::tracer("my-component");
 ///
 /// let parent = tracer.start("foo");
+/// let parent_cx = Context::current_with_span(parent);
 /// let child = tracer.span_builder("bar")
-///     .with_parent(parent.span_context().clone())
+///     .with_parent_context(parent_cx.clone())
 ///     .start(&tracer);
 ///
 /// // ...
 ///
 /// child.end();
-/// parent.end();
+/// drop(parent_cx) // end parent
 /// ```
 ///
 /// Spans can also use the current thread's [`Context`] to track which span is active:
@@ -189,10 +188,10 @@ pub trait Tracer: fmt::Debug + 'static {
     /// `is_remote` to true on a parent `SpanContext` so `Span` creation knows if the
     /// parent is remote.
     fn start(&self, name: &str) -> Self::Span {
-        self.start_from_context(name, &Context::current())
+        self.start_with_context(name, Context::current())
     }
 
-    /// Starts a new `Span` in a given context
+    /// Starts a new `Span` with a given context
     ///
     /// By default the currently active `Span` is set as the new `Span`'s
     /// parent. The `Tracer` MAY provide other default options for newly
@@ -215,7 +214,7 @@ pub trait Tracer: fmt::Debug + 'static {
     /// created in another process. Each propagators' deserialization must set
     /// `is_remote` to true on a parent `SpanContext` so `Span` creation knows if the
     /// parent is remote.
-    fn start_from_context(&self, name: &str, context: &Context) -> Self::Span;
+    fn start_with_context(&self, name: &str, context: Context) -> Self::Span;
 
     /// Creates a span builder
     ///
@@ -223,12 +222,7 @@ pub trait Tracer: fmt::Debug + 'static {
     fn span_builder(&self, name: &str) -> SpanBuilder;
 
     /// Create a span from a `SpanBuilder`
-    fn build(&self, builder: SpanBuilder) -> Self::Span {
-        self.build_with_context(builder, &Context::current())
-    }
-
-    /// Create a span from a `SpanBuilder`
-    fn build_with_context(&self, builder: SpanBuilder, cx: &Context) -> Self::Span;
+    fn build(&self, builder: SpanBuilder) -> Self::Span;
 
     /// Start a new span and execute the given closure with reference to the span's
     /// context.
@@ -335,8 +329,8 @@ pub trait Tracer: fmt::Debug + 'static {
 /// ```
 #[derive(Clone, Debug, Default)]
 pub struct SpanBuilder {
-    /// Parent `SpanContext`
-    pub parent_context: Option<SpanContext>,
+    /// Parent `Context`
+    pub parent_context: Option<Context>,
     /// Trace id, useful for integrations with external tracing systems.
     pub trace_id: Option<TraceId>,
     /// Span id, useful for integrations with external tracing systems.
@@ -385,7 +379,7 @@ impl SpanBuilder {
     }
 
     /// Assign parent context
-    pub fn with_parent(self, parent_context: SpanContext) -> Self {
+    pub fn with_parent_context(self, parent_context: Context) -> Self {
         SpanBuilder {
             parent_context: Some(parent_context),
             ..self
