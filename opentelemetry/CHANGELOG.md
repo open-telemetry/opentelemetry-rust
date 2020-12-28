@@ -17,12 +17,16 @@
 - Move 3rd party propagators and merge exporter into `sdk::export` #375
 - Add instrumentation version to instrument config #392
 - Use instrumentation library in metrics #393
+- `start_from_context` renamed to `start_with_context` #399
+- Removed `build_with_context` as full context is now stored in builder #399
+- SpanBuilder's `with_parent` renamed to `with_parent_context` #399
 
 # Fixed
 
 - Fix parent based sampling in tracer #354
 - StatusCode enum value ordering #377
 - Counter adding the delta from last collection #395
+- `HistogramAggregator` returning sum vs count #398
 
 ## [v0.10.0](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.9.1...v0.10.0)
 
