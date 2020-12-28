@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.4.0
+
+### Changed
+
+- Update to opentelemetry v0.11.0
+- Add non monotonic counter support #385
+
 ## v0.3.0
 
 ### Changed

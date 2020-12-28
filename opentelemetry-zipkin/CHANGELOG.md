@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.9.0
+
+### Changed
+
+- Update to opentelemetry v0.11.0
+- Exclude status code if unset #382
+- Set `otel.status_code` and `otel.status_description` values #383
+- Remove resourece reporting #389
+
 ## v0.8.0
 
 ### Changed
