@@ -1,5 +1,11 @@
 # Changelog
 
+## [v0.11.1](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.11.0...v0.11.1)
+
+# Fixed
+
+- Fix remote implicit builder context sampling #405
+
 ## [v0.11.0](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.10.0...v0.11.0)
 
 ## Added
