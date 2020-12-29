@@ -230,7 +230,7 @@ pub(crate) mod tonic {
 
     // Group metrics with resources and instrumentation libraries with resources first,
     // then instrumentation libraries.
-    #[allow(clippy::map_entry)]
+    #[allow(clippy::map_entry)] // caused by https://github.com/rust-lang/rust-clippy/issues/4674
     pub(crate) fn sink(metrics: Vec<CheckpointedMetrics>) -> ExportMetricsServiceRequest {
         let mut sink_map = BTreeMap::<
             ResourceWrapper,
