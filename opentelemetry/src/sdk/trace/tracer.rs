@@ -176,21 +176,22 @@ impl crate::trace::Tracer for Tracer {
         let mut flags = 0;
         let mut span_trace_state = Default::default();
 
-        let parent_cx = builder
-            .parent_context
-            .take()
-            .map(|cx| {
-                // Sampling expects to be able to access the parent span via `span` so wrap remote span
-                // context in a wrapper span if necessary. Remote span contexts will be passed to
-                // subsequent context's, so wrapping is only necessary if there is no active span.
-                match cx.remote_span_context() {
-                    Some(remote_sc) if !cx.has_active_span() => {
-                        cx.with_span(Span::new(remote_sc.clone(), None, self.clone()))
-                    }
-                    _ => cx,
+        let parent_cx = {
+            let cx = builder
+                .parent_context
+                .take()
+                .unwrap_or_else(Context::current);
+
+            // Sampling expects to be able to access the parent span via `span` so wrap remote span
+            // context in a wrapper span if necessary. Remote span contexts will be passed to
+            // subsequent context's, so wrapping is only necessary if there is no active span.
+            match cx.remote_span_context() {
+                Some(remote_sc) if !cx.has_active_span() => {
+                    cx.with_span(Span::new(remote_sc.clone(), None, self.clone()))
                 }
-            })
-            .unwrap_or_else(Context::current);
+                _ => cx,
+            }
+        };
         let parent_span_context = if parent_cx.has_active_span() {
             Some(parent_cx.span().span_context())
         } else {
@@ -309,7 +310,7 @@ mod tests {
         testing::trace::TestSpan,
         trace::{
             Link, Span, SpanBuilder, SpanContext, SpanId, SpanKind, TraceContextExt, TraceId,
-            TraceState, Tracer, TracerProvider, TRACE_FLAG_SAMPLED,
+            TraceState, Tracer, TracerProvider, TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
         },
         Context, KeyValue,
     };
@@ -389,9 +390,21 @@ mod tests {
         let tracer_provider = sdk::trace::TracerProvider::builder()
             .with_config(config)
             .build();
+        let tracer = tracer_provider.get_tracer("test", None);
 
         let _attached = Context::current_with_span(TestSpan(SpanContext::empty_context())).attach();
-        let tracer = tracer_provider.get_tracer("test", None);
+        let span = tracer.span_builder("must_not_be_sampled").start(&tracer);
+        assert!(!span.span_context().is_sampled());
+
+        let _attached = Context::current()
+            .with_remote_span_context(SpanContext::new(
+                TraceId::from_u128(1),
+                SpanId::from_u64(1),
+                TRACE_FLAG_NOT_SAMPLED,
+                true,
+                Default::default(),
+            ))
+            .attach();
         let span = tracer.span_builder("must_not_be_sampled").start(&tracer);
 
         assert!(!span.span_context().is_sampled());
