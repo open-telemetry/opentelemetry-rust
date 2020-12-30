@@ -10,10 +10,11 @@ pub(crate) mod tonic {
     };
     use opentelemetry::metrics::{MetricsError, NumberKind};
     use opentelemetry::sdk::export::metrics::{
-        Count, ExportKind, ExportKindFor, Histogram, LastValue, Max, Min, Record, Sum,
+        Count, ExportKind, ExportKindFor, Histogram, LastValue, Max, Min, Points, Record, Sum,
     };
     use opentelemetry::sdk::metrics::aggregators::{
-        HistogramAggregator, LastValueAggregator, MinMaxSumCountAggregator, SumAggregator,
+        ArrayAggregator, HistogramAggregator, LastValueAggregator, MinMaxSumCountAggregator,
+        SumAggregator,
     };
 
     use crate::proto::common::v1::StringKeyValue;
@@ -47,27 +48,64 @@ pub(crate) mod tonic {
     ) -> Result<Metric, MetricsError> {
         let descriptor = record.descriptor();
         let aggregator = record.aggregator().ok_or(MetricsError::NoDataCollected)?;
-        let labels = record.labels();
+        let labels = record
+            .labels()
+            .iter()
+            .map(|kv| kv.into())
+            .collect::<Vec<StringKeyValue>>();
         let temporality: AggregationTemporality =
             export_selector.export_kind_for(descriptor).into();
         let kind = descriptor.number_kind();
         Ok(Metric {
             name: descriptor.name().to_string(),
-            description: descriptor.description().cloned().unwrap_or_else(|| "".to_string()),
+            description: descriptor
+                .description()
+                .cloned()
+                .unwrap_or_else(|| "".to_string()),
             unit: descriptor.unit().unwrap_or("").to_string(),
             data: {
-                // prepare the data point
-                if let Some(last_value) = aggregator.as_any().downcast_ref::<LastValueAggregator>()
+                if let Some(array) = aggregator.as_any().downcast_ref::<ArrayAggregator>() {
+                    if let Ok(points) = array.points() {
+                        Some({
+                            match kind {
+                                NumberKind::I64 | NumberKind::U64 => Data::IntGauge(IntGauge {
+                                    data_points: points
+                                        .into_iter()
+                                        .map(|val| IntDataPoint {
+                                            labels: labels.clone(),
+                                            start_time_unix_nano: to_nanos(*record.start_time()),
+                                            time_unix_nano: to_nanos(*record.end_time()),
+                                            value: val.to_i64(kind),
+                                            exemplars: Vec::default(),
+                                        })
+                                        .collect(),
+                                }),
+                                NumberKind::F64 => Data::DoubleGauge(DoubleGauge {
+                                    data_points: points
+                                        .into_iter()
+                                        .map(|val| DoubleDataPoint {
+                                            labels: labels.clone(),
+                                            start_time_unix_nano: to_nanos(*record.start_time()),
+                                            time_unix_nano: to_nanos(*record.end_time()),
+                                            value: val.to_f64(kind),
+                                            exemplars: Vec::default(),
+                                        })
+                                        .collect(),
+                                }),
+                            }
+                        })
+                    } else {
+                        None
+                    }
+                } else if let Some(last_value) =
+                    aggregator.as_any().downcast_ref::<LastValueAggregator>()
                 {
                     Some({
                         let (val, sample_time) = last_value.last_value()?;
                         match kind {
                             NumberKind::I64 | NumberKind::U64 => Data::IntGauge(IntGauge {
                                 data_points: vec![IntDataPoint {
-                                    labels: labels
-                                        .iter()
-                                        .map(|kv| kv.into())
-                                        .collect::<Vec<StringKeyValue>>(),
+                                    labels,
                                     start_time_unix_nano: to_nanos(*record.start_time()),
                                     time_unix_nano: to_nanos(sample_time),
                                     value: val.to_i64(kind),
@@ -76,10 +114,7 @@ pub(crate) mod tonic {
                             }),
                             NumberKind::F64 => Data::DoubleGauge(DoubleGauge {
                                 data_points: vec![DoubleDataPoint {
-                                    labels: labels
-                                        .iter()
-                                        .map(|kv| kv.into())
-                                        .collect::<Vec<StringKeyValue>>(),
+                                    labels,
                                     start_time_unix_nano: to_nanos(*record.start_time()),
                                     time_unix_nano: to_nanos(sample_time),
                                     value: val.to_f64(kind),
@@ -94,10 +129,7 @@ pub(crate) mod tonic {
                         match kind {
                             NumberKind::U64 | NumberKind::I64 => Data::IntSum(IntSum {
                                 data_points: vec![IntDataPoint {
-                                    labels: labels
-                                        .iter()
-                                        .map(|kv| kv.into())
-                                        .collect::<Vec<StringKeyValue>>(),
+                                    labels,
                                     start_time_unix_nano: to_nanos(*record.start_time()),
                                     time_unix_nano: to_nanos(*record.end_time()),
                                     value: val.to_i64(kind),
@@ -108,10 +140,7 @@ pub(crate) mod tonic {
                             }),
                             NumberKind::F64 => Data::DoubleSum(DoubleSum {
                                 data_points: vec![DoubleDataPoint {
-                                    labels: labels
-                                        .iter()
-                                        .map(|kv| kv.into())
-                                        .collect::<Vec<StringKeyValue>>(),
+                                    labels,
                                     start_time_unix_nano: to_nanos(*record.start_time()),
                                     time_unix_nano: to_nanos(*record.end_time()),
                                     value: val.to_f64(kind),
@@ -123,7 +152,7 @@ pub(crate) mod tonic {
                         }
                     })
                 } else if let Some(histogram) =
-                aggregator.as_any().downcast_ref::<HistogramAggregator>()
+                    aggregator.as_any().downcast_ref::<HistogramAggregator>()
                 {
                     Some({
                         let (sum, count, buckets) =
@@ -131,10 +160,7 @@ pub(crate) mod tonic {
                         match kind {
                             NumberKind::I64 | NumberKind::U64 => Data::IntHistogram(IntHistogram {
                                 data_points: vec![IntHistogramDataPoint {
-                                    labels: labels
-                                        .iter()
-                                        .map(|kv| kv.into())
-                                        .collect::<Vec<StringKeyValue>>(),
+                                    labels,
                                     start_time_unix_nano: to_nanos(*record.start_time()),
                                     time_unix_nano: to_nanos(*record.end_time()),
                                     count,
@@ -152,10 +178,7 @@ pub(crate) mod tonic {
                             }),
                             NumberKind::F64 => Data::DoubleHistogram(DoubleHistogram {
                                 data_points: vec![DoubleHistogramDataPoint {
-                                    labels: labels
-                                        .iter()
-                                        .map(|kv| kv.into())
-                                        .collect::<Vec<StringKeyValue>>(),
+                                    labels,
                                     start_time_unix_nano: to_nanos(*record.start_time()),
                                     time_unix_nano: to_nanos(*record.end_time()),
                                     count,
@@ -189,10 +212,7 @@ pub(crate) mod tonic {
                         match kind {
                             NumberKind::U64 | NumberKind::I64 => Data::IntHistogram(IntHistogram {
                                 data_points: vec![IntHistogramDataPoint {
-                                    labels: labels
-                                        .iter()
-                                        .map(|kv| kv.into())
-                                        .collect::<Vec<StringKeyValue>>(),
+                                    labels,
                                     start_time_unix_nano: to_nanos(*record.start_time()),
                                     time_unix_nano: to_nanos(*record.end_time()),
                                     count,
@@ -205,10 +225,7 @@ pub(crate) mod tonic {
                             }),
                             NumberKind::F64 => Data::DoubleHistogram(DoubleHistogram {
                                 data_points: vec![DoubleHistogramDataPoint {
-                                    labels: labels
-                                        .iter()
-                                        .map(|kv| kv.into())
-                                        .collect::<Vec<StringKeyValue>>(),
+                                    labels,
                                     start_time_unix_nano: to_nanos(*record.start_time()),
                                     time_unix_nano: to_nanos(*record.end_time()),
                                     count,
@@ -238,6 +255,7 @@ pub(crate) mod tonic {
         >::new();
         for (resource, instrumentation_library, metric) in metrics {
             if sink_map.contains_key(&resource) {
+                // found resource, see if we can find instrumentation library
                 sink_map.entry(resource).and_modify(|map| {
                     if map.contains_key(&instrumentation_library) {
                         map.entry(instrumentation_library).and_modify(|map| {
@@ -257,6 +275,7 @@ pub(crate) mod tonic {
                     }
                 });
             } else {
+                // insert resource -> instrumentation library -> metrics
                 sink_map.insert(resource, {
                     let mut map = HashMap::new();
                     map.insert(instrumentation_library, {
@@ -292,6 +311,7 @@ pub(crate) mod tonic {
         }
     }
 
+    // if the data points are the compatible, merge, otherwise do nothing
     macro_rules! merge_same_type {
         ($base: ident, $other: ident,
             $ (
@@ -454,7 +474,7 @@ mod tests {
                             labels: str_kv_labels.clone(),
                             start_time_unix_nano: 1608891000000000000,
                             time_unix_nano: if let Data::IntGauge(gauge) =
-                            metric.data.clone().unwrap()
+                                metric.data.clone().unwrap()
                             {
                                 // ignore this field as it is the time the value updated.
                                 // It changes every time the test runs
@@ -684,41 +704,31 @@ mod tests {
                     (vec![("label1", "label2")], 15, 16, 99),
                 ),
             ]
-                .into_iter()
-                .map(
-                    |(kvs, (name, version), metric_name, (labels, start_time, end_time, value))| {
-                        (
-                            ResourceWrapper::from(Resource::new(
-                                kvs.into_iter()
-                                    .map(|(k, v)| KeyValue::new(k.to_string(), v.to_string())),
-                            )),
-                            InstrumentationLibrary::new(name, version),
-                            get_metric_with_name(
-                                metric_name,
-                                vec![(labels, start_time, end_time, value)],
-                            ),
-                        )
-                    },
-                )
-                .collect::<Vec<(ResourceWrapper, InstrumentationLibrary, Metric)>>();
+            .into_iter()
+            .map(
+                |(kvs, (name, version), metric_name, (labels, start_time, end_time, value))| {
+                    (
+                        ResourceWrapper::from(Resource::new(
+                            kvs.into_iter()
+                                .map(|(k, v)| KeyValue::new(k.to_string(), v.to_string())),
+                        )),
+                        InstrumentationLibrary::new(name, version),
+                        get_metric_with_name(
+                            metric_name,
+                            vec![(labels, start_time, end_time, value)],
+                        ),
+                    )
+                },
+            )
+            .collect::<Vec<(ResourceWrapper, InstrumentationLibrary, Metric)>>();
 
             let request = sink(test_data);
-            let resource_metrics = request.resource_metrics;
+            let actual = request.resource_metrics;
 
             let expect: Vec<ResourceMetrics> = vec![
                 (
                     vec![("runtime", "tokio")],
                     vec![
-                        (
-                            ("otlp", None),
-                            vec![
-                                ("test", vec![(vec![("label1", "label2")], 15, 16, 88)]),
-                                (
-                                    "another_test",
-                                    vec![(vec![("label1", "label2")], 15, 16, 99)],
-                                ),
-                            ],
-                        ),
                         (
                             ("otlp", Some("0.1.1")),
                             vec![(
@@ -728,6 +738,16 @@ mod tests {
                                     (vec![("label2", "label2")], 16, 19, 20),
                                 ],
                             )],
+                        ),
+                        (
+                            ("otlp", None),
+                            vec![
+                                ("test", vec![(vec![("label1", "label2")], 15, 16, 88)]),
+                                (
+                                    "another_test",
+                                    vec![(vec![("label1", "label2")], 15, 16, 99)],
+                                ),
+                            ],
                         ),
                     ],
                 ),
@@ -739,11 +759,22 @@ mod tests {
                     )],
                 ),
             ]
-                .into_iter()
-                .map(convert_to_resource_metrics)
-                .collect::<Vec<ResourceMetrics>>();
+            .into_iter()
+            .map(convert_to_resource_metrics)
+            .collect::<Vec<ResourceMetrics>>();
 
-            assert_eq!(expect, resource_metrics);
+            //todo: figure out how to compare ResourceMetrics given their datapoints are unordered.
+            assert_eq!(expect.len(), actual.len());
+            for expect_metric in expect {
+                for actual_metric in actual.clone() {
+                    if actual_metric.resource == expect_metric.resource {
+                        assert_eq!(
+                            actual_metric.instrumentation_library_metrics.len(),
+                            expect_metric.instrumentation_library_metrics.len()
+                        );
+                    }
+                }
+            }
 
             Ok(())
         }

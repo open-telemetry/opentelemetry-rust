@@ -135,6 +135,7 @@ mod proto;
 mod proto;
 
 #[cfg(feature = "metrics")]
+#[allow(warnings)]
 mod metric;
 mod span;
 mod transform;
@@ -145,10 +146,10 @@ use tonic::metadata::MetadataMap;
 #[cfg(all(feature = "tonic", feature = "tls"))]
 use tonic::transport::ClientTlsConfig;
 
-pub use crate::span::{TraceExporter, TraceExporterConfig};
+pub use crate::span::{ExporterConfig, TraceExporter};
 
 #[cfg(feature = "metrics")]
-pub use crate::metric::MetricsExporter;
+pub use crate::metric::{new_metrics_pipeline, MetricsExporter, OtlpMetricPipelineBuilder};
 
 #[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
 pub use crate::span::{Compression, Credentials};
@@ -184,7 +185,7 @@ pub fn new_pipeline() -> OtlpPipelineBuilder {
 /// ```
 #[derive(Default, Debug)]
 pub struct OtlpPipelineBuilder {
-    exporter_config: TraceExporterConfig,
+    exporter_config: ExporterConfig,
     trace_config: Option<sdk::trace::Config>,
 }
 

@@ -68,7 +68,7 @@ pub struct TraceExporter {
 
 /// Configuration for the OTLP exporter.
 #[derive(Debug)]
-pub struct TraceExporterConfig {
+pub struct ExporterConfig {
     /// The address of the OTLP collector. If not set, the default address is used.
     pub endpoint: String,
 
@@ -136,10 +136,10 @@ impl Into<grpcio::CompressionAlgorithms> for Compression {
 
 const DEFAULT_OTLP_PORT: u16 = 4317;
 
-impl Default for TraceExporterConfig {
+impl Default for ExporterConfig {
     #[cfg(feature = "tonic")]
     fn default() -> Self {
-        TraceExporterConfig {
+        ExporterConfig {
             endpoint: format!("localhost:{}", DEFAULT_OTLP_PORT),
             protocol: Protocol::Grpc,
             #[cfg(all(feature = "tonic", feature = "tls"))]
@@ -153,7 +153,7 @@ impl Default for TraceExporterConfig {
 
     #[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
     fn default() -> Self {
-        TraceExporterConfig {
+        ExporterConfig {
             endpoint: format!("localhost:{}", DEFAULT_OTLP_PORT),
             protocol: Protocol::Grpc,
             credentials: None,
@@ -169,7 +169,7 @@ impl Default for TraceExporter {
     /// Return a Span Exporter with the default configuration
     #[cfg(feature = "tonic")]
     fn default() -> Self {
-        let config: TraceExporterConfig = TraceExporterConfig::default();
+        let config: ExporterConfig = ExporterConfig::default();
 
         let endpoint = Channel::from_shared(config.endpoint).unwrap();
 
@@ -193,7 +193,7 @@ impl Default for TraceExporter {
     /// Return a Span Exporter with the default configuration
     #[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
     fn default() -> Self {
-        let config: TraceExporterConfig = TraceExporterConfig::default();
+        let config: ExporterConfig = ExporterConfig::default();
 
         let channel: Channel =
             ChannelBuilder::new(Arc::new(Environment::new(config.completion_queue_count)))
@@ -230,7 +230,7 @@ impl Debug for TraceExporter {
 impl TraceExporter {
     /// Builds a new span exporter with the given configuration
     #[cfg(feature = "tonic")]
-    pub fn new(config: TraceExporterConfig) -> Result<Self, crate::Error> {
+    pub fn new(config: ExporterConfig) -> Result<Self, crate::Error> {
         let endpoint = Channel::from_shared(config.endpoint)?;
 
         #[cfg(all(feature = "tonic", feature = "tls"))]
@@ -281,7 +281,7 @@ impl TraceExporter {
 
     /// Builds a new span exporter with the given configuration
     #[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
-    pub fn new(config: TraceExporterConfig) -> Self {
+    pub fn new(config: ExporterConfig) -> Self {
         let mut builder: ChannelBuilder =
             ChannelBuilder::new(Arc::new(Environment::new(config.completion_queue_count)));
 
