@@ -114,7 +114,7 @@ impl StackDriverExporter {
 
     let mut rustls_config = rustls::ClientConfig::new();
     rustls_config.root_store.add_server_trust_anchors(&webpki_roots::TLS_SERVER_ROOTS);
-    rustls_config.set_protocols(&[Vec::from("h2".as_bytes())]);
+    rustls_config.set_protocols(&[Vec::from(&b"h2"[..])]);
     let tls_config = ClientTlsConfig::new().rustls_client_config(rustls_config);
 
     let channel = Channel::builder(uri).tls_config(tls_config)?.connect().await?;
@@ -134,7 +134,7 @@ impl StackDriverExporter {
     Ok(Self {
       tx,
       pending_count,
-      maximum_shutdown_duration: maximum_shutdown_duration.unwrap_or(Duration::from_secs(5)),
+      maximum_shutdown_duration: maximum_shutdown_duration.unwrap_or_else(|| Duration::from_secs(5)),
     })
   }
 
@@ -213,10 +213,8 @@ impl StackDriverExporter {
         pending_count.fetch_sub(1, Ordering::Relaxed);
         if let Err(e) = authorizer.authorize(&mut req).await {
           log::error!("StackDriver authentication failed {}", e);
-          return;
         } else if let Err(e) = client.batch_write_spans(req).await {
           log::error!("StackDriver push failed {}", e);
-          return;
         }
       }
     })
