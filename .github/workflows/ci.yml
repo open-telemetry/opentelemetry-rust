@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: ['master']
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: true
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: install protoc
+        run: |
+          sudo apt-get -y install unzip gcc
+          curl -L -O https://github.com/protocolbuffers/protobuf/releases/download/v3.11.4/protoc-3.11.4-linux-x86_64.zip
+          unzip protoc-3.11.4-linux-x86_64.zip -d protoc
+          sudo cp protoc/bin/protoc /usr/bin/protoc
+          sudo cp -r protoc/include/* /usr/include/
+      - uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --all-targets
+      - uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --verbose
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: true
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+          components: rustfmt, clippy
+      - uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check
+      - uses: actions-rs/cargo@v1
+        if: always()
+        with:
+          command: clippy
+          args: --workspace --all-targets -- -D warnings
