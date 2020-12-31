@@ -352,14 +352,16 @@ mod tests {
             .build();
         let tracer = tracer_provider.get_tracer("test", None);
         let trace_state = TraceState::from_key_value(vec![("foo", "bar")]).unwrap();
-        let mut span_builder = SpanBuilder::default();
-        span_builder.parent_context = Some(Context::current_with_span(TestSpan(SpanContext::new(
-            TraceId::from_u128(128),
-            SpanId::from_u64(64),
-            TRACE_FLAG_SAMPLED,
-            true,
-            trace_state,
-        ))));
+        let span_builder = SpanBuilder {
+            parent_context: Some(Context::current_with_span(TestSpan(SpanContext::new(
+                TraceId::from_u128(128),
+                SpanId::from_u64(64),
+                TRACE_FLAG_SAMPLED,
+                true,
+                trace_state,
+            )))),
+            ..Default::default()
+        };
 
         // Test sampler should change trace state
         let span = tracer.build(span_builder);
