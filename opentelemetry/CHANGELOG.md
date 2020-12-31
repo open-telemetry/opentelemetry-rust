@@ -1,5 +1,11 @@
 # Changelog
 
+## [v0.11.2](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.11.1...v0.11.2)
+
+# Fixed
+
+- Fix possible deadlock when dropping metric instruments #407
+
 ## [v0.11.1](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.11.0...v0.11.1)
 
 # Fixed
