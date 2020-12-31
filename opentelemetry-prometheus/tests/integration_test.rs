@@ -7,6 +7,33 @@ use opentelemetry_prometheus::PrometheusExporter;
 use prometheus::{Encoder, TextEncoder};
 
 #[test]
+fn free_unused_instruments() {
+    let exporter = opentelemetry_prometheus::exporter()
+        .with_default_histogram_boundaries(vec![-0.5, 1.0])
+        .with_resource(Resource::new(vec![KeyValue::new("R", "V")]))
+        .init();
+    let mut expected = Vec::new();
+
+    {
+        let meter = exporter.provider().unwrap().meter("test", None);
+        let counter = meter.f64_counter("counter").init();
+
+        let labels = vec![KeyValue::new("A", "B"), KeyValue::new("C", "D")];
+
+        counter.add(10.0, &labels);
+        counter.add(5.3, &labels);
+
+        expected.push(r#"counter{A="B",C="D",R="V"} 15.3"#);
+    }
+    // Standard export
+    compare_export(&exporter, expected.clone());
+    // Final export before instrument dropped
+    compare_export(&exporter, expected.clone());
+    // Instrument dropped, but last value kept by prom exporter
+    compare_export(&exporter, expected);
+}
+
+#[test]
 fn test_add() {
     let exporter = opentelemetry_prometheus::exporter()
         .with_default_histogram_boundaries(vec![-0.5, 1.0])
