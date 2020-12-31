@@ -178,8 +178,7 @@ impl AccumulatorCore {
     fn collect_sync_instruments(&self, locked_processor: &mut dyn LockedProcessor) -> usize {
         let mut checkpointed = 0;
 
-        for element in self.current.iter() {
-            let (key, value) = element.pair();
+        self.current.retain(|_key, value| {
             let mods = &value.update_count.load();
             let coll = &value.collected_count.load();
 
@@ -192,17 +191,17 @@ impl AccumulatorCore {
                 // Having no updates since last collection, try to remove if
                 // there are no bound handles
                 if Arc::strong_count(&value) == 1 {
-                    self.current.remove(key);
-
                     // There's a potential race between loading collected count and
                     // loading the strong count in this function.  Since this is the
                     // last we'll see of this record, checkpoint.
                     if mods.partial_cmp(&NumberKind::U64, coll) != Some(Ordering::Equal) {
                         checkpointed += self.checkpoint_record(value, locked_processor);
                     }
+                    return false;
                 }
-            }
-        }
+            };
+            true
+        });
 
         checkpointed
     }
