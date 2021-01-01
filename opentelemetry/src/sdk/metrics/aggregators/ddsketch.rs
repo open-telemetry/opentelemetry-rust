@@ -878,7 +878,7 @@ mod tests {
             store.add(i)
         }
         assert_eq!(store.count, 1400);
-        assert_eq!(store.bins.len(), 200 as usize);
+        assert_eq!(store.bins.len(), 200);
     }
 
     /// Test to see if copy_from_slice will panic because the range size is different in left and right

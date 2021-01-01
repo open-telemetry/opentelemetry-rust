@@ -642,8 +642,10 @@ mod tests {
     #[tokio::test]
     async fn test_batch_span_processor() {
         let (exporter, mut export_receiver, _shutdown_receiver) = new_tokio_test_exporter();
-        let mut config = BatchConfig::default();
-        config.scheduled_delay = Duration::from_secs(60 * 60 * 24); // set the tick to 24 hours so we know the span must be exported via force_flush
+        let config = BatchConfig {
+            scheduled_delay: Duration::from_secs(60 * 60 * 24), // set the tick to 24 hours so we know the span must be exported via force_flush
+            ..Default::default()
+        };
         let spawn = |fut| tokio::task::spawn_blocking(|| futures::executor::block_on(fut));
         let mut processor = BatchSpanProcessor::new(
             Box::new(exporter),
@@ -740,9 +742,11 @@ mod tests {
     // otherwise the exporter should be able to export within time out duration.
     #[cfg(feature = "async-std")]
     async fn timeout_test_std_async(time_out: bool) {
-        let mut config = BatchConfig::default();
-        config.max_export_timeout = time::Duration::from_millis(if time_out { 5 } else { 60 });
-        config.scheduled_delay = Duration::from_secs(60 * 60 * 24); // set the tick to 24 hours so we know the span must be exported via force_flush
+        let config = BatchConfig {
+            max_export_timeout: time::Duration::from_millis(if time_out { 5 } else { 60 }),
+            scheduled_delay: Duration::from_secs(60 * 60 * 24), // set the tick to 24 hours so we know the span must be exported via force_flush
+            ..Default::default()
+        };
         let exporter = BlockingExporter {
             delay_for: time::Duration::from_millis(if !time_out { 5 } else { 60 }),
             delay_fn: async_std::task::sleep,
@@ -768,9 +772,11 @@ mod tests {
     // If the time_out is true, then the result suppose to ended with timeout.
     // otherwise the exporter should be able to export within time out duration.
     async fn timeout_test_tokio(time_out: bool) {
-        let mut config = BatchConfig::default();
-        config.max_export_timeout = time::Duration::from_millis(if time_out { 5 } else { 60 });
-        config.scheduled_delay = Duration::from_secs(60 * 60 * 24); // set the tick to 24 hours so we know the span must be exported via force_flush
+        let config = BatchConfig {
+            max_export_timeout: time::Duration::from_millis(if time_out { 5 } else { 60 }),
+            scheduled_delay: Duration::from_secs(60 * 60 * 24), // set the tick to 24 hours so we know the span must be exported via force_flush,
+            ..Default::default()
+        };
         let exporter = BlockingExporter {
             delay_for: time::Duration::from_millis(if !time_out { 5 } else { 60 }),
             delay_fn: tokio::time::delay_for,
