@@ -270,7 +270,7 @@ impl MetricsExporter {
 }
 
 impl Exporter for MetricsExporter {
-    fn export(&mut self, checkpoint_set: &mut dyn CheckpointSet) -> Result<()> {
+    fn export(&self, checkpoint_set: &mut dyn CheckpointSet) -> Result<()> {
         let mut resource_metrics: Vec<CheckpointedMetrics> = Vec::default();
         // transform the metrics into proto. Append the resource and instrumentation library information into it.
         checkpoint_set.try_for_each(self.export_kind_selector.as_ref(), &mut |record| {

@@ -23,8 +23,10 @@ fn delayed_interval(duration: Duration) -> impl Stream<Item = tokio::time::Insta
 }
 
 fn init_meter() -> metrics::Result<PushController> {
-    let mut export_config = ExporterConfig::default();
-    export_config.endpoint = "http://localhost:4317".to_string();
+    let export_config = ExporterConfig {
+        endpoint: "http://localhost:4317".to_string(),
+        ..ExporterConfig::default()
+    };
     opentelemetry_otlp::new_metrics_pipeline(tokio::spawn, delayed_interval)
         .with_export_config(export_config)
         .with_aggregator_selector(selectors::simple::Selector::Exact)

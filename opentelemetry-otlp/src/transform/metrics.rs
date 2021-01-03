@@ -407,7 +407,7 @@ mod tests {
                     NumberKind::I64,
                 );
                 let aggregator = SumAggregator::default();
-                let val = Number::from(12 as i64);
+                let val = Number::from(12_i64);
                 aggregator.update(&val, &descriptor)?;
                 let wrapped_aggregator: Arc<dyn Aggregator + Send + Sync> = Arc::new(aggregator);
                 let record = record(
@@ -450,8 +450,8 @@ mod tests {
                     NumberKind::I64,
                 );
                 let aggregator = last_value();
-                let val1 = Number::from(12 as i64);
-                let val2 = Number::from(14 as i64);
+                let val1 = Number::from(12_i64);
+                let val2 = Number::from(14_i64);
                 aggregator.update(&val1, &descriptor)?;
                 aggregator.update(&val2, &descriptor)?;
                 let wrapped_aggregator: Arc<dyn Aggregator + Send + Sync> = Arc::new(aggregator);

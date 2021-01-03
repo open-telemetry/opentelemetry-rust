@@ -122,7 +122,7 @@ impl<W> Exporter for StdoutExporter<W>
 where
     W: fmt::Debug + io::Write,
 {
-    fn export(&mut self, checkpoint_set: &mut dyn CheckpointSet) -> Result<()> {
+    fn export(&self, checkpoint_set: &mut dyn CheckpointSet) -> Result<()> {
         let mut batch = ExportBatch::default();
         if !self.do_not_print_time {
             batch.timestamp = Some(crate::time::now());
