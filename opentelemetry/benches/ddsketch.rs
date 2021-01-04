@@ -14,7 +14,7 @@ use std::sync::Arc;
 fn generate_normal_data(num: usize) -> Vec<f64> {
     let mut data = Vec::with_capacity(num);
     for _ in 0..num {
-        data.push(rand::thread_rng().gen_range(-100, 10000) as f64);
+        data.push(rand::thread_rng().gen_range(-100..10000) as f64);
     }
     data
 }
