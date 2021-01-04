@@ -27,10 +27,6 @@ pub const TRACE_FLAG_DEFERRED: u8 = 0x02;
 /// TRACE_FLAGS_DEBUG is a bitmask with the debug bit set.
 pub const TRACE_FLAG_DEBUG: u8 = 0x04;
 
-lazy_static::lazy_static! {
-    static ref TRACE_STATE_KEY: regex::Regex = regex::Regex::new(r#"^[a-z0-9]+[a-z0-9|\\_|\\-|\\*|\\/]*$"#).unwrap();
-}
-
 /// TraceId is an 16-byte value which uniquely identifies a given trace
 /// The actual `u128` value is wrapped in a tuple struct in order to leverage the newtype pattern
 #[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
@@ -137,7 +133,28 @@ impl TraceState {
             return false;
         }
 
-        TRACE_STATE_KEY.is_match(key)
+        let allowed_special = |b: u8| (b == b'_' || b == b'-' || b == b'*' || b == b'/');
+        let mut vendor_start = None;
+        for (i, &b) in key.as_bytes().iter().enumerate() {
+            if !(b.is_ascii_lowercase() || b.is_ascii_digit() || allowed_special(b) || b == b'@') {
+                return false;
+            }
+
+            if i == 0 && (!b.is_ascii_lowercase() && !b.is_ascii_digit()) {
+                return false;
+            } else if b == b'@' {
+                if vendor_start.is_some() || i < key.len() - 14 {
+                    return false;
+                }
+                vendor_start = Some(i);
+            } else if let Some(start) = vendor_start {
+                if i == start + 1 && !(b.is_ascii_lowercase() || b.is_ascii_digit()) {
+                    return false;
+                }
+            }
+        }
+
+        true
     }
 
     /// Validates that the given `TraceState` list-member value is valid per the [W3 Spec]['spec'].
