@@ -228,38 +228,6 @@ impl Extractor for http::HeaderMap {
     }
 }
 
-#[cfg(feature = "tonic")]
-#[cfg_attr(docsrs, doc(cfg(feature = "tonic")))]
-impl Injector for tonic::metadata::MetadataMap {
-    /// Set a key and value in the MetadataMap.  Does nothing if the key or value are not valid inputs
-    fn set(&mut self, key: &str, value: String) {
-        if let Ok(key) = tonic::metadata::MetadataKey::from_bytes(key.as_bytes()) {
-            if let Ok(val) = tonic::metadata::MetadataValue::from_str(&value) {
-                self.insert(key, val);
-            }
-        }
-    }
-}
-
-#[cfg(feature = "tonic")]
-#[cfg_attr(docsrs, doc(cfg(feature = "tonic")))]
-impl Extractor for tonic::metadata::MetadataMap {
-    /// Get a value for a key from the MetadataMap.  If the value can't be converted to &str, returns None
-    fn get(&self, key: &str) -> Option<&str> {
-        self.get(key).and_then(|metadata| metadata.to_str().ok())
-    }
-
-    /// Collect all the keys from the MetadataMap.
-    fn keys(&self) -> Vec<&str> {
-        self.keys()
-            .map(|key| match key {
-                tonic::metadata::KeyRef::Ascii(v) => v.as_str(),
-                tonic::metadata::KeyRef::Binary(v) => v.as_str(),
-            })
-            .collect::<Vec<_>>()
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
