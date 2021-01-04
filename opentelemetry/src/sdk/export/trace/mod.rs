@@ -1,10 +1,9 @@
 //! Trace exporters
-use crate::api::trace::TraceError;
 #[cfg(all(feature = "http", any(feature = "surf", feature = "reqwest")))]
 use crate::sdk::export::ExportError;
 use crate::{
     sdk,
-    trace::{Event, Link, SpanContext, SpanId, SpanKind, StatusCode},
+    trace::{Event, Link, SpanContext, SpanId, SpanKind, StatusCode, TraceError},
 };
 use async_trait::async_trait;
 #[cfg(feature = "http")]

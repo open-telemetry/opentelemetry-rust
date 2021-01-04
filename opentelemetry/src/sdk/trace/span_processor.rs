@@ -40,11 +40,11 @@ use futures::{
     FutureExt, Stream, StreamExt,
 };
 
-use crate::api::trace::{TraceError, TraceResult};
 use crate::global;
 use crate::sdk::trace::Span;
 use crate::{
     sdk::export::trace::{ExportResult, SpanData, SpanExporter},
+    trace::{TraceError, TraceResult},
     Context,
 };
 
