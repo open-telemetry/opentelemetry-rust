@@ -9,7 +9,7 @@
 //! is possible to change its name, set its `Attributes`, and add `Links` and `Events`.
 //! These cannot be changed after the `Span`'s end time has been set.
 use crate::trace::{Event, SpanContext, SpanId, SpanKind, StatusCode};
-use crate::{api, sdk, KeyValue};
+use crate::{sdk, trace, KeyValue};
 use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
 
@@ -42,9 +42,9 @@ pub(crate) struct SpanData {
     /// Span attributes
     pub(crate) attributes: sdk::trace::EvictedHashMap,
     /// Span Message events
-    pub(crate) message_events: sdk::trace::EvictedQueue<api::trace::Event>,
+    pub(crate) message_events: sdk::trace::EvictedQueue<trace::Event>,
     /// Span Links
-    pub(crate) links: sdk::trace::EvictedQueue<api::trace::Link>,
+    pub(crate) links: sdk::trace::EvictedQueue<trace::Link>,
     /// Span status code
     pub(crate) status_code: StatusCode,
     /// Span status message
@@ -223,7 +223,7 @@ fn build_export_data(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{api, api::core::KeyValue, api::trace::Span as _, api::trace::TracerProvider};
+    use crate::{core::KeyValue, trace::Span as _, trace::TracerProvider};
     use std::time::Duration;
 
     fn init() -> (sdk::trace::Tracer, SpanData) {
@@ -232,7 +232,7 @@ mod tests {
         let tracer = provider.get_tracer("opentelemetry", Some(env!("CARGO_PKG_VERSION")));
         let data = SpanData {
             parent_span_id: SpanId::from_u64(0),
-            span_kind: api::trace::SpanKind::Internal,
+            span_kind: trace::SpanKind::Internal,
             name: "opentelemetry".to_string(),
             start_time: crate::time::now(),
             end_time: crate::time::now(),

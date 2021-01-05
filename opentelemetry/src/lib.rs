@@ -160,7 +160,6 @@
 )]
 #![cfg_attr(test, deny(warnings))]
 
-mod api;
 pub mod global;
 pub mod sdk;
 
@@ -168,21 +167,27 @@ pub mod sdk;
 #[allow(missing_docs)]
 pub mod testing;
 
+pub mod baggage;
+
+mod context;
+pub use context::{Context, ContextGuard};
+
+mod core;
+pub use crate::core::{Array, Key, KeyValue, Unit, Value};
+
 #[cfg(feature = "metrics")]
 #[cfg_attr(docsrs, doc(cfg(feature = "metrics")))]
-pub use api::labels;
+pub mod labels;
+
 #[cfg(feature = "metrics")]
 #[cfg_attr(docsrs, doc(cfg(feature = "metrics")))]
-pub use api::metrics;
+pub mod metrics;
+
+pub mod propagation;
+
 #[cfg(feature = "trace")]
 #[cfg_attr(docsrs, doc(cfg(feature = "trace")))]
-pub use api::trace;
-pub use api::{
-    baggage,
-    context::{Context, ContextGuard},
-    core::{Array, Key, KeyValue, Unit, Value},
-    propagation,
-};
+pub mod trace;
 
 #[cfg(any(feature = "metrics", feature = "trace"))]
 pub(crate) mod time {
