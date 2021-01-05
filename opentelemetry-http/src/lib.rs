@@ -161,6 +161,54 @@ impl HttpClient for surf::Client {
     }
 }
 
+#[cfg(feature = "isahc")]
+impl ExportError for IsahcError {
+    fn exporter_name(&self) -> &'static str {
+        "isahc"
+    }
+}
+
+#[cfg(feature = "isahc")]
+#[derive(Debug)]
+struct IsahcError(isahc::Error);
+
+#[cfg(feature = "isahc")]
+impl Display for IsahcError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0.to_string())
+    }
+}
+
+#[cfg(feature = "isahc")]
+impl std::error::Error for IsahcError {}
+
+#[cfg(feature = "isahc")]
+impl From<isahc::Error> for IsahcError {
+    fn from(err: isahc::Error) -> Self {
+        IsahcError(err)
+    }
+}
+
+#[cfg(feature = "isahc")]
+#[async_trait]
+impl HttpClient for isahc::HttpClient {
+    async fn send(&self, request: http::Request<Vec<u8>>) -> Result<(), TraceError> {
+        let res = self
+            .send_async(request)
+            .await
+            .map_err(IsahcError::from)?;
+
+        if !res.status().is_success() {
+            return Err(TraceError::from(format!(
+                "Expected success response, got {:?}",
+                res.status()
+            )));
+        }
+
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

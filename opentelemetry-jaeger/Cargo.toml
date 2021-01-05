@@ -60,7 +60,7 @@ optional = true
 [features]
 default = []
 collector_client = ["http", "opentelemetry-http"]
-isahc_collector_client = ["isahc", "collector_client"]
+isahc_collector_client = ["isahc", "opentelemetry-http/isahc"]
 reqwest_blocking_collector_client = ["reqwest/blocking", "collector_client", "headers", "opentelemetry-http/reqwest"]
 reqwest_collector_client = ["reqwest", "collector_client", "headers", "opentelemetry-http/reqwest"]
 surf_collector_client = ["surf", "collector_client", "opentelemetry-http/surf"]

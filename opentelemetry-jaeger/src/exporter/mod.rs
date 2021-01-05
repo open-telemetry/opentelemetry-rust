@@ -17,6 +17,7 @@ use async_trait::async_trait;
 use collector::CollectorAsyncClientHttp;
 
 #[cfg(feature = "isahc_collector_client")]
+#[allow(unused_imports)] // this is actually used to configure authentication
 use isahc::prelude::Configurable;
 
 use opentelemetry::sdk::export::ExportError;
@@ -333,12 +334,12 @@ impl PipelineBuilder {
                         .credentials(isahc::auth::Credentials::new(username, password));
                 }
 
-                Box::new(IsahcHttpClient(builder.build().map_err(|err| {
+                Box::new(builder.build().map_err(|err| {
                     crate::Error::ThriftAgentError(::thrift::Error::from(std::io::Error::new(
                         std::io::ErrorKind::Other,
                         err.to_string(),
                     )))
-                })?))
+                })?)
             });
 
             #[cfg(all(
@@ -432,44 +433,6 @@ impl surf::middleware::Middleware for BasicAuthMiddleware {
     ) -> surf::Result<surf::Response> {
         req.insert_header(self.0.name(), self.0.value());
         next.run(req, client).await
-    }
-}
-
-#[derive(Debug)]
-#[cfg(feature = "isahc_collector_client")]
-struct IsahcHttpClient(isahc::HttpClient);
-
-#[async_trait]
-#[cfg(feature = "isahc_collector_client")]
-impl HttpClient for IsahcHttpClient {
-    async fn send(
-        &self,
-        request: http::Request<Vec<u8>>,
-    ) -> opentelemetry::sdk::export::trace::ExportResult {
-        let res = self
-            .0
-            .send_async(request)
-            .await
-            .map_err::<crate::Error, _>(|err| {
-                ::thrift::Error::from(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    err.to_string(),
-                ))
-                .into()
-            })
-            .map_err::<TraceError, _>(TraceError::from)?;
-
-        if !res.status().is_success() {
-            return Err(crate::Error::ThriftAgentError(::thrift::Error::from(
-                std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    format!("Expected success response, got {:?}", res.status()),
-                ),
-            ))
-            .into());
-        }
-
-        Ok(())
     }
 }
 
