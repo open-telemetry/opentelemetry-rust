@@ -23,7 +23,7 @@
 use async_trait::async_trait;
 use futures::stream::StreamExt;
 use opentelemetry::{
-  exporter::trace::{ExportResult, SpanData, SpanExporter},
+  sdk::export::trace::{ExportResult, SpanData, SpanExporter},
   Value,
 };
 use proto::google::devtools::cloudtrace::v2::BatchWriteSpansRequest;
