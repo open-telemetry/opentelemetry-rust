@@ -34,8 +34,13 @@ thiserror = "1.0"
 tonic = { package = "tonic", version = "0.3", optional = true }
 tokio = { version = "0.2", features = ["full"], optional = true }
 
+[dev-dependencies]
+chrono = "0.4"
+
 [features]
 async = ["default"]
+trace = ["opentelemetry/trace"]
+metrics = ["opentelemetry/metrics"]
 default = ["tonic", "tonic-build", "prost", "tokio"]
 grpc-sys = ["grpcio", "protobuf", "protobuf-codegen", "protoc-grpcio"]
 tls = ["tonic/tls"]
