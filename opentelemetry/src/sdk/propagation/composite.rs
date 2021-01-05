@@ -107,7 +107,7 @@ impl TextMapPropagator for TextMapCompositePropagator {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "testing", feature = "trace"))]
 mod tests {
     use crate::sdk::propagation::{TextMapCompositePropagator, TraceContextPropagator};
     use crate::testing::trace::TestSpan;
