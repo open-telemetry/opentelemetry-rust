@@ -35,7 +35,7 @@ use std::{
   },
   time::{Duration, Instant},
 };
-#[cfg(feature = "yup-authorizer")]
+#[cfg(any(feature = "yup-authorizer", feature = "gcp_auth"))]
 use tonic::metadata::MetadataValue;
 use tonic::{
   transport::{Channel, ClientTlsConfig},
