@@ -6,12 +6,10 @@ use http::Uri;
 use model::endpoint::Endpoint;
 use opentelemetry::{
     global, sdk,
-    sdk::export::{
-        trace::{self, HttpClient},
-        ExportError,
-    },
+    sdk::export::{trace, ExportError},
     trace::{TraceError, TracerProvider},
 };
+use opentelemetry_http::HttpClient;
 use std::net::SocketAddr;
 
 /// Default Zipkin collector endpoint

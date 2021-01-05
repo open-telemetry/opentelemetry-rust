@@ -19,8 +19,6 @@ use collector::CollectorAsyncClientHttp;
 #[cfg(feature = "isahc_collector_client")]
 use isahc::prelude::Configurable;
 
-#[cfg(feature = "collector_client")]
-use opentelemetry::sdk::export::trace::HttpClient;
 use opentelemetry::sdk::export::ExportError;
 use opentelemetry::trace::TraceError;
 use opentelemetry::{
@@ -29,6 +27,8 @@ use opentelemetry::{
     trace::{Event, Link, SpanKind, StatusCode, TracerProvider},
     Key, KeyValue, Value,
 };
+#[cfg(feature = "collector_client")]
+use opentelemetry_http::HttpClient;
 use std::{
     net,
     time::{Duration, SystemTime},
@@ -134,7 +134,7 @@ pub struct PipelineBuilder {
     #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
     collector_password: Option<String>,
     #[cfg(feature = "collector_client")]
-    client: Option<Box<dyn opentelemetry::sdk::export::trace::HttpClient>>,
+    client: Option<Box<dyn HttpClient>>,
     export_instrument_library: bool,
     process: Process,
     config: Option<sdk::trace::Config>,
@@ -441,7 +441,7 @@ struct IsahcHttpClient(isahc::HttpClient);
 
 #[async_trait]
 #[cfg(feature = "isahc_collector_client")]
-impl opentelemetry::sdk::export::trace::HttpClient for IsahcHttpClient {
+impl HttpClient for IsahcHttpClient {
     async fn send(
         &self,
         request: http::Request<Vec<u8>>,
@@ -735,8 +735,9 @@ mod collector_client_tests {
     mod test_http_client {
         use async_trait::async_trait;
         use http::Request;
-        use opentelemetry::sdk::export::trace::{ExportResult, HttpClient};
+        use opentelemetry::sdk::export::trace::ExportResult;
         use opentelemetry::trace::TraceError;
+        use opentelemetry_http::HttpClient;
         use std::fmt::Debug;
 
         pub(crate) struct TestHttpClient;

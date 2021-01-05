@@ -21,7 +21,7 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-async-std = { version = "1.6", features = ["unstable"], default-features = false, optional = true }
+async-std = { version = "1.6", features = ["unstable"], optional = true }
 async-trait = { version = "0.1", optional = true }
 dashmap = { version = "4.0.1", optional = true }
 fnv = { version = "1.0", optional = true }
@@ -31,11 +31,8 @@ percent-encoding = { version = "2.0", optional = true }
 pin-project = { version = "1.0.2", optional = true }
 rand = { version = "0.8", default-features = false, features = ["std", "std_rng"], optional = true }
 serde = { version = "1.0", features = ["derive", "rc"], optional = true }
-http = { version = "0.2", optional = true }
 thiserror = "1"
 tokio = { version = "0.2", default-features = false, features = ["rt-core", "blocking", "time", "stream"], optional = true }
-reqwest = { version = "0.10", default-features = false, features = ["blocking"], optional = true }
-surf = { version = "2.0", default-features = false, optional = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 js-sys = "0.3"
