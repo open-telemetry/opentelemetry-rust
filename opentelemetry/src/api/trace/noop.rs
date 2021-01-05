@@ -184,7 +184,7 @@ impl SpanExporter for NoopSpanExporter {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "testing", feature = "trace"))]
 mod tests {
     use super::*;
     use crate::testing::trace::TestSpan;

@@ -13,6 +13,8 @@
 //! ## Getting Started
 //!
 //! ```no_run
+//! # #[cfg(feature = "trace")]
+//! # {
 //! use opentelemetry::{sdk::export::trace::stdout, trace::Tracer};
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
@@ -24,6 +26,7 @@
 //!     });
 //!
 //!     Ok(())
+//! }
 //! }
 //! ```
 //!
@@ -181,6 +184,7 @@ pub use api::{
     propagation,
 };
 
+#[cfg(any(feature = "metrics", feature = "trace"))]
 pub(crate) mod time {
     use std::time::SystemTime;
 

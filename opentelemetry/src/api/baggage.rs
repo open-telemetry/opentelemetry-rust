@@ -15,6 +15,8 @@
 //! # Examples
 //!
 //! ```
+//! # #[cfg(feature = "trace")]
+//! # {
 //! use opentelemetry::{baggage::BaggageExt, Key, propagation::TextMapPropagator};
 //! use opentelemetry::sdk::propagation::BaggagePropagator;
 //! use std::collections::HashMap;
@@ -41,6 +43,7 @@
 //! let header_value = headers.get("baggage").expect("header is injected");
 //! assert!(header_value.contains("user_id=1"), "still contains previous name-value");
 //! assert!(header_value.contains("server_id=42"), "contains new name-value pair");
+//! # }
 //! ```
 use crate::{Context, Key, KeyValue, Value};
 #[cfg(feature = "serialize")]

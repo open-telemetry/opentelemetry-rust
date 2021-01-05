@@ -561,7 +561,7 @@ where
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "testing", feature = "trace"))]
 mod tests {
     use std::fmt::Debug;
     use std::time;

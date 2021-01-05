@@ -300,7 +300,7 @@ impl crate::trace::Tracer for Tracer {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "testing", feature = "trace"))]
 mod tests {
     use crate::{
         sdk::{
