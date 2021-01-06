@@ -34,7 +34,6 @@ serde = { version = "1.0", features = ["derive", "rc"], optional = true }
 http = { version = "0.2", optional = true }
 thiserror = "1"
 tokio = { version = "0.2", default-features = false, features = ["rt-core", "blocking", "time", "stream"], optional = true }
-tonic = { version = "0.3", default-features = false, optional = true }
 reqwest = { version = "0.10", default-features = false, features = ["blocking"], optional = true }
 surf = { version = "2.0", default-features = false, optional = true }
 
