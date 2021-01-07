@@ -129,4 +129,4 @@ this policy.
 
 ## Contributing
 
-See the [contributing file](CONTRIBUTING.md).
+See the [contributing file](../CONTRIBUTING.md).
