@@ -6,6 +6,7 @@ use protobuf_codegen::Customize;
 
 #[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
 use protoc_grpcio::compile_grpc_protos;
+use std::env;
 
 fn main() {
     #[cfg(feature = "tonic")]
@@ -39,7 +40,7 @@ fn main() {
             "src/proto/opentelemetry-proto/opentelemetry/proto/collector/metrics/v1/metrics_service.proto",
         ],
         &["src/proto/opentelemetry-proto/"],
-        "src/proto/grpcio",
+        env::var("OUT_DIR").unwrap(),
         Some(Customize {
             expose_fields: Some(true),
             serde_derive: Some(true),
