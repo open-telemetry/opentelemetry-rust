@@ -1,6 +1,8 @@
 //! OTEL metric exporter
 //!
 //! Defines a [Exporter] to send metric data to backend via OTEL protocol.
+//!
+//! Currently, OTEL metrics exporter only support GRPC connection via tonic on tokio runtime.
 
 #[cfg(feature = "tonic")]
 use crate::proto::collector::metrics::v1::{

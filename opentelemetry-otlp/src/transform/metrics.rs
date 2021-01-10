@@ -375,7 +375,148 @@ mod tests {
         };
         use opentelemetry::sdk::{InstrumentationLibrary, Resource};
         use opentelemetry::KeyValue;
+        use std::cmp::Ordering;
         use std::sync::Arc;
+
+        #[allow(clippy::type_complexity)]
+        fn get_metric_with_name(
+            name: &'static str,
+            data_points: Vec<(Vec<(&'static str, &'static str)>, u64, u64, i64)>,
+        ) -> Metric {
+            Metric {
+                name: name.to_string(),
+                description: "".to_string(),
+                unit: "".to_string(),
+                data: Some(Data::IntGauge(IntGauge {
+                    data_points: data_points
+                        .into_iter()
+                        .map(|(labels, start_time, end_time, value)| {
+                            get_int_data_point(labels, start_time, end_time, value)
+                        })
+                        .collect::<Vec<IntDataPoint>>(),
+                })),
+            }
+        }
+
+        fn get_int_data_point(
+            labels: Vec<(&'static str, &'static str)>,
+            start_time: u64,
+            end_time: u64,
+            value: i64,
+        ) -> IntDataPoint {
+            IntDataPoint {
+                labels: labels
+                    .into_iter()
+                    .map(|(k, v)| StringKeyValue {
+                        key: k.to_string(),
+                        value: v.to_string(),
+                    })
+                    .collect::<Vec<StringKeyValue>>(),
+                start_time_unix_nano: start_time,
+                time_unix_nano: end_time,
+                value,
+                exemplars: vec![],
+            }
+        }
+
+        type InstrumentationLibraryKv = (&'static str, Option<&'static str>);
+        type ResourceKv = Vec<(&'static str, &'static str)>;
+        type MetricRaw = (&'static str, Vec<DataPointRaw>);
+        type DataPointRaw = (Vec<(&'static str, &'static str)>, u64, u64, i64);
+
+        fn convert_to_resource_metrics(
+            data: (ResourceKv, Vec<(InstrumentationLibraryKv, Vec<MetricRaw>)>),
+        ) -> crate::proto::metrics::v1::ResourceMetrics {
+            // convert to proto resource
+            let attributes: Attributes = data
+                .0
+                .into_iter()
+                .map(|(k, v)| KeyValue::new(k.to_string(), v.to_string()))
+                .collect::<Vec<KeyValue>>()
+                .into();
+            let resource = crate::proto::resource::v1::Resource {
+                attributes: attributes.0,
+                dropped_attributes_count: 0,
+            };
+            let mut instrumentation_library_metrics = vec![];
+            for ((instrumentation_name, instrumentation_version), metrics) in data.1 {
+                instrumentation_library_metrics.push(InstrumentationLibraryMetrics {
+                    instrumentation_library: Some(
+                        crate::proto::common::v1::InstrumentationLibrary {
+                            name: instrumentation_name.to_string(),
+                            version: instrumentation_version.unwrap_or("").to_string(),
+                        },
+                    ),
+                    metrics: metrics
+                        .into_iter()
+                        .map(|(name, data_points)| get_metric_with_name(name, data_points))
+                        .collect::<Vec<Metric>>(),
+                });
+            }
+            ResourceMetrics {
+                resource: Some(resource),
+                instrumentation_library_metrics,
+            }
+        }
+
+        // Assert two ResourceMetrics are equal. The challenge here is vectors in ResourceMetrics should
+        // be compared as unordered list/set. The currently method sort the input stably, and compare the
+        // instance one by one.
+        //
+        // Based on current implementation of sink function. There are two parts where the order is unknown.
+        // The first one is instrumentation_library_metrics in ResourceMetrics.
+        // The other is metrics in InstrumentationLibraryMetrics.
+        //
+        // If we changed the sink function to process the input in parallel, we will have to sort other vectors
+        // like data points in Metrics.
+        fn assert_resource_metrics(mut expect: ResourceMetrics, mut actual: ResourceMetrics) {
+            assert_eq!(expect.resource, actual.resource);
+            assert_eq!(
+                expect.instrumentation_library_metrics.len(),
+                actual.instrumentation_library_metrics.len()
+            );
+            let sort_instrumentation_library =
+                |metric: &InstrumentationLibraryMetrics,
+                 other_metric: &InstrumentationLibraryMetrics| {
+                    match (
+                        metric.instrumentation_library.as_ref(),
+                        other_metric.instrumentation_library.as_ref(),
+                    ) {
+                        (Some(library), Some(other_library)) => library
+                            .name
+                            .cmp(&other_library.name)
+                            .then(library.version.cmp(&other_library.version)),
+                        _ => Ordering::Equal,
+                    }
+                };
+            let sort_metrics = |metric: &Metric, other_metric: &Metric| {
+                metric.name.cmp(&other_metric.name).then(
+                    metric
+                        .description
+                        .cmp(&other_metric.description)
+                        .then(metric.unit.cmp(&other_metric.unit)),
+                )
+            };
+            expect
+                .instrumentation_library_metrics
+                .sort_by(sort_instrumentation_library);
+            actual
+                .instrumentation_library_metrics
+                .sort_by(sort_instrumentation_library);
+
+            for (mut expect, mut actual) in expect
+                .instrumentation_library_metrics
+                .into_iter()
+                .zip(actual.instrumentation_library_metrics.into_iter())
+            {
+                assert_eq!(expect.metrics.len(), actual.metrics.len());
+
+                expect.metrics.sort_by(sort_metrics);
+                actual.metrics.sort_by(sort_metrics);
+
+                assert_eq!(expect.metrics, actual.metrics)
+            }
+        }
 
         #[test]
         fn test_record_to_metric() -> Result<(), MetricsError> {
@@ -589,87 +730,6 @@ mod tests {
             Ok(())
         }
 
-        #[allow(clippy::type_complexity)]
-        fn get_metric_with_name(
-            name: &'static str,
-            data_points: Vec<(Vec<(&'static str, &'static str)>, u64, u64, i64)>,
-        ) -> Metric {
-            Metric {
-                name: name.to_string(),
-                description: "".to_string(),
-                unit: "".to_string(),
-                data: Some(Data::IntGauge(IntGauge {
-                    data_points: data_points
-                        .into_iter()
-                        .map(|(labels, start_time, end_time, value)| {
-                            get_int_data_point(labels, start_time, end_time, value)
-                        })
-                        .collect::<Vec<IntDataPoint>>(),
-                })),
-            }
-        }
-
-        fn get_int_data_point(
-            labels: Vec<(&'static str, &'static str)>,
-            start_time: u64,
-            end_time: u64,
-            value: i64,
-        ) -> IntDataPoint {
-            IntDataPoint {
-                labels: labels
-                    .into_iter()
-                    .map(|(k, v)| StringKeyValue {
-                        key: k.to_string(),
-                        value: v.to_string(),
-                    })
-                    .collect::<Vec<StringKeyValue>>(),
-                start_time_unix_nano: start_time,
-                time_unix_nano: end_time,
-                value,
-                exemplars: vec![],
-            }
-        }
-
-        type InstrumentationLibraryKv = (&'static str, Option<&'static str>);
-        type ResourceKv = Vec<(&'static str, &'static str)>;
-        type MetricRaw = (&'static str, Vec<DataPointRaw>);
-        type DataPointRaw = (Vec<(&'static str, &'static str)>, u64, u64, i64);
-
-        fn convert_to_resource_metrics(
-            data: (ResourceKv, Vec<(InstrumentationLibraryKv, Vec<MetricRaw>)>),
-        ) -> crate::proto::metrics::v1::ResourceMetrics {
-            // convert to proto resource
-            let attributes: Attributes = data
-                .0
-                .into_iter()
-                .map(|(k, v)| KeyValue::new(k.to_string(), v.to_string()))
-                .collect::<Vec<KeyValue>>()
-                .into();
-            let resource = crate::proto::resource::v1::Resource {
-                attributes: attributes.0,
-                dropped_attributes_count: 0,
-            };
-            let mut instrumentation_library_metrics = vec![];
-            for ((instrumentation_name, instrumentation_version), metrics) in data.1 {
-                instrumentation_library_metrics.push(InstrumentationLibraryMetrics {
-                    instrumentation_library: Some(
-                        crate::proto::common::v1::InstrumentationLibrary {
-                            name: instrumentation_name.to_string(),
-                            version: instrumentation_version.unwrap_or("").to_string(),
-                        },
-                    ),
-                    metrics: metrics
-                        .into_iter()
-                        .map(|(name, data_points)| get_metric_with_name(name, data_points))
-                        .collect::<Vec<Metric>>(),
-                });
-            }
-            ResourceMetrics {
-                resource: Some(resource),
-                instrumentation_library_metrics,
-            }
-        }
-
         #[test]
         fn test_sink() -> Result<(), MetricsError> {
             let test_data: Vec<(ResourceWrapper, InstrumentationLibrary, Metric)> = vec![
@@ -763,17 +823,8 @@ mod tests {
             .map(convert_to_resource_metrics)
             .collect::<Vec<ResourceMetrics>>();
 
-            //todo: figure out how to compare ResourceMetrics given their datapoints are unordered.
-            assert_eq!(expect.len(), actual.len());
-            for expect_metric in expect {
-                for actual_metric in actual.clone() {
-                    if actual_metric.resource == expect_metric.resource {
-                        assert_eq!(
-                            actual_metric.instrumentation_library_metrics.len(),
-                            expect_metric.instrumentation_library_metrics.len()
-                        );
-                    }
-                }
+            for (expect, actual) in expect.into_iter().zip(actual.into_iter()) {
+                assert_resource_metrics(expect, actual);
             }
 
             Ok(())
