@@ -19,12 +19,12 @@ futures = { version = "0.3", features = ["thread-pool"] }
 tokio = { version = "0.2", features = ["rt-core", "rt-threaded"] }
 tracing = "0.1"
 tracing-futures = "0.2.2"
+tracing-opentelemetry = "0.10"
+tracing-subscriber = { version = "0.2.15", default-features = false, features = ["ansi", "registry"] }
 
 [dependencies]
 async-trait = "0.1.41"
-tracing-opentelemetry = "0.10"
-tracing-subscriber = { version = "0.2.15", features = ["ansi"] }
-futures = "0.3"
+futures = { version = "0.3", default-features = false }
 gcp_auth = { version = "0.3.2", optional = true }
 hex = "0.4"
 http = "0.2"
