@@ -119,8 +119,7 @@ impl Builder {
         let batch = sdk::trace::BatchSpanProcessor::builder(
             exporter,
             spawn,
-            tokio::time::delay_for,
-            tokio::time::interval,
+            tokio::time::sleep,
         );
         self.with_batch_exporter(batch.build())
     }

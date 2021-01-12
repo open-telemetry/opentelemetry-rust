@@ -98,7 +98,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     });
 
     // wait for 1 seconds so that we could see metrics being pushed via OTLP every 10 seconds.
-    tokio::time::delay_for(Duration::from_secs(60)).await;
+    tokio::time::sleep(Duration::from_secs(60)).await;
 
     Ok(())
 }

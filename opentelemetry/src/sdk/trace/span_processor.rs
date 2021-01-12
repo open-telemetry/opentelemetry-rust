@@ -609,8 +609,7 @@ mod tests {
         let mut builder = BatchSpanProcessor::from_env(
             stdout::Exporter::new(std::io::stdout(), true),
             tokio::spawn,
-            tokio::time::interval,
-            tokio::time::delay_for,
+            tokio::time::sleep,
         );
         // export batch size cannot exceed max queue size
         assert_eq!(builder.config.max_export_batch_size, 500);
@@ -631,8 +630,7 @@ mod tests {
         builder = BatchSpanProcessor::from_env(
             stdout::Exporter::new(std::io::stdout(), true),
             tokio::spawn,
-            tokio::time::interval,
-            tokio::time::delay_for,
+            tokio::time::sleep,
         );
 
         assert_eq!(builder.config.max_export_batch_size, 120);
@@ -650,8 +648,7 @@ mod tests {
         let mut processor = BatchSpanProcessor::new(
             Box::new(exporter),
             spawn,
-            tokio::time::interval,
-            tokio::time::delay_for,
+            tokio::time::sleep,
             config,
         );
         let handle = tokio::spawn(async move {
@@ -662,7 +659,7 @@ mod tests {
                 }
             }
         });
-        tokio::time::delay_for(Duration::from_secs(1)).await; // skip the first
+        tokio::time::sleep(Duration::from_secs(1)).await; // skip the first
         processor.on_end(new_test_export_span_data());
         let flush_res = processor.force_flush();
         assert!(flush_res.is_ok());
@@ -777,17 +774,16 @@ mod tests {
         };
         let exporter = BlockingExporter {
             delay_for: time::Duration::from_millis(if !time_out { 5 } else { 60 }),
-            delay_fn: tokio::time::delay_for,
+            delay_fn: tokio::time::sleep,
         };
         let spawn = |fut| tokio::task::spawn_blocking(|| futures::executor::block_on(fut));
         let mut processor = BatchSpanProcessor::new(
             Box::new(exporter),
             spawn,
-            tokio::time::interval,
-            tokio::time::delay_for,
+            tokio::time::sleep,
             config,
         );
-        tokio::time::delay_for(time::Duration::from_secs(1)).await; // skip the first
+        tokio::time::sleep(time::Duration::from_secs(1)).await; // skip the first
         processor.on_end(new_test_export_span_data());
         let flush_res = processor.force_flush();
         if time_out {
