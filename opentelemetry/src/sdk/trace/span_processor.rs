@@ -708,8 +708,7 @@ mod tests {
         // If time_out is true, then we ask exporter to block for 60s and set timeout to 5s.
         // If time_out is false, then we ask the exporter to block for 5s and set timeout to 60s.
         // Either way, the test should be finished within 5s.
-        let mut runtime = tokio::runtime::Builder::new()
-            .threaded_scheduler()
+        let runtime = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .build()
             .unwrap();
@@ -718,8 +717,7 @@ mod tests {
 
     #[test]
     fn test_timeout_tokio_not_timeout() {
-        let mut runtime = tokio::runtime::Builder::new()
-            .threaded_scheduler()
+        let runtime = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .build()
             .unwrap();
