@@ -32,7 +32,7 @@ prost = { version = "0.6", optional = true }
 protobuf = { version = "2.18", optional = true }
 thiserror = "1.0"
 tonic = { package = "tonic", version = "0.3", optional = true }
-tokio = { version = "0.2", features = ["full"], optional = true }
+tokio = { version = "1.0", features = ["full"], optional = true }
 
 [dev-dependencies]
 chrono = "0.4"
