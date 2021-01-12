@@ -44,7 +44,7 @@
 //! Support for recording and exporting telemetry asynchronously can be added
 //! via the following flags:
 //!
-//! * `tokio`: Spawn telemetry tasks using [tokio]'s runtime.
+//! * `tokio_support`: Spawn telemetry tasks using [tokio]'s runtime.
 //! * `async-std`: Spawn telemetry tasks using [async-std]'s runtime.
 //!
 //! The following flags enable propagating information in other crate

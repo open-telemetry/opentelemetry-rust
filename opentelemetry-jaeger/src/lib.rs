@@ -44,7 +44,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! opentelemetry = { version = "*", features = ["tokio"] }
+//! opentelemetry = { version = "*", features = ["tokio_support"] }
 //! opentelemetry-jaeger = { version = "*", features = ["tokio"] }
 //! ```
 //!

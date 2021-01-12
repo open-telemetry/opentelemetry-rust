@@ -109,8 +109,8 @@ impl Builder {
     }
 
     /// Add a configured `SpanExporter`
-    #[cfg(feature = "tokio")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "tokio")))]
+    #[cfg(feature = "tokio_support")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "tokio_support")))]
     pub fn with_exporter<T: SpanExporter + 'static>(self, exporter: T) -> Self {
         // This future blocks currently when remaining spans are exported on processor
         // drop. We cannot assume we are in a multi-threaded tokio runtime here, so use

@@ -22,7 +22,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 async-std = { version = "1.6", features = ["unstable"], default-features = false, optional = true }
-async-stream = {version = "0.3.0", optional = true }
+async-stream = { version = "0.3.0", optional = true }
 async-trait = { version = "0.1", optional = true }
 dashmap = { version = "4.0.1", optional = true }
 fnv = { version = "1.0", optional = true }
@@ -42,6 +42,7 @@ surf = { version = "2.0", default-features = false, optional = true }
 js-sys = "0.3"
 
 [dev-dependencies]
+async-stream = "0.3.0"
 bincode = "1.2"
 criterion = "0.3.1"
 rand_distr = "0.4.0"
@@ -52,7 +53,8 @@ default = ["trace"]
 trace = ["rand", "pin-project", "async-trait", "percent-encoding"]
 metrics = ["dashmap", "fnv"]
 serialize = ["serde"]
-testing = ["trace", "metrics", "tokio/full", "async-stream"]
+testing = ["trace", "metrics", "tokio_support", "tokio/full"]
+tokio_support = ["tokio", "async-stream"]
 
 [[bench]]
 name = "trace"

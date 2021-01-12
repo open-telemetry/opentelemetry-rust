@@ -62,17 +62,17 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 ## Performance
 
 For optimal performance, a batch exporter is recommended as the simple exporter
-will export each span synchronously on drop. You can enable the [`tokio`] or
+will export each span synchronously on drop. You can enable the [`tokio_support`] or
 [`async-std`] features to have a batch exporter configured for you automatically
 for either executor when you install the pipeline.
 
 ```toml
 [dependencies]
-opentelemetry = { version = "*", features = ["tokio"] }
+opentelemetry = { version = "*", features = ["tokio_support"] }
 opentelemetry-jaeger = { version = "*", features = ["tokio"] }
 ```
 
-[`tokio`]: https://tokio.rs
+[`tokio_support`]: https://tokio.rs
 [`async-std`]: https://async.rs
 
 ### Jaeger Exporter From Environment Variables
@@ -123,8 +123,8 @@ Then you can use the [`with_collector_endpoint`] method to specify the endpoint:
 // * reqwest_blocking_collector_client
 // * isahc_collector_client
 
-// You can also provide your own implementation by enable 
-// `collecor_client` and set it with 
+// You can also provide your own implementation by enable
+// `collecor_client` and set it with
 // new_pipeline().with_http_client() method.
 use opentelemetry::tracer;
 
