@@ -164,7 +164,7 @@ impl SpanProcessor for SimpleSpanProcessor {
 ///
 /// ```
 /// use futures::{stream};
-/// use opentelemetry::{trace as apitrace, sdk::trace as sdktrace, global};
+/// use opentelemetry::{trace as apitrace, sdk::trace as sdktrace, global, util::tokio_interval_stream};
 /// use std::time::Duration;
 ///
 /// #[tokio::main]
@@ -175,7 +175,7 @@ impl SpanProcessor for SimpleSpanProcessor {
 ///     // Then build a batch processor. You can use whichever executor you have available, for
 ///     // example if you are using `async-std` instead of `tokio` you can replace the spawn and
 ///     // interval functions with `async_std::task::spawn` and `async_std::stream::interval`.
-///     let batch = sdktrace::BatchSpanProcessor::builder(exporter, tokio::spawn, tokio::time::delay_for, tokio::time::interval)
+///     let batch = sdktrace::BatchSpanProcessor::builder(exporter, tokio::spawn, tokio::time::sleep, tokio_interval_stream)
 ///         .with_max_queue_size(4096)
 ///         .build();
 ///
@@ -575,6 +575,7 @@ mod tests {
     use crate::testing::trace::{
         new_test_export_span_data, new_test_exporter, new_tokio_test_exporter,
     };
+    use crate::util::tokio_interval_stream;
 
     use futures::Future;
 
@@ -609,6 +610,7 @@ mod tests {
         let mut builder = BatchSpanProcessor::from_env(
             stdout::Exporter::new(std::io::stdout(), true),
             tokio::spawn,
+            tokio_interval_stream,
             tokio::time::sleep,
         );
         // export batch size cannot exceed max queue size
@@ -630,6 +632,7 @@ mod tests {
         builder = BatchSpanProcessor::from_env(
             stdout::Exporter::new(std::io::stdout(), true),
             tokio::spawn,
+            tokio_interval_stream,
             tokio::time::sleep,
         );
 
@@ -648,6 +651,7 @@ mod tests {
         let mut processor = BatchSpanProcessor::new(
             Box::new(exporter),
             spawn,
+            tokio_interval_stream,
             tokio::time::sleep,
             config,
         );
@@ -780,6 +784,7 @@ mod tests {
         let mut processor = BatchSpanProcessor::new(
             Box::new(exporter),
             spawn,
+            tokio_interval_stream,
             tokio::time::sleep,
             config,
         );

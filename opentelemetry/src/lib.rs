@@ -175,6 +175,8 @@ pub use context::{Context, ContextGuard};
 mod core;
 pub use crate::core::{Array, Key, KeyValue, Unit, Value};
 
+pub mod util;
+
 #[cfg(feature = "metrics")]
 #[cfg_attr(docsrs, doc(cfg(feature = "metrics")))]
 pub mod labels;

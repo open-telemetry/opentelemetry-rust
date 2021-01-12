@@ -120,6 +120,7 @@ impl Builder {
             exporter,
             spawn,
             tokio::time::sleep,
+            crate::util::tokio_interval_stream,
         );
         self.with_batch_exporter(batch.build())
     }

@@ -23,7 +23,7 @@ fn init_tracer() -> Result<(sdktrace::Tracer, opentelemetry_jaeger::Uninstall), 
 
 // Skip first immediate tick from tokio, not needed for async_std.
 fn delayed_interval(duration: Duration) -> impl Stream<Item = tokio::time::Instant> {
-    tokio::time::interval(duration).skip(1)
+    opentelemetry::util::tokio_interval_stream(duration).skip(1)
 }
 
 fn init_meter() -> metrics::Result<PushController> {
