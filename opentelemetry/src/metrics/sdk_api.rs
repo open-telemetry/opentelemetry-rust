@@ -57,7 +57,7 @@ pub trait SyncBoundInstrumentCore: fmt::Debug + Send + Sync {
 
 /// An implementation-level interface to an asynchronous instrument (e.g.,
 /// Observer instruments).
-pub trait AsyncInstrumentCore: InstrumentCore {
+pub trait AsyncInstrumentCore: InstrumentCore + Send + Sync {
     /// The underlying type as `Any` to support downcasting.
     fn as_any(&self) -> &dyn Any;
 }
