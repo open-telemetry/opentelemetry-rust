@@ -125,14 +125,22 @@ use std::collections::HashMap;
 
 use std::time::Duration;
 
-#[cfg(feature = "tonic")]
+#[cfg(all(feature = "tonic", not(feature = "integration-testing")))]
 #[rustfmt::skip]
 #[allow(clippy::all, unreachable_pub)]
 mod proto;
 
-#[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
+#[cfg(all(
+    feature = "grpc-sys",
+    not(feature = "tonic"),
+    not(feature = "integration-testing")
+))]
 #[allow(clippy::all, unreachable_pub, dead_code)]
 mod proto;
+
+#[cfg(feature = "integration-testing")]
+#[allow(missing_docs)]
+pub mod proto;
 
 #[cfg(feature = "metrics")]
 #[allow(warnings)]

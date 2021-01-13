@@ -10,7 +10,7 @@ use protoc_grpcio::compile_grpc_protos;
 fn main() {
     #[cfg(feature = "tonic")]
     tonic_build::configure()
-        .build_server(false)
+        .build_server(std::env::var_os("CARGO_FEATURE_INTEGRATION_TESTING").is_some())
         .build_client(true)
         .format(false)
         .compile(
