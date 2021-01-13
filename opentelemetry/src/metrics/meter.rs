@@ -149,7 +149,30 @@ impl Meter {
         UpDownCounterBuilder::new(self, name.into(), NumberKind::I64)
     }
 
-    /// Creates a new integral `SumUpDownObserverBuilder` instrument with the given
+    /// Creates a new `ValueRecorderBuilder` for `f64` values with the given name.
+    pub fn i64_value_recorder<T>(&self, name: T) -> ValueRecorderBuilder<'_, i64>
+    where
+        T: Into<String>,
+    {
+        ValueRecorderBuilder::new(self, name.into(), NumberKind::I64)
+    }
+
+    /// Creates a new integral `SumObserverBuilder` instrument with the given
+    /// name and callback
+    pub fn i64_sum_observer<T, F>(&self, name: T, callback: F) -> SumObserverBuilder<'_, i64>
+    where
+        T: Into<String>,
+        F: Fn(ObserverResult<i64>) + Send + Sync + 'static,
+    {
+        SumObserverBuilder::new(
+            self,
+            name.into(),
+            AsyncRunner::I64(Box::new(callback)),
+            NumberKind::I64,
+        )
+    }
+
+    /// Creates a new integral `UpDownSumObserverBuilder` instrument with the given
     /// name and callback
     pub fn i64_up_down_sum_observer<T, F>(
         &self,
@@ -191,6 +214,14 @@ impl Meter {
         CounterBuilder::new(self, name.into(), NumberKind::U64)
     }
 
+    /// Creates a new integer `UpDownCounterBuilder` for an `u64` up down counter with the given name.
+    pub fn u64_up_down_counter<T>(&self, name: T) -> UpDownCounterBuilder<'_, u64>
+    where
+        T: Into<String>,
+    {
+        UpDownCounterBuilder::new(self, name.into(), NumberKind::U64)
+    }
+
     /// Creates a new `ValueRecorderBuilder` for `u64` values with the given name.
     pub fn u64_value_recorder<T>(&self, name: T) -> ValueRecorderBuilder<'_, u64>
     where
@@ -207,6 +238,25 @@ impl Meter {
         F: Fn(ObserverResult<u64>) + Send + Sync + 'static,
     {
         SumObserverBuilder::new(
+            self,
+            name.into(),
+            AsyncRunner::U64(Box::new(callback)),
+            NumberKind::U64,
+        )
+    }
+
+    /// Creates a new integral `UpDownSumObserverBuilder` instrument with the given
+    /// name and callback
+    pub fn u64_up_down_sum_observer<T, F>(
+        &self,
+        name: T,
+        callback: F,
+    ) -> UpDownSumObserverBuilder<'_, u64>
+    where
+        T: Into<String>,
+        F: Fn(ObserverResult<u64>) + Send + Sync + 'static,
+    {
+        UpDownSumObserverBuilder::new(
             self,
             name.into(),
             AsyncRunner::U64(Box::new(callback)),
