@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2018"
 
 [dependencies]
-opentelemetry = { path = "../../opentelemetry", features = ["tokio_support"] }
+opentelemetry = { path = "../../opentelemetry", features = ["tokio-support"] }
 opentelemetry-jaeger = { path = "../../opentelemetry-jaeger", features = ["reqwest_collector_client", "tokio"] }
 thrift = "0.13"
 futures = "0.3"
