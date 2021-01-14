@@ -81,10 +81,7 @@ struct MapKey {
 struct AsyncInstrumentState {
     /// runners maintains the set of runners in the order they were
     /// registered.
-    runners: Vec<(
-        AsyncRunner,
-        Arc<dyn sdk_api::AsyncInstrumentCore + Send + Sync>,
-    )>,
+    runners: Vec<(AsyncRunner, Arc<dyn sdk_api::AsyncInstrumentCore>)>,
 }
 
 fn collect_async(labels: &[KeyValue], observations: &[Observation]) {
@@ -138,7 +135,7 @@ impl AccumulatorCore {
 
     fn register(
         &self,
-        instrument: Arc<dyn sdk_api::AsyncInstrumentCore + Send + Sync>,
+        instrument: Arc<dyn sdk_api::AsyncInstrumentCore>,
         runner: AsyncRunner,
     ) -> Result<()> {
         self.async_instruments
@@ -337,10 +334,7 @@ impl sdk_api::InstrumentCore for SyncInstrument {
 }
 
 impl sdk_api::SyncInstrumentCore for SyncInstrument {
-    fn bind(
-        &self,
-        labels: &'_ [KeyValue],
-    ) -> Arc<dyn sdk_api::SyncBoundInstrumentCore + Send + Sync> {
+    fn bind(&self, labels: &'_ [KeyValue]) -> Arc<dyn sdk_api::SyncBoundInstrumentCore> {
         self.acquire_handle(labels)
     }
     fn record_one(&self, number: Number, labels: &'_ [KeyValue]) {
@@ -514,7 +508,7 @@ impl sdk_api::MeterCore for Accumulator {
     fn new_sync_instrument(
         &self,
         descriptor: Descriptor,
-    ) -> Result<Arc<dyn sdk_api::SyncInstrumentCore + Send + Sync>> {
+    ) -> Result<Arc<dyn sdk_api::SyncInstrumentCore>> {
         Ok(Arc::new(SyncInstrument {
             instrument: Arc::new(Instrument {
                 descriptor,
@@ -547,7 +541,7 @@ impl sdk_api::MeterCore for Accumulator {
         &self,
         descriptor: Descriptor,
         runner: AsyncRunner,
-    ) -> Result<Arc<dyn sdk_api::AsyncInstrumentCore + Send + Sync>> {
+    ) -> Result<Arc<dyn sdk_api::AsyncInstrumentCore>> {
         let instrument = Arc::new(AsyncInstrument {
             instrument: Arc::new(Instrument {
                 descriptor,
