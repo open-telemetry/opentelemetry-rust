@@ -139,7 +139,7 @@ mod proto;
 mod proto;
 
 #[cfg(feature = "integration-testing")]
-#[allow(missing_docs)]
+#[allow(missing_docs, unreachable_pub)]
 pub mod proto;
 
 #[cfg(feature = "metrics")]
