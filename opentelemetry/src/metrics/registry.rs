@@ -161,5 +161,5 @@ impl From<&Descriptor> for UniqueInstrumentKey {
     }
 }
 
-type UniqueSyncInstrument = Arc<dyn SyncInstrumentCore + Send + Sync>;
-type UniqueAsyncInstrument = Arc<dyn AsyncInstrumentCore + Send + Sync>;
+type UniqueSyncInstrument = Arc<dyn SyncInstrumentCore>;
+type UniqueAsyncInstrument = Arc<dyn AsyncInstrumentCore>;
