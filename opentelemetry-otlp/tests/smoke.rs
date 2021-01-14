@@ -1,3 +1,4 @@
+use futures::StreamExt;
 use opentelemetry::trace::{Span, SpanKind, Tracer};
 use opentelemetry_otlp::proto::collector::trace::v1::{
     trace_service_server::{TraceService, TraceServiceServer},
@@ -34,19 +35,16 @@ impl TraceService for MockServer {
 
 async fn setup() -> (SocketAddr, mpsc::Receiver<ExportTraceServiceRequest>) {
     let addr: SocketAddr = "[::1]:0".parse().unwrap();
-    let mut listener = tokio::net::TcpListener::bind(addr)
+    let listener = tokio::net::TcpListener::bind(addr)
         .await
         .expect("failed to bind");
     let addr = listener.local_addr().unwrap();
-    let stream = async_stream::stream! {
-        loop {
-            let maybe_conn = listener.accept().await.map(|(c, addr)| {
-                println!("Got new conn at {}", addr);
-                c
-            });
-            yield maybe_conn;
+    let stream = listener.map(|s| {
+        if let Ok(ref s) = s {
+            println!("Got new conn at {}", s.peer_addr().unwrap());
         }
-    };
+        s
+    });
 
     let (req_tx, req_rx) = mpsc::channel(10);
     let service = TraceServiceServer::new(MockServer::new(req_tx));
