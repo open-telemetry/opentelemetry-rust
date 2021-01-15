@@ -76,7 +76,7 @@ impl Meter {
         UpDownCounterBuilder::new(self, name.into(), NumberKind::F64)
     }
 
-    /// Creates a new `ValueRecorderBuilder` for `f64` values with the given name.
+    /// Creates a new floating point `ValueRecorderBuilder` for `f64` values with the given name.
     pub fn f64_value_recorder<T>(&self, name: T) -> ValueRecorderBuilder<'_, f64>
     where
         T: Into<String>,
@@ -84,8 +84,7 @@ impl Meter {
         ValueRecorderBuilder::new(self, name.into(), NumberKind::F64)
     }
 
-    /// Creates a new floating point `SumObserverBuilder` instrument with the given
-    /// name and callback
+    /// Creates a new floating point `SumObserverBuilder` for `f64` values with the given name and callback.
     pub fn f64_sum_observer<T, F>(&self, name: T, callback: F) -> SumObserverBuilder<'_, f64>
     where
         T: Into<String>,
@@ -99,8 +98,7 @@ impl Meter {
         )
     }
 
-    /// Creates a new floating point `UpDownSumObserverBuilder` instrument with the
-    /// given name and callback
+    /// Creates a new floating point `UpDownSumObserverBuilder` for `f64` values with the given name and callback.
     pub fn f64_up_down_sum_observer<T, F>(
         &self,
         name: T,
@@ -118,8 +116,7 @@ impl Meter {
         )
     }
 
-    /// Creates a new floating point `ValueObserverBuilder` instrument with the
-    /// given name and callback
+    /// Creates a new floating point `ValueObserverBuilder` for `f64` values with the given name and callback.
     pub fn f64_value_observer<T, F>(&self, name: T, callback: F) -> ValueObserverBuilder<'_, f64>
     where
         T: Into<String>,
@@ -149,7 +146,7 @@ impl Meter {
         UpDownCounterBuilder::new(self, name.into(), NumberKind::I64)
     }
 
-    /// Creates a new `ValueRecorderBuilder` for `f64` values with the given name.
+    /// Creates a new integer `ValueRecorderBuilder` for `i64` values with the given name.
     pub fn i64_value_recorder<T>(&self, name: T) -> ValueRecorderBuilder<'_, i64>
     where
         T: Into<String>,
@@ -157,8 +154,7 @@ impl Meter {
         ValueRecorderBuilder::new(self, name.into(), NumberKind::I64)
     }
 
-    /// Creates a new integral `SumObserverBuilder` instrument with the given
-    /// name and callback
+    /// Creates a new integer `SumObserverBuilder` for `i64` values with the given name and callback.
     pub fn i64_sum_observer<T, F>(&self, name: T, callback: F) -> SumObserverBuilder<'_, i64>
     where
         T: Into<String>,
@@ -172,8 +168,7 @@ impl Meter {
         )
     }
 
-    /// Creates a new integral `UpDownSumObserverBuilder` instrument with the given
-    /// name and callback
+    /// Creates a new integer `UpDownSumObserverBuilder` for `i64` values with the given name and callback.
     pub fn i64_up_down_sum_observer<T, F>(
         &self,
         name: T,
@@ -191,8 +186,7 @@ impl Meter {
         )
     }
 
-    /// Creates a new integral `ValueObserverBuilder` instrument with the given name
-    /// and callback
+    /// Creates a new integer `ValueObserverBuilder` for `i64` values with the given name and callback.
     pub fn i64_value_observer<T, F>(&self, name: T, callback: F) -> ValueObserverBuilder<'_, i64>
     where
         T: Into<String>,
@@ -222,7 +216,7 @@ impl Meter {
         UpDownCounterBuilder::new(self, name.into(), NumberKind::U64)
     }
 
-    /// Creates a new `ValueRecorderBuilder` for `u64` values with the given name.
+    /// Creates a new integer `ValueRecorderBuilder` for `u64` values with the given name.
     pub fn u64_value_recorder<T>(&self, name: T) -> ValueRecorderBuilder<'_, u64>
     where
         T: Into<String>,
@@ -230,8 +224,7 @@ impl Meter {
         ValueRecorderBuilder::new(self, name.into(), NumberKind::U64)
     }
 
-    /// Creates a new integral `SumObserverBuilder` instrument with the given name
-    /// and callback
+    /// Creates a new integer `SumObserverBuilder` for `u64` values with the given name and callback.
     pub fn u64_sum_observer<T, F>(&self, name: T, callback: F) -> SumObserverBuilder<'_, u64>
     where
         T: Into<String>,
@@ -245,8 +238,7 @@ impl Meter {
         )
     }
 
-    /// Creates a new integral `UpDownSumObserverBuilder` instrument with the given
-    /// name and callback
+    /// Creates a new integer `UpDownSumObserverBuilder` for `u64` values with the given name and callback.
     pub fn u64_up_down_sum_observer<T, F>(
         &self,
         name: T,
@@ -264,8 +256,7 @@ impl Meter {
         )
     }
 
-    /// Creates a new integral `ValueObserverBuilder` instrument with the given name
-    /// and callback
+    /// Creates a new integer `ValueObserverBuilder` for `u64` values with the given name and callback.
     pub fn u64_value_observer<T, F>(&self, name: T, callback: F) -> ValueObserverBuilder<'_, u64>
     where
         T: Into<String>,
