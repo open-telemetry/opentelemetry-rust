@@ -34,14 +34,15 @@ async-trait = "0.1"
 futures = "0.3"
 grpcio = { version = "0.7", optional = true }
 opentelemetry = { version = "0.11", default-features = false, features = ["trace"], path = "../opentelemetry" }
-prost = { version = "0.6", optional = true }
+prost = { version = "0.7", optional = true }
 protobuf = { version = "2.18", optional = true }
 thiserror = "1.0"
-tonic = { package = "tonic", version = "0.3", optional = true }
+tonic = { version = "0.4", optional = true }
 tokio = { version = "1.0", features = ["full"], optional = true }
 
 [dev-dependencies]
 chrono = "0.4"
+tokio-stream = { version = "0.1", features = ["net"] }
 
 [features]
 async = ["default"]
