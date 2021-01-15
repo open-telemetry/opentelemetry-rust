@@ -129,7 +129,7 @@ impl trace::SpanExporter for Exporter {
 pub struct PipelineBuilder {
     agent_endpoint: Vec<net::SocketAddr>,
     #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
-    collector_endpoint: Option<http::Uri>,
+    collector_endpoint: Option<Result<http::Uri, http::uri::InvalidUri>>,
     #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
     collector_username: Option<String>,
     #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
@@ -206,9 +206,12 @@ impl PipelineBuilder {
     pub fn with_collector_endpoint<T>(self, collector_endpoint: T) -> Self
     where
         http::Uri: core::convert::TryFrom<T>,
+        <http::Uri as core::convert::TryFrom<T>>::Error: Into<http::uri::InvalidUri>,
     {
         PipelineBuilder {
-            collector_endpoint: core::convert::TryFrom::try_from(collector_endpoint).ok(),
+            collector_endpoint: Some(
+                core::convert::TryFrom::try_from(collector_endpoint).map_err(Into::into),
+            ),
             ..self
         }
     }
@@ -314,7 +317,11 @@ impl PipelineBuilder {
 
     #[cfg(feature = "collector_client")]
     fn init_uploader(self) -> Result<(Process, uploader::BatchUploader), TraceError> {
-        if let Some(collector_endpoint) = self.collector_endpoint {
+        if let Some(collector_endpoint) = self
+            .collector_endpoint
+            .transpose()
+            .map_err::<Error, _>(Into::into)?
+        {
             #[cfg(all(
                 not(feature = "isahc_collector_client"),
                 not(feature = "surf_collector_client"),
@@ -402,7 +409,11 @@ impl PipelineBuilder {
 
     #[cfg(all(feature = "wasm_collector_client", not(feature = "collector_client")))]
     fn init_uploader(self) -> Result<(Process, uploader::BatchUploader), TraceError> {
-        if let Some(collector_endpoint) = self.collector_endpoint {
+        if let Some(collector_endpoint) = self
+            .collector_endpoint
+            .transpose()
+            .map_err::<Error, _>(Into::into)?
+        {
             let collector = CollectorAsyncClientHttp::new(
                 collector_endpoint,
                 self.collector_username,
@@ -680,6 +691,11 @@ pub enum Error {
         feature = "reqwest_blocking_collector_client"
     ))]
     ReqwestClientError(#[from] reqwest::Error),
+
+    /// invalid collector uri is provided.
+    #[error("collector uri is invalid, {0}")]
+    #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
+    InvalidUri(#[from] http::uri::InvalidUri),
 }
 
 impl ExportError for Error {
@@ -736,6 +752,30 @@ mod collector_client_tests {
         );
 
         Ok(())
+    }
+
+    #[test]
+    #[cfg(any(
+        feature = "isahc_collector_client",
+        feature = "surf_collector_client",
+        feature = "reqwest_collector_client",
+        feature = "reqwest_blocking_collector_client"
+    ))]
+    fn test_set_collector_endpoint() {
+        let invalid_uri = new_pipeline()
+            .with_collector_endpoint("127.0.0.1:14268/api/traces")
+            .init_uploader();
+        assert!(invalid_uri.is_err());
+        assert_eq!(
+            format!("{:?}", invalid_uri.err().unwrap()),
+            "ExportFailed(InvalidUri(InvalidUri(InvalidFormat)))"
+        );
+
+        let valid_uri = new_pipeline()
+            .with_collector_endpoint("http://127.0.0.1:14268/api/traces")
+            .init_uploader();
+
+        assert!(valid_uri.is_ok());
     }
 }
 
