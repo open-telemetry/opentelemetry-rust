@@ -17,10 +17,9 @@ use async_trait::async_trait;
 use collector::CollectorAsyncClientHttp;
 
 #[cfg(feature = "isahc_collector_client")]
+#[allow(unused_imports)] // this is actually used to configure authentication
 use isahc::prelude::Configurable;
 
-#[cfg(feature = "collector_client")]
-use opentelemetry::sdk::export::trace::HttpClient;
 use opentelemetry::sdk::export::ExportError;
 use opentelemetry::trace::TraceError;
 use opentelemetry::{
@@ -29,6 +28,8 @@ use opentelemetry::{
     trace::{Event, Link, SpanKind, StatusCode, TracerProvider},
     Key, KeyValue, Value,
 };
+#[cfg(feature = "collector_client")]
+use opentelemetry_http::HttpClient;
 use std::{
     net,
     time::{Duration, SystemTime},
@@ -134,7 +135,7 @@ pub struct PipelineBuilder {
     #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
     collector_password: Option<String>,
     #[cfg(feature = "collector_client")]
-    client: Option<Box<dyn opentelemetry::sdk::export::trace::HttpClient>>,
+    client: Option<Box<dyn HttpClient>>,
     export_instrument_library: bool,
     process: Process,
     config: Option<sdk::trace::Config>,
@@ -340,12 +341,12 @@ impl PipelineBuilder {
                         .credentials(isahc::auth::Credentials::new(username, password));
                 }
 
-                Box::new(IsahcHttpClient(builder.build().map_err(|err| {
+                Box::new(builder.build().map_err(|err| {
                     crate::Error::ThriftAgentError(::thrift::Error::from(std::io::Error::new(
                         std::io::ErrorKind::Other,
                         err.to_string(),
                     )))
-                })?))
+                })?)
             });
 
             #[cfg(all(
@@ -443,44 +444,6 @@ impl surf::middleware::Middleware for BasicAuthMiddleware {
     ) -> surf::Result<surf::Response> {
         req.insert_header(self.0.name(), self.0.value());
         next.run(req, client).await
-    }
-}
-
-#[derive(Debug)]
-#[cfg(feature = "isahc_collector_client")]
-struct IsahcHttpClient(isahc::HttpClient);
-
-#[async_trait]
-#[cfg(feature = "isahc_collector_client")]
-impl opentelemetry::sdk::export::trace::HttpClient for IsahcHttpClient {
-    async fn send(
-        &self,
-        request: http::Request<Vec<u8>>,
-    ) -> opentelemetry::sdk::export::trace::ExportResult {
-        let res = self
-            .0
-            .send_async(request)
-            .await
-            .map_err::<crate::Error, _>(|err| {
-                ::thrift::Error::from(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    err.to_string(),
-                ))
-                .into()
-            })
-            .map_err::<TraceError, _>(TraceError::from)?;
-
-        if !res.status().is_success() {
-            return Err(crate::Error::ThriftAgentError(::thrift::Error::from(
-                std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    format!("Expected success response, got {:?}", res.status()),
-                ),
-            ))
-            .into());
-        }
-
-        Ok(())
     }
 }
 
@@ -751,8 +714,9 @@ mod collector_client_tests {
     mod test_http_client {
         use async_trait::async_trait;
         use http::Request;
-        use opentelemetry::sdk::export::trace::{ExportResult, HttpClient};
+        use opentelemetry::sdk::export::trace::ExportResult;
         use opentelemetry::trace::TraceError;
+        use opentelemetry_http::HttpClient;
         use std::fmt::Debug;
 
         pub(crate) struct TestHttpClient;
