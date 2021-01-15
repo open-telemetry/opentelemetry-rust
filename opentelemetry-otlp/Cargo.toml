@@ -15,9 +15,15 @@ keywords = ["opentelemetry", "otlp", "logging", "tracing", "metrics"]
 license = "Apache-2.0"
 edition = "2018"
 build = "build.rs"
+autotests = false
 
 [lib]
 doctest = false
+
+[[test]]
+name = "smoke"
+path = "tests/smoke.rs"
+required-features = ["integration-testing"]
 
 [package.metadata.docs.rs]
 all-features = true
@@ -47,6 +53,7 @@ tls = ["tonic/tls"]
 tls-roots = ["tls", "tonic/tls-roots"]
 openssl = ["grpcio/openssl"]
 openssl-vendored = ["grpcio/openssl-vendored"]
+integration-testing = ["tonic", "tonic-build", "prost", "tokio/full", "opentelemetry/trace"]
 
 [build-dependencies]
 protobuf-codegen = { version = "2.16", optional = true }

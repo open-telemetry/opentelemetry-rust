@@ -1,22 +1,16 @@
 //! Trace exporters
-#[cfg(all(feature = "http", any(feature = "surf", feature = "reqwest")))]
-use crate::sdk::export::ExportError;
+use std::fmt::Debug;
+use std::sync::Arc;
+use std::time::SystemTime;
+
+use async_trait::async_trait;
+#[cfg(feature = "serialize")]
+use serde::{Deserialize, Serialize};
+
 use crate::{
     sdk,
     trace::{Event, Link, SpanContext, SpanId, SpanKind, StatusCode, TraceError},
 };
-use async_trait::async_trait;
-#[cfg(feature = "http")]
-use http::Request;
-#[cfg(feature = "serialize")]
-use serde::{Deserialize, Serialize};
-#[cfg(all(feature = "http", feature = "reqwest"))]
-use std::convert::TryInto;
-use std::fmt::Debug;
-#[cfg(all(feature = "surf", feature = "http"))]
-use std::fmt::{Display, Formatter};
-use std::sync::Arc;
-use std::time::SystemTime;
 
 pub mod stdout;
 
@@ -58,53 +52,6 @@ pub trait SpanExporter: Send + Debug {
     /// can decide if they want to make the shutdown timeout
     /// configurable.
     fn shutdown(&mut self) {}
-}
-
-/// A minimal interface necessary for export spans over HTTP.
-///
-/// Users sometime choose http clients that relay on certain runtime. This trait
-/// allows users to bring their choice of http clients.
-#[cfg(feature = "http")]
-#[cfg_attr(docsrs, doc(cfg(feature = "http")))]
-#[async_trait]
-pub trait HttpClient: Debug + Send + Sync {
-    /// Send a batch of spans to collectors
-    async fn send(&self, request: Request<Vec<u8>>) -> ExportResult;
-}
-
-#[cfg(all(feature = "reqwest", feature = "http"))]
-impl ExportError for reqwest::Error {
-    fn exporter_name(&self) -> &'static str {
-        "reqwest"
-    }
-}
-
-#[cfg(all(feature = "surf", feature = "http"))]
-impl ExportError for SurfError {
-    fn exporter_name(&self) -> &'static str {
-        "surf"
-    }
-}
-
-#[cfg(all(feature = "surf", feature = "http"))]
-#[derive(Debug)]
-struct SurfError(surf::Error);
-
-#[cfg(all(feature = "surf", feature = "http"))]
-impl Display for SurfError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0.to_string())
-    }
-}
-
-#[cfg(all(feature = "surf", feature = "http"))]
-impl std::error::Error for SurfError {}
-
-#[cfg(all(feature = "surf", feature = "http"))]
-impl From<surf::Error> for SurfError {
-    fn from(err: surf::Error) -> Self {
-        SurfError(err)
-    }
 }
 
 /// `SpanData` contains all the information collected by a `Span` and can be used

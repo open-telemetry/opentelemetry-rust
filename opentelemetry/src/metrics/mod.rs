@@ -70,7 +70,7 @@ pub enum MetricsError {
     #[error("Aggregator does not subtract")]
     NoSubtraction,
     /// Fail to export metrics
-    #[error("Export metrics failed with {0}")]
+    #[error("Metrics exporter {} failed with {0}", .0.exporter_name())]
     ExportErr(Box<dyn ExportError>),
 }
 

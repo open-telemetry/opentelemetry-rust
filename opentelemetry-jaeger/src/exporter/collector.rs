@@ -1,7 +1,7 @@
 //! # HTTP Jaeger Collector Client
 use http::Uri;
 #[cfg(feature = "collector_client")]
-use opentelemetry::sdk::export::trace::HttpClient;
+use opentelemetry_http::HttpClient;
 use std::sync::atomic::AtomicUsize;
 
 /// `CollectorAsyncClientHttp` implements an async version of the

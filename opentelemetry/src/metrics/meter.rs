@@ -258,7 +258,7 @@ impl Meter {
     pub(crate) fn new_sync_instrument(
         &self,
         descriptor: Descriptor,
-    ) -> Result<Arc<dyn sdk_api::SyncInstrumentCore + Send + Sync>> {
+    ) -> Result<Arc<dyn sdk_api::SyncInstrumentCore>> {
         self.core.new_sync_instrument(descriptor)
     }
 
@@ -266,7 +266,7 @@ impl Meter {
         &self,
         descriptor: Descriptor,
         runner: AsyncRunner,
-    ) -> Result<Arc<dyn sdk_api::AsyncInstrumentCore + Send + Sync>> {
+    ) -> Result<Arc<dyn sdk_api::AsyncInstrumentCore>> {
         self.core.new_async_instrument(descriptor, runner)
     }
 }
