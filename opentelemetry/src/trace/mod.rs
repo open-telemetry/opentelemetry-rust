@@ -150,7 +150,7 @@ pub type TraceResult<T> = Result<T, TraceError>;
 #[non_exhaustive]
 pub enum TraceError {
     /// Export failed with the error returned by the exporter
-    #[error("Exporting failed with {0}")]
+    #[error("Exporter {} failed with {0}", .0.exporter_name())]
     ExportFailed(Box<dyn ExportError>),
 
     /// Export failed to finish after certain period and processor stopped the export.

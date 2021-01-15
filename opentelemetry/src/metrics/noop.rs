@@ -54,10 +54,7 @@ impl NoopMeterCore {
 }
 
 impl MeterCore for NoopMeterCore {
-    fn new_sync_instrument(
-        &self,
-        _descriptor: Descriptor,
-    ) -> Result<Arc<dyn SyncInstrumentCore + Send + Sync>> {
+    fn new_sync_instrument(&self, _descriptor: Descriptor) -> Result<Arc<dyn SyncInstrumentCore>> {
         Ok(Arc::new(NoopSyncInstrument::new()))
     }
 
@@ -65,7 +62,7 @@ impl MeterCore for NoopMeterCore {
         &self,
         _descriptor: Descriptor,
         _runner: AsyncRunner,
-    ) -> Result<Arc<dyn AsyncInstrumentCore + Send + Sync>> {
+    ) -> Result<Arc<dyn AsyncInstrumentCore>> {
         Ok(Arc::new(NoopAsyncInstrument::new()))
     }
 
@@ -99,7 +96,7 @@ impl InstrumentCore for NoopSyncInstrument {
 }
 
 impl SyncInstrumentCore for NoopSyncInstrument {
-    fn bind(&self, _labels: &'_ [KeyValue]) -> Arc<dyn SyncBoundInstrumentCore + Send + Sync> {
+    fn bind(&self, _labels: &'_ [KeyValue]) -> Arc<dyn SyncBoundInstrumentCore> {
         Arc::new(NoopBoundSyncInstrument::new())
     }
     fn record_one(&self, _number: Number, _labels: &'_ [KeyValue]) {
