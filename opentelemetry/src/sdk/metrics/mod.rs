@@ -77,13 +77,17 @@ struct MapKey {
     instrument_hash: u64,
 }
 
+type AsyncRunnerPair = (AsyncRunner, Option<Arc<dyn sdk_api::AsyncInstrumentCore>>);
+
 #[derive(Default, Debug)]
 struct AsyncInstrumentState {
-    /// The set of runners in the order they were registered.
+    /// The set of runners in the order they were registered that will run each
+    /// collection interval.
     ///
-    /// Runners and instruments are 1:1 except batch observers, which have a
-    /// single runner for all their instruments.
-    runners: Vec<(AsyncRunner, Option<Arc<dyn sdk_api::AsyncInstrumentCore>>)>,
+    /// Non-batch observers are entered with an instrument, batch observers are
+    /// entered without an instrument, each is called once allowing both batch and
+    /// individual observations to be collected.
+    runners: Vec<AsyncRunnerPair>,
 
     /// The set of instruments in the order they were registered.
     instruments: Vec<Arc<dyn sdk_api::AsyncInstrumentCore>>,
@@ -107,7 +111,7 @@ impl AsyncInstrumentState {
     /// Executes the complete set of observer callbacks.
     fn run(&self) {
         for (runner, instrument) in self.runners.iter() {
-            runner.run(instrument.clone(), collect_async)
+            runner.run(instrument, collect_async)
         }
     }
 }

@@ -140,13 +140,13 @@ impl AsyncRunner {
     /// implementation can be used for batch runners.)
     pub fn run(
         &self,
-        instrument: Option<Arc<dyn sdk_api::AsyncInstrumentCore>>,
+        instrument: &Option<Arc<dyn sdk_api::AsyncInstrumentCore>>,
         f: fn(&[KeyValue], &[Observation]),
     ) {
         match (instrument, self) {
-            (Some(i), AsyncRunner::F64(run)) => run(ObserverResult::new(i, f)),
-            (Some(i), AsyncRunner::I64(run)) => run(ObserverResult::new(i, f)),
-            (Some(i), AsyncRunner::U64(run)) => run(ObserverResult::new(i, f)),
+            (Some(i), AsyncRunner::F64(run)) => run(ObserverResult::new(i.clone(), f)),
+            (Some(i), AsyncRunner::I64(run)) => run(ObserverResult::new(i.clone(), f)),
+            (Some(i), AsyncRunner::U64(run)) => run(ObserverResult::new(i.clone(), f)),
             (None, AsyncRunner::Batch(run)) => run(BatchObserverResult::new(f)),
             _ => global::handle_error(MetricsError::Other(
                 "Invalid async runner / instrument pair".into(),
