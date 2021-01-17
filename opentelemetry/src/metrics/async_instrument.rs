@@ -1,6 +1,9 @@
 //! Async metrics
-use crate::metrics::{sdk_api, Number};
-use crate::KeyValue;
+use crate::{
+    global,
+    metrics::{sdk_api, MetricsError, Number},
+    KeyValue,
+};
 use std::fmt;
 use std::marker;
 use std::sync::Arc;
@@ -33,17 +36,17 @@ impl Observation {
 }
 
 /// A type of callback that `f64` observers run.
-type F64ObserverCallback = Box<dyn Fn(ObserverResult<f64>) + Send + Sync + 'static>;
+type F64ObserverCallback = Box<dyn Fn(ObserverResult<f64>) + Send + Sync>;
 
 /// A type of callback that `u64` observers run.
-type U64ObserverCallback = Box<dyn Fn(ObserverResult<u64>) + Send + Sync + 'static>;
+type U64ObserverCallback = Box<dyn Fn(ObserverResult<u64>) + Send + Sync>;
 
 /// A type of callback that `u64` observers run.
-type I64ObserverCallback = Box<dyn Fn(ObserverResult<i64>) + Send + Sync + 'static>;
+type I64ObserverCallback = Box<dyn Fn(ObserverResult<i64>) + Send + Sync>;
 
 /// A callback argument for use with any Observer instrument that will be
 /// reported as a batch of observations.
-pub type BatchObserverCallback = Box<dyn Fn(BatchObserverResult) + Send + Sync>;
+type BatchObserverCallback = Box<dyn Fn(BatchObserverResult) + Send + Sync>;
 
 /// Data passed to an observer callback to capture observations for one
 /// asynchronous metric instrument.
@@ -137,16 +140,17 @@ impl AsyncRunner {
     /// implementation can be used for batch runners.)
     pub fn run(
         &self,
-        instrument: Arc<dyn sdk_api::AsyncInstrumentCore>,
+        instrument: Option<Arc<dyn sdk_api::AsyncInstrumentCore>>,
         f: fn(&[KeyValue], &[Observation]),
     ) {
-        match self {
-            AsyncRunner::F64(run) => run(ObserverResult::new(instrument, f)),
-            AsyncRunner::I64(run) => run(ObserverResult::new(instrument, f)),
-            AsyncRunner::U64(run) => run(ObserverResult::new(instrument, f)),
-            // TODO: this should not require an instrument to call. consider
-            // moving to separate struct
-            AsyncRunner::Batch(run) => run(BatchObserverResult::new(f)),
+        match (instrument, self) {
+            (Some(i), AsyncRunner::F64(run)) => run(ObserverResult::new(i, f)),
+            (Some(i), AsyncRunner::I64(run)) => run(ObserverResult::new(i, f)),
+            (Some(i), AsyncRunner::U64(run)) => run(ObserverResult::new(i, f)),
+            (None, AsyncRunner::Batch(run)) => run(BatchObserverResult::new(f)),
+            _ => global::handle_error(MetricsError::Other(
+                "Invalid async runner / instrument pair".into(),
+            )),
         }
     }
 }

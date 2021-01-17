@@ -1,7 +1,7 @@
 use crate::sdk::InstrumentationLibrary;
 use crate::{
     metrics::{
-        sdk_api, AsyncRunner, BatchObserver, BatchObserverCallback, CounterBuilder, Descriptor,
+        sdk_api, AsyncRunner, BatchObserver, BatchObserverResult, CounterBuilder, Descriptor,
         Measurement, NumberKind, ObserverResult, Result, SumObserverBuilder, UpDownCounterBuilder,
         UpDownSumObserverBuilder, ValueObserverBuilder, ValueRecorderBuilder,
     },
@@ -93,7 +93,7 @@ impl Meter {
         SumObserverBuilder::new(
             self,
             name.into(),
-            AsyncRunner::F64(Box::new(callback)),
+            Some(AsyncRunner::F64(Box::new(callback))),
             NumberKind::F64,
         )
     }
@@ -111,7 +111,7 @@ impl Meter {
         UpDownSumObserverBuilder::new(
             self,
             name.into(),
-            AsyncRunner::F64(Box::new(callback)),
+            Some(AsyncRunner::F64(Box::new(callback))),
             NumberKind::F64,
         )
     }
@@ -125,7 +125,7 @@ impl Meter {
         ValueObserverBuilder::new(
             self,
             name.into(),
-            AsyncRunner::F64(Box::new(callback)),
+            Some(AsyncRunner::F64(Box::new(callback))),
             NumberKind::F64,
         )
     }
@@ -163,7 +163,7 @@ impl Meter {
         SumObserverBuilder::new(
             self,
             name.into(),
-            AsyncRunner::I64(Box::new(callback)),
+            Some(AsyncRunner::I64(Box::new(callback))),
             NumberKind::I64,
         )
     }
@@ -181,7 +181,7 @@ impl Meter {
         UpDownSumObserverBuilder::new(
             self,
             name.into(),
-            AsyncRunner::I64(Box::new(callback)),
+            Some(AsyncRunner::I64(Box::new(callback))),
             NumberKind::I64,
         )
     }
@@ -195,7 +195,7 @@ impl Meter {
         ValueObserverBuilder::new(
             self,
             name.into(),
-            AsyncRunner::I64(Box::new(callback)),
+            Some(AsyncRunner::I64(Box::new(callback))),
             NumberKind::I64,
         )
     }
@@ -233,7 +233,7 @@ impl Meter {
         SumObserverBuilder::new(
             self,
             name.into(),
-            AsyncRunner::U64(Box::new(callback)),
+            Some(AsyncRunner::U64(Box::new(callback))),
             NumberKind::U64,
         )
     }
@@ -251,7 +251,7 @@ impl Meter {
         UpDownSumObserverBuilder::new(
             self,
             name.into(),
-            AsyncRunner::U64(Box::new(callback)),
+            Some(AsyncRunner::U64(Box::new(callback))),
             NumberKind::U64,
         )
     }
@@ -265,15 +265,75 @@ impl Meter {
         ValueObserverBuilder::new(
             self,
             name.into(),
-            AsyncRunner::U64(Box::new(callback)),
+            Some(AsyncRunner::U64(Box::new(callback))),
             NumberKind::U64,
         )
     }
 
-    /// Creates a new `BatchObserver` that supports making batches of observations for
-    /// multiple instruments.
-    pub fn batch_observer(&self, callback: BatchObserverCallback) -> BatchObserver<'_> {
-        BatchObserver::new(self, AsyncRunner::Batch(callback))
+    /// Creates a new `BatchObserver` that supports making batches of observations
+    /// for multiple instruments or returns an error if instrument initialization
+    /// fails.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use opentelemetry::{global, metrics::BatchObserverResult, KeyValue};
+    ///
+    /// # fn init_observer() -> opentelemetry::metrics::Result<()> {
+    /// let meter = global::meter("test");
+    ///
+    /// meter.build_batch_observer(|batch| {
+    ///   let instrument = batch.u64_value_observer("test_instrument").try_init()?;
+    ///
+    ///   Ok(move |result: BatchObserverResult| {
+    ///     result.observe(&[KeyValue::new("my-key", "my-value")], &[instrument.observation(1)]);
+    ///   })
+    /// })?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn build_batch_observer<B, F>(&self, builder: B) -> Result<()>
+    where
+        B: Fn(BatchObserver<'_>) -> Result<F>,
+        F: Fn(BatchObserverResult) + Send + Sync + 'static,
+    {
+        let observer = builder(BatchObserver::new(self))?;
+        self.core
+            .new_batch_observer(AsyncRunner::Batch(Box::new(observer)))
+    }
+
+    /// Creates a new `BatchObserver` that supports making batches of observations
+    /// for multiple instruments.
+    ///
+    /// # Panics
+    ///
+    /// Panics if instrument initialization or observer registration returns an
+    /// error.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use opentelemetry::{global, metrics::BatchObserverResult, KeyValue};
+    ///
+    /// let meter = global::meter("test");
+    ///
+    /// meter.batch_observer(|batch| {
+    ///   let instrument = batch.u64_value_observer("test_instrument").init();
+    ///
+    ///   move |result: BatchObserverResult| {
+    ///     result.observe(&[KeyValue::new("my-key", "my-value")], &[instrument.observation(1)]);
+    ///   }
+    /// });
+    /// ```
+    pub fn batch_observer<B, F>(&self, builder: B)
+    where
+        B: Fn(BatchObserver<'_>) -> F,
+        F: Fn(BatchObserverResult) + Send + Sync + 'static,
+    {
+        let observer = builder(BatchObserver::new(self));
+        self.core
+            .new_batch_observer(AsyncRunner::Batch(Box::new(observer)))
+            .unwrap()
     }
 
     /// Atomically record a batch of measurements.
@@ -306,7 +366,7 @@ impl Meter {
     pub(crate) fn new_async_instrument(
         &self,
         descriptor: Descriptor,
-        runner: AsyncRunner,
+        runner: Option<AsyncRunner>,
     ) -> Result<Arc<dyn sdk_api::AsyncInstrumentCore>> {
         self.core.new_async_instrument(descriptor, runner)
     }
