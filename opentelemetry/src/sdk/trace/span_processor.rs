@@ -163,6 +163,8 @@ impl SpanProcessor for SimpleSpanProcessor {
 /// contexts.
 ///
 /// ```
+/// # #[cfg(feature="tokio")]
+/// # {
 /// use futures::{stream};
 /// use opentelemetry::{trace as apitrace, sdk::trace as sdktrace, global, util::tokio_interval_stream};
 /// use std::time::Duration;
@@ -187,6 +189,7 @@ impl SpanProcessor for SimpleSpanProcessor {
 ///     let guard = global::set_tracer_provider(provider);
 ///     # drop(guard)
 /// }
+/// # }
 /// ```
 ///
 /// [`SpanProcessor`]: ../../api/trace/span_processor/trait.SpanProcessor.html
