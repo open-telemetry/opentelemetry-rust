@@ -4,7 +4,7 @@
 //! services to capture distributed traces and metrics from your application. You
 //! can analyze them using [Prometheus], [Jaeger], and other observability tools.
 //!
-//! *Compiler support: [requires `rustc` 1.42+][msrv]*
+//! *Compiler support: [requires `rustc` 1.46+][msrv]*
 //!
 //! [Prometheus]: https://prometheus.io
 //! [Jaeger]: https://www.jaegertracing.io
@@ -44,7 +44,7 @@
 //! Support for recording and exporting telemetry asynchronously can be added
 //! via the following flags:
 //!
-//! * `tokio`: Spawn telemetry tasks using [tokio]'s runtime.
+//! * `tokio-support`: Spawn telemetry tasks using [tokio]'s runtime.
 //! * `async-std`: Spawn telemetry tasks using [async-std]'s runtime.
 //!
 //! The following flags enable propagating information in other crate
@@ -134,14 +134,14 @@
 //! ## Supported Rust Versions
 //!
 //! OpenTelemetry is built against the latest stable release. The minimum
-//! supported version is 1.42. The current OpenTelemetry version is not
+//! supported version is 1.46. The current OpenTelemetry version is not
 //! guaranteed to build on Rust versions earlier than the minimum supported
 //! version.
 //!
 //! The current stable Rust compiler and the three most recent minor versions
 //! before it will always be supported. For example, if the current stable
-//! compiler version is 1.45, the minimum supported version will not be
-//! increased past 1.42, three minor versions prior. Increasing the minimum
+//! compiler version is 1.49, the minimum supported version will not be
+//! increased past 1.46, three minor versions prior. Increasing the minimum
 //! supported compiler version is not considered a semver breaking change as
 //! long as doing so complies with this policy.
 #![warn(
@@ -174,6 +174,8 @@ pub use context::{Context, ContextGuard};
 
 mod core;
 pub use crate::core::{Array, Key, KeyValue, Unit, Value};
+
+pub mod util;
 
 #[cfg(feature = "metrics")]
 #[cfg_attr(docsrs, doc(cfg(feature = "metrics")))]

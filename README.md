@@ -24,7 +24,7 @@ analysis in order to understand your software's performance and behavior. You
 can export and analyze them using [Prometheus], [Jaeger], and other
 observability tools.
 
-*Compiler support: [requires `rustc` 1.42+][msrv]*
+*Compiler support: [requires `rustc` 1.46+][msrv]*
 
 [Prometheus]: https://prometheus.io
 [Jaeger]: https://www.jaegertracing.io
@@ -120,12 +120,12 @@ above, please let us know! We'd love to add your project to the list!
 ## Supported Rust Versions
 
 OpenTelemetry is built against the latest stable release. The minimum supported
-version is 1.42. The current OpenTelemetry version is not guaranteed to build
+version is 1.46. The current OpenTelemetry version is not guaranteed to build
 on Rust versions earlier than the minimum supported version.
 
 The current stable Rust compiler and the three most recent minor versions
 before it will always be supported. For example, if the current stable compiler
-version is 1.45, the minimum supported version will not be increased past 1.42,
+version is 1.49, the minimum supported version will not be increased past 1.46,
 three minor versions prior. Increasing the minimum supported compiler version
 is not considered a semver breaking change as long as doing so complies with
 this policy.

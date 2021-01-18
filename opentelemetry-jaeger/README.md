@@ -23,7 +23,7 @@ analysis in order to understand your software's performance and behavior. This
 crate provides a trace pipeline and exporter for sending span information to a
 Jaeger `agent` or `collector` endpoint for processing and visualization.
 
-*Compiler support: [requires `rustc` 1.42+][msrv]*
+*Compiler support: [requires `rustc` 1.46+][msrv]*
 
 [`Jaeger`]: https://www.jaegertracing.io/
 [`OpenTelemetry`]: https://crates.io/crates/opentelemetry
@@ -62,17 +62,17 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 ## Performance
 
 For optimal performance, a batch exporter is recommended as the simple exporter
-will export each span synchronously on drop. You can enable the [`tokio`] or
+will export each span synchronously on drop. You can enable the [`tokio-support`] or
 [`async-std`] features to have a batch exporter configured for you automatically
 for either executor when you install the pipeline.
 
 ```toml
 [dependencies]
-opentelemetry = { version = "*", features = ["tokio"] }
+opentelemetry = { version = "*", features = ["tokio-support"] }
 opentelemetry-jaeger = { version = "*", features = ["tokio"] }
 ```
 
-[`tokio`]: https://tokio.rs
+[`tokio-support`]: https://tokio.rs
 [`async-std`]: https://async.rs
 
 ### Jaeger Exporter From Environment Variables
@@ -123,8 +123,8 @@ Then you can use the [`with_collector_endpoint`] method to specify the endpoint:
 // * reqwest_blocking_collector_client
 // * isahc_collector_client
 
-// You can also provide your own implementation by enable 
-// `collecor_client` and set it with 
+// You can also provide your own implementation by enable
+// `collecor_client` and set it with
 // new_pipeline().with_http_client() method.
 use opentelemetry::tracer;
 
@@ -186,12 +186,12 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 ## Supported Rust Versions
 
 OpenTelemetry is built against the latest stable release. The minimum supported
-version is 1.42. The current OpenTelemetry version is not guaranteed to build
+version is 1.46. The current OpenTelemetry version is not guaranteed to build
 on Rust versions earlier than the minimum supported version.
 
 The current stable Rust compiler and the three most recent minor versions
 before it will always be supported. For example, if the current stable compiler
-version is 1.45, the minimum supported version will not be increased past 1.42,
+version is 1.49, the minimum supported version will not be increased past 1.46,
 three minor versions prior. Increasing the minimum supported compiler version
 is not considered a semver breaking change as long as doing so complies with
 this policy.
