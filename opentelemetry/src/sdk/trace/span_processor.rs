@@ -164,7 +164,7 @@ impl SpanProcessor for SimpleSpanProcessor {
 ///
 /// ```
 /// use futures::{stream};
-/// use opentelemetry::{trace as apitrace, sdk::trace as sdktrace, global};
+/// use opentelemetry::{trace as apitrace, sdk::trace as sdktrace, global, util::tokio_interval_stream};
 /// use std::time::Duration;
 ///
 /// #[tokio::main]
@@ -175,7 +175,7 @@ impl SpanProcessor for SimpleSpanProcessor {
 ///     // Then build a batch processor. You can use whichever executor you have available, for
 ///     // example if you are using `async-std` instead of `tokio` you can replace the spawn and
 ///     // interval functions with `async_std::task::spawn` and `async_std::stream::interval`.
-///     let batch = sdktrace::BatchSpanProcessor::builder(exporter, tokio::spawn, tokio::time::delay_for, tokio::time::interval)
+///     let batch = sdktrace::BatchSpanProcessor::builder(exporter, tokio::spawn, tokio::time::sleep, tokio_interval_stream)
 ///         .with_max_queue_size(4096)
 ///         .build();
 ///
@@ -575,6 +575,7 @@ mod tests {
     use crate::testing::trace::{
         new_test_export_span_data, new_test_exporter, new_tokio_test_exporter,
     };
+    use crate::util::tokio_interval_stream;
 
     use futures::Future;
 
@@ -609,8 +610,8 @@ mod tests {
         let mut builder = BatchSpanProcessor::from_env(
             stdout::Exporter::new(std::io::stdout(), true),
             tokio::spawn,
-            tokio::time::interval,
-            tokio::time::delay_for,
+            tokio_interval_stream,
+            tokio::time::sleep,
         );
         // export batch size cannot exceed max queue size
         assert_eq!(builder.config.max_export_batch_size, 500);
@@ -631,8 +632,8 @@ mod tests {
         builder = BatchSpanProcessor::from_env(
             stdout::Exporter::new(std::io::stdout(), true),
             tokio::spawn,
-            tokio::time::interval,
-            tokio::time::delay_for,
+            tokio_interval_stream,
+            tokio::time::sleep,
         );
 
         assert_eq!(builder.config.max_export_batch_size, 120);
@@ -650,8 +651,8 @@ mod tests {
         let mut processor = BatchSpanProcessor::new(
             Box::new(exporter),
             spawn,
-            tokio::time::interval,
-            tokio::time::delay_for,
+            tokio_interval_stream,
+            tokio::time::sleep,
             config,
         );
         let handle = tokio::spawn(async move {
@@ -662,7 +663,7 @@ mod tests {
                 }
             }
         });
-        tokio::time::delay_for(Duration::from_secs(1)).await; // skip the first
+        tokio::time::sleep(Duration::from_secs(1)).await; // skip the first
         processor.on_end(new_test_export_span_data());
         let flush_res = processor.force_flush();
         assert!(flush_res.is_ok());
@@ -708,8 +709,7 @@ mod tests {
         // If time_out is true, then we ask exporter to block for 60s and set timeout to 5s.
         // If time_out is false, then we ask the exporter to block for 5s and set timeout to 60s.
         // Either way, the test should be finished within 5s.
-        let mut runtime = tokio::runtime::Builder::new()
-            .threaded_scheduler()
+        let runtime = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .build()
             .unwrap();
@@ -718,8 +718,7 @@ mod tests {
 
     #[test]
     fn test_timeout_tokio_not_timeout() {
-        let mut runtime = tokio::runtime::Builder::new()
-            .threaded_scheduler()
+        let runtime = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .build()
             .unwrap();
@@ -779,17 +778,17 @@ mod tests {
         };
         let exporter = BlockingExporter {
             delay_for: time::Duration::from_millis(if !time_out { 5 } else { 60 }),
-            delay_fn: tokio::time::delay_for,
+            delay_fn: tokio::time::sleep,
         };
         let spawn = |fut| tokio::task::spawn_blocking(|| futures::executor::block_on(fut));
         let mut processor = BatchSpanProcessor::new(
             Box::new(exporter),
             spawn,
-            tokio::time::interval,
-            tokio::time::delay_for,
+            tokio_interval_stream,
+            tokio::time::sleep,
             config,
         );
-        tokio::time::delay_for(time::Duration::from_secs(1)).await; // skip the first
+        tokio::time::sleep(time::Duration::from_secs(1)).await; // skip the first
         processor.on_end(new_test_export_span_data());
         let flush_res = processor.force_flush();
         if time_out {

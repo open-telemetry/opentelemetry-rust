@@ -14,6 +14,6 @@ async-trait = "0.1.42"
 http = "0.2.2"
 isahc = { version = "0.9", default-features = false, optional = true }
 opentelemetry = { version = "0.11.2", path = "../opentelemetry", features = ["trace"] }
-reqwest = { version = "0.10", default-features = false, features = ["blocking"], optional = true }
+reqwest = { version = "0.11", default-features = false, features = ["blocking"], optional = true }
 surf = { version = "2.0", default-features = false, optional = true }
 thiserror = "1"
