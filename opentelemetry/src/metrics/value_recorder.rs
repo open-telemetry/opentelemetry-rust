@@ -3,6 +3,7 @@ use crate::metrics::{
     Descriptor, InstrumentKind, Measurement, Meter, Number, NumberKind, Result,
 };
 use crate::KeyValue;
+use crate::Unit;
 use std::marker;
 
 /// ValueRecorder is a metric that records per-request non-additive values.
@@ -81,6 +82,12 @@ impl<'a, T> ValueRecorderBuilder<'a, T> {
     /// Set the description for this `ValueRecorder`
     pub fn with_description<S: Into<String>>(mut self, description: S) -> Self {
         self.descriptor.set_description(description.into());
+        self
+    }
+
+    /// Set the unit for this `ValueRecorder`.
+    pub fn with_unit(mut self, unit: Unit) -> Self {
+        self.descriptor.set_unit(unit);
         self
     }
 
