@@ -19,11 +19,16 @@ pub trait MeterCore: fmt::Debug {
     fn new_sync_instrument(&self, descriptor: Descriptor) -> Result<Arc<dyn SyncInstrumentCore>>;
 
     /// Create a new asynchronous instrument implementation.
+    ///
+    /// Runner is `None` if used in batch as the batch runner is registered separately.
     fn new_async_instrument(
         &self,
         descriptor: Descriptor,
-        runner: AsyncRunner,
+        runner: Option<AsyncRunner>,
     ) -> Result<Arc<dyn AsyncInstrumentCore>>;
+
+    /// Register a batch observer
+    fn new_batch_observer(&self, runner: AsyncRunner) -> Result<()>;
 }
 
 /// A common interface for synchronous and asynchronous instruments.

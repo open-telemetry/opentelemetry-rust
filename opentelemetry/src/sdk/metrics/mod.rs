@@ -77,11 +77,20 @@ struct MapKey {
     instrument_hash: u64,
 }
 
+type AsyncRunnerPair = (AsyncRunner, Option<Arc<dyn sdk_api::AsyncInstrumentCore>>);
+
 #[derive(Default, Debug)]
 struct AsyncInstrumentState {
-    /// runners maintains the set of runners in the order they were
-    /// registered.
-    runners: Vec<(AsyncRunner, Arc<dyn sdk_api::AsyncInstrumentCore>)>,
+    /// The set of runners in the order they were registered that will run each
+    /// collection interval.
+    ///
+    /// Non-batch observers are entered with an instrument, batch observers are
+    /// entered without an instrument, each is called once allowing both batch and
+    /// individual observations to be collected.
+    runners: Vec<AsyncRunnerPair>,
+
+    /// The set of instruments in the order they were registered.
+    instruments: Vec<Arc<dyn sdk_api::AsyncInstrumentCore>>,
 }
 
 fn collect_async(labels: &[KeyValue], observations: &[Observation]) {
@@ -99,10 +108,10 @@ fn collect_async(labels: &[KeyValue], observations: &[Observation]) {
 }
 
 impl AsyncInstrumentState {
+    /// Executes the complete set of observer callbacks.
     fn run(&self) {
         for (runner, instrument) in self.runners.iter() {
-            // TODO see if batch needs other logic
-            runner.run(instrument.clone(), collect_async)
+            runner.run(instrument, collect_async)
         }
     }
 }
@@ -136,14 +145,26 @@ impl AccumulatorCore {
     fn register(
         &self,
         instrument: Arc<dyn sdk_api::AsyncInstrumentCore>,
-        runner: AsyncRunner,
+        runner: Option<AsyncRunner>,
     ) -> Result<()> {
         self.async_instruments
             .lock()
             .map_err(Into::into)
             .map(|mut async_instruments| {
-                async_instruments.runners.push((runner, instrument));
+                if let Some(runner) = runner {
+                    async_instruments
+                        .runners
+                        .push((runner, Some(instrument.clone())));
+                };
+                async_instruments.instruments.push(instrument);
             })
+    }
+
+    fn register_runner(&self, runner: AsyncRunner) -> Result<()> {
+        self.async_instruments
+            .lock()
+            .map_err(Into::into)
+            .map(|mut async_instruments| async_instruments.runners.push((runner, None)))
     }
 
     fn collect(&self, locked_processor: &mut dyn LockedProcessor) -> usize {
@@ -162,7 +183,7 @@ impl AccumulatorCore {
 
                 async_instruments.run();
 
-                for (_runner, instrument) in &async_instruments.runners {
+                for instrument in &async_instruments.instruments {
                     if let Some(a) = instrument.as_any().downcast_ref::<AsyncInstrument>() {
                         async_collected += self.checkpoint_async(a, locked_processor);
                     }
@@ -523,7 +544,6 @@ impl sdk_api::MeterCore for Accumulator {
         labels: &[KeyValue],
         measurements: Vec<Measurement>,
     ) {
-        // var labelsPtr *label.Set
         for measure in measurements.into_iter() {
             if let Some(instrument) = measure
                 .instrument()
@@ -540,7 +560,7 @@ impl sdk_api::MeterCore for Accumulator {
     fn new_async_instrument(
         &self,
         descriptor: Descriptor,
-        runner: AsyncRunner,
+        runner: Option<AsyncRunner>,
     ) -> Result<Arc<dyn sdk_api::AsyncInstrumentCore>> {
         let instrument = Arc::new(AsyncInstrument {
             instrument: Arc::new(Instrument {
@@ -553,5 +573,9 @@ impl sdk_api::MeterCore for Accumulator {
         self.0.register(instrument.clone(), runner)?;
 
         Ok(instrument)
+    }
+
+    fn new_batch_observer(&self, runner: AsyncRunner) -> Result<()> {
+        self.0.register_runner(runner)
     }
 }
