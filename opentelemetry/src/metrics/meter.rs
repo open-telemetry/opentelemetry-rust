@@ -60,53 +60,31 @@ impl Meter {
         self.instrumentation_library
     }
 
-    /// Creates a new floating point `ValueObserverBuilder` instrument with the
-    /// given name and callback
-    pub fn f64_value_observer<T, F>(&self, name: T, callback: F) -> ValueObserverBuilder<'_, f64>
+    /// Creates a new floating point `CounterBuilder` for `f64` values with the given name.
+    pub fn f64_counter<T>(&self, name: T) -> CounterBuilder<'_, f64>
     where
         T: Into<String>,
-        F: Fn(ObserverResult<f64>) + Send + Sync + 'static,
     {
-        ValueObserverBuilder::new(
-            self,
-            name.into(),
-            AsyncRunner::F64(Box::new(callback)),
-            NumberKind::F64,
-        )
+        CounterBuilder::new(self, name.into(), NumberKind::F64)
     }
 
-    /// Creates a new integral `ValueObserverBuilder` instrument with the given name
-    /// and callback
-    pub fn u64_value_observer<T, F>(&self, name: T, callback: F) -> ValueObserverBuilder<'_, u64>
+    /// Creates a new floating point `UpDownCounterBuilder` for an `f64` up down counter with the given name.
+    pub fn f64_up_down_counter<T>(&self, name: T) -> UpDownCounterBuilder<'_, f64>
     where
         T: Into<String>,
-        F: Fn(ObserverResult<u64>) + Send + Sync + 'static,
     {
-        ValueObserverBuilder::new(
-            self,
-            name.into(),
-            AsyncRunner::U64(Box::new(callback)),
-            NumberKind::U64,
-        )
+        UpDownCounterBuilder::new(self, name.into(), NumberKind::F64)
     }
 
-    /// Creates a new integral `ValueObserverBuilder` instrument with the given name
-    /// and callback
-    pub fn i64_value_observer<T, F>(&self, name: T, callback: F) -> ValueObserverBuilder<'_, i64>
+    /// Creates a new floating point `ValueRecorderBuilder` for `f64` values with the given name.
+    pub fn f64_value_recorder<T>(&self, name: T) -> ValueRecorderBuilder<'_, f64>
     where
         T: Into<String>,
-        F: Fn(ObserverResult<i64>) + Send + Sync + 'static,
     {
-        ValueObserverBuilder::new(
-            self,
-            name.into(),
-            AsyncRunner::I64(Box::new(callback)),
-            NumberKind::I64,
-        )
+        ValueRecorderBuilder::new(self, name.into(), NumberKind::F64)
     }
 
-    /// Creates a new floating point `SumObserverBuilder` instrument with the given
-    /// name and callback
+    /// Creates a new floating point `SumObserverBuilder` for `f64` values with the given name and callback.
     pub fn f64_sum_observer<T, F>(&self, name: T, callback: F) -> SumObserverBuilder<'_, f64>
     where
         T: Into<String>,
@@ -120,23 +98,7 @@ impl Meter {
         )
     }
 
-    /// Creates a new integral `SumObserverBuilder` instrument with the given name
-    /// and callback
-    pub fn u64_sum_observer<T, F>(&self, name: T, callback: F) -> SumObserverBuilder<'_, u64>
-    where
-        T: Into<String>,
-        F: Fn(ObserverResult<u64>) + Send + Sync + 'static,
-    {
-        SumObserverBuilder::new(
-            self,
-            name.into(),
-            AsyncRunner::U64(Box::new(callback)),
-            NumberKind::U64,
-        )
-    }
-
-    /// Creates a new floating point `UpDownSumObserverBuilder` instrument with the
-    /// given name and callback
+    /// Creates a new floating point `UpDownSumObserverBuilder` for `f64` values with the given name and callback.
     pub fn f64_up_down_sum_observer<T, F>(
         &self,
         name: T,
@@ -154,8 +116,59 @@ impl Meter {
         )
     }
 
-    /// Creates a new integral `SumUpDownObserverBuilder` instrument with the given
-    /// name and callback
+    /// Creates a new floating point `ValueObserverBuilder` for `f64` values with the given name and callback.
+    pub fn f64_value_observer<T, F>(&self, name: T, callback: F) -> ValueObserverBuilder<'_, f64>
+    where
+        T: Into<String>,
+        F: Fn(ObserverResult<f64>) + Send + Sync + 'static,
+    {
+        ValueObserverBuilder::new(
+            self,
+            name.into(),
+            AsyncRunner::F64(Box::new(callback)),
+            NumberKind::F64,
+        )
+    }
+
+    /// Creates a new integer `CounterBuilder` for `i64` values with the given name.
+    pub fn i64_counter<T>(&self, name: T) -> CounterBuilder<'_, i64>
+    where
+        T: Into<String>,
+    {
+        CounterBuilder::new(self, name.into(), NumberKind::I64)
+    }
+
+    /// Creates a new integer `UpDownCounterBuilder` for an `i64` up down counter with the given name.
+    pub fn i64_up_down_counter<T>(&self, name: T) -> UpDownCounterBuilder<'_, i64>
+    where
+        T: Into<String>,
+    {
+        UpDownCounterBuilder::new(self, name.into(), NumberKind::I64)
+    }
+
+    /// Creates a new integer `ValueRecorderBuilder` for `i64` values with the given name.
+    pub fn i64_value_recorder<T>(&self, name: T) -> ValueRecorderBuilder<'_, i64>
+    where
+        T: Into<String>,
+    {
+        ValueRecorderBuilder::new(self, name.into(), NumberKind::I64)
+    }
+
+    /// Creates a new integer `SumObserverBuilder` for `i64` values with the given name and callback.
+    pub fn i64_sum_observer<T, F>(&self, name: T, callback: F) -> SumObserverBuilder<'_, i64>
+    where
+        T: Into<String>,
+        F: Fn(ObserverResult<i64>) + Send + Sync + 'static,
+    {
+        SumObserverBuilder::new(
+            self,
+            name.into(),
+            AsyncRunner::I64(Box::new(callback)),
+            NumberKind::I64,
+        )
+    }
+
+    /// Creates a new integer `UpDownSumObserverBuilder` for `i64` values with the given name and callback.
     pub fn i64_up_down_sum_observer<T, F>(
         &self,
         name: T,
@@ -173,28 +186,18 @@ impl Meter {
         )
     }
 
-    /// Creates a new `ValueRecorderBuilder` for `f64` values with the given name.
-    pub fn f64_value_recorder<T>(&self, name: T) -> ValueRecorderBuilder<'_, f64>
+    /// Creates a new integer `ValueObserverBuilder` for `i64` values with the given name and callback.
+    pub fn i64_value_observer<T, F>(&self, name: T, callback: F) -> ValueObserverBuilder<'_, i64>
     where
         T: Into<String>,
+        F: Fn(ObserverResult<i64>) + Send + Sync + 'static,
     {
-        ValueRecorderBuilder::new(self, name.into(), NumberKind::F64)
-    }
-
-    /// Creates a new `ValueRecorderBuilder` for `i64` values with the given name.
-    pub fn i64_value_recorder<T>(&self, name: T) -> ValueRecorderBuilder<'_, i64>
-    where
-        T: Into<String>,
-    {
-        ValueRecorderBuilder::new(self, name.into(), NumberKind::I64)
-    }
-
-    /// Creates a new `ValueRecorderBuilder` for `u64` values with the given name.
-    pub fn u64_value_recorder<T>(&self, name: T) -> ValueRecorderBuilder<'_, u64>
-    where
-        T: Into<String>,
-    {
-        ValueRecorderBuilder::new(self, name.into(), NumberKind::U64)
+        ValueObserverBuilder::new(
+            self,
+            name.into(),
+            AsyncRunner::I64(Box::new(callback)),
+            NumberKind::I64,
+        )
     }
 
     /// Creates a new integer `CounterBuilder` for `u64` values with the given name.
@@ -205,28 +208,66 @@ impl Meter {
         CounterBuilder::new(self, name.into(), NumberKind::U64)
     }
 
-    /// Creates a new floating point `CounterBuilder` for `f64` values with the given name.
-    pub fn f64_counter<T>(&self, name: T) -> CounterBuilder<'_, f64>
+    /// Creates a new integer `UpDownCounterBuilder` for an `u64` up down counter with the given name.
+    pub fn u64_up_down_counter<T>(&self, name: T) -> UpDownCounterBuilder<'_, u64>
     where
         T: Into<String>,
     {
-        CounterBuilder::new(self, name.into(), NumberKind::F64)
+        UpDownCounterBuilder::new(self, name.into(), NumberKind::U64)
     }
 
-    /// Creates a new integer `UpDownCounterBuilder` for an `i64` up down counter with the given name.
-    pub fn i64_up_down_counter<T>(&self, name: T) -> UpDownCounterBuilder<'_, i64>
+    /// Creates a new integer `ValueRecorderBuilder` for `u64` values with the given name.
+    pub fn u64_value_recorder<T>(&self, name: T) -> ValueRecorderBuilder<'_, u64>
     where
         T: Into<String>,
     {
-        UpDownCounterBuilder::new(self, name.into(), NumberKind::I64)
+        ValueRecorderBuilder::new(self, name.into(), NumberKind::U64)
     }
 
-    /// Creates a new floating point `UpDownCounterBuilder` for an `f64` up down counter with the given name.
-    pub fn f64_up_down_counter<T>(&self, name: T) -> UpDownCounterBuilder<'_, f64>
+    /// Creates a new integer `SumObserverBuilder` for `u64` values with the given name and callback.
+    pub fn u64_sum_observer<T, F>(&self, name: T, callback: F) -> SumObserverBuilder<'_, u64>
     where
         T: Into<String>,
+        F: Fn(ObserverResult<u64>) + Send + Sync + 'static,
     {
-        UpDownCounterBuilder::new(self, name.into(), NumberKind::F64)
+        SumObserverBuilder::new(
+            self,
+            name.into(),
+            AsyncRunner::U64(Box::new(callback)),
+            NumberKind::U64,
+        )
+    }
+
+    /// Creates a new integer `UpDownSumObserverBuilder` for `u64` values with the given name and callback.
+    pub fn u64_up_down_sum_observer<T, F>(
+        &self,
+        name: T,
+        callback: F,
+    ) -> UpDownSumObserverBuilder<'_, u64>
+    where
+        T: Into<String>,
+        F: Fn(ObserverResult<u64>) + Send + Sync + 'static,
+    {
+        UpDownSumObserverBuilder::new(
+            self,
+            name.into(),
+            AsyncRunner::U64(Box::new(callback)),
+            NumberKind::U64,
+        )
+    }
+
+    /// Creates a new integer `ValueObserverBuilder` for `u64` values with the given name and callback.
+    pub fn u64_value_observer<T, F>(&self, name: T, callback: F) -> ValueObserverBuilder<'_, u64>
+    where
+        T: Into<String>,
+        F: Fn(ObserverResult<u64>) + Send + Sync + 'static,
+    {
+        ValueObserverBuilder::new(
+            self,
+            name.into(),
+            AsyncRunner::U64(Box::new(callback)),
+            NumberKind::U64,
+        )
     }
 
     /// Creates a new `BatchObserver` that supports making batches of observations for
