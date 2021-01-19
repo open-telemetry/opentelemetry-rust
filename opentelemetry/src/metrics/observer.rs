@@ -75,7 +75,7 @@ impl<'a, T> SumObserverBuilder<'a, T> {
 
     /// Set the unit for this `SumObserver`.
     pub fn with_unit(mut self, unit: Unit) -> Self {
-        self.descriptor.set_unit(unit);
+        self.descriptor.config.unit = Some(unit);
         self
     }
 
@@ -168,7 +168,7 @@ impl<'a, T> UpDownSumObserverBuilder<'a, T> {
 
     /// Set the unit for this `UpDownSumObserver`.
     pub fn with_unit(mut self, unit: Unit) -> Self {
-        self.descriptor.set_unit(unit);
+        self.descriptor.config.unit = Some(unit);
         self
     }
 
@@ -259,7 +259,7 @@ impl<'a, T> ValueObserverBuilder<'a, T> {
 
     /// Set the unit for this `ValueObserver`.
     pub fn with_unit(mut self, unit: Unit) -> Self {
-        self.descriptor.set_unit(unit);
+        self.descriptor.config.unit = Some(unit);
         self
     }
 

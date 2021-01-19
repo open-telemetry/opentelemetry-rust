@@ -1,6 +1,5 @@
 use crate::metrics::{InstrumentConfig, InstrumentKind, NumberKind};
 use crate::sdk::InstrumentationLibrary;
-use crate::Unit;
 use fnv::FnvHasher;
 use std::hash::{Hash, Hasher};
 
@@ -11,7 +10,7 @@ pub struct Descriptor {
     name: String,
     instrument_kind: InstrumentKind,
     number_kind: NumberKind,
-    config: InstrumentConfig,
+    pub(crate) config: InstrumentConfig,
     attribute_hash: u64,
 }
 
@@ -72,11 +71,6 @@ impl Descriptor {
     /// Unit describes the units of the metric instrument.
     pub fn unit(&self) -> Option<&str> {
         self.config.unit.as_ref().map(|unit| unit.as_ref())
-    }
-
-    /// Assign a new unit.
-    pub fn set_unit(&mut self, unit: Unit) {
-        self.config.unit = Some(unit);
     }
 
     /// The name of the library that provided instrumentation for this instrument.

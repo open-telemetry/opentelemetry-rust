@@ -86,7 +86,7 @@ impl<'a, T> UpDownCounterBuilder<'a, T> {
 
     /// Set the unit for this counter.
     pub fn with_unit(mut self, unit: Unit) -> Self {
-        self.descriptor.set_unit(unit);
+        self.descriptor.config.unit = Some(unit);
         self
     }
 
