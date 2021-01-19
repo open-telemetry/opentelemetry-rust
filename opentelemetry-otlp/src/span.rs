@@ -181,8 +181,7 @@ impl Default for TraceExporter {
             metadata: config.metadata,
             #[cfg(not(feature = "async"))]
             runtime: config.runtime.unwrap_or_else(|| {
-                tokio::runtime::Builder::new()
-                    .basic_scheduler()
+                tokio::runtime::Builder::new_current_thread()
                     .enable_all()
                     .build()
                     .unwrap()
@@ -270,8 +269,7 @@ impl TraceExporter {
             metadata: config.metadata,
             #[cfg(not(feature = "async"))]
             runtime: config.runtime.unwrap_or_else(|| {
-                tokio::runtime::Builder::new()
-                    .basic_scheduler()
+                tokio::runtime::Builder::new_current_thread()
                     .enable_all()
                     .build()
                     .unwrap()

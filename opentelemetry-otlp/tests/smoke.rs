@@ -6,6 +6,7 @@ use opentelemetry_otlp::proto::collector::trace::v1::{
 };
 use std::{net::SocketAddr, sync::Mutex};
 use tokio::sync::mpsc;
+use tokio_stream::wrappers::TcpListenerStream;
 
 struct MockServer {
     tx: Mutex<mpsc::Sender<ExportTraceServiceRequest>>,
@@ -39,7 +40,7 @@ async fn setup() -> (SocketAddr, mpsc::Receiver<ExportTraceServiceRequest>) {
         .await
         .expect("failed to bind");
     let addr = listener.local_addr().unwrap();
-    let stream = listener.map(|s| {
+    let stream = TcpListenerStream::new(listener).map(|s| {
         if let Ok(ref s) = s {
             println!("Got new conn at {}", s.peer_addr().unwrap());
         }
@@ -58,7 +59,7 @@ async fn setup() -> (SocketAddr, mpsc::Receiver<ExportTraceServiceRequest>) {
     (addr, req_rx)
 }
 
-#[tokio::test(threaded_scheduler)]
+#[tokio::test(flavor = "multi_thread")]
 async fn smoke_tracer() {
     println!("Starting server setup...");
     let (addr, mut req_rx) = setup().await;

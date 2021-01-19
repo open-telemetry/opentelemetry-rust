@@ -9,12 +9,67 @@ use std::sync::Arc;
 #[derive(Debug)]
 pub struct BatchObserver<'a> {
     meter: &'a Meter,
-    runner: AsyncRunner,
 }
 
 impl<'a> BatchObserver<'a> {
-    pub(crate) fn new(meter: &'a Meter, runner: AsyncRunner) -> Self {
-        BatchObserver { meter, runner }
+    pub(crate) fn new(meter: &'a Meter) -> Self {
+        BatchObserver { meter }
+    }
+
+    /// Creates a new integer `SumObserverBuilder` for `u64` values with the given name.
+    pub fn u64_sum_observer<T>(&self, name: T) -> SumObserverBuilder<'_, u64>
+    where
+        T: Into<String>,
+    {
+        SumObserverBuilder::new(self.meter, name.into(), None, NumberKind::U64)
+    }
+
+    /// Creates a new floating point `SumObserverBuilder` for `f64` values with the given name.
+    pub fn f64_sum_observer<T>(&self, name: T) -> SumObserverBuilder<'_, f64>
+    where
+        T: Into<String>,
+    {
+        SumObserverBuilder::new(self.meter, name.into(), None, NumberKind::F64)
+    }
+
+    /// Creates a new integer `UpDownSumObserverBuilder` for `i64` values with the given name.
+    pub fn i64_up_down_sum_observer<T>(&self, name: T) -> UpDownSumObserverBuilder<'_, i64>
+    where
+        T: Into<String>,
+    {
+        UpDownSumObserverBuilder::new(self.meter, name.into(), None, NumberKind::I64)
+    }
+
+    /// Creates a new floating point `UpDownSumObserverBuilder` for `f64` values with the given name.
+    pub fn f64_up_down_sum_observer<T>(&self, name: T) -> UpDownSumObserverBuilder<'_, f64>
+    where
+        T: Into<String>,
+    {
+        UpDownSumObserverBuilder::new(self.meter, name.into(), None, NumberKind::F64)
+    }
+
+    /// Creates a new integer `ValueObserverBuilder` for `u64` values with the given name.
+    pub fn u64_value_observer<T>(&self, name: T) -> ValueObserverBuilder<'_, u64>
+    where
+        T: Into<String>,
+    {
+        ValueObserverBuilder::new(self.meter, name.into(), None, NumberKind::U64)
+    }
+
+    /// Creates a new integer `ValueObserverBuilder` for `i64` values with the given name.
+    pub fn i64_value_observer<T>(&self, name: T) -> ValueObserverBuilder<'_, i64>
+    where
+        T: Into<String>,
+    {
+        ValueObserverBuilder::new(self.meter, name.into(), None, NumberKind::I64)
+    }
+
+    /// Creates a new floating point `ValueObserverBuilder` for `f64` values with the given name.
+    pub fn f64_value_observer<T>(&self, name: T) -> ValueObserverBuilder<'_, f64>
+    where
+        T: Into<String>,
+    {
+        ValueObserverBuilder::new(self.meter, name.into(), None, NumberKind::F64)
     }
 }
 
@@ -42,7 +97,7 @@ where
 pub struct SumObserverBuilder<'a, T> {
     meter: &'a Meter,
     descriptor: Descriptor,
-    runner: AsyncRunner,
+    runner: Option<AsyncRunner>,
     _marker: std::marker::PhantomData<T>,
 }
 
@@ -50,7 +105,7 @@ impl<'a, T> SumObserverBuilder<'a, T> {
     pub(crate) fn new(
         meter: &'a Meter,
         name: String,
-        runner: AsyncRunner,
+        runner: Option<AsyncRunner>,
         number_kind: NumberKind,
     ) -> Self {
         SumObserverBuilder {
@@ -135,7 +190,7 @@ where
 pub struct UpDownSumObserverBuilder<'a, T> {
     meter: &'a Meter,
     descriptor: Descriptor,
-    runner: AsyncRunner,
+    runner: Option<AsyncRunner>,
     _marker: std::marker::PhantomData<T>,
 }
 
@@ -143,7 +198,7 @@ impl<'a, T> UpDownSumObserverBuilder<'a, T> {
     pub(crate) fn new(
         meter: &'a Meter,
         name: String,
-        runner: AsyncRunner,
+        runner: Option<AsyncRunner>,
         number_kind: NumberKind,
     ) -> Self {
         UpDownSumObserverBuilder {
@@ -227,7 +282,7 @@ where
 pub struct ValueObserverBuilder<'a, T> {
     meter: &'a Meter,
     descriptor: Descriptor,
-    runner: AsyncRunner,
+    runner: Option<AsyncRunner>,
     _marker: std::marker::PhantomData<T>,
 }
 
@@ -235,7 +290,7 @@ impl<'a, T> ValueObserverBuilder<'a, T> {
     pub(crate) fn new(
         meter: &'a Meter,
         name: String,
-        runner: AsyncRunner,
+        runner: Option<AsyncRunner>,
         number_kind: NumberKind,
     ) -> Self {
         ValueObserverBuilder {

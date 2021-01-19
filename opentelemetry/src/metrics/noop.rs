@@ -61,7 +61,7 @@ impl MeterCore for NoopMeterCore {
     fn new_async_instrument(
         &self,
         _descriptor: Descriptor,
-        _runner: AsyncRunner,
+        _runner: Option<AsyncRunner>,
     ) -> Result<Arc<dyn AsyncInstrumentCore>> {
         Ok(Arc::new(NoopAsyncInstrument::new()))
     }
@@ -73,6 +73,10 @@ impl MeterCore for NoopMeterCore {
         _measurements: Vec<Measurement>,
     ) {
         // Ignored
+    }
+
+    fn new_batch_observer(&self, _runner: AsyncRunner) -> Result<()> {
+        Ok(())
     }
 }
 
