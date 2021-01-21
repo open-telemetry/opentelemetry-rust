@@ -2,6 +2,7 @@ use crate::metrics::{
     sdk_api, AsyncRunner, Descriptor, InstrumentKind, Meter, Number, NumberKind, Observation,
     Result,
 };
+use crate::Unit;
 use std::sync::Arc;
 
 /// An Observer callback that can report observations for multiple instruments.
@@ -127,6 +128,12 @@ impl<'a, T> SumObserverBuilder<'a, T> {
         self
     }
 
+    /// Set the unit for this `SumObserver`.
+    pub fn with_unit(mut self, unit: Unit) -> Self {
+        self.descriptor.config.unit = Some(unit);
+        self
+    }
+
     /// Create a `SumObserver` from this configuration.
     pub fn try_init(self) -> Result<SumObserver<T>> {
         let instrument = self
@@ -214,6 +221,12 @@ impl<'a, T> UpDownSumObserverBuilder<'a, T> {
         self
     }
 
+    /// Set the unit for this `UpDownSumObserver`.
+    pub fn with_unit(mut self, unit: Unit) -> Self {
+        self.descriptor.config.unit = Some(unit);
+        self
+    }
+
     /// Create a `UpDownSumObserver` from this configuration.
     pub fn try_init(self) -> Result<UpDownSumObserver<T>> {
         let instrument = self
@@ -296,6 +309,12 @@ impl<'a, T> ValueObserverBuilder<'a, T> {
     /// Set the description of this `ValueObserver`
     pub fn with_description<S: Into<String>>(mut self, description: S) -> Self {
         self.descriptor.set_description(description.into());
+        self
+    }
+
+    /// Set the unit for this `ValueObserver`.
+    pub fn with_unit(mut self, unit: Unit) -> Self {
+        self.descriptor.config.unit = Some(unit);
         self
     }
 

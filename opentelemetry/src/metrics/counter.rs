@@ -3,7 +3,7 @@ use crate::{
         sync_instrument::{SyncBoundInstrument, SyncInstrument},
         Descriptor, InstrumentKind, Measurement, Meter, Number, NumberKind, Result,
     },
-    KeyValue,
+    KeyValue, Unit,
 };
 use std::marker;
 
@@ -81,6 +81,12 @@ impl<'a, T> CounterBuilder<'a, T> {
     /// Set the description for this counter
     pub fn with_description<S: Into<String>>(mut self, description: S) -> Self {
         self.descriptor.set_description(description.into());
+        self
+    }
+
+    /// Set the unit for this counter.
+    pub fn with_unit(mut self, unit: Unit) -> Self {
+        self.descriptor.config.unit = Some(unit);
         self
     }
 

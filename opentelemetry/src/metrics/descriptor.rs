@@ -10,7 +10,7 @@ pub struct Descriptor {
     name: String,
     instrument_kind: InstrumentKind,
     number_kind: NumberKind,
-    config: InstrumentConfig,
+    pub(crate) config: InstrumentConfig,
     attribute_hash: u64,
 }
 
