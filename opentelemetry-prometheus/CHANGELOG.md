@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.5.0
+
+### Added
+
+- Batch observer support #429
+
+### Changed
+
+- Update to opentelemetry v0.12.0
+- Update tokio to v1 #421
+
 ## v0.4.0
 
 ### Changed

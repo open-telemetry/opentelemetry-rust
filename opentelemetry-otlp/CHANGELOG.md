@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.5.0
+
+### Added
+
+- Otlp metric exporter #402
+- Otlp exporter integration test #424
+
+### Changed
+
+- Update tokio to v1 #421
+
 ## v0.4.0
 
 ### Added
