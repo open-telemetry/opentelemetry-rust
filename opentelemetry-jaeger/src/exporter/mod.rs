@@ -17,10 +17,9 @@ use async_trait::async_trait;
 use collector::CollectorAsyncClientHttp;
 
 #[cfg(feature = "isahc_collector_client")]
+#[allow(unused_imports)] // this is actually used to configure authentication
 use isahc::prelude::Configurable;
 
-#[cfg(feature = "collector_client")]
-use opentelemetry::sdk::export::trace::HttpClient;
 use opentelemetry::sdk::export::ExportError;
 use opentelemetry::trace::TraceError;
 use opentelemetry::{
@@ -29,6 +28,8 @@ use opentelemetry::{
     trace::{Event, Link, SpanKind, StatusCode, TracerProvider},
     Key, KeyValue, Value,
 };
+#[cfg(feature = "collector_client")]
+use opentelemetry_http::HttpClient;
 use std::{
     net,
     time::{Duration, SystemTime},
@@ -128,13 +129,13 @@ impl trace::SpanExporter for Exporter {
 pub struct PipelineBuilder {
     agent_endpoint: Vec<net::SocketAddr>,
     #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
-    collector_endpoint: Option<http::Uri>,
+    collector_endpoint: Option<Result<http::Uri, http::uri::InvalidUri>>,
     #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
     collector_username: Option<String>,
     #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
     collector_password: Option<String>,
     #[cfg(feature = "collector_client")]
-    client: Option<Box<dyn opentelemetry::sdk::export::trace::HttpClient>>,
+    client: Option<Box<dyn HttpClient>>,
     export_instrument_library: bool,
     process: Process,
     config: Option<sdk::trace::Config>,
@@ -205,9 +206,12 @@ impl PipelineBuilder {
     pub fn with_collector_endpoint<T>(self, collector_endpoint: T) -> Self
     where
         http::Uri: core::convert::TryFrom<T>,
+        <http::Uri as core::convert::TryFrom<T>>::Error: Into<http::uri::InvalidUri>,
     {
         PipelineBuilder {
-            collector_endpoint: core::convert::TryFrom::try_from(collector_endpoint).ok(),
+            collector_endpoint: Some(
+                core::convert::TryFrom::try_from(collector_endpoint).map_err(Into::into),
+            ),
             ..self
         }
     }
@@ -313,7 +317,11 @@ impl PipelineBuilder {
 
     #[cfg(feature = "collector_client")]
     fn init_uploader(self) -> Result<(Process, uploader::BatchUploader), TraceError> {
-        if let Some(collector_endpoint) = self.collector_endpoint {
+        if let Some(collector_endpoint) = self
+            .collector_endpoint
+            .transpose()
+            .map_err::<Error, _>(Into::into)?
+        {
             #[cfg(all(
                 not(feature = "isahc_collector_client"),
                 not(feature = "surf_collector_client"),
@@ -333,12 +341,12 @@ impl PipelineBuilder {
                         .credentials(isahc::auth::Credentials::new(username, password));
                 }
 
-                Box::new(IsahcHttpClient(builder.build().map_err(|err| {
+                Box::new(builder.build().map_err(|err| {
                     crate::Error::ThriftAgentError(::thrift::Error::from(std::io::Error::new(
                         std::io::ErrorKind::Other,
                         err.to_string(),
                     )))
-                })?))
+                })?)
             });
 
             #[cfg(all(
@@ -390,8 +398,7 @@ impl PipelineBuilder {
                 Box::new(client)
             });
 
-            let collector = CollectorAsyncClientHttp::new(collector_endpoint, client)
-                .map_err::<Error, _>(Into::into)?;
+            let collector = CollectorAsyncClientHttp::new(collector_endpoint, client);
             Ok((self.process, uploader::BatchUploader::Collector(collector)))
         } else {
             let endpoint = self.agent_endpoint.as_slice();
@@ -402,7 +409,11 @@ impl PipelineBuilder {
 
     #[cfg(all(feature = "wasm_collector_client", not(feature = "collector_client")))]
     fn init_uploader(self) -> Result<(Process, uploader::BatchUploader), TraceError> {
-        if let Some(collector_endpoint) = self.collector_endpoint {
+        if let Some(collector_endpoint) = self
+            .collector_endpoint
+            .transpose()
+            .map_err::<Error, _>(Into::into)?
+        {
             let collector = CollectorAsyncClientHttp::new(
                 collector_endpoint,
                 self.collector_username,
@@ -433,44 +444,6 @@ impl surf::middleware::Middleware for BasicAuthMiddleware {
     ) -> surf::Result<surf::Response> {
         req.insert_header(self.0.name(), self.0.value());
         next.run(req, client).await
-    }
-}
-
-#[derive(Debug)]
-#[cfg(feature = "isahc_collector_client")]
-struct IsahcHttpClient(isahc::HttpClient);
-
-#[async_trait]
-#[cfg(feature = "isahc_collector_client")]
-impl opentelemetry::sdk::export::trace::HttpClient for IsahcHttpClient {
-    async fn send(
-        &self,
-        request: http::Request<Vec<u8>>,
-    ) -> opentelemetry::sdk::export::trace::ExportResult {
-        let res = self
-            .0
-            .send_async(request)
-            .await
-            .map_err::<crate::Error, _>(|err| {
-                ::thrift::Error::from(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    err.to_string(),
-                ))
-                .into()
-            })
-            .map_err::<TraceError, _>(TraceError::from)?;
-
-        if !res.status().is_success() {
-            return Err(crate::Error::ThriftAgentError(::thrift::Error::from(
-                std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    format!("Expected success response, got {:?}", res.status()),
-                ),
-            ))
-            .into());
-        }
-
-        Ok(())
     }
 }
 
@@ -568,7 +541,7 @@ fn convert_otel_span_into_jaeger_span(
             .duration_since(span.start_time)
             .unwrap_or_else(|_| Duration::from_secs(0))
             .as_micros() as i64,
-        tags: build_span_tags(
+        tags: Some(build_span_tags(
             span.attributes,
             if export_instrument_lib {
                 Some(span.instrumentation_lib)
@@ -578,7 +551,7 @@ fn convert_otel_span_into_jaeger_span(
             span.status_code,
             span.status_message,
             span.span_kind,
-        ),
+        )),
         logs: events_to_logs(span.message_events),
     }
 }
@@ -604,7 +577,7 @@ fn build_span_tags(
     status_code: StatusCode,
     status_message: String,
     kind: SpanKind,
-) -> Option<Vec<jaeger::Tag>> {
+) -> Vec<jaeger::Tag> {
     let mut user_overrides = UserOverrides::default();
     // TODO determine if namespacing is required to avoid collisions with set attributes
     let mut tags = attrs
@@ -658,7 +631,7 @@ fn build_span_tags(
         }
     }
 
-    Some(tags)
+    tags
 }
 
 const ERROR: &str = "error";
@@ -718,6 +691,11 @@ pub enum Error {
         feature = "reqwest_blocking_collector_client"
     ))]
     ReqwestClientError(#[from] reqwest::Error),
+
+    /// invalid collector uri is provided.
+    #[error("collector uri is invalid, {0}")]
+    #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
+    InvalidUri(#[from] http::uri::InvalidUri),
 }
 
 impl ExportError for Error {
@@ -736,8 +714,9 @@ mod collector_client_tests {
     mod test_http_client {
         use async_trait::async_trait;
         use http::Request;
-        use opentelemetry::sdk::export::trace::{ExportResult, HttpClient};
+        use opentelemetry::sdk::export::trace::ExportResult;
         use opentelemetry::trace::TraceError;
+        use opentelemetry_http::HttpClient;
         use std::fmt::Debug;
 
         pub(crate) struct TestHttpClient;
@@ -773,6 +752,30 @@ mod collector_client_tests {
         );
 
         Ok(())
+    }
+
+    #[test]
+    #[cfg(any(
+        feature = "isahc_collector_client",
+        feature = "surf_collector_client",
+        feature = "reqwest_collector_client",
+        feature = "reqwest_blocking_collector_client"
+    ))]
+    fn test_set_collector_endpoint() {
+        let invalid_uri = new_pipeline()
+            .with_collector_endpoint("127.0.0.1:14268/api/traces")
+            .init_uploader();
+        assert!(invalid_uri.is_err());
+        assert_eq!(
+            format!("{:?}", invalid_uri.err().unwrap()),
+            "ExportFailed(InvalidUri(InvalidUri(InvalidFormat)))"
+        );
+
+        let valid_uri = new_pipeline()
+            .with_collector_endpoint("http://127.0.0.1:14268/api/traces")
+            .init_uploader();
+
+        assert!(valid_uri.is_ok());
     }
 }
 
@@ -838,8 +841,7 @@ mod tests {
                 status_code,
                 error_msg,
                 SpanKind::Client,
-            )
-            .unwrap_or_default();
+            );
             if let Some(val) = status_tag_val {
                 assert_tag_contains(tags.clone(), OTEL_STATUS_CODE, val);
             } else {

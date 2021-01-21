@@ -201,65 +201,6 @@ impl<S: std::hash::BuildHasher> Extractor for HashMap<String, String, S> {
     }
 }
 
-#[cfg(feature = "http")]
-#[cfg_attr(docsrs, doc(cfg(feature = "http")))]
-impl Injector for http::HeaderMap {
-    /// Set a key and value in the HeaderMap.  Does nothing if the key or value are not valid inputs.
-    fn set(&mut self, key: &str, value: String) {
-        if let Ok(name) = http::header::HeaderName::from_bytes(key.as_bytes()) {
-            if let Ok(val) = http::header::HeaderValue::from_str(&value) {
-                self.insert(name, val);
-            }
-        }
-    }
-}
-
-#[cfg(feature = "http")]
-#[cfg_attr(docsrs, doc(cfg(feature = "http")))]
-impl Extractor for http::HeaderMap {
-    /// Get a value for a key from the HeaderMap.  If the value is not valid ASCII, returns None.
-    fn get(&self, key: &str) -> Option<&str> {
-        self.get(key).and_then(|value| value.to_str().ok())
-    }
-
-    /// Collect all the keys from the HeaderMap.
-    fn keys(&self) -> Vec<&str> {
-        self.keys().map(|value| value.as_str()).collect::<Vec<_>>()
-    }
-}
-
-#[cfg(feature = "tonic")]
-#[cfg_attr(docsrs, doc(cfg(feature = "tonic")))]
-impl Injector for tonic::metadata::MetadataMap {
-    /// Set a key and value in the MetadataMap.  Does nothing if the key or value are not valid inputs
-    fn set(&mut self, key: &str, value: String) {
-        if let Ok(key) = tonic::metadata::MetadataKey::from_bytes(key.as_bytes()) {
-            if let Ok(val) = tonic::metadata::MetadataValue::from_str(&value) {
-                self.insert(key, val);
-            }
-        }
-    }
-}
-
-#[cfg(feature = "tonic")]
-#[cfg_attr(docsrs, doc(cfg(feature = "tonic")))]
-impl Extractor for tonic::metadata::MetadataMap {
-    /// Get a value for a key from the MetadataMap.  If the value can't be converted to &str, returns None
-    fn get(&self, key: &str) -> Option<&str> {
-        self.get(key).and_then(|metadata| metadata.to_str().ok())
-    }
-
-    /// Collect all the keys from the MetadataMap.
-    fn keys(&self) -> Vec<&str> {
-        self.keys()
-            .map(|key| match key {
-                tonic::metadata::KeyRef::Ascii(v) => v.as_str(),
-                tonic::metadata::KeyRef::Binary(v) => v.as_str(),
-            })
-            .collect::<Vec<_>>()
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -280,58 +221,6 @@ mod tests {
     #[test]
     fn hash_map_keys() {
         let mut carrier = HashMap::new();
-        carrier.set("headerName1", "value1".to_string());
-        carrier.set("headerName2", "value2".to_string());
-
-        let got = Extractor::keys(&carrier);
-        assert_eq!(got.len(), 2);
-        assert!(got.contains(&"headername1"));
-        assert!(got.contains(&"headername2"));
-    }
-
-    #[test]
-    #[cfg(feature = "http")]
-    fn http_headers_get() {
-        let mut carrier = http::HeaderMap::new();
-        carrier.set("headerName", "value".to_string());
-
-        assert_eq!(
-            Extractor::get(&carrier, "HEADERNAME"),
-            Some("value"),
-            "case insensitive extraction"
-        )
-    }
-
-    #[test]
-    #[cfg(feature = "http")]
-    fn http_headers_keys() {
-        let mut carrier = http::HeaderMap::new();
-        carrier.set("headerName1", "value1".to_string());
-        carrier.set("headerName2", "value2".to_string());
-
-        let got = Extractor::keys(&carrier);
-        assert_eq!(got.len(), 2);
-        assert!(got.contains(&"headername1"));
-        assert!(got.contains(&"headername2"));
-    }
-
-    #[test]
-    #[cfg(feature = "tonic")]
-    fn tonic_headers_get() {
-        let mut carrier = tonic::metadata::MetadataMap::new();
-        carrier.set("headerName", "value".to_string());
-
-        assert_eq!(
-            Extractor::get(&carrier, "HEADERNAME"),
-            Some("value"),
-            "case insensitive extraction"
-        )
-    }
-
-    #[test]
-    #[cfg(feature = "tonic")]
-    fn tonic_headers_keys() {
-        let mut carrier = tonic::metadata::MetadataMap::new();
         carrier.set("headerName1", "value1".to_string());
         carrier.set("headerName2", "value2".to_string());
 

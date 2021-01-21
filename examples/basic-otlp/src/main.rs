@@ -1,13 +1,15 @@
-use futures::stream::{Stream, StreamExt};
-use opentelemetry::sdk::metrics::PushController;
+use futures::stream::Stream;
+use futures::StreamExt;
+use opentelemetry::sdk::metrics::{selectors, PushController};
 use opentelemetry::trace::TraceError;
 use opentelemetry::{
     baggage::BaggageExt,
-    metrics::{self, MetricsError, ObserverResult},
+    metrics::{self, ObserverResult},
     trace::{TraceContextExt, Tracer},
     Context, Key, KeyValue,
 };
 use opentelemetry::{global, sdk::trace as sdktrace};
+use opentelemetry_otlp::ExporterConfig;
 use std::error::Error;
 use std::time::Duration;
 
@@ -17,18 +19,18 @@ fn init_tracer() -> Result<(sdktrace::Tracer, opentelemetry_otlp::Uninstall), Tr
 
 // Skip first immediate tick from tokio, not needed for async_std.
 fn delayed_interval(duration: Duration) -> impl Stream<Item = tokio::time::Instant> {
-    tokio::time::interval(duration).skip(1)
+    opentelemetry::util::tokio_interval_stream(duration).skip(1)
 }
 
 fn init_meter() -> metrics::Result<PushController> {
-    opentelemetry::sdk::export::metrics::stdout(tokio::spawn, delayed_interval)
-        .with_quantiles(vec![0.5, 0.9, 0.99])
-        .with_formatter(|batch| {
-            serde_json::to_value(batch)
-                .map(|value| value.to_string())
-                .map_err(|err| MetricsError::Other(err.to_string()))
-        })
-        .try_init()
+    let export_config = ExporterConfig {
+        endpoint: "http://localhost:4317".to_string(),
+        ..ExporterConfig::default()
+    };
+    opentelemetry_otlp::new_metrics_pipeline(tokio::spawn, delayed_interval)
+        .with_export_config(export_config)
+        .with_aggregator_selector(selectors::simple::Selector::Exact)
+        .build()
 }
 
 const FOO_KEY: Key = Key::from_static_str("ex.com/foo");
@@ -61,6 +63,9 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
 
     let value_recorder_two = meter.f64_value_recorder("ex.com.two").init();
 
+    let another_recorder = meter.f64_value_recorder("ex.com.two").init();
+    another_recorder.record(5.5, COMMON_LABELS.as_ref());
+
     let _baggage =
         Context::current_with_baggage(vec![FOO_KEY.string("foo1"), BAR_KEY.string("bar1")])
             .attach();
@@ -91,6 +96,9 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
             value_recorder.record(1.3);
         });
     });
+
+    // wait for 1 seconds so that we could see metrics being pushed via OTLP every 10 seconds.
+    tokio::time::sleep(Duration::from_secs(60)).await;
 
     Ok(())
 }

@@ -3,24 +3,24 @@ use crate::{
         sync_instrument::{SyncBoundInstrument, SyncInstrument},
         Descriptor, InstrumentKind, Measurement, Meter, Number, NumberKind, Result,
     },
-    KeyValue,
+    KeyValue, Unit,
 };
 use std::marker;
 
-/// A metric instrument that sums non-monotonic values.
+/// A metric that accumulates values.
 #[derive(Clone, Debug)]
-pub struct UpDownCounter<T>(SyncInstrument<T>);
+pub struct Counter<T>(SyncInstrument<T>);
 
-impl<T> UpDownCounter<T>
+impl<T> Counter<T>
 where
     T: Into<Number>,
 {
     /// Creates a bound instrument for this counter. The labels are associated with
     /// values recorded via subsequent calls to record.
-    pub fn bind<'a>(&self, labels: &'a [KeyValue]) -> BoundUpDownCounter<'a, T> {
+    pub fn bind<'a>(&self, labels: &'a [KeyValue]) -> BoundCounter<'a, T> {
         let bound_instrument = self.0.bind(labels);
 
-        BoundUpDownCounter {
+        BoundCounter {
             labels,
             bound_instrument,
         }
@@ -37,14 +37,14 @@ where
     }
 }
 
-/// BoundUpDownCounter is a bound instrument for counters.
+/// BoundCounter is a bound instrument for counters.
 #[derive(Clone, Debug)]
-pub struct BoundUpDownCounter<'a, T> {
+pub struct BoundCounter<'a, T> {
     labels: &'a [KeyValue],
     bound_instrument: SyncBoundInstrument<T>,
 }
 
-impl<'a, T> BoundUpDownCounter<'a, T>
+impl<'a, T> BoundCounter<'a, T>
 where
     T: Into<Number>,
 {
@@ -54,24 +54,24 @@ where
     }
 }
 
-/// Configuration for a new up down counter.
+/// Configuration for building a counter.
 #[derive(Debug)]
-pub struct UpDownCounterBuilder<'a, T> {
+pub struct CounterBuilder<'a, T> {
     meter: &'a Meter,
     descriptor: Descriptor,
     _marker: marker::PhantomData<T>,
 }
 
-impl<'a, T> UpDownCounterBuilder<'a, T> {
+impl<'a, T> CounterBuilder<'a, T> {
     /// Create a new counter builder
     pub(crate) fn new(meter: &'a Meter, name: String, number_kind: NumberKind) -> Self {
-        UpDownCounterBuilder {
+        CounterBuilder {
             meter,
             descriptor: Descriptor::new(
                 name,
                 meter.instrumentation_library().name,
                 meter.instrumentation_library().version,
-                InstrumentKind::UpDownCounter,
+                InstrumentKind::Counter,
                 number_kind,
             ),
             _marker: marker::PhantomData,
@@ -84,10 +84,16 @@ impl<'a, T> UpDownCounterBuilder<'a, T> {
         self
     }
 
+    /// Set the unit for this counter.
+    pub fn with_unit(mut self, unit: Unit) -> Self {
+        self.descriptor.config.unit = Some(unit);
+        self
+    }
+
     /// Creates a new counter instrument.
-    pub fn try_init(self) -> Result<UpDownCounter<T>> {
+    pub fn try_init(self) -> Result<Counter<T>> {
         let instrument = self.meter.new_sync_instrument(self.descriptor)?;
-        Ok(UpDownCounter(SyncInstrument::new(instrument)))
+        Ok(Counter(SyncInstrument::new(instrument)))
     }
 
     /// Creates a new counter instrument.
@@ -96,8 +102,8 @@ impl<'a, T> UpDownCounterBuilder<'a, T> {
     ///
     /// This function panics if the instrument cannot be created. Use try_init if you want to
     /// handle errors.
-    pub fn init(self) -> UpDownCounter<T> {
-        UpDownCounter(SyncInstrument::new(
+    pub fn init(self) -> Counter<T> {
+        Counter(SyncInstrument::new(
             self.meter.new_sync_instrument(self.descriptor).unwrap(),
         ))
     }

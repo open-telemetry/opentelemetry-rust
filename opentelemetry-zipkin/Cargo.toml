@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-zipkin"
-version = "0.8.0"
+version = "0.9.0"
 authors = ["OpenTelemetry Authors <cncf-opentelemetry-contributors@lists.cncf.io>"]
 description = "Zipkin exporter for OpenTelemetry"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/master/opentelemetry-zipkin"
@@ -21,22 +21,23 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = ["reqwest-blocking-client"]
-reqwest-blocking-client = ["reqwest/blocking", "opentelemetry/reqwest"]
-reqwest-client = ["reqwest", "opentelemetry/reqwest"]
-surf-client = ["surf", "opentelemetry/surf"]
+reqwest-blocking-client = ["reqwest/blocking", "opentelemetry-http/reqwest"]
+reqwest-client = ["reqwest", "opentelemetry-http/reqwest"]
+surf-client = ["surf", "opentelemetry-http/surf"]
 
 [dependencies]
 async-trait = "0.1"
-opentelemetry = { version = "0.10", path = "../opentelemetry", features = ["trace", "http"] }
+opentelemetry = { version = "0.11", path = "../opentelemetry", features = ["trace"] }
+opentelemetry-http = { version = "0.1", path = "../opentelemetry-http", optional = true }
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 typed-builder = "0.7"
 lazy_static = "1.4"
 http = "0.2"
-reqwest = { version = "0.10", optional = true }
+reqwest = { version = "0.11", optional = true }
 surf = { version = "2.0", optional = true }
 thiserror = { version = "1.0"}
 
 [dev-dependencies]
 isahc = "=0.9.6"
-opentelemetry = { version = "0.10", default-features = false, features = ["trace", "testing"], path = "../opentelemetry" }
+opentelemetry = { version = "0.11", default-features = false, features = ["trace", "testing"], path = "../opentelemetry" }

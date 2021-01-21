@@ -64,7 +64,7 @@ impl Count for HistogramAggregator {
         self.inner
             .read()
             .map_err(From::from)
-            .map(|inner| inner.state.sum.load().to_u64(&NumberKind::U64))
+            .map(|inner| inner.state.count.load().to_u64(&NumberKind::U64))
     }
 }
 

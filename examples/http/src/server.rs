@@ -9,11 +9,14 @@ use opentelemetry::{
     },
     trace::{Span, Tracer},
 };
+use opentelemetry_http::HeaderExtractor;
 use std::{convert::Infallible, net::SocketAddr};
 
 async fn handle(req: Request<Body>) -> Result<Response<Body>, Infallible> {
-    let parent_cx = global::get_text_map_propagator(|propagator| propagator.extract(req.headers()));
-    let span = global::tracer("example/server").start_from_context("hello", &parent_cx);
+    let parent_cx = global::get_text_map_propagator(|propagator| {
+        propagator.extract(&HeaderExtractor(req.headers()))
+    });
+    let span = global::tracer("example/server").start_with_context("hello", parent_cx);
     span.add_event("handling this...".to_string(), Vec::new());
 
     Ok(Response::new("Hello, World!".into()))

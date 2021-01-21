@@ -6,6 +6,7 @@ use opentelemetry::global;
 use opentelemetry::sdk::propagation::TraceContextPropagator;
 use opentelemetry::trace::TraceError;
 use opentelemetry::{
+    propagation::Extractor,
     trace::{Span, Tracer},
     KeyValue,
 };
@@ -13,6 +14,26 @@ use std::error::Error;
 
 pub mod hello_world {
     tonic::include_proto!("helloworld"); // The string specified here must match the proto package name.
+}
+
+struct MetadataMap<'a>(&'a tonic::metadata::MetadataMap);
+
+impl<'a> Extractor for MetadataMap<'a> {
+    /// Get a value for a key from the MetadataMap.  If the value can't be converted to &str, returns None
+    fn get(&self, key: &str) -> Option<&str> {
+        self.0.get(key).and_then(|metadata| metadata.to_str().ok())
+    }
+
+    /// Collect all the keys from the MetadataMap.
+    fn keys(&self) -> Vec<&str> {
+        self.0
+            .keys()
+            .map(|key| match key {
+                tonic::metadata::KeyRef::Ascii(v) => v.as_str(),
+                tonic::metadata::KeyRef::Binary(v) => v.as_str(),
+            })
+            .collect::<Vec<_>>()
+    }
 }
 
 #[derive(Debug, Default)]
@@ -24,8 +45,9 @@ impl Greeter for MyGreeter {
         &self,
         request: Request<HelloRequest>, // Accept request of type HelloRequest
     ) -> Result<Response<HelloReply>, Status> {
-        let parent_cx = global::get_text_map_propagator(|prop| prop.extract(request.metadata()));
-        let span = global::tracer("greeter").start_from_context("Processing reply", &parent_cx);
+        let parent_cx =
+            global::get_text_map_propagator(|prop| prop.extract(&MetadataMap(request.metadata())));
+        let span = global::tracer("greeter").start_with_context("Processing reply", parent_cx);
         span.set_attribute(KeyValue::new("request", format!("{:?}", request)));
 
         // Return an instance of type HelloReply

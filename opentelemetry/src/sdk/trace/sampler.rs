@@ -113,19 +113,21 @@ impl ShouldSample for Sampler {
             // Never sample the trace
             Sampler::AlwaysOff => SamplingDecision::Drop,
             // The parent decision if sampled; otherwise the decision of delegate_sampler
-            Sampler::ParentBased(delegate_sampler) => parent_context.map_or(
-                delegate_sampler
-                    .should_sample(parent_context, trace_id, name, span_kind, attributes, links)
-                    .decision,
-                |ctx| {
-                    let parent_span_context = ctx.span().span_context();
-                    if parent_span_context.is_sampled() {
-                        SamplingDecision::RecordAndSample
-                    } else {
-                        SamplingDecision::Drop
-                    }
-                },
-            ),
+            Sampler::ParentBased(delegate_sampler) => {
+                parent_context.filter(|cx| cx.has_active_span()).map_or(
+                    delegate_sampler
+                        .should_sample(parent_context, trace_id, name, span_kind, attributes, links)
+                        .decision,
+                    |ctx| {
+                        let parent_span_context = ctx.span().span_context();
+                        if parent_span_context.is_sampled() {
+                            SamplingDecision::RecordAndSample
+                        } else {
+                            SamplingDecision::Drop
+                        }
+                    },
+                )
+            }
             // Probabilistically sample the trace.
             Sampler::TraceIdRatioBased(prob) => {
                 if *prob >= 1.0 {
@@ -157,7 +159,7 @@ impl ShouldSample for Sampler {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "testing", feature = "trace"))]
 mod tests {
     use super::*;
     use crate::sdk::trace::{Sampler, SamplingDecision, ShouldSample};
@@ -269,5 +271,21 @@ mod tests {
                 tolerance
             );
         }
+    }
+
+    #[test]
+    fn filter_parent_sampler_for_active_spans() {
+        let sampler = Sampler::ParentBased(Box::new(Sampler::AlwaysOn));
+        let cx = Context::current_with_value("some_value");
+        let result = sampler.should_sample(
+            Some(&cx),
+            TraceId::from_u128(1),
+            "should sample",
+            &SpanKind::Internal,
+            &[],
+            &[],
+        );
+
+        assert_eq!(result.decision, SamplingDecision::RecordAndSample);
     }
 }

@@ -125,15 +125,26 @@ use std::collections::HashMap;
 
 use std::time::Duration;
 
-#[cfg(feature = "tonic")]
+#[cfg(all(feature = "tonic", not(feature = "integration-testing")))]
 #[rustfmt::skip]
 #[allow(clippy::all, unreachable_pub)]
 mod proto;
 
-#[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
+#[cfg(all(
+    feature = "grpc-sys",
+    not(feature = "tonic"),
+    not(feature = "integration-testing")
+))]
 #[allow(clippy::all, unreachable_pub, dead_code)]
 mod proto;
 
+#[cfg(feature = "integration-testing")]
+#[allow(missing_docs, unreachable_pub)]
+pub mod proto;
+
+#[cfg(feature = "metrics")]
+#[allow(warnings)]
+mod metric;
 mod span;
 mod transform;
 
@@ -143,7 +154,10 @@ use tonic::metadata::MetadataMap;
 #[cfg(all(feature = "tonic", feature = "tls"))]
 use tonic::transport::ClientTlsConfig;
 
-pub use crate::span::{Exporter, ExporterConfig, Protocol};
+pub use crate::span::{ExporterConfig, TraceExporter};
+
+#[cfg(feature = "metrics")]
+pub use crate::metric::{new_metrics_pipeline, MetricsExporter, OtlpMetricPipelineBuilder};
 
 #[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
 pub use crate::span::{Compression, Credentials};
@@ -253,7 +267,7 @@ impl OtlpPipelineBuilder {
     /// Install the OTLP exporter pipeline with the recommended defaults.
     #[cfg(feature = "tonic")]
     pub fn install(mut self) -> Result<(sdk::trace::Tracer, Uninstall), TraceError> {
-        let exporter = Exporter::new(self.exporter_config)?;
+        let exporter = TraceExporter::new(self.exporter_config)?;
 
         let mut provider_builder = sdk::trace::TracerProvider::builder().with_exporter(exporter);
         if let Some(config) = self.trace_config.take() {
@@ -269,7 +283,7 @@ impl OtlpPipelineBuilder {
     /// Install the OTLP exporter pipeline with the recommended defaults.
     #[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
     pub fn install(mut self) -> Result<(sdk::trace::Tracer, Uninstall), TraceError> {
-        let exporter = Exporter::new(self.exporter_config);
+        let exporter = TraceExporter::new(self.exporter_config);
 
         let mut provider_builder = sdk::trace::TracerProvider::builder().with_exporter(exporter);
         if let Some(config) = self.trace_config.take() {
@@ -316,4 +330,14 @@ impl ExportError for Error {
     fn exporter_name(&self) -> &'static str {
         "otlp"
     }
+}
+
+/// The communication protocol to use when sending data.
+#[derive(Clone, Copy, Debug)]
+pub enum Protocol {
+    /// GRPC protocol
+    Grpc,
+    // TODO add support for other protocols
+    // HttpJson,
+    // HttpProto,
 }

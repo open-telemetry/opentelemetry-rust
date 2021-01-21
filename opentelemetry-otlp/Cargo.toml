@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-otlp"
-version = "0.3.0"
+version = "0.4.0"
 authors = ["OpenTelemetry Authors <cncf-opentelemetry-contributors@lists.cncf.io>"]
 description = "Exporter for the OpenTelemetry Collector"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/master/opentelemetry-otlp"
@@ -15,9 +15,15 @@ keywords = ["opentelemetry", "otlp", "logging", "tracing", "metrics"]
 license = "Apache-2.0"
 edition = "2018"
 build = "build.rs"
+autotests = false
 
 [lib]
 doctest = false
+
+[[test]]
+name = "smoke"
+path = "tests/smoke.rs"
+required-features = ["integration-testing"]
 
 [package.metadata.docs.rs]
 all-features = true
@@ -27,21 +33,28 @@ rustdoc-args = ["--cfg", "docsrs"]
 async-trait = "0.1"
 futures = "0.3"
 grpcio = { version = "0.7", optional = true }
-opentelemetry = { version = "0.10", default-features = false, features = ["trace"], path = "../opentelemetry" }
-prost = { version = "0.6", optional = true }
+opentelemetry = { version = "0.11", default-features = false, features = ["trace"], path = "../opentelemetry" }
+prost = { version = "0.7", optional = true }
 protobuf = { version = "2.18", optional = true }
 thiserror = "1.0"
-tonic = { package = "tonic", version = "0.3", optional = true }
-tokio = { version = "0.2", features = ["full"], optional = true }
+tonic = { version = "0.4", optional = true }
+tokio = { version = "1.0", features = ["full"], optional = true }
+
+[dev-dependencies]
+chrono = "0.4"
+tokio-stream = { version = "0.1", features = ["net"] }
 
 [features]
 async = ["default"]
+trace = ["opentelemetry/trace"]
+metrics = ["opentelemetry/metrics"]
 default = ["tonic", "tonic-build", "prost", "tokio"]
 grpc-sys = ["grpcio", "protobuf", "protobuf-codegen", "protoc-grpcio"]
 tls = ["tonic/tls"]
 tls-roots = ["tls", "tonic/tls-roots"]
 openssl = ["grpcio/openssl"]
 openssl-vendored = ["grpcio/openssl-vendored"]
+integration-testing = ["tonic", "tonic-build", "prost", "tokio/full", "opentelemetry/trace"]
 
 [build-dependencies]
 protobuf-codegen = { version = "2.16", optional = true }

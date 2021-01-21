@@ -1,7 +1,7 @@
 //! # HTTP Jaeger Collector Client
 use http::Uri;
 #[cfg(feature = "collector_client")]
-use opentelemetry::sdk::export::trace::HttpClient;
+use opentelemetry_http::HttpClient;
 use std::sync::atomic::AtomicUsize;
 
 /// `CollectorAsyncClientHttp` implements an async version of the
@@ -33,14 +33,14 @@ mod collector_client {
 
     impl CollectorAsyncClientHttp {
         /// Create a new HTTP collector client
-        pub(crate) fn new(endpoint: Uri, client: Box<dyn HttpClient>) -> thrift::Result<Self> {
+        pub(crate) fn new(endpoint: Uri, client: Box<dyn HttpClient>) -> Self {
             let payload_size_estimate = AtomicUsize::new(512);
 
-            Ok(CollectorAsyncClientHttp {
+            CollectorAsyncClientHttp {
                 endpoint,
                 client,
                 payload_size_estimate,
-            })
+            }
         }
 
         /// Submit list of Jaeger batches

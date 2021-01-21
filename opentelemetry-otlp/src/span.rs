@@ -42,11 +42,12 @@ use std::fmt::Debug;
 #[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
 use std::sync::Arc;
 
+use crate::Protocol;
 use opentelemetry::sdk::export::trace::{ExportResult, SpanData, SpanExporter};
 use std::time::Duration;
 
 /// Exporter that sends data in OTLP format.
-pub struct Exporter {
+pub struct TraceExporter {
     #[cfg(feature = "tonic")]
     metadata: Option<MetadataMap>,
 
@@ -116,16 +117,6 @@ pub struct Credentials {
     pub key: String,
 }
 
-/// The communication protocol to use when sending data.
-#[derive(Clone, Copy, Debug)]
-pub enum Protocol {
-    /// GRPC protocol
-    Grpc,
-    // TODO add support for other protocols
-    // HttpJson,
-    // HttpProto,
-}
-
 /// The compression algorithm to use when sending data.
 #[derive(Clone, Copy, Debug)]
 #[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
@@ -174,7 +165,7 @@ impl Default for ExporterConfig {
     }
 }
 
-impl Default for Exporter {
+impl Default for TraceExporter {
     /// Return a Span Exporter with the default configuration
     #[cfg(feature = "tonic")]
     fn default() -> Self {
@@ -184,14 +175,13 @@ impl Default for Exporter {
 
         let channel = endpoint.timeout(config.timeout).connect_lazy().unwrap();
 
-        Exporter {
+        TraceExporter {
             trace_exporter: TraceServiceClient::new(channel),
             timeout: config.timeout,
             metadata: config.metadata,
             #[cfg(not(feature = "async"))]
             runtime: config.runtime.unwrap_or_else(|| {
-                tokio::runtime::Builder::new()
-                    .basic_scheduler()
+                tokio::runtime::Builder::new_current_thread()
                     .enable_all()
                     .build()
                     .unwrap()
@@ -208,7 +198,7 @@ impl Default for Exporter {
             ChannelBuilder::new(Arc::new(Environment::new(config.completion_queue_count)))
                 .connect(config.endpoint.as_str());
 
-        Exporter {
+        TraceExporter {
             trace_exporter: TraceServiceClient::new(channel),
             timeout: config.timeout,
             headers: None,
@@ -216,7 +206,7 @@ impl Default for Exporter {
     }
 }
 
-impl Debug for Exporter {
+impl Debug for TraceExporter {
     #[cfg(feature = "tonic")]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Exporter")
@@ -236,7 +226,7 @@ impl Debug for Exporter {
     }
 }
 
-impl Exporter {
+impl TraceExporter {
     /// Builds a new span exporter with the given configuration
     #[cfg(feature = "tonic")]
     pub fn new(config: ExporterConfig) -> Result<Self, crate::Error> {
@@ -273,14 +263,13 @@ impl Exporter {
             }
         };
 
-        Ok(Exporter {
+        Ok(TraceExporter {
             trace_exporter: client,
             timeout: config.timeout,
             metadata: config.metadata,
             #[cfg(not(feature = "async"))]
             runtime: config.runtime.unwrap_or_else(|| {
-                tokio::runtime::Builder::new()
-                    .basic_scheduler()
+                tokio::runtime::Builder::new_current_thread()
                     .enable_all()
                     .build()
                     .unwrap()
@@ -308,7 +297,7 @@ impl Exporter {
             ),
         };
 
-        Exporter {
+        TraceExporter {
             trace_exporter: TraceServiceClient::new(channel),
             timeout: config.timeout,
             headers: config.headers,
@@ -317,7 +306,7 @@ impl Exporter {
 }
 
 #[async_trait]
-impl SpanExporter for Exporter {
+impl SpanExporter for TraceExporter {
     #[cfg(feature = "tonic")]
     async fn export(&mut self, batch: Vec<SpanData>) -> ExportResult {
         let request = Request::new(ExportTraceServiceRequest {

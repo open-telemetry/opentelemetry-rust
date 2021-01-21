@@ -48,11 +48,11 @@ jobs:
     - uses: actions-rs/toolchain@v1
       with:
         profile: minimal
-        toolchain: 1.42.0
+        toolchain: 1.46.0
         override: true
     - name: Run tests
       run: cargo --version &&
-        cargo test --verbose --manifest-path=opentelemetry/Cargo.toml --features trace,metrics,serialize,tokio,serde,http,tonic,reqwest,testing &&
+        cargo test --verbose --manifest-path=opentelemetry/Cargo.toml --features trace,metrics,serialize,tokio-support,serde,testing &&
         cargo test --manifest-path=opentelemetry-jaeger/Cargo.toml &&
         cargo test --manifest-path=opentelemetry-zipkin/Cargo.toml
   meta:

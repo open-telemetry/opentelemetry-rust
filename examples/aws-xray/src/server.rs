@@ -7,11 +7,13 @@ use opentelemetry::{
     trace::{Span, Tracer},
 };
 use opentelemetry_contrib::trace::propagator::XrayPropagator;
+use opentelemetry_http::HeaderExtractor;
 use std::{convert::Infallible, net::SocketAddr};
 
 async fn handle(req: Request<Body>) -> Result<Response<Body>, Infallible> {
-    let parent_context =
-        global::get_text_map_propagator(|propagator| propagator.extract(req.headers()));
+    let parent_context = global::get_text_map_propagator(|propagator| {
+        propagator.extract(&HeaderExtractor(req.headers()))
+    });
 
     let x_amzn_trace_id = req
         .headers()
@@ -20,7 +22,7 @@ async fn handle(req: Request<Body>) -> Result<Response<Body>, Infallible> {
         .to_str()
         .unwrap();
 
-    let span = global::tracer("example/server").start_from_context("hello", &parent_context);
+    let span = global::tracer("example/server").start_with_context("hello", parent_context);
     span.add_event(format!("Handling - {}", x_amzn_trace_id), Vec::new());
 
     Ok(Response::new(

@@ -76,7 +76,7 @@ impl MeterCore for UniqueInstrumentMeterCore {
     fn new_async_instrument(
         &self,
         descriptor: Descriptor,
-        runner: AsyncRunner,
+        runner: Option<AsyncRunner>,
     ) -> super::Result<UniqueAsyncInstrument> {
         self.async_state
             .lock()
@@ -95,6 +95,10 @@ impl MeterCore for UniqueInstrumentMeterCore {
                     }
                 })
             })
+    }
+
+    fn new_batch_observer(&self, runner: AsyncRunner) -> Result<()> {
+        self.inner.new_batch_observer(runner)
     }
 }
 
@@ -161,5 +165,5 @@ impl From<&Descriptor> for UniqueInstrumentKey {
     }
 }
 
-type UniqueSyncInstrument = Arc<dyn SyncInstrumentCore + Send + Sync>;
-type UniqueAsyncInstrument = Arc<dyn AsyncInstrumentCore + Send + Sync>;
+type UniqueSyncInstrument = Arc<dyn SyncInstrumentCore>;
+type UniqueAsyncInstrument = Arc<dyn AsyncInstrumentCore>;

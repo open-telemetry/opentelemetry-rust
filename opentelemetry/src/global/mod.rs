@@ -16,6 +16,8 @@
 //! or calling [`set_tracer_provider`].
 //!
 //! ```
+//! # #[cfg(feature="trace")]
+//! # {
 //! use opentelemetry::trace::{Tracer, NoopTracerProvider};
 //! use opentelemetry::global;
 //!
@@ -39,11 +41,14 @@
 //! // in main or other app start
 //! let _guard = init_tracer();
 //! do_something_tracked();
+//! # }
 //! ```
 //!
 //! ### Usage in Libraries
 //!
 //! ```
+//! # #[cfg(feature="trace")]
+//! # {
 //! use opentelemetry::trace::Tracer;
 //! use opentelemetry::global;
 //!
@@ -56,6 +61,7 @@
 //!         // Traced library logic here...
 //!     });
 //! }
+//! # }
 //! ```
 //!
 //! [installing a trace pipeline]: crate::sdk::export::trace::stdout::PipelineBuilder::install

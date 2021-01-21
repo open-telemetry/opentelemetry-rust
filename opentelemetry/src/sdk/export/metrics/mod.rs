@@ -380,7 +380,7 @@ pub enum ExportKind {
 }
 
 /// Strategies for selecting which export kind is used for an instrument.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ExportKindSelector {
     /// A selector that always returns [`ExportKind::Cumulative`].
     Cumulative,

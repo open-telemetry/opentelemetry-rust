@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-jaeger"
-version = "0.9.0"
+version = "0.10.0"
 authors = ["OpenTelemetry Authors <cncf-opentelemetry-contributors@lists.cncf.io>"]
 description = "Jaeger exporter for OpenTelemetry"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/master/opentelemetry-jaeger"
@@ -27,20 +27,21 @@ futures-util = { version = "0.3", optional = true }
 http = { version = "0.2", optional = true }
 isahc = { version = "0.9", default-features = false, optional = true }
 js-sys = { version = "0.3", optional = true }
-opentelemetry = { version = "0.10", default-features = false, features = ["trace"], path = "../opentelemetry" }
+opentelemetry = { version = "0.11", default-features = false, features = ["trace"], path = "../opentelemetry" }
+opentelemetry-http = { version = "0.1", path = "../opentelemetry-http", optional = true }
 pin-project = { version = "1.0", optional = true }
 thrift = "0.13"
-tokio = { version = "0.2", features = ["udp", "sync"], optional = true }
+tokio = { version = "1.0", features = ["net", "sync"], optional = true }
 wasm-bindgen = { version = "0.2", optional = true }
 wasm-bindgen-futures = { version = "0.4.18", optional = true }
 thiserror = "1.0"
 lazy_static = "1.4"
-reqwest = { version = "0.10", default-features = false, optional = true }
+reqwest = { version = "0.11", default-features = false, optional = true }
 headers = { version = "0.3.2", optional = true }
 surf = { version = "2.0", optional = true }
 
 [dev-dependencies]
-opentelemetry = { version = "0.10", default-features = false, features = ["trace", "testing"], path = "../opentelemetry" }
+opentelemetry = { version = "0.11", default-features = false, features = ["trace", "testing"], path = "../opentelemetry" }
 futures = "0.3"
 
 [dependencies.web-sys]
@@ -58,11 +59,11 @@ optional = true
 
 [features]
 default = []
-collector_client = ["http", "opentelemetry/http"]
-isahc_collector_client = ["isahc", "collector_client"]
-reqwest_blocking_collector_client = ["reqwest/blocking", "collector_client", "headers", "opentelemetry/reqwest"]
-reqwest_collector_client = ["reqwest", "collector_client", "headers", "opentelemetry/reqwest"]
-surf_collector_client = ["surf", "collector_client", "opentelemetry/surf"]
+collector_client = ["http", "opentelemetry-http"]
+isahc_collector_client = ["isahc", "opentelemetry-http/isahc"]
+reqwest_blocking_collector_client = ["reqwest/blocking", "collector_client", "headers", "opentelemetry-http/reqwest"]
+reqwest_collector_client = ["reqwest", "collector_client", "headers", "opentelemetry-http/reqwest"]
+surf_collector_client = ["surf", "collector_client", "opentelemetry-http/surf"]
 wasm_collector_client = [
     "base64",
     "futures-util",

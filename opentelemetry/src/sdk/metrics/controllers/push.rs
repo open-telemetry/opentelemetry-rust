@@ -73,7 +73,6 @@ pub struct PushControllerWorker {
 impl PushControllerWorker {
     fn on_tick(&mut self) {
         // TODO handle timeout
-
         if let Err(err) = self.processor.lock().and_then(|mut checkpointer| {
             checkpointer.start_collection();
             self.accumulator.0.collect(&mut checkpointer);

@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-contrib"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["OpenTelemetry Authors <cncf-opentelemetry-contributors@lists.cncf.io>"]
 description = "Rust contrib repo for OpenTelemetry"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/master/opentelemetry-contrib"
@@ -22,19 +22,20 @@ rustdoc-args = ["--cfg", "docsrs"]
 default = []
 base64_format = ["base64", "binary_propagator"]
 binary_propagator = []
-datadog = ["indexmap", "rmp", "async-trait", "thiserror"]
-reqwest-blocking-client = ["reqwest/blocking", "opentelemetry/reqwest"]
-reqwest-client = ["reqwest", "opentelemetry/reqwest"]
-surf-client = ["surf", "opentelemetry/surf"]
+datadog = ["indexmap", "rmp", "async-trait", "thiserror", "opentelemetry-http"]
+reqwest-blocking-client = ["reqwest/blocking", "opentelemetry-http/reqwest"]
+reqwest-client = ["reqwest", "opentelemetry-http/reqwest"]
+surf-client = ["surf", "opentelemetry-http/surf"]
 aws-xray = []
 
 [dependencies]
 async-trait = { version = "0.1", optional = true }
 indexmap = { version = "1.6", optional = true }
-opentelemetry = { version = "0.10", path = "../opentelemetry", features = ["trace", "http"] }
+opentelemetry = { version = "0.11", path = "../opentelemetry", features = ["trace"] }
+opentelemetry-http = { version = "0.1", path = "../opentelemetry-http", optional = true }
 rmp = { version = "0.8", optional = true }
 lazy_static = "1.4"
-reqwest = { version = "0.10", optional = true }
+reqwest = { version = "0.11", optional = true }
 surf = { version = "2.0", optional = true }
 http = "0.2"
 base64 = { version = "0.13", optional = true }
@@ -43,4 +44,4 @@ thiserror = { version = "1.0", optional = true }
 [dev-dependencies]
 base64 = "0.13"
 isahc = "0.9"
-opentelemetry = { path = "../opentelemetry", features = ["trace", "http", "testing"] }
+opentelemetry = { path = "../opentelemetry", features = ["trace", "testing"] }

@@ -35,16 +35,16 @@
 //!
 //! For optimal performance, a batch exporter is recommended as the simple
 //! exporter will export each span synchronously on drop. You can enable the
-//! [`tokio`] or [`async-std`] features to have a batch exporter configured for
+//! [`tokio-support`] or [`async-std`] features to have a batch exporter configured for
 //! you automatically for either executor when you install the pipeline.
 //!
 //! ```toml
 //! [dependencies]
-//! opentelemetry = { version = "*", features = ["tokio"] }
+//! opentelemetry = { version = "*", features = ["tokio-support"] }
 //! opentelemetry-datadog = "*"
 //! ```
 //!
-//! [`tokio`]: https://tokio.rs
+//! [`tokio-support`]: https://tokio.rs
 //! [`async-std`]: https://async.rs
 //!
 
@@ -73,8 +73,8 @@
 //! use opentelemetry::{KeyValue, trace::Tracer};
 //! use opentelemetry::sdk::{trace::{self, IdGenerator, Sampler}, Resource};
 //! use opentelemetry::sdk::export::trace::ExportResult;
-//! use opentelemetry::sdk::export::trace::HttpClient;
 //! use opentelemetry_contrib::trace::exporter::datadog::{new_pipeline, ApiVersion};
+//! use opentelemetry_http::HttpClient;
 //! use async_trait::async_trait;
 //! use opentelemetry_contrib::trace::exporter::datadog::Error;
 //!
@@ -128,9 +128,10 @@ pub use model::Error;
 use async_trait::async_trait;
 use http::{Method, Request, Uri};
 use opentelemetry::sdk::export::trace;
-use opentelemetry::sdk::export::trace::{HttpClient, SpanData};
+use opentelemetry::sdk::export::trace::SpanData;
 use opentelemetry::trace::TraceError;
 use opentelemetry::{global, sdk, trace::TracerProvider};
+use opentelemetry_http::HttpClient;
 
 /// Default Datadog collector endpoint
 const DEFAULT_AGENT_ENDPOINT: &str = "http://127.0.0.1:8126";

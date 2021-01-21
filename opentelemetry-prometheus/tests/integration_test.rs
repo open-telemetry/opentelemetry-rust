@@ -1,10 +1,65 @@
 use opentelemetry::sdk::Resource;
 use opentelemetry::{
-    metrics::{MeterProvider, ObserverResult},
+    metrics::{BatchObserverResult, MeterProvider, ObserverResult},
     KeyValue,
 };
 use opentelemetry_prometheus::PrometheusExporter;
 use prometheus::{Encoder, TextEncoder};
+
+#[test]
+fn free_unused_instruments() {
+    let exporter = opentelemetry_prometheus::exporter()
+        .with_default_histogram_boundaries(vec![-0.5, 1.0])
+        .with_resource(Resource::new(vec![KeyValue::new("R", "V")]))
+        .init();
+    let mut expected = Vec::new();
+
+    {
+        let meter = exporter.provider().unwrap().meter("test", None);
+        let counter = meter.f64_counter("counter").init();
+
+        let labels = vec![KeyValue::new("A", "B"), KeyValue::new("C", "D")];
+
+        counter.add(10.0, &labels);
+        counter.add(5.3, &labels);
+
+        expected.push(r#"counter{A="B",C="D",R="V"} 15.3"#);
+    }
+    // Standard export
+    compare_export(&exporter, expected.clone());
+    // Final export before instrument dropped
+    compare_export(&exporter, expected.clone());
+    // Instrument dropped, but last value kept by prom exporter
+    compare_export(&exporter, expected);
+}
+
+#[test]
+fn batch() {
+    let exporter = opentelemetry_prometheus::exporter()
+        .with_resource(Resource::new(vec![KeyValue::new("R", "V")]))
+        .init();
+    let meter = exporter.provider().unwrap().meter("test", None);
+    let mut expected = Vec::new();
+
+    meter.batch_observer(|batch| {
+        let uint_observer = batch.u64_value_observer("uint_observer").init();
+        let float_observer = batch.f64_value_observer("float_observer").init();
+
+        move |result: BatchObserverResult| {
+            result.observe(
+                &[KeyValue::new("A", "B")],
+                &[
+                    uint_observer.observation(2),
+                    float_observer.observation(3.1),
+                ],
+            );
+        }
+    });
+
+    expected.push(r#"uint_observer{A="B",R="V"} 2"#);
+    expected.push(r#"float_observer{A="B",R="V"} 3.1"#);
+    compare_export(&exporter, expected);
+}
 
 #[test]
 fn test_add() {

@@ -1,5 +1,5 @@
 #[cfg(feature = "tonic")]
-use crate::proto::common::v1::{any_value, AnyValue, ArrayValue, KeyValue};
+use crate::proto::common::v1::{any_value, AnyValue, ArrayValue, InstrumentationLibrary, KeyValue};
 
 #[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
 use crate::proto::grpcio::common::{AnyValue, ArrayValue, KeyValue};
@@ -11,6 +11,16 @@ use opentelemetry::{Array, Value};
 use protobuf::RepeatedField;
 
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+#[cfg(feature = "tonic")]
+impl From<opentelemetry::sdk::InstrumentationLibrary> for InstrumentationLibrary {
+    fn from(library: opentelemetry::sdk::InstrumentationLibrary) -> Self {
+        InstrumentationLibrary {
+            name: library.name.to_string(),
+            version: library.version.unwrap_or("").to_string(),
+        }
+    }
+}
 
 #[cfg(feature = "tonic")]
 pub(crate) struct Attributes(pub(crate) ::std::vec::Vec<crate::proto::common::v1::KeyValue>);

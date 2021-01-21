@@ -1,5 +1,5 @@
 #[cfg(feature = "tonic")]
-pub(crate) mod collector {
+pub mod collector {
     pub mod metrics {
         pub mod v1 {
             tonic::include_proto!("opentelemetry.proto.collector.metrics.v1");
@@ -14,28 +14,28 @@ pub(crate) mod collector {
 }
 
 #[cfg(feature = "tonic")]
-pub(crate) mod common {
+pub mod common {
     pub mod v1 {
         tonic::include_proto!("opentelemetry.proto.common.v1");
     }
 }
 
 #[cfg(feature = "tonic")]
-pub(crate) mod metrics {
+pub mod metrics {
     pub mod v1 {
         tonic::include_proto!("opentelemetry.proto.metrics.v1");
     }
 }
 
 #[cfg(feature = "tonic")]
-pub(crate) mod resource {
+pub mod resource {
     pub mod v1 {
         tonic::include_proto!("opentelemetry.proto.resource.v1");
     }
 }
 
 #[cfg(feature = "tonic")]
-pub(crate) mod trace {
+pub mod trace {
     pub mod v1 {
         tonic::include_proto!("opentelemetry.proto.trace.v1");
     }

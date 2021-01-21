@@ -2,6 +2,7 @@
 members = [
     "opentelemetry",
     "opentelemetry-contrib",
+    "opentelemetry-http",
     "opentelemetry-jaeger",
     "opentelemetry-otlp",
     "opentelemetry-prometheus",

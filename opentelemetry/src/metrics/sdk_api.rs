@@ -16,31 +16,33 @@ pub trait MeterCore: fmt::Debug {
     );
 
     /// Create a new synchronous instrument implementation.
-    fn new_sync_instrument(
-        &self,
-        descriptor: Descriptor,
-    ) -> Result<Arc<dyn SyncInstrumentCore + Send + Sync>>;
+    fn new_sync_instrument(&self, descriptor: Descriptor) -> Result<Arc<dyn SyncInstrumentCore>>;
 
     /// Create a new asynchronous instrument implementation.
+    ///
+    /// Runner is `None` if used in batch as the batch runner is registered separately.
     fn new_async_instrument(
         &self,
         descriptor: Descriptor,
-        runner: AsyncRunner,
-    ) -> Result<Arc<dyn AsyncInstrumentCore + Send + Sync>>;
+        runner: Option<AsyncRunner>,
+    ) -> Result<Arc<dyn AsyncInstrumentCore>>;
+
+    /// Register a batch observer
+    fn new_batch_observer(&self, runner: AsyncRunner) -> Result<()>;
 }
 
 /// A common interface for synchronous and asynchronous instruments.
-pub trait InstrumentCore: fmt::Debug {
+pub trait InstrumentCore: fmt::Debug + Send + Sync {
     /// Description of the instrument's descriptor
     fn descriptor(&self) -> &Descriptor;
 }
 
 /// The implementation-level interface to a generic synchronous instrument
 /// (e.g., ValueRecorder and Counter instruments).
-pub trait SyncInstrumentCore: InstrumentCore + Send + Sync {
+pub trait SyncInstrumentCore: InstrumentCore {
     /// Creates an implementation-level bound instrument, binding a label set
     /// with this instrument implementation.
-    fn bind(&self, labels: &'_ [KeyValue]) -> Arc<dyn SyncBoundInstrumentCore + Send + Sync>;
+    fn bind(&self, labels: &'_ [KeyValue]) -> Arc<dyn SyncBoundInstrumentCore>;
 
     /// Capture a single synchronous metric event.
     fn record_one(&self, number: Number, labels: &'_ [KeyValue]);
