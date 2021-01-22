@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.4.0
+
+### Changed
+
+- Update to opentelemetry v0.12.0
+- Support tokio v1.0 #421
+- Use opentelemetry-http for http integration #415
+
 ## v0.3.0
 
 ### Changed

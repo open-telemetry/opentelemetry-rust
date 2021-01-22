@@ -1,5 +1,26 @@
 # Changelog
 
+## [v0.12.0](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.11.2...v0.12.0)
+
+## Added
+
+- Instrumentation library support #402
+- Batch observer support #429
+- `with_unit` methods in metrics #431
+
+## Changed
+
+- Dependencies updates #410
+- Dissolve api crate and move its crates to top level #412
+- Add `Send`, `Sync` to `AsyncInstrument` in metrics #422
+- Add `Send`, `Sync` to `InstrumentCore` in metrics #423  
+- Replace regex with custom logic #411
+- Update tokio to v1 #421
+
+## Removed
+
+- Remove `tonic` dependency #414
+
 ## [v0.11.2](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.11.1...v0.11.2)
 
 # Fixed

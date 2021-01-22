@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.11.0
+
+### Changed
+
+- Update tokio to v1 #421
+- Make `with_collector_endpoint` function less error prune #428
+- Use opentelemetry-http for http integration #415
+
 ## v0.10.0
 
 ### Added
