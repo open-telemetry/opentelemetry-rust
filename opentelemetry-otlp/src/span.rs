@@ -140,7 +140,7 @@ impl Default for ExporterConfig {
     #[cfg(feature = "tonic")]
     fn default() -> Self {
         ExporterConfig {
-            endpoint: format!("localhost:{}", DEFAULT_OTLP_PORT),
+            endpoint: format!("http://localhost:{}", DEFAULT_OTLP_PORT),
             protocol: Protocol::Grpc,
             #[cfg(all(feature = "tonic", feature = "tls"))]
             tls_config: None,

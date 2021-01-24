@@ -14,7 +14,9 @@ use std::error::Error;
 use std::time::Duration;
 
 fn init_tracer() -> Result<(sdktrace::Tracer, opentelemetry_otlp::Uninstall), TraceError> {
-    opentelemetry_otlp::new_pipeline().install()
+    opentelemetry_otlp::new_pipeline()
+        .with_endpoint("http://localhost:4317")
+        .install()
 }
 
 // Skip first immediate tick from tokio, not needed for async_std.
@@ -97,7 +99,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         });
     });
 
-    // wait for 1 seconds so that we could see metrics being pushed via OTLP every 10 seconds.
+    // wait for 1 minutes so that we could see metrics being pushed via OTLP every 10 seconds.
     tokio::time::sleep(Duration::from_secs(60)).await;
 
     Ok(())
