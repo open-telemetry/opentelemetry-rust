@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.10.0
+
+### Changed
+- Update to opentelemetry v0.12.0
+- Update tokio to v1 #421
+- Use opentelemetry-http for http integration #415
+
 ## v0.9.0
 
 ### Changed
@@ -7,7 +14,7 @@
 - Update to opentelemetry v0.11.0
 - Exclude status code if unset #382
 - Set `otel.status_code` and `otel.status_description` values #383
-- Remove resourece reporting #389
+- Remove resource reporting #389
 
 ## v0.8.0
 

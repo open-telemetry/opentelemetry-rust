@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-zipkin"
-version = "0.9.0"
+version = "0.10.0"
 authors = ["OpenTelemetry Authors <cncf-opentelemetry-contributors@lists.cncf.io>"]
 description = "Zipkin exporter for OpenTelemetry"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/master/opentelemetry-zipkin"
@@ -27,7 +27,7 @@ surf-client = ["surf", "opentelemetry-http/surf"]
 
 [dependencies]
 async-trait = "0.1"
-opentelemetry = { version = "0.11", path = "../opentelemetry", features = ["trace"] }
+opentelemetry = { version = "0.12", path = "../opentelemetry", features = ["trace"] }
 opentelemetry-http = { version = "0.1", path = "../opentelemetry-http", optional = true }
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
@@ -40,4 +40,4 @@ thiserror = { version = "1.0"}
 
 [dev-dependencies]
 isahc = "=0.9.6"
-opentelemetry = { version = "0.11", default-features = false, features = ["trace", "testing"], path = "../opentelemetry" }
+opentelemetry = { version = "0.12", default-features = false, features = ["trace", "testing"], path = "../opentelemetry" }

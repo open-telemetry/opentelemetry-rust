@@ -1,5 +1,26 @@
 # Changelog
 
+## [v0.12.0](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.11.2...v0.12.0)
+
+## Added
+
+- Instrumentation library support #402
+- Batch observer support #429
+- `with_unit` methods in metrics #431
+
+## Changed
+
+- Dependencies updates #410
+- Add `Send`, `Sync` to `AsyncInstrument` in metrics #422
+- Add `Send`, `Sync` to `InstrumentCore` in metrics #423
+- Replace regex with custom logic #411
+- Update tokio to v1 #421
+
+## Removed
+
+- Moved `http` dependencies into a new opentelemetry-http crate #415
+- Remove `tonic` dependency #414
+
 ## [v0.11.2](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.11.1...v0.11.2)
 
 # Fixed
@@ -17,7 +38,7 @@
 ## Added
 
 - Add `force_flush` method to span processors #358
-- Add timeout for `force_flush` and `shutdown` #362 
+- Add timeout for `force_flush` and `shutdown` #362
 
 ## Changed
 
@@ -148,7 +169,7 @@
 
 ### Changed
 - Update sampler types #128
-  - `Always` is now `AlwaysOn`. `Never` is now `AlwaysOff`. `Probability` now ignores parent 
+  - `Always` is now `AlwaysOn`. `Never` is now `AlwaysOff`. `Probability` now ignores parent
     sampled state.
 - `base64` and `binary_propagator` have been moved to `experimental` module. #134
 - `Correlation-Context` header has been updated to `otcorrelations` #145
@@ -232,7 +253,7 @@
 ### Added
 - New Base64 propagator
 - New SpanBuilder api
-- Zipkin Exporter crate 
+- Zipkin Exporter crate
 
 ### Changed
 - Switch to `SpanId` and `TraceId` from `u64` and `u128`
