@@ -1,6 +1,6 @@
 ![OpenTelemetry — An observability framework for cloud-native software.][splash]
 
-[splash]: https://raw.githubusercontent.com/open-telemetry/opentelemetry-rust/master/assets/logo-text.png
+[splash]: https://raw.githubusercontent.com/open-telemetry/opentelemetry-rust/main/assets/logo-text.png
 
 # OpenTelemetry Rust
 
@@ -9,7 +9,7 @@ The Rust [OpenTelemetry](https://opentelemetry.io/) implementation.
 [![Crates.io: opentelemetry](https://img.shields.io/crates/v/opentelemetry.svg)](https://crates.io/crates/opentelemetry)
 [![Documentation](https://docs.rs/opentelemetry/badge.svg)](https://docs.rs/opentelemetry)
 [![LICENSE](https://img.shields.io/crates/l/opentelemetry)](./LICENSE)
-[![GitHub Actions CI](https://github.com/open-telemetry/opentelemetry-rust/workflows/CI/badge.svg)](https://github.com/open-telemetry/opentelemetry-rust/actions?query=workflow%3ACI+branch%3Amaster)
+[![GitHub Actions CI](https://github.com/open-telemetry/opentelemetry-rust/workflows/CI/badge.svg)](https://github.com/open-telemetry/opentelemetry-rust/actions?query=workflow%3ACI+branch%3Amain)
 [![Gitter chat](https://img.shields.io/badge/gitter-join%20chat%20%E2%86%92-brightgreen.svg)](https://gitter.im/open-telemetry/opentelemetry-rust)
 
 [Website](https://opentelemetry.io/) |

@@ -30,7 +30,7 @@
 //! }
 //! ```
 //!
-//! See the [examples](https://github.com/open-telemetry/opentelemetry-rust/tree/master/examples)
+//! See the [examples](https://github.com/open-telemetry/opentelemetry-rust/tree/main/examples)
 //! directory for different integration patterns.
 //!
 //! ## Crate Feature Flags
@@ -156,7 +156,7 @@
 #![allow(clippy::needless_doctest_main)]
 #![cfg_attr(docsrs, feature(doc_cfg), deny(broken_intra_doc_links))]
 #![doc(
-    html_logo_url = "https://raw.githubusercontent.com/open-telemetry/opentelemetry-rust/master/assets/logo.svg"
+    html_logo_url = "https://raw.githubusercontent.com/open-telemetry/opentelemetry-rust/main/assets/logo.svg"
 )]
 #![cfg_attr(test, deny(warnings))]
 

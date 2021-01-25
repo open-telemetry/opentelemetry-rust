@@ -3,8 +3,8 @@ name = "opentelemetry-contrib"
 version = "0.4.0"
 authors = ["OpenTelemetry Authors <cncf-opentelemetry-contributors@lists.cncf.io>"]
 description = "Rust contrib repo for OpenTelemetry"
-homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/master/opentelemetry-contrib"
-repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/master/opentelemetry-contrib"
+homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-contrib"
+repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-contrib"
 readme = "README.md"
 categories = [
     "development-tools::debugging",

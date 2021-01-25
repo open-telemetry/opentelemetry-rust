@@ -1,6 +1,6 @@
 ![OpenTelemetry — An observability framework for cloud-native software.][splash]
 
-[splash]: https://raw.githubusercontent.com/open-telemetry/opentelemetry-rust/master/assets/logo-text.png
+[splash]: https://raw.githubusercontent.com/open-telemetry/opentelemetry-rust/main/assets/logo-text.png
 
 # OpenTelemetry Jaeger
 
@@ -9,7 +9,7 @@
 [![Crates.io: opentelemetry-jaeger](https://img.shields.io/crates/v/opentelemetry-jaeger.svg)](https://crates.io/crates/opentelemetry-jaeger)
 [![Documentation](https://docs.rs/opentelemetry-jaeger/badge.svg)](https://docs.rs/opentelemetry-jaeger)
 [![LICENSE](https://img.shields.io/crates/l/opentelemetry-jaeger)](./LICENSE)
-[![GitHub Actions CI](https://github.com/open-telemetry/opentelemetry-rust/workflows/CI/badge.svg)](https://github.com/open-telemetry/opentelemetry-rust/actions?query=workflow%3ACI+branch%3Amaster)
+[![GitHub Actions CI](https://github.com/open-telemetry/opentelemetry-rust/workflows/CI/badge.svg)](https://github.com/open-telemetry/opentelemetry-rust/actions?query=workflow%3ACI+branch%3Amain)
 [![Gitter chat](https://img.shields.io/badge/gitter-join%20chat%20%E2%86%92-brightgreen.svg)](https://gitter.im/open-telemetry/opentelemetry-rust)
 
 [Documentation](https://docs.rs/opentelemetry-jaeger) |
@@ -57,7 +57,7 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 }
 ```
 
-![Jaeger UI](https://raw.githubusercontent.com/open-telemetry/opentelemetry-rust/master/opentelemetry-jaeger/trace.png)
+![Jaeger UI](https://raw.githubusercontent.com/open-telemetry/opentelemetry-rust/main/opentelemetry-jaeger/trace.png)
 
 ## Performance
 

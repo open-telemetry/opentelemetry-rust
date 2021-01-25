@@ -14,7 +14,7 @@
 )]
 #![cfg_attr(test, deny(warnings))]
 #![doc(
-    html_logo_url = "https://raw.githubusercontent.com/open-telemetry/opentelemetry-rust/master/assets/logo.svg"
+    html_logo_url = "https://raw.githubusercontent.com/open-telemetry/opentelemetry-rust/main/assets/logo.svg"
 )]
 
 pub mod resource;
