@@ -7,9 +7,9 @@ use opentelemetry::{
     Context,
 };
 
-const DATADOG_TRACE_ID_HEADER: &'static str = "x-datadog-trace-id";
-const DATADOG_PARENT_ID_HEADER: &'static str = "x-datadog-parent-id";
-const DATADOG_SAMPLING_PRIORITY_HEADER: &'static str = "x-datadog-sampling-priority";
+const DATADOG_TRACE_ID_HEADER: &str = "x-datadog-trace-id";
+const DATADOG_PARENT_ID_HEADER: &str = "x-datadog-parent-id";
+const DATADOG_SAMPLING_PRIORITY_HEADER: &str = "x-datadog-sampling-priority";
 // TODO: Implement origin propagation once the Context API is stable
 // const HTTP_HEADER_ORIGIN: &'static str = "x-datadog-origin";
 lazy_static::lazy_static! {
@@ -27,10 +27,10 @@ enum SamplingPriority {
     UserKeep = 2,
 }
 enum ExtractError {
-    InvalidTraceId,
-    InvalidSpanId,
-    InvalidSamplingPriority,
-    InvalidSpanContext,
+    TraceId,
+    SpanId,
+    SamplingPriority,
+    SpanContext,
 }
 
 /// Extracts and injects `SpanContext`s into `Extractor`s or `Injector`s using Datadog's header format.
@@ -62,13 +62,13 @@ impl DatadogPropagator {
     fn extract_trace_id(&self, trace_id: &str) -> Result<TraceId, ExtractError> {
         u64::from_str_radix(trace_id, 10)
             .map(|id| TraceId::from_u128(id as u128))
-            .map_err(|_| ExtractError::InvalidTraceId)
+            .map_err(|_| ExtractError::TraceId)
     }
 
     fn extract_span_id(&self, span_id: &str) -> Result<SpanId, ExtractError> {
         u64::from_str_radix(span_id, 10)
             .map(SpanId::from_u64)
-            .map_err(|_| ExtractError::InvalidSpanId)
+            .map_err(|_| ExtractError::SpanId)
     }
 
     fn extract_sampling_priority(
@@ -76,14 +76,14 @@ impl DatadogPropagator {
         sampling_priority: &str,
     ) -> Result<SamplingPriority, ExtractError> {
         let i = i32::from_str_radix(sampling_priority, 10)
-            .map_err(|_| ExtractError::InvalidSamplingPriority)?;
+            .map_err(|_| ExtractError::SamplingPriority)?;
 
         match i {
             -1 => Ok(SamplingPriority::UserReject),
             0 => Ok(SamplingPriority::AutoReject),
             1 => Ok(SamplingPriority::AutoKeep),
             2 => Ok(SamplingPriority::UserKeep),
-            _ => Err(ExtractError::InvalidSamplingPriority),
+            _ => Err(ExtractError::SamplingPriority),
         }
     }
 
@@ -109,7 +109,7 @@ impl DatadogPropagator {
         if span_context.is_valid() {
             Ok(span_context)
         } else {
-            Err(ExtractError::InvalidSpanContext)
+            Err(ExtractError::SpanContext)
         }
     }
 }
