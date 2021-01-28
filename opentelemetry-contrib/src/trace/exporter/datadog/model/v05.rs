@@ -49,7 +49,10 @@ use std::time::SystemTime;
 //
 // 		The dictionary in this case would be []string{""}, having only the empty string at index 0.
 //
-pub(crate) fn encode(service_name: &str, traces: Vec<Vec<trace::SpanData>>) -> Result<Vec<u8>, Error> {
+pub(crate) fn encode(
+    service_name: &str,
+    traces: Vec<Vec<trace::SpanData>>,
+) -> Result<Vec<u8>, Error> {
     let mut interner = StringInterner::new();
     let mut encoded_traces = encode_traces(&mut interner, service_name, traces)?;
 

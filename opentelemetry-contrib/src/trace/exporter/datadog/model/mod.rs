@@ -72,7 +72,7 @@ impl ApiVersion {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use opentelemetry::sdk;
     use opentelemetry::sdk::InstrumentationLibrary;
@@ -84,10 +84,10 @@ mod tests {
     use std::time::{Duration, SystemTime};
 
     fn get_traces() -> Vec<Vec<trace::SpanData>> {
-        let parent_span_id = 1;
-        let trace_id = 7;
-        let span_id = 99;
+        vec![vec![get_span(7, 1, 99)]]
+    }
 
+    pub(crate) fn get_span(trace_id: u128, parent_span_id: u64, span_id: u64) -> trace::SpanData {
         let span_context = SpanContext::new(
             TraceId::from_u128(trace_id),
             SpanId::from_u64(span_id),
@@ -106,7 +106,7 @@ mod tests {
         let message_events = sdk::trace::EvictedQueue::new(capacity);
         let links = sdk::trace::EvictedQueue::new(capacity);
 
-        let span_data = trace::SpanData {
+        trace::SpanData {
             span_context,
             parent_span_id: SpanId::from_u64(parent_span_id),
             span_kind: SpanKind::Client,
@@ -120,9 +120,7 @@ mod tests {
             status_message: String::new(),
             resource: Arc::new(sdk::Resource::default()),
             instrumentation_lib: InstrumentationLibrary::new("component", None),
-        };
-
-        vec![vec![span_data]]
+        }
     }
 
     #[test]

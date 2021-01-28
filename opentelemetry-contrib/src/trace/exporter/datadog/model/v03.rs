@@ -3,7 +3,10 @@ use opentelemetry::sdk::export::trace;
 use opentelemetry::{Key, Value};
 use std::time::SystemTime;
 
-pub(crate) fn encode(service_name: &str, traces: Vec<Vec<trace::SpanData>>) -> Result<Vec<u8>, Error> {
+pub(crate) fn encode(
+    service_name: &str,
+    traces: Vec<Vec<trace::SpanData>>,
+) -> Result<Vec<u8>, Error> {
     let mut encoded = Vec::new();
     rmp::encode::write_array_len(&mut encoded, traces.len() as u32)?;
 
