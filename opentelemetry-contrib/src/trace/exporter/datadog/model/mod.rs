@@ -62,11 +62,11 @@ impl ApiVersion {
     pub(crate) fn encode(
         self,
         service_name: &str,
-        spans: Vec<trace::SpanData>,
+        traces: Vec<Vec<trace::SpanData>>,
     ) -> Result<Vec<u8>, Error> {
         match self {
-            Self::Version03 => v03::encode(service_name, spans),
-            Self::Version05 => v05::encode(service_name, spans),
+            Self::Version03 => v03::encode(service_name, traces),
+            Self::Version05 => v05::encode(service_name, traces),
         }
     }
 }
@@ -83,7 +83,7 @@ mod tests {
     use std::sync::Arc;
     use std::time::{Duration, SystemTime};
 
-    fn get_spans() -> Vec<trace::SpanData> {
+    fn get_traces() -> Vec<Vec<trace::SpanData>> {
         let parent_span_id = 1;
         let trace_id = 7;
         let span_id = 99;
@@ -122,13 +122,13 @@ mod tests {
             instrumentation_lib: InstrumentationLibrary::new("component", None),
         };
 
-        vec![span_data]
+        vec![vec![span_data]]
     }
 
     #[test]
     fn test_encode_v03() -> Result<(), Box<dyn std::error::Error>> {
-        let spans = get_spans();
-        let encoded = base64::encode(ApiVersion::Version03.encode("service_name", spans)?);
+        let traces = get_traces();
+        let encoded = base64::encode(ApiVersion::Version03.encode("service_name", traces)?);
 
         assert_eq!(encoded.as_str(), "kZGLpHR5cGWjd2Vip3NlcnZpY2Wsc2VydmljZV9uYW1lpG5hbWWpY29tcG9uZW50qHJlc291cmNlqHJlc291cmNlqHRyYWNlX2lkzwAAAAAAAAAHp3NwYW5faWTPAAAAAAAAAGOpcGFyZW50X2lkzwAAAAAAAAABpXN0YXJ00wAAAAAAAAAAqGR1cmF0aW9u0wAAAAA7msoApWVycm9y0gAAAAGkbWV0YYGpc3Bhbi50eXBlo3dlYg==");
 
@@ -137,8 +137,8 @@ mod tests {
 
     #[test]
     fn test_encode_v05() -> Result<(), Box<dyn std::error::Error>> {
-        let spans = get_spans();
-        let encoded = base64::encode(ApiVersion::Version05.encode("service_name", spans)?);
+        let traces = get_traces();
+        let encoded = base64::encode(ApiVersion::Version05.encode("service_name", traces)?);
 
         assert_eq!(encoded.as_str(), "kpWsc2VydmljZV9uYW1lo3dlYqljb21wb25lbnSocmVzb3VyY2Wpc3Bhbi50eXBlkZGczgAAAADOAAAAAs4AAAADzwAAAAAAAAAHzwAAAAAAAABjzwAAAAAAAAAB0wAAAAAAAAAA0wAAAAA7msoA0gAAAAGBzgAAAATOAAAAAYDOAAAAAQ==");
 
