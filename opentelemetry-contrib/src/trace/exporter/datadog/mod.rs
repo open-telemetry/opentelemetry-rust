@@ -127,6 +127,7 @@ pub use model::Error;
 
 use async_trait::async_trait;
 use http::{Method, Request, Uri};
+use itertools::Itertools;
 use opentelemetry::sdk::export::trace;
 use opentelemetry::sdk::export::trace::SpanData;
 use opentelemetry::trace::TraceError;
@@ -138,6 +139,9 @@ const DEFAULT_AGENT_ENDPOINT: &str = "http://127.0.0.1:8126";
 
 /// Default service name if no service is configured.
 const DEFAULT_SERVICE_NAME: &str = "OpenTelemetry";
+
+/// Header name used to inform the Datadog agent of the number of traces in the payload
+const DATADOG_TRACE_COUNT_HEADER: &str = "X-Datadog-Trace-Count";
 
 /// Datadog span exporter
 #[derive(Debug)]
@@ -270,15 +274,27 @@ impl DatadogPipelineBuilder {
     }
 }
 
+fn group_into_traces(spans: Vec<SpanData>) -> Vec<Vec<SpanData>> {
+    spans
+        .into_iter()
+        .into_group_map_by(|span_data| span_data.span_context.trace_id())
+        .into_iter()
+        .map(|(_, trace)| trace)
+        .collect()
+}
+
 #[async_trait]
 impl trace::SpanExporter for DatadogExporter {
     /// Export spans to datadog-agent
     async fn export(&mut self, batch: Vec<SpanData>) -> trace::ExportResult {
-        let data = self.version.encode(&self.service_name, batch)?;
+        let traces: Vec<Vec<SpanData>> = group_into_traces(batch);
+        let trace_count = traces.len();
+        let data = self.version.encode(&self.service_name, traces)?;
         let req = Request::builder()
             .method(Method::POST)
             .uri(self.request_url.clone())
             .header(http::header::CONTENT_TYPE, self.version.content_type())
+            .header(DATADOG_TRACE_COUNT_HEADER, trace_count)
             .body(data)
             .map_err::<Error, _>(Into::into)?;
         self.client.send(req).await
@@ -289,3 +305,27 @@ impl trace::SpanExporter for DatadogExporter {
 #[must_use]
 #[derive(Debug)]
 pub struct Uninstall(global::TracerProviderGuard);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use crate::trace::exporter::datadog::model::tests::get_span;
+
+    #[test]
+    fn test_out_of_order_group() -> Result<(), Box<dyn std::error::Error>> {
+        let batch = vec![get_span(1, 1, 1), get_span(2, 2, 2), get_span(1, 1, 3)];
+        let expected = vec![
+            vec![get_span(1, 1, 1), get_span(1, 1, 3)],
+            vec![get_span(2, 2, 2)],
+        ];
+
+        let mut traces = group_into_traces(batch);
+        // We need to sort the output in order to compare, but this is not required by the Datadog agent
+        traces.sort_by_key(|t| t[0].span_context.trace_id().to_u128());
+
+        assert_eq!(traces, expected);
+
+        Ok(())
+    }
+}
