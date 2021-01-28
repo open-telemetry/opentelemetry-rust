@@ -12,6 +12,10 @@
 #[cfg(feature = "aws-xray")]
 mod aws;
 pub mod binary;
+#[cfg(feature = "datadog")]
+mod datadog;
 
 #[cfg(feature = "aws-xray")]
 pub use aws::XrayPropagator;
+#[cfg(feature = "datadog")]
+pub use datadog::DatadogPropagator;
