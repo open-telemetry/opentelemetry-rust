@@ -278,10 +278,11 @@ impl DatadogPipelineBuilder {
 impl trace::SpanExporter for DatadogExporter {
     /// Export spans to datadog-agent
     async fn export(&mut self, batch: Vec<SpanData>) -> trace::ExportResult {
-        let mut traces: Vec<Vec<SpanData>> = Vec::new();
-        for (_, trace) in &batch.into_iter().group_by(|span_data| span_data.span_context.trace_id()) {
-            traces.push(trace.collect());
-        }
+        let traces: Vec<Vec<SpanData>> = batch.into_iter()
+            .into_group_map_by(|span_data| span_data.span_context.trace_id())
+            .into_iter()
+            .map(|(_, trace)| trace)
+            .collect();
         let trace_count = traces.len();
         let data = self.version.encode(&self.service_name, traces)?;
         let req = Request::builder()
