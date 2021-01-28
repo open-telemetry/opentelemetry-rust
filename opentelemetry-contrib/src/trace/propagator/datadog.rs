@@ -1,8 +1,8 @@
 use opentelemetry::{
     propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
     trace::{
-        SpanContext, SpanId, TraceContextExt, TraceId, TraceState, TRACE_FLAG_NOT_SAMPLED,
-        TRACE_FLAG_SAMPLED,
+        SpanContext, SpanId, TraceContextExt, TraceId, TraceState, TRACE_FLAG_DEFERRED,
+        TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
     },
     Context,
 };
@@ -10,8 +10,7 @@ use opentelemetry::{
 const DATADOG_TRACE_ID_HEADER: &str = "x-datadog-trace-id";
 const DATADOG_PARENT_ID_HEADER: &str = "x-datadog-parent-id";
 const DATADOG_SAMPLING_PRIORITY_HEADER: &str = "x-datadog-sampling-priority";
-// TODO: Implement origin propagation once the Context API is stable
-// const HTTP_HEADER_ORIGIN: &'static str = "x-datadog-origin";
+
 lazy_static::lazy_static! {
     static ref DATADOG_HEADER_FIELDS: [String; 3] = [
         DATADOG_TRACE_ID_HEADER.to_string(),
@@ -26,11 +25,12 @@ enum SamplingPriority {
     AutoKeep = 1,
     UserKeep = 2,
 }
+
+#[derive(Debug)]
 enum ExtractError {
     TraceId,
     SpanId,
     SamplingPriority,
-    SpanContext,
 }
 
 /// Extracts and injects `SpanContext`s into `Extractor`s or `Injector`s using Datadog's header format.
@@ -90,27 +90,34 @@ impl DatadogPropagator {
     fn extract_span_context(&self, extractor: &dyn Extractor) -> Result<SpanContext, ExtractError> {
         let trace_id =
             self.extract_trace_id(extractor.get(DATADOG_TRACE_ID_HEADER).unwrap_or(""))?;
-        let span_id =
-            self.extract_span_id(extractor.get(DATADOG_PARENT_ID_HEADER).unwrap_or(""))?;
+        // If we have a trace_id but can't get the parent span, we default it to invalid instead of completely erroring
+        // out so that the rest of the spans aren't completely lost
+        let span_id = self
+            .extract_span_id(extractor.get(DATADOG_PARENT_ID_HEADER).unwrap_or(""))
+            .unwrap_or_else(|_| SpanId::invalid());
         let sampling_priority = self.extract_sampling_priority(
             extractor
                 .get(DATADOG_SAMPLING_PRIORITY_HEADER)
                 .unwrap_or(""),
-        )?;
+        );
         let sampled = match sampling_priority {
-            SamplingPriority::UserReject | SamplingPriority::AutoReject => TRACE_FLAG_NOT_SAMPLED,
-            SamplingPriority::UserKeep | SamplingPriority::AutoKeep => TRACE_FLAG_SAMPLED,
+            Ok(SamplingPriority::UserReject) | Ok(SamplingPriority::AutoReject) => {
+                TRACE_FLAG_NOT_SAMPLED
+            }
+            Ok(SamplingPriority::UserKeep) | Ok(SamplingPriority::AutoKeep) => TRACE_FLAG_SAMPLED,
+            // Treat the sampling as DEFERRED instead of erroring on extracting the span context
+            Err(_) => TRACE_FLAG_DEFERRED,
         };
 
         let trace_state = TraceState::default();
 
-        let span_context = SpanContext::new(trace_id, span_id, sampled, true, trace_state);
-
-        if span_context.is_valid() {
-            Ok(span_context)
-        } else {
-            Err(ExtractError::SpanContext)
-        }
+        Ok(SpanContext::new(
+            trace_id,
+            span_id,
+            sampled,
+            true,
+            trace_state,
+        ))
     }
 }
 
@@ -127,16 +134,18 @@ impl TextMapPropagator for DatadogPropagator {
                 span_context.span_id().to_u64().to_string(),
             );
 
-            let sampling_priority = if span_context.is_sampled() {
-                SamplingPriority::AutoKeep
-            } else {
-                SamplingPriority::AutoReject
-            };
+            if !span_context.is_deferred() {
+                let sampling_priority = if span_context.is_sampled() {
+                    SamplingPriority::AutoKeep
+                } else {
+                    SamplingPriority::AutoReject
+                };
 
-            injector.set(
-                DATADOG_SAMPLING_PRIORITY_HEADER,
-                (sampling_priority as i32).to_string(),
-            );
+                injector.set(
+                    DATADOG_SAMPLING_PRIORITY_HEADER,
+                    (sampling_priority as i32).to_string(),
+                );
+            }
         }
     }
 
@@ -150,5 +159,87 @@ impl TextMapPropagator for DatadogPropagator {
 
     fn fields(&self) -> FieldIter<'_> {
         FieldIter::new(DATADOG_HEADER_FIELDS.as_ref())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use opentelemetry::testing::trace::TestSpan;
+    use opentelemetry::trace::TraceState;
+    use std::collections::HashMap;
+
+    #[rustfmt::skip]
+    fn extract_test_data() -> Vec<(Vec<(&'static str, &'static str)>, SpanContext)> {
+        vec![
+            (vec![], SpanContext::empty_context()),
+            (vec![(DATADOG_SAMPLING_PRIORITY_HEADER, "0")], SpanContext::empty_context()),
+            (vec![(DATADOG_TRACE_ID_HEADER, "garbage")], SpanContext::empty_context()),
+            (vec![(DATADOG_TRACE_ID_HEADER, "1234"), (DATADOG_PARENT_ID_HEADER, "garbage")], SpanContext::new(TraceId::from_u128(1234), SpanId::invalid(), TRACE_FLAG_DEFERRED, true, TraceState::default())),
+            (vec![(DATADOG_TRACE_ID_HEADER, "1234"), (DATADOG_PARENT_ID_HEADER, "12")], SpanContext::new(TraceId::from_u128(1234), SpanId::from_u64(12), TRACE_FLAG_DEFERRED, true, TraceState::default())),
+            (vec![(DATADOG_TRACE_ID_HEADER, "1234"), (DATADOG_PARENT_ID_HEADER, "12"), (DATADOG_SAMPLING_PRIORITY_HEADER, "0")], SpanContext::new(TraceId::from_u128(1234), SpanId::from_u64(12), TRACE_FLAG_NOT_SAMPLED, true, TraceState::default())),
+            (vec![(DATADOG_TRACE_ID_HEADER, "1234"), (DATADOG_PARENT_ID_HEADER, "12"), (DATADOG_SAMPLING_PRIORITY_HEADER, "1")], SpanContext::new(TraceId::from_u128(1234), SpanId::from_u64(12), TRACE_FLAG_SAMPLED, true, TraceState::default())),
+        ]
+    }
+
+    #[rustfmt::skip]
+    fn inject_test_data() -> Vec<(Vec<(&'static str, &'static str)>, SpanContext)> {
+        vec![
+            (vec![], SpanContext::empty_context()),
+            (vec![], SpanContext::new(TraceId::from_hex("garbage"), SpanId::invalid(), TRACE_FLAG_DEFERRED, true, TraceState::default())),
+            (vec![], SpanContext::new(TraceId::from_hex("1234"), SpanId::invalid(), TRACE_FLAG_DEFERRED, true, TraceState::default())),
+            (vec![], SpanContext::new(TraceId::from_hex("1234"), SpanId::invalid(), TRACE_FLAG_SAMPLED, true, TraceState::default())),
+            (vec![(DATADOG_TRACE_ID_HEADER, "1234"), (DATADOG_PARENT_ID_HEADER, "12")], SpanContext::new(TraceId::from_u128(1234), SpanId::from_u64(12), TRACE_FLAG_DEFERRED, true, TraceState::default())),
+            (vec![(DATADOG_TRACE_ID_HEADER, "1234"), (DATADOG_PARENT_ID_HEADER, "12"), (DATADOG_SAMPLING_PRIORITY_HEADER, "0")], SpanContext::new(TraceId::from_u128(1234), SpanId::from_u64(12), TRACE_FLAG_NOT_SAMPLED, true, TraceState::default())),
+            (vec![(DATADOG_TRACE_ID_HEADER, "1234"), (DATADOG_PARENT_ID_HEADER, "12"), (DATADOG_SAMPLING_PRIORITY_HEADER, "1")], SpanContext::new(TraceId::from_u128(1234), SpanId::from_u64(12), TRACE_FLAG_SAMPLED, true, TraceState::default())),
+        ]
+    }
+
+    #[test]
+    fn test_extract() {
+        for (header_list, expected) in extract_test_data() {
+            let map: HashMap<String, String> = header_list
+                .into_iter()
+                .map(|(k, v)| (k.to_string(), v.to_string()))
+                .collect();
+
+            let propagator = DatadogPropagator::default();
+            let context = propagator.extract(&map);
+            assert_eq!(context.remote_span_context(), Some(&expected));
+        }
+    }
+
+    #[test]
+    fn test_extract_empty() {
+        let map: HashMap<String, String> = HashMap::new();
+        let propagator = DatadogPropagator::default();
+        let context = propagator.extract(&map);
+        assert_eq!(
+            context.remote_span_context(),
+            Some(&SpanContext::empty_context())
+        )
+    }
+
+    #[test]
+    fn test_inject() {
+        let propagator = DatadogPropagator::default();
+        for (header_values, span_context) in inject_test_data() {
+            let mut injector: HashMap<String, String> = HashMap::new();
+            propagator.inject_context(
+                &Context::current_with_span(TestSpan(span_context)),
+                &mut injector,
+            );
+
+            if header_values.is_empty() {
+                assert!(injector.is_empty());
+            } else {
+                for (k, v) in header_values.into_iter() {
+                    let injected_value: Option<&String> = injector.get(k);
+                    assert_eq!(injected_value, Some(&v.to_string()));
+                    injector.remove(k);
+                }
+                assert!(injector.is_empty());
+            }
+        }
     }
 }
