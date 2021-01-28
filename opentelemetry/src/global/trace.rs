@@ -1,3 +1,4 @@
+use crate::trace::NoopTracerProvider;
 use crate::{trace, trace::TracerProvider, Context, KeyValue};
 use std::fmt;
 use std::mem;
@@ -263,12 +264,12 @@ pub struct TracerProviderGuard(Option<GlobalTracerProvider>);
 
 impl Drop for TracerProviderGuard {
     fn drop(&mut self) {
-        if let Some(previous) = self.0.take() {
-            let mut global_provider = GLOBAL_TRACER_PROVIDER
-                .write()
-                .expect("GLOBAL_TRACER_PROVIDER RwLock poisoned");
-            *global_provider = previous;
-        }
+        // if let Some(previous) = self.0.take() {
+        //     let mut global_provider = GLOBAL_TRACER_PROVIDER
+        //         .write()
+        //         .expect("GLOBAL_TRACER_PROVIDER RwLock poisoned");
+        //     *global_provider = previous;
+        // }
     }
 }
 
@@ -285,9 +286,195 @@ where
     let mut tracer_provider = GLOBAL_TRACER_PROVIDER
         .write()
         .expect("GLOBAL_TRACER_PROVIDER RwLock poisoned");
-    let previous = mem::replace(
+    let _previous = mem::replace(
         &mut *tracer_provider,
         GlobalTracerProvider::new(new_provider),
     );
-    TracerProviderGuard(Some(previous))
+    TracerProviderGuard(None)
+}
+
+/// Shut down the current tracer provider
+#[allow(unreachable_pub, dead_code)]
+pub fn shut_down_provider() {
+    let mut tracer_provider = GLOBAL_TRACER_PROVIDER
+        .write()
+        .expect("GLOBAL_TRACER_PROVIDER RwLock poisoned");
+
+    let _ = mem::replace(
+        &mut *tracer_provider,
+        GlobalTracerProvider::new(NoopTracerProvider::new()),
+    );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::trace::{NoopTracer, Tracer};
+    use std::fmt::Debug;
+    use std::thread;
+    use std::thread::sleep;
+    use std::time::Duration;
+
+    #[derive(Debug)]
+    struct TestTracerProvider {
+        debug_msg: &'static str,
+    }
+
+    impl Default for TestTracerProvider {
+        fn default() -> Self {
+            TestTracerProvider { debug_msg: "" }
+        }
+    }
+
+    impl TestTracerProvider {
+        fn new(debug_msg: &'static str) -> Self {
+            TestTracerProvider { debug_msg }
+        }
+    }
+
+    impl TracerProvider for TestTracerProvider {
+        type Tracer = NoopTracer;
+
+        fn get_tracer(&self, _name: &'static str, _version: Option<&'static str>) -> Self::Tracer {
+            NoopTracer::default()
+        }
+    }
+
+    #[test]
+    fn test_set_tracer_provider() {
+        let _guard = set_tracer_provider(TestTracerProvider::new("global one"));
+
+        {
+            let _guard = set_tracer_provider(TestTracerProvider::new("inner one"));
+
+            println!("{:?}", tracer_provider())
+        }
+
+        println!("{:?}", tracer_provider());
+    }
+
+    #[test]
+    fn test_set_tracer_provider_in_another_thread() {
+        let _guard = set_tracer_provider(TestTracerProvider::new("global one"));
+
+        let handle = thread::spawn(move || {
+            println!("{:?}", tracer_provider());
+        });
+
+        println!("{:?}", tracer_provider());
+
+        let _ = handle.join();
+    }
+
+    #[test]
+    fn test_set_tracer_provider_in_another_function() {
+        let setup = || {
+            let _guard = set_tracer_provider(TestTracerProvider::new("global one"));
+            println!("{:?}", tracer_provider());
+        };
+
+        setup();
+
+        println!("{:?}", tracer_provider());
+    }
+
+    #[test]
+    fn test_set_two_provider_in_two_thread() {
+        let (sender, recv) = std::sync::mpsc::channel();
+        let (sender1, sender2) = (sender.clone(), sender.clone());
+        let _handle1 = thread::spawn(move || {
+            sleep(Duration::from_secs(1));
+            let _guard = set_tracer_provider(TestTracerProvider::new("thread 1"));
+            sleep(Duration::from_secs(2));
+            let _ = sender1.send(format!("thread 1: {:?}", tracer_provider()));
+        });
+        let _handle2 = thread::spawn(move || {
+            sleep(Duration::from_secs(2));
+            let _guard = set_tracer_provider(TestTracerProvider::new("thread 2"));
+            sleep(Duration::from_secs(1));
+            let _ = sender2.send(format!("thread 2 :{:?}", tracer_provider()));
+        });
+
+        for _ in 0..2 {
+            println!("{}", recv.recv().unwrap())
+        }
+    }
+
+    #[tokio::test]
+    #[cfg(feature = "tokio-support")]
+    async fn test_set_provider_single_thread_tokio_with_simple_processor() {
+        use crate::sdk::trace::TracerProvider;
+
+        let exporter = crate::sdk::export::trace::stdout::Exporter::new(std::io::stdout(), true);
+        let provider = TracerProvider::builder()
+            .with_simple_exporter(exporter)
+            .build();
+
+        let _ = set_tracer_provider(provider);
+        let tracer = tracer("opentelemetry");
+
+        tracer.in_span("test", |_cx| {});
+
+        shut_down_provider();
+    }
+
+    // When using `tokio::spawn` to spawn the worker task in batch processor
+    //
+    // multiple -> no shut down -> not export
+    // multiple -> shut down -> export
+    // single -> no shutdown -> not export
+    // single -> shutdown -> hang forever
+
+    // When using |fut| tokio::task::spawn_blocking(|| futures::executor::block_on(fut))
+    // to spawn the worker task in batch processor
+    //
+    // multiple -> no shutdown -> hang forever
+    // multiple -> shut down -> export
+    // single -> shut down -> export
+    // single -> no shutdown -> hang forever
+
+    #[tokio::test]
+    #[cfg(feature = "tokio-support")]
+    async fn test_set_provider_single_thread_tokio() {
+        let _ = test_set_provider_in_tokio().await;
+    }
+
+    #[tokio::test]
+    #[cfg(feature = "tokio-support")]
+    async fn test_set_provider_single_thread_tokio_shutdown() {
+        let _ = test_set_provider_in_tokio().await;
+        // shut_down_provider(); Will block forever
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[cfg(feature = "tokio-support")]
+    async fn test_set_provider_multiple_thread_tokio() {
+        let _ = test_set_provider_in_tokio().await;
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[cfg(feature = "tokio-support")]
+    async fn test_set_provider_multiple_thread_tokio_shutdown() {
+        let _ = test_set_provider_in_tokio().await;
+        shut_down_provider();
+    }
+
+    async fn test_set_provider_in_tokio() {
+        use crate::sdk::trace::TracerProvider;
+
+        let exporter = crate::sdk::export::trace::stdout::Exporter::new(std::io::stdout(), true);
+        let batch = crate::sdk::trace::BatchSpanProcessor::builder(
+            exporter,
+            tokio::spawn,
+            tokio::time::sleep,
+            crate::util::tokio_interval_stream,
+        );
+        let provider = TracerProvider::builder()
+            .with_batch_exporter(batch.build())
+            .build();
+        let _ = set_tracer_provider(provider);
+        let tracer = tracer("opentelemetery");
+
+        tracer.in_span("test", |_cx| {});
+    }
 }
