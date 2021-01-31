@@ -9,13 +9,4 @@
 //! * `XrayPropagator`, propagating via AWS XRay protocol.
 //!
 //! This module also provides relative types for those propagators.
-#[cfg(feature = "aws-xray")]
-mod aws;
 pub mod binary;
-#[cfg(feature = "datadog")]
-mod datadog;
-
-#[cfg(feature = "aws-xray")]
-pub use aws::XrayPropagator;
-#[cfg(feature = "datadog")]
-pub use datadog::DatadogPropagator;

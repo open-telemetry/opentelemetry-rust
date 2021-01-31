@@ -3,7 +3,7 @@ use opentelemetry::{
     trace::{Span, TraceContextExt, Tracer},
     Key,
 };
-use opentelemetry_contrib::trace::exporter::datadog::{new_pipeline, ApiVersion};
+use opentelemetry_datadog::{new_pipeline, ApiVersion};
 use std::thread;
 use std::time::Duration;
 

@@ -42,7 +42,7 @@ enum ExtractError {
 ///
 /// ```
 /// use opentelemetry::global;
-/// use opentelemetry_contrib::trace::propagator::DatadogPropagator;
+/// use opentelemetry_datadog::DatadogPropagator;
 ///
 /// global::set_text_map_propagator(DatadogPropagator::default());
 /// ```

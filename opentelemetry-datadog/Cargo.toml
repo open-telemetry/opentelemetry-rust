@@ -1,0 +1,42 @@
+[package]
+name = "opentelemetry-datadog"
+version = "0.1.0"
+authors = ["OpenTelemetry Authors <cncf-opentelemetry-contributors@lists.cncf.io>"]
+description = "Rust contrib repo for OpenTelemetry"
+homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-datadog"
+repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-datadog"
+readme = "README.md"
+categories = [
+    "development-tools::debugging",
+    "development-tools::profiling",
+]
+keywords = ["opentelemetry", "tracing"]
+license = "Apache-2.0"
+edition = "2018"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[features]
+reqwest-blocking-client = ["reqwest/blocking", "opentelemetry-http/reqwest"]
+reqwest-client = ["reqwest", "opentelemetry-http/reqwest"]
+surf-client = ["surf", "opentelemetry-http/surf"]
+
+[dependencies]
+async-trait = "0.1"
+indexmap = "1.6"
+opentelemetry = { version = "0.12", path = "../opentelemetry", features = ["trace"] }
+opentelemetry-http = { version = "0.1", path = "../opentelemetry-http" }
+rmp = "0.8"
+reqwest = { version = "0.11", optional = true }
+surf = { version = "2.0", optional = true }
+thiserror = "1.0"
+itertools = "0.10"
+http = "0.2"
+lazy_static = "1.4"
+
+[dev-dependencies]
+base64 = "0.13"
+isahc = "0.9"
+opentelemetry = { path = "../opentelemetry", features = ["trace", "testing"] }

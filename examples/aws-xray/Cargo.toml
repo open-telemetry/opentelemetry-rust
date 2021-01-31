@@ -17,5 +17,5 @@ path = "src/client.rs"
 hyper = { version = "0.14", features = ["full"] }
 tokio = { version = "1.0", features = ["full"] }
 opentelemetry = { path = "../../opentelemetry" }
-opentelemetry-contrib = { path = "../../opentelemetry-contrib", features = ["aws-xray"] }
+opentelemetry-aws = { path = "../../opentelemetry-aws", features = ["trace"] }
 opentelemetry-http = { path = "../../opentelemetry-http" }

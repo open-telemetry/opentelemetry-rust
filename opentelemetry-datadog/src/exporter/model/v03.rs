@@ -1,4 +1,4 @@
-use crate::trace::exporter::datadog::model::Error;
+use crate::exporter::model::Error;
 use opentelemetry::sdk::export::trace;
 use opentelemetry::{Key, Value};
 use std::time::SystemTime;

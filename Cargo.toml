@@ -2,10 +2,12 @@
 members = [
     "opentelemetry",
     "opentelemetry-contrib",
+    "opentelemetry-datadog",
     "opentelemetry-http",
     "opentelemetry-jaeger",
     "opentelemetry-otlp",
     "opentelemetry-prometheus",
+    "opentelemetry-aws",
     "opentelemetry-semantic-conventions",
     "opentelemetry-zipkin",
     "examples/actix-http",

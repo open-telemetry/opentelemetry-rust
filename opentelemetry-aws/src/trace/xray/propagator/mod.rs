@@ -32,7 +32,7 @@ lazy_static::lazy_static! {
 ///
 /// ```
 /// use opentelemetry::global;
-/// use opentelemetry_contrib::trace::propagator::XrayPropagator;
+/// use opentelemetry_aws::trace::XrayPropagator;
 ///
 /// global::set_text_map_propagator(XrayPropagator::default());
 /// ```
