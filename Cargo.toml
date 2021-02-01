@@ -11,34 +11,34 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [build-dependencies]
-tonic-build = "0.3.1"
+tonic-build = "0.4.0"
 which = "4.0.2"
 
 [dev-dependencies]
 futures = { version = "0.3", features = ["thread-pool"] }
-tokio = { version = "0.2", features = ["rt-core", "rt-threaded"] }
+tokio = { version = "1.1", features = ["macros", "rt-multi-thread"] }
 tracing = "0.1"
 tracing-futures = "0.2.2"
-tracing-opentelemetry = "0.10"
+tracing-opentelemetry = "0.11"
 tracing-subscriber = { version = "0.2.15", default-features = false, features = ["ansi", "registry"] }
 
 [dependencies]
 async-trait = "0.1.41"
 futures = { version = "0.3", default-features = false }
-gcp_auth = { version = "0.3.2", optional = true }
+gcp_auth = { version = "0.4.0", optional = true }
 hex = "0.4"
 http = "0.2"
-hyper = "0.13"
-hyper-rustls = { version = "0.20", optional = true }
+hyper = "0.14.2"
+hyper-rustls = { version = "0.22.1", optional = true }
 log = "0.4"
-opentelemetry = "0.11.2"
-prost = "0.6"
-prost-types = "0.6"
-rustls = "0.18"
-tonic = { version = "0.3.1", features = ["transport", "tls"] }
-tokio = { version = "0.2", optional = true }
-yup-oauth2 = { version = "4.1", optional = true }
-webpki-roots = "0.20"
+opentelemetry = "0.12.0"
+prost = "0.7"
+prost-types = "0.7"
+rustls = "0.19"
+tonic = { version = "0.4", features = ["tls", "transport"] }
+tokio = { version = "1.1", optional = true }
+yup-oauth2 = { version = "5.0.1", optional = true }
+webpki-roots = "0.21"
 
 [features]
 default = ["yup-authorizer"]
