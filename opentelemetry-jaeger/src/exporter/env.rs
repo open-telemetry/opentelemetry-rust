@@ -1,6 +1,5 @@
 use crate::PipelineBuilder;
 use std::env;
-use std::net;
 
 /// The name under which Jaeger will group reported spans.
 const ENV_SERVICE_NAME: &str = "OTEL_SERVICE_NAME";
@@ -33,9 +32,7 @@ pub(crate) fn assign_attrs(mut builder: PipelineBuilder) -> PipelineBuilder {
     }
 
     if let (Ok(host), Ok(port)) = (env::var(ENV_AGENT_HOST), env::var(ENV_AGENT_PORT)) {
-        if let Ok(addr) = format!("{}:{}", host.trim(), port.trim()).parse::<net::SocketAddr>() {
-            builder = builder.with_agent_endpoint(addr);
-        }
+        builder = builder.with_agent_endpoint(format!("{}:{}", host.trim(), port.trim()));
     }
 
     #[cfg(feature = "collector_client")]
