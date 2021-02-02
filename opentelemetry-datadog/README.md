@@ -6,7 +6,7 @@
 
 Community supported vendor integrations for applications instrumented with [`OpenTelemetry`].
 
-[![Crates.io: opentelemetry-datadog](https://img.shields.io/crates/v/opentelemetry-datadog.svg)](https://crates.io/crates/opentelemetry-contrib)
+[![Crates.io: opentelemetry-datadog](https://img.shields.io/crates/v/opentelemetry-datadog.svg)](https://crates.io/crates/opentelemetry-datadog)
 [![Documentation](https://docs.rs/opentelemetry-datadog/badge.svg)](https://docs.rs/opentelemetry-datadog)
 [![LICENSE](https://img.shields.io/crates/l/opentelemetry-datadog)](./LICENSE)
 [![GitHub Actions CI](https://github.com/open-telemetry/opentelemetry-rust/workflows/CI/badge.svg)](https://github.com/open-telemetry/opentelemetry-rust/actions?query=workflow%3ACI+branch%3Amain)
