@@ -642,7 +642,6 @@ const OTEL_STATUS_CODE: &str = "otel.status_code";
 const OTEL_STATUS_DESCRIPTION: &str = "otel.status_description";
 
 #[derive(Default)]
-#[allow(unused)]
 struct UserOverrides {
     error: bool,
     span_kind: bool,
