@@ -605,8 +605,8 @@ fn build_span_tags(
     }
 
     if status_code != StatusCode::Unset {
-        // Ensure error status is set
-        if status_code == StatusCode::Error {
+        // Ensure error status is set or user manually set it to error
+        if status_code == StatusCode::Error || user_overrides.error {
             tags.push(Key::new(ERROR).bool(true).into());
         }
         tags.push(
