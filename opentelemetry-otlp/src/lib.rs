@@ -245,6 +245,13 @@ impl OtlpPipelineBuilder {
         self
     }
 
+    /// Enable TLS without any certificate pinning.
+    #[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
+    pub fn with_tls(mut self, use_tls: bool) -> Self {
+        self.exporter_config.use_tls = Some(use_tls);
+        self
+    }
+
     /// Set the timeout to the collector.
     pub fn with_timeout(mut self, timeout: Duration) -> Self {
         self.exporter_config.timeout = timeout;
