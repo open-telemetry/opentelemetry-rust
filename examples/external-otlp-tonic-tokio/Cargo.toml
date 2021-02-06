@@ -1,0 +1,22 @@
+[package]
+name = "external-otlp-tonic-tokio"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+futures = "0.3"
+lazy_static = "1.4"
+opentelemetry = { path = "../../opentelemetry", features = [
+    "tokio-support",
+    "metrics",
+    "serialize"
+] }
+opentelemetry-otlp = { path = "../../opentelemetry-otlp", features = [
+    "tonic",
+    "tls",
+    "tls-roots",
+] }
+serde_json = "1.0"
+tokio = { version = "1.0", features = ["full"] }
+tonic = "0.4.0"
+url = "2.2.0"
