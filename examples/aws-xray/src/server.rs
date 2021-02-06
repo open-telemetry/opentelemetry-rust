@@ -6,7 +6,7 @@ use opentelemetry::{
     sdk::trace as sdktrace,
     trace::{Span, Tracer},
 };
-use opentelemetry_aws::trace::XrayPropagator;
+use opentelemetry_aws::XrayPropagator;
 use opentelemetry_http::HeaderExtractor;
 use std::{convert::Infallible, net::SocketAddr};
 
