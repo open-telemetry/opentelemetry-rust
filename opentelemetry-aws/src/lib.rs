@@ -3,7 +3,7 @@
 //! This crate provides integration with different telemetry platform.
 
 #[cfg(feature = "trace")]
-pub mod trace{
+pub mod trace {
     use opentelemetry::{
         propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
         trace::{
