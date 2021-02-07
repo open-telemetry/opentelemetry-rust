@@ -80,7 +80,7 @@ lazy_static::lazy_static! {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
-    let _guard = init_tracer()?;
+    let (_, _guard) = init_tracer()?;
 
     let tracer = global::tracer("ex.com/basic");
 
