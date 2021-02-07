@@ -5,8 +5,8 @@ edition = "2018"
 
 [dependencies]
 async-std = { version = "1.9.0", features = ["attributes"] }
+env_logger = "0.8.2"
 futures = "0.3"
-lazy_static = "1.4"
 opentelemetry = { path = "../../opentelemetry", features = [
     "async-std",
     "serialize"

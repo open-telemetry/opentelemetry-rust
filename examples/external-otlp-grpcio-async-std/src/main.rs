@@ -6,16 +6,21 @@
 //! OTLP_GRPCIO_X_HONEYCOMB_TEAM=token \
 //! OTLP_GRPCIO_X_HONEYCOMB_DATASET=dataset \'
 //! cargo run --bin external-otlp-tonic-tokio
+//! ```
 use async_std::task::sleep;
 use opentelemetry::trace::TraceError;
 use opentelemetry::{global, sdk::trace as sdktrace};
 use opentelemetry::{
     trace::{TraceContextExt, Tracer},
-    Key, KeyValue,
+    Key,
 };
 use url::Url;
 
-use std::{collections::HashMap, env::vars, time::Duration};
+use std::{
+    collections::HashMap,
+    env::{set_var, vars},
+    time::Duration,
+};
 use std::{
     env::{remove_var, var},
     error::Error,
@@ -63,17 +68,13 @@ fn init_tracer() -> Result<(sdktrace::Tracer, opentelemetry_otlp::Uninstall), Tr
 const LEMONS_KEY: Key = Key::from_static_str("ex.com/lemons");
 const ANOTHER_KEY: Key = Key::from_static_str("ex.com/another");
 
-lazy_static::lazy_static! {
-    static ref COMMON_LABELS: [KeyValue; 4] = [
-        LEMONS_KEY.i64(10),
-        KeyValue::new("A", "1"),
-        KeyValue::new("B", "2"),
-        KeyValue::new("C", "3"),
-    ];
-}
-
 #[async_std::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
+    match var("RUST_LOG") {
+        Err(std::env::VarError::NotPresent) => set_var("RUST_LOG", "trace"),
+        _ => {}
+    };
+    env_logger::init();
     let _guard = init_tracer()?;
 
     let tracer = global::tracer("ex.com/basic");
