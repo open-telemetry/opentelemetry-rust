@@ -11,7 +11,7 @@ use opentelemetry::trace::TraceError;
 use opentelemetry::{global, sdk::trace as sdktrace};
 use opentelemetry::{
     trace::{TraceContextExt, Tracer},
-    Key, KeyValue,
+    Key,
 };
 use tonic::{
     metadata::{MetadataKey, MetadataMap},
@@ -45,9 +45,9 @@ fn init_tracer() -> Result<(sdktrace::Tracer, opentelemetry_otlp::Uninstall), Tr
         .map(|(name, value)| {
             let header_name = name
                 .strip_prefix(HEADER_PREFIX)
-                .unwrap()
-                .replace("_", "-")
-                .to_ascii_lowercase();
+                .map(|h| h.replace("_", "-"))
+                .map(|h| h.to_ascii_lowercase())
+                .unwrap();
             (header_name, value)
         })
     {
@@ -69,15 +69,6 @@ fn init_tracer() -> Result<(sdktrace::Tracer, opentelemetry_otlp::Uninstall), Tr
 
 const LEMONS_KEY: Key = Key::from_static_str("ex.com/lemons");
 const ANOTHER_KEY: Key = Key::from_static_str("ex.com/another");
-
-lazy_static::lazy_static! {
-    static ref COMMON_LABELS: [KeyValue; 4] = [
-        LEMONS_KEY.i64(10),
-        KeyValue::new("A", "1"),
-        KeyValue::new("B", "2"),
-        KeyValue::new("C", "3"),
-    ];
-}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
