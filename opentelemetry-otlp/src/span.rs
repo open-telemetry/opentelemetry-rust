@@ -42,7 +42,7 @@ use std::fmt::Debug;
 #[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
 use std::sync::Arc;
 
-use crate::Protocol;
+use crate::{Protocol, OTEL_EXPORTER_OTLP_ENDPOINT_DEFAULT, OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT};
 use opentelemetry::sdk::export::trace::{ExportResult, SpanData, SpanExporter};
 use std::time::Duration;
 
@@ -138,18 +138,16 @@ impl Into<grpcio::CompressionAlgorithms> for Compression {
     }
 }
 
-const DEFAULT_OTLP_PORT: u16 = 4317;
-
 impl Default for ExporterConfig {
     #[cfg(feature = "tonic")]
     fn default() -> Self {
         ExporterConfig {
-            endpoint: format!("http://localhost:{}", DEFAULT_OTLP_PORT),
+            endpoint: OTEL_EXPORTER_OTLP_ENDPOINT_DEFAULT.to_string(),
             protocol: Protocol::Grpc,
             #[cfg(all(feature = "tonic", feature = "tls"))]
             tls_config: None,
             metadata: None,
-            timeout: Duration::from_secs(60),
+            timeout: Duration::from_secs(OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT),
             #[cfg(not(feature = "async"))]
             runtime: None,
         }
@@ -158,13 +156,13 @@ impl Default for ExporterConfig {
     #[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
     fn default() -> Self {
         ExporterConfig {
-            endpoint: format!("localhost:{}", DEFAULT_OTLP_PORT),
+            endpoint: OTEL_EXPORTER_OTLP_ENDPOINT_DEFAULT.to_string(),
             protocol: Protocol::Grpc,
             credentials: None,
             headers: None,
             compression: None,
             use_tls: None,
-            timeout: Duration::from_secs(60),
+            timeout: Duration::from_secs(OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT),
             completion_queue_count: 2,
         }
     }
