@@ -6,6 +6,7 @@
 //! OTLP_TONIC_X_HONEYCOMB_TEAM=token \
 //! OTLP_TONIC_X_HONEYCOMB_DATASET=dataset \'
 //! cargo run --bin external-otlp-tonic-tokio
+//! ```
 use opentelemetry::trace::TraceError;
 use opentelemetry::{global, sdk::trace as sdktrace};
 use opentelemetry::{
