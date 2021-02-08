@@ -47,12 +47,6 @@
 //! * `tokio-support`: Spawn telemetry tasks using [tokio]'s runtime.
 //! * `async-std`: Spawn telemetry tasks using [async-std]'s runtime.
 //!
-//! The following flags enable propagating information in other crate
-//! ecosystems:
-//!
-//! * `http`: Propagate information via [http] header maps.
-//! * `tonic`: Propagate information via [tonic]'s metadata.
-//!
 //! Finally the following flags can be used by exporter authors:
 //!
 //! * `reqwest`: Implementation of [`HttpClient`] for [reqwest].
