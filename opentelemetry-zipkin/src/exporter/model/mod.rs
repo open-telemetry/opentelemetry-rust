@@ -1,6 +1,6 @@
 use opentelemetry::{
     sdk::export::trace,
-    trace::{Event, SpanKind, StatusCode},
+    trace::{SpanKind, StatusCode},
     Key, KeyValue,
 };
 use std::collections::HashMap;
@@ -16,22 +16,6 @@ const INSTRUMENTATION_LIBRARY_NAME: &str = "otel.library.name";
 const INSTRUMENTATION_LIBRARY_VERSION: &str = "otel.library.version";
 const OTEL_ERROR_DESCRIPTION: &str = "error";
 const OTEL_STATUS_CODE: &str = "otel.status_code";
-
-/// Converts `Event` into an `annotation::Annotation`
-impl Into<annotation::Annotation> for Event {
-    fn into(self) -> annotation::Annotation {
-        let timestamp = self
-            .timestamp
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap_or_else(|_| Duration::from_secs(0))
-            .as_micros() as u64;
-
-        annotation::Annotation::builder()
-            .timestamp(timestamp)
-            .value(self.name)
-            .build()
-    }
-}
 
 /// Converts StatusCode to Option<&'static str>
 /// `Unset` status code is unused.

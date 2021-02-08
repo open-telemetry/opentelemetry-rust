@@ -1,14 +1,33 @@
+use std::time::{Duration, SystemTime};
+
+use opentelemetry::trace::Event;
 use serde::Serialize;
 
 #[derive(TypedBuilder, Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Annotation {
+pub(crate) struct Annotation {
     #[builder(setter(strip_option), default)]
     #[serde(skip_serializing_if = "Option::is_none")]
     timestamp: Option<u64>,
     #[builder(setter(strip_option), default)]
     #[serde(skip_serializing_if = "Option::is_none")]
     value: Option<String>,
+}
+
+/// Converts `Event` into an `annotation::Annotation`
+impl From<Event> for Annotation {
+    fn from(event: Event) -> Annotation {
+        let timestamp = event
+            .timestamp
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap_or_else(|_| Duration::from_secs(0))
+            .as_micros() as u64;
+
+        Annotation::builder()
+            .timestamp(timestamp)
+            .value(event.name)
+            .build()
+    }
 }
 
 #[cfg(test)]
