@@ -1,5 +1,5 @@
-use crate::trace::exporter::datadog::intern::StringInterner;
-use crate::trace::exporter::datadog::Error;
+use crate::exporter::intern::StringInterner;
+use crate::exporter::Error;
 use opentelemetry::sdk::export::trace;
 use opentelemetry::{Key, Value};
 use std::time::SystemTime;

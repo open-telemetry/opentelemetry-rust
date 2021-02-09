@@ -6,7 +6,7 @@ use opentelemetry::{
     trace::{TraceContextExt, Tracer},
     Context, KeyValue,
 };
-use opentelemetry_contrib::trace::propagator::XrayPropagator;
+use opentelemetry_aws::XrayPropagator;
 use opentelemetry_http::HeaderInjector;
 
 fn init_tracer() -> (sdktrace::Tracer, stdout::Uninstall) {

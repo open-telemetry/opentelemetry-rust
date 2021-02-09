@@ -1,10 +1,10 @@
 [package]
-name = "opentelemetry-contrib"
-version = "0.4.0"
+name = "opentelemetry-aws"
+version = "0.1.0"
 authors = ["OpenTelemetry Authors <cncf-opentelemetry-contributors@lists.cncf.io>"]
-description = "Rust contrib repo for OpenTelemetry"
-homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-contrib"
-repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-contrib"
+description = "AWS exporters and propagators for OpenTelemetry"
+homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-aws"
+repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-aws"
 readme = "README.md"
 categories = [
     "development-tools::debugging",
@@ -19,15 +19,12 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-default = []
-base64_format = ["base64", "binary_propagator"]
-binary_propagator = []
+default = ["trace"]
+trace = ["opentelemetry/trace"]
 
 [dependencies]
 opentelemetry = { version = "0.12", path = "../opentelemetry", features = ["trace"] }
-base64 = { version = "0.13", optional = true }
 lazy_static = "1.4"
 
 [dev-dependencies]
-base64 = "0.13"
 opentelemetry = { path = "../opentelemetry", features = ["trace", "testing"] }
