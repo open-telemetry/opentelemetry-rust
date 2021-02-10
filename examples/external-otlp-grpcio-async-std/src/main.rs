@@ -4,7 +4,7 @@
 //! ```shell
 //! OTLP_GRPCIO_ENDPOINT=https://api.honeycomb.io:443 \
 //! OTLP_GRPCIO_X_HONEYCOMB_TEAM=token \
-//! OTLP_GRPCIO_X_HONEYCOMB_DATASET=dataset \'
+//! OTLP_GRPCIO_X_HONEYCOMB_DATASET=dataset \
 //! cargo run --bin external-otlp-tonic-tokio
 //! ```
 use async_std::task::sleep;
