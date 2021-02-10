@@ -26,7 +26,7 @@ use opentelemetry::{
     global, sdk,
     sdk::export::trace,
     trace::{Event, Link, SpanKind, StatusCode, TracerProvider},
-    Key, KeyValue, Value,
+    Key, KeyValue,
 };
 #[cfg(feature = "collector_client")]
 use opentelemetry_http::HttpClient;
@@ -84,15 +84,6 @@ pub struct Process {
     pub service_name: String,
     /// Jaeger tags
     pub tags: Vec<KeyValue>,
-}
-
-impl Into<jaeger::Process> for Process {
-    fn into(self) -> jaeger::Process {
-        jaeger::Process::new(
-            self.service_name,
-            Some(self.tags.into_iter().map(Into::into).collect()),
-        )
-    }
 }
 
 #[async_trait]
@@ -444,48 +435,6 @@ impl surf::middleware::Middleware for BasicAuthMiddleware {
     ) -> surf::Result<surf::Response> {
         req.insert_header(self.0.name(), self.0.value());
         next.run(req, client).await
-    }
-}
-
-#[rustfmt::skip]
-impl Into<jaeger::Tag> for KeyValue {
-    fn into(self) -> jaeger::Tag {
-        let KeyValue { key, value } = self;
-        match value {
-            Value::String(s) => jaeger::Tag::new(key.into(), jaeger::TagType::String, Some(s.into()), None, None, None, None),
-            Value::F64(f) => jaeger::Tag::new(key.into(), jaeger::TagType::Double, None, Some(f.into()), None, None, None),
-            Value::Bool(b) => jaeger::Tag::new(key.into(), jaeger::TagType::Bool, None, None, Some(b), None, None),
-            Value::I64(i) => jaeger::Tag::new(key.into(), jaeger::TagType::Long, None, None, None, Some(i), None),
-            // TODO: better Array handling, jaeger thrift doesn't support arrays
-            v @ Value::Array(_) => jaeger::Tag::new(key.into(), jaeger::TagType::String, Some(v.to_string()), None, None, None, None),
-        }
-    }
-}
-
-impl Into<jaeger::Log> for Event {
-    fn into(self) -> jaeger::Log {
-        let timestamp = self
-            .timestamp
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap_or_else(|_| Duration::from_secs(0))
-            .as_micros() as i64;
-        let mut event_set_via_attribute = false;
-        let mut fields = self
-            .attributes
-            .into_iter()
-            .map(|attr| {
-                if attr.key.as_str() == "event" {
-                    event_set_via_attribute = true;
-                };
-                attr.into()
-            })
-            .collect::<Vec<_>>();
-
-        if !event_set_via_attribute {
-            fields.push(Key::new("event").string(self.name).into());
-        }
-
-        jaeger::Log::new(timestamp, fields)
     }
 }
 

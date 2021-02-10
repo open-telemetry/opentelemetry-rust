@@ -302,7 +302,7 @@ impl FromStr for TraceState {
             }
         }
 
-        Ok(TraceState::from_key_value(key_value_pairs)?)
+        TraceState::from_key_value(key_value_pairs)
     }
 }
 
