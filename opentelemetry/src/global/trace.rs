@@ -307,13 +307,70 @@ pub fn shut_down_provider() {
 }
 
 #[cfg(test)]
+// Note that all tests here should be marked as ignore so that it won't be picked up by default
+// We need to run those tests one by one as the GlobalTracerProvider is a shared object between threads
+// Use cargo test -- --ignored --run_threads=1 to run those tests.
 mod tests {
     use super::*;
-    use crate::trace::{NoopTracer, Tracer};
+    use crate::trace::NoopTracer;
+    #[cfg(feature = "tokio-support")]
+    use crate::trace::Tracer;
     use std::fmt::Debug;
+    #[cfg(feature = "tokio-support")]
+    use std::io::Write;
+    #[cfg(feature = "tokio-support")]
+    use std::sync::Mutex;
     use std::thread;
     use std::thread::sleep;
     use std::time::Duration;
+
+    macro_rules! cfg_tokio {
+        ($($item:item)*) => {
+            $(
+                #[cfg(feature = "tokio-support")]
+                $item
+            )*
+        }
+    }
+
+    cfg_tokio! {
+        #[derive(Debug)]
+        struct AssertWriter {
+            buf: Arc<Mutex<Vec<u8>>>
+        }
+
+        impl AssertWriter {
+            fn new() -> AssertWriter {
+                AssertWriter {
+                    buf: Arc::new(Mutex::new(Vec::new())),
+                }
+            }
+
+            fn len(&self) -> usize {
+                self.buf.lock().expect("cannot acquire the lock of assert writer").len()
+            }
+        }
+
+        impl Write for AssertWriter {
+            fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+                let mut buffer = self.buf.lock().expect("cannot acquire the lock of assert writer");
+                buffer.write(buf)
+            }
+
+            fn flush(&mut self) -> std::io::Result<()> {
+                let mut buffer = self.buf.lock().expect("cannot acquire the lock of assert writer");
+                buffer.flush()
+            }
+        }
+
+        impl Clone for AssertWriter {
+            fn clone(&self) -> Self {
+                AssertWriter {
+                    buf: self.buf.clone()
+                }
+            }
+        }
+    }
 
     #[derive(Debug)]
     struct TestTracerProvider {
@@ -341,24 +398,25 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_set_tracer_provider() {
         let _guard = set_tracer_provider(TestTracerProvider::new("global one"));
 
         {
             let _guard = set_tracer_provider(TestTracerProvider::new("inner one"));
-
-            println!("{:?}", tracer_provider())
+            assert!(format!("{:?}", tracer_provider()).contains("inner one"));
         }
 
-        println!("{:?}", tracer_provider());
+        assert!(format!("{:?}", tracer_provider()).contains("inner one"));
     }
 
     #[test]
+    #[ignore]
     fn test_set_tracer_provider_in_another_thread() {
         let _guard = set_tracer_provider(TestTracerProvider::new("global one"));
 
         let handle = thread::spawn(move || {
-            println!("{:?}", tracer_provider());
+            assert!(format!("{:?}", tracer_provider()).contains("global one"));
         });
 
         println!("{:?}", tracer_provider());
@@ -367,18 +425,20 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_set_tracer_provider_in_another_function() {
         let setup = || {
             let _guard = set_tracer_provider(TestTracerProvider::new("global one"));
-            println!("{:?}", tracer_provider());
+            assert!(format!("{:?}", tracer_provider()).contains("global one"))
         };
 
         setup();
 
-        println!("{:?}", tracer_provider());
+        assert!(format!("{:?}", tracer_provider()).contains("global one"))
     }
 
     #[test]
+    #[ignore]
     fn test_set_two_provider_in_two_thread() {
         let (sender, recv) = std::sync::mpsc::channel();
         let (sender1, sender2) = (sender.clone(), sender.clone());
@@ -395,86 +455,112 @@ mod tests {
             let _ = sender2.send(format!("thread 2 :{:?}", tracer_provider()));
         });
 
-        for _ in 0..2 {
-            println!("{}", recv.recv().unwrap())
+        let first_resp = recv.recv().unwrap();
+        let second_resp = recv.recv().unwrap();
+        assert!(first_resp.contains("thread 2"));
+        assert!(second_resp.contains("thread 2"));
+    }
+
+    cfg_tokio! {
+        // Test use simple processor in single thread tokio runtime.
+        // Expected to see the spans being exported to buffer
+        #[tokio::test]
+        #[ignore]
+        async fn test_set_provider_single_thread_tokio_with_simple_processor() {
+            use crate::sdk::trace::TracerProvider;
+
+            let assert_writer = AssertWriter::new();
+
+            let exporter = crate::sdk::export::trace::stdout::Exporter::new(assert_writer.clone(), true);
+            let provider = TracerProvider::builder()
+                .with_simple_exporter(exporter)
+                .build();
+
+            let _ = set_tracer_provider(provider);
+            let tracer = tracer("opentelemetry");
+
+            tracer.in_span("test", |_cx| {});
+
+            shut_down_provider();
+
+            assert!(assert_writer.len() > 0);
         }
-    }
 
-    #[tokio::test]
-    #[cfg(feature = "tokio-support")]
-    async fn test_set_provider_single_thread_tokio_with_simple_processor() {
-        use crate::sdk::trace::TracerProvider;
+        // When using `tokio::spawn` to spawn the worker task in batch processor
+        //
+        // multiple -> no shut down -> not export
+        // multiple -> shut down -> export
+        // single -> no shutdown -> not export
+        // single -> shutdown -> hang forever
 
-        let exporter = crate::sdk::export::trace::stdout::Exporter::new(std::io::stdout(), true);
-        let provider = TracerProvider::builder()
-            .with_simple_exporter(exporter)
-            .build();
+        // When using |fut| tokio::task::spawn_blocking(|| futures::executor::block_on(fut))
+        // to spawn the worker task in batch processor
+        //
+        // multiple -> no shutdown -> hang forever
+        // multiple -> shut down -> export
+        // single -> shut down -> export
+        // single -> no shutdown -> hang forever
 
-        let _ = set_tracer_provider(provider);
-        let tracer = tracer("opentelemetry");
+        // Test if the single thread tokio runtime could exit successfully when not force flushing spans
+        #[tokio::test]
+        #[ignore]
+        async fn test_set_provider_single_thread_tokio() {
+            let assert_writer = test_set_provider_in_tokio().await;
+            assert_eq!(assert_writer.len(), 0)
+        }
 
-        tracer.in_span("test", |_cx| {});
+        // Test if the single thread tokio runtime could exit successfully when force flushing spans.
+        #[tokio::test]
+        #[ignore]
+        async fn test_set_provider_single_thread_tokio_shutdown() {
+            let _ = test_set_provider_in_tokio().await;
+            // shut_down_provider(); Will block forever
+        }
 
-        shut_down_provider();
-    }
+        // Test if the multiple thread tokio runtime could exit successfully when not force flushing spans
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        #[ignore]
+        async fn test_set_provider_multiple_thread_tokio() {
+            let assert_writer = test_set_provider_in_tokio().await;
+            assert_eq!(assert_writer.len(), 0);
+        }
 
-    // When using `tokio::spawn` to spawn the worker task in batch processor
-    //
-    // multiple -> no shut down -> not export
-    // multiple -> shut down -> export
-    // single -> no shutdown -> not export
-    // single -> shutdown -> hang forever
+        // Test if the multiple thread tokio runtime could exit successfully when force flushing spans
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        #[ignore]
+        async fn test_set_provider_multiple_thread_tokio_shutdown() {
+            let assert_writer = test_set_provider_in_tokio().await;
+            shut_down_provider();
+            assert!(assert_writer.len() > 0);
+        }
 
-    // When using |fut| tokio::task::spawn_blocking(|| futures::executor::block_on(fut))
-    // to spawn the worker task in batch processor
-    //
-    // multiple -> no shutdown -> hang forever
-    // multiple -> shut down -> export
-    // single -> shut down -> export
-    // single -> no shutdown -> hang forever
+        async fn test_set_provider_in_tokio() -> AssertWriter {
+            use crate::sdk::trace::TracerProvider;
 
-    #[tokio::test]
-    #[cfg(feature = "tokio-support")]
-    async fn test_set_provider_single_thread_tokio() {
-        let _ = test_set_provider_in_tokio().await;
-    }
+            let buffer = AssertWriter {
+                buf: Arc::new(Mutex::new(Vec::new())),
+            };
 
-    #[tokio::test]
-    #[cfg(feature = "tokio-support")]
-    async fn test_set_provider_single_thread_tokio_shutdown() {
-        let _ = test_set_provider_in_tokio().await;
-        // shut_down_provider(); Will block forever
-    }
+            let exporter = crate::sdk::export::trace::stdout::Exporter::new(buffer.clone(), true);
+            let batch = crate::sdk::trace::BatchSpanProcessor::builder(
+                exporter,
+                tokio::spawn,
+                tokio::time::sleep,
+                crate::util::tokio_interval_stream,
+            );
+            let provider = TracerProvider::builder()
+                .with_batch_exporter(batch
+                    // having a large delay so the content can only be exported via flush or shutdown
+                    .with_scheduled_delay(Duration::from_secs(600))
+                    .build())
+                .build();
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    #[cfg(feature = "tokio-support")]
-    async fn test_set_provider_multiple_thread_tokio() {
-        let _ = test_set_provider_in_tokio().await;
-    }
+            let _ = set_tracer_provider(provider);
+            let tracer = tracer("opentelemetery");
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    #[cfg(feature = "tokio-support")]
-    async fn test_set_provider_multiple_thread_tokio_shutdown() {
-        let _ = test_set_provider_in_tokio().await;
-        shut_down_provider();
-    }
+            tracer.in_span("test", |_cx| {});
 
-    async fn test_set_provider_in_tokio() {
-        use crate::sdk::trace::TracerProvider;
-
-        let exporter = crate::sdk::export::trace::stdout::Exporter::new(std::io::stdout(), true);
-        let batch = crate::sdk::trace::BatchSpanProcessor::builder(
-            exporter,
-            tokio::spawn,
-            tokio::time::sleep,
-            crate::util::tokio_interval_stream,
-        );
-        let provider = TracerProvider::builder()
-            .with_batch_exporter(batch.build())
-            .build();
-        let _ = set_tracer_provider(provider);
-        let tracer = tracer("opentelemetery");
-
-        tracer.in_span("test", |_cx| {});
+            buffer
+        }
     }
 }
