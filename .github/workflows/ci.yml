@@ -40,6 +40,25 @@ jobs:
         args: --all -- --check
     - name: Lint
       run: ./scripts/lint.sh
+  non-default-examples:
+    strategy:
+      matrix:
+        example: [examples/external-otlp-grpcio-async-std]
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+      with:
+        submodules: true
+    - uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        components: rustfmt
+        profile: minimal
+    - uses: arduino/setup-protoc@v1
+    - name: Build
+      run: |
+        cd ${{ matrix.example }}
+        cargo build --verbose
   msrv:
     runs-on: ubuntu-latest
     steps:
