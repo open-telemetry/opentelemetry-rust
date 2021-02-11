@@ -414,6 +414,8 @@ mod tests {
 
         std::env::remove_var(OTEL_EXPORTER_OTLP_ENDPOINT);
         std::env::remove_var(OTEL_EXPORTER_OTLP_TIMEOUT);
+        assert!(std::env::var(OTEL_EXPORTER_OTLP_ENDPOINT).is_err());
+        assert!(std::env::var(OTEL_EXPORTER_OTLP_TIMEOUT).is_err());
     }
 
     #[test]
@@ -440,5 +442,7 @@ mod tests {
 
         std::env::remove_var(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT);
         std::env::remove_var(OTEL_EXPORTER_OTLP_TRACES_TIMEOUT);
+        assert!(std::env::var(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT).is_err());
+        assert!(std::env::var(OTEL_EXPORTER_OTLP_TRACES_TIMEOUT).is_err());
     }
 }
