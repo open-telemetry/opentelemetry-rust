@@ -1,0 +1,19 @@
+[package]
+name = "external-otlp-grpcio-async-std"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+async-std = { version = "1.9.0", features = ["attributes"] }
+env_logger = "0.8.2"
+futures = "0.3"
+opentelemetry = { path = "../../opentelemetry", features = [
+    "async-std",
+    "serialize"
+] }
+opentelemetry-otlp = { path = "../../opentelemetry-otlp", features = [
+    "grpc-sys",
+    "openssl-vendored"
+], default-features = false }
+serde_json = "1.0"
+url = "2.2.0"

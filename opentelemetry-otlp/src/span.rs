@@ -95,6 +95,10 @@ pub struct ExporterConfig {
     #[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
     pub compression: Option<Compression>,
 
+    /// Use TLS without any specific certificate pinning.
+    #[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
+    pub use_tls: Option<bool>,
+
     /// The timeout to the collector.
     pub timeout: Duration,
 
@@ -159,6 +163,7 @@ impl Default for ExporterConfig {
             credentials: None,
             headers: None,
             compression: None,
+            use_tls: None,
             timeout: Duration::from_secs(60),
             completion_queue_count: 2,
         }
@@ -287,9 +292,13 @@ impl TraceExporter {
             builder = builder.default_compression_algorithm(compression.into());
         }
 
-        let channel: Channel = match config.credentials {
-            None => builder.connect(config.endpoint.as_str()),
-            Some(credentials) => builder.secure_connect(
+        let channel: Channel = match (config.credentials, config.use_tls) {
+            (None, Some(true)) => builder.secure_connect(
+                config.endpoint.as_str(),
+                ChannelCredentialsBuilder::new().build(),
+            ),
+            (None, _) => builder.connect(config.endpoint.as_str()),
+            (Some(credentials), _) => builder.secure_connect(
                 config.endpoint.as_str(),
                 ChannelCredentialsBuilder::new()
                     .cert(credentials.cert.into(), credentials.key.into())

@@ -24,3 +24,4 @@ members = [
     "examples/tracing-grpc",
     "examples/zipkin",
 ]
+exclude = ["examples/external-otlp-grpcio-async-std"]
