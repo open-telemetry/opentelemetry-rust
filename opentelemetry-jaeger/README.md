@@ -42,8 +42,8 @@ Then install a new jaeger pipeline with the recommended defaults to start
 exporting telemetry:
 
 ```rust
-use opentelemetry::tracer;
 use opentelemetry::global;
+use opentelemetry::trace::Tracer;
 
 fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     global::set_text_map_propagator(opentelemetry_jaeger::Propagator::new());
@@ -85,8 +85,8 @@ in the [jaeger variables spec].
 [jaeger variables spec]: https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/sdk-environment-variables.md#jaeger-exporter
 
 ```rust
-use opentelemetry::tracer;
 use opentelemetry::global;
+use opentelemetry::trace::Tracer;
 
 fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     global::set_text_map_propagator(opentelemetry_jaeger::Propagator::new());
@@ -126,7 +126,7 @@ Then you can use the [`with_collector_endpoint`] method to specify the endpoint:
 // You can also provide your own implementation by enable
 // `collecor_client` and set it with
 // new_pipeline().with_http_client() method.
-use opentelemetry::tracer;
+use opentelemetry::trace::Tracer;
 
 fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let (tracer, _uninstall) = opentelemetry_jaeger::new_pipeline()
@@ -152,9 +152,13 @@ Example showing how to override all configuration options. See the
 [`PipelineBuilder`]: https://docs.rs/opentelemetry-jaeger/latest/opentelemetry_jaeger/struct.PipelineBuilder.html
 
 ```rust
-use opentelemetry::{KeyValue, Tracer};
-use opentelemetry::sdk::{trace, IdGenerator, Resource, Sampler};
 use opentelemetry::global;
+use opentelemetry::sdk::{
+    trace::{self, IdGenerator, Sampler},
+    Resource,
+};
+use opentelemetry::trace::Tracer;
+use opentelemetry::KeyValue;
 
 fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     global::set_text_map_propagator(opentelemetry_jaeger::Propagator::new());
@@ -163,7 +167,6 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         .with_agent_endpoint("localhost:6831")
         .with_service_name("my_app")
         .with_tags(vec![KeyValue::new("process_key", "process_value")])
-        .with_max_packet_size(65_000)
         .with_trace_config(
             trace::config()
                 .with_default_sampler(Sampler::AlwaysOn)
