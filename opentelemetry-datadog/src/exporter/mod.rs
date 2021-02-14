@@ -192,7 +192,7 @@ mod tests {
     use crate::exporter::model::tests::get_span;
 
     #[test]
-    fn test_out_of_order_group() -> Result<(), Box<dyn std::error::Error>> {
+    fn test_out_of_order_group() {
         let batch = vec![get_span(1, 1, 1), get_span(2, 2, 2), get_span(1, 1, 3)];
         let expected = vec![
             vec![get_span(1, 1, 1), get_span(1, 1, 3)],
@@ -204,7 +204,5 @@ mod tests {
         traces.sort_by_key(|t| t[0].span_context.trace_id().to_u128());
 
         assert_eq!(traces, expected);
-
-        Ok(())
     }
 }
