@@ -123,6 +123,7 @@ use opentelemetry::{global, sdk, trace::TracerProvider};
 #[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
 use std::collections::HashMap;
 
+use std::str::FromStr;
 use std::time::Duration;
 
 #[cfg(all(feature = "tonic", not(feature = "integration-testing")))]
@@ -197,6 +198,20 @@ pub struct OtlpPipelineBuilder {
     trace_config: Option<sdk::trace::Config>,
 }
 
+/// Target to which the exporter is going to send spans or metrics, defaults to https://localhost:4317.
+const OTEL_EXPORTER_OTLP_ENDPOINT: &str = "OTEL_EXPORTER_OTLP_ENDPOINT";
+/// Default target to which the exporter is going to send spans or metrics.
+const OTEL_EXPORTER_OTLP_ENDPOINT_DEFAULT: &str = "https://localhost:4317";
+/// Max waiting time for the backend to process each spans or metrics batch, defaults to 10 seconds.
+const OTEL_EXPORTER_OTLP_TIMEOUT: &str = "OTEL_EXPORTER_OTLP_TIMEOUT";
+/// Default max waiting time for the backend to process each spans or metrics batch.
+const OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT: u64 = 10;
+
+/// Target to which the exporter is going to send spans, defaults to https://localhost:4317.
+const OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: &str = "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT";
+/// Max waiting time for the backend to process each spans batch, defaults to 10s.
+const OTEL_EXPORTER_OTLP_TRACES_TIMEOUT: &str = "OTEL_EXPORTER_OTLP_TRACES_TIMEOUT";
+
 impl OtlpPipelineBuilder {
     /// Set the address of the OTLP collector. If not set, the default address is used.
     pub fn with_endpoint<T: Into<String>>(mut self, endpoint: T) -> Self {
@@ -268,6 +283,27 @@ impl OtlpPipelineBuilder {
     /// Set the trace provider configuration.
     pub fn with_trace_config(mut self, trace_config: sdk::trace::Config) -> Self {
         self.trace_config = Some(trace_config);
+        self
+    }
+
+    /// Set the trace provider configuration from the given environment variables.
+    ///
+    /// If the value in environment variables is illegal, will fall back to use default value.
+    pub fn with_env(mut self) -> Self {
+        let endpoint = match std::env::var(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT) {
+            Ok(val) => val,
+            Err(_) => std::env::var(OTEL_EXPORTER_OTLP_ENDPOINT)
+                .unwrap_or_else(|_| OTEL_EXPORTER_OTLP_ENDPOINT_DEFAULT.to_string()),
+        };
+        self.exporter_config.endpoint = endpoint;
+
+        let timeout = match std::env::var(OTEL_EXPORTER_OTLP_TRACES_TIMEOUT) {
+            Ok(val) => u64::from_str(&val).unwrap_or(OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT),
+            Err(_) => std::env::var(OTEL_EXPORTER_OTLP_TIMEOUT)
+                .map(|val| u64::from_str(&val).unwrap_or(OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT))
+                .unwrap_or(OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT),
+        };
+        self.exporter_config.timeout = Duration::from_secs(timeout);
         self
     }
 
@@ -347,4 +383,66 @@ pub enum Protocol {
     // TODO add support for other protocols
     // HttpJson,
     // HttpProto,
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        new_pipeline, OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_TIMEOUT,
+        OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT, OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+        OTEL_EXPORTER_OTLP_TRACES_TIMEOUT,
+    };
+
+    #[test]
+    fn test_pipeline_builder_from_otlp_env() {
+        std::env::set_var(OTEL_EXPORTER_OTLP_ENDPOINT, "https://otlp_endpoint:4317");
+        std::env::set_var(OTEL_EXPORTER_OTLP_TIMEOUT, "bad_timeout");
+
+        let mut pipeline_builder = new_pipeline().with_env();
+        assert_eq!(
+            pipeline_builder.exporter_config.timeout,
+            std::time::Duration::from_secs(OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT)
+        );
+
+        std::env::set_var(OTEL_EXPORTER_OTLP_TIMEOUT, "60");
+
+        pipeline_builder = new_pipeline().with_env();
+        assert_eq!(
+            pipeline_builder.exporter_config.timeout,
+            std::time::Duration::from_secs(60)
+        );
+
+        std::env::remove_var(OTEL_EXPORTER_OTLP_ENDPOINT);
+        std::env::remove_var(OTEL_EXPORTER_OTLP_TIMEOUT);
+        assert!(std::env::var(OTEL_EXPORTER_OTLP_ENDPOINT).is_err());
+        assert!(std::env::var(OTEL_EXPORTER_OTLP_TIMEOUT).is_err());
+    }
+
+    #[test]
+    fn test_pipeline_builder_from_otlp_traces_env() {
+        std::env::set_var(
+            OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+            "https://otlp_traces_endpoint:4317",
+        );
+        std::env::set_var(OTEL_EXPORTER_OTLP_TRACES_TIMEOUT, "bad_timeout");
+
+        let mut pipeline_builder = new_pipeline().with_env();
+        assert_eq!(
+            pipeline_builder.exporter_config.timeout,
+            std::time::Duration::from_secs(OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT)
+        );
+
+        std::env::set_var(OTEL_EXPORTER_OTLP_TRACES_TIMEOUT, "60");
+
+        pipeline_builder = new_pipeline().with_env();
+        assert_eq!(
+            pipeline_builder.exporter_config.timeout,
+            std::time::Duration::from_secs(60)
+        );
+
+        std::env::remove_var(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT);
+        std::env::remove_var(OTEL_EXPORTER_OTLP_TRACES_TIMEOUT);
+        assert!(std::env::var(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT).is_err());
+        assert!(std::env::var(OTEL_EXPORTER_OTLP_TRACES_TIMEOUT).is_err());
+    }
 }
