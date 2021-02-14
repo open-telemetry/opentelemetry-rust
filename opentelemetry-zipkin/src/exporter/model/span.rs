@@ -156,7 +156,7 @@ mod tests {
     }
 
     #[test]
-    fn test_set_status() -> Result<(), Box<dyn std::error::Error>> {
+    fn test_set_status() {
         for (status_code, status_msg, status_tag_val, status_msg_tag_val) in
             get_set_status_test_data()
         {
@@ -188,7 +188,5 @@ mod tests {
                 assert_tag_contains(tags, OTEL_ERROR_DESCRIPTION, status_msg_tag_val);
             };
         }
-
-        Ok(())
     }
 }

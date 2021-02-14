@@ -782,7 +782,7 @@ mod tests {
     }
 
     #[test]
-    fn test_set_status() -> Result<(), Box<dyn std::error::Error>> {
+    fn test_set_status() {
         for (status_code, error_msg, status_tag_val, msg_tag_val) in get_error_tag_test_data() {
             let tags = build_span_tags(
                 EvictedHashMap::new(20, 20),
@@ -803,6 +803,5 @@ mod tests {
                 assert_tag_not_contains(tags.clone(), OTEL_STATUS_DESCRIPTION);
             }
         }
-        Ok(())
     }
 }

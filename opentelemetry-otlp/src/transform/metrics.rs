@@ -731,7 +731,7 @@ mod tests {
         }
 
         #[test]
-        fn test_sink() -> Result<(), MetricsError> {
+        fn test_sink() {
             let test_data: Vec<(ResourceWrapper, InstrumentationLibrary, Metric)> = vec![
                 (
                     vec![("runtime", "tokio")],
@@ -826,8 +826,6 @@ mod tests {
             for (expect, actual) in expect.into_iter().zip(actual.into_iter()) {
                 assert_resource_metrics(expect, actual);
             }
-
-            Ok(())
         }
     }
 }
