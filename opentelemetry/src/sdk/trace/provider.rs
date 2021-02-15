@@ -27,9 +27,7 @@ pub(crate) struct TracerProviderInner {
 impl Drop for TracerProviderInner {
     fn drop(&mut self) {
         for processor in &mut self.processors {
-            let result = processor.shutdown();
-
-            if let Err(err) = result {
+            if let Err(err) = processor.shutdown() {
                 global::handle_error(err);
             }
         }

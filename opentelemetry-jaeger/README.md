@@ -167,7 +167,7 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         .with_agent_endpoint("localhost:6831")
         .with_service_name("my_app")
         .with_tags(vec![KeyValue::new("process_key", "process_value")])
-	.with_max_packet_size(65_000)
+        .with_max_packet_size(9_216)
         .with_trace_config(
             trace::config()
                 .with_default_sampler(Sampler::AlwaysOn)
