@@ -129,6 +129,7 @@ pub struct PipelineBuilder {
     client: Option<Box<dyn HttpClient>>,
     export_instrument_library: bool,
     process: Process,
+    max_packet_size: Option<usize>,
     config: Option<sdk::trace::Config>,
 }
 
@@ -150,6 +151,7 @@ impl Default for PipelineBuilder {
                 service_name: DEFAULT_SERVICE_NAME.to_string(),
                 tags: Vec::new(),
             },
+            max_packet_size: None,
             config: None,
         }
     }
@@ -245,6 +247,12 @@ impl PipelineBuilder {
         self
     }
 
+    /// Assign the max packet size in bytes. Jaeger defaults is 65000.
+    pub fn with_max_packet_size(mut self, max_packet_size: usize) -> Self {
+        self.max_packet_size = Some(max_packet_size);
+        self
+    }
+
     /// Assign the SDK config for the exporter pipeline.
     pub fn with_trace_config(self, config: sdk::trace::Config) -> Self {
         PipelineBuilder {
@@ -301,7 +309,7 @@ impl PipelineBuilder {
 
     #[cfg(not(any(feature = "collector_client", feature = "wasm_collector_client")))]
     fn init_uploader(self) -> Result<(Process, BatchUploader), TraceError> {
-        let agent = AgentAsyncClientUDP::new(self.agent_endpoint.as_slice())
+        let agent = AgentAsyncClientUDP::new(self.agent_endpoint.as_slice(), self.max_packet_size)
             .map_err::<Error, _>(Into::into)?;
         Ok((self.process, BatchUploader::Agent(agent)))
     }
@@ -393,7 +401,8 @@ impl PipelineBuilder {
             Ok((self.process, uploader::BatchUploader::Collector(collector)))
         } else {
             let endpoint = self.agent_endpoint.as_slice();
-            let agent = AgentAsyncClientUDP::new(endpoint).map_err::<Error, _>(Into::into)?;
+            let agent = AgentAsyncClientUDP::new(endpoint, self.max_packet_size)
+                .map_err::<Error, _>(Into::into)?;
             Ok((self.process, BatchUploader::Agent(agent)))
         }
     }
@@ -414,7 +423,8 @@ impl PipelineBuilder {
             Ok((self.process, uploader::BatchUploader::Collector(collector)))
         } else {
             let endpoint = self.agent_endpoint.as_slice();
-            let agent = AgentAsyncClientUDP::new(endpoint).map_err::<Error, _>(Into::into)?;
+            let agent = AgentAsyncClientUDP::new(endpoint, self.max_packet_size)
+                .map_err::<Error, _>(Into::into)?;
             Ok((self.process, BatchUploader::Agent(agent)))
         }
     }

@@ -8,8 +8,10 @@
 //! propagators) are provided by the `TracerProvider`. `Tracer` instances do
 //! not duplicate this data to avoid that different `Tracer` instances
 //! of the `TracerProvider` have different versions of these data.
-use crate::sdk::export::trace::SpanExporter;
-use crate::{sdk, sdk::trace::SpanProcessor};
+use crate::{
+    global,
+    sdk::{self, export::trace::SpanExporter, trace::SpanProcessor},
+};
 use std::sync::Arc;
 
 /// Default tracer name if empty string is provided.
@@ -25,7 +27,11 @@ pub(crate) struct TracerProviderInner {
 impl Drop for TracerProviderInner {
     fn drop(&mut self) {
         for processor in &mut self.processors {
-            let _result = processor.shutdown();
+            let result = processor.shutdown();
+
+            if let Err(err) = result {
+                global::handle_error(err);
+            }
         }
     }
 }
