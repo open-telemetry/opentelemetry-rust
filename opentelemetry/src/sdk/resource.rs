@@ -15,6 +15,7 @@
 //! [`TracerProvider`]: ../../api/trace/provider/trait.TracerProvider.html
 #[cfg(feature = "metrics")]
 use crate::labels;
+use crate::sdk::EnvResourceDetector;
 use crate::{Key, KeyValue, Value};
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
@@ -25,18 +26,34 @@ use std::time::Duration;
 ///
 /// Items are sorted by their key, and are only overwritten if the value is an empty string.
 #[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Resource {
     attrs: BTreeMap<Key, Value>,
 }
 
+impl Default for Resource {
+    fn default() -> Self {
+        Self::from_detectors(
+            Duration::from_secs(0),
+            vec![Box::new(EnvResourceDetector::new())],
+        )
+    }
+}
+
 impl Resource {
+    /// Creates an empty resource.
+    pub fn empty() -> Self {
+        Self {
+            attrs: Default::default(),
+        }
+    }
+
     /// Create a new `Resource` from key value pairs.
     ///
     /// Values are de-duplicated by key, and the first key-value pair with a non-empty string value
     /// will be retained
     pub fn new<T: IntoIterator<Item = KeyValue>>(kvs: T) -> Self {
-        let mut resource = Resource::default();
+        let mut resource = Resource::empty();
 
         for kv in kvs.into_iter() {
             resource.insert(kv);
@@ -49,7 +66,7 @@ impl Resource {
     ///
     /// timeout will be applied to each detector.
     pub fn from_detectors(timeout: Duration, detectors: Vec<Box<dyn ResourceDetector>>) -> Self {
-        let mut resource = Resource::default();
+        let mut resource = Resource::empty();
         for detector in detectors {
             let detected_res = detector.detect(timeout);
             for (key, value) in detected_res.into_iter() {
@@ -72,7 +89,7 @@ impl Resource {
             return self.clone();
         }
 
-        let mut resource = Resource::default();
+        let mut resource = Resource::empty();
 
         // attrs from self must be added first so they have priority
         for (k, v) in self.attrs.iter() {

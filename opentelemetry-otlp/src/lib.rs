@@ -394,7 +394,7 @@ mod tests {
     };
 
     #[test]
-    fn test_pipeline_builder_from_otlp_env() {
+    fn test_pipeline_builder_from_env() {
         std::env::set_var(OTEL_EXPORTER_OTLP_ENDPOINT, "https://otlp_endpoint:4317");
         std::env::set_var(OTEL_EXPORTER_OTLP_TIMEOUT, "bad_timeout");
 
@@ -416,10 +416,8 @@ mod tests {
         std::env::remove_var(OTEL_EXPORTER_OTLP_TIMEOUT);
         assert!(std::env::var(OTEL_EXPORTER_OTLP_ENDPOINT).is_err());
         assert!(std::env::var(OTEL_EXPORTER_OTLP_TIMEOUT).is_err());
-    }
 
-    #[test]
-    fn test_pipeline_builder_from_otlp_traces_env() {
+        // test from traces env var
         std::env::set_var(
             OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
             "https://otlp_traces_endpoint:4317",
