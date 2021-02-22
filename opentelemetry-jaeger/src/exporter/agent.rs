@@ -11,6 +11,9 @@ use thrift::{
     transport::{ReadHalf, TIoChannel, WriteHalf},
 };
 
+/// The max size of UDP packet we want to send, synced with jaeger-agent
+const UDP_PACKET_MAX_LENGTH: usize = 65_000;
+
 struct BufferClient {
     buffer: ReadHalf<TBufferChannel>,
     client: agent::AgentSyncClient<
@@ -40,12 +43,17 @@ pub(crate) struct AgentAsyncClientUDP {
     #[cfg(all(feature = "async-std", not(feature = "tokio")))]
     conn: async_std::net::UdpSocket,
     buffer_client: BufferClient,
+    max_packet_size: usize,
 }
 
 impl AgentAsyncClientUDP {
     /// Create a new UDP agent client
-    pub(crate) fn new<T: ToSocketAddrs>(host_port: T) -> thrift::Result<Self> {
-        let (buffer, write) = TBufferChannel::with_capacity(512).split()?;
+    pub(crate) fn new<T: ToSocketAddrs>(
+        host_port: T,
+        max_packet_size: Option<usize>,
+    ) -> thrift::Result<Self> {
+        let max_packet_size = max_packet_size.unwrap_or(UDP_PACKET_MAX_LENGTH);
+        let (buffer, write) = TBufferChannel::with_capacity(max_packet_size).split()?;
         let client = agent::AgentSyncClient::new(
             TCompactInputProtocol::new(TNoopChannel),
             TCompactOutputProtocol::new(write),
@@ -62,6 +70,7 @@ impl AgentAsyncClientUDP {
             #[cfg(all(feature = "async-std", not(feature = "tokio")))]
             conn: async_std::net::UdpSocket::from(conn),
             buffer_client: BufferClient { buffer, client },
+            max_packet_size,
         })
     }
 
@@ -70,6 +79,18 @@ impl AgentAsyncClientUDP {
         // Write payload to buffer
         self.buffer_client.client.emit_batch(batch)?;
         let payload = self.buffer_client.buffer.take_bytes();
+
+        if payload.len() > self.max_packet_size {
+            return Err(thrift::ProtocolError::new(
+                thrift::ProtocolErrorKind::SizeLimit,
+                format!(
+                    "jaeger exporter payload size of {} bytes over max UDP packet size of {} bytes. Try setting a smaller batch size.",
+                    payload.len(),
+                    self.max_packet_size,
+                ),
+            )
+            .into());
+        }
 
         // Write async to socket, reading from buffer
         write_to_socket(self, payload).await?;

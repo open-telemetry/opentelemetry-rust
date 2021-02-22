@@ -125,10 +125,14 @@ impl SpanProcessor for SimpleSpanProcessor {
     }
 
     fn on_end(&self, span: SpanData) {
-        if let Ok(mut exporter) = self.exporter.lock() {
-            let _result = executor::block_on(exporter.export(vec![span]));
-        } else {
-            global::handle_error(TraceError::from("When export span with the SimpleSpanProcessor, the exporter's lock has been poisoned"));
+        let result = self
+            .exporter
+            .lock()
+            .map_err(|_| TraceError::Other("simple span processor mutex poisoned".into()))
+            .and_then(|mut exporter| executor::block_on(exporter.export(vec![span])));
+
+        if let Err(err) = result {
+            global::handle_error(err);
         }
     }
 
@@ -213,8 +217,18 @@ impl SpanProcessor for BatchSpanProcessor {
     }
 
     fn on_end(&self, span: SpanData) {
-        if let Ok(mut sender) = self.message_sender.lock() {
-            let _ = sender.try_send(BatchMessage::ExportSpan(span));
+        let result = self
+            .message_sender
+            .lock()
+            .map_err(|_| TraceError::Other("batch span processor mutex poisoned".into()))
+            .and_then(|mut sender| {
+                sender
+                    .try_send(BatchMessage::ExportSpan(span))
+                    .map_err(|err| TraceError::Other(err.into()))
+            });
+
+        if let Err(err) = result {
+            global::handle_error(err);
         }
     }
 
@@ -307,12 +321,16 @@ impl BatchSpanProcessor {
                                 spans.len().saturating_sub(config.max_export_batch_size),
                             );
 
-                            let _result = export_with_timeout(
+                            let result = export_with_timeout(
                                 config.max_export_timeout,
                                 exporter.as_mut(),
                                 &delay,
                                 batch,
                             ).await;
+
+                            if let Err(err) = result {
+                                global::handle_error(err);
+                            }
                         }
                     }
                     // Stream has terminated or processor is shutdown, return to finish execution.
