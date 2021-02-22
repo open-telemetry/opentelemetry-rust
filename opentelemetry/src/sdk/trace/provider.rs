@@ -120,11 +120,11 @@ impl Builder {
         // drop. We cannot assume we are in a multi-threaded tokio runtime here, so use
         // `spawn_blocking` to avoid blocking the main thread.
         let spawn = |fut| tokio::task::spawn_blocking(|| futures::executor::block_on(fut));
-        let batch = sdk::trace::BatchSpanProcessor::from_env(
+        let batch = sdk::trace::BatchSpanProcessor::builder(
             exporter,
             spawn,
-            crate::util::tokio_interval_stream,
             tokio::time::sleep,
+            crate::util::tokio_interval_stream,
         );
         self.with_batch_exporter(batch.build())
     }
@@ -133,11 +133,11 @@ impl Builder {
     #[cfg(all(feature = "async-std", not(feature = "tokio")))]
     #[cfg_attr(docsrs, doc(cfg(feature = "async-std")))]
     pub fn with_exporter<T: SpanExporter + 'static>(self, exporter: T) -> Self {
-        let batch = sdk::trace::BatchSpanProcessor::from_env(
+        let batch = sdk::trace::BatchSpanProcessor::builder(
             exporter,
             async_std::task::spawn,
-            async_std::stream::interval,
             async_std::task::sleep,
+            async_std::stream::interval,
         );
         self.with_batch_exporter(batch.build())
     }

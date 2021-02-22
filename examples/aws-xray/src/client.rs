@@ -16,11 +16,11 @@ fn init_tracer() -> (sdktrace::Tracer, stdout::Uninstall) {
     // For the demonstration, use `Sampler::AlwaysOn` sampler to sample all traces. In a production
     // application, use `Sampler::ParentBased` or `Sampler::TraceIdRatioBased` with a desired ratio.
     stdout::new_pipeline()
-        .with_trace_config(sdktrace::Config {
-            default_sampler: Box::new(sdktrace::Sampler::AlwaysOn),
-            id_generator: Box::new(sdktrace::XrayIdGenerator::default()),
-            ..Default::default()
-        })
+        .with_trace_config(
+            sdktrace::config()
+                .with_default_sampler(sdktrace::Sampler::AlwaysOn)
+                .with_id_generator(sdktrace::XrayIdGenerator::default()),
+        )
         .install()
 }
 

@@ -33,13 +33,6 @@
 //!
 //! [`is_recording`]: ../span/trait.Span.html#method.is_recording
 //! [`TracerProvider`]: ../provider/trait.TracerProvider.html
-use std::{fmt, str::FromStr, sync::Mutex, time};
-
-use futures::{
-    channel::mpsc, channel::oneshot, executor, future::BoxFuture, future::Either, pin_mut, Future,
-    FutureExt, Stream, StreamExt,
-};
-
 use crate::global;
 use crate::sdk::trace::Span;
 use crate::{
@@ -47,23 +40,29 @@ use crate::{
     trace::{TraceError, TraceResult},
     Context,
 };
+use futures::{
+    channel::mpsc, channel::oneshot, executor, future::BoxFuture, future::Either, pin_mut, Future,
+    FutureExt, Stream, StreamExt,
+};
+use std::env;
+use std::{fmt, str::FromStr, sync::Mutex, time::Duration};
 
-/// Delay interval between two consecutive exports, default to be 5000.
-const OTEL_BSP_SCHEDULE_DELAY_MILLIS: &str = "OTEL_BSP_SCHEDULE_DELAY_MILLIS";
+/// Delay interval between two consecutive exports.
+const OTEL_BSP_SCHEDULE_DELAY: &str = "OTEL_BSP_SCHEDULE_DELAY";
 /// Default delay interval between two consecutive exports.
-const OTEL_BSP_SCHEDULE_DELAY_MILLIS_DEFAULT: u64 = 5000;
-/// Maximum queue size, default to be 2048
+const OTEL_BSP_SCHEDULE_DELAY_DEFAULT: u64 = 5_000;
+/// Maximum queue size
 const OTEL_BSP_MAX_QUEUE_SIZE: &str = "OTEL_BSP_MAX_QUEUE_SIZE";
 /// Default maximum queue size
-const OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT: usize = 2048;
-/// Maximum batch size, must be less than or equal to OTEL_BSP_MAX_QUEUE_SIZE, default to be 512
+const OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT: usize = 2_048;
+/// Maximum batch size, must be less than or equal to OTEL_BSP_MAX_QUEUE_SIZE
 const OTEL_BSP_MAX_EXPORT_BATCH_SIZE: &str = "OTEL_BSP_MAX_EXPORT_BATCH_SIZE";
 /// Default maximum batch size
 const OTEL_BSP_MAX_EXPORT_BATCH_SIZE_DEFAULT: usize = 512;
-/// Maximum allowed time to export data
-const OTEL_BSP_EXPORT_TIMEOUT_MILLIS: &str = "OTEL_BSP_EXPORT_TIMEOUT_MILLIS";
-/// Default maximum allowed time to export data
-const OTEL_BSP_EXPORT_TIMEOUT_MILLIS_DEFAULT: u64 = 30000;
+/// Maximum allowed time to export data.
+const OTEL_BSP_EXPORT_TIMEOUT: &str = "OTEL_BSP_EXPORT_TIMEOUT";
+/// Default maximum allowed time to export data.
+const OTEL_BSP_EXPORT_TIMEOUT_DEFAULT: u64 = 30_000;
 
 /// `SpanProcessor` is an interface which allows hooks for span start and end
 /// method invocations. The span processors are invoked only when is_recording
@@ -272,9 +271,9 @@ impl BatchSpanProcessor {
     where
         S: Fn(BoxFuture<'static, ()>) -> SH,
         SH: Future<Output = SO> + Send + Sync + 'static,
-        I: Fn(time::Duration) -> IS,
+        I: Fn(Duration) -> IS,
         IS: Stream<Item = ISI> + Send + 'static,
-        D: (Fn(time::Duration) -> DS) + Send + Sync + 'static,
+        D: (Fn(Duration) -> DS) + Send + Sync + 'static,
         DS: Future<Output = ()> + 'static + Send + Sync,
     {
         let (message_sender, message_receiver) = mpsc::channel(config.max_queue_size);
@@ -380,8 +379,8 @@ impl BatchSpanProcessor {
         E: SpanExporter,
         S: Fn(BoxFuture<'static, ()>) -> SH,
         SH: Future<Output = SO> + Send + Sync + 'static,
-        I: Fn(time::Duration) -> IO,
-        D: (Fn(time::Duration) -> DS) + Send + Sync + 'static,
+        I: Fn(Duration) -> IO,
+        D: (Fn(Duration) -> DS) + Send + Sync + 'static,
         DS: Future<Output = ()> + 'static + Send + Sync,
     {
         BatchSpanProcessorBuilder {
@@ -389,82 +388,19 @@ impl BatchSpanProcessor {
             spawn,
             interval,
             delay,
-            config: Default::default(),
-        }
-    }
-
-    /// Create a new batch processor builder and set the config value based on environment variables.
-    ///
-    /// If the value in environment variables is illegal, will fall back to use default value.
-    ///
-    /// Note that export batch size should be less than or equals to max queue size.
-    /// If export batch size is larger than max queue size, we will lower to be the same as max
-    /// queue size
-    pub fn from_env<E, S, SH, SO, I, IO, D, DS>(
-        exporter: E,
-        spawn: S,
-        interval: I,
-        delay: D,
-    ) -> BatchSpanProcessorBuilder<E, S, I, D>
-    where
-        E: SpanExporter,
-        S: Fn(BoxFuture<'static, ()>) -> SH,
-        SH: Future<Output = SO> + Send + Sync + 'static,
-        I: Fn(time::Duration) -> IO,
-        D: (Fn(time::Duration) -> DS) + Send + Sync + 'static,
-        DS: Future<Output = ()> + 'static + Send + Sync,
-    {
-        let mut config = BatchConfig::default();
-        let schedule_delay = std::env::var(OTEL_BSP_SCHEDULE_DELAY_MILLIS)
-            .map(|delay| u64::from_str(&delay).unwrap_or(OTEL_BSP_SCHEDULE_DELAY_MILLIS_DEFAULT))
-            .unwrap_or(OTEL_BSP_SCHEDULE_DELAY_MILLIS_DEFAULT);
-        config.scheduled_delay = time::Duration::from_millis(schedule_delay);
-
-        let max_queue_size = std::env::var(OTEL_BSP_MAX_QUEUE_SIZE)
-            .map(|queue_size| {
-                usize::from_str(&queue_size).unwrap_or(OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT)
-            })
-            .unwrap_or(OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT);
-        config.max_queue_size = max_queue_size;
-
-        let max_export_batch_size = std::env::var(OTEL_BSP_MAX_EXPORT_BATCH_SIZE)
-            .map(|batch_size| {
-                usize::from_str(&batch_size).unwrap_or(OTEL_BSP_MAX_EXPORT_BATCH_SIZE_DEFAULT)
-            })
-            .unwrap_or(OTEL_BSP_MAX_EXPORT_BATCH_SIZE_DEFAULT);
-        // max export batch size must be less or equal to max queue size.
-        // we set max export batch size to max queue size if it's larger than max queue size.
-        if max_export_batch_size > max_queue_size {
-            config.max_export_batch_size = max_queue_size;
-        } else {
-            config.max_export_batch_size = max_export_batch_size;
-        }
-
-        let max_export_time_out = std::env::var(OTEL_BSP_EXPORT_TIMEOUT_MILLIS)
-            .map(|timeout| {
-                u64::from_str(&timeout).unwrap_or(OTEL_BSP_EXPORT_TIMEOUT_MILLIS_DEFAULT)
-            })
-            .unwrap_or(OTEL_BSP_EXPORT_TIMEOUT_MILLIS_DEFAULT);
-        config.max_export_timeout = time::Duration::from_millis(max_export_time_out);
-
-        BatchSpanProcessorBuilder {
-            config,
-            exporter,
-            spawn,
-            delay,
-            interval,
+            config: BatchConfig::default(),
         }
     }
 }
 
 async fn export_with_timeout<D, DS, E>(
-    time_out: time::Duration,
+    time_out: Duration,
     exporter: &mut E,
     delay: &D,
     batch: Vec<SpanData>,
 ) -> ExportResult
 where
-    D: (Fn(time::Duration) -> DS) + Send + Sync + 'static,
+    D: (Fn(Duration) -> DS) + Send + Sync + 'static,
     DS: Future<Output = ()> + 'static + Send + Sync,
     E: SpanExporter + ?Sized,
 {
@@ -487,7 +423,7 @@ pub struct BatchConfig {
 
     /// The delay interval in milliseconds between two consecutive processing
     /// of batches. The default value is 5 seconds.
-    scheduled_delay: time::Duration,
+    scheduled_delay: Duration,
 
     /// The maximum number of spans to process in a single batch. If there are
     /// more than one batch worth of spans then it processes multiple batches
@@ -496,17 +432,55 @@ pub struct BatchConfig {
     max_export_batch_size: usize,
 
     /// The maximum duration to export a batch of data.
-    max_export_timeout: time::Duration,
+    max_export_timeout: Duration,
 }
 
 impl Default for BatchConfig {
     fn default() -> Self {
-        BatchConfig {
+        let mut config = BatchConfig {
             max_queue_size: OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT,
-            scheduled_delay: time::Duration::from_millis(OTEL_BSP_SCHEDULE_DELAY_MILLIS_DEFAULT),
+            scheduled_delay: Duration::from_millis(OTEL_BSP_SCHEDULE_DELAY_DEFAULT),
             max_export_batch_size: OTEL_BSP_MAX_EXPORT_BATCH_SIZE_DEFAULT,
-            max_export_timeout: time::Duration::from_millis(OTEL_BSP_EXPORT_TIMEOUT_MILLIS_DEFAULT),
+            max_export_timeout: Duration::from_millis(OTEL_BSP_EXPORT_TIMEOUT_DEFAULT),
+        };
+
+        if let Some(max_queue_size) = env::var(OTEL_BSP_MAX_QUEUE_SIZE)
+            .ok()
+            .and_then(|queue_size| usize::from_str(&queue_size).ok())
+        {
+            config.max_queue_size = max_queue_size;
         }
+
+        if let Some(scheduled_delay) = env::var(OTEL_BSP_SCHEDULE_DELAY)
+            .ok()
+            .or_else(|| env::var("OTEL_BSP_SCHEDULE_DELAY_MILLIS").ok())
+            .and_then(|delay| u64::from_str(&delay).ok())
+        {
+            config.scheduled_delay = Duration::from_millis(scheduled_delay);
+        }
+
+        if let Some(max_export_batch_size) = env::var(OTEL_BSP_MAX_EXPORT_BATCH_SIZE)
+            .ok()
+            .and_then(|batch_size| usize::from_str(&batch_size).ok())
+        {
+            config.max_export_batch_size = max_export_batch_size;
+        }
+
+        // max export batch size must be less or equal to max queue size.
+        // we set max export batch size to max queue size if it's larger than max queue size.
+        if config.max_export_batch_size > config.max_queue_size {
+            config.max_export_batch_size = config.max_queue_size;
+        }
+
+        if let Some(max_export_timeout) = env::var(OTEL_BSP_EXPORT_TIMEOUT)
+            .ok()
+            .or_else(|| env::var("OTEL_BSP_EXPORT_TIMEOUT_MILLIS").ok())
+            .and_then(|timeout| u64::from_str(&timeout).ok())
+        {
+            config.max_export_timeout = Duration::from_millis(max_export_timeout);
+        }
+
+        config
     }
 }
 
@@ -527,9 +501,9 @@ where
     E: SpanExporter + 'static,
     S: Fn(BoxFuture<'static, ()>) -> SH,
     SH: Future<Output = SO> + Send + Sync + 'static,
-    I: Fn(time::Duration) -> IS,
+    I: Fn(Duration) -> IS,
     IS: Stream<Item = ISI> + Send + 'static,
-    D: (Fn(time::Duration) -> DS) + Send + Sync + 'static,
+    D: (Fn(Duration) -> DS) + Send + Sync + 'static,
     DS: Future<Output = ()> + 'static + Send + Sync,
 {
     /// Set max queue size for batches
@@ -541,7 +515,7 @@ where
     }
 
     /// Set scheduled delay for batches
-    pub fn with_scheduled_delay(self, delay: time::Duration) -> Self {
+    pub fn with_scheduled_delay(self, delay: Duration) -> Self {
         let mut config = self.config;
         config.scheduled_delay = delay;
 
@@ -549,7 +523,7 @@ where
     }
 
     /// Set max timeout for exporting.
-    pub fn with_max_timeout(self, timeout: time::Duration) -> Self {
+    pub fn with_max_timeout(self, timeout: Duration) -> Self {
         let mut config = self.config;
         config.max_export_timeout = timeout;
 
@@ -585,13 +559,11 @@ where
 #[cfg(all(test, feature = "testing", feature = "trace"))]
 mod tests {
     use std::fmt::Debug;
-    use std::time;
     use std::time::Duration;
 
     use async_trait::async_trait;
 
     use crate::sdk::export::trace::{stdout, ExportResult, SpanData, SpanExporter};
-    use crate::sdk::trace::span_processor::OTEL_BSP_EXPORT_TIMEOUT_MILLIS;
     use crate::sdk::trace::BatchConfig;
     use crate::testing::trace::{
         new_test_export_span_data, new_test_exporter, new_tokio_test_exporter,
@@ -601,9 +573,9 @@ mod tests {
     use futures::Future;
 
     use super::{
-        BatchSpanProcessor, SimpleSpanProcessor, SpanProcessor, OTEL_BSP_MAX_EXPORT_BATCH_SIZE,
-        OTEL_BSP_MAX_QUEUE_SIZE, OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT, OTEL_BSP_SCHEDULE_DELAY_MILLIS,
-        OTEL_BSP_SCHEDULE_DELAY_MILLIS_DEFAULT,
+        BatchSpanProcessor, SimpleSpanProcessor, SpanProcessor, OTEL_BSP_EXPORT_TIMEOUT,
+        OTEL_BSP_MAX_EXPORT_BATCH_SIZE, OTEL_BSP_MAX_QUEUE_SIZE, OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT,
+        OTEL_BSP_SCHEDULE_DELAY, OTEL_BSP_SCHEDULE_DELAY_DEFAULT,
     };
 
     #[test]
@@ -623,22 +595,22 @@ mod tests {
     }
 
     #[test]
-    fn test_build_batch_span_processor_from_env() {
+    fn test_build_batch_span_processor_builder() {
         std::env::set_var(OTEL_BSP_MAX_EXPORT_BATCH_SIZE, "500");
-        std::env::set_var(OTEL_BSP_EXPORT_TIMEOUT_MILLIS, "2046");
-        std::env::set_var(OTEL_BSP_SCHEDULE_DELAY_MILLIS, "I am not number");
+        std::env::set_var(OTEL_BSP_EXPORT_TIMEOUT, "2046");
+        std::env::set_var(OTEL_BSP_SCHEDULE_DELAY, "I am not number");
 
-        let mut builder = BatchSpanProcessor::from_env(
+        let mut builder = BatchSpanProcessor::builder(
             stdout::Exporter::new(std::io::stdout(), true),
             tokio::spawn,
-            tokio_interval_stream,
             tokio::time::sleep,
+            tokio_interval_stream,
         );
         // export batch size cannot exceed max queue size
         assert_eq!(builder.config.max_export_batch_size, 500);
         assert_eq!(
             builder.config.scheduled_delay,
-            time::Duration::from_millis(OTEL_BSP_SCHEDULE_DELAY_MILLIS_DEFAULT)
+            Duration::from_millis(OTEL_BSP_SCHEDULE_DELAY_DEFAULT)
         );
         assert_eq!(
             builder.config.max_queue_size,
@@ -646,15 +618,15 @@ mod tests {
         );
         assert_eq!(
             builder.config.max_export_timeout,
-            time::Duration::from_millis(2046)
+            Duration::from_millis(2046)
         );
 
         std::env::set_var(OTEL_BSP_MAX_QUEUE_SIZE, "120");
-        builder = BatchSpanProcessor::from_env(
+        builder = BatchSpanProcessor::builder(
             stdout::Exporter::new(std::io::stdout(), true),
             tokio::spawn,
-            tokio_interval_stream,
             tokio::time::sleep,
+            tokio_interval_stream,
         );
 
         assert_eq!(builder.config.max_export_batch_size, 120);
@@ -699,13 +671,13 @@ mod tests {
     }
 
     struct BlockingExporter<D> {
-        delay_for: time::Duration,
+        delay_for: Duration,
         delay_fn: D,
     }
 
     impl<D, DS> Debug for BlockingExporter<D>
     where
-        D: Fn(time::Duration) -> DS + 'static + Send + Sync,
+        D: Fn(Duration) -> DS + 'static + Send + Sync,
         DS: Future<Output = ()> + Send + Sync + 'static,
     {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -716,7 +688,7 @@ mod tests {
     #[async_trait]
     impl<D, DS> SpanExporter for BlockingExporter<D>
     where
-        D: Fn(time::Duration) -> DS + 'static + Send + Sync,
+        D: Fn(Duration) -> DS + 'static + Send + Sync,
         DS: Future<Output = ()> + Send + Sync + 'static,
     {
         async fn export(&mut self, _batch: Vec<SpanData>) -> ExportResult {
@@ -763,12 +735,12 @@ mod tests {
     #[cfg(feature = "async-std")]
     async fn timeout_test_std_async(time_out: bool) {
         let config = BatchConfig {
-            max_export_timeout: time::Duration::from_millis(if time_out { 5 } else { 60 }),
+            max_export_timeout: Duration::from_millis(if time_out { 5 } else { 60 }),
             scheduled_delay: Duration::from_secs(60 * 60 * 24), // set the tick to 24 hours so we know the span must be exported via force_flush
             ..Default::default()
         };
         let exporter = BlockingExporter {
-            delay_for: time::Duration::from_millis(if !time_out { 5 } else { 60 }),
+            delay_for: Duration::from_millis(if !time_out { 5 } else { 60 }),
             delay_fn: async_std::task::sleep,
         };
         let mut processor = BatchSpanProcessor::new(
@@ -793,12 +765,12 @@ mod tests {
     // otherwise the exporter should be able to export within time out duration.
     async fn timeout_test_tokio(time_out: bool) {
         let config = BatchConfig {
-            max_export_timeout: time::Duration::from_millis(if time_out { 5 } else { 60 }),
+            max_export_timeout: Duration::from_millis(if time_out { 5 } else { 60 }),
             scheduled_delay: Duration::from_secs(60 * 60 * 24), // set the tick to 24 hours so we know the span must be exported via force_flush,
             ..Default::default()
         };
         let exporter = BlockingExporter {
-            delay_for: time::Duration::from_millis(if !time_out { 5 } else { 60 }),
+            delay_for: Duration::from_millis(if !time_out { 5 } else { 60 }),
             delay_fn: tokio::time::sleep,
         };
         let spawn = |fut| tokio::task::spawn_blocking(|| futures::executor::block_on(fut));
@@ -809,7 +781,7 @@ mod tests {
             tokio::time::sleep,
             config,
         );
-        tokio::time::sleep(time::Duration::from_secs(1)).await; // skip the first
+        tokio::time::sleep(Duration::from_secs(1)).await; // skip the first
         processor.on_end(new_test_export_span_data());
         let flush_res = processor.force_flush();
         if time_out {

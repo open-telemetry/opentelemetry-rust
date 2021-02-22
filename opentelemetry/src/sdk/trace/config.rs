@@ -3,6 +3,8 @@
 //! Configuration represents the global tracing configuration, overrides
 //! can be set for the default OpenTelemetry limits and Sampler.
 use crate::{sdk, sdk::trace::Sampler, trace::IdGenerator};
+use std::env;
+use std::str::FromStr;
 use std::sync::Arc;
 
 /// Default trace configuration
@@ -71,13 +73,36 @@ impl Config {
 impl Default for Config {
     /// Create default global sdk configuration.
     fn default() -> Self {
-        Config {
+        let mut config = Config {
             default_sampler: Box::new(Sampler::ParentBased(Box::new(Sampler::AlwaysOn))),
             id_generator: Box::new(sdk::trace::IdGenerator::default()),
             max_events_per_span: 128,
-            max_attributes_per_span: 32,
-            max_links_per_span: 32,
+            max_attributes_per_span: 128,
+            max_links_per_span: 128,
             resource: Arc::new(sdk::Resource::default()),
+        };
+
+        if let Some(max_attributes_per_span) = env::var("OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT")
+            .ok()
+            .and_then(|count_limit| u32::from_str(&count_limit).ok())
+        {
+            config.max_attributes_per_span = max_attributes_per_span;
         }
+
+        if let Some(max_events_per_span) = env::var("OTEL_SPAN_EVENT_COUNT_LIMIT")
+            .ok()
+            .and_then(|max_events| u32::from_str(&max_events).ok())
+        {
+            config.max_events_per_span = max_events_per_span;
+        }
+
+        if let Some(max_links_per_span) = env::var("OTEL_SPAN_LINK_COUNT_LIMIT")
+            .ok()
+            .and_then(|max_links| u32::from_str(&max_links).ok())
+        {
+            config.max_links_per_span = max_links_per_span;
+        }
+
+        config
     }
 }

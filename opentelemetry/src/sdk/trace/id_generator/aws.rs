@@ -24,14 +24,11 @@ use std::time::{Duration, UNIX_EPOCH};
 ///
 /// ```
 /// use opentelemetry::trace::NoopSpanExporter;
-/// use opentelemetry::sdk::trace::{Config, TracerProvider, XrayIdGenerator};
+/// use opentelemetry::sdk::trace::{self, TracerProvider, XrayIdGenerator};
 ///
 /// let _provider: TracerProvider = TracerProvider::builder()
 ///     .with_simple_exporter(NoopSpanExporter::new())
-///     .with_config(Config {
-///          id_generator: Box::new(XrayIdGenerator::default()),
-///          ..Default::default()
-///     })
+///     .with_config(trace::config().with_id_generator(XrayIdGenerator::default()))
 ///     .build();
 /// ```
 ///

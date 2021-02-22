@@ -53,29 +53,11 @@
 //!
 //! ### Jaeger Exporter From Environment Variables
 //!
-//! The jaeger pipeline builder can be configured dynamically via the
-//! [`from_env`] method. All variables are optinal, a full list of accepted
-//! options can be found in the [jaeger variables spec].
+//! The jaeger pipeline builder can be configured dynamically via environment
+//! variables. All variables are optional, a full list of accepted options can
+//! be found in the [jaeger variables spec].
 //!
-//! [`from_env`]: struct.PipelineBuilder.html#method.from_env
 //! [jaeger variables spec]: https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/sdk-environment-variables.md#jaeger-exporter
-//!
-//! ```no_run
-//! use opentelemetry::trace::{Tracer, TraceError};
-//! use opentelemetry::global;
-//!
-//! fn main() -> Result<(), TraceError> {
-//!     global::set_text_map_propagator(opentelemetry_jaeger::Propagator::new());
-//!     // export OTEL_SERVICE_NAME=my-service-name
-//!     let (tracer, _uninstall) = opentelemetry_jaeger::new_pipeline().from_env().install()?;
-//!
-//!     tracer.in_span("doing_work", |cx| {
-//!         // Traced app logic here...
-//!     });
-//!
-//!     Ok(())
-//! }
-//! ```
 //!
 //! ### Jaeger Collector Example
 //!
@@ -129,7 +111,6 @@
 //! fn main() -> Result<(), TraceError> {
 //!     global::set_text_map_propagator(opentelemetry_jaeger::Propagator::new());
 //!     let (tracer, _uninstall) = opentelemetry_jaeger::new_pipeline()
-//!         .from_env()
 //!         .with_agent_endpoint("localhost:6831")
 //!         .with_service_name("my_app")
 //!         .with_tags(vec![KeyValue::new("process_key", "process_value")])

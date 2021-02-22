@@ -3,7 +3,7 @@ use opentelemetry::global;
 use opentelemetry::sdk::export::trace::stdout;
 use opentelemetry::sdk::{
     propagation::TraceContextPropagator,
-    trace::{Config, Sampler},
+    trace::{self, Sampler},
 };
 use opentelemetry::{
     trace::{TraceContextExt, Tracer},
@@ -17,10 +17,7 @@ fn init_tracer() -> (impl Tracer, stdout::Uninstall) {
     // For the demonstration, use `Sampler::AlwaysOn` sampler to sample all traces. In a production
     // application, use `Sampler::ParentBased` or `Sampler::TraceIdRatioBased` with a desired ratio.
     stdout::new_pipeline()
-        .with_trace_config(Config {
-            default_sampler: Box::new(Sampler::AlwaysOn),
-            ..Default::default()
-        })
+        .with_trace_config(trace::config().with_default_sampler(Sampler::AlwaysOn))
         .install()
 }
 

@@ -136,7 +136,7 @@ pub struct PipelineBuilder {
 impl Default for PipelineBuilder {
     /// Return the default Exporter Builder.
     fn default() -> Self {
-        PipelineBuilder {
+        let builder_defaults = PipelineBuilder {
             agent_endpoint: vec![DEFAULT_AGENT_ENDPOINT.parse().unwrap()],
             #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
             collector_endpoint: None,
@@ -153,21 +153,14 @@ impl Default for PipelineBuilder {
             },
             max_packet_size: None,
             config: None,
-        }
+        };
+
+        // Override above defaults with env vars if set
+        env::assign_attrs(builder_defaults)
     }
 }
 
 impl PipelineBuilder {
-    /// Assign builder attributes from environment variables.
-    ///
-    /// See the [jaeger variable spec] for full list.
-    ///
-    /// [jaeger variable spec]: https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/sdk-environment-variables.md#jaeger-exporter
-    #[allow(clippy::wrong_self_convention)]
-    pub fn from_env(self) -> Self {
-        env::assign_attrs(self)
-    }
-
     /// Assign the agent endpoint.
     pub fn with_agent_endpoint<T: net::ToSocketAddrs>(self, agent_endpoint: T) -> Self {
         PipelineBuilder {
