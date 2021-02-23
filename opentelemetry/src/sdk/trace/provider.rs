@@ -12,7 +12,19 @@ use crate::{
     global,
     sdk::{self, export::trace::SpanExporter, trace::SpanProcessor},
 };
+#[cfg(all(
+    feature = "tokio-rt-current-thread",
+    not(feature = "tokio-support"),
+    not(feature = "async-std")
+))]
+use futures::future::BoxFuture;
 use std::sync::Arc;
+#[cfg(all(
+    feature = "tokio-rt-current-thread",
+    not(feature = "tokio-support"),
+    not(feature = "async-std")
+))]
+use std::thread;
 
 /// Default tracer name if empty string is provided.
 const DEFAULT_COMPONENT_NAME: &str = "rust.opentelemetry.io/sdk/tracer";
@@ -116,10 +128,38 @@ impl Builder {
     #[cfg(feature = "tokio-support")]
     #[cfg_attr(docsrs, doc(cfg(feature = "tokio-support")))]
     pub fn with_exporter<T: SpanExporter + 'static>(self, exporter: T) -> Self {
-        // This future blocks currently when remaining spans are exported on processor
-        // drop. We cannot assume we are in a multi-threaded tokio runtime here, so use
-        // `spawn_blocking` to avoid blocking the main thread.
-        let spawn = |fut| tokio::task::spawn_blocking(|| futures::executor::block_on(fut));
+        let batch = sdk::trace::BatchSpanProcessor::builder(
+            exporter,
+            tokio::spawn,
+            tokio::time::sleep,
+            crate::util::tokio_interval_stream,
+        );
+        self.with_batch_exporter(batch.build())
+    }
+
+    /// Add a configured `SpanExporter`
+    #[cfg(all(
+        feature = "tokio-rt-current-thread",
+        not(feature = "tokio-support"),
+        not(feature = "async-std")
+    ))]
+    #[cfg_attr(docsrs, doc(cfg(feature = "tokio-rt-current-thread")))]
+    pub fn with_exporter<T: SpanExporter + 'static>(self, exporter: T) -> Self {
+        // We cannot force push tracing in current thread tokio scheduler because
+        // we rely on BatchSpanProcessor to export spans in a background task, meanwhile we need to
+        // block the shutdown function so that the runtime will not finish the blocked task and
+        // kill any remaining tasks. But there is only one thread to run task, so it's a deadlock
+        //
+        // Thus, we spawn the background task in a separate thread.
+        let spawn = |box_future: BoxFuture<'static, ()>| {
+            thread::spawn(move || {
+                let rt = tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .unwrap();
+                rt.block_on(box_future);
+            });
+        };
         let batch = sdk::trace::BatchSpanProcessor::builder(
             exporter,
             spawn,
@@ -130,7 +170,11 @@ impl Builder {
     }
 
     /// Add a configured `SpanExporter`
-    #[cfg(all(feature = "async-std", not(feature = "tokio")))]
+    #[cfg(all(
+        feature = "async-std",
+        not(feature = "tokio-support"),
+        not(feature = "tokio-rt-current-thread")
+    ))]
     #[cfg_attr(docsrs, doc(cfg(feature = "async-std")))]
     pub fn with_exporter<T: SpanExporter + 'static>(self, exporter: T) -> Self {
         let batch = sdk::trace::BatchSpanProcessor::builder(
@@ -143,7 +187,11 @@ impl Builder {
     }
 
     /// Add a configured `SpanExporter`
-    #[cfg(all(not(feature = "async-std"), not(feature = "tokio")))]
+    #[cfg(all(
+        not(feature = "async-std"),
+        not(feature = "tokio-support"),
+        not(feature = "tokio-rt-current-thread")
+    ))]
     pub fn with_exporter<T: SpanExporter + 'static>(self, exporter: T) -> Self {
         self.with_simple_exporter(exporter)
     }

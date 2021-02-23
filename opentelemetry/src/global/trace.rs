@@ -262,17 +262,6 @@ pub fn tracer_with_version(name: &'static str, version: &'static str) -> BoxedTr
 #[derive(Debug)]
 pub struct TracerProviderGuard(Option<GlobalTracerProvider>);
 
-impl Drop for TracerProviderGuard {
-    fn drop(&mut self) {
-        // if let Some(previous) = self.0.take() {
-        //     let mut global_provider = GLOBAL_TRACER_PROVIDER
-        //         .write()
-        //         .expect("GLOBAL_TRACER_PROVIDER RwLock poisoned");
-        //     *global_provider = previous;
-        // }
-    }
-}
-
 /// Sets the given [`TracerProvider`] instance as the current global provider.
 ///
 /// [`TracerProvider`]: ../api/trace/provider/trait.TracerProvider.html
@@ -441,7 +430,7 @@ mod tests {
     #[ignore]
     fn test_set_two_provider_in_two_thread() {
         let (sender, recv) = std::sync::mpsc::channel();
-        let (sender1, sender2) = (sender.clone(), sender.clone());
+        let (sender1, sender2) = (sender.clone(), sender);
         let _handle1 = thread::spawn(move || {
             sleep(Duration::from_secs(1));
             let _guard = set_tracer_provider(TestTracerProvider::new("thread 1"));

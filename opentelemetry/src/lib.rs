@@ -44,22 +44,13 @@
 //! Support for recording and exporting telemetry asynchronously can be added
 //! via the following flags:
 //!
-//! * `tokio-support`: Spawn telemetry tasks using [tokio]'s runtime.
+//! * `tokio-support`: Spawn telemetry tasks using [tokio]'s multi-thread runtime.
+//! * `tokio-rt-current-thread`: Spawn telemetry tasks in a separate thread so that the main thread won't be blocked.
 //! * `async-std`: Spawn telemetry tasks using [async-std]'s runtime.
-//!
-//! Finally the following flags can be used by exporter authors:
-//!
-//! * `reqwest`: Implementation of [`HttpClient`] for [reqwest].
-//! * `surf`: Implementation of [`HttpClient`] for [surf]`.
 //!
 //! [tokio]: https://crates.io/crates/tokio
 //! [async-std]: https://crates.io/crates/async-std
 //! [serde]: https://crates.io/crates/serde
-//! [http]: https://crates.io/crates/http
-//! [tonic]: https://crates.io/crates/tonic
-//! [`HttpClient`]: crate::sdk::export::trace::HttpClient
-//! [reqwest]: https://crates.io/crates/reqwest
-//! [surf]: https://crates.io/crates/surf
 //!
 //! ## Related Crates
 //!
@@ -72,6 +63,8 @@
 //!
 //! In particular, the following crates are likely to be of interest:
 //!
+//! - [`opentelemetry-http`] provides a pipeline and exporter for sending
+//!   trace information to [`http`].
 //! - [`opentelemetry-jaeger`] provides a pipeline and exporter for sending
 //!   trace information to [`Jaeger`].
 //! - [`opentelemetry-otlp`] exporter for sending trace and metric data in the
@@ -109,6 +102,7 @@
 //! [`opentelemetry-prometheus`]: https://crates.io/crates/opentelemetry-prometheus
 //! [`Prometheus`]: https://prometheus.io
 //! [`opentelemetry-zipkin`]: https://crates.io/crates/opentelemetry-zipkin
+//! [http]: https://crates.io/crates/http
 //! [`Zipkin`]: https://zipkin.io
 //! [`opentelemetry-contrib`]: https://crates.io/crates/opentelemetry-contrib
 //! [`Datadog`]: https://www.datadoghq.com
