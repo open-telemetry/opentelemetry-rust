@@ -276,7 +276,7 @@ where
 
 /// Shut down the current tracer provider. This will invoke shut_down method on all span processors.
 /// span processors should export remaining spans before return
-pub fn shut_down_provider() {
+pub fn shutdown_tracer_provider() {
     let mut tracer_provider = GLOBAL_TRACER_PROVIDER
         .write()
         .expect("GLOBAL_TRACER_PROVIDER RwLock poisoned");
@@ -462,7 +462,7 @@ mod tests {
 
             tracer.in_span("test", |_cx| {});
 
-            shut_down_provider();
+            shutdown_tracer_provider();
 
             assert!(assert_writer.len() > 0);
         }
@@ -495,7 +495,7 @@ mod tests {
         #[ignore]
         async fn test_set_provider_single_thread_tokio_shutdown() {
             let _ = test_set_provider_in_tokio().await;
-            // shut_down_provider(); Will block forever
+            // shutdown_tracer_provider(); Will block forever
         }
 
         // Test if the multiple thread tokio runtime could exit successfully when not force flushing spans
@@ -511,7 +511,7 @@ mod tests {
         #[ignore]
         async fn test_set_provider_multiple_thread_tokio_shutdown() {
             let assert_writer = test_set_provider_in_tokio().await;
-            shut_down_provider();
+            shutdown_tracer_provider();
             assert!(assert_writer.len() > 0);
         }
 

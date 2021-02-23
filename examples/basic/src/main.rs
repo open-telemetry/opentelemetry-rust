@@ -1,6 +1,6 @@
 use futures::stream::{Stream, StreamExt};
 use opentelemetry::global;
-use opentelemetry::global::shut_down_provider;
+use opentelemetry::global::shutdown_tracer_provider;
 use opentelemetry::sdk::{metrics::PushController, trace as sdktrace};
 use opentelemetry::trace::TraceError;
 use opentelemetry::{
@@ -99,7 +99,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         });
     });
 
-    shut_down_provider(); // sending remaining spans.
+    shutdown_tracer_provider(); // sending remaining spans.
 
     Ok(())
 }

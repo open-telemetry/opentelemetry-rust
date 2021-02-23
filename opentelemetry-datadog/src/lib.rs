@@ -74,7 +74,7 @@
 //! use opentelemetry::sdk::{trace::{self, IdGenerator, Sampler}, Resource};
 //! use opentelemetry::sdk::export::trace::ExportResult;
 //! use opentelemetry_datadog::{new_pipeline, ApiVersion, Error};
-//! use opentelemetry::global::shut_down_provider;
+//! use opentelemetry::global::shutdown_tracer_provider;
 //! use opentelemetry_http::HttpClient;
 //! use async_trait::async_trait;
 //!
@@ -113,7 +113,7 @@
 //!         // Traced app logic here...
 //!     });
 //!
-//!     shut_down_provider(); // sending remaining spans before exit
+//!     shutdown_tracer_provider(); // sending remaining spans before exit
 //!
 //!     Ok(())
 //! }

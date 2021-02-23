@@ -1,5 +1,5 @@
 use opentelemetry::global;
-use opentelemetry::global::shut_down_provider;
+use opentelemetry::global::shutdown_tracer_provider;
 use opentelemetry::trace::{Span, Tracer};
 use std::thread;
 use std::time::Duration;
@@ -22,6 +22,6 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         thread::sleep(Duration::from_millis(6));
     });
 
-    shut_down_provider();
+    shutdown_tracer_provider();
     Ok(())
 }

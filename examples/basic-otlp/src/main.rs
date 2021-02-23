@@ -1,6 +1,6 @@
 use futures::stream::Stream;
 use futures::StreamExt;
-use opentelemetry::global::shut_down_provider;
+use opentelemetry::global::shutdown_tracer_provider;
 use opentelemetry::sdk::metrics::{selectors, PushController};
 use opentelemetry::trace::TraceError;
 use opentelemetry::{
@@ -103,7 +103,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // wait for 1 minutes so that we could see metrics being pushed via OTLP every 10 seconds.
     tokio::time::sleep(Duration::from_secs(60)).await;
 
-    shut_down_provider();
+    shutdown_tracer_provider();
 
     Ok(())
 }

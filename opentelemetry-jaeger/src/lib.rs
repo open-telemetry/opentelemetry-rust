@@ -31,7 +31,7 @@
 //!         // Traced app logic here...
 //!     });
 //!
-//!     global::shut_down_provider(); // export remaining spans
+//!     global::shutdown_tracer_provider(); // export remaining spans
 //!
 //!     Ok(())
 //! }
@@ -132,7 +132,7 @@
 //!         // Traced app logic here...
 //!     });
 //!
-//!     global::shut_down_provider(); // export remaining spans
+//!     global::shutdown_tracer_provider(); // export remaining spans
 //!
 //!     Ok(())
 //! }

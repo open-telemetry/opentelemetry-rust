@@ -19,7 +19,7 @@ use tonic::{
 };
 use url::Url;
 
-use opentelemetry::global::shut_down_provider;
+use opentelemetry::global::shutdown_tracer_provider;
 use std::{env::vars, str::FromStr, time::Duration};
 use std::{
     env::{remove_var, var},
@@ -96,7 +96,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // wait for 1 minutes so that we could see metrics being pushed via OTLP every 10 seconds.
     tokio::time::sleep(Duration::from_secs(60)).await;
 
-    shut_down_provider();
+    shutdown_tracer_provider();
 
     Ok(())
 }

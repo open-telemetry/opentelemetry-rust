@@ -13,7 +13,7 @@
 //! ```no_run
 //! use opentelemetry::trace::Tracer;
 //! use opentelemetry::sdk::export::trace::stdout;
-//! use opentelemetry::global::shut_down_provider;
+//! use opentelemetry::global::shutdown_tracer_provider;
 //!
 //! fn main() {
 //!     let tracer = stdout::new_pipeline()
@@ -24,7 +24,7 @@
 //!         // Traced app logic here...
 //!     });
 //!
-//!     shut_down_provider(); // sending remaining spans
+//!     shutdown_tracer_provider(); // sending remaining spans
 //! }
 //! ```
 use crate::{

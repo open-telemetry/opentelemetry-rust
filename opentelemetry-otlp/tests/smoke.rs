@@ -1,5 +1,5 @@
 use futures::StreamExt;
-use opentelemetry::global::shut_down_provider;
+use opentelemetry::global::shutdown_tracer_provider;
 use opentelemetry::trace::{Span, SpanKind, Tracer};
 use opentelemetry_otlp::proto::collector::trace::v1::{
     trace_service_server::{TraceService, TraceServiceServer},
@@ -80,7 +80,7 @@ async fn smoke_tracer() {
         span.add_event("my-test-event".into(), vec![]);
         span.end();
 
-        shut_down_provider();
+        shutdown_tracer_provider();
     }
 
     println!("Waiting for request...");

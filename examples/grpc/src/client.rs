@@ -1,7 +1,7 @@
 use hello_world::greeter_client::GreeterClient;
 use hello_world::HelloRequest;
 use opentelemetry::global;
-use opentelemetry::global::shut_down_provider;
+use opentelemetry::global::shutdown_tracer_provider;
 use opentelemetry::sdk::propagation::TraceContextPropagator;
 use opentelemetry::trace::TraceError;
 use opentelemetry::{
@@ -55,7 +55,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
         vec![KeyValue::new("response", format!("{:?}", response))],
     );
 
-    shut_down_provider();
+    shutdown_tracer_provider();
 
     Ok(())
 }
