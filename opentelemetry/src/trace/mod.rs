@@ -1,6 +1,6 @@
 //! # OpenTelemetry Tracing API.
 //!
-//! The tracing API consist of a few main traits:
+//! The tracing API consists of a few main traits:
 //!
 //! * The `Tracer` trait which describes all tracing operations.
 //! * The `Span` trait with is a mutable object storing information about the

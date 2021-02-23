@@ -22,7 +22,7 @@
 //! use opentelemetry::trace::Tracer;
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-//!     let (tracer, _uninstall) = opentelemetry_otlp::new_pipeline().install()?;
+//!     let tracer = opentelemetry_otlp::new_pipeline().install()?;
 //!
 //!     tracer.in_span("doing_work", |cx| {
 //!         // Traced app logic here...
@@ -82,7 +82,7 @@
 //!     map.insert("x-number", "123".parse().unwrap());
 //!     map.insert_bin("trace-proto-bin", MetadataValue::from_bytes(b"[binary data]"));
 //!
-//!     let (tracer, _uninstall) = opentelemetry_otlp::new_pipeline()
+//!     let tracer = opentelemetry_otlp::new_pipeline()
 //!         .with_endpoint("localhost:4317")
 //!         .with_protocol(Protocol::Grpc)
 //!         .with_metadata(map)
@@ -172,7 +172,7 @@ use opentelemetry::trace::TraceError;
 ///
 /// ```no_run
 /// fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-///     let (tracer, _uninstall) = opentelemetry_otlp::new_pipeline().install()?;
+///     let tracer = opentelemetry_otlp::new_pipeline().install()?;
 ///
 ///     Ok(())
 /// }
@@ -187,7 +187,7 @@ pub fn new_pipeline() -> OtlpPipelineBuilder {
 ///
 /// ```no_run
 /// fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-///     let (tracer, _uninstall) = opentelemetry_otlp::new_pipeline().install()?;
+///     let tracer = opentelemetry_otlp::new_pipeline().install()?;
 ///
 ///     Ok(())
 /// }
@@ -309,7 +309,7 @@ impl OtlpPipelineBuilder {
 
     /// Install the OTLP exporter pipeline with the recommended defaults.
     #[cfg(feature = "tonic")]
-    pub fn install(mut self) -> Result<(sdk::trace::Tracer, Uninstall), TraceError> {
+    pub fn install(mut self) -> Result<sdk::trace::Tracer, TraceError> {
         let exporter = TraceExporter::new(self.exporter_config)?;
 
         let mut provider_builder = sdk::trace::TracerProvider::builder().with_exporter(exporter);
@@ -318,14 +318,14 @@ impl OtlpPipelineBuilder {
         }
         let provider = provider_builder.build();
         let tracer = provider.get_tracer("opentelemetry-otlp", Some(env!("CARGO_PKG_VERSION")));
-        let provider_guard = global::set_tracer_provider(provider);
+        let _ = global::set_tracer_provider(provider);
 
-        Ok((tracer, Uninstall(provider_guard)))
+        Ok(tracer)
     }
 
     /// Install the OTLP exporter pipeline with the recommended defaults.
     #[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
-    pub fn install(mut self) -> Result<(sdk::trace::Tracer, Uninstall), TraceError> {
+    pub fn install(mut self) -> Result<sdk::trace::Tracer, TraceError> {
         let exporter = TraceExporter::new(self.exporter_config);
 
         let mut provider_builder = sdk::trace::TracerProvider::builder().with_exporter(exporter);
@@ -334,16 +334,11 @@ impl OtlpPipelineBuilder {
         }
         let provider = provider_builder.build();
         let tracer = provider.get_tracer("opentelemetry-otlp", Some(env!("CARGO_PKG_VERSION")));
-        let provider_guard = global::set_tracer_provider(provider);
+        let _ = global::set_tracer_provider(provider);
 
-        Ok((tracer, Uninstall(provider_guard)))
+        Ok(tracer)
     }
 }
-
-/// Uninstalls the OTLP pipeline on drop
-#[must_use]
-#[derive(Debug)]
-pub struct Uninstall(global::TracerProviderGuard);
 
 /// Wrap type for errors from opentelemetry otel
 #[derive(thiserror::Error, Debug)]

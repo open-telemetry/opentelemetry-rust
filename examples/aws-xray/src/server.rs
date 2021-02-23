@@ -30,7 +30,7 @@ async fn handle(req: Request<Body>) -> Result<Response<Body>, Infallible> {
     ))
 }
 
-fn init_tracer() -> (sdktrace::Tracer, stdout::Uninstall) {
+fn init_tracer() -> sdktrace::Tracer {
     global::set_text_map_propagator(XrayPropagator::new());
 
     // Install stdout exporter pipeline to be able to retrieve the collected spans.
@@ -47,7 +47,7 @@ fn init_tracer() -> (sdktrace::Tracer, stdout::Uninstall) {
 
 #[tokio::main]
 async fn main() {
-    let _guard = init_tracer();
+    let _tracer = init_tracer();
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
 
     let make_svc = make_service_fn(|_conn| async { Ok::<_, Infallible>(service_fn(handle)) });

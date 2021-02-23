@@ -255,18 +255,11 @@ pub fn tracer_with_version(name: &'static str, version: &'static str) -> BoxedTr
     tracer_provider().get_tracer(name, Some(version))
 }
 
-/// Restores the previous tracer provider on drop.
-///
-/// This is commonly used to uninstall pipelines. As you can only have one active tracer provider,
-/// the previous provider is usually the default no-op provider.
-#[derive(Debug)]
-pub struct TracerProviderGuard(Option<GlobalTracerProvider>);
-
 /// Sets the given [`TracerProvider`] instance as the current global provider.
 ///
 /// [`TracerProvider`]: ../api/trace/provider/trait.TracerProvider.html
 #[must_use]
-pub fn set_tracer_provider<P, T, S>(new_provider: P) -> TracerProviderGuard
+pub fn set_tracer_provider<P, T, S>(new_provider: P) -> GlobalTracerProvider
 where
     S: trace::Span + Send + Sync,
     T: trace::Tracer<Span = S> + Send + Sync,
@@ -275,15 +268,14 @@ where
     let mut tracer_provider = GLOBAL_TRACER_PROVIDER
         .write()
         .expect("GLOBAL_TRACER_PROVIDER RwLock poisoned");
-    let _previous = mem::replace(
+    mem::replace(
         &mut *tracer_provider,
         GlobalTracerProvider::new(new_provider),
-    );
-    TracerProviderGuard(None)
+    )
 }
 
-/// Shut down the current tracer provider
-#[allow(unreachable_pub, dead_code)]
+/// Shut down the current tracer provider. This will invoke shut_down method on all span processors.
+/// span processors should export remaining spans before return
 pub fn shut_down_provider() {
     let mut tracer_provider = GLOBAL_TRACER_PROVIDER
         .write()

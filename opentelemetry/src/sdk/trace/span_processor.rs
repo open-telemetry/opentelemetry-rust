@@ -101,8 +101,7 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
 ///     .with_simple_exporter(exporter)
 ///     .build();
 ///
-/// let guard = global::set_tracer_provider(provider);
-/// # drop(guard)
+/// let previous_provider = global::set_tracer_provider(provider);
 /// ```
 ///
 /// [`SpanProcessor`]: ../../api/trace/span_processor/trait.SpanProcessor.html

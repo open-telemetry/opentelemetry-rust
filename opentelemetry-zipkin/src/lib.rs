@@ -26,11 +26,13 @@
 //!
 //! fn main() -> Result<(), TraceError> {
 //!     global::set_text_map_propagator(opentelemetry_zipkin::Propagator::new());
-//!     let (tracer, _uninstall) = opentelemetry_zipkin::new_pipeline().install()?;
+//!     let tracer = opentelemetry_zipkin::new_pipeline().install()?;
 //!
 //!     tracer.in_span("doing_work", |cx| {
 //!         // Traced app logic here...
 //!     });
+//!
+//!     global::shut_down_provider(); // sending remaining spans
 //!
 //!     Ok(())
 //! }
@@ -106,7 +108,7 @@
 //!
 //! fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
 //!     global::set_text_map_propagator(opentelemetry_zipkin::Propagator::new());
-//!     let (tracer, _uninstall) = opentelemetry_zipkin::new_pipeline()
+//!     let tracer = opentelemetry_zipkin::new_pipeline()
 //!         .with_http_client(IsahcClient(isahc::HttpClient::new()?))
 //!         .with_service_name("my_app")
 //!         .with_service_address("127.0.0.1:8080".parse()?)
@@ -125,6 +127,8 @@
 //!     tracer.in_span("doing_work", |cx| {
 //!         // Traced app logic here...
 //!     });
+//!
+//!     global::shut_down_provider(); // sending remaining spans
 //!
 //!     Ok(())
 //! }
@@ -173,5 +177,5 @@ extern crate typed_builder;
 mod exporter;
 mod propagator;
 
-pub use exporter::{new_pipeline, Error, Exporter, Uninstall, ZipkinPipelineBuilder};
+pub use exporter::{new_pipeline, Error, Exporter, ZipkinPipelineBuilder};
 pub use propagator::{B3Encoding, Propagator};

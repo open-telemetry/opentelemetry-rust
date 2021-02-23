@@ -1,5 +1,6 @@
 use futures::stream::{Stream, StreamExt};
 use opentelemetry::global;
+use opentelemetry::global::shut_down_provider;
 use opentelemetry::sdk::{metrics::PushController, trace as sdktrace};
 use opentelemetry::trace::TraceError;
 use opentelemetry::{
@@ -11,7 +12,7 @@ use opentelemetry::{
 use std::error::Error;
 use std::time::Duration;
 
-fn init_tracer() -> Result<(sdktrace::Tracer, opentelemetry_jaeger::Uninstall), TraceError> {
+fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
     opentelemetry_jaeger::new_pipeline()
         .with_service_name("trace-demo")
         .with_tags(vec![
@@ -53,7 +54,7 @@ lazy_static::lazy_static! {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
-    let _uninstall = init_tracer()?;
+    let _tracer = init_tracer()?;
     let _started = init_meter()?;
 
     let tracer = global::tracer("ex.com/basic");
@@ -97,6 +98,8 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
             value_recorder.record(1.3);
         });
     });
+
+    shut_down_provider(); // sending remaining spans.
 
     Ok(())
 }

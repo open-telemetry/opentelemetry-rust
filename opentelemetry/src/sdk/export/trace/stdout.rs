@@ -13,15 +13,18 @@
 //! ```no_run
 //! use opentelemetry::trace::Tracer;
 //! use opentelemetry::sdk::export::trace::stdout;
+//! use opentelemetry::global::shut_down_provider;
 //!
 //! fn main() {
-//!     let (tracer, _uninstall) = stdout::new_pipeline()
+//!     let tracer = stdout::new_pipeline()
 //!         .with_pretty_print(true)
 //!         .install();
 //!
 //!     tracer.in_span("doing_work", |cx| {
 //!         // Traced app logic here...
 //!     });
+//!
+//!     shut_down_provider(); // sending remaining spans
 //! }
 //! ```
 use crate::{
@@ -88,7 +91,7 @@ where
     W: Write + Debug + Send + 'static,
 {
     /// Install the stdout exporter pipeline with the recommended defaults.
-    pub fn install(mut self) -> (sdk::trace::Tracer, Uninstall) {
+    pub fn install(mut self) -> sdk::trace::Tracer {
         let exporter = Exporter::new(self.writer, self.pretty_print);
 
         let mut provider_builder = sdk::trace::TracerProvider::builder().with_exporter(exporter);
@@ -97,9 +100,9 @@ where
         }
         let provider = provider_builder.build();
         let tracer = provider.get_tracer("opentelemetry", Some(env!("CARGO_PKG_VERSION")));
-        let provider_guard = global::set_tracer_provider(provider);
+        let _ = global::set_tracer_provider(provider);
 
-        (tracer, Uninstall(provider_guard))
+        tracer
     }
 }
 
@@ -146,11 +149,6 @@ where
         Ok(())
     }
 }
-
-/// Uninstalls the stdout pipeline on drop.
-#[must_use]
-#[derive(Debug)]
-pub struct Uninstall(global::TracerProviderGuard);
 
 /// Stdout exporter's error
 #[derive(thiserror::Error, Debug)]

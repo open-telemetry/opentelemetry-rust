@@ -47,11 +47,13 @@ use opentelemetry::trace::Tracer;
 
 fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     global::set_text_map_propagator(opentelemetry_jaeger::Propagator::new());
-    let (tracer, _uninstall) = opentelemetry_jaeger::new_pipeline().install()?;
+    let tracer = opentelemetry_jaeger::new_pipeline().install()?;
 
     tracer.in_span("doing_work", |cx| {
         // Traced app logic here...
     });
+    
+    global::shut_down_provider(); // sending remaining spans
 
     Ok(())
 }
@@ -111,7 +113,7 @@ Then you can use the [`with_collector_endpoint`] method to specify the endpoint:
 use opentelemetry::trace::Tracer;
 
 fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let (tracer, _uninstall) = opentelemetry_jaeger::new_pipeline()
+    let tracer = opentelemetry_jaeger::new_pipeline()
         .with_collector_endpoint("http://localhost:14268/api/traces")
         // optionally set username and password as well.
         .with_collector_username("username")
@@ -121,6 +123,8 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     tracer.in_span("doing_work", |cx| {
         // Traced app logic here...
     });
+
+    opentelemetry::global::shut_down_provider(); // sending remaining spans
 
     Ok(())
 }
@@ -144,7 +148,7 @@ use opentelemetry::KeyValue;
 
 fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     global::set_text_map_propagator(opentelemetry_jaeger::Propagator::new());
-    let (tracer, _uninstall) = opentelemetry_jaeger::new_pipeline()
+    let tracer = opentelemetry_jaeger::new_pipeline()
         .with_agent_endpoint("localhost:6831")
         .with_service_name("my_app")
         .with_tags(vec![KeyValue::new("process_key", "process_value")])
@@ -163,7 +167,9 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     tracer.in_span("doing_work", |cx| {
         // Traced app logic here...
     });
-
+    
+    global::shut_down_provider(); // sending remaining spans
+    
     Ok(())
 }
 ```

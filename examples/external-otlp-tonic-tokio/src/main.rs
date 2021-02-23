@@ -19,6 +19,7 @@ use tonic::{
 };
 use url::Url;
 
+use opentelemetry::global::shut_down_provider;
 use std::{env::vars, str::FromStr, time::Duration};
 use std::{
     env::{remove_var, var},
@@ -30,7 +31,7 @@ use std::{
 const ENDPOINT: &str = "OTLP_TONIC_ENDPOINT";
 const HEADER_PREFIX: &str = "OTLP_TONIC_";
 
-fn init_tracer() -> Result<(sdktrace::Tracer, opentelemetry_otlp::Uninstall), TraceError> {
+fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
     let endpoint = var(ENDPOINT).unwrap_or_else(|_| {
         panic!(
             "You must specify and endpoint to connect to with the variable {:?}.",
@@ -72,7 +73,7 @@ const ANOTHER_KEY: Key = Key::from_static_str("ex.com/another");
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
-    let (_, _guard) = init_tracer()?;
+    let _ = init_tracer()?;
 
     let tracer = global::tracer("ex.com/basic");
 
@@ -94,6 +95,8 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
 
     // wait for 1 minutes so that we could see metrics being pushed via OTLP every 10 seconds.
     tokio::time::sleep(Duration::from_secs(60)).await;
+
+    shut_down_provider();
 
     Ok(())
 }

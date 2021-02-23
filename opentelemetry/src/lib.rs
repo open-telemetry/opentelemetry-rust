@@ -15,15 +15,17 @@
 //! ```no_run
 //! # #[cfg(feature = "trace")]
 //! # {
-//! use opentelemetry::{sdk::export::trace::stdout, trace::Tracer};
+//! use opentelemetry::{sdk::export::trace::stdout, trace::Tracer, global};
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 //!     // Create a new instrumentation pipeline
-//!     let (tracer, _uninstall) = stdout::new_pipeline().install();
+//!     let tracer = stdout::new_pipeline().install();
 //!
 //!     tracer.in_span("doing_work", |cx| {
 //!         // Traced app logic here...
 //!     });
+//!
+//!     global::shut_down_provider(); // sending remaining spans
 //!
 //!     Ok(())
 //! }

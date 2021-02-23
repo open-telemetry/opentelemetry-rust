@@ -1,4 +1,5 @@
 use opentelemetry::global;
+use opentelemetry::global::shut_down_provider;
 use opentelemetry::{
     trace::{Span, TraceContextExt, Tracer},
     Key,
@@ -17,7 +18,7 @@ fn bar() {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let (tracer, _uninstall) = new_pipeline()
+    let tracer = new_pipeline()
         .with_service_name("trace-demo")
         .with_version(ApiVersion::Version05)
         .install()?;
@@ -33,6 +34,8 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         bar();
         thread::sleep(Duration::from_millis(6));
     });
+
+    shut_down_provider();
 
     Ok(())
 }

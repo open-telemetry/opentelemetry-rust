@@ -1,5 +1,6 @@
 use futures::stream::Stream;
 use futures::StreamExt;
+use opentelemetry::global::shut_down_provider;
 use opentelemetry::sdk::metrics::{selectors, PushController};
 use opentelemetry::trace::TraceError;
 use opentelemetry::{
@@ -13,7 +14,7 @@ use opentelemetry_otlp::ExporterConfig;
 use std::error::Error;
 use std::time::Duration;
 
-fn init_tracer() -> Result<(sdktrace::Tracer, opentelemetry_otlp::Uninstall), TraceError> {
+fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
     opentelemetry_otlp::new_pipeline()
         .with_endpoint("http://localhost:4317")
         .install()
@@ -51,7 +52,7 @@ lazy_static::lazy_static! {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
-    let _guard = init_tracer()?;
+    let _ = init_tracer()?;
     let _started = init_meter()?;
 
     let tracer = global::tracer("ex.com/basic");
@@ -101,6 +102,8 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
 
     // wait for 1 minutes so that we could see metrics being pushed via OTLP every 10 seconds.
     tokio::time::sleep(Duration::from_secs(60)).await;
+
+    shut_down_provider();
 
     Ok(())
 }

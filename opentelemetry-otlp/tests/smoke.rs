@@ -1,4 +1,5 @@
 use futures::StreamExt;
+use opentelemetry::global::shut_down_provider;
 use opentelemetry::trace::{Span, SpanKind, Tracer};
 use opentelemetry_otlp::proto::collector::trace::v1::{
     trace_service_server::{TraceService, TraceServiceServer},
@@ -66,7 +67,7 @@ async fn smoke_tracer() {
 
     {
         println!("Installing tracer...");
-        let (tracer, _uninstall) = opentelemetry_otlp::new_pipeline()
+        let tracer = opentelemetry_otlp::new_pipeline()
             .with_endpoint(format!("http://{}", addr))
             .install()
             .expect("failed to install");
@@ -78,6 +79,8 @@ async fn smoke_tracer() {
             .start(&tracer);
         span.add_event("my-test-event".into(), vec![]);
         span.end();
+
+        shut_down_provider();
     }
 
     println!("Waiting for request...");
