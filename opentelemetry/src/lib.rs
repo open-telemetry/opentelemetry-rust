@@ -47,12 +47,30 @@
 //! via the following flags:
 //!
 //! * `tokio-support`: Spawn telemetry tasks using [tokio]'s multi-thread runtime.
-//! * `tokio-rt-current-thread`: Spawn telemetry tasks in a separate thread so that the main thread won't be blocked.
+//! * `tokio-rt-current-thread`: Spawn telemetry tasks on a separate runtime so that the main runtime won't be blocked.
 //! * `async-std`: Spawn telemetry tasks using [async-std]'s runtime.
 //!
 //! [tokio]: https://crates.io/crates/tokio
 //! [async-std]: https://crates.io/crates/async-std
 //! [serde]: https://crates.io/crates/serde
+//!
+//! ## Working with runtimes
+//!
+//! Opentelemetry API & SDK supports different runtimes. Usually, when working with async runtime. To
+//! improve the performance, we recommend to use batch span processors where the spans will be sent in
+//! batch, reducing the number of requests and resource needed.
+//!
+//! Batch span processors need to run a background task to collect and send spans. Different runtime
+//! needs different ways to handle the background task.
+//!
+//! ### Tokio
+//!
+//! Tokio currently offers two different schedulers. One is `current_thread_scheduler`, the other is
+//! `multiple_thread_scheduler`. Both of them default to use batch span processors to install span exporters.
+//!
+//! But for `current_thread_scheduler`. It can cause the program to hang forever if we schedule the backgroud
+//! task with other tasks in the same runtime. Thus, users should enable `tokio-rt-current-thread` feature
+//! to ask the background task be scheduled on a different runtime on a different thread.
 //!
 //! ## Related Crates
 //!

@@ -7,6 +7,10 @@ if rustup component add clippy; then
     `# Exit with a nonzero code if there are clippy warnings` \
     -Dwarnings \
     "$@"
+  cargo clippy --manifest-path=opentelemetry/Cargo.toml --all-targets --features "trace,tokio-support" --no-default-features -- \
+    `# Exit with a nonzero code if there are clippy warnings` \
+    -Dwarnings \
+    "$@"
   cargo clippy --manifest-path=opentelemetry/Cargo.toml --all-targets --features "trace,tokio-rt-current-thread" --no-default-features -- \
     `# Exit with a nonzero code if there are clippy warnings` \
     -Dwarnings \

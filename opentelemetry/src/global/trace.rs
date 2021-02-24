@@ -294,12 +294,12 @@ pub fn shutdown_tracer_provider() {
 mod tests {
     use super::*;
     use crate::trace::NoopTracer;
-    #[cfg(feature = "tokio-support")]
+    #[cfg(any(feature = "tokio-support", feature = "tokio-rt-current-thread"))]
     use crate::trace::Tracer;
     use std::fmt::Debug;
-    #[cfg(feature = "tokio-support")]
+    #[cfg(any(feature = "tokio-support", feature = "tokio-rt-current-thread"))]
     use std::io::Write;
-    #[cfg(feature = "tokio-support")]
+    #[cfg(any(feature = "tokio-support", feature = "tokio-rt-current-thread"))]
     use std::sync::Mutex;
     use std::thread;
     use std::thread::sleep;
@@ -308,7 +308,7 @@ mod tests {
     macro_rules! cfg_tokio {
         ($($item:item)*) => {
             $(
-                #[cfg(feature = "tokio-support")]
+                #[cfg(any(feature = "tokio-support", feature = "tokio-rt-current-thread"))]
                 $item
             )*
         }
@@ -443,97 +443,14 @@ mod tests {
     }
 
     cfg_tokio! {
-        // Test use simple processor in single thread tokio runtime.
-        // Expected to see the spans being exported to buffer
-        #[tokio::test]
-        #[ignore]
-        async fn test_set_provider_single_thread_tokio_with_simple_processor() {
-            use crate::sdk::trace::TracerProvider;
-
-            let assert_writer = AssertWriter::new();
-
-            let exporter = crate::sdk::export::trace::stdout::Exporter::new(assert_writer.clone(), true);
-            let provider = TracerProvider::builder()
-                .with_simple_exporter(exporter)
-                .build();
-
-            let _ = set_tracer_provider(provider);
-            let tracer = tracer("opentelemetry");
-
-            tracer.in_span("test", |_cx| {});
-
-            shutdown_tracer_provider();
-
-            assert!(assert_writer.len() > 0);
-        }
-
-        // When using `tokio::spawn` to spawn the worker task in batch processor
-        //
-        // multiple -> no shut down -> not export
-        // multiple -> shut down -> export
-        // single -> no shutdown -> not export
-        // single -> shutdown -> hang forever
-
-        // When using |fut| tokio::task::spawn_blocking(|| futures::executor::block_on(fut))
-        // to spawn the worker task in batch processor
-        //
-        // multiple -> no shutdown -> hang forever
-        // multiple -> shut down -> export
-        // single -> shut down -> export
-        // single -> no shutdown -> hang forever
-
-        // Test if the single thread tokio runtime could exit successfully when not force flushing spans
-        #[tokio::test]
-        #[ignore]
-        async fn test_set_provider_single_thread_tokio() {
-            let assert_writer = test_set_provider_in_tokio().await;
-            assert_eq!(assert_writer.len(), 0)
-        }
-
-        // Test if the single thread tokio runtime could exit successfully when force flushing spans.
-        #[tokio::test]
-        #[ignore]
-        async fn test_set_provider_single_thread_tokio_shutdown() {
-            let _ = test_set_provider_in_tokio().await;
-            // shutdown_tracer_provider(); Will block forever
-        }
-
-        // Test if the multiple thread tokio runtime could exit successfully when not force flushing spans
-        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-        #[ignore]
-        async fn test_set_provider_multiple_thread_tokio() {
-            let assert_writer = test_set_provider_in_tokio().await;
-            assert_eq!(assert_writer.len(), 0);
-        }
-
-        // Test if the multiple thread tokio runtime could exit successfully when force flushing spans
-        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-        #[ignore]
-        async fn test_set_provider_multiple_thread_tokio_shutdown() {
-            let assert_writer = test_set_provider_in_tokio().await;
-            shutdown_tracer_provider();
-            assert!(assert_writer.len() > 0);
-        }
-
         async fn test_set_provider_in_tokio() -> AssertWriter {
             use crate::sdk::trace::TracerProvider;
 
-            let buffer = AssertWriter {
-                buf: Arc::new(Mutex::new(Vec::new())),
-            };
+            let buffer = AssertWriter::new();
 
             let exporter = crate::sdk::export::trace::stdout::Exporter::new(buffer.clone(), true);
-            let batch = crate::sdk::trace::BatchSpanProcessor::builder(
-                exporter,
-                tokio::spawn,
-                tokio::time::sleep,
-                crate::util::tokio_interval_stream,
-            );
             let provider = TracerProvider::builder()
-                .with_batch_exporter(batch
-                    // having a large delay so the content can only be exported via flush or shutdown
-                    .with_scheduled_delay(Duration::from_secs(600))
-                    .build())
+                .with_exporter(exporter)
                 .build();
 
             let _ = set_tracer_provider(provider);
@@ -543,5 +460,84 @@ mod tests {
 
             buffer
         }
+    }
+
+    // When using `tokio::spawn` to spawn the worker task in batch processor
+    //
+    // multiple -> no shut down -> not export
+    // multiple -> shut down -> export
+    // single -> no shutdown -> not export
+    // single -> shutdown -> hang forever
+
+    // When using |fut| tokio::task::spawn_blocking(|| futures::executor::block_on(fut))
+    // to spawn the worker task in batch processor
+    //
+    // multiple -> no shutdown -> hang forever
+    // multiple -> shut down -> export
+    // single -> shut down -> export
+    // single -> no shutdown -> hang forever
+
+    // Test if the multiple thread tokio runtime could exit successfully when not force flushing spans
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[ignore]
+    #[cfg(feature = "tokio-support")]
+    async fn test_set_provider_multiple_thread_tokio() {
+        let assert_writer = test_set_provider_in_tokio().await;
+        assert_eq!(assert_writer.len(), 0);
+    }
+
+    // Test if the multiple thread tokio runtime could exit successfully when force flushing spans
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[ignore]
+    #[cfg(feature = "tokio-support")]
+    async fn test_set_provider_multiple_thread_tokio_shutdown() {
+        let assert_writer = test_set_provider_in_tokio().await;
+        shutdown_tracer_provider();
+        assert!(assert_writer.len() > 0);
+    }
+
+    // Test use simple processor in single thread tokio runtime.
+    // Expected to see the spans being exported to buffer
+    #[tokio::test]
+    #[ignore]
+    #[cfg(feature = "tokio-rt-current-thread")]
+    async fn test_set_provider_single_thread_tokio_with_simple_processor() {
+        use crate::sdk::trace::TracerProvider;
+
+        let assert_writer = AssertWriter::new();
+
+        let exporter =
+            crate::sdk::export::trace::stdout::Exporter::new(assert_writer.clone(), true);
+        let provider = TracerProvider::builder()
+            .with_simple_exporter(exporter)
+            .build();
+
+        let _ = set_tracer_provider(provider);
+        let tracer = tracer("opentelemetry");
+
+        tracer.in_span("test", |_cx| {});
+
+        shutdown_tracer_provider();
+
+        assert!(assert_writer.len() > 0);
+    }
+
+    // Test if the single thread tokio runtime could exit successfully when not force flushing spans
+    #[tokio::test]
+    #[ignore]
+    #[cfg(feature = "tokio-rt-current-thread")]
+    async fn test_set_provider_single_thread_tokio() {
+        let assert_writer = test_set_provider_in_tokio().await;
+        assert_eq!(assert_writer.len(), 0)
+    }
+
+    // Test if the single thread tokio runtime could exit successfully when force flushing spans.
+    #[tokio::test]
+    #[ignore]
+    #[cfg(feature = "tokio-rt-current-thread")]
+    async fn test_set_provider_single_thread_tokio_shutdown() {
+        let assert_writer = test_set_provider_in_tokio().await;
+        shutdown_tracer_provider();
+        assert!(assert_writer.len() > 0);
     }
 }
