@@ -56,9 +56,9 @@
 //!
 //! ## Working with runtimes
 //!
-//! Opentelemetry API & SDK supports different runtimes. Usually, when working with async runtime. To
-//! improve the performance, we recommend to use batch span processors where the spans will be sent in
-//! batch, reducing the number of requests and resource needed.
+//! Opentelemetry API & SDK supports different runtimes. When working with async runtime, we recommend
+//! to use batch span processors where the spans will be sent in batch, reducing the number of requests
+//! and resource needed.
 //!
 //! Batch span processors need to run a background task to collect and send spans. Different runtime
 //! needs different ways to handle the background task.

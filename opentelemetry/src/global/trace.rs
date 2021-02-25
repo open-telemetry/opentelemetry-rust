@@ -274,7 +274,7 @@ where
     )
 }
 
-/// Shut down the current tracer provider. This will invoke shut_down method on all span processors.
+/// Shut down the current tracer provider. This will invoke the shutdown method on all span processors.
 /// span processors should export remaining spans before return
 pub fn shutdown_tracer_provider() {
     let mut tracer_provider = GLOBAL_TRACER_PROVIDER
@@ -425,13 +425,13 @@ mod tests {
         let (sender1, sender2) = (sender.clone(), sender);
         let _handle1 = thread::spawn(move || {
             sleep(Duration::from_secs(1));
-            let _guard = set_tracer_provider(TestTracerProvider::new("thread 1"));
+            let _previous = set_tracer_provider(TestTracerProvider::new("thread 1"));
             sleep(Duration::from_secs(2));
             let _ = sender1.send(format!("thread 1: {:?}", tracer_provider()));
         });
         let _handle2 = thread::spawn(move || {
             sleep(Duration::from_secs(2));
-            let _guard = set_tracer_provider(TestTracerProvider::new("thread 2"));
+            let _previous = set_tracer_provider(TestTracerProvider::new("thread 2"));
             sleep(Duration::from_secs(1));
             let _ = sender2.send(format!("thread 2 :{:?}", tracer_provider()));
         });
@@ -443,17 +443,25 @@ mod tests {
     }
 
     cfg_tokio! {
-        async fn test_set_provider_in_tokio() -> AssertWriter {
+
+        fn build_tracer_provider(batch_processor: bool, assert_writer: AssertWriter) -> crate::sdk::trace::TracerProvider {
             use crate::sdk::trace::TracerProvider;
+            let exporter =
+                crate::sdk::export::trace::stdout::Exporter::new(assert_writer, true);
+            if batch_processor {
+                TracerProvider::builder()
+                    .with_exporter(exporter)
+                    .build()
+            } else {
+                TracerProvider::builder()
+                    .with_simple_exporter(exporter)
+                    .build()
+            }
+        }
 
+        async fn test_set_provider_in_tokio() -> AssertWriter {
             let buffer = AssertWriter::new();
-
-            let exporter = crate::sdk::export::trace::stdout::Exporter::new(buffer.clone(), true);
-            let provider = TracerProvider::builder()
-                .with_exporter(exporter)
-                .build();
-
-            let _ = set_tracer_provider(provider);
+            let _ = set_tracer_provider(build_tracer_provider(true, buffer.clone()));
             let tracer = tracer("opentelemetery");
 
             tracer.in_span("test", |_cx| {});
@@ -502,17 +510,8 @@ mod tests {
     #[ignore]
     #[cfg(feature = "tokio-rt-current-thread")]
     async fn test_set_provider_single_thread_tokio_with_simple_processor() {
-        use crate::sdk::trace::TracerProvider;
-
         let assert_writer = AssertWriter::new();
-
-        let exporter =
-            crate::sdk::export::trace::stdout::Exporter::new(assert_writer.clone(), true);
-        let provider = TracerProvider::builder()
-            .with_simple_exporter(exporter)
-            .build();
-
-        let _ = set_tracer_provider(provider);
+        let _ = set_tracer_provider(build_tracer_provider(false, assert_writer.clone()));
         let tracer = tracer("opentelemetry");
 
         tracer.in_span("test", |_cx| {});
