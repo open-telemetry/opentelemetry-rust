@@ -381,10 +381,10 @@ mod tests {
     #[test]
     #[ignore]
     fn test_set_tracer_provider() {
-        let _guard = set_tracer_provider(TestTracerProvider::new("global one"));
+        let _ = set_tracer_provider(TestTracerProvider::new("global one"));
 
         {
-            let _guard = set_tracer_provider(TestTracerProvider::new("inner one"));
+            let _ = set_tracer_provider(TestTracerProvider::new("inner one"));
             assert!(format!("{:?}", tracer_provider()).contains("inner one"));
         }
 
@@ -394,7 +394,7 @@ mod tests {
     #[test]
     #[ignore]
     fn test_set_tracer_provider_in_another_thread() {
-        let _guard = set_tracer_provider(TestTracerProvider::new("global one"));
+        let _ = set_tracer_provider(TestTracerProvider::new("global one"));
 
         let handle = thread::spawn(move || {
             assert!(format!("{:?}", tracer_provider()).contains("global one"));
@@ -409,7 +409,7 @@ mod tests {
     #[ignore]
     fn test_set_tracer_provider_in_another_function() {
         let setup = || {
-            let _guard = set_tracer_provider(TestTracerProvider::new("global one"));
+            let _ = set_tracer_provider(TestTracerProvider::new("global one"));
             assert!(format!("{:?}", tracer_provider()).contains("global one"))
         };
 
