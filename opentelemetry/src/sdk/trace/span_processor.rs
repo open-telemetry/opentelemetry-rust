@@ -718,20 +718,20 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "async-std")]
+    #[cfg(feature = "rt-async-std")]
     fn test_timeout_async_std_timeout() {
         async_std::task::block_on(timeout_test_std_async(true));
     }
 
     #[test]
-    #[cfg(feature = "async-std")]
+    #[cfg(feature = "rt-async-std")]
     fn test_timeout_async_std_not_timeout() {
         async_std::task::block_on(timeout_test_std_async(false));
     }
 
     // If the time_out is true, then the result suppose to ended with timeout.
     // otherwise the exporter should be able to export within time out duration.
-    #[cfg(feature = "async-std")]
+    #[cfg(feature = "rt-async-std")]
     async fn timeout_test_std_async(time_out: bool) {
         let config = BatchConfig {
             max_export_timeout: Duration::from_millis(if time_out { 5 } else { 60 }),

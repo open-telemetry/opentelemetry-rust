@@ -46,9 +46,9 @@
 //! Support for recording and exporting telemetry asynchronously can be added
 //! via the following flags:
 //!
-//! * `tokio-support`: Spawn telemetry tasks using [tokio]'s multi-thread runtime.
-//! * `tokio-rt-current-thread`: Spawn telemetry tasks on a separate runtime so that the main runtime won't be blocked.
-//! * `async-std`: Spawn telemetry tasks using [async-std]'s runtime.
+//! * `rt-tokio`: Spawn telemetry tasks using [tokio]'s multi-thread runtime.
+//! * `rt-tokio-current-thread`: Spawn telemetry tasks on a separate runtime so that the main runtime won't be blocked.
+//! * `rt-async-std`: Spawn telemetry tasks using [async-std]'s runtime.
 //!
 //! [tokio]: https://crates.io/crates/tokio
 //! [async-std]: https://crates.io/crates/async-std
@@ -69,7 +69,7 @@
 //! `multiple_thread_scheduler`. Both of them default to use batch span processors to install span exporters.
 //!
 //! But for `current_thread_scheduler`. It can cause the program to hang forever if we schedule the backgroud
-//! task with other tasks in the same runtime. Thus, users should enable `tokio-rt-current-thread` feature
+//! task with other tasks in the same runtime. Thus, users should enable `rt-tokio-current-thread` feature
 //! to ask the background task be scheduled on a different runtime on a different thread.
 //!
 //! ## Related Crates
@@ -178,9 +178,11 @@ pub mod testing;
 pub mod baggage;
 
 mod context;
+
 pub use context::{Context, ContextGuard};
 
 mod core;
+
 pub use crate::core::{Array, Key, KeyValue, Unit, Value};
 
 pub mod util;

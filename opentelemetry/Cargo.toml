@@ -50,9 +50,10 @@ default = ["trace"]
 trace = ["rand", "pin-project", "async-trait", "percent-encoding"]
 metrics = ["dashmap", "fnv"]
 serialize = ["serde"]
-testing = ["trace", "metrics", "tokio-support", "tokio/full"]
-tokio-support = ["tokio", "tokio-stream"]
-tokio-rt-current-thread = ["tokio", "tokio-stream"]
+testing = ["trace", "metrics", "rt-tokio", "tokio/full"]
+rt-tokio = ["tokio", "tokio-stream"]
+rt-tokio-current-thread = ["tokio", "tokio-stream"]
+rt-async-std = ["async-std"]
 
 [[bench]]
 name = "trace"

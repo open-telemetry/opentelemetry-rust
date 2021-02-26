@@ -35,16 +35,16 @@
 //!
 //! For optimal performance, a batch exporter is recommended as the simple
 //! exporter will export each span synchronously on drop. You can enable the
-//! [`tokio-support`] or [`async-std`] features to have a batch exporter configured for
+//! [`rt-tokio`], [`rt-tokio-current-thread`] or [`rt-async-std`] features to have a batch exporter configured for
 //! you automatically for either executor when you install the pipeline.
 //!
 //! ```toml
 //! [dependencies]
-//! opentelemetry = { version = "*", features = ["tokio-support"] }
+//! opentelemetry = { version = "*", features = ["rt-tokio"] }
 //! opentelemetry-datadog = "*"
 //! ```
 //!
-//! [`tokio-support`]: https://tokio.rs
+//! [`rt-tokio`]: https://tokio.rs
 //! [`async-std`]: https://async.rs
 //!
 

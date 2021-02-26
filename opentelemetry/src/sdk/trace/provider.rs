@@ -13,16 +13,16 @@ use crate::{
     sdk::{self, export::trace::SpanExporter, trace::SpanProcessor},
 };
 #[cfg(all(
-    feature = "tokio-rt-current-thread",
-    not(feature = "tokio-support"),
-    not(feature = "async-std")
+    feature = "rt-tokio-current-thread",
+    not(feature = "rt-tokio"),
+    not(feature = "rt-async-std")
 ))]
 use futures::future::BoxFuture;
 use std::sync::Arc;
 #[cfg(all(
-    feature = "tokio-rt-current-thread",
-    not(feature = "tokio-support"),
-    not(feature = "async-std")
+    feature = "rt-tokio-current-thread",
+    not(feature = "rt-tokio"),
+    not(feature = "rt-async-std")
 ))]
 use std::thread;
 
@@ -125,8 +125,8 @@ impl Builder {
     }
 
     /// Add a configured `SpanExporter`
-    #[cfg(feature = "tokio-support")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "tokio-support")))]
+    #[cfg(feature = "rt-tokio")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "rt-tokio")))]
     pub fn with_exporter<T: SpanExporter + 'static>(self, exporter: T) -> Self {
         let batch = sdk::trace::BatchSpanProcessor::builder(
             exporter,
@@ -139,11 +139,11 @@ impl Builder {
 
     /// Add a configured `SpanExporter`
     #[cfg(all(
-        feature = "tokio-rt-current-thread",
-        not(feature = "tokio-support"),
-        not(feature = "async-std")
+        feature = "rt-tokio-current-thread",
+        not(feature = "rt-tokio"),
+        not(feature = "rt-async-std")
     ))]
-    #[cfg_attr(docsrs, doc(cfg(feature = "tokio-rt-current-thread")))]
+    #[cfg_attr(docsrs, doc(cfg(feature = "rt-tokio-current-thread")))]
     pub fn with_exporter<T: SpanExporter + 'static>(self, exporter: T) -> Self {
         // We cannot force push tracing in current thread tokio scheduler because
         // we rely on BatchSpanProcessor to export spans in a background task, meanwhile we need to
@@ -171,11 +171,11 @@ impl Builder {
 
     /// Add a configured `SpanExporter`
     #[cfg(all(
-        feature = "async-std",
-        not(feature = "tokio-support"),
-        not(feature = "tokio-rt-current-thread")
+        feature = "rt-async-std",
+        not(feature = "rt-tokio"),
+        not(feature = "rt-tokio-current-thread")
     ))]
-    #[cfg_attr(docsrs, doc(cfg(feature = "async-std")))]
+    #[cfg_attr(docsrs, doc(cfg(feature = "rt-async-std")))]
     pub fn with_exporter<T: SpanExporter + 'static>(self, exporter: T) -> Self {
         let batch = sdk::trace::BatchSpanProcessor::builder(
             exporter,
@@ -188,9 +188,9 @@ impl Builder {
 
     /// Add a configured `SpanExporter`
     #[cfg(all(
-        not(feature = "async-std"),
-        not(feature = "tokio-support"),
-        not(feature = "tokio-rt-current-thread")
+        not(feature = "rt-async-std"),
+        not(feature = "rt-tokio"),
+        not(feature = "rt-tokio-current-thread")
     ))]
     pub fn with_exporter<T: SpanExporter + 'static>(self, exporter: T) -> Self {
         self.with_simple_exporter(exporter)
