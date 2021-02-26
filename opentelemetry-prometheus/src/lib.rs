@@ -460,7 +460,7 @@ fn merge_labels(
     for (key, value) in iter {
         keys.push(sanitize(key.as_str()));
         if let Some(ref mut values) = values {
-            values.push(KeyValue::new(key.clone(), value.clone()));
+            values.push(KeyValue::new(sanitize(key.as_str()), value.clone()));
         }
     }
 }
