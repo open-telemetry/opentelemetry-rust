@@ -78,9 +78,8 @@ use opentelemetry::sdk::{
 use opentelemetry::{
     labels,
     metrics::{registry::RegistryMeterProvider, MetricsError, NumberKind},
-    KeyValue,
+    Key, Value,
 };
-use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -289,24 +288,21 @@ impl prometheus::core::Collector for Collector {
                 let number_kind = record.descriptor().number_kind();
                 let instrument_kind = record.descriptor().instrument_kind();
 
-                let mut label_keys = Vec::new();
-                let mut label_values = Vec::new();
-                merge_labels(record, &mut label_keys, Some(&mut label_values));
-
-                let desc = to_desc(&record, label_keys);
+                let desc = get_metric_desc(&record);
+                let labels = get_metric_labels(record);
 
                 if let Some(hist) = agg.as_any().downcast_ref::<HistogramAggregator>() {
-                    metrics.push(build_histogram(hist, number_kind, desc, label_values)?);
+                    metrics.push(build_histogram(hist, number_kind, desc, labels)?);
                 } else if let Some(sum) = agg.as_any().downcast_ref::<SumAggregator>() {
                     let counter = if instrument_kind.monotonic() {
-                        build_monotonic_counter(sum, number_kind, desc, label_values)?
+                        build_monotonic_counter(sum, number_kind, desc, labels)?
                     } else {
-                        build_non_monotonic_counter(sum, number_kind, desc, label_values)?
+                        build_non_monotonic_counter(sum, number_kind, desc, labels)?
                     };
 
                     metrics.push(counter);
                 } else if let Some(last) = agg.as_any().downcast_ref::<LastValueAggregator>() {
-                    metrics.push(build_last_value(last, number_kind, desc, label_values)?);
+                    metrics.push(build_last_value(last, number_kind, desc, labels)?);
                 }
 
                 Ok(())
@@ -324,8 +320,8 @@ impl prometheus::core::Collector for Collector {
 fn build_last_value(
     lv: &LastValueAggregator,
     kind: &NumberKind,
-    desc: prometheus::core::Desc,
-    labels: Vec<KeyValue>,
+    desc: PrometheusMetricDesc,
+    labels: Vec<prometheus::proto::LabelPair>,
 ) -> Result<prometheus::proto::MetricFamily, MetricsError> {
     let (last_value, _) = lv.last_value()?;
 
@@ -333,13 +329,11 @@ fn build_last_value(
     g.set_value(last_value.to_f64(kind));
 
     let mut m = prometheus::proto::Metric::default();
-    m.set_label(protobuf::RepeatedField::from_vec(
-        labels.into_iter().map(build_label_pair).collect(),
-    ));
+    m.set_label(protobuf::RepeatedField::from_vec(labels));
     m.set_gauge(g);
 
     let mut mf = prometheus::proto::MetricFamily::default();
-    mf.set_name(desc.fq_name);
+    mf.set_name(desc.name);
     mf.set_help(desc.help);
     mf.set_field_type(prometheus::proto::MetricType::GAUGE);
     mf.set_metric(protobuf::RepeatedField::from_vec(vec![m]));
@@ -350,8 +344,8 @@ fn build_last_value(
 fn build_non_monotonic_counter(
     sum: &SumAggregator,
     kind: &NumberKind,
-    desc: prometheus::core::Desc,
-    labels: Vec<KeyValue>,
+    desc: PrometheusMetricDesc,
+    labels: Vec<prometheus::proto::LabelPair>,
 ) -> Result<prometheus::proto::MetricFamily, MetricsError> {
     let sum = sum.sum()?;
 
@@ -359,13 +353,11 @@ fn build_non_monotonic_counter(
     g.set_value(sum.to_f64(kind));
 
     let mut m = prometheus::proto::Metric::default();
-    m.set_label(protobuf::RepeatedField::from_vec(
-        labels.into_iter().map(build_label_pair).collect(),
-    ));
+    m.set_label(protobuf::RepeatedField::from_vec(labels));
     m.set_gauge(g);
 
     let mut mf = prometheus::proto::MetricFamily::default();
-    mf.set_name(desc.fq_name);
+    mf.set_name(desc.name);
     mf.set_help(desc.help);
     mf.set_field_type(prometheus::proto::MetricType::GAUGE);
     mf.set_metric(protobuf::RepeatedField::from_vec(vec![m]));
@@ -376,8 +368,8 @@ fn build_non_monotonic_counter(
 fn build_monotonic_counter(
     sum: &SumAggregator,
     kind: &NumberKind,
-    desc: prometheus::core::Desc,
-    labels: Vec<KeyValue>,
+    desc: PrometheusMetricDesc,
+    labels: Vec<prometheus::proto::LabelPair>,
 ) -> Result<prometheus::proto::MetricFamily, MetricsError> {
     let sum = sum.sum()?;
 
@@ -385,13 +377,11 @@ fn build_monotonic_counter(
     c.set_value(sum.to_f64(kind));
 
     let mut m = prometheus::proto::Metric::default();
-    m.set_label(protobuf::RepeatedField::from_vec(
-        labels.into_iter().map(build_label_pair).collect(),
-    ));
+    m.set_label(protobuf::RepeatedField::from_vec(labels));
     m.set_counter(c);
 
     let mut mf = prometheus::proto::MetricFamily::default();
-    mf.set_name(desc.fq_name);
+    mf.set_name(desc.name);
     mf.set_help(desc.help);
     mf.set_field_type(prometheus::proto::MetricType::COUNTER);
     mf.set_metric(protobuf::RepeatedField::from_vec(vec![m]));
@@ -402,8 +392,8 @@ fn build_monotonic_counter(
 fn build_histogram(
     hist: &HistogramAggregator,
     kind: &NumberKind,
-    desc: prometheus::core::Desc,
-    labels: Vec<KeyValue>,
+    desc: PrometheusMetricDesc,
+    labels: Vec<prometheus::proto::LabelPair>,
 ) -> Result<prometheus::proto::MetricFamily, MetricsError> {
     let raw_buckets = hist.histogram()?;
     let sum = hist.sum()?;
@@ -426,13 +416,11 @@ fn build_histogram(
     h.set_sample_count(count);
 
     let mut m = prometheus::proto::Metric::default();
-    m.set_label(protobuf::RepeatedField::from_vec(
-        labels.into_iter().map(build_label_pair).collect(),
-    ));
+    m.set_label(protobuf::RepeatedField::from_vec(labels));
     m.set_histogram(h);
 
     let mut mf = prometheus::proto::MetricFamily::default();
-    mf.set_name(desc.fq_name);
+    mf.set_name(desc.name);
     mf.set_help(desc.help);
     mf.set_field_type(prometheus::proto::MetricType::HISTOGRAM);
     mf.set_metric(protobuf::RepeatedField::from_vec(vec![m]));
@@ -440,40 +428,33 @@ fn build_histogram(
     Ok(mf)
 }
 
-fn build_label_pair(label: KeyValue) -> prometheus::proto::LabelPair {
+fn build_label_pair(key: &Key, value: &Value) -> prometheus::proto::LabelPair {
     let mut lp = prometheus::proto::LabelPair::new();
-    lp.set_name(label.key.into());
-    lp.set_value(label.value.to_string());
+    lp.set_name(sanitize(key.as_str()));
+    lp.set_value(value.to_string());
 
     lp
 }
 
-fn merge_labels(
-    record: &Record<'_>,
-    keys: &mut Vec<String>,
-    mut values: Option<&mut Vec<KeyValue>>,
-) {
+fn get_metric_labels(record: &Record<'_>) -> Vec<prometheus::proto::LabelPair> {
     // Duplicate keys are resolved by taking the record label value over
     // the resource value.
-
     let iter = labels::merge_iters(record.labels().iter(), record.resource().iter());
-    for (key, value) in iter {
-        keys.push(sanitize(key.as_str()));
-        if let Some(ref mut values) = values {
-            values.push(KeyValue::new(key.clone(), value.clone()));
-        }
-    }
+    iter.map(|(key, value)| build_label_pair(key, value))
+        .collect()
 }
 
-fn to_desc(record: &Record<'_>, label_keys: Vec<String>) -> prometheus::core::Desc {
+struct PrometheusMetricDesc {
+    name: String,
+    help: String,
+}
+
+fn get_metric_desc(record: &Record<'_>) -> PrometheusMetricDesc {
     let desc = record.descriptor();
-    prometheus::core::Desc::new(
-        sanitize(desc.name()),
-        desc.description()
-            .cloned()
-            .unwrap_or_else(|| desc.name().to_string()),
-        label_keys,
-        HashMap::new(),
-    )
-    .unwrap()
+    let name = sanitize(desc.name());
+    let help = desc
+        .description()
+        .cloned()
+        .unwrap_or_else(|| desc.name().to_string());
+    PrometheusMetricDesc { name, help }
 }
