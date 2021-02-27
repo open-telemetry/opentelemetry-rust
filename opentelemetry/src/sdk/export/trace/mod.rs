@@ -88,55 +88,6 @@ pub struct SpanData {
     pub instrumentation_lib: sdk::InstrumentationLibrary,
 }
 
-#[cfg(all(feature = "reqwest", feature = "http"))]
-#[async_trait]
-impl HttpClient for reqwest::Client {
-    async fn send(&self, request: Request<Vec<u8>>) -> ExportResult {
-        let _result = self
-            .execute(request.try_into()?)
-            .await?
-            .error_for_status()?;
-        Ok(())
-    }
-}
-
-#[cfg(all(feature = "reqwest", feature = "http"))]
-#[async_trait]
-impl HttpClient for reqwest::blocking::Client {
-    async fn send(&self, request: Request<Vec<u8>>) -> ExportResult {
-        let _result = self.execute(request.try_into()?)?.error_for_status()?;
-        Ok(())
-    }
-}
-
-#[cfg(all(feature = "surf", feature = "http"))]
-#[async_trait]
-impl HttpClient for surf::Client {
-    async fn send(&self, request: Request<Vec<u8>>) -> ExportResult {
-        let (parts, body) = request.into_parts();
-        let uri = parts
-            .uri
-            .to_string()
-            .parse()
-            .map_err(|_err: surf::http::url::ParseError| TraceError::from("error parse url"))?;
-
-        let req = surf::Request::builder(surf::http::Method::Post, uri)
-            .content_type("application/json")
-            .body(body);
-        let result = self.send(req).await.map_err::<SurfError, _>(Into::into)?;
-
-        if result.status().is_success() {
-            Ok(())
-        } else {
-            Err(SurfError(surf::Error::from_str(
-                result.status(),
-                result.status().canonical_reason(),
-            ))
-            .into())
-        }
-    }
-}
-
 #[cfg(feature = "serialize")]
 #[cfg(test)]
 mod tests {

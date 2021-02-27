@@ -95,7 +95,7 @@ impl Default for DatadogPipelineBuilder {
 
 impl DatadogPipelineBuilder {
     /// Create `ExporterConfig` struct from current `ExporterConfigBuilder`
-    pub fn install(mut self) -> Result<(sdk::trace::Tracer, Uninstall), TraceError> {
+    pub fn install(mut self) -> Result<sdk::trace::Tracer, TraceError> {
         if let Some(client) = self.client {
             let endpoint = self.agent_endpoint + self.version.path();
             let exporter = DatadogExporter::new(
@@ -112,8 +112,8 @@ impl DatadogPipelineBuilder {
             let provider = provider_builder.build();
             let tracer =
                 provider.get_tracer("opentelemetry-datadog", Some(env!("CARGO_PKG_VERSION")));
-            let provider_guard = global::set_tracer_provider(provider);
-            Ok((tracer, Uninstall(provider_guard)))
+            let _ = global::set_tracer_provider(provider);
+            Ok(tracer)
         } else {
             Err(Error::NoHttpClient.into())
         }
@@ -179,11 +179,6 @@ impl trace::SpanExporter for DatadogExporter {
         self.client.send(req).await
     }
 }
-
-/// Uninstalls the Datadog pipeline on drop
-#[must_use]
-#[derive(Debug)]
-pub struct Uninstall(global::TracerProviderGuard);
 
 #[cfg(test)]
 mod tests {

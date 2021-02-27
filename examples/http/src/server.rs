@@ -22,7 +22,7 @@ async fn handle(req: Request<Body>) -> Result<Response<Body>, Infallible> {
     Ok(Response::new("Hello, World!".into()))
 }
 
-fn init_tracer() -> (impl Tracer, stdout::Uninstall) {
+fn init_tracer() -> impl Tracer {
     global::set_text_map_propagator(TraceContextPropagator::new());
 
     // Install stdout exporter pipeline to be able to retrieve the collected spans.
@@ -35,7 +35,7 @@ fn init_tracer() -> (impl Tracer, stdout::Uninstall) {
 
 #[tokio::main]
 async fn main() {
-    let _guard = init_tracer();
+    let _tracer = init_tracer();
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
 
     let make_svc = make_service_fn(|_conn| async { Ok::<_, Infallible>(service_fn(handle)) });

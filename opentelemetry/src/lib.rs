@@ -15,15 +15,17 @@
 //! ```no_run
 //! # #[cfg(feature = "trace")]
 //! # {
-//! use opentelemetry::{sdk::export::trace::stdout, trace::Tracer};
+//! use opentelemetry::{sdk::export::trace::stdout, trace::Tracer, global};
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 //!     // Create a new instrumentation pipeline
-//!     let (tracer, _uninstall) = stdout::new_pipeline().install();
+//!     let tracer = stdout::new_pipeline().install();
 //!
 //!     tracer.in_span("doing_work", |cx| {
 //!         // Traced app logic here...
 //!     });
+//!
+//!     global::shutdown_tracer_provider(); // sending remaining spans
 //!
 //!     Ok(())
 //! }
@@ -44,22 +46,31 @@
 //! Support for recording and exporting telemetry asynchronously can be added
 //! via the following flags:
 //!
-//! * `tokio-support`: Spawn telemetry tasks using [tokio]'s runtime.
-//! * `async-std`: Spawn telemetry tasks using [async-std]'s runtime.
-//!
-//! Finally the following flags can be used by exporter authors:
-//!
-//! * `reqwest`: Implementation of [`HttpClient`] for [reqwest].
-//! * `surf`: Implementation of [`HttpClient`] for [surf]`.
+//! * `rt-tokio`: Spawn telemetry tasks using [tokio]'s multi-thread runtime.
+//! * `rt-tokio-current-thread`: Spawn telemetry tasks on a separate runtime so that the main runtime won't be blocked.
+//! * `rt-async-std`: Spawn telemetry tasks using [async-std]'s runtime.
 //!
 //! [tokio]: https://crates.io/crates/tokio
 //! [async-std]: https://crates.io/crates/async-std
 //! [serde]: https://crates.io/crates/serde
-//! [http]: https://crates.io/crates/http
-//! [tonic]: https://crates.io/crates/tonic
-//! [`HttpClient`]: crate::sdk::export::trace::HttpClient
-//! [reqwest]: https://crates.io/crates/reqwest
-//! [surf]: https://crates.io/crates/surf
+//!
+//! ## Working with runtimes
+//!
+//! Opentelemetry API & SDK supports different runtimes. When working with async runtime, we recommend
+//! to use batch span processors where the spans will be sent in batch, reducing the number of requests
+//! and resource needed.
+//!
+//! Batch span processors need to run a background task to collect and send spans. Different runtime
+//! needs different ways to handle the background task.
+//!
+//! ### Tokio
+//!
+//! Tokio currently offers two different schedulers. One is `current_thread_scheduler`, the other is
+//! `multiple_thread_scheduler`. Both of them default to use batch span processors to install span exporters.
+//!
+//! But for `current_thread_scheduler`. It can cause the program to hang forever if we schedule the backgroud
+//! task with other tasks in the same runtime. Thus, users should enable `rt-tokio-current-thread` feature
+//! to ask the background task be scheduled on a different runtime on a different thread.
 //!
 //! ## Related Crates
 //!
@@ -72,6 +83,8 @@
 //!
 //! In particular, the following crates are likely to be of interest:
 //!
+//! - [`opentelemetry-http`] provides a pipeline and exporter for sending
+//!   trace information to [`http`].
 //! - [`opentelemetry-jaeger`] provides a pipeline and exporter for sending
 //!   trace information to [`Jaeger`].
 //! - [`opentelemetry-otlp`] exporter for sending trace and metric data in the
@@ -109,6 +122,7 @@
 //! [`opentelemetry-prometheus`]: https://crates.io/crates/opentelemetry-prometheus
 //! [`Prometheus`]: https://prometheus.io
 //! [`opentelemetry-zipkin`]: https://crates.io/crates/opentelemetry-zipkin
+//! [http]: https://crates.io/crates/http
 //! [`Zipkin`]: https://zipkin.io
 //! [`opentelemetry-contrib`]: https://crates.io/crates/opentelemetry-contrib
 //! [`Datadog`]: https://www.datadoghq.com
@@ -164,9 +178,11 @@ pub mod testing;
 pub mod baggage;
 
 mod context;
+
 pub use context::{Context, ContextGuard};
 
 mod core;
+
 pub use crate::core::{Array, Key, KeyValue, Unit, Value};
 
 pub mod util;

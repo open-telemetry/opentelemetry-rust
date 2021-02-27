@@ -59,7 +59,7 @@ impl Greeter for MyGreeter {
     }
 }
 
-fn tracing_init() -> Result<(impl Tracer, opentelemetry_jaeger::Uninstall), TraceError> {
+fn tracing_init() -> Result<impl Tracer, TraceError> {
     global::set_text_map_propagator(TraceContextPropagator::new());
     opentelemetry_jaeger::new_pipeline()
         .with_service_name("grpc-server")
@@ -68,7 +68,7 @@ fn tracing_init() -> Result<(impl Tracer, opentelemetry_jaeger::Uninstall), Trac
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
-    let _uninstall = tracing_init()?;
+    let _tracer = tracing_init()?;
     let addr = "[::1]:50051".parse()?;
     let greeter = MyGreeter::default();
 

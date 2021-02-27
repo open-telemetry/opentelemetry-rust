@@ -35,16 +35,16 @@
 //!
 //! For optimal performance, a batch exporter is recommended as the simple
 //! exporter will export each span synchronously on drop. You can enable the
-//! [`tokio-support`] or [`async-std`] features to have a batch exporter configured for
+//! [`rt-tokio`], [`rt-tokio-current-thread`] or [`rt-async-std`] features to have a batch exporter configured for
 //! you automatically for either executor when you install the pipeline.
 //!
 //! ```toml
 //! [dependencies]
-//! opentelemetry = { version = "*", features = ["tokio-support"] }
+//! opentelemetry = { version = "*", features = ["rt-tokio"] }
 //! opentelemetry-datadog = "*"
 //! ```
 //!
-//! [`tokio-support`]: https://tokio.rs
+//! [`rt-tokio`]: https://tokio.rs
 //! [`async-std`]: https://async.rs
 //!
 
@@ -74,6 +74,7 @@
 //! use opentelemetry::sdk::{trace::{self, IdGenerator, Sampler}, Resource};
 //! use opentelemetry::sdk::export::trace::ExportResult;
 //! use opentelemetry_datadog::{new_pipeline, ApiVersion, Error};
+//! use opentelemetry::global::shutdown_tracer_provider;
 //! use opentelemetry_http::HttpClient;
 //! use async_trait::async_trait;
 //!
@@ -97,7 +98,7 @@
 //! }
 //!
 //! fn main() -> Result<(), opentelemetry::trace::TraceError> {
-//!     let (tracer, _uninstall) = new_pipeline()
+//!     let tracer = new_pipeline()
 //!         .with_service_name("my_app")
 //!         .with_version(ApiVersion::Version05)
 //!         .with_agent_endpoint("http://localhost:8126")
@@ -111,6 +112,8 @@
 //!     tracer.in_span("doing_work", |cx| {
 //!         // Traced app logic here...
 //!     });
+//!
+//!     shutdown_tracer_provider(); // sending remaining spans before exit
 //!
 //!     Ok(())
 //! }

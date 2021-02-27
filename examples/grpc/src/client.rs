@@ -1,6 +1,7 @@
 use hello_world::greeter_client::GreeterClient;
 use hello_world::HelloRequest;
 use opentelemetry::global;
+use opentelemetry::global::shutdown_tracer_provider;
 use opentelemetry::sdk::propagation::TraceContextPropagator;
 use opentelemetry::trace::TraceError;
 use opentelemetry::{
@@ -26,7 +27,7 @@ pub mod hello_world {
     tonic::include_proto!("helloworld");
 }
 
-fn tracing_init() -> Result<(impl Tracer, opentelemetry_jaeger::Uninstall), TraceError> {
+fn tracing_init() -> Result<impl Tracer, TraceError> {
     global::set_text_map_propagator(TraceContextPropagator::new());
     opentelemetry_jaeger::new_pipeline()
         .with_service_name("grpc-client")
@@ -35,7 +36,7 @@ fn tracing_init() -> Result<(impl Tracer, opentelemetry_jaeger::Uninstall), Trac
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let (tracer, _uninstall) = tracing_init()?;
+    let tracer = tracing_init()?;
     let mut client = GreeterClient::connect("http://[::1]:50051").await?;
     let span = tracer.start("client-request");
     let cx = Context::current_with_span(span);
@@ -53,5 +54,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
         "response-received".to_string(),
         vec![KeyValue::new("response", format!("{:?}", response))],
     );
+
+    shutdown_tracer_provider();
+
     Ok(())
 }

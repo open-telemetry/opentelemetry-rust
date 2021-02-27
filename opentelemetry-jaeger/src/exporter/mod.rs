@@ -63,11 +63,6 @@ pub fn new_pipeline() -> PipelineBuilder {
     PipelineBuilder::default()
 }
 
-/// Guard that uninstalls the Jaeger trace pipeline when dropped
-#[must_use]
-#[derive(Debug)]
-pub struct Uninstall(global::TracerProviderGuard);
-
 /// Jaeger span exporter
 #[derive(Debug)]
 pub struct Exporter {
@@ -262,14 +257,14 @@ impl PipelineBuilder {
     }
 
     /// Install a Jaeger pipeline with the recommended defaults.
-    pub fn install(self) -> Result<(sdk::trace::Tracer, Uninstall), TraceError> {
+    pub fn install(self) -> Result<sdk::trace::Tracer, TraceError> {
         let tracer_provider = self.build()?;
         let tracer =
             tracer_provider.get_tracer("opentelemetry-jaeger", Some(env!("CARGO_PKG_VERSION")));
 
-        let provider_guard = global::set_tracer_provider(tracer_provider);
+        let _ = global::set_tracer_provider(tracer_provider);
 
-        Ok((tracer, Uninstall(provider_guard)))
+        Ok(tracer)
     }
 
     /// Build a configured `sdk::trace::TracerProvider` with the recommended defaults.

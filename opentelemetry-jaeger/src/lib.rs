@@ -25,11 +25,13 @@
 //!
 //! fn main() -> Result<(), opentelemetry::trace::TraceError> {
 //!     global::set_text_map_propagator(opentelemetry_jaeger::Propagator::new());
-//!     let (tracer, _uninstall) = opentelemetry_jaeger::new_pipeline().install()?;
+//!     let tracer = opentelemetry_jaeger::new_pipeline().install()?;
 //!
 //!     tracer.in_span("doing_work", |cx| {
 //!         // Traced app logic here...
 //!     });
+//!
+//!     global::shutdown_tracer_provider(); // export remaining spans
 //!
 //!     Ok(())
 //! }
@@ -44,7 +46,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! opentelemetry = { version = "*", features = ["tokio-support"] }
+//! opentelemetry = { version = "*", features = ["rt-tokio"] }
 //! opentelemetry-jaeger = { version = "*", features = ["tokio"] }
 //! ```
 //!
@@ -81,7 +83,7 @@
 //! use opentelemetry::trace::{Tracer, TraceError};
 //!
 //! fn main() -> Result<(), TraceError> {
-//!     let (tracer, _uninstall) = opentelemetry_jaeger::new_pipeline()
+//!     let tracer = opentelemetry_jaeger::new_pipeline()
 //!         .with_collector_endpoint("http://localhost:14268/api/traces")
 //!         // optionally set username and password as well.
 //!         .with_collector_username("username")
@@ -110,7 +112,7 @@
 //!
 //! fn main() -> Result<(), TraceError> {
 //!     global::set_text_map_propagator(opentelemetry_jaeger::Propagator::new());
-//!     let (tracer, _uninstall) = opentelemetry_jaeger::new_pipeline()
+//!     let tracer = opentelemetry_jaeger::new_pipeline()
 //!         .with_agent_endpoint("localhost:6831")
 //!         .with_service_name("my_app")
 //!         .with_tags(vec![KeyValue::new("process_key", "process_value")])
@@ -129,6 +131,8 @@
 //!     tracer.in_span("doing_work", |cx| {
 //!         // Traced app logic here...
 //!     });
+//!
+//!     global::shutdown_tracer_provider(); // export remaining spans
 //!
 //!     Ok(())
 //! }
@@ -570,5 +574,5 @@ mod propagator {
     }
 }
 
-pub use exporter::{new_pipeline, Error, Exporter, PipelineBuilder, Process, Uninstall};
+pub use exporter::{new_pipeline, Error, Exporter, PipelineBuilder, Process};
 pub use propagator::Propagator;

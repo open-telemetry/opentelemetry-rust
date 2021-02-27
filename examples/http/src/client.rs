@@ -11,7 +11,7 @@ use opentelemetry::{
 };
 use opentelemetry_http::HeaderInjector;
 
-fn init_tracer() -> (impl Tracer, stdout::Uninstall) {
+fn init_tracer() -> impl Tracer {
     global::set_text_map_propagator(TraceContextPropagator::new());
     // Install stdout exporter pipeline to be able to retrieve the collected spans.
     // For the demonstration, use `Sampler::AlwaysOn` sampler to sample all traces. In a production
@@ -23,7 +23,7 @@ fn init_tracer() -> (impl Tracer, stdout::Uninstall) {
 
 #[tokio::main]
 async fn main() -> std::result::Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let _guard = init_tracer();
+    let _tracer = init_tracer();
 
     let client = Client::new();
     let span = global::tracer("example/client").start("say hello");
