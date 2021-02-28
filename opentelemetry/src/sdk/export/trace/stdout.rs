@@ -94,7 +94,8 @@ where
     pub fn install(mut self) -> sdk::trace::Tracer {
         let exporter = Exporter::new(self.writer, self.pretty_print);
 
-        let mut provider_builder = sdk::trace::TracerProvider::builder().with_exporter(exporter);
+        let mut provider_builder =
+            sdk::trace::TracerProvider::builder().with_simple_exporter(exporter);
         if let Some(config) = self.trace_config.take() {
             provider_builder = provider_builder.with_config(config);
         }

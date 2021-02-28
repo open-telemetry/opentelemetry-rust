@@ -187,6 +187,8 @@ pub use context::{Context, ContextGuard};
 
 mod core;
 
+pub mod runtime;
+
 pub use crate::core::{Array, Key, KeyValue, Unit, Value};
 
 pub mod util;
