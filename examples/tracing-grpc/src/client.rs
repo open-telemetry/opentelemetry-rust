@@ -1,11 +1,24 @@
 use hello_world::greeter_client::GreeterClient;
 use hello_world::HelloRequest;
-use opentelemetry::global;
 use opentelemetry::sdk::propagation::TraceContextPropagator;
+use opentelemetry::{global, propagation::Injector};
 use tracing::*;
 use tracing_futures::Instrument;
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 use tracing_subscriber::prelude::*;
+
+struct MetadataMap<'a>(&'a mut tonic::metadata::MetadataMap);
+
+impl<'a> Injector for MetadataMap<'a> {
+    /// Set a key and value in the MetadataMap.  Does nothing if the key or value are not valid inputs
+    fn set(&mut self, key: &str, value: String) {
+        if let Ok(key) = tonic::metadata::MetadataKey::from_bytes(key.as_bytes()) {
+            if let Ok(val) = tonic::metadata::MetadataValue::from_str(&value) {
+                self.0.insert(key, val);
+            }
+        }
+    }
+}
 
 pub mod hello_world {
     tonic::include_proto!("helloworld");
@@ -22,7 +35,10 @@ async fn greet() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static
     });
 
     global::get_text_map_propagator(|propagator| {
-        propagator.inject_context(&tracing::Span::current().context(), request.metadata_mut())
+        propagator.inject_context(
+            &tracing::Span::current().context(),
+            &mut MetadataMap(request.metadata_mut()),
+        )
     });
 
     let response = client
