@@ -176,7 +176,7 @@ use opentelemetry::trace::TraceError;
 ///     Ok(())
 /// }
 /// ```
-pub fn new_pipeline() -> OtlpPipelineBuilder {
+pub fn new_pipeline() -> OtlpPipelineBuilder<()> {
     OtlpPipelineBuilder::default()
 }
 
@@ -192,9 +192,10 @@ pub fn new_pipeline() -> OtlpPipelineBuilder {
 /// }
 /// ```
 #[derive(Default, Debug)]
-pub struct OtlpPipelineBuilder {
+pub struct OtlpPipelineBuilder<R: opentelemetry::runtime::Runtime> {
     exporter_config: ExporterConfig,
     trace_config: Option<sdk::trace::Config>,
+    runtime: Option<R>,
 }
 
 /// Target to which the exporter is going to send spans or metrics, defaults to https://localhost:4317.
@@ -211,7 +212,7 @@ const OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: &str = "OTEL_EXPORTER_OTLP_TRACES_ENDP
 /// Max waiting time for the backend to process each spans batch, defaults to 10s.
 const OTEL_EXPORTER_OTLP_TRACES_TIMEOUT: &str = "OTEL_EXPORTER_OTLP_TRACES_TIMEOUT";
 
-impl OtlpPipelineBuilder {
+impl<R: opentelemetry::runtime::Runtime> OtlpPipelineBuilder<R> {
     /// Set the address of the OTLP collector. If not set, the default address is used.
     pub fn with_endpoint<T: Into<String>>(mut self, endpoint: T) -> Self {
         self.exporter_config.endpoint = endpoint.into();
@@ -306,12 +307,30 @@ impl OtlpPipelineBuilder {
         self
     }
 
+    /// Assign the runtime to use.
+    ///
+    /// Please make sure the selected HTTP client works with the runtime.
+    pub fn with_runtime<NewR: opentelemetry::runtime::Runtime>(
+        self,
+        runtime: NewR,
+    ) -> OtlpPipelineBuilder<NewR> {
+        OtlpPipelineBuilder {
+            exporter_config: self.exporter_config,
+            trace_config: self.trace_config,
+            runtime: Some(runtime),
+        }
+    }
+
     /// Install the OTLP exporter pipeline with the recommended defaults.
     #[cfg(feature = "tonic")]
     pub fn install(mut self) -> Result<sdk::trace::Tracer, TraceError> {
         let exporter = TraceExporter::new(self.exporter_config)?;
 
-        let mut provider_builder = sdk::trace::TracerProvider::builder().with_exporter(exporter);
+        let mut provider_builder = if let Some(runtime) = runtime {
+            sdk::trace::TracerProvider::builder().with_default_batch_exporter(exporter, runtime)
+        } else {
+            sdk::trace::TracerProvider::builder().with_simple_exporter(exporter)
+        };
         if let Some(config) = self.trace_config.take() {
             provider_builder = provider_builder.with_config(config);
         }
@@ -327,7 +346,11 @@ impl OtlpPipelineBuilder {
     pub fn install(mut self) -> Result<sdk::trace::Tracer, TraceError> {
         let exporter = TraceExporter::new(self.exporter_config);
 
-        let mut provider_builder = sdk::trace::TracerProvider::builder().with_exporter(exporter);
+        let mut provider_builder = if let Some(runtime) = runtime {
+            sdk::trace::TracerProvider::builder().with_default_batch_exporter(exporter, runtime)
+        } else {
+            sdk::trace::TracerProvider::builder().with_simple_exporter(exporter)
+        };
         if let Some(config) = self.trace_config.take() {
             provider_builder = provider_builder.with_config(config);
         }
