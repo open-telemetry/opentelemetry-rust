@@ -117,7 +117,7 @@ impl Builder {
     pub fn with_default_batch_exporter<T, R>(self, exporter: T, runtime: R) -> Self
     where
         T: SpanExporter + 'static,
-        R: Runtime + Send + Sync + 'static,
+        R: Runtime,
     {
         let batch = sdk::trace::BatchSpanProcessor::builder(exporter, runtime).build();
         self.with_batch_exporter(batch)

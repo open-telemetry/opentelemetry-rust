@@ -59,7 +59,7 @@ const INSTRUMENTATION_LIBRARY_NAME: &str = "otel.library.name";
 const INSTRUMENTATION_LIBRARY_VERSION: &str = "otel.library.version";
 
 /// Create a new Jaeger exporter pipeline builder.
-pub fn new_pipeline() -> PipelineBuilder {
+pub fn new_pipeline() -> PipelineBuilder<()> {
     PipelineBuilder::default()
 }
 
@@ -112,7 +112,7 @@ impl trace::SpanExporter for Exporter {
 
 /// Jaeger exporter builder
 #[derive(Debug)]
-pub struct PipelineBuilder {
+pub struct PipelineBuilder<R: opentelemetry::runtime::Runtime> {
     agent_endpoint: Vec<net::SocketAddr>,
     #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
     collector_endpoint: Option<Result<http::Uri, http::uri::InvalidUri>>,
@@ -126,9 +126,10 @@ pub struct PipelineBuilder {
     process: Process,
     max_packet_size: Option<usize>,
     config: Option<sdk::trace::Config>,
+    runtime: Option<R>,
 }
 
-impl Default for PipelineBuilder {
+impl Default for PipelineBuilder<()> {
     /// Return the default Exporter Builder.
     fn default() -> Self {
         let builder_defaults = PipelineBuilder {
@@ -148,6 +149,7 @@ impl Default for PipelineBuilder {
             },
             max_packet_size: None,
             config: None,
+            runtime: None,
         };
 
         // Override above defaults with env vars if set
@@ -155,7 +157,7 @@ impl Default for PipelineBuilder {
     }
 }
 
-impl PipelineBuilder {
+impl<R: opentelemetry::runtime::Runtime> PipelineBuilder<R> {
     /// Assign the agent endpoint.
     pub fn with_agent_endpoint<T: net::ToSocketAddrs>(self, agent_endpoint: T) -> Self {
         PipelineBuilder {
@@ -256,6 +258,31 @@ impl PipelineBuilder {
         self
     }
 
+    /// Assign the runtime to use.
+    ///
+    /// Please make sure the selected HTTP client works with the runtime.
+    pub fn with_runtime<NewR: opentelemetry::runtime::Runtime + Send + Sync + 'static>(
+        self,
+        runtime: NewR,
+    ) -> PipelineBuilder<NewR> {
+        PipelineBuilder {
+            agent_endpoint: self.agent_endpoint,
+            #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
+            collector_endpoint: self.collector_endpoint,
+            #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
+            collector_username: self.collector_username,
+            #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
+            collector_password: self.collector_password,
+            #[cfg(feature = "collector_client")]
+            client: self.client,
+            export_instrument_library: self.export_instrument_library,
+            process: self.process,
+            max_packet_size: self.max_packet_size,
+            config: self.config,
+            runtime: Some(runtime),
+        }
+    }
+
     /// Install a Jaeger pipeline with the recommended defaults.
     pub fn install(self) -> Result<sdk::trace::Tracer, TraceError> {
         let tracer_provider = self.build()?;
@@ -270,9 +297,14 @@ impl PipelineBuilder {
     /// Build a configured `sdk::trace::TracerProvider` with the recommended defaults.
     pub fn build(mut self) -> Result<sdk::trace::TracerProvider, TraceError> {
         let config = self.config.take();
+        let runtime = self.runtime.take();
         let exporter = self.init_exporter()?;
 
-        let mut builder = sdk::trace::TracerProvider::builder().with_exporter(exporter);
+        let mut builder = if let Some(runtime) = runtime {
+            sdk::trace::TracerProvider::builder().with_default_batch_exporter(exporter, runtime)
+        } else {
+            sdk::trace::TracerProvider::builder().with_simple_exporter(exporter)
+        };
 
         if let Some(config) = config {
             builder = builder.with_config(config)

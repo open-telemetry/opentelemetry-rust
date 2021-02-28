@@ -438,7 +438,7 @@ mod tests {
             .build()
     }
 
-    fn build_tracer_provider_batch<R: Runtime + Send + Sync + 'static>(
+    fn build_tracer_provider_batch<R: Runtime>(
         batch_runtime: R,
         assert_writer: AssertWriter,
     ) -> crate::sdk::trace::TracerProvider {
@@ -449,9 +449,7 @@ mod tests {
             .build()
     }
 
-    async fn test_set_provider_in_tokio<R: Runtime + Send + Sync + 'static>(
-        runtime: R,
-    ) -> AssertWriter {
+    async fn test_set_provider_in_tokio<R: Runtime>(runtime: R) -> AssertWriter {
         let buffer = AssertWriter::new();
         let _ = set_tracer_provider(build_tracer_provider_batch(runtime, buffer.clone()));
         let tracer = tracer("opentelemetery");

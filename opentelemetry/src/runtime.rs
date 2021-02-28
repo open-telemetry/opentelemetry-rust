@@ -6,7 +6,7 @@ use std::time::Duration;
 
 /// A runtime in an abstraction of a (possibly async runtime) like tokio or async-std. It allows
 /// OpenTelemetry to work with any current and future runtime implementation.
-pub trait Runtime: Clone {
+pub trait Runtime: Clone + Send + Sync + 'static {
     /// Create a [Stream][futures::Stream], which returns a new item every
     /// [Duration][std::time::Duration].
     fn interval(&self, duration: Duration) -> BoxStream<'static, ()>;
@@ -16,6 +16,20 @@ pub trait Runtime: Clone {
 
     /// Return a new future, which resolves after the specified [Duration][std::time::Duration].
     fn delay(&self, duration: Duration) -> BoxFuture<'static, ()>;
+}
+
+impl Runtime for () {
+    fn interval(&self, _duration: Duration) -> BoxStream<'static, ()> {
+        unimplemented!()
+    }
+
+    fn spawn(&self, _future: BoxFuture<'static, ()>) {
+        unimplemented!()
+    }
+
+    fn delay(&self, _duration: Duration) -> BoxFuture<'static, ()> {
+        unimplemented!()
+    }
 }
 
 /// Runtime implementation, which works with Tokio's multi thread runtime.

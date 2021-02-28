@@ -262,7 +262,7 @@ impl BatchSpanProcessor {
         runtime: R,
     ) -> Self
     where
-        R: Runtime + Send + Sync + 'static,
+        R: Runtime,
     {
         let (message_sender, message_receiver) = mpsc::channel(config.max_queue_size);
         let ticker = runtime
@@ -474,7 +474,7 @@ pub struct BatchSpanProcessorBuilder<E, R> {
 impl<E, R> BatchSpanProcessorBuilder<E, R>
 where
     E: SpanExporter + 'static,
-    R: Runtime + Send + Sync + 'static,
+    R: Runtime,
 {
     /// Set max queue size for batches
     pub fn with_max_queue_size(self, size: usize) -> Self {
