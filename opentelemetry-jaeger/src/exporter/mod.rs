@@ -261,7 +261,7 @@ impl<R: opentelemetry::runtime::Runtime> PipelineBuilder<R> {
     /// Assign the runtime to use.
     ///
     /// Please make sure the selected HTTP client works with the runtime.
-    pub fn with_runtime<NewR: opentelemetry::runtime::Runtime + Send + Sync + 'static>(
+    pub fn with_runtime<NewR: opentelemetry::runtime::Runtime>(
         self,
         runtime: NewR,
     ) -> PipelineBuilder<NewR> {
