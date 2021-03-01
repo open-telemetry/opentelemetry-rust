@@ -59,4 +59,4 @@ integration-testing = ["tonic", "tonic-build", "prost", "tokio/full", "opentelem
 [build-dependencies]
 protobuf-codegen = { version = "2.16", optional = true }
 protoc-grpcio = { version = "2.0", optional = true }
-tonic-build = { version = "0.3", optional = true }
+tonic-build = { version = "0.4", optional = true }
