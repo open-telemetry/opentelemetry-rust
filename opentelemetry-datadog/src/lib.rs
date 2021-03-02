@@ -1,6 +1,6 @@
 //! # OpenTelemetry Datadog Exporter
 //!
-//! An OpenTelemetry exporter implementation
+//! An OpenTelemetry datadog exporter implementation
 //!
 //! See the [Datadog Docs](https://docs.datadoghq.com/agent/) for information on how to run the datadog-agent
 //!
@@ -14,10 +14,10 @@
 //! granular and might be used to identify a specific endpoint. In datadog, however, they
 //! are less granular - it is expected in Datadog that a service will have single
 //! primary span name that is the root of all traces within that service, with an additional piece of
-//! metadata called resource_name providing granularity - https://docs.datadoghq.com/tracing/guide/configuring-primary-operation/
+//! metadata called resource_name providing granularity. See [here](https://docs.datadoghq.com/tracing/guide/configuring-primary-operation/)
 //!
 //! The Datadog Golang API takes the approach of using a `resource.name` OpenTelemetry attribute to set the
-//! resource_name - https://github.com/DataDog/dd-trace-go/blob/ecb0b805ef25b00888a2fb62d465a5aa95e7301e/ddtrace/opentracer/tracer.go#L10
+//! resource_name. See [here](https://github.com/DataDog/dd-trace-go/blob/ecb0b805ef25b00888a2fb62d465a5aa95e7301e/ddtrace/opentracer/tracer.go#L10)
 //!
 //! Unfortunately, this breaks compatibility with other OpenTelemetry exporters which expect
 //! a more granular operation name - as per the OpenTracing specification.
@@ -29,7 +29,7 @@
 //! Datadog additionally has a span_type string that alters the rendering of the spans in the web UI.
 //! This can be set as the `span.type` OpenTelemetry span attribute.
 //!
-//! For standard values see here - https://github.com/DataDog/dd-trace-go/blob/ecb0b805ef25b00888a2fb62d465a5aa95e7301e/ddtrace/ext/app_types.go#L31
+//! For standard values see [here](https://github.com/DataDog/dd-trace-go/blob/ecb0b805ef25b00888a2fb62d465a5aa95e7301e/ddtrace/ext/app_types.go#L31)
 //!
 //! ## Performance
 //!
@@ -45,7 +45,8 @@
 //! ```
 //!
 //! [`rt-tokio`]: https://tokio.rs
-//! [`async-std`]: https://async.rs
+//! [`rt-tokio-current-thread`]: https://tokio.rs
+//! [`rt-async-std`]: https://async.rs
 //!
 
 //! ## Bring your own http client

@@ -27,6 +27,4 @@ to AWS's telemetry platform.
 
 Currently, this crate only supports `XRay` propagator. Contributions are welcome.
 
-## 
-
 [`OpenTelemetry`]: https://crates.io/crates/opentelemetry
