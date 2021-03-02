@@ -27,23 +27,23 @@ async fn serve_req(
 ) -> Result<Response<Body>, hyper::Error> {
     let request_start = SystemTime::now();
 
-    state.http_counter.add(1);
-    state
-        .http_req_histogram
-        .record(request_start.elapsed().map_or(0.0, |d| d.as_secs_f64()));
-
     let mut buffer = vec![];
     let encoder = TextEncoder::new();
     let metric_families = state.exporter.registry().gather();
-    let _test = metric_families.len();
     encoder.encode(&metric_families, &mut buffer).unwrap();
 
+    state.http_counter.add(1);
     state.http_body_gauge.record(buffer.len() as u64);
+
     let response = Response::builder()
         .status(200)
         .header(CONTENT_TYPE, encoder.format_type())
         .body(Body::from(buffer))
         .unwrap();
+
+    state
+        .http_req_histogram
+        .record(request_start.elapsed().map_or(0.0, |d| d.as_secs_f64()));
 
     Ok(response)
 }
