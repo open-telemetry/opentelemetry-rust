@@ -7,17 +7,19 @@
 //! This propagator helps propagate tracing information from upstream services to downstream services.
 //!
 //! ### Quick start
-//! ```rust, no_run
+//! ```no_run
 //! use opentelemetry::global;
 //! use opentelemetry_aws::trace::XrayPropagator;
-//!
 //! use opentelemetry::{sdk::export::trace::stdout, trace::Tracer};
+//! use opentelemetry_http::HeaderInjector;
 //!
-//! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+//! #[tokio::main]
+//! async fn main() -> std::result::Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 //!     // Set the global propagator to X-Ray propagator
 //!     global::set_text_map_propagator(XrayPropagator::default());
-//!     let (tracer, _uninstall) = stdout::new_pipeline().install();
+//!     let tracer = stdout::new_pipeline().install();
 //!
+//!     let mut req = hyper::Request::builder().uri("http://127.0.0.1:3000");
 //!     tracer.in_span("doing_work", |cx| {
 //!         // Send request to downstream services.
 //!         // Build request
