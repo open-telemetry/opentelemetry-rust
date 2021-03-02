@@ -47,19 +47,11 @@
 //! * `tokio-support`: Spawn telemetry tasks using [tokio]'s runtime.
 //! * `async-std`: Spawn telemetry tasks using [async-std]'s runtime.
 //!
-//! Finally the following flags can be used by exporter authors:
-//!
-//! * `reqwest`: Implementation of [`HttpClient`] for [reqwest].
-//! * `surf`: Implementation of [`HttpClient`] for [surf]`.
-//!
 //! [tokio]: https://crates.io/crates/tokio
 //! [async-std]: https://crates.io/crates/async-std
 //! [serde]: https://crates.io/crates/serde
 //! [http]: https://crates.io/crates/http
 //! [tonic]: https://crates.io/crates/tonic
-//! [`HttpClient`]: crate::sdk::export::trace::HttpClient
-//! [reqwest]: https://crates.io/crates/reqwest
-//! [surf]: https://crates.io/crates/surf
 //!
 //! ## Related Crates
 //!
@@ -72,6 +64,9 @@
 //!
 //! In particular, the following crates are likely to be of interest:
 //!
+//! - [`opentelemetry-http`] provides a HTTP client interface for use by traace
+//!   exporters as well as helper types to inject/extract key value pairs
+//!   into/from HTTP headers.
 //! - [`opentelemetry-jaeger`] provides a pipeline and exporter for sending
 //!   trace information to [`Jaeger`].
 //! - [`opentelemetry-otlp`] exporter for sending trace and metric data in the
