@@ -93,8 +93,9 @@
 //!   metrics information to [`Prometheus`].
 //! - [`opentelemetry-zipkin`] provides a pipeline and exporter for sending
 //!   trace information to [`Zipkin`].
-//! - [`opentelemetry-contrib`] provides additional exporters to vendors like
-//!   [`Datadog`].
+//! - [`opentelemetry-datadog`] provides additional exporters to [`Datadog`].
+//! - [`opentelemetry-aws`] provides unofficial propagators for AWS X-ray.
+//! - [`opentelemetry-contrib`] provides additional exporters and propagators that are experimental.
 //! - [`opentelemetry-semantic-conventions`] provides standard names and
 //!   semantic otel conventions.
 //!
@@ -119,12 +120,15 @@
 //! [`opentelemetry-jaeger`]: https://crates.io/crates/opentelemetry-jaeger
 //! [`Jaeger`]: https://www.jaegertracing.io
 //! [`opentelemetry-otlp`]: https://crates.io/crates/opentelemetry-otlp
+//! [`opentelemetry-http`]: https://crates.io/crates/opentelemetry-http
 //! [`opentelemetry-prometheus`]: https://crates.io/crates/opentelemetry-prometheus
+//! [`opentelemetry-aws`]: https://crates.io/crates/opentelemetry-aws
 //! [`Prometheus`]: https://prometheus.io
 //! [`opentelemetry-zipkin`]: https://crates.io/crates/opentelemetry-zipkin
-//! [http]: https://crates.io/crates/http
+//! [`http`]: https://crates.io/crates/http
 //! [`Zipkin`]: https://zipkin.io
 //! [`opentelemetry-contrib`]: https://crates.io/crates/opentelemetry-contrib
+//! [`opentelemetry-datadog`]: https://crates.io/crates/opentelemetry-datadog
 //! [`Datadog`]: https://www.datadoghq.com
 //! [`opentelemetry-semantic-conventions`]: https://crates.io/crates/opentelemetry-semantic-conventions
 //!

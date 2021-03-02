@@ -1,7 +1,37 @@
-//! # Opentelemetry AWS Integration
+//! This crate provides unofficial integration with AWS services.
 //!
-//! This crate provides integration with different telemetry platform.
-
+//! # Components
+//! As for now, the only components provided in this crate is AWS X-Ray propagator.
+//!
+//! ### AWS X-Ray Propagator
+//! This propagator helps propagate tracing information from upstream services to downstream services.
+//!
+//! ### Quick start
+//! ```rust, no_run
+//! use opentelemetry::global;
+//! use opentelemetry_aws::trace::XrayPropagator;
+//!
+//! use opentelemetry::{sdk::export::trace::stdout, trace::Tracer};
+//!
+//! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+//!     // Set the global propagator to X-Ray propagator
+//!     global::set_text_map_propagator(XrayPropagator::default());
+//!     let (tracer, _uninstall) = stdout::new_pipeline().install();
+//!
+//!     tracer.in_span("doing_work", |cx| {
+//!         // Send request to downstream services.
+//!         // Build request
+//!         global::get_text_map_propagator(|propagator| {
+//!             // Set X-Ray tracing header in request object `req`
+//!             propagator.inject_context(&cx, &mut HeaderInjector(req.headers_mut().unwrap()));
+//!             println!("Headers: {:?}", req.headers_ref());
+//!         })
+//!     });
+//!
+//!     Ok(())
+//! }
+//! ```
+//! A more detailed example can be found in [opentelemetry-rust](https://github.com/open-telemetry/opentelemetry-rust/tree/main/examples/aws-xray) repo
 #[cfg(feature = "trace")]
 pub mod trace {
     use opentelemetry::{
