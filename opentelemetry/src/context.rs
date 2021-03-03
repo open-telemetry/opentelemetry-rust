@@ -37,12 +37,10 @@ thread_local! {
 /// values of the context, a snapshot can be created via the [`Context::current`]
 /// method.
 ///
-/// [`Context`]: struct.Context.html
-/// [`Context::current`]: struct.Context.html#method.current
-/// [`ContextGuard`]: struct.ContextGuard.html
-/// [`get`]: struct.Context.html#method.get
-/// [`with_value`]: struct.Context.html#method.with_value
-/// [`attach`]: struct.Context.html#method.attach
+/// [`Context::current`]: Context::current()
+/// [`get`]: Context::get()
+/// [`with_value`]: Context::with_value()
+/// [`attach`]: Context::attach()
 ///
 /// # Examples
 ///
@@ -86,7 +84,7 @@ impl Context {
     /// The context is initially created with a capacity of 0, so it will not
     /// allocate. Use [`with_value`] to create a new context that has entries.
     ///
-    /// [`with_value`]: struct.Context.html#method.with_value
+    /// [`with_value`]: Context::with_value()
     pub fn new() -> Self {
         Context::default()
     }
@@ -215,7 +213,6 @@ impl Context {
     /// Dropping the returned [`ContextGuard`] will reset the current context to the
     /// previous value.
     ///
-    /// [`ContextGuard`]: struct.ContextGuard.html
     ///
     /// # Examples
     ///

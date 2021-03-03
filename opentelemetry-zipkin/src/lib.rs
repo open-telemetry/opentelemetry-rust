@@ -76,7 +76,6 @@
 //! Example showing how to override all configuration options. See the
 //! [`ZipkinPipelineBuilder`] docs for details of each option.
 //!
-//! [`ZipkinPipelineBuilder`]: struct.ZipkinPipelineBuilder.html
 //!
 //! ```no_run
 //! use opentelemetry::{KeyValue, trace::Tracer};

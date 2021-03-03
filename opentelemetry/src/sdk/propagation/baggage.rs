@@ -7,7 +7,7 @@
 //! `Baggage`s are serialized according to the editor's draft of
 //! the [W3C Baggage] specification.
 //!
-//! [`Baggage`]: struct.Baggage.html
+//! [`Baggage`]: crate::baggage::Baggage
 //! [W3C Baggage]: https://w3c.github.io/baggage/
 //!
 //! # Examples
@@ -64,9 +64,6 @@ lazy_static::lazy_static! {
 /// `Baggage`s are serialized according to the editor's draft of
 /// the [W3C Baggage] specification.
 ///
-/// [`Baggage`]: struct.Baggage.html
-/// [W3C Baggage]: https://w3c.github.io/baggage/
-///
 /// # Examples
 ///
 /// ```
@@ -99,6 +96,7 @@ lazy_static::lazy_static! {
 /// ```
 ///
 /// [W3C Baggage]: https://w3c.github.io/baggage
+/// [`Baggage`]: crate::baggage::Baggage
 #[derive(Debug, Default)]
 pub struct BaggagePropagator {
     _private: (),

@@ -3,8 +3,8 @@
 //! The stdout [`SpanExporter`] writes debug printed [`Span`]s to its configured
 //! [`Write`] instance. By default it will write to [`Stdout`].
 //!
-//! [`SpanExporter`]: ../trait.SpanExporter.html
-//! [`Span`]: ../../../api/trace/span/trait.Span.html
+//! [`SpanExporter`]: super::SpanExporter
+//! [`Span`]: crate::trace::Span
 //! [`Write`]: std::io::Write
 //! [`Stdout`]: std::io::Stdout
 //!
@@ -108,7 +108,7 @@ where
 
 /// A [`SpanExporter`] that writes to [`Stdout`] or other configured [`Write`].
 ///
-/// [`SpanExporter`]: ../trait.SpanExporter.html
+/// [`SpanExporter`]: super::SpanExporter
 /// [`Write`]: std::io::Write
 /// [`Stdout`]: std::io::Stdout
 #[derive(Debug)]

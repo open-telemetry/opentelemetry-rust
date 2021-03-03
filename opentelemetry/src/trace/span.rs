@@ -161,7 +161,7 @@ pub trait Span: fmt::Debug + 'static + Send + Sync {
     ///
     /// For more details, refer to [`Span::end`]
     ///
-    /// [`Span::end`]: trait.Span.html#method.end
+    /// [`Span::end`]: Span::end()
     fn end_with_timestamp(&self, timestamp: SystemTime);
 }
 

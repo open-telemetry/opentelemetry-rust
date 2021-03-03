@@ -15,8 +15,8 @@ pub trait TextMapPropagator: Debug {
     /// Properly encodes the values of the current [`Context`] and injects them into
     /// the [`Injector`].
     ///
-    /// [`Context`]: ../../struct.Context.html
-    /// [`Injector`]: ../trait.Injector.html
+    /// [`Context`]: crate::Context
+    /// [`Injector`]: crate::propagation::Injector
     fn inject(&self, injector: &mut dyn Injector) {
         self.inject_context(&Context::current(), injector)
     }
@@ -24,16 +24,16 @@ pub trait TextMapPropagator: Debug {
     /// Properly encodes the values of the [`Context`] and injects them into the
     /// [`Injector`].
     ///
-    /// [`Context`]: ../../struct.Context.html
-    /// [`Injector`]: ../trait.Injector.html
+    /// [`Context`]: crate::Context
+    /// [`Injector`]: crate::propagation::Injector
     fn inject_context(&self, cx: &Context, injector: &mut dyn Injector);
 
     /// Retrieves encoded data using the provided [`Extractor`]. If no data for this
     /// format was retrieved OR if the retrieved data is invalid, then the current
     /// [`Context`] is returned.
     ///
-    /// [`Context`]: ../../struct.Context.html
-    /// [`Extractor`]: ../trait.Extractor.html
+    /// [`Context`]: crate::Context
+    /// [`Injector`]: crate::propagation::Extractor
     fn extract(&self, extractor: &dyn Extractor) -> Context {
         self.extract_with_context(&Context::current(), extractor)
     }
@@ -42,19 +42,17 @@ pub trait TextMapPropagator: Debug {
     /// format was retrieved OR if the retrieved data is invalid, then the given
     /// [`Context`] is returned.
     ///
-    /// [`Context`]: ../../struct.Context.html
-    /// [`Extractor`]: ../trait.Extractor.html
+    /// [`Context`]: crate::Context
+    /// [`Injector`]: crate::propagation::Extractor
     fn extract_with_context(&self, cx: &Context, extractor: &dyn Extractor) -> Context;
 
     /// Returns iter of fields used by [`TextMapPropagator`]
     ///
-    /// [`TextMapPropagator`]: ./trait.TextMapPropagator.html
     fn fields(&self) -> FieldIter<'_>;
 }
 
 /// An iterator over fields of a [`TextMapPropagator`]
 ///
-/// [`TextMapPropagator`]: ./trait.TextMapPropagator.html
 #[derive(Debug)]
 pub struct FieldIter<'a>(slice::Iter<'a, String>);
 

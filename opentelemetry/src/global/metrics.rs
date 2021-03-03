@@ -8,8 +8,6 @@ lazy_static::lazy_static! {
 
 /// Represents the globally configured [`MeterProvider`] instance for this
 /// application.
-///
-/// [`MeterProvider`]: ../../api/metrics/meter/trait.MeterProvider.html
 #[derive(Debug, Clone)]
 pub struct GlobalMeterProvider {
     provider: Arc<dyn MeterProvider + Send + Sync>,
@@ -35,8 +33,6 @@ impl GlobalMeterProvider {
 
 /// Sets the given [`MeterProvider`] instance as the current global meter
 /// provider.
-///
-/// [`MeterProvider`]: ../../api/metrics/meter/trait.MeterProvider.html
 pub fn set_meter_provider<P>(new_provider: P)
 where
     P: metrics::MeterProvider + Send + Sync + 'static,
@@ -49,9 +45,6 @@ where
 
 /// Returns an instance of the currently configured global [`MeterProvider`]
 /// through [`GlobalMeterProvider`].
-///
-/// [`MeterProvider`]: ../../api/metrics/meter/trait.MeterProvider.html
-/// [`GlobalMeterProvider`]: struct.GlobalMeterProvider.html
 pub fn meter_provider() -> GlobalMeterProvider {
     GLOBAL_METER_PROVIDER
         .read()
@@ -64,16 +57,11 @@ pub fn meter_provider() -> GlobalMeterProvider {
 /// If the name is an empty string, the provider will use a default name.
 ///
 /// This is a more convenient way of expressing `global::meter_provider().meter(name)`.
-///
-/// [`Meter`]: ../../api/metrics/meter/struct.Meter.html
-/// [`GlobalMeterProvider`]: struct.GlobalMeterProvider.html
 pub fn meter(name: &'static str) -> Meter {
     meter_provider().meter(name, None)
 }
 
 /// Creates a [`Meter`] with the name and version.
-///
-/// [`Meter`]: ../../api/metrics/meter/struct.Meter.html
 pub fn meter_with_version(name: &'static str, version: &'static str) -> Meter {
     meter_provider().meter(name, Some(version))
 }
