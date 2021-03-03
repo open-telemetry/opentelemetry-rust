@@ -11,8 +11,6 @@ lazy_static::lazy_static! {
 
 /// Sets the given [`TextMapPropagator`] propagator as the current global propagator.
 ///
-/// [`TextMapPropagator`]: ../api/context/propagation/trait.TextMapPropagator.html
-///
 /// # Examples
 ///
 /// ```
@@ -31,8 +29,6 @@ pub fn set_text_map_propagator<P: TextMapPropagator + Send + Sync + 'static>(pro
 }
 
 /// Executes a closure with a reference to the current global [`TextMapPropagator`] propagator.
-///
-/// [`TextMapPropagator`]: ../api/context/propagation/trait.TextMapPropagator.html
 ///
 /// # Examples
 ///

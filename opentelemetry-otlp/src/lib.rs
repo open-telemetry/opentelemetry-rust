@@ -65,7 +65,6 @@
 //! Example showing how to override all configuration options. See the
 //! [`OtlpPipelineBuilder`] docs for details of each option.
 //!
-//! [`OtlpPipelineBuilder`]: struct.OtlpPipelineBuilder.html
 //!
 //!
 //! ```text, no_run

@@ -6,10 +6,12 @@ edition = "2018"
 [[bin]] # Bin to run the http server
 name = "http-server"
 path = "src/server.rs"
+doc = false
 
 [[bin]] # Bin to run the client
 name = "http-client"
 path = "src/client.rs"
+doc = false
 
 [dependencies]
 hyper = { version = "0.14", features = ["full"] }

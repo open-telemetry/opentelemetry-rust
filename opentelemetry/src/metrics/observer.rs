@@ -153,7 +153,7 @@ impl<'a, T> SumObserverBuilder<'a, T> {
     /// This method panics if it cannot create an instrument with the provided
     /// config. If you want to handle results instead, use [`try_init`]
     ///
-    /// [`try_init`]: struct.SumObserverBuilder.html#method.try_init
+    /// [`try_init`]: SumObserverBuilder::try_init()
     pub fn init(self) -> SumObserver<T> {
         SumObserver {
             instrument: self
@@ -246,7 +246,7 @@ impl<'a, T> UpDownSumObserverBuilder<'a, T> {
     /// This method panics if it cannot create an instrument with the provided
     /// config. If you want to handle results instead, use [`try_init`]
     ///
-    /// [`try_init`]: struct.UpDownSumObserverBuilder.html#method.try_init
+    /// [`try_init`]: UpDownSumObserverBuilder::try_init()
     pub fn init(self) -> UpDownSumObserver<T> {
         UpDownSumObserver {
             instrument: self
@@ -337,7 +337,7 @@ impl<'a, T> ValueObserverBuilder<'a, T> {
     /// This method panics if it cannot create an instrument with the provided
     /// config. If you want to handle results instead, use [`try_init`]
     ///
-    /// [`try_init`]: struct.ValueObserverBuilder.html#method.try_init
+    /// [`try_init`]: ValueObserverBuilder::try_init()
     pub fn init(self) -> ValueObserver<T> {
         ValueObserver {
             instrument: self

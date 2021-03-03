@@ -74,7 +74,7 @@
 //!
 //! Then you can use the [`with_collector_endpoint`] method to specify the endpoint:
 //!
-//! [`with_collector_endpoint`]: struct.PipelineBuilder.html#method.with_collector_endpoint
+//! [`with_collector_endpoint`]: PipelineBuilder::with_collector_endpoint()
 //!
 //! ```ignore
 //! // Note that this requires the `collector_client` feature.
@@ -103,7 +103,6 @@
 //! Example showing how to override all configuration options. See the
 //! [`PipelineBuilder`] docs for details of each option.
 //!
-//! [`PipelineBuilder`]: struct.PipelineBuilder.html
 //!
 //! ```no_run
 //! use opentelemetry::{KeyValue, trace::{Tracer, TraceError}};
