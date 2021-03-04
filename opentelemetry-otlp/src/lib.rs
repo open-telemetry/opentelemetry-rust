@@ -119,7 +119,7 @@
 
 use opentelemetry::{global, sdk, trace::TracerProvider};
 
-#[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
+#[cfg(feature = "grpc-sys")]
 use std::collections::HashMap;
 
 use std::str::FromStr;
@@ -159,7 +159,7 @@ pub use crate::span::{ExporterConfig, TraceExporter};
 #[cfg(feature = "metrics")]
 pub use crate::metric::{new_metrics_pipeline, MetricsExporter, OtlpMetricPipelineBuilder};
 
-#[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
+#[cfg(feature = "grpc-sys")]
 pub use crate::span::{Compression, Credentials};
 
 use opentelemetry::sdk::export::ExportError;
@@ -232,7 +232,7 @@ impl OtlpPipelineBuilder {
     }
 
     /// Set the credentials to use when communicating with the collector.
-    #[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
+    #[cfg(feature = "grpc-sys")]
     pub fn with_credentials(mut self, credentials: Credentials) -> Self {
         self.exporter_config.credentials = Some(credentials);
         self
@@ -246,21 +246,21 @@ impl OtlpPipelineBuilder {
     }
 
     /// Set Additional headers to send to the collector.
-    #[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
+    #[cfg(feature = "grpc-sys")]
     pub fn with_headers(mut self, headers: HashMap<String, String>) -> Self {
         self.exporter_config.headers = Some(headers);
         self
     }
 
     /// Set the compression algorithm to use when communicating with the collector.
-    #[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
+    #[cfg(feature = "grpc-sys")]
     pub fn with_compression(mut self, compression: Compression) -> Self {
         self.exporter_config.compression = Some(compression);
         self
     }
 
     /// Enable TLS without any certificate pinning.
-    #[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
+    #[cfg(feature = "grpc-sys")]
     pub fn with_tls(mut self, use_tls: bool) -> Self {
         self.exporter_config.use_tls = Some(use_tls);
         self
@@ -273,7 +273,7 @@ impl OtlpPipelineBuilder {
     }
 
     /// Set the number of GRPC worker threads to poll queues.
-    #[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
+    #[cfg(feature = "grpc-sys")]
     pub fn with_completion_queue_count(mut self, count: usize) -> Self {
         self.exporter_config.completion_queue_count = count;
         self
@@ -323,7 +323,7 @@ impl OtlpPipelineBuilder {
     }
 
     /// Install the OTLP exporter pipeline with the recommended defaults.
-    #[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
+    #[cfg(feature = "grpc-sys")]
     pub fn install(mut self) -> Result<sdk::trace::Tracer, TraceError> {
         let exporter = TraceExporter::new(self.exporter_config);
 
@@ -358,7 +358,7 @@ pub enum Error {
     Status(#[from] tonic::Status),
 
     /// Error from grpcio module
-    #[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
+    #[cfg(feature = "grpc-sys")]
     #[error("grpcio error {0}")]
     Grpcio(#[from] grpcio::Error),
 }
