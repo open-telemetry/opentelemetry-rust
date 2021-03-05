@@ -283,6 +283,9 @@ pub fn shutdown_tracer_provider() {
 }
 
 #[cfg(test)]
+// Note that all tests here should be marked as ignore so that it won't be picked up by default We
+// need to run those tests one by one as the GlobalTracerProvider is a shared object between
+// threads Use cargo test -- --ignored --test-threads=1 to run those tests.
 mod tests {
     use super::*;
     use crate::{
@@ -369,6 +372,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires --test-threads=1"]
     fn test_set_tracer_provider() {
         let _ = set_tracer_provider(TestTracerProvider::new("global one"));
 
@@ -381,6 +385,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires --test-threads=1"]
     fn test_set_tracer_provider_in_another_thread() {
         let _ = set_tracer_provider(TestTracerProvider::new("global one"));
 
@@ -394,6 +399,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires --test-threads=1"]
     fn test_set_tracer_provider_in_another_function() {
         let setup = || {
             let _ = set_tracer_provider(TestTracerProvider::new("global one"));
@@ -406,6 +412,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires --test-threads=1"]
     fn test_set_two_provider_in_two_thread() {
         let (sender, recv) = std::sync::mpsc::channel();
         let (sender1, sender2) = (sender.clone(), sender);
@@ -466,6 +473,7 @@ mod tests {
 
     // Test if the multiple thread tokio runtime could exit successfully when not force flushing spans
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[ignore = "requires --test-threads=1"]
     async fn test_set_provider_multiple_thread_tokio() {
         let assert_writer = test_set_provider_in_tokio(runtime::Tokio).await;
         assert_eq!(assert_writer.len(), 0);
@@ -473,6 +481,7 @@ mod tests {
 
     // Test if the multiple thread tokio runtime could exit successfully when force flushing spans
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[ignore = "requires --test-threads=1"]
     async fn test_set_provider_multiple_thread_tokio_shutdown() {
         let assert_writer = test_set_provider_in_tokio(runtime::Tokio).await;
         shutdown_tracer_provider();
@@ -482,6 +491,7 @@ mod tests {
     // Test use simple processor in single thread tokio runtime.
     // Expected to see the spans being exported to buffer
     #[tokio::test]
+    #[ignore = "requires --test-threads=1"]
     async fn test_set_provider_single_thread_tokio_with_simple_processor() {
         let assert_writer = AssertWriter::new();
         let _ = set_tracer_provider(build_tracer_provider(assert_writer.clone(), ()));
@@ -496,6 +506,7 @@ mod tests {
 
     // Test if the single thread tokio runtime could exit successfully when not force flushing spans
     #[tokio::test]
+    #[ignore = "requires --test-threads=1"]
     async fn test_set_provider_single_thread_tokio() {
         let assert_writer = test_set_provider_in_tokio(runtime::TokioCurrentThread).await;
         assert_eq!(assert_writer.len(), 0)
@@ -503,6 +514,7 @@ mod tests {
 
     // Test if the single thread tokio runtime could exit successfully when force flushing spans.
     #[tokio::test]
+    #[ignore = "requires --test-threads=1"]
     async fn test_set_provider_single_thread_tokio_shutdown() {
         let assert_writer = test_set_provider_in_tokio(runtime::TokioCurrentThread).await;
         shutdown_tracer_provider();

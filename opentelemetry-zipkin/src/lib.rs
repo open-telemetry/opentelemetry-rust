@@ -51,10 +51,13 @@
 //! opentelemetry-zipkin = { version = "*", features = ["reqwest-client"], default-features = false }
 //! ```
 //!
-//! ```rust
+//! ```no_run
+//! # fn main() -> Result<(), opentelemetry::trace::TraceError> {
 //! let tracer = opentelemetry_zipkin::new_pipeline()
 //!     .with_runtime(opentelemetry::runtime::Tokio)
 //!     .install()?;
+//! # Ok(())
+//! # }
 //! ```
 //!
 //! [`rt-tokio`]: https://tokio.rs

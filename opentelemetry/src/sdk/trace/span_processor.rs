@@ -165,7 +165,7 @@ impl SpanProcessor for SimpleSpanProcessor {
 /// # #[cfg(feature="tokio")]
 /// # {
 /// use futures::{stream};
-/// use opentelemetry::{trace as apitrace, sdk::trace as sdktrace, global, util::tokio_interval_stream};
+/// use opentelemetry::{trace as apitrace, sdk::trace as sdktrace, global, runtime, util::tokio_interval_stream};
 /// use std::time::Duration;
 ///
 /// #[tokio::main]
@@ -176,7 +176,7 @@ impl SpanProcessor for SimpleSpanProcessor {
 ///     // Then build a batch processor. You can use whichever executor you have available, for
 ///     // example if you are using `async-std` instead of `tokio` you can replace the spawn and
 ///     // interval functions with `async_std::task::spawn` and `async_std::stream::interval`.
-///     let batch = sdktrace::BatchSpanProcessor::builder(exporter, tokio::spawn, tokio::time::sleep, tokio_interval_stream)
+///     let batch = sdktrace::BatchSpanProcessor::builder(exporter, runtime::Tokio)
 ///         .with_max_queue_size(4096)
 ///         .build();
 ///

@@ -52,9 +52,12 @@
 //! when using the pipeline.
 //!
 //! ```no_run
+//! # fn main() -> Result<(), opentelemetry::trace::TraceError> {
 //! let tracer = opentelemetry_otlp::new_pipeline()
 //!     .with_runtime(opentelemetry::runtime::AsyncStd)
 //!     .install()?;
+//! # Ok(())
+//! # }
 //! ```
 //!
 //! [`tokio`]: https://tokio.rs

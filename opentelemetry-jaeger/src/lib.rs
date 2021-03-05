@@ -52,9 +52,12 @@
 //! ```
 //!
 //! ```no_run
+//! # fn main() -> Result<(), opentelemetry::trace::TraceError> {
 //! let tracer = opentelemetry_jaeger::new_pipeline()
 //!     .with_runtime(opentelemetry::runtime::Tokio)
 //!     .install()?;
+//! # Ok(())
+//! # }
 //! ```
 //!
 //! [`tokio`]: https://tokio.rs
