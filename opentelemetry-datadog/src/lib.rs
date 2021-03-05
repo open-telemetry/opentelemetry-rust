@@ -33,15 +33,21 @@
 //!
 //! ## Performance
 //!
-//! For optimal performance, a batch exporter is recommended as the simple
-//! exporter will export each span synchronously on drop. You can enable the
-//! [`rt-tokio`], [`rt-tokio-current-thread`] or [`rt-async-std`] features to have a batch exporter configured for
-//! you automatically for either executor when you install the pipeline.
+//! For optimal performance, a batch exporter is recommended as the simple exporter will export
+//! each span synchronously on drop. You can enable the [`rt-tokio`], [`rt-tokio-current-thread`]
+//! or [`rt-async-std`] features and specify a runtime on the pipeline to have a batch exporter
+//! configured for you automatically.
 //!
 //! ```toml
 //! [dependencies]
 //! opentelemetry = { version = "*", features = ["rt-tokio"] }
 //! opentelemetry-datadog = "*"
+//! ```
+//!
+//! ```no_run
+//! let tracer = opentelemetry_datadog::new_pipeline()
+//!     .with_pipeline(opentelemetry::runtime::Tokio)
+//!     .install()?;
 //! ```
 //!
 //! [`rt-tokio`]: https://tokio.rs
@@ -100,6 +106,7 @@
 //!
 //! fn main() -> Result<(), opentelemetry::trace::TraceError> {
 //!     let tracer = new_pipeline()
+//!         .with_runtime(opentelemetry::runtime::Tokio)
 //!         .with_service_name("my_app")
 //!         .with_version(ApiVersion::Version05)
 //!         .with_agent_endpoint("http://localhost:8126")

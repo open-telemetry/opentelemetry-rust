@@ -51,10 +51,10 @@
 //! to have a batch exporter configured automatically for either executor
 //! when using the pipeline.
 //!
-//! ```toml
-//! [dependencies]
-//! opentelemetry = { version = "*", features = ["async-std"] }
-//! opentelemetry-otlp = { version = "*", features = ["grpc-sys"] }
+//! ```no_run
+//! let tracer = opentelemetry_otlp::new_pipeline()
+//!     .with_runtime(opentelemetry::runtime::AsyncStd)
+//!     .install()?;
 //! ```
 //!
 //! [`tokio`]: https://tokio.rs
@@ -82,6 +82,7 @@
 //!     map.insert_bin("trace-proto-bin", MetadataValue::from_bytes(b"[binary data]"));
 //!
 //!     let tracer = opentelemetry_otlp::new_pipeline()
+//!         .with_runtime(opentelemetry::runtime::Tokio)
 //!         .with_endpoint("localhost:4317")
 //!         .with_protocol(Protocol::Grpc)
 //!         .with_metadata(map)
@@ -195,7 +196,7 @@ pub fn new_pipeline() -> OtlpPipelineBuilder<()> {
 pub struct OtlpPipelineBuilder<R: opentelemetry::runtime::Runtime> {
     exporter_config: ExporterConfig,
     trace_config: Option<sdk::trace::Config>,
-    runtime: Option<R>,
+    runtime: R,
 }
 
 /// Target to which the exporter is going to send spans or metrics, defaults to https://localhost:4317.
@@ -317,7 +318,7 @@ impl<R: opentelemetry::runtime::Runtime> OtlpPipelineBuilder<R> {
         OtlpPipelineBuilder {
             exporter_config: self.exporter_config,
             trace_config: self.trace_config,
-            runtime: Some(runtime),
+            runtime,
         }
     }
 
@@ -326,11 +327,8 @@ impl<R: opentelemetry::runtime::Runtime> OtlpPipelineBuilder<R> {
     pub fn install(mut self) -> Result<sdk::trace::Tracer, TraceError> {
         let exporter = TraceExporter::new(self.exporter_config)?;
 
-        let mut provider_builder = if let Some(runtime) = runtime {
-            sdk::trace::TracerProvider::builder().with_default_batch_exporter(exporter, runtime)
-        } else {
-            sdk::trace::TracerProvider::builder().with_simple_exporter(exporter)
-        };
+        let mut provider_builder =
+            sdk::trace::TracerProvider::builder().with_exporter(exporter, self.runtime);
         if let Some(config) = self.trace_config.take() {
             provider_builder = provider_builder.with_config(config);
         }
@@ -346,11 +344,8 @@ impl<R: opentelemetry::runtime::Runtime> OtlpPipelineBuilder<R> {
     pub fn install(mut self) -> Result<sdk::trace::Tracer, TraceError> {
         let exporter = TraceExporter::new(self.exporter_config);
 
-        let mut provider_builder = if let Some(runtime) = runtime {
-            sdk::trace::TracerProvider::builder().with_default_batch_exporter(exporter, runtime)
-        } else {
-            sdk::trace::TracerProvider::builder().with_simple_exporter(exporter)
-        };
+        let mut provider_builder =
+            sdk::trace::TracerProvider::builder().with_exporter(exporter, self.runtime);
         if let Some(config) = self.trace_config.take() {
             provider_builder = provider_builder.with_config(config);
         }

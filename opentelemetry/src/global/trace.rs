@@ -428,30 +428,20 @@ mod tests {
         assert!(second_resp.contains("thread 2"));
     }
 
-    fn build_tracer_provider_simple(
+    fn build_tracer_provider<R: Runtime>(
         assert_writer: AssertWriter,
+        runtime: R,
     ) -> crate::sdk::trace::TracerProvider {
         use crate::sdk::trace::TracerProvider;
         let exporter = crate::sdk::export::trace::stdout::Exporter::new(assert_writer, true);
         TracerProvider::builder()
-            .with_simple_exporter(exporter)
-            .build()
-    }
-
-    fn build_tracer_provider_batch<R: Runtime>(
-        batch_runtime: R,
-        assert_writer: AssertWriter,
-    ) -> crate::sdk::trace::TracerProvider {
-        use crate::sdk::trace::TracerProvider;
-        let exporter = crate::sdk::export::trace::stdout::Exporter::new(assert_writer, true);
-        TracerProvider::builder()
-            .with_default_batch_exporter(exporter, batch_runtime)
+            .with_exporter(exporter, runtime)
             .build()
     }
 
     async fn test_set_provider_in_tokio<R: Runtime>(runtime: R) -> AssertWriter {
         let buffer = AssertWriter::new();
-        let _ = set_tracer_provider(build_tracer_provider_batch(runtime, buffer.clone()));
+        let _ = set_tracer_provider(build_tracer_provider(buffer.clone(), runtime));
         let tracer = tracer("opentelemetery");
 
         tracer.in_span("test", |_cx| {});
@@ -494,7 +484,7 @@ mod tests {
     #[tokio::test]
     async fn test_set_provider_single_thread_tokio_with_simple_processor() {
         let assert_writer = AssertWriter::new();
-        let _ = set_tracer_provider(build_tracer_provider_simple(assert_writer.clone()));
+        let _ = set_tracer_provider(build_tracer_provider(assert_writer.clone(), ()));
         let tracer = tracer("opentelemetry");
 
         tracer.in_span("test", |_cx| {});

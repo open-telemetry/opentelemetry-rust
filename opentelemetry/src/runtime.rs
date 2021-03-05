@@ -7,6 +7,10 @@ use std::time::Duration;
 /// A runtime in an abstraction of a (possibly async runtime) like tokio or async-std. It allows
 /// OpenTelemetry to work with any current and future runtime implementation.
 pub trait Runtime: Clone + Send + Sync + 'static {
+    /// Return if the runtime supports the functions required for batch processing (interval, spawn
+    /// and delay).
+    fn supports_batch_processing(&self) -> bool;
+
     /// Create a [Stream][futures::Stream], which returns a new item every
     /// [Duration][std::time::Duration].
     fn interval(&self, duration: Duration) -> BoxStream<'static, ()>;
@@ -19,6 +23,10 @@ pub trait Runtime: Clone + Send + Sync + 'static {
 }
 
 impl Runtime for () {
+    fn supports_batch_processing(&self) -> bool {
+        false
+    }
+
     fn interval(&self, _duration: Duration) -> BoxStream<'static, ()> {
         unimplemented!()
     }
@@ -39,6 +47,10 @@ pub struct Tokio;
 
 #[cfg(feature = "rt-tokio")]
 impl Runtime for Tokio {
+    fn supports_batch_processing(&self) -> bool {
+        true
+    }
+
     fn interval(&self, duration: Duration) -> BoxStream<'static, ()> {
         use futures::StreamExt as _;
         Box::pin(crate::util::tokio_interval_stream(duration).map(|_| ()))
@@ -60,6 +72,10 @@ pub struct TokioCurrentThread;
 
 #[cfg(feature = "rt-tokio-current-thread")]
 impl Runtime for TokioCurrentThread {
+    fn supports_batch_processing(&self) -> bool {
+        true
+    }
+
     fn interval(&self, duration: Duration) -> BoxStream<'static, ()> {
         use futures::StreamExt as _;
         Box::pin(crate::util::tokio_interval_stream(duration).map(|_| ()))
@@ -87,6 +103,10 @@ pub struct AsyncStd;
 
 #[cfg(feature = "rt-async-std")]
 impl Runtime for AsyncStd {
+    fn supports_batch_processing(&self) -> bool {
+        true
+    }
+
     fn interval(&self, duration: Duration) -> BoxStream<'static, ()> {
         Box::pin(async_std::stream::interval(duration))
     }

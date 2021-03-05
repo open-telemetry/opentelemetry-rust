@@ -48,7 +48,7 @@ telemetry:
 use opentelemetry::tracer;
 
 fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let (tracer, _uninstall) = opentelemetry_otlp::new_pipeline().install()?;
+    let tracer = opentelemetry_otlp::new_pipeline().install()?;
 
     tracer.in_span("doing_work", |cx| {
         // Traced app logic here...
@@ -76,14 +76,14 @@ layer and is enabled by default. [`grpcio`](https://crates.io/crates/grpcio) is 
 ## Performance
 
 For optimal performance, a batch exporter is recommended as the simple
-exporter will export each span synchronously on drop. Enable a runtime
+exporter will export each span synchronously on drop. Specify a runtime
 to have a batch exporter configured automatically for either executor
 when using the pipeline.
 
-```toml
-[dependencies]
-opentelemetry = { version = "*", features = ["async-std"] }
-opentelemetry-otlp = { version = "*", features = ["grpc-sys"] }
+```rust
+let tracer = opentelemetry_otlp::new_pipeline()
+    .with_runtime(opentelemetry::runtime::AsyncStd)
+    .install()?;
 ```
 
 [`tokio`]: https://tokio.rs
@@ -116,6 +116,7 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     map.insert_bin("trace-proto-bin", MetadataValue::from_bytes(b"[binary data]"));
 
     let (tracer, _uninstall) = opentelemetry_otlp::new_pipeline()
+        .with_runtime(opentelemetry::runtime::Tokio)
         .with_endpoint("localhost:4317")
         .with_protocol(Protocol::Grpc)
         .with_metadata(map)

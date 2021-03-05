@@ -64,14 +64,21 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 ## Performance
 
 For optimal performance, a batch exporter is recommended as the simple exporter
-will export each span synchronously on drop. You can enable the [`rt-tokio`], [`rt-tokio-current-thread`] or
-[`rt-async-std`] features to have a batch exporter configured for you automatically
-for either executor when you install the pipeline.
+will export each span synchronously on drop. You can enable the [`rt-tokio`],
+[`rt-tokio-current-thread`] or [`rt-async-std`] features and specify a runtime
+on the pipeline builder to have a batch exporter configured for you
+automatically.
 
 ```toml
 [dependencies]
 opentelemetry = { version = "*", features = ["rt-tokio"] }
 opentelemetry-jaeger = { version = "*", features = ["tokio"] }
+```
+
+```rust
+let tracer = opentelemetry_jaeger::new_pipeline()
+    .with_runtime(opentelemetry::runtime::Tokio)
+    .install()?;
 ```
 
 [`rt-tokio`]: https://tokio.rs
@@ -150,6 +157,7 @@ use opentelemetry::KeyValue;
 fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     global::set_text_map_propagator(opentelemetry_jaeger::Propagator::new());
     let tracer = opentelemetry_jaeger::new_pipeline()
+        .with_runtime(opentelemetry::runtime::Tokio)
         .with_agent_endpoint("localhost:6831")
         .with_service_name("my_app")
         .with_tags(vec![KeyValue::new("process_key", "process_value")])

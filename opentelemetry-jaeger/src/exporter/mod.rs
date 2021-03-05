@@ -126,7 +126,7 @@ pub struct PipelineBuilder<R: opentelemetry::runtime::Runtime> {
     process: Process,
     max_packet_size: Option<usize>,
     config: Option<sdk::trace::Config>,
-    runtime: Option<R>,
+    runtime: R,
 }
 
 impl Default for PipelineBuilder<()> {
@@ -149,7 +149,7 @@ impl Default for PipelineBuilder<()> {
             },
             max_packet_size: None,
             config: None,
-            runtime: None,
+            runtime: (),
         };
 
         // Override above defaults with env vars if set
@@ -165,7 +165,6 @@ impl<R: opentelemetry::runtime::Runtime> PipelineBuilder<R> {
                 .to_socket_addrs()
                 .map(|addrs| addrs.collect())
                 .unwrap_or_default(),
-
             ..self
         }
     }
@@ -279,7 +278,7 @@ impl<R: opentelemetry::runtime::Runtime> PipelineBuilder<R> {
             process: self.process,
             max_packet_size: self.max_packet_size,
             config: self.config,
-            runtime: Some(runtime),
+            runtime,
         }
     }
 
@@ -297,15 +296,10 @@ impl<R: opentelemetry::runtime::Runtime> PipelineBuilder<R> {
     /// Build a configured `sdk::trace::TracerProvider` with the recommended defaults.
     pub fn build(mut self) -> Result<sdk::trace::TracerProvider, TraceError> {
         let config = self.config.take();
-        let runtime = self.runtime.take();
+        let runtime = self.runtime.clone();
         let exporter = self.init_exporter()?;
 
-        let mut builder = if let Some(runtime) = runtime {
-            sdk::trace::TracerProvider::builder().with_default_batch_exporter(exporter, runtime)
-        } else {
-            sdk::trace::TracerProvider::builder().with_simple_exporter(exporter)
-        };
-
+        let mut builder = sdk::trace::TracerProvider::builder().with_exporter(exporter, runtime);
         if let Some(config) = config {
             builder = builder.with_config(config)
         }

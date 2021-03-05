@@ -47,7 +47,7 @@ pub struct ZipkinPipelineBuilder<R: opentelemetry::runtime::Runtime> {
     collector_endpoint: String,
     trace_config: Option<sdk::trace::Config>,
     client: Option<Box<dyn HttpClient>>,
-    runtime: Option<R>,
+    runtime: R,
 }
 
 impl Default for ZipkinPipelineBuilder<()> {
@@ -78,7 +78,7 @@ impl Default for ZipkinPipelineBuilder<()> {
             service_addr: None,
             collector_endpoint: DEFAULT_COLLECTOR_ENDPOINT.to_string(),
             trace_config: None,
-            runtime: None,
+            runtime: (),
         }
     }
 }
@@ -96,11 +96,8 @@ impl<R: opentelemetry::runtime::Runtime> ZipkinPipelineBuilder<R> {
                     .map_err::<Error, _>(Into::into)?,
             );
 
-            let mut provider_builder = if let Some(runtime) = self.runtime {
-                sdk::trace::TracerProvider::builder().with_default_batch_exporter(exporter, runtime)
-            } else {
-                sdk::trace::TracerProvider::builder().with_simple_exporter(exporter)
-            };
+            let mut provider_builder =
+                sdk::trace::TracerProvider::builder().with_exporter(exporter, self.runtime);
             if let Some(config) = self.trace_config.take() {
                 provider_builder = provider_builder.with_config(config);
             }
@@ -158,7 +155,7 @@ impl<R: opentelemetry::runtime::Runtime> ZipkinPipelineBuilder<R> {
             service_addr: self.service_addr,
             collector_endpoint: self.collector_endpoint,
             trace_config: self.trace_config,
-            runtime: Some(runtime),
+            runtime,
         }
     }
 }
