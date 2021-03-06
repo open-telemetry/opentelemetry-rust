@@ -362,7 +362,7 @@ mod tests {
             metric::Data, InstrumentationLibraryMetrics, IntDataPoint, IntGauge, IntHistogram,
             IntHistogramDataPoint, IntSum, Metric, ResourceMetrics,
         };
-        use crate::transform::common::Attributes;
+        use crate::transform::common::tonic::Attributes;
         use crate::transform::{record_to_metric, sink, ResourceWrapper};
         use chrono::prelude::*;
         use opentelemetry::labels::LabelSet;

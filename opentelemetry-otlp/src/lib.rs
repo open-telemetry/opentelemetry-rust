@@ -125,21 +125,16 @@ use std::collections::HashMap;
 use std::str::FromStr;
 use std::time::Duration;
 
-#[cfg(all(feature = "tonic", not(feature = "integration-testing")))]
+#[cfg(
+not(feature = "integration-testing")
+)]
 #[rustfmt::skip]
-#[allow(clippy::all, unreachable_pub)]
-mod proto;
-
-#[cfg(all(
-    feature = "grpc-sys",
-    not(feature = "tonic"),
-    not(feature = "integration-testing")
-))]
-#[allow(clippy::all, unreachable_pub, dead_code)]
+#[allow(warnings)]
 mod proto;
 
 #[cfg(feature = "integration-testing")]
-#[allow(missing_docs, unreachable_pub)]
+#[rustfmt::skip]
+#[allow(warnings)]
 pub mod proto;
 
 #[cfg(feature = "metrics")]
@@ -156,6 +151,12 @@ use tonic::transport::ClientTlsConfig;
 
 pub use crate::span::{ExporterConfig, TraceExporter};
 
+#[cfg(feature = "tonic")]
+pub use crate::span::TonicConfig;
+
+#[cfg(feature = "grpc-sys")]
+pub use crate::span::GrpcioConfig;
+
 #[cfg(feature = "metrics")]
 pub use crate::metric::{new_metrics_pipeline, MetricsExporter, OtlpMetricPipelineBuilder};
 
@@ -164,6 +165,20 @@ pub use crate::span::{Compression, Credentials};
 
 use opentelemetry::sdk::export::ExportError;
 use opentelemetry::trace::TraceError;
+
+/// Target to which the exporter is going to send spans or metrics, defaults to https://localhost:4317.
+const OTEL_EXPORTER_OTLP_ENDPOINT: &str = "OTEL_EXPORTER_OTLP_ENDPOINT";
+/// Default target to which the exporter is going to send spans or metrics.
+const OTEL_EXPORTER_OTLP_ENDPOINT_DEFAULT: &str = "https://localhost:4317";
+/// Max waiting time for the backend to process each spans or metrics batch, defaults to 10 seconds.
+const OTEL_EXPORTER_OTLP_TIMEOUT: &str = "OTEL_EXPORTER_OTLP_TIMEOUT";
+/// Default max waiting time for the backend to process each spans or metrics batch.
+const OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT: u64 = 10;
+
+/// Target to which the exporter is going to send spans, defaults to https://localhost:4317.
+const OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: &str = "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT";
+/// Max waiting time for the backend to process each spans batch, defaults to 10s.
+const OTEL_EXPORTER_OTLP_TRACES_TIMEOUT: &str = "OTEL_EXPORTER_OTLP_TRACES_TIMEOUT";
 
 /// Create a new pipeline builder with the recommended configuration.
 ///
@@ -197,20 +212,6 @@ pub struct OtlpPipelineBuilder {
     trace_config: Option<sdk::trace::Config>,
 }
 
-/// Target to which the exporter is going to send spans or metrics, defaults to https://localhost:4317.
-const OTEL_EXPORTER_OTLP_ENDPOINT: &str = "OTEL_EXPORTER_OTLP_ENDPOINT";
-/// Default target to which the exporter is going to send spans or metrics.
-const OTEL_EXPORTER_OTLP_ENDPOINT_DEFAULT: &str = "https://localhost:4317";
-/// Max waiting time for the backend to process each spans or metrics batch, defaults to 10 seconds.
-const OTEL_EXPORTER_OTLP_TIMEOUT: &str = "OTEL_EXPORTER_OTLP_TIMEOUT";
-/// Default max waiting time for the backend to process each spans or metrics batch.
-const OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT: u64 = 10;
-
-/// Target to which the exporter is going to send spans, defaults to https://localhost:4317.
-const OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: &str = "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT";
-/// Max waiting time for the backend to process each spans batch, defaults to 10s.
-const OTEL_EXPORTER_OTLP_TRACES_TIMEOUT: &str = "OTEL_EXPORTER_OTLP_TRACES_TIMEOUT";
-
 impl OtlpPipelineBuilder {
     /// Set the address of the OTLP collector. If not set, the default address is used.
     pub fn with_endpoint<T: Into<String>>(mut self, endpoint: T) -> Self {
@@ -224,58 +225,9 @@ impl OtlpPipelineBuilder {
         self
     }
 
-    /// Set the TLS settings for the collector endpoint.
-    #[cfg(all(feature = "tonic", feature = "tls"))]
-    pub fn with_tls_config(mut self, tls_config: ClientTlsConfig) -> Self {
-        self.exporter_config.tls_config = Some(tls_config);
-        self
-    }
-
-    /// Set the credentials to use when communicating with the collector.
-    #[cfg(feature = "grpc-sys")]
-    pub fn with_credentials(mut self, credentials: Credentials) -> Self {
-        self.exporter_config.credentials = Some(credentials);
-        self
-    }
-
-    /// Set custom metadata entries to send to the collector.
-    #[cfg(feature = "tonic")]
-    pub fn with_metadata(mut self, metadata: MetadataMap) -> Self {
-        self.exporter_config.metadata = Some(metadata);
-        self
-    }
-
-    /// Set Additional headers to send to the collector.
-    #[cfg(feature = "grpc-sys")]
-    pub fn with_headers(mut self, headers: HashMap<String, String>) -> Self {
-        self.exporter_config.headers = Some(headers);
-        self
-    }
-
-    /// Set the compression algorithm to use when communicating with the collector.
-    #[cfg(feature = "grpc-sys")]
-    pub fn with_compression(mut self, compression: Compression) -> Self {
-        self.exporter_config.compression = Some(compression);
-        self
-    }
-
-    /// Enable TLS without any certificate pinning.
-    #[cfg(feature = "grpc-sys")]
-    pub fn with_tls(mut self, use_tls: bool) -> Self {
-        self.exporter_config.use_tls = Some(use_tls);
-        self
-    }
-
     /// Set the timeout to the collector.
     pub fn with_timeout(mut self, timeout: Duration) -> Self {
         self.exporter_config.timeout = timeout;
-        self
-    }
-
-    /// Set the number of GRPC worker threads to poll queues.
-    #[cfg(feature = "grpc-sys")]
-    pub fn with_completion_queue_count(mut self, count: usize) -> Self {
-        self.exporter_config.completion_queue_count = count;
         self
     }
 
@@ -306,37 +258,118 @@ impl OtlpPipelineBuilder {
         self
     }
 
-    /// Install the OTLP exporter pipeline with the recommended defaults.
+    /// Use tonic as grpc layer, return a `TonicPipelineBuilder` to config tonic and build the exporter.
     #[cfg(feature = "tonic")]
-    pub fn install(mut self) -> Result<sdk::trace::Tracer, TraceError> {
-        let exporter = TraceExporter::new(self.exporter_config)?;
-
-        let mut provider_builder = sdk::trace::TracerProvider::builder().with_exporter(exporter);
-        if let Some(config) = self.trace_config.take() {
-            provider_builder = provider_builder.with_config(config);
+    pub fn with_tonic(self) -> TonicPipelineBuilder {
+        TonicPipelineBuilder {
+            exporter_config: self.exporter_config,
+            trace_config: self.trace_config,
+            tonic_config: TonicConfig::default(),
         }
-        let provider = provider_builder.build();
-        let tracer = provider.get_tracer("opentelemetry-otlp", Some(env!("CARGO_PKG_VERSION")));
-        let _ = global::set_tracer_provider(provider);
-
-        Ok(tracer)
     }
 
-    /// Install the OTLP exporter pipeline with the recommended defaults.
+    /// Use grpcio as grpc layer, return a `GrpcioPipelineBuilder` to config the grpcio and build the exporter.
     #[cfg(feature = "grpc-sys")]
-    pub fn install(mut self) -> Result<sdk::trace::Tracer, TraceError> {
-        let exporter = TraceExporter::new(self.exporter_config);
-
-        let mut provider_builder = sdk::trace::TracerProvider::builder().with_exporter(exporter);
-        if let Some(config) = self.trace_config.take() {
-            provider_builder = provider_builder.with_config(config);
+    pub fn with_grpcio(self) -> GrpcioPipelineBuilder {
+        GrpcioPipelineBuilder {
+            exporter_config: self.exporter_config,
+            trace_config: self.trace_config,
+            grpcio_config: GrpcioConfig::default(),
         }
-        let provider = provider_builder.build();
-        let tracer = provider.get_tracer("opentelemetry-otlp", Some(env!("CARGO_PKG_VERSION")));
-        let _ = global::set_tracer_provider(provider);
-
-        Ok(tracer)
     }
+}
+
+/// Tonic trace exporter builder.
+#[derive(Default, Debug)]
+#[cfg(feature = "tonic")]
+pub struct TonicPipelineBuilder {
+    exporter_config: ExporterConfig,
+    tonic_config: TonicConfig,
+    trace_config: Option<sdk::trace::Config>,
+}
+
+#[cfg(feature = "tonic")]
+impl TonicPipelineBuilder {
+    /// Set the TLS settings for the collector endpoint.
+    #[cfg(feature = "tls")]
+    pub fn with_tls_config(mut self, tls_config: ClientTlsConfig) -> Self {
+        self.tonic_config.tls_config = Some(tls_config);
+        self
+    }
+
+    /// Set custom metadata entries to send to the collector.
+    pub fn with_metadata(mut self, metadata: MetadataMap) -> Self {
+        self.tonic_config.metadata = Some(metadata);
+        self
+    }
+
+    /// Install a trace exporter using tonic
+    pub fn install(self) -> Result<sdk::trace::Tracer, TraceError> {
+        let exporter = TraceExporter::new_tonic(self.exporter_config, self.tonic_config)?;
+        Ok(build_with_exporter(exporter, self.trace_config))
+    }
+}
+
+/// Grpc trace exporter builder.
+#[derive(Default, Debug)]
+#[cfg(feature = "grpc-sys")]
+pub struct GrpcioPipelineBuilder {
+    exporter_config: ExporterConfig,
+    grpcio_config: GrpcioConfig,
+    trace_config: Option<sdk::trace::Config>,
+}
+
+#[cfg(feature = "grpc-sys")]
+impl GrpcioPipelineBuilder {
+    /// Set the credentials to use when communicating with the collector.
+    pub fn with_credentials(mut self, credentials: Credentials) -> Self {
+        self.grpcio_config.credentials = Some(credentials);
+        self
+    }
+
+    /// Set Additional headers to send to the collector.
+    pub fn with_headers(mut self, headers: HashMap<String, String>) -> Self {
+        self.grpcio_config.headers = Some(headers);
+        self
+    }
+
+    /// Set the compression algorithm to use when communicating with the collector.
+    pub fn with_compression(mut self, compression: Compression) -> Self {
+        self.grpcio_config.compression = Some(compression);
+        self
+    }
+
+    /// Enable TLS without any certificate pinning.
+    pub fn with_tls(mut self, use_tls: bool) -> Self {
+        self.grpcio_config.use_tls = Some(use_tls);
+        self
+    }
+
+    /// Set the number of GRPC worker threads to poll queues.
+    pub fn with_completion_queue_count(mut self, count: usize) -> Self {
+        self.grpcio_config.completion_queue_count = count;
+        self
+    }
+
+    /// Install a trace exporter using grpcio
+    pub fn install(self) -> Result<sdk::trace::Tracer, TraceError> {
+        let exporter = TraceExporter::new_grpcio(self.exporter_config, self.grpcio_config);
+        Ok(build_with_exporter(exporter, self.trace_config))
+    }
+}
+
+fn build_with_exporter(
+    exporter: TraceExporter,
+    trace_config: Option<sdk::trace::Config>,
+) -> sdk::trace::Tracer {
+    let mut provider_builder = sdk::trace::TracerProvider::builder().with_exporter(exporter);
+    if let Some(config) = trace_config {
+        provider_builder = provider_builder.with_config(config);
+    }
+    let provider = provider_builder.build();
+    let tracer = provider.get_tracer("opentelemetry-otlp", Some(env!("CARGO_PKG_VERSION")));
+    let _ = global::set_tracer_provider(provider);
+    tracer
 }
 
 /// Wrap type for errors from opentelemetry otel

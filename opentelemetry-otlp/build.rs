@@ -8,13 +8,8 @@ use protobuf_codegen::Customize;
 use protoc_grpcio::compile_grpc_protos;
 
 fn main() {
-    #[cfg(all(feature = "grpc-sys", feature = "tonic"))]
-    compile_error!(
-        "exactly one of the features ['grpc-sys', 'tonic'] of opentelemetry-otlp crate must be enabled"
-    );
-
     #[cfg(feature = "tonic")]
-    tonic_build::configure()
+        tonic_build::configure()
         .build_server(std::env::var_os("CARGO_FEATURE_INTEGRATION_TESTING").is_some())
         .build_client(true)
         .format(false)
@@ -33,7 +28,7 @@ fn main() {
         .expect("Error generating protobuf");
 
     #[cfg(feature = "grpc-sys")]
-    compile_grpc_protos(
+        compile_grpc_protos(
         &[
             "src/proto/opentelemetry-proto/opentelemetry/proto/common/v1/common.proto",
             "src/proto/opentelemetry-proto/opentelemetry/proto/resource/v1/resource.proto",
@@ -50,6 +45,6 @@ fn main() {
             serde_derive: Some(true),
             ..Default::default()
         }),
-        )
+    )
         .expect("Error generating protobuf");
 }

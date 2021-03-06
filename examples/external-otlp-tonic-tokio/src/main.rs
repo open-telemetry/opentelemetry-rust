@@ -57,6 +57,7 @@ fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
 
     opentelemetry_otlp::new_pipeline()
         .with_endpoint(endpoint.as_str())
+        .with_tonic()
         .with_metadata(dbg!(metadata))
         .with_tls_config(
             ClientTlsConfig::new().domain_name(

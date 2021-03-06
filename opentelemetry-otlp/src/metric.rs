@@ -9,7 +9,7 @@ use crate::proto::collector::metrics::v1::{
     metrics_service_client::MetricsServiceClient, ExportMetricsServiceRequest,
 };
 use crate::transform::{record_to_metric, sink, CheckpointedMetrics};
-use crate::ExporterConfig;
+use crate::{ExporterConfig, TonicConfig};
 use futures::{SinkExt, Stream, StreamExt, TryFutureExt};
 use opentelemetry::labels::Iter;
 use opentelemetry::metrics::{Descriptor, Result};
@@ -47,6 +47,7 @@ where
         spawn,
         interval,
         export_config: None,
+        tonic_config: None,
         resource: None,
         stateful: None,
         period: None,
@@ -66,6 +67,7 @@ where
     spawn: SP,
     interval: I,
     export_config: Option<ExporterConfig>,
+    tonic_config: Option<TonicConfig>,
     resource: Option<Resource>,
     stateful: Option<bool>,
     period: Option<time::Duration>,
@@ -95,6 +97,14 @@ where
     pub fn with_export_config(mut self, export_config: ExporterConfig) -> Self {
         OtlpMetricPipelineBuilder {
             export_config: Some(export_config),
+            ..self
+        }
+    }
+
+    /// Build with tonic configuration
+    pub fn with_tonic_config(mut self, tonic_config: TonicConfig) -> Self {
+        OtlpMetricPipelineBuilder {
+            tonic_config: Some(tonic_config),
             ..self
         }
     }
@@ -154,6 +164,7 @@ where
         #[cfg(feature = "tonic")]
         let exporter = MetricsExporter::new(
             self.export_config.unwrap_or_default(),
+            self.tonic_config.unwrap_or_default(),
             self.export_selector.clone(),
         )?;
 
@@ -208,13 +219,14 @@ impl MetricsExporter {
     #[cfg(feature = "tonic")]
     pub fn new<T: ExportKindFor + Send + Sync + 'static>(
         config: ExporterConfig,
+        tonic_config: TonicConfig,
         export_selector: T,
     ) -> Result<MetricsExporter> {
         let endpoint =
             Channel::from_shared(config.endpoint).map_err::<crate::Error, _>(Into::into)?;
 
         #[cfg(all(feature = "tls"))]
-        let channel = match config.tls_config {
+        let channel = match tonic_config.tls_config {
             Some(tls_config) => endpoint
                 .tls_config(tls_config)
                 .map_err::<crate::Error, _>(Into::into)?,
@@ -230,7 +242,7 @@ impl MetricsExporter {
             .connect_lazy()
             .map_err::<crate::Error, _>(Into::into)?;
 
-        let client = match config.metadata.to_owned() {
+        let client = match tonic_config.metadata.to_owned() {
             None => MetricsServiceClient::new(channel),
             Some(metadata) => {
                 MetricsServiceClient::with_interceptor(channel, move |mut req: Request<()>| {

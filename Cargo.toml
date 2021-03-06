@@ -25,28 +25,3 @@ members = [
     "examples/zipkin",
 ]
 exclude = ["examples/external-otlp-grpcio-async-std"]
-default-members = [
-    "opentelemetry",
-    "opentelemetry-contrib",
-    "opentelemetry-datadog",
-    "opentelemetry-http",
-    "opentelemetry-jaeger",
-#    "opentelemetry-otlp",
-    "opentelemetry-prometheus",
-    "opentelemetry-aws",
-    "opentelemetry-semantic-conventions",
-    "opentelemetry-zipkin",
-    "examples/actix-http",
-    "examples/actix-http-tracing",
-    "examples/actix-udp",
-    "examples/async",
-    "examples/aws-xray",
-    "examples/basic",
-    "examples/basic-otlp",
-    "examples/datadog",
-    "examples/external-otlp-tonic-tokio",
-    "examples/grpc",
-    "examples/http",
-    "examples/tracing-grpc",
-    "examples/zipkin",
-]
