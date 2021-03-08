@@ -3,6 +3,7 @@ use crate::{
     trace::{Event, Link, Span, SpanId, SpanKind, StatusCode, TraceContextExt, TraceId},
     Context, KeyValue,
 };
+use std::borrow::Cow;
 use std::fmt;
 use std::time::SystemTime;
 
@@ -315,7 +316,7 @@ pub trait Tracer: fmt::Debug + 'static {
 ///
 /// // The builder can be used to create a span directly with the tracer
 /// let _span = tracer.build(SpanBuilder {
-///     name: "example-span-name".to_string(),
+///     name: "example-span-name".into(),
 ///     span_kind: Some(SpanKind::Server),
 ///     ..Default::default()
 /// });
@@ -337,7 +338,7 @@ pub struct SpanBuilder {
     /// Span kind
     pub span_kind: Option<SpanKind>,
     /// Span name
-    pub name: String,
+    pub name: Cow<'static, str>,
     /// Span start time
     pub start_time: Option<SystemTime>,
     /// Span end time
@@ -359,13 +360,13 @@ pub struct SpanBuilder {
 /// SpanBuilder methods
 impl SpanBuilder {
     /// Create a new span builder from a span name
-    pub fn from_name(name: String) -> Self {
+    pub fn from_name<T: Into<Cow<'static, str>>>(name: T) -> Self {
         SpanBuilder {
             parent_context: None,
             trace_id: None,
             span_id: None,
             span_kind: None,
-            name,
+            name: name.into(),
             start_time: None,
             end_time: None,
             attributes: None,

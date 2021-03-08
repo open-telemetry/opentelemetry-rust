@@ -172,7 +172,7 @@ impl From<SpanData> for ResourceSpans {
                         .into_iter()
                         .map(|event| span::Event {
                             time_unix_nano: to_nanos(event.timestamp),
-                            name: event.name,
+                            name: event.name.into(),
                             attributes: Attributes::from(event.attributes).0,
                             dropped_attributes_count: 0,
                         })
@@ -234,7 +234,7 @@ impl From<SpanData> for ResourceSpans {
                                 .into_iter()
                                 .map(|event| Span_Event {
                                     time_unix_nano: to_nanos(event.timestamp),
-                                    name: event.name,
+                                    name: event.name.into(),
                                     attributes: Attributes::from(event.attributes).0,
                                     dropped_attributes_count: 0,
                                     ..Default::default()
