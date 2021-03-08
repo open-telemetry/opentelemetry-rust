@@ -185,8 +185,7 @@ impl SpanProcessor for SimpleSpanProcessor {
 ///         .with_batch_exporter(batch)
 ///         .build();
 ///
-///     let guard = global::set_tracer_provider(provider);
-///     # drop(guard)
+///     let _ = global::set_tracer_provider(provider);
 /// }
 /// # }
 /// ```
