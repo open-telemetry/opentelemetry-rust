@@ -31,8 +31,9 @@
 //!   +-----+--------------+   +---------------------+
 //! ```
 //!
-//! [`is_recording`]: ../span/trait.Span.html#method.is_recording
-//! [`TracerProvider`]: ../provider/trait.TracerProvider.html
+//! [`is_recording`]: crate::trace::Span::is_recording()
+//! [`TracerProvider`]: crate::trace::TracerProvider
+
 use crate::global;
 use crate::sdk::trace::Span;
 use crate::{
@@ -103,8 +104,6 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
 ///
 /// let previous_provider = global::set_tracer_provider(provider);
 /// ```
-///
-/// [`SpanProcessor`]: ../../api/trace/span_processor/trait.SpanProcessor.html
 #[derive(Debug)]
 pub struct SimpleSpanProcessor {
     exporter: Mutex<Box<dyn SpanExporter>>,
@@ -194,7 +193,6 @@ impl SpanProcessor for SimpleSpanProcessor {
 /// # }
 /// ```
 ///
-/// [`SpanProcessor`]: ../../api/trace/span_processor/trait.SpanProcessor.html
 /// [`executor`]: https://docs.rs/futures/0.3/futures/executor/index.html
 /// [`tokio`]: https://tokio.rs
 /// [`async-std`]: https://async.rs
@@ -486,7 +484,6 @@ impl Default for BatchConfig {
 
 /// A builder for creating [`BatchSpanProcessor`] instances.
 ///
-/// [`BatchSpanProcessor`]: struct.BatchSpanProcessor.html
 #[derive(Debug)]
 pub struct BatchSpanProcessorBuilder<E, S, I, D> {
     exporter: E,

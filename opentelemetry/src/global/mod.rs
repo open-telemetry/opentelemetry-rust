@@ -134,6 +134,7 @@
 //!
 //! [installing a metrics pipeline]: crate::sdk::export::metrics::stdout::StdoutExporterBuilder::try_init
 //! [`MeterProvider`]: crate::metrics::MeterProvider
+//! [`set_meter_provider`]: crate::global::set_meter_provider
 
 mod error_handler;
 #[cfg(feature = "metrics")]

@@ -25,7 +25,7 @@ impl From<Event> for Annotation {
 
         Annotation::builder()
             .timestamp(timestamp)
-            .value(event.name)
+            .value(event.name.into())
             .build()
     }
 }

@@ -6,9 +6,8 @@
 //! This main trait is [`FutureExt`], which allows a [`Context`],
 //! to be attached to a future, sink, or stream.
 //!
-//! [`futures`]: https://doc.rust-lang.org/std/future/trait.Future.html
-//! [`FutureExt`]: trait.FutureExt.html
-//! [`Context`]: ../../context/struct.Context.html
+//! [`futures`]: std::future::Future
+//! [`Context`]: crate::Context
 use crate::Context as OpenTelemetryContext;
 use pin_project::pin_project;
 use std::{
@@ -96,7 +95,7 @@ pub trait FutureExt: Sized {
     /// When the wrapped type is a future, stream, or sink, the attached context
     /// will be set as current while it is being polled.
     ///
-    /// [`Context`]: ../../context/struct.Context.html
+    /// [`Context`]: crate::Context
     fn with_context(self, otel_cx: OpenTelemetryContext) -> WithContext<Self> {
         WithContext {
             inner: self,
@@ -110,7 +109,7 @@ pub trait FutureExt: Sized {
     /// When the wrapped type is a future, stream, or sink, the attached context
     /// will be set as the default while it is being polled.
     ///
-    /// [`Context`]: ../../context/struct.Context.html
+    /// [`Context`]: crate::Context
     fn with_current_context(self) -> WithContext<Self> {
         let otel_cx = OpenTelemetryContext::current();
         self.with_context(otel_cx)

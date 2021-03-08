@@ -276,7 +276,7 @@ impl crate::trace::Tracer for Tracer {
             SpanData {
                 parent_span_id,
                 span_kind,
-                name: builder.name,
+                name: builder.name.into(),
                 start_time,
                 end_time,
                 attributes,
