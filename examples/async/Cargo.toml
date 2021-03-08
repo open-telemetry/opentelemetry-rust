@@ -7,5 +7,5 @@ edition = "2018"
 futures = "0.3"
 thrift = "0.13"
 tokio = { version = "1.0", features = ["full"] }
-opentelemetry = { path = "../../opentelemetry", features = ["tokio-support"] }
+opentelemetry = { path = "../../opentelemetry", features = ["rt-tokio"] }
 opentelemetry-jaeger = { path = "../../opentelemetry-jaeger", features = ["tokio"] }

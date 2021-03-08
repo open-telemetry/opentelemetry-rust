@@ -8,7 +8,7 @@ use opentelemetry::{
     Key,
 };
 
-fn init_tracer() -> Result<(sdktrace::Tracer, opentelemetry_jaeger::Uninstall), TraceError> {
+fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
     opentelemetry_jaeger::new_pipeline()
         .with_agent_endpoint("localhost:6831")
         .with_service_name("trace-udp-demo")
@@ -27,7 +27,7 @@ async fn index() -> &'static str {
 async fn main() -> std::io::Result<()> {
     std::env::set_var("RUST_LOG", "debug");
     env_logger::init();
-    let _uninstall = init_tracer().expect("Failed to initialise tracer.");
+    let _tracer = init_tracer().expect("Failed to initialise tracer.");
 
     HttpServer::new(|| {
         App::new()

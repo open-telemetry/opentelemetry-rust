@@ -153,10 +153,9 @@ use std::time::SystemTime;
 /// [`Future::with_context`] attaches a context to the future, ensuring that the
 /// context's lifetime is as long as the future's.
 ///
-/// [`std::future::Future`]: https://doc.rust-lang.org/stable/std/future/trait.Future.html
-/// [`FutureExt`]: ../futures/trait.FutureExt.html
-/// [`Future::with_context`]: ../futures/trait.FutureExt.html#method.with_context
-/// [`Context`]: ../../context/struct.Context.html
+/// [`FutureExt`]: super::futures::FutureExt
+/// [`Future::with_context`]: super::futures::FutureExt::with_context()
+/// [`Context`]: crate::Context
 pub trait Tracer: fmt::Debug + 'static {
     /// The `Span` type used by this `Tracer`.
     type Span: Span;

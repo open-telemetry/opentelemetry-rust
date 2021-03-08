@@ -25,11 +25,13 @@
 //!
 //! fn main() -> Result<(), opentelemetry::trace::TraceError> {
 //!     global::set_text_map_propagator(opentelemetry_jaeger::Propagator::new());
-//!     let (tracer, _uninstall) = opentelemetry_jaeger::new_pipeline().install()?;
+//!     let tracer = opentelemetry_jaeger::new_pipeline().install()?;
 //!
 //!     tracer.in_span("doing_work", |cx| {
 //!         // Traced app logic here...
 //!     });
+//!
+//!     global::shutdown_tracer_provider(); // export remaining spans
 //!
 //!     Ok(())
 //! }
@@ -44,7 +46,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! opentelemetry = { version = "*", features = ["tokio-support"] }
+//! opentelemetry = { version = "*", features = ["rt-tokio"] }
 //! opentelemetry-jaeger = { version = "*", features = ["tokio"] }
 //! ```
 //!
@@ -72,7 +74,7 @@
 //!
 //! Then you can use the [`with_collector_endpoint`] method to specify the endpoint:
 //!
-//! [`with_collector_endpoint`]: struct.PipelineBuilder.html#method.with_collector_endpoint
+//! [`with_collector_endpoint`]: PipelineBuilder::with_collector_endpoint()
 //!
 //! ```ignore
 //! // Note that this requires the `collector_client` feature.
@@ -81,7 +83,7 @@
 //! use opentelemetry::trace::{Tracer, TraceError};
 //!
 //! fn main() -> Result<(), TraceError> {
-//!     let (tracer, _uninstall) = opentelemetry_jaeger::new_pipeline()
+//!     let tracer = opentelemetry_jaeger::new_pipeline()
 //!         .with_collector_endpoint("http://localhost:14268/api/traces")
 //!         // optionally set username and password as well.
 //!         .with_collector_username("username")
@@ -101,7 +103,6 @@
 //! Example showing how to override all configuration options. See the
 //! [`PipelineBuilder`] docs for details of each option.
 //!
-//! [`PipelineBuilder`]: struct.PipelineBuilder.html
 //!
 //! ```no_run
 //! use opentelemetry::{KeyValue, trace::{Tracer, TraceError}};
@@ -110,10 +111,11 @@
 //!
 //! fn main() -> Result<(), TraceError> {
 //!     global::set_text_map_propagator(opentelemetry_jaeger::Propagator::new());
-//!     let (tracer, _uninstall) = opentelemetry_jaeger::new_pipeline()
+//!     let tracer = opentelemetry_jaeger::new_pipeline()
 //!         .with_agent_endpoint("localhost:6831")
 //!         .with_service_name("my_app")
 //!         .with_tags(vec![KeyValue::new("process_key", "process_value")])
+//!         .with_max_packet_size(9_216)
 //!         .with_trace_config(
 //!             trace::config()
 //!                 .with_default_sampler(Sampler::AlwaysOn)
@@ -128,6 +130,8 @@
 //!     tracer.in_span("doing_work", |cx| {
 //!         // Traced app logic here...
 //!     });
+//!
+//!     global::shutdown_tracer_provider(); // export remaining spans
 //!
 //!     Ok(())
 //! }
@@ -569,5 +573,5 @@ mod propagator {
     }
 }
 
-pub use exporter::{new_pipeline, Error, Exporter, PipelineBuilder, Process, Uninstall};
+pub use exporter::{new_pipeline, Error, Exporter, PipelineBuilder, Process};
 pub use propagator::Propagator;

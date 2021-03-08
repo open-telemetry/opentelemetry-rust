@@ -21,12 +21,12 @@
 //! use opentelemetry::trace::{Tracer, NoopTracerProvider};
 //! use opentelemetry::global;
 //!
-//! fn init_tracer() -> global::TracerProviderGuard {
+//! fn init_tracer() {
 //!     let provider = NoopTracerProvider::new();
 //!
 //!     // Configure the global `TracerProvider` singleton when your app starts
 //!     // (there is a no-op default if this is not set by your application)
-//!     global::set_tracer_provider(provider)
+//!     let _ = global::set_tracer_provider(provider);
 //! }
 //!
 //! fn do_something_tracked() {
@@ -39,7 +39,7 @@
 //! }
 //!
 //! // in main or other app start
-//! let _guard = init_tracer();
+//! let _ = init_tracer();
 //! do_something_tracked();
 //! # }
 //! ```
@@ -134,6 +134,7 @@
 //!
 //! [installing a metrics pipeline]: crate::sdk::export::metrics::stdout::StdoutExporterBuilder::try_init
 //! [`MeterProvider`]: crate::metrics::MeterProvider
+//! [`set_meter_provider`]: crate::global::set_meter_provider
 
 mod error_handler;
 #[cfg(feature = "metrics")]
@@ -155,6 +156,6 @@ pub use propagation::{get_text_map_propagator, set_text_map_propagator};
 #[cfg(feature = "trace")]
 #[cfg_attr(docsrs, doc(cfg(feature = "trace")))]
 pub use trace::{
-    set_tracer_provider, tracer, tracer_provider, tracer_with_version, BoxedSpan, BoxedTracer,
-    GenericTracer, GenericTracerProvider, GlobalTracerProvider, TracerProviderGuard,
+    set_tracer_provider, shutdown_tracer_provider, tracer, tracer_provider, tracer_with_version,
+    BoxedSpan, BoxedTracer, GenericTracer, GenericTracerProvider, GlobalTracerProvider,
 };

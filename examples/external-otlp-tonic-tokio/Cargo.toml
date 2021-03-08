@@ -6,7 +6,7 @@ edition = "2018"
 [dependencies]
 futures = "0.3"
 opentelemetry = { path = "../../opentelemetry", features = [
-    "tokio-support",
+    "rt-tokio",
     "metrics",
     "serialize"
 ] }

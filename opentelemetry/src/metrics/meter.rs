@@ -18,7 +18,6 @@ pub trait MeterProvider: fmt::Debug {
     /// that code provides built-in instrumentation. If the instrumentation name is
     /// empty, then a implementation defined default name will be used instead.
     ///
-    /// [`Meter`]: struct.Meter.html
     fn meter(
         &self,
         instrumentation_name: &'static str,

@@ -12,7 +12,7 @@ use std::sync::Arc;
 /// Instances of this type should be created by asynchronous instruments (e.g.,
 /// [ValueObserver::observation]).
 ///
-/// [ValueObserver::observation]: struct.ValueObserver.html#method.observation
+/// [ValueObserver::observation]: crate::metrics::ValueObserver::observation()
 #[derive(Debug)]
 pub struct Observation {
     number: Number,

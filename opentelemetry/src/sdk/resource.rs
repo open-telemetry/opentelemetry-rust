@@ -12,7 +12,7 @@
 //! That association cannot be changed later. When associated with a `TracerProvider`, all `Span`s
 //! produced by any `Tracer` from the provider are associated with this `Resource`.
 //!
-//! [`TracerProvider`]: ../../api/trace/provider/trait.TracerProvider.html
+//! [`TracerProvider`]: crate::trace::TracerProvider
 #[cfg(feature = "metrics")]
 use crate::labels;
 use crate::sdk::EnvResourceDetector;

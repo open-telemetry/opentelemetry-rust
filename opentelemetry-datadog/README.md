@@ -67,7 +67,7 @@ to [`Datadog`].
  }
 
  fn main() -> Result<(), opentelemetry::trace::TraceError> {
-     let (tracer, _uninstall) = new_pipeline()
+     let tracer = new_pipeline()
          .with_service_name("my_app")
          .with_version(ApiVersion::Version05)
          .with_agent_endpoint("http://localhost:8126")
@@ -81,6 +81,8 @@ to [`Datadog`].
      tracer.in_span("doing_work", |cx| {
          // Traced app logic here...
      });
+     
+     opentelemetry::global::shut_down_provider();
 
      Ok(())
  }

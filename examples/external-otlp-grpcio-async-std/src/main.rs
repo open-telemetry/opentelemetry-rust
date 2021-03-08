@@ -31,7 +31,7 @@ use std::{
 const ENDPOINT: &str = "OTLP_GRPCIO_ENDPOINT";
 const HEADER_PREFIX: &str = "OTLP_GRPCIO_";
 
-fn init_tracer() -> Result<(sdktrace::Tracer, opentelemetry_otlp::Uninstall), TraceError> {
+fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
     let endpoint = var(ENDPOINT).unwrap_or_else(|_| {
         panic!(
             "You must specify and endpoint to connect to with the variable {:?}.",
@@ -75,7 +75,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         _ => {}
     };
     env_logger::init();
-    let _guard = init_tracer()?;
+    let _ = init_tracer()?;
 
     let tracer = global::tracer("ex.com/basic");
 

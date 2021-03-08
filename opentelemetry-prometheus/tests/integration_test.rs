@@ -111,6 +111,37 @@ fn test_add() {
     compare_export(&exporter, expected)
 }
 
+#[test]
+fn test_sanitization() {
+    let exporter = opentelemetry_prometheus::exporter()
+        .with_default_histogram_boundaries(vec![-0.5, 1.0])
+        .with_resource(Resource::new(vec![KeyValue::new(
+            "service.name",
+            "Test Service",
+        )]))
+        .init();
+    let meter = exporter.provider().unwrap().meter("test", None);
+
+    let value_recorder = meter.f64_value_recorder("http.server.duration").init();
+    let labels = vec![
+        KeyValue::new("http.method", "GET"),
+        KeyValue::new("http.host", "server"),
+    ];
+    value_recorder.record(-0.6, &labels);
+    value_recorder.record(-0.4, &labels);
+    value_recorder.record(0.6, &labels);
+    value_recorder.record(20.0, &labels);
+
+    let expected = vec![
+        r#"http_server_duration_bucket{http_host="server",http_method="GET",service_name="Test Service",le="+Inf"} 4"#,
+        r#"http_server_duration_bucket{http_host="server",http_method="GET",service_name="Test Service",le="-0.5"} 1"#,
+        r#"http_server_duration_bucket{http_host="server",http_method="GET",service_name="Test Service",le="1"} 3"#,
+        r#"http_server_duration_count{http_host="server",http_method="GET",service_name="Test Service"} 4"#,
+        r#"http_server_duration_sum{http_host="server",http_method="GET",service_name="Test Service"} 19.6"#,
+    ];
+    compare_export(&exporter, expected)
+}
+
 fn compare_export(exporter: &PrometheusExporter, mut expected: Vec<&'static str>) {
     let mut output = Vec::new();
     let encoder = TextEncoder::new();

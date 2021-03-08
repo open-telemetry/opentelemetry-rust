@@ -37,6 +37,8 @@ use opentelemetry::{sdk::export::trace::stdout, trace::Tracer};
 
 fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     // Create a new instrumentation pipeline
+    // Please note that if _uninstall is dropped. 
+    // So does the tracer provider. As a result you may get no spans.
     let (tracer, _uninstall) = stdout::new_pipeline().install();
 
     tracer.in_span("doing_work", |cx| {
@@ -69,8 +71,9 @@ In particular, the following crates are likely to be of interest:
   metrics information to [`Prometheus`].
 - [`opentelemetry-zipkin`] provides a pipeline and exporter for sending trace
   information to [`Zipkin`].
-- [`opentelemetry-contrib`] provides additional exporters to vendors like
-  [`Datadog`].
+- [`opentelemetry-contrib`] provides additional exporters and propagators that are experimental.
+- [`opentelemetry-datadog`] provides additional exporters to [`Datadog`].
+- [`opentelemetry-aws`] provides unofficial propagators for AWS X-ray.  
 - [`opentelemetry-semantic-conventions`] provides standard names and semantic
   otel conventions.
 
@@ -101,6 +104,8 @@ above, please let us know! We'd love to add your project to the list!
 [`Zipkin`]: https://zipkin.io
 [`opentelemetry-contrib`]: https://crates.io/crates/opentelemetry-contrib
 [`Datadog`]: https://www.datadoghq.com
+[`opentelemetry-datadog`]: https://crates.io/crates/opentelemetry-datadog
+[`opentelemetry-aws`]: https://crates.io/crates/opentelemetry-aws
 [`opentelemetry-semantic-conventions`]: https://crates.io/crates/opentelemetry-semantic-conventions
 
 [`tracing-opentelemetry`]: https://crates.io/crates/tracing-opentelemetry

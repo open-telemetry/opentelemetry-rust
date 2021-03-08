@@ -164,7 +164,7 @@ impl trace::Tracer for NoopTracer {
 
 /// A no-op instance of an [`SpanExporter`].
 ///
-/// [`SpanExporter`]: ../../../exporter/trace/trait.SpanExporter.html
+/// [`SpanExporter`]: crate::sdk::export::trace::SpanExporter
 #[derive(Debug, Default)]
 pub struct NoopSpanExporter {
     _private: (),
