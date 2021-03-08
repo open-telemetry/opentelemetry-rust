@@ -2,7 +2,7 @@
 
 ## v0.11.0
 ### Changed
-- Update to opentelemetry v0.12.0
+- Update to opentelemetry v0.13.0
 
 ## v0.10.0
 
