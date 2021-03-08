@@ -1,5 +1,18 @@
 # Changelog
 
+## [v0.13.0](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.12.0...v0.13.0)
+
+## Changed
+
+- Changed the default branch to `main` #439
+- Changed CIs to target `main` branch #442
+- Pull configrations from environment variables by default when creating BatchSpanProcessor #445
+- Convert doc links to intra-doc #466
+
+## Removed
+- Removed tracer provider guard #444
+- Removed `from_env` and use environment variables to initialize the configurations by default #459
+
 ## [v0.12.0](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.11.2...v0.12.0)
 
 ## Added

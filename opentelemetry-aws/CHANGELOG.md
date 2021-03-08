@@ -2,4 +2,4 @@
 
 ### Added
 
-- AWS XRay propagator
+- AWS XRay propagator #446

@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.5.0
+
+### Removed
+- Moved aws related function to `opentelemetry-aws` crate. #446
+- Moved datadog related function to `opentelemetry-datadog` crate. #446
+
+
 ## v0.4.0
 
 ### Changed

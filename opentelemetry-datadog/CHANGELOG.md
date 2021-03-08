@@ -2,5 +2,5 @@
 
 ### Added
 
-- Datadog exporter
-- Datadog propagator
+- Datadog exporter #446
+- Datadog propagator #440
