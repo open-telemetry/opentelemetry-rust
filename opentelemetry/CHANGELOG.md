@@ -4,8 +4,6 @@
 
 ## Changed
 
-- Changed the default branch to `main` #439
-- Changed CIs to target `main` branch #442
 - Pull configrations from environment variables by default when creating BatchSpanProcessor #445
 - Convert doc links to intra-doc #466
 

@@ -6,7 +6,6 @@
 
 ### Changed
 - Update to opentelemetry v0.13.0
-- Update `prometheus` dependency to v0.11 #435
 
 ## v0.5.0
 
