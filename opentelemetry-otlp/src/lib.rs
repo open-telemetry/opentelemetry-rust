@@ -148,7 +148,6 @@ mod proto;
 pub mod proto;
 
 #[cfg(feature = "metrics")]
-#[allow(warnings)]
 mod metric;
 mod span;
 mod transform;
@@ -408,6 +407,11 @@ pub enum Error {
     #[cfg(feature = "grpc-sys")]
     #[error("grpcio error {0}")]
     Grpcio(#[from] grpcio::Error),
+
+    /// The lock in exporters has been poisoned.
+    #[cfg(feature = "metrics")]
+    #[error("the lock of the {0} has been poisoned")]
+    PoisonedLock(&'static str)
 }
 
 impl ExportError for Error {

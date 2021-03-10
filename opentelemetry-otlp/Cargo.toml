@@ -47,7 +47,7 @@ tokio-stream = { version = "0.1", features = ["net"] }
 [features]
 async = ["default"]
 trace = ["opentelemetry/trace"]
-metrics = ["opentelemetry/metrics"]
+metrics = ["opentelemetry/metrics", "default"]
 default = ["tonic", "tonic-build", "prost", "tokio"]
 grpc-sys = ["grpcio", "protobuf", "protobuf-codegen", "protoc-grpcio"]
 tls = ["tonic/tls"]
