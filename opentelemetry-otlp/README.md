@@ -45,20 +45,22 @@ Then install a new pipeline with the recommended defaults to start exporting
 telemetry:
 
 ```rust
-use opentelemetry::tracer;
+use opentelemetry::trace::Tracer;
 
 fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let (tracer, _uninstall) = opentelemetry_otlp::new_pipeline().install()?;
+    // use tonic as grpc layer here.
+    // If you want to use grpcio. enable `grpc-sys` feature and use with_grpcio function here.
+    let tracer = opentelemetry_otlp::new_pipeline().with_tonic().install()?;
 
     tracer.in_span("doing_work", |cx| {
         // Traced app logic here...
-    });
+   });
 
     Ok(())
 }
 ```
 
-## Options
+## Tonic vs Grpcio
 
 Multiple gRPC transport layers are available. [`tonic`](https://crates.io/crates/tonic) is the default gRPC transport 
 layer and is enabled by default. [`grpcio`](https://crates.io/crates/grpcio) is optional.
@@ -118,12 +120,7 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let (tracer, _uninstall) = opentelemetry_otlp::new_pipeline()
         .with_endpoint("localhost:4317")
         .with_protocol(Protocol::Grpc)
-        .with_metadata(map)
         .with_timeout(Duration::from_secs(3))
-        .with_tls_config(ClientTlsConfig::new()
-            .ca_certificate(Certificate::from_pem(&cert))
-            .domain_name("example.com".to_string())
-        )
         .with_trace_config(
             trace::config()
                 .with_default_sampler(Sampler::AlwaysOn)
@@ -133,6 +130,12 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
                 .with_max_events_per_span(16)
                 .with_resource(Resource::new(vec![KeyValue::new("key", "value")])),
         )
+        .with_tonic()
+        .with_tls_config(ClientTlsConfig::new()
+            .ca_certificate(Certificate::from_pem(&cert))
+            .domain_name("example.com".to_string())
+        )
+        .with_metadata(map)
         .install()?;
 
     tracer.in_span("doing_work", |cx| {
