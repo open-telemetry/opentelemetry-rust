@@ -93,7 +93,7 @@
 //!                 .with_max_events_per_span(64)
 //!                 .with_max_attributes_per_span(16)
 //!                 .with_max_events_per_span(16)
-//!                 .with_resource(Resource::new(vec![KeyValue::new("key", "value")])),
+//!                 .with_resource(Resource::new(vec![KeyValue::new("service.name", "example")])),
 //!         )
 //!         .install()?;
 //!
