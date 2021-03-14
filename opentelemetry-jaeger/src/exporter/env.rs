@@ -1,4 +1,5 @@
 use crate::PipelineBuilder;
+use opentelemetry::runtime::Runtime;
 use std::env;
 
 /// The name under which Jaeger will group reported spans.
@@ -26,7 +27,7 @@ const ENV_USER: &str = "OTEL_EXPORTER_JAEGER_USER";
 const ENV_PASSWORD: &str = "OTEL_EXPORTER_JAEGER_PASSWORD";
 
 /// Assign builder attributes from env
-pub(crate) fn assign_attrs(mut builder: PipelineBuilder) -> PipelineBuilder {
+pub(crate) fn assign_attrs<R: Runtime>(mut builder: PipelineBuilder<R>) -> PipelineBuilder<R> {
     if let Some(service_name) = env::var(ENV_SERVICE_NAME).ok().filter(|v| !v.is_empty()) {
         builder = builder.with_service_name(service_name);
     }

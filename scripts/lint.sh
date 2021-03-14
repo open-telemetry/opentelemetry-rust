@@ -14,9 +14,7 @@ if rustup component add clippy; then
     `# Exit with a nonzero code if there are clippy warnings` \
     -Dwarnings
 
-  cargo_feature opentelemetry "trace,rt-tokio"
-  cargo_feature opentelemetry "trace,rt-tokio-current-thread"
-  cargo_feature opentelemetry "trace,async-std"
+  cargo_feature opentelemetry "trace,rt-tokio,rt-tokio-current-thread,rt-async-std"
 
   cargo_feature opentelemetry-otlp "default"
   cargo_feature opentelemetry-otlp "default,tls"

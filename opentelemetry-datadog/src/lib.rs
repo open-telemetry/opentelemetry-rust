@@ -33,10 +33,10 @@
 //!
 //! ## Performance
 //!
-//! For optimal performance, a batch exporter is recommended as the simple
-//! exporter will export each span synchronously on drop. You can enable the
-//! [`rt-tokio`], [`rt-tokio-current-thread`] or [`rt-async-std`] features to have a batch exporter configured for
-//! you automatically for either executor when you install the pipeline.
+//! For optimal performance, a batch exporter is recommended as the simple exporter will export
+//! each span synchronously on drop. You can enable the [`rt-tokio`], [`rt-tokio-current-thread`]
+//! or [`rt-async-std`] features and specify a runtime on the pipeline to have a batch exporter
+//! configured for you automatically.
 //!
 //! ```toml
 //! [dependencies]
@@ -44,11 +44,19 @@
 //! opentelemetry-datadog = "*"
 //! ```
 //!
+//! ```no_run
+//! # fn main() -> Result<(), opentelemetry::trace::TraceError> {
+//! let tracer = opentelemetry_datadog::new_pipeline()
+//!     .with_runtime(opentelemetry::runtime::Tokio)
+//!     .install()?;
+//! # Ok(())
+//! # }
+//! ```
+//!
 //! [`rt-tokio`]: https://tokio.rs
 //! [`rt-tokio-current-thread`]: https://tokio.rs
 //! [`rt-async-std`]: https://async.rs
 //!
-
 //! ## Bring your own http client
 //!
 //! Users can choose appropriate http clients to align with their runtime.
@@ -100,6 +108,7 @@
 //!
 //! fn main() -> Result<(), opentelemetry::trace::TraceError> {
 //!     let tracer = new_pipeline()
+//!         .with_runtime(opentelemetry::runtime::Tokio)
 //!         .with_service_name("my_app")
 //!         .with_version(ApiVersion::Version05)
 //!         .with_agent_endpoint("http://localhost:8126")

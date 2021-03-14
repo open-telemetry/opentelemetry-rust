@@ -62,15 +62,22 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 
 ## Performance
 
-For optimal performance, a batch exporter is recommended as the simple
-exporter will export each span synchronously on drop. Enable a runtime
-to have a batch exporter configured automatically for either executor
-when using the pipeline.
+For optimal performance, a batch exporter is recommended as the simple exporter
+will export each span synchronously on drop. You can enable the [`rt-tokio`],
+[`rt-tokio-current-thread`] or [`rt-async-std`] features and specify a runtime
+on the pipeline builder to have a batch exporter configured for you
+automatically.
 
 ```toml
 [dependencies]
 opentelemetry = { version = "*", features = ["async-std"] }
 opentelemetry-otlp = { version = "*", features = ["grpc-sys"] }
+```
+
+```rust
+let tracer = opentelemetry_otlp::new_pipeline()
+    .with_runtime(opentelemetry::runtime::AsyncStd)
+    .install()?;
 ```
 
 [`tokio`]: https://tokio.rs
@@ -103,6 +110,7 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     map.insert_bin("trace-proto-bin", MetadataValue::from_bytes(b"[binary data]"));
 
     let (tracer, _uninstall) = opentelemetry_otlp::new_pipeline()
+        .with_runtime(opentelemetry::runtime::Tokio)
         .with_endpoint("http://localhost:4317")
         .with_protocol(Protocol::Grpc)
         .with_timeout(Duration::from_secs(3))
