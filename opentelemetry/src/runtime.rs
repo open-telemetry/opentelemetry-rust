@@ -86,7 +86,7 @@ impl Runtime for TokioCurrentThread {
             let rt = tokio::runtime::Builder::new_current_thread()
                 .enable_all()
                 .build()
-                .unwrap();
+                .expect("failed to create Tokio current thead runtime for OpenTelemetry batch processing");
             rt.block_on(future);
         });
     }
