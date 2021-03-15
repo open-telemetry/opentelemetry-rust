@@ -13,7 +13,7 @@ use async_trait::async_trait;
 use std::time::SystemTime;
 
 /// A no-op instance of a `TracerProvider`.
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct NoopTracerProvider {
     _private: (),
 }
@@ -35,7 +35,7 @@ impl trace::TracerProvider for NoopTracerProvider {
 }
 
 /// A no-op instance of a `Span`.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct NoopSpan {
     span_context: trace::SpanContext,
 }
@@ -109,7 +109,7 @@ impl trace::Span for NoopSpan {
 }
 
 /// A no-op instance of a `Tracer`.
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct NoopTracer {
     _private: (),
 }
