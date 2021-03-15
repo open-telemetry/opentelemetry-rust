@@ -189,6 +189,8 @@ mod core;
 
 pub use crate::core::{Array, Key, KeyValue, Unit, Value};
 
+pub mod runtime;
+
 pub mod util;
 
 #[cfg(feature = "metrics")]
