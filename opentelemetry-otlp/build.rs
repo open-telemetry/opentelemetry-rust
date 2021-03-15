@@ -1,15 +1,15 @@
-#[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
+#[cfg(feature = "grpc-sys")]
 extern crate protoc_grpcio;
 
-#[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
+#[cfg(feature = "grpc-sys")]
 use protobuf_codegen::Customize;
 
-#[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
+#[cfg(feature = "grpc-sys")]
 use protoc_grpcio::compile_grpc_protos;
 
 fn main() {
     #[cfg(feature = "tonic")]
-    tonic_build::configure()
+        tonic_build::configure()
         .build_server(std::env::var_os("CARGO_FEATURE_INTEGRATION_TESTING").is_some())
         .build_client(true)
         .format(false)
@@ -27,8 +27,8 @@ fn main() {
         )
         .expect("Error generating protobuf");
 
-    #[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
-    compile_grpc_protos(
+    #[cfg(feature = "grpc-sys")]
+        compile_grpc_protos(
         &[
             "src/proto/opentelemetry-proto/opentelemetry/proto/common/v1/common.proto",
             "src/proto/opentelemetry-proto/opentelemetry/proto/resource/v1/resource.proto",
@@ -45,6 +45,6 @@ fn main() {
             serde_derive: Some(true),
             ..Default::default()
         }),
-        )
+    )
         .expect("Error generating protobuf");
 }

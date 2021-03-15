@@ -4,42 +4,44 @@
 
 #[cfg(feature = "tonic")]
 use crate::proto::collector::trace::v1::{
-    trace_service_client::TraceServiceClient, ExportTraceServiceRequest,
+    trace_service_client::TraceServiceClient as TonicTraceServiceClient,
+    ExportTraceServiceRequest as TonicRequest,
 };
 
 #[cfg(feature = "tonic")]
 use tonic::{
     metadata::{KeyAndValueRef, MetadataMap},
-    transport::Channel,
+    transport::Channel as TonicChannel,
     Request,
 };
 
 #[cfg(all(feature = "tonic", feature = "tls"))]
 use tonic::transport::ClientTlsConfig;
 
-#[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
-use crate::proto::grpcio::trace_service::ExportTraceServiceRequest;
+#[cfg(feature = "grpc-sys")]
+use crate::proto::grpcio::trace_service::ExportTraceServiceRequest as GrpcRequest;
 
-#[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
-use crate::proto::grpcio::trace_service_grpc::TraceServiceClient;
+#[cfg(feature = "grpc-sys")]
+use crate::proto::grpcio::trace_service_grpc::TraceServiceClient as GrpcioTraceServiceClient;
 
-#[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
+#[cfg(feature = "grpc-sys")]
 use grpcio::{
-    CallOption, Channel, ChannelBuilder, ChannelCredentialsBuilder, Environment, MetadataBuilder,
+    CallOption, Channel as GrpcChannel, ChannelBuilder, ChannelCredentialsBuilder, Environment,
+    MetadataBuilder,
 };
 
-#[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
+#[cfg(feature = "grpc-sys")]
 use protobuf::RepeatedField;
 
 use async_trait::async_trait;
 
-#[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
+#[cfg(feature = "grpc-sys")]
 use std::collections::HashMap;
 
 use std::fmt;
 use std::fmt::Debug;
 
-#[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
+#[cfg(feature = "grpc-sys")]
 use std::sync::Arc;
 
 use crate::{Protocol, OTEL_EXPORTER_OTLP_ENDPOINT_DEFAULT, OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT};
@@ -47,23 +49,30 @@ use opentelemetry::sdk::export::trace::{ExportResult, SpanData, SpanExporter};
 use std::time::Duration;
 
 /// Exporter that sends data in OTLP format.
-pub struct TraceExporter {
+pub enum TraceExporter {
     #[cfg(feature = "tonic")]
-    metadata: Option<MetadataMap>,
-
-    #[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
-    headers: Option<HashMap<String, String>>,
-
-    timeout: Duration,
-
-    #[cfg(feature = "tonic")]
-    trace_exporter: TraceServiceClient<Channel>,
-
-    #[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
-    trace_exporter: TraceServiceClient,
-
-    #[cfg(all(feature = "default", not(feature = "async")))]
-    runtime: tokio::runtime::Runtime,
+    /// Trace Exporter using tonic as grpc layer
+    Tonic {
+        /// Duration of timeout when sending spans to backend.
+        timeout: Duration,
+        /// Additional headers of the outbound requests.
+        metadata: Option<MetadataMap>,
+        /// The Grpc trace exporter
+        trace_exporter: TonicTraceServiceClient<TonicChannel>,
+        /// If the application don't have a runtime(`async` feature is not enabled). Use this runtime
+        /// to use tonic.
+        runtime: Option<tokio::runtime::Runtime>,
+    },
+    #[cfg(feature = "grpc-sys")]
+    /// Trace Exporter using grpcio as grpc layer
+    Grpcio {
+        /// Duration of timeout when sending spans to backend.
+        timeout: Duration,
+        /// Additional headers of the outbound requests.
+        headers: Option<HashMap<String, String>>,
+        /// The Grpc trace exporter
+        trace_exporter: GrpcioTraceServiceClient,
+    },
 }
 
 /// Configuration for the OTLP exporter.
@@ -75,45 +84,78 @@ pub struct ExporterConfig {
     /// The protocol to use when communicating with the collector.
     pub protocol: Protocol,
 
-    #[cfg(all(feature = "tonic", feature = "tls"))]
+    /// The timeout to the collector.
+    pub timeout: Duration,
+}
+
+/// Configuration of tonic
+#[cfg(feature = "tonic")]
+#[derive(Debug)]
+pub struct TonicConfig {
+    /// Custom metadata entries to send to the collector.
+    pub metadata: Option<MetadataMap>,
+
     /// TLS settings for the collector endpoint.
+    #[cfg(feature = "tls")]
     pub tls_config: Option<ClientTlsConfig>,
 
-    #[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
+    /// Optional runtime when the trace exporter is not run in an async environment.
+    /// If not provided, exporter will build a tokio current thread runtime and use it.
+    ///
+    /// This is needed because the tonic is run on top of the tokio.
+    #[cfg(not(feature = "async"))]
+    pub runtime: Option<tokio::runtime::Runtime>,
+}
+
+#[cfg(feature = "tonic")]
+impl Default for TonicConfig {
+    fn default() -> Self {
+        TonicConfig {
+            #[cfg(feature = "tls")]
+            tls_config: None,
+            metadata: None,
+            #[cfg(not(feature = "async"))]
+            runtime: None,
+        }
+    }
+}
+
+/// Configuration of grpcio
+#[cfg(feature = "grpc-sys")]
+#[derive(Debug)]
+pub struct GrpcioConfig {
     /// The credentials to use when communicating with the collector.
     pub credentials: Option<Credentials>,
 
-    /// Custom metadata entries to send to the collector.
-    #[cfg(feature = "tonic")]
-    pub metadata: Option<MetadataMap>,
-
     /// Additional headers to send to the collector.
-    #[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
     pub headers: Option<HashMap<String, String>>,
 
     /// The compression algorithm to use when communicating with the collector.
-    #[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
     pub compression: Option<Compression>,
 
     /// Use TLS without any specific certificate pinning.
-    #[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
     pub use_tls: Option<bool>,
 
-    /// The timeout to the collector.
-    pub timeout: Duration,
-
     /// The number of GRPC worker threads to poll queues.
-    #[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
     pub completion_queue_count: usize,
+}
 
-    /// The Tokio runtime.
-    #[cfg(all(feature = "tonic", not(feature = "async")))]
-    pub runtime: Option<tokio::runtime::Runtime>,
+#[cfg(feature = "grpc-sys")]
+impl Default for GrpcioConfig {
+    fn default() -> Self {
+        GrpcioConfig {
+            credentials: None,
+            headers: None,
+            compression: None,
+            use_tls: None,
+            completion_queue_count: 2,
+        }
+    }
 }
 
 /// Credential configuration for authenticated requests.
 #[derive(Debug)]
-#[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
+#[cfg(feature = "grpc-sys")]
 pub struct Credentials {
     /// Credential cert
     pub cert: String,
@@ -123,13 +165,13 @@ pub struct Credentials {
 
 /// The compression algorithm to use when sending data.
 #[derive(Clone, Copy, Debug)]
-#[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
+#[cfg(feature = "grpc-sys")]
 pub enum Compression {
     /// Compresses data using gzip.
     Gzip,
 }
 
-#[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
+#[cfg(feature = "grpc-sys")]
 impl Into<grpcio::CompressionAlgorithms> for Compression {
     fn into(self) -> grpcio::CompressionAlgorithms {
         match self {
@@ -139,104 +181,51 @@ impl Into<grpcio::CompressionAlgorithms> for Compression {
 }
 
 impl Default for ExporterConfig {
-    #[cfg(feature = "tonic")]
     fn default() -> Self {
         ExporterConfig {
             endpoint: OTEL_EXPORTER_OTLP_ENDPOINT_DEFAULT.to_string(),
             protocol: Protocol::Grpc,
-            #[cfg(all(feature = "tonic", feature = "tls"))]
-            tls_config: None,
-            metadata: None,
             timeout: Duration::from_secs(OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT),
-            #[cfg(not(feature = "async"))]
-            runtime: None,
-        }
-    }
-
-    #[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
-    fn default() -> Self {
-        ExporterConfig {
-            endpoint: OTEL_EXPORTER_OTLP_ENDPOINT_DEFAULT.to_string(),
-            protocol: Protocol::Grpc,
-            credentials: None,
-            headers: None,
-            compression: None,
-            use_tls: None,
-            timeout: Duration::from_secs(OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT),
-            completion_queue_count: 2,
-        }
-    }
-}
-
-impl Default for TraceExporter {
-    /// Return a Span Exporter with the default configuration
-    #[cfg(feature = "tonic")]
-    fn default() -> Self {
-        let config: ExporterConfig = ExporterConfig::default();
-
-        let endpoint = Channel::from_shared(config.endpoint).unwrap();
-
-        let channel = endpoint.timeout(config.timeout).connect_lazy().unwrap();
-
-        TraceExporter {
-            trace_exporter: TraceServiceClient::new(channel),
-            timeout: config.timeout,
-            metadata: config.metadata,
-            #[cfg(not(feature = "async"))]
-            runtime: config.runtime.unwrap_or_else(|| {
-                tokio::runtime::Builder::new_current_thread()
-                    .enable_all()
-                    .build()
-                    .unwrap()
-            }),
-        }
-    }
-
-    /// Return a Span Exporter with the default configuration
-    #[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
-    fn default() -> Self {
-        let config: ExporterConfig = ExporterConfig::default();
-
-        let channel: Channel =
-            ChannelBuilder::new(Arc::new(Environment::new(config.completion_queue_count)))
-                .connect(config.endpoint.as_str());
-
-        TraceExporter {
-            trace_exporter: TraceServiceClient::new(channel),
-            timeout: config.timeout,
-            headers: None,
         }
     }
 }
 
 impl Debug for TraceExporter {
-    #[cfg(feature = "tonic")]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Exporter")
-            .field("metadata", &self.metadata)
-            .field("timeout", &self.timeout)
-            .field("trace_exporter", &"TraceServiceClient")
-            .finish()
-    }
-
-    #[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Exporter")
-            .field("headers", &self.headers)
-            .field("timeout", &self.timeout)
-            .field("trace_exporter", &"TraceServiceClient")
-            .finish()
+        match self {
+            #[cfg(feature = "tonic")]
+            TraceExporter::Tonic {
+                metadata, timeout, ..
+            } => f
+                .debug_struct("Exporter")
+                .field("metadata", &metadata)
+                .field("timeout", &timeout)
+                .field("trace_exporter", &"TraceServiceClient")
+                .finish(),
+            #[cfg(feature = "grpc-sys")]
+            TraceExporter::Grpcio {
+                headers, timeout, ..
+            } => f
+                .debug_struct("Exporter")
+                .field("headers", &headers)
+                .field("timeout", &timeout)
+                .field("trace_exporter", &"TraceServiceClient")
+                .finish(),
+        }
     }
 }
 
 impl TraceExporter {
     /// Builds a new span exporter with the given configuration
     #[cfg(feature = "tonic")]
-    pub fn new(config: ExporterConfig) -> Result<Self, crate::Error> {
-        let endpoint = Channel::from_shared(config.endpoint)?;
+    pub fn new_tonic(
+        config: ExporterConfig,
+        tonic_config: TonicConfig,
+    ) -> Result<Self, crate::Error> {
+        let endpoint = TonicChannel::from_shared(config.endpoint)?;
 
-        #[cfg(all(feature = "tonic", feature = "tls"))]
-        let channel = match config.tls_config {
+        #[cfg(feature = "tls")]
+        let channel = match tonic_config.tls_config {
             Some(tls_config) => endpoint.tls_config(tls_config)?,
             None => endpoint,
         }
@@ -246,10 +235,10 @@ impl TraceExporter {
         #[cfg(not(feature = "tls"))]
         let channel = endpoint.timeout(config.timeout).connect_lazy()?;
 
-        let client = match config.metadata.to_owned() {
-            None => TraceServiceClient::new(channel),
+        let client = match tonic_config.metadata.to_owned() {
+            None => TonicTraceServiceClient::new(channel),
             Some(metadata) => {
-                TraceServiceClient::with_interceptor(channel, move |mut req: Request<()>| {
+                TonicTraceServiceClient::with_interceptor(channel, move |mut req: Request<()>| {
                     for key_and_value in metadata.iter() {
                         match key_and_value {
                             KeyAndValueRef::Ascii(key, value) => {
@@ -266,31 +255,34 @@ impl TraceExporter {
             }
         };
 
-        Ok(TraceExporter {
-            trace_exporter: client,
+        Ok(TraceExporter::Tonic {
             timeout: config.timeout,
-            metadata: config.metadata,
+            metadata: tonic_config.metadata,
+            trace_exporter: client,
             #[cfg(not(feature = "async"))]
-            runtime: config.runtime.unwrap_or_else(|| {
+            runtime: Some(tonic_config.runtime.unwrap_or_else(|| {
                 tokio::runtime::Builder::new_current_thread()
                     .enable_all()
                     .build()
                     .unwrap()
-            }),
+            })),
+            #[cfg(feature = "async")]
+            runtime: None,
         })
     }
 
     /// Builds a new span exporter with the given configuration
-    #[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
-    pub fn new(config: ExporterConfig) -> Self {
-        let mut builder: ChannelBuilder =
-            ChannelBuilder::new(Arc::new(Environment::new(config.completion_queue_count)));
+    #[cfg(feature = "grpc-sys")]
+    pub fn new_grpcio(config: ExporterConfig, grpcio_config: GrpcioConfig) -> Self {
+        let mut builder: ChannelBuilder = ChannelBuilder::new(Arc::new(Environment::new(
+            grpcio_config.completion_queue_count,
+        )));
 
-        if let Some(compression) = config.compression {
+        if let Some(compression) = grpcio_config.compression {
             builder = builder.default_compression_algorithm(compression.into());
         }
 
-        let channel: Channel = match (config.credentials, config.use_tls) {
+        let channel: GrpcChannel = match (grpcio_config.credentials, grpcio_config.use_tls) {
             (None, Some(true)) => builder.secure_connect(
                 config.endpoint.as_str(),
                 ChannelCredentialsBuilder::new().build(),
@@ -304,62 +296,77 @@ impl TraceExporter {
             ),
         };
 
-        TraceExporter {
-            trace_exporter: TraceServiceClient::new(channel),
+        TraceExporter::Grpcio {
+            trace_exporter: GrpcioTraceServiceClient::new(channel),
             timeout: config.timeout,
-            headers: config.headers,
+            headers: grpcio_config.headers,
         }
     }
 }
 
 #[async_trait]
 impl SpanExporter for TraceExporter {
-    #[cfg(feature = "tonic")]
     async fn export(&mut self, batch: Vec<SpanData>) -> ExportResult {
-        let request = Request::new(ExportTraceServiceRequest {
-            resource_spans: batch.into_iter().map(Into::into).collect(),
-        });
+        match self {
+            #[cfg(feature = "grpc-sys")]
+            TraceExporter::Grpcio {
+                timeout,
+                headers,
+                trace_exporter,
+            } => {
+                let request = GrpcRequest {
+                    resource_spans: RepeatedField::from_vec(
+                        batch.into_iter().map(Into::into).collect(),
+                    ),
+                    unknown_fields: Default::default(),
+                    cached_size: Default::default(),
+                };
 
-        #[cfg(feature = "async")]
-        self.trace_exporter
-            .to_owned()
-            .export(request)
-            .await
-            .map_err::<crate::Error, _>(Into::into)?;
+                let mut call_options = CallOption::default().timeout(*timeout);
 
-        #[cfg(not(feature = "async"))]
-        self.runtime
-            .block_on(self.trace_exporter.to_owned().export(request))
-            .map_err::<crate::Error, _>(Into::into)?;
+                if let Some(headers) = headers.clone() {
+                    let mut metadata_builder: MetadataBuilder = MetadataBuilder::new();
 
-        Ok(())
-    }
+                    for (key, value) in headers {
+                        let _ = metadata_builder.add_str(key.as_str(), value.as_str());
+                    }
 
-    #[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
-    async fn export(&mut self, batch: Vec<SpanData>) -> ExportResult {
-        let request = ExportTraceServiceRequest {
-            resource_spans: RepeatedField::from_vec(batch.into_iter().map(Into::into).collect()),
-            unknown_fields: Default::default(),
-            cached_size: Default::default(),
-        };
+                    call_options = call_options.headers(metadata_builder.build());
+                }
 
-        let mut call_options = CallOption::default().timeout(self.timeout);
-
-        if let Some(headers) = self.headers.clone() {
-            let mut metadata_builder: MetadataBuilder = MetadataBuilder::new();
-
-            for (key, value) in headers {
-                let _ = metadata_builder.add_str(key.as_str(), value.as_str());
+                let receiver = trace_exporter
+                    .export_async_opt(&request, call_options)
+                    .map_err::<crate::Error, _>(Into::into)?;
+                receiver.await.map_err::<crate::Error, _>(Into::into)?;
+                Ok(())
             }
 
-            call_options = call_options.headers(metadata_builder.build());
-        }
+            #[cfg(feature = "tonic")]
+            TraceExporter::Tonic {
+                trace_exporter,
+                runtime,
+                ..
+            } => {
+                let request = Request::new(TonicRequest {
+                    resource_spans: batch.into_iter().map(Into::into).collect(),
+                });
 
-        let receiver = self
-            .trace_exporter
-            .export_async_opt(&request, call_options)
-            .map_err::<crate::Error, _>(Into::into)?;
-        receiver.await.map_err::<crate::Error, _>(Into::into)?;
-        Ok(())
+                match runtime {
+                    Some(rt) => {
+                        rt.block_on(trace_exporter.to_owned().export(request))
+                            .map_err::<crate::Error, _>(Into::into)?;
+                    }
+                    None => {
+                        trace_exporter
+                            .to_owned()
+                            .export(request)
+                            .await
+                            .map_err::<crate::Error, _>(Into::into)?;
+                    }
+                }
+
+                Ok(())
+            }
+        }
     }
 }

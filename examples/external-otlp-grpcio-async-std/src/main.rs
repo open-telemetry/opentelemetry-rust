@@ -61,6 +61,7 @@ fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
 
     opentelemetry_otlp::new_pipeline()
         .with_endpoint(grpcio_endpoint)
+        .with_grpcio()
         .with_headers(headers)
         .with_tls(true)
         .install()

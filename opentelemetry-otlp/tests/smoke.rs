@@ -69,6 +69,7 @@ async fn smoke_tracer() {
         println!("Installing tracer...");
         let tracer = opentelemetry_otlp::new_pipeline()
             .with_endpoint(format!("http://{}", addr))
+            .with_tonic()
             .install()
             .expect("failed to install");
 

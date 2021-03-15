@@ -17,6 +17,7 @@ use std::time::Duration;
 fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
     opentelemetry_otlp::new_pipeline()
         .with_endpoint("http://localhost:4317")
+        .with_tonic()
         .install()
 }
 

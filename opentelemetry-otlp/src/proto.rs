@@ -41,7 +41,7 @@ pub mod trace {
     }
 }
 
-#[cfg(all(feature = "grpc-sys", not(feature = "tonic")))]
+#[cfg(feature = "grpc-sys")]
 pub(crate) mod grpcio {
     pub(crate) mod common;
     pub(crate) mod metrics;
