@@ -61,7 +61,7 @@ const INSTRUMENTATION_LIBRARY_NAME: &str = "otel.library.name";
 const INSTRUMENTATION_LIBRARY_VERSION: &str = "otel.library.version";
 
 /// Create a new Jaeger exporter pipeline builder.
-pub fn new_pipeline() -> PipelineBuilder<()> {
+pub fn new_pipeline() -> PipelineBuilder {
     PipelineBuilder::default()
 }
 
@@ -114,7 +114,7 @@ impl trace::SpanExporter for Exporter {
 
 /// Jaeger exporter builder
 #[derive(Debug)]
-pub struct PipelineBuilder<R: Runtime> {
+pub struct PipelineBuilder {
     agent_endpoint: Vec<net::SocketAddr>,
     #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
     collector_endpoint: Option<Result<http::Uri, http::uri::InvalidUri>>,
@@ -128,10 +128,9 @@ pub struct PipelineBuilder<R: Runtime> {
     process: Process,
     max_packet_size: Option<usize>,
     config: Option<sdk::trace::Config>,
-    runtime: R,
 }
 
-impl Default for PipelineBuilder<()> {
+impl Default for PipelineBuilder {
     /// Return the default Exporter Builder.
     fn default() -> Self {
         let builder_defaults = PipelineBuilder {
@@ -151,7 +150,6 @@ impl Default for PipelineBuilder<()> {
             },
             max_packet_size: None,
             config: None,
-            runtime: (),
         };
 
         // Override above defaults with env vars if set
@@ -159,7 +157,7 @@ impl Default for PipelineBuilder<()> {
     }
 }
 
-impl<R: Runtime> PipelineBuilder<R> {
+impl PipelineBuilder {
     /// Assign the agent endpoint.
     pub fn with_agent_endpoint<T: net::ToSocketAddrs>(self, agent_endpoint: T) -> Self {
         PipelineBuilder {
@@ -260,47 +258,46 @@ impl<R: Runtime> PipelineBuilder<R> {
         self
     }
 
-    /// Assign the runtime to use.
-    ///
-    /// Please make sure the selected HTTP client works with the runtime.
-    pub fn with_runtime<NewR: Runtime>(self, runtime: NewR) -> PipelineBuilder<NewR> {
-        PipelineBuilder {
-            agent_endpoint: self.agent_endpoint,
-            #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
-            collector_endpoint: self.collector_endpoint,
-            #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
-            collector_username: self.collector_username,
-            #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
-            collector_password: self.collector_password,
-            #[cfg(feature = "collector_client")]
-            client: self.client,
-            export_instrument_library: self.export_instrument_library,
-            process: self.process,
-            max_packet_size: self.max_packet_size,
-            config: self.config,
-            runtime,
-        }
-    }
-
-    /// Install a Jaeger pipeline with the recommended defaults.
-    pub fn install(self) -> Result<sdk::trace::Tracer, TraceError> {
-        let tracer_provider = self.build()?;
+    /// Install a Jaeger pipeline with a simple span processor.
+    pub fn install_simple(self) -> Result<sdk::trace::Tracer, TraceError> {
+        let tracer_provider = self.build_simple()?;
         let tracer =
             tracer_provider.get_tracer("opentelemetry-jaeger", Some(env!("CARGO_PKG_VERSION")));
-
         let _ = global::set_tracer_provider(tracer_provider);
-
         Ok(tracer)
     }
 
-    /// Build a configured `sdk::trace::TracerProvider` with the recommended defaults.
-    pub fn build(mut self) -> Result<sdk::trace::TracerProvider, TraceError> {
+    /// Install a Jaeger pipeline with a batch span processor using the specified runtime.
+    pub fn install_batch<R: Runtime>(self, runtime: R) -> Result<sdk::trace::Tracer, TraceError> {
+        let tracer_provider = self.build_batch(runtime)?;
+        let tracer =
+            tracer_provider.get_tracer("opentelemetry-jaeger", Some(env!("CARGO_PKG_VERSION")));
+        let _ = global::set_tracer_provider(tracer_provider);
+        Ok(tracer)
+    }
+
+    /// Build a configured `sdk::trace::TracerProvider` with a simple span processor.
+    pub fn build_simple(mut self) -> Result<sdk::trace::TracerProvider, TraceError> {
         let config = self.config.take();
-        let runtime = self.runtime.clone();
         let exporter = self.init_exporter()?;
+        let mut builder = sdk::trace::TracerProvider::builder().with_simple_exporter(exporter);
+        if let Some(config) = config {
+            builder = builder.with_config(config)
+        }
 
-        let mut builder = sdk::trace::TracerProvider::builder().with_exporter(exporter, runtime);
+        Ok(builder.build())
+    }
 
+    /// Build a configured `sdk::trace::TracerProvider` with a batch span processor using the
+    /// specified runtime.
+    pub fn build_batch<R: Runtime>(
+        mut self,
+        runtime: R,
+    ) -> Result<sdk::trace::TracerProvider, TraceError> {
+        let config = self.config.take();
+        let exporter = self.init_exporter()?;
+        let mut builder =
+            sdk::trace::TracerProvider::builder().with_default_batch_exporter(exporter, runtime);
         if let Some(config) = config {
             builder = builder.with_config(config)
         }

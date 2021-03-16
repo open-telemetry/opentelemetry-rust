@@ -64,7 +64,7 @@ fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
         .with_grpcio()
         .with_headers(headers)
         .with_tls(true)
-        .install()
+        .install_batch(opentelemetry::runtime::AsyncStd)
 }
 const LEMONS_KEY: Key = Key::from_static_str("ex.com/lemons");
 const ANOTHER_KEY: Key = Key::from_static_str("ex.com/another");

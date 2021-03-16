@@ -49,22 +49,21 @@ impl DatadogExporter {
 }
 
 /// Create a new Datadog exporter pipeline builder.
-pub fn new_pipeline() -> DatadogPipelineBuilder<()> {
+pub fn new_pipeline() -> DatadogPipelineBuilder {
     DatadogPipelineBuilder::default()
 }
 
 /// Builder for `ExporterConfig` struct.
 #[derive(Debug)]
-pub struct DatadogPipelineBuilder<R: Runtime> {
+pub struct DatadogPipelineBuilder {
     service_name: String,
     agent_endpoint: String,
     trace_config: Option<sdk::trace::Config>,
     version: ApiVersion,
     client: Option<Box<dyn HttpClient>>,
-    runtime: R,
 }
 
-impl Default for DatadogPipelineBuilder<()> {
+impl Default for DatadogPipelineBuilder {
     fn default() -> Self {
         DatadogPipelineBuilder {
             service_name: DEFAULT_SERVICE_NAME.to_string(),
@@ -91,35 +90,58 @@ impl Default for DatadogPipelineBuilder<()> {
             client: Some(Box::new(reqwest::Client::new())),
             #[cfg(feature = "reqwest-blocking-client")]
             client: Some(Box::new(reqwest::blocking::Client::new())),
-            runtime: (),
         }
     }
 }
 
-impl<R: Runtime> DatadogPipelineBuilder<R> {
-    /// Create `ExporterConfig` struct from current `ExporterConfigBuilder`
-    pub fn install(mut self) -> Result<sdk::trace::Tracer, TraceError> {
+impl DatadogPipelineBuilder {
+    fn build_exporter(self) -> Result<DatadogExporter, TraceError> {
         if let Some(client) = self.client {
             let endpoint = self.agent_endpoint + self.version.path();
             let exporter = DatadogExporter::new(
-                self.service_name.clone(),
+                self.service_name,
                 endpoint.parse().map_err::<Error, _>(Into::into)?,
                 self.version,
                 client,
             );
-            let mut provider_builder =
-                sdk::trace::TracerProvider::builder().with_exporter(exporter, self.runtime);
-            if let Some(config) = self.trace_config.take() {
-                provider_builder = provider_builder.with_config(config);
-            }
-            let provider = provider_builder.build();
-            let tracer =
-                provider.get_tracer("opentelemetry-datadog", Some(env!("CARGO_PKG_VERSION")));
-            let _ = global::set_tracer_provider(provider);
-            Ok(tracer)
+            Ok(exporter)
         } else {
             Err(Error::NoHttpClient.into())
         }
+    }
+
+    /// Install the Datadog trace exporter pipeline using a simple span processor.
+    pub fn install_simple(mut self) -> Result<sdk::trace::Tracer, TraceError> {
+        let trace_config = self.trace_config.take();
+        let exporter = self.build_exporter()?;
+        let mut provider_builder =
+            sdk::trace::TracerProvider::builder().with_simple_exporter(exporter);
+        if let Some(config) = trace_config {
+            provider_builder = provider_builder.with_config(config);
+        }
+        let provider = provider_builder.build();
+        let tracer = provider.get_tracer("opentelemetry-datadog", Some(env!("CARGO_PKG_VERSION")));
+        let _ = global::set_tracer_provider(provider);
+        Ok(tracer)
+    }
+
+    /// Install the Datadog trace exporter pipeline using a batch span processor with the specified
+    /// runtime.
+    pub fn install_batch<R: Runtime>(
+        mut self,
+        runtime: R,
+    ) -> Result<sdk::trace::Tracer, TraceError> {
+        let trace_config = self.trace_config.take();
+        let exporter = self.build_exporter()?;
+        let mut provider_builder =
+            sdk::trace::TracerProvider::builder().with_default_batch_exporter(exporter, runtime);
+        if let Some(config) = trace_config {
+            provider_builder = provider_builder.with_config(config);
+        }
+        let provider = provider_builder.build();
+        let tracer = provider.get_tracer("opentelemetry-datadog", Some(env!("CARGO_PKG_VERSION")));
+        let _ = global::set_tracer_provider(provider);
+        Ok(tracer)
     }
 
     /// Assign the service name under which to group traces
@@ -141,20 +163,6 @@ impl<R: Runtime> DatadogPipelineBuilder<R> {
     ) -> Self {
         self.client = Some(client);
         self
-    }
-
-    /// Assign the runtime to use.
-    ///
-    /// Please make sure the selected HTTP client works with the runtime.
-    pub fn with_runtime<NewR: Runtime>(self, runtime: NewR) -> DatadogPipelineBuilder<NewR> {
-        DatadogPipelineBuilder {
-            service_name: self.service_name,
-            agent_endpoint: self.agent_endpoint,
-            trace_config: self.trace_config,
-            version: self.version,
-            client: self.client,
-            runtime,
-        }
     }
 
     /// Assign the SDK trace configuration

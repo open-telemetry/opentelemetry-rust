@@ -47,7 +47,7 @@ use opentelemetry::trace::Tracer;
 
 fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     global::set_text_map_propagator(opentelemetry_jaeger::Propagator::new());
-    let tracer = opentelemetry_jaeger::new_pipeline().install()?;
+    let tracer = opentelemetry_jaeger::new_pipeline().install_simple()?;
 
     tracer.in_span("doing_work", |cx| {
         // Traced app logic here...
@@ -77,8 +77,7 @@ opentelemetry-jaeger = { version = "*", features = ["tokio"] }
 
 ```rust
 let tracer = opentelemetry_jaeger::new_pipeline()
-    .with_runtime(opentelemetry::runtime::Tokio)
-    .install()?;
+    .install_batch(opentelemetry::runtime::Tokio)?;
 ```
 
 [`rt-tokio`]: https://tokio.rs
@@ -126,7 +125,7 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         // optionally set username and password as well.
         .with_collector_username("username")
         .with_collector_password("s3cr3t")
-        .install()?;
+        .install_simple()?;
 
     tracer.in_span("doing_work", |cx| {
         // Traced app logic here...
@@ -157,7 +156,6 @@ use opentelemetry::KeyValue;
 fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     global::set_text_map_propagator(opentelemetry_jaeger::Propagator::new());
     let tracer = opentelemetry_jaeger::new_pipeline()
-        .with_runtime(opentelemetry::runtime::Tokio)
         .with_agent_endpoint("localhost:6831")
         .with_service_name("my_app")
         .with_tags(vec![KeyValue::new("process_key", "process_value")])
@@ -171,7 +169,7 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
                 .with_max_events_per_span(16)
                 .with_resource(Resource::new(vec![KeyValue::new("key", "value")])),
         )
-        .install()?;
+        .install_batch(opentelemetry::runtime::Tokio)?;
 
     tracer.in_span("doing_work", |cx| {
         // Traced app logic here...

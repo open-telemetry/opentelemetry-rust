@@ -50,7 +50,7 @@ use opentelemetry::trace::Tracer;
 fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     // use tonic as grpc layer here.
     // If you want to use grpcio. enable `grpc-sys` feature and use with_grpcio function here.
-    let tracer = opentelemetry_otlp::new_pipeline().with_tonic().install()?;
+    let tracer = opentelemetry_otlp::new_pipeline().with_tonic().install_simple()?;
 
     tracer.in_span("doing_work", |cx| {
         // Traced app logic here...
@@ -76,8 +76,7 @@ opentelemetry-otlp = { version = "*", features = ["grpc-sys"] }
 
 ```rust
 let tracer = opentelemetry_otlp::new_pipeline()
-    .with_runtime(opentelemetry::runtime::AsyncStd)
-    .install()?;
+    .install_batch(opentelemetry::runtime::AsyncStd)?;
 ```
 
 [`tokio`]: https://tokio.rs
@@ -109,8 +108,7 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     map.insert("x-number", "123".parse().unwrap());
     map.insert_bin("trace-proto-bin", MetadataValue::from_bytes(b"[binary data]"));
 
-    let (tracer, _uninstall) = opentelemetry_otlp::new_pipeline()
-        .with_runtime(opentelemetry::runtime::Tokio)
+    let tracer = opentelemetry_otlp::new_pipeline()
         .with_endpoint("http://localhost:4317")
         .with_protocol(Protocol::Grpc)
         .with_timeout(Duration::from_secs(3))
@@ -129,7 +127,7 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
             .domain_name("example.com".to_string())
         )
         .with_metadata(map)
-        .install()?;
+        .install_batch(opentelemetry::runtime::Tokio)?;
 
     tracer.in_span("doing_work", |cx| {
         // Traced app logic here...

@@ -12,7 +12,7 @@ fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
     opentelemetry_jaeger::new_pipeline()
         .with_collector_endpoint("http://127.0.0.1:14268/api/traces")
         .with_service_name("trace-http-demo")
-        .install()
+        .install_batch(opentelemetry::runtime::Tokio)
 }
 
 async fn index() -> &'static str {

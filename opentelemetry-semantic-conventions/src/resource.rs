@@ -16,7 +16,7 @@
 //!         semcov::resource::SERVICE_NAME.string("my-service"),
 //!         semcov::resource::SERVICE_NAMESPACE.string("my-namespace"),
 //!     ])))
-//!     .install();
+//!     .install_simple();
 //! ```
 
 use opentelemetry::Key;

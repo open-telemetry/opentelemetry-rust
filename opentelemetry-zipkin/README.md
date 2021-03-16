@@ -47,7 +47,7 @@ use opentelemetry::global;
 
 fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     global::set_text_map_propagator(opentelemetry_zipkin::Propagator::new());
-    let tracer = opentelemetry_zipkin::new_pipeline().install()?;
+    let tracer = opentelemetry_zipkin::new_pipeline().install_simple()?;
 
     tracer.in_span("doing_work", |cx| {
         // Traced app logic here...
@@ -75,8 +75,7 @@ opentelemetry-zipkin = { version = "*", features = ["reqwest-client"], default-f
 
 ```rust
 let tracer = opentelemetry_zipkin::new_pipeline()
-    .with_runtime(opentelemetry::runtime::Tokio)
-    .install()?;
+    .install_batch(opentelemetry::runtime::Tokio)?;
 ```
 
 [`rt-tokio`]: https://tokio.rs
@@ -135,7 +134,6 @@ impl HttpClient for IsahcClient {
 fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     global::set_text_map_propagator(opentelemetry_zipkin::Propagator::new());
     let tracer = opentelemetry_zipkin::new_pipeline()
-        .with_runtime(opentelemetry::runtime::Tokio)
         .with_http_client(IsahcClient(isahc::HttpClient::new()?))
         .with_service_name("my_app")
         .with_service_address("127.0.0.1:8080".parse()?)
@@ -149,7 +147,7 @@ fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
                 .with_max_events_per_span(16)
                 .with_resource(Resource::new(vec![KeyValue::new("key", "value")])),
         )
-        .install()?;
+        .install_batch(opentelemetry::runtime::Tokio)?;
 
     tracer.in_span("doing_work", |cx| {
         // Traced app logic here...

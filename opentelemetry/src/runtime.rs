@@ -23,40 +23,23 @@ pub trait Runtime: Clone + Send + Sync + 'static {
     /// not important.
     type Delay: Future + Send;
 
-    /// Return if the runtime supports the functions required for batch processing (interval, spawn
-    /// and delay).
-    fn supports_batch_processing(&self) -> bool;
-
     /// Create a [Stream][futures::Stream], which returns a new item every
     /// [Duration][std::time::Duration].
     fn interval(&self, duration: Duration) -> Self::Interval;
 
     /// Spawn a new task or thread, which executes the given future.
+    ///
+    /// # Note
+    ///
+    /// This is mainly used to run batch span processing in the background. Note, that the function
+    /// does not return a handle. OpenTelemetry will use a different way to wait for the future to
+    /// finish when TracerProvider gets shutdown. At the moment this happens by blocking the
+    /// current thread. This means runtime implementations need to make sure they can still execute
+    /// the given future even if the main thread is blocked.
     fn spawn(&self, future: BoxFuture<'static, ()>);
 
     /// Return a new future, which resolves after the specified [Duration][std::time::Duration].
     fn delay(&self, duration: Duration) -> Self::Delay;
-}
-
-impl Runtime for () {
-    type Interval = futures::stream::BoxStream<'static, ()>;
-    type Delay = BoxFuture<'static, ()>;
-
-    fn supports_batch_processing(&self) -> bool {
-        false
-    }
-
-    fn interval(&self, _duration: Duration) -> Self::Interval {
-        unimplemented!("The () runtime does not support batch processing")
-    }
-
-    fn spawn(&self, _future: BoxFuture<'static, ()>) {
-        unimplemented!("The () runtime does not support batch processing")
-    }
-
-    fn delay(&self, _duration: Duration) -> Self::Delay {
-        unimplemented!("The () runtime does not support batch processing")
-    }
 }
 
 /// Runtime implementation, which works with Tokio's multi thread runtime.
@@ -70,10 +53,6 @@ pub struct Tokio;
 impl Runtime for Tokio {
     type Interval = tokio_stream::wrappers::IntervalStream;
     type Delay = tokio::time::Sleep;
-
-    fn supports_batch_processing(&self) -> bool {
-        true
-    }
 
     fn interval(&self, duration: Duration) -> Self::Interval {
         crate::util::tokio_interval_stream(duration)
@@ -99,10 +78,6 @@ pub struct TokioCurrentThread;
 impl Runtime for TokioCurrentThread {
     type Interval = tokio_stream::wrappers::IntervalStream;
     type Delay = tokio::time::Sleep;
-
-    fn supports_batch_processing(&self) -> bool {
-        true
-    }
 
     fn interval(&self, duration: Duration) -> Self::Interval {
         crate::util::tokio_interval_stream(duration)
@@ -140,10 +115,6 @@ pub struct AsyncStd;
 impl Runtime for AsyncStd {
     type Interval = async_std::stream::Interval;
     type Delay = BoxFuture<'static, ()>;
-
-    fn supports_batch_processing(&self) -> bool {
-        true
-    }
 
     fn interval(&self, duration: Duration) -> Self::Interval {
         async_std::stream::interval(duration)

@@ -37,22 +37,21 @@ impl Exporter {
 }
 
 /// Create a new Zipkin exporter pipeline builder.
-pub fn new_pipeline() -> ZipkinPipelineBuilder<()> {
+pub fn new_pipeline() -> ZipkinPipelineBuilder {
     ZipkinPipelineBuilder::default()
 }
 
 /// Builder for `ExporterConfig` struct.
 #[derive(Debug)]
-pub struct ZipkinPipelineBuilder<R: Runtime> {
+pub struct ZipkinPipelineBuilder {
     service_name: String,
     service_addr: Option<SocketAddr>,
     collector_endpoint: String,
     trace_config: Option<sdk::trace::Config>,
     client: Option<Box<dyn HttpClient>>,
-    runtime: R,
 }
 
-impl Default for ZipkinPipelineBuilder<()> {
+impl Default for ZipkinPipelineBuilder {
     fn default() -> Self {
         ZipkinPipelineBuilder {
             #[cfg(feature = "reqwest-blocking-client")]
@@ -80,14 +79,12 @@ impl Default for ZipkinPipelineBuilder<()> {
             service_addr: None,
             collector_endpoint: DEFAULT_COLLECTOR_ENDPOINT.to_string(),
             trace_config: None,
-            runtime: (),
         }
     }
 }
 
-impl<R: Runtime> ZipkinPipelineBuilder<R> {
-    /// Create `ExporterConfig` struct from current `ExporterConfigBuilder`
-    pub fn install(mut self) -> Result<sdk::trace::Tracer, TraceError> {
+impl ZipkinPipelineBuilder {
+    fn build_exporter(self) -> Result<Exporter, TraceError> {
         if let Some(client) = self.client {
             let endpoint = Endpoint::new(self.service_name, self.service_addr);
             let exporter = Exporter::new(
@@ -97,21 +94,44 @@ impl<R: Runtime> ZipkinPipelineBuilder<R> {
                     .parse()
                     .map_err::<Error, _>(Into::into)?,
             );
-
-            let mut provider_builder =
-                sdk::trace::TracerProvider::builder().with_exporter(exporter, self.runtime);
-            if let Some(config) = self.trace_config.take() {
-                provider_builder = provider_builder.with_config(config);
-            }
-            let provider = provider_builder.build();
-            let tracer =
-                provider.get_tracer("opentelemetry-zipkin", Some(env!("CARGO_PKG_VERSION")));
-            let _ = global::set_tracer_provider(provider);
-
-            Ok(tracer)
+            Ok(exporter)
         } else {
             Err(Error::NoHttpClient.into())
         }
+    }
+
+    /// Install the Zipkin trace exporter pipeline with a simple span processor.
+    pub fn install_simple(mut self) -> Result<sdk::trace::Tracer, TraceError> {
+        let config = self.trace_config.take();
+        let exporter = self.build_exporter()?;
+        let mut provider_builder =
+            sdk::trace::TracerProvider::builder().with_simple_exporter(exporter);
+        if let Some(config) = config {
+            provider_builder = provider_builder.with_config(config);
+        }
+        let provider = provider_builder.build();
+        let tracer = provider.get_tracer("opentelemetry-zipkin", Some(env!("CARGO_PKG_VERSION")));
+        let _ = global::set_tracer_provider(provider);
+        Ok(tracer)
+    }
+
+    /// Install the Zipkin trace exporter pipeline with a batch span processor using the specified
+    /// runtime.
+    pub fn install_batch<R: Runtime>(
+        mut self,
+        runtime: R,
+    ) -> Result<sdk::trace::Tracer, TraceError> {
+        let config = self.trace_config.take();
+        let exporter = self.build_exporter()?;
+        let mut provider_builder =
+            sdk::trace::TracerProvider::builder().with_default_batch_exporter(exporter, runtime);
+        if let Some(config) = config {
+            provider_builder = provider_builder.with_config(config);
+        }
+        let provider = provider_builder.build();
+        let tracer = provider.get_tracer("opentelemetry-zipkin", Some(env!("CARGO_PKG_VERSION")));
+        let _ = global::set_tracer_provider(provider);
+        Ok(tracer)
     }
 
     /// Assign the service name under which to group traces.
@@ -142,20 +162,6 @@ impl<R: Runtime> ZipkinPipelineBuilder<R> {
     pub fn with_trace_config(mut self, config: sdk::trace::Config) -> Self {
         self.trace_config = Some(config);
         self
-    }
-
-    /// Assign the runtime to use.
-    ///
-    /// Please make sure the selected HTTP client works with the runtime.
-    pub fn with_runtime<NewR: Runtime>(self, runtime: NewR) -> ZipkinPipelineBuilder<NewR> {
-        ZipkinPipelineBuilder {
-            client: self.client,
-            service_name: self.service_name,
-            service_addr: self.service_addr,
-            collector_endpoint: self.collector_endpoint,
-            trace_config: self.trace_config,
-            runtime,
-        }
     }
 }
 

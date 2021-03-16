@@ -63,7 +63,7 @@ fn tracing_init() -> Result<impl Tracer, TraceError> {
     global::set_text_map_propagator(TraceContextPropagator::new());
     opentelemetry_jaeger::new_pipeline()
         .with_service_name("grpc-server")
-        .install()
+        .install_simple()
 }
 
 #[tokio::main]

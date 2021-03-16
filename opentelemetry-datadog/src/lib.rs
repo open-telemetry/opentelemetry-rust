@@ -47,8 +47,7 @@
 //! ```no_run
 //! # fn main() -> Result<(), opentelemetry::trace::TraceError> {
 //! let tracer = opentelemetry_datadog::new_pipeline()
-//!     .with_runtime(opentelemetry::runtime::Tokio)
-//!     .install()?;
+//!     .install_batch(opentelemetry::runtime::Tokio)?;
 //! # Ok(())
 //! # }
 //! ```
@@ -108,7 +107,6 @@
 //!
 //! fn main() -> Result<(), opentelemetry::trace::TraceError> {
 //!     let tracer = new_pipeline()
-//!         .with_runtime(opentelemetry::runtime::Tokio)
 //!         .with_service_name("my_app")
 //!         .with_version(ApiVersion::Version05)
 //!         .with_agent_endpoint("http://localhost:8126")
@@ -117,7 +115,7 @@
 //!                 .with_sampler(Sampler::AlwaysOn)
 //!                 .with_id_generator(IdGenerator::default())
 //!         )
-//!         .install()?;
+//!         .install_batch(opentelemetry::runtime::Tokio)?;
 //!
 //!     tracer.in_span("doing_work", |cx| {
 //!         // Traced app logic here...

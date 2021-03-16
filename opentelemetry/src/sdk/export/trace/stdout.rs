@@ -18,7 +18,7 @@
 //! fn main() {
 //!     let tracer = stdout::new_pipeline()
 //!         .with_pretty_print(true)
-//!         .install();
+//!         .install_simple();
 //!
 //!     tracer.in_span("doing_work", |cx| {
 //!         // Traced app logic here...
@@ -91,7 +91,7 @@ where
     W: Write + Debug + Send + 'static,
 {
     /// Install the stdout exporter pipeline with the recommended defaults.
-    pub fn install(mut self) -> sdk::trace::Tracer {
+    pub fn install_simple(mut self) -> sdk::trace::Tracer {
         let exporter = Exporter::new(self.writer, self.pretty_print);
 
         let mut provider_builder =

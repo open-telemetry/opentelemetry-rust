@@ -113,18 +113,14 @@ impl Builder {
         Builder { processors, ..self }
     }
 
-    /// Add a configured `SpanExporter`
-    pub fn with_exporter<T, R>(self, exporter: T, runtime: R) -> Self
-    where
-        T: SpanExporter + 'static,
-        R: Runtime,
-    {
-        if runtime.supports_batch_processing() {
-            let batch = sdk::trace::BatchSpanProcessor::builder(exporter, runtime).build();
-            self.with_batch_exporter(batch)
-        } else {
-            self.with_simple_exporter(exporter)
-        }
+    /// The `SpanExporter` setup using a default `BatchSpanProcessor` that this provider should use.
+    pub fn with_default_batch_exporter<T: SpanExporter + 'static, R: Runtime>(
+        self,
+        exporter: T,
+        runtime: R,
+    ) -> Self {
+        let batch = sdk::trace::BatchSpanProcessor::builder(exporter, runtime).build();
+        self.with_batch_exporter(batch)
     }
 
     /// The `SpanProcessor` that this provider should use.
