@@ -105,7 +105,7 @@
 //!         .with_agent_endpoint("http://localhost:8126")
 //!         .with_trace_config(
 //!             trace::config()
-//!                 .with_default_sampler(Sampler::AlwaysOn)
+//!                 .with_sampler(Sampler::AlwaysOn)
 //!                 .with_id_generator(IdGenerator::default())
 //!         )
 //!         .install()?;

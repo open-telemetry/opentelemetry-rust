@@ -29,7 +29,7 @@ fn init_tracer() -> impl Tracer {
     // For the demonstration, use `Sampler::AlwaysOn` sampler to sample all traces. In a production
     // application, use `Sampler::ParentBased` or `Sampler::TraceIdRatioBased` with a desired ratio.
     stdout::new_pipeline()
-        .with_trace_config(trace::config().with_default_sampler(Sampler::AlwaysOn))
+        .with_trace_config(trace::config().with_sampler(Sampler::AlwaysOn))
         .install()
 }
 

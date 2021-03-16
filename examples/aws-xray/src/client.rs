@@ -18,7 +18,7 @@ fn init_tracer() -> sdktrace::Tracer {
     stdout::new_pipeline()
         .with_trace_config(
             sdktrace::config()
-                .with_default_sampler(sdktrace::Sampler::AlwaysOn)
+                .with_sampler(sdktrace::Sampler::AlwaysOn)
                 .with_id_generator(sdktrace::XrayIdGenerator::default()),
         )
         .install()

@@ -346,7 +346,7 @@ mod tests {
     fn allow_sampler_to_change_trace_state() {
         // Setup
         let sampler = TestSampler {};
-        let config = Config::default().with_default_sampler(sampler);
+        let config = Config::default().with_sampler(sampler);
         let tracer_provider = sdk::trace::TracerProvider::builder()
             .with_config(config)
             .build();
@@ -373,7 +373,7 @@ mod tests {
     #[test]
     fn drop_parent_based_children() {
         let sampler = Sampler::ParentBased(Box::new(Sampler::AlwaysOn));
-        let config = Config::default().with_default_sampler(sampler);
+        let config = Config::default().with_sampler(sampler);
         let tracer_provider = sdk::trace::TracerProvider::builder()
             .with_config(config)
             .build();
@@ -388,7 +388,7 @@ mod tests {
     #[test]
     fn uses_current_context_for_builders_if_unset() {
         let sampler = Sampler::ParentBased(Box::new(Sampler::AlwaysOn));
-        let config = Config::default().with_default_sampler(sampler);
+        let config = Config::default().with_sampler(sampler);
         let tracer_provider = sdk::trace::TracerProvider::builder()
             .with_config(config)
             .build();

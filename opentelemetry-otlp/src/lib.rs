@@ -94,7 +94,7 @@
 //!         .with_timeout(Duration::from_secs(3))
 //!         .with_trace_config(
 //!             trace::config()
-//!                 .with_default_sampler(Sampler::AlwaysOn)
+//!                 .with_sampler(Sampler::AlwaysOn)
 //!                 .with_id_generator(IdGenerator::default())
 //!                 .with_max_events_per_span(64)
 //!                 .with_max_attributes_per_span(16)
