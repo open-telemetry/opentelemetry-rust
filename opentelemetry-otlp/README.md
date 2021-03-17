@@ -60,21 +60,6 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 }
 ```
 
-## Tonic vs Grpcio
-
-Multiple gRPC transport layers are available. [`tonic`](https://crates.io/crates/tonic) is the default gRPC transport 
-layer and is enabled by default. [`grpcio`](https://crates.io/crates/grpcio) is optional.
-
-| gRPC transport layer | [hyperium/tonic](https://github.com/hyperium/tonic) | [tikv/grpc-rs](https://github.com/tikv/grpc-rs) |
-|---|---|---|
-| Feature | --features=default | --features=grpc-sys |
-| gRPC library | [`tonic`](https://crates.io/crates/tonic) | [`grpcio`](https://crates.io/crates/grpcio) |
-| Transport | [hyperium/hyper](https://github.com/hyperium/hyper) (Rust) | [grpc/grpc](https://github.com/grpc/grpc) (C++ binding) |
-| TLS support | yes | yes |
-| TLS library | rustls | OpenSSL |
-| TLS optional | yes | yes |
-| Supported .proto generator | [`prost`](https://crates.io/crates/prost) | [`prost`](https://crates.io/crates/prost), [`protobuf`](https://crates.io/crates/protobuf) |
-
 ## Performance
 
 For optimal performance, a batch exporter is recommended as the simple
@@ -118,7 +103,7 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     map.insert_bin("trace-proto-bin", MetadataValue::from_bytes(b"[binary data]"));
 
     let (tracer, _uninstall) = opentelemetry_otlp::new_pipeline()
-        .with_endpoint("localhost:4317")
+        .with_endpoint("http://localhost:4317")
         .with_protocol(Protocol::Grpc)
         .with_timeout(Duration::from_secs(3))
         .with_trace_config(
@@ -145,3 +130,18 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     Ok(())
 }
 ```
+
+# Grpc libraries comparison
+
+Multiple gRPC transport layers are available. [`tonic`](https://crates.io/crates/tonic) is the default gRPC transport
+layer and is enabled by default. [`grpcio`](https://crates.io/crates/grpcio) is optional.
+
+| gRPC transport layer | [hyperium/tonic](https://github.com/hyperium/tonic) | [tikv/grpc-rs](https://github.com/tikv/grpc-rs) |
+|---|---|---|
+| Feature | --features=default | --features=grpc-sys |
+| gRPC library | [`tonic`](https://crates.io/crates/tonic) | [`grpcio`](https://crates.io/crates/grpcio) |
+| Transport | [hyperium/hyper](https://github.com/hyperium/hyper) (Rust) | [grpc/grpc](https://github.com/grpc/grpc) (C++ binding) |
+| TLS support | yes | yes |
+| TLS library | rustls | OpenSSL |
+| TLS optional | yes | yes |
+| Supported .proto generator | [`prost`](https://crates.io/crates/prost) | [`prost`](https://crates.io/crates/prost), [`protobuf`](https://crates.io/crates/protobuf) |

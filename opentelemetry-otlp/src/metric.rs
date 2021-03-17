@@ -9,7 +9,7 @@ use crate::proto::collector::metrics::v1::{
     metrics_service_client::MetricsServiceClient, ExportMetricsServiceRequest,
 };
 use crate::transform::{record_to_metric, sink, CheckpointedMetrics};
-use crate::{ExporterConfig, Error};
+use crate::{Error, ExporterConfig, TonicConfig};
 use futures::Stream;
 use opentelemetry::metrics::{Descriptor, Result};
 use opentelemetry::sdk::export::metrics::{AggregatorSelector, ExportKindSelector};
@@ -89,10 +89,7 @@ where
     IO: Stream<Item = IOI> + Send + 'static,
 {
     /// Build with resource key value pairs.
-    pub fn with_resource<T: IntoIterator<Item = R>, R: Into<KeyValue>>(
-        self,
-        resource: T,
-    ) -> Self {
+    pub fn with_resource<T: IntoIterator<Item = R>, R: Into<KeyValue>>(self, resource: T) -> Self {
         OtlpMetricPipelineBuilder {
             resource: Some(Resource::new(resource.into_iter().map(Into::into))),
             ..self
@@ -108,7 +105,7 @@ where
     }
 
     /// Build with tonic configuration
-    pub fn with_tonic_config(mut self, tonic_config: TonicConfig) -> Self {
+    pub fn with_tonic_config(self, tonic_config: TonicConfig) -> Self {
         OtlpMetricPipelineBuilder {
             tonic_config: Some(tonic_config),
             ..self
@@ -187,10 +184,10 @@ where
         if let Some(resource) = self.resource {
             builder = builder.with_resource(resource);
         }
-        if let Some(stateful) = self.stateful{
+        if let Some(stateful) = self.stateful {
             builder = builder.with_stateful(stateful);
         }
-        if let Some(timeout) = self.timeout{
+        if let Some(timeout) = self.timeout {
             builder = builder.with_timeout(timeout)
         }
         let controller = builder.build();
@@ -318,18 +315,19 @@ impl Exporter for MetricsExporter {
             }
         })?;
         let request = Request::new(sink(resource_metrics));
-        self.sender.lock().map(|sender| {
-            let _ = sender.try_send(ExportMsg::Export(request));
-        }).map_err(|_| {
-            Error::PoisonedLock("otlp metric exporter's tonic sender")
-        })?;
+        self.sender
+            .lock()
+            .map(|sender| {
+                let _ = sender.try_send(ExportMsg::Export(request));
+            })
+            .map_err(|_| Error::PoisonedLock("otlp metric exporter's tonic sender"))?;
         Ok(())
     }
 }
 
 impl Drop for MetricsExporter {
     fn drop(&mut self) {
-        let _ = self.sender.lock().map(| sender| {
+        let _sender_lock_guard = self.sender.lock().map(|sender| {
             let _ = sender.try_send(ExportMsg::Shutdown);
         });
     }

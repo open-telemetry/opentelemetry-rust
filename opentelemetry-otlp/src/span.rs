@@ -59,7 +59,7 @@ pub enum TraceExporter {
         metadata: Option<MetadataMap>,
         /// The Grpc trace exporter
         trace_exporter: TonicTraceServiceClient<TonicChannel>,
-        /// If the application don't have a runtime(`async` feature is not enabled). Use this runtime
+        /// If the application don't have a runtime(`tonic-sync` feature is enabled). Use this runtime
         /// to use tonic.
         runtime: Option<tokio::runtime::Runtime>,
     },
@@ -88,7 +88,9 @@ pub struct ExporterConfig {
     pub timeout: Duration,
 }
 
-/// Configuration of tonic
+/// Configuration for [tonic]
+///
+/// [tonic]: https://github.com/hyperium/tonic
 #[cfg(feature = "tonic")]
 #[derive(Debug)]
 pub struct TonicConfig {
@@ -103,7 +105,7 @@ pub struct TonicConfig {
     /// If not provided, exporter will build a tokio current thread runtime and use it.
     ///
     /// This is needed because the tonic is run on top of the tokio.
-    #[cfg(not(feature = "async"))]
+    #[cfg(feature = "tonic-sync")]
     pub runtime: Option<tokio::runtime::Runtime>,
 }
 
@@ -114,7 +116,7 @@ impl Default for TonicConfig {
             #[cfg(feature = "tls")]
             tls_config: None,
             metadata: None,
-            #[cfg(not(feature = "async"))]
+            #[cfg(feature = "tonic-sync")]
             runtime: None,
         }
     }
@@ -259,14 +261,14 @@ impl TraceExporter {
             timeout: config.timeout,
             metadata: tonic_config.metadata,
             trace_exporter: client,
-            #[cfg(not(feature = "async"))]
+            #[cfg(feature = "tonic-sync")]
             runtime: Some(tonic_config.runtime.unwrap_or_else(|| {
                 tokio::runtime::Builder::new_current_thread()
                     .enable_all()
                     .build()
                     .unwrap()
             })),
-            #[cfg(feature = "async")]
+            #[cfg(not(feature = "tonic-sync"))]
             runtime: None,
         })
     }

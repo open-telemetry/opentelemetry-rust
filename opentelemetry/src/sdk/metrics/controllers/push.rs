@@ -26,12 +26,12 @@ pub fn push<AS, ES, E, SP, SO, I, IO>(
     spawn: SP,
     interval: I,
 ) -> PushControllerBuilder<SP, I>
-    where
-        AS: AggregatorSelector + Send + Sync + 'static,
-        ES: ExportKindFor + Send + Sync + 'static,
-        E: Exporter + Send + Sync + 'static,
-        SP: Fn(PushControllerWorker) -> SO,
-        I: Fn(time::Duration) -> IO,
+where
+    AS: AggregatorSelector + Send + Sync + 'static,
+    ES: ExportKindFor + Send + Sync + 'static,
+    E: Exporter + Send + Sync + 'static,
+    SP: Fn(PushControllerWorker) -> SO,
+    I: Fn(time::Duration) -> IO,
 {
     PushControllerBuilder {
         aggregator_selector: Box::new(aggregator_selector),
@@ -63,7 +63,7 @@ enum PushMessage {
 /// passed in executor.
 #[allow(missing_debug_implementations)]
 pub struct PushControllerWorker {
-    messages: Pin<Box<dyn Stream<Item=PushMessage> + Send>>,
+    messages: Pin<Box<dyn Stream<Item = PushMessage> + Send>>,
     accumulator: Accumulator,
     processor: Arc<BasicProcessor>,
     exporter: Box<dyn Exporter + Send + Sync>,
@@ -137,10 +137,10 @@ pub struct PushControllerBuilder<S, I> {
 }
 
 impl<S, SO, I, IS, ISI> PushControllerBuilder<S, I>
-    where
-        S: Fn(PushControllerWorker) -> SO,
-        I: Fn(time::Duration) -> IS,
-        IS: Stream<Item=ISI> + Send + 'static,
+where
+    S: Fn(PushControllerWorker) -> SO,
+    I: Fn(time::Duration) -> IS,
+    IS: Stream<Item = ISI> + Send + 'static,
 {
     /// Configure the statefulness of this controller.
     pub fn with_stateful(self, stateful: bool) -> Self {
