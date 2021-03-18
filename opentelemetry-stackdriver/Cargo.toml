@@ -2,10 +2,10 @@
 name = "opentelemetry-stackdriver"
 version = "0.8.0"
 description = "A Rust opentelemetry exporter that uploads traces to Google Stackdriver trace."
-documentation = "https://vivint-smarthome.github.io/opentelemetry-stackdriver/opentelemetry_stackdriver/"
-repository = "https://github.com/vivint-smarthome/opentelemetry-stackdriver"
+documentation = "https://docs.rs/opentelemetry-stackdriver/"
+repository = "https://github.com/open-telemetry/opentelemetry-rust"
 license = "MIT/Apache-2.0"
-authors = ["jacobkiesel <jacob.kiesel@vivint.com>"]
+authors = ["Xaeroxe <kieseljake@gmail.com>"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
