@@ -31,7 +31,7 @@ http = "0.2"
 hyper = "0.14.2"
 hyper-rustls = { version = "0.22.1", optional = true }
 log = "0.4"
-opentelemetry = "0.12.0"
+opentelemetry = { version = "0.12.0", path = "../opentelemetry" }
 prost = "0.7"
 prost-types = "0.7"
 rustls = "0.19"
