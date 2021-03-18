@@ -1,4 +1,4 @@
 [submodule "proto/googleapis"]
-	path = proto/googleapis
+	path = opentelemetry-stackdriver/proto/googleapis
 	url = https://github.com/googleapis/googleapis/
 	shallow = true
