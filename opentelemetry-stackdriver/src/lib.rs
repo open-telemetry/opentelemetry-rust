@@ -174,7 +174,7 @@ impl StackDriverExporter {
               .map(|event| TimeEvent {
                 time: Some(event.timestamp.into()),
                 value: Some(Value::Annotation(Annotation {
-                  description: Some(to_truncate(event.name)),
+                  description: Some(to_truncate(event.name.into_owned())),
                   ..Default::default()
                 })),
               })
