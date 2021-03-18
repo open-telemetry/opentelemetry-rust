@@ -1,4 +1,7 @@
+use std::env;
+
 fn main() {
+  let manifest_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
   tonic_build::configure()
     .build_client(true)
     .build_server(false)
@@ -9,7 +12,7 @@ fn main() {
         "google/devtools/cloudtrace/v2/trace.proto",
         "google/rpc/status.proto",
       ],
-      &["proto/googleapis/"],
+      &[&format!("{}/proto/googleapis/", manifest_dir)],
     )
     .unwrap();
 }
