@@ -73,5 +73,6 @@ pub async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     run1?;
     run2?;
 
+    global::shutdown_tracer_provider();
     Ok(())
 }
