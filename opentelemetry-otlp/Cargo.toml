@@ -49,7 +49,6 @@ trace = ["opentelemetry/trace"]
 metrics = ["opentelemetry/metrics", "default"]
 
 default = ["tonic", "tonic-build", "prost", "tokio"]
-tonic-sync = ["default"]
 tls = ["tonic/tls"]
 tls-roots = ["tls", "tonic/tls-roots"]
 

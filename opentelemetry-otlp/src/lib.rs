@@ -338,6 +338,8 @@ impl TonicPipelineBuilder {
     ///
     /// Returns a [`Tracer`] with the name `opentelemetry-otlp` and current crate version.
     ///
+    /// `install` will panic if not called within a tokio runtime
+    ///
     /// [`Tracer`]: opentelemetry::trace::Tracer
     /// [tonic]: https://github.com/hyperium/tonic
     pub fn install(self) -> Result<sdk::trace::Tracer, TraceError> {
