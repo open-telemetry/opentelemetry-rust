@@ -1,10 +1,13 @@
 //! The OTLP Exporter supports exporting trace and metric data in the OTLP
-//! format to the OpenTelemetry collector. The OpenTelemetry Collector offers a
-//! vendor-agnostic implementation on how to receive, process, and export
-//! telemetry data. In addition, it removes the need to run, operate, and
-//! maintain multiple agents/collectors in order to support open-source
-//! telemetry data formats (e.g. Jaeger, Prometheus, etc.) sending to multiple
-//! open-source or commercial back-ends.
+//! format to the OpenTelemetry collector or other compatible backend. The
+//! OpenTelemetry Collector offers a vendor-agnostic implementation on how
+//! to receive, process, and export telemetry data. In addition, it removes
+//! the need to run, operate, and maintain multiple agents/collectors in
+//! order to support open-source telemetry data formats (e.g. Jaeger,
+//! Prometheus, etc.) sending to multiple open-source or commercial back-ends.
+//!
+//! Currently, this crate only support sending tracing data or metrics in OTLP
+//! via grpc. Support for sending data via HTTP will be added in the future.
 //!
 //! ## Quickstart
 //!
@@ -34,18 +37,6 @@
 //! }
 //! ```
 //!
-//! ## Tonic vs Grpcio
-//!
-//! | Project | [hyperium/tonic](https://github.com/hyperium/tonic) | [tikv/grpc-rs](https://github.com/tikv/grpc-rs) |
-//! |---|---|---|
-//! | Feature name | --features=default | --features=grpc-sys |
-//! | gRPC library | [`tonic`](https://crates.io/crates/tonic) | [`grpcio`](https://crates.io/crates/grpcio) |
-//! | Transport | [hyperium/hyper](https://github.com/hyperium/hyper) (Rust) | [grpc/grpc](https://github.com/grpc/grpc) (C++ binding) |
-//! | TLS support | yes | yes |
-//! | TLS optional | yes | yes |
-//! | TLS library | rustls | OpenSSL |
-//! | Supported .proto generator | [`prost`](https://crates.io/crates/prost) | [`prost`](https://crates.io/crates/prost), [`protobuf`](https://crates.io/crates/protobuf) |
-//!
 //! ## Performance
 //!
 //! For optimal performance, a batch exporter is recommended as the simple
@@ -67,12 +58,14 @@
 //! Example showing how to override all configuration options. See the
 //! [`OtlpPipelineBuilder`] docs for details of each option.
 //!
-//! There are two types of configurations. The first is common configurations that is used by both
-//! tonic and grpcio. The other is configuration that only works with tonic or grpcio.
+//! There are two types of configurations. The first is common configurations
+//! that is used by both tonic and grpcio. The other is configuration that only
+//! works with tonic or grpcio.
 //!
-//! The [`OtlpPipelineBuilder`] will first config the configurations that shared by both grpc layers.
-//! Then users can choose their grpc layer by `with_tonic` or `with_grpcio` functions. User can then
-//! config anything that only works with specific grpc layers.
+//! The [`OtlpPipelineBuilder`] will first config the configurations that shared
+//! by both grpc layers. Then users can choose their grpc layer by [`with_tonic`]
+//! or [`with_grpcio`] functions. User can then config anything that only works
+//! with specific grpc layers.
 //!
 //! ```no_run
 //! use opentelemetry::{KeyValue, trace::Tracer};
@@ -89,7 +82,7 @@
 //!     map.insert_bin("trace-proto-bin", MetadataValue::from_bytes(b"[binary data]"));
 //!
 //!     let tracer = opentelemetry_otlp::new_pipeline()
-//!         .with_endpoint("localhost:4317")
+//!         .with_endpoint("http://localhost:4317")
 //!         .with_protocol(Protocol::Grpc)
 //!         .with_timeout(Duration::from_secs(3))
 //!         .with_trace_config(
@@ -112,6 +105,25 @@
 //!     Ok(())
 //! }
 //! ```
+//! [`with_tonic`]: crate::OtlpPipelineBuilder::with_tonic
+//! [`with_grpcio`]: crate::OtlpPipelineBuilder::with_grpcio
+//!
+//!
+//! # Grpc libraries comparison
+//!
+//! The table below provides a short comparison between `grpcio` and `tonic`, two
+//! of the most popular grpc libraries in Rust. Users can choose between them when
+//! working with otlp with grpc as transport layer.
+//!
+//! | Project | [hyperium/tonic](https://github.com/hyperium/tonic) | [tikv/grpc-rs](https://github.com/tikv/grpc-rs) |
+//! |---|---|---|
+//! | Feature name | --features=default | --features=grpc-sys |
+//! | gRPC library | [`tonic`](https://crates.io/crates/tonic) | [`grpcio`](https://crates.io/crates/grpcio) |
+//! | Transport | [hyperium/hyper](https://github.com/hyperium/hyper) (Rust) | [grpc/grpc](https://github.com/grpc/grpc) (C++ binding) |
+//! | TLS support | yes | yes |
+//! | TLS optional | yes | yes |
+//! | TLS library | rustls | OpenSSL |
+//! | Supported .proto generator | [`prost`](https://crates.io/crates/prost) | [`prost`](https://crates.io/crates/prost), [`protobuf`](https://crates.io/crates/protobuf) |
 #![warn(
     future_incompatible,
     missing_debug_implementations,
@@ -148,7 +160,6 @@ mod proto;
 pub mod proto;
 
 #[cfg(feature = "metrics")]
-#[allow(warnings)]
 mod metric;
 mod span;
 mod transform;
@@ -205,7 +216,7 @@ pub fn new_pipeline() -> OtlpPipelineBuilder {
     OtlpPipelineBuilder::default()
 }
 
-/// Recommended configuration for an Otlp exporter pipeline.
+/// Recommended configuration for an OTLP exporter pipeline.
 ///
 /// ## Examples
 ///
@@ -289,9 +300,17 @@ impl OtlpPipelineBuilder {
     }
 }
 
-/// Tonic trace exporter builder.
+/// Build a trace exporter that uses [tonic] as grpc layer and opentelemetry protocol.
 ///
-/// User can get the `TonicPipelineBuilder` by calling `with_tonic` function in `OtlpPipelineBuilder`
+/// It provides methods to config tonic. The methods can be chained. The exporter can be built by calling
+/// [`install`]
+///
+/// `TonicPipelineBuilder` can be constructed by calling [`with_tonic`] function in [`OtlpPipelineBuilder`]
+///
+/// [`with_tonic`]: crate::OtlpPipelineBuilder::with_tonic
+/// [`OtlpPipelineBuilder`]: crate::OtlpPipelineBuilder
+/// [`install`]: crate::TonicPipelineBuilder::install
+/// [tonic]: https://github.com/hyperium/tonic
 #[derive(Default, Debug)]
 #[cfg(feature = "tonic")]
 pub struct TonicPipelineBuilder {
@@ -315,16 +334,31 @@ impl TonicPipelineBuilder {
         self
     }
 
-    /// Install a trace exporter using tonic
+    /// Install a trace exporter using [tonic] as grpc layer.
+    ///
+    /// Returns a [`Tracer`] with the name `opentelemetry-otlp` and current crate version.
+    ///
+    /// `install` will panic if not called within a tokio runtime
+    ///
+    /// [`Tracer`]: opentelemetry::trace::Tracer
+    /// [tonic]: https://github.com/hyperium/tonic
     pub fn install(self) -> Result<sdk::trace::Tracer, TraceError> {
         let exporter = TraceExporter::new_tonic(self.exporter_config, self.tonic_config)?;
         Ok(build_with_exporter(exporter, self.trace_config))
     }
 }
 
-/// Grpc trace exporter builder.
+/// Build a trace exporter that uses [grpcio] as grpc layer and opentelemetry protocol.
 ///
-/// User can get the `GrpcioPipelineBuilder` by calling `with_grpcio` function in `OtlpPipelineBuilder`
+/// It provides methods to config grpcio. The methods can be chained. The exporter can be built by calling
+/// [`install`].
+///
+/// `GrpcioPipelineBuilder` can be constructed by calling [`with_grpcio`] function in [`OtlpPipelineBuilder`].
+///
+/// [`with_grpcio`]: crate::OtlpPipelineBuilder::with_grpcio
+/// [`OtlpPipelineBuilder`]: crate::OtlpPipelineBuilder
+/// [`install`]: crate::GrpcioPipelineBuilder::install
+/// [grpcio]: https://github.com/tikv/grpc-rs
 #[derive(Default, Debug)]
 #[cfg(feature = "grpc-sys")]
 pub struct GrpcioPipelineBuilder {
@@ -341,7 +375,7 @@ impl GrpcioPipelineBuilder {
         self
     }
 
-    /// Set Additional headers to send to the collector.
+    /// Set additional headers to send to the collector.
     pub fn with_headers(mut self, headers: HashMap<String, String>) -> Self {
         self.grpcio_config.headers = Some(headers);
         self
@@ -365,7 +399,12 @@ impl GrpcioPipelineBuilder {
         self
     }
 
-    /// Install a trace exporter using grpcio
+    /// Install a trace exporter using [grpcio] as grpc layer.
+    ///
+    /// Returns a [`Tracer`] with the name `opentelemetry-otlp` and current crate version.
+    ///
+    /// [`Tracer`]: opentelemetry::trace::Tracer
+    /// [grpcio]: https://github.com/tikv/grpc-rs
     pub fn install(self) -> Result<sdk::trace::Tracer, TraceError> {
         let exporter = TraceExporter::new_grpcio(self.exporter_config, self.grpcio_config);
         Ok(build_with_exporter(exporter, self.trace_config))
@@ -408,6 +447,11 @@ pub enum Error {
     #[cfg(feature = "grpc-sys")]
     #[error("grpcio error {0}")]
     Grpcio(#[from] grpcio::Error),
+
+    /// The lock in exporters has been poisoned.
+    #[cfg(feature = "metrics")]
+    #[error("the lock of the {0} has been poisoned")]
+    PoisonedLock(&'static str),
 }
 
 impl ExportError for Error {
@@ -416,7 +460,7 @@ impl ExportError for Error {
     }
 }
 
-/// The communication protocol to use when sending data.
+/// The communication protocol to use when exporting data.
 #[derive(Clone, Copy, Debug)]
 pub enum Protocol {
     /// GRPC protocol

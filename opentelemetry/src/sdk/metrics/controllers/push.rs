@@ -166,6 +166,14 @@ where
         }
     }
 
+    /// Config the timeout of one request.
+    pub fn with_timeout(self, duration: time::Duration) -> Self {
+        PushControllerBuilder {
+            timeout: Some(duration),
+            ..self
+        }
+    }
+
     /// Build a new `PushController` with this configuration.
     pub fn build(self) -> PushController {
         let processor = processors::basic(self.aggregator_selector, self.export_selector, false);
