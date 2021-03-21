@@ -9,6 +9,7 @@ members = [
     "opentelemetry-prometheus",
     "opentelemetry-aws",
     "opentelemetry-semantic-conventions",
+    "opentelemetry-stackdriver",
     "opentelemetry-zipkin",
     "examples/actix-http",
     "examples/actix-http-tracing",
