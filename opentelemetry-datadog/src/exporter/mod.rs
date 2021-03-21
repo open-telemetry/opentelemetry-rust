@@ -7,6 +7,7 @@ pub use model::Error;
 use async_trait::async_trait;
 use http::{Method, Request, Uri};
 use itertools::Itertools;
+use opentelemetry::runtime::Runtime;
 use opentelemetry::sdk::export::trace;
 use opentelemetry::sdk::export::trace::SpanData;
 use opentelemetry::trace::TraceError;
@@ -94,29 +95,53 @@ impl Default for DatadogPipelineBuilder {
 }
 
 impl DatadogPipelineBuilder {
-    /// Create `ExporterConfig` struct from current `ExporterConfigBuilder`
-    pub fn install(mut self) -> Result<sdk::trace::Tracer, TraceError> {
+    fn build_exporter(self) -> Result<DatadogExporter, TraceError> {
         if let Some(client) = self.client {
             let endpoint = self.agent_endpoint + self.version.path();
             let exporter = DatadogExporter::new(
-                self.service_name.clone(),
+                self.service_name,
                 endpoint.parse().map_err::<Error, _>(Into::into)?,
                 self.version,
                 client,
             );
-            let mut provider_builder =
-                sdk::trace::TracerProvider::builder().with_exporter(exporter);
-            if let Some(config) = self.trace_config.take() {
-                provider_builder = provider_builder.with_config(config);
-            }
-            let provider = provider_builder.build();
-            let tracer =
-                provider.get_tracer("opentelemetry-datadog", Some(env!("CARGO_PKG_VERSION")));
-            let _ = global::set_tracer_provider(provider);
-            Ok(tracer)
+            Ok(exporter)
         } else {
             Err(Error::NoHttpClient.into())
         }
+    }
+
+    /// Install the Datadog trace exporter pipeline using a simple span processor.
+    pub fn install_simple(mut self) -> Result<sdk::trace::Tracer, TraceError> {
+        let trace_config = self.trace_config.take();
+        let exporter = self.build_exporter()?;
+        let mut provider_builder =
+            sdk::trace::TracerProvider::builder().with_simple_exporter(exporter);
+        if let Some(config) = trace_config {
+            provider_builder = provider_builder.with_config(config);
+        }
+        let provider = provider_builder.build();
+        let tracer = provider.get_tracer("opentelemetry-datadog", Some(env!("CARGO_PKG_VERSION")));
+        let _ = global::set_tracer_provider(provider);
+        Ok(tracer)
+    }
+
+    /// Install the Datadog trace exporter pipeline using a batch span processor with the specified
+    /// runtime.
+    pub fn install_batch<R: Runtime>(
+        mut self,
+        runtime: R,
+    ) -> Result<sdk::trace::Tracer, TraceError> {
+        let trace_config = self.trace_config.take();
+        let exporter = self.build_exporter()?;
+        let mut provider_builder =
+            sdk::trace::TracerProvider::builder().with_default_batch_exporter(exporter, runtime);
+        if let Some(config) = trace_config {
+            provider_builder = provider_builder.with_config(config);
+        }
+        let provider = provider_builder.build();
+        let tracer = provider.get_tracer("opentelemetry-datadog", Some(env!("CARGO_PKG_VERSION")));
+        let _ = global::set_tracer_provider(provider);
+        Ok(tracer)
     }
 
     /// Assign the service name under which to group traces

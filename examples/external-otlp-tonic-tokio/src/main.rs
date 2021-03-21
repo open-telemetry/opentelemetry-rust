@@ -66,7 +66,7 @@ fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
                     .expect("the specified endpoint should have a valid host"),
             ),
         )
-        .install()
+        .install_batch(opentelemetry::runtime::Tokio)
 }
 
 const LEMONS_KEY: Key = Key::from_static_str("ex.com/lemons");

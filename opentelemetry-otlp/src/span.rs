@@ -51,7 +51,7 @@ use std::time::Duration;
 /// Exporter that sends data in OTLP format.
 pub enum TraceExporter {
     #[cfg(feature = "tonic")]
-    /// Trace Exporter using tonic as grpc layer
+    /// Trace Exporter using tonic as grpc layer.
     Tonic {
         /// Duration of timeout when sending spans to backend.
         timeout: Duration,
@@ -59,9 +59,6 @@ pub enum TraceExporter {
         metadata: Option<MetadataMap>,
         /// The Grpc trace exporter
         trace_exporter: TonicTraceServiceClient<TonicChannel>,
-        /// If the application don't have a runtime(`async` feature is not enabled). Use this runtime
-        /// to use tonic.
-        runtime: Option<tokio::runtime::Runtime>,
     },
     #[cfg(feature = "grpc-sys")]
     /// Trace Exporter using grpcio as grpc layer
@@ -88,7 +85,9 @@ pub struct ExporterConfig {
     pub timeout: Duration,
 }
 
-/// Configuration of tonic
+/// Configuration for [tonic]
+///
+/// [tonic]: https://github.com/hyperium/tonic
 #[cfg(feature = "tonic")]
 #[derive(Debug)]
 pub struct TonicConfig {
@@ -98,13 +97,6 @@ pub struct TonicConfig {
     /// TLS settings for the collector endpoint.
     #[cfg(feature = "tls")]
     pub tls_config: Option<ClientTlsConfig>,
-
-    /// Optional runtime when the trace exporter is not run in an async environment.
-    /// If not provided, exporter will build a tokio current thread runtime and use it.
-    ///
-    /// This is needed because the tonic is run on top of the tokio.
-    #[cfg(not(feature = "async"))]
-    pub runtime: Option<tokio::runtime::Runtime>,
 }
 
 #[cfg(feature = "tonic")]
@@ -114,8 +106,6 @@ impl Default for TonicConfig {
             #[cfg(feature = "tls")]
             tls_config: None,
             metadata: None,
-            #[cfg(not(feature = "async"))]
-            runtime: None,
         }
     }
 }
@@ -259,15 +249,6 @@ impl TraceExporter {
             timeout: config.timeout,
             metadata: tonic_config.metadata,
             trace_exporter: client,
-            #[cfg(not(feature = "async"))]
-            runtime: Some(tonic_config.runtime.unwrap_or_else(|| {
-                tokio::runtime::Builder::new_current_thread()
-                    .enable_all()
-                    .build()
-                    .unwrap()
-            })),
-            #[cfg(feature = "async")]
-            runtime: None,
         })
     }
 
@@ -342,28 +323,16 @@ impl SpanExporter for TraceExporter {
             }
 
             #[cfg(feature = "tonic")]
-            TraceExporter::Tonic {
-                trace_exporter,
-                runtime,
-                ..
-            } => {
+            TraceExporter::Tonic { trace_exporter, .. } => {
                 let request = Request::new(TonicRequest {
                     resource_spans: batch.into_iter().map(Into::into).collect(),
                 });
 
-                match runtime {
-                    Some(rt) => {
-                        rt.block_on(trace_exporter.to_owned().export(request))
-                            .map_err::<crate::Error, _>(Into::into)?;
-                    }
-                    None => {
-                        trace_exporter
-                            .to_owned()
-                            .export(request)
-                            .await
-                            .map_err::<crate::Error, _>(Into::into)?;
-                    }
-                }
+                trace_exporter
+                    .to_owned()
+                    .export(request)
+                    .await
+                    .map_err::<crate::Error, _>(Into::into)?;
 
                 Ok(())
             }

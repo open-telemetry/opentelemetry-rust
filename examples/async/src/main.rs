@@ -56,7 +56,7 @@ async fn run(addr: &SocketAddr) -> io::Result<usize> {
 fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
     opentelemetry_jaeger::new_pipeline()
         .with_service_name("trace-demo")
-        .install()
+        .install_batch(opentelemetry::runtime::Tokio)
 }
 
 #[tokio::main]
@@ -73,5 +73,6 @@ pub async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     run1?;
     run2?;
 
+    global::shutdown_tracer_provider();
     Ok(())
 }

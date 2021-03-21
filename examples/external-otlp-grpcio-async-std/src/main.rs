@@ -64,16 +64,15 @@ fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
         .with_grpcio()
         .with_headers(headers)
         .with_tls(true)
-        .install()
+        .install_batch(opentelemetry::runtime::AsyncStd)
 }
 const LEMONS_KEY: Key = Key::from_static_str("ex.com/lemons");
 const ANOTHER_KEY: Key = Key::from_static_str("ex.com/another");
 
 #[async_std::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
-    match var("RUST_LOG") {
-        Err(std::env::VarError::NotPresent) => set_var("RUST_LOG", "trace"),
-        _ => {}
+    if let Err(std::env::VarError::NotPresent) = var("RUST_LOG") {
+        set_var("RUST_LOG", "debug")
     };
     env_logger::init();
     let _ = init_tracer()?;
@@ -99,5 +98,6 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // wait for 1 minutes so that we could see metrics being pushed via OTLP every 10 seconds.
     sleep(Duration::from_secs(60)).await;
 
+    global::shutdown_tracer_provider();
     Ok(())
 }

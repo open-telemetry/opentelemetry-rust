@@ -18,7 +18,7 @@ fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
     opentelemetry_otlp::new_pipeline()
         .with_endpoint("http://localhost:4317")
         .with_tonic()
-        .install()
+        .install_batch(opentelemetry::runtime::Tokio)
 }
 
 // Skip first immediate tick from tokio, not needed for async_std.

@@ -21,7 +21,7 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let tracer = new_pipeline()
         .with_service_name("trace-demo")
         .with_version(ApiVersion::Version05)
-        .install()?;
+        .install_simple()?;
 
     tracer.in_span("foo", |cx| {
         let span = cx.span();

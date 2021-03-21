@@ -23,7 +23,9 @@ use isahc::prelude::Configurable;
 use opentelemetry::sdk::export::ExportError;
 use opentelemetry::trace::TraceError;
 use opentelemetry::{
-    global, sdk,
+    global,
+    runtime::Runtime,
+    sdk,
     sdk::export::trace,
     trace::{Event, Link, SpanKind, StatusCode, TracerProvider},
     Key, KeyValue,
@@ -256,24 +258,46 @@ impl PipelineBuilder {
         self
     }
 
-    /// Install a Jaeger pipeline with the recommended defaults.
-    pub fn install(self) -> Result<sdk::trace::Tracer, TraceError> {
-        let tracer_provider = self.build()?;
+    /// Install a Jaeger pipeline with a simple span processor.
+    pub fn install_simple(self) -> Result<sdk::trace::Tracer, TraceError> {
+        let tracer_provider = self.build_simple()?;
         let tracer =
             tracer_provider.get_tracer("opentelemetry-jaeger", Some(env!("CARGO_PKG_VERSION")));
-
         let _ = global::set_tracer_provider(tracer_provider);
-
         Ok(tracer)
     }
 
-    /// Build a configured `sdk::trace::TracerProvider` with the recommended defaults.
-    pub fn build(mut self) -> Result<sdk::trace::TracerProvider, TraceError> {
+    /// Install a Jaeger pipeline with a batch span processor using the specified runtime.
+    pub fn install_batch<R: Runtime>(self, runtime: R) -> Result<sdk::trace::Tracer, TraceError> {
+        let tracer_provider = self.build_batch(runtime)?;
+        let tracer =
+            tracer_provider.get_tracer("opentelemetry-jaeger", Some(env!("CARGO_PKG_VERSION")));
+        let _ = global::set_tracer_provider(tracer_provider);
+        Ok(tracer)
+    }
+
+    /// Build a configured `sdk::trace::TracerProvider` with a simple span processor.
+    pub fn build_simple(mut self) -> Result<sdk::trace::TracerProvider, TraceError> {
         let config = self.config.take();
         let exporter = self.init_exporter()?;
+        let mut builder = sdk::trace::TracerProvider::builder().with_simple_exporter(exporter);
+        if let Some(config) = config {
+            builder = builder.with_config(config)
+        }
 
-        let mut builder = sdk::trace::TracerProvider::builder().with_exporter(exporter);
+        Ok(builder.build())
+    }
 
+    /// Build a configured `sdk::trace::TracerProvider` with a batch span processor using the
+    /// specified runtime.
+    pub fn build_batch<R: Runtime>(
+        mut self,
+        runtime: R,
+    ) -> Result<sdk::trace::TracerProvider, TraceError> {
+        let config = self.config.take();
+        let exporter = self.init_exporter()?;
+        let mut builder =
+            sdk::trace::TracerProvider::builder().with_default_batch_exporter(exporter, runtime);
         if let Some(config) = config {
             builder = builder.with_config(config)
         }

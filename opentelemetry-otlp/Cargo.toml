@@ -45,13 +45,14 @@ chrono = "0.4"
 tokio-stream = { version = "0.1", features = ["net"] }
 
 [features]
-async = ["default"]
 trace = ["opentelemetry/trace"]
-metrics = ["opentelemetry/metrics"]
+metrics = ["opentelemetry/metrics", "default"]
+
 default = ["tonic", "tonic-build", "prost", "tokio"]
-grpc-sys = ["grpcio", "protobuf", "protobuf-codegen", "protoc-grpcio"]
 tls = ["tonic/tls"]
 tls-roots = ["tls", "tonic/tls-roots"]
+
+grpc-sys = ["grpcio", "protobuf", "protobuf-codegen", "protoc-grpcio"]
 openssl = ["grpcio/openssl"]
 openssl-vendored = ["grpcio/openssl-vendored"]
 integration-testing = ["tonic", "tonic-build", "prost", "tokio/full", "opentelemetry/trace"]

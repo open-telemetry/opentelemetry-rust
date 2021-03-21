@@ -70,7 +70,7 @@ async fn smoke_tracer() {
         let tracer = opentelemetry_otlp::new_pipeline()
             .with_endpoint(format!("http://{}", addr))
             .with_tonic()
-            .install()
+            .install_batch(opentelemetry::runtime::Tokio)
             .expect("failed to install");
 
         println!("Sending span...");

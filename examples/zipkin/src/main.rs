@@ -14,7 +14,7 @@ fn bar() {
 fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let tracer = opentelemetry_zipkin::new_pipeline()
         .with_service_name("trace-demo")
-        .install()?;
+        .install_simple()?;
 
     tracer.in_span("foo", |_cx| {
         thread::sleep(Duration::from_millis(6));
