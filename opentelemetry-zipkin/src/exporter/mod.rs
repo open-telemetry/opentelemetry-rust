@@ -5,7 +5,9 @@ use async_trait::async_trait;
 use http::Uri;
 use model::endpoint::Endpoint;
 use opentelemetry::{
-    global, sdk,
+    global,
+    runtime::Runtime,
+    sdk,
     sdk::export::{trace, ExportError},
     trace::{TraceError, TracerProvider},
 };
@@ -82,8 +84,7 @@ impl Default for ZipkinPipelineBuilder {
 }
 
 impl ZipkinPipelineBuilder {
-    /// Create `ExporterConfig` struct from current `ExporterConfigBuilder`
-    pub fn install(mut self) -> Result<sdk::trace::Tracer, TraceError> {
+    fn build_exporter(self) -> Result<Exporter, TraceError> {
         if let Some(client) = self.client {
             let endpoint = Endpoint::new(self.service_name, self.service_addr);
             let exporter = Exporter::new(
@@ -93,21 +94,44 @@ impl ZipkinPipelineBuilder {
                     .parse()
                     .map_err::<Error, _>(Into::into)?,
             );
-
-            let mut provider_builder =
-                sdk::trace::TracerProvider::builder().with_exporter(exporter);
-            if let Some(config) = self.trace_config.take() {
-                provider_builder = provider_builder.with_config(config);
-            }
-            let provider = provider_builder.build();
-            let tracer =
-                provider.get_tracer("opentelemetry-zipkin", Some(env!("CARGO_PKG_VERSION")));
-            let _ = global::set_tracer_provider(provider);
-
-            Ok(tracer)
+            Ok(exporter)
         } else {
             Err(Error::NoHttpClient.into())
         }
+    }
+
+    /// Install the Zipkin trace exporter pipeline with a simple span processor.
+    pub fn install_simple(mut self) -> Result<sdk::trace::Tracer, TraceError> {
+        let config = self.trace_config.take();
+        let exporter = self.build_exporter()?;
+        let mut provider_builder =
+            sdk::trace::TracerProvider::builder().with_simple_exporter(exporter);
+        if let Some(config) = config {
+            provider_builder = provider_builder.with_config(config);
+        }
+        let provider = provider_builder.build();
+        let tracer = provider.get_tracer("opentelemetry-zipkin", Some(env!("CARGO_PKG_VERSION")));
+        let _ = global::set_tracer_provider(provider);
+        Ok(tracer)
+    }
+
+    /// Install the Zipkin trace exporter pipeline with a batch span processor using the specified
+    /// runtime.
+    pub fn install_batch<R: Runtime>(
+        mut self,
+        runtime: R,
+    ) -> Result<sdk::trace::Tracer, TraceError> {
+        let config = self.trace_config.take();
+        let exporter = self.build_exporter()?;
+        let mut provider_builder =
+            sdk::trace::TracerProvider::builder().with_default_batch_exporter(exporter, runtime);
+        if let Some(config) = config {
+            provider_builder = provider_builder.with_config(config);
+        }
+        let provider = provider_builder.build();
+        let tracer = provider.get_tracer("opentelemetry-zipkin", Some(env!("CARGO_PKG_VERSION")));
+        let _ = global::set_tracer_provider(provider);
+        Ok(tracer)
     }
 
     /// Assign the service name under which to group traces.

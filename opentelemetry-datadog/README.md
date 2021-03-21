@@ -76,7 +76,7 @@ to [`Datadog`].
                  .with_sampler(Sampler::AlwaysOn)
                  .with_id_generator(IdGenerator::default())
          )
-         .install()?;
+         .install_batch(opentelemetry::runtime::Tokio)?;
 
      tracer.in_span("doing_work", |cx| {
          // Traced app logic here...

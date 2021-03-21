@@ -30,7 +30,7 @@ fn init_tracer() -> impl Tracer {
     // application, use `Sampler::ParentBased` or `Sampler::TraceIdRatioBased` with a desired ratio.
     stdout::new_pipeline()
         .with_trace_config(trace::config().with_sampler(Sampler::AlwaysOn))
-        .install()
+        .install_simple()
 }
 
 #[tokio::main]

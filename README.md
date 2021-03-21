@@ -37,7 +37,7 @@ use opentelemetry::{sdk::export::trace::stdout, trace::Tracer};
 
 fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     // Create a new instrumentation pipeline
-    let tracer = stdout::new_pipeline().install();
+    let tracer = stdout::new_pipeline().install_simple();
 
     tracer.in_span("doing_work", |cx| {
         // Traced app logic here...

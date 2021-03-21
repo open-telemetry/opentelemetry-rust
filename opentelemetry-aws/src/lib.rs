@@ -17,7 +17,7 @@
 //! async fn main() -> std::result::Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 //!     // Set the global propagator to X-Ray propagator
 //!     global::set_text_map_propagator(XrayPropagator::default());
-//!     let tracer = stdout::new_pipeline().install();
+//!     let tracer = stdout::new_pipeline().install_simple();
 //!
 //!     let mut req = hyper::Request::builder().uri("http://127.0.0.1:3000");
 //!     tracer.in_span("doing_work", |cx| {

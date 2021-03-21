@@ -27,7 +27,7 @@
 //! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 //!     // use tonic as grpc layer here.
 //!     // If you want to use grpcio. enable `grpc-sys` feature and use with_grpcio function here.
-//!     let tracer = opentelemetry_otlp::new_pipeline().with_tonic().install()?;
+//!     let tracer = opentelemetry_otlp::new_pipeline().with_tonic().install_simple()?;
 //!
 //!     tracer.in_span("doing_work", |cx| {
 //!         // Traced app logic here...
@@ -40,14 +40,23 @@
 //! ## Performance
 //!
 //! For optimal performance, a batch exporter is recommended as the simple
-//! exporter will export each span synchronously on dropping. Enable a runtime
-//! to have a batch exporter configured automatically for either executor
-//! when using the pipeline.
+//! exporter will export each span synchronously on dropping. You can enable the
+//! [`rt-tokio`], [`rt-tokio-current-thread`] or [`rt-async-std`] features and
+//! specify a runtime on the pipeline builder to have a batch exporter
+//! configured for you automatically.
 //!
 //! ```toml
 //! [dependencies]
 //! opentelemetry = { version = "*", features = ["async-std"] }
 //! opentelemetry-otlp = { version = "*", features = ["grpc-sys"] }
+//! ```
+//!
+//! ```no_run
+//! # fn main() -> Result<(), opentelemetry::trace::TraceError> {
+//! let tracer = opentelemetry_otlp::new_pipeline()
+//!     .install_batch(opentelemetry::runtime::AsyncStd)?;
+//! # Ok(())
+//! # }
 //! ```
 //!
 //! [`tokio`]: https://tokio.rs
@@ -96,7 +105,7 @@
 //!         )
 //!         .with_tonic()
 //!         .with_metadata(map)
-//!         .install()?;
+//!         .install_batch(opentelemetry::runtime::Tokio)?;
 //!
 //!     tracer.in_span("doing_work", |cx| {
 //!         // Traced app logic here...
@@ -137,7 +146,7 @@
 #![cfg_attr(docsrs, feature(doc_cfg), deny(broken_intra_doc_links))]
 #![cfg_attr(test, deny(warnings))]
 
-use opentelemetry::{global, sdk, trace::TracerProvider};
+use opentelemetry::{global, runtime::Runtime, sdk, trace::TracerProvider};
 
 #[cfg(feature = "grpc-sys")]
 use std::collections::HashMap;
@@ -207,7 +216,7 @@ const OTEL_EXPORTER_OTLP_TRACES_TIMEOUT: &str = "OTEL_EXPORTER_OTLP_TRACES_TIMEO
 ///
 /// ```no_run
 /// fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-///     let tracer = opentelemetry_otlp::new_pipeline().with_tonic().install()?;
+///     let tracer = opentelemetry_otlp::new_pipeline().with_tonic().install_simple()?;
 ///
 ///     Ok(())
 /// }
@@ -222,7 +231,7 @@ pub fn new_pipeline() -> OtlpPipelineBuilder {
 ///
 /// ```no_run
 /// fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-///     let tracer = opentelemetry_otlp::new_pipeline().with_tonic().install()?;
+///     let tracer = opentelemetry_otlp::new_pipeline().with_tonic().install_simple()?;
 ///
 ///     Ok(())
 /// }
@@ -303,13 +312,14 @@ impl OtlpPipelineBuilder {
 /// Build a trace exporter that uses [tonic] as grpc layer and opentelemetry protocol.
 ///
 /// It provides methods to config tonic. The methods can be chained. The exporter can be built by calling
-/// [`install`]
+/// [`install_simple`] or [`install_batch`].
 ///
 /// `TonicPipelineBuilder` can be constructed by calling [`with_tonic`] function in [`OtlpPipelineBuilder`]
 ///
 /// [`with_tonic`]: crate::OtlpPipelineBuilder::with_tonic
 /// [`OtlpPipelineBuilder`]: crate::OtlpPipelineBuilder
-/// [`install`]: crate::TonicPipelineBuilder::install
+/// [`install_simple`]: crate::TonicPipelineBuilder::install_simple
+/// [`install_batch`]: crate::TonicPipelineBuilder::install_batch
 /// [tonic]: https://github.com/hyperium/tonic
 #[derive(Default, Debug)]
 #[cfg(feature = "tonic")]
@@ -334,30 +344,49 @@ impl TonicPipelineBuilder {
         self
     }
 
-    /// Install a trace exporter using [tonic] as grpc layer.
+    /// Install a trace exporter using [tonic] as grpc layer and a simple span processor.
     ///
     /// Returns a [`Tracer`] with the name `opentelemetry-otlp` and current crate version.
     ///
-    /// `install` will panic if not called within a tokio runtime
+    /// `install_simple` will panic if not called within a tokio runtime
     ///
     /// [`Tracer`]: opentelemetry::trace::Tracer
     /// [tonic]: https://github.com/hyperium/tonic
-    pub fn install(self) -> Result<sdk::trace::Tracer, TraceError> {
+    pub fn install_simple(self) -> Result<sdk::trace::Tracer, TraceError> {
         let exporter = TraceExporter::new_tonic(self.exporter_config, self.tonic_config)?;
-        Ok(build_with_exporter(exporter, self.trace_config))
+        Ok(build_simple_with_exporter(exporter, self.trace_config))
+    }
+
+    /// Install a trace exporter using [tonic] as grpc lazer and a batch span processor using the
+    /// specified runtime.
+    ///
+    /// Returns a [`Tracer`] with the name `opentelemetry-otlp` and current crate version.
+    ///
+    /// `install_batch` will panic if not called within a tokio runtime
+    ///
+    /// [`Tracer`]: opentelemetry::trace::Tracer
+    /// [tonic]: https://github.com/hyperium/tonic
+    pub fn install_batch<R: Runtime>(self, runtime: R) -> Result<sdk::trace::Tracer, TraceError> {
+        let exporter = TraceExporter::new_tonic(self.exporter_config, self.tonic_config)?;
+        Ok(build_batch_with_exporter(
+            exporter,
+            self.trace_config,
+            runtime,
+        ))
     }
 }
 
 /// Build a trace exporter that uses [grpcio] as grpc layer and opentelemetry protocol.
 ///
 /// It provides methods to config grpcio. The methods can be chained. The exporter can be built by calling
-/// [`install`].
+/// [`install_simple`] or [`install_batch`].
 ///
 /// `GrpcioPipelineBuilder` can be constructed by calling [`with_grpcio`] function in [`OtlpPipelineBuilder`].
 ///
 /// [`with_grpcio`]: crate::OtlpPipelineBuilder::with_grpcio
 /// [`OtlpPipelineBuilder`]: crate::OtlpPipelineBuilder
-/// [`install`]: crate::GrpcioPipelineBuilder::install
+/// [`install_simple`]: crate::GrpcioPipelineBuilder::install_simple
+/// [`install_batch`]: crate::GrpcioPipelineBuilder::install_batch
 /// [grpcio]: https://github.com/tikv/grpc-rs
 #[derive(Default, Debug)]
 #[cfg(feature = "grpc-sys")]
@@ -399,23 +428,55 @@ impl GrpcioPipelineBuilder {
         self
     }
 
-    /// Install a trace exporter using [grpcio] as grpc layer.
+    /// Install a trace exporter using [grpcio] as grpc layer and a simple span processor.
     ///
     /// Returns a [`Tracer`] with the name `opentelemetry-otlp` and current crate version.
     ///
     /// [`Tracer`]: opentelemetry::trace::Tracer
     /// [grpcio]: https://github.com/tikv/grpc-rs
-    pub fn install(self) -> Result<sdk::trace::Tracer, TraceError> {
+    pub fn install_simple(self) -> Result<sdk::trace::Tracer, TraceError> {
         let exporter = TraceExporter::new_grpcio(self.exporter_config, self.grpcio_config);
-        Ok(build_with_exporter(exporter, self.trace_config))
+        Ok(build_simple_with_exporter(exporter, self.trace_config))
+    }
+
+    /// Install a trace exporter using [grpcio] as grpc layer and a batch span processor using the
+    /// specified runtime.
+    ///
+    /// Returns a [`Tracer`] with the name `opentelemetry-otlp` and current crate version.
+    ///
+    /// [`Tracer`]: opentelemetry::trace::Tracer
+    /// [grpcio]: https://github.com/tikv/grpc-rs
+    pub fn install_batch<R: Runtime>(self, runtime: R) -> Result<sdk::trace::Tracer, TraceError> {
+        let exporter = TraceExporter::new_grpcio(self.exporter_config, self.grpcio_config);
+        Ok(build_batch_with_exporter(
+            exporter,
+            self.trace_config,
+            runtime,
+        ))
     }
 }
 
-fn build_with_exporter(
+fn build_simple_with_exporter(
     exporter: TraceExporter,
     trace_config: Option<sdk::trace::Config>,
 ) -> sdk::trace::Tracer {
-    let mut provider_builder = sdk::trace::TracerProvider::builder().with_exporter(exporter);
+    let mut provider_builder = sdk::trace::TracerProvider::builder().with_simple_exporter(exporter);
+    if let Some(config) = trace_config {
+        provider_builder = provider_builder.with_config(config);
+    }
+    let provider = provider_builder.build();
+    let tracer = provider.get_tracer("opentelemetry-otlp", Some(env!("CARGO_PKG_VERSION")));
+    let _ = global::set_tracer_provider(provider);
+    tracer
+}
+
+fn build_batch_with_exporter<R: Runtime>(
+    exporter: TraceExporter,
+    trace_config: Option<sdk::trace::Config>,
+    runtime: R,
+) -> sdk::trace::Tracer {
+    let mut provider_builder =
+        sdk::trace::TracerProvider::builder().with_default_batch_exporter(exporter, runtime);
     if let Some(config) = trace_config {
         provider_builder = provider_builder.with_config(config);
     }

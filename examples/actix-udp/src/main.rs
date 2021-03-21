@@ -12,7 +12,7 @@ fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
     opentelemetry_jaeger::new_pipeline()
         .with_agent_endpoint("localhost:6831")
         .with_service_name("trace-udp-demo")
-        .install()
+        .install_simple()
 }
 
 async fn index() -> &'static str {

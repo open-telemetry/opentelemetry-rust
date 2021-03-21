@@ -26,7 +26,7 @@
 //!
 //! fn main() -> Result<(), TraceError> {
 //!     global::set_text_map_propagator(opentelemetry_zipkin::Propagator::new());
-//!     let tracer = opentelemetry_zipkin::new_pipeline().install()?;
+//!     let tracer = opentelemetry_zipkin::new_pipeline().install_simple()?;
 //!
 //!     tracer.in_span("doing_work", |cx| {
 //!         // Traced app logic here...
@@ -40,15 +40,24 @@
 //!
 //! ## Performance
 //!
-//! For optimal performance, a batch exporter is recommended as the simple
-//! exporter will export each span synchronously on drop. You can enable the
-//! [`rt-tokio`], [`rt-tokio-current-thread`] or [`async-std`] features to have a batch exporter configured for
-//! you automatically for either executor when you install the pipeline.
+//! For optimal performance, a batch exporter is recommended as the simple exporter
+//! will export each span synchronously on drop. You can enable the [`rt-tokio`],
+//! [`rt-tokio-current-thread`] or [`rt-async-std`] features and specify a runtime
+//! on the pipeline builder to have a batch exporter configured for you
+//! automatically.
 //!
 //! ```toml
 //! [dependencies]
 //! opentelemetry = { version = "*", features = ["rt-tokio"] }
 //! opentelemetry-zipkin = { version = "*", features = ["reqwest-client"], default-features = false }
+//! ```
+//!
+//! ```no_run
+//! # fn main() -> Result<(), opentelemetry::trace::TraceError> {
+//! let tracer = opentelemetry_zipkin::new_pipeline()
+//!     .install_batch(opentelemetry::runtime::Tokio)?;
+//! # Ok(())
+//! # }
 //! ```
 //!
 //! [`rt-tokio`]: https://tokio.rs
@@ -121,7 +130,7 @@
 //!                 .with_max_events_per_span(16)
 //!                 .with_resource(Resource::new(vec![KeyValue::new("key", "value")])),
 //!         )
-//!         .install()?;
+//!         .install_batch(opentelemetry::runtime::Tokio)?;
 //!
 //!     tracer.in_span("doing_work", |cx| {
 //!         // Traced app logic here...

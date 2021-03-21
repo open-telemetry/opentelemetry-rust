@@ -21,7 +21,7 @@ fn init_tracer() -> sdktrace::Tracer {
                 .with_sampler(sdktrace::Sampler::AlwaysOn)
                 .with_id_generator(sdktrace::XrayIdGenerator::default()),
         )
-        .install()
+        .install_simple()
 }
 
 #[tokio::main]

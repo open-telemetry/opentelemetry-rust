@@ -50,7 +50,7 @@ use opentelemetry::trace::Tracer;
 fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     // use tonic as grpc layer here.
     // If you want to use grpcio. enable `grpc-sys` feature and use with_grpcio function here.
-    let tracer = opentelemetry_otlp::new_pipeline().with_tonic().install()?;
+    let tracer = opentelemetry_otlp::new_pipeline().with_tonic().install_simple()?;
 
     tracer.in_span("doing_work", |cx| {
         // Traced app logic here...
@@ -62,15 +62,21 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 
 ## Performance
 
-For optimal performance, a batch exporter is recommended as the simple
-exporter will export each span synchronously on drop. Enable a runtime
-to have a batch exporter configured automatically for either executor
-when using the pipeline.
+For optimal performance, a batch exporter is recommended as the simple exporter
+will export each span synchronously on drop. You can enable the [`rt-tokio`],
+[`rt-tokio-current-thread`] or [`rt-async-std`] features and specify a runtime
+on the pipeline builder to have a batch exporter configured for you
+automatically.
 
 ```toml
 [dependencies]
 opentelemetry = { version = "*", features = ["async-std"] }
 opentelemetry-otlp = { version = "*", features = ["grpc-sys"] }
+```
+
+```rust
+let tracer = opentelemetry_otlp::new_pipeline()
+    .install_batch(opentelemetry::runtime::AsyncStd)?;
 ```
 
 [`tokio`]: https://tokio.rs
@@ -102,7 +108,7 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     map.insert("x-number", "123".parse().unwrap());
     map.insert_bin("trace-proto-bin", MetadataValue::from_bytes(b"[binary data]"));
 
-    let (tracer, _uninstall) = opentelemetry_otlp::new_pipeline()
+    let tracer = opentelemetry_otlp::new_pipeline()
         .with_endpoint("http://localhost:4317")
         .with_protocol(Protocol::Grpc)
         .with_timeout(Duration::from_secs(3))
@@ -121,7 +127,7 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
             .domain_name("example.com".to_string())
         )
         .with_metadata(map)
-        .install()?;
+        .install_batch(opentelemetry::runtime::Tokio)?;
 
     tracer.in_span("doing_work", |cx| {
         // Traced app logic here...

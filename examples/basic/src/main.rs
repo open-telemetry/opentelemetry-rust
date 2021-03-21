@@ -19,7 +19,7 @@ fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
             KeyValue::new("exporter", "jaeger"),
             KeyValue::new("float", 312.23),
         ])
-        .install()
+        .install_batch(opentelemetry::runtime::Tokio)
 }
 
 // Skip first immediate tick from tokio, not needed for async_std.

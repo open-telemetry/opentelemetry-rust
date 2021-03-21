@@ -14,7 +14,7 @@ use std::{future::Future, time::Duration};
 ///
 /// [Tokio]: https://crates.io/crates/tokio
 /// [async-std]: https://crates.io/crates/async-std
-pub trait Runtime {
+pub trait Runtime: Clone + Send + Sync + 'static {
     /// A future stream, which returns items in a previously specified interval. The item type is
     /// not important.
     type Interval: Stream + Send;
@@ -28,6 +28,14 @@ pub trait Runtime {
     fn interval(&self, duration: Duration) -> Self::Interval;
 
     /// Spawn a new task or thread, which executes the given future.
+    ///
+    /// # Note
+    ///
+    /// This is mainly used to run batch span processing in the background. Note, that the function
+    /// does not return a handle. OpenTelemetry will use a different way to wait for the future to
+    /// finish when TracerProvider gets shutdown. At the moment this happens by blocking the
+    /// current thread. This means runtime implementations need to make sure they can still execute
+    /// the given future even if the main thread is blocked.
     fn spawn(&self, future: BoxFuture<'static, ()>);
 
     /// Return a new future, which resolves after the specified [Duration][std::time::Duration].

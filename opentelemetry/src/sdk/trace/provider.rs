@@ -8,14 +8,9 @@
 //! propagators) are provided by the `TracerProvider`. `Tracer` instances do
 //! not duplicate this data to avoid that different `Tracer` instances
 //! of the `TracerProvider` have different versions of these data.
-#[cfg(any(
-    feature = "rt-tokio-current-thread",
-    feature = "rt-tokio",
-    feature = "rt-async-std"
-))]
-use crate::runtime;
 use crate::{
     global,
+    runtime::Runtime,
     sdk::{self, export::trace::SpanExporter, trace::SpanProcessor},
 };
 use std::sync::Arc;
@@ -118,46 +113,14 @@ impl Builder {
         Builder { processors, ..self }
     }
 
-    /// Add a configured `SpanExporter`
-    #[cfg(feature = "rt-tokio")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "rt-tokio")))]
-    pub fn with_exporter<T: SpanExporter + 'static>(self, exporter: T) -> Self {
-        let batch = sdk::trace::BatchSpanProcessor::builder(exporter, runtime::Tokio);
-        self.with_batch_exporter(batch.build())
-    }
-
-    /// Add a configured `SpanExporter`
-    #[cfg(all(
-        feature = "rt-tokio-current-thread",
-        not(feature = "rt-tokio"),
-        not(feature = "rt-async-std")
-    ))]
-    #[cfg_attr(docsrs, doc(cfg(feature = "rt-tokio-current-thread")))]
-    pub fn with_exporter<T: SpanExporter + 'static>(self, exporter: T) -> Self {
-        let batch = sdk::trace::BatchSpanProcessor::builder(exporter, runtime::TokioCurrentThread);
-        self.with_batch_exporter(batch.build())
-    }
-
-    /// Add a configured `SpanExporter`
-    #[cfg(all(
-        feature = "rt-async-std",
-        not(feature = "rt-tokio"),
-        not(feature = "rt-tokio-current-thread")
-    ))]
-    #[cfg_attr(docsrs, doc(cfg(feature = "rt-async-std")))]
-    pub fn with_exporter<T: SpanExporter + 'static>(self, exporter: T) -> Self {
-        let batch = sdk::trace::BatchSpanProcessor::builder(exporter, runtime::AsyncStd);
-        self.with_batch_exporter(batch.build())
-    }
-
-    /// Add a configured `SpanExporter`
-    #[cfg(all(
-        not(feature = "rt-async-std"),
-        not(feature = "rt-tokio"),
-        not(feature = "rt-tokio-current-thread")
-    ))]
-    pub fn with_exporter<T: SpanExporter + 'static>(self, exporter: T) -> Self {
-        self.with_simple_exporter(exporter)
+    /// The `SpanExporter` setup using a default `BatchSpanProcessor` that this provider should use.
+    pub fn with_default_batch_exporter<T: SpanExporter + 'static, R: Runtime>(
+        self,
+        exporter: T,
+        runtime: R,
+    ) -> Self {
+        let batch = sdk::trace::BatchSpanProcessor::builder(exporter, runtime).build();
+        self.with_batch_exporter(batch)
     }
 
     /// The `SpanProcessor` that this provider should use.
