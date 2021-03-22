@@ -6,14 +6,17 @@
 - Examples on how to connect to an external otlp using grpcio and tls #450
 - `with_env` method for `OtlpPipelineBuilder` to use environment variables to config otlp pipeline #451
 - Update `tracing-grpc` example to include extractors and injectors #464
-
+- Mentioned `service.name` resource in README #476
 
 ### Changed
 - Update to opentelemetry v0.13.0
 - Update `tonic-build` dependency to 0.4 #463
+- Update the opentelemetry pipeline to use API to choose grpc layer instead of feature #467
+- Rename trace config with_default_sampler to with_sampler #482
 
 ### Removed
 - Removed `from_env` and use environment variables to initialize the configurations by default #459
+- Removed support for running tonic without tokio runtime #483
 
 ## v0.5.0
 

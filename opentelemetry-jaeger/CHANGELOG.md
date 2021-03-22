@@ -13,6 +13,7 @@
 
 ### Changed
 - Update to opentelemetry v0.13.0
+- Rename trace config with_default_sampler to with_sampler #482
 
 ## v0.11.0
 
