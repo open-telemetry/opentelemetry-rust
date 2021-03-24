@@ -2,6 +2,9 @@
 
 ## [v0.13.0](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.12.0...v0.13.0)
 
+Upgrade note: exporter pipelines do not return an uninstall guard as of #444,
+use `opentelemetry::global::shutdown_tracer_provider` explicitly instead.
+
 ## Changed
 
 - Pull configrations from environment variables by default when creating BatchSpanProcessor #445
