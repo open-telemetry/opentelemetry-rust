@@ -1,9 +1,25 @@
 # Changelog
 
+## v0.12.0
+
+### Added
+- Add max packet size constraint #457
+
+### Fixed
+- Allow user to use hostname like `localhost` in the `OTEL_EXPORTER_JAEGER_AGENT_HOST` environment variable. #448
+
+### Removed 
+- Removed `from_env` and use environment variables to initialize the configurations by default #459
+
+### Changed
+- Update to opentelemetry v0.13.0
+- Rename trace config with_default_sampler to with_sampler #482
+
 ## v0.11.0
 
 ### Changed
 
+- Update to opentelemetry v0.12.0
 - Update tokio to v1 #421
 - Make `with_collector_endpoint` function less error prune #428
 - Use opentelemetry-http for http integration #415

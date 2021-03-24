@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.11.0
+### Changed
+- Update to opentelemetry v0.13.0
+- Rename trace config with_default_sampler to with_sampler #482
+
+### Added
+- Support for rustls #474
+
 ## v0.10.0
 
 ### Changed

@@ -73,7 +73,9 @@ In particular, the following crates are likely to be of interest:
   [`Datadog`].
 - [`opentelemetry-semantic-conventions`] provides standard names and semantic
   otel conventions.
-
+- [`opentelemetry-stackdriver`] provides an exporter for Google's [Cloud Trace]
+  (which used to be called StackDriver).
+  
 Additionally, there are also several third-party crates which are not
 maintained by the `opentelemetry` project. These include:
 
@@ -85,8 +87,7 @@ maintained by the `opentelemetry` project. These include:
   Application Insights] exporter.
 - [`opentelemetry-tide`] provides integration for the [`Tide`] web server and
   ecosystem.
-- [`opentelemetry-stackdriver`] provides an exporter for Google's [Cloud Trace]
-  (which used to be called StackDriver).
+
 
 If you're the maintainer of an `opentelemetry` ecosystem crate not listed
 above, please let us know! We'd love to add your project to the list!

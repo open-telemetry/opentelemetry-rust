@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-contrib"
-version = "0.4.0"
+version = "0.5.0"
 authors = ["OpenTelemetry Authors <cncf-opentelemetry-contributors@lists.cncf.io>"]
 description = "Rust contrib repo for OpenTelemetry"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-contrib"
@@ -24,7 +24,7 @@ base64_format = ["base64", "binary_propagator"]
 binary_propagator = []
 
 [dependencies]
-opentelemetry = { version = "0.12", path = "../opentelemetry", features = ["trace"] }
+opentelemetry = { version = "0.13", path = "../opentelemetry", features = ["trace"] }
 base64 = { version = "0.13", optional = true }
 lazy_static = "1.4"
 

@@ -1,5 +1,22 @@
 # Changelog
 
+## [v0.13.0](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.12.0...v0.13.0)
+
+Upgrade note: exporter pipelines do not return an uninstall guard as of #444,
+use `opentelemetry::global::shutdown_tracer_provider` explicitly instead.
+
+## Changed
+
+- Pull configrations from environment variables by default when creating BatchSpanProcessor #445
+- Convert doc links to intra-doc #466
+- Switch to Cow for event names #471
+- Use API to configure async runtime instead of features #481
+- Rename trace config with_default_sampler to with_sampler #482
+
+## Removed
+- Removed tracer provider guard #444
+- Removed `from_env` and use environment variables to initialize the configurations by default #459
+
 ## [v0.12.0](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.11.2...v0.12.0)
 
 ## Added
@@ -7,6 +24,9 @@
 - Instrumentation library support #402
 - Batch observer support #429
 - `with_unit` methods in metrics #431
+- Clone trait for noop tracer/tracer provider/span #479
+- Abstracted traits for different runtimes #480
+
 
 ## Changed
 

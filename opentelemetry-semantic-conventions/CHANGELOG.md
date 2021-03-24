@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.5.0
+### Changed
+- Update to opentelemetry v0.13.0
+
+### Removed
+- Removed `from_env` and use environment variables to initialize the configurations by default #459
+
 ## v0.4.0
 
 ### Changed
