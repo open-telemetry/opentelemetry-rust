@@ -49,6 +49,12 @@ impl DatadogExporter {
 }
 
 /// Create a new Datadog exporter pipeline builder.
+///
+/// # Panic
+///
+/// If the `reqwest-client` or `reqwest-blocking-client` features are
+/// enabled, this function will panic if the tokio runtime is not
+/// running.
 pub fn new_pipeline() -> DatadogPipelineBuilder {
     DatadogPipelineBuilder::default()
 }
