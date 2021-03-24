@@ -546,7 +546,7 @@ fn build_span_tags(
     attrs: sdk::trace::EvictedHashMap,
     instrumentation_lib: Option<sdk::InstrumentationLibrary>,
     status_code: StatusCode,
-    status_message: String,
+    status_description: String,
     kind: SpanKind,
 ) -> Vec<jaeger::Tag> {
     let mut user_overrides = UserOverrides::default();
@@ -567,36 +567,27 @@ fn build_span_tags(
         }
     }
 
-    if !user_overrides.span_kind {
+    if !user_overrides.span_kind && kind != SpanKind::Internal {
         tags.push(Key::new(SPAN_KIND).string(kind.to_string()).into());
-    }
-
-    if !user_overrides.status_code {
-        tags.push(KeyValue::new(STATUS_CODE, status_code as i64).into());
     }
 
     if status_code != StatusCode::Unset {
         // Ensure error status is set unless user has already overrided it
-        if status_code == StatusCode::Error || !user_overrides.error {
+        if status_code == StatusCode::Error && !user_overrides.error {
             tags.push(Key::new(ERROR).bool(true).into());
         }
-        tags.push(
-            Key::new(OTEL_STATUS_CODE)
-                .string::<&'static str>(status_code.as_str())
-                .into(),
-        );
+        if !user_overrides.status_code {
+            tags.push(
+                Key::new(OTEL_STATUS_CODE)
+                    .string::<&'static str>(status_code.as_str())
+                    .into(),
+            );
+        }
         // set status message if there is one
-        if !status_message.is_empty() {
-            if !user_overrides.status_message {
-                tags.push(
-                    Key::new(STATUS_MESSAGE)
-                        .string(status_message.clone())
-                        .into(),
-                );
-            }
+        if !status_description.is_empty() && !user_overrides.status_description {
             tags.push(
                 Key::new(OTEL_STATUS_DESCRIPTION)
-                    .string(status_message)
+                    .string(status_description)
                     .into(),
             );
         }
@@ -607,8 +598,6 @@ fn build_span_tags(
 
 const ERROR: &str = "error";
 const SPAN_KIND: &str = "span.kind";
-const STATUS_CODE: &str = "status.code";
-const STATUS_MESSAGE: &str = "status.message";
 const OTEL_STATUS_CODE: &str = "otel.status_code";
 const OTEL_STATUS_DESCRIPTION: &str = "otel.status_description";
 
@@ -617,7 +606,7 @@ struct UserOverrides {
     error: bool,
     span_kind: bool,
     status_code: bool,
-    status_message: bool,
+    status_description: bool,
 }
 
 impl UserOverrides {
@@ -625,8 +614,8 @@ impl UserOverrides {
         match attr {
             ERROR => self.error = true,
             SPAN_KIND => self.span_kind = true,
-            STATUS_CODE => self.status_code = true,
-            STATUS_MESSAGE => self.status_message = true,
+            OTEL_STATUS_CODE => self.status_code = true,
+            OTEL_STATUS_DESCRIPTION => self.status_description = true,
             _ => (),
         }
     }
@@ -752,10 +741,12 @@ mod collector_client_tests {
 
 #[cfg(test)]
 mod tests {
+    use super::SPAN_KIND;
     use crate::exporter::thrift::jaeger::Tag;
     use crate::exporter::{build_span_tags, OTEL_STATUS_CODE, OTEL_STATUS_DESCRIPTION};
     use opentelemetry::sdk::trace::EvictedHashMap;
     use opentelemetry::trace::{SpanKind, StatusCode};
+    use opentelemetry::KeyValue;
 
     fn assert_tag_contains(tags: Vec<Tag>, key: &'static str, expect_val: &'static str) {
         assert_eq!(
@@ -825,5 +816,36 @@ mod tests {
                 assert_tag_not_contains(tags.clone(), OTEL_STATUS_DESCRIPTION);
             }
         }
+    }
+
+    #[test]
+    fn ignores_user_set_values() {
+        let mut attributes = EvictedHashMap::new(20, 20);
+        let user_error = true;
+        let user_kind = "server";
+        let user_status_code = StatusCode::Error;
+        let user_status_description = "Something bad happened";
+        attributes.insert(KeyValue::new("error", user_error));
+        attributes.insert(KeyValue::new(SPAN_KIND, user_kind));
+        attributes.insert(KeyValue::new(OTEL_STATUS_CODE, user_status_code.as_str()));
+        attributes.insert(KeyValue::new(
+            OTEL_STATUS_DESCRIPTION,
+            user_status_description,
+        ));
+        let tags = build_span_tags(
+            attributes,
+            None,
+            user_status_code,
+            user_status_description.to_string(),
+            SpanKind::Client,
+        );
+
+        assert!(tags
+            .iter()
+            .filter(|tag| tag.key.as_str() == "error")
+            .all(|tag| tag.v_bool.unwrap()));
+        assert_tag_contains(tags.clone(), SPAN_KIND, user_kind);
+        assert_tag_contains(tags.clone(), OTEL_STATUS_CODE, user_status_code.as_str());
+        assert_tag_contains(tags, OTEL_STATUS_DESCRIPTION, user_status_description);
     }
 }
