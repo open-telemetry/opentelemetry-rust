@@ -21,41 +21,41 @@ impl Key {
     }
 
     /// Create a `KeyValue` pair for `bool` values.
-    pub fn bool<T: Into<bool>>(&self, value: T) -> KeyValue {
+    pub fn bool<T: Into<bool>>(self, value: T) -> KeyValue {
         KeyValue {
-            key: self.clone(),
+            key: self,
             value: Value::Bool(value.into()),
         }
     }
 
     /// Create a `KeyValue` pair for `i64` values.
-    pub fn i64(&self, value: i64) -> KeyValue {
+    pub fn i64(self, value: i64) -> KeyValue {
         KeyValue {
-            key: self.clone(),
+            key: self,
             value: Value::I64(value),
         }
     }
 
     /// Create a `KeyValue` pair for `f64` values.
-    pub fn f64(&self, value: f64) -> KeyValue {
+    pub fn f64(self, value: f64) -> KeyValue {
         KeyValue {
-            key: self.clone(),
+            key: self,
             value: Value::F64(value),
         }
     }
 
     /// Create a `KeyValue` pair for `String` values.
-    pub fn string<T: Into<Cow<'static, str>>>(&self, value: T) -> KeyValue {
+    pub fn string<T: Into<Cow<'static, str>>>(self, value: T) -> KeyValue {
         KeyValue {
-            key: self.clone(),
+            key: self,
             value: Value::String(value.into()),
         }
     }
 
     /// Create a `KeyValue` pair for arrays.
-    pub fn array<T: Into<Array>>(&self, value: T) -> KeyValue {
+    pub fn array<T: Into<Array>>(self, value: T) -> KeyValue {
         KeyValue {
-            key: self.clone(),
+            key: self,
             value: Value::Array(value.into()),
         }
     }
