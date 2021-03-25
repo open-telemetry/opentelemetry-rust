@@ -1,0 +1,29 @@
+// DO NOT EDIT, this is an auto-generated file
+//
+// If you want to update the file:
+// - Edit the template at scripts{{template}}
+// - Run the script at scripts/generate-consts-from-spec.sh
+
+{% include 'header_' + conventions + '.rs' %}
+
+use opentelemetry::Key;
+
+{%- for attribute in attributes | unique(attribute="fqn") %}
+
+/// {% filter escape %}{{attribute.brief | to_doc_brief}}.{% endfilter %}
+{%- if attribute.note %}
+///
+{%- for line in attribute.note.split('\n') %}
+/// {% filter escape %}{{line}}{% endfilter %}
+{%- endfor %}
+{%- endif %}
+{%- if attribute.examples %}
+///
+/// # Examples
+///
+{%- for example in attribute.examples %}
+/// - {% filter escape %}{{example}}{% endfilter %}
+{%- endfor %}
+{%- endif %}
+pub const {{attribute.fqn | to_const_name}}: Key = Key::from_static_str("{{attribute.fqn}}");
+{%- endfor %}
