@@ -17,7 +17,7 @@ use std::{future::Future, time::Duration};
 pub trait Runtime: Clone + Send + Sync + 'static {
     /// A future stream, which returns items in a previously specified interval. The item type is
     /// not important.
-    type Interval: Stream + Send + Unpin;
+    type Interval: Stream + Send;
 
     /// A future, which resolves after a previously specified amount of time. The output type is
     /// not important.

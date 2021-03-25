@@ -42,8 +42,9 @@ use crate::{
     trace::{TraceError, TraceResult},
     Context,
 };
-use futures::{channel::mpsc, channel::oneshot, executor, future::Either, pin_mut, StreamExt, SinkExt};
+use futures::{channel::mpsc, channel::oneshot, executor, future::Either, pin_mut, StreamExt, SinkExt, FutureExt};
 use std::{env, fmt, str::FromStr, sync::Mutex, thread, time::Duration};
+use futures::channel::mpsc::Receiver;
 
 /// Delay interval between two consecutive exports.
 const OTEL_BSP_SCHEDULE_DELAY: &str = "OTEL_BSP_SCHEDULE_DELAY";
@@ -275,167 +276,31 @@ enum BatchMessage {
 #[derive(Debug)]
 enum BatchExportMessage {
     Export(Vec<SpanData>),
-    Shutdown(oneshot::Sender<ExportResult>),
+    Shutdown(oneshot::Sender<ExportResult>, Vec<SpanData>),
+    Flush(oneshot::Sender<ExportResult>, Vec<SpanData>),
+}
+
+#[derive(Debug)]
+enum SelectResult {
+    Continue,
+    Shutdown(oneshot::Sender<Vec<ExportResult>>, Vec<SpanData>),
+    Flush(oneshot::Sender<Vec<ExportResult>>, Vec<SpanData>),
 }
 
 impl BatchSpanProcessor {
     pub(crate) fn new<R>(
-        mut exporter: Box<dyn SpanExporter>,
+        exporter: Box<dyn SpanExporter>,
         config: BatchConfig,
         runtime: R,
     ) -> Self
         where
             R: Runtime,
     {
-        let (message_sender, mut message_receiver) = mpsc::channel(config.max_queue_size);
-        let timeout_runtime = runtime.clone();
-        if !config.send_on_batch_filled {
-            let ticker = runtime
-                .interval(config.scheduled_delay)
-                .map(|_| BatchMessage::Flush(None));
-
-            // Spawn worker process via user-defined spawn function.
-            runtime.spawn(Box::pin(async move {
-                let mut spans = Vec::with_capacity(config.max_queue_size);
-                let mut messages = Box::pin(futures::stream::select(message_receiver, ticker));
-
-                while let Some(message) = messages.next().await {
-                    match message {
-                        // Span has finished, add to buffer of pending spans.
-                        BatchMessage::ExportSpan(span) => {
-                            if spans.len() < config.max_queue_size {
-                                spans.push(span);
-                            }
-                        }
-                        // Span batch interval time reached or a force flush has been invoked, export current spans.
-                        BatchMessage::Flush(Some(ch)) => {
-                            let mut results =
-                                Vec::with_capacity(spans.len() / config.max_export_batch_size + 1);
-                            while !spans.is_empty() {
-                                let batch = spans.split_off(
-                                    spans.len().saturating_sub(config.max_export_batch_size),
-                                );
-
-                                results.push(
-                                    export_with_timeout(
-                                        config.max_export_timeout,
-                                        exporter.as_mut(),
-                                        &timeout_runtime,
-                                        batch,
-                                    ).await
-                                );
-                            }
-                            let send_result = ch.send(results);
-                            if send_result.is_err() {
-                                global::handle_error(TraceError::from("fail to send the export response from worker handle in BatchProcessor"))
-                            }
-                        }
-                        BatchMessage::Flush(None) => {
-                            while !spans.is_empty() {
-                                let batch = spans.split_off(
-                                    spans.len().saturating_sub(config.max_export_batch_size),
-                                );
-
-                                let result = export_with_timeout(
-                                    config.max_export_timeout,
-                                    exporter.as_mut(),
-                                    &timeout_runtime,
-                                    batch,
-                                ).await;
-
-                                if let Err(err) = result {
-                                    global::handle_error(err);
-                                }
-                            }
-                        }
-                        // Stream has terminated or processor is shutdown, return to finish execution.
-                        BatchMessage::Shutdown(ch) => {
-                            let mut results =
-                                Vec::with_capacity(spans.len() / config.max_export_batch_size + 1);
-                            while !spans.is_empty() {
-                                let batch = spans.split_off(
-                                    spans.len().saturating_sub(config.max_export_batch_size),
-                                );
-
-                                results.push(
-                                    export_with_timeout(
-                                        config.max_export_timeout,
-                                        exporter.as_mut(),
-                                        &timeout_runtime,
-                                        batch,
-                                    ).await
-                                );
-                            }
-                            exporter.shutdown();
-                            let send_result = ch.send(results);
-                            if send_result.is_err() {
-                                global::handle_error(TraceError::from("fail to send the export response from worker handle in BatchProcessor"))
-                            }
-                            break;
-                        }
-                    }
-                }
-            }));
+        let (message_sender, message_receiver) = mpsc::channel(config.max_queue_size);
+        if !config.export_on_batch_filled {
+            BatchSpanProcessor::export_on_time_interval(exporter, config, runtime, message_receiver);
         } else {
-            let (mut export_sender, mut export_receiver) = mpsc::channel(config.max_queue_size);
-            // collect task
-            let cloned_runtime = runtime.clone();
-            runtime.spawn(Box::pin(async move {
-                let mut spans = Vec::with_capacity(config.max_export_batch_size);
-
-                loop {
-                    let mut ticker = cloned_runtime
-                        .interval(config.scheduled_delay)
-                        .map(|_| BatchMessage::Flush(None));
-                    let mut messages = Box::pin(futures::stream::select(&mut message_receiver, &mut ticker));
-                    match messages.next().await {
-                        // Span has finished, add to buffer of pending spans.
-                        Some(BatchMessage::ExportSpan(span)) => {
-                            spans.push(span);
-                            if spans.len() == config.max_export_batch_size {
-                                // export, todo: handle the case where the channel has been filled
-                                let _result = export_sender
-                                    .try_send(BatchExportMessage::Export(std::mem::replace(&mut spans,
-                                                                                           Vec::with_capacity(config.max_export_batch_size))));
-                            }
-                        }
-                        Some(BatchMessage::Flush(None)) => {
-                            // export, todo: handle the case where the channel has been filled
-                            let _result = export_sender.try_send(BatchExportMessage::Export(std::mem::replace(&mut spans,
-                                                                                                              Vec::with_capacity(config.max_export_batch_size))));
-                            spans = Vec::with_capacity(config.max_export_batch_size);
-                        }
-                        Some(BatchMessage::Shutdown(resp_ch)) => {
-                            // export, todo: handle the case where the channel has been filled
-                            let _result = export_sender.try_send(BatchExportMessage::Export(std::mem::replace(&mut spans,
-                                                                                                              Vec::with_capacity(config.max_export_batch_size))));
-
-                            let (shutdown_sender, shutdown_receiver) = oneshot::channel();
-                            // todo: what if the channel is filled?
-                            export_sender.send(BatchExportMessage::Shutdown(shutdown_sender)).await;
-                            let _shutdown_result = shutdown_receiver.await; // address the result
-                            resp_ch.send(Vec::new());
-                        }
-                        _ => {
-                            unimplemented!();
-                        }
-                    }
-                }
-            }));
-
-            // export task
-            runtime.spawn(Box::pin(async move {
-                while let Some(message) = export_receiver.next().await {
-                    match message {
-                        BatchExportMessage::Export(batch) => {
-                            let _result = export_with_timeout(config.max_export_timeout, exporter.as_mut(), &timeout_runtime, batch).await;
-                        }
-                        BatchExportMessage::Shutdown(resp_sender) => {
-                            let _result = resp_sender.send(ExportResult::Ok(()));
-                        }
-                    }
-                }
-            }))
+            BatchSpanProcessor::export_on_batch_filled(exporter, config, runtime, message_receiver);
         }
 
 
@@ -456,6 +321,223 @@ impl BatchSpanProcessor {
             config: BatchConfig::default(),
             runtime,
         }
+    }
+
+    fn export_on_time_interval<R>(
+        mut exporter: Box<dyn SpanExporter>,
+        config: BatchConfig,
+        runtime: R,
+        message_receiver: Receiver<BatchMessage>,
+    )
+        where
+            R: Runtime {
+        let timeout_runtime = runtime.clone();
+        let ticker = runtime
+            .interval(config.scheduled_delay)
+            .map(|_| BatchMessage::Flush(None));
+
+        // Spawn worker process via user-defined spawn function.
+        runtime.spawn(Box::pin(async move {
+            let mut spans = Vec::with_capacity(config.max_queue_size);
+            let mut messages = Box::pin(futures::stream::select(message_receiver, ticker));
+
+            while let Some(message) = messages.next().await {
+                match message {
+                    // Span has finished, add to buffer of pending spans.
+                    BatchMessage::ExportSpan(span) => {
+                        if spans.len() < config.max_queue_size {
+                            spans.push(span);
+                        }
+                    }
+                    // Span batch interval time reached, or a force flush has been invoked, export current spans.
+                    BatchMessage::Flush(Some(ch)) => {
+                        let mut results =
+                            Vec::with_capacity(spans.len() / config.max_export_batch_size + 1);
+                        while !spans.is_empty() {
+                            let batch = spans.split_off(
+                                spans.len().saturating_sub(config.max_export_batch_size),
+                            );
+
+                            results.push(
+                                export_with_timeout(
+                                    config.max_export_timeout,
+                                    exporter.as_mut(),
+                                    &timeout_runtime,
+                                    batch,
+                                ).await
+                            );
+                        }
+                        let send_result = ch.send(results);
+                        if send_result.is_err() {
+                            global::handle_error(TraceError::from("fail to send the export response from worker handle in BatchProcessor"))
+                        }
+                    }
+                    BatchMessage::Flush(None) => {
+                        while !spans.is_empty() {
+                            let batch = spans.split_off(
+                                spans.len().saturating_sub(config.max_export_batch_size),
+                            );
+
+                            let result = export_with_timeout(
+                                config.max_export_timeout,
+                                exporter.as_mut(),
+                                &timeout_runtime,
+                                batch,
+                            ).await;
+
+                            if let Err(err) = result {
+                                global::handle_error(err);
+                            }
+                        }
+                    }
+                    // Stream has terminated or processor is shutdown, return to finish execution.
+                    BatchMessage::Shutdown(ch) => {
+                        let mut results =
+                            Vec::with_capacity(spans.len() / config.max_export_batch_size + 1);
+                        while !spans.is_empty() {
+                            let batch = spans.split_off(
+                                spans.len().saturating_sub(config.max_export_batch_size),
+                            );
+
+                            results.push(
+                                export_with_timeout(
+                                    config.max_export_timeout,
+                                    exporter.as_mut(),
+                                    &timeout_runtime,
+                                    batch,
+                                ).await
+                            );
+                        }
+                        exporter.shutdown();
+                        let send_result = ch.send(results);
+                        if send_result.is_err() {
+                            global::handle_error(TraceError::from("fail to send the export response from worker handle in BatchProcessor"))
+                        }
+                        break;
+                    }
+                }
+            }
+        }));
+    }
+
+    fn export_on_batch_filled<R>(
+        mut exporter: Box<dyn SpanExporter>,
+        config: BatchConfig,
+        runtime: R,
+        message_receiver: Receiver<BatchMessage>,
+    )
+        where
+            R: Runtime {
+        let (mut export_sender, mut export_receiver) = mpsc::channel(config.max_queue_size);
+
+        let delay_runtime = runtime.clone();
+        let timeout_runtime = runtime.clone();
+        // collect task
+        runtime.spawn(Box::pin(async move {
+            let mut spans = Vec::with_capacity(config.max_export_batch_size);
+            let mut fused_message_receiver = message_receiver.fuse();
+            loop {
+                let mut countdown = Box::pin(delay_runtime
+                    .delay(config.scheduled_delay)).fuse();
+                // Here we will send batch in two cases:
+                //
+                // - the buffer reaches the max_export_batch_size
+                // - the delay countdown reaches 0
+                //
+                // Either cases, we will restart the delay.
+                //
+                let next_step = futures::select! {
+                        msg = fused_message_receiver.next() => {
+                            match msg {
+                                Some(BatchMessage::ExportSpan(span)) => {
+                                    // Span has finished, add to buffer of pending spans.
+                                    spans.push(span);
+                                    if spans.len() == config.max_export_batch_size {
+                                        // export, todo: handle the case where the channel has been filled
+                                        let _result = export_sender
+                                            .try_send(BatchExportMessage::Export(std::mem::replace(&mut spans,
+                                                                                                   Vec::with_capacity(config.max_export_batch_size))));
+                                    }
+                                    SelectResult::Continue
+                                }
+                                Some(BatchMessage::Shutdown(resp_ch)) => {
+                                    // export, todo: handle the case where the channel has been filled
+                                    SelectResult::Shutdown(resp_ch, std::mem::replace(&mut spans,
+                                                Vec::with_capacity(config.max_export_batch_size)))
+                                }
+                                Some(BatchMessage::Flush(Some(resp_ch))) => {
+                                    SelectResult::Flush(resp_ch, std::mem::replace(&mut spans,
+                                                Vec::with_capacity(config.max_export_batch_size)))
+                                }
+                                _ => {
+                                    SelectResult::Continue
+                                }
+                            }
+                        },
+                        _ = countdown => {
+                            if spans.len() > 0 {
+                                // export, todo: handle the case where the channel has been filled
+                                let _result = export_sender.try_send(BatchExportMessage::Export(std::mem::replace(&mut spans, Vec::with_capacity(config.max_export_batch_size))));
+                            }
+                            SelectResult::Continue
+                        }
+                    };
+
+                // select macro will return the next step based on user input.
+                //
+                // We cannot send shutdown or flush message in select macro because it requires us
+                // to wait for the response with .await.
+                //
+                // However, the private result generated by the select macro doesn't implement
+                // the Send trait. Thus, it cannot be hold across the await point.
+                match next_step {
+                    SelectResult::Shutdown(resp_ch, data) => {
+                        let (flush_sender, flush_receiver) = oneshot::channel();
+                        // if the channel is filled, we will hold until there is a spot.
+                        let _ = export_sender.send(BatchExportMessage::Shutdown(flush_sender, data)).await;
+                        let _flush_result = flush_receiver.await; // todo: address the result
+                        let _ = resp_ch.send(Vec::new());
+                        break;
+                    }
+                    SelectResult::Flush(resp_ch, data) => {
+                        let (flush_sender, flush_receiver) = oneshot::channel();
+                        // if the channel is filled, we will hold until there is a spot.
+                        let _ = export_sender.send(BatchExportMessage::Flush(flush_sender, data)).await;
+                        let _flush_result = flush_receiver.await; // todo: address the result
+                        let _ = resp_ch.send(Vec::new());
+                    }
+                    SelectResult::Continue => {}
+                }
+            }
+        }));
+
+        // export task
+        runtime.spawn(Box::pin(async move {
+            while let Some(message) = export_receiver.next().await {
+                match message {
+                    BatchExportMessage::Export(batch) => {
+                        let _result = export_with_timeout(config.max_export_timeout, exporter.as_mut(), &timeout_runtime, batch).await;
+                    }
+                    BatchExportMessage::Shutdown(resp_sender, batch) => {
+                        let _result = export_with_timeout(config.max_export_timeout, exporter.as_mut(), &timeout_runtime, batch).await;
+                        // Since all message are coming from one sender and we know that it won't
+                        // send other messages after Shutdown.
+                        // Once we encounter the Shutdown message, it means the export task has
+                        // cleared all message in the channel.
+                        let _ = resp_sender.send(_result);
+                        return;
+                    }
+                    BatchExportMessage::Flush(resp_sender, batch) => {
+                        let _result = export_with_timeout(config.max_export_timeout, exporter.as_mut(), &timeout_runtime, batch).await;
+                        // Since all message are coming from one sender and we know that it won't
+                        // send other messages after Shutdown.
+                        // Once we encounter the Shutdown message, it means the export task has
+                        // cleared all message in the channel.
+                        let _ = resp_sender.send(_result);
+                    }
+                }
+            }
+        }))
     }
 }
 
@@ -502,7 +584,7 @@ pub struct BatchConfig {
     /// If true, send a batch when the buffer's size reaches `max_export_batch_size`.
     /// Otherwise, send at given interval and drop spans when buffer filled.
     /// Default to be false.
-    send_on_batch_filled: bool,
+    export_on_batch_filled: bool,
 }
 
 impl Default for BatchConfig {
@@ -512,7 +594,7 @@ impl Default for BatchConfig {
             scheduled_delay: Duration::from_millis(OTEL_BSP_SCHEDULE_DELAY_DEFAULT),
             max_export_batch_size: OTEL_BSP_MAX_EXPORT_BATCH_SIZE_DEFAULT,
             max_export_timeout: Duration::from_millis(OTEL_BSP_EXPORT_TIMEOUT_DEFAULT),
-            send_on_batch_filled: false,
+            export_on_batch_filled: false,
         };
 
         if let Some(max_queue_size) = env::var(OTEL_BSP_MAX_QUEUE_SIZE)
@@ -607,6 +689,26 @@ impl<E, R> BatchSpanProcessorBuilder<E, R>
         BatchSpanProcessorBuilder { config, ..self }
     }
 
+    /// Set whether to export when batch filled.
+    ///
+    /// Batch span processors can run in two export modes:
+    ///
+    /// - Export at a certain interval. In this mode, batch span processors will export spans at
+    /// `schedule_delay` interval. This is the default mode.
+    ///
+    /// - Export when the batch filled. In this mode, batch span processors will export spans when
+    /// the buffer has `max_export_batch_size` spans.
+    ///
+    /// Users can use this method to change the export mode.
+    pub fn export_on_batch_filled(self, flag: bool) -> Self{
+        let mut config = self.config;
+        config.export_on_batch_filled = flag;
+        BatchSpanProcessorBuilder{
+            config,
+            ..self
+        }
+    }
+
     /// Build a batch processor
     pub fn build(self) -> BatchSpanProcessor {
         BatchSpanProcessor::new(Box::new(self.exporter), self.config, self.runtime)
@@ -690,12 +792,14 @@ mod tests {
             ..Default::default()
         };
         let mut processor =
-            BatchSpanProcessor::new(Box::new(exporter), config, runtime::TokioCurrentThread);
+            BatchSpanProcessor::new(Box::new(exporter), config, runtime::Tokio);
         let handle = tokio::spawn(async move {
             loop {
-                if let Some(span) = export_receiver.recv().await {
-                    assert_eq!(span.span_context, new_test_export_span_data().span_context);
-                    break;
+                if let Some(batch) = export_receiver.recv().await {
+                    for span in batch {
+                        assert_eq!(span.span_context, new_test_export_span_data().span_context);
+                        return;
+                    }
                 }
             }
         });
@@ -734,7 +838,8 @@ mod tests {
             D: Fn(Duration) -> DS + 'static + Send + Sync,
             DS: Future<Output=()> + Send + Sync + 'static,
     {
-        async fn export(&mut self, _batch: Vec<SpanData>) -> ExportResult {
+        async fn export(&mut self, batch: Vec<SpanData>) -> ExportResult {
+            println!("export batch size {}", batch.len());
             (self.delay_fn)(self.delay_for).await;
             Ok(())
         }
@@ -822,5 +927,32 @@ mod tests {
         }
         let shutdown_res = processor.shutdown();
         assert!(shutdown_res.is_ok());
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_export_on_max_export_batch_size() {
+        let config = BatchConfig {
+            max_export_batch_size: 10,
+            scheduled_delay: Duration::from_secs(20 * 60 * 60),
+            export_on_batch_filled: true,
+            ..Default::default()
+        };
+        let (exporter, mut export_receiver, _shutdown_receiver) = new_tokio_test_exporter();
+        let processor = BatchSpanProcessor::new(Box::new(exporter), config, runtime::Tokio);
+        let _ = tokio::time::sleep(Duration::from_secs(1)).await;
+        for _ in 0..12 {
+            processor.on_end(new_test_export_span_data());
+        }
+        let handle = tokio::spawn(async move {
+            return if let Some(batch) = export_receiver.recv().await {
+                assert_eq!(10, batch.len());
+                Ok(())
+            } else {
+                Err(())
+            };
+        });
+        let exported = tokio::time::timeout(Duration::from_secs(5), handle)
+            .await;
+        assert!(exported.is_ok() && exported.ok().unwrap().is_ok());
     }
 }
