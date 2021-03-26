@@ -44,6 +44,7 @@ pub mod trace {
         },
         Context,
     };
+    use std::convert::{TryFrom, TryInto};
 
     const AWS_XRAY_TRACE_HEADER: &str = "x-amzn-trace-id";
     const AWS_XRAY_VERSION_KEY: &str = "1";
@@ -106,7 +107,7 @@ pub mod trace {
                 match key {
                     HEADER_ROOT_KEY => {
                         let converted_trace_id: Result<TraceId, ()> =
-                            XrayTraceId(value.to_string()).into();
+                            XrayTraceId(value.to_string()).try_into();
                         match converted_trace_id {
                             Err(_) => return Err(()),
                             Ok(parsed) => trace_id = parsed,
@@ -216,8 +217,10 @@ pub mod trace {
     #[derive(Clone, Debug, PartialEq)]
     struct XrayTraceId(String);
 
-    impl From<XrayTraceId> for Result<TraceId, ()> {
-        fn from(id: XrayTraceId) -> Self {
+    impl TryFrom<XrayTraceId> for TraceId {
+        type Error = ();
+
+        fn try_from(id: XrayTraceId) -> Result<Self, Self::Error> {
             let parts: Vec<&str> = id.0.split_terminator('-').collect();
 
             if parts.len() != 3 {

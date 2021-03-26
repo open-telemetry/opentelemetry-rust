@@ -32,8 +32,8 @@ const DEFAULT_ALPHA: f64 = 0.01;
 const DEFAULT_MIN_BOUNDARY: f64 = 1.0e-9;
 
 /// An aggregator to calculate quantile
-pub fn ddsketch(config: &DdSketchConfig, kind: NumberKind) -> DdSKetchAggregator {
-    DdSKetchAggregator::new(config, kind)
+pub fn ddsketch(config: &DdSketchConfig, kind: NumberKind) -> DdSketchAggregator {
+    DdSketchAggregator::new(config, kind)
 }
 
 /// DDSKetch quantile sketch algorithm
@@ -49,32 +49,32 @@ pub fn ddsketch(config: &DdSketchConfig, kind: NumberKind) -> DdSKetchAggregator
 ///
 /// In order to support both negative and positive inputs, DDSketchAggregator has two DDSketch store within itself to store the negative and positive inputs.
 #[derive(Debug)]
-pub struct DdSKetchAggregator {
+pub struct DdSketchAggregator {
     inner: RwLock<Inner>,
 }
 
-impl DdSKetchAggregator {
+impl DdSketchAggregator {
     /// Create a new DDSKetchAggregator that would yield a quantile with relative error rate less
     /// than `alpha`
     ///
     /// The input should have a granularity larger than `key_epsilon`
-    pub fn new(config: &DdSketchConfig, kind: NumberKind) -> DdSKetchAggregator {
-        DdSKetchAggregator {
+    pub fn new(config: &DdSketchConfig, kind: NumberKind) -> DdSketchAggregator {
+        DdSketchAggregator {
             inner: RwLock::new(Inner::new(config, kind)),
         }
     }
 }
 
-impl Default for DdSKetchAggregator {
+impl Default for DdSketchAggregator {
     fn default() -> Self {
-        DdSKetchAggregator::new(
+        DdSketchAggregator::new(
             &DdSketchConfig::new(DEFAULT_ALPHA, DEFAULT_MAX_NUM_BINS, DEFAULT_MIN_BOUNDARY),
             NumberKind::F64,
         )
     }
 }
 
-impl Sum for DdSKetchAggregator {
+impl Sum for DdSketchAggregator {
     fn sum(&self) -> Result<Number> {
         self.inner
             .read()
@@ -83,7 +83,7 @@ impl Sum for DdSKetchAggregator {
     }
 }
 
-impl Min for DdSKetchAggregator {
+impl Min for DdSketchAggregator {
     fn min(&self) -> Result<Number> {
         self.inner
             .read()
@@ -92,7 +92,7 @@ impl Min for DdSKetchAggregator {
     }
 }
 
-impl Max for DdSKetchAggregator {
+impl Max for DdSketchAggregator {
     fn max(&self) -> Result<Number> {
         self.inner
             .read()
@@ -101,7 +101,7 @@ impl Max for DdSKetchAggregator {
     }
 }
 
-impl Count for DdSKetchAggregator {
+impl Count for DdSketchAggregator {
     fn count(&self) -> Result<u64> {
         self.inner
             .read()
@@ -110,11 +110,11 @@ impl Count for DdSKetchAggregator {
     }
 }
 
-impl MinMaxSumCount for DdSKetchAggregator {}
+impl MinMaxSumCount for DdSketchAggregator {}
 
-impl Distribution for DdSKetchAggregator {}
+impl Distribution for DdSketchAggregator {}
 
-impl Quantile for DdSKetchAggregator {
+impl Quantile for DdSketchAggregator {
     fn quantile(&self, q: f64) -> Result<Number> {
         if !(0.0..=1.0).contains(&q) {
             return Err(MetricsError::InvalidQuantile);
@@ -174,7 +174,7 @@ impl Quantile for DdSKetchAggregator {
     }
 }
 
-impl Aggregator for DdSKetchAggregator {
+impl Aggregator for DdSketchAggregator {
     fn update(&self, number: &Number, descriptor: &Descriptor) -> Result<()> {
         self.inner
             .write()
@@ -219,7 +219,7 @@ impl Aggregator for DdSKetchAggregator {
         other: &(dyn Aggregator + Send + Sync),
         _descriptor: &Descriptor,
     ) -> Result<()> {
-        if let Some(other) = other.as_any().downcast_ref::<DdSKetchAggregator>() {
+        if let Some(other) = other.as_any().downcast_ref::<DdSketchAggregator>() {
             self.inner.write()
                 .map_err(From::from)
                 .and_then(|mut inner| {
@@ -805,7 +805,7 @@ mod tests {
     /// Note that data must be sorted.
     fn evaluate_sketch(dataset: Dataset) {
         let kind = &dataset.kind;
-        let ddsketch = DdSKetchAggregator::new(
+        let ddsketch = DdSketchAggregator::new(
             &DdSketchConfig::new(TEST_ALPHA, TEST_MAX_BINS, TEST_KEY_EPSILON),
             kind.clone(),
         );
@@ -971,7 +971,7 @@ mod tests {
     fn test_synchronized_move() {
         let dataset = Dataset::from_f64_vec(generate_normal_dataset(1.0, 3.5, 100));
         let kind = &dataset.kind;
-        let ddsketch = DdSKetchAggregator::new(
+        let ddsketch = DdSketchAggregator::new(
             &DdSketchConfig::new(TEST_ALPHA, TEST_MAX_BINS, TEST_KEY_EPSILON),
             kind.clone(),
         );
@@ -996,7 +996,7 @@ mod tests {
         let expected_max = ddsketch.max().unwrap().to_f64(&NumberKind::F64);
 
         let moved_ddsketch: Arc<(dyn Aggregator + Send + Sync)> =
-            Arc::new(DdSKetchAggregator::new(
+            Arc::new(DdSketchAggregator::new(
                 &DdSketchConfig::new(TEST_ALPHA, TEST_MAX_BINS, TEST_KEY_EPSILON),
                 NumberKind::F64,
             ));
@@ -1005,7 +1005,7 @@ mod tests {
             .expect("Fail to sync move");
         let moved_ddsketch = moved_ddsketch
             .as_any()
-            .downcast_ref::<DdSKetchAggregator>()
+            .downcast_ref::<DdSketchAggregator>()
             .expect("Fail to cast dyn Aggregator down to DDSketchAggregator");
 
         // assert sum, max, min and count
