@@ -162,9 +162,9 @@ pub enum Compression {
 }
 
 #[cfg(feature = "grpc-sys")]
-impl Into<grpcio::CompressionAlgorithms> for Compression {
-    fn into(self) -> grpcio::CompressionAlgorithms {
-        match self {
+impl From<Compression> for grpcio::CompressionAlgorithms {
+    fn from(compression: Compression) -> Self {
+        match compression {
             Compression::Gzip => grpcio::CompressionAlgorithms::GRPC_COMPRESS_GZIP,
         }
     }

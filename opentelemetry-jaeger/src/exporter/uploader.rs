@@ -8,7 +8,7 @@ use opentelemetry::sdk::export::trace;
 #[derive(Debug)]
 pub(crate) enum BatchUploader {
     /// Agent sync client
-    Agent(agent::AgentAsyncClientUDP),
+    Agent(agent::AgentAsyncClientUdp),
     /// Collector sync client
     #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
     Collector(collector::CollectorAsyncClientHttp),
