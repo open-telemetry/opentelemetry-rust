@@ -11,7 +11,7 @@ pub enum Selector {
     /// aggregators for the three kinds of metric.  This selector uses more cpu
     /// and memory than the NewWithInexpensiveDistribution because it uses one
     /// DDSketch per distinct instrument and label set.
-    Sketch(aggregators::DDSketchConfig),
+    Sketch(aggregators::DdSketchConfig),
     /// A simple aggregation selector that uses last_value, sum, and
     /// minmaxsumcount aggregators for metrics. This selector is faster and uses
     /// less memory than the others because minmaxsumcount does not aggregate

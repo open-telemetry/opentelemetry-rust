@@ -35,7 +35,7 @@ impl fmt::Debug for BufferClient {
 /// `AgentAsyncClientUDP` implements an async version of the `TAgentSyncClient`
 /// interface over UDP.
 #[derive(Debug)]
-pub(crate) struct AgentAsyncClientUDP {
+pub(crate) struct AgentAsyncClientUdp {
     #[cfg(all(not(feature = "async-std"), not(feature = "tokio")))]
     conn: UdpSocket,
     #[cfg(feature = "tokio")]
@@ -46,7 +46,7 @@ pub(crate) struct AgentAsyncClientUDP {
     max_packet_size: usize,
 }
 
-impl AgentAsyncClientUDP {
+impl AgentAsyncClientUdp {
     /// Create a new UDP agent client
     pub(crate) fn new<T: ToSocketAddrs>(
         host_port: T,
@@ -62,7 +62,7 @@ impl AgentAsyncClientUDP {
         let conn = UdpSocket::bind("0.0.0.0:0")?;
         conn.connect(host_port)?;
 
-        Ok(AgentAsyncClientUDP {
+        Ok(AgentAsyncClientUdp {
             #[cfg(all(not(feature = "async-std"), not(feature = "tokio")))]
             conn,
             #[cfg(feature = "tokio")]
@@ -100,21 +100,21 @@ impl AgentAsyncClientUDP {
 }
 
 #[cfg(all(not(feature = "async-std"), not(feature = "tokio")))]
-async fn write_to_socket(client: &mut AgentAsyncClientUDP, payload: Vec<u8>) -> thrift::Result<()> {
+async fn write_to_socket(client: &mut AgentAsyncClientUdp, payload: Vec<u8>) -> thrift::Result<()> {
     client.conn.send(&payload)?;
 
     Ok(())
 }
 
 #[cfg(feature = "tokio")]
-async fn write_to_socket(client: &mut AgentAsyncClientUDP, payload: Vec<u8>) -> thrift::Result<()> {
+async fn write_to_socket(client: &mut AgentAsyncClientUdp, payload: Vec<u8>) -> thrift::Result<()> {
     client.conn.send(&payload).await?;
 
     Ok(())
 }
 
 #[cfg(all(feature = "async-std", not(feature = "tokio")))]
-async fn write_to_socket(client: &mut AgentAsyncClientUDP, payload: Vec<u8>) -> thrift::Result<()> {
+async fn write_to_socket(client: &mut AgentAsyncClientUdp, payload: Vec<u8>) -> thrift::Result<()> {
     client.conn.send(&payload).await?;
 
     Ok(())

@@ -11,7 +11,7 @@ pub(crate) mod transport;
 mod uploader;
 
 use self::thrift::jaeger;
-use agent::AgentAsyncClientUDP;
+use agent::AgentAsyncClientUdp;
 use async_trait::async_trait;
 #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
 use collector::CollectorAsyncClientHttp;
@@ -321,7 +321,7 @@ impl PipelineBuilder {
 
     #[cfg(not(any(feature = "collector_client", feature = "wasm_collector_client")))]
     fn init_uploader(self) -> Result<(Process, BatchUploader), TraceError> {
-        let agent = AgentAsyncClientUDP::new(self.agent_endpoint.as_slice(), self.max_packet_size)
+        let agent = AgentAsyncClientUdp::new(self.agent_endpoint.as_slice(), self.max_packet_size)
             .map_err::<Error, _>(Into::into)?;
         Ok((self.process, BatchUploader::Agent(agent)))
     }
@@ -413,7 +413,7 @@ impl PipelineBuilder {
             Ok((self.process, uploader::BatchUploader::Collector(collector)))
         } else {
             let endpoint = self.agent_endpoint.as_slice();
-            let agent = AgentAsyncClientUDP::new(endpoint, self.max_packet_size)
+            let agent = AgentAsyncClientUdp::new(endpoint, self.max_packet_size)
                 .map_err::<Error, _>(Into::into)?;
             Ok((self.process, BatchUploader::Agent(agent)))
         }
@@ -435,7 +435,7 @@ impl PipelineBuilder {
             Ok((self.process, uploader::BatchUploader::Collector(collector)))
         } else {
             let endpoint = self.agent_endpoint.as_slice();
-            let agent = AgentAsyncClientUDP::new(endpoint, self.max_packet_size)
+            let agent = AgentAsyncClientUdp::new(endpoint, self.max_packet_size)
                 .map_err::<Error, _>(Into::into)?;
             Ok((self.process, BatchUploader::Agent(agent)))
         }

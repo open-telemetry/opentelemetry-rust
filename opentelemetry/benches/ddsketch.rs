@@ -5,7 +5,7 @@ use opentelemetry::{
     metrics::Descriptor,
     sdk::{
         export::metrics::Quantile,
-        metrics::aggregators::{ArrayAggregator, DDSKetchAggregator, DDSketchConfig},
+        metrics::aggregators::{ArrayAggregator, DdSKetchAggregator, DdSketchConfig},
     },
 };
 use rand::Rng;
@@ -25,7 +25,7 @@ fn get_test_quantile() -> &'static [f64] {
 
 fn ddsketch(data: Vec<f64>) {
     let aggregator =
-        DDSKetchAggregator::new(&DDSketchConfig::new(0.001, 2048, 1e-9), NumberKind::F64);
+        DdSKetchAggregator::new(&DdSketchConfig::new(0.001, 2048, 1e-9), NumberKind::F64);
     let descriptor = Descriptor::new(
         "test".to_string(),
         "test",
@@ -36,15 +36,15 @@ fn ddsketch(data: Vec<f64>) {
     for f in data {
         aggregator.update(&Number::from(f), &descriptor).unwrap();
     }
-    let new_aggregator: Arc<(dyn Aggregator + Send + Sync)> = Arc::new(DDSKetchAggregator::new(
-        &DDSketchConfig::new(0.001, 2048, 1e-9),
+    let new_aggregator: Arc<(dyn Aggregator + Send + Sync)> = Arc::new(DdSKetchAggregator::new(
+        &DdSketchConfig::new(0.001, 2048, 1e-9),
         NumberKind::F64,
     ));
     aggregator
         .synchronized_move(&new_aggregator, &descriptor)
         .unwrap();
     for quantile in get_test_quantile() {
-        if let Some(new_aggregator) = new_aggregator.as_any().downcast_ref::<DDSKetchAggregator>() {
+        if let Some(new_aggregator) = new_aggregator.as_any().downcast_ref::<DdSKetchAggregator>() {
             let _ = new_aggregator.quantile(*quantile);
         }
     }

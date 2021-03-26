@@ -216,9 +216,9 @@ pub mod trace {
     #[derive(Clone, Debug, PartialEq)]
     struct XrayTraceId(String);
 
-    impl Into<Result<TraceId, ()>> for XrayTraceId {
-        fn into(self) -> Result<TraceId, ()> {
-            let parts: Vec<&str> = self.0.split_terminator('-').collect();
+    impl From<XrayTraceId> for Result<TraceId, ()> {
+        fn from(id: XrayTraceId) -> Self {
+            let parts: Vec<&str> = id.0.split_terminator('-').collect();
 
             if parts.len() != 3 {
                 return Err(());
