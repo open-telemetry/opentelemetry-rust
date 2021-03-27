@@ -514,34 +514,55 @@ impl BatchSpanProcessor {
                 match next_step {
                     SelectResult::Shutdown(resp_ch, data) => {
                         let (flush_sender, flush_receiver) = oneshot::channel();
-                        // if the channel is filled, we will hold until there is a spot.
-                        let _ = export_sender
+                        // If the channel is filled, we will hold until there is a spot.
+                        //
+                        // The only case where the send can fail here is because the receiver
+                        // has been dropped. Thus, we don't need to check the actual error reason.
+                        let shutdown_result: ExportResult = if export_sender
                             .send(BatchExportMessage::Shutdown(flush_sender, data))
-                            .await;
-                        let flush_result = flush_receiver.await.unwrap_or_else(|_| {
+                            .await.is_err() {
                             ExportResult::Err(TraceError::from(
-                                "the export task in batch processor dropped the response sender",
+                                "the collect task in batch span processor cannot send \
+                                the shutdown command to export task"
                             ))
+                        } else {
+                            flush_receiver.await.unwrap_or_else(|_| {
+                                ExportResult::Err(TraceError::from(
+                                    "the export task in batch processor dropped the response sender",
+                                ))
+                            })
+                        };
+                        resp_ch.send(vec![shutdown_result]).unwrap_or_else(|_| {
+                            eprintln!("cannot send shutdown result of the batch span processor back to
+                                    application because the receiver has been dropped");
                         });
-                        let _ = resp_ch.send(vec![flush_result]);
                         break;
                     }
                     SelectResult::Flush(resp_ch, data) => {
                         let (flush_sender, flush_receiver) = oneshot::channel();
-                        // if the channel is filled, we will hold until there is a spot.
-                        let _ = export_sender
+                        // Similarly, the only reason send can fail here is because the receiver has
+                        // been dropped.
+                        let flush_result: ExportResult = if export_sender
                             .send(BatchExportMessage::Flush(flush_sender, data))
-                            .await;
-                        let flush_result = flush_receiver.await.unwrap_or_else(|_| {
+                            .await.is_err() {
                             ExportResult::Err(TraceError::from(
-                                "the export task in batch processor dropped the response sender",
+                                "the collect task in batch span processor cannot send \
+                                the force flush command to export task"
                             ))
+                        } else {
+                            flush_receiver.await.unwrap_or_else(|_| {
+                                ExportResult::Err(TraceError::from(
+                                    "the export task in batch processor dropped the response sender",
+                                ))
+                            })
+                        };
+                        resp_ch.send(vec![flush_result]).unwrap_or_else(|_| {
+                            eprintln!("cannot send force flush result of the batch span processor back to
+                                    application because the receiver has been dropped");
                         });
-                        let _ = resp_ch.send(vec![flush_result]);
                     }
                     SelectResult::Continue(data) => {
                         if let Some(data) = data {
-                            // todo: handle dropped spans
                             let _result = export_sender.try_send(BatchExportMessage::Export(data));
                         }
                     }
@@ -578,7 +599,12 @@ impl BatchSpanProcessor {
                         // send other messages after Shutdown.
                         // Once we encounter the Shutdown message, it means the export task has
                         // cleared all message in the channel.
-                        let _ = resp_sender.send(result);
+                        resp_sender.send(result).unwrap_or_else(|_| {
+                            eprintln!(
+                                "export task fail to send response to collect task because \
+                            the receiver has been closed"
+                            );
+                        });
                         return;
                     }
                     BatchExportMessage::Flush(resp_sender, batch) => {
@@ -589,7 +615,12 @@ impl BatchSpanProcessor {
                             batch,
                         )
                         .await;
-                        let _ = resp_sender.send(result);
+                        resp_sender.send(result).unwrap_or_else(|_| {
+                            eprintln!(
+                                "export task fail to send response to collect task because \
+                            the receiver has been closed"
+                            );
+                        });
                     }
                 }
             }
@@ -837,7 +868,7 @@ mod tests {
         assert_eq!(builder.config.max_queue_size, 120);
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_batch_span_processor() {
         let (exporter, mut export_receiver, _shutdown_receiver) = new_tokio_test_exporter();
         let config = BatchConfig {
