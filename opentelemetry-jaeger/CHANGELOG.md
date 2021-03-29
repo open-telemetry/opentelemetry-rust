@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.12.1
+
+### Fixed
+
+- jaeger span error reporting and spec compliance #489
+
 ## v0.12.0
 
 ### Added
