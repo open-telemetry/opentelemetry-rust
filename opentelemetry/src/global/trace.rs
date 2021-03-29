@@ -252,8 +252,10 @@ pub fn tracer_with_version(name: &'static str, version: &'static str) -> BoxedTr
 
 /// Sets the given [`TracerProvider`] instance as the current global provider.
 ///
+/// It returns the [`TracerProvider`] instance that was previously mounted as global provider
+/// (e.g. [`NoopTracerProvider`] if a provider had not been set before).
+///
 /// [`TracerProvider`]: crate::trace::TracerProvider
-#[must_use]
 pub fn set_tracer_provider<P, T, S>(new_provider: P) -> GlobalTracerProvider
 where
     S: trace::Span + Send + Sync,
