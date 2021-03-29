@@ -33,7 +33,7 @@ where
     I: Fn(time::Duration) -> IO,
 {
     PushControllerBuilder {
-        aggregator_selector: aggregator_selector,
+        aggregator_selector,
         export_selector: Box::new(export_selector),
         exporter: Box::new(exporter),
         spawn,
