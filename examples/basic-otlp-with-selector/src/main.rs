@@ -1,17 +1,22 @@
 use futures::stream::Stream;
 use futures::StreamExt;
 use opentelemetry::global::shutdown_tracer_provider;
-use opentelemetry::sdk::metrics::{selectors, PushController};
+use opentelemetry::sdk::{
+    export::metrics::{Aggregator, AggregatorSelector},
+    metrics::{aggregators, PushController},
+};
 use opentelemetry::trace::TraceError;
 use opentelemetry::{
     baggage::BaggageExt,
-    metrics::{self, ObserverResult},
+    metrics::{self, Descriptor, ObserverResult},
     trace::{TraceContextExt, Tracer},
     Context, Key, KeyValue,
 };
 use opentelemetry::{global, sdk::trace as sdktrace};
 use opentelemetry_otlp::ExporterConfig;
+use opentelemetry_otlp::Protocol;
 use std::error::Error;
+use std::sync::Arc;
 use std::time::Duration;
 
 fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
@@ -26,14 +31,31 @@ fn delayed_interval(duration: Duration) -> impl Stream<Item = tokio::time::Insta
     opentelemetry::util::tokio_interval_stream(duration).skip(1)
 }
 
+#[derive(Debug)]
+struct CustomAggregator();
+
+impl AggregatorSelector for CustomAggregator {
+    fn aggregator_for(
+        &self,
+        descriptor: &Descriptor,
+    ) -> Option<Arc<(dyn Aggregator + Sync + std::marker::Send + 'static)>> {
+        match descriptor.name() {
+            "ex.com.one" => Some(Arc::new(aggregators::last_value())),
+            "ex.com.two" => Some(Arc::new(aggregators::array())),
+            _ => Some(Arc::new(aggregators::sum())),
+        }
+    }
+}
+
 fn init_meter() -> metrics::Result<PushController> {
     let export_config = ExporterConfig {
         endpoint: "http://localhost:4317".to_string(),
+        protocol: Protocol::Grpc,
         ..ExporterConfig::default()
     };
     opentelemetry_otlp::new_metrics_pipeline(tokio::spawn, delayed_interval)
         .with_export_config(export_config)
-        .with_aggregator_selector(Box::new(selectors::simple::Selector::Exact))
+        .with_aggregator_selector(Box::new(CustomAggregator()))
         .build()
 }
 

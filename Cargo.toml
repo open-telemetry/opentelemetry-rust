@@ -18,6 +18,7 @@ members = [
     "examples/aws-xray",
     "examples/basic",
     "examples/basic-otlp",
+    "examples/basic-otlp-with-selector",
     "examples/datadog",
     "examples/external-otlp-tonic-tokio",
     "examples/grpc",

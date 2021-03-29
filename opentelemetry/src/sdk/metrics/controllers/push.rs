@@ -19,22 +19,21 @@ lazy_static::lazy_static! {
 }
 
 /// Create a new `PushControllerBuilder`.
-pub fn push<AS, ES, E, SP, SO, I, IO>(
-    aggregator_selector: AS,
+pub fn push<ES, E, SP, SO, I, IO>(
+    aggregator_selector: Box<dyn AggregatorSelector + Send + Sync + 'static>,
     export_selector: ES,
     exporter: E,
     spawn: SP,
     interval: I,
 ) -> PushControllerBuilder<SP, I>
 where
-    AS: AggregatorSelector + Send + Sync + 'static,
     ES: ExportKindFor + Send + Sync + 'static,
     E: Exporter + Send + Sync + 'static,
     SP: Fn(PushControllerWorker) -> SO,
     I: Fn(time::Duration) -> IO,
 {
     PushControllerBuilder {
-        aggregator_selector: Box::new(aggregator_selector),
+        aggregator_selector: aggregator_selector,
         export_selector: Box::new(export_selector),
         exporter: Box::new(exporter),
         spawn,
