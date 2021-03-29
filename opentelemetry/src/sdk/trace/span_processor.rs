@@ -155,7 +155,7 @@ impl SpanProcessor for SimpleSpanProcessor {
     }
 
     fn shutdown(&mut self) -> TraceResult<()> {
-        if let Ok(_) = self.sender.send(None) {
+        if self.sender.send(None).is_ok() {
             if let Err(err) = self.shutdown.recv() {
                 global::handle_error(TraceError::from(format!(
                     "error shutting down span processor: {:?}",
