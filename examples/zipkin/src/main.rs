@@ -6,7 +6,7 @@ use std::time::Duration;
 
 fn bar() {
     let tracer = global::tracer("component-bar");
-    let span = tracer.start("bar");
+    let mut span = tracer.start("bar");
     thread::sleep(Duration::from_millis(6));
     span.end()
 }

@@ -117,7 +117,8 @@ impl TextMapPropagator for TraceContextPropagator {
     /// Properly encodes the values of the `SpanContext` and injects them
     /// into the `Injector`.
     fn inject_context(&self, cx: &Context, injector: &mut dyn Injector) {
-        let span_context = cx.span().span_context();
+        let span = cx.span();
+        let span_context = span.span_context();
         if span_context.is_valid() {
             let header_value = format!(
                 "{:02x}-{:032x}-{:016x}-{:02x}",

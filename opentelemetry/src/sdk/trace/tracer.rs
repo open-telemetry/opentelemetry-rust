@@ -11,7 +11,7 @@ use crate::sdk::{
     trace::{
         provider::{TracerProvider, TracerProviderInner},
         span::{Span, SpanData},
-        EvictedHashMap, EvictedQueue, SamplingDecision, SamplingResult,
+        Config, EvictedHashMap, EvictedQueue, SamplingDecision, SamplingResult,
     },
     InstrumentationLibrary,
 };
@@ -73,11 +73,9 @@ impl Tracer {
         span_kind: &SpanKind,
         attributes: &[KeyValue],
         links: &[Link],
+        config: &Config,
     ) -> Option<(u8, Vec<KeyValue>, TraceState)> {
-        let provider = self.provider()?;
-        let sampler = &provider.config().default_sampler;
-
-        let sampling_result = sampler.should_sample(
+        let sampling_result = config.default_sampler.should_sample(
             Some(parent_cx),
             trace_id,
             name,
@@ -192,11 +190,13 @@ impl crate::trace::Tracer for Tracer {
                 _ => cx,
             }
         };
+        let span = parent_cx.span();
         let parent_span_context = if parent_cx.has_active_span() {
-            Some(parent_cx.span().span_context())
+            Some(span.span_context())
         } else {
             None
         };
+
         // Build context for sampling decision
         let (no_parent, trace_id, parent_span_id, remote_parent, parent_trace_flags) =
             parent_span_context
@@ -235,6 +235,7 @@ impl crate::trace::Tracer for Tracer {
                 &span_kind,
                 &attribute_options,
                 link_options.as_deref().unwrap_or(&[]),
+                provider.config(),
             )
         } else {
             // has parent that is local: use parent if sampled, or don't record.
@@ -270,8 +271,7 @@ impl crate::trace::Tracer for Tracer {
                 message_events.append_vec(&mut events);
             }
             let status_code = builder.status_code.unwrap_or(StatusCode::Unset);
-            let status_message = builder.status_message.unwrap_or_else(String::new);
-            let resource = config.resource.clone();
+            let status_message = builder.status_message.unwrap_or_default();
 
             SpanData {
                 parent_span_id,
@@ -284,7 +284,6 @@ impl crate::trace::Tracer for Tracer {
                 links,
                 status_code,
                 status_message,
-                resource,
             }
         });
 

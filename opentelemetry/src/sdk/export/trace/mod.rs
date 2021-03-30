@@ -1,16 +1,14 @@
 //! Trace exporters
-use std::fmt::Debug;
-use std::sync::Arc;
-use std::time::SystemTime;
-
-use async_trait::async_trait;
-#[cfg(feature = "serialize")]
-use serde::{Deserialize, Serialize};
-
 use crate::{
     sdk,
     trace::{Event, Link, SpanContext, SpanId, SpanKind, StatusCode, TraceError},
 };
+use async_trait::async_trait;
+#[cfg(feature = "serialize")]
+use serde::{Deserialize, Serialize};
+use std::fmt::Debug;
+use std::sync::Arc;
+use std::time::SystemTime;
 
 pub mod stdout;
 

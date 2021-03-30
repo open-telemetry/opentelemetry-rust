@@ -119,7 +119,8 @@ impl ShouldSample for Sampler {
                         .should_sample(parent_context, trace_id, name, span_kind, attributes, links)
                         .decision,
                     |ctx| {
-                        let parent_span_context = ctx.span().span_context();
+                        let span = ctx.span();
+                        let parent_span_context = span.span_context();
                         if parent_span_context.is_sampled() {
                             SamplingDecision::RecordAndSample
                         } else {

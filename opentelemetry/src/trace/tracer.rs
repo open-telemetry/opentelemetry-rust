@@ -1,5 +1,5 @@
-use crate::sdk;
 use crate::{
+    sdk,
     trace::{Event, Link, Span, SpanId, SpanKind, StatusCode, TraceContextExt, TraceId},
     Context, KeyValue,
 };
@@ -40,7 +40,7 @@ use std::time::SystemTime;
 ///
 /// let parent = tracer.start("foo");
 /// let parent_cx = Context::current_with_span(parent);
-/// let child = tracer.span_builder("bar")
+/// let mut child = tracer.span_builder("bar")
 ///     .with_parent_context(parent_cx.clone())
 ///     .start(&tracer);
 ///
@@ -158,7 +158,7 @@ use std::time::SystemTime;
 /// [`Context`]: crate::Context
 pub trait Tracer: fmt::Debug + 'static {
     /// The `Span` type used by this `Tracer`.
-    type Span: Span;
+    type Span: Span + Send + Sync;
 
     /// Returns a span with an invalid `SpanContext`. Used by functions that
     /// need to return a default span like `get_active_span` if no span is present.

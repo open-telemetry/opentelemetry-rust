@@ -138,14 +138,15 @@ mod tests {
 
     impl TextMapPropagator for TestPropagator {
         fn inject_context(&self, cx: &Context, injector: &mut dyn Injector) {
-            let span = cx.span().span_context();
+            let span = cx.span();
+            let span_context = span.span_context();
             injector.set(
                 "testheader",
                 format!(
                     "{}-{}-{}",
-                    span.trace_id().to_u128(),
-                    span.span_id().to_u64(),
-                    span.trace_flags()
+                    span_context.trace_id().to_u128(),
+                    span_context.span_id().to_u64(),
+                    span_context.trace_flags()
                 ),
             )
         }
