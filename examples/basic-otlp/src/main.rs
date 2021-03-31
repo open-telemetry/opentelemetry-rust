@@ -33,7 +33,7 @@ fn init_meter() -> metrics::Result<PushController> {
     };
     opentelemetry_otlp::new_metrics_pipeline(tokio::spawn, delayed_interval)
         .with_export_config(export_config)
-        .with_aggregator_selector(Box::new(selectors::simple::Selector::Exact))
+        .with_aggregator_selector(selectors::simple::Selector::Exact)
         .build()
 }
 

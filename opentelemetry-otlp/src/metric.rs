@@ -131,12 +131,12 @@ where
     }
 
     /// Build with the aggregator selector
-    pub fn with_aggregator_selector(
-        self,
-        aggregator_selector: Box<dyn AggregatorSelector + Send + Sync + 'static>,
-    ) -> Self {
+    pub fn with_aggregator_selector<T>(self, aggregator_selector: T) -> Self
+    where
+        T: AggregatorSelector + Send + Sync + 'static,
+    {
         OtlpMetricPipelineBuilder {
-            aggregator_selector,
+            aggregator_selector: Box::new(aggregator_selector),
             ..self
         }
     }

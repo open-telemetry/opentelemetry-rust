@@ -55,7 +55,7 @@ fn init_meter() -> metrics::Result<PushController> {
     };
     opentelemetry_otlp::new_metrics_pipeline(tokio::spawn, delayed_interval)
         .with_export_config(export_config)
-        .with_aggregator_selector(Box::new(CustomAggregator()))
+        .with_aggregator_selector(CustomAggregator())
         .build()
 }
 
@@ -97,7 +97,6 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
             .attach();
 
     let value_recorder = value_recorder_two.bind(COMMON_LABELS.as_ref());
-
     tracer.in_span("operation", |cx| {
         let span = cx.span();
         span.add_event(
