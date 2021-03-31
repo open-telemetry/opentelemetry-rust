@@ -132,15 +132,21 @@ impl trace::Tracer for NoopTracer {
     /// Starts a new `NoopSpan` with a given context.
     ///
     /// If the context contains a valid span context, it is propagated.
-    fn start_with_context(&self, name: &str, cx: Context) -> Self::Span {
+    fn start_with_context<T>(&self, name: T, cx: Context) -> Self::Span
+    where
+        T: Into<std::borrow::Cow<'static, str>>,
+    {
         let mut builder = self.span_builder(name);
         builder.parent_context = Some(cx);
         self.build(builder)
     }
 
     /// Starts a `SpanBuilder`.
-    fn span_builder(&self, name: &str) -> trace::SpanBuilder {
-        trace::SpanBuilder::from_name(name.to_string())
+    fn span_builder<T>(&self, name: T) -> trace::SpanBuilder
+    where
+        T: Into<std::borrow::Cow<'static, str>>,
+    {
+        trace::SpanBuilder::from_name(name)
     }
 
     /// Builds a `NoopSpan` from a `SpanBuilder`.

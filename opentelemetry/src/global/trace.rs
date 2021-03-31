@@ -1,5 +1,6 @@
 use crate::trace::NoopTracerProvider;
 use crate::{trace, trace::TracerProvider, Context, KeyValue};
+use std::borrow::Cow;
 use std::fmt;
 use std::mem;
 use std::sync::{Arc, RwLock};
@@ -92,15 +93,21 @@ impl trace::Tracer for BoxedTracer {
     /// trace. A span is said to be a _root span_ if it does not have a parent. Each
     /// trace includes a single root span, which is the shared ancestor of all other
     /// spans in the trace.
-    fn start_with_context(&self, name: &str, cx: Context) -> Self::Span {
-        BoxedSpan(self.0.start_with_context_boxed(name, cx))
+    fn start_with_context<T>(&self, name: T, cx: Context) -> Self::Span
+    where
+        T: Into<Cow<'static, str>>,
+    {
+        BoxedSpan(self.0.start_with_context_boxed(name.into(), cx))
     }
 
     /// Creates a span builder
     ///
     /// An ergonomic way for attributes to be configured before the `Span` is started.
-    fn span_builder(&self, name: &str) -> trace::SpanBuilder {
-        trace::SpanBuilder::from_name(name.to_string())
+    fn span_builder<T>(&self, name: T) -> trace::SpanBuilder
+    where
+        T: Into<Cow<'static, str>>,
+    {
+        trace::SpanBuilder::from_name(name)
     }
 
     /// Create a span from a `SpanBuilder`
@@ -119,7 +126,7 @@ pub trait GenericTracer: fmt::Debug + 'static {
 
     /// Returns a trait object so the underlying implementation can be swapped
     /// out at runtime.
-    fn start_with_context_boxed(&self, name: &str, cx: Context) -> Box<DynSpan>;
+    fn start_with_context_boxed(&self, name: Cow<'static, str>, cx: Context) -> Box<DynSpan>;
 
     /// Returns a trait object so the underlying implementation can be swapped
     /// out at runtime.
@@ -138,7 +145,7 @@ where
 
     /// Returns a trait object so the underlying implementation can be swapped
     /// out at runtime.
-    fn start_with_context_boxed(&self, name: &str, cx: Context) -> Box<DynSpan> {
+    fn start_with_context_boxed(&self, name: Cow<'static, str>, cx: Context) -> Box<DynSpan> {
         Box::new(self.start_with_context(name, cx))
     }
 

@@ -60,7 +60,10 @@ mod tonic {
             let span_kind: span::SpanKind = source_span.span_kind.into();
             ResourceSpans {
                 resource: Some(Resource {
-                    attributes: resource_attributes(&source_span.resource).0,
+                    attributes: resource_attributes(
+                        source_span.resource.as_ref().map(AsRef::as_ref),
+                    )
+                    .0,
                     dropped_attributes_count: 0,
                 }),
                 instrumentation_library_spans: vec![InstrumentationLibrarySpans {
@@ -86,7 +89,7 @@ mod tonic {
                                 vec![]
                             }
                         },
-                        name: source_span.name,
+                        name: source_span.name.into_owned(),
                         kind: span_kind as i32,
                         start_time_unix_nano: to_nanos(source_span.start_time),
                         end_time_unix_nano: to_nanos(source_span.end_time),
@@ -107,7 +110,7 @@ mod tonic {
                         links: source_span.links.into_iter().map(Into::into).collect(),
                         status: Some(Status {
                             code: status::StatusCode::from(source_span.status_code).into(),
-                            message: source_span.status_message,
+                            message: source_span.status_message.into_owned(),
                             ..Default::default()
                         }),
                     }],
@@ -116,11 +119,14 @@ mod tonic {
         }
     }
 
-    fn resource_attributes(resource: &sdk::Resource) -> Attributes {
+    fn resource_attributes(resource: Option<&sdk::Resource>) -> Attributes {
         resource
-            .iter()
-            .map(|(k, v)| opentelemetry::KeyValue::new(k.clone(), v.clone()))
-            .collect::<Vec<_>>()
+            .map(|res| {
+                res.iter()
+                    .map(|(k, v)| opentelemetry::KeyValue::new(k.clone(), v.clone()))
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default()
             .into()
     }
 }
@@ -186,7 +192,10 @@ mod grpcio {
         fn from(source_span: SpanData) -> Self {
             ResourceSpans {
                 resource: SingularPtrField::from(Some(Resource {
-                    attributes: resource_attributes(&source_span.resource).0,
+                    attributes: resource_attributes(
+                        source_span.resource.as_ref().map(AsRef::as_ref),
+                    )
+                    .0,
                     dropped_attributes_count: 0,
                     ..Default::default()
                 })),
@@ -214,7 +223,7 @@ mod grpcio {
                                     vec![]
                                 }
                             },
-                            name: source_span.name,
+                            name: source_span.name.into_owned(),
                             kind: source_span.span_kind.into(),
                             start_time_unix_nano: to_nanos(source_span.start_time),
                             end_time_unix_nano: to_nanos(source_span.end_time),
@@ -240,7 +249,7 @@ mod grpcio {
                             ),
                             status: SingularPtrField::some(Status {
                                 code: Status_StatusCode::from(source_span.status_code),
-                                message: source_span.status_message,
+                                message: source_span.status_message.into_owned(),
                                 ..Default::default()
                             }),
                             ..Default::default()
@@ -253,11 +262,15 @@ mod grpcio {
         }
     }
 
-    fn resource_attributes(resource: &sdk::Resource) -> Attributes {
+    fn resource_attributes(resource: Option<&sdk::Resource>) -> Attributes {
         resource
-            .iter()
-            .map(|(k, v)| opentelemetry::KeyValue::new(k.clone(), v.clone()))
-            .collect::<Vec<_>>()
+            .map(|resource| {
+                resource
+                    .iter()
+                    .map(|(k, v)| opentelemetry::KeyValue::new(k.clone(), v.clone()))
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default()
             .into()
     }
 }

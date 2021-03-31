@@ -499,7 +499,7 @@ fn convert_otel_span_into_jaeger_span(
         trace_id_high,
         span_id: span.span_context.span_id().to_u64() as i64,
         parent_span_id: span.parent_span_id.to_u64() as i64,
-        operation_name: span.name,
+        operation_name: span.name.into_owned(),
         references: links_to_references(span.links),
         flags: span.span_context.trace_flags() as i32,
         start_time: span
@@ -520,7 +520,7 @@ fn convert_otel_span_into_jaeger_span(
                 None
             },
             span.status_code,
-            span.status_message,
+            span.status_message.into_owned(),
             span.span_kind,
         )),
         logs: events_to_logs(span.message_events),
@@ -530,16 +530,15 @@ fn convert_otel_span_into_jaeger_span(
 fn build_process_tags(
     span_data: &trace::SpanData,
 ) -> Option<impl Iterator<Item = jaeger::Tag> + '_> {
-    if span_data.resource.is_empty() {
-        None
-    } else {
-        Some(
-            span_data
-                .resource
+    span_data
+        .resource
+        .as_ref()
+        .filter(|resource| !resource.is_empty())
+        .map(|resource| {
+            resource
                 .iter()
-                .map(|(k, v)| KeyValue::new(k.clone(), v.clone()).into()),
-        )
-    }
+                .map(|(k, v)| KeyValue::new(k.clone(), v.clone()).into())
+        })
 }
 
 fn build_span_tags(

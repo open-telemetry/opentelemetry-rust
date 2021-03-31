@@ -62,7 +62,7 @@ mod tests {
     use crate::sdk::env::OTEL_RESOURCE_ATTRIBUTES;
     use crate::sdk::resource::{Resource, ResourceDetector};
     use crate::sdk::EnvResourceDetector;
-    use crate::{Key, KeyValue};
+    use crate::KeyValue;
     use std::{env, time};
 
     #[test]
@@ -75,10 +75,10 @@ mod tests {
         assert_eq!(
             resource,
             Resource::new(vec![
-                KeyValue::new(Key::new("key".to_string()), "value"),
-                KeyValue::new(Key::new("k".to_string()), "v"),
-                KeyValue::new(Key::new("a".to_string()), "x"),
-                KeyValue::new(Key::new("a".to_string()), "z"),
+                KeyValue::new("key", "value"),
+                KeyValue::new("k", "v"),
+                KeyValue::new("a", "x"),
+                KeyValue::new("a", "z"),
             ])
         );
 

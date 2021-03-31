@@ -26,7 +26,7 @@ pub struct Config {
     /// The max links that can be added to a `Span`.
     pub max_links_per_span: u32,
     /// Contains attributes representing an entity that produces telemetry.
-    pub resource: Arc<sdk::Resource>,
+    pub resource: Option<Arc<sdk::Resource>>,
 }
 
 impl Config {
@@ -62,7 +62,7 @@ impl Config {
 
     /// Specify the attributes representing the entity that produces telemetry
     pub fn with_resource(mut self, resource: sdk::Resource) -> Self {
-        self.resource = Arc::new(resource);
+        self.resource = Some(Arc::new(resource));
         self
     }
 }
@@ -76,7 +76,7 @@ impl Default for Config {
             max_events_per_span: 128,
             max_attributes_per_span: 128,
             max_links_per_span: 128,
-            resource: Arc::new(sdk::Resource::default()),
+            resource: None,
         };
 
         if let Some(max_attributes_per_span) = env::var("OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT")

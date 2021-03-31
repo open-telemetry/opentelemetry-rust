@@ -1,16 +1,15 @@
 //! Trace exporters
-use std::fmt::Debug;
-use std::sync::Arc;
-use std::time::SystemTime;
-
-use async_trait::async_trait;
-#[cfg(feature = "serialize")]
-use serde::{Deserialize, Serialize};
-
 use crate::{
     sdk,
     trace::{Event, Link, SpanContext, SpanId, SpanKind, StatusCode, TraceError},
 };
+use async_trait::async_trait;
+#[cfg(feature = "serialize")]
+use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
+use std::fmt::Debug;
+use std::sync::Arc;
+use std::time::SystemTime;
 
 pub mod stdout;
 
@@ -66,7 +65,7 @@ pub struct SpanData {
     /// Span kind
     pub span_kind: SpanKind,
     /// Span name
-    pub name: String,
+    pub name: Cow<'static, str>,
     /// Span start time
     pub start_time: SystemTime,
     /// Span end time
@@ -80,9 +79,9 @@ pub struct SpanData {
     /// Span status code
     pub status_code: StatusCode,
     /// Span status message
-    pub status_message: String,
+    pub status_message: Cow<'static, str>,
     /// Resource contains attributes representing an entity that produced this span.
-    pub resource: Arc<sdk::Resource>,
+    pub resource: Option<Arc<sdk::Resource>>,
     /// Instrumentation library that produced this span
     #[cfg_attr(feature = "serialize", serde(skip))]
     pub instrumentation_lib: sdk::InstrumentationLibrary,
@@ -111,7 +110,7 @@ mod tests {
 
         let parent_span_id = 1;
         let span_kind = SpanKind::Client;
-        let name = "foo/bar baz 人?!".to_string();
+        let name = "foo/bar baz 人?!".into();
         let start_time = crate::time::now();
         let end_time = crate::time::now();
 
@@ -121,8 +120,8 @@ mod tests {
         let links = sdk::trace::EvictedQueue::new(capacity);
 
         let status_code = StatusCode::Ok;
-        let status_message = String::new();
-        let resource = Arc::new(sdk::Resource::default());
+        let status_message = "".into();
+        let resource = None;
 
         let span_data = SpanData {
             span_context,

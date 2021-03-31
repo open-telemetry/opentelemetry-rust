@@ -10,6 +10,7 @@
 //! These cannot be changed after the `Span`'s end time has been set.
 use crate::trace::{Event, SpanContext, SpanId, SpanKind, StatusCode};
 use crate::{sdk, trace, KeyValue};
+use std::borrow::Cow;
 use std::sync::Arc;
 use std::time::SystemTime;
 
@@ -28,7 +29,7 @@ pub(crate) struct SpanData {
     /// Span kind
     pub(crate) span_kind: SpanKind,
     /// Span name
-    pub(crate) name: String,
+    pub(crate) name: Cow<'static, str>,
     /// Span start time
     pub(crate) start_time: SystemTime,
     /// Span end time
@@ -42,7 +43,7 @@ pub(crate) struct SpanData {
     /// Span status code
     pub(crate) status_code: StatusCode,
     /// Span status message
-    pub(crate) status_message: String,
+    pub(crate) status_message: Cow<'static, str>,
 }
 
 impl Span {
@@ -113,7 +114,7 @@ impl crate::trace::Span for Span {
     fn set_status(&mut self, code: StatusCode, message: String) {
         self.with_data(|data| {
             if code == StatusCode::Error {
-                data.status_message = message;
+                data.status_message = message.into();
             }
             data.status_code = code;
         });
@@ -122,7 +123,7 @@ impl crate::trace::Span for Span {
     /// Updates the `Span`'s name.
     fn update_name(&mut self, new_name: String) {
         self.with_data(|data| {
-            data.name = new_name;
+            data.name = new_name.into();
         });
     }
 
@@ -180,7 +181,7 @@ impl Drop for Span {
 fn build_export_data(
     data: SpanData,
     span_context: SpanContext,
-    resource: Arc<sdk::Resource>,
+    resource: Option<Arc<sdk::Resource>>,
     tracer: &sdk::trace::Tracer,
 ) -> sdk::export::trace::SpanData {
     sdk::export::trace::SpanData {
@@ -213,14 +214,14 @@ mod tests {
         let data = SpanData {
             parent_span_id: SpanId::from_u64(0),
             span_kind: trace::SpanKind::Internal,
-            name: "opentelemetry".to_string(),
+            name: "opentelemetry".into(),
             start_time: crate::time::now(),
             end_time: crate::time::now(),
             attributes: sdk::trace::EvictedHashMap::new(config.max_attributes_per_span, 0),
             message_events: sdk::trace::EvictedQueue::new(config.max_events_per_span),
             links: sdk::trace::EvictedQueue::new(config.max_links_per_span),
             status_code: StatusCode::Unset,
-            status_message: "".to_string(),
+            status_message: "".into(),
         };
         (tracer, data)
     }

@@ -64,7 +64,6 @@ mod tests {
     use opentelemetry::trace::{SpanContext, SpanId, SpanKind, StatusCode, TraceId};
     use std::collections::HashMap;
     use std::net::Ipv4Addr;
-    use std::sync::Arc;
     use std::time::SystemTime;
 
     #[test]
@@ -170,15 +169,15 @@ mod tests {
                 ),
                 parent_span_id: SpanId::from_u64(1),
                 span_kind: SpanKind::Client,
-                name: "".to_string(),
+                name: "".into(),
                 start_time: SystemTime::now(),
                 end_time: SystemTime::now(),
                 attributes: EvictedHashMap::new(20, 20),
                 message_events: EvictedQueue::new(20),
                 links: EvictedQueue::new(20),
                 status_code,
-                status_message: status_msg,
-                resource: Arc::new(Default::default()),
+                status_message: status_msg.into(),
+                resource: None,
                 instrumentation_lib: Default::default(),
             };
             let local_endpoint = Endpoint::new("test".into(), None);
