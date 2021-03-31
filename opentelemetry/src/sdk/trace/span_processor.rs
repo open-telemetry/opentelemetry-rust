@@ -43,8 +43,7 @@ use crate::{
     Context,
 };
 use futures::{channel::mpsc, channel::oneshot, executor, future::Either, pin_mut, StreamExt};
-use std::env;
-use std::{fmt, str::FromStr, sync::Mutex, time::Duration};
+use std::{env, fmt, str::FromStr, sync::Mutex, thread, time::Duration};
 
 /// Delay interval between two consecutive exports.
 const OTEL_BSP_SCHEDULE_DELAY: &str = "OTEL_BSP_SCHEDULE_DELAY";
@@ -104,13 +103,37 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
 /// ```
 #[derive(Debug)]
 pub struct SimpleSpanProcessor {
-    exporter: Mutex<Box<dyn SpanExporter>>,
+    sender: crossbeam_channel::Sender<Option<SpanData>>,
+    shutdown: crossbeam_channel::Receiver<()>,
 }
 
 impl SimpleSpanProcessor {
-    pub(crate) fn new(exporter: Box<dyn SpanExporter>) -> Self {
+    pub(crate) fn new(mut exporter: Box<dyn SpanExporter>) -> Self {
+        let (span_tx, span_rx) = crossbeam_channel::unbounded();
+        let (shutdown_tx, shutdown_rx) = crossbeam_channel::bounded(0);
+
+        let _ = thread::Builder::new()
+            .name("opentelemetry-exporter".to_string())
+            .spawn(move || {
+                while let Ok(Some(span)) = span_rx.recv() {
+                    if let Err(err) = executor::block_on(exporter.export(vec![span])) {
+                        global::handle_error(err);
+                    }
+                }
+
+                exporter.shutdown();
+
+                if let Err(err) = shutdown_tx.send(()) {
+                    global::handle_error(TraceError::from(format!(
+                        "could not send shutdown: {:?}",
+                        err
+                    )));
+                }
+            });
+
         SimpleSpanProcessor {
-            exporter: Mutex::new(exporter),
+            sender: span_tx,
+            shutdown: shutdown_rx,
         }
     }
 }
@@ -121,14 +144,8 @@ impl SpanProcessor for SimpleSpanProcessor {
     }
 
     fn on_end(&self, span: SpanData) {
-        let result = self
-            .exporter
-            .lock()
-            .map_err(|_| TraceError::Other("simple span processor mutex poisoned".into()))
-            .and_then(|mut exporter| executor::block_on(exporter.export(vec![span])));
-
-        if let Err(err) = result {
-            global::handle_error(err);
+        if let Err(err) = self.sender.send(Some(span)) {
+            global::handle_error(TraceError::from(format!("error processing span {:?}", err)));
         }
     }
 
@@ -138,15 +155,16 @@ impl SpanProcessor for SimpleSpanProcessor {
     }
 
     fn shutdown(&mut self) -> TraceResult<()> {
-        if let Ok(mut exporter) = self.exporter.lock() {
-            exporter.shutdown();
-            Ok(())
-        } else {
-            Err(TraceError::Other(
-                "When shutting down the SimpleSpanProcessor, the exporter's lock has been poisoned"
-                    .into(),
-            ))
+        if self.sender.send(None).is_ok() {
+            if let Err(err) = self.shutdown.recv() {
+                global::handle_error(TraceError::from(format!(
+                    "error shutting down span processor: {:?}",
+                    err
+                )))
+            }
         }
+
+        Ok(())
     }
 }
 
@@ -543,7 +561,7 @@ mod tests {
         let (exporter, rx_export, _rx_shutdown) = new_test_exporter();
         let processor = SimpleSpanProcessor::new(Box::new(exporter));
         processor.on_end(new_test_export_span_data());
-        assert!(rx_export.try_recv().is_ok());
+        assert!(rx_export.recv().is_ok());
     }
 
     #[test]

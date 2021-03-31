@@ -1,6 +1,9 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use opentelemetry::{
-    sdk::trace as sdktrace,
+    sdk::{
+        export::trace::{ExportResult, SpanData, SpanExporter},
+        trace as sdktrace,
+    },
     trace::{Span, Tracer, TracerProvider},
     Key, KeyValue,
 };
@@ -94,29 +97,35 @@ fn insert_keys(mut map: sdktrace::EvictedHashMap, n: usize) {
     }
 }
 
+#[derive(Debug)]
+struct VoidExporter;
+
+#[async_trait::async_trait]
+impl SpanExporter for VoidExporter {
+    async fn export(&mut self, _spans: Vec<SpanData>) -> ExportResult {
+        Ok(())
+    }
+}
+
 fn trace_benchmark_group<F: Fn(&sdktrace::Tracer)>(c: &mut Criterion, name: &str, f: F) {
     let mut group = c.benchmark_group(name);
 
     group.bench_function("always-sample", |b| {
-        let always_sample = sdktrace::TracerProvider::builder()
-            .with_config(sdktrace::Config {
-                default_sampler: Box::new(sdktrace::Sampler::AlwaysOn),
-                ..Default::default()
-            })
-            .build()
-            .get_tracer("always-sample", None);
+        let provider = sdktrace::TracerProvider::builder()
+            .with_config(sdktrace::config().with_sampler(sdktrace::Sampler::AlwaysOn))
+            .with_simple_exporter(VoidExporter)
+            .build();
+        let always_sample = provider.get_tracer("always-sample", None);
 
         b.iter(|| f(&always_sample));
     });
 
     group.bench_function("never-sample", |b| {
-        let never_sample = sdktrace::TracerProvider::builder()
-            .with_config(sdktrace::Config {
-                default_sampler: Box::new(sdktrace::Sampler::AlwaysOff),
-                ..Default::default()
-            })
-            .build()
-            .get_tracer("never-sample", None);
+        let provider = sdktrace::TracerProvider::builder()
+            .with_config(sdktrace::config().with_sampler(sdktrace::Sampler::AlwaysOff))
+            .with_simple_exporter(VoidExporter)
+            .build();
+        let never_sample = provider.get_tracer("never-sample", None);
         b.iter(|| f(&never_sample));
     });
 
