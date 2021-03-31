@@ -10,7 +10,7 @@ use std::time::Duration;
 
 fn bar() {
     let tracer = global::tracer("component-bar");
-    let span = tracer.start("bar");
+    let mut span = tracer.start("bar");
     span.set_attribute(Key::new("span.type").string("sql"));
     span.set_attribute(Key::new("sql.query").string("SELECT * FROM table"));
     thread::sleep(Duration::from_millis(6));

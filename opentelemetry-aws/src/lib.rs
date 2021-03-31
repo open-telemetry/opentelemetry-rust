@@ -146,7 +146,8 @@ pub mod trace {
 
     impl TextMapPropagator for XrayPropagator {
         fn inject_context(&self, cx: &Context, injector: &mut dyn Injector) {
-            let span_context = cx.span().span_context();
+            let span = cx.span();
+            let span_context = span.span_context();
             if span_context.is_valid() {
                 let xray_trace_id: XrayTraceId = span_context.trace_id().into();
 

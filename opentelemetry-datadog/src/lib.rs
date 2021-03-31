@@ -260,7 +260,8 @@ mod propagator {
 
     impl TextMapPropagator for DatadogPropagator {
         fn inject_context(&self, cx: &Context, injector: &mut dyn Injector) {
-            let span_context = cx.span().span_context();
+            let span = cx.span();
+            let span_context = span.span_context();
             if span_context.is_valid() {
                 injector.set(
                     DATADOG_TRACE_ID_HEADER,

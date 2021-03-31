@@ -74,7 +74,7 @@ async fn smoke_tracer() {
             .expect("failed to install");
 
         println!("Sending span...");
-        let span = tracer
+        let mut span = tracer
             .span_builder("my-test-span")
             .with_kind(SpanKind::Server)
             .start(&tracer);
