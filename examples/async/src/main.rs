@@ -46,7 +46,7 @@ async fn write(stream: &mut TcpStream) -> io::Result<usize> {
 
 async fn run(addr: &SocketAddr) -> io::Result<usize> {
     let tracer = global::tracer("runner");
-    let span = tracer.start(&format!("running: {}", addr));
+    let span = tracer.start(format!("running: {}", addr));
     let cx = Context::current_with_span(span);
 
     let mut stream = connect(addr).with_context(cx.clone()).await?;
