@@ -28,8 +28,8 @@ fn main() {
         .expect("Error generating protobuf");
 
     #[cfg(feature = "grpc-sys")]
-        {
-            let result = compile_grpc_protos(
+    {
+        let result = compile_grpc_protos(
                 &[
                     "src/proto/opentelemetry-proto/opentelemetry/proto/common/v1/common.proto",
                     "src/proto/opentelemetry-proto/opentelemetry/proto/resource/v1/resource.proto",
@@ -47,8 +47,8 @@ fn main() {
                     ..Default::default()
                 }),
             );
-            if let Err(err) = result {
-                println!("cargo:warning=Error generating protobuf: {:?}", err);
-            }
+        if let Err(err) = result {
+            println!("cargo:warning=Error generating protobuf: {:?}", err);
         }
+    }
 }
