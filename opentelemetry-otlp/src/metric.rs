@@ -42,28 +42,25 @@ where
     SP: Fn(PushControllerWorker) -> SO,
     I: Fn(time::Duration) -> IO,
 {
-    new_metrics_pipeline_with_selector(
-        spawn,
-        interval,
-        Box::new(selectors::simple::Selector::Inexpensive),
-    )
+    new_metrics_pipeline_with_selector(spawn, interval, selectors::simple::Selector::Inexpensive)
 }
 
 /// Return a pipeline to build OTLP metrics exporter.
 ///
 /// Note that currently the OTLP metrics exporter only supports tonic as it's grpc layer and tokio as
 /// runtime.
-pub fn new_metrics_pipeline_with_selector<SP, SO, I, IO>(
+pub fn new_metrics_pipeline_with_selector<SP, SO, I, IO, AS>(
     spawn: SP,
     interval: I,
-    aggregator_selector: Box<dyn AggregatorSelector + Send + Sync + 'static>,
+    aggregator_selector: AS,
 ) -> OtlpMetricPipelineBuilder<ExportKindSelector, SP, SO, I, IO>
 where
     SP: Fn(PushControllerWorker) -> SO,
     I: Fn(time::Duration) -> IO,
+    AS: AggregatorSelector + Send + Sync + 'static,
 {
     OtlpMetricPipelineBuilder {
-        aggregator_selector,
+        aggregator_selector: Box::new(aggregator_selector),
         export_selector: ExportKindSelector::Cumulative,
         spawn,
         interval,
