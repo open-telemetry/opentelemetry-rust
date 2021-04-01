@@ -71,7 +71,10 @@ pub(crate) fn into_zipkin_span(local_endpoint: Endpoint, span_data: trace::SpanD
     );
     if let Some(status_code) = from_statuscode_to_str(span_data.status_code) {
         if status_code == "ERROR" {
-            tags.insert(OTEL_ERROR_DESCRIPTION.into(), span_data.status_message);
+            tags.insert(
+                OTEL_ERROR_DESCRIPTION.into(),
+                span_data.status_message.into_owned(),
+            );
         }
         tags.insert(OTEL_STATUS_CODE.into(), status_code.into());
     }
@@ -80,7 +83,7 @@ pub(crate) fn into_zipkin_span(local_endpoint: Endpoint, span_data: trace::SpanD
         .trace_id(span_data.span_context.trace_id().to_hex())
         .parent_id(span_data.parent_span_id.to_hex())
         .id(span_data.span_context.span_id().to_hex())
-        .name(span_data.name)
+        .name(span_data.name.into_owned())
         .kind(if user_defined_span_kind {
             None
         } else {

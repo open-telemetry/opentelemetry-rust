@@ -19,7 +19,7 @@ pub struct TestSpan(pub SpanContext);
 
 impl Span for TestSpan {
     fn add_event_with_timestamp(
-        &self,
+        &mut self,
         _name: String,
         _timestamp: std::time::SystemTime,
         _attributes: Vec<KeyValue>,
@@ -31,10 +31,10 @@ impl Span for TestSpan {
     fn is_recording(&self) -> bool {
         false
     }
-    fn set_attribute(&self, _attribute: KeyValue) {}
-    fn set_status(&self, _code: StatusCode, _message: String) {}
-    fn update_name(&self, _new_name: String) {}
-    fn end_with_timestamp(&self, _timestamp: std::time::SystemTime) {}
+    fn set_attribute(&mut self, _attribute: KeyValue) {}
+    fn set_status(&mut self, _code: StatusCode, _message: String) {}
+    fn update_name(&mut self, _new_name: String) {}
+    fn end_with_timestamp(&mut self, _timestamp: std::time::SystemTime) {}
 }
 
 pub fn new_test_export_span_data() -> SpanData {
@@ -43,14 +43,14 @@ pub fn new_test_export_span_data() -> SpanData {
         span_context: SpanContext::empty_context(),
         parent_span_id: SpanId::from_u64(0),
         span_kind: SpanKind::Internal,
-        name: "opentelemetry".to_string(),
+        name: "opentelemetry".into(),
         start_time: crate::time::now(),
         end_time: crate::time::now(),
         attributes: EvictedHashMap::new(config.max_attributes_per_span, 0),
         message_events: EvictedQueue::new(config.max_events_per_span),
         links: EvictedQueue::new(config.max_links_per_span),
         status_code: StatusCode::Unset,
-        status_message: "".to_string(),
+        status_message: "".into(),
         resource: config.resource,
         instrumentation_lib: InstrumentationLibrary::default(),
     }

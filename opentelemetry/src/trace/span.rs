@@ -23,7 +23,7 @@ use std::fmt;
 use std::time::SystemTime;
 
 /// Interface for a single operation within a trace.
-pub trait Span: fmt::Debug + 'static + Send + Sync {
+pub trait Span: fmt::Debug {
     /// An API to record events in the context of a given `Span`.
     ///
     /// Events have a time associated with the moment when they are
@@ -35,7 +35,7 @@ pub trait Span: fmt::Debug + 'static + Send + Sync {
     /// Note that the OpenTelemetry project documents certain ["standard event names and
     /// keys"](https://github.com/open-telemetry/opentelemetry-specification/tree/v0.5.0/specification/trace/semantic_conventions/README.md)
     /// which have prescribed semantic meanings.
-    fn add_event(&self, name: String, attributes: Vec<KeyValue>) {
+    fn add_event(&mut self, name: String, attributes: Vec<KeyValue>) {
         self.add_event_with_timestamp(name, crate::time::now(), attributes)
     }
 
@@ -52,7 +52,7 @@ pub trait Span: fmt::Debug + 'static + Send + Sync {
     ///
     /// Users can custom the exception message by overriding the `fmt::Display` trait's `fmt` method
     /// for the error.
-    fn record_exception(&self, err: &dyn Error) {
+    fn record_exception(&mut self, err: &dyn Error) {
         let attributes = vec![KeyValue::new("exception.message", err.to_string())];
 
         self.add_event("exception".to_string(), attributes);
@@ -61,7 +61,7 @@ pub trait Span: fmt::Debug + 'static + Send + Sync {
     /// Convenience method to record a exception/error as an `Event` with custom stacktrace
     ///
     /// See `Span:record_exception` method for more details.
-    fn record_exception_with_stacktrace(&self, err: &dyn Error, stacktrace: String) {
+    fn record_exception_with_stacktrace(&mut self, err: &dyn Error, stacktrace: String) {
         let attributes = vec![
             KeyValue::new("exception.message", err.to_string()),
             KeyValue::new("exception.stacktrace", stacktrace),
@@ -79,7 +79,7 @@ pub trait Span: fmt::Debug + 'static + Send + Sync {
     /// keys"](https://github.com/open-telemetry/opentelemetry-specification/tree/v0.5.0/specification/trace/semantic_conventions/README.md)
     /// which have prescribed semantic meanings.
     fn add_event_with_timestamp(
-        &self,
+        &mut self,
         name: String,
         timestamp: SystemTime,
         attributes: Vec<KeyValue>,
@@ -120,14 +120,14 @@ pub trait Span: fmt::Debug + 'static + Send + Sync {
     /// Note that the OpenTelemetry project documents certain ["standard
     /// attributes"](https://github.com/open-telemetry/opentelemetry-specification/tree/v0.5.0/specification/trace/semantic_conventions/README.md)
     /// that have prescribed semantic meanings.
-    fn set_attribute(&self, attribute: KeyValue);
+    fn set_attribute(&mut self, attribute: KeyValue);
 
     /// Sets the status of the `Span`. If used, this will override the default `Span`
     /// status, which is `Unset`. `message` MUST be ignored when the status is `OK` or `Unset`
     ///
     /// Only the value of the last call will be recorded, and implementations are free
     /// to ignore previous calls.
-    fn set_status(&self, code: StatusCode, message: String);
+    fn set_status(&mut self, code: StatusCode, message: String);
 
     /// Updates the `Span`'s name. After this update, any sampling behavior based on the
     /// name will depend on the implementation.
@@ -141,7 +141,7 @@ pub trait Span: fmt::Debug + 'static + Send + Sync {
     /// regular property. It emphasizes that this operation signifies a
     /// major change for a `Span` and may lead to re-calculation of sampling or
     /// filtering decisions made previously depending on the implementation.
-    fn update_name(&self, new_name: String);
+    fn update_name(&mut self, new_name: String);
 
     /// Finishes the `Span`.
     ///
@@ -153,7 +153,7 @@ pub trait Span: fmt::Debug + 'static + Send + Sync {
     /// still be running and can be ended later.
     ///
     /// This API MUST be non-blocking.
-    fn end(&self) {
+    fn end(&mut self) {
         self.end_with_timestamp(crate::time::now());
     }
 
@@ -162,7 +162,7 @@ pub trait Span: fmt::Debug + 'static + Send + Sync {
     /// For more details, refer to [`Span::end`]
     ///
     /// [`Span::end`]: Span::end()
-    fn end_with_timestamp(&self, timestamp: SystemTime);
+    fn end_with_timestamp(&mut self, timestamp: SystemTime);
 }
 
 /// `SpanKind` describes the relationship between the Span, its parents,

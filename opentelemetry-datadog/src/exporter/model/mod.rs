@@ -80,7 +80,6 @@ pub(crate) mod tests {
         trace::{SpanContext, SpanId, SpanKind, StatusCode, TraceId, TraceState},
         Key,
     };
-    use std::sync::Arc;
     use std::time::{Duration, SystemTime};
 
     fn get_traces() -> Vec<Vec<trace::SpanData>> {
@@ -110,15 +109,15 @@ pub(crate) mod tests {
             span_context,
             parent_span_id: SpanId::from_u64(parent_span_id),
             span_kind: SpanKind::Client,
-            name: "resource".to_string(),
+            name: "resource".into(),
             start_time,
             end_time,
             attributes,
             message_events,
             links,
             status_code: StatusCode::Ok,
-            status_message: String::new(),
-            resource: Arc::new(sdk::Resource::default()),
+            status_message: "".into(),
+            resource: None,
             instrumentation_lib: InstrumentationLibrary::new("component", None),
         }
     }

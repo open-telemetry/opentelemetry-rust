@@ -63,13 +63,13 @@ impl NoopSpan {
 
 impl trace::Span for NoopSpan {
     /// Ignores all events
-    fn add_event(&self, _name: String, _attributes: Vec<KeyValue>) {
+    fn add_event(&mut self, _name: String, _attributes: Vec<KeyValue>) {
         // Ignore
     }
 
     /// Ignores all events with timestamps
     fn add_event_with_timestamp(
-        &self,
+        &mut self,
         _name: String,
         _timestamp: SystemTime,
         _attributes: Vec<KeyValue>,
@@ -88,22 +88,22 @@ impl trace::Span for NoopSpan {
     }
 
     /// Ignores all attributes
-    fn set_attribute(&self, _attribute: KeyValue) {
+    fn set_attribute(&mut self, _attribute: KeyValue) {
         // Ignored
     }
 
     /// Ignores status
-    fn set_status(&self, _code: trace::StatusCode, _message: String) {
+    fn set_status(&mut self, _code: trace::StatusCode, _message: String) {
         // Ignored
     }
 
     /// Ignores name updates
-    fn update_name(&self, _new_name: String) {
+    fn update_name(&mut self, _new_name: String) {
         // Ignored
     }
 
     /// Ignores `Span` endings
-    fn end_with_timestamp(&self, _timestamp: SystemTime) {
+    fn end_with_timestamp(&mut self, _timestamp: SystemTime) {
         // Ignored
     }
 }
@@ -132,15 +132,21 @@ impl trace::Tracer for NoopTracer {
     /// Starts a new `NoopSpan` with a given context.
     ///
     /// If the context contains a valid span context, it is propagated.
-    fn start_with_context(&self, name: &str, cx: Context) -> Self::Span {
+    fn start_with_context<T>(&self, name: T, cx: Context) -> Self::Span
+    where
+        T: Into<std::borrow::Cow<'static, str>>,
+    {
         let mut builder = self.span_builder(name);
         builder.parent_context = Some(cx);
         self.build(builder)
     }
 
     /// Starts a `SpanBuilder`.
-    fn span_builder(&self, name: &str) -> trace::SpanBuilder {
-        trace::SpanBuilder::from_name(name.to_string())
+    fn span_builder<T>(&self, name: T) -> trace::SpanBuilder
+    where
+        T: Into<std::borrow::Cow<'static, str>>,
+    {
+        trace::SpanBuilder::from_name(name)
     }
 
     /// Builds a `NoopSpan` from a `SpanBuilder`.

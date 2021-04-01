@@ -211,7 +211,8 @@ impl TextMapPropagator for Propagator {
     /// Properly encodes the values of the `Context`'s `SpanContext` and injects
     /// them into the `Injector`.
     fn inject_context(&self, context: &Context, injector: &mut dyn Injector) {
-        let span_context = context.span().span_context();
+        let span = context.span();
+        let span_context = span.span_context();
         if span_context.is_valid() {
             if self.inject_encoding.support(&B3Encoding::SingleHeader) {
                 let mut value = format!(

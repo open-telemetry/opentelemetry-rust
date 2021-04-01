@@ -11,7 +11,7 @@ use crate::sdk::{
     trace::{
         provider::{TracerProvider, TracerProviderInner},
         span::{Span, SpanData},
-        EvictedHashMap, EvictedQueue, SamplingDecision, SamplingResult,
+        Config, EvictedHashMap, EvictedQueue, SamplingDecision, SamplingResult,
     },
     InstrumentationLibrary,
 };
@@ -20,6 +20,7 @@ use crate::trace::{
     TraceState, TRACE_FLAG_SAMPLED,
 };
 use crate::{Context, KeyValue};
+use std::borrow::Cow;
 use std::fmt;
 use std::sync::Weak;
 
@@ -73,11 +74,9 @@ impl Tracer {
         span_kind: &SpanKind,
         attributes: &[KeyValue],
         links: &[Link],
+        config: &Config,
     ) -> Option<(u8, Vec<KeyValue>, TraceState)> {
-        let provider = self.provider()?;
-        let sampler = &provider.config().default_sampler;
-
-        let sampling_result = sampler.should_sample(
+        let sampling_result = config.default_sampler.should_sample(
             Some(parent_cx),
             trace_id,
             name,
@@ -136,7 +135,10 @@ impl crate::trace::Tracer for Tracer {
     /// trace. A span is said to be a _root span_ if it does not have a parent. Each
     /// trace includes a single root span, which is the shared ancestor of all other
     /// spans in the trace.
-    fn start_with_context(&self, name: &str, cx: Context) -> Self::Span {
+    fn start_with_context<T>(&self, name: T, cx: Context) -> Self::Span
+    where
+        T: Into<Cow<'static, str>>,
+    {
         let mut builder = self.span_builder(name);
         builder.parent_context = Some(cx);
 
@@ -146,8 +148,11 @@ impl crate::trace::Tracer for Tracer {
     /// Creates a span builder
     ///
     /// An ergonomic way for attributes to be configured before the `Span` is started.
-    fn span_builder(&self, name: &str) -> SpanBuilder {
-        SpanBuilder::from_name(name.to_string())
+    fn span_builder<T>(&self, name: T) -> SpanBuilder
+    where
+        T: Into<Cow<'static, str>>,
+    {
+        SpanBuilder::from_name(name)
     }
 
     /// Starts a span from a `SpanBuilder`.
@@ -192,11 +197,13 @@ impl crate::trace::Tracer for Tracer {
                 _ => cx,
             }
         };
+        let span = parent_cx.span();
         let parent_span_context = if parent_cx.has_active_span() {
-            Some(parent_cx.span().span_context())
+            Some(span.span_context())
         } else {
             None
         };
+
         // Build context for sampling decision
         let (no_parent, trace_id, parent_span_id, remote_parent, parent_trace_flags) =
             parent_span_context
@@ -235,6 +242,7 @@ impl crate::trace::Tracer for Tracer {
                 &span_kind,
                 &attribute_options,
                 link_options.as_deref().unwrap_or(&[]),
+                provider.config(),
             )
         } else {
             // has parent that is local: use parent if sampled, or don't record.
@@ -270,13 +278,12 @@ impl crate::trace::Tracer for Tracer {
                 message_events.append_vec(&mut events);
             }
             let status_code = builder.status_code.unwrap_or(StatusCode::Unset);
-            let status_message = builder.status_message.unwrap_or_else(String::new);
-            let resource = config.resource.clone();
+            let status_message = builder.status_message.unwrap_or(Cow::Borrowed(""));
 
             SpanData {
                 parent_span_id,
                 span_kind,
-                name: builder.name.into(),
+                name: builder.name,
                 start_time,
                 end_time,
                 attributes,
@@ -284,7 +291,6 @@ impl crate::trace::Tracer for Tracer {
                 links,
                 status_code,
                 status_message,
-                resource,
             }
         });
 

@@ -1,5 +1,6 @@
 use crate::trace::NoopTracerProvider;
 use crate::{trace, trace::TracerProvider, Context, KeyValue};
+use std::borrow::Cow;
 use std::fmt;
 use std::mem;
 use std::sync::{Arc, RwLock};
@@ -21,7 +22,7 @@ impl trace::Span for BoxedSpan {
     /// keys"](https://github.com/open-telemetry/opentelemetry-specification/tree/v0.5.0/specification/trace/semantic_conventions/README.md)
     /// which have prescribed semantic meanings.
     fn add_event_with_timestamp(
-        &self,
+        &mut self,
         name: String,
         timestamp: SystemTime,
         attributes: Vec<KeyValue>,
@@ -45,23 +46,23 @@ impl trace::Span for BoxedSpan {
     /// Note that the OpenTelemetry project documents certain ["standard
     /// attributes"](https://github.com/open-telemetry/opentelemetry-specification/tree/v0.5.0/specification/trace/semantic_conventions/README.md)
     /// that have prescribed semantic meanings.
-    fn set_attribute(&self, attribute: KeyValue) {
+    fn set_attribute(&mut self, attribute: KeyValue) {
         self.0.set_attribute(attribute)
     }
 
     /// Sets the status of the `Span`. If used, this will override the default `Span`
     /// status, which is `Unset`.
-    fn set_status(&self, code: trace::StatusCode, message: String) {
+    fn set_status(&mut self, code: trace::StatusCode, message: String) {
         self.0.set_status(code, message)
     }
 
     /// Updates the `Span`'s name.
-    fn update_name(&self, new_name: String) {
+    fn update_name(&mut self, new_name: String) {
         self.0.update_name(new_name)
     }
 
     /// Finishes the span with given timestamp.
-    fn end_with_timestamp(&self, timestamp: SystemTime) {
+    fn end_with_timestamp(&mut self, timestamp: SystemTime) {
         self.0.end_with_timestamp(timestamp);
     }
 }
@@ -92,15 +93,21 @@ impl trace::Tracer for BoxedTracer {
     /// trace. A span is said to be a _root span_ if it does not have a parent. Each
     /// trace includes a single root span, which is the shared ancestor of all other
     /// spans in the trace.
-    fn start_with_context(&self, name: &str, cx: Context) -> Self::Span {
-        BoxedSpan(self.0.start_with_context_boxed(name, cx))
+    fn start_with_context<T>(&self, name: T, cx: Context) -> Self::Span
+    where
+        T: Into<Cow<'static, str>>,
+    {
+        BoxedSpan(self.0.start_with_context_boxed(name.into(), cx))
     }
 
     /// Creates a span builder
     ///
     /// An ergonomic way for attributes to be configured before the `Span` is started.
-    fn span_builder(&self, name: &str) -> trace::SpanBuilder {
-        trace::SpanBuilder::from_name(name.to_string())
+    fn span_builder<T>(&self, name: T) -> trace::SpanBuilder
+    where
+        T: Into<Cow<'static, str>>,
+    {
+        trace::SpanBuilder::from_name(name)
     }
 
     /// Create a span from a `SpanBuilder`
@@ -119,7 +126,7 @@ pub trait GenericTracer: fmt::Debug + 'static {
 
     /// Returns a trait object so the underlying implementation can be swapped
     /// out at runtime.
-    fn start_with_context_boxed(&self, name: &str, cx: Context) -> Box<DynSpan>;
+    fn start_with_context_boxed(&self, name: Cow<'static, str>, cx: Context) -> Box<DynSpan>;
 
     /// Returns a trait object so the underlying implementation can be swapped
     /// out at runtime.
@@ -128,7 +135,7 @@ pub trait GenericTracer: fmt::Debug + 'static {
 
 impl<S, T> GenericTracer for T
 where
-    S: trace::Span + Send + Sync,
+    S: trace::Span + Send + Sync + 'static,
     T: trace::Tracer<Span = S>,
 {
     /// Create a new invalid span for use in cases where there are no active spans.
@@ -138,7 +145,7 @@ where
 
     /// Returns a trait object so the underlying implementation can be swapped
     /// out at runtime.
-    fn start_with_context_boxed(&self, name: &str, cx: Context) -> Box<DynSpan> {
+    fn start_with_context_boxed(&self, name: Cow<'static, str>, cx: Context) -> Box<DynSpan> {
         Box::new(self.start_with_context(name, cx))
     }
 
@@ -165,7 +172,7 @@ pub trait GenericTracerProvider: fmt::Debug + 'static {
 
 impl<S, T, P> GenericTracerProvider for P
 where
-    S: trace::Span + Send + Sync,
+    S: trace::Span + Send + Sync + 'static,
     T: trace::Tracer<Span = S> + Send + Sync,
     P: trace::TracerProvider<Tracer = T>,
 {
@@ -193,7 +200,7 @@ impl GlobalTracerProvider {
     /// Create a new GlobalTracerProvider instance from a struct that implements `TracerProvider`.
     fn new<P, T, S>(provider: P) -> Self
     where
-        S: trace::Span + Send + Sync,
+        S: trace::Span + Send + Sync + 'static,
         T: trace::Tracer<Span = S> + Send + Sync,
         P: trace::TracerProvider<Tracer = T> + Send + Sync,
     {
@@ -258,7 +265,7 @@ pub fn tracer_with_version(name: &'static str, version: &'static str) -> BoxedTr
 /// [`TracerProvider`]: crate::trace::TracerProvider
 pub fn set_tracer_provider<P, T, S>(new_provider: P) -> GlobalTracerProvider
 where
-    S: trace::Span + Send + Sync,
+    S: trace::Span + Send + Sync + 'static,
     T: trace::Tracer<Span = S> + Send + Sync,
     P: trace::TracerProvider<Tracer = T> + Send + Sync,
 {

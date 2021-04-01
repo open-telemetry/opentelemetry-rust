@@ -1,5 +1,5 @@
-use crate::sdk;
 use crate::{
+    sdk,
     trace::{Event, Link, Span, SpanId, SpanKind, StatusCode, TraceContextExt, TraceId},
     Context, KeyValue,
 };
@@ -40,7 +40,7 @@ use std::time::SystemTime;
 ///
 /// let parent = tracer.start("foo");
 /// let parent_cx = Context::current_with_span(parent);
-/// let child = tracer.span_builder("bar")
+/// let mut child = tracer.span_builder("bar")
 ///     .with_parent_context(parent_cx.clone())
 ///     .start(&tracer);
 ///
@@ -158,7 +158,7 @@ use std::time::SystemTime;
 /// [`Context`]: crate::Context
 pub trait Tracer: fmt::Debug + 'static {
     /// The `Span` type used by this `Tracer`.
-    type Span: Span;
+    type Span: Span + Send + Sync;
 
     /// Returns a span with an invalid `SpanContext`. Used by functions that
     /// need to return a default span like `get_active_span` if no span is present.
@@ -187,7 +187,10 @@ pub trait Tracer: fmt::Debug + 'static {
     /// created in another process. Each propagators' deserialization must set
     /// `is_remote` to true on a parent `SpanContext` so `Span` creation knows if the
     /// parent is remote.
-    fn start(&self, name: &str) -> Self::Span {
+    fn start<T>(&self, name: T) -> Self::Span
+    where
+        T: Into<Cow<'static, str>>,
+    {
         self.start_with_context(name, Context::current())
     }
 
@@ -214,12 +217,16 @@ pub trait Tracer: fmt::Debug + 'static {
     /// created in another process. Each propagators' deserialization must set
     /// `is_remote` to true on a parent `SpanContext` so `Span` creation knows if the
     /// parent is remote.
-    fn start_with_context(&self, name: &str, context: Context) -> Self::Span;
+    fn start_with_context<T>(&self, name: T, context: Context) -> Self::Span
+    where
+        T: Into<Cow<'static, str>>;
 
     /// Creates a span builder
     ///
     /// An ergonomic way for attributes to be configured before the `Span` is started.
-    fn span_builder(&self, name: &str) -> SpanBuilder;
+    fn span_builder<T>(&self, name: T) -> SpanBuilder
+    where
+        T: Into<Cow<'static, str>>;
 
     /// Create a span from a `SpanBuilder`
     fn build(&self, builder: SpanBuilder) -> Self::Span;
@@ -352,7 +359,7 @@ pub struct SpanBuilder {
     /// Span status code
     pub status_code: Option<StatusCode>,
     /// Span status message
-    pub status_message: Option<String>,
+    pub status_message: Option<Cow<'static, str>>,
     /// Sampling result
     pub sampling_result: Option<sdk::trace::SamplingResult>,
 }
@@ -459,9 +466,9 @@ impl SpanBuilder {
     }
 
     /// Assign status message
-    pub fn with_status_message(self, message: String) -> Self {
+    pub fn with_status_message<T: Into<Cow<'static, str>>>(self, message: T) -> Self {
         SpanBuilder {
-            status_message: Some(message),
+            status_message: Some(message.into()),
             ..self
         }
     }
