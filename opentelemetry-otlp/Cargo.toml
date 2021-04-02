@@ -25,6 +25,11 @@ name = "smoke"
 path = "tests/smoke.rs"
 required-features = ["integration-testing"]
 
+[[test]]
+name = "grpc_build"
+path = "tests/grpc_build.rs"
+required-features = ["grpc-sys"]
+
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
@@ -43,6 +48,8 @@ tokio = { version = "1.0", features = ["full"], optional = true }
 [dev-dependencies]
 chrono = "0.4"
 tokio-stream = { version = "0.1", features = ["net"] }
+protobuf-codegen = { version = "2.16"}
+protoc-grpcio = { version = "2.0"}
 
 [features]
 trace = ["opentelemetry/trace"]
@@ -52,12 +59,10 @@ default = ["tonic", "tonic-build", "prost", "tokio"]
 tls = ["tonic/tls"]
 tls-roots = ["tls", "tonic/tls-roots"]
 
-grpc-sys = ["grpcio", "protobuf", "protobuf-codegen", "protoc-grpcio"]
+grpc-sys = ["grpcio", "protobuf"]
 openssl = ["grpcio/openssl"]
 openssl-vendored = ["grpcio/openssl-vendored"]
 integration-testing = ["tonic", "tonic-build", "prost", "tokio/full", "opentelemetry/trace"]
 
 [build-dependencies]
-protobuf-codegen = { version = "2.16", optional = true }
-protoc-grpcio = { version = "2.0", optional = true }
 tonic-build = { version = "0.4", optional = true }
