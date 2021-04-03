@@ -360,7 +360,7 @@ where
         let period = self.period.take();
         let (spawn, interval, exporter) = self.try_build()?;
         let mut push_builder = controllers::push(
-            Box::new(simple::Selector::Exact),
+            simple::Selector::Exact,
             ExportKindSelector::Stateless,
             exporter,
             spawn,

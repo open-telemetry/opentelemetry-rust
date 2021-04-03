@@ -37,30 +37,13 @@ use tonic::Request;
 pub fn new_metrics_pipeline<SP, SO, I, IO>(
     spawn: SP,
     interval: I,
-) -> OtlpMetricPipelineBuilder<ExportKindSelector, SP, SO, I, IO>
+) -> OtlpMetricPipelineBuilder<selectors::simple::Selector, ExportKindSelector, SP, SO, I, IO>
 where
     SP: Fn(PushControllerWorker) -> SO,
     I: Fn(time::Duration) -> IO,
-{
-    new_metrics_pipeline_with_selector(spawn, interval, selectors::simple::Selector::Inexpensive)
-}
-
-/// Return a pipeline to build OTLP metrics exporter.
-///
-/// Note that currently the OTLP metrics exporter only supports tonic as it's grpc layer and tokio as
-/// runtime.
-pub fn new_metrics_pipeline_with_selector<SP, SO, I, IO, AS>(
-    spawn: SP,
-    interval: I,
-    aggregator_selector: AS,
-) -> OtlpMetricPipelineBuilder<ExportKindSelector, SP, SO, I, IO>
-where
-    SP: Fn(PushControllerWorker) -> SO,
-    I: Fn(time::Duration) -> IO,
-    AS: AggregatorSelector + Send + Sync + 'static,
 {
     OtlpMetricPipelineBuilder {
-        aggregator_selector: Box::new(aggregator_selector),
+        aggregator_selector: selectors::simple::Selector::Inexpensive,
         export_selector: ExportKindSelector::Cumulative,
         spawn,
         interval,
@@ -78,13 +61,14 @@ where
 /// Note that currently the OTLP metrics exporter only supports tonic as it's grpc layer and tokio as
 /// runtime.
 #[derive(Debug)]
-pub struct OtlpMetricPipelineBuilder<ES, SP, SO, I, IO>
+pub struct OtlpMetricPipelineBuilder<AS, ES, SP, SO, I, IO>
 where
+    AS: AggregatorSelector + Send + Sync + 'static,
     ES: ExportKindFor + Send + Sync + Clone + 'static,
     SP: Fn(PushControllerWorker) -> SO,
     I: Fn(time::Duration) -> IO,
 {
-    aggregator_selector: Box<dyn AggregatorSelector + Send + Sync + 'static>,
+    aggregator_selector: AS,
     export_selector: ES,
     spawn: SP,
     interval: I,
@@ -96,8 +80,9 @@ where
     timeout: Option<time::Duration>,
 }
 
-impl<ES, SP, SO, I, IO, IOI> OtlpMetricPipelineBuilder<ES, SP, SO, I, IO>
+impl<AS, ES, SP, SO, I, IO, IOI> OtlpMetricPipelineBuilder<AS, ES, SP, SO, I, IO>
 where
+    AS: AggregatorSelector + Send + Sync + 'static,
     ES: ExportKindFor + Send + Sync + Clone + 'static,
     SP: Fn(PushControllerWorker) -> SO,
     I: Fn(time::Duration) -> IO,
@@ -128,13 +113,24 @@ where
     }
 
     /// Build with the aggregator selector
-    pub fn with_aggregator_selector<T>(self, aggregator_selector: T) -> Self
+    pub fn with_aggregator_selector<T>(
+        self,
+        aggregator_selector: T,
+    ) -> OtlpMetricPipelineBuilder<T, ES, SP, SO, I, IO>
     where
         T: AggregatorSelector + Send + Sync + 'static,
     {
         OtlpMetricPipelineBuilder {
-            aggregator_selector: Box::new(aggregator_selector),
-            ..self
+            aggregator_selector,
+            export_selector: self.export_selector,
+            spawn: self.spawn,
+            interval: self.interval,
+            export_config: self.export_config,
+            tonic_config: self.tonic_config,
+            resource: self.resource,
+            stateful: self.stateful,
+            period: self.period,
+            timeout: self.timeout,
         }
     }
 

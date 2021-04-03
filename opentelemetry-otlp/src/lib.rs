@@ -188,10 +188,7 @@ pub use crate::span::TonicConfig;
 pub use crate::span::GrpcioConfig;
 
 #[cfg(feature = "metrics")]
-pub use crate::metric::{
-    new_metrics_pipeline, new_metrics_pipeline_with_selector, MetricsExporter,
-    OtlpMetricPipelineBuilder,
-};
+pub use crate::metric::{new_metrics_pipeline, MetricsExporter, OtlpMetricPipelineBuilder};
 
 #[cfg(feature = "grpc-sys")]
 pub use crate::span::{Compression, Credentials};
