@@ -153,17 +153,11 @@ impl trace::Tracer for NoopTracer {
     ///
     /// If the span builder or context contains a valid span context, it is propagated.
     fn build(&self, mut builder: trace::SpanBuilder) -> Self::Span {
-        let parent_span_context = builder.parent_context.take().and_then(|parent_cx| {
-            if parent_cx.has_active_span() {
-                Some(parent_cx.span().span_context().clone())
-            } else {
-                parent_cx.remote_span_context().cloned()
-            }
-        });
-        if let Some(span_context) = parent_span_context {
-            trace::NoopSpan { span_context }
-        } else {
-            self.invalid()
+        match builder.parent_context.take() {
+            Some(cx) if cx.has_active_span() => trace::NoopSpan {
+                span_context: cx.span().span_context().clone(),
+            },
+            _ => self.invalid(),
         }
     }
 }

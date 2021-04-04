@@ -214,8 +214,8 @@ mod tests {
             extractor.insert(TRACESTATE_HEADER.to_string(), trace_state.to_string());
 
             assert_eq!(
-                propagator.extract(&extractor).remote_span_context(),
-                Some(&expected_context)
+                propagator.extract(&extractor).span().span_context(),
+                &expected_context
             )
         }
     }
@@ -233,8 +233,8 @@ mod tests {
         assert_eq!(
             propagator
                 .extract(&extractor)
-                .remote_span_context()
-                .unwrap()
+                .span()
+                .span_context()
                 .trace_state()
                 .header(),
             state
@@ -250,8 +250,8 @@ mod tests {
             extractor.insert(TRACEPARENT_HEADER.to_string(), invalid_header.to_string());
 
             assert_eq!(
-                propagator.extract(&extractor).remote_span_context(),
-                None,
+                propagator.extract(&extractor).span().span_context(),
+                &SpanContext::empty_context(),
                 "{}",
                 reason
             )
