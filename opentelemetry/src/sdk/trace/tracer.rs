@@ -76,7 +76,7 @@ impl Tracer {
         links: &[Link],
         config: &Config,
     ) -> Option<(u8, Vec<KeyValue>, TraceState)> {
-        let sampling_result = config.default_sampler.should_sample(
+        let sampling_result = config.sampler.should_sample(
             Some(parent_cx),
             trace_id,
             name,
