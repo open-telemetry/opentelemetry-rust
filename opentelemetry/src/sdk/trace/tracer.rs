@@ -181,51 +181,38 @@ impl crate::trace::Tracer for Tracer {
         let mut flags = 0;
         let mut span_trace_state = Default::default();
 
-        let parent_cx = {
-            let cx = builder
-                .parent_context
-                .take()
-                .unwrap_or_else(Context::current);
-
-            // Sampling expects to be able to access the parent span via `span` so wrap remote span
-            // context in a wrapper span if necessary. Remote span contexts will be passed to
-            // subsequent context's, so wrapping is only necessary if there is no active span.
-            match cx.remote_span_context() {
-                Some(remote_sc) if !cx.has_active_span() => {
-                    cx.with_span(Span::new(remote_sc.clone(), None, self.clone()))
-                }
-                _ => cx,
-            }
-        };
-        let span = parent_cx.span();
-        let parent_span_context = if parent_cx.has_active_span() {
-            Some(span.span_context())
+        let parent_cx = builder
+            .parent_context
+            .take()
+            .unwrap_or_else(Context::current);
+        let parent_span = if parent_cx.has_active_span() {
+            Some(parent_cx.span())
         } else {
             None
         };
 
         // Build context for sampling decision
-        let (no_parent, trace_id, parent_span_id, remote_parent, parent_trace_flags) =
-            parent_span_context
-                .as_ref()
-                .map(|ctx| {
-                    (
-                        false,
-                        ctx.trace_id(),
-                        ctx.span_id(),
-                        ctx.is_remote(),
-                        ctx.trace_flags(),
-                    )
-                })
-                .unwrap_or((
-                    true,
-                    builder
-                        .trace_id
-                        .unwrap_or_else(|| config.id_generator.new_trace_id()),
-                    SpanId::invalid(),
+        let (no_parent, trace_id, parent_span_id, remote_parent, parent_trace_flags) = parent_span
+            .as_ref()
+            .map(|parent| {
+                let sc = parent.span_context();
+                (
                     false,
-                    0,
-                ));
+                    sc.trace_id(),
+                    sc.span_id(),
+                    sc.is_remote(),
+                    sc.trace_flags(),
+                )
+            })
+            .unwrap_or((
+                true,
+                builder
+                    .trace_id
+                    .unwrap_or_else(|| config.id_generator.new_trace_id()),
+                SpanId::invalid(),
+                false,
+                0,
+            ));
 
         // There are 3 paths for sampling.
         //
@@ -246,13 +233,13 @@ impl crate::trace::Tracer for Tracer {
             )
         } else {
             // has parent that is local: use parent if sampled, or don't record.
-            parent_span_context
-                .filter(|span_context| span_context.is_sampled())
-                .map(|span_context| {
+            parent_span
+                .filter(|span| span.span_context().is_sampled())
+                .map(|span| {
                     (
                         parent_trace_flags,
                         Vec::new(),
-                        span_context.trace_state().clone(),
+                        span.span_context().trace_state().clone(),
                     )
                 })
         };

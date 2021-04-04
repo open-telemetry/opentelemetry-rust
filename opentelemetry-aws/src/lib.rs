@@ -324,7 +324,7 @@ pub mod trace {
 
                 let propagator = XrayPropagator::default();
                 let context = propagator.extract(&map);
-                assert_eq!(context.remote_span_context(), Some(&expected));
+                assert_eq!(context.span().span_context(), &expected);
             }
         }
 
@@ -333,10 +333,7 @@ pub mod trace {
             let map: HashMap<String, String> = HashMap::new();
             let propagator = XrayPropagator::default();
             let context = propagator.extract(&map);
-            assert_eq!(
-                context.remote_span_context(),
-                Some(&SpanContext::empty_context())
-            )
+            assert_eq!(context.span().span_context(), &SpanContext::empty_context())
         }
 
         #[test]

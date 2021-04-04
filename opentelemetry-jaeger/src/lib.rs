@@ -497,10 +497,7 @@ mod propagator {
             let map: HashMap<String, String> = HashMap::new();
             let propagator = Propagator::new();
             let context = propagator.extract(&map);
-            assert_eq!(
-                context.remote_span_context(),
-                Some(&SpanContext::empty_context())
-            )
+            assert_eq!(context.span().span_context(), &SpanContext::empty_context())
         }
 
         #[test]
@@ -513,7 +510,7 @@ mod propagator {
                 );
                 let propagator = Propagator::new();
                 let context = propagator.extract(&map);
-                assert_eq!(context.remote_span_context(), Some(&expected));
+                assert_eq!(context.span().span_context(), &expected);
             }
         }
 
@@ -526,10 +523,7 @@ mod propagator {
             );
             let propagator = Propagator::new();
             let context = propagator.extract(&map);
-            assert_eq!(
-                context.remote_span_context(),
-                Some(&SpanContext::empty_context())
-            );
+            assert_eq!(context.span().span_context(), &SpanContext::empty_context());
         }
 
         #[test]
@@ -541,10 +535,7 @@ mod propagator {
             );
             let propagator = Propagator::new();
             let context = propagator.extract(&map);
-            assert_eq!(
-                context.remote_span_context(),
-                Some(&SpanContext::empty_context())
-            );
+            assert_eq!(context.span().span_context(), &SpanContext::empty_context());
         }
 
         #[test]
@@ -557,14 +548,14 @@ mod propagator {
             let propagator = Propagator::new();
             let context = propagator.extract(&map);
             assert_eq!(
-                context.remote_span_context(),
-                Some(&SpanContext::new(
+                context.span().span_context(),
+                &SpanContext::new(
                     TraceId::from_u128(TRACE_ID),
                     SpanId::from_u64(SPAN_ID),
                     1,
                     true,
                     TraceState::default(),
-                ))
+                )
             );
         }
 
