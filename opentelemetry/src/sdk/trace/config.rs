@@ -30,7 +30,7 @@ pub struct Config {
 }
 
 impl Config {
-    /// Specify the default sampler to be used.
+    /// Specify the sampler to be used.
     pub fn with_sampler<T: sdk::trace::ShouldSample + 'static>(mut self, sampler: T) -> Self {
         self.sampler = Box::new(sampler);
         self
