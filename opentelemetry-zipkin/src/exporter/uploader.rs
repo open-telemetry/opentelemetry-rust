@@ -3,7 +3,7 @@ use crate::exporter::model::span::Span;
 use crate::exporter::Error;
 use http::{header::CONTENT_TYPE, Method, Request, Uri};
 use opentelemetry::sdk::export::trace::ExportResult;
-use opentelemetry_http::HttpClient;
+use opentelemetry_http::{HttpClient, ResponseExt};
 use std::fmt::Debug;
 
 #[derive(Debug)]
@@ -42,6 +42,7 @@ impl JsonV2Client {
             .header(CONTENT_TYPE, "application/json")
             .body(serde_json::to_vec(&spans).unwrap_or_default())
             .map_err::<Error, _>(Into::into)?;
-        self.client.send(req).await
+        let _ = self.client.send(req).await?.error_for_status()?;
+        Ok(())
     }
 }
