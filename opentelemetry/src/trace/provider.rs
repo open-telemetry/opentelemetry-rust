@@ -19,7 +19,7 @@
 //!
 //! Implementations might require the user to specify configuration properties at
 //! `TracerProvider` creation time, or rely on external configurations.
-use crate::trace::Tracer;
+use crate::trace::{TraceResult, Tracer};
 use std::fmt;
 
 /// An interface to create `Tracer` instances.
@@ -30,4 +30,7 @@ pub trait TracerProvider: fmt::Debug + 'static {
     /// Creates a named tracer instance of `Self::Tracer`.
     /// If the name is an empty string then provider uses default name.
     fn get_tracer(&self, name: &'static str, version: Option<&'static str>) -> Self::Tracer;
+
+    /// Force flush all remaining spans in span processors and return results.
+    fn force_flush(&self) -> Vec<TraceResult<()>>;
 }
