@@ -12,7 +12,7 @@ use opentelemetry::sdk::export::trace;
 use opentelemetry::sdk::export::trace::SpanData;
 use opentelemetry::trace::TraceError;
 use opentelemetry::{global, sdk, trace::TracerProvider};
-use opentelemetry_http::HttpClient;
+use opentelemetry_http::{HttpClient, ResponseExt};
 
 /// Default Datadog collector endpoint
 const DEFAULT_AGENT_ENDPOINT: &str = "http://127.0.0.1:8126";
@@ -201,7 +201,8 @@ impl trace::SpanExporter for DatadogExporter {
             .header(DATADOG_TRACE_COUNT_HEADER, trace_count)
             .body(data)
             .map_err::<Error, _>(Into::into)?;
-        self.client.send(req).await
+        let _ = self.client.send(req).await?.error_for_status()?;
+        Ok(())
     }
 }
 

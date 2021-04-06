@@ -1,4 +1,5 @@
-use crate::trace::NoopTracerProvider;
+use crate::global::handle_error;
+use crate::trace::{NoopTracerProvider, TraceResult};
 use crate::{trace, trace::TracerProvider, Context, KeyValue};
 use std::borrow::Cow;
 use std::fmt;
@@ -168,6 +169,9 @@ pub trait GenericTracerProvider: fmt::Debug + 'static {
         name: &'static str,
         version: Option<&'static str>,
     ) -> Box<dyn GenericTracer + Send + Sync>;
+
+    /// Force flush all remaining spans in span processors and return results.
+    fn force_flush(&self) -> Vec<TraceResult<()>>;
 }
 
 impl<S, T, P> GenericTracerProvider for P
@@ -183,6 +187,10 @@ where
         version: Option<&'static str>,
     ) -> Box<dyn GenericTracer + Send + Sync> {
         Box::new(self.get_tracer(name, version))
+    }
+
+    fn force_flush(&self) -> Vec<TraceResult<()>> {
+        self.force_flush()
     }
 }
 
@@ -216,6 +224,11 @@ impl trace::TracerProvider for GlobalTracerProvider {
     /// Find or create a named tracer using the global provider.
     fn get_tracer(&self, name: &'static str, version: Option<&'static str>) -> Self::Tracer {
         BoxedTracer(self.provider.get_tracer_boxed(name, version))
+    }
+
+    /// Force flush all remaining spans in span processors and return results.
+    fn force_flush(&self) -> Vec<TraceResult<()>> {
+        self.provider.force_flush()
     }
 }
 
@@ -289,6 +302,24 @@ pub fn shutdown_tracer_provider() {
         &mut *tracer_provider,
         GlobalTracerProvider::new(NoopTracerProvider::new()),
     );
+}
+
+/// Force flush all remaining spans in span processors.
+///
+/// Use the [`global::handle_error`] to handle errors happened during force flush.
+///
+/// [`global::handle_error`]: crate::global::handle_error
+pub fn force_flush_tracer_provider() {
+    let tracer_provider = GLOBAL_TRACER_PROVIDER
+        .write()
+        .expect("GLOBAL_TRACER_PROVIDER RwLock poisoned");
+
+    let results = trace::TracerProvider::force_flush(&*tracer_provider);
+    for result in results {
+        if let Err(err) = result {
+            handle_error(err)
+        }
+    }
 }
 
 #[cfg(test)]
@@ -377,6 +408,10 @@ mod tests {
 
         fn get_tracer(&self, _name: &'static str, _version: Option<&'static str>) -> Self::Tracer {
             NoopTracer::default()
+        }
+
+        fn force_flush(&self) -> Vec<TraceResult<()>> {
+            Vec::new()
         }
     }
 

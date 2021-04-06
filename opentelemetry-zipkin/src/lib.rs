@@ -91,8 +91,12 @@
 //! use opentelemetry::sdk::{trace::{self, IdGenerator, Sampler}, Resource};
 //! use opentelemetry::sdk::export::trace::ExportResult;
 //! use opentelemetry::global;
-//! use opentelemetry_http::HttpClient;
+//! use opentelemetry_http::{HttpClient, HttpError};
 //! use async_trait::async_trait;
+//! use bytes::Bytes;
+//! use futures_util::io::AsyncReadExt as _;
+//! use http::{Request, Response};
+//! use std::convert::TryInto as _;
 //! use std::error::Error;
 //!
 //! // `reqwest` and `surf` are supported through features, if you prefer an
@@ -101,17 +105,20 @@
 //! #[derive(Debug)]
 //! struct IsahcClient(isahc::HttpClient);
 //!
+//! async fn body_to_bytes(mut body: isahc::Body) -> Result<Bytes, HttpError> {
+//!     let mut bytes = Vec::with_capacity(body.len().unwrap_or(0).try_into()?);
+//!     let _ = body.read_to_end(&mut bytes).await?;
+//!     Ok(bytes.into())
+//! }
+//!
 //! #[async_trait]
 //! impl HttpClient for IsahcClient {
-//!   async fn send(&self, request: http::Request<Vec<u8>>) -> ExportResult {
-//!     let result = self.0.send_async(request).await.map_err(|err| opentelemetry_zipkin::Error::Other(err.to_string()))?;
-//!
-//!     if result.status().is_success() {
-//!       Ok(())
-//!     } else {
-//!       Err(opentelemetry_zipkin::Error::Other(result.status().to_string()).into())
+//!     async fn send(&self, request: Request<Vec<u8>>) -> Result<Response<Bytes>, HttpError> {
+//!         let response = self.0.send_async(request).await?;
+//!         Ok(Response::builder()
+//!             .status(response.status())
+//!             .body(body_to_bytes(response.into_body()).await?)?)
 //!     }
-//!   }
 //! }
 //!
 //! fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {

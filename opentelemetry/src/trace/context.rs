@@ -106,8 +106,6 @@ impl SpanRef<'_> {
     }
 }
 
-struct RemoteSpanContext(crate::trace::SpanContext);
-
 /// Methods for storing and retrieving trace data in a context.
 pub trait TraceContextExt {
     /// Returns a clone of the current context with the included span.
@@ -151,12 +149,6 @@ pub trait TraceContextExt {
     ///
     /// This is useful for building propagators.
     fn with_remote_span_context(&self, span_context: crate::trace::SpanContext) -> Self;
-
-    /// Returns a reference to the remote span context data stored in this context,
-    /// or none if no remote span context has been set.
-    ///
-    /// This is useful for building tracers.
-    fn remote_span_context(&self) -> Option<&crate::trace::SpanContext>;
 }
 
 impl TraceContextExt for Context {
@@ -187,12 +179,10 @@ impl TraceContextExt for Context {
     }
 
     fn with_remote_span_context(&self, span_context: crate::trace::SpanContext) -> Self {
-        self.with_value(RemoteSpanContext(span_context))
-    }
-
-    fn remote_span_context(&self) -> Option<&crate::trace::SpanContext> {
-        self.get::<RemoteSpanContext>()
-            .map(|span_context| &span_context.0)
+        self.with_value(SynchronizedSpan {
+            span_context,
+            inner: None,
+        })
     }
 }
 

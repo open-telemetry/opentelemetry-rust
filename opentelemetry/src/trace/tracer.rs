@@ -337,7 +337,7 @@ pub trait Tracer: fmt::Debug + 'static {
 #[derive(Clone, Debug, Default)]
 pub struct SpanBuilder {
     /// Parent `Context`
-    pub parent_context: Option<Context>,
+    pub parent_context: Context,
     /// Trace id, useful for integrations with external tracing systems.
     pub trace_id: Option<TraceId>,
     /// Span id, useful for integrations with external tracing systems.
@@ -368,8 +368,16 @@ pub struct SpanBuilder {
 impl SpanBuilder {
     /// Create a new span builder from a span name
     pub fn from_name<T: Into<Cow<'static, str>>>(name: T) -> Self {
+        Self::from_name_with_context(name, Context::current())
+    }
+
+    /// Create a new span builder from a span name with the specified context
+    pub(crate) fn from_name_with_context<T: Into<Cow<'static, str>>>(
+        name: T,
+        parent_context: Context,
+    ) -> Self {
         SpanBuilder {
-            parent_context: None,
+            parent_context,
             trace_id: None,
             span_id: None,
             span_kind: None,
@@ -388,7 +396,7 @@ impl SpanBuilder {
     /// Assign parent context
     pub fn with_parent_context(self, parent_context: Context) -> Self {
         SpanBuilder {
-            parent_context: Some(parent_context),
+            parent_context,
             ..self
         }
     }

@@ -16,7 +16,7 @@ pub fn config() -> Config {
 #[derive(Debug)]
 pub struct Config {
     /// The sampler that the sdk should use
-    pub default_sampler: Box<dyn sdk::trace::ShouldSample>,
+    pub sampler: Box<dyn sdk::trace::ShouldSample>,
     /// The id generator that the sdk should use
     pub id_generator: Box<dyn IdGenerator>,
     /// The max events that can be added to a `Span`.
@@ -30,9 +30,9 @@ pub struct Config {
 }
 
 impl Config {
-    /// Specify the default sampler to be used.
+    /// Specify the sampler to be used.
     pub fn with_sampler<T: sdk::trace::ShouldSample + 'static>(mut self, sampler: T) -> Self {
-        self.default_sampler = Box::new(sampler);
+        self.sampler = Box::new(sampler);
         self
     }
 
@@ -71,7 +71,7 @@ impl Default for Config {
     /// Create default global sdk configuration.
     fn default() -> Self {
         let mut config = Config {
-            default_sampler: Box::new(Sampler::ParentBased(Box::new(Sampler::AlwaysOn))),
+            sampler: Box::new(Sampler::ParentBased(Box::new(Sampler::AlwaysOn))),
             id_generator: Box::new(sdk::trace::IdGenerator::default()),
             max_events_per_span: 128,
             max_attributes_per_span: 128,

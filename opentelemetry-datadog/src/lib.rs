@@ -81,10 +81,14 @@
 //! use opentelemetry::{KeyValue, trace::Tracer};
 //! use opentelemetry::sdk::{trace::{self, IdGenerator, Sampler}, Resource};
 //! use opentelemetry::sdk::export::trace::ExportResult;
-//! use opentelemetry_datadog::{new_pipeline, ApiVersion, Error};
 //! use opentelemetry::global::shutdown_tracer_provider;
-//! use opentelemetry_http::HttpClient;
+//! use opentelemetry_datadog::{new_pipeline, ApiVersion, Error};
+//! use opentelemetry_http::{HttpClient, HttpError};
 //! use async_trait::async_trait;
+//! use bytes::Bytes;
+//! use futures_util::io::AsyncReadExt as _;
+//! use http::{Request, Response};
+//! use std::convert::TryInto as _;
 //!
 //! // `reqwest` and `surf` are supported through features, if you prefer an
 //! // alternate http client you can add support by implementing `HttpClient` as
@@ -92,17 +96,20 @@
 //! #[derive(Debug)]
 //! struct IsahcClient(isahc::HttpClient);
 //!
+//! async fn body_to_bytes(mut body: isahc::Body) -> Result<Bytes, HttpError> {
+//!     let mut bytes = Vec::with_capacity(body.len().unwrap_or(0).try_into()?);
+//!     let _ = body.read_to_end(&mut bytes).await?;
+//!     Ok(bytes.into())
+//! }
+//!
 //! #[async_trait]
 //! impl HttpClient for IsahcClient {
-//!   async fn send(&self, request: http::Request<Vec<u8>>) -> ExportResult {
-//!     let result = self.0.send_async(request).await.map_err(|err| Error::Other(err.to_string()))?;
-//!
-//!     if result.status().is_success() {
-//!       Ok(())
-//!     } else {
-//!       Err(Error::Other(result.status().to_string()).into())
+//!     async fn send(&self, request: Request<Vec<u8>>) -> Result<Response<Bytes>, HttpError> {
+//!         let response = self.0.send_async(request).await?;
+//!         Ok(Response::builder()
+//!             .status(response.status())
+//!             .body(body_to_bytes(response.into_body()).await?)?)
 //!     }
-//!   }
 //! }
 //!
 //! fn main() -> Result<(), opentelemetry::trace::TraceError> {
@@ -343,7 +350,7 @@ mod propagator {
 
                 let propagator = DatadogPropagator::default();
                 let context = propagator.extract(&map);
-                assert_eq!(context.remote_span_context(), Some(&expected));
+                assert_eq!(context.span().span_context(), &expected);
             }
         }
 
@@ -352,10 +359,7 @@ mod propagator {
             let map: HashMap<String, String> = HashMap::new();
             let propagator = DatadogPropagator::default();
             let context = propagator.extract(&map);
-            assert_eq!(
-                context.remote_span_context(),
-                Some(&SpanContext::empty_context())
-            )
+            assert_eq!(context.span().span_context(), &SpanContext::empty_context())
         }
 
         #[test]
