@@ -3,6 +3,7 @@
 //! This implementation is returned as the global tracer if no `Tracer`
 //! has been set. It is also useful for testing purposes as it is intended
 //! to have minimal resource utilization and runtime impact.
+use crate::trace::TraceResult;
 use crate::{
     sdk::export::trace::{ExportResult, SpanData, SpanExporter},
     trace,
@@ -31,6 +32,11 @@ impl trace::TracerProvider for NoopTracerProvider {
     /// Returns a new `NoopTracer` instance.
     fn get_tracer(&self, _name: &'static str, _version: Option<&'static str>) -> Self::Tracer {
         NoopTracer::new()
+    }
+
+    /// Return an empty `Vec` as there isn't any span processors in `NoopTracerProvider`
+    fn force_push(&self) -> Vec<TraceResult<()>> {
+        Vec::new()
     }
 }
 

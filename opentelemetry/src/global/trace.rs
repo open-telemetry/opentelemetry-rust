@@ -1,4 +1,5 @@
-use crate::trace::NoopTracerProvider;
+use crate::global::handle_error;
+use crate::trace::{NoopTracerProvider, TraceResult};
 use crate::{trace, trace::TracerProvider, Context, KeyValue};
 use std::borrow::Cow;
 use std::fmt;
@@ -168,6 +169,9 @@ pub trait GenericTracerProvider: fmt::Debug + 'static {
         name: &'static str,
         version: Option<&'static str>,
     ) -> Box<dyn GenericTracer + Send + Sync>;
+
+    /// Force push all remaining spans in span processors and return results.
+    fn force_push(&self) -> Vec<TraceResult<()>>;
 }
 
 impl<S, T, P> GenericTracerProvider for P
@@ -183,6 +187,10 @@ where
         version: Option<&'static str>,
     ) -> Box<dyn GenericTracer + Send + Sync> {
         Box::new(self.get_tracer(name, version))
+    }
+
+    fn force_push(&self) -> Vec<TraceResult<()>> {
+        self.force_push()
     }
 }
 
@@ -216,6 +224,11 @@ impl trace::TracerProvider for GlobalTracerProvider {
     /// Find or create a named tracer using the global provider.
     fn get_tracer(&self, name: &'static str, version: Option<&'static str>) -> Self::Tracer {
         BoxedTracer(self.provider.get_tracer_boxed(name, version))
+    }
+
+    /// Force push all remaining spans in span processors and return results.
+    fn force_push(&self) -> Vec<TraceResult<()>> {
+        self.provider.force_push()
     }
 }
 
@@ -289,6 +302,20 @@ pub fn shutdown_tracer_provider() {
         &mut *tracer_provider,
         GlobalTracerProvider::new(NoopTracerProvider::new()),
     );
+}
+
+/// Force push all remaining spans in span processors.
+pub fn force_push_tracer_provider() {
+    let tracer_provider = GLOBAL_TRACER_PROVIDER
+        .write()
+        .expect("GLOBAL_TRACER_PROVIDER RwLock poisoned");
+
+    let results = trace::TracerProvider::force_push(&*tracer_provider);
+    for result in results {
+        if let Err(err) = result {
+            handle_error(err)
+        }
+    }
 }
 
 #[cfg(test)]
@@ -377,6 +404,10 @@ mod tests {
 
         fn get_tracer(&self, _name: &'static str, _version: Option<&'static str>) -> Self::Tracer {
             NoopTracer::default()
+        }
+
+        fn force_push(&self) -> Vec<TraceResult<()>> {
+            Vec::new()
         }
     }
 

@@ -8,6 +8,7 @@
 //! propagators) are provided by the `TracerProvider`. `Tracer` instances do
 //! not duplicate this data to avoid that different `Tracer` instances
 //! of the `TracerProvider` have different versions of these data.
+use crate::trace::TraceResult;
 use crate::{
     global,
     runtime::Runtime,
@@ -85,6 +86,14 @@ impl crate::trace::TracerProvider for TracerProvider {
 
         sdk::trace::Tracer::new(instrumentation_lib, Arc::downgrade(&self.inner))
     }
+
+    /// Force push all remaining spans in span processors and return results.
+    fn force_push(&self) -> Vec<TraceResult<()>> {
+        self.span_processors()
+            .iter()
+            .map(|processor| processor.force_flush())
+            .collect()
+    }
 }
 
 /// Builder for provider attributes.
@@ -144,5 +153,56 @@ impl Builder {
                 config: self.config,
             }),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::sdk::export::trace::SpanData;
+    use crate::sdk::trace::provider::TracerProviderInner;
+    use crate::sdk::trace::{Span, SpanProcessor};
+    use crate::trace::{TraceError, TraceResult, TracerProvider};
+    use crate::Context;
+    use std::sync::Arc;
+
+    #[derive(Debug)]
+    struct TestSpanProcessor {
+        success: bool,
+    }
+
+    impl SpanProcessor for TestSpanProcessor {
+        fn on_start(&self, _span: &Span, _cx: &Context) {
+            unimplemented!()
+        }
+
+        fn on_end(&self, _span: SpanData) {
+            unimplemented!()
+        }
+
+        fn force_flush(&self) -> TraceResult<()> {
+            if self.success {
+                Ok(())
+            } else {
+                Err(TraceError::from("cannot export"))
+            }
+        }
+
+        fn shutdown(&mut self) -> TraceResult<()> {
+            self.force_flush()
+        }
+    }
+
+    #[test]
+    fn test_force_push() {
+        let tracer_provider = super::TracerProvider::new(Arc::from(TracerProviderInner {
+            processors: vec![
+                Box::from(TestSpanProcessor { success: true }),
+                Box::from(TestSpanProcessor { success: false }),
+            ],
+            config: Default::default(),
+        }));
+
+        let results = tracer_provider.force_push();
+        assert_eq!(results.len(), 2);
     }
 }
