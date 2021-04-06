@@ -87,8 +87,8 @@ impl crate::trace::TracerProvider for TracerProvider {
         sdk::trace::Tracer::new(instrumentation_lib, Arc::downgrade(&self.inner))
     }
 
-    /// Force push all remaining spans in span processors and return results.
-    fn force_push(&self) -> Vec<TraceResult<()>> {
+    /// Force flush all remaining spans in span processors and return results.
+    fn force_flush(&self) -> Vec<TraceResult<()>> {
         self.span_processors()
             .iter()
             .map(|processor| processor.force_flush())
@@ -193,7 +193,7 @@ mod tests {
     }
 
     #[test]
-    fn test_force_push() {
+    fn test_force_flush() {
         let tracer_provider = super::TracerProvider::new(Arc::from(TracerProviderInner {
             processors: vec![
                 Box::from(TestSpanProcessor { success: true }),
@@ -202,7 +202,7 @@ mod tests {
             config: Default::default(),
         }));
 
-        let results = tracer_provider.force_push();
+        let results = tracer_provider.force_flush();
         assert_eq!(results.len(), 2);
     }
 }

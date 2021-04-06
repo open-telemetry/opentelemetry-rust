@@ -35,7 +35,7 @@ impl trace::TracerProvider for NoopTracerProvider {
     }
 
     /// Return an empty `Vec` as there isn't any span processors in `NoopTracerProvider`
-    fn force_push(&self) -> Vec<TraceResult<()>> {
+    fn force_flush(&self) -> Vec<TraceResult<()>> {
         Vec::new()
     }
 }

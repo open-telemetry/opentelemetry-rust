@@ -170,8 +170,8 @@ pub trait GenericTracerProvider: fmt::Debug + 'static {
         version: Option<&'static str>,
     ) -> Box<dyn GenericTracer + Send + Sync>;
 
-    /// Force push all remaining spans in span processors and return results.
-    fn force_push(&self) -> Vec<TraceResult<()>>;
+    /// Force flush all remaining spans in span processors and return results.
+    fn force_flush(&self) -> Vec<TraceResult<()>>;
 }
 
 impl<S, T, P> GenericTracerProvider for P
@@ -189,8 +189,8 @@ where
         Box::new(self.get_tracer(name, version))
     }
 
-    fn force_push(&self) -> Vec<TraceResult<()>> {
-        self.force_push()
+    fn force_flush(&self) -> Vec<TraceResult<()>> {
+        self.force_flush()
     }
 }
 
@@ -226,9 +226,9 @@ impl trace::TracerProvider for GlobalTracerProvider {
         BoxedTracer(self.provider.get_tracer_boxed(name, version))
     }
 
-    /// Force push all remaining spans in span processors and return results.
-    fn force_push(&self) -> Vec<TraceResult<()>> {
-        self.provider.force_push()
+    /// Force flush all remaining spans in span processors and return results.
+    fn force_flush(&self) -> Vec<TraceResult<()>> {
+        self.provider.force_flush()
     }
 }
 
@@ -304,13 +304,17 @@ pub fn shutdown_tracer_provider() {
     );
 }
 
-/// Force push all remaining spans in span processors.
-pub fn force_push_tracer_provider() {
+/// Force flush all remaining spans in span processors.
+///
+/// Use the [`global::handle_error`] to handle errors happened during force flush.
+///
+/// [`global::handle_error`]: crate::global::handle_error
+pub fn force_flush_tracer_provider() {
     let tracer_provider = GLOBAL_TRACER_PROVIDER
         .write()
         .expect("GLOBAL_TRACER_PROVIDER RwLock poisoned");
 
-    let results = trace::TracerProvider::force_push(&*tracer_provider);
+    let results = trace::TracerProvider::force_flush(&*tracer_provider);
     for result in results {
         if let Err(err) = result {
             handle_error(err)
@@ -406,7 +410,7 @@ mod tests {
             NoopTracer::default()
         }
 
-        fn force_push(&self) -> Vec<TraceResult<()>> {
+        fn force_flush(&self) -> Vec<TraceResult<()>> {
             Vec::new()
         }
     }

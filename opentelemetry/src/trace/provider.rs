@@ -31,6 +31,6 @@ pub trait TracerProvider: fmt::Debug + 'static {
     /// If the name is an empty string then provider uses default name.
     fn get_tracer(&self, name: &'static str, version: Option<&'static str>) -> Self::Tracer;
 
-    /// Force push all remaining spans in span processors and return results.
-    fn force_push(&self) -> Vec<TraceResult<()>>;
+    /// Force flush all remaining spans in span processors and return results.
+    fn force_flush(&self) -> Vec<TraceResult<()>>;
 }
