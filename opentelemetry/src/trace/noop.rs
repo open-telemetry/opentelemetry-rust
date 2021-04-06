@@ -7,7 +7,7 @@ use crate::trace::TraceResult;
 use crate::{
     sdk::export::trace::{ExportResult, SpanData, SpanExporter},
     trace,
-    trace::{TraceContextExt, TraceState},
+    trace::{SpanBuilder, TraceContextExt, TraceState},
     Context, KeyValue,
 };
 use async_trait::async_trait;
@@ -137,14 +137,12 @@ impl trace::Tracer for NoopTracer {
 
     /// Starts a new `NoopSpan` with a given context.
     ///
-    /// If the context contains a valid span context, it is propagated.
+    /// If the context contains a valid span, it's span context is propagated.
     fn start_with_context<T>(&self, name: T, cx: Context) -> Self::Span
     where
         T: Into<std::borrow::Cow<'static, str>>,
     {
-        let mut builder = self.span_builder(name);
-        builder.parent_context = Some(cx);
-        self.build(builder)
+        self.build(SpanBuilder::from_name_with_context(name, cx))
     }
 
     /// Starts a `SpanBuilder`.
@@ -157,13 +155,16 @@ impl trace::Tracer for NoopTracer {
 
     /// Builds a `NoopSpan` from a `SpanBuilder`.
     ///
-    /// If the span builder or context contains a valid span context, it is propagated.
-    fn build(&self, mut builder: trace::SpanBuilder) -> Self::Span {
-        match builder.parent_context.take() {
-            Some(cx) if cx.has_active_span() => trace::NoopSpan {
+    /// If the span builder or the context's current span contains a valid span context, it is
+    /// propagated.
+    fn build(&self, builder: trace::SpanBuilder) -> Self::Span {
+        let cx = builder.parent_context;
+        if cx.has_active_span() {
+            trace::NoopSpan {
                 span_context: cx.span().span_context().clone(),
-            },
-            _ => self.invalid(),
+            }
+        } else {
+            self.invalid()
         }
     }
 }
@@ -218,13 +219,13 @@ mod tests {
         let tracer = NoopTracer::new();
         let builder = tracer
             .span_builder("foo")
-            .with_parent_context(Context::current_with_span(TestSpan(valid_span_context())));
+            .with_parent_context(Context::new().with_span(TestSpan(valid_span_context())));
         let span = tracer.build(builder);
         assert!(span.span_context().is_valid());
     }
 
     #[test]
-    fn noop_tracer_propagates_valid_span_context_from_span() {
+    fn noop_tracer_propagates_valid_span_context_from_explicitly_specified_context() {
         let tracer = NoopTracer::new();
         let cx = Context::new().with_span(NoopSpan {
             span_context: valid_span_context(),

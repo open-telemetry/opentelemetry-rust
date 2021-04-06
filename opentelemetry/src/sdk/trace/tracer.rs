@@ -139,10 +139,7 @@ impl crate::trace::Tracer for Tracer {
     where
         T: Into<Cow<'static, str>>,
     {
-        let mut builder = self.span_builder(name);
-        builder.parent_context = Some(cx);
-
-        self.build(builder)
+        self.build(SpanBuilder::from_name_with_context(name, cx))
     }
 
     /// Creates a span builder
@@ -181,12 +178,8 @@ impl crate::trace::Tracer for Tracer {
         let mut flags = 0;
         let mut span_trace_state = Default::default();
 
-        let parent_cx = builder
-            .parent_context
-            .take()
-            .unwrap_or_else(Context::current);
-        let parent_span = if parent_cx.has_active_span() {
-            Some(parent_cx.span())
+        let parent_span = if builder.parent_context.has_active_span() {
+            Some(builder.parent_context.span())
         } else {
             None
         };
@@ -220,10 +213,10 @@ impl crate::trace::Tracer for Tracer {
         // * There is no parent or a remote parent, in which case make decision now
         // * There is a local parent, in which case defer to the parent's decision
         let sampling_decision = if let Some(sampling_result) = builder.sampling_result.take() {
-            self.process_sampling_result(sampling_result, &parent_cx)
+            self.process_sampling_result(sampling_result, &builder.parent_context)
         } else if no_parent || remote_parent {
             self.make_sampling_decision(
-                &parent_cx,
+                &builder.parent_context,
                 trace_id,
                 &builder.name,
                 &span_kind,
@@ -245,6 +238,16 @@ impl crate::trace::Tracer for Tracer {
         };
 
         // Build optional inner context, `None` if not recording.
+        let SpanBuilder {
+            parent_context,
+            name,
+            start_time,
+            end_time,
+            message_events,
+            status_code,
+            status_message,
+            ..
+        } = builder;
         let inner = sampling_decision.map(|(trace_flags, mut extra_attrs, trace_state)| {
             flags = trace_flags;
             span_trace_state = trace_state;
@@ -258,23 +261,23 @@ impl crate::trace::Tracer for Tracer {
             if let Some(link_options) = &mut link_options {
                 links.append_vec(link_options);
             }
-            let start_time = builder.start_time.unwrap_or_else(crate::time::now);
-            let end_time = builder.end_time.unwrap_or(start_time);
-            let mut message_events = EvictedQueue::new(config.max_events_per_span);
-            if let Some(mut events) = builder.message_events {
-                message_events.append_vec(&mut events);
+            let start_time = start_time.unwrap_or_else(crate::time::now);
+            let end_time = end_time.unwrap_or(start_time);
+            let mut message_events_queue = EvictedQueue::new(config.max_events_per_span);
+            if let Some(mut events) = message_events {
+                message_events_queue.append_vec(&mut events);
             }
-            let status_code = builder.status_code.unwrap_or(StatusCode::Unset);
-            let status_message = builder.status_message.unwrap_or(Cow::Borrowed(""));
+            let status_code = status_code.unwrap_or(StatusCode::Unset);
+            let status_message = status_message.unwrap_or(Cow::Borrowed(""));
 
             SpanData {
                 parent_span_id,
                 span_kind,
-                name: builder.name,
+                name,
                 start_time,
                 end_time,
                 attributes,
-                message_events,
+                message_events: message_events_queue,
                 links,
                 status_code,
                 status_message,
@@ -286,7 +289,7 @@ impl crate::trace::Tracer for Tracer {
 
         // Call `on_start` for all processors
         for processor in provider.span_processors() {
-            processor.on_start(&span, &parent_cx)
+            processor.on_start(&span, &parent_context)
         }
 
         span
@@ -346,13 +349,13 @@ mod tests {
         let tracer = tracer_provider.get_tracer("test", None);
         let trace_state = TraceState::from_key_value(vec![("foo", "bar")]).unwrap();
         let span_builder = SpanBuilder {
-            parent_context: Some(Context::current_with_span(TestSpan(SpanContext::new(
+            parent_context: Context::new().with_span(TestSpan(SpanContext::new(
                 TraceId::from_u128(128),
                 SpanId::from_u64(64),
                 TRACE_FLAG_SAMPLED,
                 true,
                 trace_state,
-            )))),
+            ))),
             ..Default::default()
         };
 
