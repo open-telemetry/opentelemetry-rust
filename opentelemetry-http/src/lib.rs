@@ -1,9 +1,12 @@
 use std::fmt::Debug;
 
 use async_trait::async_trait;
-use http::Request;
-use opentelemetry::propagation::{Extractor, Injector};
-use opentelemetry::trace::TraceError;
+use bytes::Bytes;
+use http::{Request, Response};
+use opentelemetry::{
+    propagation::{Extractor, Injector},
+    trace::TraceError,
+};
 
 pub struct HeaderInjector<'a>(pub &'a mut http::HeaderMap);
 
@@ -35,145 +38,113 @@ impl<'a> Extractor for HeaderExtractor<'a> {
     }
 }
 
+pub type HttpError = Box<dyn std::error::Error + Send + Sync + 'static>;
+
 /// A minimal interface necessary for export spans over HTTP.
 ///
-/// Users sometime choose http clients that relay on certain runtime. This trait
-/// allows users to bring their choice of http clients.
+/// Users sometime choose HTTP clients that relay on a certain async runtime. This trait allows
+/// users to bring their choice of HTTP client.
 #[async_trait]
 pub trait HttpClient: Debug + Send + Sync {
-    /// Send a batch of spans to collectors
-    async fn send(&self, request: Request<Vec<u8>>) -> Result<(), TraceError>;
+    /// Send the specified HTTP request
+    ///
+    /// Returns the HTTP response including the status code and body.
+    ///
+    /// Returns an error if it can't connect to the server or the request could not be completed,
+    /// e.g. because of a timeout, infinite redirects, or a loss of connection.
+    async fn send(&self, request: Request<Vec<u8>>) -> Result<Response<Bytes>, HttpError>;
 }
 
 #[cfg(feature = "reqwest")]
 mod reqwest {
-    use super::{async_trait, HttpClient, Request, TraceError};
-    use opentelemetry::sdk::export::ExportError;
+    use super::{async_trait, Bytes, HttpClient, HttpError, Request, Response};
     use std::convert::TryInto;
-    use thiserror::Error;
 
     #[async_trait]
     impl HttpClient for reqwest::Client {
-        async fn send(&self, request: Request<Vec<u8>>) -> Result<(), TraceError> {
-            let request = request.try_into().map_err(ReqwestError::from)?;
-            let _ = self
-                .execute(request)
-                .await
-                .and_then(|rsp| rsp.error_for_status())
-                .map_err(ReqwestError::from)?;
-            Ok(())
+        async fn send(&self, request: Request<Vec<u8>>) -> Result<Response<Bytes>, HttpError> {
+            let request = request.try_into()?;
+            let response = self.execute(request).await?;
+            Ok(Response::builder()
+                .status(response.status())
+                .body(response.bytes().await?)?)
         }
     }
 
     #[async_trait]
     impl HttpClient for reqwest::blocking::Client {
-        async fn send(&self, request: Request<Vec<u8>>) -> Result<(), TraceError> {
-            let _ = request
-                .try_into()
-                .and_then(|req| self.execute(req))
-                .and_then(|rsp| rsp.error_for_status())
-                .map_err(ReqwestError::from)?;
-            Ok(())
-        }
-    }
-
-    #[derive(Debug, Error)]
-    #[error(transparent)]
-    struct ReqwestError(#[from] reqwest::Error);
-
-    impl ExportError for ReqwestError {
-        fn exporter_name(&self) -> &'static str {
-            "reqwest"
+        async fn send(&self, request: Request<Vec<u8>>) -> Result<Response<Bytes>, HttpError> {
+            let request = request.try_into()?;
+            let response = self.execute(request)?;
+            Ok(Response::builder()
+                .status(response.status())
+                .body(response.bytes()?)?)
         }
     }
 }
 
 #[cfg(feature = "surf")]
 mod surf {
-    use super::{async_trait, HttpClient, Request, TraceError};
-    use opentelemetry::sdk::export::ExportError;
-    use std::fmt::{Display, Formatter};
+    use super::{async_trait, Bytes, HttpClient, HttpError, Request, Response};
 
     #[async_trait]
     impl HttpClient for surf::Client {
-        async fn send(&self, request: Request<Vec<u8>>) -> Result<(), TraceError> {
+        async fn send(&self, request: Request<Vec<u8>>) -> Result<Response<Bytes>, HttpError> {
             let (parts, body) = request.into_parts();
-            let uri = parts
-                .uri
-                .to_string()
-                .parse()
-                .map_err(|_err: surf::http::url::ParseError| TraceError::from("error parse url"))?;
+            let method = parts.method.as_str().parse()?;
+            let uri = parts.uri.to_string().parse()?;
 
-            let req = surf::Request::builder(surf::http::Method::Post, uri)
-                .content_type("application/json")
-                .body(body);
-            let result = self.send(req).await.map_err::<SurfError, _>(Into::into)?;
-
-            if result.status().is_success() {
-                Ok(())
-            } else {
-                Err(SurfError(surf::Error::from_str(
-                    result.status(),
-                    result.status().canonical_reason(),
-                ))
-                .into())
+            let mut request_builder = surf::Request::builder(method, uri).body(body);
+            let mut prev_name = None;
+            for (new_name, value) in parts.headers.into_iter() {
+                let name = new_name.or(prev_name).expect("the first time new_name should be set and from then on we always have a prev_name");
+                request_builder = request_builder.header(name.as_str(), value.to_str()?);
+                prev_name = Some(name);
             }
-        }
-    }
 
-    #[derive(Debug)]
-    struct SurfError(surf::Error);
-
-    impl ExportError for SurfError {
-        fn exporter_name(&self) -> &'static str {
-            "surf"
-        }
-    }
-
-    impl From<surf::Error> for SurfError {
-        fn from(err: surf::Error) -> Self {
-            SurfError(err)
-        }
-    }
-
-    impl std::error::Error for SurfError {}
-
-    impl Display for SurfError {
-        fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-            write!(f, "{}", self.0.to_string())
+            let mut response = self.send(request_builder).await?;
+            Ok(Response::builder()
+                .status(response.status() as u16)
+                .body(response.body_bytes().await?.into())?)
         }
     }
 }
 
 #[cfg(feature = "isahc")]
 mod isahc {
-    use super::{async_trait, HttpClient, Request, TraceError};
-    use opentelemetry::sdk::export::ExportError;
-    use thiserror::Error;
+    use super::{async_trait, Bytes, HttpClient, HttpError, Request, Response};
+    use futures_util::io::AsyncReadExt as _;
+    use std::convert::TryInto as _;
 
     #[async_trait]
     impl HttpClient for isahc::HttpClient {
-        async fn send(&self, request: Request<Vec<u8>>) -> Result<(), TraceError> {
-            let res = self.send_async(request).await.map_err(IsahcError::from)?;
-
-            if !res.status().is_success() {
-                return Err(TraceError::from(format!(
-                    "Expected success response, got {:?}",
-                    res.status()
-                )));
-            }
-
-            Ok(())
+        async fn send(&self, request: Request<Vec<u8>>) -> Result<Response<Bytes>, HttpError> {
+            let response = self.send_async(request).await?;
+            Ok(Response::builder()
+                .status(response.status())
+                .body(body_to_bytes(response.into_body()).await?)?)
         }
     }
 
-    #[derive(Debug, Error)]
-    #[error(transparent)]
-    struct IsahcError(#[from] isahc::Error);
+    async fn body_to_bytes(mut body: isahc::Body) -> Result<Bytes, HttpError> {
+        let mut bytes = Vec::with_capacity(body.len().unwrap_or(0).try_into()?);
+        let _ = body.read_to_end(&mut bytes).await?;
+        Ok(bytes.into())
+    }
+}
 
-    impl ExportError for IsahcError {
-        fn exporter_name(&self) -> &'static str {
-            "isahc"
+/// Methods to make working with responses from the [`HttpClient`] trait easier.
+pub trait ResponseExt: Sized {
+    /// Turn a response into an error if the HTTP status does not indicate success (200 - 299).
+    fn error_for_status(self) -> Result<Self, TraceError>;
+}
+
+impl<T> ResponseExt for Response<T> {
+    fn error_for_status(self) -> Result<Self, TraceError> {
+        if self.status().is_success() {
+            Ok(self)
+        } else {
+            Err(format!("request failed with status {}", self.status()).into())
         }
     }
 }

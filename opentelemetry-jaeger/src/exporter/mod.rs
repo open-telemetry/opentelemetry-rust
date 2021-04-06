@@ -672,10 +672,9 @@ mod collector_client_tests {
 
     mod test_http_client {
         use async_trait::async_trait;
-        use http::Request;
-        use opentelemetry::sdk::export::trace::ExportResult;
-        use opentelemetry::trace::TraceError;
-        use opentelemetry_http::HttpClient;
+        use bytes::Bytes;
+        use http::{Request, Response};
+        use opentelemetry_http::{HttpClient, HttpError};
         use std::fmt::Debug;
 
         pub(crate) struct TestHttpClient;
@@ -688,8 +687,8 @@ mod collector_client_tests {
 
         #[async_trait]
         impl HttpClient for TestHttpClient {
-            async fn send(&self, _request: Request<Vec<u8>>) -> ExportResult {
-                Err(TraceError::from("wrong uri set in http client"))
+            async fn send(&self, _request: Request<Vec<u8>>) -> Result<Response<Bytes>, HttpError> {
+                Err("wrong uri set in http client".into())
             }
         }
     }
@@ -707,7 +706,7 @@ mod collector_client_tests {
         });
         assert_eq!(
             format!("{:?}", res.err().unwrap()),
-            "Other(Custom(\"wrong uri set in http client\"))"
+            "Other(\"wrong uri set in http client\")"
         );
 
         Ok(())

@@ -1,7 +1,7 @@
 //! # HTTP Jaeger Collector Client
 use http::Uri;
 #[cfg(feature = "collector_client")]
-use opentelemetry_http::HttpClient;
+use opentelemetry_http::{HttpClient, ResponseExt as _};
 use std::sync::atomic::AtomicUsize;
 
 /// `CollectorAsyncClientHttp` implements an async version of the
@@ -68,7 +68,8 @@ mod collector_client {
                 .expect("request should always be valid");
 
             // Send request to collector
-            self.client.send(req).await
+            let _ = self.client.send(req).await?.error_for_status()?;
+            Ok(())
         }
     }
 }
