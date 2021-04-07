@@ -209,8 +209,9 @@ mod tests {
             assert_eq!(
                 composite_propagator
                     .extract(&extractor)
-                    .remote_span_context(),
-                None
+                    .span()
+                    .span_context(),
+                &SpanContext::empty_context()
             );
         }
     }
@@ -254,14 +255,15 @@ mod tests {
             assert_eq!(
                 composite_propagator
                     .extract(&extractor)
-                    .remote_span_context(),
-                Some(&SpanContext::new(
+                    .span()
+                    .span_context(),
+                &SpanContext::new(
                     TraceId::from_u128(1),
                     SpanId::from_u64(1),
                     0,
                     true,
                     TraceState::default(),
-                ))
+                )
             );
         }
     }

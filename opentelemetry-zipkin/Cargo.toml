@@ -40,5 +40,7 @@ surf = { version = "2.0", optional = true }
 thiserror = { version = "1.0"}
 
 [dev-dependencies]
+bytes = "1"
+futures-util = "0.3"
 isahc = "=0.9.6"
 opentelemetry = { version = "0.13", default-features = false, features = ["trace", "testing"], path = "../opentelemetry" }

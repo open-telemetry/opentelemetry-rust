@@ -76,7 +76,7 @@ impl Tracer {
         links: &[Link],
         config: &Config,
     ) -> Option<(u8, Vec<KeyValue>, TraceState)> {
-        let sampling_result = config.default_sampler.should_sample(
+        let sampling_result = config.sampler.should_sample(
             Some(parent_cx),
             trace_id,
             name,
@@ -139,10 +139,7 @@ impl crate::trace::Tracer for Tracer {
     where
         T: Into<Cow<'static, str>>,
     {
-        let mut builder = self.span_builder(name);
-        builder.parent_context = Some(cx);
-
-        self.build(builder)
+        self.build(SpanBuilder::from_name_with_context(name, cx))
     }
 
     /// Creates a span builder
@@ -181,51 +178,34 @@ impl crate::trace::Tracer for Tracer {
         let mut flags = 0;
         let mut span_trace_state = Default::default();
 
-        let parent_cx = {
-            let cx = builder
-                .parent_context
-                .take()
-                .unwrap_or_else(Context::current);
-
-            // Sampling expects to be able to access the parent span via `span` so wrap remote span
-            // context in a wrapper span if necessary. Remote span contexts will be passed to
-            // subsequent context's, so wrapping is only necessary if there is no active span.
-            match cx.remote_span_context() {
-                Some(remote_sc) if !cx.has_active_span() => {
-                    cx.with_span(Span::new(remote_sc.clone(), None, self.clone()))
-                }
-                _ => cx,
-            }
-        };
-        let span = parent_cx.span();
-        let parent_span_context = if parent_cx.has_active_span() {
-            Some(span.span_context())
+        let parent_span = if builder.parent_context.has_active_span() {
+            Some(builder.parent_context.span())
         } else {
             None
         };
 
         // Build context for sampling decision
-        let (no_parent, trace_id, parent_span_id, remote_parent, parent_trace_flags) =
-            parent_span_context
-                .as_ref()
-                .map(|ctx| {
-                    (
-                        false,
-                        ctx.trace_id(),
-                        ctx.span_id(),
-                        ctx.is_remote(),
-                        ctx.trace_flags(),
-                    )
-                })
-                .unwrap_or((
-                    true,
-                    builder
-                        .trace_id
-                        .unwrap_or_else(|| config.id_generator.new_trace_id()),
-                    SpanId::invalid(),
+        let (no_parent, trace_id, parent_span_id, remote_parent, parent_trace_flags) = parent_span
+            .as_ref()
+            .map(|parent| {
+                let sc = parent.span_context();
+                (
                     false,
-                    0,
-                ));
+                    sc.trace_id(),
+                    sc.span_id(),
+                    sc.is_remote(),
+                    sc.trace_flags(),
+                )
+            })
+            .unwrap_or((
+                true,
+                builder
+                    .trace_id
+                    .unwrap_or_else(|| config.id_generator.new_trace_id()),
+                SpanId::invalid(),
+                false,
+                0,
+            ));
 
         // There are 3 paths for sampling.
         //
@@ -233,10 +213,10 @@ impl crate::trace::Tracer for Tracer {
         // * There is no parent or a remote parent, in which case make decision now
         // * There is a local parent, in which case defer to the parent's decision
         let sampling_decision = if let Some(sampling_result) = builder.sampling_result.take() {
-            self.process_sampling_result(sampling_result, &parent_cx)
+            self.process_sampling_result(sampling_result, &builder.parent_context)
         } else if no_parent || remote_parent {
             self.make_sampling_decision(
-                &parent_cx,
+                &builder.parent_context,
                 trace_id,
                 &builder.name,
                 &span_kind,
@@ -246,18 +226,28 @@ impl crate::trace::Tracer for Tracer {
             )
         } else {
             // has parent that is local: use parent if sampled, or don't record.
-            parent_span_context
-                .filter(|span_context| span_context.is_sampled())
-                .map(|span_context| {
+            parent_span
+                .filter(|span| span.span_context().is_sampled())
+                .map(|span| {
                     (
                         parent_trace_flags,
                         Vec::new(),
-                        span_context.trace_state().clone(),
+                        span.span_context().trace_state().clone(),
                     )
                 })
         };
 
         // Build optional inner context, `None` if not recording.
+        let SpanBuilder {
+            parent_context,
+            name,
+            start_time,
+            end_time,
+            message_events,
+            status_code,
+            status_message,
+            ..
+        } = builder;
         let inner = sampling_decision.map(|(trace_flags, mut extra_attrs, trace_state)| {
             flags = trace_flags;
             span_trace_state = trace_state;
@@ -271,23 +261,23 @@ impl crate::trace::Tracer for Tracer {
             if let Some(link_options) = &mut link_options {
                 links.append_vec(link_options);
             }
-            let start_time = builder.start_time.unwrap_or_else(crate::time::now);
-            let end_time = builder.end_time.unwrap_or(start_time);
-            let mut message_events = EvictedQueue::new(config.max_events_per_span);
-            if let Some(mut events) = builder.message_events {
-                message_events.append_vec(&mut events);
+            let start_time = start_time.unwrap_or_else(crate::time::now);
+            let end_time = end_time.unwrap_or(start_time);
+            let mut message_events_queue = EvictedQueue::new(config.max_events_per_span);
+            if let Some(mut events) = message_events {
+                message_events_queue.append_vec(&mut events);
             }
-            let status_code = builder.status_code.unwrap_or(StatusCode::Unset);
-            let status_message = builder.status_message.unwrap_or(Cow::Borrowed(""));
+            let status_code = status_code.unwrap_or(StatusCode::Unset);
+            let status_message = status_message.unwrap_or(Cow::Borrowed(""));
 
             SpanData {
                 parent_span_id,
                 span_kind,
-                name: builder.name,
+                name,
                 start_time,
                 end_time,
                 attributes,
-                message_events,
+                message_events: message_events_queue,
                 links,
                 status_code,
                 status_message,
@@ -299,7 +289,7 @@ impl crate::trace::Tracer for Tracer {
 
         // Call `on_start` for all processors
         for processor in provider.span_processors() {
-            processor.on_start(&span, &parent_cx)
+            processor.on_start(&span, &parent_context)
         }
 
         span
@@ -359,13 +349,13 @@ mod tests {
         let tracer = tracer_provider.get_tracer("test", None);
         let trace_state = TraceState::from_key_value(vec![("foo", "bar")]).unwrap();
         let span_builder = SpanBuilder {
-            parent_context: Some(Context::current_with_span(TestSpan(SpanContext::new(
+            parent_context: Context::new().with_span(TestSpan(SpanContext::new(
                 TraceId::from_u128(128),
                 SpanId::from_u64(64),
                 TRACE_FLAG_SAMPLED,
                 true,
                 trace_state,
-            )))),
+            ))),
             ..Default::default()
         };
 
