@@ -22,6 +22,11 @@ if rustup component add clippy; then
   cargo_feature opentelemetry-otlp "trace,grpc-sys"
   cargo_feature opentelemetry-otlp "trace,grpc-sys,openssl"
   cargo_feature opentelemetry-otlp "trace,grpc-sys,openssl-vendored"
+  cargo_feature opentelemetry-otlp "http-proto"
+  cargo_feature opentelemetry-otlp "http-proto, reqwest-blocking-client"
+  cargo_feature opentelemetry-otlp "http-proto, reqwest-client"
+  cargo_feature opentelemetry-otlp "http-proto, reqwest-rustls"
+  cargo_feature opentelemetry-otlp "http-proto, surf-client"
 
   cargo_feature opentelemetry-jaeger "surf_collector_client"
   cargo_feature opentelemetry-jaeger "isahc_collector_client"

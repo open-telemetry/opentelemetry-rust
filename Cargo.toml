@@ -19,6 +19,7 @@ members = [
     "examples/basic",
     "examples/basic-otlp",
     "examples/basic-otlp-with-selector",
+    "examples/basic-otlp-http",
     "examples/datadog",
     "examples/external-otlp-tonic-tokio",
     "examples/grpc",

@@ -8,6 +8,9 @@ use crate::proto::collector::trace::v1::{
     ExportTraceServiceRequest as TonicRequest,
 };
 
+#[cfg(feature = "http-proto")]
+use crate::proto::prost::collector::trace::v1::ExportTraceServiceRequest as ProstRequest;
+
 #[cfg(feature = "tonic")]
 use tonic::{
     metadata::{KeyAndValueRef, MetadataMap},
@@ -33,9 +36,14 @@ use grpcio::{
 #[cfg(feature = "grpc-sys")]
 use protobuf::RepeatedField;
 
+#[cfg(feature = "http-proto")]
+use prost::Message;
+#[cfg(feature = "http-proto")]
+use std::convert::TryFrom;
+
 use async_trait::async_trait;
 
-#[cfg(feature = "grpc-sys")]
+#[cfg(any(feature = "grpc-sys", feature = "http-proto"))]
 use std::collections::HashMap;
 
 use std::fmt;
@@ -47,6 +55,14 @@ use std::sync::Arc;
 use crate::{Protocol, OTEL_EXPORTER_OTLP_ENDPOINT_DEFAULT, OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT};
 use opentelemetry::sdk::export::trace::{ExportResult, SpanData, SpanExporter};
 use std::time::Duration;
+
+#[cfg(feature = "http-proto")]
+use http::{
+    header::{HeaderName, HeaderValue, CONTENT_TYPE},
+    Method, Uri,
+};
+#[cfg(feature = "http-proto")]
+use opentelemetry_http::HttpClient;
 
 /// Exporter that sends data in OTLP format.
 pub enum TraceExporter {
@@ -69,6 +85,18 @@ pub enum TraceExporter {
         headers: Option<HashMap<String, String>>,
         /// The Grpc trace exporter
         trace_exporter: GrpcioTraceServiceClient,
+    },
+    #[cfg(feature = "http-proto")]
+    /// Trace Exporter using HTTP transport
+    Http {
+        /// Duration of timeout when sending spans to backend.
+        timeout: Duration,
+        /// Additional headers of the outbound requests.
+        headers: Option<HashMap<String, String>>,
+        /// The Collector URL
+        collector_endpoint: Uri,
+        /// The HTTP trace exporter
+        trace_exporter: Option<Box<dyn HttpClient>>,
     },
 }
 
@@ -170,6 +198,46 @@ impl From<Compression> for grpcio::CompressionAlgorithms {
     }
 }
 
+/// Configuration of the http transport
+#[cfg(feature = "http-proto")]
+#[derive(Debug)]
+pub struct HttpConfig {
+    /// Select the HTTP client
+    pub client: Option<Box<dyn HttpClient>>,
+
+    /// Additional headers to send to the collector.
+    pub headers: Option<HashMap<String, String>>,
+}
+
+#[cfg(feature = "http-proto")]
+impl Default for HttpConfig {
+    fn default() -> Self {
+        HttpConfig {
+            #[cfg(feature = "reqwest-blocking-client")]
+            client: Some(Box::new(reqwest::blocking::Client::new())),
+            #[cfg(all(
+                not(feature = "reqwest-blocking-client"),
+                not(feature = "surf-client"),
+                feature = "reqwest-client"
+            ))]
+            client: Some(Box::new(reqwest::Client::new())),
+            #[cfg(all(
+                not(feature = "reqwest-client"),
+                not(feature = "reqwest-blocking-client"),
+                feature = "surf-client"
+            ))]
+            client: Some(Box::new(surf::Client::new())),
+            #[cfg(all(
+                not(feature = "reqwest-client"),
+                not(feature = "surf-client"),
+                not(feature = "reqwest-blocking-client")
+            ))]
+            client: None,
+            headers: None,
+        }
+    }
+}
+
 impl Default for ExporterConfig {
     fn default() -> Self {
         ExporterConfig {
@@ -194,6 +262,15 @@ impl Debug for TraceExporter {
                 .finish(),
             #[cfg(feature = "grpc-sys")]
             TraceExporter::Grpcio {
+                headers, timeout, ..
+            } => f
+                .debug_struct("Exporter")
+                .field("headers", &headers)
+                .field("timeout", &timeout)
+                .field("trace_exporter", &"TraceServiceClient")
+                .finish(),
+            #[cfg(feature = "http-proto")]
+            TraceExporter::Http {
                 headers, timeout, ..
             } => f
                 .debug_struct("Exporter")
@@ -299,6 +376,22 @@ impl TraceExporter {
             headers: grpcio_config.headers,
         }
     }
+
+    /// Builds a new span exporter with the given configuration
+    #[cfg(feature = "http-proto")]
+    pub fn new_http(config: ExporterConfig, http_config: HttpConfig) -> Result<Self, crate::Error> {
+        let url: Uri = config
+            .endpoint
+            .parse()
+            .map_err::<crate::Error, _>(Into::into)?;
+
+        Ok(TraceExporter::Http {
+            trace_exporter: http_config.client,
+            timeout: config.timeout,
+            collector_endpoint: url,
+            headers: http_config.headers,
+        })
+    }
 }
 
 #[async_trait]
@@ -351,6 +444,46 @@ impl SpanExporter for TraceExporter {
                     .map_err::<crate::Error, _>(Into::into)?;
 
                 Ok(())
+            }
+
+            #[cfg(feature = "http-proto")]
+            TraceExporter::Http {
+                trace_exporter,
+                collector_endpoint,
+                headers,
+                ..
+            } => {
+                let req = ProstRequest {
+                    resource_spans: batch.into_iter().map(Into::into).collect(),
+                };
+
+                let mut buf = vec![];
+                req.encode(&mut buf)
+                    .map_err::<crate::Error, _>(Into::into)?;
+
+                let mut request = http::Request::builder()
+                    .method(Method::POST)
+                    .uri(collector_endpoint.clone())
+                    .header(CONTENT_TYPE, "application/x-protobuf")
+                    .body(buf)
+                    .map_err::<crate::Error, _>(Into::into)?;
+
+                if let Some(headers) = headers.clone() {
+                    for (k, val) in headers {
+                        let value = HeaderValue::from_str(val.as_ref())
+                            .map_err::<crate::Error, _>(Into::into)?;
+                        let key =
+                            HeaderName::try_from(&k).map_err::<crate::Error, _>(Into::into)?;
+                        request.headers_mut().insert(key, value);
+                    }
+                }
+
+                if let Some(client) = trace_exporter {
+                    client.send(request).await?;
+                    Ok(())
+                } else {
+                    Err(crate::Error::NoHttpClient.into())
+                }
             }
         }
     }
