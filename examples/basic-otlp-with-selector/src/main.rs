@@ -43,7 +43,7 @@ impl AggregatorSelector for CustomAggregator {
             "ex.com.one" => Some(Arc::new(aggregators::last_value())),
             "ex.com.two" => Some(Arc::new(aggregators::histogram(
                 descriptor,
-                &vec![0.0, 0.5, 1.0, 10.0],
+                &[0.0, 0.5, 1.0, 10.0],
             ))),
             _ => Some(Arc::new(aggregators::sum())),
         }
