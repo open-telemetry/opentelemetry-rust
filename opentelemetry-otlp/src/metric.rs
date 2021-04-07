@@ -113,10 +113,24 @@ where
     }
 
     /// Build with the aggregator selector
-    pub fn with_aggregator_selector(self, aggregator_selector: AS) -> Self {
+    pub fn with_aggregator_selector<T>(
+        self,
+        aggregator_selector: T,
+    ) -> OtlpMetricPipelineBuilder<T, ES, SP, SO, I, IO>
+    where
+        T: AggregatorSelector + Send + Sync + 'static,
+    {
         OtlpMetricPipelineBuilder {
             aggregator_selector,
-            ..self
+            export_selector: self.export_selector,
+            spawn: self.spawn,
+            interval: self.interval,
+            export_config: self.export_config,
+            tonic_config: self.tonic_config,
+            resource: self.resource,
+            stateful: self.stateful,
+            period: self.period,
+            timeout: self.timeout,
         }
     }
 
