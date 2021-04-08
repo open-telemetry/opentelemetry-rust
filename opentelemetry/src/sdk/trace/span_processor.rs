@@ -559,9 +559,10 @@ mod tests {
     #[test]
     fn simple_span_processor_on_end_calls_export() {
         let (exporter, rx_export, _rx_shutdown) = new_test_exporter();
-        let processor = SimpleSpanProcessor::new(Box::new(exporter));
+        let mut processor = SimpleSpanProcessor::new(Box::new(exporter));
         processor.on_end(new_test_export_span_data());
         assert!(rx_export.recv().is_ok());
+        let _result = processor.shutdown();
     }
 
     #[test]
