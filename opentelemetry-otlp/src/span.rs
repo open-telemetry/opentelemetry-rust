@@ -215,8 +215,8 @@ impl TraceExporter {
         let endpoint = TonicChannel::from_shared(config.endpoint.clone())?;
 
         #[cfg(feature = "tls")]
-        let channel = match tonic_config.tls_config.clone() {
-            Some(tls_config) => endpoint.tls_config(tls_config)?,
+        let channel = match tonic_config.tls_config.as_ref() {
+            Some(tls_config) => endpoint.tls_config(tls_config.clone())?,
             None => endpoint,
         }
         .timeout(config.timeout)
