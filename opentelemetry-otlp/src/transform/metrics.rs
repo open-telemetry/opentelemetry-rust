@@ -847,7 +847,7 @@ mod tests {
                 })),
             };
 
-            let metrics2 = Metric {
+            let metric2 = Metric {
                 name: "test".to_string(),
                 description: "".to_string(),
                 unit: "".to_string(),
@@ -869,7 +869,7 @@ mod tests {
                 })),
             };
 
-            merge(&mut metric1, metrics2);
+            merge(&mut metric1, metric2);
 
             assert_eq!(metric1, expect);
         }
