@@ -206,17 +206,17 @@ impl Debug for TraceExporter {
 }
 
 impl TraceExporter {
-    /// Builds a new span exporter with the given configuration
+    /// Builds a new span exporter with the given configuration.
     #[cfg(feature = "tonic")]
     pub fn new_tonic(
         config: ExporterConfig,
         tonic_config: TonicConfig,
     ) -> Result<Self, crate::Error> {
-        let endpoint = TonicChannel::from_shared(config.endpoint)?;
+        let endpoint = TonicChannel::from_shared(config.endpoint.clone())?;
 
         #[cfg(feature = "tls")]
-        let channel = match tonic_config.tls_config {
-            Some(tls_config) => endpoint.tls_config(tls_config)?,
+        let channel = match tonic_config.tls_config.as_ref() {
+            Some(tls_config) => endpoint.tls_config(tls_config.clone())?,
             None => endpoint,
         }
         .timeout(config.timeout)
@@ -225,6 +225,22 @@ impl TraceExporter {
         #[cfg(not(feature = "tls"))]
         let channel = endpoint.timeout(config.timeout).connect_lazy()?;
 
+        TraceExporter::from_tonic_channel(config, tonic_config, channel)
+    }
+
+    /// Builds a new span exporter with given tonic channel.
+    ///
+    /// This allows users to bring their own custom channel like UDS.
+    /// However, users MUST make sure the [`ExporterConfig::timeout`] is
+    /// the same as the channel's timeout.
+    ///
+    /// [`ExporterConfig::timeout`]: crate::span::ExporterConfig::timeout
+    #[cfg(feature = "tonic")]
+    pub fn from_tonic_channel(
+        config: ExporterConfig,
+        tonic_config: TonicConfig,
+        channel: tonic::transport::Channel,
+    ) -> Result<Self, crate::Error> {
         let client = match tonic_config.metadata.to_owned() {
             None => TonicTraceServiceClient::new(channel),
             Some(metadata) => {

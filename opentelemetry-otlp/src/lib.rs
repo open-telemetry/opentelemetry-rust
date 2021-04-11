@@ -295,6 +295,7 @@ impl OtlpPipelineBuilder {
             exporter_config: self.exporter_config,
             trace_config: self.trace_config,
             tonic_config: TonicConfig::default(),
+            channel: None,
         }
     }
 
@@ -327,6 +328,7 @@ pub struct TonicPipelineBuilder {
     exporter_config: ExporterConfig,
     tonic_config: TonicConfig,
     trace_config: Option<sdk::trace::Config>,
+    channel: Option<tonic::transport::Channel>,
 }
 
 #[cfg(feature = "tonic")]
@@ -344,6 +346,19 @@ impl TonicPipelineBuilder {
         self
     }
 
+    /// Use `channel` as tonic's transport channel.
+    /// this will override tls config and should only be used
+    /// when working with non-HTTP transports.
+    ///
+    /// Users MUST make sure the [`ExporterConfig::timeout`] is
+    /// the same as the channel's timeout.
+    ///
+    /// [`ExporterConfig::timeout`]: crate::span::ExporterConfig::timeout
+    pub fn with_channel(mut self, channel: tonic::transport::Channel) -> Self {
+        self.channel = Some(channel);
+        self
+    }
+
     /// Install a trace exporter using [tonic] as grpc layer and a simple span processor.
     ///
     /// Returns a [`Tracer`] with the name `opentelemetry-otlp` and current crate version.
@@ -353,7 +368,12 @@ impl TonicPipelineBuilder {
     /// [`Tracer`]: opentelemetry::trace::Tracer
     /// [tonic]: https://github.com/hyperium/tonic
     pub fn install_simple(self) -> Result<sdk::trace::Tracer, TraceError> {
-        let exporter = TraceExporter::new_tonic(self.exporter_config, self.tonic_config)?;
+        let exporter = match self.channel {
+            Some(channel) => {
+                TraceExporter::from_tonic_channel(self.exporter_config, self.tonic_config, channel)
+            }
+            None => TraceExporter::new_tonic(self.exporter_config, self.tonic_config),
+        }?;
         Ok(build_simple_with_exporter(exporter, self.trace_config))
     }
 
@@ -367,7 +387,12 @@ impl TonicPipelineBuilder {
     /// [`Tracer`]: opentelemetry::trace::Tracer
     /// [tonic]: https://github.com/hyperium/tonic
     pub fn install_batch<R: Runtime>(self, runtime: R) -> Result<sdk::trace::Tracer, TraceError> {
-        let exporter = TraceExporter::new_tonic(self.exporter_config, self.tonic_config)?;
+        let exporter = match self.channel {
+            Some(channel) => {
+                TraceExporter::from_tonic_channel(self.exporter_config, self.tonic_config, channel)
+            }
+            None => TraceExporter::new_tonic(self.exporter_config, self.tonic_config),
+        }?;
         Ok(build_batch_with_exporter(
             exporter,
             self.trace_config,
