@@ -312,7 +312,7 @@ pub(crate) mod tonic {
     }
 
     // if the data points are the compatible, merge, otherwise do nothing
-    macro_rules! merge_same_type {
+    macro_rules! merge_compatible_type {
         ($base: ident, $other: ident,
             $ (
                 $t:path => $($other_t: path),*
@@ -338,12 +338,14 @@ pub(crate) mod tonic {
     }
 
     // Merge `other` metric proto struct into base by append its data point.
-    // If two metric proto don't have the same type of name, do nothing
-    fn merge(base: &mut Metric, other: Metric) {
+    // If two metric proto don't have the same type or name, do nothing
+    pub(crate) fn merge(base: &mut Metric, other: Metric) {
         if base.name != other.name {
             return;
         }
-        merge_same_type!(base, other,
+        merge_compatible_type!(base, other,
+            Data::IntSum => Data::IntSum;
+            Data::DoubleSum => Data::DoubleSum;
             Data::IntGauge => Data::IntSum, Data::IntGauge;
             Data::DoubleGauge => Data::DoubleSum, Data::DoubleGauge;
             Data::DoubleHistogram => Data::DoubleHistogram;
@@ -363,6 +365,7 @@ mod tests {
             IntHistogramDataPoint, IntSum, Metric, ResourceMetrics,
         };
         use crate::transform::common::tonic::Attributes;
+        use crate::transform::metrics::tonic::merge;
         use crate::transform::{record_to_metric, sink, ResourceWrapper};
         use chrono::prelude::*;
         use opentelemetry::labels::LabelSet;
@@ -826,6 +829,49 @@ mod tests {
             for (expect, actual) in expect.into_iter().zip(actual.into_iter()) {
                 assert_resource_metrics(expect, actual);
             }
+        }
+
+        #[test]
+        fn test_merge() {
+            let data_point_base = get_int_data_point(vec![("method", "POST")], 12, 12, 3);
+            let data_point_addon = get_int_data_point(vec![("method", "PUT")], 12, 12, 3);
+
+            let mut metric1 = Metric {
+                name: "test".to_string(),
+                description: "".to_string(),
+                unit: "".to_string(),
+                data: Some(Data::IntSum(IntSum {
+                    data_points: vec![data_point_base.clone()],
+                    aggregation_temporality: 2,
+                    is_monotonic: true,
+                })),
+            };
+
+            let metric2 = Metric {
+                name: "test".to_string(),
+                description: "".to_string(),
+                unit: "".to_string(),
+                data: Some(Data::IntSum(IntSum {
+                    data_points: vec![data_point_addon.clone()],
+                    aggregation_temporality: 2,
+                    is_monotonic: true,
+                })),
+            };
+
+            let expect = Metric {
+                name: "test".to_string(),
+                description: "".to_string(),
+                unit: "".to_string(),
+                data: Some(Data::IntSum(IntSum {
+                    data_points: vec![data_point_base, data_point_addon],
+                    aggregation_temporality: 2,
+                    is_monotonic: true,
+                })),
+            };
+
+            merge(&mut metric1, metric2);
+
+            assert_eq!(metric1, expect);
         }
     }
 }
