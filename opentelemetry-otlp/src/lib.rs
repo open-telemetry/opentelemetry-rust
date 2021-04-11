@@ -346,9 +346,9 @@ impl TonicPipelineBuilder {
         self
     }
 
-    /// Use `channel` as tonic's transports channel.
+    /// Use `channel` as tonic's transport channel.
     /// this will override tls config and should only be used
-    /// when working with non-HTTP transport.
+    /// when working with non-HTTP transports.
     ///
     /// Users MUST make sure the [`ExporterConfig::timeout`] is
     /// the same as the channel's timeout.
