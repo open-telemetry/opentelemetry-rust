@@ -346,7 +346,7 @@ impl TonicPipelineBuilder {
         self
     }
 
-    /// Use `channel` as tonic's transport channel.
+    /// Use `channel` as tonic's transports channel.
     /// this will override tls config and should only be used
     /// when working with non-HTTP transport.
     ///
