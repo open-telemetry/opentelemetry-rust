@@ -7,6 +7,12 @@ use std::env;
 use std::str::FromStr;
 use std::sync::Arc;
 
+pub(crate) const DEFAULT_MAX_EVENT_PER_SPAN: u32 = 128;
+pub(crate) const DEFAULT_MAX_ATTRIBUTES_PER_SPAN: u32 = 128;
+pub(crate) const DEFAULT_MAX_LINKS_PER_SPAN: u32 = 128;
+pub(crate) const DEFAULT_MAX_ATTRIBUTES_PER_EVENT: u32 = 128;
+pub(crate) const DEFAULT_MAX_ATTRIBUTES_PER_LINK: u32 = 128;
+
 /// Default trace configuration
 pub fn config() -> Config {
     Config::default()
@@ -25,6 +31,10 @@ pub struct Config {
     pub max_attributes_per_span: u32,
     /// The max links that can be added to a `Span`.
     pub max_links_per_span: u32,
+    /// The max attributes that can be added into an `Event`
+    pub max_attributes_per_event: u32,
+    /// The max attributes that can be added into a `Link`
+    pub max_attributes_per_link: u32,
     /// Contains attributes representing an entity that produces telemetry.
     pub resource: Option<Arc<sdk::Resource>>,
 }
@@ -60,6 +70,18 @@ impl Config {
         self
     }
 
+    /// Specify the number of attributes one event can have.
+    pub fn with_max_attributes_per_event(mut self, max_attributes: u32) -> Self {
+        self.max_attributes_per_event = max_attributes;
+        self
+    }
+
+    /// Specify the number of attributes one link can have.
+    pub fn with_max_attributes_per_link(mut self, max_attributes: u32) -> Self {
+        self.max_attributes_per_link = max_attributes;
+        self
+    }
+
     /// Specify the attributes representing the entity that produces telemetry
     pub fn with_resource(mut self, resource: sdk::Resource) -> Self {
         self.resource = Some(Arc::new(resource));
@@ -73,9 +95,11 @@ impl Default for Config {
         let mut config = Config {
             sampler: Box::new(Sampler::ParentBased(Box::new(Sampler::AlwaysOn))),
             id_generator: Box::new(sdk::trace::IdGenerator::default()),
-            max_events_per_span: 128,
-            max_attributes_per_span: 128,
-            max_links_per_span: 128,
+            max_events_per_span: DEFAULT_MAX_EVENT_PER_SPAN,
+            max_attributes_per_span: DEFAULT_MAX_ATTRIBUTES_PER_SPAN,
+            max_links_per_span: DEFAULT_MAX_LINKS_PER_SPAN,
+            max_attributes_per_link: DEFAULT_MAX_ATTRIBUTES_PER_LINK,
+            max_attributes_per_event: DEFAULT_MAX_ATTRIBUTES_PER_EVENT,
             resource: None,
         };
 

@@ -8,6 +8,7 @@
 //! start time is set to the current time on span creation. After the `Span` is created, it
 //! is possible to change its name, set its `Attributes`, and add `Links` and `Events`.
 //! These cannot be changed after the `Span`'s end time has been set.
+use crate::sdk::trace::config::DEFAULT_MAX_ATTRIBUTES_PER_EVENT;
 use crate::trace::{Event, SpanContext, SpanId, SpanKind, StatusCode};
 use crate::{sdk, trace, KeyValue};
 use std::borrow::Cow;
@@ -78,9 +79,18 @@ impl crate::trace::Span for Span {
         &mut self,
         name: String,
         timestamp: SystemTime,
-        attributes: Vec<KeyValue>,
+        mut attributes: Vec<KeyValue>,
     ) {
+        let max_attributes_per_event =
+            self.tracer
+                .provider()
+                .map(|provider| provider.config().max_attributes_per_event)
+                .unwrap_or(DEFAULT_MAX_ATTRIBUTES_PER_EVENT) as usize;
         self.with_data(|data| {
+            if attributes.len() > max_attributes_per_event {
+                let _dropped: Vec<_> = attributes.drain((max_attributes_per_event + 1)..).collect();
+            }
+
             data.message_events
                 .push_back(Event::new(name, timestamp, attributes))
         });

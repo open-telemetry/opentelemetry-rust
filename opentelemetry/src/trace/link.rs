@@ -30,4 +30,9 @@ impl Link {
     pub fn attributes(&self) -> &Vec<KeyValue> {
         &self.attributes
     }
+
+    /// Mutable attributes of the link
+    pub(crate) fn attributes_mut(&mut self) -> &mut Vec<KeyValue> {
+        self.attributes.as_mut()
+    }
 }

@@ -259,6 +259,15 @@ impl crate::trace::Tracer for Tracer {
             }
             let mut links = EvictedQueue::new(config.max_links_per_span);
             if let Some(link_options) = &mut link_options {
+                for link in link_options.iter_mut() {
+                    // make sure the attributes is less than max_attribute_per_link
+                    let attributes = link.attributes_mut();
+                    if attributes.len() > config.max_attributes_per_link as usize {
+                        let _dropped: Vec<_> = attributes
+                            .drain((config.max_attributes_per_link as usize + 1)..)
+                            .collect();
+                    }
+                }
                 links.append_vec(link_options);
             }
             let start_time = start_time.unwrap_or_else(crate::time::now);
