@@ -1,3 +1,4 @@
+use log::error;
 use std::sync::PoisonError;
 use std::sync::RwLock;
 
@@ -44,11 +45,11 @@ pub fn handle_error<T: Into<Error>>(err: T) {
         _ => match err.into() {
             #[cfg(feature = "metrics")]
             #[cfg_attr(docsrs, doc(cfg(feature = "metrics")))]
-            Error::Metric(err) => eprintln!("OpenTelemetry metrics error occurred {:?}", err),
+            Error::Metric(err) => error!("OpenTelemetry metrics error occurred {:?}", err),
             #[cfg(feature = "trace")]
             #[cfg_attr(docsrs, doc(cfg(feature = "trace")))]
-            Error::Trace(err) => eprintln!("OpenTelemetry trace error occurred {:?}", err),
-            Error::Other(err_msg) => eprintln!("OpenTelemetry error occurred {}", err_msg),
+            Error::Trace(err) => error!("OpenTelemetry trace error occurred {:?}", err),
+            Error::Other(err_msg) => error!("OpenTelemetry error occurred {}", err_msg),
         },
     }
 }

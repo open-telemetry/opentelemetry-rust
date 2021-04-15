@@ -27,6 +27,7 @@ dashmap = { version = "4.0.1", optional = true }
 fnv = { version = "1.0", optional = true }
 futures = "0.3"
 lazy_static = "1.4"
+log = "0.4.14"
 percent-encoding = { version = "2.0", optional = true }
 pin-project = { version = "1.0.2", optional = true }
 rand = { version = "0.8", default-features = false, features = ["std", "std_rng"], optional = true }
