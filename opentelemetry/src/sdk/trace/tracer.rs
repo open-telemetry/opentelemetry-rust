@@ -264,7 +264,7 @@ impl crate::trace::Tracer for Tracer {
                     let attributes = link.attributes_mut();
                     if attributes.len() > config.max_attributes_per_link as usize {
                         let _dropped: Vec<_> = attributes
-                            .drain((config.max_attributes_per_link as usize + 1)..)
+                            .drain((config.max_attributes_per_link as usize)..)
                             .collect();
                     }
                 }
@@ -274,6 +274,14 @@ impl crate::trace::Tracer for Tracer {
             let end_time = end_time.unwrap_or(start_time);
             let mut message_events_queue = EvictedQueue::new(config.max_events_per_span);
             if let Some(mut events) = message_events {
+                for event in events.iter_mut() {
+                    let attributes = &mut event.attributes;
+                    if attributes.len() > config.max_attributes_per_event as usize {
+                        let _dropped: Vec<_> = attributes
+                            .drain((config.max_attributes_per_event as usize)..)
+                            .collect();
+                    }
+                }
                 message_events_queue.append_vec(&mut events);
             }
             let status_code = status_code.unwrap_or(StatusCode::Unset);

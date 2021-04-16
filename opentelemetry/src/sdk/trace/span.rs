@@ -88,7 +88,7 @@ impl crate::trace::Span for Span {
                 .unwrap_or(DEFAULT_MAX_ATTRIBUTES_PER_EVENT) as usize;
         self.with_data(|data| {
             if attributes.len() > max_attributes_per_event {
-                let _dropped: Vec<_> = attributes.drain((max_attributes_per_event + 1)..).collect();
+                let _dropped: Vec<_> = attributes.drain((max_attributes_per_event)..).collect();
             }
 
             data.message_events
@@ -214,6 +214,8 @@ fn build_export_data(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::sdk::trace::config::DEFAULT_MAX_ATTRIBUTES_PER_LINK;
+    use crate::trace::{Link, NoopSpanExporter, TraceId, Tracer};
     use crate::{core::KeyValue, trace::Span as _, trace::TracerProvider};
     use std::time::Duration;
 
@@ -454,5 +456,77 @@ mod tests {
         let mut span = create_span();
         span.end();
         assert!(!span.is_recording());
+    }
+
+    #[test]
+    fn exceed_event_attributes_limit() {
+        let exporter = NoopSpanExporter::new();
+        let provider_builder =
+            sdk::trace::TracerProvider::builder().with_simple_exporter(exporter);
+        let provider = provider_builder.build();
+        let tracer = provider.get_tracer("opentelemetry-test", None);
+
+        let mut event1 = Event::with_name("test event");
+        for i in 0..(DEFAULT_MAX_ATTRIBUTES_PER_EVENT * 2) {
+            event1
+                .attributes
+                .push(KeyValue::new(format!("key {}", i), i.to_string()))
+        }
+        let event2 = event1.clone();
+
+        // add event when build
+        let span_builder = tracer
+            .span_builder("test")
+            .with_message_events(vec![event1]);
+        let mut span = tracer.build(span_builder);
+
+        // add event after build
+        span.add_event("another test event".into(), event2.attributes);
+
+        let event_queue = span
+            .data
+            .clone()
+            .expect("span data should not be empty as we already set it before")
+            .message_events;
+        let event_vec: Vec<_> = event_queue.iter().take(2).collect();
+        let processed_event_1 = event_vec.get(0).expect("should have at least two events");
+        let processed_event_2 = event_vec.get(1).expect("should have at least two events");
+        assert_eq!(processed_event_1.attributes.len(), 128);
+        assert_eq!(processed_event_2.attributes.len(), 128);
+    }
+
+    #[test]
+    fn exceed_link_attributes_limit() {
+        let exporter = NoopSpanExporter::new();
+        let provider_builder =
+            sdk::trace::TracerProvider::builder().with_simple_exporter(exporter);
+        let provider = provider_builder.build();
+        let tracer = provider.get_tracer("opentelemetry-test", None);
+
+        let mut link = Link::new(
+            SpanContext::new(
+                TraceId::from_u128(0),
+                SpanId::from_u64(0),
+                0,
+                false,
+                Default::default(),
+            ),
+            Vec::new(),
+        );
+        for i in 0..(DEFAULT_MAX_ATTRIBUTES_PER_LINK * 2) {
+            link.attributes_mut()
+                .push(KeyValue::new(format!("key {}", i), i.to_string()));
+        }
+
+        let span_builder = tracer.span_builder("test").with_links(vec![link]);
+        let span = tracer.build(span_builder);
+        let link_queue = span
+            .data
+            .clone()
+            .expect("span data should not be empty as we already set it before")
+            .links;
+        let link_vec: Vec<_> = link_queue.iter().collect();
+        let processed_link = link_vec.get(0).expect("should have at least one link");
+        assert_eq!(processed_link.attributes().len(), 128);
     }
 }
