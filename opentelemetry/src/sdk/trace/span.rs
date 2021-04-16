@@ -461,8 +461,7 @@ mod tests {
     #[test]
     fn exceed_event_attributes_limit() {
         let exporter = NoopSpanExporter::new();
-        let provider_builder =
-            sdk::trace::TracerProvider::builder().with_simple_exporter(exporter);
+        let provider_builder = sdk::trace::TracerProvider::builder().with_simple_exporter(exporter);
         let provider = provider_builder.build();
         let tracer = provider.get_tracer("opentelemetry-test", None);
 
@@ -498,8 +497,7 @@ mod tests {
     #[test]
     fn exceed_link_attributes_limit() {
         let exporter = NoopSpanExporter::new();
-        let provider_builder =
-            sdk::trace::TracerProvider::builder().with_simple_exporter(exporter);
+        let provider_builder = sdk::trace::TracerProvider::builder().with_simple_exporter(exporter);
         let provider = provider_builder.build();
         let tracer = provider.get_tracer("opentelemetry-test", None);
 
