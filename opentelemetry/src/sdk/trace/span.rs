@@ -8,7 +8,7 @@
 //! start time is set to the current time on span creation. After the `Span` is created, it
 //! is possible to change its name, set its `Attributes`, and add `Links` and `Events`.
 //! These cannot be changed after the `Span`'s end time has been set.
-use crate::sdk::trace::config::DEFAULT_MAX_ATTRIBUTES_PER_EVENT;
+use crate::sdk::trace::SpanLimit;
 use crate::trace::{Event, SpanContext, SpanId, SpanKind, StatusCode};
 use crate::{sdk, trace, KeyValue};
 use std::borrow::Cow;
@@ -21,6 +21,7 @@ pub struct Span {
     span_context: SpanContext,
     data: Option<SpanData>,
     tracer: sdk::trace::Tracer,
+    span_limit: SpanLimit,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -52,11 +53,19 @@ impl Span {
         span_context: SpanContext,
         data: Option<SpanData>,
         tracer: sdk::trace::Tracer,
+        span_limit: Option<SpanLimit>,
     ) -> Self {
+        let span_limit = span_limit.unwrap_or_else(|| {
+            tracer
+                .provider()
+                .map(|provider| provider.config().span_limit)
+                .unwrap_or_default()
+        });
         Span {
             span_context,
             data,
             tracer,
+            span_limit,
         }
     }
 
@@ -81,11 +90,7 @@ impl crate::trace::Span for Span {
         timestamp: SystemTime,
         mut attributes: Vec<KeyValue>,
     ) {
-        let max_attributes_per_event =
-            self.tracer
-                .provider()
-                .map(|provider| provider.config().max_attributes_per_event)
-                .unwrap_or(DEFAULT_MAX_ATTRIBUTES_PER_EVENT) as usize;
+        let max_attributes_per_event = self.span_limit.max_attributes_per_event as usize;
         self.with_data(|data| {
             if attributes.len() > max_attributes_per_event {
                 attributes.truncate(max_attributes_per_event);
@@ -214,7 +219,9 @@ fn build_export_data(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::sdk::trace::config::DEFAULT_MAX_ATTRIBUTES_PER_LINK;
+    use crate::sdk::trace::span_limit::{
+        DEFAULT_MAX_ATTRIBUTES_PER_EVENT, DEFAULT_MAX_ATTRIBUTES_PER_LINK,
+    };
     use crate::trace::{Link, NoopSpanExporter, TraceId, Tracer};
     use crate::{core::KeyValue, trace::Span as _, trace::TracerProvider};
     use std::time::Duration;
@@ -229,9 +236,12 @@ mod tests {
             name: "opentelemetry".into(),
             start_time: crate::time::now(),
             end_time: crate::time::now(),
-            attributes: sdk::trace::EvictedHashMap::new(config.max_attributes_per_span, 0),
-            message_events: sdk::trace::EvictedQueue::new(config.max_events_per_span),
-            links: sdk::trace::EvictedQueue::new(config.max_links_per_span),
+            attributes: sdk::trace::EvictedHashMap::new(
+                config.span_limit.max_attributes_per_span,
+                0,
+            ),
+            message_events: sdk::trace::EvictedQueue::new(config.span_limit.max_events_per_span),
+            links: sdk::trace::EvictedQueue::new(config.span_limit.max_links_per_span),
             status_code: StatusCode::Unset,
             status_message: "".into(),
         };
@@ -240,20 +250,25 @@ mod tests {
 
     fn create_span() -> Span {
         let (tracer, data) = init();
-        Span::new(SpanContext::empty_context(), Some(data), tracer)
+        Span::new(SpanContext::empty_context(), Some(data), tracer, None)
     }
 
     #[test]
     fn create_span_without_data() {
         let (tracer, _) = init();
-        let mut span = Span::new(SpanContext::empty_context(), None, tracer);
+        let mut span = Span::new(SpanContext::empty_context(), None, tracer, None);
         span.with_data(|_data| panic!("there are data"));
     }
 
     #[test]
     fn create_span_with_data_mut() {
         let (tracer, data) = init();
-        let mut span = Span::new(SpanContext::empty_context(), Some(data.clone()), tracer);
+        let mut span = Span::new(
+            SpanContext::empty_context(),
+            Some(data.clone()),
+            tracer,
+            None,
+        );
         span.with_data(|d| assert_eq!(*d, data));
     }
 
