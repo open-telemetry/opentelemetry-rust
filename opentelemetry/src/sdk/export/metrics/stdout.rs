@@ -16,7 +16,6 @@ use crate::sdk::{
 };
 use crate::{
     labels::{default_encoder, Encoder, LabelSet},
-    metrics,
     metrics::{Descriptor, MetricsError, Result},
     KeyValue,
 };
@@ -317,15 +316,21 @@ where
     }
 
     /// Build a new push controller, returning errors if they arise.
-    pub fn try_init(mut self) -> metrics::Result<PushController> {
+    pub fn init(mut self) -> PushController {
         let period = self.period.take();
-        let (spawn, interval, exporter) = self.try_build()?;
+        let exporter = StdoutExporter {
+            writer: self.writer,
+            pretty_print: self.pretty_print,
+            do_not_print_time: self.do_not_print_time,
+            label_encoder: self.label_encoder.unwrap_or_else(default_encoder),
+            formatter: self.formatter,
+        };
         let mut push_builder = controllers::push(
             simple::Selector::Exact,
             ExportKindSelector::Stateless,
             exporter,
-            spawn,
-            interval,
+            self.spawn,
+            self.interval,
         )
         .with_stateful(true);
         if let Some(period) = period {
@@ -334,20 +339,6 @@ where
 
         let controller = push_builder.build();
         global::set_meter_provider(controller.provider());
-        Ok(controller)
-    }
-
-    fn try_build(self) -> metrics::Result<(S, I, StdoutExporter<W>)> {
-        Ok((
-            self.spawn,
-            self.interval,
-            StdoutExporter {
-                writer: self.writer,
-                pretty_print: self.pretty_print,
-                do_not_print_time: self.do_not_print_time,
-                label_encoder: self.label_encoder.unwrap_or_else(default_encoder),
-                formatter: self.formatter,
-            },
-        ))
+        controller
     }
 }
