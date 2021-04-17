@@ -21,7 +21,7 @@ pub(crate) const DEFAULT_MAX_ATTRIBUTES_PER_LINK: u32 = 128;
 
 /// Span limit configuration to keep attributes, events and links to a span in a reasonable number.
 #[derive(Copy, Clone, Debug)]
-pub struct SpanLimit {
+pub struct SpanLimits {
     /// The max events that can be added to a `Span`.
     pub max_events_per_span: u32,
     /// The max attributes that can be added to a `Span`.
@@ -34,9 +34,9 @@ pub struct SpanLimit {
     pub max_attributes_per_link: u32,
 }
 
-impl Default for SpanLimit {
+impl Default for SpanLimits {
     fn default() -> Self {
-        SpanLimit {
+        SpanLimits {
             max_events_per_span: DEFAULT_MAX_EVENT_PER_SPAN,
             max_attributes_per_span: DEFAULT_MAX_ATTRIBUTES_PER_SPAN,
             max_links_per_span: DEFAULT_MAX_LINKS_PER_SPAN,

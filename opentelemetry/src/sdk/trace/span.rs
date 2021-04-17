@@ -8,7 +8,7 @@
 //! start time is set to the current time on span creation. After the `Span` is created, it
 //! is possible to change its name, set its `Attributes`, and add `Links` and `Events`.
 //! These cannot be changed after the `Span`'s end time has been set.
-use crate::sdk::trace::SpanLimit;
+use crate::sdk::trace::SpanLimits;
 use crate::trace::{Event, SpanContext, SpanId, SpanKind, StatusCode};
 use crate::{sdk, trace, KeyValue};
 use std::borrow::Cow;
@@ -21,7 +21,7 @@ pub struct Span {
     span_context: SpanContext,
     data: Option<SpanData>,
     tracer: sdk::trace::Tracer,
-    span_limit: SpanLimit,
+    span_limit: SpanLimits,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -53,7 +53,7 @@ impl Span {
         span_context: SpanContext,
         data: Option<SpanData>,
         tracer: sdk::trace::Tracer,
-        span_limit: Option<SpanLimit>,
+        span_limit: Option<SpanLimits>,
     ) -> Self {
         let span_limit = span_limit.unwrap_or_else(|| {
             tracer

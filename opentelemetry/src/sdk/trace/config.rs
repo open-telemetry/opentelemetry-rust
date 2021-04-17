@@ -2,7 +2,7 @@
 //!
 //! Configuration represents the global tracing configuration, overrides
 //! can be set for the default OpenTelemetry limits and Sampler.
-use crate::sdk::trace::span_limit::SpanLimit;
+use crate::sdk::trace::span_limit::SpanLimits;
 use crate::{sdk, sdk::trace::Sampler, trace::IdGenerator};
 use std::env;
 use std::str::FromStr;
@@ -21,7 +21,7 @@ pub struct Config {
     /// The id generator that the sdk should use
     pub id_generator: Box<dyn IdGenerator>,
     /// span limit
-    pub span_limit: SpanLimit,
+    pub span_limit: SpanLimits,
     /// Contains attributes representing an entity that produces telemetry.
     pub resource: Option<Arc<sdk::Resource>>,
 }
@@ -70,7 +70,7 @@ impl Config {
     }
 
     /// Specify all limit via the span_limit
-    pub fn with_span_limit(mut self, span_limit: SpanLimit) -> Self {
+    pub fn with_span_limit(mut self, span_limit: SpanLimits) -> Self {
         self.span_limit = span_limit;
         self
     }
@@ -88,7 +88,7 @@ impl Default for Config {
         let mut config = Config {
             sampler: Box::new(Sampler::ParentBased(Box::new(Sampler::AlwaysOn))),
             id_generator: Box::new(sdk::trace::IdGenerator::default()),
-            span_limit: SpanLimit::default(),
+            span_limit: SpanLimits::default(),
             resource: None,
         };
 
