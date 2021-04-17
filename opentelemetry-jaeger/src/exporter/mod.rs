@@ -470,10 +470,8 @@ fn links_to_references(links: sdk::trace::EvictedQueue<Link>) -> Option<Vec<jaeg
                 let trace_id_high = (trace_id >> 64) as i64;
                 let trace_id_low = trace_id as i64;
 
-                // TODO: properly set the reference type when specs are defined
-                //  see https://github.com/open-telemetry/opentelemetry-specification/issues/65
                 jaeger::SpanRef::new(
-                    jaeger::SpanRefType::ChildOf,
+                    jaeger::SpanRefType::FollowsFrom,
                     trace_id_low,
                     trace_id_high,
                     span_context.span_id().to_u64() as i64,
