@@ -3,10 +3,7 @@ use opentelemetry::metrics::{InstrumentKind, Number, NumberKind};
 use opentelemetry::sdk::export::metrics::Aggregator;
 use opentelemetry::{
     metrics::Descriptor,
-    sdk::{
-        export::metrics::Quantile,
-        metrics::aggregators::{ArrayAggregator, DdSketchAggregator, DdSketchConfig},
-    },
+    sdk::metrics::aggregators::{ArrayAggregator, DdSketchAggregator, DdSketchConfig},
 };
 use rand::Rng;
 use std::sync::Arc;
@@ -17,10 +14,6 @@ fn generate_normal_data(num: usize) -> Vec<f64> {
         data.push(rand::thread_rng().gen_range(-100..10000) as f64);
     }
     data
-}
-
-fn get_test_quantile() -> &'static [f64] {
-    &[0.0, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99, 0.999, 1.0]
 }
 
 fn ddsketch(data: Vec<f64>) {
@@ -43,11 +36,6 @@ fn ddsketch(data: Vec<f64>) {
     aggregator
         .synchronized_move(&new_aggregator, &descriptor)
         .unwrap();
-    for quantile in get_test_quantile() {
-        if let Some(new_aggregator) = new_aggregator.as_any().downcast_ref::<DdSketchAggregator>() {
-            let _ = new_aggregator.quantile(*quantile);
-        }
-    }
 }
 
 fn array(data: Vec<f64>) {
@@ -66,11 +54,6 @@ fn array(data: Vec<f64>) {
     aggregator
         .synchronized_move(&new_aggregator, &descriptor)
         .unwrap();
-    for quantile in get_test_quantile() {
-        if let Some(new_aggregator) = new_aggregator.as_any().downcast_ref::<ArrayAggregator>() {
-            let _ = new_aggregator.quantile(*quantile);
-        }
-    }
 }
 
 pub fn histogram(c: &mut Criterion) {

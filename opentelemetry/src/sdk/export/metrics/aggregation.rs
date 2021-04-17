@@ -26,13 +26,6 @@ pub trait Max {
     fn max(&self) -> Result<Number>;
 }
 
-/// Quantile returns an exact or estimated quantile over the
-/// set of values that were aggregated.
-pub trait Quantile {
-    /// The quantile of the currently aggregated metrics
-    fn quantile(&self, q: f64) -> Result<Number>;
-}
-
 /// LastValue returns the latest value that was aggregated.
 pub trait LastValue {
     /// The last value of the currently aggregated metrics
@@ -86,7 +79,3 @@ pub trait Histogram: Sum + Count {
 
 /// MinMaxSumCount supports the Min, Max, Sum, and Count interfaces.
 pub trait MinMaxSumCount: Min + Max + Sum + Count {}
-
-/// Distribution supports the Min, Max, Sum, Count, and Quantile
-/// interfaces.
-pub trait Distribution: MinMaxSumCount + Quantile {}
