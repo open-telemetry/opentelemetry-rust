@@ -1,6 +1,6 @@
 use crate::metrics::{AtomicNumber, Descriptor, MetricsError, Number, NumberKind, Result};
 use crate::sdk::{
-    export::metrics::{Count, Distribution, Max, Min, MinMaxSumCount, Points, Quantile, Sum},
+    export::metrics::{Count, Points},
     metrics::Aggregator,
 };
 use std::any::Any;
@@ -18,37 +18,6 @@ pub struct ArrayAggregator {
     inner: Mutex<Inner>,
 }
 
-impl Min for ArrayAggregator {
-    fn min(&self) -> Result<Number> {
-        self.inner.lock().map_err(Into::into).and_then(|inner| {
-            inner
-                .points
-                .as_ref()
-                .map_or(Ok(0u64.into()), |p| p.quantile(0.0))
-        })
-    }
-}
-
-impl Max for ArrayAggregator {
-    fn max(&self) -> Result<Number> {
-        self.inner.lock().map_err(Into::into).and_then(|inner| {
-            inner
-                .points
-                .as_ref()
-                .map_or(Ok(0u64.into()), |p| p.quantile(1.0))
-        })
-    }
-}
-
-impl Sum for ArrayAggregator {
-    fn sum(&self) -> Result<Number> {
-        self.inner
-            .lock()
-            .map_err(Into::into)
-            .map(|inner| inner.sum.load())
-    }
-}
-
 impl Count for ArrayAggregator {
     fn count(&self) -> Result<u64> {
         self.inner
@@ -57,21 +26,6 @@ impl Count for ArrayAggregator {
             .map(|inner| inner.points.as_ref().map_or(0, |p| p.len() as u64))
     }
 }
-
-impl MinMaxSumCount for ArrayAggregator {}
-
-impl Quantile for ArrayAggregator {
-    fn quantile(&self, q: f64) -> Result<Number> {
-        self.inner.lock().map_err(Into::into).and_then(|inner| {
-            inner
-                .points
-                .as_ref()
-                .map_or(Ok(0u64.into()), |p| p.quantile(q))
-        })
-    }
-}
-
-impl Distribution for ArrayAggregator {}
 
 impl Points for ArrayAggregator {
     fn points(&self) -> Result<Vec<Number>> {
@@ -196,26 +150,5 @@ impl PointsData {
     fn combine(&mut self, kind: &NumberKind, other: &PointsData) {
         self.0.append(&mut other.0.clone());
         self.sort(kind)
-    }
-}
-
-impl Quantile for PointsData {
-    fn quantile(&self, q: f64) -> Result<Number> {
-        if self.0.is_empty() {
-            return Err(MetricsError::NoDataCollected);
-        }
-
-        if !(0.0..=1.0).contains(&q) {
-            return Err(MetricsError::InvalidQuantile);
-        }
-
-        if q == 0.0 || self.0.len() == 1 {
-            return Ok(self.0[0].clone());
-        } else if (q - 1.0).abs() < std::f64::EPSILON {
-            return Ok(self.0[self.0.len() - 1].clone());
-        }
-
-        let position = (self.0.len() as f64 - 1.0) * q;
-        Ok(self.0[position.ceil() as usize].clone())
     }
 }

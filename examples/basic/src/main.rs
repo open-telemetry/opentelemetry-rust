@@ -29,7 +29,6 @@ fn delayed_interval(duration: Duration) -> impl Stream<Item = tokio::time::Insta
 
 fn init_meter() -> metrics::Result<PushController> {
     opentelemetry::sdk::export::metrics::stdout(tokio::spawn, delayed_interval)
-        .with_quantiles(vec![0.5, 0.9, 0.99])
         .with_formatter(|batch| {
             serde_json::to_value(batch)
                 .map(|value| value.to_string())

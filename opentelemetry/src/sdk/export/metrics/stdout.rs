@@ -3,7 +3,7 @@ use crate::global;
 use crate::sdk::{
     export::metrics::{
         CheckpointSet, Count, ExportKind, ExportKindFor, ExportKindSelector, Exporter, LastValue,
-        Max, Min, Quantile, Sum,
+        Max, Min, Sum,
     },
     metrics::{
         aggregators::{
@@ -49,12 +49,6 @@ pub struct StdoutExporter<W> {
     /// Suppresses timestamp printing. This is useful to create deterministic test
     /// conditions.
     do_not_print_time: bool,
-    /// Quantiles are the desired aggregation quantiles for distribution summaries,
-    /// used when the configured aggregator supports quantiles.
-    ///
-    /// Note: this exporter is meant as a demonstration; a real exporter may wish to
-    /// configure quantiles on a per-metric basis.
-    quantiles: Vec<f64>,
     /// Encodes the labels.
     label_encoder: Box<dyn Encoder + Send + Sync>,
     /// An optional user-defined function to format a given export batch.
@@ -85,9 +79,6 @@ struct ExportLine {
     last_value: Option<ExportNumeric>,
 
     #[cfg_attr(feature = "serialize", serde(skip_serializing_if = "Option::is_none"))]
-    quantiles: Option<Vec<ExporterQuantile>>,
-
-    #[cfg_attr(feature = "serialize", serde(skip_serializing_if = "Option::is_none"))]
     timestamp: Option<SystemTime>,
 }
 
@@ -109,13 +100,6 @@ impl Serialize for ExportNumeric {
         let s = format!("{:?}", self);
         serializer.serialize_str(&s)
     }
-}
-
-#[cfg_attr(feature = "serialize", derive(Serialize))]
-#[derive(Debug)]
-struct ExporterQuantile {
-    q: f64,
-    v: ExportNumeric,
 }
 
 impl<W> Exporter for StdoutExporter<W>
@@ -145,22 +129,7 @@ where
             let mut expose = ExportLine::default();
 
             if let Some(array) = agg.as_any().downcast_ref::<ArrayAggregator>() {
-                expose.min = Some(ExportNumeric(array.min()?.to_debug(kind)));
-                expose.max = Some(ExportNumeric(array.max()?.to_debug(kind)));
-                expose.sum = Some(ExportNumeric(array.sum()?.to_debug(kind)));
                 expose.count = array.count()?;
-
-                let quantiles = self
-                    .quantiles
-                    .iter()
-                    .map(|&q| {
-                        Ok(ExporterQuantile {
-                            q,
-                            v: ExportNumeric(array.quantile(q)?.to_debug(kind)),
-                        })
-                    })
-                    .collect::<Result<Vec<_>>>()?;
-                expose.quantiles = Some(quantiles);
             }
 
             if let Some(last_value) = agg.as_any().downcast_ref::<LastValueAggregator>() {
@@ -317,14 +286,6 @@ where
         }
     }
 
-    /// Set the quantiles that this exporter will use.
-    pub fn with_quantiles(self, quantiles: Vec<f64>) -> Self {
-        StdoutExporterBuilder {
-            quantiles: Some(quantiles),
-            ..self
-        }
-    }
-
     /// Set the label encoder that this exporter will use.
     pub fn with_label_encoder<E>(self, label_encoder: E) -> Self
     where
@@ -377,14 +338,6 @@ where
     }
 
     fn try_build(self) -> metrics::Result<(S, I, StdoutExporter<W>)> {
-        if let Some(quantiles) = self.quantiles.as_ref() {
-            for q in quantiles {
-                if *q < 0.0 || *q > 1.0 {
-                    return Err(MetricsError::InvalidQuantile);
-                }
-            }
-        }
-
         Ok((
             self.spawn,
             self.interval,
@@ -392,7 +345,6 @@ where
                 writer: self.writer,
                 pretty_print: self.pretty_print,
                 do_not_print_time: self.do_not_print_time,
-                quantiles: self.quantiles.unwrap_or_else(|| vec![0.5, 0.9, 0.99]),
                 label_encoder: self.label_encoder.unwrap_or_else(default_encoder),
                 formatter: self.formatter,
             },
