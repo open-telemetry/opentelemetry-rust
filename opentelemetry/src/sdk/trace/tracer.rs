@@ -263,9 +263,7 @@ impl crate::trace::Tracer for Tracer {
                     // make sure the attributes is less than max_attribute_per_link
                     let attributes = link.attributes_mut();
                     if attributes.len() > config.max_attributes_per_link as usize {
-                        let _dropped: Vec<_> = attributes
-                            .drain((config.max_attributes_per_link as usize)..)
-                            .collect();
+                        attributes.truncate(config.max_attributes_per_link as usize);
                     }
                 }
                 links.append_vec(link_options);
@@ -277,9 +275,7 @@ impl crate::trace::Tracer for Tracer {
                 for event in events.iter_mut() {
                     let attributes = &mut event.attributes;
                     if attributes.len() > config.max_attributes_per_event as usize {
-                        let _dropped: Vec<_> = attributes
-                            .drain((config.max_attributes_per_event as usize)..)
-                            .collect();
+                        attributes.truncate(config.max_attributes_per_event as usize);
                     }
                 }
                 message_events_queue.append_vec(&mut events);

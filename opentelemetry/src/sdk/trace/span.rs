@@ -88,7 +88,7 @@ impl crate::trace::Span for Span {
                 .unwrap_or(DEFAULT_MAX_ATTRIBUTES_PER_EVENT) as usize;
         self.with_data(|data| {
             if attributes.len() > max_attributes_per_event {
-                let _dropped: Vec<_> = attributes.drain((max_attributes_per_event)..).collect();
+                attributes.truncate(max_attributes_per_event);
             }
 
             data.message_events
