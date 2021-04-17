@@ -19,9 +19,7 @@ use std::{
 
 use crate::{
     metrics::{Descriptor, MetricsError, Number, NumberKind, Result},
-    sdk::export::metrics::{
-        Aggregator, Count, Distribution, Max, Min, MinMaxSumCount, Quantile, Sum,
-    },
+    sdk::export::metrics::{Aggregator, Count, Max, Min, MinMaxSumCount, Sum},
 };
 
 const INITIAL_NUM_BINS: usize = 128;
@@ -111,68 +109,6 @@ impl Count for DdSketchAggregator {
 }
 
 impl MinMaxSumCount for DdSketchAggregator {}
-
-impl Distribution for DdSketchAggregator {}
-
-impl Quantile for DdSketchAggregator {
-    fn quantile(&self, q: f64) -> Result<Number> {
-        if !(0.0..=1.0).contains(&q) {
-            return Err(MetricsError::InvalidQuantile);
-        }
-        self.inner.read().map_err(From::from).and_then(|inner| {
-            if inner.count() == 0 {
-                return Err(MetricsError::NoDataCollected);
-            }
-            if q == 0.0 {
-                return Ok(inner.min_value.clone());
-            }
-
-            if (q - 1.0).abs() < std::f64::EPSILON {
-                return Ok(inner.max_value.clone());
-            }
-
-            // determine whether the quantile will fall in positive or negative
-            let rank = (q * (inner.count() - 1) as f64 + 1.0).floor() as u64;
-
-            let mut key = if rank > inner.negative_store.count {
-                inner
-                    .positive_store
-                    .key_at_rank(rank - inner.negative_store.count)
-            } else {
-                inner.negative_store.key_at_rank(rank)
-            };
-            // Calculate the actual value based on the key of bins.
-            let quantile_val = match key.cmp(&0) {
-                Ordering::Less => {
-                    key += inner.offset;
-                    -2.0 * (inner.gamma_ln * (-key as f64)).exp() / (1.0 + inner.gamma)
-                }
-                Ordering::Greater => {
-                    key -= inner.offset;
-                    2.0 * (inner.gamma_ln * (key as f64)).exp() / (1.0 + inner.gamma)
-                }
-                Ordering::Equal => 0f64,
-            };
-
-            let mut quantile = match inner.kind {
-                NumberKind::F64 => Number::from(quantile_val),
-                NumberKind::U64 => Number::from(quantile_val as u64),
-                NumberKind::I64 => Number::from(quantile_val as i64),
-            };
-
-            // Make sure the result of quantile is within [min_value, max_value]
-            if quantile.partial_cmp(&inner.kind, &inner.min_value) == Some(Ordering::Less) {
-                quantile = inner.min_value.clone();
-            }
-
-            if quantile.partial_cmp(&inner.kind, &inner.max_value) == Some(Ordering::Greater) {
-                quantile = inner.max_value.clone();
-            }
-
-            Ok(quantile)
-        })
-    }
-}
 
 impl Aggregator for DdSketchAggregator {
     fn update(&self, number: &Number, descriptor: &Descriptor) -> Result<()> {
@@ -579,21 +515,6 @@ impl Store {
         }
     }
 
-    /// Returns the key of values at rank
-    fn key_at_rank(&self, rank: u64) -> i64 {
-        self.bins
-            .iter()
-            .enumerate()
-            .scan(0, |state, (key, &count)| {
-                *state += count;
-                Some((key, *state))
-            })
-            .filter(|(_key, accumulated)| *accumulated >= rank)
-            .map(|(key, _)| key as i64 + self.min_key)
-            .next()
-            .unwrap_or(self.max_key)
-    }
-
     /// Merge two stores
     fn merge(&mut self, other: &Store) {
         if self.count == 0 {
@@ -649,7 +570,7 @@ impl Store {
 mod tests {
     use super::*;
     use crate::metrics::{Descriptor, InstrumentKind, Number, NumberKind};
-    use crate::sdk::export::metrics::{Aggregator, Count, Max, Min, Quantile, Sum};
+    use crate::sdk::export::metrics::{Aggregator, Count, Max, Min, Sum};
     use rand_distr::{Distribution, Exp, LogNormal, Normal};
     use std::cmp::Ordering;
     use std::sync::Arc;
@@ -684,42 +605,6 @@ mod tests {
             Dataset {
                 data: data.into_iter().map(Number::from).collect::<Vec<Number>>(),
                 kind: NumberKind::I64,
-            }
-        }
-
-        // Given a quantile, get the minimum possible value that not exceed error range.
-        // data must have at least one element and should be sorted.
-        // q must in range [0,1]
-        fn lower_quantile(&self, q: f64, alpha: f64) -> f64 {
-            let rank = q * (self.data.len() - 1) as f64;
-            let number = self
-                .data
-                .get(rank.floor() as usize)
-                .expect("data should at least contains one element, quantile should be in [0,1]")
-                .clone()
-                .to_f64(&self.kind);
-            if number < 0.0 {
-                number * (1.0 + alpha)
-            } else {
-                number * (1.0 - alpha)
-            }
-        }
-
-        // Given a quantile, get the maximum possible value that not exceed error range.
-        // data must have at least one element and should be sorted.
-        // q must in range [0,1]
-        fn upper_quantile(&self, q: f64, alpha: f64) -> f64 {
-            let rank = q * (self.data.len() - 1) as f64;
-            let number = self
-                .data
-                .get(rank.ceil() as usize)
-                .expect("data should at least contains one element, quantile should be in [0,1]")
-                .clone()
-                .to_f64(&self.kind);
-            if number > 0.0 {
-                number * (1.0 + alpha)
-            } else {
-                number * (1.0 - alpha)
             }
         }
 
@@ -797,10 +682,6 @@ mod tests {
         data
     }
 
-    fn test_quantiles() -> &'static [f64] {
-        &[0.0, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99, 0.999, 1.0]
-    }
-
     /// Insert all element of data into ddsketch and assert the quantile result is within the error range.
     /// Note that data must be sorted.
     fn evaluate_sketch(dataset: Dataset) {
@@ -819,31 +700,6 @@ mod tests {
 
         for i in &dataset.data {
             let _ = ddsketch.update(i, &descriptor);
-        }
-
-        for q in test_quantiles() {
-            let lower = dataset.lower_quantile(*q, TEST_ALPHA);
-            let upper = dataset.upper_quantile(*q, TEST_ALPHA);
-            let result = ddsketch
-                .quantile(*q)
-                .expect("Error when calculate quantile");
-            match kind {
-                NumberKind::F64 => {
-                    let result_f64 = result.to_f64(kind);
-                    assert!(result_f64 - lower >= 0.0);
-                    assert!(upper - result_f64 >= 0.0);
-                }
-                NumberKind::U64 => {
-                    let result_u64 = result.to_u64(kind);
-                    assert!(result_u64 >= lower as u64);
-                    assert!(upper as u64 >= result_u64);
-                }
-                NumberKind::I64 => {
-                    let result_i64 = result.to_i64(kind);
-                    assert!(result_i64 - lower as i64 >= 0);
-                    assert!(upper as i64 - result_i64 >= 0);
-                }
-            }
         }
 
         assert_eq!(
@@ -985,11 +841,6 @@ mod tests {
         for i in &dataset.data {
             let _ = ddsketch.update(i, &descriptor);
         }
-        let mut expected = vec![];
-        for q in test_quantiles() {
-            expected.push(ddsketch.quantile(*q).unwrap().to_f64(&NumberKind::F64));
-        }
-        let mut expected_iter = expected.iter();
         let expected_sum = ddsketch.sum().unwrap().to_f64(&NumberKind::F64);
         let expected_count = ddsketch.count().unwrap();
         let expected_min = ddsketch.min().unwrap().to_f64(&NumberKind::F64);
@@ -1022,18 +873,5 @@ mod tests {
                 < std::f64::EPSILON
         );
         assert_eq!(moved_ddsketch.count().unwrap(), expected_count);
-
-        // assert can generate same result
-        for q in test_quantiles() {
-            assert!(
-                (moved_ddsketch
-                    .quantile(*q)
-                    .unwrap()
-                    .to_f64(&NumberKind::F64)
-                    - expected_iter.next().unwrap())
-                .abs()
-                    < std::f64::EPSILON
-            );
-        }
     }
 }

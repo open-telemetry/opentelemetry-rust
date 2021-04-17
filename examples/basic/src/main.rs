@@ -5,7 +5,7 @@ use opentelemetry::sdk::{metrics::PushController, trace as sdktrace};
 use opentelemetry::trace::TraceError;
 use opentelemetry::{
     baggage::BaggageExt,
-    metrics::{self, MetricsError, ObserverResult},
+    metrics::{MetricsError, ObserverResult},
     trace::{TraceContextExt, Tracer},
     Context, Key, KeyValue,
 };
@@ -27,15 +27,14 @@ fn delayed_interval(duration: Duration) -> impl Stream<Item = tokio::time::Insta
     opentelemetry::util::tokio_interval_stream(duration).skip(1)
 }
 
-fn init_meter() -> metrics::Result<PushController> {
+fn init_meter() -> PushController {
     opentelemetry::sdk::export::metrics::stdout(tokio::spawn, delayed_interval)
-        .with_quantiles(vec![0.5, 0.9, 0.99])
         .with_formatter(|batch| {
             serde_json::to_value(batch)
                 .map(|value| value.to_string())
                 .map_err(|err| MetricsError::Other(err.to_string()))
         })
-        .try_init()
+        .init()
 }
 
 const FOO_KEY: Key = Key::from_static_str("ex.com/foo");
@@ -55,7 +54,7 @@ lazy_static::lazy_static! {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     let _tracer = init_tracer()?;
-    let _started = init_meter()?;
+    let _started = init_meter();
 
     let tracer = global::tracer("ex.com/basic");
     let meter = global::meter("ex.com/basic");
