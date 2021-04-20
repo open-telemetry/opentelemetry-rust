@@ -1,6 +1,7 @@
 use futures::stream::Stream;
 use futures::StreamExt;
 use opentelemetry::global::shutdown_tracer_provider;
+use opentelemetry::sdk::export::metrics::{ExportKind, ExportKindFor};
 use opentelemetry::sdk::{
     export::metrics::{Aggregator, AggregatorSelector},
     metrics::{aggregators, PushController},
@@ -50,6 +51,15 @@ impl AggregatorSelector for CustomAggregator {
     }
 }
 
+#[derive(Debug, Clone)]
+struct CustomExportKindFor();
+
+impl ExportKindFor for CustomExportKindFor {
+    fn export_kind_for(&self, _descriptor: &Descriptor) -> ExportKind {
+        ExportKind::Delta
+    }
+}
+
 fn init_meter() -> metrics::Result<PushController> {
     let export_config = ExporterConfig {
         endpoint: "http://localhost:4317".to_string(),
@@ -58,6 +68,7 @@ fn init_meter() -> metrics::Result<PushController> {
     };
     opentelemetry_otlp::new_metrics_pipeline(tokio::spawn, delayed_interval)
         .with_export_config(export_config)
+        .with_export_kind(CustomExportKindFor())
         .with_aggregator_selector(CustomAggregator())
         .build()
 }

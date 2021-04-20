@@ -1,4 +1,7 @@
-# Basic OpenTelemetry Example
+# Basic OTLP exporter Example
 
-This example shows basic span and metric usage, and exports to the [OpenTelemetry Collector](https://github.com/open-telemetry/opentelemetry-collector) via OTLP with a custom metric aggregator selector.
+This example shows how to configure OTLP metrics exporter to use custom aggregator selectors and custom export kind selectors.
+
+## Prerequisite
+You should first start a `opentelemetry-collector` on localhost using the default configuration. 
 
