@@ -8,6 +8,7 @@
 //! start time is set to the current time on span creation. After the `Span` is created, it
 //! is possible to change its name, set its `Attributes`, and add `Links` and `Events`.
 //! These cannot be changed after the `Span`'s end time has been set.
+use crate::sdk::trace::SpanLimits;
 use crate::trace::{Event, SpanContext, SpanId, SpanKind, StatusCode};
 use crate::{sdk, trace, KeyValue};
 use std::borrow::Cow;
@@ -20,6 +21,7 @@ pub struct Span {
     span_context: SpanContext,
     data: Option<SpanData>,
     tracer: sdk::trace::Tracer,
+    span_limit: SpanLimits,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -51,11 +53,13 @@ impl Span {
         span_context: SpanContext,
         data: Option<SpanData>,
         tracer: sdk::trace::Tracer,
+        span_limit: SpanLimits,
     ) -> Self {
         Span {
             span_context,
             data,
             tracer,
+            span_limit,
         }
     }
 
@@ -78,9 +82,14 @@ impl crate::trace::Span for Span {
         &mut self,
         name: String,
         timestamp: SystemTime,
-        attributes: Vec<KeyValue>,
+        mut attributes: Vec<KeyValue>,
     ) {
+        let max_attributes_per_event = self.span_limit.max_attributes_per_event as usize;
         self.with_data(|data| {
+            if attributes.len() > max_attributes_per_event {
+                attributes.truncate(max_attributes_per_event);
+            }
+
             data.message_events
                 .push_back(Event::new(name, timestamp, attributes))
         });
@@ -204,6 +213,10 @@ fn build_export_data(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::sdk::trace::span_limit::{
+        DEFAULT_MAX_ATTRIBUTES_PER_EVENT, DEFAULT_MAX_ATTRIBUTES_PER_LINK,
+    };
+    use crate::trace::{Link, NoopSpanExporter, TraceId, Tracer};
     use crate::{core::KeyValue, trace::Span as _, trace::TracerProvider};
     use std::time::Duration;
 
@@ -217,9 +230,12 @@ mod tests {
             name: "opentelemetry".into(),
             start_time: crate::time::now(),
             end_time: crate::time::now(),
-            attributes: sdk::trace::EvictedHashMap::new(config.max_attributes_per_span, 0),
-            message_events: sdk::trace::EvictedQueue::new(config.max_events_per_span),
-            links: sdk::trace::EvictedQueue::new(config.max_links_per_span),
+            attributes: sdk::trace::EvictedHashMap::new(
+                config.span_limit.max_attributes_per_span,
+                0,
+            ),
+            message_events: sdk::trace::EvictedQueue::new(config.span_limit.max_events_per_span),
+            links: sdk::trace::EvictedQueue::new(config.span_limit.max_links_per_span),
             status_code: StatusCode::Unset,
             status_message: "".into(),
         };
@@ -228,20 +244,35 @@ mod tests {
 
     fn create_span() -> Span {
         let (tracer, data) = init();
-        Span::new(SpanContext::empty_context(), Some(data), tracer)
+        Span::new(
+            SpanContext::empty_context(),
+            Some(data),
+            tracer,
+            Default::default(),
+        )
     }
 
     #[test]
     fn create_span_without_data() {
         let (tracer, _) = init();
-        let mut span = Span::new(SpanContext::empty_context(), None, tracer);
+        let mut span = Span::new(
+            SpanContext::empty_context(),
+            None,
+            tracer,
+            Default::default(),
+        );
         span.with_data(|_data| panic!("there are data"));
     }
 
     #[test]
     fn create_span_with_data_mut() {
         let (tracer, data) = init();
-        let mut span = Span::new(SpanContext::empty_context(), Some(data.clone()), tracer);
+        let mut span = Span::new(
+            SpanContext::empty_context(),
+            Some(data.clone()),
+            tracer,
+            Default::default(),
+        );
         span.with_data(|d| assert_eq!(*d, data));
     }
 
@@ -444,5 +475,75 @@ mod tests {
         let mut span = create_span();
         span.end();
         assert!(!span.is_recording());
+    }
+
+    #[test]
+    fn exceed_event_attributes_limit() {
+        let exporter = NoopSpanExporter::new();
+        let provider_builder = sdk::trace::TracerProvider::builder().with_simple_exporter(exporter);
+        let provider = provider_builder.build();
+        let tracer = provider.get_tracer("opentelemetry-test", None);
+
+        let mut event1 = Event::with_name("test event");
+        for i in 0..(DEFAULT_MAX_ATTRIBUTES_PER_EVENT * 2) {
+            event1
+                .attributes
+                .push(KeyValue::new(format!("key {}", i), i.to_string()))
+        }
+        let event2 = event1.clone();
+
+        // add event when build
+        let span_builder = tracer
+            .span_builder("test")
+            .with_message_events(vec![event1]);
+        let mut span = tracer.build(span_builder);
+
+        // add event after build
+        span.add_event("another test event".into(), event2.attributes);
+
+        let event_queue = span
+            .data
+            .clone()
+            .expect("span data should not be empty as we already set it before")
+            .message_events;
+        let event_vec: Vec<_> = event_queue.iter().take(2).collect();
+        let processed_event_1 = event_vec.get(0).expect("should have at least two events");
+        let processed_event_2 = event_vec.get(1).expect("should have at least two events");
+        assert_eq!(processed_event_1.attributes.len(), 128);
+        assert_eq!(processed_event_2.attributes.len(), 128);
+    }
+
+    #[test]
+    fn exceed_link_attributes_limit() {
+        let exporter = NoopSpanExporter::new();
+        let provider_builder = sdk::trace::TracerProvider::builder().with_simple_exporter(exporter);
+        let provider = provider_builder.build();
+        let tracer = provider.get_tracer("opentelemetry-test", None);
+
+        let mut link = Link::new(
+            SpanContext::new(
+                TraceId::from_u128(0),
+                SpanId::from_u64(0),
+                0,
+                false,
+                Default::default(),
+            ),
+            Vec::new(),
+        );
+        for i in 0..(DEFAULT_MAX_ATTRIBUTES_PER_LINK * 2) {
+            link.attributes_mut()
+                .push(KeyValue::new(format!("key {}", i), i.to_string()));
+        }
+
+        let span_builder = tracer.span_builder("test").with_links(vec![link]);
+        let span = tracer.build(span_builder);
+        let link_queue = span
+            .data
+            .clone()
+            .expect("span data should not be empty as we already set it before")
+            .links;
+        let link_vec: Vec<_> = link_queue.iter().collect();
+        let processed_link = link_vec.get(0).expect("should have at least one link");
+        assert_eq!(processed_link.attributes().len(), 128);
     }
 }

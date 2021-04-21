@@ -2,6 +2,7 @@
 //!
 //! Configuration represents the global tracing configuration, overrides
 //! can be set for the default OpenTelemetry limits and Sampler.
+use crate::sdk::trace::span_limit::SpanLimits;
 use crate::{sdk, sdk::trace::Sampler, trace::IdGenerator};
 use std::env;
 use std::str::FromStr;
@@ -19,12 +20,8 @@ pub struct Config {
     pub sampler: Box<dyn sdk::trace::ShouldSample>,
     /// The id generator that the sdk should use
     pub id_generator: Box<dyn IdGenerator>,
-    /// The max events that can be added to a `Span`.
-    pub max_events_per_span: u32,
-    /// The max attributes that can be added to a `Span`.
-    pub max_attributes_per_span: u32,
-    /// The max links that can be added to a `Span`.
-    pub max_links_per_span: u32,
+    /// span limit
+    pub span_limit: SpanLimits,
     /// Contains attributes representing an entity that produces telemetry.
     pub resource: Option<Arc<sdk::Resource>>,
 }
@@ -44,19 +41,37 @@ impl Config {
 
     /// Specify the number of events to be recorded per span.
     pub fn with_max_events_per_span(mut self, max_events: u32) -> Self {
-        self.max_events_per_span = max_events;
+        self.span_limit.max_events_per_span = max_events;
         self
     }
 
     /// Specify the number of attributes to be recorded per span.
     pub fn with_max_attributes_per_span(mut self, max_attributes: u32) -> Self {
-        self.max_attributes_per_span = max_attributes;
+        self.span_limit.max_attributes_per_span = max_attributes;
         self
     }
 
     /// Specify the number of events to be recorded per span.
     pub fn with_max_links_per_span(mut self, max_links: u32) -> Self {
-        self.max_links_per_span = max_links;
+        self.span_limit.max_links_per_span = max_links;
+        self
+    }
+
+    /// Specify the number of attributes one event can have.
+    pub fn with_max_attributes_per_event(mut self, max_attributes: u32) -> Self {
+        self.span_limit.max_attributes_per_event = max_attributes;
+        self
+    }
+
+    /// Specify the number of attributes one link can have.
+    pub fn with_max_attributes_per_link(mut self, max_attributes: u32) -> Self {
+        self.span_limit.max_attributes_per_link = max_attributes;
+        self
+    }
+
+    /// Specify all limit via the span_limit
+    pub fn with_span_limit(mut self, span_limit: SpanLimits) -> Self {
+        self.span_limit = span_limit;
         self
     }
 
@@ -73,9 +88,7 @@ impl Default for Config {
         let mut config = Config {
             sampler: Box::new(Sampler::ParentBased(Box::new(Sampler::AlwaysOn))),
             id_generator: Box::new(sdk::trace::IdGenerator::default()),
-            max_events_per_span: 128,
-            max_attributes_per_span: 128,
-            max_links_per_span: 128,
+            span_limit: SpanLimits::default(),
             resource: None,
         };
 
@@ -83,21 +96,21 @@ impl Default for Config {
             .ok()
             .and_then(|count_limit| u32::from_str(&count_limit).ok())
         {
-            config.max_attributes_per_span = max_attributes_per_span;
+            config.span_limit.max_attributes_per_span = max_attributes_per_span;
         }
 
         if let Some(max_events_per_span) = env::var("OTEL_SPAN_EVENT_COUNT_LIMIT")
             .ok()
             .and_then(|max_events| u32::from_str(&max_events).ok())
         {
-            config.max_events_per_span = max_events_per_span;
+            config.span_limit.max_events_per_span = max_events_per_span;
         }
 
         if let Some(max_links_per_span) = env::var("OTEL_SPAN_LINK_COUNT_LIMIT")
             .ok()
             .and_then(|max_links| u32::from_str(&max_links).ok())
         {
-            config.max_links_per_span = max_links_per_span;
+            config.span_limit.max_links_per_span = max_links_per_span;
         }
 
         config

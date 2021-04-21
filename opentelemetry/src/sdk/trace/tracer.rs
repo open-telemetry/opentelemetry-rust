@@ -7,6 +7,7 @@
 //! and exposes methods for creating and activating new `Spans`.
 //!
 //! Docs: https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/api-tracing.md#tracer
+use crate::sdk::trace::SpanLimits;
 use crate::sdk::{
     trace::{
         provider::{TracerProvider, TracerProviderInner},
@@ -125,7 +126,12 @@ impl crate::trace::Tracer for Tracer {
     /// Returns a span with an inactive `SpanContext`. Used by functions that
     /// need to return a default span like `get_active_span` if no span is present.
     fn invalid(&self) -> Self::Span {
-        Span::new(SpanContext::empty_context(), None, self.clone())
+        Span::new(
+            SpanContext::empty_context(),
+            None,
+            self.clone(),
+            SpanLimits::default(),
+        )
     }
 
     /// Starts a new `Span` with a given context.
@@ -162,11 +168,17 @@ impl crate::trace::Tracer for Tracer {
     fn build(&self, mut builder: SpanBuilder) -> Self::Span {
         let provider = self.provider();
         if provider.is_none() {
-            return Span::new(SpanContext::empty_context(), None, self.clone());
+            return Span::new(
+                SpanContext::empty_context(),
+                None,
+                self.clone(),
+                SpanLimits::default(),
+            );
         }
 
         let provider = provider.unwrap();
         let config = provider.config();
+        let span_limit = config.span_limit;
         let span_id = builder
             .span_id
             .take()
@@ -253,18 +265,31 @@ impl crate::trace::Tracer for Tracer {
             span_trace_state = trace_state;
             attribute_options.append(&mut extra_attrs);
             let mut attributes =
-                EvictedHashMap::new(config.max_attributes_per_span, attribute_options.len());
+                EvictedHashMap::new(span_limit.max_attributes_per_span, attribute_options.len());
             for attribute in attribute_options {
                 attributes.insert(attribute);
             }
-            let mut links = EvictedQueue::new(config.max_links_per_span);
+            let mut links = EvictedQueue::new(span_limit.max_links_per_span);
             if let Some(link_options) = &mut link_options {
+                for link in link_options.iter_mut() {
+                    // make sure the attributes is less than max_attribute_per_link
+                    let attributes = link.attributes_mut();
+                    if attributes.len() > span_limit.max_attributes_per_link as usize {
+                        attributes.truncate(span_limit.max_attributes_per_link as usize);
+                    }
+                }
                 links.append_vec(link_options);
             }
             let start_time = start_time.unwrap_or_else(crate::time::now);
             let end_time = end_time.unwrap_or(start_time);
-            let mut message_events_queue = EvictedQueue::new(config.max_events_per_span);
+            let mut message_events_queue = EvictedQueue::new(span_limit.max_events_per_span);
             if let Some(mut events) = message_events {
+                for event in events.iter_mut() {
+                    let attributes = &mut event.attributes;
+                    if attributes.len() > span_limit.max_attributes_per_event as usize {
+                        attributes.truncate(span_limit.max_attributes_per_event as usize);
+                    }
+                }
                 message_events_queue.append_vec(&mut events);
             }
             let status_code = status_code.unwrap_or(StatusCode::Unset);
@@ -285,7 +310,7 @@ impl crate::trace::Tracer for Tracer {
         });
 
         let span_context = SpanContext::new(trace_id, span_id, flags, false, span_trace_state);
-        let span = Span::new(span_context, inner, self.clone());
+        let span = Span::new(span_context, inner, self.clone(), span_limit);
 
         // Call `on_start` for all processors
         for processor in provider.span_processors() {
