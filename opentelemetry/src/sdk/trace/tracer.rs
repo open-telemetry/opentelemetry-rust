@@ -7,6 +7,7 @@
 //! and exposes methods for creating and activating new `Spans`.
 //!
 //! Docs: https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/api-tracing.md#tracer
+use crate::sdk::trace::SpanLimits;
 use crate::sdk::{
     trace::{
         provider::{TracerProvider, TracerProviderInner},
@@ -125,7 +126,12 @@ impl crate::trace::Tracer for Tracer {
     /// Returns a span with an inactive `SpanContext`. Used by functions that
     /// need to return a default span like `get_active_span` if no span is present.
     fn invalid(&self) -> Self::Span {
-        Span::new(SpanContext::empty_context(), None, self.clone(), None)
+        Span::new(
+            SpanContext::empty_context(),
+            None,
+            self.clone(),
+            SpanLimits::default(),
+        )
     }
 
     /// Starts a new `Span` with a given context.
@@ -162,7 +168,12 @@ impl crate::trace::Tracer for Tracer {
     fn build(&self, mut builder: SpanBuilder) -> Self::Span {
         let provider = self.provider();
         if provider.is_none() {
-            return Span::new(SpanContext::empty_context(), None, self.clone(), None);
+            return Span::new(
+                SpanContext::empty_context(),
+                None,
+                self.clone(),
+                SpanLimits::default(),
+            );
         }
 
         let provider = provider.unwrap();
@@ -299,7 +310,7 @@ impl crate::trace::Tracer for Tracer {
         });
 
         let span_context = SpanContext::new(trace_id, span_id, flags, false, span_trace_state);
-        let span = Span::new(span_context, inner, self.clone(), Some(span_limit));
+        let span = Span::new(span_context, inner, self.clone(), span_limit);
 
         // Call `on_start` for all processors
         for processor in provider.span_processors() {

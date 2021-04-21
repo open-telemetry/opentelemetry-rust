@@ -53,14 +53,8 @@ impl Span {
         span_context: SpanContext,
         data: Option<SpanData>,
         tracer: sdk::trace::Tracer,
-        span_limit: Option<SpanLimits>,
+        span_limit: SpanLimits,
     ) -> Self {
-        let span_limit = span_limit.unwrap_or_else(|| {
-            tracer
-                .provider()
-                .map(|provider| provider.config().span_limit)
-                .unwrap_or_default()
-        });
         Span {
             span_context,
             data,
@@ -250,13 +244,23 @@ mod tests {
 
     fn create_span() -> Span {
         let (tracer, data) = init();
-        Span::new(SpanContext::empty_context(), Some(data), tracer, None)
+        Span::new(
+            SpanContext::empty_context(),
+            Some(data),
+            tracer,
+            Default::default(),
+        )
     }
 
     #[test]
     fn create_span_without_data() {
         let (tracer, _) = init();
-        let mut span = Span::new(SpanContext::empty_context(), None, tracer, None);
+        let mut span = Span::new(
+            SpanContext::empty_context(),
+            None,
+            tracer,
+            Default::default(),
+        );
         span.with_data(|_data| panic!("there are data"));
     }
 
@@ -267,7 +271,7 @@ mod tests {
             SpanContext::empty_context(),
             Some(data.clone()),
             tracer,
-            None,
+            Default::default(),
         );
         span.with_data(|d| assert_eq!(*d, data));
     }
