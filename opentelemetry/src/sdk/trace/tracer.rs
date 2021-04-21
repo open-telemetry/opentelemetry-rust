@@ -178,7 +178,7 @@ impl crate::trace::Tracer for Tracer {
 
         let provider = provider.unwrap();
         let config = provider.config();
-        let span_limit = config.span_limit;
+        let span_limits = config.span_limits;
         let span_id = builder
             .span_id
             .take()
@@ -265,30 +265,33 @@ impl crate::trace::Tracer for Tracer {
             span_trace_state = trace_state;
             attribute_options.append(&mut extra_attrs);
             let mut attributes =
-                EvictedHashMap::new(span_limit.max_attributes_per_span, attribute_options.len());
+                EvictedHashMap::new(span_limits.max_attributes_per_span, attribute_options.len());
             for attribute in attribute_options {
                 attributes.insert(attribute);
             }
-            let mut links = EvictedQueue::new(span_limit.max_links_per_span);
+            let mut links = EvictedQueue::new(span_limits.max_links_per_span);
             if let Some(link_options) = &mut link_options {
+                let link_attributes_limit = span_limits.max_attributes_per_link as usize;
                 for link in link_options.iter_mut() {
-                    // make sure the attributes is less than max_attribute_per_link
-                    let attributes = link.attributes_mut();
-                    if attributes.len() > span_limit.max_attributes_per_link as usize {
-                        attributes.truncate(span_limit.max_attributes_per_link as usize);
-                    }
+                    let dropped_attributes_count =
+                        link.attributes.len().saturating_sub(link_attributes_limit);
+                    link.attributes.truncate(link_attributes_limit);
+                    link.dropped_attributes_count = dropped_attributes_count as u32;
                 }
                 links.append_vec(link_options);
             }
             let start_time = start_time.unwrap_or_else(crate::time::now);
             let end_time = end_time.unwrap_or(start_time);
-            let mut message_events_queue = EvictedQueue::new(span_limit.max_events_per_span);
+            let mut message_events_queue = EvictedQueue::new(span_limits.max_events_per_span);
             if let Some(mut events) = message_events {
+                let event_attributes_limit = span_limits.max_attributes_per_event as usize;
                 for event in events.iter_mut() {
-                    let attributes = &mut event.attributes;
-                    if attributes.len() > span_limit.max_attributes_per_event as usize {
-                        attributes.truncate(span_limit.max_attributes_per_event as usize);
-                    }
+                    let dropped_attributes_count = event
+                        .attributes
+                        .len()
+                        .saturating_sub(event_attributes_limit);
+                    event.attributes.truncate(event_attributes_limit);
+                    event.dropped_attributes_count = dropped_attributes_count as u32;
                 }
                 message_events_queue.append_vec(&mut events);
             }
@@ -310,7 +313,7 @@ impl crate::trace::Tracer for Tracer {
         });
 
         let span_context = SpanContext::new(trace_id, span_id, flags, false, span_trace_state);
-        let span = Span::new(span_context, inner, self.clone(), span_limit);
+        let span = Span::new(span_context, inner, self.clone(), span_limits);
 
         // Call `on_start` for all processors
         for processor in provider.span_processors() {

@@ -42,6 +42,14 @@ impl From<Event> for jaeger::Log {
             fields.push(Key::new("event").string(event.name).into());
         }
 
+        if event.dropped_attributes_count != 0 {
+            fields.push(
+                Key::new("otel.event.dropped_attributes_count")
+                    .i64(i64::from(event.dropped_attributes_count))
+                    .into(),
+            );
+        }
+
         jaeger::Log::new(timestamp, fields)
     }
 }

@@ -50,7 +50,7 @@ mod tonic {
                     .to_vec(),
                 trace_state: link.span_context().trace_state().header(),
                 attributes: Attributes::from(link.attributes().clone()).0,
-                dropped_attributes_count: 0,
+                dropped_attributes_count: link.dropped_attributes_count(),
             }
         }
     }
@@ -103,7 +103,7 @@ mod tonic {
                                 time_unix_nano: to_nanos(event.timestamp),
                                 name: event.name.into(),
                                 attributes: Attributes::from(event.attributes).0,
-                                dropped_attributes_count: 0,
+                                dropped_attributes_count: event.dropped_attributes_count,
                             })
                             .collect(),
                         dropped_links_count: source_span.links.dropped_count(),
@@ -179,7 +179,7 @@ mod prost {
                     .to_vec(),
                 trace_state: link.span_context().trace_state().header(),
                 attributes: Attributes::from(link.attributes().clone()).0,
-                dropped_attributes_count: 0,
+                dropped_attributes_count: link.dropped_attributes_count(),
             }
         }
     }
@@ -232,7 +232,7 @@ mod prost {
                                 time_unix_nano: to_nanos(event.timestamp),
                                 name: event.name.into(),
                                 attributes: Attributes::from(event.attributes).0,
-                                dropped_attributes_count: 0,
+                                dropped_attributes_count: event.dropped_attributes_count,
                             })
                             .collect(),
                         dropped_links_count: source_span.links.dropped_count(),
@@ -311,7 +311,7 @@ mod grpcio {
                     .to_vec(),
                 trace_state: link.span_context().trace_state().header(),
                 attributes: Attributes::from(link.attributes().clone()).0,
-                dropped_attributes_count: 0,
+                dropped_attributes_count: link.dropped_attributes_count(),
                 ..Default::default()
             }
         }
@@ -367,7 +367,7 @@ mod grpcio {
                                         time_unix_nano: to_nanos(event.timestamp),
                                         name: event.name.into(),
                                         attributes: Attributes::from(event.attributes).0,
-                                        dropped_attributes_count: 0,
+                                        dropped_attributes_count: event.dropped_attributes_count,
                                         ..Default::default()
                                     })
                                     .collect(),

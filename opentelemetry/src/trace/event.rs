@@ -17,6 +17,8 @@ pub struct Event {
     pub timestamp: SystemTime,
     /// Event attributes
     pub attributes: Vec<KeyValue>,
+    /// Number of dropped attributes
+    pub dropped_attributes_count: u32,
 }
 
 impl Event {
@@ -25,11 +27,13 @@ impl Event {
         name: T,
         timestamp: SystemTime,
         attributes: Vec<KeyValue>,
+        dropped_attributes_count: u32,
     ) -> Self {
         Event {
             name: name.into(),
             timestamp,
             attributes,
+            dropped_attributes_count,
         }
     }
 
@@ -39,6 +43,7 @@ impl Event {
             name: name.into(),
             timestamp: crate::time::now(),
             attributes: Vec::new(),
+            dropped_attributes_count: 0,
         }
     }
 }
