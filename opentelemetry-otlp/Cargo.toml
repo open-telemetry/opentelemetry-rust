@@ -44,6 +44,10 @@ protobuf = { version = "2.18", optional = true }
 thiserror = "1.0"
 tonic = { version = "0.4", optional = true }
 tokio = { version = "1.0", features = ["full"], optional = true }
+opentelemetry-http = { version = "0.2", path = "../opentelemetry-http", optional = true }
+reqwest = { version = "0.11", optional = true, default-features = false }
+surf = { version = "2.0", optional = true }
+http = "0.2"
 
 [dev-dependencies]
 chrono = "0.4"
@@ -64,5 +68,12 @@ openssl = ["grpcio/openssl"]
 openssl-vendored = ["grpcio/openssl-vendored"]
 integration-testing = ["tonic", "tonic-build", "prost", "tokio/full", "opentelemetry/trace"]
 
+http-proto = ["prost-build", "prost", "opentelemetry-http"]
+reqwest-blocking-client = ["reqwest/blocking", "opentelemetry-http/reqwest"]
+reqwest-client = ["reqwest", "opentelemetry-http/reqwest"]
+reqwest-rustls = ["reqwest", "reqwest/rustls-tls-native-roots"]
+surf-client = ["surf", "opentelemetry-http/surf"]
+
 [build-dependencies]
 tonic-build = { version = "0.4", optional = true }
+prost-build = {version = "0.7", optional = true }

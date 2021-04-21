@@ -80,6 +80,85 @@ pub(crate) mod tonic {
     }
 }
 
+#[cfg(feature = "http-proto")]
+pub(crate) mod prost {
+    use super::*;
+    use crate::proto::prost::common::v1::{
+        any_value, AnyValue, ArrayValue, InstrumentationLibrary, KeyValue,
+    };
+
+    impl From<opentelemetry::sdk::InstrumentationLibrary> for InstrumentationLibrary {
+        fn from(library: opentelemetry::sdk::InstrumentationLibrary) -> Self {
+            InstrumentationLibrary {
+                name: library.name.to_string(),
+                version: library.version.unwrap_or("").to_string(),
+            }
+        }
+    }
+
+    pub(crate) struct Attributes(
+        pub(crate) ::std::vec::Vec<crate::proto::prost::common::v1::KeyValue>,
+    );
+
+    impl From<EvictedHashMap> for Attributes {
+        fn from(attributes: EvictedHashMap) -> Self {
+            Attributes(
+                attributes
+                    .into_iter()
+                    .map(|(key, value)| KeyValue {
+                        key: key.as_str().to_string(),
+                        value: Some(value.into()),
+                    })
+                    .collect(),
+            )
+        }
+    }
+
+    impl From<Vec<opentelemetry::KeyValue>> for Attributes {
+        fn from(kvs: Vec<opentelemetry::KeyValue>) -> Self {
+            Attributes(
+                kvs.into_iter()
+                    .map(|api_kv| KeyValue {
+                        key: api_kv.key.as_str().to_string(),
+                        value: Some(api_kv.value.into()),
+                    })
+                    .collect(),
+            )
+        }
+    }
+
+    impl From<Value> for AnyValue {
+        fn from(value: Value) -> Self {
+            AnyValue {
+                value: match value {
+                    Value::Bool(val) => Some(any_value::Value::BoolValue(val)),
+                    Value::I64(val) => Some(any_value::Value::IntValue(val)),
+                    Value::F64(val) => Some(any_value::Value::DoubleValue(val)),
+                    Value::String(val) => Some(any_value::Value::StringValue(val.into_owned())),
+                    Value::Array(array) => Some(any_value::Value::ArrayValue(match array {
+                        Array::Bool(vals) => array_into_proto(vals),
+                        Array::I64(vals) => array_into_proto(vals),
+                        Array::F64(vals) => array_into_proto(vals),
+                        Array::String(vals) => array_into_proto(vals),
+                    })),
+                },
+            }
+        }
+    }
+
+    fn array_into_proto<T>(vals: Vec<T>) -> ArrayValue
+    where
+        Value: From<T>,
+    {
+        let values = vals
+            .into_iter()
+            .map(|val| AnyValue::from(Value::from(val)))
+            .collect();
+
+        ArrayValue { values }
+    }
+}
+
 #[cfg(feature = "grpc-sys")]
 pub(crate) mod grpcio {
     use super::*;

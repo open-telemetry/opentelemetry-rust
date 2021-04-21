@@ -13,8 +13,7 @@ mod aggregation;
 pub mod stdout;
 
 pub use aggregation::{
-    Buckets, Count, Distribution, Histogram, LastValue, Max, Min, MinMaxSumCount, Points, Quantile,
-    Sum,
+    Buckets, Count, Histogram, LastValue, Max, Min, MinMaxSumCount, Points, Sum,
 };
 pub use stdout::stdout;
 

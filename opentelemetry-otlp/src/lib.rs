@@ -148,7 +148,7 @@
 
 use opentelemetry::{global, runtime::Runtime, sdk, trace::TracerProvider};
 
-#[cfg(feature = "grpc-sys")]
+#[cfg(any(feature = "grpc-sys", feature = "http-proto"))]
 use std::collections::HashMap;
 
 use std::str::FromStr;
@@ -187,11 +187,17 @@ pub use crate::span::TonicConfig;
 #[cfg(feature = "grpc-sys")]
 pub use crate::span::GrpcioConfig;
 
+#[cfg(feature = "http-proto")]
+pub use crate::span::HttpConfig;
+
 #[cfg(feature = "metrics")]
 pub use crate::metric::{new_metrics_pipeline, MetricsExporter, OtlpMetricPipelineBuilder};
 
 #[cfg(feature = "grpc-sys")]
 pub use crate::span::{Compression, Credentials};
+
+#[cfg(feature = "http-proto")]
+use opentelemetry_http::HttpClient;
 
 use opentelemetry::sdk::export::ExportError;
 use opentelemetry::trace::TraceError;
@@ -306,6 +312,17 @@ impl OtlpPipelineBuilder {
             exporter_config: self.exporter_config,
             trace_config: self.trace_config,
             grpcio_config: GrpcioConfig::default(),
+        }
+    }
+
+    /// Use HTTP as transport layer, return a `HttpPipelineBuilder` to config the http transport
+    /// and build the exporter
+    #[cfg(feature = "http-proto")]
+    pub fn with_http(self) -> HttpPipelineBuilder {
+        HttpPipelineBuilder {
+            exporter_config: self.exporter_config,
+            trace_config: self.trace_config,
+            http_config: HttpConfig::default(),
         }
     }
 }
@@ -481,6 +498,69 @@ impl GrpcioPipelineBuilder {
     }
 }
 
+/// Build a trace exporter that uses HTTP transport and opentelemetry protocol.
+///
+/// It provides methods to config http client. The methods can be chained. The exporter can be built by calling
+/// [`install_simple`] or [`install_batch`].
+///
+/// `HttpPipelineBuilder` can be constructed by calling [`with_http`] function in [`OtlpPipelineBuilder`]
+///
+/// [`with_http`]: crate::OtlpPipelineBuilder::with_http
+/// [`OtlpPipelineBuilder`]: crate::OtlpPipelineBuilder
+/// [`install_simple`]: crate::HttpPipelineBuilder::install_simple
+/// [`install_batch`]: crate::HttpPipelineBuilder::install_batch
+#[derive(Default, Debug)]
+#[cfg(feature = "http-proto")]
+pub struct HttpPipelineBuilder {
+    exporter_config: ExporterConfig,
+    http_config: HttpConfig,
+    trace_config: Option<sdk::trace::Config>,
+}
+
+#[cfg(feature = "http-proto")]
+impl HttpPipelineBuilder {
+    /// Assign client implementation
+    pub fn with_http_client<T: HttpClient + 'static>(mut self, client: T) -> Self {
+        self.http_config.client = Some(Box::new(client));
+        self
+    }
+
+    /// Set additional headers to send to the collector.
+    pub fn with_headers(mut self, headers: HashMap<String, String>) -> Self {
+        self.http_config.headers = Some(headers);
+        self
+    }
+
+    /// Install a trace exporter using HTTP as transport layer and a simple span processor.
+    ///
+    /// Returns a [`Tracer`] with the name `opentelemetry-otlp` and current crate version.
+    ///
+    /// `install_simple` will panic if not called within a tokio runtime
+    ///
+    /// [`Tracer`]: opentelemetry::trace::Tracer
+    pub fn install_simple(self) -> Result<sdk::trace::Tracer, TraceError> {
+        let exporter = TraceExporter::new_http(self.exporter_config, self.http_config)?;
+        Ok(build_simple_with_exporter(exporter, self.trace_config))
+    }
+
+    /// Install a trace exporter using HTTP as transport layer and a batch span processor using the
+    /// specified runtime.
+    ///
+    /// Returns a [`Tracer`] with the name `opentelemetry-otlp` and current crate version.
+    ///
+    /// `install_batch` will panic if not called within a tokio runtime
+    ///
+    /// [`Tracer`]: opentelemetry::trace::Tracer
+    pub fn install_batch<R: Runtime>(self, runtime: R) -> Result<sdk::trace::Tracer, TraceError> {
+        let exporter = TraceExporter::new_http(self.exporter_config, self.http_config)?;
+        Ok(build_batch_with_exporter(
+            exporter,
+            self.trace_config,
+            runtime,
+        ))
+    }
+}
+
 fn build_simple_with_exporter(
     exporter: TraceExporter,
     trace_config: Option<sdk::trace::Config>,
@@ -520,9 +600,9 @@ pub enum Error {
     Transport(#[from] tonic::transport::Error),
 
     /// Error from tonic::codegen::http::uri::InvalidUri
-    #[cfg(feature = "tonic")]
+    #[cfg(any(feature = "tonic", feature = "http-proto"))]
     #[error("invalid URI {0}")]
-    InvalidUri(#[from] tonic::codegen::http::uri::InvalidUri),
+    InvalidUri(#[from] http::uri::InvalidUri),
 
     /// Error from tonic::Status
     #[cfg(feature = "tonic")]
@@ -533,6 +613,31 @@ pub enum Error {
     #[cfg(feature = "grpc-sys")]
     #[error("grpcio error {0}")]
     Grpcio(#[from] grpcio::Error),
+
+    /// Http requests failed
+    #[cfg(feature = "http-proto")]
+    #[error("No Http Client, you must select one")]
+    NoHttpClient,
+
+    /// Http requests failed
+    #[cfg(feature = "http-proto")]
+    #[error("http request failed with {0}")]
+    RequestFailed(#[from] http::Error),
+
+    /// Invalid Header Value
+    #[cfg(feature = "http-proto")]
+    #[error("http header value error {0}")]
+    InvalidHeaderValue(#[from] http::header::InvalidHeaderValue),
+
+    /// Invalid Header Name
+    #[cfg(feature = "http-proto")]
+    #[error("http header name error {0}")]
+    InvalidHeaderName(#[from] http::header::InvalidHeaderName),
+
+    /// Prost encode failed
+    #[cfg(feature = "http-proto")]
+    #[error("prost encoding error {0}")]
+    EncodeError(#[from] prost::EncodeError),
 
     /// The lock in exporters has been poisoned.
     #[cfg(feature = "metrics")]
@@ -553,7 +658,8 @@ pub enum Protocol {
     Grpc,
     // TODO add support for other protocols
     // HttpJson,
-    // HttpProto,
+    /// HTTP protocol with binary protobuf
+    HttpBinary,
 }
 
 #[cfg(test)]
