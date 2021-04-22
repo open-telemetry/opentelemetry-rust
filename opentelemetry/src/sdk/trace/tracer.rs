@@ -255,7 +255,7 @@ impl crate::trace::Tracer for Tracer {
             name,
             start_time,
             end_time,
-            message_events,
+            events,
             status_code,
             status_message,
             ..
@@ -282,8 +282,8 @@ impl crate::trace::Tracer for Tracer {
             }
             let start_time = start_time.unwrap_or_else(crate::time::now);
             let end_time = end_time.unwrap_or(start_time);
-            let mut message_events_queue = EvictedQueue::new(span_limits.max_events_per_span);
-            if let Some(mut events) = message_events {
+            let mut events_queue = EvictedQueue::new(span_limits.max_events_per_span);
+            if let Some(mut events) = events {
                 let event_attributes_limit = span_limits.max_attributes_per_event as usize;
                 for event in events.iter_mut() {
                     let dropped_attributes_count = event
@@ -293,7 +293,7 @@ impl crate::trace::Tracer for Tracer {
                     event.attributes.truncate(event_attributes_limit);
                     event.dropped_attributes_count = dropped_attributes_count as u32;
                 }
-                message_events_queue.append_vec(&mut events);
+                events_queue.append_vec(&mut events);
             }
             let status_code = status_code.unwrap_or(StatusCode::Unset);
             let status_message = status_message.unwrap_or(Cow::Borrowed(""));
@@ -305,7 +305,7 @@ impl crate::trace::Tracer for Tracer {
                 start_time,
                 end_time,
                 attributes,
-                message_events: message_events_queue,
+                events: events_queue,
                 links,
                 status_code,
                 status_message,

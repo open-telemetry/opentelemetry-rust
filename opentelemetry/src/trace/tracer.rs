@@ -352,8 +352,8 @@ pub struct SpanBuilder {
     pub end_time: Option<SystemTime>,
     /// Span attributes
     pub attributes: Option<Vec<KeyValue>>,
-    /// Span Message events
-    pub message_events: Option<Vec<Event>>,
+    /// Span events
+    pub events: Option<Vec<Event>>,
     /// Span Links
     pub links: Option<Vec<Link>>,
     /// Span status code
@@ -385,7 +385,7 @@ impl SpanBuilder {
             start_time: None,
             end_time: None,
             attributes: None,
-            message_events: None,
+            events: None,
             links: None,
             status_code: None,
             status_message: None,
@@ -449,10 +449,10 @@ impl SpanBuilder {
         }
     }
 
-    /// Assign message events
-    pub fn with_message_events(self, message_events: Vec<Event>) -> Self {
+    /// Assign events
+    pub fn with_events(self, events: Vec<Event>) -> Self {
         SpanBuilder {
-            message_events: Some(message_events),
+            events: Some(events),
             ..self
         }
     }

@@ -72,8 +72,8 @@ pub struct SpanData {
     pub end_time: SystemTime,
     /// Span attributes
     pub attributes: sdk::trace::EvictedHashMap,
-    /// Span Message events
-    pub message_events: sdk::trace::EvictedQueue<Event>,
+    /// Span events
+    pub events: sdk::trace::EvictedQueue<Event>,
     /// Span Links
     pub links: sdk::trace::EvictedQueue<Link>,
     /// Span status code
@@ -116,7 +116,7 @@ mod tests {
 
         let capacity = 3;
         let attributes = sdk::trace::EvictedHashMap::new(capacity, 0);
-        let message_events = sdk::trace::EvictedQueue::new(capacity);
+        let events = sdk::trace::EvictedQueue::new(capacity);
         let links = sdk::trace::EvictedQueue::new(capacity);
 
         let status_code = StatusCode::Ok;
@@ -131,7 +131,7 @@ mod tests {
             start_time,
             end_time,
             attributes,
-            message_events,
+            events,
             links,
             status_code,
             status_message,

@@ -95,9 +95,9 @@ mod tonic {
                         end_time_unix_nano: to_nanos(source_span.end_time),
                         dropped_attributes_count: source_span.attributes.dropped_count(),
                         attributes: Attributes::from(source_span.attributes).0,
-                        dropped_events_count: source_span.message_events.dropped_count(),
+                        dropped_events_count: source_span.events.dropped_count(),
                         events: source_span
-                            .message_events
+                            .events
                             .into_iter()
                             .map(|event| span::Event {
                                 time_unix_nano: to_nanos(event.timestamp),
@@ -224,9 +224,9 @@ mod prost {
                         end_time_unix_nano: to_nanos(source_span.end_time),
                         dropped_attributes_count: source_span.attributes.dropped_count(),
                         attributes: Attributes::from(source_span.attributes).0,
-                        dropped_events_count: source_span.message_events.dropped_count(),
+                        dropped_events_count: source_span.events.dropped_count(),
                         events: source_span
-                            .message_events
+                            .events
                             .into_iter()
                             .map(|event| span::Event {
                                 time_unix_nano: to_nanos(event.timestamp),
@@ -358,10 +358,10 @@ mod grpcio {
                             end_time_unix_nano: to_nanos(source_span.end_time),
                             dropped_attributes_count: source_span.attributes.dropped_count(),
                             attributes: Attributes::from(source_span.attributes).0,
-                            dropped_events_count: source_span.message_events.dropped_count(),
+                            dropped_events_count: source_span.events.dropped_count(),
                             events: RepeatedField::from_vec(
                                 source_span
-                                    .message_events
+                                    .events
                                     .into_iter()
                                     .map(|event| Span_Event {
                                         time_unix_nano: to_nanos(event.timestamp),

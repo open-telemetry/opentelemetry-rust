@@ -104,13 +104,7 @@ pub(crate) fn into_zipkin_span(local_endpoint: Endpoint, span_data: trace::SpanD
                 .as_micros() as u64,
         )
         .local_endpoint(local_endpoint)
-        .annotations(
-            span_data
-                .message_events
-                .into_iter()
-                .map(Into::into)
-                .collect(),
-        )
+        .annotations(span_data.events.into_iter().map(Into::into).collect())
         .tags(tags)
         .build()
 }
