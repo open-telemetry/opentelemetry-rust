@@ -21,7 +21,7 @@ pub struct Span {
     span_context: SpanContext,
     data: Option<SpanData>,
     tracer: sdk::trace::Tracer,
-    span_limit: SpanLimits,
+    span_limits: SpanLimits,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -59,7 +59,7 @@ impl Span {
             span_context,
             data,
             tracer,
-            span_limit,
+            span_limits: span_limit,
         }
     }
 
@@ -84,14 +84,17 @@ impl crate::trace::Span for Span {
         timestamp: SystemTime,
         mut attributes: Vec<KeyValue>,
     ) {
-        let max_attributes_per_event = self.span_limit.max_attributes_per_event as usize;
+        let event_attributes_limit = self.span_limits.max_attributes_per_event as usize;
         self.with_data(|data| {
-            if attributes.len() > max_attributes_per_event {
-                attributes.truncate(max_attributes_per_event);
-            }
+            let dropped_attributes_count = attributes.len().saturating_sub(event_attributes_limit);
+            attributes.truncate(event_attributes_limit);
 
-            data.message_events
-                .push_back(Event::new(name, timestamp, attributes))
+            data.message_events.push_back(Event::new(
+                name,
+                timestamp,
+                attributes,
+                dropped_attributes_count as u32,
+            ))
         });
     }
 
@@ -231,11 +234,11 @@ mod tests {
             start_time: crate::time::now(),
             end_time: crate::time::now(),
             attributes: sdk::trace::EvictedHashMap::new(
-                config.span_limit.max_attributes_per_span,
+                config.span_limits.max_attributes_per_span,
                 0,
             ),
-            message_events: sdk::trace::EvictedQueue::new(config.span_limit.max_events_per_span),
-            links: sdk::trace::EvictedQueue::new(config.span_limit.max_links_per_span),
+            message_events: sdk::trace::EvictedQueue::new(config.span_limits.max_events_per_span),
+            links: sdk::trace::EvictedQueue::new(config.span_limits.max_links_per_span),
             status_code: StatusCode::Unset,
             status_message: "".into(),
         };
@@ -531,7 +534,7 @@ mod tests {
             Vec::new(),
         );
         for i in 0..(DEFAULT_MAX_ATTRIBUTES_PER_LINK * 2) {
-            link.attributes_mut()
+            link.attributes
                 .push(KeyValue::new(format!("key {}", i), i.to_string()));
         }
 

@@ -9,7 +9,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, PartialEq)]
 pub struct Link {
     span_context: SpanContext,
-    attributes: Vec<KeyValue>,
+    pub(crate) attributes: Vec<KeyValue>,
+    pub(crate) dropped_attributes_count: u32,
 }
 
 impl Link {
@@ -18,6 +19,7 @@ impl Link {
         Link {
             span_context,
             attributes,
+            dropped_attributes_count: 0,
         }
     }
 
@@ -31,8 +33,8 @@ impl Link {
         &self.attributes
     }
 
-    /// Mutable attributes of the link
-    pub(crate) fn attributes_mut(&mut self) -> &mut Vec<KeyValue> {
-        self.attributes.as_mut()
+    /// Dropped attributes count
+    pub fn dropped_attributes_count(&self) -> u32 {
+        self.dropped_attributes_count
     }
 }
