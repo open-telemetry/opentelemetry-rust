@@ -102,7 +102,7 @@ pub(crate) mod tests {
         let mut attributes = sdk::trace::EvictedHashMap::new(capacity, capacity as usize);
         attributes.insert(Key::new("span.type").string("web"));
 
-        let message_events = sdk::trace::EvictedQueue::new(capacity);
+        let events = sdk::trace::EvictedQueue::new(capacity);
         let links = sdk::trace::EvictedQueue::new(capacity);
 
         trace::SpanData {
@@ -113,7 +113,7 @@ pub(crate) mod tests {
             start_time,
             end_time,
             attributes,
-            message_events,
+            events,
             links,
             status_code: StatusCode::Ok,
             status_message: "".into(),

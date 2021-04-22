@@ -38,8 +38,8 @@ pub(crate) struct SpanData {
     pub(crate) end_time: SystemTime,
     /// Span attributes
     pub(crate) attributes: sdk::trace::EvictedHashMap,
-    /// Span Message events
-    pub(crate) message_events: sdk::trace::EvictedQueue<trace::Event>,
+    /// Span events
+    pub(crate) events: sdk::trace::EvictedQueue<trace::Event>,
     /// Span Links
     pub(crate) links: sdk::trace::EvictedQueue<trace::Link>,
     /// Span status code
@@ -89,7 +89,7 @@ impl crate::trace::Span for Span {
             let dropped_attributes_count = attributes.len().saturating_sub(event_attributes_limit);
             attributes.truncate(event_attributes_limit);
 
-            data.message_events.push_back(Event::new(
+            data.events.push_back(Event::new(
                 name,
                 timestamp,
                 attributes,
@@ -204,7 +204,7 @@ fn build_export_data(
         start_time: data.start_time,
         end_time: data.end_time,
         attributes: data.attributes,
-        message_events: data.message_events,
+        events: data.events,
         links: data.links,
         status_code: data.status_code,
         status_message: data.status_message,
@@ -237,7 +237,7 @@ mod tests {
                 config.span_limits.max_attributes_per_span,
                 0,
             ),
-            message_events: sdk::trace::EvictedQueue::new(config.span_limits.max_events_per_span),
+            events: sdk::trace::EvictedQueue::new(config.span_limits.max_events_per_span),
             links: sdk::trace::EvictedQueue::new(config.span_limits.max_links_per_span),
             status_code: StatusCode::Unset,
             status_message: "".into(),
@@ -286,7 +286,7 @@ mod tests {
         let attributes = vec![KeyValue::new("k", "v")];
         span.add_event(name.clone(), attributes.clone());
         span.with_data(|data| {
-            if let Some(event) = data.message_events.iter().next() {
+            if let Some(event) = data.events.iter().next() {
                 assert_eq!(event.name, name);
                 assert_eq!(event.attributes, attributes);
             } else {
@@ -303,7 +303,7 @@ mod tests {
         let timestamp = crate::time::now();
         span.add_event_with_timestamp(name.clone(), timestamp, attributes.clone());
         span.with_data(|data| {
-            if let Some(event) = data.message_events.iter().next() {
+            if let Some(event) = data.events.iter().next() {
                 assert_eq!(event.timestamp, timestamp);
                 assert_eq!(event.name, name);
                 assert_eq!(event.attributes, attributes);
@@ -319,7 +319,7 @@ mod tests {
         let err = std::io::Error::from(std::io::ErrorKind::Other);
         span.record_exception(&err);
         span.with_data(|data| {
-            if let Some(event) = data.message_events.iter().next() {
+            if let Some(event) = data.events.iter().next() {
                 assert_eq!(event.name, "exception");
                 assert_eq!(
                     event.attributes,
@@ -338,7 +338,7 @@ mod tests {
         let stacktrace = "stacktrace...".to_string();
         span.record_exception_with_stacktrace(&err, stacktrace.clone());
         span.with_data(|data| {
-            if let Some(event) = data.message_events.iter().next() {
+            if let Some(event) = data.events.iter().next() {
                 assert_eq!(event.name, "exception");
                 assert_eq!(
                     event.attributes,
@@ -459,7 +459,7 @@ mod tests {
         span.set_status(StatusCode::Error, "ERROR".to_string());
         span.update_name("new_name".to_string());
         span.with_data(|data| {
-            assert_eq!(data.message_events, initial.message_events);
+            assert_eq!(data.events, initial.events);
             assert_eq!(data.attributes, initial.attributes);
             assert_eq!(data.status_code, initial.status_code);
             assert_eq!(data.status_message, initial.status_message);
@@ -496,9 +496,7 @@ mod tests {
         let event2 = event1.clone();
 
         // add event when build
-        let span_builder = tracer
-            .span_builder("test")
-            .with_message_events(vec![event1]);
+        let span_builder = tracer.span_builder("test").with_events(vec![event1]);
         let mut span = tracer.build(span_builder);
 
         // add event after build
@@ -508,7 +506,7 @@ mod tests {
             .data
             .clone()
             .expect("span data should not be empty as we already set it before")
-            .message_events;
+            .events;
         let event_vec: Vec<_> = event_queue.iter().take(2).collect();
         let processed_event_1 = event_vec.get(0).expect("should have at least two events");
         let processed_event_2 = event_vec.get(1).expect("should have at least two events");

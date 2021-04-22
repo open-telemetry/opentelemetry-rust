@@ -47,7 +47,7 @@ pub fn new_test_export_span_data() -> SpanData {
         start_time: crate::time::now(),
         end_time: crate::time::now(),
         attributes: EvictedHashMap::new(config.span_limits.max_attributes_per_span, 0),
-        message_events: EvictedQueue::new(config.span_limits.max_events_per_span),
+        events: EvictedQueue::new(config.span_limits.max_events_per_span),
         links: EvictedQueue::new(config.span_limits.max_links_per_span),
         status_code: StatusCode::Unset,
         status_message: "".into(),

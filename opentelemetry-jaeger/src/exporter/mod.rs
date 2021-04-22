@@ -521,7 +521,7 @@ fn convert_otel_span_into_jaeger_span(
             span.status_message.into_owned(),
             span.span_kind,
         )),
-        logs: events_to_logs(span.message_events),
+        logs: events_to_logs(span.events),
     }
 }
 

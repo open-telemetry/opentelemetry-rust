@@ -173,7 +173,7 @@ mod tests {
                 start_time: SystemTime::now(),
                 end_time: SystemTime::now(),
                 attributes: EvictedHashMap::new(20, 20),
-                message_events: EvictedQueue::new(20),
+                events: EvictedQueue::new(20),
                 links: EvictedQueue::new(20),
                 status_code,
                 status_message: status_msg.into(),

@@ -153,7 +153,7 @@ impl StackDriverExporter {
               .collect();
 
             let time_event = span
-              .message_events
+              .events
               .into_iter()
               .map(|event| TimeEvent {
                 time: Some(event.timestamp.into()),
