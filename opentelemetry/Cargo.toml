@@ -61,6 +61,11 @@ name = "trace"
 harness = false
 
 [[bench]]
+name = "batch_span_processor"
+harness = false
+required-features = ["rt-tokio"]
+
+[[bench]]
 name = "metric"
 harness = false
 required-features = ["metrics"]
