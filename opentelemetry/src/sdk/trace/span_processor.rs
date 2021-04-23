@@ -35,15 +35,15 @@
 //! [`TracerProvider`]: crate::trace::TracerProvider
 
 use crate::global;
-use crate::runtime::Runtime;
+use crate::runtime::{Runtime, TrySend};
 use crate::sdk::trace::Span;
 use crate::{
     sdk::export::trace::{ExportResult, SpanData, SpanExporter},
     trace::{TraceError, TraceResult},
     Context,
 };
-use futures::{channel::mpsc, channel::oneshot, executor, future::Either, pin_mut, StreamExt};
-use std::{env, fmt, str::FromStr, sync::Mutex, thread, time::Duration};
+use futures::{channel::oneshot, executor, future::Either, pin_mut, StreamExt};
+use std::{env, fmt, str::FromStr, thread, time::Duration};
 
 /// Delay interval between two consecutive exports.
 const OTEL_BSP_SCHEDULE_DELAY: &str = "OTEL_BSP_SCHEDULE_DELAY";
@@ -211,11 +211,11 @@ impl SpanProcessor for SimpleSpanProcessor {
 /// [`executor`]: https://docs.rs/futures/0.3/futures/executor/index.html
 /// [`tokio`]: https://tokio.rs
 /// [`async-std`]: https://async.rs
-pub struct BatchSpanProcessor {
-    message_sender: Mutex<mpsc::Sender<BatchMessage>>,
+pub struct BatchSpanProcessor<R: Runtime> {
+    message_sender: R::Sender,
 }
 
-impl fmt::Debug for BatchSpanProcessor {
+impl<R: Runtime> fmt::Debug for BatchSpanProcessor<R> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("BatchSpanProcessor")
             .field("message_sender", &self.message_sender)
@@ -223,21 +223,13 @@ impl fmt::Debug for BatchSpanProcessor {
     }
 }
 
-impl SpanProcessor for BatchSpanProcessor {
+impl<R: Runtime> SpanProcessor for BatchSpanProcessor<R> {
     fn on_start(&self, _span: &Span, _cx: &Context) {
         // Ignored
     }
 
     fn on_end(&self, span: SpanData) {
-        let result = self
-            .message_sender
-            .lock()
-            .map_err(|_| TraceError::Other("batch span processor mutex poisoned".into()))
-            .and_then(|mut sender| {
-                sender
-                    .try_send(BatchMessage::ExportSpan(span))
-                    .map_err(|err| TraceError::Other(err.into()))
-            });
+        let result = self.message_sender.try_send(BatchMessage::ExportSpan(span));
 
         if let Err(err) = result {
             global::handle_error(err);
@@ -245,9 +237,10 @@ impl SpanProcessor for BatchSpanProcessor {
     }
 
     fn force_flush(&self) -> TraceResult<()> {
-        let mut sender = self.message_sender.lock().map_err(|_| TraceError::from("When force flushing the BatchSpanProcessor, the message sender's lock has been poisoned"))?;
         let (res_sender, res_receiver) = oneshot::channel();
-        sender.try_send(BatchMessage::Flush(Some(res_sender)))?;
+        &self
+            .message_sender
+            .try_send(BatchMessage::Flush(Some(res_sender)))?;
 
         futures::executor::block_on(res_receiver)
             .map_err(|err| TraceError::Other(err.into()))
@@ -255,9 +248,10 @@ impl SpanProcessor for BatchSpanProcessor {
     }
 
     fn shutdown(&mut self) -> TraceResult<()> {
-        let mut sender = self.message_sender.lock().map_err(|_| TraceError::from("When shutting down the BatchSpanProcessor, the message sender's lock has been poisoned"))?;
         let (res_sender, res_receiver) = oneshot::channel();
-        sender.try_send(BatchMessage::Shutdown(res_sender))?;
+        &self
+            .message_sender
+            .try_send(BatchMessage::Shutdown(res_sender))?;
 
         futures::executor::block_on(res_receiver)
             .map_err(|err| TraceError::Other(err.into()))
@@ -265,23 +259,26 @@ impl SpanProcessor for BatchSpanProcessor {
     }
 }
 
+/// Messages sent between application thread and batch span processor's work thread.
 #[derive(Debug)]
-enum BatchMessage {
+pub enum BatchMessage {
+    /// Export spans, usually called when span ends
     ExportSpan(SpanData),
+    /// Flush the current buffer to the backend, it can be triggered by
+    /// pre configured interval or a call to `force_push` function.
     Flush(Option<oneshot::Sender<ExportResult>>),
+    /// Shut down the worker thread, push all spans in buffer to the backend.
     Shutdown(oneshot::Sender<ExportResult>),
 }
 
-impl BatchSpanProcessor {
-    pub(crate) fn new<R>(
+impl<R: Runtime> BatchSpanProcessor<R> {
+    pub(crate) fn new(
         mut exporter: Box<dyn SpanExporter>,
         config: BatchConfig,
         runtime: R,
-    ) -> Self
-    where
-        R: Runtime,
-    {
-        let (message_sender, message_receiver) = mpsc::channel(config.max_queue_size);
+    ) -> Self {
+        let (message_sender, message_receiver) =
+            runtime.batch_message_channel(config.max_queue_size);
         let ticker = runtime
             .interval(config.scheduled_delay)
             .map(|_| BatchMessage::Flush(None));
@@ -362,16 +359,13 @@ impl BatchSpanProcessor {
         }));
 
         // Return batch processor with link to worker
-        BatchSpanProcessor {
-            message_sender: Mutex::new(message_sender),
-        }
+        BatchSpanProcessor { message_sender }
     }
 
     /// Create a new batch processor builder
-    pub fn builder<E, R>(exporter: E, runtime: R) -> BatchSpanProcessorBuilder<E, R>
+    pub fn builder<E>(exporter: E, runtime: R) -> BatchSpanProcessorBuilder<E, R>
     where
         E: SpanExporter,
-        R: Runtime,
     {
         BatchSpanProcessorBuilder {
             exporter,
@@ -528,7 +522,7 @@ where
     }
 
     /// Build a batch processor
-    pub fn build(self) -> BatchSpanProcessor {
+    pub fn build(self) -> BatchSpanProcessor<R> {
         BatchSpanProcessor::new(Box::new(self.exporter), self.config, self.runtime)
     }
 }
