@@ -43,7 +43,7 @@ use crate::{
     Context,
 };
 use futures::{channel::mpsc, channel::oneshot, executor, future::Either, pin_mut, StreamExt};
-use std::{env, fmt, str::FromStr, sync::Mutex, thread, time::Duration};
+use std::{env, fmt, str::FromStr, thread, time::Duration};
 
 /// Delay interval between two consecutive exports.
 const OTEL_BSP_SCHEDULE_DELAY: &str = "OTEL_BSP_SCHEDULE_DELAY";
@@ -212,7 +212,7 @@ impl SpanProcessor for SimpleSpanProcessor {
 /// [`tokio`]: https://tokio.rs
 /// [`async-std`]: https://async.rs
 pub struct BatchSpanProcessor {
-    message_sender: Mutex<mpsc::Sender<BatchMessage>>,
+    message_sender: crossbeam_channel::Sender<BatchMessage>,
 }
 
 impl fmt::Debug for BatchSpanProcessor {
@@ -231,13 +231,11 @@ impl SpanProcessor for BatchSpanProcessor {
     fn on_end(&self, span: SpanData) {
         let result = self
             .message_sender
-            .lock()
-            .map_err(|_| TraceError::Other("batch span processor mutex poisoned".into()))
-            .and_then(|mut sender| {
-                sender
-                    .try_send(BatchMessage::ExportSpan(span))
-                    .map_err(|err| TraceError::Other(err.into()))
-            });
+            .try_send(BatchMessage::ExportSpan(span))
+            .map_err(|err| TraceError::from(format!(
+                "error send a span to the opentelemetry-exporter thread: {:?}",
+                err
+            )));
 
         if let Err(err) = result {
             global::handle_error(err);
@@ -245,9 +243,11 @@ impl SpanProcessor for BatchSpanProcessor {
     }
 
     fn force_flush(&self) -> TraceResult<()> {
-        let mut sender = self.message_sender.lock().map_err(|_| TraceError::from("When force flushing the BatchSpanProcessor, the message sender's lock has been poisoned"))?;
         let (res_sender, res_receiver) = oneshot::channel();
-        sender.try_send(BatchMessage::Flush(Some(res_sender)))?;
+        self.message_sender.try_send(BatchMessage::Flush(Some(res_sender))).map_err(|err| TraceError::from(format!(
+            "error when send the force push message to the opentelemetry-exporter thread: {:?}",
+            err
+        )))?;
 
         futures::executor::block_on(res_receiver)
             .map_err(|err| TraceError::Other(err.into()))
@@ -255,9 +255,11 @@ impl SpanProcessor for BatchSpanProcessor {
     }
 
     fn shutdown(&mut self) -> TraceResult<()> {
-        let mut sender = self.message_sender.lock().map_err(|_| TraceError::from("When shutting down the BatchSpanProcessor, the message sender's lock has been poisoned"))?;
         let (res_sender, res_receiver) = oneshot::channel();
-        sender.try_send(BatchMessage::Shutdown(res_sender))?;
+        self.message_sender.try_send(BatchMessage::Shutdown(res_sender)).map_err(|err| TraceError::from(format!(
+            "error send the shut down message to the opentelemetry-exporter thread: {:?}",
+            err
+        )))?;
 
         futures::executor::block_on(res_receiver)
             .map_err(|err| TraceError::Other(err.into()))
@@ -278,19 +280,37 @@ impl BatchSpanProcessor {
         config: BatchConfig,
         runtime: R,
     ) -> Self
-    where
-        R: Runtime,
+        where
+            R: Runtime,
     {
-        let (message_sender, message_receiver) = mpsc::channel(config.max_queue_size);
+        let (mut tx_export, rx_export) = mpsc::channel(config.max_queue_size);
+        let (tx_span, rx_span) = crossbeam_channel::bounded::<BatchMessage>(config.max_queue_size);
         let ticker = runtime
             .interval(config.scheduled_delay)
             .map(|_| BatchMessage::Flush(None));
         let timeout_runtime = runtime.clone();
 
+        let _ = std::thread::Builder::new()
+            .name("opentelemetry-exporter".to_string())
+            .spawn(move || {
+                while let Ok(payload) = rx_span.recv() {
+                    let is_shutdown = matches!(&payload, &BatchMessage::Shutdown(_));
+                    if let Err(err) = tx_export.try_send(payload) {
+                        global::handle_error(TraceError::from(format!(
+                            "could not relay messages to export task: {:?}",
+                            err
+                        )));
+                    };
+                    if is_shutdown {
+                        break;
+                    }
+                }
+            });
+
         // Spawn worker process via user-defined spawn function.
         runtime.spawn(Box::pin(async move {
             let mut spans = Vec::new();
-            let mut messages = Box::pin(futures::stream::select(message_receiver, ticker));
+            let mut messages = Box::pin(futures::stream::select(rx_export, ticker));
 
             while let Some(message) = messages.next().await {
                 match message {
@@ -305,7 +325,7 @@ impl BatchSpanProcessor {
                                 &timeout_runtime,
                                 spans.split_off(0),
                             )
-                            .await;
+                                .await;
 
                             if let Err(err) = result {
                                 global::handle_error(err);
@@ -320,7 +340,7 @@ impl BatchSpanProcessor {
                             &timeout_runtime,
                             spans.split_off(0),
                         )
-                        .await;
+                            .await;
 
                         if let Some(channel) = res_channel {
                             if let Err(err) = channel.send(result) {
@@ -344,7 +364,7 @@ impl BatchSpanProcessor {
                             &timeout_runtime,
                             spans.split_off(0),
                         )
-                        .await;
+                            .await;
 
                         exporter.shutdown();
 
@@ -363,15 +383,15 @@ impl BatchSpanProcessor {
 
         // Return batch processor with link to worker
         BatchSpanProcessor {
-            message_sender: Mutex::new(message_sender),
+            message_sender: tx_span,
         }
     }
 
     /// Create a new batch processor builder
     pub fn builder<E, R>(exporter: E, runtime: R) -> BatchSpanProcessorBuilder<E, R>
-    where
-        E: SpanExporter,
-        R: Runtime,
+        where
+            E: SpanExporter,
+            R: Runtime,
     {
         BatchSpanProcessorBuilder {
             exporter,
@@ -387,9 +407,9 @@ async fn export_with_timeout<R, E>(
     runtime: &R,
     batch: Vec<SpanData>,
 ) -> ExportResult
-where
-    R: Runtime,
-    E: SpanExporter + ?Sized,
+    where
+        R: Runtime,
+        E: SpanExporter + ?Sized,
 {
     if batch.is_empty() {
         return Ok(());
@@ -485,9 +505,9 @@ pub struct BatchSpanProcessorBuilder<E, R> {
 }
 
 impl<E, R> BatchSpanProcessorBuilder<E, R>
-where
-    E: SpanExporter + 'static,
-    R: Runtime,
+    where
+        E: SpanExporter + 'static,
+        R: Runtime,
 {
     /// Set max queue size for batches
     pub fn with_max_queue_size(self, size: usize) -> Self {
@@ -550,6 +570,9 @@ mod tests {
     use futures::Future;
     use std::fmt::Debug;
     use std::time::Duration;
+    use crate::trace::NoopSpanExporter;
+    use crate::runtime::Tokio;
+    use tokio::runtime::Runtime;
 
     #[test]
     fn simple_span_processor_on_end_calls_export() {
@@ -640,9 +663,9 @@ mod tests {
     }
 
     impl<D, DS> Debug for BlockingExporter<D>
-    where
-        D: Fn(Duration) -> DS + 'static + Send + Sync,
-        DS: Future<Output = ()> + Send + Sync + 'static,
+        where
+            D: Fn(Duration) -> DS + 'static + Send + Sync,
+            DS: Future<Output=()> + Send + Sync + 'static,
     {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             f.write_str("blocking exporter for testing")
@@ -651,9 +674,9 @@ mod tests {
 
     #[async_trait]
     impl<D, DS> SpanExporter for BlockingExporter<D>
-    where
-        D: Fn(Duration) -> DS + 'static + Send + Sync,
-        DS: Future<Output = ()> + Send + Sync + 'static,
+        where
+            D: Fn(Duration) -> DS + 'static + Send + Sync,
+            DS: Future<Output=()> + Send + Sync + 'static,
     {
         async fn export(&mut self, _batch: Vec<SpanData>) -> ExportResult {
             (self.delay_fn)(self.delay_for).await;
@@ -743,5 +766,37 @@ mod tests {
         }
         let shutdown_res = processor.shutdown();
         assert!(shutdown_res.is_ok());
+    }
+
+    #[test]
+    fn test_batch_span_processor_crossbeam() {
+        fn get_span_data() -> Vec<SpanData> {
+            (0..200)
+                .into_iter()
+                .map(|_| {
+                    new_test_export_span_data()
+                })
+                .collect::<Vec<SpanData>>()
+        }
+
+        use std::sync::Arc;
+        let rt = Runtime::new().unwrap();
+        rt.block_on(async move {
+            let span_processor =
+                BatchSpanProcessor::builder(NoopSpanExporter::new(), Tokio).with_max_queue_size(10_000).build();
+            let shared_span_processor = Arc::new(span_processor);
+            let mut handles = Vec::with_capacity(10);
+            for _ in 0..10 {
+                let span_processor = shared_span_processor.clone();
+                let spans = get_span_data();
+                handles.push(tokio::spawn(async move {
+                    for span in spans {
+                        span_processor.on_end(span);
+                        tokio::task::yield_now().await;
+                    }
+                }));
+            }
+            futures::future::join_all(handles).await;
+        });
     }
 }
