@@ -1,4 +1,4 @@
-use criterion::{criterion_group, criterion_main, Criterion, BenchmarkId};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use opentelemetry::runtime::Tokio;
 use opentelemetry::sdk::export::trace::SpanData;
 use opentelemetry::sdk::trace::{BatchSpanProcessor, EvictedHashMap, EvictedQueue, SpanProcessor};
@@ -41,31 +41,38 @@ fn criterion_benchmark(c: &mut Criterion) {
     group.sample_size(50);
 
     for task_num in [1, 2, 4, 8, 16, 32].iter() {
-        group.bench_with_input(BenchmarkId::from_parameter(format!("with {} concurrent task", task_num)), task_num, |b, &task_num| {
-            b.iter(|| {
-                let rt = Runtime::new().unwrap();
-                rt.block_on(async move {
-                    let span_processor =
-                        BatchSpanProcessor::builder(NoopSpanExporter::new(), Tokio).with_max_queue_size(10_000).build();
-                    let mut shared_span_processor = Arc::new(span_processor);
-                    let mut handles = Vec::with_capacity(10);
-                    for _ in 0..task_num {
-                        let span_processor = shared_span_processor.clone();
-                        let spans = get_span_data();
-                        handles.push(tokio::spawn(async move {
-                            for span in spans {
-                                span_processor.on_end(span);
-                                tokio::task::yield_now().await;
-                            }
-                        }));
-                    }
-                    futures::future::join_all(handles).await;
-                    let _ = Arc::<BatchSpanProcessor>::get_mut(&mut shared_span_processor).unwrap().shutdown();
-                });
-            })
-        });
+        group.bench_with_input(
+            BenchmarkId::from_parameter(format!("with {} concurrent task", task_num)),
+            task_num,
+            |b, &task_num| {
+                b.iter(|| {
+                    let rt = Runtime::new().unwrap();
+                    rt.block_on(async move {
+                        let span_processor =
+                            BatchSpanProcessor::builder(NoopSpanExporter::new(), Tokio)
+                                .with_max_queue_size(10_000)
+                                .build();
+                        let mut shared_span_processor = Arc::new(span_processor);
+                        let mut handles = Vec::with_capacity(10);
+                        for _ in 0..task_num {
+                            let span_processor = shared_span_processor.clone();
+                            let spans = get_span_data();
+                            handles.push(tokio::spawn(async move {
+                                for span in spans {
+                                    span_processor.on_end(span);
+                                    tokio::task::yield_now().await;
+                                }
+                            }));
+                        }
+                        futures::future::join_all(handles).await;
+                        let _ = Arc::<BatchSpanProcessor>::get_mut(&mut shared_span_processor)
+                            .unwrap()
+                            .shutdown();
+                    });
+                })
+            },
+        );
     }
-
 
     group.finish();
 }
