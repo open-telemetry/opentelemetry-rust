@@ -571,18 +571,15 @@ mod tests {
         OTEL_BSP_SCHEDULE_DELAY, OTEL_BSP_SCHEDULE_DELAY_DEFAULT,
     };
     use crate::runtime;
-    use crate::runtime::Tokio;
     use crate::sdk::export::trace::{stdout, ExportResult, SpanData, SpanExporter};
     use crate::sdk::trace::BatchConfig;
     use crate::testing::trace::{
         new_test_export_span_data, new_test_exporter, new_tokio_test_exporter,
     };
-    use crate::trace::NoopSpanExporter;
     use async_trait::async_trait;
     use futures::Future;
     use std::fmt::Debug;
     use std::time::Duration;
-    use tokio::runtime::Runtime;
 
     #[test]
     fn simple_span_processor_on_end_calls_export() {
@@ -776,36 +773,5 @@ mod tests {
         }
         let shutdown_res = processor.shutdown();
         assert!(shutdown_res.is_ok());
-    }
-
-    #[test]
-    fn test_batch_span_processor_crossbeam() {
-        fn get_span_data() -> Vec<SpanData> {
-            (0..200)
-                .into_iter()
-                .map(|_| new_test_export_span_data())
-                .collect::<Vec<SpanData>>()
-        }
-
-        use std::sync::Arc;
-        let rt = Runtime::new().unwrap();
-        rt.block_on(async move {
-            let span_processor = BatchSpanProcessor::builder(NoopSpanExporter::new(), Tokio)
-                .with_max_queue_size(10_000)
-                .build();
-            let shared_span_processor = Arc::new(span_processor);
-            let mut handles = Vec::with_capacity(10);
-            for _ in 0..10 {
-                let span_processor = shared_span_processor.clone();
-                let spans = get_span_data();
-                handles.push(tokio::spawn(async move {
-                    for span in spans {
-                        span_processor.on_end(span);
-                        tokio::task::yield_now().await;
-                    }
-                }));
-            }
-            futures::future::join_all(handles).await;
-        });
     }
 }
