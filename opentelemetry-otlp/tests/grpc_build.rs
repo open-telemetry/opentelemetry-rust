@@ -29,8 +29,10 @@ fn build_grpc() {
     )
         .expect("Error generating protobuf");
     let after_build = build_content_map();
-    // we cannot use assert_eq! here because it will print both maps when they don't match, which makes
-    // the error message unreadable.
+    // we cannot use assert_eq! here because it will print both maps when they don't match, which
+    // makes the error message unreadable.
+    // If you find the test passed locally but not in CI pipeline. Try update the dependency. It may
+    // be a new version of protobuf or other dependencies
     assert!(
         before_build == after_build,
         "generated file has changed, please commit the change file and rerun the test"
