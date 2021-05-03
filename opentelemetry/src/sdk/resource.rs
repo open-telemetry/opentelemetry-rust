@@ -19,7 +19,7 @@ use crate::sdk::EnvResourceDetector;
 use crate::{Key, KeyValue, Value};
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
-use std::collections::{btree_map, btree_map::Entry, BTreeMap};
+use std::collections::{btree_map, BTreeMap};
 use std::time::Duration;
 
 /// Describes an entity about which identifying information and metadata is exposed.
@@ -56,7 +56,7 @@ impl Resource {
         let mut resource = Resource::empty();
 
         for kv in kvs.into_iter() {
-            resource.insert(kv);
+            resource.attrs.insert(kv.key, kv.value);
         }
 
         resource
@@ -71,7 +71,7 @@ impl Resource {
             let detected_res = detector.detect(timeout);
             for (key, value) in detected_res.into_iter() {
                 // using insert instead of merge to avoid clone.
-                resource.insert(KeyValue::new(key, value));
+                resource.attrs.insert(key, value);
             }
         }
 
@@ -80,7 +80,8 @@ impl Resource {
 
     /// Create a new `Resource` by combining two resources.
     ///
-    /// Keys from this resource have priority over keys from the merged resource.
+    /// Keys from the `other` resource have priority over keys from this resource, even if the
+    /// updated value is empty.
     pub fn merge(&self, other: &Self) -> Self {
         if self.attrs.is_empty() {
             return other.clone();
@@ -93,16 +94,10 @@ impl Resource {
 
         // attrs from self must be added first so they have priority
         for (k, v) in self.attrs.iter() {
-            resource.insert(KeyValue {
-                key: k.clone(),
-                value: v.clone(),
-            });
+            resource.attrs.insert(k.clone(), v.clone());
         }
         for (k, v) in other.attrs.iter() {
-            resource.insert(KeyValue {
-                key: k.clone(),
-                value: v.clone(),
-            });
+            resource.attrs.insert(k.clone(), v.clone());
         }
 
         resource
@@ -128,22 +123,6 @@ impl Resource {
     #[cfg_attr(docsrs, doc(cfg(feature = "metrics")))]
     pub fn encoded(&self, encoder: &dyn labels::Encoder) -> String {
         encoder.encode(&mut self.into_iter())
-    }
-
-    /// Insert a key-value pair into a `Resource`
-    fn insert(&mut self, item: KeyValue) {
-        match self.attrs.entry(item.key) {
-            Entry::Occupied(mut existing_item) => {
-                if let Value::String(s) = existing_item.get() {
-                    if s.is_empty() {
-                        existing_item.insert(item.value);
-                    }
-                }
-            }
-            Entry::Vacant(v) => {
-                v.insert(item.value);
-            }
-        }
     }
 }
 
@@ -229,17 +208,23 @@ mod tests {
 
     #[test]
     fn merge_resource() {
-        let resource_a = Resource::new(vec![KeyValue::new("a", ""), KeyValue::new("b", "b-value")]);
+        let resource_a = Resource::new(vec![
+            KeyValue::new("a", ""),
+            KeyValue::new("b", "b-value"),
+            KeyValue::new("d", "d-value"),
+        ]);
 
         let resource_b = Resource::new(vec![
-            KeyValue::new("a", "final"),
+            KeyValue::new("a", "a-value"),
             KeyValue::new("c", "c-value"),
+            KeyValue::new("d", ""),
         ]);
 
         let mut expected_attrs = BTreeMap::new();
-        expected_attrs.insert(Key::new("a"), Value::from("final"));
+        expected_attrs.insert(Key::new("a"), Value::from("a-value"));
         expected_attrs.insert(Key::new("b"), Value::from("b-value"));
         expected_attrs.insert(Key::new("c"), Value::from("c-value"));
+        expected_attrs.insert(Key::new("d"), Value::from(""));
 
         assert_eq!(
             resource_a.merge(&resource_b),
