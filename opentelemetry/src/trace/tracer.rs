@@ -460,7 +460,12 @@ impl SpanBuilder {
     /// Assign links
     pub fn with_links(self, links: Vec<Link>) -> Self {
         SpanBuilder {
-            links: Some(links),
+            links: Some(
+                links
+                    .into_iter()
+                    .filter(|l| l.span_context().is_valid())
+                    .collect(),
+            ),
             ..self
         }
     }
