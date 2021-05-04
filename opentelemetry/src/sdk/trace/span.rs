@@ -523,8 +523,8 @@ mod tests {
 
         let mut link = Link::new(
             SpanContext::new(
-                TraceId::from_u128(0),
-                SpanId::from_u64(0),
+                TraceId::from_u128(12),
+                SpanId::from_u64(12),
                 0,
                 false,
                 Default::default(),

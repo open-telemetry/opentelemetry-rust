@@ -53,7 +53,7 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         // Traced app logic here...
     });
 
-    global::shut_down_provider(); // sending remaining spans
+    global::shutdown_tracer_provider(); // sending remaining spans
 
     Ok(())
 }
@@ -131,7 +131,7 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         // Traced app logic here...
     });
 
-    opentelemetry::global::shut_down_provider(); // sending remaining spans
+    opentelemetry::global::shutdown_tracer_provider(); // sending remaining spans
 
     Ok(())
 }
@@ -175,7 +175,7 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         // Traced app logic here...
     });
 
-    global::shut_down_provider(); // sending remaining spans
+    global::shutdown_tracer_provider(); // sending remaining spans
 
     Ok(())
 }

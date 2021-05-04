@@ -53,7 +53,7 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         // Traced app logic here...
     });
     
-    global::shut_down_provider();
+    global::shutdown_tracer_provider();
 
     Ok(())
 }
@@ -153,7 +153,7 @@ fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         // Traced app logic here...
     });
     
-    global::shut_down_provider();
+    global::shutdown_tracer_provider();
 
     Ok(())
 }
