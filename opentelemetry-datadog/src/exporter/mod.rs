@@ -134,7 +134,7 @@ impl DatadogPipelineBuilder {
         let trace_config = self.trace_config.take();
         let exporter = self.build_exporter()?;
         let mut provider_builder =
-            sdk::trace::TracerProvider::builder().with_default_batch_exporter(exporter, runtime);
+            sdk::trace::TracerProvider::builder().with_batch_exporter(exporter, runtime);
         if let Some(config) = trace_config {
             provider_builder = provider_builder.with_config(config);
         }

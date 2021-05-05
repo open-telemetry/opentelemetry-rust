@@ -486,7 +486,7 @@ mod tests {
         use crate::sdk::trace::TracerProvider;
         let exporter = crate::sdk::export::trace::stdout::Exporter::new(assert_writer, true);
         TracerProvider::builder()
-            .with_default_batch_exporter(exporter, runtime)
+            .with_batch_exporter(exporter, runtime)
             .build()
     }
 

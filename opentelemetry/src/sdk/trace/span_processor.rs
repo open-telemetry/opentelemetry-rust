@@ -200,7 +200,7 @@ impl SpanProcessor for SimpleSpanProcessor {
 ///
 ///     // Then use the `with_batch_exporter` method to have the provider export spans in batches.
 ///     let provider = sdktrace::TracerProvider::builder()
-///         .with_batch_exporter(batch)
+///         .with_span_processor(batch)
 ///         .build();
 ///
 ///     let _ = global::set_tracer_provider(provider);
