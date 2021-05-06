@@ -10,7 +10,7 @@ To run this example.
 
 2. Use `cargo run` to run the example.
 
-3. Check the output in Jaeger and Zipkin. The console should also output the SpanData in json format.
+3. Check the output in Jaeger and Zipkin. The console should also output the SpanData.
 
 4. Use `docker-compose down -v` to tear down the Jaeger and Zipkin backend.
 
