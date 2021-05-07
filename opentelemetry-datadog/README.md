@@ -82,7 +82,7 @@ to [`Datadog`].
          // Traced app logic here...
      });
      
-     opentelemetry::global::shut_down_provider();
+     opentelemetry::global::shutdown_tracer_provider();
 
      Ok(())
  }
