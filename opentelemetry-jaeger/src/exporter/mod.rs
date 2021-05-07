@@ -297,7 +297,7 @@ impl PipelineBuilder {
         let config = self.config.take();
         let exporter = self.init_exporter()?;
         let mut builder =
-            sdk::trace::TracerProvider::builder().with_default_batch_exporter(exporter, runtime);
+            sdk::trace::TracerProvider::builder().with_batch_exporter(exporter, runtime);
         if let Some(config) = config {
             builder = builder.with_config(config)
         }
