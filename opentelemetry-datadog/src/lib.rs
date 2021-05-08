@@ -199,13 +199,13 @@ mod propagator {
         }
 
         fn extract_trace_id(&self, trace_id: &str) -> Result<TraceId, ExtractError> {
-            u64::from_str_radix(trace_id, 10)
+            trace_id.parse::<u64>()
                 .map(|id| TraceId::from_u128(id as u128))
                 .map_err(|_| ExtractError::TraceId)
         }
 
         fn extract_span_id(&self, span_id: &str) -> Result<SpanId, ExtractError> {
-            u64::from_str_radix(span_id, 10)
+            span_id.parse::<u64>()
                 .map(SpanId::from_u64)
                 .map_err(|_| ExtractError::SpanId)
         }
@@ -214,7 +214,7 @@ mod propagator {
             &self,
             sampling_priority: &str,
         ) -> Result<SamplingPriority, ExtractError> {
-            let i = i32::from_str_radix(sampling_priority, 10)
+            let i = sampling_priority.parse::<i32>()
                 .map_err(|_| ExtractError::SamplingPriority)?;
 
             match i {
