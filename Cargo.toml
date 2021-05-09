@@ -26,5 +26,6 @@ members = [
     "examples/http",
     "examples/tracing-grpc",
     "examples/zipkin",
+    "examples/multiple-span-processors"
 ]
 exclude = ["examples/external-otlp-grpcio-async-std"]
