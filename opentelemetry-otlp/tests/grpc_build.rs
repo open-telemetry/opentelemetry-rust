@@ -40,18 +40,17 @@ fn build_grpc() {
 }
 
 fn build_content_map() -> HashMap<PathBuf, String> {
-    let mut map = HashMap::new();
-    let dict =
-        std::fs::read_dir("src/proto/grpcio").expect("cannot open dict of generated grpc files");
-    for entry in dict {
-        if let Ok(entry) = entry {
-            map.insert(
+    std::fs::read_dir("src/proto/grpcio")
+        .expect("cannot open dict of generated grpc files")
+        .into_iter()
+        .flatten()
+        .map(|entry| {
+            (
                 entry.path(),
                 std::fs::read_to_string(entry.path()).unwrap_or_else(|_| {
                     panic!("cannot read from file {}", entry.path().to_string_lossy())
                 }),
-            );
-        }
-    }
-    map
+            )
+        })
+        .collect()
 }
