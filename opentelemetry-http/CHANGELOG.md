@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.3.0
+
+### Changed
+
+- Return response from `HttpClient` #511
+- Update to opentelemetry v0.14.0
+
 ## v0.2.0
 
 ### Changed

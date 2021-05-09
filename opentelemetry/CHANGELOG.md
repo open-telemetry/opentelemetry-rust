@@ -1,5 +1,40 @@
 # Changelog
 
+## [v0.14.0](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.13.0...v0.14.0)
+
+## Added
+
+- Adding a dynamic dispatch to Aggregator Selector #497
+- Add `global::force_flush_tracer_provider` #512
+- Add config `max_attributes_per_event` and `max_attributes_per_link` #521
+- Add dropped attribute counts to events and links #529
+
+## Changed
+
+- Remove unnecessary clone in `Key` type #491
+- Remove `#[must_use]` from `set_tracer_provider` #501
+- Rename remaining usage of `default_sampler` to `sampler` #509
+- Use current span for SDK-less context propagation #510
+- Always export span batch when limit reached #519
+- Rename message events to events #530
+- Update resource merge behaviour #537
+- Ignore links with invalid context #538
+
+## Removed
+
+- Remove remote span context #508
+- Remove metrics quantiles #525
+
+# Fixed
+
+- Allow users to use custom export kind selector #526
+
+## Performance
+
+- Improve simple span processor performance #502
+- Local span perf improvements #505
+- Reduce string allocations where possible #506
+
 ## [v0.13.0](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.12.0...v0.13.0)
 
 Upgrade note: exporter pipelines do not return an uninstall guard as of #444,

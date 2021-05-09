@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-otlp"
-version = "0.6.0"
+version = "0.7.0"
 authors = ["OpenTelemetry Authors <cncf-opentelemetry-contributors@lists.cncf.io>"]
 description = "Exporter for the OpenTelemetry Collector"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-otlp"
@@ -38,13 +38,13 @@ rustdoc-args = ["--cfg", "docsrs"]
 async-trait = "0.1"
 futures = "0.3"
 grpcio = { version = "0.7", optional = true }
-opentelemetry = { version = "0.13", default-features = false, features = ["trace"], path = "../opentelemetry" }
+opentelemetry = { version = "0.14", default-features = false, features = ["trace"], path = "../opentelemetry" }
 prost = { version = "0.7", optional = true }
 protobuf = { version = "2.18", optional = true }
 thiserror = "1.0"
 tonic = { version = "0.4", optional = true }
 tokio = { version = "1.0", features = ["full"], optional = true }
-opentelemetry-http = { version = "0.2", path = "../opentelemetry-http", optional = true }
+opentelemetry-http = { version = "0.3", path = "../opentelemetry-http", optional = true }
 reqwest = { version = "0.11", optional = true, default-features = false }
 surf = { version = "2.0", optional = true, default-features = false }
 http = "0.2"

@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-aws"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["OpenTelemetry Authors <cncf-opentelemetry-contributors@lists.cncf.io>"]
 description = "AWS exporters and propagators for OpenTelemetry"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-aws"
@@ -23,7 +23,7 @@ default = ["trace"]
 trace = ["opentelemetry/trace"]
 
 [dependencies]
-opentelemetry = { version = "0.13", path = "../opentelemetry", features = ["trace"] }
+opentelemetry = { version = "0.14", path = "../opentelemetry", features = ["trace"] }
 lazy_static = "1.4"
 
 [dev-dependencies]
