@@ -5,13 +5,14 @@
 use std::collections::HashMap;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use futures::channel::mpsc;
+use futures::channel::{mpsc, oneshot};
 use futures::StreamExt;
 
 use opentelemetry::trace::StatusCode;
 
-use crate::trace::TracezMessage;
+use crate::trace::{TracezMessage, TracezQuery, TracezResponse};
 use crate::SpanQueue;
+use crate::proto::tracez::TracezCounts;
 
 lazy_static! {
     static ref LATENCY_BUCKET: [Duration; 9] = [
@@ -95,8 +96,30 @@ impl SpanAggregator {
                             summary.running_sample_spans.push_back(span);
                             summary.running_num = summary.running_num.saturating_add(1);
                         }
+                        TracezMessage::Query {
+                            query,
+                            response_tx
+                        } => {
+                            self.handle_query(query, response_tx).await
+                        }
                     }
                 }
+            }
+        }
+    }
+
+    async fn handle_query(&mut self, query: TracezQuery, response_tx: oneshot::Sender<TracezResponse>) {
+        match query {
+            TracezQuery::Aggregation => {
+                response_tx.send(self.summaries.iter().map(|(span_name, summary)| {
+                    TracezCounts {
+                        spanname: span_name.clone(),
+                        latency: vec![], //todo: make latency a Vec
+                        running: summary.running_num as u32,
+                        error: summary.error_num as u32,
+                        ..Default::default()
+                    }
+                }).collect()).await
             }
         }
     }
@@ -107,8 +130,8 @@ fn latency_bucket(start_time: SystemTime, end_time: SystemTime) -> usize {
         .duration_since(UNIX_EPOCH)
         .unwrap_or(Duration::from_millis(0))
         - start_time
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or(Duration::from_millis(0));
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or(Duration::from_millis(0));
     for idx in 0..LATENCY_BUCKET.len() {
         if LATENCY_BUCKET[idx] > latency {
             return idx as usize;

@@ -24,6 +24,7 @@ pub mod trace;
 #[allow(clippy::all, unreachable_pub, dead_code)]
 #[rustfmt::skip]
 mod proto;
+mod handler;
 
 #[macro_use]
 extern crate lazy_static;

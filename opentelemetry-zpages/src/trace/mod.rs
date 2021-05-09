@@ -3,6 +3,8 @@
 pub(crate) use aggregator::SpanAggregator;
 use opentelemetry::sdk::export::trace::SpanData;
 pub use span_processor::ZPagesProcessor;
+use futures::channel::oneshot;
+use crate::proto::tracez::{TracezCounts, LatencyData, RunningData, ErrorData};
 
 mod aggregator;
 mod span_processor;
@@ -17,6 +19,10 @@ pub enum TracezMessage {
     SpanEnd(SpanData),
     /// Shut down the aggregator
     ShutDown,
+    Query {
+        query: TracezQuery,
+        response_tx: oneshot::Sender<TracezResponse>,
+    },
 }
 
 /// Tracez APIs.
@@ -42,4 +48,20 @@ pub enum TracezQuery {
         /// span name in API path
         span_name: String,
     },
+}
+
+pub enum TracezResponse {
+    Aggregation(Vec<TracezCounts>),
+    Latency(Vec<LatencyData>),
+    Running(Vec<RunningData>),
+    ErrorData(Vec<ErrorData>),
+}
+
+impl TracezResponse {
+    /// Take the response and convert it into HTML page with pre-defined
+    /// css styles for zPage.
+    pub fn into_html(self) -> String {
+        unimplemented!()
+    }
+    //todo: add into_json when RESTful APIs are available.
 }
