@@ -113,7 +113,7 @@ pub const NET_PEER_PORT: Key = Key::from_static_str("net.peer.port");
 ///
 /// # Examples
 ///
-/// - IP.TCP
+/// - ip_tcp
 pub const NET_TRANSPORT: Key = Key::from_static_str("net.transport");
 
 /// The Microsoft SQL Server [instance name](https://docs.microsoft.com/en-us/sql/connect/jdbc/building-the-connection-url?view=sql-server-ver15) connecting to. This name is used to determine the port of a named instance.
@@ -437,6 +437,7 @@ pub const NET_HOST_NAME: Key = Key::from_static_str("net.host.name");
 /// - kafka
 /// - rabbitmq
 /// - activemq
+/// - AmazonSQS
 pub const MESSAGING_SYSTEM: Key = Key::from_static_str("messaging.system");
 
 /// The message destination name. This might be equal to the span name but is required nevertheless.
@@ -620,8 +621,203 @@ pub const CODE_FILEPATH: Key = Key::from_static_str("code.filepath");
 /// - 42
 pub const CODE_LINENO: Key = Key::from_static_str("code.lineno");
 
+/// The value `aws-api`.
+///
+/// # Examples
+///
+/// - aws-api
+pub const RPC_SYSTEM: Key = Key::from_static_str("rpc.system");
+
+/// The name of the service to which a request is made, as returned by the AWS SDK.
+///
+/// # Examples
+///
+/// - DynamoDB
+/// - S3
+pub const RPC_SERVICE: Key = Key::from_static_str("rpc.service");
+
+/// The name of the operation corresponding to the request, as returned by the AWS SDK.
+///
+/// # Examples
+///
+/// - GetItem
+/// - PutItem
+pub const RPC_METHOD: Key = Key::from_static_str("rpc.method");
+
+/// The keys in the `RequestItems` object field.
+///
+/// # Examples
+///
+/// - Users
+/// - Cats
+pub const AWS_DYNAMODB_TABLE_NAMES: Key = Key::from_static_str("aws.dynamodb.table_names");
+
+/// The JSON-serialized value of each item in the `ConsumedCapacity` response field.
+///
+/// # Examples
+///
+/// - { &#34;CapacityUnits&#34;: number, &#34;GlobalSecondaryIndexes&#34;: { &#34;string&#34; : { &#34;CapacityUnits&#34;: number, &#34;ReadCapacityUnits&#34;: number, &#34;WriteCapacityUnits&#34;: number } }, &#34;LocalSecondaryIndexes&#34;: { &#34;string&#34; : { &#34;CapacityUnits&#34;: number, &#34;ReadCapacityUnits&#34;: number, &#34;WriteCapacityUnits&#34;: number } }, &#34;ReadCapacityUnits&#34;: number, &#34;Table&#34;: { &#34;CapacityUnits&#34;: number, &#34;ReadCapacityUnits&#34;: number, &#34;WriteCapacityUnits&#34;: number }, &#34;TableName&#34;: &#34;string&#34;, &#34;WriteCapacityUnits&#34;: number }
+pub const AWS_DYNAMODB_CONSUMED_CAPACITY: Key =
+    Key::from_static_str("aws.dynamodb.consumed_capacity");
+
+/// The JSON-serialized value of the `ItemCollectionMetrics` response field.
+///
+/// # Examples
+///
+/// - { &#34;string&#34; : [ { &#34;ItemCollectionKey&#34;: { &#34;string&#34; : { &#34;B&#34;: blob, &#34;BOOL&#34;: boolean, &#34;BS&#34;: [ blob ], &#34;L&#34;: [ &#34;AttributeValue&#34; ], &#34;M&#34;: { &#34;string&#34; : &#34;AttributeValue&#34; }, &#34;N&#34;: &#34;string&#34;, &#34;NS&#34;: [ &#34;string&#34; ], &#34;NULL&#34;: boolean, &#34;S&#34;: &#34;string&#34;, &#34;SS&#34;: [ &#34;string&#34; ] } }, &#34;SizeEstimateRangeGB&#34;: [ number ] } ] }
+pub const AWS_DYNAMODB_ITEM_COLLECTION_METRICS: Key =
+    Key::from_static_str("aws.dynamodb.item_collection_metrics");
+
+/// The value of the `ProvisionedThroughput.ReadCapacityUnits` request parameter.
+///
+/// # Examples
+///
+/// - 1.0
+/// - 2.0
+pub const AWS_DYNAMODB_PROVISIONED_READ_CAPACITY: Key =
+    Key::from_static_str("aws.dynamodb.provisioned_read_capacity");
+
+/// The value of the `ProvisionedThroughput.WriteCapacityUnits` request parameter.
+///
+/// # Examples
+///
+/// - 1.0
+/// - 2.0
+pub const AWS_DYNAMODB_PROVISIONED_WRITE_CAPACITY: Key =
+    Key::from_static_str("aws.dynamodb.provisioned_write_capacity");
+
+/// The value of the `ConsistentRead` request parameter.
+pub const AWS_DYNAMODB_CONSISTENT_READ: Key = Key::from_static_str("aws.dynamodb.consistent_read");
+
+/// The value of the `ProjectionExpression` request parameter.
+///
+/// # Examples
+///
+/// - Title
+/// - Title, Price, Color
+/// - Title, Description, RelatedItems, ProductReviews
+pub const AWS_DYNAMODB_PROJECTION: Key = Key::from_static_str("aws.dynamodb.projection");
+
+/// The value of the `Limit` request parameter.
+///
+/// # Examples
+///
+/// - 10
+pub const AWS_DYNAMODB_LIMIT: Key = Key::from_static_str("aws.dynamodb.limit");
+
+/// The value of the `AttributesToGet` request parameter.
+///
+/// # Examples
+///
+/// - lives
+/// - id
+pub const AWS_DYNAMODB_ATTRIBUTES_TO_GET: Key =
+    Key::from_static_str("aws.dynamodb.attributes_to_get");
+
+/// The value of the `IndexName` request parameter.
+///
+/// # Examples
+///
+/// - name_to_group
+pub const AWS_DYNAMODB_INDEX_NAME: Key = Key::from_static_str("aws.dynamodb.index_name");
+
+/// The value of the `Select` request parameter.
+///
+/// # Examples
+///
+/// - ALL_ATTRIBUTES
+/// - COUNT
+pub const AWS_DYNAMODB_SELECT: Key = Key::from_static_str("aws.dynamodb.select");
+
+/// The JSON-serialized value of each item of the `GlobalSecondaryIndexes` request field.
+///
+/// # Examples
+///
+/// - { &#34;IndexName&#34;: &#34;string&#34;, &#34;KeySchema&#34;: [ { &#34;AttributeName&#34;: &#34;string&#34;, &#34;KeyType&#34;: &#34;string&#34; } ], &#34;Projection&#34;: { &#34;NonKeyAttributes&#34;: [ &#34;string&#34; ], &#34;ProjectionType&#34;: &#34;string&#34; }, &#34;ProvisionedThroughput&#34;: { &#34;ReadCapacityUnits&#34;: number, &#34;WriteCapacityUnits&#34;: number } }
+pub const AWS_DYNAMODB_GLOBAL_SECONDARY_INDEXES: Key =
+    Key::from_static_str("aws.dynamodb.global_secondary_indexes");
+
+/// The JSON-serialized value of each item of the `LocalSecondaryIndexes` request field.
+///
+/// # Examples
+///
+/// - { &#34;IndexArn&#34;: &#34;string&#34;, &#34;IndexName&#34;: &#34;string&#34;, &#34;IndexSizeBytes&#34;: number, &#34;ItemCount&#34;: number, &#34;KeySchema&#34;: [ { &#34;AttributeName&#34;: &#34;string&#34;, &#34;KeyType&#34;: &#34;string&#34; } ], &#34;Projection&#34;: { &#34;NonKeyAttributes&#34;: [ &#34;string&#34; ], &#34;ProjectionType&#34;: &#34;string&#34; } }
+pub const AWS_DYNAMODB_LOCAL_SECONDARY_INDEXES: Key =
+    Key::from_static_str("aws.dynamodb.local_secondary_indexes");
+
+/// The value of the `ExclusiveStartTableName` request parameter.
+///
+/// # Examples
+///
+/// - Users
+/// - CatsTable
+pub const AWS_DYNAMODB_EXCLUSIVE_START_TABLE: Key =
+    Key::from_static_str("aws.dynamodb.exclusive_start_table");
+
+/// The the number of items in the `TableNames` response parameter.
+///
+/// # Examples
+///
+/// - 20
+pub const AWS_DYNAMODB_TABLE_COUNT: Key = Key::from_static_str("aws.dynamodb.table_count");
+
+/// The value of the `ScanIndexForward` request parameter.
+pub const AWS_DYNAMODB_SCAN_FORWARD: Key = Key::from_static_str("aws.dynamodb.scan_forward");
+
+/// The value of the `Segment` request parameter.
+///
+/// # Examples
+///
+/// - 10
+pub const AWS_DYNAMODB_SEGMENT: Key = Key::from_static_str("aws.dynamodb.segment");
+
+/// The value of the `TotalSegments` request parameter.
+///
+/// # Examples
+///
+/// - 100
+pub const AWS_DYNAMODB_TOTAL_SEGMENTS: Key = Key::from_static_str("aws.dynamodb.total_segments");
+
+/// The value of the `Count` response parameter.
+///
+/// # Examples
+///
+/// - 10
+pub const AWS_DYNAMODB_COUNT: Key = Key::from_static_str("aws.dynamodb.count");
+
+/// The value of the `ScannedCount` response parameter.
+///
+/// # Examples
+///
+/// - 50
+pub const AWS_DYNAMODB_SCANNED_COUNT: Key = Key::from_static_str("aws.dynamodb.scanned_count");
+
+/// The JSON-serialized value of each item in the `AttributeDefinitions` request field.
+///
+/// # Examples
+///
+/// - { &#34;AttributeName&#34;: &#34;string&#34;, &#34;AttributeType&#34;: &#34;string&#34; }
+pub const AWS_DYNAMODB_ATTRIBUTE_DEFINITIONS: Key =
+    Key::from_static_str("aws.dynamodb.attribute_definitions");
+
+/// The JSON-serialized value of each item in the the `GlobalSecondaryIndexUpdates` request field.
+///
+/// # Examples
+///
+/// - { &#34;Create&#34;: { &#34;IndexName&#34;: &#34;string&#34;, &#34;KeySchema&#34;: [ { &#34;AttributeName&#34;: &#34;string&#34;, &#34;KeyType&#34;: &#34;string&#34; } ], &#34;Projection&#34;: { &#34;NonKeyAttributes&#34;: [ &#34;string&#34; ], &#34;ProjectionType&#34;: &#34;string&#34; }, &#34;ProvisionedThroughput&#34;: { &#34;ReadCapacityUnits&#34;: number, &#34;WriteCapacityUnits&#34;: number } }
+pub const AWS_DYNAMODB_GLOBAL_SECONDARY_INDEX_UPDATES: Key =
+    Key::from_static_str("aws.dynamodb.global_secondary_index_updates");
+
 /// A string identifying the kind of message consumption as defined in the [Operation names](#operation-names) section above. If the operation is &#34;send&#34;, this attribute MUST NOT be set, since the operation can be inferred from the span kind in that case.
 pub const MESSAGING_OPERATION: Key = Key::from_static_str("messaging.operation");
+
+/// RabbitMQ message routing key.
+///
+/// # Examples
+///
+/// - myKey
+pub const MESSAGING_RABBITMQ_ROUTING_KEY: Key =
+    Key::from_static_str("messaging.rabbitmq.routing_key");
 
 /// Message keys in Kafka are used for grouping alike messages to ensure they&#39;re processed on the same partition. They differ from `messaging.message_id` in that they&#39;re not unique. If the key is `null`, the attribute MUST NOT be set.
 ///
@@ -656,29 +852,6 @@ pub const MESSAGING_KAFKA_PARTITION: Key = Key::from_static_str("messaging.kafka
 
 /// A boolean that is true if the message is a tombstone.
 pub const MESSAGING_KAFKA_TOMBSTONE: Key = Key::from_static_str("messaging.kafka.tombstone");
-
-/// A string identifying the remoting system.
-///
-/// # Examples
-///
-/// - grpc
-/// - java_rmi
-/// - wcf
-pub const RPC_SYSTEM: Key = Key::from_static_str("rpc.system");
-
-/// The full name of the service being called, including its package name, if applicable.
-///
-/// # Examples
-///
-/// - myservice.EchoService
-pub const RPC_SERVICE: Key = Key::from_static_str("rpc.service");
-
-/// The name of the method being called, must be equal to the $method part in the span name.
-///
-/// # Examples
-///
-/// - exampleMethod
-pub const RPC_METHOD: Key = Key::from_static_str("rpc.method");
 
 /// The [numeric status code](https://github.com/grpc/grpc/blob/v1.33.2/doc/statuscodes.md) of the gRPC request.
 ///
