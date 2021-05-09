@@ -59,7 +59,7 @@ pub const CLOUD_REGION: Key = Key::from_static_str("cloud.region");
 /// - us-east-1c
 pub const CLOUD_AVAILABILITY_ZONE: Key = Key::from_static_str("cloud.availability_zone");
 
-/// The cloud infrastructure resource in use.
+/// The cloud platform in use.
 ///
 /// The prefix of the service SHOULD match the one specified in `cloud.provider`.
 ///
@@ -68,7 +68,7 @@ pub const CLOUD_AVAILABILITY_ZONE: Key = Key::from_static_str("cloud.availabilit
 /// - aws_ec2
 /// - azure_vm
 /// - gcp_compute_engine
-pub const CLOUD_INFRASTRUCTURE_SERVICE: Key = Key::from_static_str("cloud.infrastructure_service");
+pub const CLOUD_PLATFORM: Key = Key::from_static_str("cloud.platform");
 
 /// The Amazon Resource Name (ARN) of an [ECS container instance](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ECS_instances.html).
 ///
@@ -105,6 +105,14 @@ pub const AWS_ECS_TASK_ARN: Key = Key::from_static_str("aws.ecs.task.arn");
 ///
 /// - opentelemetry-family
 pub const AWS_ECS_TASK_FAMILY: Key = Key::from_static_str("aws.ecs.task.family");
+
+/// The revision for this task definition.
+///
+/// # Examples
+///
+/// - 8
+/// - 26
+pub const AWS_ECS_TASK_REVISION: Key = Key::from_static_str("aws.ecs.task.revision");
 
 /// The ARN of an EKS cluster.
 ///
@@ -550,3 +558,24 @@ pub const TELEMETRY_SDK_VERSION: Key = Key::from_static_str("telemetry.sdk.versi
 ///
 /// - 1.2.3
 pub const TELEMETRY_AUTO_VERSION: Key = Key::from_static_str("telemetry.auto.version");
+
+/// The name of the web engine.
+///
+/// # Examples
+///
+/// - WildFly
+pub const WEBENGINE_NAME: Key = Key::from_static_str("webengine.name");
+
+/// The version of the web engine.
+///
+/// # Examples
+///
+/// - 21.0.0
+pub const WEBENGINE_VERSION: Key = Key::from_static_str("webengine.version");
+
+/// Additional description of the web engine (e.g. detailed version and edition information).
+///
+/// # Examples
+///
+/// - WildFly Full 21.0.0.Final (WildFly Core 13.0.1.Final) - 2.2.2.Final
+pub const WEBENGINE_DESCRIPTION: Key = Key::from_static_str("webengine.description");
