@@ -1,6 +1,13 @@
 # Changelog
 
+## v0.7.0
+
+### Changed
+
+- Update to opentelemetry v0.14.0
+
 ## v0.6.0
+
 ### Added
 - Add sanitization of prometheus label names #462
 
