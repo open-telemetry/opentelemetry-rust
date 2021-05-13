@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.13.0
+
+### Changed
+
+- Use follows from instead of child of for links #524
+- Remove default surf features #546
+- Update to opentelemetry v0.14.0
+
 ## v0.12.1
 
 ### Fixed

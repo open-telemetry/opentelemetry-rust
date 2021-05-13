@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.12.0
+
+### Changed
+
+- Update to opentelemetry v0.14.0
+- Remove default surf features #546
+
 ## v0.11.0
 ### Changed
 - Update to opentelemetry v0.13.0

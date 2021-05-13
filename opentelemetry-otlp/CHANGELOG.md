@@ -1,6 +1,25 @@
 # Changelog
 
+## v0.7.0
+
+### Added
+
+- adding otlp http transport, using proto binary #516
+
+### Fixed
+
+- docs cannot compile #507
+- exporter cannot merge IntSum correctly. #518
+- update metrics proto and metric transformation #535
+
+### Changed
+
+- Allow users to bring their own tonic channel  #515
+- Remove default surf features #546
+- Update to opentelemetry v0.14.0
+
 ### v0.6.0
+
 ### Added
 - Examples on how to connect to an external otlp using tonic, tls and tokio #449
 - Examples on how to connect to an external otlp using grpcio and tls #450
