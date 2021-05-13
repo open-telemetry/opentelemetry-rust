@@ -23,7 +23,7 @@ pub enum Error {
     #[cfg(feature = "metrics")]
     #[cfg_attr(docsrs, doc(cfg(feature = "metrics")))]
     #[error(transparent)]
-    /// Failed to export metrics.
+    /// An issue raised by the metrics module.
     Metric(#[from] MetricsError),
     #[error("{0}")]
     /// Other types of failures not covered by the variants above.
