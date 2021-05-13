@@ -18,12 +18,15 @@ pub enum Error {
     #[cfg(feature = "trace")]
     #[cfg_attr(docsrs, doc(cfg(feature = "trace")))]
     #[error(transparent)]
+    /// Failed to export traces.
     Trace(#[from] TraceError),
     #[cfg(feature = "metrics")]
     #[cfg_attr(docsrs, doc(cfg(feature = "metrics")))]
     #[error(transparent)]
+    /// Failed to export metrics.
     Metric(#[from] MetricsError),
     #[error("{0}")]
+    /// Other types of failures not covered by the variants above.
     Other(String),
 }
 
