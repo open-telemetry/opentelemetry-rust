@@ -1,17 +1,16 @@
 //! Tracez implementation
 //!
+use crate::proto::tracez::{ErrorData, LatencyData, RunningData, TracezCounts};
 pub(crate) use aggregator::SpanAggregator;
+use futures::channel::oneshot;
 use opentelemetry::sdk::export::trace::SpanData;
 pub use span_processor::ZPagesProcessor;
-use futures::channel::oneshot;
-use crate::proto::tracez::{TracezCounts, LatencyData, RunningData, ErrorData};
 
 mod aggregator;
 mod span_processor;
 pub mod span_queue;
 
 /// Message that used to pass commend between web servers, aggregators and span processors.
-#[derive(Debug)]
 pub enum TracezMessage {
     /// Sample span on start
     SampleSpan(SpanData),
@@ -19,10 +18,19 @@ pub enum TracezMessage {
     SpanEnd(SpanData),
     /// Shut down the aggregator
     ShutDown,
+    /// Run a query from the web service
     Query {
+        /// Query content
         query: TracezQuery,
+        /// Channel to send the response
         response_tx: oneshot::Sender<TracezResponse>,
     },
+}
+
+impl std::fmt::Debug for TracezMessage {
+    fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        unimplemented!()
+    }
 }
 
 /// Tracez APIs.
@@ -50,10 +58,16 @@ pub enum TracezQuery {
     },
 }
 
+/// Tracez APIs' response
+#[derive(Debug)]
 pub enum TracezResponse {
+    /// tracez/api/aggregations
     Aggregation(Vec<TracezCounts>),
+    /// tracez/api/latency/{bucket_index}/{span_name}
     Latency(Vec<LatencyData>),
+    /// tracez/api/running/{span_name}
     Running(Vec<RunningData>),
+    /// tracez/api/error/{span_name}
     ErrorData(Vec<ErrorData>),
 }
 

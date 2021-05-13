@@ -8,11 +8,12 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use futures::channel::{mpsc, oneshot};
 use futures::StreamExt;
 
-use opentelemetry::trace::StatusCode;
+use opentelemetry::trace::{SpanContext, StatusCode};
 
+use crate::proto::tracez::TracezCounts;
 use crate::trace::{TracezMessage, TracezQuery, TracezResponse};
 use crate::SpanQueue;
-use crate::proto::tracez::TracezCounts;
+use opentelemetry::sdk::export::trace::SpanData;
 
 lazy_static! {
     static ref LATENCY_BUCKET: [Duration; 9] = [
@@ -71,18 +72,18 @@ impl SpanAggregator {
                                 .summaries
                                 .entry(span.name.clone().into())
                                 .or_insert(SpanSummary::new(self.sample_size));
-                            summary.running_num = summary.running_num.saturating_sub(1);
+
+                            summary.running.remove(span.span_context.clone());
 
                             if span.status_code != StatusCode::Ok {
-                                summary.error_num += 1;
-                                summary.error_sample_spans.push_back(span.clone());
+                                summary.error.add_span(span);
                             } else {
                                 let latency_idx = latency_bucket(span.start_time, span.end_time);
-                                summary.latency[latency_idx] += 1;
-                                summary.latency_sample_spans[latency_idx].push_back(span.clone());
+                                summary
+                                    .latencies
+                                    .get_mut(latency_idx)
+                                    .map(|stats| stats.add_span(span));
                             }
-
-                            summary.running_sample_spans.remove(span);
                         }
                         TracezMessage::SampleSpan(span) => {
                             // Resample span whenever there is a new span starts.
@@ -93,13 +94,9 @@ impl SpanAggregator {
                                 .summaries
                                 .entry(span.name.clone().into())
                                 .or_insert(SpanSummary::new(self.sample_size));
-                            summary.running_sample_spans.push_back(span);
-                            summary.running_num = summary.running_num.saturating_add(1);
+                            summary.running.add_span(span)
                         }
-                        TracezMessage::Query {
-                            query,
-                            response_tx
-                        } => {
+                        TracezMessage::Query { query, response_tx } => {
                             self.handle_query(query, response_tx).await
                         }
                     }
@@ -108,19 +105,31 @@ impl SpanAggregator {
         }
     }
 
-    async fn handle_query(&mut self, query: TracezQuery, response_tx: oneshot::Sender<TracezResponse>) {
+    async fn handle_query(
+        &mut self,
+        query: TracezQuery,
+        response_tx: oneshot::Sender<TracezResponse>,
+    ) {
         match query {
             TracezQuery::Aggregation => {
-                response_tx.send(self.summaries.iter().map(|(span_name, summary)| {
-                    TracezCounts {
-                        spanname: span_name.clone(),
-                        latency: vec![], //todo: make latency a Vec
-                        running: summary.running_num as u32,
-                        error: summary.error_num as u32,
-                        ..Default::default()
-                    }
-                }).collect()).await
+                let _ = response_tx.send(TracezResponse::Aggregation(
+                    self.summaries
+                        .iter()
+                        .map(|(span_name, summary)| TracezCounts {
+                            spanname: span_name.clone(),
+                            latency: summary
+                                .latencies
+                                .iter()
+                                .map(|stats| stats.count as u32)
+                                .collect(),
+                            running: summary.running.count as u32,
+                            error: summary.error.count as u32,
+                            ..Default::default()
+                        })
+                        .collect(),
+                ));
             }
+            _ => {}
         }
     }
 }
@@ -132,61 +141,70 @@ fn latency_bucket(start_time: SystemTime, end_time: SystemTime) -> usize {
         - start_time
         .duration_since(UNIX_EPOCH)
         .unwrap_or(Duration::from_millis(0));
-    for idx in 0..LATENCY_BUCKET.len() {
+    for idx in 1..LATENCY_BUCKET.len() {
         if LATENCY_BUCKET[idx] > latency {
-            return idx as usize;
+            return (idx - 1) as usize;
         }
     }
     return LATENCY_BUCKET.len() - 1;
 }
 
+#[derive(Debug, Clone)]
+struct SpanStats {
+    examples: SpanQueue,
+    count: usize,
+}
+
+impl SpanStats {
+    /// Create a new SpanStats
+    fn new(sample_size: usize) -> SpanStats {
+        SpanStats {
+            examples: SpanQueue::new(sample_size),
+            count: 0,
+        }
+    }
+    /// Add a span into examples
+    fn add_span(&mut self, span: SpanData) {
+        self.count += 1;
+        self.examples.push_back(span)
+    }
+
+    /// Remove a span from the examples
+    fn remove(&mut self, context: SpanContext) -> Option<SpanData> {
+        self.count -= 1;
+        self.examples.remove(context)
+    }
+}
+
 #[derive(Debug)]
 struct SpanSummary {
-    running_sample_spans: SpanQueue,
-    error_sample_spans: SpanQueue,
-    latency_sample_spans: [SpanQueue; LATENCY_BUCKET_COUNT],
-
-    latency: [usize; LATENCY_BUCKET_COUNT],
-    error_num: usize,
-    running_num: usize,
+    running: SpanStats,
+    error: SpanStats,
+    latencies: Vec<SpanStats>,
 }
 
 impl SpanSummary {
     fn new(sample_size: usize) -> SpanSummary {
         SpanSummary {
-            running_sample_spans: SpanQueue::new(sample_size),
-            error_sample_spans: SpanQueue::new(sample_size),
-            latency_sample_spans: [
-                SpanQueue::new(sample_size),
-                SpanQueue::new(sample_size),
-                SpanQueue::new(sample_size),
-                SpanQueue::new(sample_size),
-                SpanQueue::new(sample_size),
-                SpanQueue::new(sample_size),
-                SpanQueue::new(sample_size),
-                SpanQueue::new(sample_size),
-                SpanQueue::new(sample_size),
-            ],
-            latency: [0; LATENCY_BUCKET_COUNT],
-            error_num: 0,
-            running_num: 0,
+            running: SpanStats::new(sample_size),
+            error: SpanStats::new(sample_size),
+            latencies: vec![SpanStats::new(sample_size); LATENCY_BUCKET_COUNT],
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
     use std::time::SystemTime;
 
     use futures::channel::mpsc;
     use futures::SinkExt;
 
-    use opentelemetry::trace::{SpanContext, SpanId, SpanKind, StatusCode, TraceId, TraceState};
+    use opentelemetry::trace::{SpanContext, SpanId, StatusCode, TraceId, TraceState};
 
     use crate::trace::{SpanAggregator, TracezMessage};
     use opentelemetry::sdk::export::trace::SpanData;
-    use opentelemetry::sdk::trace::{EvictedHashMap, EvictedQueue};
+    use opentelemetry::testing::trace::new_test_export_span_data;
     use std::borrow::Cow;
 
     #[tokio::test]
@@ -203,17 +221,21 @@ mod tests {
                 .summaries
                 .get::<String>(&"test-service".to_string())
                 .unwrap();
-            assert_eq!(summary.running_sample_spans.len(), 0);
-            assert_eq!(summary.running_num, 0);
+            assert_eq!(summary.running.examples.len(), 0);
+            assert_eq!(summary.running.count, 0);
             assert_eq!(
-                summary.latency_sample_spans[1]
+                summary
+                    .latencies
+                    .get(0)
+                    .unwrap()
+                    .examples
                     .get(0)
                     .unwrap()
                     .span_context
                     .span_id(),
                 SpanId::from_u64(12)
             );
-            assert_eq!(summary.latency[1], 1);
+            assert_eq!(summary.latencies.get(0).unwrap().count, 1);
         });
 
         let span = SpanData {
@@ -224,18 +246,11 @@ mod tests {
                 true,
                 TraceState::default(),
             ),
-            parent_span_id: SpanId::invalid(),
-            span_kind: SpanKind::Client,
             name: Cow::from("test-service".to_string()),
             start_time: SystemTime::now(),
             end_time: SystemTime::now(),
-            attributes: EvictedHashMap::new(12, 20),
-            events: EvictedQueue::new(12),
-            links: EvictedQueue::new(12),
             status_code: StatusCode::Ok,
-            status_message: Cow::from("".to_string()),
-            resource: Some(Arc::new(Default::default())),
-            instrumentation_lib: Default::default(),
+            ..new_test_export_span_data()
         };
         sender.send(TracezMessage::SampleSpan(span.clone())).await?;
 
