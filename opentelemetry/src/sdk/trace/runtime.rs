@@ -2,7 +2,7 @@
 //! Trace runtime is an extension to [`Runtime`]. Currently it provides a channel that used
 //! by [`BatchSpanProcessor`].
 //!
-//! [`BatchSpanProcessor`]: crate::sdk::trace::span_processor::BatchSpanProcessor
+//! [`BatchSpanProcessor`]: crate::sdk::trace::BatchSpanProcessor
 //! [`Runtime`]: crate::runtime::Runtime
 #[cfg(feature = "rt-async-std")]
 use crate::runtime::AsyncStd;
@@ -34,7 +34,7 @@ const CHANNEL_CLOSED_ERROR: &str =
 /// Trace runtime is an extension to [`Runtime`]. Currently it provides a channel that used
 /// by [`BatchSpanProcessor`].
 ///
-/// [`BatchSpanProcessor`]: crate::sdk::trace::span_processor::BatchSpanProcessor
+/// [`BatchSpanProcessor`]: crate::sdk::trace::BatchSpanProcessor
 /// [`Runtime`]: crate::runtime::Runtime
 pub trait TraceRuntime: Runtime {
     /// A future stream to receive the batch messages from channels.

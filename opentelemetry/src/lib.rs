@@ -1,5 +1,3 @@
-//! The Rust [OpenTelemetry](https://opentelemetry.io/) implementation.
-//!
 //! OpenTelemetry provides a single set of APIs, libraries, agents, and collector
 //! services to capture distributed traces and metrics from your application. You
 //! can analyze them using [Prometheus], [Jaeger], and other observability tools.
@@ -10,30 +8,95 @@
 //! [Jaeger]: https://www.jaegertracing.io
 //! [msrv]: #supported-rust-versions
 //!
-//! ## Getting Started
+//! # Getting Started
 //!
 //! ```no_run
 //! # #[cfg(feature = "trace")]
 //! # {
-//! use opentelemetry::{sdk::export::trace::stdout, trace::Tracer, global};
+//! use opentelemetry::{global, sdk::export::trace::stdout, trace::Tracer};
 //!
-//! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-//!     // Create a new instrumentation pipeline
+//! fn main() {
+//!     // Create a new trace pipeline that prints to stdout
 //!     let tracer = stdout::new_pipeline().install_simple();
 //!
 //!     tracer.in_span("doing_work", |cx| {
 //!         // Traced app logic here...
 //!     });
 //!
-//!     global::shutdown_tracer_provider(); // sending remaining spans
-//!
-//!     Ok(())
+//!     // Shutdown trace pipeline
+//!     global::shutdown_tracer_provider();
 //! }
-//! }
+//! # }
 //! ```
 //!
-//! See the [examples](https://github.com/open-telemetry/opentelemetry-rust/tree/main/examples)
-//! directory for different integration patterns.
+//! See the [examples] directory for different integration patterns.
+//!
+//! [examples]: https://github.com/open-telemetry/opentelemetry-rust/tree/main/examples
+//!
+//! # Traces
+//!
+//! The [`trace`] module includes types for tracking the progression of a single
+//! request while it is handled by services that make up an application. A trace
+//! is a tree of [`Span`]s which are objects that represent the work being done
+//! by individual services or components involved in a request as it flows
+//! through a system.
+//!
+//! ### Creating and exporting spans
+//!
+//! ```
+//! # #[cfg(feature = "trace")]
+//! # {
+//! use opentelemetry::{global, trace::{Span, Tracer}, KeyValue};
+//!
+//! // get a tracer from a provider
+//! let tracer = global::tracer("my_service");
+//!
+//! // start a new span
+//! let mut span = tracer.start("my_span");
+//!
+//! // set some attributes
+//! span.set_attribute(KeyValue::new("http.client_ip", "83.164.160.102"));
+//!
+//! // perform some more work...
+//!
+//! // end or drop the span to export
+//! span.end();
+//! # }
+//! ```
+//!
+//! See the [`trace`] module docs for more information on creating and managing
+//! spans.
+//!
+//! [`Span`]: crate::trace::Span
+//!
+//! # Metrics
+//!
+//! Note: the metrics specification is **still in progress** and **subject to major
+//! changes**.
+//!
+//! The [`metrics`] module includes types for recording measurements about a
+//! service at runtime.
+//!
+//! ### Creating instruments and recording measurements
+//!
+//! ```
+//! # #[cfg(feature = "metrics")]
+//! # {
+//! use opentelemetry::{global, KeyValue};
+//!
+//! // get a meter from a provider
+//! let meter = global::meter("my_service");
+//!
+//! // create an instrument
+//! let counter = meter.u64_counter("my_counter").init();
+//!
+//! // record a measurement
+//! counter.add(1, &[KeyValue::new("http.client_ip", "83.164.160.102")]);
+//! # }
+//! ```
+//!
+//! See the [`metrics`] module docs for more information on creating and
+//! managing instruments.
 //!
 //! ## Crate Feature Flags
 //!
@@ -53,28 +116,6 @@
 //! [tokio]: https://crates.io/crates/tokio
 //! [async-std]: https://crates.io/crates/async-std
 //! [serde]: https://crates.io/crates/serde
-//!
-//! ## Working with runtimes
-//!
-//! Opentelemetry API & SDK supports different runtimes. When working with async runtime, we recommend
-//! to use batch span processors where the spans will be sent in batch, reducing the number of requests
-//! and resource needed.
-//!
-//! Batch span processors need to run a background task to collect and send spans. Different runtimes
-//! need different ways to handle the background task. Using a `Runtime` that's not compatible with the
-//! underlying runtime can cause deadlock.
-//!
-//! ### Tokio
-//!
-//! Tokio currently offers two different schedulers. One is `current_thread_scheduler`, the other is
-//! `multiple_thread_scheduler`. Both of them default to use batch span processors to install span exporters.
-//!
-//! But for `current_thread_scheduler`. It can cause the program to hang forever if we schedule the backgroud
-//! task with other tasks in the same runtime. Thus, users should enable `rt-tokio-current-thread` feature
-//! to ask the background task be scheduled on a different runtime on a different thread.
-//!
-//! Note that by default `#[tokio::test]` uses `current_thread_scheduler` and should use `rt-tokio-current-thread`
-//! feature.
 //!
 //! ## Related Crates
 //!
@@ -180,7 +221,7 @@ pub mod global;
 pub mod sdk;
 
 #[cfg(feature = "testing")]
-#[allow(missing_docs)]
+#[doc(hidden)]
 pub mod testing;
 
 pub mod baggage;

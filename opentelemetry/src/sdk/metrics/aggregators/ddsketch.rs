@@ -7,7 +7,7 @@
 //!
 //! DDSKetch, on the contrary, employs relative error rate that could work well on long tail dataset.
 //!
-//! The detail of this algorithm can be found in https://arxiv.org/pdf/1908.10693
+//! The detail of this algorithm can be found in <https://arxiv.org/pdf/1908.10693>
 
 use std::{
     any::Any,

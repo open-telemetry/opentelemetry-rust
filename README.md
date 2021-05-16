@@ -34,17 +34,18 @@ observability tools.
 ## Getting Started
 
 ```rust
-use opentelemetry::{sdk::export::trace::stdout, trace::Tracer};
+use opentelemetry::{global, sdk::export::trace::stdout, trace::Tracer};
 
-fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    // Create a new instrumentation pipeline
+fn main() {
+    // Create a new trace pipeline that prints to stdout
     let tracer = stdout::new_pipeline().install_simple();
 
     tracer.in_span("doing_work", |cx| {
         // Traced app logic here...
     });
 
-    Ok(())
+    // Shutdown trace pipeline
+    global::shutdown_tracer_provider();
 }
 ```
 
@@ -76,7 +77,7 @@ In particular, the following crates are likely to be of interest:
   otel conventions.
 - [`opentelemetry-stackdriver`] provides an exporter for Google's [Cloud Trace]
   (which used to be called StackDriver).
-  
+
 Additionally, there are also several third-party crates which are not
 maintained by the `opentelemetry` project. These include:
 
@@ -88,7 +89,6 @@ maintained by the `opentelemetry` project. These include:
   Application Insights] exporter.
 - [`opentelemetry-tide`] provides integration for the [`Tide`] web server and
   ecosystem.
-
 
 If you're the maintainer of an `opentelemetry` ecosystem crate not listed
 above, please let us know! We'd love to add your project to the list!

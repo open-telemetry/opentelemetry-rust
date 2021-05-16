@@ -6,7 +6,7 @@
 //! The `Tracer` is responsible for tracking the currently active `Span`,
 //! and exposes methods for creating and activating new `Spans`.
 //!
-//! Docs: https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/api-tracing.md#tracer
+//! Docs: <https://github.com/open-telemetry/opentelemetry-specification/blob/v1.3.0/specification/trace/api.md#tracer>
 use crate::sdk::trace::SpanLimits;
 use crate::sdk::{
     trace::{
