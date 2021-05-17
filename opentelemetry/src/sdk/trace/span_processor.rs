@@ -294,7 +294,7 @@ impl BatchSpanProcessor {
         R: Runtime,
     {
         let (mut tx_export, rx_export) = mpsc::channel(config.max_queue_size);
-        let (tx_span, rx_span) = crossbeam_channel::bounded::<BatchMessage>(config.max_queue_size);
+        let (tx_span, rx_span) = crossbeam_channel::unbounded::<BatchMessage>();
         let ticker = runtime
             .interval(config.scheduled_delay)
             .map(|_| BatchMessage::Flush(None));
