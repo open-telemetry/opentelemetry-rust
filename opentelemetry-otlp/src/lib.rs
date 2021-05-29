@@ -394,7 +394,7 @@ impl TonicPipelineBuilder {
         Ok(build_simple_with_exporter(exporter, self.trace_config))
     }
 
-    /// Install a trace exporter using [tonic] as grpc lazer and a batch span processor using the
+    /// Install a trace exporter using [tonic] as grpc layer and a batch span processor using the
     /// specified runtime.
     ///
     /// Returns a [`Tracer`] with the name `opentelemetry-otlp` and current crate version.
