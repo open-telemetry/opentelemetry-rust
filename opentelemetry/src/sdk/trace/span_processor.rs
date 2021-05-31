@@ -238,8 +238,7 @@ impl<R: Runtime> SpanProcessor for BatchSpanProcessor<R> {
 
     fn force_flush(&self) -> TraceResult<()> {
         let (res_sender, res_receiver) = oneshot::channel();
-        &self
-            .message_sender
+        self.message_sender
             .try_send(BatchMessage::Flush(Some(res_sender)))?;
 
         futures::executor::block_on(res_receiver)
@@ -249,8 +248,7 @@ impl<R: Runtime> SpanProcessor for BatchSpanProcessor<R> {
 
     fn shutdown(&mut self) -> TraceResult<()> {
         let (res_sender, res_receiver) = oneshot::channel();
-        &self
-            .message_sender
+        self.message_sender
             .try_send(BatchMessage::Shutdown(res_sender))?;
 
         futures::executor::block_on(res_receiver)

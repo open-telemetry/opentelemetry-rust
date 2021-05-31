@@ -12,6 +12,21 @@ use futures::{future::BoxFuture, Stream};
 use std::fmt::Debug;
 use std::{future::Future, time::Duration};
 
+#[cfg(any(
+    feature = "rt-tokio",
+    feature = "rt-tokio-current-thread",
+    feature = "rt-async-std"
+))]
+const CHANNEL_FULL_ERROR: &str =
+    "cannot send span to the batch span processor because the channel is full";
+#[cfg(any(
+    feature = "rt-tokio",
+    feature = "rt-tokio-current-thread",
+    feature = "rt-async-std"
+))]
+const CHANNEL_CLOSED_ERROR: &str =
+    "cannot send span to the batch span processor because the channel is closed";
+
 /// A runtime is an abstraction of an async runtime like [Tokio] or [async-std]. It allows
 /// OpenTelemetry to work with any current and hopefully future runtime implementation.
 ///
@@ -65,10 +80,11 @@ pub trait TrySend: Sync + Send {
 #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
 impl TrySend for tokio::sync::mpsc::Sender<BatchMessage> {
     fn try_send(&self, item: BatchMessage) -> Result<(), TraceError> {
-        self.try_send(item).map_err(|_err| {
-            TraceError::from(
-                "cannot send message to batch span processor because the channel is full",
-            )
+        self.try_send(item).map_err(|err| match err {
+            tokio::sync::mpsc::error::TrySendError::Full(_) => TraceError::from(CHANNEL_FULL_ERROR),
+            tokio::sync::mpsc::error::TrySendError::Closed(_) => {
+                TraceError::from(CHANNEL_CLOSED_ERROR)
+            }
         })
     }
 }
@@ -164,10 +180,9 @@ pub struct AsyncStd;
 #[cfg(feature = "rt-async-std")]
 impl TrySend for async_std::channel::Sender<BatchMessage> {
     fn try_send(&self, item: BatchMessage) -> Result<(), TraceError> {
-        self.try_send(item).map_err(|_err| {
-            TraceError::from(
-                "cannot send message to batch span processor because the channel is full",
-            )
+        self.try_send(item).map_err(|err| match err {
+            async_std::channel::TrySendError::Full(_) => TraceError::from(CHANNEL_FULL_ERROR),
+            async_std::channel::TrySendError::Closed(_) => TraceError::from(CHANNEL_CLOSED_ERROR),
         })
     }
 }
