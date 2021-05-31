@@ -146,7 +146,7 @@
 #![cfg_attr(docsrs, feature(doc_cfg), deny(broken_intra_doc_links))]
 #![cfg_attr(test, deny(warnings))]
 
-use opentelemetry::{global, runtime::Runtime, sdk, trace::TracerProvider};
+use opentelemetry::{global, sdk, sdk::trace::TraceRuntime, trace::TracerProvider};
 
 #[cfg(any(feature = "grpc-sys", feature = "http-proto"))]
 use std::collections::HashMap;
@@ -403,7 +403,10 @@ impl TonicPipelineBuilder {
     ///
     /// [`Tracer`]: opentelemetry::trace::Tracer
     /// [tonic]: https://github.com/hyperium/tonic
-    pub fn install_batch<R: Runtime>(self, runtime: R) -> Result<sdk::trace::Tracer, TraceError> {
+    pub fn install_batch<R: TraceRuntime>(
+        self,
+        runtime: R,
+    ) -> Result<sdk::trace::Tracer, TraceError> {
         let exporter = match self.channel {
             Some(channel) => {
                 TraceExporter::from_tonic_channel(self.exporter_config, self.tonic_config, channel)
@@ -488,7 +491,10 @@ impl GrpcioPipelineBuilder {
     ///
     /// [`Tracer`]: opentelemetry::trace::Tracer
     /// [grpcio]: https://github.com/tikv/grpc-rs
-    pub fn install_batch<R: Runtime>(self, runtime: R) -> Result<sdk::trace::Tracer, TraceError> {
+    pub fn install_batch<R: TraceRuntime>(
+        self,
+        runtime: R,
+    ) -> Result<sdk::trace::Tracer, TraceError> {
         let exporter = TraceExporter::new_grpcio(self.exporter_config, self.grpcio_config);
         Ok(build_batch_with_exporter(
             exporter,
@@ -551,7 +557,10 @@ impl HttpPipelineBuilder {
     /// `install_batch` will panic if not called within a tokio runtime
     ///
     /// [`Tracer`]: opentelemetry::trace::Tracer
-    pub fn install_batch<R: Runtime>(self, runtime: R) -> Result<sdk::trace::Tracer, TraceError> {
+    pub fn install_batch<R: TraceRuntime>(
+        self,
+        runtime: R,
+    ) -> Result<sdk::trace::Tracer, TraceError> {
         let exporter = TraceExporter::new_http(self.exporter_config, self.http_config)?;
         Ok(build_batch_with_exporter(
             exporter,
@@ -575,7 +584,7 @@ fn build_simple_with_exporter(
     tracer
 }
 
-fn build_batch_with_exporter<R: Runtime>(
+fn build_batch_with_exporter<R: TraceRuntime>(
     exporter: TraceExporter,
     trace_config: Option<sdk::trace::Config>,
     runtime: R,

@@ -35,7 +35,7 @@
 //! [`TracerProvider`]: crate::trace::TracerProvider
 
 use crate::global;
-use crate::runtime::{Runtime, TrySend};
+use crate::sdk::trace::runtime::{TraceRuntime, TrySend};
 use crate::sdk::trace::Span;
 use crate::{
     sdk::export::trace::{ExportResult, SpanData, SpanExporter},
@@ -211,11 +211,11 @@ impl SpanProcessor for SimpleSpanProcessor {
 /// [`executor`]: https://docs.rs/futures/0.3/futures/executor/index.html
 /// [`tokio`]: https://tokio.rs
 /// [`async-std`]: https://async.rs
-pub struct BatchSpanProcessor<R: Runtime> {
+pub struct BatchSpanProcessor<R: TraceRuntime> {
     message_sender: R::Sender,
 }
 
-impl<R: Runtime> fmt::Debug for BatchSpanProcessor<R> {
+impl<R: TraceRuntime> fmt::Debug for BatchSpanProcessor<R> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("BatchSpanProcessor")
             .field("message_sender", &self.message_sender)
@@ -223,7 +223,7 @@ impl<R: Runtime> fmt::Debug for BatchSpanProcessor<R> {
     }
 }
 
-impl<R: Runtime> SpanProcessor for BatchSpanProcessor<R> {
+impl<R: TraceRuntime> SpanProcessor for BatchSpanProcessor<R> {
     fn on_start(&self, _span: &Span, _cx: &Context) {
         // Ignored
     }
@@ -269,7 +269,7 @@ pub enum BatchMessage {
     Shutdown(oneshot::Sender<ExportResult>),
 }
 
-impl<R: Runtime> BatchSpanProcessor<R> {
+impl<R: TraceRuntime> BatchSpanProcessor<R> {
     pub(crate) fn new(
         mut exporter: Box<dyn SpanExporter>,
         config: BatchConfig,
@@ -380,7 +380,7 @@ async fn export_with_timeout<R, E>(
     batch: Vec<SpanData>,
 ) -> ExportResult
 where
-    R: Runtime,
+    R: TraceRuntime,
     E: SpanExporter + ?Sized,
 {
     if batch.is_empty() {
@@ -479,7 +479,7 @@ pub struct BatchSpanProcessorBuilder<E, R> {
 impl<E, R> BatchSpanProcessorBuilder<E, R>
 where
     E: SpanExporter + 'static,
-    R: Runtime,
+    R: TraceRuntime,
 {
     /// Set max queue size for batches
     pub fn with_max_queue_size(self, size: usize) -> Self {

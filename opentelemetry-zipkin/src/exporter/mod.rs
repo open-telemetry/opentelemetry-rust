@@ -5,10 +5,9 @@ use async_trait::async_trait;
 use http::Uri;
 use model::endpoint::Endpoint;
 use opentelemetry::{
-    global,
-    runtime::Runtime,
-    sdk,
+    global, sdk,
     sdk::export::{trace, ExportError},
+    sdk::trace::TraceRuntime,
     trace::{TraceError, TracerProvider},
 };
 use opentelemetry_http::HttpClient;
@@ -120,7 +119,7 @@ impl ZipkinPipelineBuilder {
 
     /// Install the Zipkin trace exporter pipeline with a batch span processor using the specified
     /// runtime.
-    pub fn install_batch<R: Runtime>(
+    pub fn install_batch<R: TraceRuntime>(
         mut self,
         runtime: R,
     ) -> Result<sdk::trace::Tracer, TraceError> {

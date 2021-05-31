@@ -6,26 +6,8 @@
 //! [Tokio]: https://crates.io/crates/tokio
 //! [async-std]: https://crates.io/crates/async-std
 
-use crate::sdk::trace::BatchMessage;
-use crate::trace::TraceError;
 use futures::{future::BoxFuture, Stream};
-use std::fmt::Debug;
 use std::{future::Future, time::Duration};
-
-#[cfg(any(
-    feature = "rt-tokio",
-    feature = "rt-tokio-current-thread",
-    feature = "rt-async-std"
-))]
-const CHANNEL_FULL_ERROR: &str =
-    "cannot send span to the batch span processor because the channel is full";
-#[cfg(any(
-    feature = "rt-tokio",
-    feature = "rt-tokio-current-thread",
-    feature = "rt-async-std"
-))]
-const CHANNEL_CLOSED_ERROR: &str =
-    "cannot send span to the batch span processor because the channel is closed";
 
 /// A runtime is an abstraction of an async runtime like [Tokio] or [async-std]. It allows
 /// OpenTelemetry to work with any current and hopefully future runtime implementation.
@@ -40,12 +22,6 @@ pub trait Runtime: Clone + Send + Sync + 'static {
     /// A future, which resolves after a previously specified amount of time. The output type is
     /// not important.
     type Delay: Future + Send;
-
-    /// A future stream to receive the batch messages from channels.
-    type Receiver: Stream<Item = BatchMessage> + Send;
-
-    /// A batch messages sender that could be sent across thread safely.
-    type Sender: TrySend + Debug;
 
     /// Create a [Stream][futures::Stream], which returns a new item every
     /// [Duration][std::time::Duration].
@@ -64,29 +40,6 @@ pub trait Runtime: Clone + Send + Sync + 'static {
 
     /// Return a new future, which resolves after the specified [Duration][std::time::Duration].
     fn delay(&self, duration: Duration) -> Self::Delay;
-
-    /// Return the sender and receiver used to send batch message between tasks.
-    fn batch_message_channel(&self, capacity: usize) -> (Self::Sender, Self::Receiver);
-}
-
-/// TrySend is an abstraction of sender that is capable to send BatchMessage with reference.
-pub trait TrySend: Sync + Send {
-    /// Try to send one batch message to worker thread.
-    ///
-    /// It can fail because either the receiver has closed or the buffer is full.
-    fn try_send(&self, item: BatchMessage) -> Result<(), TraceError>;
-}
-
-#[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
-impl TrySend for tokio::sync::mpsc::Sender<BatchMessage> {
-    fn try_send(&self, item: BatchMessage) -> Result<(), TraceError> {
-        self.try_send(item).map_err(|err| match err {
-            tokio::sync::mpsc::error::TrySendError::Full(_) => TraceError::from(CHANNEL_FULL_ERROR),
-            tokio::sync::mpsc::error::TrySendError::Closed(_) => {
-                TraceError::from(CHANNEL_CLOSED_ERROR)
-            }
-        })
-    }
 }
 
 /// Runtime implementation, which works with Tokio's multi thread runtime.
@@ -100,8 +53,6 @@ pub struct Tokio;
 impl Runtime for Tokio {
     type Interval = tokio_stream::wrappers::IntervalStream;
     type Delay = tokio::time::Sleep;
-    type Receiver = tokio_stream::wrappers::ReceiverStream<BatchMessage>;
-    type Sender = tokio::sync::mpsc::Sender<BatchMessage>;
 
     fn interval(&self, duration: Duration) -> Self::Interval {
         crate::util::tokio_interval_stream(duration)
@@ -113,14 +64,6 @@ impl Runtime for Tokio {
 
     fn delay(&self, duration: Duration) -> Self::Delay {
         tokio::time::sleep(duration)
-    }
-
-    fn batch_message_channel(&self, capacity: usize) -> (Self::Sender, Self::Receiver) {
-        let (sender, receiver) = tokio::sync::mpsc::channel(capacity);
-        (
-            sender,
-            tokio_stream::wrappers::ReceiverStream::new(receiver),
-        )
     }
 }
 
@@ -135,8 +78,6 @@ pub struct TokioCurrentThread;
 impl Runtime for TokioCurrentThread {
     type Interval = tokio_stream::wrappers::IntervalStream;
     type Delay = tokio::time::Sleep;
-    type Receiver = tokio_stream::wrappers::ReceiverStream<BatchMessage>;
-    type Sender = tokio::sync::mpsc::Sender<BatchMessage>;
 
     fn interval(&self, duration: Duration) -> Self::Interval {
         crate::util::tokio_interval_stream(duration)
@@ -161,14 +102,6 @@ impl Runtime for TokioCurrentThread {
     fn delay(&self, duration: Duration) -> Self::Delay {
         tokio::time::sleep(duration)
     }
-
-    fn batch_message_channel(&self, capacity: usize) -> (Self::Sender, Self::Receiver) {
-        let (sender, receiver) = tokio::sync::mpsc::channel(capacity);
-        (
-            sender,
-            tokio_stream::wrappers::ReceiverStream::new(receiver),
-        )
-    }
 }
 
 /// Runtime implementation, which works with async-std.
@@ -178,22 +111,10 @@ impl Runtime for TokioCurrentThread {
 pub struct AsyncStd;
 
 #[cfg(feature = "rt-async-std")]
-impl TrySend for async_std::channel::Sender<BatchMessage> {
-    fn try_send(&self, item: BatchMessage) -> Result<(), TraceError> {
-        self.try_send(item).map_err(|err| match err {
-            async_std::channel::TrySendError::Full(_) => TraceError::from(CHANNEL_FULL_ERROR),
-            async_std::channel::TrySendError::Closed(_) => TraceError::from(CHANNEL_CLOSED_ERROR),
-        })
-    }
-}
-
-#[cfg(feature = "rt-async-std")]
 #[cfg_attr(docsrs, doc(cfg(feature = "rt-async-std")))]
 impl Runtime for AsyncStd {
     type Interval = async_std::stream::Interval;
     type Delay = BoxFuture<'static, ()>;
-    type Receiver = async_std::channel::Receiver<BatchMessage>;
-    type Sender = async_std::channel::Sender<BatchMessage>;
 
     fn interval(&self, duration: Duration) -> Self::Interval {
         async_std::stream::interval(duration)
@@ -205,9 +126,5 @@ impl Runtime for AsyncStd {
 
     fn delay(&self, duration: Duration) -> Self::Delay {
         Box::pin(async_std::task::sleep(duration))
-    }
-
-    fn batch_message_channel(&self, capacity: usize) -> (Self::Sender, Self::Receiver) {
-        async_std::channel::bounded(capacity)
     }
 }

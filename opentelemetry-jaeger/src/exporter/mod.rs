@@ -23,10 +23,9 @@ use isahc::prelude::Configurable;
 use opentelemetry::sdk::export::ExportError;
 use opentelemetry::trace::TraceError;
 use opentelemetry::{
-    global,
-    runtime::Runtime,
-    sdk,
+    global, sdk,
     sdk::export::trace,
+    sdk::trace::TraceRuntime,
     trace::{Event, Link, SpanKind, StatusCode, TracerProvider},
     Key, KeyValue,
 };
@@ -268,7 +267,10 @@ impl PipelineBuilder {
     }
 
     /// Install a Jaeger pipeline with a batch span processor using the specified runtime.
-    pub fn install_batch<R: Runtime>(self, runtime: R) -> Result<sdk::trace::Tracer, TraceError> {
+    pub fn install_batch<R: TraceRuntime>(
+        self,
+        runtime: R,
+    ) -> Result<sdk::trace::Tracer, TraceError> {
         let tracer_provider = self.build_batch(runtime)?;
         let tracer =
             tracer_provider.get_tracer("opentelemetry-jaeger", Some(env!("CARGO_PKG_VERSION")));
@@ -290,7 +292,7 @@ impl PipelineBuilder {
 
     /// Build a configured `sdk::trace::TracerProvider` with a batch span processor using the
     /// specified runtime.
-    pub fn build_batch<R: Runtime>(
+    pub fn build_batch<R: TraceRuntime>(
         mut self,
         runtime: R,
     ) -> Result<sdk::trace::TracerProvider, TraceError> {
