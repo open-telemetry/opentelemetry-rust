@@ -24,6 +24,7 @@ members = [
     "examples/external-otlp-tonic-tokio",
     "examples/grpc",
     "examples/http",
+    "examples/hyper-prometheus",
     "examples/tracing-grpc",
     "examples/zipkin",
     "examples/multiple-span-processors"
