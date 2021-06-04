@@ -4,7 +4,7 @@ extern crate lazy_static;
 use hyper::{
     header::CONTENT_TYPE,
     service::{make_service_fn, service_fn},
-    Body, Request, Response, Server,
+    Body, Method, Request, Response, Server,
 };
 use opentelemetry::{
     global,
@@ -22,29 +22,41 @@ lazy_static! {
 }
 
 async fn serve_req(
-    _req: Request<Body>,
+    req: Request<Body>,
     state: Arc<AppState>,
 ) -> Result<Response<Body>, hyper::Error> {
+    println!("Receiving request at path {}", req.uri());
     let request_start = SystemTime::now();
 
-    let mut buffer = vec![];
-    let encoder = TextEncoder::new();
-    let metric_families = state.exporter.registry().gather();
-    encoder.encode(&metric_families, &mut buffer).unwrap();
-
     state.http_counter.add(1);
-    state.http_body_gauge.record(buffer.len() as u64);
 
-    let response = Response::builder()
-        .status(200)
-        .header(CONTENT_TYPE, encoder.format_type())
-        .body(Body::from(buffer))
-        .unwrap();
+    let response = match (req.method(), req.uri().path()) {
+        (&Method::GET, "/metrics") => {
+            let mut buffer = vec![];
+            let encoder = TextEncoder::new();
+            let metric_families = state.exporter.registry().gather();
+            encoder.encode(&metric_families, &mut buffer).unwrap();
+            state.http_body_gauge.record(buffer.len() as u64);
+
+            Response::builder()
+                .status(200)
+                .header(CONTENT_TYPE, encoder.format_type())
+                .body(Body::from(buffer))
+                .unwrap()
+        }
+        (&Method::GET, "/") => Response::builder()
+            .status(200)
+            .body(Body::from("Hello World"))
+            .unwrap(),
+        _ => Response::builder()
+            .status(404)
+            .body(Body::from("Missing Page"))
+            .unwrap(),
+    };
 
     state
         .http_req_histogram
         .record(request_start.elapsed().map_or(0.0, |d| d.as_secs_f64()));
-
     Ok(response)
 }
 
@@ -69,7 +81,7 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             .bind(HANDLER_ALL.as_ref()),
         http_body_gauge: meter
             .u64_value_recorder("example.http_response_size_bytes")
-            .with_description("The HTTP response sizes in bytes.")
+            .with_description("The metrics HTTP response sizes in bytes.")
             .init()
             .bind(HANDLER_ALL.as_ref()),
         http_req_histogram: meter

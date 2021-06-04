@@ -513,10 +513,18 @@ impl sdk_api::SyncBoundInstrumentCore for Record {
     }
 }
 
-#[derive(Debug)]
 struct Instrument {
     descriptor: Descriptor,
     meter: Accumulator,
+}
+
+impl std::fmt::Debug for Instrument {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Instrument")
+            .field("descriptor", &self.descriptor)
+            .field("meter", &"Accumulator")
+            .finish()
+    }
 }
 
 impl sdk_api::InstrumentCore for Instrument {
@@ -577,5 +585,26 @@ impl sdk_api::MeterCore for Accumulator {
 
     fn new_batch_observer(&self, runner: AsyncRunner) -> Result<()> {
         self.0.register_runner(runner)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::metrics::MeterProvider;
+    use crate::sdk::export::metrics::ExportKindSelector;
+    use crate::sdk::metrics::controllers::pull;
+    use crate::sdk::metrics::selectors::simple::Selector;
+
+    // Prevent the debug message to get into loop
+    #[test]
+    fn test_debug_message() {
+        let controller = pull(
+            Box::new(Selector::Exact),
+            Box::new(ExportKindSelector::Delta),
+        )
+        .build();
+        let meter = controller.provider().meter("test", None);
+        let counter = meter.f64_counter("test").init();
+        println!("{:?}, {:?}, {:?}", controller, meter, counter);
     }
 }

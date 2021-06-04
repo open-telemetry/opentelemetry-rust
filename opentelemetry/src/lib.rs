@@ -60,8 +60,9 @@
 //! to use batch span processors where the spans will be sent in batch, reducing the number of requests
 //! and resource needed.
 //!
-//! Batch span processors need to run a background task to collect and send spans. Different runtime
-//! needs different ways to handle the background task.
+//! Batch span processors need to run a background task to collect and send spans. Different runtimes
+//! need different ways to handle the background task. Using a `Runtime` that's not compatible with the
+//! underlying runtime can cause deadlock.
 //!
 //! ### Tokio
 //!
@@ -71,6 +72,9 @@
 //! But for `current_thread_scheduler`. It can cause the program to hang forever if we schedule the backgroud
 //! task with other tasks in the same runtime. Thus, users should enable `rt-tokio-current-thread` feature
 //! to ask the background task be scheduled on a different runtime on a different thread.
+//!
+//! Note that by default `#[tokio::test]` uses `current_thread_scheduler` and should use `rt-tokio-current-thread`
+//! feature.
 //!
 //! ## Related Crates
 //!
