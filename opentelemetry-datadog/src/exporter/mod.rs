@@ -7,9 +7,9 @@ pub use model::Error;
 use async_trait::async_trait;
 use http::{Method, Request, Uri};
 use itertools::Itertools;
-use opentelemetry::runtime::Runtime;
 use opentelemetry::sdk::export::trace;
 use opentelemetry::sdk::export::trace::SpanData;
+use opentelemetry::sdk::trace::TraceRuntime;
 use opentelemetry::trace::TraceError;
 use opentelemetry::{global, sdk, trace::TracerProvider};
 use opentelemetry_http::{HttpClient, ResponseExt};
@@ -127,7 +127,7 @@ impl DatadogPipelineBuilder {
 
     /// Install the Datadog trace exporter pipeline using a batch span processor with the specified
     /// runtime.
-    pub fn install_batch<R: Runtime>(
+    pub fn install_batch<R: TraceRuntime>(
         mut self,
         runtime: R,
     ) -> Result<sdk::trace::Tracer, TraceError> {

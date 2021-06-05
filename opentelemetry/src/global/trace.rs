@@ -328,8 +328,9 @@ pub fn force_flush_tracer_provider() {
 // threads Use cargo test -- --ignored --test-threads=1 to run those tests.
 mod tests {
     use super::*;
+    use crate::sdk::trace::TraceRuntime;
     use crate::{
-        runtime::{self, Runtime},
+        runtime,
         trace::{NoopTracer, Tracer},
     };
     use std::{
@@ -479,7 +480,7 @@ mod tests {
         assert!(second_resp.contains("thread 2"));
     }
 
-    fn build_batch_tracer_provider<R: Runtime>(
+    fn build_batch_tracer_provider<R: TraceRuntime>(
         assert_writer: AssertWriter,
         runtime: R,
     ) -> crate::sdk::trace::TracerProvider {
@@ -500,7 +501,7 @@ mod tests {
             .build()
     }
 
-    async fn test_set_provider_in_tokio<R: Runtime>(runtime: R) -> AssertWriter {
+    async fn test_set_provider_in_tokio<R: TraceRuntime>(runtime: R) -> AssertWriter {
         let buffer = AssertWriter::new();
         let _ = set_tracer_provider(build_batch_tracer_provider(buffer.clone(), runtime));
         let tracer = tracer("opentelemetery");
