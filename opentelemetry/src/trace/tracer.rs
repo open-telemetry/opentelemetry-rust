@@ -313,7 +313,7 @@ pub trait Tracer: fmt::Debug + 'static {
 /// `SpanBuilder` allows span attributes to be configured before the span
 /// has started.
 ///
-/// ```rust
+/// ```
 /// use opentelemetry::{
 ///     global,
 ///     trace::{TracerProvider, SpanBuilder, SpanKind, Tracer},

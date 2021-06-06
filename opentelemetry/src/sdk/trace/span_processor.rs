@@ -171,6 +171,24 @@ impl SpanProcessor for SimpleSpanProcessor {
 /// A [`SpanProcessor`] that asynchronously buffers finished spans and reports
 /// them at a preconfigured interval.
 ///
+/// Batch span processors need to run a background task to collect and send
+/// spans. Different runtimes need different ways to handle the background task.
+///
+/// Note: Configuring an opentelemetry `Runtime` that's not compatible with the
+/// underlying runtime can cause deadlocks (see tokio section).
+///
+/// ### Use with Tokio
+///
+/// Tokio currently offers two different schedulers. One is
+/// `current_thread_scheduler`, the other is `multiple_thread_scheduler`. Both
+/// of them default to use batch span processors to install span exporters.
+///
+/// Tokio's `current_thread_scheduler` can cause the program to hang forever if
+/// blocking work is scheduled with other tasks in the same runtime. To avoid
+/// this, be sure to enable the `rt-tokio-current-thread` feature in this crate
+/// if you are using that runtime (e.g. users of actix-web), and blocking tasks
+/// will then be scheduled on a different thread.
+///
 /// # Examples
 ///
 /// This processor can be configured with an [`executor`] of your choice to
@@ -191,9 +209,7 @@ impl SpanProcessor for SimpleSpanProcessor {
 ///     // Configure your preferred exporter
 ///     let exporter = apitrace::NoopSpanExporter::new();
 ///
-///     // Then build a batch processor. You can use whichever executor you have available, for
-///     // example if you are using `async-std` instead of `tokio` you can replace the spawn and
-///     // interval functions with `async_std::task::spawn` and `async_std::stream::interval`.
+///     // Create a batch span processor using an exporter and a runtime
 ///     let batch = sdktrace::BatchSpanProcessor::builder(exporter, runtime::Tokio)
 ///         .with_max_queue_size(4096)
 ///         .build();

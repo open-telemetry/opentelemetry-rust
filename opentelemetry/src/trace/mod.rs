@@ -1,115 +1,171 @@
-//! # OpenTelemetry Tracing API.
+//! The `trace` module includes types for tracking the progression of a single
+//! request while it is handled by services that make up an application. A trace
+//! is a tree of [`Span`]s which are objects that represent the work being done
+//! by individual services or components involved in a request as it flows
+//! through a system. This module implements the OpenTelemetry [trace
+//! specification].
 //!
-//! The tracing API consists of a few main traits:
+//! [trace specification]: https://github.com/open-telemetry/opentelemetry-specification/blob/v1.3.0/specification/trace/api.md
 //!
-//! * The `Tracer` trait which describes all tracing operations.
-//! * The `Span` trait with is a mutable object storing information about the
-//! current operation execution.
-//! * The `SpanContext` struct is the portion of a `Span` which must be
-//! serialized and propagated along side of a distributed context
+//! ## Getting Started
 //!
-//! ## Tracer
+//! In application code:
 //!
-//! The OpenTelemetry library achieves in-process context propagation of `Span`s by
-//! way of the `Tracer`.
+//! ```no_run
+//! # #[cfg(feature = "trace")]
+//! # {
+//! use opentelemetry::{global, sdk::export::trace::stdout, trace::Tracer};
 //!
-//! The `Tracer` is responsible for tracking the currently active `Span`, and
-//! exposes methods for creating and activating new `Span`s. The `Tracer` is
-//! configured with `Propagator`s which support transferring span context across
-//! process boundaries.
+//! fn main() {
+//!     // Create a new trace pipeline that prints to stdout
+//!     let tracer = stdout::new_pipeline().install_simple();
 //!
-//! `Tracer`s are generally expected to be used as singletons. Implementations
-//! SHOULD provide a single global default `Tracer`.
+//!     tracer.in_span("doing_work", |cx| {
+//!         // Traced app logic here...
+//!     });
 //!
-//! Some applications may require multiple `Tracer` instances, e.g. to create
-//! `Span`s on behalf of other applications. Implementations MAY provide a global
-//! registry of `Tracer`s for such applications.
+//!     // Shutdown trace pipeline
+//!     global::shutdown_tracer_provider();
+//! }
+//! # }
+//! ```
 //!
-//! ## Span
+//! In library code:
 //!
-//! A `Span` represents a single operation within a trace. Spans can be nested to
-//! form a trace tree. Each trace contains a root span, which typically describes
-//! the end-to-end latency and, optionally, one or more sub-spans for its
-//! sub-operations.
+//! ```
+//! # #[cfg(feature = "trace")]
+//! # {
+//! use opentelemetry::{global, trace::{Span, Tracer, TracerProvider}};
 //!
-//! `Span`s encapsulate:
+//! fn my_library_function() {
+//!     // Use the global tracer provider to get access to the user-specified
+//!     // tracer configuration
+//!     let tracer_provider = global::tracer_provider();
 //!
-//! - The span name
-//! - An immutable `SpanContext` that uniquely identifies the `Span`
-//! - A parent span in the form of a `SpanContext`, or None
-//! - A start timestamp
-//! - An end timestamp
-//! - An ordered mapping of `Attribute`s
-//! - A list of `Link`s to other `Span`s
-//! - A list of timestamped `Event`s
-//! - A `Status`.
+//!     // Get a tracer for this library
+//!     let tracer = tracer_provider.get_tracer("my_name", Some(env!("CARGO_PKG_VERSION")));
 //!
-//! The _span name_ is a human-readable string which concisely identifies the work
-//! represented by the `Span`, for example, an RPC method name, a function name,
-//! or the name of a subtask or stage within a larger computation. The span name
-//! should be the most general string that identifies a (statistically) interesting
-//! _class of Spans_, rather than individual Span instances. That is, "get_user" is
-//! a reasonable name, while "get_user/314159", where "314159" is a user ID, is not
-//! a good name due to its high cardinality.
+//!     // Create spans
+//!     let mut span = tracer.start("doing_work");
 //!
-//! For example, here are potential span names for an endpoint that gets a
-//! hypothetical account information:
+//!     // Do work...
 //!
-//! | Span Name                 | Guidance     |
-//! | ------------------------- | ------------ |
-//! | `get`                     | Too general  |
-//! | `get_account/42`          | Too specific |
-//! | `get_account`             | Good, and account_id=42 would make a nice Span attribute |
-//! | `get_account/{accountId}` | Also good (using the "HTTP route") |
+//!     // End the span
+//!     span.end();
+//! }
+//! # }
+//! ```
 //!
-//! The `Span`'s start and end timestamps reflect the elapsed real time of the
-//! operation. A `Span`'s start time SHOULD be set to the current time on span
-//! creation. After the `Span` is created, it SHOULD be possible to
-//! change the its name, set its `Attribute`s, and add `Link`s and `Event`s. These
-//! MUST NOT be changed after the `Span`'s end time has been set.
+//! ## Overview
 //!
-//! `Span`s are not meant to be used to propagate information within a process. To
-//! prevent misuse, implementations SHOULD NOT provide access to a `Span`'s
-//! attributes besides its `SpanContext`.
+//! The tracing API consists of a three main traits:
 //!
-//! Vendors may implement the `Span` interface to effect vendor-specific logic.
-//! However, alternative implementations MUST NOT allow callers to create `Span`s
-//! directly. All `Span`s MUST be created via a `Tracer`.
+//! * [`TracerProvider`]s are the entry point of the API. They provide access to
+//!   `Tracer`s.
+//! * [`Tracer`]s are types responsible for creating `Span`s.
+//! * [`Span`]s provide the API to trace an operation.
 //!
-//! ## SpanContext
+//! ## Working with Async Runtimes
 //!
-//! A `SpanContext` represents the portion of a `Span` which must be serialized and
-//! propagated along side of a distributed context. `SpanContext`s are immutable.
-//! `SpanContext`.
+//! Exporting spans often involves sending data over a network or performing
+//! other I/O tasks. OpenTelemetry allows you to schedule these tasks using
+//! whichever runtime you area already using such as [Tokio] or [async-std].
+//! When using an async runtime it's best to use the [`BatchSpanProcessor`]
+//! where the spans will be sent in batches as opposed to being sent once ended,
+//! which often ends up being more efficient.
 //!
-//! The OpenTelemetry `SpanContext` representation conforms to the [w3c TraceContext
-//! specification](https://www.w3.org/TR/trace-context/). It contains two
-//! identifiers - a `TraceId` and a `SpanId` - along with a set of common
-//! `TraceFlags` and system-specific `TraceState` values.
+//! [`BatchSpanProcessor`]: crate::sdk::trace::BatchSpanProcessor
+//! [Tokio]: https://tokio.rs
+//! [async-std]: https://async.rs
 //!
-//! `TraceId` A valid trace identifier is a non-zero `u128`
+//! ## Managing Active Spans
 //!
-//! `SpanId` A valid span identifier is a non-zero `u64` byte.
+//! Spans can be marked as "active" for a given [`Context`], and all newly
+//! created spans will automatically be children of the currently active span.
 //!
-//! `TraceFlags` contain details about the trace. Unlike Tracestate values,
-//! TraceFlags are present in all traces. Currently, the only `TraceFlags` is a
-//! boolean `sampled`
-//! [flag](https://www.w3.org/TR/trace-context/#trace-flags).
+//! The active span for a given thread can be managed via [`get_active_span`]
+//! and [`mark_span_as_active`].
 //!
-//! `Tracestate` carries system-specific configuration data, represented as a list
-//! of key-value pairs. TraceState allows multiple tracing systems to participate in
-//! the same trace.
+//! [`Context`]: crate::Context
 //!
-//! `IsValid` is a boolean flag which returns true if the SpanContext has a non-zero
-//! TraceID and a non-zero SpanID.
+//! ```
+//! # #[cfg(feature = "trace")]
+//! # {
+//! use opentelemetry::{global, trace::{self, Span, StatusCode, Tracer, TracerProvider}};
 //!
-//! `IsRemote` is a boolean flag which returns true if the SpanContext was propagated
-//! from a remote parent. When creating children from remote spans, their IsRemote
-//! flag MUST be set to false.
+//! fn may_error(rand: f32) {
+//!     if rand < 0.5 {
+//!         // Get the currently active span to record additional attributes,
+//!         // status, etc.
+//!         trace::get_active_span(|span| {
+//!             span.set_status(StatusCode::Error, "value too small".into());
+//!         });
+//!     }
+//! }
 //!
-//! Please review the W3C specification for details on the [Tracestate
-//! field](https://www.w3.org/TR/trace-context/#tracestate-field).
+//! // Get a tracer
+//! let tracer = global::tracer("my_tracer");
 //!
+//! // Create a span
+//! let span = tracer.start("parent_span");
+//!  
+//! // Mark the span as active
+//! let active = trace::mark_span_as_active(span);
+//!
+//! // Any span created here will be a child of `parent_span`...
+//!
+//! // Drop the guard and the span will no longer be active
+//! drop(active)
+//! # }
+//! ```
+//!
+//! Additionally [`Tracer::with_span`] and [`Tracer::in_span`] can be used as shorthand to
+//! simplify managing the parent context.
+//!
+//! ```
+//! # #[cfg(feature = "trace")]
+//! # {
+//! use opentelemetry::{global, trace::Tracer};
+//!
+//! // Get a tracer
+//! let tracer = global::tracer("my_tracer");
+//!
+//! // Use `in_span` to create a new span and mark it as the parent, dropping it
+//! // at the end of the block.
+//! tracer.in_span("parent_span", |cx| {
+//!     // spans created here will be children of `parent_span`
+//! });
+//!
+//! // Use `with_span` to mark a span as active for a given period.
+//! let span = tracer.start("parent_span");
+//! tracer.with_span(span, |cx| {
+//!     // spans created here will be children of `parent_span`
+//! });
+//! # }
+//! ```
+//!
+//! #### Async active spans
+//!
+//! Async spans can be propagated with [`TraceContextExt`] and [`FutureExt`].
+//!
+//! ```
+//! # #[cfg(feature = "trace")]
+//! # {
+//! use opentelemetry::{Context, global, trace::{FutureExt, TraceContextExt, Tracer}};
+//!
+//! async fn some_work() { }
+//!
+//! // Get a tracer
+//! let tracer = global::tracer("my_tracer");
+//!
+//! // Start a span
+//! let span = tracer.start("my_span");
+//!
+//! // Perform some async work with this span as the currently active parent.
+//! some_work().with_context(Context::current_with_span(span));
+//! # }
+//! ```
+
 use ::futures::channel::{mpsc::TrySendError, oneshot::Canceled};
 use thiserror::Error;
 

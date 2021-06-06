@@ -64,7 +64,7 @@
 //! # }
 //! ```
 //!
-//! [installing a trace pipeline]: crate::sdk::export::trace::stdout::PipelineBuilder::install
+//! [installing a trace pipeline]: crate::sdk::export::trace::stdout::PipelineBuilder::install_simple
 //! [`TracerProvider`]: crate::trace::TracerProvider
 //! [`Span`]: crate::trace::Span
 //!
@@ -80,7 +80,7 @@
 //!
 //! ### Usage in Applications
 //!
-//! Applications configure their tracer either by [installing a metrics pipeline],
+//! Applications configure their meter either by [installing a metrics pipeline],
 //! or calling [`set_meter_provider`].
 //!
 //! ```
@@ -99,8 +99,8 @@
 //!
 //! fn do_something_instrumented() {
 //!     // Then you can get a named tracer instance anywhere in your codebase.
-//!     let tracer = global::meter("my-component");
-//!     let counter = tracer.u64_counter("my_counter").init();
+//!     let meter = global::meter("my-component");
+//!     let counter = meter.u64_counter("my_counter").init();
 //!
 //!     // record metrics
 //!     counter.add(1, &[KeyValue::new("mykey", "myvalue")]);
@@ -117,7 +117,6 @@
 //! ```
 //! # #[cfg(feature="metrics")]
 //! # {
-//! use opentelemetry::trace::Tracer;
 //! use opentelemetry::{global, KeyValue};
 //!
 //! pub fn my_traced_library_function() {
@@ -132,7 +131,7 @@
 //! # }
 //! ```
 //!
-//! [installing a metrics pipeline]: crate::sdk::export::metrics::stdout::StdoutExporterBuilder::try_init
+//! [installing a metrics pipeline]: crate::sdk::export::metrics::stdout::StdoutExporterBuilder::init
 //! [`MeterProvider`]: crate::metrics::MeterProvider
 //! [`set_meter_provider`]: crate::global::set_meter_provider
 

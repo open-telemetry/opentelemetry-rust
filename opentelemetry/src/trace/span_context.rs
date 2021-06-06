@@ -7,7 +7,7 @@
 //! It contains two identifiers - a `TraceId` and a `SpanId` - along with a set of common
 //! `TraceFlags` and system-specific `TraceState` values.
 //!
-//! The spec can be viewed here: https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/api-tracing.md#SpanContext
+//! The spec can be viewed here: <https://github.com/open-telemetry/opentelemetry-specification/blob/v1.3.0/specification/trace/api.md#spancontext>
 //!
 //! [w3c TraceContext specification]: https://www.w3.org/TR/trace-context/
 #[cfg(feature = "serialize")]
