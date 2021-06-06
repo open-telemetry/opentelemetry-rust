@@ -1,9 +1,9 @@
 use crate::{
     metrics::{
         sync_instrument::{SyncBoundInstrument, SyncInstrument},
-        Descriptor, InstrumentKind, Measurement, Meter, Number, NumberKind, Result,
+        Descriptor, InstrumentKind, Measurement, Meter, Number, NumberKind, Result, Unit,
     },
-    KeyValue, Unit,
+    KeyValue,
 };
 use std::marker;
 

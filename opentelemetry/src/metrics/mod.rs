@@ -16,6 +16,7 @@ mod observer;
 pub mod registry;
 pub mod sdk_api;
 mod sync_instrument;
+mod unit;
 mod up_down_counter;
 mod value_recorder;
 
@@ -32,6 +33,7 @@ pub use observer::{
     ValueObserver, ValueObserverBuilder,
 };
 pub use sync_instrument::Measurement;
+pub use unit::Unit;
 pub use up_down_counter::{BoundUpDownCounter, UpDownCounter, UpDownCounterBuilder};
 pub use value_recorder::{BoundValueRecorder, ValueRecorder, ValueRecorderBuilder};
 

@@ -1,8 +1,7 @@
 use crate::metrics::{
     sdk_api, AsyncRunner, Descriptor, InstrumentKind, Meter, Number, NumberKind, Observation,
-    Result,
+    Result, Unit,
 };
-use crate::Unit;
 use std::sync::Arc;
 
 /// An Observer callback that can report observations for multiple instruments.
