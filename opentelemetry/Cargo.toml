@@ -43,8 +43,6 @@ js-sys = "0.3"
 bincode = "1.2"
 criterion = "0.3.1"
 rand_distr = "0.4.0"
-tokio = { version = "1.0", features = ["full"] }
-tokio-stream = "0.1"
 
 [features]
 default = ["trace"]

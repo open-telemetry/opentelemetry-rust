@@ -7,7 +7,7 @@ use crate::trace::TraceResult;
 use crate::{
     sdk::export::trace::{ExportResult, SpanData, SpanExporter},
     trace,
-    trace::{SpanBuilder, TraceContextExt, TraceState},
+    trace::{SpanBuilder, TraceContextExt, TraceFlags, TraceState},
     Context, KeyValue,
 };
 use async_trait::async_trait;
@@ -59,7 +59,7 @@ impl NoopSpan {
             span_context: trace::SpanContext::new(
                 trace::TraceId::invalid(),
                 trace::SpanId::invalid(),
-                0,
+                TraceFlags::default(),
                 false,
                 TraceState::default(),
             ),
@@ -201,7 +201,7 @@ mod tests {
         trace::SpanContext::new(
             trace::TraceId::from_u128(42),
             trace::SpanId::from_u64(42),
-            0,
+            trace::TraceFlags::default(),
             true,
             TraceState::default(),
         )

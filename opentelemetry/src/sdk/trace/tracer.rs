@@ -17,8 +17,8 @@ use crate::sdk::{
     InstrumentationLibrary,
 };
 use crate::trace::{
-    Link, SpanBuilder, SpanContext, SpanId, SpanKind, StatusCode, TraceContextExt, TraceId,
-    TraceState, TRACE_FLAG_SAMPLED,
+    Link, SpanBuilder, SpanContext, SpanId, SpanKind, StatusCode, TraceContextExt, TraceFlags,
+    TraceId, TraceState,
 };
 use crate::{Context, KeyValue};
 use std::borrow::Cow;
@@ -76,7 +76,7 @@ impl Tracer {
         attributes: &[KeyValue],
         links: &[Link],
         config: &Config,
-    ) -> Option<(u8, Vec<KeyValue>, TraceState)> {
+    ) -> Option<(TraceFlags, Vec<KeyValue>, TraceState)> {
         let sampling_result = config.sampler.should_sample(
             Some(parent_cx),
             trace_id,
@@ -93,7 +93,7 @@ impl Tracer {
         &self,
         sampling_result: SamplingResult,
         parent_cx: &Context,
-    ) -> Option<(u8, Vec<KeyValue>, TraceState)> {
+    ) -> Option<(TraceFlags, Vec<KeyValue>, TraceState)> {
         match sampling_result {
             SamplingResult {
                 decision: SamplingDecision::Drop,
@@ -105,7 +105,7 @@ impl Tracer {
                 trace_state,
             } => {
                 let trace_flags = parent_cx.span().span_context().trace_flags();
-                Some((trace_flags & !TRACE_FLAG_SAMPLED, attributes, trace_state))
+                Some((trace_flags.with_sampled(false), attributes, trace_state))
             }
             SamplingResult {
                 decision: SamplingDecision::RecordAndSample,
@@ -113,7 +113,7 @@ impl Tracer {
                 trace_state,
             } => {
                 let trace_flags = parent_cx.span().span_context().trace_flags();
-                Some((trace_flags | TRACE_FLAG_SAMPLED, attributes, trace_state))
+                Some((trace_flags.with_sampled(true), attributes, trace_state))
             }
         }
     }
@@ -187,7 +187,7 @@ impl crate::trace::Tracer for Tracer {
         let span_kind = builder.span_kind.take().unwrap_or(SpanKind::Internal);
         let mut attribute_options = builder.attributes.take().unwrap_or_else(Vec::new);
         let mut link_options = builder.links.take();
-        let mut flags = 0;
+        let mut flags = TraceFlags::default();
         let mut span_trace_state = Default::default();
 
         let parent_span = if builder.parent_context.has_active_span() {
@@ -216,7 +216,7 @@ impl crate::trace::Tracer for Tracer {
                     .unwrap_or_else(|| config.id_generator.new_trace_id()),
                 SpanId::invalid(),
                 false,
-                0,
+                TraceFlags::default(),
             ));
 
         // There are 3 paths for sampling.
@@ -333,8 +333,8 @@ mod tests {
         },
         testing::trace::TestSpan,
         trace::{
-            Link, Span, SpanBuilder, SpanContext, SpanId, SpanKind, TraceContextExt, TraceId,
-            TraceState, Tracer, TracerProvider, TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
+            Link, Span, SpanBuilder, SpanContext, SpanId, SpanKind, TraceContextExt, TraceFlags,
+            TraceId, TraceState, Tracer, TracerProvider,
         },
         Context, KeyValue,
     };
@@ -380,7 +380,7 @@ mod tests {
             parent_context: Context::new().with_span(TestSpan(SpanContext::new(
                 TraceId::from_u128(128),
                 SpanId::from_u64(64),
-                TRACE_FLAG_SAMPLED,
+                TraceFlags::SAMPLED,
                 true,
                 trace_state,
             ))),
@@ -426,7 +426,7 @@ mod tests {
             .with_remote_span_context(SpanContext::new(
                 TraceId::from_u128(1),
                 SpanId::from_u64(1),
-                TRACE_FLAG_NOT_SAMPLED,
+                TraceFlags::default(),
                 true,
                 Default::default(),
             ))

@@ -189,10 +189,7 @@ pub use self::{
     noop::{NoopSpan, NoopSpanExporter, NoopTracer, NoopTracerProvider},
     provider::TracerProvider,
     span::{Span, SpanKind, StatusCode},
-    span_context::{
-        SpanContext, SpanId, TraceId, TraceState, TRACE_FLAG_DEBUG, TRACE_FLAG_DEFERRED,
-        TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
-    },
+    span_context::{SpanContext, SpanId, TraceFlags, TraceId, TraceState},
     tracer::{SpanBuilder, Tracer},
 };
 use crate::sdk::export::ExportError;
