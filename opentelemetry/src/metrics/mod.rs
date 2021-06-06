@@ -1,5 +1,6 @@
 //! # OpenTelemetry Metrics API
 
+use std::borrow::Cow;
 use std::result;
 use std::sync::PoisonError;
 use thiserror::Error;
@@ -16,7 +17,6 @@ mod observer;
 pub mod registry;
 pub mod sdk_api;
 mod sync_instrument;
-mod unit;
 mod up_down_counter;
 mod value_recorder;
 
@@ -33,7 +33,6 @@ pub use observer::{
     ValueObserver, ValueObserverBuilder,
 };
 pub use sync_instrument::Measurement;
-pub use unit::Unit;
 pub use up_down_counter::{BoundUpDownCounter, UpDownCounter, UpDownCounterBuilder};
 pub use value_recorder::{BoundValueRecorder, ValueRecorder, ValueRecorderBuilder};
 
@@ -85,5 +84,31 @@ impl<T: ExportError> From<T> for MetricsError {
 impl<T> From<PoisonError<T>> for MetricsError {
     fn from(err: PoisonError<T>) -> Self {
         MetricsError::Other(err.to_string())
+    }
+}
+
+/// Units denote underlying data units tracked by `Meter`s.
+#[derive(Clone, Default, Debug, PartialEq, Hash)]
+pub struct Unit(Cow<'static, str>);
+
+impl Unit {
+    /// Create a new `Unit` from an `Into<String>`
+    pub fn new<S>(value: S) -> Self
+    where
+        S: Into<Cow<'static, str>>,
+    {
+        Unit(value.into())
+    }
+
+    /// View unit as &str
+    pub fn as_str(&self) -> &str {
+        self.0.as_ref()
+    }
+}
+
+impl AsRef<str> for Unit {
+    #[inline]
+    fn as_ref(&self) -> &str {
+        self.0.as_ref()
     }
 }
