@@ -1,5 +1,5 @@
+use crate::metrics::Unit;
 use crate::sdk::InstrumentationLibrary;
-use crate::Unit;
 
 /// Config contains some options for metrics of any kind.
 #[derive(Clone, Debug, PartialEq, Hash)]

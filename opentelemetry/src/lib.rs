@@ -232,7 +232,7 @@ pub use context::{Context, ContextGuard};
 
 mod core;
 
-pub use crate::core::{Array, Key, KeyValue, Unit, Value};
+pub use crate::core::{Array, Key, KeyValue, Value};
 
 pub mod runtime;
 
