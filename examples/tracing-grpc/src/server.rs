@@ -66,9 +66,9 @@ impl Greeter for MyGreeter {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     global::set_text_map_propagator(TraceContextPropagator::new());
-    let (tracer, _uninstall) = opentelemetry_jaeger::new_pipeline()
+    let tracer = opentelemetry_jaeger::new_pipeline()
         .with_service_name("grpc-server")
-        .install()?;
+        .install_batch(opentelemetry::runtime::Tokio)?;
     tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::new("INFO"))
         .with(tracing_opentelemetry::layer().with_tracer(tracer))
@@ -81,6 +81,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
         .add_service(GreeterServer::new(greeter))
         .serve(addr)
         .await?;
+
+    opentelemetry::global::shutdown_tracer_provider();
 
     Ok(())
 }

@@ -53,15 +53,17 @@ async fn greet() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     global::set_text_map_propagator(TraceContextPropagator::new());
-    let (tracer, _uninstall) = opentelemetry_jaeger::new_pipeline()
+    let tracer = opentelemetry_jaeger::new_pipeline()
         .with_service_name("grpc-client")
-        .install()?;
+        .install_simple()?;
     tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::new("INFO"))
         .with(tracing_opentelemetry::layer().with_tracer(tracer))
         .try_init()?;
 
     greet().await?;
+
+    opentelemetry::global::shutdown_tracer_provider();
 
     Ok(())
 }

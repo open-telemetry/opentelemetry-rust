@@ -37,7 +37,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 [dependencies]
 async-trait = "0.1"
 futures = "0.3"
-grpcio = { version = "0.8", optional = true }
+grpcio = { version = "0.9", optional = true }
 opentelemetry = { version = "0.14", default-features = false, features = ["trace"], path = "../opentelemetry" }
 prost = { version = "0.7", optional = true }
 protobuf = { version = "2.18", optional = true }
@@ -53,7 +53,7 @@ http = "0.2"
 chrono = "0.4"
 tokio-stream = { version = "0.1", features = ["net"] }
 protobuf-codegen = { version = "2.16"}
-protoc-grpcio = { version = "2.0"}
+protoc-grpcio = { version = "3.0"}
 
 [features]
 trace = ["opentelemetry/trace"]

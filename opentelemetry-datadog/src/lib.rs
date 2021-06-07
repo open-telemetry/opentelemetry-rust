@@ -96,19 +96,17 @@
 //! #[derive(Debug)]
 //! struct IsahcClient(isahc::HttpClient);
 //!
-//! async fn body_to_bytes(mut body: isahc::Body) -> Result<Bytes, HttpError> {
-//!     let mut bytes = Vec::with_capacity(body.len().unwrap_or(0).try_into()?);
-//!     let _ = body.read_to_end(&mut bytes).await?;
-//!     Ok(bytes.into())
-//! }
-//!
 //! #[async_trait]
 //! impl HttpClient for IsahcClient {
 //!     async fn send(&self, request: Request<Vec<u8>>) -> Result<Response<Bytes>, HttpError> {
-//!         let response = self.0.send_async(request).await?;
+//!         let mut response = self.0.send_async(request).await?;
+//!         let status = response.status();
+//!         let mut bytes = Vec::with_capacity(response.body().len().unwrap_or(0).try_into()?);
+//!         isahc::AsyncReadResponseExt::copy_to(&mut response, &mut bytes).await?;
+//!
 //!         Ok(Response::builder()
 //!             .status(response.status())
-//!             .body(body_to_bytes(response.into_body()).await?)?)
+//!             .body(bytes.into())?)
 //!     }
 //! }
 //!
