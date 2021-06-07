@@ -201,10 +201,7 @@ mod propagator {
     //! [`Jaeger documentation`]: https://www.jaegertracing.io/docs/1.18/client-libraries/#propagation-format
     use opentelemetry::{
         propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
-        trace::{
-            SpanContext, SpanId, TraceContextExt, TraceId, TraceState, TRACE_FLAG_DEBUG,
-            TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
-        },
+        trace::{SpanContext, SpanId, TraceContextExt, TraceFlags, TraceId, TraceState},
         Context,
     };
     use std::borrow::Cow;
@@ -213,6 +210,8 @@ mod propagator {
     const JAEGER_HEADER: &str = "uber-trace-id";
     const JAEGER_BAGGAGE_PREFIX: &str = "uberctx-";
     const DEPRECATED_PARENT_SPAN: &str = "0";
+
+    const TRACE_FLAG_DEBUG: TraceFlags = TraceFlags::new(0x04);
 
     lazy_static::lazy_static! {
         static ref JAEGER_HEADER_FIELD: [String; 1] = [JAEGER_HEADER.to_string()];
@@ -259,10 +258,10 @@ mod propagator {
             let trace_id = self.extract_trace_id(parts[0])?;
             let span_id = self.extract_span_id(parts[1])?;
             // Ignore parent span id since it's deprecated.
-            let flag = self.extract_flag(parts[3])?;
-            let trace_state = self.extract_trace_state(extractor)?;
+            let flags = self.extract_trace_flags(parts[3])?;
+            let state = self.extract_trace_state(extractor)?;
 
-            Ok(SpanContext::new(trace_id, span_id, flag, true, trace_state))
+            Ok(SpanContext::new(trace_id, span_id, flags, true, state))
         }
 
         /// Extract trace id from the header.
@@ -296,21 +295,21 @@ mod propagator {
         /// Second bit control whether it's a debug trace
         /// Third bit is not used.
         /// Forth bit is firehose flag, which is not supported in OT now.
-        fn extract_flag(&self, flag: &str) -> Result<u8, ()> {
+        fn extract_trace_flags(&self, flag: &str) -> Result<TraceFlags, ()> {
             if flag.len() > 2 {
                 return Err(());
             }
             let flag = u8::from_str(flag).map_err(|_| ())?;
             if flag & 0x01 == 0x01 {
                 if flag & 0x02 == 0x02 {
-                    Ok(TRACE_FLAG_SAMPLED | TRACE_FLAG_DEBUG)
+                    Ok(TraceFlags::SAMPLED | TRACE_FLAG_DEBUG)
                 } else {
-                    Ok(TRACE_FLAG_SAMPLED)
+                    Ok(TraceFlags::SAMPLED)
                 }
             } else {
                 // Debug flag should only be set when sampled flag is set.
                 // So if debug flag is set alone. We will just use not sampled flag
-                Ok(TRACE_FLAG_NOT_SAMPLED)
+                Ok(TraceFlags::default())
             }
         }
 
@@ -335,7 +334,7 @@ mod propagator {
             let span_context = span.span_context();
             if span_context.is_valid() {
                 let flag: u8 = if span_context.is_sampled() {
-                    if span_context.is_debug() {
+                    if span_context.trace_flags() & TRACE_FLAG_DEBUG == TRACE_FLAG_DEBUG {
                         0x03
                     } else {
                         0x01
@@ -372,10 +371,7 @@ mod propagator {
         use opentelemetry::{
             propagation::{Injector, TextMapPropagator},
             testing::trace::TestSpan,
-            trace::{
-                SpanContext, SpanId, TraceContextExt, TraceId, TraceState, TRACE_FLAG_DEBUG,
-                TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
-            },
+            trace::{SpanContext, SpanId, TraceContextExt, TraceFlags, TraceId, TraceState},
             Context,
         };
         use std::collections::HashMap;
@@ -395,7 +391,7 @@ mod propagator {
                     SpanContext::new(
                         TraceId::from_u128(TRACE_ID),
                         SpanId::from_u64(SPAN_ID),
-                        TRACE_FLAG_SAMPLED,
+                        TraceFlags::SAMPLED,
                         true,
                         TraceState::default(),
                     ),
@@ -407,7 +403,7 @@ mod propagator {
                     SpanContext::new(
                         TraceId::from_u128(TRACE_ID),
                         SpanId::from_u64(SPAN_ID),
-                        TRACE_FLAG_SAMPLED,
+                        TraceFlags::SAMPLED,
                         true,
                         TraceState::default(),
                     ),
@@ -419,7 +415,7 @@ mod propagator {
                     SpanContext::new(
                         TraceId::from_u128(TRACE_ID),
                         SpanId::from_u64(SPAN_ID),
-                        TRACE_FLAG_DEBUG | TRACE_FLAG_SAMPLED,
+                        TRACE_FLAG_DEBUG | TraceFlags::SAMPLED,
                         true,
                         TraceState::default(),
                     ),
@@ -431,7 +427,7 @@ mod propagator {
                     SpanContext::new(
                         TraceId::from_u128(TRACE_ID),
                         SpanId::from_u64(SPAN_ID),
-                        TRACE_FLAG_NOT_SAMPLED,
+                        TraceFlags::default(),
                         true,
                         TraceState::default(),
                     ),
@@ -463,7 +459,7 @@ mod propagator {
                     SpanContext::new(
                         TraceId::from_u128(TRACE_ID),
                         SpanId::from_u64(SPAN_ID),
-                        TRACE_FLAG_SAMPLED,
+                        TraceFlags::SAMPLED,
                         true,
                         TraceState::default(),
                     ),
@@ -473,7 +469,7 @@ mod propagator {
                     SpanContext::new(
                         TraceId::from_u128(TRACE_ID),
                         SpanId::from_u64(SPAN_ID),
-                        TRACE_FLAG_NOT_SAMPLED,
+                        TraceFlags::default(),
                         true,
                         TraceState::default(),
                     ),
@@ -483,7 +479,7 @@ mod propagator {
                     SpanContext::new(
                         TraceId::from_u128(TRACE_ID),
                         SpanId::from_u64(SPAN_ID),
-                        TRACE_FLAG_DEBUG | TRACE_FLAG_SAMPLED,
+                        TRACE_FLAG_DEBUG | TraceFlags::SAMPLED,
                         true,
                         TraceState::default(),
                     ),
@@ -552,7 +548,7 @@ mod propagator {
                 &SpanContext::new(
                     TraceId::from_u128(TRACE_ID),
                     SpanId::from_u64(SPAN_ID),
-                    1,
+                    TraceFlags::SAMPLED,
                     true,
                     TraceState::default(),
                 )

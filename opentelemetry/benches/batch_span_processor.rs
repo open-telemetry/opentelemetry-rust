@@ -3,7 +3,7 @@ use opentelemetry::runtime::Tokio;
 use opentelemetry::sdk::export::trace::SpanData;
 use opentelemetry::sdk::trace::{BatchSpanProcessor, EvictedHashMap, EvictedQueue, SpanProcessor};
 use opentelemetry::trace::{
-    NoopSpanExporter, SpanContext, SpanId, SpanKind, StatusCode, TraceId, TraceState,
+    NoopSpanExporter, SpanContext, SpanId, SpanKind, StatusCode, TraceFlags, TraceId, TraceState,
 };
 use std::sync::Arc;
 use std::time::SystemTime;
@@ -16,7 +16,7 @@ fn get_span_data() -> Vec<SpanData> {
             span_context: SpanContext::new(
                 TraceId::from_u128(12),
                 SpanId::from_u64(12),
-                0,
+                TraceFlags::default(),
                 false,
                 TraceState::default(),
             ),

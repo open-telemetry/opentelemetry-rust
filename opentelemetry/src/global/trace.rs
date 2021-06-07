@@ -332,7 +332,9 @@ mod tests {
     use crate::runtime;
     #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
     use crate::sdk::trace::TraceRuntime;
-    use crate::trace::{NoopTracer, Tracer};
+    use crate::trace::NoopTracer;
+    #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
+    use crate::trace::Tracer;
     use std::{
         fmt::Debug,
         io::Write,
@@ -346,6 +348,7 @@ mod tests {
         buf: Arc<Mutex<Vec<u8>>>,
     }
 
+    #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
     impl AssertWriter {
         fn new() -> AssertWriter {
             AssertWriter {
@@ -492,6 +495,7 @@ mod tests {
             .build()
     }
 
+    #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
     fn build_simple_tracer_provider(
         assert_writer: AssertWriter,
     ) -> crate::sdk::trace::TracerProvider {
@@ -551,6 +555,7 @@ mod tests {
     // Expected to see the spans being exported to buffer
     #[tokio::test]
     #[ignore = "requires --test-threads=1"]
+    #[cfg(feature = "rt-tokio")]
     async fn test_set_provider_single_thread_tokio_with_simple_processor() {
         let assert_writer = AssertWriter::new();
         let _ = set_tracer_provider(build_simple_tracer_provider(assert_writer.clone()));

@@ -165,7 +165,7 @@ mod tests {
     use super::*;
     use crate::sdk::trace::{Sampler, SamplingDecision, ShouldSample};
     use crate::testing::trace::TestSpan;
-    use crate::trace::{SpanContext, SpanId, TraceState, TRACE_FLAG_SAMPLED};
+    use crate::trace::{SpanContext, SpanId, TraceFlags, TraceState};
     use rand::Rng;
 
     #[rustfmt::skip]
@@ -222,7 +222,11 @@ mod tests {
             let mut sampled = 0;
             for _ in 0..total {
                 let parent_context = if parent {
-                    let trace_flags = if sample_parent { TRACE_FLAG_SAMPLED } else { 0 };
+                    let trace_flags = if sample_parent {
+                        TraceFlags::SAMPLED
+                    } else {
+                        TraceFlags::default()
+                    };
                     let span_context = SpanContext::new(
                         TraceId::from_u128(1),
                         SpanId::from_u64(1),

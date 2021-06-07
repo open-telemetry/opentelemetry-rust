@@ -501,7 +501,7 @@ fn convert_otel_span_into_jaeger_span(
         parent_span_id: span.parent_span_id.to_u64() as i64,
         operation_name: span.name.into_owned(),
         references: links_to_references(span.links),
-        flags: span.span_context.trace_flags() as i32,
+        flags: span.span_context.trace_flags().to_u8() as i32,
         start_time: span
             .start_time
             .duration_since(SystemTime::UNIX_EPOCH)

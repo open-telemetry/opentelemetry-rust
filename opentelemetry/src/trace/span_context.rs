@@ -13,19 +13,84 @@
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
+use std::fmt;
+use std::ops::{BitAnd, BitOr, Not};
 use std::str::FromStr;
 
-/// A SpanContext with TRACE_FLAG_NOT_SAMPLED means the span is not sampled.
-pub const TRACE_FLAG_NOT_SAMPLED: u8 = 0x00;
-/// TRACE_FLAG_SAMPLED is a bitmask with the sampled bit set. A SpanContext
-/// with the sampling bit set means the span is sampled.
-pub const TRACE_FLAG_SAMPLED: u8 = 0x01;
-/// TRACE_FLAGS_DEFERRED is a bitmask with the deferred bit set. A SpanContext
-/// with the deferred bit set means the sampling decision has been
-/// defered to the receiver.
-pub const TRACE_FLAG_DEFERRED: u8 = 0x02;
-/// TRACE_FLAGS_DEBUG is a bitmask with the debug bit set.
-pub const TRACE_FLAG_DEBUG: u8 = 0x04;
+/// Flags that can be set on a [`SpanContext`].
+///
+/// The current version of the specification only supports a single flag called `sampled`.
+///
+/// See the W3C TraceContext specification's [trace-flags] section for more details.
+///
+/// [trace-flags]: https://www.w3.org/TR/trace-context/#trace-flags
+#[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Copy, Hash)]
+pub struct TraceFlags(u8);
+
+impl TraceFlags {
+    /// Trace flags with the `sampled` flag set to `1`.
+    ///
+    /// Spans that are not sampled will be ignored by most tracing tools.
+    /// See the `sampled` section of the [W3C TraceContext specification] for details.
+    ///
+    /// [W3C TraceContext specification]: https://www.w3.org/TR/trace-context/#sampled-flag
+    pub const SAMPLED: TraceFlags = TraceFlags(0x01);
+
+    /// Construct new trace flags
+    pub const fn new(flags: u8) -> Self {
+        TraceFlags(flags)
+    }
+
+    /// Returns `true` if the `sampled` flag is set
+    pub fn is_sampled(&self) -> bool {
+        (*self & TraceFlags::SAMPLED) == TraceFlags::SAMPLED
+    }
+
+    /// Returns copy of the current flags with the `sampled` flag set.
+    pub fn with_sampled(&self, sampled: bool) -> Self {
+        if sampled {
+            *self | TraceFlags::SAMPLED
+        } else {
+            *self & !TraceFlags::SAMPLED
+        }
+    }
+
+    /// Returns the flags as a `u8`
+    pub fn to_u8(self) -> u8 {
+        self.0
+    }
+}
+
+impl BitAnd for TraceFlags {
+    type Output = Self;
+
+    fn bitand(self, rhs: Self) -> Self::Output {
+        Self(self.0 & rhs.0)
+    }
+}
+
+impl BitOr for TraceFlags {
+    type Output = Self;
+
+    fn bitor(self, rhs: Self) -> Self::Output {
+        Self(self.0 | rhs.0)
+    }
+}
+
+impl Not for TraceFlags {
+    type Output = Self;
+
+    fn not(self) -> Self::Output {
+        Self(!self.0)
+    }
+}
+
+impl fmt::LowerHex for TraceFlags {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::LowerHex::fmt(&self.0, f)
+    }
+}
 
 /// TraceId is an 16-byte value which uniquely identifies a given trace
 /// The actual `u128` value is wrapped in a tuple struct in order to leverage the newtype pattern
@@ -307,12 +372,15 @@ impl FromStr for TraceState {
 }
 
 /// Immutable portion of a `Span` which can be serialized and propagated.
+///
+/// Spans that do not have the `sampled` flag set in their [`TraceFlags`] will
+/// be ignored by most tracing tools.
 #[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
 #[derive(Clone, Debug, PartialEq)]
 pub struct SpanContext {
     trace_id: TraceId,
     span_id: SpanId,
-    trace_flags: u8,
+    trace_flags: TraceFlags,
     is_remote: bool,
     trace_state: TraceState,
 }
@@ -323,7 +391,7 @@ impl SpanContext {
         SpanContext::new(
             TraceId::invalid(),
             SpanId::invalid(),
-            0,
+            TraceFlags::default(),
             false,
             TraceState::default(),
         )
@@ -333,7 +401,7 @@ impl SpanContext {
     pub fn new(
         trace_id: TraceId,
         span_id: SpanId,
-        trace_flags: u8,
+        trace_flags: TraceFlags,
         is_remote: bool,
         trace_state: TraceState,
     ) -> Self {
@@ -358,7 +426,7 @@ impl SpanContext {
 
     /// Returns details about the trace. Unlike `TraceState` values, these are
     /// present in all traces. Currently, the only option is a boolean sampled flag.
-    pub fn trace_flags(&self) -> u8 {
+    pub fn trace_flags(&self) -> TraceFlags {
         self.trace_flags
     }
 
@@ -373,19 +441,11 @@ impl SpanContext {
         self.is_remote
     }
 
-    /// Returns if the deferred bit is set in the trace flags
-    pub fn is_deferred(&self) -> bool {
-        (self.trace_flags & TRACE_FLAG_DEFERRED) == TRACE_FLAG_DEFERRED
-    }
-
-    /// Returns if the debug bit is set in the trace flags
-    pub fn is_debug(&self) -> bool {
-        (self.trace_flags & TRACE_FLAG_DEBUG) == TRACE_FLAG_DEBUG
-    }
-
-    /// Returns true if the `SpanContext` is sampled.
+    /// Returns `true` if the `sampled` trace flag is set.
+    ///
+    /// Spans that are not sampled will be ignored by most tracing tools.
     pub fn is_sampled(&self) -> bool {
-        (self.trace_flags & TRACE_FLAG_SAMPLED) == TRACE_FLAG_SAMPLED
+        self.trace_flags.is_sampled()
     }
 
     /// Returns the context's `TraceState`.

@@ -91,14 +91,14 @@ pub struct SpanData {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::trace::{TraceId, TraceState};
+    use crate::trace::{TraceFlags, TraceId, TraceState};
 
     #[test]
     fn test_serialise() {
         let trace_id = 7;
         let span_id = 99;
 
-        let trace_flags = 0;
+        let trace_flags = TraceFlags::default();
         let remote = false;
         let span_context = SpanContext::new(
             TraceId::from_u128(trace_id),

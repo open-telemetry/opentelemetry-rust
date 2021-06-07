@@ -77,7 +77,7 @@ pub(crate) mod tests {
     use opentelemetry::sdk;
     use opentelemetry::sdk::InstrumentationLibrary;
     use opentelemetry::{
-        trace::{SpanContext, SpanId, SpanKind, StatusCode, TraceId, TraceState},
+        trace::{SpanContext, SpanId, SpanKind, StatusCode, TraceFlags, TraceId, TraceState},
         Key,
     };
     use std::time::{Duration, SystemTime};
@@ -90,7 +90,7 @@ pub(crate) mod tests {
         let span_context = SpanContext::new(
             TraceId::from_u128(trace_id),
             SpanId::from_u64(span_id),
-            0,
+            TraceFlags::default(),
             false,
             TraceState::default(),
         );

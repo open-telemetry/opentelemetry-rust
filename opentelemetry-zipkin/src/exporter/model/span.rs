@@ -61,7 +61,7 @@ mod tests {
     use crate::exporter::model::{into_zipkin_span, OTEL_ERROR_DESCRIPTION, OTEL_STATUS_CODE};
     use opentelemetry::sdk::export::trace::SpanData;
     use opentelemetry::sdk::trace::{EvictedHashMap, EvictedQueue};
-    use opentelemetry::trace::{SpanContext, SpanId, SpanKind, StatusCode, TraceId};
+    use opentelemetry::trace::{SpanContext, SpanId, SpanKind, StatusCode, TraceFlags, TraceId};
     use std::collections::HashMap;
     use std::net::Ipv4Addr;
     use std::time::SystemTime;
@@ -163,7 +163,7 @@ mod tests {
                 span_context: SpanContext::new(
                     TraceId::from_u128(1),
                     SpanId::from_u64(1),
-                    0,
+                    TraceFlags::default(),
                     false,
                     Default::default(),
                 ),

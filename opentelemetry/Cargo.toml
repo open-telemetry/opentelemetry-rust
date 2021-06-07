@@ -43,15 +43,13 @@ js-sys = "0.3"
 bincode = "1.2"
 criterion = "0.3.1"
 rand_distr = "0.4.0"
-tokio = { version = "1.0", features = ["full"] }
-tokio-stream = "0.1"
 
 [features]
 default = ["trace"]
 trace = ["crossbeam-channel", "rand", "pin-project", "async-trait", "percent-encoding"]
 metrics = ["dashmap", "fnv"]
 serialize = ["serde"]
-testing = ["trace", "metrics", "rt-async-std", "rt-tokio", "rt-tokio-current-thread"]
+testing = ["trace", "metrics", "rt-async-std", "rt-tokio", "rt-tokio-current-thread", "tokio/macros", "tokio/rt-multi-thread"]
 rt-tokio = ["tokio", "tokio-stream"]
 rt-tokio-current-thread = ["tokio", "tokio-stream"]
 rt-async-std = ["async-std"]

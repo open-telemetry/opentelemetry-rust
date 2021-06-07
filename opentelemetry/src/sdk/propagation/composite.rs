@@ -113,7 +113,7 @@ mod tests {
     use crate::testing::trace::TestSpan;
     use crate::{
         propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
-        trace::{SpanContext, SpanId, TraceContextExt, TraceId, TraceState},
+        trace::{SpanContext, SpanId, TraceContextExt, TraceFlags, TraceId, TraceState},
         Context,
     };
     use std::collections::HashMap;
@@ -143,7 +143,7 @@ mod tests {
             injector.set(
                 "testheader",
                 format!(
-                    "{}-{}-{}",
+                    "{}-{}-{:02x}",
                     span_context.trace_id().to_u128(),
                     span_context.span_id().to_u64(),
                     span_context.trace_flags()
@@ -160,7 +160,7 @@ mod tests {
                     SpanContext::new(
                         TraceId::from_u128(u128::from_str(parts[0]).unwrap_or(0)),
                         SpanId::from_u64(u64::from_str(parts[1]).unwrap_or(0)),
-                        u8::from_str(parts[2]).unwrap_or(0),
+                        TraceFlags::new(u8::from_str(parts[2]).unwrap_or(0)),
                         true,
                         TraceState::default(),
                     )
@@ -179,7 +179,7 @@ mod tests {
 
     fn test_data() -> Vec<(&'static str, &'static str)> {
         vec![
-            ("testheader", "1-1-0"),
+            ("testheader", "1-1-00"),
             (
                 "traceparent",
                 "00-00000000000000000000000000000001-0000000000000001-00",
@@ -194,7 +194,7 @@ mod tests {
         let cx = Context::default().with_span(TestSpan(SpanContext::new(
             TraceId::from_u128(1),
             SpanId::from_u64(1),
-            0,
+            TraceFlags::default(),
             false,
             TraceState::default(),
         )));
@@ -228,7 +228,7 @@ mod tests {
         let cx = Context::default().with_span(TestSpan(SpanContext::new(
             TraceId::from_u128(1),
             SpanId::from_u64(1),
-            0,
+            TraceFlags::default(),
             false,
             TraceState::default(),
         )));
@@ -260,7 +260,7 @@ mod tests {
                 &SpanContext::new(
                     TraceId::from_u128(1),
                     SpanId::from_u64(1),
-                    0,
+                    TraceFlags::default(),
                     true,
                     TraceState::default(),
                 )
