@@ -31,6 +31,7 @@ pub struct TraceFlags(u8);
 impl TraceFlags {
     /// Trace flags with the `sampled` flag set to `1`.
     ///
+    /// Spans that are not sampled will be ignored by most tracing tools.
     /// See the `sampled` section of the [W3C TraceContext specification] for details.
     ///
     /// [W3C TraceContext specification]: https://www.w3.org/TR/trace-context/#sampled-flag
@@ -371,6 +372,9 @@ impl FromStr for TraceState {
 }
 
 /// Immutable portion of a `Span` which can be serialized and propagated.
+///
+/// Spans that do not have the `sampled` flag set in their [`TraceFlags`] will
+/// be ignored by most tracing tools.
 #[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
 #[derive(Clone, Debug, PartialEq)]
 pub struct SpanContext {
@@ -437,7 +441,9 @@ impl SpanContext {
         self.is_remote
     }
 
-    /// Returns true if the `SpanContext` is sampled.
+    /// Returns `true` if the `sampled` trace flag is set.
+    ///
+    /// Spans that are not sampled will be ignored by most tracing tools.
     pub fn is_sampled(&self) -> bool {
         self.trace_flags.is_sampled()
     }
