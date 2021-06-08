@@ -361,7 +361,7 @@ mod tests {
             SamplingResult {
                 decision: SamplingDecision::RecordAndSample,
                 attributes: Vec::new(),
-                trace_state: trace_state.insert("foo".into(), "notbar".into()).unwrap(),
+                trace_state: trace_state.insert("foo", "notbar").unwrap(),
             }
         }
     }

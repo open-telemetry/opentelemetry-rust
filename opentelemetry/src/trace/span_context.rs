@@ -293,15 +293,16 @@ impl TraceState {
     ///
     /// ['spec']: https://www.w3.org/TR/trace-context/#list
     #[allow(clippy::all)]
-    pub fn insert(&self, key: String, value: String) -> Result<TraceState, ()> {
+    pub fn insert<T: Into<String>>(&self, key: T, value: T) -> Result<TraceState, ()> {
+        let (key, value) = (key.into(), value.into());
         if !TraceState::valid_key(key.as_str()) || !TraceState::valid_value(value.as_str()) {
             return Err(());
         }
 
-        let mut trace_state = self.delete(key.clone())?;
+        let mut trace_state = self.delete_from_deque(key.clone())?;
         let kvs = trace_state.0.get_or_insert(VecDeque::with_capacity(1));
 
-        kvs.push_front((key, value));
+        kvs.push_front((key.into(), value.into()));
 
         Ok(trace_state)
     }
@@ -312,18 +313,22 @@ impl TraceState {
     ///
     /// ['spec']: https://www.w3.org/TR/trace-context/#list
     #[allow(clippy::all)]
-    pub fn delete(&self, key: String) -> Result<TraceState, ()> {
+    pub fn delete<T: Into<String>>(&self, key: T) -> Result<TraceState, ()> {
+        let key = key.into();
         if !TraceState::valid_key(key.as_str()) {
             return Err(());
         }
 
+        self.delete_from_deque(key)
+    }
+
+    /// Delete key from trace state's deque. The key MUST be valid
+    fn delete_from_deque(&self, key: String) -> Result<TraceState, ()> {
         let mut owned = self.clone();
         let kvs = owned.0.as_mut().ok_or(())?;
 
         if let Some(index) = kvs.iter().position(|x| *x.0 == *key) {
             kvs.remove(index);
-        } else {
-            return Err(());
         }
 
         Ok(owned)
@@ -532,5 +537,13 @@ mod tests {
 
             assert!(deleted_trace_state.get(test_case.2).is_none());
         }
+    }
+
+    #[test]
+    fn test_trace_state_insert() {
+        let trace_state = TraceState::from_key_value(vec![("foo", "bar")]).unwrap();
+        let inserted_trace_state = trace_state.insert("testkey", "testvalue").unwrap();
+        assert!(trace_state.get("testkey").is_none()); // The original state doesn't change
+        assert_eq!(inserted_trace_state.get("testkey").unwrap(), "testvalue"); //
     }
 }
