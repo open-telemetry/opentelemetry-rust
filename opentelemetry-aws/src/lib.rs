@@ -37,8 +37,11 @@
 #[cfg(feature = "trace")]
 pub mod trace {
     use opentelemetry::{
+        global::{self, Error},
         propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
-        trace::{SpanContext, SpanId, TraceContextExt, TraceFlags, TraceId, TraceState},
+        trace::{
+            SpanContext, SpanId, TraceContextExt, TraceError, TraceFlags, TraceId, TraceState,
+        },
         Context,
     };
     use std::convert::{TryFrom, TryInto};
@@ -125,21 +128,29 @@ pub mod trace {
                 }
             }
 
-            let trace_state: TraceState = TraceState::from_key_value(kv_vec)?;
+            match TraceState::from_key_value(kv_vec) {
+                Ok(trace_state) => {
+                    if trace_id.to_u128() == 0 {
+                        return Err(());
+                    }
 
-            if trace_id.to_u128() == 0 {
-                return Err(());
+                    let context: SpanContext = SpanContext::new(
+                        trace_id,
+                        parent_segment_id,
+                        sampling_decision,
+                        true,
+                        trace_state,
+                    );
+
+                    Ok(context)
+                }
+                Err(trace_state_err) => {
+                    global::handle_error(Error::Trace(TraceError::Other(Box::new(
+                        trace_state_err,
+                    ))));
+                    Err(()) //todo: assign an error type instead of using ()
+                }
             }
-
-            let context: SpanContext = SpanContext::new(
-                trace_id,
-                parent_segment_id,
-                sampling_decision,
-                true,
-                trace_state,
-            );
-
-            Ok(context)
         }
     }
 

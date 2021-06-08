@@ -200,8 +200,11 @@ mod propagator {
     //!
     //! [`Jaeger documentation`]: https://www.jaegertracing.io/docs/1.18/client-libraries/#propagation-format
     use opentelemetry::{
+        global::{self, Error},
         propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
-        trace::{SpanContext, SpanId, TraceContextExt, TraceFlags, TraceId, TraceState},
+        trace::{
+            SpanContext, SpanId, TraceContextExt, TraceError, TraceFlags, TraceId, TraceState,
+        },
         Context,
     };
     use std::borrow::Cow;
@@ -324,7 +327,15 @@ mod propagator {
                         .map(|value| (key.to_string(), value.to_string()))
                 });
 
-            TraceState::from_key_value(uber_context_keys)
+            match TraceState::from_key_value(uber_context_keys) {
+                Ok(trace_state) => Ok(trace_state),
+                Err(trace_state_err) => {
+                    global::handle_error(Error::Trace(TraceError::Other(Box::new(
+                        trace_state_err,
+                    ))));
+                    Err(()) //todo: assign an error type instead of using ()
+                }
+            }
         }
     }
 
