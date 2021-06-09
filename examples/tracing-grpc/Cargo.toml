@@ -16,11 +16,11 @@ http = "0.2"
 tonic = "0.4"
 prost = "0.7"
 tokio = { version = "1.0", features = ["full"] }
-opentelemetry = "0.12"
-opentelemetry-jaeger = "0.11"
+opentelemetry = { version = "0.14", features = ["rt-tokio"] }
+opentelemetry-jaeger = "0.13"
 tracing = "0.1"
 tracing-subscriber = "0.2"
-tracing-opentelemetry = "0.11"
+tracing-opentelemetry = "0.13"
 tracing-futures = "0.2"
 
 [build-dependencies]

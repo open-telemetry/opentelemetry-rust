@@ -113,23 +113,19 @@ mod surf {
 #[cfg(feature = "isahc")]
 mod isahc {
     use super::{async_trait, Bytes, HttpClient, HttpError, Request, Response};
-    use futures_util::io::AsyncReadExt as _;
+    use isahc::AsyncReadResponseExt;
     use std::convert::TryInto as _;
 
     #[async_trait]
     impl HttpClient for isahc::HttpClient {
         async fn send(&self, request: Request<Vec<u8>>) -> Result<Response<Bytes>, HttpError> {
-            let response = self.send_async(request).await?;
+            let mut response = self.send_async(request).await?;
+            let mut bytes = Vec::with_capacity(response.body().len().unwrap_or(0).try_into()?);
+            response.copy_to(&mut bytes).await?;
             Ok(Response::builder()
                 .status(response.status())
-                .body(body_to_bytes(response.into_body()).await?)?)
+                .body(bytes.into())?)
         }
-    }
-
-    async fn body_to_bytes(mut body: isahc::Body) -> Result<Bytes, HttpError> {
-        let mut bytes = Vec::with_capacity(body.len().unwrap_or(0).try_into()?);
-        let _ = body.read_to_end(&mut bytes).await?;
-        Ok(bytes.into())
     }
 }
 
