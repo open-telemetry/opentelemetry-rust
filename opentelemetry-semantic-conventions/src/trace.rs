@@ -861,3 +861,44 @@ pub const MESSAGING_KAFKA_TOMBSTONE: Key = Key::from_static_str("messaging.kafka
 /// - 1
 /// - 16
 pub const RPC_GRPC_STATUS_CODE: Key = Key::from_static_str("rpc.grpc.status_code");
+
+/// Protocol version as in `jsonrpc` property of request/response. Since JSON-RPC 1.0 does not specify this, the value can be omitted.
+///
+/// # Examples
+///
+/// - 2.0
+/// - 1.0
+pub const RPC_JSONRPC_VERSION: Key = Key::from_static_str("rpc.jsonrpc.version");
+
+/// `method` property from request. Unlike `rpc.method`, this may not relate to the actual method being called. Useful for client-side traces since client does not know what will be called on the server.
+///
+/// # Examples
+///
+/// - users.create
+/// - get_users
+pub const RPC_JSONRPC_METHOD: Key = Key::from_static_str("rpc.jsonrpc.method");
+
+/// `id` property of request or response. Since protocol allows id to be int, string, `null` or missing (for notifications), value is expected to be cast to string for simplicity. Use empty string in case of `null` value. Omit entirely if this is a notification.
+///
+/// # Examples
+///
+/// - 10
+/// - request-7
+/// -
+pub const RPC_JSONRPC_REQUEST_ID: Key = Key::from_static_str("rpc.jsonrpc.request_id");
+
+/// `error.code` property of response if it is an error response.
+///
+/// # Examples
+///
+/// - -32700
+/// - 100
+pub const RPC_JSONRPC_ERROR_CODE: Key = Key::from_static_str("rpc.jsonrpc.error_code");
+
+/// `error.message` property of response if it is an error response.
+///
+/// # Examples
+///
+/// - Parse error
+/// - User already exists
+pub const RPC_JSONRPC_ERROR_MESSAGE: Key = Key::from_static_str("rpc.jsonrpc.error_message");

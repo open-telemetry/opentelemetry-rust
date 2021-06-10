@@ -201,6 +201,35 @@ pub const CONTAINER_IMAGE_TAG: Key = Key::from_static_str("container.image.tag")
 /// - production
 pub const DEPLOYMENT_ENVIRONMENT: Key = Key::from_static_str("deployment.environment");
 
+/// A unique identifier representing the device.
+///
+/// The device identifier MUST only be defined using the values outlined below. This value is not an advertising identifier and MUST NOT be used as such. On iOS (Swift or Objective-C), this value MUST be equal to the [vendor identifier](https://developer.apple.com/documentation/uikit/uidevice/1620059-identifierforvendor). On Android (Java or Kotlin), this value MUST be equal to the Firebase Installation ID or a globally unique UUID which is persisted across sessions in your application. More information can be found [here](https://developer.android.com/training/articles/user-data-ids) on best practices and exact implementation details. Caution should be taken when storing personal data or anything which can identify a user. GDPR and data protection laws may apply, ensure you do your own due diligence.
+///
+/// # Examples
+///
+/// - 2ab2916d-a51f-4ac8-80ee-45ac31a28092
+pub const DEVICE_ID: Key = Key::from_static_str("device.id");
+
+/// The model identifier for the device.
+///
+/// It&#39;s recommended this value represents a machine readable version of the model identifier rather than the market or consumer-friendly name of the device.
+///
+/// # Examples
+///
+/// - iPhone3,4
+/// - SM-G920F
+pub const DEVICE_MODEL_IDENTIFIER: Key = Key::from_static_str("device.model.identifier");
+
+/// The marketing name for the device model.
+///
+/// It&#39;s recommended this value represents a human readable version of the device model rather than a machine readable alternative.
+///
+/// # Examples
+///
+/// - iPhone 6s Plus
+/// - Samsung Galaxy S6
+pub const DEVICE_MODEL_NAME: Key = Key::from_static_str("device.model.name");
+
 /// The name of the function being executed.
 ///
 /// # Examples
@@ -429,6 +458,23 @@ pub const OS_TYPE: Key = Key::from_static_str("os.type");
 /// - Microsoft Windows [Version 10.0.18363.778]
 /// - Ubuntu 18.04.1 LTS
 pub const OS_DESCRIPTION: Key = Key::from_static_str("os.description");
+
+/// Human readable operating system name.
+///
+/// # Examples
+///
+/// - iOS
+/// - Android
+/// - Ubuntu
+pub const OS_NAME: Key = Key::from_static_str("os.name");
+
+/// The version string of the operating system as defined in [Version Attributes](../../resource/semantic_conventions/README.md#version-attributes).
+///
+/// # Examples
+///
+/// - 14.2.1
+/// - 18.04.1
+pub const OS_VERSION: Key = Key::from_static_str("os.version");
 
 /// Process identifier (PID).
 ///
