@@ -72,6 +72,7 @@ impl ResourceDetector for SdkProvidedResourceDetector {
             "service.name",
             env::var(OTEL_SERVICE_NAME)
                 .ok()
+                .filter(|s| !s.is_empty())
                 .unwrap_or_else(|| "unknown_service".to_string()),
         )])
     }
@@ -130,5 +131,6 @@ mod tests {
             with_service.get(Key::from_static_str(SERVICE_NAME)),
             Some(Value::from("test service")),
         );
+        env::set_var(OTEL_SERVICE_NAME, ""); // clear the env var
     }
 }
