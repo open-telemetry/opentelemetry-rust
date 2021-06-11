@@ -147,14 +147,9 @@ impl Builder {
             Duration::from_secs(0),
             vec![Box::new(SdkProvidedResourceDetector)],
         );
-        config.resource = Some(Arc::new(
-            config
-                .resource
-                // we must not override user provided config so we use
-                // user provided resource as parameter of merge
-                .map(|r| sdk_provided_resource.merge(r))
-                .unwrap_or(sdk_provided_resource),
-        ));
+        if config.resource.is_none() {
+            config.resource = Some(Arc::new(sdk_provided_resource))
+        }
         TracerProvider {
             inner: Arc::new(TracerProviderInner {
                 processors: self.processors,
@@ -217,8 +212,8 @@ mod tests {
 
     #[test]
     fn test_tracer_provider_default_resource() {
-        // tracer provider must have default resource
-        let assert_service_name = |provider: super::TracerProvider, expect: &'static str| {
+        // If users didn't provided a resource and there isn't a env var set. Use default one
+        let assert_service_name = |provider: super::TracerProvider, expect: Option<&'static str>| {
             assert_eq!(
                 provider
                     .config()
@@ -227,11 +222,13 @@ mod tests {
                     .unwrap()
                     .get(Key::from_static_str("service.name"))
                     .map(|v| v.to_string()),
-                Some(expect.to_string())
+                expect.map(|s| s.to_string())
             );
         };
         let default_config_provider = super::TracerProvider::builder().build();
-        assert_service_name(default_config_provider, "unknown_service");
+        assert_service_name(default_config_provider, Some("unknown_service"));
+
+        // If user didn't provided a resource, try to get a default from env var
         let custom_config_provider = super::TracerProvider::builder()
             .with_config(Config {
                 resource: Some(Arc::new(Resource::new(vec![KeyValue::new(
@@ -241,6 +238,16 @@ mod tests {
                 ..Default::default()
             })
             .build();
-        assert_service_name(custom_config_provider, "test_service");
+        assert_service_name(custom_config_provider, Some("test_service"));
+
+        // If user provided a resource, it can override everything
+        let no_service_name = super::TracerProvider::builder()
+            .with_config(Config {
+                resource: Some(Arc::new(Resource::empty())),
+                ..Default::default()
+            })
+            .build();
+
+        assert_service_name(no_service_name, None);
     }
 }
