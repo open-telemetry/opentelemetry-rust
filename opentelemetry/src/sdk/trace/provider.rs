@@ -233,14 +233,13 @@ mod tests {
         let default_config_provider = super::TracerProvider::builder().build();
         assert_service_name(default_config_provider, "unknown_service");
         let custom_config_provider = super::TracerProvider::builder()
-            .with_config(
-                Config {
-                    resource: Some(Arc::new(Resource::new(vec![KeyValue::new(
-                        "service.name",
-                        "test_service",
-                    )]))),
-                    ..Default::default()
-                })
+            .with_config(Config {
+                resource: Some(Arc::new(Resource::new(vec![KeyValue::new(
+                    "service.name",
+                    "test_service",
+                )]))),
+                ..Default::default()
+            })
             .build();
         assert_service_name(custom_config_provider, "test_service");
     }
