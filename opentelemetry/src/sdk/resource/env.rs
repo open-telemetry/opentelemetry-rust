@@ -72,7 +72,7 @@ impl ResourceDetector for SdkProvidedResourceDetector {
             "service.name",
             env::var(OTEL_SERVICE_NAME)
                 .ok()
-                .unwrap_or("unknown_service".to_string()),
+                .unwrap_or_else(|| "unknown_service".to_string()),
         )])
     }
 }
