@@ -213,7 +213,8 @@ mod tests {
     #[test]
     fn test_tracer_provider_default_resource() {
         // If users didn't provided a resource and there isn't a env var set. Use default one
-        let assert_service_name = |provider: super::TracerProvider, expect: Option<&'static str>| {
+        let assert_service_name = |provider: super::TracerProvider,
+                                   expect: Option<&'static str>| {
             assert_eq!(
                 provider
                     .config()

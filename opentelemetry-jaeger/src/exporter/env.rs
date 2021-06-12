@@ -1,9 +1,6 @@
 use crate::PipelineBuilder;
 use std::env;
 
-/// The name under which Jaeger will group reported spans.
-const ENV_SERVICE_NAME: &str = "OTEL_SERVICE_NAME";
-
 /// The hostname for the Jaeger agent.
 /// e.g. "localhost"
 const ENV_AGENT_HOST: &str = "OTEL_EXPORTER_JAEGER_AGENT_HOST";
@@ -27,10 +24,6 @@ const ENV_PASSWORD: &str = "OTEL_EXPORTER_JAEGER_PASSWORD";
 
 /// Assign builder attributes from env
 pub(crate) fn assign_attrs(mut builder: PipelineBuilder) -> PipelineBuilder {
-    if let Some(service_name) = env::var(ENV_SERVICE_NAME).ok().filter(|v| !v.is_empty()) {
-        builder = builder.with_service_name(service_name);
-    }
-
     if let (Ok(host), Ok(port)) = (env::var(ENV_AGENT_HOST), env::var(ENV_AGENT_PORT)) {
         builder = builder.with_agent_endpoint(format!("{}:{}", host.trim(), port.trim()));
     }

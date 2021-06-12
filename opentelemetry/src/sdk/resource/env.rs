@@ -64,7 +64,7 @@ fn construct_otel_resources(s: String) -> Resource {
 ///
 /// [the Resource SDK specification]:https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/resource/sdk.md#sdk-provided-resource-attributes
 #[derive(Debug)]
-pub(crate) struct SdkProvidedResourceDetector;
+pub struct SdkProvidedResourceDetector;
 
 impl ResourceDetector for SdkProvidedResourceDetector {
     fn detect(&self, _timeout: Duration) -> Resource {

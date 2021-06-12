@@ -503,8 +503,8 @@ impl sdk_api::SyncBoundInstrumentCore for Record {
         // check if the instrument is disabled according to the AggregatorSelector.
         if let Some(recorder) = &self.current {
             if let Err(err) =
-            aggregators::range_test(&number, &self.instrument.instrument.descriptor)
-                .and_then(|_| recorder.update(&number, &self.instrument.instrument.descriptor))
+                aggregators::range_test(&number, &self.instrument.instrument.descriptor)
+                    .and_then(|_| recorder.update(&number, &self.instrument.instrument.descriptor))
             {
                 global::handle_error(err);
                 return;
@@ -611,7 +611,7 @@ mod tests {
             Box::new(Selector::Exact),
             Box::new(ExportKindSelector::Delta),
         )
-            .build();
+        .build();
         let meter = controller.provider().meter("test", None);
         let counter = meter.f64_counter("test").init();
         println!("{:?}, {:?}, {:?}", controller, meter, counter);
@@ -648,12 +648,13 @@ mod tests {
             .with_resource(Resource::empty())
             .build();
 
-        assert_eq!(no_service_name
-                       .0
-                       .resource
-                       .get(Key::from_static_str("service.name"))
-                       .map(|v| v.to_string()),
-                   None
+        assert_eq!(
+            no_service_name
+                .0
+                .resource
+                .get(Key::from_static_str("service.name"))
+                .map(|v| v.to_string()),
+            None
         )
     }
 }
