@@ -28,6 +28,7 @@ async-trait = "0.1"
 indexmap = "1.6"
 opentelemetry = { version = "0.15", path = "../opentelemetry", features = ["trace"] }
 opentelemetry-http = { version = "0.4", path = "../opentelemetry-http" }
+opentelemetry-semantic-conventions = { version = "0.6.0", path = "../opentelemetry-semantic-conventions" }
 rmp = "0.8"
 reqwest = { version = "0.11", default-features = false, optional = true }
 surf = { version = "2.0", default-features = false, optional = true }
