@@ -23,7 +23,7 @@ fn free_unused_instruments() {
         counter.add(10.0, &labels);
         counter.add(5.3, &labels);
 
-        expected.push(r#"counter{A="B",C="D",R="V",service_name="unknown_service"} 15.3"#);
+        expected.push(r#"counter{A="B",C="D",R="V"} 15.3"#);
     }
     // Standard export
     compare_export(&exporter, expected.clone());
@@ -56,8 +56,8 @@ fn batch() {
         }
     });
 
-    expected.push(r#"uint_observer{A="B",R="V",service_name="unknown_service"} 2"#);
-    expected.push(r#"float_observer{A="B",R="V",service_name="unknown_service"} 3.1"#);
+    expected.push(r#"uint_observer{A="B",R="V"} 2"#);
+    expected.push(r#"float_observer{A="B",R="V"} 3.1"#);
     compare_export(&exporter, expected);
 }
 
@@ -81,7 +81,7 @@ fn test_add() {
     counter.add(10.0, &labels);
     counter.add(5.3, &labels);
 
-    expected.push(r#"counter{A="B",C="D",R="V",service_name="unknown_service"} 15.3"#);
+    expected.push(r#"counter{A="B",C="D",R="V"} 15.3"#);
 
     let cb_labels = labels.clone();
     let _observer = meter
@@ -90,29 +90,23 @@ fn test_add() {
         })
         .init();
 
-    expected.push(r#"intobserver{A="B",C="D",R="V",service_name="unknown_service"} 1"#);
+    expected.push(r#"intobserver{A="B",C="D",R="V"} 1"#);
 
     value_recorder.record(-0.6, &labels);
     value_recorder.record(-0.4, &labels);
     value_recorder.record(0.6, &labels);
     value_recorder.record(20.0, &labels);
 
-    expected.push(
-        r#"value_recorder_bucket{A="B",C="D",R="V",service_name="unknown_service",le="+Inf"} 4"#,
-    );
-    expected.push(
-        r#"value_recorder_bucket{A="B",C="D",R="V",service_name="unknown_service",le="-0.5"} 1"#,
-    );
-    expected.push(
-        r#"value_recorder_bucket{A="B",C="D",R="V",service_name="unknown_service",le="1"} 3"#,
-    );
-    expected.push(r#"value_recorder_count{A="B",C="D",R="V",service_name="unknown_service"} 4"#);
-    expected.push(r#"value_recorder_sum{A="B",C="D",R="V",service_name="unknown_service"} 19.6"#);
+    expected.push(r#"value_recorder_bucket{A="B",C="D",R="V",le="+Inf"} 4"#);
+    expected.push(r#"value_recorder_bucket{A="B",C="D",R="V",le="-0.5"} 1"#);
+    expected.push(r#"value_recorder_bucket{A="B",C="D",R="V",le="1"} 3"#);
+    expected.push(r#"value_recorder_count{A="B",C="D",R="V"} 4"#);
+    expected.push(r#"value_recorder_sum{A="B",C="D",R="V"} 19.6"#);
 
     up_down_counter.add(10.0, &labels);
     up_down_counter.add(-3.2, &labels);
 
-    expected.push(r#"updowncounter{A="B",C="D",R="V",service_name="unknown_service"} 6.8"#);
+    expected.push(r#"updowncounter{A="B",C="D",R="V"} 6.8"#);
 
     compare_export(&exporter, expected)
 }
