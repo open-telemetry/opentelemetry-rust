@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-jaeger"
-version = "0.13.0"
+version = "0.14.0"
 authors = ["OpenTelemetry Authors <cncf-opentelemetry-contributors@lists.cncf.io>"]
 description = "Jaeger exporter for OpenTelemetry"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-jaeger"
@@ -27,8 +27,8 @@ futures-util = { version = "0.3", optional = true }
 http = { version = "0.2", optional = true }
 isahc = { version = "1.4", default-features = false, optional = true }
 js-sys = { version = "0.3", optional = true }
-opentelemetry = { version = "0.14", default-features = false, features = ["trace"], path = "../opentelemetry" }
-opentelemetry-http = { version = "0.3", path = "../opentelemetry-http", optional = true }
+opentelemetry = { version = "0.15", default-features = false, features = ["trace"], path = "../opentelemetry" }
+opentelemetry-http = { version = "0.4", path = "../opentelemetry-http", optional = true }
 pin-project = { version = "1.0", optional = true }
 thrift = "0.13"
 tokio = { version = "1.0", features = ["net", "sync"], optional = true }
@@ -43,7 +43,7 @@ surf = { version = "2.0", default-features = false, optional = true }
 [dev-dependencies]
 bytes = "1"
 futures = "0.3"
-opentelemetry = { version = "0.14", default-features = false, features = ["trace", "testing"], path = "../opentelemetry" }
+opentelemetry = { default-features = false, features = ["trace", "testing"], path = "../opentelemetry" }
 
 [dependencies.web-sys]
 version = "0.3.4"

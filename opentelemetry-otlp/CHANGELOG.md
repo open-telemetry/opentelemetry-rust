@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.8.0
+
+### Changed
+
+- Update grpcio version and add the coverage badge #556
+- Update to opentelemetry v0.15.0
+
 ## v0.7.0
 
 ### Added

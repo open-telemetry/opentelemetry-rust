@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-datadog"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["OpenTelemetry Authors <cncf-opentelemetry-contributors@lists.cncf.io>"]
 description = "Datadog exporters and propagators for OpenTelemetry"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-datadog"
@@ -26,8 +26,8 @@ surf-client = ["surf", "opentelemetry-http/surf"]
 [dependencies]
 async-trait = "0.1"
 indexmap = "1.6"
-opentelemetry = { version = "0.14", path = "../opentelemetry", features = ["trace"] }
-opentelemetry-http = { version = "0.3", path = "../opentelemetry-http" }
+opentelemetry = { version = "0.15", path = "../opentelemetry", features = ["trace"] }
+opentelemetry-http = { version = "0.4", path = "../opentelemetry-http" }
 rmp = "0.8"
 reqwest = { version = "0.11", default-features = false, optional = true }
 surf = { version = "2.0", default-features = false, optional = true }
