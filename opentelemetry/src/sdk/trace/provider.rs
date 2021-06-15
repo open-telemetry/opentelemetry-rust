@@ -147,9 +147,16 @@ impl Builder {
             Duration::from_secs(0),
             vec![Box::new(SdkProvidedResourceDetector)],
         );
-        if config.resource.is_none() {
-            config.resource = Some(Arc::new(sdk_provided_resource))
-        }
+        config.resource = match config.resource {
+            None => Some(Arc::new(sdk_provided_resource)),
+            Some(resource) => {
+                if resource.is_empty() {
+                    None
+                } else {
+                    Some(resource)
+                }
+            }
+        };
         TracerProvider {
             inner: Arc::new(TracerProviderInner {
                 processors: self.processors,
@@ -216,13 +223,9 @@ mod tests {
         let assert_service_name = |provider: super::TracerProvider,
                                    expect: Option<&'static str>| {
             assert_eq!(
-                provider
-                    .config()
-                    .resource
-                    .as_ref()
-                    .unwrap()
+                provider.config().resource.as_ref().and_then(|r| r
                     .get(Key::from_static_str("service.name"))
-                    .map(|v| v.to_string()),
+                    .map(|v| v.to_string())),
                 expect.map(|s| s.to_string())
             );
         };
