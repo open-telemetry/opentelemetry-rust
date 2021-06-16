@@ -6,7 +6,6 @@
 //! facilitates the delivery of telemetry data to storage systems
 //! through `Exporter`s. These can be configured on `Tracer` and
 //! `Meter` creation.
-pub mod env;
 pub mod export;
 pub mod instrumentation;
 #[cfg(feature = "metrics")]
@@ -20,6 +19,5 @@ pub mod resource;
 #[cfg_attr(docsrs, doc(cfg(feature = "trace")))]
 pub mod trace;
 
-pub use env::EnvResourceDetector;
 pub use instrumentation::InstrumentationLibrary;
 pub use resource::Resource;
