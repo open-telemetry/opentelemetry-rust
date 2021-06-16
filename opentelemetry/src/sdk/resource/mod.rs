@@ -13,9 +13,25 @@
 //! produced by any `Tracer` from the provider are associated with this `Resource`.
 //!
 //! [`TracerProvider`]: crate::trace::TracerProvider
+//!
+//! # Resource detectors
+//!
+//! `ResourceDetector`s are used to detect resource from runtime or environmental variables. The
+//! following `ResourceDetector`s are provided along with this SDK.
+//!
+//! - EnvResourceDetector, detect resource from environmental variables.
+//! - OsResourceDetector, detect OS from runtime.
+//! - ProcessResourceDetector, detect process information
+mod env;
+mod os;
+mod process;
+
+pub use env::EnvResourceDetector;
+pub use os::OsResourceDetector;
+pub use process::ProcessResourceDetector;
+
 #[cfg(feature = "metrics")]
 use crate::labels;
-use crate::sdk::EnvResourceDetector;
 use crate::{Key, KeyValue, Value};
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
@@ -187,7 +203,7 @@ pub trait ResourceDetector {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::sdk::EnvResourceDetector;
+    use crate::sdk::resource::EnvResourceDetector;
     use std::collections::BTreeMap;
     use std::{env, time};
 
