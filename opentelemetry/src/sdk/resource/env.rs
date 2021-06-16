@@ -1,4 +1,4 @@
-//! EnvResourceDetector
+//! Environment variables resource detector
 //!
 //! Implementation of `ResourceDetector` to extract a `Resource` from environment
 //! variables.
@@ -59,9 +59,8 @@ fn construct_otel_resources(s: String) -> Resource {
 
 #[cfg(test)]
 mod tests {
-    use crate::sdk::env::OTEL_RESOURCE_ATTRIBUTES;
-    use crate::sdk::resource::{Resource, ResourceDetector};
-    use crate::sdk::EnvResourceDetector;
+    use crate::sdk::resource::env::OTEL_RESOURCE_ATTRIBUTES;
+    use crate::sdk::resource::{EnvResourceDetector, Resource, ResourceDetector};
     use crate::KeyValue;
     use std::{env, time};
 
