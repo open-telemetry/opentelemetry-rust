@@ -1,5 +1,24 @@
 # Changelog
 
+## [v0.15.0](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.14.0...v0.15.0)
+
+### Added
+
+- More resource detectors #573
+
+### Changed
+
+- Expose the Error type to allow users to set custom error handlers #551
+- Allow users to use different channels based on runtime in batch span processor #560
+- Move `Unit` into `metrics` module #564
+- Update trace flags to match spec #565
+
+### Fixed
+
+- Fix debug loop, add notes for `#[tokio::test]` #552
+- `TraceState` cannot insert new key-value pairs #567
+
+
 ## [v0.14.0](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.13.0...v0.14.0)
 
 ## Added
