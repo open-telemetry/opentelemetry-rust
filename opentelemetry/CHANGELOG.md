@@ -2,6 +2,10 @@
 
 ## [v0.15.0](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.14.0...v0.15.0)
 
+### Added
+
+- More resource detectors #573
+
 ### Changed
 
 - Expose the Error type to allow users to set custom error handlers #551
