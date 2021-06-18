@@ -27,7 +27,7 @@ pub mod controllers;
 pub mod processors;
 pub mod selectors;
 
-use crate::sdk::env::SdkProvidedResourceDetector;
+use crate::sdk::resource::SdkProvidedResourceDetector;
 pub use controllers::{PullController, PushController, PushControllerWorker};
 use std::time::Duration;
 

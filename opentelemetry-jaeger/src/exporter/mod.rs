@@ -47,8 +47,8 @@ use uploader::BatchUploader;
     not(feature = "isahc_collector_client")
 ))]
 use headers::authorization::Credentials;
-use opentelemetry::sdk::env::SdkProvidedResourceDetector;
 use opentelemetry::sdk::resource::ResourceDetector;
+use opentelemetry::sdk::resource::SdkProvidedResourceDetector;
 use opentelemetry::sdk::trace::Config;
 use opentelemetry::sdk::Resource;
 use std::sync::Arc;

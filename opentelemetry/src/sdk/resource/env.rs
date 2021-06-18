@@ -83,12 +83,9 @@ mod tests {
     use crate::sdk::resource::env::{
         SdkProvidedResourceDetector, OTEL_RESOURCE_ATTRIBUTES, OTEL_SERVICE_NAME,
     };
-    use crate::sdk::resource::{Resource, ResourceDetector};
-    use crate::sdk::EnvResourceDetector;
+    use crate::sdk::resource::{EnvResourceDetector, Resource, ResourceDetector};
     use crate::{Key, KeyValue, Value};
     use std::time::Duration;
-    use crate::sdk::resource::{EnvResourceDetector, Resource, ResourceDetector};
-    use crate::KeyValue;
     use std::{env, time};
 
     #[test]

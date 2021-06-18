@@ -27,6 +27,7 @@ mod os;
 mod process;
 
 pub use env::EnvResourceDetector;
+pub use env::SdkProvidedResourceDetector;
 pub use os::OsResourceDetector;
 pub use process::ProcessResourceDetector;
 

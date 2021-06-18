@@ -8,7 +8,7 @@
 //! propagators) are provided by the `TracerProvider`. `Tracer` instances do
 //! not duplicate this data to avoid that different `Tracer` instances
 //! of the `TracerProvider` have different versions of these data.
-use crate::sdk::env::SdkProvidedResourceDetector;
+use crate::sdk::resource::SdkProvidedResourceDetector;
 use crate::sdk::trace::runtime::TraceRuntime;
 use crate::sdk::Resource;
 use crate::trace::TraceResult;
