@@ -473,7 +473,6 @@ impl From<KeyValue> for KeyValueMetadata {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::iter::FromIterator;
 
     #[test]
     fn insert_non_ascii_key() {
@@ -490,7 +489,7 @@ mod tests {
         for i in 0..over_limit {
             data.push(KeyValue::new(format!("key{}", i), format!("key{}", i)))
         }
-        let baggage = Baggage::from_iter(data.into_iter());
+        let baggage = data.into_iter().collect::<Baggage>();
         assert_eq!(baggage.len(), MAX_KEY_VALUE_PAIRS)
     }
 
@@ -528,7 +527,7 @@ mod tests {
                 "",
             ));
         }
-        let baggage = Baggage::from_iter(data.into_iter());
+        let baggage = data.into_iter().collect::<Baggage>();
         assert_eq!(baggage.len(), 3)
     }
 }
