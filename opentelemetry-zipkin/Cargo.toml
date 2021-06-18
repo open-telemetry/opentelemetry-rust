@@ -30,7 +30,7 @@ surf-client = ["surf", "opentelemetry-http/surf"]
 async-trait = "0.1"
 opentelemetry = { version = "0.15", path = "../opentelemetry", features = ["trace"] }
 opentelemetry-http = { version = "0.4", path = "../opentelemetry-http", optional = true }
-opentelemetry-semantic-conventions = { version = "0.6.0", path = "../opentelemetry-semantic-conventions" }
+opentelemetry-semantic-conventions = { version = "0.7.0", path = "../opentelemetry-semantic-conventions" }
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 typed-builder = "0.9"
