@@ -8,13 +8,16 @@
 //! propagators) are provided by the `TracerProvider`. `Tracer` instances do
 //! not duplicate this data to avoid that different `Tracer` instances
 //! of the `TracerProvider` have different versions of these data.
+use crate::sdk::resource::SdkProvidedResourceDetector;
 use crate::sdk::trace::runtime::TraceRuntime;
+use crate::sdk::Resource;
 use crate::trace::TraceResult;
 use crate::{
     global,
     sdk::{self, export::trace::SpanExporter, trace::SpanProcessor},
 };
 use std::sync::Arc;
+use std::time::Duration;
 
 /// Default tracer name if empty string is provided.
 const DEFAULT_COMPONENT_NAME: &str = "rust.opentelemetry.io/sdk/tracer";
@@ -139,10 +142,25 @@ impl Builder {
 
     /// Create a new provider from this configuration.
     pub fn build(self) -> TracerProvider {
+        let mut config = self.config;
+        let sdk_provided_resource = Resource::from_detectors(
+            Duration::from_secs(0),
+            vec![Box::new(SdkProvidedResourceDetector)],
+        );
+        config.resource = match config.resource {
+            None => Some(Arc::new(sdk_provided_resource)),
+            Some(resource) => {
+                if resource.is_empty() {
+                    None
+                } else {
+                    Some(resource)
+                }
+            }
+        };
         TracerProvider {
             inner: Arc::new(TracerProviderInner {
                 processors: self.processors,
-                config: self.config,
+                config,
             }),
         }
     }
@@ -152,9 +170,10 @@ impl Builder {
 mod tests {
     use crate::sdk::export::trace::SpanData;
     use crate::sdk::trace::provider::TracerProviderInner;
-    use crate::sdk::trace::{Span, SpanProcessor};
+    use crate::sdk::trace::{Config, Span, SpanProcessor};
+    use crate::sdk::Resource;
     use crate::trace::{TraceError, TraceResult, TracerProvider};
-    use crate::Context;
+    use crate::{Context, Key, KeyValue};
     use std::sync::Arc;
 
     #[derive(Debug)]
@@ -196,5 +215,43 @@ mod tests {
 
         let results = tracer_provider.force_flush();
         assert_eq!(results.len(), 2);
+    }
+
+    #[test]
+    fn test_tracer_provider_default_resource() {
+        // If users didn't provided a resource and there isn't a env var set. Use default one
+        let assert_service_name = |provider: super::TracerProvider,
+                                   expect: Option<&'static str>| {
+            assert_eq!(
+                provider.config().resource.as_ref().and_then(|r| r
+                    .get(Key::from_static_str("service.name"))
+                    .map(|v| v.to_string())),
+                expect.map(|s| s.to_string())
+            );
+        };
+        let default_config_provider = super::TracerProvider::builder().build();
+        assert_service_name(default_config_provider, Some("unknown_service"));
+
+        // If user didn't provided a resource, try to get a default from env var
+        let custom_config_provider = super::TracerProvider::builder()
+            .with_config(Config {
+                resource: Some(Arc::new(Resource::new(vec![KeyValue::new(
+                    "service.name",
+                    "test_service",
+                )]))),
+                ..Default::default()
+            })
+            .build();
+        assert_service_name(custom_config_provider, Some("test_service"));
+
+        // If user provided a resource, it can override everything
+        let no_service_name = super::TracerProvider::builder()
+            .with_config(Config {
+                resource: Some(Arc::new(Resource::empty())),
+                ..Default::default()
+            })
+            .build();
+
+        assert_service_name(no_service_name, None);
     }
 }

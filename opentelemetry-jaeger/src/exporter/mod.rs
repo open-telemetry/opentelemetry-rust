@@ -15,6 +15,7 @@ use agent::AgentAsyncClientUdp;
 use async_trait::async_trait;
 #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
 use collector::CollectorAsyncClientHttp;
+use opentelemetry_semantic_conventions as semcov;
 
 #[cfg(feature = "isahc_collector_client")]
 #[allow(unused_imports)] // this is actually used to configure authentication
@@ -46,9 +47,11 @@ use uploader::BatchUploader;
     not(feature = "isahc_collector_client")
 ))]
 use headers::authorization::Credentials;
-
-/// Default service name if no service is configured.
-const DEFAULT_SERVICE_NAME: &str = "OpenTelemetry";
+use opentelemetry::sdk::resource::ResourceDetector;
+use opentelemetry::sdk::resource::SdkProvidedResourceDetector;
+use opentelemetry::sdk::trace::Config;
+use opentelemetry::sdk::Resource;
+use std::sync::Arc;
 
 /// Default agent endpoint if none is provided
 const DEFAULT_AGENT_ENDPOINT: &str = "127.0.0.1:6831";
@@ -124,7 +127,8 @@ pub struct PipelineBuilder {
     #[cfg(feature = "collector_client")]
     client: Option<Box<dyn HttpClient>>,
     export_instrument_library: bool,
-    process: Process,
+    service_name: Option<String>,
+    tags: Option<Vec<KeyValue>>,
     max_packet_size: Option<usize>,
     config: Option<sdk::trace::Config>,
 }
@@ -143,10 +147,8 @@ impl Default for PipelineBuilder {
             #[cfg(feature = "collector_client")]
             client: None,
             export_instrument_library: true,
-            process: Process {
-                service_name: DEFAULT_SERVICE_NAME.to_string(),
-                tags: Vec::new(),
-            },
+            service_name: None,
+            tags: None,
             max_packet_size: None,
             config: None,
         };
@@ -226,13 +228,13 @@ impl PipelineBuilder {
 
     /// Assign the process service name.
     pub fn with_service_name<T: Into<String>>(mut self, service_name: T) -> Self {
-        self.process.service_name = service_name.into();
+        self.service_name = Some(service_name.into());
         self
     }
 
     /// Assign the process service tags.
     pub fn with_tags<T: IntoIterator<Item = KeyValue>>(mut self, tags: T) -> Self {
-        self.process.tags = tags.into_iter().collect();
+        self.tags = Some(tags.into_iter().collect());
         self
     }
 
@@ -278,14 +280,61 @@ impl PipelineBuilder {
         Ok(tracer)
     }
 
+    // To reduce the overhead of copying service name in every spans. We remove service.name
+    // from the resource in config. Instead, we store it in process.
+    // The service name tag will attch to spans when it's exported.
+    fn build_config_and_process(&mut self) -> (Config, Process) {
+        let service_name = self.service_name.take();
+        if let Some(service_name) = service_name {
+            let config = if let Some(mut cfg) = self.config.take() {
+                cfg.resource = cfg.resource.map(|r| {
+                    let without_service_name = r
+                        .iter()
+                        .filter(|(k, _v)| **k != semcov::resource::SERVICE_NAME)
+                        .map(|(k, v)| KeyValue::new(k.clone(), v.clone()))
+                        .collect::<Vec<KeyValue>>();
+                    Arc::new(Resource::new(without_service_name))
+                });
+                cfg
+            } else {
+                Config {
+                    resource: Some(Arc::new(Resource::empty())),
+                    ..Default::default()
+                }
+            };
+            (
+                config,
+                Process {
+                    service_name,
+                    tags: self.tags.take().unwrap_or_default(),
+                },
+            )
+        } else {
+            let service_name = SdkProvidedResourceDetector
+                .detect(Duration::from_secs(0))
+                .get(semcov::resource::SERVICE_NAME)
+                .unwrap()
+                .to_string();
+            (
+                Config {
+                    // use a empty resource to prevent TracerProvider to assign a service name.
+                    resource: Some(Arc::new(Resource::empty())),
+                    ..Default::default()
+                },
+                Process {
+                    service_name,
+                    tags: self.tags.take().unwrap_or_default(),
+                },
+            )
+        }
+    }
+
     /// Build a configured `sdk::trace::TracerProvider` with a simple span processor.
     pub fn build_simple(mut self) -> Result<sdk::trace::TracerProvider, TraceError> {
-        let config = self.config.take();
-        let exporter = self.init_exporter()?;
+        let (config, process) = self.build_config_and_process();
+        let exporter = self.init_exporter_with_process(process)?;
         let mut builder = sdk::trace::TracerProvider::builder().with_simple_exporter(exporter);
-        if let Some(config) = config {
-            builder = builder.with_config(config)
-        }
+        builder = builder.with_config(config);
 
         Ok(builder.build())
     }
@@ -296,13 +345,11 @@ impl PipelineBuilder {
         mut self,
         runtime: R,
     ) -> Result<sdk::trace::TracerProvider, TraceError> {
-        let config = self.config.take();
-        let exporter = self.init_exporter()?;
+        let (config, process) = self.build_config_and_process();
+        let exporter = self.init_exporter_with_process(process)?;
         let mut builder =
             sdk::trace::TracerProvider::builder().with_batch_exporter(exporter, runtime);
-        if let Some(config) = config {
-            builder = builder.with_config(config)
-        }
+        builder = builder.with_config(config);
 
         Ok(builder.build())
     }
@@ -310,9 +357,14 @@ impl PipelineBuilder {
     /// Initialize a new exporter.
     ///
     /// This is useful if you are manually constructing a pipeline.
-    pub fn init_exporter(self) -> Result<Exporter, TraceError> {
+    pub fn init_exporter(mut self) -> Result<Exporter, TraceError> {
+        let (_, process) = self.build_config_and_process();
+        self.init_exporter_with_process(process)
+    }
+
+    fn init_exporter_with_process(self, process: Process) -> Result<Exporter, TraceError> {
         let export_instrumentation_lib = self.export_instrument_library;
-        let (process, uploader) = self.init_uploader()?;
+        let uploader = self.init_uploader()?;
 
         Ok(Exporter {
             process: process.into(),
@@ -322,14 +374,14 @@ impl PipelineBuilder {
     }
 
     #[cfg(not(any(feature = "collector_client", feature = "wasm_collector_client")))]
-    fn init_uploader(self) -> Result<(Process, BatchUploader), TraceError> {
+    fn init_uploader(self) -> Result<BatchUploader, TraceError> {
         let agent = AgentAsyncClientUdp::new(self.agent_endpoint.as_slice(), self.max_packet_size)
             .map_err::<Error, _>(Into::into)?;
-        Ok((self.process, BatchUploader::Agent(agent)))
+        Ok(BatchUploader::Agent(agent))
     }
 
     #[cfg(feature = "collector_client")]
-    fn init_uploader(self) -> Result<(Process, uploader::BatchUploader), TraceError> {
+    fn init_uploader(self) -> Result<uploader::BatchUploader, TraceError> {
         if let Some(collector_endpoint) = self
             .collector_endpoint
             .transpose()
@@ -412,17 +464,17 @@ impl PipelineBuilder {
             });
 
             let collector = CollectorAsyncClientHttp::new(collector_endpoint, client);
-            Ok((self.process, uploader::BatchUploader::Collector(collector)))
+            Ok(uploader::BatchUploader::Collector(collector))
         } else {
             let endpoint = self.agent_endpoint.as_slice();
             let agent = AgentAsyncClientUdp::new(endpoint, self.max_packet_size)
                 .map_err::<Error, _>(Into::into)?;
-            Ok((self.process, BatchUploader::Agent(agent)))
+            Ok(BatchUploader::Agent(agent))
         }
     }
 
     #[cfg(all(feature = "wasm_collector_client", not(feature = "collector_client")))]
-    fn init_uploader(self) -> Result<(Process, uploader::BatchUploader), TraceError> {
+    fn init_uploader(self) -> Result<uploader::BatchUploader, TraceError> {
         if let Some(collector_endpoint) = self
             .collector_endpoint
             .transpose()
@@ -434,12 +486,12 @@ impl PipelineBuilder {
                 self.collector_password,
             )
             .map_err::<Error, _>(Into::into)?;
-            Ok((self.process, uploader::BatchUploader::Collector(collector)))
+            Ok(uploader::BatchUploader::Collector(collector))
         } else {
             let endpoint = self.agent_endpoint.as_slice();
             let agent = AgentAsyncClientUdp::new(endpoint, self.max_packet_size)
                 .map_err::<Error, _>(Into::into)?;
-            Ok((self.process, BatchUploader::Agent(agent)))
+            Ok(BatchUploader::Agent(agent))
         }
     }
 }
@@ -695,10 +747,11 @@ mod collector_client_tests {
 
     #[test]
     fn test_bring_your_own_client() -> Result<(), TraceError> {
-        let (process, mut uploader) = new_pipeline()
+        let mut builder = new_pipeline()
             .with_collector_endpoint("localhost:6831")
-            .with_http_client(test_http_client::TestHttpClient)
-            .init_uploader()?;
+            .with_http_client(test_http_client::TestHttpClient);
+        let (_, process) = builder.build_config_and_process();
+        let mut uploader = builder.init_uploader()?;
         let res = futures::executor::block_on(async {
             uploader
                 .upload(Batch::new(process.into(), Vec::new()))

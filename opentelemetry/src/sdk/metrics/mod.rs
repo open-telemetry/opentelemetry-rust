@@ -27,7 +27,9 @@ pub mod controllers;
 pub mod processors;
 pub mod selectors;
 
+use crate::sdk::resource::SdkProvidedResourceDetector;
 pub use controllers::{PullController, PushController, PushControllerWorker};
+use std::time::Duration;
 
 /// Creates a new accumulator builder
 pub fn accumulator(processor: Arc<dyn Processor + Send + Sync>) -> AccumulatorBuilder {
@@ -55,10 +57,12 @@ impl AccumulatorBuilder {
 
     /// Create a new accumulator from this configuration
     pub fn build(self) -> Accumulator {
-        Accumulator(Arc::new(AccumulatorCore::new(
-            self.processor,
-            self.resource.unwrap_or_default(),
-        )))
+        let sdk_provided_resource = Resource::from_detectors(
+            Duration::from_secs(0),
+            vec![Box::new(SdkProvidedResourceDetector)],
+        );
+        let resource = self.resource.unwrap_or(sdk_provided_resource);
+        Accumulator(Arc::new(AccumulatorCore::new(self.processor, resource)))
     }
 }
 
@@ -592,8 +596,13 @@ impl sdk_api::MeterCore for Accumulator {
 mod tests {
     use crate::metrics::MeterProvider;
     use crate::sdk::export::metrics::ExportKindSelector;
+    use crate::sdk::metrics::accumulator;
     use crate::sdk::metrics::controllers::pull;
     use crate::sdk::metrics::selectors::simple::Selector;
+    use crate::sdk::Resource;
+    use crate::testing::metric::NoopProcessor;
+    use crate::{Key, KeyValue};
+    use std::sync::Arc;
 
     // Prevent the debug message to get into loop
     #[test]
@@ -606,5 +615,46 @@ mod tests {
         let meter = controller.provider().meter("test", None);
         let counter = meter.f64_counter("test").init();
         println!("{:?}, {:?}, {:?}", controller, meter, counter);
+    }
+
+    #[test]
+    fn test_sdk_provided_resource_in_accumulator() {
+        let default_service_name = accumulator(Arc::new(NoopProcessor)).build();
+        assert_eq!(
+            default_service_name
+                .0
+                .resource
+                .get(Key::from_static_str("service.name"))
+                .map(|v| v.to_string()),
+            Some("unknown_service".to_string())
+        );
+
+        let custom_service_name = accumulator(Arc::new(NoopProcessor))
+            .with_resource(Resource::new(vec![KeyValue::new(
+                "service.name",
+                "test_service",
+            )]))
+            .build();
+        assert_eq!(
+            custom_service_name
+                .0
+                .resource
+                .get(Key::from_static_str("service.name"))
+                .map(|v| v.to_string()),
+            Some("test_service".to_string())
+        );
+
+        let no_service_name = accumulator(Arc::new(NoopProcessor))
+            .with_resource(Resource::empty())
+            .build();
+
+        assert_eq!(
+            no_service_name
+                .0
+                .resource
+                .get(Key::from_static_str("service.name"))
+                .map(|v| v.to_string()),
+            None
+        )
     }
 }

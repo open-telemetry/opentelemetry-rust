@@ -9,16 +9,19 @@ use http::{Method, Request, Uri};
 use itertools::Itertools;
 use opentelemetry::sdk::export::trace;
 use opentelemetry::sdk::export::trace::SpanData;
-use opentelemetry::sdk::trace::TraceRuntime;
+use opentelemetry::sdk::resource::ResourceDetector;
+use opentelemetry::sdk::resource::SdkProvidedResourceDetector;
+use opentelemetry::sdk::trace::{Config, TraceRuntime};
+use opentelemetry::sdk::Resource;
 use opentelemetry::trace::TraceError;
-use opentelemetry::{global, sdk, trace::TracerProvider};
+use opentelemetry::{global, sdk, trace::TracerProvider, KeyValue};
 use opentelemetry_http::{HttpClient, ResponseExt};
+use opentelemetry_semantic_conventions as semcov;
+use std::sync::Arc;
+use std::time::Duration;
 
 /// Default Datadog collector endpoint
 const DEFAULT_AGENT_ENDPOINT: &str = "http://127.0.0.1:8126";
-
-/// Default service name if no service is configured.
-const DEFAULT_SERVICE_NAME: &str = "OpenTelemetry";
 
 /// Header name used to inform the Datadog agent of the number of traces in the payload
 const DATADOG_TRACE_COUNT_HEADER: &str = "X-Datadog-Trace-Count";
@@ -56,7 +59,7 @@ pub fn new_pipeline() -> DatadogPipelineBuilder {
 /// Builder for `ExporterConfig` struct.
 #[derive(Debug)]
 pub struct DatadogPipelineBuilder {
-    service_name: String,
+    service_name: Option<String>,
     agent_endpoint: String,
     trace_config: Option<sdk::trace::Config>,
     version: ApiVersion,
@@ -66,7 +69,7 @@ pub struct DatadogPipelineBuilder {
 impl Default for DatadogPipelineBuilder {
     fn default() -> Self {
         DatadogPipelineBuilder {
-            service_name: DEFAULT_SERVICE_NAME.to_string(),
+            service_name: None,
             agent_endpoint: DEFAULT_AGENT_ENDPOINT.to_string(),
             trace_config: None,
             version: ApiVersion::Version05,
@@ -95,11 +98,59 @@ impl Default for DatadogPipelineBuilder {
 }
 
 impl DatadogPipelineBuilder {
-    fn build_exporter(self) -> Result<DatadogExporter, TraceError> {
+    /// Building a new exporter.
+    ///
+    /// This is useful if you are manually constructing a pipeline.
+    pub fn build_exporter(mut self) -> Result<DatadogExporter, TraceError> {
+        let (_, service_name) = self.build_config_and_service_name();
+        self.build_exporter_with_service_name(service_name)
+    }
+
+    fn build_config_and_service_name(&mut self) -> (Config, String) {
+        let service_name = self.service_name.take();
+        if let Some(service_name) = service_name {
+            let config = if let Some(mut cfg) = self.trace_config.take() {
+                cfg.resource = cfg.resource.map(|r| {
+                    let without_service_name = r
+                        .iter()
+                        .filter(|(k, _v)| **k != semcov::resource::SERVICE_NAME)
+                        .map(|(k, v)| KeyValue::new(k.clone(), v.clone()))
+                        .collect::<Vec<KeyValue>>();
+                    Arc::new(Resource::new(without_service_name))
+                });
+                cfg
+            } else {
+                Config {
+                    resource: Some(Arc::new(Resource::empty())),
+                    ..Default::default()
+                }
+            };
+            (config, service_name)
+        } else {
+            let service_name = SdkProvidedResourceDetector
+                .detect(Duration::from_secs(0))
+                .get(semcov::resource::SERVICE_NAME)
+                .unwrap()
+                .to_string();
+            (
+                Config {
+                    // use a empty resource to prevent TracerProvider to assign a service name.
+                    resource: Some(Arc::new(Resource::empty())),
+                    ..Default::default()
+                },
+                service_name,
+            )
+        }
+    }
+
+    fn build_exporter_with_service_name(
+        self,
+        service_name: String,
+    ) -> Result<DatadogExporter, TraceError> {
         if let Some(client) = self.client {
             let endpoint = self.agent_endpoint + self.version.path();
             let exporter = DatadogExporter::new(
-                self.service_name,
+                service_name,
                 endpoint.parse().map_err::<Error, _>(Into::into)?,
                 self.version,
                 client,
@@ -112,13 +163,11 @@ impl DatadogPipelineBuilder {
 
     /// Install the Datadog trace exporter pipeline using a simple span processor.
     pub fn install_simple(mut self) -> Result<sdk::trace::Tracer, TraceError> {
-        let trace_config = self.trace_config.take();
-        let exporter = self.build_exporter()?;
+        let (config, service_name) = self.build_config_and_service_name();
+        let exporter = self.build_exporter_with_service_name(service_name)?;
         let mut provider_builder =
             sdk::trace::TracerProvider::builder().with_simple_exporter(exporter);
-        if let Some(config) = trace_config {
-            provider_builder = provider_builder.with_config(config);
-        }
+        provider_builder = provider_builder.with_config(config);
         let provider = provider_builder.build();
         let tracer = provider.get_tracer("opentelemetry-datadog", Some(env!("CARGO_PKG_VERSION")));
         let _ = global::set_tracer_provider(provider);
@@ -131,13 +180,11 @@ impl DatadogPipelineBuilder {
         mut self,
         runtime: R,
     ) -> Result<sdk::trace::Tracer, TraceError> {
-        let trace_config = self.trace_config.take();
-        let exporter = self.build_exporter()?;
+        let (config, service_name) = self.build_config_and_service_name();
+        let exporter = self.build_exporter_with_service_name(service_name)?;
         let mut provider_builder =
             sdk::trace::TracerProvider::builder().with_batch_exporter(exporter, runtime);
-        if let Some(config) = trace_config {
-            provider_builder = provider_builder.with_config(config);
-        }
+        provider_builder = provider_builder.with_config(config);
         let provider = provider_builder.build();
         let tracer = provider.get_tracer("opentelemetry-datadog", Some(env!("CARGO_PKG_VERSION")));
         let _ = global::set_tracer_provider(provider);
@@ -146,7 +193,7 @@ impl DatadogPipelineBuilder {
 
     /// Assign the service name under which to group traces
     pub fn with_service_name<T: Into<String>>(mut self, name: T) -> Self {
-        self.service_name = name.into();
+        self.service_name = Some(name.into());
         self
     }
 

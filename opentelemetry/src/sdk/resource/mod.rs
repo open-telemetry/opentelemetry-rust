@@ -27,6 +27,7 @@ mod os;
 mod process;
 
 pub use env::EnvResourceDetector;
+pub use env::SdkProvidedResourceDetector;
 pub use os::OsResourceDetector;
 pub use process::ProcessResourceDetector;
 
@@ -36,6 +37,7 @@ use crate::{Key, KeyValue, Value};
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
 use std::collections::{btree_map, BTreeMap};
+use std::ops::Deref;
 use std::time::Duration;
 
 /// Describes an entity about which identifying information and metadata is exposed.
@@ -98,7 +100,7 @@ impl Resource {
     ///
     /// Keys from the `other` resource have priority over keys from this resource, even if the
     /// updated value is empty.
-    pub fn merge(&self, other: &Self) -> Self {
+    pub fn merge<T: Deref<Target = Self>>(&self, other: T) -> Self {
         if self.attrs.is_empty() {
             return other.clone();
         }
@@ -132,6 +134,13 @@ impl Resource {
     /// Gets an iterator over the attributes of this resource, sorted by key.
     pub fn iter(&self) -> Iter<'_> {
         self.into_iter()
+    }
+
+    /// Retrieve the value from resource associate with given key.
+    pub fn get(&self, key: Key) -> Option<Value> {
+        self.iter()
+            .find(|(k, _v)| **k == key)
+            .map(|(_k, v)| v.clone())
     }
 
     /// Encoded labels

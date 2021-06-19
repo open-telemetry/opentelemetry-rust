@@ -80,6 +80,16 @@ impl Config {
         self.resource = Some(Arc::new(resource));
         self
     }
+
+    /// Use empty resource instead of default resource in this config.
+    ///
+    /// Usually if no resource is provided, SDK will assign a default resource
+    /// to the `TracerProvider`, which could impact the performance. Performance
+    /// sensitive application can use function to disable such behavior and assign
+    /// no resource to `TracerProvider`.
+    pub fn with_no_resource(self) -> Self {
+        self.with_resource(sdk::Resource::empty())
+    }
 }
 
 impl Default for Config {

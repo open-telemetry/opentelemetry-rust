@@ -4,20 +4,25 @@ mod uploader;
 use async_trait::async_trait;
 use http::Uri;
 use model::endpoint::Endpoint;
+use opentelemetry::sdk::resource::ResourceDetector;
+use opentelemetry::sdk::resource::SdkProvidedResourceDetector;
+use opentelemetry::sdk::trace::Config;
+use opentelemetry::sdk::Resource;
 use opentelemetry::{
     global, sdk,
     sdk::export::{trace, ExportError},
     sdk::trace::TraceRuntime,
     trace::{TraceError, TracerProvider},
+    KeyValue,
 };
 use opentelemetry_http::HttpClient;
+use opentelemetry_semantic_conventions as semcov;
 use std::net::SocketAddr;
+use std::sync::Arc;
+use std::time::Duration;
 
 /// Default Zipkin collector endpoint
 const DEFAULT_COLLECTOR_ENDPOINT: &str = "http://127.0.0.1:9411/api/v2/spans";
-
-/// Default service name if no service is configured.
-const DEFAULT_SERVICE_NAME: &str = "OpenTelemetry";
 
 /// Zipkin span exporter
 #[derive(Debug)]
@@ -43,7 +48,7 @@ pub fn new_pipeline() -> ZipkinPipelineBuilder {
 /// Builder for `ExporterConfig` struct.
 #[derive(Debug)]
 pub struct ZipkinPipelineBuilder {
-    service_name: String,
+    service_name: Option<String>,
     service_addr: Option<SocketAddr>,
     collector_endpoint: String,
     trace_config: Option<sdk::trace::Config>,
@@ -74,7 +79,7 @@ impl Default for ZipkinPipelineBuilder {
             ))]
             client: None,
 
-            service_name: DEFAULT_SERVICE_NAME.to_string(),
+            service_name: None,
             service_addr: None,
             collector_endpoint: DEFAULT_COLLECTOR_ENDPOINT.to_string(),
             trace_config: None,
@@ -86,9 +91,50 @@ impl ZipkinPipelineBuilder {
     /// Initial a Zipkin span exporter.
     ///
     /// Returns error if the endpoint is not valid or if no http client is provided.
-    pub fn init_exporter(self) -> Result<Exporter, TraceError> {
+    pub fn init_exporter(mut self) -> Result<Exporter, TraceError> {
+        let (_, endpoint) = self.init_config_and_endpoint();
+        self.init_exporter_with_endpoint(endpoint)
+    }
+
+    fn init_config_and_endpoint(&mut self) -> (Config, Endpoint) {
+        let service_name = self.service_name.take();
+        if let Some(service_name) = service_name {
+            let config = if let Some(mut cfg) = self.trace_config.take() {
+                cfg.resource = cfg.resource.map(|r| {
+                    let without_service_name = r
+                        .iter()
+                        .filter(|(k, _v)| **k != semcov::resource::SERVICE_NAME)
+                        .map(|(k, v)| KeyValue::new(k.clone(), v.clone()))
+                        .collect::<Vec<KeyValue>>();
+                    Arc::new(Resource::new(without_service_name))
+                });
+                cfg
+            } else {
+                Config {
+                    resource: Some(Arc::new(Resource::empty())),
+                    ..Default::default()
+                }
+            };
+            (config, Endpoint::new(service_name, self.service_addr))
+        } else {
+            let service_name = SdkProvidedResourceDetector
+                .detect(Duration::from_secs(0))
+                .get(semcov::resource::SERVICE_NAME)
+                .unwrap()
+                .to_string();
+            (
+                Config {
+                    // use a empty resource to prevent TracerProvider to assign a service name.
+                    resource: Some(Arc::new(Resource::empty())),
+                    ..Default::default()
+                },
+                Endpoint::new(service_name, self.service_addr),
+            )
+        }
+    }
+
+    fn init_exporter_with_endpoint(self, endpoint: Endpoint) -> Result<Exporter, TraceError> {
         if let Some(client) = self.client {
-            let endpoint = Endpoint::new(self.service_name, self.service_addr);
             let exporter = Exporter::new(
                 endpoint,
                 client,
@@ -104,13 +150,11 @@ impl ZipkinPipelineBuilder {
 
     /// Install the Zipkin trace exporter pipeline with a simple span processor.
     pub fn install_simple(mut self) -> Result<sdk::trace::Tracer, TraceError> {
-        let config = self.trace_config.take();
-        let exporter = self.init_exporter()?;
+        let (config, endpoint) = self.init_config_and_endpoint();
+        let exporter = self.init_exporter_with_endpoint(endpoint)?;
         let mut provider_builder =
             sdk::trace::TracerProvider::builder().with_simple_exporter(exporter);
-        if let Some(config) = config {
-            provider_builder = provider_builder.with_config(config);
-        }
+        provider_builder = provider_builder.with_config(config);
         let provider = provider_builder.build();
         let tracer = provider.get_tracer("opentelemetry-zipkin", Some(env!("CARGO_PKG_VERSION")));
         let _ = global::set_tracer_provider(provider);
@@ -123,13 +167,11 @@ impl ZipkinPipelineBuilder {
         mut self,
         runtime: R,
     ) -> Result<sdk::trace::Tracer, TraceError> {
-        let config = self.trace_config.take();
-        let exporter = self.init_exporter()?;
+        let (config, endpoint) = self.init_config_and_endpoint();
+        let exporter = self.init_exporter_with_endpoint(endpoint)?;
         let mut provider_builder =
             sdk::trace::TracerProvider::builder().with_batch_exporter(exporter, runtime);
-        if let Some(config) = config {
-            provider_builder = provider_builder.with_config(config);
-        }
+        provider_builder = provider_builder.with_config(config);
         let provider = provider_builder.build();
         let tracer = provider.get_tracer("opentelemetry-zipkin", Some(env!("CARGO_PKG_VERSION")));
         let _ = global::set_tracer_provider(provider);
@@ -138,7 +180,7 @@ impl ZipkinPipelineBuilder {
 
     /// Assign the service name under which to group traces.
     pub fn with_service_name<T: Into<String>>(mut self, name: T) -> Self {
-        self.service_name = name.into();
+        self.service_name = Some(name.into());
         self
     }
 
