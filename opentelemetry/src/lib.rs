@@ -128,8 +128,8 @@
 //!
 //! In particular, the following crates are likely to be of interest:
 //!
-//! - [`opentelemetry-http`] provides a pipeline and exporter for sending
-//!   trace information to [`http`].
+//! - [`opentelemetry-http`] provides an interface for injecting and extracting
+//!   trace information from [`http`] headers.
 //! - [`opentelemetry-jaeger`] provides a pipeline and exporter for sending
 //!   trace information to [`Jaeger`].
 //! - [`opentelemetry-otlp`] exporter for sending trace and metric data in the
@@ -140,9 +140,12 @@
 //!   trace information to [`Zipkin`].
 //! - [`opentelemetry-datadog`] provides additional exporters to [`Datadog`].
 //! - [`opentelemetry-aws`] provides unofficial propagators for AWS X-ray.
-//! - [`opentelemetry-contrib`] provides additional exporters and propagators that are experimental.
+//! - [`opentelemetry-contrib`] provides additional exporters and propagators that are
+//!   experimental.
 //! - [`opentelemetry-semantic-conventions`] provides standard names and
 //!   semantic otel conventions.
+//! - [`opentelemetry-stackdriver`] provides an exporter for Google's [Cloud Trace]
+//!   (which used to be called StackDriver).
 //!
 //! Additionally, there are also several third-party crates which are not
 //! maintained by the `opentelemetry` project. These include:
@@ -155,8 +158,6 @@
 //!   Application Insights] exporter.
 //! - [`opentelemetry-tide`] provides integration for the [`Tide`] web server
 //!   and ecosystem.
-//! - [`opentelemetry-stackdriver`] provides an exporter for Google's [Cloud Trace]
-//!   (which used to be called StackDriver).
 //!
 //! If you're the maintainer of an `opentelemetry` ecosystem crate not listed
 //! above, please let us know! We'd love to add your project to the list!

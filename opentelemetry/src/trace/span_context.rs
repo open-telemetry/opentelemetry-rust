@@ -191,9 +191,9 @@ impl SpanId {
 pub struct TraceState(Option<VecDeque<(String, String)>>);
 
 impl TraceState {
-    /// Validates that the given `TraceState` list-member key is valid per the [W3 Spec]['spec'].
+    /// Validates that the given `TraceState` list-member key is valid per the [W3 Spec].
     ///
-    /// ['spec']: https://www.w3.org/TR/trace-context/#key
+    /// [W3 Spec]: https://www.w3.org/TR/trace-context/#key
     fn valid_key(key: &str) -> bool {
         if key.len() > 256 {
             return false;
@@ -223,9 +223,9 @@ impl TraceState {
         true
     }
 
-    /// Validates that the given `TraceState` list-member value is valid per the [W3 Spec]['spec'].
+    /// Validates that the given `TraceState` list-member value is valid per the [W3 Spec].
     ///
-    /// ['spec']: https://www.w3.org/TR/trace-context/#value
+    /// [W3 Spec]: https://www.w3.org/TR/trace-context/#value
     fn valid_value(value: &str) -> bool {
         if value.len() > 256 {
             return false;
@@ -290,10 +290,10 @@ impl TraceState {
 
     /// Inserts the given key-value pair into the `TraceState`. If a value already exists for the
     /// given key, this updates the value and updates the value's position. If the key or value are
-    /// invalid per the [W3 Spec]['spec'] an `Err` is returned, else a new `TraceState` with the
+    /// invalid per the [W3 Spec] an `Err` is returned, else a new `TraceState` with the
     /// updated key/value is returned.
     ///
-    /// ['spec']: https://www.w3.org/TR/trace-context/#list
+    /// [W3 Spec]: https://www.w3.org/TR/trace-context/#mutating-the-tracestate-field
     pub fn insert<K, V>(&self, key: K, value: V) -> Result<TraceState, TraceStateError>
     where
         K: Into<String>,
@@ -316,11 +316,12 @@ impl TraceState {
     }
 
     /// Removes the given key-value pair from the `TraceState`. If the key is invalid per the
-    /// [W3 Spec]['spec'] an `Err` is returned. Else, a new `TraceState`
+    /// [W3 Spec] an `Err` is returned. Else, a new `TraceState`
     /// with the removed entry is returned.
     ///
     /// If the key is not in `TraceState`. The original `TraceState` will be cloned and returned.
-    /// ['spec']: https://www.w3.org/TR/trace-context/#list
+    ///
+    /// [W3 Spec]: https://www.w3.org/TR/trace-context/#mutating-the-tracestate-field
     pub fn delete<K: Into<String>>(&self, key: K) -> Result<TraceState, TraceStateError> {
         let key = key.into();
         if !TraceState::valid_key(key.as_str()) {
@@ -387,15 +388,15 @@ impl FromStr for TraceState {
 #[derive(Error, Debug)]
 #[non_exhaustive]
 pub enum TraceStateError {
-    /// The key is invalid. See https://www.w3.org/TR/trace-context/#key for requirement for keys.
+    /// The key is invalid. See <https://www.w3.org/TR/trace-context/#key> for requirement for keys.
     #[error("{0} is not a valid key in TraceState, see https://www.w3.org/TR/trace-context/#key for more details")]
     InvalidKey(String),
 
-    /// The value is invalid. See https://www.w3.org/TR/trace-context/#value for requirement for values.
+    /// The value is invalid. See <https://www.w3.org/TR/trace-context/#value> for requirement for values.
     #[error("{0} is not a valid value in TraceState, see https://www.w3.org/TR/trace-context/#value for more details")]
     InvalidValue(String),
 
-    /// The value is invalid. See https://www.w3.org/TR/trace-context/#list for requirement for list members.
+    /// The value is invalid. See <https://www.w3.org/TR/trace-context/#list> for requirement for list members.
     #[error("{0} is not a valid list member in TraceState, see https://www.w3.org/TR/trace-context/#list for more details")]
     InvalidList(String),
 }

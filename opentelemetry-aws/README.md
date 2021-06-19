@@ -4,7 +4,7 @@
 
 # OpenTelemetry AWS
 
-Community supported vendor integrations for applications instrumented with [`OpenTelemetry`].
+Additional types for exporting [`OpenTelemetry`] data to AWS.
 
 [![Crates.io: opentelemetry-aws](https://img.shields.io/crates/v/opentelemetry-aws.svg)](https://crates.io/crates/opentelemetry-aws)
 [![Documentation](https://docs.rs/opentelemetry-aws/badge.svg)](https://docs.rs/opentelemetry-aws)
