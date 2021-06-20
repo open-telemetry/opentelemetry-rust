@@ -1,4 +1,3 @@
-//! OpenTelemetry shared core date types
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
