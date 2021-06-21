@@ -231,9 +231,9 @@ mod context;
 
 pub use context::{Context, ContextGuard};
 
-mod core;
+mod common;
 
-pub use crate::core::{Array, Key, KeyValue, Value};
+pub use common::{Array, Key, KeyValue, Value};
 
 pub mod runtime;
 
