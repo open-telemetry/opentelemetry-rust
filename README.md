@@ -111,6 +111,7 @@ above, please let us know! We'd love to add your project to the list!
 [`Datadog`]: https://www.datadoghq.com
 [`opentelemetry-datadog`]: https://crates.io/crates/opentelemetry-datadog
 [`opentelemetry-semantic-conventions`]: https://crates.io/crates/opentelemetry-semantic-conventions
+[`http`]: https://crates.io/crates/http
 
 [`tracing-opentelemetry`]: https://crates.io/crates/tracing-opentelemetry
 [`tracing`]: https://crates.io/crates/tracing
