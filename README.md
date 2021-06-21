@@ -63,6 +63,8 @@ adapter crates to assist in propagating state and instrumenting applications.
 
 In particular, the following crates are likely to be of interest:
 
+- [`opentelemetry-http`] provides an interface for injecting and extracting
+  trace information from [`http`] headers.
 - [`opentelemetry-jaeger`] provides a pipeline and exporter for sending trace
   information to [`Jaeger`].
 - [`opentelemetry-otlp`] exporter for sending trace and metric data in the OTLP
@@ -71,8 +73,10 @@ In particular, the following crates are likely to be of interest:
   metrics information to [`Prometheus`].
 - [`opentelemetry-zipkin`] provides a pipeline and exporter for sending trace
   information to [`Zipkin`].
-- [`opentelemetry-contrib`] provides additional exporters to vendors like
-  [`Datadog`].
+- [`opentelemetry-datadog`] provides additional exporters to [`Datadog`].
+- [`opentelemetry-aws`] provides unofficial propagators for AWS X-ray.
+- [`opentelemetry-contrib`] provides additional exporters and propagators that
+  are experimental.
 - [`opentelemetry-semantic-conventions`] provides standard names and semantic
   otel conventions.
 - [`opentelemetry-stackdriver`] provides an exporter for Google's [Cloud Trace]
@@ -97,13 +101,17 @@ above, please let us know! We'd love to add your project to the list!
 [`opentelemetry-jaeger`]: https://crates.io/crates/opentelemetry-jaeger
 [`Jaeger`]: https://www.jaegertracing.io
 [`opentelemetry-otlp`]: https://crates.io/crates/opentelemetry-otlp
+[`opentelemetry-http`]: https://crates.io/crates/opentelemetry-http
 [`opentelemetry-prometheus`]: https://crates.io/crates/opentelemetry-prometheus
+[`opentelemetry-aws`]: https://crates.io/crates/opentelemetry-aws
 [`Prometheus`]: https://prometheus.io
 [`opentelemetry-zipkin`]: https://crates.io/crates/opentelemetry-zipkin
 [`Zipkin`]: https://zipkin.io
 [`opentelemetry-contrib`]: https://crates.io/crates/opentelemetry-contrib
 [`Datadog`]: https://www.datadoghq.com
+[`opentelemetry-datadog`]: https://crates.io/crates/opentelemetry-datadog
 [`opentelemetry-semantic-conventions`]: https://crates.io/crates/opentelemetry-semantic-conventions
+[`http`]: https://crates.io/crates/http
 
 [`tracing-opentelemetry`]: https://crates.io/crates/tracing-opentelemetry
 [`tracing`]: https://crates.io/crates/tracing

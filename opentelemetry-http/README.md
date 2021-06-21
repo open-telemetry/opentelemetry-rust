@@ -23,7 +23,6 @@ helper types to inject and extract key value pairs into/from HTTP headers.
 
 *Compiler support: [requires `rustc` 1.46+][msrv]*
 
-[`Jaeger`]: https://www.jaegertracing.io/
 [`OpenTelemetry`]: https://crates.io/crates/opentelemetry
 [msrv]: #supported-rust-versions
 
