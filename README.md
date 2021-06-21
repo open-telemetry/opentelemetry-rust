@@ -101,6 +101,7 @@ above, please let us know! We'd love to add your project to the list!
 [`opentelemetry-jaeger`]: https://crates.io/crates/opentelemetry-jaeger
 [`Jaeger`]: https://www.jaegertracing.io
 [`opentelemetry-otlp`]: https://crates.io/crates/opentelemetry-otlp
+[`opentelemetry-http`]: https://crates.io/crates/opentelemetry-http
 [`opentelemetry-prometheus`]: https://crates.io/crates/opentelemetry-prometheus
 [`opentelemetry-aws`]: https://crates.io/crates/opentelemetry-aws
 [`Prometheus`]: https://prometheus.io
@@ -108,6 +109,7 @@ above, please let us know! We'd love to add your project to the list!
 [`Zipkin`]: https://zipkin.io
 [`opentelemetry-contrib`]: https://crates.io/crates/opentelemetry-contrib
 [`Datadog`]: https://www.datadoghq.com
+[`opentelemetry-datadog`]: https://crates.io/crates/opentelemetry-datadog
 [`opentelemetry-semantic-conventions`]: https://crates.io/crates/opentelemetry-semantic-conventions
 
 [`tracing-opentelemetry`]: https://crates.io/crates/tracing-opentelemetry

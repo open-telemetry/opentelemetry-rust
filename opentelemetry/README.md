@@ -10,6 +10,7 @@ The Rust [OpenTelemetry](https://opentelemetry.io/) implementation.
 [![Documentation](https://docs.rs/opentelemetry/badge.svg)](https://docs.rs/opentelemetry)
 [![LICENSE](https://img.shields.io/crates/l/opentelemetry)](./LICENSE)
 [![GitHub Actions CI](https://github.com/open-telemetry/opentelemetry-rust/workflows/CI/badge.svg)](https://github.com/open-telemetry/opentelemetry-rust/actions?query=workflow%3ACI+branch%3Amain)
+[![codecov](https://codecov.io/gh/open-telemetry/opentelemetry-rust/branch/main/graph/badge.svg)](https://codecov.io/gh/open-telemetry/opentelemetry-rust)
 [![Gitter chat](https://img.shields.io/badge/gitter-join%20chat%20%E2%86%92-brightgreen.svg)](https://gitter.im/open-telemetry/opentelemetry-rust)
 
 [Website](https://opentelemetry.io/) |
@@ -62,6 +63,8 @@ adapter crates to assist in propagating state and instrumenting applications.
 
 In particular, the following crates are likely to be of interest:
 
+- [`opentelemetry-http`] provides an interface for injecting and extracting
+  trace information from [`http`] headers.
 - [`opentelemetry-jaeger`] provides a pipeline and exporter for sending trace
   information to [`Jaeger`].
 - [`opentelemetry-otlp`] exporter for sending trace and metric data in the OTLP
@@ -70,13 +73,14 @@ In particular, the following crates are likely to be of interest:
   metrics information to [`Prometheus`].
 - [`opentelemetry-zipkin`] provides a pipeline and exporter for sending trace
   information to [`Zipkin`].
-- [`opentelemetry-contrib`] provides additional exporters and propagators that are experimental.
 - [`opentelemetry-datadog`] provides additional exporters to [`Datadog`].
-- [`opentelemetry-aws`] provides unofficial propagators for AWS X-ray.  
+- [`opentelemetry-aws`] provides unofficial propagators for AWS X-ray.
+- [`opentelemetry-contrib`] provides additional exporters and propagators that
+  are experimental.
 - [`opentelemetry-semantic-conventions`] provides standard names and semantic
   otel conventions.
 - [`opentelemetry-stackdriver`] provides an exporter for Google's [Cloud Trace]
-    (which used to be called StackDriver).
+  (which used to be called StackDriver).
 
 Additionally, there are also several third-party crates which are not
 maintained by the `opentelemetry` project. These include:
@@ -97,14 +101,15 @@ above, please let us know! We'd love to add your project to the list!
 [`opentelemetry-jaeger`]: https://crates.io/crates/opentelemetry-jaeger
 [`Jaeger`]: https://www.jaegertracing.io
 [`opentelemetry-otlp`]: https://crates.io/crates/opentelemetry-otlp
+[`opentelemetry-http`]: https://crates.io/crates/opentelemetry-http
 [`opentelemetry-prometheus`]: https://crates.io/crates/opentelemetry-prometheus
+[`opentelemetry-aws`]: https://crates.io/crates/opentelemetry-aws
 [`Prometheus`]: https://prometheus.io
 [`opentelemetry-zipkin`]: https://crates.io/crates/opentelemetry-zipkin
 [`Zipkin`]: https://zipkin.io
 [`opentelemetry-contrib`]: https://crates.io/crates/opentelemetry-contrib
 [`Datadog`]: https://www.datadoghq.com
 [`opentelemetry-datadog`]: https://crates.io/crates/opentelemetry-datadog
-[`opentelemetry-aws`]: https://crates.io/crates/opentelemetry-aws
 [`opentelemetry-semantic-conventions`]: https://crates.io/crates/opentelemetry-semantic-conventions
 
 [`tracing-opentelemetry`]: https://crates.io/crates/tracing-opentelemetry
