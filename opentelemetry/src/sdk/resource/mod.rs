@@ -138,9 +138,7 @@ impl Resource {
 
     /// Retrieve the value from resource associate with given key.
     pub fn get(&self, key: Key) -> Option<Value> {
-        self.iter()
-            .find(|(k, _v)| **k == key)
-            .map(|(_k, v)| v.clone())
+        self.attrs.get(&key).map(|x| x.clone())
     }
 
     /// Encoded labels
