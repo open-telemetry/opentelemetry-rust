@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.3.1
+
+### Fixed
+
+- `status_code` must be 0 or 1 #580
+
 ## v0.3.0
 
 ### Changed
