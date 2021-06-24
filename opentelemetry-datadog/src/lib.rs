@@ -372,16 +372,14 @@ mod propagator {
                     &mut injector,
                 );
 
-                if header_values.is_empty() {
-                    assert!(injector.is_empty());
-                } else {
+                if !header_values.is_empty() {
                     for (k, v) in header_values.into_iter() {
                         let injected_value: Option<&String> = injector.get(k);
                         assert_eq!(injected_value, Some(&v.to_string()));
                         injector.remove(k);
                     }
-                    assert!(injector.is_empty());
                 }
+                assert!(injector.is_empty());
             }
         }
     }
