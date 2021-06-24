@@ -25,6 +25,7 @@ use std::{
     env::{remove_var, var},
     error::Error,
 };
+use opentelemetry_otlp::WithExporterConfig;
 
 // Use the variables to try and export the example to any external collector that accepts otlp
 // like: oltp itself, honeycomb or lightstep
@@ -56,15 +57,18 @@ fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
     }
 
     opentelemetry_otlp::new_pipeline()
-        .with_endpoint(endpoint.as_str())
-        .with_tonic()
-        .with_metadata(dbg!(metadata))
-        .with_tls_config(
-            ClientTlsConfig::new().domain_name(
-                endpoint
-                    .host_str()
-                    .expect("the specified endpoint should have a valid host"),
-            ),
+        .tracing()
+        .with_exporter(opentelemetry_otlp::new_exporter()
+            .tonic()
+            .with_endpoint(endpoint.as_str())
+            .with_metadata(dbg!(metadata))
+            .with_tls_config(
+                ClientTlsConfig::new().domain_name(
+                    endpoint
+                        .host_str()
+                        .expect("the specified endpoint should have a valid host"),
+                ),
+            )
         )
         .install_batch(opentelemetry::runtime::Tokio)
 }

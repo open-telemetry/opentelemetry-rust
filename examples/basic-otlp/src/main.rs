@@ -10,19 +10,23 @@ use opentelemetry::{
     Context, Key, KeyValue,
 };
 use opentelemetry::{global, sdk::trace as sdktrace};
-use opentelemetry_otlp::ExporterConfig;
+use opentelemetry_otlp::{ExporterConfig, WithExporterConfig};
 use std::error::Error;
 use std::time::Duration;
 
 fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
     opentelemetry_otlp::new_pipeline()
-        .with_endpoint("http://localhost:4317")
-        .with_tonic()
+        .tracing()
+        .with_exporter(
+            opentelemetry_otlp::new_exporter()
+                .tonic()
+                .with_endpoint("http://localhost:4317")
+        )
         .install_batch(opentelemetry::runtime::Tokio)
 }
 
 // Skip first immediate tick from tokio, not needed for async_std.
-fn delayed_interval(duration: Duration) -> impl Stream<Item = tokio::time::Instant> {
+fn delayed_interval(duration: Duration) -> impl Stream<Item=tokio::time::Instant> {
     opentelemetry::util::tokio_interval_stream(duration).skip(1)
 }
 
@@ -31,8 +35,11 @@ fn init_meter() -> metrics::Result<PushController> {
         endpoint: "http://localhost:4317".to_string(),
         ..ExporterConfig::default()
     };
-    opentelemetry_otlp::new_metrics_pipeline(tokio::spawn, delayed_interval)
-        .with_export_config(export_config)
+    opentelemetry_otlp::new_pipeline().metrics(tokio::spawn, delayed_interval)
+        .with_exporter(opentelemetry_otlp::new_exporter()
+            .tonic()
+            .with_exporter_config(export_config)
+        )
         .with_aggregator_selector(selectors::simple::Selector::Exact)
         .build()
 }
