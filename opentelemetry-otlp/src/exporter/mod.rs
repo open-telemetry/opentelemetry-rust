@@ -4,13 +4,12 @@
 use std::time::Duration;
 use crate::Protocol;
 use std::str::FromStr;
-
 #[cfg(feature = "tonic")]
-pub(crate) use self::tonic::{TonicExporterBuilder, TonicConfig};
+use crate::exporter::tonic::TonicExporterBuilder;
 #[cfg(feature = "grpc-sys")]
-pub(crate) use self::grpcio::{GrpcioExporterBuilder, GrpcConfig};
+use crate::exporter::grpcio::GrpcioExporterBuilder;
 #[cfg(feature = "http-proto")]
-pub(crate) use self::http::{HttpExporterBuilder, HttpConfig};
+use crate::exporter::http::HttpExporterBuilder;
 
 /// Target to which the exporter is going to send spans or metrics, defaults to https://localhost:4317.
 pub(crate) const OTEL_EXPORTER_OTLP_ENDPOINT: &str = "OTEL_EXPORTER_OTLP_ENDPOINT";
@@ -67,21 +66,21 @@ pub trait HasExportConfig {
 #[cfg(feature = "tonic")]
 impl HasExportConfig for TonicExporterBuilder {
     fn export_config(&mut self) -> &mut ExportConfig {
-        return &mut self.exporter_config;
+        &mut self.exporter_config
     }
 }
 
 #[cfg(feature = "grpc-sys")]
 impl HasExportConfig for GrpcioExporterBuilder {
     fn export_config(&mut self) -> &mut ExportConfig {
-        return &mut self.exporter_config;
+        &mut self.exporter_config
     }
 }
 
 #[cfg(feature = "http-proto")]
 impl HasExportConfig for HttpExporterBuilder {
     fn export_config(&mut self) -> &mut ExportConfig {
-        return &mut self.exporter_config;
+        &mut self.exporter_config
     }
 }
 
@@ -157,6 +156,7 @@ impl<B: HasExportConfig> WithExportConfig for B {
 }
 
 #[cfg(test)]
+#[cfg(feature = "tonic")]
 mod tests {
     use crate::exporter::{OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_TIMEOUT, OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT, OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, OTEL_EXPORTER_OTLP_TRACES_TIMEOUT, WithExportConfig};
     use crate::new_exporter;

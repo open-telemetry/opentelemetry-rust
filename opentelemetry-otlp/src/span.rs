@@ -18,9 +18,6 @@ use tonic::{
     Request,
 };
 
-#[cfg(all(feature = "tonic", feature = "tls"))]
-use tonic::transport::ClientTlsConfig;
-
 #[cfg(feature = "grpc-sys")]
 use crate::proto::grpcio::trace_service::ExportTraceServiceRequest as GrpcRequest;
 
@@ -50,20 +47,20 @@ use std::fmt::Debug;
 
 use crate::{OtlpPipeline};
 #[cfg(feature = "tonic")]
-use crate::exporter::TonicConfig;
+use crate::exporter::tonic::TonicConfig;
 #[cfg(feature = "grpc-sys")]
-use crate::exporter::GrpcioConfig;
+use crate::exporter::grpcio::GrpcioConfig;
 #[cfg(feature = "http-proto")]
-use crate::exporter::HttpConfig;
+use crate::exporter::http::HttpConfig;
 
 
 use crate::exporter::ExportConfig;
 #[cfg(feature = "tonic")]
-use crate::exporter::TonicExporterBuilder;
+use crate::exporter::tonic::TonicExporterBuilder;
 #[cfg(feature = "grpc-sys")]
-use crate::exporter::GrpcioExporterBuilder;
+use crate::exporter::grpcio::GrpcioExporterBuilder;
 #[cfg(feature = "http-proto")]
-use crate::exporter::HttpExporterBuilder;
+use crate::exporter::http::HttpExporterBuilder;
 
 use opentelemetry::sdk::{trace::TraceRuntime, self};
 use opentelemetry::trace::{TraceError, TracerProvider};
@@ -230,23 +227,23 @@ impl SpanExporterBuilder {
 }
 
 #[cfg(feature = "tonic")]
-impl Into<SpanExporterBuilder> for TonicExporterBuilder {
-    fn into(self) -> SpanExporterBuilder {
-        SpanExporterBuilder::Tonic(self)
+impl From<TonicExporterBuilder> for SpanExporterBuilder {
+    fn from(exporter: TonicExporterBuilder) -> Self {
+        SpanExporterBuilder::Tonic(exporter)
     }
 }
 
 #[cfg(feature = "grpc-sys")]
-impl Into<SpanExporterBuilder> for GrpcioExporterBuilder {
-    fn into(self) -> SpanExporterBuilder {
-        SpanExporterBuilder::Grpcio(self)
+impl From<GrpcioExporterBuilder> for SpanExporterBuilder {
+    fn from(exporter: GrpcioExporterBuilder) -> Self {
+        SpanExporterBuilder::Grpcio(exporter)
     }
 }
 
 #[cfg(feature = "http-proto")]
-impl Into<SpanExporterBuilder> for HttpExporterBuilder {
-    fn into(self) -> SpanExporterBuilder {
-        SpanExporterBuilder::Http(self)
+impl From<HttpExporterBuilder> for SpanExporterBuilder {
+    fn from(exporter: HttpExporterBuilder) -> Self {
+        SpanExporterBuilder::Http(exporter)
     }
 }
 

@@ -1,6 +1,6 @@
 use futures::StreamExt;
 use opentelemetry::global::shutdown_tracer_provider;
-use opentelemetry::trace::{Span, SpanKind, Tracer};
+use opentelemetry::trace::{SpanKind, Tracer, Span};
 use opentelemetry_otlp::proto::collector::trace::v1::{
     trace_service_server::{TraceService, TraceServiceServer},
     ExportTraceServiceRequest, ExportTraceServiceResponse,
@@ -8,6 +8,7 @@ use opentelemetry_otlp::proto::collector::trace::v1::{
 use std::{net::SocketAddr, sync::Mutex};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::TcpListenerStream;
+use opentelemetry_otlp::WithExportConfig;
 
 struct MockServer {
     tx: Mutex<mpsc::Sender<ExportTraceServiceRequest>>,
@@ -68,8 +69,10 @@ async fn smoke_tracer() {
     {
         println!("Installing tracer...");
         let tracer = opentelemetry_otlp::new_pipeline()
-            .with_endpoint(format!("http://{}", addr))
-            .with_tonic()
+            .tracing()
+            .with_exporter(opentelemetry_otlp::new_exporter()
+                .tonic()
+                .with_endpoint(format!("http://{}", addr)))
             .install_batch(opentelemetry::runtime::Tokio)
             .expect("failed to install");
 
