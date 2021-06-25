@@ -1,15 +1,15 @@
 //! OTLP exporter builder and configurations.
 //!
 
-use std::time::Duration;
-use crate::Protocol;
-use std::str::FromStr;
-#[cfg(feature = "tonic")]
-use crate::exporter::tonic::TonicExporterBuilder;
 #[cfg(feature = "grpc-sys")]
 use crate::exporter::grpcio::GrpcioExporterBuilder;
 #[cfg(feature = "http-proto")]
 use crate::exporter::http::HttpExporterBuilder;
+#[cfg(feature = "tonic")]
+use crate::exporter::tonic::TonicExporterBuilder;
+use crate::Protocol;
+use std::str::FromStr;
+use std::time::Duration;
 
 /// Target to which the exporter is going to send spans or metrics, defaults to https://localhost:4317.
 pub(crate) const OTEL_EXPORTER_OTLP_ENDPOINT: &str = "OTEL_EXPORTER_OTLP_ENDPOINT";
@@ -27,11 +27,10 @@ pub(crate) const OTEL_EXPORTER_OTLP_TRACES_TIMEOUT: &str = "OTEL_EXPORTER_OTLP_T
 
 #[cfg(feature = "grpc-sys")]
 pub(crate) mod grpcio;
-#[cfg(feature = "tonic")]
-pub(crate) mod tonic;
 #[cfg(feature = "http-proto")]
 pub(crate) mod http;
-
+#[cfg(feature = "tonic")]
+pub(crate) mod tonic;
 
 /// Configuration for the OTLP exporter.
 #[derive(Debug)]
@@ -55,7 +54,6 @@ impl Default for ExportConfig {
         }
     }
 }
-
 
 /// Provide access to the export config field within the exporter builders.
 pub trait HasExportConfig {
@@ -158,7 +156,11 @@ impl<B: HasExportConfig> WithExportConfig for B {
 #[cfg(test)]
 #[cfg(feature = "tonic")]
 mod tests {
-    use crate::exporter::{OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_TIMEOUT, OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT, OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, OTEL_EXPORTER_OTLP_TRACES_TIMEOUT, WithExportConfig};
+    use crate::exporter::{
+        WithExportConfig, OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_TIMEOUT,
+        OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT, OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+        OTEL_EXPORTER_OTLP_TRACES_TIMEOUT,
+    };
     use crate::new_exporter;
 
     #[test]

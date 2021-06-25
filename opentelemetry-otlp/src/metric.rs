@@ -4,16 +4,16 @@
 //!
 //! Currently, OTEL metrics exporter only support GRPC connection via tonic on tokio runtime.
 
+use crate::exporter::{
+    tonic::{TonicConfig, TonicExporterBuilder},
+    ExportConfig,
+};
 #[cfg(feature = "tonic")]
 use crate::proto::collector::metrics::v1::{
     metrics_service_client::MetricsServiceClient, ExportMetricsServiceRequest,
 };
 use crate::transform::{record_to_metric, sink, CheckpointedMetrics};
 use crate::{Error, OtlpPipeline};
-use crate::exporter::{
-    ExportConfig,
-    tonic::{TonicConfig, TonicExporterBuilder},
-};
 use futures::Stream;
 use opentelemetry::metrics::{Descriptor, Result};
 use opentelemetry::sdk::export::metrics::{AggregatorSelector, ExportKindSelector};
@@ -44,9 +44,9 @@ impl OtlpPipeline {
         spawn: SP,
         interval: I,
     ) -> OtlpMetricPipelineBuilder<selectors::simple::Selector, ExportKindSelector, SP, SO, I, IO>
-        where
-            SP: Fn(PushControllerWorker) -> SO,
-            I: Fn(time::Duration) -> IO,
+    where
+        SP: Fn(PushControllerWorker) -> SO,
+        I: Fn(time::Duration) -> IO,
     {
         OtlpMetricPipelineBuilder {
             aggregator_selector: selectors::simple::Selector::Inexpensive,
@@ -72,16 +72,16 @@ pub enum MetricsExporterBuilder {
 impl MetricsExporterBuilder {
     /// Build a OTLP metrics exporter with given configuration.
     fn build_metrics_exporter<ES>(self, export_selector: ES) -> Result<MetricsExporter>
-        where ES: ExportKindFor + Sync + Send + 'static {
+    where
+        ES: ExportKindFor + Sync + Send + 'static,
+    {
         match self {
             #[cfg(feature = "tonic")]
-            MetricsExporterBuilder::Tonic(builder) => {
-                Ok(MetricsExporter::new(
-                    builder.exporter_config,
-                    builder.tonic_config,
-                    export_selector,
-                )?)
-            }
+            MetricsExporterBuilder::Tonic(builder) => Ok(MetricsExporter::new(
+                builder.exporter_config,
+                builder.tonic_config,
+                export_selector,
+            )?),
         }
     }
 }
@@ -98,11 +98,11 @@ impl From<TonicExporterBuilder> for MetricsExporterBuilder {
 /// runtime.
 #[derive(Debug)]
 pub struct OtlpMetricPipelineBuilder<AS, ES, SP, SO, I, IO>
-    where
-        AS: AggregatorSelector + Send + Sync + 'static,
-        ES: ExportKindFor + Send + Sync + Clone + 'static,
-        SP: Fn(PushControllerWorker) -> SO,
-        I: Fn(time::Duration) -> IO,
+where
+    AS: AggregatorSelector + Send + Sync + 'static,
+    ES: ExportKindFor + Send + Sync + Clone + 'static,
+    SP: Fn(PushControllerWorker) -> SO,
+    I: Fn(time::Duration) -> IO,
 {
     aggregator_selector: AS,
     export_selector: ES,
@@ -116,15 +116,15 @@ pub struct OtlpMetricPipelineBuilder<AS, ES, SP, SO, I, IO>
 }
 
 impl<AS, ES, SP, SO, I, IO, IOI> OtlpMetricPipelineBuilder<AS, ES, SP, SO, I, IO>
-    where
-        AS: AggregatorSelector + Send + Sync + 'static,
-        ES: ExportKindFor + Send + Sync + Clone + 'static,
-        SP: Fn(PushControllerWorker) -> SO,
-        I: Fn(time::Duration) -> IO,
-        IO: Stream<Item=IOI> + Send + 'static,
+where
+    AS: AggregatorSelector + Send + Sync + 'static,
+    ES: ExportKindFor + Send + Sync + Clone + 'static,
+    SP: Fn(PushControllerWorker) -> SO,
+    I: Fn(time::Duration) -> IO,
+    IO: Stream<Item = IOI> + Send + 'static,
 {
     /// Build with resource key value pairs.
-    pub fn with_resource<T: IntoIterator<Item=R>, R: Into<KeyValue>>(self, resource: T) -> Self {
+    pub fn with_resource<T: IntoIterator<Item = R>, R: Into<KeyValue>>(self, resource: T) -> Self {
         OtlpMetricPipelineBuilder {
             resource: Some(Resource::new(resource.into_iter().map(Into::into))),
             ..self
@@ -144,8 +144,8 @@ impl<AS, ES, SP, SO, I, IO, IOI> OtlpMetricPipelineBuilder<AS, ES, SP, SO, I, IO
         self,
         aggregator_selector: T,
     ) -> OtlpMetricPipelineBuilder<T, ES, SP, SO, I, IO>
-        where
-            T: AggregatorSelector + Send + Sync + 'static,
+    where
+        T: AggregatorSelector + Send + Sync + 'static,
     {
         OtlpMetricPipelineBuilder {
             aggregator_selector,
@@ -199,8 +199,8 @@ impl<AS, ES, SP, SO, I, IO, IOI> OtlpMetricPipelineBuilder<AS, ES, SP, SO, I, IO
         self,
         export_selector: E,
     ) -> OtlpMetricPipelineBuilder<AS, E, SP, SO, I, IO>
-        where
-            E: ExportKindFor + Send + Sync + Clone + 'static,
+    where
+        E: ExportKindFor + Send + Sync + Clone + 'static,
     {
         OtlpMetricPipelineBuilder {
             aggregator_selector: self.aggregator_selector,
@@ -217,7 +217,10 @@ impl<AS, ES, SP, SO, I, IO, IOI> OtlpMetricPipelineBuilder<AS, ES, SP, SO, I, IO
 
     /// Build push controller
     pub fn build(self) -> Result<PushController> {
-        let exporter = self.exporter_pipeline.unwrap().build_metrics_exporter(self.export_selector.clone())?;// FIXME
+        let exporter = self
+            .exporter_pipeline
+            .unwrap()
+            .build_metrics_exporter(self.export_selector.clone())?; // FIXME
 
         let mut builder = opentelemetry::sdk::metrics::controllers::push(
             self.aggregator_selector,
@@ -260,7 +263,7 @@ pub struct MetricsExporter {
 impl Debug for MetricsExporter {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         #[cfg(feature = "tonic")]
-            f.debug_struct("OTLP Metric Exporter")
+        f.debug_struct("OTLP Metric Exporter")
             .field("grpc_client", &"tonic")
             .finish()
     }
@@ -284,18 +287,18 @@ impl MetricsExporter {
             Channel::from_shared(config.endpoint).map_err::<crate::Error, _>(Into::into)?;
 
         #[cfg(all(feature = "tls"))]
-            let channel = match tonic_config.tls_config {
+        let channel = match tonic_config.tls_config {
             Some(tls_config) => endpoint
                 .tls_config(tls_config)
                 .map_err::<crate::Error, _>(Into::into)?,
             None => endpoint,
         }
-            .timeout(config.timeout)
-            .connect_lazy()
-            .map_err::<crate::Error, _>(Into::into)?;
+        .timeout(config.timeout)
+        .connect_lazy()
+        .map_err::<crate::Error, _>(Into::into)?;
 
         #[cfg(not(feature = "tls"))]
-            let channel = endpoint
+        let channel = endpoint
             .timeout(config.timeout)
             .connect_lazy()
             .map_err::<crate::Error, _>(Into::into)?;

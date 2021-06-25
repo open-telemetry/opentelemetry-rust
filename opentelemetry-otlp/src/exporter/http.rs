@@ -1,6 +1,6 @@
+use crate::{ExportConfig, Protocol};
 use opentelemetry_http::HttpClient;
 use std::collections::HashMap;
-use crate::{ExportConfig, Protocol};
 
 /// Configuration of the http transport
 #[cfg(feature = "http-proto")]
@@ -19,21 +19,21 @@ impl Default for HttpConfig {
             #[cfg(feature = "reqwest-blocking-client")]
             client: Some(Box::new(reqwest::blocking::Client::new())),
             #[cfg(all(
-            not(feature = "reqwest-blocking-client"),
-            not(feature = "surf-client"),
-            feature = "reqwest-client"
+                not(feature = "reqwest-blocking-client"),
+                not(feature = "surf-client"),
+                feature = "reqwest-client"
             ))]
             client: Some(Box::new(reqwest::Client::new())),
             #[cfg(all(
-            not(feature = "reqwest-client"),
-            not(feature = "reqwest-blocking-client"),
-            feature = "surf-client"
+                not(feature = "reqwest-client"),
+                not(feature = "reqwest-blocking-client"),
+                feature = "surf-client"
             ))]
             client: Some(Box::new(surf::Client::new())),
             #[cfg(all(
-            not(feature = "reqwest-client"),
-            not(feature = "surf-client"),
-            not(feature = "reqwest-blocking-client")
+                not(feature = "reqwest-client"),
+                not(feature = "surf-client"),
+                not(feature = "reqwest-blocking-client")
             ))]
             client: None,
             headers: None,
@@ -50,10 +50,9 @@ pub struct HttpExporterBuilder {
     pub(crate) http_config: HttpConfig,
 }
 
-
 impl Default for HttpExporterBuilder {
     fn default() -> Self {
-        HttpExporterBuilder{
+        HttpExporterBuilder {
             exporter_config: ExportConfig {
                 protocol: Protocol::HttpBinary,
                 ..ExportConfig::default()

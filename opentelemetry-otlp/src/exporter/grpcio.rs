@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use crate::ExportConfig;
+use std::collections::HashMap;
 
 /// Configuration of grpcio
 #[derive(Debug)]
@@ -19,7 +19,6 @@ pub struct GrpcioConfig {
     /// The number of GRPC worker threads to poll queues.
     pub completion_queue_count: usize,
 }
-
 
 impl Default for GrpcioConfig {
     fn default() -> Self {
@@ -48,7 +47,6 @@ pub enum Compression {
     /// Compresses data using gzip.
     Gzip,
 }
-
 
 impl From<Compression> for grpcio::CompressionAlgorithms {
     fn from(compression: Compression) -> Self {

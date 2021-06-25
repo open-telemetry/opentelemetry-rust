@@ -14,8 +14,8 @@ use opentelemetry::{
     Context, Key, KeyValue,
 };
 use opentelemetry::{global, sdk::trace as sdktrace};
-use opentelemetry_otlp::{ExportConfig, WithExportConfig};
 use opentelemetry_otlp::Protocol;
+use opentelemetry_otlp::{ExportConfig, WithExportConfig};
 use std::error::Error;
 use std::sync::Arc;
 use std::time::Duration;
@@ -26,7 +26,7 @@ fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
         .with_exporter(
             opentelemetry_otlp::new_exporter()
                 .tonic()
-                .with_endpoint("http://localhost:4317")
+                .with_endpoint("http://localhost:4317"),
         )
         .install_batch(opentelemetry::runtime::Tokio)
 }
@@ -70,11 +70,13 @@ fn init_meter() -> metrics::Result<PushController> {
         protocol: Protocol::Grpc,
         ..ExportConfig::default()
     };
-    opentelemetry_otlp::new_pipeline().metrics(tokio::spawn, delayed_interval)
-        .with_exporter(opentelemetry_otlp::new_exporter()
-            .tonic()
-            .with_export_config(exporter_config)
-            )
+    opentelemetry_otlp::new_pipeline()
+        .metrics(tokio::spawn, delayed_interval)
+        .with_exporter(
+            opentelemetry_otlp::new_exporter()
+                .tonic()
+                .with_export_config(exporter_config),
+        )
         .with_export_kind(CustomExportKindFor())
         .with_aggregator_selector(CustomAggregator())
         .build()

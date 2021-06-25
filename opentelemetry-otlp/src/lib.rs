@@ -141,13 +141,13 @@
 //! | TLS library | rustls | OpenSSL |
 //! | Supported .proto generator | [`prost`](https://crates.io/crates/prost) | [`prost`](https://crates.io/crates/prost), [`protobuf`](https://crates.io/crates/protobuf) |
 #![warn(
-future_incompatible,
-missing_debug_implementations,
-missing_docs,
-nonstandard_style,
-rust_2018_idioms,
-unreachable_pub,
-unused
+    future_incompatible,
+    missing_debug_implementations,
+    missing_docs,
+    nonstandard_style,
+    rust_2018_idioms,
+    unreachable_pub,
+    unused
 )]
 #![allow(elided_lifetimes_in_paths)]
 #![cfg_attr(docsrs, feature(doc_cfg), deny(broken_intra_doc_links))]
@@ -167,28 +167,28 @@ mod proto;
 #[allow(warnings)]
 pub mod proto;
 
+mod exporter;
 #[cfg(feature = "metrics")]
 mod metric;
 mod span;
 mod transform;
-mod exporter;
 
-pub use crate::span::SpanExporter;
 pub use crate::exporter::ExportConfig;
+pub use crate::span::SpanExporter;
 
 #[cfg(feature = "metrics")]
 pub use crate::metric::{MetricsExporter, OtlpMetricPipelineBuilder};
 
-pub use crate::exporter::{WithExportConfig, HasExportConfig};
+pub use crate::exporter::{HasExportConfig, WithExportConfig};
 
 use opentelemetry::sdk::export::ExportError;
 
-#[cfg(feature = "tonic")]
-use crate::exporter::tonic::TonicExporterBuilder;
 #[cfg(feature = "grpc-sys")]
 use crate::exporter::grpcio::GrpcioExporterBuilder;
 #[cfg(feature = "http-proto")]
 use crate::exporter::http::HttpExporterBuilder;
+#[cfg(feature = "tonic")]
+use crate::exporter::tonic::TonicExporterBuilder;
 
 /// General builder for both tracing and metrics.
 #[derive(Debug)]
@@ -309,4 +309,3 @@ pub enum Protocol {
     /// HTTP protocol with binary protobuf
     HttpBinary,
 }
-

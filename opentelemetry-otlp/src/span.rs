@@ -44,31 +44,28 @@ use std::collections::HashMap;
 use std::fmt;
 use std::fmt::Debug;
 
-
-use crate::{OtlpPipeline};
-#[cfg(feature = "tonic")]
-use crate::exporter::tonic::TonicConfig;
 #[cfg(feature = "grpc-sys")]
 use crate::exporter::grpcio::GrpcioConfig;
 #[cfg(feature = "http-proto")]
 use crate::exporter::http::HttpConfig;
-
-
-use crate::exporter::ExportConfig;
 #[cfg(feature = "tonic")]
-use crate::exporter::tonic::TonicExporterBuilder;
+use crate::exporter::tonic::TonicConfig;
+use crate::OtlpPipeline;
+
 #[cfg(feature = "grpc-sys")]
 use crate::exporter::grpcio::GrpcioExporterBuilder;
 #[cfg(feature = "http-proto")]
 use crate::exporter::http::HttpExporterBuilder;
+#[cfg(feature = "tonic")]
+use crate::exporter::tonic::TonicExporterBuilder;
+use crate::exporter::ExportConfig;
 
-use opentelemetry::sdk::{trace::TraceRuntime, self};
-use opentelemetry::trace::{TraceError, TracerProvider};
-use opentelemetry::sdk::export::trace::{SpanData, ExportResult};
 use opentelemetry::global;
+use opentelemetry::sdk::export::trace::{ExportResult, SpanData};
+use opentelemetry::sdk::{self, trace::TraceRuntime};
+use opentelemetry::trace::{TraceError, TracerProvider};
 
 use async_trait::async_trait;
-
 
 #[cfg(feature = "grpc-sys")]
 use std::sync::Arc;
@@ -132,7 +129,10 @@ impl OtlpTracePipelineBuilder {
     ///
     /// [`Tracer`]: opentelemetry::trace::Tracer
     pub fn install_simple(self) -> Result<sdk::trace::Tracer, TraceError> {
-        Ok(build_simple_with_exporter(self.exporter_builder.unwrap().build_span_exporter()?, self.trace_config)) // FIXME
+        Ok(build_simple_with_exporter(
+            self.exporter_builder.unwrap().build_span_exporter()?,
+            self.trace_config,
+        )) // FIXME
     }
 
     /// Install the configured span exporter and a batch span processor using the
@@ -185,7 +185,6 @@ fn build_batch_with_exporter<R: TraceRuntime>(
     tracer
 }
 
-
 /// OTLP span exporter builder.
 #[derive(Debug)]
 #[non_exhaustive]
@@ -206,22 +205,24 @@ impl SpanExporterBuilder {
     fn build_span_exporter(self) -> Result<SpanExporter, TraceError> {
         match self {
             #[cfg(feature = "tonic")]
-            SpanExporterBuilder::Tonic(builder) => {
-                Ok(match builder.channel {
-                    Some(channel) => {
-                        SpanExporter::from_tonic_channel(builder.exporter_config, builder.tonic_config, channel)
-                    }
-                    None => SpanExporter::new_tonic(builder.exporter_config, builder.tonic_config),
-                }?)
-            }
+            SpanExporterBuilder::Tonic(builder) => Ok(match builder.channel {
+                Some(channel) => SpanExporter::from_tonic_channel(
+                    builder.exporter_config,
+                    builder.tonic_config,
+                    channel,
+                ),
+                None => SpanExporter::new_tonic(builder.exporter_config, builder.tonic_config),
+            }?),
             #[cfg(feature = "grpc-sys")]
-            SpanExporterBuilder::Grpcio(builder) => {
-                Ok(SpanExporter::new_grpcio(builder.exporter_config, builder.grpcio_config))
-            }
+            SpanExporterBuilder::Grpcio(builder) => Ok(SpanExporter::new_grpcio(
+                builder.exporter_config,
+                builder.grpcio_config,
+            )),
             #[cfg(feature = "http-proto")]
-            SpanExporterBuilder::Http(builder) => {
-                Ok(SpanExporter::new_http(builder.exporter_config, builder.http_config)?)
-            }
+            SpanExporterBuilder::Http(builder) => Ok(SpanExporter::new_http(
+                builder.exporter_config,
+                builder.http_config,
+            )?),
         }
     }
 }
@@ -246,7 +247,6 @@ impl From<HttpExporterBuilder> for SpanExporterBuilder {
         SpanExporterBuilder::Http(exporter)
     }
 }
-
 
 /// Exporter that sends data in OTLP format.
 pub enum SpanExporter {
@@ -328,15 +328,15 @@ impl SpanExporter {
         let endpoint = TonicChannel::from_shared(config.endpoint.clone())?;
 
         #[cfg(feature = "tls")]
-            let channel = match tonic_config.tls_config.as_ref() {
+        let channel = match tonic_config.tls_config.as_ref() {
             Some(tls_config) => endpoint.tls_config(tls_config.clone())?,
             None => endpoint,
         }
-            .timeout(config.timeout)
-            .connect_lazy()?;
+        .timeout(config.timeout)
+        .connect_lazy()?;
 
         #[cfg(not(feature = "tls"))]
-            let channel = endpoint.timeout(config.timeout).connect_lazy()?;
+        let channel = endpoint.timeout(config.timeout).connect_lazy()?;
 
         SpanExporter::from_tonic_channel(config, tonic_config, channel)
     }

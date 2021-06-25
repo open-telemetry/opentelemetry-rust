@@ -4,9 +4,9 @@ use opentelemetry::{
     trace::{TraceContextExt, Tracer},
     Key,
 };
+use opentelemetry_otlp::WithExportConfig;
 use std::error::Error;
 use std::time::Duration;
-use opentelemetry_otlp::WithExportConfig;
 
 fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
     opentelemetry_otlp::new_pipeline()
@@ -14,7 +14,7 @@ fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
         .with_exporter(
             opentelemetry_otlp::new_exporter()
                 .http()
-                .with_endpoint("http://localhost:55681/v1/traces")
+                .with_endpoint("http://localhost:55681/v1/traces"),
         )
         .install_batch(opentelemetry::runtime::Tokio)
 }
