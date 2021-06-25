@@ -115,7 +115,7 @@ fn trace_benchmark_group<F: Fn(&sdktrace::Tracer)>(c: &mut Criterion, name: &str
             .with_config(sdktrace::config().with_sampler(sdktrace::Sampler::AlwaysOn))
             .with_simple_exporter(VoidExporter)
             .build();
-        let always_sample = provider.get_tracer("always-sample", None);
+        let always_sample = provider.tracer("always-sample", None);
 
         b.iter(|| f(&always_sample));
     });
@@ -125,7 +125,7 @@ fn trace_benchmark_group<F: Fn(&sdktrace::Tracer)>(c: &mut Criterion, name: &str
             .with_config(sdktrace::config().with_sampler(sdktrace::Sampler::AlwaysOff))
             .with_simple_exporter(VoidExporter)
             .build();
-        let never_sample = provider.get_tracer("never-sample", None);
+        let never_sample = provider.tracer("never-sample", None);
         b.iter(|| f(&never_sample));
     });
 

@@ -44,7 +44,7 @@ use std::collections::HashSet;
 ///
 /// // And a given span
 /// let example_span = sdktrace::TracerProvider::default()
-///     .get_tracer("example-component", None)
+///     .tracer("example-component", None)
 ///     .start("span-name");
 ///
 /// // with the current context, call inject to add the headers

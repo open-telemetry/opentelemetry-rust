@@ -78,7 +78,7 @@ impl crate::trace::TracerProvider for TracerProvider {
     type Tracer = sdk::trace::Tracer;
 
     /// Find or create `Tracer` instance by name.
-    fn get_tracer(&self, name: &'static str, version: Option<&'static str>) -> Self::Tracer {
+    fn tracer(&self, name: &'static str, version: Option<&'static str>) -> Self::Tracer {
         // Use default value if name is invalid empty string
         let component_name = if name.is_empty() {
             DEFAULT_COMPONENT_NAME

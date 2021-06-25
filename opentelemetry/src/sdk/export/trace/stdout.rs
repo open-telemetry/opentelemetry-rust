@@ -100,7 +100,7 @@ where
             provider_builder = provider_builder.with_config(config);
         }
         let provider = provider_builder.build();
-        let tracer = provider.get_tracer("opentelemetry", Some(env!("CARGO_PKG_VERSION")));
+        let tracer = provider.tracer("opentelemetry", Some(env!("CARGO_PKG_VERSION")));
         let _ = global::set_tracer_provider(provider);
 
         tracer

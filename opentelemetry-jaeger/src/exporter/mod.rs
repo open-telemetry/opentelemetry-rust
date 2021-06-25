@@ -263,7 +263,7 @@ impl PipelineBuilder {
     pub fn install_simple(self) -> Result<sdk::trace::Tracer, TraceError> {
         let tracer_provider = self.build_simple()?;
         let tracer =
-            tracer_provider.get_tracer("opentelemetry-jaeger", Some(env!("CARGO_PKG_VERSION")));
+            tracer_provider.tracer("opentelemetry-jaeger", Some(env!("CARGO_PKG_VERSION")));
         let _ = global::set_tracer_provider(tracer_provider);
         Ok(tracer)
     }
@@ -275,7 +275,7 @@ impl PipelineBuilder {
     ) -> Result<sdk::trace::Tracer, TraceError> {
         let tracer_provider = self.build_batch(runtime)?;
         let tracer =
-            tracer_provider.get_tracer("opentelemetry-jaeger", Some(env!("CARGO_PKG_VERSION")));
+            tracer_provider.tracer("opentelemetry-jaeger", Some(env!("CARGO_PKG_VERSION")));
         let _ = global::set_tracer_provider(tracer_provider);
         Ok(tracer)
     }
