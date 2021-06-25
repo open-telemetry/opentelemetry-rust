@@ -1,4 +1,5 @@
 use tonic::metadata::MetadataMap;
+#[cfg(feature = "tls")]
 use tonic::transport::ClientTlsConfig;
 use crate::ExportConfig;
 

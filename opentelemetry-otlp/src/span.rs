@@ -48,14 +48,14 @@ use std::fmt;
 use std::fmt::Debug;
 
 
-use crate::{Protocol, OtlpPipeline};
+use crate::{OtlpPipeline};
 #[cfg(feature = "tonic")]
 use crate::exporter::TonicConfig;
 #[cfg(feature = "grpc-sys")]
 use crate::exporter::GrpcioConfig;
 #[cfg(feature = "http-proto")]
 use crate::exporter::HttpConfig;
-use crate::exporter::{OTEL_EXPORTER_OTLP_ENDPOINT_DEFAULT, OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT};
+
 
 use crate::exporter::ExportConfig;
 #[cfg(feature = "tonic")]

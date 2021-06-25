@@ -6,11 +6,11 @@ use crate::Protocol;
 use std::str::FromStr;
 
 #[cfg(feature = "tonic")]
-pub use self::tonic::{TonicExporterBuilder, TonicConfig};
+pub(crate) use self::tonic::{TonicExporterBuilder, TonicConfig};
 #[cfg(feature = "grpc-sys")]
-pub use self::grpcio::{GrpcioExporterBuilder, GrpcConfig};
+pub(crate) use self::grpcio::{GrpcioExporterBuilder, GrpcConfig};
 #[cfg(feature = "http-proto")]
-pub use self::http::{HttpExporterBuilder, HttpConfig};
+pub(crate) use self::http::{HttpExporterBuilder, HttpConfig};
 
 /// Target to which the exporter is going to send spans or metrics, defaults to https://localhost:4317.
 pub(crate) const OTEL_EXPORTER_OTLP_ENDPOINT: &str = "OTEL_EXPORTER_OTLP_ENDPOINT";
@@ -27,11 +27,11 @@ pub(crate) const OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: &str = "OTEL_EXPORTER_OTLP_
 pub(crate) const OTEL_EXPORTER_OTLP_TRACES_TIMEOUT: &str = "OTEL_EXPORTER_OTLP_TRACES_TIMEOUT";
 
 #[cfg(feature = "grpc-sys")]
-mod grpcio;
+pub(crate) mod grpcio;
 #[cfg(feature = "tonic")]
-mod tonic;
+pub(crate) mod tonic;
 #[cfg(feature = "http-proto")]
-mod http;
+pub(crate) mod http;
 
 
 /// Configuration for the OTLP exporter.
