@@ -6,7 +6,7 @@ use opentelemetry::{
 };
 use std::error::Error;
 use std::time::Duration;
-use opentelemetry_otlp::WithExporterConfig;
+use opentelemetry_otlp::WithExportConfig;
 
 fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
     opentelemetry_otlp::new_pipeline()

@@ -53,7 +53,7 @@ use std::fmt::Debug;
 use std::sync::Arc;
 
 use crate::{Protocol, OTEL_EXPORTER_OTLP_ENDPOINT_DEFAULT, OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT};
-use opentelemetry::sdk::export::trace::{ExportResult, SpanData, SpanExporter};
+use opentelemetry::sdk::export::trace::{ExportResult, SpanData};
 use std::time::Duration;
 
 #[cfg(feature = "http-proto")]
@@ -65,7 +65,7 @@ use http::{
 use opentelemetry_http::HttpClient;
 
 /// Exporter that sends data in OTLP format.
-pub enum TraceExporter {
+pub enum SpanExporter {
     #[cfg(feature = "tonic")]
     /// Trace Exporter using tonic as grpc layer.
     Tonic {
@@ -102,7 +102,7 @@ pub enum TraceExporter {
 
 /// Configuration for the OTLP exporter.
 #[derive(Debug)]
-pub struct ExporterConfig {
+pub struct ExportConfig {
     /// The address of the OTLP collector. If not set, the default address is used.
     pub endpoint: String,
 
@@ -238,9 +238,9 @@ impl Default for HttpConfig {
     }
 }
 
-impl Default for ExporterConfig {
+impl Default for ExportConfig {
     fn default() -> Self {
-        ExporterConfig {
+        ExportConfig {
             endpoint: OTEL_EXPORTER_OTLP_ENDPOINT_DEFAULT.to_string(),
             protocol: Protocol::Grpc,
             timeout: Duration::from_secs(OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT),
@@ -248,11 +248,11 @@ impl Default for ExporterConfig {
     }
 }
 
-impl Debug for TraceExporter {
+impl Debug for SpanExporter {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             #[cfg(feature = "tonic")]
-            TraceExporter::Tonic {
+            SpanExporter::Tonic {
                 metadata, timeout, ..
             } => f
                 .debug_struct("Exporter")
@@ -261,7 +261,7 @@ impl Debug for TraceExporter {
                 .field("trace_exporter", &"TraceServiceClient")
                 .finish(),
             #[cfg(feature = "grpc-sys")]
-            TraceExporter::Grpcio {
+            SpanExporter::Grpcio {
                 headers, timeout, ..
             } => f
                 .debug_struct("Exporter")
@@ -270,7 +270,7 @@ impl Debug for TraceExporter {
                 .field("trace_exporter", &"TraceServiceClient")
                 .finish(),
             #[cfg(feature = "http-proto")]
-            TraceExporter::Http {
+            SpanExporter::Http {
                 headers, timeout, ..
             } => f
                 .debug_struct("Exporter")
@@ -282,11 +282,11 @@ impl Debug for TraceExporter {
     }
 }
 
-impl TraceExporter {
+impl SpanExporter {
     /// Builds a new span exporter with the given configuration.
     #[cfg(feature = "tonic")]
     pub fn new_tonic(
-        config: ExporterConfig,
+        config: ExportConfig,
         tonic_config: TonicConfig,
     ) -> Result<Self, crate::Error> {
         let endpoint = TonicChannel::from_shared(config.endpoint.clone())?;
@@ -302,7 +302,7 @@ impl TraceExporter {
         #[cfg(not(feature = "tls"))]
         let channel = endpoint.timeout(config.timeout).connect_lazy()?;
 
-        TraceExporter::from_tonic_channel(config, tonic_config, channel)
+        SpanExporter::from_tonic_channel(config, tonic_config, channel)
     }
 
     /// Builds a new span exporter with given tonic channel.
@@ -314,7 +314,7 @@ impl TraceExporter {
     /// [`ExporterConfig::timeout`]: crate::span::ExporterConfig::timeout
     #[cfg(feature = "tonic")]
     pub fn from_tonic_channel(
-        config: ExporterConfig,
+        config: ExportConfig,
         tonic_config: TonicConfig,
         channel: tonic::transport::Channel,
     ) -> Result<Self, crate::Error> {
@@ -338,7 +338,7 @@ impl TraceExporter {
             }
         };
 
-        Ok(TraceExporter::Tonic {
+        Ok(SpanExporter::Tonic {
             timeout: config.timeout,
             metadata: tonic_config.metadata,
             trace_exporter: client,
@@ -347,7 +347,7 @@ impl TraceExporter {
 
     /// Builds a new span exporter with the given configuration
     #[cfg(feature = "grpc-sys")]
-    pub fn new_grpcio(config: ExporterConfig, grpcio_config: GrpcioConfig) -> Self {
+    pub fn new_grpcio(config: ExportConfig, grpcio_config: GrpcioConfig) -> Self {
         let mut builder: ChannelBuilder = ChannelBuilder::new(Arc::new(Environment::new(
             grpcio_config.completion_queue_count,
         )));
@@ -370,7 +370,7 @@ impl TraceExporter {
             ),
         };
 
-        TraceExporter::Grpcio {
+        SpanExporter::Grpcio {
             trace_exporter: GrpcioTraceServiceClient::new(channel),
             timeout: config.timeout,
             headers: grpcio_config.headers,
@@ -379,13 +379,13 @@ impl TraceExporter {
 
     /// Builds a new span exporter with the given configuration
     #[cfg(feature = "http-proto")]
-    pub fn new_http(config: ExporterConfig, http_config: HttpConfig) -> Result<Self, crate::Error> {
+    pub fn new_http(config: ExportConfig, http_config: HttpConfig) -> Result<Self, crate::Error> {
         let url: Uri = config
             .endpoint
             .parse()
             .map_err::<crate::Error, _>(Into::into)?;
 
-        Ok(TraceExporter::Http {
+        Ok(SpanExporter::Http {
             trace_exporter: http_config.client,
             timeout: config.timeout,
             collector_endpoint: url,
@@ -395,11 +395,11 @@ impl TraceExporter {
 }
 
 #[async_trait]
-impl SpanExporter for TraceExporter {
+impl opentelemetry::sdk::export::trace::SpanExporter for SpanExporter {
     async fn export(&mut self, batch: Vec<SpanData>) -> ExportResult {
         match self {
             #[cfg(feature = "grpc-sys")]
-            TraceExporter::Grpcio {
+            SpanExporter::Grpcio {
                 timeout,
                 headers,
                 trace_exporter,
@@ -432,7 +432,7 @@ impl SpanExporter for TraceExporter {
             }
 
             #[cfg(feature = "tonic")]
-            TraceExporter::Tonic { trace_exporter, .. } => {
+            SpanExporter::Tonic { trace_exporter, .. } => {
                 let request = Request::new(TonicRequest {
                     resource_spans: batch.into_iter().map(Into::into).collect(),
                 });
@@ -447,7 +447,7 @@ impl SpanExporter for TraceExporter {
             }
 
             #[cfg(feature = "http-proto")]
-            TraceExporter::Http {
+            SpanExporter::Http {
                 trace_exporter,
                 collector_endpoint,
                 headers,

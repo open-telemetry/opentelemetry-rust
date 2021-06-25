@@ -10,7 +10,7 @@ use opentelemetry::{
     Context, Key, KeyValue,
 };
 use opentelemetry::{global, sdk::trace as sdktrace};
-use opentelemetry_otlp::{ExporterConfig, WithExporterConfig};
+use opentelemetry_otlp::{ExportConfig, WithExportConfig};
 use std::error::Error;
 use std::time::Duration;
 
@@ -31,14 +31,14 @@ fn delayed_interval(duration: Duration) -> impl Stream<Item=tokio::time::Instant
 }
 
 fn init_meter() -> metrics::Result<PushController> {
-    let export_config = ExporterConfig {
+    let export_config = ExportConfig {
         endpoint: "http://localhost:4317".to_string(),
-        ..ExporterConfig::default()
+        ..ExportConfig::default()
     };
     opentelemetry_otlp::new_pipeline().metrics(tokio::spawn, delayed_interval)
         .with_exporter(opentelemetry_otlp::new_exporter()
             .tonic()
-            .with_exporter_config(export_config)
+            .with_export_config(export_config)
         )
         .with_aggregator_selector(selectors::simple::Selector::Exact)
         .build()

@@ -25,7 +25,7 @@ use std::{
     env::{remove_var, var},
     error::Error,
 };
-use opentelemetry_otlp::WithExporterConfig;
+use opentelemetry_otlp::WithExportConfig;
 
 // Use the variables to try and export the example to any external collector that accepts otlp
 // like: oltp itself, honeycomb or lightstep
