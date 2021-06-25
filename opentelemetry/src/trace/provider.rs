@@ -2,7 +2,7 @@
 //!
 //! ### Obtaining a Tracer
 //!
-//! New `Tracer` instances can be created via a `TracerProvider` and its `get_tracer`
+//! New `Tracer` instances can be created via a `TracerProvider` and its `tracer`
 //! method. This method expects an Into<String> argument:
 //!
 //! - `name` (required): This name must identify the instrumentation library (also
@@ -29,7 +29,7 @@ pub trait TracerProvider: fmt::Debug + 'static {
 
     /// Creates a named tracer instance of `Self::Tracer`.
     /// If the name is an empty string then provider uses default name.
-    fn get_tracer(&self, name: &'static str, version: Option<&'static str>) -> Self::Tracer;
+    fn tracer(&self, name: &'static str, version: Option<&'static str>) -> Self::Tracer;
 
     /// Force flush all remaining spans in span processors and return results.
     fn force_flush(&self) -> Vec<TraceResult<()>>;

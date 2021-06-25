@@ -164,7 +164,7 @@ where
 /// [`GlobalTracerProvider`]: crate::global::GlobalTracerProvider
 pub trait GenericTracerProvider: fmt::Debug + 'static {
     /// Creates a named tracer instance that is a trait object through the underlying `TracerProvider`.
-    fn get_tracer_boxed(
+    fn tracer_boxed(
         &self,
         name: &'static str,
         version: Option<&'static str>,
@@ -181,12 +181,12 @@ where
     P: trace::TracerProvider<Tracer = T>,
 {
     /// Return a boxed generic tracer
-    fn get_tracer_boxed(
+    fn tracer_boxed(
         &self,
         name: &'static str,
         version: Option<&'static str>,
     ) -> Box<dyn GenericTracer + Send + Sync> {
-        Box::new(self.get_tracer(name, version))
+        Box::new(self.tracer(name, version))
     }
 
     fn force_flush(&self) -> Vec<TraceResult<()>> {
@@ -222,8 +222,8 @@ impl trace::TracerProvider for GlobalTracerProvider {
     type Tracer = BoxedTracer;
 
     /// Find or create a named tracer using the global provider.
-    fn get_tracer(&self, name: &'static str, version: Option<&'static str>) -> Self::Tracer {
-        BoxedTracer(self.provider.get_tracer_boxed(name, version))
+    fn tracer(&self, name: &'static str, version: Option<&'static str>) -> Self::Tracer {
+        BoxedTracer(self.provider.tracer_boxed(name, version))
     }
 
     /// Force flush all remaining spans in span processors and return results.
@@ -253,11 +253,11 @@ pub fn tracer_provider() -> GlobalTracerProvider {
 ///
 /// If the name is an empty string, the provider will use a default name.
 ///
-/// This is a more convenient way of expressing `global::tracer_provider().get_tracer(name, None)`.
+/// This is a more convenient way of expressing `global::tracer_provider().tracer(name, None)`.
 ///
 /// [`Tracer`]: crate::trace::Tracer
 pub fn tracer(name: &'static str) -> BoxedTracer {
-    tracer_provider().get_tracer(name, None)
+    tracer_provider().tracer(name, None)
 }
 
 /// Creates a named instance of [`Tracer`] with version info via the configured [`GlobalTracerProvider`]
@@ -267,7 +267,7 @@ pub fn tracer(name: &'static str) -> BoxedTracer {
 ///
 /// [`Tracer`]: crate::trace::Tracer
 pub fn tracer_with_version(name: &'static str, version: &'static str) -> BoxedTracer {
-    tracer_provider().get_tracer(name, Some(version))
+    tracer_provider().tracer(name, Some(version))
 }
 
 /// Sets the given [`TracerProvider`] instance as the current global provider.
@@ -410,7 +410,7 @@ mod tests {
     impl TracerProvider for TestTracerProvider {
         type Tracer = NoopTracer;
 
-        fn get_tracer(&self, _name: &'static str, _version: Option<&'static str>) -> Self::Tracer {
+        fn tracer(&self, _name: &'static str, _version: Option<&'static str>) -> Self::Tracer {
             NoopTracer::default()
         }
 

@@ -226,7 +226,7 @@ mod tests {
     fn init() -> (sdk::trace::Tracer, SpanData) {
         let provider = sdk::trace::TracerProvider::default();
         let config = provider.config();
-        let tracer = provider.get_tracer("opentelemetry", Some(env!("CARGO_PKG_VERSION")));
+        let tracer = provider.tracer("opentelemetry", Some(env!("CARGO_PKG_VERSION")));
         let data = SpanData {
             parent_span_id: SpanId::from_u64(0),
             span_kind: trace::SpanKind::Internal,
@@ -485,7 +485,7 @@ mod tests {
         let exporter = NoopSpanExporter::new();
         let provider_builder = sdk::trace::TracerProvider::builder().with_simple_exporter(exporter);
         let provider = provider_builder.build();
-        let tracer = provider.get_tracer("opentelemetry-test", None);
+        let tracer = provider.tracer("opentelemetry-test", None);
 
         let mut event1 = Event::with_name("test event");
         for i in 0..(DEFAULT_MAX_ATTRIBUTES_PER_EVENT * 2) {
@@ -519,7 +519,7 @@ mod tests {
         let exporter = NoopSpanExporter::new();
         let provider_builder = sdk::trace::TracerProvider::builder().with_simple_exporter(exporter);
         let provider = provider_builder.build();
-        let tracer = provider.get_tracer("opentelemetry-test", None);
+        let tracer = provider.tracer("opentelemetry-test", None);
 
         let mut link = Link::new(
             SpanContext::new(

@@ -43,7 +43,7 @@
 //!     let tracer_provider = global::tracer_provider();
 //!
 //!     // Get a tracer for this library
-//!     let tracer = tracer_provider.get_tracer("my_name", Some(env!("CARGO_PKG_VERSION")));
+//!     let tracer = tracer_provider.tracer("my_name", Some(env!("CARGO_PKG_VERSION")));
 //!
 //!     // Create spans
 //!     let mut span = tracer.start("doing_work");
