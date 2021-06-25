@@ -25,9 +25,13 @@
 //! use opentelemetry::trace::Tracer;
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-//!     // use tonic as grpc layer here.
-//!     // If you want to use grpcio. enable `grpc-sys` feature and use with_grpcio function here.
-//!     let tracer = opentelemetry_otlp::new_pipeline().with_tonic().install_simple()?;
+//!     // First, create a OTLP exporter builder. Configure it as you need.
+//!     let otlp_exporter = opentelemetry_otlp::new_exporter().tonic();
+//!     // Then pass it into pipeline builder
+//!     let tracer = opentelemetry_otlp::new_pipeline()
+//!             .tracing()
+//!             .with_exporter(otlp_exporter)
+//!             .install_simple()?;
 //!
 //!     tracer.in_span("doing_work", |cx| {
 //!         // Traced app logic here...
@@ -54,6 +58,8 @@
 //! ```no_run
 //! # fn main() -> Result<(), opentelemetry::trace::TraceError> {
 //! let tracer = opentelemetry_otlp::new_pipeline()
+//!     .tracing()
+//!     .with_exporter(opentelemetry_otlp::new_exporter().tonic())
 //!     .install_batch(opentelemetry::runtime::AsyncStd)?;
 //! # Ok(())
 //! # }
@@ -91,9 +97,14 @@
 //!     map.insert_bin("trace-proto-bin", MetadataValue::from_bytes(b"[binary data]"));
 //!
 //!     let tracer = opentelemetry_otlp::new_pipeline()
-//!         .with_endpoint("http://localhost:4317")
-//!         .with_protocol(Protocol::Grpc)
-//!         .with_timeout(Duration::from_secs(3))
+//!         .tracing()
+//!         .with_exporter(
+//!             opentelemetry_otlp::new_exporter()
+//!             .tonic()
+//!             .with_endpoint("http://localhost:4317")
+//!             .with_timeout(Duration::from_secs(3))
+//!             .with_metadata(map)
+//!          )
 //!         .with_trace_config(
 //!             trace::config()
 //!                 .with_sampler(Sampler::AlwaysOn)
@@ -103,8 +114,6 @@
 //!                 .with_max_events_per_span(16)
 //!                 .with_resource(Resource::new(vec![KeyValue::new("service.name", "example")])),
 //!         )
-//!         .with_tonic()
-//!         .with_metadata(map)
 //!         .install_batch(opentelemetry::runtime::Tokio)?;
 //!
 //!     tracer.in_span("doing_work", |cx| {
@@ -225,28 +234,27 @@ impl OtlpPipeline {
     }
 }
 
-
 /// Build a OTLP metrics or tracing exporter builder.
 pub struct OtlpExporterPipeline;
 
 impl OtlpExporterPipeline {
-    /// Use tonic as grpc layer, return a `TonicPipelineBuilder` to config tonic and build the exporter.
+    /// Use tonic as grpc layer, return a `TonicExporterBuilder` to config tonic and build the exporter.
     #[cfg(feature = "tonic")]
-    pub fn tonic(self) -> TonicPipelineBuilder {
-        TonicPipelineBuilder::default()
+    pub fn tonic(self) -> TonicExporterBuilder {
+        TonicExporterBuilder::default()
     }
 
-    /// Use grpcio as grpc layer, return a `GrpcioPipelineBuilder` to config the grpcio and build the exporter.
+    /// Use grpcio as grpc layer, return a `GrpcioExporterBuilder` to config the grpcio and build the exporter.
     #[cfg(feature = "grpc-sys")]
-    pub fn grpcio(self) -> GrpcioPipelineBuilder {
-        GrpcioPipelineBuilder::default()
+    pub fn grpcio(self) -> GrpcioExporterBuilder {
+        GrpcioExporterBuilder::default()
     }
 
-    /// Use HTTP as transport layer, return a `HttpPipelineBuilder` to config the http transport
+    /// Use HTTP as transport layer, return a `HttpExporterBuilder` to config the http transport
     /// and build the exporter
     #[cfg(feature = "http-proto")]
-    pub fn http(self) -> HttpPipelineBuilder {
-        HttpPipelineBuilder::default()
+    pub fn http(self) -> HttpExporterBuilder {
+        HttpExporterBuilder::default()
     }
 }
 
@@ -255,21 +263,21 @@ pub trait HasExporterConfig {
 }
 
 #[cfg(feature = "tonic")]
-impl HasExporterConfig for TonicPipelineBuilder {
+impl HasExporterConfig for TonicExporterBuilder {
     fn exporter_config(&mut self) -> &mut ExporterConfig {
         return &mut self.exporter_config;
     }
 }
 
 #[cfg(feature = "grpc-sys")]
-impl HasExporterConfig for GrpcioPipelineBuilder {
+impl HasExporterConfig for GrpcioExporterBuilder {
     fn exporter_config(&mut self) -> &mut ExporterConfig {
         return &mut self.exporter_config;
     }
 }
 
 #[cfg(feature = "http-proto")]
-impl HasExporterConfig for HttpPipelineBuilder {
+impl HasExporterConfig for HttpExporterBuilder {
     fn exporter_config(&mut self) -> &mut ExporterConfig {
         return &mut self.exporter_config;
     }
@@ -278,17 +286,17 @@ impl HasExporterConfig for HttpPipelineBuilder {
 /// Expose methods to override exporter configuration.
 pub trait WithExporterConfig {
     /// Set the address of the OTLP collector. If not set, the default address is used.
-    fn with_endpoint<T: Into<String>>(mut self, endpoint: T) -> Self;
+    fn with_endpoint<T: Into<String>>(self, endpoint: T) -> Self;
     /// Set the protocol to use when communicating with the collector.
-    fn with_protocol(mut self, protocol: Protocol) -> Self;
+    fn with_protocol(self, protocol: Protocol) -> Self;
     /// Set the timeout to the collector.
-    fn with_timeout(mut self, timeout: Duration) -> Self;
+    fn with_timeout(self, timeout: Duration) -> Self;
     /// Set the trace provider configuration from the given environment variables.
     ///
     /// If the value in environment variables is illegal, will fall back to use default value.
-    fn with_env(mut self) -> Self;
-    /// Set export config.
-    fn with_exporter_config(mut self, exporter_config: ExporterConfig) -> Self;
+    fn with_env(self) -> Self;
+    /// Set exporter config.
+    fn with_exporter_config(self, exporter_config: ExporterConfig) -> Self;
 }
 
 impl<B: HasExporterConfig> WithExporterConfig for B {
@@ -337,11 +345,11 @@ impl<B: HasExporterConfig> WithExporterConfig for B {
 #[non_exhaustive]
 pub enum TraceExporterBuilder {
     #[cfg(feature = "tonic")]
-    Tonic(TonicPipelineBuilder),
+    Tonic(TonicExporterBuilder),
     #[cfg(feature = "grpc-sys")]
-    Grpcio(GrpcioPipelineBuilder),
+    Grpcio(GrpcioExporterBuilder),
     #[cfg(feature = "http-proto")]
-    Http(HttpPipelineBuilder),
+    Http(HttpExporterBuilder),
 }
 
 impl TraceExporterBuilder {
@@ -370,21 +378,21 @@ impl TraceExporterBuilder {
 }
 
 #[cfg(feature = "tonic")]
-impl Into<TraceExporterBuilder> for TonicPipelineBuilder {
+impl Into<TraceExporterBuilder> for TonicExporterBuilder {
     fn into(self) -> TraceExporterBuilder {
         TraceExporterBuilder::Tonic(self)
     }
 }
 
 #[cfg(feature = "grpc-sys")]
-impl Into<TraceExporterBuilder> for GrpcioPipelineBuilder {
+impl Into<TraceExporterBuilder> for GrpcioExporterBuilder {
     fn into(self) -> TraceExporterBuilder {
         TraceExporterBuilder::Grpcio(self)
     }
 }
 
 #[cfg(feature = "http-proto")]
-impl Into<TraceExporterBuilder> for HttpPipelineBuilder {
+impl Into<TraceExporterBuilder> for HttpExporterBuilder {
     fn into(self) -> TraceExporterBuilder {
         TraceExporterBuilder::Http(self)
     }
@@ -483,14 +491,14 @@ impl OtlpTracePipelineBuilder {
 /// [tonic]: https://github.com/hyperium/tonic
 #[derive(Default, Debug)]
 #[cfg(feature = "tonic")]
-pub struct TonicPipelineBuilder {
+pub struct TonicExporterBuilder {
     exporter_config: ExporterConfig,
     tonic_config: TonicConfig,
     channel: Option<tonic::transport::Channel>,
 }
 
 #[cfg(feature = "tonic")]
-impl TonicPipelineBuilder {
+impl TonicExporterBuilder {
     /// Set the TLS settings for the collector endpoint.
     #[cfg(feature = "tls")]
     pub fn with_tls_config(mut self, tls_config: ClientTlsConfig) -> Self {
@@ -532,13 +540,13 @@ impl TonicPipelineBuilder {
 /// [grpcio]: https://github.com/tikv/grpc-rs
 #[derive(Default, Debug)]
 #[cfg(feature = "grpc-sys")]
-pub struct GrpcioPipelineBuilder {
+pub struct GrpcioExporterBuilder {
     exporter_config: ExporterConfig,
     grpcio_config: GrpcioConfig,
 }
 
 #[cfg(feature = "grpc-sys")]
-impl GrpcioPipelineBuilder {
+impl GrpcioExporterBuilder {
     /// Set the credentials to use when communicating with the collector.
     pub fn with_credentials(mut self, credentials: Credentials) -> Self {
         self.grpcio_config.credentials = Some(credentials);
@@ -581,16 +589,29 @@ impl GrpcioPipelineBuilder {
 /// [`OtlpPipelineBuilder`]: crate::OtlpPipelineBuilder
 /// [`install_simple`]: crate::HttpPipelineBuilder::install_simple
 /// [`install_batch`]: crate::HttpPipelineBuilder::install_batch
-#[derive(Default, Debug)]
+#[derive(Debug)]
 #[cfg(feature = "http-proto")]
-pub struct HttpPipelineBuilder {
+pub struct HttpExporterBuilder {
     exporter_config: ExporterConfig,
     http_config: HttpConfig,
-    trace_config: Option<sdk::trace::Config>,
+}
+
+
+#[cfg(feature = "http-proto")]
+impl Default for HttpExporterBuilder {
+    fn default() -> Self {
+        HttpExporterBuilder{
+            exporter_config: ExporterConfig{
+                protocol: Protocol::HttpBinary,
+                ..ExporterConfig::default()
+            },
+            http_config: HttpConfig::default(),
+        }
+    }
 }
 
 #[cfg(feature = "http-proto")]
-impl HttpPipelineBuilder {
+impl HttpExporterBuilder {
     /// Assign client implementation
     pub fn with_http_client<T: HttpClient + 'static>(mut self, client: T) -> Self {
         self.http_config.client = Some(Box::new(client));
@@ -707,28 +728,24 @@ pub enum Protocol {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        new_pipeline, OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_TIMEOUT,
-        OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT, OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
-        OTEL_EXPORTER_OTLP_TRACES_TIMEOUT,
-    };
+    use crate::{new_pipeline, OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_TIMEOUT, OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT, OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, OTEL_EXPORTER_OTLP_TRACES_TIMEOUT, new_exporter, WithExporterConfig};
 
     #[test]
     fn test_pipeline_builder_from_env() {
         std::env::set_var(OTEL_EXPORTER_OTLP_ENDPOINT, "https://otlp_endpoint:4317");
         std::env::set_var(OTEL_EXPORTER_OTLP_TIMEOUT, "bad_timeout");
 
-        let mut pipeline_builder = new_pipeline().with_env();
+        let mut exporter_builder = new_exporter().tonic().with_env();
         assert_eq!(
-            pipeline_builder.exporter_config.timeout,
+            exporter_builder.exporter_config.timeout,
             std::time::Duration::from_secs(OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT)
         );
 
         std::env::set_var(OTEL_EXPORTER_OTLP_TIMEOUT, "60");
 
-        pipeline_builder = new_pipeline().with_env();
+        exporter_builder = new_exporter().tonic().with_env();
         assert_eq!(
-            pipeline_builder.exporter_config.timeout,
+            exporter_builder.exporter_config.timeout,
             std::time::Duration::from_secs(60)
         );
 

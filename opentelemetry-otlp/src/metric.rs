@@ -9,7 +9,7 @@ use crate::proto::collector::metrics::v1::{
     metrics_service_client::MetricsServiceClient, ExportMetricsServiceRequest,
 };
 use crate::transform::{record_to_metric, sink, CheckpointedMetrics};
-use crate::{Error, ExporterConfig, TonicConfig, OtlpPipeline, TonicPipelineBuilder};
+use crate::{Error, ExporterConfig, TonicConfig, OtlpPipeline, TonicExporterBuilder};
 use futures::Stream;
 use opentelemetry::metrics::{Descriptor, Result, MetricsError};
 use opentelemetry::sdk::export::metrics::{AggregatorSelector, ExportKindSelector};
@@ -62,7 +62,7 @@ impl OtlpPipeline {
 #[non_exhaustive]
 pub enum MetricsExporterBuilder {
     #[cfg(feature = "tonic")]
-    Tonic(TonicPipelineBuilder),
+    Tonic(TonicExporterBuilder),
 }
 
 impl MetricsExporterBuilder {
@@ -82,7 +82,7 @@ impl MetricsExporterBuilder {
     }
 }
 
-impl Into<MetricsExporterBuilder> for TonicPipelineBuilder {
+impl Into<MetricsExporterBuilder> for TonicExporterBuilder {
     fn into(self) -> MetricsExporterBuilder {
         MetricsExporterBuilder::Tonic(self)
     }
