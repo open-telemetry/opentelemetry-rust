@@ -192,10 +192,7 @@ where
     }
 
     /// Build with export kind selector
-    pub fn with_export_kind<E>(
-        self,
-        export_selector: E,
-    ) -> OtlpMetricPipeline<AS, E, SP, SO, I, IO>
+    pub fn with_export_kind<E>(self, export_selector: E) -> OtlpMetricPipeline<AS, E, SP, SO, I, IO>
     where
         E: ExportKindFor + Send + Sync + Clone + 'static,
     {

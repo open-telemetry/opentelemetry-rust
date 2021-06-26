@@ -145,13 +145,13 @@
 //! | TLS library | rustls | OpenSSL |
 //! | Supported .proto generator | [`prost`](https://crates.io/crates/prost) | [`prost`](https://crates.io/crates/prost), [`protobuf`](https://crates.io/crates/protobuf) |
 #![warn(
-future_incompatible,
-missing_debug_implementations,
-missing_docs,
-nonstandard_style,
-rust_2018_idioms,
-unreachable_pub,
-unused
+    future_incompatible,
+    missing_debug_implementations,
+    missing_docs,
+    nonstandard_style,
+    rust_2018_idioms,
+    unreachable_pub,
+    unused
 )]
 #![allow(elided_lifetimes_in_paths)]
 #![cfg_attr(docsrs, feature(doc_cfg), deny(broken_intra_doc_links))]
@@ -179,12 +179,17 @@ mod span;
 mod transform;
 
 pub use crate::exporter::ExportConfig;
-pub use crate::span::{SpanExporter, OtlpTracePipeline};
+pub use crate::span::{OtlpTracePipeline, SpanExporter};
 
 #[cfg(feature = "metrics")]
 pub use crate::metric::{MetricsExporter, OtlpMetricPipeline};
 
-pub use crate::exporter::{HasExportConfig, WithExportConfig, OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_ENDPOINT_DEFAULT, OTEL_EXPORTER_OTLP_TIMEOUT, OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT, OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, OTEL_EXPORTER_OTLP_TRACES_TIMEOUT};
+pub use crate::exporter::{
+    HasExportConfig, WithExportConfig, OTEL_EXPORTER_OTLP_ENDPOINT,
+    OTEL_EXPORTER_OTLP_ENDPOINT_DEFAULT, OTEL_EXPORTER_OTLP_TIMEOUT,
+    OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT, OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+    OTEL_EXPORTER_OTLP_TRACES_TIMEOUT,
+};
 
 use opentelemetry::sdk::export::ExportError;
 
