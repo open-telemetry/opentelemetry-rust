@@ -15,6 +15,7 @@ use opentelemetry::{
     Key,
 };
 use url::Url;
+use opentelemetry_otlp::WithExportConfig;
 
 use std::{
     collections::HashMap,
@@ -60,10 +61,14 @@ fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
     );
 
     opentelemetry_otlp::new_pipeline()
-        .with_endpoint(grpcio_endpoint)
-        .with_grpcio()
-        .with_headers(headers)
-        .with_tls(true)
+        .tracing()
+        .with_exporter(
+            opentelemetry_otlp::new_exporter()
+                .grpcio()
+                .with_endpoint(grpcio_endpoint)
+                .with_headers(headers)
+                .with_tls(true)
+        )
         .install_batch(opentelemetry::runtime::AsyncStd)
 }
 const LEMONS_KEY: Key = Key::from_static_str("ex.com/lemons");

@@ -20,6 +20,7 @@ use tonic::{
 use url::Url;
 
 use opentelemetry::global::shutdown_tracer_provider;
+use opentelemetry_otlp::WithExportConfig;
 use std::{env::vars, str::FromStr, time::Duration};
 use std::{
     env::{remove_var, var},
@@ -56,15 +57,19 @@ fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
     }
 
     opentelemetry_otlp::new_pipeline()
-        .with_endpoint(endpoint.as_str())
-        .with_tonic()
-        .with_metadata(dbg!(metadata))
-        .with_tls_config(
-            ClientTlsConfig::new().domain_name(
-                endpoint
-                    .host_str()
-                    .expect("the specified endpoint should have a valid host"),
-            ),
+        .tracing()
+        .with_exporter(
+            opentelemetry_otlp::new_exporter()
+                .tonic()
+                .with_endpoint(endpoint.as_str())
+                .with_metadata(dbg!(metadata))
+                .with_tls_config(
+                    ClientTlsConfig::new().domain_name(
+                        endpoint
+                            .host_str()
+                            .expect("the specified endpoint should have a valid host"),
+                    ),
+                ),
         )
         .install_batch(opentelemetry::runtime::Tokio)
 }

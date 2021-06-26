@@ -4,12 +4,16 @@
 //!
 //! Currently, OTEL metrics exporter only support GRPC connection via tonic on tokio runtime.
 
+use crate::exporter::{
+    tonic::{TonicConfig, TonicExporterBuilder},
+    ExportConfig,
+};
 #[cfg(feature = "tonic")]
 use crate::proto::collector::metrics::v1::{
     metrics_service_client::MetricsServiceClient, ExportMetricsServiceRequest,
 };
 use crate::transform::{record_to_metric, sink, CheckpointedMetrics};
-use crate::{Error, ExporterConfig, TonicConfig};
+use crate::{Error, OtlpPipeline};
 use futures::Stream;
 use opentelemetry::metrics::{Descriptor, Result};
 use opentelemetry::sdk::export::metrics::{AggregatorSelector, ExportKindSelector};
@@ -30,29 +34,58 @@ use tonic::transport::Channel;
 #[cfg(feature = "tonic")]
 use tonic::Request;
 
-/// Return a pipeline to build OTLP metrics exporter.
-///
-/// Note that currently the OTLP metrics exporter only supports tonic as it's grpc layer and tokio as
-/// runtime.
-pub fn new_metrics_pipeline<SP, SO, I, IO>(
-    spawn: SP,
-    interval: I,
-) -> OtlpMetricPipelineBuilder<selectors::simple::Selector, ExportKindSelector, SP, SO, I, IO>
-where
-    SP: Fn(PushControllerWorker) -> SO,
-    I: Fn(time::Duration) -> IO,
-{
-    OtlpMetricPipelineBuilder {
-        aggregator_selector: selectors::simple::Selector::Inexpensive,
-        export_selector: ExportKindSelector::Cumulative,
-        spawn,
-        interval,
-        export_config: None,
-        tonic_config: None,
-        resource: None,
-        stateful: None,
-        period: None,
-        timeout: None,
+impl OtlpPipeline {
+    /// Create a OTLP metrics pipeline.
+    pub fn metrics<SP, SO, I, IO>(
+        self,
+        spawn: SP,
+        interval: I,
+    ) -> OtlpMetricPipeline<selectors::simple::Selector, ExportKindSelector, SP, SO, I, IO>
+    where
+        SP: Fn(PushControllerWorker) -> SO,
+        I: Fn(time::Duration) -> IO,
+    {
+        OtlpMetricPipeline {
+            aggregator_selector: selectors::simple::Selector::Inexpensive,
+            export_selector: ExportKindSelector::Cumulative,
+            spawn,
+            interval,
+            exporter_pipeline: None,
+            resource: None,
+            stateful: None,
+            period: None,
+            timeout: None,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[non_exhaustive]
+pub enum MetricsExporterBuilder {
+    #[cfg(feature = "tonic")]
+    Tonic(TonicExporterBuilder),
+}
+
+impl MetricsExporterBuilder {
+    /// Build a OTLP metrics exporter with given configuration.
+    fn build_metrics_exporter<ES>(self, export_selector: ES) -> Result<MetricsExporter>
+    where
+        ES: ExportKindFor + Sync + Send + 'static,
+    {
+        match self {
+            #[cfg(feature = "tonic")]
+            MetricsExporterBuilder::Tonic(builder) => Ok(MetricsExporter::new(
+                builder.exporter_config,
+                builder.tonic_config,
+                export_selector,
+            )?),
+        }
+    }
+}
+
+impl From<TonicExporterBuilder> for MetricsExporterBuilder {
+    fn from(exporter: TonicExporterBuilder) -> Self {
+        MetricsExporterBuilder::Tonic(exporter)
     }
 }
 
@@ -61,7 +94,7 @@ where
 /// Note that currently the OTLP metrics exporter only supports tonic as it's grpc layer and tokio as
 /// runtime.
 #[derive(Debug)]
-pub struct OtlpMetricPipelineBuilder<AS, ES, SP, SO, I, IO>
+pub struct OtlpMetricPipeline<AS, ES, SP, SO, I, IO>
 where
     AS: AggregatorSelector + Send + Sync + 'static,
     ES: ExportKindFor + Send + Sync + Clone + 'static,
@@ -72,15 +105,14 @@ where
     export_selector: ES,
     spawn: SP,
     interval: I,
-    export_config: Option<ExporterConfig>,
-    tonic_config: Option<TonicConfig>,
+    exporter_pipeline: Option<MetricsExporterBuilder>,
     resource: Option<Resource>,
     stateful: Option<bool>,
     period: Option<time::Duration>,
     timeout: Option<time::Duration>,
 }
 
-impl<AS, ES, SP, SO, I, IO, IOI> OtlpMetricPipelineBuilder<AS, ES, SP, SO, I, IO>
+impl<AS, ES, SP, SO, I, IO, IOI> OtlpMetricPipeline<AS, ES, SP, SO, I, IO>
 where
     AS: AggregatorSelector + Send + Sync + 'static,
     ES: ExportKindFor + Send + Sync + Clone + 'static,
@@ -90,24 +122,16 @@ where
 {
     /// Build with resource key value pairs.
     pub fn with_resource<T: IntoIterator<Item = R>, R: Into<KeyValue>>(self, resource: T) -> Self {
-        OtlpMetricPipelineBuilder {
+        OtlpMetricPipeline {
             resource: Some(Resource::new(resource.into_iter().map(Into::into))),
             ..self
         }
     }
 
-    /// Build with export configuration
-    pub fn with_export_config(self, export_config: ExporterConfig) -> Self {
-        OtlpMetricPipelineBuilder {
-            export_config: Some(export_config),
-            ..self
-        }
-    }
-
-    /// Build with tonic configuration
-    pub fn with_tonic_config(self, tonic_config: TonicConfig) -> Self {
-        OtlpMetricPipelineBuilder {
-            tonic_config: Some(tonic_config),
+    /// Build with the exporter
+    pub fn with_exporter<B: Into<MetricsExporterBuilder>>(self, pipeline: B) -> Self {
+        OtlpMetricPipeline {
+            exporter_pipeline: Some(pipeline.into()),
             ..self
         }
     }
@@ -116,17 +140,16 @@ where
     pub fn with_aggregator_selector<T>(
         self,
         aggregator_selector: T,
-    ) -> OtlpMetricPipelineBuilder<T, ES, SP, SO, I, IO>
+    ) -> OtlpMetricPipeline<T, ES, SP, SO, I, IO>
     where
         T: AggregatorSelector + Send + Sync + 'static,
     {
-        OtlpMetricPipelineBuilder {
+        OtlpMetricPipeline {
             aggregator_selector,
             export_selector: self.export_selector,
             spawn: self.spawn,
             interval: self.interval,
-            export_config: self.export_config,
-            tonic_config: self.tonic_config,
+            exporter_pipeline: None,
             resource: self.resource,
             stateful: self.stateful,
             period: self.period,
@@ -136,12 +159,12 @@ where
 
     /// Build with spawn function
     pub fn with_spawn(self, spawn: SP) -> Self {
-        OtlpMetricPipelineBuilder { spawn, ..self }
+        OtlpMetricPipeline { spawn, ..self }
     }
 
     /// Build with timeout
     pub fn with_timeout(self, timeout: time::Duration) -> Self {
-        OtlpMetricPipelineBuilder {
+        OtlpMetricPipeline {
             timeout: Some(timeout),
             ..self
         }
@@ -149,7 +172,7 @@ where
 
     /// Build with period, your metrics will be exported with this period
     pub fn with_period(self, period: time::Duration) -> Self {
-        OtlpMetricPipelineBuilder {
+        OtlpMetricPipeline {
             period: Some(period),
             ..self
         }
@@ -157,7 +180,7 @@ where
 
     /// Build a stateful push controller or not
     pub fn with_stateful(self, stateful: bool) -> Self {
-        OtlpMetricPipelineBuilder {
+        OtlpMetricPipeline {
             stateful: Some(stateful),
             ..self
         }
@@ -165,24 +188,20 @@ where
 
     /// Build with interval function
     pub fn with_interval(self, interval: I) -> Self {
-        OtlpMetricPipelineBuilder { interval, ..self }
+        OtlpMetricPipeline { interval, ..self }
     }
 
     /// Build with export kind selector
-    pub fn with_export_kind<E>(
-        self,
-        export_selector: E,
-    ) -> OtlpMetricPipelineBuilder<AS, E, SP, SO, I, IO>
+    pub fn with_export_kind<E>(self, export_selector: E) -> OtlpMetricPipeline<AS, E, SP, SO, I, IO>
     where
         E: ExportKindFor + Send + Sync + Clone + 'static,
     {
-        OtlpMetricPipelineBuilder {
+        OtlpMetricPipeline {
             aggregator_selector: self.aggregator_selector,
             export_selector,
             spawn: self.spawn,
             interval: self.interval,
-            export_config: self.export_config,
-            tonic_config: self.tonic_config,
+            exporter_pipeline: self.exporter_pipeline,
             resource: self.resource,
             stateful: self.stateful,
             period: self.period,
@@ -192,12 +211,10 @@ where
 
     /// Build push controller
     pub fn build(self) -> Result<PushController> {
-        #[cfg(feature = "tonic")]
-        let exporter = MetricsExporter::new(
-            self.export_config.unwrap_or_default(),
-            self.tonic_config.unwrap_or_default(),
-            self.export_selector.clone(),
-        )?;
+        let exporter = self
+            .exporter_pipeline
+            .ok_or(Error::NoExporterBuilder)?
+            .build_metrics_exporter(self.export_selector.clone())?;
 
         let mut builder = opentelemetry::sdk::metrics::controllers::push(
             self.aggregator_selector,
@@ -256,7 +273,7 @@ impl MetricsExporter {
     /// Create a new OTLP metrics exporter.
     #[cfg(feature = "tonic")]
     pub fn new<T: ExportKindFor + Send + Sync + 'static>(
-        config: ExporterConfig,
+        config: ExportConfig,
         tonic_config: TonicConfig,
         export_selector: T,
     ) -> Result<MetricsExporter> {
