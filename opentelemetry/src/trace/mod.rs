@@ -169,13 +169,14 @@
 //! ```
 
 use ::futures::channel::{mpsc::TrySendError, oneshot::Canceled};
+#[cfg(feature = "serialize")]
+use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
+use std::fmt;
+use std::time;
 use thiserror::Error;
 
 mod context;
-mod event;
-mod futures;
-mod id_generator;
-mod link;
 pub mod noop;
 mod span;
 mod span_context;
@@ -183,18 +184,13 @@ mod tracer;
 mod tracer_provider;
 
 pub use self::{
-    context::{get_active_span, mark_span_as_active, TraceContextExt},
-    event::Event,
-    futures::FutureExt,
-    id_generator::IdGenerator,
-    link::Link,
+    context::{get_active_span, mark_span_as_active, FutureExt, TraceContextExt},
     span::{Span, SpanKind, StatusCode},
     span_context::{SpanContext, SpanId, TraceFlags, TraceId, TraceState, TraceStateError},
     tracer::{SpanBuilder, Tracer},
     tracer_provider::TracerProvider,
 };
-use crate::sdk::export::ExportError;
-use std::time;
+use crate::{sdk::export::ExportError, KeyValue};
 
 /// Describe the result of operations in tracing API.
 pub type TraceResult<T> = Result<T, TraceError>;
@@ -253,3 +249,90 @@ impl From<&'static str> for TraceError {
 #[derive(Error, Debug)]
 #[error("{0}")]
 struct Custom(String);
+
+/// Interface for generating IDs
+pub trait IdGenerator: Send + Sync + fmt::Debug {
+    /// Generate a new `TraceId`
+    fn new_trace_id(&self) -> TraceId;
+
+    /// Generate a new `SpanId`
+    fn new_span_id(&self) -> SpanId;
+}
+
+/// A `Span` has the ability to add events. Events have a time associated
+/// with the moment when they are added to the `Span`.
+#[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
+#[derive(Clone, Debug, PartialEq)]
+pub struct Event {
+    /// Event name
+    pub name: Cow<'static, str>,
+    /// Event timestamp
+    pub timestamp: time::SystemTime,
+    /// Event attributes
+    pub attributes: Vec<KeyValue>,
+    /// Number of dropped attributes
+    pub dropped_attributes_count: u32,
+}
+
+impl Event {
+    /// Create new `Event`
+    pub fn new<T: Into<Cow<'static, str>>>(
+        name: T,
+        timestamp: time::SystemTime,
+        attributes: Vec<KeyValue>,
+        dropped_attributes_count: u32,
+    ) -> Self {
+        Event {
+            name: name.into(),
+            timestamp,
+            attributes,
+            dropped_attributes_count,
+        }
+    }
+
+    /// Create new `Event` with a given name.
+    pub fn with_name<T: Into<Cow<'static, str>>>(name: T) -> Self {
+        Event {
+            name: name.into(),
+            timestamp: crate::time::now(),
+            attributes: Vec::new(),
+            dropped_attributes_count: 0,
+        }
+    }
+}
+
+/// During the `Span` creation user MUST have the ability to record links to other `Span`s. Linked
+/// `Span`s can be from the same or a different trace.
+#[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
+#[derive(Clone, Debug, PartialEq)]
+pub struct Link {
+    span_context: SpanContext,
+    pub(crate) attributes: Vec<KeyValue>,
+    pub(crate) dropped_attributes_count: u32,
+}
+
+impl Link {
+    /// Create a new link
+    pub fn new(span_context: SpanContext, attributes: Vec<KeyValue>) -> Self {
+        Link {
+            span_context,
+            attributes,
+            dropped_attributes_count: 0,
+        }
+    }
+
+    /// The span context of the linked span
+    pub fn span_context(&self) -> &SpanContext {
+        &self.span_context
+    }
+
+    /// Attributes of the span link
+    pub fn attributes(&self) -> &Vec<KeyValue> {
+        &self.attributes
+    }
+
+    /// Dropped attributes count
+    pub fn dropped_attributes_count(&self) -> u32 {
+        self.dropped_attributes_count
+    }
+}
