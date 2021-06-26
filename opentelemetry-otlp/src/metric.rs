@@ -216,8 +216,8 @@ where
     pub fn build(self) -> Result<PushController> {
         let exporter = self
             .exporter_pipeline
-            .unwrap()
-            .build_metrics_exporter(self.export_selector.clone())?; // FIXME
+            .ok_or(Error::NoExporterBuilder)?
+            .build_metrics_exporter(self.export_selector.clone())?;
 
         let mut builder = opentelemetry::sdk::metrics::controllers::push(
             self.aggregator_selector,

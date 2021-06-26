@@ -278,7 +278,7 @@ pub enum Error {
 
     /// Http requests failed because no http client is provided.
     #[cfg(feature = "http-proto")]
-    #[error("No http client, you must select one")]
+    #[error("no http client, you must select one")]
     NoHttpClient,
 
     /// Http requests failed.
@@ -305,6 +305,10 @@ pub enum Error {
     #[cfg(feature = "metrics")]
     #[error("the lock of the {0} has been poisoned")]
     PoisonedLock(&'static str),
+
+    /// The pipeline will need a exporter to complete setup. Throw this error if none is provided.
+    #[error("no exporter builder is provided, please provide one using with_exporter() method")]
+    NoExporterBuilder,
 }
 
 impl ExportError for Error {

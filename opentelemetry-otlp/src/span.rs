@@ -126,9 +126,9 @@ impl OtlpTracePipeline {
     /// [`Tracer`]: opentelemetry::trace::Tracer
     pub fn install_simple(self) -> Result<sdk::trace::Tracer, TraceError> {
         Ok(build_simple_with_exporter(
-            self.exporter_builder.unwrap().build_span_exporter()?,
+            self.exporter_builder.ok_or(crate::Error::NoExporterBuilder)?.build_span_exporter()?,
             self.trace_config,
-        )) // FIXME
+        ))
     }
 
     /// Install the configured span exporter and a batch span processor using the
@@ -144,7 +144,7 @@ impl OtlpTracePipeline {
         runtime: R,
     ) -> Result<sdk::trace::Tracer, TraceError> {
         Ok(build_batch_with_exporter(
-            self.exporter_builder.unwrap().build_span_exporter()?, // FIXME
+            self.exporter_builder.ok_or(crate::Error::NoExporterBuilder)?.build_span_exporter()?,
             self.trace_config,
             runtime,
         ))
