@@ -1,5 +1,6 @@
 //! OTLP exporter builder and configurations.
 //!
+//! OTLP supports sending data via different protocols and formats.
 
 #[cfg(feature = "grpc-sys")]
 use crate::exporter::grpcio::GrpcioExporterBuilder;
@@ -12,18 +13,18 @@ use std::str::FromStr;
 use std::time::Duration;
 
 /// Target to which the exporter is going to send spans or metrics, defaults to https://localhost:4317.
-pub(crate) const OTEL_EXPORTER_OTLP_ENDPOINT: &str = "OTEL_EXPORTER_OTLP_ENDPOINT";
+pub const OTEL_EXPORTER_OTLP_ENDPOINT: &str = "OTEL_EXPORTER_OTLP_ENDPOINT";
 /// Default target to which the exporter is going to send spans or metrics.
-pub(crate) const OTEL_EXPORTER_OTLP_ENDPOINT_DEFAULT: &str = "https://localhost:4317";
+pub const OTEL_EXPORTER_OTLP_ENDPOINT_DEFAULT: &str = "https://localhost:4317";
 /// Max waiting time for the backend to process each spans or metrics batch, defaults to 10 seconds.
-pub(crate) const OTEL_EXPORTER_OTLP_TIMEOUT: &str = "OTEL_EXPORTER_OTLP_TIMEOUT";
+pub const OTEL_EXPORTER_OTLP_TIMEOUT: &str = "OTEL_EXPORTER_OTLP_TIMEOUT";
 /// Default max waiting time for the backend to process each spans or metrics batch.
-pub(crate) const OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT: u64 = 10;
+pub const OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT: u64 = 10;
 
 /// Target to which the exporter is going to send spans, defaults to https://localhost:4317.
-pub(crate) const OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: &str = "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT";
+pub const OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: &str = "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT";
 /// Max waiting time for the backend to process each spans batch, defaults to 10s.
-pub(crate) const OTEL_EXPORTER_OTLP_TRACES_TIMEOUT: &str = "OTEL_EXPORTER_OTLP_TRACES_TIMEOUT";
+pub const OTEL_EXPORTER_OTLP_TRACES_TIMEOUT: &str = "OTEL_EXPORTER_OTLP_TRACES_TIMEOUT";
 
 #[cfg(feature = "grpc-sys")]
 pub(crate) mod grpcio;

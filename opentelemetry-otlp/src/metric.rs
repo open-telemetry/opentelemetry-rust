@@ -35,20 +35,17 @@ use tonic::transport::Channel;
 use tonic::Request;
 
 impl OtlpPipeline {
-    /// Return a pipeline to build OTLP metrics exporter.
-    ///
-    /// Note that currently the OTLP metrics exporter only supports tonic as it's grpc layer and tokio as
-    /// runtime.
+    /// Create a OTLP metrics pipeline.
     pub fn metrics<SP, SO, I, IO>(
         self,
         spawn: SP,
         interval: I,
-    ) -> OtlpMetricPipelineBuilder<selectors::simple::Selector, ExportKindSelector, SP, SO, I, IO>
+    ) -> OtlpMetricPipeline<selectors::simple::Selector, ExportKindSelector, SP, SO, I, IO>
     where
         SP: Fn(PushControllerWorker) -> SO,
         I: Fn(time::Duration) -> IO,
     {
-        OtlpMetricPipelineBuilder {
+        OtlpMetricPipeline {
             aggregator_selector: selectors::simple::Selector::Inexpensive,
             export_selector: ExportKindSelector::Cumulative,
             spawn,
@@ -97,7 +94,7 @@ impl From<TonicExporterBuilder> for MetricsExporterBuilder {
 /// Note that currently the OTLP metrics exporter only supports tonic as it's grpc layer and tokio as
 /// runtime.
 #[derive(Debug)]
-pub struct OtlpMetricPipelineBuilder<AS, ES, SP, SO, I, IO>
+pub struct OtlpMetricPipeline<AS, ES, SP, SO, I, IO>
 where
     AS: AggregatorSelector + Send + Sync + 'static,
     ES: ExportKindFor + Send + Sync + Clone + 'static,
@@ -115,7 +112,7 @@ where
     timeout: Option<time::Duration>,
 }
 
-impl<AS, ES, SP, SO, I, IO, IOI> OtlpMetricPipelineBuilder<AS, ES, SP, SO, I, IO>
+impl<AS, ES, SP, SO, I, IO, IOI> OtlpMetricPipeline<AS, ES, SP, SO, I, IO>
 where
     AS: AggregatorSelector + Send + Sync + 'static,
     ES: ExportKindFor + Send + Sync + Clone + 'static,
@@ -125,7 +122,7 @@ where
 {
     /// Build with resource key value pairs.
     pub fn with_resource<T: IntoIterator<Item = R>, R: Into<KeyValue>>(self, resource: T) -> Self {
-        OtlpMetricPipelineBuilder {
+        OtlpMetricPipeline {
             resource: Some(Resource::new(resource.into_iter().map(Into::into))),
             ..self
         }
@@ -133,7 +130,7 @@ where
 
     /// Build with the exporter
     pub fn with_exporter<B: Into<MetricsExporterBuilder>>(self, pipeline: B) -> Self {
-        OtlpMetricPipelineBuilder {
+        OtlpMetricPipeline {
             exporter_pipeline: Some(pipeline.into()),
             ..self
         }
@@ -143,11 +140,11 @@ where
     pub fn with_aggregator_selector<T>(
         self,
         aggregator_selector: T,
-    ) -> OtlpMetricPipelineBuilder<T, ES, SP, SO, I, IO>
+    ) -> OtlpMetricPipeline<T, ES, SP, SO, I, IO>
     where
         T: AggregatorSelector + Send + Sync + 'static,
     {
-        OtlpMetricPipelineBuilder {
+        OtlpMetricPipeline {
             aggregator_selector,
             export_selector: self.export_selector,
             spawn: self.spawn,
@@ -162,12 +159,12 @@ where
 
     /// Build with spawn function
     pub fn with_spawn(self, spawn: SP) -> Self {
-        OtlpMetricPipelineBuilder { spawn, ..self }
+        OtlpMetricPipeline { spawn, ..self }
     }
 
     /// Build with timeout
     pub fn with_timeout(self, timeout: time::Duration) -> Self {
-        OtlpMetricPipelineBuilder {
+        OtlpMetricPipeline {
             timeout: Some(timeout),
             ..self
         }
@@ -175,7 +172,7 @@ where
 
     /// Build with period, your metrics will be exported with this period
     pub fn with_period(self, period: time::Duration) -> Self {
-        OtlpMetricPipelineBuilder {
+        OtlpMetricPipeline {
             period: Some(period),
             ..self
         }
@@ -183,7 +180,7 @@ where
 
     /// Build a stateful push controller or not
     pub fn with_stateful(self, stateful: bool) -> Self {
-        OtlpMetricPipelineBuilder {
+        OtlpMetricPipeline {
             stateful: Some(stateful),
             ..self
         }
@@ -191,18 +188,18 @@ where
 
     /// Build with interval function
     pub fn with_interval(self, interval: I) -> Self {
-        OtlpMetricPipelineBuilder { interval, ..self }
+        OtlpMetricPipeline { interval, ..self }
     }
 
     /// Build with export kind selector
     pub fn with_export_kind<E>(
         self,
         export_selector: E,
-    ) -> OtlpMetricPipelineBuilder<AS, E, SP, SO, I, IO>
+    ) -> OtlpMetricPipeline<AS, E, SP, SO, I, IO>
     where
         E: ExportKindFor + Send + Sync + Clone + 'static,
     {
-        OtlpMetricPipelineBuilder {
+        OtlpMetricPipeline {
             aggregator_selector: self.aggregator_selector,
             export_selector,
             spawn: self.spawn,

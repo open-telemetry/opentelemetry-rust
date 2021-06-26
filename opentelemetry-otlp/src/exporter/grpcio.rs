@@ -58,8 +58,12 @@ impl From<Compression> for grpcio::CompressionAlgorithms {
 
 /// Build a trace exporter that uses [grpcio] as grpc layer and opentelemetry protocol.
 ///
-/// It provides methods to config grpcio.
-///
+/// It allows users to
+/// - setup credentials
+/// - add additional headers
+/// - config compression
+/// - select whether to use TLS
+/// - set the number of GRPC worker threads to poll queues
 ///
 /// [grpcio]: https://github.com/tikv/grpc-rs
 #[derive(Default, Debug)]

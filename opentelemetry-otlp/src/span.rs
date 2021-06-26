@@ -82,8 +82,8 @@ use opentelemetry_http::HttpClient;
 
 impl OtlpPipeline {
     /// Create a OTLP tracing pipeline.
-    pub fn tracing(self) -> OtlpTracePipelineBuilder {
-        OtlpTracePipelineBuilder::default()
+    pub fn tracing(self) -> OtlpTracePipeline {
+        OtlpTracePipeline::default()
     }
 }
 
@@ -92,19 +92,15 @@ impl OtlpPipeline {
 /// ## Examples
 ///
 /// ```no_run
-/// fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-///     let tracer = opentelemetry_otlp::new_pipeline().with_tonic().install_simple()?;
-///
-///     Ok(())
-/// }
+/// let tracing_pipeline = opentelemetry_otlp::new_pipeline().tracing();
 /// ```
 #[derive(Default, Debug)]
-pub struct OtlpTracePipelineBuilder {
+pub struct OtlpTracePipeline {
     exporter_builder: Option<SpanExporterBuilder>,
     trace_config: Option<sdk::trace::Config>,
 }
 
-impl OtlpTracePipelineBuilder {
+impl OtlpTracePipeline {
     /// Set the trace provider configuration.
     pub fn with_trace_config(mut self, trace_config: sdk::trace::Config) -> Self {
         self.trace_config = Some(trace_config);
@@ -116,8 +112,8 @@ impl OtlpTracePipelineBuilder {
     /// Note that the pipeline will not build the exporter until [`install_batch`] or [`install_simple`]
     /// is called.
     ///
-    /// [`install_batch`]: OtlpTracePipelineBuilder::install_batch
-    /// [`install_simple`]: OtlpTracePipelineBuilder::install_simple
+    /// [`install_batch`]: OtlpTracePipeline::install_batch
+    /// [`install_simple`]: OtlpTracePipeline::install_simple
     pub fn with_exporter<B: Into<SpanExporterBuilder>>(mut self, pipeline: B) -> Self {
         self.exporter_builder = Some(pipeline.into());
         self
@@ -248,7 +244,7 @@ impl From<HttpExporterBuilder> for SpanExporterBuilder {
     }
 }
 
-/// Exporter that sends data in OTLP format.
+/// OTLP exporter that sends tracing information
 pub enum SpanExporter {
     #[cfg(feature = "tonic")]
     /// Trace Exporter using tonic as grpc layer.

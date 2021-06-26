@@ -1,15 +1,18 @@
 //! The OTLP Exporter supports exporting trace and metric data in the OTLP
-//! format to the OpenTelemetry collector or other compatible backend. The
-//! OpenTelemetry Collector offers a vendor-agnostic implementation on how
+//! format to the OpenTelemetry collector or other compatible backend.
+//!
+//! The OpenTelemetry Collector offers a vendor-agnostic implementation on how
 //! to receive, process, and export telemetry data. In addition, it removes
 //! the need to run, operate, and maintain multiple agents/collectors in
 //! order to support open-source telemetry data formats (e.g. Jaeger,
 //! Prometheus, etc.) sending to multiple open-source or commercial back-ends.
 //!
 //! Currently, this crate only support sending tracing data or metrics in OTLP
-//! via grpc. Support for sending data via HTTP will be added in the future.
+//! via grpc and http(in binary format). Supports for other format and protocol
+//! will be added in the future. The details of what's currently offering in this
+//! crate can be found in this doc.
 //!
-//! ## Quickstart
+//! # Quickstart
 //!
 //! First make sure you have a running version of the opentelemetry collector
 //! you want to send data to:
@@ -19,7 +22,11 @@
 //! ```
 //!
 //! Then install a new pipeline with the recommended defaults to start exporting
-//! telemetry.
+//! telemetry. You will have to build a OTLP exporter first.
+//!
+//! To start a OTLP tracing pipeline. Use `new_pipeline().tracing()` function.
+//!
+//! To start a OTLP metrics pipeline. Use `new_pipeline().metrics()` function.
 //!
 //! ```no_run
 //! use opentelemetry::trace::Tracer;
@@ -68,19 +75,16 @@
 //! [`tokio`]: https://tokio.rs
 //! [`async-std`]: https://async.rs
 //!
-//! ## Kitchen Sink Full Configuration
+//! # Kitchen Sink Full Configuration
 //!
 //! Example showing how to override all configuration options. See the
-//! [`OtlpPipelineBuilder`] docs for details of each option.
+//! [`OtlpPipeline`] docs for details of each option.
 //!
-//! There are two types of configurations. The first is common configurations
-//! that is used by both tonic and grpcio. The other is configuration that only
-//! works with tonic or grpcio.
-//!
-//! The [`OtlpPipelineBuilder`] will first config the configurations that shared
-//! by both grpc layers. Then users can choose their grpc layer by [`with_tonic`]
-//! or [`with_grpcio`] functions. User can then config anything that only works
-//! with specific grpc layers.
+//! Generally there are two parts of configuration. One is metrics config
+//! or tracing config. Users can config it via [`OtlpTracePipeline`]
+//! or [`OtlpMetricPipeline`]. The other is exporting configuration.
+//! Users can set those configurations using [`OtlpExporterPipeline`] based
+//! on the chocie of exporters.
 //!
 //! ```no_run
 //! use opentelemetry::{KeyValue, trace::Tracer};
@@ -129,7 +133,7 @@
 //!
 //! The table below provides a short comparison between `grpcio` and `tonic`, two
 //! of the most popular grpc libraries in Rust. Users can choose between them when
-//! working with otlp with grpc as transport layer.
+//! working with otlp and grpc.
 //!
 //! | Project | [hyperium/tonic](https://github.com/hyperium/tonic) | [tikv/grpc-rs](https://github.com/tikv/grpc-rs) |
 //! |---|---|---|
@@ -141,13 +145,13 @@
 //! | TLS library | rustls | OpenSSL |
 //! | Supported .proto generator | [`prost`](https://crates.io/crates/prost) | [`prost`](https://crates.io/crates/prost), [`protobuf`](https://crates.io/crates/protobuf) |
 #![warn(
-    future_incompatible,
-    missing_debug_implementations,
-    missing_docs,
-    nonstandard_style,
-    rust_2018_idioms,
-    unreachable_pub,
-    unused
+future_incompatible,
+missing_debug_implementations,
+missing_docs,
+nonstandard_style,
+rust_2018_idioms,
+unreachable_pub,
+unused
 )]
 #![allow(elided_lifetimes_in_paths)]
 #![cfg_attr(docsrs, feature(doc_cfg), deny(broken_intra_doc_links))]
@@ -165,6 +169,7 @@ mod proto;
 #[cfg(feature = "integration-testing")]
 #[rustfmt::skip]
 #[allow(warnings)]
+#[doc(hidden)]
 pub mod proto;
 
 mod exporter;
@@ -174,45 +179,54 @@ mod span;
 mod transform;
 
 pub use crate::exporter::ExportConfig;
-pub use crate::span::SpanExporter;
+pub use crate::span::{SpanExporter, OtlpTracePipeline};
 
 #[cfg(feature = "metrics")]
-pub use crate::metric::{MetricsExporter, OtlpMetricPipelineBuilder};
+pub use crate::metric::{MetricsExporter, OtlpMetricPipeline};
 
-pub use crate::exporter::{HasExportConfig, WithExportConfig};
+pub use crate::exporter::{HasExportConfig, WithExportConfig, OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_ENDPOINT_DEFAULT, OTEL_EXPORTER_OTLP_TIMEOUT, OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT, OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, OTEL_EXPORTER_OTLP_TRACES_TIMEOUT};
 
 use opentelemetry::sdk::export::ExportError;
 
 #[cfg(feature = "grpc-sys")]
-use crate::exporter::grpcio::GrpcioExporterBuilder;
+pub use crate::exporter::grpcio::GrpcioExporterBuilder;
 #[cfg(feature = "http-proto")]
-use crate::exporter::http::HttpExporterBuilder;
+pub use crate::exporter::http::HttpExporterBuilder;
 #[cfg(feature = "tonic")]
-use crate::exporter::tonic::TonicExporterBuilder;
+pub use crate::exporter::tonic::TonicExporterBuilder;
 
 /// General builder for both tracing and metrics.
 #[derive(Debug)]
 pub struct OtlpPipeline;
 
-/// Build a OTLP metrics or tracing exporter builder.
+/// Build a OTLP metrics or tracing exporter builder. See functions below to understand
+/// what's currently supported.
 #[derive(Debug)]
 pub struct OtlpExporterPipeline;
 
 impl OtlpExporterPipeline {
     /// Use tonic as grpc layer, return a `TonicExporterBuilder` to config tonic and build the exporter.
+    ///
+    /// This exporter can be used in both `tracing` and `metrics` pipeline.
     #[cfg(feature = "tonic")]
     pub fn tonic(self) -> TonicExporterBuilder {
         TonicExporterBuilder::default()
     }
 
     /// Use grpcio as grpc layer, return a `GrpcioExporterBuilder` to config the grpcio and build the exporter.
+    ///
+    /// This exporter can only be used in `tracing` pipeline. Support for `metrics` pipeline will be
+    /// added in the future.
     #[cfg(feature = "grpc-sys")]
     pub fn grpcio(self) -> GrpcioExporterBuilder {
         GrpcioExporterBuilder::default()
     }
 
     /// Use HTTP as transport layer, return a `HttpExporterBuilder` to config the http transport
-    /// and build the exporter
+    /// and build the exporter.
+    ///
+    /// This exporter can only be used in `tracing` pipeline. Support for `metrics` pipeline will be
+    /// added in the future.
     #[cfg(feature = "http-proto")]
     pub fn http(self) -> HttpExporterBuilder {
         HttpExporterBuilder::default()
@@ -239,45 +253,45 @@ pub fn new_exporter() -> OtlpExporterPipeline {
     OtlpExporterPipeline
 }
 
-/// Wrap type for errors from opentelemetry otel
+/// Wrap type for errors from this crate.
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
-    /// Error from tonic::transport::Error
+    /// Wrap error from [`tonic::transport::Error`]
     #[cfg(feature = "tonic")]
     #[error("transport error {0}")]
     Transport(#[from] tonic::transport::Error),
 
-    /// Error from tonic::codegen::http::uri::InvalidUri
+    /// Wrap the [`tonic::codegen::http::uri::InvalidUri`] error
     #[cfg(any(feature = "tonic", feature = "http-proto"))]
     #[error("invalid URI {0}")]
     InvalidUri(#[from] http::uri::InvalidUri),
 
-    /// Error from tonic::Status
+    /// Wrap type for [`tonic::Status`]
     #[cfg(feature = "tonic")]
     #[error("status error {0}")]
     Status(#[from] tonic::Status),
 
-    /// Error from grpcio module
+    /// Wrap errors from grpcio.
     #[cfg(feature = "grpc-sys")]
     #[error("grpcio error {0}")]
     Grpcio(#[from] grpcio::Error),
 
-    /// Http requests failed
+    /// Http requests failed because no http client is provided.
     #[cfg(feature = "http-proto")]
-    #[error("No Http Client, you must select one")]
+    #[error("No http client, you must select one")]
     NoHttpClient,
 
-    /// Http requests failed
+    /// Http requests failed.
     #[cfg(feature = "http-proto")]
     #[error("http request failed with {0}")]
     RequestFailed(#[from] http::Error),
 
-    /// Invalid Header Value
+    /// The provided value is invalid in HTTP headers.
     #[cfg(feature = "http-proto")]
     #[error("http header value error {0}")]
     InvalidHeaderValue(#[from] http::header::InvalidHeaderValue),
 
-    /// Invalid Header Name
+    /// The provided name is invalid in HTTP headers.
     #[cfg(feature = "http-proto")]
     #[error("http header name error {0}")]
     InvalidHeaderName(#[from] http::header::InvalidHeaderName),

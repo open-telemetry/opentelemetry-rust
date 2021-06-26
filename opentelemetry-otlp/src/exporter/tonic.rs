@@ -28,8 +28,13 @@ impl Default for TonicConfig {
 
 /// Build a trace exporter that uses [tonic] as grpc layer and opentelemetry protocol.
 ///
-/// It provides methods to config tonic.
-/// [tonic]: https://github.com/hyperium/tonic
+/// It allows users to
+/// - add additional metadata
+/// - set tls config(with `tls` feature enabled)
+/// - bring custom [channel]
+///
+/// [tonic]: <https://github.com/hyperium/tonic>
+/// [channel]: tonic::transport::Channel
 #[derive(Default, Debug)]
 pub struct TonicExporterBuilder {
     pub(crate) exporter_config: ExportConfig,
