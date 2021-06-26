@@ -3,7 +3,8 @@ use opentelemetry::runtime::Tokio;
 use opentelemetry::sdk::export::trace::SpanData;
 use opentelemetry::sdk::trace::{BatchSpanProcessor, EvictedHashMap, EvictedQueue, SpanProcessor};
 use opentelemetry::trace::{
-    NoopSpanExporter, SpanContext, SpanId, SpanKind, StatusCode, TraceFlags, TraceId, TraceState,
+    noop::NoopSpanExporter, SpanContext, SpanId, SpanKind, StatusCode, TraceFlags, TraceId,
+    TraceState,
 };
 use std::sync::Arc;
 use std::time::SystemTime;

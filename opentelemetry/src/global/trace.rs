@@ -1,5 +1,5 @@
 use crate::global::handle_error;
-use crate::trace::{NoopTracerProvider, TraceResult};
+use crate::trace::{noop::NoopTracerProvider, TraceResult};
 use crate::{trace, trace::TracerProvider, Context, KeyValue};
 use std::borrow::Cow;
 use std::fmt;
@@ -234,7 +234,7 @@ impl trace::TracerProvider for GlobalTracerProvider {
 
 lazy_static::lazy_static! {
     /// The global `Tracer` provider singleton.
-    static ref GLOBAL_TRACER_PROVIDER: RwLock<GlobalTracerProvider> = RwLock::new(GlobalTracerProvider::new(trace::NoopTracerProvider::new()));
+    static ref GLOBAL_TRACER_PROVIDER: RwLock<GlobalTracerProvider> = RwLock::new(GlobalTracerProvider::new(trace::noop::NoopTracerProvider::new()));
 }
 
 /// Returns an instance of the currently configured global [`TracerProvider`] through
@@ -332,7 +332,7 @@ mod tests {
     use crate::runtime;
     #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
     use crate::sdk::trace::TraceRuntime;
-    use crate::trace::NoopTracer;
+    use crate::trace::noop::NoopTracer;
     #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
     use crate::trace::Tracer;
     use std::{

@@ -1,3 +1,5 @@
+//! API for tracing applications and libraries.
+//!
 //! The `trace` module includes types for tracking the progression of a single
 //! request while it is handled by services that make up an application. A trace
 //! is a tree of [`Span`]s which are objects that represent the work being done
@@ -174,11 +176,11 @@ mod event;
 mod futures;
 mod id_generator;
 mod link;
-mod noop;
-mod provider;
+pub mod noop;
 mod span;
 mod span_context;
 mod tracer;
+mod tracer_provider;
 
 pub use self::{
     context::{get_active_span, mark_span_as_active, TraceContextExt},
@@ -186,11 +188,10 @@ pub use self::{
     futures::FutureExt,
     id_generator::IdGenerator,
     link::Link,
-    noop::{NoopSpan, NoopSpanExporter, NoopTracer, NoopTracerProvider},
-    provider::TracerProvider,
     span::{Span, SpanKind, StatusCode},
     span_context::{SpanContext, SpanId, TraceFlags, TraceId, TraceState, TraceStateError},
     tracer::{SpanBuilder, Tracer},
+    tracer_provider::TracerProvider,
 };
 use crate::sdk::export::ExportError;
 use std::time;

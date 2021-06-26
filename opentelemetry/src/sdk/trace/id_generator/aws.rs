@@ -23,7 +23,7 @@ use std::time::{Duration, UNIX_EPOCH};
 /// ## Example
 ///
 /// ```
-/// use opentelemetry::trace::NoopSpanExporter;
+/// use opentelemetry::trace::noop::NoopSpanExporter;
 /// use opentelemetry::sdk::trace::{self, TracerProvider, XrayIdGenerator};
 ///
 /// let _provider: TracerProvider = TracerProvider::builder()
