@@ -23,6 +23,7 @@ impl ResourceDetector for OsResourceDetector {
     }
 }
 
+#[cfg(target_os = "linux")]
 #[cfg(test)]
 mod tests {
     use crate::sdk::resource::os::OsResourceDetector;
@@ -30,7 +31,6 @@ mod tests {
     use crate::Key;
     use std::time::Duration;
 
-    #[cfg(target_os = "linux")]
     #[test]
     fn test_os_resource_detector() {
         let resource = OsResourceDetector.detect(Duration::from_secs(0));

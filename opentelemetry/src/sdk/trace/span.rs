@@ -219,7 +219,7 @@ mod tests {
     use crate::sdk::trace::span_limit::{
         DEFAULT_MAX_ATTRIBUTES_PER_EVENT, DEFAULT_MAX_ATTRIBUTES_PER_LINK,
     };
-    use crate::trace::{Link, NoopSpanExporter, TraceFlags, TraceId, Tracer};
+    use crate::trace::{noop::NoopSpanExporter, Link, TraceFlags, TraceId, Tracer};
     use crate::{trace::Span as _, trace::TracerProvider, KeyValue};
     use std::time::Duration;
 

@@ -18,7 +18,7 @@
 //! ```
 //! # #[cfg(feature="trace")]
 //! # {
-//! use opentelemetry::trace::{Tracer, NoopTracerProvider};
+//! use opentelemetry::trace::{Tracer, noop::NoopTracerProvider};
 //! use opentelemetry::global;
 //!
 //! fn init_tracer() {

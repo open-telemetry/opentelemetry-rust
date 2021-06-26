@@ -89,13 +89,13 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
 /// ended. If you find this limiting, consider the batch processor instead.
 ///
 /// ```
-/// use opentelemetry::{trace as apitrace, sdk::trace as sdktrace, global};
+/// use opentelemetry::{trace::noop::NoopSpanExporter, sdk, global};
 ///
 /// // Configure your preferred exporter
-/// let exporter = apitrace::NoopSpanExporter::new();
+/// let exporter = NoopSpanExporter::new();
 ///
 /// // Then use the `with_simple_exporter` method to have the provider export when spans finish.
-/// let provider = sdktrace::TracerProvider::builder()
+/// let provider = sdk::trace::TracerProvider::builder()
 ///     .with_simple_exporter(exporter)
 ///     .build();
 ///
@@ -200,22 +200,21 @@ impl SpanProcessor for SimpleSpanProcessor {
 /// ```
 /// # #[cfg(feature="tokio")]
 /// # {
-/// use futures::{stream};
-/// use opentelemetry::{trace as apitrace, sdk::trace as sdktrace, global, runtime};
+/// use opentelemetry::{global, runtime, sdk, trace::noop::NoopSpanExporter};
 /// use std::time::Duration;
 ///
 /// #[tokio::main]
 /// async fn main() {
 ///     // Configure your preferred exporter
-///     let exporter = apitrace::NoopSpanExporter::new();
+///     let exporter = NoopSpanExporter::new();
 ///
 ///     // Create a batch span processor using an exporter and a runtime
-///     let batch = sdktrace::BatchSpanProcessor::builder(exporter, runtime::Tokio)
+///     let batch = sdk::trace::BatchSpanProcessor::builder(exporter, runtime::Tokio)
 ///         .with_max_queue_size(4096)
 ///         .build();
 ///
 ///     // Then use the `with_batch_exporter` method to have the provider export spans in batches.
-///     let provider = sdktrace::TracerProvider::builder()
+///     let provider = sdk::trace::TracerProvider::builder()
 ///         .with_span_processor(batch)
 ///         .build();
 ///

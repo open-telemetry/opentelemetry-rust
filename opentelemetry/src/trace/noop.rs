@@ -1,4 +1,4 @@
-//! # No-op OpenTelemetry Trace Implementation
+//! No-op trace impls
 //!
 //! This implementation is returned as the global tracer if no `Tracer`
 //! has been set. It is also useful for testing purposes as it is intended
@@ -128,11 +128,11 @@ impl NoopTracer {
 }
 
 impl trace::Tracer for NoopTracer {
-    type Span = trace::NoopSpan;
+    type Span = NoopSpan;
 
     /// Returns a `NoopSpan` as they are always invalid.
     fn invalid(&self) -> Self::Span {
-        trace::NoopSpan::new()
+        NoopSpan::new()
     }
 
     /// Starts a new `NoopSpan` with a given context.
@@ -160,7 +160,7 @@ impl trace::Tracer for NoopTracer {
     fn build(&self, builder: trace::SpanBuilder) -> Self::Span {
         let cx = builder.parent_context;
         if cx.has_active_span() {
-            trace::NoopSpan {
+            NoopSpan {
                 span_context: cx.span().span_context().clone(),
             }
         } else {

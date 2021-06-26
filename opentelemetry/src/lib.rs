@@ -237,6 +237,7 @@ pub use common::{Array, Key, KeyValue, Value};
 
 pub mod runtime;
 
+#[doc(hidden)]
 pub mod util;
 
 #[cfg(feature = "metrics")]
