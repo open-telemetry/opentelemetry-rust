@@ -21,17 +21,17 @@ use opentelemetry::{sdk::export::trace::SpanData, Context};
 /// name, span id to avoid the unnecessary clone [`SpanAggregator`] .
 /// When span ends, the zPages processor will send complete span data to [`SpanAggregator`] .
 ///
-pub struct ZPagesProcessor {
+pub struct ZPagesSpanProcessor {
     channel: Sender<TracezMessage>,
 }
 
-impl std::fmt::Debug for ZPagesProcessor {
+impl std::fmt::Debug for ZPagesSpanProcessor {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.write_str("ZPageProcessor")
     }
 }
 
-impl SpanProcessor for ZPagesProcessor {
+impl SpanProcessor for ZPagesSpanProcessor {
     fn on_start(&self, span: &Span, _cx: &Context) {
         if let Some(data) = span.exported_data() {
             let _ = self.channel.try_send(TracezMessage::SampleSpan(data));

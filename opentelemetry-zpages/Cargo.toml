@@ -20,17 +20,20 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-opentelemetry = { version = "0.13", path = "../opentelemetry", default-features = false, features = ["trace"] }
+opentelemetry = { version = "0.15", path = "../opentelemetry", default-features = false, features = ["trace"] }
 async-channel = "1.6"
 futures = "0.3"
 lazy_static = "1.4.0"
-grpcio = "0.6"
+grpcio = "0.9"
 protobuf = "2.18"
+serde = "1.0"
+serde_json = "1.0"
 
 [dev-dependencies]
 tokio = { version = "1.0", features = ["full"] }
+chrono = "0.4"
 opentelemetry = { path = "../opentelemetry", default-features = false, features = ["trace", "testing"] }
 
 [build-dependencies]
-protobuf-codegen = "2.16"
+protobuf-codegen = { version = "2.16", features = ["with-serde"] }
 protoc-grpcio = "2.0"

@@ -20,10 +20,13 @@
 
 use trace::span_queue::SpanQueue;
 
-pub mod trace;
+mod trace;
 #[allow(clippy::all, unreachable_pub, dead_code)]
 #[rustfmt::skip]
 mod proto;
+mod transform;
+
+pub use trace::{span_processor::ZPagesSpanProcessor, TracezMessage, TracezQuery, TracezResponse};
 
 #[macro_use]
 extern crate lazy_static;

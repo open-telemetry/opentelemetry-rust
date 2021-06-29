@@ -1,14 +1,15 @@
 //! Tracez implementation
 //!
 use crate::proto::tracez::{ErrorData, LatencyData, RunningData, TracezCounts};
-pub(crate) use aggregator::SpanAggregator;
+
 use futures::channel::oneshot;
 use opentelemetry::sdk::export::trace::SpanData;
-pub use span_processor::ZPagesProcessor;
+
+use std::fmt::Formatter;
 
 mod aggregator;
-mod span_processor;
-pub mod span_queue;
+pub mod span_processor;
+pub(crate) mod span_queue;
 
 /// Message that used to pass commend between web servers, aggregators and span processors.
 pub enum TracezMessage {
@@ -23,7 +24,7 @@ pub enum TracezMessage {
         /// Query content
         query: TracezQuery,
         /// Channel to send the response
-        response_tx: oneshot::Sender<TracezResponse>,
+        response_tx: oneshot::Sender<Result<TracezResponse, QueryError>>,
     },
 }
 
@@ -69,6 +70,27 @@ pub enum TracezResponse {
     Running(Vec<RunningData>),
     /// tracez/api/error/{span_name}
     ErrorData(Vec<ErrorData>),
+}
+
+/// Tracez API's error.
+#[derive(Debug)]
+pub enum QueryError {
+    InvalidArgument {
+        api: &'static str,
+        message: &'static str,
+    },
+    NotFound {
+        api: &'static str,
+    },
+}
+
+impl std::fmt::Display for QueryError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            QueryError::InvalidArgument { api: _, message } => f.write_str(message),
+            QueryError::NotFound { api: _ } => f.write_str("the requested resource is not founded"),
+        }
+    }
 }
 
 impl TracezResponse {
