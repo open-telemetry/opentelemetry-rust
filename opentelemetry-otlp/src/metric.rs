@@ -149,7 +149,7 @@ where
             export_selector: self.export_selector,
             spawn: self.spawn,
             interval: self.interval,
-            exporter_pipeline: None,
+            exporter_pipeline: self.exporter_pipeline,
             resource: self.resource,
             stateful: self.stateful,
             period: self.period,
