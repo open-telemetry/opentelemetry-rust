@@ -14,6 +14,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 use std::fmt;
+use std::hash::Hash;
 use std::ops::{BitAnd, BitOr, Not};
 use std::str::FromStr;
 use thiserror::Error;
@@ -187,7 +188,7 @@ impl SpanId {
 ///
 /// [W3C specification]: https://www.w3.org/TR/trace-context/#tracestate-header
 #[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Hash)]
 pub struct TraceState(Option<VecDeque<(String, String)>>);
 
 impl TraceState {
@@ -406,7 +407,7 @@ pub enum TraceStateError {
 /// Spans that do not have the `sampled` flag set in their [`TraceFlags`] will
 /// be ignored by most tracing tools.
 #[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Hash)]
 pub struct SpanContext {
     trace_id: TraceId,
     span_id: SpanId,
