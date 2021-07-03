@@ -25,9 +25,14 @@ async-channel = "1.6"
 futures = "0.3"
 lazy_static = "1.4.0"
 grpcio = "0.9"
-protobuf = "2.18"
+protobuf = { version = "2.23.0", features = ["with-serde"] }
 serde = "1.0"
 serde_json = "1.0"
+
+[features]
+# Hack to get the serde trait implemented in protobuf generated types.
+default = ["with-serde"]
+with-serde = ["protobuf/with-serde"]
 
 [dev-dependencies]
 tokio = { version = "1.0", features = ["full"] }
@@ -35,5 +40,5 @@ chrono = "0.4"
 opentelemetry = { path = "../opentelemetry", default-features = false, features = ["trace", "testing"] }
 
 [build-dependencies]
-protobuf-codegen = { version = "2.16", features = ["with-serde"] }
+protobuf-codegen = "2.16"
 protoc-grpcio = "2.0"

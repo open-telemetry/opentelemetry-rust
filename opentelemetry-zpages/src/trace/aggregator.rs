@@ -153,7 +153,7 @@ impl SpanAggregator {
                 .ok_or(QueryError::NotFound {
                     api: "tracez/api/error/{span_name}",
                 })
-                .and_then(|summary| Ok(TracezResponse::ErrorData(summary.error.clone().into()))),
+                .and_then(|summary| Ok(TracezResponse::Error(summary.error.clone().into()))),
             TracezQuery::Running { span_name } => self
                 .summaries
                 .get(&span_name)
@@ -199,7 +199,7 @@ impl SpanSummary {
 
 impl<T: From<SpanData>> From<SpanQueue> for Vec<T> {
     fn from(span_queue: SpanQueue) -> Self {
-        span_queue.queue.into_iter().map(Into::into).collect()
+        span_queue.spans().into_iter().map(Into::into).collect()
     }
 }
 
@@ -236,6 +236,7 @@ mod tests {
         expect_error: Vec<(u128, u64, u8, bool)>,
         // (index of the latency bucket, trace id, span id, trace flag, is error)
         expect_latencies: Vec<(usize, u128, u64, u8, bool)>,
+        // name of the test plan
         name: &'static str,
     }
 
@@ -385,7 +386,7 @@ mod tests {
 
         let assert_span_queue = |span_queue: &SpanQueue, expected: Vec<SpanData>, msg: String| {
             assert_eq!(span_queue.len(), min(SAMPLE_SIZE, expected.len()));
-            for collected_span in span_queue.queue.clone() {
+            for collected_span in span_queue.clone().spans() {
                 assert!(
                     expected
                         .iter()

@@ -1,7 +1,7 @@
 //! # Evicted Queue
 
 use opentelemetry::sdk::export::trace::SpanData;
-use opentelemetry::trace::SpanContext;
+use opentelemetry::trace::{SpanContext, SpanId, TraceId};
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
@@ -18,12 +18,12 @@ pub(crate) struct SpanQueue {
     // We may also try to build a more complicate structure to `remove` here
     // as current approach's time complexity is high.
     // We should add and remove all in O(1) time complexity
-    pub(crate) queue: VecDeque<SpanData>,
-    pub(crate) max_len: usize,
+    queue: VecDeque<SpanData>,
+    max_len: usize,
 }
 
 impl SpanQueue {
-    /// Create a new `EvictedQueue` with a given max length.
+    /// Create a new `SpanQueue` with a given max length.
     pub(crate) fn new(max_len: usize) -> Self {
         SpanQueue {
             queue: VecDeque::with_capacity(max_len),
@@ -57,8 +57,8 @@ impl SpanQueue {
         self.queue.remove(idx)
     }
 
-    /// Get an element from the queue.
-    pub(crate) fn get(&self, index: usize) -> Option<&SpanData> {
-        self.queue.get(index)
+    /// Return all spans it currently hold
+    pub(crate) fn spans(self) -> Vec<SpanData> {
+        self.queue.into_iter().collect()
     }
 }

@@ -14,10 +14,10 @@
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 use std::fmt;
-use std::hash::Hash;
 use std::ops::{BitAnd, BitOr, Not};
 use std::str::FromStr;
 use thiserror::Error;
+use std::hash::{Hash, Hasher};
 
 /// Flags that can be set on a [`SpanContext`].
 ///
@@ -249,10 +249,10 @@ impl TraceState {
     /// assert_eq!(trace_state.unwrap().header(), String::from("foo=bar,apple=banana"))
     /// ```
     pub fn from_key_value<T, K, V>(trace_state: T) -> Result<Self, TraceStateError>
-    where
-        T: IntoIterator<Item = (K, V)>,
-        K: ToString,
-        V: ToString,
+        where
+            T: IntoIterator<Item=(K, V)>,
+            K: ToString,
+            V: ToString,
     {
         let ordered_data = trace_state
             .into_iter()
@@ -296,9 +296,9 @@ impl TraceState {
     ///
     /// [W3 Spec]: https://www.w3.org/TR/trace-context/#mutating-the-tracestate-field
     pub fn insert<K, V>(&self, key: K, value: V) -> Result<TraceState, TraceStateError>
-    where
-        K: Into<String>,
-        V: Into<String>,
+        where
+            K: Into<String>,
+            V: Into<String>,
     {
         let (key, value) = (key.into(), value.into());
         if !TraceState::valid_key(key.as_str()) {
@@ -414,6 +414,17 @@ pub struct SpanContext {
     trace_flags: TraceFlags,
     is_remote: bool,
     trace_state: TraceState,
+}
+
+impl Hash for SpanContext {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        let cloned = self.clone();
+        state.write_u128(cloned.trace_id.to_u128());
+        state.write_u64(cloned.span_id.to_u64());
+        state.write_u8(cloned.trace_flags.to_u8());
+        state.write_u8(cloned.is_remote as u8);
+        state.write(cloned.trace_state.header().as_bytes());
+    }
 }
 
 impl SpanContext {
