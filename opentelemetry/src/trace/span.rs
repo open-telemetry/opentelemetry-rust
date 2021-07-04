@@ -265,7 +265,7 @@ impl StatusCode {
 
     /// Return the priority of the status code.
     /// Status code with higher priority can override the lower priority one.
-    pub fn priority(&self) -> i32 {
+    pub(crate) fn priority(&self) -> i32 {
         match self {
             StatusCode::Unset => 0,
             StatusCode::Error => 1,
