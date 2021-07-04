@@ -122,11 +122,13 @@ pub trait Span: fmt::Debug {
     /// that have prescribed semantic meanings.
     fn set_attribute(&mut self, attribute: KeyValue);
 
-    /// Sets the status of the `Span`. If used, this will override the default `Span`
-    /// status, which is `Unset`. `message` MUST be ignored when the status is `OK` or `Unset`
+    /// Sets the status of the `Span`. `message` MUST be ignored when the status is `OK` or
+    /// `Unset`.
     ///
-    /// Only the value of the last call will be recorded, and implementations are free
-    /// to ignore previous calls.
+    /// The order of status is `Ok` > `Error` > `Unset`. That's means set the status
+    /// to `Unset` will always be ignore, set the status to `Error` only works when current
+    /// status is `Unset`, set the status to `Ok` will be consider final and any further call
+    /// to this function will be ignore.
     fn set_status(&mut self, code: StatusCode, message: String);
 
     /// Updates the `Span`'s name. After this update, any sampling behavior based on the
@@ -244,11 +246,11 @@ impl fmt::Display for SpanKind {
 #[derive(Clone, Debug, PartialEq, Copy)]
 pub enum StatusCode {
     /// The default status.
-    Unset = 0,
+    Unset,
     /// OK is returned on success.
-    Ok = 1,
+    Ok,
     /// The operation contains an error.
-    Error = 2,
+    Error,
 }
 
 impl StatusCode {
@@ -258,6 +260,16 @@ impl StatusCode {
             StatusCode::Unset => "",
             StatusCode::Ok => "OK",
             StatusCode::Error => "ERROR",
+        }
+    }
+
+    /// Return the priority of the status code.
+    /// Status code with higher priority can override the lower priority one.
+    pub fn priority(&self) -> i32 {
+        match self {
+            StatusCode::Unset => 0,
+            StatusCode::Error => 1,
+            StatusCode::Ok => 2,
         }
     }
 }
