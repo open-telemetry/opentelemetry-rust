@@ -70,6 +70,21 @@ impl Span {
     {
         self.data.as_mut().map(f)
     }
+
+    /// Convert information in this span into `exporter::trace::SpanData`.
+    /// This function copies all data from the current span, which will create a
+    /// overhead.
+    pub fn exported_data(&self) -> Option<crate::sdk::export::trace::SpanData> {
+        let (span_context, tracer) = (self.span_context.clone(), &self.tracer);
+        let resource = if let Some(provider) = self.tracer.provider() {
+            provider.config().resource.clone()
+        } else {
+            None
+        };
+        self.data
+            .as_ref()
+            .map(|data| build_export_data(data.clone(), span_context, resource, tracer))
+    }
 }
 
 impl crate::trace::Span for Span {
@@ -570,5 +585,25 @@ mod tests {
         let link_vec: Vec<_> = link_queue.iter().collect();
         let processed_link = link_vec.get(0).expect("should have at least one link");
         assert_eq!(processed_link.attributes().len(), 128);
+    }
+
+    #[test]
+    fn test_span_exported_data() {
+        let provider = sdk::trace::TracerProvider::builder()
+            .with_simple_exporter(NoopSpanExporter::new())
+            .build();
+        let tracer = provider.tracer("test", None);
+
+        let mut span = tracer.start("test_span");
+        span.add_event("test_event".to_string(), vec![]);
+        span.set_status(StatusCode::Error, "".to_string());
+
+        let exported_data = span.exported_data();
+        assert!(exported_data.is_some());
+
+        drop(provider);
+        let dropped_span = tracer.start("span_with_dropped_provider");
+        // return none if the provider has already been dropped
+        assert!(dropped_span.exported_data().is_none());
     }
 }
