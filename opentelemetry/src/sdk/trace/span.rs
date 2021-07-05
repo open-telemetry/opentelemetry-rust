@@ -140,6 +140,11 @@ impl crate::trace::Span for Span {
     /// status, which is `Unset`. `message` MUST be ignored when the status is `OK` or `Unset`
     fn set_status(&mut self, code: StatusCode, message: String) {
         self.with_data(|data| {
+            // check if we should ignore
+            if code.priority() < data.status_code.priority() {
+                // ignore if the current code has higher priority.
+                return;
+            }
             if code == StatusCode::Error {
                 data.status_message = message.into();
             }
@@ -412,6 +417,25 @@ mod tests {
             span.with_data(|data| {
                 assert_eq!(data.status_code, status);
                 assert_eq!(data.status_message, "Error");
+            });
+        }
+        {
+            let mut span = create_span();
+            // ok status code should be final
+            span.set_status(StatusCode::Ok, "".to_string());
+            span.set_status(StatusCode::Error, "error".to_string());
+            span.with_data(|data| {
+                assert_eq!(data.status_code, StatusCode::Ok);
+                assert_eq!(data.status_message, "");
+            });
+        }
+        {
+            let mut span = create_span();
+            // error status code should be able to override unset
+            span.set_status(StatusCode::Error, "error".to_string());
+            span.with_data(|data| {
+                assert_eq!(data.status_code, StatusCode::Error);
+                assert_eq!(data.status_message, "error");
             });
         }
     }
