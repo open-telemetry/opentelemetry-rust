@@ -8,7 +8,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use futures::channel::{mpsc, oneshot};
 use futures::StreamExt;
 
-use opentelemetry::trace::{SpanContext, StatusCode};
+use opentelemetry::trace::StatusCode;
 
 use crate::proto::tracez::TracezCounts;
 use crate::trace::{QueryError, TracezMessage, TracezQuery, TracezResponse};
@@ -214,13 +214,12 @@ mod tests {
 
     use crate::trace::aggregator::{SpanAggregator, LATENCY_BUCKET_COUNT};
     use crate::trace::span_queue::SpanQueue;
-    use crate::trace::{TracezMessage, TracezResponse};
+    use crate::trace::TracezMessage;
     use chrono::{DateTime, NaiveDateTime, Utc};
     use opentelemetry::sdk::export::trace::SpanData;
     use opentelemetry::testing::trace::new_test_export_span_data;
     use std::borrow::Cow;
     use std::cmp::min;
-    use std::collections::HashMap;
 
     enum Action {
         Start,
