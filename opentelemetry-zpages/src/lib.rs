@@ -1,7 +1,10 @@
 //! zPages implementation for Opentelemetry
 //!
 //! # Overview
-//! zPages are an in-process alternative to external processors.
+//! zPages are an in-process alternative to external exporters. When included,
+//! they collect and aggregate tracing and metrics information in the
+//! background; this data is served on web pages or APIs when requested.
+//!
 #![warn(
     future_incompatible,
     missing_debug_implementations,
@@ -16,7 +19,7 @@
 #![doc(
     html_logo_url = "https://raw.githubusercontent.com/open-telemetry/opentelemetry-rust/master/assets/logo.svg"
 )]
-// #![cfg_attr(test, deny(warnings))]
+#![cfg_attr(test, deny(warnings))]
 
 use trace::span_queue::SpanQueue;
 
@@ -26,7 +29,7 @@ mod trace;
 mod proto;
 mod transform;
 
-pub use trace::{span_processor::ZPagesSpanProcessor, TracezMessage, TracezQuery, TracezResponse};
+pub use trace::{span_processor::ZPagesSpanProcessor, tracez, TracezMessage, TracezResponse};
 
 #[macro_use]
 extern crate lazy_static;

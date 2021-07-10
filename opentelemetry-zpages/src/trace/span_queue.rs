@@ -19,6 +19,7 @@ pub(crate) struct SpanQueue {
     queue: Vec<SpanData>,
     map: HashMap<SpanContext, usize>,
     next_idx: usize,
+    capacity: usize,
 }
 
 impl PartialEq for SpanQueue {
@@ -34,12 +35,14 @@ impl SpanQueue {
             queue: Vec::with_capacity(max_len),
             next_idx: 0,
             map: HashMap::with_capacity(max_len),
+            capacity: max_len,
         }
     }
 
     /// Push a new element to the back of the queue
+    /// If the queue is filled. Replace the left most element inside the queue.
     pub(crate) fn push_back(&mut self, value: SpanData) {
-        self.next_idx = self.next_idx % self.queue.capacity();
+        self.next_idx %= self.capacity;
         self.map.insert(value.span_context.clone(), self.next_idx);
         match self.queue.get_mut(self.next_idx) {
             Some(ele) => {
@@ -89,7 +92,7 @@ mod tests {
     use super::*;
     use chrono::{DateTime, NaiveDateTime, Utc};
     use opentelemetry::testing::trace::new_test_export_span_data;
-    use opentelemetry::trace::{TraceFlags, TraceState, TraceId, SpanId};
+    use opentelemetry::trace::{SpanId, TraceFlags, TraceId, TraceState};
 
     enum Action {
         PushBack(u128, u64),
@@ -121,7 +124,7 @@ mod tests {
             let mut span_data = new_test_export_span_data();
             span_data.span_context = get_span_context(trace_id, span_id);
             let time = DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(61, 0), Utc);
-            span_data.start_time = time.clone().into();
+            span_data.start_time = time.into();
             span_data.end_time = time.into();
             span_data
         };
@@ -198,7 +201,7 @@ mod tests {
                 assert_eq!(span_queue.map.len(), queue.len());
                 for (idx, (trace_id, span_id)) in queue.into_iter().enumerate() {
                     let span_context = get_span_context(trace_id, span_id);
-                    assert_eq!(span_queue.map.get(&span_context).map(|idx| *idx), Some(idx));
+                    assert_eq!(span_queue.map.get(&span_context).copied(), Some(idx));
                 }
             }
         }

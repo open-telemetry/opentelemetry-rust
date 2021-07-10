@@ -2,16 +2,37 @@
 //!
 use crate::proto::tracez::{ErrorData, LatencyData, RunningData, TracezCounts};
 
+use async_channel::Sender;
 use futures::channel::oneshot;
 use opentelemetry::sdk::export::trace::SpanData;
 
+use opentelemetry::runtime::Runtime;
 use serde::ser::SerializeSeq;
 use serde::Serializer;
 use std::fmt::Formatter;
 
 mod aggregator;
-pub mod span_processor;
+pub(crate) mod span_processor;
 pub(crate) mod span_queue;
+
+/// Create tracez components. This function will create a `ZPageSpanProcessor` and a `SpanAggregator`.
+///
+/// It will start the aggregator with `sample_size` sample spans for each unique span name.
+///
+/// Return a `SpanProcessor` that should be installed into the `TracerProvider` and a `Sender` to send
+/// query requests and shutdown command.
+pub fn tracez<R: Runtime>(
+    sample_size: usize,
+    runtime: R,
+) -> (span_processor::ZPagesSpanProcessor, Sender<TracezMessage>) {
+    let (tx, rx) = async_channel::unbounded();
+    let span_processor = span_processor::ZPagesSpanProcessor::new(tx.clone());
+    let mut aggregator = aggregator::SpanAggregator::new(rx, sample_size);
+    let _ = runtime.spawn(Box::pin(async move {
+        aggregator.process().await;
+    }));
+    (span_processor, tx)
+}
 
 /// Message that used to pass commend between web servers, aggregators and span processors.
 pub enum TracezMessage {
@@ -26,8 +47,93 @@ pub enum TracezMessage {
         /// Query content
         query: TracezQuery,
         /// Channel to send the response
-        response_tx: oneshot::Sender<Result<TracezResponse, QueryError>>,
+        response_tx: oneshot::Sender<Result<TracezResponse, TracezError>>,
     },
+}
+
+impl TracezMessage {
+    /// Create a message to shut down span aggregator
+    pub fn shutdown() -> TracezMessage {
+        TracezMessage::ShutDown
+    }
+
+    /// Create a message for aggregation API.
+    ///
+    /// Return the message and the `Receiver` to receive the response.
+    pub fn aggregation() -> (
+        TracezMessage,
+        oneshot::Receiver<Result<TracezResponse, TracezError>>,
+    ) {
+        let (tx, rx) = oneshot::channel();
+        (
+            TracezMessage::Query {
+                query: TracezQuery::Aggregation,
+                response_tx: tx,
+            },
+            rx,
+        )
+    }
+
+    /// Create a message for latency API
+    ///
+    /// Return the message and the `Receiver` to receive the response.
+    pub fn latency(
+        bucket_index: usize,
+        span_name: String,
+    ) -> (
+        TracezMessage,
+        oneshot::Receiver<Result<TracezResponse, TracezError>>,
+    ) {
+        let (tx, rx) = oneshot::channel();
+        (
+            TracezMessage::Query {
+                query: TracezQuery::Latency {
+                    bucket_index,
+                    span_name,
+                },
+                response_tx: tx,
+            },
+            rx,
+        )
+    }
+
+    /// Create a message for running spans API
+    ///
+    /// Return the message and the `Receiver` to receive the response.
+    pub fn running(
+        span_name: String,
+    ) -> (
+        TracezMessage,
+        oneshot::Receiver<Result<TracezResponse, TracezError>>,
+    ) {
+        let (tx, rx) = oneshot::channel();
+        (
+            TracezMessage::Query {
+                query: TracezQuery::Running { span_name },
+                response_tx: tx,
+            },
+            rx,
+        )
+    }
+
+    /// Create a message for error spans API
+    ///
+    /// Return the message and the `Receiver` to receive the response.
+    pub fn error(
+        span_name: String,
+    ) -> (
+        TracezMessage,
+        oneshot::Receiver<Result<TracezResponse, TracezError>>,
+    ) {
+        let (tx, rx) = oneshot::channel();
+        (
+            TracezMessage::Query {
+                query: TracezQuery::Error { span_name },
+                response_tx: tx,
+            },
+            rx,
+        )
+    }
 }
 
 impl std::fmt::Debug for TracezMessage {
@@ -114,7 +220,7 @@ impl serde::Serialize for TracezResponse {
 
 /// Tracez API's error.
 #[derive(Debug)]
-pub enum QueryError {
+pub enum TracezError {
     InvalidArgument {
         api: &'static str,
         message: &'static str,
@@ -125,12 +231,14 @@ pub enum QueryError {
     Serialization,
 }
 
-impl std::fmt::Display for QueryError {
+impl std::fmt::Display for TracezError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            QueryError::InvalidArgument { api: _, message } => f.write_str(message),
-            QueryError::NotFound { api: _ } => f.write_str("the requested resource is not founded"),
-            QueryError::Serialization => f.write_str("cannot serialize the response into json"),
+            TracezError::InvalidArgument { api: _, message } => f.write_str(message),
+            TracezError::NotFound { api: _ } => {
+                f.write_str("the requested resource is not founded")
+            }
+            TracezError::Serialization => f.write_str("cannot serialize the response into json"),
         }
     }
 }
@@ -142,8 +250,14 @@ impl TracezResponse {
         unimplemented!()
     }
 
+    /// Convert the `TracezResponse` into json.
+    ///
+    /// Throw a `TracezError` if the serialization fails.
     #[cfg(feature = "with-serde")]
-    pub fn into_json(self) -> Result<String, QueryError> {
-        serde_json::to_string(&self).map_err(|_| QueryError::Serialization)
+    pub fn into_json(self) -> Result<String, TracezError> {
+        serde_json::to_string(&self).map_err(|_| TracezError::Serialization)
     }
 }
+
+#[cfg(test)]
+mod tests {}

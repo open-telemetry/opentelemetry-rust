@@ -8,7 +8,7 @@ As noted in [Opentelemetry zPage spec](https://github.com/open-telemetry/opentel
 There are several types of zPages defined in spec. Currently, we will only implement the tracez 
 
 ## Prior arts
-Many language clients in OpenTelemetry alread implement at least part of the zPage service like [Cpp](https://github.com/open-telemetry/opentelemetry-cpp/blob/main/ext/src/zpages/README.md).
+Many language clients in OpenTelemetry already implement at least part of the zPage service like [Cpp](https://github.com/open-telemetry/opentelemetry-cpp/blob/main/ext/src/zpages/README.md).
 
 ## Overall design
 <details>
@@ -51,10 +51,10 @@ The span aggregator should maintain a worker loop to handle the messages from th
 
 
 ## Design ideas
-### Span aggregator embedded into zpage span processor
+1. Span aggregator embedded into zpage span processor
+
 One alternative choice other than using channels is to embed into the span aggregator. Then when span starts, span ends or there is an incoming http requests. We can lock the span aggregator to change the state. 
 
 However, using this approach will block the `on_start` or `on_end` methods of zpage span processor if the span aggregator is working on serving a http request, which will further block the span processor chain to move forward when span ends.
 
 This approach could have avoided the cloning when span starts. But unfortunately current span API doesn't allow us to get the span name without clone the `Span` into a `SpanData` object. Thus, the cloning cannot be avoided even if we embed the span aggregator into zpage span processor.
-

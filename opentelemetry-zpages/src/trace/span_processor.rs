@@ -22,7 +22,7 @@ use opentelemetry::{sdk::export::trace::SpanData, Context};
 /// When span ends, the zPages processor will send complete span data to [`SpanAggregator`] .
 ///
 pub struct ZPagesSpanProcessor {
-    channel: Sender<TracezMessage>,
+    tx: Sender<TracezMessage>,
 }
 
 impl std::fmt::Debug for ZPagesSpanProcessor {
@@ -31,15 +31,22 @@ impl std::fmt::Debug for ZPagesSpanProcessor {
     }
 }
 
+impl ZPagesSpanProcessor {
+    /// Create a new `ZPagesSpanProcessor`.
+    pub fn new(tx: Sender<TracezMessage>) -> ZPagesSpanProcessor {
+        ZPagesSpanProcessor { tx }
+    }
+}
+
 impl SpanProcessor for ZPagesSpanProcessor {
     fn on_start(&self, span: &Span, _cx: &Context) {
         if let Some(data) = span.exported_data() {
-            let _ = self.channel.try_send(TracezMessage::SampleSpan(data));
+            let _ = self.tx.try_send(TracezMessage::SampleSpan(data));
         }
     }
 
     fn on_end(&self, span: SpanData) {
-        let _ = self.channel.try_send(TracezMessage::SpanEnd(span));
+        let _ = self.tx.try_send(TracezMessage::SpanEnd(span));
     }
 
     fn force_flush(&self) -> TraceResult<()> {

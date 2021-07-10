@@ -5,13 +5,14 @@
 use std::collections::HashMap;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use futures::channel::{mpsc, oneshot};
+use async_channel::Receiver;
+use futures::channel::oneshot;
 use futures::StreamExt;
 
 use opentelemetry::trace::StatusCode;
 
 use crate::proto::tracez::TracezCounts;
-use crate::trace::{QueryError, TracezMessage, TracezQuery, TracezResponse};
+use crate::trace::{TracezError, TracezMessage, TracezQuery, TracezResponse};
 use crate::SpanQueue;
 use opentelemetry::sdk::export::trace::SpanData;
 
@@ -34,7 +35,7 @@ const LATENCY_BUCKET_COUNT: usize = 9;
 /// requested.
 #[derive(Debug)]
 pub(crate) struct SpanAggregator {
-    receiver: mpsc::Receiver<TracezMessage>,
+    receiver: Receiver<TracezMessage>,
     summaries: HashMap<String, SpanSummary>,
     sample_size: usize,
 }
@@ -42,10 +43,7 @@ pub(crate) struct SpanAggregator {
 #[allow(unused)]
 impl SpanAggregator {
     /// Create a span aggregator
-    pub(crate) fn new(
-        receiver: mpsc::Receiver<TracezMessage>,
-        sample_size: usize,
-    ) -> SpanAggregator {
+    pub(crate) fn new(receiver: Receiver<TracezMessage>, sample_size: usize) -> SpanAggregator {
         SpanAggregator {
             receiver,
             summaries: HashMap::new(),
@@ -55,6 +53,7 @@ impl SpanAggregator {
 
     /// Process request from http server or the span processor.
     pub(crate) async fn process(&mut self) {
+        let sample_size = self.sample_size;
         loop {
             match self.receiver.next().await {
                 None => {
@@ -72,7 +71,7 @@ impl SpanAggregator {
                             let summary = self
                                 .summaries
                                 .entry(span.name.clone().into())
-                                .or_insert(SpanSummary::new(self.sample_size));
+                                .or_insert_with(|| SpanSummary::new(sample_size));
 
                             summary.running.remove(span.span_context.clone());
 
@@ -80,10 +79,9 @@ impl SpanAggregator {
                                 summary.error.push_back(span);
                             } else {
                                 let latency_idx = latency_bucket(span.start_time, span.end_time);
-                                summary
-                                    .latencies
-                                    .get_mut(latency_idx)
-                                    .map(|queue| queue.push_back(span));
+                                if let Some(queue) = summary.latencies.get_mut(latency_idx) {
+                                    queue.push_back(span)
+                                }
                             }
                         }
                         TracezMessage::SampleSpan(span) => {
@@ -94,7 +92,7 @@ impl SpanAggregator {
                             let summary = self
                                 .summaries
                                 .entry(span.name.clone().into())
-                                .or_insert(SpanSummary::new(self.sample_size));
+                                .or_insert_with(|| SpanSummary::new(sample_size));
                             summary.running.push_back(span)
                         }
                         TracezMessage::Query { query, response_tx } => {
@@ -109,7 +107,7 @@ impl SpanAggregator {
     async fn handle_query(
         &mut self,
         query: TracezQuery,
-        response_tx: oneshot::Sender<Result<TracezResponse, QueryError>>,
+        response_tx: oneshot::Sender<Result<TracezResponse, TracezError>>,
     ) {
         let _ = response_tx.send(match query {
             TracezQuery::Aggregation => Ok(TracezResponse::Aggregation(
@@ -134,33 +132,33 @@ impl SpanAggregator {
             } => self
                 .summaries
                 .get(&span_name)
-                .ok_or(QueryError::NotFound {
+                .ok_or(TracezError::NotFound {
                     api: "tracez/api/latency/{bucket_index}/{span_name}",
                 })
                 .and_then(|summary| {
                     summary
                         .latencies
                         .get(bucket_index)
-                        .ok_or(QueryError::InvalidArgument {
+                        .ok_or(TracezError::InvalidArgument {
                             api: "tracez/api/latency/{bucket_index}/{span_name}",
                             message: "invalid bucket index",
                         })
-                        .and_then(|queue| Ok(TracezResponse::Latency(queue.clone().into())))
+                        .map(|queue| TracezResponse::Latency(queue.clone().into()))
                 }),
             TracezQuery::Error { span_name } => self
                 .summaries
                 .get(&span_name)
-                .ok_or(QueryError::NotFound {
+                .ok_or(TracezError::NotFound {
                     api: "tracez/api/error/{span_name}",
                 })
-                .and_then(|summary| Ok(TracezResponse::Error(summary.error.clone().into()))),
+                .map(|summary| TracezResponse::Error(summary.error.clone().into())),
             TracezQuery::Running { span_name } => self
                 .summaries
                 .get(&span_name)
-                .ok_or(QueryError::NotFound {
+                .ok_or(TracezError::NotFound {
                     api: "tracez/api/error/{span_name}",
                 })
-                .and_then(|summary| Ok(TracezResponse::Running(summary.running.clone().into()))),
+                .map(|summary| TracezResponse::Running(summary.running.clone().into())),
         });
     }
 }
@@ -168,16 +166,16 @@ impl SpanAggregator {
 fn latency_bucket(start_time: SystemTime, end_time: SystemTime) -> usize {
     let latency = end_time
         .duration_since(UNIX_EPOCH)
-        .unwrap_or(Duration::from_millis(0))
+        .unwrap_or_else(|_| Duration::from_millis(0))
         - start_time
             .duration_since(UNIX_EPOCH)
-            .unwrap_or(Duration::from_millis(0));
+            .unwrap_or_else(|_| Duration::from_millis(0));
     for idx in 1..LATENCY_BUCKET.len() {
         if LATENCY_BUCKET[idx] > latency {
             return (idx - 1) as usize;
         }
     }
-    return LATENCY_BUCKET.len() - 1;
+    LATENCY_BUCKET.len() - 1
 }
 
 #[derive(Debug)]
@@ -206,9 +204,6 @@ impl<T: From<SpanData>> From<SpanQueue> for Vec<T> {
 #[cfg(test)]
 mod tests {
     use std::time::{Duration, SystemTime};
-
-    use futures::channel::mpsc;
-    use futures::SinkExt;
 
     use opentelemetry::trace::{SpanContext, SpanId, StatusCode, TraceFlags, TraceId, TraceState};
 
@@ -389,10 +384,9 @@ mod tests {
                 assert!(
                     expected
                         .iter()
-                        .position(|expected_span| collected_span.span_context
+                        .any(|expected_span| collected_span.span_context
                             == expected_span.span_context
-                            && collected_span.status_code == expected_span.status_code)
-                        .is_some(),
+                            && collected_span.status_code == expected_span.status_code),
                     "{}",
                     msg
                 )
@@ -405,7 +399,7 @@ mod tests {
             let latencies = plan.get_latencies();
             let plan_name = plan.name.to_string();
 
-            let (mut sender, receiver) = mpsc::channel::<TracezMessage>(100);
+            let (sender, receiver) = async_channel::unbounded();
             let mut aggregator = SpanAggregator::new(receiver, SAMPLE_SIZE);
 
             let handle = tokio::spawn(async move {
