@@ -27,6 +27,11 @@ impl TraceService for MockServer {
         request: tonic::Request<ExportTraceServiceRequest>,
     ) -> Result<tonic::Response<ExportTraceServiceResponse>, tonic::Status> {
         println!("Sending request into channel...");
+        // assert we have required metadata key
+        assert_eq!(
+            request.metadata().get("x-header-key"),
+            Some(&("header-value".parse().unwrap()))
+        );
         self.tx
             .lock()
             .unwrap()
@@ -68,12 +73,15 @@ async fn smoke_tracer() {
 
     {
         println!("Installing tracer...");
+        let mut metadata = tonic::metadata::MetadataMap::new();
+        metadata.insert("x-header-key", "header-value".parse().unwrap());
         let tracer = opentelemetry_otlp::new_pipeline()
             .tracing()
             .with_exporter(
                 opentelemetry_otlp::new_exporter()
                     .tonic()
-                    .with_endpoint(format!("http://{}", addr)),
+                    .with_endpoint(format!("http://{}", addr))
+                    .with_metadata(metadata),
             )
             .install_batch(opentelemetry::runtime::Tokio)
             .expect("failed to install");

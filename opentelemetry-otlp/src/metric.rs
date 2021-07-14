@@ -252,6 +252,7 @@ pub struct MetricsExporter {
     #[cfg(feature = "tokio")]
     sender: Arc<Mutex<tokio::sync::mpsc::Sender<ExportMsg>>>,
     export_kind_selector: Arc<dyn ExportKindFor + Send + Sync>,
+    metadata: Option<tonic::metadata::MetadataMap>,
 }
 
 impl Debug for MetricsExporter {
@@ -274,7 +275,7 @@ impl MetricsExporter {
     #[cfg(feature = "tonic")]
     pub fn new<T: ExportKindFor + Send + Sync + 'static>(
         config: ExportConfig,
-        tonic_config: TonicConfig,
+        mut tonic_config: TonicConfig,
         export_selector: T,
     ) -> Result<MetricsExporter> {
         let endpoint =
@@ -297,25 +298,7 @@ impl MetricsExporter {
             .connect_lazy()
             .map_err::<crate::Error, _>(Into::into)?;
 
-        let client = match tonic_config.metadata.to_owned() {
-            None => MetricsServiceClient::new(channel),
-            Some(metadata) => {
-                MetricsServiceClient::with_interceptor(channel, move |mut req: Request<()>| {
-                    for key_and_value in metadata.iter() {
-                        match key_and_value {
-                            KeyAndValueRef::Ascii(key, value) => {
-                                req.metadata_mut().append(key, value.to_owned())
-                            }
-                            KeyAndValueRef::Binary(key, value) => {
-                                req.metadata_mut().append_bin(key, value.to_owned())
-                            }
-                        };
-                    }
-
-                    Ok(req)
-                })
-            }
-        };
+        let client = MetricsServiceClient::new(channel);
 
         let (sender, mut receiver) = tokio::sync::mpsc::channel::<ExportMsg>(2);
         tokio::spawn(Box::pin(async move {
@@ -334,6 +317,7 @@ impl MetricsExporter {
         Ok(MetricsExporter {
             sender: Arc::new(Mutex::new(sender)),
             export_kind_selector: Arc::new(export_selector),
+            metadata: tonic_config.metadata.take(),
         })
     }
 }
@@ -359,7 +343,19 @@ impl Exporter for MetricsExporter {
                 Err(err) => Err(err),
             }
         })?;
-        let request = Request::new(sink(resource_metrics));
+        let mut request = Request::new(sink(resource_metrics));
+        if let Some(metadata) = &self.metadata {
+            for key_and_value in metadata.iter() {
+                match key_and_value {
+                    KeyAndValueRef::Ascii(key, value) => {
+                        request.metadata_mut().append(key, value.to_owned())
+                    }
+                    KeyAndValueRef::Binary(key, value) => {
+                        request.metadata_mut().append_bin(key, value.to_owned())
+                    }
+                };
+            }
+        }
         self.sender
             .lock()
             .map(|sender| {

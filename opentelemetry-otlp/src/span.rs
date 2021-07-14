@@ -352,30 +352,10 @@ impl SpanExporter {
         tonic_config: TonicConfig,
         channel: tonic::transport::Channel,
     ) -> Result<Self, crate::Error> {
-        let client = match tonic_config.metadata.to_owned() {
-            None => TonicTraceServiceClient::new(channel),
-            Some(metadata) => {
-                TonicTraceServiceClient::with_interceptor(channel, move |mut req: Request<()>| {
-                    for key_and_value in metadata.iter() {
-                        match key_and_value {
-                            KeyAndValueRef::Ascii(key, value) => {
-                                req.metadata_mut().append(key, value.to_owned())
-                            }
-                            KeyAndValueRef::Binary(key, value) => {
-                                req.metadata_mut().append_bin(key, value.to_owned())
-                            }
-                        };
-                    }
-
-                    Ok(req)
-                })
-            }
-        };
-
         Ok(SpanExporter::Tonic {
             timeout: config.timeout,
             metadata: tonic_config.metadata,
-            trace_exporter: client,
+            trace_exporter: TonicTraceServiceClient::new(channel),
         })
     }
 
@@ -466,10 +446,27 @@ impl opentelemetry::sdk::export::trace::SpanExporter for SpanExporter {
             }
 
             #[cfg(feature = "tonic")]
-            SpanExporter::Tonic { trace_exporter, .. } => {
-                let request = Request::new(TonicRequest {
+            SpanExporter::Tonic {
+                trace_exporter,
+                metadata,
+                ..
+            } => {
+                let mut request = Request::new(TonicRequest {
                     resource_spans: batch.into_iter().map(Into::into).collect(),
                 });
+
+                if let Some(metadata) = metadata {
+                    for key_and_value in metadata.iter() {
+                        match key_and_value {
+                            KeyAndValueRef::Ascii(key, value) => {
+                                request.metadata_mut().append(key, value.to_owned())
+                            }
+                            KeyAndValueRef::Binary(key, value) => {
+                                request.metadata_mut().append_bin(key, value.to_owned())
+                            }
+                        };
+                    }
+                }
 
                 trace_exporter
                     .to_owned()
