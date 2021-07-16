@@ -40,12 +40,14 @@ impl ZPagesSpanProcessor {
 
 impl SpanProcessor for ZPagesSpanProcessor {
     fn on_start(&self, span: &Span, _cx: &Context) {
+        // if the aggregator is already dropped. This is a no-op
         if let Some(data) = span.exported_data() {
             let _ = self.tx.try_send(TracezMessage::SampleSpan(data));
         }
     }
 
     fn on_end(&self, span: SpanData) {
+        // if the aggregator is already dropped. This is a no-op
         let _ = self.tx.try_send(TracezMessage::SpanEnd(span));
     }
 

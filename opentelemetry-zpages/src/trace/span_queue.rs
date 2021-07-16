@@ -20,6 +20,7 @@ pub(crate) struct SpanQueue {
     map: HashMap<SpanContext, usize>,
     next_idx: usize,
     capacity: usize,
+    count: usize,
 }
 
 impl PartialEq for SpanQueue {
@@ -36,6 +37,7 @@ impl SpanQueue {
             next_idx: 0,
             map: HashMap::with_capacity(max_len),
             capacity: max_len,
+            count: 0,
         }
     }
 
@@ -53,16 +55,30 @@ impl SpanQueue {
                 self.queue.push(value);
             }
         }
+        self.count += 1;
         self.next_idx += 1;
     }
 
-    /// Returns the number of elements in the `SpanQueue`.
+    /// Returns the number of sampled spans in the `SpanQueue`.
+    #[allow(unused)] // used in testing
     pub(crate) fn len(&self) -> usize {
         self.queue.len()
     }
 
+    /// Return the count of spans in the `SpanQueue`.
+    ///
+    /// The count tracks the total number of spans instead of the number of sampled spans.
+    /// Use `len` function for the current number of sampled spans.
+    ///
+    /// The count will add 1 whenever the `push_back` function is called and
+    /// decrease 1 whenever the `remove` function is called.
+    pub(crate) fn count(&self) -> usize {
+        self.count
+    }
+
     /// Remove one element if exist.
     pub(crate) fn remove(&mut self, span_context: SpanContext) -> Option<SpanData> {
+        self.count = self.count.saturating_sub(1);
         if !self.map.contains_key(&span_context) {
             None
         } else {

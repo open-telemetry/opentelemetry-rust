@@ -2,14 +2,16 @@
 //!
 use crate::proto::tracez::{ErrorData, LatencyData, RunningData, TracezCounts};
 
-use async_channel::Sender;
+use async_channel::{SendError, Sender};
 use futures::channel::oneshot;
 use opentelemetry::sdk::export::trace::SpanData;
 
+use futures::channel::oneshot::Canceled;
 use opentelemetry::runtime::Runtime;
 use serde::ser::SerializeSeq;
 use serde::Serializer;
 use std::fmt::Formatter;
+use std::sync::Arc;
 
 mod aggregator;
 pub(crate) mod span_processor;
@@ -24,14 +26,14 @@ pub(crate) mod span_queue;
 pub fn tracez<R: Runtime>(
     sample_size: usize,
     runtime: R,
-) -> (span_processor::ZPagesSpanProcessor, Sender<TracezMessage>) {
+) -> (span_processor::ZPagesSpanProcessor, TracezQuerier) {
     let (tx, rx) = async_channel::unbounded();
     let span_processor = span_processor::ZPagesSpanProcessor::new(tx.clone());
     let mut aggregator = aggregator::SpanAggregator::new(rx, sample_size);
     let _ = runtime.spawn(Box::pin(async move {
         aggregator.process().await;
     }));
-    (span_processor, tx)
+    (span_processor, TracezQuerier(Arc::new(tx)))
 }
 
 /// Message that used to pass commend between web servers, aggregators and span processors.
@@ -51,94 +53,14 @@ pub enum TracezMessage {
     },
 }
 
-impl TracezMessage {
-    /// Create a message to shut down span aggregator
-    pub fn shutdown() -> TracezMessage {
-        TracezMessage::ShutDown
-    }
-
-    /// Create a message for aggregation API.
-    ///
-    /// Return the message and the `Receiver` to receive the response.
-    pub fn aggregation() -> (
-        TracezMessage,
-        oneshot::Receiver<Result<TracezResponse, TracezError>>,
-    ) {
-        let (tx, rx) = oneshot::channel();
-        (
-            TracezMessage::Query {
-                query: TracezQuery::Aggregation,
-                response_tx: tx,
-            },
-            rx,
-        )
-    }
-
-    /// Create a message for latency API
-    ///
-    /// Return the message and the `Receiver` to receive the response.
-    pub fn latency(
-        bucket_index: usize,
-        span_name: String,
-    ) -> (
-        TracezMessage,
-        oneshot::Receiver<Result<TracezResponse, TracezError>>,
-    ) {
-        let (tx, rx) = oneshot::channel();
-        (
-            TracezMessage::Query {
-                query: TracezQuery::Latency {
-                    bucket_index,
-                    span_name,
-                },
-                response_tx: tx,
-            },
-            rx,
-        )
-    }
-
-    /// Create a message for running spans API
-    ///
-    /// Return the message and the `Receiver` to receive the response.
-    pub fn running(
-        span_name: String,
-    ) -> (
-        TracezMessage,
-        oneshot::Receiver<Result<TracezResponse, TracezError>>,
-    ) {
-        let (tx, rx) = oneshot::channel();
-        (
-            TracezMessage::Query {
-                query: TracezQuery::Running { span_name },
-                response_tx: tx,
-            },
-            rx,
-        )
-    }
-
-    /// Create a message for error spans API
-    ///
-    /// Return the message and the `Receiver` to receive the response.
-    pub fn error(
-        span_name: String,
-    ) -> (
-        TracezMessage,
-        oneshot::Receiver<Result<TracezResponse, TracezError>>,
-    ) {
-        let (tx, rx) = oneshot::channel();
-        (
-            TracezMessage::Query {
-                query: TracezQuery::Error { span_name },
-                response_tx: tx,
-            },
-            rx,
-        )
-    }
-}
-
 impl std::fmt::Debug for TracezMessage {
-    fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        unimplemented!()
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self {
+            TracezMessage::SampleSpan(_) => f.write_str("span starts"),
+            TracezMessage::SpanEnd(_) => f.write_str("span ends"),
+            TracezMessage::ShutDown => f.write_str("shut down"),
+            TracezMessage::Query { .. } => f.write_str("query aggregation results"),
+        }
     }
 }
 
@@ -218,17 +140,114 @@ impl serde::Serialize for TracezResponse {
     }
 }
 
+/// Provide functions to query the current tracez info.
+#[derive(Clone, Debug)]
+pub struct TracezQuerier(Arc<Sender<TracezMessage>>);
+
+impl TracezQuerier {
+    /// Return the aggregation status for spans.
+    ///
+    /// The aggregation will contains the error, running and latency counts for all span name
+    /// groupings.
+    pub async fn aggregation(&self) -> Result<TracezResponse, TracezError> {
+        let (tx, rx) = oneshot::channel();
+        self.0
+            .send(TracezMessage::Query {
+                query: TracezQuery::Aggregation,
+                response_tx: tx,
+            })
+            .await?;
+        rx.await.map_err::<TracezError, _>(Into::into)?
+    }
+
+    /// Return the sample spans for the given bucket index.
+    pub async fn latency(
+        &self,
+        bucket_index: usize,
+        span_name: String,
+    ) -> Result<TracezResponse, TracezError> {
+        let (tx, rx) = oneshot::channel();
+        self.0
+            .send(TracezMessage::Query {
+                query: TracezQuery::Latency {
+                    bucket_index,
+                    span_name,
+                },
+                response_tx: tx,
+            })
+            .await?;
+        rx.await.map_err::<TracezError, _>(Into::into)?
+    }
+
+    /// Return the sample running spans' snapshot.
+    ///
+    /// Note that current implementation cannot include the changes made to spans after the spans
+    /// started. For example, the events added or the links added.
+    pub async fn running(&self, span_name: String) -> Result<TracezResponse, TracezError> {
+        let (tx, rx) = oneshot::channel();
+        self.0
+            .send(TracezMessage::Query {
+                query: TracezQuery::Running { span_name },
+                response_tx: tx,
+            })
+            .await?;
+        rx.await.map_err::<TracezError, _>(Into::into)?
+    }
+
+    /// Return the sample spans with error status.
+    pub async fn error(&self, span_name: String) -> Result<TracezResponse, TracezError> {
+        let (tx, rx) = oneshot::channel();
+        self.0
+            .send(TracezMessage::Query {
+                query: TracezQuery::Error { span_name },
+                response_tx: tx,
+            })
+            .await?;
+        rx.await.map_err::<TracezError, _>(Into::into)?
+    }
+}
+
+impl Drop for TracezQuerier {
+    fn drop(&mut self) {
+        // shut down aggregator if it is still running
+        let _ = self.0.try_send(TracezMessage::ShutDown);
+    }
+}
+
 /// Tracez API's error.
 #[derive(Debug)]
 pub enum TracezError {
+    /// There isn't a valid tracez operation for that API
     InvalidArgument {
+        /// Describe the operation on the tracez
         api: &'static str,
+        /// Error message
         message: &'static str,
     },
+    /// Operation cannot be found
     NotFound {
+        /// Describe the operation on the tracez
         api: &'static str,
     },
+    /// Error when serialize the TracezResponse to json
     Serialization,
+    /// The span aggregator has been dropped.
+    AggregatorDropped,
+}
+
+impl From<Canceled> for TracezError {
+    fn from(_: Canceled) -> Self {
+        TracezError::AggregatorDropped
+    }
+}
+
+impl From<async_channel::SendError<TracezMessage>> for TracezError {
+    fn from(_: SendError<TracezMessage>) -> Self {
+        // Since we employed a unbounded channel to send message to aggregator.
+        // The only reason why the send would return errors is the receiver has closed
+        // This should only happen if the span aggregator has been dropped.
+        TracezError::AggregatorDropped
+    }
 }
 
 impl std::fmt::Display for TracezError {
@@ -239,17 +258,14 @@ impl std::fmt::Display for TracezError {
                 f.write_str("the requested resource is not founded")
             }
             TracezError::Serialization => f.write_str("cannot serialize the response into json"),
+            TracezError::AggregatorDropped => {
+                f.write_str("the span aggregator is already dropped when querying")
+            }
         }
     }
 }
 
 impl TracezResponse {
-    /// Take the response and convert it into HTML page with pre-defined
-    /// css styles for zPage.
-    pub fn into_html(self) -> String {
-        unimplemented!()
-    }
-
     /// Convert the `TracezResponse` into json.
     ///
     /// Throw a `TracezError` if the serialization fails.

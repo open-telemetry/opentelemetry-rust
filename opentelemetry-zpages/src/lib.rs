@@ -5,6 +5,7 @@
 //! they collect and aggregate tracing and metrics information in the
 //! background; this data is served on web pages or APIs when requested.
 //!
+//!
 #![warn(
     future_incompatible,
     missing_debug_implementations,
@@ -29,7 +30,9 @@ mod trace;
 mod proto;
 mod transform;
 
-pub use trace::{span_processor::ZPagesSpanProcessor, tracez, TracezMessage, TracezResponse};
+pub use trace::{
+    span_processor::ZPagesSpanProcessor, tracez, TracezError, TracezQuerier, TracezResponse,
+};
 
 #[macro_use]
 extern crate lazy_static;

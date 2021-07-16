@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use async_channel::Receiver;
-use futures::channel::oneshot;
+
 use futures::StreamExt;
 
 use opentelemetry::trace::StatusCode;
@@ -40,7 +40,6 @@ pub(crate) struct SpanAggregator {
     sample_size: usize,
 }
 
-#[allow(unused)]
 impl SpanAggregator {
     /// Create a span aggregator
     pub(crate) fn new(receiver: Receiver<TracezMessage>, sample_size: usize) -> SpanAggregator {
@@ -75,7 +74,7 @@ impl SpanAggregator {
 
                             summary.running.remove(span.span_context.clone());
 
-                            if span.status_code != StatusCode::Ok {
+                            if span.status_code == StatusCode::Error {
                                 summary.error.push_back(span);
                             } else {
                                 let latency_idx = latency_bucket(span.start_time, span.end_time);
@@ -96,7 +95,8 @@ impl SpanAggregator {
                             summary.running.push_back(span)
                         }
                         TracezMessage::Query { query, response_tx } => {
-                            self.handle_query(query, response_tx).await
+                            let result = self.handle_query(query);
+                            let _ = response_tx.send(result);
                         }
                     }
                 }
@@ -104,12 +104,8 @@ impl SpanAggregator {
         }
     }
 
-    async fn handle_query(
-        &mut self,
-        query: TracezQuery,
-        response_tx: oneshot::Sender<Result<TracezResponse, TracezError>>,
-    ) {
-        let _ = response_tx.send(match query {
+    fn handle_query(&mut self, query: TracezQuery) -> Result<TracezResponse, TracezError> {
+        match query {
             TracezQuery::Aggregation => Ok(TracezResponse::Aggregation(
                 self.summaries
                     .iter()
@@ -118,10 +114,10 @@ impl SpanAggregator {
                         latency: summary
                             .latencies
                             .iter()
-                            .map(|queue| queue.len() as u32)
+                            .map(|queue| queue.count() as u32)
                             .collect(),
-                        running: summary.running.len() as u32,
-                        error: summary.error.len() as u32,
+                        running: summary.running.count() as u32,
+                        error: summary.error.count() as u32,
                         ..Default::default()
                     })
                     .collect(),
@@ -159,7 +155,7 @@ impl SpanAggregator {
                     api: "tracez/api/error/{span_name}",
                 })
                 .map(|summary| TracezResponse::Running(summary.running.clone().into())),
-        });
+        }
     }
 }
 
@@ -309,7 +305,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn new_test_process() -> Result<(), Box<dyn std::error::Error>> {
+    async fn test_span_aggregator() -> Result<(), Box<dyn std::error::Error>> {
         const SAMPLE_SIZE: usize = 5;
         let test_cases = vec![
             ProcessTestPlan {

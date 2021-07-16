@@ -29,6 +29,7 @@ members = [
     "examples/hyper-prometheus",
     "examples/tracing-grpc",
     "examples/zipkin",
-    "examples/multiple-span-processors"
+    "examples/multiple-span-processors",
+    "examples/zpages"
 ]
 exclude = ["examples/external-otlp-grpcio-async-std"]
