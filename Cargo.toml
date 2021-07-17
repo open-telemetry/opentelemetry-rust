@@ -11,6 +11,8 @@ members = [
     "opentelemetry-semantic-conventions",
     "opentelemetry-stackdriver",
     "opentelemetry-zipkin",
+    "opentelemetry-zpages",
+    "examples/actix-udp",
     "examples/actix-http",
     "examples/actix-http-tracing",
     "examples/actix-udp",
