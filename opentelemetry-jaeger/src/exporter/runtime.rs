@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use opentelemetry::sdk::trace::TraceRuntime;
-use std::net::{ToSocketAddrs, UdpSocket};
+use std::net::ToSocketAddrs;
 
 /// Jaeger Trace Runtime is an extension to [`TraceRuntime`]. Currently it provides a UDP socket used
 /// by [`AgentAsyncClientUdp`].
@@ -24,7 +24,7 @@ impl JaegerTraceRuntime for opentelemetry::runtime::Tokio {
     type Socket = tokio::net::UdpSocket;
 
     fn create_socket<T: ToSocketAddrs>(&self, host_port: T) -> thrift::Result<Self::Socket> {
-        let conn = UdpSocket::bind("0.0.0.0:0")?;
+        let conn = std::net::UdpSocket::bind("0.0.0.0:0")?;
         conn.connect(host_port)?;
         Ok(tokio::net::UdpSocket::from_std(conn)?)
     }
@@ -43,7 +43,7 @@ impl JaegerTraceRuntime for opentelemetry::runtime::AsyncStd {
     type Socket = async_std::net::UdpSocket;
 
     fn create_socket<T: ToSocketAddrs>(&self, host_port: T) -> thrift::Result<Self::Socket> {
-        let conn = UdpSocket::bind("0.0.0.0:0")?;
+        let conn = std::net::UdpSocket::bind("0.0.0.0:0")?;
         conn.connect(host_port)?;
         Ok(async_std::net::UdpSocket::from(conn))
     }
