@@ -1,9 +1,9 @@
 //! # Jaeger Exporter
 //!
 mod agent;
-mod runtime;
 #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
 mod collector;
+mod runtime;
 #[allow(clippy::all, unreachable_pub, dead_code)]
 #[rustfmt::skip]
 mod thrift;
@@ -37,7 +37,7 @@ use std::{
     net,
     time::{Duration, SystemTime},
 };
-use uploader::{Uploader, SimpleUploader, BatchUploader};
+use uploader::{BatchUploader, SimpleUploader, Uploader};
 
 #[cfg(all(
     any(
@@ -355,7 +355,7 @@ impl PipelineBuilder {
         Ok(builder.build())
     }
 
-        /// Initialize a new simple exporter.
+    /// Initialize a new simple exporter.
     ///
     /// This is useful if you are manually constructing a pipeline.
     pub fn init_simple_exporter(mut self) -> Result<Exporter, TraceError> {
@@ -377,12 +377,19 @@ impl PipelineBuilder {
     /// Initialize a new exporter.
     ///
     /// This is useful if you are manually constructing a pipeline.
-    pub fn init_exporter<R:JaegerTraceRuntime>(mut self, runtime: R) -> Result<Exporter, TraceError> {
+    pub fn init_exporter<R: JaegerTraceRuntime>(
+        mut self,
+        runtime: R,
+    ) -> Result<Exporter, TraceError> {
         let (_, process) = self.build_config_and_process();
         self.init_exporter_with_process(process, runtime)
     }
 
-    fn init_exporter_with_process<R:JaegerTraceRuntime>(self, process: Process, runtime: R) -> Result<Exporter, TraceError> {
+    fn init_exporter_with_process<R: JaegerTraceRuntime>(
+        self,
+        process: Process,
+        runtime: R,
+    ) -> Result<Exporter, TraceError> {
         let export_instrumentation_lib = self.export_instrument_library;
         let uploader = self.init_uploader(runtime)?;
 
@@ -394,20 +401,31 @@ impl PipelineBuilder {
     }
 
     fn init_simple_uploader(self) -> Result<Box<dyn Uploader>, TraceError> {
-        let agent = agent::AgentSyncClientUdp::new(self.agent_endpoint.as_slice(), self.max_packet_size)
-            .map_err::<Error, _>(Into::into)?;
+        let agent =
+            agent::AgentSyncClientUdp::new(self.agent_endpoint.as_slice(), self.max_packet_size)
+                .map_err::<Error, _>(Into::into)?;
         Ok(Box::new(SimpleUploader::Agent(agent)))
     }
 
     #[cfg(not(any(feature = "collector_client", feature = "wasm_collector_client")))]
-    fn init_uploader<R: JaegerTraceRuntime>(self, runtime: R) -> Result<Box<dyn Uploader>, TraceError> {
-        let agent = AgentAsyncClientUdp::new(self.agent_endpoint.as_slice(), self.max_packet_size, runtime)
-            .map_err::<Error, _>(Into::into)?;
+    fn init_uploader<R: JaegerTraceRuntime>(
+        self,
+        runtime: R,
+    ) -> Result<Box<dyn Uploader>, TraceError> {
+        let agent = AgentAsyncClientUdp::new(
+            self.agent_endpoint.as_slice(),
+            self.max_packet_size,
+            runtime,
+        )
+        .map_err::<Error, _>(Into::into)?;
         Ok(Box::new(BatchUploader::Agent(agent)))
     }
 
     #[cfg(feature = "collector_client")]
-    fn init_uploader<R: JaegerTraceRuntime>(self, runtime: R) -> Result<Box<dyn Uploader>, TraceError> {
+    fn init_uploader<R: JaegerTraceRuntime>(
+        self,
+        runtime: R,
+    ) -> Result<Box<dyn Uploader>, TraceError> {
         if let Some(collector_endpoint) = self
             .collector_endpoint
             .transpose()
@@ -501,7 +519,10 @@ impl PipelineBuilder {
     }
 
     #[cfg(all(feature = "wasm_collector_client", not(feature = "collector_client")))]
-    fn init_uploader<R: JaegerTraceRuntime>(self, runtime: R) -> Result<Box<dyn Uploader>, TraceError> {
+    fn init_uploader<R: JaegerTraceRuntime>(
+        self,
+        runtime: R,
+    ) -> Result<Box<dyn Uploader>, TraceError> {
         if let Some(collector_endpoint) = self
             .collector_endpoint
             .transpose()
@@ -743,7 +764,7 @@ impl ExportError for Error {
 }
 
 #[cfg(test)]
-#[cfg(all(feature = "collector_client", feature="rt-tokio"))]
+#[cfg(all(feature = "collector_client", feature = "rt-tokio"))]
 mod collector_client_tests {
     use crate::exporter::thrift::jaeger::Batch;
     use crate::new_pipeline;

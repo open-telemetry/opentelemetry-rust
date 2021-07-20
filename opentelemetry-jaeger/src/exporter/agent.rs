@@ -1,10 +1,10 @@
 //! # UDP Jaeger Agent Client
+use crate::exporter::runtime::JaegerTraceRuntime;
 use crate::exporter::thrift::{
     agent::{self, TAgentSyncClient},
     jaeger,
 };
 use crate::exporter::transport::{TBufferChannel, TNoopChannel};
-use crate::exporter::runtime::JaegerTraceRuntime;
 use std::fmt;
 use std::net::{ToSocketAddrs, UdpSocket};
 use thrift::{
@@ -88,7 +88,6 @@ impl AgentSyncClientUdp {
         Ok(())
     }
 }
-
 
 /// `AgentAsyncClientUDP` implements an async version of the `TAgentSyncClient`
 /// interface over UDP.

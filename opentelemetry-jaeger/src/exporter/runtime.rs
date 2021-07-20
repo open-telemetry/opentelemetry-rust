@@ -1,10 +1,10 @@
-use opentelemetry::sdk::trace::TraceRuntime;
 use async_trait::async_trait;
+use opentelemetry::sdk::trace::TraceRuntime;
 use std::net::{ToSocketAddrs, UdpSocket};
 
 /// Jaeger Trace Runtime is an extension to [`TraceRuntime`]. Currently it provides a UDP socket used
 /// by [`AgentAsyncClientUdp`].
-/// 
+///
 /// [`TraceRuntime`]: opentelemetry::sdk::trace::TraceRuntime
 /// [`AgentAsyncClientUdp`]: crate::exporter::agent::AgentAsyncClientUdp
 #[async_trait]
@@ -15,7 +15,10 @@ pub trait JaegerTraceRuntime: TraceRuntime + std::fmt::Debug {
 }
 
 #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
-#[cfg_attr(docsrs, doc(cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))))]
+#[cfg_attr(
+    docsrs,
+    doc(cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread")))
+)]
 #[async_trait]
 impl JaegerTraceRuntime for opentelemetry::runtime::Tokio {
     type Socket = tokio::net::UdpSocket;
