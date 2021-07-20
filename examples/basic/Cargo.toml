@@ -7,7 +7,7 @@ edition = "2018"
 futures = "0.3"
 lazy_static = "1.4"
 opentelemetry = { path = "../../opentelemetry", features = ["serialize", "rt-tokio", "metrics"] }
-opentelemetry-jaeger = { path = "../../opentelemetry-jaeger", features = ["tokio"] }
+opentelemetry-jaeger = { path = "../../opentelemetry-jaeger", features = ["rt-tokio"] }
 serde_json = "1.0"
 thrift = "0.13"
 tokio = { version = "1.0", features = ["full"] }
