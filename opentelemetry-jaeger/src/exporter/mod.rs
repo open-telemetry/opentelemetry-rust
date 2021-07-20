@@ -28,7 +28,6 @@ use opentelemetry::trace::TraceError;
 use opentelemetry::{
     global, sdk,
     sdk::export::trace,
-    // sdk::trace::TraceRuntime,
     trace::{Event, Link, SpanKind, StatusCode, TracerProvider},
     Key, KeyValue,
 };
