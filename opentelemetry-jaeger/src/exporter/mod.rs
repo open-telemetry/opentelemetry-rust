@@ -1,6 +1,7 @@
 //! # Jaeger Exporter
 //!
 mod agent;
+mod runtime;
 #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
 mod collector;
 #[allow(clippy::all, unreachable_pub, dead_code)]
@@ -10,6 +11,7 @@ mod env;
 pub(crate) mod transport;
 mod uploader;
 
+use self::runtime::JaegerTraceRuntime;
 use self::thrift::jaeger;
 use agent::AgentAsyncClientUdp;
 use async_trait::async_trait;
@@ -26,7 +28,7 @@ use opentelemetry::trace::TraceError;
 use opentelemetry::{
     global, sdk,
     sdk::export::trace,
-    sdk::trace::TraceRuntime,
+    // sdk::trace::TraceRuntime,
     trace::{Event, Link, SpanKind, StatusCode, TracerProvider},
     Key, KeyValue,
 };
@@ -36,7 +38,7 @@ use std::{
     net,
     time::{Duration, SystemTime},
 };
-use uploader::BatchUploader;
+use uploader::{Uploader, SimpleUploader, BatchUploader};
 
 #[cfg(all(
     any(
@@ -73,7 +75,7 @@ pub struct Exporter {
     process: jaeger::Process,
     /// Whether or not to export instrumentation information.
     export_instrumentation_lib: bool,
-    uploader: uploader::BatchUploader,
+    uploader: Box<dyn Uploader>,
 }
 
 /// Jaeger process configuration
@@ -269,7 +271,7 @@ impl PipelineBuilder {
     }
 
     /// Install a Jaeger pipeline with a batch span processor using the specified runtime.
-    pub fn install_batch<R: TraceRuntime>(
+    pub fn install_batch<R: JaegerTraceRuntime>(
         self,
         runtime: R,
     ) -> Result<sdk::trace::Tracer, TraceError> {
@@ -332,7 +334,7 @@ impl PipelineBuilder {
     /// Build a configured `sdk::trace::TracerProvider` with a simple span processor.
     pub fn build_simple(mut self) -> Result<sdk::trace::TracerProvider, TraceError> {
         let (config, process) = self.build_config_and_process();
-        let exporter = self.init_exporter_with_process(process)?;
+        let exporter = self.init_simple_exporter_with_process(process)?;
         let mut builder = sdk::trace::TracerProvider::builder().with_simple_exporter(exporter);
         builder = builder.with_config(config);
 
@@ -341,12 +343,12 @@ impl PipelineBuilder {
 
     /// Build a configured `sdk::trace::TracerProvider` with a batch span processor using the
     /// specified runtime.
-    pub fn build_batch<R: TraceRuntime>(
+    pub fn build_batch<R: JaegerTraceRuntime>(
         mut self,
         runtime: R,
     ) -> Result<sdk::trace::TracerProvider, TraceError> {
         let (config, process) = self.build_config_and_process();
-        let exporter = self.init_exporter_with_process(process)?;
+        let exporter = self.init_exporter_with_process(process, runtime.clone())?;
         let mut builder =
             sdk::trace::TracerProvider::builder().with_batch_exporter(exporter, runtime);
         builder = builder.with_config(config);
@@ -354,17 +356,17 @@ impl PipelineBuilder {
         Ok(builder.build())
     }
 
-    /// Initialize a new exporter.
+        /// Initialize a new simple exporter.
     ///
     /// This is useful if you are manually constructing a pipeline.
-    pub fn init_exporter(mut self) -> Result<Exporter, TraceError> {
+    pub fn init_simple_exporter(mut self) -> Result<Exporter, TraceError> {
         let (_, process) = self.build_config_and_process();
-        self.init_exporter_with_process(process)
+        self.init_simple_exporter_with_process(process)
     }
 
-    fn init_exporter_with_process(self, process: Process) -> Result<Exporter, TraceError> {
+    fn init_simple_exporter_with_process(self, process: Process) -> Result<Exporter, TraceError> {
         let export_instrumentation_lib = self.export_instrument_library;
-        let uploader = self.init_uploader()?;
+        let uploader = self.init_simple_uploader()?;
 
         Ok(Exporter {
             process: process.into(),
@@ -373,15 +375,40 @@ impl PipelineBuilder {
         })
     }
 
-    #[cfg(not(any(feature = "collector_client", feature = "wasm_collector_client")))]
-    fn init_uploader(self) -> Result<BatchUploader, TraceError> {
-        let agent = AgentAsyncClientUdp::new(self.agent_endpoint.as_slice(), self.max_packet_size)
+    /// Initialize a new exporter.
+    ///
+    /// This is useful if you are manually constructing a pipeline.
+    pub fn init_exporter<R:JaegerTraceRuntime>(mut self, runtime: R) -> Result<Exporter, TraceError> {
+        let (_, process) = self.build_config_and_process();
+        self.init_exporter_with_process(process, runtime)
+    }
+
+    fn init_exporter_with_process<R:JaegerTraceRuntime>(self, process: Process, runtime: R) -> Result<Exporter, TraceError> {
+        let export_instrumentation_lib = self.export_instrument_library;
+        let uploader = self.init_uploader(runtime)?;
+
+        Ok(Exporter {
+            process: process.into(),
+            export_instrumentation_lib,
+            uploader,
+        })
+    }
+
+    fn init_simple_uploader(self) -> Result<Box<dyn Uploader>, TraceError> {
+        let agent = agent::AgentSyncClientUdp::new(self.agent_endpoint.as_slice(), self.max_packet_size)
             .map_err::<Error, _>(Into::into)?;
-        Ok(BatchUploader::Agent(agent))
+        Ok(Box::new(SimpleUploader::Agent(agent)))
+    }
+
+    #[cfg(not(any(feature = "collector_client", feature = "wasm_collector_client")))]
+    fn init_uploader<R: JaegerTraceRuntime>(self, runtime: R) -> Result<Box<dyn Uploader>, TraceError> {
+        let agent = AgentAsyncClientUdp::new(self.agent_endpoint.as_slice(), self.max_packet_size, runtime)
+            .map_err::<Error, _>(Into::into)?;
+        Ok(Box::new(BatchUploader::Agent(agent)))
     }
 
     #[cfg(feature = "collector_client")]
-    fn init_uploader(self) -> Result<uploader::BatchUploader, TraceError> {
+    fn init_uploader<R: JaegerTraceRuntime>(self, runtime: R) -> Result<Box<dyn Uploader>, TraceError> {
         if let Some(collector_endpoint) = self
             .collector_endpoint
             .transpose()
@@ -464,17 +491,18 @@ impl PipelineBuilder {
             });
 
             let collector = CollectorAsyncClientHttp::new(collector_endpoint, client);
-            Ok(uploader::BatchUploader::Collector(collector))
+            let uploader: BatchUploader<R> = BatchUploader::Collector(collector);
+            Ok(Box::new(uploader))
         } else {
             let endpoint = self.agent_endpoint.as_slice();
-            let agent = AgentAsyncClientUdp::new(endpoint, self.max_packet_size)
+            let agent = AgentAsyncClientUdp::new(endpoint, self.max_packet_size, runtime)
                 .map_err::<Error, _>(Into::into)?;
-            Ok(BatchUploader::Agent(agent))
+            Ok(Box::new(BatchUploader::Agent(agent)))
         }
     }
 
     #[cfg(all(feature = "wasm_collector_client", not(feature = "collector_client")))]
-    fn init_uploader(self) -> Result<uploader::BatchUploader, TraceError> {
+    fn init_uploader<R: JaegerTraceRuntime>(self, runtime: R) -> Result<Box<dyn Uploader>, TraceError> {
         if let Some(collector_endpoint) = self
             .collector_endpoint
             .transpose()
@@ -486,12 +514,12 @@ impl PipelineBuilder {
                 self.collector_password,
             )
             .map_err::<Error, _>(Into::into)?;
-            Ok(uploader::BatchUploader::Collector(collector))
+            Ok(Box::new(BatchUploader::Collector(collector)))
         } else {
             let endpoint = self.agent_endpoint.as_slice();
             let agent = AgentAsyncClientUdp::new(endpoint, self.max_packet_size)
                 .map_err::<Error, _>(Into::into)?;
-            Ok(BatchUploader::Agent(agent))
+            Ok(Box::new(BatchUploader::Agent(agent)))
         }
     }
 }
@@ -716,10 +744,11 @@ impl ExportError for Error {
 }
 
 #[cfg(test)]
-#[cfg(feature = "collector_client")]
+#[cfg(all(feature = "collector_client", feature="rt-tokio"))]
 mod collector_client_tests {
     use crate::exporter::thrift::jaeger::Batch;
     use crate::new_pipeline;
+    use opentelemetry::runtime::Tokio;
     use opentelemetry::trace::TraceError;
 
     mod test_http_client {
@@ -751,7 +780,7 @@ mod collector_client_tests {
             .with_collector_endpoint("localhost:6831")
             .with_http_client(test_http_client::TestHttpClient);
         let (_, process) = builder.build_config_and_process();
-        let mut uploader = builder.init_uploader()?;
+        let mut uploader = builder.init_uploader(Tokio)?;
         let res = futures::executor::block_on(async {
             uploader
                 .upload(Batch::new(process.into(), Vec::new()))
@@ -775,7 +804,7 @@ mod collector_client_tests {
     fn test_set_collector_endpoint() {
         let invalid_uri = new_pipeline()
             .with_collector_endpoint("127.0.0.1:14268/api/traces")
-            .init_uploader();
+            .init_uploader(Tokio);
         assert!(invalid_uri.is_err());
         assert_eq!(
             format!("{:?}", invalid_uri.err().unwrap()),
@@ -784,7 +813,7 @@ mod collector_client_tests {
 
         let valid_uri = new_pipeline()
             .with_collector_endpoint("http://127.0.0.1:14268/api/traces")
-            .init_uploader();
+            .init_uploader(Tokio);
 
         assert!(valid_uri.is_ok());
     }
