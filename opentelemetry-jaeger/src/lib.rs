@@ -162,6 +162,17 @@
 //!
 //! * `wasm_collector_client`: Enable collector in wasm.
 //!
+//! Support for recording and exporting telemetry asynchronously can be added
+//! via the following flags, it extends the [`opentelemetry`] feature:
+//!
+//! * `rt-tokio`: Enable sending UDP packets to Jaeger agent asynchronously when [`Tokio`] runtime is used.
+//!
+//! * `rt-tokio-current-thread`: Enable sending UDP packets to Jaeger agent asynchronously when [`TokioCurrentThread`] runtime is used.
+//!
+//! * `rt-async-std`: Enable sending UDP packets to Jaeger agent asynchronously when [`AsyncStd`] runtime is used.
+//!
+//! [`opentelemetry`]: https://crates.io/crates/opentelemetry
+//!
 //! ## Supported Rust Versions
 //!
 //! OpenTelemetry is built against the latest stable release. The minimum
