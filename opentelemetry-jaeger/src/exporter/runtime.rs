@@ -14,13 +14,29 @@ pub trait JaegerTraceRuntime: TraceRuntime + std::fmt::Debug {
     async fn write_to_socket(&self, socket: &Self::Socket, payload: Vec<u8>) -> thrift::Result<()>;
 }
 
-#[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
-#[cfg_attr(
-    docsrs,
-    doc(cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread")))
-)]
+#[cfg(feature = "rt-tokio")]
+#[cfg_attr(docsrs, doc(cfg(feature = "rt-tokio")))]
 #[async_trait]
 impl JaegerTraceRuntime for opentelemetry::runtime::Tokio {
+    type Socket = tokio::net::UdpSocket;
+
+    fn create_socket<T: ToSocketAddrs>(&self, host_port: T) -> thrift::Result<Self::Socket> {
+        let conn = std::net::UdpSocket::bind("0.0.0.0:0")?;
+        conn.connect(host_port)?;
+        Ok(tokio::net::UdpSocket::from_std(conn)?)
+    }
+
+    async fn write_to_socket(&self, socket: &Self::Socket, payload: Vec<u8>) -> thrift::Result<()> {
+        socket.send(&payload).await?;
+
+        Ok(())
+    }
+}
+
+#[cfg(feature = "rt-tokio-current-thread")]
+#[cfg_attr(docsrs, doc(cfg(feature = "rt-tokio-current-thread")))]
+#[async_trait]
+impl JaegerTraceRuntime for opentelemetry::runtime::TokioCurrentThread {
     type Socket = tokio::net::UdpSocket;
 
     fn create_socket<T: ToSocketAddrs>(&self, host_port: T) -> thrift::Result<Self::Socket> {
