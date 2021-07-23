@@ -69,7 +69,7 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
     /// `on_start` is called when a `Span` is started.  This method is called
     /// synchronously on the thread that started the span, therefore it should
     /// not block or throw exceptions.
-    fn on_start(&self, span: &Span, cx: &Context);
+    fn on_start(&self, span: &mut Span, cx: &Context);
     /// `on_end` is called after a `Span` is ended (i.e., the end timestamp is
     /// already set). This method is called synchronously within the `Span::end`
     /// API, therefore it should not block or throw an exception.
@@ -139,7 +139,7 @@ impl SimpleSpanProcessor {
 }
 
 impl SpanProcessor for SimpleSpanProcessor {
-    fn on_start(&self, _span: &Span, _cx: &Context) {
+    fn on_start(&self, _span: &mut Span, _cx: &Context) {
         // Ignored
     }
 
@@ -239,7 +239,7 @@ impl<R: TraceRuntime> fmt::Debug for BatchSpanProcessor<R> {
 }
 
 impl<R: TraceRuntime> SpanProcessor for BatchSpanProcessor<R> {
-    fn on_start(&self, _span: &Span, _cx: &Context) {
+    fn on_start(&self, _span: &mut Span, _cx: &Context) {
         // Ignored
     }
 
