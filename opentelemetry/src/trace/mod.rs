@@ -110,7 +110,7 @@
 //!
 //! // Create a span
 //! let span = tracer.start("parent_span");
-//!  
+//!
 //! // Mark the span as active
 //! let active = trace::mark_span_as_active(span);
 //!
@@ -184,7 +184,7 @@ mod tracer;
 mod tracer_provider;
 
 pub use self::{
-    context::{get_active_span, mark_span_as_active, FutureExt, TraceContextExt},
+    context::{get_active_span, mark_span_as_active, FutureExt, SpanRef, TraceContextExt},
     span::{Span, SpanKind, StatusCode},
     span_context::{SpanContext, SpanId, TraceFlags, TraceId, TraceState, TraceStateError},
     tracer::{SpanBuilder, Tracer},
