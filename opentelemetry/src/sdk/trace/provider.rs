@@ -182,7 +182,7 @@ mod tests {
     }
 
     impl SpanProcessor for TestSpanProcessor {
-        fn on_start(&self, _span: &Span, _cx: &Context) {
+        fn on_start(&self, _span: &mut Span, _cx: &Context) {
             unimplemented!()
         }
 
