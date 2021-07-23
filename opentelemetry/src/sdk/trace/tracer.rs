@@ -313,11 +313,11 @@ impl crate::trace::Tracer for Tracer {
         });
 
         let span_context = SpanContext::new(trace_id, span_id, flags, false, span_trace_state);
-        let span = Span::new(span_context, inner, self.clone(), span_limits);
+        let mut span = Span::new(span_context, inner, self.clone(), span_limits);
 
         // Call `on_start` for all processors
         for processor in provider.span_processors() {
-            processor.on_start(&span, &parent_context)
+            processor.on_start(&mut span, &parent_context)
         }
 
         span
