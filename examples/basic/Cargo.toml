@@ -2,6 +2,7 @@
 name = "basic"
 version = "0.1.0"
 edition = "2018"
+license = "Apache-2.0"
 
 [dependencies]
 futures = "0.3"
