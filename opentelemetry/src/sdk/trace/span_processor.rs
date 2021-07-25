@@ -333,17 +333,14 @@ impl<R: TraceRuntime> BatchSpanProcessor<R> {
                         .await;
 
                         if let Some(channel) = res_channel {
-                            if let Err(err) = channel.send(result) {
+                            if let Err(result) = channel.send(result) {
                                 global::handle_error(TraceError::from(format!(
                                     "failed to send flush result: {:?}",
-                                    err
+                                    result
                                 )));
                             }
                         } else if let Err(err) = result {
-                            global::handle_error(TraceError::from(format!(
-                                "failed to export batch {:?}",
-                                err
-                            )));
+                            global::handle_error(err);
                         }
                     }
                     // Stream has terminated or processor is shutdown, return to finish execution.
@@ -358,10 +355,10 @@ impl<R: TraceRuntime> BatchSpanProcessor<R> {
 
                         exporter.shutdown();
 
-                        if let Err(err) = ch.send(result) {
+                        if let Err(result) = ch.send(result) {
                             global::handle_error(TraceError::from(format!(
                                 "failed to send batch processor shutdown result: {:?}",
-                                err
+                                result
                             )));
                         }
 
