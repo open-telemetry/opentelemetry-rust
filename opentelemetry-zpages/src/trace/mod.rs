@@ -17,12 +17,31 @@ mod aggregator;
 pub(crate) mod span_processor;
 pub(crate) mod span_queue;
 
-/// Create tracez components. This function will create a `ZPageSpanProcessor` and a `SpanAggregator`.
+/// Create tracez components. This function will return a [`ZPagesSpanProcessor`] that should be installed
+/// into the [`TracerProvider`] and a [`TracezQuerier`] for http server to access the aggregated
+/// information on spans.
 ///
-/// It will start the aggregator with `sample_size` sample spans for each unique span name.
+/// The `sample_size` config how may spans to sample for each unique span name.
 ///
-/// Return a `SpanProcessor` that should be installed into the `TracerProvider` and a `Sender` to send
-/// query requests and shutdown command.
+/// [`ZPagesSpanProcessor`]: span_processor::ZPagesSpanProcessor
+/// [`TracerProvider`]: opentelemetry::trace::TracerProvider
+///
+/// ## Example
+/// ```no_run
+/// # use opentelemetry_zpages::tracez;
+/// # use opentelemetry::{global, runtime::Tokio, sdk::trace, trace::Tracer};
+/// # use std::sync::Arc;
+/// # fn main() {
+///     let (processor, querier) = tracez(5, Tokio); // sample 5 spans for each unique span name
+///     let provider = trace::TracerProvider::builder()
+///         .with_span_processor(processor)
+///         .build();
+///     global::set_tracer_provider(provider);
+///
+///     // use querier to retrieve the aggregated span information
+/// # }
+///
+/// ```
 pub fn tracez<R: Runtime>(
     sample_size: usize,
     runtime: R,
@@ -140,7 +159,8 @@ impl serde::Serialize for TracezResponse {
     }
 }
 
-/// Provide functions to query the current tracez info.
+/// Provide wrapper functions to query the aggregated span info.
+// TracezQuerier creates the oneshot channel and send the TracezMessage to the SpanAggregator.
 #[derive(Clone, Debug)]
 pub struct TracezQuerier(Arc<Sender<TracezMessage>>);
 
@@ -229,7 +249,7 @@ pub enum TracezError {
         /// Describe the operation on the tracez
         api: &'static str,
     },
-    /// Error when serialize the TracezResponse to json
+    /// Error when serialize the TracezResponse to json.
     Serialization,
     /// The span aggregator has been dropped.
     AggregatorDropped,
@@ -274,6 +294,3 @@ impl TracezResponse {
         serde_json::to_string(&self).map_err(|_| TracezError::Serialization)
     }
 }
-
-#[cfg(test)]
-mod tests {}

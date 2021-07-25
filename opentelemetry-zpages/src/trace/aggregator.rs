@@ -31,7 +31,7 @@ lazy_static! {
 }
 const LATENCY_BUCKET_COUNT: usize = 9;
 
-/// Aggregate span information from zPage span processor and feed that information to server when
+/// Aggregate span information from `ZPagesSpanProcessor` and feed that information to server when
 /// requested.
 #[derive(Debug)]
 pub(crate) struct SpanAggregator {
