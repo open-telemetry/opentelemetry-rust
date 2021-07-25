@@ -75,6 +75,14 @@ jobs:
         cargo test --verbose --manifest-path=opentelemetry/Cargo.toml --features trace,metrics,serialize,rt-tokio,serde,testing &&
         cargo test --manifest-path=opentelemetry-jaeger/Cargo.toml &&
         cargo test --manifest-path=opentelemetry-zipkin/Cargo.toml
+  cargo-deny:
+    runs-on: ubuntu-latest
+    continue-on-error: true # Prevent sudden announcement of a new advisory from failing ci
+    steps:
+      - uses: actions/checkout@v2
+      - uses: EmbarkStudios/cargo-deny-action@v1
+        with:
+          command: check advisories
   coverage:
     continue-on-error: true
     runs-on: ubuntu-latest
