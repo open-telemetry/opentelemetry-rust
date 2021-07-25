@@ -273,8 +273,13 @@ pub enum Error {
 
     /// Wrap type for [`tonic::Status`]
     #[cfg(feature = "tonic")]
-    #[error("status error {0}")]
-    Status(#[from] tonic::Status),
+    #[error("the grpc server returns error {code}")]
+    Status {
+        /// grpc status code
+        code: tonic::Code,
+        /// error message
+        message: String,
+    },
 
     /// Wrap errors from grpcio.
     #[cfg(feature = "grpc-sys")]
@@ -314,6 +319,22 @@ pub enum Error {
     /// The pipeline will need a exporter to complete setup. Throw this error if none is provided.
     #[error("no exporter builder is provided, please provide one using with_exporter() method")]
     NoExporterBuilder,
+}
+
+#[cfg(feature = "tonic")]
+impl From<tonic::Status> for Error {
+    fn from(status: tonic::Status) -> Error {
+        Error::Status {
+            code: status.code(),
+            message: {
+                if !status.message().is_empty() {
+                    ", detailed error message: ".to_string() + status.message()
+                } else {
+                    "".to_string()
+                }
+            },
+        }
+    }
 }
 
 impl ExportError for Error {
