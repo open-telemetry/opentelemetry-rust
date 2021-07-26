@@ -3,7 +3,7 @@
 mod agent;
 #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
 mod collector;
-mod runtime;
+pub(crate) mod runtime;
 #[allow(clippy::all, unreachable_pub, dead_code)]
 #[rustfmt::skip]
 mod thrift;

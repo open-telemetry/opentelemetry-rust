@@ -9,8 +9,13 @@ use std::net::ToSocketAddrs;
 /// [`AgentAsyncClientUdp`]: crate::exporter::agent::AgentAsyncClientUdp
 #[async_trait]
 pub trait JaegerTraceRuntime: TraceRuntime + std::fmt::Debug {
+    /// A communication socket between Jaeger client and agent.
     type Socket: std::fmt::Debug + Send + Sync;
+
+    /// Create a new communication socket.
     fn create_socket<T: ToSocketAddrs>(&self, host_port: T) -> thrift::Result<Self::Socket>;
+
+    /// Send payload over the socket.
     async fn write_to_socket(&self, socket: &Self::Socket, payload: Vec<u8>) -> thrift::Result<()>;
 }
 

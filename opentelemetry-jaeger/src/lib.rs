@@ -592,5 +592,7 @@ mod propagator {
     }
 }
 
-pub use exporter::{new_pipeline, Error, Exporter, PipelineBuilder, Process};
+pub use exporter::{
+    new_pipeline, runtime::JaegerTraceRuntime, Error, Exporter, PipelineBuilder, Process,
+};
 pub use propagator::Propagator;
