@@ -2,7 +2,7 @@
 name = "http"
 version = "0.1.0"
 edition = "2018"
-license = "Apache-2.0"
+publish = false
 
 [[bin]] # Bin to run the http server
 name = "http-server"

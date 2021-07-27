@@ -3,7 +3,6 @@ name = "actix-http-tracing"
 version = "0.1.0"
 edition = "2018"
 publish = false
-license = "Apache-2.0"
 
 [dependencies]
 actix-web = "3.2"

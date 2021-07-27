@@ -2,7 +2,7 @@
 name = "multiple-span-processors"
 version = "0.1.0"
 edition = "2018"
-license = "Apache-2.0"
+publish = false
 
 [dependencies]
 opentelemetry = { path = "../../opentelemetry", features = ["rt-tokio"] }
