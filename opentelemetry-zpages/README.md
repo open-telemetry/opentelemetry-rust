@@ -17,6 +17,8 @@ zPages are an in-process alternative to external exporters. When included, they 
 
 This crate is still working in progress. Please find its current limitations below.
 
+Note that this crate is still in **experimental** state. Breaking changes can still happen. Some features may still in development.
+
 ## Tracez
 
 Tracez shows information on tracing, including aggregation counts for latency, running, and errors for spans grouped by the span name.
