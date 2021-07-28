@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.9.0
+
+### Added
+
+- Add `from_env` method to prometheus exporter based on semantic environment vars
+
 ## v0.8.0
 
 ### Changed
@@ -15,9 +21,11 @@
 ## v0.6.0
 
 ### Added
+
 - Add sanitization of prometheus label names #462
 
 ### Changed
+
 - Update to opentelemetry v0.13.0
 - Update prometheus dependency #485
 

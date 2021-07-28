@@ -80,6 +80,7 @@ use opentelemetry::{
     metrics::{registry::RegistryMeterProvider, MetricsError, NumberKind},
     Key, Value,
 };
+use std::env;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -122,9 +123,42 @@ pub struct ExporterBuilder {
     ///
     /// If not set a new empty `Registry` is created.
     registry: Option<prometheus::Registry>,
+
+    /// The host used by the prometheus exporter
+    ///
+    /// If not set it will be defaulted to all addresses "0.0.0.0"
+    host: Option<String>,
+
+    /// The port used by the prometheus exporter
+    ///
+    /// If not set it will be defaulted to port "9464"
+    port: Option<String>,
 }
 
 impl ExporterBuilder {
+    /// Set builder fields for host and port from the OS environment variables
+    ///
+    /// Fields set by developer takes precedent and the OS environment variables will be ignored
+    pub fn from_env() -> Self {
+        let mut builder = ExporterBuilder::default();
+
+        if let Some(host) = env::var("OTEL_EXPORTER_PROMETHEUS_HOST")
+            .ok()
+            .filter(|s| !s.is_empty())
+        {
+            builder = builder.with_host(host)
+        }
+
+        if let Some(port) = env::var("OTEL_EXPORTER_PROMETHEUS_PORT")
+            .ok()
+            .filter(|s| !s.is_empty())
+        {
+            builder = builder.with_port(port);
+        }
+
+        builder
+    }
+
     /// Set the resource to be associated with all `Meter`s for this exporter
     pub fn with_resource(self, resource: Resource) -> Self {
         ExporterBuilder {
@@ -160,6 +194,22 @@ impl ExporterBuilder {
         }
     }
 
+    /// Set the host for the prometheus exporter
+    pub fn with_host(self, host: String) -> Self {
+        ExporterBuilder {
+            host: Some(host),
+            ..self
+        }
+    }
+
+    /// Set the port for the prometheus exporter
+    pub fn with_port(self, port: String) -> Self {
+        ExporterBuilder {
+            port: Some(port),
+            ..self
+        }
+    }
+
     /// Set the prometheus registry to be used by this exporter
     pub fn with_registry(self, registry: prometheus::Registry) -> Self {
         ExporterBuilder {
@@ -189,11 +239,16 @@ impl ExporterBuilder {
 
         global::set_meter_provider(controller.provider());
 
+        let host = self.host.unwrap_or_else(|| "0.0.0.0".to_string());
+        let port = self.port.unwrap_or_else(|| "9464".to_string());
+
         PrometheusExporter::new(
             registry,
             controller,
             default_summary_quantiles,
             default_histogram_boundaries,
+            host,
+            port,
         )
     }
 
@@ -218,6 +273,8 @@ pub struct PrometheusExporter {
     controller: Arc<Mutex<PullController>>,
     default_summary_quantiles: Vec<f64>,
     default_histogram_boundaries: Vec<f64>,
+    host: String,
+    port: String,
 }
 
 impl PrometheusExporter {
@@ -227,6 +284,8 @@ impl PrometheusExporter {
         controller: PullController,
         default_summary_quantiles: Vec<f64>,
         default_histogram_boundaries: Vec<f64>,
+        host: String,
+        port: String,
     ) -> Result<Self, MetricsError> {
         let controller = Arc::new(Mutex::new(controller));
         let collector = Collector::with_controller(controller.clone());
@@ -239,6 +298,8 @@ impl PrometheusExporter {
             controller,
             default_summary_quantiles,
             default_histogram_boundaries,
+            host,
+            port,
         })
     }
 
@@ -253,6 +314,16 @@ impl PrometheusExporter {
             .lock()
             .map_err(Into::into)
             .map(|locked| locked.provider())
+    }
+
+    /// Get the exporters host for prometheus.
+    pub fn host(&self) -> &str {
+        self.host.as_str()
+    }
+
+    /// Get the exporters port for prometheus.
+    pub fn port(&self) -> &str {
+        self.port.as_str()
     }
 }
 
