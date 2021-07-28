@@ -13,15 +13,15 @@ pub(crate) trait Uploader: std::fmt::Debug + Send {
 }
 
 #[derive(Debug)]
-pub(crate) enum SimpleUploader {
+pub(crate) enum SyncUploader {
     Agent(agent::AgentSyncClientUdp),
 }
 
 #[async_trait]
-impl Uploader for SimpleUploader {
+impl Uploader for SyncUploader {
     async fn upload(&mut self, batch: jaeger::Batch) -> trace::ExportResult {
         match self {
-            SimpleUploader::Agent(client) => {
+            SyncUploader::Agent(client) => {
                 // TODO Implement retry behaviour
                 client
                     .emit_batch(batch)
@@ -34,7 +34,7 @@ impl Uploader for SimpleUploader {
 
 /// Uploads a batch of spans to Jaeger
 #[derive(Debug)]
-pub(crate) enum BatchUploader<R: JaegerTraceRuntime> {
+pub(crate) enum AsyncUploader<R: JaegerTraceRuntime> {
     /// Agent async client
     Agent(agent::AgentAsyncClientUdp<R>),
     /// Collector sync client
@@ -43,11 +43,11 @@ pub(crate) enum BatchUploader<R: JaegerTraceRuntime> {
 }
 
 #[async_trait]
-impl<R: JaegerTraceRuntime> Uploader for BatchUploader<R> {
+impl<R: JaegerTraceRuntime> Uploader for AsyncUploader<R> {
     /// Emit a jaeger batch for the given uploader
     async fn upload(&mut self, batch: jaeger::Batch) -> trace::ExportResult {
         match self {
-            BatchUploader::Agent(client) => {
+            AsyncUploader::Agent(client) => {
                 // TODO Implement retry behaviour
                 client
                     .emit_batch(batch)
@@ -55,12 +55,12 @@ impl<R: JaegerTraceRuntime> Uploader for BatchUploader<R> {
                     .map_err::<crate::Error, _>(Into::into)?;
             }
             #[cfg(feature = "collector_client")]
-            BatchUploader::Collector(collector) => {
+            AsyncUploader::Collector(collector) => {
                 // TODO Implement retry behaviour
                 collector.submit_batch(batch).await?;
             }
             #[cfg(all(not(feature = "collector_client"), feature = "wasm_collector_client"))]
-            BatchUploader::Collector(collector) => {
+            AsyncUploader::Collector(collector) => {
                 // TODO Implement retry behaviour
                 collector
                     .submit_batch(batch)

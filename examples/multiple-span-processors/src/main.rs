@@ -12,7 +12,7 @@ fn init_tracer() -> Result<(), TraceError> {
         opentelemetry_jaeger::new_pipeline()
             .with_service_name("trace-demo")
             .with_tags(vec![KeyValue::new("exporter", "jaeger")])
-            .init_exporter(opentelemetry::runtime::Tokio)?,
+            .init_async_exporter(opentelemetry::runtime::Tokio)?,
         opentelemetry::runtime::Tokio,
     )
     .build();
