@@ -76,7 +76,7 @@ use opentelemetry::sdk::{
     Resource,
 };
 use opentelemetry::{
-    labels,
+    attributes,
     metrics::{registry::RegistryMeterProvider, MetricsError, NumberKind},
     Key, Value,
 };
@@ -541,7 +541,7 @@ fn build_label_pair(key: &Key, value: &Value) -> prometheus::proto::LabelPair {
 fn get_metric_labels(record: &Record<'_>) -> Vec<prometheus::proto::LabelPair> {
     // Duplicate keys are resolved by taking the record label value over
     // the resource value.
-    let iter = labels::merge_iters(record.labels().iter(), record.resource().iter());
+    let iter = attributes::merge_iters(record.attributes().iter(), record.resource().iter());
     iter.map(|(key, value)| build_label_pair(key, value))
         .collect()
 }

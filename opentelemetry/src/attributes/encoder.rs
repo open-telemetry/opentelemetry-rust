@@ -4,16 +4,16 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 static ENCODER_ID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
-/// Encoder is a mechanism for serializing a label set into a specific string
+/// Encoder is a mechanism for serializing an attribute set into a specific string
 /// representation that supports caching, to avoid repeated serialization. An
-/// example could be an exporter encoding the label set into a wire
+/// example could be an exporter encoding the attribute set into a wire
 /// representation.
 pub trait Encoder: fmt::Debug {
-    /// Encode returns the serialized encoding of the label
+    /// Encode returns the serialized encoding of the attribute
     /// set using its Iterator. This result may be cached.
-    fn encode(&self, labels: &mut dyn Iterator<Item = (&Key, &Value)>) -> String;
+    fn encode(&self, attributes: &mut dyn Iterator<Item = (&Key, &Value)>) -> String;
 
-    /// A value that is unique for each class of label encoder. Label encoders
+    /// A value that is unique for each class of attribute encoder. Attribute encoders
     /// allocate these using `new_encoder_id`.
     fn id(&self) -> EncoderId;
 }
@@ -30,13 +30,13 @@ impl EncoderId {
     }
 }
 
-/// Default label encoding strategy
+/// Default attribute encoding strategy
 #[derive(Debug)]
-pub struct DefaultLabelEncoder;
+pub struct DefaultAttributeEncoder;
 
-impl Encoder for DefaultLabelEncoder {
-    fn encode(&self, labels: &mut dyn Iterator<Item = (&Key, &Value)>) -> String {
-        labels
+impl Encoder for DefaultAttributeEncoder {
+    fn encode(&self, attributes: &mut dyn Iterator<Item = (&Key, &Value)>) -> String {
+        attributes
             .enumerate()
             .fold(String::new(), |mut acc, (idx, (key, value))| {
                 let offset = acc.len();
@@ -66,7 +66,7 @@ impl Encoder for DefaultLabelEncoder {
 
 /// Build a new default encoder
 pub fn default_encoder() -> Box<dyn Encoder + Send + Sync> {
-    Box::new(DefaultLabelEncoder)
+    Box::new(DefaultAttributeEncoder)
 }
 
 /// Build a new encoder id

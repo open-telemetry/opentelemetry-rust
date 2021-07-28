@@ -18,10 +18,10 @@ fn free_unused_instruments() {
         let meter = exporter.provider().unwrap().meter("test", None);
         let counter = meter.f64_counter("counter").init();
 
-        let labels = vec![KeyValue::new("A", "B"), KeyValue::new("C", "D")];
+        let attributes = vec![KeyValue::new("A", "B"), KeyValue::new("C", "D")];
 
-        counter.add(10.0, &labels);
-        counter.add(5.3, &labels);
+        counter.add(10.0, &attributes);
+        counter.add(5.3, &attributes);
 
         expected.push(r#"counter{A="B",C="D",R="V"} 15.3"#);
     }
@@ -74,28 +74,28 @@ fn test_add() {
     let counter = meter.f64_counter("counter").init();
     let value_recorder = meter.f64_value_recorder("value_recorder").init();
 
-    let labels = vec![KeyValue::new("A", "B"), KeyValue::new("C", "D")];
+    let attributes = vec![KeyValue::new("A", "B"), KeyValue::new("C", "D")];
 
     let mut expected = Vec::new();
 
-    counter.add(10.0, &labels);
-    counter.add(5.3, &labels);
+    counter.add(10.0, &attributes);
+    counter.add(5.3, &attributes);
 
     expected.push(r#"counter{A="B",C="D",R="V"} 15.3"#);
 
-    let cb_labels = labels.clone();
+    let cb_attributes = attributes.clone();
     let _observer = meter
         .i64_value_observer("intobserver", move |result: ObserverResult<i64>| {
-            result.observe(1, cb_labels.as_ref())
+            result.observe(1, cb_attributes.as_ref())
         })
         .init();
 
     expected.push(r#"intobserver{A="B",C="D",R="V"} 1"#);
 
-    value_recorder.record(-0.6, &labels);
-    value_recorder.record(-0.4, &labels);
-    value_recorder.record(0.6, &labels);
-    value_recorder.record(20.0, &labels);
+    value_recorder.record(-0.6, &attributes);
+    value_recorder.record(-0.4, &attributes);
+    value_recorder.record(0.6, &attributes);
+    value_recorder.record(20.0, &attributes);
 
     expected.push(r#"value_recorder_bucket{A="B",C="D",R="V",le="+Inf"} 4"#);
     expected.push(r#"value_recorder_bucket{A="B",C="D",R="V",le="-0.5"} 1"#);
@@ -103,8 +103,8 @@ fn test_add() {
     expected.push(r#"value_recorder_count{A="B",C="D",R="V"} 4"#);
     expected.push(r#"value_recorder_sum{A="B",C="D",R="V"} 19.6"#);
 
-    up_down_counter.add(10.0, &labels);
-    up_down_counter.add(-3.2, &labels);
+    up_down_counter.add(10.0, &attributes);
+    up_down_counter.add(-3.2, &attributes);
 
     expected.push(r#"updowncounter{A="B",C="D",R="V"} 6.8"#);
 
@@ -123,14 +123,14 @@ fn test_sanitization() {
     let meter = exporter.provider().unwrap().meter("test", None);
 
     let value_recorder = meter.f64_value_recorder("http.server.duration").init();
-    let labels = vec![
+    let attributes = vec![
         KeyValue::new("http.method", "GET"),
         KeyValue::new("http.host", "server"),
     ];
-    value_recorder.record(-0.6, &labels);
-    value_recorder.record(-0.4, &labels);
-    value_recorder.record(0.6, &labels);
-    value_recorder.record(20.0, &labels);
+    value_recorder.record(-0.6, &attributes);
+    value_recorder.record(-0.4, &attributes);
+    value_recorder.record(0.6, &attributes);
+    value_recorder.record(20.0, &attributes);
 
     let expected = vec![
         r#"http_server_duration_bucket{http_host="server",http_method="GET",service_name="Test Service",le="+Inf"} 4"#,

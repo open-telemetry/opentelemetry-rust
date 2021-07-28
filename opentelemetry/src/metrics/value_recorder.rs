@@ -13,19 +13,19 @@ impl<T> ValueRecorder<T>
 where
     T: Into<Number>,
 {
-    /// Creates a bound instrument for this ValueRecorder. The labels are
+    /// Creates a bound instrument for this ValueRecorder. The attributes are
     /// associated with values recorded via subsequent calls to record.
-    pub fn bind<'a>(&self, labels: &'a [KeyValue]) -> BoundValueRecorder<'a, T> {
-        let bound_instrument = self.0.bind(labels);
+    pub fn bind<'a>(&self, attributes: &'a [KeyValue]) -> BoundValueRecorder<'a, T> {
+        let bound_instrument = self.0.bind(attributes);
         BoundValueRecorder {
-            labels,
+            attributes,
             bound_instrument,
         }
     }
 
     /// Record a new metric value
-    pub fn record(&self, value: T, labels: &[KeyValue]) {
-        self.0.direct_record(value.into(), labels)
+    pub fn record(&self, value: T, attributes: &[KeyValue]) {
+        self.0.direct_record(value.into(), attributes)
     }
 
     /// Creates a `Measurement` object to use with batch recording.
@@ -40,7 +40,7 @@ where
 /// It inherits the Unbind function from syncBoundInstrument.
 #[derive(Clone, Debug)]
 pub struct BoundValueRecorder<'a, T> {
-    labels: &'a [KeyValue],
+    attributes: &'a [KeyValue],
     bound_instrument: SyncBoundInstrument<T>,
 }
 
@@ -48,7 +48,7 @@ impl<'a, T> BoundValueRecorder<'a, T>
 where
     T: Into<Number>,
 {
-    /// Adds a new value to the list of ValueRecorder's records. The labels
+    /// Adds a new value to the list of ValueRecorder's records. The attributes
     /// should contain the keys and values to be associated with this value.
     pub fn record(&self, value: T) {
         self.bound_instrument.direct_record(value.into())

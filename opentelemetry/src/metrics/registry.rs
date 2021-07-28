@@ -46,11 +46,11 @@ impl MeterCore for UniqueInstrumentMeterCore {
     fn record_batch_with_context(
         &self,
         cx: &Context,
-        labels: &[KeyValue],
+        attributes: &[KeyValue],
         measurements: Vec<Measurement>,
     ) {
         self.inner
-            .record_batch_with_context(cx, labels, measurements)
+            .record_batch_with_context(cx, attributes, measurements)
     }
 
     fn new_sync_instrument(&self, descriptor: Descriptor) -> Result<UniqueSyncInstrument> {

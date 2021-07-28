@@ -1,4 +1,4 @@
-//! OpenTelemetry Labels
+//! OpenTelemetry Attributes
 use crate::{Array, Key, KeyValue, Value};
 use std::cmp::Ordering;
 use std::collections::{btree_map, BTreeMap};
@@ -6,49 +6,52 @@ use std::hash::{Hash, Hasher};
 use std::iter::Peekable;
 
 mod encoder;
-pub use encoder::{default_encoder, new_encoder_id, DefaultLabelEncoder, Encoder, EncoderId};
+pub use encoder::{default_encoder, new_encoder_id, DefaultAttributeEncoder, Encoder, EncoderId};
 
-/// An immutable set of distinct labels.
+/// An immutable set of distinct attributes.
 #[derive(Clone, Debug, Default)]
-pub struct LabelSet {
-    labels: BTreeMap<Key, Value>,
+pub struct AttributeSet {
+    attributes: BTreeMap<Key, Value>,
 }
 
-impl LabelSet {
-    /// Construct a new label set form a distinct set of labels
-    pub fn from_labels<T: IntoIterator<Item = KeyValue>>(labels: T) -> Self {
-        LabelSet {
-            labels: labels.into_iter().map(|kv| (kv.key, kv.value)).collect(),
+impl AttributeSet {
+    /// Construct a new attribute set form a distinct set of attributes
+    pub fn from_attributes<T: IntoIterator<Item = KeyValue>>(attributes: T) -> Self {
+        AttributeSet {
+            attributes: attributes
+                .into_iter()
+                .map(|kv| (kv.key, kv.value))
+                .collect(),
         }
     }
 
-    /// The label set length.
+    /// The attribute set length.
     pub fn len(&self) -> usize {
-        self.labels.len()
+        self.attributes.len()
     }
 
-    /// Check if the set of labels is empty.
+    /// Check if the set of attributes are empty.
     pub fn is_empty(&self) -> bool {
-        self.labels.is_empty()
+        self.attributes.is_empty()
     }
 
-    /// Iterate over the label key value pairs.
+    /// Iterate over the attribute key value pairs.
     pub fn iter(&self) -> Iter<'_> {
         self.into_iter()
     }
 
-    /// Encode the label set with the given encoder and cache the result.
+    /// Encode the attribute set with the given encoder and cache the result.
     pub fn encoded(&self, encoder: Option<&dyn Encoder>) -> String {
         encoder.map_or_else(String::new, |encoder| encoder.encode(&mut self.iter()))
     }
 }
 
-impl<'a> IntoIterator for &'a LabelSet {
+impl<'a> IntoIterator for &'a AttributeSet {
     type Item = (&'a Key, &'a Value);
     type IntoIter = Iter<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
-        Iter(self.labels.iter())
+        Iter(self.attributes.iter())
     }
 }
 /// An iterator over the entries of a `Set`.
@@ -63,11 +66,11 @@ impl<'a> Iterator for Iter<'a> {
 }
 
 /// Impl of Hash for `KeyValue`
-pub fn hash_labels<'a, H: Hasher, I: IntoIterator<Item = (&'a Key, &'a Value)>>(
+pub fn hash_attributes<'a, H: Hasher, I: IntoIterator<Item = (&'a Key, &'a Value)>>(
     state: &mut H,
-    labels: I,
+    attributes: I,
 ) {
-    for (key, value) in labels.into_iter() {
+    for (key, value) in attributes.into_iter() {
         key.hash(state);
         hash_value(state, value);
     }

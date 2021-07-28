@@ -69,7 +69,7 @@ impl MeterCore for NoopMeterCore {
     fn record_batch_with_context(
         &self,
         _cx: &Context,
-        _labels: &[KeyValue],
+        _attributes: &[KeyValue],
         _measurements: Vec<Measurement>,
     ) {
         // Ignored
@@ -100,10 +100,10 @@ impl InstrumentCore for NoopSyncInstrument {
 }
 
 impl SyncInstrumentCore for NoopSyncInstrument {
-    fn bind(&self, _labels: &'_ [KeyValue]) -> Arc<dyn SyncBoundInstrumentCore> {
+    fn bind(&self, _attributes: &'_ [KeyValue]) -> Arc<dyn SyncBoundInstrumentCore> {
         Arc::new(NoopBoundSyncInstrument::new())
     }
-    fn record_one(&self, _number: Number, _labels: &'_ [KeyValue]) {
+    fn record_one(&self, _number: Number, _attributes: &'_ [KeyValue]) {
         // Ignored
     }
     fn as_any(&self) -> &dyn Any {

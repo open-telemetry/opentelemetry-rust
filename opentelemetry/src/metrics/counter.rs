@@ -15,20 +15,20 @@ impl<T> Counter<T>
 where
     T: Into<Number>,
 {
-    /// Creates a bound instrument for this counter. The labels are associated with
+    /// Creates a bound instrument for this counter. The attributes are associated with
     /// values recorded via subsequent calls to record.
-    pub fn bind<'a>(&self, labels: &'a [KeyValue]) -> BoundCounter<'a, T> {
-        let bound_instrument = self.0.bind(labels);
+    pub fn bind<'a>(&self, attributes: &'a [KeyValue]) -> BoundCounter<'a, T> {
+        let bound_instrument = self.0.bind(attributes);
 
         BoundCounter {
-            labels,
+            attributes,
             bound_instrument,
         }
     }
 
     /// Increment this counter by a given T
-    pub fn add(&self, value: T, labels: &[KeyValue]) {
-        self.0.direct_record(value.into(), labels)
+    pub fn add(&self, value: T, attributes: &[KeyValue]) {
+        self.0.direct_record(value.into(), attributes)
     }
 
     /// Creates a Measurement for use with batch recording.
@@ -40,7 +40,7 @@ where
 /// BoundCounter is a bound instrument for counters.
 #[derive(Clone, Debug)]
 pub struct BoundCounter<'a, T> {
-    labels: &'a [KeyValue],
+    attributes: &'a [KeyValue],
     bound_instrument: SyncBoundInstrument<T>,
 }
 

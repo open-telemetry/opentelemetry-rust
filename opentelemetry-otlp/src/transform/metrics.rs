@@ -67,8 +67,8 @@ pub(crate) mod tonic {
     ) -> Result<Metric, MetricsError> {
         let descriptor = record.descriptor();
         let aggregator = record.aggregator().ok_or(MetricsError::NoDataCollected)?;
-        let labels = record
-            .labels()
+        let attributes = record
+            .attributes()
             .iter()
             .map(|kv| kv.into())
             .collect::<Vec<KeyValue>>();
@@ -89,7 +89,7 @@ pub(crate) mod tonic {
                             data_points: points
                                 .into_iter()
                                 .map(|val| NumberDataPoint {
-                                    attributes: labels.clone(),
+                                    attributes: attributes.clone(),
                                     labels: vec![],
                                     start_time_unix_nano: to_nanos(*record.start_time()),
                                     time_unix_nano: to_nanos(*record.end_time()),
@@ -108,7 +108,7 @@ pub(crate) mod tonic {
                         let (val, sample_time) = last_value.last_value()?;
                         Data::Gauge(Gauge {
                             data_points: vec![NumberDataPoint {
-                                attributes: labels,
+                                attributes,
                                 labels: vec![],
                                 start_time_unix_nano: to_nanos(*record.start_time()),
                                 time_unix_nano: to_nanos(sample_time),
@@ -122,7 +122,7 @@ pub(crate) mod tonic {
                         let val = sum.sum()?;
                         Data::Sum(Sum {
                             data_points: vec![NumberDataPoint {
-                                attributes: labels,
+                                attributes,
                                 labels: vec![],
                                 start_time_unix_nano: to_nanos(*record.start_time()),
                                 time_unix_nano: to_nanos(*record.end_time()),
@@ -141,7 +141,7 @@ pub(crate) mod tonic {
                             (histogram.sum()?, histogram.count()?, histogram.histogram()?);
                         Data::Histogram(Histogram {
                             data_points: vec![HistogramDataPoint {
-                                attributes: labels,
+                                attributes,
                                 labels: vec![],
                                 start_time_unix_nano: to_nanos(*record.start_time()),
                                 time_unix_nano: to_nanos(*record.end_time()),
@@ -174,7 +174,7 @@ pub(crate) mod tonic {
                         let bounds = vec![0.0, 100.0];
                         Data::Histogram(Histogram {
                             data_points: vec![HistogramDataPoint {
-                                attributes: labels,
+                                attributes,
                                 labels: vec![],
                                 start_time_unix_nano: to_nanos(*record.start_time()),
                                 time_unix_nano: to_nanos(*record.end_time()),
@@ -315,7 +315,7 @@ mod tests {
         use crate::transform::metrics::tonic::merge;
         use crate::transform::{record_to_metric, sink, ResourceWrapper};
         use chrono::prelude::*;
-        use opentelemetry::labels::LabelSet;
+        use opentelemetry::attributes::AttributeSet;
         use opentelemetry::metrics::{
             Descriptor, InstrumentKind, MetricsError, Number, NumberKind,
         };
@@ -356,8 +356,8 @@ mod tests {
                 data: Some(Data::Gauge(Gauge {
                     data_points: data_points
                         .into_iter()
-                        .map(|(labels, start_time, end_time, value)| {
-                            get_int_data_point(labels, start_time, end_time, value)
+                        .map(|(attributes, start_time, end_time, value)| {
+                            get_int_data_point(attributes, start_time, end_time, value)
                         })
                         .collect::<Vec<NumberDataPoint>>(),
                 })),
@@ -365,13 +365,13 @@ mod tests {
         }
 
         fn get_int_data_point(
-            labels: Vec<(&'static str, &'static str)>,
+            attributes: Vec<(&'static str, &'static str)>,
             start_time: u64,
             end_time: u64,
             value: i64,
         ) -> NumberDataPoint {
             NumberDataPoint {
-                attributes: labels
+                attributes: attributes
                     .into_iter()
                     .map(Into::into)
                     .collect::<Vec<KeyValue>>(),
@@ -484,14 +484,14 @@ mod tests {
 
         #[test]
         fn test_record_to_metric() -> Result<(), MetricsError> {
-            let labels = vec![("test1", "value1"), ("test2", "value2")];
-            let str_kv_labels = labels
+            let attributes = vec![("test1", "value1"), ("test2", "value2")];
+            let str_kv_attributes = attributes
                 .iter()
                 .cloned()
                 .map(Into::into)
                 .collect::<Vec<KeyValue>>();
-            let label_set = LabelSet::from_labels(
-                labels
+            let attribute_set = AttributeSet::from_attributes(
+                attributes
                     .iter()
                     .cloned()
                     .map(|(k, v)| opentelemetry::KeyValue::new(k, v)),
@@ -518,7 +518,7 @@ mod tests {
                 let wrapped_aggregator: Arc<dyn Aggregator + Send + Sync> = Arc::new(aggregator);
                 let record = record(
                     &descriptor,
-                    &label_set,
+                    &attribute_set,
                     &resource,
                     Some(&wrapped_aggregator),
                     start_time.into(),
@@ -532,7 +532,7 @@ mod tests {
                     unit: "".to_string(),
                     data: Some(Data::Sum(Sum {
                         data_points: vec![NumberDataPoint {
-                            attributes: str_kv_labels.clone(),
+                            attributes: str_kv_attributes.clone(),
                             labels: vec![],
                             start_time_unix_nano: 1608891000000000000,
                             time_unix_nano: 1608891030000000000,
@@ -564,7 +564,7 @@ mod tests {
                 let wrapped_aggregator: Arc<dyn Aggregator + Send + Sync> = Arc::new(aggregator);
                 let record = record(
                     &descriptor,
-                    &label_set,
+                    &attribute_set,
                     &resource,
                     Some(&wrapped_aggregator),
                     start_time.into(),
@@ -578,7 +578,7 @@ mod tests {
                     unit: "".to_string(),
                     data: Some(Data::Gauge(Gauge {
                         data_points: vec![NumberDataPoint {
-                            attributes: str_kv_labels.clone(),
+                            attributes: str_kv_attributes.clone(),
                             labels: vec![],
                             start_time_unix_nano: 1608891000000000000,
                             time_unix_nano: if let Data::Gauge(gauge) = metric.data.clone().unwrap()
@@ -615,7 +615,7 @@ mod tests {
                 let wrapped_aggregator: Arc<dyn Aggregator + Send + Sync> = Arc::new(aggregator);
                 let record = record(
                     &descriptor,
-                    &label_set,
+                    &attribute_set,
                     &resource,
                     Some(&wrapped_aggregator),
                     start_time.into(),
@@ -629,7 +629,7 @@ mod tests {
                     unit: "".to_string(),
                     data: Some(Data::Histogram(Histogram {
                         data_points: vec![HistogramDataPoint {
-                            attributes: str_kv_labels.clone(),
+                            attributes: str_kv_attributes.clone(),
                             labels: vec![],
                             start_time_unix_nano: 1608891000000000000,
                             time_unix_nano: 1608891030000000000,
@@ -664,7 +664,7 @@ mod tests {
                 let wrapped_aggregator: Arc<dyn Aggregator + Send + Sync> = Arc::new(aggregator);
                 let record = record(
                     &descriptor,
-                    &label_set,
+                    &attribute_set,
                     &resource,
                     Some(&wrapped_aggregator),
                     start_time.into(),
@@ -678,7 +678,7 @@ mod tests {
                     unit: "".to_string(),
                     data: Some(Data::Histogram(Histogram {
                         data_points: vec![HistogramDataPoint {
-                            attributes: str_kv_labels,
+                            attributes: str_kv_attributes,
                             labels: vec![],
                             start_time_unix_nano: 1608891000000000000,
                             time_unix_nano: 1608891030000000000,
@@ -705,36 +705,36 @@ mod tests {
                     vec![("runtime", "tokio")],
                     ("otlp", Some("0.1.1")),
                     "test",
-                    (vec![("label1", "label2")], 12, 23, 2),
+                    (vec![("attribute1", "attribute2")], 12, 23, 2),
                 ),
                 (
                     vec![("runtime", "tokio")],
                     ("otlp", Some("0.1.1")),
                     "test",
-                    (vec![("label2", "label2")], 16, 19, 20),
+                    (vec![("attribute2", "attribute2")], 16, 19, 20),
                 ),
                 (
                     vec![("runtime", "tokio"), ("rustc", "v48.0")],
                     ("otlp", Some("0.1.1")),
                     "test",
-                    (vec![("label2", "label2")], 16, 19, 20),
+                    (vec![("attribute2", "attribute2")], 16, 19, 20),
                 ),
                 (
                     vec![("runtime", "tokio")],
                     ("otlp", None),
                     "test",
-                    (vec![("label1", "label2")], 15, 16, 88),
+                    (vec![("attribute1", "attribute2")], 15, 16, 88),
                 ),
                 (
                     vec![("runtime", "tokio")],
                     ("otlp", None),
                     "another_test",
-                    (vec![("label1", "label2")], 15, 16, 99),
+                    (vec![("attribute1", "attribute2")], 15, 16, 99),
                 ),
             ]
             .into_iter()
             .map(
-                |(kvs, (name, version), metric_name, (labels, start_time, end_time, value))| {
+                |(kvs, (name, version), metric_name, (attributes, start_time, end_time, value))| {
                     (
                         ResourceWrapper::from(Resource::new(kvs.into_iter().map(|(k, v)| {
                             opentelemetry::KeyValue::new(k.to_string(), v.to_string())
@@ -742,7 +742,7 @@ mod tests {
                         InstrumentationLibrary::new(name, version),
                         get_metric_with_name(
                             metric_name,
-                            vec![(labels, start_time, end_time, value)],
+                            vec![(attributes, start_time, end_time, value)],
                         ),
                     )
                 },
@@ -761,18 +761,21 @@ mod tests {
                             vec![(
                                 "test",
                                 vec![
-                                    (vec![("label1", "label2")], 12, 23, 2),
-                                    (vec![("label2", "label2")], 16, 19, 20),
+                                    (vec![("attribute1", "attribute2")], 12, 23, 2),
+                                    (vec![("attribute2", "attribute2")], 16, 19, 20),
                                 ],
                             )],
                         ),
                         (
                             ("otlp", None),
                             vec![
-                                ("test", vec![(vec![("label1", "label2")], 15, 16, 88)]),
+                                (
+                                    "test",
+                                    vec![(vec![("attribute1", "attribute2")], 15, 16, 88)],
+                                ),
                                 (
                                     "another_test",
-                                    vec![(vec![("label1", "label2")], 15, 16, 99)],
+                                    vec![(vec![("attribute1", "attribute2")], 15, 16, 99)],
                                 ),
                             ],
                         ),
@@ -782,7 +785,10 @@ mod tests {
                     vec![("runtime", "tokio"), ("rustc", "v48.0")],
                     vec![(
                         ("otlp", Some("0.1.1")),
-                        vec![("test", vec![(vec![("label2", "label2")], 16, 19, 20)])],
+                        vec![(
+                            "test",
+                            vec![(vec![("attribute2", "attribute2")], 16, 19, 20)],
+                        )],
                     )],
                 ),
             ]

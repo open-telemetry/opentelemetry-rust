@@ -95,7 +95,7 @@ pub struct PullControllerBuilder {
     cache_period: Option<Duration>,
 
     /// Memory controls whether the controller's processor remembers metric
-    /// instruments and label sets that were previously reported. When memory is
+    /// instruments and attribute sets that were previously reported. When memory is
     /// `true`, `CheckpointSet::try_for_each` will visit metrics that were not
     /// updated in the most recent interval. Default true.
     memory: bool,
@@ -133,7 +133,7 @@ impl PullControllerBuilder {
     }
 
     /// Sets the memory behavior of the controller's `Processor`.  If this is
-    /// `true`, the processor will report metric instruments and label sets that
+    /// `true`, the processor will report metric instruments and attribute sets that
     /// were previously reported but not updated in the most recent interval.
     pub fn with_memory(self, memory: bool) -> Self {
         PullControllerBuilder { memory, ..self }

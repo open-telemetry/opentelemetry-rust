@@ -11,7 +11,7 @@ pub trait MeterCore: fmt::Debug {
     fn record_batch_with_context(
         &self,
         cx: &Context,
-        labels: &[KeyValue],
+        attributes: &[KeyValue],
         measurements: Vec<Measurement>,
     );
 
@@ -40,12 +40,12 @@ pub trait InstrumentCore: fmt::Debug + Send + Sync {
 /// The implementation-level interface to a generic synchronous instrument
 /// (e.g., ValueRecorder and Counter instruments).
 pub trait SyncInstrumentCore: InstrumentCore {
-    /// Creates an implementation-level bound instrument, binding a label set
+    /// Creates an implementation-level bound instrument, binding an attribute set
     /// with this instrument implementation.
-    fn bind(&self, labels: &'_ [KeyValue]) -> Arc<dyn SyncBoundInstrumentCore>;
+    fn bind(&self, attributes: &'_ [KeyValue]) -> Arc<dyn SyncBoundInstrumentCore>;
 
     /// Capture a single synchronous metric event.
-    fn record_one(&self, number: Number, labels: &'_ [KeyValue]);
+    fn record_one(&self, number: Number, attributes: &'_ [KeyValue]);
 
     /// Returns self as any
     fn as_any(&self) -> &dyn Any;

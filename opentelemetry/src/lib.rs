@@ -242,7 +242,7 @@ pub mod util;
 
 #[cfg(feature = "metrics")]
 #[cfg_attr(docsrs, doc(cfg(feature = "metrics")))]
-pub mod labels;
+pub mod attributes;
 
 #[cfg(feature = "metrics")]
 #[cfg_attr(docsrs, doc(cfg(feature = "metrics")))]
