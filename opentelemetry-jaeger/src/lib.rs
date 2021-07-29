@@ -48,7 +48,7 @@
 //! ```toml
 //! [dependencies]
 //! opentelemetry = { version = "*", features = ["rt-tokio"] }
-//! opentelemetry-jaeger = { version = "*", features = ["tokio"] }
+//! opentelemetry-jaeger = { version = "*", features = ["rt-tokio"] }
 //! ```
 //!
 //! ```no_run
@@ -161,6 +161,17 @@
 //! * `isahc_collector_client`: Export span data with Jaeger collector backed by a isahc http client.
 //!
 //! * `wasm_collector_client`: Enable collector in wasm.
+//!
+//! Support for recording and exporting telemetry asynchronously can be added
+//! via the following flags, it extends the [`opentelemetry`] feature:
+//!
+//! * `rt-tokio`: Enable sending UDP packets to Jaeger agent asynchronously when [`Tokio`] runtime is used.
+//!
+//! * `rt-tokio-current-thread`: Enable sending UDP packets to Jaeger agent asynchronously when [`TokioCurrentThread`] runtime is used.
+//!
+//! * `rt-async-std`: Enable sending UDP packets to Jaeger agent asynchronously when [`AsyncStd`] runtime is used.
+//!
+//! [`opentelemetry`]: https://crates.io/crates/opentelemetry
 //!
 //! ## Supported Rust Versions
 //!
@@ -581,5 +592,7 @@ mod propagator {
     }
 }
 
-pub use exporter::{new_pipeline, Error, Exporter, PipelineBuilder, Process};
+pub use exporter::{
+    new_pipeline, runtime::JaegerTraceRuntime, Error, Exporter, PipelineBuilder, Process,
+};
 pub use propagator::Propagator;
