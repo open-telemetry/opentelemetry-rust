@@ -76,3 +76,6 @@ wasm_collector_client = [
     "wasm-bindgen-futures",
     "web-sys",
 ]
+rt-tokio = ["tokio", "opentelemetry/rt-tokio"]
+rt-tokio-current-thread = ["tokio", "opentelemetry/rt-tokio-current-thread"]
+rt-async-std = ["async-std","opentelemetry/rt-async-std"]
