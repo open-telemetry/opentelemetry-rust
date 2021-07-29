@@ -93,13 +93,25 @@ const DEFAULT_CACHE_PERIOD: Duration = Duration::from_secs(0);
 
 const EXPORT_KIND_SELECTOR: ExportKindSelector = ExportKindSelector::Cumulative;
 
+/// Default host used by the Prometheus Exporter when env variable not found
+const DEFAULT_EXPORTER_HOST: &str = "0.0.0.0";
+
+/// Default port used by the Prometheus Exporter when env variable not found
+const DEFAULT_EXPORTER_PORT: &str = "9464";
+
+/// The hostname for the Promtheus Exporter
+const ENV_EXPORTER_HOST: &str = "OTEL_EXPORTER_PROMETHEUS_HOST";
+
+/// The port for the Prometheus Exporter
+const ENV_EXPORTER_PORT: &str = "OTEL_EXPORTER_PROMETHEUS_PORT";
+
 /// Create a new prometheus exporter builder.
 pub fn exporter() -> ExporterBuilder {
     ExporterBuilder::default()
 }
 
 /// Configuration for the prometheus exporter.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct ExporterBuilder {
     /// The OpenTelemetry `Resource` associated with all Meters
     /// created by the pull controller.
@@ -135,30 +147,21 @@ pub struct ExporterBuilder {
     port: Option<String>,
 }
 
-impl ExporterBuilder {
-    /// Set builder fields for host and port from the OS environment variables
-    ///
-    /// Fields set by developer takes precedent and the OS environment variables will be ignored
-    pub fn from_env() -> Self {
-        let mut builder = ExporterBuilder::default();
-
-        if let Some(host) = env::var("OTEL_EXPORTER_PROMETHEUS_HOST")
-            .ok()
-            .filter(|s| !s.is_empty())
-        {
-            builder = builder.with_host(host)
+impl Default for ExporterBuilder {
+    fn default() -> Self {
+        ExporterBuilder {
+            resource: None,
+            cache_period: None,
+            default_histogram_boundaries: None,
+            default_summary_quantiles: None,
+            registry: None,
+            host: env::var(ENV_EXPORTER_HOST).ok().filter(|s| !s.is_empty()),
+            port: env::var(ENV_EXPORTER_PORT).ok().filter(|s| !s.is_empty()),
         }
-
-        if let Some(port) = env::var("OTEL_EXPORTER_PROMETHEUS_PORT")
-            .ok()
-            .filter(|s| !s.is_empty())
-        {
-            builder = builder.with_port(port);
-        }
-
-        builder
     }
+}
 
+impl ExporterBuilder {
     /// Set the resource to be associated with all `Meter`s for this exporter
     pub fn with_resource(self, resource: Resource) -> Self {
         ExporterBuilder {
@@ -239,17 +242,27 @@ impl ExporterBuilder {
 
         global::set_meter_provider(controller.provider());
 
-        let host = self.host.unwrap_or_else(|| "0.0.0.0".to_string());
-        let port = self.port.unwrap_or_else(|| "9464".to_string());
+        let host = self
+            .host
+            .unwrap_or_else(|| DEFAULT_EXPORTER_HOST.to_string());
+        let port = self
+            .port
+            .unwrap_or_else(|| DEFAULT_EXPORTER_PORT.to_string());
 
-        PrometheusExporter::new(
+        let controller = Arc::new(Mutex::new(controller));
+        let collector = Collector::with_controller(controller.clone());
+        registry
+            .register(Box::new(collector))
+            .map_err(|e| MetricsError::Other(e.to_string()))?;
+
+        Ok(PrometheusExporter {
             registry,
             controller,
             default_summary_quantiles,
             default_histogram_boundaries,
             host,
             port,
-        )
+        })
     }
 
     /// Sets up a complete export pipeline with the recommended setup, using the
@@ -278,6 +291,10 @@ pub struct PrometheusExporter {
 }
 
 impl PrometheusExporter {
+    #[deprecated(
+        since = "0.9.0",
+        note = "Please use the ExporterBuilder to initialize a PrometheusExporter"
+    )]
     /// Create a new prometheus exporter
     pub fn new(
         registry: prometheus::Registry,
@@ -528,4 +545,32 @@ fn get_metric_desc(record: &Record<'_>) -> PrometheusMetricDesc {
         .cloned()
         .unwrap_or_else(|| desc.name().to_string());
     PrometheusMetricDesc { name, help }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::env;
+
+    use super::*;
+
+    #[test]
+    fn test_exporter_builder_default() {
+        env::remove_var(ENV_EXPORTER_HOST);
+        env::remove_var(ENV_EXPORTER_PORT);
+        let exporter = ExporterBuilder::default().init();
+        assert_eq!(exporter.host(), "0.0.0.0");
+        assert_eq!(exporter.port(), "9464");
+
+        env::set_var(ENV_EXPORTER_HOST, "prometheus-test");
+        env::set_var(ENV_EXPORTER_PORT, "9000");
+        let exporter = ExporterBuilder::default().init();
+        assert_eq!(exporter.host(), "prometheus-test");
+        assert_eq!(exporter.port(), "9000");
+
+        env::set_var(ENV_EXPORTER_HOST, "");
+        env::set_var(ENV_EXPORTER_PORT, "");
+        let exporter = ExporterBuilder::default().init();
+        assert_eq!(exporter.host(), "0.0.0.0");
+        assert_eq!(exporter.port(), "9464");
+    }
 }

@@ -4,7 +4,11 @@
 
 ### Added
 
-- Add `from_env` method to prometheus exporter based on semantic environment vars
+- Adds `Default` implementation to `ExporterBuilder` based on the otel specification environment variables #242
+
+### Deprecated
+
+- `PrometheusExporter::new()` is deprecated in favor of using `ExporterBuilder`
 
 ## v0.8.0
 

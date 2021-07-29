@@ -1,5 +1,3 @@
-use std::env;
-
 use opentelemetry::sdk::Resource;
 use opentelemetry::{
     metrics::{BatchObserverResult, MeterProvider, ObserverResult},
@@ -160,32 +158,4 @@ fn compare_export(exporter: &PrometheusExporter, mut expected: Vec<&'static str>
     expected.sort_unstable();
 
     assert_eq!(expected.join("\n"), metrics_only.join("\n"))
-}
-
-#[test]
-fn test_from_env() {
-    let otel_exporter_prometheus_host = "OTEL_EXPORTER_PROMETHEUS_HOST";
-    let otel_exporter_prometheus_port = "OTEL_EXPORTER_PROMETHEUS_PORT";
-
-    // environment variables do not exist
-    env::remove_var(otel_exporter_prometheus_host);
-    env::remove_var(otel_exporter_prometheus_port);
-    let exporter = opentelemetry_prometheus::ExporterBuilder::from_env().init();
-    assert_eq!(exporter.host(), "0.0.0.0");
-    assert_eq!(exporter.port(), "9464");
-
-    // environment variables are available and non-empty strings
-    env::set_var(otel_exporter_prometheus_host, "prometheus-test");
-    env::set_var(otel_exporter_prometheus_port, "9000");
-
-    let exporter = opentelemetry_prometheus::ExporterBuilder::from_env().init();
-    assert_eq!(exporter.host(), "prometheus-test");
-    assert_eq!(exporter.port(), "9000");
-
-    // environment variables are available and empty
-    env::set_var(otel_exporter_prometheus_host, "");
-    env::set_var(otel_exporter_prometheus_port, "");
-    let exporter = opentelemetry_prometheus::ExporterBuilder::from_env().init();
-    assert_eq!(exporter.host(), "0.0.0.0");
-    assert_eq!(exporter.port(), "9464");
 }
