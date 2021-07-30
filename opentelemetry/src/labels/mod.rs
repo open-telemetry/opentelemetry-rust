@@ -125,7 +125,7 @@ impl<'a, A: Iterator<Item = (&'a Key, &'a Value)>, B: Iterator<Item = (&'a Key, 
     type Item = (&'a Key, &'a Value);
     fn next(&mut self) -> Option<Self::Item> {
         let which = match (self.a.peek(), self.b.peek()) {
-            (Some(a), Some(b)) => Some(a.0.cmp(&b.0)),
+            (Some(a), Some(b)) => Some(a.0.cmp(b.0)),
             (Some(_), None) => Some(Ordering::Less),
             (None, Some(_)) => Some(Ordering::Greater),
             (None, None) => None,

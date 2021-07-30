@@ -109,9 +109,9 @@ pub enum Array {
 impl fmt::Display for Array {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Array::Bool(values) => display_array_str(&values, fmt),
-            Array::I64(values) => display_array_str(&values, fmt),
-            Array::F64(values) => display_array_str(&values, fmt),
+            Array::Bool(values) => display_array_str(values, fmt),
+            Array::I64(values) => display_array_str(values, fmt),
+            Array::F64(values) => display_array_str(values, fmt),
             Array::String(values) => {
                 write!(fmt, "[")?;
                 for (i, t) in values.iter().enumerate() {
