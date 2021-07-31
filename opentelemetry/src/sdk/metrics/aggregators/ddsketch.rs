@@ -347,7 +347,7 @@ impl Inner {
             };
             (-self.log_gamma(positive_num.to_f64(kind)).ceil()) as i64 - self.offset
         } else if num.to_f64(kind) > self.key_epsilon {
-            self.log_gamma(num.to_f64(&kind)).ceil() as i64 + self.offset
+            self.log_gamma(num.to_f64(kind)).ceil() as i64 + self.offset
         } else {
             0i64
         }
