@@ -81,6 +81,7 @@ use opentelemetry::{
     Key, Value,
 };
 use std::env;
+use std::num::ParseIntError;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -97,7 +98,7 @@ const EXPORT_KIND_SELECTOR: ExportKindSelector = ExportKindSelector::Cumulative;
 const DEFAULT_EXPORTER_HOST: &str = "0.0.0.0";
 
 /// Default port used by the Prometheus Exporter when env variable not found
-const DEFAULT_EXPORTER_PORT: &str = "9464";
+const DEFAULT_EXPORTER_PORT: u16 = 9464;
 
 /// The hostname for the Promtheus Exporter
 const ENV_EXPORTER_HOST: &str = "OTEL_EXPORTER_PROMETHEUS_HOST";
@@ -143,12 +144,27 @@ pub struct ExporterBuilder {
 
     /// The port used by the prometheus exporter
     ///
-    /// If not set it will be defaulted to port "9464"
-    port: Option<String>,
+    /// If not set it will be defaulted to port 9464
+    port: Option<u16>,
 }
 
 impl Default for ExporterBuilder {
     fn default() -> Self {
+        let port: Option<u16> = match env::var(ENV_EXPORTER_PORT) {
+            Err(_) => None,
+            Ok(p_str) => p_str
+                .parse()
+                .map_err(|err: ParseIntError| {
+                    let err_msg = format!(
+                        "Unable to parse environment variable {}=\"{}\" - {}. Falling back to default port {}. ",
+                        ENV_EXPORTER_PORT, p_str, err, DEFAULT_EXPORTER_PORT
+                    );
+                    global::handle_error(global::Error::Other(err_msg));
+                    err
+                })
+                .ok(),
+        };
+
         ExporterBuilder {
             resource: None,
             cache_period: None,
@@ -156,7 +172,7 @@ impl Default for ExporterBuilder {
             default_summary_quantiles: None,
             registry: None,
             host: env::var(ENV_EXPORTER_HOST).ok().filter(|s| !s.is_empty()),
-            port: env::var(ENV_EXPORTER_PORT).ok().filter(|s| !s.is_empty()),
+            port,
         }
     }
 }
@@ -206,7 +222,7 @@ impl ExporterBuilder {
     }
 
     /// Set the port for the prometheus exporter
-    pub fn with_port(self, port: String) -> Self {
+    pub fn with_port(self, port: u16) -> Self {
         ExporterBuilder {
             port: Some(port),
             ..self
@@ -245,9 +261,7 @@ impl ExporterBuilder {
         let host = self
             .host
             .unwrap_or_else(|| DEFAULT_EXPORTER_HOST.to_string());
-        let port = self
-            .port
-            .unwrap_or_else(|| DEFAULT_EXPORTER_PORT.to_string());
+        let port = self.port.unwrap_or(DEFAULT_EXPORTER_PORT);
 
         let controller = Arc::new(Mutex::new(controller));
         let collector = Collector::with_controller(controller.clone());
@@ -287,7 +301,7 @@ pub struct PrometheusExporter {
     default_summary_quantiles: Vec<f64>,
     default_histogram_boundaries: Vec<f64>,
     host: String,
-    port: String,
+    port: u16,
 }
 
 impl PrometheusExporter {
@@ -302,7 +316,7 @@ impl PrometheusExporter {
         default_summary_quantiles: Vec<f64>,
         default_histogram_boundaries: Vec<f64>,
         host: String,
-        port: String,
+        port: u16,
     ) -> Result<Self, MetricsError> {
         let controller = Arc::new(Mutex::new(controller));
         let collector = Collector::with_controller(controller.clone());
@@ -339,8 +353,8 @@ impl PrometheusExporter {
     }
 
     /// Get the exporters port for prometheus.
-    pub fn port(&self) -> &str {
-        self.port.as_str()
+    pub fn port(&self) -> u16 {
+        self.port
     }
 }
 
@@ -559,18 +573,24 @@ mod tests {
         env::remove_var(ENV_EXPORTER_PORT);
         let exporter = ExporterBuilder::default().init();
         assert_eq!(exporter.host(), "0.0.0.0");
-        assert_eq!(exporter.port(), "9464");
+        assert_eq!(exporter.port(), 9464);
 
         env::set_var(ENV_EXPORTER_HOST, "prometheus-test");
         env::set_var(ENV_EXPORTER_PORT, "9000");
         let exporter = ExporterBuilder::default().init();
         assert_eq!(exporter.host(), "prometheus-test");
-        assert_eq!(exporter.port(), "9000");
+        assert_eq!(exporter.port(), 9000);
 
         env::set_var(ENV_EXPORTER_HOST, "");
         env::set_var(ENV_EXPORTER_PORT, "");
         let exporter = ExporterBuilder::default().init();
         assert_eq!(exporter.host(), "0.0.0.0");
-        assert_eq!(exporter.port(), "9464");
+        assert_eq!(exporter.port(), 9464);
+
+        env::set_var(ENV_EXPORTER_HOST, "");
+        env::set_var(ENV_EXPORTER_PORT, "not_a_number");
+        let exporter = ExporterBuilder::default().init();
+        assert_eq!(exporter.host(), "0.0.0.0");
+        assert_eq!(exporter.port(), 9464);
     }
 }
