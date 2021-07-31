@@ -288,7 +288,7 @@ impl prometheus::core::Collector for Collector {
                 let number_kind = record.descriptor().number_kind();
                 let instrument_kind = record.descriptor().instrument_kind();
 
-                let desc = get_metric_desc(&record);
+                let desc = get_metric_desc(record);
                 let labels = get_metric_labels(record);
 
                 if let Some(hist) = agg.as_any().downcast_ref::<HistogramAggregator>() {
