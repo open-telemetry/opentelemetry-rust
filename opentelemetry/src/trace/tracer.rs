@@ -153,8 +153,8 @@ use std::time::SystemTime;
 /// [`Future::with_context`] attaches a context to the future, ensuring that the
 /// context's lifetime is as long as the future's.
 ///
-/// [`FutureExt`]: super::futures::FutureExt
-/// [`Future::with_context`]: super::futures::FutureExt::with_context()
+/// [`FutureExt`]: crate::trace::FutureExt
+/// [`Future::with_context`]: crate::trace::FutureExt::with_context()
 /// [`Context`]: crate::Context
 pub trait Tracer: fmt::Debug + 'static {
     /// The `Span` type used by this `Tracer`.
