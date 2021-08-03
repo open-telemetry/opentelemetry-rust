@@ -45,9 +45,9 @@ pub(crate) mod tonic {
         fn from(number: NumberWithKind<'a>) -> Self {
             match &number.1 {
                 NumberKind::I64 | NumberKind::U64 => {
-                    number_data_point::Value::AsInt(number.0.to_i64(&number.1))
+                    number_data_point::Value::AsInt(number.0.to_i64(number.1))
                 }
-                NumberKind::F64 => number_data_point::Value::AsDouble(number.0.to_f64(&number.1)),
+                NumberKind::F64 => number_data_point::Value::AsDouble(number.0.to_f64(number.1)),
             }
         }
     }
