@@ -130,7 +130,7 @@ impl<'a> LockedProcessor for BasicLockedProcessor<'a> {
                 if let Some(current) = self.parent.aggregation_selector().aggregator_for(desc) {
                     value.current = current;
                     value.current_owned = true;
-                    tmp.synchronized_move(&value.current, &desc)?;
+                    tmp.synchronized_move(&value.current, desc)?;
                 }
             }
 
@@ -141,7 +141,7 @@ impl<'a> LockedProcessor for BasicLockedProcessor<'a> {
         let stateful = self
             .parent
             .export_selector
-            .export_kind_for(&desc)
+            .export_kind_for(desc)
             .memory_required(desc.instrument_kind());
 
         let mut delta = None;

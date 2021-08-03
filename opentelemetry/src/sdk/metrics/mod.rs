@@ -212,7 +212,7 @@ impl AccumulatorCore {
             } else {
                 // Having no updates since last collection, try to remove if
                 // there are no bound handles
-                if Arc::strong_count(&value) == 1 {
+                if Arc::strong_count(value) == 1 {
                     // There's a potential race between loading collected count and
                     // loading the strong count in this function.  Since this is the
                     // last we'll see of this record, checkpoint.
@@ -245,7 +245,7 @@ impl AccumulatorCore {
                 record.instrument.descriptor(),
                 &record.labels,
                 &self.resource,
-                &checkpoint,
+                checkpoint,
             );
             if let Err(err) = locked_processor.process(accumulation) {
                 global::handle_error(err);

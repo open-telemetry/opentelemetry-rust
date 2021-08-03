@@ -11,7 +11,7 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [build-dependencies]
-tonic-build = "0.4.0"
+tonic-build = "0.5.0"
 which = "4.0.2"
 
 [dependencies]
@@ -24,10 +24,10 @@ hyper = "0.14.2"
 hyper-rustls = { version = "0.22.1", optional = true }
 log = "0.4"
 opentelemetry = { version = "0.15", path = "../opentelemetry" }
-prost = "0.7"
-prost-types = "0.7"
+prost = "0.8"
+prost-types = "0.8"
 rustls = "0.19"
-tonic = { version = "0.4", features = ["tls", "transport"] }
+tonic = { version = "0.5", features = ["tls", "transport"] }
 tokio = { version = "1.1", optional = true }
 yup-oauth2 = { version = "5.0.1", optional = true }
 webpki-roots = "0.21"

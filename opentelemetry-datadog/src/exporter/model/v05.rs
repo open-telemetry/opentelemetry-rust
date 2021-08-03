@@ -78,7 +78,7 @@ fn encode_traces(
     let mut encoded = Vec::new();
     rmp::encode::write_array_len(&mut encoded, traces.len() as u32)?;
 
-    let service_interned = interner.intern(&service_name);
+    let service_interned = interner.intern(service_name);
 
     for trace in traces.into_iter() {
         rmp::encode::write_array_len(&mut encoded, trace.len() as u32)?;
