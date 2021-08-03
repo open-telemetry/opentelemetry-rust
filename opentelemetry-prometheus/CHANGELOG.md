@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.9.0
+
+### Added
+
+- Adds `Default` implementation to `ExporterBuilder` based on the otel specification environment variables #242
+
+### Deprecated
+
+- `PrometheusExporter::new()` is deprecated in favor of using `ExporterBuilder`
+
 ## v0.8.0
 
 ### Changed
@@ -15,9 +25,11 @@
 ## v0.6.0
 
 ### Added
+
 - Add sanitization of prometheus label names #462
 
 ### Changed
+
 - Update to opentelemetry v0.13.0
 - Update prometheus dependency #485
 
