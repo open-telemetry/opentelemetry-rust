@@ -407,7 +407,7 @@ pub enum TraceStateError {
 /// Spans that do not have the `sampled` flag set in their [`TraceFlags`] will
 /// be ignored by most tracing tools.
 #[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
-#[derive(Clone, Debug, PartialEq, Hash)]
+#[derive(Clone, Debug, PartialEq, Hash, Eq)]
 pub struct SpanContext {
     trace_id: TraceId,
     span_id: SpanId,
