@@ -1,0 +1,44 @@
+[package]
+name = "opentelemetry-zpages"
+version = "0.1.0"
+authors = ["OpenTelemetry Authors <cncf-opentelemetry-contributors@lists.cncf.io>"]
+description = "ZPages implementation for OpenTelemetry"
+homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/master/opentelemetry-zpages"
+repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/master/opentelemetry-zpages"
+readme = "README.md"
+categories = [
+    "development-tools::debugging",
+    "development-tools::profiling",
+    "asynchronous",
+]
+keywords = ["opentelemetry", "zipkin", "tracing", "async"]
+license = "Apache-2.0"
+edition = "2018"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+opentelemetry = { version = "0.15", path = "../opentelemetry", default-features = false, features = ["trace"] }
+async-channel = "1.6"
+futures = "0.3"
+lazy_static = "1.4.0"
+grpcio = "0.9"
+protobuf = { version = "2.23.0", features = ["with-serde"] }
+serde = "1.0"
+serde_json = "1.0"
+
+[features]
+# Hack to get the serde trait implemented in protobuf generated types.
+default = ["with-serde"]
+with-serde = ["protobuf/with-serde"]
+
+[dev-dependencies]
+tokio = { version = "1.0", features = ["full"] }
+chrono = "0.4"
+opentelemetry = { path = "../opentelemetry", default-features = false, features = ["trace", "testing"] }
+
+[build-dependencies]
+protobuf-codegen = "2.16"
+protoc-grpcio = "2.0"
