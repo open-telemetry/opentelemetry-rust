@@ -4,7 +4,7 @@
 
 ### Changed
 
-- Renamed `label` to `attribute` to align with otel specification #591
+- Renamed `label` to `attribute` to align with otel specification #609
 
 ## [v0.15.0](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.14.0...v0.15.0)
 
