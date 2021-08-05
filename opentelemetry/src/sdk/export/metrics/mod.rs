@@ -1,7 +1,7 @@
 //! Metrics Export
 use crate::sdk::resource::Resource;
 use crate::{
-    labels,
+    attributes,
     metrics::{Descriptor, InstrumentKind, Number, Result},
 };
 use std::any::Any;
@@ -55,7 +55,7 @@ pub trait Processor: fmt::Debug {
 /// processor to build the set of metrics currently being exported.
 pub trait LockedProcessor {
     /// Process is called by the SDK once per internal record, passing the export
-    /// Accumulation (a Descriptor, the corresponding Labels, and the checkpointed
+    /// Accumulation (a Descriptor, the corresponding Attributes, and the checkpointed
     /// Aggregator).
     ///
     /// The Context argument originates from the controller that orchestrates
@@ -207,31 +207,31 @@ pub trait CheckpointSet: fmt::Debug {
 }
 
 /// Allows `Accumulator` implementations to construct new `Accumulation`s to
-/// send to `Processor`s. The `Descriptor`, `Labels`, `Resource`, and
+/// send to `Processor`s. The `Descriptor`, `Attributes`, `Resource`, and
 /// `Aggregator` represent aggregate metric events received over a single
 /// collection period.
 pub fn accumulation<'a>(
     descriptor: &'a Descriptor,
-    labels: &'a labels::LabelSet,
+    attributes: &'a attributes::AttributeSet,
     resource: &'a Resource,
     aggregator: &'a Arc<dyn Aggregator + Send + Sync>,
 ) -> Accumulation<'a> {
-    Accumulation::new(descriptor, labels, resource, aggregator)
+    Accumulation::new(descriptor, attributes, resource, aggregator)
 }
 
 /// Allows `Processor` implementations to construct export records. The
-/// `Descriptor`, `Labels`, and `Aggregator` represent aggregate metric events
+/// `Descriptor`, `Attributes`, and `Aggregator` represent aggregate metric events
 /// received over a single collection period.
 pub fn record<'a>(
     descriptor: &'a Descriptor,
-    labels: &'a labels::LabelSet,
+    attributes: &'a attributes::AttributeSet,
     resource: &'a Resource,
     aggregator: Option<&'a Arc<dyn Aggregator + Send + Sync>>,
     start: SystemTime,
     end: SystemTime,
 ) -> Record<'a> {
     Record {
-        metadata: Metadata::new(descriptor, labels, resource),
+        metadata: Metadata::new(descriptor, attributes, resource),
         aggregator,
         start,
         end,
@@ -250,7 +250,7 @@ impl Record<'_> {
 #[derive(Debug)]
 pub struct Metadata<'a> {
     descriptor: &'a Descriptor,
-    labels: &'a labels::LabelSet,
+    attributes: &'a attributes::AttributeSet,
     resource: &'a Resource,
 }
 
@@ -258,13 +258,13 @@ impl<'a> Metadata<'a> {
     /// Create a new `Metadata` instance.
     pub fn new(
         descriptor: &'a Descriptor,
-        labels: &'a labels::LabelSet,
+        attributes: &'a attributes::AttributeSet,
         resource: &'a Resource,
     ) -> Self {
         {
             Metadata {
                 descriptor,
-                labels,
+                attributes,
                 resource,
             }
         }
@@ -275,9 +275,9 @@ impl<'a> Metadata<'a> {
         self.descriptor
     }
 
-    /// The labels associated with the instrument and the aggregated data.
-    pub fn labels(&self) -> &labels::LabelSet {
-        self.labels
+    /// The attributes associated with the instrument and the aggregated data.
+    pub fn attributes(&self) -> &attributes::AttributeSet {
+        self.attributes
     }
 
     /// Common attributes that apply to this metric event.
@@ -286,7 +286,7 @@ impl<'a> Metadata<'a> {
     }
 }
 
-/// A container for the exported data for a single metric instrument and label
+/// A container for the exported data for a single metric instrument and attribute
 /// set, as prepared by the `Processor` for the `Exporter`. This includes the
 /// effective start and end time for the aggregation.
 #[derive(Debug)]
@@ -303,9 +303,9 @@ impl Record<'_> {
         self.metadata.descriptor
     }
 
-    /// The labels associated with the instrument and the aggregated data.
-    pub fn labels(&self) -> &labels::LabelSet {
-        self.metadata.labels
+    /// The attributes associated with the instrument and the aggregated data.
+    pub fn attributes(&self) -> &attributes::AttributeSet {
+        self.metadata.attributes
     }
 
     /// Common attributes that apply to this metric event.
@@ -324,7 +324,7 @@ impl Record<'_> {
     }
 }
 
-/// A container for the exported data for a single metric instrument and label
+/// A container for the exported data for a single metric instrument and attribute
 /// set, as prepared by an `Accumulator` for the `Processor`.
 #[derive(Debug)]
 pub struct Accumulation<'a> {
@@ -336,12 +336,12 @@ impl<'a> Accumulation<'a> {
     /// Create a new `Record` instance.
     pub fn new(
         descriptor: &'a Descriptor,
-        labels: &'a labels::LabelSet,
+        attributes: &'a attributes::AttributeSet,
         resource: &'a Resource,
         aggregator: &'a Arc<dyn Aggregator + Send + Sync>,
     ) -> Self {
         Accumulation {
-            metadata: Metadata::new(descriptor, labels, resource),
+            metadata: Metadata::new(descriptor, attributes, resource),
             aggregator,
         }
     }
@@ -351,9 +351,9 @@ impl<'a> Accumulation<'a> {
         self.metadata.descriptor
     }
 
-    /// The labels associated with the instrument and the aggregated data.
-    pub fn labels(&self) -> &labels::LabelSet {
-        self.metadata.labels
+    /// The attributes associated with the instrument and the aggregated data.
+    pub fn attributes(&self) -> &attributes::AttributeSet {
+        self.metadata.attributes
     }
 
     /// Common attributes that apply to this metric event.

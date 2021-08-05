@@ -15,7 +15,7 @@ use crate::sdk::{
     },
 };
 use crate::{
-    labels::{default_encoder, Encoder, LabelSet},
+    attributes::{default_encoder, AttributeSet, Encoder},
     metrics::{Descriptor, MetricsError, Result},
     KeyValue,
 };
@@ -48,8 +48,8 @@ pub struct StdoutExporter<W> {
     /// Suppresses timestamp printing. This is useful to create deterministic test
     /// conditions.
     do_not_print_time: bool,
-    /// Encodes the labels.
-    label_encoder: Box<dyn Encoder + Send + Sync>,
+    /// Encodes the attributes.
+    attribute_encoder: Box<dyn Encoder + Send + Sync>,
     /// An optional user-defined function to format a given export batch.
     formatter: Option<Formatter>,
 }
@@ -114,13 +114,13 @@ where
             let agg = record.aggregator().ok_or(MetricsError::NoDataCollected)?;
             let desc = record.descriptor();
             let kind = desc.number_kind();
-            let encoded_resource = record.resource().encoded(self.label_encoder.as_ref());
-            let encoded_inst_labels = if !desc.instrumentation_name().is_empty() {
-                let inst_labels = LabelSet::from_labels(iter::once(KeyValue::new(
+            let encoded_resource = record.resource().encoded(self.attribute_encoder.as_ref());
+            let encoded_inst_attributes = if !desc.instrumentation_name().is_empty() {
+                let inst_attributes = AttributeSet::from_attributes(iter::once(KeyValue::new(
                     "instrumentation.name",
                     desc.instrumentation_name().to_owned(),
                 )));
-                inst_labels.encoded(Some(self.label_encoder.as_ref()))
+                inst_attributes.encoded(Some(self.attribute_encoder.as_ref()))
             } else {
                 String::new()
             };
@@ -157,32 +157,34 @@ where
                 expose.sum = Some(ExportNumeric(sum.sum()?.to_debug(kind)));
             }
 
-            let mut encoded_labels = String::new();
-            let iter = record.labels().iter();
+            let mut encoded_attributes = String::new();
+            let iter = record.attributes().iter();
             if let (0, _) = iter.size_hint() {
-                encoded_labels = record.labels().encoded(Some(self.label_encoder.as_ref()));
+                encoded_attributes = record
+                    .attributes()
+                    .encoded(Some(self.attribute_encoder.as_ref()));
             }
 
             let mut sb = String::new();
 
             sb.push_str(desc.name());
 
-            if !encoded_labels.is_empty()
+            if !encoded_attributes.is_empty()
                 || !encoded_resource.is_empty()
-                || !encoded_inst_labels.is_empty()
+                || !encoded_inst_attributes.is_empty()
             {
                 sb.push('{');
                 sb.push_str(&encoded_resource);
-                if !encoded_inst_labels.is_empty() && !encoded_resource.is_empty() {
+                if !encoded_inst_attributes.is_empty() && !encoded_resource.is_empty() {
                     sb.push(',');
                 }
-                sb.push_str(&encoded_inst_labels);
-                if !encoded_labels.is_empty()
-                    && (!encoded_inst_labels.is_empty() || !encoded_resource.is_empty())
+                sb.push_str(&encoded_inst_attributes);
+                if !encoded_attributes.is_empty()
+                    && (!encoded_inst_attributes.is_empty() || !encoded_resource.is_empty())
                 {
                     sb.push(',');
                 }
-                sb.push_str(&encoded_labels);
+                sb.push_str(&encoded_attributes);
                 sb.push('}');
             }
 
@@ -229,7 +231,7 @@ pub struct StdoutExporterBuilder<W, S, I> {
     pretty_print: bool,
     do_not_print_time: bool,
     quantiles: Option<Vec<f64>>,
-    label_encoder: Option<Box<dyn Encoder + Send + Sync>>,
+    attribute_encoder: Option<Box<dyn Encoder + Send + Sync>>,
     period: Option<Duration>,
     formatter: Option<Formatter>,
 }
@@ -249,7 +251,7 @@ where
             pretty_print: false,
             do_not_print_time: false,
             quantiles: None,
-            label_encoder: None,
+            attribute_encoder: None,
             period: None,
             formatter: None,
         }
@@ -263,7 +265,7 @@ where
             pretty_print: self.pretty_print,
             do_not_print_time: self.do_not_print_time,
             quantiles: self.quantiles,
-            label_encoder: self.label_encoder,
+            attribute_encoder: self.attribute_encoder,
             period: self.period,
             formatter: self.formatter,
         }
@@ -285,13 +287,13 @@ where
         }
     }
 
-    /// Set the label encoder that this exporter will use.
-    pub fn with_label_encoder<E>(self, label_encoder: E) -> Self
+    /// Set the attribute encoder that this exporter will use.
+    pub fn with_attribute_encoder<E>(self, attribute_encoder: E) -> Self
     where
         E: Encoder + Send + Sync + 'static,
     {
         StdoutExporterBuilder {
-            label_encoder: Some(Box::new(label_encoder)),
+            attribute_encoder: Some(Box::new(attribute_encoder)),
             ..self
         }
     }
@@ -322,7 +324,7 @@ where
             writer: self.writer,
             pretty_print: self.pretty_print,
             do_not_print_time: self.do_not_print_time,
-            label_encoder: self.label_encoder.unwrap_or_else(default_encoder),
+            attribute_encoder: self.attribute_encoder.unwrap_or_else(default_encoder),
             formatter: self.formatter,
         };
         let mut push_builder = controllers::push(

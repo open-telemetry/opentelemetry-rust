@@ -88,7 +88,7 @@ const LEMONS_KEY: Key = Key::from_static_str("lemons");
 const ANOTHER_KEY: Key = Key::from_static_str("ex.com/another");
 
 lazy_static::lazy_static! {
-    static ref COMMON_LABELS: [KeyValue; 4] = [
+    static ref COMMON_ATTRIBUTES: [KeyValue; 4] = [
         LEMONS_KEY.i64(10),
         KeyValue::new("A", "1"),
         KeyValue::new("B", "2"),
@@ -104,7 +104,8 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     let tracer = global::tracer("ex.com/basic");
     let meter = global::meter("ex.com/basic");
 
-    let one_metric_callback = |res: ObserverResult<f64>| res.observe(1.0, COMMON_LABELS.as_ref());
+    let one_metric_callback =
+        |res: ObserverResult<f64>| res.observe(1.0, COMMON_ATTRIBUTES.as_ref());
     let _ = meter
         .f64_value_observer("ex.com.one", one_metric_callback)
         .with_description("A ValueObserver set to 1.0")
@@ -113,13 +114,13 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     let value_recorder_two = meter.f64_value_recorder("ex.com.two").init();
 
     let another_recorder = meter.f64_value_recorder("ex.com.two").init();
-    another_recorder.record(5.5, COMMON_LABELS.as_ref());
+    another_recorder.record(5.5, COMMON_ATTRIBUTES.as_ref());
 
     let _baggage =
         Context::current_with_baggage(vec![FOO_KEY.string("foo1"), BAR_KEY.string("bar1")])
             .attach();
 
-    let value_recorder = value_recorder_two.bind(COMMON_LABELS.as_ref());
+    let value_recorder = value_recorder_two.bind(COMMON_ATTRIBUTES.as_ref());
     tracer.in_span("operation", |cx| {
         let span = cx.span();
         span.add_event(
@@ -131,7 +132,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         meter.record_batch_with_context(
             // Note: call-site variables added as context Entries:
             &Context::current_with_baggage(vec![ANOTHER_KEY.string("xyz")]),
-            COMMON_LABELS.as_ref(),
+            COMMON_ATTRIBUTES.as_ref(),
             vec![value_recorder_two.measurement(2.0)],
         );
 

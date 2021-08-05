@@ -32,7 +32,7 @@ pub use os::OsResourceDetector;
 pub use process::ProcessResourceDetector;
 
 #[cfg(feature = "metrics")]
-use crate::labels;
+use crate::attributes;
 use crate::{Key, KeyValue, Value};
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
@@ -141,10 +141,10 @@ impl Resource {
         self.attrs.get(&key).cloned()
     }
 
-    /// Encoded labels
+    /// Encoded attributes
     #[cfg(feature = "metrics")]
     #[cfg_attr(docsrs, doc(cfg(feature = "metrics")))]
-    pub fn encoded(&self, encoder: &dyn labels::Encoder) -> String {
+    pub fn encoded(&self, encoder: &dyn attributes::Encoder) -> String {
         encoder.encode(&mut self.into_iter())
     }
 }

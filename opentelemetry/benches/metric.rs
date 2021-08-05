@@ -21,7 +21,9 @@ pub fn counters(c: &mut Criterion) {
 
     // unbound u64
     let counter = meter.u64_counter("u64_unbound.sum").init();
-    benchmark_unbound_metric("u64_unbound", &mut g, |labels| counter.add(1, labels));
+    benchmark_unbound_metric("u64_unbound", &mut g, |attributes| {
+        counter.add(1, attributes)
+    });
 
     // bound u64
     g.bench_with_input(
@@ -35,7 +37,9 @@ pub fn counters(c: &mut Criterion) {
 
     // unbound f64
     let counter = meter.f64_counter("f64_unbound.sum").init();
-    benchmark_unbound_metric("f64_unbound", &mut g, |labels| counter.add(1.0, labels));
+    benchmark_unbound_metric("f64_unbound", &mut g, |attributes| {
+        counter.add(1.0, attributes)
+    });
 
     // bound f64
     g.bench_with_input(
@@ -48,8 +52,8 @@ pub fn counters(c: &mut Criterion) {
     );
 
     // acquire handle
-    benchmark_unbound_metric("f64_bind", &mut g, |labels| {
-        let _ = counter.bind(labels);
+    benchmark_unbound_metric("f64_bind", &mut g, |attributes| {
+        let _ = counter.bind(attributes);
     });
 
     g.finish();

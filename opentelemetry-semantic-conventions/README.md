@@ -20,8 +20,8 @@ Semantic conventions for applications instrumented with [`OpenTelemetry`].
 [`OpenTelemetry`] is a collection of tools, APIs, and SDKs used to instrument,
 generate, collect, and export telemetry data (metrics, logs, and traces) for
 analysis in order to understand your software's performance and behavior. This
-crate provides standardized naming patterns for attributes, labels, and
+crate provides standardized naming patterns for attributes, and
 resources to help facilitate interoperability and compatibility with processing
-and visualization tools. 
+and visualization tools.
 
-[`OpenTelemetry`]: https://crates.io/crates/opentelemetry
+[`opentelemetry`]: https://crates.io/crates/opentelemetry

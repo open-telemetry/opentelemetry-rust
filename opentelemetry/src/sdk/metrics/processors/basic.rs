@@ -7,7 +7,7 @@ use crate::sdk::{
     Resource,
 };
 use crate::{
-    labels::{hash_labels, LabelSet},
+    attributes::{hash_attributes, AttributeSet},
     metrics::{Descriptor, MetricsError, Result},
 };
 use fnv::FnvHasher;
@@ -72,8 +72,8 @@ impl<'a> LockedProcessor for BasicLockedProcessor<'a> {
         let desc = accumulation.descriptor();
         let mut hasher = FnvHasher::default();
         desc.attribute_hash().hash(&mut hasher);
-        hash_labels(&mut hasher, accumulation.labels().into_iter());
-        hash_labels(&mut hasher, accumulation.resource().into_iter());
+        hash_attributes(&mut hasher, accumulation.attributes().into_iter());
+        hash_attributes(&mut hasher, accumulation.resource().into_iter());
         let key = StateKey(hasher.finish());
         let agg = accumulation.aggregator();
         let finished_collection = self.state.finished_collection;
@@ -108,7 +108,7 @@ impl<'a> LockedProcessor for BasicLockedProcessor<'a> {
             // indicating that the stateKey for Accumulation has already
             // been seen in the same collection.  When this happens, it
             // implies that multiple Accumulators are being used, or that
-            // a single Accumulator has been configured with a label key
+            // a single Accumulator has been configured with an attribute key
             // filter.
 
             if !same_collection {
@@ -160,7 +160,7 @@ impl<'a> LockedProcessor for BasicLockedProcessor<'a> {
             key,
             StateValue {
                 descriptor: desc.clone(),
-                labels: accumulation.labels().clone(),
+                attributes: accumulation.attributes().clone(),
                 resource: accumulation.resource().clone(),
                 current_owned: false,
                 current: agg.clone(),
@@ -260,7 +260,7 @@ impl Checkpointer for BasicLockedProcessor<'_> {
 
 #[derive(Debug, Default)]
 struct BasicProcessorConfig {
-    /// Memory controls whether the processor remembers metric instruments and label
+    /// Memory controls whether the processor remembers metric instruments and attribute
     /// sets that were previously reported. When Memory is true,
     /// `CheckpointSet::try_for_each` will visit metrics that were not updated in
     /// the most recent interval.
@@ -351,7 +351,7 @@ impl CheckpointSet for BasicProcessorState {
 
             let res = f(&metrics::record(
                 &value.descriptor,
-                &value.labels,
+                &value.attributes,
                 &value.resource,
                 agg,
                 start,
@@ -374,8 +374,8 @@ struct StateValue {
     /// Instrument descriptor
     descriptor: Descriptor,
 
-    /// Instrument labels
-    labels: LabelSet,
+    /// Instrument attributes
+    attributes: AttributeSet,
 
     /// Resource that created the instrument
     resource: Resource,

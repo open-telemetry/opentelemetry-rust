@@ -53,8 +53,8 @@ impl<T> SyncInstrument<T> {
     }
 
     /// Create a new bound sync instrument
-    pub(crate) fn bind(&self, labels: &[KeyValue]) -> SyncBoundInstrument<T> {
-        let bound_instrument = self.instrument.bind(labels);
+    pub(crate) fn bind(&self, attributes: &[KeyValue]) -> SyncBoundInstrument<T> {
+        let bound_instrument = self.instrument.bind(attributes);
         SyncBoundInstrument {
             bound_instrument,
             _marker: marker::PhantomData,
@@ -62,8 +62,8 @@ impl<T> SyncInstrument<T> {
     }
 
     /// Record a value directly to the underlying instrument
-    pub(crate) fn direct_record(&self, number: Number, labels: &[KeyValue]) {
-        self.instrument.record_one(number, labels)
+    pub(crate) fn direct_record(&self, number: Number, attributes: &[KeyValue]) {
+        self.instrument.record_one(number, attributes)
     }
 
     /// Reference to the underlying sdk-implemented instrument

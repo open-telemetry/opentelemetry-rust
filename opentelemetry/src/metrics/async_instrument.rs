@@ -73,10 +73,10 @@ where
     }
 
     /// Observe captures a single value from the associated instrument callback,
-    /// with the given labels.
-    pub fn observe(&self, value: T, labels: &[KeyValue]) {
+    /// with the given attributes.
+    pub fn observe(&self, value: T, attributes: &[KeyValue]) {
         (self.f)(
-            labels,
+            attributes,
             &[Observation {
                 number: value.into(),
                 instrument: self.instrument.clone(),
@@ -115,9 +115,9 @@ impl BatchObserverResult {
     }
 
     /// Captures multiple observations from the associated batch instrument
-    /// callback, with the given labels.
-    pub fn observe(&self, labels: &[KeyValue], observations: &[Observation]) {
-        (self.f)(labels, observations)
+    /// callback, with the given attributes.
+    pub fn observe(&self, attributes: &[KeyValue], observations: &[Observation]) {
+        (self.f)(attributes, observations)
     }
 }
 

@@ -302,21 +302,21 @@ impl Meter {
     /// Atomically record a batch of measurements.
     pub fn record_batch<T: IntoIterator<Item = Measurement>>(
         &self,
-        labels: &[KeyValue],
+        attributes: &[KeyValue],
         measurements: T,
     ) {
-        self.record_batch_with_context(&Context::current(), labels, measurements)
+        self.record_batch_with_context(&Context::current(), attributes, measurements)
     }
 
     /// Atomically record a batch of measurements with a given context
     pub fn record_batch_with_context<T: IntoIterator<Item = Measurement>>(
         &self,
         cx: &Context,
-        labels: &[KeyValue],
+        attributes: &[KeyValue],
         measurements: T,
     ) {
         self.core
-            .record_batch_with_context(cx, labels, measurements.into_iter().collect())
+            .record_batch_with_context(cx, attributes, measurements.into_iter().collect())
     }
 
     pub(crate) fn new_sync_instrument(
