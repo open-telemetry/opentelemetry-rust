@@ -4,7 +4,12 @@
 
 ### Added
 
+- Add `from_env` to prometheus exporter builder #605
 - Adds `Default` implementation to `ExporterBuilder` based on the otel specification environment variables #242
+
+### Changed
+
+- Update to opentelemetry v0.16.0
 
 ### Deprecated
 
