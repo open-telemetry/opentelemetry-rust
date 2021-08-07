@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.9.0
+
+### Changed
+
+- Merge metrics and tracing pipeline #585
+- Update to opentelemetry v0.16.0
+
+### Fixed
+
+- `MetricsExporterBuilder` drops `exporter_pipeline` #590
+- Improve error messages #603
+- Upgrade `tonic` to `0.5.x` #597
+
 ## v0.8.0
 
 ### Changed

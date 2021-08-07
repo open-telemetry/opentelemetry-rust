@@ -4,7 +4,18 @@
 
 ### Changed
 
+- Add default resource in `TracerProvider` #571
+- Rename `get_tracer` to `tracer` #586
+- Extract `trace::noop` module and update docs #587
+- Add `Hash` impl for span context and allow spans to clone and export current state #592
+- Enforce span status code's order #593
+- Make `SpanRef` public #600
+- Make `SpanProcessor::on_start` take a mutable span #601
 - Renamed `label` to `attribute` to align with otel specification #609
+
+### Performance
+
+- Small performance boost for `Resource::get` #579
 
 ## [v0.15.0](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.14.0...v0.15.0)
 

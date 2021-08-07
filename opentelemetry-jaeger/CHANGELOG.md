@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.15.0
+
+### Changed
+
+- Set client-to-agent UDP comm based on runtime #599
+- Update to opentelemetry v0.16.0
+
 ## v0.14.0
 
 ### Changed
