@@ -77,19 +77,20 @@
 //!
 //! # Kitchen Sink Full Configuration
 //!
-//! Example showing how to override all configuration options. See the
-//! [`OtlpPipeline`] docs for details of each option.
+//! Example showing how to override all configuration options.
 //!
 //! Generally there are two parts of configuration. One is metrics config
 //! or tracing config. Users can config it via [`OtlpTracePipeline`]
 //! or [`OtlpMetricPipeline`]. The other is exporting configuration.
 //! Users can set those configurations using [`OtlpExporterPipeline`] based
-//! on the chocie of exporters.
+//! on the choice of exporters.
 //!
 //! ```no_run
 //! use opentelemetry::{KeyValue, trace::Tracer};
 //! use opentelemetry::sdk::{trace::{self, IdGenerator, Sampler}, Resource};
-//! use opentelemetry_otlp::{Protocol};
+//! use opentelemetry::sdk::metrics::{selectors, PushController};
+//! use opentelemetry::util::tokio_interval_stream;
+//! use opentelemetry_otlp::{Protocol, WithExportConfig, ExportConfig};
 //! use std::time::Duration;
 //! use tonic::metadata::*;
 //!
@@ -120,6 +121,26 @@
 //!         )
 //!         .install_batch(opentelemetry::runtime::Tokio)?;
 //!
+//!     let export_config = ExportConfig {
+//!         endpoint: "http://localhost:4317".to_string(),
+//!         timeout: Duration::from_secs(3),
+//!         protocol: Protocol::Grpc
+//!     };
+//!
+//!     let meter = opentelemetry_otlp::new_pipeline()
+//!         .metrics(tokio::spawn, tokio_interval_stream)
+//!         .with_exporter(
+//!             opentelemetry_otlp::new_exporter()
+//!                 .tonic()
+//!                 .with_export_config(export_config),
+//!                 // can also config it using with_* functions like the tracing part above.
+//!         )
+//!         .with_stateful(true)
+//!         .with_period(Duration::from_secs(3))
+//!         .with_timeout(Duration::from_secs(10))
+//!         .with_aggregator_selector(selectors::simple::Selector::Exact)
+//!         .build();
+//!
 //!     tracer.in_span("doing_work", |cx| {
 //!         // Traced app logic here...
 //!     });
@@ -127,7 +148,6 @@
 //!     Ok(())
 //! }
 //! ```
-//!
 //!
 //! # Grpc libraries comparison
 //!
@@ -244,7 +264,8 @@ impl OtlpExporterPipeline {
 ///
 /// ```no_run
 /// fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-///     let tracer = opentelemetry_otlp::new_pipeline().with_tonic().install_simple()?;
+///     let tracing_builder = opentelemetry_otlp::new_pipeline()
+///                    .tracing();
 ///
 ///     Ok(())
 /// }

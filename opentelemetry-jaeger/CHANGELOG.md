@@ -4,7 +4,7 @@
 
 ### Changed
 
-- Set client-to-agent UDP comm based on runtime #599
+- Set client-to-agent UDP comm based on runtime #599. Users should change their `tokio` feature to `rt-tokio`. Similar with async-std
 - Update to opentelemetry v0.16.0
 
 ## v0.14.0

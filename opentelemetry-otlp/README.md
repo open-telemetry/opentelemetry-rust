@@ -84,58 +84,14 @@ let tracer = opentelemetry_otlp::new_pipeline()
 
 ## Kitchen Sink Full Configuration
 
-Example showing how to override all configuration options. See the
-[`OtlpPipelineBuilder`] docs for details of each option.
+[Example](https://docs.rs/opentelemetry-jaeger/latest/opentelemetry_jaeger/#kitchen-sink-full-configuration) 
+showing how to override all configuration options.
 
-[`OtlpPipelineBuilder`]: struct.OtlpPipelineBuilder.html
-
-```rust
-use opentelemetry::{KeyValue, Tracer};
-use opentelemetry::sdk::{trace, IdGenerator, Resource, Sampler};
-use opentelemetry_otlp::{Protocol};
-use std::time::Duration;
-use tonic::{
-    metadata::*,
-    transport::{Certificate, ClientTlsConfig},
-};
-
-fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let cert = std::fs::read_to_string("ca.pem")?;
-
-    let mut map = MetadataMap::with_capacity(3);
-
-    map.insert("x-host", "example.com".parse().unwrap());
-    map.insert("x-number", "123".parse().unwrap());
-    map.insert_bin("trace-proto-bin", MetadataValue::from_bytes(b"[binary data]"));
-
-    let tracer = opentelemetry_otlp::new_pipeline()
-        .with_endpoint("http://localhost:4317")
-        .with_protocol(Protocol::Grpc)
-        .with_timeout(Duration::from_secs(3))
-        .with_trace_config(
-            trace::config()
-                .with_sampler(Sampler::AlwaysOn)
-                .with_id_generator(IdGenerator::default())
-                .with_max_events_per_span(64)
-                .with_max_attributes_per_span(16)
-                .with_max_events_per_span(16)
-                .with_resource(Resource::new(vec![KeyValue::new("service.name", "example")])),
-        )
-        .with_tonic()
-        .with_tls_config(ClientTlsConfig::new()
-            .ca_certificate(Certificate::from_pem(&cert))
-            .domain_name("example.com".to_string())
-        )
-        .with_metadata(map)
-        .install_batch(opentelemetry::runtime::Tokio)?;
-
-    tracer.in_span("doing_work", |cx| {
-        // Traced app logic here...
-    });
-
-    Ok(())
-}
-```
+Generally there are two parts of configuration. One is metrics config 
+or tracing config. Users can config it via [`OtlpTracePipeline`]
+or [`OtlpMetricPipeline`]. The other is exporting configuration.
+Users can set those configurations using [`OtlpExporterPipeline`] based
+on the choice of exporters.
 
 # Grpc libraries comparison
 

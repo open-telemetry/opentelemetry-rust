@@ -34,59 +34,10 @@ to [`Datadog`].
 
 ## Kitchen Sink Full Configuration
 
- Example showing how to override all configuration options. See the
+ [Example]((https://docs.rs/opentelemetry-datadog/latest/opentelemetry_datadog/#kitchen-sink-full-configuration)) showing how to override all configuration options. See the
  [`DatadogPipelineBuilder`] docs for details of each option.
 
  [`DatadogPipelineBuilder`]: struct.DatadogPipelineBuilder.html
-
- ```no_run
- use opentelemetry::{KeyValue, trace::Tracer};
- use opentelemetry::sdk::{trace::{self, IdGenerator, Sampler}, Resource};
- use opentelemetry::sdk::export::trace::ExportResult;
- use opentelemetry_datadog::{new_pipeline, ApiVersion, Error};
- use opentelemetry_http::HttpClient;
- use async_trait::async_trait;
-
- // reqwest and surf are supported through features, if you prefer an
- // alternate http client you can add support by implementing HttpClient as
- // shown here.
- #[derive(Debug)]
- struct IsahcClient(isahc::HttpClient);
-
- #[async_trait]
- impl HttpClient for IsahcClient {
-   async fn send(&self, request: http::Request<Vec<u8>>) -> ExportResult {
-     let result = self.0.send_async(request).await.map_err(|err| Error::Other(err.to_string()))?;
-
-     if result.status().is_success() {
-       Ok(())
-     } else {
-       Err(Error::Other(result.status().to_string()).into())
-     }
-   }
- }
-
- fn main() -> Result<(), opentelemetry::trace::TraceError> {
-     let tracer = new_pipeline()
-         .with_service_name("my_app")
-         .with_version(ApiVersion::Version05)
-         .with_agent_endpoint("http://localhost:8126")
-         .with_trace_config(
-             trace::config()
-                 .with_sampler(Sampler::AlwaysOn)
-                 .with_id_generator(IdGenerator::default())
-         )
-         .install_batch(opentelemetry::runtime::Tokio)?;
-
-     tracer.in_span("doing_work", |cx| {
-         // Traced app logic here...
-     });
-     
-     opentelemetry::global::shutdown_tracer_provider();
-
-     Ok(())
- }
- ```
 
 [`Datadog`]: https://www.datadoghq.com/
 [`OpenTelemetry`]: https://crates.io/crates/opentelemetry
