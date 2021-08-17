@@ -89,10 +89,10 @@ impl HasExportConfig for HttpExporterBuilder {
 ///
 /// ## Examples
 /// ```no_run
-///
+/// use crate::opentelemetry_otlp::WithExportConfig;
 /// let exporter_builder = opentelemetry_otlp::new_exporter()
 ///                         .tonic()
-///                         .with_endpoint("http://localhost:7201")
+///                         .with_endpoint("http://localhost:7201");
 /// ```
 pub trait WithExportConfig {
     /// Set the address of the OTLP collector. If not set, the default address is used.
@@ -108,7 +108,7 @@ pub trait WithExportConfig {
     ///
     /// If the value in environment variables is illegal, will fall back to use default value.
     fn with_env(self) -> Self;
-    /// Set export config.
+    /// Set export config. This will override all previous configuration.
     fn with_export_config(self, export_config: ExportConfig) -> Self;
 }
 

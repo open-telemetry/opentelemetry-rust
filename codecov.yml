@@ -1,0 +1,4 @@
+ignore:
+  - "opentelemetry/src/testing" # test harnesses
+  - "opentelemetry-jaeger/src/exporter/thrift" # auto generated files
+  - "opentelemetry-otlp/src/proto" # auto generated files

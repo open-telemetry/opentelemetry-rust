@@ -209,7 +209,7 @@ where
         }
     }
 
-    /// Build push controller
+    /// Build push controller.
     pub fn build(self) -> Result<PushController> {
         let exporter = self
             .exporter_pipeline

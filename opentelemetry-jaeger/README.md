@@ -139,47 +139,10 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 
 ## Kitchen Sink Full Configuration
 
-Example showing how to override all configuration options. See the
+[Example]((https://docs.rs/opentelemetry-jaeger/latest/opentelemetry_jaeger/#kitchen-sink-full-configuration)) showing how to override all configuration options. See the
 [`PipelineBuilder`] docs for details of each option.
 
 [`PipelineBuilder`]: https://docs.rs/opentelemetry-jaeger/latest/opentelemetry_jaeger/struct.PipelineBuilder.html
-
-```rust
-use opentelemetry::global;
-use opentelemetry::sdk::{
-    trace::{self, IdGenerator, Sampler},
-    Resource,
-};
-use opentelemetry::trace::Tracer;
-use opentelemetry::KeyValue;
-
-fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    global::set_text_map_propagator(opentelemetry_jaeger::Propagator::new());
-    let tracer = opentelemetry_jaeger::new_pipeline()
-        .with_agent_endpoint("localhost:6831")
-        .with_service_name("my_app")
-        .with_tags(vec![KeyValue::new("process_key", "process_value")])
-        .with_max_packet_size(9_216)
-        .with_trace_config(
-            trace::config()
-                .with_sampler(Sampler::AlwaysOn)
-                .with_id_generator(IdGenerator::default())
-                .with_max_events_per_span(64)
-                .with_max_attributes_per_span(16)
-                .with_max_events_per_span(16)
-                .with_resource(Resource::new(vec![KeyValue::new("key", "value")])),
-        )
-        .install_batch(opentelemetry::runtime::Tokio)?;
-
-    tracer.in_span("doing_work", |cx| {
-        // Traced app logic here...
-    });
-
-    global::shutdown_tracer_provider(); // sending remaining spans
-
-    Ok(())
-}
-```
 
 ## Supported Rust Versions
 

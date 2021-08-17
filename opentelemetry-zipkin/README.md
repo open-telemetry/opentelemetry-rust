@@ -99,65 +99,10 @@ available so be sure to match them appropriately.
 
 ## Kitchen Sink Full Configuration
 
-Example showing how to override all configuration options. See the
+[Example](https://docs.rs/opentelemetry-zipkin/latest/opentelemetry_zipkin/#kitchen-sink-full-configuration) showing how to override all configuration options. See the
 [`ZipkinPipelineBuilder`] docs for details of each option.
 
 [`ZipkinPipelineBuilder`]: struct.ZipkinPipelineBuilder.html
-
-```rust
-use opentelemetry::{KeyValue, trace::Tracer};
-use opentelemetry::sdk::{trace::{self, IdGenerator, Sampler}, Resource};
-use opentelemetry::sdk::export::trace::{ExportResult, HttpClient};
-use opentelemetry::global;
-use async_trait::async_trait;
-use std::error::Error;
-
-// `reqwest` and `surf` are supported through features, if you prefer an
-// alternate http client you can add support by implementing `HttpClient` as
-// shown here.
-#[derive(Debug)]
-struct IsahcClient(isahc::HttpClient);
-
-#[async_trait]
-impl HttpClient for IsahcClient {
-  async fn send(&self, request: http::Request<Vec<u8>>) -> ExportResult {
-    let result = self.0.send_async(request).await?;
-
-    if result.status().is_success() {
-      Ok(())
-    } else {
-      Err(result.status().as_str().into())
-    }
-  }
-}
-
-fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
-    global::set_text_map_propagator(opentelemetry_zipkin::Propagator::new());
-    let tracer = opentelemetry_zipkin::new_pipeline()
-        .with_http_client(IsahcClient(isahc::HttpClient::new()?))
-        .with_service_name("my_app")
-        .with_service_address("127.0.0.1:8080".parse()?)
-        .with_collector_endpoint("http://localhost:9411/api/v2/spans")
-        .with_trace_config(
-            trace::config()
-                .with_sampler(Sampler::AlwaysOn)
-                .with_id_generator(IdGenerator::default())
-                .with_max_events_per_span(64)
-                .with_max_attributes_per_span(16)
-                .with_max_events_per_span(16)
-                .with_resource(Resource::new(vec![KeyValue::new("key", "value")])),
-        )
-        .install_batch(opentelemetry::runtime::Tokio)?;
-
-    tracer.in_span("doing_work", |cx| {
-        // Traced app logic here...
-    });
-    
-    global::shutdown_tracer_provider();
-
-    Ok(())
-}
-```
 
 ## Supported Rust Versions
 
