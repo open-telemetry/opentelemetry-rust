@@ -40,6 +40,7 @@ pub(crate) struct AgentSyncClientUdp {
     conn: UdpSocket,
     buffer_client: BufferClient,
     max_packet_size: usize,
+    auto_split: bool,
 }
 
 impl AgentSyncClientUdp {
@@ -47,6 +48,7 @@ impl AgentSyncClientUdp {
     pub(crate) fn new<T: ToSocketAddrs>(
         host_port: T,
         max_packet_size: Option<usize>,
+        auto_split: bool,
     ) -> thrift::Result<Self> {
         let max_packet_size = max_packet_size.unwrap_or(UDP_PACKET_MAX_LENGTH);
         let (buffer, write) = TBufferChannel::with_capacity(max_packet_size).split()?;
@@ -62,28 +64,24 @@ impl AgentSyncClientUdp {
             conn,
             buffer_client: BufferClient { buffer, client },
             max_packet_size,
+            auto_split,
         })
     }
 
     /// Emit standard Jaeger batch
     pub(crate) fn emit_batch(&mut self, batch: jaeger::Batch) -> thrift::Result<()> {
-        // Write payload to buffer
-        self.buffer_client.client.emit_batch(batch)?;
-        let payload = self.buffer_client.buffer.take_bytes();
+        let mut buffers = vec![];
+        split_batch(
+            &mut self.buffer_client,
+            batch,
+            self.auto_split,
+            self.max_packet_size,
+            &mut buffers,
+        )?;
 
-        if payload.len() > self.max_packet_size {
-            return Err(thrift::ProtocolError::new(
-                thrift::ProtocolErrorKind::SizeLimit,
-                format!(
-                    "jaeger exporter payload size of {} bytes over max UDP packet size of {} bytes. Try setting a smaller batch size.",
-                    payload.len(),
-                    self.max_packet_size,
-                ),
-            )
-            .into());
+        for payload in buffers {
+            self.conn.send(&payload)?;
         }
-
-        self.conn.send(&payload)?;
 
         Ok(())
     }
@@ -97,6 +95,7 @@ pub(crate) struct AgentAsyncClientUdp<R: JaegerTraceRuntime> {
     conn: <R as JaegerTraceRuntime>::Socket,
     buffer_client: BufferClient,
     max_packet_size: usize,
+    auto_split: bool,
 }
 
 impl<R: JaegerTraceRuntime> AgentAsyncClientUdp<R> {
@@ -105,6 +104,7 @@ impl<R: JaegerTraceRuntime> AgentAsyncClientUdp<R> {
         host_port: T,
         max_packet_size: Option<usize>,
         runtime: R,
+        auto_split: bool,
     ) -> thrift::Result<Self> {
         let max_packet_size = max_packet_size.unwrap_or(UDP_PACKET_MAX_LENGTH);
         let (buffer, write) = TBufferChannel::with_capacity(max_packet_size).split()?;
@@ -120,30 +120,74 @@ impl<R: JaegerTraceRuntime> AgentAsyncClientUdp<R> {
             conn,
             buffer_client: BufferClient { buffer, client },
             max_packet_size,
+            auto_split,
         })
     }
 
     /// Emit standard Jaeger batch
     pub(crate) async fn emit_batch(&mut self, batch: jaeger::Batch) -> thrift::Result<()> {
-        // Write payload to buffer
-        self.buffer_client.client.emit_batch(batch)?;
-        let payload = self.buffer_client.buffer.take_bytes();
+        let mut buffers = vec![];
+        split_batch(
+            &mut self.buffer_client,
+            batch,
+            self.auto_split,
+            self.max_packet_size,
+            &mut buffers,
+        )?;
 
-        if payload.len() > self.max_packet_size {
-            return Err(thrift::ProtocolError::new(
-                thrift::ProtocolErrorKind::SizeLimit,
-                format!(
-                    "jaeger exporter payload size of {} bytes over max UDP packet size of {} bytes. Try setting a smaller batch size.",
-                    payload.len(),
-                    self.max_packet_size,
-                ),
-            )
-            .into());
+        for payload in buffers {
+            self.runtime.write_to_socket(&self.conn, payload).await?;
         }
-
-        // Write async to socket, reading from buffer
-        self.runtime.write_to_socket(&self.conn, payload).await?;
 
         Ok(())
     }
+}
+
+fn split_batch(
+    client: &mut BufferClient,
+    mut batch: jaeger::Batch,
+    auto_split: bool,
+    max_packet_size: usize,
+    output: &mut Vec<Vec<u8>>,
+) -> thrift::Result<()> {
+    client.client.emit_batch(batch.clone())?;
+    let payload = client.buffer.take_bytes();
+
+    if payload.len() <= max_packet_size {
+        output.push(payload);
+        return Ok(());
+    }
+
+    if !auto_split {
+        return Err(thrift::ProtocolError::new(
+            thrift::ProtocolErrorKind::SizeLimit,
+            format!(
+                "jaeger exporter payload size of {} bytes over max UDP packet size of {} bytes. Try setting a smaller batch size or turn auto split on.",
+                payload.len(),
+                max_packet_size,
+            ),
+        )
+            .into());
+    }
+
+    if batch.spans.len() <= 1 {
+        return Err(thrift::ProtocolError::new(
+            thrift::ProtocolErrorKind::SizeLimit,
+            format!(
+                "single span's jaeger exporter payload size of {} bytes over max UDP packet size of {} bytes",
+                payload.len(),
+                max_packet_size,
+            ),
+        )
+            .into());
+    }
+
+    let mid = batch.spans.len() / 2;
+    let new_spans = batch.spans.drain(mid..).collect::<Vec<_>>();
+    let new_batch = jaeger::Batch::new(batch.process.clone(), new_spans);
+
+    split_batch(client, batch, auto_split, max_packet_size, output)?;
+    split_batch(client, new_batch, auto_split, max_packet_size, output)?;
+
+    Ok(())
 }

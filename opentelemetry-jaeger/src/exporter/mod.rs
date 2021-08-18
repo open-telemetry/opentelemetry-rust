@@ -131,6 +131,7 @@ pub struct PipelineBuilder {
     service_name: Option<String>,
     tags: Option<Vec<KeyValue>>,
     max_packet_size: Option<usize>,
+    auto_split: bool,
     config: Option<sdk::trace::Config>,
 }
 
@@ -151,6 +152,7 @@ impl Default for PipelineBuilder {
             service_name: None,
             tags: None,
             max_packet_size: None,
+            auto_split: false,
             config: None,
         };
 
@@ -180,7 +182,6 @@ impl PipelineBuilder {
         }
     }
 
-    /// Assign the collector endpoint.
     ///
     /// E.g. "http://localhost:14268/api/traces"
     #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
@@ -242,6 +243,12 @@ impl PipelineBuilder {
     /// Assign the max packet size in bytes. Jaeger defaults is 65000.
     pub fn with_max_packet_size(mut self, max_packet_size: usize) -> Self {
         self.max_packet_size = Some(max_packet_size);
+        self
+    }
+
+    /// Config whether to auto split batch if packet size is too large.
+    pub fn with_auto_split_batch(mut self, auto_split: bool) -> Self {
+        self.auto_split = auto_split;
         self
     }
 
@@ -401,9 +408,12 @@ impl PipelineBuilder {
     }
 
     fn init_sync_uploader(self) -> Result<Box<dyn Uploader>, TraceError> {
-        let agent =
-            agent::AgentSyncClientUdp::new(self.agent_endpoint.as_slice(), self.max_packet_size)
-                .map_err::<Error, _>(Into::into)?;
+        let agent = agent::AgentSyncClientUdp::new(
+            self.agent_endpoint.as_slice(),
+            self.max_packet_size,
+            self.auto_split,
+        )
+        .map_err::<Error, _>(Into::into)?;
         Ok(Box::new(SyncUploader::Agent(agent)))
     }
 
@@ -416,6 +426,7 @@ impl PipelineBuilder {
             self.agent_endpoint.as_slice(),
             self.max_packet_size,
             runtime,
+            self.auto_split,
         )
         .map_err::<Error, _>(Into::into)?;
         Ok(Box::new(AsyncUploader::Agent(agent)))
@@ -512,8 +523,9 @@ impl PipelineBuilder {
             Ok(Box::new(uploader))
         } else {
             let endpoint = self.agent_endpoint.as_slice();
-            let agent = AgentAsyncClientUdp::new(endpoint, self.max_packet_size, runtime)
-                .map_err::<Error, _>(Into::into)?;
+            let agent =
+                AgentAsyncClientUdp::new(endpoint, self.max_packet_size, runtime, self.auto_split)
+                    .map_err::<Error, _>(Into::into)?;
             Ok(Box::new(AsyncUploader::Agent(agent)))
         }
     }
@@ -537,7 +549,7 @@ impl PipelineBuilder {
             Ok(Box::new(AsyncUploader::Collector(collector)))
         } else {
             let endpoint = self.agent_endpoint.as_slice();
-            let agent = AgentAsyncClientUdp::new(endpoint, self.max_packet_size)
+            let agent = AgentAsyncClientUdp::new(endpoint, self.max_packet_size, self.auto_split)
                 .map_err::<Error, _>(Into::into)?;
             Ok(Box::new(AsyncUploader::Agent(agent)))
         }
