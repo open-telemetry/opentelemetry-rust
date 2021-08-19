@@ -70,15 +70,19 @@ impl AgentSyncClientUdp {
 
     /// Emit standard Jaeger batch
     pub(crate) fn emit_batch(&mut self, batch: jaeger::Batch) -> thrift::Result<()> {
+        if !self.auto_split {
+            let payload = serialize_batch(&mut self.buffer_client, batch, self.max_packet_size)?;
+            self.conn.send(&payload)?;
+            return Ok(());
+        }
+
         let mut buffers = vec![];
-        split_batch(
+        serialize_batch_vectored(
             &mut self.buffer_client,
             batch,
-            self.auto_split,
             self.max_packet_size,
             &mut buffers,
         )?;
-
         for payload in buffers {
             self.conn.send(&payload)?;
         }
@@ -126,15 +130,19 @@ impl<R: JaegerTraceRuntime> AgentAsyncClientUdp<R> {
 
     /// Emit standard Jaeger batch
     pub(crate) async fn emit_batch(&mut self, batch: jaeger::Batch) -> thrift::Result<()> {
+        if !self.auto_split {
+            let payload = serialize_batch(&mut self.buffer_client, batch, self.max_packet_size)?;
+            self.runtime.write_to_socket(&self.conn, payload).await?;
+            return Ok(());
+        }
+
         let mut buffers = vec![];
-        split_batch(
+        serialize_batch_vectored(
             &mut self.buffer_client,
             batch,
-            self.auto_split,
             self.max_packet_size,
             &mut buffers,
         )?;
-
         for payload in buffers {
             self.runtime.write_to_socket(&self.conn, payload).await?;
         }
@@ -143,10 +151,32 @@ impl<R: JaegerTraceRuntime> AgentAsyncClientUdp<R> {
     }
 }
 
-fn split_batch(
+fn serialize_batch(
+    client: &mut BufferClient,
+    batch: jaeger::Batch,
+    max_packet_size: usize,
+) -> thrift::Result<Vec<u8>> {
+    client.client.emit_batch(batch)?;
+    let payload = client.buffer.take_bytes();
+
+    if payload.len() > max_packet_size {
+        return Err(thrift::ProtocolError::new(
+                thrift::ProtocolErrorKind::SizeLimit,
+                format!(
+                    "jaeger exporter payload size of {} bytes over max UDP packet size of {} bytes. Try setting a smaller batch size or turn auto split on.",
+                    payload.len(),
+                    max_packet_size,
+                ),
+            )
+                .into());
+    }
+
+    Ok(payload)
+}
+
+fn serialize_batch_vectored(
     client: &mut BufferClient,
     mut batch: jaeger::Batch,
-    auto_split: bool,
     max_packet_size: usize,
     output: &mut Vec<Vec<u8>>,
 ) -> thrift::Result<()> {
@@ -156,18 +186,6 @@ fn split_batch(
     if payload.len() <= max_packet_size {
         output.push(payload);
         return Ok(());
-    }
-
-    if !auto_split {
-        return Err(thrift::ProtocolError::new(
-            thrift::ProtocolErrorKind::SizeLimit,
-            format!(
-                "jaeger exporter payload size of {} bytes over max UDP packet size of {} bytes. Try setting a smaller batch size or turn auto split on.",
-                payload.len(),
-                max_packet_size,
-            ),
-        )
-            .into());
     }
 
     if batch.spans.len() <= 1 {
@@ -186,8 +204,8 @@ fn split_batch(
     let new_spans = batch.spans.drain(mid..).collect::<Vec<_>>();
     let new_batch = jaeger::Batch::new(batch.process.clone(), new_spans);
 
-    split_batch(client, batch, auto_split, max_packet_size, output)?;
-    split_batch(client, new_batch, auto_split, max_packet_size, output)?;
+    serialize_batch_vectored(client, batch, max_packet_size, output)?;
+    serialize_batch_vectored(client, new_batch, max_packet_size, output)?;
 
     Ok(())
 }
