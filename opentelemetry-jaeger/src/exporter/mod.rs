@@ -182,6 +182,7 @@ impl PipelineBuilder {
         }
     }
 
+    /// Assign the collector endpoint.
     ///
     /// E.g. "http://localhost:14268/api/traces"
     #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
