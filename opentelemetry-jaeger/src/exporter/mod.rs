@@ -247,7 +247,10 @@ impl PipelineBuilder {
         self
     }
 
-    /// Config whether to auto split batch if packet size is too large.
+    /// Config whether to auto split batch.
+    ///
+    /// When `auto_split` is true, and one span is too large, will
+    /// other smaller spans in the same batch being exported.
     pub fn with_auto_split_batch(mut self, auto_split: bool) -> Self {
         self.auto_split = auto_split;
         self
