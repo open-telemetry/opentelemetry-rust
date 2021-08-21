@@ -247,10 +247,15 @@ impl PipelineBuilder {
         self
     }
 
-    /// Config whether to auto split batch.
+    /// Config whether to auto split batches.
     ///
-    /// When `auto_split` is true, and one span is too large, will
-    /// other smaller spans in the same batch being exported.
+    /// When auto split is set to true, the exporter will try to split the 
+    /// batch into smaller ones so that there will be minimal data loss. It 
+    /// will impact the performance.
+    /// 
+    /// Note that if one span is too large to export, other spans within the 
+    /// same batch may or may not be exported. In this case, exporter will 
+    /// return errors as we cannot split spans.
     pub fn with_auto_split_batch(mut self, auto_split: bool) -> Self {
         self.auto_split = auto_split;
         self
