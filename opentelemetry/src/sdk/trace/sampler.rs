@@ -41,6 +41,8 @@ use crate::{
     trace::{Link, SpanKind, TraceContextExt, TraceId, TraceState},
     Context, KeyValue,
 };
+#[cfg(feature = "serialize")]
+use serde::{Deserialize, Serialize};
 
 /// The `ShouldSample` interface allows implementations to provide samplers
 /// which will return a sampling `SamplingResult` based on information that
@@ -83,7 +85,7 @@ pub enum SamplingDecision {
 }
 
 /// Sampling options
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Sampler {
     /// Always sample the trace
     AlwaysOn,
@@ -156,6 +158,65 @@ impl ShouldSample for Sampler {
                 Some(ctx) => ctx.span().span_context().trace_state().clone(),
                 None => TraceState::default(),
             },
+        }
+    }
+}
+
+#[cfg(feature = "serialize")]
+impl<'de> Deserialize<'de> for Sampler {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::de::Deserializer<'de>,
+    {
+        struct SamplerVisitor;
+
+        impl<'de> serde::de::Visitor<'de> for SamplerVisitor {
+            type Value = Sampler;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(
+                    formatter,
+                    "a string that is 'always-on' or 'always-off' or a float"
+                )
+            }
+
+            fn visit_str<E>(self, s: &str) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                match s {
+                    "always-on" => Ok(Sampler::AlwaysOn),
+                    "always-off" => Ok(Sampler::AlwaysOff),
+                    _ => Err(serde::de::Error::invalid_value(
+                        serde::de::Unexpected::Str(s),
+                        &self,
+                    )),
+                }
+            }
+
+            fn visit_f64<E>(self, n: f64) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(Sampler::TraceIdRatioBased(n))
+            }
+        }
+
+        deserializer.deserialize_any(SamplerVisitor)
+    }
+}
+
+#[cfg(feature = "serialize")]
+impl Serialize for Sampler {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::ser::Serializer,
+    {
+        match self {
+            Sampler::AlwaysOn => serializer.serialize_str("always-on"),
+            Sampler::AlwaysOff => serializer.serialize_str("always-off"),
+            Sampler::TraceIdRatioBased(ratio) => serializer.serialize_f64(*ratio),
+            Sampler::ParentBased(parent) => Self::serialize(parent, serializer),
         }
     }
 }
@@ -292,5 +353,31 @@ mod tests {
         );
 
         assert_eq!(result.decision, SamplingDecision::RecordAndSample);
+    }
+
+    #[cfg(feature = "serialize")]
+    #[test]
+    fn serialize_and_deserialize_sampler() {
+        macro_rules! assert_serialize_deserialize {
+            ($value:expr, $expected:expr) => {
+                let serialized = serde_json::to_string(&$value).unwrap();
+                assert_eq!(
+                    serde_json::from_str::<Sampler>(&serialized).unwrap(),
+                    $expected,
+                    "serializing and then deserializing did not produce the expected value",
+                );
+            };
+        }
+
+        assert_serialize_deserialize!(Sampler::AlwaysOn, Sampler::AlwaysOn);
+        assert_serialize_deserialize!(Sampler::AlwaysOff, Sampler::AlwaysOff);
+        assert_serialize_deserialize!(
+            Sampler::TraceIdRatioBased(0.42),
+            Sampler::TraceIdRatioBased(0.42)
+        );
+        assert_serialize_deserialize!(
+            Sampler::ParentBased(Box::new(Sampler::AlwaysOn)),
+            Sampler::AlwaysOn
+        );
     }
 }
