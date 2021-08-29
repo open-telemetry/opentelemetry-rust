@@ -41,6 +41,8 @@ use crate::{
     trace::{Link, SpanKind, TraceContextExt, TraceId, TraceState},
     Context, KeyValue,
 };
+#[cfg(feature = "serialize")]
+use serde::{Deserialize, Serialize};
 
 /// The `ShouldSample` interface allows implementations to provide samplers
 /// which will return a sampling `SamplingResult` based on information that
@@ -83,7 +85,8 @@ pub enum SamplingDecision {
 }
 
 /// Sampling options
-#[derive(Clone, Debug)]
+#[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Sampler {
     /// Always sample the trace
     AlwaysOn,
