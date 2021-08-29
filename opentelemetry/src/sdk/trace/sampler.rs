@@ -85,7 +85,8 @@ pub enum SamplingDecision {
 }
 
 /// Sampling options
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Sampler {
     /// Always sample the trace
     AlwaysOn,
@@ -294,26 +295,5 @@ mod tests {
         );
 
         assert_eq!(result.decision, SamplingDecision::RecordAndSample);
-    }
-
-    #[cfg(feature = "serialize")]
-    #[test]
-    fn serialize_and_deserialize_sampler() {
-        macro_rules! assert_serialize_deserialize {
-            ($value:expr) => {
-                let serialized = serde_json::to_string(&$value).unwrap();
-                eprintln!("{}", serialized);
-                assert_eq!(
-                    serde_json::from_str::<Sampler>(&serialized).unwrap(),
-                    $value,
-                    "serializing and then deserializing did not produce the expected value",
-                );
-            };
-        }
-
-        assert_serialize_deserialize!(Sampler::AlwaysOn);
-        assert_serialize_deserialize!(Sampler::AlwaysOff);
-        assert_serialize_deserialize!(Sampler::TraceIdRatioBased(0.42));
-        assert_serialize_deserialize!(Sampler::ParentBased(Box::new(Sampler::AlwaysOn)));
     }
 }
