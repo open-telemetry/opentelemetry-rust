@@ -36,7 +36,7 @@ impl Default for GrpcioConfig {
 
 /// Credential configuration for authenticated requests.
 #[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Credentials {
     /// Credential cert
     pub cert: String,
