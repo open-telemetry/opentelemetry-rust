@@ -214,7 +214,7 @@ pub use crate::exporter::{
 use opentelemetry::sdk::export::ExportError;
 
 #[cfg(feature = "grpc-sys")]
-pub use crate::exporter::grpcio::{Credentials, GrpcioExporterBuilder};
+pub use crate::exporter::grpcio::{Compression, Credentials, GrpcioExporterBuilder};
 #[cfg(feature = "http-proto")]
 pub use crate::exporter::http::HttpExporterBuilder;
 #[cfg(feature = "tonic")]

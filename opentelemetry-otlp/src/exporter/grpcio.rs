@@ -45,6 +45,7 @@ pub struct Credentials {
 }
 
 /// The compression algorithm to use when sending data.
+#[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
 #[derive(Clone, Copy, Debug)]
 pub enum Compression {
     /// Compresses data using gzip.
