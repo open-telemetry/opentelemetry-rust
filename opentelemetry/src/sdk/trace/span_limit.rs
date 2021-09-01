@@ -13,6 +13,9 @@
 /// If the limit has been breached. The attributes, events or links will be dropped based on their
 /// index in the collection. The one added to collections later will be dropped first.
 
+#[cfg(feature = "serialize")]
+use serde::{Deserialize, Serialize};
+
 pub(crate) const DEFAULT_MAX_EVENT_PER_SPAN: u32 = 128;
 pub(crate) const DEFAULT_MAX_ATTRIBUTES_PER_SPAN: u32 = 128;
 pub(crate) const DEFAULT_MAX_LINKS_PER_SPAN: u32 = 128;
@@ -20,6 +23,7 @@ pub(crate) const DEFAULT_MAX_ATTRIBUTES_PER_EVENT: u32 = 128;
 pub(crate) const DEFAULT_MAX_ATTRIBUTES_PER_LINK: u32 = 128;
 
 /// Span limit configuration to keep attributes, events and links to a span in a reasonable number.
+#[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
 #[derive(Copy, Clone, Debug)]
 pub struct SpanLimits {
     /// The max events that can be added to a `Span`.
