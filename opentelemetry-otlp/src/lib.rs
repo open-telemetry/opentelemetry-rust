@@ -198,7 +198,7 @@ mod metric;
 mod span;
 mod transform;
 
-pub use crate::exporter::{Credentials, ExportConfig};
+pub use crate::exporter::ExportConfig;
 pub use crate::span::{OtlpTracePipeline, SpanExporter};
 
 #[cfg(feature = "metrics")]
@@ -214,7 +214,7 @@ pub use crate::exporter::{
 use opentelemetry::sdk::export::ExportError;
 
 #[cfg(feature = "grpc-sys")]
-pub use crate::exporter::grpcio::GrpcioExporterBuilder;
+pub use crate::exporter::grpcio::{Credentials, GrpcioExporterBuilder};
 #[cfg(feature = "http-proto")]
 pub use crate::exporter::http::HttpExporterBuilder;
 #[cfg(feature = "tonic")]
