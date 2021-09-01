@@ -1,4 +1,6 @@
 use crate::ExportConfig;
+#[cfg(feature = "serialize")]
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// Configuration of grpcio
@@ -33,6 +35,7 @@ impl Default for GrpcioConfig {
 }
 
 /// Credential configuration for authenticated requests.
+#[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
 #[derive(Debug)]
 pub struct Credentials {
     /// Credential cert
