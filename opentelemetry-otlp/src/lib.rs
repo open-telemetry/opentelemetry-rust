@@ -220,6 +220,9 @@ pub use crate::exporter::http::HttpExporterBuilder;
 #[cfg(feature = "tonic")]
 pub use crate::exporter::tonic::TonicExporterBuilder;
 
+#[cfg(feature = "serialize")]
+use serde::{Deserialize, Serialize};
+
 /// General builder for both tracing and metrics.
 #[derive(Debug)]
 pub struct OtlpPipeline;
@@ -365,6 +368,7 @@ impl ExportError for Error {
 }
 
 /// The communication protocol to use when exporting data.
+#[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
 #[derive(Clone, Copy, Debug)]
 pub enum Protocol {
     /// GRPC protocol
