@@ -1,4 +1,6 @@
 use crate::ExportConfig;
+#[cfg(feature = "serialize")]
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// Configuration of grpcio
@@ -33,7 +35,8 @@ impl Default for GrpcioConfig {
 }
 
 /// Credential configuration for authenticated requests.
-#[derive(Debug)]
+#[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
+#[derive(Clone, Debug)]
 pub struct Credentials {
     /// Credential cert
     pub cert: String,
@@ -42,6 +45,7 @@ pub struct Credentials {
 }
 
 /// The compression algorithm to use when sending data.
+#[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
 #[derive(Clone, Copy, Debug)]
 pub enum Compression {
     /// Compresses data using gzip.
