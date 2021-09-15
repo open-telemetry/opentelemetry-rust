@@ -17,13 +17,10 @@ where
 {
     /// Creates a bound instrument for this counter. The attributes are associated with
     /// values recorded via subsequent calls to record.
-    pub fn bind<'a>(&self, attributes: &'a [KeyValue]) -> BoundUpDownCounter<'a, T> {
+    pub fn bind(&self, attributes: &[KeyValue]) -> BoundUpDownCounter<T> {
         let bound_instrument = self.0.bind(attributes);
 
-        BoundUpDownCounter {
-            attributes,
-            bound_instrument,
-        }
+        BoundUpDownCounter { bound_instrument }
     }
 
     /// Increment this counter by a given T
@@ -39,12 +36,11 @@ where
 
 /// BoundUpDownCounter is a bound instrument for counters.
 #[derive(Clone, Debug)]
-pub struct BoundUpDownCounter<'a, T> {
-    attributes: &'a [KeyValue],
+pub struct BoundUpDownCounter<T> {
     bound_instrument: SyncBoundInstrument<T>,
 }
 
-impl<'a, T> BoundUpDownCounter<'a, T>
+impl<T> BoundUpDownCounter<T>
 where
     T: Into<Number>,
 {
