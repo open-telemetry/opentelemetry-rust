@@ -43,8 +43,6 @@ where
 pub struct StdoutExporter<W> {
     /// Writer is the destination. If not set, `Stdout` is used.
     writer: Mutex<W>,
-    /// Will pretty print the output sent to the writer. Default is false.
-    pretty_print: bool,
     /// Suppresses timestamp printing. This is useful to create deterministic test
     /// conditions.
     do_not_print_time: bool,
@@ -228,7 +226,6 @@ pub struct StdoutExporterBuilder<W, S, I> {
     spawn: S,
     interval: I,
     writer: Mutex<W>,
-    pretty_print: bool,
     do_not_print_time: bool,
     quantiles: Option<Vec<f64>>,
     attribute_encoder: Option<Box<dyn Encoder + Send + Sync>>,
@@ -248,7 +245,6 @@ where
             spawn,
             interval,
             writer: Mutex::new(io::stdout()),
-            pretty_print: false,
             do_not_print_time: false,
             quantiles: None,
             attribute_encoder: None,
@@ -262,20 +258,11 @@ where
             spawn: self.spawn,
             interval: self.interval,
             writer: Mutex::new(writer),
-            pretty_print: self.pretty_print,
             do_not_print_time: self.do_not_print_time,
             quantiles: self.quantiles,
             attribute_encoder: self.attribute_encoder,
             period: self.period,
             formatter: self.formatter,
-        }
-    }
-
-    /// Set if the writer should format with pretty print
-    pub fn with_pretty_print(self, pretty_print: bool) -> Self {
-        StdoutExporterBuilder {
-            pretty_print,
-            ..self
         }
     }
 
@@ -322,7 +309,6 @@ where
         let period = self.period.take();
         let exporter = StdoutExporter {
             writer: self.writer,
-            pretty_print: self.pretty_print,
             do_not_print_time: self.do_not_print_time,
             attribute_encoder: self.attribute_encoder.unwrap_or_else(default_encoder),
             formatter: self.formatter,
