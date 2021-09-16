@@ -17,7 +17,7 @@ which = "4.0.2"
 [dependencies]
 async-trait = "0.1.48"
 futures = { version = "0.3", default-features = false }
-gcp_auth = { version = "0.4.0", optional = true }
+gcp_auth = { version = "0.5.0", optional = true }
 hex = "0.4"
 http = "0.2"
 hyper = "0.14.2"
