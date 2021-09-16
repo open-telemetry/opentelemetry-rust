@@ -62,9 +62,9 @@ async fn serve_req(
 
 struct AppState {
     exporter: PrometheusExporter,
-    http_counter: BoundCounter<'static, u64>,
-    http_body_gauge: BoundValueRecorder<'static, u64>,
-    http_req_histogram: BoundValueRecorder<'static, f64>,
+    http_counter: BoundCounter<u64>,
+    http_body_gauge: BoundValueRecorder<u64>,
+    http_req_histogram: BoundValueRecorder<f64>,
 }
 
 #[tokio::main]

@@ -238,15 +238,9 @@ mod propagator {
     /// Note that jaeger header can be set in http header or encoded as url
     ///
     ///  [`Jaeger documentation`]: https://www.jaegertracing.io/docs/1.18/client-libraries/#propagation-format
-    #[derive(Clone, Debug)]
+    #[derive(Clone, Debug, Default)]
     pub struct Propagator {
         _private: (),
-    }
-
-    impl Default for Propagator {
-        fn default() -> Self {
-            Propagator { _private: () }
-        }
     }
 
     impl Propagator {

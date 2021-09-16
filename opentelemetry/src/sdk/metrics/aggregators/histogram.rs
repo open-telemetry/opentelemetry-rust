@@ -5,7 +5,7 @@ use std::mem;
 use std::sync::{Arc, RwLock};
 
 /// Create a new histogram for the given descriptor with the given boundaries
-pub fn histogram(desc: &Descriptor, boundaries: &[f64]) -> HistogramAggregator {
+pub fn histogram(_desc: &Descriptor, boundaries: &[f64]) -> HistogramAggregator {
     let mut sorted_boundaries = boundaries.to_owned();
     sorted_boundaries.sort_by(|a, b| a.partial_cmp(b).unwrap());
     let state = State::empty(&sorted_boundaries);
@@ -13,7 +13,6 @@ pub fn histogram(desc: &Descriptor, boundaries: &[f64]) -> HistogramAggregator {
     HistogramAggregator {
         inner: RwLock::new(Inner {
             boundaries: sorted_boundaries,
-            kind: desc.number_kind().clone(),
             state,
         }),
     }
@@ -29,7 +28,6 @@ pub struct HistogramAggregator {
 #[derive(Debug)]
 struct Inner {
     boundaries: Vec<f64>,
-    kind: NumberKind,
     state: State,
 }
 

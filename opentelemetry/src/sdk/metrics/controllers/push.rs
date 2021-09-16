@@ -40,7 +40,6 @@ where
         spawn,
         interval,
         resource: None,
-        stateful: None,
         period: None,
         timeout: None,
     }
@@ -131,7 +130,6 @@ pub struct PushControllerBuilder<S, I> {
     spawn: S,
     interval: I,
     resource: Option<Resource>,
-    stateful: Option<bool>,
     period: Option<time::Duration>,
     timeout: Option<time::Duration>,
 }
@@ -142,14 +140,6 @@ where
     I: Fn(time::Duration) -> IS,
     IS: Stream<Item = ISI> + Send + 'static,
 {
-    /// Configure the statefulness of this controller.
-    pub fn with_stateful(self, stateful: bool) -> Self {
-        PushControllerBuilder {
-            stateful: Some(stateful),
-            ..self
-        }
-    }
-
     /// Configure the period of this controller
     pub fn with_period(self, period: time::Duration) -> Self {
         PushControllerBuilder {

@@ -19,7 +19,7 @@ pub(crate) struct CollectorAsyncClientHttp {
 #[cfg(feature = "wasm_collector_client")]
 #[derive(Debug)]
 struct WasmHttpClient {
-    auth: Option<String>,
+    _auth: Option<String>,
 }
 
 #[cfg(feature = "collector_client")]
@@ -111,7 +111,7 @@ mod wasm_collector_client {
 
             Ok(Self {
                 endpoint,
-                client: WasmHttpClient { auth },
+                client: WasmHttpClient { _auth: auth },
                 payload_size_estimate,
             })
         }

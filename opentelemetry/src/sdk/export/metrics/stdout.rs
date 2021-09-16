@@ -319,8 +319,7 @@ where
             exporter,
             self.spawn,
             self.interval,
-        )
-        .with_stateful(true);
+        );
         if let Some(period) = period {
             push_builder = push_builder.with_period(period);
         }

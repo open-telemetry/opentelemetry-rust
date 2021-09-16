@@ -241,13 +241,14 @@ impl ExporterBuilder {
     /// recommended selector and standard processor.
     pub fn try_init(self) -> Result<PrometheusExporter, MetricsError> {
         let registry = self.registry.unwrap_or_else(prometheus::Registry::new);
-        let default_summary_quantiles = self
+        // reserved for future use cases
+        let _default_summary_quantiles = self
             .default_summary_quantiles
             .unwrap_or_else(|| vec![0.5, 0.9, 0.99]);
         let default_histogram_boundaries = self
             .default_histogram_boundaries
             .unwrap_or_else(|| vec![0.5, 0.9, 0.99]);
-        let selector = Box::new(Selector::Histogram(default_histogram_boundaries.clone()));
+        let selector = Box::new(Selector::Histogram(default_histogram_boundaries));
         let mut controller_builder = controllers::pull(selector, Box::new(EXPORT_KIND_SELECTOR))
             .with_cache_period(self.cache_period.unwrap_or(DEFAULT_CACHE_PERIOD))
             .with_memory(true);
@@ -272,8 +273,6 @@ impl ExporterBuilder {
         Ok(PrometheusExporter {
             registry,
             controller,
-            default_summary_quantiles,
-            default_histogram_boundaries,
             host,
             port,
         })
@@ -298,8 +297,6 @@ impl ExporterBuilder {
 pub struct PrometheusExporter {
     registry: prometheus::Registry,
     controller: Arc<Mutex<PullController>>,
-    default_summary_quantiles: Vec<f64>,
-    default_histogram_boundaries: Vec<f64>,
     host: String,
     port: u16,
 }
@@ -313,8 +310,6 @@ impl PrometheusExporter {
     pub fn new(
         registry: prometheus::Registry,
         controller: PullController,
-        default_summary_quantiles: Vec<f64>,
-        default_histogram_boundaries: Vec<f64>,
         host: String,
         port: u16,
     ) -> Result<Self, MetricsError> {
@@ -327,8 +322,6 @@ impl PrometheusExporter {
         Ok(PrometheusExporter {
             registry,
             controller,
-            default_summary_quantiles,
-            default_histogram_boundaries,
             host,
             port,
         })

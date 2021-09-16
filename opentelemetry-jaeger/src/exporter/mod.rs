@@ -216,6 +216,20 @@ impl PipelineBuilder {
         }
     }
 
+    /// Get collector's username set in the builder. Default to be the value of
+    /// `OTEL_EXPORTER_JAEGER_USER` environment variable.
+    ///
+    /// If users uses custom http client. This function can help retrieve the value of
+    /// `OTEL_EXPORTER_JAEGER_USER` environment variable.
+    #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
+    #[cfg_attr(
+        docsrs,
+        doc(any(feature = "collector_client", feature = "wasm_collector_client"))
+    )]
+    pub fn collector_username(&self) -> Option<String> {
+        (&self.collector_username).clone()
+    }
+
     /// Assign the collector password
     #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
     #[cfg_attr(
@@ -227,6 +241,20 @@ impl PipelineBuilder {
             collector_password: Some(collector_password.into()),
             ..self
         }
+    }
+
+    /// Get the collector's password set in the builder. Default to be the value of
+    /// `OTEL_EXPORTER_JAEGER_PASSWORD` environment variable.
+    ///
+    /// If users uses custom http client. This function can help retrieve the value of
+    /// `OTEL_EXPORTER_JAEGER_PASSWORD` environment variable.
+    #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
+    #[cfg_attr(
+        docsrs,
+        doc(any(feature = "collector_client", feature = "wasm_collector_client"))
+    )]
+    pub fn collector_password(self) -> Option<String> {
+        (&self.collector_password).clone()
     }
 
     /// Assign the process service name.
