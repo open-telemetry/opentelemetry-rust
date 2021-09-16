@@ -1,6 +1,6 @@
 use futures::{
-  future::FutureObj,
-  task::{Spawn, SpawnError},
+    future::FutureObj,
+    task::{Spawn, SpawnError},
 };
 use tokio::runtime::Handle;
 
@@ -19,24 +19,24 @@ use tokio::runtime::Handle;
 /// ```
 #[derive(Debug, Clone)]
 pub struct TokioSpawner {
-  handle: Handle,
+    handle: Handle,
 }
 
 impl TokioSpawner {
-  pub fn new(handle: Handle) -> Self {
-    Self { handle }
-  }
+    pub fn new(handle: Handle) -> Self {
+        Self { handle }
+    }
 }
 
 impl Spawn for TokioSpawner {
-  fn spawn_obj(&self, future: FutureObj<'static, ()>) -> Result<(), SpawnError> {
-    self.handle.spawn(future);
-    Ok(())
-  }
+    fn spawn_obj(&self, future: FutureObj<'static, ()>) -> Result<(), SpawnError> {
+        self.handle.spawn(future);
+        Ok(())
+    }
 }
 
 impl From<Handle> for TokioSpawner {
-  fn from(h: Handle) -> Self {
-    Self::new(h)
-  }
+    fn from(h: Handle) -> Self {
+        Self::new(h)
+    }
 }
