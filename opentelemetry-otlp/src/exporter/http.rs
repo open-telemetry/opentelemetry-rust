@@ -5,6 +5,14 @@ use std::collections::HashMap;
 /// Configuration of the http transport
 #[cfg(feature = "http-proto")]
 #[derive(Debug)]
+#[cfg_attr(
+    all(
+        not(feature = "reqwest-client"),
+        not(feature = "surf-client"),
+        not(feature = "reqwest-blocking-client")
+    ),
+    derive(Default)
+)]
 pub struct HttpConfig {
     /// Select the HTTP client
     pub client: Option<Box<dyn HttpClient>>,
@@ -13,6 +21,11 @@ pub struct HttpConfig {
     pub headers: Option<HashMap<String, String>>,
 }
 
+#[cfg(any(
+    feature = "reqwest-blocking-client",
+    feature = "reqwest-client",
+    feature = "surf-client"
+))]
 impl Default for HttpConfig {
     fn default() -> Self {
         HttpConfig {

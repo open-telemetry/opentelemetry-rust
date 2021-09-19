@@ -752,7 +752,7 @@ mod tests {
             let request = sink(test_data);
             let actual = request.resource_metrics;
 
-            let expect: Vec<ResourceMetrics> = vec![
+            let expect = vec![
                 (
                     vec![("runtime", "tokio")],
                     vec![
@@ -793,8 +793,7 @@ mod tests {
                 ),
             ]
             .into_iter()
-            .map(convert_to_resource_metrics)
-            .collect::<Vec<ResourceMetrics>>();
+            .map(convert_to_resource_metrics);
 
             for (expect, actual) in expect.into_iter().zip(actual.into_iter()) {
                 assert_resource_metrics(expect, actual);

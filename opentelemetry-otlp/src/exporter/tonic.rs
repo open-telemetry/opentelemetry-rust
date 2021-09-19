@@ -6,7 +6,7 @@ use tonic::transport::ClientTlsConfig;
 /// Configuration for [tonic]
 ///
 /// [tonic]: https://github.com/hyperium/tonic
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct TonicConfig {
     /// Custom metadata entries to send to the collector.
     pub metadata: Option<MetadataMap>,
@@ -14,16 +14,6 @@ pub struct TonicConfig {
     /// TLS settings for the collector endpoint.
     #[cfg(feature = "tls")]
     pub tls_config: Option<ClientTlsConfig>,
-}
-
-impl Default for TonicConfig {
-    fn default() -> Self {
-        TonicConfig {
-            #[cfg(feature = "tls")]
-            tls_config: None,
-            metadata: None,
-        }
-    }
 }
 
 /// Build a trace exporter that uses [tonic] as grpc layer and opentelemetry protocol.

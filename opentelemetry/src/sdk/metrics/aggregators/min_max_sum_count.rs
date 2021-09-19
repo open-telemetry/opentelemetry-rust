@@ -1,15 +1,13 @@
-use crate::metrics::{AtomicNumber, Descriptor, MetricsError, Number, NumberKind, Result};
+use crate::metrics::{AtomicNumber, Descriptor, MetricsError, Number, Result};
 use crate::sdk::export::metrics::{Aggregator, Count, Max, Min, MinMaxSumCount, Sum};
 use std::any::Any;
 use std::cmp::Ordering;
 use std::sync::{Arc, Mutex};
 
 /// Create a new `MinMaxSumCountAggregator`
-pub fn min_max_sum_count(descriptor: &Descriptor) -> MinMaxSumCountAggregator {
-    let kind = descriptor.number_kind().clone();
+pub fn min_max_sum_count(_descriptor: &Descriptor) -> MinMaxSumCountAggregator {
     MinMaxSumCountAggregator {
         inner: Mutex::new(Inner { state: None }),
-        kind,
     }
 }
 
@@ -23,7 +21,6 @@ struct Inner {
 #[derive(Debug)]
 pub struct MinMaxSumCountAggregator {
     inner: Mutex<Inner>,
-    kind: NumberKind,
 }
 
 impl Min for MinMaxSumCountAggregator {

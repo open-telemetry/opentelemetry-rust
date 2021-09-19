@@ -15,12 +15,9 @@ where
 {
     /// Creates a bound instrument for this ValueRecorder. The attributes are
     /// associated with values recorded via subsequent calls to record.
-    pub fn bind<'a>(&self, attributes: &'a [KeyValue]) -> BoundValueRecorder<'a, T> {
+    pub fn bind(&self, attributes: &[KeyValue]) -> BoundValueRecorder<T> {
         let bound_instrument = self.0.bind(attributes);
-        BoundValueRecorder {
-            attributes,
-            bound_instrument,
-        }
+        BoundValueRecorder { bound_instrument }
     }
 
     /// Record a new metric value
@@ -39,12 +36,11 @@ where
 ///
 /// It inherits the Unbind function from syncBoundInstrument.
 #[derive(Clone, Debug)]
-pub struct BoundValueRecorder<'a, T> {
-    attributes: &'a [KeyValue],
+pub struct BoundValueRecorder<T> {
     bound_instrument: SyncBoundInstrument<T>,
 }
 
-impl<'a, T> BoundValueRecorder<'a, T>
+impl<T> BoundValueRecorder<T>
 where
     T: Into<Number>,
 {

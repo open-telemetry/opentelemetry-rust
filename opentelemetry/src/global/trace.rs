@@ -390,20 +390,16 @@ mod tests {
         }
     }
 
-    #[derive(Debug)]
+    #[derive(Debug, Default)]
     struct TestTracerProvider {
-        debug_msg: &'static str,
-    }
-
-    impl Default for TestTracerProvider {
-        fn default() -> Self {
-            TestTracerProvider { debug_msg: "" }
-        }
+        _debug_msg: &'static str,
     }
 
     impl TestTracerProvider {
         fn new(debug_msg: &'static str) -> Self {
-            TestTracerProvider { debug_msg }
+            TestTracerProvider {
+                _debug_msg: debug_msg,
+            }
         }
     }
 

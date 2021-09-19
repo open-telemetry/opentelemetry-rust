@@ -52,7 +52,6 @@ impl OtlpPipeline {
             interval,
             exporter_pipeline: None,
             resource: None,
-            stateful: None,
             period: None,
             timeout: None,
         }
@@ -107,7 +106,6 @@ where
     interval: I,
     exporter_pipeline: Option<MetricsExporterBuilder>,
     resource: Option<Resource>,
-    stateful: Option<bool>,
     period: Option<time::Duration>,
     timeout: Option<time::Duration>,
 }
@@ -151,7 +149,6 @@ where
             interval: self.interval,
             exporter_pipeline: self.exporter_pipeline,
             resource: self.resource,
-            stateful: self.stateful,
             period: self.period,
             timeout: self.timeout,
         }
@@ -178,14 +175,6 @@ where
         }
     }
 
-    /// Build a stateful push controller or not
-    pub fn with_stateful(self, stateful: bool) -> Self {
-        OtlpMetricPipeline {
-            stateful: Some(stateful),
-            ..self
-        }
-    }
-
     /// Build with interval function
     pub fn with_interval(self, interval: I) -> Self {
         OtlpMetricPipeline { interval, ..self }
@@ -203,7 +192,6 @@ where
             interval: self.interval,
             exporter_pipeline: self.exporter_pipeline,
             resource: self.resource,
-            stateful: self.stateful,
             period: self.period,
             timeout: self.timeout,
         }
@@ -228,9 +216,6 @@ where
         }
         if let Some(resource) = self.resource {
             builder = builder.with_resource(resource);
-        }
-        if let Some(stateful) = self.stateful {
-            builder = builder.with_stateful(stateful);
         }
         if let Some(timeout) = self.timeout {
             builder = builder.with_timeout(timeout)
