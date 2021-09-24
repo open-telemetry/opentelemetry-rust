@@ -17,7 +17,6 @@ fn main() {
         tonic_build::configure()
         .build_server(std::env::var_os("CARGO_FEATURE_INTEGRATION_TESTING").is_some())
         .build_client(true)
-        .format(false)
         .out_dir(out_dir)
         .compile(
             &[
