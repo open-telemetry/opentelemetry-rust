@@ -1,5 +1,5 @@
 use crate::global::handle_error;
-use crate::trace::{noop::NoopTracerProvider, TraceResult};
+use crate::trace::{noop::NoopTracerProvider, SpanContext, StatusCode, TraceResult};
 use crate::{trace, trace::TracerProvider, Context, KeyValue};
 use std::borrow::Cow;
 use std::fmt;
@@ -7,14 +7,154 @@ use std::mem;
 use std::sync::{Arc, RwLock};
 use std::time::SystemTime;
 
+pub trait GenericSpan: fmt::Debug {
+    /// An API to record events at a specific time in the context of a given `Span`.
+    ///
+    /// Events SHOULD preserve the order in which they're set. This will typically match
+    /// the ordering of the events' timestamps.
+    ///
+    /// Note that the OpenTelemetry project documents certain ["standard event names and
+    /// keys"](https://github.com/open-telemetry/opentelemetry-specification/tree/v0.5.0/specification/trace/semantic_conventions/README.md)
+    /// which have prescribed semantic meanings.
+    fn add_event_with_timestamp(
+        &mut self,
+        name: Cow<'static, str>,
+        timestamp: SystemTime,
+        attributes: Vec<KeyValue>,
+    );
+
+    /// Returns the `SpanContext` for the given `Span`. The returned value may be used even after
+    /// the `Span is finished. The returned value MUST be the same for the entire `Span` lifetime.
+    fn span_context(&self) -> &SpanContext;
+
+    /// Returns true if this `Span` is recording information like events with the `add_event`
+    /// operation, attributes using `set_attributes`, status with `set_status`, etc.
+    ///
+    /// This flag SHOULD be used to avoid expensive computations of a `Span` attributes or events in
+    /// case when a `Span` is definitely not recorded. Note that any child span's recording is
+    /// determined independently from the value of this flag (typically based on the sampled flag of
+    /// a `TraceFlag` on `SpanContext`).
+    ///
+    /// This flag may be true despite the entire trace being sampled out. This allows to record and
+    /// process information about the individual Span without sending it to the backend. An example
+    /// of this scenario may be recording and processing of all incoming requests for the processing
+    /// and building of SLA/SLO latency charts while sending only a subset - sampled spans - to the
+    /// backend. See also the sampling section of SDK design.
+    ///
+    /// Users of the API should only access the `is_recording` property when instrumenting code and
+    /// never access `SampledFlag` unless used in context propagators.
+    fn is_recording(&self) -> bool;
+
+    /// An API to set a single `Attribute` where the attribute properties are passed
+    /// as arguments. To avoid extra allocations some implementations may offer a separate API for
+    /// each of the possible value types.
+    ///
+    /// An `Attribute` is defined as a `KeyValue` pair.
+    ///
+    /// Attributes SHOULD preserve the order in which they're set. Setting an attribute
+    /// with the same key as an existing attribute SHOULD overwrite the existing
+    /// attribute's value.
+    ///
+    /// Note that the OpenTelemetry project documents certain ["standard
+    /// attributes"](https://github.com/open-telemetry/opentelemetry-specification/tree/v0.5.0/specification/trace/semantic_conventions/README.md)
+    /// that have prescribed semantic meanings.
+    fn set_attribute(&mut self, attribute: KeyValue);
+
+    /// Sets the status of the `Span`. `message` MUST be ignored when the status is `OK` or
+    /// `Unset`.
+    ///
+    /// The order of status is `Ok` > `Error` > `Unset`. That's means set the status
+    /// to `Unset` will always be ignore, set the status to `Error` only works when current
+    /// status is `Unset`, set the status to `Ok` will be consider final and any further call
+    /// to this function will be ignore.
+    fn set_status(&mut self, code: StatusCode, message: String);
+
+    /// Updates the `Span`'s name. After this update, any sampling behavior based on the
+    /// name will depend on the implementation.
+    ///
+    /// It is highly discouraged to update the name of a `Span` after its creation.
+    /// `Span` name is often used to group, filter and identify the logical groups of
+    /// spans. Often, filtering logic will be implemented before the `Span` creation
+    /// for performance reasons, and the name update may interfere with this logic.
+    ///
+    /// The method name is called `update_name` to differentiate this method from the
+    /// regular property. It emphasizes that this operation signifies a
+    /// major change for a `Span` and may lead to re-calculation of sampling or
+    /// filtering decisions made previously depending on the implementation.
+    fn update_name(&mut self, new_name: Cow<'static, str>);
+
+    /// Finishes the `Span`.
+    ///
+    /// Implementations MUST ignore all subsequent calls to `end` (there might be
+    /// exceptions when the tracer is streaming events and has no mutable state
+    /// associated with the Span).
+    ///
+    /// Calls to `end` a Span MUST not have any effects on child `Span`s as they may
+    /// still be running and can be ended later.
+    ///
+    /// This API MUST be non-blocking.
+    fn end(&mut self) {
+        self.end_with_timestamp(crate::time::now());
+    }
+
+    /// Finishes the `Span` with given timestamp
+    ///
+    /// For more details, refer to [`Span::end`]
+    ///
+    /// [`Span::end`]: Span::end()
+    fn end_with_timestamp(&mut self, timestamp: SystemTime);
+}
+
+impl<T: trace::Span> GenericSpan for T {
+    fn add_event_with_timestamp(
+        &mut self,
+        name: Cow<'static, str>,
+        timestamp: SystemTime,
+        attributes: Vec<KeyValue>,
+    ) {
+        self.add_event_with_timestamp(name, timestamp, attributes)
+    }
+
+    fn span_context(&self) -> &SpanContext {
+        self.span_context()
+    }
+
+    fn is_recording(&self) -> bool {
+        self.is_recording()
+    }
+
+    fn set_attribute(&mut self, attribute: KeyValue) {
+        self.set_attribute(attribute)
+    }
+
+    fn set_status(&mut self, code: StatusCode, message: String) {
+        self.set_status(code, message)
+    }
+
+    fn update_name(&mut self, new_name: Cow<'static, str>) {
+        self.update_name(new_name)
+    }
+
+    fn end_with_timestamp(&mut self, timestamp: SystemTime) {
+        self.end_with_timestamp(timestamp)
+    }
+}
+
 /// Wraps the [`BoxedTracer`]'s [`Span`] so it can be used generically by
 /// applications without knowing the underlying type.
 ///
 /// [`Span`]: crate::trace::Span
 #[derive(Debug)]
-pub struct BoxedSpan(Box<DynSpan>);
+pub struct BoxedSpan(Box<dyn GenericSpan + Send + Sync>);
 
-type DynSpan = dyn trace::Span + Send + Sync;
+impl BoxedSpan {
+    pub(crate) fn new<T>(span: T) -> Self
+    where
+        T: GenericSpan + Send + Sync + 'static,
+    {
+        BoxedSpan(Box::new(span))
+    }
+}
 
 impl trace::Span for BoxedSpan {
     /// Records events at a specific time in the context of a given `Span`.
@@ -22,13 +162,16 @@ impl trace::Span for BoxedSpan {
     /// Note that the OpenTelemetry project documents certain ["standard event names and
     /// keys"](https://github.com/open-telemetry/opentelemetry-specification/tree/v0.5.0/specification/trace/semantic_conventions/README.md)
     /// which have prescribed semantic meanings.
-    fn add_event_with_timestamp(
+    fn add_event_with_timestamp<T>(
         &mut self,
-        name: String,
+        name: T,
         timestamp: SystemTime,
         attributes: Vec<KeyValue>,
-    ) {
-        self.0.add_event_with_timestamp(name, timestamp, attributes)
+    ) where
+        T: Into<Cow<'static, str>>,
+    {
+        self.0
+            .add_event_with_timestamp(name.into(), timestamp, attributes)
     }
 
     /// Returns the `SpanContext` for the given `Span`.
@@ -58,8 +201,11 @@ impl trace::Span for BoxedSpan {
     }
 
     /// Updates the `Span`'s name.
-    fn update_name(&mut self, new_name: String) {
-        self.0.update_name(new_name)
+    fn update_name<T>(&mut self, new_name: T)
+    where
+        T: Into<Cow<'static, str>>,
+    {
+        self.0.update_name(new_name.into())
     }
 
     /// Finishes the span with given timestamp.
@@ -123,15 +269,19 @@ impl trace::Tracer for BoxedTracer {
 /// [`Tracer`]: crate::trace::Tracer
 pub trait GenericTracer: fmt::Debug + 'static {
     /// Create a new invalid span for use in cases where there are no active spans.
-    fn invalid_boxed(&self) -> Box<DynSpan>;
+    fn invalid_boxed(&self) -> Box<dyn GenericSpan + Send + Sync>;
 
     /// Returns a trait object so the underlying implementation can be swapped
     /// out at runtime.
-    fn start_with_context_boxed(&self, name: Cow<'static, str>, cx: Context) -> Box<DynSpan>;
+    fn start_with_context_boxed(
+        &self,
+        name: Cow<'static, str>,
+        cx: Context,
+    ) -> Box<dyn GenericSpan + Send + Sync>;
 
     /// Returns a trait object so the underlying implementation can be swapped
     /// out at runtime.
-    fn build_boxed(&self, builder: trace::SpanBuilder) -> Box<DynSpan>;
+    fn build_boxed(&self, builder: trace::SpanBuilder) -> Box<dyn GenericSpan + Send + Sync>;
 }
 
 impl<S, T> GenericTracer for T
@@ -140,19 +290,23 @@ where
     T: trace::Tracer<Span = S>,
 {
     /// Create a new invalid span for use in cases where there are no active spans.
-    fn invalid_boxed(&self) -> Box<DynSpan> {
+    fn invalid_boxed(&self) -> Box<dyn GenericSpan + Send + Sync> {
         Box::new(self.invalid())
     }
 
     /// Returns a trait object so the underlying implementation can be swapped
     /// out at runtime.
-    fn start_with_context_boxed(&self, name: Cow<'static, str>, cx: Context) -> Box<DynSpan> {
+    fn start_with_context_boxed(
+        &self,
+        name: Cow<'static, str>,
+        cx: Context,
+    ) -> Box<dyn GenericSpan + Send + Sync> {
         Box::new(self.start_with_context(name, cx))
     }
 
     /// Returns a trait object so the underlying implementation can be swapped
     /// out at runtime.
-    fn build_boxed(&self, builder: trace::SpanBuilder) -> Box<DynSpan> {
+    fn build_boxed(&self, builder: trace::SpanBuilder) -> Box<dyn GenericSpan + Send + Sync> {
         Box::new(self.build(builder))
     }
 }
