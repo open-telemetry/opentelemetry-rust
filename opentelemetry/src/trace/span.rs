@@ -18,6 +18,7 @@
 use crate::{trace::SpanContext, KeyValue};
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 use std::error::Error;
 use std::fmt;
 use std::time::SystemTime;
@@ -35,7 +36,10 @@ pub trait Span: fmt::Debug {
     /// Note that the OpenTelemetry project documents certain ["standard event names and
     /// keys"](https://github.com/open-telemetry/opentelemetry-specification/tree/v0.5.0/specification/trace/semantic_conventions/README.md)
     /// which have prescribed semantic meanings.
-    fn add_event(&mut self, name: String, attributes: Vec<KeyValue>) {
+    fn add_event<T>(&mut self, name: T, attributes: Vec<KeyValue>)
+    where
+        T: Into<Cow<'static, str>>,
+    {
         self.add_event_with_timestamp(name, crate::time::now(), attributes)
     }
 
@@ -61,10 +65,13 @@ pub trait Span: fmt::Debug {
     /// Convenience method to record a exception/error as an `Event` with custom stacktrace
     ///
     /// See `Span:record_exception` method for more details.
-    fn record_exception_with_stacktrace(&mut self, err: &dyn Error, stacktrace: String) {
+    fn record_exception_with_stacktrace<T>(&mut self, err: &dyn Error, stacktrace: T)
+    where
+        T: Into<Cow<'static, str>>,
+    {
         let attributes = vec![
             KeyValue::new("exception.message", err.to_string()),
-            KeyValue::new("exception.stacktrace", stacktrace),
+            KeyValue::new("exception.stacktrace", stacktrace.into()),
         ];
 
         self.add_event("exception".to_string(), attributes);
@@ -78,12 +85,13 @@ pub trait Span: fmt::Debug {
     /// Note that the OpenTelemetry project documents certain ["standard event names and
     /// keys"](https://github.com/open-telemetry/opentelemetry-specification/tree/v0.5.0/specification/trace/semantic_conventions/README.md)
     /// which have prescribed semantic meanings.
-    fn add_event_with_timestamp(
+    fn add_event_with_timestamp<T>(
         &mut self,
-        name: String,
+        name: T,
         timestamp: SystemTime,
         attributes: Vec<KeyValue>,
-    );
+    ) where
+        T: Into<Cow<'static, str>>;
 
     /// Returns the `SpanContext` for the given `Span`. The returned value may be used even after
     /// the `Span is finished. The returned value MUST be the same for the entire `Span` lifetime.
@@ -143,7 +151,9 @@ pub trait Span: fmt::Debug {
     /// regular property. It emphasizes that this operation signifies a
     /// major change for a `Span` and may lead to re-calculation of sampling or
     /// filtering decisions made previously depending on the implementation.
-    fn update_name(&mut self, new_name: String);
+    fn update_name<T>(&mut self, new_name: T)
+    where
+        T: Into<Cow<'static, str>>;
 
     /// Finishes the `Span`.
     ///

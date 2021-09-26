@@ -93,12 +93,14 @@ impl crate::trace::Span for Span {
     /// Note that the OpenTelemetry project documents certain ["standard event names and
     /// keys"](https://github.com/open-telemetry/opentelemetry-specification/tree/v0.5.0/specification/trace/semantic_conventions/README.md)
     /// which have prescribed semantic meanings.
-    fn add_event_with_timestamp(
+    fn add_event_with_timestamp<T>(
         &mut self,
-        name: String,
+        name: T,
         timestamp: SystemTime,
         mut attributes: Vec<KeyValue>,
-    ) {
+    ) where
+        T: Into<Cow<'static, str>>,
+    {
         let event_attributes_limit = self.span_limits.max_attributes_per_event as usize;
         self.with_data(|data| {
             let dropped_attributes_count = attributes.len().saturating_sub(event_attributes_limit);
@@ -153,7 +155,10 @@ impl crate::trace::Span for Span {
     }
 
     /// Updates the `Span`'s name.
-    fn update_name(&mut self, new_name: String) {
+    fn update_name<T>(&mut self, new_name: T)
+    where
+        T: Into<Cow<'static, str>>,
+    {
         self.with_data(|data| {
             data.name = new_name.into();
         });
@@ -539,7 +544,7 @@ mod tests {
         let mut span = tracer.build(span_builder);
 
         // add event after build
-        span.add_event("another test event".into(), event2.attributes);
+        span.add_event("another test event", event2.attributes);
 
         let event_queue = span
             .data

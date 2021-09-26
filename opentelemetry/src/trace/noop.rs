@@ -11,6 +11,7 @@ use crate::{
     Context, KeyValue,
 };
 use async_trait::async_trait;
+use std::borrow::Cow;
 use std::time::SystemTime;
 
 /// A no-op instance of a `TracerProvider`.
@@ -69,17 +70,22 @@ impl NoopSpan {
 
 impl trace::Span for NoopSpan {
     /// Ignores all events
-    fn add_event(&mut self, _name: String, _attributes: Vec<KeyValue>) {
+    fn add_event<T>(&mut self, _name: T, _attributes: Vec<KeyValue>)
+    where
+        T: Into<Cow<'static, str>>,
+    {
         // Ignore
     }
 
     /// Ignores all events with timestamps
-    fn add_event_with_timestamp(
+    fn add_event_with_timestamp<T>(
         &mut self,
-        _name: String,
+        _name: T,
         _timestamp: SystemTime,
         _attributes: Vec<KeyValue>,
-    ) {
+    ) where
+        T: Into<Cow<'static, str>>,
+    {
         // Ignored
     }
 
@@ -104,7 +110,10 @@ impl trace::Span for NoopSpan {
     }
 
     /// Ignores name updates
-    fn update_name(&mut self, _new_name: String) {
+    fn update_name<T>(&mut self, _new_name: T)
+    where
+        T: Into<Cow<'static, str>>,
+    {
         // Ignored
     }
 
