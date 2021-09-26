@@ -11,6 +11,7 @@ use crate::{
     KeyValue,
 };
 use async_trait::async_trait;
+use std::borrow::Cow;
 use std::fmt::{Display, Formatter};
 use std::sync::mpsc::{channel, Receiver, Sender};
 
@@ -18,12 +19,14 @@ use std::sync::mpsc::{channel, Receiver, Sender};
 pub struct TestSpan(pub SpanContext);
 
 impl Span for TestSpan {
-    fn add_event_with_timestamp(
+    fn add_event_with_timestamp<T>(
         &mut self,
-        _name: String,
+        _name: T,
         _timestamp: std::time::SystemTime,
         _attributes: Vec<KeyValue>,
-    ) {
+    ) where
+        T: Into<Cow<'static, str>>,
+    {
     }
     fn span_context(&self) -> &SpanContext {
         &self.0
@@ -33,7 +36,11 @@ impl Span for TestSpan {
     }
     fn set_attribute(&mut self, _attribute: KeyValue) {}
     fn set_status(&mut self, _code: StatusCode, _message: String) {}
-    fn update_name(&mut self, _new_name: String) {}
+    fn update_name<T>(&mut self, _new_name: T)
+    where
+        T: Into<Cow<'static, str>>,
+    {
+    }
     fn end_with_timestamp(&mut self, _timestamp: std::time::SystemTime) {}
 }
 

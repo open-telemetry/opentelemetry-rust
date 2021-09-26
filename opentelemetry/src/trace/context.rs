@@ -1,9 +1,14 @@
 //! Context extensions for tracing
-use crate::{global, trace::SpanContext, Context, ContextGuard, KeyValue};
+use crate::{
+    global,
+    trace::{Span, SpanContext},
+    Context, ContextGuard, KeyValue,
+};
 use pin_project::pin_project;
 use std::error::Error;
 use std::sync::Mutex;
 use std::{
+    borrow::Cow,
     pin::Pin,
     task::{Context as TaskContext, Poll},
 };
@@ -24,11 +29,11 @@ struct SynchronizedSpan {
     /// Immutable span context
     span_context: SpanContext,
     /// Mutable span inner that requires synchronization
-    inner: Option<Box<Mutex<dyn crate::trace::Span + Send + Sync>>>,
+    inner: Option<Mutex<global::BoxedSpan>>,
 }
 
 impl SpanRef<'_> {
-    fn with_inner_mut<F: FnOnce(&mut dyn crate::trace::Span)>(&self, f: F) {
+    fn with_inner_mut<F: FnOnce(&mut global::BoxedSpan)>(&self, f: F) {
         if let Some(ref inner) = self.0.inner {
             match inner.lock() {
                 Ok(mut locked) => f(&mut *locked),
@@ -40,7 +45,10 @@ impl SpanRef<'_> {
 
 impl SpanRef<'_> {
     /// An API to record events in the context of a given `Span`.
-    pub fn add_event(&self, name: String, attributes: Vec<KeyValue>) {
+    pub fn add_event<T>(&self, name: T, attributes: Vec<KeyValue>)
+    where
+        T: Into<Cow<'static, str>>,
+    {
         self.with_inner_mut(|inner| inner.add_event(name, attributes))
     }
 
@@ -50,17 +58,22 @@ impl SpanRef<'_> {
     }
 
     /// Convenience method to record a exception/error as an `Event` with custom stacktrace
-    pub fn record_exception_with_stacktrace(&self, err: &dyn Error, stacktrace: String) {
+    pub fn record_exception_with_stacktrace<T>(&self, err: &dyn Error, stacktrace: T)
+    where
+        T: Into<Cow<'static, str>>,
+    {
         self.with_inner_mut(|inner| inner.record_exception_with_stacktrace(err, stacktrace))
     }
 
     /// An API to record events at a specific time in the context of a given `Span`.
-    pub fn add_event_with_timestamp(
+    pub fn add_event_with_timestamp<T>(
         &self,
-        name: String,
+        name: T,
         timestamp: std::time::SystemTime,
         attributes: Vec<crate::KeyValue>,
-    ) {
+    ) where
+        T: Into<Cow<'static, str>>,
+    {
         self.with_inner_mut(move |inner| {
             inner.add_event_with_timestamp(name, timestamp, attributes)
         })
@@ -96,7 +109,10 @@ impl SpanRef<'_> {
 
     /// Updates the `Span`'s name. After this update, any sampling behavior based on the
     /// name will depend on the implementation.
-    pub fn update_name(&self, new_name: String) {
+    pub fn update_name<T>(&self, new_name: String)
+    where
+        T: Into<Cow<'static, str>>,
+    {
         self.with_inner_mut(move |inner| inner.update_name(new_name))
     }
 
@@ -161,14 +177,14 @@ impl TraceContextExt for Context {
     fn current_with_span<T: crate::trace::Span + Send + Sync + 'static>(span: T) -> Self {
         Context::current_with_value(SynchronizedSpan {
             span_context: span.span_context().clone(),
-            inner: Some(Box::new(Mutex::new(span))),
+            inner: Some(Mutex::new(global::BoxedSpan::new(span))),
         })
     }
 
     fn with_span<T: crate::trace::Span + Send + Sync + 'static>(&self, span: T) -> Self {
         self.with_value(SynchronizedSpan {
             span_context: span.span_context().clone(),
-            inner: Some(Box::new(Mutex::new(span))),
+            inner: Some(Mutex::new(global::BoxedSpan::new(span))),
         })
     }
 
