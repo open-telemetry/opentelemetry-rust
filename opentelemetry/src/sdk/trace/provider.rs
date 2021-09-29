@@ -8,7 +8,7 @@
 //! propagators) are provided by the `TracerProvider`. `Tracer` instances do
 //! not duplicate this data to avoid that different `Tracer` instances
 //! of the `TracerProvider` have different versions of these data.
-use crate::sdk::resource::{SdkProvidedResourceDetector, EnvResourceDetector};
+use crate::sdk::resource::{EnvResourceDetector, SdkProvidedResourceDetector};
 use crate::sdk::trace::runtime::TraceRuntime;
 use crate::sdk::Resource;
 use crate::trace::TraceResult;
@@ -145,7 +145,10 @@ impl Builder {
         let mut config = self.config;
         let sdk_provided_resource = Resource::from_detectors(
             Duration::from_secs(0),
-            vec![Box::new(EnvResourceDetector::new()), Box::new(SdkProvidedResourceDetector)],
+            vec![
+                Box::new(EnvResourceDetector::new()),
+                Box::new(SdkProvidedResourceDetector),
+            ],
         );
         config.resource = match config.resource {
             None => Some(Arc::new(sdk_provided_resource)),
@@ -174,8 +177,8 @@ mod tests {
     use crate::sdk::Resource;
     use crate::trace::{TraceError, TraceResult, TracerProvider};
     use crate::{Context, Key, KeyValue};
-    use std::sync::Arc;
     use std::env;
+    use std::sync::Arc;
 
     #[derive(Debug)]
     struct TestSpanProcessor {
