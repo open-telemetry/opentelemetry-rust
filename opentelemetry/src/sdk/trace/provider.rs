@@ -146,19 +146,14 @@ impl Builder {
         let sdk_provided_resource = Resource::from_detectors(
             Duration::from_secs(0),
             vec![
-                Box::new(EnvResourceDetector::new()),
                 Box::new(SdkProvidedResourceDetector),
+                Box::new(EnvResourceDetector::new()),
             ],
         );
         config.resource = match config.resource {
             None => Some(Arc::new(sdk_provided_resource)),
-            Some(resource) => {
-                if resource.is_empty() {
-                    None
-                } else {
-                    Some(resource)
-                }
-            }
+            // User provided resource information has higher priority.
+            Some(resource) => Some(Arc::new(sdk_provided_resource.merge(resource))),
         };
         TracerProvider {
             inner: Arc::new(TracerProviderInner {
@@ -260,14 +255,41 @@ mod tests {
             ])))
         );
 
-        // If user provided a resource, it can override everything
+        // When `OTEL_RESOURCE_ATTRIBUTES` is set and also user provided config
+        env::set_var(
+            "OTEL_RESOURCE_ATTRIBUTES",
+            "my-custom-key=env-val,k2=value2",
+        );
+        let user_provided_resource_config_provider = super::TracerProvider::builder()
+            .with_config(Config {
+                resource: Some(Arc::new(Resource::new(vec![KeyValue::new(
+                    "my-custom-key",
+                    "my-custom-value",
+                )]))),
+                ..Default::default()
+            })
+            .build();
+        assert_eq!(
+            user_provided_resource_config_provider.config().resource,
+            Some(Arc::new(Resource::new(vec![
+                KeyValue::new("my-custom-key", "my-custom-value"),
+                KeyValue::new("k2", "value2"),
+                KeyValue::new("service.name", "unknown_service"),
+            ])))
+        );
+        env::remove_var("OTEL_RESOURCE_ATTRIBUTES");
+
+        // If user provided a resource, it takes priority during collision.
         let no_service_name = super::TracerProvider::builder()
             .with_config(Config {
-                resource: Some(Arc::new(Resource::empty())),
+                resource: Some(Arc::new(Resource::new(vec![KeyValue::new(
+                    "service.name",
+                    "user-given-service",
+                )]))),
                 ..Default::default()
             })
             .build();
 
-        assert_service_name(no_service_name, None);
+        assert_service_name(no_service_name, Some("user-given-service"));
     }
 }
