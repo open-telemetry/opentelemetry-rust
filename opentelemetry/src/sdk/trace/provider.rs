@@ -256,6 +256,7 @@ mod tests {
             Some(Arc::new(Resource::new(vec![
                 KeyValue::new("key1", "value1"),
                 KeyValue::new("k3", "value2"),
+                KeyValue::new("service.name", "unknown_service"),
             ])))
         );
 
