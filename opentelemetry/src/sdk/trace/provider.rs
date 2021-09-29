@@ -8,7 +8,7 @@
 //! propagators) are provided by the `TracerProvider`. `Tracer` instances do
 //! not duplicate this data to avoid that different `Tracer` instances
 //! of the `TracerProvider` have different versions of these data.
-use crate::sdk::resource::SdkProvidedResourceDetector;
+use crate::sdk::resource::{SdkProvidedResourceDetector, EnvResourceDetector};
 use crate::sdk::trace::runtime::TraceRuntime;
 use crate::sdk::Resource;
 use crate::trace::TraceResult;
@@ -145,7 +145,7 @@ impl Builder {
         let mut config = self.config;
         let sdk_provided_resource = Resource::from_detectors(
             Duration::from_secs(0),
-            vec![Box::new(SdkProvidedResourceDetector)],
+            vec![Box::new(EnvResourceDetector::new()), Box::new(SdkProvidedResourceDetector)],
         );
         config.resource = match config.resource {
             None => Some(Arc::new(sdk_provided_resource)),
@@ -175,6 +175,7 @@ mod tests {
     use crate::trace::{TraceError, TraceResult, TracerProvider};
     use crate::{Context, Key, KeyValue};
     use std::sync::Arc;
+    use std::env;
 
     #[derive(Debug)]
     struct TestSpanProcessor {
@@ -243,6 +244,17 @@ mod tests {
             })
             .build();
         assert_service_name(custom_config_provider, Some("test_service"));
+
+        // If `OTEL_RESOURCE_ATTRIBUTES` is set, read them automatically
+        env::set_var("OTEL_RESOURCE_ATTRIBUTES", "key1=value1, k2, k3=value2");
+        let env_resource_provider = super::TracerProvider::builder().build();
+        assert_eq!(
+            env_resource_provider.config().resource,
+            Some(Arc::new(Resource::new(vec![
+                KeyValue::new("key1", "value1"),
+                KeyValue::new("k3", "value2"),
+            ])))
+        );
 
         // If user provided a resource, it can override everything
         let no_service_name = super::TracerProvider::builder()
