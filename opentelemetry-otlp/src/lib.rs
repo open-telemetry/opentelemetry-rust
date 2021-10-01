@@ -297,7 +297,7 @@ pub enum Error {
 
     /// Wrap type for [`tonic::Status`]
     #[cfg(feature = "tonic")]
-    #[error("the grpc server returns error {code}")]
+    #[error("the grpc server returns error ({code}): {message}")]
     Status {
         /// grpc status code
         code: tonic::Code,
