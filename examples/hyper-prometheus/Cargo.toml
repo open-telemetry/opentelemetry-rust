@@ -9,7 +9,7 @@ publish = false
 [dependencies]
 opentelemetry = { path = "../../opentelemetry", features = ["rt-tokio"] }
 opentelemetry-prometheus = { path = "../../opentelemetry-prometheus" }
-prometheus = "0.12"
+prometheus = "0.13"
 lazy_static = "1.4"
 hyper = { version = "0.14", features = ["full"] }
 tokio = { version = "1", features = ["full"] }
