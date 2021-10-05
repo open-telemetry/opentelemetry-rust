@@ -21,7 +21,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 opentelemetry = { version = "0.16", path = "../opentelemetry", default-features = false, features = ["metrics"] }
-prometheus = "0.12"
+prometheus = "0.13"
 protobuf = "2.14"
 
 [dev-dependencies]
