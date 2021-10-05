@@ -153,7 +153,13 @@ impl Builder {
         config.resource = match config.resource {
             None => Some(Arc::new(sdk_provided_resource)),
             // User provided resource information has higher priority.
-            Some(resource) => Some(Arc::new(sdk_provided_resource.merge(resource))),
+            Some(resource) => {
+                if resource.is_empty() {
+                    None
+                } else {
+                    Some(Arc::new(sdk_provided_resource.merge(resource)))
+                }
+            }
         };
         TracerProvider {
             inner: Arc::new(TracerProviderInner {
@@ -282,14 +288,11 @@ mod tests {
         // If user provided a resource, it takes priority during collision.
         let no_service_name = super::TracerProvider::builder()
             .with_config(Config {
-                resource: Some(Arc::new(Resource::new(vec![KeyValue::new(
-                    "service.name",
-                    "user-given-service",
-                )]))),
+                resource: Some(Arc::new(Resource::empty())),
                 ..Default::default()
             })
             .build();
 
-        assert_service_name(no_service_name, Some("user-given-service"));
+        assert_service_name(no_service_name, None);
     }
 }
