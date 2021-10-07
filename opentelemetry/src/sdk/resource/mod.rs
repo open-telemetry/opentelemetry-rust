@@ -110,7 +110,7 @@ impl Resource {
 
         let mut resource = Resource::empty();
 
-        // attrs from self must be added first so they have priority
+        // attrs from self take the less priority, even when the new value is empty.
         for (k, v) in self.attrs.iter() {
             resource.attrs.insert(k.clone(), v.clone());
         }

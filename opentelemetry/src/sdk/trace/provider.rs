@@ -8,7 +8,7 @@
 //! propagators) are provided by the `TracerProvider`. `Tracer` instances do
 //! not duplicate this data to avoid that different `Tracer` instances
 //! of the `TracerProvider` have different versions of these data.
-use crate::sdk::resource::SdkProvidedResourceDetector;
+use crate::sdk::resource::{EnvResourceDetector, SdkProvidedResourceDetector};
 use crate::sdk::trace::runtime::TraceRuntime;
 use crate::sdk::Resource;
 use crate::trace::TraceResult;
@@ -145,15 +145,19 @@ impl Builder {
         let mut config = self.config;
         let sdk_provided_resource = Resource::from_detectors(
             Duration::from_secs(0),
-            vec![Box::new(SdkProvidedResourceDetector)],
+            vec![
+                Box::new(SdkProvidedResourceDetector),
+                Box::new(EnvResourceDetector::new()),
+            ],
         );
         config.resource = match config.resource {
             None => Some(Arc::new(sdk_provided_resource)),
+            // User provided resource information has higher priority.
             Some(resource) => {
                 if resource.is_empty() {
                     None
                 } else {
-                    Some(resource)
+                    Some(Arc::new(sdk_provided_resource.merge(resource)))
                 }
             }
         };
@@ -174,6 +178,7 @@ mod tests {
     use crate::sdk::Resource;
     use crate::trace::{TraceError, TraceResult, TracerProvider};
     use crate::{Context, Key, KeyValue};
+    use std::env;
     use std::sync::Arc;
 
     #[derive(Debug)]
@@ -244,7 +249,43 @@ mod tests {
             .build();
         assert_service_name(custom_config_provider, Some("test_service"));
 
-        // If user provided a resource, it can override everything
+        // If `OTEL_RESOURCE_ATTRIBUTES` is set, read them automatically
+        env::set_var("OTEL_RESOURCE_ATTRIBUTES", "key1=value1, k2, k3=value2");
+        let env_resource_provider = super::TracerProvider::builder().build();
+        assert_eq!(
+            env_resource_provider.config().resource,
+            Some(Arc::new(Resource::new(vec![
+                KeyValue::new("key1", "value1"),
+                KeyValue::new("k3", "value2"),
+                KeyValue::new("service.name", "unknown_service"),
+            ])))
+        );
+
+        // When `OTEL_RESOURCE_ATTRIBUTES` is set and also user provided config
+        env::set_var(
+            "OTEL_RESOURCE_ATTRIBUTES",
+            "my-custom-key=env-val,k2=value2",
+        );
+        let user_provided_resource_config_provider = super::TracerProvider::builder()
+            .with_config(Config {
+                resource: Some(Arc::new(Resource::new(vec![KeyValue::new(
+                    "my-custom-key",
+                    "my-custom-value",
+                )]))),
+                ..Default::default()
+            })
+            .build();
+        assert_eq!(
+            user_provided_resource_config_provider.config().resource,
+            Some(Arc::new(Resource::new(vec![
+                KeyValue::new("my-custom-key", "my-custom-value"),
+                KeyValue::new("k2", "value2"),
+                KeyValue::new("service.name", "unknown_service"),
+            ])))
+        );
+        env::remove_var("OTEL_RESOURCE_ATTRIBUTES");
+
+        // If user provided a resource, it takes priority during collision.
         let no_service_name = super::TracerProvider::builder()
             .with_config(Config {
                 resource: Some(Arc::new(Resource::empty())),
