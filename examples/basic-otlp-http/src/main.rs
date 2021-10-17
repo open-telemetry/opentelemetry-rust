@@ -14,7 +14,7 @@ fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
         .with_exporter(
             opentelemetry_otlp::new_exporter()
                 .http()
-                .with_endpoint("http://localhost:55681/v1/traces"),
+                .with_endpoint("http://localhost:4318/v1/traces"),
         )
         .install_batch(opentelemetry::runtime::Tokio)
 }
