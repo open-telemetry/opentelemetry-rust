@@ -64,6 +64,9 @@
 )]
 #![cfg_attr(test, deny(warnings))]
 
+#[cfg(feature = "prometheus-encoding")]
+pub use prometheus::{Encoder, TextEncoder};
+
 use opentelemetry::global;
 use opentelemetry::sdk::{
     export::metrics::{CheckpointSet, ExportKindSelector, Histogram, LastValue, Record, Sum},

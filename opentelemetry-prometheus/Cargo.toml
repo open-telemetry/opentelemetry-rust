@@ -28,3 +28,6 @@ protobuf = "2.14"
 tokio = { version = "1.0", features = ["full"] }
 hyper = { version = "0.14", features = ["full"] }
 lazy_static = "1.4"
+
+[features]
+prometheus-encoding = []
