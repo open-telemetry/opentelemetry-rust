@@ -1,4 +1,4 @@
-* The application send data directly to a Collector (port 55681)
+* The application send data directly to a Collector (port 4318)
 * Run the application locally, to run as a docker container you have to change the relative paths from the `Cargo.toml`
 * The Collector then sends the data to the appropriate backend, in this case JAEGER
 
