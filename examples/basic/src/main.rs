@@ -53,6 +53,9 @@ lazy_static::lazy_static! {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
+    // By binding the result to an unused variable, the lifetime of the variable
+    // matches the containing block, reporting traces and metrics during the whole
+    // execution.
     let _tracer = init_tracer()?;
     let _started = init_meter();
 
