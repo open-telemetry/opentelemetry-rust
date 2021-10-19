@@ -202,7 +202,7 @@ pub enum SpanExporterBuilder {
 
 impl SpanExporterBuilder {
     /// Build a OTLP span exporter using the given tonic configuration and exporter configuration.
-    fn build_span_exporter(self) -> Result<SpanExporter, TraceError> {
+    pub fn build_span_exporter(self) -> Result<SpanExporter, TraceError> {
         match self {
             #[cfg(feature = "tonic")]
             SpanExporterBuilder::Tonic(builder) => Ok(match builder.channel {
