@@ -199,7 +199,7 @@ mod span;
 mod transform;
 
 pub use crate::exporter::ExportConfig;
-pub use crate::span::{OtlpTracePipeline, SpanExporter};
+pub use crate::span::{OtlpTracePipeline, SpanExporter, SpanExporterBuilder};
 
 #[cfg(feature = "metrics")]
 pub use crate::metric::{MetricsExporter, OtlpMetricPipeline};
