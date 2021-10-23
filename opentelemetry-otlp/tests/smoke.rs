@@ -91,7 +91,7 @@ async fn smoke_tracer() {
             .span_builder("my-test-span")
             .with_kind(SpanKind::Server)
             .start(&tracer);
-        span.add_event("my-test-event".into(), vec![]);
+        span.add_event("my-test-event", vec![]);
         span.end();
 
         shutdown_tracer_provider();

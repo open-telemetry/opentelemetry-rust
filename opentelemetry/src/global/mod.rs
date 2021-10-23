@@ -156,6 +156,6 @@ pub use propagation::{get_text_map_propagator, set_text_map_propagator};
 #[cfg_attr(docsrs, doc(cfg(feature = "trace")))]
 pub use trace::{
     force_flush_tracer_provider, set_tracer_provider, shutdown_tracer_provider, tracer,
-    tracer_provider, tracer_with_version, BoxedSpan, BoxedTracer, GenericTracer,
-    GenericTracerProvider, GlobalTracerProvider,
+    tracer_provider, tracer_with_version, BoxedSpan, BoxedTracer, GlobalTracerProvider,
+    ObjectSafeTracer, ObjectSafeTracerProvider,
 };
