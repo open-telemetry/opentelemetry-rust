@@ -123,7 +123,6 @@
 //!     let tracer = opentelemetry_jaeger::new_pipeline()
 //!         .with_agent_endpoint("localhost:6831")
 //!         .with_service_name("my_app")
-//!         .with_tags(vec![KeyValue::new("process_key", "process_value")])
 //!         .with_max_packet_size(9_216)
 //!         .with_trace_config(
 //!             trace::config()
@@ -132,7 +131,8 @@
 //!                 .with_max_events_per_span(64)
 //!                 .with_max_attributes_per_span(16)
 //!                 .with_max_events_per_span(16)
-//!                 .with_resource(Resource::new(vec![KeyValue::new("key", "value")])),
+//!                 .with_resource(Resource::new(vec![KeyValue::new("key", "value"),
+//!                           KeyValue::new("process_key", "process_value")])),
 //!         )
 //!         .install_batch(opentelemetry::runtime::Tokio)?;
 //!
