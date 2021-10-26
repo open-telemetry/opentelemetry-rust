@@ -274,14 +274,12 @@ impl MetricsExporter {
             None => endpoint,
         }
         .timeout(config.timeout)
-        .connect_lazy()
-        .map_err::<crate::Error, _>(Into::into)?;
+        .connect_lazy();
 
         #[cfg(not(feature = "tls"))]
         let channel = endpoint
             .timeout(config.timeout)
-            .connect_lazy()
-            .map_err::<crate::Error, _>(Into::into)?;
+            .connect_lazy();
 
         let client = MetricsServiceClient::new(channel);
 

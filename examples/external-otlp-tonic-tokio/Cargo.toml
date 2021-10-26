@@ -9,5 +9,5 @@ opentelemetry = { path = "../../opentelemetry", features = ["rt-tokio", "metrics
 opentelemetry-otlp = { path = "../../opentelemetry-otlp", features = ["tonic", "tls", "tls-roots"] }
 serde_json = "1.0"
 tokio = { version = "1.0", features = ["full"] }
-tonic = "0.5.0"
+tonic = "0.6"
 url = "2.2.0"
