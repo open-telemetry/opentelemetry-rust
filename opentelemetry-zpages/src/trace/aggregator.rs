@@ -206,7 +206,6 @@ mod tests {
     use crate::trace::aggregator::{SpanAggregator, LATENCY_BUCKET_COUNT};
     use crate::trace::span_queue::SpanQueue;
     use crate::trace::TracezMessage;
-    use chrono::{DateTime, NaiveDateTime, Utc};
     use opentelemetry::sdk::export::trace::SpanData;
     use opentelemetry::testing::trace::new_test_export_span_data;
     use std::borrow::Cow;
@@ -264,18 +263,17 @@ mod tests {
         pub(crate) fn get_input(&self) -> (Vec<SpanData>, Vec<SpanData>) {
             let mut start_spans = Vec::new();
             let mut end_spans = Vec::new();
-            let start_time = DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(61, 0), Utc);
+            let start_time = SystemTime::now();
             for input in &self.input {
                 let mut span_data = span_data(input.0, input.1, input.2, input.3);
                 match input.4 {
                     Action::Start => {
-                        span_data.start_time = start_time.into();
+                        span_data.start_time = start_time;
                         start_spans.push(span_data);
                     }
                     Action::End(duration) => {
-                        span_data.start_time = start_time.into();
-                        span_data.end_time =
-                            SystemTime::from(start_time).checked_add(duration).unwrap();
+                        span_data.start_time = start_time;
+                        span_data.end_time = start_time.checked_add(duration).unwrap();
                         end_spans.push(span_data);
                     }
                 }
