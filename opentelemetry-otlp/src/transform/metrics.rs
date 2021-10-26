@@ -314,7 +314,6 @@ mod tests {
         use crate::transform::common::tonic::Attributes;
         use crate::transform::metrics::tonic::merge;
         use crate::transform::{record_to_metric, sink, ResourceWrapper};
-        use chrono::prelude::*;
         use opentelemetry::attributes::AttributeSet;
         use opentelemetry::metrics::{
             Descriptor, InstrumentKind, MetricsError, Number, NumberKind,
@@ -326,6 +325,7 @@ mod tests {
         use opentelemetry::sdk::{InstrumentationLibrary, Resource};
         use std::cmp::Ordering;
         use std::sync::Arc;
+        use time::macros::datetime;
 
         impl From<(&str, &str)> for KeyValue {
             fn from(kv: (&str, &str)) -> Self {
@@ -500,8 +500,8 @@ mod tests {
                 opentelemetry::KeyValue::new("process", "rust"),
                 opentelemetry::KeyValue::new("runtime", "sync"),
             ]);
-            let start_time = Utc.ymd(2020, 12, 25).and_hms(10, 10, 0); // unit nano 1608891000000000000
-            let end_time = Utc.ymd(2020, 12, 25).and_hms(10, 10, 30); // unix nano 1608891030000000000
+            let start_time = datetime!(2020-12-25 10:10:0 UTC); // unit nano 1608891000000000000
+            let end_time = datetime!(2020-12-25 10:10:30 UTC); // unix nano 1608891030000000000
 
             // Sum
             {
