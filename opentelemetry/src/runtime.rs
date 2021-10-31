@@ -6,7 +6,7 @@
 //! [Tokio]: https://crates.io/crates/tokio
 //! [async-std]: https://crates.io/crates/async-std
 
-use futures::{future::BoxFuture, Stream};
+use futures_util::{future::BoxFuture, Stream};
 use std::{future::Future, time::Duration};
 
 /// A runtime is an abstraction of an async runtime like [Tokio] or [async-std]. It allows
@@ -23,7 +23,7 @@ pub trait Runtime: Clone + Send + Sync + 'static {
     /// not important.
     type Delay: Future + Send;
 
-    /// Create a [Stream][futures::Stream], which returns a new item every
+    /// Create a [Stream][futures_util::Stream], which returns a new item every
     /// [Duration][std::time::Duration].
     fn interval(&self, duration: Duration) -> Self::Interval;
 

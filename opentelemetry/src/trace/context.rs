@@ -296,7 +296,7 @@ impl<T: std::future::Future> std::future::Future for WithContext<T> {
     }
 }
 
-impl<T: futures::Stream> futures::Stream for WithContext<T> {
+impl<T: futures_util::Stream> futures_util::Stream for WithContext<T> {
     type Item = T::Item;
 
     fn poll_next(self: Pin<&mut Self>, task_cx: &mut TaskContext<'_>) -> Poll<Option<Self::Item>> {
@@ -306,9 +306,9 @@ impl<T: futures::Stream> futures::Stream for WithContext<T> {
     }
 }
 
-impl<I, T: futures::Sink<I>> futures::Sink<I> for WithContext<T>
+impl<I, T: futures_util::Sink<I>> futures_util::Sink<I> for WithContext<T>
 where
-    T: futures::Sink<I>,
+    T: futures_util::Sink<I>,
 {
     type Error = T::Error;
 
@@ -339,7 +339,7 @@ where
     fn poll_close(
         self: Pin<&mut Self>,
         task_cx: &mut TaskContext<'_>,
-    ) -> futures::task::Poll<Result<(), Self::Error>> {
+    ) -> futures_util::task::Poll<Result<(), Self::Error>> {
         let this = self.project();
         let _enter = this.otel_cx.clone().attach();
         T::poll_close(this.inner, task_cx)
