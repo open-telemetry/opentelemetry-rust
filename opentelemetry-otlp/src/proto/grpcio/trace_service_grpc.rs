@@ -50,7 +50,7 @@ impl TraceServiceClient {
     pub fn export_async(&self, req: &super::trace_service::ExportTraceServiceRequest) -> ::grpcio::Result<::grpcio::ClientUnaryReceiver<super::trace_service::ExportTraceServiceResponse>> {
         self.export_async_opt(req, ::grpcio::CallOption::default())
     }
-    pub fn spawn<F>(&self, f: F) where F: ::futures::Future<Output = ()> + Send + 'static {
+    pub fn spawn<F>(&self, f: F) where F: ::futures_core::Future<Output = ()> + Send + 'static {
         self.client.spawn(f)
     }
 }
