@@ -674,7 +674,7 @@ mod tests {
     // single -> no shutdown -> not export
     // single -> shutdown -> hang forever
 
-    // When using |fut| tokio::task::spawn_blocking(|| futures::executor::block_on(fut))
+    // When using |fut| tokio::task::spawn_blocking(|| futures_executor::block_on(fut))
     // to spawn the worker task in batch processor
     //
     // multiple -> no shutdown -> hang forever
