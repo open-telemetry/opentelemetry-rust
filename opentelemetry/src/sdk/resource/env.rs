@@ -3,7 +3,7 @@
 //! Implementation of `ResourceDetector` to extract a `Resource` from environment
 //! variables.
 use crate::sdk::{resource::ResourceDetector, Resource};
-use crate::KeyValue;
+use crate::{Key, KeyValue};
 use std::env;
 use std::time::Duration;
 
@@ -62,6 +62,15 @@ fn construct_otel_resources(s: String) -> Resource {
 /// [the Resource SDK specification]. This detector detect those attributes and
 /// if the attribute cannot be detected, use the default value.
 ///
+/// This detector will first try `OTEL_SERVICE_NAME` env. If it's not available.
+/// Then it will check the `OTEL_RESOURCE_ATTRIBUTES` env and see if it contains
+/// `service.name` resource. If it's also not available. Then it will use
+/// `unknown_service`.
+///
+/// Note that if `service.name` is empty. It will be ignore and the service name will
+/// be `unknown_service`. If users want to set an empty service name. They can provide
+/// a resource with empty value and `service.name` key.
+///
 /// [the Resource SDK specification]:https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/resource/sdk.md#sdk-provided-resource-attributes
 #[derive(Debug)]
 pub struct SdkProvidedResourceDetector;
@@ -73,7 +82,14 @@ impl ResourceDetector for SdkProvidedResourceDetector {
             env::var(OTEL_SERVICE_NAME)
                 .ok()
                 .filter(|s| !s.is_empty())
-                .unwrap_or_else(|| "unknown_service".to_string()),
+                .unwrap_or_else(|| {
+                    EnvResourceDetector::new()
+                        .detect(Duration::from_secs(0))
+                        .get(Key::new("service.name"))
+                        .map(|v| v.to_string())
+                        .filter(|s| !s.is_empty())
+                        .unwrap_or_else(|| "unknown_service".to_string())
+                }),
         )])
     }
 }
@@ -128,6 +144,24 @@ mod tests {
             with_service.get(Key::from_static_str(SERVICE_NAME)),
             Some(Value::from("test service")),
         );
+        env::set_var(OTEL_SERVICE_NAME, ""); // clear the env var
+
+        // Fall back to OTEL_RESOURCE_ATTRIBUTES
+        env::set_var(OTEL_RESOURCE_ATTRIBUTES, "service.name=test service1");
+        let with_service = SdkProvidedResourceDetector.detect(Duration::from_secs(1));
+        assert_eq!(
+            with_service.get(Key::from_static_str(SERVICE_NAME)),
+            Some(Value::from("test service1"))
+        );
+
+        // OTEL_SERVICE_NAME takes priority
+        env::set_var(OTEL_SERVICE_NAME, "test service");
+        let with_service = SdkProvidedResourceDetector.detect(Duration::from_secs(1));
+        assert_eq!(
+            with_service.get(Key::from_static_str(SERVICE_NAME)),
+            Some(Value::from("test service"))
+        );
+        env::set_var(OTEL_RESOURCE_ATTRIBUTES, "");
         env::set_var(OTEL_SERVICE_NAME, ""); // clear the env var
     }
 }
