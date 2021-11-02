@@ -51,6 +51,7 @@ http = "0.2"
 serde = { version = "1.0", features = ["derive"], optional = true }
 
 [dev-dependencies]
+futures-util = "0.3"
 tokio-stream = { version = "0.1", features = ["net"] }
 # need tokio runtime to run smoke tests.
 opentelemetry = { features = ["trace", "rt-tokio"], path = "../opentelemetry" }
