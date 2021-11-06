@@ -7,8 +7,6 @@ use opentelemetry::{
     trace::{FutureExt, TraceContextExt, Tracer},
     Key,
 };
-use opentelemetry::sdk::Resource;
-use opentelemetry::sdk::trace::Config;
 
 fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
     opentelemetry_jaeger::new_pipeline()

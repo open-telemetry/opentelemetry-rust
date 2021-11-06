@@ -296,11 +296,12 @@ impl PipelineBuilder {
     /// use opentelemetry_jaeger::PipelineBuilder;
     /// use opentelemetry::sdk;
     /// use opentelemetry::sdk::Resource;
+    /// use opentelemetry::KeyValue;
     ///
     /// let pipeline = PipelineBuilder::default()
     ///                 .with_trace_config(
     ///                       sdk::trace::Config::default()
-    ///                         .with_resource(sdk::Resource::new(vec![("service.name", "my-service")]))
+    ///                         .with_resource(Resource::new(vec![KeyValue::new("service.name", "my-service")]))
     ///                 );
     ///
     /// ```
@@ -358,12 +359,12 @@ impl PipelineBuilder {
             (Config::default(), sdk_provided_resource)
         };
 
-        let service_name = self.service_name.clone().unwrap_or(
+        let service_name = self.service_name.clone().unwrap_or_else(|| {
             resource
                 .get(semcov::resource::SERVICE_NAME)
                 .map(|v| v.to_string())
-                .unwrap_or("unknown_service".to_string()),
-        );
+                .unwrap_or_else(|| "unknown_service".to_string())
+        });
 
         // merge the tags and resource. Resources take priority.
         let mut tags = resource
@@ -902,7 +903,6 @@ mod collector_client_tests {
 
 #[cfg(test)]
 mod tests {
-    use std::env;
     use super::SPAN_KIND;
     use crate::exporter::thrift::jaeger::Tag;
     use crate::exporter::{build_span_tags, OTEL_STATUS_CODE, OTEL_STATUS_DESCRIPTION};
@@ -910,6 +910,7 @@ mod tests {
     use opentelemetry::sdk::Resource;
     use opentelemetry::trace::{SpanKind, StatusCode};
     use opentelemetry::KeyValue;
+    use std::env;
     use std::sync::Arc;
 
     fn assert_tag_contains(tags: Vec<Tag>, key: &'static str, expect_val: &'static str) {
