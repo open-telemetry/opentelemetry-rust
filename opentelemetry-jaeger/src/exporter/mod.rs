@@ -289,6 +289,21 @@ impl PipelineBuilder {
     }
 
     /// Assign the SDK config for the exporter pipeline.
+    ///
+    /// # Examples
+    /// Set service name via resource.
+    /// ```rust
+    /// use opentelemetry_jaeger::PipelineBuilder;
+    /// use opentelemetry::sdk;
+    /// use opentelemetry::sdk::Resource;
+    ///
+    /// let pipeline = PipelineBuilder::default()
+    ///                 .with_trace_config(
+    ///                       sdk::trace::Config::default()
+    ///                         .with_resource(sdk::Resource::new(vec![("service.name", "my-service")]))
+    ///                 );
+    ///
+    /// ```
     pub fn with_trace_config(self, config: sdk::trace::Config) -> Self {
         PipelineBuilder {
             config: Some(config),

@@ -106,6 +106,32 @@
 //!     Ok(())
 //! }
 //! ```
+//! ## Resource, tags and service name
+//! In order to export the spans in different format. opentelemetry uses its own
+//! model internally. Most of the jaeger spans' concept can be found in this model.
+//! The full list of this mapping can be found in [OpenTelemetry to Jaeger Transformation].
+//!
+//! The **process tags** in jaeger spans will be mapped as resource in opentelemetry. You can
+//! set it through `OTEL_RESOURCE_ATTRIBUTES` environment variable or using [`PipelineBuilder::with_trace_config`].
+//!
+//! Note that to avoid copying data multiple times. Jaeger exporter will uses resource stored in [`Exporter`].
+//!
+//! The **tags** in jaeger spans will be mapped as attributes in opentelemetry spans. You can
+//! set it through [`set_attribute`] method.
+//!
+//! Each jaeger span requires a **service name**. This will be mapped as a resource with `service.name` key.
+//! You can set it using one of the following methods from highest priority to lowest priority.
+//! 1. [`PipelineBuilder::with_service_name`].
+//! 2. include a `service.name` key value pairs when configure resource using [`PipelineBuilder::with_trace_config`].
+//! 3. set the service name as `OTEL_SERVCE_NAME` environment variable.
+//! 4. set the `service.name` attributes in `OTEL_RESOURCE_ATTRIBUTES`.
+//! 5. if the service name is not provided by the above method. `unknown_service` will be used.
+//!
+//! Based on the service name, we update/append the `service.name` process tags in jaeger spans.
+//!
+//! [`set_attribute`]: https://docs.rs/opentelemetry/0.16.0/opentelemetry/trace/trait.Span.html#tymethod.set_attribute
+//!
+//! [OpenTelemetry to Jaeger Transformation]:https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/sdk_exporters/jaeger.md
 //!
 //! ## Kitchen Sink Full Configuration
 //!
