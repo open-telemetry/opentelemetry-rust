@@ -15,12 +15,7 @@ use std::time::Duration;
 
 fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
     opentelemetry_jaeger::new_pipeline()
-        // .with_service_name("trace-demo")
-        .with_tags(vec![
-            KeyValue::new("exporter", "jaeger"),
-            KeyValue::new("float", 312.23),
-            KeyValue::new("service.name", "test_service"),
-        ])
+        .with_service_name("trace-demo")
         .with_trace_config(Config::default().with_resource(Resource::new(vec![
             KeyValue::new("service.name", "new_service"),
             KeyValue::new("exporter", "otlp-jaeger"),

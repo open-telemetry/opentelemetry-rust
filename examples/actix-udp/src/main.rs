@@ -7,20 +7,18 @@ use opentelemetry::{
     trace::{FutureExt, TraceContextExt, Tracer},
     Key,
 };
+use opentelemetry::sdk::Resource;
+use opentelemetry::sdk::trace::Config;
 
 fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
     opentelemetry_jaeger::new_pipeline()
         .with_agent_endpoint("localhost:6831")
         .with_service_name("trace-udp-demo")
-        .with_tags(vec![
-            opentelemetry::KeyValue::new("exporter", "jaeger"),
-            opentelemetry::KeyValue::new("service.name", "my-service2"),
-            opentelemetry::KeyValue::new("service.namespace", "my-namespace2"),
-        ])
         .with_trace_config(opentelemetry::sdk::trace::config().with_resource(
             opentelemetry::sdk::Resource::new(vec![
-                opentelemetry::KeyValue::new("service.name", "my-service"),
+                opentelemetry::KeyValue::new("service.name", "my-service"), // this will not override the trace-udp-demo
                 opentelemetry::KeyValue::new("service.namespace", "my-namespace"),
+                opentelemetry::KeyValue::new("exporter", "jaeger"),
             ]),
         ))
         .install_simple()
