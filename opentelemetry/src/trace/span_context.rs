@@ -210,7 +210,7 @@ impl TraceState {
             if i == 0 && (!b.is_ascii_lowercase() && !b.is_ascii_digit()) {
                 return false;
             } else if b == b'@' {
-                if vendor_start.is_some() || i < key.len() - 14 {
+                if vendor_start.is_some() || i + 14 < key.len() {
                     return false;
                 }
                 vendor_start = Some(i);
@@ -562,6 +562,23 @@ mod tests {
             let deleted_trace_state = deleted_trace_state.unwrap();
 
             assert!(deleted_trace_state.get(test_case.2).is_none());
+        }
+    }
+
+    #[test]
+    fn test_trace_state_key() {
+        let test_data: Vec<(&'static str, bool)> = vec![
+            ("123", true),
+            ("bar", true),
+            ("foo@bar", true),
+            ("foo@0123456789abcdef", false),
+            ("foo@012345678", true),
+            ("FOO@BAR", false),
+            ("你好", false),
+        ];
+
+        for (key, expected) in test_data {
+            assert_eq!(TraceState::valid_key(key), expected, "test key: {:?}", key);
         }
     }
 
