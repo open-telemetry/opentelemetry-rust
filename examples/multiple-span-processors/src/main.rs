@@ -1,6 +1,7 @@
 use opentelemetry::global::{self, shutdown_tracer_provider};
 use opentelemetry::sdk::export::trace::stdout::Exporter as StdoutExporter;
-use opentelemetry::sdk::trace::{BatchSpanProcessor, TracerProvider};
+use opentelemetry::sdk::trace::{BatchSpanProcessor, Config, TracerProvider};
+use opentelemetry::sdk::Resource;
 use opentelemetry::trace::{mark_span_as_active, TraceError, Tracer};
 use opentelemetry::KeyValue;
 use std::io::stdout;
@@ -11,7 +12,10 @@ fn init_tracer() -> Result<(), TraceError> {
     let jaeger_processor = BatchSpanProcessor::builder(
         opentelemetry_jaeger::new_pipeline()
             .with_service_name("trace-demo")
-            .with_tags(vec![KeyValue::new("exporter", "jaeger")])
+            .with_trace_config(
+                Config::default()
+                    .with_resource(Resource::new(vec![KeyValue::new("exporter", "jaeger")])),
+            )
             .init_async_exporter(opentelemetry::runtime::Tokio)?,
         opentelemetry::runtime::Tokio,
     )

@@ -12,6 +12,13 @@ fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
     opentelemetry_jaeger::new_pipeline()
         .with_agent_endpoint("localhost:6831")
         .with_service_name("trace-udp-demo")
+        .with_trace_config(opentelemetry::sdk::trace::config().with_resource(
+            opentelemetry::sdk::Resource::new(vec![
+                opentelemetry::KeyValue::new("service.name", "my-service"), // this will not override the trace-udp-demo
+                opentelemetry::KeyValue::new("service.namespace", "my-namespace"),
+                opentelemetry::KeyValue::new("exporter", "jaeger"),
+            ]),
+        ))
         .install_simple()
 }
 
@@ -42,7 +49,7 @@ async fn main() -> std::io::Result<()> {
             })
             .route("/", web::get().to(index))
     })
-    .bind("127.0.0.1:8088")
+    .bind("127.0.0.1:8080")
     .unwrap()
     .run()
     .await
