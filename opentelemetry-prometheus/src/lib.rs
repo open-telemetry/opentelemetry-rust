@@ -69,7 +69,9 @@ pub use prometheus::{Encoder, TextEncoder};
 
 use opentelemetry::global;
 use opentelemetry::sdk::{
-    export::metrics::{CheckpointSet, ExportKindSelector, Histogram, LastValue, Record, Sum},
+    export::metrics::{
+        AggregatorSelector, CheckpointSet, ExportKindSelector, Histogram, LastValue, Record, Sum,
+    },
     metrics::{
         aggregators::{HistogramAggregator, LastValueAggregator, SumAggregator},
         controllers,
@@ -149,6 +151,9 @@ pub struct ExporterBuilder {
     ///
     /// If not set it will be defaulted to port 9464
     port: Option<u16>,
+
+    /// The aggregator selector used by the prometheus exporter.
+    aggegator_selector: Option<Box<dyn AggregatorSelector + Send + Sync>>,
 }
 
 impl Default for ExporterBuilder {
@@ -176,6 +181,7 @@ impl Default for ExporterBuilder {
             registry: None,
             host: env::var(ENV_EXPORTER_HOST).ok().filter(|s| !s.is_empty()),
             port,
+            aggegator_selector: None,
         }
     }
 }
@@ -240,6 +246,17 @@ impl ExporterBuilder {
         }
     }
 
+    /// Set the aggregation selector for the prometheus exporter
+    pub fn with_aggregator_selector(
+        self,
+        aggregator_selector: Box<dyn AggregatorSelector + Send + Sync>,
+    ) -> Self {
+        ExporterBuilder {
+            aggegator_selector: Some(aggregator_selector),
+            ..self
+        }
+    }
+
     /// Sets up a complete export pipeline with the recommended setup, using the
     /// recommended selector and standard processor.
     pub fn try_init(self) -> Result<PrometheusExporter, MetricsError> {
@@ -251,7 +268,9 @@ impl ExporterBuilder {
         let default_histogram_boundaries = self
             .default_histogram_boundaries
             .unwrap_or_else(|| vec![0.5, 0.9, 0.99]);
-        let selector = Box::new(Selector::Histogram(default_histogram_boundaries));
+        let selector = self
+            .aggegator_selector
+            .unwrap_or_else(|| Box::new(Selector::Histogram(default_histogram_boundaries)));
         let mut controller_builder = controllers::pull(selector, Box::new(EXPORT_KIND_SELECTOR))
             .with_cache_period(self.cache_period.unwrap_or(DEFAULT_CACHE_PERIOD))
             .with_memory(true);
