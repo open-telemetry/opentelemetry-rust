@@ -4,6 +4,7 @@ use crate::proto::tracez::{ErrorData, LatencyData, RunningData};
 use opentelemetry::sdk::export::trace::SpanData;
 use opentelemetry::sdk::trace::EvictedHashMap;
 use opentelemetry::trace::{Event, Link, SpanKind, StatusCode};
+use opentelemetry::util::take_or_else_clone;
 use opentelemetry::{Array, Value};
 use protobuf::RepeatedField;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -166,6 +167,7 @@ impl From<Value> for AnyValue {
             Value::I64(val) => any_value.set_int_value(val),
             Value::F64(val) => any_value.set_double_value(val),
             Value::String(val) => any_value.set_string_value(val.into_owned()),
+            Value::SharedString(val) => any_value.set_string_value(take_or_else_clone(val)),
             Value::Array(array) => any_value.set_array_value(match array {
                 Array::Bool(vals) => array_into_proto(vals),
                 Array::I64(vals) => array_into_proto(vals),

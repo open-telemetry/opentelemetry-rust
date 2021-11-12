@@ -1,4 +1,5 @@
 use opentelemetry::sdk::trace::EvictedHashMap;
+use opentelemetry::util::take_or_else_clone;
 use opentelemetry::{Array, Value};
 
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -56,6 +57,9 @@ pub(crate) mod tonic {
                     Value::I64(val) => Some(any_value::Value::IntValue(val)),
                     Value::F64(val) => Some(any_value::Value::DoubleValue(val)),
                     Value::String(val) => Some(any_value::Value::StringValue(val.into_owned())),
+                    Value::SharedString(val) => {
+                        Some(any_value::Value::StringValue(take_or_else_clone(val)))
+                    }
                     Value::Array(array) => Some(any_value::Value::ArrayValue(match array {
                         Array::Bool(vals) => array_into_proto(vals),
                         Array::I64(vals) => array_into_proto(vals),
@@ -135,6 +139,9 @@ pub(crate) mod prost {
                     Value::I64(val) => Some(any_value::Value::IntValue(val)),
                     Value::F64(val) => Some(any_value::Value::DoubleValue(val)),
                     Value::String(val) => Some(any_value::Value::StringValue(val.into_owned())),
+                    Value::SharedString(val) => {
+                        Some(any_value::Value::StringValue(take_or_else_clone(val)))
+                    }
                     Value::Array(array) => Some(any_value::Value::ArrayValue(match array {
                         Array::Bool(vals) => array_into_proto(vals),
                         Array::I64(vals) => array_into_proto(vals),
@@ -208,6 +215,7 @@ pub(crate) mod grpcio {
                 Value::I64(val) => any_value.set_int_value(val),
                 Value::F64(val) => any_value.set_double_value(val),
                 Value::String(val) => any_value.set_string_value(val.into_owned()),
+                Value::SharedString(val) => any_value.set_string_value(take_or_else_clone(val)),
                 Value::Array(array) => any_value.set_array_value(match array {
                     Array::Bool(vals) => array_into_proto(vals),
                     Array::I64(vals) => array_into_proto(vals),

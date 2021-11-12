@@ -85,6 +85,7 @@ fn hash_value<H: Hasher>(state: &mut H, value: &Value) {
             f.to_bits().hash(state)
         }
         Value::String(s) => s.hash(state),
+        Value::SharedString(s) => s.hash(state),
         Value::Array(arr) => match arr {
             // recursively hash array values
             Array::Bool(values) => values.iter().for_each(|v| v.hash(state)),

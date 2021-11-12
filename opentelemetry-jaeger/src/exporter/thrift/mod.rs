@@ -4,6 +4,7 @@
 use std::time::{Duration, SystemTime};
 
 use opentelemetry::trace::Event;
+use opentelemetry::util::take_or_else_clone;
 use opentelemetry::{Key, KeyValue, Value};
 
 pub(crate) mod agent;
@@ -60,6 +61,7 @@ impl From<KeyValue> for jaeger::Tag {
         let KeyValue { key, value } = kv;
         match value {
             Value::String(s) => jaeger::Tag::new(key.into(), jaeger::TagType::String, Some(s.into()), None, None, None, None),
+            Value::SharedString(s) => jaeger::Tag::new(key.into(), jaeger::TagType::String, Some(take_or_else_clone(s)), None, None, None, None),
             Value::F64(f) => jaeger::Tag::new(key.into(), jaeger::TagType::Double, None, Some(f.into()), None, None, None),
             Value::Bool(b) => jaeger::Tag::new(key.into(), jaeger::TagType::Bool, None, None, Some(b), None, None),
             Value::I64(i) => jaeger::Tag::new(key.into(), jaeger::TagType::Long, None, None, None, Some(i), None),

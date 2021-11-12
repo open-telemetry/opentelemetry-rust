@@ -2,6 +2,7 @@
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::fmt;
+use std::sync::Arc;
 
 /// Key used for metric `AttributeSet`s and trace `Span` attributes.
 #[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
@@ -168,6 +169,8 @@ pub enum Value {
     F64(f64),
     /// String values
     String(Cow<'static, str>),
+    /// String values
+    SharedString(Arc<String>),
     /// Array of homogeneous values
     Array(Array),
 }
@@ -182,6 +185,7 @@ impl Value {
             Value::I64(v) => format!("{}", v).into(),
             Value::F64(v) => format!("{}", v).into(),
             Value::String(v) => Cow::Borrowed(v.as_ref()),
+            Value::SharedString(v) => Cow::Borrowed(v.as_ref()),
             Value::Array(v) => format!("{}", v).into(),
         }
     }
@@ -224,13 +228,21 @@ impl From<String> for Value {
     }
 }
 
+impl From<Arc<String>> for Value {
+    /// Convenience method for creating a `Value` from an `Arc<String>`.
+    fn from(s: Arc<String>) -> Self {
+        Value::SharedString(s)
+    }
+}
+
 impl fmt::Display for Value {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Value::Bool(v) => fmt.write_fmt(format_args!("{}", v)),
             Value::I64(v) => fmt.write_fmt(format_args!("{}", v)),
             Value::F64(v) => fmt.write_fmt(format_args!("{}", v)),
-            Value::String(v) => fmt.write_fmt(format_args!("{}", v)),
+            Value::String(v) => fmt.write_str(v),
+            Value::SharedString(v) => fmt.write_str(v),
             Value::Array(v) => fmt.write_fmt(format_args!("{}", v)),
         }
     }
