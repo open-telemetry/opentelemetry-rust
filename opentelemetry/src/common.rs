@@ -52,6 +52,14 @@ impl Key {
         }
     }
 
+    /// Create a `KeyValue` pair for `Arc<String>` values.
+    pub fn shared_string<T: Into<Arc<String>>>(self, value: T) -> KeyValue {
+        KeyValue {
+            key: self,
+            value: Value::SharedString(value.into()),
+        }
+    }
+
     /// Create a `KeyValue` pair for arrays.
     pub fn array<T: Into<Array>>(self, value: T) -> KeyValue {
         KeyValue {
@@ -178,7 +186,7 @@ pub enum Value {
 impl Value {
     /// String representation of the `Value`
     ///
-    /// This will allocate iff the underlying value is not a `String`.
+    /// This will allocate iff the underlying value is not a `String` or `SharedString`.
     pub fn as_str(&self) -> Cow<'_, str> {
         match self {
             Value::Bool(v) => format!("{}", v).into(),
@@ -212,6 +220,7 @@ from_values!(
     (i64, Value::I64);
     (f64, Value::F64);
     (Cow<'static, str>, Value::String);
+    (Arc<String>, Value::SharedString);
 );
 
 impl From<&'static str> for Value {
@@ -225,13 +234,6 @@ impl From<String> for Value {
     /// Convenience method for creating a `Value` from a `String`.
     fn from(s: String) -> Self {
         Value::String(s.into())
-    }
-}
-
-impl From<Arc<String>> for Value {
-    /// Convenience method for creating a `Value` from an `Arc<String>`.
-    fn from(s: Arc<String>) -> Self {
-        Value::SharedString(s)
     }
 }
 
