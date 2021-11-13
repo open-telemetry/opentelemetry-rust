@@ -273,3 +273,20 @@ impl KeyValue {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn value_owns_shared_string() {
+        let shared_str = Arc::new(String::from("val"));
+        let kvp = KeyValue::new("key", shared_str);
+        match &kvp.value {
+            Value::SharedString(v) => assert_eq!(Arc::strong_count(v), 1),
+            _ => assert!(false, "wrong value type"),
+        }
+        assert_eq!(kvp.value.as_str(), "val");
+        assert_eq!(kvp.value.to_string(), "val");
+    }
+}

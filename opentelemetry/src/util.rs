@@ -13,3 +13,18 @@ pub fn tokio_interval_stream(
 pub fn take_or_else_clone<T: Clone>(value: Arc<T>) -> T {
     Arc::try_unwrap(value).unwrap_or_else(|arc| (*arc).clone())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn takes_or_else_clones() {
+        let value1 = Arc::new(String::new());
+        let value2 = Arc::clone(&value1);
+        let value_weak = Arc::downgrade(&value1);
+        let _ = take_or_else_clone(value2);
+        let _ = take_or_else_clone(value1);
+        assert!(value_weak.upgrade().is_none());
+    }
+}
