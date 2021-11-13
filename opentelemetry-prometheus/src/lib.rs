@@ -247,12 +247,12 @@ impl ExporterBuilder {
     }
 
     /// Set the aggregation selector for the prometheus exporter
-    pub fn with_aggregator_selector(
-        self,
-        aggregator_selector: Box<dyn AggregatorSelector + Send + Sync>,
-    ) -> Self {
+    pub fn with_aggregator_selector<T>(self, aggregator_selector: T) -> Self
+    where
+        T: AggregatorSelector + Send + Sync + 'static,
+    {
         ExporterBuilder {
-            aggegator_selector: Some(aggregator_selector),
+            aggegator_selector: Some(Box::new(aggregator_selector)),
             ..self
         }
     }
