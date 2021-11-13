@@ -284,7 +284,7 @@ mod tests {
         let kvp = KeyValue::new("key", shared_str);
         match &kvp.value {
             Value::SharedString(v) => assert_eq!(Arc::strong_count(v), 1),
-            _ => assert!(false, "wrong value type"),
+            _ => panic!("wrong value type"),
         }
         assert_eq!(kvp.value.as_str(), "val");
         assert_eq!(kvp.value.to_string(), "val");
