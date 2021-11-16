@@ -11,7 +11,7 @@ services:
 
   # Collector
   otel-collector:
-    image: otel/opentelemetry-collector-dev:latest
+    image: otel/opentelemetry-collector:latest
     command: ["--config=/etc/otel-collector-config.yaml", "${OTELCOL_ARGS}"]
     volumes:
       - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
