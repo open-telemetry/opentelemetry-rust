@@ -9,12 +9,13 @@ pub(crate) mod tonic {
     use crate::proto::common::v1::{
         any_value, AnyValue, ArrayValue, InstrumentationLibrary, KeyValue,
     };
+    use std::borrow::Cow;
 
     impl From<opentelemetry::sdk::InstrumentationLibrary> for InstrumentationLibrary {
         fn from(library: opentelemetry::sdk::InstrumentationLibrary) -> Self {
             InstrumentationLibrary {
                 name: library.name.to_string(),
-                version: library.version.unwrap_or("").to_string(),
+                version: library.version.unwrap_or(Cow::Borrowed("")).to_string(),
             }
         }
     }
@@ -86,12 +87,13 @@ pub(crate) mod prost {
     use crate::proto::prost::common::v1::{
         any_value, AnyValue, ArrayValue, InstrumentationLibrary, KeyValue,
     };
+    use std::borrow::Cow;
 
     impl From<opentelemetry::sdk::InstrumentationLibrary> for InstrumentationLibrary {
         fn from(library: opentelemetry::sdk::InstrumentationLibrary) -> Self {
             InstrumentationLibrary {
                 name: library.name.to_string(),
-                version: library.version.unwrap_or("").to_string(),
+                version: library.version.unwrap_or(Cow::Borrowed("")).to_string(),
             }
         }
     }

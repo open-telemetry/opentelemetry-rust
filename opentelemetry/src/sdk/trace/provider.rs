@@ -16,6 +16,7 @@ use crate::{
     global,
     sdk::{self, export::trace::SpanExporter, trace::SpanProcessor},
 };
+use std::borrow::Cow;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -78,10 +79,12 @@ impl crate::trace::TracerProvider for TracerProvider {
     type Tracer = sdk::trace::Tracer;
 
     /// Find or create `Tracer` instance by name.
-    fn tracer(&self, name: &'static str, version: Option<&'static str>) -> Self::Tracer {
+    fn tracer<T: Into<Cow<'static, str>>>(&self, name: T, version: Option<T>) -> Self::Tracer {
+        let name = name.into();
+        let version = version.map(Into::<Cow<'static, str>>::into);
         // Use default value if name is invalid empty string
         let component_name = if name.is_empty() {
-            DEFAULT_COMPONENT_NAME
+            Cow::Borrowed(DEFAULT_COMPONENT_NAME)
         } else {
             name
         };

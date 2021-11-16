@@ -1,3 +1,6 @@
+use std::fmt;
+use std::sync::Arc;
+
 use crate::sdk::InstrumentationLibrary;
 use crate::{
     metrics::{
@@ -7,8 +10,6 @@ use crate::{
     },
     Context, KeyValue,
 };
-use std::fmt;
-use std::sync::Arc;
 
 /// Returns named meter instances
 pub trait MeterProvider: fmt::Debug {
@@ -61,7 +62,7 @@ impl Meter {
     }
 
     pub(crate) fn instrumentation_library(&self) -> InstrumentationLibrary {
-        self.instrumentation_library
+        self.instrumentation_library.clone()
     }
 
     /// Creates a new integer `CounterBuilder` for `u64` values with the given name.
