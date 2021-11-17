@@ -1,3 +1,10 @@
+exclude=[
+    "actix-http",
+    "actix-http-tracing",
+    "actix-udp",
+    "actix-udp-example"
+]
+
 [licenses]
 unlicensed = "deny"
 allow = [
@@ -17,4 +24,11 @@ version = "*"
 expression = "MIT AND ISC AND OpenSSL"
 license-files = [
     { path = "LICENSE", hash = 0xbd0eed23 }
+]
+
+[advisories]
+ignore = [
+    # time/chrono problems, have not been a problem in practice, not much we can do at this moment.
+    "RUSTSEC-2020-0071",
+    "RUSTSEC-2020-0159"
 ]
