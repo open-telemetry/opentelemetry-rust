@@ -59,6 +59,28 @@ pub fn counters(c: &mut Criterion) {
     g.finish();
 }
 
+pub fn key_values(c: &mut Criterion) {
+    let mut g = c.benchmark_group("KeyValue");
+
+    const KEY: Key = Key::from_static_str("static_key");
+
+    for exp in (4..=10).step_by(2) {
+        let string = "a".repeat(1 << exp);
+        g.bench_function(BenchmarkId::new("StringValue", string.len()), |b| {
+            b.iter(|| {
+                let _ = KeyValue::new(KEY, string.clone());
+            });
+        });
+
+        let string = Arc::new(string);
+        g.bench_function(BenchmarkId::new("ArcStringValue", string.len()), |b| {
+            b.iter(|| {
+                let _ = KeyValue::new(KEY, Arc::clone(&string));
+            });
+        });
+    }
+}
+
 fn benchmark_unbound_metric<M: Measurement, F: Fn(&[KeyValue])>(
     name: &str,
     g: &mut BenchmarkGroup<M>,
@@ -138,5 +160,5 @@ fn build_meter() -> Meter {
     Meter::new("benches", None, Arc::new(core))
 }
 
-criterion_group!(benches, counters);
+criterion_group!(benches, counters, key_values);
 criterion_main!(benches);
