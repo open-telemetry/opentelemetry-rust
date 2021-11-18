@@ -41,7 +41,7 @@ pub(crate) fn encode(
             rmp::encode::write_str(&mut encoded, service_name)?;
 
             rmp::encode::write_str(&mut encoded, "name")?;
-            rmp::encode::write_str(&mut encoded, span.instrumentation_lib.name)?;
+            rmp::encode::write_str(&mut encoded, span.instrumentation_lib.name.as_ref())?;
 
             rmp::encode::write_str(&mut encoded, "resource")?;
             rmp::encode::write_str(&mut encoded, &span.name)?;

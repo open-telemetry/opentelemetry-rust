@@ -320,8 +320,8 @@ pub trait ObjectSafeTracerProvider: fmt::Debug + 'static {
     /// Creates a named tracer instance that is a trait object through the underlying `TracerProvider`.
     fn tracer_boxed(
         &self,
-        name: &'static str,
-        version: Option<&'static str>,
+        name: Cow<'static, str>,
+        version: Option<Cow<'static, str>>,
     ) -> Box<dyn ObjectSafeTracer + Send + Sync>;
 
     /// Force flush all remaining spans in span processors and return results.
@@ -337,8 +337,8 @@ where
     /// Return a boxed tracer
     fn tracer_boxed(
         &self,
-        name: &'static str,
-        version: Option<&'static str>,
+        name: Cow<'static, str>,
+        version: Option<Cow<'static, str>>,
     ) -> Box<dyn ObjectSafeTracer + Send + Sync> {
         Box::new(self.tracer(name, version))
     }
@@ -376,8 +376,11 @@ impl trace::TracerProvider for GlobalTracerProvider {
     type Tracer = BoxedTracer;
 
     /// Find or create a named tracer using the global provider.
-    fn tracer(&self, name: &'static str, version: Option<&'static str>) -> Self::Tracer {
-        BoxedTracer(self.provider.tracer_boxed(name, version))
+    fn tracer<T: Into<Cow<'static, str>>>(&self, name: T, version: Option<T>) -> Self::Tracer {
+        BoxedTracer(
+            self.provider
+                .tracer_boxed(name.into(), version.map(Into::<Cow<'static, str>>::into)),
+        )
     }
 
     /// Force flush all remaining spans in span processors and return results.
@@ -410,8 +413,8 @@ pub fn tracer_provider() -> GlobalTracerProvider {
 /// This is a more convenient way of expressing `global::tracer_provider().tracer(name, None)`.
 ///
 /// [`Tracer`]: crate::trace::Tracer
-pub fn tracer(name: &'static str) -> BoxedTracer {
-    tracer_provider().tracer(name, None)
+pub fn tracer<T: Into<Cow<'static, str>>>(name: T) -> BoxedTracer {
+    tracer_provider().tracer(name.into(), None)
 }
 
 /// Creates a named instance of [`Tracer`] with version info via the configured [`GlobalTracerProvider`]
@@ -420,8 +423,8 @@ pub fn tracer(name: &'static str) -> BoxedTracer {
 /// If the version is an empty string, it will be used as part of instrumentation library information.
 ///
 /// [`Tracer`]: crate::trace::Tracer
-pub fn tracer_with_version(name: &'static str, version: &'static str) -> BoxedTracer {
-    tracer_provider().tracer(name, Some(version))
+pub fn tracer_with_version<T: Into<Cow<'static, str>>>(name: T, version: T) -> BoxedTracer {
+    tracer_provider().tracer(name.into(), Some(version.into()))
 }
 
 /// Sets the given [`TracerProvider`] instance as the current global provider.
@@ -560,7 +563,11 @@ mod tests {
     impl TracerProvider for TestTracerProvider {
         type Tracer = NoopTracer;
 
-        fn tracer(&self, _name: &'static str, _version: Option<&'static str>) -> Self::Tracer {
+        fn tracer<T: Into<Cow<'static, str>>>(
+            &self,
+            _name: T,
+            _version: Option<T>,
+        ) -> Self::Tracer {
             NoopTracer::default()
         }
 

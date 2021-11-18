@@ -105,7 +105,10 @@ fn encode_traces(
             // Datadog span name is OpenTelemetry component name - see module docs for more information
             rmp::encode::write_array_len(&mut encoded, 12)?;
             rmp::encode::write_u32(&mut encoded, service_interned)?;
-            rmp::encode::write_u32(&mut encoded, interner.intern(span.instrumentation_lib.name))?;
+            rmp::encode::write_u32(
+                &mut encoded,
+                interner.intern(span.instrumentation_lib.name.as_ref()),
+            )?;
             rmp::encode::write_u32(&mut encoded, interner.intern(&span.name))?;
             rmp::encode::write_u64(&mut encoded, span.span_context.trace_id().to_u128() as u64)?;
             rmp::encode::write_u64(&mut encoded, span.span_context.span_id().to_u64())?;
