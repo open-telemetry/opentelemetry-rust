@@ -14,7 +14,7 @@ $ cargo run
 
 # View result
 
-You should be able to see something similar below in the same console when you run docker
+You should be able to see something similar below with different time and ID in the same console that docker runs.
 
 ## Span
 
