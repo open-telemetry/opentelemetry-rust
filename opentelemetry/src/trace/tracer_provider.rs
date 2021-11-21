@@ -1,4 +1,5 @@
 use crate::trace::{TraceResult, Tracer};
+use std::borrow::Cow;
 
 /// Types that can create instances of [`Tracer`].
 pub trait TracerProvider {
@@ -24,7 +25,7 @@ pub trait TracerProvider {
     /// // Library tracer
     /// let tracer = provider.tracer("my_library", Some(env!("CARGO_PKG_VERSION")));
     /// ```
-    fn tracer(&self, name: &'static str, version: Option<&'static str>) -> Self::Tracer;
+    fn tracer<T: Into<Cow<'static, str>>>(&self, name: T, version: Option<T>) -> Self::Tracer;
 
     /// Force flush all remaining spans in span processors and return results.
     fn force_flush(&self) -> Vec<TraceResult<()>>;

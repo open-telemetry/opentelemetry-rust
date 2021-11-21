@@ -19,5 +19,5 @@ $ firefox http://localhost:16686/
 
 Fire a request:
 ```bash
-curl http://localhost:8088
+curl http://localhost:8080
 ```

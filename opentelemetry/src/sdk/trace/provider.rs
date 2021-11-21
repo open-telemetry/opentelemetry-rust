@@ -16,6 +16,7 @@ use crate::{
     global,
     sdk::{self, export::trace::SpanExporter, trace::SpanProcessor},
 };
+use std::borrow::Cow;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -78,10 +79,12 @@ impl crate::trace::TracerProvider for TracerProvider {
     type Tracer = sdk::trace::Tracer;
 
     /// Find or create `Tracer` instance by name.
-    fn tracer(&self, name: &'static str, version: Option<&'static str>) -> Self::Tracer {
+    fn tracer<T: Into<Cow<'static, str>>>(&self, name: T, version: Option<T>) -> Self::Tracer {
+        let name = name.into();
+        let version = version.map(Into::<Cow<'static, str>>::into);
         // Use default value if name is invalid empty string
         let component_name = if name.is_empty() {
-            DEFAULT_COMPONENT_NAME
+            Cow::Borrowed(DEFAULT_COMPONENT_NAME)
         } else {
             name
         };
@@ -100,10 +103,27 @@ impl crate::trace::TracerProvider for TracerProvider {
 }
 
 /// Builder for provider attributes.
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct Builder {
     processors: Vec<Box<dyn SpanProcessor>>,
     config: sdk::trace::Config,
+    sdk_provided_resource: Resource,
+}
+
+impl Default for Builder {
+    fn default() -> Self {
+        Builder {
+            processors: Default::default(),
+            config: Default::default(),
+            sdk_provided_resource: Resource::from_detectors(
+                Duration::from_secs(0),
+                vec![
+                    Box::new(SdkProvidedResourceDetector),
+                    Box::new(EnvResourceDetector::new()),
+                ],
+            ),
+        }
+    }
 }
 
 impl Builder {
@@ -140,24 +160,25 @@ impl Builder {
         Builder { config, ..self }
     }
 
+    /// Return the clone of sdk provided resource.
+    ///
+    /// See https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/resource/sdk.md#sdk-provided-resource-attributes
+    /// for details.
+    pub fn sdk_provided_resource(&self) -> Resource {
+        self.sdk_provided_resource.clone()
+    }
+
     /// Create a new provider from this configuration.
     pub fn build(self) -> TracerProvider {
         let mut config = self.config;
-        let sdk_provided_resource = Resource::from_detectors(
-            Duration::from_secs(0),
-            vec![
-                Box::new(SdkProvidedResourceDetector),
-                Box::new(EnvResourceDetector::new()),
-            ],
-        );
         config.resource = match config.resource {
-            None => Some(Arc::new(sdk_provided_resource)),
+            None => Some(Arc::new(self.sdk_provided_resource)),
             // User provided resource information has higher priority.
             Some(resource) => {
                 if resource.is_empty() {
                     None
                 } else {
-                    Some(Arc::new(sdk_provided_resource.merge(resource)))
+                    Some(Arc::new(self.sdk_provided_resource.merge(resource)))
                 }
             }
         };

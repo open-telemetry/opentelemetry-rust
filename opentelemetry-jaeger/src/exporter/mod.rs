@@ -33,6 +33,7 @@ use opentelemetry::{
 };
 #[cfg(feature = "collector_client")]
 use opentelemetry_http::HttpClient;
+use std::collections::HashSet;
 use std::{
     net,
     time::{Duration, SystemTime},
@@ -48,8 +49,6 @@ use uploader::{AsyncUploader, SyncUploader, Uploader};
     not(feature = "isahc_collector_client")
 ))]
 use headers::authorization::Credentials;
-use opentelemetry::sdk::resource::ResourceDetector;
-use opentelemetry::sdk::resource::SdkProvidedResourceDetector;
 use opentelemetry::sdk::trace::Config;
 use opentelemetry::sdk::Resource;
 use std::sync::Arc;
@@ -91,18 +90,9 @@ impl trace::SpanExporter for Exporter {
     /// Export spans to Jaeger
     async fn export(&mut self, batch: Vec<trace::SpanData>) -> trace::ExportResult {
         let mut jaeger_spans: Vec<jaeger::Span> = Vec::with_capacity(batch.len());
-        let mut process = self.process.clone();
+        let process = self.process.clone();
 
-        for (idx, span) in batch.into_iter().enumerate() {
-            if idx == 0 {
-                if let Some(span_process_tags) = build_process_tags(&span) {
-                    if let Some(process_tags) = &mut process.tags {
-                        process_tags.extend(span_process_tags);
-                    } else {
-                        process.tags = Some(span_process_tags.collect())
-                    }
-                }
-            }
+        for span in batch.into_iter() {
             jaeger_spans.push(convert_otel_span_into_jaeger_span(
                 span,
                 self.export_instrumentation_lib,
@@ -263,7 +253,16 @@ impl PipelineBuilder {
         self
     }
 
-    /// Assign the process service tags.
+    /// Assign the process tags.
+    ///
+    /// Note that resource in trace [Config](sdk::trace::Config) is also reported as process tags
+    /// in jaeger. If there is duplicate tags between resource and tags. Resource's value take
+    /// priority even if it's empty.
+    #[deprecated(
+        since = "0.16.0",
+        note = "please pass those tags as resource in sdk::trace::Config. Then use with_trace_config \
+        method to pass the config. All key value pairs in resources will be reported as process tags"
+    )]
     pub fn with_tags<T: IntoIterator<Item = KeyValue>>(mut self, tags: T) -> Self {
         self.tags = Some(tags.into_iter().collect());
         self
@@ -290,6 +289,22 @@ impl PipelineBuilder {
     }
 
     /// Assign the SDK config for the exporter pipeline.
+    ///
+    /// # Examples
+    /// Set service name via resource.
+    /// ```rust
+    /// use opentelemetry_jaeger::PipelineBuilder;
+    /// use opentelemetry::sdk;
+    /// use opentelemetry::sdk::Resource;
+    /// use opentelemetry::KeyValue;
+    ///
+    /// let pipeline = PipelineBuilder::default()
+    ///                 .with_trace_config(
+    ///                       sdk::trace::Config::default()
+    ///                         .with_resource(Resource::new(vec![KeyValue::new("service.name", "my-service")]))
+    ///                 );
+    ///
+    /// ```
     pub fn with_trace_config(self, config: sdk::trace::Config) -> Self {
         PipelineBuilder {
             config: Some(config),
@@ -325,60 +340,66 @@ impl PipelineBuilder {
         Ok(tracer)
     }
 
-    // To reduce the overhead of copying service name in every spans. We remove service.name
-    // from the resource in config. Instead, we store it in process.
-    // The service name tag will attch to spans when it's exported.
-    fn build_config_and_process(&mut self) -> (Config, Process) {
-        let service_name = self.service_name.take();
-        if let Some(service_name) = service_name {
-            let config = if let Some(mut cfg) = self.config.take() {
-                cfg.resource = cfg.resource.map(|r| {
-                    let without_service_name = r
-                        .iter()
-                        .filter(|(k, _v)| **k != semcov::resource::SERVICE_NAME)
-                        .map(|(k, v)| KeyValue::new(k.clone(), v.clone()))
-                        .collect::<Vec<KeyValue>>();
-                    Arc::new(Resource::new(without_service_name))
-                });
-                cfg
-            } else {
-                Config {
-                    resource: Some(Arc::new(Resource::empty())),
-                    ..Default::default()
-                }
-            };
-            (
-                config,
-                Process {
-                    service_name,
-                    tags: self.tags.take().unwrap_or_default(),
-                },
-            )
+    // To reduce the overhead of copying service name in every spans. We convert resource into jaeger tags
+    // and store them into process. And set the resource in trace config to empty.
+    //
+    // There are multiple ways to set the service name. A `service.name` tag will be always added
+    // to the process tags.
+    fn build_config_and_process(&mut self, sdk_provided_resource: Resource) -> (Config, Process) {
+        let (config, resource) = if let Some(mut config) = self.config.take() {
+            let resource =
+                if let Some(resource) = config.resource.replace(Arc::new(Resource::empty())) {
+                    sdk_provided_resource.merge(resource)
+                } else {
+                    sdk_provided_resource
+                };
+
+            (config, resource)
         } else {
-            let service_name = SdkProvidedResourceDetector
-                .detect(Duration::from_secs(0))
+            (Config::default(), sdk_provided_resource)
+        };
+
+        let service_name = self.service_name.clone().unwrap_or_else(|| {
+            resource
                 .get(semcov::resource::SERVICE_NAME)
-                .unwrap()
-                .to_string();
-            (
-                Config {
-                    // use a empty resource to prevent TracerProvider to assign a service name.
-                    resource: Some(Arc::new(Resource::empty())),
-                    ..Default::default()
-                },
-                Process {
-                    service_name,
-                    tags: self.tags.take().unwrap_or_default(),
-                },
-            )
+                .map(|v| v.to_string())
+                .unwrap_or_else(|| "unknown_service".to_string())
+        });
+
+        // merge the tags and resource. Resources take priority.
+        let mut tags = resource
+            .into_iter()
+            .filter(|(key, _)| *key != semcov::resource::SERVICE_NAME)
+            .map(|(key, value)| KeyValue::new(key, value))
+            .collect::<Vec<KeyValue>>();
+
+        tags.push(KeyValue::new(
+            semcov::resource::SERVICE_NAME,
+            service_name.clone(),
+        ));
+
+        // if users provide key list
+        if let Some(provided_tags) = self.tags.take() {
+            let key_set: HashSet<Key> = tags
+                .iter()
+                .map(|key_value| key_value.key.clone())
+                .collect::<HashSet<Key>>();
+            for tag in provided_tags.into_iter() {
+                if !key_set.contains(&tag.key) {
+                    tags.push(tag)
+                }
+            }
         }
+
+        (config, Process { service_name, tags })
     }
 
     /// Build a configured `sdk::trace::TracerProvider` with a simple span processor.
     pub fn build_simple(mut self) -> Result<sdk::trace::TracerProvider, TraceError> {
-        let (config, process) = self.build_config_and_process();
+        let mut builder = sdk::trace::TracerProvider::builder();
+        let (config, process) = self.build_config_and_process(builder.sdk_provided_resource());
         let exporter = self.init_sync_exporter_with_process(process)?;
-        let mut builder = sdk::trace::TracerProvider::builder().with_simple_exporter(exporter);
+        builder = builder.with_simple_exporter(exporter);
         builder = builder.with_config(config);
 
         Ok(builder.build())
@@ -390,10 +411,10 @@ impl PipelineBuilder {
         mut self,
         runtime: R,
     ) -> Result<sdk::trace::TracerProvider, TraceError> {
-        let (config, process) = self.build_config_and_process();
+        let mut builder = sdk::trace::TracerProvider::builder();
+        let (config, process) = self.build_config_and_process(builder.sdk_provided_resource());
         let exporter = self.init_async_exporter_with_process(process, runtime.clone())?;
-        let mut builder =
-            sdk::trace::TracerProvider::builder().with_batch_exporter(exporter, runtime);
+        builder = builder.with_batch_exporter(exporter, runtime);
         builder = builder.with_config(config);
 
         Ok(builder.build())
@@ -403,7 +424,8 @@ impl PipelineBuilder {
     ///
     /// This is useful if you are manually constructing a pipeline.
     pub fn init_sync_exporter(mut self) -> Result<Exporter, TraceError> {
-        let (_, process) = self.build_config_and_process();
+        let builder = sdk::trace::TracerProvider::builder();
+        let (_, process) = self.build_config_and_process(builder.sdk_provided_resource());
         self.init_sync_exporter_with_process(process)
     }
 
@@ -425,7 +447,8 @@ impl PipelineBuilder {
         mut self,
         runtime: R,
     ) -> Result<Exporter, TraceError> {
-        let (_, process) = self.build_config_and_process();
+        let builder = sdk::trace::TracerProvider::builder();
+        let (_, process) = self.build_config_and_process(builder.sdk_provided_resource());
         self.init_async_exporter_with_process(process, runtime)
     }
 
@@ -676,20 +699,6 @@ fn convert_otel_span_into_jaeger_span(
     }
 }
 
-fn build_process_tags(
-    span_data: &trace::SpanData,
-) -> Option<impl Iterator<Item = jaeger::Tag> + '_> {
-    span_data
-        .resource
-        .as_ref()
-        .filter(|resource| !resource.is_empty())
-        .map(|resource| {
-            resource
-                .iter()
-                .map(|(k, v)| KeyValue::new(k.clone(), v.clone()).into())
-        })
-}
-
 fn build_span_tags(
     attrs: sdk::trace::EvictedHashMap,
     instrumentation_lib: Option<sdk::InstrumentationLibrary>,
@@ -818,7 +827,9 @@ mod collector_client_tests {
     use crate::exporter::thrift::jaeger::Batch;
     use crate::new_pipeline;
     use opentelemetry::runtime::Tokio;
+    use opentelemetry::sdk::Resource;
     use opentelemetry::trace::TraceError;
+    use opentelemetry::KeyValue;
 
     mod test_http_client {
         use async_trait::async_trait;
@@ -848,7 +859,9 @@ mod collector_client_tests {
         let mut builder = new_pipeline()
             .with_collector_endpoint("localhost:6831")
             .with_http_client(test_http_client::TestHttpClient);
-        let (_, process) = builder.build_config_and_process();
+        let sdk_provided_resource =
+            Resource::new(vec![KeyValue::new("service.name", "unknown_service")]);
+        let (_, process) = builder.build_config_and_process(sdk_provided_resource);
         let mut uploader = builder.init_async_uploader(Tokio)?;
         let res = futures::executor::block_on(async {
             uploader
@@ -893,9 +906,12 @@ mod tests {
     use super::SPAN_KIND;
     use crate::exporter::thrift::jaeger::Tag;
     use crate::exporter::{build_span_tags, OTEL_STATUS_CODE, OTEL_STATUS_DESCRIPTION};
-    use opentelemetry::sdk::trace::EvictedHashMap;
+    use opentelemetry::sdk::trace::{Config, EvictedHashMap};
+    use opentelemetry::sdk::Resource;
     use opentelemetry::trace::{SpanKind, StatusCode};
     use opentelemetry::KeyValue;
+    use std::env;
+    use std::sync::Arc;
 
     fn assert_tag_contains(tags: Vec<Tag>, key: &'static str, expect_val: &'static str) {
         assert_eq!(
@@ -996,5 +1012,60 @@ mod tests {
         assert_tag_contains(tags.clone(), SPAN_KIND, user_kind);
         assert_tag_contains(tags.clone(), OTEL_STATUS_CODE, user_status_code.as_str());
         assert_tag_contains(tags, OTEL_STATUS_DESCRIPTION, user_status_description);
+    }
+
+    #[test]
+    fn test_set_service_name() {
+        let service_name = "halloween_service";
+
+        // set via builder's service name, it has highest priority
+        let mut builder = crate::PipelineBuilder::default();
+        builder = builder.with_service_name(service_name);
+        let (_, process) = builder.build_config_and_process(Resource::empty());
+        assert_eq!(process.service_name, service_name);
+
+        // make sure the tags in resource are moved to process
+        builder = crate::PipelineBuilder::default();
+        builder = builder.with_service_name(service_name);
+        builder = builder.with_trace_config(
+            Config::default()
+                .with_resource(Resource::new(vec![KeyValue::new("test-key", "test-value")])),
+        );
+        let (config, process) = builder.build_config_and_process(Resource::empty());
+        assert_eq!(config.resource, Some(Arc::new(Resource::empty())));
+        assert_eq!(process.tags.len(), 2);
+
+        // sdk provided resource can override service name if users didn't provided service name to builder
+        builder = crate::PipelineBuilder::default();
+        let (_, process) = builder.build_config_and_process(Resource::new(vec![KeyValue::new(
+            "service.name",
+            "halloween_service",
+        )]));
+        assert_eq!(process.service_name, "halloween_service");
+
+        // users can also provided service.name from config's resource, in this case, it will override the
+        // sdk provided service name
+        builder = crate::PipelineBuilder::default();
+        builder = builder.with_trace_config(Config::default().with_resource(Resource::new(vec![
+            KeyValue::new("service.name", "override_service"),
+        ])));
+        let (_, process) = builder.build_config_and_process(Resource::new(vec![KeyValue::new(
+            "service.name",
+            "halloween_service",
+        )]));
+
+        assert_eq!(process.service_name, "override_service");
+        assert_eq!(process.tags.len(), 1);
+        assert_eq!(
+            process.tags[0],
+            KeyValue::new("service.name", "override_service")
+        );
+
+        // OTEL_SERVICE_NAME env var also works
+        env::set_var("OTEL_SERVICE_NAME", "test service");
+        builder = crate::PipelineBuilder::default();
+        let exporter = builder.init_sync_exporter().unwrap();
+        assert_eq!(exporter.process.service_name, "test service");
+        env::set_var("OTEL_SERVICE_NAME", "")
     }
 }
