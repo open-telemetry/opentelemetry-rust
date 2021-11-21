@@ -505,16 +505,9 @@ mod tests {
     use crate::runtime;
     #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
     use crate::sdk::trace::TraceRuntime;
-    use crate::trace::noop::NoopTracer;
     #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
     use crate::trace::Tracer;
-    use std::{
-        fmt::Debug,
-        io::Write,
-        sync::Mutex,
-        thread::{self, sleep},
-        time::Duration,
-    };
+    use std::{fmt::Debug, io::Write, sync::Mutex};
 
     #[derive(Debug)]
     struct AssertWriter {
@@ -560,35 +553,6 @@ mod tests {
             AssertWriter {
                 buf: self.buf.clone(),
             }
-        }
-    }
-
-    #[derive(Debug, Default)]
-    struct TestTracerProvider {
-        _debug_msg: &'static str,
-    }
-
-    impl TestTracerProvider {
-        fn new(debug_msg: &'static str) -> Self {
-            TestTracerProvider {
-                _debug_msg: debug_msg,
-            }
-        }
-    }
-
-    impl TracerProvider for TestTracerProvider {
-        type Tracer = NoopTracer;
-
-        fn tracer<T: Into<Cow<'static, str>>>(
-            &self,
-            _name: T,
-            _version: Option<T>,
-        ) -> Self::Tracer {
-            NoopTracer::default()
-        }
-
-        fn force_flush(&self) -> Vec<TraceResult<()>> {
-            Vec::new()
         }
     }
 
