@@ -7,7 +7,7 @@ use std::mem;
 use std::sync::{Arc, RwLock};
 use std::time::SystemTime;
 
-pub trait ObjectSafeSpan: fmt::Debug {
+pub trait ObjectSafeSpan {
     /// An API to record events at a specific time in the context of a given `Span`.
     ///
     /// Events SHOULD preserve the order in which they're set. This will typically match
@@ -144,7 +144,6 @@ impl<T: trace::Span> ObjectSafeSpan for T {
 /// applications without knowing the underlying type.
 ///
 /// [`Span`]: crate::trace::Span
-#[derive(Debug)]
 pub struct BoxedSpan(Box<dyn ObjectSafeSpan + Send + Sync>);
 
 impl BoxedSpan {
@@ -153,6 +152,12 @@ impl BoxedSpan {
         T: ObjectSafeSpan + Send + Sync + 'static,
     {
         BoxedSpan(Box::new(span))
+    }
+}
+
+impl fmt::Debug for BoxedSpan {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("BoxedSpan")
     }
 }
 
@@ -219,8 +224,13 @@ impl trace::Span for BoxedSpan {
 ///
 /// [`Tracer`]: crate::trace::Tracer
 /// [`GlobalTracerProvider`]: crate::global::GlobalTracerProvider
-#[derive(Debug)]
 pub struct BoxedTracer(Box<dyn ObjectSafeTracer + Send + Sync>);
+
+impl fmt::Debug for BoxedTracer {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("BoxedTracer")
+    }
+}
 
 impl trace::Tracer for BoxedTracer {
     /// Global tracer uses `BoxedSpan`s so that it can be a global singleton,
@@ -267,7 +277,7 @@ impl trace::Tracer for BoxedTracer {
 /// instances by mirroring the interface and boxing the return types.
 ///
 /// [`Tracer`]: crate::trace::Tracer
-pub trait ObjectSafeTracer: fmt::Debug + 'static {
+pub trait ObjectSafeTracer {
     /// Create a new invalid span for use in cases where there are no active spans.
     fn invalid_boxed(&self) -> Box<dyn ObjectSafeSpan + Send + Sync>;
 
@@ -316,7 +326,7 @@ where
 ///
 /// [`TracerProvider`]: crate::trace::TracerProvider
 /// [`GlobalTracerProvider`]: crate::global::GlobalTracerProvider
-pub trait ObjectSafeTracerProvider: fmt::Debug + 'static {
+pub trait ObjectSafeTracerProvider {
     /// Creates a named tracer instance that is a trait object through the underlying `TracerProvider`.
     fn tracer_boxed(
         &self,
@@ -331,7 +341,7 @@ pub trait ObjectSafeTracerProvider: fmt::Debug + 'static {
 impl<S, T, P> ObjectSafeTracerProvider for P
 where
     S: trace::Span + Send + Sync + 'static,
-    T: trace::Tracer<Span = S> + Send + Sync,
+    T: trace::Tracer<Span = S> + Send + Sync + 'static,
     P: trace::TracerProvider<Tracer = T>,
 {
     /// Return a boxed tracer
@@ -353,9 +363,15 @@ where
 /// [`BoxedTracer`] instances.
 ///
 /// [`TracerProvider`]: crate::trace::TracerProvider
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct GlobalTracerProvider {
     provider: Arc<dyn ObjectSafeTracerProvider + Send + Sync>,
+}
+
+impl fmt::Debug for GlobalTracerProvider {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("GlobalTracerProvider")
+    }
 }
 
 impl GlobalTracerProvider {
@@ -363,8 +379,8 @@ impl GlobalTracerProvider {
     fn new<P, T, S>(provider: P) -> Self
     where
         S: trace::Span + Send + Sync + 'static,
-        T: trace::Tracer<Span = S> + Send + Sync,
-        P: trace::TracerProvider<Tracer = T> + Send + Sync,
+        T: trace::Tracer<Span = S> + Send + Sync + 'static,
+        P: trace::TracerProvider<Tracer = T> + Send + Sync + 'static,
     {
         GlobalTracerProvider {
             provider: Arc::new(provider),
@@ -436,8 +452,8 @@ pub fn tracer_with_version<T: Into<Cow<'static, str>>>(name: T, version: T) -> B
 pub fn set_tracer_provider<P, T, S>(new_provider: P) -> GlobalTracerProvider
 where
     S: trace::Span + Send + Sync + 'static,
-    T: trace::Tracer<Span = S> + Send + Sync,
-    P: trace::TracerProvider<Tracer = T> + Send + Sync,
+    T: trace::Tracer<Span = S> + Send + Sync + 'static,
+    P: trace::TracerProvider<Tracer = T> + Send + Sync + 'static,
 {
     let mut tracer_provider = GLOBAL_TRACER_PROVIDER
         .write()
@@ -489,16 +505,9 @@ mod tests {
     use crate::runtime;
     #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
     use crate::sdk::trace::TraceRuntime;
-    use crate::trace::noop::NoopTracer;
     #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
     use crate::trace::Tracer;
-    use std::{
-        fmt::Debug,
-        io::Write,
-        sync::Mutex,
-        thread::{self, sleep},
-        time::Duration,
-    };
+    use std::{fmt::Debug, io::Write, sync::Mutex};
 
     #[derive(Debug)]
     struct AssertWriter {
@@ -545,99 +554,6 @@ mod tests {
                 buf: self.buf.clone(),
             }
         }
-    }
-
-    #[derive(Debug, Default)]
-    struct TestTracerProvider {
-        _debug_msg: &'static str,
-    }
-
-    impl TestTracerProvider {
-        fn new(debug_msg: &'static str) -> Self {
-            TestTracerProvider {
-                _debug_msg: debug_msg,
-            }
-        }
-    }
-
-    impl TracerProvider for TestTracerProvider {
-        type Tracer = NoopTracer;
-
-        fn tracer<T: Into<Cow<'static, str>>>(
-            &self,
-            _name: T,
-            _version: Option<T>,
-        ) -> Self::Tracer {
-            NoopTracer::default()
-        }
-
-        fn force_flush(&self) -> Vec<TraceResult<()>> {
-            Vec::new()
-        }
-    }
-
-    #[test]
-    #[ignore = "requires --test-threads=1"]
-    fn test_set_tracer_provider() {
-        let _ = set_tracer_provider(TestTracerProvider::new("global one"));
-
-        {
-            let _ = set_tracer_provider(TestTracerProvider::new("inner one"));
-            assert!(format!("{:?}", tracer_provider()).contains("inner one"));
-        }
-
-        assert!(format!("{:?}", tracer_provider()).contains("inner one"));
-    }
-
-    #[test]
-    #[ignore = "requires --test-threads=1"]
-    fn test_set_tracer_provider_in_another_thread() {
-        let _ = set_tracer_provider(TestTracerProvider::new("global one"));
-
-        let handle = thread::spawn(move || {
-            assert!(format!("{:?}", tracer_provider()).contains("global one"));
-        });
-
-        println!("{:?}", tracer_provider());
-
-        let _ = handle.join();
-    }
-
-    #[test]
-    #[ignore = "requires --test-threads=1"]
-    fn test_set_tracer_provider_in_another_function() {
-        let setup = || {
-            let _ = set_tracer_provider(TestTracerProvider::new("global one"));
-            assert!(format!("{:?}", tracer_provider()).contains("global one"))
-        };
-
-        setup();
-
-        assert!(format!("{:?}", tracer_provider()).contains("global one"))
-    }
-
-    #[test]
-    #[ignore = "requires --test-threads=1"]
-    fn test_set_two_provider_in_two_thread() {
-        let (sender, recv) = std::sync::mpsc::channel();
-        let (sender1, sender2) = (sender.clone(), sender);
-        let _handle1 = thread::spawn(move || {
-            sleep(Duration::from_secs(1));
-            let _previous = set_tracer_provider(TestTracerProvider::new("thread 1"));
-            sleep(Duration::from_secs(2));
-            let _ = sender1.send(format!("thread 1: {:?}", tracer_provider()));
-        });
-        let _handle2 = thread::spawn(move || {
-            sleep(Duration::from_secs(2));
-            let _previous = set_tracer_provider(TestTracerProvider::new("thread 2"));
-            sleep(Duration::from_secs(1));
-            let _ = sender2.send(format!("thread 2 :{:?}", tracer_provider()));
-        });
-
-        let first_resp = recv.recv().unwrap();
-        let second_resp = recv.recv().unwrap();
-        assert!(first_resp.contains("thread 2"));
-        assert!(second_resp.contains("thread 2"));
     }
 
     #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]

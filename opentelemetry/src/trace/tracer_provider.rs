@@ -1,9 +1,8 @@
 use crate::trace::{TraceResult, Tracer};
 use std::borrow::Cow;
-use std::fmt;
 
 /// Types that can create instances of [`Tracer`].
-pub trait TracerProvider: fmt::Debug + 'static {
+pub trait TracerProvider {
     /// The [`Tracer`] type that this provider will return.
     type Tracer: Tracer;
 

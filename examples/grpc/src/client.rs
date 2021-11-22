@@ -3,10 +3,11 @@ use hello_world::HelloRequest;
 use opentelemetry::global;
 use opentelemetry::global::shutdown_tracer_provider;
 use opentelemetry::sdk::propagation::TraceContextPropagator;
-use opentelemetry::trace::TraceError;
+use opentelemetry::trace::TraceResult;
 use opentelemetry::{
     propagation::Injector,
-    trace::{TraceContextExt, Tracer},
+    sdk::trace::Tracer,
+    trace::{TraceContextExt, Tracer as _},
     Context, KeyValue,
 };
 
@@ -27,7 +28,7 @@ pub mod hello_world {
     tonic::include_proto!("helloworld");
 }
 
-fn tracing_init() -> Result<impl Tracer, TraceError> {
+fn tracing_init() -> TraceResult<Tracer> {
     global::set_text_map_propagator(TraceContextPropagator::new());
     opentelemetry_jaeger::new_pipeline()
         .with_service_name("grpc-client")

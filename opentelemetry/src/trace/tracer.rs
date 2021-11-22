@@ -4,7 +4,6 @@ use crate::{
     Context, KeyValue,
 };
 use std::borrow::Cow;
-use std::fmt;
 use std::time::SystemTime;
 
 /// Interface for constructing `Span`s.
@@ -156,9 +155,9 @@ use std::time::SystemTime;
 /// [`FutureExt`]: crate::trace::FutureExt
 /// [`Future::with_context`]: crate::trace::FutureExt::with_context()
 /// [`Context`]: crate::Context
-pub trait Tracer: fmt::Debug + 'static {
+pub trait Tracer {
     /// The `Span` type used by this `Tracer`.
-    type Span: Span + Send + Sync;
+    type Span: Span;
 
     /// Returns a span with an invalid `SpanContext`. Used by functions that
     /// need to return a default span like `get_active_span` if no span is present.
@@ -261,7 +260,7 @@ pub trait Tracer: fmt::Debug + 'static {
     fn in_span<T, F>(&self, name: &'static str, f: F) -> T
     where
         F: FnOnce(Context) -> T,
-        Self::Span: Send + Sync,
+        Self::Span: Send + Sync + 'static,
     {
         let span = self.start(name);
         let cx = Context::current_with_span(span);
@@ -302,7 +301,7 @@ pub trait Tracer: fmt::Debug + 'static {
     fn with_span<T, F>(&self, span: Self::Span, f: F) -> T
     where
         F: FnOnce(Context) -> T,
-        Self::Span: Send + Sync,
+        Self::Span: Send + Sync + 'static,
     {
         let cx = Context::current_with_span(span);
         let _guard = cx.clone().attach();
