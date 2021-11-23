@@ -1,6 +1,7 @@
 use crate::metrics::{InstrumentConfig, InstrumentKind, NumberKind};
 use crate::sdk::InstrumentationLibrary;
 use fnv::FnvHasher;
+use std::borrow::Cow;
 use std::hash::{Hash, Hasher};
 
 /// Descriptor contains all the settings that describe an instrument, including
@@ -16,28 +17,29 @@ pub struct Descriptor {
 
 impl Descriptor {
     /// Create a new descriptor
-    pub fn new(
+    pub fn new<T: Into<Cow<'static, str>>>(
         name: String,
-        instrumentation_name: &'static str,
-        instrumentation_version: Option<&'static str>,
+        instrumentation_name: T,
+        instrumentation_version: Option<T>,
         instrument_kind: InstrumentKind,
         number_kind: NumberKind,
     ) -> Self {
         let mut hasher = FnvHasher::default();
         name.hash(&mut hasher);
-        instrumentation_name.hash(&mut hasher);
-        instrumentation_version.hash(&mut hasher);
+        let instrumentation_name = instrumentation_name.into();
+        let instrumentation_version = instrumentation_version.map(Into::<Cow<'static, str>>::into);
+        instrumentation_name.as_ref().hash(&mut hasher);
+        instrumentation_version.as_ref().hash(&mut hasher);
         instrument_kind.hash(&mut hasher);
         number_kind.hash(&mut hasher);
+        let config =
+            InstrumentConfig::with_instrumentation(instrumentation_name, instrumentation_version);
 
         Descriptor {
             name,
             instrument_kind,
             number_kind,
-            config: InstrumentConfig::with_instrumentation(
-                instrumentation_name,
-                instrumentation_version,
-            ),
+            config,
             attribute_hash: hasher.finish(),
         }
     }
@@ -74,13 +76,13 @@ impl Descriptor {
     }
 
     /// The name of the library that provided instrumentation for this instrument.
-    pub fn instrumentation_name(&self) -> &'static str {
+    pub fn instrumentation_name(&self) -> Cow<'static, str> {
         self.config.instrumentation_name()
     }
 
     /// The version of library that provided instrumentation for this instrument. Optional
-    pub fn instrumentation_version(&self) -> Option<&'static str> {
-        self.config.instrumentation_library.version
+    pub fn instrumentation_version(&self) -> Option<Cow<'static, str>> {
+        self.config.instrumentation_version()
     }
 
     /// Instrumentation library reference
