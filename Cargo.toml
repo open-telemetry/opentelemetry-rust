@@ -34,3 +34,8 @@ members = [
     "examples/zpages"
 ]
 exclude = ["examples/external-otlp-grpcio-async-std"]
+
+[patch.crates-io]
+# revert tonic to 2018 edition so opentelemetry can use it
+tonic = { git = "https://github.com/hyperium/tonic", rev = "101f2f76d4a62" } # branch = master
+tonic-build = { git = "https://github.com/hyperium/tonic", rev = "101f2f76d4a62" } # branch = master
