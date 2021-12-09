@@ -43,7 +43,7 @@ opentelemetry = { version = "0.16", default-features = false, features = ["trace
 prost = { version = "0.9", optional = true }
 protobuf = { version = "2.18", optional = true }
 thiserror = "1.0"
-tonic = { version = "0.6", optional = true }
+tonic = { version = "0.6.2", optional = true }
 tokio = { version = "1.0", features = ["full"], optional = true }
 opentelemetry-http = { version = "0.5", path = "../opentelemetry-http", optional = true }
 reqwest = { version = "0.11", optional = true, default-features = false }
@@ -80,5 +80,5 @@ reqwest-rustls = ["reqwest", "reqwest/rustls-tls-native-roots"]
 surf-client = ["surf", "opentelemetry-http/surf"]
 
 [build-dependencies]
-tonic-build = { version = "0.6", default-features = false, features = ["transport", "prost"], optional = true }
+tonic-build = { version = "0.6.2", default-features = false, features = ["transport", "prost"], optional = true }
 prost-build = { version = "0.9", optional = true }
