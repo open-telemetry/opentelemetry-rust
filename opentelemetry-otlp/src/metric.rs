@@ -277,9 +277,7 @@ impl MetricsExporter {
         .connect_lazy();
 
         #[cfg(not(feature = "tls"))]
-        let channel = endpoint
-            .timeout(config.timeout)
-            .connect_lazy();
+        let channel = endpoint.timeout(config.timeout).connect_lazy();
 
         let client = MetricsServiceClient::new(channel);
 
