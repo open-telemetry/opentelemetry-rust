@@ -31,7 +31,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error + Send + Sy
 
     let mut req = hyper::Request::builder().uri("http://127.0.0.1:3000");
     global::get_text_map_propagator(|propagator| {
-        propagator.inject_context(&cx, &mut HeaderInjector(&mut req.headers_mut().unwrap()))
+        propagator.inject_context(&cx, &mut HeaderInjector(req.headers_mut().unwrap()))
     });
     let res = client.request(req.body(Body::from("Hallo!"))?).await?;
 

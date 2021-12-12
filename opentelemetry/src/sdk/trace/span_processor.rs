@@ -273,6 +273,10 @@ impl<R: TraceRuntime> SpanProcessor for BatchSpanProcessor<R> {
 }
 
 /// Messages sent between application thread and batch span processor's work thread.
+// In this enum the size difference is not a concern because:
+// 1. If we wrap SpanData into a pointer, it will add overhead when processing.
+// 2. Most of the messages will be ExportSpan.
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug)]
 pub enum BatchMessage {
     /// Export spans, usually called when span ends
