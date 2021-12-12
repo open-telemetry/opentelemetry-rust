@@ -187,6 +187,9 @@ fn build_batch_with_exporter<R: TraceRuntime>(
 
 /// OTLP span exporter builder.
 #[derive(Debug)]
+// This enum only used during initialization stage of application. The overhead should be OK.
+// Users can also disable the unused features to make the overhead on object size smaller.
+#[allow(clippy::large_enum_variant)]
 #[non_exhaustive]
 pub enum SpanExporterBuilder {
     /// Tonic span exporter builder
