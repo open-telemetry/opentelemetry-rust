@@ -311,7 +311,9 @@ pub enum Error {
 
     /// Http requests failed because no http client is provided.
     #[cfg(feature = "http-proto")]
-    #[error("no http client, you must select one")]
+    #[error(
+        "no http client, you must select one from features or provide your own implementation"
+    )]
     NoHttpClient,
 
     /// Http requests failed.
