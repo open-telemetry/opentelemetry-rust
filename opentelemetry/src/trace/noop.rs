@@ -144,11 +144,6 @@ impl NoopTracer {
 impl trace::Tracer for NoopTracer {
     type Span = NoopSpan;
 
-    /// Returns a `NoopSpan` as they are always invalid.
-    fn invalid(&self) -> Self::Span {
-        NoopSpan::new()
-    }
-
     /// Starts a new `NoopSpan` with a given context.
     ///
     /// If the context contains a valid span, it's span context is propagated.
@@ -178,7 +173,7 @@ impl trace::Tracer for NoopTracer {
                 span_context: cx.span().span_context().clone(),
             }
         } else {
-            self.invalid()
+            NoopSpan::new()
         }
     }
 }

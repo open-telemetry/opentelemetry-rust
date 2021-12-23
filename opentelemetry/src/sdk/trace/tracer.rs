@@ -123,17 +123,6 @@ impl crate::trace::Tracer for Tracer {
     /// This implementation of `Tracer` produces `sdk::Span` instances.
     type Span = Span;
 
-    /// Returns a span with an inactive `SpanContext`. Used by functions that
-    /// need to return a default span like `get_active_span` if no span is present.
-    fn invalid(&self) -> Self::Span {
-        Span::new(
-            SpanContext::empty_context(),
-            None,
-            self.clone(),
-            SpanLimits::default(),
-        )
-    }
-
     /// Starts a new `Span` with a given context.
     ///
     /// Each span has zero or one parent spans and zero or more child spans, which

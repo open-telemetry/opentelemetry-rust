@@ -159,10 +159,6 @@ pub trait Tracer {
     /// The `Span` type used by this `Tracer`.
     type Span: Span;
 
-    /// Returns a span with an invalid `SpanContext`. Used by functions that
-    /// need to return a default span like `get_active_span` if no span is present.
-    fn invalid(&self) -> Self::Span;
-
     /// Starts a new `Span`.
     ///
     /// By default the currently active `Span` is set as the new `Span`'s
