@@ -237,12 +237,6 @@ impl trace::Tracer for BoxedTracer {
     /// which is not possible if it takes generic type parameters.
     type Span = BoxedSpan;
 
-    /// Returns a span with an inactive `SpanContext`. Used by functions that
-    /// need to return a default span like `get_active_span` if no span is present.
-    fn invalid(&self) -> Self::Span {
-        BoxedSpan(self.0.invalid_boxed())
-    }
-
     /// Starts a new `Span`.
     ///
     /// Each span has zero or one parent spans and zero or more child spans, which
@@ -278,9 +272,6 @@ impl trace::Tracer for BoxedTracer {
 ///
 /// [`Tracer`]: crate::trace::Tracer
 pub trait ObjectSafeTracer {
-    /// Create a new invalid span for use in cases where there are no active spans.
-    fn invalid_boxed(&self) -> Box<dyn ObjectSafeSpan + Send + Sync>;
-
     /// Returns a trait object so the underlying implementation can be swapped
     /// out at runtime.
     fn start_with_context_boxed(
@@ -299,11 +290,6 @@ where
     S: trace::Span + Send + Sync + 'static,
     T: trace::Tracer<Span = S>,
 {
-    /// Create a new invalid span for use in cases where there are no active spans.
-    fn invalid_boxed(&self) -> Box<dyn ObjectSafeSpan + Send + Sync> {
-        Box::new(self.invalid())
-    }
-
     /// Returns a trait object so the underlying implementation can be swapped
     /// out at runtime.
     fn start_with_context_boxed(
