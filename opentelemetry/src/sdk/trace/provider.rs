@@ -78,17 +78,22 @@ impl crate::trace::TracerProvider for TracerProvider {
     /// This implementation of `TracerProvider` produces `Tracer` instances.
     type Tracer = sdk::trace::Tracer;
 
-    /// Find or create `Tracer` instance by name.
-    fn tracer<T: Into<Cow<'static, str>>>(&self, name: T, version: Option<T>) -> Self::Tracer {
+    /// Create a new versioned `Tracer` instance.
+    fn versioned_tracer(
+        &self,
+        name: impl Into<Cow<'static, str>>,
+        version: Option<&'static str>,
+        _schema_url: Option<&'static str>,
+    ) -> Self::Tracer {
         let name = name.into();
-        let version = version.map(Into::<Cow<'static, str>>::into);
         // Use default value if name is invalid empty string
         let component_name = if name.is_empty() {
             Cow::Borrowed(DEFAULT_COMPONENT_NAME)
         } else {
             name
         };
-        let instrumentation_lib = sdk::InstrumentationLibrary::new(component_name, version);
+        let instrumentation_lib =
+            sdk::InstrumentationLibrary::new(component_name, version.map(Into::into));
 
         sdk::trace::Tracer::new(instrumentation_lib, Arc::downgrade(&self.inner))
     }

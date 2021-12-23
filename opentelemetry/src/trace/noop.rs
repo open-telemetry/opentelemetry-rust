@@ -31,7 +31,12 @@ impl trace::TracerProvider for NoopTracerProvider {
     type Tracer = NoopTracer;
 
     /// Returns a new `NoopTracer` instance.
-    fn tracer<T: Into<Cow<'static, str>>>(&self, _name: T, _version: Option<T>) -> Self::Tracer {
+    fn versioned_tracer(
+        &self,
+        _name: impl Into<Cow<'static, str>>,
+        _version: Option<&'static str>,
+        _schema_url: Option<&'static str>,
+    ) -> Self::Tracer {
         NoopTracer::new()
     }
 
