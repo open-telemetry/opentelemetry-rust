@@ -322,8 +322,11 @@ impl PipelineBuilder {
     /// Install a Jaeger pipeline with a simple span processor.
     pub fn install_simple(self) -> Result<sdk::trace::Tracer, TraceError> {
         let tracer_provider = self.build_simple()?;
-        let tracer =
-            tracer_provider.tracer("opentelemetry-jaeger", Some(env!("CARGO_PKG_VERSION")));
+        let tracer = tracer_provider.versioned_tracer(
+            "opentelemetry-jaeger",
+            Some(env!("CARGO_PKG_VERSION")),
+            None,
+        );
         let _ = global::set_tracer_provider(tracer_provider);
         Ok(tracer)
     }
@@ -334,8 +337,11 @@ impl PipelineBuilder {
         runtime: R,
     ) -> Result<sdk::trace::Tracer, TraceError> {
         let tracer_provider = self.build_batch(runtime)?;
-        let tracer =
-            tracer_provider.tracer("opentelemetry-jaeger", Some(env!("CARGO_PKG_VERSION")));
+        let tracer = tracer_provider.versioned_tracer(
+            "opentelemetry-jaeger",
+            Some(env!("CARGO_PKG_VERSION")),
+            None,
+        );
         let _ = global::set_tracer_provider(tracer_provider);
         Ok(tracer)
     }

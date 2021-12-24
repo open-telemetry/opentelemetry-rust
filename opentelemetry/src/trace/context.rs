@@ -155,7 +155,7 @@ pub trait TraceContextExt {
     /// assert_eq!(Context::current().span().span_context(), &SpanContext::empty_context());
     ///
     /// let provider = sdk::trace::TracerProvider::default();
-    /// provider.tracer("my-component", None).in_span("my-span", |cx| {
+    /// provider.tracer("my-component").in_span("my-span", |cx| {
     ///     // Returns a reference to the current span if set
     ///     assert_ne!(cx.span().span_context(), &SpanContext::empty_context());
     /// });

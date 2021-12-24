@@ -6,7 +6,7 @@ pub trait TracerProvider {
     /// The [`Tracer`] type that this provider will return.
     type Tracer: Tracer;
 
-    /// Returns a new tracer with the given name and version.
+    /// Returns a new tracer with the given name.
     ///
     /// The `name` should be the application name or the name of the library
     /// providing instrumentation. If the name is empty, then an
@@ -19,13 +19,52 @@ pub trait TracerProvider {
     ///
     /// let provider = global::tracer_provider();
     ///
-    /// // App tracer
-    /// let tracer = provider.tracer("my_app", None);
+    /// // tracer used in applications/binaries
+    /// let tracer = provider.tracer("my_app");
     ///
-    /// // Library tracer
-    /// let tracer = provider.tracer("my_library", Some(env!("CARGO_PKG_VERSION")));
+    /// // tracer used in libraries/crates that optionally includes version and schema url
+    /// let tracer = provider.versioned_tracer(
+    ///     "my_library",
+    ///     Some(env!("CARGO_PKG_VERSION")),
+    ///     Some("https://opentelemetry.io/schema/1.0.0")
+    /// );
     /// ```
-    fn tracer<T: Into<Cow<'static, str>>>(&self, name: T, version: Option<T>) -> Self::Tracer;
+    fn tracer(&self, name: impl Into<Cow<'static, str>>) -> Self::Tracer {
+        self.versioned_tracer(name, None, None)
+    }
+
+    /// Returns a new versioned tracer with a given name.
+    ///
+    /// The `name` should be the application name or the name of the library
+    /// providing instrumentation. If the name is empty, then an
+    /// implementation-defined default name may be used instead.
+    ///
+    ///
+    /// The ``
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use opentelemetry::{global, trace::TracerProvider};
+    ///
+    /// let provider = global::tracer_provider();
+    ///
+    /// // tracer used in applications/binaries
+    /// let tracer = provider.tracer("my_app");
+    ///
+    /// // tracer used in libraries/crates that optionally includes version and schema url
+    /// let tracer = provider.versioned_tracer(
+    ///     "my_library",
+    ///     Some(env!("CARGO_PKG_VERSION")),
+    ///     Some("https://opentelemetry.io/schema/1.0.0")
+    /// );
+    /// ```
+    fn versioned_tracer(
+        &self,
+        name: impl Into<Cow<'static, str>>,
+        version: Option<&'static str>,
+        schema_url: Option<&'static str>,
+    ) -> Self::Tracer;
 
     /// Force flush all remaining spans in span processors and return results.
     fn force_flush(&self) -> Vec<TraceResult<()>>;

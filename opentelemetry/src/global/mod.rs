@@ -49,13 +49,17 @@
 //! ```
 //! # #[cfg(feature="trace")]
 //! # {
-//! use opentelemetry::trace::Tracer;
+//! use opentelemetry::trace::{Tracer, TracerProvider};
 //! use opentelemetry::global;
 //!
 //! pub fn my_traced_library_function() {
 //!     // End users of your library will configure their global tracer provider
 //!     // so you can use the global tracer without any setup
-//!     let tracer = global::tracer_with_version("my-library-name", env!("CARGO_PKG_VERSION"));
+//!     let tracer = global::tracer_provider().versioned_tracer(
+//!         "my-library-name",
+//!         Some(env!("CARGO_PKG_VERSION")),
+//!         None,
+//!     );
 //!
 //!     tracer.in_span("doing_library_work", |cx| {
 //!         // Traced library logic here...
@@ -156,6 +160,6 @@ pub use propagation::{get_text_map_propagator, set_text_map_propagator};
 #[cfg_attr(docsrs, doc(cfg(feature = "trace")))]
 pub use trace::{
     force_flush_tracer_provider, set_tracer_provider, shutdown_tracer_provider, tracer,
-    tracer_provider, tracer_with_version, BoxedSpan, BoxedTracer, GlobalTracerProvider,
-    ObjectSafeTracer, ObjectSafeTracerProvider,
+    tracer_provider, BoxedSpan, BoxedTracer, GlobalTracerProvider, ObjectSafeTracer,
+    ObjectSafeTracerProvider,
 };
