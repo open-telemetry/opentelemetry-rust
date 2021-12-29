@@ -65,7 +65,7 @@ fn criterion_benchmark(c: &mut Criterion) {
                                 }
                             }));
                         }
-                        futures::future::join_all(handles).await;
+                        futures_util::future::join_all(handles).await;
                         let _ =
                             Arc::<BatchSpanProcessor<Tokio>>::get_mut(&mut shared_span_processor)
                                 .unwrap()

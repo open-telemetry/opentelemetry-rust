@@ -869,7 +869,7 @@ mod collector_client_tests {
             Resource::new(vec![KeyValue::new("service.name", "unknown_service")]);
         let (_, process) = builder.build_config_and_process(sdk_provided_resource);
         let mut uploader = builder.init_async_uploader(Tokio)?;
-        let res = futures::executor::block_on(async {
+        let res = futures_executor::block_on(async {
             uploader
                 .upload(Batch::new(process.into(), Vec::new()))
                 .await

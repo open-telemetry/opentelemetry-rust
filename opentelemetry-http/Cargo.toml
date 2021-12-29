@@ -12,7 +12,6 @@ edition = "2018"
 [dependencies]
 async-trait = "0.1"
 bytes = "1"
-futures-util = { version = "0.3", default-features = false, features = ["io"] }
 http = "0.2"
 isahc = { version = "1.4", default-features = false, optional = true }
 opentelemetry = { version = "0.16", path = "../opentelemetry", features = ["trace"] }

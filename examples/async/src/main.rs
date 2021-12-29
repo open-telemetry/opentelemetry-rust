@@ -67,7 +67,7 @@ pub async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     let span = tracer.start("root");
     let cx = Context::current_with_span(span);
 
-    let (run1, run2) = futures::future::join(run(&addr), run(&addr2))
+    let (run1, run2) = futures_util::future::join(run(&addr), run(&addr2))
         .with_context(cx)
         .await;
     run1?;
