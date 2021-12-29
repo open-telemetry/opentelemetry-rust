@@ -40,6 +40,6 @@ lazy_static = "1.4"
 [dev-dependencies]
 base64 = "0.13"
 bytes = "1"
-futures-util = "0.3"
+futures-util = { version = "0.3", features = ["io"] }
 isahc = "1.4"
 opentelemetry = { path = "../opentelemetry", features = ["trace", "testing"] }

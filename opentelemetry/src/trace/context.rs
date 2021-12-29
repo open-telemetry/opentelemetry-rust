@@ -4,6 +4,7 @@ use crate::{
     trace::{Span, SpanContext},
     Context, ContextGuard, KeyValue,
 };
+use futures_util::{Sink, Stream};
 use pin_project::pin_project;
 use std::error::Error;
 use std::sync::Mutex;
@@ -296,7 +297,7 @@ impl<T: std::future::Future> std::future::Future for WithContext<T> {
     }
 }
 
-impl<T: futures::Stream> futures::Stream for WithContext<T> {
+impl<T: Stream> Stream for WithContext<T> {
     type Item = T::Item;
 
     fn poll_next(self: Pin<&mut Self>, task_cx: &mut TaskContext<'_>) -> Poll<Option<Self::Item>> {
@@ -306,9 +307,9 @@ impl<T: futures::Stream> futures::Stream for WithContext<T> {
     }
 }
 
-impl<I, T: futures::Sink<I>> futures::Sink<I> for WithContext<T>
+impl<I, T: Sink<I>> Sink<I> for WithContext<T>
 where
-    T: futures::Sink<I>,
+    T: Sink<I>,
 {
     type Error = T::Error;
 
@@ -339,7 +340,7 @@ where
     fn poll_close(
         self: Pin<&mut Self>,
         task_cx: &mut TaskContext<'_>,
-    ) -> futures::task::Poll<Result<(), Self::Error>> {
+    ) -> Poll<Result<(), Self::Error>> {
         let this = self.project();
         let _enter = this.otel_cx.clone().attach();
         T::poll_close(this.inner, task_cx)

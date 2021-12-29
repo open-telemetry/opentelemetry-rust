@@ -5,7 +5,7 @@ edition = "2018"
 publish = false
 
 [dependencies]
-futures = "0.3"
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
 lazy_static = "1.4"
 opentelemetry = { path = "../../opentelemetry", features = ["serialize", "rt-tokio", "metrics"] }
 opentelemetry-jaeger = { path = "../../opentelemetry-jaeger", features = ["rt-tokio"] }

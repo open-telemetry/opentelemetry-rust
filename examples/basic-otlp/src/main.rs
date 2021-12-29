@@ -1,5 +1,4 @@
-use futures::stream::Stream;
-use futures::StreamExt;
+use futures_util::{Stream, StreamExt as _};
 use opentelemetry::global::shutdown_tracer_provider;
 use opentelemetry::sdk::metrics::{selectors, PushController};
 use opentelemetry::trace::TraceError;

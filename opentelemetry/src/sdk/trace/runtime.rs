@@ -13,7 +13,7 @@ use crate::runtime::Tokio;
 use crate::runtime::TokioCurrentThread;
 use crate::sdk::trace::BatchMessage;
 use crate::trace::TraceError;
-use futures::Stream;
+use futures_util::Stream;
 use std::fmt::Debug;
 
 #[cfg(any(

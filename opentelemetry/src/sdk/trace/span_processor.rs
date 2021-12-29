@@ -42,7 +42,9 @@ use crate::{
     trace::{TraceError, TraceResult},
     Context,
 };
-use futures::{channel::oneshot, executor, future::Either, pin_mut, StreamExt};
+use futures_channel::oneshot;
+use futures_util::future::{self, Either};
+use futures_util::{pin_mut, stream, StreamExt as _};
 use std::{env, fmt, str::FromStr, thread, time::Duration};
 
 /// Delay interval between two consecutive exports.
@@ -116,7 +118,7 @@ impl SimpleSpanProcessor {
             .name("opentelemetry-exporter".to_string())
             .spawn(move || {
                 while let Ok(Some(span)) = span_rx.recv() {
-                    if let Err(err) = executor::block_on(exporter.export(vec![span])) {
+                    if let Err(err) = futures_executor::block_on(exporter.export(vec![span])) {
                         global::handle_error(err);
                     }
                 }
@@ -256,7 +258,7 @@ impl<R: TraceRuntime> SpanProcessor for BatchSpanProcessor<R> {
         self.message_sender
             .try_send(BatchMessage::Flush(Some(res_sender)))?;
 
-        futures::executor::block_on(res_receiver)
+        futures_executor::block_on(res_receiver)
             .map_err(|err| TraceError::Other(err.into()))
             .and_then(|identity| identity)
     }
@@ -266,7 +268,7 @@ impl<R: TraceRuntime> SpanProcessor for BatchSpanProcessor<R> {
         self.message_sender
             .try_send(BatchMessage::Shutdown(res_sender))?;
 
-        futures::executor::block_on(res_receiver)
+        futures_executor::block_on(res_receiver)
             .map_err(|err| TraceError::Other(err.into()))
             .and_then(|identity| identity)
     }
@@ -304,7 +306,7 @@ impl<R: TraceRuntime> BatchSpanProcessor<R> {
         // Spawn worker process via user-defined spawn function.
         runtime.spawn(Box::pin(async move {
             let mut spans = Vec::new();
-            let mut messages = Box::pin(futures::stream::select(message_receiver, ticker));
+            let mut messages = Box::pin(stream::select(message_receiver, ticker));
 
             while let Some(message) = messages.next().await {
                 match message {
@@ -407,7 +409,7 @@ where
     let timeout = runtime.delay(time_out);
     pin_mut!(export);
     pin_mut!(timeout);
-    match futures::future::select(export, timeout).await {
+    match future::select(export, timeout).await {
         Either::Left((export_res, _)) => export_res,
         Either::Right((_, _)) => ExportResult::Err(TraceError::ExportTimedOut(time_out)),
     }
@@ -555,8 +557,8 @@ mod tests {
         new_test_export_span_data, new_test_exporter, new_tokio_test_exporter,
     };
     use async_trait::async_trait;
-    use futures::Future;
     use std::fmt::Debug;
+    use std::future::Future;
     use std::time::Duration;
 
     #[test]

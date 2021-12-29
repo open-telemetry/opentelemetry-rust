@@ -3,11 +3,9 @@
 use crate::proto::tracez::{ErrorData, LatencyData, RunningData, TracezCounts};
 
 use async_channel::{SendError, Sender};
-use futures::channel::oneshot;
-use opentelemetry::sdk::export::trace::SpanData;
-
-use futures::channel::oneshot::Canceled;
+use futures_channel::oneshot::{self, Canceled};
 use opentelemetry::runtime::Runtime;
+use opentelemetry::sdk::export::trace::SpanData;
 use serde::ser::SerializeSeq;
 use serde::Serializer;
 use std::fmt::Formatter;

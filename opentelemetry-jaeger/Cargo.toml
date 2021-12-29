@@ -23,7 +23,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 async-std = { version = "1.6", optional = true }
 async-trait = "0.1"
 base64 = { version = "0.13", optional = true }
-futures-util = { version = "0.3", optional = true }
+futures-util = { version = "0.3", default-features = false, features = ["std"], optional = true }
 http = { version = "0.2", optional = true }
 isahc = { version = "1.4", default-features = false, optional = true }
 js-sys = { version = "0.3", optional = true }
@@ -43,7 +43,7 @@ surf = { version = "2.0", default-features = false, optional = true }
 
 [dev-dependencies]
 bytes = "1"
-futures = "0.3"
+futures-executor = "0.3"
 opentelemetry = { default-features = false, features = ["trace", "testing"], path = "../opentelemetry" }
 
 [dependencies.web-sys]

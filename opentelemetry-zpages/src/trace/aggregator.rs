@@ -7,7 +7,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use async_channel::Receiver;
 
-use futures::StreamExt;
+use futures_util::StreamExt as _;
 
 use opentelemetry::trace::StatusCode;
 
