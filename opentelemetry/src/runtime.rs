@@ -23,7 +23,7 @@ pub trait Runtime: Clone + Send + Sync + 'static {
     /// not important.
     type Delay: Future + Send;
 
-    /// Create a [Stream][futures::Stream], which returns a new item every
+    /// Create a [Stream][futures_util::stream::Stream], which returns a new item every
     /// [Duration][std::time::Duration].
     fn interval(&self, duration: Duration) -> Self::Interval;
 

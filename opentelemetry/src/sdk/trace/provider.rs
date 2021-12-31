@@ -167,7 +167,7 @@ impl Builder {
 
     /// Return the clone of sdk provided resource.
     ///
-    /// See https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/resource/sdk.md#sdk-provided-resource-attributes
+    /// See <https://github.com/open-telemetry/opentelemetry-specification/blob/v1.8.0/specification/resource/sdk.md#sdk-provided-resource-attributes>
     /// for details.
     pub fn sdk_provided_resource(&self) -> Resource {
         self.sdk_provided_resource.clone()
