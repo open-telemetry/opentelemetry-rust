@@ -214,10 +214,10 @@ impl crate::trace::Tracer for Tracer {
         // * There is no parent or a remote parent, in which case make decision now
         // * There is a local parent, in which case defer to the parent's decision
         let sampling_decision = if let Some(sampling_result) = builder.sampling_result.take() {
-            self.process_sampling_result(sampling_result, &parent_cx)
+            self.process_sampling_result(sampling_result, parent_cx)
         } else if no_parent || remote_parent {
             self.make_sampling_decision(
-                &parent_cx,
+                parent_cx,
                 trace_id,
                 &builder.name,
                 &span_kind,
@@ -305,7 +305,7 @@ impl crate::trace::Tracer for Tracer {
 
         // Call `on_start` for all processors
         for processor in provider.span_processors() {
-            processor.on_start(&mut span, &parent_cx)
+            processor.on_start(&mut span, parent_cx)
         }
 
         span
