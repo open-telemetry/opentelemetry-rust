@@ -1,4 +1,4 @@
-use futures::stream::{Stream, StreamExt};
+use futures_util::{Stream, StreamExt as _};
 use opentelemetry::global;
 use opentelemetry::global::shutdown_tracer_provider;
 use opentelemetry::sdk::trace::Config;

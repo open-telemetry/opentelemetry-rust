@@ -14,7 +14,7 @@ use crate::proto::collector::metrics::v1::{
 };
 use crate::transform::{record_to_metric, sink, CheckpointedMetrics};
 use crate::{Error, OtlpPipeline};
-use futures::Stream;
+use futures_util::Stream;
 use opentelemetry::metrics::{Descriptor, Result};
 use opentelemetry::sdk::export::metrics::{AggregatorSelector, ExportKindSelector};
 use opentelemetry::sdk::metrics::{PushController, PushControllerWorker};

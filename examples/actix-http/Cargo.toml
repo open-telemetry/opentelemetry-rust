@@ -8,7 +8,6 @@ publish = false
 opentelemetry = { path = "../../opentelemetry", features = ["rt-tokio"] }
 opentelemetry-jaeger = { path = "../../opentelemetry-jaeger", features = ["reqwest_collector_client", "rt-tokio"] }
 thrift = "0.13"
-futures = "0.3"
 actix-web = "4.0.0-beta.4"
 actix-service = "2.0.0-beta.5"
 env_logger = "0.8.2"

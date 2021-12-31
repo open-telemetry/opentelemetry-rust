@@ -9,7 +9,8 @@ use crate::sdk::{
     },
     Resource,
 };
-use futures::{channel::mpsc, task, Future, Stream, StreamExt};
+use futures_channel::mpsc;
+use futures_util::{stream, task, Future, Stream, StreamExt as _};
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use std::time;
@@ -87,7 +88,7 @@ impl Future for PushControllerWorker {
     type Output = ();
     fn poll(mut self: Pin<&mut Self>, cx: &mut task::Context<'_>) -> task::Poll<Self::Output> {
         loop {
-            match futures::ready!(self.messages.poll_next_unpin(cx)) {
+            match futures_util::ready!(self.messages.poll_next_unpin(cx)) {
                 // Span batch interval time reached, export current spans.
                 Some(PushMessage::Tick) => self.on_tick(),
                 // Stream has terminated or processor is shutdown, return to finish execution.
@@ -181,7 +182,7 @@ where
             (self.interval)(self.period.unwrap_or(*DEFAULT_PUSH_PERIOD)).map(|_| PushMessage::Tick);
 
         (self.spawn)(PushControllerWorker {
-            messages: Box::pin(futures::stream::select(message_receiver, ticker)),
+            messages: Box::pin(stream::select(message_receiver, ticker)),
             accumulator,
             processor,
             exporter: self.exporter,

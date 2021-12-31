@@ -172,7 +172,7 @@
 //! # }
 //! ```
 
-use ::futures::channel::{mpsc::TrySendError, oneshot::Canceled};
+use futures_channel::{mpsc::TrySendError, oneshot::Canceled};
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;

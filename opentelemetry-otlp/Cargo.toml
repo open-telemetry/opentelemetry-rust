@@ -36,7 +36,8 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 async-trait = "0.1"
-futures = "0.3"
+futures = { version = "0.3", default-features = false, features = ["std"] }
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
 grpcio = { version = "0.9", optional = true }
 opentelemetry = { version = "0.16", default-features = false, features = ["trace"], path = "../opentelemetry" }
 prost = { version = "0.8", optional = true }
