@@ -39,9 +39,7 @@ use std::time::SystemTime;
 ///
 /// let parent = tracer.start("foo");
 /// let parent_cx = Context::current_with_span(parent);
-/// let mut child = tracer.span_builder("bar")
-///     .with_parent_context(parent_cx.clone())
-///     .start(&tracer);
+/// let mut child = tracer.span_builder("bar").start_with_context(&tracer, &parent_cx);
 ///
 /// // ...
 ///
@@ -186,7 +184,7 @@ pub trait Tracer {
     where
         T: Into<Cow<'static, str>>,
     {
-        self.start_with_context(name, Context::current())
+        self.start_with_context(name, &Context::current())
     }
 
     /// Starts a new `Span` with a given context
@@ -212,7 +210,7 @@ pub trait Tracer {
     /// created in another process. Each propagators' deserialization must set
     /// `is_remote` to true on a parent `SpanContext` so `Span` creation knows if the
     /// parent is remote.
-    fn start_with_context<T>(&self, name: T, context: Context) -> Self::Span
+    fn start_with_context<T>(&self, name: T, parent_cx: &Context) -> Self::Span
     where
         T: Into<Cow<'static, str>>;
 
@@ -223,8 +221,13 @@ pub trait Tracer {
     where
         T: Into<Cow<'static, str>>;
 
-    /// Create a span from a `SpanBuilder`
-    fn build(&self, builder: SpanBuilder) -> Self::Span;
+    /// Create a span from a [SpanBuilder]
+    fn build(&self, builder: SpanBuilder) -> Self::Span {
+        self.build_with_context(builder, &Context::current())
+    }
+
+    /// Create a span from a [SpanBuilder] with a parent context.
+    fn build_with_context(&self, builder: SpanBuilder, parent_cx: &Context) -> Self::Span;
 
     /// Start a new span and execute the given closure with reference to the span's
     /// context.
@@ -278,7 +281,7 @@ pub trait Tracer {
     ///
     /// fn my_function() {
     ///     let tracer = global::tracer("my-component");
-    ///     // start a span with custom attributes via span bulder
+    ///     // start a span with custom attributes via span builder
     ///     let span = tracer.span_builder("span-name").with_kind(SpanKind::Server).start(&tracer);
     ///     // Mark the span as active for the duration of the closure
     ///     global::tracer("my-component").with_span(span, |_cx| {
@@ -331,8 +334,6 @@ pub trait Tracer {
 /// ```
 #[derive(Clone, Debug, Default)]
 pub struct SpanBuilder {
-    /// Parent `Context`
-    pub parent_context: Context,
     /// Trace id, useful for integrations with external tracing systems.
     pub trace_id: Option<TraceId>,
     /// Span id, useful for integrations with external tracing systems.
@@ -363,36 +364,9 @@ pub struct SpanBuilder {
 impl SpanBuilder {
     /// Create a new span builder from a span name
     pub fn from_name<T: Into<Cow<'static, str>>>(name: T) -> Self {
-        Self::from_name_with_context(name, Context::current())
-    }
-
-    /// Create a new span builder from a span name with the specified context
-    pub(crate) fn from_name_with_context<T: Into<Cow<'static, str>>>(
-        name: T,
-        parent_context: Context,
-    ) -> Self {
         SpanBuilder {
-            parent_context,
-            trace_id: None,
-            span_id: None,
-            span_kind: None,
             name: name.into(),
-            start_time: None,
-            end_time: None,
-            attributes: None,
-            events: None,
-            links: None,
-            status_code: None,
-            status_message: None,
-            sampling_result: None,
-        }
-    }
-
-    /// Assign parent context
-    pub fn with_parent_context(self, parent_context: Context) -> Self {
-        SpanBuilder {
-            parent_context,
-            ..self
+            ..Default::default()
         }
     }
 
@@ -487,6 +461,11 @@ impl SpanBuilder {
 
     /// Builds a span with the given tracer from this configuration.
     pub fn start<T: Tracer>(self, tracer: &T) -> T::Span {
-        tracer.build(self)
+        tracer.build_with_context(self, &Context::current())
+    }
+
+    /// Builds a span with the given tracer from this configuration and parent.
+    pub fn start_with_context<T: Tracer>(self, tracer: &T, parent_cx: &Context) -> T::Span {
+        tracer.build_with_context(self, parent_cx)
     }
 }

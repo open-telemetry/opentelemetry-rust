@@ -130,11 +130,11 @@ impl crate::trace::Tracer for Tracer {
     /// trace. A span is said to be a _root span_ if it does not have a parent. Each
     /// trace includes a single root span, which is the shared ancestor of all other
     /// spans in the trace.
-    fn start_with_context<T>(&self, name: T, cx: Context) -> Self::Span
+    fn start_with_context<T>(&self, name: T, parent_cx: &Context) -> Self::Span
     where
         T: Into<Cow<'static, str>>,
     {
-        self.build(SpanBuilder::from_name_with_context(name, cx))
+        self.build_with_context(SpanBuilder::from_name(name), parent_cx)
     }
 
     /// Creates a span builder
@@ -154,7 +154,7 @@ impl crate::trace::Tracer for Tracer {
     /// trace. A span is said to be a _root span_ if it does not have a parent. Each
     /// trace includes a single root span, which is the shared ancestor of all other
     /// spans in the trace.
-    fn build(&self, mut builder: SpanBuilder) -> Self::Span {
+    fn build_with_context(&self, mut builder: SpanBuilder, parent_cx: &Context) -> Self::Span {
         let provider = self.provider();
         if provider.is_none() {
             return Span::new(
@@ -179,8 +179,8 @@ impl crate::trace::Tracer for Tracer {
         let mut flags = TraceFlags::default();
         let mut span_trace_state = Default::default();
 
-        let parent_span = if builder.parent_context.has_active_span() {
-            Some(builder.parent_context.span())
+        let parent_span = if parent_cx.has_active_span() {
+            Some(parent_cx.span())
         } else {
             None
         };
@@ -214,10 +214,10 @@ impl crate::trace::Tracer for Tracer {
         // * There is no parent or a remote parent, in which case make decision now
         // * There is a local parent, in which case defer to the parent's decision
         let sampling_decision = if let Some(sampling_result) = builder.sampling_result.take() {
-            self.process_sampling_result(sampling_result, &builder.parent_context)
+            self.process_sampling_result(sampling_result, parent_cx)
         } else if no_parent || remote_parent {
             self.make_sampling_decision(
-                &builder.parent_context,
+                parent_cx,
                 trace_id,
                 &builder.name,
                 &span_kind,
@@ -240,7 +240,6 @@ impl crate::trace::Tracer for Tracer {
 
         // Build optional inner context, `None` if not recording.
         let SpanBuilder {
-            parent_context,
             name,
             start_time,
             end_time,
@@ -306,7 +305,7 @@ impl crate::trace::Tracer for Tracer {
 
         // Call `on_start` for all processors
         for processor in provider.span_processors() {
-            processor.on_start(&mut span, &parent_context)
+            processor.on_start(&mut span, parent_cx)
         }
 
         span
@@ -322,8 +321,8 @@ mod tests {
         },
         testing::trace::TestSpan,
         trace::{
-            Link, Span, SpanBuilder, SpanContext, SpanId, SpanKind, TraceContextExt, TraceFlags,
-            TraceId, TraceState, Tracer, TracerProvider,
+            Link, Span, SpanContext, SpanId, SpanKind, TraceContextExt, TraceFlags, TraceId,
+            TraceState, Tracer, TracerProvider,
         },
         Context, KeyValue,
     };
@@ -365,19 +364,17 @@ mod tests {
             .build();
         let tracer = tracer_provider.tracer("test");
         let trace_state = TraceState::from_key_value(vec![("foo", "bar")]).unwrap();
-        let span_builder = SpanBuilder {
-            parent_context: Context::new().with_span(TestSpan(SpanContext::new(
-                TraceId::from_u128(128),
-                SpanId::from_u64(64),
-                TraceFlags::SAMPLED,
-                true,
-                trace_state,
-            ))),
-            ..Default::default()
-        };
+
+        let parent_context = Context::new().with_span(TestSpan(SpanContext::new(
+            TraceId::from_u128(128),
+            SpanId::from_u64(64),
+            TraceFlags::SAMPLED,
+            true,
+            trace_state,
+        )));
 
         // Test sampler should change trace state
-        let span = tracer.build(span_builder);
+        let span = tracer.start_with_context("foo", &parent_context);
         let span_context = span.span_context();
         let expected = span_context.trace_state();
         assert_eq!(expected.get("foo"), Some("notbar"))
@@ -393,7 +390,7 @@ mod tests {
 
         let context = Context::current_with_span(TestSpan(SpanContext::empty_context()));
         let tracer = tracer_provider.tracer("test");
-        let span = tracer.start_with_context("must_not_be_sampled", context);
+        let span = tracer.start_with_context("must_not_be_sampled", &context);
 
         assert!(!span.span_context().is_sampled());
     }

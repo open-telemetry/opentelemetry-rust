@@ -244,11 +244,11 @@ impl trace::Tracer for BoxedTracer {
     /// trace. A span is said to be a _root span_ if it does not have a parent. Each
     /// trace includes a single root span, which is the shared ancestor of all other
     /// spans in the trace.
-    fn start_with_context<T>(&self, name: T, cx: Context) -> Self::Span
+    fn start_with_context<T>(&self, name: T, parent_cx: &Context) -> Self::Span
     where
         T: Into<Cow<'static, str>>,
     {
-        BoxedSpan(self.0.start_with_context_boxed(name.into(), cx))
+        BoxedSpan(self.0.start_with_context_boxed(name.into(), parent_cx))
     }
 
     /// Creates a span builder
@@ -262,8 +262,8 @@ impl trace::Tracer for BoxedTracer {
     }
 
     /// Create a span from a `SpanBuilder`
-    fn build(&self, builder: trace::SpanBuilder) -> Self::Span {
-        BoxedSpan(self.0.build_boxed(builder))
+    fn build_with_context(&self, builder: trace::SpanBuilder, parent_cx: &Context) -> Self::Span {
+        BoxedSpan(self.0.build_with_context_boxed(builder, parent_cx))
     }
 }
 
@@ -277,12 +277,16 @@ pub trait ObjectSafeTracer {
     fn start_with_context_boxed(
         &self,
         name: Cow<'static, str>,
-        cx: Context,
+        parent_cx: &Context,
     ) -> Box<dyn ObjectSafeSpan + Send + Sync>;
 
     /// Returns a trait object so the underlying implementation can be swapped
     /// out at runtime.
-    fn build_boxed(&self, builder: trace::SpanBuilder) -> Box<dyn ObjectSafeSpan + Send + Sync>;
+    fn build_with_context_boxed(
+        &self,
+        builder: trace::SpanBuilder,
+        parent_cx: &Context,
+    ) -> Box<dyn ObjectSafeSpan + Send + Sync>;
 }
 
 impl<S, T> ObjectSafeTracer for T
@@ -295,15 +299,19 @@ where
     fn start_with_context_boxed(
         &self,
         name: Cow<'static, str>,
-        cx: Context,
+        parent_cx: &Context,
     ) -> Box<dyn ObjectSafeSpan + Send + Sync> {
-        Box::new(self.start_with_context(name, cx))
+        Box::new(self.start_with_context(name, parent_cx))
     }
 
     /// Returns a trait object so the underlying implementation can be swapped
     /// out at runtime.
-    fn build_boxed(&self, builder: trace::SpanBuilder) -> Box<dyn ObjectSafeSpan + Send + Sync> {
-        Box::new(self.build(builder))
+    fn build_with_context_boxed(
+        &self,
+        builder: trace::SpanBuilder,
+        parent_cx: &Context,
+    ) -> Box<dyn ObjectSafeSpan + Send + Sync> {
+        Box::new(self.build_with_context(builder, parent_cx))
     }
 }
 

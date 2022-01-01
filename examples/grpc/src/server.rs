@@ -47,7 +47,7 @@ impl Greeter for MyGreeter {
     ) -> Result<Response<HelloReply>, Status> {
         let parent_cx =
             global::get_text_map_propagator(|prop| prop.extract(&MetadataMap(request.metadata())));
-        let mut span = global::tracer("greeter").start_with_context("Processing reply", parent_cx);
+        let mut span = global::tracer("greeter").start_with_context("Processing reply", &parent_cx);
         span.set_attribute(KeyValue::new("request", format!("{:?}", request)));
 
         // Return an instance of type HelloReply
