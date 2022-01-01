@@ -277,7 +277,7 @@ mod tests {
 
         let mut traces = group_into_traces(batch);
         // We need to sort the output in order to compare, but this is not required by the Datadog agent
-        traces.sort_by_key(|t| t[0].span_context.trace_id().to_u128());
+        traces.sort_by_key(|t| u128::from_be_bytes(t[0].span_context.trace_id().to_bytes()));
 
         assert_eq!(traces, expected);
     }

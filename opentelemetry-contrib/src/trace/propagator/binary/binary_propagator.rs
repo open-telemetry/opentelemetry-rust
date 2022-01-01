@@ -36,9 +36,9 @@ impl BinaryFormat for BinaryPropagator {
         if !context.is_valid() {
             return res;
         }
-        res[2..18].copy_from_slice(&context.trace_id().to_u128().to_be_bytes());
+        res[2..18].copy_from_slice(&context.trace_id().to_bytes());
         res[18] = 1;
-        res[19..27].copy_from_slice(&context.span_id().to_u64().to_be_bytes());
+        res[19..27].copy_from_slice(&context.span_id().to_bytes());
         res[27] = 2;
         res[28] = context.trace_flags().to_u8();
 
@@ -50,12 +50,12 @@ impl BinaryFormat for BinaryPropagator {
         if bytes.is_empty() {
             return SpanContext::empty_context();
         }
-        let trace_id: u128;
+        let trace_id: [u8; 16];
         let mut span_id = 0;
         let mut trace_flags = 0;
         let mut b = &bytes[1..];
         if b.len() >= 17 && b[0] == 0 {
-            trace_id = u128::from_be_bytes(b[1..17].try_into().unwrap());
+            trace_id = b[1..17].try_into().unwrap();
             b = &b[17..];
         } else {
             return SpanContext::empty_context();
@@ -69,7 +69,7 @@ impl BinaryFormat for BinaryPropagator {
         }
 
         let span_context = SpanContext::new(
-            TraceId::from_u128(trace_id),
+            TraceId::from(trace_id),
             SpanId::from_u64(span_id),
             TraceFlags::new(trace_flags),
             true,

@@ -96,9 +96,7 @@ impl Propagator {
         if trace_id.to_lowercase() != trace_id || (trace_id.len() != 16 && trace_id.len() != 32) {
             Err(())
         } else {
-            u128::from_str_radix(trace_id, 16)
-                .map(TraceId::from_u128)
-                .map_err(|_| ())
+            TraceId::from_hex(trace_id).map_err(|_| ())
         }
     }
 
@@ -220,8 +218,8 @@ impl TextMapPropagator for Propagator {
             if self.inject_encoding.support(&B3Encoding::SingleHeader) {
                 let mut value = format!(
                     "{:032x}-{:016x}",
-                    span_context.trace_id().to_u128(),
-                    span_context.span_id().to_u64(),
+                    span_context.trace_id(),
+                    span_context.span_id(),
                 );
                 if !is_deferred {
                     let flag = if is_debug {
@@ -242,11 +240,11 @@ impl TextMapPropagator for Propagator {
                 // if inject_encoding is Unspecified, default to use MultipleHeader
                 injector.set(
                     B3_TRACE_ID_HEADER,
-                    format!("{:032x}", span_context.trace_id().to_u128()),
+                    format!("{:032x}", span_context.trace_id()),
                 );
                 injector.set(
                     B3_SPAN_ID_HEADER,
-                    format!("{:016x}", span_context.span_id().to_u64()),
+                    format!("{:016x}", span_context.span_id()),
                 );
 
                 if is_debug {
@@ -405,8 +403,8 @@ mod tests {
             ("4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-d", SpanContext::new(TraceId::from_u128(TRACE_ID_HEX), SpanId::from_u64(SPAN_ID_HEX), TRACE_FLAG_DEBUG, true, TraceState::default())),
             ("4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7", SpanContext::new(TraceId::from_u128(TRACE_ID_HEX), SpanId::from_u64(SPAN_ID_HEX), TRACE_FLAG_DEFERRED, true, TraceState::default())),
             ("4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-0", SpanContext::new(TraceId::from_u128(TRACE_ID_HEX), SpanId::from_u64(SPAN_ID_HEX), TraceFlags::default(), true, TraceState::default())),
-            ("1", SpanContext::new(TraceId::invalid(), SpanId::invalid(), TraceFlags::SAMPLED, true, TraceState::default())),
-            ("0", SpanContext::new(TraceId::invalid(), SpanId::invalid(), TraceFlags::default(), true, TraceState::default())),
+            ("1", SpanContext::new(TraceId::INVALID, SpanId::INVALID, TraceFlags::SAMPLED, true, TraceState::default())),
+            ("0", SpanContext::new(TraceId::INVALID, SpanId::INVALID, TraceFlags::default(), true, TraceState::default())),
         ]
     }
 
@@ -420,7 +418,7 @@ mod tests {
             (Some(TRACE_ID_STR), Some(SPAN_ID_STR), None, None, SpanContext::new(TraceId::from_u128(TRACE_ID_HEX), SpanId::from_u64(SPAN_ID_HEX), TRACE_FLAG_DEFERRED, true, TraceState::default())),
             (Some(TRACE_ID_STR), Some(SPAN_ID_STR), Some("0"), None, SpanContext::new(TraceId::from_u128(TRACE_ID_HEX), SpanId::from_u64(SPAN_ID_HEX), TraceFlags::default(), true, TraceState::default())),
             (None, None, Some("0"), None, SpanContext::empty_context()),
-            (None, None, Some("1"), None, SpanContext::new(TraceId::invalid(), SpanId::invalid(), TraceFlags::SAMPLED, true, TraceState::default()))
+            (None, None, Some("1"), None, SpanContext::new(TraceId::INVALID, SpanId::INVALID, TraceFlags::SAMPLED, true, TraceState::default()))
         ]
     }
 
@@ -435,7 +433,7 @@ mod tests {
             (Some(TRACE_ID_STR), Some(SPAN_ID_STR), Some("0"), None, Some("4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-0"), SpanContext::new(trace_id, span_id, TraceFlags::default(), true, TraceState::default())), // not sampled
             (Some(TRACE_ID_STR), Some(SPAN_ID_STR), None, None, Some("4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7"), SpanContext::new(trace_id, span_id, TRACE_FLAG_DEFERRED, true, TraceState::default())), // unset sampled
             (None, None, Some("0"), None, Some("0"), SpanContext::empty_context()),
-            (None, None, Some("1"), None, Some("1"), SpanContext::new(TraceId::invalid(), SpanId::invalid(), TraceFlags::SAMPLED, true, TraceState::default())),
+            (None, None, Some("1"), None, Some("1"), SpanContext::new(TraceId::INVALID, SpanId::INVALID, TraceFlags::SAMPLED, true, TraceState::default())),
         ]
     }
 
