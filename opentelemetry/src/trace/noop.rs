@@ -63,8 +63,8 @@ impl NoopSpan {
     pub fn new() -> Self {
         NoopSpan {
             span_context: trace::SpanContext::new(
-                trace::TraceId::invalid(),
-                trace::SpanId::invalid(),
+                trace::TraceId::INVALID,
+                trace::SpanId::INVALID,
                 TraceFlags::default(),
                 false,
                 TraceState::default(),

@@ -110,9 +110,18 @@ fn encode_traces(
                 interner.intern(span.instrumentation_lib.name.as_ref()),
             )?;
             rmp::encode::write_u32(&mut encoded, interner.intern(&span.name))?;
-            rmp::encode::write_u64(&mut encoded, span.span_context.trace_id().to_u128() as u64)?;
-            rmp::encode::write_u64(&mut encoded, span.span_context.span_id().to_u64())?;
-            rmp::encode::write_u64(&mut encoded, span.parent_span_id.to_u64())?;
+            rmp::encode::write_u64(
+                &mut encoded,
+                u128::from_be_bytes(span.span_context.trace_id().to_bytes()) as u64,
+            )?;
+            rmp::encode::write_u64(
+                &mut encoded,
+                u64::from_be_bytes(span.span_context.span_id().to_bytes()),
+            )?;
+            rmp::encode::write_u64(
+                &mut encoded,
+                u64::from_be_bytes(span.parent_span_id.to_bytes()),
+            )?;
             rmp::encode::write_i64(&mut encoded, start)?;
             rmp::encode::write_i64(&mut encoded, duration)?;
             rmp::encode::write_i32(

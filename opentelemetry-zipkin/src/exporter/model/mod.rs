@@ -82,9 +82,9 @@ pub(crate) fn into_zipkin_span(local_endpoint: Endpoint, span_data: trace::SpanD
     }
 
     span::Span::builder()
-        .trace_id(span_data.span_context.trace_id().to_hex())
-        .parent_id(span_data.parent_span_id.to_hex())
-        .id(span_data.span_context.span_id().to_hex())
+        .trace_id(span_data.span_context.trace_id().to_string())
+        .parent_id(span_data.parent_span_id.to_string())
+        .id(span_data.span_context.span_id().to_string())
         .name(span_data.name.into_owned())
         .kind(if user_defined_span_kind {
             None

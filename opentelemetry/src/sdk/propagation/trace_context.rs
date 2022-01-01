@@ -71,9 +71,7 @@ impl TraceContextPropagator {
         }
 
         // Parse trace id section
-        let trace_id = u128::from_str_radix(parts[1], 16)
-            .map_err(|_| ())
-            .map(TraceId::from_u128)?;
+        let trace_id = TraceId::from_hex(parts[1]).map_err(|_| ())?;
 
         // Ensure span id is lowercase
         if parts[2].chars().any(|c| c.is_ascii_uppercase()) {
@@ -81,9 +79,7 @@ impl TraceContextPropagator {
         }
 
         // Parse span id section
-        let span_id = u64::from_str_radix(parts[2], 16)
-            .map_err(|_| ())
-            .map(SpanId::from_u64)?;
+        let span_id = SpanId::from_hex(parts[2]).map_err(|_| ())?;
 
         // Parse trace flags section
         let opts = u8::from_str_radix(parts[3], 16).map_err(|_| ())?;
@@ -123,8 +119,8 @@ impl TextMapPropagator for TraceContextPropagator {
             let header_value = format!(
                 "{:02x}-{:032x}-{:016x}-{:02x}",
                 SUPPORTED_VERSION,
-                span_context.trace_id().to_u128(),
-                span_context.span_id().to_u64(),
+                span_context.trace_id(),
+                span_context.span_id(),
                 span_context.trace_flags() & TraceFlags::SAMPLED
             );
             injector.set(TRACEPARENT_HEADER, header_value);

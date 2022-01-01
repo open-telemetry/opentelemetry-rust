@@ -138,8 +138,9 @@ impl ShouldSample for Sampler {
                     SamplingDecision::RecordAndSample
                 } else {
                     let prob_upper_bound = (prob.max(0.0) * (1u64 << 63) as f64) as u64;
-                    // The trace_id is already randomly generated, so we don't need a new one here
-                    let rnd_from_trace_id = (trace_id.to_u128() as u64) >> 1;
+                    // TODO: update behavior when the spec definition resolves
+                    // https://github.com/open-telemetry/opentelemetry-specification/issues/1413
+                    let rnd_from_trace_id = (trace_id.0 as u64) >> 1;
 
                     if rnd_from_trace_id < prob_upper_bound {
                         SamplingDecision::RecordAndSample
@@ -243,7 +244,7 @@ mod tests {
                     None
                 };
 
-                let trace_id = TraceId::from_u128(rng.gen());
+                let trace_id = TraceId::from(rng.gen::<[u8; 16]>());
                 if sampler
                     .should_sample(
                         parent_context.as_ref(),

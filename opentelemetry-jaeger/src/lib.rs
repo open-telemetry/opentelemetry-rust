@@ -304,12 +304,7 @@ mod propagator {
                 return Err(());
             }
 
-            // allow variable length, padding 0 when length is less than 32
-            let padded_trace_id = format!("{:0>32}", trace_id);
-
-            u128::from_str_radix(padded_trace_id.as_str(), 16)
-                .map(TraceId::from_u128)
-                .map_err(|_| ())
+            TraceId::from_hex(trace_id).map_err(|_| ())
         }
 
         /// Extract span id from the header.
@@ -386,8 +381,8 @@ mod propagator {
                 };
                 let header_value = format!(
                     "{:032x}:{:016x}:{:01}:{:01}",
-                    span_context.trace_id().to_u128(),
-                    span_context.span_id().to_u64(),
+                    span_context.trace_id(),
+                    span_context.span_id(),
                     DEPRECATED_PARENT_SPAN,
                     flag,
                 );

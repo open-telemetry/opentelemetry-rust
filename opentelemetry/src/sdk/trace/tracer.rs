@@ -203,7 +203,7 @@ impl crate::trace::Tracer for Tracer {
                 builder
                     .trace_id
                     .unwrap_or_else(|| config.id_generator.new_trace_id()),
-                SpanId::invalid(),
+                SpanId::INVALID,
                 false,
                 TraceFlags::default(),
             ));

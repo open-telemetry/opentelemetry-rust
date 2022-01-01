@@ -43,10 +43,8 @@ pub struct XrayIdGenerator {
 impl IdGenerator for XrayIdGenerator {
     /// Generates a new `TraceId` that can be converted to an X-Ray Trace ID
     fn new_trace_id(&self) -> TraceId {
-        let mut default_trace_id: String = format!(
-            "{:024x}",
-            self.sdk_default_generator.new_trace_id().to_u128()
-        );
+        let mut default_trace_id: String =
+            format!("{:024x}", self.sdk_default_generator.new_trace_id());
 
         default_trace_id.truncate(24);
 
@@ -56,6 +54,7 @@ impl IdGenerator for XrayIdGenerator {
             .as_secs();
 
         TraceId::from_hex(format!("{:08x}{}", epoch_time_seconds, default_trace_id).as_str())
+            .unwrap_or(TraceId::INVALID)
     }
 
     /// Generates a new `SpanId` that can be converted to an X-Ray Segment ID
@@ -86,7 +85,7 @@ mod tests {
             .unwrap()
             .as_secs();
 
-        let trace_as_hex: String = format!("{:032x}", trace_id.to_u128());
+        let trace_as_hex: String = format!("{:032x}", trace_id);
         let (timestamp, _xray_id) = trace_as_hex.split_at(8_usize);
 
         let trace_time: u64 = u64::from_str_radix(timestamp, 16).unwrap();
