@@ -20,7 +20,7 @@ impl crate::trace::IdGenerator for IdGenerator {
 
     /// Generate new `SpanId` using thread local rng
     fn new_span_id(&self) -> SpanId {
-        CURRENT_RNG.with(|rng| SpanId::from_u64(rng.borrow_mut().gen()))
+        CURRENT_RNG.with(|rng| SpanId::from(rng.borrow_mut().gen::<[u8; 8]>()))
     }
 }
 

@@ -139,12 +139,6 @@ impl From<[u8; 16]> for TraceId {
     }
 }
 
-impl From<TraceId> for [u8; 16] {
-    fn from(id: TraceId) -> [u8; 16] {
-        id.to_bytes()
-    }
-}
-
 impl fmt::Debug for TraceId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_fmt(format_args!("{:032x}", self.0))
@@ -204,12 +198,6 @@ impl SpanId {
 impl From<[u8; 8]> for SpanId {
     fn from(bytes: [u8; 8]) -> Self {
         SpanId::from_bytes(bytes)
-    }
-}
-
-impl From<SpanId> for [u8; 8] {
-    fn from(id: SpanId) -> [u8; 8] {
-        id.to_bytes()
     }
 }
 
