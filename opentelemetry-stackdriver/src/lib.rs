@@ -179,14 +179,12 @@ impl StackDriverExporter {
                             name: format!(
                                 "projects/{}/traces/{}/spans/{}",
                                 authorizer.project_id(),
-                                hex::encode(span.span_context.trace_id().to_u128().to_be_bytes()),
-                                hex::encode(span.span_context.span_id().to_u64().to_be_bytes())
+                                hex::encode(span.span_context.trace_id().to_bytes()),
+                                hex::encode(span.span_context.span_id().to_bytes())
                             ),
                             display_name: Some(to_truncate(span.name.into_owned())),
-                            span_id: hex::encode(
-                                span.span_context.span_id().to_u64().to_be_bytes(),
-                            ),
-                            parent_span_id: hex::encode(span.parent_span_id.to_u64().to_be_bytes()),
+                            span_id: hex::encode(span.span_context.span_id().to_bytes()),
+                            parent_span_id: hex::encode(span.parent_span_id.to_bytes()),
                             start_time: Some(span.start_time.into()),
                             end_time: Some(span.end_time.into()),
                             attributes: Some(Attributes {

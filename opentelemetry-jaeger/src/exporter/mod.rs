@@ -18,6 +18,7 @@ use async_trait::async_trait;
 #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
 use collector::CollectorAsyncClientHttp;
 use opentelemetry_semantic_conventions as semcov;
+use std::convert::TryInto;
 
 #[cfg(feature = "isahc_collector_client")]
 #[allow(unused_imports)] // this is actually used to configure authentication
@@ -646,15 +647,16 @@ fn links_to_references(links: sdk::trace::EvictedQueue<Link>) -> Option<Vec<jaeg
             .iter()
             .map(|link| {
                 let span_context = link.span_context();
-                let trace_id = span_context.trace_id().to_u128();
-                let trace_id_high = (trace_id >> 64) as i64;
-                let trace_id_low = trace_id as i64;
+                let trace_id_bytes = span_context.trace_id().to_bytes();
+                let (high, low) = trace_id_bytes.split_at(8);
+                let trace_id_high = i64::from_be_bytes(high.try_into().unwrap());
+                let trace_id_low = i64::from_be_bytes(low.try_into().unwrap());
 
                 jaeger::SpanRef::new(
                     jaeger::SpanRefType::FollowsFrom,
                     trace_id_low,
                     trace_id_high,
-                    span_context.span_id().to_u64() as i64,
+                    i64::from_be_bytes(span_context.span_id().to_bytes()),
                 )
             })
             .collect();
@@ -669,14 +671,15 @@ fn convert_otel_span_into_jaeger_span(
     span: trace::SpanData,
     export_instrument_lib: bool,
 ) -> jaeger::Span {
-    let trace_id = span.span_context.trace_id().to_u128();
-    let trace_id_high = (trace_id >> 64) as i64;
-    let trace_id_low = trace_id as i64;
+    let trace_id_bytes = span.span_context.trace_id().to_bytes();
+    let (high, low) = trace_id_bytes.split_at(8);
+    let trace_id_high = i64::from_be_bytes(high.try_into().unwrap());
+    let trace_id_low = i64::from_be_bytes(low.try_into().unwrap());
     jaeger::Span {
         trace_id_low,
         trace_id_high,
-        span_id: span.span_context.span_id().to_u64() as i64,
-        parent_span_id: span.parent_span_id.to_u64() as i64,
+        span_id: i64::from_be_bytes(span.span_context.span_id().to_bytes()),
+        parent_span_id: i64::from_be_bytes(span.parent_span_id.to_bytes()),
         operation_name: span.name.into_owned(),
         references: links_to_references(span.links),
         flags: span.span_context.trace_flags().to_u8() as i32,

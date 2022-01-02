@@ -198,7 +198,7 @@ mod propagator {
         fn extract_trace_id(&self, trace_id: &str) -> Result<TraceId, ExtractError> {
             trace_id
                 .parse::<u64>()
-                .map(|id| TraceId::from_u128(id as u128))
+                .map(|id| TraceId::from((id as u128).to_be_bytes()))
                 .map_err(|_| ExtractError::TraceId)
         }
 
@@ -236,7 +236,7 @@ mod propagator {
             // out so that the rest of the spans aren't completely lost
             let span_id = self
                 .extract_span_id(extractor.get(DATADOG_PARENT_ID_HEADER).unwrap_or(""))
-                .unwrap_or_else(|_| SpanId::invalid());
+                .unwrap_or(SpanId::INVALID);
             let sampling_priority = self.extract_sampling_priority(
                 extractor
                     .get(DATADOG_SAMPLING_PRIORITY_HEADER)
@@ -272,11 +272,11 @@ mod propagator {
             if span_context.is_valid() {
                 injector.set(
                     DATADOG_TRACE_ID_HEADER,
-                    (span_context.trace_id().to_u128() as u64).to_string(),
+                    (u128::from_be_bytes(span_context.trace_id().to_bytes()) as u64).to_string(),
                 );
                 injector.set(
                     DATADOG_PARENT_ID_HEADER,
-                    span_context.span_id().to_u64().to_string(),
+                    u64::from_be_bytes(span_context.span_id().to_bytes()).to_string(),
                 );
 
                 if span_context.trace_flags() & TRACE_FLAG_DEFERRED != TRACE_FLAG_DEFERRED {
@@ -320,7 +320,7 @@ mod propagator {
                 (vec![], SpanContext::empty_context()),
                 (vec![(DATADOG_SAMPLING_PRIORITY_HEADER, "0")], SpanContext::empty_context()),
                 (vec![(DATADOG_TRACE_ID_HEADER, "garbage")], SpanContext::empty_context()),
-                (vec![(DATADOG_TRACE_ID_HEADER, "1234"), (DATADOG_PARENT_ID_HEADER, "garbage")], SpanContext::new(TraceId::from_u128(1234), SpanId::invalid(), TRACE_FLAG_DEFERRED, true, TraceState::default())),
+                (vec![(DATADOG_TRACE_ID_HEADER, "1234"), (DATADOG_PARENT_ID_HEADER, "garbage")], SpanContext::new(TraceId::from_u128(1234), SpanId::INVALID, TRACE_FLAG_DEFERRED, true, TraceState::default())),
                 (vec![(DATADOG_TRACE_ID_HEADER, "1234"), (DATADOG_PARENT_ID_HEADER, "12")], SpanContext::new(TraceId::from_u128(1234), SpanId::from_u64(12), TRACE_FLAG_DEFERRED, true, TraceState::default())),
                 (vec![(DATADOG_TRACE_ID_HEADER, "1234"), (DATADOG_PARENT_ID_HEADER, "12"), (DATADOG_SAMPLING_PRIORITY_HEADER, "0")], SpanContext::new(TraceId::from_u128(1234), SpanId::from_u64(12), TraceFlags::default(), true, TraceState::default())),
                 (vec![(DATADOG_TRACE_ID_HEADER, "1234"), (DATADOG_PARENT_ID_HEADER, "12"), (DATADOG_SAMPLING_PRIORITY_HEADER, "1")], SpanContext::new(TraceId::from_u128(1234), SpanId::from_u64(12), TraceFlags::SAMPLED, true, TraceState::default())),
@@ -331,9 +331,9 @@ mod propagator {
         fn inject_test_data() -> Vec<(Vec<(&'static str, &'static str)>, SpanContext)> {
             vec![
                 (vec![], SpanContext::empty_context()),
-                (vec![], SpanContext::new(TraceId::from_hex("garbage"), SpanId::invalid(), TRACE_FLAG_DEFERRED, true, TraceState::default())),
-                (vec![], SpanContext::new(TraceId::from_hex("1234"), SpanId::invalid(), TRACE_FLAG_DEFERRED, true, TraceState::default())),
-                (vec![], SpanContext::new(TraceId::from_hex("1234"), SpanId::invalid(), TraceFlags::SAMPLED, true, TraceState::default())),
+                (vec![], SpanContext::new(TraceId::INVALID, SpanId::INVALID, TRACE_FLAG_DEFERRED, true, TraceState::default())),
+                (vec![], SpanContext::new(TraceId::from_hex("1234").unwrap(), SpanId::INVALID, TRACE_FLAG_DEFERRED, true, TraceState::default())),
+                (vec![], SpanContext::new(TraceId::from_hex("1234").unwrap(), SpanId::INVALID, TraceFlags::SAMPLED, true, TraceState::default())),
                 (vec![(DATADOG_TRACE_ID_HEADER, "1234"), (DATADOG_PARENT_ID_HEADER, "12")], SpanContext::new(TraceId::from_u128(1234), SpanId::from_u64(12), TRACE_FLAG_DEFERRED, true, TraceState::default())),
                 (vec![(DATADOG_TRACE_ID_HEADER, "1234"), (DATADOG_PARENT_ID_HEADER, "12"), (DATADOG_SAMPLING_PRIORITY_HEADER, "0")], SpanContext::new(TraceId::from_u128(1234), SpanId::from_u64(12), TraceFlags::default(), true, TraceState::default())),
                 (vec![(DATADOG_TRACE_ID_HEADER, "1234"), (DATADOG_PARENT_ID_HEADER, "12"), (DATADOG_SAMPLING_PRIORITY_HEADER, "1")], SpanContext::new(TraceId::from_u128(1234), SpanId::from_u64(12), TraceFlags::SAMPLED, true, TraceState::default())),

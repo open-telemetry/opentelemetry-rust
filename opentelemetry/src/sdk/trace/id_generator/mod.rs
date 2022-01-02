@@ -15,12 +15,12 @@ pub struct IdGenerator {
 impl crate::trace::IdGenerator for IdGenerator {
     /// Generate new `TraceId` using thread local rng
     fn new_trace_id(&self) -> TraceId {
-        CURRENT_RNG.with(|rng| TraceId::from_u128(rng.borrow_mut().gen()))
+        CURRENT_RNG.with(|rng| TraceId::from(rng.borrow_mut().gen::<[u8; 16]>()))
     }
 
     /// Generate new `SpanId` using thread local rng
     fn new_span_id(&self) -> SpanId {
-        CURRENT_RNG.with(|rng| SpanId::from_u64(rng.borrow_mut().gen()))
+        CURRENT_RNG.with(|rng| SpanId::from(rng.borrow_mut().gen::<[u8; 8]>()))
     }
 }
 

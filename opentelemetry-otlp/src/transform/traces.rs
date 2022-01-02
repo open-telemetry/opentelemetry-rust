@@ -1,6 +1,6 @@
 use crate::transform::common::to_nanos;
 use opentelemetry::sdk::{self, export::trace::SpanData};
-use opentelemetry::trace::{Link, SpanKind, StatusCode};
+use opentelemetry::trace::{Link, SpanId, SpanKind, StatusCode};
 
 #[cfg(feature = "tonic")]
 mod tonic {
@@ -36,18 +36,8 @@ mod tonic {
     impl From<Link> for span::Link {
         fn from(link: Link) -> Self {
             span::Link {
-                trace_id: link
-                    .span_context()
-                    .trace_id()
-                    .to_u128()
-                    .to_be_bytes()
-                    .to_vec(),
-                span_id: link
-                    .span_context()
-                    .span_id()
-                    .to_u64()
-                    .to_be_bytes()
-                    .to_vec(),
+                trace_id: link.span_context().trace_id().to_bytes().to_vec(),
+                span_id: link.span_context().span_id().to_bytes().to_vec(),
                 trace_state: link.span_context().trace_state().header(),
                 attributes: Attributes::from(link.attributes().clone()).0,
                 dropped_attributes_count: link.dropped_attributes_count(),
@@ -69,22 +59,12 @@ mod tonic {
                 instrumentation_library_spans: vec![InstrumentationLibrarySpans {
                     instrumentation_library: Default::default(),
                     spans: vec![Span {
-                        trace_id: source_span
-                            .span_context
-                            .trace_id()
-                            .to_u128()
-                            .to_be_bytes()
-                            .to_vec(),
-                        span_id: source_span
-                            .span_context
-                            .span_id()
-                            .to_u64()
-                            .to_be_bytes()
-                            .to_vec(),
+                        trace_id: source_span.span_context.trace_id().to_bytes().to_vec(),
+                        span_id: source_span.span_context.span_id().to_bytes().to_vec(),
                         trace_state: source_span.span_context.trace_state().header(),
                         parent_span_id: {
-                            if source_span.parent_span_id.to_u64() > 0 {
-                                source_span.parent_span_id.to_u64().to_be_bytes().to_vec()
+                            if source_span.parent_span_id != SpanId::INVALID {
+                                source_span.parent_span_id.to_bytes().to_vec()
                             } else {
                                 vec![]
                             }
@@ -165,18 +145,8 @@ mod prost {
     impl From<Link> for span::Link {
         fn from(link: Link) -> Self {
             span::Link {
-                trace_id: link
-                    .span_context()
-                    .trace_id()
-                    .to_u128()
-                    .to_be_bytes()
-                    .to_vec(),
-                span_id: link
-                    .span_context()
-                    .span_id()
-                    .to_u64()
-                    .to_be_bytes()
-                    .to_vec(),
+                trace_id: link.span_context().trace_id().to_bytes().to_vec(),
+                span_id: link.span_context().span_id().to_bytes().to_vec(),
                 trace_state: link.span_context().trace_state().header(),
                 attributes: Attributes::from(link.attributes().clone()).0,
                 dropped_attributes_count: link.dropped_attributes_count(),
@@ -198,22 +168,12 @@ mod prost {
                 instrumentation_library_spans: vec![InstrumentationLibrarySpans {
                     instrumentation_library: Default::default(),
                     spans: vec![Span {
-                        trace_id: source_span
-                            .span_context
-                            .trace_id()
-                            .to_u128()
-                            .to_be_bytes()
-                            .to_vec(),
-                        span_id: source_span
-                            .span_context
-                            .span_id()
-                            .to_u64()
-                            .to_be_bytes()
-                            .to_vec(),
+                        trace_id: source_span.span_context.trace_id().to_bytes().to_vec(),
+                        span_id: source_span.span_context.span_id().to_bytes().to_vec(),
                         trace_state: source_span.span_context.trace_state().header(),
                         parent_span_id: {
-                            if source_span.parent_span_id.to_u64() > 0 {
-                                source_span.parent_span_id.to_u64().to_be_bytes().to_vec()
+                            if source_span.parent_span_id != SpanId::INVALID {
+                                source_span.parent_span_id.to_bytes().to_vec()
                             } else {
                                 vec![]
                             }
@@ -269,7 +229,6 @@ mod grpcio {
         Status, Status_StatusCode,
     };
     use crate::transform::common::grpcio::Attributes;
-    use protobuf::reflect::ProtobufValue;
     use protobuf::{RepeatedField, SingularPtrField};
 
     impl From<SpanKind> for Span_SpanKind {
@@ -297,18 +256,8 @@ mod grpcio {
     impl From<Link> for Span_Link {
         fn from(link: Link) -> Self {
             Span_Link {
-                trace_id: link
-                    .span_context()
-                    .trace_id()
-                    .to_u128()
-                    .to_be_bytes()
-                    .to_vec(),
-                span_id: link
-                    .span_context()
-                    .span_id()
-                    .to_u64()
-                    .to_be_bytes()
-                    .to_vec(),
+                trace_id: link.span_context().trace_id().to_bytes().to_vec(),
+                span_id: link.span_context().span_id().to_bytes().to_vec(),
                 trace_state: link.span_context().trace_state().header(),
                 attributes: Attributes::from(link.attributes().clone()).0,
                 dropped_attributes_count: link.dropped_attributes_count(),
@@ -332,22 +281,12 @@ mod grpcio {
                     InstrumentationLibrarySpans {
                         instrumentation_library: Default::default(),
                         spans: RepeatedField::from_vec(vec![Span {
-                            trace_id: source_span
-                                .span_context
-                                .trace_id()
-                                .to_u128()
-                                .to_be_bytes()
-                                .to_vec(),
-                            span_id: source_span
-                                .span_context
-                                .span_id()
-                                .to_u64()
-                                .to_be_bytes()
-                                .to_vec(),
+                            trace_id: source_span.span_context.trace_id().to_bytes().to_vec(),
+                            span_id: source_span.span_context.span_id().to_bytes().to_vec(),
                             trace_state: source_span.span_context.trace_state().header(),
                             parent_span_id: {
-                                if source_span.parent_span_id.to_u64().is_non_zero() {
-                                    source_span.parent_span_id.to_u64().to_be_bytes().to_vec()
+                                if source_span.parent_span_id != SpanId::INVALID {
+                                    source_span.parent_span_id.to_bytes().to_vec()
                                 } else {
                                     vec![]
                                 }

@@ -100,8 +100,8 @@ pub mod trace {
                 .filter_map(from_key_value_pair)
                 .collect();
 
-            let mut trace_id: TraceId = TraceId::invalid();
-            let mut parent_segment_id: SpanId = SpanId::invalid();
+            let mut trace_id: TraceId = TraceId::INVALID;
+            let mut parent_segment_id: SpanId = SpanId::INVALID;
             let mut sampling_decision = TRACE_FLAG_DEFERRED;
             let mut kv_vec: Vec<(String, String)> = Vec::with_capacity(parts.len());
 
@@ -115,7 +115,9 @@ pub mod trace {
                             Ok(parsed) => trace_id = parsed,
                         }
                     }
-                    HEADER_PARENT_KEY => parent_segment_id = SpanId::from_hex(value),
+                    HEADER_PARENT_KEY => {
+                        parent_segment_id = SpanId::from_hex(value).unwrap_or(SpanId::INVALID)
+                    }
                     HEADER_SAMPLED_KEY => {
                         sampling_decision = match value {
                             NOT_SAMPLED => TraceFlags::default(),
@@ -130,7 +132,7 @@ pub mod trace {
 
             match TraceState::from_key_value(kv_vec) {
                 Ok(trace_state) => {
-                    if trace_id.to_u128() == 0 {
+                    if trace_id == TraceId::INVALID {
                         return Err(());
                     }
 
@@ -186,11 +188,11 @@ pub mod trace {
                 injector.set(
                     AWS_XRAY_TRACE_HEADER,
                     format!(
-                        "{}={};{}={};{}={}{}{}",
+                        "{}={};{}={:016x};{}={}{}{}",
                         HEADER_ROOT_KEY,
                         xray_trace_id.0,
                         HEADER_PARENT_KEY,
-                        span_context.span_id().to_hex(),
+                        span_context.span_id(),
                         HEADER_SAMPLED_KEY,
                         sampling_decision,
                         trace_state_prefix,
@@ -239,9 +241,10 @@ pub mod trace {
                 return Err(());
             }
 
-            let trace_id: TraceId = TraceId::from_hex(format!("{}{}", parts[1], parts[2]).as_str());
+            let trace_id: TraceId =
+                TraceId::from_hex(format!("{}{}", parts[1], parts[2]).as_str()).map_err(|_| ())?;
 
-            if trace_id.to_u128() == 0 {
+            if trace_id == TraceId::INVALID {
                 Err(())
             } else {
                 Ok(trace_id)
@@ -251,7 +254,7 @@ pub mod trace {
 
     impl From<TraceId> for XrayTraceId {
         fn from(trace_id: TraceId) -> Self {
-            let trace_id_as_hex: String = trace_id.to_hex();
+            let trace_id_as_hex = trace_id.to_string();
             let (timestamp, xray_id) = trace_id_as_hex.split_at(8_usize);
 
             XrayTraceId(format!(
@@ -301,14 +304,14 @@ pub mod trace {
                 ("Sampled=1;Self=foo", SpanContext::empty_context()),
                 ("Root=1-bogus-bad", SpanContext::empty_context()),
                 ("Root=1-too-many-parts", SpanContext::empty_context()),
-                ("Root=1-58406520-a006649127e371903a2de979;Parent=garbage", SpanContext::new(TraceId::from_hex("58406520a006649127e371903a2de979"), SpanId::invalid(), TRACE_FLAG_DEFERRED, true, TraceState::default())),
-                ("Root=1-58406520-a006649127e371903a2de979;Sampled=1", SpanContext::new(TraceId::from_hex("58406520a006649127e371903a2de979"), SpanId::invalid(), TraceFlags::SAMPLED, true, TraceState::default())),
-                ("Root=1-58406520-a006649127e371903a2de979;Parent=4c721bf33e3caf8f;Sampled=0", SpanContext::new(TraceId::from_hex("58406520a006649127e371903a2de979"), SpanId::from_hex("4c721bf33e3caf8f"), TraceFlags::default(), true, TraceState::default())),
-                ("Root=1-58406520-a006649127e371903a2de979;Parent=4c721bf33e3caf8f;Sampled=1", SpanContext::new(TraceId::from_hex("58406520a006649127e371903a2de979"), SpanId::from_hex("4c721bf33e3caf8f"), TraceFlags::SAMPLED, true, TraceState::default())),
-                ("Root=1-58406520-a006649127e371903a2de979;Parent=4c721bf33e3caf8f", SpanContext::new(TraceId::from_hex("58406520a006649127e371903a2de979"), SpanId::from_hex("4c721bf33e3caf8f"), TRACE_FLAG_DEFERRED, true, TraceState::default())),
-                ("Root=1-58406520-a006649127e371903a2de979;Parent=4c721bf33e3caf8f;Sampled=?", SpanContext::new(TraceId::from_hex("58406520a006649127e371903a2de979"), SpanId::from_hex("4c721bf33e3caf8f"), TRACE_FLAG_DEFERRED, true, TraceState::default())),
-                ("Root=1-58406520-a006649127e371903a2de979;Self=1-58406520-bf42676c05e20ba4a90e448e;Parent=4c721bf33e3caf8f;Sampled=1", SpanContext::new(TraceId::from_hex("58406520a006649127e371903a2de979"), SpanId::from_hex("4c721bf33e3caf8f"), TraceFlags::SAMPLED, true, TraceState::from_str("self=1-58406520-bf42676c05e20ba4a90e448e").unwrap())),
-                ("Root=1-58406520-a006649127e371903a2de979;Self=1-58406520-bf42676c05e20ba4a90e448e;Parent=4c721bf33e3caf8f;Sampled=1;RandomKey=RandomValue", SpanContext::new(TraceId::from_hex("58406520a006649127e371903a2de979"), SpanId::from_hex("4c721bf33e3caf8f"), TraceFlags::SAMPLED, true, TraceState::from_str("self=1-58406520-bf42676c05e20ba4a90e448e,randomkey=RandomValue").unwrap())),
+                ("Root=1-58406520-a006649127e371903a2de979;Parent=garbage", SpanContext::new(TraceId::from_hex("58406520a006649127e371903a2de979").unwrap(), SpanId::INVALID, TRACE_FLAG_DEFERRED, true, TraceState::default())),
+                ("Root=1-58406520-a006649127e371903a2de979;Sampled=1", SpanContext::new(TraceId::from_hex("58406520a006649127e371903a2de979").unwrap(), SpanId::INVALID, TraceFlags::SAMPLED, true, TraceState::default())),
+                ("Root=1-58406520-a006649127e371903a2de979;Parent=4c721bf33e3caf8f;Sampled=0", SpanContext::new(TraceId::from_hex("58406520a006649127e371903a2de979").unwrap(), SpanId::from_hex("4c721bf33e3caf8f").unwrap(), TraceFlags::default(), true, TraceState::default())),
+                ("Root=1-58406520-a006649127e371903a2de979;Parent=4c721bf33e3caf8f;Sampled=1", SpanContext::new(TraceId::from_hex("58406520a006649127e371903a2de979").unwrap(), SpanId::from_hex("4c721bf33e3caf8f").unwrap(), TraceFlags::SAMPLED, true, TraceState::default())),
+                ("Root=1-58406520-a006649127e371903a2de979;Parent=4c721bf33e3caf8f", SpanContext::new(TraceId::from_hex("58406520a006649127e371903a2de979").unwrap(), SpanId::from_hex("4c721bf33e3caf8f").unwrap(), TRACE_FLAG_DEFERRED, true, TraceState::default())),
+                ("Root=1-58406520-a006649127e371903a2de979;Parent=4c721bf33e3caf8f;Sampled=?", SpanContext::new(TraceId::from_hex("58406520a006649127e371903a2de979").unwrap(), SpanId::from_hex("4c721bf33e3caf8f").unwrap(), TRACE_FLAG_DEFERRED, true, TraceState::default())),
+                ("Root=1-58406520-a006649127e371903a2de979;Self=1-58406520-bf42676c05e20ba4a90e448e;Parent=4c721bf33e3caf8f;Sampled=1", SpanContext::new(TraceId::from_hex("58406520a006649127e371903a2de979").unwrap(), SpanId::from_hex("4c721bf33e3caf8f").unwrap(), TraceFlags::SAMPLED, true, TraceState::from_str("self=1-58406520-bf42676c05e20ba4a90e448e").unwrap())),
+                ("Root=1-58406520-a006649127e371903a2de979;Self=1-58406520-bf42676c05e20ba4a90e448e;Parent=4c721bf33e3caf8f;Sampled=1;RandomKey=RandomValue", SpanContext::new(TraceId::from_hex("58406520a006649127e371903a2de979").unwrap(), SpanId::from_hex("4c721bf33e3caf8f").unwrap(), TraceFlags::SAMPLED, true, TraceState::from_str("self=1-58406520-bf42676c05e20ba4a90e448e,randomkey=RandomValue").unwrap())),
             ]
         }
 
@@ -316,12 +319,12 @@ pub mod trace {
         fn inject_test_data() -> Vec<(&'static str, SpanContext)> {
             vec![
                 ("", SpanContext::empty_context()),
-                ("", SpanContext::new(TraceId::from_hex("garbage"), SpanId::invalid(), TRACE_FLAG_DEFERRED, true, TraceState::default())),
-                ("", SpanContext::new(TraceId::from_hex("58406520a006649127e371903a2de979"), SpanId::invalid(), TRACE_FLAG_DEFERRED, true, TraceState::default())),
-                ("", SpanContext::new(TraceId::from_hex("58406520a006649127e371903a2de979"), SpanId::invalid(), TraceFlags::SAMPLED, true, TraceState::default())),
-                ("Root=1-58406520-a006649127e371903a2de979;Parent=4c721bf33e3caf8f;Sampled=0", SpanContext::new(TraceId::from_hex("58406520a006649127e371903a2de979"), SpanId::from_hex("4c721bf33e3caf8f"), TraceFlags::default(), true, TraceState::default())),
-                ("Root=1-58406520-a006649127e371903a2de979;Parent=4c721bf33e3caf8f;Sampled=1", SpanContext::new(TraceId::from_hex("58406520a006649127e371903a2de979"), SpanId::from_hex("4c721bf33e3caf8f"), TraceFlags::SAMPLED, true, TraceState::default())),
-                ("Root=1-58406520-a006649127e371903a2de979;Parent=4c721bf33e3caf8f;Sampled=?;Self=1-58406520-bf42676c05e20ba4a90e448e;Randomkey=RandomValue", SpanContext::new(TraceId::from_hex("58406520a006649127e371903a2de979"), SpanId::from_hex("4c721bf33e3caf8f"), TRACE_FLAG_DEFERRED, true, TraceState::from_str("self=1-58406520-bf42676c05e20ba4a90e448e,randomkey=RandomValue").unwrap())),
+                ("", SpanContext::new(TraceId::INVALID, SpanId::INVALID, TRACE_FLAG_DEFERRED, true, TraceState::default())),
+                ("", SpanContext::new(TraceId::from_hex("58406520a006649127e371903a2de979").unwrap(), SpanId::INVALID, TRACE_FLAG_DEFERRED, true, TraceState::default())),
+                ("", SpanContext::new(TraceId::from_hex("58406520a006649127e371903a2de979").unwrap(), SpanId::INVALID, TraceFlags::SAMPLED, true, TraceState::default())),
+                ("Root=1-58406520-a006649127e371903a2de979;Parent=4c721bf33e3caf8f;Sampled=0", SpanContext::new(TraceId::from_hex("58406520a006649127e371903a2de979").unwrap(), SpanId::from_hex("4c721bf33e3caf8f").unwrap(), TraceFlags::default(), true, TraceState::default())),
+                ("Root=1-58406520-a006649127e371903a2de979;Parent=4c721bf33e3caf8f;Sampled=1", SpanContext::new(TraceId::from_hex("58406520a006649127e371903a2de979").unwrap(), SpanId::from_hex("4c721bf33e3caf8f").unwrap(), TraceFlags::SAMPLED, true, TraceState::default())),
+                ("Root=1-58406520-a006649127e371903a2de979;Parent=4c721bf33e3caf8f;Sampled=?;Self=1-58406520-bf42676c05e20ba4a90e448e;Randomkey=RandomValue", SpanContext::new(TraceId::from_hex("58406520a006649127e371903a2de979").unwrap(), SpanId::from_hex("4c721bf33e3caf8f").unwrap(), TRACE_FLAG_DEFERRED, true, TraceState::from_str("self=1-58406520-bf42676c05e20ba4a90e448e,randomkey=RandomValue").unwrap())),
             ]
         }
 

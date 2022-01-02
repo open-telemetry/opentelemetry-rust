@@ -11,9 +11,9 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 impl From<SpanData> for LatencyData {
     fn from(span_data: SpanData) -> Self {
         LatencyData {
-            traceid: span_data.span_context.trace_id().to_byte_array().to_vec(),
-            spanid: span_data.span_context.span_id().to_byte_array().to_vec(),
-            parentid: span_data.parent_span_id.to_byte_array().to_vec(),
+            traceid: span_data.span_context.trace_id().to_bytes().to_vec(),
+            spanid: span_data.span_context.span_id().to_bytes().to_vec(),
+            parentid: span_data.parent_span_id.to_bytes().to_vec(),
             starttime: to_nanos(span_data.start_time),
             endtime: to_nanos(span_data.end_time),
             attributes: Attributes::from(span_data.attributes).0,
@@ -27,9 +27,9 @@ impl From<SpanData> for LatencyData {
 impl From<SpanData> for ErrorData {
     fn from(span_data: SpanData) -> Self {
         ErrorData {
-            traceid: span_data.span_context.trace_id().to_byte_array().to_vec(),
-            spanid: span_data.span_context.span_id().to_byte_array().to_vec(),
-            parentid: span_data.parent_span_id.to_byte_array().to_vec(),
+            traceid: span_data.span_context.trace_id().to_bytes().to_vec(),
+            spanid: span_data.span_context.span_id().to_bytes().to_vec(),
+            parentid: span_data.parent_span_id.to_bytes().to_vec(),
             starttime: to_nanos(span_data.start_time),
             attributes: Attributes::from(span_data.attributes).0,
             events: span_data.events.iter().cloned().map(Into::into).collect(),
@@ -46,9 +46,9 @@ impl From<SpanData> for ErrorData {
 impl From<SpanData> for RunningData {
     fn from(span_data: SpanData) -> Self {
         RunningData {
-            traceid: span_data.span_context.trace_id().to_byte_array().to_vec(),
-            spanid: span_data.span_context.span_id().to_byte_array().to_vec(),
-            parentid: span_data.parent_span_id.to_byte_array().to_vec(),
+            traceid: span_data.span_context.trace_id().to_bytes().to_vec(),
+            spanid: span_data.span_context.span_id().to_bytes().to_vec(),
+            parentid: span_data.parent_span_id.to_bytes().to_vec(),
             starttime: to_nanos(span_data.start_time),
             attributes: Attributes::from(span_data.attributes).0,
             events: span_data.events.iter().cloned().map(Into::into).collect(),
@@ -105,18 +105,8 @@ impl From<(StatusCode, String)> for Status {
 impl From<Link> for Span_Link {
     fn from(link: Link) -> Self {
         Span_Link {
-            trace_id: link
-                .span_context()
-                .trace_id()
-                .to_u128()
-                .to_be_bytes()
-                .to_vec(),
-            span_id: link
-                .span_context()
-                .span_id()
-                .to_u64()
-                .to_be_bytes()
-                .to_vec(),
+            trace_id: link.span_context().trace_id().to_bytes().to_vec(),
+            span_id: link.span_context().span_id().to_bytes().to_vec(),
             trace_state: link.span_context().trace_state().header(),
             attributes: Attributes::from(link.attributes().clone()).0,
             dropped_attributes_count: link.dropped_attributes_count(),
