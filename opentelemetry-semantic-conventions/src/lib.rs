@@ -14,7 +14,6 @@
 #![doc(
     html_logo_url = "https://raw.githubusercontent.com/open-telemetry/opentelemetry-rust/main/assets/logo.svg"
 )]
-#![allow(rustdoc::bare_urls, rustdoc::broken_intra_doc_links)]
 
 pub mod resource;
 pub mod trace;

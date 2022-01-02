@@ -5,7 +5,7 @@ use futures::{
 use tokio::runtime::Handle;
 
 /// Tokio doesn't provide anything that implements `futures::task::Spawn`
-/// (see https://github.com/tokio-rs/tokio/issues/2018).
+/// (see <https://github.com/tokio-rs/tokio/issues/2018>).
 /// `TokioSpawner` wraps a `tokio::runtime::Handle` and implements `futures::task::Spawn`.
 ///
 /// ```no_run

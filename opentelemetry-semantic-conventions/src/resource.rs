@@ -28,97 +28,84 @@
 use opentelemetry::Key;
 
 /// Name of the cloud provider.
-///
-/// # Examples
-///
-/// - gcp
 pub const CLOUD_PROVIDER: Key = Key::from_static_str("cloud.provider");
 
 /// The cloud account ID the resource is assigned to.
 ///
 /// # Examples
 ///
-/// - 111111111111
-/// - opentelemetry
+/// - `111111111111`
+/// - `opentelemetry`
 pub const CLOUD_ACCOUNT_ID: Key = Key::from_static_str("cloud.account.id");
 
-/// The geographical region the resource is running. Refer to your provider&#39;s docs to see the available regions, for example [AWS regions](https://aws.amazon.com/about-aws/global-infrastructure/regions_az/), [Azure regions](https://azure.microsoft.com/en-us/global-infrastructure/geographies/), or [Google Cloud regions](https://cloud.google.com/about/locations).
+/// The geographical region the resource is running.
+///
+/// Refer to your provider&#39;s docs to see the available regions, for example [Alibaba Cloud regions](https://www.alibabacloud.com/help/doc-detail/40654.htm), [AWS regions](https://aws.amazon.com/about-aws/global-infrastructure/regions_az/), [Azure regions](https://azure.microsoft.com/en-us/global-infrastructure/geographies/), [Google Cloud regions](https://cloud.google.com/about/locations), or [Tencent Cloud regions](https://intl.cloud.tencent.com/document/product/213/6091).
 ///
 /// # Examples
 ///
-/// - us-central1
-/// - us-east-1
+/// - `us-central1`
+/// - `us-east-1`
 pub const CLOUD_REGION: Key = Key::from_static_str("cloud.region");
 
 /// Cloud regions often have multiple, isolated locations known as zones to increase availability. Availability zone represents the zone where the resource is running.
 ///
-/// Availability zones are called &#34;zones&#34; on Google Cloud.
+/// Availability zones are called &#34;zones&#34; on Alibaba Cloud and Google Cloud.
 ///
 /// # Examples
 ///
-/// - us-east-1c
+/// - `us-east-1c`
 pub const CLOUD_AVAILABILITY_ZONE: Key = Key::from_static_str("cloud.availability_zone");
 
 /// The cloud platform in use.
 ///
 /// The prefix of the service SHOULD match the one specified in `cloud.provider`.
-///
-/// # Examples
-///
-/// - aws_ec2
-/// - azure_vm
-/// - gcp_compute_engine
 pub const CLOUD_PLATFORM: Key = Key::from_static_str("cloud.platform");
 
 /// The Amazon Resource Name (ARN) of an [ECS container instance](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ECS_instances.html).
 ///
 /// # Examples
 ///
-/// - arn:aws:ecs:us-west-1:123456789123:container/32624152-9086-4f0e-acae-1a75b14fe4d9
+/// - `arn:aws:ecs:us-west-1:123456789123:container/32624152-9086-4f0e-acae-1a75b14fe4d9`
 pub const AWS_ECS_CONTAINER_ARN: Key = Key::from_static_str("aws.ecs.container.arn");
 
 /// The ARN of an [ECS cluster](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/clusters.html).
 ///
 /// # Examples
 ///
-/// - arn:aws:ecs:us-west-2:123456789123:cluster/my-cluster
+/// - `arn:aws:ecs:us-west-2:123456789123:cluster/my-cluster`
 pub const AWS_ECS_CLUSTER_ARN: Key = Key::from_static_str("aws.ecs.cluster.arn");
 
 /// The [launch type](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/launch_types.html) for an ECS task.
-///
-/// # Examples
-///
-/// - ec2
-/// - fargate
 pub const AWS_ECS_LAUNCHTYPE: Key = Key::from_static_str("aws.ecs.launchtype");
 
 /// The ARN of an [ECS task definition](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_definitions.html).
 ///
 /// # Examples
 ///
-/// - arn:aws:ecs:us-west-1:123456789123:task/10838bed-421f-43ef-870a-f43feacbbb5b
+/// - `arn:aws:ecs:us-west-1:123456789123:task/10838bed-421f-43ef-870a-f43feacbbb5b`
 pub const AWS_ECS_TASK_ARN: Key = Key::from_static_str("aws.ecs.task.arn");
 
 /// The task definition family this task definition is a member of.
 ///
 /// # Examples
 ///
-/// - opentelemetry-family
+/// - `opentelemetry-family`
 pub const AWS_ECS_TASK_FAMILY: Key = Key::from_static_str("aws.ecs.task.family");
 
 /// The revision for this task definition.
 ///
 /// # Examples
 ///
-/// - 8
-/// - 26
+/// - `8`
+/// - `26`
 pub const AWS_ECS_TASK_REVISION: Key = Key::from_static_str("aws.ecs.task.revision");
 
 /// The ARN of an EKS cluster.
 ///
 /// # Examples
 ///
-/// - arn:aws:ecs:us-west-2:123456789123:cluster/my-cluster
+/// - `arn:aws:ecs:us-west-2:123456789123:cluster/my-cluster`
 pub const AWS_EKS_CLUSTER_ARN: Key = Key::from_static_str("aws.eks.cluster.arn");
 
 /// The name(s) of the AWS log group(s) an application is writing to.
@@ -127,8 +114,8 @@ pub const AWS_EKS_CLUSTER_ARN: Key = Key::from_static_str("aws.eks.cluster.arn")
 ///
 /// # Examples
 ///
-/// - /aws/lambda/my-function
-/// - opentelemetry-service
+/// - `/aws/lambda/my-function`
+/// - `opentelemetry-service`
 pub const AWS_LOG_GROUP_NAMES: Key = Key::from_static_str("aws.log.group.names");
 
 /// The Amazon Resource Name(s) (ARN) of the AWS log group(s).
@@ -137,14 +124,14 @@ pub const AWS_LOG_GROUP_NAMES: Key = Key::from_static_str("aws.log.group.names")
 ///
 /// # Examples
 ///
-/// - arn:aws:logs:us-west-1:123456789012:log-group:/aws/my/group:*
+/// - `arn:aws:logs:us-west-1:123456789012:log-group:/aws/my/group:*`
 pub const AWS_LOG_GROUP_ARNS: Key = Key::from_static_str("aws.log.group.arns");
 
 /// The name(s) of the AWS log stream(s) an application is writing to.
 ///
 /// # Examples
 ///
-/// - logs/main/10838bed-421f-43ef-870a-f43feacbbb5b
+/// - `logs/main/10838bed-421f-43ef-870a-f43feacbbb5b`
 pub const AWS_LOG_STREAM_NAMES: Key = Key::from_static_str("aws.log.stream.names");
 
 /// The ARN(s) of the AWS log stream(s).
@@ -153,52 +140,52 @@ pub const AWS_LOG_STREAM_NAMES: Key = Key::from_static_str("aws.log.stream.names
 ///
 /// # Examples
 ///
-/// - arn:aws:logs:us-west-1:123456789012:log-group:/aws/my/group:log-stream:logs/main/10838bed-421f-43ef-870a-f43feacbbb5b
+/// - `arn:aws:logs:us-west-1:123456789012:log-group:/aws/my/group:log-stream:logs/main/10838bed-421f-43ef-870a-f43feacbbb5b`
 pub const AWS_LOG_STREAM_ARNS: Key = Key::from_static_str("aws.log.stream.arns");
 
-/// Container name.
+/// Container name used by container runtime.
 ///
 /// # Examples
 ///
-/// - opentelemetry-autoconf
+/// - `opentelemetry-autoconf`
 pub const CONTAINER_NAME: Key = Key::from_static_str("container.name");
 
 /// Container ID. Usually a UUID, as for example used to [identify Docker containers](https://docs.docker.com/engine/reference/run/#container-identification). The UUID might be abbreviated.
 ///
 /// # Examples
 ///
-/// - a3bf90e006b2
+/// - `a3bf90e006b2`
 pub const CONTAINER_ID: Key = Key::from_static_str("container.id");
 
 /// The container runtime managing this container.
 ///
 /// # Examples
 ///
-/// - docker
-/// - containerd
-/// - rkt
+/// - `docker`
+/// - `containerd`
+/// - `rkt`
 pub const CONTAINER_RUNTIME: Key = Key::from_static_str("container.runtime");
 
 /// Name of the image the container was built on.
 ///
 /// # Examples
 ///
-/// - gcr.io/opentelemetry/operator
+/// - `gcr.io/opentelemetry/operator`
 pub const CONTAINER_IMAGE_NAME: Key = Key::from_static_str("container.image.name");
 
 /// Container image tag.
 ///
 /// # Examples
 ///
-/// - 0.1
+/// - `0.1`
 pub const CONTAINER_IMAGE_TAG: Key = Key::from_static_str("container.image.tag");
 
 /// Name of the [deployment environment](https://en.wikipedia.org/wiki/Deployment_environment) (aka deployment tier).
 ///
 /// # Examples
 ///
-/// - staging
-/// - production
+/// - `staging`
+/// - `production`
 pub const DEPLOYMENT_ENVIRONMENT: Key = Key::from_static_str("deployment.environment");
 
 /// A unique identifier representing the device.
@@ -207,7 +194,7 @@ pub const DEPLOYMENT_ENVIRONMENT: Key = Key::from_static_str("deployment.environ
 ///
 /// # Examples
 ///
-/// - 2ab2916d-a51f-4ac8-80ee-45ac31a28092
+/// - `2ab2916d-a51f-4ac8-80ee-45ac31a28092`
 pub const DEVICE_ID: Key = Key::from_static_str("device.id");
 
 /// The model identifier for the device.
@@ -216,8 +203,8 @@ pub const DEVICE_ID: Key = Key::from_static_str("device.id");
 ///
 /// # Examples
 ///
-/// - iPhone3,4
-/// - SM-G920F
+/// - `iPhone3,4`
+/// - `SM-G920F`
 pub const DEVICE_MODEL_IDENTIFIER: Key = Key::from_static_str("device.model.identifier");
 
 /// The marketing name for the device model.
@@ -226,38 +213,66 @@ pub const DEVICE_MODEL_IDENTIFIER: Key = Key::from_static_str("device.model.iden
 ///
 /// # Examples
 ///
-/// - iPhone 6s Plus
-/// - Samsung Galaxy S6
+/// - `iPhone 6s Plus`
+/// - `Samsung Galaxy S6`
 pub const DEVICE_MODEL_NAME: Key = Key::from_static_str("device.model.name");
 
-/// The name of the function being executed.
+/// The name of the single function that this runtime instance executes.
+///
+/// This is the name of the function as configured/deployed on the FaaS platform and is usually different from the name of the callback function (which may be stored in the [`code.namespace`/`code.function`](../../trace/semantic_conventions/span-general.md#source-code-attributes) span attributes).
 ///
 /// # Examples
 ///
-/// - my-function
+/// - `my-function`
 pub const FAAS_NAME: Key = Key::from_static_str("faas.name");
 
-/// The unique ID of the function being executed.
+/// The unique ID of the single function that this runtime instance executes.
 ///
-/// For example, in AWS Lambda this field corresponds to the [ARN](https://docs.aws.amazon.com/general/latest/gr/aws-arns-and-namespaces.html) value, in GCP to the URI of the resource, and in Azure to the [FunctionDirectory](https://github.com/Azure/azure-functions-host/wiki/Retrieving-information-about-the-currently-running-function) field.
+/// Depending on the cloud provider, use:
+///
+/// * **AWS Lambda:** The function [ARN](https://docs.aws.amazon.com/general/latest/gr/aws-arns-and-namespaces.html).
+/// Take care not to use the &#34;invoked ARN&#34; directly but replace any
+/// [alias suffix](https://docs.aws.amazon.com/lambda/latest/dg/configuration-aliases.html) with the resolved function version, as the same runtime instance may be invokable with multiple
+/// different aliases.
+/// * **GCP:** The [URI of the resource](https://cloud.google.com/iam/docs/full-resource-names)
+/// * **Azure:** The [Fully Qualified Resource ID](https://docs.microsoft.com/en-us/rest/api/resources/resources/get-by-id).
+///
+/// On some providers, it may not be possible to determine the full ID at startup,
+/// which is why this field cannot be made required. For example, on AWS the account ID
+/// part of the ARN is not available without calling another AWS API
+/// which may be deemed too slow for a short-running lambda function.
+/// As an alternative, consider setting `faas.id` as a span attribute instead.
 ///
 /// # Examples
 ///
-/// - arn:aws:lambda:us-west-2:123456789012:function:my-function
+/// - `arn:aws:lambda:us-west-2:123456789012:function:my-function`
 pub const FAAS_ID: Key = Key::from_static_str("faas.id");
 
-/// The version string of the function being executed as defined in [Version Attributes](../../resource/semantic_conventions/README.md#version-attributes).
+/// The immutable version of the function being executed.
+///
+/// Depending on the cloud provider and platform, use:
+///
+/// * **AWS Lambda:** The [function version](https://docs.aws.amazon.com/lambda/latest/dg/configuration-versions.html)
+///   (an integer represented as a decimal string).
+/// * **Google Cloud Run:** The [revision](https://cloud.google.com/run/docs/managing/revisions)
+///   (i.e., the function name plus the revision suffix).
+/// * **Google Cloud Functions:** The value of the
+///   [`K_REVISION` environment variable](https://cloud.google.com/functions/docs/env-var#runtime_environment_variables_set_automatically).
+/// * **Azure Functions:** Not applicable. Do not set this attribute.
 ///
 /// # Examples
 ///
-/// - 2.0.0
+/// - `26`
+/// - `pinkfroid-00002`
 pub const FAAS_VERSION: Key = Key::from_static_str("faas.version");
 
-/// The execution environment ID as a string.
+/// The execution environment ID as a string, that will be potentially reused for other invocations to the same function/function version.
+///
+/// * **AWS Lambda:** Use the (full) log stream name.
 ///
 /// # Examples
 ///
-/// - my-function:instance-0001
+/// - `2021/06/28/[$LATEST]2f399eb14537447da05ab2a2e39309de`
 pub const FAAS_INSTANCE: Key = Key::from_static_str("faas.instance");
 
 /// The amount of memory available to the serverless function in MiB.
@@ -266,28 +281,28 @@ pub const FAAS_INSTANCE: Key = Key::from_static_str("faas.instance");
 ///
 /// # Examples
 ///
-/// - 128
+/// - `128`
 pub const FAAS_MAX_MEMORY: Key = Key::from_static_str("faas.max_memory");
 
 /// Unique host ID. For Cloud, this must be the instance_id assigned by the cloud provider.
 ///
 /// # Examples
 ///
-/// - opentelemetry-test
+/// - `opentelemetry-test`
 pub const HOST_ID: Key = Key::from_static_str("host.id");
 
 /// Name of the host. On Unix systems, it may contain what the hostname command returns, or the fully qualified hostname, or another name specified by the user.
 ///
 /// # Examples
 ///
-/// - opentelemetry-test
+/// - `opentelemetry-test`
 pub const HOST_NAME: Key = Key::from_static_str("host.name");
 
 /// Type of host. For Cloud, this must be the machine type.
 ///
 /// # Examples
 ///
-/// - n1-standard-1
+/// - `n1-standard-1`
 pub const HOST_TYPE: Key = Key::from_static_str("host.type");
 
 /// The CPU architecture the host system is running on.
@@ -297,155 +312,163 @@ pub const HOST_ARCH: Key = Key::from_static_str("host.arch");
 ///
 /// # Examples
 ///
-/// - infra-ami-eks-worker-node-7d4ec78312
-/// - CentOS-8-x86_64-1905
+/// - `infra-ami-eks-worker-node-7d4ec78312`
+/// - `CentOS-8-x86_64-1905`
 pub const HOST_IMAGE_NAME: Key = Key::from_static_str("host.image.name");
 
 /// VM image ID. For Cloud, this value is from the provider.
 ///
 /// # Examples
 ///
-/// - ami-07b06b442921831e5
+/// - `ami-07b06b442921831e5`
 pub const HOST_IMAGE_ID: Key = Key::from_static_str("host.image.id");
 
 /// The version string of the VM image as defined in [Version Attributes](README.md#version-attributes).
 ///
 /// # Examples
 ///
-/// - 0.1
+/// - `0.1`
 pub const HOST_IMAGE_VERSION: Key = Key::from_static_str("host.image.version");
 
 /// The name of the cluster.
 ///
 /// # Examples
 ///
-/// - opentelemetry-cluster
+/// - `opentelemetry-cluster`
 pub const K8S_CLUSTER_NAME: Key = Key::from_static_str("k8s.cluster.name");
 
 /// The name of the Node.
 ///
 /// # Examples
 ///
-/// - node-1
+/// - `node-1`
 pub const K8S_NODE_NAME: Key = Key::from_static_str("k8s.node.name");
 
 /// The UID of the Node.
 ///
 /// # Examples
 ///
-/// - 1eb3a0c6-0477-4080-a9cb-0cb7db65c6a2
+/// - `1eb3a0c6-0477-4080-a9cb-0cb7db65c6a2`
 pub const K8S_NODE_UID: Key = Key::from_static_str("k8s.node.uid");
 
 /// The name of the namespace that the pod is running in.
 ///
 /// # Examples
 ///
-/// - default
+/// - `default`
 pub const K8S_NAMESPACE_NAME: Key = Key::from_static_str("k8s.namespace.name");
 
 /// The UID of the Pod.
 ///
 /// # Examples
 ///
-/// - 275ecb36-5aa8-4c2a-9c47-d8bb681b9aff
+/// - `275ecb36-5aa8-4c2a-9c47-d8bb681b9aff`
 pub const K8S_POD_UID: Key = Key::from_static_str("k8s.pod.uid");
 
 /// The name of the Pod.
 ///
 /// # Examples
 ///
-/// - opentelemetry-pod-autoconf
+/// - `opentelemetry-pod-autoconf`
 pub const K8S_POD_NAME: Key = Key::from_static_str("k8s.pod.name");
 
-/// The name of the Container in a Pod template.
+/// The name of the Container from Pod specification, must be unique within a Pod. Container runtime usually uses different globally unique name (`container.name`).
 ///
 /// # Examples
 ///
-/// - redis
+/// - `redis`
 pub const K8S_CONTAINER_NAME: Key = Key::from_static_str("k8s.container.name");
+
+/// Number of times the container was restarted. This attribute can be used to identify a particular container (running or stopped) within a container spec.
+///
+/// # Examples
+///
+/// - `0`
+/// - `2`
+pub const K8S_CONTAINER_RESTART_COUNT: Key = Key::from_static_str("k8s.container.restart_count");
 
 /// The UID of the ReplicaSet.
 ///
 /// # Examples
 ///
-/// - 275ecb36-5aa8-4c2a-9c47-d8bb681b9aff
+/// - `275ecb36-5aa8-4c2a-9c47-d8bb681b9aff`
 pub const K8S_REPLICASET_UID: Key = Key::from_static_str("k8s.replicaset.uid");
 
 /// The name of the ReplicaSet.
 ///
 /// # Examples
 ///
-/// - opentelemetry
+/// - `opentelemetry`
 pub const K8S_REPLICASET_NAME: Key = Key::from_static_str("k8s.replicaset.name");
 
 /// The UID of the Deployment.
 ///
 /// # Examples
 ///
-/// - 275ecb36-5aa8-4c2a-9c47-d8bb681b9aff
+/// - `275ecb36-5aa8-4c2a-9c47-d8bb681b9aff`
 pub const K8S_DEPLOYMENT_UID: Key = Key::from_static_str("k8s.deployment.uid");
 
 /// The name of the Deployment.
 ///
 /// # Examples
 ///
-/// - opentelemetry
+/// - `opentelemetry`
 pub const K8S_DEPLOYMENT_NAME: Key = Key::from_static_str("k8s.deployment.name");
 
 /// The UID of the StatefulSet.
 ///
 /// # Examples
 ///
-/// - 275ecb36-5aa8-4c2a-9c47-d8bb681b9aff
+/// - `275ecb36-5aa8-4c2a-9c47-d8bb681b9aff`
 pub const K8S_STATEFULSET_UID: Key = Key::from_static_str("k8s.statefulset.uid");
 
 /// The name of the StatefulSet.
 ///
 /// # Examples
 ///
-/// - opentelemetry
+/// - `opentelemetry`
 pub const K8S_STATEFULSET_NAME: Key = Key::from_static_str("k8s.statefulset.name");
 
 /// The UID of the DaemonSet.
 ///
 /// # Examples
 ///
-/// - 275ecb36-5aa8-4c2a-9c47-d8bb681b9aff
+/// - `275ecb36-5aa8-4c2a-9c47-d8bb681b9aff`
 pub const K8S_DAEMONSET_UID: Key = Key::from_static_str("k8s.daemonset.uid");
 
 /// The name of the DaemonSet.
 ///
 /// # Examples
 ///
-/// - opentelemetry
+/// - `opentelemetry`
 pub const K8S_DAEMONSET_NAME: Key = Key::from_static_str("k8s.daemonset.name");
 
 /// The UID of the Job.
 ///
 /// # Examples
 ///
-/// - 275ecb36-5aa8-4c2a-9c47-d8bb681b9aff
+/// - `275ecb36-5aa8-4c2a-9c47-d8bb681b9aff`
 pub const K8S_JOB_UID: Key = Key::from_static_str("k8s.job.uid");
 
 /// The name of the Job.
 ///
 /// # Examples
 ///
-/// - opentelemetry
+/// - `opentelemetry`
 pub const K8S_JOB_NAME: Key = Key::from_static_str("k8s.job.name");
 
 /// The UID of the CronJob.
 ///
 /// # Examples
 ///
-/// - 275ecb36-5aa8-4c2a-9c47-d8bb681b9aff
+/// - `275ecb36-5aa8-4c2a-9c47-d8bb681b9aff`
 pub const K8S_CRONJOB_UID: Key = Key::from_static_str("k8s.cronjob.uid");
 
 /// The name of the CronJob.
 ///
 /// # Examples
 ///
-/// - opentelemetry
+/// - `opentelemetry`
 pub const K8S_CRONJOB_NAME: Key = Key::from_static_str("k8s.cronjob.name");
 
 /// The operating system type.
@@ -455,96 +478,96 @@ pub const OS_TYPE: Key = Key::from_static_str("os.type");
 ///
 /// # Examples
 ///
-/// - Microsoft Windows [Version 10.0.18363.778]
-/// - Ubuntu 18.04.1 LTS
+/// - `Microsoft Windows [Version 10.0.18363.778]`
+/// - `Ubuntu 18.04.1 LTS`
 pub const OS_DESCRIPTION: Key = Key::from_static_str("os.description");
 
 /// Human readable operating system name.
 ///
 /// # Examples
 ///
-/// - iOS
-/// - Android
-/// - Ubuntu
+/// - `iOS`
+/// - `Android`
+/// - `Ubuntu`
 pub const OS_NAME: Key = Key::from_static_str("os.name");
 
 /// The version string of the operating system as defined in [Version Attributes](../../resource/semantic_conventions/README.md#version-attributes).
 ///
 /// # Examples
 ///
-/// - 14.2.1
-/// - 18.04.1
+/// - `14.2.1`
+/// - `18.04.1`
 pub const OS_VERSION: Key = Key::from_static_str("os.version");
 
 /// Process identifier (PID).
 ///
 /// # Examples
 ///
-/// - 1234
+/// - `1234`
 pub const PROCESS_PID: Key = Key::from_static_str("process.pid");
 
 /// The name of the process executable. On Linux based systems, can be set to the `Name` in `proc/[pid]/status`. On Windows, can be set to the base name of `GetProcessImageFileNameW`.
 ///
 /// # Examples
 ///
-/// - otelcol
+/// - `otelcol`
 pub const PROCESS_EXECUTABLE_NAME: Key = Key::from_static_str("process.executable.name");
 
 /// The full path to the process executable. On Linux based systems, can be set to the target of `proc/[pid]/exe`. On Windows, can be set to the result of `GetProcessImageFileNameW`.
 ///
 /// # Examples
 ///
-/// - /usr/bin/cmd/otelcol
+/// - `/usr/bin/cmd/otelcol`
 pub const PROCESS_EXECUTABLE_PATH: Key = Key::from_static_str("process.executable.path");
 
 /// The command used to launch the process (i.e. the command name). On Linux based systems, can be set to the zeroth string in `proc/[pid]/cmdline`. On Windows, can be set to the first parameter extracted from `GetCommandLineW`.
 ///
 /// # Examples
 ///
-/// - cmd/otelcol
+/// - `cmd/otelcol`
 pub const PROCESS_COMMAND: Key = Key::from_static_str("process.command");
 
 /// The full command used to launch the process as a single string representing the full command. On Windows, can be set to the result of `GetCommandLineW`. Do not set this if you have to assemble it just for monitoring; use `process.command_args` instead.
 ///
 /// # Examples
 ///
-/// - C:\cmd\otecol --config=&#34;my directory\config.yaml&#34;
+/// - `C:\cmd\otecol --config="my directory\config.yaml"`
 pub const PROCESS_COMMAND_LINE: Key = Key::from_static_str("process.command_line");
 
 /// All the command arguments (including the command/executable itself) as received by the process. On Linux-based systems (and some other Unixoid systems supporting procfs), can be set according to the list of null-delimited strings extracted from `proc/[pid]/cmdline`. For libc-based executables, this would be the full argv vector passed to `main`.
 ///
 /// # Examples
 ///
-/// - cmd/otecol
-/// - --config=config.yaml
+/// - `cmd/otecol`
+/// - `--config=config.yaml`
 pub const PROCESS_COMMAND_ARGS: Key = Key::from_static_str("process.command_args");
 
 /// The username of the user that owns the process.
 ///
 /// # Examples
 ///
-/// - root
+/// - `root`
 pub const PROCESS_OWNER: Key = Key::from_static_str("process.owner");
 
 /// The name of the runtime of this process. For compiled native binaries, this SHOULD be the name of the compiler.
 ///
 /// # Examples
 ///
-/// - OpenJDK Runtime Environment
+/// - `OpenJDK Runtime Environment`
 pub const PROCESS_RUNTIME_NAME: Key = Key::from_static_str("process.runtime.name");
 
 /// The version of the runtime of this process, as returned by the runtime without modification.
 ///
 /// # Examples
 ///
-/// - 14.0.2
+/// - `14.0.2`
 pub const PROCESS_RUNTIME_VERSION: Key = Key::from_static_str("process.runtime.version");
 
 /// An additional description about the runtime of the process, for example a specific vendor customization of the runtime environment.
 ///
 /// # Examples
 ///
-/// - Eclipse OpenJ9 Eclipse OpenJ9 VM openj9-0.21.0
+/// - `Eclipse OpenJ9 Eclipse OpenJ9 VM openj9-0.21.0`
 pub const PROCESS_RUNTIME_DESCRIPTION: Key = Key::from_static_str("process.runtime.description");
 
 /// Logical name of the service.
@@ -553,7 +576,7 @@ pub const PROCESS_RUNTIME_DESCRIPTION: Key = Key::from_static_str("process.runti
 ///
 /// # Examples
 ///
-/// - shoppingcart
+/// - `shoppingcart`
 pub const SERVICE_NAME: Key = Key::from_static_str("service.name");
 
 /// A namespace for `service.name`.
@@ -562,7 +585,7 @@ pub const SERVICE_NAME: Key = Key::from_static_str("service.name");
 ///
 /// # Examples
 ///
-/// - Shop
+/// - `Shop`
 pub const SERVICE_NAMESPACE: Key = Key::from_static_str("service.namespace");
 
 /// The string ID of the service instance.
@@ -571,21 +594,21 @@ pub const SERVICE_NAMESPACE: Key = Key::from_static_str("service.namespace");
 ///
 /// # Examples
 ///
-/// - 627cc493-f310-47de-96bd-71410b7dec09
+/// - `627cc493-f310-47de-96bd-71410b7dec09`
 pub const SERVICE_INSTANCE_ID: Key = Key::from_static_str("service.instance.id");
 
 /// The version string of the service API or implementation.
 ///
 /// # Examples
 ///
-/// - 2.0.0
+/// - `2.0.0`
 pub const SERVICE_VERSION: Key = Key::from_static_str("service.version");
 
 /// The name of the telemetry SDK as defined above.
 ///
 /// # Examples
 ///
-/// - opentelemetry
+/// - `opentelemetry`
 pub const TELEMETRY_SDK_NAME: Key = Key::from_static_str("telemetry.sdk.name");
 
 /// The language of the telemetry SDK.
@@ -595,33 +618,33 @@ pub const TELEMETRY_SDK_LANGUAGE: Key = Key::from_static_str("telemetry.sdk.lang
 ///
 /// # Examples
 ///
-/// - 1.2.3
+/// - `1.2.3`
 pub const TELEMETRY_SDK_VERSION: Key = Key::from_static_str("telemetry.sdk.version");
 
 /// The version string of the auto instrumentation agent, if used.
 ///
 /// # Examples
 ///
-/// - 1.2.3
+/// - `1.2.3`
 pub const TELEMETRY_AUTO_VERSION: Key = Key::from_static_str("telemetry.auto.version");
 
 /// The name of the web engine.
 ///
 /// # Examples
 ///
-/// - WildFly
+/// - `WildFly`
 pub const WEBENGINE_NAME: Key = Key::from_static_str("webengine.name");
 
 /// The version of the web engine.
 ///
 /// # Examples
 ///
-/// - 21.0.0
+/// - `21.0.0`
 pub const WEBENGINE_VERSION: Key = Key::from_static_str("webengine.version");
 
 /// Additional description of the web engine (e.g. detailed version and edition information).
 ///
 /// # Examples
 ///
-/// - WildFly Full 21.0.0.Final (WildFly Core 13.0.1.Final) - 2.2.2.Final
+/// - `WildFly Full 21.0.0.Final (WildFly Core 13.0.1.Final) - 2.2.2.Final`
 pub const WEBENGINE_DESCRIPTION: Key = Key::from_static_str("webengine.description");
