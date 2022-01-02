@@ -191,12 +191,18 @@
 //! Support for recording and exporting telemetry asynchronously can be added
 //! via the following flags, it extends the [`opentelemetry`] feature:
 //!
-//! * `rt-tokio`: Enable sending UDP packets to Jaeger agent asynchronously when [`Tokio`] runtime is used.
+//! * `rt-tokio`: Enable sending UDP packets to Jaeger agent asynchronously when the tokio
+//!   [`Multi-Threaded Scheduler`] is used.
 //!
-//! * `rt-tokio-current-thread`: Enable sending UDP packets to Jaeger agent asynchronously when [`TokioCurrentThread`] runtime is used.
+//! * `rt-tokio-current-thread`: Enable sending UDP packets to Jaeger agent asynchronously when the
+//!   tokio [`Current-Thread Scheduler`] is used.
 //!
-//! * `rt-async-std`: Enable sending UDP packets to Jaeger agent asynchronously when [`AsyncStd`] runtime is used.
+//! * `rt-async-std`: Enable sending UDP packets to Jaeger agent asynchronously when the
+//!   [`async-std`] runtime is used.
 //!
+//! [`Multi-Threaded Scheduler`]: https://docs.rs/tokio/latest/tokio/runtime/index.html#multi-thread-scheduler
+//! [`Current-Thread Scheduler`]: https://docs.rs/tokio/latest/tokio/runtime/index.html#current-thread-scheduler
+//! [`async-std`]: https://async.rs
 //! [`opentelemetry`]: https://crates.io/crates/opentelemetry
 //!
 //! ## Supported Rust Versions

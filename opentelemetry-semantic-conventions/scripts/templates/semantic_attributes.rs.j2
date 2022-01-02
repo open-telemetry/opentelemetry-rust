@@ -22,7 +22,7 @@ use opentelemetry::Key;
 /// # Examples
 ///
 {%- for example in attribute.examples %}
-/// - {% filter escape %}{{example}}{% endfilter %}
+/// - `{{example}}`
 {%- endfor %}
 {%- endif %}
 pub const {{attribute.fqn | to_const_name}}: Key = Key::from_static_str("{{attribute.fqn}}");

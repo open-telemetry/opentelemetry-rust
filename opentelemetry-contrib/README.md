@@ -21,7 +21,6 @@ Community supported vendor integrations for applications instrumented with [`Ope
 generate, collect, and export telemetry data (metrics, logs, and traces) for
 analysis in order to understand your software's performance and behavior. This
 crate provides additional propagators and exporters for sending telemetry data
-to vendors like [`Datadog`].
+to vendors or using experimental propagators like `base64`.
 
-[`Datadog`]: https://www.datadoghq.com/
 [`OpenTelemetry`]: https://crates.io/crates/opentelemetry

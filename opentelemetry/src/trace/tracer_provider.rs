@@ -39,9 +39,6 @@ pub trait TracerProvider {
     /// providing instrumentation. If the name is empty, then an
     /// implementation-defined default name may be used instead.
     ///
-    ///
-    /// The ``
-    ///
     /// # Examples
     ///
     /// ```

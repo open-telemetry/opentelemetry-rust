@@ -24,9 +24,8 @@
 //! Then install a new pipeline with the recommended defaults to start exporting
 //! telemetry. You will have to build a OTLP exporter first.
 //!
-//! To start a OTLP tracing pipeline. Use `new_pipeline().tracing()` function.
-//!
-//! To start a OTLP metrics pipeline. Use `new_pipeline().metrics()` function.
+//! Tracing and metrics pipelines can be started with `new_pipeline().tracing()` and
+//! `new_pipeline().metrics()` respectively.
 //!
 //! ```no_run
 //! use opentelemetry::trace::Tracer;

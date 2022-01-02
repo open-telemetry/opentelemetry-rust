@@ -3,6 +3,11 @@
 // that are interpreted as "doc tests" and will fail to build.
 // When this PR is merged we should be able to remove this attribute:
 // https://github.com/danburkert/prost/pull/291
+#![allow(
+    rustdoc::bare_urls,
+    rustdoc::broken_intra_doc_links,
+    rustdoc::invalid_rust_codeblocks
+)]
 
 use async_trait::async_trait;
 use futures::stream::StreamExt;

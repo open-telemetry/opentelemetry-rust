@@ -93,8 +93,13 @@ jobs:
     - uses: actions-rs/toolchain@v1
       with:
         toolchain: nightly
+        components: rustfmt
         override: true
     - uses: arduino/setup-protoc@v1
+    - name: doc
+      run: cargo doc --no-deps --all-features
+      env:
+        RUSTDOCFLAGS: -Dwarnings
     - uses: actions-rs/cargo@v1
       with:
         command: test
