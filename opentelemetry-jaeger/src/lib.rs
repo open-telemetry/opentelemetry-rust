@@ -319,9 +319,7 @@ mod propagator {
                 return Err(());
             }
 
-            u64::from_str_radix(span_id, 16)
-                .map(SpanId::from_u64)
-                .map_err(|_| ())
+            SpanId::from_hex(span_id).map_err(|_| ())
         }
 
         /// Extract flag from the header
