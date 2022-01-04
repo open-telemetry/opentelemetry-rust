@@ -19,7 +19,7 @@ use crate::{
     metrics::{Descriptor, MetricsError, Result},
     KeyValue,
 };
-use futures_util::Stream;
+use futures_util::stream::Stream;
 #[cfg(feature = "serialize")]
 use serde::{Serialize, Serializer};
 use std::fmt;
