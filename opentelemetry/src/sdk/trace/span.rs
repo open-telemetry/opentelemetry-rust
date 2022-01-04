@@ -172,51 +172,44 @@ impl crate::trace::Span for Span {
 
 impl Span {
     fn ensure_ended_and_exported(&mut self, timestamp: Option<SystemTime>) {
-        if let Some(mut data) = self.data.take() {
-            if let Some(provider) = self.tracer.provider() {
-                let processors = provider.span_processors();
-                if processors.is_empty() {
-                    return;
-                }
+        // skip if data has already been exported
+        let mut data = match self.data.take() {
+            Some(data) => data,
+            None => return,
+        };
 
-                // Ensure end time is set via explicit end or implicitly on drop
-                if let Some(timestamp) = timestamp {
-                    data.end_time = timestamp;
-                } else if data.end_time == data.start_time {
-                    data.end_time = crate::time::now();
-                }
+        // skip if provider has been shut down
+        let provider = match self.tracer.provider() {
+            Some(provider) => provider,
+            None => return,
+        };
 
-                if processors.len() == 1 {
-                    // export on single processor
-                    processors[0].on_end(build_export_data(
-                        data,
+        // ensure end time is set via explicit end or implicitly on drop
+        if let Some(timestamp) = timestamp {
+            data.end_time = timestamp;
+        } else if data.end_time == data.start_time {
+            data.end_time = crate::time::now();
+        }
+
+        match provider.span_processors().as_slice() {
+            [] => return,
+            [processor] => {
+                processor.on_end(build_export_data(
+                    data,
+                    self.span_context.clone(),
+                    provider.config().resource.clone(),
+                    &self.tracer,
+                ));
+            }
+            processors => {
+                let config = provider.config();
+                for processor in processors {
+                    processor.on_end(build_export_data(
+                        data.clone(),
                         self.span_context.clone(),
-                        provider.config().resource.clone(),
+                        config.resource.clone(),
                         &self.tracer,
                     ));
-                } else {
-                    // send to all processors
-                    let mut processors = processors.iter().peekable();
-                    let resource = provider.config().resource.clone();
-                    let mut span_data = Some((data, resource));
-                    while let Some(processor) = processors.next() {
-                        let span_data = if processors.peek().is_none() {
-                            // last loop or single processor/exporter, move data
-                            span_data.take()
-                        } else {
-                            // clone so each exporter gets owned data
-                            span_data.clone()
-                        };
-
-                        if let Some((span_data, resource)) = span_data {
-                            processor.on_end(build_export_data(
-                                span_data,
-                                self.span_context.clone(),
-                                resource,
-                                &self.tracer,
-                            ));
-                        }
-                    }
                 }
             }
         }
