@@ -1,0 +1,87 @@
+[package]
+name = "opentelemetry-dynatrace"
+version = "0.1.0"
+authors = ["OpenTelemetry Authors <cncf-opentelemetry-contributors@lists.cncf.io>"]
+description = "Dynatrace exporters and propagators for OpenTelemetry"
+homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-dynatrace"
+repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-dynatrace"
+readme = "README.md"
+categories = [
+    "development-tools::debugging",
+    "development-tools::profiling",
+    "asynchronous",
+]
+keywords = ["opentelemetry", "metrics", "dynatrace"]
+license = "Apache-2.0"
+edition = "2018"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[[test]]
+name = "integration_tokio"
+path = "tests/http_test.rs"
+required-features = ["metrics", "rt-tokio"]
+
+[features]
+default = ["metrics", "rt-tokio", "reqwest-client", "reqwest-rustls"]
+
+metrics = ["opentelemetry/metrics"]
+
+reqwest-client = ["reqwest", "opentelemetry-http/reqwest"]
+reqwest-rustls = ["reqwest/rustls-tls-native-roots"]
+reqwest-blocking-client = ["reqwest/blocking", "opentelemetry-http/reqwest"]
+surf-client = ["surf", "opentelemetry-http/surf"]
+isahc-client = ["isahc", "opentelemetry-http/isahc"]
+
+rt-tokio = ["tokio", "opentelemetry/rt-tokio"]
+rt-async-std = ["async-std", "opentelemetry/rt-async-std"]
+
+wasm = [
+    "base64",
+    "futures-util",
+    "getrandom/js",
+    "js-sys",
+    "pin-project",
+    "wasm-bindgen",
+    "wasm-bindgen-futures",
+    "web-sys",
+]
+
+[dependencies]
+async-std = { version = "1", features = ["unstable"], optional = true }
+base64 = { version = "0.13", optional = true }
+futures = "0.3"
+futures-util = { version = "0.3", optional = true }
+getrandom = { version = "0.2", optional = true }
+http = "0.2"
+isahc = { version = "1.4", default-features = false, optional = true }
+js-sys = { version = "0.3.5", optional = true }
+opentelemetry = { version = "0.16", path = "../opentelemetry", default-features = false }
+opentelemetry-http = { version = "0.5", path = "../opentelemetry-http", default-features = false }
+pin-project = { version = "1.0", optional = true }
+reqwest = { version = "0.11", default-features = false, optional = true }
+surf = { version = "2.0", default-features = false, optional = true }
+thiserror = "1.0"
+tokio = { version = "1.0", default-features = false, features = ["rt", "sync"], optional = true }
+wasm-bindgen = { version = "0.2", default-features = false, features = ["std"], optional = true }
+wasm-bindgen-futures = { version = "0.4", default-features = false, optional = true }
+
+[dependencies.web-sys]
+version = "0.3"
+default-features = false
+features = [
+    "Headers",
+    "Request",
+    "RequestInit",
+    "RequestMode",
+    "Response",
+    "Window",
+]
+optional = true
+
+[dev-dependencies]
+opentelemetry = { path = "../opentelemetry", features = ["rt-tokio"] }
+tokio = { version = "1.0", default-features = false, features = ["macros", "rt-multi-thread", "sync", "test-util"] }
+hyper = { version = "0.14", default-features = false, features = ["server", "tcp", "http1"] }
