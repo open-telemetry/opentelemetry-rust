@@ -106,9 +106,7 @@ impl Propagator {
         if span_id.to_lowercase() != span_id || span_id.len() != 16 {
             Err(())
         } else {
-            u64::from_str_radix(span_id, 16)
-                .map(SpanId::from_u64)
-                .map_err(|_| ())
+            SpanId::from_hex(span_id).map_err(|_| ())
         }
     }
 

@@ -205,7 +205,7 @@ mod propagator {
         fn extract_span_id(&self, span_id: &str) -> Result<SpanId, ExtractError> {
             span_id
                 .parse::<u64>()
-                .map(SpanId::from_u64)
+                .map(|id| SpanId::from(id.to_be_bytes()))
                 .map_err(|_| ExtractError::SpanId)
         }
 
