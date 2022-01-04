@@ -4,7 +4,7 @@ use crate::{
     trace::{Span, SpanContext},
     Context, ContextGuard, KeyValue,
 };
-use futures_util::{Sink, Stream};
+use futures_util::{sink::Sink, stream::Stream};
 use pin_project::pin_project;
 use std::error::Error;
 use std::sync::Mutex;

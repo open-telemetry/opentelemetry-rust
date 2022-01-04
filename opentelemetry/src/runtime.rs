@@ -6,7 +6,7 @@
 //! [Tokio]: https://crates.io/crates/tokio
 //! [async-std]: https://crates.io/crates/async-std
 
-use futures_util::{future::BoxFuture, Stream};
+use futures_util::{future::BoxFuture, stream::Stream};
 use std::{future::Future, time::Duration};
 
 /// A runtime is an abstraction of an async runtime like [Tokio] or [async-std]. It allows
