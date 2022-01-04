@@ -51,7 +51,7 @@ impl BinaryFormat for BinaryPropagator {
             return SpanContext::empty_context();
         }
         let trace_id: [u8; 16];
-        let mut span_id = 0;
+        let mut span_id = [0; 8];
         let mut trace_flags = 0;
         let mut b = &bytes[1..];
         if b.len() >= 17 && b[0] == 0 {
@@ -61,7 +61,7 @@ impl BinaryFormat for BinaryPropagator {
             return SpanContext::empty_context();
         }
         if b.len() >= 9 && b[0] == 1 {
-            span_id = u64::from_be_bytes(b[1..9].try_into().unwrap());
+            span_id = b[1..9].try_into().unwrap();
             b = &b[9..];
         }
         if b.len() >= 2 && b[0] == 2 {
@@ -70,7 +70,7 @@ impl BinaryFormat for BinaryPropagator {
 
         let span_context = SpanContext::new(
             TraceId::from(trace_id),
-            SpanId::from_u64(span_id),
+            SpanId::from(span_id),
             TraceFlags::new(trace_flags),
             true,
             // TODO traceparent and tracestate should both begin with a 0 byte, figure out how to differentiate

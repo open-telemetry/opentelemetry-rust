@@ -48,7 +48,7 @@ pub fn new_test_export_span_data() -> SpanData {
     let config = Config::default();
     SpanData {
         span_context: SpanContext::empty_context(),
-        parent_span_id: SpanId::from_u64(0),
+        parent_span_id: SpanId::INVALID,
         span_kind: SpanKind::Internal,
         name: "opentelemetry".into(),
         start_time: crate::time::now(),
