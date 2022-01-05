@@ -192,7 +192,7 @@ impl Span {
         }
 
         match provider.span_processors().as_slice() {
-            [] => return,
+            [] => {}
             [processor] => {
                 processor.on_end(build_export_data(
                     data,
