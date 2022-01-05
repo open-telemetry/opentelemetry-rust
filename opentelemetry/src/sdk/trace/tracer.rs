@@ -76,6 +76,7 @@ impl Tracer {
         attributes: &[KeyValue],
         links: &[Link],
         config: &Config,
+        instrumentation_library: &InstrumentationLibrary,
     ) -> Option<(TraceFlags, Vec<KeyValue>, TraceState)> {
         let sampling_result = config.sampler.should_sample(
             Some(parent_cx),
@@ -84,6 +85,7 @@ impl Tracer {
             span_kind,
             attributes,
             links,
+            instrumentation_library,
         );
 
         self.process_sampling_result(sampling_result, parent_cx)
@@ -224,6 +226,7 @@ impl crate::trace::Tracer for Tracer {
                 &attribute_options,
                 link_options.as_deref().unwrap_or(&[]),
                 provider.config(),
+                &self.instrumentation_lib,
             )
         } else {
             // has parent that is local: use parent if sampled, or don't record.
@@ -318,6 +321,7 @@ mod tests {
         sdk::{
             self,
             trace::{Config, Sampler, SamplingDecision, SamplingResult, ShouldSample},
+            InstrumentationLibrary,
         },
         testing::trace::TestSpan,
         trace::{
@@ -339,6 +343,7 @@ mod tests {
             _span_kind: &SpanKind,
             _attributes: &[KeyValue],
             _links: &[Link],
+            _instrumentation_library: &InstrumentationLibrary,
         ) -> SamplingResult {
             let trace_state = parent_context
                 .unwrap()
