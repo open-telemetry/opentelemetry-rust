@@ -63,6 +63,11 @@ adapter crates to assist in propagating state and instrumenting applications.
 
 In particular, the following crates are likely to be of interest:
 
+- [`opentelemetry-aws`] provides unofficial propagators for AWS X-ray.
+- [`opentelemetry-datadog`] provides additional exporters to [`Datadog`].
+- [`opentelemetry-dynatrace`] provides additional exporters to Dynatrace.
+- [`opentelemetry-contrib`] provides additional exporters and propagators that
+  are experimental.
 - [`opentelemetry-http`] provides an interface for injecting and extracting
   trace information from [`http`] headers.
 - [`opentelemetry-jaeger`] provides a pipeline and exporter for sending trace
@@ -71,16 +76,12 @@ In particular, the following crates are likely to be of interest:
   format to the OpenTelemetry collector.
 - [`opentelemetry-prometheus`] provides a pipeline and exporter for sending
   metrics information to [`Prometheus`].
-- [`opentelemetry-zipkin`] provides a pipeline and exporter for sending trace
-  information to [`Zipkin`].
-- [`opentelemetry-datadog`] provides additional exporters to [`Datadog`].
-- [`opentelemetry-aws`] provides unofficial propagators for AWS X-ray.
-- [`opentelemetry-contrib`] provides additional exporters and propagators that
-  are experimental.
 - [`opentelemetry-semantic-conventions`] provides standard names and semantic
   otel conventions.
 - [`opentelemetry-stackdriver`] provides an exporter for Google's [Cloud Trace]
   (which used to be called StackDriver).
+- [`opentelemetry-zipkin`] provides a pipeline and exporter for sending trace
+  information to [`Zipkin`].
 
 Additionally, there are also several third-party crates which are not
 maintained by the `opentelemetry` project. These include:
@@ -110,6 +111,8 @@ above, please let us know! We'd love to add your project to the list!
 [`opentelemetry-contrib`]: https://crates.io/crates/opentelemetry-contrib
 [`Datadog`]: https://www.datadoghq.com
 [`opentelemetry-datadog`]: https://crates.io/crates/opentelemetry-datadog
+[`Dynatrace`]: https://www.dynatrace.com/
+[`opentelemetry-dynatrace`]: https://crates.io/crates/opentelemetry-dynatrace
 [`opentelemetry-semantic-conventions`]: https://crates.io/crates/opentelemetry-semantic-conventions
 [`http`]: https://crates.io/crates/http
 
