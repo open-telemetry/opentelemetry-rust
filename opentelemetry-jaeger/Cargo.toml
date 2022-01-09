@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-jaeger"
-version = "0.15.0"
+version = "0.16.0"
 authors = ["OpenTelemetry Authors <cncf-opentelemetry-contributors@lists.cncf.io>"]
 description = "Jaeger exporter for OpenTelemetry"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-jaeger"
@@ -24,22 +24,22 @@ async-std = { version = "1.6", optional = true }
 async-trait = "0.1"
 base64 = { version = "0.13", optional = true }
 futures-util = { version = "0.3", default-features = false, features = ["std"], optional = true }
+headers = { version = "0.3.2", optional = true }
 http = { version = "0.2", optional = true }
 isahc = { version = "1.4", default-features = false, optional = true }
 js-sys = { version = "0.3", optional = true }
-opentelemetry-semantic-conventions = { version = "0.8", path = "../opentelemetry-semantic-conventions" }
-opentelemetry = { version = "0.16", default-features = false, features = ["trace"], path = "../opentelemetry" }
-opentelemetry-http = { version = "0.5", path = "../opentelemetry-http", optional = true }
+lazy_static = "1.4"
+opentelemetry = { version = "0.17", default-features = false, features = ["trace"], path = "../opentelemetry" }
+opentelemetry-http = { version = "0.6", path = "../opentelemetry-http", optional = true }
+opentelemetry-semantic-conventions = { version = "0.9", path = "../opentelemetry-semantic-conventions" }
 pin-project = { version = "1.0", optional = true }
+reqwest = { version = "0.11", default-features = false, optional = true }
+surf = { version = "2.0", default-features = false, optional = true }
+thiserror = "1.0"
 thrift = "0.15"
 tokio = { version = "1.0", features = ["net", "sync"], optional = true }
 wasm-bindgen = { version = "0.2", optional = true }
 wasm-bindgen-futures = { version = "0.4.18", optional = true }
-thiserror = "1.0"
-lazy_static = "1.4"
-reqwest = { version = "0.11", default-features = false, optional = true }
-headers = { version = "0.3.2", optional = true }
-surf = { version = "2.0", default-features = false, optional = true }
 
 [dev-dependencies]
 bytes = "1"

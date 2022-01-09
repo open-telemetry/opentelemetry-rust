@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.13.0
+
+### Changed
+
+- Exclude default `tonic-build` features #635
+- Update `gcp_auth` dependency to `0.5.0` #639
+- Include the server's message in error display #642
+- Update to opentelemetry v0.17.0
+
 ## v0.12.0
 
 ### Changed

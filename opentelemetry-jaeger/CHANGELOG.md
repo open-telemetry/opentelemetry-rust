@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.16.0
+
+### Changed
+
+- try split batch if payload size larger than max_package_size #619
+- update to thrift 0.15 #697
+- Update to opentelemetry v0.17.0
+- Update to opentelemetry-http v0.6.0
+- Update to opentelemetry-semantic-conventions v0.9.0
+
+### Fixed
+
+- Mapping between Jaeger processes and Otel process. #663
+
 ## v0.15.0
 
 ### Changed

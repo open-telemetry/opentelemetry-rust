@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.10.0
+
+### Added
+
+- Added `prometheus-encoding` feature to export prometheus encoders #652 
+- Added `with_aggregator_selector` option #667
+
+### Changed
+
+- Update prometheus to 0.13 #644
+- Update to opentelemetry v0.17.0
+
+### Fixed
+
+- Enable directly constructing a SpanExporter #655
+
 ## v0.9.0
 
 ### Added
