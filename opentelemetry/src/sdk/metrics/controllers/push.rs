@@ -10,7 +10,11 @@ use crate::sdk::{
     Resource,
 };
 use futures_channel::mpsc;
-use futures_util::{stream, task, Future, Stream, StreamExt as _};
+use futures_util::{
+    future::Future,
+    stream::{select, Stream, StreamExt as _},
+    task,
+};
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use std::time;
@@ -182,7 +186,7 @@ where
             (self.interval)(self.period.unwrap_or(*DEFAULT_PUSH_PERIOD)).map(|_| PushMessage::Tick);
 
         (self.spawn)(PushControllerWorker {
-            messages: Box::pin(stream::select(message_receiver, ticker)),
+            messages: Box::pin(select(message_receiver, ticker)),
             accumulator,
             processor,
             exporter: self.exporter,
