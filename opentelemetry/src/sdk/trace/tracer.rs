@@ -172,10 +172,14 @@ impl crate::trace::Tracer for Tracer {
             .span_id
             .take()
             .unwrap_or_else(|| config.id_generator.new_span_id());
-
         let span_kind = builder.span_kind.take().unwrap_or(SpanKind::Internal);
         let mut attribute_options = builder.attributes.take().unwrap_or_default();
         let mut link_options = builder.links.take();
+        let mut no_parent = true;
+        let mut remote_parent = false;
+        let mut parent_span_id = SpanId::INVALID;
+        let mut parent_trace_flags = TraceFlags::default();
+        let trace_id;
 
         let parent_span = if parent_cx.has_active_span() {
             Some(parent_cx.span())
@@ -184,27 +188,17 @@ impl crate::trace::Tracer for Tracer {
         };
 
         // Build context for sampling decision
-        let (no_parent, trace_id, parent_span_id, remote_parent, parent_trace_flags) =
-            if let Some(ref parent) = parent_span {
-                let sc = parent.span_context();
-                (
-                    false,
-                    sc.trace_id(),
-                    sc.span_id(),
-                    sc.is_remote(),
-                    sc.trace_flags(),
-                )
-            } else {
-                (
-                    true,
-                    builder
-                        .trace_id
-                        .unwrap_or_else(|| config.id_generator.new_trace_id()),
-                    SpanId::INVALID,
-                    false,
-                    TraceFlags::default(),
-                )
-            };
+        if let Some(sc) = parent_span.as_ref().map(|parent| parent.span_context()) {
+            no_parent = false;
+            remote_parent = sc.is_remote();
+            parent_span_id = sc.span_id();
+            parent_trace_flags = sc.trace_flags();
+            trace_id = sc.trace_id();
+        } else {
+            trace_id = builder
+                .trace_id
+                .unwrap_or_else(|| config.id_generator.new_trace_id());
+        };
 
         // There are 3 paths for sampling.
         //
