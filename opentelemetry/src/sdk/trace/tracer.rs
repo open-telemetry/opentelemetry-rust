@@ -172,12 +172,14 @@ impl crate::trace::Tracer for Tracer {
             .span_id
             .take()
             .unwrap_or_else(|| config.id_generator.new_span_id());
-
         let span_kind = builder.span_kind.take().unwrap_or(SpanKind::Internal);
-        let mut attribute_options = builder.attributes.take().unwrap_or_else(Vec::new);
+        let mut attribute_options = builder.attributes.take().unwrap_or_default();
         let mut link_options = builder.links.take();
-        let mut flags = TraceFlags::default();
-        let mut span_trace_state = Default::default();
+        let mut no_parent = true;
+        let mut remote_parent = false;
+        let mut parent_span_id = SpanId::INVALID;
+        let mut parent_trace_flags = TraceFlags::default();
+        let trace_id;
 
         let parent_span = if parent_cx.has_active_span() {
             Some(parent_cx.span())
@@ -186,27 +188,17 @@ impl crate::trace::Tracer for Tracer {
         };
 
         // Build context for sampling decision
-        let (no_parent, trace_id, parent_span_id, remote_parent, parent_trace_flags) = parent_span
-            .as_ref()
-            .map(|parent| {
-                let sc = parent.span_context();
-                (
-                    false,
-                    sc.trace_id(),
-                    sc.span_id(),
-                    sc.is_remote(),
-                    sc.trace_flags(),
-                )
-            })
-            .unwrap_or((
-                true,
-                builder
-                    .trace_id
-                    .unwrap_or_else(|| config.id_generator.new_trace_id()),
-                SpanId::INVALID,
-                false,
-                TraceFlags::default(),
-            ));
+        if let Some(sc) = parent_span.as_ref().map(|parent| parent.span_context()) {
+            no_parent = false;
+            remote_parent = sc.is_remote();
+            parent_span_id = sc.span_id();
+            parent_trace_flags = sc.trace_flags();
+            trace_id = sc.trace_id();
+        } else {
+            trace_id = builder
+                .trace_id
+                .unwrap_or_else(|| config.id_generator.new_trace_id());
+        };
 
         // There are 3 paths for sampling.
         //
@@ -238,7 +230,6 @@ impl crate::trace::Tracer for Tracer {
                 })
         };
 
-        // Build optional inner context, `None` if not recording.
         let SpanBuilder {
             name,
             start_time,
@@ -248,10 +239,12 @@ impl crate::trace::Tracer for Tracer {
             status_message,
             ..
         } = builder;
-        let inner = sampling_decision.map(|(trace_flags, mut extra_attrs, trace_state)| {
-            flags = trace_flags;
-            span_trace_state = trace_state;
-            attribute_options.append(&mut extra_attrs);
+
+        // Build optional inner context, `None` if not recording.
+        let mut span = if let Some((flags, mut extra_attrs, trace_state)) = sampling_decision {
+            if !extra_attrs.is_empty() {
+                attribute_options.append(&mut extra_attrs);
+            }
             let mut attributes =
                 EvictedHashMap::new(span_limits.max_attributes_per_span, attribute_options.len());
             for attribute in attribute_options {
@@ -286,22 +279,34 @@ impl crate::trace::Tracer for Tracer {
             let status_code = status_code.unwrap_or(StatusCode::Unset);
             let status_message = status_message.unwrap_or(Cow::Borrowed(""));
 
-            SpanData {
-                parent_span_id,
-                span_kind,
-                name,
-                start_time,
-                end_time,
-                attributes,
-                events: events_queue,
-                links,
-                status_code,
-                status_message,
-            }
-        });
-
-        let span_context = SpanContext::new(trace_id, span_id, flags, false, span_trace_state);
-        let mut span = Span::new(span_context, inner, self.clone(), span_limits);
+            let span_context = SpanContext::new(trace_id, span_id, flags, false, trace_state);
+            Span::new(
+                span_context,
+                Some(SpanData {
+                    parent_span_id,
+                    span_kind,
+                    name,
+                    start_time,
+                    end_time,
+                    attributes,
+                    events: events_queue,
+                    links,
+                    status_code,
+                    status_message,
+                }),
+                self.clone(),
+                span_limits,
+            )
+        } else {
+            let span_context = SpanContext::new(
+                trace_id,
+                span_id,
+                TraceFlags::default(),
+                false,
+                Default::default(),
+            );
+            Span::new(span_context, None, self.clone(), span_limits)
+        };
 
         // Call `on_start` for all processors
         for processor in provider.span_processors() {
