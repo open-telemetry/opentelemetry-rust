@@ -77,7 +77,7 @@ async fn handler(
 
 fn tracez_response_or_server_error(resp: Result<TracezResponse, TracezError>) -> Response<Body> {
     match resp {
-        Ok(resp) => Response::new(Body::from(resp.into_json().unwrap())),
+        Ok(resp) => Response::new(Body::from(serde_json::to_string(&resp).unwrap())),
         Err(_) => Response::builder().status(500).body(Body::empty()).unwrap(),
     }
 }

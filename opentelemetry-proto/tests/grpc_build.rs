@@ -18,8 +18,9 @@ fn build_grpc() {
             "src/proto/opentelemetry-proto/opentelemetry/proto/collector/trace/v1/trace_service.proto",
             "src/proto/opentelemetry-proto/opentelemetry/proto/metrics/v1/metrics.proto",
             "src/proto/opentelemetry-proto/opentelemetry/proto/collector/metrics/v1/metrics_service.proto",
+            "src/proto/tracez.proto"
         ],
-        &["src/proto/opentelemetry-proto/"],
+        &["src/proto/opentelemetry-proto/", "src/proto"],
         "src/proto/grpcio",
         Some(Customize {
             expose_fields: Some(true),

@@ -11,7 +11,7 @@ use futures_util::StreamExt as _;
 
 use opentelemetry::trace::StatusCode;
 
-use crate::proto::tracez::TracezCounts;
+use opentelemetry_proto::proto::grpcio::tracez::TracezCounts;
 use crate::trace::{TracezError, TracezMessage, TracezQuery, TracezResponse};
 use crate::SpanQueue;
 use opentelemetry::sdk::export::trace::SpanData;

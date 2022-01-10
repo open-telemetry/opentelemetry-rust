@@ -5,7 +5,7 @@
 // We can remove this after we removed the labels field from proto.
 #[allow(deprecated)]
 pub(crate) mod tonic {
-    use crate::proto::{
+    use opentelemetry_proto::proto::{
         collector::metrics::v1::ExportMetricsServiceRequest,
         common::v1::KeyValue,
         metrics::v1::{
@@ -14,6 +14,7 @@ pub(crate) mod tonic {
             ResourceMetrics, Sum,
         },
     };
+    use opentelemetry_proto::transform::metrics::tonic::FromNumber;
     use opentelemetry::metrics::{MetricsError, Number, NumberKind};
     use opentelemetry::sdk::export::metrics::{
         Count, ExportKind, ExportKindFor, Histogram as SdkHistogram, LastValue, Max, Min, Points,
@@ -24,42 +25,11 @@ pub(crate) mod tonic {
         SumAggregator,
     };
 
-    use crate::transform::common::to_nanos;
+    use crate::to_nanos;
     use crate::transform::{CheckpointedMetrics, ResourceWrapper};
     use opentelemetry::sdk::InstrumentationLibrary;
-    use opentelemetry::{Key, Value};
     use std::collections::{BTreeMap, HashMap};
 
-    type NumberWithKind<'a> = (Number, &'a NumberKind);
-
-    impl From<(&Key, &Value)> for KeyValue {
-        fn from(kv: (&Key, &Value)) -> Self {
-            KeyValue {
-                key: kv.0.clone().into(),
-                value: Some(kv.1.clone().into()),
-            }
-        }
-    }
-
-    impl<'a> From<NumberWithKind<'a>> for number_data_point::Value {
-        fn from(number: NumberWithKind<'a>) -> Self {
-            match &number.1 {
-                NumberKind::I64 | NumberKind::U64 => {
-                    number_data_point::Value::AsInt(number.0.to_i64(number.1))
-                }
-                NumberKind::F64 => number_data_point::Value::AsDouble(number.0.to_f64(number.1)),
-            }
-        }
-    }
-
-    impl From<ExportKind> for AggregationTemporality {
-        fn from(kind: ExportKind) -> Self {
-            match kind {
-                ExportKind::Cumulative => AggregationTemporality::Cumulative,
-                ExportKind::Delta => AggregationTemporality::Delta,
-            }
-        }
-    }
 
     pub(crate) fn record_to_metric(
         record: &Record,
@@ -93,7 +63,7 @@ pub(crate) mod tonic {
                                     labels: vec![],
                                     start_time_unix_nano: to_nanos(*record.start_time()),
                                     time_unix_nano: to_nanos(*record.end_time()),
-                                    value: Some((val, kind).into()),
+                                    value: Some(number_data_point::Value::from_number(val, kind)),
                                     exemplars: Vec::default(),
                                 })
                                 .collect(),
@@ -102,7 +72,7 @@ pub(crate) mod tonic {
                         None
                     }
                 } else if let Some(last_value) =
-                    aggregator.as_any().downcast_ref::<LastValueAggregator>()
+                aggregator.as_any().downcast_ref::<LastValueAggregator>()
                 {
                     Some({
                         let (val, sample_time) = last_value.last_value()?;
@@ -112,7 +82,7 @@ pub(crate) mod tonic {
                                 labels: vec![],
                                 start_time_unix_nano: to_nanos(*record.start_time()),
                                 time_unix_nano: to_nanos(sample_time),
-                                value: Some((val, kind).into()),
+                                value: Some(number_data_point::Value::from_number(val, kind)),
                                 exemplars: Vec::default(),
                             }],
                         })
@@ -126,7 +96,7 @@ pub(crate) mod tonic {
                                 labels: vec![],
                                 start_time_unix_nano: to_nanos(*record.start_time()),
                                 time_unix_nano: to_nanos(*record.end_time()),
-                                value: Some((val, kind).into()),
+                                value: Some(number_data_point::Value::from_number(val, kind)),
                                 exemplars: Vec::default(),
                             }],
                             aggregation_temporality: temporality as i32,
@@ -134,7 +104,7 @@ pub(crate) mod tonic {
                         })
                     })
                 } else if let Some(histogram) =
-                    aggregator.as_any().downcast_ref::<HistogramAggregator>()
+                aggregator.as_any().downcast_ref::<HistogramAggregator>()
                 {
                     Some({
                         let (sum, count, buckets) =
@@ -306,8 +276,8 @@ pub(crate) mod tonic {
 mod tests {
     #[cfg(feature = "tonic")]
     mod tonic {
-        use crate::proto::common::v1::{any_value, AnyValue, KeyValue};
-        use crate::proto::metrics::v1::{
+        use opentelemetry_proto::proto::common::v1::{any_value, AnyValue, KeyValue};
+        use opentelemetry_proto::proto::metrics::v1::{
             metric::Data, number_data_point, Gauge, Histogram, HistogramDataPoint,
             InstrumentationLibraryMetrics, Metric, NumberDataPoint, ResourceMetrics, Sum,
         };
@@ -390,7 +360,7 @@ mod tests {
 
         fn convert_to_resource_metrics(
             data: (ResourceKv, Vec<(InstrumentationLibraryKv, Vec<MetricRaw>)>),
-        ) -> crate::proto::metrics::v1::ResourceMetrics {
+        ) -> opentelemetry_proto::proto::metrics::v1::ResourceMetrics {
             // convert to proto resource
             let attributes: Attributes = data
                 .0
@@ -398,7 +368,7 @@ mod tests {
                 .map(|(k, v)| opentelemetry::KeyValue::new(k.to_string(), v.to_string()))
                 .collect::<Vec<opentelemetry::KeyValue>>()
                 .into();
-            let resource = crate::proto::resource::v1::Resource {
+            let resource = opentelemetry_proto::proto::resource::v1::Resource {
                 attributes: attributes.0,
                 dropped_attributes_count: 0,
             };
@@ -406,7 +376,7 @@ mod tests {
             for ((instrumentation_name, instrumentation_version), metrics) in data.1 {
                 instrumentation_library_metrics.push(InstrumentationLibraryMetrics {
                     instrumentation_library: Some(
-                        crate::proto::common::v1::InstrumentationLibrary {
+                        opentelemetry_proto::proto::common::v1::InstrumentationLibrary {
                             name: instrumentation_name.to_string(),
                             version: instrumentation_version.unwrap_or("").to_string(),
                         },
@@ -732,22 +702,22 @@ mod tests {
                     (vec![("attribute1", "attribute2")], 15, 16, 99),
                 ),
             ]
-            .into_iter()
-            .map(
-                |(kvs, (name, version), metric_name, (attributes, start_time, end_time, value))| {
-                    (
-                        ResourceWrapper::from(Resource::new(kvs.into_iter().map(|(k, v)| {
-                            opentelemetry::KeyValue::new(k.to_string(), v.to_string())
-                        }))),
-                        InstrumentationLibrary::new(name, version),
-                        get_metric_with_name(
-                            metric_name,
-                            vec![(attributes, start_time, end_time, value)],
-                        ),
-                    )
-                },
-            )
-            .collect::<Vec<(ResourceWrapper, InstrumentationLibrary, Metric)>>();
+                .into_iter()
+                .map(
+                    |(kvs, (name, version), metric_name, (attributes, start_time, end_time, value))| {
+                        (
+                            ResourceWrapper::from(Resource::new(kvs.into_iter().map(|(k, v)| {
+                                opentelemetry::KeyValue::new(k.to_string(), v.to_string())
+                            }))),
+                            InstrumentationLibrary::new(name, version),
+                            get_metric_with_name(
+                                metric_name,
+                                vec![(attributes, start_time, end_time, value)],
+                            ),
+                        )
+                    },
+                )
+                .collect::<Vec<(ResourceWrapper, InstrumentationLibrary, Metric)>>();
 
             let request = sink(test_data);
             let actual = request.resource_metrics;
@@ -792,8 +762,8 @@ mod tests {
                     )],
                 ),
             ]
-            .into_iter()
-            .map(convert_to_resource_metrics);
+                .into_iter()
+                .map(convert_to_resource_metrics);
 
             for (expect, actual) in expect.into_iter().zip(actual.into_iter()) {
                 assert_resource_metrics(expect, actual);

@@ -3,8 +3,14 @@ use opentelemetry::{Array, Value};
 
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-#[cfg(feature = "tonic")]
-pub(crate) mod tonic {
+pub(crate) fn to_nanos(time: SystemTime) -> u64 {
+    time.duration_since(UNIX_EPOCH)
+        .unwrap_or_else(|_| Duration::from_secs(0))
+        .as_nanos() as u64
+}
+
+
+pub mod tonic {
     use super::*;
     use crate::proto::common::v1::{
         any_value, AnyValue, ArrayValue, InstrumentationLibrary, KeyValue,
@@ -20,7 +26,7 @@ pub(crate) mod tonic {
         }
     }
 
-    pub(crate) struct Attributes(pub(crate) ::std::vec::Vec<crate::proto::common::v1::KeyValue>);
+    pub struct Attributes(pub ::std::vec::Vec<crate::proto::common::v1::KeyValue>);
 
     impl From<EvictedHashMap> for Attributes {
         fn from(attributes: EvictedHashMap) -> Self {
@@ -69,8 +75,8 @@ pub(crate) mod tonic {
     }
 
     fn array_into_proto<T>(vals: Vec<T>) -> ArrayValue
-    where
-        Value: From<T>,
+        where
+            Value: From<T>,
     {
         let values = vals
             .into_iter()
@@ -81,8 +87,7 @@ pub(crate) mod tonic {
     }
 }
 
-#[cfg(feature = "http-proto")]
-pub(crate) mod prost {
+pub mod prost {
     use super::*;
     use crate::proto::prost::common::v1::{
         any_value, AnyValue, ArrayValue, InstrumentationLibrary, KeyValue,
@@ -98,8 +103,8 @@ pub(crate) mod prost {
         }
     }
 
-    pub(crate) struct Attributes(
-        pub(crate) ::std::vec::Vec<crate::proto::prost::common::v1::KeyValue>,
+    pub struct Attributes(
+        pub ::std::vec::Vec<crate::proto::prost::common::v1::KeyValue>,
     );
 
     impl From<EvictedHashMap> for Attributes {
@@ -149,8 +154,8 @@ pub(crate) mod prost {
     }
 
     fn array_into_proto<T>(vals: Vec<T>) -> ArrayValue
-    where
-        Value: From<T>,
+        where
+            Value: From<T>,
     {
         let values = vals
             .into_iter()
@@ -161,14 +166,13 @@ pub(crate) mod prost {
     }
 }
 
-#[cfg(feature = "grpc-sys")]
-pub(crate) mod grpcio {
+pub mod grpcio {
     use super::*;
     use crate::proto::grpcio::common::{AnyValue, ArrayValue, KeyValue};
     use protobuf::RepeatedField;
 
-    pub(crate) struct Attributes(
-        pub(crate) ::protobuf::RepeatedField<crate::proto::grpcio::common::KeyValue>,
+    pub struct Attributes(
+        pub ::protobuf::RepeatedField<crate::proto::grpcio::common::KeyValue>,
     );
 
     impl From<EvictedHashMap> for Attributes {
@@ -223,8 +227,8 @@ pub(crate) mod grpcio {
     }
 
     fn array_into_proto<T>(vals: Vec<T>) -> ArrayValue
-    where
-        Value: From<T>,
+        where
+            Value: From<T>,
     {
         let values = RepeatedField::from_vec(
             vals.into_iter()
@@ -236,10 +240,4 @@ pub(crate) mod grpcio {
         array_value.set_values(values);
         array_value
     }
-}
-
-pub(crate) fn to_nanos(time: SystemTime) -> u64 {
-    time.duration_since(UNIX_EPOCH)
-        .unwrap_or_else(|_| Duration::from_secs(0))
-        .as_nanos() as u64
 }

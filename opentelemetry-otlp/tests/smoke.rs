@@ -1,7 +1,7 @@
 use futures::StreamExt;
 use opentelemetry::global::shutdown_tracer_provider;
 use opentelemetry::trace::{Span, SpanKind, Tracer};
-use opentelemetry_otlp::proto::collector::trace::v1::{
+use opentelemetry_proto::proto::collector::trace::v1::{
     trace_service_server::{TraceService, TraceServiceServer},
     ExportTraceServiceRequest, ExportTraceServiceResponse,
 };

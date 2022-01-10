@@ -3,11 +3,9 @@
 //
 // Grpc related files used by grpcio are maintained at src/proto/grpcio. tests/grpc_build.rs makes
 // sure they are up to date.
-#[cfg(any(feature = "tonic", feature = "http-proto"))]
 use std::path::PathBuf;
 
 fn main() {
-    #[cfg(feature = "tonic")]
     {
         let out_dir = PathBuf::from(
             std::env::var("OUT_DIR").expect("OUT_DIR should be set by cargo but can't find"),
@@ -17,6 +15,7 @@ fn main() {
         tonic_build::configure()
         .build_server(std::env::var_os("CARGO_FEATURE_INTEGRATION_TESTING").is_some())
         .build_client(true)
+        .format(false)
         .out_dir(out_dir)
         .compile(
             &[
@@ -33,7 +32,6 @@ fn main() {
         .expect("Error generating protobuf");
     }
 
-    #[cfg(feature = "http-proto")]
     {
         let out_dir = PathBuf::from(
             std::env::var("OUT_DIR").expect("OUT_DIR should be set by cargo but can't find"),

@@ -1,5 +1,5 @@
 #[cfg(feature = "tonic")]
-use crate::proto::{common::v1::KeyValue, resource::v1::Resource};
+use opentelemetry_proto::proto::{common::v1::KeyValue, resource::v1::Resource};
 use std::cmp::Ordering;
 
 #[derive(PartialEq)]

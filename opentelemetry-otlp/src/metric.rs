@@ -9,7 +9,7 @@ use crate::exporter::{
     ExportConfig,
 };
 #[cfg(feature = "tonic")]
-use crate::proto::collector::metrics::v1::{
+use opentelemetry_proto::proto::collector::metrics::v1::{
     metrics_service_client::MetricsServiceClient, ExportMetricsServiceRequest,
 };
 use crate::transform::{record_to_metric, sink, CheckpointedMetrics};

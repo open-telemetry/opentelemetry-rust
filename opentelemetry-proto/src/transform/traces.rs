@@ -1,8 +1,7 @@
-use crate::transform::common::to_nanos;
 use opentelemetry::sdk::{self, export::trace::SpanData};
 use opentelemetry::trace::{Link, SpanId, SpanKind, StatusCode};
+use crate::transform::common::to_nanos;
 
-#[cfg(feature = "tonic")]
 mod tonic {
     use super::*;
     use crate::proto::resource::v1::Resource;
@@ -53,7 +52,7 @@ mod tonic {
                     attributes: resource_attributes(
                         source_span.resource.as_ref().map(AsRef::as_ref),
                     )
-                    .0,
+                        .0,
                     dropped_attributes_count: 0,
                 }),
                 instrumentation_library_spans: vec![InstrumentationLibrarySpans {
@@ -111,7 +110,6 @@ mod tonic {
     }
 }
 
-#[cfg(feature = "http-proto")]
 mod prost {
     use super::*;
     use crate::proto::prost::resource::v1::Resource;
@@ -162,7 +160,7 @@ mod prost {
                     attributes: resource_attributes(
                         source_span.resource.as_ref().map(AsRef::as_ref),
                     )
-                    .0,
+                        .0,
                     dropped_attributes_count: 0,
                 }),
                 instrumentation_library_spans: vec![InstrumentationLibrarySpans {
@@ -220,7 +218,6 @@ mod prost {
     }
 }
 
-#[cfg(feature = "grpc-sys")]
 mod grpcio {
     use super::*;
     use crate::proto::grpcio::resource::Resource;
@@ -273,7 +270,7 @@ mod grpcio {
                     attributes: resource_attributes(
                         source_span.resource.as_ref().map(AsRef::as_ref),
                     )
-                    .0,
+                        .0,
                     dropped_attributes_count: 0,
                     ..Default::default()
                 })),

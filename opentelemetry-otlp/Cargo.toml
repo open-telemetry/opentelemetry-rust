@@ -13,7 +13,6 @@ categories = [
 keywords = ["opentelemetry", "otlp", "logging", "tracing", "metrics"]
 license = "Apache-2.0"
 edition = "2018"
-build = "build.rs"
 autotests = false
 
 [lib]
@@ -23,11 +22,6 @@ doctest = false
 name = "smoke"
 path = "tests/smoke.rs"
 required-features = ["integration-testing"]
-
-[[test]]
-name = "grpc_build"
-path = "tests/grpc_build.rs"
-required-features = ["grpc-sys"]
 
 [package.metadata.docs.rs]
 all-features = true
@@ -45,6 +39,7 @@ thiserror = "1.0"
 tonic = { version = "0.6.2", optional = true }
 tokio = { version = "1.0", features = ["full"], optional = true }
 opentelemetry-http = { version = "0.5", path = "../opentelemetry-http", optional = true }
+opentelemetry-proto = { path = "../opentelemetry-proto" }
 reqwest = { version = "0.11", optional = true, default-features = false }
 surf = { version = "2.0", optional = true, default-features = false }
 http = "0.2"
@@ -54,8 +49,8 @@ serde = { version = "1.0", features = ["derive"], optional = true }
 tokio-stream = { version = "0.1", features = ["net"] }
 # need tokio runtime to run smoke tests.
 opentelemetry = { features = ["trace", "rt-tokio"], path = "../opentelemetry" }
-protobuf-codegen = { version = "2.16"}
-protoc-grpcio = { version = "3.0"}
+protobuf-codegen = { version = "2.16" }
+protoc-grpcio = { version = "3.0" }
 time = { version = "0.3", features = ["macros"] }
 
 [features]

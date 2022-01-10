@@ -1,6 +1,4 @@
-[submodule "opentelemetry-otlp/src/proto/opentelemetry-proto"]
-	path = opentelemetry-otlp/src/proto/opentelemetry-proto
-	url = https://github.com/open-telemetry/opentelemetry-proto.git
-[submodule "opentelemetry-zpages/src/proto/opentelemetry-proto"]
-	path = opentelemetry-zpages/src/proto/opentelemetry-proto
-	url = https://github.com/open-telemetry/opentelemetry-proto.git
+[submodule "opentelemetry-proto/src/source"]
+    path = opentelemetry-proto/src/source
+    url = https://github.com/open-telemetry/opentelemetry-proto.git
+    branch = v0.10.0

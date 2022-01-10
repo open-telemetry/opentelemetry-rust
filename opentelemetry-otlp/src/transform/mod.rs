@@ -1,8 +1,6 @@
-mod common;
 #[cfg(feature = "metrics")]
 mod metrics;
 mod resource;
-mod traces;
 
 #[cfg(all(feature = "tonic", feature = "metrics"))]
 pub(crate) use metrics::tonic::record_to_metric;
@@ -20,5 +18,5 @@ use opentelemetry::sdk::InstrumentationLibrary;
 pub(crate) type CheckpointedMetrics = (
     ResourceWrapper,
     InstrumentationLibrary,
-    crate::proto::metrics::v1::Metric,
+    opentelemetry_proto::proto::metrics::v1::Metric,
 );
