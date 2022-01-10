@@ -15,9 +15,9 @@ pub(crate) mod tonic {
         },
     };
     use opentelemetry_proto::transform::metrics::tonic::FromNumber;
-    use opentelemetry::metrics::{MetricsError, Number, NumberKind};
+    use opentelemetry::metrics::{MetricsError};
     use opentelemetry::sdk::export::metrics::{
-        Count, ExportKind, ExportKindFor, Histogram as SdkHistogram, LastValue, Max, Min, Points,
+        Count, ExportKindFor, Histogram as SdkHistogram, LastValue, Max, Min, Points,
         Record, Sum as SdkSum,
     };
     use opentelemetry::sdk::metrics::aggregators::{
@@ -281,7 +281,10 @@ mod tests {
             metric::Data, number_data_point, Gauge, Histogram, HistogramDataPoint,
             InstrumentationLibraryMetrics, Metric, NumberDataPoint, ResourceMetrics, Sum,
         };
-        use crate::transform::common::tonic::Attributes;
+        use opentelemetry_proto::transform::{
+            common::tonic::Attributes,
+            metrics::tonic::FromNumber
+        };
         use crate::transform::metrics::tonic::merge;
         use crate::transform::{record_to_metric, sink, ResourceWrapper};
         use opentelemetry::attributes::AttributeSet;
@@ -297,21 +300,17 @@ mod tests {
         use std::sync::Arc;
         use time::macros::datetime;
 
-        impl From<(&str, &str)> for KeyValue {
-            fn from(kv: (&str, &str)) -> Self {
-                KeyValue {
-                    key: kv.0.to_string(),
-                    value: Some(AnyValue {
-                        value: Some(any_value::Value::StringValue(kv.1.to_string())),
-                    }),
-                }
+        fn key_value(key: &str, value: &str) -> KeyValue {
+            KeyValue {
+                key: key.to_string(),
+                value: Some(AnyValue {
+                    value: Some(any_value::Value::StringValue(value.to_string())),
+                }),
             }
         }
 
-        impl From<i64> for number_data_point::Value {
-            fn from(val: i64) -> Self {
-                number_data_point::Value::AsInt(val)
-            }
+        fn i64_to_value(val: i64) -> number_data_point::Value {
+            number_data_point::Value::AsInt(val)
         }
 
         #[allow(clippy::type_complexity)]
@@ -343,12 +342,12 @@ mod tests {
             NumberDataPoint {
                 attributes: attributes
                     .into_iter()
-                    .map(Into::into)
+                    .map(|(key, value)| key_value(key, value))
                     .collect::<Vec<KeyValue>>(),
                 labels: vec![],
                 start_time_unix_nano: start_time,
                 time_unix_nano: end_time,
-                value: Some((Number::from(value), &NumberKind::I64).into()),
+                value: Some(number_data_point::Value::from_number(value.into(), &NumberKind::I64)),
                 exemplars: vec![],
             }
         }
@@ -458,7 +457,7 @@ mod tests {
             let str_kv_attributes = attributes
                 .iter()
                 .cloned()
-                .map(Into::into)
+                .map(|(key, value)| key_value(key, value))
                 .collect::<Vec<KeyValue>>();
             let attribute_set = AttributeSet::from_attributes(
                 attributes
@@ -506,7 +505,7 @@ mod tests {
                             labels: vec![],
                             start_time_unix_nano: 1608891000000000000,
                             time_unix_nano: 1608891030000000000,
-                            value: Some(12i64.into()),
+                            value: Some(i64_to_value(12i64)),
                             exemplars: vec![],
                         }],
                         aggregation_temporality: 2,
@@ -559,7 +558,7 @@ mod tests {
                             } else {
                                 0
                             },
-                            value: Some(14i64.into()),
+                            value: Some(i64_to_value(14i64)),
                             exemplars: vec![],
                         }],
                     })),

@@ -1,19 +1,16 @@
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use protobuf::RepeatedField;
+
+
 
 use opentelemetry::{
-    Array,
     sdk::{
         export::trace::SpanData,
-        trace::EvictedHashMap,
     },
-    trace::{Event, Link, SpanKind, StatusCode}, Value,
+    trace::{Event, StatusCode},
 };
 
 use crate::proto::grpcio::{
-    common::{AnyValue, ArrayValue, KeyValue},
-    trace::{Span_Event, Span_Link, Span_SpanKind, Status, Status_StatusCode},
+    trace::{Span_Event, Status},
     tracez::{ErrorData, LatencyData, RunningData},
 };
 use crate::transform::common::{

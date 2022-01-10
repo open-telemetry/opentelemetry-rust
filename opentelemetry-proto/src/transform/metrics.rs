@@ -5,28 +5,18 @@
 #[allow(deprecated)]
 pub mod tonic {
     use crate::proto::{
-        collector::metrics::v1::ExportMetricsServiceRequest,
         common::v1::KeyValue,
         metrics::v1::{
-            metric::Data, number_data_point, AggregationTemporality, Gauge, Histogram,
-            HistogramDataPoint, InstrumentationLibraryMetrics, Metric, NumberDataPoint,
-            ResourceMetrics, Sum,
+            number_data_point, AggregationTemporality,
         },
     };
-    use opentelemetry::metrics::{MetricsError, Number, NumberKind};
+    use opentelemetry::metrics::{Number, NumberKind};
     use opentelemetry::sdk::export::metrics::{
-        Count, ExportKind, ExportKindFor, Histogram as SdkHistogram, LastValue, Max, Min, Points,
-        Record, Sum as SdkSum,
-    };
-    use opentelemetry::sdk::metrics::aggregators::{
-        ArrayAggregator, HistogramAggregator, LastValueAggregator, MinMaxSumCountAggregator,
-        SumAggregator,
+        ExportKind,
     };
 
-    use crate::transform::common::to_nanos;
-    use opentelemetry::sdk::InstrumentationLibrary;
     use opentelemetry::{Key, Value};
-    use std::collections::{BTreeMap, HashMap};
+    
 
 
     pub trait FromNumber {
