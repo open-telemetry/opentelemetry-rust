@@ -38,6 +38,7 @@
 //! MUST NOT allow this combination.
 
 use crate::{
+    sdk::InstrumentationLibrary,
     trace::{Link, SpanKind, TraceContextExt, TraceId, TraceState},
     Context, KeyValue,
 };
@@ -58,6 +59,7 @@ pub trait ShouldSample: Send + Sync + std::fmt::Debug {
         span_kind: &SpanKind,
         attributes: &[KeyValue],
         links: &[Link],
+        instrumentation_library: &InstrumentationLibrary,
     ) -> SamplingResult;
 }
 
@@ -109,6 +111,7 @@ impl ShouldSample for Sampler {
         span_kind: &SpanKind,
         attributes: &[KeyValue],
         links: &[Link],
+        instrumentation_library: &InstrumentationLibrary,
     ) -> SamplingResult {
         let decision = match self {
             // Always sample the trace
@@ -119,7 +122,15 @@ impl ShouldSample for Sampler {
             Sampler::ParentBased(delegate_sampler) => {
                 parent_context.filter(|cx| cx.has_active_span()).map_or(
                     delegate_sampler
-                        .should_sample(parent_context, trace_id, name, span_kind, attributes, links)
+                        .should_sample(
+                            parent_context,
+                            trace_id,
+                            name,
+                            span_kind,
+                            attributes,
+                            links,
+                            instrumentation_library,
+                        )
                         .decision,
                     |ctx| {
                         let span = ctx.span();
@@ -253,6 +264,7 @@ mod tests {
                         &SpanKind::Internal,
                         &[],
                         &[],
+                        &InstrumentationLibrary::default(),
                     )
                     .decision
                     == SamplingDecision::RecordAndSample
@@ -286,6 +298,7 @@ mod tests {
     fn filter_parent_sampler_for_active_spans() {
         let sampler = Sampler::ParentBased(Box::new(Sampler::AlwaysOn));
         let cx = Context::current_with_value("some_value");
+        let instrumentation_library = InstrumentationLibrary::default();
         let result = sampler.should_sample(
             Some(&cx),
             TraceId::from_u128(1),
@@ -293,6 +306,7 @@ mod tests {
             &SpanKind::Internal,
             &[],
             &[],
+            &instrumentation_library,
         );
 
         assert_eq!(result.decision, SamplingDecision::RecordAndSample);
