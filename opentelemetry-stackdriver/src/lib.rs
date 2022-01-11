@@ -10,6 +10,7 @@
 )]
 
 use std::{
+    collections::HashMap,
     fmt,
     sync::{
         atomic::{AtomicUsize, Ordering},
@@ -46,6 +47,14 @@ pub mod proto {
                 }
             }
         }
+        pub mod logging {
+            pub mod r#type {
+                tonic::include_proto!("google.logging.r#type");
+            }
+            pub mod v2 {
+                tonic::include_proto!("google.logging.v2");
+            }
+        }
         pub mod protobuf {
             tonic::include_proto!("google.protobuf");
         }
@@ -61,6 +70,12 @@ use proto::google::devtools::cloudtrace::v2::{
     trace_service_client::TraceServiceClient,
     AttributeValue, Span, TruncatableString,
 };
+use proto::google::logging::v2::{
+    log_entry::Payload, logging_service_v2_client::LoggingServiceV2Client, LogEntry,
+    LogEntrySourceLocation, WriteLogEntriesRequest,
+};
+
+use proto::google::api::MonitoredResource;
 
 #[cfg(feature = "tokio_adapter")]
 pub mod tokio_adapter;
@@ -99,6 +114,7 @@ impl StackDriverExporter {
         spawn: &S,
         maximum_shutdown_duration: Option<Duration>,
         num_concurrent_requests: impl Into<Option<usize>>,
+        log_context: Option<LogContext>,
     ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         let num_concurrent_requests = num_concurrent_requests.into();
         let uri = http::uri::Uri::from_static("https://cloudtrace.googleapis.com:443");
@@ -110,25 +126,44 @@ impl StackDriverExporter {
         rustls_config.set_protocols(&[Vec::from(&b"h2"[..])]);
         let tls_config = ClientTlsConfig::new().rustls_client_config(rustls_config);
 
-        let channel = Channel::builder(uri)
-            .tls_config(tls_config)?
+        let trace_channel = Channel::builder(uri)
+            .tls_config(tls_config.clone())?
             .connect()
             .await?;
+
+        let log_channel = Channel::builder(http::uri::Uri::from_static(
+            "https://logging.googleapis.com:443",
+        ))
+        .tls_config(tls_config)?
+        .connect()
+        .await?;
+
+        let log_client = log_context.map(|log_context| LogClient {
+            client: LoggingServiceV2Client::new(log_channel),
+            context: Arc::new(log_context),
+        });
+
         let (tx, rx) = futures::channel::mpsc::channel(64);
         let pending_count = Arc::new(AtomicUsize::new(0));
-        let scopes = Arc::new(vec![TRACE_APPEND]);
+        let scopes = Arc::new(match log_client {
+            Some(_) => vec![TRACE_APPEND, LOGGING_WRITE],
+            None => vec![TRACE_APPEND],
+        });
 
         let count_clone = pending_count.clone();
         spawn.spawn_obj(
             Box::new(async move {
-                let client = TraceServiceClient::new(channel);
+                let trace_client = TraceServiceClient::new(trace_channel);
                 let authorizer = &authenticator;
+                let log_client = log_client.clone();
                 rx.for_each_concurrent(num_concurrent_requests, move |batch| {
-                    let client = client.clone(); // This clone is cheap and allows for concurrent requests (see https://github.com/hyperium/tonic/issues/285#issuecomment-595880400)
+                    let trace_client = trace_client.clone();
+                    let log_client = log_client.clone();
                     let pending_count = count_clone.clone();
                     let scopes = scopes.clone();
                     ExporterContext {
-                        client,
+                        trace_client,
+                        log_client,
                         authorizer,
                         pending_count,
                         scopes,
@@ -154,7 +189,8 @@ impl StackDriverExporter {
 }
 
 struct ExporterContext<'a, A> {
-    client: TraceServiceClient<Channel>,
+    trace_client: TraceServiceClient<Channel>,
+    log_client: Option<LogClient>,
     authorizer: &'a A,
     pending_count: Arc<AtomicUsize>,
     scopes: Arc<Vec<&'static str>>,
@@ -164,6 +200,7 @@ impl<A: Authorizer> ExporterContext<'_, A> {
     async fn export(mut self, batch: Vec<SpanData>) {
         use proto::google::devtools::cloudtrace::v2::span::time_event::Value;
 
+        let mut entries = Vec::new();
         let mut spans = Vec::with_capacity(batch.len());
         for span in batch {
             let attribute_map = span
@@ -172,17 +209,71 @@ impl<A: Authorizer> ExporterContext<'_, A> {
                 .map(|(key, value)| (key.as_str().to_owned(), value.into()))
                 .collect();
 
-            let time_event = span
-                .events
-                .into_iter()
-                .map(|event| TimeEvent {
-                    time: Some(event.timestamp.into()),
-                    value: Some(Value::Annotation(Annotation {
-                        description: Some(to_truncate(event.name.into_owned())),
-                        ..Default::default()
-                    })),
-                })
-                .collect();
+            let trace_id = hex::encode(span.span_context.trace_id().to_bytes());
+            let span_id = hex::encode(span.span_context.span_id().to_bytes());
+            let time_event = match &self.log_client {
+                None => span
+                    .events
+                    .into_iter()
+                    .map(|event| TimeEvent {
+                        time: Some(event.timestamp.into()),
+                        value: Some(Value::Annotation(Annotation {
+                            description: Some(to_truncate(event.name.into_owned())),
+                            ..Default::default()
+                        })),
+                    })
+                    .collect(),
+                Some(client) => {
+                    entries.extend(span.events.into_iter().map(|event| {
+                        let (mut level, mut target, mut labels) =
+                            (LogSeverity::Default, None, HashMap::default());
+                        for kv in event.attributes {
+                            match kv.key.as_str() {
+                                "level" => {
+                                    level = match kv.value.as_str().as_ref() {
+                                        "DEBUG" | "TRACE" => LogSeverity::Debug,
+                                        "INFO" => LogSeverity::Info,
+                                        "WARN" => LogSeverity::Warning,
+                                        "ERROR" => LogSeverity::Error,
+                                        _ => LogSeverity::Default, // tracing::Level is limited to the above 5
+                                    }
+                                }
+                                "target" => target = Some(kv.value.as_str().into_owned()),
+                                key => {
+                                    labels.insert(key.to_owned(), kv.value.as_str().into_owned());
+                                }
+                            }
+                        }
+
+                        LogEntry {
+                            log_name: format!(
+                                "projects/{}/logs/{}",
+                                self.authorizer.project_id(),
+                                client.context.log_id,
+                            ),
+                            resource: Some(MonitoredResource {
+                                r#type: client.context.resource.r#type.clone(),
+                                labels: client.context.resource.labels.clone(),
+                            }),
+                            severity: level as i32,
+                            timestamp: Some(event.timestamp.into()),
+                            labels,
+                            trace: trace_id.clone(),
+                            span_id: span_id.clone(),
+                            source_location: target.map(|target| LogEntrySourceLocation {
+                                file: String::new(),
+                                line: 0,
+                                function: target,
+                            }),
+                            payload: Some(Payload::TextPayload(event.name.into_owned())),
+                            // severity, source_location, text_payload
+                            ..Default::default()
+                        }
+                    }));
+
+                    vec![]
+                }
+            };
 
             spans.push(Span {
                 name: format!(
@@ -216,7 +307,31 @@ impl<A: Authorizer> ExporterContext<'_, A> {
         self.pending_count.fetch_sub(1, Ordering::Relaxed);
         if let Err(e) = self.authorizer.authorize(&mut req, &self.scopes).await {
             log::error!("StackDriver authentication failed {}", e);
-        } else if let Err(e) = self.client.batch_write_spans(req).await {
+        } else if let Err(e) = self.trace_client.batch_write_spans(req).await {
+            log::error!("StackDriver push failed {}", e);
+        }
+
+        let client = match &mut self.log_client {
+            Some(client) => client,
+            None => return,
+        };
+
+        let mut req = Request::new(WriteLogEntriesRequest {
+            log_name: format!(
+                "projects/{}/logs/{}",
+                self.authorizer.project_id(),
+                client.context.log_id,
+            ),
+            entries,
+            dry_run: false,
+            labels: HashMap::default(),
+            partial_success: true,
+            resource: None,
+        });
+
+        if let Err(e) = self.authorizer.authorize(&mut req, &self.scopes).await {
+            log::error!("StackDriver authentication failed {}", e);
+        } else if let Err(e) = client.client.write_log_entries(req).await {
             log::error!("StackDriver push failed {}", e);
         }
     }
@@ -377,4 +492,32 @@ fn to_truncate(s: String) -> TruncatableString {
     }
 }
 
+/// As defined in https://cloud.google.com/logging/docs/reference/v2/rpc/google.logging.type#google.logging.type.LogSeverity.
+enum LogSeverity {
+    Default = 0,
+    Debug = 100,
+    Info = 200,
+    Warning = 400,
+    Error = 500,
+}
+
+#[derive(Clone)]
+struct LogClient {
+    client: LoggingServiceV2Client<Channel>,
+    context: Arc<LogContext>,
+}
+
+#[derive(Clone)]
+pub struct LogContext {
+    pub log_id: String,
+    pub resource: Resource,
+}
+
+#[derive(Clone)]
+pub struct Resource {
+    pub r#type: String,
+    pub labels: HashMap<String, String>,
+}
+
 const TRACE_APPEND: &str = "https://www.googleapis.com/auth/trace.append";
+const LOGGING_WRITE: &str = "https://www.googleapis.com/auth/logging.write";
