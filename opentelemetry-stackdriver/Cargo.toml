@@ -5,7 +5,6 @@ description = "A Rust opentelemetry exporter that uploads traces to Google Stack
 documentation = "https://docs.rs/opentelemetry-stackdriver/"
 repository = "https://github.com/open-telemetry/opentelemetry-rust"
 license = "Apache-2.0"
-authors = ["Xaeroxe <kieseljake@gmail.com>"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

@@ -1,7 +1,6 @@
 [package]
 name = "opentelemetry-zpages"
 version = "0.1.0"
-authors = ["OpenTelemetry Authors <cncf-opentelemetry-contributors@lists.cncf.io>"]
 description = "ZPages implementation for OpenTelemetry"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/master/opentelemetry-zpages"
 repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/master/opentelemetry-zpages"

@@ -1,7 +1,6 @@
 [package]
 name = "opentelemetry-datadog"
 version = "0.4.0"
-authors = ["OpenTelemetry Authors <cncf-opentelemetry-contributors@lists.cncf.io>"]
 description = "Datadog exporters and propagators for OpenTelemetry"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-datadog"
 repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-datadog"
