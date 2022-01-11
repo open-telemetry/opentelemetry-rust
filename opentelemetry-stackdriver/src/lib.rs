@@ -118,15 +118,25 @@ impl StackDriverExporter {
         let pending_count = Arc::new(AtomicUsize::new(0));
         let scopes = Arc::new(vec![TRACE_APPEND]);
 
+        let count_clone = pending_count.clone();
         spawn.spawn_obj(
-            Box::new(Self::export_inner(
-                TraceServiceClient::new(channel),
-                authenticator,
-                rx,
-                pending_count.clone(),
-                num_concurrent_requests,
-                scopes,
-            ))
+            Box::new(async move {
+                let client = TraceServiceClient::new(channel);
+                let authorizer = &authenticator;
+                rx.for_each_concurrent(num_concurrent_requests, move |batch| {
+                    let client = client.clone(); // This clone is cheap and allows for concurrent requests (see https://github.com/hyperium/tonic/issues/285#issuecomment-595880400)
+                    let pending_count = count_clone.clone();
+                    let scopes = scopes.clone();
+                    ExporterContext {
+                        client,
+                        authorizer,
+                        pending_count,
+                        scopes,
+                    }
+                    .export(batch)
+                })
+                .await
+            })
             .into(),
         )?;
 
@@ -141,83 +151,76 @@ impl StackDriverExporter {
     pub fn pending_count(&self) -> usize {
         self.pending_count.load(Ordering::Relaxed)
     }
+}
 
-    async fn export_inner(
-        client: TraceServiceClient<Channel>,
-        authorizer: impl Authorizer,
-        rx: futures::channel::mpsc::Receiver<Vec<SpanData>>,
-        pending_count: Arc<AtomicUsize>,
-        num_concurrent: impl Into<Option<usize>>,
-        scopes: Arc<Vec<&'static str>>,
-    ) {
-        let authorizer = &authorizer;
-        rx.for_each_concurrent(num_concurrent, move |batch| {
-            let mut client = client.clone(); // This clone is cheap and allows for concurrent requests (see https://github.com/hyperium/tonic/issues/285#issuecomment-595880400)
-            let pending_count = pending_count.clone();
-            let scopes = scopes.clone();
-            async move {
-                use proto::google::devtools::cloudtrace::v2::span::time_event::Value;
+struct ExporterContext<'a, A> {
+    client: TraceServiceClient<Channel>,
+    authorizer: &'a A,
+    pending_count: Arc<AtomicUsize>,
+    scopes: Arc<Vec<&'static str>>,
+}
 
-                let spans = batch
+impl<A: Authorizer> ExporterContext<'_, A> {
+    async fn export(mut self, batch: Vec<SpanData>) {
+        use proto::google::devtools::cloudtrace::v2::span::time_event::Value;
+
+        let spans = batch
+            .into_iter()
+            .map(|span| {
+                let attribute_map = span
+                    .attributes
                     .into_iter()
-                    .map(|span| {
-                        let attribute_map = span
-                            .attributes
-                            .into_iter()
-                            .map(|(key, value)| (key.as_str().to_owned(), value.into()))
-                            .collect();
+                    .map(|(key, value)| (key.as_str().to_owned(), value.into()))
+                    .collect();
 
-                        let time_event = span
-                            .events
-                            .into_iter()
-                            .map(|event| TimeEvent {
-                                time: Some(event.timestamp.into()),
-                                value: Some(Value::Annotation(Annotation {
-                                    description: Some(to_truncate(event.name.into_owned())),
-                                    ..Default::default()
-                                })),
-                            })
-                            .collect();
-
-                        Span {
-                            name: format!(
-                                "projects/{}/traces/{}/spans/{}",
-                                authorizer.project_id(),
-                                hex::encode(span.span_context.trace_id().to_bytes()),
-                                hex::encode(span.span_context.span_id().to_bytes())
-                            ),
-                            display_name: Some(to_truncate(span.name.into_owned())),
-                            span_id: hex::encode(span.span_context.span_id().to_bytes()),
-                            parent_span_id: hex::encode(span.parent_span_id.to_bytes()),
-                            start_time: Some(span.start_time.into()),
-                            end_time: Some(span.end_time.into()),
-                            attributes: Some(Attributes {
-                                attribute_map,
-                                ..Default::default()
-                            }),
-                            time_events: Some(TimeEvents {
-                                time_event,
-                                ..Default::default()
-                            }),
+                let time_event = span
+                    .events
+                    .into_iter()
+                    .map(|event| TimeEvent {
+                        time: Some(event.timestamp.into()),
+                        value: Some(Value::Annotation(Annotation {
+                            description: Some(to_truncate(event.name.into_owned())),
                             ..Default::default()
-                        }
+                        })),
                     })
-                    .collect::<Vec<_>>();
+                    .collect();
 
-                let mut req = Request::new(BatchWriteSpansRequest {
-                    name: format!("projects/{}", authorizer.project_id()),
-                    spans,
-                });
-
-                pending_count.fetch_sub(1, Ordering::Relaxed);
-                if let Err(e) = authorizer.authorize(&mut req, &scopes).await {
-                    log::error!("StackDriver authentication failed {}", e);
-                } else if let Err(e) = client.batch_write_spans(req).await {
-                    log::error!("StackDriver push failed {}", e);
+                Span {
+                    name: format!(
+                        "projects/{}/traces/{}/spans/{}",
+                        self.authorizer.project_id(),
+                        hex::encode(span.span_context.trace_id().to_bytes()),
+                        hex::encode(span.span_context.span_id().to_bytes())
+                    ),
+                    display_name: Some(to_truncate(span.name.into_owned())),
+                    span_id: hex::encode(span.span_context.span_id().to_bytes()),
+                    parent_span_id: hex::encode(span.parent_span_id.to_bytes()),
+                    start_time: Some(span.start_time.into()),
+                    end_time: Some(span.end_time.into()),
+                    attributes: Some(Attributes {
+                        attribute_map,
+                        ..Default::default()
+                    }),
+                    time_events: Some(TimeEvents {
+                        time_event,
+                        ..Default::default()
+                    }),
+                    ..Default::default()
                 }
-            }
-        })
-        .await;
+            })
+            .collect::<Vec<_>>();
+
+        let mut req = Request::new(BatchWriteSpansRequest {
+            name: format!("projects/{}", self.authorizer.project_id()),
+            spans,
+        });
+
+        self.pending_count.fetch_sub(1, Ordering::Relaxed);
+        if let Err(e) = self.authorizer.authorize(&mut req, &self.scopes).await {
+            log::error!("StackDriver authentication failed {}", e);
+        } else if let Err(e) = self.client.batch_write_spans(req).await {
+            log::error!("StackDriver push failed {}", e);
+        }
     }
 }
 
