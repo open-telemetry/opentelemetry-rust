@@ -108,15 +108,54 @@ impl fmt::Debug for StackDriverExporter {
 }
 
 impl StackDriverExporter {
+    pub fn builder() -> Builder {
+        Builder::default()
+    }
+
+    pub fn pending_count(&self) -> usize {
+        self.pending_count.load(Ordering::Relaxed)
+    }
+}
+
+/// Helper type to build a `StackDriverExporter`.
+#[derive(Clone, Default)]
+pub struct Builder {
+    maximum_shutdown_duration: Option<Duration>,
+    num_concurrent_requests: Option<usize>,
+    log_context: Option<LogContext>,
+}
+
+impl Builder {
+    /// Set the number of concurrent requests to send to StackDriver.
+    pub fn maximum_shutdown_duration(mut self, duration: Duration) -> Self {
+        self.maximum_shutdown_duration = Some(duration);
+        self
+    }
+
+    /// Set the number of concurrent requests.
+    ///
     /// If `num_concurrent_requests` is set to `0` or `None` then no limit is enforced.
-    pub async fn connect<S: futures::task::Spawn>(
+    pub fn num_concurrent_requests(mut self, num_concurrent_requests: usize) -> Self {
+        self.num_concurrent_requests = Some(num_concurrent_requests);
+        self
+    }
+
+    /// Enable writing log entries with the given `log_context`.
+    pub fn log_context(mut self, log_context: LogContext) -> Self {
+        self.log_context = Some(log_context);
+        self
+    }
+
+    pub async fn build<S: futures::task::Spawn>(
+        self,
         authenticator: impl Authorizer,
         spawn: &S,
-        maximum_shutdown_duration: Option<Duration>,
-        num_concurrent_requests: impl Into<Option<usize>>,
-        log_context: Option<LogContext>,
-    ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
-        let num_concurrent_requests = num_concurrent_requests.into();
+    ) -> Result<StackDriverExporter, Box<dyn std::error::Error + Send + Sync>> {
+        let Self {
+            maximum_shutdown_duration,
+            num_concurrent_requests,
+            log_context,
+        } = self;
         let uri = http::uri::Uri::from_static("https://cloudtrace.googleapis.com:443");
 
         let trace_channel = Channel::builder(uri)
@@ -168,16 +207,12 @@ impl StackDriverExporter {
             .into(),
         )?;
 
-        Ok(Self {
+        Ok(StackDriverExporter {
             tx,
             pending_count,
             maximum_shutdown_duration: maximum_shutdown_duration
                 .unwrap_or_else(|| Duration::from_secs(5)),
         })
-    }
-
-    pub fn pending_count(&self) -> usize {
-        self.pending_count.load(Ordering::Relaxed)
     }
 }
 
