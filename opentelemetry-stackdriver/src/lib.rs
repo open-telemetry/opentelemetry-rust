@@ -116,6 +116,8 @@ impl StackDriverExporter {
             .await?;
         let (tx, rx) = futures::channel::mpsc::channel(64);
         let pending_count = Arc::new(AtomicUsize::new(0));
+        let scopes = Arc::new(vec![TRACE_APPEND]);
+
         spawn.spawn_obj(
             Box::new(Self::export_inner(
                 TraceServiceClient::new(channel),
@@ -123,6 +125,7 @@ impl StackDriverExporter {
                 rx,
                 pending_count.clone(),
                 num_concurrent_requests,
+                scopes,
             ))
             .into(),
         )?;
@@ -145,11 +148,13 @@ impl StackDriverExporter {
         rx: futures::channel::mpsc::Receiver<Vec<SpanData>>,
         pending_count: Arc<AtomicUsize>,
         num_concurrent: impl Into<Option<usize>>,
+        scopes: Arc<Vec<&'static str>>,
     ) {
         let authorizer = &authorizer;
         rx.for_each_concurrent(num_concurrent, move |batch| {
             let mut client = client.clone(); // This clone is cheap and allows for concurrent requests (see https://github.com/hyperium/tonic/issues/285#issuecomment-595880400)
             let pending_count = pending_count.clone();
+            let scopes = scopes.clone();
             async move {
                 use proto::google::devtools::cloudtrace::v2::span::time_event::Value;
 
@@ -205,7 +210,7 @@ impl StackDriverExporter {
                 });
 
                 pending_count.fetch_sub(1, Ordering::Relaxed);
-                if let Err(e) = authorizer.authorize(&mut req).await {
+                if let Err(e) = authorizer.authorize(&mut req, &scopes).await {
                     log::error!("StackDriver authentication failed {}", e);
                 } else if let Err(e) = client.batch_write_spans(req).await {
                     log::error!("StackDriver push failed {}", e);
@@ -246,7 +251,11 @@ pub trait Authorizer: Sync + Send + 'static {
     type Error: fmt::Display + fmt::Debug + Send;
 
     fn project_id(&self) -> &str;
-    async fn authorize<T: Send + Sync>(&self, request: &mut Request<T>) -> Result<(), Self::Error>;
+    async fn authorize<T: Send + Sync>(
+        &self,
+        request: &mut Request<T>,
+        scopes: &[&str],
+    ) -> Result<(), Self::Error>;
 }
 
 #[cfg(feature = "yup-authorizer")]
@@ -289,8 +298,11 @@ impl Authorizer for YupAuthorizer {
         &self.project_id
     }
 
-    async fn authorize<T: Send + Sync>(&self, req: &mut Request<T>) -> Result<(), Self::Error> {
-        let scopes = &["https://www.googleapis.com/auth/trace.append"];
+    async fn authorize<T: Send + Sync>(
+        &self,
+        req: &mut Request<T>,
+        scopes: &[&str],
+    ) -> Result<(), Self::Error> {
         let token = self.authenticator.token(scopes).await?;
         req.metadata_mut().insert(
             "authorization",
@@ -327,11 +339,12 @@ impl Authorizer for GcpAuthorizer {
         &self.project_id
     }
 
-    async fn authorize<T: Send + Sync>(&self, req: &mut Request<T>) -> Result<(), Self::Error> {
-        let token = self
-            .manager
-            .get_token(&["https://www.googleapis.com/auth/trace.append"])
-            .await?;
+    async fn authorize<T: Send + Sync>(
+        &self,
+        req: &mut Request<T>,
+        scopes: &[&str],
+    ) -> Result<(), Self::Error> {
+        let token = self.manager.get_token(scopes).await?;
         req.metadata_mut().insert(
             "authorization",
             MetadataValue::from_str(&format!("Bearer {}", token.as_str())).unwrap(),
@@ -362,3 +375,5 @@ fn to_truncate(s: String) -> TruncatableString {
         ..Default::default()
     }
 }
+
+const TRACE_APPEND: &str = "https://www.googleapis.com/auth/trace.append";
