@@ -9,13 +9,6 @@
     rustdoc::invalid_rust_codeblocks
 )]
 
-use async_trait::async_trait;
-use futures::stream::StreamExt;
-use opentelemetry::{
-    sdk::export::trace::{ExportResult, SpanData, SpanExporter},
-    Value,
-};
-use proto::google::devtools::cloudtrace::v2::BatchWriteSpansRequest;
 use std::{
     fmt,
     sync::{
@@ -24,6 +17,14 @@ use std::{
     },
     time::{Duration, Instant},
 };
+
+use async_trait::async_trait;
+use futures::stream::StreamExt;
+use opentelemetry::{
+    sdk::export::trace::{ExportResult, SpanData, SpanExporter},
+    Value,
+};
+
 #[cfg(any(feature = "yup-authorizer", feature = "gcp_auth"))]
 use tonic::metadata::MetadataValue;
 use tonic::{
@@ -54,10 +55,11 @@ pub mod proto {
     }
 }
 
+use proto::google::devtools::cloudtrace::v2::BatchWriteSpansRequest;
 use proto::google::devtools::cloudtrace::v2::{
-    span::{time_event::Annotation, TimeEvent},
+    span::{time_event::Annotation, Attributes, TimeEvent, TimeEvents},
     trace_service_client::TraceServiceClient,
-    AttributeValue, TruncatableString,
+    AttributeValue, Span, TruncatableString,
 };
 
 #[cfg(feature = "tokio_adapter")]
@@ -149,10 +151,7 @@ impl StackDriverExporter {
             let mut client = client.clone(); // This clone is cheap and allows for concurrent requests (see https://github.com/hyperium/tonic/issues/285#issuecomment-595880400)
             let pending_count = pending_count.clone();
             async move {
-                use proto::google::devtools::cloudtrace::v2::{
-                    span::{time_event::Value, Attributes, TimeEvents},
-                    Span,
-                };
+                use proto::google::devtools::cloudtrace::v2::span::time_event::Value;
 
                 let spans = batch
                     .into_iter()
