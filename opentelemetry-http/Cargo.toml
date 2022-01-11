@@ -1,7 +1,6 @@
 [package]
 name = "opentelemetry-http"
 version = "0.5.0"
-authors = ["OpenTelemetry Authors <cncf-opentelemetry-contributors@lists.cncf.io>"]
 description = "Helper implementations for exchange of traces and metrics over HTTP"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust"
 repository = "https://github.com/open-telemetry/opentelemetry-rust"
