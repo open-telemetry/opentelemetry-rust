@@ -119,22 +119,15 @@ impl StackDriverExporter {
         let num_concurrent_requests = num_concurrent_requests.into();
         let uri = http::uri::Uri::from_static("https://cloudtrace.googleapis.com:443");
 
-        let mut rustls_config = rustls::ClientConfig::new();
-        rustls_config
-            .root_store
-            .add_server_trust_anchors(&webpki_roots::TLS_SERVER_ROOTS);
-        rustls_config.set_protocols(&[Vec::from(&b"h2"[..])]);
-        let tls_config = ClientTlsConfig::new().rustls_client_config(rustls_config);
-
         let trace_channel = Channel::builder(uri)
-            .tls_config(tls_config.clone())?
+            .tls_config(ClientTlsConfig::new())?
             .connect()
             .await?;
 
         let log_channel = Channel::builder(http::uri::Uri::from_static(
             "https://logging.googleapis.com:443",
         ))
-        .tls_config(tls_config)?
+        .tls_config(ClientTlsConfig::new())?
         .connect()
         .await?;
 
