@@ -164,51 +164,49 @@ impl<A: Authorizer> ExporterContext<'_, A> {
     async fn export(mut self, batch: Vec<SpanData>) {
         use proto::google::devtools::cloudtrace::v2::span::time_event::Value;
 
-        let spans = batch
-            .into_iter()
-            .map(|span| {
-                let attribute_map = span
-                    .attributes
-                    .into_iter()
-                    .map(|(key, value)| (key.as_str().to_owned(), value.into()))
-                    .collect();
+        let mut spans = Vec::with_capacity(batch.len());
+        for span in batch {
+            let attribute_map = span
+                .attributes
+                .into_iter()
+                .map(|(key, value)| (key.as_str().to_owned(), value.into()))
+                .collect();
 
-                let time_event = span
-                    .events
-                    .into_iter()
-                    .map(|event| TimeEvent {
-                        time: Some(event.timestamp.into()),
-                        value: Some(Value::Annotation(Annotation {
-                            description: Some(to_truncate(event.name.into_owned())),
-                            ..Default::default()
-                        })),
-                    })
-                    .collect();
+            let time_event = span
+                .events
+                .into_iter()
+                .map(|event| TimeEvent {
+                    time: Some(event.timestamp.into()),
+                    value: Some(Value::Annotation(Annotation {
+                        description: Some(to_truncate(event.name.into_owned())),
+                        ..Default::default()
+                    })),
+                })
+                .collect();
 
-                Span {
-                    name: format!(
-                        "projects/{}/traces/{}/spans/{}",
-                        self.authorizer.project_id(),
-                        hex::encode(span.span_context.trace_id().to_bytes()),
-                        hex::encode(span.span_context.span_id().to_bytes())
-                    ),
-                    display_name: Some(to_truncate(span.name.into_owned())),
-                    span_id: hex::encode(span.span_context.span_id().to_bytes()),
-                    parent_span_id: hex::encode(span.parent_span_id.to_bytes()),
-                    start_time: Some(span.start_time.into()),
-                    end_time: Some(span.end_time.into()),
-                    attributes: Some(Attributes {
-                        attribute_map,
-                        ..Default::default()
-                    }),
-                    time_events: Some(TimeEvents {
-                        time_event,
-                        ..Default::default()
-                    }),
+            spans.push(Span {
+                name: format!(
+                    "projects/{}/traces/{}/spans/{}",
+                    self.authorizer.project_id(),
+                    hex::encode(span.span_context.trace_id().to_bytes()),
+                    hex::encode(span.span_context.span_id().to_bytes())
+                ),
+                display_name: Some(to_truncate(span.name.into_owned())),
+                span_id: hex::encode(span.span_context.span_id().to_bytes()),
+                parent_span_id: hex::encode(span.parent_span_id.to_bytes()),
+                start_time: Some(span.start_time.into()),
+                end_time: Some(span.end_time.into()),
+                attributes: Some(Attributes {
+                    attribute_map,
                     ..Default::default()
-                }
-            })
-            .collect::<Vec<_>>();
+                }),
+                time_events: Some(TimeEvents {
+                    time_event,
+                    ..Default::default()
+                }),
+                ..Default::default()
+            });
+        }
 
         let mut req = Request::new(BatchWriteSpansRequest {
             name: format!("projects/{}", self.authorizer.project_id()),
