@@ -12,6 +12,7 @@
 use std::{
     collections::HashMap,
     fmt,
+    future::Future,
     sync::{
         atomic::{AtomicUsize, Ordering},
         Arc,
@@ -76,9 +77,6 @@ use proto::google::logging::v2::{
 };
 
 use proto::google::api::MonitoredResource;
-
-#[cfg(feature = "tokio_adapter")]
-pub mod tokio_adapter;
 
 /// Exports opentelemetry tracing spans to Google StackDriver.
 ///
@@ -171,11 +169,13 @@ impl Builder {
         self
     }
 
-    pub async fn build<S: futures::task::Spawn>(
+    pub async fn build(
         self,
         authenticator: impl Authorizer,
-        spawn: &S,
-    ) -> Result<StackDriverExporter, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<
+        (StackDriverExporter, impl Future<Output = ()>),
+        Box<dyn std::error::Error + Send + Sync>,
+    > {
         let Self {
             maximum_shutdown_duration,
             num_concurrent_requests,
@@ -208,36 +208,35 @@ impl Builder {
         });
 
         let count_clone = pending_count.clone();
-        spawn.spawn_obj(
-            Box::new(async move {
-                let trace_client = TraceServiceClient::new(trace_channel);
-                let authorizer = &authenticator;
+        let future = async move {
+            let trace_client = TraceServiceClient::new(trace_channel);
+            let authorizer = &authenticator;
+            let log_client = log_client.clone();
+            rx.for_each_concurrent(num_concurrent_requests, move |batch| {
+                let trace_client = trace_client.clone();
                 let log_client = log_client.clone();
-                rx.for_each_concurrent(num_concurrent_requests, move |batch| {
-                    let trace_client = trace_client.clone();
-                    let log_client = log_client.clone();
-                    let pending_count = count_clone.clone();
-                    let scopes = scopes.clone();
-                    ExporterContext {
-                        trace_client,
-                        log_client,
-                        authorizer,
-                        pending_count,
-                        scopes,
-                    }
-                    .export(batch)
-                })
-                .await
+                let pending_count = count_clone.clone();
+                let scopes = scopes.clone();
+                ExporterContext {
+                    trace_client,
+                    log_client,
+                    authorizer,
+                    pending_count,
+                    scopes,
+                }
+                .export(batch)
             })
-            .into(),
-        )?;
+            .await
+        };
 
-        Ok(StackDriverExporter {
+        let exporter = StackDriverExporter {
             tx,
             pending_count,
             maximum_shutdown_duration: maximum_shutdown_duration
                 .unwrap_or_else(|| Duration::from_secs(5)),
-        })
+        };
+
+        Ok((exporter, future))
     }
 }
 

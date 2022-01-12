@@ -26,12 +26,10 @@ opentelemetry = { version = "0.16", path = "../opentelemetry" }
 prost = "0.9"
 prost-types = "0.9"
 tonic = { version = "0.6.2", features = ["tls", "transport"] }
-tokio = { version = "1.1", optional = true }
 yup-oauth2 = { version = "6", optional = true }
 
 [features]
 default = ["yup-authorizer", "tls-native-roots"]
 yup-authorizer = ["hyper-rustls", "yup-oauth2"]
-tokio_adapter = ["tokio"]
 tls-native-roots = ["tonic/tls-roots"]
 tls-webpki-roots = ["tonic/tls-webpki-roots"]
