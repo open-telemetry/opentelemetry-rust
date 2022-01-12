@@ -25,6 +25,7 @@ log = "0.4"
 opentelemetry = { version = "0.16", path = "../opentelemetry" }
 prost = "0.9"
 prost-types = "0.9"
+thiserror = "1.0.30"
 tonic = { version = "0.6.2", features = ["tls", "transport"] }
 yup-oauth2 = { version = "6", optional = true }
 

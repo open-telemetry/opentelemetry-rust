@@ -26,7 +26,7 @@ use opentelemetry::{
     sdk::export::trace::{ExportResult, SpanData, SpanExporter},
     Value,
 };
-
+use thiserror::Error;
 #[cfg(any(feature = "yup-authorizer", feature = "gcp_auth"))]
 use tonic::metadata::MetadataValue;
 use tonic::{
@@ -172,10 +172,7 @@ impl Builder {
     pub async fn build(
         self,
         authenticator: impl Authorizer,
-    ) -> Result<
-        (StackDriverExporter, impl Future<Output = ()>),
-        Box<dyn std::error::Error + Send + Sync>,
-    > {
+    ) -> Result<(StackDriverExporter, impl Future<Output = ()>), Error> {
         let Self {
             maximum_shutdown_duration,
             num_concurrent_requests,
@@ -400,12 +397,12 @@ impl YupAuthorizer {
     pub async fn new(
         credentials_path: impl AsRef<std::path::Path>,
         persistent_token_file: impl Into<Option<std::path::PathBuf>>,
-    ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<Self, Error> {
         let service_account_key = yup_oauth2::read_service_account_key(&credentials_path).await?;
         let project_id = service_account_key
             .project_id
             .as_ref()
-            .ok_or("project_id is missing")?
+            .ok_or_else(|| Error::Other("project_id is missing".into()))?
             .clone();
         let mut authenticator =
             yup_oauth2::ServiceAccountAuthenticator::builder(service_account_key);
@@ -423,7 +420,7 @@ impl YupAuthorizer {
 #[cfg(feature = "yup-authorizer")]
 #[async_trait]
 impl Authorizer for YupAuthorizer {
-    type Error = Box<dyn std::error::Error + Send + Sync>;
+    type Error = Error;
 
     fn project_id(&self) -> &str {
         &self.project_id
@@ -464,7 +461,7 @@ impl GcpAuthorizer {
 #[cfg(feature = "gcp_auth")]
 #[async_trait]
 impl Authorizer for GcpAuthorizer {
-    type Error = Box<dyn std::error::Error + Sync + Send>;
+    type Error = Error;
 
     fn project_id(&self) -> &str {
         &self.project_id
@@ -517,6 +514,22 @@ fn to_truncate(s: String) -> TruncatableString {
         value: s,
         ..Default::default()
     }
+}
+
+#[derive(Debug, Error)]
+pub enum Error {
+    #[cfg(feature = "gcp_auth")]
+    #[error("authorizer error: {0}")]
+    Gcp(#[from] gcp_auth::Error),
+    #[error("I/O error: {0}")]
+    Io(#[from] std::io::Error),
+    #[error("{0}")]
+    Other(#[from] Box<dyn std::error::Error + Send + Sync>),
+    #[error("tonic error: {0}")]
+    Tonic(#[from] tonic::transport::Error),
+    #[cfg(feature = "yup-oauth2")]
+    #[error("authorizer error: {0}")]
+    Yup(#[from] yup_oauth2::Error),
 }
 
 /// As defined in https://cloud.google.com/logging/docs/reference/v2/rpc/google.logging.type#google.logging.type.LogSeverity.
