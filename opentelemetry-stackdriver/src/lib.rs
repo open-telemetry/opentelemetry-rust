@@ -36,47 +36,19 @@ use tonic::{
 #[cfg(feature = "yup-authorizer")]
 use yup_oauth2::authenticator::Authenticator;
 
-pub mod proto {
-    pub mod google {
-        pub mod api {
-            tonic::include_proto!("google.api");
-        }
-        pub mod devtools {
-            pub mod cloudtrace {
-                pub mod v2 {
-                    tonic::include_proto!("google.devtools.cloudtrace.v2");
-                }
-            }
-        }
-        pub mod logging {
-            pub mod r#type {
-                tonic::include_proto!("google.logging.r#type");
-            }
-            pub mod v2 {
-                tonic::include_proto!("google.logging.v2");
-            }
-        }
-        pub mod protobuf {
-            tonic::include_proto!("google.protobuf");
-        }
-        pub mod rpc {
-            tonic::include_proto!("google.rpc");
-        }
-    }
-}
+pub mod proto;
 
-use proto::google::devtools::cloudtrace::v2::BatchWriteSpansRequest;
-use proto::google::devtools::cloudtrace::v2::{
+use proto::api::MonitoredResource;
+use proto::devtools::cloudtrace::v2::BatchWriteSpansRequest;
+use proto::devtools::cloudtrace::v2::{
     span::{time_event::Annotation, Attributes, TimeEvent, TimeEvents},
     trace_service_client::TraceServiceClient,
     AttributeValue, Span, TruncatableString,
 };
-use proto::google::logging::v2::{
+use proto::logging::v2::{
     log_entry::Payload, logging_service_v2_client::LoggingServiceV2Client, LogEntry,
     LogEntrySourceLocation, WriteLogEntriesRequest,
 };
-
-use proto::google::api::MonitoredResource;
 
 /// Exports opentelemetry tracing spans to Google StackDriver.
 ///
@@ -247,7 +219,7 @@ struct ExporterContext<'a, A> {
 
 impl<A: Authorizer> ExporterContext<'_, A> {
     async fn export(mut self, batch: Vec<SpanData>) {
-        use proto::google::devtools::cloudtrace::v2::span::time_event::Value;
+        use proto::devtools::cloudtrace::v2::span::time_event::Value;
 
         let mut entries = Vec::new();
         let mut spans = Vec::with_capacity(batch.len());
@@ -495,7 +467,7 @@ pub trait Authorizer: Sync + Send + 'static {
 
 impl From<Value> for AttributeValue {
     fn from(v: Value) -> AttributeValue {
-        use proto::google::devtools::cloudtrace::v2::attribute_value;
+        use proto::devtools::cloudtrace::v2::attribute_value;
         let new_value = match v {
             Value::Bool(v) => attribute_value::Value::BoolValue(v),
             Value::F64(v) => attribute_value::Value::StringValue(to_truncate(v.to_string())),
