@@ -117,6 +117,31 @@ impl StackDriverExporter {
     }
 }
 
+#[async_trait]
+impl SpanExporter for StackDriverExporter {
+    async fn export(&mut self, batch: Vec<SpanData>) -> ExportResult {
+        match self.tx.try_send(batch) {
+            Err(e) => {
+                log::error!("Unable to send to export_inner {:?}", e);
+                Err(e.into())
+            }
+            Ok(()) => {
+                self.pending_count.fetch_add(1, Ordering::Relaxed);
+                Ok(())
+            }
+        }
+    }
+
+    fn shutdown(&mut self) {
+        let start = Instant::now();
+        while (Instant::now() - start) < self.maximum_shutdown_duration && self.pending_count() > 0
+        {
+            std::thread::yield_now();
+            // Spin for a bit and give the inner export some time to upload, with a timeout.
+        }
+    }
+}
+
 /// Helper type to build a `StackDriverExporter`.
 #[derive(Clone, Default)]
 pub struct Builder {
@@ -365,43 +390,6 @@ impl<A: Authorizer> ExporterContext<'_, A> {
     }
 }
 
-#[async_trait]
-impl SpanExporter for StackDriverExporter {
-    async fn export(&mut self, batch: Vec<SpanData>) -> ExportResult {
-        match self.tx.try_send(batch) {
-            Err(e) => {
-                log::error!("Unable to send to export_inner {:?}", e);
-                Err(e.into())
-            }
-            Ok(()) => {
-                self.pending_count.fetch_add(1, Ordering::Relaxed);
-                Ok(())
-            }
-        }
-    }
-
-    fn shutdown(&mut self) {
-        let start = Instant::now();
-        while (Instant::now() - start) < self.maximum_shutdown_duration && self.pending_count() > 0
-        {
-            std::thread::yield_now();
-            // Spin for a bit and give the inner export some time to upload, with a timeout.
-        }
-    }
-}
-
-#[async_trait]
-pub trait Authorizer: Sync + Send + 'static {
-    type Error: fmt::Display + fmt::Debug + Send;
-
-    fn project_id(&self) -> &str;
-    async fn authorize<T: Send + Sync>(
-        &self,
-        request: &mut Request<T>,
-        scopes: &[&str],
-    ) -> Result<(), Self::Error>;
-}
-
 #[cfg(feature = "yup-authorizer")]
 pub struct YupAuthorizer {
     authenticator: Authenticator<hyper_rustls::HttpsConnector<hyper::client::HttpConnector>>,
@@ -495,6 +483,18 @@ impl Authorizer for GcpAuthorizer {
         );
         Ok(())
     }
+}
+
+#[async_trait]
+pub trait Authorizer: Sync + Send + 'static {
+    type Error: fmt::Display + fmt::Debug + Send;
+
+    fn project_id(&self) -> &str;
+    async fn authorize<T: Send + Sync>(
+        &self,
+        request: &mut Request<T>,
+        scopes: &[&str],
+    ) -> Result<(), Self::Error>;
 }
 
 impl From<Value> for AttributeValue {
