@@ -4,7 +4,3 @@
 [submodule "opentelemetry-zpages/src/proto/opentelemetry-proto"]
 	path = opentelemetry-zpages/src/proto/opentelemetry-proto
 	url = https://github.com/open-telemetry/opentelemetry-proto.git
-[submodule "opentelemetry-stackdriver/proto/googleapis"]
-	path = opentelemetry-stackdriver/proto/googleapis
-	url = https://github.com/googleapis/googleapis.git
-  shallow = true

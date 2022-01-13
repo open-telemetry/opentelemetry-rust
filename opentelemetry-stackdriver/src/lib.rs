@@ -12,6 +12,7 @@
 use std::{
     collections::HashMap,
     fmt,
+    future::Future,
     sync::{
         atomic::{AtomicUsize, Ordering},
         Arc,
@@ -25,7 +26,7 @@ use opentelemetry::{
     sdk::export::trace::{ExportResult, SpanData, SpanExporter},
     Value,
 };
-
+use thiserror::Error;
 #[cfg(any(feature = "yup-authorizer", feature = "gcp_auth"))]
 use tonic::metadata::MetadataValue;
 use tonic::{
@@ -35,50 +36,19 @@ use tonic::{
 #[cfg(feature = "yup-authorizer")]
 use yup_oauth2::authenticator::Authenticator;
 
-pub mod proto {
-    pub mod google {
-        pub mod api {
-            tonic::include_proto!("google.api");
-        }
-        pub mod devtools {
-            pub mod cloudtrace {
-                pub mod v2 {
-                    tonic::include_proto!("google.devtools.cloudtrace.v2");
-                }
-            }
-        }
-        pub mod logging {
-            pub mod r#type {
-                tonic::include_proto!("google.logging.r#type");
-            }
-            pub mod v2 {
-                tonic::include_proto!("google.logging.v2");
-            }
-        }
-        pub mod protobuf {
-            tonic::include_proto!("google.protobuf");
-        }
-        pub mod rpc {
-            tonic::include_proto!("google.rpc");
-        }
-    }
-}
+pub mod proto;
 
-use proto::google::devtools::cloudtrace::v2::BatchWriteSpansRequest;
-use proto::google::devtools::cloudtrace::v2::{
+use proto::api::MonitoredResource;
+use proto::devtools::cloudtrace::v2::BatchWriteSpansRequest;
+use proto::devtools::cloudtrace::v2::{
     span::{time_event::Annotation, Attributes, TimeEvent, TimeEvents},
     trace_service_client::TraceServiceClient,
     AttributeValue, Span, TruncatableString,
 };
-use proto::google::logging::v2::{
+use proto::logging::v2::{
     log_entry::Payload, logging_service_v2_client::LoggingServiceV2Client, LogEntry,
     LogEntrySourceLocation, WriteLogEntriesRequest,
 };
-
-use proto::google::api::MonitoredResource;
-
-#[cfg(feature = "tokio_adapter")]
-pub mod tokio_adapter;
 
 /// Exports opentelemetry tracing spans to Google StackDriver.
 ///
@@ -117,6 +87,31 @@ impl StackDriverExporter {
     }
 }
 
+#[async_trait]
+impl SpanExporter for StackDriverExporter {
+    async fn export(&mut self, batch: Vec<SpanData>) -> ExportResult {
+        match self.tx.try_send(batch) {
+            Err(e) => {
+                log::error!("Unable to send to export_inner {:?}", e);
+                Err(e.into())
+            }
+            Ok(()) => {
+                self.pending_count.fetch_add(1, Ordering::Relaxed);
+                Ok(())
+            }
+        }
+    }
+
+    fn shutdown(&mut self) {
+        let start = Instant::now();
+        while (Instant::now() - start) < self.maximum_shutdown_duration && self.pending_count() > 0
+        {
+            std::thread::yield_now();
+            // Spin for a bit and give the inner export some time to upload, with a timeout.
+        }
+    }
+}
+
 /// Helper type to build a `StackDriverExporter`.
 #[derive(Clone, Default)]
 pub struct Builder {
@@ -146,11 +141,10 @@ impl Builder {
         self
     }
 
-    pub async fn build<S: futures::task::Spawn>(
+    pub async fn build(
         self,
         authenticator: impl Authorizer,
-        spawn: &S,
-    ) -> Result<StackDriverExporter, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<(StackDriverExporter, impl Future<Output = ()>), Error> {
         let Self {
             maximum_shutdown_duration,
             num_concurrent_requests,
@@ -183,36 +177,35 @@ impl Builder {
         });
 
         let count_clone = pending_count.clone();
-        spawn.spawn_obj(
-            Box::new(async move {
-                let trace_client = TraceServiceClient::new(trace_channel);
-                let authorizer = &authenticator;
+        let future = async move {
+            let trace_client = TraceServiceClient::new(trace_channel);
+            let authorizer = &authenticator;
+            let log_client = log_client.clone();
+            rx.for_each_concurrent(num_concurrent_requests, move |batch| {
+                let trace_client = trace_client.clone();
                 let log_client = log_client.clone();
-                rx.for_each_concurrent(num_concurrent_requests, move |batch| {
-                    let trace_client = trace_client.clone();
-                    let log_client = log_client.clone();
-                    let pending_count = count_clone.clone();
-                    let scopes = scopes.clone();
-                    ExporterContext {
-                        trace_client,
-                        log_client,
-                        authorizer,
-                        pending_count,
-                        scopes,
-                    }
-                    .export(batch)
-                })
-                .await
+                let pending_count = count_clone.clone();
+                let scopes = scopes.clone();
+                ExporterContext {
+                    trace_client,
+                    log_client,
+                    authorizer,
+                    pending_count,
+                    scopes,
+                }
+                .export(batch)
             })
-            .into(),
-        )?;
+            .await
+        };
 
-        Ok(StackDriverExporter {
+        let exporter = StackDriverExporter {
             tx,
             pending_count,
             maximum_shutdown_duration: maximum_shutdown_duration
                 .unwrap_or_else(|| Duration::from_secs(5)),
-        })
+        };
+
+        Ok((exporter, future))
     }
 }
 
@@ -226,7 +219,7 @@ struct ExporterContext<'a, A> {
 
 impl<A: Authorizer> ExporterContext<'_, A> {
     async fn export(mut self, batch: Vec<SpanData>) {
-        use proto::google::devtools::cloudtrace::v2::span::time_event::Value;
+        use proto::devtools::cloudtrace::v2::span::time_event::Value;
 
         let mut entries = Vec::new();
         let mut spans = Vec::with_capacity(batch.len());
@@ -365,43 +358,6 @@ impl<A: Authorizer> ExporterContext<'_, A> {
     }
 }
 
-#[async_trait]
-impl SpanExporter for StackDriverExporter {
-    async fn export(&mut self, batch: Vec<SpanData>) -> ExportResult {
-        match self.tx.try_send(batch) {
-            Err(e) => {
-                log::error!("Unable to send to export_inner {:?}", e);
-                Err(e.into())
-            }
-            Ok(()) => {
-                self.pending_count.fetch_add(1, Ordering::Relaxed);
-                Ok(())
-            }
-        }
-    }
-
-    fn shutdown(&mut self) {
-        let start = Instant::now();
-        while (Instant::now() - start) < self.maximum_shutdown_duration && self.pending_count() > 0
-        {
-            std::thread::yield_now();
-            // Spin for a bit and give the inner export some time to upload, with a timeout.
-        }
-    }
-}
-
-#[async_trait]
-pub trait Authorizer: Sync + Send + 'static {
-    type Error: fmt::Display + fmt::Debug + Send;
-
-    fn project_id(&self) -> &str;
-    async fn authorize<T: Send + Sync>(
-        &self,
-        request: &mut Request<T>,
-        scopes: &[&str],
-    ) -> Result<(), Self::Error>;
-}
-
 #[cfg(feature = "yup-authorizer")]
 pub struct YupAuthorizer {
     authenticator: Authenticator<hyper_rustls::HttpsConnector<hyper::client::HttpConnector>>,
@@ -413,12 +369,12 @@ impl YupAuthorizer {
     pub async fn new(
         credentials_path: impl AsRef<std::path::Path>,
         persistent_token_file: impl Into<Option<std::path::PathBuf>>,
-    ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<Self, Error> {
         let service_account_key = yup_oauth2::read_service_account_key(&credentials_path).await?;
         let project_id = service_account_key
             .project_id
             .as_ref()
-            .ok_or("project_id is missing")?
+            .ok_or_else(|| Error::Other("project_id is missing".into()))?
             .clone();
         let mut authenticator =
             yup_oauth2::ServiceAccountAuthenticator::builder(service_account_key);
@@ -436,7 +392,7 @@ impl YupAuthorizer {
 #[cfg(feature = "yup-authorizer")]
 #[async_trait]
 impl Authorizer for YupAuthorizer {
-    type Error = Box<dyn std::error::Error + Send + Sync>;
+    type Error = Error;
 
     fn project_id(&self) -> &str {
         &self.project_id
@@ -477,7 +433,7 @@ impl GcpAuthorizer {
 #[cfg(feature = "gcp_auth")]
 #[async_trait]
 impl Authorizer for GcpAuthorizer {
-    type Error = Box<dyn std::error::Error + Sync + Send>;
+    type Error = Error;
 
     fn project_id(&self) -> &str {
         &self.project_id
@@ -497,9 +453,21 @@ impl Authorizer for GcpAuthorizer {
     }
 }
 
+#[async_trait]
+pub trait Authorizer: Sync + Send + 'static {
+    type Error: fmt::Display + fmt::Debug + Send;
+
+    fn project_id(&self) -> &str;
+    async fn authorize<T: Send + Sync>(
+        &self,
+        request: &mut Request<T>,
+        scopes: &[&str],
+    ) -> Result<(), Self::Error>;
+}
+
 impl From<Value> for AttributeValue {
     fn from(v: Value) -> AttributeValue {
-        use proto::google::devtools::cloudtrace::v2::attribute_value;
+        use proto::devtools::cloudtrace::v2::attribute_value;
         let new_value = match v {
             Value::Bool(v) => attribute_value::Value::BoolValue(v),
             Value::F64(v) => attribute_value::Value::StringValue(to_truncate(v.to_string())),
@@ -518,6 +486,22 @@ fn to_truncate(s: String) -> TruncatableString {
         value: s,
         ..Default::default()
     }
+}
+
+#[derive(Debug, Error)]
+pub enum Error {
+    #[cfg(feature = "gcp_auth")]
+    #[error("authorizer error: {0}")]
+    Gcp(#[from] gcp_auth::Error),
+    #[error("I/O error: {0}")]
+    Io(#[from] std::io::Error),
+    #[error("{0}")]
+    Other(#[from] Box<dyn std::error::Error + Send + Sync>),
+    #[error("tonic error: {0}")]
+    Tonic(#[from] tonic::transport::Error),
+    #[cfg(feature = "yup-oauth2")]
+    #[error("authorizer error: {0}")]
+    Yup(#[from] yup_oauth2::Error),
 }
 
 /// As defined in https://cloud.google.com/logging/docs/reference/v2/rpc/google.logging.type#google.logging.type.LogSeverity.
