@@ -7,6 +7,8 @@
 - Exclude default `tonic-build` features #635
 - Update `gcp_auth` dependency to `0.5.0` #639
 - Include the server's message in error display #642
+- Update `tonic` to 0.6 #660
+- Update gcp_auth and yup-oauth2 to latest versions #700
 - Update to opentelemetry v0.17.0
 
 ## v0.12.0

@@ -14,6 +14,8 @@
 - Reduce dependency on `futures` crate #684
 - Switch to parent context references #687
 - Spec-compliant trace and span ids #689
+- Optimize span creation internals #693
+- Add instrumentation library to `ShouldSample` parameters #695
 
 ### Fixed
 
