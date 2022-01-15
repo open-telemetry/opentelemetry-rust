@@ -1,7 +1,6 @@
 [package]
 name = "opentelemetry-otlp"
 version = "0.10.0"
-authors = ["OpenTelemetry Authors <cncf-opentelemetry-contributors@lists.cncf.io>"]
 description = "Exporter for the OpenTelemetry Collector"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-otlp"
 repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-otlp"
@@ -42,14 +41,14 @@ grpcio = { version = "0.9", optional = true }
 http = "0.2"
 opentelemetry = { version = "0.17", default-features = false, features = ["trace"], path = "../opentelemetry" }
 opentelemetry-http = { version = "0.6", path = "../opentelemetry-http", optional = true }
-prost = { version = "0.8", optional = true }
+prost = { version = "0.9", optional = true }
 protobuf = { version = "2.18", optional = true }
 reqwest = { version = "0.11", optional = true, default-features = false }
 serde = { version = "1.0", features = ["derive"], optional = true }
 surf = { version = "2.0", optional = true, default-features = false }
 thiserror = "1.0"
 tokio = { version = "1.0", features = ["full"], optional = true }
-tonic = { version = "0.5", optional = true }
+tonic = { version = "0.6.2", optional = true }
 
 [dev-dependencies]
 tokio-stream = { version = "0.1", features = ["net"] }
@@ -80,5 +79,5 @@ reqwest-rustls = ["reqwest", "reqwest/rustls-tls-native-roots"]
 surf-client = ["surf", "opentelemetry-http/surf"]
 
 [build-dependencies]
-tonic-build = { version = "0.5", default-features = false, features = ["transport", "prost"], optional = true }
-prost-build = {version = "0.8", optional = true }
+tonic-build = { version = "0.6.2", default-features = false, features = ["transport", "prost"], optional = true }
+prost-build = { version = "0.9", optional = true }

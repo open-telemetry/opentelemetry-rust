@@ -338,10 +338,10 @@ impl SpanExporter {
             None => endpoint,
         }
         .timeout(config.timeout)
-        .connect_lazy()?;
+        .connect_lazy();
 
         #[cfg(not(feature = "tls"))]
-        let channel = endpoint.timeout(config.timeout).connect_lazy()?;
+        let channel = endpoint.timeout(config.timeout).connect_lazy();
 
         SpanExporter::from_tonic_channel(config, tonic_config, channel)
     }
