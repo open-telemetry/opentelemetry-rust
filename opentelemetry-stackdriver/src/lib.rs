@@ -61,22 +61,6 @@ pub struct StackDriverExporter {
     maximum_shutdown_duration: Duration,
 }
 
-impl fmt::Debug for StackDriverExporter {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        #[allow(clippy::unneeded_field_pattern)]
-        let Self {
-            maximum_shutdown_duration,
-            pending_count,
-            tx: _,
-        } = self;
-        f.debug_struct("StackDriverExporter")
-            .field("tx", &"(elided)")
-            .field("pending_count", pending_count)
-            .field("maximum_shutdown_duration", maximum_shutdown_duration)
-            .finish()
-    }
-}
-
 impl StackDriverExporter {
     pub fn builder() -> Builder {
         Builder::default()
@@ -109,6 +93,22 @@ impl SpanExporter for StackDriverExporter {
             std::thread::yield_now();
             // Spin for a bit and give the inner export some time to upload, with a timeout.
         }
+    }
+}
+
+impl fmt::Debug for StackDriverExporter {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        #[allow(clippy::unneeded_field_pattern)]
+        let Self {
+            tx: _,
+            pending_count,
+            maximum_shutdown_duration,
+        } = self;
+        f.debug_struct("StackDriverExporter")
+            .field("tx", &"(elided)")
+            .field("pending_count", pending_count)
+            .field("maximum_shutdown_duration", maximum_shutdown_duration)
+            .finish()
     }
 }
 
