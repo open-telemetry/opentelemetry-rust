@@ -41,8 +41,8 @@ zpages = ["traces"]
 
 [dependencies]
 grpcio = { version = "0.9" }
-tonic = { version = "0.5" }
-prost = { version = "0.8" }
+tonic = { version = "0.6.2" }
+prost = { version = "0.9" }
 protobuf = { version = "2.18" }
 opentelemetry = { version = "0.16", default-features = false, features = ["trace", "metrics"], path = "../opentelemetry" }
 futures = { version = "0.3", default-features = false, features = ["std"] }
@@ -55,5 +55,5 @@ protobuf-codegen = { version = "2.16" }
 protoc-grpcio = { version = "3.0" }
 
 [build-dependencies]
-tonic-build = { version = "0.5" }
-prost-build = { version = "0.8" }
+tonic-build = { version = "0.6.2" }
+prost-build = { version = "0.9" }

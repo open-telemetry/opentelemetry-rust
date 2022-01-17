@@ -11,6 +11,7 @@ use opentelemetry_proto::tonic::collector::trace::v1::{
 #[cfg(feature = "http-proto")]
 use opentelemetry_proto::prost::collector::trace::v1::ExportTraceServiceRequest as ProstRequest;
 
+
 #[cfg(feature = "tonic")]
 use tonic::{
     metadata::{KeyAndValueRef, MetadataMap},
@@ -338,7 +339,7 @@ impl SpanExporter {
             None => endpoint,
         }
         .timeout(config.timeout)
-        .connect_lazy()?;
+        .connect_lazy();
 
         #[cfg(not(feature = "tls"))]
         let channel = endpoint.timeout(config.timeout).connect_lazy()?;

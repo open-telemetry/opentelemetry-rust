@@ -6,6 +6,7 @@
 use std::path::PathBuf;
 
 fn main() {
+    #[cfg(feature = "gen-tonic")]
     {
         let out_dir = PathBuf::from(
             std::env::var("OUT_DIR").expect("OUT_DIR should be set by cargo but can't find"),
@@ -32,6 +33,7 @@ fn main() {
         .expect("Error generating protobuf");
     }
 
+    #[cfg(feature = "gen-prost")]
     {
         let out_dir = PathBuf::from(
             std::env::var("OUT_DIR").expect("OUT_DIR should be set by cargo but can't find"),
