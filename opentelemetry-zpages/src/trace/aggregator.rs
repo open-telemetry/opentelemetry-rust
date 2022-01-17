@@ -429,8 +429,7 @@ mod tests {
                         expected,
                         format!(
                             "{} fails because the latency status with index {} is not expected",
-                            plan_name,
-                            index.to_string()
+                            plan_name, index
                         ),
                     );
                 }

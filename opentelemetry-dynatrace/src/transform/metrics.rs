@@ -844,7 +844,7 @@ mod tests {
                 Some(&format!(
                     "test_array,key=VALUE,{}={},test.abc_123-=value.123_foo-bar gauge,12 {}",
                     METRICS_SOURCE,
-                    "opentelemetry".to_string(),
+                    "opentelemetry",
                     get_time(end_time),
                 )),
                 iter.next()
@@ -853,7 +853,7 @@ mod tests {
                 Some(&format!(
                     "test_array,key=VALUE,{}={},test.abc_123-=value.123_foo-bar gauge,24 {}",
                     METRICS_SOURCE,
-                    "opentelemetry".to_string(),
+                    "opentelemetry",
                     get_time(end_time),
                 )),
                 iter.next()
@@ -920,7 +920,7 @@ mod tests {
                 Some(&format!(
                     "test_sum,key=VALUE,{}={},test.abc_123-=value.123_foo-bar gauge,12 {}",
                     METRICS_SOURCE,
-                    "opentelemetry".to_string(),
+                    "opentelemetry",
                     get_time(end_time),
                 )),
                 iter.next()
@@ -964,7 +964,7 @@ mod tests {
                 Some(&format!(
                     "test_sum,key=VALUE,{}={},test.abc_123-=value.123_foo-bar count,delta=12 {}",
                     METRICS_SOURCE,
-                    "opentelemetry".to_string(),
+                    "opentelemetry",
                     get_time(end_time),
                 )),
                 iter.next()
@@ -1031,8 +1031,7 @@ mod tests {
             assert_eq!(
                 Some(&format!(
                     "test_last_value,key=VALUE,{}={},test.abc_123-=value.123_foo-bar gauge,14",
-                    METRICS_SOURCE,
-                    "opentelemetry".to_string(),
+                    METRICS_SOURCE, "opentelemetry",
                 )),
                 iter.next()
             );
@@ -1099,7 +1098,7 @@ mod tests {
                 Some(&format!(
                     "test_min_max_sum_count,key=VALUE,{}={},test.abc_123-=value.123_foo-bar gauge,min=1,max=3,sum=6,count=3 {}",
                     METRICS_SOURCE,
-                    "opentelemetry".to_string(),
+                    "opentelemetry",
                     get_time(end_time),
                 )),
                 iter.next()
@@ -1168,7 +1167,7 @@ mod tests {
                 Some(&format!(
                     "test_histogram,key=VALUE,{}={},test.abc_123-=value.123_foo-bar gauge,min=0.3,max=0.3,sum=6,count=3 {}",
                     METRICS_SOURCE,
-                    "opentelemetry".to_string(),
+                    "opentelemetry",
                     get_time(end_time),
                 )),
                 iter.next()
