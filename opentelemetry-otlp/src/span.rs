@@ -3,13 +3,13 @@
 //! Defines a [SpanExporter] to send trace data via the OpenTelemetry Protocol (OTLP)
 
 #[cfg(feature = "tonic")]
-use opentelemetry_proto::proto::collector::trace::v1::{
+use opentelemetry_proto::tonic::collector::trace::v1::{
     trace_service_client::TraceServiceClient as TonicTraceServiceClient,
     ExportTraceServiceRequest as TonicRequest,
 };
 
 #[cfg(feature = "http-proto")]
-use opentelemetry_proto::proto::prost::collector::trace::v1::ExportTraceServiceRequest as ProstRequest;
+use opentelemetry_proto::prost::collector::trace::v1::ExportTraceServiceRequest as ProstRequest;
 
 #[cfg(feature = "tonic")]
 use tonic::{
@@ -19,10 +19,10 @@ use tonic::{
 };
 
 #[cfg(feature = "grpc-sys")]
-use opentelemetry_proto::proto::grpcio::trace_service::ExportTraceServiceRequest as GrpcRequest;
+use opentelemetry_proto::grpcio::trace_service::ExportTraceServiceRequest as GrpcRequest;
 
 #[cfg(feature = "grpc-sys")]
-use opentelemetry_proto::proto::grpcio::trace_service_grpc::TraceServiceClient as GrpcioTraceServiceClient;
+use opentelemetry_proto::grpcio::trace_service_grpc::TraceServiceClient as GrpcioTraceServiceClient;
 
 #[cfg(feature = "grpc-sys")]
 use grpcio::{
@@ -333,15 +333,15 @@ impl SpanExporter {
         let endpoint = TonicChannel::from_shared(config.endpoint.clone())?;
 
         #[cfg(feature = "tls")]
-            let channel = match tonic_config.tls_config.as_ref() {
+        let channel = match tonic_config.tls_config.as_ref() {
             Some(tls_config) => endpoint.tls_config(tls_config.clone())?,
             None => endpoint,
         }
-            .timeout(config.timeout)
-            .connect_lazy()?;
+        .timeout(config.timeout)
+        .connect_lazy()?;
 
         #[cfg(not(feature = "tls"))]
-            let channel = endpoint.timeout(config.timeout).connect_lazy()?;
+        let channel = endpoint.timeout(config.timeout).connect_lazy()?;
 
         SpanExporter::from_tonic_channel(config, tonic_config, channel)
     }

@@ -9,6 +9,13 @@
 #[rustfmt::skip]
 #[allow(warnings)]
 #[doc(hidden)]
-pub mod proto;
+mod proto;
 
-pub mod transform;
+#[cfg(feature = "gen-protoc")]
+pub use proto::grpcio;
+#[cfg(feature = "gen-prost")]
+pub use proto::prost;
+#[cfg(feature = "gen-tonic")]
+pub use proto::tonic;
+
+mod transform;

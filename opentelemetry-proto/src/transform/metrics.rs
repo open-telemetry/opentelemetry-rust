@@ -3,22 +3,18 @@
 // We cannot ignore it as it's not an optional field.
 // We can remove this after we removed the labels field from proto.
 #[allow(deprecated)]
+#[cfg(feature = "gen-tonic")]
 pub mod tonic {
-    use crate::proto::{
+    use crate::proto::tonic::{
         common::v1::KeyValue,
-        metrics::v1::{
-            number_data_point, AggregationTemporality,
-        },
+        metrics::v1::{number_data_point, AggregationTemporality},
     };
     use opentelemetry::metrics::{Number, NumberKind};
-    use opentelemetry::sdk::export::metrics::{
-        ExportKind,
-    };
+    use opentelemetry::sdk::export::metrics::ExportKind;
 
     use opentelemetry::{Key, Value};
-    
 
-
+    /// Convert Number to target type based on it's NumberKind.
     pub trait FromNumber {
         fn from_number(number: Number, number_kind: &NumberKind) -> Self;
     }

@@ -18,5 +18,5 @@ use opentelemetry::sdk::InstrumentationLibrary;
 pub(crate) type CheckpointedMetrics = (
     ResourceWrapper,
     InstrumentationLibrary,
-    opentelemetry_proto::proto::metrics::v1::Metric,
+    opentelemetry_proto::tonic::metrics::v1::Metric,
 );

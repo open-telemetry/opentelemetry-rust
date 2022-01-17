@@ -9,10 +9,10 @@ pub(crate) fn to_nanos(time: SystemTime) -> u64 {
         .as_nanos() as u64
 }
 
-
+#[cfg(feature = "gen-tonic")]
 pub mod tonic {
     use super::*;
-    use crate::proto::common::v1::{
+    use crate::proto::tonic::common::v1::{
         any_value, AnyValue, ArrayValue, InstrumentationLibrary, KeyValue,
     };
     use std::borrow::Cow;
@@ -26,7 +26,7 @@ pub mod tonic {
         }
     }
 
-    pub struct Attributes(pub ::std::vec::Vec<crate::proto::common::v1::KeyValue>);
+    pub struct Attributes(pub ::std::vec::Vec<crate::proto::tonic::common::v1::KeyValue>);
 
     impl From<EvictedHashMap> for Attributes {
         fn from(attributes: EvictedHashMap) -> Self {
@@ -75,8 +75,8 @@ pub mod tonic {
     }
 
     fn array_into_proto<T>(vals: Vec<T>) -> ArrayValue
-        where
-            Value: From<T>,
+    where
+        Value: From<T>,
     {
         let values = vals
             .into_iter()
@@ -87,6 +87,7 @@ pub mod tonic {
     }
 }
 
+#[cfg(feature = "gen-prost")]
 pub mod prost {
     use super::*;
     use crate::proto::prost::common::v1::{
@@ -103,9 +104,7 @@ pub mod prost {
         }
     }
 
-    pub struct Attributes(
-        pub ::std::vec::Vec<crate::proto::prost::common::v1::KeyValue>,
-    );
+    pub struct Attributes(pub ::std::vec::Vec<crate::proto::prost::common::v1::KeyValue>);
 
     impl From<EvictedHashMap> for Attributes {
         fn from(attributes: EvictedHashMap) -> Self {
@@ -154,8 +153,8 @@ pub mod prost {
     }
 
     fn array_into_proto<T>(vals: Vec<T>) -> ArrayValue
-        where
-            Value: From<T>,
+    where
+        Value: From<T>,
     {
         let values = vals
             .into_iter()
@@ -166,14 +165,13 @@ pub mod prost {
     }
 }
 
+#[cfg(feature = "gen-protoc")]
 pub mod grpcio {
     use super::*;
     use crate::proto::grpcio::common::{AnyValue, ArrayValue, KeyValue};
     use protobuf::RepeatedField;
 
-    pub struct Attributes(
-        pub ::protobuf::RepeatedField<crate::proto::grpcio::common::KeyValue>,
-    );
+    pub struct Attributes(pub ::protobuf::RepeatedField<crate::proto::grpcio::common::KeyValue>);
 
     impl From<EvictedHashMap> for Attributes {
         fn from(attributes: EvictedHashMap) -> Self {
@@ -227,8 +225,8 @@ pub mod grpcio {
     }
 
     fn array_into_proto<T>(vals: Vec<T>) -> ArrayValue
-        where
-            Value: From<T>,
+    where
+        Value: From<T>,
     {
         let values = RepeatedField::from_vec(
             vals.into_iter()

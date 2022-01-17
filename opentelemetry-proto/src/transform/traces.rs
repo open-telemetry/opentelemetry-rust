@@ -1,11 +1,12 @@
+use crate::transform::common::to_nanos;
 use opentelemetry::sdk::{self, export::trace::SpanData};
 use opentelemetry::trace::{Link, SpanId, SpanKind, StatusCode};
-use crate::transform::common::to_nanos;
 
-mod tonic {
+#[cfg(feature = "gen-tonic")]
+pub mod tonic {
     use super::*;
-    use crate::proto::resource::v1::Resource;
-    use crate::proto::trace::v1::{
+    use crate::proto::tonic::resource::v1::Resource;
+    use crate::proto::tonic::trace::v1::{
         span, status, InstrumentationLibrarySpans, ResourceSpans, Span, Status,
     };
     use crate::transform::common::tonic::Attributes;
@@ -52,7 +53,7 @@ mod tonic {
                     attributes: resource_attributes(
                         source_span.resource.as_ref().map(AsRef::as_ref),
                     )
-                        .0,
+                    .0,
                     dropped_attributes_count: 0,
                 }),
                 instrumentation_library_spans: vec![InstrumentationLibrarySpans {
@@ -110,7 +111,8 @@ mod tonic {
     }
 }
 
-mod prost {
+#[cfg(feature = "gen-prost")]
+pub mod prost {
     use super::*;
     use crate::proto::prost::resource::v1::Resource;
     use crate::proto::prost::trace::v1::{
@@ -160,7 +162,7 @@ mod prost {
                     attributes: resource_attributes(
                         source_span.resource.as_ref().map(AsRef::as_ref),
                     )
-                        .0,
+                    .0,
                     dropped_attributes_count: 0,
                 }),
                 instrumentation_library_spans: vec![InstrumentationLibrarySpans {
@@ -218,7 +220,8 @@ mod prost {
     }
 }
 
-mod grpcio {
+#[cfg(feature = "gen-protoc")]
+pub mod grpcio {
     use super::*;
     use crate::proto::grpcio::resource::Resource;
     use crate::proto::grpcio::trace::{
@@ -270,7 +273,7 @@ mod grpcio {
                     attributes: resource_attributes(
                         source_span.resource.as_ref().map(AsRef::as_ref),
                     )
-                        .0,
+                    .0,
                     dropped_attributes_count: 0,
                     ..Default::default()
                 })),

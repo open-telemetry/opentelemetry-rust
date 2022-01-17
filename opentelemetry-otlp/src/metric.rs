@@ -8,10 +8,6 @@ use crate::exporter::{
     tonic::{TonicConfig, TonicExporterBuilder},
     ExportConfig,
 };
-#[cfg(feature = "tonic")]
-use opentelemetry_proto::proto::collector::metrics::v1::{
-    metrics_service_client::MetricsServiceClient, ExportMetricsServiceRequest,
-};
 use crate::transform::{record_to_metric, sink, CheckpointedMetrics};
 use crate::{Error, OtlpPipeline};
 use futures_util::Stream;
@@ -24,6 +20,10 @@ use opentelemetry::sdk::{
     InstrumentationLibrary, Resource,
 };
 use opentelemetry::{global, KeyValue};
+#[cfg(feature = "tonic")]
+use opentelemetry_proto::tonic::collector::metrics::v1::{
+    metrics_service_client::MetricsServiceClient, ExportMetricsServiceRequest,
+};
 use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
 use std::sync::Mutex;

@@ -5,7 +5,17 @@
 // We can remove this after we removed the labels field from proto.
 #[allow(deprecated)]
 pub(crate) mod tonic {
-    use opentelemetry_proto::proto::{
+    use opentelemetry::metrics::MetricsError;
+    use opentelemetry::sdk::export::metrics::{
+        Count, ExportKindFor, Histogram as SdkHistogram, LastValue, Max, Min, Points, Record,
+        Sum as SdkSum,
+    };
+    use opentelemetry::sdk::metrics::aggregators::{
+        ArrayAggregator, HistogramAggregator, LastValueAggregator, MinMaxSumCountAggregator,
+        SumAggregator,
+    };
+    use opentelemetry_proto::tonic::FromNumber;
+    use opentelemetry_proto::tonic::{
         collector::metrics::v1::ExportMetricsServiceRequest,
         common::v1::KeyValue,
         metrics::v1::{
@@ -14,22 +24,11 @@ pub(crate) mod tonic {
             ResourceMetrics, Sum,
         },
     };
-    use opentelemetry_proto::transform::metrics::tonic::FromNumber;
-    use opentelemetry::metrics::{MetricsError};
-    use opentelemetry::sdk::export::metrics::{
-        Count, ExportKindFor, Histogram as SdkHistogram, LastValue, Max, Min, Points,
-        Record, Sum as SdkSum,
-    };
-    use opentelemetry::sdk::metrics::aggregators::{
-        ArrayAggregator, HistogramAggregator, LastValueAggregator, MinMaxSumCountAggregator,
-        SumAggregator,
-    };
 
     use crate::to_nanos;
     use crate::transform::{CheckpointedMetrics, ResourceWrapper};
     use opentelemetry::sdk::InstrumentationLibrary;
     use std::collections::{BTreeMap, HashMap};
-
 
     pub(crate) fn record_to_metric(
         record: &Record,
@@ -72,7 +71,7 @@ pub(crate) mod tonic {
                         None
                     }
                 } else if let Some(last_value) =
-                aggregator.as_any().downcast_ref::<LastValueAggregator>()
+                    aggregator.as_any().downcast_ref::<LastValueAggregator>()
                 {
                     Some({
                         let (val, sample_time) = last_value.last_value()?;
@@ -104,7 +103,7 @@ pub(crate) mod tonic {
                         })
                     })
                 } else if let Some(histogram) =
-                aggregator.as_any().downcast_ref::<HistogramAggregator>()
+                    aggregator.as_any().downcast_ref::<HistogramAggregator>()
                 {
                     Some({
                         let (sum, count, buckets) =
@@ -276,15 +275,6 @@ pub(crate) mod tonic {
 mod tests {
     #[cfg(feature = "tonic")]
     mod tonic {
-        use opentelemetry_proto::proto::common::v1::{any_value, AnyValue, KeyValue};
-        use opentelemetry_proto::proto::metrics::v1::{
-            metric::Data, number_data_point, Gauge, Histogram, HistogramDataPoint,
-            InstrumentationLibraryMetrics, Metric, NumberDataPoint, ResourceMetrics, Sum,
-        };
-        use opentelemetry_proto::transform::{
-            common::tonic::Attributes,
-            metrics::tonic::FromNumber
-        };
         use crate::transform::metrics::tonic::merge;
         use crate::transform::{record_to_metric, sink, ResourceWrapper};
         use opentelemetry::attributes::AttributeSet;
@@ -296,6 +286,12 @@ mod tests {
             histogram, last_value, min_max_sum_count, SumAggregator,
         };
         use opentelemetry::sdk::{InstrumentationLibrary, Resource};
+        use opentelemetry_proto::common::v1::{any_value, AnyValue, KeyValue};
+        use opentelemetry_proto::metrics::v1::{
+            metric::Data, number_data_point, Gauge, Histogram, HistogramDataPoint,
+            InstrumentationLibraryMetrics, Metric, NumberDataPoint, ResourceMetrics, Sum,
+        };
+        use opentelemetry_proto::tonic::{Attributes, FromNumber};
         use std::cmp::Ordering;
         use std::sync::Arc;
         use time::macros::datetime;
@@ -347,7 +343,10 @@ mod tests {
                 labels: vec![],
                 start_time_unix_nano: start_time,
                 time_unix_nano: end_time,
-                value: Some(number_data_point::Value::from_number(value.into(), &NumberKind::I64)),
+                value: Some(number_data_point::Value::from_number(
+                    value.into(),
+                    &NumberKind::I64,
+                )),
                 exemplars: vec![],
             }
         }
@@ -359,7 +358,7 @@ mod tests {
 
         fn convert_to_resource_metrics(
             data: (ResourceKv, Vec<(InstrumentationLibraryKv, Vec<MetricRaw>)>),
-        ) -> opentelemetry_proto::proto::metrics::v1::ResourceMetrics {
+        ) -> opentelemetry_proto::metrics::v1::ResourceMetrics {
             // convert to proto resource
             let attributes: Attributes = data
                 .0
@@ -367,7 +366,7 @@ mod tests {
                 .map(|(k, v)| opentelemetry::KeyValue::new(k.to_string(), v.to_string()))
                 .collect::<Vec<opentelemetry::KeyValue>>()
                 .into();
-            let resource = opentelemetry_proto::proto::resource::v1::Resource {
+            let resource = opentelemetry_proto::resource::v1::Resource {
                 attributes: attributes.0,
                 dropped_attributes_count: 0,
             };
@@ -375,7 +374,7 @@ mod tests {
             for ((instrumentation_name, instrumentation_version), metrics) in data.1 {
                 instrumentation_library_metrics.push(InstrumentationLibraryMetrics {
                     instrumentation_library: Some(
-                        opentelemetry_proto::proto::common::v1::InstrumentationLibrary {
+                        opentelemetry_proto::common::v1::InstrumentationLibrary {
                             name: instrumentation_name.to_string(),
                             version: instrumentation_version.unwrap_or("").to_string(),
                         },
@@ -701,22 +700,22 @@ mod tests {
                     (vec![("attribute1", "attribute2")], 15, 16, 99),
                 ),
             ]
-                .into_iter()
-                .map(
-                    |(kvs, (name, version), metric_name, (attributes, start_time, end_time, value))| {
-                        (
-                            ResourceWrapper::from(Resource::new(kvs.into_iter().map(|(k, v)| {
-                                opentelemetry::KeyValue::new(k.to_string(), v.to_string())
-                            }))),
-                            InstrumentationLibrary::new(name, version),
-                            get_metric_with_name(
-                                metric_name,
-                                vec![(attributes, start_time, end_time, value)],
-                            ),
-                        )
-                    },
-                )
-                .collect::<Vec<(ResourceWrapper, InstrumentationLibrary, Metric)>>();
+            .into_iter()
+            .map(
+                |(kvs, (name, version), metric_name, (attributes, start_time, end_time, value))| {
+                    (
+                        ResourceWrapper::from(Resource::new(kvs.into_iter().map(|(k, v)| {
+                            opentelemetry::KeyValue::new(k.to_string(), v.to_string())
+                        }))),
+                        InstrumentationLibrary::new(name, version),
+                        get_metric_with_name(
+                            metric_name,
+                            vec![(attributes, start_time, end_time, value)],
+                        ),
+                    )
+                },
+            )
+            .collect::<Vec<(ResourceWrapper, InstrumentationLibrary, Metric)>>();
 
             let request = sink(test_data);
             let actual = request.resource_metrics;
@@ -761,8 +760,8 @@ mod tests {
                     )],
                 ),
             ]
-                .into_iter()
-                .map(convert_to_resource_metrics);
+            .into_iter()
+            .map(convert_to_resource_metrics);
 
             for (expect, actual) in expect.into_iter().zip(actual.into_iter()) {
                 assert_resource_metrics(expect, actual);

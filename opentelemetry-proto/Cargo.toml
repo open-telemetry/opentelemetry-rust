@@ -26,9 +26,18 @@ path = "tests/grpc_build.rs"
 required-features = ["with-serde"]
 
 [features]
-default = []
-http-proto = []
+default = ["gen-tonic", "gen-prost", "gen-protoc", "traces", "metrics", "zpages"]
 with-serde = ["protobuf/with-serde", "serde", "serde_json"]
+
+# crates used to generate rs files
+gen-tonic = []
+gen-prost = []
+gen-protoc = []
+
+# functions
+traces = []
+metrics = []
+zpages = ["traces"]
 
 [dependencies]
 grpcio = { version = "0.9" }

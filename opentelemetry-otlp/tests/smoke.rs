@@ -1,11 +1,11 @@
 use futures::StreamExt;
 use opentelemetry::global::shutdown_tracer_provider;
 use opentelemetry::trace::{Span, SpanKind, Tracer};
-use opentelemetry_proto::proto::collector::trace::v1::{
+use opentelemetry_otlp::WithExportConfig;
+use opentelemetry_proto::tonic::collector::trace::v1::{
     trace_service_server::{TraceService, TraceServiceServer},
     ExportTraceServiceRequest, ExportTraceServiceResponse,
 };
-use opentelemetry_otlp::WithExportConfig;
 use std::{net::SocketAddr, sync::Mutex};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::TcpListenerStream;
