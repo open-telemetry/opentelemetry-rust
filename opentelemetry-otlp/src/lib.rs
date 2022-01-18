@@ -179,10 +179,12 @@
 mod exporter;
 #[cfg(feature = "metrics")]
 mod metric;
+#[cfg(feature = "trace")]
 mod span;
 mod transform;
 
 pub use crate::exporter::ExportConfig;
+#[cfg(feature = "trace")]
 pub use crate::span::{OtlpTracePipeline, SpanExporter, SpanExporterBuilder};
 
 #[cfg(feature = "metrics")]

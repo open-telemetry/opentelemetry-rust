@@ -3,21 +3,21 @@
 //
 // Grpc related files used by grpcio are maintained at src/proto/grpcio. tests/grpc_build.rs makes
 // sure they are up to date.
-use std::path::PathBuf;
 
 fn main() {
-    #[cfg(not(feature = "build-server"))]
-    let build_server = false;
-    #[cfg(feature = "build-server")]
-    let build_server = true;
-
-    #[cfg(not(feature = "build-client"))]
-    let build_client = false;
-    #[cfg(feature = "build-client")]
-    let build_client = true;
-
     #[cfg(feature = "gen-tonic")]
     {
+        use std::path::PathBuf;
+        #[cfg(not(feature = "build-server"))]
+        let build_server = false;
+        #[cfg(feature = "build-server")]
+        let build_server = true;
+
+        #[cfg(not(feature = "build-client"))]
+        let build_client = false;
+        #[cfg(feature = "build-client")]
+        let build_client = true;
+
         let out_dir = PathBuf::from(
             std::env::var("OUT_DIR").expect("OUT_DIR should be set by cargo but can't find"),
         )

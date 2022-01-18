@@ -23,14 +23,14 @@ doctest = false
 [[test]]
 name = "grpc_build"
 path = "tests/grpc_build.rs"
-required-features = ["with-serde"]
+required-features = ["with-serde", "gen-protoc"]
 
 [features]
 default = ["gen-tonic", "gen-protoc", "traces", "metrics", "zpages", "build-server", "build-client"]
 
 # crates used to generate rs files
-gen-tonic = []
-gen-protoc = []
+gen-tonic = ["tonic", "tonic-build", "prost"]
+gen-protoc = ["grpcio", "protobuf"]
 
 # telemetry pillars and functions
 traces = []
@@ -43,10 +43,10 @@ build-server = []
 build-client = []
 
 [dependencies]
-grpcio = { version = "0.9" }
-tonic = { version = "0.6.2" }
-prost = { version = "0.9" }
-protobuf = { version = "2.18" }
+grpcio = { version = "0.9", optional = true }
+tonic = { version = "0.6.2", optional = true }
+prost = { version = "0.9", optional = true }
+protobuf = { version = "2.18", optional = true }
 opentelemetry = { version = "0.16", default-features = false, features = ["trace", "metrics"], path = "../opentelemetry" }
 futures = { version = "0.3", default-features = false, features = ["std"] }
 futures-util = { version = "0.3", default-features = false, features = ["std"] }
@@ -58,5 +58,5 @@ protobuf-codegen = { version = "2.16" }
 protoc-grpcio = { version = "3.0" }
 
 [build-dependencies]
-tonic-build = { version = "0.6.2" }
-prost-build = { version = "0.9" }
+tonic-build = { version = "0.6.2", optional = true }
+prost-build = { version = "0.9", optional = true }

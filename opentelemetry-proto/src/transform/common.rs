@@ -1,8 +1,10 @@
 use opentelemetry::sdk::trace::EvictedHashMap;
 use opentelemetry::{Array, Value};
 
+#[cfg(feature = "traces")]
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+#[cfg(feature = "traces")]
 pub(crate) fn to_nanos(time: SystemTime) -> u64 {
     time.duration_since(UNIX_EPOCH)
         .unwrap_or_else(|_| Duration::from_secs(0))

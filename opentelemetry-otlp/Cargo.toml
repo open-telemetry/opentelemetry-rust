@@ -34,7 +34,7 @@ thiserror = "1.0"
 futures = { version = "0.3", default-features = false, features = ["std"] }
 futures-util = { version = "0.3", default-features = false, features = ["std"] }
 
-opentelemetry-proto = { path = "../opentelemetry-proto", default-feature = false }
+opentelemetry-proto = { path = "../opentelemetry-proto", default-features = false }
 
 grpcio = { version = "0.9", optional = true }
 protobuf = { version = "2.18", optional = true }
@@ -64,7 +64,7 @@ metrics = ["opentelemetry/metrics", "opentelemetry-proto/metrics", "grpc-tonic"]
 # add ons
 serialize = ["serde"]
 
-default = ["grpc-tonic"]
+default = ["grpc-tonic", "trace"]
 
 # grpc using tonic
 grpc-tonic = ["tonic", "prost", "http", "tokio", "opentelemetry-proto/gen-tonic", "opentelemetry-proto/build-client"]
@@ -77,7 +77,7 @@ openssl = ["grpcio/openssl"]
 openssl-vendored = ["grpcio/openssl-vendored"]
 
 # http binary
-http-proto = ["prost", "opentelemetry-http", "opentelemetry-proto/gen-tonic", "http"]
+http-proto = ["prost", "opentelemetry-http", "opentelemetry-proto/gen-tonic", "http", "trace"]
 reqwest-blocking-client = ["reqwest/blocking", "opentelemetry-http/reqwest"]
 reqwest-client = ["reqwest", "opentelemetry-http/reqwest"]
 reqwest-rustls = ["reqwest", "reqwest/rustls-tls-native-roots"]

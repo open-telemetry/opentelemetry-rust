@@ -7,7 +7,6 @@ use std::path::PathBuf;
 // If the test fails, it means the generated files has been changed. Please commit the change
 // and rerun test. It should pass at the second time.
 #[test]
-#[cfg(feature = "gen-protoc")]
 fn build_grpc() {
     let before_build = build_content_map();
     compile_grpc_protos(

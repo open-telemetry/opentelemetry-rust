@@ -29,7 +29,6 @@ if rustup component add clippy; then
   cargo_feature opentelemetry-otlp "http-proto, surf-client, surf/curl-client"
   cargo_feature opentelemetry-otlp "metrics"
 
-
   cargo_feature opentelemetry-jaeger "surf_collector_client, surf/curl-client"
   cargo_feature opentelemetry-jaeger "isahc_collector_client"
   cargo_feature opentelemetry-jaeger "reqwest_blocking_collector_client"
@@ -43,5 +42,15 @@ if rustup component add clippy; then
   cargo_feature opentelemetry-dynatrace "metrics,rt-tokio,isahc-client"
   cargo_feature opentelemetry-dynatrace "metrics,rt-tokio,surf-client,surf/curl-client"
   cargo_feature opentelemetry-dynatrace "metrics,rt-async-std"
+
+  cargo_feature opentelemetry-proto "default"
+  cargo_feature opentelemetry-proto "gen-tonic,traces"
+  cargo_feature opentelemetry-proto "gen-tonic,traces,with-serde"
+  cargo_feature opentelemetry-proto "gen-tonic,traces,build-client"
+  cargo_feature opentelemetry-proto "gen-tonic,metrics,build-client"
+  cargo_feature opentelemetry-proto "gen-protoc,traces"
+  cargo_feature opentelemetry-proto "gen-protoc,traces,with-serde"
+  cargo_feature opentelemetry-proto "gen-protoc,zpages"
+  cargo_feature opentelemetry-proto "gen-protoc,zpages,with-serde"
 
 fi
