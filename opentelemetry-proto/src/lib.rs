@@ -13,8 +13,6 @@ mod proto;
 
 #[cfg(feature = "gen-protoc")]
 pub use proto::grpcio;
-#[cfg(feature = "gen-prost")]
-pub use proto::prost;
 #[cfg(feature = "gen-tonic")]
 pub use proto::tonic;
 

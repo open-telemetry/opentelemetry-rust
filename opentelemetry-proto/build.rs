@@ -11,6 +11,11 @@ fn main() {
     #[cfg(feature = "build-server")]
     let build_server = true;
 
+    #[cfg(not(feature = "build-client"))]
+    let build_client = false;
+    #[cfg(feature = "build-client")]
+    let build_client = true;
+
     #[cfg(feature = "gen-tonic")]
     {
         let out_dir = PathBuf::from(
@@ -20,34 +25,10 @@ fn main() {
         std::fs::create_dir_all(out_dir.clone()).expect("cannot create output dir");
         tonic_build::configure()
                 .build_server(build_server)
-                .build_client(true)
+                .build_client(build_client)
                 .format(false)
                 .out_dir(out_dir)
                 .compile(
-                    &[
-                        "src/proto/opentelemetry-proto/opentelemetry/proto/common/v1/common.proto",
-                        "src/proto/opentelemetry-proto/opentelemetry/proto/resource/v1/resource.proto",
-                        "src/proto/opentelemetry-proto/opentelemetry/proto/trace/v1/trace.proto",
-                        "src/proto/opentelemetry-proto/opentelemetry/proto/trace/v1/trace_config.proto",
-                        "src/proto/opentelemetry-proto/opentelemetry/proto/collector/trace/v1/trace_service.proto",
-                        "src/proto/opentelemetry-proto/opentelemetry/proto/metrics/v1/metrics.proto",
-                        "src/proto/opentelemetry-proto/opentelemetry/proto/collector/metrics/v1/metrics_service.proto",
-                    ],
-                    &["src/proto/opentelemetry-proto"],
-                )
-                .expect("Error generating protobuf");
-    }
-
-    #[cfg(feature = "gen-prost")]
-    {
-        let out_dir = PathBuf::from(
-            std::env::var("OUT_DIR").expect("OUT_DIR should be set by cargo but can't find"),
-        )
-        .join("prost");
-        std::fs::create_dir_all(out_dir.clone()).expect("cannot create output dir");
-        prost_build::Config::new()
-                .out_dir(out_dir)
-                .compile_protos(
                     &[
                         "src/proto/opentelemetry-proto/opentelemetry/proto/common/v1/common.proto",
                         "src/proto/opentelemetry-proto/opentelemetry/proto/resource/v1/resource.proto",

@@ -44,49 +44,6 @@ pub mod tonic {
     pub use crate::transform::metrics::tonic::FromNumber;
 }
 
-#[cfg(feature = "gen-prost")]
-pub mod prost {
-    pub mod collector {
-        pub mod metrics {
-            pub mod v1 {
-                include!(concat!(env!("OUT_DIR"), "/prost", "/opentelemetry.proto.collector.metrics.v1.rs"));
-            }
-        }
-
-        pub mod trace {
-            pub mod v1 {
-                include!(concat!(env!("OUT_DIR"), "/prost", "/opentelemetry.proto.collector.trace.v1.rs"));
-            }
-        }
-    }
-
-    pub mod common {
-        pub mod v1 {
-            include!(concat!(env!("OUT_DIR"), "/prost", "/opentelemetry.proto.common.v1.rs"));
-        }
-    }
-
-    pub mod metrics {
-        pub mod v1 {
-            include!(concat!(env!("OUT_DIR"), "/prost", "/opentelemetry.proto.metrics.v1.rs"));
-        }
-    }
-
-    pub mod resource {
-        pub mod v1 {
-            include!(concat!(env!("OUT_DIR"), "/prost", "/opentelemetry.proto.resource.v1.rs"));
-        }
-    }
-
-    pub mod trace {
-        pub mod v1 {
-            include!(concat!(env!("OUT_DIR"), "/prost", "/opentelemetry.proto.trace.v1.rs"));
-        }
-    }
-
-    pub use crate::transform::common::prost::Attributes;
-}
-
 #[cfg(feature = "gen-protoc")]
 pub mod grpcio {
     pub mod common;

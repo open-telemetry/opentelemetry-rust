@@ -41,7 +41,7 @@ use {
         Method, Uri,
     },
     opentelemetry_http::HttpClient,
-    opentelemetry_proto::prost::collector::trace::v1::ExportTraceServiceRequest as ProstRequest,
+    opentelemetry_proto::tonic::collector::trace::v1::ExportTraceServiceRequest as ProstRequest,
     prost::Message,
     std::convert::TryFrom,
 };
