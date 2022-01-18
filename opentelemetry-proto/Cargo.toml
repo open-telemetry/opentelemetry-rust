@@ -27,17 +27,20 @@ required-features = ["with-serde"]
 
 [features]
 default = ["gen-tonic", "gen-prost", "gen-protoc", "traces", "metrics", "zpages"]
-with-serde = ["protobuf/with-serde", "serde", "serde_json"]
 
 # crates used to generate rs files
 gen-tonic = []
 gen-prost = []
 gen-protoc = []
 
-# functions
+# telemetry pillars and functions
 traces = []
 metrics = []
 zpages = ["traces"]
+
+# add ons
+with-serde = ["protobuf/with-serde", "serde", "serde_json"]
+build-server = []
 
 [dependencies]
 grpcio = { version = "0.9" }

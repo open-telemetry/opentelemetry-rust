@@ -1,4 +1,4 @@
-#[cfg(feature = "tonic")]
+#[cfg(feature = "grpc-tonic")]
 // The prost currently will generate a non optional deprecated field for labels.
 // We cannot assign value to it otherwise clippy will complain.
 // We cannot ignore it as it's not an optional field.
@@ -273,7 +273,7 @@ pub(crate) mod tonic {
 #[cfg(test)]
 #[allow(deprecated)]
 mod tests {
-    #[cfg(feature = "tonic")]
+    #[cfg(feature = "grpc-tonic")]
     mod tonic {
         use crate::transform::metrics::tonic::merge;
         use crate::transform::{record_to_metric, sink, ResourceWrapper};
@@ -286,12 +286,14 @@ mod tests {
             histogram, last_value, min_max_sum_count, SumAggregator,
         };
         use opentelemetry::sdk::{InstrumentationLibrary, Resource};
-        use opentelemetry_proto::common::v1::{any_value, AnyValue, KeyValue};
-        use opentelemetry_proto::metrics::v1::{
-            metric::Data, number_data_point, Gauge, Histogram, HistogramDataPoint,
-            InstrumentationLibraryMetrics, Metric, NumberDataPoint, ResourceMetrics, Sum,
+        use opentelemetry_proto::tonic::{
+            common::v1::{any_value, AnyValue, KeyValue},
+            metrics::v1::{
+                metric::Data, number_data_point, Gauge, Histogram, HistogramDataPoint,
+                InstrumentationLibraryMetrics, Metric, NumberDataPoint, ResourceMetrics, Sum,
+            },
+            Attributes, FromNumber,
         };
-        use opentelemetry_proto::tonic::{Attributes, FromNumber};
         use std::cmp::Ordering;
         use std::sync::Arc;
         use time::macros::datetime;
@@ -358,7 +360,7 @@ mod tests {
 
         fn convert_to_resource_metrics(
             data: (ResourceKv, Vec<(InstrumentationLibraryKv, Vec<MetricRaw>)>),
-        ) -> opentelemetry_proto::metrics::v1::ResourceMetrics {
+        ) -> opentelemetry_proto::tonic::metrics::v1::ResourceMetrics {
             // convert to proto resource
             let attributes: Attributes = data
                 .0
@@ -366,7 +368,7 @@ mod tests {
                 .map(|(k, v)| opentelemetry::KeyValue::new(k.to_string(), v.to_string()))
                 .collect::<Vec<opentelemetry::KeyValue>>()
                 .into();
-            let resource = opentelemetry_proto::resource::v1::Resource {
+            let resource = opentelemetry_proto::tonic::resource::v1::Resource {
                 attributes: attributes.0,
                 dropped_attributes_count: 0,
             };
@@ -374,7 +376,7 @@ mod tests {
             for ((instrumentation_name, instrumentation_version), metrics) in data.1 {
                 instrumentation_library_metrics.push(InstrumentationLibraryMetrics {
                     instrumentation_library: Some(
-                        opentelemetry_proto::common::v1::InstrumentationLibrary {
+                        opentelemetry_proto::tonic::common::v1::InstrumentationLibrary {
                             name: instrumentation_name.to_string(),
                             version: instrumentation_version.unwrap_or("").to_string(),
                         },

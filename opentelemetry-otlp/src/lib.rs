@@ -203,7 +203,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 pub use crate::exporter::grpcio::{Compression, Credentials, GrpcioExporterBuilder};
 #[cfg(feature = "http-proto")]
 pub use crate::exporter::http::HttpExporterBuilder;
-#[cfg(feature = "tonic")]
+#[cfg(feature = "grpc-tonic")]
 pub use crate::exporter::tonic::TonicExporterBuilder;
 
 #[cfg(feature = "serialize")]
@@ -222,7 +222,7 @@ impl OtlpExporterPipeline {
     /// Use tonic as grpc layer, return a `TonicExporterBuilder` to config tonic and build the exporter.
     ///
     /// This exporter can be used in both `tracing` and `metrics` pipeline.
-    #[cfg(feature = "tonic")]
+    #[cfg(feature = "grpc-tonic")]
     pub fn tonic(self) -> TonicExporterBuilder {
         TonicExporterBuilder::default()
     }
@@ -272,17 +272,17 @@ pub fn new_exporter() -> OtlpExporterPipeline {
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     /// Wrap error from [`tonic::transport::Error`]
-    #[cfg(feature = "tonic")]
+    #[cfg(feature = "grpc-tonic")]
     #[error("transport error {0}")]
     Transport(#[from] tonic::transport::Error),
 
     /// Wrap the [`tonic::codegen::http::uri::InvalidUri`] error
-    #[cfg(any(feature = "tonic", feature = "http-proto"))]
+    #[cfg(any(feature = "grpc-tonic", feature = "http-proto"))]
     #[error("invalid URI {0}")]
     InvalidUri(#[from] http::uri::InvalidUri),
 
     /// Wrap type for [`tonic::Status`]
-    #[cfg(feature = "tonic")]
+    #[cfg(feature = "grpc-tonic")]
     #[error("the grpc server returns error ({code}): {message}")]
     Status {
         /// grpc status code
@@ -333,7 +333,7 @@ pub enum Error {
     NoExporterBuilder,
 }
 
-#[cfg(feature = "tonic")]
+#[cfg(feature = "grpc-tonic")]
 impl From<tonic::Status> for Error {
     fn from(status: tonic::Status) -> Error {
         Error::Status {

@@ -2,84 +2,67 @@
 //!
 //! Defines a [SpanExporter] to send trace data via the OpenTelemetry Protocol (OTLP)
 
-#[cfg(feature = "tonic")]
-use opentelemetry_proto::tonic::collector::trace::v1::{
-    trace_service_client::TraceServiceClient as TonicTraceServiceClient,
-    ExportTraceServiceRequest as TonicRequest,
-};
+use std::fmt::{self, Debug};
+use std::time::Duration;
 
-#[cfg(feature = "http-proto")]
-use opentelemetry_proto::prost::collector::trace::v1::ExportTraceServiceRequest as ProstRequest;
-
-
-#[cfg(feature = "tonic")]
-use tonic::{
-    metadata::{KeyAndValueRef, MetadataMap},
-    transport::Channel as TonicChannel,
-    Request,
-};
-
-#[cfg(feature = "grpc-sys")]
-use opentelemetry_proto::grpcio::trace_service::ExportTraceServiceRequest as GrpcRequest;
-
-#[cfg(feature = "grpc-sys")]
-use opentelemetry_proto::grpcio::trace_service_grpc::TraceServiceClient as GrpcioTraceServiceClient;
-
-#[cfg(feature = "grpc-sys")]
-use grpcio::{
-    CallOption, Channel as GrpcChannel, ChannelBuilder, ChannelCredentialsBuilder, Environment,
-    MetadataBuilder,
+#[cfg(feature = "grpc-tonic")]
+use {
+    crate::exporter::tonic::{TonicConfig, TonicExporterBuilder},
+    opentelemetry_proto::tonic::collector::trace::v1::{
+        trace_service_client::TraceServiceClient as TonicTraceServiceClient,
+        ExportTraceServiceRequest as TonicRequest,
+    },
+    tonic::{
+        metadata::{KeyAndValueRef, MetadataMap},
+        transport::Channel as TonicChannel,
+        Request,
+    },
 };
 
 #[cfg(feature = "grpc-sys")]
-use protobuf::RepeatedField;
+use {
+    crate::exporter::grpcio::{GrpcioConfig, GrpcioExporterBuilder},
+    grpcio::{
+        CallOption, Channel as GrpcChannel, ChannelBuilder, ChannelCredentialsBuilder, Environment,
+        MetadataBuilder,
+    },
+    opentelemetry_proto::grpcio::{
+        trace_service::ExportTraceServiceRequest as GrpcRequest,
+        trace_service_grpc::TraceServiceClient as GrpcioTraceServiceClient,
+    },
+    std::sync::Arc,
+};
 
 #[cfg(feature = "http-proto")]
-use prost::Message;
-#[cfg(feature = "http-proto")]
-use std::convert::TryFrom;
+use {
+    crate::exporter::http::{HttpConfig, HttpExporterBuilder},
+    http::{
+        header::{HeaderName, HeaderValue, CONTENT_TYPE},
+        Method, Uri,
+    },
+    opentelemetry_http::HttpClient,
+    opentelemetry_proto::prost::collector::trace::v1::ExportTraceServiceRequest as ProstRequest,
+    prost::Message,
+    std::convert::TryFrom,
+};
 
 #[cfg(any(feature = "grpc-sys", feature = "http-proto"))]
 use std::collections::HashMap;
 
-use std::fmt;
-use std::fmt::Debug;
-
-#[cfg(feature = "grpc-sys")]
-use crate::exporter::grpcio::GrpcioConfig;
-#[cfg(feature = "http-proto")]
-use crate::exporter::http::HttpConfig;
-#[cfg(feature = "tonic")]
-use crate::exporter::tonic::TonicConfig;
+use crate::exporter::ExportConfig;
 use crate::OtlpPipeline;
 
-#[cfg(feature = "grpc-sys")]
-use crate::exporter::grpcio::GrpcioExporterBuilder;
-#[cfg(feature = "http-proto")]
-use crate::exporter::http::HttpExporterBuilder;
-#[cfg(feature = "tonic")]
-use crate::exporter::tonic::TonicExporterBuilder;
-use crate::exporter::ExportConfig;
-
-use opentelemetry::global;
-use opentelemetry::sdk::export::trace::{ExportResult, SpanData};
-use opentelemetry::sdk::{self, trace::TraceRuntime};
-use opentelemetry::trace::{TraceError, TracerProvider};
+use opentelemetry::{
+    global,
+    sdk::{
+        self,
+        export::trace::{ExportResult, SpanData},
+        trace::TraceRuntime,
+    },
+    trace::{TraceError, TracerProvider},
+};
 
 use async_trait::async_trait;
-
-#[cfg(feature = "grpc-sys")]
-use std::sync::Arc;
-
-use std::time::Duration;
-
-#[cfg(feature = "http-proto")]
-use http::{
-    header::{HeaderName, HeaderValue, CONTENT_TYPE},
-    Method, Uri,
-};
-#[cfg(feature = "http-proto")]
-use opentelemetry_http::HttpClient;
 
 impl OtlpPipeline {
     /// Create a OTLP tracing pipeline.
@@ -196,7 +179,7 @@ fn build_batch_with_exporter<R: TraceRuntime>(
 #[non_exhaustive]
 pub enum SpanExporterBuilder {
     /// Tonic span exporter builder
-    #[cfg(feature = "tonic")]
+    #[cfg(feature = "grpc-tonic")]
     Tonic(TonicExporterBuilder),
     /// Grpc span exporter builder
     #[cfg(feature = "grpc-sys")]
@@ -210,7 +193,7 @@ impl SpanExporterBuilder {
     /// Build a OTLP span exporter using the given tonic configuration and exporter configuration.
     pub fn build_span_exporter(self) -> Result<SpanExporter, TraceError> {
         match self {
-            #[cfg(feature = "tonic")]
+            #[cfg(feature = "grpc-tonic")]
             SpanExporterBuilder::Tonic(builder) => Ok(match builder.channel {
                 Some(channel) => SpanExporter::from_tonic_channel(
                     builder.exporter_config,
@@ -233,7 +216,7 @@ impl SpanExporterBuilder {
     }
 }
 
-#[cfg(feature = "tonic")]
+#[cfg(feature = "grpc-tonic")]
 impl From<TonicExporterBuilder> for SpanExporterBuilder {
     fn from(exporter: TonicExporterBuilder) -> Self {
         SpanExporterBuilder::Tonic(exporter)
@@ -256,7 +239,7 @@ impl From<HttpExporterBuilder> for SpanExporterBuilder {
 
 /// OTLP exporter that sends tracing information
 pub enum SpanExporter {
-    #[cfg(feature = "tonic")]
+    #[cfg(feature = "grpc-tonic")]
     /// Trace Exporter using tonic as grpc layer.
     Tonic {
         /// Duration of timeout when sending spans to backend.
@@ -293,7 +276,7 @@ pub enum SpanExporter {
 impl Debug for SpanExporter {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            #[cfg(feature = "tonic")]
+            #[cfg(feature = "grpc-tonic")]
             SpanExporter::Tonic {
                 metadata, timeout, ..
             } => f
@@ -326,7 +309,7 @@ impl Debug for SpanExporter {
 
 impl SpanExporter {
     /// Builds a new span exporter with the given configuration.
-    #[cfg(feature = "tonic")]
+    #[cfg(feature = "grpc-tonic")]
     pub fn new_tonic(
         config: ExportConfig,
         tonic_config: TonicConfig,
@@ -342,7 +325,7 @@ impl SpanExporter {
         .connect_lazy();
 
         #[cfg(not(feature = "tls"))]
-        let channel = endpoint.timeout(config.timeout).connect_lazy()?;
+        let channel = endpoint.timeout(config.timeout).connect_lazy();
 
         SpanExporter::from_tonic_channel(config, tonic_config, channel)
     }
@@ -352,7 +335,7 @@ impl SpanExporter {
     /// This allows users to bring their own custom channel like UDS.
     /// However, users MUST make sure the [`ExportConfig::timeout`] is
     /// the same as the channel's timeout.
-    #[cfg(feature = "tonic")]
+    #[cfg(feature = "grpc-tonic")]
     pub fn from_tonic_channel(
         config: ExportConfig,
         tonic_config: TonicConfig,
@@ -425,7 +408,7 @@ impl opentelemetry::sdk::export::trace::SpanExporter for SpanExporter {
                 trace_exporter,
             } => {
                 let request = GrpcRequest {
-                    resource_spans: RepeatedField::from_vec(
+                    resource_spans: protobuf::RepeatedField::from_vec(
                         batch.into_iter().map(Into::into).collect(),
                     ),
                     unknown_fields: Default::default(),
@@ -451,7 +434,7 @@ impl opentelemetry::sdk::export::trace::SpanExporter for SpanExporter {
                 Ok(())
             }
 
-            #[cfg(feature = "tonic")]
+            #[cfg(feature = "grpc-tonic")]
             SpanExporter::Tonic {
                 trace_exporter,
                 metadata,

@@ -1,4 +1,4 @@
-#[cfg(feature = "tonic")]
+#[cfg(feature = "grpc-tonic")]
 use opentelemetry_proto::tonic::{common::v1::KeyValue, resource::v1::Resource};
 use std::cmp::Ordering;
 
@@ -25,7 +25,7 @@ impl PartialOrd for ResourceWrapper {
     }
 }
 
-#[cfg(feature = "tonic")]
+#[cfg(feature = "grpc-tonic")]
 impl From<ResourceWrapper> for Resource {
     fn from(resource: ResourceWrapper) -> Self {
         Resource {
