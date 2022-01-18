@@ -43,7 +43,7 @@ if rustup component add clippy; then
   cargo_feature opentelemetry-dynatrace "metrics,rt-tokio,surf-client,surf/curl-client"
   cargo_feature opentelemetry-dynatrace "metrics,rt-async-std"
 
-  cargo_feature opentelemetry-proto "default"
+  cargo_feature opentelemetry-proto "full"
   cargo_feature opentelemetry-proto "gen-tonic,traces"
   cargo_feature opentelemetry-proto "gen-tonic,traces,with-serde"
   cargo_feature opentelemetry-proto "gen-tonic,traces,build-client"

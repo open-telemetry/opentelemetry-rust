@@ -26,7 +26,9 @@ path = "tests/grpc_build.rs"
 required-features = ["with-serde", "gen-protoc"]
 
 [features]
-default = ["gen-tonic", "gen-protoc", "traces", "metrics", "zpages", "build-server", "build-client"]
+default = []
+
+full = ["gen-tonic", "gen-protoc", "traces", "metrics", "zpages", "build-server", "build-client", "with-serde"]
 
 # crates used to generate rs files
 gen-tonic = ["tonic", "tonic-build", "prost"]
