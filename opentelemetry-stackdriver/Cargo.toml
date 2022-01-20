@@ -6,6 +6,7 @@ documentation = "https://docs.rs/opentelemetry-stackdriver/"
 repository = "https://github.com/open-telemetry/opentelemetry-rust"
 license = "Apache-2.0"
 edition = "2018"
+exclude = ["/proto"]
 
 [dependencies]
 async-trait = "0.1.48"
@@ -15,7 +16,6 @@ hex = "0.4"
 http = "0.2"
 hyper = "0.14.2"
 hyper-rustls = { version = "0.22.1", optional = true }
-log = "0.4"
 opentelemetry = { version = "0.16", path = "../opentelemetry" }
 prost = "0.9"
 prost-types = "0.9"
