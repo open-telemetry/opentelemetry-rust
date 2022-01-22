@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-http"
-version = "0.5.0"
+version = "0.6.0"
 description = "Helper implementations for exchange of traces and metrics over HTTP"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust"
 repository = "https://github.com/open-telemetry/opentelemetry-rust"
@@ -13,6 +13,6 @@ async-trait = "0.1"
 bytes = "1"
 http = "0.2"
 isahc = { version = "1.4", default-features = false, optional = true }
-opentelemetry = { version = "0.16", path = "../opentelemetry", features = ["trace"] }
+opentelemetry = { version = "0.17", path = "../opentelemetry", features = ["trace"] }
 reqwest = { version = "0.11", default-features = false, features = ["blocking"], optional = true }
 surf = { version = "2.0", default-features = false, optional = true }
