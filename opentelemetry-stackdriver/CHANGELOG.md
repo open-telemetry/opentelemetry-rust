@@ -11,6 +11,10 @@
 - Update gcp_auth and yup-oauth2 to latest versions #700
 - Update to opentelemetry v0.17.0
 
+### Fixed
+
+- Avoid calling log from inside exporter #709
+
 ## v0.12.0
 
 ### Changed
