@@ -23,7 +23,12 @@ use std::{
 use async_trait::async_trait;
 use futures::stream::StreamExt;
 use opentelemetry::{
-    sdk::export::trace::{ExportResult, SpanData, SpanExporter},
+    global::handle_error,
+    sdk::export::{
+        trace::{ExportResult, SpanData, SpanExporter},
+        ExportError,
+    },
+    trace::TraceError,
     Value,
 };
 use thiserror::Error;
@@ -61,22 +66,6 @@ pub struct StackDriverExporter {
     maximum_shutdown_duration: Duration,
 }
 
-impl fmt::Debug for StackDriverExporter {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        #[allow(clippy::unneeded_field_pattern)]
-        let Self {
-            maximum_shutdown_duration,
-            pending_count,
-            tx: _,
-        } = self;
-        f.debug_struct("StackDriverExporter")
-            .field("tx", &"(elided)")
-            .field("pending_count", pending_count)
-            .field("maximum_shutdown_duration", maximum_shutdown_duration)
-            .finish()
-    }
-}
-
 impl StackDriverExporter {
     pub fn builder() -> Builder {
         Builder::default()
@@ -91,10 +80,7 @@ impl StackDriverExporter {
 impl SpanExporter for StackDriverExporter {
     async fn export(&mut self, batch: Vec<SpanData>) -> ExportResult {
         match self.tx.try_send(batch) {
-            Err(e) => {
-                log::error!("Unable to send to export_inner {:?}", e);
-                Err(e.into())
-            }
+            Err(e) => Err(e.into()),
             Ok(()) => {
                 self.pending_count.fetch_add(1, Ordering::Relaxed);
                 Ok(())
@@ -109,6 +95,22 @@ impl SpanExporter for StackDriverExporter {
             std::thread::yield_now();
             // Spin for a bit and give the inner export some time to upload, with a timeout.
         }
+    }
+}
+
+impl fmt::Debug for StackDriverExporter {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        #[allow(clippy::unneeded_field_pattern)]
+        let Self {
+            tx: _,
+            pending_count,
+            maximum_shutdown_duration,
+        } = self;
+        f.debug_struct("StackDriverExporter")
+            .field("tx", &"(elided)")
+            .field("pending_count", pending_count)
+            .field("maximum_shutdown_duration", maximum_shutdown_duration)
+            .finish()
     }
 }
 
@@ -141,10 +143,13 @@ impl Builder {
         self
     }
 
-    pub async fn build(
+    pub async fn build<A: Authorizer>(
         self,
-        authenticator: impl Authorizer,
-    ) -> Result<(StackDriverExporter, impl Future<Output = ()>), Error> {
+        authenticator: A,
+    ) -> Result<(StackDriverExporter, impl Future<Output = ()>), Error>
+    where
+        Error: From<A::Error>,
+    {
         let Self {
             maximum_shutdown_duration,
             num_concurrent_requests,
@@ -217,7 +222,10 @@ struct ExporterContext<'a, A> {
     scopes: Arc<Vec<&'static str>>,
 }
 
-impl<A: Authorizer> ExporterContext<'_, A> {
+impl<A: Authorizer> ExporterContext<'_, A>
+where
+    Error: From<A::Error>,
+{
     async fn export(mut self, batch: Vec<SpanData>) {
         use proto::devtools::cloudtrace::v2::span::time_event::Value;
 
@@ -327,9 +335,9 @@ impl<A: Authorizer> ExporterContext<'_, A> {
 
         self.pending_count.fetch_sub(1, Ordering::Relaxed);
         if let Err(e) = self.authorizer.authorize(&mut req, &self.scopes).await {
-            log::error!("StackDriver authentication failed {}", e);
+            handle_error(TraceError::from(Error::from(e)));
         } else if let Err(e) = self.trace_client.batch_write_spans(req).await {
-            log::error!("StackDriver push failed {}", e);
+            handle_error(TraceError::from(Error::TonicRpc(e)));
         }
 
         let client = match &mut self.log_client {
@@ -351,9 +359,9 @@ impl<A: Authorizer> ExporterContext<'_, A> {
         });
 
         if let Err(e) = self.authorizer.authorize(&mut req, &self.scopes).await {
-            log::error!("StackDriver authentication failed {}", e);
+            handle_error(TraceError::from(Error::from(e)));
         } else if let Err(e) = client.client.write_log_entries(req).await {
-            log::error!("StackDriver push failed {}", e);
+            handle_error(TraceError::from(Error::TonicRpc(e)));
         }
     }
 }
@@ -498,10 +506,18 @@ pub enum Error {
     #[error("{0}")]
     Other(#[from] Box<dyn std::error::Error + Send + Sync>),
     #[error("tonic error: {0}")]
-    Tonic(#[from] tonic::transport::Error),
+    TonicRpc(#[from] tonic::Status),
+    #[error("tonic error: {0}")]
+    TonicTransport(#[from] tonic::transport::Error),
     #[cfg(feature = "yup-oauth2")]
     #[error("authorizer error: {0}")]
     Yup(#[from] yup_oauth2::Error),
+}
+
+impl ExportError for Error {
+    fn exporter_name(&self) -> &'static str {
+        "stackdriver"
+    }
 }
 
 /// As defined in https://cloud.google.com/logging/docs/reference/v2/rpc/google.logging.type#google.logging.type.LogSeverity.

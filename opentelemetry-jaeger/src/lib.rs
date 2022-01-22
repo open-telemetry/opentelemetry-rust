@@ -97,7 +97,7 @@
 //!         // optionally set username and password as well.
 //!         .with_collector_username("username")
 //!         .with_collector_password("s3cr3t")
-//!         .install_simple()?;
+//!         .install_batch(opentelemetry::runtime::Tokio)?;
 //!
 //!     tracer.in_span("doing_work", |cx| {
 //!         // Traced app logic here...
