@@ -4,6 +4,11 @@
 
 ### Changed
 
+- Send export errors to global error handler (#705)
+- Return `impl Future` to avoid spawning inside library (#703)
+- Implement builder API to simplify configuration (#702)
+- Use TLS configuration provided by tonic (#702)
+- Optionally send events to Cloud Logging (#702)
 - Exclude default `tonic-build` features #635
 - Update `gcp_auth` dependency to `0.5.0` #639
 - Include the server's message in error display #642
