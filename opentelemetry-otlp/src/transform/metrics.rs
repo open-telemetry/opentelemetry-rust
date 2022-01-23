@@ -212,11 +212,13 @@ pub(crate) mod tonic {
                 .into_iter()
                 .map(|(resource, metric_map)| ResourceMetrics {
                     resource: Some(resource.into()),
+                    schema_url: "".to_string(), // todo: replace with actual schema url.
                     instrumentation_library_metrics: metric_map
                         .into_iter()
                         .map(
                             |(instrumentation_library, metrics)| InstrumentationLibraryMetrics {
                                 instrumentation_library: Some(instrumentation_library.into()),
+                                schema_url: "".to_string(), // todo: replace with actual schema url.
                                 metrics: metrics
                                     .into_iter()
                                     .map(|(_k, v)| v)
@@ -381,6 +383,7 @@ mod tests {
                             version: instrumentation_version.unwrap_or("").to_string(),
                         },
                     ),
+                    schema_url: "".to_string(), // todo: replace with actual schema url.
                     metrics: metrics
                         .into_iter()
                         .map(|(name, data_points)| get_metric_with_name(name, data_points))
@@ -389,6 +392,7 @@ mod tests {
             }
             ResourceMetrics {
                 resource: Some(resource),
+                schema_url: "".to_string(), // todo: replace with actual schema url.
                 instrumentation_library_metrics,
             }
         }

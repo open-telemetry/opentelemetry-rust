@@ -34,8 +34,9 @@ fn build_grpc() {
     // makes the error message unreadable.
     // If you find the test passed locally but not in CI pipeline. Try update the dependency. It may
     // be a new version of protobuf or other dependencies
-    assert_eq!(
-        before_build, after_build,
+    // DO NOT use assert_eq! here as it will print all generated file when proto changes.
+    assert!(
+        before_build == after_build,
         "generated file has changed, please commit the change file and rerun the test"
     );
 }
