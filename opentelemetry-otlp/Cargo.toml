@@ -28,16 +28,13 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-opentelemetry = { version = "0.16", default-features = false, features = ["trace"], path = "../opentelemetry" }
 async-trait = "0.1"
-thiserror = "1.0"
 futures = { version = "0.3", default-features = false, features = ["std"] }
 futures-util = { version = "0.3", default-features = false, features = ["std"] }
 
-opentelemetry-proto = { path = "../opentelemetry-proto", default-features = false }
+opentelemetry-proto = { version = "0.1", path = "../opentelemetry-proto", default-features = false }
 
 grpcio = { version = "0.9", optional = true }
-http = "0.2"
 opentelemetry = { version = "0.17", default-features = false, features = ["trace"], path = "../opentelemetry" }
 opentelemetry-http = { version = "0.6", path = "../opentelemetry-http", optional = true }
 protobuf = { version = "2.18", optional = true }
@@ -46,16 +43,11 @@ prost = { version = "0.9", optional = true }
 tonic = { version = "0.6.2", optional = true }
 tokio = { version = "1.0", features = ["full"], optional = true }
 
-opentelemetry-http = { version = "0.5", path = "../opentelemetry-http", optional = true }
 reqwest = { version = "0.11", optional = true, default-features = false }
 surf = { version = "2.0", optional = true, default-features = false }
 http = { version = "0.2", optional = true }
-
 serde = { version = "1.0", features = ["derive"], optional = true }
-surf = { version = "2.0", optional = true, default-features = false }
 thiserror = "1.0"
-tokio = { version = "1.0", features = ["full"], optional = true }
-tonic = { version = "0.6.2", optional = true }
 
 [dev-dependencies]
 tokio-stream = { version = "0.1", features = ["net"] }
