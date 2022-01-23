@@ -1,5 +1,28 @@
 # Changelog
 
+## [v0.17.0](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.16.0...v0.17.0)
+
+### Changed
+
+- Implement `Serialize` & `Deserialize` for `Sampler`, `SpanLimits` #622, #626
+- Allow `&'static str` and `string` in span methods #654
+- Allow `String` data in instrumentation library. #670
+- Remove `std::fmt::Debug` and `'static` requirements from `TracerProvider`,
+  `Tracer`, and `Span` #664
+- Remove unused `Tracer::invalid` method #683 
+- Split `TracerProvider::tracer` and `TracerProvider::versioned_tracer` methods #682
+- Reduce dependency on `futures` crate #684
+- Switch to parent context references #687
+- Spec-compliant trace and span ids #689
+- Optimize span creation internals #693
+- Add instrumentation library to `ShouldSample` parameters #695
+
+### Fixed
+
+- Fix default resource detection for tracer provider #641
+- Detect `service.name` from `OTEL_SERVICE_NAME` and `OTEL_RESOURCE_ATTRIBUTES` #662
+- Fix `TraceState::valid_key` crashes #665
+
 ## [v0.16.0](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.15.0...v0.16.0)
 
 ### Changed
