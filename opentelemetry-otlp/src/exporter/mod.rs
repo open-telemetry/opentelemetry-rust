@@ -6,7 +6,7 @@
 use crate::exporter::grpcio::GrpcioExporterBuilder;
 #[cfg(feature = "http-proto")]
 use crate::exporter::http::HttpExporterBuilder;
-#[cfg(feature = "tonic")]
+#[cfg(feature = "grpc-tonic")]
 use crate::exporter::tonic::TonicExporterBuilder;
 use crate::Protocol;
 use std::str::FromStr;
@@ -30,7 +30,7 @@ pub const OTEL_EXPORTER_OTLP_TRACES_TIMEOUT: &str = "OTEL_EXPORTER_OTLP_TRACES_T
 pub(crate) mod grpcio;
 #[cfg(feature = "http-proto")]
 pub(crate) mod http;
-#[cfg(feature = "tonic")]
+#[cfg(feature = "grpc-tonic")]
 pub(crate) mod tonic;
 
 /// Configuration for the OTLP exporter.
@@ -62,7 +62,7 @@ pub trait HasExportConfig {
     fn export_config(&mut self) -> &mut ExportConfig;
 }
 
-#[cfg(feature = "tonic")]
+#[cfg(feature = "grpc-tonic")]
 impl HasExportConfig for TonicExporterBuilder {
     fn export_config(&mut self) -> &mut ExportConfig {
         &mut self.exporter_config
@@ -155,7 +155,7 @@ impl<B: HasExportConfig> WithExportConfig for B {
 }
 
 #[cfg(test)]
-#[cfg(feature = "tonic")]
+#[cfg(feature = "grpc-tonic")]
 mod tests {
     use crate::exporter::{
         WithExportConfig, OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_TIMEOUT,

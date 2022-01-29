@@ -1,12 +1,20 @@
 use opentelemetry::sdk::trace::EvictedHashMap;
 use opentelemetry::{Array, Value};
 
+#[cfg(feature = "traces")]
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-#[cfg(feature = "tonic")]
-pub(crate) mod tonic {
+#[cfg(feature = "traces")]
+pub(crate) fn to_nanos(time: SystemTime) -> u64 {
+    time.duration_since(UNIX_EPOCH)
+        .unwrap_or_else(|_| Duration::from_secs(0))
+        .as_nanos() as u64
+}
+
+#[cfg(feature = "gen-tonic")]
+pub mod tonic {
     use super::*;
-    use crate::proto::common::v1::{
+    use crate::proto::tonic::common::v1::{
         any_value, AnyValue, ArrayValue, InstrumentationLibrary, KeyValue,
     };
     use std::borrow::Cow;
@@ -20,7 +28,7 @@ pub(crate) mod tonic {
         }
     }
 
-    pub(crate) struct Attributes(pub(crate) ::std::vec::Vec<crate::proto::common::v1::KeyValue>);
+    pub struct Attributes(pub ::std::vec::Vec<crate::proto::tonic::common::v1::KeyValue>);
 
     impl From<EvictedHashMap> for Attributes {
         fn from(attributes: EvictedHashMap) -> Self {
@@ -81,95 +89,13 @@ pub(crate) mod tonic {
     }
 }
 
-#[cfg(feature = "http-proto")]
-pub(crate) mod prost {
-    use super::*;
-    use crate::proto::prost::common::v1::{
-        any_value, AnyValue, ArrayValue, InstrumentationLibrary, KeyValue,
-    };
-    use std::borrow::Cow;
-
-    impl From<opentelemetry::sdk::InstrumentationLibrary> for InstrumentationLibrary {
-        fn from(library: opentelemetry::sdk::InstrumentationLibrary) -> Self {
-            InstrumentationLibrary {
-                name: library.name.to_string(),
-                version: library.version.unwrap_or(Cow::Borrowed("")).to_string(),
-            }
-        }
-    }
-
-    pub(crate) struct Attributes(
-        pub(crate) ::std::vec::Vec<crate::proto::prost::common::v1::KeyValue>,
-    );
-
-    impl From<EvictedHashMap> for Attributes {
-        fn from(attributes: EvictedHashMap) -> Self {
-            Attributes(
-                attributes
-                    .into_iter()
-                    .map(|(key, value)| KeyValue {
-                        key: key.as_str().to_string(),
-                        value: Some(value.into()),
-                    })
-                    .collect(),
-            )
-        }
-    }
-
-    impl From<Vec<opentelemetry::KeyValue>> for Attributes {
-        fn from(kvs: Vec<opentelemetry::KeyValue>) -> Self {
-            Attributes(
-                kvs.into_iter()
-                    .map(|api_kv| KeyValue {
-                        key: api_kv.key.as_str().to_string(),
-                        value: Some(api_kv.value.into()),
-                    })
-                    .collect(),
-            )
-        }
-    }
-
-    impl From<Value> for AnyValue {
-        fn from(value: Value) -> Self {
-            AnyValue {
-                value: match value {
-                    Value::Bool(val) => Some(any_value::Value::BoolValue(val)),
-                    Value::I64(val) => Some(any_value::Value::IntValue(val)),
-                    Value::F64(val) => Some(any_value::Value::DoubleValue(val)),
-                    Value::String(val) => Some(any_value::Value::StringValue(val.into_owned())),
-                    Value::Array(array) => Some(any_value::Value::ArrayValue(match array {
-                        Array::Bool(vals) => array_into_proto(vals),
-                        Array::I64(vals) => array_into_proto(vals),
-                        Array::F64(vals) => array_into_proto(vals),
-                        Array::String(vals) => array_into_proto(vals),
-                    })),
-                },
-            }
-        }
-    }
-
-    fn array_into_proto<T>(vals: Vec<T>) -> ArrayValue
-    where
-        Value: From<T>,
-    {
-        let values = vals
-            .into_iter()
-            .map(|val| AnyValue::from(Value::from(val)))
-            .collect();
-
-        ArrayValue { values }
-    }
-}
-
-#[cfg(feature = "grpc-sys")]
-pub(crate) mod grpcio {
+#[cfg(feature = "gen-protoc")]
+pub mod grpcio {
     use super::*;
     use crate::proto::grpcio::common::{AnyValue, ArrayValue, KeyValue};
     use protobuf::RepeatedField;
 
-    pub(crate) struct Attributes(
-        pub(crate) ::protobuf::RepeatedField<crate::proto::grpcio::common::KeyValue>,
-    );
+    pub struct Attributes(pub ::protobuf::RepeatedField<crate::proto::grpcio::common::KeyValue>);
 
     impl From<EvictedHashMap> for Attributes {
         fn from(attributes: EvictedHashMap) -> Self {
@@ -236,10 +162,4 @@ pub(crate) mod grpcio {
         array_value.set_values(values);
         array_value
     }
-}
-
-pub(crate) fn to_nanos(time: SystemTime) -> u64 {
-    time.duration_since(UNIX_EPOCH)
-        .unwrap_or_else(|_| Duration::from_secs(0))
-        .as_nanos() as u64
 }

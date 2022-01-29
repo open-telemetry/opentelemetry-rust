@@ -20,24 +20,14 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 opentelemetry = { version = "0.17", path = "../opentelemetry", default-features = false, features = ["trace"] }
+opentelemetry-proto = { path = "../opentelemetry-proto", features = ["with-serde", "zpages", "gen-protoc"], default-features = false }
 async-channel = "1.6"
 futures-channel = "0.3"
 futures-util = { version = "0.3", default-features = false, features = ["std"] }
 lazy_static = "1.4.0"
-grpcio = "0.9"
-protobuf = { version = "2.23.0", features = ["with-serde"] }
 serde = "1.0"
 serde_json = "1.0"
-
-[features]
-# Hack to get the serde trait implemented in protobuf generated types.
-default = ["with-serde"]
-with-serde = ["protobuf/with-serde"]
 
 [dev-dependencies]
 tokio = { version = "1.0", features = ["full"] }
 opentelemetry = { path = "../opentelemetry", default-features = false, features = ["trace", "testing"] }
-
-[build-dependencies]
-protobuf-codegen = "2.16"
-protoc-grpcio = "2.0"

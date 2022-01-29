@@ -18,8 +18,9 @@ fn build_grpc() {
             "src/proto/opentelemetry-proto/opentelemetry/proto/collector/trace/v1/trace_service.proto",
             "src/proto/opentelemetry-proto/opentelemetry/proto/metrics/v1/metrics.proto",
             "src/proto/opentelemetry-proto/opentelemetry/proto/collector/metrics/v1/metrics_service.proto",
+            "src/proto/tracez.proto"
         ],
-        &["src/proto/opentelemetry-proto/"],
+        &["src/proto/opentelemetry-proto/", "src/proto"],
         "src/proto/grpcio",
         Some(Customize {
             expose_fields: Some(true),
@@ -33,6 +34,7 @@ fn build_grpc() {
     // makes the error message unreadable.
     // If you find the test passed locally but not in CI pipeline. Try update the dependency. It may
     // be a new version of protobuf or other dependencies
+    // DO NOT use assert_eq! here as it will print all generated file when proto changes.
     assert!(
         before_build == after_build,
         "generated file has changed, please commit the change file and rerun the test"

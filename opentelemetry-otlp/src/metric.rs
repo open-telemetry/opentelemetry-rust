@@ -8,30 +8,30 @@ use crate::exporter::{
     tonic::{TonicConfig, TonicExporterBuilder},
     ExportConfig,
 };
-#[cfg(feature = "tonic")]
-use crate::proto::collector::metrics::v1::{
-    metrics_service_client::MetricsServiceClient, ExportMetricsServiceRequest,
-};
 use crate::transform::{record_to_metric, sink, CheckpointedMetrics};
 use crate::{Error, OtlpPipeline};
 use futures_util::Stream;
 use opentelemetry::metrics::{Descriptor, Result};
-use opentelemetry::sdk::export::metrics::{AggregatorSelector, ExportKindSelector};
-use opentelemetry::sdk::metrics::{PushController, PushControllerWorker};
 use opentelemetry::sdk::{
-    export::metrics::{CheckpointSet, ExportKind, ExportKindFor, Exporter},
-    metrics::selectors,
+    export::metrics::{
+        AggregatorSelector, CheckpointSet, ExportKind, ExportKindFor, ExportKindSelector, Exporter,
+    },
+    metrics::{selectors, PushController, PushControllerWorker},
     InstrumentationLibrary, Resource,
 };
 use opentelemetry::{global, KeyValue};
+#[cfg(feature = "grpc-tonic")]
+use opentelemetry_proto::tonic::collector::metrics::v1::{
+    metrics_service_client::MetricsServiceClient, ExportMetricsServiceRequest,
+};
 use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::time;
 use tonic::metadata::KeyAndValueRef;
-#[cfg(feature = "tonic")]
+#[cfg(feature = "grpc-tonic")]
 use tonic::transport::Channel;
-#[cfg(feature = "tonic")]
+#[cfg(feature = "grpc-tonic")]
 use tonic::Request;
 
 impl OtlpPipeline {
@@ -61,7 +61,7 @@ impl OtlpPipeline {
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum MetricsExporterBuilder {
-    #[cfg(feature = "tonic")]
+    #[cfg(feature = "grpc-tonic")]
     Tonic(TonicExporterBuilder),
 }
 
@@ -72,7 +72,7 @@ impl MetricsExporterBuilder {
         ES: ExportKindFor + Sync + Send + 'static,
     {
         match self {
-            #[cfg(feature = "tonic")]
+            #[cfg(feature = "grpc-tonic")]
             MetricsExporterBuilder::Tonic(builder) => Ok(MetricsExporter::new(
                 builder.exporter_config,
                 builder.tonic_config,
@@ -227,7 +227,7 @@ where
 }
 
 enum ExportMsg {
-    #[cfg(feature = "tonic")]
+    #[cfg(feature = "grpc-tonic")]
     Export(tonic::Request<ExportMetricsServiceRequest>),
     Shutdown,
 }
@@ -242,7 +242,7 @@ pub struct MetricsExporter {
 
 impl Debug for MetricsExporter {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        #[cfg(feature = "tonic")]
+        #[cfg(feature = "grpc-tonic")]
         f.debug_struct("OTLP Metric Exporter")
             .field("grpc_client", &"tonic")
             .finish()
@@ -257,7 +257,7 @@ impl ExportKindFor for MetricsExporter {
 
 impl MetricsExporter {
     /// Create a new OTLP metrics exporter.
-    #[cfg(feature = "tonic")]
+    #[cfg(feature = "grpc-tonic")]
     pub fn new<T: ExportKindFor + Send + Sync + 'static>(
         config: ExportConfig,
         mut tonic_config: TonicConfig,

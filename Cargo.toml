@@ -7,6 +7,7 @@ members = [
     "opentelemetry-http",
     "opentelemetry-jaeger",
     "opentelemetry-otlp",
+    "opentelemetry-proto",
     "opentelemetry-prometheus",
     "opentelemetry-aws",
     "opentelemetry-semantic-conventions",

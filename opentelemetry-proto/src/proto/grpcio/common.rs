@@ -50,6 +50,7 @@ pub enum AnyValue_oneof_value {
     double_value(f64),
     array_value(ArrayValue),
     kvlist_value(KeyValueList),
+    bytes_value(::std::vec::Vec<u8>),
 }
 
 impl AnyValue {
@@ -278,6 +279,55 @@ impl AnyValue {
             KeyValueList::new()
         }
     }
+
+    // bytes bytes_value = 7;
+
+
+    pub fn get_bytes_value(&self) -> &[u8] {
+        match self.value {
+            ::std::option::Option::Some(AnyValue_oneof_value::bytes_value(ref v)) => v,
+            _ => &[],
+        }
+    }
+    pub fn clear_bytes_value(&mut self) {
+        self.value = ::std::option::Option::None;
+    }
+
+    pub fn has_bytes_value(&self) -> bool {
+        match self.value {
+            ::std::option::Option::Some(AnyValue_oneof_value::bytes_value(..)) => true,
+            _ => false,
+        }
+    }
+
+    // Param is passed by value, moved
+    pub fn set_bytes_value(&mut self, v: ::std::vec::Vec<u8>) {
+        self.value = ::std::option::Option::Some(AnyValue_oneof_value::bytes_value(v))
+    }
+
+    // Mutable pointer to the field.
+    pub fn mut_bytes_value(&mut self) -> &mut ::std::vec::Vec<u8> {
+        if let ::std::option::Option::Some(AnyValue_oneof_value::bytes_value(_)) = self.value {
+        } else {
+            self.value = ::std::option::Option::Some(AnyValue_oneof_value::bytes_value(::std::vec::Vec::new()));
+        }
+        match self.value {
+            ::std::option::Option::Some(AnyValue_oneof_value::bytes_value(ref mut v)) => v,
+            _ => panic!(),
+        }
+    }
+
+    // Take field
+    pub fn take_bytes_value(&mut self) -> ::std::vec::Vec<u8> {
+        if self.has_bytes_value() {
+            match self.value.take() {
+                ::std::option::Option::Some(AnyValue_oneof_value::bytes_value(v)) => v,
+                _ => panic!(),
+            }
+        } else {
+            ::std::vec::Vec::new()
+        }
+    }
 }
 
 impl ::protobuf::Message for AnyValue {
@@ -335,6 +385,12 @@ impl ::protobuf::Message for AnyValue {
                     }
                     self.value = ::std::option::Option::Some(AnyValue_oneof_value::kvlist_value(is.read_message()?));
                 },
+                7 => {
+                    if wire_type != ::protobuf::wire_format::WireTypeLengthDelimited {
+                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
+                    }
+                    self.value = ::std::option::Option::Some(AnyValue_oneof_value::bytes_value(is.read_bytes()?));
+                },
                 _ => {
                     ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
                 },
@@ -369,6 +425,9 @@ impl ::protobuf::Message for AnyValue {
                     let len = v.compute_size();
                     my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
                 },
+                &AnyValue_oneof_value::bytes_value(ref v) => {
+                    my_size += ::protobuf::rt::bytes_size(7, &v);
+                },
             };
         }
         my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
@@ -400,6 +459,9 @@ impl ::protobuf::Message for AnyValue {
                     os.write_tag(6, ::protobuf::wire_format::WireTypeLengthDelimited)?;
                     os.write_raw_varint32(v.get_cached_size())?;
                     v.write_to_with_cached_sizes(os)?;
+                },
+                &AnyValue_oneof_value::bytes_value(ref v) => {
+                    os.write_bytes(7, v)?;
                 },
             };
         }
@@ -471,6 +533,11 @@ impl ::protobuf::Message for AnyValue {
                 AnyValue::has_kvlist_value,
                 AnyValue::get_kvlist_value,
             ));
+            fields.push(::protobuf::reflect::accessor::make_singular_bytes_accessor::<_>(
+                "bytes_value",
+                AnyValue::has_bytes_value,
+                AnyValue::get_bytes_value,
+            ));
             ::protobuf::reflect::MessageDescriptor::new_pb_name::<AnyValue>(
                 "AnyValue",
                 fields,
@@ -487,6 +554,7 @@ impl ::protobuf::Message for AnyValue {
 
 impl ::protobuf::Clear for AnyValue {
     fn clear(&mut self) {
+        self.value = ::std::option::Option::None;
         self.value = ::std::option::Option::None;
         self.value = ::std::option::Option::None;
         self.value = ::std::option::Option::None;
@@ -1476,21 +1544,22 @@ impl ::protobuf::reflect::ProtobufValue for InstrumentationLibrary {
 
 static file_descriptor_proto_data: &'static [u8] = b"\
     \n*opentelemetry/proto/common/v1/common.proto\x12\x1dopentelemetry.proto\
-    .common.v1\"\xbd\x02\n\x08AnyValue\x12#\n\x0cstring_value\x18\x01\x20\
+    .common.v1\"\xe0\x02\n\x08AnyValue\x12#\n\x0cstring_value\x18\x01\x20\
     \x01(\tH\0R\x0bstringValue\x12\x1f\n\nbool_value\x18\x02\x20\x01(\x08H\0\
     R\tboolValue\x12\x1d\n\tint_value\x18\x03\x20\x01(\x03H\0R\x08intValue\
     \x12#\n\x0cdouble_value\x18\x04\x20\x01(\x01H\0R\x0bdoubleValue\x12L\n\
     \x0barray_value\x18\x05\x20\x01(\x0b2).opentelemetry.proto.common.v1.Arr\
     ayValueH\0R\narrayValue\x12P\n\x0ckvlist_value\x18\x06\x20\x01(\x0b2+.op\
-    entelemetry.proto.common.v1.KeyValueListH\0R\x0bkvlistValueB\x07\n\x05va\
-    lue\"M\n\nArrayValue\x12?\n\x06values\x18\x01\x20\x03(\x0b2'.opentelemet\
-    ry.proto.common.v1.AnyValueR\x06values\"O\n\x0cKeyValueList\x12?\n\x06va\
-    lues\x18\x01\x20\x03(\x0b2'.opentelemetry.proto.common.v1.KeyValueR\x06v\
-    alues\"[\n\x08KeyValue\x12\x10\n\x03key\x18\x01\x20\x01(\tR\x03key\x12=\
-    \n\x05value\x18\x02\x20\x01(\x0b2'.opentelemetry.proto.common.v1.AnyValu\
-    eR\x05value\"8\n\x0eStringKeyValue\x12\x10\n\x03key\x18\x01\x20\x01(\tR\
-    \x03key\x12\x14\n\x05value\x18\x02\x20\x01(\tR\x05value\"F\n\x16Instrume\
-    ntationLibrary\x12\x12\n\x04name\x18\x01\x20\x01(\tR\x04name\x12\x18\n\
+    entelemetry.proto.common.v1.KeyValueListH\0R\x0bkvlistValue\x12!\n\x0bby\
+    tes_value\x18\x07\x20\x01(\x0cH\0R\nbytesValueB\x07\n\x05value\"M\n\nArr\
+    ayValue\x12?\n\x06values\x18\x01\x20\x03(\x0b2'.opentelemetry.proto.comm\
+    on.v1.AnyValueR\x06values\"O\n\x0cKeyValueList\x12?\n\x06values\x18\x01\
+    \x20\x03(\x0b2'.opentelemetry.proto.common.v1.KeyValueR\x06values\"[\n\
+    \x08KeyValue\x12\x10\n\x03key\x18\x01\x20\x01(\tR\x03key\x12=\n\x05value\
+    \x18\x02\x20\x01(\x0b2'.opentelemetry.proto.common.v1.AnyValueR\x05value\
+    \"<\n\x0eStringKeyValue\x12\x10\n\x03key\x18\x01\x20\x01(\tR\x03key\x12\
+    \x14\n\x05value\x18\x02\x20\x01(\tR\x05value:\x02\x18\x01\"F\n\x16Instru\
+    mentationLibrary\x12\x12\n\x04name\x18\x01\x20\x01(\tR\x04name\x12\x18\n\
     \x07version\x18\x02\x20\x01(\tR\x07versionBq\n\x20io.opentelemetry.proto\
     .common.v1B\x0bCommonProtoP\x01Z>github.com/open-telemetry/opentelemetry\
     -proto/gen/go/common/v1b\x06proto3\

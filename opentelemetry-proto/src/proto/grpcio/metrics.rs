@@ -29,6 +29,7 @@ pub struct ResourceMetrics {
     // message fields
     pub resource: ::protobuf::SingularPtrField<super::resource::Resource>,
     pub instrumentation_library_metrics: ::protobuf::RepeatedField<InstrumentationLibraryMetrics>,
+    pub schema_url: ::std::string::String,
     // special fields
     #[cfg_attr(feature = "with-serde", serde(skip))]
     pub unknown_fields: ::protobuf::UnknownFields,
@@ -104,6 +105,32 @@ impl ResourceMetrics {
     pub fn take_instrumentation_library_metrics(&mut self) -> ::protobuf::RepeatedField<InstrumentationLibraryMetrics> {
         ::std::mem::replace(&mut self.instrumentation_library_metrics, ::protobuf::RepeatedField::new())
     }
+
+    // string schema_url = 3;
+
+
+    pub fn get_schema_url(&self) -> &str {
+        &self.schema_url
+    }
+    pub fn clear_schema_url(&mut self) {
+        self.schema_url.clear();
+    }
+
+    // Param is passed by value, moved
+    pub fn set_schema_url(&mut self, v: ::std::string::String) {
+        self.schema_url = v;
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_schema_url(&mut self) -> &mut ::std::string::String {
+        &mut self.schema_url
+    }
+
+    // Take field
+    pub fn take_schema_url(&mut self) -> ::std::string::String {
+        ::std::mem::replace(&mut self.schema_url, ::std::string::String::new())
+    }
 }
 
 impl ::protobuf::Message for ResourceMetrics {
@@ -131,6 +158,9 @@ impl ::protobuf::Message for ResourceMetrics {
                 2 => {
                     ::protobuf::rt::read_repeated_message_into(wire_type, is, &mut self.instrumentation_library_metrics)?;
                 },
+                3 => {
+                    ::protobuf::rt::read_singular_proto3_string_into(wire_type, is, &mut self.schema_url)?;
+                },
                 _ => {
                     ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
                 },
@@ -151,6 +181,9 @@ impl ::protobuf::Message for ResourceMetrics {
             let len = value.compute_size();
             my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
         };
+        if !self.schema_url.is_empty() {
+            my_size += ::protobuf::rt::string_size(3, &self.schema_url);
+        }
         my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
         self.cached_size.set(my_size);
         my_size
@@ -167,6 +200,9 @@ impl ::protobuf::Message for ResourceMetrics {
             os.write_raw_varint32(v.get_cached_size())?;
             v.write_to_with_cached_sizes(os)?;
         };
+        if !self.schema_url.is_empty() {
+            os.write_string(3, &self.schema_url)?;
+        }
         os.write_unknown_fields(self.get_unknown_fields())?;
         ::std::result::Result::Ok(())
     }
@@ -215,6 +251,11 @@ impl ::protobuf::Message for ResourceMetrics {
                 |m: &ResourceMetrics| { &m.instrumentation_library_metrics },
                 |m: &mut ResourceMetrics| { &mut m.instrumentation_library_metrics },
             ));
+            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeString>(
+                "schema_url",
+                |m: &ResourceMetrics| { &m.schema_url },
+                |m: &mut ResourceMetrics| { &mut m.schema_url },
+            ));
             ::protobuf::reflect::MessageDescriptor::new_pb_name::<ResourceMetrics>(
                 "ResourceMetrics",
                 fields,
@@ -233,6 +274,7 @@ impl ::protobuf::Clear for ResourceMetrics {
     fn clear(&mut self) {
         self.resource.clear();
         self.instrumentation_library_metrics.clear();
+        self.schema_url.clear();
         self.unknown_fields.clear();
     }
 }
@@ -255,6 +297,7 @@ pub struct InstrumentationLibraryMetrics {
     // message fields
     pub instrumentation_library: ::protobuf::SingularPtrField<super::common::InstrumentationLibrary>,
     pub metrics: ::protobuf::RepeatedField<Metric>,
+    pub schema_url: ::std::string::String,
     // special fields
     #[cfg_attr(feature = "with-serde", serde(skip))]
     pub unknown_fields: ::protobuf::UnknownFields,
@@ -330,6 +373,32 @@ impl InstrumentationLibraryMetrics {
     pub fn take_metrics(&mut self) -> ::protobuf::RepeatedField<Metric> {
         ::std::mem::replace(&mut self.metrics, ::protobuf::RepeatedField::new())
     }
+
+    // string schema_url = 3;
+
+
+    pub fn get_schema_url(&self) -> &str {
+        &self.schema_url
+    }
+    pub fn clear_schema_url(&mut self) {
+        self.schema_url.clear();
+    }
+
+    // Param is passed by value, moved
+    pub fn set_schema_url(&mut self, v: ::std::string::String) {
+        self.schema_url = v;
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_schema_url(&mut self) -> &mut ::std::string::String {
+        &mut self.schema_url
+    }
+
+    // Take field
+    pub fn take_schema_url(&mut self) -> ::std::string::String {
+        ::std::mem::replace(&mut self.schema_url, ::std::string::String::new())
+    }
 }
 
 impl ::protobuf::Message for InstrumentationLibraryMetrics {
@@ -357,6 +426,9 @@ impl ::protobuf::Message for InstrumentationLibraryMetrics {
                 2 => {
                     ::protobuf::rt::read_repeated_message_into(wire_type, is, &mut self.metrics)?;
                 },
+                3 => {
+                    ::protobuf::rt::read_singular_proto3_string_into(wire_type, is, &mut self.schema_url)?;
+                },
                 _ => {
                     ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
                 },
@@ -377,6 +449,9 @@ impl ::protobuf::Message for InstrumentationLibraryMetrics {
             let len = value.compute_size();
             my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
         };
+        if !self.schema_url.is_empty() {
+            my_size += ::protobuf::rt::string_size(3, &self.schema_url);
+        }
         my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
         self.cached_size.set(my_size);
         my_size
@@ -393,6 +468,9 @@ impl ::protobuf::Message for InstrumentationLibraryMetrics {
             os.write_raw_varint32(v.get_cached_size())?;
             v.write_to_with_cached_sizes(os)?;
         };
+        if !self.schema_url.is_empty() {
+            os.write_string(3, &self.schema_url)?;
+        }
         os.write_unknown_fields(self.get_unknown_fields())?;
         ::std::result::Result::Ok(())
     }
@@ -441,6 +519,11 @@ impl ::protobuf::Message for InstrumentationLibraryMetrics {
                 |m: &InstrumentationLibraryMetrics| { &m.metrics },
                 |m: &mut InstrumentationLibraryMetrics| { &mut m.metrics },
             ));
+            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeString>(
+                "schema_url",
+                |m: &InstrumentationLibraryMetrics| { &m.schema_url },
+                |m: &mut InstrumentationLibraryMetrics| { &mut m.schema_url },
+            ));
             ::protobuf::reflect::MessageDescriptor::new_pb_name::<InstrumentationLibraryMetrics>(
                 "InstrumentationLibraryMetrics",
                 fields,
@@ -459,6 +542,7 @@ impl ::protobuf::Clear for InstrumentationLibraryMetrics {
     fn clear(&mut self) {
         self.instrumentation_library.clear();
         self.metrics.clear();
+        self.schema_url.clear();
         self.unknown_fields.clear();
     }
 }
@@ -5746,110 +5830,111 @@ impl ::protobuf::reflect::ProtobufValue for AggregationTemporality {
 static file_descriptor_proto_data: &'static [u8] = b"\
     \n,opentelemetry/proto/metrics/v1/metrics.proto\x12\x1eopentelemetry.pro\
     to.metrics.v1\x1a*opentelemetry/proto/common/v1/common.proto\x1a.opentel\
-    emetry/proto/resource/v1/resource.proto\"\xe0\x01\n\x0fResourceMetrics\
+    emetry/proto/resource/v1/resource.proto\"\xff\x01\n\x0fResourceMetrics\
     \x12E\n\x08resource\x18\x01\x20\x01(\x0b2).opentelemetry.proto.resource.\
     v1.ResourceR\x08resource\x12\x85\x01\n\x1finstrumentation_library_metric\
     s\x18\x02\x20\x03(\x0b2=.opentelemetry.proto.metrics.v1.InstrumentationL\
-    ibraryMetricsR\x1dinstrumentationLibraryMetrics\"\xd1\x01\n\x1dInstrumen\
-    tationLibraryMetrics\x12n\n\x17instrumentation_library\x18\x01\x20\x01(\
-    \x0b25.opentelemetry.proto.common.v1.InstrumentationLibraryR\x16instrume\
-    ntationLibrary\x12@\n\x07metrics\x18\x02\x20\x03(\x0b2&.opentelemetry.pr\
-    oto.metrics.v1.MetricR\x07metrics\"\xcf\x04\n\x06Metric\x12\x12\n\x04nam\
-    e\x18\x01\x20\x01(\tR\x04name\x12\x20\n\x0bdescription\x18\x02\x20\x01(\
-    \tR\x0bdescription\x12\x12\n\x04unit\x18\x03\x20\x01(\tR\x04unit\x12K\n\
-    \tint_gauge\x18\x04\x20\x01(\x0b2(.opentelemetry.proto.metrics.v1.IntGau\
-    geH\0R\x08intGaugeB\x02\x18\x01\x12=\n\x05gauge\x18\x05\x20\x01(\x0b2%.o\
-    pentelemetry.proto.metrics.v1.GaugeH\0R\x05gauge\x12E\n\x07int_sum\x18\
-    \x06\x20\x01(\x0b2&.opentelemetry.proto.metrics.v1.IntSumH\0R\x06intSumB\
-    \x02\x18\x01\x127\n\x03sum\x18\x07\x20\x01(\x0b2#.opentelemetry.proto.me\
-    trics.v1.SumH\0R\x03sum\x12W\n\rint_histogram\x18\x08\x20\x01(\x0b2,.ope\
-    ntelemetry.proto.metrics.v1.IntHistogramH\0R\x0cintHistogramB\x02\x18\
-    \x01\x12I\n\thistogram\x18\t\x20\x01(\x0b2).opentelemetry.proto.metrics.\
-    v1.HistogramH\0R\thistogram\x12C\n\x07summary\x18\x0b\x20\x01(\x0b2'.ope\
-    ntelemetry.proto.metrics.v1.SummaryH\0R\x07summaryB\x06\n\x04data\"]\n\
-    \x08IntGauge\x12M\n\x0bdata_points\x18\x01\x20\x03(\x0b2,.opentelemetry.\
-    proto.metrics.v1.IntDataPointR\ndataPoints:\x02\x18\x01\"Y\n\x05Gauge\
+    ibraryMetricsR\x1dinstrumentationLibraryMetrics\x12\x1d\n\nschema_url\
+    \x18\x03\x20\x01(\tR\tschemaUrl\"\xf0\x01\n\x1dInstrumentationLibraryMet\
+    rics\x12n\n\x17instrumentation_library\x18\x01\x20\x01(\x0b25.openteleme\
+    try.proto.common.v1.InstrumentationLibraryR\x16instrumentationLibrary\
+    \x12@\n\x07metrics\x18\x02\x20\x03(\x0b2&.opentelemetry.proto.metrics.v1\
+    .MetricR\x07metrics\x12\x1d\n\nschema_url\x18\x03\x20\x01(\tR\tschemaUrl\
+    \"\xcf\x04\n\x06Metric\x12\x12\n\x04name\x18\x01\x20\x01(\tR\x04name\x12\
+    \x20\n\x0bdescription\x18\x02\x20\x01(\tR\x0bdescription\x12\x12\n\x04un\
+    it\x18\x03\x20\x01(\tR\x04unit\x12K\n\tint_gauge\x18\x04\x20\x01(\x0b2(.\
+    opentelemetry.proto.metrics.v1.IntGaugeH\0R\x08intGaugeB\x02\x18\x01\x12\
+    =\n\x05gauge\x18\x05\x20\x01(\x0b2%.opentelemetry.proto.metrics.v1.Gauge\
+    H\0R\x05gauge\x12E\n\x07int_sum\x18\x06\x20\x01(\x0b2&.opentelemetry.pro\
+    to.metrics.v1.IntSumH\0R\x06intSumB\x02\x18\x01\x127\n\x03sum\x18\x07\
+    \x20\x01(\x0b2#.opentelemetry.proto.metrics.v1.SumH\0R\x03sum\x12W\n\rin\
+    t_histogram\x18\x08\x20\x01(\x0b2,.opentelemetry.proto.metrics.v1.IntHis\
+    togramH\0R\x0cintHistogramB\x02\x18\x01\x12I\n\thistogram\x18\t\x20\x01(\
+    \x0b2).opentelemetry.proto.metrics.v1.HistogramH\0R\thistogram\x12C\n\
+    \x07summary\x18\x0b\x20\x01(\x0b2'.opentelemetry.proto.metrics.v1.Summar\
+    yH\0R\x07summaryB\x06\n\x04data\"]\n\x08IntGauge\x12M\n\x0bdata_points\
+    \x18\x01\x20\x03(\x0b2,.opentelemetry.proto.metrics.v1.IntDataPointR\nda\
+    taPoints:\x02\x18\x01\"Y\n\x05Gauge\x12P\n\x0bdata_points\x18\x01\x20\
+    \x03(\x0b2/.opentelemetry.proto.metrics.v1.NumberDataPointR\ndataPoints\
+    \"\xef\x01\n\x06IntSum\x12M\n\x0bdata_points\x18\x01\x20\x03(\x0b2,.open\
+    telemetry.proto.metrics.v1.IntDataPointR\ndataPoints\x12o\n\x17aggregati\
+    on_temporality\x18\x02\x20\x01(\x0e26.opentelemetry.proto.metrics.v1.Agg\
+    regationTemporalityR\x16aggregationTemporality\x12!\n\x0cis_monotonic\
+    \x18\x03\x20\x01(\x08R\x0bisMonotonic:\x02\x18\x01\"\xeb\x01\n\x03Sum\
     \x12P\n\x0bdata_points\x18\x01\x20\x03(\x0b2/.opentelemetry.proto.metric\
-    s.v1.NumberDataPointR\ndataPoints\"\xef\x01\n\x06IntSum\x12M\n\x0bdata_p\
-    oints\x18\x01\x20\x03(\x0b2,.opentelemetry.proto.metrics.v1.IntDataPoint\
+    s.v1.NumberDataPointR\ndataPoints\x12o\n\x17aggregation_temporality\x18\
+    \x02\x20\x01(\x0e26.opentelemetry.proto.metrics.v1.AggregationTemporalit\
+    yR\x16aggregationTemporality\x12!\n\x0cis_monotonic\x18\x03\x20\x01(\x08\
+    R\x0bisMonotonic\"\xdb\x01\n\x0cIntHistogram\x12V\n\x0bdata_points\x18\
+    \x01\x20\x03(\x0b25.opentelemetry.proto.metrics.v1.IntHistogramDataPoint\
     R\ndataPoints\x12o\n\x17aggregation_temporality\x18\x02\x20\x01(\x0e26.o\
     pentelemetry.proto.metrics.v1.AggregationTemporalityR\x16aggregationTemp\
-    orality\x12!\n\x0cis_monotonic\x18\x03\x20\x01(\x08R\x0bisMonotonic:\x02\
-    \x18\x01\"\xeb\x01\n\x03Sum\x12P\n\x0bdata_points\x18\x01\x20\x03(\x0b2/\
-    .opentelemetry.proto.metrics.v1.NumberDataPointR\ndataPoints\x12o\n\x17a\
-    ggregation_temporality\x18\x02\x20\x01(\x0e26.opentelemetry.proto.metric\
-    s.v1.AggregationTemporalityR\x16aggregationTemporality\x12!\n\x0cis_mono\
-    tonic\x18\x03\x20\x01(\x08R\x0bisMonotonic\"\xdb\x01\n\x0cIntHistogram\
-    \x12V\n\x0bdata_points\x18\x01\x20\x03(\x0b25.opentelemetry.proto.metric\
-    s.v1.IntHistogramDataPointR\ndataPoints\x12o\n\x17aggregation_temporalit\
-    y\x18\x02\x20\x01(\x0e26.opentelemetry.proto.metrics.v1.AggregationTempo\
-    ralityR\x16aggregationTemporality:\x02\x18\x01\"\xd1\x01\n\tHistogram\
-    \x12S\n\x0bdata_points\x18\x01\x20\x03(\x0b22.opentelemetry.proto.metric\
-    s.v1.HistogramDataPointR\ndataPoints\x12o\n\x17aggregation_temporality\
-    \x18\x02\x20\x01(\x0e26.opentelemetry.proto.metrics.v1.AggregationTempor\
-    alityR\x16aggregationTemporality\"\\\n\x07Summary\x12Q\n\x0bdata_points\
-    \x18\x01\x20\x03(\x0b20.opentelemetry.proto.metrics.v1.SummaryDataPointR\
-    \ndataPoints\"\x91\x02\n\x0cIntDataPoint\x12E\n\x06labels\x18\x01\x20\
-    \x03(\x0b2-.opentelemetry.proto.common.v1.StringKeyValueR\x06labels\x12/\
-    \n\x14start_time_unix_nano\x18\x02\x20\x01(\x06R\x11startTimeUnixNano\
-    \x12$\n\x0etime_unix_nano\x18\x03\x20\x01(\x06R\x0ctimeUnixNano\x12\x14\
-    \n\x05value\x18\x04\x20\x01(\x10R\x05value\x12I\n\texemplars\x18\x05\x20\
-    \x03(\x0b2+.opentelemetry.proto.metrics.v1.IntExemplarR\texemplars:\x02\
-    \x18\x01\"\x85\x03\n\x0fNumberDataPoint\x12G\n\nattributes\x18\x07\x20\
-    \x03(\x0b2'.opentelemetry.proto.common.v1.KeyValueR\nattributes\x12I\n\
-    \x06labels\x18\x01\x20\x03(\x0b2-.opentelemetry.proto.common.v1.StringKe\
-    yValueR\x06labelsB\x02\x18\x01\x12/\n\x14start_time_unix_nano\x18\x02\
-    \x20\x01(\x06R\x11startTimeUnixNano\x12$\n\x0etime_unix_nano\x18\x03\x20\
-    \x01(\x06R\x0ctimeUnixNano\x12\x1d\n\tas_double\x18\x04\x20\x01(\x01H\0R\
-    \x08asDouble\x12\x17\n\x06as_int\x18\x06\x20\x01(\x10H\0R\x05asInt\x12F\
-    \n\texemplars\x18\x05\x20\x03(\x0b2(.opentelemetry.proto.metrics.v1.Exem\
-    plarR\texemplarsB\x07\n\x05value\"\xfa\x02\n\x15IntHistogramDataPoint\
-    \x12E\n\x06labels\x18\x01\x20\x03(\x0b2-.opentelemetry.proto.common.v1.S\
-    tringKeyValueR\x06labels\x12/\n\x14start_time_unix_nano\x18\x02\x20\x01(\
-    \x06R\x11startTimeUnixNano\x12$\n\x0etime_unix_nano\x18\x03\x20\x01(\x06\
-    R\x0ctimeUnixNano\x12\x14\n\x05count\x18\x04\x20\x01(\x06R\x05count\x12\
-    \x10\n\x03sum\x18\x05\x20\x01(\x10R\x03sum\x12#\n\rbucket_counts\x18\x06\
-    \x20\x03(\x06R\x0cbucketCounts\x12'\n\x0fexplicit_bounds\x18\x07\x20\x03\
-    (\x01R\x0eexplicitBounds\x12I\n\texemplars\x18\x08\x20\x03(\x0b2+.opente\
-    lemetry.proto.metrics.v1.IntExemplarR\texemplars:\x02\x18\x01\"\xbd\x03\
-    \n\x12HistogramDataPoint\x12G\n\nattributes\x18\t\x20\x03(\x0b2'.opentel\
-    emetry.proto.common.v1.KeyValueR\nattributes\x12I\n\x06labels\x18\x01\
-    \x20\x03(\x0b2-.opentelemetry.proto.common.v1.StringKeyValueR\x06labelsB\
-    \x02\x18\x01\x12/\n\x14start_time_unix_nano\x18\x02\x20\x01(\x06R\x11sta\
-    rtTimeUnixNano\x12$\n\x0etime_unix_nano\x18\x03\x20\x01(\x06R\x0ctimeUni\
-    xNano\x12\x14\n\x05count\x18\x04\x20\x01(\x06R\x05count\x12\x10\n\x03sum\
-    \x18\x05\x20\x01(\x01R\x03sum\x12#\n\rbucket_counts\x18\x06\x20\x03(\x06\
-    R\x0cbucketCounts\x12'\n\x0fexplicit_bounds\x18\x07\x20\x03(\x01R\x0eexp\
-    licitBounds\x12F\n\texemplars\x18\x08\x20\x03(\x0b2(.opentelemetry.proto\
-    .metrics.v1.ExemplarR\texemplars\"\xd5\x03\n\x10SummaryDataPoint\x12G\n\
-    \nattributes\x18\x07\x20\x03(\x0b2'.opentelemetry.proto.common.v1.KeyVal\
-    ueR\nattributes\x12I\n\x06labels\x18\x01\x20\x03(\x0b2-.opentelemetry.pr\
-    oto.common.v1.StringKeyValueR\x06labelsB\x02\x18\x01\x12/\n\x14start_tim\
-    e_unix_nano\x18\x02\x20\x01(\x06R\x11startTimeUnixNano\x12$\n\x0etime_un\
-    ix_nano\x18\x03\x20\x01(\x06R\x0ctimeUnixNano\x12\x14\n\x05count\x18\x04\
-    \x20\x01(\x06R\x05count\x12\x10\n\x03sum\x18\x05\x20\x01(\x01R\x03sum\
-    \x12i\n\x0fquantile_values\x18\x06\x20\x03(\x0b2@.opentelemetry.proto.me\
-    trics.v1.SummaryDataPoint.ValueAtQuantileR\x0equantileValues\x1aC\n\x0fV\
-    alueAtQuantile\x12\x1a\n\x08quantile\x18\x01\x20\x01(\x01R\x08quantile\
-    \x12\x14\n\x05value\x18\x02\x20\x01(\x01R\x05value\"\xd9\x01\n\x0bIntExe\
-    mplar\x12V\n\x0ffiltered_labels\x18\x01\x20\x03(\x0b2-.opentelemetry.pro\
-    to.common.v1.StringKeyValueR\x0efilteredLabels\x12$\n\x0etime_unix_nano\
-    \x18\x02\x20\x01(\x06R\x0ctimeUnixNano\x12\x14\n\x05value\x18\x03\x20\
-    \x01(\x10R\x05value\x12\x17\n\x07span_id\x18\x04\x20\x01(\x0cR\x06spanId\
-    \x12\x19\n\x08trace_id\x18\x05\x20\x01(\x0cR\x07traceId:\x02\x18\x01\"\
-    \xdb\x02\n\x08Exemplar\x12X\n\x13filtered_attributes\x18\x07\x20\x03(\
-    \x0b2'.opentelemetry.proto.common.v1.KeyValueR\x12filteredAttributes\x12\
-    Z\n\x0ffiltered_labels\x18\x01\x20\x03(\x0b2-.opentelemetry.proto.common\
-    .v1.StringKeyValueR\x0efilteredLabelsB\x02\x18\x01\x12$\n\x0etime_unix_n\
-    ano\x18\x02\x20\x01(\x06R\x0ctimeUnixNano\x12\x1d\n\tas_double\x18\x03\
-    \x20\x01(\x01H\0R\x08asDouble\x12\x17\n\x06as_int\x18\x06\x20\x01(\x10H\
-    \0R\x05asInt\x12\x17\n\x07span_id\x18\x04\x20\x01(\x0cR\x06spanId\x12\
-    \x19\n\x08trace_id\x18\x05\x20\x01(\x0cR\x07traceIdB\x07\n\x05value*\x8c\
-    \x01\n\x16AggregationTemporality\x12'\n#AGGREGATION_TEMPORALITY_UNSPECIF\
-    IED\x10\0\x12!\n\x1dAGGREGATION_TEMPORALITY_DELTA\x10\x01\x12&\n\"AGGREG\
-    ATION_TEMPORALITY_CUMULATIVE\x10\x02Bt\n!io.opentelemetry.proto.metrics.\
-    v1B\x0cMetricsProtoP\x01Z?github.com/open-telemetry/opentelemetry-proto/\
-    gen/go/metrics/v1b\x06proto3\
+    orality:\x02\x18\x01\"\xd1\x01\n\tHistogram\x12S\n\x0bdata_points\x18\
+    \x01\x20\x03(\x0b22.opentelemetry.proto.metrics.v1.HistogramDataPointR\n\
+    dataPoints\x12o\n\x17aggregation_temporality\x18\x02\x20\x01(\x0e26.open\
+    telemetry.proto.metrics.v1.AggregationTemporalityR\x16aggregationTempora\
+    lity\"\\\n\x07Summary\x12Q\n\x0bdata_points\x18\x01\x20\x03(\x0b20.opent\
+    elemetry.proto.metrics.v1.SummaryDataPointR\ndataPoints\"\x91\x02\n\x0cI\
+    ntDataPoint\x12E\n\x06labels\x18\x01\x20\x03(\x0b2-.opentelemetry.proto.\
+    common.v1.StringKeyValueR\x06labels\x12/\n\x14start_time_unix_nano\x18\
+    \x02\x20\x01(\x06R\x11startTimeUnixNano\x12$\n\x0etime_unix_nano\x18\x03\
+    \x20\x01(\x06R\x0ctimeUnixNano\x12\x14\n\x05value\x18\x04\x20\x01(\x10R\
+    \x05value\x12I\n\texemplars\x18\x05\x20\x03(\x0b2+.opentelemetry.proto.m\
+    etrics.v1.IntExemplarR\texemplars:\x02\x18\x01\"\x85\x03\n\x0fNumberData\
+    Point\x12G\n\nattributes\x18\x07\x20\x03(\x0b2'.opentelemetry.proto.comm\
+    on.v1.KeyValueR\nattributes\x12I\n\x06labels\x18\x01\x20\x03(\x0b2-.open\
+    telemetry.proto.common.v1.StringKeyValueR\x06labelsB\x02\x18\x01\x12/\n\
+    \x14start_time_unix_nano\x18\x02\x20\x01(\x06R\x11startTimeUnixNano\x12$\
+    \n\x0etime_unix_nano\x18\x03\x20\x01(\x06R\x0ctimeUnixNano\x12\x1d\n\tas\
+    _double\x18\x04\x20\x01(\x01H\0R\x08asDouble\x12\x17\n\x06as_int\x18\x06\
+    \x20\x01(\x10H\0R\x05asInt\x12F\n\texemplars\x18\x05\x20\x03(\x0b2(.open\
+    telemetry.proto.metrics.v1.ExemplarR\texemplarsB\x07\n\x05value\"\xfa\
+    \x02\n\x15IntHistogramDataPoint\x12E\n\x06labels\x18\x01\x20\x03(\x0b2-.\
+    opentelemetry.proto.common.v1.StringKeyValueR\x06labels\x12/\n\x14start_\
+    time_unix_nano\x18\x02\x20\x01(\x06R\x11startTimeUnixNano\x12$\n\x0etime\
+    _unix_nano\x18\x03\x20\x01(\x06R\x0ctimeUnixNano\x12\x14\n\x05count\x18\
+    \x04\x20\x01(\x06R\x05count\x12\x10\n\x03sum\x18\x05\x20\x01(\x10R\x03su\
+    m\x12#\n\rbucket_counts\x18\x06\x20\x03(\x06R\x0cbucketCounts\x12'\n\x0f\
+    explicit_bounds\x18\x07\x20\x03(\x01R\x0eexplicitBounds\x12I\n\texemplar\
+    s\x18\x08\x20\x03(\x0b2+.opentelemetry.proto.metrics.v1.IntExemplarR\tex\
+    emplars:\x02\x18\x01\"\xbd\x03\n\x12HistogramDataPoint\x12G\n\nattribute\
+    s\x18\t\x20\x03(\x0b2'.opentelemetry.proto.common.v1.KeyValueR\nattribut\
+    es\x12I\n\x06labels\x18\x01\x20\x03(\x0b2-.opentelemetry.proto.common.v1\
+    .StringKeyValueR\x06labelsB\x02\x18\x01\x12/\n\x14start_time_unix_nano\
+    \x18\x02\x20\x01(\x06R\x11startTimeUnixNano\x12$\n\x0etime_unix_nano\x18\
+    \x03\x20\x01(\x06R\x0ctimeUnixNano\x12\x14\n\x05count\x18\x04\x20\x01(\
+    \x06R\x05count\x12\x10\n\x03sum\x18\x05\x20\x01(\x01R\x03sum\x12#\n\rbuc\
+    ket_counts\x18\x06\x20\x03(\x06R\x0cbucketCounts\x12'\n\x0fexplicit_boun\
+    ds\x18\x07\x20\x03(\x01R\x0eexplicitBounds\x12F\n\texemplars\x18\x08\x20\
+    \x03(\x0b2(.opentelemetry.proto.metrics.v1.ExemplarR\texemplars\"\xd5\
+    \x03\n\x10SummaryDataPoint\x12G\n\nattributes\x18\x07\x20\x03(\x0b2'.ope\
+    ntelemetry.proto.common.v1.KeyValueR\nattributes\x12I\n\x06labels\x18\
+    \x01\x20\x03(\x0b2-.opentelemetry.proto.common.v1.StringKeyValueR\x06lab\
+    elsB\x02\x18\x01\x12/\n\x14start_time_unix_nano\x18\x02\x20\x01(\x06R\
+    \x11startTimeUnixNano\x12$\n\x0etime_unix_nano\x18\x03\x20\x01(\x06R\x0c\
+    timeUnixNano\x12\x14\n\x05count\x18\x04\x20\x01(\x06R\x05count\x12\x10\n\
+    \x03sum\x18\x05\x20\x01(\x01R\x03sum\x12i\n\x0fquantile_values\x18\x06\
+    \x20\x03(\x0b2@.opentelemetry.proto.metrics.v1.SummaryDataPoint.ValueAtQ\
+    uantileR\x0equantileValues\x1aC\n\x0fValueAtQuantile\x12\x1a\n\x08quanti\
+    le\x18\x01\x20\x01(\x01R\x08quantile\x12\x14\n\x05value\x18\x02\x20\x01(\
+    \x01R\x05value\"\xd9\x01\n\x0bIntExemplar\x12V\n\x0ffiltered_labels\x18\
+    \x01\x20\x03(\x0b2-.opentelemetry.proto.common.v1.StringKeyValueR\x0efil\
+    teredLabels\x12$\n\x0etime_unix_nano\x18\x02\x20\x01(\x06R\x0ctimeUnixNa\
+    no\x12\x14\n\x05value\x18\x03\x20\x01(\x10R\x05value\x12\x17\n\x07span_i\
+    d\x18\x04\x20\x01(\x0cR\x06spanId\x12\x19\n\x08trace_id\x18\x05\x20\x01(\
+    \x0cR\x07traceId:\x02\x18\x01\"\xdb\x02\n\x08Exemplar\x12X\n\x13filtered\
+    _attributes\x18\x07\x20\x03(\x0b2'.opentelemetry.proto.common.v1.KeyValu\
+    eR\x12filteredAttributes\x12Z\n\x0ffiltered_labels\x18\x01\x20\x03(\x0b2\
+    -.opentelemetry.proto.common.v1.StringKeyValueR\x0efilteredLabelsB\x02\
+    \x18\x01\x12$\n\x0etime_unix_nano\x18\x02\x20\x01(\x06R\x0ctimeUnixNano\
+    \x12\x1d\n\tas_double\x18\x03\x20\x01(\x01H\0R\x08asDouble\x12\x17\n\x06\
+    as_int\x18\x06\x20\x01(\x10H\0R\x05asInt\x12\x17\n\x07span_id\x18\x04\
+    \x20\x01(\x0cR\x06spanId\x12\x19\n\x08trace_id\x18\x05\x20\x01(\x0cR\x07\
+    traceIdB\x07\n\x05value*\x8c\x01\n\x16AggregationTemporality\x12'\n#AGGR\
+    EGATION_TEMPORALITY_UNSPECIFIED\x10\0\x12!\n\x1dAGGREGATION_TEMPORALITY_\
+    DELTA\x10\x01\x12&\n\"AGGREGATION_TEMPORALITY_CUMULATIVE\x10\x02Bt\n!io.\
+    opentelemetry.proto.metrics.v1B\x0cMetricsProtoP\x01Z?github.com/open-te\
+    lemetry/opentelemetry-proto/gen/go/metrics/v1b\x06proto3\
 ";
 
 static file_descriptor_proto_lazy: ::protobuf::rt::LazyV2<::protobuf::descriptor::FileDescriptorProto> = ::protobuf::rt::LazyV2::INIT;

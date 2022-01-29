@@ -1,11 +1,21 @@
-#[cfg(feature = "tonic")]
+#[cfg(feature = "grpc-tonic")]
 // The prost currently will generate a non optional deprecated field for labels.
 // We cannot assign value to it otherwise clippy will complain.
 // We cannot ignore it as it's not an optional field.
 // We can remove this after we removed the labels field from proto.
 #[allow(deprecated)]
 pub(crate) mod tonic {
-    use crate::proto::{
+    use opentelemetry::metrics::MetricsError;
+    use opentelemetry::sdk::export::metrics::{
+        Count, ExportKindFor, Histogram as SdkHistogram, LastValue, Max, Min, Points, Record,
+        Sum as SdkSum,
+    };
+    use opentelemetry::sdk::metrics::aggregators::{
+        ArrayAggregator, HistogramAggregator, LastValueAggregator, MinMaxSumCountAggregator,
+        SumAggregator,
+    };
+    use opentelemetry_proto::tonic::FromNumber;
+    use opentelemetry_proto::tonic::{
         collector::metrics::v1::ExportMetricsServiceRequest,
         common::v1::KeyValue,
         metrics::v1::{
@@ -14,52 +24,11 @@ pub(crate) mod tonic {
             ResourceMetrics, Sum,
         },
     };
-    use opentelemetry::metrics::{MetricsError, Number, NumberKind};
-    use opentelemetry::sdk::export::metrics::{
-        Count, ExportKind, ExportKindFor, Histogram as SdkHistogram, LastValue, Max, Min, Points,
-        Record, Sum as SdkSum,
-    };
-    use opentelemetry::sdk::metrics::aggregators::{
-        ArrayAggregator, HistogramAggregator, LastValueAggregator, MinMaxSumCountAggregator,
-        SumAggregator,
-    };
 
-    use crate::transform::common::to_nanos;
+    use crate::to_nanos;
     use crate::transform::{CheckpointedMetrics, ResourceWrapper};
     use opentelemetry::sdk::InstrumentationLibrary;
-    use opentelemetry::{Key, Value};
     use std::collections::{BTreeMap, HashMap};
-
-    type NumberWithKind<'a> = (Number, &'a NumberKind);
-
-    impl From<(&Key, &Value)> for KeyValue {
-        fn from(kv: (&Key, &Value)) -> Self {
-            KeyValue {
-                key: kv.0.clone().into(),
-                value: Some(kv.1.clone().into()),
-            }
-        }
-    }
-
-    impl<'a> From<NumberWithKind<'a>> for number_data_point::Value {
-        fn from(number: NumberWithKind<'a>) -> Self {
-            match &number.1 {
-                NumberKind::I64 | NumberKind::U64 => {
-                    number_data_point::Value::AsInt(number.0.to_i64(number.1))
-                }
-                NumberKind::F64 => number_data_point::Value::AsDouble(number.0.to_f64(number.1)),
-            }
-        }
-    }
-
-    impl From<ExportKind> for AggregationTemporality {
-        fn from(kind: ExportKind) -> Self {
-            match kind {
-                ExportKind::Cumulative => AggregationTemporality::Cumulative,
-                ExportKind::Delta => AggregationTemporality::Delta,
-            }
-        }
-    }
 
     pub(crate) fn record_to_metric(
         record: &Record,
@@ -93,7 +62,7 @@ pub(crate) mod tonic {
                                     labels: vec![],
                                     start_time_unix_nano: to_nanos(*record.start_time()),
                                     time_unix_nano: to_nanos(*record.end_time()),
-                                    value: Some((val, kind).into()),
+                                    value: Some(number_data_point::Value::from_number(val, kind)),
                                     exemplars: Vec::default(),
                                 })
                                 .collect(),
@@ -112,7 +81,7 @@ pub(crate) mod tonic {
                                 labels: vec![],
                                 start_time_unix_nano: to_nanos(*record.start_time()),
                                 time_unix_nano: to_nanos(sample_time),
-                                value: Some((val, kind).into()),
+                                value: Some(number_data_point::Value::from_number(val, kind)),
                                 exemplars: Vec::default(),
                             }],
                         })
@@ -126,7 +95,7 @@ pub(crate) mod tonic {
                                 labels: vec![],
                                 start_time_unix_nano: to_nanos(*record.start_time()),
                                 time_unix_nano: to_nanos(*record.end_time()),
-                                value: Some((val, kind).into()),
+                                value: Some(number_data_point::Value::from_number(val, kind)),
                                 exemplars: Vec::default(),
                             }],
                             aggregation_temporality: temporality as i32,
@@ -243,11 +212,13 @@ pub(crate) mod tonic {
                 .into_iter()
                 .map(|(resource, metric_map)| ResourceMetrics {
                     resource: Some(resource.into()),
+                    schema_url: "".to_string(), // todo: replace with actual schema url.
                     instrumentation_library_metrics: metric_map
                         .into_iter()
                         .map(
                             |(instrumentation_library, metrics)| InstrumentationLibraryMetrics {
                                 instrumentation_library: Some(instrumentation_library.into()),
+                                schema_url: "".to_string(), // todo: replace with actual schema url.
                                 metrics: metrics
                                     .into_iter()
                                     .map(|(_k, v)| v)
@@ -304,14 +275,8 @@ pub(crate) mod tonic {
 #[cfg(test)]
 #[allow(deprecated)]
 mod tests {
-    #[cfg(feature = "tonic")]
+    #[cfg(feature = "grpc-tonic")]
     mod tonic {
-        use crate::proto::common::v1::{any_value, AnyValue, KeyValue};
-        use crate::proto::metrics::v1::{
-            metric::Data, number_data_point, Gauge, Histogram, HistogramDataPoint,
-            InstrumentationLibraryMetrics, Metric, NumberDataPoint, ResourceMetrics, Sum,
-        };
-        use crate::transform::common::tonic::Attributes;
         use crate::transform::metrics::tonic::merge;
         use crate::transform::{record_to_metric, sink, ResourceWrapper};
         use opentelemetry::attributes::AttributeSet;
@@ -323,25 +288,29 @@ mod tests {
             histogram, last_value, min_max_sum_count, SumAggregator,
         };
         use opentelemetry::sdk::{InstrumentationLibrary, Resource};
+        use opentelemetry_proto::tonic::{
+            common::v1::{any_value, AnyValue, KeyValue},
+            metrics::v1::{
+                metric::Data, number_data_point, Gauge, Histogram, HistogramDataPoint,
+                InstrumentationLibraryMetrics, Metric, NumberDataPoint, ResourceMetrics, Sum,
+            },
+            Attributes, FromNumber,
+        };
         use std::cmp::Ordering;
         use std::sync::Arc;
         use time::macros::datetime;
 
-        impl From<(&str, &str)> for KeyValue {
-            fn from(kv: (&str, &str)) -> Self {
-                KeyValue {
-                    key: kv.0.to_string(),
-                    value: Some(AnyValue {
-                        value: Some(any_value::Value::StringValue(kv.1.to_string())),
-                    }),
-                }
+        fn key_value(key: &str, value: &str) -> KeyValue {
+            KeyValue {
+                key: key.to_string(),
+                value: Some(AnyValue {
+                    value: Some(any_value::Value::StringValue(value.to_string())),
+                }),
             }
         }
 
-        impl From<i64> for number_data_point::Value {
-            fn from(val: i64) -> Self {
-                number_data_point::Value::AsInt(val)
-            }
+        fn i64_to_value(val: i64) -> number_data_point::Value {
+            number_data_point::Value::AsInt(val)
         }
 
         #[allow(clippy::type_complexity)]
@@ -373,12 +342,15 @@ mod tests {
             NumberDataPoint {
                 attributes: attributes
                     .into_iter()
-                    .map(Into::into)
+                    .map(|(key, value)| key_value(key, value))
                     .collect::<Vec<KeyValue>>(),
                 labels: vec![],
                 start_time_unix_nano: start_time,
                 time_unix_nano: end_time,
-                value: Some((Number::from(value), &NumberKind::I64).into()),
+                value: Some(number_data_point::Value::from_number(
+                    value.into(),
+                    &NumberKind::I64,
+                )),
                 exemplars: vec![],
             }
         }
@@ -390,7 +362,7 @@ mod tests {
 
         fn convert_to_resource_metrics(
             data: (ResourceKv, Vec<(InstrumentationLibraryKv, Vec<MetricRaw>)>),
-        ) -> crate::proto::metrics::v1::ResourceMetrics {
+        ) -> opentelemetry_proto::tonic::metrics::v1::ResourceMetrics {
             // convert to proto resource
             let attributes: Attributes = data
                 .0
@@ -398,7 +370,7 @@ mod tests {
                 .map(|(k, v)| opentelemetry::KeyValue::new(k.to_string(), v.to_string()))
                 .collect::<Vec<opentelemetry::KeyValue>>()
                 .into();
-            let resource = crate::proto::resource::v1::Resource {
+            let resource = opentelemetry_proto::tonic::resource::v1::Resource {
                 attributes: attributes.0,
                 dropped_attributes_count: 0,
             };
@@ -406,11 +378,12 @@ mod tests {
             for ((instrumentation_name, instrumentation_version), metrics) in data.1 {
                 instrumentation_library_metrics.push(InstrumentationLibraryMetrics {
                     instrumentation_library: Some(
-                        crate::proto::common::v1::InstrumentationLibrary {
+                        opentelemetry_proto::tonic::common::v1::InstrumentationLibrary {
                             name: instrumentation_name.to_string(),
                             version: instrumentation_version.unwrap_or("").to_string(),
                         },
                     ),
+                    schema_url: "".to_string(), // todo: replace with actual schema url.
                     metrics: metrics
                         .into_iter()
                         .map(|(name, data_points)| get_metric_with_name(name, data_points))
@@ -419,6 +392,7 @@ mod tests {
             }
             ResourceMetrics {
                 resource: Some(resource),
+                schema_url: "".to_string(), // todo: replace with actual schema url.
                 instrumentation_library_metrics,
             }
         }
@@ -488,7 +462,7 @@ mod tests {
             let str_kv_attributes = attributes
                 .iter()
                 .cloned()
-                .map(Into::into)
+                .map(|(key, value)| key_value(key, value))
                 .collect::<Vec<KeyValue>>();
             let attribute_set = AttributeSet::from_attributes(
                 attributes
@@ -536,7 +510,7 @@ mod tests {
                             labels: vec![],
                             start_time_unix_nano: 1608891000000000000,
                             time_unix_nano: 1608891030000000000,
-                            value: Some(12i64.into()),
+                            value: Some(i64_to_value(12i64)),
                             exemplars: vec![],
                         }],
                         aggregation_temporality: 2,
@@ -589,7 +563,7 @@ mod tests {
                             } else {
                                 0
                             },
-                            value: Some(14i64.into()),
+                            value: Some(i64_to_value(14i64)),
                             exemplars: vec![],
                         }],
                     })),

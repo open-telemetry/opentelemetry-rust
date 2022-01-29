@@ -11,3 +11,4 @@ opentelemetry-zpages = { path = "../../opentelemetry-zpages" }
 hyper = { version = "0.14", features = ["full"] }
 tokio = { version = "1.0", features = ["full"] }
 rand = "0.8"
+serde_json = "1.0"
