@@ -140,7 +140,10 @@ impl crate::trace::Span for Span {
 
     /// Sets the status of the `Span`. If used, this will override the default `Span`
     /// status, which is `Unset`. `message` MUST be ignored when the status is `OK` or `Unset`
-    fn set_status(&mut self, code: StatusCode, message: String) {
+    fn set_status<T>(&mut self, code: StatusCode, message: T)
+    where
+        T: Into<Cow<'static, str>>,
+    {
         self.with_data(|data| {
             // check if we should ignore
             if code.priority() < data.status_code.priority() {
