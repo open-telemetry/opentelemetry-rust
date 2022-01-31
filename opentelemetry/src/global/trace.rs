@@ -67,7 +67,7 @@ pub trait ObjectSafeSpan {
     /// to `Unset` will always be ignore, set the status to `Error` only works when current
     /// status is `Unset`, set the status to `Ok` will be consider final and any further call
     /// to this function will be ignore.
-    fn set_status(&mut self, code: StatusCode, message: String);
+    fn set_status(&mut self, code: StatusCode, message: Cow<'static, str>);
 
     /// Updates the `Span`'s name. After this update, any sampling behavior based on the
     /// name will depend on the implementation.
@@ -127,7 +127,7 @@ impl<T: trace::Span> ObjectSafeSpan for T {
         self.set_attribute(attribute)
     }
 
-    fn set_status(&mut self, code: StatusCode, message: String) {
+    fn set_status(&mut self, code: StatusCode, message: Cow<'static, str>) {
         self.set_status(code, message)
     }
 
@@ -201,8 +201,11 @@ impl trace::Span for BoxedSpan {
 
     /// Sets the status of the `Span`. If used, this will override the default `Span`
     /// status, which is `Unset`.
-    fn set_status(&mut self, code: trace::StatusCode, message: String) {
-        self.0.set_status(code, message)
+    fn set_status<T>(&mut self, code: trace::StatusCode, message: T)
+    where
+        T: Into<Cow<'static, str>>,
+    {
+        self.0.set_status(code, message.into())
     }
 
     /// Updates the `Span`'s name.

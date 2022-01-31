@@ -104,7 +104,7 @@
 //!         // Get the currently active span to record additional attributes,
 //!         // status, etc.
 //!         trace::get_active_span(|span| {
-//!             span.set_status(StatusCode::Error, "value too small".into());
+//!             span.set_status(StatusCode::Error, "value too small");
 //!         });
 //!     }
 //! }

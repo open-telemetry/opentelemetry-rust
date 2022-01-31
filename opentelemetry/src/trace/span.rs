@@ -137,7 +137,9 @@ pub trait Span {
     /// to `Unset` will always be ignore, set the status to `Error` only works when current
     /// status is `Unset`, set the status to `Ok` will be consider final and any further call
     /// to this function will be ignore.
-    fn set_status(&mut self, code: StatusCode, message: String);
+    fn set_status<T>(&mut self, code: StatusCode, message: T)
+    where
+        T: Into<Cow<'static, str>>;
 
     /// Updates the `Span`'s name. After this update, any sampling behavior based on the
     /// name will depend on the implementation.

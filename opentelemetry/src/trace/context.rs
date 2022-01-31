@@ -104,13 +104,16 @@ impl SpanRef<'_> {
 
     /// Sets the status of the `Span`. If used, this will override the default `Span`
     /// status, which is `Unset`. `message` MUST be ignored when the status is `OK` or `Unset`
-    pub fn set_status(&self, code: super::StatusCode, message: String) {
+    pub fn set_status<T>(&self, code: super::StatusCode, message: T)
+    where
+        T: Into<Cow<'static, str>>,
+    {
         self.with_inner_mut(move |inner| inner.set_status(code, message))
     }
 
     /// Updates the `Span`'s name. After this update, any sampling behavior based on the
     /// name will depend on the implementation.
-    pub fn update_name<T>(&self, new_name: String)
+    pub fn update_name<T>(&self, new_name: T)
     where
         T: Into<Cow<'static, str>>,
     {
