@@ -429,7 +429,7 @@ pub struct GcpAuthorizer {
 #[cfg(feature = "gcp_auth")]
 impl GcpAuthorizer {
     pub async fn new() -> Result<Self, gcp_auth::Error> {
-        let manager = gcp_auth::init().await?;
+        let manager = gcp_auth::AuthenticationManager::new().await?;
         let project_id = manager.project_id().await?;
         Ok(Self {
             manager,

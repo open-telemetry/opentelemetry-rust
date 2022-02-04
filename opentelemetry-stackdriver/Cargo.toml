@@ -11,7 +11,7 @@ exclude = ["/proto"]
 [dependencies]
 async-trait = "0.1.48"
 futures = { version = "0.3", default-features = false, features = ["alloc"] }
-gcp_auth = { version = "0.6", optional = true }
+gcp_auth = { version = "0.7", optional = true }
 hex = "0.4"
 http = "0.2"
 hyper = "0.14.2"
