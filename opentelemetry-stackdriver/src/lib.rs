@@ -158,16 +158,20 @@ impl Builder {
         let uri = http::uri::Uri::from_static("https://cloudtrace.googleapis.com:443");
 
         let trace_channel = Channel::builder(uri)
-            .tls_config(ClientTlsConfig::new())?
+            .tls_config(ClientTlsConfig::new())
+            .map_err(|e| Error::Transport(e.into()))?
             .connect()
-            .await?;
+            .await
+            .map_err(|e| Error::Transport(e.into()))?;
 
         let log_channel = Channel::builder(http::uri::Uri::from_static(
             "https://logging.googleapis.com:443",
         ))
-        .tls_config(ClientTlsConfig::new())?
+        .tls_config(ClientTlsConfig::new())
+        .map_err(|e| Error::Transport(e.into()))?
         .connect()
-        .await?;
+        .await
+        .map_err(|e| Error::Transport(e.into()))?;
 
         let log_client = log_context.map(|log_context| LogClient {
             client: LoggingServiceV2Client::new(log_channel),
@@ -335,9 +339,9 @@ where
 
         self.pending_count.fetch_sub(1, Ordering::Relaxed);
         if let Err(e) = self.authorizer.authorize(&mut req, &self.scopes).await {
-            handle_error(TraceError::from(Error::from(e)));
+            handle_error(TraceError::from(Error::Authorizer(e.into())));
         } else if let Err(e) = self.trace_client.batch_write_spans(req).await {
-            handle_error(TraceError::from(Error::TonicRpc(e)));
+            handle_error(TraceError::from(Error::Transport(e.into())));
         }
 
         let client = match &mut self.log_client {
@@ -361,7 +365,7 @@ where
         if let Err(e) = self.authorizer.authorize(&mut req, &self.scopes).await {
             handle_error(TraceError::from(Error::from(e)));
         } else if let Err(e) = client.client.write_log_entries(req).await {
-            handle_error(TraceError::from(Error::TonicRpc(e)));
+            handle_error(TraceError::from(Error::Transport(e.into())));
         }
     }
 }
@@ -411,7 +415,12 @@ impl Authorizer for YupAuthorizer {
         req: &mut Request<T>,
         scopes: &[&str],
     ) -> Result<(), Self::Error> {
-        let token = self.authenticator.token(scopes).await?;
+        let token = self
+            .authenticator
+            .token(scopes)
+            .await
+            .map_err(|e| Error::Authorizer(e.into()))?;
+
         req.metadata_mut().insert(
             "authorization",
             MetadataValue::from_str(&format!("Bearer {}", token.as_str())).unwrap(),
@@ -428,9 +437,16 @@ pub struct GcpAuthorizer {
 
 #[cfg(feature = "gcp_auth")]
 impl GcpAuthorizer {
-    pub async fn new() -> Result<Self, gcp_auth::Error> {
-        let manager = gcp_auth::AuthenticationManager::new().await?;
-        let project_id = manager.project_id().await?;
+    pub async fn new() -> Result<Self, Error> {
+        let manager = gcp_auth::AuthenticationManager::new()
+            .await
+            .map_err(|e| Error::Authorizer(e.into()))?;
+
+        let project_id = manager
+            .project_id()
+            .await
+            .map_err(|e| Error::Authorizer(e.into()))?;
+
         Ok(Self {
             manager,
             project_id,
@@ -452,18 +468,24 @@ impl Authorizer for GcpAuthorizer {
         req: &mut Request<T>,
         scopes: &[&str],
     ) -> Result<(), Self::Error> {
-        let token = self.manager.get_token(scopes).await?;
+        let token = self
+            .manager
+            .get_token(scopes)
+            .await
+            .map_err(|e| Error::Authorizer(e.into()))?;
+
         req.metadata_mut().insert(
             "authorization",
             MetadataValue::from_str(&format!("Bearer {}", token.as_str())).unwrap(),
         );
+
         Ok(())
     }
 }
 
 #[async_trait]
 pub trait Authorizer: Sync + Send + 'static {
-    type Error: fmt::Display + fmt::Debug + Send;
+    type Error: std::error::Error + fmt::Debug + Send + Sync;
 
     fn project_id(&self) -> &str;
     async fn authorize<T: Send + Sync>(
@@ -498,20 +520,14 @@ fn to_truncate(s: String) -> TruncatableString {
 
 #[derive(Debug, Error)]
 pub enum Error {
-    #[cfg(feature = "gcp_auth")]
     #[error("authorizer error: {0}")]
-    Gcp(#[from] gcp_auth::Error),
+    Authorizer(#[source] Box<dyn std::error::Error + Send + Sync>),
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
     #[error("{0}")]
     Other(#[from] Box<dyn std::error::Error + Send + Sync>),
     #[error("tonic error: {0}")]
-    TonicRpc(#[from] tonic::Status),
-    #[error("tonic error: {0}")]
-    TonicTransport(#[from] tonic::transport::Error),
-    #[cfg(feature = "yup-oauth2")]
-    #[error("authorizer error: {0}")]
-    Yup(#[from] yup_oauth2::Error),
+    Transport(#[source] Box<dyn std::error::Error + Send + Sync>),
 }
 
 impl ExportError for Error {
