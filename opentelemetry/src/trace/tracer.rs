@@ -256,9 +256,10 @@ pub trait Tracer {
     ///     })
     /// }
     /// ```
-    fn in_span<T, F>(&self, name: &'static str, f: F) -> T
+    fn in_span<T, F, N>(&self, name: N, f: F) -> T
     where
         F: FnOnce(Context) -> T,
+        N: Into<Cow<'static, str>>,
         Self::Span: Send + Sync + 'static,
     {
         let span = self.start(name);
