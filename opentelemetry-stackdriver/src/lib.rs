@@ -164,19 +164,24 @@ impl Builder {
             .await
             .map_err(|e| Error::Transport(e.into()))?;
 
-        let log_channel = Channel::builder(http::uri::Uri::from_static(
-            "https://logging.googleapis.com:443",
-        ))
-        .tls_config(ClientTlsConfig::new())
-        .map_err(|e| Error::Transport(e.into()))?
-        .connect()
-        .await
-        .map_err(|e| Error::Transport(e.into()))?;
+        let log_client = match log_context {
+            Some(log_context) => {
+                let log_channel = Channel::builder(http::uri::Uri::from_static(
+                    "https://logging.googleapis.com:443",
+                ))
+                .tls_config(ClientTlsConfig::new())
+                .map_err(|e| Error::Transport(e.into()))?
+                .connect()
+                .await
+                .map_err(|e| Error::Transport(e.into()))?;
 
-        let log_client = log_context.map(|log_context| LogClient {
-            client: LoggingServiceV2Client::new(log_channel),
-            context: Arc::new(log_context),
-        });
+                Some(LogClient {
+                    client: LoggingServiceV2Client::new(log_channel),
+                    context: Arc::new(log_context),
+                })
+            }
+            None => None,
+        };
 
         let (tx, rx) = futures::channel::mpsc::channel(64);
         let pending_count = Arc::new(AtomicUsize::new(0));
