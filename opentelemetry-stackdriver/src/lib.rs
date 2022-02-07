@@ -567,10 +567,58 @@ impl From<LogContext> for InternalLogContext {
     fn from(cx: LogContext) -> Self {
         let mut labels = HashMap::default();
         let resource = match cx.resource {
-            MonitoredResource::Global { project_id } => {
+            MonitoredResource::GenericNode {
+                project_id,
+                location,
+                namespace,
+                node_id,
+            } => {
                 labels.insert("project_id".to_string(), project_id);
+                if let Some(location) = location {
+                    labels.insert("location".to_string(), location);
+                }
+                if let Some(namespace) = namespace {
+                    labels.insert("namespace".to_string(), namespace);
+                }
+                if let Some(node_id) = node_id {
+                    labels.insert("node_id".to_string(), node_id);
+                }
+
                 proto::api::MonitoredResource {
-                    r#type: "global".into(),
+                    r#type: "generic_node".to_owned(),
+                    labels,
+                }
+            }
+            MonitoredResource::GenericTask {
+                project_id,
+                location,
+                namespace,
+                job,
+                task_id,
+            } => {
+                labels.insert("project_id".to_owned(), project_id);
+                if let Some(location) = location {
+                    labels.insert("location".to_owned(), location);
+                }
+                if let Some(namespace) = namespace {
+                    labels.insert("namespace".to_owned(), namespace);
+                }
+                if let Some(job) = job {
+                    labels.insert("job".to_owned(), job);
+                }
+                if let Some(task_id) = task_id {
+                    labels.insert("task_id".to_owned(), task_id);
+                }
+
+                proto::api::MonitoredResource {
+                    r#type: "generic_task".to_owned(),
+                    labels,
+                }
+            }
+            MonitoredResource::Global { project_id } => {
+                labels.insert("project_id".to_owned(), project_id);
+                proto::api::MonitoredResource {
+                    r#type: "global".to_owned(),
                     labels,
                 }
             }
@@ -583,9 +631,28 @@ impl From<LogContext> for InternalLogContext {
     }
 }
 
+/// A description of a `MonitoredResource`.
+///
+/// Possible values are listed in the [API documentation](https://cloud.google.com/logging/docs/api/v2/resource-list).
+/// Please submit an issue or pull request if you want to use a resource type not listed here.
 #[derive(Clone)]
 pub enum MonitoredResource {
-    Global { project_id: String },
+    Global {
+        project_id: String,
+    },
+    GenericNode {
+        project_id: String,
+        location: Option<String>,
+        namespace: Option<String>,
+        node_id: Option<String>,
+    },
+    GenericTask {
+        project_id: String,
+        location: Option<String>,
+        namespace: Option<String>,
+        job: Option<String>,
+        task_id: Option<String>,
+    },
 }
 
 const TRACE_APPEND: &str = "https://www.googleapis.com/auth/trace.append";
