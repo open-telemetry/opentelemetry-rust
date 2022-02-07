@@ -1,5 +1,7 @@
 use crate::PipelineBuilder;
 use std::env;
+#[cfg(feature = "collector_client")]
+use std::time::Duration;
 
 /// The hostname for the Jaeger agent.
 /// e.g. "localhost"
@@ -13,6 +15,14 @@ const ENV_AGENT_PORT: &str = "OTEL_EXPORTER_JAEGER_AGENT_PORT";
 /// e.g. "http://localhost:14250"
 #[cfg(feature = "collector_client")]
 const ENV_ENDPOINT: &str = "OTEL_EXPORTER_JAEGER_ENDPOINT";
+
+/// Timeout for Jaeger collector.
+#[cfg(feature = "collector_client")]
+pub(crate) const ENV_TIMEOUT: &str = "OTEL_EXPORTER_JAEGER_TIMEOUT";
+
+/// Default of 10s
+#[cfg(feature = "collector_client")]
+pub(crate) const DEFAULT_COLLECTOR_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// Username to send as part of "Basic" authentication to the collector endpoint.
 #[cfg(feature = "collector_client")]
@@ -30,20 +40,23 @@ pub(crate) fn assign_attrs(mut builder: PipelineBuilder) -> PipelineBuilder {
 
     #[cfg(feature = "collector_client")]
     {
+        if let Some(timeout) = env::var(ENV_TIMEOUT).ok().filter(|var| !var.is_empty()) {
+            let timeout = match timeout.parse() {
+                Ok(timeout) => Duration::from_millis(timeout),
+                Err(e) => {
+                    eprintln!("{} malformed defaulting to 10000: {}", ENV_TIMEOUT, e);
+                    DEFAULT_COLLECTOR_TIMEOUT
+                }
+            };
+            builder = builder.with_collector_timeout(timeout);
+        }
         if let Some(endpoint) = env::var(ENV_ENDPOINT).ok().filter(|var| !var.is_empty()) {
             builder = builder.with_collector_endpoint(endpoint);
         }
-    }
 
-    #[cfg(feature = "collector_client")]
-    {
         if let Some(user) = env::var(ENV_USER).ok().filter(|var| !var.is_empty()) {
             builder = builder.with_collector_username(user);
         }
-    }
-
-    #[cfg(feature = "collector_client")]
-    {
         if let Some(password) = env::var(ENV_PASSWORD).ok().filter(|var| !var.is_empty()) {
             builder = builder.with_collector_password(password);
         }

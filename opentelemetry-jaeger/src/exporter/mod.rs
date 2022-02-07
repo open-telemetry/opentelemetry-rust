@@ -11,6 +11,11 @@ mod env;
 pub(crate) mod transport;
 mod uploader;
 
+// Linting isn't detecting that it's used seems like linting bug.
+#[allow(unused_imports)]
+#[cfg(feature = "surf_collector_client")]
+use std::convert::TryFrom;
+
 use self::runtime::JaegerTraceRuntime;
 use self::thrift::jaeger;
 use agent::AgentAsyncClientUdp;
@@ -110,6 +115,10 @@ impl trace::SpanExporter for Exporter {
 #[derive(Debug)]
 pub struct PipelineBuilder {
     agent_endpoint: Vec<net::SocketAddr>,
+    // There are many variations in which it's read unclear which is causing not to be.
+    #[allow(dead_code)]
+    #[cfg(feature = "collector_client")]
+    collector_timeout: Duration,
     #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
     collector_endpoint: Option<Result<http::Uri, http::uri::InvalidUri>>,
     #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
@@ -131,6 +140,8 @@ impl Default for PipelineBuilder {
     fn default() -> Self {
         let builder_defaults = PipelineBuilder {
             agent_endpoint: vec![DEFAULT_AGENT_ENDPOINT.parse().unwrap()],
+            #[cfg(feature = "collector_client")]
+            collector_timeout: env::DEFAULT_COLLECTOR_TIMEOUT,
             #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
             collector_endpoint: None,
             #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
@@ -169,6 +180,18 @@ impl PipelineBuilder {
     pub fn with_instrumentation_library_tags(self, export: bool) -> Self {
         PipelineBuilder {
             export_instrument_library: export,
+            ..self
+        }
+    }
+
+    /// Assign the collector timeout
+    ///
+    /// E.g. "10s"
+    #[cfg(feature = "collector_client")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "collector_client")))]
+    pub fn with_collector_timeout(self, collector_timeout: Duration) -> Self {
+        PipelineBuilder {
+            collector_timeout,
             ..self
         }
     }
@@ -519,7 +542,8 @@ impl PipelineBuilder {
 
             #[cfg(feature = "isahc_collector_client")]
             let client = self.client.unwrap_or({
-                let mut builder = isahc::HttpClient::builder();
+                let mut builder = isahc::HttpClient::builder().timeout(self.collector_timeout);
+
                 if let (Some(username), Some(password)) =
                     (self.collector_username, self.collector_password)
                 {
@@ -546,12 +570,13 @@ impl PipelineBuilder {
             ))]
             let client = self.client.unwrap_or({
                 #[cfg(feature = "reqwest_collector_client")]
-                let mut builder = reqwest::ClientBuilder::new();
+                let mut builder = reqwest::ClientBuilder::new().timeout(self.collector_timeout);
                 #[cfg(all(
                     not(feature = "reqwest_collector_client"),
                     feature = "reqwest_blocking_collector_client"
                 ))]
-                let mut builder = reqwest::blocking::ClientBuilder::new();
+                let mut builder =
+                    reqwest::blocking::ClientBuilder::new().timeout(self.collector_timeout);
                 if let (Some(username), Some(password)) =
                     (self.collector_username, self.collector_password)
                 {
@@ -573,13 +598,18 @@ impl PipelineBuilder {
                 not(feature = "reqwest_blocking_collector_client")
             ))]
             let client = self.client.unwrap_or({
+                let client = surf::Client::try_from(
+                    surf::Config::new().set_timeout(Some(self.collector_timeout)),
+                )
+                .unwrap_or_else(|_| surf::Client::new());
+
                 let client = if let (Some(username), Some(password)) =
                     (self.collector_username, self.collector_password)
                 {
                     let auth = surf::http::auth::BasicAuth::new(username, password);
-                    surf::Client::new().with(BasicAuthMiddleware(auth))
+                    client.with(BasicAuthMiddleware(auth))
                 } else {
-                    surf::Client::new()
+                    client
                 };
 
                 Box::new(client)
@@ -827,6 +857,32 @@ pub enum Error {
 impl ExportError for Error {
     fn exporter_name(&self) -> &'static str {
         "jaeger"
+    }
+}
+
+#[cfg(test)]
+#[cfg(all(feature = "collector_client"))]
+mod timeout_env_tests {
+    use crate::exporter::env;
+    use crate::exporter::PipelineBuilder;
+    use std::time::Duration;
+
+    #[test]
+    fn test_collector_defaults() {
+        // No Env Variable
+        std::env::remove_var(env::ENV_TIMEOUT);
+        let builder = PipelineBuilder::default();
+        assert_eq!(env::DEFAULT_COLLECTOR_TIMEOUT, builder.collector_timeout);
+
+        // Bad Env Variable
+        std::env::set_var(env::ENV_TIMEOUT, "a");
+        let builder = PipelineBuilder::default();
+        assert_eq!(env::DEFAULT_COLLECTOR_TIMEOUT, builder.collector_timeout);
+
+        // Good Env Variable
+        std::env::set_var(env::ENV_TIMEOUT, "777");
+        let builder = PipelineBuilder::default();
+        assert_eq!(Duration::from_millis(777), builder.collector_timeout);
     }
 }
 

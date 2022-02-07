@@ -41,22 +41,16 @@ fn test_collector_defaults() {
     env::remove_var(ENV_ENDPOINT);
     assert_eq!(DEFAULT_COLLECTOR_TIMEOUT, get_timeout());
     assert_eq!(DEFAULT_COLLECTOR_ENDPOINT, get_endpoint());
-}
 
-#[test]
-fn test_collector_bad_timeout() {
+    // Bad Timeout Value
     env::set_var(ENV_TIMEOUT, "a");
     assert_eq!(DEFAULT_COLLECTOR_TIMEOUT, get_timeout());
-}
 
-#[test]
-fn test_collector_good_timeout() {
+    // Good Timeout Value
     env::set_var(ENV_TIMEOUT, "777");
     assert_eq!(Duration::from_millis(777), get_timeout());
-}
 
-#[test]
-fn test_collector_custom_endpoint() {
+    // Custom Endpoint
     let custom_endpoint = "https://example.com/api/v2/spans";
     env::set_var(ENV_ENDPOINT, custom_endpoint);
     assert_eq!(custom_endpoint, get_endpoint());
