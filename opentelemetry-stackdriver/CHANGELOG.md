@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.14.0
+
+### Changed
+
+- Upgrade to new gcp_auth version (#722)
+- Stop leaking dependency error types into public API (#722)
+- Clarify type of MonitoredResource (#722)
+
+### Fixed
+
+- Fixed issue with futures dependency (#722)
+- Don't set up logging channel if no logging is configured (#722)
+
 ## v0.13.0
 
 ### Changed
