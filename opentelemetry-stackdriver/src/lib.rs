@@ -43,7 +43,6 @@ use yup_oauth2::authenticator::Authenticator;
 
 pub mod proto;
 
-use proto::api::MonitoredResource;
 use proto::devtools::cloudtrace::v2::BatchWriteSpansRequest;
 use proto::devtools::cloudtrace::v2::{
     span::{time_event::Annotation, Attributes, TimeEvent, TimeEvents},
@@ -177,7 +176,7 @@ impl Builder {
 
                 Some(LogClient {
                     client: LoggingServiceV2Client::new(log_channel),
-                    context: Arc::new(log_context),
+                    context: Arc::new(InternalLogContext::from(log_context)),
                 })
             }
             None => None,
@@ -289,10 +288,7 @@ where
                                 self.authorizer.project_id(),
                                 client.context.log_id,
                             ),
-                            resource: Some(MonitoredResource {
-                                r#type: client.context.resource.r#type.clone(),
-                                labels: client.context.resource.labels.clone(),
-                            }),
+                            resource: Some(client.context.resource.clone()),
                             severity: level as i32,
                             timestamp: Some(event.timestamp.into()),
                             labels,
@@ -553,19 +549,43 @@ enum LogSeverity {
 #[derive(Clone)]
 struct LogClient {
     client: LoggingServiceV2Client<Channel>,
-    context: Arc<LogContext>,
+    context: Arc<InternalLogContext>,
+}
+
+struct InternalLogContext {
+    log_id: String,
+    resource: proto::api::MonitoredResource,
 }
 
 #[derive(Clone)]
 pub struct LogContext {
     pub log_id: String,
-    pub resource: Resource,
+    pub resource: MonitoredResource,
+}
+
+impl From<LogContext> for InternalLogContext {
+    fn from(cx: LogContext) -> Self {
+        let mut labels = HashMap::default();
+        let resource = match cx.resource {
+            MonitoredResource::Global { project_id } => {
+                labels.insert("project_id".to_string(), project_id);
+                proto::api::MonitoredResource {
+                    r#type: "global".into(),
+                    labels,
+                }
+            }
+        };
+
+        Self {
+            log_id: cx.log_id,
+            resource,
+        }
+    }
 }
 
 #[derive(Clone)]
-pub struct Resource {
-    pub r#type: String,
-    pub labels: HashMap<String, String>,
+pub enum MonitoredResource {
+    Global { project_id: String },
 }
 
 const TRACE_APPEND: &str = "https://www.googleapis.com/auth/trace.append";
