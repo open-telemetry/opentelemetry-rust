@@ -132,6 +132,8 @@ mod tests {
     #[test]
     fn test_sdk_provided_resource_detector() {
         const SERVICE_NAME: &str = "service.name";
+        // Ensure no env var set
+        env::remove_var(OTEL_RESOURCE_ATTRIBUTES);
         let no_env = SdkProvidedResourceDetector.detect(Duration::from_secs(1));
         assert_eq!(
             no_env.get(Key::from_static_str(SERVICE_NAME)),

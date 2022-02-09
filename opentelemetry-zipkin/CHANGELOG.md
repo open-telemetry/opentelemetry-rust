@@ -1,5 +1,15 @@
 # Changelog
 
+## unreleased
+
+## Added
+
+- Add support for OTEL_EXPORTER_ZIPKIN_* variables. #718
+
+## Changed
+
+- Add defaults for timeouts to HTTP clients #718
+
 ## v0.15.0
 
 ### Changed
@@ -116,5 +126,5 @@
 
 ### Added
 
-- Exporter to Zipkin collector through HTTP API 
+- Exporter to Zipkin collector through HTTP API
 
