@@ -2,7 +2,8 @@
 ///
 /// | **Name** | Instrument kind | Function(argument) | Default aggregation | Notes |
 /// | ----------------------- | ----- | --------- | ------------- | --- |
-/// | **ValueRecorder**       | Synchronous  | Record(value) | MinMaxSumCount  | Per-request, any non-additive measurement |
+/// | **Histogram**       | Synchronous  | Record(value) | MinMaxSumCount  | Per-request, any non-additive measurement |
+/// | **ValueRecorder**       | Synchronous  | Record(value) | MinMaxSumCount  | Depreated. Use Histogram. |
 /// | **ValueObserver**       | Asynchronous | Observe(value) | MinMaxSumCount  | Per-interval, any non-additive measurement |
 /// | **Counter**             | Synchronous additive monotonic | Add(increment) | Sum | Per-request, part of a monotonic sum |
 /// | **UpDownCounter**       | Synchronous additive | Add(increment) | Sum | Per-request, part of a non-monotonic sum |
@@ -11,7 +12,7 @@
 #[derive(Clone, Debug, PartialEq, Hash)]
 pub enum InstrumentKind {
     /// A synchronous per-request recorder of non-additive measurements.
-    ValueRecorder,
+    Histogram,
     /// An asynchronous per-interval recorder of non-additive measurements.
     ValueObserver,
     /// A synchronous per-request part of a monotonic sum.
@@ -29,7 +30,7 @@ impl InstrumentKind {
     pub fn synchronous(&self) -> bool {
         matches!(
             self,
-            InstrumentKind::Counter | InstrumentKind::UpDownCounter | InstrumentKind::ValueRecorder
+            InstrumentKind::Counter | InstrumentKind::UpDownCounter | InstrumentKind::Histogram
         )
     }
 

@@ -18,7 +18,7 @@ pub use sum::{sum, SumAggregator};
 /// RangeTest is a common routine for testing for valid input values. This
 /// rejects NaN values. This rejects negative values when the metric instrument
 /// does not support negative values, including monotonic counter metrics and
-/// absolute ValueRecorder metrics.
+/// absolute Histogram metrics.
 pub fn range_test(number: &Number, descriptor: &Descriptor) -> Result<()> {
     if descriptor.number_kind() == &NumberKind::F64 && number.is_nan() {
         return Err(MetricsError::NaNInput);

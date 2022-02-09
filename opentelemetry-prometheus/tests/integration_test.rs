@@ -72,7 +72,7 @@ fn test_add() {
 
     let up_down_counter = meter.f64_up_down_counter("updowncounter").init();
     let counter = meter.f64_counter("counter").init();
-    let value_recorder = meter.f64_value_recorder("value_recorder").init();
+    let histogram = meter.f64_histogram("my.histogram").init();
 
     let attributes = vec![KeyValue::new("A", "B"), KeyValue::new("C", "D")];
 
@@ -92,16 +92,16 @@ fn test_add() {
 
     expected.push(r#"intobserver{A="B",C="D",R="V"} 1"#);
 
-    value_recorder.record(-0.6, &attributes);
-    value_recorder.record(-0.4, &attributes);
-    value_recorder.record(0.6, &attributes);
-    value_recorder.record(20.0, &attributes);
+    histogram.record(-0.6, &attributes);
+    histogram.record(-0.4, &attributes);
+    histogram.record(0.6, &attributes);
+    histogram.record(20.0, &attributes);
 
-    expected.push(r#"value_recorder_bucket{A="B",C="D",R="V",le="+Inf"} 4"#);
-    expected.push(r#"value_recorder_bucket{A="B",C="D",R="V",le="-0.5"} 1"#);
-    expected.push(r#"value_recorder_bucket{A="B",C="D",R="V",le="1"} 3"#);
-    expected.push(r#"value_recorder_count{A="B",C="D",R="V"} 4"#);
-    expected.push(r#"value_recorder_sum{A="B",C="D",R="V"} 19.6"#);
+    expected.push(r#"my_histogram_bucket{A="B",C="D",R="V",le="+Inf"} 4"#);
+    expected.push(r#"my_histogram_bucket{A="B",C="D",R="V",le="-0.5"} 1"#);
+    expected.push(r#"my_histogram_bucket{A="B",C="D",R="V",le="1"} 3"#);
+    expected.push(r#"my_histogram_count{A="B",C="D",R="V"} 4"#);
+    expected.push(r#"my_histogram_sum{A="B",C="D",R="V"} 19.6"#);
 
     up_down_counter.add(10.0, &attributes);
     up_down_counter.add(-3.2, &attributes);
@@ -122,15 +122,15 @@ fn test_sanitization() {
         .init();
     let meter = exporter.provider().unwrap().meter("test", None);
 
-    let value_recorder = meter.f64_value_recorder("http.server.duration").init();
+    let histogram = meter.f64_histogram("http.server.duration").init();
     let attributes = vec![
         KeyValue::new("http.method", "GET"),
         KeyValue::new("http.host", "server"),
     ];
-    value_recorder.record(-0.6, &attributes);
-    value_recorder.record(-0.4, &attributes);
-    value_recorder.record(0.6, &attributes);
-    value_recorder.record(20.0, &attributes);
+    histogram.record(-0.6, &attributes);
+    histogram.record(-0.4, &attributes);
+    histogram.record(0.6, &attributes);
+    histogram.record(20.0, &attributes);
 
     let expected = vec![
         r#"http_server_duration_bucket{http_host="server",http_method="GET",service_name="Test Service",le="+Inf"} 4"#,

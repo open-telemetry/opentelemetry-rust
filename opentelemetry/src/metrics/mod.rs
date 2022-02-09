@@ -9,6 +9,7 @@ mod async_instrument;
 mod config;
 mod counter;
 mod descriptor;
+mod histogram;
 mod kind;
 mod meter;
 pub mod noop;
@@ -25,6 +26,7 @@ pub use async_instrument::{AsyncRunner, BatchObserverResult, Observation, Observ
 pub use config::InstrumentConfig;
 pub use counter::{BoundCounter, Counter, CounterBuilder};
 pub use descriptor::Descriptor;
+pub use histogram::{BoundHistogram, Histogram, HistogramBuilder};
 pub use kind::InstrumentKind;
 pub use meter::{Meter, MeterProvider};
 pub use number::{AtomicNumber, Number, NumberKind};

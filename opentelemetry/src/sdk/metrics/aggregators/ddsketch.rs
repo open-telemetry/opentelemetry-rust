@@ -694,7 +694,7 @@ mod tests {
             "test".to_string(),
             "test",
             None,
-            InstrumentKind::ValueRecorder,
+            InstrumentKind::Histogram,
             kind.clone(),
         );
 
@@ -835,7 +835,7 @@ mod tests {
             "test".to_string(),
             "test",
             None,
-            InstrumentKind::ValueRecorder,
+            InstrumentKind::Histogram,
             kind.clone(),
         );
         for i in &dataset.data {
