@@ -1,10 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Removed
+- BREAKING: `PrometheusExporter::new()` removed. Use `ExporterBuilder`.
+
 ## v0.10.0
 
 ### Added
 
-- Added `prometheus-encoding` feature to export prometheus encoders #652 
+- Added `prometheus-encoding` feature to export prometheus encoders #652
 - Added `with_aggregator_selector` option #667
 
 ### Changed
