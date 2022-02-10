@@ -1,3 +1,4 @@
+mod env;
 mod model;
 mod uploader;
 
@@ -17,12 +18,15 @@ use opentelemetry::{
 };
 use opentelemetry_http::HttpClient;
 use opentelemetry_semantic_conventions as semcov;
+#[cfg(all(
+    not(feature = "reqwest-client"),
+    not(feature = "reqwest-blocking-client"),
+    feature = "surf-client"
+))]
+use std::convert::TryFrom;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
-
-/// Default Zipkin collector endpoint
-const DEFAULT_COLLECTOR_ENDPOINT: &str = "http://127.0.0.1:9411/api/v2/spans";
 
 /// Zipkin span exporter
 #[derive(Debug)]
@@ -57,21 +61,35 @@ pub struct ZipkinPipelineBuilder {
 
 impl Default for ZipkinPipelineBuilder {
     fn default() -> Self {
+        let timeout = env::get_timeout();
         ZipkinPipelineBuilder {
             #[cfg(feature = "reqwest-blocking-client")]
-            client: Some(Box::new(reqwest::blocking::Client::new())),
+            client: Some(Box::new(
+                reqwest::blocking::Client::builder()
+                    .timeout(timeout)
+                    .build()
+                    .unwrap_or_else(|_| reqwest::blocking::Client::new()),
+            )),
             #[cfg(all(
                 not(feature = "reqwest-blocking-client"),
                 not(feature = "surf-client"),
                 feature = "reqwest-client"
             ))]
-            client: Some(Box::new(reqwest::Client::new())),
+            client: Some(Box::new(
+                reqwest::Client::builder()
+                    .timeout(timeout)
+                    .build()
+                    .unwrap_or_else(|_| reqwest::Client::new()),
+            )),
             #[cfg(all(
                 not(feature = "reqwest-client"),
                 not(feature = "reqwest-blocking-client"),
                 feature = "surf-client"
             ))]
-            client: Some(Box::new(surf::Client::new())),
+            client: Some(Box::new(
+                surf::Client::try_from(surf::Config::new().set_timeout(Some(timeout)))
+                    .unwrap_or_else(|_| surf::Client::new()),
+            )),
             #[cfg(all(
                 not(feature = "reqwest-client"),
                 not(feature = "surf-client"),
@@ -81,7 +99,7 @@ impl Default for ZipkinPipelineBuilder {
 
             service_name: None,
             service_addr: None,
-            collector_endpoint: DEFAULT_COLLECTOR_ENDPOINT.to_string(),
+            collector_endpoint: env::get_endpoint(),
             trace_config: None,
         }
     }
