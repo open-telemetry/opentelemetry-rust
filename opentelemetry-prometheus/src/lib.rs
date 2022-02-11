@@ -324,31 +324,6 @@ pub struct PrometheusExporter {
 }
 
 impl PrometheusExporter {
-    #[deprecated(
-        since = "0.9.0",
-        note = "Please use the ExporterBuilder to initialize a PrometheusExporter"
-    )]
-    /// Create a new prometheus exporter
-    pub fn new(
-        registry: prometheus::Registry,
-        controller: PullController,
-        host: String,
-        port: u16,
-    ) -> Result<Self, MetricsError> {
-        let controller = Arc::new(Mutex::new(controller));
-        let collector = Collector::with_controller(controller.clone());
-        registry
-            .register(Box::new(collector))
-            .map_err(|e| MetricsError::Other(e.to_string()))?;
-
-        Ok(PrometheusExporter {
-            registry,
-            controller,
-            host,
-            port,
-        })
-    }
-
     /// Returns a reference to the current prometheus registry.
     pub fn registry(&self) -> &prometheus::Registry {
         &self.registry
