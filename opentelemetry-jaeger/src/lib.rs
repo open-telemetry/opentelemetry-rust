@@ -234,6 +234,11 @@
 #![cfg_attr(test, deny(warnings))]
 
 mod exporter;
+
+#[cfg(feature = "integration_test")]
+#[doc(hidden)]
+pub mod testing;
+
 mod propagator {
     //! # Jaeger Propagator
     //!
