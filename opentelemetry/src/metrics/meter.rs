@@ -5,8 +5,8 @@ use crate::sdk::InstrumentationLibrary;
 use crate::{
     metrics::{
         sdk_api, AsyncRunner, BatchObserver, BatchObserverResult, CounterBuilder, Descriptor,
-        Measurement, NumberKind, ObserverResult, Result, SumObserverBuilder, UpDownCounterBuilder,
-        UpDownSumObserverBuilder, ValueObserverBuilder, ValueRecorderBuilder,
+        HistogramBuilder, Measurement, NumberKind, ObserverResult, Result, SumObserverBuilder,
+        UpDownCounterBuilder, UpDownSumObserverBuilder, ValueObserverBuilder, ValueRecorderBuilder,
     },
     Context, KeyValue,
 };
@@ -35,6 +35,7 @@ pub trait MeterProvider: fmt::Debug {
 /// | ----------------------- | ----- | --------- | ------------- | --- |
 /// | **Counter**             | Synchronous adding monotonic | Add(increment) | Sum | Per-request, part of a monotonic sum |
 /// | **UpDownCounter**       | Synchronous adding | Add(increment) | Sum | Per-request, part of a non-monotonic sum |
+/// | **Histogram**           | Synchronous  | Record(value) | Histogram Aggregation  | Per-request, any grouping measurement |
 /// | **ValueRecorder**       | Synchronous  | Record(value) | [TBD issue 636](https://github.com/open-telemetry/opentelemetry-specification/issues/636)  | Per-request, any grouping measurement |
 /// | **SumObserver**         | Asynchronous adding monotonic | Observe(sum) | Sum | Per-interval, reporting a monotonic sum |
 /// | **UpDownSumObserver**   | Asynchronous adding | Observe(sum) | Sum | Per-interval, reporting a non-monotonic sum |
@@ -98,6 +99,7 @@ impl Meter {
     }
 
     /// Creates a new `ValueRecorderBuilder` for `i64` values with the given name.
+    #[deprecated(since = "0.18.0", note = "Please use i64_histogram instead.")]
     pub fn i64_value_recorder<T>(&self, name: T) -> ValueRecorderBuilder<'_, i64>
     where
         T: Into<String>,
@@ -106,6 +108,7 @@ impl Meter {
     }
 
     /// Creates a new `ValueRecorderBuilder` for `u64` values with the given name.
+    #[deprecated(since = "0.18.0", note = "Please use u64_histogram instead.")]
     pub fn u64_value_recorder<T>(&self, name: T) -> ValueRecorderBuilder<'_, u64>
     where
         T: Into<String>,
@@ -114,11 +117,36 @@ impl Meter {
     }
 
     /// Creates a new `ValueRecorderBuilder` for `f64` values with the given name.
+    #[deprecated(since = "0.18.0", note = "Please use f64_histogram instead.")]
     pub fn f64_value_recorder<T>(&self, name: T) -> ValueRecorderBuilder<'_, f64>
     where
         T: Into<String>,
     {
         ValueRecorderBuilder::new(self, name.into(), NumberKind::F64)
+    }
+
+    /// Creates a new `HistogramBuilder` for `i64` values with the given name.
+    pub fn i64_histogram<T>(&self, name: T) -> HistogramBuilder<'_, i64>
+    where
+        T: Into<String>,
+    {
+        HistogramBuilder::new(self, name.into(), NumberKind::I64)
+    }
+
+    /// Creates a new `HistogramBuilder` for `u64` values with the given name.
+    pub fn u64_histogram<T>(&self, name: T) -> HistogramBuilder<'_, u64>
+    where
+        T: Into<String>,
+    {
+        HistogramBuilder::new(self, name.into(), NumberKind::U64)
+    }
+
+    /// Creates a new `HistogramBuilder` for `f64` values with the given name.
+    pub fn f64_histogram<T>(&self, name: T) -> HistogramBuilder<'_, f64>
+    where
+        T: Into<String>,
+    {
+        HistogramBuilder::new(self, name.into(), NumberKind::F64)
     }
 
     /// Creates a new integer `SumObserverBuilder` for `u64` values with the given

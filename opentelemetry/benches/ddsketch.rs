@@ -23,7 +23,7 @@ fn ddsketch(data: Vec<f64>) {
         "test".to_string(),
         "test",
         None,
-        InstrumentKind::ValueRecorder,
+        InstrumentKind::Histogram,
         NumberKind::F64,
     );
     for f in data {
@@ -44,7 +44,7 @@ fn array(data: Vec<f64>) {
         "test".to_string(),
         "test",
         None,
-        InstrumentKind::ValueRecorder,
+        InstrumentKind::Histogram,
         NumberKind::F64,
     );
     for f in data {

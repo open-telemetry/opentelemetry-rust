@@ -101,12 +101,12 @@ pub trait Checkpointer: LockedProcessor {
 /// Aggregator implements a specific aggregation behavior, i.e., a behavior to
 /// track a sequence of updates to an instrument. Sum-only instruments commonly
 /// use a simple Sum aggregator, but for the distribution instruments
-/// (ValueRecorder, ValueObserver) there are a number of possible aggregators
+/// (Histogram, ValueObserver) there are a number of possible aggregators
 /// with different cost and accuracy tradeoffs.
 ///
 /// Note that any Aggregator may be attached to any instrument--this is the
 /// result of the OpenTelemetry API/SDK separation. It is possible to attach a
-/// Sum aggregator to a ValueRecorder instrument or a MinMaxSumCount aggregator
+/// Sum aggregator to a Histogram instrument or a MinMaxSumCount aggregator
 /// to a Counter instrument.
 pub trait Aggregator: fmt::Debug {
     /// Update receives a new measured value and incorporates it into the
@@ -399,7 +399,7 @@ impl ExportKind {
     /// Returns whether an exporter of this kind requires memory to export correctly.
     pub fn memory_required(&self, kind: &InstrumentKind) -> bool {
         match kind {
-            InstrumentKind::ValueRecorder
+            InstrumentKind::Histogram
             | InstrumentKind::ValueObserver
             | InstrumentKind::Counter
             | InstrumentKind::UpDownCounter => {

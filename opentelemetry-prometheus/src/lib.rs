@@ -22,7 +22,7 @@
 //!     .with_description("Counts things")
 //!     .init();
 //! let recorder = meter
-//!     .i64_value_recorder("a.value_recorder")
+//!     .i64_histogram("a.histogram")
 //!     .with_description("Records values")
 //!     .init();
 //!
@@ -40,14 +40,14 @@
 //! // # HELP a_counter Counts things
 //! // # TYPE a_counter counter
 //! // a_counter{R="V",key="value"} 100
-//! // # HELP a_value_recorder Records values
-//! // # TYPE a_value_recorder histogram
-//! // a_value_recorder_bucket{R="V",key="value",le="0.5"} 0
-//! // a_value_recorder_bucket{R="V",key="value",le="0.9"} 0
-//! // a_value_recorder_bucket{R="V",key="value",le="0.99"} 0
-//! // a_value_recorder_bucket{R="V",key="value",le="+Inf"} 1
-//! // a_value_recorder_sum{R="V",key="value"} 100
-//! // a_value_recorder_count{R="V",key="value"} 1
+//! // # HELP a_histogram Records values
+//! // # TYPE a_histogram histogram
+//! // a_histogram_bucket{R="V",key="value",le="0.5"} 0
+//! // a_histogram_bucket{R="V",key="value",le="0.9"} 0
+//! // a_histogram_bucket{R="V",key="value",le="0.99"} 0
+//! // a_histogram_bucket{R="V",key="value",le="+Inf"} 1
+//! // a_histogram_sum{R="V",key="value"} 100
+//! // a_histogram_count{R="V",key="value"} 1
 //! ```
 #![warn(
     future_incompatible,

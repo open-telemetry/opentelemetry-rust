@@ -626,7 +626,7 @@ mod tests {
                     "test".to_string(),
                     "test",
                     None,
-                    InstrumentKind::ValueRecorder,
+                    InstrumentKind::Histogram,
                     NumberKind::I64,
                 );
                 let bound = [0.1, 0.2, 0.3];
