@@ -1,13 +1,13 @@
 use actix_service::Service;
 use actix_web::middleware::Logger;
 use actix_web::{web, App, HttpServer};
+use opentelemetry::global::shutdown_tracer_provider;
 use opentelemetry::trace::TraceError;
 use opentelemetry::{global, sdk::trace as sdktrace};
 use opentelemetry::{
     trace::{FutureExt, TraceContextExt, Tracer},
     Key,
 };
-use opentelemetry::global::shutdown_tracer_provider;
 
 fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
     opentelemetry_jaeger::new_pipeline()
@@ -43,10 +43,10 @@ async fn main() -> std::io::Result<()> {
             })
             .route("/", web::get().to(index))
     })
-        .bind("127.0.0.1:8088")
-        .unwrap()
-        .run()
-        .await;
+    .bind("127.0.0.1:8088")
+    .unwrap()
+    .run()
+    .await;
 
     // wait until all pending spans get exported.
     shutdown_tracer_provider();
