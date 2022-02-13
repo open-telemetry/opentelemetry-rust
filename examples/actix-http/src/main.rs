@@ -46,7 +46,7 @@ async fn main() -> std::io::Result<()> {
     .bind("127.0.0.1:8088")
     .unwrap()
     .run()
-    .await;
+    .await?;
 
     // wait until all pending spans get exported.
     shutdown_tracer_provider();
