@@ -1,6 +1,3 @@
-use opentelemetry::sdk::trace::EvictedHashMap;
-use opentelemetry::{Array, Value};
-
 #[cfg(feature = "traces")]
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -13,10 +10,10 @@ pub(crate) fn to_nanos(time: SystemTime) -> u64 {
 
 #[cfg(feature = "gen-tonic")]
 pub mod tonic {
-    use super::*;
     use crate::proto::tonic::common::v1::{
         any_value, AnyValue, ArrayValue, InstrumentationLibrary, KeyValue,
     };
+    use opentelemetry::{sdk::trace::EvictedHashMap, Array, Value};
     use std::borrow::Cow;
 
     impl From<opentelemetry::sdk::InstrumentationLibrary> for InstrumentationLibrary {
@@ -28,6 +25,7 @@ pub mod tonic {
         }
     }
 
+    /// Wrapper type for Vec<[`KeyValue`](crate::proto::tonic::common::v1::KeyValue)>
     pub struct Attributes(pub ::std::vec::Vec<crate::proto::tonic::common::v1::KeyValue>);
 
     impl From<EvictedHashMap> for Attributes {
@@ -91,8 +89,8 @@ pub mod tonic {
 
 #[cfg(feature = "gen-protoc")]
 pub mod grpcio {
-    use super::*;
     use crate::proto::grpcio::common::{AnyValue, ArrayValue, KeyValue};
+    use opentelemetry::{sdk::trace::EvictedHashMap, Array, Value};
     use protobuf::RepeatedField;
 
     pub struct Attributes(pub ::protobuf::RepeatedField<crate::proto::grpcio::common::KeyValue>);

@@ -28,7 +28,7 @@ required-features = ["with-serde", "gen-protoc"]
 [features]
 default = []
 
-full = ["gen-tonic", "gen-protoc", "traces", "metrics", "zpages", "build-server", "build-client", "with-serde"]
+full = ["gen-tonic", "gen-protoc", "traces", "logs", "metrics", "zpages", "build-server", "build-client", "with-serde"]
 
 # crates used to generate rs files
 gen-tonic = ["tonic", "tonic-build", "prost"]
@@ -37,6 +37,7 @@ gen-protoc = ["grpcio", "protobuf"]
 # telemetry pillars and functions
 traces = []
 metrics = []
+logs = []
 zpages = ["traces"]
 
 # add ons
@@ -48,7 +49,7 @@ build-client = []
 grpcio = { version = "0.9", optional = true }
 tonic = { version = "0.6.2", optional = true }
 prost = { version = "0.9", optional = true }
-protobuf = { version = "2.18", optional = true }
+protobuf = { version = "2.18", optional = true } # todo: update to 3.0 so we have docs for generated types.
 opentelemetry = { version = "0.17", default-features = false, features = ["trace", "metrics"], path = "../opentelemetry" }
 futures = { version = "0.3", default-features = false, features = ["std"] }
 futures-util = { version = "0.3", default-features = false, features = ["std"] }
