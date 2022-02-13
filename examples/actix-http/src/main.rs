@@ -7,12 +7,13 @@ use opentelemetry::{
     trace::{FutureExt, TraceContextExt, Tracer},
     Key,
 };
+use opentelemetry::global::shutdown_tracer_provider;
 
 fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
     opentelemetry_jaeger::new_pipeline()
         .with_collector_endpoint("http://127.0.0.1:14268/api/traces")
         .with_service_name("trace-http-demo")
-        .install_batch(opentelemetry::runtime::Tokio)
+        .install_batch(opentelemetry::runtime::TokioCurrentThread)
 }
 
 async fn index() -> &'static str {
@@ -42,8 +43,13 @@ async fn main() -> std::io::Result<()> {
             })
             .route("/", web::get().to(index))
     })
-    .bind("127.0.0.1:8088")
-    .unwrap()
-    .run()
-    .await
+        .bind("127.0.0.1:8088")
+        .unwrap()
+        .run()
+        .await;
+
+    // wait until all pending spans get exported.
+    shutdown_tracer_provider();
+
+    Ok(())
 }
