@@ -98,7 +98,7 @@ mod test {
             let recorder = meter.f64_counter("test2").init();
             recorder.add(1e10 + 0.123, &[KeyValue::new("foo", "bar")]);
 
-            let recorder = meter.i64_value_recorder("test3").init();
+            let recorder = meter.i64_histogram("test3").init();
             recorder.record(-999, &[Key::new("foo").i64(-123)]);
 
             let _ = tick_tx.send(1);

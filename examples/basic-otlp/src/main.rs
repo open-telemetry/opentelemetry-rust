@@ -77,16 +77,27 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         .with_description("A ValueObserver set to 1.0")
         .init();
 
-    let value_recorder_two = meter.f64_value_recorder("ex.com.two").init();
+    let histogram_two = meter.f64_histogram("ex.com.two").init();
 
-    let another_recorder = meter.f64_value_recorder("ex.com.two").init();
-    another_recorder.record(5.5, COMMON_ATTRIBUTES.as_ref());
+    // Needed for code coverage reasons.
+    #[allow(deprecated)]
+    let a_recorder = meter.f64_value_recorder("ex.recorder.a").init();
+    a_recorder.record(5.5, COMMON_ATTRIBUTES.as_ref());
+    #[allow(deprecated)]
+    let b_recorder = meter.u64_value_recorder("ex.recorder.b").init();
+    b_recorder.record(5, COMMON_ATTRIBUTES.as_ref());
+    #[allow(deprecated)]
+    let c_recorder = meter.i64_value_recorder("ex.recorder.c").init();
+    c_recorder.record(5, COMMON_ATTRIBUTES.as_ref());
+
+    let another_histogram = meter.f64_histogram("ex.com.two").init();
+    another_histogram.record(5.5, COMMON_ATTRIBUTES.as_ref());
 
     let _baggage =
         Context::current_with_baggage(vec![FOO_KEY.string("foo1"), BAR_KEY.string("bar1")])
             .attach();
 
-    let value_recorder = value_recorder_two.bind(COMMON_ATTRIBUTES.as_ref());
+    let histogram = histogram_two.bind(COMMON_ATTRIBUTES.as_ref());
 
     tracer.in_span("operation", |cx| {
         let span = cx.span();
@@ -100,7 +111,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
             // Note: call-site variables added as context Entries:
             &Context::current_with_baggage(vec![ANOTHER_KEY.string("xyz")]),
             COMMON_ATTRIBUTES.as_ref(),
-            vec![value_recorder_two.measurement(2.0)],
+            vec![histogram_two.measurement(2.0)],
         );
 
         tracer.in_span("Sub operation...", |cx| {
@@ -109,7 +120,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
 
             span.add_event("Sub span event".to_string(), vec![]);
 
-            value_recorder.record(1.3);
+            histogram.record(1.3);
         });
     });
 

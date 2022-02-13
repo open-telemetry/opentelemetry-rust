@@ -31,7 +31,7 @@ impl AggregatorSelector for Selector {
         match self {
             Selector::Sketch(config) => match descriptor.instrument_kind() {
                 InstrumentKind::ValueObserver => Some(Arc::new(aggregators::last_value())),
-                InstrumentKind::ValueRecorder => Some(Arc::new(aggregators::ddsketch(
+                InstrumentKind::Histogram => Some(Arc::new(aggregators::ddsketch(
                     config,
                     descriptor.number_kind().clone(),
                 ))),
@@ -39,19 +39,19 @@ impl AggregatorSelector for Selector {
             },
             Selector::Inexpensive => match descriptor.instrument_kind() {
                 InstrumentKind::ValueObserver => Some(Arc::new(aggregators::last_value())),
-                InstrumentKind::ValueRecorder => {
+                InstrumentKind::Histogram => {
                     Some(Arc::new(aggregators::min_max_sum_count(descriptor)))
                 }
                 _ => Some(Arc::new(aggregators::sum())),
             },
             Selector::Exact => match descriptor.instrument_kind() {
                 InstrumentKind::ValueObserver => Some(Arc::new(aggregators::last_value())),
-                InstrumentKind::ValueRecorder => Some(Arc::new(aggregators::array())),
+                InstrumentKind::Histogram => Some(Arc::new(aggregators::array())),
                 _ => Some(Arc::new(aggregators::sum())),
             },
             Selector::Histogram(boundaries) => match descriptor.instrument_kind() {
                 InstrumentKind::ValueObserver => Some(Arc::new(aggregators::last_value())),
-                InstrumentKind::ValueRecorder => {
+                InstrumentKind::Histogram => {
                     Some(Arc::new(aggregators::histogram(descriptor, boundaries)))
                 }
                 _ => Some(Arc::new(aggregators::sum())),

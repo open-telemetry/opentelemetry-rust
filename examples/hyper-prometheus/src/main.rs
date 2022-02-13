@@ -8,7 +8,7 @@ use hyper::{
 };
 use opentelemetry::{
     global,
-    metrics::{BoundCounter, BoundValueRecorder},
+    metrics::{BoundCounter, BoundHistogram},
     KeyValue,
 };
 use opentelemetry_prometheus::PrometheusExporter;
@@ -63,8 +63,8 @@ async fn serve_req(
 struct AppState {
     exporter: PrometheusExporter,
     http_counter: BoundCounter<u64>,
-    http_body_gauge: BoundValueRecorder<u64>,
-    http_req_histogram: BoundValueRecorder<f64>,
+    http_body_gauge: BoundHistogram<u64>,
+    http_req_histogram: BoundHistogram<f64>,
 }
 
 #[tokio::main]
@@ -80,12 +80,12 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             .init()
             .bind(HANDLER_ALL.as_ref()),
         http_body_gauge: meter
-            .u64_value_recorder("example.http_response_size_bytes")
+            .u64_histogram("example.http_response_size_bytes")
             .with_description("The metrics HTTP response sizes in bytes.")
             .init()
             .bind(HANDLER_ALL.as_ref()),
         http_req_histogram: meter
-            .f64_value_recorder("example.http_request_duration_seconds")
+            .f64_histogram("example.http_request_duration_seconds")
             .with_description("The HTTP request latencies in seconds.")
             .init()
             .bind(HANDLER_ALL.as_ref()),
