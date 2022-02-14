@@ -48,7 +48,7 @@ harness = false
 [[bench]]
 name = "batch_span_processor"
 harness = false
-required-features = ["rt-tokio"]
+required-features = ["rt-tokio", "testing"]
 
 [[bench]]
 name = "metric"

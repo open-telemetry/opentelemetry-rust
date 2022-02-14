@@ -101,7 +101,7 @@ impl AggregatorSelector for BenchAggregatorSelector {
     fn aggregator_for(
         &self,
         descriptor: &Descriptor,
-    ) -> Option<Arc<dyn opentelemetry::sdk::export::metrics::Aggregator + Send + Sync>> {
+    ) -> Option<Arc<dyn opentelemetry_sdk::export::metrics::Aggregator + Send + Sync>> {
         match descriptor.name() {
             name if name.ends_with(".disabled") => None,
             name if name.ends_with(".sum") => Some(Arc::new(aggregators::sum())),

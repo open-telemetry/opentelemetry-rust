@@ -1,11 +1,11 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use opentelemetry_api::runtime::Tokio;
-use opentelemetry_sdk::export::trace::SpanData;
-use opentelemetry_sdk::trace::{BatchSpanProcessor, EvictedHashMap, EvictedQueue, SpanProcessor};
-use opentelemetry_trace::{
-    noop::NoopSpanExporter, SpanContext, SpanId, SpanKind, StatusCode, TraceFlags, TraceId,
-    TraceState,
+use opentelemetry_api::trace::{
+    SpanContext, SpanId, SpanKind, StatusCode, TraceFlags, TraceId, TraceState,
 };
+use opentelemetry_sdk::export::trace::SpanData;
+use opentelemetry_sdk::runtime::Tokio;
+use opentelemetry_sdk::testing::trace::NoopSpanExporter;
+use opentelemetry_sdk::trace::{BatchSpanProcessor, EvictedHashMap, EvictedQueue, SpanProcessor};
 use std::sync::Arc;
 use std::time::SystemTime;
 use tokio::runtime::Runtime;

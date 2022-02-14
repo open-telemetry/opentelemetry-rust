@@ -46,6 +46,7 @@ use opentelemetry_api::{
 };
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
+use std::convert::TryInto;
 
 /// The `ShouldSample` interface allows implementations to provide samplers
 /// which will return a sampling `SamplingResult` based on information that
