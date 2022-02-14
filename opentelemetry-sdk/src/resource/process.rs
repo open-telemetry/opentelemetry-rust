@@ -40,7 +40,7 @@ impl ResourceDetector for ProcessResourceDetector {
 #[cfg(target_os = "linux")]
 #[cfg(test)]
 mod tests {
-    use crate::sdk::resource::{ProcessResourceDetector, ResourceDetector};
+    use crate::resource::{ProcessResourceDetector, ResourceDetector};
     use std::time::Duration;
 
     #[test]
