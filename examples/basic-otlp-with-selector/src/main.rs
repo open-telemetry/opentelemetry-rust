@@ -32,7 +32,7 @@ fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
 
 // Skip first immediate tick from tokio, not needed for async_std.
 fn delayed_interval(duration: Duration) -> impl Stream<Item = tokio::time::Instant> {
-    opentelemetry::util::tokio_interval_stream(duration).skip(1)
+    opentelemetry::sdk::util::tokio_interval_stream(duration).skip(1)
 }
 
 #[derive(Debug)]
