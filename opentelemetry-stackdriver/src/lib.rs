@@ -24,13 +24,17 @@ use async_trait::async_trait;
 use futures::stream::StreamExt;
 use opentelemetry::{
     global::handle_error,
-    sdk::export::{
-        trace::{ExportResult, SpanData, SpanExporter},
-        ExportError,
+    sdk::{
+        export::{
+            trace::{ExportResult, SpanData, SpanExporter},
+            ExportError,
+        },
+        trace::EvictedHashMap,
     },
     trace::TraceError,
     Value,
 };
+use opentelemetry_semantic_conventions as semcov;
 use thiserror::Error;
 #[cfg(any(feature = "yup-authorizer", feature = "gcp_auth"))]
 use tonic::metadata::MetadataValue;
@@ -240,12 +244,6 @@ where
         let mut entries = Vec::new();
         let mut spans = Vec::with_capacity(batch.len());
         for span in batch {
-            let attribute_map = span
-                .attributes
-                .into_iter()
-                .map(|(key, value)| (key.as_str().to_owned(), value.into()))
-                .collect();
-
             let trace_id = hex::encode(span.span_context.trace_id().to_bytes());
             let span_id = hex::encode(span.span_context.span_id().to_bytes());
             let time_event = match &self.log_client {
@@ -321,10 +319,7 @@ where
                 parent_span_id: hex::encode(span.parent_span_id.to_bytes()),
                 start_time: Some(span.start_time.into()),
                 end_time: Some(span.end_time.into()),
-                attributes: Some(Attributes {
-                    attribute_map,
-                    ..Default::default()
-                }),
+                attributes: Some(span.attributes.into()),
                 time_events: Some(TimeEvents {
                     time_event,
                     ..Default::default()
@@ -657,3 +652,207 @@ pub enum MonitoredResource {
 
 const TRACE_APPEND: &str = "https://www.googleapis.com/auth/trace.append";
 const LOGGING_WRITE: &str = "https://www.googleapis.com/auth/logging.write";
+const HTTP_PATH_ATTRIBUTE: &str = "http.path";
+
+const GCP_HTTP_HOST: &str = "/http/host";
+const GCP_HTTP_METHOD: &str = "/http/method";
+const GCP_HTTP_TARGET: &str = "/http/path";
+const GCP_HTTP_URL: &str = "/http/url";
+const GCP_HTTP_USER_AGENT: &str = "/http/user_agent";
+const GCP_HTTP_STATUS_CODE: &str = "/http/status_code";
+const GCP_HTTP_ROUTE: &str = "/http/route";
+const GCP_HTTP_PATH: &str = "/http/path";
+const GCP_SERVICE_NAME: &str = "g.co/gae/app/module";
+
+impl From<EvictedHashMap> for Attributes {
+    fn from(attributes: EvictedHashMap) -> Self {
+        let mut dropped_attributes_count: i32 = 0;
+        let attribute_map = attributes
+            .into_iter()
+            .flat_map(|(k, v)| {
+                let key = k.as_str();
+                if key.len() > 128 {
+                    dropped_attributes_count += 1;
+                    return None;
+                }
+
+                if semcov::trace::HTTP_HOST == k {
+                    return Some((GCP_HTTP_HOST.to_owned(), v.into()));
+                }
+
+                if semcov::trace::HTTP_METHOD == k {
+                    return Some((GCP_HTTP_METHOD.to_owned(), v.into()));
+                }
+
+                if semcov::trace::HTTP_TARGET == k {
+                    return Some((GCP_HTTP_TARGET.to_owned(), v.into()));
+                }
+
+                if semcov::trace::HTTP_URL == k {
+                    return Some((GCP_HTTP_URL.to_owned(), v.into()));
+                }
+
+                if semcov::trace::HTTP_USER_AGENT == k {
+                    return Some((GCP_HTTP_USER_AGENT.to_owned(), v.into()));
+                }
+
+                if semcov::trace::HTTP_STATUS_CODE == k {
+                    return Some((GCP_HTTP_STATUS_CODE.to_owned(), v.into()));
+                }
+
+                if semcov::trace::HTTP_ROUTE == k {
+                    return Some((GCP_HTTP_ROUTE.to_owned(), v.into()));
+                };
+
+                if semcov::resource::SERVICE_NAME == k {
+                    return Some((GCP_SERVICE_NAME.to_owned(), v.into()));
+                };
+
+                if HTTP_PATH_ATTRIBUTE == key {
+                    return Some((GCP_HTTP_PATH.to_owned(), v.into()));
+                }
+
+                Some((key.to_owned(), v.into()))
+            })
+            .collect();
+        Attributes {
+            attribute_map,
+            dropped_attributes_count,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use opentelemetry::{sdk::trace::EvictedHashMap, KeyValue, Value};
+    use opentelemetry_semantic_conventions as semcov;
+
+    #[test]
+    fn test_attributes_mapping() {
+        let capacity = 10;
+        let mut attributes = EvictedHashMap::new(capacity, 0);
+
+        //	hostAttribute       = "http.host"
+        attributes.insert(semcov::trace::HTTP_HOST.string("example.com:8080"));
+
+        // 	methodAttribute     = "http.method"
+        attributes.insert(semcov::trace::HTTP_METHOD.string("POST"));
+
+        // 	pathAttribute       = "http.path"
+        attributes.insert(KeyValue::new(
+            "http.path",
+            Value::String("/path/12314/?q=ddds#123".into()),
+        ));
+
+        // 	urlAttribute        = "http.url"
+        attributes.insert(
+            semcov::trace::HTTP_URL.string("https://example.com:8080/webshop/articles/4?s=1"),
+        );
+
+        // 	userAgentAttribute  = "http.user_agent"
+        attributes
+            .insert(semcov::trace::HTTP_USER_AGENT.string("CERN-LineMode/2.15 libwww/2.17b3"));
+
+        // 	statusCodeAttribute = "http.status_code"
+        attributes.insert(semcov::trace::HTTP_STATUS_CODE.i64(200));
+
+        // 	statusCodeAttribute = "http.route"
+        attributes.insert(semcov::trace::HTTP_ROUTE.string("/webshop/articles/:article_id"));
+
+        // 	serviceAttribute    = "service.name"
+        attributes.insert(semcov::resource::SERVICE_NAME.string("Test Service Name"));
+
+        let actual: Attributes = attributes.into();
+
+        assert_eq!(actual.attribute_map.len(), 8);
+        assert_eq!(actual.dropped_attributes_count, 0);
+        assert_eq!(
+            actual.attribute_map.get("/http/host"),
+            Some(&AttributeValue::from(Value::String(
+                "example.com:8080".into()
+            )))
+        );
+        assert_eq!(
+            actual.attribute_map.get("/http/method"),
+            Some(&AttributeValue::from(Value::String("POST".into()))),
+        );
+        assert_eq!(
+            actual.attribute_map.get("/http/path"),
+            Some(&AttributeValue::from(Value::String(
+                "/path/12314/?q=ddds#123".into()
+            ))),
+        );
+        assert_eq!(
+            actual.attribute_map.get("/http/route"),
+            Some(&AttributeValue::from(Value::String(
+                "/webshop/articles/:article_id".into()
+            ))),
+        );
+        assert_eq!(
+            actual.attribute_map.get("/http/url"),
+            Some(&AttributeValue::from(Value::String(
+                "https://example.com:8080/webshop/articles/4?s=1".into(),
+            ))),
+        );
+        assert_eq!(
+            actual.attribute_map.get("/http/user_agent"),
+            Some(&AttributeValue::from(Value::String(
+                "CERN-LineMode/2.15 libwww/2.17b3".into()
+            ))),
+        );
+        assert_eq!(
+            actual.attribute_map.get("/http/status_code"),
+            Some(&AttributeValue::from(Value::I64(200))),
+        );
+        assert_eq!(
+            actual.attribute_map.get("g.co/gae/app/module"),
+            Some(&AttributeValue::from(Value::String(
+                "Test Service Name".into()
+            ))),
+        );
+    }
+
+    #[test]
+    fn test_attributes_mapping_http_target() {
+        let capacity = 10;
+        let mut attributes = EvictedHashMap::new(capacity, 0);
+
+        //	hostAttribute       = "http.target"
+        attributes.insert(semcov::trace::HTTP_TARGET.string("/path/12314/?q=ddds#123"));
+
+        let actual: Attributes = attributes.into();
+
+        assert_eq!(actual.attribute_map.len(), 1);
+        assert_eq!(actual.dropped_attributes_count, 0);
+        assert_eq!(
+            actual.attribute_map.get("/http/path"),
+            Some(&AttributeValue::from(Value::String(
+                "/path/12314/?q=ddds#123".into()
+            ))),
+        );
+    }
+
+    #[test]
+    fn test_attributes_mapping_dropped_attributes_count() {
+        let capacity = 10;
+        let mut attributes = EvictedHashMap::new(capacity, 0);
+        attributes.insert(KeyValue::new("answer", Value::I64(42)));
+        attributes.insert(KeyValue::new("long_attribute_key_dvwmacxpeefbuemoxljmqvldjxmvvihoeqnuqdsyovwgljtnemouidabhkmvsnauwfnaihekcfwhugejboiyfthyhmkpsaxtidlsbwsmirebax", Value::String("Some value".into())));
+
+        let actual: Attributes = attributes.into();
+        assert_eq!(
+            actual,
+            Attributes {
+                attribute_map: HashMap::from([(
+                    "answer".into(),
+                    AttributeValue::from(Value::I64(42))
+                ),]),
+                dropped_attributes_count: 1,
+            }
+        );
+        assert_eq!(actual.attribute_map.len(), 1);
+        assert_eq!(actual.dropped_attributes_count, 1);
+    }
+}
