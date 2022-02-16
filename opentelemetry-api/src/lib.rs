@@ -3,6 +3,9 @@
 //! can analyze them using [Prometheus], [Jaeger], and other observability tools.
 //!
 //! *Compiler support: [requires `rustc` 1.46+][msrv]*
+//! [Prometheus]: https://prometheus.io
+//! [Jaeger]: https://www.jaegertracing.io
+//! [msrv]: #supported-rust-versions
 #![warn(
     future_incompatible,
     missing_debug_implementations,

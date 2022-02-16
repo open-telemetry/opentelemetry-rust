@@ -11,7 +11,6 @@
 //!
 //! [`BaggagePropagator`]: crate::sdk::propagation::BaggagePropagator
 //! [W3C Baggage]: https://w3c.github.io/baggage
-//! ```
 use crate::{Context, Key, KeyValue, Value};
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
