@@ -218,53 +218,23 @@
 )]
 #![cfg_attr(test, deny(warnings))]
 
-pub mod global;
-pub mod sdk;
+pub use opentelemetry_api::*;
+pub use opentelemetry_sdk::runtime;
 
+#[doc(hidden)]
 #[cfg(feature = "testing")]
-#[doc(hidden)]
-pub mod testing;
+pub mod testing {
+    pub use opentelemetry_sdk::testing::*;
+}
 
-pub mod baggage;
-
-mod context;
-
-pub use context::{Context, ContextGuard};
-
-mod common;
-
-pub use common::{Array, Key, KeyValue, Value};
-
-pub mod runtime;
-
-#[doc(hidden)]
-pub mod util;
-
-#[cfg(feature = "metrics")]
-#[cfg_attr(docsrs, doc(cfg(feature = "metrics")))]
-pub mod attributes;
-
-#[cfg(feature = "metrics")]
-#[cfg_attr(docsrs, doc(cfg(feature = "metrics")))]
-pub mod metrics;
-
-pub mod propagation;
-
-#[cfg(feature = "trace")]
-#[cfg_attr(docsrs, doc(cfg(feature = "trace")))]
-pub mod trace;
-
-#[cfg(any(feature = "metrics", feature = "trace"))]
-pub(crate) mod time {
-    use std::time::SystemTime;
-
-    #[cfg(not(target_arch = "wasm32"))]
-    pub(crate) fn now() -> SystemTime {
-        SystemTime::now()
-    }
-
-    #[cfg(target_arch = "wasm32")]
-    pub(crate) fn now() -> SystemTime {
-        SystemTime::UNIX_EPOCH + std::time::Duration::from_millis(js_sys::Date::now() as u64)
-    }
+/// # OpenTelemetry SDK
+///
+/// This SDK provides an opinionated reference implementation of
+/// the OpenTelemetry API. The SDK implements the specifics of
+/// deciding which data to collect through `Sampler`s, and
+/// facilitates the delivery of telemetry data to storage systems
+/// through `Exporter`s. These can be configured on `Tracer` and
+/// `Meter` creation.
+pub mod sdk {
+    pub use opentelemetry_sdk::*;
 }

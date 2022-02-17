@@ -9,7 +9,7 @@
 //!
 //! ```no_run
 //! use opentelemetry::sdk::metrics::{selectors, PushController};
-//! use opentelemetry::util::tokio_interval_stream;
+//! use opentelemetry::sdk::util::tokio_interval_stream;
 //! use opentelemetry_dynatrace::ExportConfig;
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
@@ -38,7 +38,7 @@
 //! ```
 //! # #[cfg(feature = "reqwest-client")] {
 //! use opentelemetry::sdk::metrics::{selectors, PushController};
-//! use opentelemetry::util::tokio_interval_stream;
+//! use opentelemetry::sdk::util::tokio_interval_stream;
 //! use opentelemetry::KeyValue;
 //! use opentelemetry_dynatrace::transform::DimensionSet;
 //! use opentelemetry_dynatrace::ExportConfig;
@@ -222,7 +222,7 @@ impl DynatraceExporterBuilder {
 /// ## Examples
 ///
 /// ```no_run
-/// use opentelemetry::util::tokio_interval_stream;
+/// use opentelemetry::sdk::util::tokio_interval_stream;
 /// # fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 /// let meter = opentelemetry_dynatrace::new_pipeline()
 ///     .metrics(tokio::spawn, tokio_interval_stream);

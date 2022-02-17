@@ -88,7 +88,7 @@
 //! use opentelemetry::{KeyValue, trace::Tracer};
 //! use opentelemetry::sdk::{trace::{self, IdGenerator, Sampler}, Resource};
 //! use opentelemetry::sdk::metrics::{selectors, PushController};
-//! use opentelemetry::util::tokio_interval_stream;
+//! use opentelemetry::sdk::util::tokio_interval_stream;
 //! use opentelemetry_otlp::{Protocol, WithExportConfig, ExportConfig};
 //! use std::time::Duration;
 //! use tonic::metadata::*;
