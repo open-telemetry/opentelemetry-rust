@@ -9,7 +9,6 @@ futures-channel = "0.3"
 futures-util = { version = "0.3", default-features = false, features = ["std", "sink"] }
 lazy_static = "1.4"
 pin-project = { version = "1.0.2", optional = true }
-serde = { version = "1.0", features = ["derive", "rc"], optional = true }
 thiserror = "1"
 tokio-stream = { version = "0.1", optional = true }
 
@@ -24,5 +23,4 @@ js-sys = "0.3"
 default = ["trace"]
 trace = ["pin-project"]
 metrics = ["fnv"]
-serialize = ["serde"]
 testing = ["trace"]

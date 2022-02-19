@@ -44,8 +44,6 @@ use opentelemetry_api::{
     },
     Context, KeyValue,
 };
-#[cfg(feature = "serialize")]
-use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
 
 /// The `ShouldSample` interface allows implementations to provide samplers
@@ -67,7 +65,6 @@ pub trait ShouldSample: Send + Sync + std::fmt::Debug {
 }
 
 /// Sampling options
-#[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
 #[derive(Clone, Debug, PartialEq)]
 pub enum Sampler {
     /// Always sample the trace

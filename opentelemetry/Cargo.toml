@@ -27,7 +27,6 @@ opentelemetry-sdk = { version = "0.1", path = "../opentelemetry-sdk" }
 default = ["trace"]
 trace = ["opentelemetry-api/trace", "opentelemetry-sdk/trace"]
 metrics = ["opentelemetry-api/metrics", "opentelemetry-sdk/metrics"]
-serialize = ["opentelemetry-api/serialize", "opentelemetry-sdk/serialize"]
 testing = ["opentelemetry-sdk/testing"]
 rt-tokio = ["opentelemetry-sdk/rt-tokio"]
 rt-tokio-current-thread = ["opentelemetry-sdk/rt-tokio-current-thread"]

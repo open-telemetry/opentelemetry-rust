@@ -1,10 +1,7 @@
-#[cfg(feature = "serialize")]
-use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::fmt;
 
 /// Key used for metric `AttributeSet`s and trace `Span` attributes.
-#[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Key(Cow<'static, str>);
 
@@ -93,7 +90,6 @@ impl fmt::Display for Key {
 }
 
 /// Array of homogeneous values
-#[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
 #[derive(Clone, Debug, PartialEq)]
 pub enum Array {
     /// Array of bools
@@ -157,7 +153,6 @@ into_array!(
 );
 
 /// Value types for use in `KeyValue` pairs.
-#[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
 #[derive(Clone, Debug, PartialEq)]
 pub enum Value {
     /// bool values
@@ -237,7 +232,6 @@ impl fmt::Display for Value {
 }
 
 /// `KeyValue` pairs are used by `AttributeSet`s and `Span` attributes.
-#[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
 #[derive(Clone, Debug, PartialEq)]
 pub struct KeyValue {
     /// Dimension or event key

@@ -150,8 +150,6 @@
 //! ```
 
 use futures_channel::{mpsc::TrySendError, oneshot::Canceled};
-#[cfg(feature = "serialize")]
-use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::fmt;
 use std::time;
@@ -242,7 +240,6 @@ pub trait IdGenerator: Send + Sync + fmt::Debug {
 
 /// A `Span` has the ability to add events. Events have a time associated
 /// with the moment when they are added to the `Span`.
-#[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
 #[derive(Clone, Debug, PartialEq)]
 pub struct Event {
     /// Event name
@@ -284,7 +281,6 @@ impl Event {
 
 /// During the `Span` creation user MUST have the ability to record links to other `Span`s. Linked
 /// `Span`s can be from the same or a different trace.
-#[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
 #[derive(Clone, Debug, PartialEq)]
 pub struct Link {
     span_context: SpanContext,

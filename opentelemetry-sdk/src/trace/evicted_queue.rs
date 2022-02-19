@@ -1,13 +1,10 @@
 //! # Evicted Queue
 
-#[cfg(feature = "serialize")]
-use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 
 /// This queue maintains an ordered list of elements, and a count of
 /// dropped elements. Elements are removed from the queue in a first
 /// in first out fashion.
-#[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
 #[derive(Clone, Debug, PartialEq)]
 pub struct EvictedQueue<T> {
     queue: Option<VecDeque<T>>,

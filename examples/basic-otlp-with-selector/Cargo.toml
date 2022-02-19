@@ -7,7 +7,7 @@ publish = false
 [dependencies]
 futures-util = { version = "0.3", default-features = false, features = ["std"] }
 lazy_static = "1.4"
-opentelemetry = { path = "../../opentelemetry", features = ["rt-tokio", "metrics", "serialize"] }
+opentelemetry = { path = "../../opentelemetry", features = ["rt-tokio", "metrics"] }
 opentelemetry-otlp = { path = "../../opentelemetry-otlp", features = ["tonic", "metrics"] }
 serde_json = "1.0"
 tokio = { version = "1.0", features = ["full"] }

@@ -12,8 +12,6 @@
 //! [`BaggagePropagator`]: crate::sdk::propagation::BaggagePropagator
 //! [W3C Baggage]: https://w3c.github.io/baggage
 use crate::{Context, Key, KeyValue, Value};
-#[cfg(feature = "serialize")]
-use serde::{Deserialize, Serialize};
 use std::collections::{hash_map, HashMap};
 use std::iter::FromIterator;
 
@@ -375,7 +373,6 @@ impl BaggageExt for Context {
 /// `BaggageMetadata` can be added to values in the form of a property set,
 /// represented as semi-colon `;` delimited list of names and/or name-value
 /// pairs, e.g. `;k1=v1;k2;k3=v3`.
-#[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
 #[derive(Clone, Debug, PartialOrd, PartialEq, Default)]
 pub struct BaggageMetadata(String);
 
@@ -399,7 +396,6 @@ impl From<&str> for BaggageMetadata {
 }
 
 /// [`Baggage`] name-value pairs with their associated metadata.
-#[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
 #[derive(Clone, Debug, PartialEq)]
 pub struct KeyValueMetadata {
     /// Dimension or event key

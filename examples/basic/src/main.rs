@@ -6,7 +6,7 @@ use opentelemetry::sdk::{metrics::PushController, trace as sdktrace, Resource};
 use opentelemetry::trace::TraceError;
 use opentelemetry::{
     baggage::BaggageExt,
-    metrics::{MetricsError, ObserverResult},
+    metrics::ObserverResult,
     trace::{TraceContextExt, Tracer},
     Context, Key, KeyValue,
 };
@@ -29,13 +29,7 @@ fn delayed_interval(duration: Duration) -> impl Stream<Item = tokio::time::Insta
 }
 
 fn init_meter() -> PushController {
-    opentelemetry::sdk::export::metrics::stdout(tokio::spawn, delayed_interval)
-        .with_formatter(|batch| {
-            serde_json::to_value(batch)
-                .map(|value| value.to_string())
-                .map_err(|err| MetricsError::Other(err.to_string()))
-        })
-        .init()
+    opentelemetry::sdk::export::metrics::stdout(tokio::spawn, delayed_interval).init()
 }
 
 const FOO_KEY: Key = Key::from_static_str("ex.com/foo");

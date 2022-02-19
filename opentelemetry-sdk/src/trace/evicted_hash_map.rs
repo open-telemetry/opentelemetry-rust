@@ -1,14 +1,11 @@
 //! # Evicted Map
 
 use opentelemetry_api::{Key, KeyValue, Value};
-#[cfg(feature = "serialize")]
-use serde::{Deserialize, Serialize};
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, LinkedList};
 
 /// A hash map with a capped number of attributes that retains the most
 /// recently set entries.
-#[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
 #[derive(Clone, Debug, PartialEq)]
 pub struct EvictedHashMap {
     map: HashMap<Key, Value>,

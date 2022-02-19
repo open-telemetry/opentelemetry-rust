@@ -35,7 +35,6 @@ rand_distr = "0.4.0"
 default = ["trace"]
 trace = ["opentelemetry-api/trace", "crossbeam-channel", "rand", "pin-project", "async-trait", "percent-encoding"]
 metrics = ["opentelemetry-api/metrics", "dashmap", "fnv"]
-serialize = ["opentelemetry-api/serialize", "serde"]
 testing = ["opentelemetry-api/testing", "trace", "metrics", "rt-async-std", "rt-tokio", "rt-tokio-current-thread", "tokio/macros", "tokio/rt-multi-thread"]
 rt-tokio = ["tokio", "tokio-stream"]
 rt-tokio-current-thread = ["tokio", "tokio-stream"]

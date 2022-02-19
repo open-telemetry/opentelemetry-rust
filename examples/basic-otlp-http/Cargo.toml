@@ -5,6 +5,6 @@ edition = "2018"
 publish = false
 
 [dependencies]
-opentelemetry = { path = "../../opentelemetry", features = ["rt-tokio", "metrics", "serialize"] }
+opentelemetry = { path = "../../opentelemetry", features = ["rt-tokio", "metrics"] }
 opentelemetry-otlp = { path = "../../opentelemetry-otlp", features = ["http-proto", "reqwest-client"] }
 tokio = { version = "1.0", features = ["full"] }

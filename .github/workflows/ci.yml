@@ -72,7 +72,7 @@ jobs:
         override: true
     - name: Run tests
       run: cargo --version &&
-        cargo test --verbose --manifest-path=opentelemetry/Cargo.toml --features trace,metrics,serialize,rt-tokio,testing &&
+        cargo test --verbose --manifest-path=opentelemetry/Cargo.toml --features trace,metrics,rt-tokio,testing &&
         cargo test --manifest-path=opentelemetry-jaeger/Cargo.toml --features rt-tokio &&
         cargo test --manifest-path=opentelemetry-zipkin/Cargo.toml
   cargo-deny:
