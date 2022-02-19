@@ -130,7 +130,7 @@ impl<T> From<std::sync::mpsc::SendError<T>> for TestExportError {
 
 /// A no-op instance of an [`SpanExporter`].
 ///
-/// [`SpanExporter`]: crate::sdk::export::trace::SpanExporter
+/// [`SpanExporter`]: crate::export::trace::SpanExporter
 #[derive(Debug, Default)]
 pub struct NoopSpanExporter {
     _private: (),

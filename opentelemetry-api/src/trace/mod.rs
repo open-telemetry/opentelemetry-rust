@@ -53,11 +53,10 @@
 //! Exporting spans often involves sending data over a network or performing
 //! other I/O tasks. OpenTelemetry allows you to schedule these tasks using
 //! whichever runtime you area already using such as [Tokio] or [async-std].
-//! When using an async runtime it's best to use the [`BatchSpanProcessor`]
+//! When using an async runtime it's best to use the batch span processor
 //! where the spans will be sent in batches as opposed to being sent once ended,
 //! which often ends up being more efficient.
 //!
-//! [`BatchSpanProcessor`]: crate::sdk::trace::BatchSpanProcessor
 //! [Tokio]: https://tokio.rs
 //! [async-std]: https://async.rs
 //!

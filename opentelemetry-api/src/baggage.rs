@@ -6,10 +6,9 @@
 //!   information to metrics, traces, and logs.
 //! * [`BaggageExt`]: Extensions for managing `Baggage` in a [`Context`].
 //!
-//! Baggage can be sent between systems using the [`BaggagePropagator`] in
+//! Baggage can be sent between systems using a baggage propagator in
 //! accordance with the [W3C Baggage] specification.
 //!
-//! [`BaggagePropagator`]: crate::sdk::propagation::BaggagePropagator
 //! [W3C Baggage]: https://w3c.github.io/baggage
 use crate::{Context, Key, KeyValue, Value};
 use std::collections::{hash_map, HashMap};

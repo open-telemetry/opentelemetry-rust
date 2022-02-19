@@ -12,7 +12,7 @@
 //!
 //! ### Usage in Applications
 //!
-//! Applications configure their tracer either by [installing a trace pipeline],
+//! Applications configure their tracer either by installing a trace pipeline,
 //! or calling [`set_tracer_provider`].
 //!
 //! ```
@@ -68,7 +68,6 @@
 //! # }
 //! ```
 //!
-//! [installing a trace pipeline]: crate::sdk::export::trace::stdout::PipelineBuilder::install_simple
 //! [`TracerProvider`]: crate::trace::TracerProvider
 //! [`Span`]: crate::trace::Span
 //!
@@ -84,7 +83,7 @@
 //!
 //! ### Usage in Applications
 //!
-//! Applications configure their meter either by [installing a metrics pipeline],
+//! Applications configure their meter either by installing a metrics pipeline,
 //! or calling [`set_meter_provider`].
 //!
 //! ```
@@ -135,7 +134,6 @@
 //! # }
 //! ```
 //!
-//! [installing a metrics pipeline]: crate::sdk::export::metrics::stdout::StdoutExporterBuilder::init
 //! [`MeterProvider`]: crate::metrics::MeterProvider
 //! [`set_meter_provider`]: crate::global::set_meter_provider
 

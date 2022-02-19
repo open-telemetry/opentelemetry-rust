@@ -12,7 +12,7 @@ use std::collections::HashSet;
 /// Injection and extraction from this propagator will preserve the order of the
 /// injectors and extractors passed in during initialization.
 ///
-/// [`TextMapPropagator`]: crate::propagation::TextMapPropagator
+/// [`TextMapPropagator`]: opentelemetry_api::propagation::TextMapPropagator
 ///
 /// # Examples
 ///
@@ -67,7 +67,7 @@ pub struct TextMapCompositePropagator {
 impl TextMapCompositePropagator {
     /// Constructs a new propagator out of instances of [`TextMapPropagator`].
     ///
-    /// [`TextMapPropagator`]: crate::propagation::TextMapPropagator
+    /// [`TextMapPropagator`]: opentelemetry_api::propagation::TextMapPropagator
     pub fn new(propagators: Vec<Box<dyn TextMapPropagator + Send + Sync>>) -> Self {
         let mut fields = HashSet::new();
         for propagator in &propagators {
