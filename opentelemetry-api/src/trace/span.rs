@@ -16,8 +16,6 @@
 //! implementations MUST NOT allow callers to create Spans directly. All `Span`s MUST be created
 //! via a Tracer.
 use crate::{trace::SpanContext, KeyValue};
-#[cfg(feature = "serialize")]
-use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::error::Error;
 use std::fmt;
@@ -212,7 +210,6 @@ pub trait Span {
 /// | `Producer` |     | yes |     | yes |
 /// | `Consumer` |     | yes | yes |     |
 /// | `Internal` |     |     |     |     |
-#[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
 #[derive(Clone, Debug, PartialEq)]
 pub enum SpanKind {
     /// Indicates that the span describes a synchronous request to
@@ -254,7 +251,6 @@ impl fmt::Display for SpanKind {
 /// The `StatusCode` interface represents the status of a finished `Span`.
 /// It's composed of a canonical code in conjunction with an optional
 /// descriptive message.
-#[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
 #[derive(Clone, Debug, PartialEq, Copy)]
 pub enum StatusCode {
     /// The default status.

@@ -34,8 +34,6 @@ pub use process::ProcessResourceDetector;
 #[cfg(feature = "metrics")]
 use opentelemetry_api::attributes;
 use opentelemetry_api::{Key, KeyValue, Value};
-#[cfg(feature = "serialize")]
-use serde::{Deserialize, Serialize};
 use std::collections::{btree_map, BTreeMap};
 use std::ops::Deref;
 use std::time::Duration;
@@ -43,7 +41,6 @@ use std::time::Duration;
 /// Describes an entity about which identifying information and metadata is exposed.
 ///
 /// Items are sorted by their key, and are only overwritten if the value is an empty string.
-#[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
 #[derive(Clone, Debug, PartialEq)]
 pub struct Resource {
     attrs: BTreeMap<Key, Value>,

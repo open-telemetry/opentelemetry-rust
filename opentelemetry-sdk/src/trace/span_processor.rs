@@ -31,8 +31,8 @@
 //!   +-----+--------------+   +---------------------+
 //! ```
 //!
-//! [`is_recording`]: crate::trace::Span::is_recording()
-//! [`TracerProvider`]: crate::trace::TracerProvider
+//! [`is_recording`]: opentelemetry_api::trace::Span::is_recording()
+//! [`TracerProvider`]: opentelemetry_api::trace::TracerProvider
 
 use crate::export::trace::{ExportResult, SpanData, SpanExporter};
 use crate::trace::runtime::{TraceRuntime, TrySend};

@@ -53,11 +53,10 @@
 //! Exporting spans often involves sending data over a network or performing
 //! other I/O tasks. OpenTelemetry allows you to schedule these tasks using
 //! whichever runtime you area already using such as [Tokio] or [async-std].
-//! When using an async runtime it's best to use the [`BatchSpanProcessor`]
+//! When using an async runtime it's best to use the batch span processor
 //! where the spans will be sent in batches as opposed to being sent once ended,
 //! which often ends up being more efficient.
 //!
-//! [`BatchSpanProcessor`]: crate::sdk::trace::BatchSpanProcessor
 //! [Tokio]: https://tokio.rs
 //! [async-std]: https://async.rs
 //!
@@ -150,8 +149,6 @@
 //! ```
 
 use futures_channel::{mpsc::TrySendError, oneshot::Canceled};
-#[cfg(feature = "serialize")]
-use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::fmt;
 use std::time;
@@ -242,7 +239,6 @@ pub trait IdGenerator: Send + Sync + fmt::Debug {
 
 /// A `Span` has the ability to add events. Events have a time associated
 /// with the moment when they are added to the `Span`.
-#[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
 #[derive(Clone, Debug, PartialEq)]
 pub struct Event {
     /// Event name
@@ -284,7 +280,6 @@ impl Event {
 
 /// During the `Span` creation user MUST have the ability to record links to other `Span`s. Linked
 /// `Span`s can be from the same or a different trace.
-#[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
 #[derive(Clone, Debug, PartialEq)]
 pub struct Link {
     span_context: SpanContext,

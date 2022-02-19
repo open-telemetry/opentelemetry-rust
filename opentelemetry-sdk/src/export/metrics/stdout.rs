@@ -20,8 +20,6 @@ use opentelemetry_api::{
     metrics::{Descriptor, MetricsError, Result},
     KeyValue,
 };
-#[cfg(feature = "serialize")]
-use serde::{Serialize, Serializer};
 use std::fmt;
 use std::io;
 use std::iter;
@@ -53,29 +51,20 @@ pub struct StdoutExporter<W> {
 }
 
 /// A collection of exported lines
-#[cfg_attr(feature = "serialize", derive(Serialize))]
 #[derive(Default, Debug)]
 pub struct ExportBatch {
-    #[cfg_attr(feature = "serialize", serde(skip_serializing_if = "Option::is_none"))]
     timestamp: Option<SystemTime>,
     lines: Vec<ExportLine>,
 }
 
-#[cfg_attr(feature = "serialize", derive(Serialize))]
 #[derive(Default, Debug)]
 struct ExportLine {
     name: String,
-    #[cfg_attr(feature = "serialize", serde(skip_serializing_if = "Option::is_none"))]
     min: Option<ExportNumeric>,
-    #[cfg_attr(feature = "serialize", serde(skip_serializing_if = "Option::is_none"))]
     max: Option<ExportNumeric>,
-    #[cfg_attr(feature = "serialize", serde(skip_serializing_if = "Option::is_none"))]
     sum: Option<ExportNumeric>,
     count: u64,
-    #[cfg_attr(feature = "serialize", serde(skip_serializing_if = "Option::is_none"))]
     last_value: Option<ExportNumeric>,
-
-    #[cfg_attr(feature = "serialize", serde(skip_serializing_if = "Option::is_none"))]
     timestamp: Option<SystemTime>,
 }
 
@@ -85,17 +74,6 @@ pub struct ExportNumeric(Box<dyn fmt::Debug>);
 impl fmt::Debug for ExportNumeric {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.0.fmt(f)
-    }
-}
-
-#[cfg(feature = "serialize")]
-impl Serialize for ExportNumeric {
-    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let s = format!("{:?}", self);
-        serializer.serialize_str(&s)
     }
 }
 

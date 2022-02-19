@@ -3,8 +3,6 @@ use async_trait::async_trait;
 use opentelemetry_api::trace::{
     Event, Link, SpanContext, SpanId, SpanKind, StatusCode, TraceError,
 };
-#[cfg(feature = "serialize")]
-use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::fmt::Debug;
 use std::sync::Arc;
@@ -54,7 +52,6 @@ pub trait SpanExporter: Send + Debug {
 
 /// `SpanData` contains all the information collected by a `Span` and can be used
 /// by exporters as a standard input.
-#[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
 #[derive(Clone, Debug, PartialEq)]
 pub struct SpanData {
     /// Exportable `SpanContext`
@@ -82,66 +79,5 @@ pub struct SpanData {
     /// Resource contains attributes representing an entity that produced this span.
     pub resource: Option<Arc<crate::Resource>>,
     /// Instrumentation library that produced this span
-    #[cfg_attr(feature = "serialize", serde(skip))]
     pub instrumentation_lib: crate::InstrumentationLibrary,
-}
-
-#[cfg(feature = "serialize")]
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use opentelemetry_api::trace::{TraceFlags, TraceId, TraceState};
-
-    #[test]
-    fn test_serialise() {
-        let trace_id = 7;
-        let span_id = 99;
-
-        let trace_flags = TraceFlags::default();
-        let remote = false;
-        let span_context = SpanContext::new(
-            TraceId::from_u128(trace_id),
-            SpanId::from_u64(span_id),
-            trace_flags,
-            remote,
-            TraceState::default(),
-        );
-
-        let parent_span_id = 1;
-        let span_kind = SpanKind::Client;
-        let name = "foo/bar baz 人?!".into();
-        let start_time = opentelemetry_api::time::now();
-        let end_time = opentelemetry_api::time::now();
-
-        let capacity = 3;
-        let attributes = crate::trace::EvictedHashMap::new(capacity, 0);
-        let events = crate::trace::EvictedQueue::new(capacity);
-        let links = crate::trace::EvictedQueue::new(capacity);
-
-        let status_code = StatusCode::Ok;
-        let status_message = "".into();
-        let resource = None;
-
-        let span_data = SpanData {
-            span_context,
-            parent_span_id: SpanId::from_u64(parent_span_id),
-            span_kind,
-            name,
-            start_time,
-            end_time,
-            attributes,
-            events,
-            links,
-            status_code,
-            status_message,
-            resource,
-            instrumentation_lib: crate::InstrumentationLibrary::new("", None),
-        };
-
-        let encoded: Vec<u8> = bincode::serialize(&span_data).unwrap();
-
-        let decoded: SpanData = bincode::deserialize(&encoded[..]).unwrap();
-
-        assert_eq!(span_data, decoded);
-    }
 }

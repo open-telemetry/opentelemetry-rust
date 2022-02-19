@@ -104,7 +104,6 @@
 //!
 //! * `trace`: Includes the trace API and SDK (enabled by default).
 //! * `metrics`: Includes the unstable metrics API and SDK.
-//! * `serialize`: Adds [serde] serializers for common types.
 //!
 //! Support for recording and exporting telemetry asynchronously can be added
 //! via the following flags:
@@ -115,7 +114,6 @@
 //!
 //! [tokio]: https://crates.io/crates/tokio
 //! [async-std]: https://crates.io/crates/async-std
-//! [serde]: https://crates.io/crates/serde
 //!
 //! ## Related Crates
 //!

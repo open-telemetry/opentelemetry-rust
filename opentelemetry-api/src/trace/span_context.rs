@@ -10,8 +10,6 @@
 //! The spec can be viewed here: <https://github.com/open-telemetry/opentelemetry-specification/blob/v1.3.0/specification/trace/api.md#spancontext>
 //!
 //! [w3c TraceContext specification]: https://www.w3.org/TR/trace-context/
-#[cfg(feature = "serialize")]
-use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 use std::fmt;
 use std::hash::Hash;
@@ -27,7 +25,6 @@ use thiserror::Error;
 /// See the W3C TraceContext specification's [trace-flags] section for more details.
 ///
 /// [trace-flags]: https://www.w3.org/TR/trace-context/#trace-flags
-#[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
 #[derive(Clone, Debug, Default, PartialEq, Eq, Copy, Hash)]
 pub struct TraceFlags(u8);
 
@@ -98,7 +95,6 @@ impl fmt::LowerHex for TraceFlags {
 /// A 16-byte value which identifies a given trace.
 ///
 /// The id is valid if it contains at least one non-zero byte.
-#[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
 #[derive(Clone, PartialEq, Eq, Copy, Hash)]
 pub struct TraceId(pub(crate) u128);
 
@@ -160,7 +156,6 @@ impl fmt::LowerHex for TraceId {
 /// An 8-byte value which identifies a given span.
 ///
 /// The id is valid if it contains at least one non-zero byte.
-#[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
 #[derive(Clone, PartialEq, Eq, Copy, Hash)]
 pub struct SpanId(pub(crate) u64);
 
@@ -226,7 +221,6 @@ impl fmt::LowerHex for SpanId {
 /// Please review the [W3C specification] for details on this field.
 ///
 /// [W3C specification]: https://www.w3.org/TR/trace-context/#tracestate-header
-#[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
 #[derive(Clone, Debug, Default, Eq, PartialEq, Hash)]
 pub struct TraceState(Option<VecDeque<(String, String)>>);
 
@@ -445,7 +439,6 @@ pub enum TraceStateError {
 ///
 /// Spans that do not have the `sampled` flag set in their [`TraceFlags`] will
 /// be ignored by most tracing tools.
-#[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
 #[derive(Clone, Debug, PartialEq, Hash, Eq)]
 pub struct SpanContext {
     trace_id: TraceId,
