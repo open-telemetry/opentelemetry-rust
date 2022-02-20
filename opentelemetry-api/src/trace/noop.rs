@@ -3,7 +3,6 @@
 //! This implementation is returned as the global tracer if no `Tracer`
 //! has been set. It is also useful for testing purposes as it is intended
 //! to have minimal resource utilization and runtime impact.
-use crate::trace::TraceResult;
 use crate::{
     propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
     trace,
@@ -37,11 +36,6 @@ impl trace::TracerProvider for NoopTracerProvider {
         _schema_url: Option<&'static str>,
     ) -> Self::Tracer {
         NoopTracer::new()
-    }
-
-    /// Return an empty `Vec` as there isn't any span processors in `NoopTracerProvider`
-    fn force_flush(&self) -> Vec<TraceResult<()>> {
-        Vec::new()
     }
 }
 

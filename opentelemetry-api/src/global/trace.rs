@@ -1,5 +1,4 @@
-use crate::global::handle_error;
-use crate::trace::{noop::NoopTracerProvider, SpanContext, Status, TraceResult};
+use crate::trace::{noop::NoopTracerProvider, SpanContext, Status};
 use crate::{trace, trace::TracerProvider, Context, KeyValue};
 use std::borrow::Cow;
 use std::fmt;
@@ -287,9 +286,6 @@ pub trait ObjectSafeTracerProvider {
         version: Option<&'static str>,
         schema_url: Option<&'static str>,
     ) -> Box<dyn ObjectSafeTracer + Send + Sync>;
-
-    /// Force flush all remaining spans in span processors and return results.
-    fn force_flush(&self) -> Vec<TraceResult<()>>;
 }
 
 impl<S, T, P> ObjectSafeTracerProvider for P
@@ -306,10 +302,6 @@ where
         schema_url: Option<&'static str>,
     ) -> Box<dyn ObjectSafeTracer + Send + Sync> {
         Box::new(self.versioned_tracer(name, version, schema_url))
-    }
-
-    fn force_flush(&self) -> Vec<TraceResult<()>> {
-        self.force_flush()
     }
 }
 
@@ -357,11 +349,6 @@ impl trace::TracerProvider for GlobalTracerProvider {
             self.provider
                 .versioned_tracer_boxed(name.into(), version, schema_url),
         )
-    }
-
-    /// Force flush all remaining spans in span processors and return results.
-    fn force_flush(&self) -> Vec<TraceResult<()>> {
-        self.provider.force_flush()
     }
 }
 
@@ -425,22 +412,4 @@ pub fn shutdown_tracer_provider() {
         &mut *tracer_provider,
         GlobalTracerProvider::new(NoopTracerProvider::new()),
     );
-}
-
-/// Force flush all remaining spans in span processors.
-///
-/// Use the [`global::handle_error`] to handle errors happened during force flush.
-///
-/// [`global::handle_error`]: crate::global::handle_error
-pub fn force_flush_tracer_provider() {
-    let tracer_provider = GLOBAL_TRACER_PROVIDER
-        .write()
-        .expect("GLOBAL_TRACER_PROVIDER RwLock poisoned");
-
-    let results = trace::TracerProvider::force_flush(&*tracer_provider);
-    for result in results {
-        if let Err(err) = result {
-            handle_error(err)
-        }
-    }
 }
