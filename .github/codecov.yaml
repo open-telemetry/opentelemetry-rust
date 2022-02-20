@@ -10,3 +10,6 @@ coverage:
       default:
         target: auto
         threshold: 0.5%
+
+ignore:
+  - "opentelemetry-jaeger/src/testing"
