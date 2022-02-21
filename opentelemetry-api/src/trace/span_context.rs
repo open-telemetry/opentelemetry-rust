@@ -1,15 +1,3 @@
-//! # OpenTelemetry SpanContext interface
-//!
-//! A `SpanContext` represents the portion of a `Span` which must be serialized and propagated along
-//! side of a distributed context. `SpanContext`s are immutable.
-//!
-//! The OpenTelemetry `SpanContext` representation conforms to the [w3c TraceContext specification].
-//! It contains two identifiers - a `TraceId` and a `SpanId` - along with a set of common
-//! `TraceFlags` and system-specific `TraceState` values.
-//!
-//! The spec can be viewed here: <https://github.com/open-telemetry/opentelemetry-specification/blob/v1.3.0/specification/trace/api.md#spancontext>
-//!
-//! [w3c TraceContext specification]: https://www.w3.org/TR/trace-context/
 use std::collections::VecDeque;
 use std::fmt;
 use std::hash::Hash;
@@ -20,9 +8,11 @@ use thiserror::Error;
 
 /// Flags that can be set on a [`SpanContext`].
 ///
-/// The current version of the specification only supports a single flag called `sampled`.
+/// The current version of the specification only supports a single flag
+/// [`TraceFlags::SAMPLED`].
 ///
-/// See the W3C TraceContext specification's [trace-flags] section for more details.
+/// See the W3C TraceContext specification's [trace-flags] section for more
+/// details.
 ///
 /// [trace-flags]: https://www.w3.org/TR/trace-context/#trace-flags
 #[derive(Clone, Debug, Default, PartialEq, Eq, Copy, Hash)]
@@ -435,10 +425,15 @@ pub enum TraceStateError {
     InvalidList(String),
 }
 
-/// Immutable portion of a `Span` which can be serialized and propagated.
+/// Immutable portion of a [`Span`] which can be serialized and propagated.
+///
+/// This representation conforms to the [W3C TraceContext specification].
 ///
 /// Spans that do not have the `sampled` flag set in their [`TraceFlags`] will
 /// be ignored by most tracing tools.
+///
+/// [`Span`]: crate::trace::Span
+/// [W3C TraceContext specification]: https://www.w3.org/TR/trace-context
 #[derive(Clone, Debug, PartialEq, Hash, Eq)]
 pub struct SpanContext {
     trace_id: TraceId,
@@ -477,29 +472,31 @@ impl SpanContext {
         }
     }
 
-    /// A valid trace identifier is a non-zero `u128`.
+    /// The [`TraceId`] for this span context.
     pub fn trace_id(&self) -> TraceId {
         self.trace_id
     }
 
-    /// A valid span identifier is a non-zero `u64`.
+    /// The [`SpanId`] for this span context.
     pub fn span_id(&self) -> SpanId {
         self.span_id
     }
 
-    /// Returns details about the trace. Unlike `TraceState` values, these are
-    /// present in all traces. Currently, the only option is a boolean sampled flag.
+    /// Returns details about the trace.
+    ///
+    /// Unlike `TraceState` values, these are present in all traces. The current
+    /// version of the specification only supports a single flag [`TraceFlags::SAMPLED`].
     pub fn trace_flags(&self) -> TraceFlags {
         self.trace_flags
     }
 
-    /// Returns a bool flag which is true if the `SpanContext` has a valid (non-zero) `trace_id`
-    /// and a valid (non-zero) `span_id`.
+    /// Returns `true` if the span context has a valid (non-zero) `trace_id` and a
+    /// valid (non-zero) `span_id`.
     pub fn is_valid(&self) -> bool {
-        self.trace_id.0 != 0 && self.span_id.0 != 0
+        self.trace_id != TraceId::INVALID && self.span_id != SpanId::INVALID
     }
 
-    /// Returns true if the `SpanContext` was propagated from a remote parent.
+    /// Returns `true` if the span context was propagated from a remote parent.
     pub fn is_remote(&self) -> bool {
         self.is_remote
     }
@@ -511,7 +508,7 @@ impl SpanContext {
         self.trace_flags.is_sampled()
     }
 
-    /// Returns the context's `TraceState`.
+    /// A reference to the span context's [`TraceState`].
     pub fn trace_state(&self) -> &TraceState {
         &self.trace_state
     }

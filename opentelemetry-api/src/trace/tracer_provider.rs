@@ -2,6 +2,11 @@ use crate::trace::{TraceResult, Tracer};
 use std::borrow::Cow;
 
 /// Types that can create instances of [`Tracer`].
+///
+/// See the [`global`] module for examples of storing and retrieving tracer
+/// provider instances.
+///
+/// [`global`]: crate::global
 pub trait TracerProvider {
     /// The [`Tracer`] type that this provider will return.
     type Tracer: Tracer;

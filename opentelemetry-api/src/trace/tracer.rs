@@ -7,27 +7,7 @@ use crate::{
 use std::borrow::Cow;
 use std::time::SystemTime;
 
-/// Interface for constructing `Span`s.
-///
-/// The OpenTelemetry library achieves in-process context propagation of `Span`s
-/// by way of the `Tracer`.
-///
-/// The `Tracer` is responsible for tracking the currently active `Span`, and
-/// exposes methods for creating and activating new `Spans`. The `Tracer` is
-/// configured with `Propagators` which support transferring span context across
-/// process boundaries.
-///
-/// `Tracer`s are generally expected to be used as singletons. Implementations
-/// SHOULD provide a single global default Tracer.
-///
-/// Some applications may require multiple `Tracer` instances, e.g. to create
-/// `Span`s on behalf of other applications. Implementations MAY provide a
-/// global registry of Tracers for such applications.
-///
-/// The `Tracer` SHOULD allow end users to configure other tracing components
-/// that control how `Span`s are passed across process boundaries, including the
-/// binary and text format `Propagator`s used to serialize `Span`s created by
-/// the `Tracer`.
+/// The interface for constructing [`Span`]s.
 ///
 /// ## In Synchronous Code
 ///
@@ -40,12 +20,12 @@ use std::time::SystemTime;
 ///
 /// let parent = tracer.start("foo");
 /// let parent_cx = Context::current_with_span(parent);
-/// let mut child = tracer.span_builder("bar").start_with_context(&tracer, &parent_cx);
+/// let mut child = tracer.start_with_context("bar", &parent_cx);
 ///
 /// // ...
 ///
-/// child.end();
-/// drop(parent_cx) // end parent
+/// child.end(); // explicitly end
+/// drop(parent_cx) // or implicitly end on drop
 /// ```
 ///
 /// Spans can also use the current thread's [`Context`] to track which span is active:
@@ -155,86 +135,66 @@ use std::time::SystemTime;
 /// [`Future::with_context`]: crate::trace::FutureExt::with_context()
 /// [`Context`]: crate::Context
 pub trait Tracer {
-    /// The `Span` type used by this `Tracer`.
+    /// The [`Span`] type used by this tracer.
     type Span: Span;
 
-    /// Starts a new `Span`.
+    /// Starts a new [`Span`].
     ///
-    /// By default the currently active `Span` is set as the new `Span`'s
-    /// parent. The `Tracer` MAY provide other default options for newly
-    /// created `Span`s.
+    /// By default the currently active `Span` is set as the new `Span`'s parent.
     ///
-    /// `Span` creation MUST NOT set the newly created `Span` as the currently
-    /// active `Span` by default, but this functionality MAY be offered additionally
-    /// as a separate operation.
-    ///
-    /// Each span has zero or one parent spans and zero or more child spans, which
+    /// Each span has zero or one parent span and zero or more child spans, which
     /// represent causally related operations. A tree of related spans comprises a
-    /// trace. A span is said to be a _root span_ if it does not have a parent. Each
+    /// trace. A span is said to be a root span if it does not have a parent. Each
     /// trace includes a single root span, which is the shared ancestor of all other
-    /// spans in the trace. Implementations MUST provide an option to create a `Span` as
-    /// a root span, and MUST generate a new `TraceId` for each root span created.
-    /// For a Span with a parent, the `TraceId` MUST be the same as the parent.
-    /// Also, the child span MUST inherit all `TraceState` values of its parent by default.
-    ///
-    /// A `Span` is said to have a _remote parent_ if it is the child of a `Span`
-    /// created in another process. Each propagators' deserialization must set
-    /// `is_remote` to true on a parent `SpanContext` so `Span` creation knows if the
-    /// parent is remote.
+    /// spans in the trace.
     fn start<T>(&self, name: T) -> Self::Span
     where
         T: Into<Cow<'static, str>>,
     {
-        self.start_with_context(name, &Context::current())
+        self.build_with_context(SpanBuilder::from_name(name), &Context::current())
     }
 
-    /// Starts a new `Span` with a given context
+    /// Starts a new [`Span`] with a given context.
     ///
-    /// By default the currently active `Span` is set as the new `Span`'s
-    /// parent. The `Tracer` MAY provide other default options for newly
-    /// created `Span`s.
+    /// If this context contains a span, the newly created span will be a child of
+    /// that span.
     ///
-    /// `Span` creation MUST NOT set the newly created `Span` as the currently
-    /// active `Span` by default, but this functionality MAY be offered additionally
-    /// as a separate operation.
-    ///
-    /// Each span has zero or one parent spans and zero or more child spans, which
+    /// Each span has zero or one parent span and zero or more child spans, which
     /// represent causally related operations. A tree of related spans comprises a
-    /// trace. A span is said to be a _root span_ if it does not have a parent. Each
+    /// trace. A span is said to be a root span if it does not have a parent. Each
     /// trace includes a single root span, which is the shared ancestor of all other
-    /// spans in the trace. Implementations MUST provide an option to create a `Span` as
-    /// a root span, and MUST generate a new `TraceId` for each root span created.
-    /// For a Span with a parent, the `TraceId` MUST be the same as the parent.
-    /// Also, the child span MUST inherit all `TraceState` values of its parent by default.
-    ///
-    /// A `Span` is said to have a _remote parent_ if it is the child of a `Span`
-    /// created in another process. Each propagators' deserialization must set
-    /// `is_remote` to true on a parent `SpanContext` so `Span` creation knows if the
-    /// parent is remote.
+    /// spans in the trace.
     fn start_with_context<T>(&self, name: T, parent_cx: &Context) -> Self::Span
     where
-        T: Into<Cow<'static, str>>;
+        T: Into<Cow<'static, str>>,
+    {
+        self.build_with_context(SpanBuilder::from_name(name), parent_cx)
+    }
 
-    /// Creates a span builder
+    /// Creates a span builder.
     ///
-    /// An ergonomic way for attributes to be configured before the `Span` is started.
+    /// [`SpanBuilder`]s allow you to specify all attributes of a [`Span`] before
+    /// the span is started.
     fn span_builder<T>(&self, name: T) -> SpanBuilder
     where
-        T: Into<Cow<'static, str>>;
+        T: Into<Cow<'static, str>>,
+    {
+        SpanBuilder::from_name(name)
+    }
 
-    /// Create a span from a [SpanBuilder]
+    /// Start a [`Span`] from a [`SpanBuilder`].
     fn build(&self, builder: SpanBuilder) -> Self::Span {
         self.build_with_context(builder, &Context::current())
     }
 
-    /// Create a span from a [SpanBuilder] with a parent context.
+    /// Start a span from a [`SpanBuilder`] with a parent context.
     fn build_with_context(&self, builder: SpanBuilder, parent_cx: &Context) -> Self::Span;
 
-    /// Start a new span and execute the given closure with reference to the span's
-    /// context.
+    /// Start a new span and execute the given closure with reference to the context
+    /// in which the span is active.
     ///
     /// This method starts a new span and sets it as the active span for the given
-    /// function. It then executes the body. It closes the span before returning the
+    /// function. It then executes the body. It ends the span before returning the
     /// execution result.
     ///
     /// # Examples
@@ -269,12 +229,12 @@ pub trait Tracer {
         f(cx)
     }
 
-    /// Start a new span and execute the given closure with reference to the span's
-    /// context.
+    /// Execute the given closure with reference to a context in which the span is
+    /// active.
     ///
-    /// This method starts a new span and sets it as the active span for the given
-    /// function. It then executes the body. It closes the span before returning the
-    /// execution result.
+    /// This sets the given span as active for the duration of the given function.
+    /// It then executes the body. It closes the span before returning the execution
+    /// result.
     ///
     /// # Examples
     ///
