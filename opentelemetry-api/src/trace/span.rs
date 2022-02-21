@@ -267,14 +267,3 @@ pub enum StatusCode {
     /// The operation contains an error.
     Error,
 }
-
-impl StatusCode {
-    /// Return a static str that represent the status code
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            StatusCode::Unset => "",
-            StatusCode::Ok => "OK",
-            StatusCode::Error => "ERROR",
-        }
-    }
-}

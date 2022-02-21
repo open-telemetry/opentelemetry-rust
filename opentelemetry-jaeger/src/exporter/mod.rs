@@ -773,11 +773,11 @@ fn build_span_tags(
             tags.push(Key::new(ERROR).bool(true).into());
         }
         if !user_overrides.status_code {
-            tags.push(
-                Key::new(OTEL_STATUS_CODE)
-                    .string::<&'static str>(status_code.as_str())
-                    .into(),
-            );
+            if status_code == StatusCode::Ok {
+                tags.push(KeyValue::new(OTEL_STATUS_CODE, "OK").into());
+            } else if status_code == StatusCode::Error {
+                tags.push(KeyValue::new(OTEL_STATUS_CODE, "ERROR").into());
+            }
         }
         // set status message if there is one
         if !status_description.is_empty() && !user_overrides.status_description {
@@ -1057,7 +1057,7 @@ mod tests {
         let user_status_description = "Something bad happened";
         attributes.insert(KeyValue::new("error", user_error));
         attributes.insert(KeyValue::new(SPAN_KIND, user_kind));
-        attributes.insert(KeyValue::new(OTEL_STATUS_CODE, user_status_code.as_str()));
+        attributes.insert(KeyValue::new(OTEL_STATUS_CODE, "ERROR"));
         attributes.insert(KeyValue::new(
             OTEL_STATUS_DESCRIPTION,
             user_status_description,
@@ -1075,7 +1075,7 @@ mod tests {
             .filter(|tag| tag.key.as_str() == "error")
             .all(|tag| tag.v_bool.unwrap()));
         assert_tag_contains(tags.clone(), SPAN_KIND, user_kind);
-        assert_tag_contains(tags.clone(), OTEL_STATUS_CODE, user_status_code.as_str());
+        assert_tag_contains(tags.clone(), OTEL_STATUS_CODE, "ERROR");
         assert_tag_contains(tags, OTEL_STATUS_DESCRIPTION, user_status_description);
     }
 
