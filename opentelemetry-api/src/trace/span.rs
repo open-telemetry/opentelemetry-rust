@@ -52,9 +52,11 @@ pub trait Span {
     /// Record an event in the context this span.
     ///
     /// Note that the OpenTelemetry project documents certain "[standard
-    /// attributes]" that have prescribed semantic meanings.
+    /// attributes]" that have prescribed semantic meanings and are available via
+    /// the [opentelemetry_semantic_conventions] crate.
     ///
     /// [standard attributes]: https://github.com/open-telemetry/opentelemetry-specification/blob/v1.9.0/specification/trace/semantic_conventions/README.md
+    /// [opentelemetry_semantic_conventions]: https://docs.rs/opentelemetry-semantic-conventions
     fn add_event<T>(&mut self, name: T, attributes: Vec<KeyValue>)
     where
         T: Into<Cow<'static, str>>,
@@ -84,9 +86,11 @@ pub trait Span {
     /// Record an event with a timestamp in the context this span.
     ///
     /// Note that the OpenTelemetry project documents certain "[standard
-    /// attributes]" that have prescribed semantic meanings.
+    /// attributes]" that have prescribed semantic meanings and are available via
+    /// the [opentelemetry_semantic_conventions] crate.
     ///
     /// [standard attributes]: https://github.com/open-telemetry/opentelemetry-specification/blob/v1.9.0/specification/trace/semantic_conventions/README.md
+    /// [opentelemetry_semantic_conventions]: https://docs.rs/opentelemetry-semantic-conventions
     fn add_event_with_timestamp<T>(
         &mut self,
         name: T,
@@ -116,9 +120,11 @@ pub trait Span {
     /// generally overwrites the existing attribute's value.
     ///
     /// Note that the OpenTelemetry project documents certain "[standard
-    /// attributes]" that have prescribed semantic meanings.
+    /// attributes]" that have prescribed semantic meanings and are available via
+    /// the [opentelemetry_semantic_conventions] crate.
     ///
     /// [standard attributes]: https://github.com/open-telemetry/opentelemetry-specification/blob/v1.9.0/specification/trace/semantic_conventions/README.md
+    /// [opentelemetry_semantic_conventions]: https://docs.rs/opentelemetry-semantic-conventions
     fn set_attribute(&mut self, attribute: KeyValue);
 
     /// Sets the status of this `Span`.

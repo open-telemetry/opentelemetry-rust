@@ -48,9 +48,11 @@ impl SpanRef<'_> {
     /// Record an event in the context this span.
     ///
     /// Note that the OpenTelemetry project documents certain "[standard
-    /// attributes]" that have prescribed semantic meanings.
+    /// attributes]" that have prescribed semantic meanings and are available via
+    /// the [opentelemetry_semantic_conventions] crate.
     ///
     /// [standard attributes]: https://github.com/open-telemetry/opentelemetry-specification/blob/v1.9.0/specification/trace/semantic_conventions/README.md
+    /// [opentelemetry_semantic_conventions]: https://docs.rs/opentelemetry-semantic-conventions
     pub fn add_event<T>(&self, name: T, attributes: Vec<KeyValue>)
     where
         T: Into<Cow<'static, str>>,
@@ -74,9 +76,11 @@ impl SpanRef<'_> {
     /// Record an event with a timestamp in the context this span.
     ///
     /// Note that the OpenTelemetry project documents certain "[standard
-    /// attributes]" that have prescribed semantic meanings.
+    /// attributes]" that have prescribed semantic meanings and are available via
+    /// the [opentelemetry_semantic_conventions] crate.
     ///
     /// [standard attributes]: https://github.com/open-telemetry/opentelemetry-specification/blob/v1.9.0/specification/trace/semantic_conventions/README.md
+    /// [opentelemetry_semantic_conventions]: https://docs.rs/opentelemetry-semantic-conventions
     pub fn add_event_with_timestamp<T>(
         &self,
         name: T,
@@ -119,9 +123,11 @@ impl SpanRef<'_> {
     /// generally overwrites the existing attribute's value.
     ///
     /// Note that the OpenTelemetry project documents certain "[standard
-    /// attributes]" that have prescribed semantic meanings.
+    /// attributes]" that have prescribed semantic meanings and are available via
+    /// the [opentelemetry_semantic_conventions] crate.
     ///
     /// [standard attributes]: https://github.com/open-telemetry/opentelemetry-specification/blob/v1.9.0/specification/trace/semantic_conventions/README.md
+    /// [opentelemetry_semantic_conventions]: https://docs.rs/opentelemetry-semantic-conventions
     pub fn set_attribute(&self, attribute: crate::KeyValue) {
         self.with_inner_mut(move |inner| inner.set_attribute(attribute))
     }
