@@ -59,7 +59,7 @@ pub mod tonic {
                 schema_url: "".to_string(), // todo: replace with actual schema url.
                 instrumentation_library_spans: vec![InstrumentationLibrarySpans {
                     instrumentation_library: Default::default(),
-                    schema_url: "".to_string(), // todo: replace with actual schema url.
+                    schema_url: source_span.schema_url.into(),
                     spans: vec![Span {
                         trace_id: source_span.span_context.trace_id().to_bytes().to_vec(),
                         span_id: source_span.span_context.span_id().to_bytes().to_vec(),

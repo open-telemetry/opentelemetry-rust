@@ -80,7 +80,7 @@ impl opentelemetry_api::trace::TracerProvider for TracerProvider {
         &self,
         name: impl Into<Cow<'static, str>>,
         version: Option<&'static str>,
-        _schema_url: Option<&'static str>,
+        schema_url: Option<&'static str>,
     ) -> Self::Tracer {
         let name = name.into();
         // Use default value if name is invalid empty string
@@ -92,7 +92,7 @@ impl opentelemetry_api::trace::TracerProvider for TracerProvider {
         let instrumentation_lib =
             InstrumentationLibrary::new(component_name, version.map(Into::into));
 
-        Tracer::new(instrumentation_lib, Arc::downgrade(&self.inner))
+        Tracer::new(instrumentation_lib, Arc::downgrade(&self.inner), schema_url)
     }
 
     /// Force flush all remaining spans in span processors and return results.

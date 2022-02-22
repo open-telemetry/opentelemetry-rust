@@ -28,6 +28,7 @@ pub fn new_test_export_span_data() -> SpanData {
         status_message: "".into(),
         resource: config.resource,
         instrumentation_lib: InstrumentationLibrary::default(),
+        schema_url: "",
     }
 }
 

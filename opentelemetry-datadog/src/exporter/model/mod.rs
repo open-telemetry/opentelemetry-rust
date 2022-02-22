@@ -119,6 +119,7 @@ pub(crate) mod tests {
             status_message: "".into(),
             resource: None,
             instrumentation_lib: InstrumentationLibrary::new("component", None),
+            schema_url: "",
         }
     }
 

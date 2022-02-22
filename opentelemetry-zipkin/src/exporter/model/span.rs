@@ -179,6 +179,7 @@ mod tests {
                 status_message: status_msg.into(),
                 resource: None,
                 instrumentation_lib: Default::default(),
+                schema_url: "",
             };
             let local_endpoint = Endpoint::new("test".into(), None);
             let span = into_zipkin_span(local_endpoint, span_data);

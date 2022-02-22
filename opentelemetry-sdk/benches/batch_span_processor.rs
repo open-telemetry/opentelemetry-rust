@@ -33,6 +33,7 @@ fn get_span_data() -> Vec<SpanData> {
             status_message: Default::default(),
             resource: None,
             instrumentation_lib: Default::default(),
+            schema_url: "",
         })
         .collect::<Vec<SpanData>>()
 }
