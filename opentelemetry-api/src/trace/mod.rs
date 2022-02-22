@@ -12,8 +12,6 @@
 //! ## Getting Started
 //!
 //! ```
-//! # #[cfg(feature = "trace")]
-//! # {
 //! use opentelemetry_api::{global, trace::{Span, Tracer, TracerProvider}};
 //!
 //! fn my_library_function() {
@@ -36,7 +34,6 @@
 //!     // End the span
 //!     span.end();
 //! }
-//! # }
 //! ```
 //!
 //! ## Overview
@@ -71,8 +68,6 @@
 //! [`Context`]: crate::Context
 //!
 //! ```
-//! # #[cfg(feature = "trace")]
-//! # {
 //! use opentelemetry_api::{global, trace::{self, Span, StatusCode, Tracer, TracerProvider}};
 //!
 //! fn may_error(rand: f32) {
@@ -98,15 +93,12 @@
 //!
 //! // Drop the guard and the span will no longer be active
 //! drop(active)
-//! # }
 //! ```
 //!
 //! Additionally [`Tracer::with_span`] and [`Tracer::in_span`] can be used as shorthand to
 //! simplify managing the parent context.
 //!
 //! ```
-//! # #[cfg(feature = "trace")]
-//! # {
 //! use opentelemetry_api::{global, trace::Tracer};
 //!
 //! // Get a tracer
@@ -123,7 +115,6 @@
 //! tracer.with_span(span, |cx| {
 //!     // spans created here will be children of `parent_span`
 //! });
-//! # }
 //! ```
 //!
 //! #### Async active spans
@@ -131,8 +122,6 @@
 //! Async spans can be propagated with [`TraceContextExt`] and [`FutureExt`].
 //!
 //! ```
-//! # #[cfg(feature = "trace")]
-//! # {
 //! use opentelemetry_api::{Context, global, trace::{FutureExt, TraceContextExt, Tracer}};
 //!
 //! async fn some_work() { }
@@ -145,7 +134,6 @@
 //!
 //! // Perform some async work with this span as the currently active parent.
 //! some_work().with_context(Context::current_with_span(span));
-//! # }
 //! ```
 
 use futures_channel::{mpsc::TrySendError, oneshot::Canceled};

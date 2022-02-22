@@ -45,7 +45,14 @@ impl SpanRef<'_> {
 }
 
 impl SpanRef<'_> {
-    /// An API to record events in the context of a given `Span`.
+    /// Record an event in the context this span.
+    ///
+    /// Note that the OpenTelemetry project documents certain "[standard
+    /// attributes]" that have prescribed semantic meanings and are available via
+    /// the [opentelemetry_semantic_conventions] crate.
+    ///
+    /// [standard attributes]: https://github.com/open-telemetry/opentelemetry-specification/blob/v1.9.0/specification/trace/semantic_conventions/README.md
+    /// [opentelemetry_semantic_conventions]: https://docs.rs/opentelemetry-semantic-conventions
     pub fn add_event<T>(&self, name: T, attributes: Vec<KeyValue>)
     where
         T: Into<Cow<'static, str>>,
@@ -53,12 +60,12 @@ impl SpanRef<'_> {
         self.with_inner_mut(|inner| inner.add_event(name, attributes))
     }
 
-    /// Convenience method to record an exception/error as an `Event`
+    /// Record an exception event
     pub fn record_exception(&self, err: &dyn Error) {
         self.with_inner_mut(|inner| inner.record_exception(err))
     }
 
-    /// Convenience method to record a exception/error as an `Event` with custom stacktrace
+    /// Record an exception event with stacktrace
     pub fn record_exception_with_stacktrace<T>(&self, err: &dyn Error, stacktrace: T)
     where
         T: Into<Cow<'static, str>>,
@@ -66,7 +73,14 @@ impl SpanRef<'_> {
         self.with_inner_mut(|inner| inner.record_exception_with_stacktrace(err, stacktrace))
     }
 
-    /// An API to record events at a specific time in the context of a given `Span`.
+    /// Record an event with a timestamp in the context this span.
+    ///
+    /// Note that the OpenTelemetry project documents certain "[standard
+    /// attributes]" that have prescribed semantic meanings and are available via
+    /// the [opentelemetry_semantic_conventions] crate.
+    ///
+    /// [standard attributes]: https://github.com/open-telemetry/opentelemetry-specification/blob/v1.9.0/specification/trace/semantic_conventions/README.md
+    /// [opentelemetry_semantic_conventions]: https://docs.rs/opentelemetry-semantic-conventions
     pub fn add_event_with_timestamp<T>(
         &self,
         name: T,
@@ -80,13 +94,21 @@ impl SpanRef<'_> {
         })
     }
 
-    /// Returns the `SpanContext` for the given `Span`.
+    /// A reference to the [`SpanContext`] for this span.
     pub fn span_context(&self) -> &SpanContext {
         &self.0.span_context
     }
 
-    /// Returns true if this `Span` is recording information like events with the `add_event`
-    /// operation, attributes using `set_attributes`, status with `set_status`, etc.
+    /// Returns `true` if this span is recording information.
+    ///
+    /// Spans will not be recording information after they have ended.
+    ///
+    /// This flag may be `true` despite the entire trace being sampled out. This
+    /// allows recording and processing of information about the individual
+    /// spans without sending it to the backend. An example of this scenario may
+    /// be recording and processing of all incoming requests for the processing
+    /// and building of SLA/SLO latency charts while sending only a subset -
+    /// sampled spans - to the backend.
     pub fn is_recording(&self) -> bool {
         self.0
             .inner
@@ -95,15 +117,26 @@ impl SpanRef<'_> {
             .unwrap_or(false)
     }
 
-    /// An API to set a single `Attribute` where the attribute properties are passed
-    /// as arguments. To avoid extra allocations some implementations may offer a separate API for
-    /// each of the possible value types.
+    /// Set an attribute of this span.
+    ///
+    /// Setting an attribute with the same key as an existing attribute
+    /// generally overwrites the existing attribute's value.
+    ///
+    /// Note that the OpenTelemetry project documents certain "[standard
+    /// attributes]" that have prescribed semantic meanings and are available via
+    /// the [opentelemetry_semantic_conventions] crate.
+    ///
+    /// [standard attributes]: https://github.com/open-telemetry/opentelemetry-specification/blob/v1.9.0/specification/trace/semantic_conventions/README.md
+    /// [opentelemetry_semantic_conventions]: https://docs.rs/opentelemetry-semantic-conventions
     pub fn set_attribute(&self, attribute: crate::KeyValue) {
         self.with_inner_mut(move |inner| inner.set_attribute(attribute))
     }
 
-    /// Sets the status of the `Span`. If used, this will override the default `Span`
-    /// status, which is `Unset`. `message` MUST be ignored when the status is `OK` or `Unset`
+    /// Sets the status of this `Span`.
+    ///
+    /// If used, this will override the default span status, which is [`StatusCode::Unset`].
+    ///
+    /// [`StatusCode::Unset`]: super::StatusCode::Unset
     pub fn set_status<T>(&self, code: super::StatusCode, message: T)
     where
         T: Into<Cow<'static, str>>,
@@ -111,8 +144,10 @@ impl SpanRef<'_> {
         self.with_inner_mut(move |inner| inner.set_status(code, message))
     }
 
-    /// Updates the `Span`'s name. After this update, any sampling behavior based on the
-    /// name will depend on the implementation.
+    /// Updates the span's name.
+    ///
+    /// After this update, any sampling behavior based on the name will depend on
+    /// the implementation.
     pub fn update_name<T>(&self, new_name: T)
     where
         T: Into<Cow<'static, str>>,
@@ -120,36 +155,87 @@ impl SpanRef<'_> {
         self.with_inner_mut(move |inner| inner.update_name(new_name))
     }
 
-    /// Finishes the `Span`.
+    /// Signals that the operation described by this span has now ended.
     pub fn end(&self) {
         self.end_with_timestamp(crate::time::now());
     }
 
-    /// Finishes the `Span` with given timestamp
+    /// Signals that the operation described by this span ended at the given time.
     pub fn end_with_timestamp(&self, timestamp: std::time::SystemTime) {
         self.with_inner_mut(move |inner| inner.end_with_timestamp(timestamp))
     }
 }
 
-/// Methods for storing and retrieving trace data in a context.
+/// Methods for storing and retrieving trace data in a [`Context`].
+///
+/// See [`Context`] for examples of setting and retrieving the current context.
 pub trait TraceContextExt {
-    /// Returns a clone of the current context with the included span.
+    /// Returns a clone of the current context with the included [`Span`].
     ///
-    /// This is useful for building tracers.
+    /// # Examples
+    ///
+    /// ```
+    /// use opentelemetry_api::{global, trace::{TraceContextExt, Tracer}, Context};
+    ///
+    /// let tracer = global::tracer("example");
+    ///
+    /// // build a span
+    /// let span = tracer.start("parent_span");
+    ///
+    /// // create a new context from the currently active context that includes this span
+    /// let cx = Context::current_with_span(span);
+    ///
+    /// // create a child span by explicitly specifying the parent context
+    /// let child = tracer.start_with_context("child_span", &cx);
+    /// # drop(child)
+    /// ```
     fn current_with_span<T: crate::trace::Span + Send + Sync + 'static>(span: T) -> Self;
 
     /// Returns a clone of this context with the included span.
     ///
-    /// This is useful for building tracers.
+    /// # Examples
+    ///
+    /// ```
+    /// use opentelemetry_api::{global, trace::{TraceContextExt, Tracer}, Context};
+    ///
+    /// fn fn_with_passed_in_context(cx: &Context) {
+    ///     let tracer = global::tracer("example");
+    ///
+    ///     // build a span
+    ///     let span = tracer.start("parent_span");
+    ///
+    ///     // create a new context from the given context that includes the span
+    ///     let cx_with_parent = cx.with_span(span);
+    ///
+    ///     // create a child span by explicitly specifying the parent context
+    ///     let child = tracer.start_with_context("child_span", &cx_with_parent);
+    ///     # drop(child)
+    /// }
+    ///
     fn with_span<T: crate::trace::Span + Send + Sync + 'static>(&self, span: T) -> Self;
 
     /// Returns a reference to this context's span, or the default no-op span if
     /// none has been set.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use opentelemetry_api::{trace::TraceContextExt, Context};
+    ///
+    /// // Add an event to the currently active span
+    /// Context::current().span().add_event("An event!", vec![]);
+    /// ```
     fn span(&self) -> SpanRef<'_>;
 
-    /// Used to see if a span has been marked as active
+    /// Returns whether or not an active span has been set.
     ///
-    /// This is useful for building tracers.
+    /// # Examples
+    ///
+    /// ```
+    /// use opentelemetry_api::{trace::TraceContextExt, Context};
+    ///
+    /// assert!(!Context::current().has_active_span());
+    /// ```
     fn has_active_span(&self) -> bool;
 
     /// Returns a copy of this context with the span context included.

@@ -7,7 +7,7 @@ use crate::trace::TraceResult;
 use crate::{
     propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
     trace,
-    trace::{SpanBuilder, TraceContextExt, TraceFlags, TraceState},
+    trace::{TraceContextExt, TraceFlags, TraceState},
     Context, KeyValue,
 };
 use std::borrow::Cow;
@@ -145,24 +145,6 @@ impl NoopTracer {
 
 impl trace::Tracer for NoopTracer {
     type Span = NoopSpan;
-
-    /// Starts a new `NoopSpan` with a given context.
-    ///
-    /// If the context contains a valid span, it's span context is propagated.
-    fn start_with_context<T>(&self, name: T, parent_cx: &Context) -> Self::Span
-    where
-        T: Into<std::borrow::Cow<'static, str>>,
-    {
-        self.build_with_context(SpanBuilder::from_name(name), parent_cx)
-    }
-
-    /// Starts a `SpanBuilder`.
-    fn span_builder<T>(&self, name: T) -> trace::SpanBuilder
-    where
-        T: Into<std::borrow::Cow<'static, str>>,
-    {
-        trace::SpanBuilder::from_name(name)
-    }
 
     /// Builds a `NoopSpan` from a `SpanBuilder`.
     ///

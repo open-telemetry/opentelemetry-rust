@@ -125,30 +125,6 @@ impl opentelemetry_api::trace::Tracer for Tracer {
     /// This implementation of `Tracer` produces `sdk::Span` instances.
     type Span = Span;
 
-    /// Starts a new `Span` with a given context.
-    ///
-    /// Each span has zero or one parent spans and zero or more child spans, which
-    /// represent causally related operations. A tree of related spans comprises a
-    /// trace. A span is said to be a _root span_ if it does not have a parent. Each
-    /// trace includes a single root span, which is the shared ancestor of all other
-    /// spans in the trace.
-    fn start_with_context<T>(&self, name: T, parent_cx: &Context) -> Self::Span
-    where
-        T: Into<Cow<'static, str>>,
-    {
-        self.build_with_context(SpanBuilder::from_name(name), parent_cx)
-    }
-
-    /// Creates a span builder
-    ///
-    /// An ergonomic way for attributes to be configured before the `Span` is started.
-    fn span_builder<T>(&self, name: T) -> SpanBuilder
-    where
-        T: Into<Cow<'static, str>>,
-    {
-        SpanBuilder::from_name(name)
-    }
-
     /// Starts a span from a `SpanBuilder`.
     ///
     /// Each span has zero or one parent spans and zero or more child spans, which
