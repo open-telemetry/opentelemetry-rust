@@ -3,6 +3,7 @@
 //! Configuration represents the global tracing configuration, overrides
 //! can be set for the default OpenTelemetry limits and Sampler.
 use crate::trace::{span_limit::SpanLimits, Sampler, ShouldSample};
+use opentelemetry_api::global::{handle_error, Error};
 use opentelemetry_api::trace::IdGenerator;
 use std::env;
 use std::str::FromStr;
@@ -121,6 +122,72 @@ impl Default for Config {
             .and_then(|max_links| u32::from_str(&max_links).ok())
         {
             config.span_limits.max_links_per_span = max_links_per_span;
+        }
+
+        let sampler_arg = env::var("OTEL_TRACES_SAMPLER_ARG").ok();
+        if let Ok(sampler) = env::var("OTEL_TRACES_SAMPLER") {
+            config.sampler = match sampler.as_str() {
+                "always_on" => Box::new(Sampler::AlwaysOn),
+                "always_off" => Box::new(Sampler::AlwaysOff),
+                "traceidratio" => {
+                    let ratio = sampler_arg.and_then(|r| r.parse::<f64>().ok());
+                    if let Some(r) = ratio {
+                        Box::new(Sampler::TraceIdRatioBased(r))
+                    } else {
+                        handle_error(
+                            Error::Other(String::from(
+                                "Missing or invalid OTEL_TRACES_SAMPLER_ARG value. Falling back to default: 1.0"))
+                        );
+                        Box::new(Sampler::TraceIdRatioBased(1.0))
+                    }
+                }
+                "parentbased_always_on" => {
+                    Box::new(Sampler::ParentBased(Box::new(Sampler::AlwaysOn)))
+                }
+                "parentbased_always_off" => {
+                    Box::new(Sampler::ParentBased(Box::new(Sampler::AlwaysOff)))
+                }
+                "parentbased_traceidratio" => {
+                    let ratio = sampler_arg.and_then(|r| r.parse::<f64>().ok());
+                    if let Some(r) = ratio {
+                        Box::new(Sampler::ParentBased(Box::new(Sampler::TraceIdRatioBased(
+                            r,
+                        ))))
+                    } else {
+                        handle_error(
+                            Error::Other(String::from(
+                            "Missing or invalid OTEL_TRACES_SAMPLER_ARG value. Falling back to default: 1.0"
+                        )));
+                        Box::new(Sampler::ParentBased(Box::new(Sampler::TraceIdRatioBased(
+                            1.0,
+                        ))))
+                    }
+                }
+                "parentbased_jaeger_remote" => {
+                    handle_error(
+                        Error::Other(String::from(
+                        "Unimplemented parentbased_jaeger_remote sampler. Falling back to default: parentbased_always_on"
+                    )));
+                    Box::new(Sampler::ParentBased(Box::new(Sampler::AlwaysOn)))
+                }
+                "jaeger_remote" => {
+                    handle_error(
+                        Error::Other(String::from("Unimplemented jaeger_remote sampler. Falling back to default: parentbased_always_on")));
+                    Box::new(Sampler::ParentBased(Box::new(Sampler::AlwaysOn)))
+                }
+                "xray" => {
+                    handle_error(
+                        Error::Other(String::from("Unimplemented xray sampler. Falling back to default: parentbased_always_on")));
+                    Box::new(Sampler::ParentBased(Box::new(Sampler::AlwaysOn)))
+                }
+                s => {
+                    handle_error(
+                        Error::Other(format!("Unrecognised OTEL_TRACES_SAMPLER value: {}. Falling back to default: parentbased_always_on",
+                        s
+                    )));
+                    Box::new(Sampler::ParentBased(Box::new(Sampler::AlwaysOn)))
+                }
+            }
         }
 
         config
