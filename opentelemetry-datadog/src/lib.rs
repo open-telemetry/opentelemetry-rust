@@ -79,7 +79,7 @@
 //!
 //! ```no_run
 //! use opentelemetry::{KeyValue, trace::Tracer};
-//! use opentelemetry::sdk::{trace::{self, IdGenerator, Sampler}, Resource};
+//! use opentelemetry::sdk::{trace::{self, RandomIdGenerator, Sampler}, Resource};
 //! use opentelemetry::sdk::export::trace::ExportResult;
 //! use opentelemetry::global::shutdown_tracer_provider;
 //! use opentelemetry_datadog::{new_pipeline, ApiVersion, Error};
@@ -118,7 +118,7 @@
 //!         .with_trace_config(
 //!             trace::config()
 //!                 .with_sampler(Sampler::AlwaysOn)
-//!                 .with_id_generator(IdGenerator::default())
+//!                 .with_id_generator(RandomIdGenerator::default())
 //!         )
 //!         .install_batch(opentelemetry::runtime::Tokio)?;
 //!

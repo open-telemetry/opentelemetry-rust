@@ -1,4 +1,5 @@
-use opentelemetry_api::trace::{IdGenerator, SpanId, TraceId};
+use crate::trace::{IdGenerator, RandomIdGenerator};
+use opentelemetry_api::trace::{SpanId, TraceId};
 use std::time::{Duration, UNIX_EPOCH};
 
 /// Generates AWS X-Ray compliant Trace and Span ids.
@@ -34,7 +35,7 @@ use std::time::{Duration, UNIX_EPOCH};
 /// [xray-trace-id]: https://docs.aws.amazon.com/xray/latest/devguide/xray-api-sendingdata.html#xray-api-traceids
 #[derive(Debug, Default)]
 pub struct XrayIdGenerator {
-    sdk_default_generator: crate::trace::IdGenerator,
+    sdk_default_generator: RandomIdGenerator,
 }
 
 impl IdGenerator for XrayIdGenerator {

@@ -138,7 +138,6 @@
 
 use futures_channel::{mpsc::TrySendError, oneshot::Canceled};
 use std::borrow::Cow;
-use std::fmt;
 use std::time;
 use thiserror::Error;
 
@@ -215,15 +214,6 @@ impl From<&'static str> for TraceError {
 #[derive(Error, Debug)]
 #[error("{0}")]
 struct Custom(String);
-
-/// Interface for generating IDs
-pub trait IdGenerator: Send + Sync + fmt::Debug {
-    /// Generate a new `TraceId`
-    fn new_trace_id(&self) -> TraceId;
-
-    /// Generate a new `SpanId`
-    fn new_span_id(&self) -> SpanId;
-}
 
 /// A `Span` has the ability to add events. Events have a time associated
 /// with the moment when they are added to the `Span`.

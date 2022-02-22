@@ -2,9 +2,8 @@
 //!
 //! Configuration represents the global tracing configuration, overrides
 //! can be set for the default OpenTelemetry limits and Sampler.
-use crate::trace::{span_limit::SpanLimits, Sampler, ShouldSample};
+use crate::trace::{span_limit::SpanLimits, IdGenerator, RandomIdGenerator, Sampler, ShouldSample};
 use opentelemetry_api::global::{handle_error, Error};
-use opentelemetry_api::trace::IdGenerator;
 use std::env;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -98,7 +97,7 @@ impl Default for Config {
     fn default() -> Self {
         let mut config = Config {
             sampler: Box::new(Sampler::ParentBased(Box::new(Sampler::AlwaysOn))),
-            id_generator: Box::new(crate::trace::IdGenerator::default()),
+            id_generator: Box::new(RandomIdGenerator::default()),
             span_limits: SpanLimits::default(),
             resource: None,
         };
