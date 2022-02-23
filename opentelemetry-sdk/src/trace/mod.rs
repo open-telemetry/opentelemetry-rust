@@ -21,7 +21,7 @@ mod tracer;
 pub use config::{config, Config};
 pub use evicted_hash_map::EvictedHashMap;
 pub use evicted_queue::EvictedQueue;
-pub use id_generator::{aws::XrayIdGenerator, IdGenerator};
+pub use id_generator::{aws::XrayIdGenerator, IdGenerator, RandomIdGenerator};
 pub use provider::{Builder, TracerProvider};
 pub use runtime::{TraceRuntime, TrySend};
 pub use sampler::{Sampler, ShouldSample};
