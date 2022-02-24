@@ -1,6 +1,7 @@
 use futures_util::{Stream, StreamExt as _};
 use opentelemetry::global::shutdown_tracer_provider;
 use opentelemetry::sdk::metrics::{selectors, PushController};
+use opentelemetry::sdk::Resource;
 use opentelemetry::trace::TraceError;
 use opentelemetry::{
     baggage::BaggageExt,
@@ -20,6 +21,12 @@ fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
             opentelemetry_otlp::new_exporter()
                 .tonic()
                 .with_endpoint("http://localhost:4317"),
+        )
+        .with_trace_config(
+            sdktrace::config().with_resource(Resource::new(vec![KeyValue::new(
+                opentelemetry_semantic_conventions::resource::SERVICE_NAME,
+                "trace-demo",
+            )])),
         )
         .install_batch(opentelemetry::runtime::Tokio)
 }

@@ -20,17 +20,17 @@ You should be able to see something similar below with different time and ID in 
 
 ```
 Resource labels:
-     -> service.name: STRING(unknown_service)
+     -> service.name: STRING(trace-demo)
 InstrumentationLibrarySpans #0
 InstrumentationLibrary
 Span #0
-    Trace ID       : e60184475358d966b0880ec1cc1cf515
-    Parent ID      : 7b74443b55e404ba
-    ID             : f8e4a037c0fa63bd
+    Trace ID       : 737d9c966e8250475f400776228c0044
+    Parent ID      : ade62a071825f2db
+    ID             : 7aa9ea5f24e0444c
     Name           : Sub operation...
     Kind           : SPAN_KIND_INTERNAL
-    Start time     : 2021-11-19 04:07:46.29597 +0000 UTC
-    End time       : 2021-11-19 04:07:46.295997 +0000 UTC
+    Start time     : 2022-02-24 04:59:57.218995 +0000 UTC
+    End time       : 2022-02-24 04:59:57.219022 +0000 UTC
     Status code    : STATUS_CODE_UNSET
     Status message :
 Attributes:
@@ -38,21 +38,21 @@ Attributes:
 Events:
 SpanEvent #0
      -> Name: Sub span event
-     -> Timestamp: 2021-11-19 04:07:46.295982 +0000 UTC
+     -> Timestamp: 2022-02-24 04:59:57.219012 +0000 UTC
      -> DroppedAttributesCount: 0
 ResourceSpans #1
 Resource labels:
-     -> service.name: STRING(unknown_service)
+     -> service.name: STRING(trace-demo)
 InstrumentationLibrarySpans #0
 InstrumentationLibrary
 Span #0
-    Trace ID       : e60184475358d966b0880ec1cc1cf515
+    Trace ID       : 737d9c966e8250475f400776228c0044
     Parent ID      :
-    ID             : 7b74443b55e404ba
+    ID             : ade62a071825f2db
     Name           : operation
     Kind           : SPAN_KIND_INTERNAL
-    Start time     : 2021-11-19 04:07:46.295898 +0000 UTC
-    End time       : 2021-11-19 04:07:46.296015 +0000 UTC
+    Start time     : 2022-02-24 04:59:57.218877 +0000 UTC
+    End time       : 2022-02-24 04:59:57.219043 +0000 UTC
     Status code    : STATUS_CODE_UNSET
     Status message :
 Attributes:
@@ -60,7 +60,7 @@ Attributes:
 Events:
 SpanEvent #0
      -> Name: Nice operation!
-     -> Timestamp: 2021-11-19 04:07:46.295915 +0000 UTC
+     -> Timestamp: 2022-02-24 04:59:57.218896 +0000 UTC
      -> DroppedAttributesCount: 0
      -> Attributes:
          -> bogons: INT(100)
