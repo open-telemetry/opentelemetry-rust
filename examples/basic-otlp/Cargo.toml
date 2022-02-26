@@ -9,5 +9,6 @@ futures-util = { version = "0.3", default-features = false, features = ["std"] }
 lazy_static = "1.4"
 opentelemetry = { path = "../../opentelemetry", features = ["rt-tokio", "metrics"] }
 opentelemetry-otlp = { path = "../../opentelemetry-otlp", features = ["tonic", "metrics"] }
+opentelemetry-semantic-conventions = { path = "../../opentelemetry-semantic-conventions" }
 serde_json = "1.0"
 tokio = { version = "1.0", features = ["full"] }
