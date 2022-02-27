@@ -483,6 +483,7 @@ mod tests {
                     "test".to_string(),
                     "test",
                     None,
+                    None,
                     InstrumentKind::Counter,
                     NumberKind::I64,
                 );
@@ -526,6 +527,7 @@ mod tests {
                 let descriptor = Descriptor::new(
                     "test".to_string(),
                     "test",
+                    None,
                     None,
                     InstrumentKind::ValueObserver,
                     NumberKind::I64,
@@ -578,6 +580,7 @@ mod tests {
                     "test".to_string(),
                     "test",
                     None,
+                    None,
                     InstrumentKind::UpDownSumObserver,
                     NumberKind::I64,
                 );
@@ -625,6 +628,7 @@ mod tests {
                 let descriptor = Descriptor::new(
                     "test".to_string(),
                     "test",
+                    None,
                     None,
                     InstrumentKind::Histogram,
                     NumberKind::I64,
@@ -713,7 +717,7 @@ mod tests {
                         ResourceWrapper::from(Resource::new(kvs.into_iter().map(|(k, v)| {
                             opentelemetry::KeyValue::new(k.to_string(), v.to_string())
                         }))),
-                        InstrumentationLibrary::new(name, version),
+                        InstrumentationLibrary::new(name, version, None),
                         get_metric_with_name(
                             metric_name,
                             vec![(attributes, start_time, end_time, value)],

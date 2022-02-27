@@ -89,9 +89,20 @@ pub mod tonic {
 
 #[cfg(feature = "gen-protoc")]
 pub mod grpcio {
-    use crate::proto::grpcio::common::{AnyValue, ArrayValue, KeyValue};
+    use crate::proto::grpcio::common::{AnyValue, ArrayValue, InstrumentationLibrary, KeyValue};
     use opentelemetry::{sdk::trace::EvictedHashMap, Array, Value};
     use protobuf::RepeatedField;
+    use std::borrow::Cow;
+
+    impl From<opentelemetry::sdk::InstrumentationLibrary> for InstrumentationLibrary {
+        fn from(library: opentelemetry::sdk::InstrumentationLibrary) -> Self {
+            InstrumentationLibrary {
+                name: library.name.to_string(),
+                version: library.version.unwrap_or(Cow::Borrowed("")).to_string(),
+                ..Default::default()
+            }
+        }
+    }
 
     pub struct Attributes(pub ::protobuf::RepeatedField<crate::proto::grpcio::common::KeyValue>);
 

@@ -80,8 +80,4 @@ pub struct SpanData {
     pub resource: Option<Arc<crate::Resource>>,
     /// Instrumentation library that produced this span
     pub instrumentation_lib: crate::InstrumentationLibrary,
-    /// [Schema url] of this span and it's events
-    ///
-    /// [Schema url]: https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/schemas/overview.md#schema-url
-    pub schema_url: &'static str,
 }

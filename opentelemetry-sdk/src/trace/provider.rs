@@ -89,10 +89,13 @@ impl opentelemetry_api::trace::TracerProvider for TracerProvider {
         } else {
             name
         };
-        let instrumentation_lib =
-            InstrumentationLibrary::new(component_name, version.map(Into::into));
+        let instrumentation_lib = InstrumentationLibrary::new(
+            component_name,
+            version.map(Into::into),
+            schema_url.map(Into::into),
+        );
 
-        Tracer::new(instrumentation_lib, Arc::downgrade(&self.inner), schema_url)
+        Tracer::new(instrumentation_lib, Arc::downgrade(&self.inner))
     }
 
     /// Force flush all remaining spans in span processors and return results.

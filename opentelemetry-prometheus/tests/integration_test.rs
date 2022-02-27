@@ -15,7 +15,7 @@ fn free_unused_instruments() {
     let mut expected = Vec::new();
 
     {
-        let meter = exporter.provider().unwrap().meter("test", None);
+        let meter = exporter.provider().unwrap().meter("test", None, None);
         let counter = meter.f64_counter("counter").init();
 
         let attributes = vec![KeyValue::new("A", "B"), KeyValue::new("C", "D")];
@@ -38,7 +38,7 @@ fn batch() {
     let exporter = opentelemetry_prometheus::exporter()
         .with_resource(Resource::new(vec![KeyValue::new("R", "V")]))
         .init();
-    let meter = exporter.provider().unwrap().meter("test", None);
+    let meter = exporter.provider().unwrap().meter("test", None, None);
     let mut expected = Vec::new();
 
     meter.batch_observer(|batch| {
@@ -68,7 +68,7 @@ fn test_add() {
         .with_resource(Resource::new(vec![KeyValue::new("R", "V")]))
         .init();
 
-    let meter = exporter.provider().unwrap().meter("test", None);
+    let meter = exporter.provider().unwrap().meter("test", None, None);
 
     let up_down_counter = meter.f64_up_down_counter("updowncounter").init();
     let counter = meter.f64_counter("counter").init();
@@ -120,7 +120,7 @@ fn test_sanitization() {
             "Test Service",
         )]))
         .init();
-    let meter = exporter.provider().unwrap().meter("test", None);
+    let meter = exporter.provider().unwrap().meter("test", None, None);
 
     let histogram = meter.f64_histogram("http.server.duration").init();
     let attributes = vec![

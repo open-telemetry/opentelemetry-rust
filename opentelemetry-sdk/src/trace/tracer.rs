@@ -29,7 +29,6 @@ use std::sync::Weak;
 #[derive(Clone)]
 pub struct Tracer {
     instrumentation_lib: InstrumentationLibrary,
-    schema_url: Option<&'static str>,
     provider: Weak<TracerProviderInner>,
 }
 
@@ -40,7 +39,6 @@ impl fmt::Debug for Tracer {
         f.debug_struct("Tracer")
             .field("name", &self.instrumentation_lib.name)
             .field("version", &self.instrumentation_lib.version)
-            .field("schema_url", &self.schema_url)
             .finish()
     }
 }
@@ -50,12 +48,10 @@ impl Tracer {
     pub(crate) fn new(
         instrumentation_lib: InstrumentationLibrary,
         provider: Weak<TracerProviderInner>,
-        schema_url: Option<&'static str>,
     ) -> Self {
         Tracer {
             instrumentation_lib,
             provider,
-            schema_url,
         }
     }
 
@@ -67,15 +63,6 @@ impl Tracer {
     /// Instrumentation library information of this tracer.
     pub fn instrumentation_library(&self) -> &InstrumentationLibrary {
         &self.instrumentation_lib
-    }
-
-    /// [Schema url] of all the spans created by this tracer.
-    ///
-    /// If no schema url was provided to tracer, it will return empty string
-    ///
-    /// [Schema url]: https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/schemas/overview.md#schema-url
-    pub(crate) fn schema_url(&self) -> &'static str {
-        self.schema_url.unwrap_or("")
     }
 
     /// Make a sampling decision using the provided sampler for the span and context.

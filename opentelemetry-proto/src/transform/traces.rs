@@ -58,8 +58,13 @@ pub mod tonic {
                 }),
                 schema_url: "".to_string(), // todo: replace with actual schema url.
                 instrumentation_library_spans: vec![InstrumentationLibrarySpans {
-                    instrumentation_library: Default::default(),
-                    schema_url: source_span.schema_url.into(),
+                    schema_url: source_span
+                        .instrumentation_lib
+                        .schema_url
+                        .as_ref()
+                        .map(ToString::to_string)
+                        .unwrap_or_else(|| "".to_string()),
+                    instrumentation_library: Some(source_span.instrumentation_lib.into()),
                     spans: vec![Span {
                         trace_id: source_span.span_context.trace_id().to_bytes().to_vec(),
                         span_id: source_span.span_context.span_id().to_bytes().to_vec(),
@@ -172,7 +177,15 @@ pub mod grpcio {
                 })),
                 instrumentation_library_spans: RepeatedField::from_vec(vec![
                     InstrumentationLibrarySpans {
-                        instrumentation_library: Default::default(),
+                        schema_url: source_span
+                            .instrumentation_lib
+                            .schema_url
+                            .as_ref()
+                            .map(ToString::to_string)
+                            .unwrap_or_else(|| "".to_string()),
+                        instrumentation_library: protobuf::SingularPtrField::some(
+                            source_span.instrumentation_lib.into(),
+                        ),
                         spans: RepeatedField::from_vec(vec![Span {
                             trace_id: source_span.span_context.trace_id().to_bytes().to_vec(),
                             span_id: source_span.span_context.span_id().to_bytes().to_vec(),

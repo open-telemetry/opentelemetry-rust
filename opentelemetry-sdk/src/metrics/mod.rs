@@ -617,7 +617,7 @@ mod tests {
             Box::new(ExportKindSelector::Delta),
         )
         .build();
-        let meter = controller.provider().meter("test", None);
+        let meter = controller.provider().meter("test", None, None);
         let counter = meter.f64_counter("test").init();
         println!("{:?}, {:?}, {:?}", controller, meter, counter);
     }

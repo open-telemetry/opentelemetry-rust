@@ -20,8 +20,13 @@ pub fn meter_provider(core: Arc<dyn MeterCore + Send + Sync>) -> RegistryMeterPr
 pub struct RegistryMeterProvider(Arc<dyn MeterCore + Send + Sync>);
 
 impl MeterProvider for RegistryMeterProvider {
-    fn meter(&self, name: &'static str, version: Option<&'static str>) -> Meter {
-        Meter::new(name, version, self.0.clone())
+    fn meter(
+        &self,
+        name: &'static str,
+        version: Option<&'static str>,
+        schema_url: Option<&'static str>,
+    ) -> Meter {
+        Meter::new(name, version, schema_url, self.0.clone())
     }
 }
 
