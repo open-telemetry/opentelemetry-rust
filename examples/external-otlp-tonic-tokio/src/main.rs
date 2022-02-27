@@ -47,7 +47,7 @@ fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
         .map(|(name, value)| {
             let header_name = name
                 .strip_prefix(HEADER_PREFIX)
-                .map(|h| h.replace("_", "-"))
+                .map(|h| h.replace('_', "-"))
                 .map(|h| h.to_ascii_lowercase())
                 .unwrap();
             (header_name, value)
