@@ -3,6 +3,7 @@ mod tests {
     use opentelemetry::sdk::trace::Tracer as SdkTracer;
     use opentelemetry::trace::{StatusCode, TraceContextExt, Tracer, TracerProvider};
     use opentelemetry::KeyValue;
+    use opentelemetry_jaeger::config::Configurable;
     use opentelemetry_jaeger::testing::{
         jaeger_api_v2 as jaeger_api, jaeger_client::JaegerTestClient,
     };
@@ -65,8 +66,8 @@ mod tests {
         println!("{}, {}", agent_endpoint, query_api_endpoint);
 
         runtime.block_on(async {
-            let tracer = opentelemetry_jaeger::new_pipeline()
-                .with_agent_endpoint(agent_endpoint)
+            let tracer = opentelemetry_jaeger::new_agent_pipeline()
+                .with_endpoint(agent_endpoint)
                 .with_service_name(SERVICE_NAME)
                 .install_batch(opentelemetry::runtime::Tokio)
                 .expect("cannot create tracer using default configuration");

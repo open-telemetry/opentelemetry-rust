@@ -18,7 +18,6 @@ pub trait JaegerTraceRuntime: TraceRuntime + std::fmt::Debug {
 }
 
 #[cfg(feature = "rt-tokio")]
-#[cfg_attr(docsrs, doc(cfg(feature = "rt-tokio")))]
 #[async_trait]
 impl JaegerTraceRuntime for opentelemetry::runtime::Tokio {
     type Socket = tokio::net::UdpSocket;
@@ -37,7 +36,6 @@ impl JaegerTraceRuntime for opentelemetry::runtime::Tokio {
 }
 
 #[cfg(feature = "rt-tokio-current-thread")]
-#[cfg_attr(docsrs, doc(cfg(feature = "rt-tokio-current-thread")))]
 #[async_trait]
 impl JaegerTraceRuntime for opentelemetry::runtime::TokioCurrentThread {
     type Socket = tokio::net::UdpSocket;
@@ -56,7 +54,6 @@ impl JaegerTraceRuntime for opentelemetry::runtime::TokioCurrentThread {
 }
 
 #[cfg(feature = "rt-async-std")]
-#[cfg_attr(docrs, doc(cfg(feature = "rt-async-std")))]
 #[async_trait]
 impl JaegerTraceRuntime for opentelemetry::runtime::AsyncStd {
     type Socket = async_std::net::UdpSocket;

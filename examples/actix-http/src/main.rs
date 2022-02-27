@@ -8,10 +8,11 @@ use opentelemetry::{
     trace::{FutureExt, TraceContextExt, Tracer},
     Key,
 };
+use opentelemetry_jaeger::Configurable;
 
 fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
-    opentelemetry_jaeger::new_pipeline()
-        .with_collector_endpoint("http://127.0.0.1:14268/api/traces")
+    opentelemetry_jaeger::new_collector_pipeline()
+        .with_endpoint("http://127.0.0.1:14268/api/traces")
         .with_service_name("trace-http-demo")
         .install_batch(opentelemetry::runtime::TokioCurrentThread)
 }

@@ -10,6 +10,7 @@ use opentelemetry::{
     trace::{TraceContextExt, Tracer as _},
     Context, KeyValue,
 };
+use opentelemetry_jaeger::Configurable;
 
 struct MetadataMap<'a>(&'a mut tonic::metadata::MetadataMap);
 
@@ -30,7 +31,7 @@ pub mod hello_world {
 
 fn tracing_init() -> TraceResult<Tracer> {
     global::set_text_map_propagator(TraceContextPropagator::new());
-    opentelemetry_jaeger::new_pipeline()
+    opentelemetry_jaeger::new_agent_pipeline()
         .with_service_name("grpc-client")
         .install_simple()
 }

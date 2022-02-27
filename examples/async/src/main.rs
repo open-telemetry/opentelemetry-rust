@@ -24,6 +24,7 @@ use opentelemetry::{
     trace::{FutureExt, TraceContextExt, Tracer},
     Context,
 };
+use opentelemetry_jaeger::Configurable;
 use std::{error::Error, io, net::SocketAddr};
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
@@ -54,7 +55,7 @@ async fn run(addr: &SocketAddr) -> io::Result<usize> {
 }
 
 fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
-    opentelemetry_jaeger::new_pipeline()
+    opentelemetry_jaeger::new_agent_pipeline()
         .with_service_name("trace-demo")
         .install_batch(opentelemetry::runtime::Tokio)
 }

@@ -7,10 +7,11 @@ use opentelemetry::{
     trace::{FutureExt, TraceContextExt, Tracer},
     Key,
 };
+use opentelemetry_jaeger::Configurable;
 
 fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
-    opentelemetry_jaeger::new_pipeline()
-        .with_agent_endpoint("localhost:6831")
+    opentelemetry_jaeger::new_agent_pipeline()
+        .with_endpoint("localhost:6831")
         .with_service_name("trace-udp-demo")
         .with_trace_config(opentelemetry::sdk::trace::config().with_resource(
             opentelemetry::sdk::Resource::new(vec![

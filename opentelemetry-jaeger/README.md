@@ -47,7 +47,7 @@ use opentelemetry::trace::Tracer;
 
 fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     global::set_text_map_propagator(opentelemetry_jaeger::Propagator::new());
-    let tracer = opentelemetry_jaeger::new_pipeline().install_simple()?;
+    let tracer = opentelemetry_jaeger::new_agent_pipeline().install_simple()?;
 
     tracer.in_span("doing_work", |cx| {
         // Traced app logic here...
@@ -76,7 +76,7 @@ opentelemetry-jaeger = { version = "*", features = ["rt-tokio"] }
 ```
 
 ```rust
-let tracer = opentelemetry_jaeger::new_pipeline()
+let tracer = opentelemetry_jaeger::new_agent_pipeline()
     .install_batch(opentelemetry::runtime::Tokio)?;
 ```
 
@@ -120,11 +120,11 @@ Then you can use the [`with_collector_endpoint`] method to specify the endpoint:
 use opentelemetry::trace::Tracer;
 
 fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let tracer = opentelemetry_jaeger::new_pipeline()
-        .with_collector_endpoint("http://localhost:14268/api/traces")
+    let tracer = opentelemetry_jaeger::new_collector_pipeline()
+        .with_endpoint("http://localhost:14268/api/traces")
         // optionally set username and password as well.
-        .with_collector_username("username")
-        .with_collector_password("s3cr3t")
+        .with_username("username")
+        .with_password("s3cr3t")
         .install_batch()?;
 
     tracer.in_span("doing_work", |cx| {
