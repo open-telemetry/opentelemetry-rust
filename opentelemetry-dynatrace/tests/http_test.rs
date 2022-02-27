@@ -116,7 +116,7 @@ mod test {
         );
         assert_eq!(
             req.headers().get(AUTHORIZATION),
-            Some(&HeaderValue::from_str(&"Api-Token 1234567890".to_string()).unwrap()),
+            Some(&HeaderValue::from_str("Api-Token 1234567890").unwrap()),
         );
 
         let bytes = body::to_bytes(req.into_body())
