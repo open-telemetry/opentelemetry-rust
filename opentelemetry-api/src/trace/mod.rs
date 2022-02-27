@@ -109,12 +109,6 @@
 //! tracer.in_span("parent_span", |cx| {
 //!     // spans created here will be children of `parent_span`
 //! });
-//!
-//! // Use `with_span` to mark a span as active for a given period.
-//! let span = tracer.start("parent_span");
-//! tracer.with_span(span, |cx| {
-//!     // spans created here will be children of `parent_span`
-//! });
 //! ```
 //!
 //! #### Async active spans
