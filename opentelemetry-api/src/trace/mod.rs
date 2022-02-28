@@ -95,8 +95,8 @@
 //! drop(active)
 //! ```
 //!
-//! Additionally [`Tracer::with_span`] and [`Tracer::in_span`] can be used as shorthand to
-//! simplify managing the parent context.
+//! Additionally [`Tracer::in_span`] can be used as shorthand to simplify
+//! managing the parent context.
 //!
 //! ```
 //! use opentelemetry_api::{global, trace::Tracer};
