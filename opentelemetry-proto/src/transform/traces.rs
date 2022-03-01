@@ -63,7 +63,7 @@ pub mod tonic {
                         .schema_url
                         .as_ref()
                         .map(ToString::to_string)
-                        .unwrap_or_else(|| "".to_string()),
+                        .unwrap_or_default(),
                     instrumentation_library: Some(source_span.instrumentation_lib.into()),
                     spans: vec![Span {
                         trace_id: source_span.span_context.trace_id().to_bytes().to_vec(),
@@ -182,7 +182,7 @@ pub mod grpcio {
                             .schema_url
                             .as_ref()
                             .map(ToString::to_string)
-                            .unwrap_or_else(|| "".to_string()),
+                            .unwrap_or_default(),
                         instrumentation_library: protobuf::SingularPtrField::some(
                             source_span.instrumentation_lib.into(),
                         ),
