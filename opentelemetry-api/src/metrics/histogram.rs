@@ -67,6 +67,7 @@ impl<'a, T> HistogramBuilder<'a, T> {
                 name,
                 meter.instrumentation_library().name,
                 meter.instrumentation_library().version,
+                meter.instrumentation_library().schema_url,
                 InstrumentKind::Histogram,
                 number_kind,
             ),

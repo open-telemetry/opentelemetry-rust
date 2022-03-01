@@ -16,7 +16,7 @@ impl InstrumentConfig {
         InstrumentConfig {
             description: None,
             unit: None,
-            instrumentation_library: InstrumentationLibrary::new(instrumentation_name, None),
+            instrumentation_library: InstrumentationLibrary::new(instrumentation_name, None, None),
         }
     }
 
@@ -24,6 +24,7 @@ impl InstrumentConfig {
     pub fn with_instrumentation<T: Into<Cow<'static, str>>>(
         instrumentation_name: T,
         instrumentation_version: Option<T>,
+        schema_url: Option<T>,
     ) -> Self {
         InstrumentConfig {
             description: None,
@@ -31,6 +32,7 @@ impl InstrumentConfig {
             instrumentation_library: InstrumentationLibrary::new(
                 instrumentation_name,
                 instrumentation_version,
+                schema_url,
             ),
         }
     }

@@ -315,7 +315,16 @@ impl Exporter for MetricsExporter {
                         record.resource().clone().into(),
                         InstrumentationLibrary::new(
                             record.descriptor().instrumentation_name(),
-                            record.descriptor().instrumentation_version(),
+                            record
+                                .descriptor()
+                                .instrumentation_library()
+                                .version
+                                .clone(),
+                            record
+                                .descriptor()
+                                .instrumentation_library()
+                                .schema_url
+                                .clone(),
                         ),
                         metrics,
                     ));

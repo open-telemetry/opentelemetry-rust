@@ -118,7 +118,7 @@ pub(crate) mod tests {
             status_code: StatusCode::Ok,
             status_message: "".into(),
             resource: None,
-            instrumentation_lib: InstrumentationLibrary::new("component", None),
+            instrumentation_lib: InstrumentationLibrary::new("component", None, None),
         }
     }
 

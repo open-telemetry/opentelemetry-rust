@@ -22,6 +22,7 @@ fn ddsketch(data: Vec<f64>) {
         "test".to_string(),
         "test",
         None,
+        None,
         InstrumentKind::Histogram,
         NumberKind::F64,
     );
@@ -42,6 +43,7 @@ fn array(data: Vec<f64>) {
     let descriptor = Descriptor::new(
         "test".to_string(),
         "test",
+        None,
         None,
         InstrumentKind::Histogram,
         NumberKind::F64,

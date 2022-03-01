@@ -692,6 +692,7 @@ mod tests {
             "test".to_string(),
             "test",
             None,
+            None,
             InstrumentKind::Histogram,
             kind.clone(),
         );
@@ -832,6 +833,7 @@ mod tests {
         let descriptor = Descriptor::new(
             "test".to_string(),
             "test",
+            None,
             None,
             InstrumentKind::Histogram,
             kind.clone(),

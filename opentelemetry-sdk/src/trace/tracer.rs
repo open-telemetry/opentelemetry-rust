@@ -60,7 +60,7 @@ impl Tracer {
         self.provider.upgrade().map(TracerProvider::new)
     }
 
-    /// instrumentation library information of this tracer.
+    /// Instrumentation library information of this tracer.
     pub fn instrumentation_library(&self) -> &InstrumentationLibrary {
         &self.instrumentation_lib
     }

@@ -18,7 +18,7 @@ use std::any::Any;
 use std::sync::Arc;
 
 lazy_static::lazy_static! {
-    static ref NOOP_DESCRIPTOR: Descriptor = Descriptor::new(String::new(), "noop", None, InstrumentKind::Counter, NumberKind::U64);
+    static ref NOOP_DESCRIPTOR: Descriptor = Descriptor::new(String::new(), "noop", None, None, InstrumentKind::Counter, NumberKind::U64);
 }
 
 /// A no-op instance of a `MetricProvider`
@@ -35,8 +35,13 @@ impl NoopMeterProvider {
 }
 
 impl MeterProvider for NoopMeterProvider {
-    fn meter(&self, name: &'static str, version: Option<&'static str>) -> Meter {
-        Meter::new(name, version, Arc::new(NoopMeterCore::new()))
+    fn meter(
+        &self,
+        name: &'static str,
+        version: Option<&'static str>,
+        schema_url: Option<&'static str>,
+    ) -> Meter {
+        Meter::new(name, version, schema_url, Arc::new(NoopMeterCore::new()))
     }
 }
 

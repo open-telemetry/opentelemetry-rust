@@ -776,6 +776,7 @@ mod tests {
                 "test_array".to_string(),
                 "test",
                 None,
+                None,
                 InstrumentKind::Counter,
                 NumberKind::I64,
             );
@@ -866,6 +867,7 @@ mod tests {
             let descriptor = Descriptor::new(
                 "test_sum".to_string(),
                 "test",
+                None,
                 None,
                 InstrumentKind::Counter,
                 NumberKind::I64,
@@ -978,6 +980,7 @@ mod tests {
                 "test_last_value".to_string(),
                 "test",
                 None,
+                None,
                 InstrumentKind::ValueObserver,
                 NumberKind::I64,
             );
@@ -1043,6 +1046,7 @@ mod tests {
             let descriptor = Descriptor::new(
                 "test_min_max_sum_count".to_string(),
                 "test",
+                None,
                 None,
                 InstrumentKind::UpDownSumObserver,
                 NumberKind::I64,
@@ -1111,6 +1115,7 @@ mod tests {
             let descriptor = Descriptor::new(
                 "test_histogram".to_string(),
                 "test",
+                None,
                 None,
                 InstrumentKind::Histogram,
                 NumberKind::I64,

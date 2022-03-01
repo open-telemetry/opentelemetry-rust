@@ -272,17 +272,22 @@ pub struct InstrumentationLibrary {
     pub name: Cow<'static, str>,
     /// instrumentation library version, can be empty
     pub version: Option<Cow<'static, str>>,
+    /// [Schema url] of spans and their events.
+    ///
+    /// [Schema url]: https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/schemas/overview.md#schema-url
+    pub schema_url: Option<Cow<'static, str>>,
 }
 
 impl InstrumentationLibrary {
     /// Create an InstrumentationLibrary from name and version.
-    pub fn new<T>(name: T, version: Option<T>) -> InstrumentationLibrary
+    pub fn new<T>(name: T, version: Option<T>, schema_url: Option<T>) -> InstrumentationLibrary
     where
         T: Into<Cow<'static, str>>,
     {
         InstrumentationLibrary {
             name: name.into(),
             version: version.map(Into::into),
+            schema_url: schema_url.map(Into::into),
         }
     }
 }

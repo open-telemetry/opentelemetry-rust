@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::fmt;
 use std::sync::Arc;
 
@@ -23,6 +24,7 @@ pub trait MeterProvider: fmt::Debug {
         &self,
         instrumentation_name: &'static str,
         instrumentation_version: Option<&'static str>,
+        schema_url: Option<&'static str>,
     ) -> Meter;
 }
 
@@ -48,15 +50,17 @@ pub struct Meter {
 
 impl Meter {
     /// Create a new named meter from a sdk implemented core
-    pub fn new<T: Into<&'static str>>(
+    pub fn new<T: Into<Cow<'static, str>>>(
         instrumentation_name: T,
         instrumentation_version: Option<T>,
+        schema_url: Option<T>,
         core: Arc<dyn sdk_api::MeterCore + Send + Sync>,
     ) -> Self {
         Meter {
             instrumentation_library: InstrumentationLibrary::new(
                 instrumentation_name.into(),
                 instrumentation_version.map(Into::into),
+                schema_url.map(Into::into),
             ),
             core,
         }

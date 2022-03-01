@@ -21,6 +21,7 @@ impl Descriptor {
         name: String,
         instrumentation_name: T,
         instrumentation_version: Option<T>,
+        schema_url: Option<T>,
         instrument_kind: InstrumentKind,
         number_kind: NumberKind,
     ) -> Self {
@@ -32,8 +33,11 @@ impl Descriptor {
         instrumentation_version.as_ref().hash(&mut hasher);
         instrument_kind.hash(&mut hasher);
         number_kind.hash(&mut hasher);
-        let config =
-            InstrumentConfig::with_instrumentation(instrumentation_name, instrumentation_version);
+        let config = InstrumentConfig::with_instrumentation(
+            instrumentation_name,
+            instrumentation_version.map(Into::into),
+            schema_url.map(Into::into),
+        );
 
         Descriptor {
             name,
@@ -78,11 +82,6 @@ impl Descriptor {
     /// The name of the library that provided instrumentation for this instrument.
     pub fn instrumentation_name(&self) -> Cow<'static, str> {
         self.config.instrumentation_name()
-    }
-
-    /// The version of library that provided instrumentation for this instrument. Optional
-    pub fn instrumentation_version(&self) -> Option<Cow<'static, str>> {
-        self.config.instrumentation_version()
     }
 
     /// Instrumentation library reference

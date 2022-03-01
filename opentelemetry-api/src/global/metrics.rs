@@ -14,8 +14,13 @@ pub struct GlobalMeterProvider {
 }
 
 impl MeterProvider for GlobalMeterProvider {
-    fn meter(&self, name: &'static str, version: Option<&'static str>) -> Meter {
-        self.provider.meter(name, version)
+    fn meter(
+        &self,
+        name: &'static str,
+        version: Option<&'static str>,
+        schema_url: Option<&'static str>,
+    ) -> Meter {
+        self.provider.meter(name, version, schema_url)
     }
 }
 
@@ -58,10 +63,14 @@ pub fn meter_provider() -> GlobalMeterProvider {
 ///
 /// This is a more convenient way of expressing `global::meter_provider().meter(name)`.
 pub fn meter(name: &'static str) -> Meter {
-    meter_provider().meter(name, None)
+    meter_provider().meter(name, None, None)
 }
 
 /// Creates a [`Meter`] with the name and version.
-pub fn meter_with_version(name: &'static str, version: &'static str) -> Meter {
-    meter_provider().meter(name, Some(version))
+pub fn meter_with_version(
+    name: &'static str,
+    version: &'static str,
+    schema_url: &'static str,
+) -> Meter {
+    meter_provider().meter(name, Some(version), Some(schema_url))
 }
