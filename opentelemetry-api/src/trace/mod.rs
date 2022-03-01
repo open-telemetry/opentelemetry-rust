@@ -95,8 +95,8 @@
 //! drop(active)
 //! ```
 //!
-//! Additionally [`Tracer::with_span`] and [`Tracer::in_span`] can be used as shorthand to
-//! simplify managing the parent context.
+//! Additionally [`Tracer::in_span`] can be used as shorthand to simplify
+//! managing the parent context.
 //!
 //! ```
 //! use opentelemetry_api::{global, trace::Tracer};
@@ -107,12 +107,6 @@
 //! // Use `in_span` to create a new span and mark it as the parent, dropping it
 //! // at the end of the block.
 //! tracer.in_span("parent_span", |cx| {
-//!     // spans created here will be children of `parent_span`
-//! });
-//!
-//! // Use `with_span` to mark a span as active for a given period.
-//! let span = tracer.start("parent_span");
-//! tracer.with_span(span, |cx| {
 //!     // spans created here will be children of `parent_span`
 //! });
 //! ```

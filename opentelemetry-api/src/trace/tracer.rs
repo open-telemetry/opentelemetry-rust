@@ -44,20 +44,6 @@ use std::time::SystemTime;
 ///     // child has ended, parent now the active span again
 /// });
 /// // parent has ended, no active spans
-///
-/// // -- OR --
-///
-/// // create complex spans with span builder and `with_span`
-/// let parent_span = tracer.span_builder("foo").with_kind(SpanKind::Server).start(&tracer);
-/// tracer.with_span(parent_span, |_foo_cx| {
-///     // parent span is active
-///     let child_span = tracer.span_builder("bar").with_kind(SpanKind::Client).start(&tracer);
-///     tracer.with_span(child_span, |_bar_cx| {
-///         // child span is now the active span and associated with the parent span
-///     });
-///     // child has ended, parent now the active span again
-/// });
-/// // parent has ended, no active spans
 /// ```
 ///
 /// Spans can also be marked as active, and the resulting guard allows for
@@ -224,46 +210,6 @@ pub trait Tracer {
         Self::Span: Send + Sync + 'static,
     {
         let span = self.start(name);
-        let cx = Context::current_with_span(span);
-        let _guard = cx.clone().attach();
-        f(cx)
-    }
-
-    /// Execute the given closure with reference to a context in which the span is
-    /// active.
-    ///
-    /// This sets the given span as active for the duration of the given function.
-    /// It then executes the body. It closes the span before returning the execution
-    /// result.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use opentelemetry_api::{global, trace::{Span, SpanKind, Tracer, get_active_span}, KeyValue};
-    ///
-    /// fn my_function() {
-    ///     let tracer = global::tracer("my-component");
-    ///     // start a span with custom attributes via span builder
-    ///     let span = tracer.span_builder("span-name").with_kind(SpanKind::Server).start(&tracer);
-    ///     // Mark the span as active for the duration of the closure
-    ///     global::tracer("my-component").with_span(span, |_cx| {
-    ///         // anything happening in functions we call can still access the active span...
-    ///         my_other_function();
-    ///     })
-    /// }
-    ///
-    /// fn my_other_function() {
-    ///     // call methods on the current span from
-    ///     get_active_span(|span| {
-    ///         span.add_event("An event!".to_string(), vec![KeyValue::new("happened", true)]);
-    ///     })
-    /// }
-    /// ```
-    fn with_span<T, F>(&self, span: Self::Span, f: F) -> T
-    where
-        F: FnOnce(Context) -> T,
-        Self::Span: Send + Sync + 'static,
-    {
         let cx = Context::current_with_span(span);
         let _guard = cx.clone().attach();
         f(cx)
