@@ -21,7 +21,7 @@ analysis in order to understand your software's performance and behavior. This
 crate provides a HTTP client interface for use by trace exporters, as well as
 helper types to inject and extract key value pairs into/from HTTP headers.
 
-*Compiler support: [requires `rustc` 1.46+][msrv]*
+*Compiler support: [requires `rustc` 1.49+][msrv]*
 
 [`OpenTelemetry`]: https://crates.io/crates/opentelemetry
 [msrv]: #supported-rust-versions
