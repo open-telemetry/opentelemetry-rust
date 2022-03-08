@@ -41,7 +41,7 @@ protobuf = { version = "2.18", optional = true }
 
 prost = { version = "0.9", optional = true }
 tonic = { version = "0.6.2", optional = true }
-tokio = { version = "1.0", features = ["full"], optional = true }
+tokio = { version = "1.0", features = ["sync", "rt"], optional = true }
 
 reqwest = { version = "0.11", optional = true, default-features = false }
 surf = { version = "2.0", optional = true, default-features = false }
@@ -52,8 +52,9 @@ thiserror = "1.0"
 [dev-dependencies]
 tokio-stream = { version = "0.1", features = ["net"] }
 # need tokio runtime to run smoke tests.
-opentelemetry = { features = ["trace", "rt-tokio"], path = "../opentelemetry" }
+opentelemetry = { features = ["trace", "rt-tokio", "testing"], path = "../opentelemetry" }
 time = { version = "0.3", features = ["macros"] }
+tokio = { version = "1.0", features = ["macros", "rt-multi-thread"] }
 
 [features]
 # telemetry pillars and functions

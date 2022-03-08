@@ -24,8 +24,7 @@ prometheus = "0.13"
 protobuf = "2.14"
 
 [dev-dependencies]
-tokio = { version = "1.0", features = ["full"] }
-hyper = { version = "0.14", features = ["full"] }
+opentelemetry = { version = "0.17", path = "../opentelemetry", default-features = false, features = ["metrics", "testing"] }
 lazy_static = "1.4"
 
 [features]

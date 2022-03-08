@@ -28,5 +28,5 @@ lazy_static = "1.4"
 [dev-dependencies]
 opentelemetry = { path = "../opentelemetry", features = ["trace", "testing"] }
 opentelemetry-http = { path = "../opentelemetry-http" }
-hyper = { version = "0.14", features = ["full"] }
-tokio = { version = "1.0", features = ["full"] }
+hyper = { version = "0.14" }
+tokio = { version = "1.0", features = ["macros", "rt"] }

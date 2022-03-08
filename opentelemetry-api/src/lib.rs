@@ -51,7 +51,7 @@ pub use context::{Context, ContextGuard};
 
 mod common;
 
-#[cfg(feature = "testing")]
+#[cfg(any(feature = "testing", test))]
 #[doc(hidden)]
 pub mod testing;
 

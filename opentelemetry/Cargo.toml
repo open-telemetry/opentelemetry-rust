@@ -27,7 +27,7 @@ opentelemetry-sdk = { version = "0.1", path = "../opentelemetry-sdk" }
 default = ["trace"]
 trace = ["opentelemetry-api/trace", "opentelemetry-sdk/trace"]
 metrics = ["opentelemetry-api/metrics", "opentelemetry-sdk/metrics"]
-testing = ["opentelemetry-sdk/testing"]
+testing = ["opentelemetry-api/testing", "opentelemetry-sdk/testing"]
 rt-tokio = ["opentelemetry-sdk/rt-tokio"]
 rt-tokio-current-thread = ["opentelemetry-sdk/rt-tokio-current-thread"]
 rt-async-std = ["opentelemetry-sdk/rt-async-std"]
