@@ -23,7 +23,7 @@ analysis in order to understand your software's performance and behavior. This
 crate provides a trace pipeline and exporter for sending span information to a
 Zipkin collector for processing and visualization.
 
-*Compiler support: [requires `rustc` 1.46+][msrv]*
+*Compiler support: [requires `rustc` 1.49+][msrv]*
 
 [`Zipkin`]: https://zipkin.io/
 [`OpenTelemetry`]: https://crates.io/crates/opentelemetry

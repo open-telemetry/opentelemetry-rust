@@ -2,7 +2,7 @@
 //! `agent` or `collector` endpoint. See the [Jaeger Docs] for details
 //! about Jaeger and deployment information.
 //!
-//! *Compiler support: [requires `rustc` 1.46+][msrv]*
+//! *Compiler support: [requires `rustc` 1.49+][msrv]*
 //!
 //! [Jaeger Docs]: https://www.jaegertracing.io/docs/
 //! [msrv]: #supported-rust-versions
@@ -208,7 +208,7 @@
 //! ## Supported Rust Versions
 //!
 //! OpenTelemetry is built against the latest stable release. The minimum
-//! supported version is 1.46. The current OpenTelemetry version is not
+//! supported version is 1.49. The current OpenTelemetry version is not
 //! guaranteed to build on Rust versions earlier than the minimum supported
 //! version.
 //!
