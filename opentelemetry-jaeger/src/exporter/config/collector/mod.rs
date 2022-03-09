@@ -1,6 +1,7 @@
 use crate::exporter::config::{
-    build_config_and_process, install_tracer_provider_and_get_tracer, CommonConfig,
-    HasRequiredConfig,
+    build_config_and_process,
+    common::{TransformationConfig, HasRequiredConfig},
+    install_tracer_provider_and_get_tracer,
 };
 use crate::exporter::uploader::{AsyncUploader, Uploader};
 use crate::{Exporter, JaegerTraceRuntime};
@@ -85,7 +86,7 @@ const ENV_PASSWORD: &str = "OTEL_EXPORTER_JAEGER_PASSWORD";
 /// [reqwest blocking client]: reqwest::blocking::Client
 #[derive(Debug)]
 pub struct CollectorPipeline {
-    common_config: CommonConfig,
+    common_config: TransformationConfig,
     trace_config: Option<TraceConfig>,
 
     #[cfg(feature = "collector_client")]
@@ -136,6 +137,20 @@ impl Default for CollectorPipeline {
         }
 
         pipeline
+    }
+}
+
+// implement the seal trait
+impl HasRequiredConfig for CollectorPipeline {
+    fn set_transformation_config<T>(&mut self, f: T)
+        where
+            T: FnOnce(&mut TransformationConfig),
+    {
+        f(self.common_config.borrow_mut())
+    }
+
+    fn set_trace_config(&mut self, config: TraceConfig) {
+        self.trace_config = Some(config)
     }
 }
 
@@ -398,19 +413,6 @@ impl CollectorPipeline {
                 Ok(Box::new(AsyncUploader::<R>::WasmCollector(collector)))
             }
         }
-    }
-}
-
-impl HasRequiredConfig for CollectorPipeline {
-    fn set_common_config<T>(&mut self, f: T)
-    where
-        T: FnOnce(&mut CommonConfig),
-    {
-        f(self.common_config.borrow_mut())
-    }
-
-    fn set_trace_config(&mut self, config: TraceConfig) {
-        self.trace_config = Some(config)
     }
 }
 

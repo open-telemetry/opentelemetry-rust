@@ -1,7 +1,8 @@
 use crate::exporter::agent::{AgentAsyncClientUdp, AgentSyncClientUdp};
 use crate::exporter::config::{
-    build_config_and_process, install_tracer_provider_and_get_tracer, CommonConfig,
-    HasRequiredConfig,
+    build_config_and_process,
+    common::{TransformationConfig, HasRequiredConfig},
+    install_tracer_provider_and_get_tracer,
 };
 use crate::exporter::uploader::{AsyncUploader, SyncUploader, Uploader};
 use crate::{Error, Exporter, JaegerTraceRuntime};
@@ -45,7 +46,7 @@ const DEFAULT_AGENT_ENDPOINT: &str = "127.0.0.1:6831";
 /// is not set, the exporter will use 127.0.0.1 as the host.
 #[derive(Debug)]
 pub struct AgentPipeline {
-    common_config: CommonConfig,
+    common_config: TransformationConfig,
     trace_config: Option<sdk::trace::Config>,
     agent_endpoint: Result<Vec<net::SocketAddr>, crate::Error>,
     max_packet_size: usize,
@@ -68,6 +69,20 @@ impl Default for AgentPipeline {
             pipeline = pipeline.with_endpoint(format!("127.0.0.1:{}", port.trim()))
         }
         pipeline
+    }
+}
+
+// implement the seal trait
+impl HasRequiredConfig for AgentPipeline {
+    fn set_transformation_config<T>(&mut self, f: T)
+        where
+            T: FnOnce(&mut TransformationConfig),
+    {
+        f(self.common_config.borrow_mut())
+    }
+
+    fn set_trace_config(&mut self, config: Config) {
+        self.trace_config = Some(config)
     }
 }
 
@@ -271,18 +286,5 @@ impl AgentPipeline {
         )
         .map_err::<Error, _>(Into::into)?;
         Ok(Box::new(SyncUploader::Agent(agent)))
-    }
-}
-
-impl HasRequiredConfig for AgentPipeline {
-    fn set_common_config<T>(&mut self, f: T)
-    where
-        T: FnOnce(&mut CommonConfig),
-    {
-        f(self.common_config.borrow_mut())
-    }
-
-    fn set_trace_config(&mut self, config: Config) {
-        self.trace_config = Some(config)
     }
 }

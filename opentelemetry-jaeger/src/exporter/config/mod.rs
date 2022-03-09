@@ -23,27 +23,34 @@ pub mod agent;
 #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
 pub mod collector;
 
-#[derive(Debug)]
-struct CommonConfig {
-    export_instrument_library: bool,
-    service_name: Option<String>,
-}
+mod common {
+    use opentelemetry::sdk;
 
-impl Default for CommonConfig {
-    fn default() -> Self {
-        CommonConfig {
-            export_instrument_library: true,
-            service_name: None,
+
+    // configurations and overrides on how to transform OTLP spans to Jaeger spans.
+    #[derive(Debug)]
+    pub struct TransformationConfig {
+        pub export_instrument_library: bool,
+        pub service_name: Option<String>,
+    }
+
+    impl Default for TransformationConfig {
+        fn default() -> Self {
+            TransformationConfig {
+                export_instrument_library: true,
+                service_name: None,
+            }
         }
     }
-}
 
-trait HasRequiredConfig {
-    fn set_common_config<T>(&mut self, f: T)
-    where
-        T: FnOnce(&mut CommonConfig);
+    // pipeline must have transformation config and trace config.
+    pub trait HasRequiredConfig {
+        fn set_transformation_config<T>(&mut self, f: T)
+        where
+            T: FnOnce(&mut TransformationConfig);
 
-    fn set_trace_config(&mut self, config: sdk::trace::Config);
+        fn set_trace_config(&mut self, config: sdk::trace::Config);
+    }
 }
 
 /// Common configurations shared by the agent and the collector. You can use those functions
@@ -116,17 +123,17 @@ pub trait Configurable: Sized {
 
 impl<B> Configurable for B
 where
-    B: HasRequiredConfig,
+    B: common::HasRequiredConfig,
 {
     fn with_service_name<T: Into<String>>(mut self, service_name: T) -> Self {
-        self.set_common_config(|mut config| {
+        self.set_transformation_config(|mut config| {
             config.service_name = Some(service_name.into());
         });
         self
     }
 
     fn with_instrumentation_library_tags(mut self, export_instrument_library: bool) -> Self {
-        self.set_common_config(|mut config| {
+        self.set_transformation_config(|mut config| {
             config.export_instrument_library = export_instrument_library;
         });
         self
