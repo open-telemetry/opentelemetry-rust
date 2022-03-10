@@ -104,7 +104,7 @@
 //!
 //! [`with_endpoint`]: exporter::config::collector::CollectorPipeline::with_endpoint
 //!
-//! ```no_run
+//! ```ignore
 //! // Note that this requires the `collector_client` feature.
 //! // We enabled the `isahc_collector_client` feature for a default isahc http client.
 //! // You can also provide your own implementation via .with_http_client() method.
@@ -117,6 +117,7 @@
 //!         // optionally set username and password for authentication of the exporter.
 //!         .with_username("username")
 //!         .with_password("s3cr3t")
+//!         .with_isahc()
 //!         //.with_http_client(<your client>) provide custom http client implementation
 //!         .install_batch(opentelemetry::runtime::Tokio)?;
 //!
