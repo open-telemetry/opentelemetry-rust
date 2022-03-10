@@ -1,6 +1,6 @@
 use crate::exporter::config::{
     build_config_and_process,
-    common::{TransformationConfig, HasRequiredConfig},
+    common::{HasRequiredConfig, TransformationConfig},
     install_tracer_provider_and_get_tracer,
 };
 use crate::exporter::uploader::{AsyncUploader, Uploader};
@@ -143,8 +143,8 @@ impl Default for CollectorPipeline {
 // implement the seal trait
 impl HasRequiredConfig for CollectorPipeline {
     fn set_transformation_config<T>(&mut self, f: T)
-        where
-            T: FnOnce(&mut TransformationConfig),
+    where
+        T: FnOnce(&mut TransformationConfig),
     {
         f(self.common_config.borrow_mut())
     }

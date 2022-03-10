@@ -26,7 +26,6 @@ pub mod collector;
 mod common {
     use opentelemetry::sdk;
 
-
     // configurations and overrides on how to transform OTLP spans to Jaeger spans.
     #[derive(Debug)]
     pub struct TransformationConfig {
