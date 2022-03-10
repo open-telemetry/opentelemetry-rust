@@ -192,9 +192,11 @@ fn build_config_and_process(
 #[cfg(test)]
 mod tests {
     use crate::exporter::config::build_config_and_process;
+    use crate::new_agent_pipeline;
     use opentelemetry::sdk::trace::Config;
     use opentelemetry::sdk::Resource;
     use opentelemetry::KeyValue;
+    use std::env;
     use std::sync::Arc;
 
     #[test]
@@ -240,14 +242,16 @@ mod tests {
             process.tags[0],
             KeyValue::new("service.name", "override_service")
         );
+    }
 
-        // todo: move it to a separate test function
-        // // OTEL_SERVICE_NAME env var also works
-        // env::set_var("OTEL_SERVICE_NAME", "test service");
-        // builder = crate::PipelineBuilder::default();
-        // let exporter = builder.init_sync_exporter().unwrap();
-        // assert_eq!(exporter.process.service_name, "test service");
-        // env::set_var("OTEL_SERVICE_NAME", "")
+    #[test]
+    fn test_read_from_env() {
+        // OTEL_SERVICE_NAME env var also works
+        env::set_var("OTEL_SERVICE_NAME", "test service");
+        let builder = new_agent_pipeline();
+        let exporter = builder.build_sync_agent_exporter().unwrap();
+        assert_eq!(exporter.process.service_name, "test service");
+        env::set_var("OTEL_SERVICE_NAME", "")
     }
 }
 
