@@ -61,16 +61,28 @@ pub fn meter_provider() -> GlobalMeterProvider {
 ///
 /// If the name is an empty string, the provider will use a default name.
 ///
-/// This is a more convenient way of expressing `global::meter_provider().meter(name)`.
+/// This is a more convenient way of expressing `global::meter_provider().meter(name, None, None)`.
 pub fn meter(name: &'static str) -> Meter {
     meter_provider().meter(name, None, None)
 }
 
-/// Creates a [`Meter`] with the name and version.
+/// Creates a [`Meter`] with the name, version and schema url.
+///
+/// - name SHOULD uniquely identify the instrumentation scope, such as the instrumentation library (e.g. io.opentelemetry.contrib.mongodb), package, module or class name.
+/// - version specifies the version of the instrumentation scope if the scope has a version
+/// - schema url specifies the Schema URL that should be recorded in the emitted telemetry.
+///
+/// This is a convenient way of `global::meter_provider().meter(...)`
+/// # Example
+/// ```rust
+/// use opentelemetry_api::global::meter_with_version;
+/// let meter = meter_with_version("io.opentelemetry", Some("0.17"), Some("https://opentelemetry.io/schemas/1.2.0"));
+/// ```
+///
 pub fn meter_with_version(
     name: &'static str,
-    version: &'static str,
-    schema_url: &'static str,
+    version: Option<&'static str>,
+    schema_url: Option<&'static str>,
 ) -> Meter {
-    meter_provider().meter(name, Some(version), Some(schema_url))
+    meter_provider().meter(name, version, schema_url)
 }
