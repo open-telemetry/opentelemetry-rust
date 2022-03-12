@@ -359,38 +359,16 @@ mod tests {
     }
 
     #[test]
-    fn record_exception() {
+    fn record_error() {
         let mut span = create_span();
         let err = std::io::Error::from(std::io::ErrorKind::Other);
-        span.record_exception(&err);
+        span.record_error(&err);
         span.with_data(|data| {
             if let Some(event) = data.events.iter().next() {
                 assert_eq!(event.name, "exception");
                 assert_eq!(
                     event.attributes,
                     vec![KeyValue::new("exception.message", err.to_string())]
-                );
-            } else {
-                panic!("no event");
-            }
-        });
-    }
-
-    #[test]
-    fn record_exception_with_stacktrace() {
-        let mut span = create_span();
-        let err = std::io::Error::from(std::io::ErrorKind::Other);
-        let stacktrace = "stacktrace...".to_string();
-        span.record_exception_with_stacktrace(&err, stacktrace.clone());
-        span.with_data(|data| {
-            if let Some(event) = data.events.iter().next() {
-                assert_eq!(event.name, "exception");
-                assert_eq!(
-                    event.attributes,
-                    vec![
-                        KeyValue::new("exception.message", err.to_string()),
-                        KeyValue::new("exception.stacktrace", stacktrace),
-                    ]
                 );
             } else {
                 panic!("no event");
@@ -517,8 +495,7 @@ mod tests {
             vec![KeyValue::new("k", "v")],
         );
         let err = std::io::Error::from(std::io::ErrorKind::Other);
-        span.record_exception(&err);
-        span.record_exception_with_stacktrace(&err, "stacktrace...".to_string());
+        span.record_error(&err);
         span.set_attribute(KeyValue::new("k", "v"));
         span.set_status(StatusCode::Error, "ERROR".to_string());
         span.update_name("new_name".to_string());

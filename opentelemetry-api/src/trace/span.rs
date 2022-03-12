@@ -64,23 +64,17 @@ pub trait Span {
         self.add_event_with_timestamp(name, crate::time::now(), attributes)
     }
 
-    /// Record an exception event
-    fn record_exception(&mut self, err: &dyn Error) {
-        let attributes = vec![KeyValue::new("exception.message", err.to_string())];
-        self.add_event("exception", attributes);
-    }
-
-    /// Record an exception event with stacktrace
-    fn record_exception_with_stacktrace<T>(&mut self, err: &dyn Error, stacktrace: T)
-    where
-        T: Into<Cow<'static, str>>,
-    {
-        let attributes = vec![
-            KeyValue::new("exception.message", err.to_string()),
-            KeyValue::new("exception.stacktrace", stacktrace.into()),
-        ];
-
-        self.add_event("exception", attributes);
+    /// Record an error as an event for this span.
+    ///
+    /// An additional call to [Span::set_status] is required if the status of the
+    /// span should be set to error, as this method does not change the span status.
+    ///
+    /// If this span is not being recorded then this method does nothing.
+    fn record_error(&mut self, err: &dyn Error) {
+        if self.is_recording() {
+            let attributes = vec![KeyValue::new("exception.message", err.to_string())];
+            self.add_event("exception", attributes);
+        }
     }
 
     /// Record an event with a timestamp in the context this span.
