@@ -764,7 +764,7 @@ fn build_span_tags(
     }
 
     if !user_overrides.span_kind && kind != SpanKind::Internal {
-        tags.push(Key::new(SPAN_KIND).string(kind.to_string()).into());
+        tags.push(Key::new(SPAN_KIND).string(format_span_kind(kind)).into());
     }
 
     if status_code != StatusCode::Unset {
@@ -790,6 +790,16 @@ fn build_span_tags(
     }
 
     tags
+}
+
+fn format_span_kind(kind: SpanKind) -> &'static str {
+    match kind {
+        SpanKind::Client => "client",
+        SpanKind::Server => "server",
+        SpanKind::Producer => "producer",
+        SpanKind::Consumer => "consumer",
+        SpanKind::Internal => "internal",
+    }
 }
 
 const ERROR: &str = "error";

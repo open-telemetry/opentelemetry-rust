@@ -1,7 +1,6 @@
 use crate::{trace::SpanContext, KeyValue};
 use std::borrow::Cow;
 use std::error::Error;
-use std::fmt;
 use std::time::SystemTime;
 
 /// The interface for a single operation within a trace.
@@ -224,18 +223,6 @@ pub enum SpanKind {
     /// application, as opposed to an operations with remote parents or
     /// children.
     Internal,
-}
-
-impl fmt::Display for SpanKind {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            SpanKind::Client => write!(f, "client"),
-            SpanKind::Server => write!(f, "server"),
-            SpanKind::Producer => write!(f, "producer"),
-            SpanKind::Consumer => write!(f, "consumer"),
-            SpanKind::Internal => write!(f, "internal"),
-        }
-    }
 }
 
 /// The code representation of the status of a [`Span`].
