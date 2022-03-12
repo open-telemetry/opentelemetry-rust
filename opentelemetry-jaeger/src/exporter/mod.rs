@@ -676,7 +676,7 @@ fn links_to_references(links: sdk::trace::EvictedQueue<Link>) -> Option<Vec<jaeg
         let refs = links
             .iter()
             .map(|link| {
-                let span_context = link.span_context();
+                let span_context = &link.span_context;
                 let trace_id_bytes = span_context.trace_id().to_bytes();
                 let (high, low) = trace_id_bytes.split_at(8);
                 let trace_id_high = i64::from_be_bytes(high.try_into().unwrap());

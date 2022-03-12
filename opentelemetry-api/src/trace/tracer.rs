@@ -336,7 +336,7 @@ impl SpanBuilder {
 
     /// Assign links
     pub fn with_links(self, mut links: Vec<Link>) -> Self {
-        links.retain(|l| l.span_context().is_valid());
+        links.retain(|l| l.span_context.is_valid());
         SpanBuilder {
             links: Some(links),
             ..self

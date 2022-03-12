@@ -209,17 +209,21 @@ impl From<&'static str> for TraceError {
 #[error("{0}")]
 struct Custom(String);
 
-/// A `Span` has the ability to add events. Events have a time associated
-/// with the moment when they are added to the `Span`.
+/// Events record things that happened during a [`Span`]'s lifetime.
+#[non_exhaustive]
 #[derive(Clone, Debug, PartialEq)]
 pub struct Event {
-    /// Event name
+    /// The name of this event.
     pub name: Cow<'static, str>,
-    /// Event timestamp
+
+    /// The time at which this event occurred.
     pub timestamp: time::SystemTime,
-    /// Event attributes
+
+    /// Attributes that describe this event.
     pub attributes: Vec<KeyValue>,
-    /// Number of dropped attributes
+
+    /// The number of attributes that were above the configured limit, and thus
+    /// dropped.
     pub dropped_attributes_count: u32,
 }
 
@@ -250,41 +254,30 @@ impl Event {
     }
 }
 
-/// During the `Span` creation user MUST have the ability to record links to other `Span`s. Linked
-/// `Span`s can be from the same or a different trace.
+/// Link is the relationship between two Spans.
+///
+/// The relationship can be within the same trace or across different traces.
+#[non_exhaustive]
 #[derive(Clone, Debug, PartialEq)]
 pub struct Link {
-    span_context: SpanContext,
+    /// The span context of the linked span.
+    pub span_context: SpanContext,
 
-    /// Attributes describing this link
+    /// Attributes that describe this link.
     pub attributes: Vec<KeyValue>,
 
-    /// The number of attributes that were above the limit, and thus dropped.
+    /// The number of attributes that were above the configured limit, and thus
+    /// dropped.
     pub dropped_attributes_count: u32,
 }
 
 impl Link {
-    /// Create a new link
+    /// Create a new link.
     pub fn new(span_context: SpanContext, attributes: Vec<KeyValue>) -> Self {
         Link {
             span_context,
             attributes,
             dropped_attributes_count: 0,
         }
-    }
-
-    /// The span context of the linked span
-    pub fn span_context(&self) -> &SpanContext {
-        &self.span_context
-    }
-
-    /// Attributes of the span link
-    pub fn attributes(&self) -> &Vec<KeyValue> {
-        &self.attributes
-    }
-
-    /// Dropped attributes count
-    pub fn dropped_attributes_count(&self) -> u32 {
-        self.dropped_attributes_count
     }
 }

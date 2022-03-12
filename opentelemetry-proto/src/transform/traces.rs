@@ -36,11 +36,11 @@ pub mod tonic {
     impl From<Link> for span::Link {
         fn from(link: Link) -> Self {
             span::Link {
-                trace_id: link.span_context().trace_id().to_bytes().to_vec(),
-                span_id: link.span_context().span_id().to_bytes().to_vec(),
-                trace_state: link.span_context().trace_state().header(),
-                attributes: Attributes::from(link.attributes().clone()).0,
-                dropped_attributes_count: link.dropped_attributes_count(),
+                trace_id: link.span_context.trace_id().to_bytes().to_vec(),
+                span_id: link.span_context.span_id().to_bytes().to_vec(),
+                trace_state: link.span_context.trace_state().header(),
+                attributes: Attributes::from(link.attributes).0,
+                dropped_attributes_count: link.dropped_attributes_count,
             }
         }
     }
@@ -154,11 +154,11 @@ pub mod grpcio {
     impl From<Link> for Span_Link {
         fn from(link: Link) -> Self {
             Span_Link {
-                trace_id: link.span_context().trace_id().to_bytes().to_vec(),
-                span_id: link.span_context().span_id().to_bytes().to_vec(),
-                trace_state: link.span_context().trace_state().header(),
-                attributes: Attributes::from(link.attributes().clone()).0,
-                dropped_attributes_count: link.dropped_attributes_count(),
+                trace_id: link.span_context.trace_id().to_bytes().to_vec(),
+                span_id: link.span_context.span_id().to_bytes().to_vec(),
+                trace_state: link.span_context.trace_state().header(),
+                attributes: Attributes::from(link.attributes).0,
+                dropped_attributes_count: link.dropped_attributes_count,
                 ..Default::default()
             }
         }
