@@ -9,7 +9,7 @@
 //! is possible to change its name, set its `Attributes`, and add `Links` and `Events`.
 //! These cannot be changed after the `Span`'s end time has been set.
 use crate::trace::SpanLimits;
-use opentelemetry_api::trace::{Event, SpanContext, SpanId, SpanKind, StatusCode};
+use opentelemetry_api::trace::{Event, SpanContext, SpanId, SpanKind, Status};
 use opentelemetry_api::{trace, KeyValue};
 use std::borrow::Cow;
 use std::sync::Arc;
@@ -42,10 +42,8 @@ pub(crate) struct SpanData {
     pub(crate) events: crate::trace::EvictedQueue<trace::Event>,
     /// Span Links
     pub(crate) links: crate::trace::EvictedQueue<trace::Link>,
-    /// Span status code
-    pub(crate) status_code: StatusCode,
-    /// Span status message
-    pub(crate) status_message: Cow<'static, str>,
+    /// Span status
+    pub(crate) status: Status,
 }
 
 impl Span {
@@ -138,22 +136,16 @@ impl opentelemetry_api::trace::Span for Span {
         });
     }
 
-    /// Sets the status of the `Span`. If used, this will override the default `Span`
-    /// status, which is `Unset`. `message` MUST be ignored when the status is `OK` or `Unset`
-    fn set_status<T>(&mut self, code: StatusCode, message: T)
-    where
-        T: Into<Cow<'static, str>>,
-    {
+    /// Sets the status of this `Span`.
+    ///
+    /// If used, this will override the default span status, which is [`Status::Unset`].
+    fn set_status(&mut self, status: Status) {
         self.with_data(|data| {
-            // check if we should ignore
-            if code_priority(code) < code_priority(data.status_code) {
-                // ignore if the current code has higher priority.
-                return;
+            // check if we should update the status
+            // These values form a total order: Ok > Error > Unset.
+            if status > data.status {
+                data.status = status;
             }
-            if code == StatusCode::Error {
-                data.status_message = message.into();
-            }
-            data.status_code = code;
         });
     }
 
@@ -242,18 +234,9 @@ fn build_export_data(
         attributes: data.attributes,
         events: data.events,
         links: data.links,
-        status_code: data.status_code,
-        status_message: data.status_message,
+        status: data.status,
         resource,
         instrumentation_lib: tracer.instrumentation_library().clone(),
-    }
-}
-
-fn code_priority(code: StatusCode) -> i32 {
-    match code {
-        StatusCode::Unset => 0,
-        StatusCode::Error => 1,
-        StatusCode::Ok => 2,
     }
 }
 
@@ -284,8 +267,7 @@ mod tests {
             ),
             events: crate::trace::EvictedQueue::new(config.span_limits.max_events_per_span),
             links: crate::trace::EvictedQueue::new(config.span_limits.max_links_per_span),
-            status_code: StatusCode::Unset,
-            status_message: "".into(),
+            status: Status::Unset,
         };
         (tracer, data)
     }
@@ -394,52 +376,35 @@ mod tests {
     fn set_status() {
         {
             let mut span = create_span();
-            let status = StatusCode::Ok;
-            let message = "OK".to_string();
-            span.set_status(status, message);
-            span.with_data(|data| {
-                assert_eq!(data.status_code, status);
-                assert_eq!(data.status_message, "");
-            });
+            let status = Status::Ok;
+            span.set_status(status.clone());
+            span.with_data(|data| assert_eq!(data.status, status));
         }
         {
             let mut span = create_span();
-            let status = StatusCode::Unset;
-            let message = "OK".to_string();
-            span.set_status(status, message);
-            span.with_data(|data| {
-                assert_eq!(data.status_code, status);
-                assert_eq!(data.status_message, "");
-            });
+            let status = Status::Unset;
+            span.set_status(status.clone());
+            span.with_data(|data| assert_eq!(data.status, status));
         }
         {
             let mut span = create_span();
-            let status = StatusCode::Error;
-            let message = "Error".to_string();
-            span.set_status(status, message);
-            span.with_data(|data| {
-                assert_eq!(data.status_code, status);
-                assert_eq!(data.status_message, "Error");
-            });
+            let status = Status::error("error");
+            span.set_status(status.clone());
+            span.with_data(|data| assert_eq!(data.status, status));
         }
         {
             let mut span = create_span();
-            // ok status code should be final
-            span.set_status(StatusCode::Ok, "".to_string());
-            span.set_status(StatusCode::Error, "error".to_string());
-            span.with_data(|data| {
-                assert_eq!(data.status_code, StatusCode::Ok);
-                assert_eq!(data.status_message, "");
-            });
+            // ok status should be final
+            span.set_status(Status::Ok);
+            span.set_status(Status::error("error"));
+            span.with_data(|data| assert_eq!(data.status, Status::Ok));
         }
         {
             let mut span = create_span();
-            // error status code should be able to override unset
-            span.set_status(StatusCode::Error, "error".to_string());
-            span.with_data(|data| {
-                assert_eq!(data.status_code, StatusCode::Error);
-                assert_eq!(data.status_message, "error");
-            });
+            // error status should be able to override unset
+            span.set_status(Status::Unset);
+            span.set_status(Status::error("error"));
+            span.with_data(|data| assert_ne!(data.status, Status::Ok));
         }
     }
 
@@ -497,13 +462,12 @@ mod tests {
         let err = std::io::Error::from(std::io::ErrorKind::Other);
         span.record_error(&err);
         span.set_attribute(KeyValue::new("k", "v"));
-        span.set_status(StatusCode::Error, "ERROR".to_string());
+        span.set_status(Status::error("ERROR"));
         span.update_name("new_name".to_string());
         span.with_data(|data| {
             assert_eq!(data.events, initial.events);
             assert_eq!(data.attributes, initial.attributes);
-            assert_eq!(data.status_code, initial.status_code);
-            assert_eq!(data.status_message, initial.status_message);
+            assert_eq!(data.status, initial.status);
             assert_eq!(data.name, initial.name);
         });
     }
@@ -600,7 +564,7 @@ mod tests {
 
         let mut span = tracer.start("test_span");
         span.add_event("test_event".to_string(), vec![]);
-        span.set_status(StatusCode::Error, "".to_string());
+        span.set_status(Status::error(""));
 
         let exported_data = span.exported_data();
         assert!(exported_data.is_some());

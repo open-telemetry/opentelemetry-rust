@@ -77,7 +77,7 @@ pub(crate) mod tests {
     use opentelemetry::sdk;
     use opentelemetry::sdk::InstrumentationLibrary;
     use opentelemetry::{
-        trace::{SpanContext, SpanId, SpanKind, StatusCode, TraceFlags, TraceId, TraceState},
+        trace::{SpanContext, SpanId, SpanKind, Status, TraceFlags, TraceId, TraceState},
         Key,
     };
     use std::time::{Duration, SystemTime};
@@ -115,8 +115,7 @@ pub(crate) mod tests {
             attributes,
             events,
             links,
-            status_code: StatusCode::Ok,
-            status_message: "".into(),
+            status: Status::Ok,
             resource: None,
             instrumentation_lib: InstrumentationLibrary::new("component", None, None),
         }

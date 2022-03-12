@@ -17,11 +17,10 @@ use crate::{
     InstrumentationLibrary,
 };
 use opentelemetry_api::trace::{
-    Link, SamplingDecision, SamplingResult, SpanBuilder, SpanContext, SpanId, SpanKind, StatusCode,
+    Link, SamplingDecision, SamplingResult, SpanBuilder, SpanContext, SpanId, SpanKind,
     TraceContextExt, TraceFlags, TraceId, TraceState,
 };
 use opentelemetry_api::{Context, KeyValue};
-use std::borrow::Cow;
 use std::fmt;
 use std::sync::Weak;
 
@@ -214,8 +213,7 @@ impl opentelemetry_api::trace::Tracer for Tracer {
             start_time,
             end_time,
             events,
-            status_code,
-            status_message,
+            status,
             ..
         } = builder;
 
@@ -255,8 +253,6 @@ impl opentelemetry_api::trace::Tracer for Tracer {
                 }
                 events_queue.append_vec(&mut events);
             }
-            let status_code = status_code.unwrap_or(StatusCode::Unset);
-            let status_message = status_message.unwrap_or(Cow::Borrowed(""));
 
             let span_context = SpanContext::new(trace_id, span_id, flags, false, trace_state);
             Span::new(
@@ -270,8 +266,7 @@ impl opentelemetry_api::trace::Tracer for Tracer {
                     attributes,
                     events: events_queue,
                     links,
-                    status_code,
-                    status_message,
+                    status,
                 }),
                 self.clone(),
                 span_limits,

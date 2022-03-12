@@ -2,14 +2,17 @@
 mod grpcio {
     use opentelemetry::{
         sdk::export::trace::SpanData,
-        trace::{Event, StatusCode},
+        trace::{self, Event},
     };
 
-    use crate::proto::grpcio::{
-        trace::{Span_Event, Status},
-        tracez::{ErrorData, LatencyData, RunningData},
-    };
     use crate::transform::common::{grpcio::Attributes, to_nanos};
+    use crate::{
+        grpcio::trace::Status_StatusCode,
+        proto::grpcio::{
+            trace::{Span_Event, Status},
+            tracez::{ErrorData, LatencyData, RunningData},
+        },
+    };
 
     impl From<SpanData> for LatencyData {
         fn from(span_data: SpanData) -> Self {
@@ -37,10 +40,16 @@ mod grpcio {
                 attributes: Attributes::from(span_data.attributes).0,
                 events: span_data.events.iter().cloned().map(Into::into).collect(),
                 links: span_data.links.iter().cloned().map(Into::into).collect(),
-                status: ::protobuf::SingularPtrField::from(Some(Status::from((
-                    span_data.status_code,
-                    span_data.status_message.to_string(),
-                )))),
+                status: ::protobuf::SingularPtrField::from(match span_data.status {
+                    trace::Status::Error {
+                        description: message,
+                    } => Some(Status {
+                        message: message.to_string(),
+                        code: Status_StatusCode::STATUS_CODE_ERROR,
+                        ..Default::default()
+                    }),
+                    _ => None,
+                }),
                 ..Default::default()
             }
         }
@@ -56,16 +65,6 @@ mod grpcio {
                 attributes: Attributes::from(span_data.attributes).0,
                 events: span_data.events.iter().cloned().map(Into::into).collect(),
                 links: span_data.links.iter().cloned().map(Into::into).collect(),
-                ..Default::default()
-            }
-        }
-    }
-
-    impl From<(StatusCode, String)> for Status {
-        fn from((status_code, status_message): (StatusCode, String)) -> Self {
-            Status {
-                message: status_message,
-                code: status_code.into(),
                 ..Default::default()
             }
         }

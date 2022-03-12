@@ -1,5 +1,5 @@
 use crate::{
-    trace::{Span, SpanContext, SpanId, StatusCode, TraceId},
+    trace::{Span, SpanContext, SpanId, Status, TraceId},
     KeyValue,
 };
 use std::borrow::Cow;
@@ -24,11 +24,7 @@ impl Span for TestSpan {
         false
     }
     fn set_attribute(&mut self, _attribute: KeyValue) {}
-    fn set_status<T>(&mut self, _code: StatusCode, _message: T)
-    where
-        T: Into<Cow<'static, str>>,
-    {
-    }
+    fn set_status(&mut self, _status: Status) {}
     fn update_name<T>(&mut self, _new_name: T)
     where
         T: Into<Cow<'static, str>>,

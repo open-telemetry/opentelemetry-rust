@@ -1,6 +1,6 @@
 use crate::exporter::model::Error;
 use opentelemetry::sdk::export::trace;
-use opentelemetry::trace::StatusCode;
+use opentelemetry::trace::Status;
 use opentelemetry::{Key, Value};
 use std::time::SystemTime;
 
@@ -73,8 +73,8 @@ pub(crate) fn encode(
             rmp::encode::write_str(&mut encoded, "error")?;
             rmp::encode::write_i32(
                 &mut encoded,
-                match span.status_code {
-                    StatusCode::Error => 1,
+                match span.status {
+                    Status::Error { .. } => 1,
                     _ => 0,
                 },
             )?;

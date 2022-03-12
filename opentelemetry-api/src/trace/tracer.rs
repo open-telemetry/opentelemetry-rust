@@ -1,7 +1,5 @@
 use crate::{
-    trace::{
-        Event, Link, Span, SpanId, SpanKind, StatusCode, TraceContextExt, TraceId, TraceState,
-    },
+    trace::{Event, Link, Span, SpanId, SpanKind, Status, TraceContextExt, TraceId, TraceState},
     Context, KeyValue,
 };
 use std::borrow::Cow;
@@ -244,26 +242,34 @@ pub trait Tracer {
 pub struct SpanBuilder {
     /// Trace id, useful for integrations with external tracing systems.
     pub trace_id: Option<TraceId>,
+
     /// Span id, useful for integrations with external tracing systems.
     pub span_id: Option<SpanId>,
+
     /// Span kind
     pub span_kind: Option<SpanKind>,
+
     /// Span name
     pub name: Cow<'static, str>,
+
     /// Span start time
     pub start_time: Option<SystemTime>,
+
     /// Span end time
     pub end_time: Option<SystemTime>,
+
     /// Span attributes
     pub attributes: Option<Vec<KeyValue>>,
+
     /// Span events
     pub events: Option<Vec<Event>>,
+
     /// Span Links
     pub links: Option<Vec<Link>>,
-    /// Span status code
-    pub status_code: Option<StatusCode>,
-    /// Span status message
-    pub status_message: Option<Cow<'static, str>>,
+
+    /// Span status
+    pub status: Status,
+
     /// Sampling result
     pub sampling_result: Option<SamplingResult>,
 }
@@ -344,19 +350,8 @@ impl SpanBuilder {
     }
 
     /// Assign status code
-    pub fn with_status_code(self, code: StatusCode) -> Self {
-        SpanBuilder {
-            status_code: Some(code),
-            ..self
-        }
-    }
-
-    /// Assign status message
-    pub fn with_status_message<T: Into<Cow<'static, str>>>(self, message: T) -> Self {
-        SpanBuilder {
-            status_message: Some(message.into()),
-            ..self
-        }
+    pub fn with_status(self, status: Status) -> Self {
+        SpanBuilder { status, ..self }
     }
 
     /// Assign sampling result
