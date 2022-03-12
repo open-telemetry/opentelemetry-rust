@@ -611,7 +611,7 @@ mod tests {
             .links;
         let link_vec: Vec<_> = link_queue.iter().collect();
         let processed_link = link_vec.get(0).expect("should have at least one link");
-        assert_eq!(processed_link.attributes().len(), 128);
+        assert_eq!(processed_link.attributes.len(), 128);
     }
 
     #[test]
