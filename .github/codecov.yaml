@@ -12,4 +12,7 @@ coverage:
         threshold: 0.5%
 
 ignore:
-  - "opentelemetry-jaeger/src/testing"
+  - "opentelemetry/src/testing" # test harnesses
+  - "opentelemetry-jaeger/src/testing" # test harness
+  - "opentelemetry-jaeger/src/exporter/thrift" # auto generated files
+  - "opentelemetry-otlp/src/proto" # auto generated files
