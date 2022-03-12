@@ -1,7 +1,6 @@
 use crate::exporter::config::{
-    build_config_and_process,
-    common::{HasRequiredConfig, TransformationConfig},
-    install_tracer_provider_and_get_tracer,
+    build_config_and_process, install_tracer_provider_and_get_tracer, HasRequiredConfig,
+    TransformationConfig,
 };
 use crate::exporter::uploader::{AsyncUploader, Uploader};
 use crate::{Exporter, JaegerTraceRuntime};
@@ -18,6 +17,7 @@ use opentelemetry_http::HttpClient;
 
 #[cfg(feature = "collector_client")]
 use crate::config::collector::http_client::CollectorHttpClient;
+
 #[cfg(feature = "collector_client")]
 use crate::exporter::collector::AsyncHttpClient;
 #[cfg(feature = "wasm_collector_client")]
@@ -71,7 +71,6 @@ const ENV_PASSWORD: &str = "OTEL_EXPORTER_JAEGER_PASSWORD";
 ///
 /// ```ignore
 /// # use opentelemetry::trace::TraceError;
-/// # use opentelemetry_jaeger::Configurable;
 /// let tracer = opentelemetry_jaeger::new_collector_pipeline()
 ///         .with_surf()
 ///         .with_reqwest()
@@ -86,7 +85,7 @@ const ENV_PASSWORD: &str = "OTEL_EXPORTER_JAEGER_PASSWORD";
 /// [reqwest blocking client]: reqwest::blocking::Client
 #[derive(Debug)]
 pub struct CollectorPipeline {
-    common_config: TransformationConfig,
+    transformation_config: TransformationConfig,
     trace_config: Option<TraceConfig>,
 
     #[cfg(feature = "collector_client")]
@@ -108,7 +107,7 @@ impl Default for CollectorPipeline {
             collector_username: None,
             collector_password: None,
             client_config: ClientConfig::default(),
-            common_config: Default::default(),
+            transformation_config: Default::default(),
             trace_config: Default::default(),
         };
 
@@ -146,7 +145,7 @@ impl HasRequiredConfig for CollectorPipeline {
     where
         T: FnOnce(&mut TransformationConfig),
     {
-        f(self.common_config.borrow_mut())
+        f(self.transformation_config.borrow_mut())
     }
 
     fn set_trace_config(&mut self, config: TraceConfig) {
@@ -331,6 +330,59 @@ impl CollectorPipeline {
         }
     }
 
+    /// Set the service name of the application. It generally is the name of application.
+    /// Critically, Jaeger backend depends on `Span.Process.ServiceName` to identify the service
+    /// that produced the spans.
+    ///
+    /// Opentelemetry allows set the service name using multiple methods.
+    /// This functions takes priority over all other methods.
+    ///
+    /// If the service name is not set. It will default to be `unknown_service`.
+    pub fn with_service_name<T: Into<String>>(mut self, service_name: T) -> Self {
+        self.set_transformation_config(|mut config| {
+            config.service_name = Some(service_name.into());
+        });
+        self
+    }
+
+    /// Config whether to export information of instrumentation library.
+    ///
+    /// It's required to [report instrumentation library as span tags].
+    /// However it does have a overhead on performance, performance sensitive applications can
+    /// use this function to opt out reporting instrumentation library.
+    ///
+    /// Default to be `true`.
+    ///
+    /// [report instrumentation library as span tags]: https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/sdk_exporters/non-otlp.md#instrumentationscope
+    pub fn with_instrumentation_library_tags(mut self, should_export: bool) -> Self {
+        self.set_transformation_config(|mut config| {
+            config.export_instrument_library = should_export;
+        });
+        self
+    }
+
+    /// Assign the opentelemetry SDK configurations for the exporter pipeline.
+    ///
+    /// For mapping between opentelemetry configurations and Jaeger spans. Please refer [the spec].
+    ///
+    /// [the spec]: https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/sdk_exporters/jaeger.md#mappings
+    /// # Examples
+    /// Set service name via resource.
+    /// ```rust
+    /// use opentelemetry::{sdk::{self, Resource}, KeyValue};
+    ///
+    /// let pipeline = opentelemetry_jaeger::new_collector_pipeline()
+    ///                 .with_trace_config(
+    ///                       sdk::trace::Config::default()
+    ///                         .with_resource(Resource::new(vec![KeyValue::new("service.name", "my-service")]))
+    ///                 );
+    ///
+    /// ```
+    pub fn with_trace_config(mut self, config: sdk::trace::Config) -> Self {
+        self.set_trace_config(config);
+        self
+    }
+
     /// Build a `TracerProvider` using a async exporter and configurations from the pipeline.
     ///
     /// The exporter will collect spans in a batch and send them to the agent.
@@ -351,11 +403,11 @@ impl CollectorPipeline {
         let mut builder = sdk::trace::TracerProvider::builder();
         // build sdk trace config and jaeger process.
         // some attributes like service name has attributes like service name
-        let export_instrument_library = self.common_config.export_instrument_library;
+        let export_instrument_library = self.transformation_config.export_instrument_library;
         let (config, process) = build_config_and_process(
             builder.sdk_provided_resource(),
             self.trace_config.take(),
-            self.common_config.service_name.take(),
+            self.transformation_config.service_name.take(),
         );
         let uploader = self.build_uploader::<R>()?;
         let exporter = Exporter::new(process.into(), export_instrument_library, uploader);

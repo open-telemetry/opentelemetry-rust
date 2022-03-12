@@ -10,7 +10,6 @@ use opentelemetry::{
     trace::{Span, Tracer},
     KeyValue,
 };
-use opentelemetry_jaeger::Configurable;
 use std::error::Error;
 
 pub mod hello_world {

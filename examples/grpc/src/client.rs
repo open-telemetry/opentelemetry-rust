@@ -10,7 +10,6 @@ use opentelemetry::{
     trace::{TraceContextExt, Tracer as _},
     Context, KeyValue,
 };
-use opentelemetry_jaeger::Configurable;
 
 struct MetadataMap<'a>(&'a mut tonic::metadata::MetadataMap);
 

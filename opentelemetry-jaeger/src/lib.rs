@@ -109,7 +109,6 @@
 //! // We enabled the `isahc_collector_client` feature for a default isahc http client.
 //! // You can also provide your own implementation via .with_http_client() method.
 //! use opentelemetry::trace::{Tracer, TraceError};
-//! use opentelemetry_jaeger::config::Configurable;
 //!
 //! fn main() -> Result<(), TraceError> {
 //!     let tracer = opentelemetry_jaeger::new_collector_pipeline()
@@ -151,8 +150,8 @@
 //!
 //! Based on the service name, we update/append the `service.name` process tags in jaeger spans.
 //!
-//! [`with_service_name`]: crate::exporter::config::Configurable::with_service_name
-//! [`with_trace_config`]: crate::exporter::config::Configurable::with_trace_config
+//! [`with_service_name`]: crate::exporter::config::AgentPipeline::with_service_name
+//! [`with_trace_config`]: crate::exporter::config::AgentPipeline::with_trace_config
 //! [`set_attribute`]: opentelemetry::trace::Span::set_attribute
 //! [OpenTelemetry to Jaeger Transformation]:https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/sdk_exporters/jaeger.md
 //!
@@ -167,7 +166,6 @@
 //! ### Export to agents
 //! ```no_run
 //! use opentelemetry::{sdk::{trace::{self, RandomIdGenerator, Sampler}, Resource}, global, KeyValue, trace::{Tracer, TraceError}};
-//! use opentelemetry_jaeger::config::Configurable;
 //!
 //! fn main() -> Result<(), TraceError> {
 //!     global::set_text_map_propagator(opentelemetry_jaeger::Propagator::new());
@@ -205,7 +203,6 @@
 //! Note that this example requires `collecotr_client` and `isahc_collector_client` feature.
 //! ```ignore
 //! use opentelemetry::{sdk::{trace::{self, RandomIdGenerator, Sampler}, Resource}, global, KeyValue, trace::{Tracer, TraceError}};
-//! use opentelemetry_jaeger::config::Configurable;
 //!
 //! fn main() -> Result<(), TraceError> {
 //!     global::set_text_map_propagator(opentelemetry_jaeger::Propagator::new());
@@ -312,7 +309,6 @@ pub use exporter::config;
 pub use exporter::config::collector::new_collector_pipeline;
 #[cfg(feature = "wasm_collector_client")]
 pub use exporter::config::collector::new_wasm_collector_pipeline;
-pub use exporter::config::Configurable;
 pub use exporter::{
     config::agent::new_agent_pipeline, runtime::JaegerTraceRuntime, Error, Exporter, Process,
 };

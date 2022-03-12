@@ -10,7 +10,6 @@ use opentelemetry::{
     trace::{TraceContextExt, Tracer},
     Context, Key, KeyValue,
 };
-use opentelemetry_jaeger::Configurable;
 use std::error::Error;
 use std::time::Duration;
 

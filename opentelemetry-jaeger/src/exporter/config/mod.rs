@@ -23,125 +23,29 @@ pub mod agent;
 #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
 pub mod collector;
 
-mod common {
-    use opentelemetry::sdk;
+// configurations and overrides on how to transform OTLP spans to Jaeger spans.
+#[derive(Debug)]
+struct TransformationConfig {
+    export_instrument_library: bool,
+    service_name: Option<String>,
+}
 
-    // configurations and overrides on how to transform OTLP spans to Jaeger spans.
-    #[derive(Debug)]
-    pub struct TransformationConfig {
-        pub export_instrument_library: bool,
-        pub service_name: Option<String>,
-    }
-
-    impl Default for TransformationConfig {
-        fn default() -> Self {
-            TransformationConfig {
-                export_instrument_library: true,
-                service_name: None,
-            }
+impl Default for TransformationConfig {
+    fn default() -> Self {
+        TransformationConfig {
+            export_instrument_library: true,
+            service_name: None,
         }
     }
-
-    // pipeline must have transformation config and trace config.
-    pub trait HasRequiredConfig {
-        fn set_transformation_config<T>(&mut self, f: T)
-        where
-            T: FnOnce(&mut TransformationConfig);
-
-        fn set_trace_config(&mut self, config: sdk::trace::Config);
-    }
 }
 
-/// Common configurations shared by the agent and the collector. You can use those functions
-/// in [`CollectorPipeline`] and [`AgentPipeline`].
-/// Generally there are three types of configurations:
-///
-/// - configurations required by Jaeger. For example, `service_name`.
-/// - performance configurations for the jaeger exporter. For example, `instrumentation_library_tags`
-/// - opentelemetry trace configurations.
-///
-/// # Example
-/// ```
-/// use opentelemetry_jaeger::{Configurable, new_agent_pipeline};
-/// use opentelemetry::{sdk, sdk::Resource, KeyValue};
-///
-/// let pipeline = new_agent_pipeline()
-///                 .with_service_name("test-service")
-///                 .with_trace_config(
-///                       sdk::trace::Config::default()
-///                         .with_resource(Resource::new(
-///                             vec![KeyValue::new("service.name", "my-service")])
-///                         )
-///                 );
-/// ```
-///
-/// [`CollectorPipeline`]: crate::config::collector::CollectorPipeline
-/// [`AgentPipeline`]: crate::config::agent::AgentPipeline
-pub trait Configurable: Sized {
-    /// Set the service name of the application. It generally is the name of application.
-    /// Critically, Jaeger backend depends on `Span.Process.ServiceName` to identify the service
-    /// that produced the spans.
-    ///
-    /// Opentelemetry allows set the service name using multiple methods.
-    /// This functions takes priority over all other methods.
-    ///
-    /// If the service name is not set. It will default to be `unknown_service`.
-    fn with_service_name<T: Into<String>>(self, service_name: T) -> Self;
+// pipeline must have transformation config and trace config.
+trait HasRequiredConfig {
+    fn set_transformation_config<T>(&mut self, f: T)
+    where
+        T: FnOnce(&mut TransformationConfig);
 
-    /// Config whether to export information of instrumentation library.
-    ///
-    /// It's required to [report instrumentation library as span tags].
-    /// However it does have a overhead on performance, performance sensitive applications can
-    /// use this function to opt out reporting instrumentation library.
-    ///
-    /// Default to be `true`.
-    ///
-    /// [report instrumentation library as span tags]: https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/sdk_exporters/non-otlp.md#instrumentationscope
-    fn with_instrumentation_library_tags(self, export: bool) -> Self;
-
-    /// Assign the opentelemetry SDK configurations for the exporter pipeline.
-    ///
-    /// For mapping between opentelemetry configurations and Jaeger spans. Please refer [the spec].
-    ///
-    /// [the spec]: https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/sdk_exporters/jaeger.md#mappings
-    /// # Examples
-    /// Set service name via resource.
-    /// ```rust
-    /// use opentelemetry_jaeger::{new_agent_pipeline, config::Configurable};
-    /// use opentelemetry::{sdk::{self, Resource}, KeyValue};
-    ///
-    /// let pipeline = new_agent_pipeline()
-    ///                 .with_trace_config(
-    ///                       sdk::trace::Config::default()
-    ///                         .with_resource(Resource::new(vec![KeyValue::new("service.name", "my-service")]))
-    ///                 );
-    ///
-    /// ```
-    fn with_trace_config(self, config: sdk::trace::Config) -> Self;
-}
-
-impl<B> Configurable for B
-where
-    B: common::HasRequiredConfig,
-{
-    fn with_service_name<T: Into<String>>(mut self, service_name: T) -> Self {
-        self.set_transformation_config(|mut config| {
-            config.service_name = Some(service_name.into());
-        });
-        self
-    }
-
-    fn with_instrumentation_library_tags(mut self, export_instrument_library: bool) -> Self {
-        self.set_transformation_config(|mut config| {
-            config.export_instrument_library = export_instrument_library;
-        });
-        self
-    }
-
-    fn with_trace_config(mut self, config: Config) -> Self {
-        self.set_trace_config(config);
-        self
-    }
+    fn set_trace_config(&mut self, config: sdk::trace::Config);
 }
 
 // To reduce the overhead of copying service name in every spans. We convert resource into jaeger tags

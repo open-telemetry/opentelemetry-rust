@@ -4,7 +4,6 @@ use opentelemetry::sdk::trace::{BatchSpanProcessor, Config, TracerProvider};
 use opentelemetry::sdk::Resource;
 use opentelemetry::trace::{mark_span_as_active, TraceError, Tracer};
 use opentelemetry::KeyValue;
-use opentelemetry_jaeger::Configurable;
 use std::io::stdout;
 use std::time::Duration;
 

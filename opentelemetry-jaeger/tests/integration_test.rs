@@ -3,7 +3,6 @@ mod tests {
     use opentelemetry::sdk::trace::Tracer as SdkTracer;
     use opentelemetry::trace::{StatusCode, TraceContextExt, Tracer, TracerProvider};
     use opentelemetry::KeyValue;
-    use opentelemetry_jaeger::config::Configurable;
     use opentelemetry_jaeger::testing::{
         jaeger_api_v2 as jaeger_api, jaeger_client::JaegerTestClient,
     };

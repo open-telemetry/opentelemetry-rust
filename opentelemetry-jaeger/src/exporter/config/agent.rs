@@ -1,8 +1,7 @@
 use crate::exporter::agent::{AgentAsyncClientUdp, AgentSyncClientUdp};
 use crate::exporter::config::{
-    build_config_and_process,
-    common::{HasRequiredConfig, TransformationConfig},
-    install_tracer_provider_and_get_tracer,
+    build_config_and_process, install_tracer_provider_and_get_tracer, HasRequiredConfig,
+    TransformationConfig,
 };
 use crate::exporter::uploader::{AsyncUploader, SyncUploader, Uploader};
 use crate::{Error, Exporter, JaegerTraceRuntime};
@@ -46,7 +45,7 @@ const DEFAULT_AGENT_ENDPOINT: &str = "127.0.0.1:6831";
 /// is not set, the exporter will use 127.0.0.1 as the host.
 #[derive(Debug)]
 pub struct AgentPipeline {
-    common_config: TransformationConfig,
+    transformation_config: TransformationConfig,
     trace_config: Option<sdk::trace::Config>,
     agent_endpoint: Result<Vec<net::SocketAddr>, crate::Error>,
     max_packet_size: usize,
@@ -56,7 +55,7 @@ pub struct AgentPipeline {
 impl Default for AgentPipeline {
     fn default() -> Self {
         let mut pipeline = AgentPipeline {
-            common_config: Default::default(),
+            transformation_config: Default::default(),
             trace_config: Default::default(),
             agent_endpoint: Ok(vec![DEFAULT_AGENT_ENDPOINT.parse().unwrap()]),
             max_packet_size: UDP_PACKET_MAX_LENGTH,
@@ -78,7 +77,7 @@ impl HasRequiredConfig for AgentPipeline {
     where
         T: FnOnce(&mut TransformationConfig),
     {
-        f(self.common_config.borrow_mut())
+        f(self.transformation_config.borrow_mut())
     }
 
     fn set_trace_config(&mut self, config: Config) {
@@ -145,6 +144,59 @@ impl AgentPipeline {
         self
     }
 
+    /// Set the service name of the application. It generally is the name of application.
+    /// Critically, Jaeger backend depends on `Span.Process.ServiceName` to identify the service
+    /// that produced the spans.
+    ///
+    /// Opentelemetry allows set the service name using multiple methods.
+    /// This functions takes priority over all other methods.
+    ///
+    /// If the service name is not set. It will default to be `unknown_service`.
+    pub fn with_service_name<T: Into<String>>(mut self, service_name: T) -> Self {
+        self.set_transformation_config(|mut config| {
+            config.service_name = Some(service_name.into());
+        });
+        self
+    }
+
+    /// Config whether to export information of instrumentation library.
+    ///
+    /// It's required to [report instrumentation library as span tags].
+    /// However it does have a overhead on performance, performance sensitive applications can
+    /// use this function to opt out reporting instrumentation library.
+    ///
+    /// Default to be `true`.
+    ///
+    /// [report instrumentation library as span tags]: https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/sdk_exporters/non-otlp.md#instrumentationscope
+    pub fn with_instrumentation_library_tags(mut self, should_export: bool) -> Self {
+        self.set_transformation_config(|mut config| {
+            config.export_instrument_library = should_export;
+        });
+        self
+    }
+
+    /// Assign the opentelemetry SDK configurations for the exporter pipeline.
+    ///
+    /// For mapping between opentelemetry configurations and Jaeger spans. Please refer [the spec].
+    ///
+    /// [the spec]: https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/sdk_exporters/jaeger.md#mappings
+    /// # Examples
+    /// Set service name via resource.
+    /// ```rust
+    /// use opentelemetry::{sdk::{self, Resource}, KeyValue};
+    ///
+    /// let pipeline = opentelemetry_jaeger::new_agent_pipeline()
+    ///                 .with_trace_config(
+    ///                       sdk::trace::Config::default()
+    ///                         .with_resource(Resource::new(vec![KeyValue::new("service.name", "my-service")]))
+    ///                 );
+    ///
+    /// ```
+    pub fn with_trace_config(mut self, config: sdk::trace::Config) -> Self {
+        self.set_trace_config(config);
+        self
+    }
+
     /// Build a `TracerProvider` using a blocking exporter and configurations from the pipeline.
     ///
     /// The exporter will send each span to the agent upon the span ends.
@@ -154,11 +206,11 @@ impl AgentPipeline {
         let (config, process) = build_config_and_process(
             builder.sdk_provided_resource(),
             self.trace_config.take(),
-            self.common_config.service_name.take(),
+            self.transformation_config.service_name.take(),
         );
         let exporter = Exporter::new(
             process.into(),
-            self.common_config.export_instrument_library,
+            self.transformation_config.export_instrument_library,
             self.build_sync_agent_uploader()?,
         );
 
@@ -186,13 +238,13 @@ impl AgentPipeline {
     {
         let mut builder = sdk::trace::TracerProvider::builder();
 
-        let export_instrument_library = self.common_config.export_instrument_library;
+        let export_instrument_library = self.transformation_config.export_instrument_library;
         // build sdk trace config and jaeger process.
         // some attributes like service name has attributes like service name
         let (config, process) = build_config_and_process(
             builder.sdk_provided_resource(),
             self.trace_config.take(),
-            self.common_config.service_name.take(),
+            self.transformation_config.service_name.take(),
         );
         let uploader = self.build_async_agent_uploader(runtime.clone())?;
         let exporter = Exporter::new(process.into(), export_instrument_library, uploader);
@@ -233,13 +285,13 @@ impl AgentPipeline {
         R: JaegerTraceRuntime,
     {
         let builder = sdk::trace::TracerProvider::builder();
-        let export_instrument_library = self.common_config.export_instrument_library;
+        let export_instrument_library = self.transformation_config.export_instrument_library;
         // build sdk trace config and jaeger process.
         // some attributes like service name has attributes like service name
         let (_, process) = build_config_and_process(
             builder.sdk_provided_resource(),
             self.trace_config.take(),
-            self.common_config.service_name.take(),
+            self.transformation_config.service_name.take(),
         );
         let uploader = self.build_async_agent_uploader(runtime)?;
         Ok(Exporter::new(
@@ -255,11 +307,11 @@ impl AgentPipeline {
         let (_, process) = build_config_and_process(
             builder.sdk_provided_resource(),
             self.trace_config.take(),
-            self.common_config.service_name.take(),
+            self.transformation_config.service_name.take(),
         );
         Ok(Exporter::new(
             process.into(),
-            self.common_config.export_instrument_library,
+            self.transformation_config.export_instrument_library,
             self.build_sync_agent_uploader()?,
         ))
     }

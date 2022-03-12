@@ -24,7 +24,6 @@ use opentelemetry::{
     trace::{FutureExt, TraceContextExt, Tracer},
     Context,
 };
-use opentelemetry_jaeger::Configurable;
 use std::{error::Error, io, net::SocketAddr};
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
