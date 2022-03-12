@@ -38,6 +38,11 @@ use opentelemetry::Key;
 /// - `arn:aws:lambda:us-east-1:123456:function:myfunction:myalias`
 pub const AWS_LAMBDA_INVOKED_ARN: Key = Key::from_static_str("aws.lambda.invoked_arn");
 
+/// Parent-child Reference type.
+///
+/// The causal relationship between a child Span and a parent Span.
+pub const OPENTRACING_REF_TYPE: Key = Key::from_static_str("opentracing.ref_type");
+
 /// An identifier for the database management system (DBMS) product being used. See below for a list of well-known identifiers.
 pub const DB_SYSTEM: Key = Key::from_static_str("db.system");
 
