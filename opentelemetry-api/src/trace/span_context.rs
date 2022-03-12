@@ -1,3 +1,4 @@
+use crate::trace::{TraceError, TraceResult};
 use std::collections::VecDeque;
 use std::fmt;
 use std::hash::Hash;
@@ -263,15 +264,15 @@ impl TraceState {
     /// # Examples
     ///
     /// ```
-    /// use opentelemetry_api::trace::{TraceState, TraceStateError};
+    /// use opentelemetry_api::trace::TraceState;
     ///
     /// let kvs = vec![("foo", "bar"), ("apple", "banana")];
-    /// let trace_state: Result<TraceState, TraceStateError> = TraceState::from_key_value(kvs);
+    /// let trace_state = TraceState::from_key_value(kvs);
     ///
     /// assert!(trace_state.is_ok());
     /// assert_eq!(trace_state.unwrap().header(), String::from("foo=bar,apple=banana"))
     /// ```
-    pub fn from_key_value<T, K, V>(trace_state: T) -> Result<Self, TraceStateError>
+    pub fn from_key_value<T, K, V>(trace_state: T) -> TraceResult<Self>
     where
         T: IntoIterator<Item = (K, V)>,
         K: ToString,
@@ -282,10 +283,10 @@ impl TraceState {
             .map(|(key, value)| {
                 let (key, value) = (key.to_string(), value.to_string());
                 if !TraceState::valid_key(key.as_str()) {
-                    return Err(TraceStateError::InvalidKey(key));
+                    return Err(TraceStateError::Key(key));
                 }
                 if !TraceState::valid_value(value.as_str()) {
-                    return Err(TraceStateError::InvalidValue(value));
+                    return Err(TraceStateError::Value(value));
                 }
 
                 Ok((key, value))
@@ -318,17 +319,17 @@ impl TraceState {
     /// updated key/value is returned.
     ///
     /// [W3 Spec]: https://www.w3.org/TR/trace-context/#mutating-the-tracestate-field
-    pub fn insert<K, V>(&self, key: K, value: V) -> Result<TraceState, TraceStateError>
+    pub fn insert<K, V>(&self, key: K, value: V) -> TraceResult<TraceState>
     where
         K: Into<String>,
         V: Into<String>,
     {
         let (key, value) = (key.into(), value.into());
         if !TraceState::valid_key(key.as_str()) {
-            return Err(TraceStateError::InvalidKey(key));
+            return Err(TraceStateError::Key(key).into());
         }
         if !TraceState::valid_value(value.as_str()) {
-            return Err(TraceStateError::InvalidValue(value));
+            return Err(TraceStateError::Value(value).into());
         }
 
         let mut trace_state = self.delete_from_deque(key.clone());
@@ -346,10 +347,10 @@ impl TraceState {
     /// If the key is not in `TraceState`. The original `TraceState` will be cloned and returned.
     ///
     /// [W3 Spec]: https://www.w3.org/TR/trace-context/#mutating-the-tracestate-field
-    pub fn delete<K: Into<String>>(&self, key: K) -> Result<TraceState, TraceStateError> {
+    pub fn delete<K: Into<String>>(&self, key: K) -> TraceResult<TraceState> {
         let key = key.into();
         if !TraceState::valid_key(key.as_str()) {
-            return Err(TraceStateError::InvalidKey(key));
+            return Err(TraceStateError::Key(key).into());
         }
 
         Ok(self.delete_from_deque(key))
@@ -387,7 +388,7 @@ impl TraceState {
 }
 
 impl FromStr for TraceState {
-    type Err = TraceStateError;
+    type Err = TraceError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let list_members: Vec<&str> = s.split_terminator(',').collect();
@@ -395,7 +396,7 @@ impl FromStr for TraceState {
 
         for list_member in list_members {
             match list_member.find('=') {
-                None => return Err(TraceStateError::InvalidList(list_member.to_string())),
+                None => return Err(TraceStateError::List(list_member.to_string()).into()),
                 Some(separator_index) => {
                     let (key, value) = list_member.split_at(separator_index);
                     key_value_pairs
@@ -411,18 +412,30 @@ impl FromStr for TraceState {
 /// Error returned by `TraceState` operations.
 #[derive(Error, Debug)]
 #[non_exhaustive]
-pub enum TraceStateError {
-    /// The key is invalid. See <https://www.w3.org/TR/trace-context/#key> for requirement for keys.
+enum TraceStateError {
+    /// The key is invalid.
+    ///
+    /// See <https://www.w3.org/TR/trace-context/#key> for requirement for keys.
     #[error("{0} is not a valid key in TraceState, see https://www.w3.org/TR/trace-context/#key for more details")]
-    InvalidKey(String),
+    Key(String),
 
-    /// The value is invalid. See <https://www.w3.org/TR/trace-context/#value> for requirement for values.
+    /// The value is invalid.
+    ///
+    /// See <https://www.w3.org/TR/trace-context/#value> for requirement for values.
     #[error("{0} is not a valid value in TraceState, see https://www.w3.org/TR/trace-context/#value for more details")]
-    InvalidValue(String),
+    Value(String),
 
-    /// The value is invalid. See <https://www.w3.org/TR/trace-context/#list> for requirement for list members.
+    /// The list is invalid.
+    ///
+    /// See <https://www.w3.org/TR/trace-context/#list> for requirement for list members.
     #[error("{0} is not a valid list member in TraceState, see https://www.w3.org/TR/trace-context/#list for more details")]
-    InvalidList(String),
+    List(String),
+}
+
+impl From<TraceStateError> for TraceError {
+    fn from(err: TraceStateError) -> Self {
+        TraceError::Other(Box::new(err))
+    }
 }
 
 /// Immutable portion of a [`Span`] which can be serialized and propagated.
