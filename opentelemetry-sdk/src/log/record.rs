@@ -80,6 +80,9 @@ impl_trivial_from!(u8, Any::Int);
 impl_trivial_from!(u16, Any::Int);
 impl_trivial_from!(u32, Any::Int);
 
+impl_trivial_from!(f64, Any::Double);
+impl_trivial_from!(f32, Any::Double);
+
 impl_trivial_from!(String, Any::String);
 impl_trivial_from!(Cow<'static, str>, Any::String);
 impl_trivial_from!(&str, Any::String);
