@@ -61,7 +61,7 @@ impl Greeter for MyGreeter {
 
 fn tracing_init() -> Result<impl Tracer, TraceError> {
     global::set_text_map_propagator(TraceContextPropagator::new());
-    opentelemetry_jaeger::new_pipeline()
+    opentelemetry_jaeger::new_agent_pipeline()
         .with_service_name("grpc-server")
         .install_simple()
 }

@@ -54,7 +54,7 @@ async fn run(addr: &SocketAddr) -> io::Result<usize> {
 }
 
 fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
-    opentelemetry_jaeger::new_pipeline()
+    opentelemetry_jaeger::new_agent_pipeline()
         .with_service_name("trace-demo")
         .install_batch(opentelemetry::runtime::Tokio)
 }

@@ -12,9 +12,6 @@ use thrift::{
     transport::{ReadHalf, TIoChannel, WriteHalf},
 };
 
-/// The max size of UDP packet we want to send, synced with jaeger-agent
-const UDP_PACKET_MAX_LENGTH: usize = 65_000;
-
 struct BufferClient {
     buffer: ReadHalf<TBufferChannel>,
     client: agent::AgentSyncClient<
@@ -47,10 +44,9 @@ impl AgentSyncClientUdp {
     /// Create a new UDP agent client
     pub(crate) fn new<T: ToSocketAddrs>(
         host_port: T,
-        max_packet_size: Option<usize>,
+        max_packet_size: usize,
         auto_split: bool,
     ) -> thrift::Result<Self> {
-        let max_packet_size = max_packet_size.unwrap_or(UDP_PACKET_MAX_LENGTH);
         let (buffer, write) = TBufferChannel::with_capacity(max_packet_size).split()?;
         let client = agent::AgentSyncClient::new(
             TCompactInputProtocol::new(TNoopChannel),
@@ -106,11 +102,10 @@ impl<R: JaegerTraceRuntime> AgentAsyncClientUdp<R> {
     /// Create a new UDP agent client
     pub(crate) fn new<T: ToSocketAddrs>(
         host_port: T,
-        max_packet_size: Option<usize>,
+        max_packet_size: usize,
         runtime: R,
         auto_split: bool,
     ) -> thrift::Result<Self> {
-        let max_packet_size = max_packet_size.unwrap_or(UDP_PACKET_MAX_LENGTH);
         let (buffer, write) = TBufferChannel::with_capacity(max_packet_size).split()?;
         let client = agent::AgentSyncClient::new(
             TCompactInputProtocol::new(TNoopChannel),

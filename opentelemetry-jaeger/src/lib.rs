@@ -25,7 +25,7 @@
 //!
 //! fn main() -> Result<(), opentelemetry::trace::TraceError> {
 //!     global::set_text_map_propagator(opentelemetry_jaeger::Propagator::new());
-//!     let tracer = opentelemetry_jaeger::new_pipeline().install_simple()?;
+//!     let tracer = opentelemetry_jaeger::new_agent_pipeline().install_simple()?;
 //!
 //!     tracer.in_span("doing_work", |cx| {
 //!         // Traced app logic here...
@@ -37,6 +37,25 @@
 //! }
 //! ```
 //!
+//! Or if you are running on an async runtime like Tokio and want to report spans in batches
+//! ```no_run
+//! use opentelemetry::trace::Tracer;
+//! use opentelemetry::global;
+//! use opentelemetry::runtime::Tokio;
+//!
+//! fn main() -> Result<(), opentelemetry::trace::TraceError> {
+//!     global::set_text_map_propagator(opentelemetry_jaeger::Propagator::new());
+//!     let tracer = opentelemetry_jaeger::new_agent_pipeline().install_batch(Tokio)?;
+//!
+//!     tracer.in_span("doing_work", |cx| {
+//!         // Traced app logic here...
+//!     });
+//!
+//!     global::shutdown_tracer_provider(); // export remaining spans
+//!
+//!     Ok(())
+//! }
+//! ```
 //! ## Performance
 //!
 //! For optimal performance, a batch exporter is recommended as the simple exporter
@@ -53,7 +72,7 @@
 //!
 //! ```no_run
 //! # fn main() -> Result<(), opentelemetry::trace::TraceError> {
-//! let tracer = opentelemetry_jaeger::new_pipeline()
+//! let tracer = opentelemetry_jaeger::new_agent_pipeline()
 //!     .install_batch(opentelemetry::runtime::Tokio)?;
 //! # Ok(())
 //! # }
@@ -78,25 +97,27 @@
 //!
 //! ```toml
 //! [dependencies]
-//! opentelemetry-jaeger = { version = "..", features = ["collector_client", "isahc"] }
+//! opentelemetry-jaeger = { version = "..", features = ["collector_client", "isahc_collector_client"] }
 //! ```
 //!
-//! Then you can use the [`with_collector_endpoint`] method to specify the endpoint:
+//! Then you can use the [`with_endpoint`] method to specify the endpoint:
 //!
-//! [`with_collector_endpoint`]: PipelineBuilder::with_collector_endpoint()
+//! [`with_endpoint`]: exporter::config::collector::CollectorPipeline::with_endpoint
 //!
 //! ```ignore
 //! // Note that this requires the `collector_client` feature.
-//! // We enabled the `isahc` feature for a default isahc http client.
-//! // You can also provide your own implementation via new_pipeline().with_http_client() method.
+//! // We enabled the `isahc_collector_client` feature for a default isahc http client.
+//! // You can also provide your own implementation via .with_http_client() method.
 //! use opentelemetry::trace::{Tracer, TraceError};
 //!
 //! fn main() -> Result<(), TraceError> {
-//!     let tracer = opentelemetry_jaeger::new_pipeline()
-//!         .with_collector_endpoint("http://localhost:14268/api/traces")
-//!         // optionally set username and password as well.
-//!         .with_collector_username("username")
-//!         .with_collector_password("s3cr3t")
+//!     let tracer = opentelemetry_jaeger::new_collector_pipeline()
+//!         .with_endpoint("http://localhost:14268/api/traces")
+//!         // optionally set username and password for authentication of the exporter.
+//!         .with_username("username")
+//!         .with_password("s3cr3t")
+//!         .with_isahc()
+//!         //.with_http_client(<your client>) provide custom http client implementation
 //!         .install_batch(opentelemetry::runtime::Tokio)?;
 //!
 //!     tracer.in_span("doing_work", |cx| {
@@ -112,7 +133,7 @@
 //! The full list of this mapping can be found in [OpenTelemetry to Jaeger Transformation].
 //!
 //! The **process tags** in jaeger spans will be mapped as resource in opentelemetry. You can
-//! set it through `OTEL_RESOURCE_ATTRIBUTES` environment variable or using [`PipelineBuilder::with_trace_config`].
+//! set it through `OTEL_RESOURCE_ATTRIBUTES` environment variable or using [`with_trace_config`].
 //!
 //! Note that to avoid copying data multiple times. Jaeger exporter will uses resource stored in [`Exporter`].
 //!
@@ -121,35 +142,39 @@
 //!
 //! Each jaeger span requires a **service name**. This will be mapped as a resource with `service.name` key.
 //! You can set it using one of the following methods from highest priority to lowest priority.
-//! 1. [`PipelineBuilder::with_service_name`].
-//! 2. include a `service.name` key value pairs when configure resource using [`PipelineBuilder::with_trace_config`].
+//! 1. [`with_service_name`].
+//! 2. include a `service.name` key value pairs when configure resource using [`with_trace_config`].
 //! 3. set the service name as `OTEL_SERVCE_NAME` environment variable.
 //! 4. set the `service.name` attributes in `OTEL_RESOURCE_ATTRIBUTES`.
 //! 5. if the service name is not provided by the above method. `unknown_service` will be used.
 //!
 //! Based on the service name, we update/append the `service.name` process tags in jaeger spans.
 //!
-//! [`set_attribute`]: https://docs.rs/opentelemetry/0.16.0/opentelemetry/trace/trait.Span.html#tymethod.set_attribute
-//!
+//! [`with_service_name`]: crate::exporter::config::agent::AgentPipeline::with_service_name
+//! [`with_trace_config`]: crate::exporter::config::agent::AgentPipeline::with_trace_config
+//! [`set_attribute`]: opentelemetry::trace::Span::set_attribute
 //! [OpenTelemetry to Jaeger Transformation]:https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/sdk_exporters/jaeger.md
 //!
 //! ## Kitchen Sink Full Configuration
 //!
 //! Example showing how to override all configuration options. See the
-//! [`PipelineBuilder`] docs for details of each option.
+//! [`CollectorPipeline`] and [`AgentPipeline`] docs for details of each option.
 //!
+//! [`CollectorPipeline`]: config::collector::CollectorPipeline
+//! [`AgentPipeline`]: config::agent::AgentPipeline
 //!
+//! ### Export to agents
 //! ```no_run
-//! use opentelemetry::{KeyValue, trace::{Tracer, TraceError}};
-//! use opentelemetry::sdk::{trace::{self, RandomIdGenerator, Sampler}, Resource};
-//! use opentelemetry::global;
+//! use opentelemetry::{sdk::{trace::{self, RandomIdGenerator, Sampler}, Resource}, global, KeyValue, trace::{Tracer, TraceError}};
 //!
 //! fn main() -> Result<(), TraceError> {
 //!     global::set_text_map_propagator(opentelemetry_jaeger::Propagator::new());
-//!     let tracer = opentelemetry_jaeger::new_pipeline()
-//!         .with_agent_endpoint("localhost:6831")
+//!     let tracer = opentelemetry_jaeger::new_agent_pipeline()
+//!         .with_endpoint("localhost:6831")
 //!         .with_service_name("my_app")
 //!         .with_max_packet_size(9_216)
+//!         .with_auto_split_batch(true)
+//!         .with_instrumentation_library_tags(false)
 //!         .with_trace_config(
 //!             trace::config()
 //!                 .with_sampler(Sampler::AlwaysOn)
@@ -157,6 +182,7 @@
 //!                 .with_max_events_per_span(64)
 //!                 .with_max_attributes_per_span(16)
 //!                 .with_max_events_per_span(16)
+//!                  // resources will translated to tags in jaeger spans
 //!                 .with_resource(Resource::new(vec![KeyValue::new("key", "value"),
 //!                           KeyValue::new("process_key", "process_value")])),
 //!         )
@@ -166,7 +192,48 @@
 //!         // Traced app logic here...
 //!     });
 //!
-//!     global::shutdown_tracer_provider(); // export remaining spans
+//!     // export remaining spans. It's optional if you can accept spans loss for the last batch.
+//!     global::shutdown_tracer_provider();
+//!
+//!     Ok(())
+//! }
+//! ```
+//!
+//! ### Export to collectors
+//! Note that this example requires `collecotr_client` and `isahc_collector_client` feature.
+//! ```ignore
+//! use opentelemetry::{sdk::{trace::{self, RandomIdGenerator, Sampler}, Resource}, global, KeyValue, trace::{Tracer, TraceError}};
+//!
+//! fn main() -> Result<(), TraceError> {
+//!     global::set_text_map_propagator(opentelemetry_jaeger::Propagator::new());
+//!     let tracer = opentelemetry_jaeger::new_collector_pipeline()
+//!         .with_endpoint("http://localhost:14250/api/trace") // set collector endpoint
+//!         .with_service_name("my_app") // the name of the application
+//!         .with_trace_config(
+//!             trace::config()
+//!                 .with_sampler(Sampler::AlwaysOn)
+//!                 .with_id_generator(RandomIdGenerator::default())
+//!                 .with_max_events_per_span(64)
+//!                 .with_max_attributes_per_span(16)
+//!                 .with_max_events_per_span(16)
+//!                 // resources will translated to tags in jaeger spans
+//!                 .with_resource(Resource::new(vec![KeyValue::new("key", "value"),
+//!                           KeyValue::new("process_key", "process_value")])),
+//!         )
+//!         // we config a surf http client with 2 seconds timeout
+//!         // and have basic authentication header with username=username, password=s3cr3t
+//!         .with_isahc() // requires `isahc_collector_client` feature
+//!         .with_username("username")
+//!         .with_password("s3cr3t")
+//!         .with_timeout(std::time::Duration::from_secs(2))
+//!         .install_batch(opentelemetry::runtime::Tokio)?;
+//!
+//!     tracer.in_span("doing_work", |cx| {
+//!         // Traced app logic here...
+//!     });
+//!
+//!     // export remaining spans. It's optional if you can accept spans loss for the last batch.
+//!     global::shutdown_tracer_provider();
 //!
 //!     Ok(())
 //! }
@@ -236,6 +303,16 @@
     html_logo_url = "https://raw.githubusercontent.com/open-telemetry/opentelemetry-rust/main/assets/logo.svg"
 )]
 #![cfg_attr(test, deny(warnings))]
+
+pub use exporter::config;
+#[cfg(feature = "collector_client")]
+pub use exporter::config::collector::new_collector_pipeline;
+#[cfg(feature = "wasm_collector_client")]
+pub use exporter::config::collector::new_wasm_collector_pipeline;
+pub use exporter::{
+    config::agent::new_agent_pipeline, runtime::JaegerTraceRuntime, Error, Exporter, Process,
+};
+pub use propagator::Propagator;
 
 mod exporter;
 
@@ -619,8 +696,3 @@ mod propagator {
         }
     }
 }
-
-pub use exporter::{
-    new_pipeline, runtime::JaegerTraceRuntime, Error, Exporter, PipelineBuilder, Process,
-};
-pub use propagator::Propagator;
