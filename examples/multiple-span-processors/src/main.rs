@@ -10,13 +10,13 @@ use std::time::Duration;
 fn init_tracer() -> Result<(), TraceError> {
     // build a jaeger batch span processor
     let jaeger_processor = BatchSpanProcessor::builder(
-        opentelemetry_jaeger::new_pipeline()
+        opentelemetry_jaeger::new_agent_pipeline()
             .with_service_name("trace-demo")
             .with_trace_config(
                 Config::default()
                     .with_resource(Resource::new(vec![KeyValue::new("exporter", "jaeger")])),
             )
-            .init_async_exporter(opentelemetry::runtime::Tokio)?,
+            .build_async_agent_exporter(opentelemetry::runtime::Tokio)?,
         opentelemetry::runtime::Tokio,
     )
     .build();

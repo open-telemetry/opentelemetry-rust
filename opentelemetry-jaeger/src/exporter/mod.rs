@@ -5,9 +5,9 @@ mod agent;
 mod collector;
 pub(crate) mod runtime;
 #[allow(clippy::all, unreachable_pub, dead_code)]
-#[rustfmt::skip]
+#[rustfmt::skip] // don't format generated files
 mod thrift;
-mod env;
+pub mod config;
 pub(crate) mod transport;
 mod uploader;
 
@@ -18,11 +18,7 @@ use std::convert::TryFrom;
 
 use self::runtime::JaegerTraceRuntime;
 use self::thrift::jaeger;
-use agent::AgentAsyncClientUdp;
 use async_trait::async_trait;
-#[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
-use collector::CollectorAsyncClientHttp;
-use opentelemetry_semantic_conventions as semcov;
 use std::convert::TryInto;
 
 #[cfg(feature = "isahc_collector_client")]
@@ -30,48 +26,21 @@ use std::convert::TryInto;
 use isahc::prelude::Configurable;
 
 use opentelemetry::sdk::export::ExportError;
-use opentelemetry::trace::TraceError;
 use opentelemetry::{
-    global, sdk,
+    sdk,
     sdk::export::trace,
-    trace::{Event, Link, SpanKind, Status, TracerProvider},
+    trace::{Event, Link, SpanKind, Status},
     Key, KeyValue,
 };
-#[cfg(feature = "collector_client")]
-use opentelemetry_http::HttpClient;
-use std::collections::HashSet;
-use std::{
-    net,
-    time::{Duration, SystemTime},
-};
-use uploader::{AsyncUploader, SyncUploader, Uploader};
 
-#[cfg(all(
-    any(
-        feature = "reqwest_collector_client",
-        feature = "reqwest_blocking_collector_client"
-    ),
-    not(feature = "surf_collector_client"),
-    not(feature = "isahc_collector_client")
-))]
-use headers::authorization::Credentials;
-use opentelemetry::sdk::trace::Config;
-use opentelemetry::sdk::Resource;
-use std::sync::Arc;
-
-/// Default agent endpoint if none is provided
-const DEFAULT_AGENT_ENDPOINT: &str = "127.0.0.1:6831";
+use crate::exporter::uploader::Uploader;
+use std::time::{Duration, SystemTime};
 
 /// Instrument Library name MUST be reported in Jaeger Span tags with the following key
 const INSTRUMENTATION_LIBRARY_NAME: &str = "otel.library.name";
 
 /// Instrument Library version MUST be reported in Jaeger Span tags with the following key
 const INSTRUMENTATION_LIBRARY_VERSION: &str = "otel.library.version";
-
-/// Create a new Jaeger exporter pipeline builder.
-pub fn new_pipeline() -> PipelineBuilder {
-    PipelineBuilder::default()
-}
 
 /// Jaeger span exporter
 #[derive(Debug)]
@@ -80,6 +49,20 @@ pub struct Exporter {
     /// Whether or not to export instrumentation information.
     export_instrumentation_lib: bool,
     uploader: Box<dyn Uploader>,
+}
+
+impl Exporter {
+    fn new(
+        process: jaeger::Process,
+        export_instrumentation_lib: bool,
+        uploader: Box<dyn Uploader>,
+    ) -> Exporter {
+        Exporter {
+            process,
+            export_instrumentation_lib,
+            uploader,
+        }
+    }
 }
 
 /// Jaeger process configuration
@@ -108,566 +91,6 @@ impl trace::SpanExporter for Exporter {
         self.uploader
             .upload(jaeger::Batch::new(process, jaeger_spans))
             .await
-    }
-}
-
-/// Jaeger exporter builder
-#[derive(Debug)]
-pub struct PipelineBuilder {
-    agent_endpoint: Vec<net::SocketAddr>,
-    // There are many variations in which it's read unclear which is causing not to be.
-    #[allow(dead_code)]
-    #[cfg(feature = "collector_client")]
-    collector_timeout: Duration,
-    #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
-    collector_endpoint: Option<Result<http::Uri, http::uri::InvalidUri>>,
-    #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
-    collector_username: Option<String>,
-    #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
-    collector_password: Option<String>,
-    #[cfg(feature = "collector_client")]
-    client: Option<Box<dyn HttpClient>>,
-    export_instrument_library: bool,
-    service_name: Option<String>,
-    tags: Option<Vec<KeyValue>>,
-    max_packet_size: Option<usize>,
-    auto_split: bool,
-    config: Option<sdk::trace::Config>,
-}
-
-impl Default for PipelineBuilder {
-    /// Return the default Exporter Builder.
-    fn default() -> Self {
-        let builder_defaults = PipelineBuilder {
-            agent_endpoint: vec![DEFAULT_AGENT_ENDPOINT.parse().unwrap()],
-            #[cfg(feature = "collector_client")]
-            collector_timeout: env::DEFAULT_COLLECTOR_TIMEOUT,
-            #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
-            collector_endpoint: None,
-            #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
-            collector_username: None,
-            #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
-            collector_password: None,
-            #[cfg(feature = "collector_client")]
-            client: None,
-            export_instrument_library: true,
-            service_name: None,
-            tags: None,
-            max_packet_size: None,
-            auto_split: false,
-            config: None,
-        };
-
-        // Override above defaults with env vars if set
-        env::assign_attrs(builder_defaults)
-    }
-}
-
-impl PipelineBuilder {
-    /// Assign the agent endpoint.
-    pub fn with_agent_endpoint<T: net::ToSocketAddrs>(self, agent_endpoint: T) -> Self {
-        PipelineBuilder {
-            agent_endpoint: agent_endpoint
-                .to_socket_addrs()
-                .map(|addrs| addrs.collect())
-                .unwrap_or_default(),
-
-            ..self
-        }
-    }
-
-    /// Config whether to export information of instrumentation library.
-    pub fn with_instrumentation_library_tags(self, export: bool) -> Self {
-        PipelineBuilder {
-            export_instrument_library: export,
-            ..self
-        }
-    }
-
-    /// Assign the collector timeout
-    ///
-    /// E.g. "10s"
-    #[cfg(feature = "collector_client")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "collector_client")))]
-    pub fn with_collector_timeout(self, collector_timeout: Duration) -> Self {
-        PipelineBuilder {
-            collector_timeout,
-            ..self
-        }
-    }
-
-    /// Assign the collector endpoint.
-    ///
-    /// E.g. "http://localhost:14268/api/traces"
-    #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
-    #[cfg_attr(
-        docsrs,
-        doc(cfg(any(feature = "collector_client", feature = "wasm_collector_client")))
-    )]
-    pub fn with_collector_endpoint<T>(self, collector_endpoint: T) -> Self
-    where
-        http::Uri: core::convert::TryFrom<T>,
-        <http::Uri as core::convert::TryFrom<T>>::Error: Into<http::uri::InvalidUri>,
-    {
-        PipelineBuilder {
-            collector_endpoint: Some(
-                core::convert::TryFrom::try_from(collector_endpoint).map_err(Into::into),
-            ),
-            ..self
-        }
-    }
-
-    /// Assign the collector username
-    #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
-    #[cfg_attr(
-        docsrs,
-        doc(any(feature = "collector_client", feature = "wasm_collector_client"))
-    )]
-    pub fn with_collector_username<S: Into<String>>(self, collector_username: S) -> Self {
-        PipelineBuilder {
-            collector_username: Some(collector_username.into()),
-            ..self
-        }
-    }
-
-    /// Get collector's username set in the builder. Default to be the value of
-    /// `OTEL_EXPORTER_JAEGER_USER` environment variable.
-    ///
-    /// If users uses custom http client. This function can help retrieve the value of
-    /// `OTEL_EXPORTER_JAEGER_USER` environment variable.
-    #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
-    #[cfg_attr(
-        docsrs,
-        doc(any(feature = "collector_client", feature = "wasm_collector_client"))
-    )]
-    pub fn collector_username(&self) -> Option<String> {
-        (&self.collector_username).clone()
-    }
-
-    /// Assign the collector password
-    #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
-    #[cfg_attr(
-        docsrs,
-        doc(any(feature = "collector_client", feature = "wasm_collector_client"))
-    )]
-    pub fn with_collector_password<S: Into<String>>(self, collector_password: S) -> Self {
-        PipelineBuilder {
-            collector_password: Some(collector_password.into()),
-            ..self
-        }
-    }
-
-    /// Get the collector's password set in the builder. Default to be the value of
-    /// `OTEL_EXPORTER_JAEGER_PASSWORD` environment variable.
-    ///
-    /// If users uses custom http client. This function can help retrieve the value of
-    /// `OTEL_EXPORTER_JAEGER_PASSWORD` environment variable.
-    #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
-    #[cfg_attr(
-        docsrs,
-        doc(any(feature = "collector_client", feature = "wasm_collector_client"))
-    )]
-    pub fn collector_password(self) -> Option<String> {
-        (&self.collector_password).clone()
-    }
-
-    /// Assign the process service name.
-    pub fn with_service_name<T: Into<String>>(mut self, service_name: T) -> Self {
-        self.service_name = Some(service_name.into());
-        self
-    }
-
-    /// Assign the process tags.
-    ///
-    /// Note that resource in trace [Config](sdk::trace::Config) is also reported as process tags
-    /// in jaeger. If there is duplicate tags between resource and tags. Resource's value take
-    /// priority even if it's empty.
-    #[deprecated(
-        since = "0.16.0",
-        note = "please pass those tags as resource in sdk::trace::Config. Then use with_trace_config \
-        method to pass the config. All key value pairs in resources will be reported as process tags"
-    )]
-    pub fn with_tags<T: IntoIterator<Item = KeyValue>>(mut self, tags: T) -> Self {
-        self.tags = Some(tags.into_iter().collect());
-        self
-    }
-
-    /// Assign the max packet size in bytes. Jaeger defaults is 65000.
-    pub fn with_max_packet_size(mut self, max_packet_size: usize) -> Self {
-        self.max_packet_size = Some(max_packet_size);
-        self
-    }
-
-    /// Config whether to auto split batches.
-    ///
-    /// When auto split is set to true, the exporter will try to split the
-    /// batch into smaller ones so that there will be minimal data loss. It
-    /// will impact the performance.
-    ///
-    /// Note that if one span is too large to export, other spans within the
-    /// same batch may or may not be exported. In this case, exporter will
-    /// return errors as we cannot split spans.
-    pub fn with_auto_split_batch(mut self, auto_split: bool) -> Self {
-        self.auto_split = auto_split;
-        self
-    }
-
-    /// Assign the SDK config for the exporter pipeline.
-    ///
-    /// # Examples
-    /// Set service name via resource.
-    /// ```rust
-    /// use opentelemetry_jaeger::PipelineBuilder;
-    /// use opentelemetry::sdk;
-    /// use opentelemetry::sdk::Resource;
-    /// use opentelemetry::KeyValue;
-    ///
-    /// let pipeline = PipelineBuilder::default()
-    ///                 .with_trace_config(
-    ///                       sdk::trace::Config::default()
-    ///                         .with_resource(Resource::new(vec![KeyValue::new("service.name", "my-service")]))
-    ///                 );
-    ///
-    /// ```
-    pub fn with_trace_config(self, config: sdk::trace::Config) -> Self {
-        PipelineBuilder {
-            config: Some(config),
-            ..self
-        }
-    }
-
-    /// Assign the http client to use
-    #[cfg(feature = "collector_client")]
-    pub fn with_http_client<T: HttpClient + 'static>(mut self, client: T) -> Self {
-        self.client = Some(Box::new(client));
-        self
-    }
-
-    /// Install a Jaeger pipeline with a simple span processor.
-    pub fn install_simple(self) -> Result<sdk::trace::Tracer, TraceError> {
-        let tracer_provider = self.build_simple()?;
-        let tracer = tracer_provider.versioned_tracer(
-            "opentelemetry-jaeger",
-            Some(env!("CARGO_PKG_VERSION")),
-            None,
-        );
-        let _ = global::set_tracer_provider(tracer_provider);
-        Ok(tracer)
-    }
-
-    /// Install a Jaeger pipeline with a batch span processor using the specified runtime.
-    pub fn install_batch<R: JaegerTraceRuntime>(
-        self,
-        runtime: R,
-    ) -> Result<sdk::trace::Tracer, TraceError> {
-        let tracer_provider = self.build_batch(runtime)?;
-        let tracer = tracer_provider.versioned_tracer(
-            "opentelemetry-jaeger",
-            Some(env!("CARGO_PKG_VERSION")),
-            None,
-        );
-        let _ = global::set_tracer_provider(tracer_provider);
-        Ok(tracer)
-    }
-
-    // To reduce the overhead of copying service name in every spans. We convert resource into jaeger tags
-    // and store them into process. And set the resource in trace config to empty.
-    //
-    // There are multiple ways to set the service name. A `service.name` tag will be always added
-    // to the process tags.
-    fn build_config_and_process(&mut self, sdk_provided_resource: Resource) -> (Config, Process) {
-        let (config, resource) = if let Some(mut config) = self.config.take() {
-            let resource =
-                if let Some(resource) = config.resource.replace(Arc::new(Resource::empty())) {
-                    sdk_provided_resource.merge(resource)
-                } else {
-                    sdk_provided_resource
-                };
-
-            (config, resource)
-        } else {
-            (Config::default(), sdk_provided_resource)
-        };
-
-        let service_name = self.service_name.clone().unwrap_or_else(|| {
-            resource
-                .get(semcov::resource::SERVICE_NAME)
-                .map(|v| v.to_string())
-                .unwrap_or_else(|| "unknown_service".to_string())
-        });
-
-        // merge the tags and resource. Resources take priority.
-        let mut tags = resource
-            .into_iter()
-            .filter(|(key, _)| *key != semcov::resource::SERVICE_NAME)
-            .map(|(key, value)| KeyValue::new(key, value))
-            .collect::<Vec<KeyValue>>();
-
-        tags.push(KeyValue::new(
-            semcov::resource::SERVICE_NAME,
-            service_name.clone(),
-        ));
-
-        // if users provide key list
-        if let Some(provided_tags) = self.tags.take() {
-            let key_set: HashSet<Key> = tags
-                .iter()
-                .map(|key_value| key_value.key.clone())
-                .collect::<HashSet<Key>>();
-            for tag in provided_tags.into_iter() {
-                if !key_set.contains(&tag.key) {
-                    tags.push(tag)
-                }
-            }
-        }
-
-        (config, Process { service_name, tags })
-    }
-
-    /// Build a configured `sdk::trace::TracerProvider` with a simple span processor.
-    pub fn build_simple(mut self) -> Result<sdk::trace::TracerProvider, TraceError> {
-        let mut builder = sdk::trace::TracerProvider::builder();
-        let (config, process) = self.build_config_and_process(builder.sdk_provided_resource());
-        let exporter = self.init_sync_exporter_with_process(process)?;
-        builder = builder.with_simple_exporter(exporter);
-        builder = builder.with_config(config);
-
-        Ok(builder.build())
-    }
-
-    /// Build a configured `sdk::trace::TracerProvider` with a batch span processor using the
-    /// specified runtime.
-    pub fn build_batch<R: JaegerTraceRuntime>(
-        mut self,
-        runtime: R,
-    ) -> Result<sdk::trace::TracerProvider, TraceError> {
-        let mut builder = sdk::trace::TracerProvider::builder();
-        let (config, process) = self.build_config_and_process(builder.sdk_provided_resource());
-        let exporter = self.init_async_exporter_with_process(process, runtime.clone())?;
-        builder = builder.with_batch_exporter(exporter, runtime);
-        builder = builder.with_config(config);
-
-        Ok(builder.build())
-    }
-
-    /// Initialize a new simple exporter.
-    ///
-    /// This is useful if you are manually constructing a pipeline.
-    pub fn init_sync_exporter(mut self) -> Result<Exporter, TraceError> {
-        let builder = sdk::trace::TracerProvider::builder();
-        let (_, process) = self.build_config_and_process(builder.sdk_provided_resource());
-        self.init_sync_exporter_with_process(process)
-    }
-
-    fn init_sync_exporter_with_process(self, process: Process) -> Result<Exporter, TraceError> {
-        let export_instrumentation_lib = self.export_instrument_library;
-        let uploader = self.init_sync_uploader()?;
-
-        Ok(Exporter {
-            process: process.into(),
-            export_instrumentation_lib,
-            uploader,
-        })
-    }
-
-    /// Initialize a new exporter.
-    ///
-    /// This is useful if you are manually constructing a pipeline.
-    pub fn init_async_exporter<R: JaegerTraceRuntime>(
-        mut self,
-        runtime: R,
-    ) -> Result<Exporter, TraceError> {
-        let builder = sdk::trace::TracerProvider::builder();
-        let (_, process) = self.build_config_and_process(builder.sdk_provided_resource());
-        self.init_async_exporter_with_process(process, runtime)
-    }
-
-    fn init_async_exporter_with_process<R: JaegerTraceRuntime>(
-        self,
-        process: Process,
-        runtime: R,
-    ) -> Result<Exporter, TraceError> {
-        let export_instrumentation_lib = self.export_instrument_library;
-        let uploader = self.init_async_uploader(runtime)?;
-
-        Ok(Exporter {
-            process: process.into(),
-            export_instrumentation_lib,
-            uploader,
-        })
-    }
-
-    fn init_sync_uploader(self) -> Result<Box<dyn Uploader>, TraceError> {
-        let agent = agent::AgentSyncClientUdp::new(
-            self.agent_endpoint.as_slice(),
-            self.max_packet_size,
-            self.auto_split,
-        )
-        .map_err::<Error, _>(Into::into)?;
-        Ok(Box::new(SyncUploader::Agent(agent)))
-    }
-
-    #[cfg(not(any(feature = "collector_client", feature = "wasm_collector_client")))]
-    fn init_async_uploader<R: JaegerTraceRuntime>(
-        self,
-        runtime: R,
-    ) -> Result<Box<dyn Uploader>, TraceError> {
-        let agent = AgentAsyncClientUdp::new(
-            self.agent_endpoint.as_slice(),
-            self.max_packet_size,
-            runtime,
-            self.auto_split,
-        )
-        .map_err::<Error, _>(Into::into)?;
-        Ok(Box::new(AsyncUploader::Agent(agent)))
-    }
-
-    #[cfg(feature = "collector_client")]
-    fn init_async_uploader<R: JaegerTraceRuntime>(
-        self,
-        runtime: R,
-    ) -> Result<Box<dyn Uploader>, TraceError> {
-        if let Some(collector_endpoint) = self
-            .collector_endpoint
-            .transpose()
-            .map_err::<Error, _>(Into::into)?
-        {
-            #[cfg(all(
-                not(feature = "isahc_collector_client"),
-                not(feature = "surf_collector_client"),
-                not(feature = "reqwest_collector_client"),
-                not(feature = "reqwest_blocking_collector_client")
-            ))]
-            let client = self.client.ok_or(crate::Error::NoHttpClient)?;
-
-            #[cfg(feature = "isahc_collector_client")]
-            let client = self.client.unwrap_or({
-                let mut builder = isahc::HttpClient::builder().timeout(self.collector_timeout);
-
-                if let (Some(username), Some(password)) =
-                    (self.collector_username, self.collector_password)
-                {
-                    builder = builder
-                        .authentication(isahc::auth::Authentication::basic())
-                        .credentials(isahc::auth::Credentials::new(username, password));
-                }
-
-                Box::new(builder.build().map_err(|err| {
-                    crate::Error::ThriftAgentError(::thrift::Error::from(std::io::Error::new(
-                        std::io::ErrorKind::Other,
-                        err.to_string(),
-                    )))
-                })?)
-            });
-
-            #[cfg(all(
-                not(feature = "isahc_collector_client"),
-                not(feature = "surf_collector_client"),
-                any(
-                    feature = "reqwest_collector_client",
-                    feature = "reqwest_blocking_collector_client"
-                )
-            ))]
-            let client = self.client.unwrap_or({
-                #[cfg(feature = "reqwest_collector_client")]
-                let mut builder = reqwest::ClientBuilder::new().timeout(self.collector_timeout);
-                #[cfg(all(
-                    not(feature = "reqwest_collector_client"),
-                    feature = "reqwest_blocking_collector_client"
-                ))]
-                let mut builder =
-                    reqwest::blocking::ClientBuilder::new().timeout(self.collector_timeout);
-                if let (Some(username), Some(password)) =
-                    (self.collector_username, self.collector_password)
-                {
-                    let mut map = http::HeaderMap::with_capacity(1);
-                    let auth_header_val =
-                        headers::Authorization::basic(username.as_str(), password.as_str());
-                    map.insert(http::header::AUTHORIZATION, auth_header_val.0.encode());
-                    builder = builder.default_headers(map);
-                }
-                let client: Box<dyn HttpClient> =
-                    Box::new(builder.build().map_err::<crate::Error, _>(Into::into)?);
-                client
-            });
-
-            #[cfg(all(
-                not(feature = "isahc_collector_client"),
-                feature = "surf_collector_client",
-                not(feature = "reqwest_collector_client"),
-                not(feature = "reqwest_blocking_collector_client")
-            ))]
-            let client = self.client.unwrap_or({
-                let client = surf::Client::try_from(
-                    surf::Config::new().set_timeout(Some(self.collector_timeout)),
-                )
-                .unwrap_or_else(|_| surf::Client::new());
-
-                let client = if let (Some(username), Some(password)) =
-                    (self.collector_username, self.collector_password)
-                {
-                    let auth = surf::http::auth::BasicAuth::new(username, password);
-                    client.with(BasicAuthMiddleware(auth))
-                } else {
-                    client
-                };
-
-                Box::new(client)
-            });
-
-            let collector = CollectorAsyncClientHttp::new(collector_endpoint, client);
-            let uploader: AsyncUploader<R> = AsyncUploader::Collector(collector);
-            Ok(Box::new(uploader))
-        } else {
-            let endpoint = self.agent_endpoint.as_slice();
-            let agent =
-                AgentAsyncClientUdp::new(endpoint, self.max_packet_size, runtime, self.auto_split)
-                    .map_err::<Error, _>(Into::into)?;
-            Ok(Box::new(AsyncUploader::Agent(agent)))
-        }
-    }
-
-    #[cfg(all(feature = "wasm_collector_client", not(feature = "collector_client")))]
-    fn init_async_uploader<R: JaegerTraceRuntime>(
-        self,
-        runtime: R,
-    ) -> Result<Box<dyn Uploader>, TraceError> {
-        if let Some(collector_endpoint) = self
-            .collector_endpoint
-            .transpose()
-            .map_err::<Error, _>(Into::into)?
-        {
-            let collector = CollectorAsyncClientHttp::new(
-                collector_endpoint,
-                self.collector_username,
-                self.collector_password,
-            )
-            .map_err::<Error, _>(Into::into)?;
-            Ok(Box::new(AsyncUploader::Collector(collector)))
-        } else {
-            let endpoint = self.agent_endpoint.as_slice();
-            let agent = AgentAsyncClientUdp::new(endpoint, self.max_packet_size, self.auto_split)
-                .map_err::<Error, _>(Into::into)?;
-            Ok(Box::new(AsyncUploader::Agent(agent)))
-        }
-    }
-}
-
-#[derive(Debug)]
-#[cfg(feature = "surf_collector_client")]
-struct BasicAuthMiddleware(surf::http::auth::BasicAuth);
-
-#[async_trait]
-#[cfg(feature = "surf_collector_client")]
-impl surf::middleware::Middleware for BasicAuthMiddleware {
-    async fn handle(
-        &self,
-        mut req: surf::Request,
-        client: surf::Client,
-        next: surf::middleware::Next<'_>,
-    ) -> surf::Result<surf::Response> {
-        req.insert_header(self.0.name(), self.0.value());
-        next.run(req, client).await
     }
 }
 
@@ -862,6 +285,17 @@ pub enum Error {
     #[error("collector uri is invalid, {0}")]
     #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
     InvalidUri(#[from] http::uri::InvalidUri),
+
+    /// Pipeline fails because one of the configurations is invalid.
+    #[error("{pipeline_name} pipeline fails because one of the configuration, {config_name}, is invalid. {reason}")]
+    ConfigError {
+        /// the name of the pipeline. It can be `agent`, `collector` or `wasm collector`
+        pipeline_name: &'static str,
+        /// config name that has the error.
+        config_name: &'static str,
+        /// the underlying error message.
+        reason: String,
+    },
 }
 
 impl ExportError for Error {
@@ -871,122 +305,13 @@ impl ExportError for Error {
 }
 
 #[cfg(test)]
-#[cfg(all(feature = "collector_client"))]
-mod timeout_env_tests {
-    use crate::exporter::env;
-    use crate::exporter::PipelineBuilder;
-    use std::time::Duration;
-
-    #[test]
-    fn test_collector_defaults() {
-        // No Env Variable
-        std::env::remove_var(env::ENV_TIMEOUT);
-        let builder = PipelineBuilder::default();
-        assert_eq!(env::DEFAULT_COLLECTOR_TIMEOUT, builder.collector_timeout);
-
-        // Bad Env Variable
-        std::env::set_var(env::ENV_TIMEOUT, "a");
-        let builder = PipelineBuilder::default();
-        assert_eq!(env::DEFAULT_COLLECTOR_TIMEOUT, builder.collector_timeout);
-
-        // Good Env Variable
-        std::env::set_var(env::ENV_TIMEOUT, "777");
-        let builder = PipelineBuilder::default();
-        assert_eq!(Duration::from_millis(777), builder.collector_timeout);
-    }
-}
-
-#[cfg(test)]
-#[cfg(all(feature = "collector_client", feature = "rt-tokio"))]
-mod collector_client_tests {
-    use crate::exporter::thrift::jaeger::Batch;
-    use crate::new_pipeline;
-    use opentelemetry::runtime::Tokio;
-    use opentelemetry::sdk::Resource;
-    use opentelemetry::trace::TraceError;
-    use opentelemetry::KeyValue;
-
-    mod test_http_client {
-        use async_trait::async_trait;
-        use bytes::Bytes;
-        use http::{Request, Response};
-        use opentelemetry_http::{HttpClient, HttpError};
-        use std::fmt::Debug;
-
-        pub(crate) struct TestHttpClient;
-
-        impl Debug for TestHttpClient {
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                f.write_str("test http client")
-            }
-        }
-
-        #[async_trait]
-        impl HttpClient for TestHttpClient {
-            async fn send(&self, _request: Request<Vec<u8>>) -> Result<Response<Bytes>, HttpError> {
-                Err("wrong uri set in http client".into())
-            }
-        }
-    }
-
-    #[test]
-    fn test_bring_your_own_client() -> Result<(), TraceError> {
-        let mut builder = new_pipeline()
-            .with_collector_endpoint("localhost:6831")
-            .with_http_client(test_http_client::TestHttpClient);
-        let sdk_provided_resource =
-            Resource::new(vec![KeyValue::new("service.name", "unknown_service")]);
-        let (_, process) = builder.build_config_and_process(sdk_provided_resource);
-        let mut uploader = builder.init_async_uploader(Tokio)?;
-        let res = futures_executor::block_on(async {
-            uploader
-                .upload(Batch::new(process.into(), Vec::new()))
-                .await
-        });
-        assert_eq!(
-            format!("{:?}", res.err().unwrap()),
-            "Other(\"wrong uri set in http client\")"
-        );
-
-        Ok(())
-    }
-
-    #[test]
-    #[cfg(any(
-        feature = "isahc_collector_client",
-        feature = "surf_collector_client",
-        feature = "reqwest_collector_client",
-        feature = "reqwest_blocking_collector_client"
-    ))]
-    fn test_set_collector_endpoint() {
-        let invalid_uri = new_pipeline()
-            .with_collector_endpoint("127.0.0.1:14268/api/traces")
-            .init_async_uploader(Tokio);
-        assert!(invalid_uri.is_err());
-        assert_eq!(
-            format!("{:?}", invalid_uri.err().unwrap()),
-            "ExportFailed(InvalidUri(InvalidUri(InvalidFormat)))"
-        );
-
-        let valid_uri = new_pipeline()
-            .with_collector_endpoint("http://127.0.0.1:14268/api/traces")
-            .init_async_uploader(Tokio);
-
-        assert!(valid_uri.is_ok());
-    }
-}
-
-#[cfg(test)]
 mod tests {
     use super::SPAN_KIND;
     use crate::exporter::thrift::jaeger::Tag;
     use crate::exporter::{build_span_tags, OTEL_STATUS_CODE, OTEL_STATUS_DESCRIPTION};
-    use opentelemetry::sdk::trace::{Config, EvictedHashMap};
-    use opentelemetry::sdk::Resource;
+    use opentelemetry::sdk::trace::EvictedHashMap;
     use opentelemetry::trace::{SpanKind, Status};
     use opentelemetry::KeyValue;
-    use std::env;
-    use std::sync::Arc;
 
     fn assert_tag_contains(tags: Vec<Tag>, key: &'static str, expect_val: &'static str) {
         assert_eq!(
@@ -1069,60 +394,5 @@ mod tests {
         assert_tag_contains(tags.clone(), SPAN_KIND, user_kind);
         assert_tag_contains(tags.clone(), OTEL_STATUS_CODE, "ERROR");
         assert_tag_contains(tags, OTEL_STATUS_DESCRIPTION, user_status_description);
-    }
-
-    #[test]
-    fn test_set_service_name() {
-        let service_name = "halloween_service";
-
-        // set via builder's service name, it has highest priority
-        let mut builder = crate::PipelineBuilder::default();
-        builder = builder.with_service_name(service_name);
-        let (_, process) = builder.build_config_and_process(Resource::empty());
-        assert_eq!(process.service_name, service_name);
-
-        // make sure the tags in resource are moved to process
-        builder = crate::PipelineBuilder::default();
-        builder = builder.with_service_name(service_name);
-        builder = builder.with_trace_config(
-            Config::default()
-                .with_resource(Resource::new(vec![KeyValue::new("test-key", "test-value")])),
-        );
-        let (config, process) = builder.build_config_and_process(Resource::empty());
-        assert_eq!(config.resource, Some(Arc::new(Resource::empty())));
-        assert_eq!(process.tags.len(), 2);
-
-        // sdk provided resource can override service name if users didn't provided service name to builder
-        builder = crate::PipelineBuilder::default();
-        let (_, process) = builder.build_config_and_process(Resource::new(vec![KeyValue::new(
-            "service.name",
-            "halloween_service",
-        )]));
-        assert_eq!(process.service_name, "halloween_service");
-
-        // users can also provided service.name from config's resource, in this case, it will override the
-        // sdk provided service name
-        builder = crate::PipelineBuilder::default();
-        builder = builder.with_trace_config(Config::default().with_resource(Resource::new(vec![
-            KeyValue::new("service.name", "override_service"),
-        ])));
-        let (_, process) = builder.build_config_and_process(Resource::new(vec![KeyValue::new(
-            "service.name",
-            "halloween_service",
-        )]));
-
-        assert_eq!(process.service_name, "override_service");
-        assert_eq!(process.tags.len(), 1);
-        assert_eq!(
-            process.tags[0],
-            KeyValue::new("service.name", "override_service")
-        );
-
-        // OTEL_SERVICE_NAME env var also works
-        env::set_var("OTEL_SERVICE_NAME", "test service");
-        builder = crate::PipelineBuilder::default();
-        let exporter = builder.init_sync_exporter().unwrap();
-        assert_eq!(exporter.process.service_name, "test service");
-        env::set_var("OTEL_SERVICE_NAME", "")
     }
 }

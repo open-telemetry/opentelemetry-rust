@@ -14,7 +14,7 @@ use std::error::Error;
 use std::time::Duration;
 
 fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
-    opentelemetry_jaeger::new_pipeline()
+    opentelemetry_jaeger::new_agent_pipeline()
         .with_service_name("trace-demo")
         .with_trace_config(Config::default().with_resource(Resource::new(vec![
             KeyValue::new("service.name", "new_service"),
