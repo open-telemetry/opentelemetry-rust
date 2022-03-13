@@ -29,7 +29,7 @@ use opentelemetry::sdk::export::ExportError;
 use opentelemetry::{
     sdk,
     sdk::export::trace,
-    trace::{Event, Link, SpanKind, StatusCode},
+    trace::{Event, Link, SpanKind, Status},
     Key, KeyValue,
 };
 
@@ -153,8 +153,7 @@ fn convert_otel_span_into_jaeger_span(
             } else {
                 None
             },
-            span.status_code,
-            span.status_message.into_owned(),
+            span.status,
             span.span_kind,
         )),
         logs: events_to_logs(span.events),
@@ -164,8 +163,7 @@ fn convert_otel_span_into_jaeger_span(
 fn build_span_tags(
     attrs: sdk::trace::EvictedHashMap,
     instrumentation_lib: Option<sdk::InstrumentationLibrary>,
-    status_code: StatusCode,
-    status_description: String,
+    status: Status,
     kind: SpanKind,
 ) -> Vec<jaeger::Tag> {
     let mut user_overrides = UserOverrides::default();
@@ -190,25 +188,27 @@ fn build_span_tags(
         tags.push(Key::new(SPAN_KIND).string(format_span_kind(kind)).into());
     }
 
-    if status_code != StatusCode::Unset {
-        // Ensure error status is set unless user has already overrided it
-        if status_code == StatusCode::Error && !user_overrides.error {
-            tags.push(Key::new(ERROR).bool(true).into());
-        }
-        if !user_overrides.status_code {
-            if status_code == StatusCode::Ok {
+    match status {
+        Status::Unset => {}
+        Status::Ok => {
+            if !user_overrides.status_code {
                 tags.push(KeyValue::new(OTEL_STATUS_CODE, "OK").into());
-            } else if status_code == StatusCode::Error {
-                tags.push(KeyValue::new(OTEL_STATUS_CODE, "ERROR").into());
             }
         }
-        // set status message if there is one
-        if !status_description.is_empty() && !user_overrides.status_description {
-            tags.push(
-                Key::new(OTEL_STATUS_DESCRIPTION)
-                    .string(status_description)
-                    .into(),
-            );
+        Status::Error {
+            description: message,
+        } => {
+            if !user_overrides.error {
+                tags.push(Key::new(ERROR).bool(true).into());
+            }
+
+            if !user_overrides.status_code {
+                tags.push(KeyValue::new(OTEL_STATUS_CODE, "ERROR").into());
+            }
+
+            if !message.is_empty() && !user_overrides.status_description {
+                tags.push(Key::new(OTEL_STATUS_DESCRIPTION).string(message).into());
+            }
         }
     }
 
@@ -310,7 +310,7 @@ mod tests {
     use crate::exporter::thrift::jaeger::Tag;
     use crate::exporter::{build_span_tags, OTEL_STATUS_CODE, OTEL_STATUS_DESCRIPTION};
     use opentelemetry::sdk::trace::EvictedHashMap;
-    use opentelemetry::trace::{SpanKind, StatusCode};
+    use opentelemetry::trace::{SpanKind, Status};
     use opentelemetry::KeyValue;
 
     fn assert_tag_contains(tags: Vec<Tag>, key: &'static str, expect_val: &'static str) {
@@ -337,38 +337,24 @@ mod tests {
         );
     }
 
-    fn get_error_tag_test_data() -> Vec<(
-        StatusCode,
-        String,
-        Option<&'static str>,
-        Option<&'static str>,
-    )> {
-        // StatusCode, error message, OTEL_STATUS_CODE tag value, OTEL_STATUS_DESCRIPTION tag value
+    #[rustfmt::skip]
+    fn get_error_tag_test_data() -> Vec<(Status, Option<&'static str>, Option<&'static str>)>
+    {
+        // Status, OTEL_STATUS_CODE tag value, OTEL_STATUS_DESCRIPTION tag value
         vec![
-            (StatusCode::Error, "".into(), Some("ERROR"), None),
-            (StatusCode::Unset, "".into(), None, None),
+            (Status::error(""), Some("ERROR"), None),
+            (Status::Unset, None, None),
             // When status is ok, no description should be in span data. This should be ensured by Otel API
-            (StatusCode::Ok, "".into(), Some("OK"), None),
-            (
-                StatusCode::Error,
-                "have message".into(),
-                Some("ERROR"),
-                Some("have message"),
-            ),
-            (StatusCode::Unset, "have message".into(), None, None),
+            (Status::Ok, Some("OK"), None),
+            (Status::error("have message"), Some("ERROR"), Some("have message")),
+            (Status::Unset, None, None),
         ]
     }
 
     #[test]
     fn test_set_status() {
-        for (status_code, error_msg, status_tag_val, msg_tag_val) in get_error_tag_test_data() {
-            let tags = build_span_tags(
-                EvictedHashMap::new(20, 20),
-                None,
-                status_code,
-                error_msg,
-                SpanKind::Client,
-            );
+        for (status, status_tag_val, msg_tag_val) in get_error_tag_test_data() {
+            let tags = build_span_tags(EvictedHashMap::new(20, 20), None, status, SpanKind::Client);
             if let Some(val) = status_tag_val {
                 assert_tag_contains(tags.clone(), OTEL_STATUS_CODE, val);
             } else {
@@ -388,8 +374,10 @@ mod tests {
         let mut attributes = EvictedHashMap::new(20, 20);
         let user_error = true;
         let user_kind = "server";
-        let user_status_code = StatusCode::Error;
         let user_status_description = "Something bad happened";
+        let user_status = Status::Error {
+            description: user_status_description.into(),
+        };
         attributes.insert(KeyValue::new("error", user_error));
         attributes.insert(KeyValue::new(SPAN_KIND, user_kind));
         attributes.insert(KeyValue::new(OTEL_STATUS_CODE, "ERROR"));
@@ -397,13 +385,7 @@ mod tests {
             OTEL_STATUS_DESCRIPTION,
             user_status_description,
         ));
-        let tags = build_span_tags(
-            attributes,
-            None,
-            user_status_code,
-            user_status_description.to_string(),
-            SpanKind::Client,
-        );
+        let tags = build_span_tags(attributes, None, user_status, SpanKind::Client);
 
         assert!(tags
             .iter()

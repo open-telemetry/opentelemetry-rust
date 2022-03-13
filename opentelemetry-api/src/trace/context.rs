@@ -1,7 +1,7 @@
 //! Context extensions for tracing
 use crate::{
     global,
-    trace::{Span, SpanContext},
+    trace::{Span, SpanContext, Status},
     Context, ContextGuard, KeyValue,
 };
 use futures_util::{sink::Sink, stream::Stream};
@@ -131,14 +131,9 @@ impl SpanRef<'_> {
 
     /// Sets the status of this `Span`.
     ///
-    /// If used, this will override the default span status, which is [`StatusCode::Unset`].
-    ///
-    /// [`StatusCode::Unset`]: super::StatusCode::Unset
-    pub fn set_status<T>(&self, code: super::StatusCode, message: T)
-    where
-        T: Into<Cow<'static, str>>,
-    {
-        self.with_inner_mut(move |inner| inner.set_status(code, message))
+    /// If used, this will override the default span status, which is [`Status::Unset`].
+    pub fn set_status(&self, status: Status) {
+        self.with_inner_mut(move |inner| inner.set_status(status))
     }
 
     /// Updates the span's name.

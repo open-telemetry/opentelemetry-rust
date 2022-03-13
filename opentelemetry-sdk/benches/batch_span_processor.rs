@@ -1,6 +1,6 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use opentelemetry_api::trace::{
-    SpanContext, SpanId, SpanKind, StatusCode, TraceFlags, TraceId, TraceState,
+    SpanContext, SpanId, SpanKind, Status, TraceFlags, TraceId, TraceState,
 };
 use opentelemetry_sdk::export::trace::SpanData;
 use opentelemetry_sdk::runtime::Tokio;
@@ -29,8 +29,7 @@ fn get_span_data() -> Vec<SpanData> {
             attributes: EvictedHashMap::new(12, 12),
             events: EvictedQueue::new(12),
             links: EvictedQueue::new(12),
-            status_code: StatusCode::Unset,
-            status_message: Default::default(),
+            status: Status::Unset,
             resource: None,
             instrumentation_lib: Default::default(),
         })

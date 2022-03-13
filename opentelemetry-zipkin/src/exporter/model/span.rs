@@ -61,7 +61,7 @@ mod tests {
     use crate::exporter::model::{into_zipkin_span, OTEL_ERROR_DESCRIPTION, OTEL_STATUS_CODE};
     use opentelemetry::sdk::export::trace::SpanData;
     use opentelemetry::sdk::trace::{EvictedHashMap, EvictedQueue};
-    use opentelemetry::trace::{SpanContext, SpanId, SpanKind, StatusCode, TraceFlags, TraceId};
+    use opentelemetry::trace::{SpanContext, SpanId, SpanKind, Status, TraceFlags, TraceId};
     use std::collections::HashMap;
     use std::net::Ipv4Addr;
     use std::time::SystemTime;
@@ -134,31 +134,19 @@ mod tests {
         );
     }
 
-    fn get_set_status_test_data() -> Vec<(
-        StatusCode,
-        String,
-        Option<&'static str>,
-        Option<&'static str>,
-    )> {
+    fn get_set_status_test_data() -> Vec<(Status, Option<&'static str>, Option<&'static str>)> {
         // status code, status message, whether OTEL_STATUS_CODE is set, whether OTEL_ERROR_DESCRIPTION is set, whether error tag is set
         vec![
-            (StatusCode::Ok, "".into(), Some("OK"), None),
-            (StatusCode::Error, "".into(), Some("ERROR"), Some("")),
-            (
-                StatusCode::Error,
-                "error msg".into(),
-                Some("ERROR"),
-                Some("error msg"),
-            ),
-            (StatusCode::Unset, "whatever".into(), None, None),
+            (Status::Ok, Some("OK"), None),
+            (Status::error(""), Some("ERROR"), Some("")),
+            (Status::error("error msg"), Some("ERROR"), Some("error msg")),
+            (Status::Unset, None, None),
         ]
     }
 
     #[test]
     fn test_set_status() {
-        for (status_code, status_msg, status_tag_val, status_msg_tag_val) in
-            get_set_status_test_data()
-        {
+        for (status, status_tag_val, status_msg_tag_val) in get_set_status_test_data() {
             let span_data = SpanData {
                 span_context: SpanContext::new(
                     TraceId::from_u128(1),
@@ -175,8 +163,7 @@ mod tests {
                 attributes: EvictedHashMap::new(20, 20),
                 events: EvictedQueue::new(20),
                 links: EvictedQueue::new(20),
-                status_code,
-                status_message: status_msg.into(),
+                status,
                 resource: None,
                 instrumentation_lib: Default::default(),
             };

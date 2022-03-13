@@ -1,7 +1,7 @@
 use hyper::http::{Request, Response};
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Server};
-use opentelemetry::trace::{Span, StatusCode};
+use opentelemetry::trace::{Span, Status};
 use opentelemetry::{global, runtime::Tokio, sdk::trace, trace::Tracer};
 use opentelemetry_zpages::{tracez, TracezError, TracezQuerier, TracezResponse};
 use rand::Rng;
@@ -66,7 +66,7 @@ async fn handler(
         "/running" => {
             let span_duration = Duration::from_millis(rand::thread_rng().gen_range(1..6000));
             let mut spans = global::tracer("zpages-test").start("running-spans");
-            spans.set_status(StatusCode::Ok, "".to_string());
+            spans.set_status(Status::Ok);
             tokio::time::sleep(span_duration).await;
             println!("The span slept for {} ms", span_duration.as_millis());
             Response::new(Body::empty())

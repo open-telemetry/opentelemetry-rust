@@ -122,10 +122,8 @@ pub trait Span {
 
     /// Sets the status of this `Span`.
     ///
-    /// If used, this will override the default span status, which is [`StatusCode::Unset`].
-    fn set_status<T>(&mut self, code: StatusCode, message: T)
-    where
-        T: Into<Cow<'static, str>>;
+    /// If used, this will override the default span status, which is [`Status::Unset`].
+    fn set_status(&mut self, status: Status);
 
     /// Updates the span's name.
     ///
@@ -219,38 +217,81 @@ pub enum SpanKind {
     Internal,
 }
 
-/// The code representation of the status of a [`Span`].
+/// The status of a [`Span`].
 ///
 /// These values form a total order: Ok > Error > Unset. This means that setting
-/// `StatusCode::Ok` will override any prior or future attempts to set a
-/// status with `StatusCode::Error` or `StatusCode::Unset`.
+/// `Status::Ok` will override any prior or future attempts to set a status with
+/// `Status::Error` or `Status::Unset`.
 ///
-/// The status code should remain unset, except for the following circumstances:
+/// The status should remain unset, except for the following circumstances:
 ///
-/// Generally, instrumentation libraries should not set the status code to
-/// `StatusCode::Ok`, unless explicitly configured to do so. Instrumentation
+/// Generally, instrumentation libraries should not set the code to
+/// `Status::Ok`, unless explicitly configured to do so. Instrumentation
 /// libraries should leave the status code as unset unless there is an error.
 ///
-/// Application developers and operators may set the status code to `StatusCode::Ok`.
+/// Application developers and operators may set the status code to
+/// `Status::Ok`.
 ///
-/// When span status is set to `StatusCode::Ok` it should be considered final and
+/// When span status is set to `Status::Ok` it should be considered final and
 /// any further attempts to change it should be ignored.
 ///
-/// Analysis tools should respond to a `StatusCode::Ok` status by suppressing any
-/// errors they would otherwise generate. For example, to suppress noisy errors such
-/// as 404s.
+/// Analysis tools should respond to a `Status::Ok` status by suppressing any
+/// errors they would otherwise generate. For example, to suppress noisy errors
+/// such as 404s.
 ///
-/// Only the value of the last call will be recorded, and implementations are free
-/// to ignore previous calls.
-#[derive(Clone, Debug, PartialEq, Copy)]
-pub enum StatusCode {
+/// Only the value of the last call will be recorded, and implementations are
+/// free to ignore previous calls.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd)]
+pub enum Status {
     /// The default status.
     Unset,
+
+    /// The operation contains an error.
+    Error {
+        /// The description of the error
+        description: Cow<'static, str>,
+    },
 
     /// The operation has been validated by an application developer or operator to
     /// have completed successfully.
     Ok,
+}
 
-    /// The operation contains an error.
-    Error,
+impl Status {
+    /// Create a new error status with a given description.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use opentelemetry_api::trace::Status;
+    ///
+    /// // record error with `str` description
+    /// let error_status = Status::error("something went wrong");
+    ///
+    /// // or with `String` description
+    /// let error_status = Status::error(format!("too many foos: {}", 42));
+    /// # drop(error_status);
+    /// ```
+    pub fn error(description: impl Into<Cow<'static, str>>) -> Self {
+        Status::Error {
+            description: description.into(),
+        }
+    }
+}
+
+impl Default for Status {
+    fn default() -> Self {
+        Status::Unset
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn status_order() {
+        assert!(Status::Ok > Status::error(""));
+        assert!(Status::error("") > Status::Unset);
+    }
 }

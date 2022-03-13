@@ -8,7 +8,7 @@ use crate::{
 };
 use async_trait::async_trait;
 pub use opentelemetry_api::testing::trace::TestSpan;
-use opentelemetry_api::trace::{SpanContext, SpanId, SpanKind, StatusCode};
+use opentelemetry_api::trace::{SpanContext, SpanId, SpanKind, Status};
 use std::fmt::{Display, Formatter};
 use std::sync::mpsc::{channel, Receiver, Sender};
 
@@ -24,8 +24,7 @@ pub fn new_test_export_span_data() -> SpanData {
         attributes: EvictedHashMap::new(config.span_limits.max_attributes_per_span, 0),
         events: EvictedQueue::new(config.span_limits.max_events_per_span),
         links: EvictedQueue::new(config.span_limits.max_links_per_span),
-        status_code: StatusCode::Unset,
-        status_message: "".into(),
+        status: Status::Unset,
         resource: config.resource,
         instrumentation_lib: InstrumentationLibrary::default(),
     }

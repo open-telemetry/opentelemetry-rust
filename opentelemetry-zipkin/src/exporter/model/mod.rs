@@ -1,6 +1,6 @@
 use opentelemetry::{
     sdk::export::trace,
-    trace::{SpanKind, StatusCode},
+    trace::{SpanKind, Status},
     Key, KeyValue,
 };
 use std::collections::HashMap;
@@ -16,16 +16,6 @@ const INSTRUMENTATION_LIBRARY_NAME: &str = "otel.library.name";
 const INSTRUMENTATION_LIBRARY_VERSION: &str = "otel.library.version";
 const OTEL_ERROR_DESCRIPTION: &str = "error";
 const OTEL_STATUS_CODE: &str = "otel.status_code";
-
-/// Converts StatusCode to Option<&'static str>
-/// `Unset` status code is unused.
-fn from_statuscode_to_str(status_code: StatusCode) -> Option<&'static str> {
-    match status_code {
-        StatusCode::Ok => Some("OK"),
-        StatusCode::Unset => None,
-        StatusCode::Error => Some("ERROR"),
-    }
-}
 
 /// Converts `SpanKind` into an `Option<span::Kind>`
 fn into_zipkin_span_kind(kind: SpanKind) -> Option<span::Kind> {
@@ -71,15 +61,19 @@ pub(crate) fn into_zipkin_span(local_endpoint: Endpoint, span_data: trace::SpanD
             )
             .filter(|kv| kv.key.as_str() != "error"),
     );
-    if let Some(status_code) = from_statuscode_to_str(span_data.status_code) {
-        if status_code == "ERROR" {
-            tags.insert(
-                OTEL_ERROR_DESCRIPTION.into(),
-                span_data.status_message.into_owned(),
-            );
+
+    match span_data.status {
+        Status::Unset => {}
+        Status::Ok => {
+            tags.insert(OTEL_STATUS_CODE.into(), "OK".into());
         }
-        tags.insert(OTEL_STATUS_CODE.into(), status_code.into());
-    }
+        Status::Error {
+            description: message,
+        } => {
+            tags.insert(OTEL_STATUS_CODE.into(), "ERROR".into());
+            tags.insert(OTEL_ERROR_DESCRIPTION.into(), message.into_owned());
+        }
+    };
 
     span::Span::builder()
         .trace_id(span_data.span_context.trace_id().to_string())

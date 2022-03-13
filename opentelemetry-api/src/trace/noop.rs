@@ -109,10 +109,7 @@ impl trace::Span for NoopSpan {
     }
 
     /// Ignores status
-    fn set_status<T>(&mut self, _code: trace::StatusCode, _message: T)
-    where
-        T: Into<Cow<'static, str>>,
-    {
+    fn set_status(&mut self, _status: trace::Status) {
         // Ignored
     }
 

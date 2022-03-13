@@ -1,6 +1,6 @@
 use crate::transform::common::to_nanos;
 use opentelemetry::sdk::{self, export::trace::SpanData};
-use opentelemetry::trace::{Link, SpanId, SpanKind, StatusCode};
+use opentelemetry::trace::{Link, SpanId, SpanKind};
 
 #[cfg(feature = "gen-tonic")]
 pub mod tonic {
@@ -10,6 +10,7 @@ pub mod tonic {
         span, status, InstrumentationLibrarySpans, ResourceSpans, Span, Status,
     };
     use crate::transform::common::tonic::Attributes;
+    use opentelemetry::trace;
 
     impl From<SpanKind> for span::SpanKind {
         fn from(span_kind: SpanKind) -> Self {
@@ -23,12 +24,12 @@ pub mod tonic {
         }
     }
 
-    impl From<StatusCode> for status::StatusCode {
-        fn from(status_code: StatusCode) -> Self {
-            match status_code {
-                StatusCode::Ok => status::StatusCode::Ok,
-                StatusCode::Unset => status::StatusCode::Unset,
-                StatusCode::Error => status::StatusCode::Error,
+    impl From<&trace::Status> for status::StatusCode {
+        fn from(status: &trace::Status) -> Self {
+            match status {
+                trace::Status::Ok => status::StatusCode::Ok,
+                trace::Status::Unset => status::StatusCode::Unset,
+                trace::Status::Error { .. } => status::StatusCode::Error,
             }
         }
     }
@@ -96,8 +97,11 @@ pub mod tonic {
                         dropped_links_count: source_span.links.dropped_count(),
                         links: source_span.links.into_iter().map(Into::into).collect(),
                         status: Some(Status {
-                            code: status::StatusCode::from(source_span.status_code).into(),
-                            message: source_span.status_message.into_owned(),
+                            code: status::StatusCode::from(&source_span.status).into(),
+                            message: match source_span.status {
+                                trace::Status::Error { description } => description.to_string(),
+                                _ => Default::default(),
+                            },
                             ..Default::default()
                         }),
                     }],
@@ -127,6 +131,7 @@ pub mod grpcio {
         Status, Status_StatusCode,
     };
     use crate::transform::common::grpcio::Attributes;
+    use opentelemetry::trace;
     use protobuf::{RepeatedField, SingularPtrField};
 
     impl From<SpanKind> for Span_SpanKind {
@@ -141,12 +146,12 @@ pub mod grpcio {
         }
     }
 
-    impl From<StatusCode> for Status_StatusCode {
-        fn from(status_code: StatusCode) -> Self {
-            match status_code {
-                StatusCode::Ok => Status_StatusCode::STATUS_CODE_OK,
-                StatusCode::Unset => Status_StatusCode::STATUS_CODE_UNSET,
-                StatusCode::Error => Status_StatusCode::STATUS_CODE_ERROR,
+    impl From<&trace::Status> for Status_StatusCode {
+        fn from(status: &trace::Status) -> Self {
+            match status {
+                trace::Status::Ok => Status_StatusCode::STATUS_CODE_OK,
+                trace::Status::Unset => Status_StatusCode::STATUS_CODE_UNSET,
+                trace::Status::Error { .. } => Status_StatusCode::STATUS_CODE_ERROR,
             }
         }
     }
@@ -222,8 +227,11 @@ pub mod grpcio {
                                 source_span.links.into_iter().map(Into::into).collect(),
                             ),
                             status: SingularPtrField::some(Status {
-                                code: Status_StatusCode::from(source_span.status_code),
-                                message: source_span.status_message.into_owned(),
+                                code: Status_StatusCode::from(&source_span.status),
+                                message: match source_span.status {
+                                    trace::Status::Error { description } => description.to_string(),
+                                    _ => Default::default(),
+                                },
                                 ..Default::default()
                             }),
                             ..Default::default()

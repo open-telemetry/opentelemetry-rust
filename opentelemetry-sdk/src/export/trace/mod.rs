@@ -1,8 +1,6 @@
 //! Trace exporters
 use async_trait::async_trait;
-use opentelemetry_api::trace::{
-    Event, Link, SpanContext, SpanId, SpanKind, StatusCode, TraceError,
-};
+use opentelemetry_api::trace::{Event, Link, SpanContext, SpanId, SpanKind, Status, TraceError};
 use std::borrow::Cow;
 use std::fmt::Debug;
 use std::sync::Arc;
@@ -72,10 +70,8 @@ pub struct SpanData {
     pub events: crate::trace::EvictedQueue<Event>,
     /// Span Links
     pub links: crate::trace::EvictedQueue<Link>,
-    /// Span status code
-    pub status_code: StatusCode,
-    /// Span status message
-    pub status_message: Cow<'static, str>,
+    /// Span status
+    pub status: Status,
     /// Resource contains attributes representing an entity that produced this span.
     pub resource: Option<Arc<crate::Resource>>,
     /// Instrumentation library that produced this span

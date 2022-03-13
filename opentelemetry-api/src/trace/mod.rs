@@ -68,14 +68,14 @@
 //! [`Context`]: crate::Context
 //!
 //! ```
-//! use opentelemetry_api::{global, trace::{self, Span, StatusCode, Tracer, TracerProvider}};
+//! use opentelemetry_api::{global, trace::{self, Span, Status, Tracer, TracerProvider}};
 //!
 //! fn may_error(rand: f32) {
 //!     if rand < 0.5 {
 //!         // Get the currently active span to record additional attributes,
 //!         // status, etc.
 //!         trace::get_active_span(|span| {
-//!             span.set_status(StatusCode::Error, "value too small");
+//!             span.set_status(Status::error("value too small"));
 //!         });
 //!     }
 //! }
@@ -144,7 +144,7 @@ mod tracer_provider;
 
 pub use self::{
     context::{get_active_span, mark_span_as_active, FutureExt, SpanRef, TraceContextExt},
-    span::{Span, SpanKind, StatusCode},
+    span::{Span, SpanKind, Status},
     span_context::{SpanContext, SpanId, TraceFlags, TraceId, TraceState},
     tracer::{SamplingDecision, SamplingResult, SpanBuilder, Tracer},
     tracer_provider::TracerProvider,
