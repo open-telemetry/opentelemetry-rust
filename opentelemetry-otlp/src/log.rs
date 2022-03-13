@@ -418,7 +418,7 @@ impl OtlpLogPipeline {
     /// Returns a [`LogEmitter`] with the name `opentelemetry-otlp` and the
     /// current crate version, using the configured log exporter.
     ///
-    /// [`LogEmitter`]: opentelemetry::log::LogEmitter
+    /// [`LogEmitter`]: opentelemetry::sdk::log::LogEmitter
     pub fn simple(self) -> Result<sdk::log::LogEmitter, LogError> {
         Ok(build_simple_with_exporter(
             self.exporter_builder
