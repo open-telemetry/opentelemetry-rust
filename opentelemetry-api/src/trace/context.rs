@@ -60,17 +60,14 @@ impl SpanRef<'_> {
         self.with_inner_mut(|inner| inner.add_event(name, attributes))
     }
 
-    /// Record an exception event
-    pub fn record_exception(&self, err: &dyn Error) {
-        self.with_inner_mut(|inner| inner.record_exception(err))
-    }
-
-    /// Record an exception event with stacktrace
-    pub fn record_exception_with_stacktrace<T>(&self, err: &dyn Error, stacktrace: T)
-    where
-        T: Into<Cow<'static, str>>,
-    {
-        self.with_inner_mut(|inner| inner.record_exception_with_stacktrace(err, stacktrace))
+    /// Record an error as an event for this span.
+    ///
+    /// An additional call to [Span::set_status] is required if the status of the
+    /// span should be set to error, as this method does not change the span status.
+    ///
+    /// If this span is not being recorded then this method does nothing.
+    pub fn record_error(&self, err: &dyn Error) {
+        self.with_inner_mut(|inner| inner.record_error(err))
     }
 
     /// Record an event with a timestamp in the context this span.
