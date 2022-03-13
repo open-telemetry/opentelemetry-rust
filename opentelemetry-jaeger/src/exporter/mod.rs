@@ -264,6 +264,7 @@ pub enum Error {
     /// Error from thrift agents.
     #[error("thrift agent failed with {0}")]
     ThriftAgentError(#[from] ::thrift::Error),
+
     /// No http client provided.
     #[cfg(feature = "collector_client")]
     #[error(
@@ -273,6 +274,7 @@ pub enum Error {
         provide your own implementation."
     )]
     NoHttpClient,
+
     /// reqwest client errors
     #[error("reqwest failed with {0}")]
     #[cfg(any(
@@ -281,13 +283,8 @@ pub enum Error {
     ))]
     ReqwestClientError(#[from] reqwest::Error),
 
-    /// invalid collector uri is provided.
-    #[error("collector uri is invalid, {0}")]
-    #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
-    InvalidUri(#[from] http::uri::InvalidUri),
-
     /// Pipeline fails because one of the configurations is invalid.
-    #[error("{pipeline_name} pipeline fails because one of the configuration, {config_name}, is invalid. {reason}")]
+    #[error("{pipeline_name} pipeline fails because one of the configuration {config_name} is invalid. {reason}")]
     ConfigError {
         /// the name of the pipeline. It can be `agent`, `collector` or `wasm collector`
         pipeline_name: &'static str,

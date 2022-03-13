@@ -9,6 +9,7 @@ use opentelemetry::{sdk, sdk::trace::Config as TraceConfig, trace::TraceError};
 use std::borrow::BorrowMut;
 use std::convert::TryFrom;
 use std::env;
+use std::fmt::format;
 #[cfg(feature = "collector_client")]
 use std::time::Duration;
 
@@ -142,8 +143,8 @@ impl Default for CollectorPipeline {
 // implement the seal trait
 impl HasRequiredConfig for CollectorPipeline {
     fn set_transformation_config<T>(&mut self, f: T)
-    where
-        T: FnOnce(&mut TransformationConfig),
+        where
+            T: FnOnce(&mut TransformationConfig),
     {
         f(self.transformation_config.borrow_mut())
     }
@@ -165,14 +166,14 @@ impl Default for ClientConfig {
     fn default() -> Self {
         // as long as collector is enabled, we will in favor of it
         #[cfg(feature = "collector_client")]
-        {
-            ClientConfig::Http {
-                client_type: CollectorHttpClient::None,
+            {
+                ClientConfig::Http {
+                    client_type: CollectorHttpClient::None,
+                }
             }
-        }
         // when collector_client is disabled and wasm_collector_client is enabled
         #[cfg(not(feature = "collector_client"))]
-        ClientConfig::Wasm
+            ClientConfig::Wasm
     }
 }
 
@@ -213,9 +214,9 @@ impl CollectorPipeline {
     ///
     /// E.g. "http://localhost:14268/api/traces"
     pub fn with_endpoint<T>(self, collector_endpoint: T) -> Self
-    where
-        http::Uri: core::convert::TryFrom<T>,
-        <http::Uri as core::convert::TryFrom<T>>::Error: Into<http::uri::InvalidUri>,
+        where
+            http::Uri: core::convert::TryFrom<T>,
+            <http::Uri as core::convert::TryFrom<T>>::Error: Into<http::uri::InvalidUri>,
     {
         Self {
             collector_endpoint: Some(
@@ -431,8 +432,8 @@ impl CollectorPipeline {
     }
 
     fn build_uploader<R>(self) -> Result<Box<dyn Uploader>, crate::Error>
-    where
-        R: JaegerTraceRuntime,
+        where
+            R: JaegerTraceRuntime,
     {
         let endpoint = self
             .collector_endpoint
@@ -440,7 +441,7 @@ impl CollectorPipeline {
             .map_err::<crate::Error, _>(|err| crate::Error::ConfigError {
                 pipeline_name: "collector",
                 config_name: "collector_endpoint",
-                reason: err.to_string(),
+                reason: format!("invalid uri, {}", err),
             })?
             .unwrap_or_else(|| {
                 Uri::try_from(DEFAULT_ENDPOINT).unwrap() // default endpoint should always valid

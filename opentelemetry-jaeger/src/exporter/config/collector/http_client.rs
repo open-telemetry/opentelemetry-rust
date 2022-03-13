@@ -2,8 +2,8 @@ use crate::Error::NoHttpClient;
 #[cfg(feature = "surf_collector_client")]
 use async_trait::async_trait;
 #[cfg(any(
-    feature = "reqwest_blocking_collector_client",
-    feature = "reqwest_collector_client"
+feature = "reqwest_blocking_collector_client",
+feature = "reqwest_collector_client"
 ))]
 use headers::authorization::Credentials;
 #[cfg(feature = "isahc_collector_client")]
@@ -67,12 +67,14 @@ impl CollectorHttpClient {
                         .credentials(isahc::auth::Credentials::new(username, password));
                 }
 
-                Ok(Box::new(builder.build().map_err(|err| {
-                    crate::Error::ThriftAgentError(::thrift::Error::from(std::io::Error::new(
-                        std::io::ErrorKind::Other,
-                        err.to_string(),
-                    )))
-                })?))
+                let client = builder.build().map_err(|err| {
+                    crate::Error::ConfigError {
+                        config_name: "http_client",
+                        pipeline_name: "collector",
+                        reason: format!("cannot create isahc http client, {}", err),
+                    }
+                })?;
+                Ok(Box::new(client))
             }
             #[cfg(feature = "surf_collector_client")]
             CollectorHttpClient::Surf => {
@@ -82,11 +84,11 @@ impl CollectorHttpClient {
                     .map_err(|err| crate::Error::ConfigError {
                         pipeline_name: "collector",
                         config_name: "http_client",
-                        reason: format!("cannot set timeout for surf client. {}", err),
+                        reason: format!("cannot create surf client. {}", err),
                     })?;
 
                 let client = if let (Some(username), Some(password)) =
-                    (collector_username, collector_password)
+                (collector_username, collector_password)
                 {
                     let auth = surf::http::auth::BasicAuth::new(username, password);
                     client.with(BasicAuthMiddleware(auth))
@@ -107,9 +109,14 @@ impl CollectorHttpClient {
                     map.insert(http::header::AUTHORIZATION, auth_header_val.0.encode());
                     builder = builder.default_headers(map);
                 }
-                let client: Box<dyn OtelHttpClient> =
-                    Box::new(builder.build().map_err::<crate::Error, _>(Into::into)?);
-                Ok(client)
+                let client = builder.build().map_err::<crate::Error, _>(|err| {
+                    crate::Error::ConfigError {
+                        pipeline_name: "http_client",
+                        config_name: "collector",
+                        reason: format!("cannot create reqwest blocking http client, {}", err),
+                    }
+                })?;
+                Ok(Box::new(client))
             }
             #[cfg(feature = "reqwest_collector_client")]
             CollectorHttpClient::Reqwest => {
@@ -121,9 +128,14 @@ impl CollectorHttpClient {
                     map.insert(http::header::AUTHORIZATION, auth_header_val.0.encode());
                     builder = builder.default_headers(map);
                 }
-                let client: Box<dyn OtelHttpClient> =
-                    Box::new(builder.build().map_err::<crate::Error, _>(Into::into)?);
-                Ok(client)
+                let client = builder.build().map_err::<crate::Error, _>(|err| {
+                    crate::Error::ConfigError {
+                        pipeline_name: "http_client",
+                        config_name: "collector",
+                        reason: format!("cannot create reqwest http client, {}", err),
+                    }
+                })?;
+                Ok(Box::new(client))
             }
         }
     }
