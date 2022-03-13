@@ -1,6 +1,6 @@
 use crate::transform::common::to_nanos;
-use opentelemetry::sdk::{self, export::trace::SpanData};
-use opentelemetry::trace::{Link, SpanId, SpanKind};
+use opentelemetry::sdk::export::trace::SpanData;
+use opentelemetry::trace::{Link, SpanId, SpanKind, Status};
 
 #[cfg(feature = "gen-tonic")]
 pub mod tonic {
@@ -125,7 +125,7 @@ pub mod grpcio {
         ResourceSpans, ScopeSpans, Span, Span_Event, Span_Link, Span_SpanKind, Status,
         Status_StatusCode,
     };
-    use crate::transform::common::grpcio::Attributes;
+    use crate::transform::common::grpcio::{resource_attributes, Attributes};
     use opentelemetry::trace;
     use protobuf::{RepeatedField, SingularPtrField};
 

@@ -62,6 +62,7 @@ tokio = { version = "1.0", features = ["macros", "rt-multi-thread"] }
 # telemetry pillars and functions
 trace = ["opentelemetry_api/trace", "opentelemetry_sdk/trace", "opentelemetry-proto/traces"]
 metrics = ["opentelemetry_api/metrics", "opentelemetry_sdk/metrics", "opentelemetry-proto/metrics", "grpc-tonic"]
+log = ["opentelemetry/log", "opentelemetry-proto/logs"]
 
 # add ons
 serialize = ["serde"]
