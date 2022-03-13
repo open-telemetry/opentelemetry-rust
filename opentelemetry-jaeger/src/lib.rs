@@ -150,8 +150,8 @@
 //!
 //! Based on the service name, we update/append the `service.name` process tags in jaeger spans.
 //!
-//! [`with_service_name`]: crate::exporter::config::AgentPipeline::with_service_name
-//! [`with_trace_config`]: crate::exporter::config::AgentPipeline::with_trace_config
+//! [`with_service_name`]: crate::exporter::config::agent::AgentPipeline::with_service_name
+//! [`with_trace_config`]: crate::exporter::config::agent::AgentPipeline::with_trace_config
 //! [`set_attribute`]: opentelemetry::trace::Span::set_attribute
 //! [OpenTelemetry to Jaeger Transformation]:https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/sdk_exporters/jaeger.md
 //!
