@@ -61,6 +61,39 @@ pub enum Any {
     Map(BTreeMap<Cow<'static, str>, Any>),
 }
 
+macro_rules! impl_trivial_from {
+    ($t:ty, $variant:path) => {
+        impl From<$t> for Any {
+            fn from(val: $t) -> Any {
+                $variant(val.into())
+            }
+        }
+    };
+}
+
+impl_trivial_from!(i8, Any::Int);
+impl_trivial_from!(i16, Any::Int);
+impl_trivial_from!(i32, Any::Int);
+impl_trivial_from!(i64, Any::Int);
+
+impl_trivial_from!(u8, Any::Int);
+impl_trivial_from!(u16, Any::Int);
+impl_trivial_from!(u32, Any::Int);
+
+impl_trivial_from!(String, Any::String);
+impl_trivial_from!(Cow<'static, str>, Any::String);
+impl_trivial_from!(&str, Any::String);
+
+impl_trivial_from!(bool, Any::Boolean);
+
+impl<T: Into<Any>> From<Vec<T>> for Any {
+    /// Converts a list of `Into<Any>` values into a [`Any::ListAny`]
+    /// value.
+    fn from(val: Vec<T>) -> Any {
+        Any::ListAny(val.into_iter().map(Into::into).collect())
+    }
+}
+
 /// A normalized severity value.
 #[derive(Debug, Copy, Clone)]
 pub enum Severity {
