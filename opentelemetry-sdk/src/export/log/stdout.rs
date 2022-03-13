@@ -102,9 +102,9 @@ where
     }
 }
 
-/// A [`SpanExporter`] that writes to [`Stdout`] or other configured [`Write`].
+/// A [`LogExporter`] that writes to [`Stdout`] or other configured [`Write`].
 ///
-/// [`SpanExporter`]: super::SpanExporter
+/// [`LogExporter`]: super::LogExporter
 /// [`Write`]: std::io::Write
 /// [`Stdout`]: std::io::Stdout
 #[derive(Debug)]

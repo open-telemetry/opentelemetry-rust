@@ -171,7 +171,7 @@ impl Builder {
 #[derive(Debug)]
 /// The object for emitting [`LogRecord`]s.
 ///
-/// [`LogRecord`]: crate::LogRecord
+/// [`LogRecord`]: crate::log::LogRecord
 pub struct LogEmitter {
     instrumentation_lib: InstrumentationLibrary,
     provider: Weak<LogEmitterProviderInner>,

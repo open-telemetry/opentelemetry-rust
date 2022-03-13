@@ -20,7 +20,7 @@ use std::{
 
 /// The interface for plugging into a [`LogEmitter`].
 ///
-/// [`LogEmitter`]: crate::LogEmitter
+/// [`LogEmitter`]: crate::log::LogEmitter
 pub trait LogProcessor: Debug {
     /// Called when a log record is ready to processed and exported.
     fn emit(&self, data: ResourceLog);
