@@ -1,6 +1,6 @@
 use crate::transform::common::to_nanos;
 use opentelemetry::sdk::export::trace::SpanData;
-use opentelemetry::trace::{Link, SpanId, SpanKind, Status};
+use opentelemetry::trace::{Link, SpanId, SpanKind};
 
 #[cfg(feature = "gen-tonic")]
 pub mod tonic {
