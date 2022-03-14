@@ -273,7 +273,7 @@ impl LogRecordBuilder {
     }
 
     /// Assign body
-    pub fn with_body<T>(self, body: Any) -> Self {
+    pub fn with_body(self, body: Any) -> Self {
         Self {
             record: LogRecord {
                 body: Some(body),
