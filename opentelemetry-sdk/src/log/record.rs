@@ -250,7 +250,7 @@ impl LogRecordBuilder {
     }
 
     /// Assign severity number
-    pub fn with_severity_number<T>(self, severity: Severity) -> Self {
+    pub fn with_severity_number(self, severity: Severity) -> Self {
         Self {
             record: LogRecord {
                 severity_number: Some(severity),
@@ -303,14 +303,15 @@ impl LogRecordBuilder {
     }
 
     /// Set a single attribute for this record
-    pub fn with_attribute<T>(mut self, key: T, value: Any) -> Self
+    pub fn with_attribute<K, V>(mut self, key: K, value: V) -> Self
     where
-        T: Into<Cow<'static, str>>,
+        K: Into<Cow<'static, str>>,
+        V: Into<Any>,
     {
         if let Some(ref mut map) = self.record.attributes {
-            map.insert(key.into(), value);
+            map.insert(key.into(), value.into());
         } else {
-            self.record.attributes = Some(BTreeMap::from([(key.into(), value)]));
+            self.record.attributes = Some(BTreeMap::from([(key.into(), value.into())]));
         }
 
         self
