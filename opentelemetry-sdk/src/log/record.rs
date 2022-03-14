@@ -29,6 +29,13 @@ pub struct LogRecord {
     pub attributes: Option<BTreeMap<Cow<'static, str>, Any>>,
 }
 
+impl LogRecord {
+    /// Create a [`LogRecordBuilder`] to create a new Log Record
+    pub fn builder() -> LogRecordBuilder {
+        LogRecordBuilder::new()
+    }
+}
+
 /// TraceContext stores the trace data for logs that have an associated
 /// span.
 #[derive(Debug, Clone)]
@@ -186,6 +193,13 @@ pub struct LogRecordBuilder {
 }
 
 impl LogRecordBuilder {
+    /// Create a new LogRecordBuilder
+    pub fn new() -> Self {
+        Self {
+            record: Default::default(),
+        }
+    }
+
     /// Assign timestamp
     pub fn with_timestamp(self, timestamp: SystemTime) -> Self {
         Self {
