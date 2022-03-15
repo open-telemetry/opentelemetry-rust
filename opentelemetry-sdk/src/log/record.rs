@@ -1,5 +1,4 @@
 use opentelemetry_api::trace::{SpanContext, SpanId, TraceContextExt, TraceFlags, TraceId};
-use serde_json::{Number, Value};
 use std::{borrow::Cow, collections::BTreeMap, time::SystemTime};
 
 #[derive(Debug, Clone, Default)]
@@ -101,35 +100,6 @@ impl<T: Into<Any>> From<Vec<T>> for Any {
     /// value.
     fn from(val: Vec<T>) -> Any {
         Any::ListAny(val.into_iter().map(Into::into).collect())
-    }
-}
-
-impl From<Value> for Any {
-    fn from(val: Value) -> Any {
-        match val {
-            Value::Null => Any::String("".to_string()),
-            Value::Bool(b) => Any::Boolean(b),
-            Value::Number(number) => number.into(),
-            Value::String(string) => string.into(),
-            Value::Array(vec) => vec.into(),
-            Value::Object(map) => Any::Map(
-                map.into_iter()
-                    .map(|(key, value)| (key.into(), value.into()))
-                    .collect(),
-            ),
-        }
-    }
-}
-
-impl From<Number> for Any {
-    fn from(val: Number) -> Any {
-        if val.is_u64() {
-            Any::Int(val.as_u64().unwrap() as i64)
-        } else if val.is_i64() {
-            Any::Int(val.as_i64().unwrap())
-        } else {
-            Any::Double(val.as_f64().unwrap())
-        }
     }
 }
 
