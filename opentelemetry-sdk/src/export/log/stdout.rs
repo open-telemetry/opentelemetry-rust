@@ -130,14 +130,14 @@ where
 {
     /// Export spans to stdout
     async fn export(&mut self, batch: Vec<ResourceLog>) -> ExportResult {
-        for span in batch {
+        for log in batch {
             if self.pretty_print {
                 self.writer
-                    .write_all(format!("{:#?}\n", span).as_bytes())
+                    .write_all(format!("{:#?}\n", log).as_bytes())
                     .map_err(|err| LogError::ExportFailed(Box::new(Error::from(err))))?;
             } else {
                 self.writer
-                    .write_all(format!("{:?}\n", span).as_bytes())
+                    .write_all(format!("{:?}\n", log).as_bytes())
                     .map_err(|err| LogError::ExportFailed(Box::new(Error::from(err))))?;
             }
         }
