@@ -21,7 +21,7 @@ use std::{
 /// The interface for plugging into a [`LogEmitter`].
 ///
 /// [`LogEmitter`]: crate::log::LogEmitter
-pub trait LogProcessor: Debug {
+pub trait LogProcessor: Send + Sync + Debug {
     /// Called when a log record is ready to processed and exported.
     fn emit(&self, data: ResourceLog);
     /// Force the logs lying in the cache to be exported.
