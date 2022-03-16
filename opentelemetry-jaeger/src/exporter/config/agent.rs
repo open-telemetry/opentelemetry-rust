@@ -28,13 +28,37 @@ const DEFAULT_AGENT_ENDPOINT: &str = "127.0.0.1:6831";
 /// AgentPipeline config and build a exporter targeting a jaeger agent using UDP as transport layer protocol.
 ///
 /// ## UDP packet max length
-/// The exporter will use UDP to communicate with the agent. Depends on your platform, UDP protocol
-/// may cut off if the packet is too long. See [UDP packet size] for details. Users can utilise [`with_max_packet_size`]
-/// and [`with_auto_split_batch`] to avoid spans don't lose because the packet is too long.
+/// The exporter uses UDP to communicate with the agent. UDP requests may be rejected if it's too long.
+/// See [UDP packet size] for details.
+///
+/// Users can utilise [`with_max_packet_size`] and [`with_auto_split_batch`] to avoid spans loss or UDP requests failure.
+///
+/// The default `max_packet_size` is `65000`([why 65000]?). If your platform has a smaller limit on UDP packet.
+/// You will need to adjust the `max_packet_size` accordingly.
+///
+/// Set `auto_split_batch` to true will config the exporter to split the batch based on `max_packet_size`
+/// automatically. Note that it has a performance overhead as every batch could require multiple requests to export.
+///
+///
+/// For example, OSX UDP packet limit is 9216 by default. You can configure the pipeline as following
+/// to avoid UDP packet breaches the limit.
+///```no_run
+/// # use opentelemetry::trace::TraceError;
+/// # fn main() -> Result<(), TraceError>{
+/// let tracer = opentelemetry_jaeger::new_agent_pipeline()
+///         .with_endpoint("localhost:6831")
+///         .with_service_name("my_app")
+///         .with_max_packet_size(9_216)
+///         .with_auto_split_batch(true)
+///         .install_batch(opentelemetry::runtime::Tokio).unwrap();
+/// # Ok(())
+/// # }
+///```
 ///
 /// [`with_auto_split_batch`]: AgentPipeline::with_auto_split_batch
 /// [`with_max_packet_size`]: AgentPipeline::with_max_packet_size
 /// [UDP packet size]: https://stackoverflow.com/questions/1098897/what-is-the-largest-safe-udp-packet-size-on-the-internet
+/// [why 65000]: https://serverfault.com/questions/246508/how-is-the-mtu-is-65535-in-udp-but-ethernet-does-not-allow-frame-size-more-than
 ///
 /// ## Environment variables
 /// The following environment variables are available to configure the agent exporter.
@@ -117,8 +141,11 @@ impl AgentPipeline {
 
     /// Assign the max packet size in bytes.
     ///
-    /// If the application is generating a lot of spans or each spans contains a lot of events/tags
-    /// it can result in spans loss because of the UDP size limit. Increase the `max_packet_size` can medicate the problem.
+    /// It should be consistent with the limit of platforms. Otherwise, UDP requests maybe reject with
+    /// error like `thrift agent failed with transport error` or `thrift agent failed with message too long`.
+    ///
+    /// The exporter will cut off spans if the batch is long. To avoid this, set [auto_split_batch](AgentPipeline::with_auto_split_batch) to `true`
+    /// to split a batch into multiple UDP packets.
     ///
     /// Default to be `65000`.
     pub fn with_max_packet_size(self, max_packet_size: usize) -> Self {
@@ -134,9 +161,10 @@ impl AgentPipeline {
     /// batch into smaller ones so that there will be minimal data loss. It
     /// will impact the performance.
     ///
-    /// Note that if one span is too large to export, other spans within the
-    /// same batch may or may not be exported. In this case, exporter will
-    /// return errors as we cannot split spans.
+    /// Note that if the length of one serialized span is longer than the `max_packet_size`.
+    /// The exporter will return an error as it cannot export the span. Use jaeger collector
+    /// instead of jaeger agent may be help in this case as the exporter will use HTTP to communicate
+    /// with jaeger collector.
     ///
     /// Default to be `false`.
     pub fn with_auto_split_batch(mut self, should_auto_split: bool) -> Self {
@@ -338,5 +366,32 @@ impl AgentPipeline {
         )
         .map_err::<Error, _>(Into::into)?;
         Ok(Box::new(SyncUploader::Agent(agent)))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::config::agent::AgentPipeline;
+
+    #[test]
+    fn set_socket_address() {
+        let test_cases = vec![
+            // invalid inputs
+            ("invalid_endpoint", false),
+            ("0.0.0.0.0:9123", false),
+            ("127.0.0.1", false), // port is needed
+            // valid inputs
+            ("[::0]:9123", true),
+            ("127.0.0.1:1001", true),
+        ];
+        for (socket_str, is_ok) in test_cases.into_iter() {
+            let pipeline = AgentPipeline::default().with_endpoint(socket_str);
+            assert_eq!(
+                pipeline.agent_endpoint.is_ok(),
+                is_ok,
+                "endpoint string {}",
+                socket_str
+            );
+        }
     }
 }

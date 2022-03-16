@@ -1,9 +1,8 @@
-use crate::Error::NoHttpClient;
 #[cfg(feature = "surf_collector_client")]
 use async_trait::async_trait;
 #[cfg(any(
-feature = "reqwest_blocking_collector_client",
-feature = "reqwest_collector_client"
+    feature = "reqwest_blocking_collector_client",
+    feature = "reqwest_collector_client"
 ))]
 use headers::authorization::Credentials;
 #[cfg(feature = "isahc_collector_client")]
@@ -56,7 +55,16 @@ impl CollectorHttpClient {
     ) -> Result<Box<dyn OtelHttpClient>, crate::Error> {
         match self {
             CollectorHttpClient::Custom(client) => Ok(client),
-            CollectorHttpClient::None => Err(NoHttpClient),
+            CollectorHttpClient::None => Err(crate::Error::ConfigError {
+                pipeline_name: "http_client",
+                config_name: "collector",
+                reason:
+                    "No http client provided. Consider enable one of the `surf_collector_client`, \
+        `reqwest_collector_client`, `reqwest_blocking_collector_client`, `isahc_collector_client` \
+        features to use a build in http client. Or use `with_http_client` method in pipeline to \
+        provide your own implementation."
+                        .to_string(),
+            }),
             #[cfg(feature = "isahc_collector_client")]
             CollectorHttpClient::Isahc => {
                 let mut builder = isahc::HttpClient::builder().timeout(collector_timeout);
@@ -67,12 +75,10 @@ impl CollectorHttpClient {
                         .credentials(isahc::auth::Credentials::new(username, password));
                 }
 
-                let client = builder.build().map_err(|err| {
-                    crate::Error::ConfigError {
-                        config_name: "http_client",
-                        pipeline_name: "collector",
-                        reason: format!("cannot create isahc http client, {}", err),
-                    }
+                let client = builder.build().map_err(|err| crate::Error::ConfigError {
+                    config_name: "http_client",
+                    pipeline_name: "collector",
+                    reason: format!("cannot create isahc http client, {}", err),
                 })?;
                 Ok(Box::new(client))
             }
@@ -88,7 +94,7 @@ impl CollectorHttpClient {
                     })?;
 
                 let client = if let (Some(username), Some(password)) =
-                (collector_username, collector_password)
+                    (collector_username, collector_password)
                 {
                     let auth = surf::http::auth::BasicAuth::new(username, password);
                     client.with(BasicAuthMiddleware(auth))

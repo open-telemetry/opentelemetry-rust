@@ -1,13 +1,15 @@
 //! Collects OpenTelemetry spans and reports them to a given Jaeger
-//! `agent` or `collector` endpoint. See the [Jaeger Docs] for details
-//! about Jaeger and deployment information.
+//! `agent` or `collector` endpoint, propagate the tracing context between the applications using [Jaeger propagation format].
+//!
+//! See the [Jaeger Docs] for details about Jaeger and deployment information.
 //!
 //! *Compiler support: [requires `rustc` 1.49+][msrv]*
 //!
 //! [Jaeger Docs]: https://www.jaegertracing.io/docs/
 //! [msrv]: #supported-rust-versions
+//! [jaeger propagation format]: https://www.jaegertracing.io/docs/1.18/client-libraries/#propagation-format
 //!
-//! ### Quickstart
+//! ## Quickstart
 //!
 //! First make sure you have a running version of the Jaeger instance
 //! you want to send data to:
@@ -59,8 +61,8 @@
 //! ## Performance
 //!
 //! For optimal performance, a batch exporter is recommended as the simple exporter
-//! will export each span synchronously on drop. You can enable the [`rt-tokio`],
-//! [`rt-tokio-current-thread`] or [`rt-async-std`] features and specify a runtime
+//! will export each span synchronously on drop. You can enable the `rt-tokio`,
+//! `rt-tokio-current-thread` or `rt-async-std` features and specify a runtime
 //! on the pipeline builder to have a batch exporter configured for you
 //! automatically.
 //!
@@ -81,7 +83,7 @@
 //! [`tokio`]: https://tokio.rs
 //! [`async-std`]: https://async.rs
 //!
-//! ### Jaeger Exporter From Environment Variables
+//! ## Jaeger Exporter From Environment Variables
 //!
 //! The jaeger pipeline builder can be configured dynamically via environment
 //! variables. All variables are optional, a full list of accepted options can
@@ -89,7 +91,7 @@
 //!
 //! [jaeger variables spec]: https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/sdk-environment-variables.md#jaeger-exporter
 //!
-//! ### Jaeger Collector Example
+//! ## Jaeger Collector Example
 //!
 //! If you want to skip the agent and submit spans directly to a Jaeger collector,
 //! you can enable the optional `collector_client` feature for this crate. This
@@ -239,7 +241,7 @@
 //! }
 //! ```
 //!
-//! ## Crate Feature Flags
+//! # Crate Feature Flags
 //!
 //! The following crate feature flags are available:
 //!
@@ -272,7 +274,7 @@
 //! [`async-std`]: https://async.rs
 //! [`opentelemetry`]: https://crates.io/crates/opentelemetry
 //!
-//! ## Supported Rust Versions
+//! # Supported Rust Versions
 //!
 //! OpenTelemetry is built against the latest stable release. The minimum
 //! supported version is 1.49. The current OpenTelemetry version is not
@@ -321,13 +323,6 @@ mod exporter;
 pub mod testing;
 
 mod propagator {
-    //! # Jaeger Propagator
-    //!
-    //! Extract and inject values from Jaeger's `uber-trace-id` header.
-    //!
-    //! See [`Jaeger documentation`] for detail of Jaeger propagation format.
-    //!
-    //! [`Jaeger documentation`]: https://www.jaegertracing.io/docs/1.18/client-libraries/#propagation-format
     use opentelemetry::{
         global::{self, Error},
         propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
@@ -349,13 +344,49 @@ mod propagator {
         static ref JAEGER_HEADER_FIELD: [String; 1] = [JAEGER_HEADER.to_string()];
     }
 
-    /// The Jaeger propagator propagates span contexts in jaeger's propagation format.
+    /// The Jaeger propagator propagates span contexts in [Jaeger propagation format].
     ///
-    /// See [`Jaeger documentation`] for format details.
+    /// Cross-cutting concerns send their state to the next process using `Propagator`s,
+    /// which are defined as objects used to read and write context data to and from messages
+    /// exchanged by the applications. Each concern creates a set of `Propagator`s for every
+    /// supported `Propagator` type.
     ///
-    /// Note that jaeger header can be set in http header or encoded as url
+    /// Note that jaeger header can be set in http header or encoded as url.
     ///
-    ///  [`Jaeger documentation`]: https://www.jaegertracing.io/docs/1.18/client-libraries/#propagation-format
+    /// ## Examples
+    /// ```
+    /// # use opentelemetry::{global, trace::{Tracer, TraceContextExt}, Context};
+    /// # fn send_request() {
+    /// // setup jaeger propagator
+    /// global::set_text_map_propagator(opentelemetry_jaeger::Propagator::new());
+    ///
+    /// // before sending requests to downstream services.
+    /// let mut headers = std::collections::HashMap::new(); // replace by http header of the outgoing request
+    /// let caller_span = global::tracer("caller").start("say hello");
+    /// let cx = Context::current_with_span(caller_span);
+    /// global::get_text_map_propagator(|propagator| {
+    ///     propagator.inject_context(&cx, &mut headers); // propagator serialize the tracing context
+    /// });
+    /// // Send the request..
+    /// # }
+    ///
+    ///
+    /// # fn receive_request() {
+    /// // Receive the request sent above on the other service...
+    /// // setup jaeger propagator
+    /// global::set_text_map_propagator(opentelemetry_jaeger::Propagator::new());
+    ///
+    /// let headers = std::collections::HashMap::new(); // replace this with http header map from incoming requests.
+    /// let parent_context = global::get_text_map_propagator(|propagator| {
+    ///      propagator.extract(&headers)
+    /// });
+    ///
+    /// // this span's parent span will be caller_span in send_request functions.
+    /// let receiver_span = global::tracer("receiver").start_with_context("hello", &parent_context);
+    /// # }
+    /// ```
+    ///
+    ///  [jaeger propagation format]: https://www.jaegertracing.io/docs/1.18/client-libraries/#propagation-format
     #[derive(Clone, Debug, Default)]
     pub struct Propagator {
         _private: (),

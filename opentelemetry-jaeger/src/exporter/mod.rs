@@ -262,26 +262,11 @@ fn events_to_logs(events: sdk::trace::EvictedQueue<Event>) -> Option<Vec<jaeger:
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     /// Error from thrift agents.
+    ///
+    /// If the spans was sent to jaeger agent. Refer [AgentPipeline](config::agent::AgentPipeline) for more details.
+    /// If the spans was sent to jaeger collector. Refer [CollectorPipeline](config::collector::CollectorPipeline) for more details.
     #[error("thrift agent failed with {0}")]
     ThriftAgentError(#[from] ::thrift::Error),
-
-    /// No http client provided.
-    #[cfg(feature = "collector_client")]
-    #[error(
-        "No http client provided. Consider enable one of the `surf_collector_client`, \
-        `reqwest_collector_client`, `reqwest_blocking_collector_client`, `isahc_collector_client` \
-        feature to have a default implementation. Or use with_http_client method in pipeline to \
-        provide your own implementation."
-    )]
-    NoHttpClient,
-
-    /// reqwest client errors
-    #[error("reqwest failed with {0}")]
-    #[cfg(any(
-        feature = "reqwest_collector_client",
-        feature = "reqwest_blocking_collector_client"
-    ))]
-    ReqwestClientError(#[from] reqwest::Error),
 
     /// Pipeline fails because one of the configurations is invalid.
     #[error("{pipeline_name} pipeline fails because one of the configuration {config_name} is invalid. {reason}")]
