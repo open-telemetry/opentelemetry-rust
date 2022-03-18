@@ -69,12 +69,14 @@ const ENV_PASSWORD: &str = "OTEL_EXPORTER_JAEGER_PASSWORD";
 ///
 /// Note that the functions to setup build in http clients override each other. That means if you have a pipeline with the following setup
 ///
-/// ```ignore
+/// ```no_run
 /// # use opentelemetry::trace::TraceError;
+/// # #[cfg(all(feature="reqwest_collector_client", feature="surf_collector_client"))]
 /// let tracer = opentelemetry_jaeger::new_collector_pipeline()
 ///         .with_surf()
 ///         .with_reqwest()
-///         .install_batch(opentelemetry::runtime::Tokio)?;
+///         .install_batch(opentelemetry::runtime::Tokio)
+/// #       .unwrap();
 /// ```
 ///
 /// The pipeline will use [reqwest] http client.
@@ -440,7 +442,7 @@ impl CollectorPipeline {
             .map_err::<crate::Error, _>(|err| crate::Error::ConfigError {
                 pipeline_name: "collector",
                 config_name: "collector_endpoint",
-                reason: err.to_string(),
+                reason: format!("invalid uri, {}", err),
             })?
             .unwrap_or_else(|| {
                 Uri::try_from(DEFAULT_ENDPOINT).unwrap() // default endpoint should always valid
@@ -502,7 +504,7 @@ mod tests {
         assert!(invalid_uri.is_err());
         assert_eq!(
             format!("{:?}", invalid_uri.err().unwrap()),
-            "ConfigError { pipeline_name: \"collector\", config_name: \"collector_endpoint\", reason: \"invalid format\" }",
+            "ConfigError { pipeline_name: \"collector\", config_name: \"collector_endpoint\", reason: \"invalid uri, invalid format\" }",
         );
 
         let valid_uri = new_collector_pipeline()
