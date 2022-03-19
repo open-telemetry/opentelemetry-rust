@@ -3,7 +3,7 @@ use std::{borrow::Cow, collections::BTreeMap, time::SystemTime};
 
 #[derive(Debug, Clone, Default)]
 #[non_exhaustive]
-/// LogRecord represents all data carrier by a log record, and
+/// LogRecord represents all data carried by a log record, and
 /// is provided to `LogExporter`s as input.
 pub struct LogRecord {
     /// Record timestamp
