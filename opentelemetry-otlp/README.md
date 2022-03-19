@@ -87,7 +87,7 @@ let tracer = opentelemetry_otlp::new_pipeline()
 
 ## Kitchen Sink Full Configuration
 
-[Example](https://docs.rs/opentelemetry-jaeger/latest/opentelemetry_jaeger/#kitchen-sink-full-configuration) 
+[Example](https://docs.rs/opentelemetry-otlp/latest/opentelemetry_otlp/#kitchen-sink-full-configuration) 
 showing how to override all configuration options.
 
 Generally there are two parts of configuration. One is metrics config 
