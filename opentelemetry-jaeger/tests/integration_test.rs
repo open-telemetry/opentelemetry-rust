@@ -1,7 +1,7 @@
 #[cfg(feature = "integration_test")]
 mod tests {
     use opentelemetry::sdk::trace::Tracer as SdkTracer;
-    use opentelemetry::trace::{Status, TraceContextExt, Tracer, TracerProvider};
+    use opentelemetry::trace::{Status, TraceContextExt, Tracer};
     use opentelemetry::KeyValue;
     use opentelemetry_jaeger::testing::{
         jaeger_api_v2 as jaeger_api, jaeger_client::JaegerTestClient,

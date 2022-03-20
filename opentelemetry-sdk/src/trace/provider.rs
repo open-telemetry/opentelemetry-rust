@@ -69,6 +69,14 @@ impl TracerProvider {
     pub fn config(&self) -> &crate::trace::Config {
         &self.inner.config
     }
+
+    /// Force flush all remaining spans in span processors and return results.
+    pub fn force_flush(&self) -> Vec<TraceResult<()>> {
+        self.span_processors()
+            .iter()
+            .map(|processor| processor.force_flush())
+            .collect()
+    }
 }
 
 impl opentelemetry_api::trace::TracerProvider for TracerProvider {
@@ -96,14 +104,6 @@ impl opentelemetry_api::trace::TracerProvider for TracerProvider {
         );
 
         Tracer::new(instrumentation_lib, Arc::downgrade(&self.inner))
-    }
-
-    /// Force flush all remaining spans in span processors and return results.
-    fn force_flush(&self) -> Vec<TraceResult<()>> {
-        self.span_processors()
-            .iter()
-            .map(|processor| processor.force_flush())
-            .collect()
     }
 }
 
@@ -200,7 +200,7 @@ mod tests {
     use crate::trace::provider::TracerProviderInner;
     use crate::trace::{Config, Span, SpanProcessor};
     use crate::Resource;
-    use opentelemetry_api::trace::{TraceError, TraceResult, TracerProvider};
+    use opentelemetry_api::trace::{TraceError, TraceResult};
     use opentelemetry_api::{Context, Key, KeyValue};
     use std::env;
     use std::sync::Arc;

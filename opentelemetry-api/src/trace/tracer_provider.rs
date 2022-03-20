@@ -1,4 +1,4 @@
-use crate::trace::{TraceResult, Tracer};
+use crate::trace::Tracer;
 use std::borrow::Cow;
 
 /// Types that can create instances of [`Tracer`].
@@ -67,7 +67,4 @@ pub trait TracerProvider {
         version: Option<&'static str>,
         schema_url: Option<&'static str>,
     ) -> Self::Tracer;
-
-    /// Force flush all remaining spans in span processors and return results.
-    fn force_flush(&self) -> Vec<TraceResult<()>>;
 }
