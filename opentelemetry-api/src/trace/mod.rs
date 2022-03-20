@@ -11,6 +11,37 @@
 //!
 //! ## Getting Started
 //!
+//! In application code:
+//!
+//! ```
+//! use opentelemetry_api::trace::{Tracer, noop::NoopTracerProvider};
+//! use opentelemetry_api::global;
+//!
+//! fn init_tracer() {
+//!     // Swap this no-op provider for your tracing service of choice (jaeger, zipkin, etc)
+//!     let provider = NoopTracerProvider::new();
+//!
+//!     // Configure the global `TracerProvider` singleton when your app starts
+//!     // (there is a no-op default if this is not set by your application)
+//!     let _ = global::set_tracer_provider(provider);
+//! }
+//!
+//! fn do_something_tracked() {
+//!     // Then you can get a named tracer instance anywhere in your codebase.
+//!     let tracer = global::tracer("my-component");
+//!
+//!     tracer.in_span("doing_work", |cx| {
+//!         // Traced app logic here...
+//!     });
+//! }
+//!
+//! // in main or other app start
+//! init_tracer();
+//! do_something_tracked();
+//! ```
+//!
+//! In library code:
+//!
 //! ```
 //! use opentelemetry_api::{global, trace::{Span, Tracer, TracerProvider}};
 //!

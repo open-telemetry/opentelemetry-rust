@@ -1,9 +1,13 @@
-//! Primitives for sending name-value data across system boundaries.
+//! Primitives for sending name/value data across system boundaries.
+//!
+//! Baggage is used to annotate telemetry, adding context and information to
+//! metrics, traces, and logs. It is a set of name/value pairs describing
+//! user-defined properties. Each name in Baggage is associated with exactly one
+//! value.
 //!
 //! Main types in this module are:
 //!
-//! * [`Baggage`]: Baggage is used to annotate telemetry, adding context and
-//!   information to metrics, traces, and logs.
+//! * [`Baggage`]: A set of name/value pairs describing user-defined properties.
 //! * [`BaggageExt`]: Extensions for managing `Baggage` in a [`Context`].
 //!
 //! Baggage can be sent between systems using a baggage propagator in
@@ -22,7 +26,7 @@ const MAX_KEY_VALUE_PAIRS: usize = 180;
 const MAX_BYTES_FOR_ONE_PAIR: usize = 4096;
 const MAX_LEN_OF_ALL_PAIRS: usize = 8192;
 
-/// A set of name-value pairs describing user-defined properties.
+/// A set of name/value pairs describing user-defined properties.
 ///
 /// ### Baggage Names
 ///
@@ -35,14 +39,14 @@ const MAX_LEN_OF_ALL_PAIRS: usize = 8192;
 /// ### Baggage Value Metadata
 ///
 /// Additional metadata can be added to values in the form of a property set,
-/// represented as semi-colon `;` delimited list of names and/or name-value pairs,
+/// represented as semi-colon `;` delimited list of names and/or name/value pairs,
 /// e.g. `;k1=v1;k2;k3=v3`.
 ///
 /// ### Limits
 ///
-/// * Maximum number of name-value pairs: `180`.
-/// * Maximum number of bytes per a single name-value pair: `4096`.
-/// * Maximum total length of all name-value pairs: `8192`.
+/// * Maximum number of name/value pairs: `180`.
+/// * Maximum number of bytes per a single name/value pair: `4096`.
+/// * Maximum total length of all name/value pairs: `8192`.
 ///
 /// [RFC2616, Section 2.2]: https://tools.ietf.org/html/rfc2616#section-2.2
 #[derive(Debug, Default)]
@@ -92,7 +96,7 @@ impl Baggage {
         self.inner.get(&key.into())
     }
 
-    /// Inserts a name-value pair into the baggage.
+    /// Inserts a name/value pair into the baggage.
     ///
     /// If the name was not present, [`None`] is returned. If the name was present,
     /// the value is updated, and the old value is returned.
@@ -116,7 +120,7 @@ impl Baggage {
             .map(|pair| pair.0)
     }
 
-    /// Inserts a name-value pair into the baggage.
+    /// Inserts a name/value pair into the baggage.
     ///
     /// Same with `insert`, if the name was not present, [`None`] will be returned.
     /// If the name is present, the old value and metadata will be returned.
@@ -279,7 +283,7 @@ impl FromIterator<KeyValueMetadata> for Baggage {
 
 /// Methods for sorting and retrieving baggage data in a context.
 pub trait BaggageExt {
-    /// Returns a clone of the given context with the included name-value pairs.
+    /// Returns a clone of the given context with the included name/value pairs.
     ///
     /// # Examples
     ///
@@ -299,7 +303,7 @@ pub trait BaggageExt {
         baggage: T,
     ) -> Self;
 
-    /// Returns a clone of the current context with the included name-value pairs.
+    /// Returns a clone of the current context with the included name/value pairs.
     ///
     /// # Examples
     ///
@@ -317,7 +321,7 @@ pub trait BaggageExt {
         baggage: T,
     ) -> Self;
 
-    /// Returns a clone of the given context with the included name-value pairs.
+    /// Returns a clone of the given context with the included name/value pairs.
     ///
     /// # Examples
     ///
@@ -370,7 +374,7 @@ impl BaggageExt for Context {
 /// An optional property set that can be added to [`Baggage`] values.
 ///
 /// `BaggageMetadata` can be added to values in the form of a property set,
-/// represented as semi-colon `;` delimited list of names and/or name-value
+/// represented as semi-colon `;` delimited list of names and/or name/value
 /// pairs, e.g. `;k1=v1;k2;k3=v3`.
 #[derive(Clone, Debug, PartialOrd, PartialEq, Default)]
 pub struct BaggageMetadata(String);
@@ -394,7 +398,7 @@ impl From<&str> for BaggageMetadata {
     }
 }
 
-/// [`Baggage`] name-value pairs with their associated metadata.
+/// [`Baggage`] name/value pairs with their associated metadata.
 #[derive(Clone, Debug, PartialEq)]
 pub struct KeyValueMetadata {
     /// Dimension or event key
