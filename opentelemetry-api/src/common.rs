@@ -1,7 +1,11 @@
 use std::borrow::Cow;
 use std::fmt;
 
-/// Key used for metric `AttributeSet`s and trace `Span` attributes.
+/// The key part of attribute [KeyValue] pairs.
+///
+/// See the [attribute naming] spec for guidelines.
+///
+/// [attribute naming]: https://github.com/open-telemetry/opentelemetry-specification/blob/v1.9.0/specification/common/attribute-naming.md
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Key(Cow<'static, str>);
 
@@ -89,7 +93,7 @@ impl fmt::Display for Key {
     }
 }
 
-/// Array of homogeneous values
+/// A [Value::Array] containing homogeneous values.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Array {
     /// Array of bools
@@ -152,7 +156,7 @@ into_array!(
     (Vec<Cow<'static, str>>, Array::String),
 );
 
-/// Value types for use in `KeyValue` pairs.
+/// The value part of attribute [KeyValue] pairs.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Value {
     /// bool values
@@ -231,12 +235,13 @@ impl fmt::Display for Value {
     }
 }
 
-/// `KeyValue` pairs are used by `AttributeSet`s and `Span` attributes.
+/// A key-value pair describing an attribute.
 #[derive(Clone, Debug, PartialEq)]
 pub struct KeyValue {
-    /// Dimension or event key
+    /// The attribute name
     pub key: Key,
-    /// Dimension or event value
+
+    /// The attribute value
     pub value: Value,
 }
 
@@ -260,26 +265,43 @@ pub trait ExportError: std::error::Error + Send + Sync + 'static {
     fn exporter_name(&self) -> &'static str;
 }
 
-/// InstrumentationLibrary contains information about instrumentation library.
+/// Information about a library or crate providing instrumentation.
 ///
-/// See `Instrumentation Libraries` for more information.
+/// An instrumentation library should be named to follow any naming conventions
+/// of the instrumented library (e.g. 'middleware' for a web framework).
 ///
-/// [`Instrumentation Libraries`](https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/overview.md#instrumentation-libraries)
+/// See the [instrumentation libraries] spec for more information.
+///
+/// [instrumentation libraries]: https://github.com/open-telemetry/opentelemetry-specification/blob/v1.9.0/specification/overview.md#instrumentation-libraries
 #[derive(Debug, Default, Hash, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct InstrumentationLibrary {
-    /// instrumentation library name, cannot be empty
-    pub name: Cow<'static, str>,
-    /// instrumentation library version, can be empty
-    pub version: Option<Cow<'static, str>>,
-    /// [Schema url] of spans and their events.
+    /// The library name.
     ///
-    /// [Schema url]: https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/schemas/overview.md#schema-url
+    /// This should be the name of the crate providing the instrumentation.
+    pub name: Cow<'static, str>,
+
+    /// The library version.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let library = opentelemetry_api::InstrumentationLibrary::new(
+    ///     "my-crate",
+    ///     Some(env!("CARGO_PKG_VERSION")),
+    ///     None,
+    /// );
+    /// ```
+    pub version: Option<Cow<'static, str>>,
+
+    /// [Schema url] used by this library.
+    ///
+    /// [Schema url]: https://github.com/open-telemetry/opentelemetry-specification/blob/v1.9.0/specification/schemas/overview.md#schema-url
     pub schema_url: Option<Cow<'static, str>>,
 }
 
 impl InstrumentationLibrary {
-    /// Create an InstrumentationLibrary from name and version.
+    /// Create an new instrumentation library.
     pub fn new<T>(name: T, version: Option<T>, schema_url: Option<T>) -> InstrumentationLibrary
     where
         T: Into<Cow<'static, str>>,

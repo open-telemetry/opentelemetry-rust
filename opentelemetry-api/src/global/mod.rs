@@ -22,6 +22,7 @@
 //! use opentelemetry_api::global;
 //!
 //! fn init_tracer() {
+//!     // Swap this no-op provider for your tracing service of choice (jaeger, zipkin, etc)
 //!     let provider = NoopTracerProvider::new();
 //!
 //!     // Configure the global `TracerProvider` singleton when your app starts
@@ -39,7 +40,7 @@
 //! }
 //!
 //! // in main or other app start
-//! let _ = init_tracer();
+//! init_tracer();
 //! do_something_tracked();
 //! # }
 //! ```

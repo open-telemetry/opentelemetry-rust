@@ -373,25 +373,28 @@ impl SpanBuilder {
     }
 }
 
-/// The result of sampling logic for a given `Span`.
+/// The result of sampling logic for a given span.
 #[derive(Clone, Debug, PartialEq)]
 pub struct SamplingResult {
-    /// `SamplingDecision` reached by this result
+    /// The decision about whether or not to sample.
     pub decision: SamplingDecision,
-    /// Extra attributes added by this result
+
+    /// Extra attributes to be added to the span by the sampler
     pub attributes: Vec<KeyValue>,
-    /// Trace state from parent context, might be modified by sampler
+
+    /// Trace state from parent context, may be modified by samplers.
     pub trace_state: TraceState,
 }
 
 /// Decision about whether or not to sample
 #[derive(Clone, Debug, PartialEq)]
 pub enum SamplingDecision {
-    /// `is_recording() == false`, span will not be recorded and all events and
-    /// attributes will be dropped.
+    /// Span will not be recorded and all events and attributes will be dropped.
     Drop,
-    /// `is_recording() == true`, but `Sampled` flag MUST NOT be set.
+
+    /// Span data wil be recorded, but not exported.
     RecordOnly,
-    /// `is_recording() == true` AND `Sampled` flag` MUST be set.
+
+    /// Span data will be recorded and exported.
     RecordAndSample,
 }
