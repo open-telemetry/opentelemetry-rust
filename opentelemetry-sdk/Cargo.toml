@@ -5,7 +5,9 @@ license = "Apache-2.0"
 edition = "2018"
 
 [dependencies]
-async-std = { version = "= 1.10.0", features = ["unstable"], optional = true }
+opentelemetry-api = { version = "0.1", path = "../opentelemetry-api/" }
+opentelemetry-http = { version = "0.6.0", path = "../opentelemetry-http", optional = true }
+async-std = { version = "1.6", features = ["unstable"], optional = true }
 async-trait = { version = "0.1", optional = true }
 crossbeam-channel = { version = "0.5", optional = true }
 dashmap = { version = "=5.1.0", optional = true }
@@ -34,7 +36,7 @@ rand_distr = "0.4.0"
 
 [features]
 default = ["trace"]
-trace = ["opentelemetry-api/trace", "crossbeam-channel", "rand", "pin-project", "async-trait", "percent-encoding"]
+trace = ["opentelemetry-api/trace", "crossbeam-channel", "rand", "pin-project", "async-trait", "percent-encoding", "opentelemetry-http"]
 metrics = ["opentelemetry-api/metrics", "dashmap", "fnv"]
 testing = ["opentelemetry-api/testing", "trace", "metrics", "rt-async-std", "rt-tokio", "rt-tokio-current-thread", "tokio/macros", "tokio/rt-multi-thread"]
 rt-tokio = ["tokio", "tokio-stream"]

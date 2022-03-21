@@ -47,6 +47,8 @@ use opentelemetry_api::{
 };
 use std::convert::TryInto;
 
+mod jaeger_remote;
+
 /// The `ShouldSample` interface allows implementations to provide samplers
 /// which will return a sampling `SamplingResult` based on information that
 /// is typically available just before the `Span` was created.
@@ -67,6 +69,7 @@ pub trait ShouldSample: Send + Sync + std::fmt::Debug {
 
 /// Sampling options
 #[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
 pub enum Sampler {
     /// Always sample the trace
     AlwaysOn,
@@ -123,23 +126,7 @@ impl ShouldSample for Sampler {
             }
             // Probabilistically sample the trace.
             Sampler::TraceIdRatioBased(prob) => {
-                if *prob >= 1.0 {
-                    SamplingDecision::RecordAndSample
-                } else {
-                    let prob_upper_bound = (prob.max(0.0) * (1u64 << 63) as f64) as u64;
-                    // TODO: update behavior when the spec definition resolves
-                    // https://github.com/open-telemetry/opentelemetry-specification/issues/1413
-                    let bytes = trace_id.to_bytes();
-                    let (_, low) = bytes.split_at(8);
-                    let trace_id_low = u64::from_be_bytes(low.try_into().unwrap());
-                    let rnd_from_trace_id = trace_id_low >> 1;
-
-                    if rnd_from_trace_id < prob_upper_bound {
-                        SamplingDecision::RecordAndSample
-                    } else {
-                        SamplingDecision::Drop
-                    }
-                }
+                sample_based_on_probability(prob,trace_id)
             }
         };
 
@@ -152,6 +139,26 @@ impl ShouldSample for Sampler {
                 Some(ctx) => ctx.span().span_context().trace_state().clone(),
                 None => TraceState::default(),
             },
+        }
+    }
+}
+
+pub(crate) fn sample_based_on_probability(prob: &f64, trace_id: TraceId) -> SamplingDecision {
+    if *prob >= 1.0 {
+        SamplingDecision::RecordAndSample
+    } else {
+        let prob_upper_bound = (prob.max(0.0) * (1u64 << 63) as f64) as u64;
+// TODO: update behavior when the spec definition resolves
+// https://github.com/open-telemetry/opentelemetry-specification/issues/1413
+        let bytes = trace_id.to_bytes();
+        let (_, low) = bytes.split_at(8);
+        let trace_id_low = u64::from_be_bytes(low.try_into().unwrap());
+        let rnd_from_trace_id = trace_id_low >> 1;
+
+        if rnd_from_trace_id < prob_upper_bound {
+            SamplingDecision::RecordAndSample
+        } else {
+            SamplingDecision::Drop
         }
     }
 }
