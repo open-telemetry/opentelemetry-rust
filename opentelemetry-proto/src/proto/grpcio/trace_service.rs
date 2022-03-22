@@ -319,9 +319,9 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     ns\"\x1c\n\x1aExportTraceServiceResponse2\xa2\x01\n\x0cTraceService\x12\
     \x91\x01\n\x06Export\x12A.opentelemetry.proto.collector.trace.v1.ExportT\
     raceServiceRequest\x1aB.opentelemetry.proto.collector.trace.v1.ExportTra\
-    ceServiceResponse\"\0B\x89\x01\n)io.opentelemetry.proto.collector.trace.\
-    v1B\x11TraceServiceProtoP\x01ZGgithub.com/open-telemetry/opentelemetry-p\
-    roto/gen/go/collector/trace/v1b\x06proto3\
+    ceServiceResponse\"\0Bs\n)io.opentelemetry.proto.collector.trace.v1B\x11\
+    TraceServiceProtoP\x01Z1go.opentelemetry.io/proto/otlp/collector/trace/v\
+    1b\x06proto3\
 ";
 
 static file_descriptor_proto_lazy: ::protobuf::rt::LazyV2<::protobuf::descriptor::FileDescriptorProto> = ::protobuf::rt::LazyV2::INIT;

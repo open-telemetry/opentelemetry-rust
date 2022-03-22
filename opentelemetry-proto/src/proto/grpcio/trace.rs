@@ -25,6 +25,175 @@
 
 #[derive(PartialEq,Clone,Default)]
 #[cfg_attr(feature = "with-serde", derive(::serde::Serialize, ::serde::Deserialize))]
+pub struct TracesData {
+    // message fields
+    pub resource_spans: ::protobuf::RepeatedField<ResourceSpans>,
+    // special fields
+    #[cfg_attr(feature = "with-serde", serde(skip))]
+    pub unknown_fields: ::protobuf::UnknownFields,
+    #[cfg_attr(feature = "with-serde", serde(skip))]
+    pub cached_size: ::protobuf::CachedSize,
+}
+
+impl<'a> ::std::default::Default for &'a TracesData {
+    fn default() -> &'a TracesData {
+        <TracesData as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl TracesData {
+    pub fn new() -> TracesData {
+        ::std::default::Default::default()
+    }
+
+    // repeated .opentelemetry.proto.trace.v1.ResourceSpans resource_spans = 1;
+
+
+    pub fn get_resource_spans(&self) -> &[ResourceSpans] {
+        &self.resource_spans
+    }
+    pub fn clear_resource_spans(&mut self) {
+        self.resource_spans.clear();
+    }
+
+    // Param is passed by value, moved
+    pub fn set_resource_spans(&mut self, v: ::protobuf::RepeatedField<ResourceSpans>) {
+        self.resource_spans = v;
+    }
+
+    // Mutable pointer to the field.
+    pub fn mut_resource_spans(&mut self) -> &mut ::protobuf::RepeatedField<ResourceSpans> {
+        &mut self.resource_spans
+    }
+
+    // Take field
+    pub fn take_resource_spans(&mut self) -> ::protobuf::RepeatedField<ResourceSpans> {
+        ::std::mem::replace(&mut self.resource_spans, ::protobuf::RepeatedField::new())
+    }
+}
+
+impl ::protobuf::Message for TracesData {
+    fn is_initialized(&self) -> bool {
+        for v in &self.resource_spans {
+            if !v.is_initialized() {
+                return false;
+            }
+        };
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::ProtobufResult<()> {
+        while !is.eof()? {
+            let (field_number, wire_type) = is.read_tag_unpack()?;
+            match field_number {
+                1 => {
+                    ::protobuf::rt::read_repeated_message_into(wire_type, is, &mut self.resource_spans)?;
+                },
+                _ => {
+                    ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u32 {
+        let mut my_size = 0;
+        for value in &self.resource_spans {
+            let len = value.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
+        };
+        my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
+        self.cached_size.set(my_size);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
+        for v in &self.resource_spans {
+            os.write_tag(1, ::protobuf::wire_format::WireTypeLengthDelimited)?;
+            os.write_raw_varint32(v.get_cached_size())?;
+            v.write_to_with_cached_sizes(os)?;
+        };
+        os.write_unknown_fields(self.get_unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn get_cached_size(&self) -> u32 {
+        self.cached_size.get()
+    }
+
+    fn get_unknown_fields(&self) -> &::protobuf::UnknownFields {
+        &self.unknown_fields
+    }
+
+    fn mut_unknown_fields(&mut self) -> &mut ::protobuf::UnknownFields {
+        &mut self.unknown_fields
+    }
+
+    fn as_any(&self) -> &dyn (::std::any::Any) {
+        self as &dyn (::std::any::Any)
+    }
+    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
+        self as &mut dyn (::std::any::Any)
+    }
+    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
+        self
+    }
+
+    fn descriptor(&self) -> &'static ::protobuf::reflect::MessageDescriptor {
+        Self::descriptor_static()
+    }
+
+    fn new() -> TracesData {
+        TracesData::new()
+    }
+
+    fn descriptor_static() -> &'static ::protobuf::reflect::MessageDescriptor {
+        static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
+        descriptor.get(|| {
+            let mut fields = ::std::vec::Vec::new();
+            fields.push(::protobuf::reflect::accessor::make_repeated_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<ResourceSpans>>(
+                "resource_spans",
+                |m: &TracesData| { &m.resource_spans },
+                |m: &mut TracesData| { &mut m.resource_spans },
+            ));
+            ::protobuf::reflect::MessageDescriptor::new_pb_name::<TracesData>(
+                "TracesData",
+                fields,
+                file_descriptor_proto()
+            )
+        })
+    }
+
+    fn default_instance() -> &'static TracesData {
+        static instance: ::protobuf::rt::LazyV2<TracesData> = ::protobuf::rt::LazyV2::INIT;
+        instance.get(TracesData::new)
+    }
+}
+
+impl ::protobuf::Clear for TracesData {
+    fn clear(&mut self) {
+        self.resource_spans.clear();
+        self.unknown_fields.clear();
+    }
+}
+
+impl ::std::fmt::Debug for TracesData {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        ::protobuf::text_format::fmt(self, f)
+    }
+}
+
+impl ::protobuf::reflect::ProtobufValue for TracesData {
+    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
+        ::protobuf::reflect::ReflectValueRef::Message(self)
+    }
+}
+
+#[derive(PartialEq,Clone,Default)]
+#[cfg_attr(feature = "with-serde", derive(::serde::Serialize, ::serde::Deserialize))]
 pub struct ResourceSpans {
     // message fields
     pub resource: ::protobuf::SingularPtrField<super::resource::Resource>,
@@ -1977,7 +2146,6 @@ impl ::protobuf::reflect::ProtobufValue for Span_SpanKind {
 #[cfg_attr(feature = "with-serde", derive(::serde::Serialize, ::serde::Deserialize))]
 pub struct Status {
     // message fields
-    pub deprecated_code: Status_DeprecatedStatusCode,
     pub message: ::std::string::String,
     pub code: Status_StatusCode,
     // special fields
@@ -1996,21 +2164,6 @@ impl<'a> ::std::default::Default for &'a Status {
 impl Status {
     pub fn new() -> Status {
         ::std::default::Default::default()
-    }
-
-    // .opentelemetry.proto.trace.v1.Status.DeprecatedStatusCode deprecated_code = 1;
-
-
-    pub fn get_deprecated_code(&self) -> Status_DeprecatedStatusCode {
-        self.deprecated_code
-    }
-    pub fn clear_deprecated_code(&mut self) {
-        self.deprecated_code = Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_OK;
-    }
-
-    // Param is passed by value, moved
-    pub fn set_deprecated_code(&mut self, v: Status_DeprecatedStatusCode) {
-        self.deprecated_code = v;
     }
 
     // string message = 2;
@@ -2064,9 +2217,6 @@ impl ::protobuf::Message for Status {
         while !is.eof()? {
             let (field_number, wire_type) = is.read_tag_unpack()?;
             match field_number {
-                1 => {
-                    ::protobuf::rt::read_proto3_enum_with_unknown_fields_into(wire_type, is, &mut self.deprecated_code, 1, &mut self.unknown_fields)?
-                },
                 2 => {
                     ::protobuf::rt::read_singular_proto3_string_into(wire_type, is, &mut self.message)?;
                 },
@@ -2085,9 +2235,6 @@ impl ::protobuf::Message for Status {
     #[allow(unused_variables)]
     fn compute_size(&self) -> u32 {
         let mut my_size = 0;
-        if self.deprecated_code != Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_OK {
-            my_size += ::protobuf::rt::enum_size(1, self.deprecated_code);
-        }
         if !self.message.is_empty() {
             my_size += ::protobuf::rt::string_size(2, &self.message);
         }
@@ -2100,9 +2247,6 @@ impl ::protobuf::Message for Status {
     }
 
     fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
-        if self.deprecated_code != Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_OK {
-            os.write_enum(1, ::protobuf::ProtobufEnum::value(&self.deprecated_code))?;
-        }
         if !self.message.is_empty() {
             os.write_string(2, &self.message)?;
         }
@@ -2147,11 +2291,6 @@ impl ::protobuf::Message for Status {
         static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
         descriptor.get(|| {
             let mut fields = ::std::vec::Vec::new();
-            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeEnum<Status_DeprecatedStatusCode>>(
-                "deprecated_code",
-                |m: &Status| { &m.deprecated_code },
-                |m: &mut Status| { &mut m.deprecated_code },
-            ));
             fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeString>(
                 "message",
                 |m: &Status| { &m.message },
@@ -2178,7 +2317,6 @@ impl ::protobuf::Message for Status {
 
 impl ::protobuf::Clear for Status {
     fn clear(&mut self) {
-        self.deprecated_code = Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_OK;
         self.message.clear();
         self.code = Status_StatusCode::STATUS_CODE_UNSET;
         self.unknown_fields.clear();
@@ -2194,102 +2332,6 @@ impl ::std::fmt::Debug for Status {
 impl ::protobuf::reflect::ProtobufValue for Status {
     fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
         ::protobuf::reflect::ReflectValueRef::Message(self)
-    }
-}
-
-#[derive(Clone,PartialEq,Eq,Debug,Hash)]
-#[cfg_attr(feature = "with-serde", derive(::serde::Serialize, ::serde::Deserialize))]
-pub enum Status_DeprecatedStatusCode {
-    DEPRECATED_STATUS_CODE_OK = 0,
-    DEPRECATED_STATUS_CODE_CANCELLED = 1,
-    DEPRECATED_STATUS_CODE_UNKNOWN_ERROR = 2,
-    DEPRECATED_STATUS_CODE_INVALID_ARGUMENT = 3,
-    DEPRECATED_STATUS_CODE_DEADLINE_EXCEEDED = 4,
-    DEPRECATED_STATUS_CODE_NOT_FOUND = 5,
-    DEPRECATED_STATUS_CODE_ALREADY_EXISTS = 6,
-    DEPRECATED_STATUS_CODE_PERMISSION_DENIED = 7,
-    DEPRECATED_STATUS_CODE_RESOURCE_EXHAUSTED = 8,
-    DEPRECATED_STATUS_CODE_FAILED_PRECONDITION = 9,
-    DEPRECATED_STATUS_CODE_ABORTED = 10,
-    DEPRECATED_STATUS_CODE_OUT_OF_RANGE = 11,
-    DEPRECATED_STATUS_CODE_UNIMPLEMENTED = 12,
-    DEPRECATED_STATUS_CODE_INTERNAL_ERROR = 13,
-    DEPRECATED_STATUS_CODE_UNAVAILABLE = 14,
-    DEPRECATED_STATUS_CODE_DATA_LOSS = 15,
-    DEPRECATED_STATUS_CODE_UNAUTHENTICATED = 16,
-}
-
-impl ::protobuf::ProtobufEnum for Status_DeprecatedStatusCode {
-    fn value(&self) -> i32 {
-        *self as i32
-    }
-
-    fn from_i32(value: i32) -> ::std::option::Option<Status_DeprecatedStatusCode> {
-        match value {
-            0 => ::std::option::Option::Some(Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_OK),
-            1 => ::std::option::Option::Some(Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_CANCELLED),
-            2 => ::std::option::Option::Some(Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_UNKNOWN_ERROR),
-            3 => ::std::option::Option::Some(Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_INVALID_ARGUMENT),
-            4 => ::std::option::Option::Some(Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_DEADLINE_EXCEEDED),
-            5 => ::std::option::Option::Some(Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_NOT_FOUND),
-            6 => ::std::option::Option::Some(Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_ALREADY_EXISTS),
-            7 => ::std::option::Option::Some(Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_PERMISSION_DENIED),
-            8 => ::std::option::Option::Some(Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_RESOURCE_EXHAUSTED),
-            9 => ::std::option::Option::Some(Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_FAILED_PRECONDITION),
-            10 => ::std::option::Option::Some(Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_ABORTED),
-            11 => ::std::option::Option::Some(Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_OUT_OF_RANGE),
-            12 => ::std::option::Option::Some(Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_UNIMPLEMENTED),
-            13 => ::std::option::Option::Some(Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_INTERNAL_ERROR),
-            14 => ::std::option::Option::Some(Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_UNAVAILABLE),
-            15 => ::std::option::Option::Some(Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_DATA_LOSS),
-            16 => ::std::option::Option::Some(Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_UNAUTHENTICATED),
-            _ => ::std::option::Option::None
-        }
-    }
-
-    fn values() -> &'static [Self] {
-        static values: &'static [Status_DeprecatedStatusCode] = &[
-            Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_OK,
-            Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_CANCELLED,
-            Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_UNKNOWN_ERROR,
-            Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_INVALID_ARGUMENT,
-            Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_DEADLINE_EXCEEDED,
-            Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_NOT_FOUND,
-            Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_ALREADY_EXISTS,
-            Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_PERMISSION_DENIED,
-            Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_RESOURCE_EXHAUSTED,
-            Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_FAILED_PRECONDITION,
-            Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_ABORTED,
-            Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_OUT_OF_RANGE,
-            Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_UNIMPLEMENTED,
-            Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_INTERNAL_ERROR,
-            Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_UNAVAILABLE,
-            Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_DATA_LOSS,
-            Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_UNAUTHENTICATED,
-        ];
-        values
-    }
-
-    fn enum_descriptor_static() -> &'static ::protobuf::reflect::EnumDescriptor {
-        static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::EnumDescriptor> = ::protobuf::rt::LazyV2::INIT;
-        descriptor.get(|| {
-            ::protobuf::reflect::EnumDescriptor::new_pb_name::<Status_DeprecatedStatusCode>("Status.DeprecatedStatusCode", file_descriptor_proto())
-        })
-    }
-}
-
-impl ::std::marker::Copy for Status_DeprecatedStatusCode {
-}
-
-impl ::std::default::Default for Status_DeprecatedStatusCode {
-    fn default() -> Self {
-        Status_DeprecatedStatusCode::DEPRECATED_STATUS_CODE_OK
-    }
-}
-
-impl ::protobuf::reflect::ProtobufValue for Status_DeprecatedStatusCode {
-    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
-        ::protobuf::reflect::ReflectValueRef::Enum(::protobuf::ProtobufEnum::descriptor(self))
     }
 }
 
@@ -2350,65 +2392,52 @@ impl ::protobuf::reflect::ProtobufValue for Status_StatusCode {
 static file_descriptor_proto_data: &'static [u8] = b"\
     \n(opentelemetry/proto/trace/v1/trace.proto\x12\x1copentelemetry.proto.t\
     race.v1\x1a*opentelemetry/proto/common/v1/common.proto\x1a.opentelemetry\
-    /proto/resource/v1/resource.proto\"\xf4\x01\n\rResourceSpans\x12E\n\x08r\
-    esource\x18\x01\x20\x01(\x0b2).opentelemetry.proto.resource.v1.ResourceR\
-    \x08resource\x12}\n\x1dinstrumentation_library_spans\x18\x02\x20\x03(\
-    \x0b29.opentelemetry.proto.trace.v1.InstrumentationLibrarySpansR\x1binst\
-    rumentationLibrarySpans\x12\x1d\n\nschema_url\x18\x03\x20\x01(\tR\tschem\
-    aUrl\"\xe6\x01\n\x1bInstrumentationLibrarySpans\x12n\n\x17instrumentatio\
-    n_library\x18\x01\x20\x01(\x0b25.opentelemetry.proto.common.v1.Instrumen\
-    tationLibraryR\x16instrumentationLibrary\x128\n\x05spans\x18\x02\x20\x03\
-    (\x0b2\".opentelemetry.proto.trace.v1.SpanR\x05spans\x12\x1d\n\nschema_u\
-    rl\x18\x03\x20\x01(\tR\tschemaUrl\"\x9c\n\n\x04Span\x12\x19\n\x08trace_i\
-    d\x18\x01\x20\x01(\x0cR\x07traceId\x12\x17\n\x07span_id\x18\x02\x20\x01(\
-    \x0cR\x06spanId\x12\x1f\n\x0btrace_state\x18\x03\x20\x01(\tR\ntraceState\
-    \x12$\n\x0eparent_span_id\x18\x04\x20\x01(\x0cR\x0cparentSpanId\x12\x12\
-    \n\x04name\x18\x05\x20\x01(\tR\x04name\x12?\n\x04kind\x18\x06\x20\x01(\
-    \x0e2+.opentelemetry.proto.trace.v1.Span.SpanKindR\x04kind\x12/\n\x14sta\
-    rt_time_unix_nano\x18\x07\x20\x01(\x06R\x11startTimeUnixNano\x12+\n\x12e\
-    nd_time_unix_nano\x18\x08\x20\x01(\x06R\x0fendTimeUnixNano\x12G\n\nattri\
-    butes\x18\t\x20\x03(\x0b2'.opentelemetry.proto.common.v1.KeyValueR\nattr\
-    ibutes\x128\n\x18dropped_attributes_count\x18\n\x20\x01(\rR\x16droppedAt\
-    tributesCount\x12@\n\x06events\x18\x0b\x20\x03(\x0b2(.opentelemetry.prot\
-    o.trace.v1.Span.EventR\x06events\x120\n\x14dropped_events_count\x18\x0c\
-    \x20\x01(\rR\x12droppedEventsCount\x12=\n\x05links\x18\r\x20\x03(\x0b2'.\
-    opentelemetry.proto.trace.v1.Span.LinkR\x05links\x12.\n\x13dropped_links\
-    _count\x18\x0e\x20\x01(\rR\x11droppedLinksCount\x12<\n\x06status\x18\x0f\
-    \x20\x01(\x0b2$.opentelemetry.proto.trace.v1.StatusR\x06status\x1a\xc4\
-    \x01\n\x05Event\x12$\n\x0etime_unix_nano\x18\x01\x20\x01(\x06R\x0ctimeUn\
-    ixNano\x12\x12\n\x04name\x18\x02\x20\x01(\tR\x04name\x12G\n\nattributes\
-    \x18\x03\x20\x03(\x0b2'.opentelemetry.proto.common.v1.KeyValueR\nattribu\
-    tes\x128\n\x18dropped_attributes_count\x18\x04\x20\x01(\rR\x16droppedAtt\
-    ributesCount\x1a\xde\x01\n\x04Link\x12\x19\n\x08trace_id\x18\x01\x20\x01\
-    (\x0cR\x07traceId\x12\x17\n\x07span_id\x18\x02\x20\x01(\x0cR\x06spanId\
-    \x12\x1f\n\x0btrace_state\x18\x03\x20\x01(\tR\ntraceState\x12G\n\nattrib\
-    utes\x18\x04\x20\x03(\x0b2'.opentelemetry.proto.common.v1.KeyValueR\natt\
-    ributes\x128\n\x18dropped_attributes_count\x18\x05\x20\x01(\rR\x16droppe\
-    dAttributesCount\"\x99\x01\n\x08SpanKind\x12\x19\n\x15SPAN_KIND_UNSPECIF\
-    IED\x10\0\x12\x16\n\x12SPAN_KIND_INTERNAL\x10\x01\x12\x14\n\x10SPAN_KIND\
-    _SERVER\x10\x02\x12\x14\n\x10SPAN_KIND_CLIENT\x10\x03\x12\x16\n\x12SPAN_\
-    KIND_PRODUCER\x10\x04\x12\x16\n\x12SPAN_KIND_CONSUMER\x10\x05\"\xfc\x07\
-    \n\x06Status\x12f\n\x0fdeprecated_code\x18\x01\x20\x01(\x0e29.openteleme\
-    try.proto.trace.v1.Status.DeprecatedStatusCodeR\x0edeprecatedCodeB\x02\
-    \x18\x01\x12\x18\n\x07message\x18\x02\x20\x01(\tR\x07message\x12C\n\x04c\
-    ode\x18\x03\x20\x01(\x0e2/.opentelemetry.proto.trace.v1.Status.StatusCod\
-    eR\x04code\"\xda\x05\n\x14DeprecatedStatusCode\x12\x1d\n\x19DEPRECATED_S\
-    TATUS_CODE_OK\x10\0\x12$\n\x20DEPRECATED_STATUS_CODE_CANCELLED\x10\x01\
-    \x12(\n$DEPRECATED_STATUS_CODE_UNKNOWN_ERROR\x10\x02\x12+\n'DEPRECATED_S\
-    TATUS_CODE_INVALID_ARGUMENT\x10\x03\x12,\n(DEPRECATED_STATUS_CODE_DEADLI\
-    NE_EXCEEDED\x10\x04\x12$\n\x20DEPRECATED_STATUS_CODE_NOT_FOUND\x10\x05\
-    \x12)\n%DEPRECATED_STATUS_CODE_ALREADY_EXISTS\x10\x06\x12,\n(DEPRECATED_\
-    STATUS_CODE_PERMISSION_DENIED\x10\x07\x12-\n)DEPRECATED_STATUS_CODE_RESO\
-    URCE_EXHAUSTED\x10\x08\x12.\n*DEPRECATED_STATUS_CODE_FAILED_PRECONDITION\
-    \x10\t\x12\"\n\x1eDEPRECATED_STATUS_CODE_ABORTED\x10\n\x12'\n#DEPRECATED\
-    _STATUS_CODE_OUT_OF_RANGE\x10\x0b\x12(\n$DEPRECATED_STATUS_CODE_UNIMPLEM\
-    ENTED\x10\x0c\x12)\n%DEPRECATED_STATUS_CODE_INTERNAL_ERROR\x10\r\x12&\n\
-    \"DEPRECATED_STATUS_CODE_UNAVAILABLE\x10\x0e\x12$\n\x20DEPRECATED_STATUS\
-    _CODE_DATA_LOSS\x10\x0f\x12*\n&DEPRECATED_STATUS_CODE_UNAUTHENTICATED\
-    \x10\x10\"N\n\nStatusCode\x12\x15\n\x11STATUS_CODE_UNSET\x10\0\x12\x12\n\
-    \x0eSTATUS_CODE_OK\x10\x01\x12\x15\n\x11STATUS_CODE_ERROR\x10\x02Bn\n\
-    \x1fio.opentelemetry.proto.trace.v1B\nTraceProtoP\x01Z=github.com/open-t\
-    elemetry/opentelemetry-proto/gen/go/trace/v1b\x06proto3\
+    /proto/resource/v1/resource.proto\"`\n\nTracesData\x12R\n\x0eresource_sp\
+    ans\x18\x01\x20\x03(\x0b2+.opentelemetry.proto.trace.v1.ResourceSpansR\r\
+    resourceSpans\"\xf4\x01\n\rResourceSpans\x12E\n\x08resource\x18\x01\x20\
+    \x01(\x0b2).opentelemetry.proto.resource.v1.ResourceR\x08resource\x12}\n\
+    \x1dinstrumentation_library_spans\x18\x02\x20\x03(\x0b29.opentelemetry.p\
+    roto.trace.v1.InstrumentationLibrarySpansR\x1binstrumentationLibrarySpan\
+    s\x12\x1d\n\nschema_url\x18\x03\x20\x01(\tR\tschemaUrl\"\xe6\x01\n\x1bIn\
+    strumentationLibrarySpans\x12n\n\x17instrumentation_library\x18\x01\x20\
+    \x01(\x0b25.opentelemetry.proto.common.v1.InstrumentationLibraryR\x16ins\
+    trumentationLibrary\x128\n\x05spans\x18\x02\x20\x03(\x0b2\".opentelemetr\
+    y.proto.trace.v1.SpanR\x05spans\x12\x1d\n\nschema_url\x18\x03\x20\x01(\t\
+    R\tschemaUrl\"\x9c\n\n\x04Span\x12\x19\n\x08trace_id\x18\x01\x20\x01(\
+    \x0cR\x07traceId\x12\x17\n\x07span_id\x18\x02\x20\x01(\x0cR\x06spanId\
+    \x12\x1f\n\x0btrace_state\x18\x03\x20\x01(\tR\ntraceState\x12$\n\x0epare\
+    nt_span_id\x18\x04\x20\x01(\x0cR\x0cparentSpanId\x12\x12\n\x04name\x18\
+    \x05\x20\x01(\tR\x04name\x12?\n\x04kind\x18\x06\x20\x01(\x0e2+.opentelem\
+    etry.proto.trace.v1.Span.SpanKindR\x04kind\x12/\n\x14start_time_unix_nan\
+    o\x18\x07\x20\x01(\x06R\x11startTimeUnixNano\x12+\n\x12end_time_unix_nan\
+    o\x18\x08\x20\x01(\x06R\x0fendTimeUnixNano\x12G\n\nattributes\x18\t\x20\
+    \x03(\x0b2'.opentelemetry.proto.common.v1.KeyValueR\nattributes\x128\n\
+    \x18dropped_attributes_count\x18\n\x20\x01(\rR\x16droppedAttributesCount\
+    \x12@\n\x06events\x18\x0b\x20\x03(\x0b2(.opentelemetry.proto.trace.v1.Sp\
+    an.EventR\x06events\x120\n\x14dropped_events_count\x18\x0c\x20\x01(\rR\
+    \x12droppedEventsCount\x12=\n\x05links\x18\r\x20\x03(\x0b2'.opentelemetr\
+    y.proto.trace.v1.Span.LinkR\x05links\x12.\n\x13dropped_links_count\x18\
+    \x0e\x20\x01(\rR\x11droppedLinksCount\x12<\n\x06status\x18\x0f\x20\x01(\
+    \x0b2$.opentelemetry.proto.trace.v1.StatusR\x06status\x1a\xc4\x01\n\x05E\
+    vent\x12$\n\x0etime_unix_nano\x18\x01\x20\x01(\x06R\x0ctimeUnixNano\x12\
+    \x12\n\x04name\x18\x02\x20\x01(\tR\x04name\x12G\n\nattributes\x18\x03\
+    \x20\x03(\x0b2'.opentelemetry.proto.common.v1.KeyValueR\nattributes\x128\
+    \n\x18dropped_attributes_count\x18\x04\x20\x01(\rR\x16droppedAttributesC\
+    ount\x1a\xde\x01\n\x04Link\x12\x19\n\x08trace_id\x18\x01\x20\x01(\x0cR\
+    \x07traceId\x12\x17\n\x07span_id\x18\x02\x20\x01(\x0cR\x06spanId\x12\x1f\
+    \n\x0btrace_state\x18\x03\x20\x01(\tR\ntraceState\x12G\n\nattributes\x18\
+    \x04\x20\x03(\x0b2'.opentelemetry.proto.common.v1.KeyValueR\nattributes\
+    \x128\n\x18dropped_attributes_count\x18\x05\x20\x01(\rR\x16droppedAttrib\
+    utesCount\"\x99\x01\n\x08SpanKind\x12\x19\n\x15SPAN_KIND_UNSPECIFIED\x10\
+    \0\x12\x16\n\x12SPAN_KIND_INTERNAL\x10\x01\x12\x14\n\x10SPAN_KIND_SERVER\
+    \x10\x02\x12\x14\n\x10SPAN_KIND_CLIENT\x10\x03\x12\x16\n\x12SPAN_KIND_PR\
+    ODUCER\x10\x04\x12\x16\n\x12SPAN_KIND_CONSUMER\x10\x05\"\xbd\x01\n\x06St\
+    atus\x12\x18\n\x07message\x18\x02\x20\x01(\tR\x07message\x12C\n\x04code\
+    \x18\x03\x20\x01(\x0e2/.opentelemetry.proto.trace.v1.Status.StatusCodeR\
+    \x04code\"N\n\nStatusCode\x12\x15\n\x11STATUS_CODE_UNSET\x10\0\x12\x12\n\
+    \x0eSTATUS_CODE_OK\x10\x01\x12\x15\n\x11STATUS_CODE_ERROR\x10\x02J\x04\
+    \x08\x01\x10\x02BX\n\x1fio.opentelemetry.proto.trace.v1B\nTraceProtoP\
+    \x01Z'go.opentelemetry.io/proto/otlp/trace/v1b\x06proto3\
 ";
 
 static file_descriptor_proto_lazy: ::protobuf::rt::LazyV2<::protobuf::descriptor::FileDescriptorProto> = ::protobuf::rt::LazyV2::INIT;
