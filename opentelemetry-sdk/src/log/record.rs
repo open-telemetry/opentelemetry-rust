@@ -292,3 +292,9 @@ impl LogRecordBuilder {
         self.record
     }
 }
+
+impl Default for LogRecordBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
