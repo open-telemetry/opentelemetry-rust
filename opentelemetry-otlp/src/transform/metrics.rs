@@ -14,6 +14,7 @@ pub(crate) mod tonic {
         ArrayAggregator, HistogramAggregator, LastValueAggregator, MinMaxSumCountAggregator,
         SumAggregator,
     };
+    use opentelemetry_proto::tonic::metrics::v1::DataPointFlags;
     use opentelemetry_proto::tonic::FromNumber;
     use opentelemetry_proto::tonic::{
         collector::metrics::v1::ExportMetricsServiceRequest,
@@ -58,8 +59,8 @@ pub(crate) mod tonic {
                             data_points: points
                                 .into_iter()
                                 .map(|val| NumberDataPoint {
+                                    flags: DataPointFlags::FlagNone as u32,
                                     attributes: attributes.clone(),
-                                    labels: vec![],
                                     start_time_unix_nano: to_nanos(*record.start_time()),
                                     time_unix_nano: to_nanos(*record.end_time()),
                                     value: Some(number_data_point::Value::from_number(val, kind)),
@@ -77,8 +78,8 @@ pub(crate) mod tonic {
                         let (val, sample_time) = last_value.last_value()?;
                         Data::Gauge(Gauge {
                             data_points: vec![NumberDataPoint {
+                                flags: DataPointFlags::FlagNone as u32,
                                 attributes,
-                                labels: vec![],
                                 start_time_unix_nano: to_nanos(*record.start_time()),
                                 time_unix_nano: to_nanos(sample_time),
                                 value: Some(number_data_point::Value::from_number(val, kind)),
@@ -91,8 +92,8 @@ pub(crate) mod tonic {
                         let val = sum.sum()?;
                         Data::Sum(Sum {
                             data_points: vec![NumberDataPoint {
+                                flags: DataPointFlags::FlagNone as u32,
                                 attributes,
-                                labels: vec![],
                                 start_time_unix_nano: to_nanos(*record.start_time()),
                                 time_unix_nano: to_nanos(*record.end_time()),
                                 value: Some(number_data_point::Value::from_number(val, kind)),
@@ -110,8 +111,8 @@ pub(crate) mod tonic {
                             (histogram.sum()?, histogram.count()?, histogram.histogram()?);
                         Data::Histogram(Histogram {
                             data_points: vec![HistogramDataPoint {
+                                flags: DataPointFlags::FlagNone as u32,
                                 attributes,
-                                labels: vec![],
                                 start_time_unix_nano: to_nanos(*record.start_time()),
                                 time_unix_nano: to_nanos(*record.end_time()),
                                 count,
@@ -143,8 +144,8 @@ pub(crate) mod tonic {
                         let bounds = vec![0.0, 100.0];
                         Data::Histogram(Histogram {
                             data_points: vec![HistogramDataPoint {
+                                flags: DataPointFlags::FlagNone as u32,
                                 attributes,
-                                labels: vec![],
                                 start_time_unix_nano: to_nanos(*record.start_time()),
                                 time_unix_nano: to_nanos(*record.end_time()),
                                 count,
@@ -288,6 +289,7 @@ mod tests {
             histogram, last_value, min_max_sum_count, SumAggregator,
         };
         use opentelemetry::sdk::{InstrumentationLibrary, Resource};
+        use opentelemetry_proto::tonic::metrics::v1::DataPointFlags;
         use opentelemetry_proto::tonic::{
             common::v1::{any_value, AnyValue, KeyValue},
             metrics::v1::{
@@ -340,11 +342,11 @@ mod tests {
             value: i64,
         ) -> NumberDataPoint {
             NumberDataPoint {
+                flags: DataPointFlags::FlagNone as u32,
                 attributes: attributes
                     .into_iter()
                     .map(|(key, value)| key_value(key, value))
                     .collect::<Vec<KeyValue>>(),
-                labels: vec![],
                 start_time_unix_nano: start_time,
                 time_unix_nano: end_time,
                 value: Some(number_data_point::Value::from_number(
@@ -507,8 +509,8 @@ mod tests {
                     unit: "".to_string(),
                     data: Some(Data::Sum(Sum {
                         data_points: vec![NumberDataPoint {
+                            flags: DataPointFlags::FlagNone as u32,
                             attributes: str_kv_attributes.clone(),
-                            labels: vec![],
                             start_time_unix_nano: 1608891000000000000,
                             time_unix_nano: 1608891030000000000,
                             value: Some(i64_to_value(12i64)),
@@ -554,8 +556,8 @@ mod tests {
                     unit: "".to_string(),
                     data: Some(Data::Gauge(Gauge {
                         data_points: vec![NumberDataPoint {
+                            flags: DataPointFlags::FlagNone as u32,
                             attributes: str_kv_attributes.clone(),
-                            labels: vec![],
                             start_time_unix_nano: 1608891000000000000,
                             time_unix_nano: if let Data::Gauge(gauge) = metric.data.clone().unwrap()
                             {
@@ -606,8 +608,8 @@ mod tests {
                     unit: "".to_string(),
                     data: Some(Data::Histogram(Histogram {
                         data_points: vec![HistogramDataPoint {
+                            flags: DataPointFlags::FlagNone as u32,
                             attributes: str_kv_attributes.clone(),
-                            labels: vec![],
                             start_time_unix_nano: 1608891000000000000,
                             time_unix_nano: 1608891030000000000,
                             count: 3,
@@ -656,8 +658,8 @@ mod tests {
                     unit: "".to_string(),
                     data: Some(Data::Histogram(Histogram {
                         data_points: vec![HistogramDataPoint {
+                            flags: DataPointFlags::FlagNone as u32,
                             attributes: str_kv_attributes,
-                            labels: vec![],
                             start_time_unix_nano: 1608891000000000000,
                             time_unix_nano: 1608891030000000000,
                             count: 3,

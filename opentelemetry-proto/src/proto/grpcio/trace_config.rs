@@ -1096,9 +1096,8 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     \x10\0\x12\r\n\tALWAYS_ON\x10\x01\x12\x11\n\rALWAYS_PARENT\x10\x02\"9\n\
     \x11TraceIdRatioBased\x12$\n\rsamplingRatio\x18\x01\x20\x01(\x01R\rsampl\
     ingRatio\"'\n\x13RateLimitingSampler\x12\x10\n\x03qps\x18\x01\x20\x01(\
-    \x03R\x03qpsB~\n\x1fio.opentelemetry.proto.trace.v1B\x10TraceConfigProto\
-    P\x01ZGgithub.com/open-telemetry/opentelemetry-proto/gen/go/collector/tr\
-    ace/v1b\x06proto3\
+    \x03R\x03qpsBh\n\x1fio.opentelemetry.proto.trace.v1B\x10TraceConfigProto\
+    P\x01Z1go.opentelemetry.io/proto/otlp/collector/trace/v1b\x06proto3\
 ";
 
 static file_descriptor_proto_lazy: ::protobuf::rt::LazyV2<::protobuf::descriptor::FileDescriptorProto> = ::protobuf::rt::LazyV2::INIT;

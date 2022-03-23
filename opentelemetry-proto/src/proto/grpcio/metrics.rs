@@ -25,6 +25,175 @@
 
 #[derive(PartialEq,Clone,Default)]
 #[cfg_attr(feature = "with-serde", derive(::serde::Serialize, ::serde::Deserialize))]
+pub struct MetricsData {
+    // message fields
+    pub resource_metrics: ::protobuf::RepeatedField<ResourceMetrics>,
+    // special fields
+    #[cfg_attr(feature = "with-serde", serde(skip))]
+    pub unknown_fields: ::protobuf::UnknownFields,
+    #[cfg_attr(feature = "with-serde", serde(skip))]
+    pub cached_size: ::protobuf::CachedSize,
+}
+
+impl<'a> ::std::default::Default for &'a MetricsData {
+    fn default() -> &'a MetricsData {
+        <MetricsData as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl MetricsData {
+    pub fn new() -> MetricsData {
+        ::std::default::Default::default()
+    }
+
+    // repeated .opentelemetry.proto.metrics.v1.ResourceMetrics resource_metrics = 1;
+
+
+    pub fn get_resource_metrics(&self) -> &[ResourceMetrics] {
+        &self.resource_metrics
+    }
+    pub fn clear_resource_metrics(&mut self) {
+        self.resource_metrics.clear();
+    }
+
+    // Param is passed by value, moved
+    pub fn set_resource_metrics(&mut self, v: ::protobuf::RepeatedField<ResourceMetrics>) {
+        self.resource_metrics = v;
+    }
+
+    // Mutable pointer to the field.
+    pub fn mut_resource_metrics(&mut self) -> &mut ::protobuf::RepeatedField<ResourceMetrics> {
+        &mut self.resource_metrics
+    }
+
+    // Take field
+    pub fn take_resource_metrics(&mut self) -> ::protobuf::RepeatedField<ResourceMetrics> {
+        ::std::mem::replace(&mut self.resource_metrics, ::protobuf::RepeatedField::new())
+    }
+}
+
+impl ::protobuf::Message for MetricsData {
+    fn is_initialized(&self) -> bool {
+        for v in &self.resource_metrics {
+            if !v.is_initialized() {
+                return false;
+            }
+        };
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::ProtobufResult<()> {
+        while !is.eof()? {
+            let (field_number, wire_type) = is.read_tag_unpack()?;
+            match field_number {
+                1 => {
+                    ::protobuf::rt::read_repeated_message_into(wire_type, is, &mut self.resource_metrics)?;
+                },
+                _ => {
+                    ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u32 {
+        let mut my_size = 0;
+        for value in &self.resource_metrics {
+            let len = value.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
+        };
+        my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
+        self.cached_size.set(my_size);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
+        for v in &self.resource_metrics {
+            os.write_tag(1, ::protobuf::wire_format::WireTypeLengthDelimited)?;
+            os.write_raw_varint32(v.get_cached_size())?;
+            v.write_to_with_cached_sizes(os)?;
+        };
+        os.write_unknown_fields(self.get_unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn get_cached_size(&self) -> u32 {
+        self.cached_size.get()
+    }
+
+    fn get_unknown_fields(&self) -> &::protobuf::UnknownFields {
+        &self.unknown_fields
+    }
+
+    fn mut_unknown_fields(&mut self) -> &mut ::protobuf::UnknownFields {
+        &mut self.unknown_fields
+    }
+
+    fn as_any(&self) -> &dyn (::std::any::Any) {
+        self as &dyn (::std::any::Any)
+    }
+    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
+        self as &mut dyn (::std::any::Any)
+    }
+    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
+        self
+    }
+
+    fn descriptor(&self) -> &'static ::protobuf::reflect::MessageDescriptor {
+        Self::descriptor_static()
+    }
+
+    fn new() -> MetricsData {
+        MetricsData::new()
+    }
+
+    fn descriptor_static() -> &'static ::protobuf::reflect::MessageDescriptor {
+        static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
+        descriptor.get(|| {
+            let mut fields = ::std::vec::Vec::new();
+            fields.push(::protobuf::reflect::accessor::make_repeated_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<ResourceMetrics>>(
+                "resource_metrics",
+                |m: &MetricsData| { &m.resource_metrics },
+                |m: &mut MetricsData| { &mut m.resource_metrics },
+            ));
+            ::protobuf::reflect::MessageDescriptor::new_pb_name::<MetricsData>(
+                "MetricsData",
+                fields,
+                file_descriptor_proto()
+            )
+        })
+    }
+
+    fn default_instance() -> &'static MetricsData {
+        static instance: ::protobuf::rt::LazyV2<MetricsData> = ::protobuf::rt::LazyV2::INIT;
+        instance.get(MetricsData::new)
+    }
+}
+
+impl ::protobuf::Clear for MetricsData {
+    fn clear(&mut self) {
+        self.resource_metrics.clear();
+        self.unknown_fields.clear();
+    }
+}
+
+impl ::std::fmt::Debug for MetricsData {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        ::protobuf::text_format::fmt(self, f)
+    }
+}
+
+impl ::protobuf::reflect::ProtobufValue for MetricsData {
+    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
+        ::protobuf::reflect::ReflectValueRef::Message(self)
+    }
+}
+
+#[derive(PartialEq,Clone,Default)]
+#[cfg_attr(feature = "with-serde", derive(::serde::Serialize, ::serde::Deserialize))]
 pub struct ResourceMetrics {
     // message fields
     pub resource: ::protobuf::SingularPtrField<super::resource::Resource>,
@@ -584,12 +753,10 @@ impl<'a> ::std::default::Default for &'a Metric {
 #[derive(Clone,PartialEq,Debug)]
 #[cfg_attr(feature = "with-serde", derive(::serde::Serialize, ::serde::Deserialize))]
 pub enum Metric_oneof_data {
-    int_gauge(IntGauge),
     gauge(Gauge),
-    int_sum(IntSum),
     sum(Sum),
-    int_histogram(IntHistogram),
     histogram(Histogram),
+    exponential_histogram(ExponentialHistogram),
     summary(Summary),
 }
 
@@ -676,55 +843,6 @@ impl Metric {
         ::std::mem::replace(&mut self.unit, ::std::string::String::new())
     }
 
-    // .opentelemetry.proto.metrics.v1.IntGauge int_gauge = 4;
-
-
-    pub fn get_int_gauge(&self) -> &IntGauge {
-        match self.data {
-            ::std::option::Option::Some(Metric_oneof_data::int_gauge(ref v)) => v,
-            _ => <IntGauge as ::protobuf::Message>::default_instance(),
-        }
-    }
-    pub fn clear_int_gauge(&mut self) {
-        self.data = ::std::option::Option::None;
-    }
-
-    pub fn has_int_gauge(&self) -> bool {
-        match self.data {
-            ::std::option::Option::Some(Metric_oneof_data::int_gauge(..)) => true,
-            _ => false,
-        }
-    }
-
-    // Param is passed by value, moved
-    pub fn set_int_gauge(&mut self, v: IntGauge) {
-        self.data = ::std::option::Option::Some(Metric_oneof_data::int_gauge(v))
-    }
-
-    // Mutable pointer to the field.
-    pub fn mut_int_gauge(&mut self) -> &mut IntGauge {
-        if let ::std::option::Option::Some(Metric_oneof_data::int_gauge(_)) = self.data {
-        } else {
-            self.data = ::std::option::Option::Some(Metric_oneof_data::int_gauge(IntGauge::new()));
-        }
-        match self.data {
-            ::std::option::Option::Some(Metric_oneof_data::int_gauge(ref mut v)) => v,
-            _ => panic!(),
-        }
-    }
-
-    // Take field
-    pub fn take_int_gauge(&mut self) -> IntGauge {
-        if self.has_int_gauge() {
-            match self.data.take() {
-                ::std::option::Option::Some(Metric_oneof_data::int_gauge(v)) => v,
-                _ => panic!(),
-            }
-        } else {
-            IntGauge::new()
-        }
-    }
-
     // .opentelemetry.proto.metrics.v1.Gauge gauge = 5;
 
 
@@ -771,55 +889,6 @@ impl Metric {
             }
         } else {
             Gauge::new()
-        }
-    }
-
-    // .opentelemetry.proto.metrics.v1.IntSum int_sum = 6;
-
-
-    pub fn get_int_sum(&self) -> &IntSum {
-        match self.data {
-            ::std::option::Option::Some(Metric_oneof_data::int_sum(ref v)) => v,
-            _ => <IntSum as ::protobuf::Message>::default_instance(),
-        }
-    }
-    pub fn clear_int_sum(&mut self) {
-        self.data = ::std::option::Option::None;
-    }
-
-    pub fn has_int_sum(&self) -> bool {
-        match self.data {
-            ::std::option::Option::Some(Metric_oneof_data::int_sum(..)) => true,
-            _ => false,
-        }
-    }
-
-    // Param is passed by value, moved
-    pub fn set_int_sum(&mut self, v: IntSum) {
-        self.data = ::std::option::Option::Some(Metric_oneof_data::int_sum(v))
-    }
-
-    // Mutable pointer to the field.
-    pub fn mut_int_sum(&mut self) -> &mut IntSum {
-        if let ::std::option::Option::Some(Metric_oneof_data::int_sum(_)) = self.data {
-        } else {
-            self.data = ::std::option::Option::Some(Metric_oneof_data::int_sum(IntSum::new()));
-        }
-        match self.data {
-            ::std::option::Option::Some(Metric_oneof_data::int_sum(ref mut v)) => v,
-            _ => panic!(),
-        }
-    }
-
-    // Take field
-    pub fn take_int_sum(&mut self) -> IntSum {
-        if self.has_int_sum() {
-            match self.data.take() {
-                ::std::option::Option::Some(Metric_oneof_data::int_sum(v)) => v,
-                _ => panic!(),
-            }
-        } else {
-            IntSum::new()
         }
     }
 
@@ -872,55 +941,6 @@ impl Metric {
         }
     }
 
-    // .opentelemetry.proto.metrics.v1.IntHistogram int_histogram = 8;
-
-
-    pub fn get_int_histogram(&self) -> &IntHistogram {
-        match self.data {
-            ::std::option::Option::Some(Metric_oneof_data::int_histogram(ref v)) => v,
-            _ => <IntHistogram as ::protobuf::Message>::default_instance(),
-        }
-    }
-    pub fn clear_int_histogram(&mut self) {
-        self.data = ::std::option::Option::None;
-    }
-
-    pub fn has_int_histogram(&self) -> bool {
-        match self.data {
-            ::std::option::Option::Some(Metric_oneof_data::int_histogram(..)) => true,
-            _ => false,
-        }
-    }
-
-    // Param is passed by value, moved
-    pub fn set_int_histogram(&mut self, v: IntHistogram) {
-        self.data = ::std::option::Option::Some(Metric_oneof_data::int_histogram(v))
-    }
-
-    // Mutable pointer to the field.
-    pub fn mut_int_histogram(&mut self) -> &mut IntHistogram {
-        if let ::std::option::Option::Some(Metric_oneof_data::int_histogram(_)) = self.data {
-        } else {
-            self.data = ::std::option::Option::Some(Metric_oneof_data::int_histogram(IntHistogram::new()));
-        }
-        match self.data {
-            ::std::option::Option::Some(Metric_oneof_data::int_histogram(ref mut v)) => v,
-            _ => panic!(),
-        }
-    }
-
-    // Take field
-    pub fn take_int_histogram(&mut self) -> IntHistogram {
-        if self.has_int_histogram() {
-            match self.data.take() {
-                ::std::option::Option::Some(Metric_oneof_data::int_histogram(v)) => v,
-                _ => panic!(),
-            }
-        } else {
-            IntHistogram::new()
-        }
-    }
-
     // .opentelemetry.proto.metrics.v1.Histogram histogram = 9;
 
 
@@ -967,6 +987,55 @@ impl Metric {
             }
         } else {
             Histogram::new()
+        }
+    }
+
+    // .opentelemetry.proto.metrics.v1.ExponentialHistogram exponential_histogram = 10;
+
+
+    pub fn get_exponential_histogram(&self) -> &ExponentialHistogram {
+        match self.data {
+            ::std::option::Option::Some(Metric_oneof_data::exponential_histogram(ref v)) => v,
+            _ => <ExponentialHistogram as ::protobuf::Message>::default_instance(),
+        }
+    }
+    pub fn clear_exponential_histogram(&mut self) {
+        self.data = ::std::option::Option::None;
+    }
+
+    pub fn has_exponential_histogram(&self) -> bool {
+        match self.data {
+            ::std::option::Option::Some(Metric_oneof_data::exponential_histogram(..)) => true,
+            _ => false,
+        }
+    }
+
+    // Param is passed by value, moved
+    pub fn set_exponential_histogram(&mut self, v: ExponentialHistogram) {
+        self.data = ::std::option::Option::Some(Metric_oneof_data::exponential_histogram(v))
+    }
+
+    // Mutable pointer to the field.
+    pub fn mut_exponential_histogram(&mut self) -> &mut ExponentialHistogram {
+        if let ::std::option::Option::Some(Metric_oneof_data::exponential_histogram(_)) = self.data {
+        } else {
+            self.data = ::std::option::Option::Some(Metric_oneof_data::exponential_histogram(ExponentialHistogram::new()));
+        }
+        match self.data {
+            ::std::option::Option::Some(Metric_oneof_data::exponential_histogram(ref mut v)) => v,
+            _ => panic!(),
+        }
+    }
+
+    // Take field
+    pub fn take_exponential_histogram(&mut self) -> ExponentialHistogram {
+        if self.has_exponential_histogram() {
+            match self.data.take() {
+                ::std::option::Option::Some(Metric_oneof_data::exponential_histogram(v)) => v,
+                _ => panic!(),
+            }
+        } else {
+            ExponentialHistogram::new()
         }
     }
 
@@ -1022,17 +1091,7 @@ impl Metric {
 
 impl ::protobuf::Message for Metric {
     fn is_initialized(&self) -> bool {
-        if let Some(Metric_oneof_data::int_gauge(ref v)) = self.data {
-            if !v.is_initialized() {
-                return false;
-            }
-        }
         if let Some(Metric_oneof_data::gauge(ref v)) = self.data {
-            if !v.is_initialized() {
-                return false;
-            }
-        }
-        if let Some(Metric_oneof_data::int_sum(ref v)) = self.data {
             if !v.is_initialized() {
                 return false;
             }
@@ -1042,12 +1101,12 @@ impl ::protobuf::Message for Metric {
                 return false;
             }
         }
-        if let Some(Metric_oneof_data::int_histogram(ref v)) = self.data {
+        if let Some(Metric_oneof_data::histogram(ref v)) = self.data {
             if !v.is_initialized() {
                 return false;
             }
         }
-        if let Some(Metric_oneof_data::histogram(ref v)) = self.data {
+        if let Some(Metric_oneof_data::exponential_histogram(ref v)) = self.data {
             if !v.is_initialized() {
                 return false;
             }
@@ -1073,23 +1132,11 @@ impl ::protobuf::Message for Metric {
                 3 => {
                     ::protobuf::rt::read_singular_proto3_string_into(wire_type, is, &mut self.unit)?;
                 },
-                4 => {
-                    if wire_type != ::protobuf::wire_format::WireTypeLengthDelimited {
-                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
-                    }
-                    self.data = ::std::option::Option::Some(Metric_oneof_data::int_gauge(is.read_message()?));
-                },
                 5 => {
                     if wire_type != ::protobuf::wire_format::WireTypeLengthDelimited {
                         return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
                     }
                     self.data = ::std::option::Option::Some(Metric_oneof_data::gauge(is.read_message()?));
-                },
-                6 => {
-                    if wire_type != ::protobuf::wire_format::WireTypeLengthDelimited {
-                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
-                    }
-                    self.data = ::std::option::Option::Some(Metric_oneof_data::int_sum(is.read_message()?));
                 },
                 7 => {
                     if wire_type != ::protobuf::wire_format::WireTypeLengthDelimited {
@@ -1097,17 +1144,17 @@ impl ::protobuf::Message for Metric {
                     }
                     self.data = ::std::option::Option::Some(Metric_oneof_data::sum(is.read_message()?));
                 },
-                8 => {
-                    if wire_type != ::protobuf::wire_format::WireTypeLengthDelimited {
-                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
-                    }
-                    self.data = ::std::option::Option::Some(Metric_oneof_data::int_histogram(is.read_message()?));
-                },
                 9 => {
                     if wire_type != ::protobuf::wire_format::WireTypeLengthDelimited {
                         return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
                     }
                     self.data = ::std::option::Option::Some(Metric_oneof_data::histogram(is.read_message()?));
+                },
+                10 => {
+                    if wire_type != ::protobuf::wire_format::WireTypeLengthDelimited {
+                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
+                    }
+                    self.data = ::std::option::Option::Some(Metric_oneof_data::exponential_histogram(is.read_message()?));
                 },
                 11 => {
                     if wire_type != ::protobuf::wire_format::WireTypeLengthDelimited {
@@ -1138,15 +1185,7 @@ impl ::protobuf::Message for Metric {
         }
         if let ::std::option::Option::Some(ref v) = self.data {
             match v {
-                &Metric_oneof_data::int_gauge(ref v) => {
-                    let len = v.compute_size();
-                    my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
-                },
                 &Metric_oneof_data::gauge(ref v) => {
-                    let len = v.compute_size();
-                    my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
-                },
-                &Metric_oneof_data::int_sum(ref v) => {
                     let len = v.compute_size();
                     my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
                 },
@@ -1154,11 +1193,11 @@ impl ::protobuf::Message for Metric {
                     let len = v.compute_size();
                     my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
                 },
-                &Metric_oneof_data::int_histogram(ref v) => {
+                &Metric_oneof_data::histogram(ref v) => {
                     let len = v.compute_size();
                     my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
                 },
-                &Metric_oneof_data::histogram(ref v) => {
+                &Metric_oneof_data::exponential_histogram(ref v) => {
                     let len = v.compute_size();
                     my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
                 },
@@ -1185,18 +1224,8 @@ impl ::protobuf::Message for Metric {
         }
         if let ::std::option::Option::Some(ref v) = self.data {
             match v {
-                &Metric_oneof_data::int_gauge(ref v) => {
-                    os.write_tag(4, ::protobuf::wire_format::WireTypeLengthDelimited)?;
-                    os.write_raw_varint32(v.get_cached_size())?;
-                    v.write_to_with_cached_sizes(os)?;
-                },
                 &Metric_oneof_data::gauge(ref v) => {
                     os.write_tag(5, ::protobuf::wire_format::WireTypeLengthDelimited)?;
-                    os.write_raw_varint32(v.get_cached_size())?;
-                    v.write_to_with_cached_sizes(os)?;
-                },
-                &Metric_oneof_data::int_sum(ref v) => {
-                    os.write_tag(6, ::protobuf::wire_format::WireTypeLengthDelimited)?;
                     os.write_raw_varint32(v.get_cached_size())?;
                     v.write_to_with_cached_sizes(os)?;
                 },
@@ -1205,13 +1234,13 @@ impl ::protobuf::Message for Metric {
                     os.write_raw_varint32(v.get_cached_size())?;
                     v.write_to_with_cached_sizes(os)?;
                 },
-                &Metric_oneof_data::int_histogram(ref v) => {
-                    os.write_tag(8, ::protobuf::wire_format::WireTypeLengthDelimited)?;
+                &Metric_oneof_data::histogram(ref v) => {
+                    os.write_tag(9, ::protobuf::wire_format::WireTypeLengthDelimited)?;
                     os.write_raw_varint32(v.get_cached_size())?;
                     v.write_to_with_cached_sizes(os)?;
                 },
-                &Metric_oneof_data::histogram(ref v) => {
-                    os.write_tag(9, ::protobuf::wire_format::WireTypeLengthDelimited)?;
+                &Metric_oneof_data::exponential_histogram(ref v) => {
+                    os.write_tag(10, ::protobuf::wire_format::WireTypeLengthDelimited)?;
                     os.write_raw_varint32(v.get_cached_size())?;
                     v.write_to_with_cached_sizes(os)?;
                 },
@@ -1275,35 +1304,25 @@ impl ::protobuf::Message for Metric {
                 |m: &Metric| { &m.unit },
                 |m: &mut Metric| { &mut m.unit },
             ));
-            fields.push(::protobuf::reflect::accessor::make_singular_message_accessor::<_, IntGauge>(
-                "int_gauge",
-                Metric::has_int_gauge,
-                Metric::get_int_gauge,
-            ));
             fields.push(::protobuf::reflect::accessor::make_singular_message_accessor::<_, Gauge>(
                 "gauge",
                 Metric::has_gauge,
                 Metric::get_gauge,
-            ));
-            fields.push(::protobuf::reflect::accessor::make_singular_message_accessor::<_, IntSum>(
-                "int_sum",
-                Metric::has_int_sum,
-                Metric::get_int_sum,
             ));
             fields.push(::protobuf::reflect::accessor::make_singular_message_accessor::<_, Sum>(
                 "sum",
                 Metric::has_sum,
                 Metric::get_sum,
             ));
-            fields.push(::protobuf::reflect::accessor::make_singular_message_accessor::<_, IntHistogram>(
-                "int_histogram",
-                Metric::has_int_histogram,
-                Metric::get_int_histogram,
-            ));
             fields.push(::protobuf::reflect::accessor::make_singular_message_accessor::<_, Histogram>(
                 "histogram",
                 Metric::has_histogram,
                 Metric::get_histogram,
+            ));
+            fields.push(::protobuf::reflect::accessor::make_singular_message_accessor::<_, ExponentialHistogram>(
+                "exponential_histogram",
+                Metric::has_exponential_histogram,
+                Metric::get_exponential_histogram,
             ));
             fields.push(::protobuf::reflect::accessor::make_singular_message_accessor::<_, Summary>(
                 "summary",
@@ -1334,8 +1353,6 @@ impl ::protobuf::Clear for Metric {
         self.data = ::std::option::Option::None;
         self.data = ::std::option::Option::None;
         self.data = ::std::option::Option::None;
-        self.data = ::std::option::Option::None;
-        self.data = ::std::option::Option::None;
         self.unknown_fields.clear();
     }
 }
@@ -1347,175 +1364,6 @@ impl ::std::fmt::Debug for Metric {
 }
 
 impl ::protobuf::reflect::ProtobufValue for Metric {
-    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
-        ::protobuf::reflect::ReflectValueRef::Message(self)
-    }
-}
-
-#[derive(PartialEq,Clone,Default)]
-#[cfg_attr(feature = "with-serde", derive(::serde::Serialize, ::serde::Deserialize))]
-pub struct IntGauge {
-    // message fields
-    pub data_points: ::protobuf::RepeatedField<IntDataPoint>,
-    // special fields
-    #[cfg_attr(feature = "with-serde", serde(skip))]
-    pub unknown_fields: ::protobuf::UnknownFields,
-    #[cfg_attr(feature = "with-serde", serde(skip))]
-    pub cached_size: ::protobuf::CachedSize,
-}
-
-impl<'a> ::std::default::Default for &'a IntGauge {
-    fn default() -> &'a IntGauge {
-        <IntGauge as ::protobuf::Message>::default_instance()
-    }
-}
-
-impl IntGauge {
-    pub fn new() -> IntGauge {
-        ::std::default::Default::default()
-    }
-
-    // repeated .opentelemetry.proto.metrics.v1.IntDataPoint data_points = 1;
-
-
-    pub fn get_data_points(&self) -> &[IntDataPoint] {
-        &self.data_points
-    }
-    pub fn clear_data_points(&mut self) {
-        self.data_points.clear();
-    }
-
-    // Param is passed by value, moved
-    pub fn set_data_points(&mut self, v: ::protobuf::RepeatedField<IntDataPoint>) {
-        self.data_points = v;
-    }
-
-    // Mutable pointer to the field.
-    pub fn mut_data_points(&mut self) -> &mut ::protobuf::RepeatedField<IntDataPoint> {
-        &mut self.data_points
-    }
-
-    // Take field
-    pub fn take_data_points(&mut self) -> ::protobuf::RepeatedField<IntDataPoint> {
-        ::std::mem::replace(&mut self.data_points, ::protobuf::RepeatedField::new())
-    }
-}
-
-impl ::protobuf::Message for IntGauge {
-    fn is_initialized(&self) -> bool {
-        for v in &self.data_points {
-            if !v.is_initialized() {
-                return false;
-            }
-        };
-        true
-    }
-
-    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::ProtobufResult<()> {
-        while !is.eof()? {
-            let (field_number, wire_type) = is.read_tag_unpack()?;
-            match field_number {
-                1 => {
-                    ::protobuf::rt::read_repeated_message_into(wire_type, is, &mut self.data_points)?;
-                },
-                _ => {
-                    ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
-                },
-            };
-        }
-        ::std::result::Result::Ok(())
-    }
-
-    // Compute sizes of nested messages
-    #[allow(unused_variables)]
-    fn compute_size(&self) -> u32 {
-        let mut my_size = 0;
-        for value in &self.data_points {
-            let len = value.compute_size();
-            my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
-        };
-        my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
-        self.cached_size.set(my_size);
-        my_size
-    }
-
-    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
-        for v in &self.data_points {
-            os.write_tag(1, ::protobuf::wire_format::WireTypeLengthDelimited)?;
-            os.write_raw_varint32(v.get_cached_size())?;
-            v.write_to_with_cached_sizes(os)?;
-        };
-        os.write_unknown_fields(self.get_unknown_fields())?;
-        ::std::result::Result::Ok(())
-    }
-
-    fn get_cached_size(&self) -> u32 {
-        self.cached_size.get()
-    }
-
-    fn get_unknown_fields(&self) -> &::protobuf::UnknownFields {
-        &self.unknown_fields
-    }
-
-    fn mut_unknown_fields(&mut self) -> &mut ::protobuf::UnknownFields {
-        &mut self.unknown_fields
-    }
-
-    fn as_any(&self) -> &dyn (::std::any::Any) {
-        self as &dyn (::std::any::Any)
-    }
-    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
-        self as &mut dyn (::std::any::Any)
-    }
-    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
-        self
-    }
-
-    fn descriptor(&self) -> &'static ::protobuf::reflect::MessageDescriptor {
-        Self::descriptor_static()
-    }
-
-    fn new() -> IntGauge {
-        IntGauge::new()
-    }
-
-    fn descriptor_static() -> &'static ::protobuf::reflect::MessageDescriptor {
-        static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
-        descriptor.get(|| {
-            let mut fields = ::std::vec::Vec::new();
-            fields.push(::protobuf::reflect::accessor::make_repeated_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<IntDataPoint>>(
-                "data_points",
-                |m: &IntGauge| { &m.data_points },
-                |m: &mut IntGauge| { &mut m.data_points },
-            ));
-            ::protobuf::reflect::MessageDescriptor::new_pb_name::<IntGauge>(
-                "IntGauge",
-                fields,
-                file_descriptor_proto()
-            )
-        })
-    }
-
-    fn default_instance() -> &'static IntGauge {
-        static instance: ::protobuf::rt::LazyV2<IntGauge> = ::protobuf::rt::LazyV2::INIT;
-        instance.get(IntGauge::new)
-    }
-}
-
-impl ::protobuf::Clear for IntGauge {
-    fn clear(&mut self) {
-        self.data_points.clear();
-        self.unknown_fields.clear();
-    }
-}
-
-impl ::std::fmt::Debug for IntGauge {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-        ::protobuf::text_format::fmt(self, f)
-    }
-}
-
-impl ::protobuf::reflect::ProtobufValue for IntGauge {
     fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
         ::protobuf::reflect::ReflectValueRef::Message(self)
     }
@@ -1685,241 +1533,6 @@ impl ::std::fmt::Debug for Gauge {
 }
 
 impl ::protobuf::reflect::ProtobufValue for Gauge {
-    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
-        ::protobuf::reflect::ReflectValueRef::Message(self)
-    }
-}
-
-#[derive(PartialEq,Clone,Default)]
-#[cfg_attr(feature = "with-serde", derive(::serde::Serialize, ::serde::Deserialize))]
-pub struct IntSum {
-    // message fields
-    pub data_points: ::protobuf::RepeatedField<IntDataPoint>,
-    pub aggregation_temporality: AggregationTemporality,
-    pub is_monotonic: bool,
-    // special fields
-    #[cfg_attr(feature = "with-serde", serde(skip))]
-    pub unknown_fields: ::protobuf::UnknownFields,
-    #[cfg_attr(feature = "with-serde", serde(skip))]
-    pub cached_size: ::protobuf::CachedSize,
-}
-
-impl<'a> ::std::default::Default for &'a IntSum {
-    fn default() -> &'a IntSum {
-        <IntSum as ::protobuf::Message>::default_instance()
-    }
-}
-
-impl IntSum {
-    pub fn new() -> IntSum {
-        ::std::default::Default::default()
-    }
-
-    // repeated .opentelemetry.proto.metrics.v1.IntDataPoint data_points = 1;
-
-
-    pub fn get_data_points(&self) -> &[IntDataPoint] {
-        &self.data_points
-    }
-    pub fn clear_data_points(&mut self) {
-        self.data_points.clear();
-    }
-
-    // Param is passed by value, moved
-    pub fn set_data_points(&mut self, v: ::protobuf::RepeatedField<IntDataPoint>) {
-        self.data_points = v;
-    }
-
-    // Mutable pointer to the field.
-    pub fn mut_data_points(&mut self) -> &mut ::protobuf::RepeatedField<IntDataPoint> {
-        &mut self.data_points
-    }
-
-    // Take field
-    pub fn take_data_points(&mut self) -> ::protobuf::RepeatedField<IntDataPoint> {
-        ::std::mem::replace(&mut self.data_points, ::protobuf::RepeatedField::new())
-    }
-
-    // .opentelemetry.proto.metrics.v1.AggregationTemporality aggregation_temporality = 2;
-
-
-    pub fn get_aggregation_temporality(&self) -> AggregationTemporality {
-        self.aggregation_temporality
-    }
-    pub fn clear_aggregation_temporality(&mut self) {
-        self.aggregation_temporality = AggregationTemporality::AGGREGATION_TEMPORALITY_UNSPECIFIED;
-    }
-
-    // Param is passed by value, moved
-    pub fn set_aggregation_temporality(&mut self, v: AggregationTemporality) {
-        self.aggregation_temporality = v;
-    }
-
-    // bool is_monotonic = 3;
-
-
-    pub fn get_is_monotonic(&self) -> bool {
-        self.is_monotonic
-    }
-    pub fn clear_is_monotonic(&mut self) {
-        self.is_monotonic = false;
-    }
-
-    // Param is passed by value, moved
-    pub fn set_is_monotonic(&mut self, v: bool) {
-        self.is_monotonic = v;
-    }
-}
-
-impl ::protobuf::Message for IntSum {
-    fn is_initialized(&self) -> bool {
-        for v in &self.data_points {
-            if !v.is_initialized() {
-                return false;
-            }
-        };
-        true
-    }
-
-    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::ProtobufResult<()> {
-        while !is.eof()? {
-            let (field_number, wire_type) = is.read_tag_unpack()?;
-            match field_number {
-                1 => {
-                    ::protobuf::rt::read_repeated_message_into(wire_type, is, &mut self.data_points)?;
-                },
-                2 => {
-                    ::protobuf::rt::read_proto3_enum_with_unknown_fields_into(wire_type, is, &mut self.aggregation_temporality, 2, &mut self.unknown_fields)?
-                },
-                3 => {
-                    if wire_type != ::protobuf::wire_format::WireTypeVarint {
-                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
-                    }
-                    let tmp = is.read_bool()?;
-                    self.is_monotonic = tmp;
-                },
-                _ => {
-                    ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
-                },
-            };
-        }
-        ::std::result::Result::Ok(())
-    }
-
-    // Compute sizes of nested messages
-    #[allow(unused_variables)]
-    fn compute_size(&self) -> u32 {
-        let mut my_size = 0;
-        for value in &self.data_points {
-            let len = value.compute_size();
-            my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
-        };
-        if self.aggregation_temporality != AggregationTemporality::AGGREGATION_TEMPORALITY_UNSPECIFIED {
-            my_size += ::protobuf::rt::enum_size(2, self.aggregation_temporality);
-        }
-        if self.is_monotonic != false {
-            my_size += 2;
-        }
-        my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
-        self.cached_size.set(my_size);
-        my_size
-    }
-
-    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
-        for v in &self.data_points {
-            os.write_tag(1, ::protobuf::wire_format::WireTypeLengthDelimited)?;
-            os.write_raw_varint32(v.get_cached_size())?;
-            v.write_to_with_cached_sizes(os)?;
-        };
-        if self.aggregation_temporality != AggregationTemporality::AGGREGATION_TEMPORALITY_UNSPECIFIED {
-            os.write_enum(2, ::protobuf::ProtobufEnum::value(&self.aggregation_temporality))?;
-        }
-        if self.is_monotonic != false {
-            os.write_bool(3, self.is_monotonic)?;
-        }
-        os.write_unknown_fields(self.get_unknown_fields())?;
-        ::std::result::Result::Ok(())
-    }
-
-    fn get_cached_size(&self) -> u32 {
-        self.cached_size.get()
-    }
-
-    fn get_unknown_fields(&self) -> &::protobuf::UnknownFields {
-        &self.unknown_fields
-    }
-
-    fn mut_unknown_fields(&mut self) -> &mut ::protobuf::UnknownFields {
-        &mut self.unknown_fields
-    }
-
-    fn as_any(&self) -> &dyn (::std::any::Any) {
-        self as &dyn (::std::any::Any)
-    }
-    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
-        self as &mut dyn (::std::any::Any)
-    }
-    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
-        self
-    }
-
-    fn descriptor(&self) -> &'static ::protobuf::reflect::MessageDescriptor {
-        Self::descriptor_static()
-    }
-
-    fn new() -> IntSum {
-        IntSum::new()
-    }
-
-    fn descriptor_static() -> &'static ::protobuf::reflect::MessageDescriptor {
-        static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
-        descriptor.get(|| {
-            let mut fields = ::std::vec::Vec::new();
-            fields.push(::protobuf::reflect::accessor::make_repeated_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<IntDataPoint>>(
-                "data_points",
-                |m: &IntSum| { &m.data_points },
-                |m: &mut IntSum| { &mut m.data_points },
-            ));
-            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeEnum<AggregationTemporality>>(
-                "aggregation_temporality",
-                |m: &IntSum| { &m.aggregation_temporality },
-                |m: &mut IntSum| { &mut m.aggregation_temporality },
-            ));
-            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeBool>(
-                "is_monotonic",
-                |m: &IntSum| { &m.is_monotonic },
-                |m: &mut IntSum| { &mut m.is_monotonic },
-            ));
-            ::protobuf::reflect::MessageDescriptor::new_pb_name::<IntSum>(
-                "IntSum",
-                fields,
-                file_descriptor_proto()
-            )
-        })
-    }
-
-    fn default_instance() -> &'static IntSum {
-        static instance: ::protobuf::rt::LazyV2<IntSum> = ::protobuf::rt::LazyV2::INIT;
-        instance.get(IntSum::new)
-    }
-}
-
-impl ::protobuf::Clear for IntSum {
-    fn clear(&mut self) {
-        self.data_points.clear();
-        self.aggregation_temporality = AggregationTemporality::AGGREGATION_TEMPORALITY_UNSPECIFIED;
-        self.is_monotonic = false;
-        self.unknown_fields.clear();
-    }
-}
-
-impl ::std::fmt::Debug for IntSum {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-        ::protobuf::text_format::fmt(self, f)
-    }
-}
-
-impl ::protobuf::reflect::ProtobufValue for IntSum {
     fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
         ::protobuf::reflect::ReflectValueRef::Message(self)
     }
@@ -2162,206 +1775,6 @@ impl ::protobuf::reflect::ProtobufValue for Sum {
 
 #[derive(PartialEq,Clone,Default)]
 #[cfg_attr(feature = "with-serde", derive(::serde::Serialize, ::serde::Deserialize))]
-pub struct IntHistogram {
-    // message fields
-    pub data_points: ::protobuf::RepeatedField<IntHistogramDataPoint>,
-    pub aggregation_temporality: AggregationTemporality,
-    // special fields
-    #[cfg_attr(feature = "with-serde", serde(skip))]
-    pub unknown_fields: ::protobuf::UnknownFields,
-    #[cfg_attr(feature = "with-serde", serde(skip))]
-    pub cached_size: ::protobuf::CachedSize,
-}
-
-impl<'a> ::std::default::Default for &'a IntHistogram {
-    fn default() -> &'a IntHistogram {
-        <IntHistogram as ::protobuf::Message>::default_instance()
-    }
-}
-
-impl IntHistogram {
-    pub fn new() -> IntHistogram {
-        ::std::default::Default::default()
-    }
-
-    // repeated .opentelemetry.proto.metrics.v1.IntHistogramDataPoint data_points = 1;
-
-
-    pub fn get_data_points(&self) -> &[IntHistogramDataPoint] {
-        &self.data_points
-    }
-    pub fn clear_data_points(&mut self) {
-        self.data_points.clear();
-    }
-
-    // Param is passed by value, moved
-    pub fn set_data_points(&mut self, v: ::protobuf::RepeatedField<IntHistogramDataPoint>) {
-        self.data_points = v;
-    }
-
-    // Mutable pointer to the field.
-    pub fn mut_data_points(&mut self) -> &mut ::protobuf::RepeatedField<IntHistogramDataPoint> {
-        &mut self.data_points
-    }
-
-    // Take field
-    pub fn take_data_points(&mut self) -> ::protobuf::RepeatedField<IntHistogramDataPoint> {
-        ::std::mem::replace(&mut self.data_points, ::protobuf::RepeatedField::new())
-    }
-
-    // .opentelemetry.proto.metrics.v1.AggregationTemporality aggregation_temporality = 2;
-
-
-    pub fn get_aggregation_temporality(&self) -> AggregationTemporality {
-        self.aggregation_temporality
-    }
-    pub fn clear_aggregation_temporality(&mut self) {
-        self.aggregation_temporality = AggregationTemporality::AGGREGATION_TEMPORALITY_UNSPECIFIED;
-    }
-
-    // Param is passed by value, moved
-    pub fn set_aggregation_temporality(&mut self, v: AggregationTemporality) {
-        self.aggregation_temporality = v;
-    }
-}
-
-impl ::protobuf::Message for IntHistogram {
-    fn is_initialized(&self) -> bool {
-        for v in &self.data_points {
-            if !v.is_initialized() {
-                return false;
-            }
-        };
-        true
-    }
-
-    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::ProtobufResult<()> {
-        while !is.eof()? {
-            let (field_number, wire_type) = is.read_tag_unpack()?;
-            match field_number {
-                1 => {
-                    ::protobuf::rt::read_repeated_message_into(wire_type, is, &mut self.data_points)?;
-                },
-                2 => {
-                    ::protobuf::rt::read_proto3_enum_with_unknown_fields_into(wire_type, is, &mut self.aggregation_temporality, 2, &mut self.unknown_fields)?
-                },
-                _ => {
-                    ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
-                },
-            };
-        }
-        ::std::result::Result::Ok(())
-    }
-
-    // Compute sizes of nested messages
-    #[allow(unused_variables)]
-    fn compute_size(&self) -> u32 {
-        let mut my_size = 0;
-        for value in &self.data_points {
-            let len = value.compute_size();
-            my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
-        };
-        if self.aggregation_temporality != AggregationTemporality::AGGREGATION_TEMPORALITY_UNSPECIFIED {
-            my_size += ::protobuf::rt::enum_size(2, self.aggregation_temporality);
-        }
-        my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
-        self.cached_size.set(my_size);
-        my_size
-    }
-
-    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
-        for v in &self.data_points {
-            os.write_tag(1, ::protobuf::wire_format::WireTypeLengthDelimited)?;
-            os.write_raw_varint32(v.get_cached_size())?;
-            v.write_to_with_cached_sizes(os)?;
-        };
-        if self.aggregation_temporality != AggregationTemporality::AGGREGATION_TEMPORALITY_UNSPECIFIED {
-            os.write_enum(2, ::protobuf::ProtobufEnum::value(&self.aggregation_temporality))?;
-        }
-        os.write_unknown_fields(self.get_unknown_fields())?;
-        ::std::result::Result::Ok(())
-    }
-
-    fn get_cached_size(&self) -> u32 {
-        self.cached_size.get()
-    }
-
-    fn get_unknown_fields(&self) -> &::protobuf::UnknownFields {
-        &self.unknown_fields
-    }
-
-    fn mut_unknown_fields(&mut self) -> &mut ::protobuf::UnknownFields {
-        &mut self.unknown_fields
-    }
-
-    fn as_any(&self) -> &dyn (::std::any::Any) {
-        self as &dyn (::std::any::Any)
-    }
-    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
-        self as &mut dyn (::std::any::Any)
-    }
-    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
-        self
-    }
-
-    fn descriptor(&self) -> &'static ::protobuf::reflect::MessageDescriptor {
-        Self::descriptor_static()
-    }
-
-    fn new() -> IntHistogram {
-        IntHistogram::new()
-    }
-
-    fn descriptor_static() -> &'static ::protobuf::reflect::MessageDescriptor {
-        static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
-        descriptor.get(|| {
-            let mut fields = ::std::vec::Vec::new();
-            fields.push(::protobuf::reflect::accessor::make_repeated_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<IntHistogramDataPoint>>(
-                "data_points",
-                |m: &IntHistogram| { &m.data_points },
-                |m: &mut IntHistogram| { &mut m.data_points },
-            ));
-            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeEnum<AggregationTemporality>>(
-                "aggregation_temporality",
-                |m: &IntHistogram| { &m.aggregation_temporality },
-                |m: &mut IntHistogram| { &mut m.aggregation_temporality },
-            ));
-            ::protobuf::reflect::MessageDescriptor::new_pb_name::<IntHistogram>(
-                "IntHistogram",
-                fields,
-                file_descriptor_proto()
-            )
-        })
-    }
-
-    fn default_instance() -> &'static IntHistogram {
-        static instance: ::protobuf::rt::LazyV2<IntHistogram> = ::protobuf::rt::LazyV2::INIT;
-        instance.get(IntHistogram::new)
-    }
-}
-
-impl ::protobuf::Clear for IntHistogram {
-    fn clear(&mut self) {
-        self.data_points.clear();
-        self.aggregation_temporality = AggregationTemporality::AGGREGATION_TEMPORALITY_UNSPECIFIED;
-        self.unknown_fields.clear();
-    }
-}
-
-impl ::std::fmt::Debug for IntHistogram {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-        ::protobuf::text_format::fmt(self, f)
-    }
-}
-
-impl ::protobuf::reflect::ProtobufValue for IntHistogram {
-    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
-        ::protobuf::reflect::ReflectValueRef::Message(self)
-    }
-}
-
-#[derive(PartialEq,Clone,Default)]
-#[cfg_attr(feature = "with-serde", derive(::serde::Serialize, ::serde::Deserialize))]
 pub struct Histogram {
     // message fields
     pub data_points: ::protobuf::RepeatedField<HistogramDataPoint>,
@@ -2562,6 +1975,206 @@ impl ::protobuf::reflect::ProtobufValue for Histogram {
 
 #[derive(PartialEq,Clone,Default)]
 #[cfg_attr(feature = "with-serde", derive(::serde::Serialize, ::serde::Deserialize))]
+pub struct ExponentialHistogram {
+    // message fields
+    pub data_points: ::protobuf::RepeatedField<ExponentialHistogramDataPoint>,
+    pub aggregation_temporality: AggregationTemporality,
+    // special fields
+    #[cfg_attr(feature = "with-serde", serde(skip))]
+    pub unknown_fields: ::protobuf::UnknownFields,
+    #[cfg_attr(feature = "with-serde", serde(skip))]
+    pub cached_size: ::protobuf::CachedSize,
+}
+
+impl<'a> ::std::default::Default for &'a ExponentialHistogram {
+    fn default() -> &'a ExponentialHistogram {
+        <ExponentialHistogram as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl ExponentialHistogram {
+    pub fn new() -> ExponentialHistogram {
+        ::std::default::Default::default()
+    }
+
+    // repeated .opentelemetry.proto.metrics.v1.ExponentialHistogramDataPoint data_points = 1;
+
+
+    pub fn get_data_points(&self) -> &[ExponentialHistogramDataPoint] {
+        &self.data_points
+    }
+    pub fn clear_data_points(&mut self) {
+        self.data_points.clear();
+    }
+
+    // Param is passed by value, moved
+    pub fn set_data_points(&mut self, v: ::protobuf::RepeatedField<ExponentialHistogramDataPoint>) {
+        self.data_points = v;
+    }
+
+    // Mutable pointer to the field.
+    pub fn mut_data_points(&mut self) -> &mut ::protobuf::RepeatedField<ExponentialHistogramDataPoint> {
+        &mut self.data_points
+    }
+
+    // Take field
+    pub fn take_data_points(&mut self) -> ::protobuf::RepeatedField<ExponentialHistogramDataPoint> {
+        ::std::mem::replace(&mut self.data_points, ::protobuf::RepeatedField::new())
+    }
+
+    // .opentelemetry.proto.metrics.v1.AggregationTemporality aggregation_temporality = 2;
+
+
+    pub fn get_aggregation_temporality(&self) -> AggregationTemporality {
+        self.aggregation_temporality
+    }
+    pub fn clear_aggregation_temporality(&mut self) {
+        self.aggregation_temporality = AggregationTemporality::AGGREGATION_TEMPORALITY_UNSPECIFIED;
+    }
+
+    // Param is passed by value, moved
+    pub fn set_aggregation_temporality(&mut self, v: AggregationTemporality) {
+        self.aggregation_temporality = v;
+    }
+}
+
+impl ::protobuf::Message for ExponentialHistogram {
+    fn is_initialized(&self) -> bool {
+        for v in &self.data_points {
+            if !v.is_initialized() {
+                return false;
+            }
+        };
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::ProtobufResult<()> {
+        while !is.eof()? {
+            let (field_number, wire_type) = is.read_tag_unpack()?;
+            match field_number {
+                1 => {
+                    ::protobuf::rt::read_repeated_message_into(wire_type, is, &mut self.data_points)?;
+                },
+                2 => {
+                    ::protobuf::rt::read_proto3_enum_with_unknown_fields_into(wire_type, is, &mut self.aggregation_temporality, 2, &mut self.unknown_fields)?
+                },
+                _ => {
+                    ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u32 {
+        let mut my_size = 0;
+        for value in &self.data_points {
+            let len = value.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
+        };
+        if self.aggregation_temporality != AggregationTemporality::AGGREGATION_TEMPORALITY_UNSPECIFIED {
+            my_size += ::protobuf::rt::enum_size(2, self.aggregation_temporality);
+        }
+        my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
+        self.cached_size.set(my_size);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
+        for v in &self.data_points {
+            os.write_tag(1, ::protobuf::wire_format::WireTypeLengthDelimited)?;
+            os.write_raw_varint32(v.get_cached_size())?;
+            v.write_to_with_cached_sizes(os)?;
+        };
+        if self.aggregation_temporality != AggregationTemporality::AGGREGATION_TEMPORALITY_UNSPECIFIED {
+            os.write_enum(2, ::protobuf::ProtobufEnum::value(&self.aggregation_temporality))?;
+        }
+        os.write_unknown_fields(self.get_unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn get_cached_size(&self) -> u32 {
+        self.cached_size.get()
+    }
+
+    fn get_unknown_fields(&self) -> &::protobuf::UnknownFields {
+        &self.unknown_fields
+    }
+
+    fn mut_unknown_fields(&mut self) -> &mut ::protobuf::UnknownFields {
+        &mut self.unknown_fields
+    }
+
+    fn as_any(&self) -> &dyn (::std::any::Any) {
+        self as &dyn (::std::any::Any)
+    }
+    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
+        self as &mut dyn (::std::any::Any)
+    }
+    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
+        self
+    }
+
+    fn descriptor(&self) -> &'static ::protobuf::reflect::MessageDescriptor {
+        Self::descriptor_static()
+    }
+
+    fn new() -> ExponentialHistogram {
+        ExponentialHistogram::new()
+    }
+
+    fn descriptor_static() -> &'static ::protobuf::reflect::MessageDescriptor {
+        static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
+        descriptor.get(|| {
+            let mut fields = ::std::vec::Vec::new();
+            fields.push(::protobuf::reflect::accessor::make_repeated_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<ExponentialHistogramDataPoint>>(
+                "data_points",
+                |m: &ExponentialHistogram| { &m.data_points },
+                |m: &mut ExponentialHistogram| { &mut m.data_points },
+            ));
+            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeEnum<AggregationTemporality>>(
+                "aggregation_temporality",
+                |m: &ExponentialHistogram| { &m.aggregation_temporality },
+                |m: &mut ExponentialHistogram| { &mut m.aggregation_temporality },
+            ));
+            ::protobuf::reflect::MessageDescriptor::new_pb_name::<ExponentialHistogram>(
+                "ExponentialHistogram",
+                fields,
+                file_descriptor_proto()
+            )
+        })
+    }
+
+    fn default_instance() -> &'static ExponentialHistogram {
+        static instance: ::protobuf::rt::LazyV2<ExponentialHistogram> = ::protobuf::rt::LazyV2::INIT;
+        instance.get(ExponentialHistogram::new)
+    }
+}
+
+impl ::protobuf::Clear for ExponentialHistogram {
+    fn clear(&mut self) {
+        self.data_points.clear();
+        self.aggregation_temporality = AggregationTemporality::AGGREGATION_TEMPORALITY_UNSPECIFIED;
+        self.unknown_fields.clear();
+    }
+}
+
+impl ::std::fmt::Debug for ExponentialHistogram {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        ::protobuf::text_format::fmt(self, f)
+    }
+}
+
+impl ::protobuf::reflect::ProtobufValue for ExponentialHistogram {
+    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
+        ::protobuf::reflect::ReflectValueRef::Message(self)
+    }
+}
+
+#[derive(PartialEq,Clone,Default)]
+#[cfg_attr(feature = "with-serde", derive(::serde::Serialize, ::serde::Deserialize))]
 pub struct Summary {
     // message fields
     pub data_points: ::protobuf::RepeatedField<SummaryDataPoint>,
@@ -2731,336 +2344,13 @@ impl ::protobuf::reflect::ProtobufValue for Summary {
 
 #[derive(PartialEq,Clone,Default)]
 #[cfg_attr(feature = "with-serde", derive(::serde::Serialize, ::serde::Deserialize))]
-pub struct IntDataPoint {
-    // message fields
-    pub labels: ::protobuf::RepeatedField<super::common::StringKeyValue>,
-    pub start_time_unix_nano: u64,
-    pub time_unix_nano: u64,
-    pub value: i64,
-    pub exemplars: ::protobuf::RepeatedField<IntExemplar>,
-    // special fields
-    #[cfg_attr(feature = "with-serde", serde(skip))]
-    pub unknown_fields: ::protobuf::UnknownFields,
-    #[cfg_attr(feature = "with-serde", serde(skip))]
-    pub cached_size: ::protobuf::CachedSize,
-}
-
-impl<'a> ::std::default::Default for &'a IntDataPoint {
-    fn default() -> &'a IntDataPoint {
-        <IntDataPoint as ::protobuf::Message>::default_instance()
-    }
-}
-
-impl IntDataPoint {
-    pub fn new() -> IntDataPoint {
-        ::std::default::Default::default()
-    }
-
-    // repeated .opentelemetry.proto.common.v1.StringKeyValue labels = 1;
-
-
-    pub fn get_labels(&self) -> &[super::common::StringKeyValue] {
-        &self.labels
-    }
-    pub fn clear_labels(&mut self) {
-        self.labels.clear();
-    }
-
-    // Param is passed by value, moved
-    pub fn set_labels(&mut self, v: ::protobuf::RepeatedField<super::common::StringKeyValue>) {
-        self.labels = v;
-    }
-
-    // Mutable pointer to the field.
-    pub fn mut_labels(&mut self) -> &mut ::protobuf::RepeatedField<super::common::StringKeyValue> {
-        &mut self.labels
-    }
-
-    // Take field
-    pub fn take_labels(&mut self) -> ::protobuf::RepeatedField<super::common::StringKeyValue> {
-        ::std::mem::replace(&mut self.labels, ::protobuf::RepeatedField::new())
-    }
-
-    // fixed64 start_time_unix_nano = 2;
-
-
-    pub fn get_start_time_unix_nano(&self) -> u64 {
-        self.start_time_unix_nano
-    }
-    pub fn clear_start_time_unix_nano(&mut self) {
-        self.start_time_unix_nano = 0;
-    }
-
-    // Param is passed by value, moved
-    pub fn set_start_time_unix_nano(&mut self, v: u64) {
-        self.start_time_unix_nano = v;
-    }
-
-    // fixed64 time_unix_nano = 3;
-
-
-    pub fn get_time_unix_nano(&self) -> u64 {
-        self.time_unix_nano
-    }
-    pub fn clear_time_unix_nano(&mut self) {
-        self.time_unix_nano = 0;
-    }
-
-    // Param is passed by value, moved
-    pub fn set_time_unix_nano(&mut self, v: u64) {
-        self.time_unix_nano = v;
-    }
-
-    // sfixed64 value = 4;
-
-
-    pub fn get_value(&self) -> i64 {
-        self.value
-    }
-    pub fn clear_value(&mut self) {
-        self.value = 0;
-    }
-
-    // Param is passed by value, moved
-    pub fn set_value(&mut self, v: i64) {
-        self.value = v;
-    }
-
-    // repeated .opentelemetry.proto.metrics.v1.IntExemplar exemplars = 5;
-
-
-    pub fn get_exemplars(&self) -> &[IntExemplar] {
-        &self.exemplars
-    }
-    pub fn clear_exemplars(&mut self) {
-        self.exemplars.clear();
-    }
-
-    // Param is passed by value, moved
-    pub fn set_exemplars(&mut self, v: ::protobuf::RepeatedField<IntExemplar>) {
-        self.exemplars = v;
-    }
-
-    // Mutable pointer to the field.
-    pub fn mut_exemplars(&mut self) -> &mut ::protobuf::RepeatedField<IntExemplar> {
-        &mut self.exemplars
-    }
-
-    // Take field
-    pub fn take_exemplars(&mut self) -> ::protobuf::RepeatedField<IntExemplar> {
-        ::std::mem::replace(&mut self.exemplars, ::protobuf::RepeatedField::new())
-    }
-}
-
-impl ::protobuf::Message for IntDataPoint {
-    fn is_initialized(&self) -> bool {
-        for v in &self.labels {
-            if !v.is_initialized() {
-                return false;
-            }
-        };
-        for v in &self.exemplars {
-            if !v.is_initialized() {
-                return false;
-            }
-        };
-        true
-    }
-
-    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::ProtobufResult<()> {
-        while !is.eof()? {
-            let (field_number, wire_type) = is.read_tag_unpack()?;
-            match field_number {
-                1 => {
-                    ::protobuf::rt::read_repeated_message_into(wire_type, is, &mut self.labels)?;
-                },
-                2 => {
-                    if wire_type != ::protobuf::wire_format::WireTypeFixed64 {
-                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
-                    }
-                    let tmp = is.read_fixed64()?;
-                    self.start_time_unix_nano = tmp;
-                },
-                3 => {
-                    if wire_type != ::protobuf::wire_format::WireTypeFixed64 {
-                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
-                    }
-                    let tmp = is.read_fixed64()?;
-                    self.time_unix_nano = tmp;
-                },
-                4 => {
-                    if wire_type != ::protobuf::wire_format::WireTypeFixed64 {
-                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
-                    }
-                    let tmp = is.read_sfixed64()?;
-                    self.value = tmp;
-                },
-                5 => {
-                    ::protobuf::rt::read_repeated_message_into(wire_type, is, &mut self.exemplars)?;
-                },
-                _ => {
-                    ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
-                },
-            };
-        }
-        ::std::result::Result::Ok(())
-    }
-
-    // Compute sizes of nested messages
-    #[allow(unused_variables)]
-    fn compute_size(&self) -> u32 {
-        let mut my_size = 0;
-        for value in &self.labels {
-            let len = value.compute_size();
-            my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
-        };
-        if self.start_time_unix_nano != 0 {
-            my_size += 9;
-        }
-        if self.time_unix_nano != 0 {
-            my_size += 9;
-        }
-        if self.value != 0 {
-            my_size += 9;
-        }
-        for value in &self.exemplars {
-            let len = value.compute_size();
-            my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
-        };
-        my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
-        self.cached_size.set(my_size);
-        my_size
-    }
-
-    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
-        for v in &self.labels {
-            os.write_tag(1, ::protobuf::wire_format::WireTypeLengthDelimited)?;
-            os.write_raw_varint32(v.get_cached_size())?;
-            v.write_to_with_cached_sizes(os)?;
-        };
-        if self.start_time_unix_nano != 0 {
-            os.write_fixed64(2, self.start_time_unix_nano)?;
-        }
-        if self.time_unix_nano != 0 {
-            os.write_fixed64(3, self.time_unix_nano)?;
-        }
-        if self.value != 0 {
-            os.write_sfixed64(4, self.value)?;
-        }
-        for v in &self.exemplars {
-            os.write_tag(5, ::protobuf::wire_format::WireTypeLengthDelimited)?;
-            os.write_raw_varint32(v.get_cached_size())?;
-            v.write_to_with_cached_sizes(os)?;
-        };
-        os.write_unknown_fields(self.get_unknown_fields())?;
-        ::std::result::Result::Ok(())
-    }
-
-    fn get_cached_size(&self) -> u32 {
-        self.cached_size.get()
-    }
-
-    fn get_unknown_fields(&self) -> &::protobuf::UnknownFields {
-        &self.unknown_fields
-    }
-
-    fn mut_unknown_fields(&mut self) -> &mut ::protobuf::UnknownFields {
-        &mut self.unknown_fields
-    }
-
-    fn as_any(&self) -> &dyn (::std::any::Any) {
-        self as &dyn (::std::any::Any)
-    }
-    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
-        self as &mut dyn (::std::any::Any)
-    }
-    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
-        self
-    }
-
-    fn descriptor(&self) -> &'static ::protobuf::reflect::MessageDescriptor {
-        Self::descriptor_static()
-    }
-
-    fn new() -> IntDataPoint {
-        IntDataPoint::new()
-    }
-
-    fn descriptor_static() -> &'static ::protobuf::reflect::MessageDescriptor {
-        static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
-        descriptor.get(|| {
-            let mut fields = ::std::vec::Vec::new();
-            fields.push(::protobuf::reflect::accessor::make_repeated_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<super::common::StringKeyValue>>(
-                "labels",
-                |m: &IntDataPoint| { &m.labels },
-                |m: &mut IntDataPoint| { &mut m.labels },
-            ));
-            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeFixed64>(
-                "start_time_unix_nano",
-                |m: &IntDataPoint| { &m.start_time_unix_nano },
-                |m: &mut IntDataPoint| { &mut m.start_time_unix_nano },
-            ));
-            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeFixed64>(
-                "time_unix_nano",
-                |m: &IntDataPoint| { &m.time_unix_nano },
-                |m: &mut IntDataPoint| { &mut m.time_unix_nano },
-            ));
-            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeSfixed64>(
-                "value",
-                |m: &IntDataPoint| { &m.value },
-                |m: &mut IntDataPoint| { &mut m.value },
-            ));
-            fields.push(::protobuf::reflect::accessor::make_repeated_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<IntExemplar>>(
-                "exemplars",
-                |m: &IntDataPoint| { &m.exemplars },
-                |m: &mut IntDataPoint| { &mut m.exemplars },
-            ));
-            ::protobuf::reflect::MessageDescriptor::new_pb_name::<IntDataPoint>(
-                "IntDataPoint",
-                fields,
-                file_descriptor_proto()
-            )
-        })
-    }
-
-    fn default_instance() -> &'static IntDataPoint {
-        static instance: ::protobuf::rt::LazyV2<IntDataPoint> = ::protobuf::rt::LazyV2::INIT;
-        instance.get(IntDataPoint::new)
-    }
-}
-
-impl ::protobuf::Clear for IntDataPoint {
-    fn clear(&mut self) {
-        self.labels.clear();
-        self.start_time_unix_nano = 0;
-        self.time_unix_nano = 0;
-        self.value = 0;
-        self.exemplars.clear();
-        self.unknown_fields.clear();
-    }
-}
-
-impl ::std::fmt::Debug for IntDataPoint {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-        ::protobuf::text_format::fmt(self, f)
-    }
-}
-
-impl ::protobuf::reflect::ProtobufValue for IntDataPoint {
-    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
-        ::protobuf::reflect::ReflectValueRef::Message(self)
-    }
-}
-
-#[derive(PartialEq,Clone,Default)]
-#[cfg_attr(feature = "with-serde", derive(::serde::Serialize, ::serde::Deserialize))]
 pub struct NumberDataPoint {
     // message fields
     pub attributes: ::protobuf::RepeatedField<super::common::KeyValue>,
-    pub labels: ::protobuf::RepeatedField<super::common::StringKeyValue>,
     pub start_time_unix_nano: u64,
     pub time_unix_nano: u64,
     pub exemplars: ::protobuf::RepeatedField<Exemplar>,
+    pub flags: u32,
     // message oneof groups
     pub value: ::std::option::Option<NumberDataPoint_oneof_value>,
     // special fields
@@ -3111,31 +2401,6 @@ impl NumberDataPoint {
     // Take field
     pub fn take_attributes(&mut self) -> ::protobuf::RepeatedField<super::common::KeyValue> {
         ::std::mem::replace(&mut self.attributes, ::protobuf::RepeatedField::new())
-    }
-
-    // repeated .opentelemetry.proto.common.v1.StringKeyValue labels = 1;
-
-
-    pub fn get_labels(&self) -> &[super::common::StringKeyValue] {
-        &self.labels
-    }
-    pub fn clear_labels(&mut self) {
-        self.labels.clear();
-    }
-
-    // Param is passed by value, moved
-    pub fn set_labels(&mut self, v: ::protobuf::RepeatedField<super::common::StringKeyValue>) {
-        self.labels = v;
-    }
-
-    // Mutable pointer to the field.
-    pub fn mut_labels(&mut self) -> &mut ::protobuf::RepeatedField<super::common::StringKeyValue> {
-        &mut self.labels
-    }
-
-    // Take field
-    pub fn take_labels(&mut self) -> ::protobuf::RepeatedField<super::common::StringKeyValue> {
-        ::std::mem::replace(&mut self.labels, ::protobuf::RepeatedField::new())
     }
 
     // fixed64 start_time_unix_nano = 2;
@@ -3242,16 +2507,26 @@ impl NumberDataPoint {
     pub fn take_exemplars(&mut self) -> ::protobuf::RepeatedField<Exemplar> {
         ::std::mem::replace(&mut self.exemplars, ::protobuf::RepeatedField::new())
     }
+
+    // uint32 flags = 8;
+
+
+    pub fn get_flags(&self) -> u32 {
+        self.flags
+    }
+    pub fn clear_flags(&mut self) {
+        self.flags = 0;
+    }
+
+    // Param is passed by value, moved
+    pub fn set_flags(&mut self, v: u32) {
+        self.flags = v;
+    }
 }
 
 impl ::protobuf::Message for NumberDataPoint {
     fn is_initialized(&self) -> bool {
         for v in &self.attributes {
-            if !v.is_initialized() {
-                return false;
-            }
-        };
-        for v in &self.labels {
             if !v.is_initialized() {
                 return false;
             }
@@ -3270,9 +2545,6 @@ impl ::protobuf::Message for NumberDataPoint {
             match field_number {
                 7 => {
                     ::protobuf::rt::read_repeated_message_into(wire_type, is, &mut self.attributes)?;
-                },
-                1 => {
-                    ::protobuf::rt::read_repeated_message_into(wire_type, is, &mut self.labels)?;
                 },
                 2 => {
                     if wire_type != ::protobuf::wire_format::WireTypeFixed64 {
@@ -3303,6 +2575,13 @@ impl ::protobuf::Message for NumberDataPoint {
                 5 => {
                     ::protobuf::rt::read_repeated_message_into(wire_type, is, &mut self.exemplars)?;
                 },
+                8 => {
+                    if wire_type != ::protobuf::wire_format::WireTypeVarint {
+                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
+                    }
+                    let tmp = is.read_uint32()?;
+                    self.flags = tmp;
+                },
                 _ => {
                     ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
                 },
@@ -3319,10 +2598,6 @@ impl ::protobuf::Message for NumberDataPoint {
             let len = value.compute_size();
             my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
         };
-        for value in &self.labels {
-            let len = value.compute_size();
-            my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
-        };
         if self.start_time_unix_nano != 0 {
             my_size += 9;
         }
@@ -3333,6 +2608,9 @@ impl ::protobuf::Message for NumberDataPoint {
             let len = value.compute_size();
             my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
         };
+        if self.flags != 0 {
+            my_size += ::protobuf::rt::value_size(8, self.flags, ::protobuf::wire_format::WireTypeVarint);
+        }
         if let ::std::option::Option::Some(ref v) = self.value {
             match v {
                 &NumberDataPoint_oneof_value::as_double(v) => {
@@ -3354,11 +2632,6 @@ impl ::protobuf::Message for NumberDataPoint {
             os.write_raw_varint32(v.get_cached_size())?;
             v.write_to_with_cached_sizes(os)?;
         };
-        for v in &self.labels {
-            os.write_tag(1, ::protobuf::wire_format::WireTypeLengthDelimited)?;
-            os.write_raw_varint32(v.get_cached_size())?;
-            v.write_to_with_cached_sizes(os)?;
-        };
         if self.start_time_unix_nano != 0 {
             os.write_fixed64(2, self.start_time_unix_nano)?;
         }
@@ -3370,6 +2643,9 @@ impl ::protobuf::Message for NumberDataPoint {
             os.write_raw_varint32(v.get_cached_size())?;
             v.write_to_with_cached_sizes(os)?;
         };
+        if self.flags != 0 {
+            os.write_uint32(8, self.flags)?;
+        }
         if let ::std::option::Option::Some(ref v) = self.value {
             match v {
                 &NumberDataPoint_oneof_value::as_double(v) => {
@@ -3423,11 +2699,6 @@ impl ::protobuf::Message for NumberDataPoint {
                 |m: &NumberDataPoint| { &m.attributes },
                 |m: &mut NumberDataPoint| { &mut m.attributes },
             ));
-            fields.push(::protobuf::reflect::accessor::make_repeated_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<super::common::StringKeyValue>>(
-                "labels",
-                |m: &NumberDataPoint| { &m.labels },
-                |m: &mut NumberDataPoint| { &mut m.labels },
-            ));
             fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeFixed64>(
                 "start_time_unix_nano",
                 |m: &NumberDataPoint| { &m.start_time_unix_nano },
@@ -3453,6 +2724,11 @@ impl ::protobuf::Message for NumberDataPoint {
                 |m: &NumberDataPoint| { &m.exemplars },
                 |m: &mut NumberDataPoint| { &mut m.exemplars },
             ));
+            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeUint32>(
+                "flags",
+                |m: &NumberDataPoint| { &m.flags },
+                |m: &mut NumberDataPoint| { &mut m.flags },
+            ));
             ::protobuf::reflect::MessageDescriptor::new_pb_name::<NumberDataPoint>(
                 "NumberDataPoint",
                 fields,
@@ -3470,12 +2746,12 @@ impl ::protobuf::Message for NumberDataPoint {
 impl ::protobuf::Clear for NumberDataPoint {
     fn clear(&mut self) {
         self.attributes.clear();
-        self.labels.clear();
         self.start_time_unix_nano = 0;
         self.time_unix_nano = 0;
         self.value = ::std::option::Option::None;
         self.value = ::std::option::Option::None;
         self.exemplars.clear();
+        self.flags = 0;
         self.unknown_fields.clear();
     }
 }
@@ -3494,446 +2770,9 @@ impl ::protobuf::reflect::ProtobufValue for NumberDataPoint {
 
 #[derive(PartialEq,Clone,Default)]
 #[cfg_attr(feature = "with-serde", derive(::serde::Serialize, ::serde::Deserialize))]
-pub struct IntHistogramDataPoint {
-    // message fields
-    pub labels: ::protobuf::RepeatedField<super::common::StringKeyValue>,
-    pub start_time_unix_nano: u64,
-    pub time_unix_nano: u64,
-    pub count: u64,
-    pub sum: i64,
-    pub bucket_counts: ::std::vec::Vec<u64>,
-    pub explicit_bounds: ::std::vec::Vec<f64>,
-    pub exemplars: ::protobuf::RepeatedField<IntExemplar>,
-    // special fields
-    #[cfg_attr(feature = "with-serde", serde(skip))]
-    pub unknown_fields: ::protobuf::UnknownFields,
-    #[cfg_attr(feature = "with-serde", serde(skip))]
-    pub cached_size: ::protobuf::CachedSize,
-}
-
-impl<'a> ::std::default::Default for &'a IntHistogramDataPoint {
-    fn default() -> &'a IntHistogramDataPoint {
-        <IntHistogramDataPoint as ::protobuf::Message>::default_instance()
-    }
-}
-
-impl IntHistogramDataPoint {
-    pub fn new() -> IntHistogramDataPoint {
-        ::std::default::Default::default()
-    }
-
-    // repeated .opentelemetry.proto.common.v1.StringKeyValue labels = 1;
-
-
-    pub fn get_labels(&self) -> &[super::common::StringKeyValue] {
-        &self.labels
-    }
-    pub fn clear_labels(&mut self) {
-        self.labels.clear();
-    }
-
-    // Param is passed by value, moved
-    pub fn set_labels(&mut self, v: ::protobuf::RepeatedField<super::common::StringKeyValue>) {
-        self.labels = v;
-    }
-
-    // Mutable pointer to the field.
-    pub fn mut_labels(&mut self) -> &mut ::protobuf::RepeatedField<super::common::StringKeyValue> {
-        &mut self.labels
-    }
-
-    // Take field
-    pub fn take_labels(&mut self) -> ::protobuf::RepeatedField<super::common::StringKeyValue> {
-        ::std::mem::replace(&mut self.labels, ::protobuf::RepeatedField::new())
-    }
-
-    // fixed64 start_time_unix_nano = 2;
-
-
-    pub fn get_start_time_unix_nano(&self) -> u64 {
-        self.start_time_unix_nano
-    }
-    pub fn clear_start_time_unix_nano(&mut self) {
-        self.start_time_unix_nano = 0;
-    }
-
-    // Param is passed by value, moved
-    pub fn set_start_time_unix_nano(&mut self, v: u64) {
-        self.start_time_unix_nano = v;
-    }
-
-    // fixed64 time_unix_nano = 3;
-
-
-    pub fn get_time_unix_nano(&self) -> u64 {
-        self.time_unix_nano
-    }
-    pub fn clear_time_unix_nano(&mut self) {
-        self.time_unix_nano = 0;
-    }
-
-    // Param is passed by value, moved
-    pub fn set_time_unix_nano(&mut self, v: u64) {
-        self.time_unix_nano = v;
-    }
-
-    // fixed64 count = 4;
-
-
-    pub fn get_count(&self) -> u64 {
-        self.count
-    }
-    pub fn clear_count(&mut self) {
-        self.count = 0;
-    }
-
-    // Param is passed by value, moved
-    pub fn set_count(&mut self, v: u64) {
-        self.count = v;
-    }
-
-    // sfixed64 sum = 5;
-
-
-    pub fn get_sum(&self) -> i64 {
-        self.sum
-    }
-    pub fn clear_sum(&mut self) {
-        self.sum = 0;
-    }
-
-    // Param is passed by value, moved
-    pub fn set_sum(&mut self, v: i64) {
-        self.sum = v;
-    }
-
-    // repeated fixed64 bucket_counts = 6;
-
-
-    pub fn get_bucket_counts(&self) -> &[u64] {
-        &self.bucket_counts
-    }
-    pub fn clear_bucket_counts(&mut self) {
-        self.bucket_counts.clear();
-    }
-
-    // Param is passed by value, moved
-    pub fn set_bucket_counts(&mut self, v: ::std::vec::Vec<u64>) {
-        self.bucket_counts = v;
-    }
-
-    // Mutable pointer to the field.
-    pub fn mut_bucket_counts(&mut self) -> &mut ::std::vec::Vec<u64> {
-        &mut self.bucket_counts
-    }
-
-    // Take field
-    pub fn take_bucket_counts(&mut self) -> ::std::vec::Vec<u64> {
-        ::std::mem::replace(&mut self.bucket_counts, ::std::vec::Vec::new())
-    }
-
-    // repeated double explicit_bounds = 7;
-
-
-    pub fn get_explicit_bounds(&self) -> &[f64] {
-        &self.explicit_bounds
-    }
-    pub fn clear_explicit_bounds(&mut self) {
-        self.explicit_bounds.clear();
-    }
-
-    // Param is passed by value, moved
-    pub fn set_explicit_bounds(&mut self, v: ::std::vec::Vec<f64>) {
-        self.explicit_bounds = v;
-    }
-
-    // Mutable pointer to the field.
-    pub fn mut_explicit_bounds(&mut self) -> &mut ::std::vec::Vec<f64> {
-        &mut self.explicit_bounds
-    }
-
-    // Take field
-    pub fn take_explicit_bounds(&mut self) -> ::std::vec::Vec<f64> {
-        ::std::mem::replace(&mut self.explicit_bounds, ::std::vec::Vec::new())
-    }
-
-    // repeated .opentelemetry.proto.metrics.v1.IntExemplar exemplars = 8;
-
-
-    pub fn get_exemplars(&self) -> &[IntExemplar] {
-        &self.exemplars
-    }
-    pub fn clear_exemplars(&mut self) {
-        self.exemplars.clear();
-    }
-
-    // Param is passed by value, moved
-    pub fn set_exemplars(&mut self, v: ::protobuf::RepeatedField<IntExemplar>) {
-        self.exemplars = v;
-    }
-
-    // Mutable pointer to the field.
-    pub fn mut_exemplars(&mut self) -> &mut ::protobuf::RepeatedField<IntExemplar> {
-        &mut self.exemplars
-    }
-
-    // Take field
-    pub fn take_exemplars(&mut self) -> ::protobuf::RepeatedField<IntExemplar> {
-        ::std::mem::replace(&mut self.exemplars, ::protobuf::RepeatedField::new())
-    }
-}
-
-impl ::protobuf::Message for IntHistogramDataPoint {
-    fn is_initialized(&self) -> bool {
-        for v in &self.labels {
-            if !v.is_initialized() {
-                return false;
-            }
-        };
-        for v in &self.exemplars {
-            if !v.is_initialized() {
-                return false;
-            }
-        };
-        true
-    }
-
-    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::ProtobufResult<()> {
-        while !is.eof()? {
-            let (field_number, wire_type) = is.read_tag_unpack()?;
-            match field_number {
-                1 => {
-                    ::protobuf::rt::read_repeated_message_into(wire_type, is, &mut self.labels)?;
-                },
-                2 => {
-                    if wire_type != ::protobuf::wire_format::WireTypeFixed64 {
-                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
-                    }
-                    let tmp = is.read_fixed64()?;
-                    self.start_time_unix_nano = tmp;
-                },
-                3 => {
-                    if wire_type != ::protobuf::wire_format::WireTypeFixed64 {
-                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
-                    }
-                    let tmp = is.read_fixed64()?;
-                    self.time_unix_nano = tmp;
-                },
-                4 => {
-                    if wire_type != ::protobuf::wire_format::WireTypeFixed64 {
-                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
-                    }
-                    let tmp = is.read_fixed64()?;
-                    self.count = tmp;
-                },
-                5 => {
-                    if wire_type != ::protobuf::wire_format::WireTypeFixed64 {
-                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
-                    }
-                    let tmp = is.read_sfixed64()?;
-                    self.sum = tmp;
-                },
-                6 => {
-                    ::protobuf::rt::read_repeated_fixed64_into(wire_type, is, &mut self.bucket_counts)?;
-                },
-                7 => {
-                    ::protobuf::rt::read_repeated_double_into(wire_type, is, &mut self.explicit_bounds)?;
-                },
-                8 => {
-                    ::protobuf::rt::read_repeated_message_into(wire_type, is, &mut self.exemplars)?;
-                },
-                _ => {
-                    ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
-                },
-            };
-        }
-        ::std::result::Result::Ok(())
-    }
-
-    // Compute sizes of nested messages
-    #[allow(unused_variables)]
-    fn compute_size(&self) -> u32 {
-        let mut my_size = 0;
-        for value in &self.labels {
-            let len = value.compute_size();
-            my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
-        };
-        if self.start_time_unix_nano != 0 {
-            my_size += 9;
-        }
-        if self.time_unix_nano != 0 {
-            my_size += 9;
-        }
-        if self.count != 0 {
-            my_size += 9;
-        }
-        if self.sum != 0 {
-            my_size += 9;
-        }
-        my_size += 9 * self.bucket_counts.len() as u32;
-        my_size += 9 * self.explicit_bounds.len() as u32;
-        for value in &self.exemplars {
-            let len = value.compute_size();
-            my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
-        };
-        my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
-        self.cached_size.set(my_size);
-        my_size
-    }
-
-    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
-        for v in &self.labels {
-            os.write_tag(1, ::protobuf::wire_format::WireTypeLengthDelimited)?;
-            os.write_raw_varint32(v.get_cached_size())?;
-            v.write_to_with_cached_sizes(os)?;
-        };
-        if self.start_time_unix_nano != 0 {
-            os.write_fixed64(2, self.start_time_unix_nano)?;
-        }
-        if self.time_unix_nano != 0 {
-            os.write_fixed64(3, self.time_unix_nano)?;
-        }
-        if self.count != 0 {
-            os.write_fixed64(4, self.count)?;
-        }
-        if self.sum != 0 {
-            os.write_sfixed64(5, self.sum)?;
-        }
-        for v in &self.bucket_counts {
-            os.write_fixed64(6, *v)?;
-        };
-        for v in &self.explicit_bounds {
-            os.write_double(7, *v)?;
-        };
-        for v in &self.exemplars {
-            os.write_tag(8, ::protobuf::wire_format::WireTypeLengthDelimited)?;
-            os.write_raw_varint32(v.get_cached_size())?;
-            v.write_to_with_cached_sizes(os)?;
-        };
-        os.write_unknown_fields(self.get_unknown_fields())?;
-        ::std::result::Result::Ok(())
-    }
-
-    fn get_cached_size(&self) -> u32 {
-        self.cached_size.get()
-    }
-
-    fn get_unknown_fields(&self) -> &::protobuf::UnknownFields {
-        &self.unknown_fields
-    }
-
-    fn mut_unknown_fields(&mut self) -> &mut ::protobuf::UnknownFields {
-        &mut self.unknown_fields
-    }
-
-    fn as_any(&self) -> &dyn (::std::any::Any) {
-        self as &dyn (::std::any::Any)
-    }
-    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
-        self as &mut dyn (::std::any::Any)
-    }
-    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
-        self
-    }
-
-    fn descriptor(&self) -> &'static ::protobuf::reflect::MessageDescriptor {
-        Self::descriptor_static()
-    }
-
-    fn new() -> IntHistogramDataPoint {
-        IntHistogramDataPoint::new()
-    }
-
-    fn descriptor_static() -> &'static ::protobuf::reflect::MessageDescriptor {
-        static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
-        descriptor.get(|| {
-            let mut fields = ::std::vec::Vec::new();
-            fields.push(::protobuf::reflect::accessor::make_repeated_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<super::common::StringKeyValue>>(
-                "labels",
-                |m: &IntHistogramDataPoint| { &m.labels },
-                |m: &mut IntHistogramDataPoint| { &mut m.labels },
-            ));
-            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeFixed64>(
-                "start_time_unix_nano",
-                |m: &IntHistogramDataPoint| { &m.start_time_unix_nano },
-                |m: &mut IntHistogramDataPoint| { &mut m.start_time_unix_nano },
-            ));
-            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeFixed64>(
-                "time_unix_nano",
-                |m: &IntHistogramDataPoint| { &m.time_unix_nano },
-                |m: &mut IntHistogramDataPoint| { &mut m.time_unix_nano },
-            ));
-            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeFixed64>(
-                "count",
-                |m: &IntHistogramDataPoint| { &m.count },
-                |m: &mut IntHistogramDataPoint| { &mut m.count },
-            ));
-            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeSfixed64>(
-                "sum",
-                |m: &IntHistogramDataPoint| { &m.sum },
-                |m: &mut IntHistogramDataPoint| { &mut m.sum },
-            ));
-            fields.push(::protobuf::reflect::accessor::make_vec_accessor::<_, ::protobuf::types::ProtobufTypeFixed64>(
-                "bucket_counts",
-                |m: &IntHistogramDataPoint| { &m.bucket_counts },
-                |m: &mut IntHistogramDataPoint| { &mut m.bucket_counts },
-            ));
-            fields.push(::protobuf::reflect::accessor::make_vec_accessor::<_, ::protobuf::types::ProtobufTypeDouble>(
-                "explicit_bounds",
-                |m: &IntHistogramDataPoint| { &m.explicit_bounds },
-                |m: &mut IntHistogramDataPoint| { &mut m.explicit_bounds },
-            ));
-            fields.push(::protobuf::reflect::accessor::make_repeated_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<IntExemplar>>(
-                "exemplars",
-                |m: &IntHistogramDataPoint| { &m.exemplars },
-                |m: &mut IntHistogramDataPoint| { &mut m.exemplars },
-            ));
-            ::protobuf::reflect::MessageDescriptor::new_pb_name::<IntHistogramDataPoint>(
-                "IntHistogramDataPoint",
-                fields,
-                file_descriptor_proto()
-            )
-        })
-    }
-
-    fn default_instance() -> &'static IntHistogramDataPoint {
-        static instance: ::protobuf::rt::LazyV2<IntHistogramDataPoint> = ::protobuf::rt::LazyV2::INIT;
-        instance.get(IntHistogramDataPoint::new)
-    }
-}
-
-impl ::protobuf::Clear for IntHistogramDataPoint {
-    fn clear(&mut self) {
-        self.labels.clear();
-        self.start_time_unix_nano = 0;
-        self.time_unix_nano = 0;
-        self.count = 0;
-        self.sum = 0;
-        self.bucket_counts.clear();
-        self.explicit_bounds.clear();
-        self.exemplars.clear();
-        self.unknown_fields.clear();
-    }
-}
-
-impl ::std::fmt::Debug for IntHistogramDataPoint {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-        ::protobuf::text_format::fmt(self, f)
-    }
-}
-
-impl ::protobuf::reflect::ProtobufValue for IntHistogramDataPoint {
-    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
-        ::protobuf::reflect::ReflectValueRef::Message(self)
-    }
-}
-
-#[derive(PartialEq,Clone,Default)]
-#[cfg_attr(feature = "with-serde", derive(::serde::Serialize, ::serde::Deserialize))]
 pub struct HistogramDataPoint {
     // message fields
     pub attributes: ::protobuf::RepeatedField<super::common::KeyValue>,
-    pub labels: ::protobuf::RepeatedField<super::common::StringKeyValue>,
     pub start_time_unix_nano: u64,
     pub time_unix_nano: u64,
     pub count: u64,
@@ -3941,6 +2780,7 @@ pub struct HistogramDataPoint {
     pub bucket_counts: ::std::vec::Vec<u64>,
     pub explicit_bounds: ::std::vec::Vec<f64>,
     pub exemplars: ::protobuf::RepeatedField<Exemplar>,
+    pub flags: u32,
     // special fields
     #[cfg_attr(feature = "with-serde", serde(skip))]
     pub unknown_fields: ::protobuf::UnknownFields,
@@ -3982,31 +2822,6 @@ impl HistogramDataPoint {
     // Take field
     pub fn take_attributes(&mut self) -> ::protobuf::RepeatedField<super::common::KeyValue> {
         ::std::mem::replace(&mut self.attributes, ::protobuf::RepeatedField::new())
-    }
-
-    // repeated .opentelemetry.proto.common.v1.StringKeyValue labels = 1;
-
-
-    pub fn get_labels(&self) -> &[super::common::StringKeyValue] {
-        &self.labels
-    }
-    pub fn clear_labels(&mut self) {
-        self.labels.clear();
-    }
-
-    // Param is passed by value, moved
-    pub fn set_labels(&mut self, v: ::protobuf::RepeatedField<super::common::StringKeyValue>) {
-        self.labels = v;
-    }
-
-    // Mutable pointer to the field.
-    pub fn mut_labels(&mut self) -> &mut ::protobuf::RepeatedField<super::common::StringKeyValue> {
-        &mut self.labels
-    }
-
-    // Take field
-    pub fn take_labels(&mut self) -> ::protobuf::RepeatedField<super::common::StringKeyValue> {
-        ::std::mem::replace(&mut self.labels, ::protobuf::RepeatedField::new())
     }
 
     // fixed64 start_time_unix_nano = 2;
@@ -4143,16 +2958,26 @@ impl HistogramDataPoint {
     pub fn take_exemplars(&mut self) -> ::protobuf::RepeatedField<Exemplar> {
         ::std::mem::replace(&mut self.exemplars, ::protobuf::RepeatedField::new())
     }
+
+    // uint32 flags = 10;
+
+
+    pub fn get_flags(&self) -> u32 {
+        self.flags
+    }
+    pub fn clear_flags(&mut self) {
+        self.flags = 0;
+    }
+
+    // Param is passed by value, moved
+    pub fn set_flags(&mut self, v: u32) {
+        self.flags = v;
+    }
 }
 
 impl ::protobuf::Message for HistogramDataPoint {
     fn is_initialized(&self) -> bool {
         for v in &self.attributes {
-            if !v.is_initialized() {
-                return false;
-            }
-        };
-        for v in &self.labels {
             if !v.is_initialized() {
                 return false;
             }
@@ -4171,9 +2996,6 @@ impl ::protobuf::Message for HistogramDataPoint {
             match field_number {
                 9 => {
                     ::protobuf::rt::read_repeated_message_into(wire_type, is, &mut self.attributes)?;
-                },
-                1 => {
-                    ::protobuf::rt::read_repeated_message_into(wire_type, is, &mut self.labels)?;
                 },
                 2 => {
                     if wire_type != ::protobuf::wire_format::WireTypeFixed64 {
@@ -4212,6 +3034,13 @@ impl ::protobuf::Message for HistogramDataPoint {
                 8 => {
                     ::protobuf::rt::read_repeated_message_into(wire_type, is, &mut self.exemplars)?;
                 },
+                10 => {
+                    if wire_type != ::protobuf::wire_format::WireTypeVarint {
+                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
+                    }
+                    let tmp = is.read_uint32()?;
+                    self.flags = tmp;
+                },
                 _ => {
                     ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
                 },
@@ -4225,10 +3054,6 @@ impl ::protobuf::Message for HistogramDataPoint {
     fn compute_size(&self) -> u32 {
         let mut my_size = 0;
         for value in &self.attributes {
-            let len = value.compute_size();
-            my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
-        };
-        for value in &self.labels {
             let len = value.compute_size();
             my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
         };
@@ -4250,6 +3075,9 @@ impl ::protobuf::Message for HistogramDataPoint {
             let len = value.compute_size();
             my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
         };
+        if self.flags != 0 {
+            my_size += ::protobuf::rt::value_size(10, self.flags, ::protobuf::wire_format::WireTypeVarint);
+        }
         my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
         self.cached_size.set(my_size);
         my_size
@@ -4258,11 +3086,6 @@ impl ::protobuf::Message for HistogramDataPoint {
     fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
         for v in &self.attributes {
             os.write_tag(9, ::protobuf::wire_format::WireTypeLengthDelimited)?;
-            os.write_raw_varint32(v.get_cached_size())?;
-            v.write_to_with_cached_sizes(os)?;
-        };
-        for v in &self.labels {
-            os.write_tag(1, ::protobuf::wire_format::WireTypeLengthDelimited)?;
             os.write_raw_varint32(v.get_cached_size())?;
             v.write_to_with_cached_sizes(os)?;
         };
@@ -4289,6 +3112,9 @@ impl ::protobuf::Message for HistogramDataPoint {
             os.write_raw_varint32(v.get_cached_size())?;
             v.write_to_with_cached_sizes(os)?;
         };
+        if self.flags != 0 {
+            os.write_uint32(10, self.flags)?;
+        }
         os.write_unknown_fields(self.get_unknown_fields())?;
         ::std::result::Result::Ok(())
     }
@@ -4332,11 +3158,6 @@ impl ::protobuf::Message for HistogramDataPoint {
                 |m: &HistogramDataPoint| { &m.attributes },
                 |m: &mut HistogramDataPoint| { &mut m.attributes },
             ));
-            fields.push(::protobuf::reflect::accessor::make_repeated_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<super::common::StringKeyValue>>(
-                "labels",
-                |m: &HistogramDataPoint| { &m.labels },
-                |m: &mut HistogramDataPoint| { &mut m.labels },
-            ));
             fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeFixed64>(
                 "start_time_unix_nano",
                 |m: &HistogramDataPoint| { &m.start_time_unix_nano },
@@ -4372,6 +3193,11 @@ impl ::protobuf::Message for HistogramDataPoint {
                 |m: &HistogramDataPoint| { &m.exemplars },
                 |m: &mut HistogramDataPoint| { &mut m.exemplars },
             ));
+            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeUint32>(
+                "flags",
+                |m: &HistogramDataPoint| { &m.flags },
+                |m: &mut HistogramDataPoint| { &mut m.flags },
+            ));
             ::protobuf::reflect::MessageDescriptor::new_pb_name::<HistogramDataPoint>(
                 "HistogramDataPoint",
                 fields,
@@ -4389,7 +3215,6 @@ impl ::protobuf::Message for HistogramDataPoint {
 impl ::protobuf::Clear for HistogramDataPoint {
     fn clear(&mut self) {
         self.attributes.clear();
-        self.labels.clear();
         self.start_time_unix_nano = 0;
         self.time_unix_nano = 0;
         self.count = 0;
@@ -4397,6 +3222,7 @@ impl ::protobuf::Clear for HistogramDataPoint {
         self.bucket_counts.clear();
         self.explicit_bounds.clear();
         self.exemplars.clear();
+        self.flags = 0;
         self.unknown_fields.clear();
     }
 }
@@ -4415,15 +3241,788 @@ impl ::protobuf::reflect::ProtobufValue for HistogramDataPoint {
 
 #[derive(PartialEq,Clone,Default)]
 #[cfg_attr(feature = "with-serde", derive(::serde::Serialize, ::serde::Deserialize))]
+pub struct ExponentialHistogramDataPoint {
+    // message fields
+    pub attributes: ::protobuf::RepeatedField<super::common::KeyValue>,
+    pub start_time_unix_nano: u64,
+    pub time_unix_nano: u64,
+    pub count: u64,
+    pub sum: f64,
+    pub scale: i32,
+    pub zero_count: u64,
+    pub positive: ::protobuf::SingularPtrField<ExponentialHistogramDataPoint_Buckets>,
+    pub negative: ::protobuf::SingularPtrField<ExponentialHistogramDataPoint_Buckets>,
+    pub flags: u32,
+    pub exemplars: ::protobuf::RepeatedField<Exemplar>,
+    // special fields
+    #[cfg_attr(feature = "with-serde", serde(skip))]
+    pub unknown_fields: ::protobuf::UnknownFields,
+    #[cfg_attr(feature = "with-serde", serde(skip))]
+    pub cached_size: ::protobuf::CachedSize,
+}
+
+impl<'a> ::std::default::Default for &'a ExponentialHistogramDataPoint {
+    fn default() -> &'a ExponentialHistogramDataPoint {
+        <ExponentialHistogramDataPoint as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl ExponentialHistogramDataPoint {
+    pub fn new() -> ExponentialHistogramDataPoint {
+        ::std::default::Default::default()
+    }
+
+    // repeated .opentelemetry.proto.common.v1.KeyValue attributes = 1;
+
+
+    pub fn get_attributes(&self) -> &[super::common::KeyValue] {
+        &self.attributes
+    }
+    pub fn clear_attributes(&mut self) {
+        self.attributes.clear();
+    }
+
+    // Param is passed by value, moved
+    pub fn set_attributes(&mut self, v: ::protobuf::RepeatedField<super::common::KeyValue>) {
+        self.attributes = v;
+    }
+
+    // Mutable pointer to the field.
+    pub fn mut_attributes(&mut self) -> &mut ::protobuf::RepeatedField<super::common::KeyValue> {
+        &mut self.attributes
+    }
+
+    // Take field
+    pub fn take_attributes(&mut self) -> ::protobuf::RepeatedField<super::common::KeyValue> {
+        ::std::mem::replace(&mut self.attributes, ::protobuf::RepeatedField::new())
+    }
+
+    // fixed64 start_time_unix_nano = 2;
+
+
+    pub fn get_start_time_unix_nano(&self) -> u64 {
+        self.start_time_unix_nano
+    }
+    pub fn clear_start_time_unix_nano(&mut self) {
+        self.start_time_unix_nano = 0;
+    }
+
+    // Param is passed by value, moved
+    pub fn set_start_time_unix_nano(&mut self, v: u64) {
+        self.start_time_unix_nano = v;
+    }
+
+    // fixed64 time_unix_nano = 3;
+
+
+    pub fn get_time_unix_nano(&self) -> u64 {
+        self.time_unix_nano
+    }
+    pub fn clear_time_unix_nano(&mut self) {
+        self.time_unix_nano = 0;
+    }
+
+    // Param is passed by value, moved
+    pub fn set_time_unix_nano(&mut self, v: u64) {
+        self.time_unix_nano = v;
+    }
+
+    // fixed64 count = 4;
+
+
+    pub fn get_count(&self) -> u64 {
+        self.count
+    }
+    pub fn clear_count(&mut self) {
+        self.count = 0;
+    }
+
+    // Param is passed by value, moved
+    pub fn set_count(&mut self, v: u64) {
+        self.count = v;
+    }
+
+    // double sum = 5;
+
+
+    pub fn get_sum(&self) -> f64 {
+        self.sum
+    }
+    pub fn clear_sum(&mut self) {
+        self.sum = 0.;
+    }
+
+    // Param is passed by value, moved
+    pub fn set_sum(&mut self, v: f64) {
+        self.sum = v;
+    }
+
+    // sint32 scale = 6;
+
+
+    pub fn get_scale(&self) -> i32 {
+        self.scale
+    }
+    pub fn clear_scale(&mut self) {
+        self.scale = 0;
+    }
+
+    // Param is passed by value, moved
+    pub fn set_scale(&mut self, v: i32) {
+        self.scale = v;
+    }
+
+    // fixed64 zero_count = 7;
+
+
+    pub fn get_zero_count(&self) -> u64 {
+        self.zero_count
+    }
+    pub fn clear_zero_count(&mut self) {
+        self.zero_count = 0;
+    }
+
+    // Param is passed by value, moved
+    pub fn set_zero_count(&mut self, v: u64) {
+        self.zero_count = v;
+    }
+
+    // .opentelemetry.proto.metrics.v1.ExponentialHistogramDataPoint.Buckets positive = 8;
+
+
+    pub fn get_positive(&self) -> &ExponentialHistogramDataPoint_Buckets {
+        self.positive.as_ref().unwrap_or_else(|| <ExponentialHistogramDataPoint_Buckets as ::protobuf::Message>::default_instance())
+    }
+    pub fn clear_positive(&mut self) {
+        self.positive.clear();
+    }
+
+    pub fn has_positive(&self) -> bool {
+        self.positive.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_positive(&mut self, v: ExponentialHistogramDataPoint_Buckets) {
+        self.positive = ::protobuf::SingularPtrField::some(v);
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_positive(&mut self) -> &mut ExponentialHistogramDataPoint_Buckets {
+        if self.positive.is_none() {
+            self.positive.set_default();
+        }
+        self.positive.as_mut().unwrap()
+    }
+
+    // Take field
+    pub fn take_positive(&mut self) -> ExponentialHistogramDataPoint_Buckets {
+        self.positive.take().unwrap_or_else(|| ExponentialHistogramDataPoint_Buckets::new())
+    }
+
+    // .opentelemetry.proto.metrics.v1.ExponentialHistogramDataPoint.Buckets negative = 9;
+
+
+    pub fn get_negative(&self) -> &ExponentialHistogramDataPoint_Buckets {
+        self.negative.as_ref().unwrap_or_else(|| <ExponentialHistogramDataPoint_Buckets as ::protobuf::Message>::default_instance())
+    }
+    pub fn clear_negative(&mut self) {
+        self.negative.clear();
+    }
+
+    pub fn has_negative(&self) -> bool {
+        self.negative.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_negative(&mut self, v: ExponentialHistogramDataPoint_Buckets) {
+        self.negative = ::protobuf::SingularPtrField::some(v);
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_negative(&mut self) -> &mut ExponentialHistogramDataPoint_Buckets {
+        if self.negative.is_none() {
+            self.negative.set_default();
+        }
+        self.negative.as_mut().unwrap()
+    }
+
+    // Take field
+    pub fn take_negative(&mut self) -> ExponentialHistogramDataPoint_Buckets {
+        self.negative.take().unwrap_or_else(|| ExponentialHistogramDataPoint_Buckets::new())
+    }
+
+    // uint32 flags = 10;
+
+
+    pub fn get_flags(&self) -> u32 {
+        self.flags
+    }
+    pub fn clear_flags(&mut self) {
+        self.flags = 0;
+    }
+
+    // Param is passed by value, moved
+    pub fn set_flags(&mut self, v: u32) {
+        self.flags = v;
+    }
+
+    // repeated .opentelemetry.proto.metrics.v1.Exemplar exemplars = 11;
+
+
+    pub fn get_exemplars(&self) -> &[Exemplar] {
+        &self.exemplars
+    }
+    pub fn clear_exemplars(&mut self) {
+        self.exemplars.clear();
+    }
+
+    // Param is passed by value, moved
+    pub fn set_exemplars(&mut self, v: ::protobuf::RepeatedField<Exemplar>) {
+        self.exemplars = v;
+    }
+
+    // Mutable pointer to the field.
+    pub fn mut_exemplars(&mut self) -> &mut ::protobuf::RepeatedField<Exemplar> {
+        &mut self.exemplars
+    }
+
+    // Take field
+    pub fn take_exemplars(&mut self) -> ::protobuf::RepeatedField<Exemplar> {
+        ::std::mem::replace(&mut self.exemplars, ::protobuf::RepeatedField::new())
+    }
+}
+
+impl ::protobuf::Message for ExponentialHistogramDataPoint {
+    fn is_initialized(&self) -> bool {
+        for v in &self.attributes {
+            if !v.is_initialized() {
+                return false;
+            }
+        };
+        for v in &self.positive {
+            if !v.is_initialized() {
+                return false;
+            }
+        };
+        for v in &self.negative {
+            if !v.is_initialized() {
+                return false;
+            }
+        };
+        for v in &self.exemplars {
+            if !v.is_initialized() {
+                return false;
+            }
+        };
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::ProtobufResult<()> {
+        while !is.eof()? {
+            let (field_number, wire_type) = is.read_tag_unpack()?;
+            match field_number {
+                1 => {
+                    ::protobuf::rt::read_repeated_message_into(wire_type, is, &mut self.attributes)?;
+                },
+                2 => {
+                    if wire_type != ::protobuf::wire_format::WireTypeFixed64 {
+                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
+                    }
+                    let tmp = is.read_fixed64()?;
+                    self.start_time_unix_nano = tmp;
+                },
+                3 => {
+                    if wire_type != ::protobuf::wire_format::WireTypeFixed64 {
+                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
+                    }
+                    let tmp = is.read_fixed64()?;
+                    self.time_unix_nano = tmp;
+                },
+                4 => {
+                    if wire_type != ::protobuf::wire_format::WireTypeFixed64 {
+                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
+                    }
+                    let tmp = is.read_fixed64()?;
+                    self.count = tmp;
+                },
+                5 => {
+                    if wire_type != ::protobuf::wire_format::WireTypeFixed64 {
+                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
+                    }
+                    let tmp = is.read_double()?;
+                    self.sum = tmp;
+                },
+                6 => {
+                    if wire_type != ::protobuf::wire_format::WireTypeVarint {
+                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
+                    }
+                    let tmp = is.read_sint32()?;
+                    self.scale = tmp;
+                },
+                7 => {
+                    if wire_type != ::protobuf::wire_format::WireTypeFixed64 {
+                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
+                    }
+                    let tmp = is.read_fixed64()?;
+                    self.zero_count = tmp;
+                },
+                8 => {
+                    ::protobuf::rt::read_singular_message_into(wire_type, is, &mut self.positive)?;
+                },
+                9 => {
+                    ::protobuf::rt::read_singular_message_into(wire_type, is, &mut self.negative)?;
+                },
+                10 => {
+                    if wire_type != ::protobuf::wire_format::WireTypeVarint {
+                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
+                    }
+                    let tmp = is.read_uint32()?;
+                    self.flags = tmp;
+                },
+                11 => {
+                    ::protobuf::rt::read_repeated_message_into(wire_type, is, &mut self.exemplars)?;
+                },
+                _ => {
+                    ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u32 {
+        let mut my_size = 0;
+        for value in &self.attributes {
+            let len = value.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
+        };
+        if self.start_time_unix_nano != 0 {
+            my_size += 9;
+        }
+        if self.time_unix_nano != 0 {
+            my_size += 9;
+        }
+        if self.count != 0 {
+            my_size += 9;
+        }
+        if self.sum != 0. {
+            my_size += 9;
+        }
+        if self.scale != 0 {
+            my_size += ::protobuf::rt::value_varint_zigzag_size(6, self.scale);
+        }
+        if self.zero_count != 0 {
+            my_size += 9;
+        }
+        if let Some(ref v) = self.positive.as_ref() {
+            let len = v.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
+        }
+        if let Some(ref v) = self.negative.as_ref() {
+            let len = v.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
+        }
+        if self.flags != 0 {
+            my_size += ::protobuf::rt::value_size(10, self.flags, ::protobuf::wire_format::WireTypeVarint);
+        }
+        for value in &self.exemplars {
+            let len = value.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
+        };
+        my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
+        self.cached_size.set(my_size);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
+        for v in &self.attributes {
+            os.write_tag(1, ::protobuf::wire_format::WireTypeLengthDelimited)?;
+            os.write_raw_varint32(v.get_cached_size())?;
+            v.write_to_with_cached_sizes(os)?;
+        };
+        if self.start_time_unix_nano != 0 {
+            os.write_fixed64(2, self.start_time_unix_nano)?;
+        }
+        if self.time_unix_nano != 0 {
+            os.write_fixed64(3, self.time_unix_nano)?;
+        }
+        if self.count != 0 {
+            os.write_fixed64(4, self.count)?;
+        }
+        if self.sum != 0. {
+            os.write_double(5, self.sum)?;
+        }
+        if self.scale != 0 {
+            os.write_sint32(6, self.scale)?;
+        }
+        if self.zero_count != 0 {
+            os.write_fixed64(7, self.zero_count)?;
+        }
+        if let Some(ref v) = self.positive.as_ref() {
+            os.write_tag(8, ::protobuf::wire_format::WireTypeLengthDelimited)?;
+            os.write_raw_varint32(v.get_cached_size())?;
+            v.write_to_with_cached_sizes(os)?;
+        }
+        if let Some(ref v) = self.negative.as_ref() {
+            os.write_tag(9, ::protobuf::wire_format::WireTypeLengthDelimited)?;
+            os.write_raw_varint32(v.get_cached_size())?;
+            v.write_to_with_cached_sizes(os)?;
+        }
+        if self.flags != 0 {
+            os.write_uint32(10, self.flags)?;
+        }
+        for v in &self.exemplars {
+            os.write_tag(11, ::protobuf::wire_format::WireTypeLengthDelimited)?;
+            os.write_raw_varint32(v.get_cached_size())?;
+            v.write_to_with_cached_sizes(os)?;
+        };
+        os.write_unknown_fields(self.get_unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn get_cached_size(&self) -> u32 {
+        self.cached_size.get()
+    }
+
+    fn get_unknown_fields(&self) -> &::protobuf::UnknownFields {
+        &self.unknown_fields
+    }
+
+    fn mut_unknown_fields(&mut self) -> &mut ::protobuf::UnknownFields {
+        &mut self.unknown_fields
+    }
+
+    fn as_any(&self) -> &dyn (::std::any::Any) {
+        self as &dyn (::std::any::Any)
+    }
+    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
+        self as &mut dyn (::std::any::Any)
+    }
+    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
+        self
+    }
+
+    fn descriptor(&self) -> &'static ::protobuf::reflect::MessageDescriptor {
+        Self::descriptor_static()
+    }
+
+    fn new() -> ExponentialHistogramDataPoint {
+        ExponentialHistogramDataPoint::new()
+    }
+
+    fn descriptor_static() -> &'static ::protobuf::reflect::MessageDescriptor {
+        static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
+        descriptor.get(|| {
+            let mut fields = ::std::vec::Vec::new();
+            fields.push(::protobuf::reflect::accessor::make_repeated_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<super::common::KeyValue>>(
+                "attributes",
+                |m: &ExponentialHistogramDataPoint| { &m.attributes },
+                |m: &mut ExponentialHistogramDataPoint| { &mut m.attributes },
+            ));
+            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeFixed64>(
+                "start_time_unix_nano",
+                |m: &ExponentialHistogramDataPoint| { &m.start_time_unix_nano },
+                |m: &mut ExponentialHistogramDataPoint| { &mut m.start_time_unix_nano },
+            ));
+            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeFixed64>(
+                "time_unix_nano",
+                |m: &ExponentialHistogramDataPoint| { &m.time_unix_nano },
+                |m: &mut ExponentialHistogramDataPoint| { &mut m.time_unix_nano },
+            ));
+            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeFixed64>(
+                "count",
+                |m: &ExponentialHistogramDataPoint| { &m.count },
+                |m: &mut ExponentialHistogramDataPoint| { &mut m.count },
+            ));
+            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeDouble>(
+                "sum",
+                |m: &ExponentialHistogramDataPoint| { &m.sum },
+                |m: &mut ExponentialHistogramDataPoint| { &mut m.sum },
+            ));
+            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeSint32>(
+                "scale",
+                |m: &ExponentialHistogramDataPoint| { &m.scale },
+                |m: &mut ExponentialHistogramDataPoint| { &mut m.scale },
+            ));
+            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeFixed64>(
+                "zero_count",
+                |m: &ExponentialHistogramDataPoint| { &m.zero_count },
+                |m: &mut ExponentialHistogramDataPoint| { &mut m.zero_count },
+            ));
+            fields.push(::protobuf::reflect::accessor::make_singular_ptr_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<ExponentialHistogramDataPoint_Buckets>>(
+                "positive",
+                |m: &ExponentialHistogramDataPoint| { &m.positive },
+                |m: &mut ExponentialHistogramDataPoint| { &mut m.positive },
+            ));
+            fields.push(::protobuf::reflect::accessor::make_singular_ptr_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<ExponentialHistogramDataPoint_Buckets>>(
+                "negative",
+                |m: &ExponentialHistogramDataPoint| { &m.negative },
+                |m: &mut ExponentialHistogramDataPoint| { &mut m.negative },
+            ));
+            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeUint32>(
+                "flags",
+                |m: &ExponentialHistogramDataPoint| { &m.flags },
+                |m: &mut ExponentialHistogramDataPoint| { &mut m.flags },
+            ));
+            fields.push(::protobuf::reflect::accessor::make_repeated_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<Exemplar>>(
+                "exemplars",
+                |m: &ExponentialHistogramDataPoint| { &m.exemplars },
+                |m: &mut ExponentialHistogramDataPoint| { &mut m.exemplars },
+            ));
+            ::protobuf::reflect::MessageDescriptor::new_pb_name::<ExponentialHistogramDataPoint>(
+                "ExponentialHistogramDataPoint",
+                fields,
+                file_descriptor_proto()
+            )
+        })
+    }
+
+    fn default_instance() -> &'static ExponentialHistogramDataPoint {
+        static instance: ::protobuf::rt::LazyV2<ExponentialHistogramDataPoint> = ::protobuf::rt::LazyV2::INIT;
+        instance.get(ExponentialHistogramDataPoint::new)
+    }
+}
+
+impl ::protobuf::Clear for ExponentialHistogramDataPoint {
+    fn clear(&mut self) {
+        self.attributes.clear();
+        self.start_time_unix_nano = 0;
+        self.time_unix_nano = 0;
+        self.count = 0;
+        self.sum = 0.;
+        self.scale = 0;
+        self.zero_count = 0;
+        self.positive.clear();
+        self.negative.clear();
+        self.flags = 0;
+        self.exemplars.clear();
+        self.unknown_fields.clear();
+    }
+}
+
+impl ::std::fmt::Debug for ExponentialHistogramDataPoint {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        ::protobuf::text_format::fmt(self, f)
+    }
+}
+
+impl ::protobuf::reflect::ProtobufValue for ExponentialHistogramDataPoint {
+    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
+        ::protobuf::reflect::ReflectValueRef::Message(self)
+    }
+}
+
+#[derive(PartialEq,Clone,Default)]
+#[cfg_attr(feature = "with-serde", derive(::serde::Serialize, ::serde::Deserialize))]
+pub struct ExponentialHistogramDataPoint_Buckets {
+    // message fields
+    pub offset: i32,
+    pub bucket_counts: ::std::vec::Vec<u64>,
+    // special fields
+    #[cfg_attr(feature = "with-serde", serde(skip))]
+    pub unknown_fields: ::protobuf::UnknownFields,
+    #[cfg_attr(feature = "with-serde", serde(skip))]
+    pub cached_size: ::protobuf::CachedSize,
+}
+
+impl<'a> ::std::default::Default for &'a ExponentialHistogramDataPoint_Buckets {
+    fn default() -> &'a ExponentialHistogramDataPoint_Buckets {
+        <ExponentialHistogramDataPoint_Buckets as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl ExponentialHistogramDataPoint_Buckets {
+    pub fn new() -> ExponentialHistogramDataPoint_Buckets {
+        ::std::default::Default::default()
+    }
+
+    // sint32 offset = 1;
+
+
+    pub fn get_offset(&self) -> i32 {
+        self.offset
+    }
+    pub fn clear_offset(&mut self) {
+        self.offset = 0;
+    }
+
+    // Param is passed by value, moved
+    pub fn set_offset(&mut self, v: i32) {
+        self.offset = v;
+    }
+
+    // repeated uint64 bucket_counts = 2;
+
+
+    pub fn get_bucket_counts(&self) -> &[u64] {
+        &self.bucket_counts
+    }
+    pub fn clear_bucket_counts(&mut self) {
+        self.bucket_counts.clear();
+    }
+
+    // Param is passed by value, moved
+    pub fn set_bucket_counts(&mut self, v: ::std::vec::Vec<u64>) {
+        self.bucket_counts = v;
+    }
+
+    // Mutable pointer to the field.
+    pub fn mut_bucket_counts(&mut self) -> &mut ::std::vec::Vec<u64> {
+        &mut self.bucket_counts
+    }
+
+    // Take field
+    pub fn take_bucket_counts(&mut self) -> ::std::vec::Vec<u64> {
+        ::std::mem::replace(&mut self.bucket_counts, ::std::vec::Vec::new())
+    }
+}
+
+impl ::protobuf::Message for ExponentialHistogramDataPoint_Buckets {
+    fn is_initialized(&self) -> bool {
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::ProtobufResult<()> {
+        while !is.eof()? {
+            let (field_number, wire_type) = is.read_tag_unpack()?;
+            match field_number {
+                1 => {
+                    if wire_type != ::protobuf::wire_format::WireTypeVarint {
+                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
+                    }
+                    let tmp = is.read_sint32()?;
+                    self.offset = tmp;
+                },
+                2 => {
+                    ::protobuf::rt::read_repeated_uint64_into(wire_type, is, &mut self.bucket_counts)?;
+                },
+                _ => {
+                    ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u32 {
+        let mut my_size = 0;
+        if self.offset != 0 {
+            my_size += ::protobuf::rt::value_varint_zigzag_size(1, self.offset);
+        }
+        for value in &self.bucket_counts {
+            my_size += ::protobuf::rt::value_size(2, *value, ::protobuf::wire_format::WireTypeVarint);
+        };
+        my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
+        self.cached_size.set(my_size);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
+        if self.offset != 0 {
+            os.write_sint32(1, self.offset)?;
+        }
+        for v in &self.bucket_counts {
+            os.write_uint64(2, *v)?;
+        };
+        os.write_unknown_fields(self.get_unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn get_cached_size(&self) -> u32 {
+        self.cached_size.get()
+    }
+
+    fn get_unknown_fields(&self) -> &::protobuf::UnknownFields {
+        &self.unknown_fields
+    }
+
+    fn mut_unknown_fields(&mut self) -> &mut ::protobuf::UnknownFields {
+        &mut self.unknown_fields
+    }
+
+    fn as_any(&self) -> &dyn (::std::any::Any) {
+        self as &dyn (::std::any::Any)
+    }
+    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
+        self as &mut dyn (::std::any::Any)
+    }
+    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
+        self
+    }
+
+    fn descriptor(&self) -> &'static ::protobuf::reflect::MessageDescriptor {
+        Self::descriptor_static()
+    }
+
+    fn new() -> ExponentialHistogramDataPoint_Buckets {
+        ExponentialHistogramDataPoint_Buckets::new()
+    }
+
+    fn descriptor_static() -> &'static ::protobuf::reflect::MessageDescriptor {
+        static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
+        descriptor.get(|| {
+            let mut fields = ::std::vec::Vec::new();
+            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeSint32>(
+                "offset",
+                |m: &ExponentialHistogramDataPoint_Buckets| { &m.offset },
+                |m: &mut ExponentialHistogramDataPoint_Buckets| { &mut m.offset },
+            ));
+            fields.push(::protobuf::reflect::accessor::make_vec_accessor::<_, ::protobuf::types::ProtobufTypeUint64>(
+                "bucket_counts",
+                |m: &ExponentialHistogramDataPoint_Buckets| { &m.bucket_counts },
+                |m: &mut ExponentialHistogramDataPoint_Buckets| { &mut m.bucket_counts },
+            ));
+            ::protobuf::reflect::MessageDescriptor::new_pb_name::<ExponentialHistogramDataPoint_Buckets>(
+                "ExponentialHistogramDataPoint.Buckets",
+                fields,
+                file_descriptor_proto()
+            )
+        })
+    }
+
+    fn default_instance() -> &'static ExponentialHistogramDataPoint_Buckets {
+        static instance: ::protobuf::rt::LazyV2<ExponentialHistogramDataPoint_Buckets> = ::protobuf::rt::LazyV2::INIT;
+        instance.get(ExponentialHistogramDataPoint_Buckets::new)
+    }
+}
+
+impl ::protobuf::Clear for ExponentialHistogramDataPoint_Buckets {
+    fn clear(&mut self) {
+        self.offset = 0;
+        self.bucket_counts.clear();
+        self.unknown_fields.clear();
+    }
+}
+
+impl ::std::fmt::Debug for ExponentialHistogramDataPoint_Buckets {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        ::protobuf::text_format::fmt(self, f)
+    }
+}
+
+impl ::protobuf::reflect::ProtobufValue for ExponentialHistogramDataPoint_Buckets {
+    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
+        ::protobuf::reflect::ReflectValueRef::Message(self)
+    }
+}
+
+#[derive(PartialEq,Clone,Default)]
+#[cfg_attr(feature = "with-serde", derive(::serde::Serialize, ::serde::Deserialize))]
 pub struct SummaryDataPoint {
     // message fields
     pub attributes: ::protobuf::RepeatedField<super::common::KeyValue>,
-    pub labels: ::protobuf::RepeatedField<super::common::StringKeyValue>,
     pub start_time_unix_nano: u64,
     pub time_unix_nano: u64,
     pub count: u64,
     pub sum: f64,
     pub quantile_values: ::protobuf::RepeatedField<SummaryDataPoint_ValueAtQuantile>,
+    pub flags: u32,
     // special fields
     #[cfg_attr(feature = "with-serde", serde(skip))]
     pub unknown_fields: ::protobuf::UnknownFields,
@@ -4465,31 +4064,6 @@ impl SummaryDataPoint {
     // Take field
     pub fn take_attributes(&mut self) -> ::protobuf::RepeatedField<super::common::KeyValue> {
         ::std::mem::replace(&mut self.attributes, ::protobuf::RepeatedField::new())
-    }
-
-    // repeated .opentelemetry.proto.common.v1.StringKeyValue labels = 1;
-
-
-    pub fn get_labels(&self) -> &[super::common::StringKeyValue] {
-        &self.labels
-    }
-    pub fn clear_labels(&mut self) {
-        self.labels.clear();
-    }
-
-    // Param is passed by value, moved
-    pub fn set_labels(&mut self, v: ::protobuf::RepeatedField<super::common::StringKeyValue>) {
-        self.labels = v;
-    }
-
-    // Mutable pointer to the field.
-    pub fn mut_labels(&mut self) -> &mut ::protobuf::RepeatedField<super::common::StringKeyValue> {
-        &mut self.labels
-    }
-
-    // Take field
-    pub fn take_labels(&mut self) -> ::protobuf::RepeatedField<super::common::StringKeyValue> {
-        ::std::mem::replace(&mut self.labels, ::protobuf::RepeatedField::new())
     }
 
     // fixed64 start_time_unix_nano = 2;
@@ -4576,16 +4150,26 @@ impl SummaryDataPoint {
     pub fn take_quantile_values(&mut self) -> ::protobuf::RepeatedField<SummaryDataPoint_ValueAtQuantile> {
         ::std::mem::replace(&mut self.quantile_values, ::protobuf::RepeatedField::new())
     }
+
+    // uint32 flags = 8;
+
+
+    pub fn get_flags(&self) -> u32 {
+        self.flags
+    }
+    pub fn clear_flags(&mut self) {
+        self.flags = 0;
+    }
+
+    // Param is passed by value, moved
+    pub fn set_flags(&mut self, v: u32) {
+        self.flags = v;
+    }
 }
 
 impl ::protobuf::Message for SummaryDataPoint {
     fn is_initialized(&self) -> bool {
         for v in &self.attributes {
-            if !v.is_initialized() {
-                return false;
-            }
-        };
-        for v in &self.labels {
             if !v.is_initialized() {
                 return false;
             }
@@ -4604,9 +4188,6 @@ impl ::protobuf::Message for SummaryDataPoint {
             match field_number {
                 7 => {
                     ::protobuf::rt::read_repeated_message_into(wire_type, is, &mut self.attributes)?;
-                },
-                1 => {
-                    ::protobuf::rt::read_repeated_message_into(wire_type, is, &mut self.labels)?;
                 },
                 2 => {
                     if wire_type != ::protobuf::wire_format::WireTypeFixed64 {
@@ -4639,6 +4220,13 @@ impl ::protobuf::Message for SummaryDataPoint {
                 6 => {
                     ::protobuf::rt::read_repeated_message_into(wire_type, is, &mut self.quantile_values)?;
                 },
+                8 => {
+                    if wire_type != ::protobuf::wire_format::WireTypeVarint {
+                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
+                    }
+                    let tmp = is.read_uint32()?;
+                    self.flags = tmp;
+                },
                 _ => {
                     ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
                 },
@@ -4652,10 +4240,6 @@ impl ::protobuf::Message for SummaryDataPoint {
     fn compute_size(&self) -> u32 {
         let mut my_size = 0;
         for value in &self.attributes {
-            let len = value.compute_size();
-            my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
-        };
-        for value in &self.labels {
             let len = value.compute_size();
             my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
         };
@@ -4675,6 +4259,9 @@ impl ::protobuf::Message for SummaryDataPoint {
             let len = value.compute_size();
             my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
         };
+        if self.flags != 0 {
+            my_size += ::protobuf::rt::value_size(8, self.flags, ::protobuf::wire_format::WireTypeVarint);
+        }
         my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
         self.cached_size.set(my_size);
         my_size
@@ -4683,11 +4270,6 @@ impl ::protobuf::Message for SummaryDataPoint {
     fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
         for v in &self.attributes {
             os.write_tag(7, ::protobuf::wire_format::WireTypeLengthDelimited)?;
-            os.write_raw_varint32(v.get_cached_size())?;
-            v.write_to_with_cached_sizes(os)?;
-        };
-        for v in &self.labels {
-            os.write_tag(1, ::protobuf::wire_format::WireTypeLengthDelimited)?;
             os.write_raw_varint32(v.get_cached_size())?;
             v.write_to_with_cached_sizes(os)?;
         };
@@ -4708,6 +4290,9 @@ impl ::protobuf::Message for SummaryDataPoint {
             os.write_raw_varint32(v.get_cached_size())?;
             v.write_to_with_cached_sizes(os)?;
         };
+        if self.flags != 0 {
+            os.write_uint32(8, self.flags)?;
+        }
         os.write_unknown_fields(self.get_unknown_fields())?;
         ::std::result::Result::Ok(())
     }
@@ -4751,11 +4336,6 @@ impl ::protobuf::Message for SummaryDataPoint {
                 |m: &SummaryDataPoint| { &m.attributes },
                 |m: &mut SummaryDataPoint| { &mut m.attributes },
             ));
-            fields.push(::protobuf::reflect::accessor::make_repeated_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<super::common::StringKeyValue>>(
-                "labels",
-                |m: &SummaryDataPoint| { &m.labels },
-                |m: &mut SummaryDataPoint| { &mut m.labels },
-            ));
             fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeFixed64>(
                 "start_time_unix_nano",
                 |m: &SummaryDataPoint| { &m.start_time_unix_nano },
@@ -4781,6 +4361,11 @@ impl ::protobuf::Message for SummaryDataPoint {
                 |m: &SummaryDataPoint| { &m.quantile_values },
                 |m: &mut SummaryDataPoint| { &mut m.quantile_values },
             ));
+            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeUint32>(
+                "flags",
+                |m: &SummaryDataPoint| { &m.flags },
+                |m: &mut SummaryDataPoint| { &mut m.flags },
+            ));
             ::protobuf::reflect::MessageDescriptor::new_pb_name::<SummaryDataPoint>(
                 "SummaryDataPoint",
                 fields,
@@ -4798,12 +4383,12 @@ impl ::protobuf::Message for SummaryDataPoint {
 impl ::protobuf::Clear for SummaryDataPoint {
     fn clear(&mut self) {
         self.attributes.clear();
-        self.labels.clear();
         self.start_time_unix_nano = 0;
         self.time_unix_nano = 0;
         self.count = 0;
         self.sum = 0.;
         self.quantile_values.clear();
+        self.flags = 0;
         self.unknown_fields.clear();
     }
 }
@@ -5012,333 +4597,9 @@ impl ::protobuf::reflect::ProtobufValue for SummaryDataPoint_ValueAtQuantile {
 
 #[derive(PartialEq,Clone,Default)]
 #[cfg_attr(feature = "with-serde", derive(::serde::Serialize, ::serde::Deserialize))]
-pub struct IntExemplar {
-    // message fields
-    pub filtered_labels: ::protobuf::RepeatedField<super::common::StringKeyValue>,
-    pub time_unix_nano: u64,
-    pub value: i64,
-    pub span_id: ::std::vec::Vec<u8>,
-    pub trace_id: ::std::vec::Vec<u8>,
-    // special fields
-    #[cfg_attr(feature = "with-serde", serde(skip))]
-    pub unknown_fields: ::protobuf::UnknownFields,
-    #[cfg_attr(feature = "with-serde", serde(skip))]
-    pub cached_size: ::protobuf::CachedSize,
-}
-
-impl<'a> ::std::default::Default for &'a IntExemplar {
-    fn default() -> &'a IntExemplar {
-        <IntExemplar as ::protobuf::Message>::default_instance()
-    }
-}
-
-impl IntExemplar {
-    pub fn new() -> IntExemplar {
-        ::std::default::Default::default()
-    }
-
-    // repeated .opentelemetry.proto.common.v1.StringKeyValue filtered_labels = 1;
-
-
-    pub fn get_filtered_labels(&self) -> &[super::common::StringKeyValue] {
-        &self.filtered_labels
-    }
-    pub fn clear_filtered_labels(&mut self) {
-        self.filtered_labels.clear();
-    }
-
-    // Param is passed by value, moved
-    pub fn set_filtered_labels(&mut self, v: ::protobuf::RepeatedField<super::common::StringKeyValue>) {
-        self.filtered_labels = v;
-    }
-
-    // Mutable pointer to the field.
-    pub fn mut_filtered_labels(&mut self) -> &mut ::protobuf::RepeatedField<super::common::StringKeyValue> {
-        &mut self.filtered_labels
-    }
-
-    // Take field
-    pub fn take_filtered_labels(&mut self) -> ::protobuf::RepeatedField<super::common::StringKeyValue> {
-        ::std::mem::replace(&mut self.filtered_labels, ::protobuf::RepeatedField::new())
-    }
-
-    // fixed64 time_unix_nano = 2;
-
-
-    pub fn get_time_unix_nano(&self) -> u64 {
-        self.time_unix_nano
-    }
-    pub fn clear_time_unix_nano(&mut self) {
-        self.time_unix_nano = 0;
-    }
-
-    // Param is passed by value, moved
-    pub fn set_time_unix_nano(&mut self, v: u64) {
-        self.time_unix_nano = v;
-    }
-
-    // sfixed64 value = 3;
-
-
-    pub fn get_value(&self) -> i64 {
-        self.value
-    }
-    pub fn clear_value(&mut self) {
-        self.value = 0;
-    }
-
-    // Param is passed by value, moved
-    pub fn set_value(&mut self, v: i64) {
-        self.value = v;
-    }
-
-    // bytes span_id = 4;
-
-
-    pub fn get_span_id(&self) -> &[u8] {
-        &self.span_id
-    }
-    pub fn clear_span_id(&mut self) {
-        self.span_id.clear();
-    }
-
-    // Param is passed by value, moved
-    pub fn set_span_id(&mut self, v: ::std::vec::Vec<u8>) {
-        self.span_id = v;
-    }
-
-    // Mutable pointer to the field.
-    // If field is not initialized, it is initialized with default value first.
-    pub fn mut_span_id(&mut self) -> &mut ::std::vec::Vec<u8> {
-        &mut self.span_id
-    }
-
-    // Take field
-    pub fn take_span_id(&mut self) -> ::std::vec::Vec<u8> {
-        ::std::mem::replace(&mut self.span_id, ::std::vec::Vec::new())
-    }
-
-    // bytes trace_id = 5;
-
-
-    pub fn get_trace_id(&self) -> &[u8] {
-        &self.trace_id
-    }
-    pub fn clear_trace_id(&mut self) {
-        self.trace_id.clear();
-    }
-
-    // Param is passed by value, moved
-    pub fn set_trace_id(&mut self, v: ::std::vec::Vec<u8>) {
-        self.trace_id = v;
-    }
-
-    // Mutable pointer to the field.
-    // If field is not initialized, it is initialized with default value first.
-    pub fn mut_trace_id(&mut self) -> &mut ::std::vec::Vec<u8> {
-        &mut self.trace_id
-    }
-
-    // Take field
-    pub fn take_trace_id(&mut self) -> ::std::vec::Vec<u8> {
-        ::std::mem::replace(&mut self.trace_id, ::std::vec::Vec::new())
-    }
-}
-
-impl ::protobuf::Message for IntExemplar {
-    fn is_initialized(&self) -> bool {
-        for v in &self.filtered_labels {
-            if !v.is_initialized() {
-                return false;
-            }
-        };
-        true
-    }
-
-    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::ProtobufResult<()> {
-        while !is.eof()? {
-            let (field_number, wire_type) = is.read_tag_unpack()?;
-            match field_number {
-                1 => {
-                    ::protobuf::rt::read_repeated_message_into(wire_type, is, &mut self.filtered_labels)?;
-                },
-                2 => {
-                    if wire_type != ::protobuf::wire_format::WireTypeFixed64 {
-                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
-                    }
-                    let tmp = is.read_fixed64()?;
-                    self.time_unix_nano = tmp;
-                },
-                3 => {
-                    if wire_type != ::protobuf::wire_format::WireTypeFixed64 {
-                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
-                    }
-                    let tmp = is.read_sfixed64()?;
-                    self.value = tmp;
-                },
-                4 => {
-                    ::protobuf::rt::read_singular_proto3_bytes_into(wire_type, is, &mut self.span_id)?;
-                },
-                5 => {
-                    ::protobuf::rt::read_singular_proto3_bytes_into(wire_type, is, &mut self.trace_id)?;
-                },
-                _ => {
-                    ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
-                },
-            };
-        }
-        ::std::result::Result::Ok(())
-    }
-
-    // Compute sizes of nested messages
-    #[allow(unused_variables)]
-    fn compute_size(&self) -> u32 {
-        let mut my_size = 0;
-        for value in &self.filtered_labels {
-            let len = value.compute_size();
-            my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
-        };
-        if self.time_unix_nano != 0 {
-            my_size += 9;
-        }
-        if self.value != 0 {
-            my_size += 9;
-        }
-        if !self.span_id.is_empty() {
-            my_size += ::protobuf::rt::bytes_size(4, &self.span_id);
-        }
-        if !self.trace_id.is_empty() {
-            my_size += ::protobuf::rt::bytes_size(5, &self.trace_id);
-        }
-        my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
-        self.cached_size.set(my_size);
-        my_size
-    }
-
-    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
-        for v in &self.filtered_labels {
-            os.write_tag(1, ::protobuf::wire_format::WireTypeLengthDelimited)?;
-            os.write_raw_varint32(v.get_cached_size())?;
-            v.write_to_with_cached_sizes(os)?;
-        };
-        if self.time_unix_nano != 0 {
-            os.write_fixed64(2, self.time_unix_nano)?;
-        }
-        if self.value != 0 {
-            os.write_sfixed64(3, self.value)?;
-        }
-        if !self.span_id.is_empty() {
-            os.write_bytes(4, &self.span_id)?;
-        }
-        if !self.trace_id.is_empty() {
-            os.write_bytes(5, &self.trace_id)?;
-        }
-        os.write_unknown_fields(self.get_unknown_fields())?;
-        ::std::result::Result::Ok(())
-    }
-
-    fn get_cached_size(&self) -> u32 {
-        self.cached_size.get()
-    }
-
-    fn get_unknown_fields(&self) -> &::protobuf::UnknownFields {
-        &self.unknown_fields
-    }
-
-    fn mut_unknown_fields(&mut self) -> &mut ::protobuf::UnknownFields {
-        &mut self.unknown_fields
-    }
-
-    fn as_any(&self) -> &dyn (::std::any::Any) {
-        self as &dyn (::std::any::Any)
-    }
-    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
-        self as &mut dyn (::std::any::Any)
-    }
-    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
-        self
-    }
-
-    fn descriptor(&self) -> &'static ::protobuf::reflect::MessageDescriptor {
-        Self::descriptor_static()
-    }
-
-    fn new() -> IntExemplar {
-        IntExemplar::new()
-    }
-
-    fn descriptor_static() -> &'static ::protobuf::reflect::MessageDescriptor {
-        static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
-        descriptor.get(|| {
-            let mut fields = ::std::vec::Vec::new();
-            fields.push(::protobuf::reflect::accessor::make_repeated_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<super::common::StringKeyValue>>(
-                "filtered_labels",
-                |m: &IntExemplar| { &m.filtered_labels },
-                |m: &mut IntExemplar| { &mut m.filtered_labels },
-            ));
-            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeFixed64>(
-                "time_unix_nano",
-                |m: &IntExemplar| { &m.time_unix_nano },
-                |m: &mut IntExemplar| { &mut m.time_unix_nano },
-            ));
-            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeSfixed64>(
-                "value",
-                |m: &IntExemplar| { &m.value },
-                |m: &mut IntExemplar| { &mut m.value },
-            ));
-            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeBytes>(
-                "span_id",
-                |m: &IntExemplar| { &m.span_id },
-                |m: &mut IntExemplar| { &mut m.span_id },
-            ));
-            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeBytes>(
-                "trace_id",
-                |m: &IntExemplar| { &m.trace_id },
-                |m: &mut IntExemplar| { &mut m.trace_id },
-            ));
-            ::protobuf::reflect::MessageDescriptor::new_pb_name::<IntExemplar>(
-                "IntExemplar",
-                fields,
-                file_descriptor_proto()
-            )
-        })
-    }
-
-    fn default_instance() -> &'static IntExemplar {
-        static instance: ::protobuf::rt::LazyV2<IntExemplar> = ::protobuf::rt::LazyV2::INIT;
-        instance.get(IntExemplar::new)
-    }
-}
-
-impl ::protobuf::Clear for IntExemplar {
-    fn clear(&mut self) {
-        self.filtered_labels.clear();
-        self.time_unix_nano = 0;
-        self.value = 0;
-        self.span_id.clear();
-        self.trace_id.clear();
-        self.unknown_fields.clear();
-    }
-}
-
-impl ::std::fmt::Debug for IntExemplar {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-        ::protobuf::text_format::fmt(self, f)
-    }
-}
-
-impl ::protobuf::reflect::ProtobufValue for IntExemplar {
-    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
-        ::protobuf::reflect::ReflectValueRef::Message(self)
-    }
-}
-
-#[derive(PartialEq,Clone,Default)]
-#[cfg_attr(feature = "with-serde", derive(::serde::Serialize, ::serde::Deserialize))]
 pub struct Exemplar {
     // message fields
     pub filtered_attributes: ::protobuf::RepeatedField<super::common::KeyValue>,
-    pub filtered_labels: ::protobuf::RepeatedField<super::common::StringKeyValue>,
     pub time_unix_nano: u64,
     pub span_id: ::std::vec::Vec<u8>,
     pub trace_id: ::std::vec::Vec<u8>,
@@ -5392,31 +4653,6 @@ impl Exemplar {
     // Take field
     pub fn take_filtered_attributes(&mut self) -> ::protobuf::RepeatedField<super::common::KeyValue> {
         ::std::mem::replace(&mut self.filtered_attributes, ::protobuf::RepeatedField::new())
-    }
-
-    // repeated .opentelemetry.proto.common.v1.StringKeyValue filtered_labels = 1;
-
-
-    pub fn get_filtered_labels(&self) -> &[super::common::StringKeyValue] {
-        &self.filtered_labels
-    }
-    pub fn clear_filtered_labels(&mut self) {
-        self.filtered_labels.clear();
-    }
-
-    // Param is passed by value, moved
-    pub fn set_filtered_labels(&mut self, v: ::protobuf::RepeatedField<super::common::StringKeyValue>) {
-        self.filtered_labels = v;
-    }
-
-    // Mutable pointer to the field.
-    pub fn mut_filtered_labels(&mut self) -> &mut ::protobuf::RepeatedField<super::common::StringKeyValue> {
-        &mut self.filtered_labels
-    }
-
-    // Take field
-    pub fn take_filtered_labels(&mut self) -> ::protobuf::RepeatedField<super::common::StringKeyValue> {
-        ::std::mem::replace(&mut self.filtered_labels, ::protobuf::RepeatedField::new())
     }
 
     // fixed64 time_unix_nano = 2;
@@ -5544,11 +4780,6 @@ impl ::protobuf::Message for Exemplar {
                 return false;
             }
         };
-        for v in &self.filtered_labels {
-            if !v.is_initialized() {
-                return false;
-            }
-        };
         true
     }
 
@@ -5558,9 +4789,6 @@ impl ::protobuf::Message for Exemplar {
             match field_number {
                 7 => {
                     ::protobuf::rt::read_repeated_message_into(wire_type, is, &mut self.filtered_attributes)?;
-                },
-                1 => {
-                    ::protobuf::rt::read_repeated_message_into(wire_type, is, &mut self.filtered_labels)?;
                 },
                 2 => {
                     if wire_type != ::protobuf::wire_format::WireTypeFixed64 {
@@ -5603,10 +4831,6 @@ impl ::protobuf::Message for Exemplar {
             let len = value.compute_size();
             my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
         };
-        for value in &self.filtered_labels {
-            let len = value.compute_size();
-            my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
-        };
         if self.time_unix_nano != 0 {
             my_size += 9;
         }
@@ -5634,11 +4858,6 @@ impl ::protobuf::Message for Exemplar {
     fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
         for v in &self.filtered_attributes {
             os.write_tag(7, ::protobuf::wire_format::WireTypeLengthDelimited)?;
-            os.write_raw_varint32(v.get_cached_size())?;
-            v.write_to_with_cached_sizes(os)?;
-        };
-        for v in &self.filtered_labels {
-            os.write_tag(1, ::protobuf::wire_format::WireTypeLengthDelimited)?;
             os.write_raw_varint32(v.get_cached_size())?;
             v.write_to_with_cached_sizes(os)?;
         };
@@ -5704,11 +4923,6 @@ impl ::protobuf::Message for Exemplar {
                 |m: &Exemplar| { &m.filtered_attributes },
                 |m: &mut Exemplar| { &mut m.filtered_attributes },
             ));
-            fields.push(::protobuf::reflect::accessor::make_repeated_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<super::common::StringKeyValue>>(
-                "filtered_labels",
-                |m: &Exemplar| { &m.filtered_labels },
-                |m: &mut Exemplar| { &mut m.filtered_labels },
-            ));
             fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeFixed64>(
                 "time_unix_nano",
                 |m: &Exemplar| { &m.time_unix_nano },
@@ -5751,7 +4965,6 @@ impl ::protobuf::Message for Exemplar {
 impl ::protobuf::Clear for Exemplar {
     fn clear(&mut self) {
         self.filtered_attributes.clear();
-        self.filtered_labels.clear();
         self.time_unix_nano = 0;
         self.value = ::std::option::Option::None;
         self.value = ::std::option::Option::None;
@@ -5827,114 +5040,151 @@ impl ::protobuf::reflect::ProtobufValue for AggregationTemporality {
     }
 }
 
+#[derive(Clone,PartialEq,Eq,Debug,Hash)]
+#[cfg_attr(feature = "with-serde", derive(::serde::Serialize, ::serde::Deserialize))]
+pub enum DataPointFlags {
+    FLAG_NONE = 0,
+    FLAG_NO_RECORDED_VALUE = 1,
+}
+
+impl ::protobuf::ProtobufEnum for DataPointFlags {
+    fn value(&self) -> i32 {
+        *self as i32
+    }
+
+    fn from_i32(value: i32) -> ::std::option::Option<DataPointFlags> {
+        match value {
+            0 => ::std::option::Option::Some(DataPointFlags::FLAG_NONE),
+            1 => ::std::option::Option::Some(DataPointFlags::FLAG_NO_RECORDED_VALUE),
+            _ => ::std::option::Option::None
+        }
+    }
+
+    fn values() -> &'static [Self] {
+        static values: &'static [DataPointFlags] = &[
+            DataPointFlags::FLAG_NONE,
+            DataPointFlags::FLAG_NO_RECORDED_VALUE,
+        ];
+        values
+    }
+
+    fn enum_descriptor_static() -> &'static ::protobuf::reflect::EnumDescriptor {
+        static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::EnumDescriptor> = ::protobuf::rt::LazyV2::INIT;
+        descriptor.get(|| {
+            ::protobuf::reflect::EnumDescriptor::new_pb_name::<DataPointFlags>("DataPointFlags", file_descriptor_proto())
+        })
+    }
+}
+
+impl ::std::marker::Copy for DataPointFlags {
+}
+
+impl ::std::default::Default for DataPointFlags {
+    fn default() -> Self {
+        DataPointFlags::FLAG_NONE
+    }
+}
+
+impl ::protobuf::reflect::ProtobufValue for DataPointFlags {
+    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
+        ::protobuf::reflect::ReflectValueRef::Enum(::protobuf::ProtobufEnum::descriptor(self))
+    }
+}
+
 static file_descriptor_proto_data: &'static [u8] = b"\
     \n,opentelemetry/proto/metrics/v1/metrics.proto\x12\x1eopentelemetry.pro\
     to.metrics.v1\x1a*opentelemetry/proto/common/v1/common.proto\x1a.opentel\
-    emetry/proto/resource/v1/resource.proto\"\xff\x01\n\x0fResourceMetrics\
-    \x12E\n\x08resource\x18\x01\x20\x01(\x0b2).opentelemetry.proto.resource.\
-    v1.ResourceR\x08resource\x12\x85\x01\n\x1finstrumentation_library_metric\
-    s\x18\x02\x20\x03(\x0b2=.opentelemetry.proto.metrics.v1.InstrumentationL\
-    ibraryMetricsR\x1dinstrumentationLibraryMetrics\x12\x1d\n\nschema_url\
-    \x18\x03\x20\x01(\tR\tschemaUrl\"\xf0\x01\n\x1dInstrumentationLibraryMet\
-    rics\x12n\n\x17instrumentation_library\x18\x01\x20\x01(\x0b25.openteleme\
-    try.proto.common.v1.InstrumentationLibraryR\x16instrumentationLibrary\
-    \x12@\n\x07metrics\x18\x02\x20\x03(\x0b2&.opentelemetry.proto.metrics.v1\
-    .MetricR\x07metrics\x12\x1d\n\nschema_url\x18\x03\x20\x01(\tR\tschemaUrl\
-    \"\xcf\x04\n\x06Metric\x12\x12\n\x04name\x18\x01\x20\x01(\tR\x04name\x12\
-    \x20\n\x0bdescription\x18\x02\x20\x01(\tR\x0bdescription\x12\x12\n\x04un\
-    it\x18\x03\x20\x01(\tR\x04unit\x12K\n\tint_gauge\x18\x04\x20\x01(\x0b2(.\
-    opentelemetry.proto.metrics.v1.IntGaugeH\0R\x08intGaugeB\x02\x18\x01\x12\
-    =\n\x05gauge\x18\x05\x20\x01(\x0b2%.opentelemetry.proto.metrics.v1.Gauge\
-    H\0R\x05gauge\x12E\n\x07int_sum\x18\x06\x20\x01(\x0b2&.opentelemetry.pro\
-    to.metrics.v1.IntSumH\0R\x06intSumB\x02\x18\x01\x127\n\x03sum\x18\x07\
-    \x20\x01(\x0b2#.opentelemetry.proto.metrics.v1.SumH\0R\x03sum\x12W\n\rin\
-    t_histogram\x18\x08\x20\x01(\x0b2,.opentelemetry.proto.metrics.v1.IntHis\
-    togramH\0R\x0cintHistogramB\x02\x18\x01\x12I\n\thistogram\x18\t\x20\x01(\
-    \x0b2).opentelemetry.proto.metrics.v1.HistogramH\0R\thistogram\x12C\n\
-    \x07summary\x18\x0b\x20\x01(\x0b2'.opentelemetry.proto.metrics.v1.Summar\
-    yH\0R\x07summaryB\x06\n\x04data\"]\n\x08IntGauge\x12M\n\x0bdata_points\
-    \x18\x01\x20\x03(\x0b2,.opentelemetry.proto.metrics.v1.IntDataPointR\nda\
-    taPoints:\x02\x18\x01\"Y\n\x05Gauge\x12P\n\x0bdata_points\x18\x01\x20\
+    emetry/proto/resource/v1/resource.proto\"i\n\x0bMetricsData\x12Z\n\x10re\
+    source_metrics\x18\x01\x20\x03(\x0b2/.opentelemetry.proto.metrics.v1.Res\
+    ourceMetricsR\x0fresourceMetrics\"\xff\x01\n\x0fResourceMetrics\x12E\n\
+    \x08resource\x18\x01\x20\x01(\x0b2).opentelemetry.proto.resource.v1.Reso\
+    urceR\x08resource\x12\x85\x01\n\x1finstrumentation_library_metrics\x18\
+    \x02\x20\x03(\x0b2=.opentelemetry.proto.metrics.v1.InstrumentationLibrar\
+    yMetricsR\x1dinstrumentationLibraryMetrics\x12\x1d\n\nschema_url\x18\x03\
+    \x20\x01(\tR\tschemaUrl\"\xf0\x01\n\x1dInstrumentationLibraryMetrics\x12\
+    n\n\x17instrumentation_library\x18\x01\x20\x01(\x0b25.opentelemetry.prot\
+    o.common.v1.InstrumentationLibraryR\x16instrumentationLibrary\x12@\n\x07\
+    metrics\x18\x02\x20\x03(\x0b2&.opentelemetry.proto.metrics.v1.MetricR\
+    \x07metrics\x12\x1d\n\nschema_url\x18\x03\x20\x01(\tR\tschemaUrl\"\xe1\
+    \x03\n\x06Metric\x12\x12\n\x04name\x18\x01\x20\x01(\tR\x04name\x12\x20\n\
+    \x0bdescription\x18\x02\x20\x01(\tR\x0bdescription\x12\x12\n\x04unit\x18\
+    \x03\x20\x01(\tR\x04unit\x12=\n\x05gauge\x18\x05\x20\x01(\x0b2%.opentele\
+    metry.proto.metrics.v1.GaugeH\0R\x05gauge\x127\n\x03sum\x18\x07\x20\x01(\
+    \x0b2#.opentelemetry.proto.metrics.v1.SumH\0R\x03sum\x12I\n\thistogram\
+    \x18\t\x20\x01(\x0b2).opentelemetry.proto.metrics.v1.HistogramH\0R\thist\
+    ogram\x12k\n\x15exponential_histogram\x18\n\x20\x01(\x0b24.opentelemetry\
+    .proto.metrics.v1.ExponentialHistogramH\0R\x14exponentialHistogram\x12C\
+    \n\x07summary\x18\x0b\x20\x01(\x0b2'.opentelemetry.proto.metrics.v1.Summ\
+    aryH\0R\x07summaryB\x06\n\x04dataJ\x04\x08\x04\x10\x05J\x04\x08\x06\x10\
+    \x07J\x04\x08\x08\x10\t\"Y\n\x05Gauge\x12P\n\x0bdata_points\x18\x01\x20\
     \x03(\x0b2/.opentelemetry.proto.metrics.v1.NumberDataPointR\ndataPoints\
-    \"\xef\x01\n\x06IntSum\x12M\n\x0bdata_points\x18\x01\x20\x03(\x0b2,.open\
-    telemetry.proto.metrics.v1.IntDataPointR\ndataPoints\x12o\n\x17aggregati\
+    \"\xeb\x01\n\x03Sum\x12P\n\x0bdata_points\x18\x01\x20\x03(\x0b2/.opentel\
+    emetry.proto.metrics.v1.NumberDataPointR\ndataPoints\x12o\n\x17aggregati\
     on_temporality\x18\x02\x20\x01(\x0e26.opentelemetry.proto.metrics.v1.Agg\
     regationTemporalityR\x16aggregationTemporality\x12!\n\x0cis_monotonic\
-    \x18\x03\x20\x01(\x08R\x0bisMonotonic:\x02\x18\x01\"\xeb\x01\n\x03Sum\
-    \x12P\n\x0bdata_points\x18\x01\x20\x03(\x0b2/.opentelemetry.proto.metric\
-    s.v1.NumberDataPointR\ndataPoints\x12o\n\x17aggregation_temporality\x18\
+    \x18\x03\x20\x01(\x08R\x0bisMonotonic\"\xd1\x01\n\tHistogram\x12S\n\x0bd\
+    ata_points\x18\x01\x20\x03(\x0b22.opentelemetry.proto.metrics.v1.Histogr\
+    amDataPointR\ndataPoints\x12o\n\x17aggregation_temporality\x18\x02\x20\
+    \x01(\x0e26.opentelemetry.proto.metrics.v1.AggregationTemporalityR\x16ag\
+    gregationTemporality\"\xe7\x01\n\x14ExponentialHistogram\x12^\n\x0bdata_\
+    points\x18\x01\x20\x03(\x0b2=.opentelemetry.proto.metrics.v1.Exponential\
+    HistogramDataPointR\ndataPoints\x12o\n\x17aggregation_temporality\x18\
     \x02\x20\x01(\x0e26.opentelemetry.proto.metrics.v1.AggregationTemporalit\
-    yR\x16aggregationTemporality\x12!\n\x0cis_monotonic\x18\x03\x20\x01(\x08\
-    R\x0bisMonotonic\"\xdb\x01\n\x0cIntHistogram\x12V\n\x0bdata_points\x18\
-    \x01\x20\x03(\x0b25.opentelemetry.proto.metrics.v1.IntHistogramDataPoint\
-    R\ndataPoints\x12o\n\x17aggregation_temporality\x18\x02\x20\x01(\x0e26.o\
-    pentelemetry.proto.metrics.v1.AggregationTemporalityR\x16aggregationTemp\
-    orality:\x02\x18\x01\"\xd1\x01\n\tHistogram\x12S\n\x0bdata_points\x18\
-    \x01\x20\x03(\x0b22.opentelemetry.proto.metrics.v1.HistogramDataPointR\n\
-    dataPoints\x12o\n\x17aggregation_temporality\x18\x02\x20\x01(\x0e26.open\
-    telemetry.proto.metrics.v1.AggregationTemporalityR\x16aggregationTempora\
-    lity\"\\\n\x07Summary\x12Q\n\x0bdata_points\x18\x01\x20\x03(\x0b20.opent\
-    elemetry.proto.metrics.v1.SummaryDataPointR\ndataPoints\"\x91\x02\n\x0cI\
-    ntDataPoint\x12E\n\x06labels\x18\x01\x20\x03(\x0b2-.opentelemetry.proto.\
-    common.v1.StringKeyValueR\x06labels\x12/\n\x14start_time_unix_nano\x18\
-    \x02\x20\x01(\x06R\x11startTimeUnixNano\x12$\n\x0etime_unix_nano\x18\x03\
-    \x20\x01(\x06R\x0ctimeUnixNano\x12\x14\n\x05value\x18\x04\x20\x01(\x10R\
-    \x05value\x12I\n\texemplars\x18\x05\x20\x03(\x0b2+.opentelemetry.proto.m\
-    etrics.v1.IntExemplarR\texemplars:\x02\x18\x01\"\x85\x03\n\x0fNumberData\
-    Point\x12G\n\nattributes\x18\x07\x20\x03(\x0b2'.opentelemetry.proto.comm\
-    on.v1.KeyValueR\nattributes\x12I\n\x06labels\x18\x01\x20\x03(\x0b2-.open\
-    telemetry.proto.common.v1.StringKeyValueR\x06labelsB\x02\x18\x01\x12/\n\
+    yR\x16aggregationTemporality\"\\\n\x07Summary\x12Q\n\x0bdata_points\x18\
+    \x01\x20\x03(\x0b20.opentelemetry.proto.metrics.v1.SummaryDataPointR\nda\
+    taPoints\"\xd6\x02\n\x0fNumberDataPoint\x12G\n\nattributes\x18\x07\x20\
+    \x03(\x0b2'.opentelemetry.proto.common.v1.KeyValueR\nattributes\x12/\n\
     \x14start_time_unix_nano\x18\x02\x20\x01(\x06R\x11startTimeUnixNano\x12$\
     \n\x0etime_unix_nano\x18\x03\x20\x01(\x06R\x0ctimeUnixNano\x12\x1d\n\tas\
     _double\x18\x04\x20\x01(\x01H\0R\x08asDouble\x12\x17\n\x06as_int\x18\x06\
     \x20\x01(\x10H\0R\x05asInt\x12F\n\texemplars\x18\x05\x20\x03(\x0b2(.open\
-    telemetry.proto.metrics.v1.ExemplarR\texemplarsB\x07\n\x05value\"\xfa\
-    \x02\n\x15IntHistogramDataPoint\x12E\n\x06labels\x18\x01\x20\x03(\x0b2-.\
-    opentelemetry.proto.common.v1.StringKeyValueR\x06labels\x12/\n\x14start_\
-    time_unix_nano\x18\x02\x20\x01(\x06R\x11startTimeUnixNano\x12$\n\x0etime\
-    _unix_nano\x18\x03\x20\x01(\x06R\x0ctimeUnixNano\x12\x14\n\x05count\x18\
-    \x04\x20\x01(\x06R\x05count\x12\x10\n\x03sum\x18\x05\x20\x01(\x10R\x03su\
-    m\x12#\n\rbucket_counts\x18\x06\x20\x03(\x06R\x0cbucketCounts\x12'\n\x0f\
-    explicit_bounds\x18\x07\x20\x03(\x01R\x0eexplicitBounds\x12I\n\texemplar\
-    s\x18\x08\x20\x03(\x0b2+.opentelemetry.proto.metrics.v1.IntExemplarR\tex\
-    emplars:\x02\x18\x01\"\xbd\x03\n\x12HistogramDataPoint\x12G\n\nattribute\
-    s\x18\t\x20\x03(\x0b2'.opentelemetry.proto.common.v1.KeyValueR\nattribut\
-    es\x12I\n\x06labels\x18\x01\x20\x03(\x0b2-.opentelemetry.proto.common.v1\
-    .StringKeyValueR\x06labelsB\x02\x18\x01\x12/\n\x14start_time_unix_nano\
-    \x18\x02\x20\x01(\x06R\x11startTimeUnixNano\x12$\n\x0etime_unix_nano\x18\
-    \x03\x20\x01(\x06R\x0ctimeUnixNano\x12\x14\n\x05count\x18\x04\x20\x01(\
-    \x06R\x05count\x12\x10\n\x03sum\x18\x05\x20\x01(\x01R\x03sum\x12#\n\rbuc\
-    ket_counts\x18\x06\x20\x03(\x06R\x0cbucketCounts\x12'\n\x0fexplicit_boun\
-    ds\x18\x07\x20\x03(\x01R\x0eexplicitBounds\x12F\n\texemplars\x18\x08\x20\
-    \x03(\x0b2(.opentelemetry.proto.metrics.v1.ExemplarR\texemplars\"\xd5\
+    telemetry.proto.metrics.v1.ExemplarR\texemplars\x12\x14\n\x05flags\x18\
+    \x08\x20\x01(\rR\x05flagsB\x07\n\x05valueJ\x04\x08\x01\x10\x02\"\x8e\x03\
+    \n\x12HistogramDataPoint\x12G\n\nattributes\x18\t\x20\x03(\x0b2'.opentel\
+    emetry.proto.common.v1.KeyValueR\nattributes\x12/\n\x14start_time_unix_n\
+    ano\x18\x02\x20\x01(\x06R\x11startTimeUnixNano\x12$\n\x0etime_unix_nano\
+    \x18\x03\x20\x01(\x06R\x0ctimeUnixNano\x12\x14\n\x05count\x18\x04\x20\
+    \x01(\x06R\x05count\x12\x10\n\x03sum\x18\x05\x20\x01(\x01R\x03sum\x12#\n\
+    \rbucket_counts\x18\x06\x20\x03(\x06R\x0cbucketCounts\x12'\n\x0fexplicit\
+    _bounds\x18\x07\x20\x03(\x01R\x0eexplicitBounds\x12F\n\texemplars\x18\
+    \x08\x20\x03(\x0b2(.opentelemetry.proto.metrics.v1.ExemplarR\texemplars\
+    \x12\x14\n\x05flags\x18\n\x20\x01(\rR\x05flagsJ\x04\x08\x01\x10\x02\"\
+    \x88\x05\n\x1dExponentialHistogramDataPoint\x12G\n\nattributes\x18\x01\
+    \x20\x03(\x0b2'.opentelemetry.proto.common.v1.KeyValueR\nattributes\x12/\
+    \n\x14start_time_unix_nano\x18\x02\x20\x01(\x06R\x11startTimeUnixNano\
+    \x12$\n\x0etime_unix_nano\x18\x03\x20\x01(\x06R\x0ctimeUnixNano\x12\x14\
+    \n\x05count\x18\x04\x20\x01(\x06R\x05count\x12\x10\n\x03sum\x18\x05\x20\
+    \x01(\x01R\x03sum\x12\x14\n\x05scale\x18\x06\x20\x01(\x11R\x05scale\x12\
+    \x1d\n\nzero_count\x18\x07\x20\x01(\x06R\tzeroCount\x12a\n\x08positive\
+    \x18\x08\x20\x01(\x0b2E.opentelemetry.proto.metrics.v1.ExponentialHistog\
+    ramDataPoint.BucketsR\x08positive\x12a\n\x08negative\x18\t\x20\x01(\x0b2\
+    E.opentelemetry.proto.metrics.v1.ExponentialHistogramDataPoint.BucketsR\
+    \x08negative\x12\x14\n\x05flags\x18\n\x20\x01(\rR\x05flags\x12F\n\texemp\
+    lars\x18\x0b\x20\x03(\x0b2(.opentelemetry.proto.metrics.v1.ExemplarR\tex\
+    emplars\x1aF\n\x07Buckets\x12\x16\n\x06offset\x18\x01\x20\x01(\x11R\x06o\
+    ffset\x12#\n\rbucket_counts\x18\x02\x20\x03(\x04R\x0cbucketCounts\"\xa6\
     \x03\n\x10SummaryDataPoint\x12G\n\nattributes\x18\x07\x20\x03(\x0b2'.ope\
-    ntelemetry.proto.common.v1.KeyValueR\nattributes\x12I\n\x06labels\x18\
-    \x01\x20\x03(\x0b2-.opentelemetry.proto.common.v1.StringKeyValueR\x06lab\
-    elsB\x02\x18\x01\x12/\n\x14start_time_unix_nano\x18\x02\x20\x01(\x06R\
-    \x11startTimeUnixNano\x12$\n\x0etime_unix_nano\x18\x03\x20\x01(\x06R\x0c\
-    timeUnixNano\x12\x14\n\x05count\x18\x04\x20\x01(\x06R\x05count\x12\x10\n\
-    \x03sum\x18\x05\x20\x01(\x01R\x03sum\x12i\n\x0fquantile_values\x18\x06\
-    \x20\x03(\x0b2@.opentelemetry.proto.metrics.v1.SummaryDataPoint.ValueAtQ\
-    uantileR\x0equantileValues\x1aC\n\x0fValueAtQuantile\x12\x1a\n\x08quanti\
-    le\x18\x01\x20\x01(\x01R\x08quantile\x12\x14\n\x05value\x18\x02\x20\x01(\
-    \x01R\x05value\"\xd9\x01\n\x0bIntExemplar\x12V\n\x0ffiltered_labels\x18\
-    \x01\x20\x03(\x0b2-.opentelemetry.proto.common.v1.StringKeyValueR\x0efil\
-    teredLabels\x12$\n\x0etime_unix_nano\x18\x02\x20\x01(\x06R\x0ctimeUnixNa\
-    no\x12\x14\n\x05value\x18\x03\x20\x01(\x10R\x05value\x12\x17\n\x07span_i\
-    d\x18\x04\x20\x01(\x0cR\x06spanId\x12\x19\n\x08trace_id\x18\x05\x20\x01(\
-    \x0cR\x07traceId:\x02\x18\x01\"\xdb\x02\n\x08Exemplar\x12X\n\x13filtered\
-    _attributes\x18\x07\x20\x03(\x0b2'.opentelemetry.proto.common.v1.KeyValu\
-    eR\x12filteredAttributes\x12Z\n\x0ffiltered_labels\x18\x01\x20\x03(\x0b2\
-    -.opentelemetry.proto.common.v1.StringKeyValueR\x0efilteredLabelsB\x02\
-    \x18\x01\x12$\n\x0etime_unix_nano\x18\x02\x20\x01(\x06R\x0ctimeUnixNano\
-    \x12\x1d\n\tas_double\x18\x03\x20\x01(\x01H\0R\x08asDouble\x12\x17\n\x06\
-    as_int\x18\x06\x20\x01(\x10H\0R\x05asInt\x12\x17\n\x07span_id\x18\x04\
-    \x20\x01(\x0cR\x06spanId\x12\x19\n\x08trace_id\x18\x05\x20\x01(\x0cR\x07\
-    traceIdB\x07\n\x05value*\x8c\x01\n\x16AggregationTemporality\x12'\n#AGGR\
-    EGATION_TEMPORALITY_UNSPECIFIED\x10\0\x12!\n\x1dAGGREGATION_TEMPORALITY_\
-    DELTA\x10\x01\x12&\n\"AGGREGATION_TEMPORALITY_CUMULATIVE\x10\x02Bt\n!io.\
-    opentelemetry.proto.metrics.v1B\x0cMetricsProtoP\x01Z?github.com/open-te\
-    lemetry/opentelemetry-proto/gen/go/metrics/v1b\x06proto3\
+    ntelemetry.proto.common.v1.KeyValueR\nattributes\x12/\n\x14start_time_un\
+    ix_nano\x18\x02\x20\x01(\x06R\x11startTimeUnixNano\x12$\n\x0etime_unix_n\
+    ano\x18\x03\x20\x01(\x06R\x0ctimeUnixNano\x12\x14\n\x05count\x18\x04\x20\
+    \x01(\x06R\x05count\x12\x10\n\x03sum\x18\x05\x20\x01(\x01R\x03sum\x12i\n\
+    \x0fquantile_values\x18\x06\x20\x03(\x0b2@.opentelemetry.proto.metrics.v\
+    1.SummaryDataPoint.ValueAtQuantileR\x0equantileValues\x12\x14\n\x05flags\
+    \x18\x08\x20\x01(\rR\x05flags\x1aC\n\x0fValueAtQuantile\x12\x1a\n\x08qua\
+    ntile\x18\x01\x20\x01(\x01R\x08quantile\x12\x14\n\x05value\x18\x02\x20\
+    \x01(\x01R\x05valueJ\x04\x08\x01\x10\x02\"\x85\x02\n\x08Exemplar\x12X\n\
+    \x13filtered_attributes\x18\x07\x20\x03(\x0b2'.opentelemetry.proto.commo\
+    n.v1.KeyValueR\x12filteredAttributes\x12$\n\x0etime_unix_nano\x18\x02\
+    \x20\x01(\x06R\x0ctimeUnixNano\x12\x1d\n\tas_double\x18\x03\x20\x01(\x01\
+    H\0R\x08asDouble\x12\x17\n\x06as_int\x18\x06\x20\x01(\x10H\0R\x05asInt\
+    \x12\x17\n\x07span_id\x18\x04\x20\x01(\x0cR\x06spanId\x12\x19\n\x08trace\
+    _id\x18\x05\x20\x01(\x0cR\x07traceIdB\x07\n\x05valueJ\x04\x08\x01\x10\
+    \x02*\x8c\x01\n\x16AggregationTemporality\x12'\n#AGGREGATION_TEMPORALITY\
+    _UNSPECIFIED\x10\0\x12!\n\x1dAGGREGATION_TEMPORALITY_DELTA\x10\x01\x12&\
+    \n\"AGGREGATION_TEMPORALITY_CUMULATIVE\x10\x02*;\n\x0eDataPointFlags\x12\
+    \r\n\tFLAG_NONE\x10\0\x12\x1a\n\x16FLAG_NO_RECORDED_VALUE\x10\x01B^\n!io\
+    .opentelemetry.proto.metrics.v1B\x0cMetricsProtoP\x01Z)go.opentelemetry.\
+    io/proto/otlp/metrics/v1b\x06proto3\
 ";
 
 static file_descriptor_proto_lazy: ::protobuf::rt::LazyV2<::protobuf::descriptor::FileDescriptorProto> = ::protobuf::rt::LazyV2::INIT;

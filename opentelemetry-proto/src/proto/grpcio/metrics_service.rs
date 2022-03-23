@@ -319,10 +319,9 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     ricsR\x0fresourceMetrics\"\x1e\n\x1cExportMetricsServiceResponse2\xac\
     \x01\n\x0eMetricsService\x12\x99\x01\n\x06Export\x12E.opentelemetry.prot\
     o.collector.metrics.v1.ExportMetricsServiceRequest\x1aF.opentelemetry.pr\
-    oto.collector.metrics.v1.ExportMetricsServiceResponse\"\0B\x8f\x01\n+io.\
-    opentelemetry.proto.collector.metrics.v1B\x13MetricsServiceProtoP\x01ZIg\
-    ithub.com/open-telemetry/opentelemetry-proto/gen/go/collector/metrics/v1\
-    b\x06proto3\
+    oto.collector.metrics.v1.ExportMetricsServiceResponse\"\0By\n+io.opentel\
+    emetry.proto.collector.metrics.v1B\x13MetricsServiceProtoP\x01Z3go.opent\
+    elemetry.io/proto/otlp/collector/metrics/v1b\x06proto3\
 ";
 
 static file_descriptor_proto_lazy: ::protobuf::rt::LazyV2<::protobuf::descriptor::FileDescriptorProto> = ::protobuf::rt::LazyV2::INIT;

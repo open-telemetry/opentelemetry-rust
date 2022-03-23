@@ -102,7 +102,6 @@ pub mod tonic {
                                 trace::Status::Error { description } => description.to_string(),
                                 _ => Default::default(),
                             },
-                            ..Default::default()
                         }),
                     }],
                 }],
