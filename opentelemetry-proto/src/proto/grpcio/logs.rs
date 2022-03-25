@@ -25,6 +25,175 @@
 
 #[derive(PartialEq,Clone,Default)]
 #[cfg_attr(feature = "with-serde", derive(::serde::Serialize, ::serde::Deserialize))]
+pub struct LogsData {
+    // message fields
+    pub resource_logs: ::protobuf::RepeatedField<ResourceLogs>,
+    // special fields
+    #[cfg_attr(feature = "with-serde", serde(skip))]
+    pub unknown_fields: ::protobuf::UnknownFields,
+    #[cfg_attr(feature = "with-serde", serde(skip))]
+    pub cached_size: ::protobuf::CachedSize,
+}
+
+impl<'a> ::std::default::Default for &'a LogsData {
+    fn default() -> &'a LogsData {
+        <LogsData as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl LogsData {
+    pub fn new() -> LogsData {
+        ::std::default::Default::default()
+    }
+
+    // repeated .opentelemetry.proto.logs.v1.ResourceLogs resource_logs = 1;
+
+
+    pub fn get_resource_logs(&self) -> &[ResourceLogs] {
+        &self.resource_logs
+    }
+    pub fn clear_resource_logs(&mut self) {
+        self.resource_logs.clear();
+    }
+
+    // Param is passed by value, moved
+    pub fn set_resource_logs(&mut self, v: ::protobuf::RepeatedField<ResourceLogs>) {
+        self.resource_logs = v;
+    }
+
+    // Mutable pointer to the field.
+    pub fn mut_resource_logs(&mut self) -> &mut ::protobuf::RepeatedField<ResourceLogs> {
+        &mut self.resource_logs
+    }
+
+    // Take field
+    pub fn take_resource_logs(&mut self) -> ::protobuf::RepeatedField<ResourceLogs> {
+        ::std::mem::replace(&mut self.resource_logs, ::protobuf::RepeatedField::new())
+    }
+}
+
+impl ::protobuf::Message for LogsData {
+    fn is_initialized(&self) -> bool {
+        for v in &self.resource_logs {
+            if !v.is_initialized() {
+                return false;
+            }
+        };
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::ProtobufResult<()> {
+        while !is.eof()? {
+            let (field_number, wire_type) = is.read_tag_unpack()?;
+            match field_number {
+                1 => {
+                    ::protobuf::rt::read_repeated_message_into(wire_type, is, &mut self.resource_logs)?;
+                },
+                _ => {
+                    ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u32 {
+        let mut my_size = 0;
+        for value in &self.resource_logs {
+            let len = value.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
+        };
+        my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
+        self.cached_size.set(my_size);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
+        for v in &self.resource_logs {
+            os.write_tag(1, ::protobuf::wire_format::WireTypeLengthDelimited)?;
+            os.write_raw_varint32(v.get_cached_size())?;
+            v.write_to_with_cached_sizes(os)?;
+        };
+        os.write_unknown_fields(self.get_unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn get_cached_size(&self) -> u32 {
+        self.cached_size.get()
+    }
+
+    fn get_unknown_fields(&self) -> &::protobuf::UnknownFields {
+        &self.unknown_fields
+    }
+
+    fn mut_unknown_fields(&mut self) -> &mut ::protobuf::UnknownFields {
+        &mut self.unknown_fields
+    }
+
+    fn as_any(&self) -> &dyn (::std::any::Any) {
+        self as &dyn (::std::any::Any)
+    }
+    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
+        self as &mut dyn (::std::any::Any)
+    }
+    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
+        self
+    }
+
+    fn descriptor(&self) -> &'static ::protobuf::reflect::MessageDescriptor {
+        Self::descriptor_static()
+    }
+
+    fn new() -> LogsData {
+        LogsData::new()
+    }
+
+    fn descriptor_static() -> &'static ::protobuf::reflect::MessageDescriptor {
+        static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
+        descriptor.get(|| {
+            let mut fields = ::std::vec::Vec::new();
+            fields.push(::protobuf::reflect::accessor::make_repeated_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<ResourceLogs>>(
+                "resource_logs",
+                |m: &LogsData| { &m.resource_logs },
+                |m: &mut LogsData| { &mut m.resource_logs },
+            ));
+            ::protobuf::reflect::MessageDescriptor::new_pb_name::<LogsData>(
+                "LogsData",
+                fields,
+                file_descriptor_proto()
+            )
+        })
+    }
+
+    fn default_instance() -> &'static LogsData {
+        static instance: ::protobuf::rt::LazyV2<LogsData> = ::protobuf::rt::LazyV2::INIT;
+        instance.get(LogsData::new)
+    }
+}
+
+impl ::protobuf::Clear for LogsData {
+    fn clear(&mut self) {
+        self.resource_logs.clear();
+        self.unknown_fields.clear();
+    }
+}
+
+impl ::std::fmt::Debug for LogsData {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        ::protobuf::text_format::fmt(self, f)
+    }
+}
+
+impl ::protobuf::reflect::ProtobufValue for LogsData {
+    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
+        ::protobuf::reflect::ReflectValueRef::Message(self)
+    }
+}
+
+#[derive(PartialEq,Clone,Default)]
+#[cfg_attr(feature = "with-serde", derive(::serde::Serialize, ::serde::Deserialize))]
 pub struct ResourceLogs {
     // message fields
     pub resource: ::protobuf::SingularPtrField<super::resource::Resource>,
@@ -296,7 +465,7 @@ impl ::protobuf::reflect::ProtobufValue for ResourceLogs {
 pub struct InstrumentationLibraryLogs {
     // message fields
     pub instrumentation_library: ::protobuf::SingularPtrField<super::common::InstrumentationLibrary>,
-    pub logs: ::protobuf::RepeatedField<LogRecord>,
+    pub log_records: ::protobuf::RepeatedField<LogRecord>,
     pub schema_url: ::std::string::String,
     // special fields
     #[cfg_attr(feature = "with-serde", serde(skip))]
@@ -349,29 +518,29 @@ impl InstrumentationLibraryLogs {
         self.instrumentation_library.take().unwrap_or_else(|| super::common::InstrumentationLibrary::new())
     }
 
-    // repeated .opentelemetry.proto.logs.v1.LogRecord logs = 2;
+    // repeated .opentelemetry.proto.logs.v1.LogRecord log_records = 2;
 
 
-    pub fn get_logs(&self) -> &[LogRecord] {
-        &self.logs
+    pub fn get_log_records(&self) -> &[LogRecord] {
+        &self.log_records
     }
-    pub fn clear_logs(&mut self) {
-        self.logs.clear();
+    pub fn clear_log_records(&mut self) {
+        self.log_records.clear();
     }
 
     // Param is passed by value, moved
-    pub fn set_logs(&mut self, v: ::protobuf::RepeatedField<LogRecord>) {
-        self.logs = v;
+    pub fn set_log_records(&mut self, v: ::protobuf::RepeatedField<LogRecord>) {
+        self.log_records = v;
     }
 
     // Mutable pointer to the field.
-    pub fn mut_logs(&mut self) -> &mut ::protobuf::RepeatedField<LogRecord> {
-        &mut self.logs
+    pub fn mut_log_records(&mut self) -> &mut ::protobuf::RepeatedField<LogRecord> {
+        &mut self.log_records
     }
 
     // Take field
-    pub fn take_logs(&mut self) -> ::protobuf::RepeatedField<LogRecord> {
-        ::std::mem::replace(&mut self.logs, ::protobuf::RepeatedField::new())
+    pub fn take_log_records(&mut self) -> ::protobuf::RepeatedField<LogRecord> {
+        ::std::mem::replace(&mut self.log_records, ::protobuf::RepeatedField::new())
     }
 
     // string schema_url = 3;
@@ -408,7 +577,7 @@ impl ::protobuf::Message for InstrumentationLibraryLogs {
                 return false;
             }
         };
-        for v in &self.logs {
+        for v in &self.log_records {
             if !v.is_initialized() {
                 return false;
             }
@@ -424,7 +593,7 @@ impl ::protobuf::Message for InstrumentationLibraryLogs {
                     ::protobuf::rt::read_singular_message_into(wire_type, is, &mut self.instrumentation_library)?;
                 },
                 2 => {
-                    ::protobuf::rt::read_repeated_message_into(wire_type, is, &mut self.logs)?;
+                    ::protobuf::rt::read_repeated_message_into(wire_type, is, &mut self.log_records)?;
                 },
                 3 => {
                     ::protobuf::rt::read_singular_proto3_string_into(wire_type, is, &mut self.schema_url)?;
@@ -445,7 +614,7 @@ impl ::protobuf::Message for InstrumentationLibraryLogs {
             let len = v.compute_size();
             my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
         }
-        for value in &self.logs {
+        for value in &self.log_records {
             let len = value.compute_size();
             my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
         };
@@ -463,7 +632,7 @@ impl ::protobuf::Message for InstrumentationLibraryLogs {
             os.write_raw_varint32(v.get_cached_size())?;
             v.write_to_with_cached_sizes(os)?;
         }
-        for v in &self.logs {
+        for v in &self.log_records {
             os.write_tag(2, ::protobuf::wire_format::WireTypeLengthDelimited)?;
             os.write_raw_varint32(v.get_cached_size())?;
             v.write_to_with_cached_sizes(os)?;
@@ -515,9 +684,9 @@ impl ::protobuf::Message for InstrumentationLibraryLogs {
                 |m: &mut InstrumentationLibraryLogs| { &mut m.instrumentation_library },
             ));
             fields.push(::protobuf::reflect::accessor::make_repeated_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<LogRecord>>(
-                "logs",
-                |m: &InstrumentationLibraryLogs| { &m.logs },
-                |m: &mut InstrumentationLibraryLogs| { &mut m.logs },
+                "log_records",
+                |m: &InstrumentationLibraryLogs| { &m.log_records },
+                |m: &mut InstrumentationLibraryLogs| { &mut m.log_records },
             ));
             fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeString>(
                 "schema_url",
@@ -541,7 +710,7 @@ impl ::protobuf::Message for InstrumentationLibraryLogs {
 impl ::protobuf::Clear for InstrumentationLibraryLogs {
     fn clear(&mut self) {
         self.instrumentation_library.clear();
-        self.logs.clear();
+        self.log_records.clear();
         self.schema_url.clear();
         self.unknown_fields.clear();
     }
@@ -564,6 +733,7 @@ impl ::protobuf::reflect::ProtobufValue for InstrumentationLibraryLogs {
 pub struct LogRecord {
     // message fields
     pub time_unix_nano: u64,
+    pub observed_time_unix_nano: u64,
     pub severity_number: SeverityNumber,
     pub severity_text: ::std::string::String,
     pub name: ::std::string::String,
@@ -604,6 +774,21 @@ impl LogRecord {
     // Param is passed by value, moved
     pub fn set_time_unix_nano(&mut self, v: u64) {
         self.time_unix_nano = v;
+    }
+
+    // fixed64 observed_time_unix_nano = 11;
+
+
+    pub fn get_observed_time_unix_nano(&self) -> u64 {
+        self.observed_time_unix_nano
+    }
+    pub fn clear_observed_time_unix_nano(&mut self) {
+        self.observed_time_unix_nano = 0;
+    }
+
+    // Param is passed by value, moved
+    pub fn set_observed_time_unix_nano(&mut self, v: u64) {
+        self.observed_time_unix_nano = v;
     }
 
     // .opentelemetry.proto.logs.v1.SeverityNumber severity_number = 2;
@@ -840,6 +1025,13 @@ impl ::protobuf::Message for LogRecord {
                     let tmp = is.read_fixed64()?;
                     self.time_unix_nano = tmp;
                 },
+                11 => {
+                    if wire_type != ::protobuf::wire_format::WireTypeFixed64 {
+                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
+                    }
+                    let tmp = is.read_fixed64()?;
+                    self.observed_time_unix_nano = tmp;
+                },
                 2 => {
                     ::protobuf::rt::read_proto3_enum_with_unknown_fields_into(wire_type, is, &mut self.severity_number, 2, &mut self.unknown_fields)?
                 },
@@ -890,6 +1082,9 @@ impl ::protobuf::Message for LogRecord {
         if self.time_unix_nano != 0 {
             my_size += 9;
         }
+        if self.observed_time_unix_nano != 0 {
+            my_size += 9;
+        }
         if self.severity_number != SeverityNumber::SEVERITY_NUMBER_UNSPECIFIED {
             my_size += ::protobuf::rt::enum_size(2, self.severity_number);
         }
@@ -927,6 +1122,9 @@ impl ::protobuf::Message for LogRecord {
     fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
         if self.time_unix_nano != 0 {
             os.write_fixed64(1, self.time_unix_nano)?;
+        }
+        if self.observed_time_unix_nano != 0 {
+            os.write_fixed64(11, self.observed_time_unix_nano)?;
         }
         if self.severity_number != SeverityNumber::SEVERITY_NUMBER_UNSPECIFIED {
             os.write_enum(2, ::protobuf::ProtobufEnum::value(&self.severity_number))?;
@@ -1002,6 +1200,11 @@ impl ::protobuf::Message for LogRecord {
                 |m: &LogRecord| { &m.time_unix_nano },
                 |m: &mut LogRecord| { &mut m.time_unix_nano },
             ));
+            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeFixed64>(
+                "observed_time_unix_nano",
+                |m: &LogRecord| { &m.observed_time_unix_nano },
+                |m: &mut LogRecord| { &mut m.observed_time_unix_nano },
+            ));
             fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeEnum<SeverityNumber>>(
                 "severity_number",
                 |m: &LogRecord| { &m.severity_number },
@@ -1064,6 +1267,7 @@ impl ::protobuf::Message for LogRecord {
 impl ::protobuf::Clear for LogRecord {
     fn clear(&mut self) {
         self.time_unix_nano = 0;
+        self.observed_time_unix_nano = 0;
         self.severity_number = SeverityNumber::SEVERITY_NUMBER_UNSPECIFIED;
         self.severity_text.clear();
         self.name.clear();
@@ -1263,45 +1467,48 @@ impl ::protobuf::reflect::ProtobufValue for LogRecordFlags {
 static file_descriptor_proto_data: &'static [u8] = b"\
     \n&opentelemetry/proto/logs/v1/logs.proto\x12\x1bopentelemetry.proto.log\
     s.v1\x1a*opentelemetry/proto/common/v1/common.proto\x1a.opentelemetry/pr\
-    oto/resource/v1/resource.proto\"\xef\x01\n\x0cResourceLogs\x12E\n\x08res\
-    ource\x18\x01\x20\x01(\x0b2).opentelemetry.proto.resource.v1.ResourceR\
-    \x08resource\x12y\n\x1cinstrumentation_library_logs\x18\x02\x20\x03(\x0b\
-    27.opentelemetry.proto.logs.v1.InstrumentationLibraryLogsR\x1ainstrument\
-    ationLibraryLogs\x12\x1d\n\nschema_url\x18\x03\x20\x01(\tR\tschemaUrl\"\
-    \xe7\x01\n\x1aInstrumentationLibraryLogs\x12n\n\x17instrumentation_libra\
-    ry\x18\x01\x20\x01(\x0b25.opentelemetry.proto.common.v1.InstrumentationL\
-    ibraryR\x16instrumentationLibrary\x12:\n\x04logs\x18\x02\x20\x03(\x0b2&.\
-    opentelemetry.proto.logs.v1.LogRecordR\x04logs\x12\x1d\n\nschema_url\x18\
-    \x03\x20\x01(\tR\tschemaUrl\"\xca\x03\n\tLogRecord\x12$\n\x0etime_unix_n\
-    ano\x18\x01\x20\x01(\x06R\x0ctimeUnixNano\x12T\n\x0fseverity_number\x18\
+    oto/resource/v1/resource.proto\"Z\n\x08LogsData\x12N\n\rresource_logs\
+    \x18\x01\x20\x03(\x0b2).opentelemetry.proto.logs.v1.ResourceLogsR\x0cres\
+    ourceLogs\"\xef\x01\n\x0cResourceLogs\x12E\n\x08resource\x18\x01\x20\x01\
+    (\x0b2).opentelemetry.proto.resource.v1.ResourceR\x08resource\x12y\n\x1c\
+    instrumentation_library_logs\x18\x02\x20\x03(\x0b27.opentelemetry.proto.\
+    logs.v1.InstrumentationLibraryLogsR\x1ainstrumentationLibraryLogs\x12\
+    \x1d\n\nschema_url\x18\x03\x20\x01(\tR\tschemaUrl\"\xf4\x01\n\x1aInstrum\
+    entationLibraryLogs\x12n\n\x17instrumentation_library\x18\x01\x20\x01(\
+    \x0b25.opentelemetry.proto.common.v1.InstrumentationLibraryR\x16instrume\
+    ntationLibrary\x12G\n\x0blog_records\x18\x02\x20\x03(\x0b2&.opentelemetr\
+    y.proto.logs.v1.LogRecordR\nlogRecords\x12\x1d\n\nschema_url\x18\x03\x20\
+    \x01(\tR\tschemaUrl\"\x85\x04\n\tLogRecord\x12$\n\x0etime_unix_nano\x18\
+    \x01\x20\x01(\x06R\x0ctimeUnixNano\x125\n\x17observed_time_unix_nano\x18\
+    \x0b\x20\x01(\x06R\x14observedTimeUnixNano\x12T\n\x0fseverity_number\x18\
     \x02\x20\x01(\x0e2+.opentelemetry.proto.logs.v1.SeverityNumberR\x0esever\
     ityNumber\x12#\n\rseverity_text\x18\x03\x20\x01(\tR\x0cseverityText\x12\
-    \x12\n\x04name\x18\x04\x20\x01(\tR\x04name\x12;\n\x04body\x18\x05\x20\
-    \x01(\x0b2'.opentelemetry.proto.common.v1.AnyValueR\x04body\x12G\n\nattr\
-    ibutes\x18\x06\x20\x03(\x0b2'.opentelemetry.proto.common.v1.KeyValueR\na\
-    ttributes\x128\n\x18dropped_attributes_count\x18\x07\x20\x01(\rR\x16drop\
-    pedAttributesCount\x12\x14\n\x05flags\x18\x08\x20\x01(\x07R\x05flags\x12\
-    \x19\n\x08trace_id\x18\t\x20\x01(\x0cR\x07traceId\x12\x17\n\x07span_id\
-    \x18\n\x20\x01(\x0cR\x06spanId*\xc3\x05\n\x0eSeverityNumber\x12\x1f\n\
-    \x1bSEVERITY_NUMBER_UNSPECIFIED\x10\0\x12\x19\n\x15SEVERITY_NUMBER_TRACE\
-    \x10\x01\x12\x1a\n\x16SEVERITY_NUMBER_TRACE2\x10\x02\x12\x1a\n\x16SEVERI\
-    TY_NUMBER_TRACE3\x10\x03\x12\x1a\n\x16SEVERITY_NUMBER_TRACE4\x10\x04\x12\
-    \x19\n\x15SEVERITY_NUMBER_DEBUG\x10\x05\x12\x1a\n\x16SEVERITY_NUMBER_DEB\
-    UG2\x10\x06\x12\x1a\n\x16SEVERITY_NUMBER_DEBUG3\x10\x07\x12\x1a\n\x16SEV\
-    ERITY_NUMBER_DEBUG4\x10\x08\x12\x18\n\x14SEVERITY_NUMBER_INFO\x10\t\x12\
-    \x19\n\x15SEVERITY_NUMBER_INFO2\x10\n\x12\x19\n\x15SEVERITY_NUMBER_INFO3\
-    \x10\x0b\x12\x19\n\x15SEVERITY_NUMBER_INFO4\x10\x0c\x12\x18\n\x14SEVERIT\
-    Y_NUMBER_WARN\x10\r\x12\x19\n\x15SEVERITY_NUMBER_WARN2\x10\x0e\x12\x19\n\
-    \x15SEVERITY_NUMBER_WARN3\x10\x0f\x12\x19\n\x15SEVERITY_NUMBER_WARN4\x10\
-    \x10\x12\x19\n\x15SEVERITY_NUMBER_ERROR\x10\x11\x12\x1a\n\x16SEVERITY_NU\
-    MBER_ERROR2\x10\x12\x12\x1a\n\x16SEVERITY_NUMBER_ERROR3\x10\x13\x12\x1a\
-    \n\x16SEVERITY_NUMBER_ERROR4\x10\x14\x12\x19\n\x15SEVERITY_NUMBER_FATAL\
-    \x10\x15\x12\x1a\n\x16SEVERITY_NUMBER_FATAL2\x10\x16\x12\x1a\n\x16SEVERI\
-    TY_NUMBER_FATAL3\x10\x17\x12\x1a\n\x16SEVERITY_NUMBER_FATAL4\x10\x18*X\n\
-    \x0eLogRecordFlags\x12\x1f\n\x1bLOG_RECORD_FLAG_UNSPECIFIED\x10\0\x12%\n\
-    \x20LOG_RECORD_FLAG_TRACE_FLAGS_MASK\x10\xff\x01Bk\n\x1eio.opentelemetry\
-    .proto.logs.v1B\tLogsProtoP\x01Z<github.com/open-telemetry/opentelemetry\
-    -proto/gen/go/logs/v1b\x06proto3\
+    \x16\n\x04name\x18\x04\x20\x01(\tR\x04nameB\x02\x18\x01\x12;\n\x04body\
+    \x18\x05\x20\x01(\x0b2'.opentelemetry.proto.common.v1.AnyValueR\x04body\
+    \x12G\n\nattributes\x18\x06\x20\x03(\x0b2'.opentelemetry.proto.common.v1\
+    .KeyValueR\nattributes\x128\n\x18dropped_attributes_count\x18\x07\x20\
+    \x01(\rR\x16droppedAttributesCount\x12\x14\n\x05flags\x18\x08\x20\x01(\
+    \x07R\x05flags\x12\x19\n\x08trace_id\x18\t\x20\x01(\x0cR\x07traceId\x12\
+    \x17\n\x07span_id\x18\n\x20\x01(\x0cR\x06spanId*\xc3\x05\n\x0eSeverityNu\
+    mber\x12\x1f\n\x1bSEVERITY_NUMBER_UNSPECIFIED\x10\0\x12\x19\n\x15SEVERIT\
+    Y_NUMBER_TRACE\x10\x01\x12\x1a\n\x16SEVERITY_NUMBER_TRACE2\x10\x02\x12\
+    \x1a\n\x16SEVERITY_NUMBER_TRACE3\x10\x03\x12\x1a\n\x16SEVERITY_NUMBER_TR\
+    ACE4\x10\x04\x12\x19\n\x15SEVERITY_NUMBER_DEBUG\x10\x05\x12\x1a\n\x16SEV\
+    ERITY_NUMBER_DEBUG2\x10\x06\x12\x1a\n\x16SEVERITY_NUMBER_DEBUG3\x10\x07\
+    \x12\x1a\n\x16SEVERITY_NUMBER_DEBUG4\x10\x08\x12\x18\n\x14SEVERITY_NUMBE\
+    R_INFO\x10\t\x12\x19\n\x15SEVERITY_NUMBER_INFO2\x10\n\x12\x19\n\x15SEVER\
+    ITY_NUMBER_INFO3\x10\x0b\x12\x19\n\x15SEVERITY_NUMBER_INFO4\x10\x0c\x12\
+    \x18\n\x14SEVERITY_NUMBER_WARN\x10\r\x12\x19\n\x15SEVERITY_NUMBER_WARN2\
+    \x10\x0e\x12\x19\n\x15SEVERITY_NUMBER_WARN3\x10\x0f\x12\x19\n\x15SEVERIT\
+    Y_NUMBER_WARN4\x10\x10\x12\x19\n\x15SEVERITY_NUMBER_ERROR\x10\x11\x12\
+    \x1a\n\x16SEVERITY_NUMBER_ERROR2\x10\x12\x12\x1a\n\x16SEVERITY_NUMBER_ER\
+    ROR3\x10\x13\x12\x1a\n\x16SEVERITY_NUMBER_ERROR4\x10\x14\x12\x19\n\x15SE\
+    VERITY_NUMBER_FATAL\x10\x15\x12\x1a\n\x16SEVERITY_NUMBER_FATAL2\x10\x16\
+    \x12\x1a\n\x16SEVERITY_NUMBER_FATAL3\x10\x17\x12\x1a\n\x16SEVERITY_NUMBE\
+    R_FATAL4\x10\x18*X\n\x0eLogRecordFlags\x12\x1f\n\x1bLOG_RECORD_FLAG_UNSP\
+    ECIFIED\x10\0\x12%\n\x20LOG_RECORD_FLAG_TRACE_FLAGS_MASK\x10\xff\x01BU\n\
+    \x1eio.opentelemetry.proto.logs.v1B\tLogsProtoP\x01Z&go.opentelemetry.io\
+    /proto/otlp/logs/v1b\x06proto3\
 ";
 
 static file_descriptor_proto_lazy: ::protobuf::rt::LazyV2<::protobuf::descriptor::FileDescriptorProto> = ::protobuf::rt::LazyV2::INIT;

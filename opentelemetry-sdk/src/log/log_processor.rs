@@ -1,6 +1,6 @@
 use super::LogRuntime;
 use crate::{
-    export::log::{ExportResult, LogExporter, ResourceLog},
+    export::log::{ExportResult, LogData, LogExporter},
     log::TrySend,
 };
 use futures_channel::oneshot;
@@ -23,7 +23,7 @@ use std::{
 /// [`LogEmitter`]: crate::log::LogEmitter
 pub trait LogProcessor: Send + Sync + Debug {
     /// Called when a log record is ready to processed and exported.
-    fn emit(&self, data: ResourceLog);
+    fn emit(&self, data: LogData);
     /// Force the logs lying in the cache to be exported.
     fn force_flush(&self) -> LogResult<()>;
     /// Shuts down the processor.
@@ -38,7 +38,7 @@ pub trait LogProcessor: Send + Sync + Debug {
 /// emitted. If you find this limiting, consider the batch processor instead.
 #[derive(Debug)]
 pub struct SimpleLogProcessor {
-    sender: crossbeam_channel::Sender<Option<ResourceLog>>,
+    sender: crossbeam_channel::Sender<Option<LogData>>,
     shutdown: crossbeam_channel::Receiver<()>,
 }
 
@@ -74,7 +74,7 @@ impl SimpleLogProcessor {
 }
 
 impl LogProcessor for SimpleLogProcessor {
-    fn emit(&self, data: ResourceLog) {
+    fn emit(&self, data: LogData) {
         if let Err(err) = self.sender.send(Some(data)) {
             global::handle_error(LogError::from(format!("error processing log {:?}", err)));
         }
@@ -114,7 +114,7 @@ impl<R: LogRuntime> Debug for BatchLogProcessor<R> {
 }
 
 impl<R: LogRuntime> LogProcessor for BatchLogProcessor<R> {
-    fn emit(&self, data: ResourceLog) {
+    fn emit(&self, data: LogData) {
         let result = self.message_sender.try_send(BatchMessage::ExportLog(data));
 
         if let Err(err) = result {
@@ -154,21 +154,21 @@ impl<R: LogRuntime> BatchLogProcessor<R> {
 
         // Spawn worker process via user-defined spawn function.
         runtime.spawn(Box::pin(async move {
-            let mut spans = Vec::new();
+            let mut logs = Vec::new();
             let mut messages = Box::pin(stream::select(message_receiver, ticker));
 
             while let Some(message) = messages.next().await {
                 match message {
                     // Span has finished, add to buffer of pending spans.
-                    BatchMessage::ExportLog(span) => {
-                        spans.push(span);
+                    BatchMessage::ExportLog(log) => {
+                        logs.push(log);
 
-                        if spans.len() == config.max_export_batch_size {
+                        if logs.len() == config.max_export_batch_size {
                             let result = export_with_timeout(
                                 config.max_export_timeout,
                                 exporter.as_mut(),
                                 &timeout_runtime,
-                                spans.split_off(0),
+                                logs.split_off(0),
                             )
                             .await;
 
@@ -177,13 +177,13 @@ impl<R: LogRuntime> BatchLogProcessor<R> {
                             }
                         }
                     }
-                    // Span batch interval time reached or a force flush has been invoked, export current spans.
+                    // Log batch interval time reached or a force flush has been invoked, export current spans.
                     BatchMessage::Flush(res_channel) => {
                         let result = export_with_timeout(
                             config.max_export_timeout,
                             exporter.as_mut(),
                             &timeout_runtime,
-                            spans.split_off(0),
+                            logs.split_off(0),
                         )
                         .await;
 
@@ -204,7 +204,7 @@ impl<R: LogRuntime> BatchLogProcessor<R> {
                             config.max_export_timeout,
                             exporter.as_mut(),
                             &timeout_runtime,
-                            spans.split_off(0),
+                            logs.split_off(0),
                         )
                         .await;
 
@@ -244,7 +244,7 @@ async fn export_with_timeout<R, E>(
     time_out: Duration,
     exporter: &mut E,
     runtime: &R,
-    batch: Vec<ResourceLog>,
+    batch: Vec<LogData>,
 ) -> ExportResult
 where
     R: LogRuntime,
@@ -359,7 +359,7 @@ where
 #[derive(Debug)]
 pub enum BatchMessage {
     /// Export logs, usually called when the log is emitted.
-    ExportLog(ResourceLog),
+    ExportLog(LogData),
     /// Flush the current buffer to the backend, it can be triggered by
     /// pre configured interval or a call to `force_push` function.
     Flush(Option<oneshot::Sender<ExportResult>>),

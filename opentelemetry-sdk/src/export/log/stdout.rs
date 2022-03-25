@@ -28,7 +28,7 @@
 //! }
 //! ```
 use crate::export::{
-    log::{ExportResult, LogExporter, ResourceLog},
+    log::{ExportResult, LogData, LogExporter},
     ExportError,
 };
 use async_trait::async_trait;
@@ -129,7 +129,7 @@ where
     W: Write + Debug + Send + 'static,
 {
     /// Export spans to stdout
-    async fn export(&mut self, batch: Vec<ResourceLog>) -> ExportResult {
+    async fn export(&mut self, batch: Vec<LogData>) -> ExportResult {
         for log in batch {
             if self.pretty_print {
                 self.writer

@@ -9,6 +9,9 @@ pub struct LogRecord {
     /// Record timestamp
     pub timestamp: Option<SystemTime>,
 
+    /// Timestamp for when the record was observed by OpenTelemetry
+    pub observed_timestamp: Option<SystemTime>,
+
     /// Trace context for logs associated with spans
     pub trace_context: Option<TraceContext>,
 
@@ -17,8 +20,6 @@ pub struct LogRecord {
     /// The corresponding severity value, normalized
     pub severity_number: Option<Severity>,
 
-    /// Record name
-    pub name: Option<Cow<'static, str>>,
     /// Record body
     pub body: Option<Any>,
 
@@ -56,7 +57,7 @@ pub enum Any {
     /// A double value
     Double(f64),
     /// A string value
-    String(String),
+    String(Cow<'static, str>),
     /// A boolean value
     Boolean(bool),
     /// A byte array
@@ -91,7 +92,7 @@ impl_trivial_from!(f32, Any::Double);
 
 impl_trivial_from!(String, Any::String);
 impl_trivial_from!(Cow<'static, str>, Any::String);
-impl_trivial_from!(&str, Any::String);
+impl_trivial_from!(&'static str, Any::String);
 
 impl_trivial_from!(bool, Any::Boolean);
 
@@ -180,6 +181,16 @@ impl LogRecordBuilder {
         }
     }
 
+    /// Assign observed timestamp
+    pub fn with_observed_timestamp(self, timestamp: SystemTime) -> Self {
+        Self {
+            record: LogRecord {
+                observed_timestamp: Some(timestamp),
+                ..self.record
+            },
+        }
+    }
+
     /// Assign the record's [`TraceContext`]
     pub fn with_span_context(self, span_context: &SpanContext) -> Self {
         Self {
@@ -224,19 +235,6 @@ impl LogRecordBuilder {
         Self {
             record: LogRecord {
                 severity_number: Some(severity),
-                ..self.record
-            },
-        }
-    }
-
-    /// Assign name
-    pub fn with_name<T>(self, name: T) -> Self
-    where
-        T: Into<Cow<'static, str>>,
-    {
-        Self {
-            record: LogRecord {
-                name: Some(name.into()),
                 ..self.record
             },
         }

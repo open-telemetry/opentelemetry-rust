@@ -319,9 +319,8 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     \x19ExportLogsServiceResponse2\x9d\x01\n\x0bLogsService\x12\x8d\x01\n\
     \x06Export\x12?.opentelemetry.proto.collector.logs.v1.ExportLogsServiceR\
     equest\x1a@.opentelemetry.proto.collector.logs.v1.ExportLogsServiceRespo\
-    nse\"\0B\x86\x01\n(io.opentelemetry.proto.collector.logs.v1B\x10LogsServ\
-    iceProtoP\x01ZFgithub.com/open-telemetry/opentelemetry-proto/gen/go/coll\
-    ector/logs/v1b\x06proto3\
+    nse\"\0Bp\n(io.opentelemetry.proto.collector.logs.v1B\x10LogsServiceProt\
+    oP\x01Z0go.opentelemetry.io/proto/otlp/collector/logs/v1b\x06proto3\
 ";
 
 static file_descriptor_proto_lazy: ::protobuf::rt::LazyV2<::protobuf::descriptor::FileDescriptorProto> = ::protobuf::rt::LazyV2::INIT;

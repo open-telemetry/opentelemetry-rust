@@ -23,7 +23,7 @@ pub mod tonic {
             match value {
                 Any::Double(f) => Value::DoubleValue(f),
                 Any::Int(i) => Value::IntValue(i),
-                Any::String(s) => Value::StringValue(s),
+                Any::String(s) => Value::StringValue(s.into()),
                 Any::Boolean(b) => Value::BoolValue(b),
                 Any::ListAny(v) => Value::ArrayValue(ArrayValue {
                     values: v
@@ -97,14 +97,17 @@ pub mod tonic {
             let trace_context = log_record.trace_context.as_ref();
 
             let record = LogRecord {
-                time_unix_nano: log_record.timestamp.map(to_nanos).unwrap_or(0),
+                time_unix_nano: log_record.timestamp.map(to_nanos).unwrap_or_default(),
+                observed_time_unix_nano: log_record
+                    .observed_timestamp
+                    .map(to_nanos)
+                    .unwrap_or_default(),
                 severity_number: log_record
                     .severity_number
                     .map(SeverityNumber::from)
                     .map(Into::into)
                     .unwrap_or_default(),
                 severity_text: log_record.severity_text.map(Into::into).unwrap_or_default(),
-                name: log_record.name.map(Into::into).unwrap_or(String::from("")),
                 body: Some(AnyValue {
                     value: log_record.body.map(Into::into),
                 }),
@@ -126,31 +129,30 @@ pub mod tonic {
                 trace_id: trace_context
                     .map(|ctx| ctx.trace_id.to_bytes().to_vec())
                     .unwrap_or_default(),
+                ..Default::default()
             };
             record
         }
     }
 
-    impl From<opentelemetry::sdk::export::log::ResourceLog> for ResourceLogs {
-        fn from(resource_log: opentelemetry::sdk::export::log::ResourceLog) -> Self {
+    impl From<opentelemetry::sdk::export::log::LogData> for ResourceLogs {
+        fn from(log_data: opentelemetry::sdk::export::log::LogData) -> Self {
             ResourceLogs {
                 resource: Some(Resource {
-                    attributes: resource_attributes(
-                        resource_log.resource.as_ref().map(AsRef::as_ref),
-                    )
-                    .0,
+                    attributes: resource_attributes(log_data.resource.as_ref().map(AsRef::as_ref))
+                        .0,
                     dropped_attributes_count: 0,
                 }),
                 schema_url: "".to_string(),
                 instrumentation_library_logs: vec![InstrumentationLibraryLogs {
-                    schema_url: resource_log
+                    schema_url: log_data
                         .instrumentation
                         .schema_url
                         .clone()
                         .map(Into::into)
                         .unwrap_or_default(),
-                    instrumentation_library: Some(resource_log.instrumentation.into()),
-                    logs: vec![resource_log.record.into()],
+                    instrumentation_library: Some(log_data.instrumentation.into()),
+                    log_records: vec![log_data.record.into()],
                 }],
             }
         }
@@ -179,7 +181,7 @@ pub mod grpcio {
             match value {
                 Any::Double(f) => AnyValue_oneof_value::double_value(f),
                 Any::Int(i) => AnyValue_oneof_value::int_value(i),
-                Any::String(s) => AnyValue_oneof_value::string_value(s),
+                Any::String(s) => AnyValue_oneof_value::string_value(s.into()),
                 Any::Boolean(b) => AnyValue_oneof_value::bool_value(b),
                 Any::ListAny(v) => AnyValue_oneof_value::array_value(ArrayValue {
                     values: RepeatedField::from_vec(
@@ -269,7 +271,6 @@ pub mod grpcio {
                     .map(Into::into)
                     .unwrap_or_default(),
                 severity_text: log_record.severity_text.map(Into::into).unwrap_or_default(),
-                name: log_record.name.map(Into::into).unwrap_or(String::from("")),
                 body: SingularPtrField::some(AnyValue {
                     value: log_record.body.map(Into::into),
                     ..Default::default()
@@ -299,30 +300,28 @@ pub mod grpcio {
         }
     }
 
-    impl From<opentelemetry::sdk::export::log::ResourceLog> for ResourceLogs {
-        fn from(resource_log: opentelemetry::sdk::export::log::ResourceLog) -> Self {
+    impl From<opentelemetry::sdk::export::log::LogData> for ResourceLogs {
+        fn from(log_data: opentelemetry::sdk::export::log::LogData) -> Self {
             ResourceLogs {
                 resource: SingularPtrField::some(Resource {
-                    attributes: resource_attributes(
-                        resource_log.resource.as_ref().map(AsRef::as_ref),
-                    )
-                    .0,
+                    attributes: resource_attributes(log_data.resource.as_ref().map(AsRef::as_ref))
+                        .0,
                     dropped_attributes_count: 0,
                     ..Default::default()
                 }),
                 schema_url: "".to_string(),
                 instrumentation_library_logs: RepeatedField::from_vec(vec![
                     InstrumentationLibraryLogs {
-                        schema_url: resource_log
+                        schema_url: log_data
                             .instrumentation
                             .schema_url
                             .clone()
                             .map(Into::into)
                             .unwrap_or_default(),
                         instrumentation_library: SingularPtrField::some(
-                            resource_log.instrumentation.into(),
+                            log_data.instrumentation.into(),
                         ),
-                        logs: RepeatedField::from_vec(vec![resource_log.record.into()]),
+                        log_records: RepeatedField::from_vec(vec![log_data.record.into()]),
                         ..Default::default()
                     },
                 ]),

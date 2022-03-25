@@ -11,21 +11,21 @@ pub mod stdout;
 #[async_trait]
 pub trait LogExporter: Send + Debug {
     /// Exports a batch of `ResourceLogs`.
-    async fn export(&mut self, batch: Vec<ResourceLog>) -> LogResult<()>;
+    async fn export(&mut self, batch: Vec<LogData>) -> LogResult<()>;
     /// Shuts down the expoter.
     fn shutdown(&mut self) {}
 }
 
-/// `ResourceLog` associates a [`LogRecord`] with a [`Resource`] and
+/// `LogData` associates a [`LogRecord`] with a [`Resource`] and
 /// [`InstrumentationLibrary`].
 #[derive(Debug)]
 #[non_exhaustive]
-pub struct ResourceLog {
+pub struct LogData {
     /// Log record
     pub record: LogRecord,
-    /// Resource for the emitter who produced this `ResourceLog`.
+    /// Resource for the emitter who produced this `LogData`.
     pub resource: Option<Arc<Resource>>,
-    /// Instrumentation details for the emitter who produced this `ResourceLog`.
+    /// Instrumentation details for the emitter who produced this `LogData`.
     pub instrumentation: InstrumentationLibrary,
 }
 

@@ -1,6 +1,6 @@
 use super::{BatchLogProcessor, Config, LogProcessor, LogRecord, LogRuntime, SimpleLogProcessor};
 use crate::{
-    export::log::{LogExporter, ResourceLog},
+    export::log::{LogData, LogExporter},
     resource::{EnvResourceDetector, SdkProvidedResourceDetector},
     Resource,
 };
@@ -225,7 +225,7 @@ impl LogEmitter {
 
         let config = provider.config();
         for processor in provider.log_processors() {
-            let data = ResourceLog {
+            let data = LogData {
                 record: record.clone(),
                 resource: config.resource.clone(),
                 instrumentation: self.instrumentation_lib.clone(),

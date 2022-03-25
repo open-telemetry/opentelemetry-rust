@@ -56,7 +56,7 @@ use std::{
 
 use opentelemetry::{
     log::LogError,
-    sdk::{self, export::log::ResourceLog, log::LogRuntime},
+    sdk::{self, export::log::LogData, log::LogRuntime},
 };
 
 impl OtlpPipeline {
@@ -292,7 +292,7 @@ impl LogExporter {
 
 #[async_trait]
 impl opentelemetry::sdk::export::log::LogExporter for LogExporter {
-    async fn export(&mut self, batch: Vec<ResourceLog>) -> opentelemetry::log::LogResult<()> {
+    async fn export(&mut self, batch: Vec<LogData>) -> opentelemetry::log::LogResult<()> {
         match self {
             #[cfg(feature = "grpc-sys")]
             LogExporter::Grpcio {
