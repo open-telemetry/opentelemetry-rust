@@ -1,27 +1,23 @@
-//! # Resource
+//! Representations of entities producing telemetry.
 //!
-//! A `Resource` is an immutable representation of the entity producing telemetry. For example, a
-//! process producing telemetry that is running in a container on Kubernetes has a Pod name, it is
-//! in a namespace, and possibly is part of a Deployment which also has a name. All three of these
-//! attributes can be included in the `Resource`.
+//! A [Resource] is an immutable representation of the entity producing
+//! telemetry as attributes. For example, a process producing telemetry that is
+//! running in a container on Kubernetes has a Pod name, it is in a namespace
+//! and possibly is part of a Deployment which also has a name. All three of
+//! these attributes can be included in the `Resource`. Note that there are
+//! certain ["standard attributes"] that have prescribed meanings.
 //!
-//! The primary purpose of resources as a first-class concept in the SDK is decoupling of discovery
-//! of resource information from exporters. This allows for independent development and easy
-//! customization for users that need to integrate with closed source environments. When used with
-//! distributed tracing, a resource can be associated with the [`TracerProvider`] when it is created.
-//! That association cannot be changed later. When associated with a `TracerProvider`, all `Span`s
-//! produced by any `Tracer` from the provider are associated with this `Resource`.
-//!
-//! [`TracerProvider`]: crate::trace::TracerProvider
+//! ["standard attributes"]: https://github.com/open-telemetry/opentelemetry-specification/blob/v1.9.0/specification/resource/semantic_conventions/README.md
 //!
 //! # Resource detectors
 //!
-//! `ResourceDetector`s are used to detect resource from runtime or environmental variables. The
-//! following `ResourceDetector`s are provided along with this SDK.
+//! [`ResourceDetector`]s are used to detect resource from runtime or
+//! environmental variables. The following are provided by default with this
+//! SDK.
 //!
-//! - EnvResourceDetector, detect resource from environmental variables.
-//! - OsResourceDetector, detect OS from runtime.
-//! - ProcessResourceDetector, detect process information
+//! - [`EnvResourceDetector`] - detect resource from environmental variables.
+//! - [`OsResourceDetector`] - detect OS from runtime.
+//! - [`ProcessResourceDetector`] - detect process information.
 mod env;
 mod os;
 mod process;
@@ -38,9 +34,7 @@ use std::collections::{btree_map, BTreeMap};
 use std::ops::Deref;
 use std::time::Duration;
 
-/// Describes an entity about which identifying information and metadata is exposed.
-///
-/// Items are sorted by their key, and are only overwritten if the value is an empty string.
+/// An immutable representation of the entity producing telemetry as attributes.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Resource {
     attrs: BTreeMap<Key, Value>,
