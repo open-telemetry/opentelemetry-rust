@@ -1,6 +1,7 @@
 mod intern;
 mod model;
 
+use std::fmt::{Debug, Formatter};
 pub use model::ApiVersion;
 pub use model::Error;
 
@@ -19,6 +20,7 @@ use opentelemetry_http::{HttpClient, ResponseExt};
 use opentelemetry_semantic_conventions as semcov;
 use std::sync::Arc;
 use std::time::Duration;
+use crate::exporter::model::ExtractStrTagsFn;
 
 /// Default Datadog collector endpoint
 const DEFAULT_AGENT_ENDPOINT: &str = "http://127.0.0.1:8126";
@@ -57,13 +59,16 @@ pub fn new_pipeline() -> DatadogPipelineBuilder {
 }
 
 /// Builder for `ExporterConfig` struct.
-#[derive(Debug)]
 pub struct DatadogPipelineBuilder {
     service_name: Option<String>,
     agent_endpoint: String,
     trace_config: Option<sdk::trace::Config>,
     version: ApiVersion,
     client: Option<Box<dyn HttpClient>>,
+
+    resource_mapping: Option<ExtractStrTagsFn>,
+    name_mapping: Option<ExtractStrTagsFn>,
+    service_name_mapping: Option<ExtractStrTagsFn>,
 }
 
 impl Default for DatadogPipelineBuilder {
@@ -72,28 +77,37 @@ impl Default for DatadogPipelineBuilder {
             service_name: None,
             agent_endpoint: DEFAULT_AGENT_ENDPOINT.to_string(),
             trace_config: None,
+            resource_mapping: None,
+            name_mapping: None,
+            service_name_mapping: None,
             version: ApiVersion::Version05,
             #[cfg(all(
-                not(feature = "reqwest-client"),
-                not(feature = "reqwest-blocking-client"),
-                not(feature = "surf-client"),
+            not(feature = "reqwest-client"),
+            not(feature = "reqwest-blocking-client"),
+            not(feature = "surf-client"),
             ))]
             client: None,
             #[cfg(all(
-                not(feature = "reqwest-client"),
-                not(feature = "reqwest-blocking-client"),
-                feature = "surf-client"
+            not(feature = "reqwest-client"),
+            not(feature = "reqwest-blocking-client"),
+            feature = "surf-client"
             ))]
             client: Some(Box::new(surf::Client::new())),
             #[cfg(all(
-                not(feature = "surf-client"),
-                not(feature = "reqwest-blocking-client"),
-                feature = "reqwest-client"
+            not(feature = "surf-client"),
+            not(feature = "reqwest-blocking-client"),
+            feature = "reqwest-client"
             ))]
             client: Some(Box::new(reqwest::Client::new())),
             #[cfg(feature = "reqwest-blocking-client")]
             client: Some(Box::new(reqwest::blocking::Client::new())),
         }
+    }
+}
+
+impl Debug for DatadogPipelineBuilder{
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        todo!()
     }
 }
 
@@ -231,6 +245,24 @@ impl DatadogPipelineBuilder {
         self.version = version;
         self
     }
+
+    pub fn with_resource_mapping<F>(mut self, f: F) -> Self
+        where F: for<'a> Fn(&'a SpanData, &'a ModelConfig) -> &'a str + 'static {
+        self.resource_mapping = Some(Arc::new(f));
+        self
+    }
+
+    pub fn with_name_mapping<F>(mut self, f: F) -> Self
+        where F: for<'a> Fn(&'a SpanData, &'a ModelConfig) -> &'a str + 'static {
+        self.name_mapping = Some(Arc::new(f));
+        self
+    }
+
+    pub fn with_service_name_mapping<F>(mut self, f: F) -> Self
+        where F: for<'a> Fn(&'a SpanData, &'a ModelConfig) -> &'a str + 'static {
+        self.service_name_mapping = Some(Arc::new(f));
+        self
+    }
 }
 
 fn group_into_traces(spans: Vec<SpanData>) -> Vec<Vec<SpanData>> {
@@ -248,7 +280,11 @@ impl trace::SpanExporter for DatadogExporter {
     async fn export(&mut self, batch: Vec<SpanData>) -> trace::ExportResult {
         let traces: Vec<Vec<SpanData>> = group_into_traces(batch);
         let trace_count = traces.len();
-        let data = self.version.encode(&self.service_name, traces)?;
+        let model_config = ModelConfig {
+            service_name: self.service_name.clone(),
+            _private: (),
+        };
+        let data = self.version.encode(&model_config, traces, None, None, None)?;
         let req = Request::builder()
             .method(Method::POST)
             .uri(self.request_url.clone())
@@ -260,6 +296,14 @@ impl trace::SpanExporter for DatadogExporter {
         Ok(())
     }
 }
+
+/// Helper struct to custom the mapping between Opentelemetry spans and datadog spans
+#[derive(Default)]
+pub struct ModelConfig {
+    pub service_name: String,
+    _private: (),
+}
+
 
 #[cfg(test)]
 mod tests {

@@ -3,11 +3,19 @@ use opentelemetry::sdk::export::trace;
 use opentelemetry::trace::Status;
 use opentelemetry::{Key, Value};
 use std::time::SystemTime;
+use opentelemetry::sdk::export::trace::SpanData;
+use crate::exporter::ModelConfig;
 
-pub(crate) fn encode(
-    service_name: &str,
+pub(crate) fn encode<S, N, R>(
+    model_config: &ModelConfig,
     traces: Vec<Vec<trace::SpanData>>,
-) -> Result<Vec<u8>, Error> {
+    get_service_name: S,
+    get_name: N,
+    get_resource: R,
+) -> Result<Vec<u8>, Error>
+    where for<'a> S: Fn(&'a SpanData, &'a ModelConfig) -> &'a str,
+          for<'a> N: Fn(&'a SpanData, &'a ModelConfig) -> &'a str,
+          for<'a> R: Fn(&'a SpanData, &'a ModelConfig) -> &'a str {
     let mut encoded = Vec::new();
     rmp::encode::write_array_len(&mut encoded, traces.len() as u32)?;
 
@@ -38,13 +46,13 @@ pub(crate) fn encode(
 
             // Datadog span name is OpenTelemetry component name - see module docs for more information
             rmp::encode::write_str(&mut encoded, "service")?;
-            rmp::encode::write_str(&mut encoded, service_name)?;
+            rmp::encode::write_str(&mut encoded, get_service_name(&span, model_config))?;
 
             rmp::encode::write_str(&mut encoded, "name")?;
-            rmp::encode::write_str(&mut encoded, span.instrumentation_lib.name.as_ref())?;
+            rmp::encode::write_str(&mut encoded, get_name(&span, model_config))?;
 
             rmp::encode::write_str(&mut encoded, "resource")?;
-            rmp::encode::write_str(&mut encoded, &span.name)?;
+            rmp::encode::write_str(&mut encoded, get_resource(&span, model_config))?;
 
             rmp::encode::write_str(&mut encoded, "trace_id")?;
             rmp::encode::write_u64(
