@@ -1,10 +1,11 @@
 mod intern;
 mod model;
 
-use std::fmt::{Debug, Formatter};
 pub use model::ApiVersion;
 pub use model::Error;
+use std::fmt::{Debug, Formatter};
 
+use crate::exporter::model::ExtractStrTagsFn;
 use async_trait::async_trait;
 use http::{Method, Request, Uri};
 use itertools::Itertools;
@@ -20,7 +21,6 @@ use opentelemetry_http::{HttpClient, ResponseExt};
 use opentelemetry_semantic_conventions as semcov;
 use std::sync::Arc;
 use std::time::Duration;
-use crate::exporter::model::ExtractStrTagsFn;
 
 /// Default Datadog collector endpoint
 const DEFAULT_AGENT_ENDPOINT: &str = "http://127.0.0.1:8126";
@@ -29,27 +29,42 @@ const DEFAULT_AGENT_ENDPOINT: &str = "http://127.0.0.1:8126";
 const DATADOG_TRACE_COUNT_HEADER: &str = "X-Datadog-Trace-Count";
 
 /// Datadog span exporter
-#[derive(Debug)]
 pub struct DatadogExporter {
     client: Box<dyn HttpClient>,
     request_url: Uri,
-    service_name: String,
+    model_config: ModelConfig,
     version: ApiVersion,
+
+    resource_mapping: Option<ExtractStrTagsFn>,
+    name_mapping: Option<ExtractStrTagsFn>,
+    service_name_mapping: Option<ExtractStrTagsFn>,
 }
 
 impl DatadogExporter {
     fn new(
-        service_name: String,
+        model_config: ModelConfig,
         request_url: Uri,
         version: ApiVersion,
         client: Box<dyn HttpClient>,
+        resource_mapping: Option<ExtractStrTagsFn>,
+        name_mapping: Option<ExtractStrTagsFn>,
+        service_name_mapping: Option<ExtractStrTagsFn>,
     ) -> Self {
         DatadogExporter {
             client,
             request_url,
-            service_name,
+            model_config,
             version,
+            resource_mapping,
+            name_mapping,
+            service_name_mapping,
         }
+    }
+}
+
+impl Debug for DatadogExporter {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        todo!()
     }
 }
 
@@ -82,21 +97,21 @@ impl Default for DatadogPipelineBuilder {
             service_name_mapping: None,
             version: ApiVersion::Version05,
             #[cfg(all(
-            not(feature = "reqwest-client"),
-            not(feature = "reqwest-blocking-client"),
-            not(feature = "surf-client"),
+                not(feature = "reqwest-client"),
+                not(feature = "reqwest-blocking-client"),
+                not(feature = "surf-client"),
             ))]
             client: None,
             #[cfg(all(
-            not(feature = "reqwest-client"),
-            not(feature = "reqwest-blocking-client"),
-            feature = "surf-client"
+                not(feature = "reqwest-client"),
+                not(feature = "reqwest-blocking-client"),
+                feature = "surf-client"
             ))]
             client: Some(Box::new(surf::Client::new())),
             #[cfg(all(
-            not(feature = "surf-client"),
-            not(feature = "reqwest-blocking-client"),
-            feature = "reqwest-client"
+                not(feature = "surf-client"),
+                not(feature = "reqwest-blocking-client"),
+                feature = "reqwest-client"
             ))]
             client: Some(Box::new(reqwest::Client::new())),
             #[cfg(feature = "reqwest-blocking-client")]
@@ -105,7 +120,7 @@ impl Default for DatadogPipelineBuilder {
     }
 }
 
-impl Debug for DatadogPipelineBuilder{
+impl Debug for DatadogPipelineBuilder {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         todo!()
     }
@@ -162,12 +177,19 @@ impl DatadogPipelineBuilder {
         service_name: String,
     ) -> Result<DatadogExporter, TraceError> {
         if let Some(client) = self.client {
+            let model_config = ModelConfig {
+                service_name,
+                ..Default::default()
+            };
             let endpoint = self.agent_endpoint + self.version.path();
             let exporter = DatadogExporter::new(
-                service_name,
+                model_config,
                 endpoint.parse().map_err::<Error, _>(Into::into)?,
                 self.version,
                 client,
+                self.resource_mapping,
+                self.name_mapping,
+                self.service_name_mapping,
             );
             Ok(exporter)
         } else {
@@ -247,19 +269,25 @@ impl DatadogPipelineBuilder {
     }
 
     pub fn with_resource_mapping<F>(mut self, f: F) -> Self
-        where F: for<'a> Fn(&'a SpanData, &'a ModelConfig) -> &'a str + 'static {
+    where
+        F: for<'a> Fn(&'a SpanData, &'a ModelConfig) -> &'a str + Send + Sync + 'static,
+    {
         self.resource_mapping = Some(Arc::new(f));
         self
     }
 
     pub fn with_name_mapping<F>(mut self, f: F) -> Self
-        where F: for<'a> Fn(&'a SpanData, &'a ModelConfig) -> &'a str + 'static {
+    where
+        F: for<'a> Fn(&'a SpanData, &'a ModelConfig) -> &'a str + Send + Sync + 'static,
+    {
         self.name_mapping = Some(Arc::new(f));
         self
     }
 
     pub fn with_service_name_mapping<F>(mut self, f: F) -> Self
-        where F: for<'a> Fn(&'a SpanData, &'a ModelConfig) -> &'a str + 'static {
+    where
+        F: for<'a> Fn(&'a SpanData, &'a ModelConfig) -> &'a str + Send + Sync + 'static,
+    {
         self.service_name_mapping = Some(Arc::new(f));
         self
     }
@@ -280,11 +308,13 @@ impl trace::SpanExporter for DatadogExporter {
     async fn export(&mut self, batch: Vec<SpanData>) -> trace::ExportResult {
         let traces: Vec<Vec<SpanData>> = group_into_traces(batch);
         let trace_count = traces.len();
-        let model_config = ModelConfig {
-            service_name: self.service_name.clone(),
-            _private: (),
-        };
-        let data = self.version.encode(&model_config, traces, None, None, None)?;
+        let data = self.version.encode(
+            &self.model_config,
+            traces,
+            self.service_name_mapping.clone(),
+            self.name_mapping.clone(),
+            self.resource_mapping.clone(),
+        )?;
         let req = Request::builder()
             .method(Method::POST)
             .uri(self.request_url.clone())
@@ -303,7 +333,6 @@ pub struct ModelConfig {
     pub service_name: String,
     _private: (),
 }
-
 
 #[cfg(test)]
 mod tests {

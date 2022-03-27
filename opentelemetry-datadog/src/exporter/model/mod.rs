@@ -1,10 +1,14 @@
-use opentelemetry::sdk::export::{trace::{self, SpanData}, ExportError};
 use crate::exporter::ModelConfig;
+use opentelemetry::sdk::export::{
+    trace::{self, SpanData},
+    ExportError,
+};
 
 mod v03;
 mod v05;
 
-pub(crate) type ExtractStrTagsFn = std::sync::Arc<dyn for<'a> Fn(&'a SpanData, &'a ModelConfig) -> &'a str>;
+pub(crate) type ExtractStrTagsFn =
+    std::sync::Arc<dyn for<'a> Fn(&'a SpanData, &'a ModelConfig) -> &'a str + Send + Sync>;
 
 fn default_get_service_name<'a>(_span: &'a SpanData, config: &'a ModelConfig) -> &'a str {
     config.service_name.as_str()
@@ -84,45 +88,38 @@ impl ApiVersion {
         get_resource: Option<ExtractStrTagsFn>,
     ) -> Result<Vec<u8>, Error> {
         match self {
-            Self::Version03 => v03::encode(model_config, traces,
-                                           |span, config| {
-                                               match &get_service_name {
-                                                   Some(f) => f(span, config),
-                                                   None => default_get_service_name(span, config)
-                                               }
-                                           },
-                                           |span, config| {
-                                               match &get_name {
-                                                   Some(f) => f(span, config),
-                                                   None => default_get_name(span, config)
-                                               }
-                                           },
-                                           |span, config| {
-                                               match &get_resource {
-                                                   Some(f) => f(span, config),
-                                                   None => default_get_resource(span, config)
-                                               }
-                                           },
+            Self::Version03 => v03::encode(
+                model_config,
+                traces,
+                |span, config| match &get_service_name {
+                    Some(f) => f(span, config),
+                    None => default_get_service_name(span, config),
+                },
+                |span, config| match &get_name {
+                    Some(f) => f(span, config),
+                    None => default_get_name(span, config),
+                },
+                |span, config| match &get_resource {
+                    Some(f) => f(span, config),
+                    None => default_get_resource(span, config),
+                },
             ),
-            Self::Version05 => v05::encode(model_config, traces,
-                                           |span, config| {
-                                               match &get_service_name {
-                                                   Some(f) => f(span, config),
-                                                   None => default_get_service_name(span, config)
-                                               }
-                                           },
-                                           |span, config| {
-                                               match &get_name {
-                                                   Some(f) => f(span, config),
-                                                   None => default_get_name(span, config)
-                                               }
-                                           },
-                                           |span, config| {
-                                               match &get_resource {
-                                                   Some(f) => f(span, config),
-                                                   None => default_get_resource(span, config)
-                                               }
-                                           }),
+            Self::Version05 => v05::encode(
+                model_config,
+                traces,
+                |span, config| match &get_service_name {
+                    Some(f) => f(span, config),
+                    None => default_get_service_name(span, config),
+                },
+                |span, config| match &get_name {
+                    Some(f) => f(span, config),
+                    None => default_get_name(span, config),
+                },
+                |span, config| match &get_resource {
+                    Some(f) => f(span, config),
+                    None => default_get_resource(span, config),
+                },
+            ),
         }
     }
 }
@@ -184,7 +181,13 @@ pub(crate) mod tests {
             service_name: "service_name".to_string(),
             ..Default::default()
         };
-        let encoded = base64::encode(ApiVersion::Version03.encode(&model_config, traces, None, None, None)?);
+        let encoded = base64::encode(ApiVersion::Version03.encode(
+            &model_config,
+            traces,
+            None,
+            None,
+            None,
+        )?);
 
         assert_eq!(encoded.as_str(), "kZGLpHR5cGWjd2Vip3NlcnZpY2Wsc2VydmljZV9uYW1lpG5hbWWpY29tcG9uZW50qHJlc291cmNlqHJlc291cmNlqHRyYWNlX2lkzwAAAAAAAAAHp3NwYW5faWTPAAAAAAAAAGOpcGFyZW50X2lkzwAAAAAAAAABpXN0YXJ00wAAAAAAAAAAqGR1cmF0aW9u0wAAAAA7msoApWVycm9y0gAAAACkbWV0YYGpc3Bhbi50eXBlo3dlYg==");
 
@@ -198,7 +201,13 @@ pub(crate) mod tests {
             service_name: "service_name".to_string(),
             ..Default::default()
         };
-        let encoded = base64::encode(ApiVersion::Version05.encode(&model_config, traces, None, None, None)?);
+        let encoded = base64::encode(ApiVersion::Version05.encode(
+            &model_config,
+            traces,
+            None,
+            None,
+            None,
+        )?);
 
         assert_eq!(encoded.as_str(), "kpWsc2VydmljZV9uYW1lo3dlYqljb21wb25lbnSocmVzb3VyY2Wpc3Bhbi50eXBlkZGczgAAAADOAAAAAs4AAAADzwAAAAAAAAAHzwAAAAAAAABjzwAAAAAAAAAB0wAAAAAAAAAA0wAAAAA7msoA0gAAAACBzgAAAATOAAAAAYDOAAAAAQ==");
 

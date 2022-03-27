@@ -1,10 +1,10 @@
 use crate::exporter::model::Error;
+use crate::exporter::ModelConfig;
 use opentelemetry::sdk::export::trace;
+use opentelemetry::sdk::export::trace::SpanData;
 use opentelemetry::trace::Status;
 use opentelemetry::{Key, Value};
 use std::time::SystemTime;
-use opentelemetry::sdk::export::trace::SpanData;
-use crate::exporter::ModelConfig;
 
 pub(crate) fn encode<S, N, R>(
     model_config: &ModelConfig,
@@ -13,9 +13,11 @@ pub(crate) fn encode<S, N, R>(
     get_name: N,
     get_resource: R,
 ) -> Result<Vec<u8>, Error>
-    where for<'a> S: Fn(&'a SpanData, &'a ModelConfig) -> &'a str,
-          for<'a> N: Fn(&'a SpanData, &'a ModelConfig) -> &'a str,
-          for<'a> R: Fn(&'a SpanData, &'a ModelConfig) -> &'a str {
+where
+    for<'a> S: Fn(&'a SpanData, &'a ModelConfig) -> &'a str,
+    for<'a> N: Fn(&'a SpanData, &'a ModelConfig) -> &'a str,
+    for<'a> R: Fn(&'a SpanData, &'a ModelConfig) -> &'a str,
+{
     let mut encoded = Vec::new();
     rmp::encode::write_array_len(&mut encoded, traces.len() as u32)?;
 
