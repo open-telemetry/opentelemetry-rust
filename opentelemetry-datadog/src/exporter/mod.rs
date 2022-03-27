@@ -3,9 +3,11 @@ mod model;
 
 pub use model::ApiVersion;
 pub use model::Error;
+pub use model::FieldMappingFn;
+
 use std::fmt::{Debug, Formatter};
 
-use crate::exporter::model::ExtractStrTagsFn;
+use crate::exporter::model::FieldMapping;
 use async_trait::async_trait;
 use http::{Method, Request, Uri};
 use itertools::Itertools;
@@ -35,9 +37,9 @@ pub struct DatadogExporter {
     model_config: ModelConfig,
     version: ApiVersion,
 
-    resource_mapping: Option<ExtractStrTagsFn>,
-    name_mapping: Option<ExtractStrTagsFn>,
-    service_name_mapping: Option<ExtractStrTagsFn>,
+    resource_mapping: Option<FieldMapping>,
+    name_mapping: Option<FieldMapping>,
+    service_name_mapping: Option<FieldMapping>,
 }
 
 impl DatadogExporter {
@@ -46,9 +48,9 @@ impl DatadogExporter {
         request_url: Uri,
         version: ApiVersion,
         client: Box<dyn HttpClient>,
-        resource_mapping: Option<ExtractStrTagsFn>,
-        name_mapping: Option<ExtractStrTagsFn>,
-        service_name_mapping: Option<ExtractStrTagsFn>,
+        resource_mapping: Option<FieldMapping>,
+        name_mapping: Option<FieldMapping>,
+        service_name_mapping: Option<FieldMapping>,
     ) -> Self {
         DatadogExporter {
             client,
@@ -64,7 +66,18 @@ impl DatadogExporter {
 
 impl Debug for DatadogExporter {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        todo!()
+        f.debug_struct("DatadogExporter")
+            .field("model_config", &self.model_config)
+            .field("request_url", &self.request_url)
+            .field("version", &self.version)
+            .field("client", &self.client)
+            .field("resource_mapping", &mapping_debug(&self.resource_mapping))
+            .field("name_mapping", &mapping_debug(&self.name_mapping))
+            .field(
+                "service_name_mapping",
+                &mapping_debug(&self.service_name_mapping),
+            )
+            .finish()
     }
 }
 
@@ -81,9 +94,9 @@ pub struct DatadogPipelineBuilder {
     version: ApiVersion,
     client: Option<Box<dyn HttpClient>>,
 
-    resource_mapping: Option<ExtractStrTagsFn>,
-    name_mapping: Option<ExtractStrTagsFn>,
-    service_name_mapping: Option<ExtractStrTagsFn>,
+    resource_mapping: Option<FieldMapping>,
+    name_mapping: Option<FieldMapping>,
+    service_name_mapping: Option<FieldMapping>,
 }
 
 impl Default for DatadogPipelineBuilder {
@@ -122,7 +135,19 @@ impl Default for DatadogPipelineBuilder {
 
 impl Debug for DatadogPipelineBuilder {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        todo!()
+        f.debug_struct("DatadogExporter")
+            .field("service_name", &self.service_name)
+            .field("agent_endpoint", &self.agent_endpoint)
+            .field("version", &self.version)
+            .field("trace_config", &self.trace_config)
+            .field("client", &self.client)
+            .field("resource_mapping", &mapping_debug(&self.resource_mapping))
+            .field("name_mapping", &mapping_debug(&self.name_mapping))
+            .field(
+                "service_name_mapping",
+                &mapping_debug(&self.service_name_mapping),
+            )
+            .finish()
     }
 }
 
@@ -268,6 +293,8 @@ impl DatadogPipelineBuilder {
         self
     }
 
+    /// Custom the value used for `resource` field in datadog spans.
+    /// See [`AttributeMappingFn`] for details.
     pub fn with_resource_mapping<F>(mut self, f: F) -> Self
     where
         F: for<'a> Fn(&'a SpanData, &'a ModelConfig) -> &'a str + Send + Sync + 'static,
@@ -276,6 +303,8 @@ impl DatadogPipelineBuilder {
         self
     }
 
+    /// Custom the value used for `name` field in datadog spans.
+    /// See [`AttributeMappingFn`] for details.
     pub fn with_name_mapping<F>(mut self, f: F) -> Self
     where
         F: for<'a> Fn(&'a SpanData, &'a ModelConfig) -> &'a str + Send + Sync + 'static,
@@ -284,6 +313,8 @@ impl DatadogPipelineBuilder {
         self
     }
 
+    /// Custom the value used for `service_name` field in datadog spans.
+    /// See [`AttributeMappingFn`] for details.
     pub fn with_service_name_mapping<F>(mut self, f: F) -> Self
     where
         F: for<'a> Fn(&'a SpanData, &'a ModelConfig) -> &'a str + Send + Sync + 'static,
@@ -327,11 +358,22 @@ impl trace::SpanExporter for DatadogExporter {
     }
 }
 
-/// Helper struct to custom the mapping between Opentelemetry spans and datadog spans
-#[derive(Default)]
+/// Helper struct to custom the mapping between Opentelemetry spans and datadog spans.
+///
+/// This struct will be passed to [`AttributeMappingFn`]
+#[derive(Default, Debug)]
 pub struct ModelConfig {
     pub service_name: String,
     _private: (),
+}
+
+fn mapping_debug(f: &Option<FieldMapping>) -> String {
+    if f.is_some() {
+        "custom mapping"
+    } else {
+        "default mapping"
+    }
+    .to_string()
 }
 
 #[cfg(test)]
