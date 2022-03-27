@@ -37,6 +37,8 @@ mod v05;
 ///             })
 ///            .with_agent_endpoint("http://localhost:8126")
 ///            .install_batch(opentelemetry::runtime::Tokio)?;
+///
+///    Ok(())
 /// }
 /// ```
 pub type FieldMappingFn = dyn for<'a> Fn(&'a SpanData, &'a ModelConfig) -> &'a str + Send + Sync;

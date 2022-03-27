@@ -362,9 +362,9 @@ impl trace::SpanExporter for DatadogExporter {
 ///
 /// This struct will be passed to [`AttributeMappingFn`]
 #[derive(Default, Debug)]
+#[non_exhaustive]
 pub struct ModelConfig {
     pub service_name: String,
-    _private: (),
 }
 
 fn mapping_debug(f: &Option<FieldMapping>) -> String {
