@@ -27,7 +27,7 @@
 #![cfg_attr(test, deny(warnings))]
 
 pub mod export;
-pub mod instrumentation;
+mod instrumentation;
 #[cfg(feature = "metrics")]
 #[cfg_attr(docsrs, doc(cfg(feature = "metrics")))]
 pub mod metrics;
@@ -46,4 +46,5 @@ pub mod trace;
 pub mod util;
 
 pub use instrumentation::InstrumentationLibrary;
+#[doc(inline)]
 pub use resource::Resource;

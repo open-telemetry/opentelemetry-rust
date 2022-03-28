@@ -71,6 +71,42 @@ impl TracerProvider {
     }
 
     /// Force flush all remaining spans in span processors and return results.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use opentelemetry_api::global;
+    /// use opentelemetry_sdk::trace::TracerProvider;
+    ///
+    /// fn init_tracing() -> TracerProvider {
+    ///     let provider = TracerProvider::default();
+    ///
+    ///     // Set provider to be used as global tracer provider
+    ///     let _ = global::set_tracer_provider(provider.clone());
+    ///
+    ///     provider
+    /// }
+    ///
+    /// fn main() {
+    ///     let provider = init_tracing();
+    ///
+    ///     // create spans..
+    ///
+    ///     // force all spans to flush
+    ///     for result in provider.force_flush() {
+    ///         if let Err(err) = result {
+    ///             // .. handle flush error
+    ///         }
+    ///     }
+    ///
+    ///     // create more spans..
+    ///
+    ///     // dropping provider and shutting down global provider ensure all
+    ///     // remaining spans are exported
+    ///     drop(provider);
+    ///     global::shutdown_tracer_provider();
+    /// }
+    /// ```
     pub fn force_flush(&self) -> Vec<TraceResult<()>> {
         self.span_processors()
             .iter()
