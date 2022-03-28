@@ -31,7 +31,7 @@
 //!
 //! For standard values see [here](https://github.com/DataDog/dd-trace-go/blob/ecb0b805ef25b00888a2fb62d465a5aa95e7301e/ddtrace/ext/app_types.go#L31).
 //!
-//! If the default mapping is not fit for your use case, you may change some of them by providing [`AttributesMappingFn`](crate::exporter::AttributeMappingFn)s in pipeline.
+//! If the default mapping is not fit for your use case, you may change some of them by providing [`FieldMappingFn`]s in pipeline.
 //!
 //! ## Performance
 //!

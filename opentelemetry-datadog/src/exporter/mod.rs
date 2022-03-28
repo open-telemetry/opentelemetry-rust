@@ -294,7 +294,7 @@ impl DatadogPipelineBuilder {
     }
 
     /// Custom the value used for `resource` field in datadog spans.
-    /// See [`AttributeMappingFn`] for details.
+    /// See [`FieldMappingFn`] for details.
     pub fn with_resource_mapping<F>(mut self, f: F) -> Self
     where
         F: for<'a> Fn(&'a SpanData, &'a ModelConfig) -> &'a str + Send + Sync + 'static,
@@ -304,7 +304,7 @@ impl DatadogPipelineBuilder {
     }
 
     /// Custom the value used for `name` field in datadog spans.
-    /// See [`AttributeMappingFn`] for details.
+    /// See [`FieldMappingFn`] for details.
     pub fn with_name_mapping<F>(mut self, f: F) -> Self
     where
         F: for<'a> Fn(&'a SpanData, &'a ModelConfig) -> &'a str + Send + Sync + 'static,
@@ -314,7 +314,7 @@ impl DatadogPipelineBuilder {
     }
 
     /// Custom the value used for `service_name` field in datadog spans.
-    /// See [`AttributeMappingFn`] for details.
+    /// See [`FieldMappingFn`] for details.
     pub fn with_service_name_mapping<F>(mut self, f: F) -> Self
     where
         F: for<'a> Fn(&'a SpanData, &'a ModelConfig) -> &'a str + Send + Sync + 'static,
@@ -360,7 +360,7 @@ impl trace::SpanExporter for DatadogExporter {
 
 /// Helper struct to custom the mapping between Opentelemetry spans and datadog spans.
 ///
-/// This struct will be passed to [`AttributeMappingFn`]
+/// This struct will be passed to [`FieldMappingFn`]
 #[derive(Default, Debug)]
 #[non_exhaustive]
 pub struct ModelConfig {
