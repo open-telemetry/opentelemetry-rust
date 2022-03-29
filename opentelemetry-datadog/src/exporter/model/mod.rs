@@ -1,7 +1,64 @@
-use opentelemetry::sdk::export::{trace, ExportError};
+use crate::exporter::ModelConfig;
+use opentelemetry::sdk::export::{
+    trace::{self, SpanData},
+    ExportError,
+};
+use std::fmt::Debug;
 
 mod v03;
 mod v05;
+
+/// Custom mapping between opentelemetry spans and datadog spans.
+///
+/// User can provide custom function to change the mapping. It currently supports customizing the following
+/// fields in Datadog span protocol.
+///
+/// |field name|default value|
+/// |---------------|-------------|
+/// |service name| service name configuration from [`ModelConfig`]|
+/// |name | opentelemetry instrumentation library name |
+/// |resource| opentelemetry name|
+///
+/// The function takes a reference to [`SpanData`]() and a reference to [`ModelConfig`]() as parameters.
+/// It should return a `&str` which will be used as the value for the field.
+///
+/// If no custom mapping is provided. Default mapping detailed above will be used.
+///
+/// For example,
+/// ```no_run
+/// use opentelemetry_datadog::{ApiVersion, new_pipeline};
+/// fn main() -> Result<(), opentelemetry::trace::TraceError> {
+///    let tracer = new_pipeline()
+///            .with_service_name("my_app")
+///            .with_version(ApiVersion::Version05)
+///            // the custom mapping below will change the all spans' name to datadog spans
+///            .with_name_mapping(|span, model_config|{
+///                 "datadog spans"
+///             })
+///            .with_agent_endpoint("http://localhost:8126")
+///            .install_batch(opentelemetry::runtime::Tokio)?;
+///
+///    Ok(())
+/// }
+/// ```
+pub type FieldMappingFn = dyn for<'a> Fn(&'a SpanData, &'a ModelConfig) -> &'a str + Send + Sync;
+
+pub(crate) type FieldMapping = std::sync::Arc<FieldMappingFn>;
+
+// Datadog uses some magic tags in their models. There is no recommended mapping defined in
+// opentelemetry spec. Below is default mapping we gonna uses. Users can override it by providing
+// their own implementations
+fn default_service_name_mapping<'a>(_span: &'a SpanData, config: &'a ModelConfig) -> &'a str {
+    config.service_name.as_str()
+}
+
+fn default_name_mapping<'a>(span: &'a SpanData, _config: &'a ModelConfig) -> &'a str {
+    span.instrumentation_lib.name.as_ref()
+}
+
+fn default_resource_mapping<'a>(span: &'a SpanData, _config: &'a ModelConfig) -> &'a str {
+    span.name.as_ref()
+}
 
 /// Wrap type for errors from opentelemetry datadog exporter
 #[derive(Debug, thiserror::Error)]
@@ -37,6 +94,7 @@ impl From<rmp::encode::ValueWriteError> for Error {
 
 /// Version of datadog trace ingestion API
 #[derive(Debug, Copy, Clone)]
+#[non_exhaustive]
 pub enum ApiVersion {
     /// Version 0.3
     Version03,
@@ -61,12 +119,45 @@ impl ApiVersion {
 
     pub(crate) fn encode(
         self,
-        service_name: &str,
+        model_config: &ModelConfig,
         traces: Vec<Vec<trace::SpanData>>,
+        get_service_name: Option<FieldMapping>,
+        get_name: Option<FieldMapping>,
+        get_resource: Option<FieldMapping>,
     ) -> Result<Vec<u8>, Error> {
         match self {
-            Self::Version03 => v03::encode(service_name, traces),
-            Self::Version05 => v05::encode(service_name, traces),
+            Self::Version03 => v03::encode(
+                model_config,
+                traces,
+                |span, config| match &get_service_name {
+                    Some(f) => f(span, config),
+                    None => default_service_name_mapping(span, config),
+                },
+                |span, config| match &get_name {
+                    Some(f) => f(span, config),
+                    None => default_name_mapping(span, config),
+                },
+                |span, config| match &get_resource {
+                    Some(f) => f(span, config),
+                    None => default_resource_mapping(span, config),
+                },
+            ),
+            Self::Version05 => v05::encode(
+                model_config,
+                traces,
+                |span, config| match &get_service_name {
+                    Some(f) => f(span, config),
+                    None => default_service_name_mapping(span, config),
+                },
+                |span, config| match &get_name {
+                    Some(f) => f(span, config),
+                    None => default_name_mapping(span, config),
+                },
+                |span, config| match &get_resource {
+                    Some(f) => f(span, config),
+                    None => default_resource_mapping(span, config),
+                },
+            ),
         }
     }
 }
@@ -124,7 +215,17 @@ pub(crate) mod tests {
     #[test]
     fn test_encode_v03() -> Result<(), Box<dyn std::error::Error>> {
         let traces = get_traces();
-        let encoded = base64::encode(ApiVersion::Version03.encode("service_name", traces)?);
+        let model_config = ModelConfig {
+            service_name: "service_name".to_string(),
+            ..Default::default()
+        };
+        let encoded = base64::encode(ApiVersion::Version03.encode(
+            &model_config,
+            traces,
+            None,
+            None,
+            None,
+        )?);
 
         assert_eq!(encoded.as_str(), "kZGLpHR5cGWjd2Vip3NlcnZpY2Wsc2VydmljZV9uYW1lpG5hbWWpY29tcG9uZW50qHJlc291cmNlqHJlc291cmNlqHRyYWNlX2lkzwAAAAAAAAAHp3NwYW5faWTPAAAAAAAAAGOpcGFyZW50X2lkzwAAAAAAAAABpXN0YXJ00wAAAAAAAAAAqGR1cmF0aW9u0wAAAAA7msoApWVycm9y0gAAAACkbWV0YYGpc3Bhbi50eXBlo3dlYg==");
 
@@ -134,9 +235,20 @@ pub(crate) mod tests {
     #[test]
     fn test_encode_v05() -> Result<(), Box<dyn std::error::Error>> {
         let traces = get_traces();
-        let encoded = base64::encode(ApiVersion::Version05.encode("service_name", traces)?);
+        let model_config = ModelConfig {
+            service_name: "service_name".to_string(),
+            ..Default::default()
+        };
+        let encoded = base64::encode(ApiVersion::Version05.encode(
+            &model_config,
+            traces,
+            None,
+            None,
+            None,
+        )?);
 
-        assert_eq!(encoded.as_str(), "kpWsc2VydmljZV9uYW1lo3dlYqljb21wb25lbnSocmVzb3VyY2Wpc3Bhbi50eXBlkZGczgAAAADOAAAAAs4AAAADzwAAAAAAAAAHzwAAAAAAAABjzwAAAAAAAAAB0wAAAAAAAAAA0wAAAAA7msoA0gAAAACBzgAAAATOAAAAAYDOAAAAAQ==");
+        assert_eq!(encoded.as_str(),
+                   "kpWjd2VirHNlcnZpY2VfbmFtZaljb21wb25lbnSocmVzb3VyY2Wpc3Bhbi50eXBlkZGczgAAAAHOAAAAAs4AAAADzwAAAAAAAAAHzwAAAAAAAABjzwAAAAAAAAAB0wAAAAAAAAAA0wAAAAA7msoA0gAAAACBzgAAAATOAAAAAIDOAAAAAA==");
 
         Ok(())
     }

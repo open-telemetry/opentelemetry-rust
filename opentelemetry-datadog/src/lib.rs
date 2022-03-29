@@ -29,7 +29,9 @@
 //! Datadog additionally has a span_type string that alters the rendering of the spans in the web UI.
 //! This can be set as the `span.type` OpenTelemetry span attribute.
 //!
-//! For standard values see [here](https://github.com/DataDog/dd-trace-go/blob/ecb0b805ef25b00888a2fb62d465a5aa95e7301e/ddtrace/ext/app_types.go#L31)
+//! For standard values see [here](https://github.com/DataDog/dd-trace-go/blob/ecb0b805ef25b00888a2fb62d465a5aa95e7301e/ddtrace/ext/app_types.go#L31).
+//!
+//! If the default mapping is not fit for your use case, you may change some of them by providing [`FieldMappingFn`]s in pipeline.
 //!
 //! ## Performance
 //!
@@ -385,5 +387,8 @@ mod propagator {
     }
 }
 
-pub use exporter::{new_pipeline, ApiVersion, DatadogExporter, DatadogPipelineBuilder, Error};
+pub use exporter::{
+    new_pipeline, ApiVersion, DatadogExporter, DatadogPipelineBuilder, Error, FieldMappingFn,
+    ModelConfig,
+};
 pub use propagator::DatadogPropagator;

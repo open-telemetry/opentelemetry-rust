@@ -1,6 +1,7 @@
 use crate::exporter::intern::StringInterner;
-use crate::exporter::Error;
+use crate::exporter::{Error, ModelConfig};
 use opentelemetry::sdk::export::trace;
+use opentelemetry::sdk::export::trace::SpanData;
 use opentelemetry::trace::Status;
 use opentelemetry::{Key, Value};
 use std::time::SystemTime;
@@ -50,12 +51,27 @@ use std::time::SystemTime;
 //
 // 		The dictionary in this case would be []string{""}, having only the empty string at index 0.
 //
-pub(crate) fn encode(
-    service_name: &str,
+pub(crate) fn encode<S, N, R>(
+    model_config: &ModelConfig,
     traces: Vec<Vec<trace::SpanData>>,
-) -> Result<Vec<u8>, Error> {
+    get_service_name: S,
+    get_name: N,
+    get_resource: R,
+) -> Result<Vec<u8>, Error>
+where
+    for<'a> S: Fn(&'a SpanData, &'a ModelConfig) -> &'a str,
+    for<'a> N: Fn(&'a SpanData, &'a ModelConfig) -> &'a str,
+    for<'a> R: Fn(&'a SpanData, &'a ModelConfig) -> &'a str,
+{
     let mut interner = StringInterner::new();
-    let mut encoded_traces = encode_traces(&mut interner, service_name, traces)?;
+    let mut encoded_traces = encode_traces(
+        &mut interner,
+        model_config,
+        get_service_name,
+        get_name,
+        get_resource,
+        traces,
+    )?;
 
     let mut payload = Vec::new();
     rmp::encode::write_array_len(&mut payload, 2)?;
@@ -70,15 +86,21 @@ pub(crate) fn encode(
     Ok(payload)
 }
 
-fn encode_traces(
+fn encode_traces<S, N, R>(
     interner: &mut StringInterner,
-    service_name: &str,
+    model_config: &ModelConfig,
+    get_service_name: S,
+    get_name: N,
+    get_resource: R,
     traces: Vec<Vec<trace::SpanData>>,
-) -> Result<Vec<u8>, Error> {
+) -> Result<Vec<u8>, Error>
+where
+    for<'a> S: Fn(&'a SpanData, &'a ModelConfig) -> &'a str,
+    for<'a> N: Fn(&'a SpanData, &'a ModelConfig) -> &'a str,
+    for<'a> R: Fn(&'a SpanData, &'a ModelConfig) -> &'a str,
+{
     let mut encoded = Vec::new();
     rmp::encode::write_array_len(&mut encoded, traces.len() as u32)?;
-
-    let service_interned = interner.intern(service_name);
 
     for trace in traces.into_iter() {
         rmp::encode::write_array_len(&mut encoded, trace.len() as u32)?;
@@ -104,12 +126,15 @@ fn encode_traces(
 
             // Datadog span name is OpenTelemetry component name - see module docs for more information
             rmp::encode::write_array_len(&mut encoded, 12)?;
-            rmp::encode::write_u32(&mut encoded, service_interned)?;
             rmp::encode::write_u32(
                 &mut encoded,
-                interner.intern(span.instrumentation_lib.name.as_ref()),
+                interner.intern(get_service_name(&span, model_config)),
             )?;
-            rmp::encode::write_u32(&mut encoded, interner.intern(&span.name))?;
+            rmp::encode::write_u32(&mut encoded, interner.intern(get_name(&span, model_config)))?;
+            rmp::encode::write_u32(
+                &mut encoded,
+                interner.intern(get_resource(&span, model_config)),
+            )?;
             rmp::encode::write_u64(
                 &mut encoded,
                 u128::from_be_bytes(span.span_context.trace_id().to_bytes()) as u64,
