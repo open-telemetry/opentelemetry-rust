@@ -159,7 +159,7 @@ impl<R: LogRuntime> BatchLogProcessor<R> {
 
             while let Some(message) = messages.next().await {
                 match message {
-                    // Span has finished, add to buffer of pending spans.
+                    // Log has finished, add to buffer of pending logs.
                     BatchMessage::ExportLog(log) => {
                         logs.push(log);
 

@@ -6,8 +6,11 @@ mod log_processor;
 mod record;
 mod runtime;
 
-pub use config::*;
-pub use log_emitter::*;
-pub use log_processor::*;
-pub use record::*;
-pub use runtime::*;
+pub use config::Config;
+pub use log_emitter::{Builder, LogEmitter, LogEmitterProvider};
+pub use log_processor::{
+    BatchConfig, BatchLogProcessor, BatchLogProcessorBuilder, BatchMessage, LogProcessor,
+    SimpleLogProcessor,
+};
+pub use record::{Any, LogRecord, LogRecordBuilder, Severity, TraceContext};
+pub use runtime::{LogRuntime, TrySend};
