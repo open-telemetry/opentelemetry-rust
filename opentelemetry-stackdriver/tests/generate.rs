@@ -173,6 +173,14 @@ fn generated_code_is_fresh() {
         previous = parent;
     }
 
+    while level > 0 {
+        level -= 1;
+        for _ in 0..(level * 4) {
+            root.push(' ');
+        }
+        root.push_str("}\n");
+    }
+
     fs::write(tmp_dir.path().join("mod.rs"), root).unwrap();
 
     // Move on to actually comparing the old and new versions.
