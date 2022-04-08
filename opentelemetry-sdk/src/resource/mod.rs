@@ -161,7 +161,7 @@ impl Resource {
 
     /// Return the [schema_url] of the resource. If the resource does not have a schema url, return empty string.
     ///
-    /// [Schema url]: https://github.com/open-telemetry/opentelemetry-specification/blob/v1.9.0/specification/schemas/overview.md#schema-url
+    /// [schema url]: https://github.com/open-telemetry/opentelemetry-specification/blob/v1.9.0/specification/schemas/overview.md#schema-url
     pub fn schema_url(&self) -> String {
         self.schema_url
             .clone()
