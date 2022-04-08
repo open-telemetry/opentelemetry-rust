@@ -12,10 +12,10 @@ use std::convert::TryInto;
 /// representation.
 pub trait BinaryFormat {
     /// Serializes span context into a byte array and returns the array.
-    fn to_bytes(&self, context: &SpanContext) -> [u8; 29];
+    fn serialize_into_bytes(&self, context: &SpanContext) -> [u8; 29];
 
     /// Deserializes a span context from a byte array.
-    fn from_bytes(&self, bytes: Vec<u8>) -> SpanContext;
+    fn deserialize_from_bytes(&self, bytes: Vec<u8>) -> SpanContext;
 }
 
 /// Extracts and injects `SpanContext`s from byte arrays.
@@ -31,7 +31,7 @@ impl BinaryPropagator {
 
 impl BinaryFormat for BinaryPropagator {
     /// Serializes span context into a byte array and returns the array.
-    fn to_bytes(&self, context: &SpanContext) -> [u8; 29] {
+    fn serialize_into_bytes(&self, context: &SpanContext) -> [u8; 29] {
         let mut res = [0u8; 29];
         if !context.is_valid() {
             return res;
@@ -46,7 +46,7 @@ impl BinaryFormat for BinaryPropagator {
     }
 
     /// Deserializes a span context from a byte array.
-    fn from_bytes(&self, bytes: Vec<u8>) -> SpanContext {
+    fn deserialize_from_bytes(&self, bytes: Vec<u8>) -> SpanContext {
         if bytes.is_empty() {
             return SpanContext::empty_context();
         }
@@ -159,20 +159,20 @@ mod tests {
     }
 
     #[test]
-    fn to_bytes_conversion() {
+    fn serialize_into_bytes_conversion() {
         let propagator = BinaryPropagator::new();
 
         for (context, data) in to_bytes_data() {
-            assert_eq!(propagator.to_bytes(&context), data)
+            assert_eq!(propagator.serialize_into_bytes(&context), data)
         }
     }
 
     #[test]
-    fn from_bytes_conversion() {
+    fn deserialize_from_bytes_conversion() {
         let propagator = BinaryPropagator::new();
 
         for (context, data) in from_bytes_data() {
-            assert_eq!(propagator.from_bytes(data), context)
+            assert_eq!(propagator.deserialize_from_bytes(data), context)
         }
     }
 }
