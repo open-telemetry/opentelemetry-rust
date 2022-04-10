@@ -129,6 +129,21 @@ impl SpanRef<'_> {
         self.with_inner_mut(move |inner| inner.set_attribute(attribute))
     }
 
+    /// Set multiple attributes of this span.
+    ///
+    /// Setting an attribute with the same key as an existing attribute
+    /// generally overwrites the existing attribute's value.
+    ///
+    /// Note that the OpenTelemetry project documents certain "[standard
+    /// attributes]" that have prescribed semantic meanings and are available via
+    /// the [opentelemetry_semantic_conventions] crate.
+    ///
+    /// [standard attributes]: https://github.com/open-telemetry/opentelemetry-specification/blob/v1.9.0/specification/trace/semantic_conventions/README.md
+    /// [opentelemetry_semantic_conventions]: https://docs.rs/opentelemetry-semantic-conventions
+    pub fn set_attributes(&mut self, attributes: impl IntoIterator<Item = KeyValue>) {
+        self.with_inner_mut(move |inner| inner.set_attributes(attributes))
+    }
+
     /// Sets the status of this `Span`.
     ///
     /// If used, this will override the default span status, which is [`Status::Unset`].
