@@ -309,9 +309,9 @@ mod tests {
     #[test]
     fn add_event() {
         let mut span = create_span();
-        let name = "some_event".to_string();
+        let name = "some_event";
         let attributes = vec![KeyValue::new("k", "v")];
-        span.add_event(name.clone(), attributes.clone());
+        span.add_event(name, attributes.clone());
         span.with_data(|data| {
             if let Some(event) = data.events.iter().next() {
                 assert_eq!(event.name, name);
@@ -325,10 +325,10 @@ mod tests {
     #[test]
     fn add_event_with_timestamp() {
         let mut span = create_span();
-        let name = "some_event".to_string();
+        let name = "some_event";
         let attributes = vec![KeyValue::new("k", "v")];
         let timestamp = opentelemetry_api::time::now();
-        span.add_event_with_timestamp(name.clone(), timestamp, attributes.clone());
+        span.add_event_with_timestamp(name, timestamp, attributes.clone());
         span.with_data(|data| {
             if let Some(event) = data.events.iter().next() {
                 assert_eq!(event.timestamp, timestamp);
@@ -411,8 +411,8 @@ mod tests {
     #[test]
     fn update_name() {
         let mut span = create_span();
-        let name = "new_name".to_string();
-        span.update_name(name.clone());
+        let name = "new_name";
+        span.update_name(name);
         span.with_data(|data| {
             assert_eq!(data.name, name);
         });
@@ -453,9 +453,9 @@ mod tests {
         let mut span = create_span();
         let initial = span.with_data(|data| data.clone()).unwrap();
         span.end();
-        span.add_event("some_event".to_string(), vec![KeyValue::new("k", "v")]);
+        span.add_event("some_event", vec![KeyValue::new("k", "v")]);
         span.add_event_with_timestamp(
-            "some_event".to_string(),
+            "some_event",
             opentelemetry_api::time::now(),
             vec![KeyValue::new("k", "v")],
         );
@@ -463,7 +463,7 @@ mod tests {
         span.record_error(&err);
         span.set_attribute(KeyValue::new("k", "v"));
         span.set_status(Status::error("ERROR"));
-        span.update_name("new_name".to_string());
+        span.update_name("new_name");
         span.with_data(|data| {
             assert_eq!(data.events, initial.events);
             assert_eq!(data.attributes, initial.attributes);
@@ -563,7 +563,7 @@ mod tests {
         let tracer = provider.tracer("test");
 
         let mut span = tracer.start("test_span");
-        span.add_event("test_event".to_string(), vec![]);
+        span.add_event("test_event", vec![]);
         span.set_status(Status::error(""));
 
         let exported_data = span.exported_data();

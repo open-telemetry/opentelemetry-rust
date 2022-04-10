@@ -40,7 +40,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
             let span = cx.span();
             span.set_attribute(LEMONS_KEY.string("five"));
 
-            span.add_event("Sub span event".to_string(), vec![]);
+            span.add_event("Sub span event", vec![]);
         });
     });
 

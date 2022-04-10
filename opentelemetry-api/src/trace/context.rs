@@ -326,7 +326,7 @@ pub fn mark_span_as_active<T: crate::trace::Span + Send + Sync + 'static>(span: 
 /// fn my_other_function() {
 ///     // call methods on the current span from
 ///     get_active_span(|span| {
-///         span.add_event("An event!".to_string(), vec![KeyValue::new("happened", true)]);
+///         span.add_event("An event!", vec![KeyValue::new("happened", true)]);
 ///     })
 /// }
 /// ```
