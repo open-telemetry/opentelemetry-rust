@@ -159,7 +159,7 @@ impl Resource {
         resource
     }
 
-    /// Return the [schema_url] of the resource. If the resource does not have a schema url, return empty string.
+    /// Return the [schema url] of the resource. If the resource does not have a schema url, return empty string.
     ///
     /// [schema url]: https://github.com/open-telemetry/opentelemetry-specification/blob/v1.9.0/specification/schemas/overview.md#schema-url
     pub fn schema_url(&self) -> String {
