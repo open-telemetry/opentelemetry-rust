@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.6.0
+
+### Changed
+
+- Allow custom mapping #770
+- Update to opentelemetry v1.0.0-beta.1
+- Update to opentelemetry-http v0.7.0
+- Update to opentelemetry-semantic-conventions v0.10.0
+
 ## v0.5.0
 
 ### Changed

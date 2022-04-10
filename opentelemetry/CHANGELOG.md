@@ -1,5 +1,30 @@
 # Changelog
 
+## [v1.0.0-beta.1](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.17.0...v1.0.0-beta.1)
+
+### Added
+
+- Pull sampling probability from `OTEL_TRACES_SAMPLER_ARG` in default sdk config #737
+- Add `schema_url` to `Tracer` #743
+
+### Changed
+
+- Deprecate metrics `ValueRecorder` in favor of `Histogram` #728
+- Move `IdGenerator` to SDK, rename to `RandomIdGenerator` #742
+- `meter_with_version` accepts optional parameter for `version` and `schema_url` #752
+- Unify `Event` and `Link` access patterns #757
+- move `SpanKind` display format impl to jaeger crate #758
+- make `TraceStateError` priviate #755
+- rename `Span::record_exception` to `Span::record_error` #756
+- Replace `StatusCode` and `message` with `Status` #760
+- Move `TracerProvider::force_flush` to SDK #658
+
+### Removed
+
+- Remove `serialize` feature #738
+- Remove `StatusCode::as_str` #741
+- Remove `Tracer::with_span` #746 
+
 ## [v0.17.0](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.16.0...v0.17.0)
 
 ### Changed

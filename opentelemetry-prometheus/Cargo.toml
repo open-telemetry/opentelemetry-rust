@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-prometheus"
-version = "0.10.0"
+version = "0.11.0"
 description = "Prometheus exporter for OpenTelemetry"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust"
 repository = "https://github.com/open-telemetry/opentelemetry-rust"
@@ -19,12 +19,12 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-opentelemetry = { version = "0.17", path = "../opentelemetry", default-features = false, features = ["metrics"] }
+opentelemetry = { version = "1.0.0-beta.1", path = "../opentelemetry", default-features = false, features = ["metrics"] }
 prometheus = "0.13"
 protobuf = "2.14"
 
 [dev-dependencies]
-opentelemetry = { version = "0.17", path = "../opentelemetry", default-features = false, features = ["metrics", "testing"] }
+opentelemetry = { path = "../opentelemetry", features = ["metrics", "testing"] }
 lazy_static = "1.4"
 
 [features]

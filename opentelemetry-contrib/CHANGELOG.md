@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.10.0
+
+### Changed
+
+- Rename binary propagator's functions #776
+- Update to opentelemetry v1.0.0-beta.1
+
 ## v0.9.0
 
 ### Changed

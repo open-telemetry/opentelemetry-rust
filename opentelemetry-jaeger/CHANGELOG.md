@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.17.0
+
+### Changed
+
+- Consolidate the config errors #762
+- Better configuration pipeline #748
+- Add Timeout Environment Var #729
+- Update to opentelemetry v1.0.0-beta.1
+- Update to opentelemetry-http v0.7.0
+- Update to opentelemetry-semantic-conventions v0.10.0
+
 ## v0.16.0
 
 ### Changed

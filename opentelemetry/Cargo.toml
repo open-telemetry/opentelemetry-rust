@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry"
-version = "0.17.0"
+version = "1.0.0-beta.1"
 description = "A metrics collection and distributed tracing framework"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust"
 repository = "https://github.com/open-telemetry/opentelemetry-rust"
@@ -20,8 +20,8 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-opentelemetry-api = { version = "0.1", path = "../opentelemetry-api" }
-opentelemetry-sdk = { version = "0.1", path = "../opentelemetry-sdk" }
+opentelemetry-api = { version = "1.0.0-beta.1", path = "../opentelemetry-api" }
+opentelemetry-sdk = { version = "1.0.0-beta.1", path = "../opentelemetry-sdk" }
 
 [features]
 default = ["trace"]

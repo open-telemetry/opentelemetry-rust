@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.15.0
+
+### Added
+
+- Added mappings from OTel attributes to Google Cloud Traces #744
+
+### Changed
+
+- Upgrade to opentelemetry v1.0.0-beta.1
+- Upgrade to opentelemetry-semantic-conventions v0.10
+
 ## v0.14.0
 
 ### Changed

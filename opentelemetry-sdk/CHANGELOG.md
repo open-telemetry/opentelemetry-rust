@@ -1,5 +1,5 @@
 # Changelog
 
-## v0.1.0
+## v1.0.0-beta.1
 
 - SDK split from `opentelemetry` crate
