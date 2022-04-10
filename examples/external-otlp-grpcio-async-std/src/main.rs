@@ -14,8 +14,8 @@ use opentelemetry::{
     trace::{TraceContextExt, Tracer},
     Key,
 };
-use url::Url;
 use opentelemetry_otlp::WithExportConfig;
+use url::Url;
 
 use std::{
     collections::HashMap,
@@ -67,7 +67,7 @@ fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
                 .grpcio()
                 .with_endpoint(grpcio_endpoint)
                 .with_headers(headers)
-                .with_tls(true)
+                .with_tls(true),
         )
         .install_batch(opentelemetry::runtime::AsyncStd)
 }
@@ -96,7 +96,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
             let span = cx.span();
             span.set_attribute(LEMONS_KEY.string("five"));
 
-            span.add_event("Sub span event".to_string(), vec![]);
+            span.add_event("Sub span event", vec![]);
         });
     });
 
