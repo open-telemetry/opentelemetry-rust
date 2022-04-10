@@ -16,23 +16,23 @@ use opentelemetry::trace::SpanContext;
 /// representation.
 pub trait Base64Format {
     /// Serializes span context into a base64 encoded string
-    fn to_base64(&self, context: &SpanContext) -> String;
+    fn serialize_into_base64(&self, context: &SpanContext) -> String;
 
     /// Deserialize a span context from a base64 encoded string
-    fn from_base64(&self, base64: &str) -> SpanContext;
+    fn deserialize_from_base64(&self, base64: &str) -> SpanContext;
 }
 
 impl<Format> Base64Format for Format
 where
     Format: BinaryFormat,
 {
-    fn to_base64(&self, context: &SpanContext) -> String {
-        encode(&self.to_bytes(context))
+    fn serialize_into_base64(&self, context: &SpanContext) -> String {
+        encode(&self.serialize_into_bytes(context))
     }
 
-    fn from_base64(&self, base64: &str) -> SpanContext {
+    fn deserialize_from_base64(&self, base64: &str) -> SpanContext {
         if let Ok(bytes) = decode(base64.as_bytes()) {
-            self.from_bytes(bytes)
+            self.deserialize_from_bytes(bytes)
         } else {
             SpanContext::empty_context()
         }
@@ -69,23 +69,23 @@ mod tests {
     }
 
     #[test]
-    fn to_base64_conversion() {
+    fn serialize_into_base64_conversion() {
         let propagator = BinaryPropagator::new();
 
         for (context, data) in to_base64_data() {
-            assert_eq!(propagator.to_base64(&context), data)
+            assert_eq!(propagator.serialize_into_base64(&context), data)
         }
     }
 
     #[test]
-    fn from_base64_conversion() {
+    fn deserialize_from_base64_conversion() {
         let propagator = BinaryPropagator::new();
 
         for (context, data) in from_base64_data() {
-            assert_eq!(propagator.from_base64(&data), context)
+            assert_eq!(propagator.deserialize_from_base64(&data), context)
         }
         for (context, data) in to_base64_data() {
-            assert_eq!(propagator.from_base64(&data), context)
+            assert_eq!(propagator.deserialize_from_base64(&data), context)
         }
     }
 }
