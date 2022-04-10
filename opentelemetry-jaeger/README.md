@@ -115,7 +115,7 @@ Then you can use the [`with_collector_endpoint`] method to specify the endpoint:
 // * isahc_collector_client
 
 // You can also provide your own implementation by enable
-// `collecor_client` and set it with
+// `collector_client` and set it with
 // new_pipeline().with_http_client() method.
 use opentelemetry::trace::Tracer;
 
