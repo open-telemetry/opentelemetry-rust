@@ -212,7 +212,7 @@ pub(crate) mod tonic {
             resource_metrics: sink_map
                 .into_iter()
                 .map(|(resource, metric_map)| ResourceMetrics {
-                    schema_url: resource.schema_url(),
+                    schema_url: resource.schema_url().unwrap_or_default(),
                     resource: Some(resource.into()),
                     instrumentation_library_metrics: metric_map
                         .into_iter()
