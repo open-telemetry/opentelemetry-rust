@@ -163,10 +163,7 @@ impl Resource {
     ///
     /// [schema url]: https://github.com/open-telemetry/opentelemetry-specification/blob/v1.9.0/specification/schemas/overview.md#schema-url
     pub fn schema_url(&self) -> Option<&str> {
-        match self.schema_url {
-            Some(ref s) => Some(s),
-            None => None,
-        }
+        self.schema_url.as_ref().map(|s| s.as_ref())
     }
 
     /// Returns the number of attributes for this resource

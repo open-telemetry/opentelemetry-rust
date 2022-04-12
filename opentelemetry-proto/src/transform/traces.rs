@@ -59,8 +59,7 @@ pub mod tonic {
                 }),
                 schema_url: source_span
                     .resource
-                    .and_then(|resource|
-                        resource.schema_url().map(|url| url.to_string()))
+                    .and_then(|resource| resource.schema_url().map(|url| url.to_string()))
                     .unwrap_or_default(),
                 instrumentation_library_spans: vec![InstrumentationLibrarySpans {
                     schema_url: source_span
