@@ -28,7 +28,7 @@ impl PartialOrd for ResourceWrapper {
 impl ResourceWrapper {
     #[cfg(all(feature = "grpc-tonic", feature = "metrics"))]
     // it's currently only used by metrics. Trace set this in opentelemtry-proto
-    pub(crate) fn schema_url(&self) -> Option<String> {
+    pub(crate) fn schema_url(&self) -> Option<&str> {
         self.0.schema_url()
     }
 }

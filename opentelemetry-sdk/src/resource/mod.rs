@@ -162,8 +162,11 @@ impl Resource {
     /// Return the [schema url] of the resource. If the resource does not have a schema url, return `None`.
     ///
     /// [schema url]: https://github.com/open-telemetry/opentelemetry-specification/blob/v1.9.0/specification/schemas/overview.md#schema-url
-    pub fn schema_url(&self) -> Option<String> {
-        self.schema_url.clone().map(|s| s.to_string())
+    pub fn schema_url(&self) -> Option<&str> {
+        match self.schema_url {
+            Some(ref s) => Some(s),
+            None => None,
+        }
     }
 
     /// Returns the number of attributes for this resource
