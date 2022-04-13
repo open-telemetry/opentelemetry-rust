@@ -133,20 +133,31 @@ where
     W: Write + Debug + Send + 'static,
 {
     /// Export spans to stdout
-    async fn export(&mut self, batch: Vec<SpanData>) -> ExportResult {
+    fn export(
+        &mut self,
+        batch: Vec<SpanData>,
+    ) -> futures::future::BoxFuture<'static, ExportResult> {
         for span in batch {
             if self.pretty_print {
-                self.writer
+                if let Err(err) = self
+                    .writer
                     .write_all(format!("{:#?}\n", span).as_bytes())
-                    .map_err(|err| TraceError::ExportFailed(Box::new(Error::from(err))))?;
+                    .map_err(|err| TraceError::ExportFailed(Box::new(Error::from(err))))
+                {
+                    return Box::pin(std::future::ready(Err(Into::into(err))));
+                }
             } else {
-                self.writer
+                if let Err(err) = self
+                    .writer
                     .write_all(format!("{:?}\n", span).as_bytes())
-                    .map_err(|err| TraceError::ExportFailed(Box::new(Error::from(err))))?;
+                    .map_err(|err| TraceError::ExportFailed(Box::new(Error::from(err))))
+                {
+                    return Box::pin(std::future::ready(Err(Into::into(err))));
+                }
             }
         }
 
-        Ok(())
+        Box::pin(std::future::ready(Ok(())))
     }
 }
 

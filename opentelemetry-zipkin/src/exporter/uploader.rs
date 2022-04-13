@@ -5,15 +5,16 @@ use http::{header::CONTENT_TYPE, Method, Request, Uri};
 use opentelemetry::sdk::export::trace::ExportResult;
 use opentelemetry_http::{HttpClient, ResponseExt};
 use std::fmt::Debug;
+use std::sync::Arc;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) enum Uploader {
     Http(JsonV2Client),
 }
 
 impl Uploader {
     /// Create a new http uploader
-    pub(crate) fn new(client: Box<dyn HttpClient>, collector_endpoint: Uri) -> Self {
+    pub(crate) fn new(client: Arc<dyn HttpClient>, collector_endpoint: Uri) -> Self {
         Uploader::Http(JsonV2Client {
             client,
             collector_endpoint,
@@ -28,9 +29,9 @@ impl Uploader {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct JsonV2Client {
-    client: Box<dyn HttpClient>,
+    client: Arc<dyn HttpClient>,
     collector_endpoint: Uri,
 }
 
