@@ -16,7 +16,7 @@ hex = "0.4"
 http = "0.2"
 hyper = "0.14.2"
 hyper-rustls = { version = "0.22.1", optional = true }
-opentelemetry = { version = "1.0.0-beta.1", path = "../opentelemetry" }
+opentelemetry = { version = "0.18.0", path = "../opentelemetry" }
 opentelemetry-semantic-conventions = { version = "0.10", path = "../opentelemetry-semantic-conventions" }
 prost = "0.9"
 prost-types = "0.9"

@@ -1,6 +1,10 @@
 # Changelog
 
-## [v1.0.0-beta.1](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.17.0...v1.0.0-beta.1)
+## [v0.18.0](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.17.0...v0.18.0)
+
+This release is the first beta release of the `trace` API and SDK. If no other
+breaking changes are necessary, the next release will be 1.0. The `metrics` API
+and SDK are still unstable.
 
 ### Added
 
@@ -14,7 +18,7 @@
 - `meter_with_version` accepts optional parameter for `version` and `schema_url` #752
 - Unify `Event` and `Link` access patterns #757
 - move `SpanKind` display format impl to jaeger crate #758
-- make `TraceStateError` priviate #755
+- make `TraceStateError` private #755
 - rename `Span::record_exception` to `Span::record_error` #756
 - Replace `StatusCode` and `message` with `Status` #760
 - Move `TracerProvider::force_flush` to SDK #658

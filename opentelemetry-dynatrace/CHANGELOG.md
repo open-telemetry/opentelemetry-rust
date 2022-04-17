@@ -4,7 +4,7 @@
 
 ### Changed
 
-- Update to opentelemetry v1.0.0-beta.1
+- Update to opentelemetry v0.18.0
 - Update to opentelemetry-http v0.7.0
 
 ## v0.1.0

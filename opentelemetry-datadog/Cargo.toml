@@ -25,7 +25,7 @@ surf-client = ["surf", "opentelemetry-http/surf"]
 [dependencies]
 async-trait = "0.1"
 indexmap = "1.6"
-opentelemetry = { version = "1.0.0-beta.1", path = "../opentelemetry", features = ["trace"] }
+opentelemetry = { version = "0.18.0", path = "../opentelemetry", features = ["trace"] }
 opentelemetry-http = { version = "0.7", path = "../opentelemetry-http" }
 opentelemetry-semantic-conventions = { version = "0.10", path = "../opentelemetry-semantic-conventions" }
 rmp = "0.8"

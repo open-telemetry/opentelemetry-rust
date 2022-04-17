@@ -5,7 +5,7 @@
 ### Changed
 
 - reduce `tokio` feature requirements #750
-- Update to opentelemetry v1.0.0-beta.1
+- Update to opentelemetry v0.18.0
 
 ## v0.5.0
 

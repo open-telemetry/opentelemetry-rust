@@ -19,7 +19,7 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-opentelemetry = { version = "1.0.0-beta.1", path = "../opentelemetry", default-features = false, features = ["trace"] }
+opentelemetry = { version = "0.18.0", path = "../opentelemetry", default-features = false, features = ["trace"] }
 opentelemetry-proto = { version = "0.1", path = "../opentelemetry-proto", features = ["with-serde", "zpages", "gen-protoc"], default-features = false }
 async-channel = "1.6"
 futures-channel = "0.3"

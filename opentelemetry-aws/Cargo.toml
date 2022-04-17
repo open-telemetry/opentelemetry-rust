@@ -22,7 +22,7 @@ default = ["trace"]
 trace = ["opentelemetry/trace"]
 
 [dependencies]
-opentelemetry = { version = "1.0.0-beta.1", path = "../opentelemetry", features = ["trace"] }
+opentelemetry = { version = "0.18.0", path = "../opentelemetry", features = ["trace"] }
 lazy_static = "1.4"
 
 [dev-dependencies]

@@ -23,7 +23,7 @@ base64_format = ["base64", "binary_propagator"]
 binary_propagator = []
 
 [dependencies]
-opentelemetry = { version = "1.0.0-beta.1", path = "../opentelemetry", features = ["trace"] }
+opentelemetry = { version = "0.18.0", path = "../opentelemetry", features = ["trace"] }
 base64 = { version = "0.13", optional = true }
 lazy_static = "1.4"
 

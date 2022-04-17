@@ -8,7 +8,7 @@
 
 ### Changed
 
-- Upgrade to opentelemetry v1.0.0-beta.1
+- Upgrade to opentelemetry v0.18.0
 - Upgrade to opentelemetry-semantic-conventions v0.10
 
 ## v0.14.0
