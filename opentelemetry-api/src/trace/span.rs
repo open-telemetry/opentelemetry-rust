@@ -120,6 +120,25 @@ pub trait Span {
     /// [opentelemetry_semantic_conventions]: https://docs.rs/opentelemetry-semantic-conventions
     fn set_attribute(&mut self, attribute: KeyValue);
 
+    /// Set multiple attributes of this span.
+    ///
+    /// Setting an attribute with the same key as an existing attribute
+    /// generally overwrites the existing attribute's value.
+    ///
+    /// Note that the OpenTelemetry project documents certain "[standard
+    /// attributes]" that have prescribed semantic meanings and are available via
+    /// the [opentelemetry_semantic_conventions] crate.
+    ///
+    /// [standard attributes]: https://github.com/open-telemetry/opentelemetry-specification/blob/v1.9.0/specification/trace/semantic_conventions/README.md
+    /// [opentelemetry_semantic_conventions]: https://docs.rs/opentelemetry-semantic-conventions
+    fn set_attributes(&mut self, attributes: impl IntoIterator<Item = KeyValue>) {
+        if self.is_recording() {
+            for attr in attributes.into_iter() {
+                self.set_attribute(attr);
+            }
+        }
+    }
+
     /// Sets the status of this `Span`.
     ///
     /// If used, this will override the default span status, which is [`Status::Unset`].

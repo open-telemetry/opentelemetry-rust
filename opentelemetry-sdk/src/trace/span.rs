@@ -373,6 +373,18 @@ mod tests {
     }
 
     #[test]
+    fn set_attributes() {
+        let mut span = create_span();
+        let attributes = [KeyValue::new("k1", "v1"), KeyValue::new("k2", "v2")];
+        span.set_attributes(attributes.clone());
+        span.with_data(|data| {
+            for kv in attributes {
+                assert_eq!(data.attributes.get(&kv.key), Some(&kv.value))
+            }
+        });
+    }
+
+    #[test]
     fn set_status() {
         {
             let mut span = create_span();
