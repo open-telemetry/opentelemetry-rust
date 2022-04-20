@@ -10,6 +10,8 @@ and SDK are still unstable.
 
 - Pull sampling probability from `OTEL_TRACES_SAMPLER_ARG` in default sdk config #737
 - Add `schema_url` to `Tracer` #743
+- Add `schema_url` to `Resource` #775
+- Add `Span::set_attributes` #638
 
 ### Changed
 
