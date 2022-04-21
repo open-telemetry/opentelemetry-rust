@@ -228,19 +228,23 @@ impl AgentPipeline {
     /// Build a `TracerProvider` using a blocking exporter and configurations from the pipeline.
     ///
     /// The exporter will send each span to the agent upon the span ends.
-    pub fn build_simple(mut self) -> Result<TracerProvider, TraceError> {
+    pub fn build_simple<R: JaegerTraceRuntime>(
+        mut self,
+        runtime: R,
+    ) -> Result<TracerProvider, TraceError> {
         let mut builder = sdk::trace::TracerProvider::builder();
 
         let (config, process) = build_config_and_process(
             self.trace_config.take(),
             self.transformation_config.service_name.take(),
         );
-        let exporter = Exporter::new(
+        let (exporter, task) = Exporter::new(
             process.into(),
             self.transformation_config.export_instrument_library,
             self.build_sync_agent_uploader()?,
         );
 
+        runtime.spawn(Box::pin(task));
         builder = builder.with_simple_exporter(exporter);
         builder = builder.with_config(config);
 
@@ -273,7 +277,9 @@ impl AgentPipeline {
             self.transformation_config.service_name.take(),
         );
         let uploader = self.build_async_agent_uploader(runtime.clone())?;
-        let exporter = Exporter::new(process.into(), export_instrument_library, uploader);
+        let (exporter, task) = Exporter::new(process.into(), export_instrument_library, uploader);
+
+        runtime.spawn(Box::pin(task));
 
         builder = builder.with_batch_exporter(exporter, runtime);
         builder = builder.with_config(config);
@@ -285,8 +291,11 @@ impl AgentPipeline {
     /// tracer provider.
     ///
     /// The tracer name is `opentelemetry-jaeger`. The tracer version will be the version of this crate.
-    pub fn install_simple(self) -> Result<sdk::trace::Tracer, TraceError> {
-        let tracer_provider = self.build_simple()?;
+    pub fn install_simple<R: JaegerTraceRuntime>(
+        self,
+        runtime: R,
+    ) -> Result<sdk::trace::Tracer, TraceError> {
+        let tracer_provider = self.build_simple(runtime)?;
         install_tracer_provider_and_get_tracer(tracer_provider)
     }
 
@@ -317,25 +326,30 @@ impl AgentPipeline {
             self.trace_config.take(),
             self.transformation_config.service_name.take(),
         );
-        let uploader = self.build_async_agent_uploader(runtime)?;
-        Ok(Exporter::new(
-            process.into(),
-            export_instrument_library,
-            uploader,
-        ))
+        let uploader = self.build_async_agent_uploader(runtime.clone())?;
+        let (exporter, task) = Exporter::new(process.into(), export_instrument_library, uploader);
+
+        runtime.spawn(Box::pin(task));
+        Ok(exporter)
     }
 
     /// Build an jaeger exporter targeting a jaeger agent and running on the sync runtime.
-    pub fn build_sync_agent_exporter(mut self) -> Result<crate::Exporter, TraceError> {
+    pub fn build_sync_agent_exporter<R: JaegerTraceRuntime>(
+        mut self,
+        runtime: R,
+    ) -> Result<crate::Exporter, TraceError> {
         let (_, process) = build_config_and_process(
             self.trace_config.take(),
             self.transformation_config.service_name.take(),
         );
-        Ok(Exporter::new(
+        let (exporter, task) = Exporter::new(
             process.into(),
             self.transformation_config.export_instrument_library,
             self.build_sync_agent_uploader()?,
-        ))
+        );
+
+        runtime.spawn(Box::pin(task));
+        Ok(exporter)
     }
 
     fn build_async_agent_uploader<R>(self, runtime: R) -> Result<Box<dyn Uploader>, TraceError>
@@ -352,6 +366,7 @@ impl AgentPipeline {
         Ok(Box::new(AsyncUploader::Agent(agent)))
     }
 
+    #[allow(dead_code)] // TODO jwilm
     fn build_sync_agent_uploader(self) -> Result<Box<dyn Uploader>, TraceError> {
         let agent = AgentSyncClientUdp::new(
             self.agent_endpoint?.as_slice(),

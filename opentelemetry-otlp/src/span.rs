@@ -30,7 +30,6 @@ use {
         trace_service::ExportTraceServiceRequest as GrpcRequest,
         trace_service_grpc::TraceServiceClient as GrpcioTraceServiceClient,
     },
-    std::sync::Arc,
 };
 
 #[cfg(feature = "http-proto")]
@@ -44,11 +43,10 @@ use {
     opentelemetry_proto::tonic::collector::trace::v1::ExportTraceServiceRequest as ProstRequest,
     prost::Message,
     std::convert::TryFrom,
-    std::sync::Arc,
 };
 
 #[cfg(any(feature = "grpc-sys", feature = "http-proto"))]
-use std::collections::HashMap;
+use {std::collections::HashMap, std::sync::Arc};
 
 use crate::exporter::ExportConfig;
 use crate::OtlpPipeline;

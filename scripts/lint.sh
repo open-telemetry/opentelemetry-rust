@@ -29,14 +29,7 @@ if rustup component add clippy; then
   cargo_feature opentelemetry-otlp "http-proto, surf-client, surf/curl-client"
   cargo_feature opentelemetry-otlp "metrics"
 
-  cargo_feature opentelemetry-jaeger "surf_collector_client, surf/curl-client"
-  cargo_feature opentelemetry-jaeger "isahc_collector_client"
-  cargo_feature opentelemetry-jaeger "reqwest_blocking_collector_client"
-  cargo_feature opentelemetry-jaeger "reqwest_collector_client"
-  cargo_feature opentelemetry-jaeger "collector_client"
-  cargo_feature opentelemetry-jaeger "wasm_collector_client"
-  cargo_feature opentelemetry-jaeger "collector_client, wasm_collector_client"
-  cargo_feature opentelemetry-jaeger "default"
+  cargo_feature opentelemetry-jaeger "full"
 
   cargo_feature opentelemetry-dynatrace "default"
   cargo_feature opentelemetry-dynatrace "metrics,rt-tokio,reqwest-client"

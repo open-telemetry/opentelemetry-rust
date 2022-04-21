@@ -100,10 +100,12 @@ fn insert_keys(mut map: sdktrace::EvictedHashMap, n: usize) {
 #[derive(Debug)]
 struct VoidExporter;
 
-#[async_trait::async_trait]
 impl SpanExporter for VoidExporter {
-    async fn export(&mut self, _spans: Vec<SpanData>) -> ExportResult {
-        Ok(())
+    fn export(
+        &mut self,
+        _spans: Vec<SpanData>,
+    ) -> futures::future::BoxFuture<'static, ExportResult> {
+        Box::pin(futures::future::ready(Ok(())))
     }
 }
 

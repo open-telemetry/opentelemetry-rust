@@ -1,14 +1,16 @@
 use actix_service::Service;
 use actix_web::middleware::Logger;
 use actix_web::{web, App, HttpServer};
+use opentelemetry::sdk::runtime::Tokio;
 use opentelemetry::trace::TraceError;
 use opentelemetry::{global, sdk::trace as sdktrace};
 use opentelemetry::{
     trace::{FutureExt, TraceContextExt, Tracer},
     Key,
 };
+use opentelemetry_jaeger::JaegerTraceRuntime;
 
-fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
+fn init_tracer<R: JaegerTraceRuntime>(runtime: R) -> Result<sdktrace::Tracer, TraceError> {
     opentelemetry_jaeger::new_agent_pipeline()
         .with_endpoint("localhost:6831")
         .with_service_name("trace-udp-demo")
@@ -19,7 +21,7 @@ fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
                 opentelemetry::KeyValue::new("exporter", "jaeger"),
             ]),
         ))
-        .install_simple()
+        .install_simple(runtime)
 }
 
 async fn index() -> &'static str {
@@ -34,7 +36,7 @@ async fn index() -> &'static str {
 async fn main() -> std::io::Result<()> {
     std::env::set_var("RUST_LOG", "debug");
     env_logger::init();
-    let _tracer = init_tracer().expect("Failed to initialise tracer.");
+    let _tracer = init_tracer(Tokio).expect("Failed to initialise tracer.");
 
     HttpServer::new(|| {
         App::new()

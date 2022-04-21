@@ -3,6 +3,7 @@ use hello_world::HelloRequest;
 use opentelemetry::global;
 use opentelemetry::global::shutdown_tracer_provider;
 use opentelemetry::sdk::propagation::TraceContextPropagator;
+use opentelemetry::sdk::runtime::Tokio;
 use opentelemetry::trace::TraceResult;
 use opentelemetry::{
     propagation::Injector,
@@ -10,6 +11,7 @@ use opentelemetry::{
     trace::{TraceContextExt, Tracer as _},
     Context, KeyValue,
 };
+use opentelemetry_jaeger::JaegerTraceRuntime;
 
 struct MetadataMap<'a>(&'a mut tonic::metadata::MetadataMap);
 
@@ -28,16 +30,16 @@ pub mod hello_world {
     tonic::include_proto!("helloworld");
 }
 
-fn tracing_init() -> TraceResult<Tracer> {
+fn tracing_init<R: JaegerTraceRuntime>(runtime: R) -> TraceResult<Tracer> {
     global::set_text_map_propagator(TraceContextPropagator::new());
     opentelemetry_jaeger::new_agent_pipeline()
         .with_service_name("grpc-client")
-        .install_simple()
+        .install_simple(runtime)
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let tracer = tracing_init()?;
+    let tracer = tracing_init(Tokio)?;
     let mut client = GreeterClient::connect("http://[::1]:50051").await?;
     let span = tracer.start("client-request");
     let cx = Context::current_with_span(span);

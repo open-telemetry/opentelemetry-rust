@@ -18,8 +18,11 @@ use std::convert::TryFrom;
 
 use self::runtime::JaegerTraceRuntime;
 use self::thrift::jaeger;
-use async_trait::async_trait;
+use futures::channel::{mpsc, oneshot};
+use futures::future::BoxFuture;
+use futures::StreamExt;
 use std::convert::TryInto;
+use std::future::Future;
 
 #[cfg(feature = "isahc_collector_client")]
 #[allow(unused_imports)] // this is actually used to configure authentication
@@ -45,10 +48,11 @@ const INSTRUMENTATION_LIBRARY_VERSION: &str = "otel.library.version";
 /// Jaeger span exporter
 #[derive(Debug)]
 pub struct Exporter {
+    tx: mpsc::Sender<(Vec<trace::SpanData>, oneshot::Sender<trace::ExportResult>)>,
+    // TODO jwilm: this is used in an existing test to check that the service
+    //             name is properly read from the environment.
+    #[allow(dead_code)]
     process: jaeger::Process,
-    /// Whether or not to export instrumentation information.
-    export_instrumentation_lib: bool,
-    uploader: Box<dyn Uploader>,
 }
 
 impl Exporter {
@@ -56,11 +60,54 @@ impl Exporter {
         process: jaeger::Process,
         export_instrumentation_lib: bool,
         uploader: Box<dyn Uploader>,
-    ) -> Exporter {
-        Exporter {
-            process,
-            export_instrumentation_lib,
-            uploader,
+    ) -> (Exporter, impl Future<Output = ()>) {
+        let (tx, rx) = futures::channel::mpsc::channel(64);
+        (
+            Exporter {
+                tx,
+                process: process.clone(),
+            },
+            ExporterTask {
+                rx,
+                export_instrumentation_lib,
+                uploader,
+                process,
+            }
+            .run(),
+        )
+    }
+}
+
+struct ExporterTask {
+    rx: mpsc::Receiver<(Vec<trace::SpanData>, oneshot::Sender<trace::ExportResult>)>,
+    process: jaeger::Process,
+    /// Whether or not to export instrumentation information.
+    export_instrumentation_lib: bool,
+    uploader: Box<dyn Uploader>,
+}
+
+impl ExporterTask {
+    async fn run(mut self) {
+        // TODO jwilm: this might benefit from a ExporterMessage so that we can
+        //             send Shutdown and break the loop.
+        while let Some((batch, tx)) = self.rx.next().await {
+            let mut jaeger_spans: Vec<jaeger::Span> = Vec::with_capacity(batch.len());
+            let process = self.process.clone();
+
+            for span in batch.into_iter() {
+                jaeger_spans.push(convert_otel_span_into_jaeger_span(
+                    span,
+                    self.export_instrumentation_lib,
+                ));
+            }
+
+            let res = self
+                .uploader
+                .upload(jaeger::Batch::new(process, jaeger_spans))
+                .await;
+
+            // TODO jwilm: is ignoring the err (fail to send) correct here?
+            let _ = tx.send(res);
         }
     }
 }
@@ -74,23 +121,16 @@ pub struct Process {
     pub tags: Vec<KeyValue>,
 }
 
-#[async_trait]
 impl trace::SpanExporter for Exporter {
     /// Export spans to Jaeger
-    async fn export(&mut self, batch: Vec<trace::SpanData>) -> trace::ExportResult {
-        let mut jaeger_spans: Vec<jaeger::Span> = Vec::with_capacity(batch.len());
-        let process = self.process.clone();
+    fn export(&mut self, batch: Vec<trace::SpanData>) -> BoxFuture<'static, trace::ExportResult> {
+        let (tx, rx) = oneshot::channel();
 
-        for span in batch.into_iter() {
-            jaeger_spans.push(convert_otel_span_into_jaeger_span(
-                span,
-                self.export_instrumentation_lib,
-            ));
+        if let Err(err) = self.tx.try_send((batch, tx)) {
+            return Box::pin(futures::future::ready(Err(Into::into(err))));
         }
 
-        self.uploader
-            .upload(jaeger::Batch::new(process, jaeger_spans))
-            .await
+        Box::pin(async move { rx.await? })
     }
 }
 

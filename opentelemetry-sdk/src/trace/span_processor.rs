@@ -319,7 +319,7 @@ impl<R: TraceRuntime> BatchSpanProcessorInternal<R> {
             let _ = task.await;
         } else {
             self.export_tasks.push(task);
-            while let Some(_) = self.export_tasks.next().await {}
+            while self.export_tasks.next().await.is_some() {}
         }
     }
 
@@ -334,7 +334,7 @@ impl<R: TraceRuntime> BatchSpanProcessorInternal<R> {
 
                 if self.spans.len() == self.config.max_export_batch_size {
                     // If concurrent exports are saturated, wait for one to complete.
-                    if self.export_tasks.len() > 0
+                    if !self.export_tasks.is_empty()
                         && self.export_tasks.len() == self.config.max_concurrent_exports
                     {
                         self.export_tasks.next().await;
@@ -393,7 +393,7 @@ impl<R: TraceRuntime> BatchSpanProcessorInternal<R> {
     fn export(&mut self) -> BoxFuture<'static, ExportResult> {
         // Batch size check for flush / shutdown. Those methods may be called
         // when there's no work to do.
-        if self.spans.len() == 0 {
+        if self.spans.is_empty() {
             return Box::pin(futures::future::ready(Ok(())));
         }
 

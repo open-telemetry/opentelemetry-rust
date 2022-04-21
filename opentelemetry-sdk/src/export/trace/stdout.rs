@@ -146,14 +146,12 @@ where
                 {
                     return Box::pin(std::future::ready(Err(Into::into(err))));
                 }
-            } else {
-                if let Err(err) = self
-                    .writer
-                    .write_all(format!("{:?}\n", span).as_bytes())
-                    .map_err(|err| TraceError::ExportFailed(Box::new(Error::from(err))))
-                {
-                    return Box::pin(std::future::ready(Err(Into::into(err))));
-                }
+            } else if let Err(err) = self
+                .writer
+                .write_all(format!("{:?}\n", span).as_bytes())
+                .map_err(|err| TraceError::ExportFailed(Box::new(Error::from(err))))
+            {
+                return Box::pin(std::future::ready(Err(Into::into(err))));
             }
         }
 

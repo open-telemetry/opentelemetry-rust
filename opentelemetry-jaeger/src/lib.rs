@@ -24,10 +24,12 @@
 //! ```no_run
 //! use opentelemetry::trace::Tracer;
 //! use opentelemetry::global;
+//! use opentelemetry::runtime::Tokio;
 //!
-//! fn main() -> Result<(), opentelemetry::trace::TraceError> {
+//! #[tokio::main]
+//! async fn main() -> Result<(), opentelemetry::trace::TraceError> {
 //!     global::set_text_map_propagator(opentelemetry_jaeger::Propagator::new());
-//!     let tracer = opentelemetry_jaeger::new_agent_pipeline().install_simple()?;
+//!     let tracer = opentelemetry_jaeger::new_agent_pipeline().install_simple(Tokio)?;
 //!
 //!     tracer.in_span("doing_work", |cx| {
 //!         // Traced app logic here...
