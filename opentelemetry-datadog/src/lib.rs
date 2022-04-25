@@ -134,8 +134,6 @@
 //! }
 //! ```
 
-extern crate core;
-
 mod exporter;
 
 mod propagator {

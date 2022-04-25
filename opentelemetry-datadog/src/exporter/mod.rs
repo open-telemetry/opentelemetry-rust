@@ -111,21 +111,21 @@ impl Default for DatadogPipelineBuilder {
             service_name_mapping: None,
             version: ApiVersion::Version05,
             #[cfg(all(
-            not(feature = "reqwest-client"),
-            not(feature = "reqwest-blocking-client"),
-            not(feature = "surf-client"),
+                not(feature = "reqwest-client"),
+                not(feature = "reqwest-blocking-client"),
+                not(feature = "surf-client"),
             ))]
             client: None,
             #[cfg(all(
-            not(feature = "reqwest-client"),
-            not(feature = "reqwest-blocking-client"),
-            feature = "surf-client"
+                not(feature = "reqwest-client"),
+                not(feature = "reqwest-blocking-client"),
+                feature = "surf-client"
             ))]
             client: Some(Box::new(surf::Client::new())),
             #[cfg(all(
-            not(feature = "surf-client"),
-            not(feature = "reqwest-blocking-client"),
-            feature = "reqwest-client"
+                not(feature = "surf-client"),
+                not(feature = "reqwest-blocking-client"),
+                feature = "reqwest-client"
             ))]
             client: Some(Box::new(reqwest::Client::new())),
             #[cfg(feature = "reqwest-blocking-client")]
@@ -318,8 +318,8 @@ impl DatadogPipelineBuilder {
     /// Custom the value used for `resource` field in datadog spans.
     /// See [`FieldMappingFn`] for details.
     pub fn with_resource_mapping<F>(mut self, f: F) -> Self
-        where
-            F: for<'a> Fn(&'a SpanData, &'a ModelConfig) -> &'a str + Send + Sync + 'static,
+    where
+        F: for<'a> Fn(&'a SpanData, &'a ModelConfig) -> &'a str + Send + Sync + 'static,
     {
         self.resource_mapping = Some(Arc::new(f));
         self
@@ -328,8 +328,8 @@ impl DatadogPipelineBuilder {
     /// Custom the value used for `name` field in datadog spans.
     /// See [`FieldMappingFn`] for details.
     pub fn with_name_mapping<F>(mut self, f: F) -> Self
-        where
-            F: for<'a> Fn(&'a SpanData, &'a ModelConfig) -> &'a str + Send + Sync + 'static,
+    where
+        F: for<'a> Fn(&'a SpanData, &'a ModelConfig) -> &'a str + Send + Sync + 'static,
     {
         self.name_mapping = Some(Arc::new(f));
         self
@@ -338,8 +338,8 @@ impl DatadogPipelineBuilder {
     /// Custom the value used for `service_name` field in datadog spans.
     /// See [`FieldMappingFn`] for details.
     pub fn with_service_name_mapping<F>(mut self, f: F) -> Self
-        where
-            F: for<'a> Fn(&'a SpanData, &'a ModelConfig) -> &'a str + Send + Sync + 'static,
+    where
+        F: for<'a> Fn(&'a SpanData, &'a ModelConfig) -> &'a str + Send + Sync + 'static,
     {
         self.service_name_mapping = Some(Arc::new(f));
         self
@@ -395,7 +395,7 @@ fn mapping_debug(f: &Option<FieldMapping>) -> String {
     } else {
         "default mapping"
     }
-        .to_string()
+    .to_string()
 }
 
 #[cfg(test)]
