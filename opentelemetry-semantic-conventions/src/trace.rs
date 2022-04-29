@@ -38,6 +38,46 @@ use opentelemetry::Key;
 /// - `arn:aws:lambda:us-east-1:123456:function:myfunction:myalias`
 pub const AWS_LAMBDA_INVOKED_ARN: Key = Key::from_static_str("aws.lambda.invoked_arn");
 
+/// The [event_id](https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/spec.md#id) uniquely identifies the event.
+///
+/// # Examples
+///
+/// - `123e4567-e89b-12d3-a456-426614174000`
+/// - `0001`
+pub const CLOUDEVENTS_EVENT_ID: Key = Key::from_static_str("cloudevents.event_id");
+
+/// The [source](https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/spec.md#source-1) identifies the context in which an event happened.
+///
+/// # Examples
+///
+/// - `https://github.com/cloudevents`
+/// - `/cloudevents/spec/pull/123`
+/// - `my-service`
+pub const CLOUDEVENTS_EVENT_SOURCE: Key = Key::from_static_str("cloudevents.event_source");
+
+/// The [version of the CloudEvents specification](https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/spec.md#specversion) which the event uses.
+///
+/// # Examples
+///
+/// - `1.0`
+pub const CLOUDEVENTS_EVENT_SPEC_VERSION: Key =
+    Key::from_static_str("cloudevents.event_spec_version");
+
+/// The [event_type](https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/spec.md#type) contains a value describing the type of event related to the originating occurrence.
+///
+/// # Examples
+///
+/// - `com.github.pull_request.opened`
+/// - `com.example.object.deleted.v2`
+pub const CLOUDEVENTS_EVENT_TYPE: Key = Key::from_static_str("cloudevents.event_type");
+
+/// The [subject](https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/spec.md#subject) of the event in the context of the event producer (identified by source).
+///
+/// # Examples
+///
+/// - `mynewfile.jpg`
+pub const CLOUDEVENTS_EVENT_SUBJECT: Key = Key::from_static_str("cloudevents.event_subject");
+
 /// Parent-child Reference type.
 ///
 /// The causal relationship between a child Span and a parent Span.
@@ -243,7 +283,7 @@ pub const EXCEPTION_STACKTRACE: Key = Key::from_static_str("exception.stacktrace
 /// whether it will escape the scope of a span.
 /// However, it is trivial to know that an exception
 /// will escape, if one checks for an active exception just before ending the span,
-/// as done in the [example above](#exception-end-example).
+/// as done in the [example above](#recording-an-exception).
 ///
 /// It follows that an exception may still escape the scope of the span
 /// even if the `exception.escaped` attribute was not set or set to false,
@@ -387,6 +427,13 @@ pub const HTTP_RESPONSE_CONTENT_LENGTH: Key = Key::from_static_str("http.respons
 /// - `5493`
 pub const HTTP_RESPONSE_CONTENT_LENGTH_UNCOMPRESSED: Key =
     Key::from_static_str("http.response_content_length_uncompressed");
+
+/// The ordinal number of request re-sending attempt.
+///
+/// # Examples
+///
+/// - `3`
+pub const HTTP_RETRY_COUNT: Key = Key::from_static_str("http.retry_count");
 
 /// The primary server name of the matched virtual host. This should be obtained via configuration. If no such configuration can be obtained, this attribute MUST NOT be set ( `net.host.name` should be used instead).
 ///

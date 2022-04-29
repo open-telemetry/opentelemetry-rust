@@ -5,8 +5,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CRATE_DIR="${SCRIPT_DIR}/../"
 
 # freeze the spec version and generator version to make generation reproducible
-SPEC_VERSION=v1.9.0
-SEMCOVGEN_VERSION=0.11.0
+SPEC_VERSION=v1.10.0
+SEMCOVGEN_VERSION=0.11.1
 
 cd "$CRATE_DIR"
 
