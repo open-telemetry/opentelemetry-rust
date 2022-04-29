@@ -29,6 +29,7 @@ opentelemetry = { version = "0.17", path = "../opentelemetry", features = ["trac
 opentelemetry-http = { version = "0.6", path = "../opentelemetry-http" }
 opentelemetry-semantic-conventions = { version = "0.9", path = "../opentelemetry-semantic-conventions" }
 rmp = "0.8"
+url = "2.2"
 reqwest = { version = "0.11", default-features = false, optional = true }
 surf = { version = "2.0", default-features = false, optional = true }
 thiserror = "1.0"

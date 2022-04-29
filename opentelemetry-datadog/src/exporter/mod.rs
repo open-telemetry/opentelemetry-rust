@@ -23,6 +23,7 @@ use opentelemetry_http::{HttpClient, ResponseExt};
 use opentelemetry_semantic_conventions as semcov;
 use std::sync::Arc;
 use std::time::Duration;
+use url::Url;
 
 /// Default Datadog collector endpoint
 const DEFAULT_AGENT_ENDPOINT: &str = "http://127.0.0.1:8126";
@@ -197,6 +198,25 @@ impl DatadogPipelineBuilder {
         }
     }
 
+    // parse the endpoint and append the path based on versions.
+    // keep the query and host the same.
+    fn build_endpoint(agent_endpoint: &str, version: &str) -> Result<Uri, TraceError> {
+        // build agent endpoint based on version
+        let mut endpoint = agent_endpoint
+            .parse::<Url>()
+            .map_err::<Error, _>(Into::into)?;
+        let mut paths = endpoint
+            .path_segments()
+            .map(|c| c.filter(|s| !s.is_empty()).collect::<Vec<_>>())
+            .unwrap_or_default();
+        paths.push(version);
+
+        let path_str = paths.join("/");
+        endpoint.set_path(path_str.as_str());
+
+        Ok(endpoint.as_str().parse().map_err::<Error, _>(Into::into)?)
+    }
+
     fn build_exporter_with_service_name(
         self,
         service_name: String,
@@ -206,10 +226,10 @@ impl DatadogPipelineBuilder {
                 service_name,
                 ..Default::default()
             };
-            let endpoint = self.agent_endpoint + self.version.path();
+
             let exporter = DatadogExporter::new(
                 model_config,
-                endpoint.parse().map_err::<Error, _>(Into::into)?,
+                Self::build_endpoint(&self.agent_endpoint, self.version.path())?,
                 self.version,
                 client,
                 self.resource_mapping,
@@ -266,7 +286,9 @@ impl DatadogPipelineBuilder {
         self
     }
 
-    /// Assign the Datadog collector endpoint
+    /// Assign the Datadog collector endpoint.
+    ///
+    /// The endpoint of the datadog agent, by default it is `http://127.0.0.1:8126`.
     pub fn with_agent_endpoint<T: Into<String>>(mut self, endpoint: T) -> Self {
         self.agent_endpoint = endpoint.into();
         self
@@ -379,6 +401,7 @@ fn mapping_debug(f: &Option<FieldMapping>) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ApiVersion::Version05;
 
     use crate::exporter::model::tests::get_span;
 
@@ -395,5 +418,35 @@ mod tests {
         traces.sort_by_key(|t| u128::from_be_bytes(t[0].span_context.trace_id().to_bytes()));
 
         assert_eq!(traces, expected);
+    }
+
+    #[test]
+    fn test_agent_endpoint_with_version() {
+        let with_tail_slash =
+            DatadogPipelineBuilder::build_endpoint("http://localhost:8126/", Version05.path());
+        let without_tail_slash =
+            DatadogPipelineBuilder::build_endpoint("http://localhost:8126", Version05.path());
+        let with_query = DatadogPipelineBuilder::build_endpoint(
+            "http://localhost:8126?api_key=123",
+            Version05.path(),
+        );
+        let invalid = DatadogPipelineBuilder::build_endpoint(
+            "http://localhost:klsajfjksfh",
+            Version05.path(),
+        );
+
+        assert_eq!(
+            with_tail_slash.unwrap().to_string(),
+            "http://localhost:8126/v0.5/traces"
+        );
+        assert_eq!(
+            without_tail_slash.unwrap().to_string(),
+            "http://localhost:8126/v0.5/traces"
+        );
+        assert_eq!(
+            with_query.unwrap().to_string(),
+            "http://localhost:8126/v0.5/traces?api_key=123"
+        );
+        assert!(invalid.is_err())
     }
 }

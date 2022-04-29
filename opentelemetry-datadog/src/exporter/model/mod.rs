@@ -1,9 +1,11 @@
 use crate::exporter::ModelConfig;
+use http::uri;
 use opentelemetry::sdk::export::{
     trace::{self, SpanData},
     ExportError,
 };
 use std::fmt::Debug;
+use url::ParseError;
 
 mod v03;
 mod v05;
@@ -73,8 +75,8 @@ pub enum Error {
     #[error(transparent)]
     RequestError(#[from] http::Error),
     /// The Uri was invalid
-    #[error(transparent)]
-    InvalidUri(#[from] http::uri::InvalidUri),
+    #[error("invalid url {0}")]
+    InvalidUri(String),
     /// Other errors
     #[error("{0}")]
     Other(String),
@@ -89,6 +91,18 @@ impl ExportError for Error {
 impl From<rmp::encode::ValueWriteError> for Error {
     fn from(_: rmp::encode::ValueWriteError) -> Self {
         Self::MessagePackError
+    }
+}
+
+impl From<url::ParseError> for Error {
+    fn from(err: ParseError) -> Self {
+        Self::InvalidUri(err.to_string())
+    }
+}
+
+impl From<uri::InvalidUri> for Error {
+    fn from(err: uri::InvalidUri) -> Self {
+        Self::InvalidUri(err.to_string())
     }
 }
 
