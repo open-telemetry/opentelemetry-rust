@@ -18,6 +18,7 @@ use opentelemetry::{
 };
 use opentelemetry_http::HttpClient;
 use opentelemetry_semantic_conventions as semcov;
+use std::borrow::Cow;
 #[cfg(all(
     not(feature = "reqwest-client"),
     not(feature = "reqwest-blocking-client"),
@@ -25,7 +26,6 @@ use opentelemetry_semantic_conventions as semcov;
 ))]
 use std::convert::TryFrom;
 use std::net::SocketAddr;
-use std::sync::Arc;
 use std::time::Duration;
 
 /// Zipkin span exporter
@@ -118,18 +118,17 @@ impl ZipkinPipelineBuilder {
         let service_name = self.service_name.take();
         if let Some(service_name) = service_name {
             let config = if let Some(mut cfg) = self.trace_config.take() {
-                cfg.resource = cfg.resource.map(|r| {
-                    let without_service_name = r
+                cfg.resource = Cow::Owned(Resource::new(
+                    cfg.resource
                         .iter()
                         .filter(|(k, _v)| **k != semcov::resource::SERVICE_NAME)
                         .map(|(k, v)| KeyValue::new(k.clone(), v.clone()))
-                        .collect::<Vec<KeyValue>>();
-                    Arc::new(Resource::new(without_service_name))
-                });
+                        .collect::<Vec<KeyValue>>(),
+                ));
                 cfg
             } else {
                 Config {
-                    resource: Some(Arc::new(Resource::empty())),
+                    resource: Cow::Owned(Resource::empty()),
                     ..Default::default()
                 }
             };
@@ -143,7 +142,7 @@ impl ZipkinPipelineBuilder {
             (
                 Config {
                     // use a empty resource to prevent TracerProvider to assign a service name.
-                    resource: Some(Arc::new(Resource::empty())),
+                    resource: Cow::Owned(Resource::empty()),
                     ..Default::default()
                 },
                 Endpoint::new(service_name, self.service_addr),

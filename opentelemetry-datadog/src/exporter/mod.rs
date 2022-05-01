@@ -5,6 +5,7 @@ pub use model::ApiVersion;
 pub use model::Error;
 pub use model::FieldMappingFn;
 
+use std::borrow::Cow;
 use std::fmt::{Debug, Formatter};
 
 use crate::exporter::model::FieldMapping;
@@ -165,18 +166,16 @@ impl DatadogPipelineBuilder {
         let service_name = self.service_name.take();
         if let Some(service_name) = service_name {
             let config = if let Some(mut cfg) = self.trace_config.take() {
-                cfg.resource = cfg.resource.map(|r| {
-                    let without_service_name = r
+                cfg.resource = Cow::Owned(Resource::new(
+                    cfg.resource
                         .iter()
                         .filter(|(k, _v)| **k != semcov::resource::SERVICE_NAME)
-                        .map(|(k, v)| KeyValue::new(k.clone(), v.clone()))
-                        .collect::<Vec<KeyValue>>();
-                    Arc::new(Resource::new(without_service_name))
-                });
+                        .map(|(k, v)| KeyValue::new(k.clone(), v.clone())),
+                ));
                 cfg
             } else {
                 Config {
-                    resource: Some(Arc::new(Resource::empty())),
+                    resource: Cow::Owned(Resource::empty()),
                     ..Default::default()
                 }
             };
@@ -190,7 +189,7 @@ impl DatadogPipelineBuilder {
             (
                 Config {
                     // use a empty resource to prevent TracerProvider to assign a service name.
-                    resource: Some(Arc::new(Resource::empty())),
+                    resource: Cow::Owned(Resource::empty()),
                     ..Default::default()
                 },
                 service_name,

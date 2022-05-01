@@ -1,9 +1,9 @@
 //! Trace exporters
+use crate::Resource;
 use async_trait::async_trait;
 use opentelemetry_api::trace::{Event, Link, SpanContext, SpanId, SpanKind, Status, TraceError};
 use std::borrow::Cow;
 use std::fmt::Debug;
-use std::sync::Arc;
 use std::time::SystemTime;
 
 pub mod stdout;
@@ -73,7 +73,7 @@ pub struct SpanData {
     /// Span status
     pub status: Status,
     /// Resource contains attributes representing an entity that produced this span.
-    pub resource: Option<Arc<crate::Resource>>,
+    pub resource: Cow<'static, Resource>,
     /// Instrumentation library that produced this span
     pub instrumentation_lib: crate::InstrumentationLibrary,
 }

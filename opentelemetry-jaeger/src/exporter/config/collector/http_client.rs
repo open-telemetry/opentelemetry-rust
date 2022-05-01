@@ -179,18 +179,14 @@ mod collector_client_tests {
     use crate::exporter::thrift::jaeger::Batch;
     use crate::new_collector_pipeline;
     use opentelemetry::runtime::Tokio;
-    use opentelemetry::sdk::Resource;
     use opentelemetry::trace::TraceError;
-    use opentelemetry::KeyValue;
 
     #[test]
     fn test_bring_your_own_client() -> Result<(), TraceError> {
         let invalid_uri_builder = new_collector_pipeline()
             .with_endpoint("localhost:6831")
             .with_http_client(test_http_client::TestHttpClient);
-        let sdk_provided_resource =
-            Resource::new(vec![KeyValue::new("service.name", "unknown_service")]);
-        let (_, process) = build_config_and_process(sdk_provided_resource, None, None);
+        let (_, process) = build_config_and_process(None, None);
         let mut uploader = invalid_uri_builder.build_uploader::<Tokio>()?;
         let res = futures_executor::block_on(async {
             uploader

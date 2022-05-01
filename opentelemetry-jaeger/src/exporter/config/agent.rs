@@ -232,7 +232,6 @@ impl AgentPipeline {
         let mut builder = sdk::trace::TracerProvider::builder();
 
         let (config, process) = build_config_and_process(
-            builder.sdk_provided_resource(),
             self.trace_config.take(),
             self.transformation_config.service_name.take(),
         );
@@ -270,7 +269,6 @@ impl AgentPipeline {
         // build sdk trace config and jaeger process.
         // some attributes like service name has attributes like service name
         let (config, process) = build_config_and_process(
-            builder.sdk_provided_resource(),
             self.trace_config.take(),
             self.transformation_config.service_name.take(),
         );
@@ -312,12 +310,10 @@ impl AgentPipeline {
     where
         R: JaegerTraceRuntime,
     {
-        let builder = sdk::trace::TracerProvider::builder();
         let export_instrument_library = self.transformation_config.export_instrument_library;
         // build sdk trace config and jaeger process.
         // some attributes like service name has attributes like service name
         let (_, process) = build_config_and_process(
-            builder.sdk_provided_resource(),
             self.trace_config.take(),
             self.transformation_config.service_name.take(),
         );
@@ -331,9 +327,7 @@ impl AgentPipeline {
 
     /// Build an jaeger exporter targeting a jaeger agent and running on the sync runtime.
     pub fn build_sync_agent_exporter(mut self) -> Result<crate::Exporter, TraceError> {
-        let builder = sdk::trace::TracerProvider::builder();
         let (_, process) = build_config_and_process(
-            builder.sdk_provided_resource(),
             self.trace_config.take(),
             self.transformation_config.service_name.take(),
         );

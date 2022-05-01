@@ -6,6 +6,8 @@ use opentelemetry_sdk::export::trace::SpanData;
 use opentelemetry_sdk::runtime::Tokio;
 use opentelemetry_sdk::testing::trace::NoopSpanExporter;
 use opentelemetry_sdk::trace::{BatchSpanProcessor, EvictedHashMap, EvictedQueue, SpanProcessor};
+use opentelemetry_sdk::Resource;
+use std::borrow::Cow;
 use std::sync::Arc;
 use std::time::SystemTime;
 use tokio::runtime::Runtime;
@@ -30,7 +32,7 @@ fn get_span_data() -> Vec<SpanData> {
             events: EvictedQueue::new(12),
             links: EvictedQueue::new(12),
             status: Status::Unset,
-            resource: None,
+            resource: Cow::Owned(Resource::empty()),
             instrumentation_lib: Default::default(),
         })
         .collect::<Vec<SpanData>>()
