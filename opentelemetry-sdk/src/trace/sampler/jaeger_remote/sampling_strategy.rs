@@ -1,9 +1,6 @@
-use std::ops::{Deref, DerefMut};
+use std::ops::DerefMut;
 use std::sync::{Arc, Mutex};
-use dashmap::Map;
-use opentelemetry_api::{Context, InstrumentationLibrary, KeyValue};
-use opentelemetry_api::trace::{Link, SamplingDecision, SamplingResult, SpanKind, TraceId};
-use crate::trace::Sampler;
+use opentelemetry_api::trace::{SamplingDecision, SpanKind, TraceId};
 use crate::trace::sampler::sample_based_on_probability;
 
 use super::rate_limit::LeakyBucket;

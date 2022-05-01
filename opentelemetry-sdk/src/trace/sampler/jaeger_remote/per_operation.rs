@@ -8,6 +8,6 @@ pub struct PerOperationStrategies {
 }
 
 impl PerOperationStrategies {
-    pub fn should_sample(&mut self, )
+
 }
 

@@ -21,9 +21,11 @@ percent-encoding = { version = "2.0", optional = true }
 pin-project = { version = "1.0.2", optional = true }
 rand = { version = "0.8", default-features = false, features = ["std", "std_rng"], optional = true }
 serde = { version = "1.0", features = ["derive", "rc"], optional = true }
+serde_json = { version = "1", optional = true }
 thiserror = "1"
 tokio = { version = "1.0", default-features = false, features = ["rt", "time"], optional = true }
 tokio-stream = { version = "0.1", optional = true }
+http = { version = "0.2", optional = true }
 
 [package.metadata.docs.rs]
 all-features = true
@@ -36,7 +38,7 @@ rand_distr = "0.4.0"
 
 [features]
 default = ["trace"]
-trace = ["opentelemetry-api/trace", "crossbeam-channel", "rand", "pin-project", "async-trait", "percent-encoding", "opentelemetry-http"]
+trace = ["opentelemetry-api/trace", "crossbeam-channel", "rand", "pin-project", "async-trait", "percent-encoding", "opentelemetry-http", "http", "serde", "serde_json"]
 metrics = ["opentelemetry-api/metrics", "dashmap", "fnv"]
 testing = ["opentelemetry-api/testing", "trace", "metrics", "rt-async-std", "rt-tokio", "rt-tokio-current-thread", "tokio/macros", "tokio/rt-multi-thread"]
 rt-tokio = ["tokio", "tokio-stream"]

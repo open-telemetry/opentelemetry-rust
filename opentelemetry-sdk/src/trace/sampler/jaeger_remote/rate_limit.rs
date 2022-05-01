@@ -1,5 +1,4 @@
-use std::alloc::System;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::SystemTime;
 use opentelemetry_api::trace::TraceError;
 
 // leaky bucket based rate limit
