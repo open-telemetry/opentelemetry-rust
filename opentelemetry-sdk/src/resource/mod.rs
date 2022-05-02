@@ -31,14 +31,14 @@ pub use process::ProcessResourceDetector;
 use opentelemetry_api::attributes;
 use opentelemetry_api::{Key, KeyValue, Value};
 use std::borrow::Cow;
-use std::collections::{btree_map, BTreeMap};
+use std::collections::{hash_map, HashMap};
 use std::ops::Deref;
 use std::time::Duration;
 
 /// An immutable representation of the entity producing telemetry as attributes.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Resource {
-    attrs: BTreeMap<Key, Value>,
+    attrs: HashMap<Key, Value>,
     schema_url: Option<Cow<'static, str>>,
 }
 
@@ -46,7 +46,10 @@ impl Default for Resource {
     fn default() -> Self {
         Self::from_detectors(
             Duration::from_secs(0),
-            vec![Box::new(EnvResourceDetector::new())],
+            vec![
+                Box::new(SdkProvidedResourceDetector),
+                Box::new(EnvResourceDetector::new()),
+            ],
         )
     }
 }
@@ -196,7 +199,7 @@ impl Resource {
 
 /// An owned iterator over the entries of a `Resource`.
 #[derive(Debug)]
-pub struct IntoIter(btree_map::IntoIter<Key, Value>);
+pub struct IntoIter(hash_map::IntoIter<Key, Value>);
 
 impl Iterator for IntoIter {
     type Item = (Key, Value);
@@ -217,7 +220,7 @@ impl IntoIterator for Resource {
 
 /// An iterator over the entries of a `Resource`.
 #[derive(Debug)]
-pub struct Iter<'a>(btree_map::Iter<'a, Key, Value>);
+pub struct Iter<'a>(hash_map::Iter<'a, Key, Value>);
 
 impl<'a> Iterator for Iter<'a> {
     type Item = (&'a Key, &'a Value);
@@ -256,14 +259,14 @@ pub trait ResourceDetector {
 mod tests {
     use super::*;
     use crate::resource::EnvResourceDetector;
-    use std::collections::BTreeMap;
+    use std::collections::HashMap;
     use std::{env, time};
 
     #[test]
     fn new_resource() {
         let args_with_dupe_keys = vec![KeyValue::new("a", ""), KeyValue::new("a", "final")];
 
-        let mut expected_attrs = BTreeMap::new();
+        let mut expected_attrs = HashMap::new();
         expected_attrs.insert(Key::new("a"), Value::from("final"));
 
         assert_eq!(
@@ -289,7 +292,7 @@ mod tests {
             KeyValue::new("d", ""),
         ]);
 
-        let mut expected_attrs = BTreeMap::new();
+        let mut expected_attrs = HashMap::new();
         expected_attrs.insert(Key::new("a"), Value::from("a-value"));
         expected_attrs.insert(Key::new("b"), Value::from("b-value"));
         expected_attrs.insert(Key::new("c"), Value::from("c-value"));

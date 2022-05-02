@@ -51,15 +51,13 @@ pub mod tonic {
             let span_kind: span::SpanKind = source_span.span_kind.into();
             ResourceSpans {
                 resource: Some(Resource {
-                    attributes: resource_attributes(
-                        source_span.resource.as_ref().map(AsRef::as_ref),
-                    )
-                    .0,
+                    attributes: resource_attributes(&source_span.resource).0,
                     dropped_attributes_count: 0,
                 }),
                 schema_url: source_span
                     .resource
-                    .and_then(|resource| resource.schema_url().map(|url| url.to_string()))
+                    .schema_url()
+                    .map(|url| url.to_string())
                     .unwrap_or_default(),
                 instrumentation_library_spans: vec![InstrumentationLibrarySpans {
                     schema_url: source_span
@@ -112,14 +110,11 @@ pub mod tonic {
         }
     }
 
-    fn resource_attributes(resource: Option<&sdk::Resource>) -> Attributes {
+    fn resource_attributes(resource: &sdk::Resource) -> Attributes {
         resource
-            .map(|res| {
-                res.iter()
-                    .map(|(k, v)| opentelemetry::KeyValue::new(k.clone(), v.clone()))
-                    .collect::<Vec<_>>()
-            })
-            .unwrap_or_default()
+            .iter()
+            .map(|(k, v)| opentelemetry::KeyValue::new(k.clone(), v.clone()))
+            .collect::<Vec<_>>()
             .into()
     }
 }
@@ -175,10 +170,7 @@ pub mod grpcio {
         fn from(source_span: SpanData) -> Self {
             ResourceSpans {
                 resource: SingularPtrField::from(Some(Resource {
-                    attributes: resource_attributes(
-                        source_span.resource.as_ref().map(AsRef::as_ref),
-                    )
-                    .0,
+                    attributes: resource_attributes(&source_span.resource).0,
                     dropped_attributes_count: 0,
                     ..Default::default()
                 })),
@@ -246,15 +238,11 @@ pub mod grpcio {
         }
     }
 
-    fn resource_attributes(resource: Option<&sdk::Resource>) -> Attributes {
+    fn resource_attributes(resource: &sdk::Resource) -> Attributes {
         resource
-            .map(|resource| {
-                resource
-                    .iter()
-                    .map(|(k, v)| opentelemetry::KeyValue::new(k.clone(), v.clone()))
-                    .collect::<Vec<_>>()
-            })
-            .unwrap_or_default()
+            .iter()
+            .map(|(k, v)| opentelemetry::KeyValue::new(k.clone(), v.clone()))
+            .collect::<Vec<_>>()
             .into()
     }
 }

@@ -417,7 +417,16 @@ mod tests {
         // If we changed the sink function to process the input in parallel, we will have to sort other vectors
         // like data points in Metrics.
         fn assert_resource_metrics(mut expect: ResourceMetrics, mut actual: ResourceMetrics) {
-            assert_eq!(expect.resource, actual.resource);
+            assert_eq!(
+                expect
+                    .resource
+                    .as_mut()
+                    .map(|r| r.attributes.sort_by_key(|kv| kv.key.to_string())),
+                actual
+                    .resource
+                    .as_mut()
+                    .map(|r| r.attributes.sort_by_key(|kv| kv.key.to_string()))
+            );
             assert_eq!(
                 expect.instrumentation_library_metrics.len(),
                 actual.instrumentation_library_metrics.len()

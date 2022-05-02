@@ -179,12 +179,13 @@ impl ApiVersion {
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
-    use opentelemetry::sdk;
     use opentelemetry::sdk::InstrumentationLibrary;
+    use opentelemetry::sdk::{self, Resource};
     use opentelemetry::{
         trace::{SpanContext, SpanId, SpanKind, Status, TraceFlags, TraceId, TraceState},
         Key,
     };
+    use std::borrow::Cow;
     use std::time::{Duration, SystemTime};
 
     fn get_traces() -> Vec<Vec<trace::SpanData>> {
@@ -221,7 +222,7 @@ pub(crate) mod tests {
             events,
             links,
             status: Status::Ok,
-            resource: None,
+            resource: Cow::Owned(Resource::empty()),
             instrumentation_lib: InstrumentationLibrary::new("component", None, None),
         }
     }
