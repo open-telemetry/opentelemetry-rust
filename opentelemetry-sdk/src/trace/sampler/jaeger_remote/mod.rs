@@ -10,6 +10,9 @@ use opentelemetry_api::trace::{Link, SamplingResult, SpanKind, TraceContextExt, 
 use crate::trace::ShouldSample;
 use opentelemetry_http::HttpClient;
 use sampling_strategy::SamplingStrategy;
+use crate::trace::sampler::jaeger_remote::rate_limit::LeakyBucket;
+use crate::trace::sampler::jaeger_remote::remote::SamplingStrategyResponse;
+use crate::trace::sampler::jaeger_remote::sampling_strategy::SamplingInner;
 
 mod sampling_strategy;
 mod rate_limit;
@@ -25,7 +28,7 @@ mod remote;
 /// protocol.
 pub struct JaegerRemoteSampler {
     default_sampler: Box<dyn ShouldSample>,
-    current_strategy: SamplingStrategy,
+    strategy: Option<SamplingStrategy>,
     update_timeout: Duration,
     // contains endpoint and service name
     endpoint: http::Uri,
@@ -47,41 +50,20 @@ impl Debug for JaegerRemoteSampler {
 impl JaegerRemoteSampler
 {
     // start a updating thread/task
-    fn setup<C, R>(runtime: R, current_strategy: SamplingStrategy, update_timeout: Duration, client: C, shutdown: futures_channel::mpsc::Receiver<()>, endpoint: http::Uri)
+    fn setup<C, R>(runtime: R, strategy: SamplingStrategy, update_timeout: Duration, client: C, shutdown: futures_channel::mpsc::Receiver<()>, endpoint: http::Uri)
         where R: crate::runtime::Runtime,
-              C: HttpClient {
+              C: HttpClient + 'static { // todo: review if we need 'static here
         let interval = runtime.interval(update_timeout);
         runtime.spawn(Box::pin(async move {
             // poll next available configuration or shutdown
             // send request
             match Self::request_new_strategy(client, endpoint).await {
                 Ok(remote_strategy_resp) => {
-                    // update sample strategy
-                    // the response should be an union type where
-                    // - operation_sampling
-                    // - rate_limiting_sampling
-                    // - probabilistic_sampling
-                    // are mutually exclusive.
-                    let strategy = match (remote_strategy_resp.operation_sampling, remote_strategy_resp.rate_limiting_sampling, remote_strategy_resp.probabilistic_sampling) {
-                        (Some(op_sampling), None, None) => {
-                            // ops sampling
-                        }
-                        (None, Some(rate_limiting), None) => {
-                            // rate limiting
-                        }
-                        (None, None, Some(probabilistic)) => {
-                            // probabilistic
-                        }
-                        _ => {
-                            // invalid cases
-                        }
-                    }
+                    strategy.update(remote_strategy_resp)
                 }
-                Err(()) => {
-
-                }
-            }
-        }))
+                Err(()) => {}
+            };
+        }));
     }
 
     async fn request_new_strategy<C>(client: C, endpoint: http::Uri) -> Result<remote::SamplingStrategyResponse, ()>
@@ -109,21 +91,28 @@ impl JaegerRemoteSampler
 
 impl ShouldSample for JaegerRemoteSampler {
     fn should_sample(&self, parent_context: Option<&Context>, trace_id: TraceId, name: &str, span_kind: &SpanKind, attributes: &[KeyValue], links: &[Link], instrumentation_library: &InstrumentationLibrary) -> SamplingResult {
-        self.current_strategy.should_sample(trace_id, name)
-            .map(|decision| SamplingResult {
-                decision,
-                attributes: Vec::new(),
-                // all sampler in SDK will not modify trace state.
-                trace_state: match parent_context {
-                    Some(ctx) => ctx.span().span_context().trace_state().clone(),
-                    None => TraceState::default(),
-                },
-            })
+        match &self.strategy {
+            Some(strategy) => {
+                strategy.should_sample(trace_id, name)
+                    .map(|decision| SamplingResult {
+                        decision,
+                        attributes: Vec::new(),
+                        // all sampler in SDK will not modify trace state.
+                        trace_state: match parent_context {
+                            Some(ctx) => ctx.span().span_context().trace_state().clone(),
+                            None => TraceState::default(),
+                        },
+                    })
+                    .unwrap_or_else(|| {
+                        self.default_sampler.should_sample(parent_context, trace_id, name, span_kind, attributes, links, instrumentation_library)
+                    })
+            }
             // if the remote sampler cannot generate a result. Fall back to default sample
-            // it can happen when the lock is poisoned or when the sampler is just initialized
-            .unwrap_or_else(|| {
+            // it can happen when the lock is poisoned or when the remote sampler hasn't initialized
+            None => {
                 self.default_sampler.should_sample(parent_context, trace_id, name, span_kind, attributes, links, instrumentation_library)
-            })
+            }
+        }
     }
 }
 
