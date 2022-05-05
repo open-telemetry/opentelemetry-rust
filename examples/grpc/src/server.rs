@@ -4,14 +4,12 @@ use hello_world::greeter_server::{Greeter, GreeterServer};
 use hello_world::{HelloReply, HelloRequest};
 use opentelemetry::global;
 use opentelemetry::sdk::propagation::TraceContextPropagator;
-use opentelemetry::sdk::runtime::Tokio;
 use opentelemetry::trace::TraceError;
 use opentelemetry::{
     propagation::Extractor,
     trace::{Span, Tracer},
     KeyValue,
 };
-use opentelemetry_jaeger::JaegerTraceRuntime;
 use std::error::Error;
 
 pub mod hello_world {
@@ -61,16 +59,16 @@ impl Greeter for MyGreeter {
     }
 }
 
-fn tracing_init<R: JaegerTraceRuntime>(runtime: R) -> Result<impl Tracer, TraceError> {
+fn tracing_init() -> Result<impl Tracer, TraceError> {
     global::set_text_map_propagator(TraceContextPropagator::new());
     opentelemetry_jaeger::new_agent_pipeline()
         .with_service_name("grpc-server")
-        .install_simple(runtime)
+        .install_simple()
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
-    let _tracer = tracing_init(Tokio)?;
+    let _tracer = tracing_init()?;
     let addr = "[::1]:50051".parse()?;
     let greeter = MyGreeter::default();
 

@@ -22,7 +22,6 @@ use futures::channel::{mpsc, oneshot};
 use futures::future::BoxFuture;
 use futures::StreamExt;
 use std::convert::TryInto;
-use std::future::Future;
 
 #[cfg(feature = "isahc_collector_client")]
 #[allow(unused_imports)] // this is actually used to configure authentication
@@ -60,21 +59,20 @@ impl Exporter {
         process: jaeger::Process,
         export_instrumentation_lib: bool,
         uploader: Box<dyn Uploader>,
-    ) -> (Exporter, impl Future<Output = ()>) {
+    ) -> Exporter {
         let (tx, rx) = futures::channel::mpsc::channel(64);
-        (
-            Exporter {
-                tx,
-                process: process.clone(),
-            },
-            ExporterTask {
-                rx,
-                export_instrumentation_lib,
-                uploader,
-                process,
-            }
-            .run(),
-        )
+
+        let exporter_task = ExporterTask {
+            rx,
+            export_instrumentation_lib,
+            uploader,
+            process: process.clone(),
+        };
+        std::thread::spawn(move || {
+            futures_executor::block_on(exporter_task.run());
+        });
+
+        Exporter { tx, process }
     }
 }
 

@@ -109,9 +109,7 @@ mod tests {
         // OTEL_SERVICE_NAME env var also works
         env::set_var("OTEL_SERVICE_NAME", "test service");
         let builder = new_agent_pipeline();
-        let exporter = builder
-            .build_sync_agent_exporter(opentelemetry::runtime::Tokio)
-            .unwrap();
+        let exporter = builder.build_sync_agent_exporter().unwrap();
         assert_eq!(exporter.process.service_name, "test service");
         env::set_var("OTEL_SERVICE_NAME", "")
     }

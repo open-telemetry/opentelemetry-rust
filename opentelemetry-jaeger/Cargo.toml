@@ -24,6 +24,7 @@ async-trait = "0.1"
 base64 = { version = "0.13", optional = true }
 futures = "0.3"
 futures-util = { version = "0.3", default-features = false, features = ["std"], optional = true }
+futures-executor = "0.3"
 headers = { version = "0.3.2", optional = true }
 http = { version = "0.2", optional = true }
 isahc = { version = "1.4", default-features = false, optional = true }
