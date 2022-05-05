@@ -9,7 +9,6 @@
     rustdoc::invalid_rust_codeblocks
 )]
 
-use futures::future::BoxFuture;
 use std::{
     collections::HashMap,
     fmt,
@@ -22,7 +21,7 @@ use std::{
 };
 
 use async_trait::async_trait;
-use futures::stream::StreamExt;
+use futures::{future::BoxFuture, stream::StreamExt};
 use opentelemetry::{
     global::handle_error,
     sdk::{

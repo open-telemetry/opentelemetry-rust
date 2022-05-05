@@ -36,7 +36,7 @@ thiserror = "1.0"
 itertools = "0.10"
 http = "0.2"
 lazy_static = "1.4"
-futures = "0.3"
+futures-core = "0.3"
 
 [dev-dependencies]
 base64 = "0.13"

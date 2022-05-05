@@ -7,6 +7,7 @@ use crate::{
     InstrumentationLibrary,
 };
 use async_trait::async_trait;
+use futures_util::future::BoxFuture;
 pub use opentelemetry_api::testing::trace::TestSpan;
 use opentelemetry_api::trace::{SpanContext, SpanId, SpanKind, Status};
 use std::fmt::{Display, Formatter};
@@ -38,10 +39,7 @@ pub struct TestSpanExporter {
 
 #[async_trait]
 impl SpanExporter for TestSpanExporter {
-    fn export(
-        &mut self,
-        batch: Vec<SpanData>,
-    ) -> futures::future::BoxFuture<'static, ExportResult> {
+    fn export(&mut self, batch: Vec<SpanData>) -> BoxFuture<'static, ExportResult> {
         for span_data in batch {
             if let Err(err) = self
                 .tx_export
@@ -76,10 +74,7 @@ pub struct TokioSpanExporter {
 }
 
 impl SpanExporter for TokioSpanExporter {
-    fn export(
-        &mut self,
-        batch: Vec<SpanData>,
-    ) -> futures::future::BoxFuture<'static, ExportResult> {
+    fn export(&mut self, batch: Vec<SpanData>) -> BoxFuture<'static, ExportResult> {
         for span_data in batch {
             if let Err(err) = self
                 .tx_export
@@ -157,7 +152,7 @@ impl NoopSpanExporter {
 
 #[async_trait::async_trait]
 impl SpanExporter for NoopSpanExporter {
-    fn export(&mut self, _: Vec<SpanData>) -> futures::future::BoxFuture<'static, ExportResult> {
+    fn export(&mut self, _: Vec<SpanData>) -> BoxFuture<'static, ExportResult> {
         Box::pin(std::future::ready(Ok(())))
     }
 }

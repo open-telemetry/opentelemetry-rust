@@ -37,12 +37,13 @@
 use crate::export::trace::{ExportResult, SpanData, SpanExporter};
 use crate::trace::runtime::{TraceRuntime, TrySend};
 use crate::trace::Span;
-use futures::select;
-use futures::stream::FusedStream;
-use futures::Stream;
 use futures_channel::oneshot;
-use futures_util::future::Either;
-use futures_util::{stream, StreamExt as _};
+use futures_util::{
+    future::{self, BoxFuture, Either},
+    select,
+    stream::{self, FusedStream, FuturesUnordered},
+    Stream, StreamExt as _,
+};
 use opentelemetry_api::global;
 use opentelemetry_api::{
     trace::{TraceError, TraceResult},
@@ -284,9 +285,6 @@ pub enum BatchMessage {
     Shutdown(oneshot::Sender<ExportResult>),
 }
 
-use futures::future::BoxFuture;
-use futures::stream::FuturesUnordered;
-
 struct BatchSpanProcessorInternal<R> {
     spans: Vec<SpanData>,
     export_tasks: FuturesUnordered<BoxFuture<'static, ExportResult>>,
@@ -394,7 +392,7 @@ impl<R: TraceRuntime> BatchSpanProcessorInternal<R> {
         // Batch size check for flush / shutdown. Those methods may be called
         // when there's no work to do.
         if self.spans.is_empty() {
-            return Box::pin(futures::future::ready(Ok(())));
+            return Box::pin(future::ready(Ok(())));
         }
 
         let export = self.exporter.export(self.spans.split_off(0));
@@ -402,7 +400,7 @@ impl<R: TraceRuntime> BatchSpanProcessorInternal<R> {
         let time_out = self.config.max_export_timeout;
 
         Box::pin(async move {
-            match futures::future::select(export, timeout).await {
+            match future::select(export, timeout).await {
                 Either::Left((export_res, _)) => export_res,
                 Either::Right((_, _)) => ExportResult::Err(TraceError::ExportTimedOut(time_out)),
             }
@@ -741,8 +739,8 @@ mod tests {
         fn export(
             &mut self,
             _batch: Vec<SpanData>,
-        ) -> futures::future::BoxFuture<'static, ExportResult> {
-            use futures::FutureExt;
+        ) -> futures_util::future::BoxFuture<'static, ExportResult> {
+            use futures_util::FutureExt;
             Box::pin((self.delay_fn)(self.delay_for).map(|_| Ok(())))
         }
     }

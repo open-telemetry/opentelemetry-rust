@@ -1,6 +1,6 @@
 //! Trace exporters
 use crate::Resource;
-use futures::future::BoxFuture;
+use futures_util::future::BoxFuture;
 use opentelemetry_api::trace::{Event, Link, SpanContext, SpanId, SpanKind, Status, TraceError};
 use std::borrow::Cow;
 use std::fmt::Debug;

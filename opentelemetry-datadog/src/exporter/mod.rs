@@ -9,7 +9,7 @@ use std::borrow::Cow;
 use std::fmt::{Debug, Formatter};
 
 use crate::exporter::model::FieldMapping;
-use futures::future::BoxFuture;
+use futures_core::future::BoxFuture;
 use http::{Method, Request, Uri};
 use itertools::Itertools;
 use opentelemetry::sdk::export::trace;

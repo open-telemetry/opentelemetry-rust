@@ -3,7 +3,7 @@ mod model;
 mod uploader;
 
 use async_trait::async_trait;
-use futures::future::BoxFuture;
+use futures_core::future::BoxFuture;
 use http::Uri;
 use model::endpoint::Endpoint;
 use opentelemetry::sdk::resource::ResourceDetector;

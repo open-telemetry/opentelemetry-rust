@@ -23,7 +23,6 @@ async-std = { version = "1.6", optional = true }
 async-trait = "0.1"
 base64 = { version = "0.13", optional = true }
 futures = "0.3"
-futures-channel = "0.3"
 futures-util = { version = "0.3", default-features = false, features = ["std"], optional = true }
 headers = { version = "0.3.2", optional = true }
 http = { version = "0.2", optional = true }

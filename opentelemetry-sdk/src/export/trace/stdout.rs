@@ -32,6 +32,7 @@ use crate::export::{
     ExportError,
 };
 use async_trait::async_trait;
+use futures_util::future::BoxFuture;
 use opentelemetry_api::{global, trace::TracerProvider};
 use std::fmt::Debug;
 use std::io::{stdout, Stdout, Write};
@@ -133,10 +134,7 @@ where
     W: Write + Debug + Send + 'static,
 {
     /// Export spans to stdout
-    fn export(
-        &mut self,
-        batch: Vec<SpanData>,
-    ) -> futures::future::BoxFuture<'static, ExportResult> {
+    fn export(&mut self, batch: Vec<SpanData>) -> BoxFuture<'static, ExportResult> {
         for span in batch {
             if self.pretty_print {
                 if let Err(err) = self
