@@ -27,6 +27,7 @@ use std::borrow::Cow;
 ))]
 use std::convert::TryFrom;
 use std::net::SocketAddr;
+use std::sync::Arc;
 use std::time::Duration;
 
 /// Zipkin span exporter
