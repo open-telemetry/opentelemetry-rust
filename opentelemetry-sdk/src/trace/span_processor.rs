@@ -68,9 +68,7 @@ const OTEL_BSP_EXPORT_TIMEOUT: &str = "OTEL_BSP_EXPORT_TIMEOUT";
 /// Default maximum allowed time to export data.
 const OTEL_BSP_EXPORT_TIMEOUT_DEFAULT: u64 = 30_000;
 /// Default max concurrent exports for BSP
-// TODO jwilm: I omitted the OTEL_ prefix here as this is a non-standard config
-// value. Should it be kept this way or prefix with OTEL_ for consistency?
-const BSP_MAX_CONCURRENT_EXPORTS: usize = 0;
+const OTEL_BSP_MAX_CONCURRENT_EXPORTS: usize = 1;
 
 /// `SpanProcessor` is an interface which allows hooks for span start and end
 /// method invocations. The span processors are invoked only when is_recording
@@ -503,7 +501,7 @@ impl Default for BatchConfig {
             scheduled_delay: Duration::from_millis(OTEL_BSP_SCHEDULE_DELAY_DEFAULT),
             max_export_batch_size: OTEL_BSP_MAX_EXPORT_BATCH_SIZE_DEFAULT,
             max_export_timeout: Duration::from_millis(OTEL_BSP_EXPORT_TIMEOUT_DEFAULT),
-            max_concurrent_exports: BSP_MAX_CONCURRENT_EXPORTS,
+            max_concurrent_exports: OTEL_BSP_MAX_CONCURRENT_EXPORTS,
         };
 
         if let Some(max_queue_size) = env::var(OTEL_BSP_MAX_QUEUE_SIZE)
