@@ -5,7 +5,7 @@ use std::borrow::Cow;
 pub mod tonic {
     use std::collections::BTreeMap;
 
-    use opentelemetry::sdk::log::{Any, Severity};
+    use opentelemetry::sdk::logs::{Any, Severity};
 
     use crate::{
         tonic::{
@@ -92,8 +92,8 @@ pub mod tonic {
             .collect()
     }
 
-    impl From<opentelemetry::sdk::log::LogRecord> for LogRecord {
-        fn from(log_record: opentelemetry::sdk::log::LogRecord) -> Self {
+    impl From<opentelemetry::sdk::logs::LogRecord> for LogRecord {
+        fn from(log_record: opentelemetry::sdk::logs::LogRecord) -> Self {
             let trace_context = log_record.trace_context.as_ref();
 
             let record = LogRecord {
@@ -135,8 +135,8 @@ pub mod tonic {
         }
     }
 
-    impl From<opentelemetry::sdk::export::log::LogData> for ResourceLogs {
-        fn from(log_data: opentelemetry::sdk::export::log::LogData) -> Self {
+    impl From<opentelemetry::sdk::export::logs::LogData> for ResourceLogs {
+        fn from(log_data: opentelemetry::sdk::export::logs::LogData) -> Self {
             ResourceLogs {
                 resource: Some(Resource {
                     attributes: resource_attributes(log_data.resource.as_ref().map(AsRef::as_ref))
@@ -171,7 +171,7 @@ pub mod grpcio {
         },
         transform::common::grpcio::resource_attributes,
     };
-    use opentelemetry::sdk::log::{Any, Severity};
+    use opentelemetry::sdk::logs::{Any, Severity};
     use protobuf::{RepeatedField, SingularPtrField};
 
     use super::*;
@@ -259,8 +259,8 @@ pub mod grpcio {
             .collect()
     }
 
-    impl From<opentelemetry::sdk::log::LogRecord> for LogRecord {
-        fn from(log_record: opentelemetry::sdk::log::LogRecord) -> Self {
+    impl From<opentelemetry::sdk::logs::LogRecord> for LogRecord {
+        fn from(log_record: opentelemetry::sdk::logs::LogRecord) -> Self {
             let trace_context = log_record.trace_context.as_ref();
 
             LogRecord {
@@ -300,8 +300,8 @@ pub mod grpcio {
         }
     }
 
-    impl From<opentelemetry::sdk::export::log::LogData> for ResourceLogs {
-        fn from(log_data: opentelemetry::sdk::export::log::LogData) -> Self {
+    impl From<opentelemetry::sdk::export::logs::LogData> for ResourceLogs {
+        fn from(log_data: opentelemetry::sdk::export::logs::LogData) -> Self {
             ResourceLogs {
                 resource: SingularPtrField::some(Resource {
                     attributes: resource_attributes(log_data.resource.as_ref().map(AsRef::as_ref))
