@@ -49,37 +49,6 @@ pub mod tonic {
         }
     }
 
-    impl From<Severity> for SeverityNumber {
-        fn from(number: Severity) -> Self {
-            match number {
-                Severity::Trace => SeverityNumber::Trace,
-                Severity::Trace2 => SeverityNumber::Trace2,
-                Severity::Trace3 => SeverityNumber::Trace3,
-                Severity::Trace4 => SeverityNumber::Trace4,
-                Severity::Debug => SeverityNumber::Debug,
-                Severity::Debug2 => SeverityNumber::Debug2,
-                Severity::Debug3 => SeverityNumber::Debug3,
-                Severity::Debug4 => SeverityNumber::Debug4,
-                Severity::Info => SeverityNumber::Info,
-                Severity::Info2 => SeverityNumber::Info2,
-                Severity::Info3 => SeverityNumber::Info3,
-                Severity::Info4 => SeverityNumber::Info4,
-                Severity::Warn => SeverityNumber::Warn,
-                Severity::Warn2 => SeverityNumber::Warn2,
-                Severity::Warn3 => SeverityNumber::Warn3,
-                Severity::Warn4 => SeverityNumber::Warn4,
-                Severity::Error => SeverityNumber::Error,
-                Severity::Error2 => SeverityNumber::Error2,
-                Severity::Error3 => SeverityNumber::Error3,
-                Severity::Error4 => SeverityNumber::Error4,
-                Severity::Fatal => SeverityNumber::Fatal,
-                Severity::Fatal2 => SeverityNumber::Fatal2,
-                Severity::Fatal3 => SeverityNumber::Fatal3,
-                Severity::Fatal4 => SeverityNumber::Fatal4,
-            }
-        }
-    }
-
     fn attributes_to_keyvalue(attributes: BTreeMap<Cow<'static, str>, Any>) -> Vec<KeyValue> {
         attributes
             .into_iter()
@@ -95,6 +64,33 @@ pub mod tonic {
     impl From<opentelemetry::sdk::logs::LogRecord> for LogRecord {
         fn from(log_record: opentelemetry::sdk::logs::LogRecord) -> Self {
             let trace_context = log_record.trace_context.as_ref();
+            let severity_number = match log_record.severity_number {
+                Some(Severity::Trace) => SeverityNumber::Trace,
+                Some(Severity::Trace2) => SeverityNumber::Trace2,
+                Some(Severity::Trace3) => SeverityNumber::Trace3,
+                Some(Severity::Trace4) => SeverityNumber::Trace4,
+                Some(Severity::Debug) => SeverityNumber::Debug,
+                Some(Severity::Debug2) => SeverityNumber::Debug2,
+                Some(Severity::Debug3) => SeverityNumber::Debug3,
+                Some(Severity::Debug4) => SeverityNumber::Debug4,
+                Some(Severity::Info) => SeverityNumber::Info,
+                Some(Severity::Info2) => SeverityNumber::Info2,
+                Some(Severity::Info3) => SeverityNumber::Info3,
+                Some(Severity::Info4) => SeverityNumber::Info4,
+                Some(Severity::Warn) => SeverityNumber::Warn,
+                Some(Severity::Warn2) => SeverityNumber::Warn2,
+                Some(Severity::Warn3) => SeverityNumber::Warn3,
+                Some(Severity::Warn4) => SeverityNumber::Warn4,
+                Some(Severity::Error) => SeverityNumber::Error,
+                Some(Severity::Error2) => SeverityNumber::Error2,
+                Some(Severity::Error3) => SeverityNumber::Error3,
+                Some(Severity::Error4) => SeverityNumber::Error4,
+                Some(Severity::Fatal) => SeverityNumber::Fatal,
+                Some(Severity::Fatal2) => SeverityNumber::Fatal2,
+                Some(Severity::Fatal3) => SeverityNumber::Fatal3,
+                Some(Severity::Fatal4) => SeverityNumber::Fatal4,
+                None => SeverityNumber::Unspecified
+            };
 
             let record = LogRecord {
                 time_unix_nano: log_record.timestamp.map(to_nanos).unwrap_or_default(),
@@ -102,11 +98,7 @@ pub mod tonic {
                     .observed_timestamp
                     .map(to_nanos)
                     .unwrap_or_default(),
-                severity_number: log_record
-                    .severity_number
-                    .map(SeverityNumber::from)
-                    .map(Into::into)
-                    .unwrap_or_default(),
+                severity_number: severity_number.into(),
                 severity_text: log_record.severity_text.map(Into::into).unwrap_or_default(),
                 body: Some(AnyValue {
                     value: log_record.body.map(Into::into),
@@ -214,37 +206,6 @@ pub mod grpcio {
         }
     }
 
-    impl From<Severity> for SeverityNumber {
-        fn from(number: Severity) -> Self {
-            match number {
-                Severity::Trace => SeverityNumber::SEVERITY_NUMBER_TRACE,
-                Severity::Trace2 => SeverityNumber::SEVERITY_NUMBER_TRACE2,
-                Severity::Trace3 => SeverityNumber::SEVERITY_NUMBER_TRACE3,
-                Severity::Trace4 => SeverityNumber::SEVERITY_NUMBER_TRACE4,
-                Severity::Debug => SeverityNumber::SEVERITY_NUMBER_DEBUG,
-                Severity::Debug2 => SeverityNumber::SEVERITY_NUMBER_DEBUG2,
-                Severity::Debug3 => SeverityNumber::SEVERITY_NUMBER_DEBUG3,
-                Severity::Debug4 => SeverityNumber::SEVERITY_NUMBER_DEBUG4,
-                Severity::Info => SeverityNumber::SEVERITY_NUMBER_INFO,
-                Severity::Info2 => SeverityNumber::SEVERITY_NUMBER_INFO2,
-                Severity::Info3 => SeverityNumber::SEVERITY_NUMBER_INFO3,
-                Severity::Info4 => SeverityNumber::SEVERITY_NUMBER_INFO4,
-                Severity::Warn => SeverityNumber::SEVERITY_NUMBER_WARN,
-                Severity::Warn2 => SeverityNumber::SEVERITY_NUMBER_WARN2,
-                Severity::Warn3 => SeverityNumber::SEVERITY_NUMBER_WARN3,
-                Severity::Warn4 => SeverityNumber::SEVERITY_NUMBER_WARN4,
-                Severity::Error => SeverityNumber::SEVERITY_NUMBER_ERROR,
-                Severity::Error2 => SeverityNumber::SEVERITY_NUMBER_ERROR2,
-                Severity::Error3 => SeverityNumber::SEVERITY_NUMBER_ERROR3,
-                Severity::Error4 => SeverityNumber::SEVERITY_NUMBER_ERROR4,
-                Severity::Fatal => SeverityNumber::SEVERITY_NUMBER_FATAL,
-                Severity::Fatal2 => SeverityNumber::SEVERITY_NUMBER_FATAL2,
-                Severity::Fatal3 => SeverityNumber::SEVERITY_NUMBER_FATAL3,
-                Severity::Fatal4 => SeverityNumber::SEVERITY_NUMBER_FATAL4,
-            }
-        }
-    }
-
     fn attributes_to_keyvalue(attributes: BTreeMap<Cow<'static, str>, Any>) -> Vec<KeyValue> {
         attributes
             .into_iter()
@@ -262,14 +223,37 @@ pub mod grpcio {
     impl From<opentelemetry::sdk::logs::LogRecord> for LogRecord {
         fn from(log_record: opentelemetry::sdk::logs::LogRecord) -> Self {
             let trace_context = log_record.trace_context.as_ref();
+            let severity_number = match log_record.severity_number {
+                Some(Severity::Trace) => SeverityNumber::SEVERITY_NUMBER_TRACE,
+                Some(Severity::Trace2) => SeverityNumber::SEVERITY_NUMBER_TRACE2,
+                Some(Severity::Trace3) => SeverityNumber::SEVERITY_NUMBER_TRACE3,
+                Some(Severity::Trace4) => SeverityNumber::SEVERITY_NUMBER_TRACE4,
+                Some(Severity::Debug) => SeverityNumber::SEVERITY_NUMBER_DEBUG,
+                Some(Severity::Debug2) => SeverityNumber::SEVERITY_NUMBER_DEBUG2,
+                Some(Severity::Debug3) => SeverityNumber::SEVERITY_NUMBER_DEBUG3,
+                Some(Severity::Debug4) => SeverityNumber::SEVERITY_NUMBER_DEBUG4,
+                Some(Severity::Info) => SeverityNumber::SEVERITY_NUMBER_INFO,
+                Some(Severity::Info2) => SeverityNumber::SEVERITY_NUMBER_INFO2,
+                Some(Severity::Info3) => SeverityNumber::SEVERITY_NUMBER_INFO3,
+                Some(Severity::Info4) => SeverityNumber::SEVERITY_NUMBER_INFO4,
+                Some(Severity::Warn) => SeverityNumber::SEVERITY_NUMBER_WARN,
+                Some(Severity::Warn2) => SeverityNumber::SEVERITY_NUMBER_WARN2,
+                Some(Severity::Warn3) => SeverityNumber::SEVERITY_NUMBER_WARN3,
+                Some(Severity::Warn4) => SeverityNumber::SEVERITY_NUMBER_WARN4,
+                Some(Severity::Error) => SeverityNumber::SEVERITY_NUMBER_ERROR,
+                Some(Severity::Error2) => SeverityNumber::SEVERITY_NUMBER_ERROR2,
+                Some(Severity::Error3) => SeverityNumber::SEVERITY_NUMBER_ERROR3,
+                Some(Severity::Error4) => SeverityNumber::SEVERITY_NUMBER_ERROR4,
+                Some(Severity::Fatal) => SeverityNumber::SEVERITY_NUMBER_FATAL,
+                Some(Severity::Fatal2) => SeverityNumber::SEVERITY_NUMBER_FATAL2,
+                Some(Severity::Fatal3) => SeverityNumber::SEVERITY_NUMBER_FATAL3,
+                Some(Severity::Fatal4) => SeverityNumber::SEVERITY_NUMBER_FATAL4,
+                None => SeverityNumber::SEVERITY_NUMBER_UNSPECIFIED,
+            };
 
             LogRecord {
                 time_unix_nano: log_record.timestamp.map(to_nanos).unwrap_or(0),
-                severity_number: log_record
-                    .severity_number
-                    .map(SeverityNumber::from)
-                    .map(Into::into)
-                    .unwrap_or_default(),
+                severity_number,
                 severity_text: log_record.severity_text.map(Into::into).unwrap_or_default(),
                 body: SingularPtrField::some(AnyValue {
                     value: log_record.body.map(Into::into),
