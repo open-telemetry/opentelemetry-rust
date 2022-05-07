@@ -4,7 +4,11 @@ use crate::{
     resource::{EnvResourceDetector, SdkProvidedResourceDetector},
     Resource,
 };
-use opentelemetry_api::{logs::LogResult, InstrumentationLibrary};
+use opentelemetry_api::{
+    global::{handle_error, Error},
+    logs::LogResult,
+    InstrumentationLibrary,
+};
 use std::{
     borrow::Cow,
     sync::{Arc, Weak},
@@ -90,6 +94,23 @@ impl LogEmitterProvider {
                 .map(|processor| processor.shutdown())
                 .collect()
         })
+    }
+}
+
+impl Drop for LogEmitterProvider {
+    fn drop(&mut self) {
+        match self.try_shutdown() {
+            None => handle_error(Error::Other(
+                "canont shutdown LogEmitterProvider when child LogEmitters are still active".into(),
+            )),
+            Some(results) => {
+                for result in results {
+                    if let Err(err) = result {
+                        handle_error(err)
+                    }
+                }
+            }
+        }
     }
 }
 
