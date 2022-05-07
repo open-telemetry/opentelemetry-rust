@@ -49,7 +49,7 @@ pub mod tonic {
         }
     }
 
-    fn attributes_to_keyvalue(attributes: BTreeMap<Cow<'static, str>, Any>) -> Vec<KeyValue> {
+    fn attributes_to_key_value(attributes: BTreeMap<Cow<'static, str>, Any>) -> Vec<KeyValue> {
         attributes
             .into_iter()
             .map(|(key, value)| KeyValue {
