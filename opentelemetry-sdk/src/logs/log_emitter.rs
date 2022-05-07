@@ -37,7 +37,7 @@ impl LogEmitterProvider {
 
     /// Create a new `LogEmitter`.
     pub fn log_emitter(&self, name: impl Into<Cow<'static, str>>) -> LogEmitter {
-        self.versioned_log_emitter(name, Some(env!("CARGO_PKG_VERSION")))
+        self.versioned_log_emitter(name, None)
     }
 
     /// Create a new version `LogEmitter` instance.
