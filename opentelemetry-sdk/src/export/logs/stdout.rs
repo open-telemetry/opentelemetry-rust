@@ -28,11 +28,11 @@
 //! }
 //! ```
 use crate::export::{
-    log::{ExportResult, LogData, LogExporter},
+    logs::{ExportResult, LogData, LogExporter},
     ExportError,
 };
 use async_trait::async_trait;
-use opentelemetry_api::log::LogError;
+use opentelemetry_api::logs::LogError;
 use std::fmt::Debug;
 use std::io::{stdout, Stdout, Write};
 
@@ -40,7 +40,7 @@ use std::io::{stdout, Stdout, Write};
 #[derive(Debug)]
 pub struct PipelineBuilder<W: Write> {
     pretty_print: bool,
-    log_config: Option<crate::log::Config>,
+    log_config: Option<crate::logs::Config>,
     writer: W,
 }
 
@@ -68,7 +68,7 @@ impl<W: Write> PipelineBuilder<W> {
     }
 
     /// Assign the SDK trace configuration.
-    pub fn with_trace_config(mut self, config: crate::log::Config) -> Self {
+    pub fn with_trace_config(mut self, config: crate::logs::Config) -> Self {
         self.log_config = Some(config);
         self
     }
@@ -88,11 +88,11 @@ where
     W: Write + Debug + Send + 'static,
 {
     /// Install the stdout exporter pipeline with the recommended defaults.
-    pub fn install_simple(mut self) -> crate::log::LogEmitter {
+    pub fn install_simple(mut self) -> crate::logs::LogEmitter {
         let exporter = Exporter::new(self.writer, self.pretty_print);
 
         let mut provider_builder =
-            crate::log::LogEmitterProvider::builder().with_simple_exporter(exporter);
+            crate::logs::LogEmitterProvider::builder().with_simple_exporter(exporter);
         if let Some(config) = self.log_config.take() {
             provider_builder = provider_builder.with_config(config);
         }

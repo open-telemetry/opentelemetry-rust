@@ -4,7 +4,7 @@
 //!
 //! [`BatchLogProcessor`]: crate::log::BatchLogProcessor
 //! [`Runtime`]: crate::runtime::Runtime
-use crate::log::BatchMessage;
+use crate::logs::BatchMessage;
 #[cfg(feature = "rt-async-std")]
 use crate::runtime::AsyncStd;
 use crate::runtime::Runtime;
@@ -13,7 +13,7 @@ use crate::runtime::Tokio;
 #[cfg(feature = "rt-tokio-current-thread")]
 use crate::runtime::TokioCurrentThread;
 use futures_util::stream::Stream;
-use opentelemetry_api::log::LogError;
+use opentelemetry_api::logs::LogError;
 use std::fmt::Debug;
 
 #[cfg(any(

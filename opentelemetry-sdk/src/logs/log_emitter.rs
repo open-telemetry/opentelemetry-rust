@@ -1,10 +1,10 @@
 use super::{BatchLogProcessor, Config, LogProcessor, LogRecord, LogRuntime, SimpleLogProcessor};
 use crate::{
-    export::log::{LogData, LogExporter},
+    export::logs::{LogData, LogExporter},
     resource::{EnvResourceDetector, SdkProvidedResourceDetector},
     Resource,
 };
-use opentelemetry_api::{log::LogResult, InstrumentationLibrary};
+use opentelemetry_api::{logs::LogResult, InstrumentationLibrary};
 use std::{
     borrow::Cow,
     sync::{Arc, Weak},

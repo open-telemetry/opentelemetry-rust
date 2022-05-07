@@ -1,8 +1,8 @@
 //! Telemetry Export
 
-#[cfg(feature = "log")]
-#[cfg_attr(docsrs, doc(cfg(feature = "log")))]
-pub mod log;
+#[cfg(feature = "logs")]
+#[cfg_attr(docsrs, doc(cfg(feature = "logs")))]
+pub mod logs;
 
 #[cfg(feature = "trace")]
 #[cfg_attr(docsrs, doc(cfg(feature = "trace")))]

@@ -181,8 +181,8 @@
 #![cfg_attr(test, deny(warnings))]
 
 mod exporter;
-#[cfg(feature = "log")]
-mod log;
+#[cfg(feature = "logs")]
+mod logs;
 #[cfg(feature = "metrics")]
 mod metric;
 #[cfg(feature = "trace")]
@@ -202,7 +202,7 @@ pub use crate::metric::{
     OTEL_EXPORTER_OTLP_METRICS_ENDPOINT, OTEL_EXPORTER_OTLP_METRICS_TIMEOUT,
 };
 
-#[cfg(feature = "log")]
+#[cfg(feature = "logs")]
 pub use crate::log::*;
 
 pub use crate::exporter::{

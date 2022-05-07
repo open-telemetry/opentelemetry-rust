@@ -1,8 +1,8 @@
 use std::sync::PoisonError;
 use std::sync::RwLock;
 
-#[cfg(feature = "log")]
-use crate::log::LogError;
+#[cfg(feature = "logs")]
+use crate::logs::LogError;
 #[cfg(feature = "metrics")]
 use crate::metrics::MetricsError;
 #[cfg(feature = "trace")]
@@ -26,8 +26,8 @@ pub enum Error {
     /// An issue raised by the metrics module.
     Metric(#[from] MetricsError),
 
-    #[cfg(feature = "log")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "log")))]
+    #[cfg(feature = "logs")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "logs")))]
     #[error(transparent)]
     /// Failed to export logs.
     Log(#[from] LogError),
@@ -58,8 +58,8 @@ pub fn handle_error<T: Into<Error>>(err: T) {
             #[cfg(feature = "trace")]
             #[cfg_attr(docsrs, doc(cfg(feature = "trace")))]
             Error::Trace(err) => eprintln!("OpenTelemetry trace error occurred. {}", err),
-            #[cfg(feature = "log")]
-            #[cfg_attr(docsrs, doc(cfg(feature = "log")))]
+            #[cfg(feature = "logs")]
+            #[cfg_attr(docsrs, doc(cfg(feature = "logs")))]
             Error::Log(err) => eprintln!("OpenTelemetry log error occurred. {}", err),
             Error::Other(err_msg) => eprintln!("OpenTelemetry error occurred. {}", err_msg),
         },

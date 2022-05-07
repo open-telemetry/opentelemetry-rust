@@ -1,8 +1,8 @@
 //! Log exporters
-use crate::{log::LogRecord, Resource};
+use crate::{logs::LogRecord, Resource};
 use async_trait::async_trait;
-use opentelemetry_api::log::LogError;
-use opentelemetry_api::{log::LogResult, InstrumentationLibrary};
+use opentelemetry_api::logs::LogError;
+use opentelemetry_api::{logs::LogResult, InstrumentationLibrary};
 use std::{fmt::Debug, sync::Arc};
 
 pub mod stdout;

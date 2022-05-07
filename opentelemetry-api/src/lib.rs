@@ -67,9 +67,9 @@ pub mod propagation;
 #[cfg_attr(docsrs, doc(cfg(feature = "trace")))]
 pub mod trace;
 
-#[cfg(feature = "log")]
-#[cfg_attr(docsrs, doc(cfg(feature = "log")))]
-pub mod log;
+#[cfg(feature = "logs")]
+#[cfg_attr(docsrs, doc(cfg(feature = "logs")))]
+pub mod logs;
 
 #[doc(hidden)]
 #[cfg(any(feature = "metrics", feature = "trace"))]

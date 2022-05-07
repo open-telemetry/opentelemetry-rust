@@ -1,7 +1,7 @@
 use super::LogRuntime;
 use crate::{
-    export::log::{ExportResult, LogData, LogExporter},
-    log::TrySend,
+    export::logs::{ExportResult, LogData, LogExporter},
+    logs::TrySend,
 };
 use futures_channel::oneshot;
 use futures_util::{
@@ -10,7 +10,7 @@ use futures_util::{
 };
 use opentelemetry_api::{
     global,
-    log::{LogError, LogResult},
+    logs::{LogError, LogResult},
 };
 use std::thread;
 use std::{
