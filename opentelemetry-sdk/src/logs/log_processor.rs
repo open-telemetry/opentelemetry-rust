@@ -48,7 +48,7 @@ impl SimpleLogProcessor {
         let (shutdown_tx, shutdown_rx) = crossbeam_channel::bounded(0);
 
         let _ = thread::Builder::new()
-            .name("opentelemetry-exporter".to_string())
+            .name("opentelemetry-log-exporter".to_string())
             .spawn(move || {
                 while let Ok(Some(log)) = log_rx.recv() {
                     if let Err(err) = futures_executor::block_on(exporter.export(vec![log])) {
