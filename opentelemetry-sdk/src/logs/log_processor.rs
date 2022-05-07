@@ -129,7 +129,7 @@ impl<R: LogRuntime> LogProcessor for BatchLogProcessor<R> {
 
         futures_executor::block_on(res_receiver)
             .map_err(|err| LogError::Other(err.into()))
-            .and_then(|identity| identity)
+            .and_then(std::convert::identity)
     }
 
     fn shutdown(&mut self) -> LogResult<()> {
@@ -139,7 +139,7 @@ impl<R: LogRuntime> LogProcessor for BatchLogProcessor<R> {
 
         futures_executor::block_on(res_receiver)
             .map_err(|err| LogError::Other(err.into()))
-            .and_then(|identity| identity)
+            .and_then(std::convert::identity)
     }
 }
 
