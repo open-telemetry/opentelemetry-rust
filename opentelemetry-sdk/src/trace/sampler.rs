@@ -49,6 +49,9 @@ use std::convert::TryInto;
 
 mod jaeger_remote;
 
+pub use jaeger_remote::{JaegerRemoteSampler, JaegerRemoteSamplerBuilder};
+use opentelemetry_http::HttpClient;
+
 /// The `ShouldSample` interface allows implementations to provide samplers
 /// which will return a sampling `SamplingResult` based on information that
 /// is typically available just before the `Span` was created.
@@ -68,7 +71,7 @@ pub trait ShouldSample: Send + Sync + std::fmt::Debug {
 }
 
 /// Sampling options
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 #[non_exhaustive]
 pub enum Sampler {
     /// Always sample the trace
@@ -81,6 +84,18 @@ pub enum Sampler {
     /// sampled, then it's child spans will automatically be sampled. Fractions < 0 are treated as
     /// zero, but spans may still be sampled if their parent is.
     TraceIdRatioBased(f64),
+    /// Jaeger remote sampler.
+    JaegerRemote(JaegerRemoteSampler),
+}
+
+impl Sampler {
+    pub fn jaeger_remote<C, S, R>(runtime: R, http_client: C, default_sampler: S) -> JaegerRemoteSamplerBuilder<C, S, R>
+        where
+            C: HttpClient + 'static,
+            S: ShouldSample,
+            R: crate::trace::TraceRuntime {
+        JaegerRemoteSamplerBuilder::new(runtime, http_client, default_sampler)
+    }
 }
 
 impl ShouldSample for Sampler {
@@ -126,10 +141,12 @@ impl ShouldSample for Sampler {
             }
             // Probabilistically sample the trace.
             Sampler::TraceIdRatioBased(prob) => {
-                sample_based_on_probability(prob,trace_id)
+                sample_based_on_probability(prob, trace_id)
+            }
+            Sampler::JaegerRemote(remote_sampler) => {
+                remote_sampler.should_sample(parent_context, trace_id, name, span_kind, attributes, links, instrumentation_library).decision
             }
         };
-
         SamplingResult {
             decision,
             // No extra attributes ever set by the SDK samplers.

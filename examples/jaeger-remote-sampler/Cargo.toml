@@ -4,4 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+opentelemetry-sdk = { path = "../../opentelemetry-sdk" }
+tokio = { version = "1.18", features = ["macros", "rt-multi-thread"] }
 

@@ -4,12 +4,10 @@
 //!
 mod sampling_strategy;
 mod rate_limit;
-mod per_operation;
 mod remote;
 mod sampler;
 
-// todo: for probabilistic sampling, we should use RwLocks(Not available in futures), or AtomicNumber?
-
+pub use sampler::{JaegerRemoteSampler, JaegerRemoteSamplerBuilder};
 
 #[cfg(test)]
 mod tests {}
