@@ -1,6 +1,5 @@
 /// Generate types based on proto
 
-
 /// ProbabilisticSamplingStrategy samples traces with a fixed probability.
 #[derive(serde::Serialize, serde::Deserialize, PartialOrd, PartialEq)]
 #[serde(rename_all = "camelCase")]

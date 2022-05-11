@@ -89,11 +89,17 @@ pub enum Sampler {
 }
 
 impl Sampler {
-    pub fn jaeger_remote<C, S, R>(runtime: R, http_client: C, default_sampler: S) -> JaegerRemoteSamplerBuilder<C, S, R>
-        where
-            C: HttpClient + 'static,
-            S: ShouldSample,
-            R: crate::trace::TraceRuntime {
+    /// Return jaeger remote builder
+    pub fn jaeger_remote<C, S, R>(
+        runtime: R,
+        http_client: C,
+        default_sampler: S,
+    ) -> JaegerRemoteSamplerBuilder<C, S, R>
+    where
+        C: HttpClient + 'static,
+        S: ShouldSample,
+        R: crate::trace::TraceRuntime,
+    {
         JaegerRemoteSamplerBuilder::new(runtime, http_client, default_sampler)
     }
 }
@@ -140,11 +146,19 @@ impl ShouldSample for Sampler {
                 )
             }
             // Probabilistically sample the trace.
-            Sampler::TraceIdRatioBased(prob) => {
-                sample_based_on_probability(prob, trace_id)
-            }
+            Sampler::TraceIdRatioBased(prob) => sample_based_on_probability(prob, trace_id),
             Sampler::JaegerRemote(remote_sampler) => {
-                remote_sampler.should_sample(parent_context, trace_id, name, span_kind, attributes, links, instrumentation_library).decision
+                remote_sampler
+                    .should_sample(
+                        parent_context,
+                        trace_id,
+                        name,
+                        span_kind,
+                        attributes,
+                        links,
+                        instrumentation_library,
+                    )
+                    .decision
             }
         };
         SamplingResult {
@@ -165,8 +179,8 @@ pub(crate) fn sample_based_on_probability(prob: &f64, trace_id: TraceId) -> Samp
         SamplingDecision::RecordAndSample
     } else {
         let prob_upper_bound = (prob.max(0.0) * (1u64 << 63) as f64) as u64;
-// TODO: update behavior when the spec definition resolves
-// https://github.com/open-telemetry/opentelemetry-specification/issues/1413
+        // TODO: update behavior when the spec definition resolves
+        // https://github.com/open-telemetry/opentelemetry-specification/issues/1413
         let bytes = trace_id.to_bytes();
         let (_, low) = bytes.split_at(8);
         let trace_id_low = u64::from_be_bytes(low.try_into().unwrap());

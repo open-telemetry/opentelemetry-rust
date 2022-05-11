@@ -1,16 +1,16 @@
+use crate::trace::sampler::jaeger_remote::remote::SamplingStrategyResponse;
+use crate::trace::sampler::jaeger_remote::sampling_strategy::SamplingStrategy;
+use crate::trace::{ShouldSample, TraceRuntime};
+use futures_util::{stream, StreamExt as _};
+use opentelemetry_api::trace::{Link, SamplingResult, SpanKind, TraceId, TraceState};
+use opentelemetry_api::{Context, InstrumentationLibrary, KeyValue};
+use opentelemetry_http::HttpClient;
 use std::clone;
 use std::error::Error;
 use std::fmt::{Debug, Formatter};
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
-use futures_util::{stream, StreamExt as _};
-use opentelemetry_api::{Context, InstrumentationLibrary, KeyValue};
-use opentelemetry_api::trace::{Link, SamplingResult, SpanKind, TraceId, TraceState};
-use crate::trace::{ShouldSample, TraceRuntime};
-use opentelemetry_http::HttpClient;
-use crate::trace::sampler::jaeger_remote::remote::SamplingStrategyResponse;
-use crate::trace::sampler::jaeger_remote::sampling_strategy::SamplingStrategy;
 
 const DEFAULT_REMOTE_SAMPLER_ENDPOINT: &str = "http://localhost:5778";
 
@@ -18,7 +18,8 @@ pub struct JaegerRemoteSamplerBuilder<C, S, R>
     where
         R: TraceRuntime,
         C: HttpClient + 'static,
-        S: ShouldSample + 'static {
+        S: ShouldSample + 'static,
+{
     pub(crate) update_interval: Duration,
     pub(crate) client: C,
     pub(crate) endpoint: String,
@@ -28,7 +29,11 @@ pub struct JaegerRemoteSamplerBuilder<C, S, R>
 }
 
 impl<C, S, R> JaegerRemoteSamplerBuilder<C, S, R>
-    where C: HttpClient + 'static, S: ShouldSample + 'static, R: TraceRuntime {
+    where
+        C: HttpClient + 'static,
+        S: ShouldSample + 'static,
+        R: TraceRuntime,
+{
     pub(crate) fn new(runtime: R, http_client: C, default_sampler: S) -> Self {
         JaegerRemoteSamplerBuilder {
             runtime,
@@ -47,9 +52,9 @@ impl<C, S, R> JaegerRemoteSamplerBuilder<C, S, R>
         }
     }
 
-    pub fn with_endpoint(self, endpoint: String) -> Self {
+    pub fn with_endpoint<STR: Into<String>>(self, endpoint: STR) -> Self {
         Self {
-            endpoint,
+            endpoint: endpoint.into(),
             ..self
         }
     }
@@ -64,10 +69,19 @@ impl<C, S, R> JaegerRemoteSamplerBuilder<C, S, R>
     pub fn build(self) -> JaegerRemoteSampler {
         // build endpoint
         let endpoint = http::Uri::from_str(&self.endpoint).unwrap_or_else(|_| {
-            DEFAULT_REMOTE_SAMPLER_ENDPOINT.parse::<http::Uri>().unwrap()
+            DEFAULT_REMOTE_SAMPLER_ENDPOINT
+                .parse::<http::Uri>()
+                .unwrap()
         });
 
-        JaegerRemoteSampler::new(self.runtime, self.update_interval, self.client, endpoint, self.default_sampler, self.leaky_bucket_size)
+        JaegerRemoteSampler::new(
+            self.runtime,
+            self.update_interval,
+            self.client,
+            endpoint,
+            self.default_sampler,
+            self.leaky_bucket_size,
+        )
     }
 }
 
@@ -83,6 +97,7 @@ pub struct JaegerRemoteSampler {
 
 impl Drop for JaegerRemoteSampler {
     fn drop(&mut self) {
+        println!("shut down");
         self.shutdown.try_send(()); // best effort to shutdown the updating thread/task
     }
 }
@@ -93,29 +108,56 @@ impl Debug for JaegerRemoteSampler {
     }
 }
 
-impl JaegerRemoteSampler
-{
-    fn new<C, R, S>(runtime: R, update_timeout: Duration, client: C, endpoint: http::Uri, default_sampler: S, leaky_bucket_size: f64) -> Self
-        where R: TraceRuntime,
-              C: HttpClient + 'static,
-              S: ShouldSample + 'static {
+impl JaegerRemoteSampler {
+    fn new<C, R, S>(
+        runtime: R,
+        update_timeout: Duration,
+        client: C,
+        endpoint: http::Uri,
+        default_sampler: S,
+        leaky_bucket_size: f64,
+    ) -> Self
+        where
+            R: TraceRuntime,
+            C: HttpClient + 'static,
+            S: ShouldSample + 'static,
+    {
         let strategy = Arc::new(SamplingStrategy::new(default_sampler, leaky_bucket_size));
         let (shutdown_tx, shutdown_rx) = futures_channel::mpsc::channel(1);
         let sampler = JaegerRemoteSampler {
             strategy,
             shutdown: shutdown_tx,
         };
-        Self::run_update_task(runtime, sampler.strategy.clone(), update_timeout, client, shutdown_rx, endpoint);
+        Self::run_update_task(
+            runtime,
+            sampler.strategy.clone(),
+            update_timeout,
+            client,
+            shutdown_rx,
+            endpoint,
+        );
         sampler
     }
 
     // start a updating thread/task
-    fn run_update_task<C, R>(runtime: R, strategy: Arc<SamplingStrategy>, update_timeout: Duration, client: C, shutdown: futures_channel::mpsc::Receiver<()>, endpoint: http::Uri)
-        where R: TraceRuntime,
-              C: HttpClient + 'static { // todo: review if we need 'static here
+    fn run_update_task<C, R>(
+        runtime: R,
+        strategy: Arc<SamplingStrategy>,
+        update_timeout: Duration,
+        client: C,
+        shutdown: futures_channel::mpsc::Receiver<()>,
+        endpoint: http::Uri,
+    ) where
+        R: TraceRuntime,
+        C: HttpClient + 'static,
+    {
+        // todo: review if we need 'static here
         let interval = runtime.interval(update_timeout);
         runtime.spawn(Box::pin(async move {
-            let mut update = Box::pin(stream::select(shutdown.map(|_| false), interval.map(|_| true)));
+            let mut update = Box::pin(stream::select(
+                shutdown.map(|_| false),
+                interval.map(|_| true),
+            ));
             while let Some(should_update) = update.next().await {
                 if should_update {
                     // poll next available configuration or shutdown
@@ -134,16 +176,22 @@ impl JaegerRemoteSampler
         }));
     }
 
-    async fn request_new_strategy<C>(client: &C, endpoint: http::Uri) -> Result<SamplingStrategyResponse, ()>
-        where C: HttpClient {
+    async fn request_new_strategy<C>(
+        client: &C,
+        endpoint: http::Uri,
+    ) -> Result<SamplingStrategyResponse, ()>
+        where
+            C: HttpClient,
+    {
         let request = http::Request::get(endpoint)
             .header("Content-Type", "application/json")
-            .body(vec![])
+            .body(Vec::new())
             .unwrap();
 
-        let resp = client.send(request).await.map_err(|err| {
-            ()
-        })?;
+        let resp = client
+            .send(request)
+            .await
+            .map_err(|err| todo!())?;
 
         // process failures
         if resp.status() != http::StatusCode::OK {
@@ -151,15 +199,30 @@ impl JaegerRemoteSampler
         }
 
         // deserialize the response
-        Ok(serde_json::from_slice(&resp.body()[..]).map_err(|err| {
-            ()
-        })?)
+        Ok(serde_json::from_slice(&resp.body()[..]).map_err(|err| todo!())?)
     }
 }
 
 impl ShouldSample for JaegerRemoteSampler {
-    fn should_sample(&self, parent_context: Option<&Context>, trace_id: TraceId, name: &str, span_kind: &SpanKind, attributes: &[KeyValue], links: &[Link], instrumentation_library: &InstrumentationLibrary) -> SamplingResult {
-        self.strategy.should_sample(parent_context, trace_id, name, span_kind, attributes, links, instrumentation_library)
+    fn should_sample(
+        &self,
+        parent_context: Option<&Context>,
+        trace_id: TraceId,
+        name: &str,
+        span_kind: &SpanKind,
+        attributes: &[KeyValue],
+        links: &[Link],
+        instrumentation_library: &InstrumentationLibrary,
+    ) -> SamplingResult {
+        self.strategy.should_sample(
+            parent_context,
+            trace_id,
+            name,
+            span_kind,
+            attributes,
+            links,
+            instrumentation_library,
+        )
     }
 }
 

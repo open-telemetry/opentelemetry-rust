@@ -1,9 +1,9 @@
-use std::time::SystemTime;
 use opentelemetry_api::trace::TraceError;
+use std::time::SystemTime;
 
 // leaky bucket based rate limit
 // should be Send+Sync
-pub struct LeakyBucket {
+pub(crate) struct LeakyBucket {
     span_per_sec: f64,
     available: f64,
     bucket_size: f64,
@@ -11,7 +11,7 @@ pub struct LeakyBucket {
 }
 
 impl LeakyBucket {
-    pub fn new(bucket_size: f64, span_per_sec: f64) -> LeakyBucket {
+    pub(crate) fn new(bucket_size: f64, span_per_sec: f64) -> LeakyBucket {
         LeakyBucket {
             span_per_sec,
             available: bucket_size,
@@ -20,16 +20,18 @@ impl LeakyBucket {
         }
     }
 
-    pub fn update(&mut self, span_per_sec: f64) {
+    pub(crate) fn update(&mut self, span_per_sec: f64) {
         self.span_per_sec = span_per_sec;
     }
 
-    pub fn should_sample(&mut self) -> bool {
+    pub(crate) fn should_sample(&mut self) -> bool {
         self.check_availability(opentelemetry_api::time::now)
     }
 
     fn check_availability<F>(&mut self, now: F) -> bool
-        where F: Fn() -> SystemTime {
+    where
+        F: Fn() -> SystemTime,
+    {
         if self.available >= 1.0 {
             self.available -= 1.0;
             true
@@ -39,7 +41,10 @@ impl LeakyBucket {
             match elapsed {
                 Ok(dur) => {
                     self.last_time = cur_time;
-                    self.available = f64::min(dur.as_secs() as f64 * self.span_per_sec + self.available, self.bucket_size);
+                    self.available = f64::min(
+                        dur.as_secs() as f64 * self.span_per_sec + self.available,
+                        self.bucket_size,
+                    );
 
                     if self.available >= 1.0 {
                         self.available -= 1.0;
@@ -49,7 +54,9 @@ impl LeakyBucket {
                     }
                 }
                 Err(_) => {
-                    opentelemetry_api::global::handle_error(TraceError::Other("jaeger remote sampler gets rewinded timestamp".into()));
+                    opentelemetry_api::global::handle_error(TraceError::Other(
+                        "jaeger remote sampler gets rewinded timestamp".into(),
+                    ));
                     true
                 }
             }
@@ -59,9 +66,9 @@ impl LeakyBucket {
 
 #[cfg(test)]
 mod tests {
+    use crate::trace::sampler::jaeger_remote::rate_limit::LeakyBucket;
     use std::ops::{Add, Sub};
     use std::time::{Duration, SystemTime};
-    use crate::trace::sampler::jaeger_remote::rate_limit::LeakyBucket;
 
     #[test]
     fn test_leaky_bucket() {
@@ -80,9 +87,12 @@ mod tests {
 
         for (elapsed_sec, cases) in test_cases.into_iter() {
             for should_pass in cases {
-                assert_eq!(should_pass, leaky_bucket.check_availability(|| {
-                    current_time.add(Duration::from_secs(elapsed_sec))
-                }))
+                assert_eq!(
+                    should_pass,
+                    leaky_bucket.check_availability(|| {
+                        current_time.add(Duration::from_secs(elapsed_sec))
+                    })
+                )
             }
         }
     }
@@ -93,8 +103,6 @@ mod tests {
         let current_time = SystemTime::now();
         leaky_bucket.last_time = current_time;
 
-        assert!(leaky_bucket.check_availability(|| {
-            current_time.sub(Duration::from_secs(10))
-        }))
+        assert!(leaky_bucket.check_availability(|| { current_time.sub(Duration::from_secs(10)) }))
     }
 }

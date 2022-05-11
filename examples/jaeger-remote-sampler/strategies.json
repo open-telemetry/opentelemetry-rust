@@ -3,7 +3,7 @@
     {
       "service": "foo",
       "type": "probabilistic",
-      "param": 0.8,
+      "param": 1,
       "operation_strategies": [
         {
           "operation": "op1",
