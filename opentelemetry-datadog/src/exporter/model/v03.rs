@@ -1,4 +1,4 @@
-use crate::exporter::model::Error;
+use crate::exporter::model::{Error, SAMPLING_PRIORITY_KEY};
 use crate::exporter::ModelConfig;
 use opentelemetry::sdk::export::trace;
 use opentelemetry::sdk::export::trace::SpanData;
@@ -95,6 +95,18 @@ where
                 rmp::encode::write_str(&mut encoded, key.as_str())?;
                 rmp::encode::write_str(&mut encoded, value.as_str().as_ref())?;
             }
+
+            rmp::encode::write_str(&mut encoded, "metrics")?;
+            rmp::encode::write_map_len(&mut encoded, 1)?;
+            rmp::encode::write_str(&mut encoded, SAMPLING_PRIORITY_KEY)?;
+            rmp::encode::write_f64(
+                &mut encoded,
+                if span.span_context.is_sampled() {
+                    1.0
+                } else {
+                    0.0
+                },
+            )?;
         }
     }
 

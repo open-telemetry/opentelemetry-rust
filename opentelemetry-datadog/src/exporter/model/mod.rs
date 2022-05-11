@@ -10,6 +10,9 @@ use url::ParseError;
 mod v03;
 mod v05;
 
+// https://github.com/DataDog/dd-trace-js/blob/c89a35f7d27beb4a60165409376e170eacb194c5/packages/dd-trace/src/constants.js#L4
+static SAMPLING_PRIORITY_KEY: &str = "_sampling_priority_v1";
+
 /// Custom mapping between opentelemetry spans and datadog spans.
 ///
 /// User can provide custom function to change the mapping. It currently supports customizing the following
@@ -242,7 +245,7 @@ pub(crate) mod tests {
             None,
         )?);
 
-        assert_eq!(encoded.as_str(), "kZGLpHR5cGWjd2Vip3NlcnZpY2Wsc2VydmljZV9uYW1lpG5hbWWpY29tcG9uZW50qHJlc291cmNlqHJlc291cmNlqHRyYWNlX2lkzwAAAAAAAAAHp3NwYW5faWTPAAAAAAAAAGOpcGFyZW50X2lkzwAAAAAAAAABpXN0YXJ00wAAAAAAAAAAqGR1cmF0aW9u0wAAAAA7msoApWVycm9y0gAAAACkbWV0YYGpc3Bhbi50eXBlo3dlYg==");
+        assert_eq!(encoded.as_str(), "kZGLpHR5cGWjd2Vip3NlcnZpY2Wsc2VydmljZV9uYW1lpG5hbWWpY29tcG9uZW50qHJlc291cmNlqHJlc291cmNlqHRyYWNlX2lkzwAAAAAAAAAHp3NwYW5faWTPAAAAAAAAAGOpcGFyZW50X2lkzwAAAAAAAAABpXN0YXJ00wAAAAAAAAAAqGR1cmF0aW9u0wAAAAA7msoApWVycm9y0gAAAACkbWV0YYGpc3Bhbi50eXBlo3dlYqdtZXRyaWNzgbVfc2FtcGxpbmdfcHJpb3JpdHlfdjHLAAAAAAAAAAA=");
 
         Ok(())
     }
@@ -263,7 +266,7 @@ pub(crate) mod tests {
         )?);
 
         assert_eq!(encoded.as_str(),
-                   "kpWjd2VirHNlcnZpY2VfbmFtZaljb21wb25lbnSocmVzb3VyY2Wpc3Bhbi50eXBlkZGczgAAAAHOAAAAAs4AAAADzwAAAAAAAAAHzwAAAAAAAABjzwAAAAAAAAAB0wAAAAAAAAAA0wAAAAA7msoA0gAAAACBzgAAAATOAAAAAIDOAAAAAA==");
+                   "kpajd2VirHNlcnZpY2VfbmFtZaljb21wb25lbnSocmVzb3VyY2Wpc3Bhbi50eXBltV9zYW1wbGluZ19wcmlvcml0eV92MZGRnM4AAAABzgAAAALOAAAAA88AAAAAAAAAB88AAAAAAAAAY88AAAAAAAAAAdMAAAAAAAAAANMAAAAAO5rKANIAAAAAgc4AAAAEzgAAAACBzgAAAAXLAAAAAAAAAADOAAAAAA==");
 
         Ok(())
     }
