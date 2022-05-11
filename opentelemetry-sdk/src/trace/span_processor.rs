@@ -67,8 +67,11 @@ const OTEL_BSP_MAX_EXPORT_BATCH_SIZE_DEFAULT: usize = 512;
 const OTEL_BSP_EXPORT_TIMEOUT: &str = "OTEL_BSP_EXPORT_TIMEOUT";
 /// Default maximum allowed time to export data.
 const OTEL_BSP_EXPORT_TIMEOUT_DEFAULT: u64 = 30_000;
+/// Environment variable to configure max concurrent exports for batch span
+/// processor.
+const OTEL_BSP_MAX_CONCURRENT_EXPORTS: &str = "OTEL_BSP_MAX_CONCURRENT_EXPORTS";
 /// Default max concurrent exports for BSP
-const OTEL_BSP_MAX_CONCURRENT_EXPORTS: usize = 1;
+const OTEL_BSP_MAX_CONCURRENT_EXPORTS_DEFAULT: usize = 1;
 
 /// `SpanProcessor` is an interface which allows hooks for span start and end
 /// method invocations. The span processors are invoked only when is_recording
@@ -501,8 +504,15 @@ impl Default for BatchConfig {
             scheduled_delay: Duration::from_millis(OTEL_BSP_SCHEDULE_DELAY_DEFAULT),
             max_export_batch_size: OTEL_BSP_MAX_EXPORT_BATCH_SIZE_DEFAULT,
             max_export_timeout: Duration::from_millis(OTEL_BSP_EXPORT_TIMEOUT_DEFAULT),
-            max_concurrent_exports: OTEL_BSP_MAX_CONCURRENT_EXPORTS,
+            max_concurrent_exports: OTEL_BSP_MAX_CONCURRENT_EXPORTS_DEFAULT,
         };
+
+        if let Some(max_concurrent_exports) = env::var(OTEL_BSP_MAX_CONCURRENT_EXPORTS)
+            .ok()
+            .and_then(|max_concurrent_exports| usize::from_str(&max_concurrent_exports).ok())
+        {
+            config.max_concurrent_exports = max_concurrent_exports;
+        }
 
         if let Some(max_queue_size) = env::var(OTEL_BSP_MAX_QUEUE_SIZE)
             .ok()
