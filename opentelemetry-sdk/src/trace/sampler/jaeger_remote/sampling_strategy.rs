@@ -164,7 +164,6 @@ impl SamplingStrategy {
                     })
                 }
                 None => {
-                    println!("don't have a config");
                     Ok(default_sampler.should_sample(
                         parent_context,
                         trace_id,
@@ -177,7 +176,6 @@ impl SamplingStrategy {
                 }
             })
             .unwrap_or_else(|_| {
-                println!("lock is not OK");
                 default_sampler.should_sample(
                     parent_context,
                     trace_id,

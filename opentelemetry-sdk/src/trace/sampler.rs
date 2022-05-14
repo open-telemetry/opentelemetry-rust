@@ -89,18 +89,22 @@ pub enum Sampler {
 }
 
 impl Sampler {
-    /// Return jaeger remote builder
-    pub fn jaeger_remote<C, S, R>(
+    /// Create a jaeger remote sampler.
+    ///
+    ///
+    pub fn jaeger_remote<C, Sampler, R, Svc>(
         runtime: R,
         http_client: C,
-        default_sampler: S,
-    ) -> JaegerRemoteSamplerBuilder<C, S, R>
-    where
-        C: HttpClient + 'static,
-        S: ShouldSample,
-        R: crate::trace::TraceRuntime,
+        default_sampler: Sampler,
+        service_name: Svc,
+    ) -> JaegerRemoteSamplerBuilder<C, Sampler, R>
+        where
+            C: HttpClient + 'static,
+            Sampler: ShouldSample,
+            R: crate::trace::TraceRuntime,
+            Svc: Into<String>,
     {
-        JaegerRemoteSamplerBuilder::new(runtime, http_client, default_sampler)
+        JaegerRemoteSamplerBuilder::new(runtime, http_client, default_sampler, service_name)
     }
 }
 
