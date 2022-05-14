@@ -16,11 +16,6 @@
           "param": 0.4
         }
       ]
-    },
-    {
-      "service": "bar",
-      "type": "ratelimiting",
-      "param": 5
     }
   ],
   "default_strategy": {
