@@ -49,8 +49,10 @@ use std::convert::TryInto;
 
 mod jaeger_remote;
 
-pub use jaeger_remote::{JaegerRemoteSampler, JaegerRemoteSamplerBuilder};
+use jaeger_remote::JaegerRemoteSampler;
 use opentelemetry_http::HttpClient;
+
+pub use jaeger_remote::JaegerRemoteSamplerBuilder;
 
 /// The `ShouldSample` interface allows implementations to provide samplers
 /// which will return a sampling `SamplingResult` based on information that
@@ -84,25 +86,54 @@ pub enum Sampler {
     /// sampled, then it's child spans will automatically be sampled. Fractions < 0 are treated as
     /// zero, but spans may still be sampled if their parent is.
     TraceIdRatioBased(f64),
-    /// Jaeger remote sampler.
+    /// Jaeger remote sampler supports any remote service that implemented the jaeger remote sampler protocol.
+    /// The proto definition can be found [here](https://github.com/jaegertracing/jaeger-idl/blob/main/proto/api_v2/sampling.proto)
+    ///
+    /// Jaeger remote sampler allows remotely controlling the sampling configuration for the SDKs.
+    /// The sampling is typically configured at the collector and the SDKs actively poll for changes.
+    /// The sampler uses TraceIdRatioBased or rate-limited sampler under the hood.
+    /// These samplers can be configured per whole service (a.k.a default), or per span name in a
+    /// given service (a.k.a per operation).
     JaegerRemote(JaegerRemoteSampler),
 }
 
 impl Sampler {
     /// Create a jaeger remote sampler.
     ///
+    /// user needs to provide
+    /// - a `runtime` to run the http client
+    /// - a http client to query the sampling endpoint
+    /// - a default sampler to make sampling decision when the remote is unavailable or before the SDK receive the first response,
+    /// - the service name. This is a required parameter to query the sampling endpoint.
     ///
+    /// ## Examples
+    /// ```rust
+    /// # use std::time::Duration;
+    /// # use opentelemetry_api::trace::TraceError;
+    /// # use opentelemetry_sdk::runtime;
+    /// # use opentelemetry_sdk::trace::Sampler;
+    ///
+    /// # fn main() -> Result<(), TraceError>{
+    ///
+    /// let sampler = Sampler::jaeger_remote(runtime::Tokio, client, Sampler::AlwaysOff, "foo")
+    ///         .with_endpoint("http://localhost:5778/sampling")
+    ///         .with_update_interval(Duration::from_secs(5))
+    ///         .build()?;
+    ///
+    /// let trace_config = opentelemetry_sdk::trace::config().with_sampler(sampler);
+    /// # }
+    /// ```
     pub fn jaeger_remote<C, Sampler, R, Svc>(
         runtime: R,
         http_client: C,
         default_sampler: Sampler,
         service_name: Svc,
     ) -> JaegerRemoteSamplerBuilder<C, Sampler, R>
-        where
-            C: HttpClient + 'static,
-            Sampler: ShouldSample,
-            R: crate::trace::TraceRuntime,
-            Svc: Into<String>,
+    where
+        C: HttpClient + 'static,
+        Sampler: ShouldSample,
+        R: crate::trace::TraceRuntime,
+        Svc: Into<String>,
     {
         JaegerRemoteSamplerBuilder::new(runtime, http_client, default_sampler, service_name)
     }

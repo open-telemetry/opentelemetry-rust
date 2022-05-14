@@ -1,6 +1,6 @@
 use crate::trace::sampler::jaeger_remote::remote::{
-    PerOperationSamplingStrategies, ProbabilisticSamplingStrategy,
-    RateLimitingSamplingStrategy, SamplingStrategyResponse,
+    PerOperationSamplingStrategies, ProbabilisticSamplingStrategy, RateLimitingSamplingStrategy,
+    SamplingStrategyResponse,
 };
 use crate::trace::sampler::sample_based_on_probability;
 use crate::trace::ShouldSample;
@@ -9,7 +9,7 @@ use opentelemetry_api::trace::{
 };
 use opentelemetry_api::{Context, InstrumentationLibrary, KeyValue};
 use std::collections::HashMap;
-use std::sync::{Mutex};
+use std::sync::Mutex;
 
 use super::rate_limit::LeakyBucket;
 
@@ -32,8 +32,8 @@ pub(crate) struct SamplingStrategy {
 
 impl SamplingStrategy {
     pub(crate) fn new<S>(default_sampler: S, leaky_bucket_size: f64) -> Self
-        where
-            S: ShouldSample + 'static,
+    where
+        S: ShouldSample + 'static,
     {
         SamplingStrategy {
             default_sampler: Box::new(default_sampler),
@@ -163,17 +163,15 @@ impl SamplingStrategy {
                         },
                     })
                 }
-                None => {
-                    Ok(default_sampler.should_sample(
-                        parent_context,
-                        trace_id,
-                        name,
-                        span_kind,
-                        attributes,
-                        links,
-                        instrumentation_library,
-                    ))
-                }
+                None => Ok(default_sampler.should_sample(
+                    parent_context,
+                    trace_id,
+                    name,
+                    span_kind,
+                    attributes,
+                    links,
+                    instrumentation_library,
+                )),
             })
             .unwrap_or_else(|_| {
                 default_sampler.should_sample(
@@ -201,8 +199,10 @@ pub(crate) struct PerOperationStrategies {
 impl PerOperationStrategies {
     pub(crate) fn update(&mut self, remote_strategies: PerOperationSamplingStrategies) {
         self.default_prob = remote_strategies.default_sampling_probability as f64;
-        self.default_lower_bound_traces_per_second = remote_strategies.default_lower_bound_traces_per_second as f64;
-        self.default_upper_bound_traces_per_second = remote_strategies.default_upper_bound_traces_per_second as f64;
+        self.default_lower_bound_traces_per_second =
+            remote_strategies.default_lower_bound_traces_per_second as f64;
+        self.default_upper_bound_traces_per_second =
+            remote_strategies.default_upper_bound_traces_per_second as f64;
 
         self.operation_prob = remote_strategies
             .per_operation_strategies
