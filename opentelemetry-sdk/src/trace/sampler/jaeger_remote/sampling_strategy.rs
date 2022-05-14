@@ -3,19 +3,19 @@ use crate::trace::sampler::jaeger_remote::remote::{
     SamplingStrategyResponse,
 };
 use crate::trace::sampler::sample_based_on_probability;
-use crate::trace::ShouldSample;
 use opentelemetry_api::trace::{
-    Link, SamplingDecision, SamplingResult, SpanKind, TraceContextExt, TraceId, TraceState,
+    SamplingDecision, SamplingResult, TraceContextExt, TraceError, TraceId, TraceState,
 };
-use opentelemetry_api::{Context, InstrumentationLibrary, KeyValue};
+use opentelemetry_api::{global, Context};
 use std::collections::HashMap;
+use std::fmt::{Debug, Formatter};
 use std::sync::Mutex;
 
 use super::rate_limit::LeakyBucket;
 
 // todo: remove the mutex as probabilistic doesn't require mutable ref
 // sampling strategy that sent by remote agents or collectors.
-enum Inner {
+enum Strategy {
     // probability to sample between [0.0, 1.0]
     Probabilistic(f64),
     //maxTracesPerSecond
@@ -23,27 +23,42 @@ enum Inner {
     PerOperation(PerOperationStrategies),
 }
 
-pub(crate) struct SamplingStrategy {
-    inner: Mutex<Option<Inner>>,
-    default_sampler: Box<dyn ShouldSample + 'static>,
+pub(crate) struct Inner {
+    strategy: Mutex<Option<Strategy>>,
     // initial configuration for leaky bucket
     leaky_bucket_size: f64,
+    shut_down: futures_channel::mpsc::Sender<()>,
 }
 
-impl SamplingStrategy {
-    pub(crate) fn new<S>(default_sampler: S, leaky_bucket_size: f64) -> Self
-    where
-        S: ShouldSample + 'static,
-    {
-        SamplingStrategy {
-            default_sampler: Box::new(default_sampler),
-            inner: Mutex::new(None),
+impl Debug for Inner {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        //todo: add more debug information
+        f.debug_struct("JaegerRemoteSamplerInner")
+            .field("leaky_bucket_size", &self.leaky_bucket_size)
+            .finish()
+    }
+}
+
+impl Drop for Inner {
+    fn drop(&mut self) {
+        let _ = self.shut_down.try_send(());
+    }
+}
+
+impl Inner {
+    pub(crate) fn new(
+        leaky_bucket_size: f64,
+        shut_down: futures_channel::mpsc::Sender<()>,
+    ) -> Self {
+        Inner {
+            strategy: Mutex::new(None),
             leaky_bucket_size,
+            shut_down,
         }
     }
 
     pub(crate) fn update(&self, remote_strategy_resp: SamplingStrategyResponse) {
-        self.inner
+        self.strategy
             .lock()
             .map(|mut old_strategy_opt| {
                 *old_strategy_opt = match old_strategy_opt.take() {
@@ -64,7 +79,7 @@ impl SamplingStrategy {
                                 None,
                                 Some(rate_limiting),
                                 None,
-                                Inner::RateLimiting(leaky_bucket),
+                                Strategy::RateLimiting(leaky_bucket),
                             ) => {
                                 leaky_bucket.update(rate_limiting.max_traces_per_second as f64);
                                 // in the future the remote response may support f64
@@ -91,8 +106,10 @@ impl SamplingStrategy {
                     ),
                 }
             })
-            .unwrap_or_else(|e| {
-                // add warning log
+            .unwrap_or_else(|_err| {
+                global::handle_error(TraceError::Other(
+                    "jaeger remote sampler mutex poisoned".into(),
+                ))
             });
     }
 
@@ -101,7 +118,7 @@ impl SamplingStrategy {
         operation_sampling: Option<PerOperationSamplingStrategies>,
         rate_limiting_sampling: Option<RateLimitingSamplingStrategy>,
         probabilistic_sampling: Option<ProbabilisticSamplingStrategy>,
-    ) -> Option<Inner> {
+    ) -> Option<Strategy> {
         match (
             operation_sampling,
             rate_limiting_sampling,
@@ -111,13 +128,15 @@ impl SamplingStrategy {
                 // ops sampling
                 let mut per_ops_sampling = PerOperationStrategies::default();
                 per_ops_sampling.update(op_sampling);
-                Some(Inner::PerOperation(per_ops_sampling))
+                Some(Strategy::PerOperation(per_ops_sampling))
             }
-            (_, Some(rate_limiting), _) => Some(Inner::RateLimiting(LeakyBucket::new(
+            (_, Some(rate_limiting), _) => Some(Strategy::RateLimiting(LeakyBucket::new(
                 self.leaky_bucket_size,
                 rate_limiting.max_traces_per_second as f64,
             ))),
-            (_, _, Some(probabilistic)) => Some(Inner::Probabilistic(probabilistic.sampling_rate)),
+            (_, _, Some(probabilistic)) => {
+                Some(Strategy::Probabilistic(probabilistic.sampling_rate))
+            }
             _ => None,
         }
     }
@@ -127,26 +146,23 @@ impl SamplingStrategy {
         parent_context: Option<&Context>,
         trace_id: TraceId,
         name: &str,
-        span_kind: &SpanKind,
-        attributes: &[KeyValue],
-        links: &[Link],
-        instrumentation_library: &InstrumentationLibrary,
-    ) -> SamplingResult {
-        let default_sampler = &self.default_sampler;
-        self.inner
+    ) -> Option<SamplingResult> {
+        self.strategy
             .lock()
-            .and_then(|mut inner_opt| match inner_opt.as_mut() {
+            .map(|mut inner_opt| match inner_opt.as_mut() {
                 Some(inner) => {
                     let decision = match inner {
-                        Inner::RateLimiting(leaky_bucket) => {
+                        Strategy::RateLimiting(leaky_bucket) => {
                             if leaky_bucket.should_sample() {
                                 SamplingDecision::RecordAndSample
                             } else {
                                 SamplingDecision::Drop
                             }
                         }
-                        Inner::Probabilistic(prob) => sample_based_on_probability(prob, trace_id),
-                        Inner::PerOperation(per_operation_strategies) => {
+                        Strategy::Probabilistic(prob) => {
+                            sample_based_on_probability(prob, trace_id)
+                        }
+                        Strategy::PerOperation(per_operation_strategies) => {
                             sample_based_on_probability(
                                 &per_operation_strategies.get_probability(name),
                                 trace_id,
@@ -154,7 +170,7 @@ impl SamplingStrategy {
                         }
                     };
 
-                    Ok(SamplingResult {
+                    Some(SamplingResult {
                         decision,
                         attributes: Vec::new(),
                         trace_state: match parent_context {
@@ -163,27 +179,9 @@ impl SamplingStrategy {
                         },
                     })
                 }
-                None => Ok(default_sampler.should_sample(
-                    parent_context,
-                    trace_id,
-                    name,
-                    span_kind,
-                    attributes,
-                    links,
-                    instrumentation_library,
-                )),
+                None => None,
             })
-            .unwrap_or_else(|_| {
-                default_sampler.should_sample(
-                    parent_context,
-                    trace_id,
-                    name,
-                    span_kind,
-                    attributes,
-                    links,
-                    instrumentation_library,
-                )
-            })
+            .unwrap_or_else(|_| None)
     }
 }
 

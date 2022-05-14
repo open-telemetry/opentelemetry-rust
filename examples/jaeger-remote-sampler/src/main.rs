@@ -6,7 +6,7 @@ use opentelemetry_sdk::trace::{Sampler, TracerProvider as SdkTracerProvider};
 use std::time::Duration;
 
 fn setup() {
-    let client = isahc::HttpClient::builder().build().unwrap();
+    let client = reqwest::Client::new();
 
     let sampler = Sampler::jaeger_remote(runtime::Tokio, client, Sampler::AlwaysOff, "foo")
         .with_endpoint("http://localhost:5778/sampling")
@@ -30,12 +30,12 @@ async fn main() {
     let tracer = global::tracer("test");
 
     {
-        let span = tracer.start("test");
+        let _not_sampled_span = tracer.start("test");
     }
 
     tokio::time::sleep(Duration::from_secs(10)).await;
 
     {
-        let span = tracer.start("should_record");
+        let _sampled_span = tracer.start("should_record");
     }
 }

@@ -1,19 +1,19 @@
 use crate::trace::sampler::jaeger_remote::remote::SamplingStrategyResponse;
-use crate::trace::sampler::jaeger_remote::sampling_strategy::SamplingStrategy;
+use crate::trace::sampler::jaeger_remote::sampling_strategy::Inner;
 use crate::trace::{Sampler, ShouldSample, TraceRuntime};
 use futures_util::{stream, StreamExt as _};
 use http::Uri;
-use opentelemetry_api::trace::{Link, SamplingResult, SpanKind, TraceError, TraceId, TraceState};
-use opentelemetry_api::{Context, InstrumentationLibrary, KeyValue};
+use opentelemetry_api::trace::{Link, SamplingResult, SpanKind, TraceError, TraceId};
+use opentelemetry_api::{global, Context, InstrumentationLibrary, KeyValue};
 use opentelemetry_http::HttpClient;
-use std::error::Error;
-use std::fmt::{Debug, Formatter};
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 
 const DEFAULT_REMOTE_SAMPLER_ENDPOINT: &str = "http://localhost:5778/sampling";
 
+/// builder of JaegerRemoteSampler.
+/// See [Sampler::jaeger_remote] for details.
 #[derive(Debug)]
 pub struct JaegerRemoteSamplerBuilder<C, S, R>
 where
@@ -56,6 +56,11 @@ where
         }
     }
 
+    /// Change how often the SDK should fetch the sampling strategy from remote servers
+    ///
+    /// By default it fetches every 5 minutes.
+    ///
+    /// A shorter interval have a performance overhead and should be avoid.
     pub fn with_update_interval(self, interval: Duration) -> Self {
         Self {
             update_interval: interval,
@@ -63,13 +68,21 @@ where
         }
     }
 
-    pub fn with_endpoint<STR: Into<String>>(self, endpoint: STR) -> Self {
+    /// The endpoint of remote servers.
+    ///
+    /// By default it's `http://localhost:5778/sampling`.
+    ///
+    /// If the service name is provided as part of the
+    pub fn with_endpoint<Str: Into<String>>(self, endpoint: Str) -> Self {
         Self {
             endpoint: endpoint.into(),
             ..self
         }
     }
 
+    /// The size of the leaky bucket.
+    ///
+    /// It's used when sampling strategy is rate limiting.
     pub fn with_leaky_bucket_size(self, size: f64) -> Self {
         Self {
             leaky_bucket_size: size,
@@ -77,6 +90,9 @@ where
         }
     }
 
+    /// Build a jaeger remote sampler.
+    ///
+    /// Return errors when the endpoint provided is invalid(e.g, service name is empty)
     pub fn build(self) -> Result<Sampler, TraceError> {
         let endpoint = Self::get_endpoint(&self.endpoint, &self.service_name)
             .map_err(|err_str| TraceError::Other(err_str.into()))?;
@@ -96,12 +112,12 @@ where
             return Err("endpoint and service name cannot be empty".to_string());
         }
         let mut endpoint = url::Url::parse(endpoint)
-            .unwrap_or(url::Url::parse(DEFAULT_REMOTE_SAMPLER_ENDPOINT).unwrap());
+            .unwrap_or_else(|_| url::Url::parse(DEFAULT_REMOTE_SAMPLER_ENDPOINT).unwrap());
         endpoint
             .query_pairs_mut()
             .append_pair("service", service_name);
 
-        Uri::from_str(endpoint.as_str()).map_err(|err| "invalid service name".to_string())
+        Uri::from_str(endpoint.as_str()).map_err(|_err| "invalid service name".to_string())
     }
 }
 
@@ -109,23 +125,10 @@ where
 ///
 /// Note that the backend doesn't need to be Jaeger so long as it supports jaeger remote sampling
 /// protocol.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct JaegerRemoteSampler {
-    strategy: Arc<SamplingStrategy>,
-    shutdown: futures_channel::mpsc::Sender<()>,
-}
-
-impl Drop for JaegerRemoteSampler {
-    fn drop(&mut self) {
-        println!("shut down");
-        self.shutdown.try_send(()); // best effort to shutdown the updating thread/task
-    }
-}
-
-impl Debug for JaegerRemoteSampler {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        todo!()
-    }
+    inner: Arc<Inner>,
+    default_sampler: Arc<dyn ShouldSample + 'static>,
 }
 
 impl JaegerRemoteSampler {
@@ -142,15 +145,15 @@ impl JaegerRemoteSampler {
         C: HttpClient + 'static,
         S: ShouldSample + 'static,
     {
-        let strategy = Arc::new(SamplingStrategy::new(default_sampler, leaky_bucket_size));
         let (shutdown_tx, shutdown_rx) = futures_channel::mpsc::channel(1);
+        let inner = Arc::new(Inner::new(leaky_bucket_size, shutdown_tx));
         let sampler = JaegerRemoteSampler {
-            strategy,
-            shutdown: shutdown_tx,
+            inner,
+            default_sampler: Arc::new(default_sampler),
         };
         Self::run_update_task(
             runtime,
-            sampler.strategy.clone(),
+            sampler.inner.clone(),
             update_timeout,
             client,
             shutdown_rx,
@@ -162,11 +165,11 @@ impl JaegerRemoteSampler {
     // start a updating thread/task
     fn run_update_task<C, R>(
         runtime: R,
-        strategy: Arc<SamplingStrategy>,
+        strategy: Arc<Inner>,
         update_timeout: Duration,
         client: C,
         shutdown: futures_channel::mpsc::Receiver<()>,
-        endpoint: http::Uri,
+        endpoint: Uri,
     ) where
         R: TraceRuntime,
         C: HttpClient + 'static,
@@ -174,17 +177,19 @@ impl JaegerRemoteSampler {
         // todo: review if we need 'static here
         let interval = runtime.interval(update_timeout);
         runtime.spawn(Box::pin(async move {
+            // either update or shutdown
             let mut update = Box::pin(stream::select(
                 shutdown.map(|_| false),
                 interval.map(|_| true),
             ));
+
             while let Some(should_update) = update.next().await {
                 if should_update {
                     // poll next available configuration or shutdown
                     // send request
                     match Self::request_new_strategy(&client, endpoint.clone()).await {
                         Ok(remote_strategy_resp) => strategy.update(remote_strategy_resp),
-                        Err(()) => {}
+                        Err(err_msg) => global::handle_error(TraceError::Other(err_msg.into())),
                     };
                 } else {
                     // shutdown
@@ -196,8 +201,8 @@ impl JaegerRemoteSampler {
 
     async fn request_new_strategy<C>(
         client: &C,
-        endpoint: http::Uri,
-    ) -> Result<SamplingStrategyResponse, ()>
+        endpoint: Uri,
+    ) -> Result<SamplingStrategyResponse, String>
     where
         C: HttpClient,
     {
@@ -206,15 +211,22 @@ impl JaegerRemoteSampler {
             .body(Vec::new())
             .unwrap();
 
-        let resp = client.send(request).await.map_err(|err| todo!())?;
+        let resp = client
+            .send(request)
+            .await
+            .map_err(|err| format!("the request is failed to send {}", err))?;
 
         // process failures
         if resp.status() != http::StatusCode::OK {
-            return Err(());
+            return Err(format!(
+                "the http response code is not 200 but {}",
+                resp.status()
+            ));
         }
 
         // deserialize the response
-        Ok(serde_json::from_slice(&resp.body()[..]).map_err(|err| todo!())?)
+        serde_json::from_slice(&resp.body()[..])
+            .map_err(|err| format!("cannot deserialize the response, {}", err))
     }
 }
 
@@ -229,19 +241,18 @@ impl ShouldSample for JaegerRemoteSampler {
         links: &[Link],
         instrumentation_library: &InstrumentationLibrary,
     ) -> SamplingResult {
-        self.strategy.should_sample(
-            parent_context,
-            trace_id,
-            name,
-            span_kind,
-            attributes,
-            links,
-            instrumentation_library,
-        )
+        self.inner
+            .should_sample(parent_context, trace_id, name)
+            .unwrap_or_else(|| {
+                self.default_sampler.should_sample(
+                    parent_context,
+                    trace_id,
+                    name,
+                    span_kind,
+                    attributes,
+                    links,
+                    instrumentation_library,
+                )
+            })
     }
-}
-
-fn warn<E: Error>(_err: E) -> () {
-    // todo: print warning information
-    ()
 }

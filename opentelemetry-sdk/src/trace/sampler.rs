@@ -107,21 +107,13 @@ impl Sampler {
     /// - the service name. This is a required parameter to query the sampling endpoint.
     ///
     /// ## Examples
-    /// ```rust
-    /// # use std::time::Duration;
-    /// # use opentelemetry_api::trace::TraceError;
-    /// # use opentelemetry_sdk::runtime;
-    /// # use opentelemetry_sdk::trace::Sampler;
-    ///
-    /// # fn main() -> Result<(), TraceError>{
-    ///
-    /// let sampler = Sampler::jaeger_remote(runtime::Tokio, client, Sampler::AlwaysOff, "foo")
+    /// ```ignore
+    /// let sampler = Sampler::jaeger_remote(<runtime>, <http client>, Sampler::AlwaysOff, "foo")
     ///         .with_endpoint("http://localhost:5778/sampling")
     ///         .with_update_interval(Duration::from_secs(5))
     ///         .build()?;
     ///
     /// let trace_config = opentelemetry_sdk::trace::config().with_sampler(sampler);
-    /// # }
     /// ```
     pub fn jaeger_remote<C, Sampler, R, Svc>(
         runtime: R,
