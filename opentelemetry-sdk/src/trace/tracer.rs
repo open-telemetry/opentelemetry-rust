@@ -16,12 +16,12 @@ use crate::{
     },
     InstrumentationLibrary,
 };
+use indexmap::IndexMap;
 use opentelemetry_api::trace::{
     Link, SamplingDecision, SamplingResult, SpanBuilder, SpanContext, SpanId, SpanKind,
     TraceContextExt, TraceFlags, TraceId, TraceState,
 };
 use opentelemetry_api::{Context, Key, KeyValue, Value};
-use indexmap::IndexMap;
 use std::fmt;
 use std::sync::Weak;
 
@@ -294,16 +294,19 @@ impl opentelemetry_api::trace::Tracer for Tracer {
 
 #[cfg(all(test, feature = "testing", feature = "trace"))]
 mod tests {
-    use indexmap::IndexMap;
     use crate::{
         testing::trace::TestSpan,
         trace::{Config, Sampler, ShouldSample},
         InstrumentationLibrary,
     };
-    use opentelemetry_api::{trace::{
-        Link, SamplingDecision, SamplingResult, Span, SpanContext, SpanId, SpanKind,
-        TraceContextExt, TraceFlags, TraceId, TraceState, Tracer, TracerProvider,
-    }, Context, Value, Key};
+    use indexmap::IndexMap;
+    use opentelemetry_api::{
+        trace::{
+            Link, SamplingDecision, SamplingResult, Span, SpanContext, SpanId, SpanKind,
+            TraceContextExt, TraceFlags, TraceId, TraceState, Tracer, TracerProvider,
+        },
+        Context, Key, Value,
+    };
 
     #[derive(Debug)]
     struct TestSampler {}

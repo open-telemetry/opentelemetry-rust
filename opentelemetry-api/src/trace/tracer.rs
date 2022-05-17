@@ -1,7 +1,10 @@
-use crate::{trace::{Event, Link, Span, SpanId, SpanKind, Status, TraceContextExt, TraceId, TraceState}, Context, KeyValue, Key, Value};
+use crate::{
+    trace::{Event, Link, Span, SpanId, SpanKind, Status, TraceContextExt, TraceId, TraceState},
+    Context, Key, KeyValue, Value,
+};
+use indexmap::IndexMap;
 use std::borrow::Cow;
 use std::time::SystemTime;
-use indexmap::IndexMap;
 
 /// The interface for constructing [`Span`]s.
 ///
