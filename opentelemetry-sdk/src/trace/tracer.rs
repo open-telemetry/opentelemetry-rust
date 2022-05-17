@@ -20,7 +20,8 @@ use opentelemetry_api::trace::{
     Link, SamplingDecision, SamplingResult, SpanBuilder, SpanContext, SpanId, SpanKind,
     TraceContextExt, TraceFlags, TraceId, TraceState,
 };
-use opentelemetry_api::{Context, KeyValue};
+use opentelemetry_api::{Context, Key, KeyValue, Value};
+use indexmap::IndexMap;
 use std::fmt;
 use std::sync::Weak;
 
@@ -72,7 +73,7 @@ impl Tracer {
         trace_id: TraceId,
         name: &str,
         span_kind: &SpanKind,
-        attributes: &[KeyValue],
+        attributes: &IndexMap<Key, Value>,
         links: &[Link],
         config: &Config,
         instrumentation_library: &InstrumentationLibrary,
@@ -218,14 +219,14 @@ impl opentelemetry_api::trace::Tracer for Tracer {
         } = builder;
 
         // Build optional inner context, `None` if not recording.
-        let mut span = if let Some((flags, mut extra_attrs, trace_state)) = sampling_decision {
-            if !extra_attrs.is_empty() {
-                attribute_options.append(&mut extra_attrs);
+        let mut span = if let Some((flags, extra_attrs, trace_state)) = sampling_decision {
+            for extra_attr in extra_attrs {
+                attribute_options.insert(extra_attr.key, extra_attr.value);
             }
             let mut attributes =
                 EvictedHashMap::new(span_limits.max_attributes_per_span, attribute_options.len());
-            for attribute in attribute_options {
-                attributes.insert(attribute);
+            for (key, value) in attribute_options {
+                attributes.insert(KeyValue::new(key, value));
             }
             let mut links = EvictedQueue::new(span_limits.max_links_per_span);
             if let Some(link_options) = &mut link_options {

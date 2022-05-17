@@ -11,6 +11,7 @@ lazy_static = "1.4"
 pin-project = { version = "1.0.2", optional = true }
 thiserror = "1"
 tokio-stream = { version = "0.1", optional = true }
+indexmap = "1"
 
 [package.metadata.docs.rs]
 all-features = true

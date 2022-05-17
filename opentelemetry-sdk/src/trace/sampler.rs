@@ -38,13 +38,11 @@
 //! MUST NOT allow this combination.
 
 use crate::InstrumentationLibrary;
-use opentelemetry_api::{
-    trace::{
-        Link, SamplingDecision, SamplingResult, SpanKind, TraceContextExt, TraceId, TraceState,
-    },
-    Context, KeyValue,
-};
+use opentelemetry_api::{trace::{
+    Link, SamplingDecision, SamplingResult, SpanKind, TraceContextExt, TraceId, TraceState,
+}, Context, Value, Key};
 use std::convert::TryInto;
+use indexmap::IndexMap;
 
 /// The `ShouldSample` interface allows implementations to provide samplers
 /// which will return a sampling `SamplingResult` based on information that
@@ -58,7 +56,7 @@ pub trait ShouldSample: Send + Sync + std::fmt::Debug {
         trace_id: TraceId,
         name: &str,
         span_kind: &SpanKind,
-        attributes: &[KeyValue],
+        attributes: &IndexMap<Key, Value>,
         links: &[Link],
         instrumentation_library: &InstrumentationLibrary,
     ) -> SamplingResult;
@@ -86,7 +84,7 @@ impl ShouldSample for Sampler {
         trace_id: TraceId,
         name: &str,
         span_kind: &SpanKind,
-        attributes: &[KeyValue],
+        attributes: &IndexMap<Key, Value>,
         links: &[Link],
         instrumentation_library: &InstrumentationLibrary,
     ) -> SamplingResult {

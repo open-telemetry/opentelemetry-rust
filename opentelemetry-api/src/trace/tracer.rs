@@ -1,9 +1,7 @@
-use crate::{
-    trace::{Event, Link, Span, SpanId, SpanKind, Status, TraceContextExt, TraceId, TraceState},
-    Context, KeyValue,
-};
+use crate::{trace::{Event, Link, Span, SpanId, SpanKind, Status, TraceContextExt, TraceId, TraceState}, Context, KeyValue, Key, Value};
 use std::borrow::Cow;
 use std::time::SystemTime;
+use indexmap::IndexMap;
 
 /// The interface for constructing [`Span`]s.
 ///
@@ -259,7 +257,7 @@ pub struct SpanBuilder {
     pub end_time: Option<SystemTime>,
 
     /// Span attributes
-    pub attributes: Option<Vec<KeyValue>>,
+    pub attributes: Option<indexmap::IndexMap<Key, Value>>,
 
     /// Span events
     pub events: Option<Vec<Event>>,
@@ -325,7 +323,7 @@ impl SpanBuilder {
     }
 
     /// Assign span attributes
-    pub fn with_attributes(self, attributes: Vec<KeyValue>) -> Self {
+    pub fn with_attributes(self, attributes: IndexMap<Key, Value>) -> Self {
         SpanBuilder {
             attributes: Some(attributes),
             ..self
