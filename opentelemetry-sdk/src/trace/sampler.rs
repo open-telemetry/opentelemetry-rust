@@ -240,7 +240,7 @@ mod tests {
                         trace_id,
                         name,
                         &SpanKind::Internal,
-                        &[],
+                        &IndexMap::new(),
                         &[],
                         &InstrumentationLibrary::default(),
                     )
@@ -282,7 +282,7 @@ mod tests {
             TraceId::from_u128(1),
             "should sample",
             &SpanKind::Internal,
-            &[],
+            &IndexMap::new(),
             &[],
             &instrumentation_library,
         );

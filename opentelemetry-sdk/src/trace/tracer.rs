@@ -294,18 +294,16 @@ impl opentelemetry_api::trace::Tracer for Tracer {
 
 #[cfg(all(test, feature = "testing", feature = "trace"))]
 mod tests {
+    use indexmap::IndexMap;
     use crate::{
         testing::trace::TestSpan,
         trace::{Config, Sampler, ShouldSample},
         InstrumentationLibrary,
     };
-    use opentelemetry_api::{
-        trace::{
-            Link, SamplingDecision, SamplingResult, Span, SpanContext, SpanId, SpanKind,
-            TraceContextExt, TraceFlags, TraceId, TraceState, Tracer, TracerProvider,
-        },
-        Context, KeyValue,
-    };
+    use opentelemetry_api::{trace::{
+        Link, SamplingDecision, SamplingResult, Span, SpanContext, SpanId, SpanKind,
+        TraceContextExt, TraceFlags, TraceId, TraceState, Tracer, TracerProvider,
+    }, Context, Value, Key};
 
     #[derive(Debug)]
     struct TestSampler {}
@@ -317,7 +315,7 @@ mod tests {
             _trace_id: TraceId,
             _name: &str,
             _span_kind: &SpanKind,
-            _attributes: &[KeyValue],
+            _attributes: &IndexMap<Key, Value>,
             _links: &[Link],
             _instrumentation_library: &InstrumentationLibrary,
         ) -> SamplingResult {
