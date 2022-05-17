@@ -16,9 +16,8 @@ use crate::{
     },
     InstrumentationLibrary,
 };
-use indexmap::IndexMap;
 use opentelemetry_api::trace::{
-    Link, SamplingDecision, SamplingResult, SpanBuilder, SpanContext, SpanId, SpanKind,
+    Link, OrderMap, SamplingDecision, SamplingResult, SpanBuilder, SpanContext, SpanId, SpanKind,
     TraceContextExt, TraceFlags, TraceId, TraceState,
 };
 use opentelemetry_api::{Context, Key, KeyValue, Value};
@@ -73,7 +72,7 @@ impl Tracer {
         trace_id: TraceId,
         name: &str,
         span_kind: &SpanKind,
-        attributes: &IndexMap<Key, Value>,
+        attributes: &OrderMap<Key, Value>,
         links: &[Link],
         config: &Config,
         instrumentation_library: &InstrumentationLibrary,
@@ -299,10 +298,9 @@ mod tests {
         trace::{Config, Sampler, ShouldSample},
         InstrumentationLibrary,
     };
-    use indexmap::IndexMap;
     use opentelemetry_api::{
         trace::{
-            Link, SamplingDecision, SamplingResult, Span, SpanContext, SpanId, SpanKind,
+            Link, OrderMap, SamplingDecision, SamplingResult, Span, SpanContext, SpanId, SpanKind,
             TraceContextExt, TraceFlags, TraceId, TraceState, Tracer, TracerProvider,
         },
         Context, Key, Value,
@@ -318,7 +316,7 @@ mod tests {
             _trace_id: TraceId,
             _name: &str,
             _span_kind: &SpanKind,
-            _attributes: &IndexMap<Key, Value>,
+            _attributes: &OrderMap<Key, Value>,
             _links: &[Link],
             _instrumentation_library: &InstrumentationLibrary,
         ) -> SamplingResult {
