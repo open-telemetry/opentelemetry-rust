@@ -3,6 +3,7 @@ mod model;
 mod uploader;
 
 use async_trait::async_trait;
+use futures_core::future::BoxFuture;
 use http::Uri;
 use model::endpoint::Endpoint;
 use opentelemetry::sdk::resource::ResourceDetector;
@@ -26,6 +27,7 @@ use std::borrow::Cow;
 ))]
 use std::convert::TryFrom;
 use std::net::SocketAddr;
+use std::sync::Arc;
 use std::time::Duration;
 
 /// Zipkin span exporter
@@ -36,7 +38,7 @@ pub struct Exporter {
 }
 
 impl Exporter {
-    fn new(local_endpoint: Endpoint, client: Box<dyn HttpClient>, collector_endpoint: Uri) -> Self {
+    fn new(local_endpoint: Endpoint, client: Arc<dyn HttpClient>, collector_endpoint: Uri) -> Self {
         Exporter {
             local_endpoint,
             uploader: uploader::Uploader::new(client, collector_endpoint),
@@ -56,7 +58,7 @@ pub struct ZipkinPipelineBuilder {
     service_addr: Option<SocketAddr>,
     collector_endpoint: String,
     trace_config: Option<sdk::trace::Config>,
-    client: Option<Box<dyn HttpClient>>,
+    client: Option<Arc<dyn HttpClient>>,
 }
 
 impl Default for ZipkinPipelineBuilder {
@@ -64,7 +66,7 @@ impl Default for ZipkinPipelineBuilder {
         let timeout = env::get_timeout();
         ZipkinPipelineBuilder {
             #[cfg(feature = "reqwest-blocking-client")]
-            client: Some(Box::new(
+            client: Some(Arc::new(
                 reqwest::blocking::Client::builder()
                     .timeout(timeout)
                     .build()
@@ -75,7 +77,7 @@ impl Default for ZipkinPipelineBuilder {
                 not(feature = "surf-client"),
                 feature = "reqwest-client"
             ))]
-            client: Some(Box::new(
+            client: Some(Arc::new(
                 reqwest::Client::builder()
                     .timeout(timeout)
                     .build()
@@ -86,7 +88,7 @@ impl Default for ZipkinPipelineBuilder {
                 not(feature = "reqwest-blocking-client"),
                 feature = "surf-client"
             ))]
-            client: Some(Box::new(
+            client: Some(Arc::new(
                 surf::Client::try_from(surf::Config::new().set_timeout(Some(timeout)))
                     .unwrap_or_else(|_| surf::Client::new()),
             )),
@@ -211,7 +213,7 @@ impl ZipkinPipelineBuilder {
 
     /// Assign client implementation
     pub fn with_http_client<T: HttpClient + 'static>(mut self, client: T) -> Self {
-        self.client = Some(Box::new(client));
+        self.client = Some(Arc::new(client));
         self
     }
 
@@ -234,16 +236,28 @@ impl ZipkinPipelineBuilder {
     }
 }
 
+async fn zipkin_export(
+    batch: Vec<trace::SpanData>,
+    uploader: uploader::Uploader,
+    local_endpoint: Endpoint,
+) -> trace::ExportResult {
+    let zipkin_spans = batch
+        .into_iter()
+        .map(|span| model::into_zipkin_span(local_endpoint.clone(), span))
+        .collect();
+
+    uploader.upload(zipkin_spans).await
+}
+
 #[async_trait]
 impl trace::SpanExporter for Exporter {
     /// Export spans to Zipkin collector.
-    async fn export(&mut self, batch: Vec<trace::SpanData>) -> trace::ExportResult {
-        let zipkin_spans = batch
-            .into_iter()
-            .map(|span| model::into_zipkin_span(self.local_endpoint.clone(), span))
-            .collect();
-
-        self.uploader.upload(zipkin_spans).await
+    fn export(&mut self, batch: Vec<trace::SpanData>) -> BoxFuture<'static, trace::ExportResult> {
+        Box::pin(zipkin_export(
+            batch,
+            self.uploader.clone(),
+            self.local_endpoint.clone(),
+        ))
     }
 }
 

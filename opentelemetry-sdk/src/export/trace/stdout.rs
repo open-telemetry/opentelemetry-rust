@@ -32,6 +32,7 @@ use crate::export::{
     ExportError,
 };
 use async_trait::async_trait;
+use futures_util::future::BoxFuture;
 use opentelemetry_api::{global, trace::TracerProvider};
 use std::fmt::Debug;
 use std::io::{stdout, Stdout, Write};
@@ -133,20 +134,26 @@ where
     W: Write + Debug + Send + 'static,
 {
     /// Export spans to stdout
-    async fn export(&mut self, batch: Vec<SpanData>) -> ExportResult {
+    fn export(&mut self, batch: Vec<SpanData>) -> BoxFuture<'static, ExportResult> {
         for span in batch {
             if self.pretty_print {
-                self.writer
+                if let Err(err) = self
+                    .writer
                     .write_all(format!("{:#?}\n", span).as_bytes())
-                    .map_err(|err| TraceError::ExportFailed(Box::new(Error::from(err))))?;
-            } else {
-                self.writer
-                    .write_all(format!("{:?}\n", span).as_bytes())
-                    .map_err(|err| TraceError::ExportFailed(Box::new(Error::from(err))))?;
+                    .map_err(|err| TraceError::ExportFailed(Box::new(Error::from(err))))
+                {
+                    return Box::pin(std::future::ready(Err(Into::into(err))));
+                }
+            } else if let Err(err) = self
+                .writer
+                .write_all(format!("{:?}\n", span).as_bytes())
+                .map_err(|err| TraceError::ExportFailed(Box::new(Error::from(err))))
+            {
+                return Box::pin(std::future::ready(Err(Into::into(err))));
             }
         }
 
-        Ok(())
+        Box::pin(std::future::ready(Ok(())))
     }
 }
 

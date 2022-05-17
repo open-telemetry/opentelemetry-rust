@@ -21,7 +21,7 @@ pub trait Runtime: Clone + Send + Sync + 'static {
 
     /// A future, which resolves after a previously specified amount of time. The output type is
     /// not important.
-    type Delay: Future + Send;
+    type Delay: Future + Send + Unpin;
 
     /// Create a [Stream][futures_util::stream::Stream], which returns a new item every
     /// [Duration][std::time::Duration].
@@ -52,7 +52,7 @@ pub struct Tokio;
 #[cfg_attr(docsrs, doc(cfg(feature = "rt-tokio")))]
 impl Runtime for Tokio {
     type Interval = tokio_stream::wrappers::IntervalStream;
-    type Delay = tokio::time::Sleep;
+    type Delay = ::std::pin::Pin<Box<tokio::time::Sleep>>;
 
     fn interval(&self, duration: Duration) -> Self::Interval {
         crate::util::tokio_interval_stream(duration)
@@ -63,7 +63,7 @@ impl Runtime for Tokio {
     }
 
     fn delay(&self, duration: Duration) -> Self::Delay {
-        tokio::time::sleep(duration)
+        Box::pin(tokio::time::sleep(duration))
     }
 }
 
@@ -77,7 +77,7 @@ pub struct TokioCurrentThread;
 #[cfg_attr(docsrs, doc(cfg(feature = "rt-tokio-current-thread")))]
 impl Runtime for TokioCurrentThread {
     type Interval = tokio_stream::wrappers::IntervalStream;
-    type Delay = tokio::time::Sleep;
+    type Delay = ::std::pin::Pin<Box<tokio::time::Sleep>>;
 
     fn interval(&self, duration: Duration) -> Self::Interval {
         crate::util::tokio_interval_stream(duration)
@@ -100,7 +100,7 @@ impl Runtime for TokioCurrentThread {
     }
 
     fn delay(&self, duration: Duration) -> Self::Delay {
-        tokio::time::sleep(duration)
+        Box::pin(tokio::time::sleep(duration))
     }
 }
 
