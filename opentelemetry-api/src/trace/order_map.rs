@@ -55,7 +55,7 @@ impl<K, V, S> OrderMap<K, V, S> {
 
     /// Return a reference to the map's `BuildHasher`.
     pub fn hasher(&self) -> &S {
-        &self.0.hasher()
+        self.0.hasher()
     }
 
     /// Return the number of key-value pairs in the map.
