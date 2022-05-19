@@ -18,13 +18,11 @@
 //! use opentelemetry_semantic_conventions as semcov;
 //!
 //! let tracer = global::tracer("my-component");
-//! let net_peer_ip = semcov::trace::NET_PEER_IP.string("10.0.0.1");
-//! let net_port = semcov::trace::NET_PEER_PORT.i64(80);
 //! let _span = tracer
 //!     .span_builder("span-name")
 //!     .with_attributes(OrderMap::from([
-//!         (net_peer_ip.key, net_peer_ip.value),
-//!         (net_port.key, net_port.value),
+//!         semcov::trace::NET_PEER_IP.string("10.0.0.1"),
+//!         semcov::trace::NET_PEER_PORT.i64(80),
 //!     ]))
 //!     .start(&tracer);
 //! ```

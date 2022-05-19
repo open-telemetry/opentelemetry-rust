@@ -1,3 +1,4 @@
+use crate::{Key, KeyValue, Value};
 use indexmap::map::{
     Drain, Entry, IntoIter, IntoKeys, IntoValues, Iter, IterMut, Keys, Values, ValuesMut,
 };
@@ -622,4 +623,46 @@ where
     V: Eq,
     S: BuildHasher,
 {
+}
+
+impl<S> FromIterator<KeyValue> for OrderMap<Key, Value, S>
+where
+    S: BuildHasher + Default,
+{
+    /// Create an `OrderMap` from the sequence of key-value pairs in the
+    /// iterable.
+    ///
+    /// `from_iter` uses the same logic as `extend`. See
+    /// [`extend`](#method.extend) for more details.
+    fn from_iter<I: IntoIterator<Item = KeyValue>>(iterable: I) -> Self {
+        Self(IndexMap::from_iter(
+            iterable.into_iter().map(|kv| (kv.key, kv.value)),
+        ))
+    }
+}
+
+impl<const N: usize> From<[KeyValue; N]> for OrderMap<Key, Value, RandomState> {
+    fn from(arr: [KeyValue; N]) -> Self {
+        let arr = arr.map(|kv| (kv.key, kv.value));
+        Self(IndexMap::from(arr))
+    }
+}
+
+impl<S> Extend<KeyValue> for OrderMap<Key, Value, S>
+where
+    S: BuildHasher,
+{
+    /// Extend the map with all key-value pairs in the iterable.
+    ///
+    /// This is equivalent to calling [`insert`](#method.insert) for each of
+    /// them in order, which means that for keys that already existed
+    /// in the map, their value is updated but it keeps the existing order.
+    ///
+    /// New keys are inserted in the order they appear in the sequence. If
+    /// equivalents of a key occur more than once, the last corresponding value
+    /// prevails.
+    fn extend<I: IntoIterator<Item = KeyValue>>(&mut self, iterable: I) {
+        self.0
+            .extend(iterable.into_iter().map(|kv| (kv.key, kv.value)))
+    }
 }
