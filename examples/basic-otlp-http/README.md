@@ -6,7 +6,6 @@ This demo uses `docker-compose` and by default runs against the `otel/openteleme
 and uses `http` as the transport.
 
 ```shell
-# in the `examples/basic-otlp/` directory:
 docker-compose up
 or
 docker-compose up -d
