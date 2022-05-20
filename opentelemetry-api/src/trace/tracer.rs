@@ -332,7 +332,7 @@ impl SpanBuilder {
     /// via an [`OrderMap`] instance.
     pub fn with_attributes<I>(self, attributes: I) -> Self
     where
-        I: IntoIterator<Item = KeyValue>
+        I: IntoIterator<Item = KeyValue>,
     {
         SpanBuilder {
             attributes: Some(OrderMap::from_iter(attributes.into_iter())),
