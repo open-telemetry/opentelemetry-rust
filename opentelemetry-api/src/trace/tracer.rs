@@ -1,8 +1,10 @@
+use crate::trace::OrderMap;
 use crate::{
     trace::{Event, Link, Span, SpanId, SpanKind, Status, TraceContextExt, TraceId, TraceState},
-    Context, KeyValue,
+    Context, Key, KeyValue, Value,
 };
 use std::borrow::Cow;
+use std::iter::FromIterator;
 use std::time::SystemTime;
 
 /// The interface for constructing [`Span`]s.
@@ -259,7 +261,7 @@ pub struct SpanBuilder {
     pub end_time: Option<SystemTime>,
 
     /// Span attributes
-    pub attributes: Option<Vec<KeyValue>>,
+    pub attributes: Option<OrderMap<Key, Value>>,
 
     /// Span events
     pub events: Option<Vec<Event>>,
@@ -324,8 +326,25 @@ impl SpanBuilder {
         }
     }
 
-    /// Assign span attributes
-    pub fn with_attributes(self, attributes: Vec<KeyValue>) -> Self {
+    /// Assign span attributes from an iterable.
+    ///
+    /// Check out [`SpanBuilder::with_attributes_map`] to assign span attributes
+    /// via an [`OrderMap`] instance.
+    pub fn with_attributes<I>(self, attributes: I) -> Self
+    where
+        I: IntoIterator<Item = KeyValue>,
+    {
+        SpanBuilder {
+            attributes: Some(OrderMap::from_iter(attributes.into_iter())),
+            ..self
+        }
+    }
+
+    /// Assign span attributes.
+    ///
+    /// Check out [`SpanBuilder::with_attributes`] to assign span attributes
+    /// from an iterable of [`KeyValue`]s.
+    pub fn with_attributes_map(self, attributes: OrderMap<Key, Value>) -> Self {
         SpanBuilder {
             attributes: Some(attributes),
             ..self
