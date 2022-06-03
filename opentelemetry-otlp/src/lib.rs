@@ -189,16 +189,20 @@ mod transform;
 
 pub use crate::exporter::ExportConfig;
 #[cfg(feature = "trace")]
-pub use crate::span::{OtlpTracePipeline, SpanExporter, SpanExporterBuilder};
+pub use crate::span::{
+    OtlpTracePipeline, SpanExporter, SpanExporterBuilder, OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+    OTEL_EXPORTER_OTLP_TRACES_TIMEOUT,
+};
 
 #[cfg(feature = "metrics")]
-pub use crate::metric::{MetricsExporter, OtlpMetricPipeline};
+pub use crate::metric::{
+    MetricsExporter, OtlpMetricPipeline, OTEL_EXPORTER_OTLP_METRICS_ENDPOINT,
+    OTEL_EXPORTER_OTLP_METRICS_TIMEOUT,
+};
 
 pub use crate::exporter::{
-    HasExportConfig, WithExportConfig, OTEL_EXPORTER_OTLP_ENDPOINT,
-    OTEL_EXPORTER_OTLP_ENDPOINT_DEFAULT, OTEL_EXPORTER_OTLP_TIMEOUT,
-    OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT, OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
-    OTEL_EXPORTER_OTLP_TRACES_TIMEOUT,
+    HasExportConfig, WithExportConfig, OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_TIMEOUT,
+    OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT, OTEL_EXPORTER_OTLP_ENDPOINT_DEFAULT
 };
 
 use opentelemetry::sdk::export::ExportError;

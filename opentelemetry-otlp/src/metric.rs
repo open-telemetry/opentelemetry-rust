@@ -25,14 +25,21 @@ use opentelemetry_proto::tonic::collector::metrics::v1::{
     metrics_service_client::MetricsServiceClient, ExportMetricsServiceRequest,
 };
 use std::fmt::{Debug, Formatter};
+use std::str::FromStr;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::time;
+use std::time::Duration;
 use tonic::metadata::KeyAndValueRef;
 #[cfg(feature = "grpc-tonic")]
 use tonic::transport::Channel;
 #[cfg(feature = "grpc-tonic")]
 use tonic::Request;
+
+/// Target to which the exporter is going to send metrics, defaults to https://localhost:4317/v1/metrics.
+pub const OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: &str = "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT";
+/// Max waiting time for the backend to process each metrics batch, defaults to 10s.
+pub const OTEL_EXPORTER_OTLP_METRICS_TIMEOUT: &str = "OTEL_EXPORTER_OTLP_METRICS_TIMEOUT";
 
 impl OtlpPipeline {
     /// Create a OTLP metrics pipeline.
@@ -263,8 +270,20 @@ impl MetricsExporter {
         mut tonic_config: TonicConfig,
         export_selector: T,
     ) -> Result<MetricsExporter> {
-        let endpoint =
-            Channel::from_shared(config.endpoint).map_err::<crate::Error, _>(Into::into)?;
+        let endpoint = match std::env::var(OTEL_EXPORTER_OTLP_METRICS_ENDPOINT) {
+            Ok(val) => val,
+            Err(_) => format!("{}{}", config.endpoint, "/v1/metrics"),
+        };
+
+        let timeout = match std::env::var(OTEL_EXPORTER_OTLP_METRICS_TIMEOUT) {
+            Ok(val) => match u64::from_str(&val) {
+                Ok(seconds) => Duration::from_secs(seconds),
+                Err(_) => config.timeout,
+            },
+            Err(_) => config.timeout,
+        };
+
+        let endpoint = Channel::from_shared(endpoint).map_err::<crate::Error, _>(Into::into)?;
 
         #[cfg(all(feature = "tls"))]
         let channel = match tonic_config.tls_config {
@@ -273,7 +292,7 @@ impl MetricsExporter {
                 .map_err::<crate::Error, _>(Into::into)?,
             None => endpoint,
         }
-        .timeout(config.timeout)
+        .timeout(timeout)
         .connect_lazy();
 
         #[cfg(not(feature = "tls"))]

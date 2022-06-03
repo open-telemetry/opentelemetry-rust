@@ -3,6 +3,7 @@
 //! Defines a [SpanExporter] to send trace data via the OpenTelemetry Protocol (OTLP)
 
 use std::fmt::{self, Debug};
+use std::str::FromStr;
 use std::time::Duration;
 
 #[cfg(feature = "grpc-tonic")]
@@ -62,6 +63,11 @@ use opentelemetry::{
 };
 
 use async_trait::async_trait;
+
+/// Target to which the exporter is going to send spans, defaults to https://localhost:4317.
+pub const OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: &str = "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT";
+/// Max waiting time for the backend to process each spans batch, defaults to 10s.
+pub const OTEL_EXPORTER_OTLP_TRACES_TIMEOUT: &str = "OTEL_EXPORTER_OTLP_TRACES_TIMEOUT";
 
 impl OtlpPipeline {
     /// Create a OTLP tracing pipeline.
@@ -313,14 +319,27 @@ impl SpanExporter {
         config: ExportConfig,
         tonic_config: TonicConfig,
     ) -> Result<Self, crate::Error> {
-        let endpoint = TonicChannel::from_shared(config.endpoint.clone())?;
+        let endpoint_str = match std::env::var(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT) {
+            Ok(val) => val,
+            Err(_) => format!("{}{}", config.endpoint, "/v1/traces"),
+        };
+
+        let endpoint = TonicChannel::from_shared(endpoint_str)?;
+
+        let timeout = match std::env::var(OTEL_EXPORTER_OTLP_TRACES_TIMEOUT) {
+            Ok(val) => match u64::from_str(&val) {
+                Ok(seconds) => Duration::from_secs(seconds),
+                Err(_) => config.timeout,
+            },
+            Err(_) => config.timeout,
+        };
 
         #[cfg(feature = "tls")]
         let channel = match tonic_config.tls_config.as_ref() {
             Some(tls_config) => endpoint.tls_config(tls_config.clone())?,
             None => endpoint,
         }
-        .timeout(config.timeout)
+        .timeout(timeout)
         .connect_lazy();
 
         #[cfg(not(feature = "tls"))]
