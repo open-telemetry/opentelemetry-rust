@@ -14,13 +14,13 @@
 //! ## Usage
 //!
 //! ```rust
-//! use opentelemetry::{global, trace::Tracer as _};
+//! use opentelemetry::{global, trace::Tracer as _, trace::OrderMap};
 //! use opentelemetry_semantic_conventions as semcov;
 //!
 //! let tracer = global::tracer("my-component");
 //! let _span = tracer
 //!     .span_builder("span-name")
-//!     .with_attributes(vec![
+//!     .with_attributes([
 //!         semcov::trace::NET_PEER_IP.string("10.0.0.1"),
 //!         semcov::trace::NET_PEER_PORT.i64(80),
 //!     ])

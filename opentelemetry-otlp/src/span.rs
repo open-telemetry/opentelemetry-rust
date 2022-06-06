@@ -30,7 +30,6 @@ use {
         trace_service::ExportTraceServiceRequest as GrpcRequest,
         trace_service_grpc::TraceServiceClient as GrpcioTraceServiceClient,
     },
-    std::sync::Arc,
 };
 
 #[cfg(feature = "http-proto")]
@@ -47,7 +46,7 @@ use {
 };
 
 #[cfg(any(feature = "grpc-sys", feature = "http-proto"))]
-use std::collections::HashMap;
+use {std::collections::HashMap, std::sync::Arc};
 
 use crate::exporter::ExportConfig;
 use crate::OtlpPipeline;
@@ -269,7 +268,7 @@ pub enum SpanExporter {
         /// The Collector URL
         collector_endpoint: Uri,
         /// The HTTP trace exporter
-        trace_exporter: Option<Box<dyn HttpClient>>,
+        trace_exporter: Option<Arc<dyn HttpClient>>,
     },
 }
 
@@ -397,9 +396,74 @@ impl SpanExporter {
     }
 }
 
+#[cfg(feature = "grpc-sys")]
+async fn grpcio_send_request(
+    trace_exporter: GrpcioTraceServiceClient,
+    request: GrpcRequest,
+    call_options: CallOption,
+) -> ExportResult {
+    let receiver = trace_exporter
+        .export_async_opt(&request, call_options)
+        .map_err::<crate::Error, _>(Into::into)?;
+    receiver.await.map_err::<crate::Error, _>(Into::into)?;
+    Ok(())
+}
+
+#[cfg(feature = "tonic")]
+async fn tonic_send_request(
+    trace_exporter: TonicTraceServiceClient<TonicChannel>,
+    request: Request<TonicRequest>,
+) -> ExportResult {
+    trace_exporter
+        .to_owned()
+        .export(request)
+        .await
+        .map_err::<crate::Error, _>(Into::into)?;
+
+    Ok(())
+}
+
+#[cfg(feature = "http-proto")]
+async fn http_send_request(
+    batch: Vec<SpanData>,
+    client: std::sync::Arc<dyn HttpClient>,
+    headers: Option<HashMap<String, String>>,
+    collector_endpoint: Uri,
+) -> ExportResult {
+    let req = ProstRequest {
+        resource_spans: batch.into_iter().map(Into::into).collect(),
+    };
+
+    let mut buf = vec![];
+    req.encode(&mut buf)
+        .map_err::<crate::Error, _>(Into::into)?;
+
+    let mut request = http::Request::builder()
+        .method(Method::POST)
+        .uri(collector_endpoint)
+        .header(CONTENT_TYPE, "application/x-protobuf")
+        .body(buf)
+        .map_err::<crate::Error, _>(Into::into)?;
+
+    if let Some(headers) = headers {
+        for (k, val) in headers {
+            let value =
+                HeaderValue::from_str(val.as_ref()).map_err::<crate::Error, _>(Into::into)?;
+            let key = HeaderName::try_from(&k).map_err::<crate::Error, _>(Into::into)?;
+            request.headers_mut().insert(key, value);
+        }
+    }
+
+    client.send(request).await?;
+    Ok(())
+}
+
 #[async_trait]
 impl opentelemetry::sdk::export::trace::SpanExporter for SpanExporter {
-    async fn export(&mut self, batch: Vec<SpanData>) -> ExportResult {
+    fn export(
+        &mut self,
+        batch: Vec<SpanData>,
+    ) -> futures::future::BoxFuture<'static, ExportResult> {
         match self {
             #[cfg(feature = "grpc-sys")]
             SpanExporter::Grpcio {
@@ -427,11 +491,11 @@ impl opentelemetry::sdk::export::trace::SpanExporter for SpanExporter {
                     call_options = call_options.headers(metadata_builder.build());
                 }
 
-                let receiver = trace_exporter
-                    .export_async_opt(&request, call_options)
-                    .map_err::<crate::Error, _>(Into::into)?;
-                receiver.await.map_err::<crate::Error, _>(Into::into)?;
-                Ok(())
+                Box::pin(grpcio_send_request(
+                    trace_exporter.clone(),
+                    request,
+                    call_options,
+                ))
             }
 
             #[cfg(feature = "grpc-tonic")]
@@ -457,13 +521,7 @@ impl opentelemetry::sdk::export::trace::SpanExporter for SpanExporter {
                     }
                 }
 
-                trace_exporter
-                    .to_owned()
-                    .export(request)
-                    .await
-                    .map_err::<crate::Error, _>(Into::into)?;
-
-                Ok(())
+                Box::pin(tonic_send_request(trace_exporter.to_owned(), request))
             }
 
             #[cfg(feature = "http-proto")]
@@ -473,36 +531,16 @@ impl opentelemetry::sdk::export::trace::SpanExporter for SpanExporter {
                 headers,
                 ..
             } => {
-                let req = ProstRequest {
-                    resource_spans: batch.into_iter().map(Into::into).collect(),
-                };
-
-                let mut buf = vec![];
-                req.encode(&mut buf)
-                    .map_err::<crate::Error, _>(Into::into)?;
-
-                let mut request = http::Request::builder()
-                    .method(Method::POST)
-                    .uri(collector_endpoint.clone())
-                    .header(CONTENT_TYPE, "application/x-protobuf")
-                    .body(buf)
-                    .map_err::<crate::Error, _>(Into::into)?;
-
-                if let Some(headers) = headers.clone() {
-                    for (k, val) in headers {
-                        let value = HeaderValue::from_str(val.as_ref())
-                            .map_err::<crate::Error, _>(Into::into)?;
-                        let key =
-                            HeaderName::try_from(&k).map_err::<crate::Error, _>(Into::into)?;
-                        request.headers_mut().insert(key, value);
-                    }
-                }
-
-                if let Some(client) = trace_exporter {
-                    client.send(request).await?;
-                    Ok(())
+                if let Some(ref client) = trace_exporter {
+                    let client = Arc::clone(client);
+                    Box::pin(http_send_request(
+                        batch,
+                        client,
+                        headers.clone(),
+                        collector_endpoint.clone(),
+                    ))
                 } else {
-                    Err(crate::Error::NoHttpClient.into())
+                    Box::pin(std::future::ready(Err(crate::Error::NoHttpClient.into())))
                 }
             }
         }

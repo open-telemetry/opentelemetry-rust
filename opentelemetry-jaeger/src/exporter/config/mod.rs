@@ -104,8 +104,8 @@ mod tests {
         assert_eq!(process.tags.len(), 2);
     }
 
-    #[test]
-    fn test_read_from_env() {
+    #[tokio::test]
+    async fn test_read_from_env() {
         // OTEL_SERVICE_NAME env var also works
         env::set_var("OTEL_SERVICE_NAME", "test service");
         let builder = new_agent_pipeline();
