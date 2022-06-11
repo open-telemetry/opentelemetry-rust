@@ -8,20 +8,21 @@ use crate::exporter::ExportConfig;
 use crate::transform::record_to_metric_line;
 use crate::transform::{DimensionSet, MetricLine};
 use crate::{DynatraceExporterBuilder, DynatracePipelineBuilder, Error};
-use futures::Stream;
 use http::{
     header::{HeaderName, HeaderValue, AUTHORIZATION, CONTENT_TYPE, USER_AGENT},
     Method, Uri, Version,
 };
-use opentelemetry::metrics::{Descriptor, Result};
-use opentelemetry::sdk::export::metrics::{AggregatorSelector, ExportKindSelector};
-use opentelemetry::sdk::metrics::{PushController, PushControllerWorker};
-use opentelemetry::sdk::{
-    export::metrics::{CheckpointSet, ExportKind, ExportKindFor, Exporter},
-    metrics::selectors,
-    Resource,
+use opentelemetry::metrics::Result;
+use opentelemetry::runtime::Runtime;
+use opentelemetry::sdk::export::metrics::aggregation::{
+    AggregationKind, Temporality, TemporalitySelector,
 };
-use opentelemetry::{global, KeyValue};
+use opentelemetry::sdk::export::metrics::{AggregatorSelector, InstrumentationLibraryReader};
+use opentelemetry::sdk::metrics::controllers::BasicController;
+use opentelemetry::sdk::metrics::sdk_api::Descriptor;
+use opentelemetry::sdk::metrics::{controllers, processors};
+use opentelemetry::sdk::{export::metrics, Resource};
+use opentelemetry::{global, Context};
 use opentelemetry_http::HttpClient;
 use std::collections::HashMap;
 use std::convert::TryFrom;
@@ -39,20 +40,21 @@ const DEFAULT_USER_AGENT: &str = "opentelemetry-metric-rust";
 
 impl DynatracePipelineBuilder {
     /// Create a Dynatrace metrics pipeline.
-    pub fn metrics<SP, SO, I, IO>(
+    pub fn metrics<AS, TS, RT>(
         self,
-        spawn: SP,
-        interval: I,
-    ) -> DynatraceMetricsPipeline<selectors::simple::Selector, ExportKindSelector, SP, SO, I, IO>
+        aggregator_selector: AS,
+        temporality_selector: TS,
+        rt: RT,
+    ) -> DynatraceMetricsPipeline<AS, TS, RT>
     where
-        SP: Fn(PushControllerWorker) -> SO,
-        I: Fn(time::Duration) -> IO,
+        AS: AggregatorSelector + Send + Sync,
+        TS: TemporalitySelector + Clone + Send + Sync,
+        RT: Runtime,
     {
         DynatraceMetricsPipeline {
-            aggregator_selector: selectors::simple::Selector::Inexpensive,
-            export_selector: ExportKindSelector::Cumulative,
-            spawn,
-            interval,
+            rt,
+            aggregator_selector,
+            temporality_selector,
             exporter_pipeline: None,
             resource: None,
             period: None,
@@ -72,24 +74,24 @@ pub struct MetricsExporterBuilder {
 
 impl MetricsExporterBuilder {
     /// Build a Dynatrace metrics exporter with given configuration.
-    fn build_metrics_exporter<ES>(
+    fn build_metrics_exporter<TS>(
         self,
-        export_selector: ES,
+        temporality_selector: TS,
         prefix: Option<String>,
         default_dimensions: Option<DimensionSet>,
         timestamp: bool,
     ) -> Result<MetricsExporter>
     where
-        ES: ExportKindFor + Sync + Send + 'static,
+        TS: TemporalitySelector + Clone + Sync + Send + 'static,
     {
-        MetricsExporter::new::<ES>(
+        MetricsExporter::new::<TS>(
             self.builder.export_config,
             self.builder.http_config.client.unwrap(),
             self.builder.http_config.headers,
             prefix,
             default_dimensions,
             timestamp,
-            export_selector,
+            temporality_selector,
         )
     }
 }
@@ -102,17 +104,15 @@ impl From<DynatraceExporterBuilder> for MetricsExporterBuilder {
 
 /// Pipeline to build Dynatrace metrics exporter.
 #[derive(Debug)]
-pub struct DynatraceMetricsPipeline<AS, ES, SP, SO, I, IO>
+pub struct DynatraceMetricsPipeline<AS, TS, RT>
 where
     AS: AggregatorSelector + Send + Sync + 'static,
-    ES: ExportKindFor + Send + Sync + Clone + 'static,
-    SP: Fn(PushControllerWorker) -> SO,
-    I: Fn(time::Duration) -> IO,
+    TS: TemporalitySelector + Clone + Send + Sync + 'static,
+    RT: Runtime,
 {
+    rt: RT,
     aggregator_selector: AS,
-    export_selector: ES,
-    spawn: SP,
-    interval: I,
+    temporality_selector: TS,
     exporter_pipeline: Option<MetricsExporterBuilder>,
     resource: Option<Resource>,
     period: Option<time::Duration>,
@@ -122,18 +122,16 @@ where
     timestamp: bool,
 }
 
-impl<AS, ES, SP, SO, I, IO, IOI> DynatraceMetricsPipeline<AS, ES, SP, SO, I, IO>
+impl<AS, TS, RT> DynatraceMetricsPipeline<AS, TS, RT>
 where
     AS: AggregatorSelector + Send + Sync + 'static,
-    ES: ExportKindFor + Send + Sync + Clone + 'static,
-    SP: Fn(PushControllerWorker) -> SO,
-    I: Fn(time::Duration) -> IO,
-    IO: Stream<Item = IOI> + Send + 'static,
+    TS: TemporalitySelector + Clone + Send + Sync + 'static,
+    RT: Runtime,
 {
     /// Build with resource key value pairs.
-    pub fn with_resource<T: IntoIterator<Item = R>, R: Into<KeyValue>>(self, resource: T) -> Self {
+    pub fn with_resource(self, resource: Resource) -> Self {
         DynatraceMetricsPipeline {
-            resource: Some(Resource::new(resource.into_iter().map(Into::into))),
+            resource: Some(resource),
             ..self
         }
     }
@@ -144,34 +142,6 @@ where
             exporter_pipeline: Some(pipeline.into()),
             ..self
         }
-    }
-
-    /// Build with an aggregator selector.
-    pub fn with_aggregator_selector<T>(
-        self,
-        aggregator_selector: T,
-    ) -> DynatraceMetricsPipeline<T, ES, SP, SO, I, IO>
-    where
-        T: AggregatorSelector + Send + Sync + 'static,
-    {
-        DynatraceMetricsPipeline {
-            aggregator_selector,
-            export_selector: self.export_selector,
-            spawn: self.spawn,
-            interval: self.interval,
-            exporter_pipeline: self.exporter_pipeline,
-            resource: self.resource,
-            period: self.period,
-            timeout: self.timeout,
-            prefix: self.prefix,
-            default_dimensions: self.default_dimensions,
-            timestamp: self.timestamp,
-        }
-    }
-
-    /// Build with a spawn function.
-    pub fn with_spawn(self, spawn: SP) -> Self {
-        DynatraceMetricsPipeline { spawn, ..self }
     }
 
     /// Build with a timeout.
@@ -187,34 +157,6 @@ where
         DynatraceMetricsPipeline {
             period: Some(period),
             ..self
-        }
-    }
-
-    /// Build with an interval function.
-    pub fn with_interval(self, interval: I) -> Self {
-        DynatraceMetricsPipeline { interval, ..self }
-    }
-
-    /// Build with an export kind selector.
-    pub fn with_export_kind<E>(
-        self,
-        export_selector: E,
-    ) -> DynatraceMetricsPipeline<AS, E, SP, SO, I, IO>
-    where
-        E: ExportKindFor + Send + Sync + Clone + 'static,
-    {
-        DynatraceMetricsPipeline {
-            aggregator_selector: self.aggregator_selector,
-            export_selector,
-            spawn: self.spawn,
-            interval: self.interval,
-            exporter_pipeline: self.exporter_pipeline,
-            resource: self.resource,
-            period: self.period,
-            timeout: self.timeout,
-            prefix: self.prefix,
-            default_dimensions: self.default_dimensions,
-            timestamp: self.timestamp,
         }
     }
 
@@ -245,35 +187,37 @@ where
     }
 
     /// Build the push controller.
-    pub fn build(self) -> Result<PushController> {
+    pub fn build(self) -> Result<BasicController> {
         let exporter = self
             .exporter_pipeline
             .ok_or(Error::NoExporterBuilder)?
             .build_metrics_exporter(
-                self.export_selector.clone(),
+                self.temporality_selector.clone(),
                 self.prefix,
                 self.default_dimensions,
                 self.timestamp,
             )?;
 
-        let mut builder = opentelemetry::sdk::metrics::controllers::push(
+        let mut builder = controllers::basic(processors::factory(
             self.aggregator_selector,
-            self.export_selector,
-            exporter,
-            self.spawn,
-            self.interval,
-        );
+            self.temporality_selector,
+        ))
+        .with_exporter(exporter);
+
         if let Some(period) = self.period {
-            builder = builder.with_period(period);
+            builder = builder.with_collect_period(period);
+        }
+        if let Some(timeout) = self.timeout {
+            builder = builder.with_collect_timeout(timeout)
         }
         if let Some(resource) = self.resource {
             builder = builder.with_resource(resource);
         }
-        if let Some(timeout) = self.timeout {
-            builder = builder.with_timeout(timeout)
-        }
         let controller = builder.build();
-        global::set_meter_provider(controller.provider());
+        controller.start(&Context::current(), self.rt)?;
+
+        global::set_meter_provider(controller.clone());
+
         Ok(controller)
     }
 }
@@ -303,7 +247,7 @@ pub struct MetricsExporter {
 
     timestamp: bool,
 
-    export_kind_selector: Arc<dyn ExportKindFor + Send + Sync>,
+    temporality_selector: Arc<dyn TemporalitySelector + Send + Sync>,
 }
 
 impl Debug for MetricsExporter {
@@ -312,22 +256,16 @@ impl Debug for MetricsExporter {
     }
 }
 
-impl ExportKindFor for MetricsExporter {
-    fn export_kind_for(&self, descriptor: &Descriptor) -> ExportKind {
-        self.export_kind_selector.export_kind_for(descriptor)
-    }
-}
-
 impl MetricsExporter {
     /// Create a new `MetricsExporter`.
-    pub fn new<T: ExportKindFor + Send + Sync + 'static>(
+    pub fn new<T: TemporalitySelector + Clone + Send + Sync + 'static>(
         export_config: ExportConfig,
         client: Box<dyn HttpClient + 'static>,
         headers: Option<HashMap<String, String>>,
         prefix: Option<String>,
         default_dimensions: Option<DimensionSet>,
         timestamp: bool,
-        export_kind_selector: T,
+        temporality_selector: T,
     ) -> Result<MetricsExporter> {
         let uri: Uri = if let Some(endpoint) = export_config.endpoint {
             endpoint.parse()
@@ -382,20 +320,31 @@ impl MetricsExporter {
             prefix,
             default_dimensions,
             timestamp,
-            export_kind_selector: Arc::new(export_kind_selector),
+            temporality_selector: Arc::new(temporality_selector),
         })
     }
 }
 
-impl Exporter for MetricsExporter {
+impl TemporalitySelector for MetricsExporter {
+    fn temporality_for(&self, descriptor: &Descriptor, kind: &AggregationKind) -> Temporality {
+        self.temporality_selector.temporality_for(descriptor, kind)
+    }
+}
+
+impl metrics::MetricsExporter for MetricsExporter {
     /// Export metric data to Dynatrace
     ///
-    fn export(&self, checkpoint_set: &mut dyn CheckpointSet) -> Result<()> {
+    fn export(
+        &self,
+        _cx: &Context,
+        _res: &Resource,
+        reader: &dyn InstrumentationLibraryReader,
+    ) -> Result<()> {
         let mut metric_line_data: Vec<MetricLine> = Vec::default();
-        checkpoint_set.try_for_each(self.export_kind_selector.as_ref(), &mut |record| {
-            match record_to_metric_line(
+        reader.try_for_each(&mut |_lib, reader| {
+            reader.try_for_each(self, &mut |record| match record_to_metric_line(
                 record,
-                self.export_kind_selector.as_ref(),
+                self.temporality_selector.as_ref(),
                 self.prefix.clone(),
                 self.default_dimensions.clone(),
                 self.timestamp,
@@ -405,7 +354,7 @@ impl Exporter for MetricsExporter {
                     Ok(())
                 }
                 Err(err) => Err(err),
-            }
+            })
         })?;
 
         if metric_line_data.is_empty() {

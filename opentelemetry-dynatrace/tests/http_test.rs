@@ -1,14 +1,44 @@
 #[cfg(all(feature = "metrics", feature = "rt-tokio"))]
 mod test {
+    use futures::future::BoxFuture;
     use http::header::{HeaderValue, AUTHORIZATION, USER_AGENT};
     use hyper::{
         body,
         service::{make_service_fn, service_fn},
         Body, Method, Request, Response, Server,
     };
-    use opentelemetry::{global, Key, KeyValue};
-    use std::net::SocketAddr;
+    use opentelemetry::{
+        global, runtime,
+        sdk::{export::metrics::aggregation::cumulative_temporality_selector, metrics::selectors},
+        Context, Key, KeyValue,
+    };
     use std::time::Duration;
+    use std::{net::SocketAddr, pin::Pin};
+
+    #[derive(Clone)]
+    struct TestRuntime {
+        tick_rx: tokio::sync::watch::Receiver<usize>,
+    }
+    impl runtime::Runtime for TestRuntime {
+        type Interval = futures::stream::Once<BoxFuture<'static, ()>>;
+
+        type Delay = Pin<Box<tokio::time::Sleep>>;
+
+        fn interval(&self, _duration: Duration) -> Self::Interval {
+            let mut tick_rx = self.tick_rx.clone();
+            futures::stream::once(Box::pin(async move {
+                let _ = tick_rx.changed().await.is_ok();
+            }))
+        }
+
+        fn spawn(&self, future: futures::future::BoxFuture<'static, ()>) {
+            tokio::spawn(future);
+        }
+
+        fn delay(&self, duration: Duration) -> Self::Delay {
+            Box::pin(tokio::time::sleep(duration))
+        }
+    }
 
     #[tokio::test(flavor = "multi_thread")]
     async fn integration_test() {
@@ -16,6 +46,7 @@ mod test {
         let (req_tx, mut req_rx) = tokio::sync::mpsc::channel(1);
         let (tick_tx, tick_rx) = tokio::sync::watch::channel(0);
         let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel();
+        let cx = Context::new();
 
         let addr: SocketAddr = "[::1]:0".parse().unwrap();
 
@@ -63,13 +94,12 @@ mod test {
 
         let addr = addr_rx.await.unwrap();
 
-        let _meter = opentelemetry_dynatrace::new_pipeline()
-            .metrics(tokio::spawn, move |_: Duration| {
-                let mut tick_rx = tick_rx.clone();
-                futures::stream::once(async move {
-                    let _ = tick_rx.changed().await.is_ok();
-                })
-            })
+        let pipeline = opentelemetry_dynatrace::new_pipeline().metrics(
+            selectors::simple::inexpensive(),
+            cumulative_temporality_selector(),
+            TestRuntime { tick_rx },
+        );
+        pipeline
             .with_exporter(opentelemetry_dynatrace::new_exporter().with_export_config(
                 opentelemetry_dynatrace::ExportConfig {
                     endpoint: Some(format!("http://{}/test/a/b/c", addr)),
@@ -87,6 +117,7 @@ mod test {
 
             let recorder = meter.u64_counter("test1").init();
             recorder.add(
+                &cx,
                 90,
                 &[
                     KeyValue::new("A", "test1"),
@@ -96,10 +127,10 @@ mod test {
             );
 
             let recorder = meter.f64_counter("test2").init();
-            recorder.add(1e10 + 0.123, &[KeyValue::new("foo", "bar")]);
+            recorder.add(&cx, 1e10 + 0.123, &[KeyValue::new("foo", "bar")]);
 
             let recorder = meter.i64_histogram("test3").init();
-            recorder.record(-999, &[Key::new("foo").i64(-123)]);
+            recorder.record(&cx, -999, &[Key::new("foo").i64(-123)]);
 
             let _ = tick_tx.send(1);
         });

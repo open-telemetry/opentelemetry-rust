@@ -1,369 +1,165 @@
-use std::borrow::Cow;
-use std::fmt;
+use core::fmt;
 use std::sync::Arc;
 
-use crate::InstrumentationLibrary;
-use crate::{
-    metrics::{
-        sdk_api, AsyncRunner, BatchObserver, BatchObserverResult, CounterBuilder, Descriptor,
-        HistogramBuilder, Measurement, NumberKind, ObserverResult, Result, SumObserverBuilder,
-        UpDownCounterBuilder, UpDownSumObserverBuilder, ValueObserverBuilder, ValueRecorderBuilder,
-    },
-    Context, KeyValue,
+use crate::metrics::{
+    Counter, Histogram, InstrumentBuilder, InstrumentProvider, MetricsError, ObservableCounter,
+    ObservableGauge, ObservableUpDownCounter, UpDownCounter,
 };
+use crate::{Context, InstrumentationLibrary};
 
 /// Returns named meter instances
-pub trait MeterProvider: fmt::Debug {
-    /// Creates an implementation of the [`Meter`] interface. The
-    /// instrumentation name must be the name of the library providing
-    /// instrumentation. This name may be the same as the instrumented code only if
-    /// that code provides built-in instrumentation. If the instrumentation name is
-    /// empty, then a implementation defined default name will be used instead.
+pub trait MeterProvider {
+    /// Creates a named [`Meter`] instance.
+    fn meter(&self, name: &'static str) -> Meter {
+        self.versioned_meter(name, None, None)
+    }
+
+    /// Creates an implementation of the [`Meter`] interface.
     ///
-    fn meter(
+    /// The instrumentation name must be the name of the library providing instrumentation. This
+    /// name may be the same as the instrumented code only if that code provides built-in
+    /// instrumentation. If the instrumentation name is empty, then a implementation defined
+    /// default name will be used instead.
+    fn versioned_meter(
         &self,
-        instrumentation_name: &'static str,
-        instrumentation_version: Option<&'static str>,
+        name: &'static str,
+        version: Option<&'static str>,
         schema_url: Option<&'static str>,
     ) -> Meter;
 }
 
-/// Meter is the OpenTelemetry metric API, based on a sdk-defined `MeterCore`
-/// implementation and the `Meter` library name.
-///
-/// # Instruments
-///
-/// | **Name** | Instrument kind | Function(argument) | Default aggregation | Notes |
-/// | ----------------------- | ----- | --------- | ------------- | --- |
-/// | **Counter**             | Synchronous adding monotonic | Add(increment) | Sum | Per-request, part of a monotonic sum |
-/// | **UpDownCounter**       | Synchronous adding | Add(increment) | Sum | Per-request, part of a non-monotonic sum |
-/// | **Histogram**           | Synchronous  | Record(value) | Histogram Aggregation  | Per-request, any grouping measurement |
-/// | **ValueRecorder**       | Synchronous  | Record(value) | [TBD issue 636](https://github.com/open-telemetry/opentelemetry-specification/issues/636)  | Per-request, any grouping measurement |
-/// | **SumObserver**         | Asynchronous adding monotonic | Observe(sum) | Sum | Per-interval, reporting a monotonic sum |
-/// | **UpDownSumObserver**   | Asynchronous adding | Observe(sum) | Sum | Per-interval, reporting a non-monotonic sum |
-/// | **ValueObserver**       | Asynchronous | Observe(value) | LastValue  | Per-interval, any grouping measurement |
-#[derive(Debug)]
+/// Provides access to instrument instances for recording metrics.
+#[derive(Clone)]
 pub struct Meter {
-    instrumentation_library: InstrumentationLibrary,
-    core: Arc<dyn sdk_api::MeterCore + Send + Sync>,
+    pub(crate) instrumentation_library: InstrumentationLibrary,
+    pub(crate) instrument_provider: Arc<dyn InstrumentProvider + Send + Sync>,
 }
 
 impl Meter {
-    /// Create a new named meter from a sdk implemented core
-    pub fn new<T: Into<Cow<'static, str>>>(
-        instrumentation_name: T,
-        instrumentation_version: Option<T>,
-        schema_url: Option<T>,
-        core: Arc<dyn sdk_api::MeterCore + Send + Sync>,
+    /// Create a new named meter from an instrumentation provider
+    pub fn new(
+        instrumentation_library: InstrumentationLibrary,
+        instrument_provider: Arc<dyn InstrumentProvider + Send + Sync>,
     ) -> Self {
         Meter {
-            instrumentation_library: InstrumentationLibrary::new(
-                instrumentation_name.into(),
-                instrumentation_version.map(Into::into),
-                schema_url.map(Into::into),
-            ),
-            core,
+            instrumentation_library,
+            instrument_provider,
         }
     }
 
-    pub(crate) fn instrumentation_library(&self) -> InstrumentationLibrary {
-        self.instrumentation_library.clone()
+    /// creates an instrument for recording increasing values.
+    pub fn u64_counter(&self, name: impl Into<String>) -> InstrumentBuilder<'_, Counter<u64>> {
+        InstrumentBuilder::new(self, name.into())
     }
 
-    /// Creates a new integer `CounterBuilder` for `u64` values with the given name.
-    pub fn u64_counter<T>(&self, name: T) -> CounterBuilder<'_, u64>
-    where
-        T: Into<String>,
-    {
-        CounterBuilder::new(self, name.into(), NumberKind::U64)
+    /// creates an instrument for recording increasing values.
+    pub fn f64_counter(&self, name: impl Into<String>) -> InstrumentBuilder<'_, Counter<f64>> {
+        InstrumentBuilder::new(self, name.into())
     }
 
-    /// Creates a new floating point `CounterBuilder` for `f64` values with the given name.
-    pub fn f64_counter<T>(&self, name: T) -> CounterBuilder<'_, f64>
-    where
-        T: Into<String>,
-    {
-        CounterBuilder::new(self, name.into(), NumberKind::F64)
-    }
-
-    /// Creates a new integer `UpDownCounterBuilder` for an `i64` up down counter with the given name.
-    pub fn i64_up_down_counter<T>(&self, name: T) -> UpDownCounterBuilder<'_, i64>
-    where
-        T: Into<String>,
-    {
-        UpDownCounterBuilder::new(self, name.into(), NumberKind::I64)
-    }
-
-    /// Creates a new floating point `UpDownCounterBuilder` for an `f64` up down counter with the given name.
-    pub fn f64_up_down_counter<T>(&self, name: T) -> UpDownCounterBuilder<'_, f64>
-    where
-        T: Into<String>,
-    {
-        UpDownCounterBuilder::new(self, name.into(), NumberKind::F64)
-    }
-
-    /// Creates a new `ValueRecorderBuilder` for `i64` values with the given name.
-    #[deprecated(since = "0.18.0", note = "Please use i64_histogram instead.")]
-    pub fn i64_value_recorder<T>(&self, name: T) -> ValueRecorderBuilder<'_, i64>
-    where
-        T: Into<String>,
-    {
-        ValueRecorderBuilder::new(self, name.into(), NumberKind::I64)
-    }
-
-    /// Creates a new `ValueRecorderBuilder` for `u64` values with the given name.
-    #[deprecated(since = "0.18.0", note = "Please use u64_histogram instead.")]
-    pub fn u64_value_recorder<T>(&self, name: T) -> ValueRecorderBuilder<'_, u64>
-    where
-        T: Into<String>,
-    {
-        ValueRecorderBuilder::new(self, name.into(), NumberKind::U64)
-    }
-
-    /// Creates a new `ValueRecorderBuilder` for `f64` values with the given name.
-    #[deprecated(since = "0.18.0", note = "Please use f64_histogram instead.")]
-    pub fn f64_value_recorder<T>(&self, name: T) -> ValueRecorderBuilder<'_, f64>
-    where
-        T: Into<String>,
-    {
-        ValueRecorderBuilder::new(self, name.into(), NumberKind::F64)
-    }
-
-    /// Creates a new `HistogramBuilder` for `i64` values with the given name.
-    pub fn i64_histogram<T>(&self, name: T) -> HistogramBuilder<'_, i64>
-    where
-        T: Into<String>,
-    {
-        HistogramBuilder::new(self, name.into(), NumberKind::I64)
-    }
-
-    /// Creates a new `HistogramBuilder` for `u64` values with the given name.
-    pub fn u64_histogram<T>(&self, name: T) -> HistogramBuilder<'_, u64>
-    where
-        T: Into<String>,
-    {
-        HistogramBuilder::new(self, name.into(), NumberKind::U64)
-    }
-
-    /// Creates a new `HistogramBuilder` for `f64` values with the given name.
-    pub fn f64_histogram<T>(&self, name: T) -> HistogramBuilder<'_, f64>
-    where
-        T: Into<String>,
-    {
-        HistogramBuilder::new(self, name.into(), NumberKind::F64)
-    }
-
-    /// Creates a new integer `SumObserverBuilder` for `u64` values with the given
-    /// name and callback
-    pub fn u64_sum_observer<T, F>(&self, name: T, callback: F) -> SumObserverBuilder<'_, u64>
-    where
-        T: Into<String>,
-        F: Fn(ObserverResult<u64>) + Send + Sync + 'static,
-    {
-        SumObserverBuilder::new(
-            self,
-            name.into(),
-            Some(AsyncRunner::U64(Box::new(callback))),
-            NumberKind::U64,
-        )
-    }
-
-    /// Creates a new floating point `SumObserverBuilder` for `f64` values with the
-    /// given name and callback
-    pub fn f64_sum_observer<T, F>(&self, name: T, callback: F) -> SumObserverBuilder<'_, f64>
-    where
-        T: Into<String>,
-        F: Fn(ObserverResult<f64>) + Send + Sync + 'static,
-    {
-        SumObserverBuilder::new(
-            self,
-            name.into(),
-            Some(AsyncRunner::F64(Box::new(callback))),
-            NumberKind::F64,
-        )
-    }
-
-    /// Creates a new integer `UpDownSumObserverBuilder` for `i64` values with the
-    /// given name and callback.
-    pub fn i64_up_down_sum_observer<T, F>(
+    /// creates an instrument for recording increasing values via callback.
+    pub fn u64_observable_counter(
         &self,
-        name: T,
-        callback: F,
-    ) -> UpDownSumObserverBuilder<'_, i64>
-    where
-        T: Into<String>,
-        F: Fn(ObserverResult<i64>) + Send + Sync + 'static,
-    {
-        UpDownSumObserverBuilder::new(
-            self,
-            name.into(),
-            Some(AsyncRunner::I64(Box::new(callback))),
-            NumberKind::I64,
-        )
+        name: impl Into<String>,
+    ) -> InstrumentBuilder<'_, ObservableCounter<u64>> {
+        InstrumentBuilder::new(self, name.into())
     }
 
-    /// Creates a new floating point `UpDownSumObserverBuilder` for `f64` values
-    /// with the given name and callback
-    pub fn f64_up_down_sum_observer<T, F>(
+    /// creates an instrument for recording increasing values via callback.
+    pub fn f64_observable_counter(
         &self,
-        name: T,
-        callback: F,
-    ) -> UpDownSumObserverBuilder<'_, f64>
-    where
-        T: Into<String>,
-        F: Fn(ObserverResult<f64>) + Send + Sync + 'static,
-    {
-        UpDownSumObserverBuilder::new(
-            self,
-            name.into(),
-            Some(AsyncRunner::F64(Box::new(callback))),
-            NumberKind::F64,
-        )
+        name: impl Into<String>,
+    ) -> InstrumentBuilder<'_, ObservableCounter<f64>> {
+        InstrumentBuilder::new(self, name.into())
     }
 
-    /// Creates a new integer `ValueObserverBuilder` for `u64` values with the given
-    /// name and callback
-    pub fn u64_value_observer<T, F>(&self, name: T, callback: F) -> ValueObserverBuilder<'_, u64>
-    where
-        T: Into<String>,
-        F: Fn(ObserverResult<u64>) + Send + Sync + 'static,
-    {
-        ValueObserverBuilder::new(
-            self,
-            name.into(),
-            Some(AsyncRunner::U64(Box::new(callback))),
-            NumberKind::U64,
-        )
-    }
-
-    /// Creates a new integer `ValueObserverBuilder` for `i64` values with the given
-    /// name and callback
-    pub fn i64_value_observer<T, F>(&self, name: T, callback: F) -> ValueObserverBuilder<'_, i64>
-    where
-        T: Into<String>,
-        F: Fn(ObserverResult<i64>) + Send + Sync + 'static,
-    {
-        ValueObserverBuilder::new(
-            self,
-            name.into(),
-            Some(AsyncRunner::I64(Box::new(callback))),
-            NumberKind::I64,
-        )
-    }
-
-    /// Creates a new floating point `ValueObserverBuilder` for `f64` values with
-    /// the given name and callback
-    pub fn f64_value_observer<T, F>(&self, name: T, callback: F) -> ValueObserverBuilder<'_, f64>
-    where
-        T: Into<String>,
-        F: Fn(ObserverResult<f64>) + Send + Sync + 'static,
-    {
-        ValueObserverBuilder::new(
-            self,
-            name.into(),
-            Some(AsyncRunner::F64(Box::new(callback))),
-            NumberKind::F64,
-        )
-    }
-
-    /// Creates a new `BatchObserver` that supports making batches of observations
-    /// for multiple instruments or returns an error if instrument initialization
-    /// fails.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use opentelemetry_api::{global, metrics::BatchObserverResult, KeyValue};
-    ///
-    /// # fn init_observer() -> opentelemetry_api::metrics::Result<()> {
-    /// let meter = global::meter("test");
-    ///
-    /// meter.build_batch_observer(|batch| {
-    ///   let instrument = batch.u64_value_observer("test_instrument").try_init()?;
-    ///
-    ///   Ok(move |result: BatchObserverResult| {
-    ///     result.observe(&[KeyValue::new("my-key", "my-value")], &[instrument.observation(1)]);
-    ///   })
-    /// })?;
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub fn build_batch_observer<B, F>(&self, builder: B) -> Result<()>
-    where
-        B: Fn(BatchObserver<'_>) -> Result<F>,
-        F: Fn(BatchObserverResult) + Send + Sync + 'static,
-    {
-        let observer = builder(BatchObserver::new(self))?;
-        self.core
-            .new_batch_observer(AsyncRunner::Batch(Box::new(observer)))
-    }
-
-    /// Creates a new `BatchObserver` that supports making batches of observations
-    /// for multiple instruments.
-    ///
-    /// # Panics
-    ///
-    /// Panics if instrument initialization or observer registration returns an
-    /// error.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use opentelemetry_api::{global, metrics::BatchObserverResult, KeyValue};
-    ///
-    /// let meter = global::meter("test");
-    ///
-    /// meter.batch_observer(|batch| {
-    ///   let instrument = batch.u64_value_observer("test_instrument").init();
-    ///
-    ///   move |result: BatchObserverResult| {
-    ///     result.observe(&[KeyValue::new("my-key", "my-value")], &[instrument.observation(1)]);
-    ///   }
-    /// });
-    /// ```
-    pub fn batch_observer<B, F>(&self, builder: B)
-    where
-        B: Fn(BatchObserver<'_>) -> F,
-        F: Fn(BatchObserverResult) + Send + Sync + 'static,
-    {
-        let observer = builder(BatchObserver::new(self));
-        self.core
-            .new_batch_observer(AsyncRunner::Batch(Box::new(observer)))
-            .unwrap()
-    }
-
-    /// Atomically record a batch of measurements.
-    pub fn record_batch<T: IntoIterator<Item = Measurement>>(
+    /// creates an instrument for recording changes of a value.
+    pub fn i64_up_down_counter(
         &self,
-        attributes: &[KeyValue],
-        measurements: T,
-    ) {
-        self.record_batch_with_context(&Context::current(), attributes, measurements)
+        name: impl Into<String>,
+    ) -> InstrumentBuilder<'_, UpDownCounter<i64>> {
+        InstrumentBuilder::new(self, name.into())
     }
 
-    /// Atomically record a batch of measurements with a given context
-    pub fn record_batch_with_context<T: IntoIterator<Item = Measurement>>(
+    /// creates an instrument for recording changes of a value.
+    pub fn f64_up_down_counter(
         &self,
-        cx: &Context,
-        attributes: &[KeyValue],
-        measurements: T,
-    ) {
-        self.core
-            .record_batch_with_context(cx, attributes, measurements.into_iter().collect())
+        name: impl Into<String>,
+    ) -> InstrumentBuilder<'_, UpDownCounter<f64>> {
+        InstrumentBuilder::new(self, name.into())
     }
 
-    pub(crate) fn new_sync_instrument(
+    /// creates an instrument for recording changes of a value via callback.
+    pub fn i64_observable_up_down_counter(
         &self,
-        descriptor: Descriptor,
-    ) -> Result<Arc<dyn sdk_api::SyncInstrumentCore>> {
-        self.core.new_sync_instrument(descriptor)
+        name: impl Into<String>,
+    ) -> InstrumentBuilder<'_, ObservableUpDownCounter<i64>> {
+        InstrumentBuilder::new(self, name.into())
     }
 
-    pub(crate) fn new_async_instrument(
+    /// creates an instrument for recording changes of a value via callback.
+    pub fn f64_observable_up_down_counter(
         &self,
-        descriptor: Descriptor,
-        runner: Option<AsyncRunner>,
-    ) -> Result<Arc<dyn sdk_api::AsyncInstrumentCore>> {
-        self.core.new_async_instrument(descriptor, runner)
+        name: impl Into<String>,
+    ) -> InstrumentBuilder<'_, ObservableUpDownCounter<f64>> {
+        InstrumentBuilder::new(self, name.into())
+    }
+
+    /// creates an instrument for recording the current value via callback.
+    pub fn u64_observable_gauge(
+        &self,
+        name: impl Into<String>,
+    ) -> InstrumentBuilder<'_, ObservableGauge<u64>> {
+        InstrumentBuilder::new(self, name.into())
+    }
+
+    /// creates an instrument for recording the current value via callback.
+    pub fn i64_observable_gauge(
+        &self,
+        name: impl Into<String>,
+    ) -> InstrumentBuilder<'_, ObservableGauge<i64>> {
+        InstrumentBuilder::new(self, name.into())
+    }
+
+    /// creates an instrument for recording the current value via callback.
+    pub fn f64_observable_gauge(
+        &self,
+        name: impl Into<String>,
+    ) -> InstrumentBuilder<'_, ObservableGauge<f64>> {
+        InstrumentBuilder::new(self, name.into())
+    }
+
+    /// creates an instrument for recording a distribution of values.
+    pub fn f64_histogram(&self, name: impl Into<String>) -> InstrumentBuilder<'_, Histogram<f64>> {
+        InstrumentBuilder::new(self, name.into())
+    }
+
+    /// creates an instrument for recording a distribution of values.
+    pub fn u64_histogram(&self, name: impl Into<String>) -> InstrumentBuilder<'_, Histogram<u64>> {
+        InstrumentBuilder::new(self, name.into())
+    }
+
+    /// creates an instrument for recording a distribution of values.
+    pub fn i64_histogram(&self, name: impl Into<String>) -> InstrumentBuilder<'_, Histogram<i64>> {
+        InstrumentBuilder::new(self, name.into())
+    }
+
+    /// Captures the function that will be called during data collection.
+    ///
+    /// It is only valid to call `observe` within the scope of the passed function.
+    pub fn register_callback<F>(&self, callback: F) -> Result<(), MetricsError>
+    where
+        F: Fn(&Context) + Send + Sync + 'static,
+    {
+        self.instrument_provider
+            .register_callback(Box::new(callback))
+    }
+}
+
+impl fmt::Debug for Meter {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Meter")
+            .field("instrumentation_library", &self.instrumentation_library)
+            .finish()
     }
 }

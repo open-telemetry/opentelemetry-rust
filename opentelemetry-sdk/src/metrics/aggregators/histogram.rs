@@ -1,13 +1,17 @@
-use crate::export::metrics::{Buckets, Count, Histogram, Sum};
-use crate::metrics::export::metrics::Aggregator;
-use opentelemetry_api::metrics::{
-    AtomicNumber, Descriptor, MetricsError, Number, NumberKind, Result,
+use crate::export::metrics::aggregation::{
+    Aggregation, AggregationKind, Buckets, Count, Histogram, Sum,
 };
+use crate::metrics::{
+    aggregators::Aggregator,
+    sdk_api::{AtomicNumber, Descriptor, Number, NumberKind},
+};
+use opentelemetry_api::metrics::{MetricsError, Result};
+use opentelemetry_api::Context;
 use std::mem;
 use std::sync::{Arc, RwLock};
 
 /// Create a new histogram for the given descriptor with the given boundaries
-pub fn histogram(_desc: &Descriptor, boundaries: &[f64]) -> HistogramAggregator {
+pub fn histogram(boundaries: &[f64]) -> HistogramAggregator {
     let mut sorted_boundaries = boundaries.to_owned();
     sorted_boundaries.sort_by(|a, b| a.partial_cmp(b).unwrap());
     let state = State::empty(&sorted_boundaries);
@@ -77,8 +81,17 @@ impl Histogram for HistogramAggregator {
     }
 }
 
+impl Aggregation for HistogramAggregator {
+    fn kind(&self) -> &AggregationKind {
+        &AggregationKind::SUM
+    }
+}
+
 impl Aggregator for HistogramAggregator {
-    fn update(&self, number: &Number, descriptor: &Descriptor) -> Result<()> {
+    fn aggregation(&self) -> &dyn Aggregation {
+        self
+    }
+    fn update(&self, _cx: &Context, number: &Number, descriptor: &Descriptor) -> Result<()> {
         self.inner.write().map_err(From::from).map(|mut inner| {
             let kind = descriptor.number_kind();
             let as_float = number.to_f64(kind);
@@ -100,7 +113,7 @@ impl Aggregator for HistogramAggregator {
     fn synchronized_move(
         &self,
         other: &Arc<dyn Aggregator + Send + Sync>,
-        _descriptor: &crate::metrics::Descriptor,
+        _descriptor: &Descriptor,
     ) -> Result<()> {
         if let Some(other) = other.as_any().downcast_ref::<Self>() {
             self.inner

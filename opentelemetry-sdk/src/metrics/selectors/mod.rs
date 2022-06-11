@@ -1,2 +1,2 @@
-//! Metric Selectors
+//! Aggregator Selectors
 pub mod simple;

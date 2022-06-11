@@ -1,10 +1,15 @@
-use crate::export::metrics::{Aggregator, Subtractor, Sum};
-use opentelemetry_api::metrics::{AtomicNumber, Descriptor, MetricsError, Number, Result};
+use crate::export::metrics::aggregation::{Aggregation, AggregationKind, Sum};
+use crate::metrics::{
+    aggregators::Aggregator,
+    sdk_api::{AtomicNumber, Descriptor, Number},
+};
+use opentelemetry_api::metrics::{MetricsError, Result};
+use opentelemetry_api::Context;
 use std::any::Any;
 use std::sync::Arc;
 
 /// Create a new sum aggregator.
-pub fn sum() -> SumAggregator {
+pub fn sum() -> impl Aggregator {
     SumAggregator::default()
 }
 
@@ -20,36 +25,22 @@ impl Sum for SumAggregator {
     }
 }
 
-impl Subtractor for SumAggregator {
-    fn subtract(
-        &self,
-        operand: &(dyn Aggregator + Send + Sync),
-        result: &(dyn Aggregator + Send + Sync),
-        descriptor: &Descriptor,
-    ) -> Result<()> {
-        match (
-            operand.as_any().downcast_ref::<Self>(),
-            result.as_any().downcast_ref::<Self>(),
-        ) {
-            (Some(op), Some(res)) => {
-                res.value.store(&self.value.load());
-                res.value
-                    .fetch_add(descriptor.number_kind(), &op.value.load());
-                Ok(())
-            }
-            _ => Err(MetricsError::InconsistentAggregator(format!(
-                "Expected {:?}, got: {:?} and {:?}",
-                self, operand, result
-            ))),
-        }
+impl Aggregation for SumAggregator {
+    fn kind(&self) -> &AggregationKind {
+        &AggregationKind::SUM
     }
 }
 
 impl Aggregator for SumAggregator {
-    fn update(&self, number: &Number, descriptor: &Descriptor) -> Result<()> {
+    fn aggregation(&self) -> &dyn Aggregation {
+        self
+    }
+
+    fn update(&self, _cx: &Context, number: &Number, descriptor: &Descriptor) -> Result<()> {
         self.value.fetch_add(descriptor.number_kind(), number);
         Ok(())
     }
+
     fn synchronized_move(
         &self,
         other: &Arc<dyn Aggregator + Send + Sync>,
@@ -67,6 +58,7 @@ impl Aggregator for SumAggregator {
             )))
         }
     }
+
     fn merge(&self, other: &(dyn Aggregator + Send + Sync), descriptor: &Descriptor) -> Result<()> {
         if let Some(other_sum) = other.as_any().downcast_ref::<SumAggregator>() {
             self.value
@@ -75,6 +67,7 @@ impl Aggregator for SumAggregator {
 
         Ok(())
     }
+
     fn as_any(&self) -> &dyn Any {
         self
     }

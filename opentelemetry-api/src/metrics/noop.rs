@@ -5,21 +5,12 @@
 //! to have minimal resource utilization and runtime impact.
 use crate::{
     metrics::{
-        sdk_api::{
-            AsyncInstrumentCore, InstrumentCore, MeterCore, SyncBoundInstrumentCore,
-            SyncInstrumentCore,
-        },
-        AsyncRunner, Descriptor, InstrumentKind, Measurement, Meter, MeterProvider, Number,
-        NumberKind, Result,
+        AsyncCounter, AsyncGauge, AsyncUpDownCounter, InstrumentProvider, Meter, MeterProvider,
+        Result, SyncCounter, SyncHistogram, SyncUpDownCounter,
     },
-    Context, KeyValue,
+    Context, InstrumentationLibrary, KeyValue,
 };
-use std::any::Any;
 use std::sync::Arc;
-
-lazy_static::lazy_static! {
-    static ref NOOP_DESCRIPTOR: Descriptor = Descriptor::new(String::new(), "noop", None, None, InstrumentKind::Counter, NumberKind::U64);
-}
 
 /// A no-op instance of a `MetricProvider`
 #[derive(Debug, Default)]
@@ -35,13 +26,14 @@ impl NoopMeterProvider {
 }
 
 impl MeterProvider for NoopMeterProvider {
-    fn meter(
+    fn versioned_meter(
         &self,
         name: &'static str,
         version: Option<&'static str>,
         schema_url: Option<&'static str>,
     ) -> Meter {
-        Meter::new(name, version, schema_url, Arc::new(NoopMeterCore::new()))
+        let library = InstrumentationLibrary::new(name, version, schema_url);
+        Meter::new(library, Arc::new(NoopMeterCore::new()))
     }
 }
 
@@ -58,29 +50,8 @@ impl NoopMeterCore {
     }
 }
 
-impl MeterCore for NoopMeterCore {
-    fn new_sync_instrument(&self, _descriptor: Descriptor) -> Result<Arc<dyn SyncInstrumentCore>> {
-        Ok(Arc::new(NoopSyncInstrument::new()))
-    }
-
-    fn new_async_instrument(
-        &self,
-        _descriptor: Descriptor,
-        _runner: Option<AsyncRunner>,
-    ) -> Result<Arc<dyn AsyncInstrumentCore>> {
-        Ok(Arc::new(NoopAsyncInstrument::new()))
-    }
-
-    fn record_batch_with_context(
-        &self,
-        _cx: &Context,
-        _attributes: &[KeyValue],
-        _measurements: Vec<Measurement>,
-    ) {
-        // Ignored
-    }
-
-    fn new_batch_observer(&self, _runner: AsyncRunner) -> Result<()> {
+impl InstrumentProvider for NoopMeterCore {
+    fn register_callback(&self, _callback: Box<dyn Fn(&Context) + Send + Sync>) -> Result<()> {
         Ok(())
     }
 }
@@ -98,39 +69,20 @@ impl NoopSyncInstrument {
     }
 }
 
-impl InstrumentCore for NoopSyncInstrument {
-    fn descriptor(&self) -> &Descriptor {
-        &NOOP_DESCRIPTOR
-    }
-}
-
-impl SyncInstrumentCore for NoopSyncInstrument {
-    fn bind(&self, _attributes: &'_ [KeyValue]) -> Arc<dyn SyncBoundInstrumentCore> {
-        Arc::new(NoopBoundSyncInstrument::new())
-    }
-    fn record_one(&self, _number: Number, _attributes: &'_ [KeyValue]) {
+impl<T> SyncCounter<T> for NoopSyncInstrument {
+    fn add(&self, _cx: &Context, _value: T, _attributes: &[KeyValue]) {
         // Ignored
     }
-    fn as_any(&self) -> &dyn Any {
-        self
+}
+
+impl<T> SyncUpDownCounter<T> for NoopSyncInstrument {
+    fn add(&self, _cx: &Context, _value: T, _attributes: &[KeyValue]) {
+        // Ignored
     }
 }
 
-/// A no-op bound sync instrument
-#[derive(Debug, Default)]
-pub struct NoopBoundSyncInstrument {
-    _private: (),
-}
-
-impl NoopBoundSyncInstrument {
-    /// Create a new no-op bound sync instrument
-    pub fn new() -> Self {
-        NoopBoundSyncInstrument { _private: () }
-    }
-}
-
-impl SyncBoundInstrumentCore for NoopBoundSyncInstrument {
-    fn record_one(&self, _number: Number) {
+impl<T> SyncHistogram<T> for NoopSyncInstrument {
+    fn record(&self, _cx: &Context, _value: T, _attributes: &[KeyValue]) {
         // Ignored
     }
 }
@@ -148,14 +100,20 @@ impl NoopAsyncInstrument {
     }
 }
 
-impl InstrumentCore for NoopAsyncInstrument {
-    fn descriptor(&self) -> &Descriptor {
-        &NOOP_DESCRIPTOR
+impl<T> AsyncGauge<T> for NoopAsyncInstrument {
+    fn observe(&self, _cx: &Context, _value: T, _attributes: &[KeyValue]) {
+        // Ignored
     }
 }
 
-impl AsyncInstrumentCore for NoopAsyncInstrument {
-    fn as_any(&self) -> &dyn Any {
-        self
+impl<T> AsyncCounter<T> for NoopAsyncInstrument {
+    fn observe(&self, _cx: &Context, _value: T, _attributes: &[KeyValue]) {
+        // Ignored
+    }
+}
+
+impl<T> AsyncUpDownCounter<T> for NoopAsyncInstrument {
+    fn observe(&self, _cx: &Context, _value: T, _attributes: &[KeyValue]) {
+        // Ignored
     }
 }

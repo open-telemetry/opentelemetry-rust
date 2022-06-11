@@ -9,8 +9,13 @@ pub mod tonic {
         common::v1::KeyValue,
         metrics::v1::{number_data_point, AggregationTemporality},
     };
-    use opentelemetry::metrics::{Number, NumberKind};
-    use opentelemetry::sdk::export::metrics::ExportKind;
+    use opentelemetry::{
+        metrics::MetricsError,
+        sdk::{
+            export::metrics::aggregation::Temporality,
+            metrics::sdk_api::{Number, NumberKind},
+        },
+    };
 
     use opentelemetry::{Key, Value};
 
@@ -40,11 +45,18 @@ pub mod tonic {
         }
     }
 
-    impl From<ExportKind> for AggregationTemporality {
-        fn from(kind: ExportKind) -> Self {
-            match kind {
-                ExportKind::Cumulative => AggregationTemporality::Cumulative,
-                ExportKind::Delta => AggregationTemporality::Delta,
+    impl From<Temporality> for AggregationTemporality {
+        fn from(temporality: Temporality) -> Self {
+            match temporality {
+                Temporality::Cumulative => AggregationTemporality::Cumulative,
+                Temporality::Delta => AggregationTemporality::Delta,
+                other => {
+                    opentelemetry::global::handle_error(MetricsError::Other(format!(
+                        "Unknown temporality {:?}, using default instead.",
+                        other
+                    )));
+                    AggregationTemporality::Cumulative
+                }
             }
         }
     }

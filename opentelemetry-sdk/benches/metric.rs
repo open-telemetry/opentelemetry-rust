@@ -2,13 +2,14 @@ use criterion::{
     criterion_group, criterion_main, measurement::Measurement, BenchmarkGroup, BenchmarkId,
     Criterion,
 };
-use opentelemetry_api::{
-    metrics::{Descriptor, Meter},
-    Key, KeyValue,
-};
+use opentelemetry_api::{metrics::Meter, Context, InstrumentationLibrary, Key, KeyValue};
 use opentelemetry_sdk::{
     export::metrics::{AggregatorSelector, Processor},
-    metrics::{accumulator, aggregators},
+    metrics::{
+        accumulator,
+        aggregators::{self, Aggregator},
+        sdk_api::{wrap_meter_core, Descriptor},
+    },
 };
 use rand::{rngs, Rng};
 use std::cell::RefCell;
@@ -18,42 +19,16 @@ pub fn counters(c: &mut Criterion) {
     let meter = build_meter();
 
     let mut g = c.benchmark_group("Counter");
+    let cx = Context::new();
 
     // unbound u64
-    let counter = meter.u64_counter("u64_unbound.sum").init();
-    benchmark_unbound_metric("u64_unbound", &mut g, |attributes| {
-        counter.add(1, attributes)
-    });
-
-    // bound u64
-    g.bench_with_input(
-        BenchmarkId::new("u64_bound", 1),
-        &meter
-            .u64_counter("u64_bound.sum")
-            .init()
-            .bind(build_kv(1).as_ref()),
-        |b, counter| b.iter(|| counter.add(1)),
-    );
+    let counter = meter.u64_counter("u64.sum").init();
+    benchmark_unbound_metric("u64", &mut g, |attributes| counter.add(&cx, 1, attributes));
 
     // unbound f64
-    let counter = meter.f64_counter("f64_unbound.sum").init();
-    benchmark_unbound_metric("f64_unbound", &mut g, |attributes| {
-        counter.add(1.0, attributes)
-    });
-
-    // bound f64
-    g.bench_with_input(
-        BenchmarkId::new("f64_bound", 1.0),
-        &meter
-            .f64_counter("f64_bound.sum")
-            .init()
-            .bind(build_kv(1).as_ref()),
-        |b, counter| b.iter(|| counter.add(1.0)),
-    );
-
-    // acquire handle
-    benchmark_unbound_metric("f64_bind", &mut g, |attributes| {
-        let _ = counter.bind(attributes);
+    let counter = meter.f64_counter("f64.sum").init();
+    benchmark_unbound_metric("f64", &mut g, |attributes| {
+        counter.add(&cx, 1.0, attributes)
     });
 
     g.finish();
@@ -98,21 +73,12 @@ thread_local! {
 struct BenchAggregatorSelector;
 
 impl AggregatorSelector for BenchAggregatorSelector {
-    fn aggregator_for(
-        &self,
-        descriptor: &Descriptor,
-    ) -> Option<Arc<dyn opentelemetry_sdk::export::metrics::Aggregator + Send + Sync>> {
+    fn aggregator_for(&self, descriptor: &Descriptor) -> Option<Arc<dyn Aggregator + Send + Sync>> {
         match descriptor.name() {
             name if name.ends_with(".disabled") => None,
             name if name.ends_with(".sum") => Some(Arc::new(aggregators::sum())),
-            name if name.ends_with(".minmaxsumcount") => {
-                Some(Arc::new(aggregators::min_max_sum_count(descriptor)))
-            }
             name if name.ends_with(".lastvalue") => Some(Arc::new(aggregators::last_value())),
-            name if name.ends_with(".histogram") => {
-                Some(Arc::new(aggregators::histogram(descriptor, &[])))
-            }
-            name if name.ends_with(".exact") => Some(Arc::new(aggregators::array())),
+            name if name.ends_with(".histogram") => Some(Arc::new(aggregators::histogram(&[]))),
             _ => panic!(
                 "Invalid instrument name for test AggregatorSelector: {}",
                 descriptor.name()
@@ -127,15 +93,16 @@ struct BenchProcessor {
 }
 
 impl Processor for BenchProcessor {
-    fn aggregation_selector(&self) -> &dyn AggregatorSelector {
+    fn aggregator_selector(&self) -> &dyn AggregatorSelector {
         &self.aggregation_selector
     }
 }
 
 fn build_meter() -> Meter {
     let processor = Arc::new(BenchProcessor::default());
-    let core = accumulator(processor).build();
-    Meter::new("benches", None, None, Arc::new(core))
+    let core = accumulator(processor);
+    let library = InstrumentationLibrary::new("benches", None, None);
+    wrap_meter_core(Arc::new(core), library)
 }
 
 criterion_group!(benches, counters);
