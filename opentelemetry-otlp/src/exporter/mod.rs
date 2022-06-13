@@ -126,7 +126,7 @@ impl<B: HasExportConfig> WithExportConfig for B {
     fn with_env(mut self) -> Self {
         let endpoint = match std::env::var(OTEL_EXPORTER_OTLP_ENDPOINT) {
             Ok(val) => val,
-            Err(_) => OTEL_EXPORTER_OTLP_ENDPOINT_DEFAULT.to_string()
+            Err(_) => OTEL_EXPORTER_OTLP_ENDPOINT_DEFAULT.to_string(),
         };
         self.export_config().endpoint = endpoint;
 
@@ -151,7 +151,7 @@ impl<B: HasExportConfig> WithExportConfig for B {
 mod tests {
     use crate::exporter::{
         WithExportConfig, OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_TIMEOUT,
-        OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT
+        OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT,
     };
     use crate::new_exporter;
 
@@ -162,10 +162,7 @@ mod tests {
         std::env::set_var(OTEL_EXPORTER_OTLP_TIMEOUT, "bad_timeout");
 
         let mut exporter_builder = new_exporter().tonic().with_env();
-        assert_eq!(
-            exporter_builder.exporter_config.endpoint,
-            expected_endpoint
-        );
+        assert_eq!(exporter_builder.exporter_config.endpoint, expected_endpoint);
 
         exporter_builder = new_exporter().tonic().with_env();
         assert_eq!(
@@ -185,6 +182,5 @@ mod tests {
         std::env::remove_var(OTEL_EXPORTER_OTLP_TIMEOUT);
         assert!(std::env::var(OTEL_EXPORTER_OTLP_ENDPOINT).is_err());
         assert!(std::env::var(OTEL_EXPORTER_OTLP_TIMEOUT).is_err());
-    }    
-
+    }
 }

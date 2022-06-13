@@ -201,8 +201,9 @@ pub use crate::metric::{
 };
 
 pub use crate::exporter::{
-    HasExportConfig, WithExportConfig, OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_TIMEOUT,
-    OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT, OTEL_EXPORTER_OTLP_ENDPOINT_DEFAULT
+    HasExportConfig, WithExportConfig, OTEL_EXPORTER_OTLP_ENDPOINT,
+    OTEL_EXPORTER_OTLP_ENDPOINT_DEFAULT, OTEL_EXPORTER_OTLP_TIMEOUT,
+    OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT,
 };
 
 use opentelemetry::sdk::export::ExportError;
