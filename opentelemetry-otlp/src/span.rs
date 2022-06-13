@@ -64,7 +64,7 @@ use opentelemetry::{
 
 use async_trait::async_trait;
 
-/// Target to which the exporter is going to send spans, defaults to https://localhost:4317.
+/// Target to which the exporter is going to send spans, defaults to https://localhost:4317/v1/traces.
 pub const OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: &str = "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT";
 /// Max waiting time for the backend to process each spans batch, defaults to 10s.
 pub const OTEL_EXPORTER_OTLP_TRACES_TIMEOUT: &str = "OTEL_EXPORTER_OTLP_TRACES_TIMEOUT";
