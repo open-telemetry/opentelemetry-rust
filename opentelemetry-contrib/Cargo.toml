@@ -21,11 +21,21 @@ rustdoc-args = ["--cfg", "docsrs"]
 default = []
 base64_format = ["base64", "binary_propagator"]
 binary_propagator = []
+jaeger_json_exporter = ["serde_json", "futures", "async-trait"]
+rt-tokio = ["tokio", "opentelemetry/rt-tokio"]
+rt-tokio-current-thread = ["tokio", "opentelemetry/rt-tokio-current-thread"]
+rt-async-std = ["async-std", "opentelemetry/rt-async-std"]
 
 [dependencies]
 opentelemetry = { version = "0.17", path = "../opentelemetry", features = ["trace"] }
 base64 = { version = "0.13", optional = true }
 lazy_static = "1.4"
+serde_json = { version = "1", optional = true}
+futures = {version = "0.3", optional = true}
+async-trait = {version = "0.1", optional = true}
+tokio = { version = "1.0", features = ["fs", "io-util"], optional = true }
+async-std = { version = "1.6", optional = true }
+
 
 [dev-dependencies]
 base64 = "0.13"
