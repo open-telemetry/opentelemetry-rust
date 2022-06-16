@@ -1,8 +1,11 @@
 use std::fmt::Debug;
 
+#[doc(no_inline)]
+pub use bytes::Bytes;
+#[doc(no_inline)]
+pub use http::{Request, Response};
+
 use async_trait::async_trait;
-use bytes::Bytes;
-use http::{Request, Response};
 use opentelemetry::{
     propagation::{Extractor, Injector},
     trace::TraceError,
