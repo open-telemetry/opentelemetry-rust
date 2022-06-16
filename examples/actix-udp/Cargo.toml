@@ -7,7 +7,6 @@ publish = false
 [dependencies]
 opentelemetry = { path = "../../opentelemetry" }
 opentelemetry-jaeger = { path = "../../opentelemetry-jaeger" }
-thrift = "0.13"
-actix-web = "3"
-actix-service = "1"
-env_logger = "0.8.2"
+actix-web = "4.1"
+actix-service = "2"
+env_logger = "0.9"

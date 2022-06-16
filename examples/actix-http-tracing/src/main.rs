@@ -30,9 +30,9 @@ async fn main() -> io::Result<()> {
 
     // Start an otel jaeger trace pipeline
     global::set_text_map_propagator(TraceContextPropagator::new());
-    let (tracer, _uninstall) = opentelemetry_jaeger::new_pipeline()
+    let tracer = opentelemetry_jaeger::new_pipeline()
         .with_service_name("app_name")
-        .install()
+        .install_simple()
         .unwrap();
 
     // Initialize `tracing` using `opentelemetry-tracing` and configure logging
