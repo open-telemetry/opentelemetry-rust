@@ -328,7 +328,7 @@ impl SpanExporter {
 
         let endpoint = TonicChannel::from_shared(endpoint_str)?;
 
-        let timeout = match std::env::var(OTEL_EXPORTER_OTLP_TRACES_TIMEOUT) {
+        let _timeout = match std::env::var(OTEL_EXPORTER_OTLP_TRACES_TIMEOUT) {
             Ok(val) => match u64::from_str(&val) {
                 Ok(seconds) => Duration::from_secs(seconds),
                 Err(_) => config.timeout,
@@ -341,11 +341,11 @@ impl SpanExporter {
             Some(tls_config) => endpoint.tls_config(tls_config.clone())?,
             None => endpoint,
         }
-        .timeout(timeout)
+        .timeout(_timeout)
         .connect_lazy();
 
         #[cfg(not(feature = "tls"))]
-        let channel = endpoint.timeout(config.timeout).connect_lazy();
+        let channel = endpoint.timeout(_timeout).connect_lazy();
 
         SpanExporter::from_tonic_channel(config, tonic_config, channel)
     }
