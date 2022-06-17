@@ -1,11 +1,15 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use futures_util::future::BoxFuture;
+use opentelemetry_api::trace::{SpanId, TraceId};
+use rand::{SeedableRng, Rng,rngs::SmallRng};
+use std::cell::RefCell;
 use opentelemetry_api::{
     trace::{Span, Tracer, TracerProvider},
     Key, KeyValue,
 };
 use opentelemetry_sdk::{
     export::trace::{ExportResult, SpanData, SpanExporter},
+    trace::IdGenerator,
     trace as sdktrace,
 };
 
@@ -107,6 +111,30 @@ impl SpanExporter for VoidExporter {
     }
 }
 
+
+/// Test [`IdGenerator`] implementation.
+///
+/// Generates Trace and Span ids using a random number generator using SmallRng
+#[derive(Clone, Debug, Default)]
+pub struct SmallRandomIdGenerator {
+    _private: (),
+}
+
+impl IdGenerator for SmallRandomIdGenerator {
+    fn new_trace_id(&self) -> TraceId {
+        CURRENT_RNG.with(|rng| TraceId::from(rng.borrow_mut().gen::<[u8; 16]>()))
+    }
+
+    fn new_span_id(&self) -> SpanId {
+        CURRENT_RNG.with(|rng| SpanId::from(rng.borrow_mut().gen::<[u8; 8]>()))
+    }
+}
+
+thread_local! {
+    /// Store random number generator for each thread
+    static CURRENT_RNG: RefCell<SmallRng> = RefCell::new(SmallRng::from_entropy());
+}
+
 fn trace_benchmark_group<F: Fn(&sdktrace::Tracer)>(c: &mut Criterion, name: &str, f: F) {
     let mut group = c.benchmark_group(name);
 
@@ -129,6 +157,24 @@ fn trace_benchmark_group<F: Fn(&sdktrace::Tracer)>(c: &mut Criterion, name: &str
         b.iter(|| f(&never_sample));
     });
 
+    group.bench_function("always-sample-smallrng", |b| {
+        let provider = sdktrace::TracerProvider::builder()
+            .with_config(sdktrace::config().with_sampler(sdktrace::Sampler::AlwaysOn).with_id_generator(SmallRandomIdGenerator::default()))
+            .with_simple_exporter(VoidExporter)
+            .build();
+        let always_sample = provider.tracer("always-sample-smallrng");
+
+        b.iter(|| f(&always_sample));
+    });
+
+    group.bench_function("never-sample-smallrng", |b| {
+        let provider = sdktrace::TracerProvider::builder()
+            .with_config(sdktrace::config().with_sampler(sdktrace::Sampler::AlwaysOff).with_id_generator(SmallRandomIdGenerator::default()))
+            .with_simple_exporter(VoidExporter)
+            .build();
+        let never_sample = provider.tracer("never-sample-smallrng");
+        b.iter(|| f(&never_sample));
+    });
     group.finish();
 }
 
