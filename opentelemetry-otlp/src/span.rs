@@ -6,6 +6,8 @@ use std::fmt::{self, Debug};
 use std::time::Duration;
 
 #[cfg(feature = "grpc-tonic")]
+use std::str::FromStr;
+#[cfg(feature = "grpc-tonic")]
 use {
     crate::exporter::tonic::{TonicConfig, TonicExporterBuilder},
     opentelemetry_proto::tonic::collector::trace::v1::{

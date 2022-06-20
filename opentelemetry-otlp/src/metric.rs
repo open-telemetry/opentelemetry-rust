@@ -34,6 +34,8 @@ use tonic::metadata::KeyAndValueRef;
 use tonic::transport::Channel;
 #[cfg(feature = "grpc-tonic")]
 use tonic::Request;
+#[cfg(feature = "grpc-tonic")]
+use std::str::FromStr;
 
 /// Target to which the exporter is going to send metrics, defaults to https://localhost:4317/v1/metrics.
 /// Learn about the relationship between this constant and default/spans/logs at
