@@ -12,19 +12,16 @@ use crate::Protocol;
 use std::str::FromStr;
 use std::time::Duration;
 
-/// Target to which the exporter is going to send spans or metrics, defaults to https://localhost:4317.
+/// Target to which the exporter is going to send signals, defaults to https://localhost:4317.
+/// Learn about the relationship between this constant and metrics/spans/logs at
+/// <https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/protocol/exporter.md#endpoint-urls-for-otlphttp>
 pub const OTEL_EXPORTER_OTLP_ENDPOINT: &str = "OTEL_EXPORTER_OTLP_ENDPOINT";
-/// Default target to which the exporter is going to send spans or metrics.
+/// Default target to which the exporter is going to send signals.
 pub const OTEL_EXPORTER_OTLP_ENDPOINT_DEFAULT: &str = "https://localhost:4317";
-/// Max waiting time for the backend to process each spans or metrics batch, defaults to 10 seconds.
+/// Max waiting time for the backend to process each signal batch, defaults to 10 seconds.
 pub const OTEL_EXPORTER_OTLP_TIMEOUT: &str = "OTEL_EXPORTER_OTLP_TIMEOUT";
-/// Default max waiting time for the backend to process each spans or metrics batch.
+/// Default max waiting time for the backend to process each signal batch.
 pub const OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT: u64 = 10;
-
-/// Target to which the exporter is going to send spans, defaults to https://localhost:4317.
-pub const OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: &str = "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT";
-/// Max waiting time for the backend to process each spans batch, defaults to 10s.
-pub const OTEL_EXPORTER_OTLP_TRACES_TIMEOUT: &str = "OTEL_EXPORTER_OTLP_TRACES_TIMEOUT";
 
 #[cfg(feature = "grpc-sys")]
 pub(crate) mod grpcio;
@@ -36,7 +33,7 @@ pub(crate) mod tonic;
 /// Configuration for the OTLP exporter.
 #[derive(Debug)]
 pub struct ExportConfig {
-    /// The address of the OTLP collector. If not set, the default address is used.
+    /// The base address of the OTLP collector. If not set, the default address is used.
     pub endpoint: String,
 
     /// The protocol to use when communicating with the collector.
@@ -129,18 +126,15 @@ impl<B: HasExportConfig> WithExportConfig for B {
     }
 
     fn with_env(mut self) -> Self {
-        let endpoint = match std::env::var(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT) {
+        let endpoint = match std::env::var(OTEL_EXPORTER_OTLP_ENDPOINT) {
             Ok(val) => val,
-            Err(_) => std::env::var(OTEL_EXPORTER_OTLP_ENDPOINT)
-                .unwrap_or_else(|_| OTEL_EXPORTER_OTLP_ENDPOINT_DEFAULT.to_string()),
+            Err(_) => OTEL_EXPORTER_OTLP_ENDPOINT_DEFAULT.to_string(),
         };
         self.export_config().endpoint = endpoint;
 
-        let timeout = match std::env::var(OTEL_EXPORTER_OTLP_TRACES_TIMEOUT) {
+        let timeout = match std::env::var(OTEL_EXPORTER_OTLP_TIMEOUT) {
             Ok(val) => u64::from_str(&val).unwrap_or(OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT),
-            Err(_) => std::env::var(OTEL_EXPORTER_OTLP_TIMEOUT)
-                .map(|val| u64::from_str(&val).unwrap_or(OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT))
-                .unwrap_or(OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT),
+            Err(_) => OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT,
         };
         self.export_config().timeout = Duration::from_secs(timeout);
         self
@@ -159,17 +153,20 @@ impl<B: HasExportConfig> WithExportConfig for B {
 mod tests {
     use crate::exporter::{
         WithExportConfig, OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_TIMEOUT,
-        OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT, OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
-        OTEL_EXPORTER_OTLP_TRACES_TIMEOUT,
+        OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT,
     };
     use crate::new_exporter;
 
     #[test]
-    fn test_pipeline_builder_from_env() {
-        std::env::set_var(OTEL_EXPORTER_OTLP_ENDPOINT, "https://otlp_endpoint:4317");
+    fn test_pipeline_builder_from_env_default_vars() {
+        let expected_endpoint = "https://otlp_endpoint:4317";
+        std::env::set_var(OTEL_EXPORTER_OTLP_ENDPOINT, expected_endpoint);
         std::env::set_var(OTEL_EXPORTER_OTLP_TIMEOUT, "bad_timeout");
 
         let mut exporter_builder = new_exporter().tonic().with_env();
+        assert_eq!(exporter_builder.exporter_config.endpoint, expected_endpoint);
+
+        exporter_builder = new_exporter().tonic().with_env();
         assert_eq!(
             exporter_builder.exporter_config.timeout,
             std::time::Duration::from_secs(OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT)
@@ -187,31 +184,5 @@ mod tests {
         std::env::remove_var(OTEL_EXPORTER_OTLP_TIMEOUT);
         assert!(std::env::var(OTEL_EXPORTER_OTLP_ENDPOINT).is_err());
         assert!(std::env::var(OTEL_EXPORTER_OTLP_TIMEOUT).is_err());
-
-        // test from traces env var
-        std::env::set_var(
-            OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
-            "https://otlp_traces_endpoint:4317",
-        );
-        std::env::set_var(OTEL_EXPORTER_OTLP_TRACES_TIMEOUT, "bad_timeout");
-
-        let mut exporter_builder = new_exporter().tonic().with_env();
-        assert_eq!(
-            exporter_builder.exporter_config.timeout,
-            std::time::Duration::from_secs(OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT)
-        );
-
-        std::env::set_var(OTEL_EXPORTER_OTLP_TRACES_TIMEOUT, "60");
-
-        exporter_builder = new_exporter().tonic().with_env();
-        assert_eq!(
-            exporter_builder.exporter_config.timeout,
-            std::time::Duration::from_secs(60)
-        );
-
-        std::env::remove_var(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT);
-        std::env::remove_var(OTEL_EXPORTER_OTLP_TRACES_TIMEOUT);
-        assert!(std::env::var(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT).is_err());
-        assert!(std::env::var(OTEL_EXPORTER_OTLP_TRACES_TIMEOUT).is_err());
     }
 }
