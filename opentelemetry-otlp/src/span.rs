@@ -3,7 +3,6 @@
 //! Defines a [SpanExporter] to send trace data via the OpenTelemetry Protocol (OTLP)
 
 use std::fmt::{self, Debug};
-use std::str::FromStr;
 use std::time::Duration;
 
 #[cfg(feature = "grpc-tonic")]
