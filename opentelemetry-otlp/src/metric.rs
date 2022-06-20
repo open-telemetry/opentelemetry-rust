@@ -278,7 +278,7 @@ impl MetricsExporter {
             Err(_) => format!("{}{}", config.endpoint, "/v1/metrics"),
         };
 
-        let timeout = match std::env::var(OTEL_EXPORTER_OTLP_METRICS_TIMEOUT) {
+        let _timeout = match std::env::var(OTEL_EXPORTER_OTLP_METRICS_TIMEOUT) {
             Ok(val) => match u64::from_str(&val) {
                 Ok(seconds) => Duration::from_secs(seconds),
                 Err(_) => config.timeout,
@@ -295,7 +295,7 @@ impl MetricsExporter {
                 .map_err::<crate::Error, _>(Into::into)?,
             None => endpoint,
         }
-        .timeout(timeout)
+        .timeout(_timeout)
         .connect_lazy();
 
         #[cfg(not(feature = "tls"))]
