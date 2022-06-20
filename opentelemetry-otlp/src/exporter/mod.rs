@@ -14,7 +14,7 @@ use std::time::Duration;
 
 /// Target to which the exporter is going to send signals, defaults to https://localhost:4317.
 /// Learn about the relationship between this constant and metrics/spans/logs at
-/// https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/protocol/exporter.md#endpoint-urls-for-otlphttp
+/// <https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/protocol/exporter.md#endpoint-urls-for-otlphttp>
 pub const OTEL_EXPORTER_OTLP_ENDPOINT: &str = "OTEL_EXPORTER_OTLP_ENDPOINT";
 /// Default target to which the exporter is going to send signals.
 pub const OTEL_EXPORTER_OTLP_ENDPOINT_DEFAULT: &str = "https://localhost:4317";
