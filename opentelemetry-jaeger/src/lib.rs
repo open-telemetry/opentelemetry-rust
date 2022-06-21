@@ -3,7 +3,7 @@
 //!
 //! See the [Jaeger Docs] for details about Jaeger and deployment information.
 //!
-//! *Compiler support: [requires `rustc` 1.49+][msrv]*
+//! *Compiler support: [requires `rustc` 1.55+][msrv]*
 //!
 //! [Jaeger Docs]: https://www.jaegertracing.io/docs/
 //! [msrv]: #supported-rust-versions

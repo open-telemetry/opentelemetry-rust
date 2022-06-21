@@ -3,7 +3,7 @@
 //! Collects OpenTelemetry spans and reports them to a given Zipkin collector
 //! endpoint. See the [Zipkin Docs] for details and deployment information.
 //!
-//! *Compiler support: [requires `rustc` 1.49+][msrv]*
+//! *Compiler support: [requires `rustc` 1.55+][msrv]*
 //!
 //! [Zipkin Docs]: https://zipkin.io/
 //! [msrv]: #supported-rust-versions
