@@ -62,7 +62,7 @@ pub mod tonic {
                     Value::Bool(val) => Some(any_value::Value::BoolValue(val)),
                     Value::I64(val) => Some(any_value::Value::IntValue(val)),
                     Value::F64(val) => Some(any_value::Value::DoubleValue(val)),
-                    Value::String(val) => Some(any_value::Value::StringValue(val.into_owned())),
+                    Value::String(val) => Some(any_value::Value::StringValue(val.to_string())),
                     Value::Array(array) => Some(any_value::Value::ArrayValue(match array {
                         Array::Bool(vals) => array_into_proto(vals),
                         Array::I64(vals) => array_into_proto(vals),
@@ -144,7 +144,7 @@ pub mod grpcio {
                 Value::Bool(val) => any_value.set_bool_value(val),
                 Value::I64(val) => any_value.set_int_value(val),
                 Value::F64(val) => any_value.set_double_value(val),
-                Value::String(val) => any_value.set_string_value(val.into_owned()),
+                Value::String(val) => any_value.set_string_value(val.to_string()),
                 Value::Array(array) => any_value.set_array_value(match array {
                     Array::Bool(vals) => array_into_proto(vals),
                     Array::I64(vals) => array_into_proto(vals),

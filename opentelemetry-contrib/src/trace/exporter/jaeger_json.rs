@@ -193,7 +193,7 @@ fn opentelemetry_value_to_json(value: &opentelemetry::Value) -> (&str, serde_jso
         opentelemetry::Value::Bool(b) => ("bool", serde_json::json!(b)),
         opentelemetry::Value::I64(i) => ("int64", serde_json::json!(i)),
         opentelemetry::Value::F64(f) => ("float64", serde_json::json!(f)),
-        opentelemetry::Value::String(s) => ("string", serde_json::json!(s)),
+        opentelemetry::Value::String(s) => ("string", serde_json::json!(s.as_str())),
         v @ opentelemetry::Value::Array(_) => ("string", serde_json::json!(v.to_string())),
     }
 }

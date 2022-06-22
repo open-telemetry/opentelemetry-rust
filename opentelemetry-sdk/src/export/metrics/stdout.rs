@@ -94,7 +94,7 @@ where
             let encoded_inst_attributes = if !desc.instrumentation_name().is_empty() {
                 let inst_attributes = AttributeSet::from_attributes(iter::once(KeyValue::new(
                     "instrumentation.name",
-                    desc.instrumentation_name().to_owned(),
+                    desc.instrumentation_name(),
                 )));
                 inst_attributes.encoded(Some(self.attribute_encoder.as_ref()))
             } else {

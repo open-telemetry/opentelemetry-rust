@@ -121,7 +121,7 @@ where
                 .unwrap_or(0);
 
             let span_type = match span.attributes.get(&Key::new("span.type")) {
-                Some(Value::String(s)) => interner.intern(s.as_ref()),
+                Some(Value::String(s)) => interner.intern(s.as_str()),
                 _ => interner.intern(""),
             };
 
