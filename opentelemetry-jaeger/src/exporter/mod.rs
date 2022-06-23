@@ -64,16 +64,19 @@ pub struct Exporter {
     // allow(dead_code).
     #[allow(dead_code)]
     process: jaeger::Process,
-    join_handle: Option<std::thread::JoinHandle<()>>,
 }
 
 impl Exporter {
-    fn new(
+    fn new<R>(
         process: jaeger::Process,
         export_instrumentation_lib: bool,
+        runtime: R,
         uploader: Box<dyn Uploader>,
-    ) -> Exporter {
-        let (tx, rx) = futures::channel::mpsc::channel(64);
+    ) -> Exporter
+    where
+        R: JaegerTraceRuntime,
+    {
+        let (tx, rx) = mpsc::channel(64);
 
         let exporter_task = ExporterTask {
             rx,
@@ -82,15 +85,30 @@ impl Exporter {
             process: process.clone(),
         };
 
-        let join_handle = Some(std::thread::spawn(move || {
-            futures_executor::block_on(exporter_task.run());
-        }));
+        runtime.spawn(Box::pin(exporter_task.run()));
 
-        Exporter {
-            tx,
-            process,
-            join_handle,
-        }
+        Exporter { tx, process }
+    }
+
+    fn new_sync(
+        process: jaeger::Process,
+        export_instrumentation_lib: bool,
+        uploader: Box<dyn Uploader>,
+    ) -> Exporter {
+        let (tx, rx) = mpsc::channel(64);
+
+        let exporter_task = ExporterTask {
+            rx,
+            export_instrumentation_lib,
+            uploader,
+            process: process.clone(),
+        };
+
+        std::thread::spawn(move || {
+            futures_executor::block_on(exporter_task.run());
+        });
+
+        Exporter { tx, process }
     }
 }
 
@@ -155,11 +173,6 @@ impl trace::SpanExporter for Exporter {
 
     fn shutdown(&mut self) {
         let _ = self.tx.try_send(ExportMessage::Shutdown);
-
-        // This has the potential to block indefinitely, but as long as all of
-        // the tasks processed by ExportTask have a timeout, this should join
-        // eventually.
-        self.join_handle.take().map(|handle| handle.join());
     }
 }
 
