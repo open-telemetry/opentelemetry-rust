@@ -184,9 +184,8 @@ impl TextMapPropagator for BaggagePropagator {
 mod tests {
     use super::*;
     use opentelemetry_api::{
-        baggage::BaggageMetadata, propagation::TextMapPropagator, Key, KeyValue, Value,
+        baggage::BaggageMetadata, propagation::TextMapPropagator, Key, KeyValue, StringValue, Value,
     };
-    use std::borrow::Cow;
     use std::collections::HashMap;
 
     #[rustfmt::skip]
@@ -247,7 +246,7 @@ mod tests {
                 vec![
                     KeyValue::new("key1", Value::Array(vec![true, false].into())),
                     KeyValue::new("key2", Value::Array(vec![123, 456].into())),
-                    KeyValue::new("key3", Value::Array(vec![Cow::from("val1"), Cow::from("val2")].into())),
+                    KeyValue::new("key3", Value::Array(vec![StringValue::from("val1"), StringValue::from("val2")].into())),
                 ],
                 vec![
                     "key1=[true%2Cfalse]",

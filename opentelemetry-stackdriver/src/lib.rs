@@ -497,7 +497,7 @@ impl From<Value> for AttributeValue {
             Value::Bool(v) => attribute_value::Value::BoolValue(v),
             Value::F64(v) => attribute_value::Value::StringValue(to_truncate(v.to_string())),
             Value::I64(v) => attribute_value::Value::IntValue(v),
-            Value::String(v) => attribute_value::Value::StringValue(to_truncate(v.into_owned())),
+            Value::String(v) => attribute_value::Value::StringValue(to_truncate(v.to_string())),
             Value::Array(_) => attribute_value::Value::StringValue(to_truncate(v.to_string())),
         };
         AttributeValue {

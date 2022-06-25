@@ -49,7 +49,7 @@ wasm = [
 ]
 
 [dependencies]
-async-std = { version = "= 1.8.0", features = ["unstable"], optional = true }
+async-std = { version = "= 1.10.0", features = ["unstable"], optional = true }
 base64 = { version = "0.13", optional = true }
 futures = "0.3"
 futures-util = { version = "0.3", optional = true }

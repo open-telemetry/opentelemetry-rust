@@ -62,7 +62,7 @@ fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
             opentelemetry_otlp::new_exporter()
                 .tonic()
                 .with_endpoint(endpoint.as_str())
-                .with_metadata(dbg!(metadata))
+                .with_metadata(metadata)
                 .with_tls_config(
                     ClientTlsConfig::new().domain_name(
                         endpoint
