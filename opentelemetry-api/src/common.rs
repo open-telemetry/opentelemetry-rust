@@ -229,39 +229,6 @@ into_array!(
     (Vec<StringValue>, Array::String),
 );
 
-impl From<Vec<&'static str>> for Array {
-    /// Convenience method for creating a `Value` from a `&'static str`.
-    fn from(ss: Vec<&'static str>) -> Self {
-        Array::String(
-            ss.into_iter()
-                .map(|s| StringValue(OtelString::Static(s)))
-                .collect(),
-        )
-    }
-}
-
-impl From<Vec<String>> for Array {
-    /// Convenience method for creating a `Value` from a `String`.
-    fn from(ss: Vec<String>) -> Self {
-        Array::String(
-            ss.into_iter()
-                .map(|s| StringValue(OtelString::Owned(s)))
-                .collect(),
-        )
-    }
-}
-
-impl From<Vec<Arc<str>>> for Array {
-    /// Convenience method for creating a `Value` from a `String`.
-    fn from(ss: Vec<Arc<str>>) -> Self {
-        Array::String(
-            ss.into_iter()
-                .map(|s| StringValue(OtelString::RefCounted(s)))
-                .collect(),
-        )
-    }
-}
-
 /// The value part of attribute [KeyValue] pairs.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Value {
@@ -294,6 +261,12 @@ impl fmt::Display for StringValue {
             OtelString::Static(s) => s.fmt(f),
             OtelString::RefCounted(s) => s.fmt(f),
         }
+    }
+}
+
+impl AsRef<str> for StringValue {
+    fn as_ref(&self) -> &str {
+        self.0.as_str()
     }
 }
 
@@ -380,28 +353,24 @@ from_values!(
 );
 
 impl From<&'static str> for Value {
-    /// Convenience method for creating a `Value` from a `&'static str`.
     fn from(s: &'static str) -> Self {
         Value::String(s.into())
     }
 }
 
 impl From<String> for Value {
-    /// Convenience method for creating a `Value` from a `String`.
     fn from(s: String) -> Self {
         Value::String(s.into())
     }
 }
 
 impl From<Arc<str>> for Value {
-    /// Convenience method for creating a `Value` from a `String`.
     fn from(s: Arc<str>) -> Self {
         Value::String(s.into())
     }
 }
 
 impl From<Cow<'static, str>> for Value {
-    /// Convenience method for creating a `Value` from a `String`.
     fn from(s: Cow<'static, str>) -> Self {
         Value::String(s.into())
     }

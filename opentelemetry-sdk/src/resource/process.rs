@@ -4,7 +4,7 @@
 
 use crate::resource::ResourceDetector;
 use crate::Resource;
-use opentelemetry_api::{KeyValue, Value};
+use opentelemetry_api::{KeyValue, StringValue, Value};
 use std::env::args_os;
 use std::process::id;
 use std::time::Duration;
@@ -24,8 +24,8 @@ impl ResourceDetector for ProcessResourceDetector {
         let arguments = args_os();
         let cmd_arg_val = arguments
             .into_iter()
-            .map(|arg| arg.to_string_lossy().into_owned())
-            .collect::<Vec<String>>();
+            .map(|arg| arg.to_string_lossy().into_owned().into())
+            .collect::<Vec<StringValue>>();
         Resource::new(vec![
             KeyValue::new("process.command_args", Value::Array(cmd_arg_val.into())),
             KeyValue::new("process.pid", id() as i64),
