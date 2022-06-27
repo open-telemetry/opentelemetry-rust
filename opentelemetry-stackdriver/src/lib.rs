@@ -11,6 +11,7 @@
 
 use std::{
     collections::HashMap,
+    convert::TryFrom,
     fmt,
     future::Future,
     sync::{
@@ -418,7 +419,7 @@ impl Authorizer for YupAuthorizer {
 
         req.metadata_mut().insert(
             "authorization",
-            MetadataValue::from_str(&format!("Bearer {}", token.as_str())).unwrap(),
+            MetadataValue::try_from(format!("Bearer {}", token.as_str())).unwrap(),
         );
         Ok(())
     }
@@ -471,7 +472,7 @@ impl Authorizer for GcpAuthorizer {
 
         req.metadata_mut().insert(
             "authorization",
-            MetadataValue::from_str(&format!("Bearer {}", token.as_str())).unwrap(),
+            MetadataValue::try_from(format!("Bearer {}", token.as_str())).unwrap(),
         );
 
         Ok(())
