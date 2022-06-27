@@ -1,5 +1,6 @@
 use crate::trace::{noop::NoopTracerProvider, SpanContext, Status};
 use crate::{trace, trace::TracerProvider, Context, KeyValue};
+use once_cell::sync::Lazy;
 use std::borrow::Cow;
 use std::fmt;
 use std::mem;
@@ -352,10 +353,12 @@ impl trace::TracerProvider for GlobalTracerProvider {
     }
 }
 
-lazy_static::lazy_static! {
-    /// The global `Tracer` provider singleton.
-    static ref GLOBAL_TRACER_PROVIDER: RwLock<GlobalTracerProvider> = RwLock::new(GlobalTracerProvider::new(trace::noop::NoopTracerProvider::new()));
-}
+/// The global `Tracer` provider singleton.
+static GLOBAL_TRACER_PROVIDER: Lazy<RwLock<GlobalTracerProvider>> = Lazy::new(|| {
+    RwLock::new(GlobalTracerProvider::new(
+        trace::noop::NoopTracerProvider::new(),
+    ))
+});
 
 /// Returns an instance of the currently configured global [`TracerProvider`] through
 /// [`GlobalTracerProvider`].

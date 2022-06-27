@@ -36,6 +36,7 @@
 //! A more detailed example can be found in [opentelemetry-rust](https://github.com/open-telemetry/opentelemetry-rust/tree/main/examples/aws-xray) repo
 #[cfg(feature = "trace")]
 pub mod trace {
+    use once_cell::sync::Lazy;
     use opentelemetry::{
         global::{self, Error},
         propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
@@ -58,9 +59,8 @@ pub mod trace {
 
     const TRACE_FLAG_DEFERRED: TraceFlags = TraceFlags::new(0x02);
 
-    lazy_static::lazy_static! {
-        static ref AWS_XRAY_HEADER_FIELD: [String; 1] = [AWS_XRAY_TRACE_HEADER.to_string()];
-    }
+    static AWS_XRAY_HEADER_FIELD: Lazy<[String; 1]> =
+        Lazy::new(|| [AWS_XRAY_TRACE_HEADER.to_owned()]);
 
     /// Extracts and injects `SpanContext`s into `Extractor`s or `Injector`s using AWS X-Ray header format.
     ///

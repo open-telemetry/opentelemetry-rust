@@ -19,9 +19,7 @@ use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use std::time;
 
-lazy_static::lazy_static! {
-    static ref DEFAULT_PUSH_PERIOD: time::Duration = time::Duration::from_secs(10);
-}
+const DEFAULT_PUSH_PERIOD: time::Duration = time::Duration::from_secs(10);
 
 /// Create a new `PushControllerBuilder`.
 pub fn push<AS, ES, E, SP, SO, I, IO>(
@@ -183,14 +181,14 @@ where
 
         let (message_sender, message_receiver) = mpsc::channel(256);
         let ticker =
-            (self.interval)(self.period.unwrap_or(*DEFAULT_PUSH_PERIOD)).map(|_| PushMessage::Tick);
+            (self.interval)(self.period.unwrap_or(DEFAULT_PUSH_PERIOD)).map(|_| PushMessage::Tick);
 
         (self.spawn)(PushControllerWorker {
             messages: Box::pin(select(message_receiver, ticker)),
             accumulator,
             processor,
             exporter: self.exporter,
-            _timeout: self.timeout.unwrap_or(*DEFAULT_PUSH_PERIOD),
+            _timeout: self.timeout.unwrap_or(DEFAULT_PUSH_PERIOD),
         });
 
         PushController {

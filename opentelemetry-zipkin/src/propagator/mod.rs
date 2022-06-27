@@ -13,6 +13,7 @@
 //!
 //! If `inject_encoding` is set to `B3Encoding::SingleHeader` then `b3` header is used to inject
 //! and extract. Otherwise, separate headers are used to inject and extract.
+use once_cell::sync::Lazy;
 use opentelemetry::{
     propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
     trace::{SpanContext, SpanId, TraceContextExt, TraceFlags, TraceId, TraceState},
@@ -33,11 +34,24 @@ const B3_PARENT_SPAN_ID_HEADER: &str = "x-b3-parentspanid";
 const TRACE_FLAG_DEFERRED: TraceFlags = TraceFlags::new(0x02);
 const TRACE_FLAG_DEBUG: TraceFlags = TraceFlags::new(0x04);
 
-lazy_static::lazy_static! {
-    static ref B3_SINGLE_FIELDS: [String; 1] = [B3_SINGLE_HEADER.to_string()];
-    static ref B3_MULTI_FIELDS: [String; 4] = [B3_TRACE_ID_HEADER.to_string(), B3_SPAN_ID_HEADER.to_string(), B3_SAMPLED_HEADER.to_string(), B3_DEBUG_FLAG_HEADER.to_string()];
-    static ref B3_SINGLE_AND_MULTI_FIELDS: [String; 5] = [B3_SINGLE_HEADER.to_string(), B3_TRACE_ID_HEADER.to_string(), B3_SPAN_ID_HEADER.to_string(), B3_SAMPLED_HEADER.to_string(), B3_DEBUG_FLAG_HEADER.to_string()];
-}
+static B3_SINGLE_FIELDS: Lazy<[String; 1]> = Lazy::new(|| [B3_SINGLE_HEADER.to_owned()]);
+static B3_MULTI_FIELDS: Lazy<[String; 4]> = Lazy::new(|| {
+    [
+        B3_TRACE_ID_HEADER.to_owned(),
+        B3_SPAN_ID_HEADER.to_owned(),
+        B3_SAMPLED_HEADER.to_owned(),
+        B3_DEBUG_FLAG_HEADER.to_owned(),
+    ]
+});
+static B3_SINGLE_AND_MULTI_FIELDS: Lazy<[String; 5]> = Lazy::new(|| {
+    [
+        B3_SINGLE_HEADER.to_owned(),
+        B3_TRACE_ID_HEADER.to_owned(),
+        B3_SPAN_ID_HEADER.to_owned(),
+        B3_SAMPLED_HEADER.to_owned(),
+        B3_DEBUG_FLAG_HEADER.to_owned(),
+    ]
+});
 
 /// B3Encoding is a bitmask to represent B3 encoding type
 #[derive(Clone, Debug)]
