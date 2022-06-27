@@ -554,17 +554,17 @@ pub mod tail_log_entries_response {
         }
     }
 }
-#[doc = r" Generated client implementations."]
+/// Generated client implementations.
 pub mod logging_service_v2_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;
-    #[doc = " Service for ingesting and querying logs."]
+    /// Service for ingesting and querying logs.
     #[derive(Debug, Clone)]
     pub struct LoggingServiceV2Client<T> {
         inner: tonic::client::Grpc<T>,
     }
     impl LoggingServiceV2Client<tonic::transport::Channel> {
-        #[doc = r" Attempt to create a new client by connecting to a given endpoint."]
+        /// Attempt to create a new client by connecting to a given endpoint.
         pub async fn connect<D>(dst: D) -> Result<Self, tonic::transport::Error>
         where
             D: std::convert::TryInto<tonic::transport::Endpoint>,
@@ -577,8 +577,8 @@ pub mod logging_service_v2_client {
     impl<T> LoggingServiceV2Client<T>
     where
         T: tonic::client::GrpcService<tonic::body::BoxBody>,
-        T::ResponseBody: Body + Send + 'static,
         T::Error: Into<StdError>,
+        T::ResponseBody: Body<Data = Bytes> + Send + 'static,
         <T::ResponseBody as Body>::Error: Into<StdError> + Send,
     {
         pub fn new(inner: T) -> Self {
@@ -591,6 +591,7 @@ pub mod logging_service_v2_client {
         ) -> LoggingServiceV2Client<InterceptedService<T, F>>
         where
             F: tonic::service::Interceptor,
+            T::ResponseBody: Default,
             T: tonic::codegen::Service<
                 http::Request<tonic::body::BoxBody>,
                 Response = http::Response<
@@ -602,23 +603,25 @@ pub mod logging_service_v2_client {
         {
             LoggingServiceV2Client::new(InterceptedService::new(inner, interceptor))
         }
-        #[doc = r" Compress requests with `gzip`."]
-        #[doc = r""]
-        #[doc = r" This requires the server to support it otherwise it might respond with an"]
-        #[doc = r" error."]
+        /// Compress requests with `gzip`.
+        ///
+        /// This requires the server to support it otherwise it might respond with an
+        /// error.
+        #[must_use]
         pub fn send_gzip(mut self) -> Self {
             self.inner = self.inner.send_gzip();
             self
         }
-        #[doc = r" Enable decompressing responses with `gzip`."]
+        /// Enable decompressing responses with `gzip`.
+        #[must_use]
         pub fn accept_gzip(mut self) -> Self {
             self.inner = self.inner.accept_gzip();
             self
         }
-        #[doc = " Deletes all the log entries in a log for the _Default Log Bucket. The log"]
-        #[doc = " reappears if it receives new entries. Log entries written shortly before"]
-        #[doc = " the delete operation might not be deleted. Entries received after the"]
-        #[doc = " delete operation with a timestamp before the operation will be deleted."]
+        /// Deletes all the log entries in a log for the _Default Log Bucket. The log
+        /// reappears if it receives new entries. Log entries written shortly before
+        /// the delete operation might not be deleted. Entries received after the
+        /// delete operation with a timestamp before the operation will be deleted.
         pub async fn delete_log(
             &mut self,
             request: impl tonic::IntoRequest<super::DeleteLogRequest>,
@@ -635,13 +638,13 @@ pub mod logging_service_v2_client {
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
-        #[doc = " Writes log entries to Logging. This API method is the"]
-        #[doc = " only way to send log entries to Logging. This method"]
-        #[doc = " is used, directly or indirectly, by the Logging agent"]
-        #[doc = " (fluentd) and all logging libraries configured to use Logging."]
-        #[doc = " A single request may contain log entries for a maximum of 1000"]
-        #[doc = " different resources (projects, organizations, billing accounts or"]
-        #[doc = " folders)"]
+        /// Writes log entries to Logging. This API method is the
+        /// only way to send log entries to Logging. This method
+        /// is used, directly or indirectly, by the Logging agent
+        /// (fluentd) and all logging libraries configured to use Logging.
+        /// A single request may contain log entries for a maximum of 1000
+        /// different resources (projects, organizations, billing accounts or
+        /// folders)
         pub async fn write_log_entries(
             &mut self,
             request: impl tonic::IntoRequest<super::WriteLogEntriesRequest>,
@@ -658,10 +661,10 @@ pub mod logging_service_v2_client {
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
-        #[doc = " Lists log entries.  Use this method to retrieve log entries that originated"]
-        #[doc = " from a project/folder/organization/billing account.  For ways to export log"]
-        #[doc = " entries, see [Exporting"]
-        #[doc = " Logs](https://cloud.google.com/logging/docs/export)."]
+        /// Lists log entries.  Use this method to retrieve log entries that originated
+        /// from a project/folder/organization/billing account.  For ways to export log
+        /// entries, see [Exporting
+        /// Logs](https://cloud.google.com/logging/docs/export).
         pub async fn list_log_entries(
             &mut self,
             request: impl tonic::IntoRequest<super::ListLogEntriesRequest>,
@@ -678,7 +681,7 @@ pub mod logging_service_v2_client {
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
-        #[doc = " Lists the descriptors for monitored resource types used by Logging."]
+        /// Lists the descriptors for monitored resource types used by Logging.
         pub async fn list_monitored_resource_descriptors(
             &mut self,
             request: impl tonic::IntoRequest<super::ListMonitoredResourceDescriptorsRequest>,
@@ -696,8 +699,8 @@ pub mod logging_service_v2_client {
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
-        #[doc = " Lists the logs in projects, organizations, folders, or billing accounts."]
-        #[doc = " Only logs that have entries are listed."]
+        /// Lists the logs in projects, organizations, folders, or billing accounts.
+        /// Only logs that have entries are listed.
         pub async fn list_logs(
             &mut self,
             request: impl tonic::IntoRequest<super::ListLogsRequest>,
@@ -714,8 +717,8 @@ pub mod logging_service_v2_client {
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
-        #[doc = " Streaming read of log entries as they are ingested. Until the stream is"]
-        #[doc = " terminated, it will continue reading logs."]
+        /// Streaming read of log entries as they are ingested. Until the stream is
+        /// terminated, it will continue reading logs.
         pub async fn tail_log_entries(
             &mut self,
             request: impl tonic::IntoStreamingRequest<Message = super::TailLogEntriesRequest>,
