@@ -33,9 +33,12 @@ use opentelemetry::{
         trace::EvictedHashMap,
     },
     trace::TraceError,
-    Value,
+    Key, Value,
 };
-use opentelemetry_semantic_conventions as semcov;
+use opentelemetry_semantic_conventions::resource::SERVICE_NAME;
+use opentelemetry_semantic_conventions::trace::{
+    HTTP_HOST, HTTP_METHOD, HTTP_ROUTE, HTTP_STATUS_CODE, HTTP_TARGET, HTTP_URL, HTTP_USER_AGENT,
+};
 use thiserror::Error;
 #[cfg(any(feature = "yup-authorizer", feature = "gcp_auth"))]
 use tonic::metadata::MetadataValue;
@@ -650,20 +653,6 @@ pub enum MonitoredResource {
     },
 }
 
-const TRACE_APPEND: &str = "https://www.googleapis.com/auth/trace.append";
-const LOGGING_WRITE: &str = "https://www.googleapis.com/auth/logging.write";
-const HTTP_PATH_ATTRIBUTE: &str = "http.path";
-
-const GCP_HTTP_HOST: &str = "/http/host";
-const GCP_HTTP_METHOD: &str = "/http/method";
-const GCP_HTTP_TARGET: &str = "/http/path";
-const GCP_HTTP_URL: &str = "/http/url";
-const GCP_HTTP_USER_AGENT: &str = "/http/user_agent";
-const GCP_HTTP_STATUS_CODE: &str = "/http/status_code";
-const GCP_HTTP_ROUTE: &str = "/http/route";
-const GCP_HTTP_PATH: &str = "/http/path";
-const GCP_SERVICE_NAME: &str = "g.co/gae/app/module";
-
 impl From<EvictedHashMap> for Attributes {
     fn from(attributes: EvictedHashMap) -> Self {
         let mut dropped_attributes_count: i32 = 0;
@@ -676,40 +665,16 @@ impl From<EvictedHashMap> for Attributes {
                     return None;
                 }
 
-                if semcov::trace::HTTP_HOST == k {
-                    return Some((GCP_HTTP_HOST.to_owned(), v.into()));
-                }
-
-                if semcov::trace::HTTP_METHOD == k {
-                    return Some((GCP_HTTP_METHOD.to_owned(), v.into()));
-                }
-
-                if semcov::trace::HTTP_TARGET == k {
-                    return Some((GCP_HTTP_TARGET.to_owned(), v.into()));
-                }
-
-                if semcov::trace::HTTP_URL == k {
-                    return Some((GCP_HTTP_URL.to_owned(), v.into()));
-                }
-
-                if semcov::trace::HTTP_USER_AGENT == k {
-                    return Some((GCP_HTTP_USER_AGENT.to_owned(), v.into()));
-                }
-
-                if semcov::trace::HTTP_STATUS_CODE == k {
-                    return Some((GCP_HTTP_STATUS_CODE.to_owned(), v.into()));
-                }
-
-                if semcov::trace::HTTP_ROUTE == k {
-                    return Some((GCP_HTTP_ROUTE.to_owned(), v.into()));
-                };
-
-                if semcov::resource::SERVICE_NAME == k {
+                if k == SERVICE_NAME {
                     return Some((GCP_SERVICE_NAME.to_owned(), v.into()));
-                };
-
-                if HTTP_PATH_ATTRIBUTE == key {
+                } else if key == HTTP_PATH_ATTRIBUTE {
                     return Some((GCP_HTTP_PATH.to_owned(), v.into()));
+                }
+
+                for (otel_key, gcp_key) in KEY_MAP {
+                    if otel_key == &k {
+                        return Some((gcp_key.to_owned(), v.into()));
+                    }
                 }
 
                 Some((key.to_owned(), v.into()))
@@ -721,6 +686,23 @@ impl From<EvictedHashMap> for Attributes {
         }
     }
 }
+
+// Map conventional OpenTelemetry keys to their GCP counterparts.
+const KEY_MAP: [(&Key, &str); 7] = [
+    (&HTTP_HOST, "/http/host"),
+    (&HTTP_METHOD, "/http/method"),
+    (&HTTP_TARGET, "/http/path"),
+    (&HTTP_URL, "/http/url"),
+    (&HTTP_USER_AGENT, "/http/user_agent"),
+    (&HTTP_STATUS_CODE, "/http/status_code"),
+    (&HTTP_ROUTE, "/http/route"),
+];
+
+const TRACE_APPEND: &str = "https://www.googleapis.com/auth/trace.append";
+const LOGGING_WRITE: &str = "https://www.googleapis.com/auth/logging.write";
+const HTTP_PATH_ATTRIBUTE: &str = "http.path";
+const GCP_HTTP_PATH: &str = "/http/path";
+const GCP_SERVICE_NAME: &str = "g.co/gae/app/module";
 
 #[cfg(test)]
 mod tests {
