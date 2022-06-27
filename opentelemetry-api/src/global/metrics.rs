@@ -1,10 +1,13 @@
 use crate::metrics::{self, Meter, MeterProvider};
+use once_cell::sync::Lazy;
 use std::sync::{Arc, RwLock};
 
-lazy_static::lazy_static! {
-    /// The global `Meter` provider singleton.
-    static ref GLOBAL_METER_PROVIDER: RwLock<GlobalMeterProvider> = RwLock::new(GlobalMeterProvider::new(metrics::noop::NoopMeterProvider::new()));
-}
+/// The global `Meter` provider singleton.
+static GLOBAL_METER_PROVIDER: Lazy<RwLock<GlobalMeterProvider>> = Lazy::new(|| {
+    RwLock::new(GlobalMeterProvider::new(
+        metrics::noop::NoopMeterProvider::new(),
+    ))
+});
 
 /// Represents the globally configured [`MeterProvider`] instance for this
 /// application.

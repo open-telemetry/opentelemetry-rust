@@ -15,12 +15,11 @@
 //!
 //! [W3C Baggage]: https://w3c.github.io/baggage
 use crate::{Context, Key, KeyValue, Value};
+use once_cell::sync::Lazy;
 use std::collections::{hash_map, HashMap};
 use std::iter::FromIterator;
 
-lazy_static::lazy_static! {
-    static ref DEFAULT_BAGGAGE: Baggage = Baggage::default();
-}
+static DEFAULT_BAGGAGE: Lazy<Baggage> = Lazy::new(Baggage::default);
 
 const MAX_KEY_VALUE_PAIRS: usize = 180;
 const MAX_BYTES_FOR_ONE_PAIR: usize = 4096;

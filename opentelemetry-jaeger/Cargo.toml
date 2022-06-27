@@ -29,7 +29,7 @@ headers = { version = "0.3.2", optional = true }
 http = { version = "0.2", optional = true }
 isahc = { version = "1.4", default-features = false, optional = true }
 js-sys = { version = "0.3", optional = true }
-lazy_static = "1.4"
+once_cell = "1.12"
 opentelemetry = { version = "0.17", default-features = false, features = ["trace"], path = "../opentelemetry" }
 opentelemetry-http = { version = "0.6", path = "../opentelemetry-http", optional = true }
 opentelemetry-semantic-conventions = { version = "0.9", path = "../opentelemetry-semantic-conventions" }

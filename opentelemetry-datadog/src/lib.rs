@@ -137,6 +137,7 @@
 mod exporter;
 
 mod propagator {
+    use once_cell::sync::Lazy;
     use opentelemetry::{
         propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
         trace::{SpanContext, SpanId, TraceContextExt, TraceFlags, TraceId, TraceState},
@@ -149,13 +150,13 @@ mod propagator {
 
     const TRACE_FLAG_DEFERRED: TraceFlags = TraceFlags::new(0x02);
 
-    lazy_static::lazy_static! {
-        static ref DATADOG_HEADER_FIELDS: [String; 3] = [
+    static DATADOG_HEADER_FIELDS: Lazy<[String; 3]> = Lazy::new(|| {
+        [
             DATADOG_TRACE_ID_HEADER.to_string(),
             DATADOG_PARENT_ID_HEADER.to_string(),
             DATADOG_SAMPLING_PRIORITY_HEADER.to_string(),
-        ];
-    }
+        ]
+    });
 
     enum SamplingPriority {
         UserReject = -1,

@@ -14,12 +14,20 @@ use crate::{
     },
     Context, KeyValue,
 };
+use once_cell::sync::Lazy;
 use std::any::Any;
 use std::sync::Arc;
 
-lazy_static::lazy_static! {
-    static ref NOOP_DESCRIPTOR: Descriptor = Descriptor::new(String::new(), "noop", None, None, InstrumentKind::Counter, NumberKind::U64);
-}
+static NOOP_DESCRIPTOR: Lazy<Descriptor> = Lazy::new(|| {
+    Descriptor::new(
+        String::new(),
+        "noop",
+        None,
+        None,
+        InstrumentKind::Counter,
+        NumberKind::U64,
+    )
+});
 
 /// A no-op instance of a `MetricProvider`
 #[derive(Debug, Default)]

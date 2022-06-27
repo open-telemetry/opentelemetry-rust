@@ -16,19 +16,17 @@ use crate::SpanQueue;
 use opentelemetry::sdk::export::trace::SpanData;
 use opentelemetry_proto::grpcio::tracez::TracezCounts;
 
-lazy_static! {
-    static ref LATENCY_BUCKET: [Duration; 9] = [
-        Duration::from_micros(0),
-        Duration::from_micros(10),
-        Duration::from_micros(100),
-        Duration::from_millis(1),
-        Duration::from_millis(10),
-        Duration::from_millis(100),
-        Duration::from_secs(1),
-        Duration::from_secs(10),
-        Duration::from_secs(100),
-    ];
-}
+const LATENCY_BUCKET: [Duration; 9] = [
+    Duration::from_micros(0),
+    Duration::from_micros(10),
+    Duration::from_micros(100),
+    Duration::from_millis(1),
+    Duration::from_millis(10),
+    Duration::from_millis(100),
+    Duration::from_secs(1),
+    Duration::from_secs(10),
+    Duration::from_secs(100),
+];
 const LATENCY_BUCKET_COUNT: usize = 9;
 
 /// Aggregate span information from `ZPagesSpanProcessor` and feed that information to server when
@@ -166,8 +164,8 @@ fn latency_bucket(start_time: SystemTime, end_time: SystemTime) -> usize {
         - start_time
             .duration_since(UNIX_EPOCH)
             .unwrap_or_else(|_| Duration::from_millis(0));
-    for idx in 1..LATENCY_BUCKET.len() {
-        if LATENCY_BUCKET[idx] > latency {
+    for (idx, lower) in LATENCY_BUCKET.iter().copied().enumerate().skip(1) {
+        if lower > latency {
             return (idx - 1) as usize;
         }
     }

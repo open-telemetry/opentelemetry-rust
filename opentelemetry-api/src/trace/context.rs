@@ -5,21 +5,20 @@ use crate::{
     Context, ContextGuard, KeyValue,
 };
 use futures_util::{sink::Sink, stream::Stream};
+use once_cell::sync::Lazy;
 use pin_project::pin_project;
-use std::error::Error;
-use std::sync::Mutex;
 use std::{
     borrow::Cow,
+    error::Error,
     pin::Pin,
+    sync::Mutex,
     task::{Context as TaskContext, Poll},
 };
 
-lazy_static::lazy_static! {
-    static ref NOOP_SPAN: SynchronizedSpan = SynchronizedSpan {
-        span_context: SpanContext::empty_context(),
-        inner: None,
-    };
-}
+static NOOP_SPAN: Lazy<SynchronizedSpan> = Lazy::new(|| SynchronizedSpan {
+    span_context: SpanContext::empty_context(),
+    inner: None,
+});
 
 /// A reference to the currently active span in this context.
 #[derive(Debug)]
