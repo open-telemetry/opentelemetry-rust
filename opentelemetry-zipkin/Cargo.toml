@@ -43,5 +43,5 @@ futures-core = "0.3"
 [dev-dependencies]
 bytes = "1"
 futures-util = { version = "0.3", features = ["io"] }
-isahc = "1.4"
+hyper = "0.14"
 opentelemetry = { default-features = false, features = ["trace", "testing"], path = "../opentelemetry" }

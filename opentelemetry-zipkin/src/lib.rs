@@ -3,7 +3,7 @@
 //! Collects OpenTelemetry spans and reports them to a given Zipkin collector
 //! endpoint. See the [Zipkin Docs] for details and deployment information.
 //!
-//! *Compiler support: [requires `rustc` 1.55+][msrv]*
+//! *Compiler support: [requires `rustc` 1.49+][msrv]*
 //!
 //! [Zipkin Docs]: https://zipkin.io/
 //! [msrv]: #supported-rust-versions
@@ -98,31 +98,39 @@
 //! use http::{Request, Response};
 //! use std::convert::TryInto as _;
 //! use std::error::Error;
+//! use hyper::{client::HttpConnector, Body};
 //!
 //! // `reqwest` and `surf` are supported through features, if you prefer an
 //! // alternate http client you can add support by implementing `HttpClient` as
 //! // shown here.
 //! #[derive(Debug)]
-//! struct IsahcClient(isahc::HttpClient);
+//! struct HyperClient(hyper::Client<HttpConnector, Body>);
 //!
 //! #[async_trait]
-//! impl HttpClient for IsahcClient {
-//!     async fn send(&self, request: Request<Vec<u8>>) -> Result<Response<Bytes>, HttpError> {
-//!         let mut response = self.0.send_async(request).await?;
-//!         let status = response.status();
-//!         let mut bytes = Vec::with_capacity(response.body().len().unwrap_or(0).try_into()?);
-//!         isahc::AsyncReadResponseExt::copy_to(&mut response, &mut bytes).await?;
+//! impl HttpClient for HyperClient {
+//!     async fn send(&self, req: Request<Vec<u8>>) -> Result<Response<Bytes>, HttpError> {
+//!         let resp = self
+//!             .0
+//!             .request(req.map(|v| Body::from(v)))
+//!             .await?;
 //!
-//!         Ok(Response::builder()
-//!             .status(response.status())
-//!             .body(bytes.into())?)
+//!         let response = Response::builder()
+//!             .status(resp.status())
+//!             .body({
+//!                 hyper::body::to_bytes(resp.into_body())
+//!                     .await
+//!                     .expect("cannot decode response")
+//!             })
+//!             .expect("cannot build response");
+//!
+//!         Ok(response)
 //!     }
 //! }
 //!
 //! fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
 //!     global::set_text_map_propagator(opentelemetry_zipkin::Propagator::new());
 //!     let tracer = opentelemetry_zipkin::new_pipeline()
-//!         .with_http_client(IsahcClient(isahc::HttpClient::new()?))
+//!         .with_http_client(HyperClient(hyper::Client::new()))
 //!         .with_service_name("my_app")
 //!         .with_service_address("127.0.0.1:8080".parse()?)
 //!         .with_collector_endpoint("http://localhost:9411/api/v2/spans")
