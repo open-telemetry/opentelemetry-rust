@@ -8,7 +8,7 @@ edition = "2018"
 async-std = { version = "= 1.10.0", features = ["unstable"], optional = true }
 async-trait = { version = "0.1", optional = true }
 crossbeam-channel = { version = "0.5", optional = true }
-dashmap = { version = "5.3.4", optional = true }
+dashmap = { version = "=5.1.0", optional = true }
 fnv = { version = "1.0", optional = true }
 futures-channel = "0.3"
 futures-executor = "0.3"

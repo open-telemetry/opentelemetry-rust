@@ -553,14 +553,15 @@ where
     }
 }
 
-impl<K, V, const N: usize> From<[(K, V); N]> for OrderMap<K, V, RandomState>
-where
-    K: Hash + Eq,
-{
-    fn from(arr: [(K, V); N]) -> Self {
-        Self(IndexMap::from(arr))
-    }
-}
+// todo: uncomment when the MSRV bumps
+// impl<K, V, const N: usize> From<[(K, V); N]> for OrderMap<K, V, RandomState>
+// where
+//     K: Hash + Eq,
+// {
+//     fn from(arr: [(K, V); N]) -> Self {
+//         Self(IndexMap::from(arr))
+//     }
+// }
 
 impl<K, V, S> Extend<(K, V)> for OrderMap<K, V, S>
 where
@@ -641,12 +642,13 @@ where
     }
 }
 
-impl<const N: usize> From<[KeyValue; N]> for OrderMap<Key, Value, RandomState> {
-    fn from(arr: [KeyValue; N]) -> Self {
-        let arr = arr.map(|kv| (kv.key, kv.value));
-        Self(IndexMap::from(arr))
-    }
-}
+// todo: uncomment below when bumping MSRV
+// impl<const N: usize> From<[KeyValue; N]> for OrderMap<Key, Value, RandomState> {
+//     fn from(arr: [KeyValue; N]) -> Self {
+//         let arr = arr.map(|kv| (kv.key, kv.value));
+//         Self(IndexMap::from(arr))
+//     }
+// }
 
 impl<S> Extend<KeyValue> for OrderMap<Key, Value, S>
 where
