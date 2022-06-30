@@ -9,8 +9,8 @@ fn setup() {
     let client = reqwest::Client::new();
 
     let sampler = Sampler::jaeger_remote(runtime::Tokio, client, Sampler::AlwaysOff, "foo")
-        .with_endpoint("http://localhost:5778/sampling")
-        .with_update_interval(Duration::from_secs(5))
+        .with_endpoint("http://localhost:5778/sampling") // setup jaeger remote sampler endpoint
+        .with_update_interval(Duration::from_secs(5)) // will call jaeger sampling endpoint every 5 secs.
         .build()
         .unwrap();
 

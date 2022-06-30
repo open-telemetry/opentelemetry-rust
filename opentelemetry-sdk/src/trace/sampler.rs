@@ -47,12 +47,15 @@ use opentelemetry_api::{
 };
 use std::convert::TryInto;
 
+#[cfg(feature = "jaeger_remote_sampler")]
 mod jaeger_remote;
 
+#[cfg(feature = "jaeger_remote_sampler")]
 use jaeger_remote::JaegerRemoteSampler;
-use opentelemetry_http::HttpClient;
-
+#[cfg(feature = "jaeger_remote_sampler")]
 pub use jaeger_remote::JaegerRemoteSamplerBuilder;
+#[cfg(feature = "jaeger_remote_sampler")]
+use opentelemetry_http::HttpClient;
 
 /// The `ShouldSample` interface allows implementations to provide samplers
 /// which will return a sampling `SamplingResult` based on information that
@@ -72,7 +75,7 @@ pub trait ShouldSample: Send + Sync + std::fmt::Debug {
     ) -> SamplingResult;
 }
 
-/// Sampling options
+/// Build in samplers.
 #[derive(Clone, Debug)]
 #[non_exhaustive]
 pub enum Sampler {
@@ -94,6 +97,7 @@ pub enum Sampler {
     /// The sampler uses TraceIdRatioBased or rate-limited sampler under the hood.
     /// These samplers can be configured per whole service (a.k.a default), or per span name in a
     /// given service (a.k.a per operation).
+    #[cfg(feature = "jaeger_remote_sampler")]
     JaegerRemote(JaegerRemoteSampler),
 }
 
@@ -106,15 +110,8 @@ impl Sampler {
     /// - a default sampler to make sampling decision when the remote is unavailable or before the SDK receive the first response,
     /// - the service name. This is a required parameter to query the sampling endpoint.
     ///
-    /// ## Examples
-    /// ```ignore
-    /// let sampler = Sampler::jaeger_remote(<runtime>, <http client>, Sampler::AlwaysOff, "foo")
-    ///         .with_endpoint("http://localhost:5778/sampling")
-    ///         .with_update_interval(Duration::from_secs(5))
-    ///         .build()?;
-    ///
-    /// let trace_config = opentelemetry_sdk::trace::config().with_sampler(sampler);
-    /// ```
+    /// See [here](https://github.com/open-telemetry/opentelemetry-rust/blob/main/examples/jaeger-remote-sampler/src/main.rs) for an example.
+    #[cfg(feature = "jaeger_remote_sampler")]
     pub fn jaeger_remote<C, Sampler, R, Svc>(
         runtime: R,
         http_client: C,
@@ -174,6 +171,7 @@ impl ShouldSample for Sampler {
             }
             // Probabilistically sample the trace.
             Sampler::TraceIdRatioBased(prob) => sample_based_on_probability(prob, trace_id),
+            #[cfg(feature = "jaeger_remote_sampler")]
             Sampler::JaegerRemote(remote_sampler) => {
                 remote_sampler
                     .should_sample(

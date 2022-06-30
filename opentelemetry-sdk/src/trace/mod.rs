@@ -24,7 +24,7 @@ pub use evicted_queue::EvictedQueue;
 pub use id_generator::{aws::XrayIdGenerator, IdGenerator, RandomIdGenerator};
 pub use provider::{Builder, TracerProvider};
 pub use runtime::{TraceRuntime, TrySend};
-pub use sampler::{JaegerRemoteSamplerBuilder, Sampler, ShouldSample};
+pub use sampler::{Sampler, ShouldSample};
 pub use span::Span;
 pub use span_limit::SpanLimits;
 pub use span_processor::{
@@ -32,3 +32,6 @@ pub use span_processor::{
     SpanProcessor,
 };
 pub use tracer::Tracer;
+
+#[cfg(feature = "jaeger_remote_sampler")]
+pub use sampler::JaegerRemoteSamplerBuilder;
