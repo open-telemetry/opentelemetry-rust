@@ -14,14 +14,12 @@ use std::error::Error;
 use std::time::Duration;
 
 fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
-    opentelemetry_jaeger::new_collector_pipeline()
+    opentelemetry_jaeger::new_agent_pipeline()
         .with_service_name("trace-demo")
-        .with_endpoint("http://127.0.0.1:14268/api/traces")
         .with_trace_config(Config::default().with_resource(Resource::new(vec![
             KeyValue::new("service.name", "new_service"),
             KeyValue::new("exporter", "otlp-jaeger"),
         ])))
-        .with_reqwest()
         .install_batch(opentelemetry::runtime::Tokio)
 }
 
