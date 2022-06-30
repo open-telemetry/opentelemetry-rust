@@ -273,7 +273,7 @@ impl AgentPipeline {
             self.transformation_config.service_name.take(),
         );
         let uploader = self.build_async_agent_uploader(runtime.clone())?;
-        let exporter = Exporter::new(
+        let exporter = Exporter::new_async(
             process.into(),
             export_instrument_library,
             runtime.clone(),
@@ -323,7 +323,7 @@ impl AgentPipeline {
             self.transformation_config.service_name.take(),
         );
         let uploader = self.build_async_agent_uploader(runtime.clone())?;
-        Ok(Exporter::new(
+        Ok(Exporter::new_async(
             process.into(),
             export_instrument_library,
             runtime,

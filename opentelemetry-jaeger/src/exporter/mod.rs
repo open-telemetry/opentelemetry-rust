@@ -67,7 +67,7 @@ pub struct Exporter {
 }
 
 impl Exporter {
-    fn new<R>(
+    fn new_async<R>(
         process: jaeger::Process,
         export_instrumentation_lib: bool,
         runtime: R,
