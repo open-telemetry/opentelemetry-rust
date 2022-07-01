@@ -6,7 +6,7 @@ use crate::{
 };
 use futures_util::{sink::Sink, stream::Stream};
 use once_cell::sync::Lazy;
-use pin_project::pin_project;
+use pin_project_lite::pin_project;
 use std::{
     borrow::Cow,
     error::Error,
@@ -351,13 +351,14 @@ where
     f(Context::current().span())
 }
 
-/// A future, stream, or sink that has an associated context.
-#[pin_project]
-#[derive(Clone, Debug)]
-pub struct WithContext<T> {
-    #[pin]
-    inner: T,
-    otel_cx: Context,
+pin_project! {
+    /// A future, stream, or sink that has an associated context.
+    #[derive(Clone, Debug)]
+    pub struct WithContext<T> {
+        #[pin]
+        inner: T,
+        otel_cx: Context,
+    }
 }
 
 impl<T: Sized> FutureExt for T {}
