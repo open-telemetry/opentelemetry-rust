@@ -130,7 +130,7 @@ mod test {
             .expect("sender error while shutting down http server");
 
         // Reap the task handle to ensure that the server did indeed shut down.
-        let _ = server_handle.await.expect("http server yielded an error");
+        server_handle.await.expect("http server yielded an error");
 
         let mut metric_lines: Vec<&str> = body.lines().collect();
         metric_lines.sort_unstable();
