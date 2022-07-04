@@ -12,6 +12,8 @@ and SDK are still unstable.
 - Add `schema_url` to `Tracer` #743
 - Add `schema_url` to `Resource` #775
 - Add `Span::set_attributes` #638
+- Support concurrent exports #781
+- Add jaeger remote sampler #797
 
 ### Changed
 
@@ -24,12 +26,19 @@ and SDK are still unstable.
 - rename `Span::record_exception` to `Span::record_error` #756
 - Replace `StatusCode` and `message` with `Status` #760
 - Move `TracerProvider::force_flush` to SDK #658
+- Switch to static resource references #790
+- Allow O(1) get operations for `SpanBuilder::attributes` [breaking] #799
+- Allow ref counted keys and values #821
+
+### Fixed
+
+- Update dashmap to avoid soundness hole #818
 
 ### Removed
 
 - Remove `serialize` feature #738
 - Remove `StatusCode::as_str` #741
-- Remove `Tracer::with_span` #746 
+- Remove `Tracer::with_span` #746
 
 ## [v0.17.0](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.16.0...v0.17.0)
 

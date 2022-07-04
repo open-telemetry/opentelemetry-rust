@@ -8,6 +8,8 @@
 - Update to opentelemetry v0.18.0
 - Update to opentelemetry-http v0.7.0
 - Update to opentelemetry-semantic-conventions v0.10.0
+- Parse config endpoint to remove tailing slash #787
+- Add sampling priority tag in spans #792
 
 ## v0.5.0
 

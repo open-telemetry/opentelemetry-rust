@@ -5,6 +5,7 @@
 ### Changed
 
 - Update to opentelemetry v0.18.0
+- Export `byte` and `http` types #798
 
 ## v0.6.0
 

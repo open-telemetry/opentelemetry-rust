@@ -11,6 +11,11 @@
 - Update to opentelemetry-http v0.7.0
 - Update to opentelemetry-semantic-conventions v0.10.0
 
+### Fixed
+
+- Fix clearing span context in Propagator #810
+- Fix reqwest client runs inside a non-tokio runtime #829
+
 ## v0.16.0
 
 ### Changed

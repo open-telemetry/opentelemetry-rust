@@ -2,6 +2,10 @@
 
 ## v0.10.0
 
+### Added
+
+- Add jaeger JSON file exporter #814
+
 ### Changed
 
 - Rename binary propagator's functions #776

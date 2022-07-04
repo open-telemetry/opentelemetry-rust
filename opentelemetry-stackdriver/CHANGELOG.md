@@ -10,6 +10,7 @@
 
 - Upgrade to opentelemetry v0.18.0
 - Upgrade to opentelemetry-semantic-conventions v0.10
+- update tonic and prost #825
 
 ## v0.14.0
 
