@@ -32,3 +32,6 @@ pub use span_processor::{
     SpanProcessor,
 };
 pub use tracer::Tracer;
+
+#[cfg(feature = "jaeger_remote_sampler")]
+pub use sampler::JaegerRemoteSamplerBuilder;
