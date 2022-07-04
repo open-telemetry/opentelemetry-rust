@@ -15,14 +15,14 @@ gcp_auth = { version = "0.7", optional = true }
 hex = "0.4"
 http = "0.2"
 hyper = "0.14.2"
-hyper-rustls = { version = "0.22.1", optional = true }
-opentelemetry = { version = "0.18.0", path = "../opentelemetry" }
+hyper-rustls = { version = "0.23", optional = true }
+opentelemetry = { version = "0.18", path = "../opentelemetry" }
 opentelemetry-semantic-conventions = { version = "0.10", path = "../opentelemetry-semantic-conventions" }
-prost = "0.9"
-prost-types = "0.9"
+prost = "0.10.4"
+prost-types = "0.10.1"
 thiserror = "1.0.30"
-tonic = { version = "0.6.2", features = ["tls", "transport"] }
-yup-oauth2 = { version = "6", optional = true }
+tonic = { version = "0.7.2", features = ["tls", "transport"] }
+yup-oauth2 = { version = "7.0.1", optional = true }
 
 [features]
 default = ["yup-authorizer", "tls-native-roots"]
@@ -34,6 +34,5 @@ tls-webpki-roots = ["tonic/tls-webpki-roots"]
 reqwest = "0.11.9"
 tempfile = "3.3.0"
 tokio = "1"
-tonic-build = "0.6.2"
+tonic-build = "0.7.2"
 walkdir = "2.3.2"
-which = "4.0.2"

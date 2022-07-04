@@ -11,7 +11,6 @@ fn main() -> Result<(), Error> {
     tonic_build::configure()
         .build_server(cfg!(feature = "build-server"))
         .build_client(cfg!(feature = "build-client"))
-        .format(false)
         .compile(
             &[
                 "src/proto/opentelemetry-proto/opentelemetry/proto/common/v1/common.proto",

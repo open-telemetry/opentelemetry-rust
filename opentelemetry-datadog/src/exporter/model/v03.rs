@@ -1,4 +1,4 @@
-use crate::exporter::model::Error;
+use crate::exporter::model::{Error, SAMPLING_PRIORITY_KEY};
 use crate::exporter::ModelConfig;
 use opentelemetry::sdk::export::trace;
 use opentelemetry::sdk::export::trace::SpanData;
@@ -41,7 +41,7 @@ where
             if let Some(Value::String(s)) = span.attributes.get(&Key::new("span.type")) {
                 rmp::encode::write_map_len(&mut encoded, 11)?;
                 rmp::encode::write_str(&mut encoded, "type")?;
-                rmp::encode::write_str(&mut encoded, s.as_ref())?;
+                rmp::encode::write_str(&mut encoded, s.as_str())?;
             } else {
                 rmp::encode::write_map_len(&mut encoded, 10)?;
             }
@@ -95,6 +95,18 @@ where
                 rmp::encode::write_str(&mut encoded, key.as_str())?;
                 rmp::encode::write_str(&mut encoded, value.as_str().as_ref())?;
             }
+
+            rmp::encode::write_str(&mut encoded, "metrics")?;
+            rmp::encode::write_map_len(&mut encoded, 1)?;
+            rmp::encode::write_str(&mut encoded, SAMPLING_PRIORITY_KEY)?;
+            rmp::encode::write_f64(
+                &mut encoded,
+                if span.span_context.is_sampled() {
+                    1.0
+                } else {
+                    0.0
+                },
+            )?;
         }
     }
 

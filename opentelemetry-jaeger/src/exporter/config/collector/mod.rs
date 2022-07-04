@@ -407,12 +407,16 @@ impl CollectorPipeline {
         // some attributes like service name has attributes like service name
         let export_instrument_library = self.transformation_config.export_instrument_library;
         let (config, process) = build_config_and_process(
-            builder.sdk_provided_resource(),
             self.trace_config.take(),
             self.transformation_config.service_name.take(),
         );
         let uploader = self.build_uploader::<R>()?;
-        let exporter = Exporter::new(process.into(), export_instrument_library, uploader);
+        let exporter = Exporter::new_async(
+            process.into(),
+            export_instrument_library,
+            runtime.clone(),
+            uploader,
+        );
 
         builder = builder.with_batch_exporter(exporter, runtime);
         builder = builder.with_config(config);

@@ -1,4 +1,5 @@
 use criterion::{criterion_group, criterion_main, Criterion};
+use futures_util::future::BoxFuture;
 use opentelemetry_api::{
     trace::{Span, Tracer, TracerProvider},
     Key, KeyValue,
@@ -100,10 +101,9 @@ fn insert_keys(mut map: sdktrace::EvictedHashMap, n: usize) {
 #[derive(Debug)]
 struct VoidExporter;
 
-#[async_trait::async_trait]
 impl SpanExporter for VoidExporter {
-    async fn export(&mut self, _spans: Vec<SpanData>) -> ExportResult {
-        Ok(())
+    fn export(&mut self, _spans: Vec<SpanData>) -> BoxFuture<'static, ExportResult> {
+        Box::pin(futures_util::future::ready(Ok(())))
     }
 }
 

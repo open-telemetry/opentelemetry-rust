@@ -25,7 +25,8 @@
 //! use opentelemetry::trace::Tracer;
 //! use opentelemetry::global;
 //!
-//! fn main() -> Result<(), opentelemetry::trace::TraceError> {
+//! #[tokio::main]
+//! async fn main() -> Result<(), opentelemetry::trace::TraceError> {
 //!     global::set_text_map_propagator(opentelemetry_jaeger::Propagator::new());
 //!     let tracer = opentelemetry_jaeger::new_agent_pipeline().install_simple()?;
 //!
@@ -323,6 +324,7 @@ mod exporter;
 pub mod testing;
 
 mod propagator {
+    use once_cell::sync::Lazy;
     use opentelemetry::{
         global::{self, Error},
         propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
@@ -340,9 +342,7 @@ mod propagator {
 
     const TRACE_FLAG_DEBUG: TraceFlags = TraceFlags::new(0x04);
 
-    lazy_static::lazy_static! {
-        static ref JAEGER_HEADER_FIELD: [String; 1] = [JAEGER_HEADER.to_string()];
-    }
+    static JAEGER_HEADER_FIELD: Lazy<[String; 1]> = Lazy::new(|| [JAEGER_HEADER.to_owned()]);
 
     /// The Jaeger propagator propagates span contexts in [Jaeger propagation format].
     ///
@@ -512,10 +512,9 @@ mod propagator {
         }
 
         fn extract_with_context(&self, cx: &Context, extractor: &dyn Extractor) -> Context {
-            cx.with_remote_span_context(
-                self.extract_span_context(extractor)
-                    .unwrap_or_else(|_| SpanContext::empty_context()),
-            )
+            self.extract_span_context(extractor)
+                .map(|sc| cx.with_remote_span_context(sc))
+                .unwrap_or_else(|_| cx.clone())
         }
 
         fn fields(&self) -> FieldIter<'_> {

@@ -8,17 +8,17 @@
 //! propagators) are provided by the `TracerProvider`. `Tracer` instances do
 //! not duplicate this data to avoid that different `Tracer` instances
 //! of the `TracerProvider` have different versions of these data.
-use crate::resource::{EnvResourceDetector, SdkProvidedResourceDetector};
 use crate::trace::{runtime::TraceRuntime, BatchSpanProcessor, SimpleSpanProcessor, Tracer};
 use crate::{export::trace::SpanExporter, trace::SpanProcessor};
 use crate::{InstrumentationLibrary, Resource};
+use once_cell::sync::OnceCell;
 use opentelemetry_api::{global, trace::TraceResult};
 use std::borrow::Cow;
 use std::sync::Arc;
-use std::time::Duration;
 
 /// Default tracer name if empty string is provided.
 const DEFAULT_COMPONENT_NAME: &str = "rust.opentelemetry.io/sdk/tracer";
+static PROVIDER_RESOURCE: OnceCell<Resource> = OnceCell::new();
 
 /// TracerProvider inner type
 #[derive(Debug)]
@@ -144,27 +144,10 @@ impl opentelemetry_api::trace::TracerProvider for TracerProvider {
 }
 
 /// Builder for provider attributes.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Builder {
     processors: Vec<Box<dyn SpanProcessor>>,
     config: crate::trace::Config,
-    sdk_provided_resource: Resource,
-}
-
-impl Default for Builder {
-    fn default() -> Self {
-        Builder {
-            processors: Default::default(),
-            config: Default::default(),
-            sdk_provided_resource: Resource::from_detectors(
-                Duration::from_secs(0),
-                vec![
-                    Box::new(SdkProvidedResourceDetector),
-                    Box::new(EnvResourceDetector::new()),
-                ],
-            ),
-        }
-    }
 }
 
 impl Builder {
@@ -199,28 +182,29 @@ impl Builder {
         Builder { config, ..self }
     }
 
-    /// Return the clone of sdk provided resource.
-    ///
-    /// See <https://github.com/open-telemetry/opentelemetry-specification/blob/v1.8.0/specification/resource/sdk.md#sdk-provided-resource-attributes>
-    /// for details.
-    pub fn sdk_provided_resource(&self) -> Resource {
-        self.sdk_provided_resource.clone()
-    }
-
     /// Create a new provider from this configuration.
     pub fn build(self) -> TracerProvider {
         let mut config = self.config;
-        config.resource = match config.resource {
-            None => Some(Arc::new(self.sdk_provided_resource)),
-            // User provided resource information has higher priority.
-            Some(resource) => {
-                if resource.is_empty() {
-                    None
-                } else {
-                    Some(Arc::new(self.sdk_provided_resource.merge(resource)))
+
+        // Standard config will contain an owned `Resource` (either sdk default or use supplied)
+        // we can optimize the common case with a static ref to avoid cloning the underlying
+        // resource data for each span.
+        //
+        // For the uncommon case where there are multiple tracer providers with different resource
+        // configurations, users can optionally provide their own borrowed static resource.
+        if matches!(config.resource, Cow::Owned(_)) {
+            config.resource = match PROVIDER_RESOURCE.try_insert(config.resource.into_owned()) {
+                Ok(static_resource) => Cow::Borrowed(static_resource),
+                Err((prev, new)) => {
+                    if prev == &new {
+                        Cow::Borrowed(prev)
+                    } else {
+                        Cow::Owned(new)
+                    }
                 }
             }
-        };
+        }
+
         TracerProvider {
             inner: Arc::new(TracerProviderInner {
                 processors: self.processors,
@@ -238,6 +222,7 @@ mod tests {
     use crate::Resource;
     use opentelemetry_api::trace::{TraceError, TraceResult};
     use opentelemetry_api::{Context, Key, KeyValue};
+    use std::borrow::Cow;
     use std::env;
     use std::sync::Arc;
 
@@ -288,9 +273,11 @@ mod tests {
         let assert_service_name = |provider: super::TracerProvider,
                                    expect: Option<&'static str>| {
             assert_eq!(
-                provider.config().resource.as_ref().and_then(|r| r
+                provider
+                    .config()
+                    .resource
                     .get(Key::from_static_str("service.name"))
-                    .map(|v| v.to_string())),
+                    .map(|v| v.to_string()),
                 expect.map(|s| s.to_string())
             );
         };
@@ -300,10 +287,10 @@ mod tests {
         // If user didn't provided a resource, try to get a default from env var
         let custom_config_provider = super::TracerProvider::builder()
             .with_config(Config {
-                resource: Some(Arc::new(Resource::new(vec![KeyValue::new(
+                resource: Cow::Owned(Resource::new(vec![KeyValue::new(
                     "service.name",
                     "test_service",
-                )]))),
+                )])),
                 ..Default::default()
             })
             .build();
@@ -314,11 +301,11 @@ mod tests {
         let env_resource_provider = super::TracerProvider::builder().build();
         assert_eq!(
             env_resource_provider.config().resource,
-            Some(Arc::new(Resource::new(vec![
+            Cow::Owned(Resource::new(vec![
                 KeyValue::new("key1", "value1"),
                 KeyValue::new("k3", "value2"),
                 KeyValue::new("service.name", "unknown_service"),
-            ])))
+            ]))
         );
 
         // When `OTEL_RESOURCE_ATTRIBUTES` is set and also user provided config
@@ -328,27 +315,26 @@ mod tests {
         );
         let user_provided_resource_config_provider = super::TracerProvider::builder()
             .with_config(Config {
-                resource: Some(Arc::new(Resource::new(vec![KeyValue::new(
-                    "my-custom-key",
-                    "my-custom-value",
-                )]))),
+                resource: Cow::Owned(Resource::default().merge(&mut Resource::new(vec![
+                    KeyValue::new("my-custom-key", "my-custom-value"),
+                ]))),
                 ..Default::default()
             })
             .build();
         assert_eq!(
             user_provided_resource_config_provider.config().resource,
-            Some(Arc::new(Resource::new(vec![
+            Cow::Owned(Resource::new(vec![
                 KeyValue::new("my-custom-key", "my-custom-value"),
                 KeyValue::new("k2", "value2"),
                 KeyValue::new("service.name", "unknown_service"),
-            ])))
+            ]))
         );
         env::remove_var("OTEL_RESOURCE_ATTRIBUTES");
 
         // If user provided a resource, it takes priority during collision.
         let no_service_name = super::TracerProvider::builder()
             .with_config(Config {
-                resource: Some(Arc::new(Resource::empty())),
+                resource: Cow::Owned(Resource::empty()),
                 ..Default::default()
             })
             .build();

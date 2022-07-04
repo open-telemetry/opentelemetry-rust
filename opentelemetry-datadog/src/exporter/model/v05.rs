@@ -1,4 +1,5 @@
 use crate::exporter::intern::StringInterner;
+use crate::exporter::model::SAMPLING_PRIORITY_KEY;
 use crate::exporter::{Error, ModelConfig};
 use opentelemetry::sdk::export::trace;
 use opentelemetry::sdk::export::trace::SpanData;
@@ -120,7 +121,7 @@ where
                 .unwrap_or(0);
 
             let span_type = match span.attributes.get(&Key::new("span.type")) {
-                Some(Value::String(s)) => interner.intern(s.as_ref()),
+                Some(Value::String(s)) => interner.intern(s.as_str()),
                 _ => interner.intern(""),
             };
 
@@ -161,7 +162,16 @@ where
                 rmp::encode::write_u32(&mut encoded, interner.intern(key.as_str()))?;
                 rmp::encode::write_u32(&mut encoded, interner.intern(value.as_str().as_ref()))?;
             }
-            rmp::encode::write_map_len(&mut encoded, 0)?;
+            rmp::encode::write_map_len(&mut encoded, 1)?;
+            rmp::encode::write_u32(&mut encoded, interner.intern(SAMPLING_PRIORITY_KEY))?;
+            rmp::encode::write_f64(
+                &mut encoded,
+                if span.span_context.is_sampled() {
+                    1.0
+                } else {
+                    0.0
+                },
+            )?;
             rmp::encode::write_u32(&mut encoded, span_type)?;
         }
     }

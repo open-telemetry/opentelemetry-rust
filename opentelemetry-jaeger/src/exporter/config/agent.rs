@@ -232,11 +232,10 @@ impl AgentPipeline {
         let mut builder = sdk::trace::TracerProvider::builder();
 
         let (config, process) = build_config_and_process(
-            builder.sdk_provided_resource(),
             self.trace_config.take(),
             self.transformation_config.service_name.take(),
         );
-        let exporter = Exporter::new(
+        let exporter = Exporter::new_sync(
             process.into(),
             self.transformation_config.export_instrument_library,
             self.build_sync_agent_uploader()?,
@@ -270,12 +269,16 @@ impl AgentPipeline {
         // build sdk trace config and jaeger process.
         // some attributes like service name has attributes like service name
         let (config, process) = build_config_and_process(
-            builder.sdk_provided_resource(),
             self.trace_config.take(),
             self.transformation_config.service_name.take(),
         );
         let uploader = self.build_async_agent_uploader(runtime.clone())?;
-        let exporter = Exporter::new(process.into(), export_instrument_library, uploader);
+        let exporter = Exporter::new_async(
+            process.into(),
+            export_instrument_library,
+            runtime.clone(),
+            uploader,
+        );
 
         builder = builder.with_batch_exporter(exporter, runtime);
         builder = builder.with_config(config);
@@ -312,32 +315,29 @@ impl AgentPipeline {
     where
         R: JaegerTraceRuntime,
     {
-        let builder = sdk::trace::TracerProvider::builder();
         let export_instrument_library = self.transformation_config.export_instrument_library;
         // build sdk trace config and jaeger process.
         // some attributes like service name has attributes like service name
         let (_, process) = build_config_and_process(
-            builder.sdk_provided_resource(),
             self.trace_config.take(),
             self.transformation_config.service_name.take(),
         );
-        let uploader = self.build_async_agent_uploader(runtime)?;
-        Ok(Exporter::new(
+        let uploader = self.build_async_agent_uploader(runtime.clone())?;
+        Ok(Exporter::new_async(
             process.into(),
             export_instrument_library,
+            runtime,
             uploader,
         ))
     }
 
     /// Build an jaeger exporter targeting a jaeger agent and running on the sync runtime.
     pub fn build_sync_agent_exporter(mut self) -> Result<crate::Exporter, TraceError> {
-        let builder = sdk::trace::TracerProvider::builder();
         let (_, process) = build_config_and_process(
-            builder.sdk_provided_resource(),
             self.trace_config.take(),
             self.transformation_config.service_name.take(),
         );
-        Ok(Exporter::new(
+        Ok(Exporter::new_sync(
             process.into(),
             self.transformation_config.export_instrument_library,
             self.build_sync_agent_uploader()?,

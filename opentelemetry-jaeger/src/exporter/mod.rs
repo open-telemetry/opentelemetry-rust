@@ -18,7 +18,9 @@ use std::convert::TryFrom;
 
 use self::runtime::JaegerTraceRuntime;
 use self::thrift::jaeger;
-use async_trait::async_trait;
+use futures::channel::{mpsc, oneshot};
+use futures::future::BoxFuture;
+use futures::StreamExt;
 use std::convert::TryInto;
 
 #[cfg(feature = "isahc_collector_client")]
@@ -42,25 +44,108 @@ const INSTRUMENTATION_LIBRARY_NAME: &str = "otel.library.name";
 /// Instrument Library version MUST be reported in Jaeger Span tags with the following key
 const INSTRUMENTATION_LIBRARY_VERSION: &str = "otel.library.version";
 
+#[derive(Debug)]
+enum ExportMessage {
+    Export {
+        batch: Vec<trace::SpanData>,
+        tx: oneshot::Sender<trace::ExportResult>,
+    },
+    Shutdown,
+}
+
 /// Jaeger span exporter
 #[derive(Debug)]
 pub struct Exporter {
+    tx: mpsc::Sender<ExportMessage>,
+
+    // In the switch to concurrent exports, the non-test code which used this
+    // value was moved into the ExporterTask implementation. However, there's
+    // still a test that relies on this value being here, thus the
+    // allow(dead_code).
+    #[allow(dead_code)]
+    process: jaeger::Process,
+}
+
+impl Exporter {
+    fn new_async<R>(
+        process: jaeger::Process,
+        export_instrumentation_lib: bool,
+        runtime: R,
+        uploader: Box<dyn Uploader>,
+    ) -> Exporter
+    where
+        R: JaegerTraceRuntime,
+    {
+        let (tx, rx) = mpsc::channel(64);
+
+        let exporter_task = ExporterTask {
+            rx,
+            export_instrumentation_lib,
+            uploader,
+            process: process.clone(),
+        };
+
+        runtime.spawn(Box::pin(exporter_task.run()));
+
+        Exporter { tx, process }
+    }
+
+    fn new_sync(
+        process: jaeger::Process,
+        export_instrumentation_lib: bool,
+        uploader: Box<dyn Uploader>,
+    ) -> Exporter {
+        let (tx, rx) = mpsc::channel(64);
+
+        let exporter_task = ExporterTask {
+            rx,
+            export_instrumentation_lib,
+            uploader,
+            process: process.clone(),
+        };
+
+        std::thread::spawn(move || {
+            futures_executor::block_on(exporter_task.run());
+        });
+
+        Exporter { tx, process }
+    }
+}
+
+struct ExporterTask {
+    rx: mpsc::Receiver<ExportMessage>,
     process: jaeger::Process,
     /// Whether or not to export instrumentation information.
     export_instrumentation_lib: bool,
     uploader: Box<dyn Uploader>,
 }
 
-impl Exporter {
-    fn new(
-        process: jaeger::Process,
-        export_instrumentation_lib: bool,
-        uploader: Box<dyn Uploader>,
-    ) -> Exporter {
-        Exporter {
-            process,
-            export_instrumentation_lib,
-            uploader,
+impl ExporterTask {
+    async fn run(mut self) {
+        while let Some(message) = self.rx.next().await {
+            match message {
+                ExportMessage::Export { batch, tx } => {
+                    let mut jaeger_spans: Vec<jaeger::Span> = Vec::with_capacity(batch.len());
+                    let process = self.process.clone();
+
+                    for span in batch.into_iter() {
+                        jaeger_spans.push(convert_otel_span_into_jaeger_span(
+                            span,
+                            self.export_instrumentation_lib,
+                        ));
+                    }
+
+                    let res = self
+                        .uploader
+                        .upload(jaeger::Batch::new(process, jaeger_spans))
+                        .await;
+
+                    // Errors here might be completely expected if the receiver didn't
+                    // care about the result.
+                    let _ = tx.send(res);
+                }
+                ExportMessage::Shutdown => break,
+            }
         }
     }
 }
@@ -74,23 +159,20 @@ pub struct Process {
     pub tags: Vec<KeyValue>,
 }
 
-#[async_trait]
 impl trace::SpanExporter for Exporter {
     /// Export spans to Jaeger
-    async fn export(&mut self, batch: Vec<trace::SpanData>) -> trace::ExportResult {
-        let mut jaeger_spans: Vec<jaeger::Span> = Vec::with_capacity(batch.len());
-        let process = self.process.clone();
+    fn export(&mut self, batch: Vec<trace::SpanData>) -> BoxFuture<'static, trace::ExportResult> {
+        let (tx, rx) = oneshot::channel();
 
-        for span in batch.into_iter() {
-            jaeger_spans.push(convert_otel_span_into_jaeger_span(
-                span,
-                self.export_instrumentation_lib,
-            ));
+        if let Err(err) = self.tx.try_send(ExportMessage::Export { batch, tx }) {
+            return Box::pin(futures::future::ready(Err(Into::into(err))));
         }
 
-        self.uploader
-            .upload(jaeger::Batch::new(process, jaeger_spans))
-            .await
+        Box::pin(async move { rx.await? })
+    }
+
+    fn shutdown(&mut self) {
+        let _ = self.tx.try_send(ExportMessage::Shutdown);
     }
 }
 

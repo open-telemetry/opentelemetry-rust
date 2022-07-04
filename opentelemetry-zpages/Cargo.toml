@@ -24,7 +24,6 @@ opentelemetry-proto = { version = "0.1", path = "../opentelemetry-proto", featur
 async-channel = "1.6"
 futures-channel = "0.3"
 futures-util = { version = "0.3", default-features = false, features = ["std"] }
-lazy_static = "1.4.0"
 serde = "1.0"
 serde_json = "1.0"
 

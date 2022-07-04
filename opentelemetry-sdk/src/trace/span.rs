@@ -9,10 +9,10 @@
 //! is possible to change its name, set its `Attributes`, and add `Links` and `Events`.
 //! These cannot be changed after the `Span`'s end time has been set.
 use crate::trace::SpanLimits;
+use crate::Resource;
 use opentelemetry_api::trace::{Event, SpanContext, SpanId, SpanKind, Status};
 use opentelemetry_api::{trace, KeyValue};
 use std::borrow::Cow;
-use std::sync::Arc;
 use std::time::SystemTime;
 
 /// Single operation within a trace.
@@ -74,11 +74,8 @@ impl Span {
     /// overhead.
     pub fn exported_data(&self) -> Option<crate::export::trace::SpanData> {
         let (span_context, tracer) = (self.span_context.clone(), &self.tracer);
-        let resource = if let Some(provider) = self.tracer.provider() {
-            provider.config().resource.clone()
-        } else {
-            None
-        };
+        let resource = self.tracer.provider()?.config().resource.clone();
+
         self.data
             .as_ref()
             .map(|data| build_export_data(data.clone(), span_context, resource, tracer))
@@ -221,7 +218,7 @@ impl Drop for Span {
 fn build_export_data(
     data: SpanData,
     span_context: SpanContext,
-    resource: Option<Arc<crate::Resource>>,
+    resource: Cow<'static, Resource>,
     tracer: &crate::trace::Tracer,
 ) -> crate::export::trace::SpanData {
     crate::export::trace::SpanData {

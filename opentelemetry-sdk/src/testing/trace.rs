@@ -7,6 +7,7 @@ use crate::{
     InstrumentationLibrary,
 };
 use async_trait::async_trait;
+use futures_util::future::BoxFuture;
 pub use opentelemetry_api::testing::trace::TestSpan;
 use opentelemetry_api::trace::{SpanContext, SpanId, SpanKind, Status};
 use std::fmt::{Display, Formatter};
@@ -38,13 +39,17 @@ pub struct TestSpanExporter {
 
 #[async_trait]
 impl SpanExporter for TestSpanExporter {
-    async fn export(&mut self, batch: Vec<SpanData>) -> ExportResult {
+    fn export(&mut self, batch: Vec<SpanData>) -> BoxFuture<'static, ExportResult> {
         for span_data in batch {
-            self.tx_export
+            if let Err(err) = self
+                .tx_export
                 .send(span_data)
-                .map_err::<TestExportError, _>(Into::into)?;
+                .map_err::<TestExportError, _>(Into::into)
+            {
+                return Box::pin(std::future::ready(Err(Into::into(err))));
+            }
         }
-        Ok(())
+        Box::pin(std::future::ready(Ok(())))
     }
 
     fn shutdown(&mut self) {
@@ -68,15 +73,18 @@ pub struct TokioSpanExporter {
     tx_shutdown: tokio::sync::mpsc::UnboundedSender<()>,
 }
 
-#[async_trait]
 impl SpanExporter for TokioSpanExporter {
-    async fn export(&mut self, batch: Vec<SpanData>) -> ExportResult {
+    fn export(&mut self, batch: Vec<SpanData>) -> BoxFuture<'static, ExportResult> {
         for span_data in batch {
-            self.tx_export
+            if let Err(err) = self
+                .tx_export
                 .send(span_data)
-                .map_err::<TestExportError, _>(Into::into)?;
+                .map_err::<TestExportError, _>(Into::into)
+            {
+                return Box::pin(std::future::ready(Err(Into::into(err))));
+            }
         }
-        Ok(())
+        Box::pin(std::future::ready(Ok(())))
     }
 
     fn shutdown(&mut self) {
@@ -144,7 +152,7 @@ impl NoopSpanExporter {
 
 #[async_trait::async_trait]
 impl SpanExporter for NoopSpanExporter {
-    async fn export(&mut self, _batch: Vec<SpanData>) -> ExportResult {
-        Ok(())
+    fn export(&mut self, _: Vec<SpanData>) -> BoxFuture<'static, ExportResult> {
+        Box::pin(std::future::ready(Ok(())))
     }
 }

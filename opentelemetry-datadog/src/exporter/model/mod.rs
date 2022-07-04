@@ -1,12 +1,17 @@
 use crate::exporter::ModelConfig;
+use http::uri;
 use opentelemetry::sdk::export::{
     trace::{self, SpanData},
     ExportError,
 };
 use std::fmt::Debug;
+use url::ParseError;
 
 mod v03;
 mod v05;
+
+// https://github.com/DataDog/dd-trace-js/blob/c89a35f7d27beb4a60165409376e170eacb194c5/packages/dd-trace/src/constants.js#L4
+static SAMPLING_PRIORITY_KEY: &str = "_sampling_priority_v1";
 
 /// Custom mapping between opentelemetry spans and datadog spans.
 ///
@@ -73,8 +78,8 @@ pub enum Error {
     #[error(transparent)]
     RequestError(#[from] http::Error),
     /// The Uri was invalid
-    #[error(transparent)]
-    InvalidUri(#[from] http::uri::InvalidUri),
+    #[error("invalid url {0}")]
+    InvalidUri(String),
     /// Other errors
     #[error("{0}")]
     Other(String),
@@ -89,6 +94,18 @@ impl ExportError for Error {
 impl From<rmp::encode::ValueWriteError> for Error {
     fn from(_: rmp::encode::ValueWriteError) -> Self {
         Self::MessagePackError
+    }
+}
+
+impl From<url::ParseError> for Error {
+    fn from(err: ParseError) -> Self {
+        Self::InvalidUri(err.to_string())
+    }
+}
+
+impl From<uri::InvalidUri> for Error {
+    fn from(err: uri::InvalidUri) -> Self {
+        Self::InvalidUri(err.to_string())
     }
 }
 
@@ -165,12 +182,13 @@ impl ApiVersion {
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
-    use opentelemetry::sdk;
     use opentelemetry::sdk::InstrumentationLibrary;
+    use opentelemetry::sdk::{self, Resource};
     use opentelemetry::{
         trace::{SpanContext, SpanId, SpanKind, Status, TraceFlags, TraceId, TraceState},
         Key,
     };
+    use std::borrow::Cow;
     use std::time::{Duration, SystemTime};
 
     fn get_traces() -> Vec<Vec<trace::SpanData>> {
@@ -207,7 +225,7 @@ pub(crate) mod tests {
             events,
             links,
             status: Status::Ok,
-            resource: None,
+            resource: Cow::Owned(Resource::empty()),
             instrumentation_lib: InstrumentationLibrary::new("component", None, None),
         }
     }
@@ -227,7 +245,7 @@ pub(crate) mod tests {
             None,
         )?);
 
-        assert_eq!(encoded.as_str(), "kZGLpHR5cGWjd2Vip3NlcnZpY2Wsc2VydmljZV9uYW1lpG5hbWWpY29tcG9uZW50qHJlc291cmNlqHJlc291cmNlqHRyYWNlX2lkzwAAAAAAAAAHp3NwYW5faWTPAAAAAAAAAGOpcGFyZW50X2lkzwAAAAAAAAABpXN0YXJ00wAAAAAAAAAAqGR1cmF0aW9u0wAAAAA7msoApWVycm9y0gAAAACkbWV0YYGpc3Bhbi50eXBlo3dlYg==");
+        assert_eq!(encoded.as_str(), "kZGLpHR5cGWjd2Vip3NlcnZpY2Wsc2VydmljZV9uYW1lpG5hbWWpY29tcG9uZW50qHJlc291cmNlqHJlc291cmNlqHRyYWNlX2lkzwAAAAAAAAAHp3NwYW5faWTPAAAAAAAAAGOpcGFyZW50X2lkzwAAAAAAAAABpXN0YXJ00wAAAAAAAAAAqGR1cmF0aW9u0wAAAAA7msoApWVycm9y0gAAAACkbWV0YYGpc3Bhbi50eXBlo3dlYqdtZXRyaWNzgbVfc2FtcGxpbmdfcHJpb3JpdHlfdjHLAAAAAAAAAAA=");
 
         Ok(())
     }
@@ -248,7 +266,7 @@ pub(crate) mod tests {
         )?);
 
         assert_eq!(encoded.as_str(),
-                   "kpWjd2VirHNlcnZpY2VfbmFtZaljb21wb25lbnSocmVzb3VyY2Wpc3Bhbi50eXBlkZGczgAAAAHOAAAAAs4AAAADzwAAAAAAAAAHzwAAAAAAAABjzwAAAAAAAAAB0wAAAAAAAAAA0wAAAAA7msoA0gAAAACBzgAAAATOAAAAAIDOAAAAAA==");
+                   "kpajd2VirHNlcnZpY2VfbmFtZaljb21wb25lbnSocmVzb3VyY2Wpc3Bhbi50eXBltV9zYW1wbGluZ19wcmlvcml0eV92MZGRnM4AAAABzgAAAALOAAAAA88AAAAAAAAAB88AAAAAAAAAY88AAAAAAAAAAdMAAAAAAAAAANMAAAAAO5rKANIAAAAAgc4AAAAEzgAAAACBzgAAAAXLAAAAAAAAAADOAAAAAA==");
 
         Ok(())
     }

@@ -1,13 +1,15 @@
 use crate::propagation::TextMapPropagator;
 use crate::trace::noop::NoopTextMapPropagator;
+use once_cell::sync::Lazy;
 use std::sync::RwLock;
 
-lazy_static::lazy_static! {
-    /// The current global `TextMapPropagator` propagator.
-    static ref GLOBAL_TEXT_MAP_PROPAGATOR: RwLock<Box<dyn TextMapPropagator + Send + Sync>> = RwLock::new(Box::new(NoopTextMapPropagator::new()));
-    /// The global default `TextMapPropagator` propagator.
-    static ref DEFAULT_TEXT_MAP_PROPAGATOR: NoopTextMapPropagator = NoopTextMapPropagator::new();
-}
+/// The current global `TextMapPropagator` propagator.
+static GLOBAL_TEXT_MAP_PROPAGATOR: Lazy<RwLock<Box<dyn TextMapPropagator + Send + Sync>>> =
+    Lazy::new(|| RwLock::new(Box::new(NoopTextMapPropagator::new())));
+
+/// The global default `TextMapPropagator` propagator.
+static DEFAULT_TEXT_MAP_PROPAGATOR: Lazy<NoopTextMapPropagator> =
+    Lazy::new(NoopTextMapPropagator::new);
 
 /// Sets the given [`TextMapPropagator`] propagator as the current global propagator.
 pub fn set_text_map_propagator<P: TextMapPropagator + Send + Sync + 'static>(propagator: P) {

@@ -38,13 +38,24 @@
 //! MUST NOT allow this combination.
 
 use crate::InstrumentationLibrary;
+use opentelemetry_api::trace::OrderMap;
 use opentelemetry_api::{
     trace::{
         Link, SamplingDecision, SamplingResult, SpanKind, TraceContextExt, TraceId, TraceState,
     },
-    Context, KeyValue,
+    Context, Key, Value,
 };
 use std::convert::TryInto;
+
+#[cfg(feature = "jaeger_remote_sampler")]
+mod jaeger_remote;
+
+#[cfg(feature = "jaeger_remote_sampler")]
+use jaeger_remote::JaegerRemoteSampler;
+#[cfg(feature = "jaeger_remote_sampler")]
+pub use jaeger_remote::JaegerRemoteSamplerBuilder;
+#[cfg(feature = "jaeger_remote_sampler")]
+use opentelemetry_http::HttpClient;
 
 /// The `ShouldSample` interface allows implementations to provide samplers
 /// which will return a sampling `SamplingResult` based on information that
@@ -58,14 +69,15 @@ pub trait ShouldSample: Send + Sync + std::fmt::Debug {
         trace_id: TraceId,
         name: &str,
         span_kind: &SpanKind,
-        attributes: &[KeyValue],
+        attributes: &OrderMap<Key, Value>,
         links: &[Link],
         instrumentation_library: &InstrumentationLibrary,
     ) -> SamplingResult;
 }
 
-/// Sampling options
-#[derive(Clone, Debug, PartialEq)]
+/// Build in samplers.
+#[derive(Clone, Debug)]
+#[non_exhaustive]
 pub enum Sampler {
     /// Always sample the trace
     AlwaysOn,
@@ -77,6 +89,43 @@ pub enum Sampler {
     /// sampled, then it's child spans will automatically be sampled. Fractions < 0 are treated as
     /// zero, but spans may still be sampled if their parent is.
     TraceIdRatioBased(f64),
+    /// Jaeger remote sampler supports any remote service that implemented the jaeger remote sampler protocol.
+    /// The proto definition can be found [here](https://github.com/jaegertracing/jaeger-idl/blob/main/proto/api_v2/sampling.proto)
+    ///
+    /// Jaeger remote sampler allows remotely controlling the sampling configuration for the SDKs.
+    /// The sampling is typically configured at the collector and the SDKs actively poll for changes.
+    /// The sampler uses TraceIdRatioBased or rate-limited sampler under the hood.
+    /// These samplers can be configured per whole service (a.k.a default), or per span name in a
+    /// given service (a.k.a per operation).
+    #[cfg(feature = "jaeger_remote_sampler")]
+    JaegerRemote(JaegerRemoteSampler),
+}
+
+impl Sampler {
+    /// Create a jaeger remote sampler.
+    ///
+    /// user needs to provide
+    /// - a `runtime` to run the http client
+    /// - a http client to query the sampling endpoint
+    /// - a default sampler to make sampling decision when the remote is unavailable or before the SDK receive the first response,
+    /// - the service name. This is a required parameter to query the sampling endpoint.
+    ///
+    /// See [here](https://github.com/open-telemetry/opentelemetry-rust/blob/main/examples/jaeger-remote-sampler/src/main.rs) for an example.
+    #[cfg(feature = "jaeger_remote_sampler")]
+    pub fn jaeger_remote<C, Sampler, R, Svc>(
+        runtime: R,
+        http_client: C,
+        default_sampler: Sampler,
+        service_name: Svc,
+    ) -> JaegerRemoteSamplerBuilder<C, Sampler, R>
+    where
+        C: HttpClient + 'static,
+        Sampler: ShouldSample,
+        R: crate::trace::TraceRuntime,
+        Svc: Into<String>,
+    {
+        JaegerRemoteSamplerBuilder::new(runtime, http_client, default_sampler, service_name)
+    }
 }
 
 impl ShouldSample for Sampler {
@@ -86,7 +135,7 @@ impl ShouldSample for Sampler {
         trace_id: TraceId,
         name: &str,
         span_kind: &SpanKind,
-        attributes: &[KeyValue],
+        attributes: &OrderMap<Key, Value>,
         links: &[Link],
         instrumentation_library: &InstrumentationLibrary,
     ) -> SamplingResult {
@@ -121,27 +170,22 @@ impl ShouldSample for Sampler {
                 )
             }
             // Probabilistically sample the trace.
-            Sampler::TraceIdRatioBased(prob) => {
-                if *prob >= 1.0 {
-                    SamplingDecision::RecordAndSample
-                } else {
-                    let prob_upper_bound = (prob.max(0.0) * (1u64 << 63) as f64) as u64;
-                    // TODO: update behavior when the spec definition resolves
-                    // https://github.com/open-telemetry/opentelemetry-specification/issues/1413
-                    let bytes = trace_id.to_bytes();
-                    let (_, low) = bytes.split_at(8);
-                    let trace_id_low = u64::from_be_bytes(low.try_into().unwrap());
-                    let rnd_from_trace_id = trace_id_low >> 1;
-
-                    if rnd_from_trace_id < prob_upper_bound {
-                        SamplingDecision::RecordAndSample
-                    } else {
-                        SamplingDecision::Drop
-                    }
-                }
+            Sampler::TraceIdRatioBased(prob) => sample_based_on_probability(prob, trace_id),
+            #[cfg(feature = "jaeger_remote_sampler")]
+            Sampler::JaegerRemote(remote_sampler) => {
+                remote_sampler
+                    .should_sample(
+                        parent_context,
+                        trace_id,
+                        name,
+                        span_kind,
+                        attributes,
+                        links,
+                        instrumentation_library,
+                    )
+                    .decision
             }
         };
-
         SamplingResult {
             decision,
             // No extra attributes ever set by the SDK samplers.
@@ -151,6 +195,26 @@ impl ShouldSample for Sampler {
                 Some(ctx) => ctx.span().span_context().trace_state().clone(),
                 None => TraceState::default(),
             },
+        }
+    }
+}
+
+pub(crate) fn sample_based_on_probability(prob: &f64, trace_id: TraceId) -> SamplingDecision {
+    if *prob >= 1.0 {
+        SamplingDecision::RecordAndSample
+    } else {
+        let prob_upper_bound = (prob.max(0.0) * (1u64 << 63) as f64) as u64;
+        // TODO: update behavior when the spec definition resolves
+        // https://github.com/open-telemetry/opentelemetry-specification/issues/1413
+        let bytes = trace_id.to_bytes();
+        let (_, low) = bytes.split_at(8);
+        let trace_id_low = u64::from_be_bytes(low.try_into().unwrap());
+        let rnd_from_trace_id = trace_id_low >> 1;
+
+        if rnd_from_trace_id < prob_upper_bound {
+            SamplingDecision::RecordAndSample
+        } else {
+            SamplingDecision::Drop
         }
     }
 }
@@ -242,7 +306,7 @@ mod tests {
                         trace_id,
                         name,
                         &SpanKind::Internal,
-                        &[],
+                        &Default::default(),
                         &[],
                         &InstrumentationLibrary::default(),
                     )
@@ -284,7 +348,7 @@ mod tests {
             TraceId::from_u128(1),
             "should sample",
             &SpanKind::Internal,
-            &[],
+            &Default::default(),
             &[],
             &instrumentation_library,
         );

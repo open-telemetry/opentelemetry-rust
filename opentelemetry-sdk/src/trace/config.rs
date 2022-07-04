@@ -3,10 +3,11 @@
 //! Configuration represents the global tracing configuration, overrides
 //! can be set for the default OpenTelemetry limits and Sampler.
 use crate::trace::{span_limit::SpanLimits, IdGenerator, RandomIdGenerator, Sampler, ShouldSample};
+use crate::Resource;
 use opentelemetry_api::global::{handle_error, Error};
+use std::borrow::Cow;
 use std::env;
 use std::str::FromStr;
-use std::sync::Arc;
 
 /// Default trace configuration
 pub fn config() -> Config {
@@ -18,12 +19,15 @@ pub fn config() -> Config {
 pub struct Config {
     /// The sampler that the sdk should use
     pub sampler: Box<dyn ShouldSample>,
+
     /// The id generator that the sdk should use
     pub id_generator: Box<dyn IdGenerator>,
+
     /// span limits
     pub span_limits: SpanLimits,
+
     /// Contains attributes representing an entity that produces telemetry.
-    pub resource: Option<Arc<crate::Resource>>,
+    pub resource: Cow<'static, Resource>,
 }
 
 impl Config {
@@ -76,19 +80,9 @@ impl Config {
     }
 
     /// Specify the attributes representing the entity that produces telemetry
-    pub fn with_resource(mut self, resource: crate::Resource) -> Self {
-        self.resource = Some(Arc::new(resource));
+    pub fn with_resource(mut self, resource: Resource) -> Self {
+        self.resource = Cow::Owned(resource);
         self
-    }
-
-    /// Use empty resource instead of default resource in this config.
-    ///
-    /// Usually if no resource is provided, SDK will assign a default resource
-    /// to the `TracerProvider`, which could impact the performance. Performance
-    /// sensitive application can use function to disable such behavior and assign
-    /// no resource to `TracerProvider`.
-    pub fn with_no_resource(self) -> Self {
-        self.with_resource(crate::Resource::empty())
     }
 }
 
@@ -99,7 +93,7 @@ impl Default for Config {
             sampler: Box::new(Sampler::ParentBased(Box::new(Sampler::AlwaysOn))),
             id_generator: Box::new(RandomIdGenerator::default()),
             span_limits: SpanLimits::default(),
-            resource: None,
+            resource: Cow::Owned(Resource::default()),
         };
 
         if let Some(max_attributes_per_span) = env::var("OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT")

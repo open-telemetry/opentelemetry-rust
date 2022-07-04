@@ -14,6 +14,7 @@ pub(crate) mod tonic {
         ArrayAggregator, HistogramAggregator, LastValueAggregator, MinMaxSumCountAggregator,
         SumAggregator,
     };
+    use opentelemetry::sdk::InstrumentationLibrary;
     use opentelemetry_proto::tonic::metrics::v1::DataPointFlags;
     use opentelemetry_proto::tonic::FromNumber;
     use opentelemetry_proto::tonic::{
@@ -28,7 +29,6 @@ pub(crate) mod tonic {
 
     use crate::to_nanos;
     use crate::transform::{CheckpointedMetrics, ResourceWrapper};
-    use opentelemetry::sdk::InstrumentationLibrary;
     use std::collections::{BTreeMap, HashMap};
 
     pub(crate) fn record_to_metric(
@@ -212,14 +212,21 @@ pub(crate) mod tonic {
             resource_metrics: sink_map
                 .into_iter()
                 .map(|(resource, metric_map)| ResourceMetrics {
+                    schema_url: resource
+                        .schema_url()
+                        .map(|s| s.to_string())
+                        .unwrap_or_default(),
                     resource: Some(resource.into()),
-                    schema_url: "".to_string(), // todo: replace with actual schema url.
                     instrumentation_library_metrics: metric_map
                         .into_iter()
                         .map(
                             |(instrumentation_library, metrics)| InstrumentationLibraryMetrics {
+                                schema_url: instrumentation_library
+                                    .schema_url
+                                    .clone()
+                                    .unwrap_or_default()
+                                    .to_string(),
                                 instrumentation_library: Some(instrumentation_library.into()),
-                                schema_url: "".to_string(), // todo: replace with actual schema url.
                                 metrics: metrics
                                     .into_iter()
                                     .map(|(_k, v)| v)
@@ -385,7 +392,7 @@ mod tests {
                             version: instrumentation_version.unwrap_or("").to_string(),
                         },
                     ),
-                    schema_url: "".to_string(), // todo: replace with actual schema url.
+                    schema_url: "".to_string(),
                     metrics: metrics
                         .into_iter()
                         .map(|(name, data_points)| get_metric_with_name(name, data_points))
@@ -394,7 +401,7 @@ mod tests {
             }
             ResourceMetrics {
                 resource: Some(resource),
-                schema_url: "".to_string(), // todo: replace with actual schema url.
+                schema_url: "".to_string(),
                 instrumentation_library_metrics,
             }
         }
@@ -410,7 +417,16 @@ mod tests {
         // If we changed the sink function to process the input in parallel, we will have to sort other vectors
         // like data points in Metrics.
         fn assert_resource_metrics(mut expect: ResourceMetrics, mut actual: ResourceMetrics) {
-            assert_eq!(expect.resource, actual.resource);
+            assert_eq!(
+                expect
+                    .resource
+                    .as_mut()
+                    .map(|r| r.attributes.sort_by_key(|kv| kv.key.to_string())),
+                actual
+                    .resource
+                    .as_mut()
+                    .map(|r| r.attributes.sort_by_key(|kv| kv.key.to_string()))
+            );
             assert_eq!(
                 expect.instrumentation_library_metrics.len(),
                 actual.instrumentation_library_metrics.len()

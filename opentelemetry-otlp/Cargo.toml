@@ -35,12 +35,12 @@ futures-util = { version = "0.3", default-features = false, features = ["std"] }
 opentelemetry-proto = { version = "0.1", path = "../opentelemetry-proto", default-features = false }
 
 grpcio = { version = "0.9", optional = true }
-opentelemetry = { version = "0.18.0", default-features = false, features = ["trace"], path = "../opentelemetry" }
+opentelemetry = { version = "0.18", default-features = false, features = ["trace"], path = "../opentelemetry" }
 opentelemetry-http = { version = "0.7", path = "../opentelemetry-http", optional = true }
 protobuf = { version = "2.18", optional = true }
 
-prost = { version = "0.9", optional = true }
-tonic = { version = "0.6.2", optional = true }
+prost = { version = "0.10.1", optional = true }
+tonic = { version = "0.7.1", optional = true }
 tokio = { version = "1.0", features = ["sync", "rt"], optional = true }
 
 reqwest = { version = "0.11", optional = true, default-features = false }
