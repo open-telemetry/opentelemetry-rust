@@ -41,8 +41,7 @@ use futures_channel::oneshot;
 use futures_util::{
     future::{self, BoxFuture, Either},
     select,
-    stream::{self, FusedStream, FuturesUnordered},
-    Stream, StreamExt as _,
+    stream::{self, FusedStream, FuturesUnordered, Stream, StreamExt as _},
 };
 use opentelemetry_api::global;
 use opentelemetry_api::{
