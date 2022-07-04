@@ -411,7 +411,12 @@ impl CollectorPipeline {
             self.transformation_config.service_name.take(),
         );
         let uploader = self.build_uploader::<R>()?;
-        let exporter = Exporter::new(process.into(), export_instrument_library, uploader);
+        let exporter = Exporter::new_async(
+            process.into(),
+            export_instrument_library,
+            runtime.clone(),
+            uploader,
+        );
 
         builder = builder.with_batch_exporter(exporter, runtime);
         builder = builder.with_config(config);
