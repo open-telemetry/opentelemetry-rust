@@ -10,6 +10,7 @@ use opentelemetry::sdk::trace::{Config, TracerProvider};
 use opentelemetry::trace::TraceError;
 use std::borrow::BorrowMut;
 use std::{env, net};
+use std::sync::Arc;
 
 /// The max size of UDP packet we want to send, synced with jaeger-agent
 const UDP_PACKET_MAX_LENGTH: usize = 65_000;
@@ -235,7 +236,7 @@ impl AgentPipeline {
             self.trace_config.take(),
             self.transformation_config.service_name.take(),
         );
-        let exporter = Exporter::new_sync(
+        let exporter = Exporter::new(
             process.into(),
             self.transformation_config.export_instrument_library,
             self.build_sync_agent_uploader()?,
@@ -273,10 +274,9 @@ impl AgentPipeline {
             self.transformation_config.service_name.take(),
         );
         let uploader = self.build_async_agent_uploader(runtime.clone())?;
-        let exporter = Exporter::new_async(
+        let exporter = Exporter::new(
             process.into(),
             export_instrument_library,
-            runtime.clone(),
             uploader,
         );
 
@@ -323,10 +323,9 @@ impl AgentPipeline {
             self.transformation_config.service_name.take(),
         );
         let uploader = self.build_async_agent_uploader(runtime.clone())?;
-        Ok(Exporter::new_async(
+        Ok(Exporter::new(
             process.into(),
             export_instrument_library,
-            runtime,
             uploader,
         ))
     }
@@ -337,14 +336,14 @@ impl AgentPipeline {
             self.trace_config.take(),
             self.transformation_config.service_name.take(),
         );
-        Ok(Exporter::new_sync(
+        Ok(Exporter::new(
             process.into(),
             self.transformation_config.export_instrument_library,
             self.build_sync_agent_uploader()?,
         ))
     }
 
-    fn build_async_agent_uploader<R>(self, runtime: R) -> Result<Box<dyn Uploader>, TraceError>
+    fn build_async_agent_uploader<R>(self, runtime: R) -> Result<Arc<dyn Uploader>, TraceError>
     where
         R: JaegerTraceRuntime,
     {
@@ -355,17 +354,17 @@ impl AgentPipeline {
             self.auto_split_batch,
         )
         .map_err::<Error, _>(Into::into)?;
-        Ok(Box::new(AsyncUploader::Agent(agent)))
+        Ok(Arc::new(AsyncUploader::Agent(futures::lock::Mutex::new(agent))))
     }
 
-    fn build_sync_agent_uploader(self) -> Result<Box<dyn Uploader>, TraceError> {
+    fn build_sync_agent_uploader(self) -> Result<Arc<dyn Uploader>, TraceError> {
         let agent = AgentSyncClientUdp::new(
             self.agent_endpoint?.as_slice(),
             self.max_packet_size,
             self.auto_split_batch,
         )
         .map_err::<Error, _>(Into::into)?;
-        Ok(Box::new(SyncUploader::Agent(agent)))
+        Ok(Arc::new(SyncUploader::Agent(std::sync::Mutex::new(agent))))
     }
 }
 

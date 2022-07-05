@@ -11,22 +11,24 @@ use crate::exporter::thrift::jaeger::Batch;
 use crate::exporter::JaegerTraceRuntime;
 
 #[async_trait]
-pub(crate) trait Uploader: std::fmt::Debug + Send {
-    async fn upload(&mut self, batch: jaeger::Batch) -> trace::ExportResult;
+pub(crate) trait Uploader: Debug + Send + Sync{
+    async fn upload(&self, batch: jaeger::Batch) -> trace::ExportResult;
 }
 
 #[derive(Debug)]
 pub(crate) enum SyncUploader {
-    Agent(agent::AgentSyncClientUdp),
+    Agent(std::sync::Mutex<agent::AgentSyncClientUdp>),
 }
 
 #[async_trait]
 impl Uploader for SyncUploader {
-    async fn upload(&mut self, batch: jaeger::Batch) -> trace::ExportResult {
+    async fn upload(&self, batch: jaeger::Batch) -> trace::ExportResult {
         match self {
             SyncUploader::Agent(client) => {
                 // TODO Implement retry behaviour
                 client
+                    .lock()
+                    .expect("Failed to lock agent client")
                     .emit_batch(batch)
                     .map_err::<crate::Error, _>(Into::into)?;
             }
@@ -39,7 +41,7 @@ impl Uploader for SyncUploader {
 #[derive(Debug)]
 pub(crate) enum AsyncUploader<R: JaegerTraceRuntime> {
     /// Agent async client
-    Agent(agent::AgentAsyncClientUdp<R>),
+    Agent(futures::lock::Mutex<agent::AgentAsyncClientUdp<R>>),
     /// Collector sync client
     #[cfg(feature = "collector_client")]
     Collector(collector::AsyncHttpClient),
@@ -49,11 +51,13 @@ pub(crate) enum AsyncUploader<R: JaegerTraceRuntime> {
 
 #[async_trait]
 impl<R: JaegerTraceRuntime> Uploader for AsyncUploader<R> {
-    async fn upload(&mut self, batch: Batch) -> ExportResult {
+    async fn upload(&self, batch: Batch) -> ExportResult {
         match self {
             Self::Agent(client) => {
                 // TODO Implement retry behaviour
                 client
+                    .lock()
+                    .await
                     .emit_batch(batch)
                     .await
                     .map_err::<crate::Error, _>(Into::into)?;
