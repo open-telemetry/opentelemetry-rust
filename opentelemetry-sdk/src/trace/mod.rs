@@ -2,10 +2,10 @@
 //!
 //! The tracing SDK consist of a few main structs:
 //!
-//! * The `Tracer` struct which performs all tracing operations.
-//! * The `Span` struct with is a mutable object storing information about the
+//! * The [`Tracer`] struct which performs all tracing operations.
+//! * The [`Span`] struct with is a mutable object storing information about the
 //! current operation execution.
-//! * The `TracerProvider` struct which configures and produces `Tracer`s.
+//! * The [`TracerProvider`] struct which configures and produces [`Tracer`]s.
 mod config;
 mod evicted_hash_map;
 mod evicted_queue;
