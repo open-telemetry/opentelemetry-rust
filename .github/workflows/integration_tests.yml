@@ -1,0 +1,16 @@
+name: integration tests
+
+on:
+  pull_request:
+    types: [ labeled, synchronize, opened, reopened ]
+
+jobs:
+  integration_tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: ${{ github.event.label.name == 'integration tests' }} || contains(github.event.pull_request.labels.*.name, 'integration tests')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Run integration tests using docker compose
+        run: ./scripts/integration_tests.sh
