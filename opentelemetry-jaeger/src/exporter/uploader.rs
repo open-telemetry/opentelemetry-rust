@@ -11,7 +11,7 @@ use crate::exporter::thrift::jaeger::Batch;
 use crate::exporter::JaegerTraceRuntime;
 
 #[async_trait]
-pub(crate) trait Uploader: Debug + Send + Sync{
+pub(crate) trait Uploader: Debug + Send + Sync {
     async fn upload(&self, batch: jaeger::Batch) -> trace::ExportResult;
 }
 

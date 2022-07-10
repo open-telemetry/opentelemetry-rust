@@ -9,8 +9,8 @@ use opentelemetry::sdk;
 use opentelemetry::sdk::trace::{Config, TracerProvider};
 use opentelemetry::trace::TraceError;
 use std::borrow::BorrowMut;
-use std::{env, net};
 use std::sync::Arc;
+use std::{env, net};
 
 /// The max size of UDP packet we want to send, synced with jaeger-agent
 const UDP_PACKET_MAX_LENGTH: usize = 65_000;
@@ -274,11 +274,7 @@ impl AgentPipeline {
             self.transformation_config.service_name.take(),
         );
         let uploader = self.build_async_agent_uploader(runtime.clone())?;
-        let exporter = Exporter::new(
-            process.into(),
-            export_instrument_library,
-            uploader,
-        );
+        let exporter = Exporter::new(process.into(), export_instrument_library, uploader);
 
         builder = builder.with_batch_exporter(exporter, runtime);
         builder = builder.with_config(config);
@@ -322,7 +318,7 @@ impl AgentPipeline {
             self.trace_config.take(),
             self.transformation_config.service_name.take(),
         );
-        let uploader = self.build_async_agent_uploader(runtime.clone())?;
+        let uploader = self.build_async_agent_uploader(runtime)?;
         Ok(Exporter::new(
             process.into(),
             export_instrument_library,
@@ -354,7 +350,9 @@ impl AgentPipeline {
             self.auto_split_batch,
         )
         .map_err::<Error, _>(Into::into)?;
-        Ok(Arc::new(AsyncUploader::Agent(futures::lock::Mutex::new(agent))))
+        Ok(Arc::new(AsyncUploader::Agent(futures::lock::Mutex::new(
+            agent,
+        ))))
     }
 
     fn build_sync_agent_uploader(self) -> Result<Arc<dyn Uploader>, TraceError> {

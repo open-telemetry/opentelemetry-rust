@@ -20,7 +20,6 @@ use self::runtime::JaegerTraceRuntime;
 use self::thrift::jaeger;
 use futures::future::BoxFuture;
 use std::convert::TryInto;
-use std::ops::Deref;
 use std::sync::Arc;
 
 #[cfg(feature = "isahc_collector_client")]
@@ -77,7 +76,6 @@ pub struct Process {
 }
 
 impl trace::SpanExporter for Exporter {
-    /// Export spans to Jaeger
     fn export(&mut self, batch: Vec<trace::SpanData>) -> BoxFuture<'static, trace::ExportResult> {
         let mut jaeger_spans: Vec<jaeger::Span> = Vec::with_capacity(batch.len());
         let process = self.process.clone();
