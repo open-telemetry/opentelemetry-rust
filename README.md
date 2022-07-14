@@ -31,6 +31,16 @@ observability tools.
 [Jaeger]: https://www.jaegertracing.io
 [msrv]: #supported-rust-versions
 
+
+## Project Status
+
+| Signal  | Status     | Project |
+| ------- | ---------- | ------- |
+| Traces  | Beta       | N/A     |
+| Metrics | Alpha      | N/A     |
+| Logs    | N/A        | N/A     |
+
+
 ## Getting Started
 
 ```rust
