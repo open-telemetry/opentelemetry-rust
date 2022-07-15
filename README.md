@@ -34,12 +34,7 @@ observability tools.
 
 ## Project Status
 
-| Signal  | Status     | Project |
-| ------- | ---------- | ------- |
-| Traces  | Beta       | N/A     |
-| Metrics | Alpha      | N/A     |
-| Logs    | N/A        | N/A     |
-
+[OpenTelemetry Signal Status for Rust][otel-signals-rust]. Libraries adhere to [Stability Guarantees.][otel-signal-stability]
 
 ## Getting Started
 
@@ -136,6 +131,8 @@ above, please let us know! We'd love to add your project to the list!
 [`Tide`]: https://crates.io/crates/tide
 [`opentelemetry-stackdriver`]: https://crates.io/crates/opentelemetry-stackdriver
 [Cloud Trace]: https://cloud.google.com/trace/
+[otel-signals-rust]: https://opentelemetry.io/docs/instrumentation/rust/#status-and-releases
+[otel-signal-stability]: https://opentelemetry.io/docs/reference/specification/versioning-and-stability/
 
 ## Supported Rust Versions
 
