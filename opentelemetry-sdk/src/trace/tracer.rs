@@ -306,7 +306,7 @@ mod tests {
         Context, Key, Value,
     };
 
-    #[derive(Debug)]
+    #[derive(Clone, Debug)]
     struct TestSampler {}
 
     impl ShouldSample for TestSampler {

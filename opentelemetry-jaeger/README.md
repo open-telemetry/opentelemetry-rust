@@ -112,6 +112,7 @@ Then you can use the [`with_collector_endpoint`] method to specify the endpoint:
 // * surf_collector_client
 // * reqwest_collector_client
 // * reqwest_blocking_collector_client
+// * reqwest_rustls_collector_client
 // * isahc_collector_client
 
 // You can also provide your own implementation by enable

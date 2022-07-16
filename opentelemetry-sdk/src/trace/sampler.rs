@@ -1,42 +1,3 @@
-//! # OpenTelemetry ShouldSample Interface
-//!
-//! ## Sampling
-//!
-//! Sampling is a mechanism to control the noise and overhead introduced by
-//! OpenTelemetry by reducing the number of samples of traces collected and
-//! sent to the backend.
-//!
-//! Sampling may be implemented on different stages of a trace collection.
-//! OpenTelemetry SDK defines a `ShouldSample` interface that can be used at
-//! instrumentation points by libraries to check the sampling `SamplingDecision`
-//! early and optimize the amount of telemetry that needs to be collected.
-//!
-//! All other sampling algorithms may be implemented on SDK layer in exporters,
-//! or even out of process in Agent or Collector.
-//!
-//! The OpenTelemetry API has two properties responsible for the data collection:
-//!
-//! * `is_recording` method on a `Span`. If `true` the current `Span` records
-//!   tracing events (attributes, events, status, etc.), otherwise all tracing
-//!   events are dropped. Users can use this property to determine if expensive
-//!   trace events can be avoided. `SpanProcessor`s will receive
-//!   all spans with this flag set. However, `SpanExporter`s will
-//!   not receive them unless the `Sampled` flag was set.
-//! * `Sampled` flag in `trace_flags` on `SpanContext`. This flag is propagated
-//!   via the `SpanContext` to child Spans. For more details see the [W3C
-//!   specification](https://w3c.github.io/trace-context/). This flag indicates
-//!   that the `Span` has been `sampled` and will be exported. `SpanProcessor`s
-//!   and `SpanExporter`s will receive spans with the `Sampled` flag set for
-//!   processing.
-//!
-//! The flag combination `Sampled == false` and `is_recording` == true` means
-//! that the current `Span` does record information, but most likely the child
-//! `Span` will not.
-//!
-//! The flag combination `Sampled == true` and `is_recording == false` could
-//! cause gaps in the distributed trace, and because of this OpenTelemetry API
-//! MUST NOT allow this combination.
-
 use crate::InstrumentationLibrary;
 use opentelemetry_api::trace::OrderMap;
 use opentelemetry_api::{
@@ -47,11 +8,73 @@ use opentelemetry_api::{
 };
 use std::convert::TryInto;
 
-/// The `ShouldSample` interface allows implementations to provide samplers
-/// which will return a sampling `SamplingResult` based on information that
-/// is typically available just before the `Span` was created.
-pub trait ShouldSample: Send + Sync + std::fmt::Debug {
-    /// Returns the `SamplingDecision` for a `Span` to be created.
+#[cfg(feature = "jaeger_remote_sampler")]
+mod jaeger_remote;
+
+#[cfg(feature = "jaeger_remote_sampler")]
+use jaeger_remote::JaegerRemoteSampler;
+#[cfg(feature = "jaeger_remote_sampler")]
+pub use jaeger_remote::JaegerRemoteSamplerBuilder;
+#[cfg(feature = "jaeger_remote_sampler")]
+use opentelemetry_http::HttpClient;
+
+/// The [`ShouldSample`] interface allows implementations to provide samplers
+/// which will return a sampling [`SamplingResult`] based on information that
+/// is typically available just before the [`Span`] was created.
+///
+/// # Sampling
+///
+/// Sampling is a mechanism to control the noise and overhead introduced by
+/// OpenTelemetry by reducing the number of samples of traces collected and
+/// sent to the backend.
+///
+/// Sampling may be implemented on different stages of a trace collection.
+/// [OpenTelemetry SDK] defines a [`ShouldSample`] interface that can be used at
+/// instrumentation points by libraries to check the sampling [`SamplingDecision`]
+/// early and optimize the amount of telemetry that needs to be collected.
+///
+/// All other sampling algorithms may be implemented on SDK layer in exporters,
+/// or even out of process in Agent or Collector.
+///
+/// The OpenTelemetry API has two properties responsible for the data collection:
+///
+/// * [`Span::is_recording()`]. If `true` the current [`Span`] records
+///   tracing events (attributes, events, status, etc.), otherwise all tracing
+///   events are dropped. Users can use this property to determine if expensive
+///   trace events can be avoided. [`SpanProcessor`]s will receive
+///   all spans with this flag set. However, [`SpanExporter`]s will
+///   not receive them unless the `Sampled` flag was set.
+/// * `Sampled` flag in [`SpanContext::trace_flags()`]. This flag is propagated
+///   via the [`SpanContext`] to child Spans. For more details see the [W3C
+///   specification](https://w3c.github.io/trace-context/). This flag indicates
+///   that the [`Span`] has been `sampled` and will be exported. [`SpanProcessor`]s
+///   and [`SpanExporter`]s will receive spans with the `Sampled` flag set for
+///   processing.
+///
+/// The flag combination `Sampled == false` and `is_recording` == true` means
+/// that the current `Span` does record information, but most likely the child
+/// `Span` will not.
+///
+/// The flag combination `Sampled == true` and `is_recording == false` could
+/// cause gaps in the distributed trace, and because of this OpenTelemetry API
+/// MUST NOT allow this combination.
+///
+/// [OpenTelemetry SDK]: https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/sdk.md#sampling
+/// [`SpanContext`]: opentelemetry_api::trace::SpanContext
+/// [`SpanContext::trace_flags()`]: opentelemetry_api::trace::SpanContext#method.trace_flags
+/// [`SpanExporter`]: crate::export::trace::SpanExporter
+/// [`SpanProcessor`]: crate::trace::SpanProcessor
+/// [`Span`]: opentelemetry_api::trace::Span
+/// [`Span::is_recording()`]: opentelemetry_api::trace::Span#tymethod.is_recording
+pub trait ShouldSample: CloneShouldSample + Send + Sync + std::fmt::Debug {
+    /// Returns the [`SamplingDecision`] for a [`Span`] to be created.
+    ///
+    /// The [`should_sample`] function can use any of the information provided to it in order to
+    /// make a decision about whether or not a [`Span`] should or should not be sampled. However,
+    /// there are performance implications on the creation of a span
+    ///
+    /// [`Span`]: opentelemetry_api::trace::Span
+    /// [`should_sample`]: ShouldSample::should_sample
     #[allow(clippy::too_many_arguments)]
     fn should_sample(
         &self,
@@ -65,19 +88,84 @@ pub trait ShouldSample: Send + Sync + std::fmt::Debug {
     ) -> SamplingResult;
 }
 
-/// Sampling options
-#[derive(Clone, Debug, PartialEq)]
+/// This trait should not be used directly instead users should use [`ShouldSample`].
+pub trait CloneShouldSample {
+    fn box_clone(&self) -> Box<dyn ShouldSample>;
+}
+
+impl<T> CloneShouldSample for T
+where
+    T: ShouldSample + Clone + 'static,
+{
+    fn box_clone(&self) -> Box<dyn ShouldSample> {
+        Box::new(self.clone())
+    }
+}
+
+impl Clone for Box<dyn ShouldSample> {
+    fn clone(&self) -> Self {
+        self.box_clone()
+    }
+}
+
+/// Default Sampling options
+///
+/// The [built-in samplers] allow for simple decisions. For more complex scenarios consider
+/// implementing your own sampler using [`ShouldSample`] trait.
+///
+/// [built-in samplers]: https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/sdk.md#built-in-samplers
+#[derive(Clone, Debug)]
+#[non_exhaustive]
 pub enum Sampler {
     /// Always sample the trace
     AlwaysOn,
     /// Never sample the trace
     AlwaysOff,
     /// Respects the parent span's sampling decision or delegates a delegate sampler for root spans.
-    ParentBased(Box<Sampler>),
+    ParentBased(Box<dyn ShouldSample>),
     /// Sample a given fraction of traces. Fractions >= 1 will always sample. If the parent span is
     /// sampled, then it's child spans will automatically be sampled. Fractions < 0 are treated as
     /// zero, but spans may still be sampled if their parent is.
+    /// *Note:* If this is used then all Spans in a trace will become sampled assuming that the
+    /// first span is sampled as it is based on the `trace_id` not the `span_id`
     TraceIdRatioBased(f64),
+    /// Jaeger remote sampler supports any remote service that implemented the jaeger remote sampler protocol.
+    /// The proto definition can be found [here](https://github.com/jaegertracing/jaeger-idl/blob/main/proto/api_v2/sampling.proto)
+    ///
+    /// Jaeger remote sampler allows remotely controlling the sampling configuration for the SDKs.
+    /// The sampling is typically configured at the collector and the SDKs actively poll for changes.
+    /// The sampler uses TraceIdRatioBased or rate-limited sampler under the hood.
+    /// These samplers can be configured per whole service (a.k.a default), or per span name in a
+    /// given service (a.k.a per operation).
+    #[cfg(feature = "jaeger_remote_sampler")]
+    JaegerRemote(JaegerRemoteSampler),
+}
+
+impl Sampler {
+    /// Create a jaeger remote sampler.
+    ///
+    /// user needs to provide
+    /// - a `runtime` to run the http client
+    /// - a http client to query the sampling endpoint
+    /// - a default sampler to make sampling decision when the remote is unavailable or before the SDK receive the first response,
+    /// - the service name. This is a required parameter to query the sampling endpoint.
+    ///
+    /// See [here](https://github.com/open-telemetry/opentelemetry-rust/blob/main/examples/jaeger-remote-sampler/src/main.rs) for an example.
+    #[cfg(feature = "jaeger_remote_sampler")]
+    pub fn jaeger_remote<C, Sampler, R, Svc>(
+        runtime: R,
+        http_client: C,
+        default_sampler: Sampler,
+        service_name: Svc,
+    ) -> JaegerRemoteSamplerBuilder<C, Sampler, R>
+    where
+        C: HttpClient + 'static,
+        Sampler: ShouldSample,
+        R: crate::trace::TraceRuntime,
+        Svc: Into<String>,
+    {
+        JaegerRemoteSamplerBuilder::new(runtime, http_client, default_sampler, service_name)
+    }
 }
 
 impl ShouldSample for Sampler {
@@ -122,27 +210,22 @@ impl ShouldSample for Sampler {
                 )
             }
             // Probabilistically sample the trace.
-            Sampler::TraceIdRatioBased(prob) => {
-                if *prob >= 1.0 {
-                    SamplingDecision::RecordAndSample
-                } else {
-                    let prob_upper_bound = (prob.max(0.0) * (1u64 << 63) as f64) as u64;
-                    // TODO: update behavior when the spec definition resolves
-                    // https://github.com/open-telemetry/opentelemetry-specification/issues/1413
-                    let bytes = trace_id.to_bytes();
-                    let (_, low) = bytes.split_at(8);
-                    let trace_id_low = u64::from_be_bytes(low.try_into().unwrap());
-                    let rnd_from_trace_id = trace_id_low >> 1;
-
-                    if rnd_from_trace_id < prob_upper_bound {
-                        SamplingDecision::RecordAndSample
-                    } else {
-                        SamplingDecision::Drop
-                    }
-                }
+            Sampler::TraceIdRatioBased(prob) => sample_based_on_probability(prob, trace_id),
+            #[cfg(feature = "jaeger_remote_sampler")]
+            Sampler::JaegerRemote(remote_sampler) => {
+                remote_sampler
+                    .should_sample(
+                        parent_context,
+                        trace_id,
+                        name,
+                        span_kind,
+                        attributes,
+                        links,
+                        instrumentation_library,
+                    )
+                    .decision
             }
         };
-
         SamplingResult {
             decision,
             // No extra attributes ever set by the SDK samplers.
@@ -152,6 +235,26 @@ impl ShouldSample for Sampler {
                 Some(ctx) => ctx.span().span_context().trace_state().clone(),
                 None => TraceState::default(),
             },
+        }
+    }
+}
+
+pub(crate) fn sample_based_on_probability(prob: &f64, trace_id: TraceId) -> SamplingDecision {
+    if *prob >= 1.0 {
+        SamplingDecision::RecordAndSample
+    } else {
+        let prob_upper_bound = (prob.max(0.0) * (1u64 << 63) as f64) as u64;
+        // TODO: update behavior when the spec definition resolves
+        // https://github.com/open-telemetry/opentelemetry-specification/issues/1413
+        let bytes = trace_id.to_bytes();
+        let (_, low) = bytes.split_at(8);
+        let trace_id_low = u64::from_be_bytes(low.try_into().unwrap());
+        let rnd_from_trace_id = trace_id_low >> 1;
+
+        if rnd_from_trace_id < prob_upper_bound {
+            SamplingDecision::RecordAndSample
+        } else {
+            SamplingDecision::Drop
         }
     }
 }
@@ -273,6 +376,37 @@ mod tests {
                 tolerance
             );
         }
+    }
+
+    #[test]
+    fn clone_a_parent_sampler() {
+        let sampler = Sampler::ParentBased(Box::new(Sampler::AlwaysOn));
+        let cloned_sampler = sampler.clone();
+
+        let cx = Context::current_with_value("some_value");
+        let instrumentation_library = InstrumentationLibrary::default();
+
+        let result = sampler.should_sample(
+            Some(&cx),
+            TraceId::from_u128(1),
+            "should sample",
+            &SpanKind::Internal,
+            &Default::default(),
+            &[],
+            &instrumentation_library,
+        );
+
+        let cloned_result = cloned_sampler.should_sample(
+            Some(&cx),
+            TraceId::from_u128(1),
+            "should sample",
+            &SpanKind::Internal,
+            &Default::default(),
+            &[],
+            &instrumentation_library,
+        );
+
+        assert_eq!(result, cloned_result);
     }
 
     #[test]

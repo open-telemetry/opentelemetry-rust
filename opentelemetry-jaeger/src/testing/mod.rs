@@ -25,7 +25,7 @@ pub mod jaeger_client {
         }
 
         /// Check if the jaeger contains the service
-        pub async fn contain_service(&mut self, service_name: &'static str) -> bool {
+        pub async fn contain_service(&mut self, service_name: &String) -> bool {
             self.query_service_client
                 .get_services(GetServicesRequest {})
                 .await
@@ -33,7 +33,7 @@ pub mod jaeger_client {
                 .get_ref()
                 .services
                 .iter()
-                .any(|svc_name| svc_name == service_name)
+                .any(|svc_name| *svc_name == *service_name)
         }
 
         /// Find trace by trace id.
@@ -62,13 +62,10 @@ pub mod jaeger_client {
 
         /// Find traces belongs the service.
         /// It assumes the service exists.
-        pub async fn find_traces_from_services(
-            &mut self,
-            service_name: &'static str,
-        ) -> Vec<JaegerSpan> {
+        pub async fn find_traces_from_services(&mut self, service_name: &str) -> Vec<JaegerSpan> {
             let request = FindTracesRequest {
                 query: Some(TraceQueryParameters {
-                    service_name: service_name.into(),
+                    service_name: service_name.to_owned(),
                     ..Default::default()
                 }),
             };
