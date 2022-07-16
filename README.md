@@ -31,6 +31,11 @@ observability tools.
 [Jaeger]: https://www.jaegertracing.io
 [msrv]: #supported-rust-versions
 
+
+## Project Status
+
+[OpenTelemetry Signal Status for Rust][otel-signals-rust]. Libraries adhere to [Stability Guarantees.][otel-signal-stability]
+
 ## Getting Started
 
 ```rust
@@ -126,6 +131,8 @@ above, please let us know! We'd love to add your project to the list!
 [`Tide`]: https://crates.io/crates/tide
 [`opentelemetry-stackdriver`]: https://crates.io/crates/opentelemetry-stackdriver
 [Cloud Trace]: https://cloud.google.com/trace/
+[otel-signals-rust]: https://opentelemetry.io/docs/instrumentation/rust/#status-and-releases
+[otel-signal-stability]: https://opentelemetry.io/docs/reference/specification/versioning-and-stability/
 
 ## Supported Rust Versions
 
