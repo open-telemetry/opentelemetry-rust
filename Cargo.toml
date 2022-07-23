@@ -38,6 +38,3 @@ members = [
     "examples/zpages"
 ]
 exclude = ["examples/external-otlp-grpcio-async-std"]
-
-[profile.release]
-debug = true
