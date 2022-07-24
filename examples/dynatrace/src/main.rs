@@ -129,7 +129,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
 
     let gauge = meter
         .f64_observable_gauge("ex.com.one")
-        .with_description("A ValueObserver set to 1.0")
+        .with_description("A GaugeObserver set to 1.0")
         .init();
     meter.register_callback(move |cx| gauge.observe(cx, 1.0, COMMON_ATTRIBUTES.as_ref()))?;
 

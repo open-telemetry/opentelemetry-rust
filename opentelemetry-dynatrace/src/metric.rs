@@ -128,7 +128,7 @@ where
     TS: TemporalitySelector + Clone + Send + Sync + 'static,
     RT: Runtime,
 {
-    /// Build with resource key value pairs.
+    /// Build with resource
     pub fn with_resource(self, resource: Resource) -> Self {
         DynatraceMetricsPipeline {
             resource: Some(resource),
