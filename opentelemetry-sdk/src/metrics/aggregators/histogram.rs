@@ -83,7 +83,7 @@ impl Histogram for HistogramAggregator {
 
 impl Aggregation for HistogramAggregator {
     fn kind(&self) -> &AggregationKind {
-        &AggregationKind::SUM
+        &AggregationKind::HISTOGRAM
     }
 }
 

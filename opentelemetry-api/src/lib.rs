@@ -2,7 +2,7 @@
 //! services to capture distributed traces and metrics from your application. You
 //! can analyze them using [Prometheus], [Jaeger], and other observability tools.
 //!
-//! *Compiler support: [requires `rustc` 1.55+][msrv]*
+//! *Compiler support: [requires `rustc` 1.49+][msrv]*
 //!
 //! [Prometheus]: https://prometheus.io
 //! [Jaeger]: https://www.jaegertracing.io
@@ -55,7 +55,7 @@ mod common;
 #[doc(hidden)]
 pub mod testing;
 
-pub use common::{Array, ExportError, InstrumentationLibrary, Key, KeyValue, Value};
+pub use common::{Array, ExportError, InstrumentationLibrary, Key, KeyValue, StringValue, Value};
 
 #[cfg(feature = "metrics")]
 #[cfg_attr(docsrs, doc(cfg(feature = "metrics")))]

@@ -1,14 +1,4 @@
 /// Kinds of OpenTelemetry metric instruments
-///
-/// | **Name** | Instrument kind | Function(argument) | Default aggregation | Notes |
-/// | ----------------------- | ----- | --------- | ------------- | --- |
-/// | **Histogram**       | Synchronous  | Record(value) | MinMaxSumCount  | Per-request, any non-additive measurement |
-/// | **Gauge**       | Synchronous  | Record(value) | MinMaxSumCount  | Depreated. Use Histogram. |
-/// | **ValueObserver**       | Asynchronous | Observe(value) | MinMaxSumCount  | Per-interval, any non-additive measurement |
-/// | **Counter**             | Synchronous additive monotonic | Add(increment) | Sum | Per-request, part of a monotonic sum |
-/// | **UpDownCounter**       | Synchronous additive | Add(increment) | Sum | Per-request, part of a non-monotonic sum |
-/// | **SumObserver**         | Asynchronous additive monotonic | Observe(sum) | Sum | Per-interval, reporting a monotonic sum |
-/// | **UpDownSumObserver**   | Asynchronous additive | Observe(sum) | Sum | Per-interval, reporting a non-monotonic sum |
 #[derive(Clone, Debug, PartialEq, Hash)]
 pub enum InstrumentKind {
     /// A histogram instrument

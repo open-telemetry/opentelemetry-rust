@@ -17,6 +17,7 @@
 //! See the [w3c trace-context docs] for more details.
 //!
 //! [w3c trace-context docs]: https://w3c.github.io/trace-context/
+use once_cell::sync::Lazy;
 use opentelemetry_api::{
     propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
     trace::{SpanContext, SpanId, TraceContextExt, TraceFlags, TraceId, TraceState},
@@ -29,12 +30,8 @@ const MAX_VERSION: u8 = 254;
 const TRACEPARENT_HEADER: &str = "traceparent";
 const TRACESTATE_HEADER: &str = "tracestate";
 
-lazy_static::lazy_static! {
-    static ref TRACE_CONTEXT_HEADER_FIELDS: [String; 2] = [
-        TRACEPARENT_HEADER.to_string(),
-        TRACESTATE_HEADER.to_string()
-    ];
-}
+static TRACE_CONTEXT_HEADER_FIELDS: Lazy<[String; 2]> =
+    Lazy::new(|| [TRACEPARENT_HEADER.to_owned(), TRACESTATE_HEADER.to_owned()]);
 
 /// Propagates `SpanContext`s in [W3C TraceContext] format.
 ///

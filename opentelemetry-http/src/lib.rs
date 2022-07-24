@@ -6,7 +6,7 @@ pub use bytes::Bytes;
 pub use http::{Request, Response};
 
 use async_trait::async_trait;
-use opentelemetry::{
+use opentelemetry_api::{
     propagation::{Extractor, Injector},
     trace::TraceError,
 };

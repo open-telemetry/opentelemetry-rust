@@ -22,8 +22,8 @@ default = ["trace"]
 trace = ["opentelemetry/trace"]
 
 [dependencies]
+once_cell = "1.12"
 opentelemetry = { version = "0.17", path = "../opentelemetry", features = ["trace"] }
-lazy_static = "1.4"
 
 [dev-dependencies]
 opentelemetry = { path = "../opentelemetry", features = ["trace", "testing"] }

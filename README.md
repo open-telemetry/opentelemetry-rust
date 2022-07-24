@@ -25,11 +25,16 @@ analysis in order to understand your software's performance and behavior. You
 can export and analyze them using [Prometheus], [Jaeger], and other
 observability tools.
 
-*Compiler support: [requires `rustc` 1.55+][msrv]*
+*Compiler support: [requires `rustc` 1.49+][msrv]*
 
 [Prometheus]: https://prometheus.io
 [Jaeger]: https://www.jaegertracing.io
 [msrv]: #supported-rust-versions
+
+
+## Project Status
+
+[OpenTelemetry Signal Status for Rust][otel-signals-rust]. Libraries adhere to [Stability Guarantees.][otel-signal-stability]
 
 ## Getting Started
 
@@ -126,11 +131,13 @@ above, please let us know! We'd love to add your project to the list!
 [`Tide`]: https://crates.io/crates/tide
 [`opentelemetry-stackdriver`]: https://crates.io/crates/opentelemetry-stackdriver
 [Cloud Trace]: https://cloud.google.com/trace/
+[otel-signals-rust]: https://opentelemetry.io/docs/instrumentation/rust/#status-and-releases
+[otel-signal-stability]: https://opentelemetry.io/docs/reference/specification/versioning-and-stability/
 
 ## Supported Rust Versions
 
 OpenTelemetry is built against the latest stable release. The minimum supported
-version is 1.55. The current OpenTelemetry version is not guaranteed to build
+version is 1.49. The current OpenTelemetry version is not guaranteed to build
 on Rust versions earlier than the minimum supported version.
 
 The current stable Rust compiler and the three most recent minor versions

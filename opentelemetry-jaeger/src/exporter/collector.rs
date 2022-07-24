@@ -77,6 +77,7 @@ mod wasm_collector_client {
     use futures_util::future;
     use http::Uri;
     use js_sys::Uint8Array;
+    use pin_project_lite::pin_project;
     use std::future::Future;
     use std::io::{self, Cursor};
     use std::pin::Pin;
@@ -132,7 +133,7 @@ mod wasm_collector_client {
         {
             self.build_request(batch)
                 .map(post_request)
-                .map(|fut| future::Either::Left(SubmitBatchFuture(fut)))
+                .map(|fut| future::Either::Left(SubmitBatchFuture { fut }))
                 .unwrap_or_else(|e| future::Either::Right(future::err(e)))
         }
 
@@ -199,19 +200,22 @@ mod wasm_collector_client {
         Ok(jaeger::BatchSubmitResponse { ok: true })
     }
 
-    /// Wrapper of web fetch API future marked as Send.
-    ///
-    /// At the moment, the web APIs are single threaded. Since all opentelemetry futures are
-    /// required to be Send, we mark this future as Send.
-    #[pin_project::pin_project]
-    struct SubmitBatchFuture<F>(#[pin] F);
+    pin_project! {
+        /// Wrapper of web fetch API future marked as Send.
+        ///
+        /// At the moment, the web APIs are single threaded. Since all opentelemetry futures are
+        /// required to be Send, we mark this future as Send.
+        struct SubmitBatchFuture<F> {
+            #[pin] fut: F
+        }
+    }
 
     unsafe impl<F> Send for SubmitBatchFuture<F> {}
 
     impl<F: Future> Future for SubmitBatchFuture<F> {
         type Output = F::Output;
         fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-            self.project().0.poll(cx)
+            self.project().fut.poll(cx)
         }
     }
 

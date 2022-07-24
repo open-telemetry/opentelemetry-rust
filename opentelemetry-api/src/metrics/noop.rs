@@ -11,7 +11,6 @@ use crate::{
     Context, InstrumentationLibrary, KeyValue,
 };
 use std::sync::Arc;
-
 /// A no-op instance of a `MetricProvider`
 #[derive(Debug, Default)]
 pub struct NoopMeterProvider {

@@ -5,11 +5,9 @@ use std::sync::RwLock;
 use crate::metrics::MetricsError;
 #[cfg(feature = "trace")]
 use crate::trace::TraceError;
+use once_cell::sync::Lazy;
 
-lazy_static::lazy_static! {
-    /// The global error handler.
-    static ref GLOBAL_ERROR_HANDLER: RwLock<Option<ErrorHandler>> = RwLock::new(None);
-}
+static GLOBAL_ERROR_HANDLER: Lazy<RwLock<Option<ErrorHandler>>> = Lazy::new(|| RwLock::new(None));
 
 /// Wrapper for error from both tracing and metrics part of open telemetry.
 #[derive(thiserror::Error, Debug)]

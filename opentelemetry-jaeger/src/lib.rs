@@ -3,7 +3,7 @@
 //!
 //! See the [Jaeger Docs] for details about Jaeger and deployment information.
 //!
-//! *Compiler support: [requires `rustc` 1.55+][msrv]*
+//! *Compiler support: [requires `rustc` 1.49+][msrv]*
 //!
 //! [Jaeger Docs]: https://www.jaegertracing.io/docs/
 //! [msrv]: #supported-rust-versions
@@ -324,6 +324,7 @@ mod exporter;
 pub mod testing;
 
 mod propagator {
+    use once_cell::sync::Lazy;
     use opentelemetry::{
         global::{self, Error},
         propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
@@ -341,9 +342,7 @@ mod propagator {
 
     const TRACE_FLAG_DEBUG: TraceFlags = TraceFlags::new(0x04);
 
-    lazy_static::lazy_static! {
-        static ref JAEGER_HEADER_FIELD: [String; 1] = [JAEGER_HEADER.to_string()];
-    }
+    static JAEGER_HEADER_FIELD: Lazy<[String; 1]> = Lazy::new(|| [JAEGER_HEADER.to_owned()]);
 
     /// The Jaeger propagator propagates span contexts in [Jaeger propagation format].
     ///

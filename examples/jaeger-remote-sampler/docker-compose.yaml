@@ -1,0 +1,26 @@
+version: "3"
+services:
+
+  # jaeger collector
+  jaeger-all-in-one:
+    image: jaegertracing/all-in-one:latest
+    ports:
+      - "16686:16686"
+      - "14268"
+      - "14250"
+      - "5778:5778"
+    container_name: jaeger-collector
+    volumes:
+      - ./strategies.json:/etc/jaeger/custom_strategies.json
+    environment:
+      - SAMPLING_STRATEGIES_FILE=/etc/jaeger/custom_strategies.json
+
+  # opentelemetry collector
+  otel-collector:
+    image: otel/opentelemetry-collector:latest
+    command: [ "--config=/etc/otel-collector.yaml" ]
+    volumes:
+      - ./otel-collector.yaml:/etc/otel-collector.yaml
+      - ./strategies.json:/etc/strategies.json
+    ports:
+      - "5779:5778"  # default jaeger remote sampling port

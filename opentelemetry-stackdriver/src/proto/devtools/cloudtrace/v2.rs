@@ -391,21 +391,21 @@ pub struct BatchWriteSpansRequest {
     #[prost(message, repeated, tag = "2")]
     pub spans: ::prost::alloc::vec::Vec<Span>,
 }
-#[doc = r" Generated client implementations."]
+/// Generated client implementations.
 pub mod trace_service_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;
-    #[doc = " This file describes an API for collecting and viewing traces and spans"]
-    #[doc = " within a trace.  A Trace is a collection of spans corresponding to a single"]
-    #[doc = " operation or set of operations for an application. A span is an individual"]
-    #[doc = " timed event which forms a node of the trace tree. A single trace may"]
-    #[doc = " contain span(s) from multiple services."]
+    /// This file describes an API for collecting and viewing traces and spans
+    /// within a trace.  A Trace is a collection of spans corresponding to a single
+    /// operation or set of operations for an application. A span is an individual
+    /// timed event which forms a node of the trace tree. A single trace may
+    /// contain span(s) from multiple services.
     #[derive(Debug, Clone)]
     pub struct TraceServiceClient<T> {
         inner: tonic::client::Grpc<T>,
     }
     impl TraceServiceClient<tonic::transport::Channel> {
-        #[doc = r" Attempt to create a new client by connecting to a given endpoint."]
+        /// Attempt to create a new client by connecting to a given endpoint.
         pub async fn connect<D>(dst: D) -> Result<Self, tonic::transport::Error>
         where
             D: std::convert::TryInto<tonic::transport::Endpoint>,
@@ -418,8 +418,8 @@ pub mod trace_service_client {
     impl<T> TraceServiceClient<T>
     where
         T: tonic::client::GrpcService<tonic::body::BoxBody>,
-        T::ResponseBody: Body + Send + 'static,
         T::Error: Into<StdError>,
+        T::ResponseBody: Body<Data = Bytes> + Send + 'static,
         <T::ResponseBody as Body>::Error: Into<StdError> + Send,
     {
         pub fn new(inner: T) -> Self {
@@ -432,6 +432,7 @@ pub mod trace_service_client {
         ) -> TraceServiceClient<InterceptedService<T, F>>
         where
             F: tonic::service::Interceptor,
+            T::ResponseBody: Default,
             T: tonic::codegen::Service<
                 http::Request<tonic::body::BoxBody>,
                 Response = http::Response<
@@ -443,21 +444,23 @@ pub mod trace_service_client {
         {
             TraceServiceClient::new(InterceptedService::new(inner, interceptor))
         }
-        #[doc = r" Compress requests with `gzip`."]
-        #[doc = r""]
-        #[doc = r" This requires the server to support it otherwise it might respond with an"]
-        #[doc = r" error."]
+        /// Compress requests with `gzip`.
+        ///
+        /// This requires the server to support it otherwise it might respond with an
+        /// error.
+        #[must_use]
         pub fn send_gzip(mut self) -> Self {
             self.inner = self.inner.send_gzip();
             self
         }
-        #[doc = r" Enable decompressing responses with `gzip`."]
+        /// Enable decompressing responses with `gzip`.
+        #[must_use]
         pub fn accept_gzip(mut self) -> Self {
             self.inner = self.inner.accept_gzip();
             self
         }
-        #[doc = " Sends new spans to new or existing traces. You cannot update"]
-        #[doc = " existing spans."]
+        /// Sends new spans to new or existing traces. You cannot update
+        /// existing spans.
         pub async fn batch_write_spans(
             &mut self,
             request: impl tonic::IntoRequest<super::BatchWriteSpansRequest>,
@@ -474,7 +477,7 @@ pub mod trace_service_client {
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
-        #[doc = " Creates a new span."]
+        /// Creates a new span.
         pub async fn create_span(
             &mut self,
             request: impl tonic::IntoRequest<super::Span>,

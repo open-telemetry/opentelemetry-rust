@@ -11,6 +11,7 @@
 
 use std::{
     collections::HashMap,
+    convert::TryFrom,
     fmt,
     future::Future,
     sync::{
@@ -32,9 +33,12 @@ use opentelemetry::{
         trace::EvictedHashMap,
     },
     trace::TraceError,
-    Value,
+    Key, Value,
 };
-use opentelemetry_semantic_conventions as semcov;
+use opentelemetry_semantic_conventions::resource::SERVICE_NAME;
+use opentelemetry_semantic_conventions::trace::{
+    HTTP_HOST, HTTP_METHOD, HTTP_ROUTE, HTTP_STATUS_CODE, HTTP_TARGET, HTTP_URL, HTTP_USER_AGENT,
+};
 use thiserror::Error;
 #[cfg(any(feature = "yup-authorizer", feature = "gcp_auth"))]
 use tonic::metadata::MetadataValue;
@@ -418,7 +422,7 @@ impl Authorizer for YupAuthorizer {
 
         req.metadata_mut().insert(
             "authorization",
-            MetadataValue::from_str(&format!("Bearer {}", token.as_str())).unwrap(),
+            MetadataValue::try_from(format!("Bearer {}", token.as_str())).unwrap(),
         );
         Ok(())
     }
@@ -471,7 +475,7 @@ impl Authorizer for GcpAuthorizer {
 
         req.metadata_mut().insert(
             "authorization",
-            MetadataValue::from_str(&format!("Bearer {}", token.as_str())).unwrap(),
+            MetadataValue::try_from(format!("Bearer {}", token.as_str())).unwrap(),
         );
 
         Ok(())
@@ -497,7 +501,7 @@ impl From<Value> for AttributeValue {
             Value::Bool(v) => attribute_value::Value::BoolValue(v),
             Value::F64(v) => attribute_value::Value::StringValue(to_truncate(v.to_string())),
             Value::I64(v) => attribute_value::Value::IntValue(v),
-            Value::String(v) => attribute_value::Value::StringValue(to_truncate(v.into_owned())),
+            Value::String(v) => attribute_value::Value::StringValue(to_truncate(v.to_string())),
             Value::Array(_) => attribute_value::Value::StringValue(to_truncate(v.to_string())),
         };
         AttributeValue {
@@ -561,6 +565,32 @@ impl From<LogContext> for InternalLogContext {
     fn from(cx: LogContext) -> Self {
         let mut labels = HashMap::default();
         let resource = match cx.resource {
+            MonitoredResource::CloudRunRevision {
+                project_id,
+                service_name,
+                revision_name,
+                location,
+                configuration_name,
+            } => {
+                labels.insert("project_id".to_string(), project_id);
+                if let Some(service_name) = service_name {
+                    labels.insert("service_name".to_string(), service_name);
+                }
+                if let Some(revision_name) = revision_name {
+                    labels.insert("revision_name".to_string(), revision_name);
+                }
+                if let Some(location) = location {
+                    labels.insert("location".to_string(), location);
+                }
+                if let Some(configuration_name) = configuration_name {
+                    labels.insert("configuration_name".to_string(), configuration_name);
+                }
+
+                proto::api::MonitoredResource {
+                    r#type: "cloud_run_revision".to_owned(),
+                    labels,
+                }
+            }
             MonitoredResource::GenericNode {
                 project_id,
                 location,
@@ -647,21 +677,14 @@ pub enum MonitoredResource {
         job: Option<String>,
         task_id: Option<String>,
     },
+    CloudRunRevision {
+        project_id: String,
+        service_name: Option<String>,
+        revision_name: Option<String>,
+        location: Option<String>,
+        configuration_name: Option<String>,
+    },
 }
-
-const TRACE_APPEND: &str = "https://www.googleapis.com/auth/trace.append";
-const LOGGING_WRITE: &str = "https://www.googleapis.com/auth/logging.write";
-const HTTP_PATH_ATTRIBUTE: &str = "http.path";
-
-const GCP_HTTP_HOST: &str = "/http/host";
-const GCP_HTTP_METHOD: &str = "/http/method";
-const GCP_HTTP_TARGET: &str = "/http/path";
-const GCP_HTTP_URL: &str = "/http/url";
-const GCP_HTTP_USER_AGENT: &str = "/http/user_agent";
-const GCP_HTTP_STATUS_CODE: &str = "/http/status_code";
-const GCP_HTTP_ROUTE: &str = "/http/route";
-const GCP_HTTP_PATH: &str = "/http/path";
-const GCP_SERVICE_NAME: &str = "g.co/gae/app/module";
 
 impl From<EvictedHashMap> for Attributes {
     fn from(attributes: EvictedHashMap) -> Self {
@@ -675,40 +698,16 @@ impl From<EvictedHashMap> for Attributes {
                     return None;
                 }
 
-                if semcov::trace::HTTP_HOST == k {
-                    return Some((GCP_HTTP_HOST.to_owned(), v.into()));
-                }
-
-                if semcov::trace::HTTP_METHOD == k {
-                    return Some((GCP_HTTP_METHOD.to_owned(), v.into()));
-                }
-
-                if semcov::trace::HTTP_TARGET == k {
-                    return Some((GCP_HTTP_TARGET.to_owned(), v.into()));
-                }
-
-                if semcov::trace::HTTP_URL == k {
-                    return Some((GCP_HTTP_URL.to_owned(), v.into()));
-                }
-
-                if semcov::trace::HTTP_USER_AGENT == k {
-                    return Some((GCP_HTTP_USER_AGENT.to_owned(), v.into()));
-                }
-
-                if semcov::trace::HTTP_STATUS_CODE == k {
-                    return Some((GCP_HTTP_STATUS_CODE.to_owned(), v.into()));
-                }
-
-                if semcov::trace::HTTP_ROUTE == k {
-                    return Some((GCP_HTTP_ROUTE.to_owned(), v.into()));
-                };
-
-                if semcov::resource::SERVICE_NAME == k {
+                if k == SERVICE_NAME {
                     return Some((GCP_SERVICE_NAME.to_owned(), v.into()));
-                };
-
-                if HTTP_PATH_ATTRIBUTE == key {
+                } else if key == HTTP_PATH_ATTRIBUTE {
                     return Some((GCP_HTTP_PATH.to_owned(), v.into()));
+                }
+
+                for (otel_key, gcp_key) in KEY_MAP {
+                    if otel_key == &k {
+                        return Some((gcp_key.to_owned(), v.into()));
+                    }
                 }
 
                 Some((key.to_owned(), v.into()))
@@ -720,6 +719,23 @@ impl From<EvictedHashMap> for Attributes {
         }
     }
 }
+
+// Map conventional OpenTelemetry keys to their GCP counterparts.
+const KEY_MAP: [(&Key, &str); 7] = [
+    (&HTTP_HOST, "/http/host"),
+    (&HTTP_METHOD, "/http/method"),
+    (&HTTP_TARGET, "/http/path"),
+    (&HTTP_URL, "/http/url"),
+    (&HTTP_USER_AGENT, "/http/user_agent"),
+    (&HTTP_STATUS_CODE, "/http/status_code"),
+    (&HTTP_ROUTE, "/http/route"),
+];
+
+const TRACE_APPEND: &str = "https://www.googleapis.com/auth/trace.append";
+const LOGGING_WRITE: &str = "https://www.googleapis.com/auth/logging.write";
+const HTTP_PATH_ATTRIBUTE: &str = "http.path";
+const GCP_HTTP_PATH: &str = "/http/path";
+const GCP_SERVICE_NAME: &str = "g.co/gae/app/module";
 
 #[cfg(test)]
 mod tests {

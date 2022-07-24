@@ -757,7 +757,7 @@ mod tests {
             let dimensions = DimensionSet::from(vec![
                 KeyValue::new("KEY", "VALUE"),
                 KeyValue::new("test.abc_123-", "value.123_foo-bar"),
-                KeyValue::new(METRICS_SOURCE, "opentelemetry".to_string()),
+                KeyValue::new(METRICS_SOURCE, "opentelemetry"),
             ]);
 
             let expect = vec![MetricLine {
@@ -801,7 +801,7 @@ mod tests {
             let dimensions = DimensionSet::from(vec![
                 KeyValue::new("KEY", "VALUE"),
                 KeyValue::new("test.abc_123-", "value.123_foo-bar"),
-                KeyValue::new(METRICS_SOURCE, "opentelemetry".to_string()),
+                KeyValue::new(METRICS_SOURCE, "opentelemetry"),
             ]);
 
             let expect = vec![MetricLine {
@@ -873,7 +873,7 @@ mod tests {
             let dimensions = DimensionSet::from(vec![
                 KeyValue::new("KEY", "VALUE"),
                 KeyValue::new("test.abc_123-", "value.123_foo-bar"),
-                KeyValue::new(METRICS_SOURCE, "opentelemetry".to_string()),
+                KeyValue::new(METRICS_SOURCE, "opentelemetry"),
             ]);
 
             let expect = vec![MetricLine {
@@ -944,7 +944,7 @@ mod tests {
             let dimensions = DimensionSet::from(vec![
                 KeyValue::new("KEY", "VALUE"),
                 KeyValue::new("test.abc_123-", "value.123_foo-bar"),
-                KeyValue::new(METRICS_SOURCE, "opentelemetry".to_string()),
+                KeyValue::new(METRICS_SOURCE, "opentelemetry"),
             ]);
 
             let expect = vec![MetricLine {

@@ -66,6 +66,3 @@ mod trace;
 pub use trace::{
     span_processor::ZPagesSpanProcessor, tracez, TracezError, TracezQuerier, TracezResponse,
 };
-
-#[macro_use]
-extern crate lazy_static;
