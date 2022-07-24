@@ -47,17 +47,17 @@ impl Meter {
         }
     }
 
-    /// creates an instrument for recording increasing values.
+    /// creates an instrument builder for recording increasing values.
     pub fn u64_counter(&self, name: impl Into<String>) -> InstrumentBuilder<'_, Counter<u64>> {
         InstrumentBuilder::new(self, name.into())
     }
 
-    /// creates an instrument for recording increasing values.
+    /// creates an instrument builder for recording increasing values.
     pub fn f64_counter(&self, name: impl Into<String>) -> InstrumentBuilder<'_, Counter<f64>> {
         InstrumentBuilder::new(self, name.into())
     }
 
-    /// creates an instrument for recording increasing values via callback.
+    /// creates an instrument builder for recording increasing values via callback.
     pub fn u64_observable_counter(
         &self,
         name: impl Into<String>,
@@ -65,7 +65,7 @@ impl Meter {
         InstrumentBuilder::new(self, name.into())
     }
 
-    /// creates an instrument for recording increasing values via callback.
+    /// creates an instrument builder for recording increasing values via callback.
     pub fn f64_observable_counter(
         &self,
         name: impl Into<String>,
@@ -73,7 +73,7 @@ impl Meter {
         InstrumentBuilder::new(self, name.into())
     }
 
-    /// creates an instrument for recording changes of a value.
+    /// creates an instrument builder for recording changes of a value.
     pub fn i64_up_down_counter(
         &self,
         name: impl Into<String>,
@@ -81,7 +81,7 @@ impl Meter {
         InstrumentBuilder::new(self, name.into())
     }
 
-    /// creates an instrument for recording changes of a value.
+    /// creates an instrument builder for recording changes of a value.
     pub fn f64_up_down_counter(
         &self,
         name: impl Into<String>,
@@ -89,7 +89,7 @@ impl Meter {
         InstrumentBuilder::new(self, name.into())
     }
 
-    /// creates an instrument for recording changes of a value via callback.
+    /// creates an instrument builder for recording changes of a value via callback.
     pub fn i64_observable_up_down_counter(
         &self,
         name: impl Into<String>,
@@ -97,7 +97,7 @@ impl Meter {
         InstrumentBuilder::new(self, name.into())
     }
 
-    /// creates an instrument for recording changes of a value via callback.
+    /// creates an instrument builder for recording changes of a value via callback.
     pub fn f64_observable_up_down_counter(
         &self,
         name: impl Into<String>,
@@ -105,7 +105,7 @@ impl Meter {
         InstrumentBuilder::new(self, name.into())
     }
 
-    /// creates an instrument for recording the current value via callback.
+    /// creates an instrument builder for recording the current value via callback.
     pub fn u64_observable_gauge(
         &self,
         name: impl Into<String>,
@@ -113,7 +113,7 @@ impl Meter {
         InstrumentBuilder::new(self, name.into())
     }
 
-    /// creates an instrument for recording the current value via callback.
+    /// creates an instrument builder for recording the current value via callback.
     pub fn i64_observable_gauge(
         &self,
         name: impl Into<String>,
@@ -121,7 +121,7 @@ impl Meter {
         InstrumentBuilder::new(self, name.into())
     }
 
-    /// creates an instrument for recording the current value via callback.
+    /// creates an instrument builder for recording the current value via callback.
     pub fn f64_observable_gauge(
         &self,
         name: impl Into<String>,
@@ -129,17 +129,17 @@ impl Meter {
         InstrumentBuilder::new(self, name.into())
     }
 
-    /// creates an instrument for recording a distribution of values.
+    /// creates an instrument builder for recording a distribution of values.
     pub fn f64_histogram(&self, name: impl Into<String>) -> InstrumentBuilder<'_, Histogram<f64>> {
         InstrumentBuilder::new(self, name.into())
     }
 
-    /// creates an instrument for recording a distribution of values.
+    /// creates an instrument builder for recording a distribution of values.
     pub fn u64_histogram(&self, name: impl Into<String>) -> InstrumentBuilder<'_, Histogram<u64>> {
         InstrumentBuilder::new(self, name.into())
     }
 
-    /// creates an instrument for recording a distribution of values.
+    /// creates an instrument builder for recording a distribution of values.
     pub fn i64_histogram(&self, name: impl Into<String>) -> InstrumentBuilder<'_, Histogram<i64>> {
         InstrumentBuilder::new(self, name.into())
     }

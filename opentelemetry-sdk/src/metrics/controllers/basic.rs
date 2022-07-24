@@ -199,7 +199,7 @@ impl BasicController {
             .collected_time
             .lock()
             .map(|mut collected_time| {
-                if self.0.collect_period.is_zero() {
+                if self.0.collect_period.as_secs() == 0 && self.0.collect_period.as_nanos() == 0 {
                     return true;
                 }
                 let now = SystemTime::now();
@@ -280,7 +280,9 @@ impl BasicController {
         ac.checkpointer
             .checkpoint(&mut |ckpt: &mut dyn LockedCheckpointer| {
                 ckpt.start_collection();
-                if !self.0.collect_timeout.is_zero() {
+
+                if self.0.collect_timeout.as_secs() != 0 && !self.0.collect_timeout.as_nanos() == 0
+                {
                     // TODO timeouts
                 }
 
