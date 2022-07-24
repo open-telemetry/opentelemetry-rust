@@ -86,7 +86,6 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     .build();
 
     let exporter = opentelemetry_prometheus::exporter(controller).init();
-    global::set_meter_provider(exporter.meter_provider()?);
     let cx = Context::new();
 
     let meter = global::meter("ex.com/hyper");

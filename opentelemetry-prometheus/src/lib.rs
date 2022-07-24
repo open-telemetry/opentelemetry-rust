@@ -152,10 +152,13 @@ impl ExporterBuilder {
             .register(Box::new(collector))
             .map_err(|e| MetricsError::Other(e.to_string()))?;
 
-        Ok(PrometheusExporter {
+        let exporter = PrometheusExporter {
             registry,
             controller,
-        })
+        };
+        global::set_meter_provider(exporter.meter_provider()?);
+
+        Ok(exporter)
     }
 
     /// Sets up a complete export pipeline with the recommended setup, using the
