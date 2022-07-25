@@ -1,71 +1,60 @@
 //! Stdout Metrics Exporter
 use crate::{
     export::metrics::{
-        CheckpointSet, Count, ExportKind, ExportKindFor, ExportKindSelector, Exporter, LastValue,
-        Max, Min, Sum,
+        aggregation::{stateless_temporality_selector, LastValue, Sum, TemporalitySelector},
+        InstrumentationLibraryReader, MetricsExporter,
     },
-    metrics::{
-        aggregators::{
-            ArrayAggregator, HistogramAggregator, LastValueAggregator, MinMaxSumCountAggregator,
-            SumAggregator,
-        },
-        controllers::{self, PushController, PushControllerWorker},
-        selectors::simple,
-    },
+    metrics::aggregators::{LastValueAggregator, SumAggregator},
+    Resource,
 };
-use futures_util::stream::Stream;
-use opentelemetry_api::global;
 use opentelemetry_api::{
     attributes::{default_encoder, AttributeSet, Encoder},
-    metrics::{Descriptor, MetricsError, Result},
-    KeyValue,
+    metrics::{MetricsError, Result},
+    Context, KeyValue,
 };
 use std::fmt;
 use std::io;
-use std::iter;
 use std::sync::Mutex;
-use std::time::{Duration, SystemTime};
+use std::time::SystemTime;
 
 /// Create a new stdout exporter builder with the configuration for a stdout exporter.
-pub fn stdout<S, SO, I, IS, ISI>(spawn: S, interval: I) -> StdoutExporterBuilder<io::Stdout, S, I>
-where
-    S: Fn(PushControllerWorker) -> SO,
-    I: Fn(Duration) -> IS,
-    IS: Stream<Item = ISI> + Send + 'static,
-{
-    StdoutExporterBuilder::<io::Stdout, S, I>::builder(spawn, interval)
+pub fn stdout() -> StdoutExporterBuilder<io::Stdout> {
+    StdoutExporterBuilder::<io::Stdout>::builder()
 }
 
-///
+/// An OpenTelemetry metric exporter that transmits telemetry to
+/// the local STDOUT or via the registered implementation of `Write`.
 #[derive(Debug)]
 pub struct StdoutExporter<W> {
     /// Writer is the destination. If not set, `Stdout` is used.
     writer: Mutex<W>,
-    /// Suppresses timestamp printing. This is useful to create deterministic test
-    /// conditions.
-    do_not_print_time: bool,
+
+    /// Specifies if timestamps should be printed
+    timestamps: bool,
+
     /// Encodes the attributes.
     attribute_encoder: Box<dyn Encoder + Send + Sync>,
+
     /// An optional user-defined function to format a given export batch.
     formatter: Option<Formatter>,
 }
 
-/// A collection of exported lines
+/// Individually exported metric
+///
+/// Can be formatted using [`StdoutExporterBuilder::with_formatter`].
 #[derive(Default, Debug)]
-pub struct ExportBatch {
-    timestamp: Option<SystemTime>,
-    lines: Vec<ExportLine>,
-}
+pub struct ExportLine {
+    /// metric name
+    pub name: String,
 
-#[derive(Default, Debug)]
-struct ExportLine {
-    name: String,
-    min: Option<ExportNumeric>,
-    max: Option<ExportNumeric>,
-    sum: Option<ExportNumeric>,
-    count: u64,
-    last_value: Option<ExportNumeric>,
-    timestamp: Option<SystemTime>,
+    /// populated if using sum aggregator
+    pub sum: Option<ExportNumeric>,
+
+    /// populated if using last value aggregator
+    pub last_value: Option<ExportNumeric>,
+
+    /// metric timestamp
+    pub timestamp: Option<SystemTime>,
 }
 
 /// A number exported as debug for serialization
@@ -77,97 +66,105 @@ impl fmt::Debug for ExportNumeric {
     }
 }
 
-impl<W> Exporter for StdoutExporter<W>
+impl<W> StdoutExporter<W> {
+    /// The temporality selector for this exporter
+    pub fn temporality_selector(&self) -> impl TemporalitySelector {
+        stateless_temporality_selector()
+    }
+}
+
+impl<W> TemporalitySelector for StdoutExporter<W> {
+    fn temporality_for(
+        &self,
+        descriptor: &crate::metrics::sdk_api::Descriptor,
+        kind: &super::aggregation::AggregationKind,
+    ) -> super::aggregation::Temporality {
+        stateless_temporality_selector().temporality_for(descriptor, kind)
+    }
+}
+
+impl<W> MetricsExporter for StdoutExporter<W>
 where
     W: fmt::Debug + io::Write,
 {
-    fn export(&self, checkpoint_set: &mut dyn CheckpointSet) -> Result<()> {
-        let mut batch = ExportBatch::default();
-        if !self.do_not_print_time {
-            batch.timestamp = Some(opentelemetry_api::time::now());
-        }
-        checkpoint_set.try_for_each(self, &mut |record| {
-            let agg = record.aggregator().ok_or(MetricsError::NoDataCollected)?;
-            let desc = record.descriptor();
-            let kind = desc.number_kind();
-            let encoded_resource = record.resource().encoded(self.attribute_encoder.as_ref());
-            let encoded_inst_attributes = if !desc.instrumentation_name().is_empty() {
-                let inst_attributes = AttributeSet::from_attributes(iter::once(KeyValue::new(
-                    "instrumentation.name",
-                    desc.instrumentation_name(),
-                )));
-                inst_attributes.encoded(Some(self.attribute_encoder.as_ref()))
-            } else {
-                String::new()
-            };
-
-            let mut expose = ExportLine::default();
-
-            if let Some(array) = agg.as_any().downcast_ref::<ArrayAggregator>() {
-                expose.count = array.count()?;
+    fn export(
+        &self,
+        _cx: &Context,
+        res: &Resource,
+        reader: &dyn InstrumentationLibraryReader,
+    ) -> Result<()> {
+        let mut batch = Vec::new();
+        reader.try_for_each(&mut |library, reader| {
+            let mut attributes = Vec::new();
+            if !library.name.is_empty() {
+                attributes.push(KeyValue::new("instrumentation.name", library.name.clone()));
             }
-
-            if let Some(last_value) = agg.as_any().downcast_ref::<LastValueAggregator>() {
-                let (value, timestamp) = last_value.last_value()?;
-                expose.last_value = Some(ExportNumeric(value.to_debug(kind)));
-
-                if !self.do_not_print_time {
-                    expose.timestamp = Some(timestamp);
-                }
+            if let Some(version) = &library.version {
+                attributes.push(KeyValue::new("instrumentation.version", version.clone()));
             }
-
-            if let Some(histogram) = agg.as_any().downcast_ref::<HistogramAggregator>() {
-                expose.sum = Some(ExportNumeric(histogram.sum()?.to_debug(kind)));
-                expose.count = histogram.count()?;
-                // TODO expose buckets
+            if let Some(schema) = &library.schema_url {
+                attributes.push(KeyValue::new("instrumentation.schema_url", schema.clone()));
             }
+            let inst_attributes = AttributeSet::from_attributes(attributes.into_iter());
+            let encoded_inst_attributes =
+                inst_attributes.encoded(Some(self.attribute_encoder.as_ref()));
 
-            if let Some(mmsc) = agg.as_any().downcast_ref::<MinMaxSumCountAggregator>() {
-                expose.min = Some(ExportNumeric(mmsc.min()?.to_debug(kind)));
-                expose.max = Some(ExportNumeric(mmsc.max()?.to_debug(kind)));
-                expose.sum = Some(ExportNumeric(mmsc.sum()?.to_debug(kind)));
-                expose.count = mmsc.count()?;
-            }
+            reader.try_for_each(self, &mut |record| {
+                let desc = record.descriptor();
+                let agg = record.aggregator().ok_or(MetricsError::NoDataCollected)?;
+                let kind = desc.number_kind();
 
-            if let Some(sum) = agg.as_any().downcast_ref::<SumAggregator>() {
-                expose.sum = Some(ExportNumeric(sum.sum()?.to_debug(kind)));
-            }
+                let encoded_resource = res.encoded(self.attribute_encoder.as_ref());
 
-            let mut encoded_attributes = String::new();
-            let iter = record.attributes().iter();
-            if let (0, _) = iter.size_hint() {
-                encoded_attributes = record
-                    .attributes()
-                    .encoded(Some(self.attribute_encoder.as_ref()));
-            }
-
-            let mut sb = String::new();
-
-            sb.push_str(desc.name());
-
-            if !encoded_attributes.is_empty()
-                || !encoded_resource.is_empty()
-                || !encoded_inst_attributes.is_empty()
-            {
-                sb.push('{');
-                sb.push_str(&encoded_resource);
-                if !encoded_inst_attributes.is_empty() && !encoded_resource.is_empty() {
-                    sb.push(',');
-                }
-                sb.push_str(&encoded_inst_attributes);
-                if !encoded_attributes.is_empty()
-                    && (!encoded_inst_attributes.is_empty() || !encoded_resource.is_empty())
+                let mut expose = ExportLine::default();
+                if let Some(sum) = agg.as_any().downcast_ref::<SumAggregator>() {
+                    expose.sum = Some(ExportNumeric(sum.sum()?.to_debug(kind)));
+                } else if let Some(last_value) = agg.as_any().downcast_ref::<LastValueAggregator>()
                 {
-                    sb.push(',');
+                    let (value, timestamp) = last_value.last_value()?;
+                    expose.last_value = Some(ExportNumeric(value.to_debug(kind)));
+
+                    if self.timestamps {
+                        expose.timestamp = Some(timestamp);
+                    }
                 }
-                sb.push_str(&encoded_attributes);
-                sb.push('}');
-            }
 
-            expose.name = sb;
+                let mut encoded_attributes = String::new();
+                let iter = record.attributes().iter();
+                if let (0, _) = iter.size_hint() {
+                    encoded_attributes = record
+                        .attributes()
+                        .encoded(Some(self.attribute_encoder.as_ref()));
+                }
 
-            batch.lines.push(expose);
-            Ok(())
+                let mut sb = String::new();
+
+                sb.push_str(desc.name());
+
+                if !encoded_attributes.is_empty()
+                    || !encoded_resource.is_empty()
+                    || !encoded_inst_attributes.is_empty()
+                {
+                    sb.push('{');
+                    sb.push_str(&encoded_resource);
+                    if !encoded_inst_attributes.is_empty() && !encoded_resource.is_empty() {
+                        sb.push(',');
+                    }
+                    sb.push_str(&encoded_inst_attributes);
+                    if !encoded_attributes.is_empty()
+                        && (!encoded_inst_attributes.is_empty() || !encoded_resource.is_empty())
+                    {
+                        sb.push(',');
+                    }
+                    sb.push_str(&encoded_attributes);
+                    sb.push('}');
+                }
+
+                expose.name = sb;
+
+                batch.push(expose);
+                Ok(())
+            })
         })?;
 
         self.writer.lock().map_err(From::from).and_then(|mut w| {
@@ -181,17 +178,8 @@ where
     }
 }
 
-impl<W> ExportKindFor for StdoutExporter<W>
-where
-    W: fmt::Debug + io::Write,
-{
-    fn export_kind_for(&self, descriptor: &Descriptor) -> ExportKind {
-        ExportKindSelector::Stateless.export_kind_for(descriptor)
-    }
-}
-
 /// A formatter for user-defined batch serialization.
-pub struct Formatter(Box<dyn Fn(ExportBatch) -> Result<String> + Send + Sync>);
+struct Formatter(Box<dyn Fn(Vec<ExportLine>) -> Result<String> + Send + Sync>);
 impl fmt::Debug for Formatter {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "Formatter(closure)")
@@ -200,46 +188,31 @@ impl fmt::Debug for Formatter {
 
 /// Configuration for a given stdout exporter.
 #[derive(Debug)]
-pub struct StdoutExporterBuilder<W, S, I> {
-    spawn: S,
-    interval: I,
+pub struct StdoutExporterBuilder<W> {
     writer: Mutex<W>,
-    do_not_print_time: bool,
-    quantiles: Option<Vec<f64>>,
+    timestamps: bool,
     attribute_encoder: Option<Box<dyn Encoder + Send + Sync>>,
-    period: Option<Duration>,
     formatter: Option<Formatter>,
 }
 
-impl<W, S, SO, I, IS, ISI> StdoutExporterBuilder<W, S, I>
+impl<W> StdoutExporterBuilder<W>
 where
     W: io::Write + fmt::Debug + Send + Sync + 'static,
-    S: Fn(PushControllerWorker) -> SO,
-    I: Fn(Duration) -> IS,
-    IS: Stream<Item = ISI> + Send + 'static,
 {
-    fn builder(spawn: S, interval: I) -> StdoutExporterBuilder<io::Stdout, S, I> {
+    fn builder() -> StdoutExporterBuilder<io::Stdout> {
         StdoutExporterBuilder {
-            spawn,
-            interval,
             writer: Mutex::new(io::stdout()),
-            do_not_print_time: false,
-            quantiles: None,
+            timestamps: true,
             attribute_encoder: None,
-            period: None,
             formatter: None,
         }
     }
     /// Set the writer that this exporter will use.
-    pub fn with_writer<W2: io::Write>(self, writer: W2) -> StdoutExporterBuilder<W2, S, I> {
+    pub fn with_writer<W2: io::Write>(self, writer: W2) -> StdoutExporterBuilder<W2> {
         StdoutExporterBuilder {
-            spawn: self.spawn,
-            interval: self.interval,
             writer: Mutex::new(writer),
-            do_not_print_time: self.do_not_print_time,
-            quantiles: self.quantiles,
+            timestamps: self.timestamps,
             attribute_encoder: self.attribute_encoder,
-            period: self.period,
             formatter: self.formatter,
         }
     }
@@ -247,7 +220,7 @@ where
     /// Hide the timestamps from exported results
     pub fn with_do_not_print_time(self, do_not_print_time: bool) -> Self {
         StdoutExporterBuilder {
-            do_not_print_time,
+            timestamps: do_not_print_time,
             ..self
         }
     }
@@ -263,18 +236,10 @@ where
         }
     }
 
-    /// Set the frequency in which metrics are exported.
-    pub fn with_period(self, period: Duration) -> Self {
-        StdoutExporterBuilder {
-            period: Some(period),
-            ..self
-        }
-    }
-
     /// Set a formatter for serializing export batch data
     pub fn with_formatter<T>(self, formatter: T) -> Self
     where
-        T: Fn(ExportBatch) -> Result<String> + Send + Sync + 'static,
+        T: Fn(Vec<ExportLine>) -> Result<String> + Send + Sync + 'static,
     {
         StdoutExporterBuilder {
             formatter: Some(Formatter(Box::new(formatter))),
@@ -283,27 +248,12 @@ where
     }
 
     /// Build a new push controller, returning errors if they arise.
-    pub fn init(mut self) -> PushController {
-        let period = self.period.take();
-        let exporter = StdoutExporter {
+    pub fn build(self) -> Result<StdoutExporter<W>> {
+        Ok(StdoutExporter {
             writer: self.writer,
-            do_not_print_time: self.do_not_print_time,
+            timestamps: self.timestamps,
             attribute_encoder: self.attribute_encoder.unwrap_or_else(default_encoder),
             formatter: self.formatter,
-        };
-        let mut push_builder = controllers::push(
-            simple::Selector::Exact,
-            ExportKindSelector::Stateless,
-            exporter,
-            self.spawn,
-            self.interval,
-        );
-        if let Some(period) = period {
-            push_builder = push_builder.with_period(period);
-        }
-
-        let controller = push_builder.build();
-        global::set_meter_provider(controller.provider());
-        controller
+        })
     }
 }

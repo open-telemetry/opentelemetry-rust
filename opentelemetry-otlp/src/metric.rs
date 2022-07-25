@@ -10,16 +10,24 @@ use crate::exporter::{
 };
 use crate::transform::{record_to_metric, sink, CheckpointedMetrics};
 use crate::{Error, OtlpPipeline};
-use futures_util::Stream;
-use opentelemetry::metrics::{Descriptor, Result};
-use opentelemetry::sdk::{
-    export::metrics::{
-        AggregatorSelector, CheckpointSet, ExportKind, ExportKindFor, ExportKindSelector, Exporter,
+use core::fmt;
+use opentelemetry::{global, metrics::Result, runtime::Runtime};
+use opentelemetry::{
+    sdk::{
+        export::metrics::{
+            self,
+            aggregation::{AggregationKind, Temporality, TemporalitySelector},
+            AggregatorSelector, InstrumentationLibraryReader,
+        },
+        metrics::{
+            controllers::{self, BasicController},
+            processors,
+            sdk_api::Descriptor,
+        },
+        Resource,
     },
-    metrics::{selectors, PushController, PushControllerWorker},
-    InstrumentationLibrary, Resource,
+    Context,
 };
-use opentelemetry::{global, KeyValue};
 #[cfg(feature = "grpc-tonic")]
 use opentelemetry_proto::tonic::collector::metrics::v1::{
     metrics_service_client::MetricsServiceClient, ExportMetricsServiceRequest,
@@ -27,7 +35,6 @@ use opentelemetry_proto::tonic::collector::metrics::v1::{
 use std::fmt::{Debug, Formatter};
 #[cfg(feature = "grpc-tonic")]
 use std::str::FromStr;
-use std::sync::Arc;
 use std::sync::Mutex;
 use std::time;
 use std::time::Duration;
@@ -46,20 +53,21 @@ pub const OTEL_EXPORTER_OTLP_METRICS_TIMEOUT: &str = "OTEL_EXPORTER_OTLP_METRICS
 
 impl OtlpPipeline {
     /// Create a OTLP metrics pipeline.
-    pub fn metrics<SP, SO, I, IO>(
+    pub fn metrics<AS, TS, RT>(
         self,
-        spawn: SP,
-        interval: I,
-    ) -> OtlpMetricPipeline<selectors::simple::Selector, ExportKindSelector, SP, SO, I, IO>
+        aggregator_selector: AS,
+        temporality_selector: TS,
+        rt: RT,
+    ) -> OtlpMetricPipeline<AS, TS, RT>
     where
-        SP: Fn(PushControllerWorker) -> SO,
-        I: Fn(time::Duration) -> IO,
+        AS: AggregatorSelector,
+        TS: TemporalitySelector + Clone,
+        RT: Runtime,
     {
         OtlpMetricPipeline {
-            aggregator_selector: selectors::simple::Selector::Inexpensive,
-            export_selector: ExportKindSelector::Cumulative,
-            spawn,
-            interval,
+            rt,
+            aggregator_selector,
+            temporality_selector,
             exporter_pipeline: None,
             resource: None,
             period: None,
@@ -77,16 +85,16 @@ pub enum MetricsExporterBuilder {
 
 impl MetricsExporterBuilder {
     /// Build a OTLP metrics exporter with given configuration.
-    fn build_metrics_exporter<ES>(self, export_selector: ES) -> Result<MetricsExporter>
-    where
-        ES: ExportKindFor + Sync + Send + 'static,
-    {
+    fn build_metrics_exporter(
+        self,
+        temporality_selector: Box<dyn TemporalitySelector + Send + Sync>,
+    ) -> Result<MetricsExporter> {
         match self {
             #[cfg(feature = "grpc-tonic")]
             MetricsExporterBuilder::Tonic(builder) => Ok(MetricsExporter::new(
                 builder.exporter_config,
                 builder.tonic_config,
-                export_selector,
+                temporality_selector,
             )?),
         }
     }
@@ -102,36 +110,26 @@ impl From<TonicExporterBuilder> for MetricsExporterBuilder {
 ///
 /// Note that currently the OTLP metrics exporter only supports tonic as it's grpc layer and tokio as
 /// runtime.
-#[derive(Debug)]
-pub struct OtlpMetricPipeline<AS, ES, SP, SO, I, IO>
-where
-    AS: AggregatorSelector + Send + Sync + 'static,
-    ES: ExportKindFor + Send + Sync + Clone + 'static,
-    SP: Fn(PushControllerWorker) -> SO,
-    I: Fn(time::Duration) -> IO,
-{
+pub struct OtlpMetricPipeline<AS, TS, RT> {
+    rt: RT,
     aggregator_selector: AS,
-    export_selector: ES,
-    spawn: SP,
-    interval: I,
+    temporality_selector: TS,
     exporter_pipeline: Option<MetricsExporterBuilder>,
     resource: Option<Resource>,
     period: Option<time::Duration>,
     timeout: Option<time::Duration>,
 }
 
-impl<AS, ES, SP, SO, I, IO, IOI> OtlpMetricPipeline<AS, ES, SP, SO, I, IO>
+impl<AS, TS, RT> OtlpMetricPipeline<AS, TS, RT>
 where
     AS: AggregatorSelector + Send + Sync + 'static,
-    ES: ExportKindFor + Send + Sync + Clone + 'static,
-    SP: Fn(PushControllerWorker) -> SO,
-    I: Fn(time::Duration) -> IO,
-    IO: Stream<Item = IOI> + Send + 'static,
+    TS: TemporalitySelector + Clone + Send + Sync + 'static,
+    RT: Runtime,
 {
     /// Build with resource key value pairs.
-    pub fn with_resource<T: IntoIterator<Item = R>, R: Into<KeyValue>>(self, resource: T) -> Self {
+    pub fn with_resource(self, resource: Resource) -> Self {
         OtlpMetricPipeline {
-            resource: Some(Resource::new(resource.into_iter().map(Into::into))),
+            resource: Some(resource),
             ..self
         }
     }
@@ -142,31 +140,6 @@ where
             exporter_pipeline: Some(pipeline.into()),
             ..self
         }
-    }
-
-    /// Build with the aggregator selector
-    pub fn with_aggregator_selector<T>(
-        self,
-        aggregator_selector: T,
-    ) -> OtlpMetricPipeline<T, ES, SP, SO, I, IO>
-    where
-        T: AggregatorSelector + Send + Sync + 'static,
-    {
-        OtlpMetricPipeline {
-            aggregator_selector,
-            export_selector: self.export_selector,
-            spawn: self.spawn,
-            interval: self.interval,
-            exporter_pipeline: self.exporter_pipeline,
-            resource: self.resource,
-            period: self.period,
-            timeout: self.timeout,
-        }
-    }
-
-    /// Build with spawn function
-    pub fn with_spawn(self, spawn: SP) -> Self {
-        OtlpMetricPipeline { spawn, ..self }
     }
 
     /// Build with timeout
@@ -185,54 +158,45 @@ where
         }
     }
 
-    /// Build with interval function
-    pub fn with_interval(self, interval: I) -> Self {
-        OtlpMetricPipeline { interval, ..self }
-    }
-
-    /// Build with export kind selector
-    pub fn with_export_kind<E>(self, export_selector: E) -> OtlpMetricPipeline<AS, E, SP, SO, I, IO>
-    where
-        E: ExportKindFor + Send + Sync + Clone + 'static,
-    {
-        OtlpMetricPipeline {
-            aggregator_selector: self.aggregator_selector,
-            export_selector,
-            spawn: self.spawn,
-            interval: self.interval,
-            exporter_pipeline: self.exporter_pipeline,
-            resource: self.resource,
-            period: self.period,
-            timeout: self.timeout,
-        }
-    }
-
     /// Build push controller.
-    pub fn build(self) -> Result<PushController> {
+    pub fn build(self) -> Result<BasicController> {
         let exporter = self
             .exporter_pipeline
             .ok_or(Error::NoExporterBuilder)?
-            .build_metrics_exporter(self.export_selector.clone())?;
+            .build_metrics_exporter(Box::new(self.temporality_selector.clone()))?;
 
-        let mut builder = opentelemetry::sdk::metrics::controllers::push(
+        let mut builder = controllers::basic(processors::factory(
             self.aggregator_selector,
-            self.export_selector,
-            exporter,
-            self.spawn,
-            self.interval,
-        );
+            self.temporality_selector,
+        ))
+        .with_exporter(exporter);
         if let Some(period) = self.period {
-            builder = builder.with_period(period);
+            builder = builder.with_collect_period(period);
+        }
+        if let Some(timeout) = self.timeout {
+            builder = builder.with_collect_timeout(timeout)
         }
         if let Some(resource) = self.resource {
             builder = builder.with_resource(resource);
         }
-        if let Some(timeout) = self.timeout {
-            builder = builder.with_timeout(timeout)
-        }
+
         let controller = builder.build();
-        global::set_meter_provider(controller.provider());
+        controller.start(&Context::current(), self.rt)?;
+
+        global::set_meter_provider(controller.clone());
+
         Ok(controller)
+    }
+}
+
+impl<AS, TS, RT> fmt::Debug for OtlpMetricPipeline<AS, TS, RT> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("OtlpMetricPipeline")
+            .field("exporter_pipeline", &self.exporter_pipeline)
+            .field("resource", &self.resource)
+            .field("period", &self.period)
+            .field("timeout", &self.timeout)
+            .finish()
     }
 }
 
@@ -245,8 +209,8 @@ enum ExportMsg {
 /// Export metrics in OTEL format.
 pub struct MetricsExporter {
     #[cfg(feature = "tokio")]
-    sender: Arc<Mutex<tokio::sync::mpsc::Sender<ExportMsg>>>,
-    export_kind_selector: Arc<dyn ExportKindFor + Send + Sync>,
+    sender: Mutex<tokio::sync::mpsc::Sender<ExportMsg>>,
+    temporality_selector: Box<dyn TemporalitySelector + Send + Sync>,
     metadata: Option<tonic::metadata::MetadataMap>,
 }
 
@@ -259,19 +223,19 @@ impl Debug for MetricsExporter {
     }
 }
 
-impl ExportKindFor for MetricsExporter {
-    fn export_kind_for(&self, descriptor: &Descriptor) -> ExportKind {
-        self.export_kind_selector.export_kind_for(descriptor)
+impl TemporalitySelector for MetricsExporter {
+    fn temporality_for(&self, descriptor: &Descriptor, kind: &AggregationKind) -> Temporality {
+        self.temporality_selector.temporality_for(descriptor, kind)
     }
 }
 
 impl MetricsExporter {
     /// Create a new OTLP metrics exporter.
     #[cfg(feature = "grpc-tonic")]
-    pub fn new<T: ExportKindFor + Send + Sync + 'static>(
+    pub fn new(
         config: ExportConfig,
         mut tonic_config: TonicConfig,
-        export_selector: T,
+        temporality_selector: Box<dyn TemporalitySelector + Send + Sync>,
     ) -> Result<MetricsExporter> {
         let endpoint = match std::env::var(OTEL_EXPORTER_OTLP_METRICS_ENDPOINT) {
             Ok(val) => val,
@@ -318,42 +282,28 @@ impl MetricsExporter {
         }));
 
         Ok(MetricsExporter {
-            sender: Arc::new(Mutex::new(sender)),
-            export_kind_selector: Arc::new(export_selector),
+            sender: Mutex::new(sender),
+            temporality_selector,
             metadata: tonic_config.metadata.take(),
         })
     }
 }
 
-impl Exporter for MetricsExporter {
-    fn export(&self, checkpoint_set: &mut dyn CheckpointSet) -> Result<()> {
+impl metrics::MetricsExporter for MetricsExporter {
+    fn export(
+        &self,
+        _cx: &Context,
+        res: &Resource,
+        reader: &dyn InstrumentationLibraryReader,
+    ) -> Result<()> {
         let mut resource_metrics: Vec<CheckpointedMetrics> = Vec::default();
         // transform the metrics into proto. Append the resource and instrumentation library information into it.
-        checkpoint_set.try_for_each(self.export_kind_selector.as_ref(), &mut |record| {
-            let metric_result = record_to_metric(record, self.export_kind_selector.as_ref());
-            match metric_result {
-                Ok(metrics) => {
-                    resource_metrics.push((
-                        record.resource().clone().into(),
-                        InstrumentationLibrary::new(
-                            record.descriptor().instrumentation_name(),
-                            record
-                                .descriptor()
-                                .instrumentation_library()
-                                .version
-                                .clone(),
-                            record
-                                .descriptor()
-                                .instrumentation_library()
-                                .schema_url
-                                .clone(),
-                        ),
-                        metrics,
-                    ));
-                    Ok(())
-                }
-                Err(err) => Err(err),
-            }
+        reader.try_for_each(&mut |library, record| {
+            record.try_for_each(self, &mut |record| {
+                let metrics = record_to_metric(record, self.temporality_selector.as_ref())?;
+                resource_metrics.push((res.clone().into(), library.clone(), metrics));
+                Ok(())
+            })
         })?;
         let mut request = Request::new(sink(resource_metrics));
         if let Some(metadata) = &self.metadata {

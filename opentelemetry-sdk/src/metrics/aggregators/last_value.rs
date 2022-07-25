@@ -1,5 +1,10 @@
-use crate::export::metrics::{Aggregator, LastValue};
-use opentelemetry_api::metrics::{Descriptor, MetricsError, Number, Result};
+use crate::export::metrics::aggregation::{Aggregation, AggregationKind, LastValue};
+use crate::metrics::{
+    aggregators::Aggregator,
+    sdk_api::{Descriptor, Number},
+};
+use opentelemetry_api::metrics::{MetricsError, Result};
+use opentelemetry_api::Context;
 use std::any::Any;
 use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
@@ -17,8 +22,18 @@ pub struct LastValueAggregator {
     inner: Mutex<Inner>,
 }
 
+impl Aggregation for LastValueAggregator {
+    fn kind(&self) -> &AggregationKind {
+        &AggregationKind::LAST_VALUE
+    }
+}
+
 impl Aggregator for LastValueAggregator {
-    fn update(&self, number: &Number, _descriptor: &Descriptor) -> Result<()> {
+    fn aggregation(&self) -> &dyn Aggregation {
+        self
+    }
+
+    fn update(&self, _cx: &Context, number: &Number, _descriptor: &Descriptor) -> Result<()> {
         self.inner.lock().map_err(Into::into).map(|mut inner| {
             inner.state = Some(LastValueData {
                 value: number.clone(),
@@ -26,6 +41,7 @@ impl Aggregator for LastValueAggregator {
             });
         })
     }
+
     fn synchronized_move(
         &self,
         other: &Arc<dyn Aggregator + Send + Sync>,

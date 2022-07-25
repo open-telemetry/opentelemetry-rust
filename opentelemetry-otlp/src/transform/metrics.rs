@@ -7,12 +7,13 @@
 pub(crate) mod tonic {
     use opentelemetry::metrics::MetricsError;
     use opentelemetry::sdk::export::metrics::{
-        Count, ExportKindFor, Histogram as SdkHistogram, LastValue, Max, Min, Points, Record,
-        Sum as SdkSum,
+        aggregation::{
+            Count, Histogram as SdkHistogram, LastValue, Sum as SdkSum, TemporalitySelector,
+        },
+        Record,
     };
     use opentelemetry::sdk::metrics::aggregators::{
-        ArrayAggregator, HistogramAggregator, LastValueAggregator, MinMaxSumCountAggregator,
-        SumAggregator,
+        HistogramAggregator, LastValueAggregator, SumAggregator,
     };
     use opentelemetry::sdk::InstrumentationLibrary;
     use opentelemetry_proto::tonic::metrics::v1::DataPointFlags;
@@ -33,7 +34,7 @@ pub(crate) mod tonic {
 
     pub(crate) fn record_to_metric(
         record: &Record,
-        export_selector: &dyn ExportKindFor,
+        temporality_selector: &dyn TemporalitySelector,
     ) -> Result<Metric, MetricsError> {
         let descriptor = record.descriptor();
         let aggregator = record.aggregator().ok_or(MetricsError::NoDataCollected)?;
@@ -42,37 +43,16 @@ pub(crate) mod tonic {
             .iter()
             .map(|kv| kv.into())
             .collect::<Vec<KeyValue>>();
-        let temporality: AggregationTemporality =
-            export_selector.export_kind_for(descriptor).into();
+        let temporality: AggregationTemporality = temporality_selector
+            .temporality_for(descriptor, aggregator.aggregation().kind())
+            .into();
         let kind = descriptor.number_kind();
         Ok(Metric {
             name: descriptor.name().to_string(),
-            description: descriptor
-                .description()
-                .cloned()
-                .unwrap_or_else(|| "".to_string()),
+            description: descriptor.description().cloned().unwrap_or_default(),
             unit: descriptor.unit().unwrap_or("").to_string(),
             data: {
-                if let Some(array) = aggregator.as_any().downcast_ref::<ArrayAggregator>() {
-                    if let Ok(points) = array.points() {
-                        Some(Data::Gauge(Gauge {
-                            data_points: points
-                                .into_iter()
-                                .map(|val| NumberDataPoint {
-                                    flags: DataPointFlags::FlagNone as u32,
-                                    attributes: attributes.clone(),
-                                    start_time_unix_nano: to_nanos(*record.start_time()),
-                                    time_unix_nano: to_nanos(*record.end_time()),
-                                    value: Some(number_data_point::Value::from_number(val, kind)),
-                                    exemplars: Vec::default(),
-                                })
-                                .collect(),
-                        }))
-                    } else {
-                        None
-                    }
-                } else if let Some(last_value) =
-                    aggregator.as_any().downcast_ref::<LastValueAggregator>()
+                if let Some(last_value) = aggregator.as_any().downcast_ref::<LastValueAggregator>()
                 {
                     Some({
                         let (val, sample_time) = last_value.last_value()?;
@@ -124,34 +104,6 @@ pub(crate) mod tonic {
                                     .map(|c| c as u64)
                                     .collect(),
                                 explicit_bounds: buckets.boundaries().clone(),
-                                exemplars: Vec::default(),
-                            }],
-                            aggregation_temporality: temporality as i32,
-                        })
-                    })
-                } else if let Some(min_max_sum_count) = aggregator
-                    .as_any()
-                    .downcast_ref::<MinMaxSumCountAggregator>()
-                {
-                    Some({
-                        let (min, max, sum, count) = (
-                            min_max_sum_count.min()?,
-                            min_max_sum_count.max()?,
-                            min_max_sum_count.sum()?,
-                            min_max_sum_count.count()?,
-                        );
-                        let buckets = vec![min.to_u64(kind), max.to_u64(kind)];
-                        let bounds = vec![0.0, 100.0];
-                        Data::Histogram(Histogram {
-                            data_points: vec![HistogramDataPoint {
-                                flags: DataPointFlags::FlagNone as u32,
-                                attributes,
-                                start_time_unix_nano: to_nanos(*record.start_time()),
-                                time_unix_nano: to_nanos(*record.end_time()),
-                                count,
-                                sum: sum.to_f64(kind),
-                                bucket_counts: buckets,
-                                explicit_bounds: bounds,
                                 exemplars: Vec::default(),
                             }],
                             aggregation_temporality: temporality as i32,
@@ -288,14 +240,17 @@ mod tests {
         use crate::transform::metrics::tonic::merge;
         use crate::transform::{record_to_metric, sink, ResourceWrapper};
         use opentelemetry::attributes::AttributeSet;
-        use opentelemetry::metrics::{
-            Descriptor, InstrumentKind, MetricsError, Number, NumberKind,
-        };
-        use opentelemetry::sdk::export::metrics::{record, Aggregator, ExportKindSelector};
+        use opentelemetry::metrics::MetricsError;
+        use opentelemetry::sdk::export::metrics::aggregation::cumulative_temporality_selector;
+        use opentelemetry::sdk::export::metrics::record;
         use opentelemetry::sdk::metrics::aggregators::{
-            histogram, last_value, min_max_sum_count, SumAggregator,
+            histogram, last_value, Aggregator, SumAggregator,
+        };
+        use opentelemetry::sdk::metrics::sdk_api::{
+            Descriptor, InstrumentKind, Number, NumberKind,
         };
         use opentelemetry::sdk::{InstrumentationLibrary, Resource};
+        use opentelemetry::Context;
         use opentelemetry_proto::tonic::metrics::v1::DataPointFlags;
         use opentelemetry_proto::tonic::{
             common::v1::{any_value, AnyValue, KeyValue},
@@ -476,6 +431,7 @@ mod tests {
 
         #[test]
         fn test_record_to_metric() -> Result<(), MetricsError> {
+            let cx = Context::new();
             let attributes = vec![("test1", "value1"), ("test2", "value2")];
             let str_kv_attributes = attributes
                 .iter()
@@ -488,10 +444,6 @@ mod tests {
                     .cloned()
                     .map(|(k, v)| opentelemetry::KeyValue::new(k, v)),
             );
-            let resource = Resource::new(vec![
-                opentelemetry::KeyValue::new("process", "rust"),
-                opentelemetry::KeyValue::new("runtime", "sync"),
-            ]);
             let start_time = datetime!(2020-12-25 10:10:0 UTC); // unit nano 1608891000000000000
             let end_time = datetime!(2020-12-25 10:10:30 UTC); // unix nano 1608891030000000000
 
@@ -499,25 +451,23 @@ mod tests {
             {
                 let descriptor = Descriptor::new(
                     "test".to_string(),
-                    "test",
-                    None,
-                    None,
                     InstrumentKind::Counter,
                     NumberKind::I64,
+                    None,
+                    None,
                 );
                 let aggregator = SumAggregator::default();
                 let val = Number::from(12_i64);
-                aggregator.update(&val, &descriptor)?;
+                aggregator.update(&cx, &val, &descriptor)?;
                 let wrapped_aggregator: Arc<dyn Aggregator + Send + Sync> = Arc::new(aggregator);
                 let record = record(
                     &descriptor,
                     &attribute_set,
-                    &resource,
                     Some(&wrapped_aggregator),
                     start_time.into(),
                     end_time.into(),
                 );
-                let metric = record_to_metric(&record, &ExportKindSelector::Cumulative)?;
+                let metric = record_to_metric(&record, &cumulative_temporality_selector())?;
 
                 let expect = Metric {
                     name: "test".to_string(),
@@ -544,27 +494,25 @@ mod tests {
             {
                 let descriptor = Descriptor::new(
                     "test".to_string(),
-                    "test",
-                    None,
-                    None,
-                    InstrumentKind::ValueObserver,
+                    InstrumentKind::GaugeObserver,
                     NumberKind::I64,
+                    None,
+                    None,
                 );
                 let aggregator = last_value();
                 let val1 = Number::from(12_i64);
                 let val2 = Number::from(14_i64);
-                aggregator.update(&val1, &descriptor)?;
-                aggregator.update(&val2, &descriptor)?;
+                aggregator.update(&cx, &val1, &descriptor)?;
+                aggregator.update(&cx, &val2, &descriptor)?;
                 let wrapped_aggregator: Arc<dyn Aggregator + Send + Sync> = Arc::new(aggregator);
                 let record = record(
                     &descriptor,
                     &attribute_set,
-                    &resource,
                     Some(&wrapped_aggregator),
                     start_time.into(),
                     end_time.into(),
                 );
-                let metric = record_to_metric(&record, &ExportKindSelector::Cumulative)?;
+                let metric = record_to_metric(&record, &cumulative_temporality_selector())?;
 
                 let expect = Metric {
                     name: "test".to_string(),
@@ -592,81 +540,30 @@ mod tests {
                 assert_eq!(expect, metric);
             }
 
-            // MinMaxSumCount
-            {
-                let descriptor = Descriptor::new(
-                    "test".to_string(),
-                    "test",
-                    None,
-                    None,
-                    InstrumentKind::UpDownSumObserver,
-                    NumberKind::I64,
-                );
-                let aggregator = min_max_sum_count(&descriptor);
-                let vals = vec![1i64.into(), 2i64.into(), 3i64.into()];
-                for val in vals.iter() {
-                    aggregator.update(val, &descriptor)?;
-                }
-                let wrapped_aggregator: Arc<dyn Aggregator + Send + Sync> = Arc::new(aggregator);
-                let record = record(
-                    &descriptor,
-                    &attribute_set,
-                    &resource,
-                    Some(&wrapped_aggregator),
-                    start_time.into(),
-                    end_time.into(),
-                );
-                let metric = record_to_metric(&record, &ExportKindSelector::Cumulative)?;
-
-                let expect = Metric {
-                    name: "test".to_string(),
-                    description: "".to_string(),
-                    unit: "".to_string(),
-                    data: Some(Data::Histogram(Histogram {
-                        data_points: vec![HistogramDataPoint {
-                            flags: DataPointFlags::FlagNone as u32,
-                            attributes: str_kv_attributes.clone(),
-                            start_time_unix_nano: 1608891000000000000,
-                            time_unix_nano: 1608891030000000000,
-                            count: 3,
-                            sum: 6f64,
-                            bucket_counts: vec![1, 3],
-                            explicit_bounds: vec![0.0, 100.0],
-                            exemplars: vec![],
-                        }],
-                        aggregation_temporality: 2,
-                    })),
-                };
-
-                assert_eq!(expect, metric);
-            }
-
             // Histogram
             {
                 let descriptor = Descriptor::new(
                     "test".to_string(),
-                    "test",
-                    None,
-                    None,
                     InstrumentKind::Histogram,
                     NumberKind::I64,
+                    None,
+                    None,
                 );
                 let bound = [0.1, 0.2, 0.3];
-                let aggregator = histogram(&descriptor, &bound);
+                let aggregator = histogram(&bound);
                 let vals = vec![1i64.into(), 2i64.into(), 3i64.into()];
                 for val in vals.iter() {
-                    aggregator.update(val, &descriptor)?;
+                    aggregator.update(&cx, val, &descriptor)?;
                 }
                 let wrapped_aggregator: Arc<dyn Aggregator + Send + Sync> = Arc::new(aggregator);
                 let record = record(
                     &descriptor,
                     &attribute_set,
-                    &resource,
                     Some(&wrapped_aggregator),
                     start_time.into(),
                     end_time.into(),
                 );
-                let metric = record_to_metric(&record, &ExportKindSelector::Cumulative)?;
+                let metric = record_to_metric(&record, &cumulative_temporality_selector())?;
 
                 let expect = Metric {
                     name: "test".to_string(),

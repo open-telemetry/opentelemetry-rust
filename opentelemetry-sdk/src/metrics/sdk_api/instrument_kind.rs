@@ -1,28 +1,18 @@
 /// Kinds of OpenTelemetry metric instruments
-///
-/// | **Name** | Instrument kind | Function(argument) | Default aggregation | Notes |
-/// | ----------------------- | ----- | --------- | ------------- | --- |
-/// | **Histogram**       | Synchronous  | Record(value) | MinMaxSumCount  | Per-request, any non-additive measurement |
-/// | **ValueRecorder**       | Synchronous  | Record(value) | MinMaxSumCount  | Depreated. Use Histogram. |
-/// | **ValueObserver**       | Asynchronous | Observe(value) | MinMaxSumCount  | Per-interval, any non-additive measurement |
-/// | **Counter**             | Synchronous additive monotonic | Add(increment) | Sum | Per-request, part of a monotonic sum |
-/// | **UpDownCounter**       | Synchronous additive | Add(increment) | Sum | Per-request, part of a non-monotonic sum |
-/// | **SumObserver**         | Asynchronous additive monotonic | Observe(sum) | Sum | Per-interval, reporting a monotonic sum |
-/// | **UpDownSumObserver**   | Asynchronous additive | Observe(sum) | Sum | Per-interval, reporting a non-monotonic sum |
 #[derive(Clone, Debug, PartialEq, Hash)]
 pub enum InstrumentKind {
-    /// A synchronous per-request recorder of non-additive measurements.
+    /// A histogram instrument
     Histogram,
-    /// An asynchronous per-interval recorder of non-additive measurements.
-    ValueObserver,
+    /// A gauge observer instrument
+    GaugeObserver,
     /// A synchronous per-request part of a monotonic sum.
     Counter,
     /// A synchronous per-request part of a non-monotonic sum.
     UpDownCounter,
     /// An asynchronous per-interval recorder of a monotonic sum.
-    SumObserver,
+    CounterObserver,
     /// An asynchronous per-interval recorder of a non-monotonic sum.
-    UpDownSumObserver,
+    UpDownCounterObserver,
 }
 
 impl InstrumentKind {
@@ -45,8 +35,8 @@ impl InstrumentKind {
             self,
             InstrumentKind::Counter
                 | InstrumentKind::UpDownCounter
-                | InstrumentKind::SumObserver
-                | InstrumentKind::UpDownSumObserver
+                | InstrumentKind::CounterObserver
+                | InstrumentKind::UpDownCounterObserver
         )
     }
 
@@ -57,7 +47,10 @@ impl InstrumentKind {
 
     /// Whether this kind of instrument exposes a non-decreasing sum.
     pub fn monotonic(&self) -> bool {
-        matches!(self, InstrumentKind::Counter | InstrumentKind::SumObserver)
+        matches!(
+            self,
+            InstrumentKind::Counter | InstrumentKind::CounterObserver
+        )
     }
 
     /// Whether this kind of instrument receives precomputed sums.

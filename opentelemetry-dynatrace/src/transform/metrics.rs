@@ -1,16 +1,19 @@
 //! OpenTelemetry Dynatrace Metrics
 use crate::transform::common::get_time;
 use opentelemetry::attributes::merge_iters;
-use opentelemetry::metrics::{MetricsError, Number, NumberKind};
-use opentelemetry::sdk::export::metrics::{
-    Count, ExportKind, ExportKindFor, Histogram as SdkHistogram, LastValue, Max, Min, Points,
-    Record, Sum as SdkSum,
-};
+use opentelemetry::metrics::MetricsError;
+use opentelemetry::sdk::export::metrics::aggregation::{Count, Temporality, TemporalitySelector};
 use opentelemetry::sdk::metrics::aggregators::{
-    ArrayAggregator, HistogramAggregator, LastValueAggregator, MinMaxSumCountAggregator,
-    SumAggregator,
+    HistogramAggregator, LastValueAggregator, SumAggregator,
 };
-use opentelemetry::{Key, KeyValue, Value};
+use opentelemetry::sdk::{
+    export::metrics::{
+        aggregation::{Histogram as SdkHistogram, LastValue, Sum as SdkSum},
+        Record,
+    },
+    metrics::sdk_api::{Number, NumberKind},
+};
+use opentelemetry::{global, Key, KeyValue, Value};
 use std::borrow::Cow;
 use std::cmp;
 use std::collections::{btree_map, BTreeMap};
@@ -441,7 +444,7 @@ impl PartialEq for MetricLine {
 /// Transform a record to a Dynatrace metrics ingestion protocol metric line.
 pub(crate) fn record_to_metric_line(
     record: &Record,
-    export_selector: &dyn ExportKindFor,
+    temporality_selector: &dyn TemporalitySelector,
     prefix: Option<String>,
     default_dimensions: Option<DimensionSet>,
     timestamp: bool,
@@ -472,36 +475,12 @@ pub(crate) fn record_to_metric_line(
         DimensionSet::from_iter(iter.map(|(k, v)| (k.to_owned(), v.to_owned())))
     };
 
-    let temporality = export_selector.export_kind_for(descriptor);
+    let temporality =
+        temporality_selector.temporality_for(descriptor, aggregator.aggregation().kind());
 
     let mut metric_line_data: Vec<MetricLine> = Vec::with_capacity(1);
 
-    if let Some(array) = aggregator.as_any().downcast_ref::<ArrayAggregator>() {
-        if let Ok(points) = array.points() {
-            let timestamp = if timestamp {
-                Some(get_time(record.end_time().to_owned()))
-            } else {
-                None
-            };
-
-            metric_line_data.reserve(points.len());
-
-            points.iter().for_each(|val| {
-                metric_line_data.push(MetricLine {
-                    kind: kind.clone(),
-                    key: key.clone(),
-                    dimensions: Some(dimensions.clone()),
-                    min: None,
-                    max: None,
-                    sum: None,
-                    count: None,
-                    delta: None,
-                    gauge: Some(val.to_owned()),
-                    timestamp,
-                })
-            })
-        }
-    } else if let Some(last_value) = aggregator.as_any().downcast_ref::<LastValueAggregator>() {
+    if let Some(last_value) = aggregator.as_any().downcast_ref::<LastValueAggregator>() {
         let (val, sample_time) = last_value.last_value()?;
         let timestamp = if timestamp {
             Some(get_time(sample_time))
@@ -543,39 +522,15 @@ pub(crate) fn record_to_metric_line(
         };
 
         match temporality {
-            ExportKind::Cumulative => metric_line.gauge = Some(val),
-            ExportKind::Delta => metric_line.delta = Some(val),
+            Temporality::Cumulative => metric_line.gauge = Some(val),
+            Temporality::Delta => metric_line.delta = Some(val),
+            other => global::handle_error(MetricsError::Other(format!(
+                "Unsupported temporality {:?}",
+                other
+            ))),
         };
 
         metric_line_data.push(metric_line);
-    } else if let Some(min_max_sum_count) = aggregator
-        .as_any()
-        .downcast_ref::<MinMaxSumCountAggregator>()
-    {
-        let (min, max, sum, count) = (
-            min_max_sum_count.min()?,
-            min_max_sum_count.max()?,
-            min_max_sum_count.sum()?,
-            min_max_sum_count.count()?,
-        );
-        let timestamp = if timestamp {
-            Some(get_time(record.end_time().to_owned()))
-        } else {
-            None
-        };
-
-        metric_line_data.push(MetricLine {
-            kind: kind.to_owned(),
-            key,
-            dimensions: Some(dimensions),
-            min: Some(min),
-            max: Some(max),
-            sum: Some(sum),
-            count: Some(count),
-            delta: None,
-            gauge: None,
-            timestamp,
-        });
     } else if let Some(histogram) = aggregator.as_any().downcast_ref::<HistogramAggregator>() {
         let (sum, count, buckets) = (histogram.sum()?, histogram.count()?, histogram.histogram()?);
         let (counts, boundaries) = (buckets.counts(), buckets.boundaries());
@@ -645,14 +600,16 @@ mod tests {
     use crate::transform::common::get_time;
     use crate::transform::metrics::MetricLine;
     use crate::transform::record_to_metric_line;
-    use opentelemetry::attributes::AttributeSet;
-    use opentelemetry::metrics::{Descriptor, InstrumentKind, MetricsError, Number, NumberKind};
-    use opentelemetry::sdk::export::metrics::{record, Aggregator, ExportKindSelector};
-    use opentelemetry::sdk::metrics::aggregators::{
-        histogram, last_value, min_max_sum_count, SumAggregator,
+    use opentelemetry::sdk::export::metrics::aggregation::{
+        cumulative_temporality_selector, delta_temporality_selector,
     };
-    use opentelemetry::sdk::Resource;
-    use opentelemetry::KeyValue;
+    use opentelemetry::sdk::export::metrics::record;
+    use opentelemetry::sdk::metrics::aggregators::{
+        histogram, last_value, Aggregator, SumAggregator,
+    };
+    use opentelemetry::sdk::metrics::sdk_api::{Descriptor, InstrumentKind, Number, NumberKind};
+    use opentelemetry::{attributes::AttributeSet, metrics::MetricsError};
+    use opentelemetry::{Context, KeyValue};
     use std::borrow::Cow;
     use std::sync::Arc;
     use std::time::{Duration, SystemTime};
@@ -763,131 +720,39 @@ mod tests {
                 .cloned()
                 .map(|(k, v)| opentelemetry::KeyValue::new(k, v)),
         );
-        let resource = Resource::new(vec![
-            opentelemetry::KeyValue::new("process", "rust"),
-            opentelemetry::KeyValue::new("runtime", "sync"),
-        ]);
         let start_time = SystemTime::now();
         let end_time = SystemTime::now().checked_add(Duration::new(30, 0)).unwrap();
-
-        // Array
-        {
-            let descriptor = Descriptor::new(
-                "test_array".to_string(),
-                "test",
-                None,
-                None,
-                InstrumentKind::Counter,
-                NumberKind::I64,
-            );
-            let aggregator = ArrayAggregator::default();
-            let val = Number::from(12_i64);
-            aggregator.update(&val, &descriptor)?;
-            let val = Number::from(24_i64);
-            aggregator.update(&val, &descriptor)?;
-            let wrapped_aggregator: Arc<dyn Aggregator + Send + Sync> = Arc::new(aggregator);
-            let record = record(
-                &descriptor,
-                &attribute_set,
-                &resource,
-                Some(&wrapped_aggregator),
-                start_time,
-                end_time,
-            );
-
-            let metric_line_data =
-                record_to_metric_line(&record, &ExportKindSelector::Cumulative, None, None, true)?;
-
-            let dimensions = DimensionSet::from(vec![
-                KeyValue::new("KEY", "VALUE"),
-                KeyValue::new("test.abc_123-", "value.123_foo-bar"),
-                KeyValue::new(METRICS_SOURCE, "opentelemetry"),
-            ]);
-
-            let expect = vec![
-                MetricLine {
-                    key: MetricKey::new("test_array"),
-                    kind: NumberKind::I64,
-                    dimensions: Some(dimensions.clone()),
-                    min: None,
-                    max: None,
-                    sum: None,
-                    count: None,
-                    delta: None,
-                    gauge: Some(Number::from(12_i64)),
-                    timestamp: Some(get_time(end_time)),
-                },
-                MetricLine {
-                    key: MetricKey::new("test_array"),
-                    kind: NumberKind::I64,
-                    dimensions: Some(dimensions),
-                    min: None,
-                    max: None,
-                    sum: None,
-                    count: None,
-                    delta: None,
-                    gauge: Some(Number::from(24_i64)),
-                    timestamp: Some(get_time(end_time)),
-                },
-            ];
-
-            assert_eq!(expect, metric_line_data);
-
-            let mut metric_lines: Vec<String> = metric_line_data
-                .iter()
-                .map(|export_line| format!("{}", export_line))
-                .collect();
-            metric_lines.sort_unstable();
-
-            let mut iter = metric_lines.iter();
-
-            assert_eq!(
-                Some(&format!(
-                    "test_array,key=VALUE,{}={},test.abc_123-=value.123_foo-bar gauge,12 {}",
-                    METRICS_SOURCE,
-                    "opentelemetry",
-                    get_time(end_time),
-                )),
-                iter.next()
-            );
-            assert_eq!(
-                Some(&format!(
-                    "test_array,key=VALUE,{}={},test.abc_123-=value.123_foo-bar gauge,24 {}",
-                    METRICS_SOURCE,
-                    "opentelemetry",
-                    get_time(end_time),
-                )),
-                iter.next()
-            );
-            assert_eq!(None, iter.next());
-        }
+        let cx = Context::new();
 
         // Sum
         {
             let descriptor = Descriptor::new(
                 "test_sum".to_string(),
-                "test",
-                None,
-                None,
                 InstrumentKind::Counter,
                 NumberKind::I64,
+                None,
+                None,
             );
             let aggregator = SumAggregator::default();
             let val = Number::from(12_i64);
-            aggregator.update(&val, &descriptor)?;
+            aggregator.update(&cx, &val, &descriptor)?;
             let wrapped_aggregator: Arc<dyn Aggregator + Send + Sync> = Arc::new(aggregator);
             let record = record(
                 &descriptor,
                 &attribute_set,
-                &resource,
                 Some(&wrapped_aggregator),
                 start_time,
                 end_time,
             );
 
             // ExportKindSelector::Cumulative
-            let metric_line_data =
-                record_to_metric_line(&record, &ExportKindSelector::Cumulative, None, None, true)?;
+            let metric_line_data = record_to_metric_line(
+                &record,
+                &cumulative_temporality_selector(),
+                None,
+                None,
+                true,
+            )?;
 
             let dimensions = DimensionSet::from(vec![
                 KeyValue::new("KEY", "VALUE"),
@@ -931,7 +796,7 @@ mod tests {
 
             // ExportKindSelector::Delta
             let metric_line_data =
-                record_to_metric_line(&record, &ExportKindSelector::Delta, None, None, true)?;
+                record_to_metric_line(&record, &delta_temporality_selector(), None, None, true)?;
 
             let dimensions = DimensionSet::from(vec![
                 KeyValue::new("KEY", "VALUE"),
@@ -978,29 +843,32 @@ mod tests {
         {
             let descriptor = Descriptor::new(
                 "test_last_value".to_string(),
-                "test",
-                None,
-                None,
-                InstrumentKind::ValueObserver,
+                InstrumentKind::GaugeObserver,
                 NumberKind::I64,
+                None,
+                None,
             );
             let aggregator = last_value();
             let val1 = Number::from(12_i64);
             let val2 = Number::from(14_i64);
-            aggregator.update(&val1, &descriptor)?;
-            aggregator.update(&val2, &descriptor)?;
+            aggregator.update(&cx, &val1, &descriptor)?;
+            aggregator.update(&cx, &val2, &descriptor)?;
             let wrapped_aggregator: Arc<dyn Aggregator + Send + Sync> = Arc::new(aggregator);
             let record = record(
                 &descriptor,
                 &attribute_set,
-                &resource,
                 Some(&wrapped_aggregator),
                 start_time,
                 end_time,
             );
 
-            let metric_line_data =
-                record_to_metric_line(&record, &ExportKindSelector::Cumulative, None, None, false)?;
+            let metric_line_data = record_to_metric_line(
+                &record,
+                &cumulative_temporality_selector(),
+                None,
+                None,
+                false,
+            )?;
 
             let dimensions = DimensionSet::from(vec![
                 KeyValue::new("KEY", "VALUE"),
@@ -1041,103 +909,37 @@ mod tests {
             assert_eq!(None, iter.next());
         }
 
-        // MinMaxSumCount
-        {
-            let descriptor = Descriptor::new(
-                "test_min_max_sum_count".to_string(),
-                "test",
-                None,
-                None,
-                InstrumentKind::UpDownSumObserver,
-                NumberKind::I64,
-            );
-            let aggregator = min_max_sum_count(&descriptor);
-            let vals = vec![1i64.into(), 2i64.into(), 3i64.into()];
-            for val in vals.iter() {
-                aggregator.update(val, &descriptor)?;
-            }
-            let wrapped_aggregator: Arc<dyn Aggregator + Send + Sync> = Arc::new(aggregator);
-            let record = record(
-                &descriptor,
-                &attribute_set,
-                &resource,
-                Some(&wrapped_aggregator),
-                start_time,
-                end_time,
-            );
-
-            let metric_line_data =
-                record_to_metric_line(&record, &ExportKindSelector::Cumulative, None, None, true)?;
-
-            let dimensions = DimensionSet::from(vec![
-                KeyValue::new("KEY", "VALUE"),
-                KeyValue::new("test.abc_123-", "value.123_foo-bar"),
-                KeyValue::new(METRICS_SOURCE, "opentelemetry"),
-            ]);
-
-            let expect = vec![MetricLine {
-                key: MetricKey::new("test_min_max_sum_count"),
-                kind: NumberKind::I64,
-                dimensions: Some(dimensions),
-                min: Some(Number::from(1_i64)),
-                max: Some(Number::from(3_i64)),
-                sum: Some(Number::from(6_i64)),
-                count: Some(3),
-                delta: None,
-                gauge: None,
-                timestamp: Some(get_time(end_time)),
-            }];
-
-            assert_eq!(expect, metric_line_data);
-
-            let mut metric_lines: Vec<String> = metric_line_data
-                .iter()
-                .map(|export_line| format!("{}", export_line))
-                .collect();
-            metric_lines.sort_unstable();
-
-            let mut iter = metric_lines.iter();
-
-            assert_eq!(
-                Some(&format!(
-                    "test_min_max_sum_count,key=VALUE,{}={},test.abc_123-=value.123_foo-bar gauge,min=1,max=3,sum=6,count=3 {}",
-                    METRICS_SOURCE,
-                    "opentelemetry",
-                    get_time(end_time),
-                )),
-                iter.next()
-            );
-            assert_eq!(None, iter.next());
-        }
-
         // Histogram
         {
             let descriptor = Descriptor::new(
                 "test_histogram".to_string(),
-                "test",
-                None,
-                None,
                 InstrumentKind::Histogram,
                 NumberKind::I64,
+                None,
+                None,
             );
             let bound = [0.1, 0.2, 0.3];
-            let aggregator = histogram(&descriptor, &bound);
+            let aggregator = histogram(&bound);
             let vals = vec![1i64.into(), 2i64.into(), 3i64.into()];
             for val in vals.iter() {
-                aggregator.update(val, &descriptor)?;
+                aggregator.update(&cx, val, &descriptor)?;
             }
             let wrapped_aggregator: Arc<dyn Aggregator + Send + Sync> = Arc::new(aggregator);
             let record = record(
                 &descriptor,
                 &attribute_set,
-                &resource,
                 Some(&wrapped_aggregator),
                 start_time,
                 end_time,
             );
 
-            let metric_line_data =
-                record_to_metric_line(&record, &ExportKindSelector::Cumulative, None, None, true)?;
+            let metric_line_data = record_to_metric_line(
+                &record,
+                &cumulative_temporality_selector(),
+                None,
+                None,
+                true,
+            )?;
 
             let dimensions = DimensionSet::from(vec![
                 KeyValue::new("KEY", "VALUE"),
