@@ -387,20 +387,46 @@ mod propagator {
     /// ```
     ///
     ///  [jaeger propagation format]: https://www.jaegertracing.io/docs/1.18/client-libraries/#propagation-format
-    #[derive(Clone, Debug, Default)]
+    #[derive(Clone, Debug)]
     pub struct Propagator {
-        _private: (),
+        baggage_prefix: &'static str,
+        header_name: &'static str,
+        fields: [String; 1],
+    }
+
+    // Implement default using Propagator::new() to not break compatibility with previous versions
+    impl Default for Propagator {
+        fn default() -> Self {
+            Propagator::new()
+        }
     }
 
     impl Propagator {
         /// Create a Jaeger propagator
         pub fn new() -> Self {
-            Propagator::default()
+            Self::with_custom_header_and_baggage(JAEGER_HEADER, JAEGER_BAGGAGE_PREFIX)
+        }
+
+        /// Create a Jaeger propagator with custom header name
+        pub fn with_custom_header(custom_header_name: &'static str) -> Self {
+            Self::with_custom_header_and_baggage(custom_header_name, JAEGER_BAGGAGE_PREFIX)
+        }
+
+        /// Create a Jaeger propagator with custom header name and baggage prefix
+        pub fn with_custom_header_and_baggage(
+            custom_header_name: &'static str,
+            custom_baggage_prefix: &'static str,
+        ) -> Self {
+            Propagator {
+                baggage_prefix: custom_baggage_prefix,
+                header_name: custom_header_name,
+                fields: [custom_header_name.to_owned()],
+            }
         }
 
         /// Extract span context from header value
         fn extract_span_context(&self, extractor: &dyn Extractor) -> Result<SpanContext, ()> {
-            let mut header_value = Cow::from(extractor.get(JAEGER_HEADER).unwrap_or(""));
+            let mut header_value = Cow::from(extractor.get(self.header_name).unwrap_or(""));
             // if there is no :, it means header_value could be encoded as url, try decode first
             if !header_value.contains(':') {
                 header_value = Cow::from(header_value.replace("%3A", ":"));
@@ -464,17 +490,17 @@ mod propagator {
         }
 
         fn extract_trace_state(&self, extractor: &dyn Extractor) -> Result<TraceState, ()> {
-            let uber_context_keys = extractor
+            let baggage_keys = extractor
                 .keys()
                 .into_iter()
-                .filter(|key| key.starts_with(JAEGER_BAGGAGE_PREFIX))
+                .filter(|key| key.starts_with(self.baggage_prefix))
                 .filter_map(|key| {
                     extractor
                         .get(key)
                         .map(|value| (key.to_string(), value.to_string()))
                 });
 
-            match TraceState::from_key_value(uber_context_keys) {
+            match TraceState::from_key_value(baggage_keys) {
                 Ok(trace_state) => Ok(trace_state),
                 Err(trace_state_err) => {
                     global::handle_error(Error::Trace(TraceError::Other(Box::new(
@@ -507,7 +533,7 @@ mod propagator {
                     DEPRECATED_PARENT_SPAN,
                     flag,
                 );
-                injector.set(JAEGER_HEADER, header_value);
+                injector.set(self.header_name, header_value);
             }
         }
 
@@ -518,7 +544,7 @@ mod propagator {
         }
 
         fn fields(&self) -> FieldIter<'_> {
-            FieldIter::new(JAEGER_HEADER_FIELD.as_ref())
+            FieldIter::new(self.fields.as_ref())
         }
     }
 
