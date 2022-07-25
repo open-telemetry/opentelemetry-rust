@@ -353,9 +353,12 @@ mod propagator {
     /// ## Examples
     /// ```
     /// # use opentelemetry::{global, trace::{Tracer, TraceContextExt}, Context};
+    /// # use opentelemetry_jaeger::Propagator as JaegerPropagator;
     /// # fn send_request() {
     /// // setup jaeger propagator
-    /// global::set_text_map_propagator(opentelemetry_jaeger::Propagator::new());
+    /// global::set_text_map_propagator(JaegerPropagator::default());
+    /// // You also can init propagator with custom header name
+    /// // global::set_text_map_propagator(JaegerPropagator::with_custom_header("my-custom-header"));
     ///
     /// // before sending requests to downstream services.
     /// let mut headers = std::collections::HashMap::new(); // replace by http header of the outgoing request
@@ -371,7 +374,9 @@ mod propagator {
     /// # fn receive_request() {
     /// // Receive the request sent above on the other service...
     /// // setup jaeger propagator
-    /// global::set_text_map_propagator(opentelemetry_jaeger::Propagator::new());
+    /// global::set_text_map_propagator(JaegerPropagator::new());
+    /// // You also can init propagator with custom header name
+    /// // global::set_text_map_propagator(JaegerPropagator::with_custom_header("my-custom-header"));
     ///
     /// let headers = std::collections::HashMap::new(); // replace this with http header map from incoming requests.
     /// let parent_context = global::get_text_map_propagator(|propagator| {
@@ -410,10 +415,27 @@ mod propagator {
         }
 
         /// Create a Jaeger propagator with custom header name and baggage prefix
+        ///
+        /// NOTE: it's implicitly fallback to the default header names when the ane of provided custom_* is empty
+        /// Default header-name is `uber-trace-id` and baggage-prefix is `uberctx-`
+        /// The format of serialized context and baggage's stays unchanged and not depending
+        /// on provided header name and prefix.
         pub fn with_custom_header_and_baggage(
             custom_header_name: &'static str,
             custom_baggage_prefix: &'static str,
         ) -> Self {
+            let custom_header_name = if custom_header_name.len() > 0 {
+                custom_header_name
+            } else {
+                JAEGER_HEADER
+            };
+
+            let custom_baggage_prefix = if custom_baggage_prefix.len() > 0 {
+                custom_baggage_prefix
+            } else {
+                JAEGER_BAGGAGE_PREFIX
+            };
+
             Propagator {
                 baggage_prefix: custom_baggage_prefix,
                 header_name: custom_header_name,
@@ -524,7 +546,7 @@ mod propagator {
                     0x00
                 };
                 let header_value = format!(
-                    "{:032x}:{:016x}:{:01}:{:01}",
+                    "{:032x}:{:016x}:{:01}:{:01x}",
                     span_context.trace_id(),
                     span_context.span_id(),
                     DEPRECATED_PARENT_SPAN,
@@ -668,6 +690,32 @@ mod propagator {
             ]
         }
 
+        /// Try to extract the context using the created Propagator with custom header name
+        /// from the Extractor under the `context_key` key.
+        fn _test_extract_with_header(construct_header: &'static str, context_key: &'static str) {
+            let propagator = Propagator::with_custom_header(construct_header);
+            for (trace_id, span_id, flag, expected) in get_extract_data() {
+                let mut map: HashMap<String, String> = HashMap::new();
+                map.set(context_key, format!("{}:{}:0:{}", trace_id, span_id, flag));
+                let context = propagator.extract(&map);
+                assert_eq!(context.span().span_context(), &expected);
+            }
+        }
+
+        /// Try to inject the context using the created Propagator with custom header name
+        /// and expect the serialized context existence under `expect_header` key.
+        fn _test_inject_with_header(construct_header: &'static str, expect_header: &'static str) {
+            let propagator = Propagator::with_custom_header(construct_header);
+            for (span_context, header_value) in get_inject_data() {
+                let mut injector = HashMap::new();
+                propagator.inject_context(
+                    &Context::current_with_span(TestSpan(span_context)),
+                    &mut injector,
+                );
+                assert_eq!(injector.get(expect_header), Some(&header_value));
+            }
+        }
+
         #[test]
         fn test_extract_empty() {
             let map: HashMap<String, String> = HashMap::new();
@@ -677,14 +725,22 @@ mod propagator {
         }
 
         #[test]
-        fn test_extract() {
+        fn test_inject_extract_with_default() {
+            let propagator = Propagator::default();
+            for (span_context, header_value) in get_inject_data() {
+                let mut injector = HashMap::new();
+                propagator.inject_context(
+                    &Context::current_with_span(TestSpan(span_context)),
+                    &mut injector,
+                );
+                assert_eq!(injector.get(JAEGER_HEADER), Some(&header_value));
+            }
             for (trace_id, span_id, flag, expected) in get_extract_data() {
                 let mut map: HashMap<String, String> = HashMap::new();
                 map.set(
                     JAEGER_HEADER,
                     format!("{}:{}:0:{}", trace_id, span_id, flag),
                 );
-                let propagator = Propagator::new();
                 let context = propagator.extract(&map);
                 assert_eq!(context.span().span_context(), &expected);
             }
@@ -736,16 +792,33 @@ mod propagator {
         }
 
         #[test]
+        fn test_extract() {
+            _test_extract_with_header(JAEGER_HEADER, JAEGER_HEADER)
+        }
+
+        #[test]
         fn test_inject() {
-            let propagator = Propagator::new();
-            for (span_context, header_value) in get_inject_data() {
-                let mut injector = HashMap::new();
-                propagator.inject_context(
-                    &Context::current_with_span(TestSpan(span_context)),
-                    &mut injector,
-                );
-                assert_eq!(injector.get(JAEGER_HEADER), Some(&header_value));
-            }
+            _test_inject_with_header(JAEGER_HEADER, JAEGER_HEADER)
+        }
+
+        #[test]
+        fn test_extract_with_invalid_header() {
+            _test_extract_with_header("", JAEGER_HEADER)
+        }
+
+        #[test]
+        fn test_extract_with_valid_header() {
+            _test_extract_with_header("custom-header", "custom-header")
+        }
+
+        #[test]
+        fn test_inject_with_invalid_header() {
+            _test_inject_with_header("", JAEGER_HEADER)
+        }
+
+        #[test]
+        fn test_inject_with_valid_header() {
+            _test_inject_with_header("custom-header", "custom-header")
         }
     }
 }
