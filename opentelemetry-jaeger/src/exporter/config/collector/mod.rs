@@ -9,6 +9,7 @@ use opentelemetry::{sdk, sdk::trace::Config as TraceConfig, trace::TraceError};
 use std::borrow::BorrowMut;
 use std::convert::TryFrom;
 use std::env;
+use std::sync::Arc;
 #[cfg(feature = "collector_client")]
 use std::time::Duration;
 
@@ -411,12 +412,7 @@ impl CollectorPipeline {
             self.transformation_config.service_name.take(),
         );
         let uploader = self.build_uploader::<R>()?;
-        let exporter = Exporter::new_async(
-            process.into(),
-            export_instrument_library,
-            runtime.clone(),
-            uploader,
-        );
+        let exporter = Exporter::new(process.into(), export_instrument_library, uploader);
 
         builder = builder.with_batch_exporter(exporter, runtime);
         builder = builder.with_config(config);
@@ -436,7 +432,7 @@ impl CollectorPipeline {
         install_tracer_provider_and_get_tracer(tracer_provider)
     }
 
-    fn build_uploader<R>(self) -> Result<Box<dyn Uploader>, crate::Error>
+    fn build_uploader<R>(self) -> Result<Arc<dyn Uploader>, crate::Error>
     where
         R: JaegerTraceRuntime,
     {
@@ -461,14 +457,14 @@ impl CollectorPipeline {
                 )?;
 
                 let collector = AsyncHttpClient::new(endpoint, client);
-                Ok(Box::new(AsyncUploader::<R>::Collector(collector)))
+                Ok(Arc::new(AsyncUploader::<R>::Collector(collector)))
             }
             #[cfg(feature = "wasm_collector_client")]
             ClientConfig::Wasm => {
                 let collector =
                     WasmCollector::new(endpoint, self.collector_username, self.collector_password)
                         .map_err::<crate::Error, _>(Into::into)?;
-                Ok(Box::new(AsyncUploader::<R>::WasmCollector(collector)))
+                Ok(Arc::new(AsyncUploader::<R>::WasmCollector(collector)))
             }
         }
     }

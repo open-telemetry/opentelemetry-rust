@@ -187,7 +187,7 @@ mod collector_client_tests {
             .with_endpoint("localhost:6831")
             .with_http_client(test_http_client::TestHttpClient);
         let (_, process) = build_config_and_process(None, None);
-        let mut uploader = invalid_uri_builder.build_uploader::<Tokio>()?;
+        let uploader = invalid_uri_builder.build_uploader::<Tokio>()?;
         let res = futures_executor::block_on(async {
             uploader
                 .upload(Batch::new(process.into(), Vec::new()))
