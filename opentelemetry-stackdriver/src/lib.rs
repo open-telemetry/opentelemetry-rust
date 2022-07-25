@@ -282,18 +282,15 @@ where
                                 }
                             }
                         }
-
+                        let project_id = self.authorizer.project_id();
+                        let log_id = &client.context.log_id;
                         LogEntry {
-                            log_name: format!(
-                                "projects/{}/logs/{}",
-                                self.authorizer.project_id(),
-                                client.context.log_id,
-                            ),
+                            log_name: format!("projects/{project_id}/logs/{log_id}"),
                             resource: Some(client.context.resource.clone()),
                             severity: level as i32,
                             timestamp: Some(event.timestamp.into()),
                             labels,
-                            trace: trace_id.clone(),
+                            trace: format!("projects/{project_id}/traces/{trace_id}"),
                             span_id: span_id.clone(),
                             source_location: target.map(|target| LogEntrySourceLocation {
                                 file: String::new(),
