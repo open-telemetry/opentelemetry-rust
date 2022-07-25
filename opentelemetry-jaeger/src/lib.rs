@@ -324,7 +324,6 @@ mod exporter;
 pub mod testing;
 
 mod propagator {
-    use once_cell::sync::Lazy;
     use opentelemetry::{
         global::{self, Error},
         propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
