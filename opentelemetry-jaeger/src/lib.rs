@@ -424,21 +424,21 @@ mod propagator {
             custom_header_name: &'static str,
             custom_baggage_prefix: &'static str,
         ) -> Self {
-            let custom_header_name = if custom_header_name.len() > 0 {
-                custom_header_name
-            } else {
+            let custom_header_name = if custom_header_name.trim().is_empty() {
                 JAEGER_HEADER
+            } else {
+                custom_header_name
             };
 
-            let custom_baggage_prefix = if custom_baggage_prefix.len() > 0 {
-                custom_baggage_prefix
-            } else {
+            let custom_baggage_prefix = if custom_baggage_prefix.trim().is_empty() {
                 JAEGER_BAGGAGE_PREFIX
+            } else {
+                custom_baggage_prefix
             };
 
             Propagator {
-                baggage_prefix: custom_baggage_prefix,
-                header_name: custom_header_name,
+                baggage_prefix: custom_baggage_prefix.trim(),
+                header_name: custom_header_name.trim(),
                 fields: [custom_header_name.to_owned()],
             }
         }
@@ -803,22 +803,30 @@ mod propagator {
 
         #[test]
         fn test_extract_with_invalid_header() {
-            _test_extract_with_header("", JAEGER_HEADER)
+            for construct in &["", "   "] {
+                _test_extract_with_header(construct, JAEGER_HEADER)
+            }
         }
 
         #[test]
         fn test_extract_with_valid_header() {
-            _test_extract_with_header("custom-header", "custom-header")
+            for construct in &["custom-header", "custom-header   ", "   custom-header   "] {
+                _test_extract_with_header(construct, "custom-header")
+            }
         }
 
         #[test]
         fn test_inject_with_invalid_header() {
-            _test_inject_with_header("", JAEGER_HEADER)
+            for construct in &["", "   "] {
+                _test_inject_with_header(construct, JAEGER_HEADER)
+            }
         }
 
         #[test]
         fn test_inject_with_valid_header() {
-            _test_inject_with_header("custom-header", "custom-header")
+            for construct in &["custom-header", "custom-header   ", "   custom-header   "] {
+                _test_inject_with_header(construct, "custom-header")
+            }
         }
     }
 }
