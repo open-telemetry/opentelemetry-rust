@@ -342,8 +342,6 @@ mod propagator {
 
     const TRACE_FLAG_DEBUG: TraceFlags = TraceFlags::new(0x04);
 
-    static JAEGER_HEADER_FIELD: Lazy<[String; 1]> = Lazy::new(|| [JAEGER_HEADER.to_owned()]);
-
     /// The Jaeger propagator propagates span contexts in [Jaeger propagation format].
     ///
     /// Cross-cutting concerns send their state to the next process using `Propagator`s,
