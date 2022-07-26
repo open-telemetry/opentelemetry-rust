@@ -139,6 +139,7 @@ pub mod hyper {
     use hyper::client::HttpConnector;
     use hyper::Client;
     use std::time::Duration;
+    use tokio::time;
 
     #[derive(Debug, Clone)]
     pub struct HyperClient {
@@ -178,8 +179,7 @@ pub mod hyper {
                     .headers_mut()
                     .insert(http::header::AUTHORIZATION, authorization.clone());
             }
-            let response =
-                tokio::time::timeout(self.timeout, self.client.request(request)).await??;
+            let response = time::timeout(self.timeout, self.client.request(request)).await??;
             Ok(Response::builder()
                 .status(response.status())
                 .body(hyper::body::to_bytes(response.into_body()).await?)?)

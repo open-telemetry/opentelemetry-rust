@@ -18,6 +18,7 @@ members = [
     "opentelemetry-zpages",
     "examples/actix-http",
     "examples/actix-http-tracing",
+    "examples/actix-hyper",
     "examples/actix-udp",
     "examples/async",
     "examples/aws-xray",

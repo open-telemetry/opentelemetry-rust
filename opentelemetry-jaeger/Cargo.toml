@@ -82,7 +82,7 @@ full = [
 ]
 default = []
 collector_client = ["http", "opentelemetry-http"]
-hyper_collector_client = ["hyper", "opentelemetry-http/hyper"]
+hyper_collector_client = ["collector_client", "headers", "http", "opentelemetry-http/tokio", "opentelemetry-http/hyper"]
 isahc_collector_client = ["isahc", "opentelemetry-http/isahc"]
 reqwest_blocking_collector_client = ["reqwest/blocking", "collector_client", "headers", "opentelemetry-http/reqwest"]
 reqwest_collector_client = ["reqwest", "collector_client", "headers", "opentelemetry-http/reqwest"]
