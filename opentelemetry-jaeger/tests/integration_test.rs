@@ -110,6 +110,17 @@ mod tests {
                         .expect("cannot create tracer using default configuration")
                 }),
             ),
+            (
+                "collector_hyper",
+                Box::new(|| {
+                    opentelemetry_jaeger::new_collector_pipeline()
+                        .with_endpoint(collector_endpoint)
+                        .with_hyper()
+                        .with_service_name(format!("{}-{}", SERVICE_NAME, "collector_hyper"))
+                        .install_batch(opentelemetry::runtime::Tokio)
+                        .expect("cannot create tracer using default configuration")
+                }),
+            ),
         ];
 
         for (name, build_tracer) in test_cases {

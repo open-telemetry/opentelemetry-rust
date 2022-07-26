@@ -248,6 +248,8 @@
 //!
 //! * `collector_client`: Export span data directly to a Jaeger collector. User MUST provide the http client.
 //!
+//! * `hyper_collector_client`: Export span data with Jaeger collector backed by a hyper default http client.
+//!
 //! * `surf_collector_client`: Export span data with Jaeger collector backed by a surf default http client.
 //!
 //! * `reqwest_collector_client`: Export span data with Jaeger collector backed by a reqwest http client.

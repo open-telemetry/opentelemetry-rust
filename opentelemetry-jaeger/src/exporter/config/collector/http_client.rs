@@ -34,6 +34,8 @@ impl surf::middleware::Middleware for BasicAuthMiddleware {
 pub(crate) enum CollectorHttpClient {
     None,
     Custom(Box<dyn OtelHttpClient>),
+    #[cfg(feature = "hyper_collector_client")]
+    Hyper,
     #[cfg(feature = "isahc_collector_client")]
     Isahc,
     #[cfg(feature = "surf_collector_client")]
@@ -141,6 +143,19 @@ impl CollectorHttpClient {
                         reason: format!("cannot create reqwest http client, {}", err),
                     }
                 })?;
+                Ok(Box::new(client))
+            }
+            #[cfg(feature = "hyper_collector_client")]
+            CollectorHttpClient::Hyper => {
+                use opentelemetry_http::hyper::HyperClient;
+
+                let client = if let (Some(username), Some(password)) = (collector_username, collector_password) {
+                    let auth_header_val =
+                        headers::Authorization::basic(username.as_str(), password.as_str());
+                    HyperClient::new_with_timeout_and_authorization_header(collector_timeout, auth_header_val.0.encode())
+                } else {
+                    HyperClient::new_with_timeout(collector_timeout)
+                };
                 Ok(Box::new(client))
             }
         }

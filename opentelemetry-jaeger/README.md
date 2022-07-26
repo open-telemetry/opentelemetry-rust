@@ -109,6 +109,7 @@ Then you can use the [`with_collector_endpoint`] method to specify the endpoint:
 
 ```rust
 // Note that this requires one of the following features enabled so that there is a default http client implementation
+// * hyper_collector_client
 // * surf_collector_client
 // * reqwest_collector_client
 // * reqwest_blocking_collector_client

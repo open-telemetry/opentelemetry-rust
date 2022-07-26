@@ -62,6 +62,7 @@ const ENV_PASSWORD: &str = "OTEL_EXPORTER_JAEGER_PASSWORD";
 /// To help user setup the exporter, `opentelemetry-jaeger` provides the following build in http client
 /// implementation and relative configurations.
 ///
+/// - [hyper], requires `hyper_collector_client` feature enabled, use [`with_hyper`][CollectorPipeline::with_hyper] function to setup.
 /// - [surf], requires `surf_collector_client` feature enabled, use [`with_surf`][CollectorPipeline::with_surf] function to setup.
 /// - [isahc], requires `isahc_collector_client` feature enabled, use [`with_isahc`][CollectorPipeline::with_isahc] function to setup.
 /// - [reqwest], requires `reqwest_collector_client` feature enabled,  use [`with_reqwest`][CollectorPipeline::with_reqwest] function to setup.
@@ -81,7 +82,8 @@ const ENV_PASSWORD: &str = "OTEL_EXPORTER_JAEGER_PASSWORD";
 ///
 /// The pipeline will use [reqwest] http client.
 ///
-/// [surf]:https://docs.rs/surf/latest/surf/
+/// [hyper]: Custom wrapper around hyper::Client
+/// [surf]: https://docs.rs/surf/latest/surf/
 /// [isahc]: https://docs.rs/isahc/latest/isahc/
 /// [reqwest]: reqwest::Client
 /// [reqwest blocking client]: reqwest::blocking::Client
@@ -92,7 +94,7 @@ pub struct CollectorPipeline {
 
     #[cfg(feature = "collector_client")]
     collector_timeout: Duration,
-    // only used by buildin http clients.
+    // only used by builtin http clients.
     collector_endpoint: Option<Result<http::Uri, http::uri::InvalidUri>>,
     collector_username: Option<String>,
     collector_password: Option<String>,
@@ -271,7 +273,7 @@ impl CollectorPipeline {
         (&self.collector_password).clone()
     }
 
-    /// Custom the http client used to send spans.
+    /// Custom http client used to send spans.
     ///
     /// **Note** that all configuration other than the [`endpoint`][CollectorPipeline::with_endpoint] are not
     /// applicable to custom clients.
@@ -327,6 +329,17 @@ impl CollectorPipeline {
         Self {
             client_config: ClientConfig::Http {
                 client_type: CollectorHttpClient::ReqwestBlocking,
+            },
+            ..self
+        }
+    }
+
+    /// Use hyper http client in the exporter.
+    #[cfg(feature = "hyper_collector_client")]
+    pub fn with_hyper(self) -> Self {
+        Self {
+            client_config: ClientConfig::Http {
+                client_type: CollectorHttpClient::Hyper,
             },
             ..self
         }

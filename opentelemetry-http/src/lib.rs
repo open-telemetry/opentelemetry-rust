@@ -133,16 +133,53 @@ mod isahc {
 }
 
 #[cfg(feature = "hyper")]
-mod hyper {
+pub mod hyper {
     use super::{async_trait, Bytes, HttpClient, HttpError, Request, Response};
-    use hyper::client::connect::Connect;
+    use http::HeaderValue;
+    use hyper::client::HttpConnector;
+    use hyper::Client;
+    use std::time::Duration;
+
+    #[derive(Debug, Clone)]
+    pub struct HyperClient {
+        client: Client<HttpConnector>,
+        timeout: Duration,
+        authorization: Option<HeaderValue>,
+    }
+
+    impl HyperClient {
+        pub fn new_with_timeout(timeout: Duration) -> Self {
+            Self {
+                client: Client::new(),
+                timeout,
+                authorization: None,
+            }
+        }
+
+        pub fn new_with_timeout_and_authorization_header(
+            timeout: Duration,
+            authorization: HeaderValue,
+        ) -> Self {
+            Self {
+                client: Client::new(),
+                timeout,
+                authorization: Some(authorization),
+            }
+        }
+    }
 
     #[async_trait]
-    impl<T: Connect + Send + Sync + Clone + 'static> HttpClient for hyper::Client<T> {
+    impl HttpClient for HyperClient {
         async fn send(&self, request: Request<Vec<u8>>) -> Result<Response<Bytes>, HttpError> {
             let (parts, body) = request.into_parts();
-            let request = Request::from_parts(parts, body.into());
-            let response = self.request(request).await?;
+            let mut request = Request::from_parts(parts, body.into());
+            if let Some(ref authorization) = self.authorization {
+                request
+                    .headers_mut()
+                    .insert(http::header::AUTHORIZATION, authorization.clone());
+            }
+            let response =
+                tokio::time::timeout(self.timeout, self.client.request(request)).await??;
             Ok(Response::builder()
                 .status(response.status())
                 .body(hyper::body::to_bytes(response.into_body()).await?)?)
