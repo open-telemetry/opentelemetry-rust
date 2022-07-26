@@ -132,6 +132,24 @@ mod isahc {
     }
 }
 
+#[cfg(feature = "hyper")]
+mod hyper {
+    use super::{async_trait, Bytes, HttpClient, HttpError, Request, Response};
+    use hyper::client::connect::Connect;
+
+    #[async_trait]
+    impl<T: Connect + Send + Sync + Clone + 'static> HttpClient for hyper::Client<T> {
+        async fn send(&self, request: Request<Vec<u8>>) -> Result<Response<Bytes>, HttpError> {
+            let (parts, body) = request.into_parts();
+            let request = Request::from_parts(parts, body.into());
+            let response = self.request(request).await?;
+            Ok(Response::builder()
+                .status(response.status())
+                .body(hyper::body::to_bytes(response.into_body()).await?)?)
+        }
+    }
+}
+
 /// Methods to make working with responses from the [`HttpClient`] trait easier.
 pub trait ResponseExt: Sized {
     /// Turn a response into an error if the HTTP status does not indicate success (200 - 299).
