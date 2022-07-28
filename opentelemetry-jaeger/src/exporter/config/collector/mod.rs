@@ -82,9 +82,8 @@ const ENV_PASSWORD: &str = "OTEL_EXPORTER_JAEGER_PASSWORD";
 ///
 /// The pipeline will use [reqwest] http client.
 ///
-/// [hyper]: Custom wrapper around hyper::Client
-/// [surf]: https://docs.rs/surf/latest/surf/
-/// [isahc]: https://docs.rs/isahc/latest/isahc/
+/// [surf]: <https://docs.rs/surf/latest/surf/>
+/// [isahc]: <https://docs.rs/isahc/latest/isahc/>
 /// [reqwest]: reqwest::Client
 /// [reqwest blocking client]: reqwest::blocking::Client
 #[derive(Debug)]

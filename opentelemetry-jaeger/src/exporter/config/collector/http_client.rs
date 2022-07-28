@@ -1,6 +1,7 @@
 #[cfg(feature = "surf_collector_client")]
 use async_trait::async_trait;
 #[cfg(any(
+    feature = "hyper_collector_client",
     feature = "reqwest_blocking_collector_client",
     feature = "reqwest_collector_client"
 ))]
@@ -147,7 +148,6 @@ impl CollectorHttpClient {
             }
             #[cfg(feature = "hyper_collector_client")]
             CollectorHttpClient::Hyper => {
-                use headers::authorization::Credentials;
                 use opentelemetry_http::hyper::HyperClient;
 
                 let client = if let (Some(username), Some(password)) =

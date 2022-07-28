@@ -1,6 +1,6 @@
 //! Dynatrace Metric Exporter.
 //!
-//! Defines an [Exporter] to send metric data to Dynatrace using the [Dynatrace Metrics ingestion protocol].
+//! Defines an `Exporter` to send metric data to Dynatrace using the [Dynatrace Metrics ingestion protocol].
 //!
 //! [Metrics ingestion protocol]: https://www.dynatrace.com/support/help/how-to-use-dynatrace/metrics/metric-ingestion/metric-ingestion-protocol/
 #![allow(unused_attributes)]
@@ -236,7 +236,7 @@ where
 
     /// Set the timestamp to all metric data.
     /// If disabled, the ingestion time of the Dynatrace server will be used automatically.
-    /// Adding timestamps should be disabled in environments, where the system time is unrelible.
+    /// Adding timestamps should be disabled in environments, where the system time is unreliable.
     pub fn with_timestamp(self, value: bool) -> Self {
         DynatraceMetricsPipeline {
             timestamp: value,
