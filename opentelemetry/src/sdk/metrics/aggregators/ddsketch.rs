@@ -851,7 +851,7 @@ mod tests {
                 &DdSketchConfig::new(TEST_ALPHA, TEST_MAX_BINS, TEST_KEY_EPSILON),
                 NumberKind::F64,
             ));
-        let _ = ddsketch
+        ddsketch
             .synchronized_move(&moved_ddsketch, &descriptor)
             .expect("Fail to sync move");
         let moved_ddsketch = moved_ddsketch

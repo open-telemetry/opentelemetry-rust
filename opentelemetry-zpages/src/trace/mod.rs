@@ -47,7 +47,7 @@ pub fn tracez<R: Runtime>(
     let (tx, rx) = async_channel::unbounded();
     let span_processor = span_processor::ZPagesSpanProcessor::new(tx.clone());
     let mut aggregator = aggregator::SpanAggregator::new(rx, sample_size);
-    let _ = runtime.spawn(Box::pin(async move {
+    runtime.spawn(Box::pin(async move {
         aggregator.process().await;
     }));
     (span_processor, TracezQuerier(Arc::new(tx)))
