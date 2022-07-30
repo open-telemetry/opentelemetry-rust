@@ -1,5 +1,11 @@
 # Changelog
 
+# Changelog
+## [v0.17.1](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.17.0...v0.17.1)
+
+### Changed
+- Upgrade dashmap to 5.2.0 #849
+
 ## [v0.17.0](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.16.0...v0.17.0)
 
 ### Changed

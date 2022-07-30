@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.13.1
+
+### Changed
+
+- Update hyper-rustls to 0.23 (#849)
+
 ## v0.13.0
 
 ### Changed
