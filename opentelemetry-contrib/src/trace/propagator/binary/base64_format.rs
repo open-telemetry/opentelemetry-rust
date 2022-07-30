@@ -16,9 +16,11 @@ use opentelemetry::trace::SpanContext;
 /// representation.
 pub trait Base64Format {
     /// Serializes span context into a base64 encoded string
+    #[allow(clippy::wrong_self_convention)]
     fn to_base64(&self, context: &SpanContext) -> String;
 
     /// Deserialize a span context from a base64 encoded string
+    #[allow(clippy::wrong_self_convention)]
     fn from_base64(&self, base64: &str) -> SpanContext;
 }
 

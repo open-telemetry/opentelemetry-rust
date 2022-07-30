@@ -15,6 +15,7 @@ pub trait BinaryFormat {
     fn to_bytes(&self, context: &SpanContext) -> [u8; 29];
 
     /// Deserializes a span context from a byte array.
+    #[allow(clippy::wrong_self_convention)]
     fn from_bytes(&self, bytes: Vec<u8>) -> SpanContext;
 }
 
