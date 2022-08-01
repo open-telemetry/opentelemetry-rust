@@ -101,4 +101,4 @@ wasm_collector_client = [
 rt-tokio = ["tokio", "opentelemetry/rt-tokio"]
 rt-tokio-current-thread = ["tokio", "opentelemetry/rt-tokio-current-thread"]
 rt-async-std = ["async-std", "opentelemetry/rt-async-std"]
-integration_test = ["tonic", "prost", "prost-types", "rt-tokio", "collector_client", "reqwest_collector_client", "surf_collector_client", "isahc_collector_client"]
+integration_test = ["tonic", "prost", "prost-types", "rt-tokio", "collector_client", "hyper_collector_client", "reqwest_collector_client", "surf_collector_client", "isahc_collector_client"]
