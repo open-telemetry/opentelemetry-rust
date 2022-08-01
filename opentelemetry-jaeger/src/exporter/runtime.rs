@@ -11,7 +11,7 @@ pub trait JaegerTraceRuntime: TraceRuntime + std::fmt::Debug {
     type Socket: std::fmt::Debug + Send + Sync;
 
     /// Create a new communication socket.
-    fn create_socket<T: ToSocketAddrs>(&self, host_port: T) -> thrift::Result<Self::Socket>;
+    fn create_socket<T: ToSocketAddrs>(&self, endpoint: T) -> thrift::Result<Self::Socket>;
 
     /// Send payload over the socket.
     async fn write_to_socket(&self, socket: &Self::Socket, payload: Vec<u8>) -> thrift::Result<()>;
@@ -22,9 +22,9 @@ pub trait JaegerTraceRuntime: TraceRuntime + std::fmt::Debug {
 impl JaegerTraceRuntime for opentelemetry::runtime::Tokio {
     type Socket = tokio::net::UdpSocket;
 
-    fn create_socket<T: ToSocketAddrs>(&self, host_port: T) -> thrift::Result<Self::Socket> {
-        let conn = std::net::UdpSocket::bind(bind_addr(&host_port))?;
-        conn.connect(host_port)?;
+    fn create_socket<T: ToSocketAddrs>(&self, endpoint: T) -> thrift::Result<Self::Socket> {
+        let conn = std::net::UdpSocket::bind(bind_addr(&endpoint))?;
+        conn.connect(endpoint)?;
         Ok(tokio::net::UdpSocket::from_std(conn)?)
     }
 
@@ -40,9 +40,9 @@ impl JaegerTraceRuntime for opentelemetry::runtime::Tokio {
 impl JaegerTraceRuntime for opentelemetry::runtime::TokioCurrentThread {
     type Socket = tokio::net::UdpSocket;
 
-    fn create_socket<T: ToSocketAddrs>(&self, host_port: T) -> thrift::Result<Self::Socket> {
-        let conn = std::net::UdpSocket::bind(bind_addr(&host_port))?;
-        conn.connect(host_port)?;
+    fn create_socket<T: ToSocketAddrs>(&self, endpoint: T) -> thrift::Result<Self::Socket> {
+        let conn = std::net::UdpSocket::bind(bind_addr(&endpoint))?;
+        conn.connect(endpoint)?;
         Ok(tokio::net::UdpSocket::from_std(conn)?)
     }
 
@@ -58,9 +58,9 @@ impl JaegerTraceRuntime for opentelemetry::runtime::TokioCurrentThread {
 impl JaegerTraceRuntime for opentelemetry::runtime::AsyncStd {
     type Socket = async_std::net::UdpSocket;
 
-    fn create_socket<T: ToSocketAddrs>(&self, host_port: T) -> thrift::Result<Self::Socket> {
-        let conn = std::net::UdpSocket::bind(bind_addr(&host_port))?;
-        conn.connect(host_port)?;
+    fn create_socket<T: ToSocketAddrs>(&self, endpoint: T) -> thrift::Result<Self::Socket> {
+        let conn = std::net::UdpSocket::bind(bind_addr(&endpoint))?;
+        conn.connect(endpoint)?;
         Ok(async_std::net::UdpSocket::from(conn))
     }
 
