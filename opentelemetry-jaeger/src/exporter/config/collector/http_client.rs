@@ -1,10 +1,10 @@
-use opentelemetry_http::HttpClient as OtelHttpClient;
+use opentelemetry_http::HttpClient;
 use std::time::Duration;
 
 #[derive(Debug)]
 pub(crate) enum CollectorHttpClient {
     None,
-    Custom(Box<dyn OtelHttpClient>),
+    Custom(Box<dyn HttpClient>),
     #[cfg(feature = "hyper_collector_client")]
     Hyper,
     #[cfg(feature = "isahc_collector_client")]
@@ -25,7 +25,7 @@ impl CollectorHttpClient {
         collector_username: Option<String>,
         collector_password: Option<String>,
         collector_timeout: Duration,
-    ) -> Result<Box<dyn OtelHttpClient>, crate::Error> {
+    ) -> Result<Box<dyn HttpClient>, crate::Error> {
         match self {
             CollectorHttpClient::Custom(client) => Ok(client),
             CollectorHttpClient::None => Err(crate::Error::ConfigError {
