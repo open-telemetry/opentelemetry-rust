@@ -87,8 +87,24 @@ mod reqwest {
 }
 
 #[cfg(feature = "surf")]
-mod surf {
+pub mod surf {
     use super::{async_trait, Bytes, HttpClient, HttpError, Request, Response};
+
+    #[derive(Debug)]
+    pub struct BasicAuthMiddleware(pub surf::http::auth::BasicAuth);
+
+    #[async_trait]
+    impl surf::middleware::Middleware for BasicAuthMiddleware {
+        async fn handle(
+            &self,
+            mut req: surf::Request,
+            client: surf::Client,
+            next: surf::middleware::Next<'_>,
+        ) -> surf::Result<surf::Response> {
+            req.insert_header(self.0.name(), self.0.value());
+            next.run(req, client).await
+        }
+    }
 
     #[async_trait]
     impl HttpClient for surf::Client {
