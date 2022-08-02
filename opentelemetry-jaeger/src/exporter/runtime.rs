@@ -1,6 +1,9 @@
 use async_trait::async_trait;
 use opentelemetry::sdk::trace::TraceRuntime;
-use std::net::ToSocketAddrs;
+use std::{
+    io,
+    net::{Ipv4Addr, Ipv6Addr, SocketAddr, ToSocketAddrs},
+};
 
 /// Jaeger Trace Runtime is an extension to [`TraceRuntime`].
 ///
@@ -23,8 +26,9 @@ impl JaegerTraceRuntime for opentelemetry::runtime::Tokio {
     type Socket = tokio::net::UdpSocket;
 
     fn create_socket<T: ToSocketAddrs>(&self, endpoint: T) -> thrift::Result<Self::Socket> {
-        let conn = std::net::UdpSocket::bind(bind_addr(&endpoint))?;
-        conn.connect(endpoint)?;
+        let (addrs, family) = addrs_and_family(&endpoint)?;
+        let conn = std::net::UdpSocket::bind(family)?;
+        conn.connect(addrs.as_slice())?;
         Ok(tokio::net::UdpSocket::from_std(conn)?)
     }
 
@@ -41,8 +45,9 @@ impl JaegerTraceRuntime for opentelemetry::runtime::TokioCurrentThread {
     type Socket = tokio::net::UdpSocket;
 
     fn create_socket<T: ToSocketAddrs>(&self, endpoint: T) -> thrift::Result<Self::Socket> {
-        let conn = std::net::UdpSocket::bind(bind_addr(&endpoint))?;
-        conn.connect(endpoint)?;
+        let (addrs, family) = addrs_and_family(&endpoint)?;
+        let conn = std::net::UdpSocket::bind(family)?;
+        conn.connect(addrs.as_slice())?;
         Ok(tokio::net::UdpSocket::from_std(conn)?)
     }
 
@@ -59,8 +64,9 @@ impl JaegerTraceRuntime for opentelemetry::runtime::AsyncStd {
     type Socket = async_std::net::UdpSocket;
 
     fn create_socket<T: ToSocketAddrs>(&self, endpoint: T) -> thrift::Result<Self::Socket> {
-        let conn = std::net::UdpSocket::bind(bind_addr(&endpoint))?;
-        conn.connect(endpoint)?;
+        let (addrs, family) = addrs_and_family(&endpoint)?;
+        let conn = std::net::UdpSocket::bind(family)?;
+        conn.connect(addrs.as_slice())?;
         Ok(async_std::net::UdpSocket::from(conn))
     }
 
@@ -71,23 +77,13 @@ impl JaegerTraceRuntime for opentelemetry::runtime::AsyncStd {
     }
 }
 
-const INADDR_ANY: &str = "0.0.0.0:0";
-const IN6ADDR_ANY: &str = "[::]:0";
 /// Sample the first address provided to designate which IP family to bind the socket to.
 /// Returns either INADDR_ANY or IN6ADDR_ANY
-fn bind_addr<'a, T: ToSocketAddrs>(sockaddrs: &T) -> &'a str {
-    let sockaddrs = sockaddrs.to_socket_addrs();
-    if sockaddrs.is_err() {
-        return INADDR_ANY;
-    }
-    sockaddrs.unwrap().next().map_or_else(
-        || INADDR_ANY,
-        |s| {
-            if s.is_ipv4() {
-                INADDR_ANY
-            } else {
-                IN6ADDR_ANY
-            }
-        },
-    )
+fn addrs_and_family(host_port: &impl ToSocketAddrs) -> Result<(Vec<SocketAddr>, SocketAddr), io::Error> {
+    let addrs = host_port.to_socket_addrs()?.collect::<Vec<_>>();
+    let family = match addrs.first() {
+        Some(SocketAddr::V4(_)) | None => SocketAddr::from((Ipv4Addr::new(0, 0, 0, 0), 0)),
+        Some(SocketAddr::V6(_)) => SocketAddr::from((Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 0), 0)),
+    };
+    Ok((addrs, family))
 }
