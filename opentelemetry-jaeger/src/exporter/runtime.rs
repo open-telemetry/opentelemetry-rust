@@ -80,7 +80,11 @@ impl JaegerTraceRuntime for opentelemetry::runtime::AsyncStd {
 /// Sample the first address provided to designate which IP family to bind the socket to.
 /// IP families returned be INADDR_ANY as [`Ipv4Addr::UNSPECIFIED`] or
 /// IN6ADDR_ANY as [`Ipv6Addr::UNSPECIFIED`].
-#[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread", feature = "rt-async-std"))]
+#[cfg(any(
+    feature = "rt-tokio",
+    feature = "rt-tokio-current-thread",
+    feature = "rt-async-std"
+))]
 fn addrs_and_family(
     host_port: &impl ToSocketAddrs,
 ) -> Result<(Vec<SocketAddr>, SocketAddr), io::Error> {
