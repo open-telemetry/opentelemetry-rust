@@ -1,6 +1,15 @@
 use async_trait::async_trait;
 use opentelemetry::sdk::trace::TraceRuntime;
 use std::net::ToSocketAddrs;
+#[cfg(any(
+    feature = "rt-tokio",
+    feature = "rt-tokio-current-thread",
+    feature = "rt-async-std"
+))]
+use std::{
+    io,
+    net::{Ipv4Addr, Ipv6Addr, SocketAddr},
+};
 
 /// Jaeger Trace Runtime is an extension to [`TraceRuntime`].
 ///
@@ -11,7 +20,7 @@ pub trait JaegerTraceRuntime: TraceRuntime + std::fmt::Debug {
     type Socket: std::fmt::Debug + Send + Sync;
 
     /// Create a new communication socket.
-    fn create_socket<T: ToSocketAddrs>(&self, host_port: T) -> thrift::Result<Self::Socket>;
+    fn create_socket<T: ToSocketAddrs>(&self, endpoint: T) -> thrift::Result<Self::Socket>;
 
     /// Send payload over the socket.
     async fn write_to_socket(&self, socket: &Self::Socket, payload: Vec<u8>) -> thrift::Result<()>;
@@ -22,9 +31,10 @@ pub trait JaegerTraceRuntime: TraceRuntime + std::fmt::Debug {
 impl JaegerTraceRuntime for opentelemetry::runtime::Tokio {
     type Socket = tokio::net::UdpSocket;
 
-    fn create_socket<T: ToSocketAddrs>(&self, host_port: T) -> thrift::Result<Self::Socket> {
-        let conn = std::net::UdpSocket::bind("0.0.0.0:0")?;
-        conn.connect(host_port)?;
+    fn create_socket<T: ToSocketAddrs>(&self, endpoint: T) -> thrift::Result<Self::Socket> {
+        let (addrs, family) = addrs_and_family(&endpoint)?;
+        let conn = std::net::UdpSocket::bind(family)?;
+        conn.connect(addrs.as_slice())?;
         Ok(tokio::net::UdpSocket::from_std(conn)?)
     }
 
@@ -40,9 +50,10 @@ impl JaegerTraceRuntime for opentelemetry::runtime::Tokio {
 impl JaegerTraceRuntime for opentelemetry::runtime::TokioCurrentThread {
     type Socket = tokio::net::UdpSocket;
 
-    fn create_socket<T: ToSocketAddrs>(&self, host_port: T) -> thrift::Result<Self::Socket> {
-        let conn = std::net::UdpSocket::bind("0.0.0.0:0")?;
-        conn.connect(host_port)?;
+    fn create_socket<T: ToSocketAddrs>(&self, endpoint: T) -> thrift::Result<Self::Socket> {
+        let (addrs, family) = addrs_and_family(&endpoint)?;
+        let conn = std::net::UdpSocket::bind(family)?;
+        conn.connect(addrs.as_slice())?;
         Ok(tokio::net::UdpSocket::from_std(conn)?)
     }
 
@@ -58,9 +69,10 @@ impl JaegerTraceRuntime for opentelemetry::runtime::TokioCurrentThread {
 impl JaegerTraceRuntime for opentelemetry::runtime::AsyncStd {
     type Socket = async_std::net::UdpSocket;
 
-    fn create_socket<T: ToSocketAddrs>(&self, host_port: T) -> thrift::Result<Self::Socket> {
-        let conn = std::net::UdpSocket::bind("0.0.0.0:0")?;
-        conn.connect(host_port)?;
+    fn create_socket<T: ToSocketAddrs>(&self, endpoint: T) -> thrift::Result<Self::Socket> {
+        let (addrs, family) = addrs_and_family(&endpoint)?;
+        let conn = std::net::UdpSocket::bind(family)?;
+        conn.connect(addrs.as_slice())?;
         Ok(async_std::net::UdpSocket::from(conn))
     }
 
@@ -69,4 +81,23 @@ impl JaegerTraceRuntime for opentelemetry::runtime::AsyncStd {
 
         Ok(())
     }
+}
+
+/// Sample the first address provided to designate which IP family to bind the socket to.
+/// IP families returned be INADDR_ANY as [`Ipv4Addr::UNSPECIFIED`] or
+/// IN6ADDR_ANY as [`Ipv6Addr::UNSPECIFIED`].
+#[cfg(any(
+    feature = "rt-tokio",
+    feature = "rt-tokio-current-thread",
+    feature = "rt-async-std"
+))]
+fn addrs_and_family(
+    host_port: &impl ToSocketAddrs,
+) -> Result<(Vec<SocketAddr>, SocketAddr), io::Error> {
+    let addrs = host_port.to_socket_addrs()?.collect::<Vec<_>>();
+    let family = match addrs.first() {
+        Some(SocketAddr::V4(_)) | None => SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0)),
+        Some(SocketAddr::V6(_)) => SocketAddr::from((Ipv6Addr::UNSPECIFIED, 0)),
+    };
+    Ok((addrs, family))
 }
