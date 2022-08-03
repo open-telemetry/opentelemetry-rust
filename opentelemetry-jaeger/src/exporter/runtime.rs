@@ -1,8 +1,14 @@
 use async_trait::async_trait;
 use opentelemetry::sdk::trace::TraceRuntime;
+use std::net::ToSocketAddrs;
+#[cfg(any(
+    feature = "rt-tokio",
+    feature = "rt-tokio-current-thread",
+    feature = "rt-async-std"
+))]
 use std::{
     io,
-    net::{Ipv4Addr, Ipv6Addr, SocketAddr, ToSocketAddrs},
+    net::{Ipv4Addr, Ipv6Addr, SocketAddr},
 };
 
 /// Jaeger Trace Runtime is an extension to [`TraceRuntime`].
