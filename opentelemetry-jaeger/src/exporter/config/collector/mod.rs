@@ -58,7 +58,7 @@ const ENV_PASSWORD: &str = "OTEL_EXPORTER_JAEGER_PASSWORD";
 ///
 /// - `OTEL_EXPORTER_JAEGER_PASSWORD`: set the password. Part of the authentication for the collector. It only applies to build in http clients.
 ///
-/// ## Build in http clients
+/// ## Built-in http clients
 /// To help user setup the exporter, `opentelemetry-jaeger` provides the following build in http client
 /// implementation and relative configurations.
 ///
@@ -67,6 +67,8 @@ const ENV_PASSWORD: &str = "OTEL_EXPORTER_JAEGER_PASSWORD";
 /// - [isahc], requires `isahc_collector_client` feature enabled, use [`with_isahc`][CollectorPipeline::with_isahc] function to setup.
 /// - [reqwest], requires `reqwest_collector_client` feature enabled,  use [`with_reqwest`][CollectorPipeline::with_reqwest] function to setup.
 /// - [reqwest blocking client], requires `reqwest_blocking_collector_client` feature enabled, use [`with_reqwest_blocking`][CollectorPipeline::with_surf] function to setup.
+///
+/// Additionally you can enable https
 ///
 /// Note that the functions to setup build in http clients override each other. That means if you have a pipeline with the following setup
 ///
@@ -82,8 +84,6 @@ const ENV_PASSWORD: &str = "OTEL_EXPORTER_JAEGER_PASSWORD";
 ///
 /// The pipeline will use [reqwest] http client.
 ///
-/// [surf]: <https://docs.rs/surf/latest/surf/>
-/// [isahc]: <https://docs.rs/isahc/latest/isahc/>
 /// [reqwest]: reqwest::Client
 /// [reqwest blocking client]: reqwest::blocking::Client
 #[derive(Debug)]

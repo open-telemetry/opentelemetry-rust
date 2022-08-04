@@ -125,10 +125,16 @@ impl CollectorHttpClient {
                 })?;
                 Ok(Box::new(client))
             }
-            #[cfg(feature = "hyper_collector_client")]
+            #[cfg(any(feature = "hyper_collector_client", feature = "hyper_tls_collector_client"))]
             CollectorHttpClient::Hyper => {
                 use headers::authorization::Credentials;
                 use opentelemetry_http::hyper::HyperClient;
+                use hyper::{Client, Body};
+
+                #[cfg(feature = "hyper_tls_collector_client")]
+                let inner: Client<_, Body> = Client::builder().build(hyper_tls::HttpsConnector::new());
+                #[cfg(feature = "hyper_collector_client")]
+                let inner: Client<_, Body> = Client::new();
 
                 let client = if let (Some(username), Some(password)) =
                     (collector_username, collector_password)
@@ -136,11 +142,12 @@ impl CollectorHttpClient {
                     let auth_header_val =
                         headers::Authorization::basic(username.as_str(), password.as_str());
                     HyperClient::new_with_timeout_and_authorization_header(
+                        inner,
                         collector_timeout,
                         auth_header_val.0.encode(),
                     )
                 } else {
-                    HyperClient::new_with_timeout(collector_timeout)
+                    HyperClient::new_with_timeout(inner, collector_timeout)
                 };
                 Ok(Box::new(client))
             }

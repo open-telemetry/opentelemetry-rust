@@ -148,37 +148,39 @@ mod isahc {
     }
 }
 
-#[cfg(feature = "hyper")]
+#[cfg(any(feature = "hyper", feature = "hyper_tls"))]
 pub mod hyper {
     use super::{async_trait, Bytes, HttpClient, HttpError, Request, Response};
     use http::HeaderValue;
-    use hyper::client::HttpConnector;
+    use hyper::client::connect::Connect;
     use hyper::Client;
+    use std::fmt::Debug;
     use std::time::Duration;
     use tokio::time;
 
     #[derive(Debug, Clone)]
-    pub struct HyperClient {
-        client: Client<HttpConnector>,
+    pub struct HyperClient<C> {
+        inner: Client<C>,
         timeout: Duration,
         authorization: Option<HeaderValue>,
     }
 
-    impl HyperClient {
-        pub fn new_with_timeout(timeout: Duration) -> Self {
+    impl<C> HyperClient<C> {
+        pub fn new_with_timeout(inner: Client<C>, timeout: Duration) -> Self {
             Self {
-                client: Client::new(),
+                inner,
                 timeout,
                 authorization: None,
             }
         }
 
         pub fn new_with_timeout_and_authorization_header(
+            inner: Client<C>,
             timeout: Duration,
             authorization: HeaderValue,
         ) -> Self {
             Self {
-                client: Client::new(),
+                inner,
                 timeout,
                 authorization: Some(authorization),
             }
@@ -186,7 +188,10 @@ pub mod hyper {
     }
 
     #[async_trait]
-    impl HttpClient for HyperClient {
+    impl<C> HttpClient for HyperClient<C>
+    where
+        C: Connect + Send + Sync + Clone + Debug + 'static,
+    {
         async fn send(&self, request: Request<Vec<u8>>) -> Result<Response<Bytes>, HttpError> {
             let (parts, body) = request.into_parts();
             let mut request = Request::from_parts(parts, body.into());
@@ -195,7 +200,7 @@ pub mod hyper {
                     .headers_mut()
                     .insert(http::header::AUTHORIZATION, authorization.clone());
             }
-            let response = time::timeout(self.timeout, self.client.request(request)).await??;
+            let response = time::timeout(self.timeout, self.inner.request(request)).await??;
             Ok(Response::builder()
                 .status(response.status())
                 .body(hyper::body::to_bytes(response.into_body()).await?)?)
