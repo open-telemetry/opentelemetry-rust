@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.16.1
+
+### Changed
+
+- add propagator initialisation with custom headers and baggage prefix
+
 ## v0.16.0
 
 ### Changed

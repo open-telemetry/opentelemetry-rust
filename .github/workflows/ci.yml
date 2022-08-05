@@ -99,6 +99,7 @@ jobs:
     - name: doc
       run: cargo doc --no-deps --all-features
       env:
+        CARGO_INCREMENTAL: '0'
         RUSTDOCFLAGS: -Dwarnings
     - uses: actions-rs/cargo@v1
       with:
