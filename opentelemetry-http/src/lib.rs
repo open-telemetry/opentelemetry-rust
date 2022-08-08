@@ -87,8 +87,24 @@ mod reqwest {
 }
 
 #[cfg(feature = "surf")]
-mod surf {
+pub mod surf {
     use super::{async_trait, Bytes, HttpClient, HttpError, Request, Response};
+
+    #[derive(Debug)]
+    pub struct BasicAuthMiddleware(pub surf::http::auth::BasicAuth);
+
+    #[async_trait]
+    impl surf::middleware::Middleware for BasicAuthMiddleware {
+        async fn handle(
+            &self,
+            mut req: surf::Request,
+            client: surf::Client,
+            next: surf::middleware::Next<'_>,
+        ) -> surf::Result<surf::Response> {
+            req.insert_header(self.0.name(), self.0.value());
+            next.run(req, client).await
+        }
+    }
 
     #[async_trait]
     impl HttpClient for surf::Client {
@@ -128,6 +144,66 @@ mod isahc {
             Ok(Response::builder()
                 .status(response.status())
                 .body(bytes.into())?)
+        }
+    }
+}
+
+#[cfg(any(feature = "hyper", feature = "hyper_tls"))]
+pub mod hyper {
+    use super::{async_trait, Bytes, HttpClient, HttpError, Request, Response};
+    use http::HeaderValue;
+    use hyper::client::connect::Connect;
+    use hyper::Client;
+    use std::fmt::Debug;
+    use std::time::Duration;
+    use tokio::time;
+
+    #[derive(Debug, Clone)]
+    pub struct HyperClient<C> {
+        inner: Client<C>,
+        timeout: Duration,
+        authorization: Option<HeaderValue>,
+    }
+
+    impl<C> HyperClient<C> {
+        pub fn new_with_timeout(inner: Client<C>, timeout: Duration) -> Self {
+            Self {
+                inner,
+                timeout,
+                authorization: None,
+            }
+        }
+
+        pub fn new_with_timeout_and_authorization_header(
+            inner: Client<C>,
+            timeout: Duration,
+            authorization: HeaderValue,
+        ) -> Self {
+            Self {
+                inner,
+                timeout,
+                authorization: Some(authorization),
+            }
+        }
+    }
+
+    #[async_trait]
+    impl<C> HttpClient for HyperClient<C>
+    where
+        C: Connect + Send + Sync + Clone + Debug + 'static,
+    {
+        async fn send(&self, request: Request<Vec<u8>>) -> Result<Response<Bytes>, HttpError> {
+            let (parts, body) = request.into_parts();
+            let mut request = Request::from_parts(parts, body.into());
+            if let Some(ref authorization) = self.authorization {
+                request
+                    .headers_mut()
+                    .insert(http::header::AUTHORIZATION, authorization.clone());
+            }
+            let response = time::timeout(self.timeout, self.inner.request(request)).await??;
+            Ok(Response::builder()
+                .status(response.status())
+                .body(hyper::body::to_bytes(response.into_body()).await?)?)
         }
     }
 }

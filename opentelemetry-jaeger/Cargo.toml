@@ -27,6 +27,8 @@ futures-util = { version = "0.3", default-features = false, features = ["std"], 
 futures-executor = "0.3"
 headers = { version = "0.3.2", optional = true }
 http = { version = "0.2", optional = true }
+hyper = { version = "0.14", default-features = false, features = ["client"], optional = true }
+hyper-tls = { version = "0.5.0", default-features = false, optional = true }
 isahc = { version = "1.4", default-features = false, optional = true }
 js-sys = { version = "0.3", optional = true }
 once_cell = "1.12"
@@ -68,9 +70,12 @@ optional = true
 [features]
 full = [
     "collector_client",
+    "hyper_collector_client",
+    "hyper_tls_collector_client",
     "isahc_collector_client",
     "reqwest_collector_client",
     "reqwest_blocking_collector_client",
+    "reqwest_rustls_collector_client",
     "surf_collector_client",
     "wasm_collector_client",
     "rt-tokio",
@@ -80,6 +85,8 @@ full = [
 ]
 default = []
 collector_client = ["http", "opentelemetry-http"]
+hyper_collector_client = ["collector_client", "headers", "http", "hyper", "opentelemetry-http/tokio", "opentelemetry-http/hyper"]
+hyper_tls_collector_client = ["hyper_collector_client", "hyper-tls"]
 isahc_collector_client = ["isahc", "opentelemetry-http/isahc"]
 reqwest_blocking_collector_client = ["reqwest/blocking", "collector_client", "headers", "opentelemetry-http/reqwest"]
 reqwest_collector_client = ["reqwest", "collector_client", "headers", "opentelemetry-http/reqwest"]
@@ -98,4 +105,4 @@ wasm_collector_client = [
 rt-tokio = ["tokio", "opentelemetry/rt-tokio"]
 rt-tokio-current-thread = ["tokio", "opentelemetry/rt-tokio-current-thread"]
 rt-async-std = ["async-std", "opentelemetry/rt-async-std"]
-integration_test = ["tonic", "prost", "prost-types", "rt-tokio", "collector_client", "reqwest_collector_client", "surf_collector_client", "isahc_collector_client"]
+integration_test = ["tonic", "prost", "prost-types", "rt-tokio", "collector_client", "hyper_collector_client", "hyper_tls_collector_client", "reqwest_collector_client", "surf_collector_client", "isahc_collector_client"]

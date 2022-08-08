@@ -33,6 +33,8 @@ if rustup component add clippy; then
   cargo_feature opentelemetry-jaeger "isahc_collector_client"
   cargo_feature opentelemetry-jaeger "reqwest_blocking_collector_client"
   cargo_feature opentelemetry-jaeger "reqwest_collector_client"
+  cargo_feature opentelemetry-jaeger "hyper_collector_client"
+  cargo_feature opentelemetry-jaeger "hyper_tls_collector_client"
   cargo_feature opentelemetry-jaeger "collector_client"
   cargo_feature opentelemetry-jaeger "wasm_collector_client"
   cargo_feature opentelemetry-jaeger "collector_client, wasm_collector_client"
