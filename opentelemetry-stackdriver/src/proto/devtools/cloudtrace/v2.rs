@@ -8,7 +8,7 @@
 pub struct Span {
     /// Required. The resource name of the span in the following format:
     ///
-    ///     projects/\[PROJECT_ID]/traces/[TRACE_ID]/spans/[SPAN_ID\]
+    ///      projects/\[PROJECT_ID]/traces/[TRACE_ID]/spans/[SPAN_ID\]
     ///
     /// \[TRACE_ID\] is a unique identifier for a trace within a project;
     /// it is a 32-character hexadecimal encoding of a 16-byte array.
@@ -85,9 +85,9 @@ pub mod span {
         /// long. The value can be a string up to 256 bytes, a signed 64-bit integer,
         /// or the Boolean values `true` and `false`. For example:
         ///
-        ///     "/instance_id": { "string_value": { "value": "my-instance" } }
-        ///     "/http/request_bytes": { "int_value": 300 }
-        ///     "abc.com/myattribute": { "bool_value": false }
+        ///      "/instance_id": { "string_value": { "value": "my-instance" } }
+        ///      "/http/request_bytes": { "int_value": 300 }
+        ///      "abc.com/myattribute": { "bool_value": false }
         #[prost(map = "string, message", tag = "1")]
         pub attribute_map:
             ::std::collections::HashMap<::prost::alloc::string::String, super::AttributeValue>,
@@ -157,6 +157,19 @@ pub mod span {
                 /// Indicates a received message.
                 Received = 2,
             }
+            impl Type {
+                /// String value of the enum field names used in the ProtoBuf definition.
+                ///
+                /// The values are not transformed in any way and thus are considered stable
+                /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+                pub fn as_str_name(&self) -> &'static str {
+                    match self {
+                        Type::Unspecified => "TYPE_UNSPECIFIED",
+                        Type::Sent => "SENT",
+                        Type::Received => "RECEIVED",
+                    }
+                }
+            }
         }
         /// A `TimeEvent` can contain either an `Annotation` object or a
         /// `MessageEvent` object, but not both.
@@ -223,6 +236,19 @@ pub mod span {
             /// The linked span is a parent of the current span.
             ParentLinkedSpan = 2,
         }
+        impl Type {
+            /// String value of the enum field names used in the ProtoBuf definition.
+            ///
+            /// The values are not transformed in any way and thus are considered stable
+            /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+            pub fn as_str_name(&self) -> &'static str {
+                match self {
+                    Type::Unspecified => "TYPE_UNSPECIFIED",
+                    Type::ChildLinkedSpan => "CHILD_LINKED_SPAN",
+                    Type::ParentLinkedSpan => "PARENT_LINKED_SPAN",
+                }
+            }
+        }
     }
     /// A collection of links, which are references from this span to a span
     /// in the same or different trace.
@@ -262,6 +288,22 @@ pub mod span {
         /// latency relationship between producer and consumer spans (e.g. receiving
         /// a message from a pubsub service subscription).
         Consumer = 5,
+    }
+    impl SpanKind {
+        /// String value of the enum field names used in the ProtoBuf definition.
+        ///
+        /// The values are not transformed in any way and thus are considered stable
+        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+        pub fn as_str_name(&self) -> &'static str {
+            match self {
+                SpanKind::Unspecified => "SPAN_KIND_UNSPECIFIED",
+                SpanKind::Internal => "INTERNAL",
+                SpanKind::Server => "SERVER",
+                SpanKind::Client => "CLIENT",
+                SpanKind::Producer => "PRODUCER",
+                SpanKind::Consumer => "CONSUMER",
+            }
+        }
     }
 }
 /// The allowed types for \[VALUE\] in a `\[KEY]:[VALUE\]` attribute.
@@ -394,6 +436,7 @@ pub struct BatchWriteSpansRequest {
 /// Generated client implementations.
 pub mod trace_service_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
+    use tonic::codegen::http::Uri;
     use tonic::codegen::*;
     /// This file describes an API for collecting and viewing traces and spans
     /// within a trace.  A Trace is a collection of spans corresponding to a single
@@ -426,6 +469,10 @@ pub mod trace_service_client {
             let inner = tonic::client::Grpc::new(inner);
             Self { inner }
         }
+        pub fn with_origin(inner: T, origin: Uri) -> Self {
+            let inner = tonic::client::Grpc::with_origin(inner, origin);
+            Self { inner }
+        }
         pub fn with_interceptor<F>(
             inner: T,
             interceptor: F,
@@ -444,19 +491,19 @@ pub mod trace_service_client {
         {
             TraceServiceClient::new(InterceptedService::new(inner, interceptor))
         }
-        /// Compress requests with `gzip`.
+        /// Compress requests with the given encoding.
         ///
         /// This requires the server to support it otherwise it might respond with an
         /// error.
         #[must_use]
-        pub fn send_gzip(mut self) -> Self {
-            self.inner = self.inner.send_gzip();
+        pub fn send_compressed(mut self, encoding: CompressionEncoding) -> Self {
+            self.inner = self.inner.send_compressed(encoding);
             self
         }
-        /// Enable decompressing responses with `gzip`.
+        /// Enable decompressing responses.
         #[must_use]
-        pub fn accept_gzip(mut self) -> Self {
-            self.inner = self.inner.accept_gzip();
+        pub fn accept_compressed(mut self, encoding: CompressionEncoding) -> Self {
+            self.inner = self.inner.accept_compressed(encoding);
             self
         }
         /// Sends new spans to new or existing traces. You cannot update
