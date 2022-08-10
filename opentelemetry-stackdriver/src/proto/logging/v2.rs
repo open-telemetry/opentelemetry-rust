@@ -3,10 +3,10 @@
 pub struct LogEntry {
     /// Required. The resource name of the log to which this log entry belongs:
     ///
-    ///     "projects/\[PROJECT_ID]/logs/[LOG_ID\]"
-    ///     "organizations/\[ORGANIZATION_ID]/logs/[LOG_ID\]"
-    ///     "billingAccounts/\[BILLING_ACCOUNT_ID]/logs/[LOG_ID\]"
-    ///     "folders/\[FOLDER_ID]/logs/[LOG_ID\]"
+    ///      "projects/\[PROJECT_ID]/logs/[LOG_ID\]"
+    ///      "organizations/\[ORGANIZATION_ID]/logs/[LOG_ID\]"
+    ///      "billingAccounts/\[BILLING_ACCOUNT_ID]/logs/[LOG_ID\]"
+    ///      "folders/\[FOLDER_ID]/logs/[LOG_ID\]"
     ///
     /// A project number may be used in place of PROJECT_ID. The project number is
     /// translated to its corresponding PROJECT_ID internally and the `log_name`
@@ -134,8 +134,8 @@ pub mod log_entry {
         /// The following protocol buffer types are supported; user-defined types
         /// are not supported:
         ///
-        ///   "type.googleapis.com/google.cloud.audit.AuditLog"
-        ///   "type.googleapis.com/google.appengine.logging.v1.RequestLog"
+        ///    "type.googleapis.com/google.cloud.audit.AuditLog"
+        ///    "type.googleapis.com/google.appengine.logging.v1.RequestLog"
         #[prost(message, tag = "2")]
         ProtoPayload(::prost_types::Any),
         /// The log entry payload, represented as a Unicode string (UTF-8).
@@ -239,8 +239,8 @@ pub struct WriteLogEntriesRequest {
     ///
     /// `\[LOG_ID\]` must be URL-encoded. For example:
     ///
-    ///     "projects/my-project-id/logs/syslog"
-    ///     "organizations/123/logs/cloudaudit.googleapis.com%2Factivity"
+    ///      "projects/my-project-id/logs/syslog"
+    ///      "organizations/123/logs/cloudaudit.googleapis.com%2Factivity"
     ///
     /// The permission `logging.logEntries.create` is needed on each project,
     /// organization, billing account, or folder that is receiving new log
@@ -251,9 +251,9 @@ pub struct WriteLogEntriesRequest {
     /// Optional. A default monitored resource object that is assigned to all log
     /// entries in `entries` that do not specify a value for `resource`. Example:
     ///
-    ///     { "type": "gce_instance",
-    ///       "labels": {
-    ///         "zone": "us-central1-a", "instance_id": "00000000000000000000" }}
+    ///      { "type": "gce_instance",
+    ///        "labels": {
+    ///          "zone": "us-central1-a", "instance_id": "00000000000000000000" }}
     ///
     /// See \[LogEntry][google.logging.v2.LogEntry\].
     #[prost(message, optional, tag = "2")]
@@ -332,10 +332,10 @@ pub struct ListLogEntriesRequest {
     ///
     /// May alternatively be one or more views:
     ///
-    ///  * `projects/\[PROJECT_ID]/locations/[LOCATION_ID]/buckets/[BUCKET_ID]/views/[VIEW_ID\]`
-    ///  * `organizations/\[ORGANIZATION_ID]/locations/[LOCATION_ID]/buckets/[BUCKET_ID]/views/[VIEW_ID\]`
-    ///  * `billingAccounts/\[BILLING_ACCOUNT_ID]/locations/[LOCATION_ID]/buckets/[BUCKET_ID]/views/[VIEW_ID\]`
-    ///  * `folders/\[FOLDER_ID]/locations/[LOCATION_ID]/buckets/[BUCKET_ID]/views/[VIEW_ID\]`
+    ///   * `projects/\[PROJECT_ID]/locations/[LOCATION_ID]/buckets/[BUCKET_ID]/views/[VIEW_ID\]`
+    ///   * `organizations/\[ORGANIZATION_ID]/locations/[LOCATION_ID]/buckets/[BUCKET_ID]/views/[VIEW_ID\]`
+    ///   * `billingAccounts/\[BILLING_ACCOUNT_ID]/locations/[LOCATION_ID]/buckets/[BUCKET_ID]/views/[VIEW_ID\]`
+    ///   * `folders/\[FOLDER_ID]/locations/[LOCATION_ID]/buckets/[BUCKET_ID]/views/[VIEW_ID\]`
     ///
     /// Projects listed in the `project_ids` field are added to this list.
     #[prost(string, repeated, tag = "8")]
@@ -443,10 +443,10 @@ pub struct ListLogsRequest {
     pub page_token: ::prost::alloc::string::String,
     /// Optional. The resource name that owns the logs:
     ///
-    ///  * `projects/\[PROJECT_ID]/locations/[LOCATION_ID]/buckets/[BUCKET_ID]/views/[VIEW_ID\]`
-    ///  * `organizations/\[ORGANIZATION_ID]/locations/[LOCATION_ID]/buckets/[BUCKET_ID]/views/[VIEW_ID\]`
-    ///  * `billingAccounts/\[BILLING_ACCOUNT_ID]/locations/[LOCATION_ID]/buckets/[BUCKET_ID]/views/[VIEW_ID\]`
-    ///  * `folders/\[FOLDER_ID]/locations/[LOCATION_ID]/buckets/[BUCKET_ID]/views/[VIEW_ID\]`
+    ///   * `projects/\[PROJECT_ID]/locations/[LOCATION_ID]/buckets/[BUCKET_ID]/views/[VIEW_ID\]`
+    ///   * `organizations/\[ORGANIZATION_ID]/locations/[LOCATION_ID]/buckets/[BUCKET_ID]/views/[VIEW_ID\]`
+    ///   * `billingAccounts/\[BILLING_ACCOUNT_ID]/locations/[LOCATION_ID]/buckets/[BUCKET_ID]/views/[VIEW_ID\]`
+    ///   * `folders/\[FOLDER_ID]/locations/[LOCATION_ID]/buckets/[BUCKET_ID]/views/[VIEW_ID\]`
     ///
     /// To support legacy queries, it could also be:
     ///
@@ -483,10 +483,10 @@ pub struct TailLogEntriesRequest {
     ///
     /// May alternatively be one or more views:
     ///
-    ///  * `projects/\[PROJECT_ID]/locations/[LOCATION_ID]/buckets/[BUCKET_ID]/views/[VIEW_ID\]`
-    ///  * `organizations/\[ORGANIZATION_ID]/locations/[LOCATION_ID]/buckets/[BUCKET_ID]/views/[VIEW_ID\]`
-    ///  * `billingAccounts/\[BILLING_ACCOUNT_ID]/locations/[LOCATION_ID]/buckets/[BUCKET_ID]/views/[VIEW_ID\]`
-    ///  * `folders/\[FOLDER_ID]/locations/[LOCATION_ID]/buckets/[BUCKET_ID]/views/[VIEW_ID\]`
+    ///   * `projects/\[PROJECT_ID]/locations/[LOCATION_ID]/buckets/[BUCKET_ID]/views/[VIEW_ID\]`
+    ///   * `organizations/\[ORGANIZATION_ID]/locations/[LOCATION_ID]/buckets/[BUCKET_ID]/views/[VIEW_ID\]`
+    ///   * `billingAccounts/\[BILLING_ACCOUNT_ID]/locations/[LOCATION_ID]/buckets/[BUCKET_ID]/views/[VIEW_ID\]`
+    ///   * `folders/\[FOLDER_ID]/locations/[LOCATION_ID]/buckets/[BUCKET_ID]/views/[VIEW_ID\]`
     #[prost(string, repeated, tag = "1")]
     pub resource_names: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
     /// Optional. A filter that chooses which log entries to return.  See [Advanced
@@ -552,11 +552,25 @@ pub mod tail_log_entries_response {
             /// responses quickly enough.
             NotConsumed = 2,
         }
+        impl Reason {
+            /// String value of the enum field names used in the ProtoBuf definition.
+            ///
+            /// The values are not transformed in any way and thus are considered stable
+            /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+            pub fn as_str_name(&self) -> &'static str {
+                match self {
+                    Reason::Unspecified => "REASON_UNSPECIFIED",
+                    Reason::RateLimit => "RATE_LIMIT",
+                    Reason::NotConsumed => "NOT_CONSUMED",
+                }
+            }
+        }
     }
 }
 /// Generated client implementations.
 pub mod logging_service_v2_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
+    use tonic::codegen::http::Uri;
     use tonic::codegen::*;
     /// Service for ingesting and querying logs.
     #[derive(Debug, Clone)]
@@ -585,6 +599,10 @@ pub mod logging_service_v2_client {
             let inner = tonic::client::Grpc::new(inner);
             Self { inner }
         }
+        pub fn with_origin(inner: T, origin: Uri) -> Self {
+            let inner = tonic::client::Grpc::with_origin(inner, origin);
+            Self { inner }
+        }
         pub fn with_interceptor<F>(
             inner: T,
             interceptor: F,
@@ -603,19 +621,19 @@ pub mod logging_service_v2_client {
         {
             LoggingServiceV2Client::new(InterceptedService::new(inner, interceptor))
         }
-        /// Compress requests with `gzip`.
+        /// Compress requests with the given encoding.
         ///
         /// This requires the server to support it otherwise it might respond with an
         /// error.
         #[must_use]
-        pub fn send_gzip(mut self) -> Self {
-            self.inner = self.inner.send_gzip();
+        pub fn send_compressed(mut self, encoding: CompressionEncoding) -> Self {
+            self.inner = self.inner.send_compressed(encoding);
             self
         }
-        /// Enable decompressing responses with `gzip`.
+        /// Enable decompressing responses.
         #[must_use]
-        pub fn accept_gzip(mut self) -> Self {
-            self.inner = self.inner.accept_gzip();
+        pub fn accept_compressed(mut self, encoding: CompressionEncoding) -> Self {
+            self.inner = self.inner.accept_compressed(encoding);
             self
         }
         /// Deletes all the log entries in a log for the _Default Log Bucket. The log
