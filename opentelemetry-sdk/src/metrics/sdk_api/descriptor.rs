@@ -5,7 +5,7 @@ use std::hash::{Hash, Hasher};
 
 /// Descriptor contains all the settings that describe an instrument, including
 /// its name, metric kind, number kind, and the configurable options.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Descriptor {
     name: String,
     instrument_kind: InstrumentKind,

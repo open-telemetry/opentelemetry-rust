@@ -7,6 +7,7 @@ use tracing::*;
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 use tracing_subscriber::prelude::*;
 
+#[allow(clippy::derive_partial_eq_without_eq)] // tonic don't derive Eq for generated types. We shouldn't manually change it.
 pub mod hello_world {
     tonic::include_proto!("helloworld"); // The string specified here must match the proto package name
 }

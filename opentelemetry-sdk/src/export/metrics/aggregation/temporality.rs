@@ -46,7 +46,7 @@ impl TemporalitySelector for StatelessTemporalitySelector {
 
 /// Temporality indicates the temporal aggregation exported by an exporter.
 /// These bits may be OR-d together when multiple exporters are in use.
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum Temporality {
     /// Indicates that an Exporter expects a Cumulative Aggregation.

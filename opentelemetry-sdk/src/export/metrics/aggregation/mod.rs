@@ -90,7 +90,7 @@ pub trait Histogram: Sum + Count + Aggregation {
 /// For example, test for a Histogram before testing for a Sum, and so on.
 ///
 /// [`Aggregator`]: crate::metrics::aggregators::Aggregator
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AggregationKind(&'static str);
 
 impl AggregationKind {

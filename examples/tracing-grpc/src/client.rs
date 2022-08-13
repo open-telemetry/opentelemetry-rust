@@ -20,6 +20,7 @@ impl<'a> Injector for MetadataMap<'a> {
     }
 }
 
+#[allow(clippy::derive_partial_eq_without_eq)] // tonic don't derive Eq for generated types. We shouldn't manually change it.
 pub mod hello_world {
     tonic::include_proto!("helloworld");
 }

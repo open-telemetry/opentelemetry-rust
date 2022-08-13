@@ -73,7 +73,7 @@ impl<T> From<PoisonError<T>> for MetricsError {
 }
 
 /// Units denote underlying data units tracked by `Meter`s.
-#[derive(Clone, Default, Debug, PartialEq, Hash)]
+#[derive(Clone, Default, Debug, PartialEq, Eq, Hash)]
 pub struct Unit(Cow<'static, str>);
 
 impl Unit {
