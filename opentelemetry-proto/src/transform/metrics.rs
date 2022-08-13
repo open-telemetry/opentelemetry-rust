@@ -19,8 +19,8 @@ pub mod tonic {
 
     use opentelemetry::{Key, Value};
 
-    /// Convert [`Number`](opentelemetry::metrics::Number) to target type based
-    /// on it's [`NumberKind`](opentelemetry::metrics::NumberKind).
+    /// Convert [`Number`](opentelemetry::sdk::metrics::sdk_api::Number) to target type based
+    /// on it's [`NumberKind`](opentelemetry::sdk::metrics::sdk_api::NumberKind).
     pub trait FromNumber {
         fn from_number(number: Number, number_kind: &NumberKind) -> Self;
     }
