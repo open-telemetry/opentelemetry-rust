@@ -375,7 +375,7 @@ impl BaggageExt for Context {
 /// `BaggageMetadata` can be added to values in the form of a property set,
 /// represented as semi-colon `;` delimited list of names and/or name/value
 /// pairs, e.g. `;k1=v1;k2;k3=v3`.
-#[derive(Clone, Debug, PartialOrd, PartialEq, Default)]
+#[derive(Clone, Debug, PartialOrd, PartialEq, Eq, Default)]
 pub struct BaggageMetadata(String);
 
 impl BaggageMetadata {

@@ -261,7 +261,7 @@ impl CollectorPipeline {
     /// If users uses custom http client. This function can help retrieve the value of
     /// `OTEL_EXPORTER_JAEGER_USER` environment variable.
     pub fn collector_username(&self) -> Option<String> {
-        (&self.collector_username).clone()
+        self.collector_username.clone()
     }
 
     /// Get the collector's password set in the builder. Default to be the value of
@@ -269,8 +269,8 @@ impl CollectorPipeline {
     ///
     /// If users uses custom http client. This function can help retrieve the value of
     /// `OTEL_EXPORTER_JAEGER_PASSWORD` environment variable.
-    pub fn collector_password(self) -> Option<String> {
-        (&self.collector_password).clone()
+    pub fn collector_password(&self) -> Option<String> {
+        self.collector_password.clone()
     }
 
     /// Custom http client used to send spans.

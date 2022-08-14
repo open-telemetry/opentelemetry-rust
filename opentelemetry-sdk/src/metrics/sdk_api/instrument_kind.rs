@@ -1,5 +1,5 @@
 /// Kinds of OpenTelemetry metric instruments
-#[derive(Clone, Debug, PartialEq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum InstrumentKind {
     /// A histogram instrument
     Histogram,

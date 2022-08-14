@@ -1,4 +1,5 @@
-#[allow(unused, missing_docs)]
+#[allow(unused, missing_docs, clippy::derive_partial_eq_without_eq)]
+// tonic don't derive Eq. We shouldn't manually change it.)]
 pub mod jaeger_api_v2;
 
 #[allow(missing_docs)]
@@ -48,7 +49,7 @@ pub mod jaeger_client {
                 .await
                 .unwrap();
 
-            return if let Some(spans) = resp
+            if let Some(spans) = resp
                 .get_mut()
                 .message()
                 .await
@@ -57,7 +58,7 @@ pub mod jaeger_client {
                 spans.spans
             } else {
                 vec![]
-            };
+            }
         }
 
         /// Find traces belongs the service.

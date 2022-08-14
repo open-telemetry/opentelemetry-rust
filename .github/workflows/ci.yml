@@ -70,6 +70,8 @@ jobs:
         profile: minimal
         toolchain: 1.49
         override: true
+    - name: Prepare minimal package versions
+      run: cargo update -p serde --precise 1.0.142
     - name: Run tests
       run: cargo --version &&
         cargo test --verbose --manifest-path=opentelemetry/Cargo.toml --features trace,metrics,rt-tokio,testing &&

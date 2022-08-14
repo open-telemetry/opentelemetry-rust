@@ -49,6 +49,7 @@ use tonic::{
 #[cfg(feature = "yup-authorizer")]
 use yup_oauth2::authenticator::Authenticator;
 
+#[allow(clippy::derive_partial_eq_without_eq)] // tonic doesn't derive Eq for generated types
 pub mod proto;
 
 use proto::devtools::cloudtrace::v2::BatchWriteSpansRequest;

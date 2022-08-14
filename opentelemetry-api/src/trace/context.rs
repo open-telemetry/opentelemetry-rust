@@ -36,7 +36,7 @@ impl SpanRef<'_> {
     fn with_inner_mut<F: FnOnce(&mut global::BoxedSpan)>(&self, f: F) {
         if let Some(ref inner) = self.0.inner {
             match inner.lock() {
-                Ok(mut locked) => f(&mut *locked),
+                Ok(mut locked) => f(&mut locked),
                 Err(err) => global::handle_error(err),
             }
         }
@@ -269,7 +269,7 @@ impl TraceContextExt for Context {
         if let Some(span) = self.get::<SynchronizedSpan>() {
             SpanRef(span)
         } else {
-            SpanRef(&*NOOP_SPAN)
+            SpanRef(&NOOP_SPAN)
         }
     }
 
