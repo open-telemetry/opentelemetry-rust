@@ -5,7 +5,7 @@ description = "A Rust opentelemetry exporter that uploads traces to Google Stack
 documentation = "https://docs.rs/opentelemetry-stackdriver/"
 repository = "https://github.com/open-telemetry/opentelemetry-rust"
 license = "Apache-2.0"
-edition = "2018"
+edition = "2021"
 exclude = ["/proto"]
 
 [dependencies]
