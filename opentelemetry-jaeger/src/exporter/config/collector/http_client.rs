@@ -59,7 +59,6 @@ impl CollectorHttpClient {
             }
             #[cfg(feature = "surf_collector_client")]
             CollectorHttpClient::Surf => {
-                use std::convert::TryInto;
                 use opentelemetry_http::surf::BasicAuthMiddleware;
 
                 let client: surf::Client = surf::Config::new()
