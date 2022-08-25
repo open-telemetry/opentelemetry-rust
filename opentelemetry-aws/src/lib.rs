@@ -203,11 +203,9 @@ pub mod trace {
         }
 
         fn extract_with_context(&self, cx: &Context, extractor: &dyn Extractor) -> Context {
-            let extracted = self
-                .extract_span_context(extractor)
-                .unwrap_or_else(|_| SpanContext::empty_context());
-
-            cx.with_remote_span_context(extracted)
+            self.extract_span_context(extractor)
+                .map(|sc| cx.with_remote_span_context(sc))
+                .unwrap_or_else(|_| cx.clone())
         }
 
         fn fields(&self) -> FieldIter<'_> {
