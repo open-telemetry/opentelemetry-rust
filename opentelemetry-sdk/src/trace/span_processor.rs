@@ -554,6 +554,38 @@ impl Default for BatchConfig {
     }
 }
 
+impl BatchConfig {
+    /// Set max queue size for batch config
+    pub fn with_max_queue_size(mut self, max_queue_size: usize) -> Self {
+        self.max_queue_size = max_queue_size;
+        self
+    }
+
+    /// Set max export batch size for batch config
+    pub fn with_max_export_batch_size(mut self, max_export_batch_size: usize) -> Self {
+        self.max_export_batch_size = max_export_batch_size;
+        self
+    }
+
+    /// Set max concurrent exports for batch config
+    pub fn with_max_concurrent_exports(mut self, max_concurrent_exports: usize) -> Self {
+        self.max_concurrent_exports = max_concurrent_exports;
+        self
+    }
+
+    /// Set scheduled delay duration for batch config
+    pub fn with_scheduled_delay(mut self, scheduled_delay: Duration) -> Self {
+        self.scheduled_delay = scheduled_delay;
+        self
+    }
+
+    /// Set max export timeout for batch config
+    pub fn with_max_export_timeout(mut self, max_export_timeout: Duration) -> Self {
+        self.max_export_timeout = max_export_timeout;
+        self
+    }
+}
+
 /// A builder for creating [`BatchSpanProcessor`] instances.
 ///
 #[derive(Debug)]
@@ -835,5 +867,20 @@ mod tests {
         }
         let shutdown_res = processor.shutdown();
         assert!(shutdown_res.is_ok());
+    }
+
+    #[test]
+    fn test_batch_config_set_field() {
+        let batch = BatchConfig::default()
+            .with_max_export_batch_size(10)
+            .with_scheduled_delay(Duration::from_millis(10))
+            .with_max_export_timeout(Duration::from_millis(10))
+            .with_max_concurrent_exports(10)
+            .with_max_queue_size(10);
+        assert_eq!(batch.max_export_batch_size, 10);
+        assert_eq!(batch.scheduled_delay, Duration::from_millis(10));
+        assert_eq!(batch.max_export_timeout, Duration::from_millis(10));
+        assert_eq!(batch.max_concurrent_exports, 10);
+        assert_eq!(batch.max_queue_size, 10);
     }
 }
