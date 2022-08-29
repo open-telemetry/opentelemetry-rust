@@ -234,6 +234,9 @@ impl AgentPipeline {
 
     /// Assign the batch span processor for the exporter pipeline.
     ///
+    /// If a simple span processor is used by [`install_simple`][AgentPipeline::install_simple]
+    /// or [`build_simple`][AgentPipeline::install_simple], then this config will not be valid.
+    ///
     /// # Examples
     /// Set max queue size.
     /// ```rust
