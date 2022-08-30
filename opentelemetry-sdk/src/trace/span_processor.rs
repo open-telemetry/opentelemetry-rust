@@ -695,6 +695,21 @@ mod tests {
     }
 
     #[test]
+    fn test_batch_config_with_fields() {
+        let batch = BatchConfig::default()
+            .with_max_export_batch_size(10)
+            .with_scheduled_delay(Duration::from_millis(10))
+            .with_max_export_timeout(Duration::from_millis(10))
+            .with_max_concurrent_exports(10)
+            .with_max_queue_size(10);
+        assert_eq!(batch.max_export_batch_size, 10);
+        assert_eq!(batch.scheduled_delay, Duration::from_millis(10));
+        assert_eq!(batch.max_export_timeout, Duration::from_millis(10));
+        assert_eq!(batch.max_concurrent_exports, 10);
+        assert_eq!(batch.max_queue_size, 10);
+    }
+
+    #[test]
     fn test_build_batch_span_processor_builder() {
         std::env::set_var(OTEL_BSP_MAX_EXPORT_BATCH_SIZE, "500");
         std::env::set_var(OTEL_BSP_EXPORT_TIMEOUT, "2046");
