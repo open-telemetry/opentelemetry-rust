@@ -873,19 +873,4 @@ mod tests {
         let shutdown_res = processor.shutdown();
         assert!(shutdown_res.is_ok());
     }
-
-    #[test]
-    fn test_batch_config_set_field() {
-        let batch = BatchConfig::default()
-            .with_max_export_batch_size(10)
-            .with_scheduled_delay(Duration::from_millis(10))
-            .with_max_export_timeout(Duration::from_millis(10))
-            .with_max_concurrent_exports(10)
-            .with_max_queue_size(10);
-        assert_eq!(batch.max_export_batch_size, 10);
-        assert_eq!(batch.scheduled_delay, Duration::from_millis(10));
-        assert_eq!(batch.max_export_timeout, Duration::from_millis(10));
-        assert_eq!(batch.max_concurrent_exports, 10);
-        assert_eq!(batch.max_queue_size, 10);
-    }
 }

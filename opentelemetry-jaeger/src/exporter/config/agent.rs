@@ -232,6 +232,24 @@ impl AgentPipeline {
         self
     }
 
+    /// Assign the batch span processor for the exporter pipeline.
+    ///
+    /// # Examples
+    /// Set max queue size.
+    /// ```rust
+    /// use opentelemetry::sdk::trace::BatchConfig;
+    ///
+    /// let pipeline = opentelemetry_jaeger::new_agent_pipeline()
+    ///                 .with_batch_processor_config(
+    ///                       BatchConfig::default().with_max_queue_size(200)
+    ///                 );
+    ///
+    /// ```
+    pub fn with_batch_processor_config(mut self, config: BatchConfig) -> Self {
+        self.set_batch_config(config);
+        self
+    }
+
     /// Build a `TracerProvider` using a blocking exporter and configurations from the pipeline.
     ///
     /// The exporter will send each span to the agent upon the span ends.
@@ -279,10 +297,14 @@ impl AgentPipeline {
             self.trace_config.take(),
             self.transformation_config.service_name.take(),
         );
+        let batch_config = self.batch_config.take();
         let uploader = self.build_async_agent_uploader(runtime.clone())?;
         let exporter = Exporter::new(process.into(), export_instrument_library, uploader);
+        let batch_processor = sdk::trace::BatchSpanProcessor::builder(exporter, runtime)
+            .with_batch_config(batch_config.unwrap_or_default())
+            .build();
 
-        builder = builder.with_batch_exporter(exporter, runtime);
+        builder = builder.with_span_processor(batch_processor);
         builder = builder.with_config(config);
 
         Ok(builder.build())
