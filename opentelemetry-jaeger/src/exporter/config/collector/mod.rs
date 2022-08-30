@@ -5,6 +5,7 @@ use crate::exporter::config::{
 use crate::exporter::uploader::{AsyncUploader, Uploader};
 use crate::{Exporter, JaegerTraceRuntime};
 use http::Uri;
+use opentelemetry::sdk::trace::BatchConfig;
 use opentelemetry::{sdk, sdk::trace::Config as TraceConfig, trace::TraceError};
 use std::borrow::BorrowMut;
 use std::convert::TryFrom;
@@ -91,6 +92,7 @@ const ENV_PASSWORD: &str = "OTEL_EXPORTER_JAEGER_PASSWORD";
 pub struct CollectorPipeline {
     transformation_config: TransformationConfig,
     trace_config: Option<TraceConfig>,
+    batch_config: Option<BatchConfig>,
 
     #[cfg(feature = "collector_client")]
     collector_timeout: Duration,
@@ -113,6 +115,7 @@ impl Default for CollectorPipeline {
             client_config: ClientConfig::default(),
             transformation_config: Default::default(),
             trace_config: Default::default(),
+            batch_config: Some(Default::default()),
         };
 
         #[cfg(feature = "collector_client")]
@@ -154,6 +157,10 @@ impl HasRequiredConfig for CollectorPipeline {
 
     fn set_trace_config(&mut self, config: TraceConfig) {
         self.trace_config = Some(config)
+    }
+
+    fn set_batch_config(&mut self, config: BatchConfig) {
+        self.batch_config = Some(config)
     }
 }
 

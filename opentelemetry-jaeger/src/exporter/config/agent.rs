@@ -6,7 +6,7 @@ use crate::exporter::config::{
 use crate::exporter::uploader::{AsyncUploader, SyncUploader, Uploader};
 use crate::{Error, Exporter, JaegerTraceRuntime};
 use opentelemetry::sdk;
-use opentelemetry::sdk::trace::{Config, TracerProvider};
+use opentelemetry::sdk::trace::{BatchConfig, Config, TracerProvider};
 use opentelemetry::trace::TraceError;
 use std::borrow::BorrowMut;
 use std::sync::Arc;
@@ -72,6 +72,7 @@ const DEFAULT_AGENT_ENDPOINT: &str = "127.0.0.1:6831";
 pub struct AgentPipeline {
     transformation_config: TransformationConfig,
     trace_config: Option<sdk::trace::Config>,
+    batch_config: Option<sdk::trace::BatchConfig>,
     agent_endpoint: Result<Vec<net::SocketAddr>, crate::Error>,
     max_packet_size: usize,
     auto_split_batch: bool,
@@ -82,6 +83,7 @@ impl Default for AgentPipeline {
         let mut pipeline = AgentPipeline {
             transformation_config: Default::default(),
             trace_config: Default::default(),
+            batch_config: Some(Default::default()),
             agent_endpoint: Ok(vec![DEFAULT_AGENT_ENDPOINT.parse().unwrap()]),
             max_packet_size: UDP_PACKET_MAX_LENGTH,
             auto_split_batch: false,
@@ -107,6 +109,10 @@ impl HasRequiredConfig for AgentPipeline {
 
     fn set_trace_config(&mut self, config: Config) {
         self.trace_config = Some(config)
+    }
+
+    fn set_batch_config(&mut self, config: BatchConfig) {
+        self.batch_config = Some(config)
     }
 }
 
