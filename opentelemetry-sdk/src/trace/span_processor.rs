@@ -648,6 +648,11 @@ where
         BatchSpanProcessorBuilder { config, ..self }
     }
 
+    /// Set the BatchConfig for [BatchSpanProcessorBuilder]
+    pub fn with_batch_config(self, config: BatchConfig) -> Self {
+        BatchSpanProcessorBuilder { config, ..self }
+    }
+
     /// Build a batch processor
     pub fn build(self) -> BatchSpanProcessor<R> {
         BatchSpanProcessor::new(Box::new(self.exporter), self.config, self.runtime)
