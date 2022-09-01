@@ -68,10 +68,10 @@ jobs:
     - uses: actions-rs/toolchain@v1
       with:
         profile: minimal
-        toolchain: 1.49
+        toolchain: 1.56
         override: true
-    - name: Prepare minimal package versions
-      run: cargo update -p serde --precise 1.0.142
+    - name: Patch dependencies versions # some dependencies bump MSRV without major version bump
+      run: ./scripts/patch_dependencies.sh
     - name: Run tests
       run: cargo --version &&
         cargo test --verbose --manifest-path=opentelemetry/Cargo.toml --features trace,metrics,rt-tokio,testing &&

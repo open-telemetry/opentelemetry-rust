@@ -13,8 +13,9 @@ categories = [
 ]
 keywords = ["opentelemetry", "otlp", "logging", "tracing", "metrics"]
 license = "Apache-2.0"
-edition = "2018"
+edition = "2021"
 build = "build.rs"
+rust-version = "1.56"
 autotests = false
 
 [lib]
