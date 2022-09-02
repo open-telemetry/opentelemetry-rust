@@ -141,6 +141,10 @@ impl SpanProcessor for SimpleSpanProcessor {
     }
 
     fn on_end(&self, span: SpanData) {
+        if !span.span_context.is_sampled() {
+            return;
+        }
+
         if let Err(err) = self.sender.send(Some(span)) {
             global::handle_error(TraceError::from(format!("error processing span {:?}", err)));
         }
@@ -242,6 +246,10 @@ impl<R: TraceRuntime> SpanProcessor for BatchSpanProcessor<R> {
     }
 
     fn on_end(&self, span: SpanData) {
+        if !span.span_context.is_sampled() {
+            return;
+        }
+
         let result = self.message_sender.try_send(BatchMessage::ExportSpan(span));
 
         if let Err(err) = result {
