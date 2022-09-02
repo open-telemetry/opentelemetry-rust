@@ -5,6 +5,7 @@ use crate::exporter::config::{
 use crate::exporter::uploader::{AsyncUploader, Uploader};
 use crate::{Exporter, JaegerTraceRuntime};
 use http::Uri;
+use opentelemetry::sdk::trace::BatchConfig;
 use opentelemetry::{sdk, sdk::trace::Config as TraceConfig, trace::TraceError};
 use std::borrow::BorrowMut;
 use std::convert::TryFrom;
@@ -91,6 +92,7 @@ const ENV_PASSWORD: &str = "OTEL_EXPORTER_JAEGER_PASSWORD";
 pub struct CollectorPipeline {
     transformation_config: TransformationConfig,
     trace_config: Option<TraceConfig>,
+    batch_config: Option<BatchConfig>,
 
     #[cfg(feature = "collector_client")]
     collector_timeout: Duration,
@@ -113,6 +115,7 @@ impl Default for CollectorPipeline {
             client_config: ClientConfig::default(),
             transformation_config: Default::default(),
             trace_config: Default::default(),
+            batch_config: Some(Default::default()),
         };
 
         #[cfg(feature = "collector_client")]
@@ -154,6 +157,10 @@ impl HasRequiredConfig for CollectorPipeline {
 
     fn set_trace_config(&mut self, config: TraceConfig) {
         self.trace_config = Some(config)
+    }
+
+    fn set_batch_config(&mut self, config: BatchConfig) {
+        self.batch_config = Some(config)
     }
 }
 
@@ -398,6 +405,24 @@ impl CollectorPipeline {
         self
     }
 
+    /// Assign the batch span processor for the exporter pipeline.
+    ///
+    /// # Examples
+    /// Set max queue size.
+    /// ```rust
+    /// use opentelemetry::sdk::trace::BatchConfig;
+    ///
+    /// let pipeline = opentelemetry_jaeger::new_collector_pipeline()
+    ///                 .with_batch_processor_config(
+    ///                       BatchConfig::default().with_max_queue_size(200)
+    ///                 );
+    ///
+    /// ```
+    pub fn with_batch_processor_config(mut self, config: BatchConfig) -> Self {
+        self.set_batch_config(config);
+        self
+    }
+
     /// Build a `TracerProvider` using a async exporter and configurations from the pipeline.
     ///
     /// The exporter will collect spans in a batch and send them to the agent.
@@ -423,10 +448,14 @@ impl CollectorPipeline {
             self.trace_config.take(),
             self.transformation_config.service_name.take(),
         );
+        let batch_config = self.batch_config.take();
         let uploader = self.build_uploader::<R>()?;
         let exporter = Exporter::new(process.into(), export_instrument_library, uploader);
+        let batch_processor = sdk::trace::BatchSpanProcessor::builder(exporter, runtime)
+            .with_batch_config(batch_config.unwrap_or_default())
+            .build();
 
-        builder = builder.with_batch_exporter(exporter, runtime);
+        builder = builder.with_span_processor(batch_processor);
         builder = builder.with_config(config);
 
         Ok(builder.build())

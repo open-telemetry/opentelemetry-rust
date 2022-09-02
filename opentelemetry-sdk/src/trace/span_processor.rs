@@ -554,6 +554,54 @@ impl Default for BatchConfig {
     }
 }
 
+impl BatchConfig {
+    /// Set max_queue_size for [`BatchConfig`].
+    /// It's the maximum queue size to buffer spans for delayed processing.
+    /// If the queue gets full it will drops the spans.
+    /// The default value of is 2048.
+    pub fn with_max_queue_size(mut self, max_queue_size: usize) -> Self {
+        self.max_queue_size = max_queue_size;
+        self
+    }
+
+    /// Set max_export_batch_size for [`BatchConfig`].
+    /// It's the maximum number of spans to process in a single batch. If there are
+    /// more than one batch worth of spans then it processes multiple batches
+    /// of spans one batch after the other without any delay. The default value
+    /// is 512.
+    pub fn with_max_export_batch_size(mut self, max_export_batch_size: usize) -> Self {
+        self.max_export_batch_size = max_export_batch_size;
+        self
+    }
+
+    /// Set max_concurrent_exports for [`BatchConfig`].
+    /// It's the maximum number of concurrent exports.
+    /// Limits the number of spawned tasks for exports and thus memory consumed by an exporter.
+    /// The default value is 1.
+    /// IF the max_concurrent_exports value is default value, it will cause exports to be performed
+    /// synchronously on the BatchSpanProcessor task.
+    pub fn with_max_concurrent_exports(mut self, max_concurrent_exports: usize) -> Self {
+        self.max_concurrent_exports = max_concurrent_exports;
+        self
+    }
+
+    /// Set scheduled_delay_duration for [`BatchConfig`].
+    /// It's the delay interval in milliseconds between two consecutive processing of batches.
+    /// The default value is 5000 milliseconds.
+    pub fn with_scheduled_delay(mut self, scheduled_delay: Duration) -> Self {
+        self.scheduled_delay = scheduled_delay;
+        self
+    }
+
+    /// Set max_export_timeout for [`BatchConfig`].
+    /// It's the maximum duration to export a batch of data.
+    /// The The default value is 30000 milliseconds.
+    pub fn with_max_export_timeout(mut self, max_export_timeout: Duration) -> Self {
+        self.max_export_timeout = max_export_timeout;
+        self
+    }
+}
+
 /// A builder for creating [`BatchSpanProcessor`] instances.
 ///
 #[derive(Debug)]
@@ -616,6 +664,11 @@ where
         BatchSpanProcessorBuilder { config, ..self }
     }
 
+    /// Set the BatchConfig for [BatchSpanProcessorBuilder]
+    pub fn with_batch_config(self, config: BatchConfig) -> Self {
+        BatchSpanProcessorBuilder { config, ..self }
+    }
+
     /// Build a batch processor
     pub fn build(self) -> BatchSpanProcessor<R> {
         BatchSpanProcessor::new(Box::new(self.exporter), self.config, self.runtime)
@@ -655,6 +708,21 @@ mod tests {
         let mut processor = SimpleSpanProcessor::new(Box::new(exporter));
         let _result = processor.shutdown();
         assert!(rx_shutdown.try_recv().is_ok());
+    }
+
+    #[test]
+    fn test_batch_config_with_fields() {
+        let batch = BatchConfig::default()
+            .with_max_export_batch_size(10)
+            .with_scheduled_delay(Duration::from_millis(10))
+            .with_max_export_timeout(Duration::from_millis(10))
+            .with_max_concurrent_exports(10)
+            .with_max_queue_size(10);
+        assert_eq!(batch.max_export_batch_size, 10);
+        assert_eq!(batch.scheduled_delay, Duration::from_millis(10));
+        assert_eq!(batch.max_export_timeout, Duration::from_millis(10));
+        assert_eq!(batch.max_concurrent_exports, 10);
+        assert_eq!(batch.max_queue_size, 10);
     }
 
     #[test]

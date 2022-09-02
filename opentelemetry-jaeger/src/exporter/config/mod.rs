@@ -36,13 +36,15 @@ impl Default for TransformationConfig {
     }
 }
 
-// pipeline must have transformation config and trace config.
+// pipeline must have transformation config, trace config and batch config.
 trait HasRequiredConfig {
     fn set_transformation_config<T>(&mut self, f: T)
     where
         T: FnOnce(&mut TransformationConfig);
 
     fn set_trace_config(&mut self, config: sdk::trace::Config);
+
+    fn set_batch_config(&mut self, config: sdk::trace::BatchConfig);
 }
 
 // To reduce the overhead of copying service name in every spans. We convert resource into jaeger tags
