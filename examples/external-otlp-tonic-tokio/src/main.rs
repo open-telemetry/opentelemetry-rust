@@ -1,16 +1,16 @@
-//! This should show how to connect to a third party collector like
+//! This shows how to connect to a third party collector like
 //! honeycomb or lightstep using tonic with tls and using tokio as reactor.
-//! To run this you have to specify a few environment variables like in the example:
+//! To run this specify a few environment variables like in the example:
 //! ```shell
 //! OTLP_TONIC_ENDPOINT=https://api.honeycomb.io:443 \
 //! OTLP_TONIC_X_HONEYCOMB_TEAM=token \
-//! OTLP_TONIC_X_HONEYCOMB_DATASET=dataset \'
+//! OTLP_TONIC_X_HONEYCOMB_DATASET=dataset \
 //! cargo run --bin external-otlp-tonic-tokio
 //! ```
-use opentelemetry::trace::TraceError;
-use opentelemetry::{global, sdk::trace as sdktrace};
 use opentelemetry::{
-    trace::{TraceContextExt, Tracer},
+    global::{shutdown_tracer_provider, tracer},
+    sdk::trace as sdktrace,
+    trace::{TraceContextExt, TraceError, Tracer},
     Key,
 };
 use tonic::{
@@ -19,12 +19,12 @@ use tonic::{
 };
 use url::Url;
 
-use opentelemetry::global::shutdown_tracer_provider;
 use opentelemetry_otlp::WithExportConfig;
-use std::{env::vars, str::FromStr, time::Duration};
 use std::{
-    env::{remove_var, var},
+    env::{remove_var, set_var, var, vars},
     error::Error,
+    str::FromStr,
+    time::Duration,
 };
 
 // Use the variables to try and export the example to any external collector that accepts otlp
@@ -41,6 +41,7 @@ fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
     });
     let endpoint = Url::parse(&endpoint).expect("endpoint is not a valid url");
     remove_var(ENDPOINT);
+
     let mut metadata = MetadataMap::new();
     for (key, value) in vars()
         .filter(|(name, _)| name.starts_with(HEADER_PREFIX))
@@ -79,9 +80,13 @@ const ANOTHER_KEY: Key = Key::from_static_str("ex.com/another");
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
+    if let Err(std::env::VarError::NotPresent) = var("RUST_LOG") {
+        set_var("RUST_LOG", "debug")
+    };
+    env_logger::init();
     let _ = init_tracer()?;
 
-    let tracer = global::tracer("ex.com/basic");
+    let tracer = tracer("ex.com/basic");
 
     tracer.in_span("operation", |cx| {
         let span = cx.span();
