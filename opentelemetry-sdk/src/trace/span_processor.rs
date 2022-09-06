@@ -141,6 +141,10 @@ impl SpanProcessor for SimpleSpanProcessor {
     }
 
     fn on_end(&self, span: SpanData) {
+        if !span.span_context.is_sampled() {
+            return;
+        }
+
         if let Err(err) = self.sender.send(Some(span)) {
             global::handle_error(TraceError::from(format!("error processing span {:?}", err)));
         }
@@ -242,6 +246,10 @@ impl<R: TraceRuntime> SpanProcessor for BatchSpanProcessor<R> {
     }
 
     fn on_end(&self, span: SpanData) {
+        if !span.span_context.is_sampled() {
+            return;
+        }
+
         let result = self.message_sender.try_send(BatchMessage::ExportSpan(span));
 
         if let Err(err) = result {
@@ -687,8 +695,9 @@ mod tests {
     use crate::testing::trace::{
         new_test_export_span_data, new_test_exporter, new_tokio_test_exporter,
     };
-    use crate::trace::BatchConfig;
+    use crate::trace::{BatchConfig, EvictedHashMap, EvictedQueue};
     use async_trait::async_trait;
+    use opentelemetry_api::trace::{SpanContext, SpanId, SpanKind, Status};
     use std::fmt::Debug;
     use std::future::Future;
     use std::time::Duration;
@@ -700,6 +709,28 @@ mod tests {
         processor.on_end(new_test_export_span_data());
         assert!(rx_export.recv().is_ok());
         let _result = processor.shutdown();
+    }
+
+    #[test]
+    fn simple_span_processor_on_end_skips_export_if_not_sampled() {
+        let (exporter, rx_export, _rx_shutdown) = new_test_exporter();
+        let processor = SimpleSpanProcessor::new(Box::new(exporter));
+        let unsampled = SpanData {
+            span_context: SpanContext::empty_context(),
+            parent_span_id: SpanId::INVALID,
+            span_kind: SpanKind::Internal,
+            name: "opentelemetry".into(),
+            start_time: opentelemetry_api::time::now(),
+            end_time: opentelemetry_api::time::now(),
+            attributes: EvictedHashMap::new(0, 0),
+            events: EvictedQueue::new(0),
+            links: EvictedQueue::new(0),
+            status: Status::Unset,
+            resource: Default::default(),
+            instrumentation_lib: Default::default(),
+        };
+        processor.on_end(unsampled);
+        assert!(rx_export.recv_timeout(Duration::from_millis(100)).is_err());
     }
 
     #[test]
