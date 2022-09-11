@@ -2,6 +2,13 @@
 
 ## v0.17.0
 
+### Added
+
+- Support rustls in jaeger reqwest collector #834
+- Customisation support in Jaeger Propagator. #852
+- Add IPv6 support for Jaeger agent addresses #856
+- Add `with_batch_processor_config` for jaeger pipline #869
+
 ### Changed
 
 - Consolidate the config errors #762

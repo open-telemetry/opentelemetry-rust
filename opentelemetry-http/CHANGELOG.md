@@ -6,6 +6,7 @@
 
 - Update to opentelemetry v0.18.0
 - Export `byte` and `http` types #798
+- Implementation of collector http client with pure hyper #853
 
 ## v0.6.0
 

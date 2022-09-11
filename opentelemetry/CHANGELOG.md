@@ -14,6 +14,8 @@ and SDK are still unstable.
 - Add `Span::set_attributes` #638
 - Support concurrent exports #781
 - Add jaeger remote sampler #797
+- Allow Custom Samplers #833
+- Add `SpanExporter::force_flush` and default implementation #845
 
 ### Changed
 
@@ -29,10 +31,17 @@ and SDK are still unstable.
 - Switch to static resource references #790
 - Allow O(1) get operations for `SpanBuilder::attributes` [breaking] #799
 - Allow ref counted keys and values #821
+- Bump MSRV from 1.49 to 1.55 #811
+- bump MSRV to 1.56 #866
+- Update metrics API and SDK for latest spec #819
+- Switch to `pin-project-lite` #830
 
 ### Fixed
 
 - Update dashmap to avoid soundness hole #818
+- Perform sampling as explained in the specification #839
+- Remove internal message queue between exporter and exporting tasks #848
+- Fix span processor exporting unsampled spans #871
 
 ### Removed
 

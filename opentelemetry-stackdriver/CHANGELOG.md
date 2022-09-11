@@ -5,12 +5,17 @@
 ### Added
 
 - Added mappings from OTel attributes to Google Cloud Traces #744
+- Added `MonitoredResource::CloudRunRevision` #847
 
 ### Changed
 
 - Upgrade to opentelemetry v0.18.0
 - Upgrade to opentelemetry-semantic-conventions v0.10
 - update tonic and prost #825
+
+### Fixed
+
+- Fix `LogEntry.trace` not populated correctly #850
 
 ## v0.14.0
 
