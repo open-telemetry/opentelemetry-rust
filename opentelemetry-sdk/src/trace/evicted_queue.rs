@@ -5,7 +5,7 @@ use std::collections::VecDeque;
 /// This queue maintains an ordered list of elements, and a count of
 /// dropped elements. Elements are removed from the queue in a first
 /// in first out fashion.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EvictedQueue<T> {
     queue: Option<VecDeque<T>>,
     max_len: u32,

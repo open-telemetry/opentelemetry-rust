@@ -1,4 +1,4 @@
 //! Metric Processors
 mod basic;
 
-pub use basic::{basic, BasicProcessor};
+pub use basic::{factory, BasicProcessor};

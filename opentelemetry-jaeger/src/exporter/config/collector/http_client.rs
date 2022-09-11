@@ -1,39 +1,12 @@
-#[cfg(feature = "surf_collector_client")]
-use async_trait::async_trait;
-#[cfg(any(
-    feature = "reqwest_blocking_collector_client",
-    feature = "reqwest_collector_client"
-))]
-use headers::authorization::Credentials;
-#[cfg(feature = "isahc_collector_client")]
-use isahc::config::Configurable;
-use opentelemetry_http::HttpClient as OtelHttpClient;
-#[cfg(feature = "surf_collector_client")]
-use std::convert::TryInto;
+use opentelemetry_http::HttpClient;
 use std::time::Duration;
-
-#[derive(Debug)]
-#[cfg(feature = "surf_collector_client")]
-struct BasicAuthMiddleware(surf::http::auth::BasicAuth);
-
-#[async_trait]
-#[cfg(feature = "surf_collector_client")]
-impl surf::middleware::Middleware for BasicAuthMiddleware {
-    async fn handle(
-        &self,
-        mut req: surf::Request,
-        client: surf::Client,
-        next: surf::middleware::Next<'_>,
-    ) -> surf::Result<surf::Response> {
-        req.insert_header(self.0.name(), self.0.value());
-        next.run(req, client).await
-    }
-}
 
 #[derive(Debug)]
 pub(crate) enum CollectorHttpClient {
     None,
-    Custom(Box<dyn OtelHttpClient>),
+    Custom(Box<dyn HttpClient>),
+    #[cfg(feature = "hyper_collector_client")]
+    Hyper,
     #[cfg(feature = "isahc_collector_client")]
     Isahc,
     #[cfg(feature = "surf_collector_client")]
@@ -46,20 +19,20 @@ pub(crate) enum CollectorHttpClient {
 
 impl CollectorHttpClient {
     // try to build a build in http client if users chose one. If none available return NoHttpClient error
-    #[allow(unused_variables)] // if the user enabled no build in client features. all parameters are unsed.
+    #[allow(unused_variables)] // if the user enabled no build in client features. all parameters are unused.
     pub(crate) fn build_client(
         self,
         collector_username: Option<String>,
         collector_password: Option<String>,
         collector_timeout: Duration,
-    ) -> Result<Box<dyn OtelHttpClient>, crate::Error> {
+    ) -> Result<Box<dyn HttpClient>, crate::Error> {
         match self {
             CollectorHttpClient::Custom(client) => Ok(client),
             CollectorHttpClient::None => Err(crate::Error::ConfigError {
                 pipeline_name: "http_client",
                 config_name: "collector",
                 reason:
-                    "No http client provided. Consider enable one of the `surf_collector_client`, \
+                    "No http client provided. Consider enable one of the `hyper_collector_client`, `surf_collector_client`, \
         `reqwest_collector_client`, `reqwest_blocking_collector_client`, `isahc_collector_client` \
         features to use a build in http client. Or use `with_http_client` method in pipeline to \
         provide your own implementation."
@@ -67,6 +40,8 @@ impl CollectorHttpClient {
             }),
             #[cfg(feature = "isahc_collector_client")]
             CollectorHttpClient::Isahc => {
+                use isahc::config::Configurable;
+
                 let mut builder = isahc::HttpClient::builder().timeout(collector_timeout);
 
                 if let (Some(username), Some(password)) = (collector_username, collector_password) {
@@ -84,6 +59,8 @@ impl CollectorHttpClient {
             }
             #[cfg(feature = "surf_collector_client")]
             CollectorHttpClient::Surf => {
+                use opentelemetry_http::surf::BasicAuthMiddleware;
+
                 let client: surf::Client = surf::Config::new()
                     .set_timeout(Some(collector_timeout))
                     .try_into()
@@ -106,6 +83,8 @@ impl CollectorHttpClient {
             }
             #[cfg(feature = "reqwest_blocking_collector_client")]
             CollectorHttpClient::ReqwestBlocking => {
+                use headers::authorization::Credentials;
+
                 let mut builder =
                     reqwest::blocking::ClientBuilder::new().timeout(collector_timeout);
                 if let (Some(username), Some(password)) = (collector_username, collector_password) {
@@ -126,6 +105,8 @@ impl CollectorHttpClient {
             }
             #[cfg(feature = "reqwest_collector_client")]
             CollectorHttpClient::Reqwest => {
+                use headers::authorization::Credentials;
+
                 let mut builder = reqwest::ClientBuilder::new().timeout(collector_timeout);
                 if let (Some(username), Some(password)) = (collector_username, collector_password) {
                     let mut map = http::HeaderMap::with_capacity(1);
@@ -141,6 +122,32 @@ impl CollectorHttpClient {
                         reason: format!("cannot create reqwest http client, {}", err),
                     }
                 })?;
+                Ok(Box::new(client))
+            }
+            #[cfg(any(feature = "hyper_collector_client", feature = "hyper_tls_collector_client"))]
+            CollectorHttpClient::Hyper => {
+                use headers::authorization::Credentials;
+                use opentelemetry_http::hyper::HyperClient;
+                use hyper::{Client, Body};
+
+                #[cfg(feature = "hyper_tls_collector_client")]
+                let inner: Client<_, Body> = Client::builder().build(hyper_tls::HttpsConnector::new());
+                #[cfg(feature = "hyper_collector_client")]
+                let inner: Client<_, Body> = Client::new();
+
+                let client = if let (Some(username), Some(password)) =
+                    (collector_username, collector_password)
+                {
+                    let auth_header_val =
+                        headers::Authorization::basic(username.as_str(), password.as_str());
+                    HyperClient::new_with_timeout_and_authorization_header(
+                        inner,
+                        collector_timeout,
+                        auth_header_val.0.encode(),
+                    )
+                } else {
+                    HyperClient::new_with_timeout(inner, collector_timeout)
+                };
                 Ok(Box::new(client))
             }
         }
@@ -187,7 +194,7 @@ mod collector_client_tests {
             .with_endpoint("localhost:6831")
             .with_http_client(test_http_client::TestHttpClient);
         let (_, process) = build_config_and_process(None, None);
-        let mut uploader = invalid_uri_builder.build_uploader::<Tokio>()?;
+        let uploader = invalid_uri_builder.build_uploader::<Tokio>()?;
         let res = futures_executor::block_on(async {
             uploader
                 .upload(Batch::new(process.into(), Vec::new()))

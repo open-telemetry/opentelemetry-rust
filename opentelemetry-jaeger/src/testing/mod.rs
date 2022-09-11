@@ -1,4 +1,5 @@
-#[allow(unused, missing_docs)]
+#[allow(unused, missing_docs, clippy::derive_partial_eq_without_eq)]
+// tonic don't derive Eq. We shouldn't manually change it.)]
 pub mod jaeger_api_v2;
 
 #[allow(missing_docs)]
@@ -25,7 +26,7 @@ pub mod jaeger_client {
         }
 
         /// Check if the jaeger contains the service
-        pub async fn contain_service(&mut self, service_name: &'static str) -> bool {
+        pub async fn contain_service(&mut self, service_name: &String) -> bool {
             self.query_service_client
                 .get_services(GetServicesRequest {})
                 .await
@@ -33,7 +34,7 @@ pub mod jaeger_client {
                 .get_ref()
                 .services
                 .iter()
-                .any(|svc_name| svc_name == service_name)
+                .any(|svc_name| *svc_name == *service_name)
         }
 
         /// Find trace by trace id.
@@ -48,7 +49,7 @@ pub mod jaeger_client {
                 .await
                 .unwrap();
 
-            return if let Some(spans) = resp
+            if let Some(spans) = resp
                 .get_mut()
                 .message()
                 .await
@@ -57,18 +58,15 @@ pub mod jaeger_client {
                 spans.spans
             } else {
                 vec![]
-            };
+            }
         }
 
         /// Find traces belongs the service.
         /// It assumes the service exists.
-        pub async fn find_traces_from_services(
-            &mut self,
-            service_name: &'static str,
-        ) -> Vec<JaegerSpan> {
+        pub async fn find_traces_from_services(&mut self, service_name: &str) -> Vec<JaegerSpan> {
             let request = FindTracesRequest {
                 query: Some(TraceQueryParameters {
-                    service_name: service_name.into(),
+                    service_name: service_name.to_owned(),
                     ..Default::default()
                 }),
             };

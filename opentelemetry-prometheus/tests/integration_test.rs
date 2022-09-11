@@ -1,27 +1,37 @@
+use opentelemetry::sdk::export::metrics::aggregation;
+use opentelemetry::sdk::metrics::{controllers, processors, selectors};
 use opentelemetry::sdk::Resource;
-use opentelemetry::{
-    metrics::{BatchObserverResult, MeterProvider, ObserverResult},
-    KeyValue,
-};
+use opentelemetry::Context;
+use opentelemetry::{metrics::MeterProvider, KeyValue};
 use opentelemetry_prometheus::PrometheusExporter;
 use prometheus::{Encoder, TextEncoder};
 
 #[test]
 fn free_unused_instruments() {
-    let exporter = opentelemetry_prometheus::exporter()
-        .with_default_histogram_boundaries(vec![-0.5, 1.0])
-        .with_resource(Resource::new(vec![KeyValue::new("R", "V")]))
-        .init();
+    let cx = Context::new();
+    let controller = controllers::basic(
+        processors::factory(
+            selectors::simple::histogram(vec![-0.5, 1.0]),
+            aggregation::cumulative_temporality_selector(),
+        )
+        .with_memory(true),
+    )
+    .with_resource(Resource::new(vec![KeyValue::new("R", "V")]))
+    .build();
+    let exporter = opentelemetry_prometheus::exporter(controller).init();
     let mut expected = Vec::new();
 
     {
-        let meter = exporter.provider().unwrap().meter("test", None, None);
+        let meter = exporter
+            .meter_provider()
+            .unwrap()
+            .versioned_meter("test", None, None);
         let counter = meter.f64_counter("counter").init();
 
         let attributes = vec![KeyValue::new("A", "B"), KeyValue::new("C", "D")];
 
-        counter.add(10.0, &attributes);
-        counter.add(5.3, &attributes);
+        counter.add(&cx, 10.0, &attributes);
+        counter.add(&cx, 5.3, &attributes);
 
         expected.push(r#"counter{A="B",C="D",R="V"} 15.3"#);
     }
@@ -34,41 +44,23 @@ fn free_unused_instruments() {
 }
 
 #[test]
-fn batch() {
-    let exporter = opentelemetry_prometheus::exporter()
-        .with_resource(Resource::new(vec![KeyValue::new("R", "V")]))
-        .init();
-    let meter = exporter.provider().unwrap().meter("test", None, None);
-    let mut expected = Vec::new();
-
-    meter.batch_observer(|batch| {
-        let uint_observer = batch.u64_value_observer("uint_observer").init();
-        let float_observer = batch.f64_value_observer("float_observer").init();
-
-        move |result: BatchObserverResult| {
-            result.observe(
-                &[KeyValue::new("A", "B")],
-                &[
-                    uint_observer.observation(2),
-                    float_observer.observation(3.1),
-                ],
-            );
-        }
-    });
-
-    expected.push(r#"uint_observer{A="B",R="V"} 2"#);
-    expected.push(r#"float_observer{A="B",R="V"} 3.1"#);
-    compare_export(&exporter, expected);
-}
-
-#[test]
 fn test_add() {
-    let exporter = opentelemetry_prometheus::exporter()
-        .with_default_histogram_boundaries(vec![-0.5, 1.0])
-        .with_resource(Resource::new(vec![KeyValue::new("R", "V")]))
-        .init();
+    let cx = Context::new();
+    let controller = controllers::basic(
+        processors::factory(
+            selectors::simple::histogram(vec![-0.5, 1.0]),
+            aggregation::cumulative_temporality_selector(),
+        )
+        .with_memory(true),
+    )
+    .with_resource(Resource::new(vec![KeyValue::new("R", "V")]))
+    .build();
+    let exporter = opentelemetry_prometheus::exporter(controller).init();
 
-    let meter = exporter.provider().unwrap().meter("test", None, None);
+    let meter = exporter
+        .meter_provider()
+        .unwrap()
+        .versioned_meter("test", None, None);
 
     let up_down_counter = meter.f64_up_down_counter("updowncounter").init();
     let counter = meter.f64_counter("counter").init();
@@ -78,24 +70,23 @@ fn test_add() {
 
     let mut expected = Vec::new();
 
-    counter.add(10.0, &attributes);
-    counter.add(5.3, &attributes);
+    counter.add(&cx, 10.0, &attributes);
+    counter.add(&cx, 5.3, &attributes);
 
     expected.push(r#"counter{A="B",C="D",R="V"} 15.3"#);
 
     let cb_attributes = attributes.clone();
-    let _observer = meter
-        .i64_value_observer("intobserver", move |result: ObserverResult<i64>| {
-            result.observe(1, cb_attributes.as_ref())
-        })
-        .init();
+    let gauge = meter.i64_observable_gauge("intgauge").init();
+    meter
+        .register_callback(move |cx| gauge.observe(cx, 1, cb_attributes.as_ref()))
+        .unwrap();
 
-    expected.push(r#"intobserver{A="B",C="D",R="V"} 1"#);
+    expected.push(r#"intgauge{A="B",C="D",R="V"} 1"#);
 
-    histogram.record(-0.6, &attributes);
-    histogram.record(-0.4, &attributes);
-    histogram.record(0.6, &attributes);
-    histogram.record(20.0, &attributes);
+    histogram.record(&cx, -0.6, &attributes);
+    histogram.record(&cx, -0.4, &attributes);
+    histogram.record(&cx, 0.6, &attributes);
+    histogram.record(&cx, 20.0, &attributes);
 
     expected.push(r#"my_histogram_bucket{A="B",C="D",R="V",le="+Inf"} 4"#);
     expected.push(r#"my_histogram_bucket{A="B",C="D",R="V",le="-0.5"} 1"#);
@@ -103,8 +94,8 @@ fn test_add() {
     expected.push(r#"my_histogram_count{A="B",C="D",R="V"} 4"#);
     expected.push(r#"my_histogram_sum{A="B",C="D",R="V"} 19.6"#);
 
-    up_down_counter.add(10.0, &attributes);
-    up_down_counter.add(-3.2, &attributes);
+    up_down_counter.add(&cx, 10.0, &attributes);
+    up_down_counter.add(&cx, -3.2, &attributes);
 
     expected.push(r#"updowncounter{A="B",C="D",R="V"} 6.8"#);
 
@@ -113,24 +104,34 @@ fn test_add() {
 
 #[test]
 fn test_sanitization() {
-    let exporter = opentelemetry_prometheus::exporter()
-        .with_default_histogram_boundaries(vec![-0.5, 1.0])
-        .with_resource(Resource::new(vec![KeyValue::new(
-            "service.name",
-            "Test Service",
-        )]))
-        .init();
-    let meter = exporter.provider().unwrap().meter("test", None, None);
+    let cx = Context::new();
+    let controller = controllers::basic(
+        processors::factory(
+            selectors::simple::histogram(vec![-0.5, 1.0]),
+            aggregation::cumulative_temporality_selector(),
+        )
+        .with_memory(true),
+    )
+    .with_resource(Resource::new(vec![KeyValue::new(
+        "service.name",
+        "Test Service",
+    )]))
+    .build();
+    let exporter = opentelemetry_prometheus::exporter(controller).init();
+    let meter = exporter
+        .meter_provider()
+        .unwrap()
+        .versioned_meter("test", None, None);
 
     let histogram = meter.f64_histogram("http.server.duration").init();
     let attributes = vec![
         KeyValue::new("http.method", "GET"),
         KeyValue::new("http.host", "server"),
     ];
-    histogram.record(-0.6, &attributes);
-    histogram.record(-0.4, &attributes);
-    histogram.record(0.6, &attributes);
-    histogram.record(20.0, &attributes);
+    histogram.record(&cx, -0.6, &attributes);
+    histogram.record(&cx, -0.4, &attributes);
+    histogram.record(&cx, 0.6, &attributes);
+    histogram.record(&cx, 20.0, &attributes);
 
     let expected = vec![
         r#"http_server_duration_bucket{http_host="server",http_method="GET",service_name="Test Service",le="+Inf"} 4"#,

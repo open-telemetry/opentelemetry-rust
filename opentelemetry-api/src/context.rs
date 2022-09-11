@@ -169,7 +169,7 @@ impl Context {
     pub fn get<T: 'static>(&self) -> Option<&T> {
         self.entries
             .get(&TypeId::of::<T>())
-            .and_then(|rc| (&*rc).downcast_ref())
+            .and_then(|rc| rc.downcast_ref())
     }
 
     /// Returns a copy of the context with the new value included.
@@ -324,8 +324,8 @@ impl Drop for ContextGuard {
 /// while the context is still borrowed.
 fn get_current<F: FnMut(&Context) -> T, T>(mut f: F) -> T {
     CURRENT_CONTEXT
-        .try_with(|cx| f(&*cx.borrow()))
-        .unwrap_or_else(|_| DEFAULT_CONTEXT.with(|cx| f(&*cx)))
+        .try_with(|cx| f(&cx.borrow()))
+        .unwrap_or_else(|_| DEFAULT_CONTEXT.with(|cx| f(cx)))
 }
 
 /// With TypeIds as keys, there's no need to hash them. They are already hashes

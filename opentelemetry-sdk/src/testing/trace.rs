@@ -9,14 +9,22 @@ use crate::{
 use async_trait::async_trait;
 use futures_util::future::BoxFuture;
 pub use opentelemetry_api::testing::trace::TestSpan;
-use opentelemetry_api::trace::{SpanContext, SpanId, SpanKind, Status};
+use opentelemetry_api::trace::{
+    SpanContext, SpanId, SpanKind, Status, TraceFlags, TraceId, TraceState,
+};
 use std::fmt::{Display, Formatter};
 use std::sync::mpsc::{channel, Receiver, Sender};
 
 pub fn new_test_export_span_data() -> SpanData {
     let config = Config::default();
     SpanData {
-        span_context: SpanContext::empty_context(),
+        span_context: SpanContext::new(
+            TraceId::from_u128(1),
+            SpanId::from_u64(1),
+            TraceFlags::SAMPLED,
+            false,
+            TraceState::default(),
+        ),
         parent_span_id: SpanId::INVALID,
         span_kind: SpanKind::Internal,
         name: "opentelemetry".into(),

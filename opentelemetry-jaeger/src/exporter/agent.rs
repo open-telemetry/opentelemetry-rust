@@ -101,7 +101,7 @@ pub(crate) struct AgentAsyncClientUdp<R: JaegerTraceRuntime> {
 impl<R: JaegerTraceRuntime> AgentAsyncClientUdp<R> {
     /// Create a new UDP agent client
     pub(crate) fn new<T: ToSocketAddrs>(
-        host_port: T,
+        agent_endpoint: T,
         max_packet_size: usize,
         runtime: R,
         auto_split: bool,
@@ -112,7 +112,7 @@ impl<R: JaegerTraceRuntime> AgentAsyncClientUdp<R> {
             TCompactOutputProtocol::new(write),
         );
 
-        let conn = runtime.create_socket(host_port)?;
+        let conn = runtime.create_socket(agent_endpoint)?;
 
         Ok(AgentAsyncClientUdp {
             runtime,

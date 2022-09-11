@@ -2,7 +2,7 @@
 //! services to capture distributed traces and metrics from your application. You
 //! can analyze them using [Prometheus], [Jaeger], and other observability tools.
 //!
-//! *Compiler support: [requires `rustc` 1.49+][msrv]*
+//! *Compiler support: [requires `rustc` 1.56+][msrv]*
 //!
 //! [Prometheus]: https://prometheus.io
 //! [Jaeger]: https://www.jaegertracing.io
@@ -82,7 +82,9 @@
 //! ```
 //! # #[cfg(feature = "metrics")]
 //! # {
-//! use opentelemetry::{global, KeyValue};
+//! use opentelemetry::{global, Context, KeyValue};
+//!
+//! let cx = Context::current();
 //!
 //! // get a meter from a provider
 //! let meter = global::meter("my_service");
@@ -91,7 +93,7 @@
 //! let counter = meter.u64_counter("my_counter").init();
 //!
 //! // record a measurement
-//! counter.add(1, &[KeyValue::new("http.client_ip", "83.164.160.102")]);
+//! counter.add(&cx, 1, &[KeyValue::new("http.client_ip", "83.164.160.102")]);
 //! # }
 //! ```
 //!
@@ -190,7 +192,7 @@
 //! ## Supported Rust Versions
 //!
 //! OpenTelemetry is built against the latest stable release. The minimum
-//! supported version is 1.49. The current OpenTelemetry version is not
+//! supported version is 1.56. The current OpenTelemetry version is not
 //! guaranteed to build on Rust versions earlier than the minimum supported
 //! version.
 //!

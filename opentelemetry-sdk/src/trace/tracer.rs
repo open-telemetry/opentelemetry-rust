@@ -152,10 +152,7 @@ impl opentelemetry_api::trace::Tracer for Tracer {
         let span_kind = builder.span_kind.take().unwrap_or(SpanKind::Internal);
         let mut attribute_options = builder.attributes.take().unwrap_or_default();
         let mut link_options = builder.links.take();
-        let mut no_parent = true;
-        let mut remote_parent = false;
         let mut parent_span_id = SpanId::INVALID;
-        let mut parent_trace_flags = TraceFlags::default();
         let trace_id;
 
         let parent_span = if parent_cx.has_active_span() {
@@ -166,10 +163,7 @@ impl opentelemetry_api::trace::Tracer for Tracer {
 
         // Build context for sampling decision
         if let Some(sc) = parent_span.as_ref().map(|parent| parent.span_context()) {
-            no_parent = false;
-            remote_parent = sc.is_remote();
             parent_span_id = sc.span_id();
-            parent_trace_flags = sc.trace_flags();
             trace_id = sc.trace_id();
         } else {
             trace_id = builder
@@ -177,14 +171,11 @@ impl opentelemetry_api::trace::Tracer for Tracer {
                 .unwrap_or_else(|| config.id_generator.new_trace_id());
         };
 
-        // There are 3 paths for sampling.
-        //
-        // * Sampling has occurred elsewhere and is already stored in the builder
-        // * There is no parent or a remote parent, in which case make decision now
-        // * There is a local parent, in which case defer to the parent's decision
+        // In order to accomodate use cases like `tracing-opentelemetry` we there is the ability
+        // to use pre-sampling. Otherwise, the standard method of sampling is followed.
         let sampling_decision = if let Some(sampling_result) = builder.sampling_result.take() {
             self.process_sampling_result(sampling_result, parent_cx)
-        } else if no_parent || remote_parent {
+        } else {
             self.make_sampling_decision(
                 parent_cx,
                 trace_id,
@@ -195,17 +186,6 @@ impl opentelemetry_api::trace::Tracer for Tracer {
                 provider.config(),
                 &self.instrumentation_lib,
             )
-        } else {
-            // has parent that is local: use parent if sampled, or don't record.
-            parent_span
-                .filter(|span| span.span_context().is_sampled())
-                .map(|span| {
-                    (
-                        parent_trace_flags,
-                        Vec::new(),
-                        span.span_context().trace_state().clone(),
-                    )
-                })
         };
 
         let SpanBuilder {
@@ -306,7 +286,7 @@ mod tests {
         Context, Key, Value,
     };
 
-    #[derive(Debug)]
+    #[derive(Clone, Debug)]
     struct TestSampler {}
 
     impl ShouldSample for TestSampler {

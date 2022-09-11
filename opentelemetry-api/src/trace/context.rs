@@ -6,7 +6,7 @@ use crate::{
 };
 use futures_util::{sink::Sink, stream::Stream};
 use once_cell::sync::Lazy;
-use pin_project::pin_project;
+use pin_project_lite::pin_project;
 use std::{
     borrow::Cow,
     error::Error,
@@ -36,7 +36,7 @@ impl SpanRef<'_> {
     fn with_inner_mut<F: FnOnce(&mut global::BoxedSpan)>(&self, f: F) {
         if let Some(ref inner) = self.0.inner {
             match inner.lock() {
-                Ok(mut locked) => f(&mut *locked),
+                Ok(mut locked) => f(&mut locked),
                 Err(err) => global::handle_error(err),
             }
         }
@@ -269,7 +269,7 @@ impl TraceContextExt for Context {
         if let Some(span) = self.get::<SynchronizedSpan>() {
             SpanRef(span)
         } else {
-            SpanRef(&*NOOP_SPAN)
+            SpanRef(&NOOP_SPAN)
         }
     }
 
@@ -351,13 +351,14 @@ where
     f(Context::current().span())
 }
 
-/// A future, stream, or sink that has an associated context.
-#[pin_project]
-#[derive(Clone, Debug)]
-pub struct WithContext<T> {
-    #[pin]
-    inner: T,
-    otel_cx: Context,
+pin_project! {
+    /// A future, stream, or sink that has an associated context.
+    #[derive(Clone, Debug)]
+    pub struct WithContext<T> {
+        #[pin]
+        inner: T,
+        otel_cx: Context,
+    }
 }
 
 impl<T: Sized> FutureExt for T {}

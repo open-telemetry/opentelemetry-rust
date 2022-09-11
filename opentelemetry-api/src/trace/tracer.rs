@@ -406,7 +406,7 @@ pub struct SamplingResult {
 }
 
 /// Decision about whether or not to sample
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum SamplingDecision {
     /// Span will not be recorded and all events and attributes will be dropped.
     Drop,

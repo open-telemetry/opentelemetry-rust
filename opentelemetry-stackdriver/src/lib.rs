@@ -49,6 +49,7 @@ use tonic::{
 #[cfg(feature = "yup-authorizer")]
 use yup_oauth2::authenticator::Authenticator;
 
+#[allow(clippy::derive_partial_eq_without_eq)] // tonic doesn't derive Eq for generated types
 pub mod proto;
 
 use proto::devtools::cloudtrace::v2::BatchWriteSpansRequest;
@@ -282,18 +283,15 @@ where
                                 }
                             }
                         }
-
+                        let project_id = self.authorizer.project_id();
+                        let log_id = &client.context.log_id;
                         LogEntry {
-                            log_name: format!(
-                                "projects/{}/logs/{}",
-                                self.authorizer.project_id(),
-                                client.context.log_id,
-                            ),
+                            log_name: format!("projects/{project_id}/logs/{log_id}"),
                             resource: Some(client.context.resource.clone()),
                             severity: level as i32,
                             timestamp: Some(event.timestamp.into()),
                             labels,
-                            trace: trace_id.clone(),
+                            trace: format!("projects/{project_id}/traces/{trace_id}"),
                             span_id: span_id.clone(),
                             source_location: target.map(|target| LogEntrySourceLocation {
                                 file: String::new(),
@@ -565,6 +563,32 @@ impl From<LogContext> for InternalLogContext {
     fn from(cx: LogContext) -> Self {
         let mut labels = HashMap::default();
         let resource = match cx.resource {
+            MonitoredResource::CloudRunRevision {
+                project_id,
+                service_name,
+                revision_name,
+                location,
+                configuration_name,
+            } => {
+                labels.insert("project_id".to_string(), project_id);
+                if let Some(service_name) = service_name {
+                    labels.insert("service_name".to_string(), service_name);
+                }
+                if let Some(revision_name) = revision_name {
+                    labels.insert("revision_name".to_string(), revision_name);
+                }
+                if let Some(location) = location {
+                    labels.insert("location".to_string(), location);
+                }
+                if let Some(configuration_name) = configuration_name {
+                    labels.insert("configuration_name".to_string(), configuration_name);
+                }
+
+                proto::api::MonitoredResource {
+                    r#type: "cloud_run_revision".to_owned(),
+                    labels,
+                }
+            }
             MonitoredResource::GenericNode {
                 project_id,
                 location,
@@ -650,6 +674,13 @@ pub enum MonitoredResource {
         namespace: Option<String>,
         job: Option<String>,
         task_id: Option<String>,
+    },
+    CloudRunRevision {
+        project_id: String,
+        service_name: Option<String>,
+        revision_name: Option<String>,
+        location: Option<String>,
+        configuration_name: Option<String>,
     },
 }
 

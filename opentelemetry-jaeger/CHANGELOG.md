@@ -7,6 +7,7 @@
 - Consolidate the config errors #762
 - Better configuration pipeline #748
 - Add Timeout Environment Var #729
+- add propagator initialisation with custom headers and baggage prefix #852
 - Update to opentelemetry v0.18.0
 - Update to opentelemetry-http v0.7.0
 - Update to opentelemetry-semantic-conventions v0.10.0

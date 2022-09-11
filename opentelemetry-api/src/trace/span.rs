@@ -204,7 +204,7 @@ pub trait Span {
 /// | `Producer` | | yes | | maybe |
 /// | `Consumer` | | yes | maybe | |
 /// | `Internal` | | | | |
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum SpanKind {
     /// Indicates that the span describes a request to some remote service. This
     /// span is usually the parent of a remote `SpanKind::Server` span and does

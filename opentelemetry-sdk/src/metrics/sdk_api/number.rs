@@ -201,7 +201,7 @@ impl From<u64> for Number {
 }
 
 /// A descriptor for the encoded data type of a `Number`
-#[derive(Clone, Debug, PartialEq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum NumberKind {
     /// A Number that stores `i64` values.
     I64,

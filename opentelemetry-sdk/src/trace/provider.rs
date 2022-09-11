@@ -2,12 +2,12 @@
 //!
 //! ## Tracer Creation
 //!
-//! New `Tracer` instances are always created through a `TracerProvider`.
+//! New [`Tracer`] instances are always created through a [`TracerProvider`].
 //!
 //! All configuration objects and extension points (span processors,
-//! propagators) are provided by the `TracerProvider`. `Tracer` instances do
-//! not duplicate this data to avoid that different `Tracer` instances
-//! of the `TracerProvider` have different versions of these data.
+//! propagators) are provided by the [`TracerProvider`]. [`Tracer`] instances do
+//! not duplicate this data to avoid that different [`Tracer`] instances
+//! of the [`TracerProvider`] have different versions of these data.
 use crate::trace::{runtime::TraceRuntime, BatchSpanProcessor, SimpleSpanProcessor, Tracer};
 use crate::{export::trace::SpanExporter, trace::SpanProcessor};
 use crate::{InstrumentationLibrary, Resource};
@@ -37,7 +37,7 @@ impl Drop for TracerProviderInner {
     }
 }
 
-/// Creator and registry of named `Tracer` instances.
+/// Creator and registry of named [`Tracer`] instances.
 #[derive(Clone, Debug)]
 pub struct TracerProvider {
     inner: Arc<TracerProviderInner>,
@@ -55,7 +55,7 @@ impl TracerProvider {
         TracerProvider { inner }
     }
 
-    /// Create a new `TracerProvider` builder.
+    /// Create a new [`TracerProvider`] builder.
     pub fn builder() -> Builder {
         Builder::default()
     }
@@ -159,7 +159,7 @@ impl Builder {
         Builder { processors, ..self }
     }
 
-    /// The `SpanExporter` setup using a default `BatchSpanProcessor` that this provider should use.
+    /// The [`SpanExporter`] setup using a default [`BatchSpanProcessor`] that this provider should use.
     pub fn with_batch_exporter<T: SpanExporter + 'static, R: TraceRuntime>(
         self,
         exporter: T,
@@ -169,7 +169,7 @@ impl Builder {
         self.with_span_processor(batch)
     }
 
-    /// The `SpanProcessor` that this provider should use.
+    /// The [`SpanProcessor`] that this provider should use.
     pub fn with_span_processor<T: SpanProcessor + 'static>(self, processor: T) -> Self {
         let mut processors = self.processors;
         processors.push(Box::new(processor));
@@ -177,7 +177,7 @@ impl Builder {
         Builder { processors, ..self }
     }
 
-    /// The sdk `Config` that this provider will use.
+    /// The sdk [`crate::trace::Config`] that this provider will use.
     pub fn with_config(self, config: crate::trace::Config) -> Self {
         Builder { config, ..self }
     }
@@ -186,7 +186,7 @@ impl Builder {
     pub fn build(self) -> TracerProvider {
         let mut config = self.config;
 
-        // Standard config will contain an owned `Resource` (either sdk default or use supplied)
+        // Standard config will contain an owned [`Resource`] (either sdk default or use supplied)
         // we can optimize the common case with a static ref to avoid cloning the underlying
         // resource data for each span.
         //

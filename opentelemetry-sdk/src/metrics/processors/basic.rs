@@ -1,15 +1,17 @@
 use crate::{
     export::metrics::{
-        self, Accumulation, Aggregator, AggregatorSelector, CheckpointSet, Checkpointer,
-        ExportKind, ExportKindFor, LockedProcessor, Processor, Record, Subtractor,
+        self,
+        aggregation::{Temporality, TemporalitySelector},
+        Accumulation, AggregatorSelector, Checkpointer, CheckpointerFactory, LockedCheckpointer,
+        LockedProcessor, Processor, Reader, Record,
     },
-    metrics::aggregators::SumAggregator,
-    Resource,
+    metrics::{aggregators::Aggregator, sdk_api::Descriptor},
 };
+use core::fmt;
 use fnv::FnvHasher;
 use opentelemetry_api::{
     attributes::{hash_attributes, AttributeSet},
-    metrics::{Descriptor, MetricsError, Result},
+    metrics::{MetricsError, Result},
 };
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
@@ -17,48 +19,92 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::SystemTime;
 
 /// Create a new basic processor
-pub fn basic(
-    aggregator_selector: Box<dyn AggregatorSelector + Send + Sync>,
-    export_selector: Box<dyn ExportKindFor + Send + Sync>,
+pub fn factory<A, T>(aggregator_selector: A, temporality_selector: T) -> BasicProcessorBuilder
+where
+    A: AggregatorSelector + Send + Sync + 'static,
+    T: TemporalitySelector + Send + Sync + 'static,
+{
+    BasicProcessorBuilder {
+        aggregator_selector: Arc::new(aggregator_selector),
+        temporality_selector: Arc::new(temporality_selector),
+        memory: false,
+    }
+}
+
+pub struct BasicProcessorBuilder {
+    aggregator_selector: Arc<dyn AggregatorSelector + Send + Sync>,
+    temporality_selector: Arc<dyn TemporalitySelector + Send + Sync>,
     memory: bool,
-) -> BasicProcessor {
-    BasicProcessor {
-        aggregator_selector,
-        export_selector,
-        state: Mutex::new(BasicProcessorState::with_memory(memory)),
+}
+
+impl BasicProcessorBuilder {
+    /// Memory controls whether the processor remembers metric instruments and
+    /// attribute sets that were previously reported.
+    ///
+    /// When Memory is `true`, [`Reader::try_for_each`] will visit metrics that were
+    /// not updated in the most recent interval.
+    pub fn with_memory(mut self, memory: bool) -> Self {
+        self.memory = memory;
+        self
+    }
+}
+
+impl fmt::Debug for BasicProcessorBuilder {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("BasicProcessorBuilder")
+            .field("memory", &self.memory)
+            .finish()
+    }
+}
+
+impl CheckpointerFactory for BasicProcessorBuilder {
+    fn checkpointer(&self) -> Arc<dyn Checkpointer + Send + Sync> {
+        Arc::new(BasicProcessor {
+            aggregator_selector: Arc::clone(&self.aggregator_selector),
+            temporality_selector: Arc::clone(&self.temporality_selector),
+            state: Mutex::new(BasicProcessorState::with_memory(self.memory)),
+        })
     }
 }
 
 /// Basic metric integration strategy
-#[derive(Debug)]
 pub struct BasicProcessor {
-    aggregator_selector: Box<dyn AggregatorSelector + Send + Sync>,
-    export_selector: Box<dyn ExportKindFor + Send + Sync>,
+    aggregator_selector: Arc<dyn AggregatorSelector + Send + Sync>,
+    temporality_selector: Arc<dyn TemporalitySelector + Send + Sync>,
     state: Mutex<BasicProcessorState>,
 }
 
-impl BasicProcessor {
-    /// Lock this processor to return a mutable locked processor
-    pub fn lock(&self) -> Result<BasicLockedProcessor<'_>> {
-        self.state
-            .lock()
-            .map_err(From::from)
-            .map(|locked| BasicLockedProcessor {
-                parent: self,
-                state: locked,
-            })
+impl Processor for BasicProcessor {
+    fn aggregator_selector(&self) -> &dyn AggregatorSelector {
+        self.aggregator_selector.as_ref()
     }
 }
 
-impl Processor for BasicProcessor {
-    fn aggregation_selector(&self) -> &dyn AggregatorSelector {
-        self.aggregator_selector.as_ref()
+impl Checkpointer for BasicProcessor {
+    fn checkpoint(
+        &self,
+        f: &mut dyn FnMut(&mut dyn LockedCheckpointer) -> Result<()>,
+    ) -> Result<()> {
+        self.state.lock().map_err(From::from).and_then(|locked| {
+            f(&mut BasicLockedProcessor {
+                parent: self,
+                state: locked,
+            })
+        })
+    }
+}
+
+impl fmt::Debug for BasicProcessor {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("BasicProcessor")
+            .field("state", &self.state)
+            .finish()
     }
 }
 
 /// A locked representation of the processor used where mutable references are necessary.
 #[derive(Debug)]
-pub struct BasicLockedProcessor<'a> {
+struct BasicLockedProcessor<'a> {
     parent: &'a BasicProcessor,
     state: MutexGuard<'a, BasicProcessorState>,
 }
@@ -73,7 +119,6 @@ impl<'a> LockedProcessor for BasicLockedProcessor<'a> {
         let mut hasher = FnvHasher::default();
         desc.attribute_hash().hash(&mut hasher);
         hash_attributes(&mut hasher, accumulation.attributes().into_iter());
-        hash_attributes(&mut hasher, accumulation.resource().into_iter());
         let key = StateKey(hasher.finish());
         let agg = accumulation.aggregator();
         let finished_collection = self.state.finished_collection;
@@ -127,7 +172,7 @@ impl<'a> LockedProcessor for BasicLockedProcessor<'a> {
             // before merging below.
             if !value.current_owned {
                 let tmp = value.current.clone();
-                if let Some(current) = self.parent.aggregation_selector().aggregator_for(desc) {
+                if let Some(current) = self.parent.aggregator_selector.aggregator_for(desc) {
                     value.current = current;
                     value.current_owned = true;
                     tmp.synchronized_move(&value.current, desc)?;
@@ -140,18 +185,17 @@ impl<'a> LockedProcessor for BasicLockedProcessor<'a> {
 
         let stateful = self
             .parent
-            .export_selector
-            .export_kind_for(desc)
+            .temporality_selector
+            .temporality_for(desc, agg.aggregation().kind())
             .memory_required(desc.instrument_kind());
 
-        let mut delta = None;
         let cumulative = if stateful {
             if desc.instrument_kind().precomputed_sum() {
                 // If we know we need to compute deltas, allocate one.
-                delta = self.parent.aggregation_selector().aggregator_for(desc);
+                return Err(MetricsError::Other("No cumulative to sum support".into()));
             }
             // Always allocate a cumulative aggregator if stateful
-            self.parent.aggregation_selector().aggregator_for(desc)
+            self.parent.aggregator_selector.aggregator_for(desc)
         } else {
             None
         };
@@ -161,10 +205,8 @@ impl<'a> LockedProcessor for BasicLockedProcessor<'a> {
             StateValue {
                 descriptor: desc.clone(),
                 attributes: accumulation.attributes().clone(),
-                resource: accumulation.resource().clone(),
                 current_owned: false,
                 current: agg.clone(),
-                delta,
                 cumulative,
                 stateful,
                 updated: finished_collection,
@@ -175,8 +217,12 @@ impl<'a> LockedProcessor for BasicLockedProcessor<'a> {
     }
 }
 
-impl Checkpointer for BasicLockedProcessor<'_> {
-    fn checkpoint_set(&mut self) -> &mut dyn CheckpointSet {
+impl LockedCheckpointer for BasicLockedProcessor<'_> {
+    fn processor(&mut self) -> &mut dyn LockedProcessor {
+        self
+    }
+
+    fn reader(&mut self) -> &mut dyn Reader {
         &mut *self.state
     }
 
@@ -221,29 +267,10 @@ impl Checkpointer for BasicLockedProcessor<'_> {
                 return true;
             }
 
-            // Update Aggregator state to support exporting either a
-            // delta or a cumulative aggregation.
-            if mkind.precomputed_sum() {
-                if let Some(current_subtractor) =
-                    value.current.as_any().downcast_ref::<SumAggregator>()
-                {
-                    // This line is equivalent to:
-                    // value.delta = currentSubtractor - value.cumulative
-                    if let (Some(cumulative), Some(delta)) =
-                        (value.cumulative.as_ref(), value.delta.as_ref())
-                    {
-                        result = current_subtractor
-                            .subtract(cumulative.as_ref(), delta.as_ref(), &value.descriptor)
-                            .and_then(|_| {
-                                value
-                                    .current
-                                    .synchronized_move(cumulative, &value.descriptor)
-                            });
-                    }
-                } else {
-                    result = Err(MetricsError::NoSubtraction);
-                }
-            } else {
+            // The only kind of aggregators that are not stateless
+            // are the ones needing delta to cumulative
+            // conversion.  Merge aggregator state in this case.
+            if !mkind.precomputed_sum() {
                 // This line is equivalent to:
                 // value.cumulative = value.cumulative + value.delta
                 if let Some(cumulative) = value.cumulative.as_ref() {
@@ -301,10 +328,10 @@ impl Default for BasicProcessorState {
     }
 }
 
-impl CheckpointSet for BasicProcessorState {
+impl Reader for BasicProcessorState {
     fn try_for_each(
         &mut self,
-        exporter: &dyn ExportKindFor,
+        temporality_selector: &dyn TemporalitySelector,
         f: &mut dyn FnMut(&Record<'_>) -> Result<()>,
     ) -> Result<()> {
         if self.started_collection != self.finished_collection {
@@ -323,8 +350,10 @@ impl CheckpointSet for BasicProcessorState {
                 return Ok(());
             }
 
-            match exporter.export_kind_for(&value.descriptor) {
-                ExportKind::Cumulative => {
+            match temporality_selector
+                .temporality_for(&value.descriptor, value.current.aggregation().kind())
+            {
+                Temporality::Cumulative => {
                     // If stateful, the sum has been computed.  If stateless, the
                     // input was already cumulative. Either way, use the
                     // checkpointed value:
@@ -336,15 +365,13 @@ impl CheckpointSet for BasicProcessorState {
 
                     start = self.process_start;
                 }
-
-                ExportKind::Delta => {
+                Temporality::Delta => {
                     // Precomputed sums are a special case.
                     if instrument_kind.precomputed_sum() {
-                        agg = value.delta.as_ref();
-                    } else {
-                        agg = Some(&value.current);
+                        return Err(MetricsError::Other("No cumulative to delta".into()));
                     }
 
+                    agg = Some(&value.current);
                     start = self.interval_start;
                 }
             }
@@ -352,11 +379,11 @@ impl CheckpointSet for BasicProcessorState {
             let res = f(&metrics::record(
                 &value.descriptor,
                 &value.attributes,
-                &value.resource,
                 agg,
                 start,
                 self.interval_end,
             ));
+
             if let Err(MetricsError::NoDataCollected) = res {
                 Ok(())
             } else {
@@ -376,9 +403,6 @@ struct StateValue {
 
     /// Instrument attributes
     attributes: AttributeSet,
-
-    /// Resource that created the instrument
-    resource: Resource,
 
     /// Indicates the last sequence number when this value had process called by an
     /// accumulator.
@@ -401,10 +425,6 @@ struct StateValue {
     /// `Aggregator` owned by the processor used to accumulate multiple values in a
     /// single collection round.
     current: Arc<dyn Aggregator + Send + Sync>,
-
-    /// If `Some`, refers to an `Aggregator` owned by the processor used to compute
-    /// deltas between precomputed sums.
-    delta: Option<Arc<dyn Aggregator + Send + Sync>>,
 
     /// If `Some`, refers to an `Aggregator` owned by the processor used to store
     /// the last cumulative value.

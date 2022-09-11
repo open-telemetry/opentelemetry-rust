@@ -8,6 +8,10 @@ mod tests {
     };
     use std::collections::HashMap;
 
+    const SERVICE_NAME: &str = "opentelemetry_jaeger_integration_test";
+    const CRATE_VERSION: &str = env!("CARGO_PKG_VERSION");
+    const CRATE_NAME: &str = env!("CARGO_PKG_NAME");
+
     // the sample application that will be traced.
     // Expect the following span relationship:
     //     ┌─────────┐
@@ -44,10 +48,11 @@ mod tests {
     // This tests requires a jaeger agent running on the localhost.
     // You can override the agent end point using OTEL_TEST_JAEGER_AGENT_ENDPOINT env var
     // You can override the query API endpoint using OTEL_TEST_JAEGER_ENDPOINT env var
-    // Alternative you can run scripts/integration-test.sh from project root path.
+    // Alternative you can run scripts/integration_tests.sh from project root path.
     //
     #[test]
-    #[ignore]
+    #[ignore] // ignore this when running unit tests
+    #[allow(clippy::type_complexity)]
     fn integration_test() {
         let runtime = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
@@ -56,68 +61,124 @@ mod tests {
 
         let agent_endpoint =
             option_env!("OTEL_TEST_JAEGER_AGENT_ENDPOINT").unwrap_or("localhost:6831");
+        let collector_endpoint = option_env!("OTEL_TEST_JAEGER_COLLECTOR_ENDPOINT")
+            .unwrap_or("http://localhost:14268/api/traces");
         let query_api_endpoint =
             option_env!("OTEL_TEST_JAEGER_ENDPOINT").unwrap_or("http://localhost:16685");
-        const SERVICE_NAME: &str = "opentelemetry_jaeger_integration_test";
-        const CRATE_VERSION: &str = env!("CARGO_PKG_VERSION");
-        const CRATE_NAME: &str = env!("CARGO_PKG_NAME");
 
-        println!("{}, {}", agent_endpoint, query_api_endpoint);
+        let test_cases: Vec<(&str, Box<dyn Fn() -> SdkTracer>)> = vec![
+            (
+                "agent",
+                Box::new(|| {
+                    opentelemetry_jaeger::new_agent_pipeline()
+                        .with_endpoint(agent_endpoint)
+                        .with_service_name(format!("{}-{}", SERVICE_NAME, "agent"))
+                        .install_batch(opentelemetry::runtime::Tokio)
+                        .expect("cannot create tracer using default configuration")
+                }),
+            ),
+            (
+                "collector_reqwest",
+                Box::new(|| {
+                    opentelemetry_jaeger::new_collector_pipeline()
+                        .with_endpoint(collector_endpoint)
+                        .with_reqwest()
+                        .with_service_name(format!("{}-{}", SERVICE_NAME, "collector_reqwest"))
+                        .install_batch(opentelemetry::runtime::Tokio)
+                        .expect("cannot create tracer using default configuration")
+                }),
+            ),
+            (
+                "collector_isahc",
+                Box::new(|| {
+                    opentelemetry_jaeger::new_collector_pipeline()
+                        .with_endpoint(collector_endpoint)
+                        .with_isahc()
+                        .with_service_name(format!("{}-{}", SERVICE_NAME, "collector_isahc"))
+                        .install_batch(opentelemetry::runtime::Tokio)
+                        .expect("cannot create tracer using default configuration")
+                }),
+            ),
+            (
+                "collector_surf",
+                Box::new(|| {
+                    opentelemetry_jaeger::new_collector_pipeline()
+                        .with_endpoint(collector_endpoint)
+                        .with_surf()
+                        .with_service_name(format!("{}-{}", SERVICE_NAME, "collector_surf"))
+                        .install_batch(opentelemetry::runtime::Tokio)
+                        .expect("cannot create tracer using default configuration")
+                }),
+            ),
+            (
+                "collector_hyper",
+                Box::new(|| {
+                    opentelemetry_jaeger::new_collector_pipeline()
+                        .with_endpoint(collector_endpoint)
+                        .with_hyper()
+                        .with_service_name(format!("{}-{}", SERVICE_NAME, "collector_hyper"))
+                        .install_batch(opentelemetry::runtime::Tokio)
+                        .expect("cannot create tracer using default configuration")
+                }),
+            ),
+        ];
 
-        runtime.block_on(async {
-            let tracer = opentelemetry_jaeger::new_agent_pipeline()
-                .with_endpoint(agent_endpoint)
-                .with_service_name(SERVICE_NAME)
-                .install_batch(opentelemetry::runtime::Tokio)
-                .expect("cannot create tracer using default configuration");
+        for (name, build_tracer) in test_cases {
+            println!("Running test case: {}", name);
 
-            sample_application(&tracer).await;
+            runtime.block_on(async {
+                let tracer = build_tracer();
+                sample_application(&tracer).await;
 
-            tracer.provider().unwrap().force_flush();
-        });
+                tracer.provider().unwrap().force_flush();
+            });
 
-        runtime.block_on(async {
-            // build client
-            let mut client = JaegerTestClient::new(query_api_endpoint);
-            assert!(
-                client.contain_service(SERVICE_NAME).await,
-                "jaeger cannot find service"
-            );
-            let spans = client.find_traces_from_services(SERVICE_NAME).await;
-            assert_eq!(spans.len(), 5);
+            // assert the results by the jaeger query API
+            runtime.block_on(async {
+                // build client
+                let mut client = JaegerTestClient::new(query_api_endpoint);
+                let service_name = format!("{}-{}", SERVICE_NAME, name);
+                assert!(
+                    client.contain_service(&service_name).await,
+                    "jaeger cannot find service with name {}",
+                    service_name
+                );
+                let spans = client.find_traces_from_services(&service_name).await;
+                assert_eq!(spans.len(), 5);
 
-            for span in spans.iter() {
-                assert_common_attributes(span, SERVICE_NAME, CRATE_NAME, CRATE_VERSION)
-            }
+                for span in spans.iter() {
+                    assert_common_attributes(span, service_name.as_str(), CRATE_NAME, CRATE_VERSION)
+                }
 
-            // convert to span name/operation name -> span map
-            let span_map: HashMap<String, jaeger_api::Span> = spans
-                .into_iter()
-                .map(|spans| (spans.operation_name.clone(), spans))
-                .collect();
+                // convert to span name/operation name -> span map
+                let span_map: HashMap<String, jaeger_api::Span> = spans
+                    .into_iter()
+                    .map(|spans| (spans.operation_name.clone(), spans))
+                    .collect();
 
-            let step_1 = span_map.get("step-1").expect("cannot find step-1 span");
-            assert_parent(step_1, None);
-            assert_eq!(step_1.logs.len(), 1);
+                let step_1 = span_map.get("step-1").expect("cannot find step-1 span");
+                assert_parent(step_1, None);
+                assert_eq!(step_1.logs.len(), 1);
 
-            let step_2_1 = span_map.get("step-2-1").expect("cannot find step-2-1 span");
-            assert_parent(step_2_1, Some(step_1));
+                let step_2_1 = span_map.get("step-2-1").expect("cannot find step-2-1 span");
+                assert_parent(step_2_1, Some(step_1));
 
-            let step_2_2 = span_map.get("step-2-2").expect("cannot find step-2-2 span");
-            assert_parent(step_2_2, Some(step_1));
+                let step_2_2 = span_map.get("step-2-2").expect("cannot find step-2-2 span");
+                assert_parent(step_2_2, Some(step_1));
 
-            let step_3_1 = span_map.get("step-3-1").expect("cannot find step-3-1 span");
-            assert_parent(step_3_1, Some(step_2_2));
-            assert_tags_contains(step_3_1, "otel.status_code", "ERROR");
-            assert_tags_contains(step_3_1, "error", "true");
-            assert_eq!(step_3_1.flags, 1);
+                let step_3_1 = span_map.get("step-3-1").expect("cannot find step-3-1 span");
+                assert_parent(step_3_1, Some(step_2_2));
+                assert_tags_contains(step_3_1, "otel.status_code", "ERROR");
+                assert_tags_contains(step_3_1, "error", "true");
+                assert_eq!(step_3_1.flags, 1);
 
-            let step_3_2 = span_map
-                .get("step-3-2")
-                .expect("cannot find step 3-2 spans");
-            assert_parent(step_3_2, Some(step_2_2));
-            assert_tags_contains(step_3_2, "tag-3-2-1", "tag-value-3-2-1");
-        });
+                let step_3_2 = span_map
+                    .get("step-3-2")
+                    .expect("cannot find step 3-2 spans");
+                assert_parent(step_3_2, Some(step_2_2));
+                assert_tags_contains(step_3_2, "tag-3-2-1", "tag-value-3-2-1");
+            });
+        }
     }
 
     fn assert_parent(span: &jaeger_api::Span, parent_span: Option<&jaeger_api::Span>) {

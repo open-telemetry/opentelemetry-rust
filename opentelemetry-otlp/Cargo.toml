@@ -12,7 +12,8 @@ categories = [
 ]
 keywords = ["opentelemetry", "otlp", "logging", "tracing", "metrics"]
 license = "Apache-2.0"
-edition = "2018"
+edition = "2021"
+rust-version = "1.56"
 autotests = false
 
 [lib]
@@ -39,8 +40,8 @@ opentelemetry = { version = "0.18", default-features = false, features = ["trace
 opentelemetry-http = { version = "0.7", path = "../opentelemetry-http", optional = true }
 protobuf = { version = "2.18", optional = true }
 
-prost = { version = "0.10.1", optional = true }
-tonic = { version = "0.7.1", optional = true }
+prost = { version = "0.11.0", optional = true }
+tonic = { version = "0.8.0", optional = true }
 tokio = { version = "1.0", features = ["sync", "rt"], optional = true }
 
 reqwest = { version = "0.11", optional = true, default-features = false }

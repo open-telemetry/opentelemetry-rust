@@ -23,7 +23,7 @@ analysis in order to understand your software's performance and behavior. This
 crate provides a trace pipeline and exporter for sending span information to a
 Jaeger `agent` or `collector` endpoint for processing and visualization.
 
-*Compiler support: [requires `rustc` 1.49+][msrv]*
+*Compiler support: [requires `rustc` 1.56+][msrv]*
 
 [`Jaeger`]: https://www.jaegertracing.io/
 [`OpenTelemetry`]: https://crates.io/crates/opentelemetry
@@ -109,9 +109,11 @@ Then you can use the [`with_collector_endpoint`] method to specify the endpoint:
 
 ```rust
 // Note that this requires one of the following features enabled so that there is a default http client implementation
+// * hyper_collector_client
 // * surf_collector_client
 // * reqwest_collector_client
 // * reqwest_blocking_collector_client
+// * reqwest_rustls_collector_client
 // * isahc_collector_client
 
 // You can also provide your own implementation by enable

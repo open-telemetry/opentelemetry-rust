@@ -1,61 +1,43 @@
 //! Simple Metric Selectors
-use crate::export::metrics::{Aggregator, AggregatorSelector};
-use crate::metrics::aggregators;
-use opentelemetry_api::metrics::{Descriptor, InstrumentKind};
+use crate::export::metrics::AggregatorSelector;
+use crate::metrics::aggregators::{self, Aggregator};
+use crate::metrics::sdk_api::{Descriptor, InstrumentKind};
 use std::sync::Arc;
 
-/// Aggregation selection strategies.
-#[derive(Debug)]
-pub enum Selector {
-    /// A simple aggregation selector that uses counter, ddsketch, and ddsketch
-    /// aggregators for the three kinds of metric.  This selector uses more cpu
-    /// and memory than the NewWithInexpensiveDistribution because it uses one
-    /// DDSketch per distinct instrument and attribute set.
-    Sketch(aggregators::DdSketchConfig),
-    /// A simple aggregation selector that uses last_value, sum, and
-    /// minmaxsumcount aggregators for metrics. This selector is faster and uses
-    /// less memory than the others because minmaxsumcount does not aggregate
-    /// quantile information.
-    Inexpensive,
-    /// A simple aggregation selector that uses sum and array aggregators for
-    /// metrics. This selector is able to compute exact quantiles.
-    Exact,
-    /// A simple aggregation selector that uses sum, and histogram aggregators
-    /// for metrics. This selector uses more memory than `Inexpensive` because
-    /// it uses a counter per bucket.
-    Histogram(Vec<f64>),
+/// This selector is faster and uses less memory than the others in this package.
+pub fn inexpensive() -> impl AggregatorSelector {
+    InexpensiveSelector
 }
 
-impl AggregatorSelector for Selector {
+#[derive(Debug, Clone)]
+struct InexpensiveSelector;
+
+impl AggregatorSelector for InexpensiveSelector {
     fn aggregator_for(&self, descriptor: &Descriptor) -> Option<Arc<dyn Aggregator + Send + Sync>> {
-        match self {
-            Selector::Sketch(config) => match descriptor.instrument_kind() {
-                InstrumentKind::ValueObserver => Some(Arc::new(aggregators::last_value())),
-                InstrumentKind::Histogram => Some(Arc::new(aggregators::ddsketch(
-                    config,
-                    descriptor.number_kind().clone(),
-                ))),
-                _ => Some(Arc::new(aggregators::sum())),
-            },
-            Selector::Inexpensive => match descriptor.instrument_kind() {
-                InstrumentKind::ValueObserver => Some(Arc::new(aggregators::last_value())),
-                InstrumentKind::Histogram => {
-                    Some(Arc::new(aggregators::min_max_sum_count(descriptor)))
-                }
-                _ => Some(Arc::new(aggregators::sum())),
-            },
-            Selector::Exact => match descriptor.instrument_kind() {
-                InstrumentKind::ValueObserver => Some(Arc::new(aggregators::last_value())),
-                InstrumentKind::Histogram => Some(Arc::new(aggregators::array())),
-                _ => Some(Arc::new(aggregators::sum())),
-            },
-            Selector::Histogram(boundaries) => match descriptor.instrument_kind() {
-                InstrumentKind::ValueObserver => Some(Arc::new(aggregators::last_value())),
-                InstrumentKind::Histogram => {
-                    Some(Arc::new(aggregators::histogram(descriptor, boundaries)))
-                }
-                _ => Some(Arc::new(aggregators::sum())),
-            },
+        match descriptor.instrument_kind() {
+            InstrumentKind::GaugeObserver => Some(Arc::new(aggregators::last_value())),
+            _ => Some(Arc::new(aggregators::sum())),
+        }
+    }
+}
+
+/// A simple aggregator selector that uses histogram aggregators for `Histogram`
+/// instruments.
+///
+/// This selector is a good default choice for most metric exporters.
+pub fn histogram(boundaries: impl Into<Vec<f64>>) -> impl AggregatorSelector {
+    HistogramSelector(boundaries.into())
+}
+
+#[derive(Debug, Clone)]
+struct HistogramSelector(Vec<f64>);
+
+impl AggregatorSelector for HistogramSelector {
+    fn aggregator_for(&self, descriptor: &Descriptor) -> Option<Arc<dyn Aggregator + Send + Sync>> {
+        match descriptor.instrument_kind() {
+            InstrumentKind::GaugeObserver => Some(Arc::new(aggregators::last_value())),
+            InstrumentKind::Histogram => Some(Arc::new(aggregators::histogram(&self.0))),
+            _ => Some(Arc::new(aggregators::sum())),
         }
     }
 }

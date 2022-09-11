@@ -1,4 +1,5 @@
 use crate::metrics::{self, Meter, MeterProvider};
+use core::fmt;
 use once_cell::sync::Lazy;
 use std::sync::{Arc, RwLock};
 
@@ -11,19 +12,25 @@ static GLOBAL_METER_PROVIDER: Lazy<RwLock<GlobalMeterProvider>> = Lazy::new(|| {
 
 /// Represents the globally configured [`MeterProvider`] instance for this
 /// application.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct GlobalMeterProvider {
     provider: Arc<dyn MeterProvider + Send + Sync>,
 }
 
+impl fmt::Debug for GlobalMeterProvider {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("GlobalMeterProvider").finish()
+    }
+}
+
 impl MeterProvider for GlobalMeterProvider {
-    fn meter(
+    fn versioned_meter(
         &self,
         name: &'static str,
         version: Option<&'static str>,
         schema_url: Option<&'static str>,
     ) -> Meter {
-        self.provider.meter(name, version, schema_url)
+        self.provider.versioned_meter(name, version, schema_url)
     }
 }
 
@@ -66,7 +73,7 @@ pub fn meter_provider() -> GlobalMeterProvider {
 ///
 /// This is a more convenient way of expressing `global::meter_provider().meter(name, None, None)`.
 pub fn meter(name: &'static str) -> Meter {
-    meter_provider().meter(name, None, None)
+    meter_provider().versioned_meter(name, None, None)
 }
 
 /// Creates a [`Meter`] with the name, version and schema url.
@@ -87,5 +94,5 @@ pub fn meter_with_version(
     version: Option<&'static str>,
     schema_url: Option<&'static str>,
 ) -> Meter {
-    meter_provider().meter(name, version, schema_url)
+    meter_provider().versioned_meter(name, version, schema_url)
 }

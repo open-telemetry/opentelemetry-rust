@@ -1,0 +1,13 @@
+[package]
+name = "actix-hyper-example"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+opentelemetry = { path = "../../opentelemetry", features = ["rt-tokio"] }
+opentelemetry-jaeger = { path = "../../opentelemetry-jaeger", features = ["hyper_collector_client", "rt-tokio-current-thread"] }
+actix-web = "4.1.0"
+actix-service = "2.0.0"
+env_logger = "0.9.0"
+tokio = { version = "1", features = ["full"] }

@@ -1,49 +1,46 @@
-use crate::metrics::{InstrumentConfig, InstrumentKind, NumberKind};
-use crate::InstrumentationLibrary;
+use crate::metrics::sdk_api::{InstrumentKind, NumberKind};
 use fnv::FnvHasher;
-use std::borrow::Cow;
+use opentelemetry_api::metrics::Unit;
 use std::hash::{Hash, Hasher};
 
 /// Descriptor contains all the settings that describe an instrument, including
 /// its name, metric kind, number kind, and the configurable options.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Descriptor {
     name: String,
     instrument_kind: InstrumentKind,
     number_kind: NumberKind,
-    pub(crate) config: InstrumentConfig,
+    description: Option<String>,
+    unit: Option<Unit>,
     attribute_hash: u64,
 }
 
 impl Descriptor {
     /// Create a new descriptor
-    pub fn new<T: Into<Cow<'static, str>>>(
+    pub fn new(
         name: String,
-        instrumentation_name: T,
-        instrumentation_version: Option<T>,
-        schema_url: Option<T>,
         instrument_kind: InstrumentKind,
         number_kind: NumberKind,
+        description: Option<String>,
+        unit: Option<Unit>,
     ) -> Self {
         let mut hasher = FnvHasher::default();
         name.hash(&mut hasher);
-        let instrumentation_name = instrumentation_name.into();
-        let instrumentation_version = instrumentation_version.map(Into::<Cow<'static, str>>::into);
-        instrumentation_name.as_ref().hash(&mut hasher);
-        instrumentation_version.as_ref().hash(&mut hasher);
         instrument_kind.hash(&mut hasher);
         number_kind.hash(&mut hasher);
-        let config = InstrumentConfig::with_instrumentation(
-            instrumentation_name,
-            instrumentation_version.map(Into::into),
-            schema_url.map(Into::into),
-        );
+        if let Some(description) = &description {
+            description.hash(&mut hasher);
+        }
+        if let Some(unit) = &unit {
+            unit.hash(&mut hasher);
+        }
 
         Descriptor {
             name,
             instrument_kind,
             number_kind,
-            config,
+            description,
+            unit,
             attribute_hash: hasher.finish(),
         }
     }
@@ -66,27 +63,17 @@ impl Descriptor {
 
     /// A human-readable description of the metric instrument.
     pub fn description(&self) -> Option<&String> {
-        self.config.description.as_ref()
+        self.description.as_ref()
     }
 
     /// Assign a new description
     pub fn set_description(&mut self, description: String) {
-        self.config.description = Some(description);
+        self.description = Some(description);
     }
 
     /// Unit describes the units of the metric instrument.
     pub fn unit(&self) -> Option<&str> {
-        self.config.unit.as_ref().map(|unit| unit.as_ref())
-    }
-
-    /// The name of the library that provided instrumentation for this instrument.
-    pub fn instrumentation_name(&self) -> Cow<'static, str> {
-        self.config.instrumentation_name()
-    }
-
-    /// Instrumentation library reference
-    pub fn instrumentation_library(&self) -> &InstrumentationLibrary {
-        &self.config.instrumentation_library
+        self.unit.as_ref().map(|unit| unit.as_ref())
     }
 
     /// The pre-computed hash of the descriptor data

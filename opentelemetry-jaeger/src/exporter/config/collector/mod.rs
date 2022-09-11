@@ -5,10 +5,12 @@ use crate::exporter::config::{
 use crate::exporter::uploader::{AsyncUploader, Uploader};
 use crate::{Exporter, JaegerTraceRuntime};
 use http::Uri;
+use opentelemetry::sdk::trace::BatchConfig;
 use opentelemetry::{sdk, sdk::trace::Config as TraceConfig, trace::TraceError};
 use std::borrow::BorrowMut;
 use std::convert::TryFrom;
 use std::env;
+use std::sync::Arc;
 #[cfg(feature = "collector_client")]
 use std::time::Duration;
 
@@ -58,14 +60,17 @@ const ENV_PASSWORD: &str = "OTEL_EXPORTER_JAEGER_PASSWORD";
 ///
 /// - `OTEL_EXPORTER_JAEGER_PASSWORD`: set the password. Part of the authentication for the collector. It only applies to build in http clients.
 ///
-/// ## Build in http clients
+/// ## Built-in http clients
 /// To help user setup the exporter, `opentelemetry-jaeger` provides the following build in http client
 /// implementation and relative configurations.
 ///
+/// - [hyper], requires `hyper_collector_client` feature enabled, use [`with_hyper`][CollectorPipeline::with_hyper] function to setup.
 /// - [surf], requires `surf_collector_client` feature enabled, use [`with_surf`][CollectorPipeline::with_surf] function to setup.
 /// - [isahc], requires `isahc_collector_client` feature enabled, use [`with_isahc`][CollectorPipeline::with_isahc] function to setup.
 /// - [reqwest], requires `reqwest_collector_client` feature enabled,  use [`with_reqwest`][CollectorPipeline::with_reqwest] function to setup.
 /// - [reqwest blocking client], requires `reqwest_blocking_collector_client` feature enabled, use [`with_reqwest_blocking`][CollectorPipeline::with_surf] function to setup.
+///
+/// Additionally you can enable https
 ///
 /// Note that the functions to setup build in http clients override each other. That means if you have a pipeline with the following setup
 ///
@@ -81,18 +86,17 @@ const ENV_PASSWORD: &str = "OTEL_EXPORTER_JAEGER_PASSWORD";
 ///
 /// The pipeline will use [reqwest] http client.
 ///
-/// [surf]:https://docs.rs/surf/latest/surf/
-/// [isahc]: https://docs.rs/isahc/latest/isahc/
 /// [reqwest]: reqwest::Client
 /// [reqwest blocking client]: reqwest::blocking::Client
 #[derive(Debug)]
 pub struct CollectorPipeline {
     transformation_config: TransformationConfig,
     trace_config: Option<TraceConfig>,
+    batch_config: Option<BatchConfig>,
 
     #[cfg(feature = "collector_client")]
     collector_timeout: Duration,
-    // only used by buildin http clients.
+    // only used by builtin http clients.
     collector_endpoint: Option<Result<http::Uri, http::uri::InvalidUri>>,
     collector_username: Option<String>,
     collector_password: Option<String>,
@@ -111,6 +115,7 @@ impl Default for CollectorPipeline {
             client_config: ClientConfig::default(),
             transformation_config: Default::default(),
             trace_config: Default::default(),
+            batch_config: Some(Default::default()),
         };
 
         #[cfg(feature = "collector_client")]
@@ -152,6 +157,10 @@ impl HasRequiredConfig for CollectorPipeline {
 
     fn set_trace_config(&mut self, config: TraceConfig) {
         self.trace_config = Some(config)
+    }
+
+    fn set_batch_config(&mut self, config: BatchConfig) {
+        self.batch_config = Some(config)
     }
 }
 
@@ -259,7 +268,7 @@ impl CollectorPipeline {
     /// If users uses custom http client. This function can help retrieve the value of
     /// `OTEL_EXPORTER_JAEGER_USER` environment variable.
     pub fn collector_username(&self) -> Option<String> {
-        (&self.collector_username).clone()
+        self.collector_username.clone()
     }
 
     /// Get the collector's password set in the builder. Default to be the value of
@@ -267,11 +276,11 @@ impl CollectorPipeline {
     ///
     /// If users uses custom http client. This function can help retrieve the value of
     /// `OTEL_EXPORTER_JAEGER_PASSWORD` environment variable.
-    pub fn collector_password(self) -> Option<String> {
-        (&self.collector_password).clone()
+    pub fn collector_password(&self) -> Option<String> {
+        self.collector_password.clone()
     }
 
-    /// Custom the http client used to send spans.
+    /// Custom http client used to send spans.
     ///
     /// **Note** that all configuration other than the [`endpoint`][CollectorPipeline::with_endpoint] are not
     /// applicable to custom clients.
@@ -332,6 +341,17 @@ impl CollectorPipeline {
         }
     }
 
+    /// Use hyper http client in the exporter.
+    #[cfg(feature = "hyper_collector_client")]
+    pub fn with_hyper(self) -> Self {
+        Self {
+            client_config: ClientConfig::Http {
+                client_type: CollectorHttpClient::Hyper,
+            },
+            ..self
+        }
+    }
+
     /// Set the service name of the application. It generally is the name of application.
     /// Critically, Jaeger backend depends on `Span.Process.ServiceName` to identify the service
     /// that produced the spans.
@@ -385,6 +405,24 @@ impl CollectorPipeline {
         self
     }
 
+    /// Assign the batch span processor for the exporter pipeline.
+    ///
+    /// # Examples
+    /// Set max queue size.
+    /// ```rust
+    /// use opentelemetry::sdk::trace::BatchConfig;
+    ///
+    /// let pipeline = opentelemetry_jaeger::new_collector_pipeline()
+    ///                 .with_batch_processor_config(
+    ///                       BatchConfig::default().with_max_queue_size(200)
+    ///                 );
+    ///
+    /// ```
+    pub fn with_batch_processor_config(mut self, config: BatchConfig) -> Self {
+        self.set_batch_config(config);
+        self
+    }
+
     /// Build a `TracerProvider` using a async exporter and configurations from the pipeline.
     ///
     /// The exporter will collect spans in a batch and send them to the agent.
@@ -410,15 +448,14 @@ impl CollectorPipeline {
             self.trace_config.take(),
             self.transformation_config.service_name.take(),
         );
+        let batch_config = self.batch_config.take();
         let uploader = self.build_uploader::<R>()?;
-        let exporter = Exporter::new_async(
-            process.into(),
-            export_instrument_library,
-            runtime.clone(),
-            uploader,
-        );
+        let exporter = Exporter::new(process.into(), export_instrument_library, uploader);
+        let batch_processor = sdk::trace::BatchSpanProcessor::builder(exporter, runtime)
+            .with_batch_config(batch_config.unwrap_or_default())
+            .build();
 
-        builder = builder.with_batch_exporter(exporter, runtime);
+        builder = builder.with_span_processor(batch_processor);
         builder = builder.with_config(config);
 
         Ok(builder.build())
@@ -436,7 +473,7 @@ impl CollectorPipeline {
         install_tracer_provider_and_get_tracer(tracer_provider)
     }
 
-    fn build_uploader<R>(self) -> Result<Box<dyn Uploader>, crate::Error>
+    fn build_uploader<R>(self) -> Result<Arc<dyn Uploader>, crate::Error>
     where
         R: JaegerTraceRuntime,
     {
@@ -461,14 +498,14 @@ impl CollectorPipeline {
                 )?;
 
                 let collector = AsyncHttpClient::new(endpoint, client);
-                Ok(Box::new(AsyncUploader::<R>::Collector(collector)))
+                Ok(Arc::new(AsyncUploader::<R>::Collector(collector)))
             }
             #[cfg(feature = "wasm_collector_client")]
             ClientConfig::Wasm => {
                 let collector =
                     WasmCollector::new(endpoint, self.collector_username, self.collector_password)
                         .map_err::<crate::Error, _>(Into::into)?;
-                Ok(Box::new(AsyncUploader::<R>::WasmCollector(collector)))
+                Ok(Arc::new(AsyncUploader::<R>::WasmCollector(collector)))
             }
         }
     }
