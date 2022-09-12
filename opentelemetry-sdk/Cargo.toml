@@ -1,6 +1,10 @@
 [package]
 name = "opentelemetry-sdk"
 version = "0.18.0"
+description = "The SDK for the OpenTelemetry metrics collection and distributed tracing framework"
+homepage = "https://github.com/open-telemetry/opentelemetry-rust"
+repository = "https://github.com/open-telemetry/opentelemetry-rust"
+readme = "README.md"
 license = "Apache-2.0"
 edition = "2021"
 rust-version = "1.56"
