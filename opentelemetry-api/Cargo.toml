@@ -1,5 +1,5 @@
 [package]
-name = "opentelemetry-api"
+name = "opentelemetry_api"
 version = "0.18.0"
 description = "OpenTelemetry is a metrics collection and distributed tracing framework"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust"

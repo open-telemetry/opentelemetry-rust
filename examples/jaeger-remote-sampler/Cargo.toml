@@ -4,8 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-opentelemetry-sdk = { path = "../../opentelemetry-sdk", features = ["rt-tokio", "jaeger_remote_sampler"] }
-opentelemetry-api = { path = "../../opentelemetry-api" }
+opentelemetry_sdk = { path = "../../opentelemetry-sdk", features = ["rt-tokio", "jaeger_remote_sampler"] }
+opentelemetry_api = { path = "../../opentelemetry-api" }
 opentelemetry-http = { path = "../../opentelemetry-http", features = ["reqwest"] }
 reqwest = "0.11.10"
 tokio = { version = "1.18", features = ["macros", "rt-multi-thread"] }
