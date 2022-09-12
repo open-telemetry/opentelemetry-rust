@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-contrib"
-version = "0.9.0"
+version = "0.10.0"
 description = "Rust contrib repo for OpenTelemetry"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-contrib"
 repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-contrib"
@@ -32,7 +32,7 @@ async-std = { version = "1.10", optional = true }
 async-trait = { version = "0.1", optional = true }
 base64 = { version = "0.13", optional = true }
 futures = { version = "0.3", optional = true }
-opentelemetry = { version = "0.17", path = "../opentelemetry", features = ["trace"] }
+opentelemetry = { version = "0.18", path = "../opentelemetry", features = ["trace"] }
 serde_json = { version = "1", optional = true }
 tokio = { version = "1.0", features = ["fs", "io-util"], optional = true }
 

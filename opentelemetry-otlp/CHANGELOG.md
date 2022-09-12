@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.11.0
+
+### Changed
+
+- reduce `tokio` feature requirements #750
+- Update to opentelemetry v0.18.0
+- Update to opentelemetry-http v0.7.0
+- Update `tonic` to 0.7 #783
+- Automatically add traces / metrics paths #806
+
 ## v0.10.0
 
 ### Changed

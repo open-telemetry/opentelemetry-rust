@@ -1,5 +1,54 @@
 # Changelog
 
+## [v0.18.0](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.17.0...v0.18.0)
+
+This release is the first beta release of the `trace` API and SDK. If no other
+breaking changes are necessary, the next release will be 1.0. The `metrics` API
+and SDK are still unstable.
+
+### Added
+
+- Pull sampling probability from `OTEL_TRACES_SAMPLER_ARG` in default sdk config #737
+- Add `schema_url` to `Tracer` #743
+- Add `schema_url` to `Resource` #775
+- Add `Span::set_attributes` #638
+- Support concurrent exports #781
+- Add jaeger remote sampler #797
+- Allow Custom Samplers #833
+- Add `SpanExporter::force_flush` and default implementation #845
+
+### Changed
+
+- Deprecate metrics `ValueRecorder` in favor of `Histogram` #728
+- Move `IdGenerator` to SDK, rename to `RandomIdGenerator` #742
+- `meter_with_version` accepts optional parameter for `version` and `schema_url` #752
+- Unify `Event` and `Link` access patterns #757
+- move `SpanKind` display format impl to jaeger crate #758
+- make `TraceStateError` private #755
+- rename `Span::record_exception` to `Span::record_error` #756
+- Replace `StatusCode` and `message` with `Status` #760
+- Move `TracerProvider::force_flush` to SDK #658
+- Switch to static resource references #790
+- Allow O(1) get operations for `SpanBuilder::attributes` [breaking] #799
+- Allow ref counted keys and values #821
+- Bump MSRV from 1.49 to 1.55 #811
+- bump MSRV to 1.56 #866
+- Update metrics API and SDK for latest spec #819
+- Switch to `pin-project-lite` #830
+
+### Fixed
+
+- Update dashmap to avoid soundness hole #818
+- Perform sampling as explained in the specification #839
+- Remove internal message queue between exporter and exporting tasks #848
+- Fix span processor exporting unsampled spans #871
+
+### Removed
+
+- Remove `serialize` feature #738
+- Remove `StatusCode::as_str` #741
+- Remove `Tracer::with_span` #746
+
 ## [v0.17.0](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.16.0...v0.17.0)
 
 ### Changed

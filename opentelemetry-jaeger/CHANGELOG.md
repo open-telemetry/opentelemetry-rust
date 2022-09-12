@@ -1,10 +1,28 @@
 # Changelog
 
-## v0.16.1
+## v0.17.0
+
+### Added
+
+- Support rustls in jaeger reqwest collector #834
+- Customisation support in Jaeger Propagator. #852
+- Add IPv6 support for Jaeger agent addresses #856
+- Add `with_batch_processor_config` for jaeger pipline #869
 
 ### Changed
 
-- add propagator initialisation with custom headers and baggage prefix
+- Consolidate the config errors #762
+- Better configuration pipeline #748
+- Add Timeout Environment Var #729
+- add propagator initialisation with custom headers and baggage prefix #852
+- Update to opentelemetry v0.18.0
+- Update to opentelemetry-http v0.7.0
+- Update to opentelemetry-semantic-conventions v0.10.0
+
+### Fixed
+
+- Fix clearing span context in Propagator #810
+- Fix reqwest client runs inside a non-tokio runtime #829
 
 ## v0.16.0
 

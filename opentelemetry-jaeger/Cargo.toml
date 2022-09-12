@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-jaeger"
-version = "0.16.1"
+version = "0.17.0"
 description = "Jaeger exporter for OpenTelemetry"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-jaeger"
 repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-jaeger"
@@ -33,9 +33,9 @@ hyper-tls = { version = "0.5.0", default-features = false, optional = true }
 isahc = { version = "1.4", default-features = false, optional = true }
 js-sys = { version = "0.3", optional = true }
 once_cell = "1.12"
-opentelemetry = { version = "0.17", default-features = false, features = ["trace"], path = "../opentelemetry" }
-opentelemetry-http = { version = "0.6", path = "../opentelemetry-http", optional = true }
-opentelemetry-semantic-conventions = { version = "0.9", path = "../opentelemetry-semantic-conventions" }
+opentelemetry = { version = "0.18", default-features = false, features = ["trace"], path = "../opentelemetry" }
+opentelemetry-http = { version = "0.7", path = "../opentelemetry-http", optional = true }
+opentelemetry-semantic-conventions = { version = "0.10", path = "../opentelemetry-semantic-conventions" }
 pin-project-lite = { version = "0.2", optional = true }
 reqwest = { version = "0.11", default-features = false, optional = true }
 surf = { version = "2.0", optional = true }

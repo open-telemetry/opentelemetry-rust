@@ -1,5 +1,5 @@
 # Changelog
 
-## v0.1.0
+## v0.18.0
 
 - API split from `opentelemetry` crate

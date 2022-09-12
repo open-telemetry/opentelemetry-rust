@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.6.0
+
+### Changed
+
+- reduce `tokio` feature requirements #750
+- Update to opentelemetry v0.18.0
+
+### Fixed
+
+- Fix XrayPropagator when no header is present #867
+
 ## v0.5.0
 
 ### Changed

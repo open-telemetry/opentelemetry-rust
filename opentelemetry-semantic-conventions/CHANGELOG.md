@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.10.0
+
+### Changed
+
+- update to v1.9 spec #754
+- Update to opentelemetry v0.18.0
+
 ## v0.9.0
 
 ### Changed

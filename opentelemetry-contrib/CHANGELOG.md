@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.10.0
+
+### Added
+
+- Add jaeger JSON file exporter #814
+
+### Changed
+
+- Rename binary propagator's functions #776
+- Update to opentelemetry v0.18.0
+
 ## v0.9.0
 
 ### Changed

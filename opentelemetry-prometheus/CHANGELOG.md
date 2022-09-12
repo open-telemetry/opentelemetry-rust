@@ -1,9 +1,14 @@
 # Changelog
 
-## Unreleased
+## v0.11.0
+
+### Changed
+
+- Update to opentelemetry v0.18.0
 
 ### Removed
-- BREAKING: `PrometheusExporter::new()` removed. Use `ExporterBuilder`.
+
+- BREAKING: `PrometheusExporter::new()` removed. Use `ExporterBuilder`. #727
 
 ## v0.10.0
 
