@@ -6,9 +6,9 @@
 
 The Rust [OpenTelemetry](https://opentelemetry.io/) implementation.
 
-[![Crates.io: opentelemetry-api](https://img.shields.io/crates/v/opentelemetry-api.svg)](https://crates.io/crates/opentelemetry-api)
-[![Documentation](https://docs.rs/opentelemetry-api/badge.svg)](https://docs.rs/opentelemetry-api)
-[![LICENSE](https://img.shields.io/crates/l/opentelemetry-api)](./LICENSE)
+[![Crates.io: opentelemetry-api](https://img.shields.io/crates/v/opentelemetry_api.svg)](https://crates.io/crates/opentelemetry_api)
+[![Documentation](https://docs.rs/opentelemetry_api/badge.svg)](https://docs.rs/opentelemetry_api)
+[![LICENSE](https://img.shields.io/crates/l/opentelemetry_api)](./LICENSE)
 [![GitHub Actions CI](https://github.com/open-telemetry/opentelemetry-rust/workflows/CI/badge.svg)](https://github.com/open-telemetry/opentelemetry-rust/actions?query=workflow%3ACI+branch%3Amain)
 [![codecov](https://codecov.io/gh/open-telemetry/opentelemetry-rust/branch/main/graph/badge.svg)](https://codecov.io/gh/open-telemetry/opentelemetry-rust)
 [![Gitter chat](https://img.shields.io/badge/gitter-join%20chat%20%E2%86%92-brightgreen.svg)](https://gitter.im/open-telemetry/opentelemetry-rust)

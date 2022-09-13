@@ -6,9 +6,9 @@
 
 The Rust [OpenTelemetry](https://opentelemetry.io/) implementation.
 
-[![Crates.io: opentelemetry-sdk](https://img.shields.io/crates/v/opentelemetry-sdk.svg)](https://crates.io/crates/opentelemetry-sdk)
-[![Documentation](https://docs.rs/opentelemetry-sdk/badge.svg)](https://docs.rs/opentelemetry-sdk)
-[![LICENSE](https://img.shields.io/crates/l/opentelemetry-sdk)](./LICENSE)
+[![Crates.io: opentelemetry-sdk](https://img.shields.io/crates/v/opentelemetry_sdk.svg)](https://crates.io/crates/opentelemetry_sdk)
+[![Documentation](https://docs.rs/opentelemetry_sdk/badge.svg)](https://docs.rs/opentelemetry_sdk)
+[![LICENSE](https://img.shields.io/crates/l/opentelemetry_sdk)](./LICENSE)
 [![GitHub Actions CI](https://github.com/open-telemetry/opentelemetry-rust/workflows/CI/badge.svg)](https://github.com/open-telemetry/opentelemetry-rust/actions?query=workflow%3ACI+branch%3Amain)
 [![codecov](https://codecov.io/gh/open-telemetry/opentelemetry-rust/branch/main/graph/badge.svg)](https://codecov.io/gh/open-telemetry/opentelemetry-rust)
 [![Gitter chat](https://img.shields.io/badge/gitter-join%20chat%20%E2%86%92-brightgreen.svg)](https://gitter.im/open-telemetry/opentelemetry-rust)
