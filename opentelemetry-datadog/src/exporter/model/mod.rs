@@ -10,6 +10,8 @@ use url::ParseError;
 mod v03;
 mod v05;
 
+// todo: we should follow the same mapping defined in https://github.com/DataDog/datadog-agent/blob/main/pkg/trace/api/otlp.go
+
 // https://github.com/DataDog/dd-trace-js/blob/c89a35f7d27beb4a60165409376e170eacb194c5/packages/dd-trace/src/constants.js#L4
 static SAMPLING_PRIORITY_KEY: &str = "_sampling_priority_v1";
 
@@ -52,7 +54,7 @@ pub(crate) type FieldMapping = std::sync::Arc<FieldMappingFn>;
 
 // Datadog uses some magic tags in their models. There is no recommended mapping defined in
 // opentelemetry spec. Below is default mapping we gonna uses. Users can override it by providing
-// their own implementations
+// their own implementations.
 fn default_service_name_mapping<'a>(_span: &'a SpanData, config: &'a ModelConfig) -> &'a str {
     config.service_name.as_str()
 }
@@ -186,7 +188,7 @@ pub(crate) mod tests {
     use opentelemetry::sdk::{self, Resource};
     use opentelemetry::{
         trace::{SpanContext, SpanId, SpanKind, Status, TraceFlags, TraceId, TraceState},
-        Key,
+        Key, KeyValue,
     };
     use std::borrow::Cow;
     use std::time::{Duration, SystemTime};
@@ -213,6 +215,7 @@ pub(crate) mod tests {
 
         let events = sdk::trace::EvictedQueue::new(capacity);
         let links = sdk::trace::EvictedQueue::new(capacity);
+        let resource = Resource::new(vec![KeyValue::new("host.name", "test")]);
 
         trace::SpanData {
             span_context,
@@ -225,7 +228,7 @@ pub(crate) mod tests {
             events,
             links,
             status: Status::Ok,
-            resource: Cow::Owned(Resource::empty()),
+            resource: Cow::Owned(resource),
             instrumentation_lib: InstrumentationLibrary::new("component", None, None),
         }
     }
@@ -245,7 +248,10 @@ pub(crate) mod tests {
             None,
         )?);
 
-        assert_eq!(encoded.as_str(), "kZGLpHR5cGWjd2Vip3NlcnZpY2Wsc2VydmljZV9uYW1lpG5hbWWpY29tcG9uZW50qHJlc291cmNlqHJlc291cmNlqHRyYWNlX2lkzwAAAAAAAAAHp3NwYW5faWTPAAAAAAAAAGOpcGFyZW50X2lkzwAAAAAAAAABpXN0YXJ00wAAAAAAAAAAqGR1cmF0aW9u0wAAAAA7msoApWVycm9y0gAAAACkbWV0YYGpc3Bhbi50eXBlo3dlYqdtZXRyaWNzgbVfc2FtcGxpbmdfcHJpb3JpdHlfdjHLAAAAAAAAAAA=");
+        assert_eq!(encoded.as_str(), "kZGLpHR5cGWjd2Vip3NlcnZpY2Wsc2VydmljZV9uYW1lpG5hbWWpY29tcG9uZW\
+        50qHJlc291cmNlqHJlc291cmNlqHRyYWNlX2lkzwAAAAAAAAAHp3NwYW5faWTPAAAAAAAAAGOpcGFyZW50X2lkzwAAAA\
+        AAAAABpXN0YXJ00wAAAAAAAAAAqGR1cmF0aW9u0wAAAAA7msoApWVycm9y0gAAAACkbWV0YYKpaG9zdC5uYW1lpHRlc3\
+        Spc3Bhbi50eXBlo3dlYqdtZXRyaWNzgbVfc2FtcGxpbmdfcHJpb3JpdHlfdjHLAAAAAAAAAAA=");
 
         Ok(())
     }
@@ -265,9 +271,10 @@ pub(crate) mod tests {
             None,
         )?);
 
-        assert_eq!(encoded.as_str(),
-                   "kpajd2VirHNlcnZpY2VfbmFtZaljb21wb25lbnSocmVzb3VyY2Wpc3Bhbi50eXBltV9zYW1wbGluZ19wcmlvcml0eV92MZGRnM4AAAABzgAAAALOAAAAA88AAAAAAAAAB88AAAAAAAAAY88AAAAAAAAAAdMAAAAAAAAAANMAAAAAO5rKANIAAAAAgc4AAAAEzgAAAACBzgAAAAXLAAAAAAAAAADOAAAAAA==");
-
+        assert_eq!(encoded.as_str(),"kpijd2VirHNlcnZpY2VfbmFtZaljb21wb25lbnSocmVzb3VyY2WpaG9zdC5uYW1\
+        lpHRlc3Spc3Bhbi50eXBltV9zYW1wbGluZ19wcmlvcml0eV92MZGRnM4AAAABzgAAAALOAAAAA88AAAAAAAAAB88AAAA\
+        AAAAAY88AAAAAAAAAAdMAAAAAAAAAANMAAAAAO5rKANIAAAAAgs4AAAAEzgAAAAXOAAAABs4AAAAAgc4AAAAHywAAAAA\
+        AAAAAzgAAAAA=");
         Ok(())
     }
 }

@@ -157,7 +157,14 @@ where
                     _ => 0,
                 },
             )?;
-            rmp::encode::write_map_len(&mut encoded, span.attributes.len() as u32)?;
+            rmp::encode::write_map_len(
+                &mut encoded,
+                (span.attributes.len() + span.resource.len()) as u32,
+            )?;
+            for (key, value) in span.resource.iter() {
+                rmp::encode::write_u32(&mut encoded, interner.intern(key.as_str()))?;
+                rmp::encode::write_u32(&mut encoded, interner.intern(value.as_str().as_ref()))?;
+            }
             for (key, value) in span.attributes.iter() {
                 rmp::encode::write_u32(&mut encoded, interner.intern(key.as_str()))?;
                 rmp::encode::write_u32(&mut encoded, interner.intern(value.as_str().as_ref()))?;

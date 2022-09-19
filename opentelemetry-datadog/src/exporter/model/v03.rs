@@ -90,7 +90,14 @@ where
             )?;
 
             rmp::encode::write_str(&mut encoded, "meta")?;
-            rmp::encode::write_map_len(&mut encoded, span.attributes.len() as u32)?;
+            rmp::encode::write_map_len(
+                &mut encoded,
+                (span.attributes.len() + span.resource.len()) as u32,
+            )?;
+            for (key, value) in span.resource.iter() {
+                rmp::encode::write_str(&mut encoded, key.as_str())?;
+                rmp::encode::write_str(&mut encoded, value.as_str().as_ref())?;
+            }
             for (key, value) in span.attributes.iter() {
                 rmp::encode::write_str(&mut encoded, key.as_str())?;
                 rmp::encode::write_str(&mut encoded, value.as_str().as_ref())?;
