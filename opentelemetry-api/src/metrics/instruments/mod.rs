@@ -71,7 +71,7 @@ where
     ///
     /// # Panics
     ///
-    /// This function panics if the instrument configuration is invalid or the instrument cannot be created. Use [`try_init`] if you want to
+    /// This function panics if the instrument configuration is invalid or the instrument cannot be created. Use [`try_init`](InstrumentBuilder::try_init) if you want to
     /// handle errors.
     pub fn init(self) -> T {
         self.try_init().unwrap()
