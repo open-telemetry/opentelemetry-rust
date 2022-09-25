@@ -87,7 +87,7 @@ impl fmt::LowerHex for TraceFlags {
 ///
 /// The id is valid if it contains at least one non-zero byte.
 #[derive(Clone, PartialEq, Eq, Copy, Hash)]
-pub struct TraceId(pub(crate) u128);
+pub struct TraceId(u128);
 
 impl TraceId {
     /// Invalid trace id
@@ -148,7 +148,7 @@ impl fmt::LowerHex for TraceId {
 ///
 /// The id is valid if it contains at least one non-zero byte.
 #[derive(Clone, PartialEq, Eq, Copy, Hash)]
-pub struct SpanId(pub(crate) u64);
+pub struct SpanId(u64);
 
 impl SpanId {
     /// Invalid span id
