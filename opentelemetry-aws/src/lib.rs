@@ -165,7 +165,7 @@ pub mod trace {
             .header_delimited("=", ";")
             .split_terminator(';')
             .map(title_case)
-            .collect::<Vec<String>>()
+            .collect::<Vec<_>>()
             .join(";");
         let trace_state_prefix = if trace_state_header.is_empty() {
             ""
