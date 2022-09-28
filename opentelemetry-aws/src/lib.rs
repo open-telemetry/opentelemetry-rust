@@ -129,15 +129,13 @@ pub mod trace {
                     return Err(());
                 }
 
-                let context: SpanContext = SpanContext::new(
+                Ok(SpanContext::new(
                     trace_id,
                     parent_segment_id,
                     sampling_decision,
                     true,
                     trace_state,
-                );
-
-                Ok(context)
+                ))
             }
             Err(trace_state_err) => {
                 global::handle_error(Error::Trace(TraceError::Other(Box::new(trace_state_err))));
