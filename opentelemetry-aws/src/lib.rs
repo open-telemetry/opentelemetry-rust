@@ -86,6 +86,7 @@ pub mod trace {
         _private: (),
     }
 
+    #[allow(clippy::result_unit_err)]
     pub fn deserialize_span_context(value: &str) -> Result<SpanContext, ()> {
         let parts: Vec<(&str, &str)> = value
             .split_terminator(';')
