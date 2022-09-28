@@ -1,5 +1,6 @@
 name: integration tests
-
+env:
+  CI: true
 on:
   pull_request:
     types: [ labeled, synchronize, opened, reopened ]
