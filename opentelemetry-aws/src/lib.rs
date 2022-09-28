@@ -140,7 +140,7 @@ pub mod trace {
         }
     }
 
-    pub fn serialize_span_context(span_context: &SpanContext) -> Option<String> {
+    pub fn span_context_to_string(span_context: &SpanContext) -> Option<String> {
         if !span_context.is_valid() {
             return None;
         }
@@ -189,9 +189,7 @@ pub mod trace {
         }
 
         fn extract_span_context(&self, extractor: &dyn Extractor) -> Option<SpanContext> {
-            let header_value: &str = extractor.get(AWS_XRAY_TRACE_HEADER).unwrap_or("").trim();
-
-            span_context_from_str(header_value)
+            span_context_from_str(extractor.get(AWS_XRAY_TRACE_HEADER).unwrap_or("").trim())
         }
     }
 
@@ -199,7 +197,7 @@ pub mod trace {
         fn inject_context(&self, cx: &Context, injector: &mut dyn Injector) {
             let span = cx.span();
             let span_context = span.span_context();
-            if let Some(header_value) = serialize_span_context(span_context) {
+            if let Some(header_value) = span_context_to_string(span_context) {
                 injector.set(AWS_XRAY_TRACE_HEADER, header_value);
             }
         }
@@ -252,7 +250,7 @@ pub mod trace {
         }
     }
 
-    impl From<TraceId> for XrayTraceId<'_> {
+    impl From<TraceId> for XrayTraceId<'static> {
         fn from(trace_id: TraceId) -> Self {
             let trace_id_as_hex = trace_id.to_string();
             let (timestamp, xray_id) = trace_id_as_hex.split_at(8_usize);
