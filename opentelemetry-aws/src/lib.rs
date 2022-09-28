@@ -149,7 +149,7 @@ pub mod trace {
             return None;
         }
 
-        let xray_trace_id: XrayTraceId = span_context.trace_id().into();
+        let xray_trace_id = XrayTraceId::from(span_context.trace_id());
 
         let sampling_decision: &str =
             if span_context.trace_flags() & TRACE_FLAG_DEFERRED == TRACE_FLAG_DEFERRED {
