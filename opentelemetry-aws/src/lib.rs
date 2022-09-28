@@ -45,7 +45,8 @@ pub mod trace {
         },
         Context,
     };
-    use std::convert::{TryFrom, TryInto};
+    use std::borrow::Cow;
+    use std::convert::TryFrom;
 
     const AWS_XRAY_TRACE_HEADER: &str = "x-amzn-trace-id";
     const AWS_XRAY_VERSION_KEY: &str = "1";
@@ -86,28 +87,23 @@ pub mod trace {
         _private: (),
     }
 
-    #[allow(clippy::result_unit_err)]
-    pub fn deserialize_span_context(value: &str) -> Result<SpanContext, ()> {
+    pub fn span_context_from_str(value: &str) -> Option<SpanContext> {
         let parts: Vec<(&str, &str)> = value
             .split_terminator(';')
             .filter_map(from_key_value_pair)
             .collect();
 
-        let mut trace_id: TraceId = TraceId::INVALID;
-        let mut parent_segment_id: SpanId = SpanId::INVALID;
+        let mut trace_id = TraceId::INVALID;
+        let mut parent_segment_id = SpanId::INVALID;
         let mut sampling_decision = TRACE_FLAG_DEFERRED;
-        let mut kv_vec: Vec<(String, String)> = Vec::with_capacity(parts.len());
+        let mut kv_vec = Vec::with_capacity(parts.len());
 
         for (key, value) in parts {
             match key {
-                HEADER_ROOT_KEY => {
-                    let converted_trace_id: Result<TraceId, ()> =
-                        XrayTraceId(value.to_string()).try_into();
-                    match converted_trace_id {
-                        Err(_) => return Err(()),
-                        Ok(parsed) => trace_id = parsed,
-                    }
-                }
+                HEADER_ROOT_KEY => match TraceId::try_from(XrayTraceId(Cow::from(value))) {
+                    Err(_) => return None,
+                    Ok(parsed) => trace_id = parsed,
+                },
                 HEADER_PARENT_KEY => {
                     parent_segment_id = SpanId::from_hex(value).unwrap_or(SpanId::INVALID)
                 }
@@ -126,10 +122,10 @@ pub mod trace {
         match TraceState::from_key_value(kv_vec) {
             Ok(trace_state) => {
                 if trace_id == TraceId::INVALID {
-                    return Err(());
+                    return None;
                 }
 
-                Ok(SpanContext::new(
+                Some(SpanContext::new(
                     trace_id,
                     parent_segment_id,
                     sampling_decision,
@@ -139,7 +135,7 @@ pub mod trace {
             }
             Err(trace_state_err) => {
                 global::handle_error(Error::Trace(TraceError::Other(Box::new(trace_state_err))));
-                Err(()) //todo: assign an error type instead of using ()
+                None //todo: assign an error type instead of using None
             }
         }
     }
@@ -151,7 +147,7 @@ pub mod trace {
 
         let xray_trace_id = XrayTraceId::from(span_context.trace_id());
 
-        let sampling_decision: &str =
+        let sampling_decision =
             if span_context.trace_flags() & TRACE_FLAG_DEFERRED == TRACE_FLAG_DEFERRED {
                 REQUESTED_SAMPLE_DECISION
             } else if span_context.is_sampled() {
@@ -160,7 +156,7 @@ pub mod trace {
                 NOT_SAMPLED
             };
 
-        let trace_state_header: String = span_context
+        let trace_state_header = span_context
             .trace_state()
             .header_delimited("=", ";")
             .split_terminator(';')
@@ -192,10 +188,10 @@ pub mod trace {
             XrayPropagator::default()
         }
 
-        fn extract_span_context(&self, extractor: &dyn Extractor) -> Result<SpanContext, ()> {
+        fn extract_span_context(&self, extractor: &dyn Extractor) -> Option<SpanContext> {
             let header_value: &str = extractor.get(AWS_XRAY_TRACE_HEADER).unwrap_or("").trim();
 
-            deserialize_span_context(header_value)
+            span_context_from_str(header_value)
         }
     }
 
@@ -211,7 +207,7 @@ pub mod trace {
         fn extract_with_context(&self, cx: &Context, extractor: &dyn Extractor) -> Context {
             self.extract_span_context(extractor)
                 .map(|sc| cx.with_remote_span_context(sc))
-                .unwrap_or_else(|_| cx.clone())
+                .unwrap_or_else(|| cx.clone())
         }
 
         fn fields(&self) -> FieldIter<'_> {
@@ -233,12 +229,12 @@ pub mod trace {
     ///
     /// [xray-trace-id]: https://docs.aws.amazon.com/xray/latest/devguide/xray-api-sendingdata.html#xray-api-traceids
     #[derive(Clone, Debug, PartialEq)]
-    struct XrayTraceId(String);
+    struct XrayTraceId<'a>(Cow<'a, str>);
 
-    impl TryFrom<XrayTraceId> for TraceId {
+    impl<'a> TryFrom<XrayTraceId<'a>> for TraceId {
         type Error = ();
 
-        fn try_from(id: XrayTraceId) -> Result<Self, Self::Error> {
+        fn try_from(id: XrayTraceId<'a>) -> Result<Self, Self::Error> {
             let parts: Vec<&str> = id.0.split_terminator('-').collect();
 
             if parts.len() != 3 {
@@ -256,15 +252,15 @@ pub mod trace {
         }
     }
 
-    impl From<TraceId> for XrayTraceId {
+    impl From<TraceId> for XrayTraceId<'_> {
         fn from(trace_id: TraceId) -> Self {
             let trace_id_as_hex = trace_id.to_string();
             let (timestamp, xray_id) = trace_id_as_hex.split_at(8_usize);
 
-            XrayTraceId(format!(
+            XrayTraceId(Cow::from(format!(
                 "{}-{}-{}",
                 AWS_XRAY_VERSION_KEY, timestamp, xray_id
-            ))
+            )))
         }
     }
 
