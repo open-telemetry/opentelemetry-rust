@@ -189,7 +189,7 @@ pub mod trace {
         }
 
         fn extract_span_context(&self, extractor: &dyn Extractor) -> Option<SpanContext> {
-            span_context_from_str(extractor.get(AWS_XRAY_TRACE_HEADER).unwrap_or("").trim())
+            span_context_from_str(extractor.get(AWS_XRAY_TRACE_HEADER)?.trim())
         }
     }
 
