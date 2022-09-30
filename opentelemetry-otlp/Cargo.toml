@@ -35,7 +35,7 @@ futures-util = { version = "0.3", default-features = false, features = ["std"] }
 
 opentelemetry-proto = { version = "0.1", path = "../opentelemetry-proto", default-features = false }
 
-grpcio = { version = "0.9", optional = true }
+grpcio = { version = "0.11", optional = true }
 opentelemetry = { version = "0.18", default-features = false, features = ["trace"], path = "../opentelemetry" }
 opentelemetry-http = { version = "0.7", path = "../opentelemetry-http", optional = true }
 protobuf = { version = "2.18", optional = true }
@@ -68,7 +68,7 @@ serialize = ["serde"]
 default = ["grpc-tonic", "trace"]
 
 # grpc using tonic
-grpc-tonic = ["tonic", "prost", "http", "tokio", "opentelemetry-proto/gen-tonic", "opentelemetry-proto/build-client"]
+grpc-tonic = ["tonic", "prost", "http", "tokio", "opentelemetry-proto/gen-tonic"]
 tls = ["tonic/tls"]
 tls-roots = ["tls", "tonic/tls-roots"]
 
@@ -85,4 +85,4 @@ reqwest-rustls = ["reqwest", "reqwest/rustls-tls-native-roots"]
 surf-client = ["surf", "opentelemetry-http/surf"]
 
 # test
-integration-testing = ["tonic", "prost", "tokio/full", "trace", "opentelemetry-proto/build-server"]
+integration-testing = ["tonic", "prost", "tokio/full", "trace"]

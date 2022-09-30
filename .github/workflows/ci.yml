@@ -1,4 +1,6 @@
 name: CI
+env:
+  CI: true
 on:
   pull_request:
   push:

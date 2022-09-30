@@ -21,8 +21,6 @@
 //! - `gen-protoc`: generate rs files using [grpcio](https://github.com/tikv/grpc-rs).
 //!
 //! ## Additional configurations
-//! - `build-server`: build grpc service servers if enabled. Only applicable to `gen-tonic`.
-//! - `build-client`: build grpc service clients if enabled. Only applicable to `gen-tonic`.
 //! - `with-serde`: add serde annotations to generated types. Only applicable to `gen-protoc`.
 //!
 //! ## Misc
