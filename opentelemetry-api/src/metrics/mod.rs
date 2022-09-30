@@ -58,6 +58,11 @@ pub enum MetricsError {
     /// Fail to export metrics
     #[error("Metrics exporter {} failed with {0}", .0.exporter_name())]
     ExportErr(Box<dyn ExportError>),
+    /// Invalid instrument configuration such invalid instrument name, invalid instrument description, invalid instrument unit, etc.
+    /// See [spec](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/api.md#general-characteristics)
+    /// for full list of requirements.
+    #[error("Invalid instrument configuration: {0}")]
+    InvalidInstrumentConfiguration(&'static str),
 }
 
 impl<T: ExportError> From<T> for MetricsError {

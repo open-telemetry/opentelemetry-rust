@@ -36,13 +36,13 @@ impl Span for TestSpan {
 /// Helper to create trace ids for testing
 impl TraceId {
     pub fn from_u128(num: u128) -> Self {
-        TraceId(num)
+        TraceId::from_bytes(num.to_be_bytes())
     }
 }
 
 /// Helper to create span ids for testing
 impl SpanId {
     pub fn from_u64(num: u64) -> Self {
-        SpanId(num)
+        SpanId::from_bytes(num.to_be_bytes())
     }
 }
