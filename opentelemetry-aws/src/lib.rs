@@ -87,6 +87,12 @@ pub mod trace {
         _private: (),
     }
 
+    /// Extract `SpanContext` from AWS X-Ray format string
+    ///
+    /// Extract OpenTelemetry [SpanContext][otel-spec] from [X-Ray Trace format][xray-trace-id] string.
+    ///
+    /// [otel-spec]: https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/trace/api.md#SpanContext
+    /// [xray-trace-id]: https://docs.aws.amazon.com/xray/latest/devguide/xray-api-sendingdata.html#xray-api-traceids
     pub fn span_context_from_str(value: &str) -> Option<SpanContext> {
         let parts: Vec<(&str, &str)> = value
             .split_terminator(';')
@@ -140,6 +146,12 @@ pub mod trace {
         }
     }
 
+    /// Generate AWS X-Ray format string from `SpanContext`
+    ///
+    /// Generate [X-Ray Trace format][xray-trace-id] string from OpenTelemetry [SpanContext][otel-spec]
+    ///
+    /// [xray-trace-id]: https://docs.aws.amazon.com/xray/latest/devguide/xray-api-sendingdata.html#xray-api-traceids
+    /// [otel-spec]: https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/trace/api.md#SpanContext
     pub fn span_context_to_string(span_context: &SpanContext) -> Option<String> {
         if !span_context.is_valid() {
             return None;
