@@ -45,7 +45,8 @@ pub mod trace {
         },
         Context,
     };
-    use std::convert::{TryFrom, TryInto};
+    use std::borrow::Cow;
+    use std::convert::TryFrom;
 
     const AWS_XRAY_TRACE_HEADER: &str = "x-amzn-trace-id";
     const AWS_XRAY_VERSION_KEY: &str = "1";
@@ -86,73 +87,121 @@ pub mod trace {
         _private: (),
     }
 
+    /// Extract `SpanContext` from AWS X-Ray format string
+    ///
+    /// Extract OpenTelemetry [SpanContext][otel-spec] from [X-Ray Trace format][xray-trace-id] string.
+    ///
+    /// [otel-spec]: https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/trace/api.md#SpanContext
+    /// [xray-trace-id]: https://docs.aws.amazon.com/xray/latest/devguide/xray-api-sendingdata.html#xray-api-traceids
+    pub fn span_context_from_str(value: &str) -> Option<SpanContext> {
+        let parts: Vec<(&str, &str)> = value
+            .split_terminator(';')
+            .filter_map(from_key_value_pair)
+            .collect();
+
+        let mut trace_id = TraceId::INVALID;
+        let mut parent_segment_id = SpanId::INVALID;
+        let mut sampling_decision = TRACE_FLAG_DEFERRED;
+        let mut kv_vec = Vec::with_capacity(parts.len());
+
+        for (key, value) in parts {
+            match key {
+                HEADER_ROOT_KEY => match TraceId::try_from(XrayTraceId(Cow::from(value))) {
+                    Err(_) => return None,
+                    Ok(parsed) => trace_id = parsed,
+                },
+                HEADER_PARENT_KEY => {
+                    parent_segment_id = SpanId::from_hex(value).unwrap_or(SpanId::INVALID)
+                }
+                HEADER_SAMPLED_KEY => {
+                    sampling_decision = match value {
+                        NOT_SAMPLED => TraceFlags::default(),
+                        SAMPLED => TraceFlags::SAMPLED,
+                        REQUESTED_SAMPLE_DECISION => TRACE_FLAG_DEFERRED,
+                        _ => TRACE_FLAG_DEFERRED,
+                    }
+                }
+                _ => kv_vec.push((key.to_ascii_lowercase(), value.to_string())),
+            }
+        }
+
+        match TraceState::from_key_value(kv_vec) {
+            Ok(trace_state) => {
+                if trace_id == TraceId::INVALID {
+                    return None;
+                }
+
+                Some(SpanContext::new(
+                    trace_id,
+                    parent_segment_id,
+                    sampling_decision,
+                    true,
+                    trace_state,
+                ))
+            }
+            Err(trace_state_err) => {
+                global::handle_error(Error::Trace(TraceError::Other(Box::new(trace_state_err))));
+                None //todo: assign an error type instead of using None
+            }
+        }
+    }
+
+    /// Generate AWS X-Ray format string from `SpanContext`
+    ///
+    /// Generate [X-Ray Trace format][xray-trace-id] string from OpenTelemetry [SpanContext][otel-spec]
+    ///
+    /// [xray-trace-id]: https://docs.aws.amazon.com/xray/latest/devguide/xray-api-sendingdata.html#xray-api-traceids
+    /// [otel-spec]: https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/trace/api.md#SpanContext
+    pub fn span_context_to_string(span_context: &SpanContext) -> Option<String> {
+        if !span_context.is_valid() {
+            return None;
+        }
+
+        let xray_trace_id = XrayTraceId::from(span_context.trace_id());
+
+        let sampling_decision =
+            if span_context.trace_flags() & TRACE_FLAG_DEFERRED == TRACE_FLAG_DEFERRED {
+                REQUESTED_SAMPLE_DECISION
+            } else if span_context.is_sampled() {
+                SAMPLED
+            } else {
+                NOT_SAMPLED
+            };
+
+        let trace_state_header = span_context
+            .trace_state()
+            .header_delimited("=", ";")
+            .split_terminator(';')
+            .map(title_case)
+            .collect::<Vec<_>>()
+            .join(";");
+        let trace_state_prefix = if trace_state_header.is_empty() {
+            ""
+        } else {
+            ";"
+        };
+
+        Some(format!(
+            "{}={};{}={:016x};{}={}{}{}",
+            HEADER_ROOT_KEY,
+            xray_trace_id.0,
+            HEADER_PARENT_KEY,
+            span_context.span_id(),
+            HEADER_SAMPLED_KEY,
+            sampling_decision,
+            trace_state_prefix,
+            trace_state_header
+        ))
+    }
+
     impl XrayPropagator {
         /// Creates a new `XrayTraceContextPropagator`.
         pub fn new() -> Self {
             XrayPropagator::default()
         }
 
-        fn extract_span_context(&self, extractor: &dyn Extractor) -> Result<SpanContext, ()> {
-            let header_value: &str = extractor.get(AWS_XRAY_TRACE_HEADER).unwrap_or("").trim();
-
-            let parts: Vec<(&str, &str)> = header_value
-                .split_terminator(';')
-                .filter_map(from_key_value_pair)
-                .collect();
-
-            let mut trace_id: TraceId = TraceId::INVALID;
-            let mut parent_segment_id: SpanId = SpanId::INVALID;
-            let mut sampling_decision = TRACE_FLAG_DEFERRED;
-            let mut kv_vec: Vec<(String, String)> = Vec::with_capacity(parts.len());
-
-            for (key, value) in parts {
-                match key {
-                    HEADER_ROOT_KEY => {
-                        let converted_trace_id: Result<TraceId, ()> =
-                            XrayTraceId(value.to_string()).try_into();
-                        match converted_trace_id {
-                            Err(_) => return Err(()),
-                            Ok(parsed) => trace_id = parsed,
-                        }
-                    }
-                    HEADER_PARENT_KEY => {
-                        parent_segment_id = SpanId::from_hex(value).unwrap_or(SpanId::INVALID)
-                    }
-                    HEADER_SAMPLED_KEY => {
-                        sampling_decision = match value {
-                            NOT_SAMPLED => TraceFlags::default(),
-                            SAMPLED => TraceFlags::SAMPLED,
-                            REQUESTED_SAMPLE_DECISION => TRACE_FLAG_DEFERRED,
-                            _ => TRACE_FLAG_DEFERRED,
-                        }
-                    }
-                    _ => kv_vec.push((key.to_ascii_lowercase(), value.to_string())),
-                }
-            }
-
-            match TraceState::from_key_value(kv_vec) {
-                Ok(trace_state) => {
-                    if trace_id == TraceId::INVALID {
-                        return Err(());
-                    }
-
-                    let context: SpanContext = SpanContext::new(
-                        trace_id,
-                        parent_segment_id,
-                        sampling_decision,
-                        true,
-                        trace_state,
-                    );
-
-                    Ok(context)
-                }
-                Err(trace_state_err) => {
-                    global::handle_error(Error::Trace(TraceError::Other(Box::new(
-                        trace_state_err,
-                    ))));
-                    Err(()) //todo: assign an error type instead of using ()
-                }
-            }
+        fn extract_span_context(&self, extractor: &dyn Extractor) -> Option<SpanContext> {
+            span_context_from_str(extractor.get(AWS_XRAY_TRACE_HEADER)?.trim())
         }
     }
 
@@ -160,52 +209,15 @@ pub mod trace {
         fn inject_context(&self, cx: &Context, injector: &mut dyn Injector) {
             let span = cx.span();
             let span_context = span.span_context();
-            if span_context.is_valid() {
-                let xray_trace_id: XrayTraceId = span_context.trace_id().into();
-
-                let sampling_decision: &str =
-                    if span_context.trace_flags() & TRACE_FLAG_DEFERRED == TRACE_FLAG_DEFERRED {
-                        REQUESTED_SAMPLE_DECISION
-                    } else if span_context.is_sampled() {
-                        SAMPLED
-                    } else {
-                        NOT_SAMPLED
-                    };
-
-                let trace_state_header: String = span_context
-                    .trace_state()
-                    .header_delimited("=", ";")
-                    .split_terminator(';')
-                    .map(title_case)
-                    .collect::<Vec<String>>()
-                    .join(";");
-                let trace_state_prefix = if trace_state_header.is_empty() {
-                    ""
-                } else {
-                    ";"
-                };
-
-                injector.set(
-                    AWS_XRAY_TRACE_HEADER,
-                    format!(
-                        "{}={};{}={:016x};{}={}{}{}",
-                        HEADER_ROOT_KEY,
-                        xray_trace_id.0,
-                        HEADER_PARENT_KEY,
-                        span_context.span_id(),
-                        HEADER_SAMPLED_KEY,
-                        sampling_decision,
-                        trace_state_prefix,
-                        trace_state_header
-                    ),
-                );
+            if let Some(header_value) = span_context_to_string(span_context) {
+                injector.set(AWS_XRAY_TRACE_HEADER, header_value);
             }
         }
 
         fn extract_with_context(&self, cx: &Context, extractor: &dyn Extractor) -> Context {
             self.extract_span_context(extractor)
                 .map(|sc| cx.with_remote_span_context(sc))
-                .unwrap_or_else(|_| cx.clone())
+                .unwrap_or_else(|| cx.clone())
         }
 
         fn fields(&self) -> FieldIter<'_> {
@@ -227,12 +239,12 @@ pub mod trace {
     ///
     /// [xray-trace-id]: https://docs.aws.amazon.com/xray/latest/devguide/xray-api-sendingdata.html#xray-api-traceids
     #[derive(Clone, Debug, PartialEq)]
-    struct XrayTraceId(String);
+    struct XrayTraceId<'a>(Cow<'a, str>);
 
-    impl TryFrom<XrayTraceId> for TraceId {
+    impl<'a> TryFrom<XrayTraceId<'a>> for TraceId {
         type Error = ();
 
-        fn try_from(id: XrayTraceId) -> Result<Self, Self::Error> {
+        fn try_from(id: XrayTraceId<'a>) -> Result<Self, Self::Error> {
             let parts: Vec<&str> = id.0.split_terminator('-').collect();
 
             if parts.len() != 3 {
@@ -250,15 +262,15 @@ pub mod trace {
         }
     }
 
-    impl From<TraceId> for XrayTraceId {
+    impl From<TraceId> for XrayTraceId<'static> {
         fn from(trace_id: TraceId) -> Self {
             let trace_id_as_hex = trace_id.to_string();
             let (timestamp, xray_id) = trace_id_as_hex.split_at(8_usize);
 
-            XrayTraceId(format!(
+            XrayTraceId(Cow::from(format!(
                 "{}-{}-{}",
                 AWS_XRAY_VERSION_KEY, timestamp, xray_id
-            ))
+            )))
         }
     }
 
