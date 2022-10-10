@@ -215,7 +215,7 @@ pub use crate::exporter::grpcio::{Compression, Credentials, GrpcioExporterBuilde
 #[cfg(feature = "http-proto")]
 pub use crate::exporter::http::HttpExporterBuilder;
 #[cfg(feature = "grpc-tonic")]
-pub use crate::exporter::tonic::TonicExporterBuilder;
+pub use crate::exporter::tonic::{MetadataMap, TonicExporterBuilder};
 
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
