@@ -473,6 +473,25 @@ impl CollectorPipeline {
         install_tracer_provider_and_get_tracer(tracer_provider)
     }
 
+    /// Build an jaeger exporter targeting a jaeger collector.
+    pub fn build_collector_exporter<R>(
+        mut self,
+    ) -> Result<crate::Exporter, TraceError>
+        where
+            R: JaegerTraceRuntime,
+    {
+        // build sdk trace config and jaeger process.
+        // some attributes like service name has attributes like service name
+        let export_instrument_library = self.transformation_config.export_instrument_library;
+        let (_config, process) = build_config_and_process(
+            self.trace_config.take(),
+            self.transformation_config.service_name.take(),
+        );
+        let uploader = self.build_uploader::<R>()?;
+        let exporter = Exporter::new(process.into(), export_instrument_library, uploader);
+        Ok(exporter)
+    }
+
     fn build_uploader<R>(self) -> Result<Arc<dyn Uploader>, crate::Error>
     where
         R: JaegerTraceRuntime,
@@ -554,5 +573,14 @@ mod tests {
             .build_uploader::<Tokio>();
 
         assert!(valid_uri.is_ok());
+    }
+
+    #[test]
+    fn test_collector_exporter() {
+        let exporter = new_collector_pipeline()
+            .with_endpoint("http://127.0.0.1:14268/api/traces")
+            .with_http_client(test_http_client::TestHttpClient)
+            .build_collector_exporter::<Tokio>();
+       assert!(exporter.is_ok());
     }
 }
