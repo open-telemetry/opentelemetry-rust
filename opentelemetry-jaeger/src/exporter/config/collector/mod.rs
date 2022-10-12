@@ -474,11 +474,9 @@ impl CollectorPipeline {
     }
 
     /// Build an jaeger exporter targeting a jaeger collector.
-    pub fn build_collector_exporter<R>(
-        mut self,
-    ) -> Result<crate::Exporter, TraceError>
-        where
-            R: JaegerTraceRuntime,
+    pub fn build_collector_exporter<R>(mut self) -> Result<crate::Exporter, TraceError>
+    where
+        R: JaegerTraceRuntime,
     {
         let export_instrument_library = self.transformation_config.export_instrument_library;
         let (_, process) = build_config_and_process(
@@ -579,6 +577,6 @@ mod tests {
             .with_endpoint("http://127.0.0.1:14268/api/traces")
             .with_http_client(test_http_client::TestHttpClient)
             .build_collector_exporter::<Tokio>();
-       assert!(exporter.is_ok());
+        assert!(exporter.is_ok());
     }
 }
