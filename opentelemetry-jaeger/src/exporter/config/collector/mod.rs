@@ -480,10 +480,8 @@ impl CollectorPipeline {
         where
             R: JaegerTraceRuntime,
     {
-        // build sdk trace config and jaeger process.
-        // some attributes like service name has attributes like service name
         let export_instrument_library = self.transformation_config.export_instrument_library;
-        let (_config, process) = build_config_and_process(
+        let (_, process) = build_config_and_process(
             self.trace_config.take(),
             self.transformation_config.service_name.take(),
         );
