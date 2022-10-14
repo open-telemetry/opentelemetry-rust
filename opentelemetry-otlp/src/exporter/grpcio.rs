@@ -25,7 +25,10 @@ pub struct GrpcioConfig {
 impl Default for GrpcioConfig {
     fn default() -> Self {
         let mut headers: HashMap<String, String> = HashMap::new();
-        headers.insert("User-Agent".to_string(), format!("OTel OTLP Exporter Rust/{}", env!("CARGO_PKG_VERSION")));
+        headers.insert(
+            "User-Agent".to_string(),
+            format!("OTel OTLP Exporter Rust/{}", env!("CARGO_PKG_VERSION")),
+        );
         GrpcioConfig {
             credentials: None,
             headers: Some(headers),
