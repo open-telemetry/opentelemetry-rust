@@ -1,4 +1,5 @@
 use crate::ExportConfig;
+use http::HeaderMap;
 use tonic::metadata::MetadataMap;
 #[cfg(feature = "tls")]
 use tonic::transport::ClientTlsConfig;
@@ -35,15 +36,13 @@ pub struct TonicExporterBuilder {
 impl Default for TonicExporterBuilder {
     fn default() -> Self {
         let mut tonic_config = TonicConfig::default();
-        let mut map = MetadataMap::new();
-        map.insert(
+        let mut headers: HeaderMap = HeaderMap::new();
+        headers.insert(
             "User-Agent",
-            format!("OTel OTLP Exporter Rust/{}", env!("CARGO_PKG_VERSION"))
-                .as_str()
-                .parse()
-                .unwrap(),
+            format!("OTel OTLP Exporter Rust/{}", env!("CARGO_PKG_VERSION")).parse().unwrap(),
         );
-        tonic_config.metadata = Some(map);
+        tonic_config.metadata = Some(MetadataMap::from_headers(headers));
+        
         TonicExporterBuilder {
             exporter_config: ExportConfig::default(),
             tonic_config,
