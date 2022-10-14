@@ -67,7 +67,7 @@ pub struct HttpExporterBuilder {
 impl Default for HttpExporterBuilder {
     fn default() -> Self {
         let mut headers: HashMap<String, String> = HashMap::new();
-        headers.insert("User-Agent".to_string(), format!("OTel OLTP Exporter Rust/{}", env!("CARGO_PKG_VERSION")));
+        headers.insert("User-Agent".to_string(), format!("OTel OTLP Exporter Rust/{}", env!("CARGO_PKG_VERSION")));
         let mut default_config = HttpConfig::default();
         default_config.headers = Some(headers);
         HttpExporterBuilder {

@@ -38,7 +38,7 @@ impl Default for TonicExporterBuilder {
         let mut map = MetadataMap::new();
         map.insert(
             "User-Agent",
-            format!("OTel OLTP Exporter Rust/{}", env!("CARGO_PKG_VERSION"))
+            format!("OTel OTLP Exporter Rust/{}", env!("CARGO_PKG_VERSION"))
                 .as_str()
                 .parse()
                 .unwrap(),
