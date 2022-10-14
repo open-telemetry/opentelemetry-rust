@@ -71,14 +71,16 @@ impl Default for HttpExporterBuilder {
             "User-Agent".to_string(),
             format!("OTel OTLP Exporter Rust/{}", env!("CARGO_PKG_VERSION")),
         );
-        let mut default_config = HttpConfig::default();
-        default_config.headers = Some(headers);
+
         HttpExporterBuilder {
             exporter_config: ExportConfig {
                 protocol: Protocol::HttpBinary,
                 ..ExportConfig::default()
             },
-            http_config: default_config,
+            http_config: HttpConfig {
+                headers: Some(headers),
+                ..HttpConfig::default()
+            },
         }
     }
 }

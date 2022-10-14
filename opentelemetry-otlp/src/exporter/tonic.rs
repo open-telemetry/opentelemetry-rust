@@ -46,7 +46,7 @@ impl Default for TonicExporterBuilder {
         tonic_config.metadata = Some(map);
         TonicExporterBuilder {
             exporter_config: ExportConfig::default(),
-            tonic_config: tonic_config,
+            tonic_config,
             channel: Option::default(),
         }
     }
