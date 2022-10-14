@@ -39,10 +39,12 @@ impl Default for TonicExporterBuilder {
         let mut headers: HeaderMap = HeaderMap::new();
         headers.insert(
             "User-Agent",
-            format!("OTel OTLP Exporter Rust/{}", env!("CARGO_PKG_VERSION")).parse().unwrap(),
+            format!("OTel OTLP Exporter Rust/{}", env!("CARGO_PKG_VERSION"))
+                .parse()
+                .unwrap(),
         );
         tonic_config.metadata = Some(MetadataMap::from_headers(headers));
-        
+
         TonicExporterBuilder {
             exporter_config: ExportConfig::default(),
             tonic_config,
