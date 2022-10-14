@@ -66,12 +66,16 @@ pub struct HttpExporterBuilder {
 
 impl Default for HttpExporterBuilder {
     fn default() -> Self {
+        let mut headers: HashMap<String, String> = HashMap::new();
+        headers.insert("User-Agent".to_string(), format!("OTel OLTP Exporter Rust/{}", env!("CARGO_PKG_VERSION")));
+        let mut default_config = HttpConfig::default();
+        default_config.headers = Some(headers);
         HttpExporterBuilder {
             exporter_config: ExportConfig {
                 protocol: Protocol::HttpBinary,
                 ..ExportConfig::default()
             },
-            http_config: HttpConfig::default(),
+            http_config: default_config,
         }
     }
 }
@@ -85,7 +89,10 @@ impl HttpExporterBuilder {
 
     /// Set additional headers to send to the collector.
     pub fn with_headers(mut self, headers: HashMap<String, String>) -> Self {
-        self.http_config.headers = Some(headers);
+        // headers will be wrapped, so we must do some logic to unwrap first.
+        let mut inst_headers = self.http_config.headers.unwrap_or_default();
+        inst_headers.extend(headers.into_iter());
+        self.http_config.headers = Some(inst_headers);
         self
     }
 }

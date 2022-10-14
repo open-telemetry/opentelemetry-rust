@@ -25,11 +25,28 @@ pub struct TonicConfig {
 ///
 /// [tonic]: <https://github.com/hyperium/tonic>
 /// [channel]: tonic::transport::Channel
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct TonicExporterBuilder {
     pub(crate) exporter_config: ExportConfig,
     pub(crate) tonic_config: TonicConfig,
     pub(crate) channel: Option<tonic::transport::Channel>,
+}
+
+impl Default for TonicExporterBuilder {
+    fn default() -> Self {
+        let mut tonic_config = TonicConfig::default();
+        let mut map = MetadataMap::new();
+        map.insert(
+            "User-Agent",
+            format!("OTel OLTP Exporter Rust/{}", env!("CARGO_PKG_VERSION")).as_str().parse().unwrap(),
+        );
+        tonic_config.metadata = Some(map);
+        TonicExporterBuilder {
+            exporter_config: ExportConfig::default(),
+            tonic_config: tonic_config,
+            channel: Option::default(),
+        }
+    }
 }
 
 impl TonicExporterBuilder {
