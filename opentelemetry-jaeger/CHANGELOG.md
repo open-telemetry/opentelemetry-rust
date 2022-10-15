@@ -1,4 +1,10 @@
 # Changelog
+## Main
+
+### Added
+
+- Added `CollectorPipeline::build_collector_exporter` #894
+
 
 ## v0.17.0
 
