@@ -3,6 +3,8 @@ use opentelemetry_http::HttpClient;
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use super::default_headers;
+
 /// Configuration of the http transport
 #[cfg(feature = "http-proto")]
 #[derive(Debug)]
@@ -66,19 +68,13 @@ pub struct HttpExporterBuilder {
 
 impl Default for HttpExporterBuilder {
     fn default() -> Self {
-        let mut headers: HashMap<String, String> = HashMap::new();
-        headers.insert(
-            "User-Agent".to_string(),
-            format!("OTel OTLP Exporter Rust/{}", env!("CARGO_PKG_VERSION")),
-        );
-
         HttpExporterBuilder {
             exporter_config: ExportConfig {
                 protocol: Protocol::HttpBinary,
                 ..ExportConfig::default()
             },
             http_config: HttpConfig {
-                headers: Some(headers),
+                headers: Some(default_headers()),
                 ..HttpConfig::default()
             },
         }

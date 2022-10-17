@@ -3,6 +3,8 @@ use crate::ExportConfig;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+use super::default_headers;
+
 /// Configuration of grpcio
 #[derive(Debug)]
 pub struct GrpcioConfig {
@@ -24,14 +26,9 @@ pub struct GrpcioConfig {
 
 impl Default for GrpcioConfig {
     fn default() -> Self {
-        let mut headers: HashMap<String, String> = HashMap::new();
-        headers.insert(
-            "User-Agent".to_string(),
-            format!("OTel OTLP Exporter Rust/{}", env!("CARGO_PKG_VERSION")),
-        );
         GrpcioConfig {
             credentials: None,
-            headers: Some(headers),
+            headers: Some(default_headers()),
             compression: None,
             use_tls: None,
             completion_queue_count: 2,
