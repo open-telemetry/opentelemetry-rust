@@ -42,7 +42,8 @@ impl Default for TonicExporterBuilder {
                     .try_into()
                     .expect("Invalid tonic headers"),
             )),
-            ..Default::default()
+            #[cfg(feature = "tls")]
+            tls_config: None,
         };
 
         TonicExporterBuilder {
