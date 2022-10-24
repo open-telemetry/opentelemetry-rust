@@ -18,14 +18,17 @@
 //! - [`EnvResourceDetector`] - detect resource from environmental variables.
 //! - [`OsResourceDetector`] - detect OS from runtime.
 //! - [`ProcessResourceDetector`] - detect process information.
+//! - [`TelemetryResourceDetector`] - detect telemetry SDK's information.
 mod env;
 mod os;
 mod process;
+mod telemetry;
 
 pub use env::EnvResourceDetector;
 pub use env::SdkProvidedResourceDetector;
 pub use os::OsResourceDetector;
 pub use process::ProcessResourceDetector;
+pub use telemetry::TelemetryResourceDetector;
 
 #[cfg(feature = "metrics")]
 use opentelemetry_api::attributes;
@@ -242,7 +245,7 @@ impl<'a> IntoIterator for &'a Resource {
 /// ResourceDetector detects OpenTelemetry resource information
 ///
 /// Implementations of this trait can be passed to
-/// the `Resource::from_detectors` function to generate a Resource from the merged information.
+/// the [`Resource::from_detectors`] function to generate a Resource from the merged information.
 pub trait ResourceDetector {
     /// detect returns an initialized Resource based on gathered information.
     ///
