@@ -39,11 +39,11 @@ where
                 .unwrap_or(0);
 
             if let Some(Value::String(s)) = span.attributes.get(&Key::new("span.type")) {
-                rmp::encode::write_map_len(&mut encoded, 11)?;
+                rmp::encode::write_map_len(&mut encoded, 12)?;
                 rmp::encode::write_str(&mut encoded, "type")?;
                 rmp::encode::write_str(&mut encoded, s.as_str())?;
             } else {
-                rmp::encode::write_map_len(&mut encoded, 10)?;
+                rmp::encode::write_map_len(&mut encoded, 11)?;
             }
 
             // Datadog span name is OpenTelemetry component name - see module docs for more information
