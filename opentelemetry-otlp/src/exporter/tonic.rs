@@ -65,15 +65,7 @@ impl TonicExporterBuilder {
     /// Set custom metadata entries to send to the collector.
     pub fn with_metadata(mut self, metadata: MetadataMap) -> Self {
         // extending metadatamaps is harder than just casting back/forth
-        let incoming_headers = metadata.into_headers();
-        let mut existing_headers = self
-            .tonic_config
-            .metadata
-            .unwrap_or_default()
-            .into_headers();
-        existing_headers.extend(incoming_headers.into_iter());
-
-        self.tonic_config.metadata = Some(MetadataMap::from_headers(existing_headers));
+        self.tonic_config.metadata.get_or_insert(metadata);
         self
     }
 
