@@ -3,6 +3,8 @@ use opentelemetry_http::HttpClient;
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use super::default_headers;
+
 /// Configuration of the http transport
 #[cfg(feature = "http-proto")]
 #[derive(Debug)]
@@ -71,7 +73,10 @@ impl Default for HttpExporterBuilder {
                 protocol: Protocol::HttpBinary,
                 ..ExportConfig::default()
             },
-            http_config: HttpConfig::default(),
+            http_config: HttpConfig {
+                headers: Some(default_headers()),
+                ..HttpConfig::default()
+            },
         }
     }
 }
@@ -85,7 +90,10 @@ impl HttpExporterBuilder {
 
     /// Set additional headers to send to the collector.
     pub fn with_headers(mut self, headers: HashMap<String, String>) -> Self {
-        self.http_config.headers = Some(headers);
+        // headers will be wrapped, so we must do some logic to unwrap first.
+        let mut inst_headers = self.http_config.headers.unwrap_or_default();
+        inst_headers.extend(headers.into_iter());
+        self.http_config.headers = Some(inst_headers);
         self
     }
 }

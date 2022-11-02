@@ -3,6 +3,8 @@ use crate::ExportConfig;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+use super::default_headers;
+
 /// Configuration of grpcio
 #[derive(Debug)]
 pub struct GrpcioConfig {
@@ -26,7 +28,7 @@ impl Default for GrpcioConfig {
     fn default() -> Self {
         GrpcioConfig {
             credentials: None,
-            headers: None,
+            headers: Some(default_headers()),
             compression: None,
             use_tls: None,
             completion_queue_count: 2,
@@ -85,7 +87,9 @@ impl GrpcioExporterBuilder {
 
     /// Set additional headers to send to the collector.
     pub fn with_headers(mut self, headers: HashMap<String, String>) -> Self {
-        self.grpcio_config.headers = Some(headers);
+        let mut inst_headers = self.grpcio_config.headers.unwrap_or_default();
+        inst_headers.extend(headers.into_iter());
+        self.grpcio_config.headers = Some(inst_headers);
         self
     }
 

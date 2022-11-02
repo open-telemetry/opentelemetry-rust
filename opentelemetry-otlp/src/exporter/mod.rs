@@ -9,6 +9,7 @@ use crate::exporter::http::HttpExporterBuilder;
 #[cfg(feature = "grpc-tonic")]
 use crate::exporter::tonic::TonicExporterBuilder;
 use crate::Protocol;
+use std::collections::HashMap;
 use std::str::FromStr;
 use std::time::Duration;
 
@@ -51,6 +52,16 @@ impl Default for ExportConfig {
             timeout: Duration::from_secs(OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT),
         }
     }
+}
+
+/// default user-agent headers
+fn default_headers() -> HashMap<String, String> {
+    let mut headers = HashMap::new();
+    headers.insert(
+        "User-Agent".to_string(),
+        format!("OTel OTLP Exporter Rust/{}", env!("CARGO_PKG_VERSION")),
+    );
+    headers
 }
 
 /// Provide access to the export config field within the exporter builders.

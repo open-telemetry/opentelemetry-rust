@@ -3,6 +3,8 @@ use tonic::metadata::MetadataMap;
 #[cfg(feature = "tls")]
 use tonic::transport::ClientTlsConfig;
 
+use super::default_headers;
+
 /// Configuration for [tonic]
 ///
 /// [tonic]: https://github.com/hyperium/tonic
@@ -25,11 +27,31 @@ pub struct TonicConfig {
 ///
 /// [tonic]: <https://github.com/hyperium/tonic>
 /// [channel]: tonic::transport::Channel
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct TonicExporterBuilder {
     pub(crate) exporter_config: ExportConfig,
     pub(crate) tonic_config: TonicConfig,
     pub(crate) channel: Option<tonic::transport::Channel>,
+}
+
+impl Default for TonicExporterBuilder {
+    fn default() -> Self {
+        let tonic_config = TonicConfig {
+            metadata: Some(MetadataMap::from_headers(
+                (&default_headers())
+                    .try_into()
+                    .expect("Invalid tonic headers"),
+            )),
+            #[cfg(feature = "tls")]
+            tls_config: None,
+        };
+
+        TonicExporterBuilder {
+            exporter_config: ExportConfig::default(),
+            tonic_config,
+            channel: Option::default(),
+        }
+    }
 }
 
 impl TonicExporterBuilder {
@@ -42,7 +64,8 @@ impl TonicExporterBuilder {
 
     /// Set custom metadata entries to send to the collector.
     pub fn with_metadata(mut self, metadata: MetadataMap) -> Self {
-        self.tonic_config.metadata = Some(metadata);
+        // extending metadatamaps is harder than just casting back/forth
+        self.tonic_config.metadata.get_or_insert(metadata);
         self
     }
 
