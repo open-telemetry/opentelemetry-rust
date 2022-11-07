@@ -15,7 +15,7 @@ pub struct MetricsData {
     /// one element. Intermediary nodes that receive data from multiple origins
     /// typically batch the data before forwarding further and in that case this
     /// array will contain multiple elements.
-    #[prost(message, repeated, tag="1")]
+    #[prost(message, repeated, tag = "1")]
     pub resource_metrics: ::prost::alloc::vec::Vec<ResourceMetrics>,
 }
 /// A collection of InstrumentationLibraryMetrics from a Resource.
@@ -23,15 +23,17 @@ pub struct MetricsData {
 pub struct ResourceMetrics {
     /// The resource for the metrics in this message.
     /// If this field is not set then no resource info is known.
-    #[prost(message, optional, tag="1")]
+    #[prost(message, optional, tag = "1")]
     pub resource: ::core::option::Option<super::super::resource::v1::Resource>,
     /// A list of metrics that originate from a resource.
-    #[prost(message, repeated, tag="2")]
-    pub instrumentation_library_metrics: ::prost::alloc::vec::Vec<InstrumentationLibraryMetrics>,
+    #[prost(message, repeated, tag = "2")]
+    pub instrumentation_library_metrics: ::prost::alloc::vec::Vec<
+        InstrumentationLibraryMetrics,
+    >,
     /// This schema_url applies to the data in the "resource" field. It does not apply
     /// to the data in the "instrumentation_library_metrics" field which have their own
     /// schema_url field.
-    #[prost(string, tag="3")]
+    #[prost(string, tag = "3")]
     pub schema_url: ::prost::alloc::string::String,
 }
 /// A collection of Metrics produced by an InstrumentationLibrary.
@@ -40,13 +42,15 @@ pub struct InstrumentationLibraryMetrics {
     /// The instrumentation library information for the metrics in this message.
     /// Semantically when InstrumentationLibrary isn't set, it is equivalent with
     /// an empty instrumentation library name (unknown).
-    #[prost(message, optional, tag="1")]
-    pub instrumentation_library: ::core::option::Option<super::super::common::v1::InstrumentationLibrary>,
+    #[prost(message, optional, tag = "1")]
+    pub instrumentation_library: ::core::option::Option<
+        super::super::common::v1::InstrumentationLibrary,
+    >,
     /// A list of metrics that originate from an instrumentation library.
-    #[prost(message, repeated, tag="2")]
+    #[prost(message, repeated, tag = "2")]
     pub metrics: ::prost::alloc::vec::Vec<Metric>,
     /// This schema_url applies to all metrics in the "metrics" field.
-    #[prost(string, tag="3")]
+    #[prost(string, tag = "3")]
     pub schema_url: ::prost::alloc::string::String,
 }
 /// Defines a Metric which has one or more timeseries.  The following is a
@@ -137,19 +141,19 @@ pub struct InstrumentationLibraryMetrics {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Metric {
     /// name of the metric, including its DNS name prefix. It must be unique.
-    #[prost(string, tag="1")]
+    #[prost(string, tag = "1")]
     pub name: ::prost::alloc::string::String,
     /// description of the metric, which can be used in documentation.
-    #[prost(string, tag="2")]
+    #[prost(string, tag = "2")]
     pub description: ::prost::alloc::string::String,
     /// unit in which the metric value is reported. Follows the format
     /// described by <http://unitsofmeasure.org/ucum.html.>
-    #[prost(string, tag="3")]
+    #[prost(string, tag = "3")]
     pub unit: ::prost::alloc::string::String,
     /// Data determines the aggregation type (if any) of the metric, what is the
     /// reported value type for the data points, as well as the relatationship to
     /// the time interval over which they are reported.
-    #[prost(oneof="metric::Data", tags="5, 7, 9, 10, 11")]
+    #[prost(oneof = "metric::Data", tags = "5, 7, 9, 10, 11")]
     pub data: ::core::option::Option<metric::Data>,
 }
 /// Nested message and enum types in `Metric`.
@@ -159,15 +163,15 @@ pub mod metric {
     /// the time interval over which they are reported.
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Data {
-        #[prost(message, tag="5")]
+        #[prost(message, tag = "5")]
         Gauge(super::Gauge),
-        #[prost(message, tag="7")]
+        #[prost(message, tag = "7")]
         Sum(super::Sum),
-        #[prost(message, tag="9")]
+        #[prost(message, tag = "9")]
         Histogram(super::Histogram),
-        #[prost(message, tag="10")]
+        #[prost(message, tag = "10")]
         ExponentialHistogram(super::ExponentialHistogram),
-        #[prost(message, tag="11")]
+        #[prost(message, tag = "11")]
         Summary(super::Summary),
     }
 }
@@ -182,43 +186,43 @@ pub mod metric {
 /// "StartTimeUnixNano" is ignored for all data points.
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Gauge {
-    #[prost(message, repeated, tag="1")]
+    #[prost(message, repeated, tag = "1")]
     pub data_points: ::prost::alloc::vec::Vec<NumberDataPoint>,
 }
 /// Sum represents the type of a scalar metric that is calculated as a sum of all
 /// reported measurements over a time interval.
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Sum {
-    #[prost(message, repeated, tag="1")]
+    #[prost(message, repeated, tag = "1")]
     pub data_points: ::prost::alloc::vec::Vec<NumberDataPoint>,
     /// aggregation_temporality describes if the aggregator reports delta changes
     /// since last report time, or cumulative changes since a fixed start time.
-    #[prost(enumeration="AggregationTemporality", tag="2")]
+    #[prost(enumeration = "AggregationTemporality", tag = "2")]
     pub aggregation_temporality: i32,
     /// If "true" means that the sum is monotonic.
-    #[prost(bool, tag="3")]
+    #[prost(bool, tag = "3")]
     pub is_monotonic: bool,
 }
 /// Histogram represents the type of a metric that is calculated by aggregating
 /// as a Histogram of all reported measurements over a time interval.
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Histogram {
-    #[prost(message, repeated, tag="1")]
+    #[prost(message, repeated, tag = "1")]
     pub data_points: ::prost::alloc::vec::Vec<HistogramDataPoint>,
     /// aggregation_temporality describes if the aggregator reports delta changes
     /// since last report time, or cumulative changes since a fixed start time.
-    #[prost(enumeration="AggregationTemporality", tag="2")]
+    #[prost(enumeration = "AggregationTemporality", tag = "2")]
     pub aggregation_temporality: i32,
 }
 /// ExponentialHistogram represents the type of a metric that is calculated by aggregating
 /// as a ExponentialHistogram of all reported double measurements over a time interval.
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ExponentialHistogram {
-    #[prost(message, repeated, tag="1")]
+    #[prost(message, repeated, tag = "1")]
     pub data_points: ::prost::alloc::vec::Vec<ExponentialHistogramDataPoint>,
     /// aggregation_temporality describes if the aggregator reports delta changes
     /// since last report time, or cumulative changes since a fixed start time.
-    #[prost(enumeration="AggregationTemporality", tag="2")]
+    #[prost(enumeration = "AggregationTemporality", tag = "2")]
     pub aggregation_temporality: i32,
 }
 /// Summary metric data are used to convey quantile summaries,
@@ -229,7 +233,7 @@ pub struct ExponentialHistogram {
 /// recommended for new applications.
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Summary {
-    #[prost(message, repeated, tag="1")]
+    #[prost(message, repeated, tag = "1")]
     pub data_points: ::prost::alloc::vec::Vec<SummaryDataPoint>,
 }
 /// NumberDataPoint is a single data point in a timeseries that describes the
@@ -240,32 +244,32 @@ pub struct NumberDataPoint {
     /// where this point belongs. The list may be empty (may contain 0 elements).
     /// Attribute keys MUST be unique (it is not allowed to have more than one
     /// attribute with the same key).
-    #[prost(message, repeated, tag="7")]
+    #[prost(message, repeated, tag = "7")]
     pub attributes: ::prost::alloc::vec::Vec<super::super::common::v1::KeyValue>,
     /// StartTimeUnixNano is optional but strongly encouraged, see the
     /// the detailed comments above Metric.
     ///
     /// Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January
     /// 1970.
-    #[prost(fixed64, tag="2")]
+    #[prost(fixed64, tag = "2")]
     pub start_time_unix_nano: u64,
     /// TimeUnixNano is required, see the detailed comments above Metric.
     ///
     /// Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January
     /// 1970.
-    #[prost(fixed64, tag="3")]
+    #[prost(fixed64, tag = "3")]
     pub time_unix_nano: u64,
     /// (Optional) List of exemplars collected from
     /// measurements that were used to form the data point
-    #[prost(message, repeated, tag="5")]
+    #[prost(message, repeated, tag = "5")]
     pub exemplars: ::prost::alloc::vec::Vec<Exemplar>,
     /// Flags that apply to this specific data point.  See DataPointFlags
     /// for the available flags and their meaning.
-    #[prost(uint32, tag="8")]
+    #[prost(uint32, tag = "8")]
     pub flags: u32,
     /// The value itself.  A point is considered invalid when one of the recognized
     /// value fields is not present inside this oneof.
-    #[prost(oneof="number_data_point::Value", tags="4, 6")]
+    #[prost(oneof = "number_data_point::Value", tags = "4, 6")]
     pub value: ::core::option::Option<number_data_point::Value>,
 }
 /// Nested message and enum types in `NumberDataPoint`.
@@ -274,9 +278,9 @@ pub mod number_data_point {
     /// value fields is not present inside this oneof.
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Value {
-        #[prost(double, tag="4")]
+        #[prost(double, tag = "4")]
         AsDouble(f64),
-        #[prost(sfixed64, tag="6")]
+        #[prost(sfixed64, tag = "6")]
         AsInt(i64),
     }
 }
@@ -296,25 +300,25 @@ pub struct HistogramDataPoint {
     /// where this point belongs. The list may be empty (may contain 0 elements).
     /// Attribute keys MUST be unique (it is not allowed to have more than one
     /// attribute with the same key).
-    #[prost(message, repeated, tag="9")]
+    #[prost(message, repeated, tag = "9")]
     pub attributes: ::prost::alloc::vec::Vec<super::super::common::v1::KeyValue>,
     /// StartTimeUnixNano is optional but strongly encouraged, see the
     /// the detailed comments above Metric.
     ///
     /// Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January
     /// 1970.
-    #[prost(fixed64, tag="2")]
+    #[prost(fixed64, tag = "2")]
     pub start_time_unix_nano: u64,
     /// TimeUnixNano is required, see the detailed comments above Metric.
     ///
     /// Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January
     /// 1970.
-    #[prost(fixed64, tag="3")]
+    #[prost(fixed64, tag = "3")]
     pub time_unix_nano: u64,
     /// count is the number of values in the population. Must be non-negative. This
     /// value must be equal to the sum of the "count" fields in buckets if a
     /// histogram is provided.
-    #[prost(fixed64, tag="4")]
+    #[prost(fixed64, tag = "4")]
     pub count: u64,
     /// sum of the values in the population. If count is zero then this field
     /// must be zero.
@@ -324,7 +328,7 @@ pub struct HistogramDataPoint {
     /// Negative events *can* be recorded, but sum should not be filled out when
     /// doing so.  This is specifically to enforce compatibility w/ OpenMetrics,
     /// see: <https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md#histogram>
-    #[prost(double, tag="5")]
+    #[prost(double, tag = "5")]
     pub sum: f64,
     /// bucket_counts is an optional field contains the count values of histogram
     /// for each bucket.
@@ -333,7 +337,7 @@ pub struct HistogramDataPoint {
     ///
     /// The number of elements in bucket_counts array must be by one greater than
     /// the number of elements in explicit_bounds array.
-    #[prost(fixed64, repeated, tag="6")]
+    #[prost(fixed64, repeated, tag = "6")]
     pub bucket_counts: ::prost::alloc::vec::Vec<u64>,
     /// explicit_bounds specifies buckets with explicitly defined bounds for values.
     ///
@@ -348,15 +352,15 @@ pub struct HistogramDataPoint {
     /// Histogram buckets are inclusive of their upper boundary, except the last
     /// bucket where the boundary is at infinity. This format is intentionally
     /// compatible with the OpenMetrics histogram definition.
-    #[prost(double, repeated, tag="7")]
+    #[prost(double, repeated, tag = "7")]
     pub explicit_bounds: ::prost::alloc::vec::Vec<f64>,
     /// (Optional) List of exemplars collected from
     /// measurements that were used to form the data point
-    #[prost(message, repeated, tag="8")]
+    #[prost(message, repeated, tag = "8")]
     pub exemplars: ::prost::alloc::vec::Vec<Exemplar>,
     /// Flags that apply to this specific data point.  See DataPointFlags
     /// for the available flags and their meaning.
-    #[prost(uint32, tag="10")]
+    #[prost(uint32, tag = "10")]
     pub flags: u32,
 }
 /// ExponentialHistogramDataPoint is a single data point in a timeseries that describes the
@@ -370,25 +374,25 @@ pub struct ExponentialHistogramDataPoint {
     /// where this point belongs. The list may be empty (may contain 0 elements).
     /// Attribute keys MUST be unique (it is not allowed to have more than one
     /// attribute with the same key).
-    #[prost(message, repeated, tag="1")]
+    #[prost(message, repeated, tag = "1")]
     pub attributes: ::prost::alloc::vec::Vec<super::super::common::v1::KeyValue>,
     /// StartTimeUnixNano is optional but strongly encouraged, see the
     /// the detailed comments above Metric.
     ///
     /// Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January
     /// 1970.
-    #[prost(fixed64, tag="2")]
+    #[prost(fixed64, tag = "2")]
     pub start_time_unix_nano: u64,
     /// TimeUnixNano is required, see the detailed comments above Metric.
     ///
     /// Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January
     /// 1970.
-    #[prost(fixed64, tag="3")]
+    #[prost(fixed64, tag = "3")]
     pub time_unix_nano: u64,
     /// count is the number of values in the population. Must be
     /// non-negative. This value must be equal to the sum of the "bucket_counts"
     /// values in the positive and negative Buckets plus the "zero_count" field.
-    #[prost(fixed64, tag="4")]
+    #[prost(fixed64, tag = "4")]
     pub count: u64,
     /// sum of the values in the population. If count is zero then this field
     /// must be zero.
@@ -398,7 +402,7 @@ pub struct ExponentialHistogramDataPoint {
     /// Negative events *can* be recorded, but sum should not be filled out when
     /// doing so.  This is specifically to enforce compatibility w/ OpenMetrics,
     /// see: <https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md#histogram>
-    #[prost(double, tag="5")]
+    #[prost(double, tag = "5")]
     pub sum: f64,
     /// scale describes the resolution of the histogram.  Boundaries are
     /// located at powers of the base, where:
@@ -415,7 +419,7 @@ pub struct ExponentialHistogramDataPoint {
     ///
     /// scale is not restricted by the protocol, as the permissible
     /// values depend on the range of the data.
-    #[prost(sint32, tag="6")]
+    #[prost(sint32, tag = "6")]
     pub scale: i32,
     /// zero_count is the count of values that are either exactly zero or
     /// within the region considered zero by the instrumentation at the
@@ -425,21 +429,21 @@ pub struct ExponentialHistogramDataPoint {
     ///
     /// Implementations MAY consider the zero bucket to have probability
     /// mass equal to (zero_count / count).
-    #[prost(fixed64, tag="7")]
+    #[prost(fixed64, tag = "7")]
     pub zero_count: u64,
     /// positive carries the positive range of exponential bucket counts.
-    #[prost(message, optional, tag="8")]
+    #[prost(message, optional, tag = "8")]
     pub positive: ::core::option::Option<exponential_histogram_data_point::Buckets>,
     /// negative carries the negative range of exponential bucket counts.
-    #[prost(message, optional, tag="9")]
+    #[prost(message, optional, tag = "9")]
     pub negative: ::core::option::Option<exponential_histogram_data_point::Buckets>,
     /// Flags that apply to this specific data point.  See DataPointFlags
     /// for the available flags and their meaning.
-    #[prost(uint32, tag="10")]
+    #[prost(uint32, tag = "10")]
     pub flags: u32,
     /// (Optional) List of exemplars collected from
     /// measurements that were used to form the data point
-    #[prost(message, repeated, tag="11")]
+    #[prost(message, repeated, tag = "11")]
     pub exemplars: ::prost::alloc::vec::Vec<Exemplar>,
 }
 /// Nested message and enum types in `ExponentialHistogramDataPoint`.
@@ -449,9 +453,9 @@ pub mod exponential_histogram_data_point {
     #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct Buckets {
         /// Offset is the bucket index of the first entry in the bucket_counts array.
-        /// 
+        ///
         /// Note: This uses a varint encoding as a simple form of compression.
-        #[prost(sint32, tag="1")]
+        #[prost(sint32, tag = "1")]
         pub offset: i32,
         /// Count is an array of counts, where count\[i\] carries the count
         /// of the bucket at index (offset+i).  count\[i\] is the count of
@@ -462,7 +466,7 @@ pub mod exponential_histogram_data_point {
         /// fixed64.  This field is expected to have many buckets,
         /// especially zeros, so uint64 has been selected to ensure
         /// varint encoding.
-        #[prost(uint64, repeated, tag="2")]
+        #[prost(uint64, repeated, tag = "2")]
         pub bucket_counts: ::prost::alloc::vec::Vec<u64>,
     }
 }
@@ -474,23 +478,23 @@ pub struct SummaryDataPoint {
     /// where this point belongs. The list may be empty (may contain 0 elements).
     /// Attribute keys MUST be unique (it is not allowed to have more than one
     /// attribute with the same key).
-    #[prost(message, repeated, tag="7")]
+    #[prost(message, repeated, tag = "7")]
     pub attributes: ::prost::alloc::vec::Vec<super::super::common::v1::KeyValue>,
     /// StartTimeUnixNano is optional but strongly encouraged, see the
     /// the detailed comments above Metric.
     ///
     /// Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January
     /// 1970.
-    #[prost(fixed64, tag="2")]
+    #[prost(fixed64, tag = "2")]
     pub start_time_unix_nano: u64,
     /// TimeUnixNano is required, see the detailed comments above Metric.
     ///
     /// Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January
     /// 1970.
-    #[prost(fixed64, tag="3")]
+    #[prost(fixed64, tag = "3")]
     pub time_unix_nano: u64,
     /// count is the number of values in the population. Must be non-negative.
-    #[prost(fixed64, tag="4")]
+    #[prost(fixed64, tag = "4")]
     pub count: u64,
     /// sum of the values in the population. If count is zero then this field
     /// must be zero.
@@ -500,15 +504,15 @@ pub struct SummaryDataPoint {
     /// Negative events *can* be recorded, but sum should not be filled out when
     /// doing so.  This is specifically to enforce compatibility w/ OpenMetrics,
     /// see: <https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md#summary>
-    #[prost(double, tag="5")]
+    #[prost(double, tag = "5")]
     pub sum: f64,
     /// (Optional) list of values at different quantiles of the distribution calculated
     /// from the current snapshot. The quantiles must be strictly increasing.
-    #[prost(message, repeated, tag="6")]
+    #[prost(message, repeated, tag = "6")]
     pub quantile_values: ::prost::alloc::vec::Vec<summary_data_point::ValueAtQuantile>,
     /// Flags that apply to this specific data point.  See DataPointFlags
     /// for the available flags and their meaning.
-    #[prost(uint32, tag="8")]
+    #[prost(uint32, tag = "8")]
     pub flags: u32,
 }
 /// Nested message and enum types in `SummaryDataPoint`.
@@ -525,12 +529,12 @@ pub mod summary_data_point {
     pub struct ValueAtQuantile {
         /// The quantile of a distribution. Must be in the interval
         /// [0.0, 1.0].
-        #[prost(double, tag="1")]
+        #[prost(double, tag = "1")]
         pub quantile: f64,
         /// The value at the given quantile of a distribution.
         ///
         /// Quantile values must NOT be negative.
-        #[prost(double, tag="2")]
+        #[prost(double, tag = "2")]
         pub value: f64,
     }
 }
@@ -543,28 +547,30 @@ pub struct Exemplar {
     /// The set of key/value pairs that were filtered out by the aggregator, but
     /// recorded alongside the original measurement. Only key/value pairs that were
     /// filtered out by the aggregator should be included
-    #[prost(message, repeated, tag="7")]
-    pub filtered_attributes: ::prost::alloc::vec::Vec<super::super::common::v1::KeyValue>,
+    #[prost(message, repeated, tag = "7")]
+    pub filtered_attributes: ::prost::alloc::vec::Vec<
+        super::super::common::v1::KeyValue,
+    >,
     /// time_unix_nano is the exact time when this exemplar was recorded
     ///
     /// Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January
     /// 1970.
-    #[prost(fixed64, tag="2")]
+    #[prost(fixed64, tag = "2")]
     pub time_unix_nano: u64,
     /// (Optional) Span ID of the exemplar trace.
     /// span_id may be missing if the measurement is not recorded inside a trace
     /// or if the trace is not sampled.
-    #[prost(bytes="vec", tag="4")]
+    #[prost(bytes = "vec", tag = "4")]
     pub span_id: ::prost::alloc::vec::Vec<u8>,
     /// (Optional) Trace ID of the exemplar trace.
     /// trace_id may be missing if the measurement is not recorded inside a trace
     /// or if the trace is not sampled.
-    #[prost(bytes="vec", tag="5")]
+    #[prost(bytes = "vec", tag = "5")]
     pub trace_id: ::prost::alloc::vec::Vec<u8>,
     /// The value of the measurement that was recorded. An exemplar is
     /// considered invalid when one of the recognized value fields is not present
     /// inside this oneof.
-    #[prost(oneof="exemplar::Value", tags="3, 6")]
+    #[prost(oneof = "exemplar::Value", tags = "3, 6")]
     pub value: ::core::option::Option<exemplar::Value>,
 }
 /// Nested message and enum types in `Exemplar`.
@@ -574,9 +580,9 @@ pub mod exemplar {
     /// inside this oneof.
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Value {
-        #[prost(double, tag="3")]
+        #[prost(double, tag = "3")]
         AsDouble(f64),
-        #[prost(sfixed64, tag="6")]
+        #[prost(sfixed64, tag = "6")]
         AsInt(i64),
     }
 }

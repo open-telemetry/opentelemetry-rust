@@ -5,12 +5,13 @@ pub struct ExportMetricsServiceRequest {
     /// element. Intermediary nodes (such as OpenTelemetry Collector) that receive
     /// data from multiple origins typically batch the data before forwarding further and
     /// in that case this array will contain multiple elements.
-    #[prost(message, repeated, tag="1")]
-    pub resource_metrics: ::prost::alloc::vec::Vec<super::super::super::metrics::v1::ResourceMetrics>,
+    #[prost(message, repeated, tag = "1")]
+    pub resource_metrics: ::prost::alloc::vec::Vec<
+        super::super::super::metrics::v1::ResourceMetrics,
+    >,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct ExportMetricsServiceResponse {
-}
+pub struct ExportMetricsServiceResponse {}
 /// Generated client implementations.
 pub mod metrics_service_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]

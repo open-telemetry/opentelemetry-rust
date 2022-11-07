@@ -11,5 +11,4 @@ pub mod logging {
     pub mod v2;
 }
 
-pub mod protobuf;
 pub mod rpc;
