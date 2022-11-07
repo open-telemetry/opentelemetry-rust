@@ -19,16 +19,17 @@ use std::time::Duration;
 pub const OTEL_EXPORTER_OTLP_ENDPOINT: &str = "OTEL_EXPORTER_OTLP_ENDPOINT";
 /// Default target to which the exporter is going to send signals.
 pub const OTEL_EXPORTER_OTLP_ENDPOINT_DEFAULT: &str = OTEL_EXPORTER_OTLP_HTTP_ENDPOINT_DEFAULT;
-/// Protocol to use when sending
+/// Protocol the exporter will use. Either `http/protobuf` or `grpc`.
 pub const OTEL_EXPORTER_OTLP_PROTOCOL: &str = "OTEL_EXPORTER_OTLP_PROTOCOL";
 
-/// Default protocol, if http-proto is enabled then use it, otherwise use grpc
 #[cfg(feature = "http-proto")]
+/// Default protocol, using http-proto.
 pub const OTEL_EXPORTER_OTLP_PROTOCOL_DEFAULT: &str = OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_PROTOBUF;
 #[cfg(all(
     any(feature = "grpc-tonic", feature = "grpcio"),
     not(feature = "http-proto")
 ))]
+/// Default protocol, using grpc as http-proto feature is not enabled.
 pub const OTEL_EXPORTER_OTLP_PROTOCOL_DEFAULT: &str = OTEL_EXPORTER_OTLP_PROTOCOL_GRPC;
 
 const OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_PROTOBUF: &str = "http/protobuf";
@@ -176,7 +177,7 @@ impl<B: HasExportConfig> WithExportConfig for B {
 
     fn with_env(mut self) -> Self {
         let protocol = match std::env::var(OTEL_EXPORTER_OTLP_PROTOCOL)
-            .unwrap_or(OTEL_EXPORTER_OTLP_PROTOCOL_DEFAULT.to_string())
+            .unwrap_or_else(|_| OTEL_EXPORTER_OTLP_PROTOCOL_DEFAULT.to_string())
             .as_str()
         {
             OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_PROTOBUF => Protocol::HttpBinary,
@@ -211,8 +212,8 @@ impl<B: HasExportConfig> WithExportConfig for B {
 #[cfg(test)]
 #[cfg(feature = "grpc-tonic")]
 mod tests {
-    const LOCK_POISONED_MESSAGE: &'static str =
-        "one of the other pipeline builder from env tests failed";
+    // If an env test fails then the mutex will be poisoned and the following error will be displayed.
+    const LOCK_POISONED_MESSAGE: &str = "one of the other pipeline builder from env tests failed";
     use crate::exporter::{
         default_endpoint, default_protocol, WithExportConfig, OTEL_EXPORTER_OTLP_ENDPOINT,
         OTEL_EXPORTER_OTLP_GRPC_ENDPOINT_DEFAULT, OTEL_EXPORTER_OTLP_HTTP_ENDPOINT_DEFAULT,
