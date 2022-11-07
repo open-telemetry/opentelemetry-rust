@@ -1,4 +1,10 @@
 # Changelog
+## Main
+
+### Changed
+
+- Improve OTLP exporter environment variable handling #911
+- OTLP exporter default endpoint changed to http #911
 
 ## v0.11.0
 

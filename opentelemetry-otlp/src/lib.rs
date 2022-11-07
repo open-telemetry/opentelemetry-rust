@@ -202,7 +202,8 @@ pub use crate::metric::{
 
 pub use crate::exporter::{
     HasExportConfig, WithExportConfig, OTEL_EXPORTER_OTLP_ENDPOINT,
-    OTEL_EXPORTER_OTLP_ENDPOINT_DEFAULT, OTEL_EXPORTER_OTLP_TIMEOUT,
+    OTEL_EXPORTER_OTLP_ENDPOINT_DEFAULT, OTEL_EXPORTER_OTLP_PROTOCOL,
+    OTEL_EXPORTER_OTLP_PROTOCOL_DEFAULT, OTEL_EXPORTER_OTLP_TIMEOUT,
     OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT,
 };
 
@@ -368,7 +369,7 @@ impl ExportError for Error {
 
 /// The communication protocol to use when exporting data.
 #[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Protocol {
     /// GRPC protocol
     Grpc,
