@@ -15,7 +15,7 @@ pub struct TracesData {
     /// one element. Intermediary nodes that receive data from multiple origins
     /// typically batch the data before forwarding further and in that case this
     /// array will contain multiple elements.
-    #[prost(message, repeated, tag="1")]
+    #[prost(message, repeated, tag = "1")]
     pub resource_spans: ::prost::alloc::vec::Vec<ResourceSpans>,
 }
 /// A collection of InstrumentationLibrarySpans from a Resource.
@@ -23,15 +23,17 @@ pub struct TracesData {
 pub struct ResourceSpans {
     /// The resource for the spans in this message.
     /// If this field is not set then no resource info is known.
-    #[prost(message, optional, tag="1")]
+    #[prost(message, optional, tag = "1")]
     pub resource: ::core::option::Option<super::super::resource::v1::Resource>,
     /// A list of InstrumentationLibrarySpans that originate from a resource.
-    #[prost(message, repeated, tag="2")]
-    pub instrumentation_library_spans: ::prost::alloc::vec::Vec<InstrumentationLibrarySpans>,
+    #[prost(message, repeated, tag = "2")]
+    pub instrumentation_library_spans: ::prost::alloc::vec::Vec<
+        InstrumentationLibrarySpans,
+    >,
     /// This schema_url applies to the data in the "resource" field. It does not apply
     /// to the data in the "instrumentation_library_spans" field which have their own
     /// schema_url field.
-    #[prost(string, tag="3")]
+    #[prost(string, tag = "3")]
     pub schema_url: ::prost::alloc::string::String,
 }
 /// A collection of Spans produced by an InstrumentationLibrary.
@@ -40,13 +42,15 @@ pub struct InstrumentationLibrarySpans {
     /// The instrumentation library information for the spans in this message.
     /// Semantically when InstrumentationLibrary isn't set, it is equivalent with
     /// an empty instrumentation library name (unknown).
-    #[prost(message, optional, tag="1")]
-    pub instrumentation_library: ::core::option::Option<super::super::common::v1::InstrumentationLibrary>,
+    #[prost(message, optional, tag = "1")]
+    pub instrumentation_library: ::core::option::Option<
+        super::super::common::v1::InstrumentationLibrary,
+    >,
     /// A list of Spans that originate from an instrumentation library.
-    #[prost(message, repeated, tag="2")]
+    #[prost(message, repeated, tag = "2")]
     pub spans: ::prost::alloc::vec::Vec<Span>,
     /// This schema_url applies to all spans and span events in the "spans" field.
-    #[prost(string, tag="3")]
+    #[prost(string, tag = "3")]
     pub schema_url: ::prost::alloc::string::String,
 }
 /// Span represents a single operation within a trace. Spans can be
@@ -68,7 +72,7 @@ pub struct Span {
     /// random trace_id if empty or invalid trace_id was received.
     ///
     /// This field is required.
-    #[prost(bytes="vec", tag="1")]
+    #[prost(bytes = "vec", tag = "1")]
     pub trace_id: ::prost::alloc::vec::Vec<u8>,
     /// A unique identifier for a span within a trace, assigned when the span
     /// is created. The ID is an 8-byte array. An ID with all zeroes is considered
@@ -78,16 +82,16 @@ pub struct Span {
     /// random span_id if empty or invalid span_id was received.
     ///
     /// This field is required.
-    #[prost(bytes="vec", tag="2")]
+    #[prost(bytes = "vec", tag = "2")]
     pub span_id: ::prost::alloc::vec::Vec<u8>,
     /// trace_state conveys information about request position in multiple distributed tracing graphs.
     /// It is a trace_state in w3c-trace-context format: <https://www.w3.org/TR/trace-context/#tracestate-header>
     /// See also <https://github.com/w3c/distributed-tracing> for more details about this field.
-    #[prost(string, tag="3")]
+    #[prost(string, tag = "3")]
     pub trace_state: ::prost::alloc::string::String,
     /// The `span_id` of this span's parent span. If this is a root span, then this
     /// field must be empty. The ID is an 8-byte array.
-    #[prost(bytes="vec", tag="4")]
+    #[prost(bytes = "vec", tag = "4")]
     pub parent_span_id: ::prost::alloc::vec::Vec<u8>,
     /// A description of the span's operation.
     ///
@@ -100,12 +104,12 @@ pub struct Span {
     /// Empty value is equivalent to an unknown span name.
     ///
     /// This field is required.
-    #[prost(string, tag="5")]
+    #[prost(string, tag = "5")]
     pub name: ::prost::alloc::string::String,
     /// Distinguishes between spans generated in a particular context. For example,
     /// two spans with the same name may be distinguished using `CLIENT` (caller)
     /// and `SERVER` (callee) to identify queueing latency associated with the span.
-    #[prost(enumeration="span::SpanKind", tag="6")]
+    #[prost(enumeration = "span::SpanKind", tag = "6")]
     pub kind: i32,
     /// start_time_unix_nano is the start time of the span. On the client side, this is the time
     /// kept by the local machine where the span execution starts. On the server side, this
@@ -113,7 +117,7 @@ pub struct Span {
     /// Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January 1970.
     ///
     /// This field is semantically required and it is expected that end_time >= start_time.
-    #[prost(fixed64, tag="7")]
+    #[prost(fixed64, tag = "7")]
     pub start_time_unix_nano: u64,
     /// end_time_unix_nano is the end time of the span. On the client side, this is the time
     /// kept by the local machine where the span execution ends. On the server side, this
@@ -121,7 +125,7 @@ pub struct Span {
     /// Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January 1970.
     ///
     /// This field is semantically required and it is expected that end_time >= start_time.
-    #[prost(fixed64, tag="8")]
+    #[prost(fixed64, tag = "8")]
     pub end_time_unix_nano: u64,
     /// attributes is a collection of key/value pairs. Note, global attributes
     /// like server name can be set using the resource API. Examples of attributes:
@@ -135,31 +139,31 @@ pub struct Span {
     /// <https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/common/common.md#attributes>
     /// Attribute keys MUST be unique (it is not allowed to have more than one
     /// attribute with the same key).
-    #[prost(message, repeated, tag="9")]
+    #[prost(message, repeated, tag = "9")]
     pub attributes: ::prost::alloc::vec::Vec<super::super::common::v1::KeyValue>,
     /// dropped_attributes_count is the number of attributes that were discarded. Attributes
     /// can be discarded because their keys are too long or because there are too many
     /// attributes. If this value is 0, then no attributes were dropped.
-    #[prost(uint32, tag="10")]
+    #[prost(uint32, tag = "10")]
     pub dropped_attributes_count: u32,
     /// events is a collection of Event items.
-    #[prost(message, repeated, tag="11")]
+    #[prost(message, repeated, tag = "11")]
     pub events: ::prost::alloc::vec::Vec<span::Event>,
     /// dropped_events_count is the number of dropped events. If the value is 0, then no
     /// events were dropped.
-    #[prost(uint32, tag="12")]
+    #[prost(uint32, tag = "12")]
     pub dropped_events_count: u32,
     /// links is a collection of Links, which are references from this span to a span
     /// in the same or different trace.
-    #[prost(message, repeated, tag="13")]
+    #[prost(message, repeated, tag = "13")]
     pub links: ::prost::alloc::vec::Vec<span::Link>,
     /// dropped_links_count is the number of dropped links after the maximum size was
     /// enforced. If this value is 0, then no links were dropped.
-    #[prost(uint32, tag="14")]
+    #[prost(uint32, tag = "14")]
     pub dropped_links_count: u32,
     /// An optional final status for this span. Semantically when Status isn't set, it means
     /// span's status code is unset, i.e. assume STATUS_CODE_UNSET (code = 0).
-    #[prost(message, optional, tag="15")]
+    #[prost(message, optional, tag = "15")]
     pub status: ::core::option::Option<Status>,
 }
 /// Nested message and enum types in `Span`.
@@ -169,20 +173,22 @@ pub mod span {
     #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct Event {
         /// time_unix_nano is the time the event occurred.
-        #[prost(fixed64, tag="1")]
+        #[prost(fixed64, tag = "1")]
         pub time_unix_nano: u64,
         /// name of the event.
         /// This field is semantically required to be set to non-empty string.
-        #[prost(string, tag="2")]
+        #[prost(string, tag = "2")]
         pub name: ::prost::alloc::string::String,
         /// attributes is a collection of attribute key/value pairs on the event.
         /// Attribute keys MUST be unique (it is not allowed to have more than one
         /// attribute with the same key).
-        #[prost(message, repeated, tag="3")]
-        pub attributes: ::prost::alloc::vec::Vec<super::super::super::common::v1::KeyValue>,
+        #[prost(message, repeated, tag = "3")]
+        pub attributes: ::prost::alloc::vec::Vec<
+            super::super::super::common::v1::KeyValue,
+        >,
         /// dropped_attributes_count is the number of dropped attributes. If the value is 0,
         /// then no attributes were dropped.
-        #[prost(uint32, tag="4")]
+        #[prost(uint32, tag = "4")]
         pub dropped_attributes_count: u32,
     }
     /// A pointer from the current span to another span in the same trace or in a
@@ -193,27 +199,39 @@ pub mod span {
     pub struct Link {
         /// A unique identifier of a trace that this linked span is part of. The ID is a
         /// 16-byte array.
-        #[prost(bytes="vec", tag="1")]
+        #[prost(bytes = "vec", tag = "1")]
         pub trace_id: ::prost::alloc::vec::Vec<u8>,
         /// A unique identifier for the linked span. The ID is an 8-byte array.
-        #[prost(bytes="vec", tag="2")]
+        #[prost(bytes = "vec", tag = "2")]
         pub span_id: ::prost::alloc::vec::Vec<u8>,
         /// The trace_state associated with the link.
-        #[prost(string, tag="3")]
+        #[prost(string, tag = "3")]
         pub trace_state: ::prost::alloc::string::String,
         /// attributes is a collection of attribute key/value pairs on the link.
         /// Attribute keys MUST be unique (it is not allowed to have more than one
         /// attribute with the same key).
-        #[prost(message, repeated, tag="4")]
-        pub attributes: ::prost::alloc::vec::Vec<super::super::super::common::v1::KeyValue>,
+        #[prost(message, repeated, tag = "4")]
+        pub attributes: ::prost::alloc::vec::Vec<
+            super::super::super::common::v1::KeyValue,
+        >,
         /// dropped_attributes_count is the number of dropped attributes. If the value is 0,
         /// then no attributes were dropped.
-        #[prost(uint32, tag="5")]
+        #[prost(uint32, tag = "5")]
         pub dropped_attributes_count: u32,
     }
     /// SpanKind is the type of span. Can be used to specify additional relationships between spans
     /// in addition to a parent/child relationship.
-    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration
+    )]
     #[repr(i32)]
     pub enum SpanKind {
         /// Unspecified. Do NOT use as default.
@@ -259,17 +277,27 @@ pub mod span {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Status {
     /// A developer-facing human readable error message.
-    #[prost(string, tag="2")]
+    #[prost(string, tag = "2")]
     pub message: ::prost::alloc::string::String,
     /// The status code.
-    #[prost(enumeration="status::StatusCode", tag="3")]
+    #[prost(enumeration = "status::StatusCode", tag = "3")]
     pub code: i32,
 }
 /// Nested message and enum types in `Status`.
 pub mod status {
     /// For the semantics of status codes see
     /// <https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/api.md#set-status>
-    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration
+    )]
     #[repr(i32)]
     pub enum StatusCode {
         /// The default status.
@@ -299,22 +327,22 @@ pub mod status {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct TraceConfig {
     /// The global default max number of attributes per span.
-    #[prost(int64, tag="4")]
+    #[prost(int64, tag = "4")]
     pub max_number_of_attributes: i64,
     /// The global default max number of annotation events per span.
-    #[prost(int64, tag="5")]
+    #[prost(int64, tag = "5")]
     pub max_number_of_timed_events: i64,
     /// The global default max number of attributes per timed event.
-    #[prost(int64, tag="6")]
+    #[prost(int64, tag = "6")]
     pub max_number_of_attributes_per_timed_event: i64,
     /// The global default max number of link entries per span.
-    #[prost(int64, tag="7")]
+    #[prost(int64, tag = "7")]
     pub max_number_of_links: i64,
     /// The global default max number of attributes per span.
-    #[prost(int64, tag="8")]
+    #[prost(int64, tag = "8")]
     pub max_number_of_attributes_per_link: i64,
     /// The global default sampler used to make decisions on span sampling.
-    #[prost(oneof="trace_config::Sampler", tags="1, 2, 3")]
+    #[prost(oneof = "trace_config::Sampler", tags = "1, 2, 3")]
     pub sampler: ::core::option::Option<trace_config::Sampler>,
 }
 /// Nested message and enum types in `TraceConfig`.
@@ -322,18 +350,18 @@ pub mod trace_config {
     /// The global default sampler used to make decisions on span sampling.
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Sampler {
-        #[prost(message, tag="1")]
+        #[prost(message, tag = "1")]
         ConstantSampler(super::ConstantSampler),
-        #[prost(message, tag="2")]
+        #[prost(message, tag = "2")]
         TraceIdRatioBased(super::TraceIdRatioBased),
-        #[prost(message, tag="3")]
+        #[prost(message, tag = "3")]
         RateLimitingSampler(super::RateLimitingSampler),
     }
 }
 /// Sampler that always makes a constant decision on span sampling.
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ConstantSampler {
-    #[prost(enumeration="constant_sampler::ConstantDecision", tag="1")]
+    #[prost(enumeration = "constant_sampler::ConstantDecision", tag = "1")]
     pub decision: i32,
 }
 /// Nested message and enum types in `ConstantSampler`.
@@ -342,7 +370,17 @@ pub mod constant_sampler {
     /// - Always off
     /// - Always on
     /// - Always follow the parent Span's decision (off if no parent).
-    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration
+    )]
     #[repr(i32)]
     pub enum ConstantDecision {
         AlwaysOff = 0,
@@ -368,13 +406,13 @@ pub mod constant_sampler {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct TraceIdRatioBased {
     /// The desired ratio of sampling. Must be within [0.0, 1.0].
-    #[prost(double, tag="1")]
+    #[prost(double, tag = "1")]
     pub sampling_ratio: f64,
 }
 /// Sampler that tries to sample with a rate per time window.
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct RateLimitingSampler {
     /// Rate per second.
-    #[prost(int64, tag="1")]
+    #[prost(int64, tag = "1")]
     pub qps: i64,
 }

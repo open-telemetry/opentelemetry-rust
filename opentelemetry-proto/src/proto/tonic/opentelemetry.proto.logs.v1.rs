@@ -15,7 +15,7 @@ pub struct LogsData {
     /// one element. Intermediary nodes that receive data from multiple origins
     /// typically batch the data before forwarding further and in that case this
     /// array will contain multiple elements.
-    #[prost(message, repeated, tag="1")]
+    #[prost(message, repeated, tag = "1")]
     pub resource_logs: ::prost::alloc::vec::Vec<ResourceLogs>,
 }
 /// A collection of InstrumentationLibraryLogs from a Resource.
@@ -23,15 +23,17 @@ pub struct LogsData {
 pub struct ResourceLogs {
     /// The resource for the logs in this message.
     /// If this field is not set then resource info is unknown.
-    #[prost(message, optional, tag="1")]
+    #[prost(message, optional, tag = "1")]
     pub resource: ::core::option::Option<super::super::resource::v1::Resource>,
     /// A list of InstrumentationLibraryLogs that originate from a resource.
-    #[prost(message, repeated, tag="2")]
-    pub instrumentation_library_logs: ::prost::alloc::vec::Vec<InstrumentationLibraryLogs>,
+    #[prost(message, repeated, tag = "2")]
+    pub instrumentation_library_logs: ::prost::alloc::vec::Vec<
+        InstrumentationLibraryLogs,
+    >,
     /// This schema_url applies to the data in the "resource" field. It does not apply
     /// to the data in the "instrumentation_library_logs" field which have their own
     /// schema_url field.
-    #[prost(string, tag="3")]
+    #[prost(string, tag = "3")]
     pub schema_url: ::prost::alloc::string::String,
 }
 /// A collection of Logs produced by an InstrumentationLibrary.
@@ -40,13 +42,15 @@ pub struct InstrumentationLibraryLogs {
     /// The instrumentation library information for the logs in this message.
     /// Semantically when InstrumentationLibrary isn't set, it is equivalent with
     /// an empty instrumentation library name (unknown).
-    #[prost(message, optional, tag="1")]
-    pub instrumentation_library: ::core::option::Option<super::super::common::v1::InstrumentationLibrary>,
+    #[prost(message, optional, tag = "1")]
+    pub instrumentation_library: ::core::option::Option<
+        super::super::common::v1::InstrumentationLibrary,
+    >,
     /// A list of log records.
-    #[prost(message, repeated, tag="2")]
+    #[prost(message, repeated, tag = "2")]
     pub log_records: ::prost::alloc::vec::Vec<LogRecord>,
     /// This schema_url applies to all logs in the "logs" field.
-    #[prost(string, tag="3")]
+    #[prost(string, tag = "3")]
     pub schema_url: ::prost::alloc::string::String,
 }
 /// A log record according to OpenTelemetry Log Data Model:
@@ -56,7 +60,7 @@ pub struct LogRecord {
     /// time_unix_nano is the time when the event occurred.
     /// Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January 1970.
     /// Value of 0 indicates unknown or missing timestamp.
-    #[prost(fixed64, tag="1")]
+    #[prost(fixed64, tag = "1")]
     pub time_unix_nano: u64,
     /// Time when the event was observed by the collection system.
     /// For events that originate in OpenTelemetry (e.g. using OpenTelemetry Logging SDK)
@@ -73,15 +77,15 @@ pub struct LogRecord {
     ///
     /// Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January 1970.
     /// Value of 0 indicates unknown or missing timestamp.
-    #[prost(fixed64, tag="11")]
+    #[prost(fixed64, tag = "11")]
     pub observed_time_unix_nano: u64,
     /// Numerical value of the severity, normalized to values described in Log Data Model.
     /// \[Optional\].
-    #[prost(enumeration="SeverityNumber", tag="2")]
+    #[prost(enumeration = "SeverityNumber", tag = "2")]
     pub severity_number: i32,
     /// The severity text (also known as log level). The original string representation as
     /// it is known at the source. \[Optional\].
-    #[prost(string, tag="3")]
+    #[prost(string, tag = "3")]
     pub severity_text: ::prost::alloc::string::String,
     /// Short event identifier that does not contain varying parts. Name describes
     /// what happened (e.g. "ProcessStarted"). Recommended to be no longer than 50
@@ -89,38 +93,38 @@ pub struct LogRecord {
     /// This deprecated field is planned to be removed March 15, 2022. Receivers can
     /// ignore this field.
     #[deprecated]
-    #[prost(string, tag="4")]
+    #[prost(string, tag = "4")]
     pub name: ::prost::alloc::string::String,
     /// A value containing the body of the log record. Can be for example a human-readable
     /// string message (including multi-line) describing the event in a free form or it can
     /// be a structured data composed of arrays and maps of other values. \[Optional\].
-    #[prost(message, optional, tag="5")]
+    #[prost(message, optional, tag = "5")]
     pub body: ::core::option::Option<super::super::common::v1::AnyValue>,
     /// Additional attributes that describe the specific event occurrence. \[Optional\].
     /// Attribute keys MUST be unique (it is not allowed to have more than one
     /// attribute with the same key).
-    #[prost(message, repeated, tag="6")]
+    #[prost(message, repeated, tag = "6")]
     pub attributes: ::prost::alloc::vec::Vec<super::super::common::v1::KeyValue>,
-    #[prost(uint32, tag="7")]
+    #[prost(uint32, tag = "7")]
     pub dropped_attributes_count: u32,
     /// Flags, a bit field. 8 least significant bits are the trace flags as
     /// defined in W3C Trace Context specification. 24 most significant bits are reserved
     /// and must be set to 0. Readers must not assume that 24 most significant bits
     /// will be zero and must correctly mask the bits when reading 8-bit trace flag (use
     /// flags & TRACE_FLAGS_MASK). \[Optional\].
-    #[prost(fixed32, tag="8")]
+    #[prost(fixed32, tag = "8")]
     pub flags: u32,
     /// A unique identifier for a trace. All logs from the same trace share
     /// the same `trace_id`. The ID is a 16-byte array. An ID with all zeroes
     /// is considered invalid. Can be set for logs that are part of request processing
     /// and have an assigned trace id. \[Optional\].
-    #[prost(bytes="vec", tag="9")]
+    #[prost(bytes = "vec", tag = "9")]
     pub trace_id: ::prost::alloc::vec::Vec<u8>,
     /// A unique identifier for a span within a trace, assigned when the span
     /// is created. The ID is an 8-byte array. An ID with all zeroes is considered
     /// invalid. Can be set for logs that are part of a particular processing span.
     /// If span_id is present trace_id SHOULD be also present. \[Optional\].
-    #[prost(bytes="vec", tag="10")]
+    #[prost(bytes = "vec", tag = "10")]
     pub span_id: ::prost::alloc::vec::Vec<u8>,
 }
 /// Possible values for LogRecord.SeverityNumber.
@@ -204,7 +208,9 @@ impl LogRecordFlags {
     pub fn as_str_name(&self) -> &'static str {
         match self {
             LogRecordFlags::LogRecordFlagUnspecified => "LOG_RECORD_FLAG_UNSPECIFIED",
-            LogRecordFlags::LogRecordFlagTraceFlagsMask => "LOG_RECORD_FLAG_TRACE_FLAGS_MASK",
+            LogRecordFlags::LogRecordFlagTraceFlagsMask => {
+                "LOG_RECORD_FLAG_TRACE_FLAGS_MASK"
+            }
         }
     }
 }
