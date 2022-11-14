@@ -18,6 +18,7 @@ once_cell = "1.12.0"
 pin-project-lite = { version = "0.2", optional = true }
 thiserror = "1"
 tokio-stream = { version = "0.1", optional = true }
+tracing = { version = "0.1", optional = true }
 
 [package.metadata.docs.rs]
 all-features = true
@@ -31,3 +32,4 @@ default = ["trace"]
 trace = ["pin-project-lite"]
 metrics = ["fnv"]
 testing = ["trace"]
+use_tracing = ["tracing"]

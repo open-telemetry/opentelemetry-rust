@@ -123,7 +123,10 @@ impl Default for CollectorPipeline {
             let timeout = match timeout.parse() {
                 Ok(timeout) => Duration::from_millis(timeout),
                 Err(e) => {
+                    #[cfg(not(feature = "use_tracing"))]
                     eprintln!("{} malformed defaulting to 10000: {}", ENV_TIMEOUT, e);
+                    #[cfg(feature = "use_tracing")]
+                    tracing::error!("{ENV_TIMEOUT} malformed defaulting to 10000: {e}");
                     DEFAULT_COLLECTOR_TIMEOUT
                 }
             };
