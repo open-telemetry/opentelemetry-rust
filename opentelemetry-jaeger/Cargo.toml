@@ -39,7 +39,6 @@ opentelemetry-semantic-conventions = { version = "0.10", path = "../opentelemetr
 pin-project-lite = { version = "0.2", optional = true }
 reqwest = { version = "0.11", default-features = false, optional = true }
 surf = { version = "2.0", optional = true }
-tracing = { version = "0.1", optional = true }
 thiserror = "1.0"
 thrift = "0.16"
 tokio = { version = "1.0", features = ["net", "sync"], optional = true }
@@ -108,4 +107,4 @@ rt-tokio = ["tokio", "opentelemetry/rt-tokio"]
 rt-tokio-current-thread = ["tokio", "opentelemetry/rt-tokio-current-thread"]
 rt-async-std = ["async-std", "opentelemetry/rt-async-std"]
 integration_test = ["tonic", "prost", "prost-types", "rt-tokio", "collector_client", "hyper_collector_client", "hyper_tls_collector_client", "reqwest_collector_client", "surf_collector_client", "isahc_collector_client"]
-use_tracing = ["tracing"]
+no_stdout = []

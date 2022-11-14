@@ -45,25 +45,22 @@ pub fn handle_error<T: Into<Error>>(err: T) {
         _ => match err.into() {
             #[cfg(feature = "metrics")]
             #[cfg_attr(docsrs, doc(cfg(feature = "metrics")))]
+            #[allow(unused)]
             Error::Metric(err) => {
-                #[cfg(not(feature = "use_tracing"))]
+                #[cfg(not(feature = "no_stdout"))]
                 eprintln!("OpenTelemetry metrics error occurred. {}", err);
-                #[cfg(feature = "use_tracing")]
-                tracing::error!("OpenTelemetry metrics error occurred. {err}");
             }
             #[cfg(feature = "trace")]
             #[cfg_attr(docsrs, doc(cfg(feature = "trace")))]
+            #[allow(unused)]
             Error::Trace(err) => {
-                #[cfg(not(feature = "use_tracing"))]
+                #[cfg(not(feature = "no_stdout"))]
                 eprintln!("OpenTelemetry trace error occurred. {}", err);
-                #[cfg(feature = "use_tracing")]
-                tracing::error!("OpenTelemetry trace error occurred. {err}");
             }
+            #[allow(unused)]
             Error::Other(err_msg) => {
-                #[cfg(not(feature = "use_tracing"))]
+                #[cfg(not(feature = "no_stdout"))]
                 eprintln!("OpenTelemetry error occurred. {}", err_msg);
-                #[cfg(feature = "use_tracing")]
-                tracing::error!("OpenTelemetry error occurred. {err_msg}");
             }
         },
     }
