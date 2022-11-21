@@ -3,7 +3,8 @@ exclude=[
     "actix-http-tracing",
     "actix-udp",
     "actix-udp-example",
-    "tracing-grpc"
+    "tracing-grpc",
+    "http"
 ]
 
 [licenses]
