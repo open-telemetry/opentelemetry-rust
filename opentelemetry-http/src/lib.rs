@@ -138,10 +138,8 @@ pub mod surf {
             for header_name in response.header_names() {
                 for header_value in &response[header_name.to_string().as_str()] {
                     headers.append(
-                        HeaderName::from_str(&header_name.to_string())
-                            .expect("it was a header name before"),
-                        HeaderValue::from_str(header_value.as_str())
-                            .expect("it was a header value before"),
+                        HeaderName::from_str(&header_name.to_string())?,
+                        HeaderValue::from_str(header_value.as_str())?,
                     );
                 }
             }
