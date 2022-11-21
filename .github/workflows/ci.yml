@@ -87,6 +87,24 @@ jobs:
       - uses: EmbarkStudios/cargo-deny-action@v1
         with:
           command: check advisories
+  docs:
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+        with:
+          submodules: true
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          components: rustfmt
+          override: true
+      - uses: arduino/setup-protoc@v1
+      - name: doc
+        run: cargo doc --no-deps --all-features
+        env:
+          CARGO_INCREMENTAL: '0'
+          RUSTDOCFLAGS: -Dwarnings
   coverage:
     continue-on-error: true
     runs-on: ubuntu-latest
@@ -99,12 +117,6 @@ jobs:
         toolchain: nightly
         components: rustfmt
         override: true
-    - uses: arduino/setup-protoc@v1
-    - name: doc
-      run: cargo doc --no-deps --all-features
-      env:
-        CARGO_INCREMENTAL: '0'
-        RUSTDOCFLAGS: -Dwarnings
     - uses: actions-rs/cargo@v1
       with:
         command: test
