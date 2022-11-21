@@ -30,8 +30,5 @@ license-files = [
 
 [advisories]
 ignore = [
-    "RUSTSEC-2021-0127", # serde_cbor is unmaintained. However, we only depend on it indirectly through criterion, which is a dev dependency.
-    "RUSTSEC-2021-0139", # ansi_term is unmaintained. It's used in 1) criterion, which is a dev dependency. 2) grpcio, but only in build.
-    "RUSTSEC-2020-0036", # failure is deprecated. It's used in protoc-grpcio, which is a build dependency.
-    "RUSTSEC-2019-0036", # Possible UB in failures, which is used in protoc-grpcio. We only use it in dev. See https://github.com/mtp401/protoc-grpcio/issues/40
+    # empty for now
 ]
