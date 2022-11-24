@@ -17,7 +17,10 @@
 use crate::{Context, Key, KeyValue, Value};
 use once_cell::sync::Lazy;
 use std::collections::{hash_map, HashMap};
+use std::fmt;
 use std::iter::FromIterator;
+use urlencoding::encode;
+// use urlencoding::encode;
 
 static DEFAULT_BAGGAGE: Lazy<Baggage> = Lazy::new(Baggage::default);
 
@@ -280,6 +283,26 @@ impl FromIterator<KeyValueMetadata> for Baggage {
     }
 }
 
+impl fmt::Display for Baggage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut v: Vec<String> = self
+            .into_iter()
+            .map(|(k, v)| {
+                let mut val = encode(&v.0.as_str()).to_string();
+                if !v.1.as_str().is_empty() {
+                    val.push_str(format!(";{}", v.1.as_str()).as_str())
+                }
+
+                format!("{}={}", k, val)
+            })
+            .collect();
+
+        v.sort();
+        let s = v.join(",");
+        Ok(write!(f, "{}", s)?)
+    }
+}
+
 /// Methods for sorting and retrieving baggage data in a context.
 pub trait BaggageExt {
     /// Returns a clone of the given context with the included name/value pairs.
@@ -397,6 +420,12 @@ impl From<&str> for BaggageMetadata {
     }
 }
 
+impl fmt::Display for BaggageMetadata {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        Ok(write!(f, "{}", self.as_str())?)
+    }
+}
+
 /// [`Baggage`] name/value pairs with their associated metadata.
 #[derive(Clone, Debug, PartialEq)]
 pub struct KeyValueMetadata {
@@ -436,6 +465,8 @@ impl From<KeyValue> for KeyValueMetadata {
 
 #[cfg(test)]
 mod tests {
+    use crate::StringValue;
+
     use super::*;
 
     #[test]
@@ -493,5 +524,50 @@ mod tests {
         }
         let baggage = data.into_iter().collect::<Baggage>();
         assert_eq!(baggage.len(), 3)
+    }
+
+    #[test]
+    fn serialize_baggage_as_string() {
+        // Empty baggage
+        let b = Baggage::default();
+        assert_eq!("", b.to_string());
+
+        // "single member empty value no properties"
+        let mut b = Baggage::default();
+        b.insert("foo", StringValue::from(""));
+        assert_eq!("foo=", b.to_string());
+
+        // "single member no properties"
+        let mut b = Baggage::default();
+        b.insert("foo", StringValue::from("1"));
+        assert_eq!("foo=1", b.to_string());
+
+        // "URL encoded value"
+        let mut b = Baggage::default();
+        b.insert("foo", StringValue::from("1=1"));
+        assert_eq!("foo=1%3D1", b.to_string());
+
+        // "single member empty value with properties"
+        let mut b = Baggage::default();
+        b.insert_with_metadata(
+            "foo",
+            StringValue::from(""),
+            BaggageMetadata::from("red;state=on"),
+        );
+        assert_eq!("foo=;red;state=on", b.to_string());
+
+        // "single member with properties"
+        let mut b = Baggage::default();
+        b.insert_with_metadata("foo", StringValue::from("1"), "red;state=on;z=z=z");
+        assert_eq!("foo=1;red;state=on;z=z=z", b.to_string());
+
+        // "two members with properties"
+        let mut b = Baggage::default();
+        b.insert_with_metadata("foo", StringValue::from("1"), "red;state=on");
+        b.insert_with_metadata("bar", StringValue::from("2"), "yellow");
+        assert_eq!("bar=2;yellow,foo=1;red;state=on", b.to_string());
+
+        // assert it implements Display
+        let _ = format!("{}", b);
     }
 }
