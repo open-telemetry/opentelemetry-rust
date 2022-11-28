@@ -562,6 +562,10 @@ mod tests {
         let mut b = Baggage::default();
         b.insert_with_metadata("foo", StringValue::from("1"), "red;state=on");
         b.insert_with_metadata("bar", StringValue::from("2"), "yellow");
-        assert_eq!("bar=2;yellow,foo=1;red;state=on", b.to_string());
+        let stringified = b.to_string();
+        assert!(
+            stringified == "bar=2;yellow,foo=1;red;state=on"
+                || stringified == "foo=1;red;state=on,bar=2;yellow"
+        )
     }
 }
