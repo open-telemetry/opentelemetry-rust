@@ -14,15 +14,15 @@ path = "src/client.rs"
 
 [dependencies]
 http = "0.2"
-tonic = "0.6.2"
-prost = "0.9"
+tonic = "0.8.2"
+prost = "0.11"
 tokio = { version = "1.0", features = ["full"] }
-opentelemetry = { version = "0.14", features = ["rt-tokio"] }
-opentelemetry-jaeger = "0.13"
+opentelemetry = { version = "0.18", features = ["rt-tokio"] }
+opentelemetry-jaeger = "0.17"
 tracing = "0.1"
-tracing-subscriber = "0.2"
-tracing-opentelemetry = "0.13"
+tracing-subscriber = "0.3"
+tracing-opentelemetry = "0.18"
 tracing-futures = "0.2"
 
 [build-dependencies]
-tonic-build = "0.6.2"
+tonic-build = "0.8.2"

@@ -9,5 +9,5 @@ futures-util = { version = "0.3", default-features = false, features = ["std"] }
 lazy_static = "1.4"
 opentelemetry = { path = "../../opentelemetry", features = ["rt-tokio", "metrics"] }
 opentelemetry-jaeger = { path = "../../opentelemetry-jaeger", features = ["rt-tokio"] }
-thrift = "0.13"
+thrift = "0.17"
 tokio = { version = "1.0", features = ["full"] }

@@ -1,6 +1,8 @@
 use actix_web::middleware::Logger;
 use actix_web::{web, App, HttpServer};
-use actix_web_opentelemetry::RequestTracing;
+use actix_web_opentelemetry::{PrometheusMetricsHandler, RequestMetricsBuilder, RequestTracing};
+use opentelemetry::sdk::export::metrics::aggregation;
+use opentelemetry::sdk::metrics::{controllers, processors, selectors};
 use opentelemetry::{global, sdk::propagation::TraceContextPropagator};
 use std::io;
 use tracing_subscriber::prelude::*;
@@ -18,19 +20,23 @@ fn greet_user(username: &str) -> String {
 
 #[actix_web::main]
 async fn main() -> io::Result<()> {
-    // Start an (optional) otel prometheus metrics pipeline
-    let metrics_exporter = opentelemetry_prometheus::exporter().init();
-    let request_metrics = actix_web_opentelemetry::RequestMetrics::new(
-        opentelemetry::global::meter("actix_http_tracing"),
-        Some(|req: &actix_web::dev::ServiceRequest| {
-            req.path() == "/metrics" && req.method() == actix_web::http::Method::GET
-        }),
-        Some(metrics_exporter),
-    );
+    let controller = controllers::basic(
+        processors::factory(
+            selectors::simple::histogram([1.0, 2.0, 5.0, 10.0, 20.0, 50.0]),
+            aggregation::cumulative_temporality_selector(),
+        )
+        .with_memory(true),
+    )
+    .build();
+    let exporter = opentelemetry_prometheus::exporter(controller).init();
+    let meter = global::meter("actix_web");
+
+    // Request metrics middleware
+    let request_metrics = RequestMetricsBuilder::new().build(meter);
 
     // Start an otel jaeger trace pipeline
     global::set_text_map_propagator(TraceContextPropagator::new());
-    let tracer = opentelemetry_jaeger::new_pipeline()
+    let tracer = opentelemetry_jaeger::new_agent_pipeline()
         .with_service_name("app_name")
         .install_simple()
         .unwrap();
@@ -48,6 +54,10 @@ async fn main() -> io::Result<()> {
             .wrap(Logger::default())
             .wrap(RequestTracing::new())
             .wrap(request_metrics.clone())
+            .route(
+                "/metrics",
+                web::get().to(PrometheusMetricsHandler::new(exporter.clone())),
+            )
             .service(web::resource("/users/{username}").to(index))
     })
     .bind("127.0.0.1:8080")?

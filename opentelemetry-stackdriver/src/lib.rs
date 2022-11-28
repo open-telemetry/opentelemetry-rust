@@ -418,9 +418,13 @@ impl Authorizer for YupAuthorizer {
             .await
             .map_err(|e| Error::Authorizer(e.into()))?;
 
+        let token = token
+            .token()
+            .ok_or_else(|| Error::Authorizer("no token".into()))?;
+
         req.metadata_mut().insert(
             "authorization",
-            MetadataValue::try_from(format!("Bearer {}", token.as_str())).unwrap(),
+            MetadataValue::try_from(format!("Bearer {}", token)).unwrap(),
         );
         Ok(())
     }
