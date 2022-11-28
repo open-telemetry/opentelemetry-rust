@@ -285,21 +285,18 @@ impl FromIterator<KeyValueMetadata> for Baggage {
 
 impl fmt::Display for Baggage {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut v: Vec<String> = self
-            .into_iter()
-            .map(|(k, v)| {
-                let mut val = encode(&v.0.as_str()).to_string();
-                if !v.1.as_str().is_empty() {
-                    val.push_str(format!(";{}", v.1.as_str()).as_str())
-                }
+        for (i, (k, v)) in self.into_iter().enumerate() {
+            write!(f, "{}={}", k, encode(&v.0.as_str()))?;
+            if !v.1.as_str().is_empty() {
+                write!(f, ";{}", v.1)?;
+            }
 
-                format!("{}={}", k, val)
-            })
-            .collect();
+            if i < self.len() - 1 {
+                write!(f, ",")?;
+            }
+        }
 
-        v.sort();
-        let s = v.join(",");
-        Ok(write!(f, "{}", s)?)
+        Ok(())
     }
 }
 
@@ -566,8 +563,5 @@ mod tests {
         b.insert_with_metadata("foo", StringValue::from("1"), "red;state=on");
         b.insert_with_metadata("bar", StringValue::from("2"), "yellow");
         assert_eq!("bar=2;yellow,foo=1;red;state=on", b.to_string());
-
-        // assert it implements Display
-        let _ = format!("{}", b);
     }
 }
