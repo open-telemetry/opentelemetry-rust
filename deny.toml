@@ -30,8 +30,9 @@ license-files = [
 
 [advisories]
 ignore = [
-    # empty for now
+    # unsoundness in indirect dependencies without a safe upgrade below
+    "RUSTSEC-2021-0145",
+    "RUSTSEC-2019-0036"
 ]
 unmaintained = "allow"
 yanked = "allow"
-unsound = "allow"
