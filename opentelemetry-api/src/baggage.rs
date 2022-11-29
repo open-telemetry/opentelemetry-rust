@@ -20,7 +20,6 @@ use std::collections::{hash_map, HashMap};
 use std::fmt;
 use std::iter::FromIterator;
 use urlencoding::encode;
-// use urlencoding::encode;
 
 static DEFAULT_BAGGAGE: Lazy<Baggage> = Lazy::new(Baggage::default);
 
@@ -562,10 +561,7 @@ mod tests {
         let mut b = Baggage::default();
         b.insert_with_metadata("foo", StringValue::from("1"), "red;state=on");
         b.insert_with_metadata("bar", StringValue::from("2"), "yellow");
-        let stringified = b.to_string();
-        assert!(
-            stringified == "bar=2;yellow,foo=1;red;state=on"
-                || stringified == "foo=1;red;state=on,bar=2;yellow"
-        )
+        assert!(b.to_string().contains("bar=2;yellow"));
+        assert!(b.to_string().contains("foo=1;red;state=on"));
     }
 }
