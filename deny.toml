@@ -32,3 +32,6 @@ license-files = [
 ignore = [
     # empty for now
 ]
+unmaintained = "allow"
+yanked = "allow"
+unsound = "allow"

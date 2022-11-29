@@ -87,7 +87,6 @@ jobs:
       - uses: EmbarkStudios/cargo-deny-action@v1
         with:
           command: check advisories
-          log-level: error
   docs:
     continue-on-error: true
     runs-on: ubuntu-latest
