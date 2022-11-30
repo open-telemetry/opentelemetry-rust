@@ -137,6 +137,8 @@ pub enum Sampler {
     /// given service (a.k.a per operation).
     #[cfg(feature = "jaeger_remote_sampler")]
     JaegerRemote(JaegerRemoteSampler),
+    /// Delegate decision to a delegate sampler, but map Drop to RecordOnly
+    AlwaysRecord(Box<dyn ShouldSample>),
 }
 
 impl Sampler {
@@ -224,6 +226,23 @@ impl ShouldSample for Sampler {
                         instrumentation_library,
                     )
                     .decision
+            }
+            Sampler::AlwaysRecord(delegate_sampler) => {
+                let delegate_decision = delegate_sampler
+                    .should_sample(
+                        parent_context,
+                        trace_id,
+                        name,
+                        span_kind,
+                        attributes,
+                        links,
+                        instrumentation_library,
+                    )
+                    .decision;
+                match delegate_decision {
+                    SamplingDecision::Drop => SamplingDecision::RecordOnly,
+                    _ => delegate_decision,
+                }
             }
         };
         SamplingResult {
