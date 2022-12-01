@@ -102,6 +102,7 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
 pub struct SimpleSpanProcessor {
     sender: crossbeam_channel::Sender<Option<SpanData>>,
     shutdown: crossbeam_channel::Receiver<()>,
+    drop_if_not_sampled: bool,
 }
 
 impl SimpleSpanProcessor {
@@ -131,6 +132,7 @@ impl SimpleSpanProcessor {
         SimpleSpanProcessor {
             sender: span_tx,
             shutdown: shutdown_rx,
+            drop_if_not_sampled: true,
         }
     }
 }
@@ -141,7 +143,7 @@ impl SpanProcessor for SimpleSpanProcessor {
     }
 
     fn on_end(&self, span: SpanData) {
-        if !span.span_context.is_sampled() {
+        if self.drop_if_not_sampled && !span.span_context.is_sampled() {
             return;
         }
 
@@ -230,6 +232,7 @@ impl SpanProcessor for SimpleSpanProcessor {
 /// [`async-std`]: https://async.rs
 pub struct BatchSpanProcessor<R: TraceRuntime> {
     message_sender: R::Sender,
+    drop_if_not_sampled: bool,
 }
 
 impl<R: TraceRuntime> fmt::Debug for BatchSpanProcessor<R> {
@@ -246,7 +249,7 @@ impl<R: TraceRuntime> SpanProcessor for BatchSpanProcessor<R> {
     }
 
     fn on_end(&self, span: SpanData) {
-        if !span.span_context.is_sampled() {
+        if self.drop_if_not_sampled && !span.span_context.is_sampled() {
             return;
         }
 
@@ -448,6 +451,8 @@ impl<R: TraceRuntime> BatchSpanProcessor<R> {
             .map(|_| BatchMessage::Flush(None));
         let timeout_runtime = runtime.clone();
 
+        let drop_if_not_sampled = config.drop_if_not_sampled;
+
         let messages = Box::pin(stream::select(message_receiver, ticker));
         let processor = BatchSpanProcessorInternal {
             spans: Vec::new(),
@@ -461,7 +466,10 @@ impl<R: TraceRuntime> BatchSpanProcessor<R> {
         runtime.spawn(Box::pin(processor.run(messages)));
 
         // Return batch processor with link to worker
-        BatchSpanProcessor { message_sender }
+        BatchSpanProcessor {
+            message_sender,
+            drop_if_not_sampled,
+        }
     }
 
     /// Create a new batch processor builder
@@ -503,6 +511,8 @@ pub struct BatchConfig {
     /// by an exporter. A value of 1 will cause exports to be performed
     /// synchronously on the BatchSpanProcessor task.
     max_concurrent_exports: usize,
+
+    drop_if_not_sampled: bool,
 }
 
 impl Default for BatchConfig {
@@ -513,6 +523,7 @@ impl Default for BatchConfig {
             max_export_batch_size: OTEL_BSP_MAX_EXPORT_BATCH_SIZE_DEFAULT,
             max_export_timeout: Duration::from_millis(OTEL_BSP_EXPORT_TIMEOUT_DEFAULT),
             max_concurrent_exports: OTEL_BSP_MAX_CONCURRENT_EXPORTS_DEFAULT,
+            drop_if_not_sampled: true,
         };
 
         if let Some(max_concurrent_exports) = env::var(OTEL_BSP_MAX_CONCURRENT_EXPORTS)
@@ -608,6 +619,11 @@ impl BatchConfig {
         self.max_export_timeout = max_export_timeout;
         self
     }
+
+    pub fn with_drop_if_not_sampled(mut self, drop_if_not_sampled: bool) -> Self {
+        self.drop_if_not_sampled = drop_if_not_sampled;
+        self
+    }
 }
 
 /// A builder for creating [`BatchSpanProcessor`] instances.
@@ -669,6 +685,12 @@ where
     pub fn with_max_concurrent_exports(self, max: usize) -> Self {
         let mut config = self.config;
         config.max_concurrent_exports = max;
+        BatchSpanProcessorBuilder { config, ..self }
+    }
+
+    pub fn with_drop_if_not_sampled(self, should_drop: bool) -> Self {
+        let mut config = self.config;
+        config.drop_if_not_sampled = should_drop;
         BatchSpanProcessorBuilder { config, ..self }
     }
 
