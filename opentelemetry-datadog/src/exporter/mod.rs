@@ -270,10 +270,12 @@ impl DatadogPipelineBuilder {
     pub fn install_simple(mut self) -> Result<sdk::trace::Tracer, TraceError> {
         let (config, service_name) = self.build_config_and_service_name();
         let exporter = self.build_exporter_with_service_name(service_name)?;
-        let mut provider_builder =
-            sdk::trace::TracerProvider::builder().with_simple_exporter(exporter);
-        provider_builder = provider_builder.with_config(config);
-        let provider = provider_builder.build();
+        let processor = sdk::trace::SimpleSpanProcessor::new(Box::new(exporter))
+            .with_drop_if_not_sampled(false);
+        let provider = sdk::trace::TracerProvider::builder()
+            .with_span_processor(processor)
+            .with_config(config)
+            .build();
         let tracer = provider.versioned_tracer(
             "opentelemetry-datadog",
             Some(env!("CARGO_PKG_VERSION")),
@@ -291,13 +293,13 @@ impl DatadogPipelineBuilder {
     ) -> Result<sdk::trace::Tracer, TraceError> {
         let (config, service_name) = self.build_config_and_service_name();
         let exporter = self.build_exporter_with_service_name(service_name)?;
-        let batch = sdk::trace::BatchSpanProcessor::builder(exporter, runtime)
+        let processor = sdk::trace::BatchSpanProcessor::builder(exporter, runtime)
             .with_drop_if_not_sampled(false)
             .build();
-        let mut provider_builder =
-            sdk::trace::TracerProvider::builder().with_span_processor(batch);
-        provider_builder = provider_builder.with_config(config);
-        let provider = provider_builder.build();
+        let provider = sdk::trace::TracerProvider::builder()
+            .with_span_processor(processor)
+            .with_config(config)
+            .build();
         let tracer = provider.versioned_tracer(
             "opentelemetry-datadog",
             Some(env!("CARGO_PKG_VERSION")),
