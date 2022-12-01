@@ -16,7 +16,7 @@ use opentelemetry::sdk::export::trace;
 use opentelemetry::sdk::export::trace::SpanData;
 use opentelemetry::sdk::resource::ResourceDetector;
 use opentelemetry::sdk::resource::SdkProvidedResourceDetector;
-use opentelemetry::sdk::trace::{Config, TraceRuntime};
+use opentelemetry::sdk::trace::{Config, Sampler, TraceRuntime};
 use opentelemetry::sdk::Resource;
 use opentelemetry::trace::TraceError;
 use opentelemetry::{global, sdk, trace::TracerProvider, KeyValue};
@@ -183,38 +183,32 @@ impl DatadogPipelineBuilder {
     }
 
     fn build_config_and_service_name(&mut self) -> (Config, String) {
-        let service_name = self.service_name.take();
-        if let Some(service_name) = service_name {
-            let config = if let Some(mut cfg) = self.trace_config.take() {
-                cfg.resource = Cow::Owned(Resource::new(
-                    cfg.resource
-                        .iter()
-                        .filter(|(k, _v)| **k != semcov::resource::SERVICE_NAME)
-                        .map(|(k, v)| KeyValue::new(k.clone(), v.clone())),
-                ));
-                cfg
-            } else {
-                Config {
-                    resource: Cow::Owned(Resource::empty()),
-                    ..Default::default()
-                }
-            };
-            (config, service_name)
-        } else {
-            let service_name = SdkProvidedResourceDetector
+        let service_name = self.service_name.take().unwrap_or_else(|| {
+            SdkProvidedResourceDetector
                 .detect(Duration::from_secs(0))
                 .get(semcov::resource::SERVICE_NAME)
                 .unwrap()
-                .to_string();
-            (
-                Config {
-                    // use a empty resource to prevent TracerProvider to assign a service name.
-                    resource: Cow::Owned(Resource::empty()),
-                    ..Default::default()
-                },
-                service_name,
-            )
-        }
+                .to_string()
+        });
+
+        let mut config = self.trace_config.take().unwrap_or_default();
+
+        // Remove the service name from the resource to prevent TracerProvider from assigning a
+        // service name.
+        config.resource = Cow::Owned(Resource::new(
+            config
+                .resource
+                .iter()
+                .filter(|(k, _v)| **k != semcov::resource::SERVICE_NAME)
+                .map(|(k, v)| KeyValue::new(k.clone(), v.clone())),
+        ));
+
+        // We always need to send spans to the datadog agent, even if they aren't
+        // sampled, so that the agent correctly reports APM metrics. The agent is then
+        // responsible for dropping the span.
+        config.sampler = Box::new(Sampler::AlwaysRecord(config.sampler));
+
+        (config, service_name)
     }
 
     // parse the endpoint and append the path based on versions.
