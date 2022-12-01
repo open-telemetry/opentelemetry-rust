@@ -105,7 +105,7 @@ pub struct SimpleSpanProcessor {
 }
 
 impl SimpleSpanProcessor {
-    pub(crate) fn new(mut exporter: Box<dyn SpanExporter>) -> Self {
+    pub fn new(mut exporter: Box<dyn SpanExporter>) -> Self {
         let (span_tx, span_rx) = crossbeam_channel::unbounded();
         let (shutdown_tx, shutdown_rx) = crossbeam_channel::bounded(0);
 
@@ -132,6 +132,11 @@ impl SimpleSpanProcessor {
             sender: span_tx,
             shutdown: shutdown_rx,
         }
+    }
+
+    pub fn with_drop_if_not_sampled(mut self, should_drop: bool) -> Self {
+        self.drop_if_not_sampled = should_drop;
+        self
     }
 }
 
