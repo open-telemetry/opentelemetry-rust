@@ -286,8 +286,11 @@ impl DatadogPipelineBuilder {
     ) -> Result<sdk::trace::Tracer, TraceError> {
         let (config, service_name) = self.build_config_and_service_name();
         let exporter = self.build_exporter_with_service_name(service_name)?;
+        let batch = sdk::trace::BatchSpanProcessor::builder(exporter, runtime)
+            .with_drop_if_not_sampled(false)
+            .build();
         let mut provider_builder =
-            sdk::trace::TracerProvider::builder().with_batch_exporter(exporter, runtime);
+            sdk::trace::TracerProvider::builder().with_span_processor(batch);
         provider_builder = provider_builder.with_config(config);
         let provider = provider_builder.build();
         let tracer = provider.versioned_tracer(
