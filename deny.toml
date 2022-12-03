@@ -2,7 +2,9 @@ exclude=[
     "actix-http",
     "actix-http-tracing",
     "actix-udp",
-    "actix-udp-example"
+    "actix-udp-example",
+    "tracing-grpc",
+    "http"
 ]
 
 [licenses]
@@ -28,7 +30,9 @@ license-files = [
 
 [advisories]
 ignore = [
-    # time/chrono problems, have not been a problem in practice, not much we can do at this moment.
-    "RUSTSEC-2020-0071",
-    "RUSTSEC-2020-0159"
+    # unsoundness in indirect dependencies without a safe upgrade below
+    "RUSTSEC-2021-0145",
+    "RUSTSEC-2019-0036"
 ]
+unmaintained = "allow"
+yanked = "allow"
