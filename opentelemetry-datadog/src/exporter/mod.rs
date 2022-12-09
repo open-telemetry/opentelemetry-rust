@@ -26,6 +26,8 @@ use std::sync::Arc;
 use std::time::Duration;
 use url::Url;
 
+use self::model::universal_tags::UniversalTags;
+
 /// Default Datadog collector endpoint
 const DEFAULT_AGENT_ENDPOINT: &str = "http://127.0.0.1:8126";
 
@@ -37,48 +39,51 @@ pub struct DatadogExporter {
     client: Arc<dyn HttpClient>,
     request_url: Uri,
     model_config: ModelConfig,
-    version: ApiVersion,
-
+    api_version: ApiVersion,
     resource_mapping: Option<FieldMapping>,
     name_mapping: Option<FieldMapping>,
     service_name_mapping: Option<FieldMapping>,
+    universal_tags: UniversalTags,
 }
 
 impl DatadogExporter {
     fn new(
         model_config: ModelConfig,
         request_url: Uri,
-        version: ApiVersion,
+        api_version: ApiVersion,
         client: Arc<dyn HttpClient>,
         resource_mapping: Option<FieldMapping>,
         name_mapping: Option<FieldMapping>,
         service_name_mapping: Option<FieldMapping>,
+        universal_tags: UniversalTags,
     ) -> Self {
         DatadogExporter {
             client,
             request_url,
             model_config,
-            version,
+            api_version,
             resource_mapping,
             name_mapping,
             service_name_mapping,
+            universal_tags,
         }
     }
 
     fn build_request(&self, batch: Vec<SpanData>) -> Result<http::Request<Vec<u8>>, TraceError> {
         let traces: Vec<Vec<SpanData>> = group_into_traces(batch);
         let trace_count = traces.len();
-        let data = self.version.encode(
+        let data = self.api_version.encode(
             &self.model_config,
             traces,
             self.service_name_mapping.clone(),
             self.name_mapping.clone(),
             self.resource_mapping.clone(),
+            &self.universal_tags,
         )?;
         let req = Request::builder()
             .method(Method::POST)
             .uri(self.request_url.clone())
-            .header(http::header::CONTENT_TYPE, self.version.content_type())
+            .header(http::header::CONTENT_TYPE, self.api_version.content_type())
             .header(DATADOG_TRACE_COUNT_HEADER, trace_count)
             .body(data)
             .map_err::<Error, _>(Into::into)?;
@@ -92,7 +97,7 @@ impl Debug for DatadogExporter {
         f.debug_struct("DatadogExporter")
             .field("model_config", &self.model_config)
             .field("request_url", &self.request_url)
-            .field("version", &self.version)
+            .field("api_version", &self.api_version)
             .field("client", &self.client)
             .field("resource_mapping", &mapping_debug(&self.resource_mapping))
             .field("name_mapping", &mapping_debug(&self.name_mapping))
@@ -111,26 +116,26 @@ pub fn new_pipeline() -> DatadogPipelineBuilder {
 
 /// Builder for `ExporterConfig` struct.
 pub struct DatadogPipelineBuilder {
-    service_name: Option<String>,
     agent_endpoint: String,
     trace_config: Option<sdk::trace::Config>,
-    version: ApiVersion,
+    api_version: ApiVersion,
     client: Option<Arc<dyn HttpClient>>,
     resource_mapping: Option<FieldMapping>,
     name_mapping: Option<FieldMapping>,
     service_name_mapping: Option<FieldMapping>,
+    universal_tags: UniversalTags,
 }
 
 impl Default for DatadogPipelineBuilder {
     fn default() -> Self {
         DatadogPipelineBuilder {
-            service_name: None,
             agent_endpoint: DEFAULT_AGENT_ENDPOINT.to_string(),
             trace_config: None,
             resource_mapping: None,
             name_mapping: None,
             service_name_mapping: None,
-            version: ApiVersion::Version05,
+            api_version: ApiVersion::Version05,
+            universal_tags: UniversalTags::new(),
             #[cfg(all(
                 not(feature = "reqwest-client"),
                 not(feature = "reqwest-blocking-client"),
@@ -158,9 +163,7 @@ impl Default for DatadogPipelineBuilder {
 impl Debug for DatadogPipelineBuilder {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("DatadogExporter")
-            .field("service_name", &self.service_name)
             .field("agent_endpoint", &self.agent_endpoint)
-            .field("version", &self.version)
             .field("trace_config", &self.trace_config)
             .field("client", &self.client)
             .field("resource_mapping", &mapping_debug(&self.resource_mapping))
@@ -183,7 +186,7 @@ impl DatadogPipelineBuilder {
     }
 
     fn build_config_and_service_name(&mut self) -> (Config, String) {
-        let service_name = self.service_name.take();
+        let service_name = self.universal_tags.service();
         if let Some(service_name) = service_name {
             let config = if let Some(mut cfg) = self.trace_config.take() {
                 cfg.resource = Cow::Owned(Resource::new(
@@ -241,19 +244,17 @@ impl DatadogPipelineBuilder {
         service_name: String,
     ) -> Result<DatadogExporter, TraceError> {
         if let Some(client) = self.client {
-            let model_config = ModelConfig {
-                service_name,
-                ..Default::default()
-            };
+            let model_config = ModelConfig { service_name };
 
             let exporter = DatadogExporter::new(
                 model_config,
-                Self::build_endpoint(&self.agent_endpoint, self.version.path())?,
-                self.version,
+                Self::build_endpoint(&self.agent_endpoint, self.api_version.path())?,
+                self.api_version,
                 client,
                 self.resource_mapping,
                 self.name_mapping,
                 self.service_name_mapping,
+                self.universal_tags,
             );
             Ok(exporter)
         } else {
@@ -300,8 +301,20 @@ impl DatadogPipelineBuilder {
     }
 
     /// Assign the service name under which to group traces
-    pub fn with_service_name<T: Into<String>>(mut self, name: T) -> Self {
-        self.service_name = Some(name.into());
+    pub fn with_service_name<T: Into<String>>(mut self, service_name: T) -> Self {
+        self.universal_tags.set_service(Some(service_name.into()));
+        self
+    }
+
+    /// Assign the version under which to group traces
+    pub fn with_version<T: Into<String>>(mut self, version: T) -> Self {
+        self.universal_tags.set_version(Some(version.into()));
+        self
+    }
+
+    /// Assign the env under which to group traces
+    pub fn with_env<T: Into<String>>(mut self, env: T) -> Self {
+        self.universal_tags.set_env(Some(env.into()));
         self
     }
 
@@ -329,8 +342,8 @@ impl DatadogPipelineBuilder {
     }
 
     /// Set version of Datadog trace ingestion API
-    pub fn with_version(mut self, version: ApiVersion) -> Self {
-        self.version = version;
+    pub fn with_api_version(mut self, api_version: ApiVersion) -> Self {
+        self.api_version = api_version;
         self
     }
 
@@ -436,7 +449,7 @@ mod tests {
     }
 
     #[test]
-    fn test_agent_endpoint_with_version() {
+    fn test_agent_endpoint_with_api_version() {
         let with_tail_slash =
             DatadogPipelineBuilder::build_endpoint("http://localhost:8126/", Version05.path());
         let without_tail_slash =

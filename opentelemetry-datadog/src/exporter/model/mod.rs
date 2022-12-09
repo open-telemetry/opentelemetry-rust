@@ -7,6 +7,9 @@ use opentelemetry::sdk::export::{
 use std::fmt::Debug;
 use url::ParseError;
 
+use self::universal_tags::UniversalTags;
+
+pub mod universal_tags;
 mod v03;
 mod v05;
 
@@ -37,7 +40,7 @@ static SAMPLING_PRIORITY_KEY: &str = "_sampling_priority_v1";
 /// fn main() -> Result<(), opentelemetry::trace::TraceError> {
 ///    let tracer = new_pipeline()
 ///            .with_service_name("my_app")
-///            .with_version(ApiVersion::Version05)
+///            .with_api_version(ApiVersion::Version05)
 ///            // the custom mapping below will change the all spans' name to datadog spans
 ///            .with_name_mapping(|span, model_config|{
 ///                 "datadog spans"
@@ -143,6 +146,7 @@ impl ApiVersion {
         get_service_name: Option<FieldMapping>,
         get_name: Option<FieldMapping>,
         get_resource: Option<FieldMapping>,
+        universal_tags: &UniversalTags,
     ) -> Result<Vec<u8>, Error> {
         match self {
             Self::Version03 => v03::encode(
@@ -176,6 +180,7 @@ impl ApiVersion {
                     Some(f) => f(span, config),
                     None => default_resource_mapping(span, config),
                 },
+                universal_tags,
             ),
         }
     }
@@ -246,6 +251,7 @@ pub(crate) mod tests {
             None,
             None,
             None,
+            &UniversalTags::new(),
         )?);
 
         assert_eq!(encoded.as_str(), "kZGLpHR5cGWjd2Vip3NlcnZpY2Wsc2VydmljZV9uYW1lpG5hbWWpY29tcG9uZW\
@@ -263,18 +269,26 @@ pub(crate) mod tests {
             service_name: "service_name".to_string(),
             ..Default::default()
         };
+
+        let mut universal_tags = UniversalTags::new();
+        universal_tags.set_env(Some(String::from("test-env")));
+        universal_tags.set_version(Some(String::from("test-version")));
+        universal_tags.set_service(Some(String::from("test-service")));
+
         let encoded = base64::encode(ApiVersion::Version05.encode(
             &model_config,
             traces,
             None,
             None,
             None,
+            &universal_tags,
         )?);
 
-        assert_eq!(encoded.as_str(),"kpijd2VirHNlcnZpY2VfbmFtZaljb21wb25lbnSocmVzb3VyY2WpaG9zdC5uYW1\
-        lpHRlc3Spc3Bhbi50eXBltV9zYW1wbGluZ19wcmlvcml0eV92MZGRnM4AAAABzgAAAALOAAAAA88AAAAAAAAAB88AAAA\
-        AAAAAY88AAAAAAAAAAdMAAAAAAAAAANMAAAAAO5rKANIAAAAAgs4AAAAEzgAAAAXOAAAABs4AAAAAgc4AAAAHywAAAAA\
-        AAAAAzgAAAAA=");
+        assert_eq!(encoded.as_str(),"kp6jd2VirHNlcnZpY2VfbmFtZaljb21wb25lbnSocmVzb3VyY2WpaG9zdC5uYW1\
+        lpHRlc3Snc2VydmljZax0ZXN0LXNlcnZpY2WjZW52qHRlc3QtZW52p3ZlcnNpb26sdGVzdC12ZXJzaW9uqXNwYW4udHl\
+        wZbVfc2FtcGxpbmdfcHJpb3JpdHlfdjGRkZzOAAAAAc4AAAACzgAAAAPPAAAAAAAAAAfPAAAAAAAAAGPPAAAAAAAAAAH\
+        TAAAAAAAAAADTAAAAADuaygDSAAAAAIXOAAAABM4AAAAFzgAAAAbOAAAAB84AAAAIzgAAAAnOAAAACs4AAAALzgAAAAz\
+        OAAAAAIHOAAAADcsAAAAAAAAAAM4AAAAA");
         Ok(())
     }
 }
