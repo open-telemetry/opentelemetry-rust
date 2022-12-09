@@ -201,7 +201,6 @@ where
                 rmp::encode::write_u32(&mut encoded, interner.intern(key.as_str()))?;
                 rmp::encode::write_u32(&mut encoded, interner.intern(value.as_str().as_ref()))?;
             }
-
             rmp::encode::write_map_len(&mut encoded, 1)?;
             rmp::encode::write_u32(&mut encoded, interner.intern(SAMPLING_PRIORITY_KEY))?;
             rmp::encode::write_f64(
