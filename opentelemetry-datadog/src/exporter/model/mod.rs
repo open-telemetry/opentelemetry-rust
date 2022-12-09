@@ -7,9 +7,9 @@ use opentelemetry::sdk::export::{
 use std::fmt::Debug;
 use url::ParseError;
 
-use self::universal_tags::UniversalTags;
+use self::unified_tags::UnifiedTags;
 
-pub mod universal_tags;
+pub mod unified_tags;
 mod v03;
 mod v05;
 
@@ -146,7 +146,7 @@ impl ApiVersion {
         get_service_name: Option<FieldMapping>,
         get_name: Option<FieldMapping>,
         get_resource: Option<FieldMapping>,
-        universal_tags: &UniversalTags,
+        unified_tags: &UnifiedTags,
     ) -> Result<Vec<u8>, Error> {
         match self {
             Self::Version03 => v03::encode(
@@ -180,7 +180,7 @@ impl ApiVersion {
                     Some(f) => f(span, config),
                     None => default_resource_mapping(span, config),
                 },
-                universal_tags,
+                unified_tags,
             ),
         }
     }
@@ -251,7 +251,7 @@ pub(crate) mod tests {
             None,
             None,
             None,
-            &UniversalTags::new(),
+            &UnifiedTags::new(),
         )?);
 
         assert_eq!(encoded.as_str(), "kZGLpHR5cGWjd2Vip3NlcnZpY2Wsc2VydmljZV9uYW1lpG5hbWWpY29tcG9uZW\
@@ -270,10 +270,10 @@ pub(crate) mod tests {
             ..Default::default()
         };
 
-        let mut universal_tags = UniversalTags::new();
-        universal_tags.set_env(Some(String::from("test-env")));
-        universal_tags.set_version(Some(String::from("test-version")));
-        universal_tags.set_service(Some(String::from("test-service")));
+        let mut unified_tags = UnifiedTags::new();
+        unified_tags.set_env(Some(String::from("test-env")));
+        unified_tags.set_version(Some(String::from("test-version")));
+        unified_tags.set_service(Some(String::from("test-service")));
 
         let encoded = base64::encode(ApiVersion::Version05.encode(
             &model_config,
@@ -281,7 +281,7 @@ pub(crate) mod tests {
             None,
             None,
             None,
-            &universal_tags,
+            &unified_tags,
         )?);
 
         assert_eq!(encoded.as_str(),"kp6jd2VirHNlcnZpY2VfbmFtZaljb21wb25lbnSocmVzb3VyY2WpaG9zdC5uYW1\

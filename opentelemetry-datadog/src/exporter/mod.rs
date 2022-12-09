@@ -26,7 +26,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use url::Url;
 
-use self::model::universal_tags::UniversalTags;
+use self::model::unified_tags::UnifiedTags;
 
 /// Default Datadog collector endpoint
 const DEFAULT_AGENT_ENDPOINT: &str = "http://127.0.0.1:8126";
@@ -43,7 +43,7 @@ pub struct DatadogExporter {
     resource_mapping: Option<FieldMapping>,
     name_mapping: Option<FieldMapping>,
     service_name_mapping: Option<FieldMapping>,
-    universal_tags: UniversalTags,
+    unified_tags: UnifiedTags,
 }
 
 impl DatadogExporter {
@@ -55,7 +55,7 @@ impl DatadogExporter {
         resource_mapping: Option<FieldMapping>,
         name_mapping: Option<FieldMapping>,
         service_name_mapping: Option<FieldMapping>,
-        universal_tags: UniversalTags,
+        unified_tags: UnifiedTags,
     ) -> Self {
         DatadogExporter {
             client,
@@ -65,7 +65,7 @@ impl DatadogExporter {
             resource_mapping,
             name_mapping,
             service_name_mapping,
-            universal_tags,
+            unified_tags,
         }
     }
 
@@ -78,7 +78,7 @@ impl DatadogExporter {
             self.service_name_mapping.clone(),
             self.name_mapping.clone(),
             self.resource_mapping.clone(),
-            &self.universal_tags,
+            &self.unified_tags,
         )?;
         let req = Request::builder()
             .method(Method::POST)
@@ -123,7 +123,7 @@ pub struct DatadogPipelineBuilder {
     resource_mapping: Option<FieldMapping>,
     name_mapping: Option<FieldMapping>,
     service_name_mapping: Option<FieldMapping>,
-    universal_tags: UniversalTags,
+    unified_tags: UnifiedTags,
 }
 
 impl Default for DatadogPipelineBuilder {
@@ -135,7 +135,7 @@ impl Default for DatadogPipelineBuilder {
             name_mapping: None,
             service_name_mapping: None,
             api_version: ApiVersion::Version05,
-            universal_tags: UniversalTags::new(),
+            unified_tags: UnifiedTags::new(),
             #[cfg(all(
                 not(feature = "reqwest-client"),
                 not(feature = "reqwest-blocking-client"),
@@ -186,7 +186,7 @@ impl DatadogPipelineBuilder {
     }
 
     fn build_config_and_service_name(&mut self) -> (Config, String) {
-        let service_name = self.universal_tags.service();
+        let service_name = self.unified_tags.service();
         if let Some(service_name) = service_name {
             let config = if let Some(mut cfg) = self.trace_config.take() {
                 cfg.resource = Cow::Owned(Resource::new(
@@ -254,7 +254,7 @@ impl DatadogPipelineBuilder {
                 self.resource_mapping,
                 self.name_mapping,
                 self.service_name_mapping,
-                self.universal_tags,
+                self.unified_tags,
             );
             Ok(exporter)
         } else {
@@ -302,19 +302,19 @@ impl DatadogPipelineBuilder {
 
     /// Assign the service name under which to group traces
     pub fn with_service_name<T: Into<String>>(mut self, service_name: T) -> Self {
-        self.universal_tags.set_service(Some(service_name.into()));
+        self.unified_tags.set_service(Some(service_name.into()));
         self
     }
 
     /// Assign the version under which to group traces
     pub fn with_version<T: Into<String>>(mut self, version: T) -> Self {
-        self.universal_tags.set_version(Some(version.into()));
+        self.unified_tags.set_version(Some(version.into()));
         self
     }
 
     /// Assign the env under which to group traces
     pub fn with_env<T: Into<String>>(mut self, env: T) -> Self {
-        self.universal_tags.set_env(Some(env.into()));
+        self.unified_tags.set_env(Some(env.into()));
         self
     }
 
