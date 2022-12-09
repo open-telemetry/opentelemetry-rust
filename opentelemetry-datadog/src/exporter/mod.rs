@@ -34,15 +34,36 @@ const DEFAULT_AGENT_ENDPOINT: &str = "http://127.0.0.1:8126";
 /// Header name used to inform the Datadog agent of the number of traces in the payload
 const DATADOG_TRACE_COUNT_HEADER: &str = "X-Datadog-Trace-Count";
 
+pub struct Mapping {
+    resource: Option<FieldMapping>,
+    name: Option<FieldMapping>,
+    service_name: Option<FieldMapping>,
+}
+
+impl Mapping {
+    pub fn new(
+        resource: Option<FieldMapping>,
+        name: Option<FieldMapping>,
+        service_name: Option<FieldMapping>,
+    ) -> Self {
+        Mapping {
+            resource,
+            name,
+            service_name,
+        }
+    }
+    pub fn empty() -> Self {
+        Self::new(None, None, None)
+    }
+}
+
 /// Datadog span exporter
 pub struct DatadogExporter {
     client: Arc<dyn HttpClient>,
     request_url: Uri,
     model_config: ModelConfig,
     api_version: ApiVersion,
-    resource_mapping: Option<FieldMapping>,
-    name_mapping: Option<FieldMapping>,
-    service_name_mapping: Option<FieldMapping>,
+    mapping: Mapping,
     unified_tags: UnifiedTags,
 }
 
@@ -52,9 +73,7 @@ impl DatadogExporter {
         request_url: Uri,
         api_version: ApiVersion,
         client: Arc<dyn HttpClient>,
-        resource_mapping: Option<FieldMapping>,
-        name_mapping: Option<FieldMapping>,
-        service_name_mapping: Option<FieldMapping>,
+        mapping: Mapping,
         unified_tags: UnifiedTags,
     ) -> Self {
         DatadogExporter {
@@ -62,9 +81,7 @@ impl DatadogExporter {
             request_url,
             model_config,
             api_version,
-            resource_mapping,
-            name_mapping,
-            service_name_mapping,
+            mapping,
             unified_tags,
         }
     }
@@ -75,9 +92,7 @@ impl DatadogExporter {
         let data = self.api_version.encode(
             &self.model_config,
             traces,
-            self.service_name_mapping.clone(),
-            self.name_mapping.clone(),
-            self.resource_mapping.clone(),
+            &self.mapping,
             &self.unified_tags,
         )?;
         let req = Request::builder()
@@ -99,11 +114,11 @@ impl Debug for DatadogExporter {
             .field("request_url", &self.request_url)
             .field("api_version", &self.api_version)
             .field("client", &self.client)
-            .field("resource_mapping", &mapping_debug(&self.resource_mapping))
-            .field("name_mapping", &mapping_debug(&self.name_mapping))
+            .field("resource_mapping", &mapping_debug(&self.mapping.resource))
+            .field("name_mapping", &mapping_debug(&self.mapping.name))
             .field(
                 "service_name_mapping",
-                &mapping_debug(&self.service_name_mapping),
+                &mapping_debug(&self.mapping.service_name),
             )
             .finish()
     }
@@ -120,9 +135,7 @@ pub struct DatadogPipelineBuilder {
     trace_config: Option<sdk::trace::Config>,
     api_version: ApiVersion,
     client: Option<Arc<dyn HttpClient>>,
-    resource_mapping: Option<FieldMapping>,
-    name_mapping: Option<FieldMapping>,
-    service_name_mapping: Option<FieldMapping>,
+    mapping: Mapping,
     unified_tags: UnifiedTags,
 }
 
@@ -131,9 +144,7 @@ impl Default for DatadogPipelineBuilder {
         DatadogPipelineBuilder {
             agent_endpoint: DEFAULT_AGENT_ENDPOINT.to_string(),
             trace_config: None,
-            resource_mapping: None,
-            name_mapping: None,
-            service_name_mapping: None,
+            mapping: Mapping::empty(),
             api_version: ApiVersion::Version05,
             unified_tags: UnifiedTags::new(),
             #[cfg(all(
@@ -166,11 +177,11 @@ impl Debug for DatadogPipelineBuilder {
             .field("agent_endpoint", &self.agent_endpoint)
             .field("trace_config", &self.trace_config)
             .field("client", &self.client)
-            .field("resource_mapping", &mapping_debug(&self.resource_mapping))
-            .field("name_mapping", &mapping_debug(&self.name_mapping))
+            .field("resource_mapping", &mapping_debug(&self.mapping.resource))
+            .field("name_mapping", &mapping_debug(&self.mapping.name))
             .field(
                 "service_name_mapping",
-                &mapping_debug(&self.service_name_mapping),
+                &mapping_debug(&self.mapping.service_name),
             )
             .finish()
     }
@@ -251,9 +262,7 @@ impl DatadogPipelineBuilder {
                 Self::build_endpoint(&self.agent_endpoint, self.api_version.path())?,
                 self.api_version,
                 client,
-                self.resource_mapping,
-                self.name_mapping,
-                self.service_name_mapping,
+                self.mapping,
                 self.unified_tags,
             );
             Ok(exporter)
@@ -353,7 +362,7 @@ impl DatadogPipelineBuilder {
     where
         F: for<'a> Fn(&'a SpanData, &'a ModelConfig) -> &'a str + Send + Sync + 'static,
     {
-        self.resource_mapping = Some(Arc::new(f));
+        self.mapping.resource = Some(Arc::new(f));
         self
     }
 
@@ -363,7 +372,7 @@ impl DatadogPipelineBuilder {
     where
         F: for<'a> Fn(&'a SpanData, &'a ModelConfig) -> &'a str + Send + Sync + 'static,
     {
-        self.name_mapping = Some(Arc::new(f));
+        self.mapping.name = Some(Arc::new(f));
         self
     }
 
@@ -373,7 +382,7 @@ impl DatadogPipelineBuilder {
     where
         F: for<'a> Fn(&'a SpanData, &'a ModelConfig) -> &'a str + Send + Sync + 'static,
     {
-        self.service_name_mapping = Some(Arc::new(f));
+        self.mapping.service_name = Some(Arc::new(f));
         self
     }
 }
