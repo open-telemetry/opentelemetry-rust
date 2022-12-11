@@ -61,7 +61,7 @@ impl SpanExporter for TestSpanExporter {
     }
 
     fn shutdown(&mut self) {
-        self.tx_shutdown.send(()).unwrap();
+        let _ = self.tx_shutdown.send(()); // ignore error
     }
 }
 

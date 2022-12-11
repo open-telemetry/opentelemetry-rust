@@ -5,12 +5,13 @@ pub struct ExportLogsServiceRequest {
     /// element. Intermediary nodes (such as OpenTelemetry Collector) that receive
     /// data from multiple origins typically batch the data before forwarding further and
     /// in that case this array will contain multiple elements.
-    #[prost(message, repeated, tag="1")]
-    pub resource_logs: ::prost::alloc::vec::Vec<super::super::super::logs::v1::ResourceLogs>,
+    #[prost(message, repeated, tag = "1")]
+    pub resource_logs: ::prost::alloc::vec::Vec<
+        super::super::super::logs::v1::ResourceLogs,
+    >,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct ExportLogsServiceResponse {
-}
+pub struct ExportLogsServiceResponse {}
 /// Generated client implementations.
 pub mod logs_service_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
@@ -110,7 +111,7 @@ pub mod logs_service_client {
 pub mod logs_service_server {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;
-    ///Generated trait containing gRPC methods that should be implemented for use with LogsServiceServer.
+    /// Generated trait containing gRPC methods that should be implemented for use with LogsServiceServer.
     #[async_trait]
     pub trait LogsService: Send + Sync + 'static {
         /// For performance reasons, it is recommended to keep this RPC

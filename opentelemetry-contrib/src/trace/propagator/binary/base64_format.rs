@@ -27,7 +27,7 @@ where
     Format: BinaryFormat,
 {
     fn serialize_into_base64(&self, context: &SpanContext) -> String {
-        encode(&self.serialize_into_bytes(context))
+        encode(self.serialize_into_bytes(context))
     }
 
     fn deserialize_from_base64(&self, base64: &str) -> SpanContext {

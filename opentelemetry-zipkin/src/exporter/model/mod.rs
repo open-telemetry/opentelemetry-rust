@@ -54,10 +54,8 @@ pub(crate) fn into_zipkin_span(local_endpoint: Endpoint, span_data: trace::SpanD
                         span_data.instrumentation_lib.version,
                     ),
                 ]
-                .iter()
-                .filter_map(|(key, val)| {
-                    val.as_ref().map(|val| KeyValue::new(*key, val.to_owned()))
-                }),
+                .into_iter()
+                .filter_map(|(key, val)| val.map(|val| KeyValue::new(key, val))),
             )
             .filter(|kv| kv.key.as_str() != "error"),
     );

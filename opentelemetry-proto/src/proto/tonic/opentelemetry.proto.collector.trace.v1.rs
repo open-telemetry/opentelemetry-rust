@@ -5,12 +5,13 @@ pub struct ExportTraceServiceRequest {
     /// element. Intermediary nodes (such as OpenTelemetry Collector) that receive
     /// data from multiple origins typically batch the data before forwarding further and
     /// in that case this array will contain multiple elements.
-    #[prost(message, repeated, tag="1")]
-    pub resource_spans: ::prost::alloc::vec::Vec<super::super::super::trace::v1::ResourceSpans>,
+    #[prost(message, repeated, tag = "1")]
+    pub resource_spans: ::prost::alloc::vec::Vec<
+        super::super::super::trace::v1::ResourceSpans,
+    >,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct ExportTraceServiceResponse {
-}
+pub struct ExportTraceServiceResponse {}
 /// Generated client implementations.
 pub mod trace_service_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
@@ -110,7 +111,7 @@ pub mod trace_service_client {
 pub mod trace_service_server {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;
-    ///Generated trait containing gRPC methods that should be implemented for use with TraceServiceServer.
+    /// Generated trait containing gRPC methods that should be implemented for use with TraceServiceServer.
     #[async_trait]
     pub trait TraceService: Send + Sync + 'static {
         /// For performance reasons, it is recommended to keep this RPC

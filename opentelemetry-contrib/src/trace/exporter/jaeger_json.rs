@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use futures::{future::BoxFuture, FutureExt};
 use opentelemetry::sdk::export::trace::{ExportResult, SpanData, SpanExporter};
 use opentelemetry::sdk::trace::{TraceRuntime, Tracer};
-use opentelemetry::trace::TraceError;
+use opentelemetry::trace::{SpanId, TraceError};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
@@ -156,7 +156,7 @@ fn span_data_to_jaeger_json(
             })
         })
         .collect::<Vec<_>>();
-    let references = if span.links.is_empty() {
+    let mut references = if span.links.is_empty() {
         None
     } else {
         Some(
@@ -173,6 +173,14 @@ fn span_data_to_jaeger_json(
                 .collect::<Vec<_>>(),
         )
     };
+    if span.parent_span_id != SpanId::INVALID {
+        let val = serde_json::json!({
+            "refType": "CHILD_OF",
+            "traceID": span.span_context.trace_id().to_string(),
+            "spanID": span.parent_span_id.to_string(),
+        });
+        references.get_or_insert_with(Vec::new).push(val);
+    }
     serde_json::json!({
         "traceID": span.span_context.trace_id().to_string(),
         "spanID": span.span_context.span_id().to_string(),
