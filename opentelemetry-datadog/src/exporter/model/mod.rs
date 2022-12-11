@@ -248,7 +248,7 @@ pub(crate) mod tests {
             None,
         )?);
 
-        assert_eq!(encoded.as_str(), "kZGLpHR5cGWjd2Vip3NlcnZpY2Wsc2VydmljZV9uYW1lpG5hbWWpY29tcG9uZW\
+        assert_eq!(encoded.as_str(), "kZGMpHR5cGWjd2Vip3NlcnZpY2Wsc2VydmljZV9uYW1lpG5hbWWpY29tcG9uZW\
         50qHJlc291cmNlqHJlc291cmNlqHRyYWNlX2lkzwAAAAAAAAAHp3NwYW5faWTPAAAAAAAAAGOpcGFyZW50X2lkzwAAAA\
         AAAAABpXN0YXJ00wAAAAAAAAAAqGR1cmF0aW9u0wAAAAA7msoApWVycm9y0gAAAACkbWV0YYKpaG9zdC5uYW1lpHRlc3\
         Spc3Bhbi50eXBlo3dlYqdtZXRyaWNzgbVfc2FtcGxpbmdfcHJpb3JpdHlfdjHLAAAAAAAAAAA=");
@@ -271,10 +271,11 @@ pub(crate) mod tests {
             None,
         )?);
 
-        assert_eq!(encoded.as_str(),"kpijd2VirHNlcnZpY2VfbmFtZaljb21wb25lbnSocmVzb3VyY2WpaG9zdC5uYW1\
-        lpHRlc3Spc3Bhbi50eXBltV9zYW1wbGluZ19wcmlvcml0eV92MZGRnM4AAAABzgAAAALOAAAAA88AAAAAAAAAB88AAAA\
-        AAAAAY88AAAAAAAAAAdMAAAAAAAAAANMAAAAAO5rKANIAAAAAgs4AAAAEzgAAAAXOAAAABs4AAAAAgc4AAAAHywAAAAA\
-        AAAAAzgAAAAA=");
+        assert_eq!(encoded.as_str(), "kpijd2VirHNlcnZpY2VfbmFtZaljb21wb25lbnSocmVzb3VyY2WpaG9zdC5uYW\
+        1lpHRlc3Spc3Bhbi50eXBltV9zYW1wbGluZ19wcmlvcml0eV92MZGRnc4AAAABzgAAAALOAAAAA88AAAAAAAAAB88AAA\
+        AAAAAAY88AAAAAAAAAAdMAAAAAAAAAANMAAAAAO5rKANIAAAAAgs4AAAAEzgAAAAXOAAAABs4AAAAAgc4AAAAHywAAAA\
+        AAAAAAzgAAAAA=");
+
         Ok(())
     }
 }
