@@ -1,6 +1,7 @@
 /// Defines the HTTP configuration for an API service. It contains a list of
 /// \[HttpRule][google.api.HttpRule\], each specifying the mapping of an RPC method
 /// to one or more HTTP REST API methods.
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Http {
     /// A list of HTTP configuration rules that apply to individual API methods.
@@ -286,6 +287,7 @@ pub struct Http {
 /// If an API needs to use a JSON array for request or response body, it can map
 /// the request or response body to a repeated field. However, some gRPC
 /// Transcoding implementations may not support this feature.
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct HttpRule {
     /// Selects a method to which this rule applies.
@@ -325,6 +327,7 @@ pub mod http_rule {
     /// Determines the URL pattern is matched by this rules. This pattern can be
     /// used with any of the {get|put|post|delete|patch} methods. A custom method
     /// can be defined using the 'custom' field.
+    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Pattern {
         /// Maps to HTTP GET. Used for listing and getting information about
@@ -352,6 +355,7 @@ pub mod http_rule {
     }
 }
 /// A custom pattern is used for defining custom HTTP verb.
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CustomHttpPattern {
     /// The name of this custom HTTP verb.
@@ -469,6 +473,7 @@ impl FieldBehavior {
 ///        pattern: "folders/{folder}/logs/{log}"
 ///        pattern: "organizations/{organization}/logs/{log}"
 ///        pattern: "billingAccounts/{billing_account}/logs/{log}"
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ResourceDescriptor {
     /// The resource type. It must be in the format of
@@ -607,6 +612,7 @@ pub mod resource_descriptor {
 }
 /// Defines a proto annotation that describes a string field that refers to
 /// an API resource.
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ResourceReference {
     /// The resource type that the annotated field references.
@@ -646,6 +652,7 @@ pub struct ResourceReference {
     pub child_type: ::prost::alloc::string::String,
 }
 /// A description of a label.
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct LabelDescriptor {
     /// The label key.
@@ -756,6 +763,7 @@ impl LaunchStage {
 /// provide a `list` method that returns the monitored resource descriptors used
 /// by the API.
 ///
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct MonitoredResourceDescriptor {
     /// Optional. The resource name of the monitored resource descriptor:
@@ -802,6 +810,7 @@ pub struct MonitoredResourceDescriptor {
 ///      { "type": "gce_instance",
 ///        "labels": { "instance_id": "12345678901234",
 ///                    "zone": "us-central1-a" }}
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct MonitoredResource {
     /// Required. The monitored resource type. This field must match
@@ -822,6 +831,7 @@ pub struct MonitoredResource {
 /// auxiliary metadata. Monitoring and Logging use an ingestion
 /// pipeline to extract metadata for cloud resources of all types, and store
 /// the metadata in this message.
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct MonitoredResourceMetadata {
     /// Output only. Values for predefined system metadata labels.
