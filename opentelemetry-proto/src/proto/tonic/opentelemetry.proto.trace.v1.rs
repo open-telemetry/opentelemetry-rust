@@ -8,6 +8,7 @@
 ///
 /// When new fields are added into this message, the OTLP request MUST be updated
 /// as well.
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct TracesData {
     /// An array of ResourceSpans.
@@ -19,6 +20,7 @@ pub struct TracesData {
     pub resource_spans: ::prost::alloc::vec::Vec<ResourceSpans>,
 }
 /// A collection of InstrumentationLibrarySpans from a Resource.
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ResourceSpans {
     /// The resource for the spans in this message.
@@ -37,6 +39,7 @@ pub struct ResourceSpans {
     pub schema_url: ::prost::alloc::string::String,
 }
 /// A collection of Spans produced by an InstrumentationLibrary.
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct InstrumentationLibrarySpans {
     /// The instrumentation library information for the spans in this message.
@@ -62,6 +65,7 @@ pub struct InstrumentationLibrarySpans {
 /// contiguous - there may be gaps or overlaps between spans in a trace.
 ///
 /// The next available field id is 17.
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Span {
     /// A unique identifier for a trace. All spans from the same trace share
@@ -170,6 +174,7 @@ pub struct Span {
 pub mod span {
     /// Event is a time-stamped annotation of the span, consisting of user-supplied
     /// text description and key-value pairs.
+    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct Event {
         /// time_unix_nano is the time the event occurred.
@@ -195,6 +200,7 @@ pub mod span {
     /// different trace. For example, this can be used in batching operations,
     /// where a single batch handler processes multiple requests from different
     /// traces or when the handler receives a request from a different project.
+    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct Link {
         /// A unique identifier of a trace that this linked span is part of. The ID is a
@@ -274,6 +280,7 @@ pub mod span {
 }
 /// The Status type defines a logical error model that is suitable for different
 /// programming environments, including REST APIs and RPC APIs.
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Status {
     /// A developer-facing human readable error message.
@@ -324,6 +331,7 @@ pub mod status {
 }
 /// Global configuration of the trace service. All fields must be specified, or
 /// the default (zero) values will be used for each type.
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct TraceConfig {
     /// The global default max number of attributes per span.
@@ -348,6 +356,7 @@ pub struct TraceConfig {
 /// Nested message and enum types in `TraceConfig`.
 pub mod trace_config {
     /// The global default sampler used to make decisions on span sampling.
+    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Sampler {
         #[prost(message, tag = "1")]
@@ -359,6 +368,7 @@ pub mod trace_config {
     }
 }
 /// Sampler that always makes a constant decision on span sampling.
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ConstantSampler {
     #[prost(enumeration = "constant_sampler::ConstantDecision", tag = "1")]
@@ -403,6 +413,7 @@ pub mod constant_sampler {
 }
 /// Sampler that tries to uniformly sample traces with a given ratio.
 /// The ratio of sampling a trace is equal to that of the specified ratio.
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct TraceIdRatioBased {
     /// The desired ratio of sampling. Must be within [0.0, 1.0].
@@ -410,6 +421,7 @@ pub struct TraceIdRatioBased {
     pub sampling_ratio: f64,
 }
 /// Sampler that tries to sample with a rate per time window.
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct RateLimitingSampler {
     /// Rate per second.

@@ -1,4 +1,5 @@
 /// An individual entry in a log.
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct LogEntry {
     /// Required. The resource name of the log to which this log entry belongs:
@@ -126,6 +127,7 @@ pub struct LogEntry {
 /// Nested message and enum types in `LogEntry`.
 pub mod log_entry {
     /// The log entry payload, which can be one of multiple types.
+    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Payload {
         /// The log entry payload, represented as a protocol buffer. Some Google
@@ -149,6 +151,7 @@ pub mod log_entry {
 }
 /// Additional information about a potentially long-running operation with which
 /// a log entry is associated.
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct LogEntryOperation {
     /// Optional. An arbitrary operation identifier. Log entries with the same
@@ -169,6 +172,7 @@ pub struct LogEntryOperation {
 }
 /// Additional information about the source code location that produced the log
 /// entry.
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct LogEntrySourceLocation {
     /// Optional. Source file name. Depending on the runtime environment, this
@@ -191,6 +195,7 @@ pub struct LogEntrySourceLocation {
 /// Additional information used to correlate multiple log entries. Used when a
 /// single LogEntry would exceed the Google Cloud Logging size limit and is
 /// split across multiple log entries.
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct LogSplit {
     /// A globally unique identifier for all log entries in a sequence of split log
@@ -208,6 +213,7 @@ pub struct LogSplit {
     pub total_splits: i32,
 }
 /// The parameters to DeleteLog.
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct DeleteLogRequest {
     /// Required. The resource name of the log to delete:
@@ -227,6 +233,7 @@ pub struct DeleteLogRequest {
     pub log_name: ::prost::alloc::string::String,
 }
 /// The parameters to WriteLogEntries.
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct WriteLogEntriesRequest {
     /// Optional. A default log resource name that is assigned to all log entries
@@ -305,9 +312,11 @@ pub struct WriteLogEntriesRequest {
     pub dry_run: bool,
 }
 /// Result returned from WriteLogEntries.
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct WriteLogEntriesResponse {}
 /// Error details for WriteLogEntries with partial success.
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct WriteLogEntriesPartialErrors {
     /// When `WriteLogEntriesRequest.partial_success` is true, records the error
@@ -320,6 +329,7 @@ pub struct WriteLogEntriesPartialErrors {
     pub log_entry_errors: ::std::collections::HashMap<i32, super::super::rpc::Status>,
 }
 /// The parameters to `ListLogEntries`.
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ListLogEntriesRequest {
     /// Required. Names of one or more parent resources from which to
@@ -371,6 +381,7 @@ pub struct ListLogEntriesRequest {
     pub page_token: ::prost::alloc::string::String,
 }
 /// Result returned from `ListLogEntries`.
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ListLogEntriesResponse {
     /// A list of log entries.  If `entries` is empty, `nextPageToken` may still be
@@ -392,6 +403,7 @@ pub struct ListLogEntriesResponse {
     pub next_page_token: ::prost::alloc::string::String,
 }
 /// The parameters to ListMonitoredResourceDescriptors
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ListMonitoredResourceDescriptorsRequest {
     /// Optional. The maximum number of results to return from this request.
@@ -407,6 +419,7 @@ pub struct ListMonitoredResourceDescriptorsRequest {
     pub page_token: ::prost::alloc::string::String,
 }
 /// Result returned from ListMonitoredResourceDescriptors.
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ListMonitoredResourceDescriptorsResponse {
     /// A list of resource descriptors.
@@ -420,6 +433,7 @@ pub struct ListMonitoredResourceDescriptorsResponse {
     pub next_page_token: ::prost::alloc::string::String,
 }
 /// The parameters to ListLogs.
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ListLogsRequest {
     /// Required. The resource name that owns the logs:
@@ -458,6 +472,7 @@ pub struct ListLogsRequest {
     pub resource_names: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
 }
 /// Result returned from ListLogs.
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ListLogsResponse {
     /// A list of log names. For example,
@@ -472,6 +487,7 @@ pub struct ListLogsResponse {
     pub next_page_token: ::prost::alloc::string::String,
 }
 /// The parameters to `TailLogEntries`.
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct TailLogEntriesRequest {
     /// Required. Name of a parent resource from which to retrieve log entries:
@@ -506,6 +522,7 @@ pub struct TailLogEntriesRequest {
     pub buffer_window: ::core::option::Option<::prost_types::Duration>,
 }
 /// Result returned from `TailLogEntries`.
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct TailLogEntriesResponse {
     /// A list of log entries. Each response in the stream will order entries with
@@ -524,6 +541,7 @@ pub struct TailLogEntriesResponse {
 /// Nested message and enum types in `TailLogEntriesResponse`.
 pub mod tail_log_entries_response {
     /// Information about entries that were omitted from the session.
+    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct SuppressionInfo {
         /// The reason that entries were omitted from the session.

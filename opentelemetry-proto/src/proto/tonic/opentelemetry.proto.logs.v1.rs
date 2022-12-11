@@ -8,6 +8,7 @@
 ///
 /// When new fields are added into this message, the OTLP request MUST be updated
 /// as well.
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct LogsData {
     /// An array of ResourceLogs.
@@ -19,6 +20,7 @@ pub struct LogsData {
     pub resource_logs: ::prost::alloc::vec::Vec<ResourceLogs>,
 }
 /// A collection of InstrumentationLibraryLogs from a Resource.
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ResourceLogs {
     /// The resource for the logs in this message.
@@ -37,6 +39,7 @@ pub struct ResourceLogs {
     pub schema_url: ::prost::alloc::string::String,
 }
 /// A collection of Logs produced by an InstrumentationLibrary.
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct InstrumentationLibraryLogs {
     /// The instrumentation library information for the logs in this message.
@@ -55,6 +58,7 @@ pub struct InstrumentationLibraryLogs {
 }
 /// A log record according to OpenTelemetry Log Data Model:
 /// <https://github.com/open-telemetry/oteps/blob/main/text/logs/0097-log-data-model.md>
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct LogRecord {
     /// time_unix_nano is the time when the event occurred.
