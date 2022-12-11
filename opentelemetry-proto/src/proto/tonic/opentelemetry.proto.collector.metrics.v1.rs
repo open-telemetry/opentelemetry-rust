@@ -1,3 +1,4 @@
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ExportMetricsServiceRequest {
     /// An array of ResourceMetrics.
@@ -10,6 +11,7 @@ pub struct ExportMetricsServiceRequest {
         super::super::super::metrics::v1::ResourceMetrics,
     >,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ExportMetricsServiceResponse {}
 /// Generated client implementations.

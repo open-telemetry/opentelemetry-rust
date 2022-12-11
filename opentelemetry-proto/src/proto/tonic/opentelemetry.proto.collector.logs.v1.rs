@@ -1,3 +1,4 @@
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ExportLogsServiceRequest {
     /// An array of ResourceLogs.
@@ -10,6 +11,7 @@ pub struct ExportLogsServiceRequest {
         super::super::super::logs::v1::ResourceLogs,
     >,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ExportLogsServiceResponse {}
 /// Generated client implementations.
