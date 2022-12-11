@@ -154,7 +154,7 @@ where
             };
 
             // Datadog span name is OpenTelemetry component name - see module docs for more information
-            rmp::encode::write_array_len(&mut encoded, 12)?;
+            rmp::encode::write_array_len(&mut encoded, 13)?;
             rmp::encode::write_u32(
                 &mut encoded,
                 interner.intern(get_service_name(&span, model_config)),
