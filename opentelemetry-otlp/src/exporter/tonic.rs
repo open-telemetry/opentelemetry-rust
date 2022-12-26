@@ -64,8 +64,16 @@ impl TonicExporterBuilder {
 
     /// Set custom metadata entries to send to the collector.
     pub fn with_metadata(mut self, metadata: MetadataMap) -> Self {
-        // extending metadatamaps is harder than just casting back/forth
-        self.tonic_config.metadata.get_or_insert(metadata);
+        // extending metadata maps is harder than just casting back/forth
+        let incoming_headers = metadata.into_headers();
+        let mut existing_headers = self
+            .tonic_config
+            .metadata
+            .unwrap_or_default()
+            .into_headers();
+        existing_headers.extend(incoming_headers.into_iter());
+
+        self.tonic_config.metadata = Some(MetadataMap::from_headers(existing_headers));
         self
     }
 
@@ -78,5 +86,41 @@ impl TonicExporterBuilder {
     pub fn with_channel(mut self, channel: tonic::transport::Channel) -> Self {
         self.channel = Some(channel);
         self
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::TonicExporterBuilder;
+    use tonic::metadata::{MetadataMap, MetadataValue};
+
+    #[test]
+    fn test_with_metadata() {
+        // metadata should merge with the current one with priority instead of just replacing it
+        let mut metadata = MetadataMap::new();
+        metadata.insert("foo", "bar".parse().unwrap());
+        let builder = TonicExporterBuilder::default().with_metadata(metadata);
+        let result = builder.tonic_config.metadata.unwrap();
+        let foo = result.get("foo").unwrap();
+        assert_eq!(foo, &MetadataValue::try_from("bar").unwrap());
+        assert!(result.get("User-Agent").is_some());
+
+        // metadata should override entries with the same key in the default one
+        let mut metadata = MetadataMap::new();
+        metadata.insert("user-agent", "baz".parse().unwrap());
+        let builder = TonicExporterBuilder::default().with_metadata(metadata);
+        let result = builder.tonic_config.metadata.unwrap();
+        assert_eq!(
+            result.get("User-Agent").unwrap(),
+            &MetadataValue::try_from("baz").unwrap()
+        );
+        assert_eq!(
+            result.len(),
+            TonicExporterBuilder::default()
+                .tonic_config
+                .metadata
+                .unwrap()
+                .len()
+        );
     }
 }
