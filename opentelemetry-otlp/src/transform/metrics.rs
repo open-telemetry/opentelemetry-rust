@@ -179,10 +179,7 @@ pub(crate) mod tonic {
                                     .unwrap_or_default()
                                     .to_string(),
                                 instrumentation_library: Some(instrumentation_library.into()),
-                                metrics: metrics
-                                    .into_iter()
-                                    .map(|(_k, v)| v)
-                                    .collect::<Vec<Metric>>(), // collect values
+                                metrics: metrics.into_values().collect::<Vec<Metric>>(), // collect values
                             },
                         )
                         .collect::<Vec<InstrumentationLibraryMetrics>>(),

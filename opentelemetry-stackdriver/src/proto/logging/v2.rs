@@ -582,6 +582,15 @@ pub mod tail_log_entries_response {
                     Reason::NotConsumed => "NOT_CONSUMED",
                 }
             }
+            /// Creates an enum from field names used in the ProtoBuf definition.
+            pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+                match value {
+                    "REASON_UNSPECIFIED" => Some(Self::Unspecified),
+                    "RATE_LIMIT" => Some(Self::RateLimit),
+                    "NOT_CONSUMED" => Some(Self::NotConsumed),
+                    _ => None,
+                }
+            }
         }
     }
 }

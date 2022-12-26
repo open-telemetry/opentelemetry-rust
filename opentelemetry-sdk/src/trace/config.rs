@@ -91,7 +91,7 @@ impl Default for Config {
     fn default() -> Self {
         let mut config = Config {
             sampler: Box::new(Sampler::ParentBased(Box::new(Sampler::AlwaysOn))),
-            id_generator: Box::new(RandomIdGenerator::default()),
+            id_generator: Box::<RandomIdGenerator>::default(),
             span_limits: SpanLimits::default(),
             resource: Cow::Owned(Resource::default()),
         };
