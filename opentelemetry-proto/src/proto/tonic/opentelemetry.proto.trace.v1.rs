@@ -276,6 +276,18 @@ pub mod span {
                 SpanKind::Consumer => "SPAN_KIND_CONSUMER",
             }
         }
+        /// Creates an enum from field names used in the ProtoBuf definition.
+        pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+            match value {
+                "SPAN_KIND_UNSPECIFIED" => Some(Self::Unspecified),
+                "SPAN_KIND_INTERNAL" => Some(Self::Internal),
+                "SPAN_KIND_SERVER" => Some(Self::Server),
+                "SPAN_KIND_CLIENT" => Some(Self::Client),
+                "SPAN_KIND_PRODUCER" => Some(Self::Producer),
+                "SPAN_KIND_CONSUMER" => Some(Self::Consumer),
+                _ => None,
+            }
+        }
     }
 }
 /// The Status type defines a logical error model that is suitable for different
@@ -325,6 +337,15 @@ pub mod status {
                 StatusCode::Unset => "STATUS_CODE_UNSET",
                 StatusCode::Ok => "STATUS_CODE_OK",
                 StatusCode::Error => "STATUS_CODE_ERROR",
+            }
+        }
+        /// Creates an enum from field names used in the ProtoBuf definition.
+        pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+            match value {
+                "STATUS_CODE_UNSET" => Some(Self::Unset),
+                "STATUS_CODE_OK" => Some(Self::Ok),
+                "STATUS_CODE_ERROR" => Some(Self::Error),
+                _ => None,
             }
         }
     }
@@ -407,6 +428,15 @@ pub mod constant_sampler {
                 ConstantDecision::AlwaysOff => "ALWAYS_OFF",
                 ConstantDecision::AlwaysOn => "ALWAYS_ON",
                 ConstantDecision::AlwaysParent => "ALWAYS_PARENT",
+            }
+        }
+        /// Creates an enum from field names used in the ProtoBuf definition.
+        pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+            match value {
+                "ALWAYS_OFF" => Some(Self::AlwaysOff),
+                "ALWAYS_ON" => Some(Self::AlwaysOn),
+                "ALWAYS_PARENT" => Some(Self::AlwaysParent),
+                _ => None,
             }
         }
     }

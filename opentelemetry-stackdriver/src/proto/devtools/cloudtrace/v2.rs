@@ -174,6 +174,15 @@ pub mod span {
                         Type::Received => "RECEIVED",
                     }
                 }
+                /// Creates an enum from field names used in the ProtoBuf definition.
+                pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+                    match value {
+                        "TYPE_UNSPECIFIED" => Some(Self::Unspecified),
+                        "SENT" => Some(Self::Sent),
+                        "RECEIVED" => Some(Self::Received),
+                        _ => None,
+                    }
+                }
             }
         }
         /// A `TimeEvent` can contain either an `Annotation` object or a
@@ -256,6 +265,15 @@ pub mod span {
                     Type::ParentLinkedSpan => "PARENT_LINKED_SPAN",
                 }
             }
+            /// Creates an enum from field names used in the ProtoBuf definition.
+            pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+                match value {
+                    "TYPE_UNSPECIFIED" => Some(Self::Unspecified),
+                    "CHILD_LINKED_SPAN" => Some(Self::ChildLinkedSpan),
+                    "PARENT_LINKED_SPAN" => Some(Self::ParentLinkedSpan),
+                    _ => None,
+                }
+            }
         }
     }
     /// A collection of links, which are references from this span to a span
@@ -311,6 +329,18 @@ pub mod span {
                 SpanKind::Client => "CLIENT",
                 SpanKind::Producer => "PRODUCER",
                 SpanKind::Consumer => "CONSUMER",
+            }
+        }
+        /// Creates an enum from field names used in the ProtoBuf definition.
+        pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+            match value {
+                "SPAN_KIND_UNSPECIFIED" => Some(Self::Unspecified),
+                "INTERNAL" => Some(Self::Internal),
+                "SERVER" => Some(Self::Server),
+                "CLIENT" => Some(Self::Client),
+                "PRODUCER" => Some(Self::Producer),
+                "CONSUMER" => Some(Self::Consumer),
+                _ => None,
             }
         }
     }

@@ -77,7 +77,7 @@ where
     let mut payload = Vec::new();
     rmp::encode::write_array_len(&mut payload, 2)?;
 
-    rmp::encode::write_array_len(&mut payload, interner.len() as u32)?;
+    rmp::encode::write_array_len(&mut payload, interner.len())?;
     for data in interner.iter() {
         rmp::encode::write_str(&mut payload, data)?;
     }

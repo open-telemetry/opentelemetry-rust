@@ -111,3 +111,35 @@ impl GrpcioExporterBuilder {
         self
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::GrpcioExporterBuilder;
+    use std::collections::HashMap;
+
+    #[test]
+    fn test_with_headers() {
+        // metadata should merge with the current one with priority instead of just replacing it
+        let mut headers = HashMap::new();
+        headers.insert("key".to_string(), "value".to_string());
+        let builder = GrpcioExporterBuilder::default().with_headers(headers);
+        let result = builder.grpcio_config.headers.unwrap();
+        assert_eq!(result.get("key").unwrap(), "value");
+        assert!(result.get("User-Agent").is_some());
+
+        // metadata should override entries with the same key in the default one
+        let mut headers = HashMap::new();
+        headers.insert("User-Agent".to_string(), "baz".to_string());
+        let builder = GrpcioExporterBuilder::default().with_headers(headers);
+        let result = builder.grpcio_config.headers.unwrap();
+        assert_eq!(result.get("User-Agent").unwrap(), "baz");
+        assert_eq!(
+            result.len(),
+            GrpcioExporterBuilder::default()
+                .grpcio_config
+                .headers
+                .unwrap()
+                .len()
+        );
+    }
+}

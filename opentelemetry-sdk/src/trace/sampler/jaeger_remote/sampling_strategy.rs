@@ -196,11 +196,11 @@ pub(crate) struct PerOperationStrategies {
 
 impl PerOperationStrategies {
     pub(crate) fn update(&mut self, remote_strategies: PerOperationSamplingStrategies) {
-        self.default_prob = remote_strategies.default_sampling_probability as f64;
+        self.default_prob = remote_strategies.default_sampling_probability;
         self.default_lower_bound_traces_per_second =
-            remote_strategies.default_lower_bound_traces_per_second as f64;
+            remote_strategies.default_lower_bound_traces_per_second;
         self.default_upper_bound_traces_per_second =
-            remote_strategies.default_upper_bound_traces_per_second as f64;
+            remote_strategies.default_upper_bound_traces_per_second;
 
         self.operation_prob = remote_strategies
             .per_operation_strategies

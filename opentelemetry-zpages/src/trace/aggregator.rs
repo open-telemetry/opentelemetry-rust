@@ -166,7 +166,7 @@ fn latency_bucket(start_time: SystemTime, end_time: SystemTime) -> usize {
             .unwrap_or_else(|_| Duration::from_millis(0));
     for (idx, lower) in LATENCY_BUCKET.iter().copied().enumerate().skip(1) {
         if lower > latency {
-            return (idx - 1) as usize;
+            return idx - 1;
         }
     }
     LATENCY_BUCKET.len() - 1

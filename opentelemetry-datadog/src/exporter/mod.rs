@@ -369,8 +369,7 @@ fn group_into_traces(spans: Vec<SpanData>) -> Vec<Vec<SpanData>> {
     spans
         .into_iter()
         .into_group_map_by(|span_data| span_data.span_context.trace_id())
-        .into_iter()
-        .map(|(_, trace)| trace)
+        .into_values()
         .collect()
 }
 
