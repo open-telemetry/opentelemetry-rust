@@ -92,32 +92,32 @@ mod tests {
     fn test_service() {
         std::env::set_var("DD_SERVICE", "test-SERVICE");
         let mut unified_tags = UnifiedTags::new();
-        std::env::remove_var("DD_SERVICE");
         assert_eq!("test-service", unified_tags.service.value.clone().unwrap());
         unified_tags.set_service(Some(String::from("new_service")));
         assert_eq!("new_service", unified_tags.service().unwrap());
+        std::env::remove_var("DD_SERVICE");
     }
 
     #[test]
     fn test_env() {
         std::env::set_var("DD_ENV", "test-env");
         let mut unified_tags = UnifiedTags::new();
-        std::env::remove_var("DD_ENV");
         assert_eq!("test-env", unified_tags.env.value.clone().unwrap());
         unified_tags.set_env(Some(String::from("new_env")));
         assert_eq!("new_env", unified_tags.env.value.unwrap());
+        std::env::remove_var("DD_ENV");
     }
 
     #[test]
     fn test_version() {
         std::env::set_var("DD_VERSION", "test-version-1.2.3");
         let mut unified_tags = UnifiedTags::new();
-        std::env::remove_var("DD_VERSION");
         assert_eq!(
             "test-version-1.2.3",
             unified_tags.version.value.clone().unwrap()
         );
         unified_tags.set_version(Some(String::from("new_version")));
         assert_eq!("new_version", unified_tags.version.value.unwrap());
+        std::env::remove_var("DD_VERSION");
     }
 }

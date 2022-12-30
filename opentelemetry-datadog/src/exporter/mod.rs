@@ -34,6 +34,7 @@ const DEFAULT_AGENT_ENDPOINT: &str = "http://127.0.0.1:8126";
 /// Header name used to inform the Datadog agent of the number of traces in the payload
 const DATADOG_TRACE_COUNT_HEADER: &str = "X-Datadog-Trace-Count";
 
+// Struct to hold the mapping between Opentelemetry spans and datadog spans.
 pub struct Mapping {
     resource: Option<FieldMapping>,
     name: Option<FieldMapping>,
