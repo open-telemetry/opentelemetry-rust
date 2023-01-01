@@ -115,7 +115,7 @@
 //! fn main() -> Result<(), opentelemetry::trace::TraceError> {
 //!     let tracer = new_pipeline()
 //!         .with_service_name("my_app")
-//!         .with_version(ApiVersion::Version05)
+//!         .with_api_version(ApiVersion::Version05)
 //!         .with_agent_endpoint("http://localhost:8126")
 //!         .with_trace_config(
 //!             trace::config()

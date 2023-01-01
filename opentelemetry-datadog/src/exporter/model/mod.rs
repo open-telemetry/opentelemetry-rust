@@ -7,6 +7,11 @@ use opentelemetry::sdk::export::{
 use std::fmt::Debug;
 use url::ParseError;
 
+use self::unified_tags::UnifiedTags;
+
+use super::Mapping;
+
+pub mod unified_tags;
 mod v03;
 mod v05;
 
@@ -37,7 +42,7 @@ static SAMPLING_PRIORITY_KEY: &str = "_sampling_priority_v1";
 /// fn main() -> Result<(), opentelemetry::trace::TraceError> {
 ///    let tracer = new_pipeline()
 ///            .with_service_name("my_app")
-///            .with_version(ApiVersion::Version05)
+///            .with_api_version(ApiVersion::Version05)
 ///            // the custom mapping below will change the all spans' name to datadog spans
 ///            .with_name_mapping(|span, model_config|{
 ///                 "datadog spans"
@@ -140,23 +145,22 @@ impl ApiVersion {
         self,
         model_config: &ModelConfig,
         traces: Vec<Vec<trace::SpanData>>,
-        get_service_name: Option<FieldMapping>,
-        get_name: Option<FieldMapping>,
-        get_resource: Option<FieldMapping>,
+        mapping: &Mapping,
+        unified_tags: &UnifiedTags,
     ) -> Result<Vec<u8>, Error> {
         match self {
             Self::Version03 => v03::encode(
                 model_config,
                 traces,
-                |span, config| match &get_service_name {
+                |span, config| match &mapping.service_name {
                     Some(f) => f(span, config),
                     None => default_service_name_mapping(span, config),
                 },
-                |span, config| match &get_name {
+                |span, config| match &mapping.name {
                     Some(f) => f(span, config),
                     None => default_name_mapping(span, config),
                 },
-                |span, config| match &get_resource {
+                |span, config| match &mapping.resource {
                     Some(f) => f(span, config),
                     None => default_resource_mapping(span, config),
                 },
@@ -164,18 +168,19 @@ impl ApiVersion {
             Self::Version05 => v05::encode(
                 model_config,
                 traces,
-                |span, config| match &get_service_name {
+                |span, config| match &mapping.service_name {
                     Some(f) => f(span, config),
                     None => default_service_name_mapping(span, config),
                 },
-                |span, config| match &get_name {
+                |span, config| match &mapping.name {
                     Some(f) => f(span, config),
                     None => default_name_mapping(span, config),
                 },
-                |span, config| match &get_resource {
+                |span, config| match &mapping.resource {
                     Some(f) => f(span, config),
                     None => default_resource_mapping(span, config),
                 },
+                unified_tags,
             ),
         }
     }
@@ -243,9 +248,8 @@ pub(crate) mod tests {
         let encoded = base64::encode(ApiVersion::Version03.encode(
             &model_config,
             traces,
-            None,
-            None,
-            None,
+            &Mapping::empty(),
+            &UnifiedTags::new(),
         )?);
 
         assert_eq!(encoded.as_str(), "kZGMpHR5cGWjd2Vip3NlcnZpY2Wsc2VydmljZV9uYW1lpG5hbWWpY29tcG9uZW\
@@ -263,18 +267,24 @@ pub(crate) mod tests {
             service_name: "service_name".to_string(),
             ..Default::default()
         };
+
+        let mut unified_tags = UnifiedTags::new();
+        unified_tags.set_env(Some(String::from("test-env")));
+        unified_tags.set_version(Some(String::from("test-version")));
+        unified_tags.set_service(Some(String::from("test-service")));
+
         let encoded = base64::encode(ApiVersion::Version05.encode(
             &model_config,
             traces,
-            None,
-            None,
-            None,
+            &Mapping::empty(),
+            &unified_tags,
         )?);
 
-        assert_eq!(encoded.as_str(), "kpijd2VirHNlcnZpY2VfbmFtZaljb21wb25lbnSocmVzb3VyY2WpaG9zdC5uYW\
-        1lpHRlc3Spc3Bhbi50eXBltV9zYW1wbGluZ19wcmlvcml0eV92MZGRnc4AAAABzgAAAALOAAAAA88AAAAAAAAAB88AAA\
-        AAAAAAY88AAAAAAAAAAdMAAAAAAAAAANMAAAAAO5rKANIAAAAAgs4AAAAEzgAAAAXOAAAABs4AAAAAgc4AAAAHywAAAA\
-        AAAAAAzgAAAAA=");
+        assert_eq!(encoded.as_str(), "kp6jd2VirHNlcnZpY2VfbmFtZaljb21wb25lbnSocmVzb3VyY2WpaG9zdC5uYW\
+        1lpHRlc3Snc2VydmljZax0ZXN0LXNlcnZpY2WjZW52qHRlc3QtZW52p3ZlcnNpb26sdGVzdC12ZXJzaW9uqXNwYW4udH\
+        lwZbVfc2FtcGxpbmdfcHJpb3JpdHlfdjGRkZ3OAAAAAc4AAAACzgAAAAPPAAAAAAAAAAfPAAAAAAAAAGPPAAAAAAAAAA\
+        HTAAAAAAAAAADTAAAAADuaygDSAAAAAIXOAAAABM4AAAAFzgAAAAbOAAAAB84AAAAIzgAAAAnOAAAACs4AAAALzgAAAA\
+        zOAAAAAIHOAAAADcsAAAAAAAAAAM4AAAAA");
 
         Ok(())
     }
