@@ -21,6 +21,8 @@ use self::thrift::jaeger;
 use futures::future::BoxFuture;
 use std::convert::TryInto;
 use std::fmt::Display;
+use std::io;
+use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, ToSocketAddrs};
 use std::sync::Arc;
 
 #[cfg(feature = "isahc_collector_client")]
@@ -337,6 +339,20 @@ impl ExportError for Error {
     }
 }
 
+/// Sample the first address provided to designate which IP family to bind the socket to.
+/// IP families returned be INADDR_ANY as [`Ipv4Addr::UNSPECIFIED`] or
+/// IN6ADDR_ANY as [`Ipv6Addr::UNSPECIFIED`].
+fn addrs_and_family(
+    host_port: &impl ToSocketAddrs,
+) -> Result<(Vec<SocketAddr>, SocketAddr), io::Error> {
+    let addrs = host_port.to_socket_addrs()?.collect::<Vec<_>>();
+    let family = match addrs.first() {
+        Some(SocketAddr::V4(_)) | None => SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0)),
+        Some(SocketAddr::V6(_)) => SocketAddr::from((Ipv6Addr::UNSPECIFIED, 0)),
+    };
+    Ok((addrs, family))
+}
+
 #[cfg(test)]
 mod tests {
     use super::SPAN_KIND;
@@ -431,14 +447,11 @@ mod tests {
 
     #[test]
     fn error_message_should_contain_details() {
-        let size_limit_err = crate::Error::from(
-            ::thrift::Error::Protocol(thrift::ProtocolError::new(
+        let size_limit_err =
+            crate::Error::from(::thrift::Error::Protocol(thrift::ProtocolError::new(
                 thrift::ProtocolErrorKind::SizeLimit,
-                format!(
-                    "the error message should contain details"
-                ),
-            ))
-        );
+                "the error message should contain details".to_string(),
+            )));
         assert_eq!(
             format!("{}", size_limit_err),
             "thrift agent failed on protocol layer, message too long, the error message should contain details"

@@ -1,4 +1,5 @@
 //! # UDP Jaeger Agent Client
+use crate::exporter::addrs_and_family;
 use crate::exporter::runtime::JaegerTraceRuntime;
 use crate::exporter::thrift::{
     agent::{self, TAgentSyncClient},
@@ -43,7 +44,7 @@ pub(crate) struct AgentSyncClientUdp {
 impl AgentSyncClientUdp {
     /// Create a new UDP agent client
     pub(crate) fn new<T: ToSocketAddrs>(
-        host_port: T,
+        agent_endpoint: T,
         max_packet_size: usize,
         auto_split: bool,
     ) -> thrift::Result<Self> {
@@ -53,8 +54,9 @@ impl AgentSyncClientUdp {
             TCompactOutputProtocol::new(write),
         );
 
-        let conn = UdpSocket::bind("0.0.0.0:0")?;
-        conn.connect(host_port)?;
+        let (addrs, family) = addrs_and_family(&agent_endpoint)?;
+        let conn = UdpSocket::bind(family)?;
+        conn.connect(addrs.as_slice())?;
 
         Ok(AgentSyncClientUdp {
             conn,

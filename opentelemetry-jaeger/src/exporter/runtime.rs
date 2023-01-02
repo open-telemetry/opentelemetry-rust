@@ -1,15 +1,12 @@
+#[cfg(any(
+    feature = "rt-async-std",
+    feature = "rt-tokio",
+    feature = "rt-tokio-current-thread"
+))]
+use crate::exporter::addrs_and_family;
 use async_trait::async_trait;
 use opentelemetry::sdk::trace::TraceRuntime;
 use std::net::ToSocketAddrs;
-#[cfg(any(
-    feature = "rt-tokio",
-    feature = "rt-tokio-current-thread",
-    feature = "rt-async-std"
-))]
-use std::{
-    io,
-    net::{Ipv4Addr, Ipv6Addr, SocketAddr},
-};
 
 /// Jaeger Trace Runtime is an extension to [`TraceRuntime`].
 ///
@@ -81,23 +78,4 @@ impl JaegerTraceRuntime for opentelemetry::runtime::AsyncStd {
 
         Ok(())
     }
-}
-
-/// Sample the first address provided to designate which IP family to bind the socket to.
-/// IP families returned be INADDR_ANY as [`Ipv4Addr::UNSPECIFIED`] or
-/// IN6ADDR_ANY as [`Ipv6Addr::UNSPECIFIED`].
-#[cfg(any(
-    feature = "rt-tokio",
-    feature = "rt-tokio-current-thread",
-    feature = "rt-async-std"
-))]
-fn addrs_and_family(
-    host_port: &impl ToSocketAddrs,
-) -> Result<(Vec<SocketAddr>, SocketAddr), io::Error> {
-    let addrs = host_port.to_socket_addrs()?.collect::<Vec<_>>();
-    let family = match addrs.first() {
-        Some(SocketAddr::V4(_)) | None => SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0)),
-        Some(SocketAddr::V6(_)) => SocketAddr::from((Ipv6Addr::UNSPECIFIED, 0)),
-    };
-    Ok((addrs, family))
 }
