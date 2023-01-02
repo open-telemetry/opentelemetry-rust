@@ -20,6 +20,7 @@ use self::runtime::JaegerTraceRuntime;
 use self::thrift::jaeger;
 use futures::future::BoxFuture;
 use std::convert::TryInto;
+use std::fmt::Display;
 use std::sync::Arc;
 
 #[cfg(feature = "isahc_collector_client")]
@@ -261,17 +262,15 @@ fn events_to_logs(events: sdk::trace::EvictedQueue<Event>) -> Option<Vec<jaeger:
 }
 
 /// Wrap type for errors from opentelemetry jaeger
-#[derive(thiserror::Error, Debug)]
+#[derive(Debug)]
 pub enum Error {
     /// Error from thrift agents.
     ///
     /// If the spans was sent to jaeger agent. Refer [AgentPipeline](config::agent::AgentPipeline) for more details.
     /// If the spans was sent to jaeger collector. Refer [CollectorPipeline](config::collector::CollectorPipeline) for more details.
-    #[error("thrift agent failed with {0}")]
-    ThriftAgentError(#[from] ::thrift::Error),
+    ThriftAgentError(::thrift::Error),
 
     /// Pipeline fails because one of the configurations is invalid.
-    #[error("{pipeline_name} pipeline fails because one of the configuration {config_name} is invalid. {reason}")]
     ConfigError {
         /// the name of the pipeline. It can be `agent`, `collector` or `wasm collector`
         pipeline_name: &'static str,
@@ -280,6 +279,56 @@ pub enum Error {
         /// the underlying error message.
         reason: String,
     },
+}
+
+impl std::error::Error for Error {}
+
+impl From<::thrift::Error> for Error {
+    fn from(value: ::thrift::Error) -> Self {
+        Error::ThriftAgentError(value)
+    }
+}
+
+impl Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Error::ThriftAgentError(err) => match err {
+                ::thrift::Error::Transport(transport_error) => {
+                    write!(
+                        f,
+                        "thrift agent failed on transportation layer, {}, {}",
+                        transport_error, transport_error.message
+                    )
+                }
+                ::thrift::Error::Protocol(protocol_error) => {
+                    write!(
+                        f,
+                        "thrift agent failed on protocol layer, {}, {}",
+                        protocol_error, protocol_error.message
+                    )
+                }
+                ::thrift::Error::Application(application_error) => {
+                    write!(
+                        f,
+                        "thrift agent failed on application layer, {}, {}",
+                        application_error, application_error.message
+                    )
+                }
+                ::thrift::Error::User(error) => {
+                    write!(f, "thrift agent failed, {}", error)
+                }
+            },
+            Error::ConfigError {
+                pipeline_name,
+                config_name,
+                reason,
+            } => write!(
+                f,
+                "{} pipeline fails because one of the configuration {} is invalid. {}",
+                pipeline_name, config_name, reason
+            ),
+        }
+    }
 }
 
 impl ExportError for Error {
@@ -378,5 +427,21 @@ mod tests {
         assert_tag_contains(tags.clone(), SPAN_KIND, user_kind);
         assert_tag_contains(tags.clone(), OTEL_STATUS_CODE, "ERROR");
         assert_tag_contains(tags, OTEL_STATUS_DESCRIPTION, user_status_description);
+    }
+
+    #[test]
+    fn error_message_should_contain_details() {
+        let size_limit_err = crate::Error::from(
+            ::thrift::Error::Protocol(thrift::ProtocolError::new(
+                thrift::ProtocolErrorKind::SizeLimit,
+                format!(
+                    "the error message should contain details"
+                ),
+            ))
+        );
+        assert_eq!(
+            format!("{}", size_limit_err),
+            "thrift agent failed on protocol layer, message too long, the error message should contain details"
+        );
     }
 }
