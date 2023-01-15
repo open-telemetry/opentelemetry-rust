@@ -27,6 +27,38 @@
 
 use opentelemetry::Key;
 
+/// Array of brand name and version separated by a space.
+///
+/// This value is intended to be taken from the [UA client hints API](https://wicg.github.io/ua-client-hints/#interface) (navigator.userAgentData.brands).
+///
+/// # Examples
+///
+/// - ` Not A;Brand 99`
+/// - `Chromium 99`
+/// - `Chrome 99`
+pub const BROWSER_BRANDS: Key = Key::from_static_str("browser.brands");
+
+/// The platform on which the browser is running.
+///
+/// This value is intended to be taken from the [UA client hints API](https://wicg.github.io/ua-client-hints/#interface) (navigator.userAgentData.platform). If unavailable, the legacy `navigator.platform` API SHOULD NOT be used instead and this attribute SHOULD be left unset in order for the values to be consistent.
+/// The list of possible values is defined in the [W3C User-Agent Client Hints specification](https://wicg.github.io/ua-client-hints/#sec-ch-ua-platform). Note that some (but not all) of these values can overlap with values in the [os.type and os.name attributes](./os.md). However, for consistency, the values in the `browser.platform` attribute should capture the exact value that the user agent provides.
+///
+/// # Examples
+///
+/// - `Windows`
+/// - `macOS`
+/// - `Android`
+pub const BROWSER_PLATFORM: Key = Key::from_static_str("browser.platform");
+
+/// Full user-agent string provided by the browser.
+///
+/// The user-agent value SHOULD be provided only from browsers that do not have a mechanism to retrieve brands and platform individually from the User-Agent Client Hints API. To retrieve the value, the legacy `navigator.userAgent` API can be used.
+///
+/// # Examples
+///
+/// - `Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/95.0.4638.54 Safari/537.36`
+pub const BROWSER_USER_AGENT: Key = Key::from_static_str("browser.user_agent");
+
 /// Name of the cloud provider.
 pub const CLOUD_PROVIDER: Key = Key::from_static_str("cloud.provider");
 
@@ -229,29 +261,47 @@ pub const DEVICE_MANUFACTURER: Key = Key::from_static_str("device.manufacturer")
 
 /// The name of the single function that this runtime instance executes.
 ///
-/// This is the name of the function as configured/deployed on the FaaS platform and is usually different from the name of the callback function (which may be stored in the [`code.namespace`/`code.function`](../../trace/semantic_conventions/span-general.md#source-code-attributes) span attributes).
+/// This is the name of the function as configured/deployed on the FaaS
+/// platform and is usually different from the name of the callback
+/// function (which may be stored in the
+/// [`code.namespace`/`code.function`](../../trace/semantic_conventions/span-general.md#source-code-attributes)
+/// span attributes).
+///
+/// For some cloud providers, the above definition is ambiguous. The following
+/// definition of function name MUST be used for this attribute
+/// (and consequently the span name) for the listed cloud providers/products:
+///
+/// * **Azure:**  The full name `&lt;FUNCAPP&gt;/&lt;FUNC&gt;`, i.e., function app name
+///   followed by a forward slash followed by the function name (this form
+///   can also be seen in the resource JSON for the function).
+///   This means that a span attribute MUST be used, as an Azure function
+///   app can host multiple functions that would usually share
+///   a TracerProvider (see also the `faas.id` attribute).
 ///
 /// # Examples
 ///
 /// - `my-function`
+/// - `myazurefunctionapp/some-function-name`
 pub const FAAS_NAME: Key = Key::from_static_str("faas.name");
 
 /// The unique ID of the single function that this runtime instance executes.
 ///
-/// Depending on the cloud provider, use:
+/// On some cloud providers, it may not be possible to determine the full ID at startup,
+/// so consider setting `faas.id` as a span attribute instead.
+///
+/// The exact value to use for `faas.id` depends on the cloud provider:
 ///
 /// * **AWS Lambda:** The function [ARN](https://docs.aws.amazon.com/general/latest/gr/aws-arns-and-namespaces.html).
-/// Take care not to use the &#34;invoked ARN&#34; directly but replace any
-/// [alias suffix](https://docs.aws.amazon.com/lambda/latest/dg/configuration-aliases.html) with the resolved function version, as the same runtime instance may be invokable with multiple
-/// different aliases.
+///   Take care not to use the &#34;invoked ARN&#34; directly but replace any
+///   [alias suffix](https://docs.aws.amazon.com/lambda/latest/dg/configuration-aliases.html)
+///   with the resolved function version, as the same runtime instance may be invokable with
+///   multiple different aliases.
 /// * **GCP:** The [URI of the resource](https://cloud.google.com/iam/docs/full-resource-names)
-/// * **Azure:** The [Fully Qualified Resource ID](https://docs.microsoft.com/en-us/rest/api/resources/resources/get-by-id).
-///
-/// On some providers, it may not be possible to determine the full ID at startup,
-/// which is why this field cannot be made required. For example, on AWS the account ID
-/// part of the ARN is not available without calling another AWS API
-/// which may be deemed too slow for a short-running lambda function.
-/// As an alternative, consider setting `faas.id` as a span attribute instead.
+/// * **Azure:** The [Fully Qualified Resource ID](https://docs.microsoft.com/en-us/rest/api/resources/resources/get-by-id) of the invoked function,
+///   *not* the function app, having the form
+///   `/subscriptions/&lt;SUBSCIPTION_GUID&gt;/resourceGroups/&lt;RG&gt;/providers/Microsoft.Web/sites/&lt;FUNCAPP&gt;/functions/&lt;FUNC&gt;`.
+///   This means that a span attribute MUST be used, as an Azure function app can host multiple functions that would usually share
+///   a TracerProvider.
 ///
 /// # Examples
 ///
@@ -515,6 +565,13 @@ pub const OS_VERSION: Key = Key::from_static_str("os.version");
 ///
 /// - `1234`
 pub const PROCESS_PID: Key = Key::from_static_str("process.pid");
+
+/// Parent Process identifier (PID).
+///
+/// # Examples
+///
+/// - `111`
+pub const PROCESS_PARENT_PID: Key = Key::from_static_str("process.parent_pid");
 
 /// The name of the process executable. On Linux based systems, can be set to the `Name` in `proc/[pid]/status`. On Windows, can be set to the base name of `GetProcessImageFileNameW`.
 ///
