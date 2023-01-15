@@ -76,16 +76,18 @@ impl OtlpPipeline {
     }
 }
 
+/// OTLP metrics exporter builder.
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum MetricsExporterBuilder {
+    /// Tonic metrics exporter builder
     #[cfg(feature = "grpc-tonic")]
     Tonic(TonicExporterBuilder),
 }
 
 impl MetricsExporterBuilder {
     /// Build a OTLP metrics exporter with given configuration.
-    fn build_metrics_exporter(
+    pub fn build_metrics_exporter(
         self,
         temporality_selector: Box<dyn TemporalitySelector + Send + Sync>,
     ) -> Result<MetricsExporter> {
