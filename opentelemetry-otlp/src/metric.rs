@@ -76,9 +76,11 @@ impl OtlpPipeline {
     }
 }
 
+/// OTLP metrics exporter builder.
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum MetricsExporterBuilder {
+    /// Tonic metrics exporter builder
     #[cfg(feature = "grpc-tonic")]
     Tonic(TonicExporterBuilder),
 }
