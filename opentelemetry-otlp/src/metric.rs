@@ -85,7 +85,7 @@ pub enum MetricsExporterBuilder {
 
 impl MetricsExporterBuilder {
     /// Build a OTLP metrics exporter with given configuration.
-    fn build_metrics_exporter(
+    pub fn build_metrics_exporter(
         self,
         temporality_selector: Box<dyn TemporalitySelector + Send + Sync>,
     ) -> Result<MetricsExporter> {
