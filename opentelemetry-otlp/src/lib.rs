@@ -197,7 +197,7 @@ pub use crate::span::{
 #[cfg(feature = "metrics")]
 pub use crate::metric::{
     MetricsExporter, OtlpMetricPipeline, OTEL_EXPORTER_OTLP_METRICS_ENDPOINT,
-    OTEL_EXPORTER_OTLP_METRICS_TIMEOUT,
+    OTEL_EXPORTER_OTLP_METRICS_TIMEOUT, MetricsExporterBuilder
 };
 
 pub use crate::exporter::{
