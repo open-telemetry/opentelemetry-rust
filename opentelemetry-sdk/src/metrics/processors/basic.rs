@@ -37,8 +37,7 @@ pub struct BasicProcessorBuilder {
 
 impl fmt::Debug for BasicProcessorBuilder {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("BasicProcessorBuilder")
-            .finish()
+        f.debug_struct("BasicProcessorBuilder").finish()
     }
 }
 
@@ -269,7 +268,6 @@ impl LockedCheckpointer for BasicLockedProcessor<'_> {
     }
 }
 
-
 #[derive(Debug)]
 struct BasicProcessorState {
     values: HashMap<StateKey, StateValue>,
@@ -331,10 +329,10 @@ impl Reader for BasicProcessorState {
                         return Err(MetricsError::Other("No cumulative to delta".into()));
                     }
 
-                    if  value.updated != self.finished_collection.wrapping_sub(1) {
+                    if value.updated != self.finished_collection.wrapping_sub(1) {
                         // skip processing if there is no update in last collection internal and
                         // temporality is Delta
-                        return Ok(())
+                        return Ok(());
                     }
 
                     agg = Some(&value.current);

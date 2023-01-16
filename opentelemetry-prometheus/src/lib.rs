@@ -15,7 +15,6 @@
 //!             selectors::simple::histogram([1.0, 2.0, 5.0, 10.0, 20.0, 50.0]),
 //!             aggregation::cumulative_temporality_selector(),
 //!         )
-//!         .with_memory(true),
 //!     )
 //!     .build();
 //!
