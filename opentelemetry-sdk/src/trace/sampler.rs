@@ -185,19 +185,22 @@ impl ShouldSample for Sampler {
             // Never sample the trace
             Sampler::AlwaysOff => SamplingDecision::Drop,
             // The parent decision if sampled; otherwise the decision of delegate_sampler
-            Sampler::ParentBased(delegate_sampler) => {
-                parent_context.filter(|cx| cx.has_active_span()).map_or(
-                    delegate_sampler
-                        .should_sample(
-                            parent_context,
-                            trace_id,
-                            name,
-                            span_kind,
-                            attributes,
-                            links,
-                            instrumentation_library,
-                        )
-                        .decision,
+            Sampler::ParentBased(delegate_sampler) => parent_context
+                .filter(|cx| cx.has_active_span())
+                .map_or_else(
+                    || {
+                        delegate_sampler
+                            .should_sample(
+                                parent_context,
+                                trace_id,
+                                name,
+                                span_kind,
+                                attributes,
+                                links,
+                                instrumentation_library,
+                            )
+                            .decision
+                    },
                     |ctx| {
                         let span = ctx.span();
                         let parent_span_context = span.span_context();
@@ -207,8 +210,7 @@ impl ShouldSample for Sampler {
                             SamplingDecision::Drop
                         }
                     },
-                )
-            }
+                ),
             // Probabilistically sample the trace.
             Sampler::TraceIdRatioBased(prob) => sample_based_on_probability(prob, trace_id),
             #[cfg(feature = "jaeger_remote_sampler")]
