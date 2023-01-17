@@ -32,6 +32,7 @@ members = [
     "examples/http",
     "examples/hyper-prometheus",
     "examples/tracing-grpc",
+    "examples/warp-tracing-prometheus",
     "examples/jaeger-remote-sampler",
     "examples/zipkin",
     "examples/multiple-span-processors",

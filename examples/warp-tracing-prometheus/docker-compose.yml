@@ -1,0 +1,35 @@
+version: "3.7"
+services:
+
+  jaeger-all-in-one:
+    container_name: jaeger-all-in-one
+    hostname: jaeger-all-in-one
+    image: jaegertracing/all-in-one:latest
+    ports:
+      - "16686:16686"
+      - "14268"
+      - "14250"
+    networks:
+      - proxy-network
+
+  otel-collector:
+    container_name: otel-collector
+    hostname: otel-collector
+    image: otel/opentelemetry-collector:latest
+    command: ["--config=/etc/otel-collector-config.yml", "${OTELCOL_ARGS}"]
+    volumes:
+      - ./otel-collector-config.yml:/etc/otel-collector-config.yml
+    ports:
+      - "1888:1888"   # pprof extension
+      - "13133:13133" # health_check extension
+      - "4317:4317"   # OTLP gRPC receiver
+      - "4318:4318"   # OTLP HTTP receiver
+      - "55670:55679" # zpages extension
+    depends_on:
+      - jaeger-all-in-one
+    networks:
+      - proxy-network
+
+networks:
+  proxy-network:
+    name: proxy-network
