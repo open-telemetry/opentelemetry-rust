@@ -8,8 +8,8 @@ use opentelemetry::{
 use tracing::{event, Level};
 use warp::{
     http::StatusCode,
-    reply::{json, with_status},
-    Filter, Rejection, Reply,
+    reply::{json, with_status, Json, WithStatus},
+    Filter, Rejection,
 };
 
 use crate::internal::{
@@ -22,7 +22,7 @@ use crate::ports::middleware::{with_interceptor, FromRequest};
 
 pub fn hello_ports(
     http_metrics: HttpMetricsBuilder,
-) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
+) -> impl Filter<Extract = (WithStatus<Json>,), Error = Rejection> + Clone {
     warp::path!("hello" / String)
         .and(warp::get())
         .and(with_interceptor())
@@ -39,11 +39,11 @@ pub struct HttpHelloHandler {}
 
 impl HttpHelloHandler {
     /// HttpHelloHandler - hello()
-    pub async fn hello(
+    async fn hello(
         param: String,
         from_request: FromRequest,
         http_metrics: HttpMetricsBuilder,
-    ) -> Result<impl Reply, Infallible> {
+    ) -> Result<WithStatus<Json>, Infallible> {
         // Metrics - Start Timer
         let timer = SystemTime::now();
 
@@ -91,9 +91,7 @@ impl HttpHelloHandler {
                 // Custom Event Tracing Error
                 let lines = format!(
                     "input: {}, data: {}, status_code: {}",
-                    param,
-                    data,
-                    err.code.to_string(),
+                    param, data, err.code,
                 );
 
                 event!(
