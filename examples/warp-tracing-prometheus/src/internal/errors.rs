@@ -1,6 +1,6 @@
-use chrono::{prelude::*, NaiveDateTime};
 use serde::{Deserialize, Serialize};
 use std::fmt;
+use time;
 
 pub enum Error {
     /// 400 Bad Request
@@ -10,7 +10,7 @@ pub enum Error {
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct TracingFmt<T> {
-    pub when: NaiveDateTime,
+    pub when: String,
     pub owner: String,
     pub params: String,
     pub content: T,
@@ -20,7 +20,7 @@ pub struct TracingFmt<T> {
 pub struct CustomError {
     pub code: u16,
     pub message: String,
-    pub timestamp: NaiveDateTime,
+    pub timestamp: String,
 }
 
 impl CustomError {
@@ -28,7 +28,7 @@ impl CustomError {
         CustomError {
             code,
             message,
-            timestamp: Utc::now().naive_utc(),
+            timestamp: time::OffsetDateTime::now_utc().to_string(),
         }
     }
 
@@ -46,7 +46,7 @@ impl CustomError {
         T: Serialize,
     {
         TracingFmt {
-            when: Utc::now().naive_utc(),
+            when: time::OffsetDateTime::now_utc().to_string(),
             owner,
             params,
             content,

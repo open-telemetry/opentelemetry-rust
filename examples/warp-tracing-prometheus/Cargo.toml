@@ -5,7 +5,6 @@ edition = "2021"
 publish = false
 
 [dependencies]
-chrono = { version = "0.4", features = ["serde"] }
 futures-util = { version = "0.3", default-features = false, features = ["std"] }
 opentelemetry = { version = "0.18", features = ["rt-tokio", "metrics"] }
 opentelemetry-otlp = { version = "0.11", features = ["tonic", "metrics"] }
@@ -14,8 +13,9 @@ opentelemetry-semantic-conventions = "0.10"
 prometheus = "0.13"
 serde = { version = "^1", features = ["derive"] }
 serde_json = "1.0"
+thrift = "0.17"
+time = "0.3"
+tokio = { version = "1.0", features = ["full"] }
 tracing = "0.1"
 tracing-subscriber = "0.3"
-thrift = "0.17"
-tokio = { version = "1.0", features = ["full"] }
 warp = "0.3"
