@@ -1,15 +1,15 @@
 use std::collections::HashMap;
 
+use tracing::{event, instrument, Level};
 use warp::{
     filters::header::headers_cloned,
     http::{
         header::{HeaderMap, HeaderValue},
         Method,
     },
-    Filter, Rejection,
     path::FullPath,
+    Filter, Rejection,
 };
-use tracing::{event, instrument, Level};
 
 /* Ports - Middleware */
 
@@ -22,12 +22,12 @@ pub struct FromRequest {
 }
 
 impl FromRequest {
-    pub fn new(
-        method: Method,
-        query: HashMap<String, String>,
-        path: FullPath,
-    ) -> Self {
-        FromRequest { method, query, path }
+    pub fn new(method: Method, query: HashMap<String, String>, path: FullPath) -> Self {
+        FromRequest {
+            method,
+            query,
+            path,
+        }
     }
 
     pub fn method(&self) -> &str {
@@ -70,7 +70,10 @@ pub async fn http_middleware(
     event!(
         Level::INFO,
         "Received method: {}; PATH: {:?}; HEADERS: {:?}; QUERY: {:?}",
-        from_request.method(), from_request.path(), headers.clone(), from_request.query(),
+        from_request.method(),
+        from_request.path(),
+        headers.clone(),
+        from_request.query(),
     );
 
     Ok(from_request)

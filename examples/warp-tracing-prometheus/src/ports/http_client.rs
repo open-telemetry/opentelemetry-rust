@@ -1,22 +1,22 @@
 use std::{convert::Infallible, time::SystemTime};
 
-use warp::{
-    reply::{json, with_status},
-    Reply, Filter, Rejection,
-    http::StatusCode,
-};
 use opentelemetry::{
     global,
     trace::{Span, TraceContextExt, Tracer},
     Context, Key,
 };
 use tracing::{event, Level};
+use warp::{
+    http::StatusCode,
+    reply::{json, with_status},
+    Filter, Rejection, Reply,
+};
 
 use crate::internal::{
     errors::{CustomError, Error},
-    metrics::{HttpMetricsBuilder, HTTP_STATUS_CODE, STATUS_KEY, SUCCESS, ERROR},
+    metrics::{HttpMetricsBuilder, ERROR, HTTP_STATUS_CODE, STATUS_KEY, SUCCESS},
 };
-use crate::ports::middleware::{FromRequest, with_interceptor};
+use crate::ports::middleware::{with_interceptor, FromRequest};
 
 /* Http Hello Ports */
 
@@ -26,7 +26,7 @@ pub fn hello_ports(
     warp::path!("hello" / String)
         .and(warp::get())
         .and(with_interceptor())
-        .and(warp::any().map(move ||http_metrics.clone()))
+        .and(warp::any().map(move || http_metrics.clone()))
         .and_then(HttpHelloHandler::hello)
 }
 
@@ -38,7 +38,6 @@ const HTTP_PATH_HELLO: &str = "/hello/{param}";
 pub struct HttpHelloHandler {}
 
 impl HttpHelloHandler {
-
     /// HttpHelloHandler - hello()
     pub async fn hello(
         param: String,
@@ -55,7 +54,7 @@ impl HttpHelloHandler {
 
         // Span
         let mut span = tracer.start_with_context("Processor.task", &parent_cx);
-        
+
         // Task processor...
         let (response, status_code) = match param.parse::<i32>() {
             Ok(param) => {
@@ -79,23 +78,32 @@ impl HttpHelloHandler {
             Err(e) => {
                 // TODO: option track error here!
                 let data = format!("Try again! You informed: {}", param);
-                
+
                 // Create Custom Error
                 let err = CustomError::from(Error::BadRequest);
 
                 // Prepare Response
-                let response = Ok(with_status(json(&data), StatusCode::from_u16(err.code).unwrap()));
+                let response = Ok(with_status(
+                    json(&data),
+                    StatusCode::from_u16(err.code).unwrap(),
+                ));
 
                 // Custom Event Tracing Error
                 let lines = format!(
                     "input: {}, data: {}, status_code: {}",
-                    param, data, err.code.to_string(),
+                    param,
+                    data,
+                    err.code.to_string(),
                 );
 
                 event!(
                     Level::ERROR,
                     "{:?}",
-                    CustomError::tracing_fmt("HttpHelloHandler.hello".to_owned(), lines, e.to_string())
+                    CustomError::tracing_fmt(
+                        "HttpHelloHandler.hello".to_owned(),
+                        lines,
+                        e.to_string()
+                    )
                 );
 
                 // Custom Attributes and Add Events to Span

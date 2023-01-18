@@ -1,5 +1,5 @@
 use std::convert::Infallible;
-use warp::{Reply, Filter, Rejection};
+use warp::{Filter, Rejection, Reply};
 
 use crate::internal::metrics::PrometheusMetricsHandler;
 

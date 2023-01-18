@@ -13,7 +13,6 @@ use crate::ports::{http_client, http_service};
 
 #[tokio::main]
 async fn main() {
-
     std::env::set_var("RUST_BACKTRACE", "1");
 
     /* Setup for Tracing */
@@ -21,7 +20,7 @@ async fn main() {
         .with_max_level(Level::INFO)
         .finish();
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
-    
+
     /* Setup for OpenTelemetry add Tracer */
     let _ = metrics::init_tracer().unwrap();
 
@@ -40,7 +39,7 @@ async fn main() {
         .parse()
         .expect("Unable to parse the Socket Address for Client");
     let (_, http_client_ports) = warp::serve(cli_routes).bind_ephemeral(cli_host);
-    
+
     // ----------------------------------------------------
     // Prepare Http Service Ports and Host Scraping Metrics
     // ----------------------------------------------------

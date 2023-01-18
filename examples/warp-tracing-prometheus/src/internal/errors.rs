@@ -1,6 +1,6 @@
-use std::fmt;
 use chrono::{prelude::*, NaiveDateTime};
 use serde::{Deserialize, Serialize};
+use std::fmt;
 
 pub enum Error {
     /// 400 Bad Request
