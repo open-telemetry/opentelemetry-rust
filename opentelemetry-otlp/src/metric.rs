@@ -300,10 +300,10 @@ async fn export_sink<T>(
         match msg {
             ExportMsg::Shutdown => {
                 break;
-            },
+            }
             ExportMsg::Export(req) => {
                 let _r = client.export(req).await;
-            },
+            }
         }
     }
 }
