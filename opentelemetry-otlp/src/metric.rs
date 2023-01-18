@@ -300,11 +300,10 @@ async fn export_sink<T>(
         match msg {
             ExportMsg::Shutdown => {
                 break;
-            }
+            },
             ExportMsg::Export(req) => {
-                let r = client.export(req).await;
-                println!("opentelemetry-otlp {:?}", r)
-            }
+                let _r = client.export(req).await;
+            },
         }
     }
 }

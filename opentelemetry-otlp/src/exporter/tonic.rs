@@ -28,6 +28,7 @@ pub struct TonicConfig {
 ///
 /// [tonic]: <https://github.com/hyperium/tonic>
 /// [channel]: tonic::transport::Channel
+#[derive(Debug)]
 pub struct TonicExporterBuilder {
     pub(crate) exporter_config: ExportConfig,
     pub(crate) tonic_config: TonicConfig,
@@ -35,22 +36,16 @@ pub struct TonicExporterBuilder {
     pub(crate) interceptor: Option<BoxInterceptor>,
 }
 
-pub(crate) struct BoxInterceptor(Box<dyn tonic::service::Interceptor>);
-unsafe impl Send for BoxInterceptor {}
+pub(crate) struct BoxInterceptor(Box<dyn tonic::service::Interceptor + Send>);
 impl tonic::service::Interceptor for BoxInterceptor {
     fn call(&mut self, request: tonic::Request<()>) -> Result<tonic::Request<()>, tonic::Status> {
         self.0.call(request)
     }
 }
 
-impl Debug for TonicExporterBuilder {
+impl Debug for BoxInterceptor {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        #[cfg(feature = "grpc-tonic")]
-        f.debug_struct("TonicExporterBuilder")
-            .field("exporter_config", &self.exporter_config)
-            .field("tonic_config", &self.exporter_config)
-            .field("channel", &self.channel)
-            .finish()
+        write!(f, "BoxInterceptor(..)")
     }
 }
 
@@ -114,7 +109,7 @@ impl TonicExporterBuilder {
     /// to inject auth tokens.
     pub fn with_interceptor<I>(mut self, interceptor: I) -> Self
     where
-        I: tonic::service::Interceptor + 'static,
+        I: tonic::service::Interceptor + Send + 'static,
     {
         self.interceptor = Some(BoxInterceptor(Box::new(interceptor)));
         self
