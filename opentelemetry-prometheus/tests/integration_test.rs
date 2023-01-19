@@ -33,7 +33,7 @@ fn free_unused_instruments() {
         counter.add(&cx, 10.0, &attributes);
         counter.add(&cx, 5.3, &attributes);
 
-        expected.push(r#"counter{A="B",C="D",R="V"} 15.3"#);
+        expected.push(r#"counter_total{A="B",C="D",R="V"} 15.3"#);
     }
     // Standard export
     compare_export(&exporter, expected.clone());
@@ -73,7 +73,7 @@ fn test_add() {
     counter.add(&cx, 10.0, &attributes);
     counter.add(&cx, 5.3, &attributes);
 
-    expected.push(r#"counter{A="B",C="D",R="V"} 15.3"#);
+    expected.push(r#"counter_total{A="B",C="D",R="V"} 15.3"#);
 
     let cb_attributes = attributes.clone();
     let gauge = meter.i64_observable_gauge("intgauge").init();
