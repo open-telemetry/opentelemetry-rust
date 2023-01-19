@@ -334,7 +334,7 @@ fn build_monotonic_counter(
     m.set_counter(c);
 
     let mut mf = prometheus::proto::MetricFamily::default();
-    mf.set_name(desc.name+MONOTONIC_SUM_SUFFIX);
+    mf.set_name(desc.name + MONOTONIC_SUM_SUFFIX);
     mf.set_help(desc.help);
     mf.set_field_type(prometheus::proto::MetricType::COUNTER);
     mf.set_metric(protobuf::RepeatedField::from_vec(vec![m]));
