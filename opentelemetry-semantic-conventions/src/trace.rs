@@ -14,13 +14,13 @@
 //! ## Usage
 //!
 //! ```rust
-//! use opentelemetry::{global, trace::Tracer as _, trace::OrderMap};
+//! use opentelemetry::{global, trace::Tracer as _};
 //! use opentelemetry_semantic_conventions as semcov;
 //!
 //! let tracer = global::tracer("my-component");
 //! let _span = tracer
 //!     .span_builder("span-name")
-//!     .with_attributes([
+//!     .with_attributes(vec![
 //!         semcov::trace::NET_PEER_IP.string("10.0.0.1"),
 //!         semcov::trace::NET_PEER_PORT.i64(80),
 //!     ])
@@ -37,6 +37,46 @@ use opentelemetry::Key;
 ///
 /// - `arn:aws:lambda:us-east-1:123456:function:myfunction:myalias`
 pub const AWS_LAMBDA_INVOKED_ARN: Key = Key::from_static_str("aws.lambda.invoked_arn");
+
+/// The [event_id](https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/spec.md#id) uniquely identifies the event.
+///
+/// # Examples
+///
+/// - `123e4567-e89b-12d3-a456-426614174000`
+/// - `0001`
+pub const CLOUDEVENTS_EVENT_ID: Key = Key::from_static_str("cloudevents.event_id");
+
+/// The [source](https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/spec.md#source-1) identifies the context in which an event happened.
+///
+/// # Examples
+///
+/// - `https://github.com/cloudevents`
+/// - `/cloudevents/spec/pull/123`
+/// - `my-service`
+pub const CLOUDEVENTS_EVENT_SOURCE: Key = Key::from_static_str("cloudevents.event_source");
+
+/// The [version of the CloudEvents specification](https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/spec.md#specversion) which the event uses.
+///
+/// # Examples
+///
+/// - `1.0`
+pub const CLOUDEVENTS_EVENT_SPEC_VERSION: Key =
+    Key::from_static_str("cloudevents.event_spec_version");
+
+/// The [event_type](https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/spec.md#type) contains a value describing the type of event related to the originating occurrence.
+///
+/// # Examples
+///
+/// - `com.github.pull_request.opened`
+/// - `com.example.object.deleted.v2`
+pub const CLOUDEVENTS_EVENT_TYPE: Key = Key::from_static_str("cloudevents.event_type");
+
+/// The [subject](https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/spec.md#subject) of the event in the context of the event producer (identified by source).
+///
+/// # Examples
+///
+/// - `mynewfile.jpg`
+pub const CLOUDEVENTS_EVENT_SUBJECT: Key = Key::from_static_str("cloudevents.event_subject");
 
 /// Parent-child Reference type.
 ///
@@ -100,21 +140,16 @@ pub const DB_STATEMENT: Key = Key::from_static_str("db.statement");
 /// - `SELECT`
 pub const DB_OPERATION: Key = Key::from_static_str("db.operation");
 
-/// Remote hostname or similar, see note below.
+/// Name of the database host.
+///
+/// `net.peer.name` SHOULD NOT be set if capturing it would require an extra DNS lookup.
 ///
 /// # Examples
 ///
 /// - `example.com`
 pub const NET_PEER_NAME: Key = Key::from_static_str("net.peer.name");
 
-/// Remote address of the peer (dotted decimal for IPv4 or [RFC5952](https://tools.ietf.org/html/rfc5952) for IPv6).
-///
-/// # Examples
-///
-/// - `127.0.0.1`
-pub const NET_PEER_IP: Key = Key::from_static_str("net.peer.ip");
-
-/// Remote port number.
+/// Logical remote port number.
 ///
 /// # Examples
 ///
@@ -122,6 +157,36 @@ pub const NET_PEER_IP: Key = Key::from_static_str("net.peer.ip");
 /// - `8080`
 /// - `443`
 pub const NET_PEER_PORT: Key = Key::from_static_str("net.peer.port");
+
+/// Remote socket peer address: IPv4 or IPv6 for internet protocols, path for local communication, [etc](https://man7.org/linux/man-pages/man7/address_families.7.html).
+///
+/// # Examples
+///
+/// - `127.0.0.1`
+/// - `/tmp/mysql.sock`
+pub const NET_SOCK_PEER_ADDR: Key = Key::from_static_str("net.sock.peer.addr");
+
+/// Remote socket peer port.
+///
+/// # Examples
+///
+/// - `16456`
+pub const NET_SOCK_PEER_PORT: Key = Key::from_static_str("net.sock.peer.port");
+
+/// Protocol [address family](https://man7.org/linux/man-pages/man7/address_families.7.html) which is used for communication.
+///
+/// # Examples
+///
+/// - `inet6`
+/// - `bluetooth`
+pub const NET_SOCK_FAMILY: Key = Key::from_static_str("net.sock.family");
+
+/// Remote socket peer name.
+///
+/// # Examples
+///
+/// - `proxy.example.com`
+pub const NET_SOCK_PEER_NAME: Key = Key::from_static_str("net.sock.peer.name");
 
 /// Transport protocol used. See note below.
 pub const NET_TRANSPORT: Key = Key::from_static_str("net.transport");
@@ -243,7 +308,7 @@ pub const EXCEPTION_STACKTRACE: Key = Key::from_static_str("exception.stacktrace
 /// whether it will escape the scope of a span.
 /// However, it is trivial to know that an exception
 /// will escape, if one checks for an active exception just before ending the span,
-/// as done in the [example above](#exception-end-example).
+/// as done in the [example above](#recording-an-exception).
 ///
 /// It follows that an exception may still escape the scope of the span
 /// even if the `exception.escaped` attribute was not set or set to false,
@@ -306,39 +371,6 @@ pub const FAAS_DOCUMENT_NAME: Key = Key::from_static_str("faas.document.name");
 /// - `HEAD`
 pub const HTTP_METHOD: Key = Key::from_static_str("http.method");
 
-/// Full HTTP request URL in the form `scheme://host[:port]/path?query[#fragment]`. Usually the fragment is not transmitted over HTTP, but if it is known, it should be included nevertheless.
-///
-/// `http.url` MUST NOT contain credentials passed via URL in form of `https://username:password@www.example.com/`. In such case the attribute&#39;s value should be `https://www.example.com/`.
-///
-/// # Examples
-///
-/// - `https://www.foo.bar/search?q=OpenTelemetry#SemConv`
-pub const HTTP_URL: Key = Key::from_static_str("http.url");
-
-/// The full request target as passed in a HTTP request line or equivalent.
-///
-/// # Examples
-///
-/// - `/path/12314/?q=ddds#123`
-pub const HTTP_TARGET: Key = Key::from_static_str("http.target");
-
-/// The value of the [HTTP host header](https://tools.ietf.org/html/rfc7230#section-5.4). An empty Host header should also be reported, see note.
-///
-/// When the header is present but empty the attribute SHOULD be set to the empty string. Note that this is a valid situation that is expected in certain cases, according the aforementioned [section of RFC 7230](https://tools.ietf.org/html/rfc7230#section-5.4). When the header is not set the attribute MUST NOT be set.
-///
-/// # Examples
-///
-/// - `www.example.org`
-pub const HTTP_HOST: Key = Key::from_static_str("http.host");
-
-/// The URI scheme identifying the used protocol.
-///
-/// # Examples
-///
-/// - `http`
-/// - `https`
-pub const HTTP_SCHEME: Key = Key::from_static_str("http.scheme");
-
 /// [HTTP response status code](https://tools.ietf.org/html/rfc7231#section-6).
 ///
 /// # Examples
@@ -351,70 +383,63 @@ pub const HTTP_STATUS_CODE: Key = Key::from_static_str("http.status_code");
 /// If `net.transport` is not specified, it can be assumed to be `IP.TCP` except if `http.flavor` is `QUIC`, in which case `IP.UDP` is assumed.
 pub const HTTP_FLAVOR: Key = Key::from_static_str("http.flavor");
 
-/// Value of the [HTTP User-Agent](https://tools.ietf.org/html/rfc7231#section-5.5.3) header sent by the client.
+/// Value of the [HTTP User-Agent](https://www.rfc-editor.org/rfc/rfc9110.html#field.user-agent) header sent by the client.
 ///
 /// # Examples
 ///
 /// - `CERN-LineMode/2.15 libwww/2.17b3`
 pub const HTTP_USER_AGENT: Key = Key::from_static_str("http.user_agent");
 
-/// The size of the request payload body in bytes. This is the number of bytes transferred excluding headers and is often, but not always, present as the [Content-Length](https://tools.ietf.org/html/rfc7230#section-3.3.2) header. For requests using transport encoding, this should be the compressed size.
+/// The size of the request payload body in bytes. This is the number of bytes transferred excluding headers and is often, but not always, present as the [Content-Length](https://www.rfc-editor.org/rfc/rfc9110.html#field.content-length) header. For requests using transport encoding, this should be the compressed size.
 ///
 /// # Examples
 ///
 /// - `3495`
 pub const HTTP_REQUEST_CONTENT_LENGTH: Key = Key::from_static_str("http.request_content_length");
 
-/// The size of the uncompressed request payload body after transport decoding. Not set if transport encoding not used.
-///
-/// # Examples
-///
-/// - `5493`
-pub const HTTP_REQUEST_CONTENT_LENGTH_UNCOMPRESSED: Key =
-    Key::from_static_str("http.request_content_length_uncompressed");
-
-/// The size of the response payload body in bytes. This is the number of bytes transferred excluding headers and is often, but not always, present as the [Content-Length](https://tools.ietf.org/html/rfc7230#section-3.3.2) header. For requests using transport encoding, this should be the compressed size.
+/// The size of the response payload body in bytes. This is the number of bytes transferred excluding headers and is often, but not always, present as the [Content-Length](https://www.rfc-editor.org/rfc/rfc9110.html#field.content-length) header. For requests using transport encoding, this should be the compressed size.
 ///
 /// # Examples
 ///
 /// - `3495`
 pub const HTTP_RESPONSE_CONTENT_LENGTH: Key = Key::from_static_str("http.response_content_length");
 
-/// The size of the uncompressed response payload body after transport decoding. Not set if transport encoding not used.
+/// The URI scheme identifying the used protocol.
 ///
 /// # Examples
 ///
-/// - `5493`
-pub const HTTP_RESPONSE_CONTENT_LENGTH_UNCOMPRESSED: Key =
-    Key::from_static_str("http.response_content_length_uncompressed");
+/// - `http`
+/// - `https`
+pub const HTTP_SCHEME: Key = Key::from_static_str("http.scheme");
 
-/// The primary server name of the matched virtual host. This should be obtained via configuration. If no such configuration can be obtained, this attribute MUST NOT be set ( `net.host.name` should be used instead).
-///
-/// `http.url` is usually not readily available on the server side but would have to be assembled in a cumbersome and sometimes lossy process from other information (see e.g. open-telemetry/opentelemetry-python/pull/148). It is thus preferred to supply the raw data that is available.
+/// The full request target as passed in a HTTP request line or equivalent.
 ///
 /// # Examples
 ///
-/// - `example.com`
-pub const HTTP_SERVER_NAME: Key = Key::from_static_str("http.server_name");
+/// - `/path/12314/?q=ddds`
+pub const HTTP_TARGET: Key = Key::from_static_str("http.target");
 
-/// The matched route (path template).
+/// The matched route (path template in the format used by the respective server framework). See note below.
+///
+/// &#39;http.route&#39; MUST NOT be populated when this is not supported by the HTTP server framework as the route attribute should have low-cardinality and the URI path can NOT substitute it.
 ///
 /// # Examples
 ///
 /// - `/users/:userID?`
+/// - `{controller}/{action}/{id?}`
 pub const HTTP_ROUTE: Key = Key::from_static_str("http.route");
 
 /// The IP address of the original client behind all proxies, if known (e.g. from [X-Forwarded-For](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Forwarded-For)).
 ///
-/// This is not necessarily the same as `net.peer.ip`, which would
+/// This is not necessarily the same as `net.sock.peer.addr`, which would
 /// identify the network-level peer, which may be a proxy.
 ///
 /// This attribute should be set when a source of information different
-/// from the one used for `net.peer.ip`, is available even if that other
-/// source just confirms the same value as `net.peer.ip`.
-/// Rationale: For `net.peer.ip`, one typically does not know if it
+/// from the one used for `net.sock.peer.addr`, is available even if that other
+/// source just confirms the same value as `net.sock.peer.addr`.
+/// Rationale: For `net.sock.peer.addr`, one typically does not know if it
 /// comes from a proxy, reverse proxy, or the actual client. Setting
-/// `http.client_ip` when it&#39;s the same as `net.peer.ip` means that
+/// `http.client_ip` when it&#39;s the same as `net.sock.peer.addr` means that
 /// one is at least somewhat confident that the address is not that of
 /// the closest proxy.
 ///
@@ -423,26 +448,68 @@ pub const HTTP_ROUTE: Key = Key::from_static_str("http.route");
 /// - `83.164.160.102`
 pub const HTTP_CLIENT_IP: Key = Key::from_static_str("http.client_ip");
 
-/// Like `net.peer.ip` but for the host IP. Useful in case of a multi-IP host.
+/// Name of the local HTTP server that received the request.
 ///
-/// # Examples
+/// Determined by using the first of the following that applies
 ///
-/// - `192.168.0.1`
-pub const NET_HOST_IP: Key = Key::from_static_str("net.host.ip");
-
-/// Like `net.peer.port` but for the host port.
+/// - The [primary server name](#http-server-definitions) of the matched virtual host. MUST only
+///   include host identifier.
+/// - Host identifier of the [request target](https://www.rfc-editor.org/rfc/rfc9110.html#target.resource)
+///   if it&#39;s sent in absolute-form.
+/// - Host identifier of the `Host` header
 ///
-/// # Examples
-///
-/// - `35555`
-pub const NET_HOST_PORT: Key = Key::from_static_str("net.host.port");
-
-/// Local hostname or similar, see note below.
+/// SHOULD NOT be set if only IP address is available and capturing name would require a reverse DNS lookup.
 ///
 /// # Examples
 ///
 /// - `localhost`
 pub const NET_HOST_NAME: Key = Key::from_static_str("net.host.name");
+
+/// Port of the local HTTP server that received the request.
+///
+/// Determined by using the first of the following that applies
+///
+/// - Port identifier of the [primary server host](#http-server-definitions) of the matched virtual host.
+/// - Port identifier of the [request target](https://www.rfc-editor.org/rfc/rfc9110.html#target.resource)
+///   if it&#39;s sent in absolute-form.
+/// - Port identifier of the `Host` header
+///
+/// # Examples
+///
+/// - `8080`
+pub const NET_HOST_PORT: Key = Key::from_static_str("net.host.port");
+
+/// Local socket address. Useful in case of a multi-IP host.
+///
+/// # Examples
+///
+/// - `192.168.0.1`
+pub const NET_SOCK_HOST_ADDR: Key = Key::from_static_str("net.sock.host.addr");
+
+/// Local socket port number.
+///
+/// # Examples
+///
+/// - `35555`
+pub const NET_SOCK_HOST_PORT: Key = Key::from_static_str("net.sock.host.port");
+
+/// Application layer protocol used. The value SHOULD be normalized to lowercase.
+///
+/// # Examples
+///
+/// - `amqp`
+/// - `http`
+/// - `mqtt`
+pub const NET_APP_PROTOCOL_NAME: Key = Key::from_static_str("net.app.protocol.name");
+
+/// Version of the application layer protocol used. See note below.
+///
+/// `net.app.protocol.version` refers to the version of the protocol used and might be different from the protocol client&#39;s version. If the HTTP client used has a version of `0.27.2`, but sends HTTP version `1.1`, this attribute should be set to `1.1`.
+///
+/// # Examples
+///
+/// - `3.1.1`
+pub const NET_APP_PROTOCOL_VERSION: Key = Key::from_static_str("net.app.protocol.version");
 
 /// The internet connection type currently being used by the host.
 ///
@@ -674,6 +741,22 @@ pub const CODE_FILEPATH: Key = Key::from_static_str("code.filepath");
 /// - `42`
 pub const CODE_LINENO: Key = Key::from_static_str("code.lineno");
 
+/// Full HTTP request URL in the form `scheme://host[:port]/path?query[#fragment]`. Usually the fragment is not transmitted over HTTP, but if it is known, it should be included nevertheless.
+///
+/// `http.url` MUST NOT contain credentials passed via URL in form of `https://username:password@www.example.com/`. In such case the attribute&#39;s value should be `https://www.example.com/`.
+///
+/// # Examples
+///
+/// - `https://www.foo.bar/search?q=OpenTelemetry#SemConv`
+pub const HTTP_URL: Key = Key::from_static_str("http.url");
+
+/// The ordinal number of request re-sending attempt.
+///
+/// # Examples
+///
+/// - `3`
+pub const HTTP_RETRY_COUNT: Key = Key::from_static_str("http.retry_count");
+
 /// The value `aws-api`.
 ///
 /// # Examples
@@ -864,6 +947,31 @@ pub const AWS_DYNAMODB_ATTRIBUTE_DEFINITIONS: Key =
 /// - `{ "Create": { "IndexName": "string", "KeySchema": [ { "AttributeName": "string", "KeyType": "string" } ], "Projection": { "NonKeyAttributes": [ "string" ], "ProjectionType": "string" }, "ProvisionedThroughput": { "ReadCapacityUnits": number, "WriteCapacityUnits": number } }`
 pub const AWS_DYNAMODB_GLOBAL_SECONDARY_INDEX_UPDATES: Key =
     Key::from_static_str("aws.dynamodb.global_secondary_index_updates");
+
+/// The name of the operation being executed.
+///
+/// # Examples
+///
+/// - `findBookById`
+pub const GRAPHQL_OPERATION_NAME: Key = Key::from_static_str("graphql.operation.name");
+
+/// The type of the operation being executed.
+///
+/// # Examples
+///
+/// - `query`
+/// - `mutation`
+/// - `subscription`
+pub const GRAPHQL_OPERATION_TYPE: Key = Key::from_static_str("graphql.operation.type");
+
+/// The GraphQL document being executed.
+///
+/// The value may be sanitized to exclude sensitive information.
+///
+/// # Examples
+///
+/// - `query findBookById { bookById(id: ?) { name } }`
+pub const GRAPHQL_DOCUMENT: Key = Key::from_static_str("graphql.document");
 
 /// A string identifying the kind of message consumption as defined in the [Operation names](#operation-names) section above. If the operation is &#34;send&#34;, this attribute MUST NOT be set, since the operation can be inferred from the span kind in that case.
 pub const MESSAGING_OPERATION: Key = Key::from_static_str("messaging.operation");

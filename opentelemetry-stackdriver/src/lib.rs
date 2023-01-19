@@ -37,7 +37,7 @@ use opentelemetry::{
 };
 use opentelemetry_semantic_conventions::resource::SERVICE_NAME;
 use opentelemetry_semantic_conventions::trace::{
-    HTTP_HOST, HTTP_METHOD, HTTP_ROUTE, HTTP_STATUS_CODE, HTTP_TARGET, HTTP_URL, HTTP_USER_AGENT,
+    HTTP_METHOD, HTTP_ROUTE, HTTP_STATUS_CODE, HTTP_TARGET, HTTP_URL, HTTP_USER_AGENT,
 };
 use thiserror::Error;
 #[cfg(any(feature = "yup-authorizer", feature = "gcp_auth"))]
@@ -51,6 +51,8 @@ use yup_oauth2::authenticator::Authenticator;
 
 #[allow(clippy::derive_partial_eq_without_eq)] // tonic doesn't derive Eq for generated types
 pub mod proto;
+
+const HTTP_HOST: Key = Key::from_static_str("http.host");
 
 use proto::devtools::cloudtrace::v2::BatchWriteSpansRequest;
 use proto::devtools::cloudtrace::v2::{
@@ -748,7 +750,7 @@ mod tests {
         let mut attributes = EvictedHashMap::new(capacity, 0);
 
         //	hostAttribute       = "http.host"
-        attributes.insert(semcov::trace::HTTP_HOST.string("example.com:8080"));
+        attributes.insert(HTTP_HOST.string("example.com:8080"));
 
         // 	methodAttribute     = "http.method"
         attributes.insert(semcov::trace::HTTP_METHOD.string("POST"));
