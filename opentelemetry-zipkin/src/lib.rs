@@ -3,7 +3,7 @@
 //! Collects OpenTelemetry spans and reports them to a given Zipkin collector
 //! endpoint. See the [Zipkin Docs] for details and deployment information.
 //!
-//! *Compiler support: [requires `rustc` 1.56+][msrv]*
+//! *Compiler support: [requires `rustc` 1.57+][msrv]*
 //!
 //! [Zipkin Docs]: https://zipkin.io/
 //! [msrv]: #supported-rust-versions
@@ -167,7 +167,7 @@
 //! ## Supported Rust Versions
 //!
 //! OpenTelemetry is built against the latest stable release. The minimum
-//! supported version is 1.56. The current OpenTelemetry version is not
+//! supported version is 1.57. The current OpenTelemetry version is not
 //! guaranteed to build on Rust versions earlier than the minimum supported
 //! version.
 //!
