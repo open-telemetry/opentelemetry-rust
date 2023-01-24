@@ -39,6 +39,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 bincode = "1.2"
 criterion = "0.3.1"
 rand_distr = "0.4.0"
+crossbeam-queue = "0.3.1"
 
 [features]
 default = ["trace"]
