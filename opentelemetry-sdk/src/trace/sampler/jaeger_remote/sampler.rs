@@ -256,3 +256,31 @@ impl ShouldSample for JaegerRemoteSampler {
             })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::trace::sampler::jaeger_remote::remote::SamplingStrategyType;
+    use std::fmt::{Debug, Formatter};
+
+    impl Debug for SamplingStrategyType {
+        fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+            match &self {
+                SamplingStrategyType::Probabilistic => f.write_str("Probabilistic"),
+                SamplingStrategyType::RateLimiting => f.write_str("RateLimiting"),
+            }
+        }
+    }
+
+    #[test]
+    fn deserialize_sampling_strategy_response() {
+        let json = r#"{
+            "strategyType": "PROBABILISTIC",
+            "probabilisticSampling": {
+                "samplingRate": 0.5
+            }
+        }"#;
+        let resp: super::SamplingStrategyResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.strategy_type, SamplingStrategyType::Probabilistic);
+        assert_eq!(resp.probabilistic_sampling.unwrap().sampling_rate, 0.5);
+    }
+}
