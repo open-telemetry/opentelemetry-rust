@@ -98,8 +98,8 @@ async fn main() {
         async move { Ok::<_, Infallible>(service_fn(move |req| handler(req, Arc::clone(&inner)))) }
     }));
 
-    println!("Listening on {}", addr);
+    println!("Listening on {addr}");
     if let Err(e) = server.await {
-        eprintln!("server error: {}", e);
+        eprintln!("server error: {e}");
     }
 }

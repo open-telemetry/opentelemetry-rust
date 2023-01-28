@@ -23,10 +23,10 @@ async fn handle(req: Request<Body>) -> Result<Response<Body>, Infallible> {
         .unwrap();
 
     let mut span = global::tracer("example/server").start_with_context("hello", &parent_context);
-    span.add_event(format!("Handling - {}", x_amzn_trace_id), Vec::new());
+    span.add_event(format!("Handling - {x_amzn_trace_id}"), Vec::new());
 
     Ok(Response::new(
-        format!("Hello!, X-Ray Trace Header: {}", x_amzn_trace_id).into(),
+        format!("Hello!, X-Ray Trace Header: {x_amzn_trace_id}").into(),
     ))
 }
 
@@ -54,8 +54,8 @@ async fn main() {
 
     let server = Server::bind(&addr).serve(make_svc);
 
-    println!("Listening on {}", addr);
+    println!("Listening on {addr}");
     if let Err(e) = server.await {
-        eprintln!("server error: {}", e);
+        eprintln!("server error: {e}");
     }
 }

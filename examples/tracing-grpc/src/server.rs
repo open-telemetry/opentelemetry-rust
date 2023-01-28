@@ -53,11 +53,11 @@ impl Greeter for MyGreeter {
         tracing::Span::current().set_parent(parent_cx);
 
         let name = request.into_inner().name;
-        expensive_fn(format!("Got name: {:?}", name));
+        expensive_fn(format!("Got name: {name:?}"));
 
         // Return an instance of type HelloReply
         let reply = hello_world::HelloReply {
-            message: format!("Hello {}!", name), // We must use .into_inner() as the fields of gRPC requests and responses are private
+            message: format!("Hello {name}!"), // We must use .into_inner() as the fields of gRPC requests and responses are private
         };
 
         Ok(Response::new(reply)) // Send back our formatted greeting
