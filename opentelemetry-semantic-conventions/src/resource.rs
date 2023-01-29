@@ -29,7 +29,7 @@ use opentelemetry::Key;
 
 /// Array of brand name and version separated by a space.
 ///
-/// This value is intended to be taken from the [UA client hints API](https://wicg.github.io/ua-client-hints/#interface) (navigator.userAgentData.brands).
+/// This value is intended to be taken from the [UA client hints API](https://wicg.github.io/ua-client-hints/#interface) (`navigator.userAgentData.brands`).
 ///
 /// # Examples
 ///
@@ -40,8 +40,8 @@ pub const BROWSER_BRANDS: Key = Key::from_static_str("browser.brands");
 
 /// The platform on which the browser is running.
 ///
-/// This value is intended to be taken from the [UA client hints API](https://wicg.github.io/ua-client-hints/#interface) (navigator.userAgentData.platform). If unavailable, the legacy `navigator.platform` API SHOULD NOT be used instead and this attribute SHOULD be left unset in order for the values to be consistent.
-/// The list of possible values is defined in the [W3C User-Agent Client Hints specification](https://wicg.github.io/ua-client-hints/#sec-ch-ua-platform). Note that some (but not all) of these values can overlap with values in the [os.type and os.name attributes](./os.md). However, for consistency, the values in the `browser.platform` attribute should capture the exact value that the user agent provides.
+/// This value is intended to be taken from the [UA client hints API](https://wicg.github.io/ua-client-hints/#interface) (`navigator.userAgentData.platform`). If unavailable, the legacy `navigator.platform` API SHOULD NOT be used instead and this attribute SHOULD be left unset in order for the values to be consistent.
+/// The list of possible values is defined in the [W3C User-Agent Client Hints specification](https://wicg.github.io/ua-client-hints/#sec-ch-ua-platform). Note that some (but not all) of these values can overlap with values in the [`os.type` and `os.name` attributes](./os.md). However, for consistency, the values in the `browser.platform` attribute should capture the exact value that the user agent provides.
 ///
 /// # Examples
 ///
@@ -49,6 +49,11 @@ pub const BROWSER_BRANDS: Key = Key::from_static_str("browser.brands");
 /// - `macOS`
 /// - `Android`
 pub const BROWSER_PLATFORM: Key = Key::from_static_str("browser.platform");
+
+/// A boolean that is true if the browser is running on a mobile device.
+///
+/// This value is intended to be taken from the [UA client hints API](https://wicg.github.io/ua-client-hints/#interface) (`navigator.userAgentData.mobile`). If unavailable, this attribute SHOULD be left unset.
+pub const BROWSER_MOBILE: Key = Key::from_static_str("browser.mobile");
 
 /// Full user-agent string provided by the browser.
 ///
@@ -58,6 +63,18 @@ pub const BROWSER_PLATFORM: Key = Key::from_static_str("browser.platform");
 ///
 /// - `Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/95.0.4638.54 Safari/537.36`
 pub const BROWSER_USER_AGENT: Key = Key::from_static_str("browser.user_agent");
+
+/// Preferred language of the user using the browser.
+///
+/// This value is intended to be taken from the Navigator API `navigator.language`.
+///
+/// # Examples
+///
+/// - `en`
+/// - `en-US`
+/// - `fr`
+/// - `fr-FR`
+pub const BROWSER_LANGUAGE: Key = Key::from_static_str("browser.language");
 
 /// Name of the cloud provider.
 pub const CLOUD_PROVIDER: Key = Key::from_static_str("cloud.provider");
@@ -344,11 +361,11 @@ pub const FAAS_INSTANCE: Key = Key::from_static_str("faas.instance");
 /// - `128`
 pub const FAAS_MAX_MEMORY: Key = Key::from_static_str("faas.max_memory");
 
-/// Unique host ID. For Cloud, this must be the instance_id assigned by the cloud provider.
+/// Unique host ID. For Cloud, this must be the instance_id assigned by the cloud provider. For non-containerized Linux systems, the `machine-id` located in `/etc/machine-id` or `/var/lib/dbus/machine-id` may be used.
 ///
 /// # Examples
 ///
-/// - `opentelemetry-test`
+/// - `fdbf79e8af94cb7f9e8df36789187052`
 pub const HOST_ID: Key = Key::from_static_str("host.id");
 
 /// Name of the host. On Unix systems, it may contain what the hostname command returns, or the fully qualified hostname, or another name specified by the user.
