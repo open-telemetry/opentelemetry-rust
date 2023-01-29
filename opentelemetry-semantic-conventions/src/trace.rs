@@ -29,6 +29,73 @@
 
 use opentelemetry::Key;
 
+/// The type of the exception (its fully-qualified class name, if applicable). The dynamic type of the exception should be preferred over the static type in languages that support it.
+///
+/// # Examples
+///
+/// - `java.net.ConnectException`
+/// - `OSError`
+pub const EXCEPTION_TYPE: Key = Key::from_static_str("exception.type");
+
+/// The exception message.
+///
+/// # Examples
+///
+/// - `Division by zero`
+/// - `Can't convert 'int' object to str implicitly`
+pub const EXCEPTION_MESSAGE: Key = Key::from_static_str("exception.message");
+
+/// A stacktrace as a string in the natural representation for the language runtime. The representation is to be determined and documented by each language SIG.
+///
+/// # Examples
+///
+/// - `Exception in thread "main" java.lang.RuntimeException: Test exception\n at com.example.GenerateTrace.methodB(GenerateTrace.java:13)\n at com.example.GenerateTrace.methodA(GenerateTrace.java:9)\n at com.example.GenerateTrace.main(GenerateTrace.java:5)`
+pub const EXCEPTION_STACKTRACE: Key = Key::from_static_str("exception.stacktrace");
+
+/// The name identifies the event.
+///
+/// # Examples
+///
+/// - `click`
+/// - `exception`
+pub const EVENT_NAME: Key = Key::from_static_str("event.name");
+
+/// The domain identifies the business context for the events.
+///
+/// Events across different domains may have same `event.name`, yet be
+/// unrelated events.
+pub const EVENT_DOMAIN: Key = Key::from_static_str("event.domain");
+
+/// The name of the instrumentation scope - (`InstrumentationScope.Name` in OTLP).
+///
+/// # Examples
+///
+/// - `io.opentelemetry.contrib.mongodb`
+pub const OTEL_SCOPE_NAME: Key = Key::from_static_str("otel.scope.name");
+
+/// The version of the instrumentation scope - (`InstrumentationScope.Version` in OTLP).
+///
+/// # Examples
+///
+/// - `1.0.0`
+pub const OTEL_SCOPE_VERSION: Key = Key::from_static_str("otel.scope.version");
+
+/// Deprecated, use the `otel.scope.name` attribute.
+///
+/// # Examples
+///
+/// - `io.opentelemetry.contrib.mongodb`
+#[deprecated]
+pub const OTEL_LIBRARY_NAME: Key = Key::from_static_str("otel.library.name");
+
+/// Deprecated, use the `otel.scope.version` attribute.
+///
+/// # Examples
+///
+/// - `1.0.0`
+#[deprecated]
+pub const OTEL_LIBRARY_VERSION: Key = Key::from_static_str("otel.library.version");
+
 /// The full invoked ARN as provided on the `Context` passed to the function (`Lambda-Runtime-Invoked-Function-Arn` header on the `/runtime/invocation/next` applicable).
 ///
 /// This may be different from `faas.id` if an alias is involved.
@@ -140,57 +207,6 @@ pub const DB_STATEMENT: Key = Key::from_static_str("db.statement");
 /// - `SELECT`
 pub const DB_OPERATION: Key = Key::from_static_str("db.operation");
 
-/// Name of the database host.
-///
-/// `net.peer.name` SHOULD NOT be set if capturing it would require an extra DNS lookup.
-///
-/// # Examples
-///
-/// - `example.com`
-pub const NET_PEER_NAME: Key = Key::from_static_str("net.peer.name");
-
-/// Logical remote port number.
-///
-/// # Examples
-///
-/// - `80`
-/// - `8080`
-/// - `443`
-pub const NET_PEER_PORT: Key = Key::from_static_str("net.peer.port");
-
-/// Remote socket peer address: IPv4 or IPv6 for internet protocols, path for local communication, [etc](https://man7.org/linux/man-pages/man7/address_families.7.html).
-///
-/// # Examples
-///
-/// - `127.0.0.1`
-/// - `/tmp/mysql.sock`
-pub const NET_SOCK_PEER_ADDR: Key = Key::from_static_str("net.sock.peer.addr");
-
-/// Remote socket peer port.
-///
-/// # Examples
-///
-/// - `16456`
-pub const NET_SOCK_PEER_PORT: Key = Key::from_static_str("net.sock.peer.port");
-
-/// Protocol [address family](https://man7.org/linux/man-pages/man7/address_families.7.html) which is used for communication.
-///
-/// # Examples
-///
-/// - `inet6`
-/// - `bluetooth`
-pub const NET_SOCK_FAMILY: Key = Key::from_static_str("net.sock.family");
-
-/// Remote socket peer name.
-///
-/// # Examples
-///
-/// - `proxy.example.com`
-pub const NET_SOCK_PEER_NAME: Key = Key::from_static_str("net.sock.peer.name");
-
-/// Transport protocol used. See note below.
-pub const NET_TRANSPORT: Key = Key::from_static_str("net.transport");
-
 /// The Microsoft SQL Server [instance name](https://docs.microsoft.com/en-us/sql/connect/jdbc/building-the-connection-url?view=sql-server-ver15) connecting to. This name is used to determine the port of a named instance.
 ///
 /// If setting a `db.mssql.instance_name`, `net.peer.port` is no longer required (but still recommended if non-standard).
@@ -273,48 +289,15 @@ pub const DB_MONGODB_COLLECTION: Key = Key::from_static_str("db.mongodb.collecti
 /// - `customers`
 pub const DB_SQL_TABLE: Key = Key::from_static_str("db.sql.table");
 
-/// The type of the exception (its fully-qualified class name, if applicable). The dynamic type of the exception should be preferred over the static type in languages that support it.
+/// Name of the code, either &#34;OK&#34; or &#34;ERROR&#34;. MUST NOT be set if the status code is UNSET.
+pub const OTEL_STATUS_CODE: Key = Key::from_static_str("otel.status_code");
+
+/// Description of the Status if it has a value, otherwise not set.
 ///
 /// # Examples
 ///
-/// - `java.net.ConnectException`
-/// - `OSError`
-pub const EXCEPTION_TYPE: Key = Key::from_static_str("exception.type");
-
-/// The exception message.
-///
-/// # Examples
-///
-/// - `Division by zero`
-/// - `Can't convert 'int' object to str implicitly`
-pub const EXCEPTION_MESSAGE: Key = Key::from_static_str("exception.message");
-
-/// A stacktrace as a string in the natural representation for the language runtime. The representation is to be determined and documented by each language SIG.
-///
-/// # Examples
-///
-/// - `Exception in thread "main" java.lang.RuntimeException: Test exception\n at com.example.GenerateTrace.methodB(GenerateTrace.java:13)\n at com.example.GenerateTrace.methodA(GenerateTrace.java:9)\n at com.example.GenerateTrace.main(GenerateTrace.java:5)`
-pub const EXCEPTION_STACKTRACE: Key = Key::from_static_str("exception.stacktrace");
-
-/// SHOULD be set to true if the exception event is recorded at a point where it is known that the exception is escaping the scope of the span.
-///
-/// An exception is considered to have escaped (or left) the scope of a span,
-/// if that span is ended while the exception is still logically &#34;in flight&#34;.
-/// This may be actually &#34;in flight&#34; in some languages (e.g. if the exception
-/// is passed to a Context manager&#39;s `__exit__` method in Python) but will
-/// usually be caught at the point of recording the exception in most languages.
-///
-/// It is usually not possible to determine at the point where an exception is thrown
-/// whether it will escape the scope of a span.
-/// However, it is trivial to know that an exception
-/// will escape, if one checks for an active exception just before ending the span,
-/// as done in the [example above](#recording-an-exception).
-///
-/// It follows that an exception may still escape the scope of the span
-/// even if the `exception.escaped` attribute was not set or set to false,
-/// since the event might have been recorded at a time where it was not
-/// clear whether the exception will escape.
-pub const EXCEPTION_ESCAPED: Key = Key::from_static_str("exception.escaped");
+/// - `resource not found`
+pub const OTEL_STATUS_DESCRIPTION: Key = Key::from_static_str("otel.status_description");
 
 /// Type of the trigger which caused this function execution.
 ///
@@ -362,117 +345,155 @@ pub const FAAS_DOCUMENT_TIME: Key = Key::from_static_str("faas.document.time");
 /// - `myTableName`
 pub const FAAS_DOCUMENT_NAME: Key = Key::from_static_str("faas.document.name");
 
-/// HTTP request method.
+/// A string containing the function invocation time in the [ISO 8601](https://www.iso.org/iso-8601-date-and-time-format.html) format expressed in [UTC](https://www.w3.org/TR/NOTE-datetime).
 ///
 /// # Examples
 ///
-/// - `GET`
-/// - `POST`
-/// - `HEAD`
-pub const HTTP_METHOD: Key = Key::from_static_str("http.method");
+/// - `2020-01-23T13:47:06Z`
+pub const FAAS_TIME: Key = Key::from_static_str("faas.time");
 
-/// [HTTP response status code](https://tools.ietf.org/html/rfc7231#section-6).
+/// A string containing the schedule period as [Cron Expression](https://docs.oracle.com/cd/E12058_01/doc/doc.1014/e12030/cron_expressions.htm).
 ///
 /// # Examples
 ///
-/// - `200`
-pub const HTTP_STATUS_CODE: Key = Key::from_static_str("http.status_code");
+/// - `0/5 * * * ? *`
+pub const FAAS_CRON: Key = Key::from_static_str("faas.cron");
 
-/// Kind of HTTP protocol used.
+/// A boolean that is true if the serverless function is executed for the first time (aka cold-start).
+pub const FAAS_COLDSTART: Key = Key::from_static_str("faas.coldstart");
+
+/// The name of the invoked function.
 ///
-/// If `net.transport` is not specified, it can be assumed to be `IP.TCP` except if `http.flavor` is `QUIC`, in which case `IP.UDP` is assumed.
-pub const HTTP_FLAVOR: Key = Key::from_static_str("http.flavor");
-
-/// Value of the [HTTP User-Agent](https://www.rfc-editor.org/rfc/rfc9110.html#field.user-agent) header sent by the client.
+/// SHOULD be equal to the `faas.name` resource attribute of the invoked function.
 ///
 /// # Examples
 ///
-/// - `CERN-LineMode/2.15 libwww/2.17b3`
-pub const HTTP_USER_AGENT: Key = Key::from_static_str("http.user_agent");
+/// - `my-function`
+pub const FAAS_INVOKED_NAME: Key = Key::from_static_str("faas.invoked_name");
 
-/// The size of the request payload body in bytes. This is the number of bytes transferred excluding headers and is often, but not always, present as the [Content-Length](https://www.rfc-editor.org/rfc/rfc9110.html#field.content-length) header. For requests using transport encoding, this should be the compressed size.
+/// The cloud provider of the invoked function.
+///
+/// SHOULD be equal to the `cloud.provider` resource attribute of the invoked function.
+pub const FAAS_INVOKED_PROVIDER: Key = Key::from_static_str("faas.invoked_provider");
+
+/// The cloud region of the invoked function.
+///
+/// SHOULD be equal to the `cloud.region` resource attribute of the invoked function.
 ///
 /// # Examples
 ///
-/// - `3495`
-pub const HTTP_REQUEST_CONTENT_LENGTH: Key = Key::from_static_str("http.request_content_length");
+/// - `eu-central-1`
+pub const FAAS_INVOKED_REGION: Key = Key::from_static_str("faas.invoked_region");
 
-/// The size of the response payload body in bytes. This is the number of bytes transferred excluding headers and is often, but not always, present as the [Content-Length](https://www.rfc-editor.org/rfc/rfc9110.html#field.content-length) header. For requests using transport encoding, this should be the compressed size.
+/// The unique identifier of the feature flag.
 ///
 /// # Examples
 ///
-/// - `3495`
-pub const HTTP_RESPONSE_CONTENT_LENGTH: Key = Key::from_static_str("http.response_content_length");
+/// - `logo-color`
+pub const FEATURE_FLAG_KEY: Key = Key::from_static_str("feature_flag.key");
 
-/// The URI scheme identifying the used protocol.
+/// The name of the service provider that performs the flag evaluation.
 ///
 /// # Examples
 ///
+/// - `Flag Manager`
+pub const FEATURE_FLAG_PROVIDER_NAME: Key = Key::from_static_str("feature_flag.provider_name");
+
+/// SHOULD be a semantic identifier for a value. If one is unavailable, a stringified version of the value can be used.
+///
+/// A semantic identifier, commonly referred to as a variant, provides a means
+/// for referring to a value without including the value itself. This can
+/// provide additional context for understanding the meaning behind a value.
+/// For example, the variant `red` maybe be used for the value `#c05543`.
+///
+/// A stringified version of the value can be used in situations where a
+/// semantic identifier is unavailable. String representation of the value
+/// should be determined by the implementer.
+///
+/// # Examples
+///
+/// - `red`
+/// - `true`
+/// - `on`
+pub const FEATURE_FLAG_VARIANT: Key = Key::from_static_str("feature_flag.variant");
+
+/// Transport protocol used. See note below.
+pub const NET_TRANSPORT: Key = Key::from_static_str("net.transport");
+
+/// Application layer protocol used. The value SHOULD be normalized to lowercase.
+///
+/// # Examples
+///
+/// - `amqp`
 /// - `http`
-/// - `https`
-pub const HTTP_SCHEME: Key = Key::from_static_str("http.scheme");
+/// - `mqtt`
+pub const NET_APP_PROTOCOL_NAME: Key = Key::from_static_str("net.app.protocol.name");
 
-/// The full request target as passed in a HTTP request line or equivalent.
+/// Version of the application layer protocol used. See note below.
+///
+/// `net.app.protocol.version` refers to the version of the protocol used and might be different from the protocol client&#39;s version. If the HTTP client used has a version of `0.27.2`, but sends HTTP version `1.1`, this attribute should be set to `1.1`.
 ///
 /// # Examples
 ///
-/// - `/path/12314/?q=ddds`
-pub const HTTP_TARGET: Key = Key::from_static_str("http.target");
+/// - `3.1.1`
+pub const NET_APP_PROTOCOL_VERSION: Key = Key::from_static_str("net.app.protocol.version");
 
-/// The matched route (path template in the format used by the respective server framework). See note below.
-///
-/// &#39;http.route&#39; MUST NOT be populated when this is not supported by the HTTP server framework as the route attribute should have low-cardinality and the URI path can NOT substitute it.
+/// Remote socket peer name.
 ///
 /// # Examples
 ///
-/// - `/users/:userID?`
-/// - `{controller}/{action}/{id?}`
-pub const HTTP_ROUTE: Key = Key::from_static_str("http.route");
+/// - `proxy.example.com`
+pub const NET_SOCK_PEER_NAME: Key = Key::from_static_str("net.sock.peer.name");
 
-/// The IP address of the original client behind all proxies, if known (e.g. from [X-Forwarded-For](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Forwarded-For)).
-///
-/// This is not necessarily the same as `net.sock.peer.addr`, which would
-/// identify the network-level peer, which may be a proxy.
-///
-/// This attribute should be set when a source of information different
-/// from the one used for `net.sock.peer.addr`, is available even if that other
-/// source just confirms the same value as `net.sock.peer.addr`.
-/// Rationale: For `net.sock.peer.addr`, one typically does not know if it
-/// comes from a proxy, reverse proxy, or the actual client. Setting
-/// `http.client_ip` when it&#39;s the same as `net.sock.peer.addr` means that
-/// one is at least somewhat confident that the address is not that of
-/// the closest proxy.
+/// Remote socket peer address: IPv4 or IPv6 for internet protocols, path for local communication, [etc](https://man7.org/linux/man-pages/man7/address_families.7.html).
 ///
 /// # Examples
 ///
-/// - `83.164.160.102`
-pub const HTTP_CLIENT_IP: Key = Key::from_static_str("http.client_ip");
+/// - `127.0.0.1`
+/// - `/tmp/mysql.sock`
+pub const NET_SOCK_PEER_ADDR: Key = Key::from_static_str("net.sock.peer.addr");
 
-/// Name of the local HTTP server that received the request.
+/// Remote socket peer port.
 ///
-/// Determined by using the first of the following that applies
+/// # Examples
 ///
-/// - The [primary server name](#http-server-definitions) of the matched virtual host. MUST only
-///   include host identifier.
-/// - Host identifier of the [request target](https://www.rfc-editor.org/rfc/rfc9110.html#target.resource)
-///   if it&#39;s sent in absolute-form.
-/// - Host identifier of the `Host` header
+/// - `16456`
+pub const NET_SOCK_PEER_PORT: Key = Key::from_static_str("net.sock.peer.port");
+
+/// Protocol [address family](https://man7.org/linux/man-pages/man7/address_families.7.html) which is used for communication.
 ///
-/// SHOULD NOT be set if only IP address is available and capturing name would require a reverse DNS lookup.
+/// # Examples
+///
+/// - `inet6`
+/// - `bluetooth`
+pub const NET_SOCK_FAMILY: Key = Key::from_static_str("net.sock.family");
+
+/// Logical remote hostname, see note below.
+///
+/// `net.peer.name` SHOULD NOT be set if capturing it would require an extra DNS lookup.
+///
+/// # Examples
+///
+/// - `example.com`
+pub const NET_PEER_NAME: Key = Key::from_static_str("net.peer.name");
+
+/// Logical remote port number.
+///
+/// # Examples
+///
+/// - `80`
+/// - `8080`
+/// - `443`
+pub const NET_PEER_PORT: Key = Key::from_static_str("net.peer.port");
+
+/// Logical local hostname or similar, see note below.
 ///
 /// # Examples
 ///
 /// - `localhost`
 pub const NET_HOST_NAME: Key = Key::from_static_str("net.host.name");
 
-/// Port of the local HTTP server that received the request.
-///
-/// Determined by using the first of the following that applies
-///
-/// - Port identifier of the [primary server host](#http-server-definitions) of the matched virtual host.
-/// - Port identifier of the [request target](https://www.rfc-editor.org/rfc/rfc9110.html#target.resource)
-///   if it&#39;s sent in absolute-form.
-/// - Port identifier of the `Host` header
+/// Logical local port number, preferably the one that the peer used to connect.
 ///
 /// # Examples
 ///
@@ -492,24 +513,6 @@ pub const NET_SOCK_HOST_ADDR: Key = Key::from_static_str("net.sock.host.addr");
 ///
 /// - `35555`
 pub const NET_SOCK_HOST_PORT: Key = Key::from_static_str("net.sock.host.port");
-
-/// Application layer protocol used. The value SHOULD be normalized to lowercase.
-///
-/// # Examples
-///
-/// - `amqp`
-/// - `http`
-/// - `mqtt`
-pub const NET_APP_PROTOCOL_NAME: Key = Key::from_static_str("net.app.protocol.name");
-
-/// Version of the application layer protocol used. See note below.
-///
-/// `net.app.protocol.version` refers to the version of the protocol used and might be different from the protocol client&#39;s version. If the HTTP client used has a version of `0.27.2`, but sends HTTP version `1.1`, this attribute should be set to `1.1`.
-///
-/// # Examples
-///
-/// - `3.1.1`
-pub const NET_APP_PROTOCOL_VERSION: Key = Key::from_static_str("net.app.protocol.version");
 
 /// The internet connection type currently being used by the host.
 ///
@@ -552,124 +555,6 @@ pub const NET_HOST_CARRIER_MNC: Key = Key::from_static_str("net.host.carrier.mnc
 ///
 /// - `DE`
 pub const NET_HOST_CARRIER_ICC: Key = Key::from_static_str("net.host.carrier.icc");
-
-/// A string identifying the messaging system.
-///
-/// # Examples
-///
-/// - `kafka`
-/// - `rabbitmq`
-/// - `rocketmq`
-/// - `activemq`
-/// - `AmazonSQS`
-pub const MESSAGING_SYSTEM: Key = Key::from_static_str("messaging.system");
-
-/// The message destination name. This might be equal to the span name but is required nevertheless.
-///
-/// # Examples
-///
-/// - `MyQueue`
-/// - `MyTopic`
-pub const MESSAGING_DESTINATION: Key = Key::from_static_str("messaging.destination");
-
-/// The kind of message destination.
-pub const MESSAGING_DESTINATION_KIND: Key = Key::from_static_str("messaging.destination_kind");
-
-/// A boolean that is true if the message destination is temporary.
-pub const MESSAGING_TEMP_DESTINATION: Key = Key::from_static_str("messaging.temp_destination");
-
-/// The name of the transport protocol.
-///
-/// # Examples
-///
-/// - `AMQP`
-/// - `MQTT`
-pub const MESSAGING_PROTOCOL: Key = Key::from_static_str("messaging.protocol");
-
-/// The version of the transport protocol.
-///
-/// # Examples
-///
-/// - `0.9.1`
-pub const MESSAGING_PROTOCOL_VERSION: Key = Key::from_static_str("messaging.protocol_version");
-
-/// Connection string.
-///
-/// # Examples
-///
-/// - `tibjmsnaming://localhost:7222`
-/// - `https://queue.amazonaws.com/80398EXAMPLE/MyQueue`
-pub const MESSAGING_URL: Key = Key::from_static_str("messaging.url");
-
-/// A value used by the messaging system as an identifier for the message, represented as a string.
-///
-/// # Examples
-///
-/// - `452a7c7c7c7048c2f887f61572b18fc2`
-pub const MESSAGING_MESSAGE_ID: Key = Key::from_static_str("messaging.message_id");
-
-/// The [conversation ID](#conversations) identifying the conversation to which the message belongs, represented as a string. Sometimes called &#34;Correlation ID&#34;.
-///
-/// # Examples
-///
-/// - `MyConversationId`
-pub const MESSAGING_CONVERSATION_ID: Key = Key::from_static_str("messaging.conversation_id");
-
-/// The (uncompressed) size of the message payload in bytes. Also use this attribute if it is unknown whether the compressed or uncompressed payload size is reported.
-///
-/// # Examples
-///
-/// - `2738`
-pub const MESSAGING_MESSAGE_PAYLOAD_SIZE_BYTES: Key =
-    Key::from_static_str("messaging.message_payload_size_bytes");
-
-/// The compressed size of the message payload in bytes.
-///
-/// # Examples
-///
-/// - `2048`
-pub const MESSAGING_MESSAGE_PAYLOAD_COMPRESSED_SIZE_BYTES: Key =
-    Key::from_static_str("messaging.message_payload_compressed_size_bytes");
-
-/// A string containing the function invocation time in the [ISO 8601](https://www.iso.org/iso-8601-date-and-time-format.html) format expressed in [UTC](https://www.w3.org/TR/NOTE-datetime).
-///
-/// # Examples
-///
-/// - `2020-01-23T13:47:06Z`
-pub const FAAS_TIME: Key = Key::from_static_str("faas.time");
-
-/// A string containing the schedule period as [Cron Expression](https://docs.oracle.com/cd/E12058_01/doc/doc.1014/e12030/cron_expressions.htm).
-///
-/// # Examples
-///
-/// - `0/5 * * * ? *`
-pub const FAAS_CRON: Key = Key::from_static_str("faas.cron");
-
-/// A boolean that is true if the serverless function is executed for the first time (aka cold-start).
-pub const FAAS_COLDSTART: Key = Key::from_static_str("faas.coldstart");
-
-/// The name of the invoked function.
-///
-/// SHOULD be equal to the `faas.name` resource attribute of the invoked function.
-///
-/// # Examples
-///
-/// - `my-function`
-pub const FAAS_INVOKED_NAME: Key = Key::from_static_str("faas.invoked_name");
-
-/// The cloud provider of the invoked function.
-///
-/// SHOULD be equal to the `cloud.provider` resource attribute of the invoked function.
-pub const FAAS_INVOKED_PROVIDER: Key = Key::from_static_str("faas.invoked_provider");
-
-/// The cloud region of the invoked function.
-///
-/// SHOULD be equal to the `cloud.region` resource attribute of the invoked function.
-///
-/// # Examples
-///
-/// - `eu-central-1`
-pub const FAAS_INVOKED_REGION: Key = Key::from_static_str("faas.invoked_region");
 
 /// The [`service.name`](../../resource/semantic_conventions/README.md#service) of the remote service. SHOULD be equal to the actual `service.name` resource attribute of the remote service if any.
 ///
@@ -741,6 +626,55 @@ pub const CODE_FILEPATH: Key = Key::from_static_str("code.filepath");
 /// - `42`
 pub const CODE_LINENO: Key = Key::from_static_str("code.lineno");
 
+/// The column number in `code.filepath` best representing the operation. It SHOULD point within the code unit named in `code.function`.
+///
+/// # Examples
+///
+/// - `16`
+pub const CODE_COLUMN: Key = Key::from_static_str("code.column");
+
+/// HTTP request method.
+///
+/// # Examples
+///
+/// - `GET`
+/// - `POST`
+/// - `HEAD`
+pub const HTTP_METHOD: Key = Key::from_static_str("http.method");
+
+/// [HTTP response status code](https://tools.ietf.org/html/rfc7231#section-6).
+///
+/// # Examples
+///
+/// - `200`
+pub const HTTP_STATUS_CODE: Key = Key::from_static_str("http.status_code");
+
+/// Kind of HTTP protocol used.
+///
+/// If `net.transport` is not specified, it can be assumed to be `IP.TCP` except if `http.flavor` is `QUIC`, in which case `IP.UDP` is assumed.
+pub const HTTP_FLAVOR: Key = Key::from_static_str("http.flavor");
+
+/// Value of the [HTTP User-Agent](https://www.rfc-editor.org/rfc/rfc9110.html#field.user-agent) header sent by the client.
+///
+/// # Examples
+///
+/// - `CERN-LineMode/2.15 libwww/2.17b3`
+pub const HTTP_USER_AGENT: Key = Key::from_static_str("http.user_agent");
+
+/// The size of the request payload body in bytes. This is the number of bytes transferred excluding headers and is often, but not always, present as the [Content-Length](https://www.rfc-editor.org/rfc/rfc9110.html#field.content-length) header. For requests using transport encoding, this should be the compressed size.
+///
+/// # Examples
+///
+/// - `3495`
+pub const HTTP_REQUEST_CONTENT_LENGTH: Key = Key::from_static_str("http.request_content_length");
+
+/// The size of the response payload body in bytes. This is the number of bytes transferred excluding headers and is often, but not always, present as the [Content-Length](https://www.rfc-editor.org/rfc/rfc9110.html#field.content-length) header. For requests using transport encoding, this should be the compressed size.
+///
+/// # Examples
+///
+/// - `3495`
+pub const HTTP_RESPONSE_CONTENT_LENGTH: Key = Key::from_static_str("http.response_content_length");
+
 /// Full HTTP request URL in the form `scheme://host[:port]/path?query[#fragment]`. Usually the fragment is not transmitted over HTTP, but if it is known, it should be included nevertheless.
 ///
 /// `http.url` MUST NOT contain credentials passed via URL in form of `https://username:password@www.example.com/`. In such case the attribute&#39;s value should be `https://www.example.com/`.
@@ -750,39 +684,58 @@ pub const CODE_LINENO: Key = Key::from_static_str("code.lineno");
 /// - `https://www.foo.bar/search?q=OpenTelemetry#SemConv`
 pub const HTTP_URL: Key = Key::from_static_str("http.url");
 
-/// The ordinal number of request re-sending attempt.
+/// The ordinal number of request resending attempt (for any reason, including redirects).
+///
+/// The resend count SHOULD be updated each time an HTTP request gets resent by the client, regardless of what was the cause of the resending (e.g. redirection, authorization failure, 503 Server Unavailable, network issues, or any other).
 ///
 /// # Examples
 ///
 /// - `3`
-pub const HTTP_RETRY_COUNT: Key = Key::from_static_str("http.retry_count");
+pub const HTTP_RESEND_COUNT: Key = Key::from_static_str("http.resend_count");
 
-/// The value `aws-api`.
+/// The URI scheme identifying the used protocol.
 ///
 /// # Examples
 ///
-/// - `aws-api`
-pub const RPC_SYSTEM: Key = Key::from_static_str("rpc.system");
+/// - `http`
+/// - `https`
+pub const HTTP_SCHEME: Key = Key::from_static_str("http.scheme");
 
-/// The name of the service to which a request is made, as returned by the AWS SDK.
-///
-/// This is the logical name of the service from the RPC interface perspective, which can be different from the name of any implementing class. The `code.namespace` attribute may be used to store the latter (despite the attribute name, it may include a class name; e.g., class with method actually executing the call on the server side, RPC client stub class on the client side).
+/// The full request target as passed in a HTTP request line or equivalent.
 ///
 /// # Examples
 ///
-/// - `DynamoDB`
-/// - `S3`
-pub const RPC_SERVICE: Key = Key::from_static_str("rpc.service");
+/// - `/path/12314/?q=ddds`
+pub const HTTP_TARGET: Key = Key::from_static_str("http.target");
 
-/// The name of the operation corresponding to the request, as returned by the AWS SDK.
+/// The matched route (path template in the format used by the respective server framework). See note below.
 ///
-/// This is the logical name of the method from the RPC interface perspective, which can be different from the name of any implementing method/function. The `code.function` attribute may be used to store the latter (e.g., method actually executing the call on the server side, RPC client stub method on the client side).
+/// &#39;http.route&#39; MUST NOT be populated when this is not supported by the HTTP server framework as the route attribute should have low-cardinality and the URI path can NOT substitute it.
 ///
 /// # Examples
 ///
-/// - `GetItem`
-/// - `PutItem`
-pub const RPC_METHOD: Key = Key::from_static_str("rpc.method");
+/// - `/users/:userID?`
+/// - `{controller}/{action}/{id?}`
+pub const HTTP_ROUTE: Key = Key::from_static_str("http.route");
+
+/// The IP address of the original client behind all proxies, if known (e.g. from [X-Forwarded-For](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Forwarded-For)).
+///
+/// This is not necessarily the same as `net.sock.peer.addr`, which would
+/// identify the network-level peer, which may be a proxy.
+///
+/// This attribute should be set when a source of information different
+/// from the one used for `net.sock.peer.addr`, is available even if that other
+/// source just confirms the same value as `net.sock.peer.addr`.
+/// Rationale: For `net.sock.peer.addr`, one typically does not know if it
+/// comes from a proxy, reverse proxy, or the actual client. Setting
+/// `http.client_ip` when it&#39;s the same as `net.sock.peer.addr` means that
+/// one is at least somewhat confident that the address is not that of
+/// the closest proxy.
+///
+/// # Examples
+///
+/// - `83.164.160.102`
+pub const HTTP_CLIENT_IP: Key = Key::from_static_str("http.client_ip");
 
 /// The keys in the `RequestItems` object field.
 ///
@@ -973,32 +926,149 @@ pub const GRAPHQL_OPERATION_TYPE: Key = Key::from_static_str("graphql.operation.
 /// - `query findBookById { bookById(id: ?) { name } }`
 pub const GRAPHQL_DOCUMENT: Key = Key::from_static_str("graphql.document");
 
-/// A string identifying the kind of message consumption as defined in the [Operation names](#operation-names) section above. If the operation is &#34;send&#34;, this attribute MUST NOT be set, since the operation can be inferred from the span kind in that case.
+/// A value used by the messaging system as an identifier for the message, represented as a string.
+///
+/// # Examples
+///
+/// - `452a7c7c7c7048c2f887f61572b18fc2`
+pub const MESSAGING_MESSAGE_ID: Key = Key::from_static_str("messaging.message.id");
+
+/// The [conversation ID](#conversations) identifying the conversation to which the message belongs, represented as a string. Sometimes called &#34;Correlation ID&#34;.
+///
+/// # Examples
+///
+/// - `MyConversationId`
+pub const MESSAGING_MESSAGE_CONVERSATION_ID: Key =
+    Key::from_static_str("messaging.message.conversation_id");
+
+/// The (uncompressed) size of the message payload in bytes. Also use this attribute if it is unknown whether the compressed or uncompressed payload size is reported.
+///
+/// # Examples
+///
+/// - `2738`
+pub const MESSAGING_MESSAGE_PAYLOAD_SIZE_BYTES: Key =
+    Key::from_static_str("messaging.message.payload_size_bytes");
+
+/// The compressed size of the message payload in bytes.
+///
+/// # Examples
+///
+/// - `2048`
+pub const MESSAGING_MESSAGE_PAYLOAD_COMPRESSED_SIZE_BYTES: Key =
+    Key::from_static_str("messaging.message.payload_compressed_size_bytes");
+
+/// The message destination name.
+///
+/// Destination name SHOULD uniquely identify a specific queue, topic or other entity within the broker. If
+/// the broker does not have such notion, the destination name SHOULD uniquely identify the broker.
+///
+/// # Examples
+///
+/// - `MyQueue`
+/// - `MyTopic`
+pub const MESSAGING_DESTINATION_NAME: Key = Key::from_static_str("messaging.destination.name");
+
+/// The kind of message destination.
+pub const MESSAGING_DESTINATION_KIND: Key = Key::from_static_str("messaging.destination.kind");
+
+/// Low cardinality representation of the messaging destination name.
+///
+/// Destination names could be constructed from templates. An example would be a destination name involving a user name or product id. Although the destination name in this case is of high cardinality, the underlying template is of low cardinality and can be effectively used for grouping and aggregation.
+///
+/// # Examples
+///
+/// - `/customers/{customerId}`
+pub const MESSAGING_DESTINATION_TEMPLATE: Key =
+    Key::from_static_str("messaging.destination.template");
+
+/// A boolean that is true if the message destination is temporary and might not exist anymore after messages are processed.
+pub const MESSAGING_DESTINATION_TEMPORARY: Key =
+    Key::from_static_str("messaging.destination.temporary");
+
+/// A boolean that is true if the message destination is anonymous (could be unnamed or have auto-generated name).
+pub const MESSAGING_DESTINATION_ANONYMOUS: Key =
+    Key::from_static_str("messaging.destination.anonymous");
+
+/// The message source name.
+///
+/// Source name SHOULD uniquely identify a specific queue, topic, or other entity within the broker. If
+/// the broker does not have such notion, the source name SHOULD uniquely identify the broker.
+///
+/// # Examples
+///
+/// - `MyQueue`
+/// - `MyTopic`
+pub const MESSAGING_SOURCE_NAME: Key = Key::from_static_str("messaging.source.name");
+
+/// The kind of message source.
+pub const MESSAGING_SOURCE_KIND: Key = Key::from_static_str("messaging.source.kind");
+
+/// Low cardinality representation of the messaging source name.
+///
+/// Source names could be constructed from templates. An example would be a source name involving a user name or product id. Although the source name in this case is of high cardinality, the underlying template is of low cardinality and can be effectively used for grouping and aggregation.
+///
+/// # Examples
+///
+/// - `/customers/{customerId}`
+pub const MESSAGING_SOURCE_TEMPLATE: Key = Key::from_static_str("messaging.source.template");
+
+/// A boolean that is true if the message source is temporary and might not exist anymore after messages are processed.
+pub const MESSAGING_SOURCE_TEMPORARY: Key = Key::from_static_str("messaging.source.temporary");
+
+/// A boolean that is true if the message source is anonymous (could be unnamed or have auto-generated name).
+pub const MESSAGING_SOURCE_ANONYMOUS: Key = Key::from_static_str("messaging.source.anonymous");
+
+/// A string identifying the messaging system.
+///
+/// # Examples
+///
+/// - `kafka`
+/// - `rabbitmq`
+/// - `rocketmq`
+/// - `activemq`
+/// - `AmazonSQS`
+pub const MESSAGING_SYSTEM: Key = Key::from_static_str("messaging.system");
+
+/// A string identifying the kind of messaging operation as defined in the [Operation names](#operation-names) section above.
+///
+/// If a custom value is used, it MUST be of low cardinality.
 pub const MESSAGING_OPERATION: Key = Key::from_static_str("messaging.operation");
 
-/// The identifier for the consumer receiving a message. For Kafka, set it to `{messaging.kafka.consumer_group} - {messaging.kafka.client_id}`, if both are present, or only `messaging.kafka.consumer_group`. For brokers, such as RabbitMQ and Artemis, set it to the `client_id` of the client consuming the message.
+/// The number of messages sent, received, or processed in the scope of the batching operation.
+///
+/// Instrumentations SHOULD NOT set `messaging.batch.message_count` on spans that operate with a single message. When a messaging client library supports both batch and single-message API for the same operation, instrumentations SHOULD use `messaging.batch.message_count` for batching APIs and SHOULD NOT use it for single-message APIs.
+///
+/// # Examples
+///
+/// - `0`
+/// - `1`
+/// - `2`
+pub const MESSAGING_BATCH_MESSAGE_COUNT: Key =
+    Key::from_static_str("messaging.batch.message_count");
+
+/// The identifier for the consumer receiving a message. For Kafka, set it to `{messaging.kafka.consumer.group} - {messaging.kafka.client_id}`, if both are present, or only `messaging.kafka.consumer.group`. For brokers, such as RabbitMQ and Artemis, set it to the `client_id` of the client consuming the message.
 ///
 /// # Examples
 ///
 /// - `mygroup - client-6`
-pub const MESSAGING_CONSUMER_ID: Key = Key::from_static_str("messaging.consumer_id");
+pub const MESSAGING_CONSUMER_ID: Key = Key::from_static_str("messaging.consumer.id");
 
 /// RabbitMQ message routing key.
 ///
 /// # Examples
 ///
 /// - `myKey`
-pub const MESSAGING_RABBITMQ_ROUTING_KEY: Key =
-    Key::from_static_str("messaging.rabbitmq.routing_key");
+pub const MESSAGING_RABBITMQ_DESTINATION_ROUTING_KEY: Key =
+    Key::from_static_str("messaging.rabbitmq.destination.routing_key");
 
-/// Message keys in Kafka are used for grouping alike messages to ensure they&#39;re processed on the same partition. They differ from `messaging.message_id` in that they&#39;re not unique. If the key is `null`, the attribute MUST NOT be set.
+/// Message keys in Kafka are used for grouping alike messages to ensure they&#39;re processed on the same partition. They differ from `messaging.message.id` in that they&#39;re not unique. If the key is `null`, the attribute MUST NOT be set.
 ///
 /// If the key type is not string, it&#39;s string representation has to be supplied for the attribute. If the key has no unambiguous, canonical string form, don&#39;t include its value.
 ///
 /// # Examples
 ///
 /// - `myKey`
-pub const MESSAGING_KAFKA_MESSAGE_KEY: Key = Key::from_static_str("messaging.kafka.message_key");
+pub const MESSAGING_KAFKA_MESSAGE_KEY: Key = Key::from_static_str("messaging.kafka.message.key");
 
 /// Name of the Kafka Consumer Group that is handling the message. Only applies to consumers, not producers.
 ///
@@ -1006,7 +1076,7 @@ pub const MESSAGING_KAFKA_MESSAGE_KEY: Key = Key::from_static_str("messaging.kaf
 ///
 /// - `my-group`
 pub const MESSAGING_KAFKA_CONSUMER_GROUP: Key =
-    Key::from_static_str("messaging.kafka.consumer_group");
+    Key::from_static_str("messaging.kafka.consumer.group");
 
 /// Client Id for the Consumer or Producer that is handling the message.
 ///
@@ -1020,10 +1090,28 @@ pub const MESSAGING_KAFKA_CLIENT_ID: Key = Key::from_static_str("messaging.kafka
 /// # Examples
 ///
 /// - `2`
-pub const MESSAGING_KAFKA_PARTITION: Key = Key::from_static_str("messaging.kafka.partition");
+pub const MESSAGING_KAFKA_DESTINATION_PARTITION: Key =
+    Key::from_static_str("messaging.kafka.destination.partition");
+
+/// Partition the message is received from.
+///
+/// # Examples
+///
+/// - `2`
+pub const MESSAGING_KAFKA_SOURCE_PARTITION: Key =
+    Key::from_static_str("messaging.kafka.source.partition");
+
+/// The offset of a record in the corresponding Kafka partition.
+///
+/// # Examples
+///
+/// - `42`
+pub const MESSAGING_KAFKA_MESSAGE_OFFSET: Key =
+    Key::from_static_str("messaging.kafka.message.offset");
 
 /// A boolean that is true if the message is a tombstone.
-pub const MESSAGING_KAFKA_TOMBSTONE: Key = Key::from_static_str("messaging.kafka.tombstone");
+pub const MESSAGING_KAFKA_MESSAGE_TOMBSTONE: Key =
+    Key::from_static_str("messaging.kafka.message.tombstone");
 
 /// Namespace of RocketMQ resources, resources in different namespaces are individual.
 ///
@@ -1047,9 +1135,33 @@ pub const MESSAGING_ROCKETMQ_CLIENT_GROUP: Key =
 /// - `myhost@8742@s8083jm`
 pub const MESSAGING_ROCKETMQ_CLIENT_ID: Key = Key::from_static_str("messaging.rocketmq.client_id");
 
+/// The timestamp in milliseconds that the delay message is expected to be delivered to consumer.
+///
+/// # Examples
+///
+/// - `1665987217045`
+pub const MESSAGING_ROCKETMQ_MESSAGE_DELIVERY_TIMESTAMP: Key =
+    Key::from_static_str("messaging.rocketmq.message.delivery_timestamp");
+
+/// The delay time level for delay message, which determines the message delay time.
+///
+/// # Examples
+///
+/// - `3`
+pub const MESSAGING_ROCKETMQ_MESSAGE_DELAY_TIME_LEVEL: Key =
+    Key::from_static_str("messaging.rocketmq.message.delay_time_level");
+
+/// It is essential for FIFO message. Messages that belong to the same message group are always processed one by one within the same consumer group.
+///
+/// # Examples
+///
+/// - `myMessageGroup`
+pub const MESSAGING_ROCKETMQ_MESSAGE_GROUP: Key =
+    Key::from_static_str("messaging.rocketmq.message.group");
+
 /// Type of message.
 pub const MESSAGING_ROCKETMQ_MESSAGE_TYPE: Key =
-    Key::from_static_str("messaging.rocketmq.message_type");
+    Key::from_static_str("messaging.rocketmq.message.type");
 
 /// The secondary classifier of message besides topic.
 ///
@@ -1057,7 +1169,7 @@ pub const MESSAGING_ROCKETMQ_MESSAGE_TYPE: Key =
 ///
 /// - `tagA`
 pub const MESSAGING_ROCKETMQ_MESSAGE_TAG: Key =
-    Key::from_static_str("messaging.rocketmq.message_tag");
+    Key::from_static_str("messaging.rocketmq.message.tag");
 
 /// Key(s) of message, another way to mark message besides message id.
 ///
@@ -1066,11 +1178,32 @@ pub const MESSAGING_ROCKETMQ_MESSAGE_TAG: Key =
 /// - `keyA`
 /// - `keyB`
 pub const MESSAGING_ROCKETMQ_MESSAGE_KEYS: Key =
-    Key::from_static_str("messaging.rocketmq.message_keys");
+    Key::from_static_str("messaging.rocketmq.message.keys");
 
 /// Model of message consumption. This only applies to consumer spans.
 pub const MESSAGING_ROCKETMQ_CONSUMPTION_MODEL: Key =
     Key::from_static_str("messaging.rocketmq.consumption_model");
+
+/// A string identifying the remoting system. See below for a list of well-known identifiers.
+pub const RPC_SYSTEM: Key = Key::from_static_str("rpc.system");
+
+/// The full (logical) name of the service being called, including its package name, if applicable.
+///
+/// This is the logical name of the service from the RPC interface perspective, which can be different from the name of any implementing class. The `code.namespace` attribute may be used to store the latter (despite the attribute name, it may include a class name; e.g., class with method actually executing the call on the server side, RPC client stub class on the client side).
+///
+/// # Examples
+///
+/// - `myservice.EchoService`
+pub const RPC_SERVICE: Key = Key::from_static_str("rpc.service");
+
+/// The name of the (logical) method being called, must be equal to the $method part in the span name.
+///
+/// This is the logical name of the method from the RPC interface perspective, which can be different from the name of any implementing method/function. The `code.function` attribute may be used to store the latter (e.g., method actually executing the call on the server side, RPC client stub method on the client side).
+///
+/// # Examples
+///
+/// - `exampleMethod`
+pub const RPC_METHOD: Key = Key::from_static_str("rpc.method");
 
 /// The [numeric status code](https://github.com/grpc/grpc/blob/v1.33.2/doc/statuscodes.md) of the gRPC request.
 pub const RPC_GRPC_STATUS_CODE: Key = Key::from_static_str("rpc.grpc.status_code");
@@ -1121,3 +1254,23 @@ pub const MESSAGE_COMPRESSED_SIZE: Key = Key::from_static_str("message.compresse
 
 /// Uncompressed size of the message in bytes.
 pub const MESSAGE_UNCOMPRESSED_SIZE: Key = Key::from_static_str("message.uncompressed_size");
+
+/// SHOULD be set to true if the exception event is recorded at a point where it is known that the exception is escaping the scope of the span.
+///
+/// An exception is considered to have escaped (or left) the scope of a span,
+/// if that span is ended while the exception is still logically &#34;in flight&#34;.
+/// This may be actually &#34;in flight&#34; in some languages (e.g. if the exception
+/// is passed to a Context manager&#39;s `__exit__` method in Python) but will
+/// usually be caught at the point of recording the exception in most languages.
+///
+/// It is usually not possible to determine at the point where an exception is thrown
+/// whether it will escape the scope of a span.
+/// However, it is trivial to know that an exception
+/// will escape, if one checks for an active exception just before ending the span,
+/// as done in the [example above](#recording-an-exception).
+///
+/// It follows that an exception may still escape the scope of the span
+/// even if the `exception.escaped` attribute was not set or set to false,
+/// since the event might have been recorded at a time where it was not
+/// clear whether the exception will escape.
+pub const EXCEPTION_ESCAPED: Key = Key::from_static_str("exception.escaped");
