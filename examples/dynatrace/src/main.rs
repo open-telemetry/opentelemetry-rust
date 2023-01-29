@@ -30,10 +30,7 @@ fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
     global::set_text_map_propagator(TraceContextPropagator::new());
 
     let mut map = HashMap::with_capacity(1);
-    map.insert(
-        "Authorization".to_string(),
-        format!("Api-Token {}", "*****"),
-    );
+    map.insert("Authorization".to_string(), "Api-Token *****".to_string());
 
     opentelemetry_otlp::new_pipeline()
         .tracing()

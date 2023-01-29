@@ -478,7 +478,7 @@ mod tests {
         let over_limit = MAX_KEY_VALUE_PAIRS + 1;
         let mut data = Vec::with_capacity(over_limit);
         for i in 0..over_limit {
-            data.push(KeyValue::new(format!("key{}", i), format!("key{}", i)))
+            data.push(KeyValue::new(format!("key{i}"), format!("key{i}")))
         }
         let baggage = data.into_iter().collect::<Baggage>();
         assert_eq!(baggage.len(), MAX_KEY_VALUE_PAIRS)

@@ -34,10 +34,7 @@ const HEADER_PREFIX: &str = "OTLP_TONIC_";
 
 fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
     let endpoint = var(ENDPOINT).unwrap_or_else(|_| {
-        panic!(
-            "You must specify and endpoint to connect to with the variable {:?}.",
-            ENDPOINT
-        )
+        panic!("You must specify and endpoint to connect to with the variable {ENDPOINT:?}.",)
     });
     let endpoint = Url::parse(&endpoint).expect("endpoint is not a valid url");
     remove_var(ENDPOINT);
