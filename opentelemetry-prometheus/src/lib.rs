@@ -106,6 +106,10 @@ mod sanitize;
 
 use sanitize::sanitize;
 
+/// Monotonic Sum metric points MUST have _total added as a suffix to the metric name
+/// https://github.com/open-telemetry/opentelemetry-specification/blob/v1.14.0/specification/metrics/data-model.md#sums-1
+const MONOTONIC_COUNTER_SUFFIX: &str = "_total";
+
 /// Create a new prometheus exporter builder.
 pub fn exporter(controller: BasicController) -> ExporterBuilder {
     ExporterBuilder::new(controller)
@@ -329,7 +333,7 @@ fn build_monotonic_counter(
     m.set_counter(c);
 
     let mut mf = prometheus::proto::MetricFamily::default();
-    mf.set_name(desc.name);
+    mf.set_name(desc.name + MONOTONIC_COUNTER_SUFFIX);
     mf.set_help(desc.help);
     mf.set_field_type(prometheus::proto::MetricType::COUNTER);
     mf.set_metric(protobuf::RepeatedField::from_vec(vec![m]));
