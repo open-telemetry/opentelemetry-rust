@@ -9,13 +9,10 @@ use prometheus::{Encoder, TextEncoder};
 #[test]
 fn free_unused_instruments() {
     let cx = Context::new();
-    let controller = controllers::basic(
-        processors::factory(
-            selectors::simple::histogram(vec![-0.5, 1.0]),
-            aggregation::cumulative_temporality_selector(),
-        )
-        .with_memory(true),
-    )
+    let controller = controllers::basic(processors::factory(
+        selectors::simple::histogram(vec![-0.5, 1.0]),
+        aggregation::cumulative_temporality_selector(),
+    ))
     .with_resource(Resource::new(vec![KeyValue::new("R", "V")]))
     .build();
     let exporter = opentelemetry_prometheus::exporter(controller).init();
@@ -33,7 +30,7 @@ fn free_unused_instruments() {
         counter.add(&cx, 10.0, &attributes);
         counter.add(&cx, 5.3, &attributes);
 
-        expected.push(r#"counter{A="B",C="D",R="V"} 15.3"#);
+        expected.push(r#"counter_total{A="B",C="D",R="V"} 15.3"#);
     }
     // Standard export
     compare_export(&exporter, expected.clone());
@@ -46,13 +43,10 @@ fn free_unused_instruments() {
 #[test]
 fn test_add() {
     let cx = Context::new();
-    let controller = controllers::basic(
-        processors::factory(
-            selectors::simple::histogram(vec![-0.5, 1.0]),
-            aggregation::cumulative_temporality_selector(),
-        )
-        .with_memory(true),
-    )
+    let controller = controllers::basic(processors::factory(
+        selectors::simple::histogram(vec![-0.5, 1.0]),
+        aggregation::cumulative_temporality_selector(),
+    ))
     .with_resource(Resource::new(vec![KeyValue::new("R", "V")]))
     .build();
     let exporter = opentelemetry_prometheus::exporter(controller).init();
@@ -73,7 +67,7 @@ fn test_add() {
     counter.add(&cx, 10.0, &attributes);
     counter.add(&cx, 5.3, &attributes);
 
-    expected.push(r#"counter{A="B",C="D",R="V"} 15.3"#);
+    expected.push(r#"counter_total{A="B",C="D",R="V"} 15.3"#);
 
     let cb_attributes = attributes.clone();
     let gauge = meter.i64_observable_gauge("intgauge").init();
@@ -105,13 +99,10 @@ fn test_add() {
 #[test]
 fn test_sanitization() {
     let cx = Context::new();
-    let controller = controllers::basic(
-        processors::factory(
-            selectors::simple::histogram(vec![-0.5, 1.0]),
-            aggregation::cumulative_temporality_selector(),
-        )
-        .with_memory(true),
-    )
+    let controller = controllers::basic(processors::factory(
+        selectors::simple::histogram(vec![-0.5, 1.0]),
+        aggregation::cumulative_temporality_selector(),
+    ))
     .with_resource(Resource::new(vec![KeyValue::new(
         "service.name",
         "Test Service",

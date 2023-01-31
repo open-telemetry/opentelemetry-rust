@@ -452,6 +452,8 @@ async fn http_send_request(
     headers: Option<HashMap<String, String>>,
     collector_endpoint: Uri,
 ) -> ExportResult {
+    use opentelemetry_http::ResponseExt;
+
     let req = ProstRequest {
         resource_spans: batch.into_iter().map(Into::into).collect(),
     };
@@ -476,7 +478,7 @@ async fn http_send_request(
         }
     }
 
-    client.send(request).await?;
+    client.send(request).await?.error_for_status()?;
     Ok(())
 }
 

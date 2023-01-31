@@ -51,7 +51,7 @@ use opentelemetry_http::HttpClient;
 ///   and [`SpanExporter`]s will receive spans with the `Sampled` flag set for
 ///   processing.
 ///
-/// The flag combination `Sampled == false` and `is_recording` == true` means
+/// The flag combination `Sampled == false` and `is_recording == true` means
 /// that the current `Span` does record information, but most likely the child
 /// `Span` will not.
 ///

@@ -8,7 +8,7 @@
 
 use opentelemetry::Key;
 
-{%- for attribute in attributes | unique(attribute="fqn") %}
+{%- for attribute in attributes if attribute.is_local and not attribute.ref %}
 
 /// {% filter escape %}{{attribute.brief | to_doc_brief}}.{% endfilter %}
 {%- if attribute.note %}
@@ -24,6 +24,9 @@ use opentelemetry::Key;
 {%- for example in attribute.examples %}
 /// - `{{example}}`
 {%- endfor %}
+{%- endif %}
+{%- if (attribute.stability | string()) == "StabilityLevel.DEPRECATED"  %}
+#[deprecated]
 {%- endif %}
 pub const {{attribute.fqn | to_const_name}}: Key = Key::from_static_str("{{attribute.fqn}}");
 {%- endfor %}

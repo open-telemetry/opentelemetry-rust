@@ -59,6 +59,8 @@ impl Runtime for Tokio {
     }
 
     fn spawn(&self, future: BoxFuture<'static, ()>) {
+        #[allow(clippy::let_underscore_future)]
+        // we don't have to await on the returned future to execute
         let _ = tokio::spawn(future);
     }
 
@@ -121,6 +123,7 @@ impl Runtime for AsyncStd {
     }
 
     fn spawn(&self, future: BoxFuture<'static, ()>) {
+        #[allow(clippy::let_underscore_future)]
         let _ = async_std::task::spawn(future);
     }
 
