@@ -58,17 +58,17 @@ fn construct_otel_resources(s: String) -> Resource {
     }))
 }
 
-/// There are the attributes which MUST be provided by the SDK as specified in
-/// [the Resource SDK specification]. This detector detect those attributes and
-/// if the attribute cannot be detected, use the default value.
+/// There are attributes which MUST be provided by the SDK as specified in
+/// [the Resource SDK specification]. This detector detects those attributes and
+/// if the attribute cannot be detected, it uses the default value.
 ///
-/// This detector will first try `OTEL_SERVICE_NAME` env. If it's not available.
-/// Then it will check the `OTEL_RESOURCE_ATTRIBUTES` env and see if it contains
-/// `service.name` resource. If it's also not available. Then it will use
+/// This detector will first try `OTEL_SERVICE_NAME` env. If it's not available,
+/// then it will check the `OTEL_RESOURCE_ATTRIBUTES` env and see if it contains
+/// `service.name` resource. If it's also not available, it will use
 /// `unknown_service`.
 ///
-/// Note that if `service.name` is empty. It will be ignore and the service name will
-/// be `unknown_service`. If users want to set an empty service name. They can provide
+/// Note that if `service.name` is empty, it will be ignored and the service name will
+/// be `unknown_service`. If users want to set an empty service name, they can provide
 /// a resource with empty value and `service.name` key.
 ///
 /// [the Resource SDK specification]:https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/resource/sdk.md#sdk-provided-resource-attributes
