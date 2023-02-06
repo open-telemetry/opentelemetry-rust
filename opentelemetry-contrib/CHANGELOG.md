@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.11.0
+### Changed
+- Handle `parent_span_id` in jaeger JSON exporter [#907](https://github.com/open-telemetry/opentelemetry-rust/pull/907).
+- Bump MSRV to 1.57 [#953](https://github.com/open-telemetry/opentelemetry-rust/pull/953)
+
 ## v0.10.0
 
 ### Added

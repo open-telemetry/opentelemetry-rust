@@ -1,10 +1,17 @@
 # Changelog
-## Main
+## v0.18.0
 
 ### Added
 
-- Added `CollectorPipeline::build_collector_exporter` #894
+- Added `CollectorPipeline::build_collector_exporter` [#894](https://github.com/open-telemetry/opentelemetry-rust/pull/894).
+- Support IPv6 in sync uploader [#938](https://github.com/open-telemetry/opentelemetry-rust/pull/938).
 
+### Changed
+- Update `opentelemetry` to 0.19
+- Update `opentelemetry-http` to 0.8
+- Update `opentelemetry-semantic-conventions` to 0.11.
+- Bump MSRV to 1.57 [#953](https://github.com/open-telemetry/opentelemetry-rust/pull/953).
+- Include packet length for `SizeLimit` error messages [#938](https://github.com/open-telemetry/opentelemetry-rust/pull/938).
 
 ## v0.17.0
 

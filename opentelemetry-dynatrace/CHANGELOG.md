@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.3.0
+### Changed
+- Update to `opentelemetry` v0.19.0
+- Update to `opentelemetry-http` v0.8.0
+- Bump MSRV to 1.57 [#953](https://github.com/open-telemetry/opentelemetry-rust/pull/953)
+
 ## v0.2.0
 
 ### Changed
