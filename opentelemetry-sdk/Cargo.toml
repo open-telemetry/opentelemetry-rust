@@ -37,7 +37,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [dev-dependencies]
 bincode = "1.2"
-criterion = "0.3.1"
+criterion = "0.4.0"
 rand_distr = "0.4.0"
 crossbeam-queue = "0.3.1"
 
