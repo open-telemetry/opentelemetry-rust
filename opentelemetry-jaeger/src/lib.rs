@@ -184,7 +184,6 @@
 //!                 .with_id_generator(RandomIdGenerator::default())
 //!                 .with_max_events_per_span(64)
 //!                 .with_max_attributes_per_span(16)
-//!                 .with_max_events_per_span(16)
 //!                  // resources will translated to tags in jaeger spans
 //!                 .with_resource(Resource::new(vec![KeyValue::new("key", "value"),
 //!                           KeyValue::new("process_key", "process_value")])),
