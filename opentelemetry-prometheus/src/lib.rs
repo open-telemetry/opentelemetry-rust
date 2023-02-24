@@ -86,7 +86,7 @@ use opentelemetry::sdk::metrics::sdk_api::Descriptor;
 #[cfg(feature = "prometheus-encoding")]
 pub use prometheus::{Encoder, TextEncoder};
 
-use opentelemetry::global;
+use opentelemetry::{global, InstrumentationLibrary, StringValue};
 use opentelemetry::sdk::{
     export::metrics::{
         aggregation::{Histogram, LastValue, Sum},
@@ -240,7 +240,7 @@ impl prometheus::core::Collector for Collector {
                     let instrument_kind = record.descriptor().instrument_kind();
 
                     let desc = get_metric_desc(record);
-                    let labels = get_metric_labels(record, controller.resource());
+                    let labels = get_metric_labels(record, controller.resource(),_library);
 
                     if let Some(hist) = agg.as_any().downcast_ref::<HistogramAggregator>() {
                         metrics.push(build_histogram(hist, number_kind, desc, labels)?);
@@ -391,12 +391,18 @@ fn build_label_pair(key: &Key, value: &Value) -> prometheus::proto::LabelPair {
 fn get_metric_labels(
     record: &Record<'_>,
     resource: &Resource,
-) -> Vec<prometheus::proto::LabelPair> {
+    _library: &InstrumentationLibrary,
+) ->Vec<prometheus::proto::LabelPair>{
     // Duplicate keys are resolved by taking the record label value over
     // the resource value.
     let iter = attributes::merge_iters(record.attributes().iter(), resource.iter());
-    iter.map(|(key, value)| build_label_pair(key, value))
-        .collect()
+    let  mut  labels: Vec<prometheus::proto::LabelPair> = iter.map(|(key, value)| build_label_pair(key, value))
+        .collect();
+    labels.push(build_label_pair(&Key::new("otel_scope_name"),&Value::String(StringValue::from(_library.name.to_owned().to_string()))));
+    if let Some(version) = _library.version.to_owned() {
+        labels.push(build_label_pair(&Key::new("otel_scope_version"),&Value::String(StringValue::from(version.to_string()))));
+    }
+    labels
 }
 
 struct PrometheusMetricDesc {
