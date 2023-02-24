@@ -110,6 +110,8 @@ use sanitize::sanitize;
 /// https://github.com/open-telemetry/opentelemetry-specification/blob/v1.14.0/specification/metrics/data-model.md#sums-1
 const MONOTONIC_COUNTER_SUFFIX: &str = "_total";
 
+const OTEL_SCOPE_VERSION = "otel_scope_version";
+
 /// Create a new prometheus exporter builder.
 pub fn exporter(controller: BasicController) -> ExporterBuilder {
     ExporterBuilder::new(controller)
