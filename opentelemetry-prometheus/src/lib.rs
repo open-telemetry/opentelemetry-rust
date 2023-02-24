@@ -110,7 +110,11 @@ use sanitize::sanitize;
 /// https://github.com/open-telemetry/opentelemetry-specification/blob/v1.14.0/specification/metrics/data-model.md#sums-1
 const MONOTONIC_COUNTER_SUFFIX: &str = "_total";
 
-const OTEL_SCOPE_VERSION = "otel_scope_version";
+/// metric points should have instrumentation scope name as a label in prometheus
+const OTEL_SCOPE_NAME: &str = "otel_scope_name";
+// Instrumentation Scope and Version as labels in Prometheus
+/// metric points should have instrumentation scope version as a label in prometheus
+const OTEL_SCOPE_VERSION: &str = "otel_scope_version";
 
 /// Create a new prometheus exporter builder.
 pub fn exporter(controller: BasicController) -> ExporterBuilder {
@@ -400,9 +404,11 @@ fn get_metric_labels(
     let iter = attributes::merge_iters(record.attributes().iter(), resource.iter());
     let  mut  labels: Vec<prometheus::proto::LabelPair> = iter.map(|(key, value)| build_label_pair(key, value))
         .collect();
-    labels.push(build_label_pair(&Key::new("otel_scope_name"),&Value::String(StringValue::from(_library.name.to_owned().to_string()))));
+    labels.push(build_label_pair(&Key::new(OTEL_SCOPE_NAME),
+                                 &Value::String(StringValue::from(_library.name.to_owned().to_string()))));
     if let Some(version) = _library.version.to_owned() {
-        labels.push(build_label_pair(&Key::new("otel_scope_version"),&Value::String(StringValue::from(version.to_string()))));
+        labels.push(build_label_pair(&Key::new(OTEL_SCOPE_VERSION),
+                                     &Value::String(StringValue::from(version.to_string()))));
     }
     labels
 }
