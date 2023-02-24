@@ -110,10 +110,11 @@ use sanitize::sanitize;
 /// https://github.com/open-telemetry/opentelemetry-specification/blob/v1.14.0/specification/metrics/data-model.md#sums-1
 const MONOTONIC_COUNTER_SUFFIX: &str = "_total";
 
-/// metric points should have instrumentation scope name as a label in prometheus
+
+/// Instrumentation Scope name MUST added as otel_scope_name label.
 const OTEL_SCOPE_NAME: &str = "otel_scope_name";
-// Instrumentation Scope and Version as labels in Prometheus
-/// metric points should have instrumentation scope version as a label in prometheus
+
+/// Instrumentation Scope version MUST added as otel_scope_name label.
 const OTEL_SCOPE_VERSION: &str = "otel_scope_version";
 
 /// Create a new prometheus exporter builder.
@@ -409,6 +410,9 @@ fn get_metric_labels(
     if let Some(version) = _library.version.to_owned() {
         labels.push(build_label_pair(&Key::new(OTEL_SCOPE_VERSION),
                                      &Value::String(StringValue::from(version.to_string()))));
+    }else {
+        labels.push(build_label_pair(&Key::new(OTEL_SCOPE_VERSION),
+                                     &Value::String(StringValue::from(""))));
     }
     labels
 }
