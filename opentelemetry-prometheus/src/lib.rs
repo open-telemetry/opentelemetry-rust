@@ -48,15 +48,18 @@
 //! //
 //! // # HELP a_counter Counts things
 //! // # TYPE a_counter counter
-//! // a_counter{R="V",key="value"} 100
+//! // a_counter{R="V",key="value",otel_scope_name="my-app",otel_scope_version=""} 100
 //! // # HELP a_histogram Records values
 //! // # TYPE a_histogram histogram
-//! // a_histogram_bucket{R="V",key="value",le="0.5"} 0
-//! // a_histogram_bucket{R="V",key="value",le="0.9"} 0
-//! // a_histogram_bucket{R="V",key="value",le="0.99"} 0
-//! // a_histogram_bucket{R="V",key="value",le="+Inf"} 1
-//! // a_histogram_sum{R="V",key="value"} 100
-//! // a_histogram_count{R="V",key="value"} 1
+//! // a_histogram_bucket{R="V",key="value",le="0.5",otel_scope_name="my-app",otel_scope_version=""} 0
+//! // a_histogram_bucket{R="V",key="value",le="0.9",otel_scope_name="my-app",otel_scope_version=""} 0
+//! // a_histogram_bucket{R="V",key="value",le="0.99",otel_scope_name="my-app",otel_scope_version=""} 0
+//! // a_histogram_bucket{R="V",key="value",le="+Inf",otel_scope_name="my-app",otel_scope_version=""} 1
+//! // a_histogram_sum{R="V",key="value",otel_scope_name="my-app",otel_scope_version=""} 100
+//! // a_histogram_count{R="V",key="value",otel_scope_name="my-app",otel_scope_version=""} 1
+//! // HELP otel_scope_info Instrumentation Scope metadata
+//! // TYPE otel_scope_info gauge
+//! // otel_scope_info{otel_scope_name="ex.com/B",otel_scope_version=""} 1
 //! ```
 #![warn(
     future_incompatible,
