@@ -110,13 +110,17 @@ use sanitize::sanitize;
 /// https://github.com/open-telemetry/opentelemetry-specification/blob/v1.14.0/specification/metrics/data-model.md#sums-1
 const MONOTONIC_COUNTER_SUFFIX: &str = "_total";
 
-
 /// Instrumentation Scope name MUST added as otel_scope_name label.
 const OTEL_SCOPE_NAME: &str = "otel_scope_name";
 
 /// Instrumentation Scope version MUST added as otel_scope_name label.
 const OTEL_SCOPE_VERSION: &str = "otel_scope_version";
 
+/// otel_scope_name metric name.
+const  SCOPE_INFO_METRIC_NAME: &str  = "otel_scope_info";
+
+/// otel_scope_name metric help.
+const SCOPE_INFO_DESCRIPTION: &str = "Instrumentation Scope metadata";
 /// Create a new prometheus exporter builder.
 pub fn exporter(controller: BasicController) -> ExporterBuilder {
     ExporterBuilder::new(controller)
@@ -132,6 +136,9 @@ pub struct ExporterBuilder {
 
     /// The metrics controller
     controller: BasicController,
+
+    // config for exporter
+    config: Option<ExporterConfig>,
 }
 
 impl ExporterBuilder {
@@ -140,6 +147,7 @@ impl ExporterBuilder {
         ExporterBuilder {
             registry: None,
             controller,
+            config: Some(Default::default())
         }
     }
 
@@ -151,13 +159,23 @@ impl ExporterBuilder {
         }
     }
 
+    /// Set config to be used by this exporter
+    pub fn with_config(self, config: ExporterConfig) -> Self {
+        ExporterBuilder {
+           config:Some(config),
+            ..self
+        }
+    }
+
     /// Sets up a complete export pipeline with the recommended setup, using the
     /// recommended selector and standard processor.
     pub fn try_init(self) -> Result<PrometheusExporter, MetricsError> {
+        let config = self.config.unwrap_or_default();
+
         let registry = self.registry.unwrap_or_else(prometheus::Registry::new);
 
         let controller = Arc::new(Mutex::new(self.controller));
-        let collector = Collector::with_controller(controller.clone());
+        let collector = Collector::with_controller(controller.clone()).with_disable_scope_info(config.disable_scope_info);
         registry
             .register(Box::new(collector))
             .map_err(|e| MetricsError::Other(e.to_string()))?;
@@ -179,6 +197,31 @@ impl ExporterBuilder {
     /// This panics if the exporter cannot be registered in the prometheus registry.
     pub fn init(self) -> PrometheusExporter {
         self.try_init().unwrap()
+    }
+}
+
+
+/// Config for prometheus exporter
+#[derive(Debug)]
+pub struct ExporterConfig {
+    /// disable the otel_scope_info metric and otel_scope_ labels.
+    disable_scope_info: bool
+}
+
+impl Default for ExporterConfig {
+    fn default() -> Self {
+        ExporterConfig{
+            disable_scope_info: false
+        }
+    }
+}
+
+impl ExporterConfig {
+    /// Set disable_scope_info for [`ExporterConfig`].
+    /// It's the flag to disable the otel_scope_info metric and otel_scope_ labels.
+    pub fn disable_scope_info(mut self) -> Self {
+        self.disable_scope_info = true;
+        self
     }
 }
 
@@ -210,6 +253,7 @@ impl PrometheusExporter {
 #[derive(Debug)]
 struct Collector {
     controller: Arc<Mutex<BasicController>>,
+    disable_scope_info: bool,
 }
 
 impl TemporalitySelector for Collector {
@@ -220,8 +264,13 @@ impl TemporalitySelector for Collector {
 
 impl Collector {
     fn with_controller(controller: Arc<Mutex<BasicController>>) -> Self {
-        Collector { controller }
+        Collector { controller, disable_scope_info: false }
     }
+    fn with_disable_scope_info(mut self,disable_scope_info: bool) -> Self{
+        self.disable_scope_info = disable_scope_info;
+        self
+    }
+
 }
 
 impl prometheus::core::Collector for Collector {
@@ -240,14 +289,19 @@ impl prometheus::core::Collector for Collector {
                 return metrics;
             }
 
-            if let Err(err) = controller.try_for_each(&mut |_library, reader| {
+            if let Err(err) = controller.try_for_each(&mut |library, reader| {
+                let mut scope_labels: Vec<prometheus::proto::LabelPair> = Vec::new();
+                if !self.disable_scope_info {
+                    scope_labels = get_scope_labels(library);
+                    metrics.push(build_scope_metric(scope_labels.clone()));
+                }
                 reader.try_for_each(self, &mut |record| {
                     let agg = record.aggregator().ok_or(MetricsError::NoDataCollected)?;
                     let number_kind = record.descriptor().number_kind();
                     let instrument_kind = record.descriptor().instrument_kind();
 
                     let desc = get_metric_desc(record);
-                    let labels = get_metric_labels(record, controller.resource(),_library);
+                    let labels = get_metric_labels(record, controller.resource(),&mut scope_labels.clone());
 
                     if let Some(hist) = agg.as_any().downcast_ref::<HistogramAggregator>() {
                         metrics.push(build_histogram(hist, number_kind, desc, labels)?);
@@ -387,6 +441,41 @@ fn build_histogram(
     Ok(mf)
 }
 
+fn build_scope_metric(
+    labels: Vec<prometheus::proto::LabelPair>
+) -> prometheus::proto::MetricFamily{
+    let mut g = prometheus::proto::Gauge::new();
+    g.set_value(1.0);
+
+    let mut m = prometheus::proto::Metric::default();
+    m.set_label(protobuf::RepeatedField::from_vec(labels));
+    m.set_gauge(g);
+
+    let mut mf = prometheus::proto::MetricFamily::default();
+    mf.set_name(String::from(SCOPE_INFO_METRIC_NAME));
+    mf.set_help(String::from(SCOPE_INFO_DESCRIPTION));
+    mf.set_field_type(prometheus::proto::MetricType::GAUGE);
+    mf.set_metric(protobuf::RepeatedField::from_vec(vec![m]));
+
+    mf
+}
+
+fn get_scope_labels(
+    library: &InstrumentationLibrary
+)-> Vec<prometheus::proto::LabelPair>{
+    let mut labels = Vec::new();
+    labels.push(build_label_pair(&Key::new(OTEL_SCOPE_NAME),
+                                 &Value::String(StringValue::from(library.name.to_owned().to_string()))));
+    if let Some(version) = library.version.to_owned() {
+        labels.push(build_label_pair(&Key::new(OTEL_SCOPE_VERSION),
+                                     &Value::String(StringValue::from(version.to_string()))));
+    }else {
+        labels.push(build_label_pair(&Key::new(OTEL_SCOPE_VERSION),
+                                     &Value::String(StringValue::from(""))));
+    }
+    labels
+}
+
 fn build_label_pair(key: &Key, value: &Value) -> prometheus::proto::LabelPair {
     let mut lp = prometheus::proto::LabelPair::new();
     lp.set_name(sanitize(key.as_str()));
@@ -398,22 +487,14 @@ fn build_label_pair(key: &Key, value: &Value) -> prometheus::proto::LabelPair {
 fn get_metric_labels(
     record: &Record<'_>,
     resource: &Resource,
-    _library: &InstrumentationLibrary,
+    scope_labels: & mut Vec<prometheus::proto::LabelPair>
 ) ->Vec<prometheus::proto::LabelPair>{
     // Duplicate keys are resolved by taking the record label value over
     // the resource value.
     let iter = attributes::merge_iters(record.attributes().iter(), resource.iter());
     let  mut  labels: Vec<prometheus::proto::LabelPair> = iter.map(|(key, value)| build_label_pair(key, value))
         .collect();
-    labels.push(build_label_pair(&Key::new(OTEL_SCOPE_NAME),
-                                 &Value::String(StringValue::from(_library.name.to_owned().to_string()))));
-    if let Some(version) = _library.version.to_owned() {
-        labels.push(build_label_pair(&Key::new(OTEL_SCOPE_VERSION),
-                                     &Value::String(StringValue::from(version.to_string()))));
-    }else {
-        labels.push(build_label_pair(&Key::new(OTEL_SCOPE_VERSION),
-                                     &Value::String(StringValue::from(""))));
-    }
+    labels.append(scope_labels);
     labels
 }
 
