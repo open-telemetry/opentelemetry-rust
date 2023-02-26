@@ -123,7 +123,22 @@ regressions
 
 ## Approvers and Maintainers
 
-See the [code owners](CODEOWNERS) file.
+For GitHub groups see the [code owners](CODEOWNERS) file.
+
+### Maintainers
+
+* @djc - Dirkjan Ochtman
+* @jtescher - Julian Tescher
+* @TommyCpp - Zhongyang Wu
+
+### Approvers
+
+* @hdost - Harold Dost
+
+### Emeritus
+
+* @frigus02 - Jan Kühle
+* @iredelmeier - Isobel Redelmeier
 
 ### Become an Approver or a Maintainer
 
