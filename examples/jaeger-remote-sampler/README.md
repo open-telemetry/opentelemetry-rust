@@ -5,6 +5,8 @@ When services generate too many spans. We need to sample some spans to save cost
 Adaptive sampling works in the Jaeger collector by observing the spans received from services and recalculating sampling
 probabilities for each service/endpoint combination to ensure that the volume is relatively constant.
 
+For a full list of configurations. See SDK docs of [JaegerRemoteSamplerBuilder](https://docs.rs/opentelemetry_sdk/latest/opentelemetry_sdk/trace/struct.JaegerRemoteSamplerBuilder.html).
+
 ## Setup
 
 Start a jaeger collector and an opentelemetry collector locally using docker
@@ -24,7 +26,7 @@ After start the jaeger remote sampling server successfully. We can run
 
 `cargo run`
 
-command to start the example, you should see something like only one span is printed out. 
+command to start the example, you should only see one span is printed out. 
 
 Looking at the example, you will notice we use `AlwaysOff` as our default sampler. It means before the SDK get the sampling strategy from remote server, no span will be sampled. 
 
@@ -44,4 +46,3 @@ The sampling strategies is defined in `srategies.json` files. It defines two set
 
 The first strategy is returned for `foo` service. The second strategy is catch all default strategy for all other
 services.
-
