@@ -12,9 +12,7 @@ use std::convert::TryInto;
 mod jaeger_remote;
 
 #[cfg(feature = "jaeger_remote_sampler")]
-use jaeger_remote::JaegerRemoteSampler;
-#[cfg(feature = "jaeger_remote_sampler")]
-pub use jaeger_remote::JaegerRemoteSamplerBuilder;
+pub use jaeger_remote::{JaegerRemoteSampler, JaegerRemoteSamplerBuilder};
 #[cfg(feature = "jaeger_remote_sampler")]
 use opentelemetry_http::HttpClient;
 
@@ -142,13 +140,13 @@ pub enum Sampler {
 }
 
 impl Sampler {
-    /// Create a jaeger remote sampler.
+    /// Create a jaeger remote sampler builder.
     ///
-    /// user needs to provide
-    /// - a `runtime` to run the http client
-    /// - a http client to query the sampling endpoint
-    /// - a default sampler to make sampling decision when the remote is unavailable or before the SDK receive the first response,
-    /// - the service name. This is a required parameter to query the sampling endpoint.
+    /// ### Arguments
+    /// * `runtime` - A runtime to run the HTTP client.
+    /// * `http_client` - An HTTP client to query the sampling endpoint.
+    /// * `default_sampler` - A default sampler to make a sampling decision when the remote is unavailable or before the SDK receives the first response from remote.
+    /// * `service_name` - The name of the service. This is a required parameter to query the sampling endpoint.
     ///
     /// See [here](https://github.com/open-telemetry/opentelemetry-rust/blob/main/examples/jaeger-remote-sampler/src/main.rs) for an example.
     #[cfg(feature = "jaeger_remote_sampler")]

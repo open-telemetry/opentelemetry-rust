@@ -3,8 +3,7 @@ mod remote;
 mod sampler;
 mod sampling_strategy;
 
-pub(crate) use sampler::JaegerRemoteSampler;
-pub use sampler::JaegerRemoteSamplerBuilder;
+pub use sampler::{JaegerRemoteSampler, JaegerRemoteSamplerBuilder};
 
 #[cfg(test)]
 mod tests {}
