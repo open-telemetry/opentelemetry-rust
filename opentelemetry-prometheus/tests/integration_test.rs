@@ -52,7 +52,7 @@ fn test_add() {
     .with_resource(Resource::new(vec![KeyValue::new("R", "V")]))
     .build();
     let exporter = opentelemetry_prometheus::exporter(controller)
-        .with_config(ExporterConfig::default().disable_scope_info())
+        .with_config(ExporterConfig::default().with_scope_info(false))
         .init();
 
     let meter = exporter
@@ -113,7 +113,7 @@ fn test_sanitization() {
     )]))
     .build();
     let exporter = opentelemetry_prometheus::exporter(controller)
-        .with_config(ExporterConfig::default().disable_scope_info())
+        .with_config(ExporterConfig::default().with_scope_info(false))
         .init();
     let meter = exporter
         .meter_provider()

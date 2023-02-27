@@ -140,7 +140,7 @@ pub struct ExporterBuilder {
     /// The metrics controller
     controller: BasicController,
 
-    // config for exporter
+    /// config for exporter
     config: Option<ExporterConfig>,
 }
 
@@ -178,8 +178,8 @@ impl ExporterBuilder {
         let registry = self.registry.unwrap_or_else(prometheus::Registry::new);
 
         let controller = Arc::new(Mutex::new(self.controller));
-        let collector = Collector::with_controller(controller.clone())
-            .with_disable_scope_info(config.disable_scope_info);
+        let collector =
+            Collector::with_controller(controller.clone()).with_scope_info(config.with_scope_info);
         registry
             .register(Box::new(collector))
             .map_err(|e| MetricsError::Other(e.to_string()))?;
@@ -205,17 +205,25 @@ impl ExporterBuilder {
 }
 
 /// Config for prometheus exporter
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct ExporterConfig {
-    /// disable the otel_scope_info metric and otel_scope_ labels.
-    disable_scope_info: bool,
+    /// Add the otel_scope_info metric and otel_scope_ labels when with_scope_info is true, and the default value is true.
+    with_scope_info: bool,
+}
+
+impl Default for ExporterConfig {
+    fn default() -> Self {
+        ExporterConfig {
+            with_scope_info: true,
+        }
+    }
 }
 
 impl ExporterConfig {
-    /// Set disable_scope_info for [`ExporterConfig`].
-    /// It's the flag to disable the otel_scope_info metric and otel_scope_ labels.
-    pub fn disable_scope_info(mut self) -> Self {
-        self.disable_scope_info = true;
+    /// Set with_scope_info for [`ExporterConfig`].
+    /// It's the flag to add the otel_scope_info metric and otel_scope_ labels.
+    pub fn with_scope_info(mut self, enabled: bool) -> Self {
+        self.with_scope_info = enabled;
         self
     }
 }
@@ -248,7 +256,7 @@ impl PrometheusExporter {
 #[derive(Debug)]
 struct Collector {
     controller: Arc<Mutex<BasicController>>,
-    disable_scope_info: bool,
+    with_scope_info: bool,
 }
 
 impl TemporalitySelector for Collector {
@@ -261,11 +269,11 @@ impl Collector {
     fn with_controller(controller: Arc<Mutex<BasicController>>) -> Self {
         Collector {
             controller,
-            disable_scope_info: false,
+            with_scope_info: true,
         }
     }
-    fn with_disable_scope_info(mut self, disable_scope_info: bool) -> Self {
-        self.disable_scope_info = disable_scope_info;
+    fn with_scope_info(mut self, with_scope_info: bool) -> Self {
+        self.with_scope_info = with_scope_info;
         self
     }
 }
@@ -288,7 +296,7 @@ impl prometheus::core::Collector for Collector {
 
             if let Err(err) = controller.try_for_each(&mut |library, reader| {
                 let mut scope_labels: Vec<prometheus::proto::LabelPair> = Vec::new();
-                if !self.disable_scope_info {
+                if self.with_scope_info {
                     scope_labels = get_scope_labels(library);
                     metrics.push(build_scope_metric(scope_labels.clone()));
                 }
