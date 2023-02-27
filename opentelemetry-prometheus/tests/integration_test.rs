@@ -19,10 +19,11 @@ fn free_unused_instruments() {
     let mut expected = Vec::new();
 
     {
-        let meter = exporter
-            .meter_provider()
-            .unwrap()
-            .versioned_meter("test", Some("v0.1.0"), None);
+        let meter =
+            exporter
+                .meter_provider()
+                .unwrap()
+                .versioned_meter("test", Some("v0.1.0"), None);
         let counter = meter.f64_counter("counter").init();
 
         let attributes = vec![KeyValue::new("A", "B"), KeyValue::new("C", "D")];
@@ -51,7 +52,8 @@ fn test_add() {
     .with_resource(Resource::new(vec![KeyValue::new("R", "V")]))
     .build();
     let exporter = opentelemetry_prometheus::exporter(controller)
-        .with_config(ExporterConfig::default().disable_scope_info()).init();
+        .with_config(ExporterConfig::default().disable_scope_info())
+        .init();
 
     let meter = exporter
         .meter_provider()
@@ -111,7 +113,8 @@ fn test_sanitization() {
     )]))
     .build();
     let exporter = opentelemetry_prometheus::exporter(controller)
-        .with_config(ExporterConfig::default().disable_scope_info()).init();
+        .with_config(ExporterConfig::default().disable_scope_info())
+        .init();
     let meter = exporter
         .meter_provider()
         .unwrap()
@@ -137,7 +140,6 @@ fn test_sanitization() {
     compare_export(&exporter, expected)
 }
 
-
 #[test]
 fn test_scope_info() {
     let cx = Context::new();
@@ -145,8 +147,8 @@ fn test_scope_info() {
         selectors::simple::histogram(vec![-0.5, 1.0]),
         aggregation::cumulative_temporality_selector(),
     ))
-        .with_resource(Resource::new(vec![KeyValue::new("R", "V")]))
-        .build();
+    .with_resource(Resource::new(vec![KeyValue::new("R", "V")]))
+    .build();
     let exporter = opentelemetry_prometheus::exporter(controller).init();
 
     let meter = exporter
@@ -173,7 +175,9 @@ fn test_scope_info() {
         .register_callback(move |cx| gauge.observe(cx, 1, cb_attributes.as_ref()))
         .unwrap();
 
-    expected.push(r#"intgauge{A="B",C="D",R="V",otel_scope_name="test",otel_scope_version="v0.1.0"} 1"#);
+    expected.push(
+        r#"intgauge{A="B",C="D",R="V",otel_scope_name="test",otel_scope_version="v0.1.0"} 1"#,
+    );
 
     histogram.record(&cx, -0.6, &attributes);
     histogram.record(&cx, -0.4, &attributes);

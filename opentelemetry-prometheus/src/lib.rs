@@ -89,7 +89,6 @@ use opentelemetry::sdk::metrics::sdk_api::Descriptor;
 #[cfg(feature = "prometheus-encoding")]
 pub use prometheus::{Encoder, TextEncoder};
 
-use opentelemetry::{global, InstrumentationLibrary, StringValue};
 use opentelemetry::sdk::{
     export::metrics::{
         aggregation::{Histogram, LastValue, Sum},
@@ -103,6 +102,7 @@ use opentelemetry::sdk::{
     Resource,
 };
 use opentelemetry::{attributes, metrics::MetricsError, Context, Key, Value};
+use opentelemetry::{global, InstrumentationLibrary, StringValue};
 use std::sync::{Arc, Mutex};
 
 mod sanitize;
@@ -120,7 +120,7 @@ const OTEL_SCOPE_NAME: &str = "otel_scope_name";
 const OTEL_SCOPE_VERSION: &str = "otel_scope_version";
 
 /// otel_scope_name metric name.
-const  SCOPE_INFO_METRIC_NAME: &str  = "otel_scope_info";
+const SCOPE_INFO_METRIC_NAME: &str = "otel_scope_info";
 
 /// otel_scope_name metric help.
 const SCOPE_INFO_DESCRIPTION: &str = "Instrumentation Scope metadata";
@@ -150,7 +150,7 @@ impl ExporterBuilder {
         ExporterBuilder {
             registry: None,
             controller,
-            config: Some(Default::default())
+            config: Some(Default::default()),
         }
     }
 
@@ -165,7 +165,7 @@ impl ExporterBuilder {
     /// Set config to be used by this exporter
     pub fn with_config(self, config: ExporterConfig) -> Self {
         ExporterBuilder {
-           config:Some(config),
+            config: Some(config),
             ..self
         }
     }
@@ -178,7 +178,8 @@ impl ExporterBuilder {
         let registry = self.registry.unwrap_or_else(prometheus::Registry::new);
 
         let controller = Arc::new(Mutex::new(self.controller));
-        let collector = Collector::with_controller(controller.clone()).with_disable_scope_info(config.disable_scope_info);
+        let collector = Collector::with_controller(controller.clone())
+            .with_disable_scope_info(config.disable_scope_info);
         registry
             .register(Box::new(collector))
             .map_err(|e| MetricsError::Other(e.to_string()))?;
@@ -203,18 +204,17 @@ impl ExporterBuilder {
     }
 }
 
-
 /// Config for prometheus exporter
 #[derive(Debug)]
 pub struct ExporterConfig {
     /// disable the otel_scope_info metric and otel_scope_ labels.
-    disable_scope_info: bool
+    disable_scope_info: bool,
 }
 
 impl Default for ExporterConfig {
     fn default() -> Self {
-        ExporterConfig{
-            disable_scope_info: false
+        ExporterConfig {
+            disable_scope_info: false,
         }
     }
 }
@@ -267,13 +267,15 @@ impl TemporalitySelector for Collector {
 
 impl Collector {
     fn with_controller(controller: Arc<Mutex<BasicController>>) -> Self {
-        Collector { controller, disable_scope_info: false }
+        Collector {
+            controller,
+            disable_scope_info: false,
+        }
     }
-    fn with_disable_scope_info(mut self,disable_scope_info: bool) -> Self{
+    fn with_disable_scope_info(mut self, disable_scope_info: bool) -> Self {
         self.disable_scope_info = disable_scope_info;
         self
     }
-
 }
 
 impl prometheus::core::Collector for Collector {
@@ -304,7 +306,8 @@ impl prometheus::core::Collector for Collector {
                     let instrument_kind = record.descriptor().instrument_kind();
 
                     let desc = get_metric_desc(record);
-                    let labels = get_metric_labels(record, controller.resource(),&mut scope_labels.clone());
+                    let labels =
+                        get_metric_labels(record, controller.resource(), &mut scope_labels.clone());
 
                     if let Some(hist) = agg.as_any().downcast_ref::<HistogramAggregator>() {
                         metrics.push(build_histogram(hist, number_kind, desc, labels)?);
@@ -445,8 +448,8 @@ fn build_histogram(
 }
 
 fn build_scope_metric(
-    labels: Vec<prometheus::proto::LabelPair>
-) -> prometheus::proto::MetricFamily{
+    labels: Vec<prometheus::proto::LabelPair>,
+) -> prometheus::proto::MetricFamily {
     let mut g = prometheus::proto::Gauge::new();
     g.set_value(1.0);
 
@@ -463,18 +466,22 @@ fn build_scope_metric(
     mf
 }
 
-fn get_scope_labels(
-    library: &InstrumentationLibrary
-)-> Vec<prometheus::proto::LabelPair>{
+fn get_scope_labels(library: &InstrumentationLibrary) -> Vec<prometheus::proto::LabelPair> {
     let mut labels = Vec::new();
-    labels.push(build_label_pair(&Key::new(OTEL_SCOPE_NAME),
-                                 &Value::String(StringValue::from(library.name.to_owned().to_string()))));
+    labels.push(build_label_pair(
+        &Key::new(OTEL_SCOPE_NAME),
+        &Value::String(StringValue::from(library.name.to_owned().to_string())),
+    ));
     if let Some(version) = library.version.to_owned() {
-        labels.push(build_label_pair(&Key::new(OTEL_SCOPE_VERSION),
-                                     &Value::String(StringValue::from(version.to_string()))));
-    }else {
-        labels.push(build_label_pair(&Key::new(OTEL_SCOPE_VERSION),
-                                     &Value::String(StringValue::from(""))));
+        labels.push(build_label_pair(
+            &Key::new(OTEL_SCOPE_VERSION),
+            &Value::String(StringValue::from(version.to_string())),
+        ));
+    } else {
+        labels.push(build_label_pair(
+            &Key::new(OTEL_SCOPE_VERSION),
+            &Value::String(StringValue::from("")),
+        ));
     }
     labels
 }
@@ -490,13 +497,15 @@ fn build_label_pair(key: &Key, value: &Value) -> prometheus::proto::LabelPair {
 fn get_metric_labels(
     record: &Record<'_>,
     resource: &Resource,
-    scope_labels: & mut Vec<prometheus::proto::LabelPair>
-) ->Vec<prometheus::proto::LabelPair>{
+    scope_labels: &mut Vec<prometheus::proto::LabelPair>,
+) -> Vec<prometheus::proto::LabelPair> {
     // Duplicate keys are resolved by taking the record label value over
     // the resource value.
     let iter = attributes::merge_iters(record.attributes().iter(), resource.iter());
-    let  mut  labels: Vec<prometheus::proto::LabelPair> = iter.map(|(key, value)| build_label_pair(key, value))
+    let mut labels: Vec<prometheus::proto::LabelPair> = iter
+        .map(|(key, value)| build_label_pair(key, value))
         .collect();
+
     labels.append(scope_labels);
     labels
 }
