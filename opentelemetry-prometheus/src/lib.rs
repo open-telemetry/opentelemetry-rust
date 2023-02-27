@@ -205,18 +205,10 @@ impl ExporterBuilder {
 }
 
 /// Config for prometheus exporter
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct ExporterConfig {
     /// disable the otel_scope_info metric and otel_scope_ labels.
     disable_scope_info: bool,
-}
-
-impl Default for ExporterConfig {
-    fn default() -> Self {
-        ExporterConfig {
-            disable_scope_info: false,
-        }
-    }
 }
 
 impl ExporterConfig {
@@ -470,7 +462,7 @@ fn get_scope_labels(library: &InstrumentationLibrary) -> Vec<prometheus::proto::
     let mut labels = Vec::new();
     labels.push(build_label_pair(
         &Key::new(OTEL_SCOPE_NAME),
-        &Value::String(StringValue::from(library.name.to_owned().to_string())),
+        &Value::String(StringValue::from(library.name.clone().to_string())),
     ));
     if let Some(version) = library.version.to_owned() {
         labels.push(build_label_pair(
