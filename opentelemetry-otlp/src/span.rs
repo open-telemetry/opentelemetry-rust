@@ -180,7 +180,7 @@ fn build_batch_with_exporter<R: TraceRuntime>(
     let batch_processor = sdk::trace::BatchSpanProcessor::builder(exporter, runtime)
         .with_batch_config(batch_config.unwrap_or_default())
         .build();
-    provider_builder = builder.with_span_processor(batch_processor);
+    provider_builder = provider_builder.with_span_processor(batch_processor);
 
     if let Some(config) = trace_config {
         provider_builder = provider_builder.with_config(config);
