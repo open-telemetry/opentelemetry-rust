@@ -90,12 +90,19 @@ impl OtlpPipeline {
 pub struct OtlpTracePipeline {
     exporter_builder: Option<SpanExporterBuilder>,
     trace_config: Option<sdk::trace::Config>,
+    batch_config: Option<sdk::trace::BatchConfig>,
 }
 
 impl OtlpTracePipeline {
     /// Set the trace provider configuration.
     pub fn with_trace_config(mut self, trace_config: sdk::trace::Config) -> Self {
         self.trace_config = Some(trace_config);
+        self
+    }
+
+    /// Set the batch span processor configuration.
+    pub fn with_batch_config(mut self, batch_config: sdk::trace::BatchConfig) -> Self {
+        self.batch_config = Some(batch_config);
         self
     }
 
@@ -143,6 +150,7 @@ impl OtlpTracePipeline {
                 .build_span_exporter()?,
             self.trace_config,
             runtime,
+            self.batch_config,
         ))
     }
 }
@@ -166,9 +174,14 @@ fn build_batch_with_exporter<R: TraceRuntime>(
     exporter: SpanExporter,
     trace_config: Option<sdk::trace::Config>,
     runtime: R,
+    batch_config: Option<sdk::trace::BatchConfig>,
 ) -> sdk::trace::Tracer {
-    let mut provider_builder =
-        sdk::trace::TracerProvider::builder().with_batch_exporter(exporter, runtime);
+    let mut provider_builder = sdk::trace::TracerProvider::builder();
+    let batch_processor = sdk::trace::BatchSpanProcessor::builder(exporter, runtime)
+        .with_batch_config(batch_config.unwrap_or_default())
+        .build();
+    provider_builder = builder.with_span_processor(batch_processor);
+
     if let Some(config) = trace_config {
         provider_builder = provider_builder.with_config(config);
     }
