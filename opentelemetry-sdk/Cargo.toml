@@ -7,7 +7,7 @@ repository = "https://github.com/open-telemetry/opentelemetry-rust"
 readme = "README.md"
 license = "Apache-2.0"
 edition = "2021"
-rust-version = "1.57"
+rust-version = "1.60"
 
 [dependencies]
 opentelemetry_api = { version = "0.18", path = "../opentelemetry-api/" }
