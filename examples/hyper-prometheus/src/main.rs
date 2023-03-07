@@ -1,29 +1,20 @@
-#[macro_use]
-extern crate lazy_static;
-
 use hyper::{
     header::CONTENT_TYPE,
     service::{make_service_fn, service_fn},
     Body, Method, Request, Response, Server,
 };
-use opentelemetry::{
-    global,
-    metrics::{Counter, Histogram},
-    sdk::{
-        export::metrics::aggregation,
-        metrics::{controllers, processors, selectors},
-    },
+use once_cell::sync::Lazy;
+use opentelemetry_api::{
+    metrics::{Counter, Histogram, MeterProvider as _, Unit},
     Context, KeyValue,
 };
-use opentelemetry_prometheus::PrometheusExporter;
-use prometheus::{Encoder, TextEncoder};
+use opentelemetry_sdk::metrics::MeterProvider;
+use prometheus::{Encoder, Registry, TextEncoder};
 use std::convert::Infallible;
 use std::sync::Arc;
 use std::time::SystemTime;
 
-lazy_static! {
-    static ref HANDLER_ALL: [KeyValue; 1] = [KeyValue::new("handler", "all")];
-}
+static HANDLER_ALL: Lazy<[KeyValue; 1]> = Lazy::new(|| [KeyValue::new("handler", "all")]);
 
 async fn serve_req(
     cx: Context,
@@ -33,15 +24,17 @@ async fn serve_req(
     println!("Receiving request at path {}", req.uri());
     let request_start = SystemTime::now();
 
-    state.http_counter.add(&cx, 1, &[]);
+    state.http_counter.add(&cx, 1, HANDLER_ALL.as_ref());
 
     let response = match (req.method(), req.uri().path()) {
         (&Method::GET, "/metrics") => {
             let mut buffer = vec![];
             let encoder = TextEncoder::new();
-            let metric_families = state.exporter.registry().gather();
+            let metric_families = state.registry.gather();
             encoder.encode(&metric_families, &mut buffer).unwrap();
-            state.http_body_gauge.record(&cx, buffer.len() as u64, &[]);
+            state
+                .http_body_gauge
+                .record(&cx, buffer.len() as u64, HANDLER_ALL.as_ref());
 
             Response::builder()
                 .status(200)
@@ -68,7 +61,7 @@ async fn serve_req(
 }
 
 struct AppState {
-    exporter: PrometheusExporter,
+    registry: Registry,
     http_counter: Counter<u64>,
     http_body_gauge: Histogram<u64>,
     http_req_histogram: Histogram<f64>,
@@ -76,29 +69,29 @@ struct AppState {
 
 #[tokio::main]
 pub async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let controller = controllers::basic(processors::factory(
-        selectors::simple::histogram([1.0, 2.0, 5.0, 10.0, 20.0, 50.0]),
-        aggregation::cumulative_temporality_selector(),
-    ))
-    .build();
-
-    let exporter = opentelemetry_prometheus::exporter(controller).init();
+    let registry = Registry::new();
+    let exporter = opentelemetry_prometheus::exporter()
+        .with_registry(registry.clone())
+        .build()?;
+    let provider = MeterProvider::builder().with_reader(exporter).build();
     let cx = Context::new();
 
-    let meter = global::meter("ex.com/hyper");
+    let meter = provider.meter("hyper-prometheus-example");
     let state = Arc::new(AppState {
-        exporter,
+        registry,
         http_counter: meter
-            .u64_counter("example.http_requests_total")
+            .u64_counter("http_requests_total")
             .with_description("Total number of HTTP requests made.")
             .init(),
         http_body_gauge: meter
-            .u64_histogram("example.http_response_size_bytes")
+            .u64_histogram("example.http_response_size")
+            .with_unit(Unit::new("By"))
             .with_description("The metrics HTTP response sizes in bytes.")
             .init(),
         http_req_histogram: meter
-            .f64_histogram("example.http_request_duration_seconds")
-            .with_description("The HTTP request latencies in seconds.")
+            .f64_histogram("example.http_request_duration")
+            .with_unit(Unit::new("ms"))
+            .with_description("The HTTP request latencies in milliseconds.")
             .init(),
     });
 

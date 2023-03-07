@@ -8,29 +8,30 @@ use crate::exporter::{
     tonic::{TonicConfig, TonicExporterBuilder},
     ExportConfig,
 };
-use crate::transform::{record_to_metric, sink, CheckpointedMetrics};
+use crate::transform::sink;
 use crate::{Error, OtlpPipeline};
+use async_trait::async_trait;
 use core::fmt;
-use opentelemetry::{global, metrics::Result, runtime::Runtime};
-use opentelemetry::{
-    sdk::{
-        export::metrics::{
-            self,
-            aggregation::{AggregationKind, Temporality, TemporalitySelector},
-            AggregatorSelector, InstrumentationLibraryReader,
-        },
-        metrics::{
-            controllers::{self, BasicController},
-            processors,
-            sdk_api::Descriptor,
-        },
-        Resource,
-    },
-    Context,
+use opentelemetry_api::{
+    global,
+    metrics::{MetricsError, Result},
 };
 #[cfg(feature = "grpc-tonic")]
 use opentelemetry_proto::tonic::collector::metrics::v1::{
     metrics_service_client::MetricsServiceClient, ExportMetricsServiceRequest,
+};
+use opentelemetry_sdk::{
+    metrics::{
+        data::{ResourceMetrics, Temporality},
+        exporter::PushMetricsExporter,
+        reader::{
+            AggregationSelector, DefaultAggregationSelector, DefaultTemporalitySelector,
+            TemporalitySelector,
+        },
+        Aggregation, InstrumentKind, MeterProvider, PeriodicReader,
+    },
+    runtime::Runtime,
+    Resource,
 };
 use std::fmt::{Debug, Formatter};
 #[cfg(feature = "grpc-tonic")]
@@ -53,21 +54,14 @@ pub const OTEL_EXPORTER_OTLP_METRICS_TIMEOUT: &str = "OTEL_EXPORTER_OTLP_METRICS
 
 impl OtlpPipeline {
     /// Create a OTLP metrics pipeline.
-    pub fn metrics<AS, TS, RT>(
-        self,
-        aggregator_selector: AS,
-        temporality_selector: TS,
-        rt: RT,
-    ) -> OtlpMetricPipeline<AS, TS, RT>
+    pub fn metrics<RT>(self, rt: RT) -> OtlpMetricPipeline<RT>
     where
-        AS: AggregatorSelector,
-        TS: TemporalitySelector + Clone,
         RT: Runtime,
     {
         OtlpMetricPipeline {
             rt,
-            aggregator_selector,
-            temporality_selector,
+            aggregator_selector: None,
+            temporality_selector: None,
             exporter_pipeline: None,
             resource: None,
             period: None,
@@ -89,7 +83,8 @@ impl MetricsExporterBuilder {
     /// Build a OTLP metrics exporter with given configuration.
     pub fn build_metrics_exporter(
         self,
-        temporality_selector: Box<dyn TemporalitySelector + Send + Sync>,
+        temporality_selector: Box<dyn TemporalitySelector>,
+        aggregation_selector: Box<dyn AggregationSelector>,
     ) -> Result<MetricsExporter> {
         match self {
             #[cfg(feature = "grpc-tonic")]
@@ -97,6 +92,7 @@ impl MetricsExporterBuilder {
                 builder.exporter_config,
                 builder.tonic_config,
                 temporality_selector,
+                aggregation_selector,
             )?),
         }
     }
@@ -112,20 +108,18 @@ impl From<TonicExporterBuilder> for MetricsExporterBuilder {
 ///
 /// Note that currently the OTLP metrics exporter only supports tonic as it's grpc layer and tokio as
 /// runtime.
-pub struct OtlpMetricPipeline<AS, TS, RT> {
+pub struct OtlpMetricPipeline<RT> {
     rt: RT,
-    aggregator_selector: AS,
-    temporality_selector: TS,
+    aggregator_selector: Option<Box<dyn AggregationSelector>>,
+    temporality_selector: Option<Box<dyn TemporalitySelector>>,
     exporter_pipeline: Option<MetricsExporterBuilder>,
     resource: Option<Resource>,
     period: Option<time::Duration>,
     timeout: Option<time::Duration>,
 }
 
-impl<AS, TS, RT> OtlpMetricPipeline<AS, TS, RT>
+impl<RT> OtlpMetricPipeline<RT>
 where
-    AS: AggregatorSelector + Send + Sync + 'static,
-    TS: TemporalitySelector + Clone + Send + Sync + 'static,
     RT: Runtime,
 {
     /// Build with resource key value pairs.
@@ -160,38 +154,60 @@ where
         }
     }
 
+    /// Build with the given temporality selector
+    pub fn with_temporality_selector<T: TemporalitySelector + 'static>(self, selector: T) -> Self {
+        OtlpMetricPipeline {
+            temporality_selector: Some(Box::new(selector)),
+            ..self
+        }
+    }
+
+    /// Build with the given aggregation selector
+    pub fn with_aggregation_selector<T: AggregationSelector + 'static>(self, selector: T) -> Self {
+        OtlpMetricPipeline {
+            aggregator_selector: Some(Box::new(selector)),
+            ..self
+        }
+    }
+
     /// Build push controller.
-    pub fn build(self) -> Result<BasicController> {
+    pub fn build(self) -> Result<MeterProvider> {
         let exporter = self
             .exporter_pipeline
             .ok_or(Error::NoExporterBuilder)?
-            .build_metrics_exporter(Box::new(self.temporality_selector.clone()))?;
+            .build_metrics_exporter(
+                self.temporality_selector
+                    .unwrap_or_else(|| Box::new(DefaultTemporalitySelector::new())),
+                self.aggregator_selector
+                    .unwrap_or_else(|| Box::new(DefaultAggregationSelector::new())),
+            )?;
 
-        let mut builder = controllers::basic(processors::factory(
-            self.aggregator_selector,
-            self.temporality_selector,
-        ))
-        .with_exporter(exporter);
+        let mut builder = PeriodicReader::builder(exporter, self.rt);
+
         if let Some(period) = self.period {
-            builder = builder.with_collect_period(period);
+            builder = builder.with_interval(period);
         }
         if let Some(timeout) = self.timeout {
-            builder = builder.with_collect_timeout(timeout)
+            builder = builder.with_timeout(timeout)
         }
+
+        let reader = builder.build();
+
+        let mut provider = MeterProvider::builder().with_reader(reader);
+
         if let Some(resource) = self.resource {
-            builder = builder.with_resource(resource);
+            provider = provider.with_resource(resource);
         }
 
-        let controller = builder.build();
-        controller.start(&Context::current(), self.rt)?;
+        let provider = provider.build();
 
-        global::set_meter_provider(controller.clone());
+        global::set_meter_provider(provider.clone());
 
-        Ok(controller)
+        Ok(provider)
     }
 }
 
-impl<AS, TS, RT> fmt::Debug for OtlpMetricPipeline<AS, TS, RT> {
+impl<RT> fmt::Debug for OtlpMetricPipeline<RT> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("OtlpMetricPipeline")
             .field("exporter_pipeline", &self.exporter_pipeline)
@@ -212,7 +228,8 @@ enum ExportMsg {
 pub struct MetricsExporter {
     #[cfg(feature = "tokio")]
     sender: Mutex<tokio::sync::mpsc::Sender<ExportMsg>>,
-    temporality_selector: Box<dyn TemporalitySelector + Send + Sync>,
+    temporality_selector: Box<dyn TemporalitySelector>,
+    aggregation_selector: Box<dyn AggregationSelector>,
     metadata: Option<tonic::metadata::MetadataMap>,
 }
 
@@ -226,8 +243,14 @@ impl Debug for MetricsExporter {
 }
 
 impl TemporalitySelector for MetricsExporter {
-    fn temporality_for(&self, descriptor: &Descriptor, kind: &AggregationKind) -> Temporality {
-        self.temporality_selector.temporality_for(descriptor, kind)
+    fn temporality(&self, kind: InstrumentKind) -> Temporality {
+        self.temporality_selector.temporality(kind)
+    }
+}
+
+impl AggregationSelector for MetricsExporter {
+    fn aggregation(&self, kind: InstrumentKind) -> Aggregation {
+        self.aggregation_selector.aggregation(kind)
     }
 }
 
@@ -237,7 +260,8 @@ impl MetricsExporter {
     pub fn new(
         config: ExportConfig,
         mut tonic_config: TonicConfig,
-        temporality_selector: Box<dyn TemporalitySelector + Send + Sync>,
+        temporality_selector: Box<dyn TemporalitySelector>,
+        aggregation_selector: Box<dyn AggregationSelector>,
     ) -> Result<MetricsExporter> {
         let endpoint = match std::env::var(OTEL_EXPORTER_OTLP_METRICS_ENDPOINT) {
             Ok(val) => val,
@@ -286,28 +310,16 @@ impl MetricsExporter {
         Ok(MetricsExporter {
             sender: Mutex::new(sender),
             temporality_selector,
+            aggregation_selector,
             metadata: tonic_config.metadata.take(),
         })
     }
 }
 
-impl metrics::MetricsExporter for MetricsExporter {
-    fn export(
-        &self,
-        _cx: &Context,
-        res: &Resource,
-        reader: &dyn InstrumentationLibraryReader,
-    ) -> Result<()> {
-        let mut resource_metrics: Vec<CheckpointedMetrics> = Vec::default();
-        // transform the metrics into proto. Append the resource and instrumentation library information into it.
-        reader.try_for_each(&mut |library, record| {
-            record.try_for_each(self, &mut |record| {
-                let metrics = record_to_metric(record, self.temporality_selector.as_ref())?;
-                resource_metrics.push((res.clone().into(), library.clone(), metrics));
-                Ok(())
-            })
-        })?;
-        let mut request = Request::new(sink(resource_metrics));
+#[async_trait]
+impl PushMetricsExporter for MetricsExporter {
+    async fn export(&self, metrics: &mut ResourceMetrics) -> Result<()> {
+        let mut request = Request::new(sink(metrics));
         if let Some(metadata) = &self.metadata {
             for key_and_value in metadata.iter() {
                 match key_and_value {
@@ -328,12 +340,16 @@ impl metrics::MetricsExporter for MetricsExporter {
             .map_err(|_| Error::PoisonedLock("otlp metric exporter's tonic sender"))?;
         Ok(())
     }
-}
 
-impl Drop for MetricsExporter {
-    fn drop(&mut self) {
-        let _sender_lock_guard = self.sender.lock().map(|sender| {
-            let _ = sender.try_send(ExportMsg::Shutdown);
-        });
+    async fn force_flush(&self) -> Result<()> {
+        // this component is stateless
+        Ok(())
+    }
+
+    async fn shutdown(&self) -> Result<()> {
+        let sender = self.sender.lock()?;
+        sender
+            .try_send(ExportMsg::Shutdown)
+            .map_err(|e| MetricsError::Other(format!("error shutting down otlp {e}")))
     }
 }

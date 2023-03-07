@@ -36,7 +36,8 @@ futures-util = { version = "0.3", default-features = false, features = ["std"] }
 opentelemetry-proto = { version = "0.2", path = "../opentelemetry-proto", default-features = false }
 
 grpcio = { version = "0.12", optional = true}
-opentelemetry = { version = "0.18", default-features = false, features = ["trace"], path = "../opentelemetry" }
+opentelemetry_api = { version = "0.18", default-features = false, path = "../opentelemetry-api" }
+opentelemetry_sdk = { version = "0.18", default-features = false, path = "../opentelemetry-sdk" }
 opentelemetry-http = { version = "0.7", path = "../opentelemetry-http", optional = true }
 protobuf = { version = "2.18", optional = true }
 
@@ -53,14 +54,14 @@ thiserror = "1.0"
 [dev-dependencies]
 tokio-stream = { version = "0.1", features = ["net"] }
 # need tokio runtime to run smoke tests.
-opentelemetry = { features = ["trace", "rt-tokio", "testing"], path = "../opentelemetry" }
+opentelemetry_sdk = { features = ["trace", "rt-tokio", "testing"], path = "../opentelemetry-sdk" }
 time = { version = "0.3", features = ["macros"] }
 tokio = { version = "1.0", features = ["macros", "rt-multi-thread"] }
 
 [features]
 # telemetry pillars and functions
-trace = ["opentelemetry/trace", "opentelemetry-proto/traces"]
-metrics = ["opentelemetry/metrics", "opentelemetry-proto/metrics", "grpc-tonic"]
+trace = ["opentelemetry_api/trace", "opentelemetry_sdk/trace", "opentelemetry-proto/traces"]
+metrics = ["opentelemetry_api/metrics", "opentelemetry_sdk/metrics", "opentelemetry-proto/metrics", "grpc-tonic"]
 
 # add ons
 serialize = ["serde"]

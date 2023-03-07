@@ -66,9 +66,6 @@ pub mod tonic {
     }
 
     pub use crate::transform::common::tonic::Attributes;
-
-    #[cfg(feature = "metrics")]
-    pub use crate::transform::metrics::tonic::FromNumber;
 }
 
 #[cfg(feature = "gen-protoc")]

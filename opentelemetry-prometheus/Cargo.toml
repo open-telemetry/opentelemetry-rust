@@ -20,13 +20,14 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-opentelemetry = { version = "0.18", path = "../opentelemetry", default-features = false, features = ["metrics"] }
+once_cell = "1.17"
+opentelemetry_api = { version = "0.18", path = "../opentelemetry-api", default-features = false, features = ["metrics"] }
+opentelemetry_sdk = { version = "0.18", path = "../opentelemetry-sdk", default-features = false, features = ["metrics"] }
 prometheus = "0.13"
 protobuf = "2.14"
 
 [dev-dependencies]
-opentelemetry = { path = "../opentelemetry", features = ["metrics", "testing"] }
-lazy_static = "1.4"
+opentelemetry-semantic-conventions = { path = "../opentelemetry-semantic-conventions" }
 
 [features]
 prometheus-encoding = []

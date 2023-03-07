@@ -1,218 +1,727 @@
-use opentelemetry::sdk::export::metrics::aggregation;
-use opentelemetry::sdk::metrics::{controllers, processors, selectors};
-use opentelemetry::sdk::Resource;
-use opentelemetry::Context;
-use opentelemetry::{metrics::MeterProvider, KeyValue};
-use opentelemetry_prometheus::{ExporterConfig, PrometheusExporter};
+use std::fs;
+use std::path::Path;
+use std::time::Duration;
+
+use opentelemetry_api::metrics::{Meter, MeterProvider as _, Unit};
+use opentelemetry_api::KeyValue;
+use opentelemetry_api::{Context, Key};
+use opentelemetry_prometheus::ExporterBuilder;
+use opentelemetry_sdk::metrics::{new_view, Aggregation, Instrument, MeterProvider, Stream};
+use opentelemetry_sdk::resource::{
+    EnvResourceDetector, SdkProvidedResourceDetector, TelemetryResourceDetector,
+};
+use opentelemetry_sdk::Resource;
+use opentelemetry_semantic_conventions::resource::{SERVICE_NAME, TELEMETRY_SDK_VERSION};
 use prometheus::{Encoder, TextEncoder};
 
 #[test]
-fn free_unused_instruments() {
-    let cx = Context::new();
-    let controller = controllers::basic(processors::factory(
-        selectors::simple::histogram(vec![-0.5, 1.0]),
-        aggregation::cumulative_temporality_selector(),
-    ))
-    .with_resource(Resource::new(vec![KeyValue::new("R", "V")]))
-    .build();
-    let exporter = opentelemetry_prometheus::exporter(controller).init();
-    let mut expected = Vec::new();
-
-    {
-        let meter =
-            exporter
-                .meter_provider()
-                .unwrap()
-                .versioned_meter("test", Some("v0.1.0"), None);
-        let counter = meter.f64_counter("counter").init();
-
-        let attributes = vec![KeyValue::new("A", "B"), KeyValue::new("C", "D")];
-
-        counter.add(&cx, 10.0, &attributes);
-        counter.add(&cx, 5.3, &attributes);
-
-        expected.push(r#"counter_total{A="B",C="D",R="V",otel_scope_name="test",otel_scope_version="v0.1.0"} 15.3"#);
-        expected.push(r#"otel_scope_info{otel_scope_name="test",otel_scope_version="v0.1.0"} 1"#);
+fn prometheus_exporter_integration() {
+    struct TestCase {
+        name: &'static str,
+        empty_resource: bool,
+        custom_resource_attrs: Vec<KeyValue>,
+        record_metrics: Box<dyn Fn(&Context, Meter)>,
+        builder: ExporterBuilder,
+        expected_file: &'static str,
     }
-    // Standard export
-    compare_export(&exporter, expected.clone());
-    // Final export before instrument dropped
-    compare_export(&exporter, expected.clone());
-    // Instrument dropped, but last value kept by prom exporter
-    compare_export(&exporter, expected);
-}
 
-#[test]
-fn test_add() {
-    let cx = Context::new();
-    let controller = controllers::basic(processors::factory(
-        selectors::simple::histogram(vec![-0.5, 1.0]),
-        aggregation::cumulative_temporality_selector(),
-    ))
-    .with_resource(Resource::new(vec![KeyValue::new("R", "V")]))
-    .build();
-    let exporter = opentelemetry_prometheus::exporter(controller)
-        .with_config(ExporterConfig::default().with_scope_info(false))
-        .init();
+    impl Default for TestCase {
+        fn default() -> Self {
+            TestCase {
+                name: "",
+                empty_resource: false,
+                custom_resource_attrs: Vec::new(),
+                record_metrics: Box::new(|_, _| {}),
+                builder: ExporterBuilder::default(),
+                expected_file: "",
+            }
+        }
+    }
 
-    let meter = exporter
-        .meter_provider()
-        .unwrap()
-        .versioned_meter("test", None, None);
+    let test_cases = vec![
+        TestCase {
+            name: "counter",
+            expected_file: "counter.txt",
+            record_metrics: Box::new(|cx, meter| {
+                let attrs = vec![
+                    Key::new("A").string("B"),
+                    Key::new("C").string("D"),
+                    Key::new("E").bool(true),
+                    Key::new("F").i64(42),
+                ];
+                let counter = meter
+                    .f64_counter("foo")
+                    .with_description("a simple counter")
+                    .with_unit(Unit::new("ms"))
+                    .init();
+                counter.add(cx, 5.0, &attrs);
+                counter.add(cx, 10.3, &attrs);
+                counter.add(cx, 9.0, &attrs);
+                let attrs2 = vec![
+                    Key::new("A").string("D"),
+                    Key::new("C").string("B"),
+                    Key::new("E").bool(true),
+                    Key::new("F").i64(42),
+                ];
+                counter.add(cx, 5.0, &attrs2);
+            }),
+            ..Default::default()
+        },
+        TestCase {
+            name: "gauge",
+            expected_file: "gauge.txt",
+            record_metrics: Box::new(|cx, meter| {
+                let attrs = vec![Key::new("A").string("B"), Key::new("C").string("D")];
+                let gauge = meter
+                    .f64_up_down_counter("bar")
+                    .with_description("a fun little gauge")
+                    .with_unit(Unit::new("1"))
+                    .init();
+                gauge.add(cx, 1.0, &attrs);
+                gauge.add(cx, -0.25, &attrs);
+            }),
+            ..Default::default()
+        },
+        TestCase {
+            name: "histogram",
+            expected_file: "histogram.txt",
+            record_metrics: Box::new(|cx, meter| {
+                let attrs = vec![Key::new("A").string("B"), Key::new("C").string("D")];
+                let histogram = meter
+                    .f64_histogram("histogram_baz")
+                    .with_description("a very nice histogram")
+                    .with_unit(Unit::new("By"))
+                    .init();
+                histogram.record(cx, 23.0, &attrs);
+                histogram.record(cx, 7.0, &attrs);
+                histogram.record(cx, 101.0, &attrs);
+                histogram.record(cx, 105.0, &attrs);
+            }),
+            ..Default::default()
+        },
+        TestCase {
+            name: "sanitized attributes to labels",
+            expected_file: "sanitized_labels.txt",
+            builder: ExporterBuilder::default().without_units(),
+            record_metrics: Box::new(|cx, meter| {
+                let attrs = vec![
+                    // exact match, value should be overwritten
+                    Key::new("A.B").string("X"),
+                    Key::new("A.B").string("Q"),
+                    // unintended match due to sanitization, values should be concatenated
+                    Key::new("C.D").string("Y"),
+                    Key::new("C/D").string("Z"),
+                ];
+                let counter = meter
+                    .f64_counter("foo")
+                    .with_description("a sanitary counter")
+                    // This unit is not added to
+                    .with_unit(Unit::new("By"))
+                    .init();
+                counter.add(cx, 5.0, &attrs);
+                counter.add(cx, 10.3, &attrs);
+                counter.add(cx, 9.0, &attrs);
+            }),
+            ..Default::default()
+        },
+        TestCase {
+            name: "invalid instruments are renamed",
+            expected_file: "sanitized_names.txt",
+            record_metrics: Box::new(|cx, meter| {
+                let attrs = vec![Key::new("A").string("B"), Key::new("C").string("D")];
+                // Valid.
+                let mut gauge = meter
+                    .f64_up_down_counter("bar")
+                    .with_description("a fun little gauge")
+                    .init();
+                gauge.add(cx, 100., &attrs);
+                gauge.add(cx, -25.0, &attrs);
 
-    let up_down_counter = meter.f64_up_down_counter("updowncounter").init();
-    let counter = meter.f64_counter("counter").init();
-    let histogram = meter.f64_histogram("my.histogram").init();
+                // Invalid, will be renamed.
+                gauge = meter
+                    .f64_up_down_counter("invalid.gauge.name")
+                    .with_description("a gauge with an invalid name")
+                    .init();
+                gauge.add(cx, 100.0, &attrs);
 
-    let attributes = vec![KeyValue::new("A", "B"), KeyValue::new("C", "D")];
+                let counter = meter
+                    .f64_counter("0invalid.counter.name")
+                    .with_description("a counter with an invalid name")
+                    .init();
+                counter.add(cx, 100.0, &attrs);
 
-    let mut expected = Vec::new();
-
-    counter.add(&cx, 10.0, &attributes);
-    counter.add(&cx, 5.3, &attributes);
-
-    expected.push(r#"counter_total{A="B",C="D",R="V"} 15.3"#);
-
-    let cb_attributes = attributes.clone();
-    let gauge = meter.i64_observable_gauge("intgauge").init();
-    meter
-        .register_callback(move |cx| gauge.observe(cx, 1, cb_attributes.as_ref()))
-        .unwrap();
-
-    expected.push(r#"intgauge{A="B",C="D",R="V"} 1"#);
-
-    histogram.record(&cx, -0.6, &attributes);
-    histogram.record(&cx, -0.4, &attributes);
-    histogram.record(&cx, 0.6, &attributes);
-    histogram.record(&cx, 20.0, &attributes);
-
-    expected.push(r#"my_histogram_bucket{A="B",C="D",R="V",le="+Inf"} 4"#);
-    expected.push(r#"my_histogram_bucket{A="B",C="D",R="V",le="-0.5"} 1"#);
-    expected.push(r#"my_histogram_bucket{A="B",C="D",R="V",le="1"} 3"#);
-    expected.push(r#"my_histogram_count{A="B",C="D",R="V"} 4"#);
-    expected.push(r#"my_histogram_sum{A="B",C="D",R="V"} 19.6"#);
-
-    up_down_counter.add(&cx, 10.0, &attributes);
-    up_down_counter.add(&cx, -3.2, &attributes);
-
-    expected.push(r#"updowncounter{A="B",C="D",R="V"} 6.8"#);
-
-    compare_export(&exporter, expected)
-}
-
-#[test]
-fn test_sanitization() {
-    let cx = Context::new();
-    let controller = controllers::basic(processors::factory(
-        selectors::simple::histogram(vec![-0.5, 1.0]),
-        aggregation::cumulative_temporality_selector(),
-    ))
-    .with_resource(Resource::new(vec![KeyValue::new(
-        "service.name",
-        "Test Service",
-    )]))
-    .build();
-    let exporter = opentelemetry_prometheus::exporter(controller)
-        .with_config(ExporterConfig::default().with_scope_info(false))
-        .init();
-    let meter = exporter
-        .meter_provider()
-        .unwrap()
-        .versioned_meter("test", None, None);
-
-    let histogram = meter.f64_histogram("http.server.duration").init();
-    let attributes = vec![
-        KeyValue::new("http.method", "GET"),
-        KeyValue::new("http.host", "server"),
+                let histogram = meter
+                    .f64_histogram("invalid.hist.name")
+                    .with_description("a histogram with an invalid name")
+                    .init();
+                histogram.record(cx, 23.0, &attrs);
+            }),
+            ..Default::default()
+        },
+        TestCase {
+            name: "empty resource",
+            empty_resource: true,
+            expected_file: "empty_resource.txt",
+            record_metrics: Box::new(|cx, meter| {
+                let attrs = vec![
+                    Key::new("A").string("B"),
+                    Key::new("C").string("D"),
+                    Key::new("E").bool(true),
+                    Key::new("F").i64(42),
+                ];
+                let counter = meter
+                    .f64_counter("foo")
+                    .with_description("a simple counter")
+                    .init();
+                counter.add(cx, 5.0, &attrs);
+                counter.add(cx, 10.3, &attrs);
+                counter.add(cx, 9.0, &attrs);
+            }),
+            ..Default::default()
+        },
+        TestCase {
+            name: "custom resource",
+            custom_resource_attrs: vec![Key::new("A").string("B"), Key::new("C").string("D")],
+            expected_file: "custom_resource.txt",
+            record_metrics: Box::new(|cx, meter| {
+                let attrs = vec![
+                    Key::new("A").string("B"),
+                    Key::new("C").string("D"),
+                    Key::new("E").bool(true),
+                    Key::new("F").i64(42),
+                ];
+                let counter = meter
+                    .f64_counter("foo")
+                    .with_description("a simple counter")
+                    .init();
+                counter.add(cx, 5., &attrs);
+                counter.add(cx, 10.3, &attrs);
+                counter.add(cx, 9.0, &attrs);
+            }),
+            ..Default::default()
+        },
+        TestCase {
+            name: "without target_info",
+            builder: ExporterBuilder::default().without_target_info(),
+            expected_file: "without_target_info.txt",
+            record_metrics: Box::new(|cx, meter| {
+                let attrs = vec![
+                    Key::new("A").string("B"),
+                    Key::new("C").string("D"),
+                    Key::new("E").bool(true),
+                    Key::new("F").i64(42),
+                ];
+                let counter = meter
+                    .f64_counter("foo")
+                    .with_description("a simple counter")
+                    .init();
+                counter.add(cx, 5.0, &attrs);
+                counter.add(cx, 10.3, &attrs);
+                counter.add(cx, 9.0, &attrs);
+            }),
+            ..Default::default()
+        },
+        TestCase {
+            name: "without scope_info",
+            builder: ExporterBuilder::default().without_scope_info(),
+            expected_file: "without_scope_info.txt",
+            record_metrics: Box::new(|cx, meter| {
+                let attrs = vec![Key::new("A").string("B"), Key::new("C").string("D")];
+                let gauge = meter
+                    .i64_up_down_counter("bar")
+                    .with_description("a fun little gauge")
+                    .with_unit(Unit::new("1"))
+                    .init();
+                gauge.add(cx, 2, &attrs);
+                gauge.add(cx, -1, &attrs);
+            }),
+            ..Default::default()
+        },
+        TestCase {
+            name: "without scope_info and target_info",
+            builder: ExporterBuilder::default()
+                .without_scope_info()
+                .without_target_info(),
+            expected_file: "without_scope_and_target_info.txt",
+            record_metrics: Box::new(|cx, meter| {
+                let attrs = vec![Key::new("A").string("B"), Key::new("C").string("D")];
+                let counter = meter
+                    .u64_counter("bar")
+                    .with_description("a fun little counter")
+                    .with_unit(Unit::new("By"))
+                    .init();
+                counter.add(cx, 2, &attrs);
+                counter.add(cx, 1, &attrs);
+            }),
+            ..Default::default()
+        },
     ];
-    histogram.record(&cx, -0.6, &attributes);
-    histogram.record(&cx, -0.4, &attributes);
-    histogram.record(&cx, 0.6, &attributes);
-    histogram.record(&cx, 20.0, &attributes);
 
-    let expected = vec![
-        r#"http_server_duration_bucket{http_host="server",http_method="GET",service_name="Test Service",le="+Inf"} 4"#,
-        r#"http_server_duration_bucket{http_host="server",http_method="GET",service_name="Test Service",le="-0.5"} 1"#,
-        r#"http_server_duration_bucket{http_host="server",http_method="GET",service_name="Test Service",le="1"} 3"#,
-        r#"http_server_duration_count{http_host="server",http_method="GET",service_name="Test Service"} 4"#,
-        r#"http_server_duration_sum{http_host="server",http_method="GET",service_name="Test Service"} 19.6"#,
-    ];
-    compare_export(&exporter, expected)
+    for tc in test_cases {
+        let cx = Context::default();
+        let registry = prometheus::Registry::new();
+        let exporter = tc
+            .builder
+            .with_registry(registry.clone())
+            .build()
+            .expect(&format!("exporter init for {}", tc.name));
+
+        let res = if tc.empty_resource {
+            Resource::empty()
+        } else {
+            Resource::from_detectors(
+                Duration::from_secs(0),
+                vec![
+                    Box::new(SdkProvidedResourceDetector),
+                    Box::new(EnvResourceDetector::new()),
+                    Box::new(TelemetryResourceDetector),
+                ],
+            )
+            .merge(&mut Resource::new(
+                vec![
+                    // always specify service.name because the default depends on the running OS
+                    SERVICE_NAME.string("prometheus_test"),
+                    // Overwrite the semconv.TelemetrySDKVersionKey value so we don't need to update every version
+                    TELEMETRY_SDK_VERSION.string("latest"),
+                ]
+                .into_iter()
+                .chain(tc.custom_resource_attrs.into_iter()),
+            ))
+        };
+
+        let provider = MeterProvider::builder()
+            .with_resource(res)
+            .with_reader(exporter)
+            .with_view(
+                new_view(
+                    Instrument::new().name("histogram_*"),
+                    Stream::new().aggregation(Aggregation::ExplicitBucketHistogram {
+                        boundaries: vec![
+                            0.0, 5.0, 10.0, 25.0, 50.0, 75.0, 100.0, 250.0, 500.0, 1000.0,
+                        ],
+                        no_min_max: false,
+                    }),
+                )
+                .unwrap(),
+            )
+            .build();
+        let meter = provider.versioned_meter("testmeter", Some("v0.1.0"), None);
+        (tc.record_metrics)(&cx, meter);
+
+        let content = fs::read_to_string(Path::new("./tests/data").join(tc.expected_file))
+            .expect(tc.expected_file);
+        gather_and_compare(registry, content, tc.name);
+    }
 }
 
-#[test]
-fn test_scope_info() {
-    let cx = Context::new();
-    let controller = controllers::basic(processors::factory(
-        selectors::simple::histogram(vec![-0.5, 1.0]),
-        aggregation::cumulative_temporality_selector(),
-    ))
-    .with_resource(Resource::new(vec![KeyValue::new("R", "V")]))
-    .build();
-    let exporter = opentelemetry_prometheus::exporter(controller).init();
-
-    let meter = exporter
-        .meter_provider()
-        .unwrap()
-        .versioned_meter("test", Some("v0.1.0"), None);
-
-    let up_down_counter = meter.f64_up_down_counter("updowncounter").init();
-    let counter = meter.f64_counter("counter").init();
-    let histogram = meter.f64_histogram("my.histogram").init();
-
-    let attributes = vec![KeyValue::new("A", "B"), KeyValue::new("C", "D")];
-
-    let mut expected = Vec::new();
-
-    counter.add(&cx, 10.0, &attributes);
-    counter.add(&cx, 5.3, &attributes);
-
-    expected.push(r#"counter_total{A="B",C="D",R="V",otel_scope_name="test",otel_scope_version="v0.1.0"} 15.3"#);
-
-    let cb_attributes = attributes.clone();
-    let gauge = meter.i64_observable_gauge("intgauge").init();
-    meter
-        .register_callback(move |cx| gauge.observe(cx, 1, cb_attributes.as_ref()))
-        .unwrap();
-
-    expected.push(
-        r#"intgauge{A="B",C="D",R="V",otel_scope_name="test",otel_scope_version="v0.1.0"} 1"#,
-    );
-
-    histogram.record(&cx, -0.6, &attributes);
-    histogram.record(&cx, -0.4, &attributes);
-    histogram.record(&cx, 0.6, &attributes);
-    histogram.record(&cx, 20.0, &attributes);
-
-    expected.push(r#"my_histogram_bucket{A="B",C="D",R="V",otel_scope_name="test",otel_scope_version="v0.1.0",le="+Inf"} 4"#);
-    expected.push(r#"my_histogram_bucket{A="B",C="D",R="V",otel_scope_name="test",otel_scope_version="v0.1.0",le="-0.5"} 1"#);
-    expected.push(r#"my_histogram_bucket{A="B",C="D",R="V",otel_scope_name="test",otel_scope_version="v0.1.0",le="1"} 3"#);
-    expected.push(r#"my_histogram_count{A="B",C="D",R="V",otel_scope_name="test",otel_scope_version="v0.1.0"} 4"#);
-    expected.push(r#"my_histogram_sum{A="B",C="D",R="V",otel_scope_name="test",otel_scope_version="v0.1.0"} 19.6"#);
-
-    up_down_counter.add(&cx, 10.0, &attributes);
-    up_down_counter.add(&cx, -3.2, &attributes);
-
-    expected.push(r#"updowncounter{A="B",C="D",R="V",otel_scope_name="test",otel_scope_version="v0.1.0"} 6.8"#);
-    expected.push(r#"otel_scope_info{otel_scope_name="test",otel_scope_version="v0.1.0"} 1"#);
-
-    compare_export(&exporter, expected)
-}
-
-fn compare_export(exporter: &PrometheusExporter, mut expected: Vec<&'static str>) {
+fn gather_and_compare(registry: prometheus::Registry, expected: String, name: &'static str) {
     let mut output = Vec::new();
     let encoder = TextEncoder::new();
-    let metric_families = exporter.registry().gather();
+    let metric_families = registry.gather();
     encoder.encode(&metric_families, &mut output).unwrap();
     let output_string = String::from_utf8(output).unwrap();
 
-    let mut metrics_only = output_string
-        .split_terminator('\n')
-        .filter(|line| !line.starts_with('#') && !line.is_empty())
-        .collect::<Vec<_>>();
+    assert_eq!(output_string, expected, "{name}");
+}
 
-    metrics_only.sort_unstable();
-    expected.sort_unstable();
+#[test]
+fn multiple_scopes() {
+    let cx = Context::new();
+    let registry = prometheus::Registry::new();
+    let exporter = ExporterBuilder::default()
+        .with_registry(registry.clone())
+        .build()
+        .unwrap();
 
-    assert_eq!(expected.join("\n"), metrics_only.join("\n"))
+    let resource = Resource::from_detectors(
+        Duration::from_secs(0),
+        vec![
+            Box::new(SdkProvidedResourceDetector),
+            Box::new(EnvResourceDetector::new()),
+            Box::new(TelemetryResourceDetector),
+        ],
+    )
+    .merge(&mut Resource::new(
+        vec![
+            // always specify service.name because the default depends on the running OS
+            SERVICE_NAME.string("prometheus_test"),
+            // Overwrite the semconv.TelemetrySDKVersionKey value so we don't need to update every version
+            TELEMETRY_SDK_VERSION.string("latest"),
+        ]
+        .into_iter(),
+    ));
+
+    let provider = MeterProvider::builder()
+        .with_reader(exporter)
+        .with_resource(resource)
+        .build();
+
+    let foo_counter = provider
+        .versioned_meter("meterfoo", Some("v0.1.0"), None)
+        .u64_counter("foo")
+        .with_unit(Unit::new("ms"))
+        .with_description("meter foo counter")
+        .init();
+    foo_counter.add(&cx, 100, &[KeyValue::new("type", "foo")]);
+
+    let bar_counter = provider
+        .versioned_meter("meterbar", Some("v0.1.0"), None)
+        .u64_counter("bar")
+        .with_unit(Unit::new("ms"))
+        .with_description("meter bar counter")
+        .init();
+    bar_counter.add(&cx, 200, &[KeyValue::new("type", "bar")]);
+
+    let content = fs::read_to_string("./tests/data/multi_scopes.txt").unwrap();
+    gather_and_compare(registry, content, "multi_scope");
+}
+
+#[test]
+fn duplicate_metrics() {
+    struct TestCase {
+        name: &'static str,
+        custom_resource_attrs: Vec<KeyValue>,
+        record_metrics: Box<dyn Fn(&Context, Meter, Meter)>,
+        builder: ExporterBuilder,
+        expected_files: Vec<&'static str>,
+    }
+
+    impl Default for TestCase {
+        fn default() -> Self {
+            TestCase {
+                name: "",
+                custom_resource_attrs: Vec::new(),
+                record_metrics: Box::new(|_, _, _| {}),
+                builder: ExporterBuilder::default(),
+                expected_files: Vec::new(),
+            }
+        }
+    }
+
+    let test_cases = vec![
+        TestCase {
+            name: "no_conflict_two_counters",
+            record_metrics: Box::new(|cx, meter_a, meter_b| {
+                let foo_a = meter_a
+                    .u64_counter("foo")
+                    .with_unit(Unit::new("By"))
+                    .with_description("meter counter foo")
+                    .init();
+
+                foo_a.add(cx, 100, &[KeyValue::new("A", "B")]);
+
+                let foo_b = meter_b
+                    .u64_counter("foo")
+                    .with_unit(Unit::new("By"))
+                    .with_description("meter counter foo")
+                    .init();
+
+                foo_b.add(cx, 100, &[KeyValue::new("A", "B")]);
+            }),
+            expected_files: vec!["no_conflict_two_counters.txt"],
+            ..Default::default()
+        },
+        TestCase {
+            name: "no_conflict_two_updowncounters",
+            record_metrics: Box::new(|cx, meter_a, meter_b| {
+                let foo_a = meter_a
+                    .i64_up_down_counter("foo")
+                    .with_unit(Unit::new("By"))
+                    .with_description("meter gauge foo")
+                    .init();
+
+                foo_a.add(cx, 100, &[KeyValue::new("A", "B")]);
+
+                let foo_b = meter_b
+                    .i64_up_down_counter("foo")
+                    .with_unit(Unit::new("By"))
+                    .with_description("meter gauge foo")
+                    .init();
+
+                foo_b.add(cx, 100, &[KeyValue::new("A", "B")]);
+            }),
+            expected_files: vec!["no_conflict_two_updowncounters.txt"],
+            ..Default::default()
+        },
+        TestCase {
+            name: "no_conflict_two_histograms",
+            record_metrics: Box::new(|cx, meter_a, meter_b| {
+                let foo_a = meter_a
+                    .i64_histogram("foo")
+                    .with_unit(Unit::new("By"))
+                    .with_description("meter histogram foo")
+                    .init();
+
+                foo_a.record(cx, 100, &[KeyValue::new("A", "B")]);
+
+                let foo_b = meter_b
+                    .i64_histogram("foo")
+                    .with_unit(Unit::new("By"))
+                    .with_description("meter histogram foo")
+                    .init();
+
+                foo_b.record(cx, 100, &[KeyValue::new("A", "B")]);
+            }),
+            expected_files: vec!["no_conflict_two_histograms.txt"],
+            ..Default::default()
+        },
+        TestCase {
+            name: "conflict_help_two_counters",
+            record_metrics: Box::new(|cx, meter_a, meter_b| {
+                let bar_a = meter_a
+                    .u64_counter("bar")
+                    .with_unit(Unit::new("By"))
+                    .with_description("meter a bar")
+                    .init();
+
+                bar_a.add(cx, 100, &[KeyValue::new("type", "bar")]);
+
+                let bar_b = meter_b
+                    .u64_counter("bar")
+                    .with_unit(Unit::new("By"))
+                    .with_description("meter b bar")
+                    .init();
+
+                bar_b.add(cx, 100, &[KeyValue::new("type", "bar")]);
+            }),
+            expected_files: vec![
+                "conflict_help_two_counters_1.txt",
+                "conflict_help_two_counters_2.txt",
+            ],
+            ..Default::default()
+        },
+        TestCase {
+            name: "conflict_help_two_updowncounters",
+            record_metrics: Box::new(|cx, meter_a, meter_b| {
+                let bar_a = meter_a
+                    .i64_up_down_counter("bar")
+                    .with_unit(Unit::new("By"))
+                    .with_description("meter a bar")
+                    .init();
+
+                bar_a.add(cx, 100, &[KeyValue::new("type", "bar")]);
+
+                let bar_b = meter_b
+                    .i64_up_down_counter("bar")
+                    .with_unit(Unit::new("By"))
+                    .with_description("meter b bar")
+                    .init();
+
+                bar_b.add(cx, 100, &[KeyValue::new("type", "bar")]);
+            }),
+            expected_files: vec![
+                "conflict_help_two_updowncounters_1.txt",
+                "conflict_help_two_updowncounters_2.txt",
+            ],
+            ..Default::default()
+        },
+        TestCase {
+            name: "conflict_help_two_histograms",
+            record_metrics: Box::new(|cx, meter_a, meter_b| {
+                let bar_a = meter_a
+                    .i64_histogram("bar")
+                    .with_unit(Unit::new("By"))
+                    .with_description("meter a bar")
+                    .init();
+
+                bar_a.record(cx, 100, &[KeyValue::new("A", "B")]);
+
+                let bar_b = meter_b
+                    .i64_histogram("bar")
+                    .with_unit(Unit::new("By"))
+                    .with_description("meter b bar")
+                    .init();
+
+                bar_b.record(cx, 100, &[KeyValue::new("A", "B")]);
+            }),
+            expected_files: vec![
+                "conflict_help_two_histograms_1.txt",
+                "conflict_help_two_histograms_2.txt",
+            ],
+            ..Default::default()
+        },
+        TestCase {
+            name: "conflict_unit_two_counters",
+            record_metrics: Box::new(|cx, meter_a, meter_b| {
+                let baz_a = meter_a
+                    .u64_counter("bar")
+                    .with_unit(Unit::new("By"))
+                    .with_description("meter bar")
+                    .init();
+
+                baz_a.add(cx, 100, &[KeyValue::new("type", "bar")]);
+
+                let baz_b = meter_b
+                    .u64_counter("bar")
+                    .with_unit(Unit::new("ms"))
+                    .with_description("meter bar")
+                    .init();
+
+                baz_b.add(cx, 100, &[KeyValue::new("type", "bar")]);
+            }),
+            builder: ExporterBuilder::default().without_units(),
+            expected_files: vec!["conflict_unit_two_counters.txt"],
+            ..Default::default()
+        },
+        TestCase {
+            name: "conflict_unit_two_updowncounters",
+            record_metrics: Box::new(|cx, meter_a, meter_b| {
+                let bar_a = meter_a
+                    .i64_up_down_counter("bar")
+                    .with_unit(Unit::new("By"))
+                    .with_description("meter gauge bar")
+                    .init();
+
+                bar_a.add(cx, 100, &[KeyValue::new("type", "bar")]);
+
+                let bar_b = meter_b
+                    .i64_up_down_counter("bar")
+                    .with_unit(Unit::new("ms"))
+                    .with_description("meter gauge bar")
+                    .init();
+
+                bar_b.add(cx, 100, &[KeyValue::new("type", "bar")]);
+            }),
+            builder: ExporterBuilder::default().without_units(),
+            expected_files: vec!["conflict_unit_two_updowncounters.txt"],
+            ..Default::default()
+        },
+        TestCase {
+            name: "conflict_unit_two_histograms",
+            record_metrics: Box::new(|cx, meter_a, meter_b| {
+                let bar_a = meter_a
+                    .i64_histogram("bar")
+                    .with_unit(Unit::new("By"))
+                    .with_description("meter histogram bar")
+                    .init();
+
+                bar_a.record(cx, 100, &[KeyValue::new("A", "B")]);
+
+                let bar_b = meter_b
+                    .i64_histogram("bar")
+                    .with_unit(Unit::new("ms"))
+                    .with_description("meter histogram bar")
+                    .init();
+
+                bar_b.record(cx, 100, &[KeyValue::new("A", "B")]);
+            }),
+            builder: ExporterBuilder::default().without_units(),
+            expected_files: vec!["conflict_unit_two_histograms.txt"],
+            ..Default::default()
+        },
+        TestCase {
+            name: "conflict_type_counter_and_updowncounter",
+            record_metrics: Box::new(|cx, meter_a, _meter_b| {
+                let counter = meter_a
+                    .u64_counter("foo")
+                    .with_unit(Unit::new("By"))
+                    .with_description("meter foo")
+                    .init();
+
+                counter.add(cx, 100, &[KeyValue::new("type", "foo")]);
+
+                let gauge = meter_a
+                    .i64_up_down_counter("foo_total")
+                    .with_unit(Unit::new("By"))
+                    .with_description("meter foo")
+                    .init();
+
+                gauge.add(cx, 200, &[KeyValue::new("type", "foo")]);
+            }),
+            builder: ExporterBuilder::default().without_units(),
+            expected_files: vec![
+                "conflict_type_counter_and_updowncounter_1.txt",
+                "conflict_type_counter_and_updowncounter_2.txt",
+            ],
+            ..Default::default()
+        },
+        TestCase {
+            name: "conflict_type_histogram_and_updowncounter",
+            record_metrics: Box::new(|cx, meter_a, _meter_b| {
+                let foo_a = meter_a
+                    .i64_up_down_counter("foo")
+                    .with_unit(Unit::new("By"))
+                    .with_description("meter gauge foo")
+                    .init();
+
+                foo_a.add(cx, 100, &[KeyValue::new("A", "B")]);
+
+                let foo_histogram_a = meter_a
+                    .i64_histogram("foo")
+                    .with_unit(Unit::new("By"))
+                    .with_description("meter histogram foo")
+                    .init();
+
+                foo_histogram_a.record(cx, 100, &[KeyValue::new("A", "B")]);
+            }),
+            expected_files: vec![
+                "conflict_type_histogram_and_updowncounter_1.txt",
+                "conflict_type_histogram_and_updowncounter_2.txt",
+            ],
+            ..Default::default()
+        },
+    ];
+
+    for tc in test_cases {
+        let cx = Context::default();
+        let registry = prometheus::Registry::new();
+        let exporter = tc
+            .builder
+            .with_registry(registry.clone())
+            .build()
+            .expect(&format!("exporter init for {}", tc.name));
+
+        let resource = Resource::from_detectors(
+            Duration::from_secs(0),
+            vec![
+                Box::new(SdkProvidedResourceDetector),
+                Box::new(EnvResourceDetector::new()),
+                Box::new(TelemetryResourceDetector),
+            ],
+        )
+        .merge(&mut Resource::new(
+            vec![
+                // always specify service.name because the default depends on the running OS
+                SERVICE_NAME.string("prometheus_test"),
+                // Overwrite the semconv.TelemetrySDKVersionKey value so we don't need to update every version
+                TELEMETRY_SDK_VERSION.string("latest"),
+            ]
+            .into_iter()
+            .chain(tc.custom_resource_attrs.into_iter()),
+        ));
+
+        let provider = MeterProvider::builder()
+            .with_resource(resource)
+            .with_reader(exporter)
+            .build();
+
+        let meter_a = provider.versioned_meter("ma", Some("v0.1.0"), None);
+        let meter_b = provider.versioned_meter("mb", Some("v0.1.0"), None);
+
+        (tc.record_metrics)(&cx, meter_a, meter_b);
+
+        let possible_matches = tc
+            .expected_files
+            .into_iter()
+            .map(|f| fs::read_to_string(Path::new("./tests/data").join(f)).expect(f))
+            .collect();
+        gather_and_compare_multi(registry, possible_matches, tc.name);
+    }
+}
+
+fn gather_and_compare_multi(
+    registry: prometheus::Registry,
+    expected: Vec<String>,
+    name: &'static str,
+) {
+    let mut output = Vec::new();
+    let encoder = TextEncoder::new();
+    let metric_families = registry.gather();
+    encoder.encode(&metric_families, &mut output).unwrap();
+    let output_string = String::from_utf8(output).unwrap();
+
+    assert!(
+        expected.contains(&output_string),
+        "mismatched output in {name}"
+    )
 }

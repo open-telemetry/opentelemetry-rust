@@ -85,10 +85,10 @@
 //! on the choice of exporters.
 //!
 //! ```no_run
-//! use opentelemetry::{KeyValue, trace::Tracer};
-//! use opentelemetry::sdk::{trace::{self, RandomIdGenerator, Sampler}, Resource};
-//! use opentelemetry::sdk::metrics::{selectors, PushController};
-//! use opentelemetry::sdk::util::tokio_interval_stream;
+//! use opentelemetry_api::{KeyValue, trace::Tracer};
+//! use opentelemetry_sdk::{trace::{self, RandomIdGenerator, Sampler}, Resource};
+//! use opentelemetry_sdk::metrics::{selectors, PushController};
+//! use opentelemetry_sdk::util::tokio_interval_stream;
 //! use opentelemetry_otlp::{Protocol, WithExportConfig, ExportConfig};
 //! use std::time::Duration;
 //! use tonic::metadata::*;
@@ -207,7 +207,7 @@ pub use crate::exporter::{
     OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT,
 };
 
-use opentelemetry::sdk::export::ExportError;
+use opentelemetry_sdk::export::ExportError;
 #[cfg(feature = "metrics")]
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 

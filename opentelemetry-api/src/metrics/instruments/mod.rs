@@ -1,7 +1,11 @@
 use crate::metrics::{Meter, MetricsError, Result, Unit};
+use crate::{global, Context, KeyValue};
 use core::fmt;
+use std::any::Any;
+use std::borrow::Cow;
 use std::convert::TryFrom;
 use std::marker;
+use std::sync::Arc;
 
 pub(super) mod counter;
 pub(super) mod gauge;
@@ -18,11 +22,22 @@ const INSTRUMENT_NAME_FIRST_ALPHABETIC: &str =
 const INSTRUMENT_UNIT_LENGTH: &str = "instrument unit must be less than 64 characters";
 const INSTRUMENT_UNIT_INVALID_CHAR: &str = "characters in instrument unit must be ASCII";
 
-/// Configuration for building an instrument.
+/// An SDK implemented instrument that records measurements via callback.
+pub trait AsyncInstrument<T>: Send + Sync {
+    /// Observes the state of the instrument.
+    ///
+    /// It is only valid to call this within a callback.
+    fn observe(&self, cx: &Context, measurement: T, attributes: &[KeyValue]);
+
+    /// Used for SDKs to downcast instruments in callbacks.
+    fn as_any(&self) -> Arc<dyn Any>;
+}
+
+/// Configuration for building a sync instrument.
 pub struct InstrumentBuilder<'a, T> {
     meter: &'a Meter,
-    name: String,
-    description: Option<String>,
+    name: Cow<'static, str>,
+    description: Option<Cow<'static, str>>,
     unit: Option<Unit>,
     _marker: marker::PhantomData<T>,
 }
@@ -32,7 +47,7 @@ where
     T: TryFrom<Self, Error = MetricsError>,
 {
     /// Create a new instrument builder
-    pub(crate) fn new(meter: &'a Meter, name: String) -> Self {
+    pub(crate) fn new(meter: &'a Meter, name: Cow<'static, str>) -> Self {
         InstrumentBuilder {
             meter,
             name,
@@ -43,7 +58,7 @@ where
     }
 
     /// Set the description for this instrument
-    pub fn with_description<S: Into<String>>(mut self, description: S) -> Self {
+    pub fn with_description<S: Into<Cow<'static, str>>>(mut self, description: S) -> Self {
         self.description = Some(description.into());
         self
     }
@@ -69,12 +84,18 @@ where
 
     /// Creates a new instrument.
     ///
+    /// This method reports configuration errors but still returns the instrument.
+    ///
     /// # Panics
     ///
-    /// This function panics if the instrument configuration is invalid or the instrument cannot be created. Use [`try_init`](InstrumentBuilder::try_init) if you want to
-    /// handle errors.
+    /// Panics if the instrument cannot be created. Use
+    /// [`try_init`](InstrumentBuilder::try_init) if you want to handle errors.
     pub fn init(self) -> T {
-        self.try_init().unwrap()
+        if let Err(err) = self.validate_instrument_config() {
+            global::handle_error(MetricsError::InvalidInstrumentConfiguration(err));
+        }
+
+        T::try_from(self).unwrap()
     }
 
     fn validate_instrument_config(&self) -> std::result::Result<(), &'static str> {
@@ -119,6 +140,141 @@ impl<T> fmt::Debug for InstrumentBuilder<'_, T> {
     }
 }
 
+/// A function registered with a [Meter] that makes observations for the
+/// instruments it is registered with.
+///
+/// The async instrument parameter is used to record measurement observations
+/// for these instruments.
+///
+/// The function needs to complete in a finite amount of time.
+pub type Callback<T> = Box<dyn Fn(&Context, &dyn AsyncInstrument<T>) + Send + Sync>;
+
+/// Configuration for building an async instrument.
+pub struct AsyncInstrumentBuilder<'a, I, M>
+where
+    I: AsyncInstrument<M>,
+{
+    meter: &'a Meter,
+    name: Cow<'static, str>,
+    description: Option<Cow<'static, str>>,
+    unit: Option<Unit>,
+    _inst: marker::PhantomData<I>,
+    callback: Option<Callback<M>>,
+}
+
+impl<'a, I, M> AsyncInstrumentBuilder<'a, I, M>
+where
+    I: TryFrom<Self, Error = MetricsError>,
+    I: AsyncInstrument<M>,
+{
+    /// Create a new instrument builder
+    pub(crate) fn new(meter: &'a Meter, name: Cow<'static, str>) -> Self {
+        AsyncInstrumentBuilder {
+            meter,
+            name,
+            description: None,
+            unit: None,
+            _inst: marker::PhantomData,
+            callback: None,
+        }
+    }
+
+    /// Set the description for this instrument
+    pub fn with_description<S: Into<Cow<'static, str>>>(mut self, description: S) -> Self {
+        self.description = Some(description.into());
+        self
+    }
+
+    /// Set the unit for this instrument.
+    ///
+    /// Unit is case sensitive(`kb` is not the same as `kB`).
+    ///
+    /// Unit must be:
+    /// - ASCII string
+    /// - No longer than 63 characters
+    pub fn with_unit(mut self, unit: Unit) -> Self {
+        self.unit = Some(unit);
+        self
+    }
+
+    /// Set the callback to be called for this instrument.
+    pub fn with_callback<F>(mut self, callback: F) -> Self
+    where
+        F: Fn(&Context, &dyn AsyncInstrument<M>) + Send + Sync + 'static,
+    {
+        self.callback = Some(Box::new(callback));
+        self
+    }
+
+    /// Validate the instrument configuration and creates a new instrument.
+    pub fn try_init(self) -> Result<I> {
+        self.validate_instrument_config()
+            .map_err(MetricsError::InvalidInstrumentConfiguration)?;
+        I::try_from(self)
+    }
+
+    /// Creates a new instrument.
+    ///
+    /// This method reports configuration errors but still returns the instrument.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the instrument cannot be created. Use
+    /// [`try_init`](InstrumentBuilder::try_init) if you want to handle errors.
+    pub fn init(self) -> I {
+        if let Err(err) = self.validate_instrument_config() {
+            global::handle_error(MetricsError::InvalidInstrumentConfiguration(err));
+        }
+
+        I::try_from(self).unwrap()
+    }
+
+    fn validate_instrument_config(&self) -> std::result::Result<(), &'static str> {
+        // validate instrument name
+        if self.name.is_empty() {
+            return Err(INSTRUMENT_NAME_EMPTY);
+        }
+        if self.name.len() > 63 {
+            return Err(INSTRUMENT_NAME_LENGTH);
+        }
+        if self.name.starts_with(|c: char| !c.is_ascii_alphabetic()) {
+            return Err(INSTRUMENT_NAME_FIRST_ALPHABETIC);
+        }
+        if self
+            .name
+            .contains(|c: char| !c.is_ascii_alphanumeric() && c != '_' && c != '.' && c != '-')
+        {
+            return Err(INSTRUMENT_NAME_INVALID_CHAR);
+        }
+
+        // validate instrument unit
+        if let Some(unit) = &self.unit {
+            if unit.as_str().len() > 63 {
+                return Err(INSTRUMENT_UNIT_LENGTH);
+            }
+            if unit.as_str().contains(|c: char| !c.is_ascii()) {
+                return Err(INSTRUMENT_UNIT_INVALID_CHAR);
+            }
+        }
+        Ok(())
+    }
+}
+
+impl<I, M> fmt::Debug for AsyncInstrumentBuilder<'_, I, M>
+where
+    I: AsyncInstrument<M>,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("InstrumentBuilder")
+            .field("name", &self.name)
+            .field("description", &self.description)
+            .field("unit", &self.unit)
+            .field("kind", &std::any::type_name::<I>())
+            .field("callback_present", &self.callback.is_some())
+            .finish()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::metrics::instruments::{
@@ -153,7 +309,7 @@ mod tests {
         ];
         for (name, expected_error) in instrument_name_test_cases {
             let builder: InstrumentBuilder<'_, Counter<u64>> =
-                InstrumentBuilder::new(&meter, name.to_string());
+                InstrumentBuilder::new(&meter, name.into());
             if expected_error.is_empty() {
                 assert!(builder.validate_instrument_config().is_ok());
             } else {
@@ -176,7 +332,7 @@ mod tests {
 
         for (unit, expected_error) in instrument_unit_test_cases {
             let builder: InstrumentBuilder<'_, Counter<u64>> =
-                InstrumentBuilder::new(&meter, "test".to_string()).with_unit(Unit::new(unit));
+                InstrumentBuilder::new(&meter, "test".into()).with_unit(Unit::new(unit));
             if expected_error.is_empty() {
                 assert!(builder.validate_instrument_config().is_ok());
             } else {

@@ -3,10 +3,10 @@ use opentelemetry_proto::tonic::{common::v1::KeyValue, resource::v1::Resource};
 use std::cmp::Ordering;
 
 #[derive(PartialEq)]
-pub(crate) struct ResourceWrapper(opentelemetry::sdk::Resource);
+pub(crate) struct ResourceWrapper(opentelemetry_sdk::Resource);
 
-impl From<opentelemetry::sdk::Resource> for ResourceWrapper {
-    fn from(r: opentelemetry::sdk::Resource) -> Self {
+impl From<opentelemetry_sdk::Resource> for ResourceWrapper {
+    fn from(r: opentelemetry_sdk::Resource) -> Self {
         ResourceWrapper(r)
     }
 }

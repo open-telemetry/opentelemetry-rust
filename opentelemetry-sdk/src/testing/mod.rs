@@ -1,2 +1,2 @@
-pub mod metric;
+#[cfg(all(feature = "testing", feature = "trace"))]
 pub mod trace;
