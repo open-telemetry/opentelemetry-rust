@@ -13,7 +13,7 @@ categories = [
 keywords = ["opentelemetry", "metrics", "dynatrace"]
 license = "Apache-2.0"
 edition = "2021"
-rust-version = "1.57"
+rust-version = "1.60"
 
 [package.metadata.docs.rs]
 all-features = true
@@ -50,7 +50,7 @@ wasm = [
 
 [dependencies]
 async-std = { version = "= 1.10.0", features = ["unstable"], optional = true }
-base64 = { version = "0.13", optional = true }
+base64 = { version = "0.21", optional = true }
 futures = "0.3"
 futures-util = { version = "0.3", optional = true }
 getrandom = { version = "0.2", optional = true }
