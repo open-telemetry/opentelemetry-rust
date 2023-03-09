@@ -1,6 +1,4 @@
-// generated files from jaeger proto(https://github.com/jaegertracing/jaeger-idl/tree/main/proto/api_v2)
-// DO NOT EDIT
-
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct KeyValue {
     #[prost(string, tag = "1")]
@@ -16,75 +14,81 @@ pub struct KeyValue {
     #[prost(double, tag = "6")]
     pub v_float64: f64,
     #[prost(bytes = "vec", tag = "7")]
-    pub v_binary: std::vec::Vec<u8>,
+    pub v_binary: ::prost::alloc::vec::Vec<u8>,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Log {
     #[prost(message, optional, tag = "1")]
-    pub timestamp: std::option::Option<::prost_types::Timestamp>,
+    pub timestamp: ::core::option::Option<::prost_types::Timestamp>,
     #[prost(message, repeated, tag = "2")]
-    pub fields: std::vec::Vec<KeyValue>,
+    pub fields: ::prost::alloc::vec::Vec<KeyValue>,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct SpanRef {
     #[prost(bytes = "vec", tag = "1")]
-    pub trace_id: std::vec::Vec<u8>,
+    pub trace_id: ::prost::alloc::vec::Vec<u8>,
     #[prost(bytes = "vec", tag = "2")]
-    pub span_id: std::vec::Vec<u8>,
+    pub span_id: ::prost::alloc::vec::Vec<u8>,
     #[prost(enumeration = "SpanRefType", tag = "3")]
     pub ref_type: i32,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Process {
     #[prost(string, tag = "1")]
     pub service_name: ::prost::alloc::string::String,
     #[prost(message, repeated, tag = "2")]
-    pub tags: std::vec::Vec<KeyValue>,
+    pub tags: ::prost::alloc::vec::Vec<KeyValue>,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Span {
     #[prost(bytes = "vec", tag = "1")]
-    pub trace_id: std::vec::Vec<u8>,
+    pub trace_id: ::prost::alloc::vec::Vec<u8>,
     #[prost(bytes = "vec", tag = "2")]
-    pub span_id: std::vec::Vec<u8>,
+    pub span_id: ::prost::alloc::vec::Vec<u8>,
     #[prost(string, tag = "3")]
     pub operation_name: ::prost::alloc::string::String,
     #[prost(message, repeated, tag = "4")]
-    pub references: std::vec::Vec<SpanRef>,
+    pub references: ::prost::alloc::vec::Vec<SpanRef>,
     #[prost(uint32, tag = "5")]
     pub flags: u32,
     #[prost(message, optional, tag = "6")]
-    pub start_time: std::option::Option<::prost_types::Timestamp>,
+    pub start_time: ::core::option::Option<::prost_types::Timestamp>,
     #[prost(message, optional, tag = "7")]
-    pub duration: std::option::Option<::prost_types::Duration>,
+    pub duration: ::core::option::Option<::prost_types::Duration>,
     #[prost(message, repeated, tag = "8")]
-    pub tags: std::vec::Vec<KeyValue>,
+    pub tags: ::prost::alloc::vec::Vec<KeyValue>,
     #[prost(message, repeated, tag = "9")]
-    pub logs: std::vec::Vec<Log>,
+    pub logs: ::prost::alloc::vec::Vec<Log>,
     #[prost(message, optional, tag = "10")]
-    pub process: std::option::Option<Process>,
+    pub process: ::core::option::Option<Process>,
     #[prost(string, tag = "11")]
     pub process_id: ::prost::alloc::string::String,
     #[prost(string, repeated, tag = "12")]
-    pub warnings: std::vec::Vec<::prost::alloc::string::String>,
+    pub warnings: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Trace {
     #[prost(message, repeated, tag = "1")]
-    pub spans: std::vec::Vec<Span>,
+    pub spans: ::prost::alloc::vec::Vec<Span>,
     #[prost(message, repeated, tag = "2")]
-    pub process_map: std::vec::Vec<trace::ProcessMapping>,
+    pub process_map: ::prost::alloc::vec::Vec<trace::ProcessMapping>,
     #[prost(string, repeated, tag = "3")]
-    pub warnings: std::vec::Vec<::prost::alloc::string::String>,
+    pub warnings: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
 }
 /// Nested message and enum types in `Trace`.
 pub mod trace {
+    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct ProcessMapping {
         #[prost(string, tag = "1")]
         pub process_id: ::prost::alloc::string::String,
         #[prost(message, optional, tag = "2")]
-        pub process: std::option::Option<super::Process>,
+        pub process: ::core::option::Option<super::Process>,
     }
 }
 /// Note that both Span and Batch may contain a Process.
@@ -96,13 +100,15 @@ pub mod trace {
 /// semantics, both Batch and Spans in the same message may contain
 /// their own instances of Process, with span.Process taking priority
 /// over batch.Process.
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Batch {
     #[prost(message, repeated, tag = "1")]
-    pub spans: std::vec::Vec<Span>,
+    pub spans: ::prost::alloc::vec::Vec<Span>,
     #[prost(message, optional, tag = "2")]
-    pub process: std::option::Option<Process>,
+    pub process: ::core::option::Option<Process>,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct DependencyLink {
     #[prost(string, tag = "1")]
@@ -123,29 +129,80 @@ pub enum ValueType {
     Float64 = 3,
     Binary = 4,
 }
+impl ValueType {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            ValueType::String => "STRING",
+            ValueType::Bool => "BOOL",
+            ValueType::Int64 => "INT64",
+            ValueType::Float64 => "FLOAT64",
+            ValueType::Binary => "BINARY",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "STRING" => Some(Self::String),
+            "BOOL" => Some(Self::Bool),
+            "INT64" => Some(Self::Int64),
+            "FLOAT64" => Some(Self::Float64),
+            "BINARY" => Some(Self::Binary),
+            _ => None,
+        }
+    }
+}
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
 pub enum SpanRefType {
     ChildOf = 0,
     FollowsFrom = 1,
 }
+impl SpanRefType {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            SpanRefType::ChildOf => "CHILD_OF",
+            SpanRefType::FollowsFrom => "FOLLOWS_FROM",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "CHILD_OF" => Some(Self::ChildOf),
+            "FOLLOWS_FROM" => Some(Self::FollowsFrom),
+            _ => None,
+        }
+    }
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetTraceRequest {
     #[prost(bytes = "vec", tag = "1")]
-    pub trace_id: std::vec::Vec<u8>,
+    pub trace_id: ::prost::alloc::vec::Vec<u8>,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct SpansResponseChunk {
     #[prost(message, repeated, tag = "1")]
-    pub spans: std::vec::Vec<Span>,
+    pub spans: ::prost::alloc::vec::Vec<Span>,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ArchiveTraceRequest {
     #[prost(bytes = "vec", tag = "1")]
-    pub trace_id: std::vec::Vec<u8>,
+    pub trace_id: ::prost::alloc::vec::Vec<u8>,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ArchiveTraceResponse {}
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct TraceQueryParameters {
     #[prost(string, tag = "1")]
@@ -154,30 +211,34 @@ pub struct TraceQueryParameters {
     pub operation_name: ::prost::alloc::string::String,
     #[prost(map = "string, string", tag = "3")]
     pub tags:
-        std::collections::HashMap<::prost::alloc::string::String, ::prost::alloc::string::String>,
+        ::std::collections::HashMap<::prost::alloc::string::String, ::prost::alloc::string::String>,
     #[prost(message, optional, tag = "4")]
-    pub start_time_min: std::option::Option<::prost_types::Timestamp>,
+    pub start_time_min: ::core::option::Option<::prost_types::Timestamp>,
     #[prost(message, optional, tag = "5")]
-    pub start_time_max: std::option::Option<::prost_types::Timestamp>,
+    pub start_time_max: ::core::option::Option<::prost_types::Timestamp>,
     #[prost(message, optional, tag = "6")]
-    pub duration_min: std::option::Option<::prost_types::Duration>,
+    pub duration_min: ::core::option::Option<::prost_types::Duration>,
     #[prost(message, optional, tag = "7")]
-    pub duration_max: std::option::Option<::prost_types::Duration>,
+    pub duration_max: ::core::option::Option<::prost_types::Duration>,
     #[prost(int32, tag = "8")]
     pub search_depth: i32,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct FindTracesRequest {
     #[prost(message, optional, tag = "1")]
-    pub query: std::option::Option<TraceQueryParameters>,
+    pub query: ::core::option::Option<TraceQueryParameters>,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetServicesRequest {}
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetServicesResponse {
     #[prost(string, repeated, tag = "1")]
-    pub services: std::vec::Vec<::prost::alloc::string::String>,
+    pub services: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetOperationsRequest {
     #[prost(string, tag = "1")]
@@ -185,6 +246,7 @@ pub struct GetOperationsRequest {
     #[prost(string, tag = "2")]
     pub span_kind: ::prost::alloc::string::String,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Operation {
     #[prost(string, tag = "1")]
@@ -192,36 +254,40 @@ pub struct Operation {
     #[prost(string, tag = "2")]
     pub span_kind: ::prost::alloc::string::String,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetOperationsResponse {
-    ///deprecated
+    /// deprecated
     #[prost(string, repeated, tag = "1")]
-    pub operation_names: std::vec::Vec<::prost::alloc::string::String>,
+    pub operation_names: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
     #[prost(message, repeated, tag = "2")]
-    pub operations: std::vec::Vec<Operation>,
+    pub operations: ::prost::alloc::vec::Vec<Operation>,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetDependenciesRequest {
     #[prost(message, optional, tag = "1")]
-    pub start_time: std::option::Option<::prost_types::Timestamp>,
+    pub start_time: ::core::option::Option<::prost_types::Timestamp>,
     #[prost(message, optional, tag = "2")]
-    pub end_time: std::option::Option<::prost_types::Timestamp>,
+    pub end_time: ::core::option::Option<::prost_types::Timestamp>,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetDependenciesResponse {
     #[prost(message, repeated, tag = "1")]
-    pub dependencies: std::vec::Vec<DependencyLink>,
+    pub dependencies: ::prost::alloc::vec::Vec<DependencyLink>,
 }
-#[doc = r" Generated client implementations."]
+/// Generated client implementations.
 pub mod query_service_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
+    use tonic::codegen::http::Uri;
     use tonic::codegen::*;
     #[derive(Debug, Clone)]
     pub struct QueryServiceClient<T> {
         inner: tonic::client::Grpc<T>,
     }
     impl QueryServiceClient<tonic::transport::Channel> {
-        #[doc = r" Attempt to create a new client by connecting to a given endpoint."]
+        /// Attempt to create a new client by connecting to a given endpoint.
         pub async fn connect<D>(dst: D) -> Result<Self, tonic::transport::Error>
         where
             D: std::convert::TryInto<tonic::transport::Endpoint>,
@@ -234,12 +300,16 @@ pub mod query_service_client {
     impl<T> QueryServiceClient<T>
     where
         T: tonic::client::GrpcService<tonic::body::BoxBody>,
-        T::ResponseBody: Body + Send + 'static,
         T::Error: Into<StdError>,
+        T::ResponseBody: Body<Data = Bytes> + Send + 'static,
         <T::ResponseBody as Body>::Error: Into<StdError> + Send,
     {
         pub fn new(inner: T) -> Self {
             let inner = tonic::client::Grpc::new(inner);
+            Self { inner }
+        }
+        pub fn with_origin(inner: T, origin: Uri) -> Self {
+            let inner = tonic::client::Grpc::with_origin(inner, origin);
             Self { inner }
         }
         pub fn with_interceptor<F>(
@@ -248,6 +318,7 @@ pub mod query_service_client {
         ) -> QueryServiceClient<InterceptedService<T, F>>
         where
             F: tonic::service::Interceptor,
+            T::ResponseBody: Default,
             T: tonic::codegen::Service<
                 http::Request<tonic::body::BoxBody>,
                 Response = http::Response<
@@ -259,17 +330,19 @@ pub mod query_service_client {
         {
             QueryServiceClient::new(InterceptedService::new(inner, interceptor))
         }
-        #[doc = r" Compress requests with `gzip`."]
-        #[doc = r""]
-        #[doc = r" This requires the server to support it otherwise it might respond with an"]
-        #[doc = r" error."]
-        pub fn send_gzip(mut self) -> Self {
-            self.inner = self.inner.send_gzip();
+        /// Compress requests with the given encoding.
+        ///
+        /// This requires the server to support it otherwise it might respond with an
+        /// error.
+        #[must_use]
+        pub fn send_compressed(mut self, encoding: CompressionEncoding) -> Self {
+            self.inner = self.inner.send_compressed(encoding);
             self
         }
-        #[doc = r" Enable decompressing responses with `gzip`."]
-        pub fn accept_gzip(mut self) -> Self {
-            self.inner = self.inner.accept_gzip();
+        /// Enable decompressing responses.
+        #[must_use]
+        pub fn accept_compressed(mut self, encoding: CompressionEncoding) -> Self {
+            self.inner = self.inner.accept_compressed(encoding);
             self
         }
         pub async fn get_trace(

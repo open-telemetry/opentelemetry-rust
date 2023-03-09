@@ -7,6 +7,7 @@ repository = "https://github.com/open-telemetry/opentelemetry-rust"
 license = "Apache-2.0"
 edition = "2021"
 exclude = ["/proto"]
+rust-version = "1.60"
 
 [dependencies]
 async-trait = "0.1.48"
@@ -22,7 +23,7 @@ prost = "0.11.0"
 prost-types = "0.11.1"
 thiserror = "1.0.30"
 tonic = { version = "0.8.0", features = ["gzip", "tls", "transport"] }
-yup-oauth2 = { version = "7.0.1", optional = true }
+yup-oauth2 = { version = "8.1.0", optional = true }
 
 [features]
 default = ["yup-authorizer", "tls-native-roots"]

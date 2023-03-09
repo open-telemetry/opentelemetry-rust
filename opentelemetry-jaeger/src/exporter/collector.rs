@@ -74,6 +74,8 @@ mod collector_client {
 #[cfg(feature = "wasm_collector_client")]
 mod wasm_collector_client {
     use crate::exporter::thrift::jaeger;
+    use base64::engine::general_purpose;
+    use base64::Engine;
     use futures_util::future;
     use http::Uri;
     use js_sys::Uint8Array;
@@ -109,9 +111,9 @@ mod wasm_collector_client {
         ) -> thrift::Result<Self> {
             let auth = if let (Some(username), Some(password)) = (username, password) {
                 let mut auth = String::from("Basic ");
-                base64::encode_config_buf(username, base64::STANDARD, &mut auth);
+                general_purpose::STANDARD.encode_string(username, &mut auth);
                 auth.push(':');
-                base64::encode_config_buf(password, base64::STANDARD, &mut auth);
+                general_purpose::STANDARD.encode_string(password, &mut auth);
                 Some(auth)
             } else {
                 None
