@@ -127,18 +127,18 @@ For GitHub groups see the [code owners](CODEOWNERS) file.
 
 ### Maintainers
 
-* @djc - Dirkjan Ochtman
-* @jtescher - Julian Tescher
-* @TommyCpp - Zhongyang Wu
+* [Dirkjan Ochtman](https://github.com/djc)
+* [Julian Tescher](https://github.com/jtescher)
+* [Zhongyang Wu](https://github.com/TommyCpp)
 
 ### Approvers
 
-* @hdost - Harold Dost
+* [Harold Dost](https://github.com/hdost)
 
 ### Emeritus
 
-* @frigus02 - Jan Kühle
-* @iredelmeier - Isobel Redelmeier
+* [Jan Kühle](https://github.com/frigus02)
+* [Isobel Redelmeier](https://github.com/iredelmeier)
 
 ### Become an Approver or a Maintainer
 
