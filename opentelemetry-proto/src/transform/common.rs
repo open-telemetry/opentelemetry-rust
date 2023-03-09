@@ -8,7 +8,7 @@ pub(crate) fn to_nanos(time: SystemTime) -> u64 {
         .as_nanos() as u64
 }
 
-#[cfg(feature = "gen-tonic")]
+#[cfg(feature = "gen-tonic-messages")]
 pub mod tonic {
     use crate::proto::tonic::common::v1::{
         any_value, AnyValue, ArrayValue, InstrumentationScope, KeyValue,

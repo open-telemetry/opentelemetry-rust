@@ -2,7 +2,7 @@ use crate::transform::common::to_nanos;
 use opentelemetry_api::trace::{Link, SpanId, SpanKind};
 use opentelemetry_sdk::export::trace::SpanData;
 
-#[cfg(feature = "gen-tonic")]
+#[cfg(feature = "gen-tonic-messages")]
 pub mod tonic {
     use super::*;
     use crate::proto::tonic::resource::v1::Resource;
