@@ -14,7 +14,6 @@ use tokio::runtime::Runtime;
 
 fn get_span_data() -> Vec<SpanData> {
     (0..200)
-        .into_iter()
         .map(|_| SpanData {
             span_context: SpanContext::new(
                 TraceId::from_u128(12),
