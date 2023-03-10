@@ -76,7 +76,6 @@ fn build_tonic() {
 fn build_content_map(path: impl AsRef<Path>) -> HashMap<String, String> {
     std::fs::read_dir(path)
         .expect("cannot open dictionary of generated files")
-        .into_iter()
         .flatten()
         .map(|entry| {
             let path = entry.path();
