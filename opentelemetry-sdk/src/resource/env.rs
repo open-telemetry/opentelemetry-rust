@@ -9,7 +9,6 @@ use std::time::Duration;
 
 const OTEL_RESOURCE_ATTRIBUTES: &str = "OTEL_RESOURCE_ATTRIBUTES";
 const OTEL_SERVICE_NAME: &str = "OTEL_SERVICE_NAME";
-const CARGO_BIN_NAME: &str = "CARGO_BIN_NAME";
 
 /// Resource detector implements ResourceDetector and is used to extract
 /// general SDK configuration from environment.
@@ -66,7 +65,8 @@ fn construct_otel_resources(s: String) -> Resource {
 /// This detector will first try `OTEL_SERVICE_NAME` env. If it's not available,
 /// then it will check the `OTEL_RESOURCE_ATTRIBUTES` env and see if it contains
 /// `service.name` resource. If it's not available, it will try to use the env
-/// `CARGO_BIN_NAME`. If it's also not available, it will use `unknown_service`.
+/// `CARGO_BIN_NAME` that should have been present at build time. If that was
+/// not available, it will use `unknown_service`.
 ///
 /// If users want to set an empty service name, they can provide
 /// a resource with empty value and `service.name` key.
@@ -88,11 +88,9 @@ impl ResourceDetector for SdkProvidedResourceDetector {
                         .get(Key::new("service.name"))
                         .map(|v| v.to_string())
                         .filter(|s| !s.is_empty())
-                        .unwrap_or_else(|| {
-                            env::var(CARGO_BIN_NAME)
-                                .ok()
-                                .filter(|s| !s.is_empty())
-                                .unwrap_or_else(|| "unknown_service".to_string())
+                        .unwrap_or_else(|| match option_env!("CARGO_BIN_NAME") {
+                            Some(s) => s.to_string(),
+                            None => "unknown_service".to_string(),
                         })
                 }),
         )])
@@ -102,7 +100,7 @@ impl ResourceDetector for SdkProvidedResourceDetector {
 #[cfg(test)]
 mod tests {
     use crate::resource::env::{
-        SdkProvidedResourceDetector, CARGO_BIN_NAME, OTEL_RESOURCE_ATTRIBUTES, OTEL_SERVICE_NAME,
+        SdkProvidedResourceDetector, OTEL_RESOURCE_ATTRIBUTES, OTEL_SERVICE_NAME,
     };
     use crate::resource::{EnvResourceDetector, Resource, ResourceDetector};
     use opentelemetry_api::{Key, KeyValue, Value};
@@ -145,13 +143,6 @@ mod tests {
             Some(Value::from("unknown_service")),
         );
 
-        env::set_var(CARGO_BIN_NAME, "test cargo");
-        let cargo_bin = SdkProvidedResourceDetector.detect(Duration::from_secs(1));
-        assert_eq!(
-            cargo_bin.get(Key::from_static_str(SERVICE_NAME)),
-            Some(Value::from("test cargo"))
-        );
-
         env::set_var(OTEL_SERVICE_NAME, "test service");
         let with_service = SdkProvidedResourceDetector.detect(Duration::from_secs(1));
         assert_eq!(
@@ -175,7 +166,6 @@ mod tests {
             with_service.get(Key::from_static_str(SERVICE_NAME)),
             Some(Value::from("test service"))
         );
-        env::set_var(CARGO_BIN_NAME, "");
         env::set_var(OTEL_RESOURCE_ATTRIBUTES, "");
         env::set_var(OTEL_SERVICE_NAME, ""); // clear the env var
     }
