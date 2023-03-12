@@ -19,7 +19,7 @@ pub struct LogsData {
     #[prost(message, repeated, tag = "1")]
     pub resource_logs: ::prost::alloc::vec::Vec<ResourceLogs>,
 }
-/// A collection of InstrumentationLibraryLogs from a Resource.
+/// A collection of ScopeLogs from a Resource.
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ResourceLogs {
@@ -27,28 +27,23 @@ pub struct ResourceLogs {
     /// If this field is not set then resource info is unknown.
     #[prost(message, optional, tag = "1")]
     pub resource: ::core::option::Option<super::super::resource::v1::Resource>,
-    /// A list of InstrumentationLibraryLogs that originate from a resource.
+    /// A list of ScopeLogs that originate from a resource.
     #[prost(message, repeated, tag = "2")]
-    pub instrumentation_library_logs: ::prost::alloc::vec::Vec<
-        InstrumentationLibraryLogs,
-    >,
+    pub scope_logs: ::prost::alloc::vec::Vec<ScopeLogs>,
     /// This schema_url applies to the data in the "resource" field. It does not apply
-    /// to the data in the "instrumentation_library_logs" field which have their own
-    /// schema_url field.
+    /// to the data in the "scope_logs" field which have their own schema_url field.
     #[prost(string, tag = "3")]
     pub schema_url: ::prost::alloc::string::String,
 }
-/// A collection of Logs produced by an InstrumentationLibrary.
+/// A collection of Logs produced by a Scope.
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct InstrumentationLibraryLogs {
-    /// The instrumentation library information for the logs in this message.
-    /// Semantically when InstrumentationLibrary isn't set, it is equivalent with
-    /// an empty instrumentation library name (unknown).
+pub struct ScopeLogs {
+    /// The instrumentation scope information for the logs in this message.
+    /// Semantically when InstrumentationScope isn't set, it is equivalent with
+    /// an empty instrumentation scope name (unknown).
     #[prost(message, optional, tag = "1")]
-    pub instrumentation_library: ::core::option::Option<
-        super::super::common::v1::InstrumentationLibrary,
-    >,
+    pub scope: ::core::option::Option<super::super::common::v1::InstrumentationScope>,
     /// A list of log records.
     #[prost(message, repeated, tag = "2")]
     pub log_records: ::prost::alloc::vec::Vec<LogRecord>,
@@ -91,14 +86,6 @@ pub struct LogRecord {
     /// it is known at the source. \[Optional\].
     #[prost(string, tag = "3")]
     pub severity_text: ::prost::alloc::string::String,
-    /// Short event identifier that does not contain varying parts. Name describes
-    /// what happened (e.g. "ProcessStarted"). Recommended to be no longer than 50
-    /// characters. Not guaranteed to be unique in any way. \[Optional\].
-    /// This deprecated field is planned to be removed March 15, 2022. Receivers can
-    /// ignore this field.
-    #[deprecated]
-    #[prost(string, tag = "4")]
-    pub name: ::prost::alloc::string::String,
     /// A value containing the body of the log record. Can be for example a human-readable
     /// string message (including multi-line) describing the event in a free form or it can
     /// be a structured data composed of arrays and maps of other values. \[Optional\].

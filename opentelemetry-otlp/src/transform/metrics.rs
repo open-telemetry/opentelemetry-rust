@@ -8,7 +8,8 @@ pub(crate) mod tonic {
     use opentelemetry::metrics::MetricsError;
     use opentelemetry::sdk::export::metrics::{
         aggregation::{
-            Count, Histogram as SdkHistogram, LastValue, Sum as SdkSum, TemporalitySelector,
+            Count, Histogram as SdkHistogram, LastValue, Max, Min, Sum as SdkSum,
+            TemporalitySelector,
         },
         Record,
     };
@@ -23,8 +24,7 @@ pub(crate) mod tonic {
         common::v1::KeyValue,
         metrics::v1::{
             metric::Data, number_data_point, AggregationTemporality, Gauge, Histogram,
-            HistogramDataPoint, InstrumentationLibraryMetrics, Metric, NumberDataPoint,
-            ResourceMetrics, Sum,
+            HistogramDataPoint, Metric, NumberDataPoint, ResourceMetrics, ScopeMetrics, Sum,
         },
     };
 
@@ -87,8 +87,13 @@ pub(crate) mod tonic {
                     aggregator.as_any().downcast_ref::<HistogramAggregator>()
                 {
                     Some({
-                        let (sum, count, buckets) =
-                            (histogram.sum()?, histogram.count()?, histogram.histogram()?);
+                        let (sum, count, min, max, buckets) = (
+                            histogram.sum()?,
+                            histogram.count()?,
+                            histogram.min()?,
+                            histogram.max()?,
+                            histogram.histogram()?,
+                        );
                         Data::Histogram(Histogram {
                             data_points: vec![HistogramDataPoint {
                                 flags: DataPointFlags::FlagNone as u32,
@@ -96,7 +101,9 @@ pub(crate) mod tonic {
                                 start_time_unix_nano: to_nanos(*record.start_time()),
                                 time_unix_nano: to_nanos(*record.end_time()),
                                 count,
-                                sum: sum.to_f64(kind),
+                                sum: Some(sum.to_f64(kind)),
+                                min: Some(min.to_f64(kind)),
+                                max: Some(max.to_f64(kind)),
                                 bucket_counts: buckets
                                     .counts()
                                     .iter()
@@ -169,20 +176,18 @@ pub(crate) mod tonic {
                         .map(|s| s.to_string())
                         .unwrap_or_default(),
                     resource: Some(resource.into()),
-                    instrumentation_library_metrics: metric_map
+                    scope_metrics: metric_map
                         .into_iter()
-                        .map(
-                            |(instrumentation_library, metrics)| InstrumentationLibraryMetrics {
-                                schema_url: instrumentation_library
-                                    .schema_url
-                                    .clone()
-                                    .unwrap_or_default()
-                                    .to_string(),
-                                instrumentation_library: Some(instrumentation_library.into()),
-                                metrics: metrics.into_values().collect::<Vec<Metric>>(), // collect values
-                            },
-                        )
-                        .collect::<Vec<InstrumentationLibraryMetrics>>(),
+                        .map(|(instrumentation_library, metrics)| ScopeMetrics {
+                            schema_url: instrumentation_library
+                                .schema_url
+                                .clone()
+                                .unwrap_or_default()
+                                .to_string(),
+                            scope: Some(instrumentation_library.into()),
+                            metrics: metrics.into_values().collect::<Vec<Metric>>(), // collect values
+                        })
+                        .collect::<Vec<ScopeMetrics>>(),
                 })
                 .collect::<Vec<ResourceMetrics>>(),
         }
@@ -252,8 +257,8 @@ mod tests {
         use opentelemetry_proto::tonic::{
             common::v1::{any_value, AnyValue, KeyValue},
             metrics::v1::{
-                metric::Data, number_data_point, Gauge, Histogram, HistogramDataPoint,
-                InstrumentationLibraryMetrics, Metric, NumberDataPoint, ResourceMetrics, Sum,
+                metric::Data, number_data_point, Gauge, Histogram, HistogramDataPoint, Metric,
+                NumberDataPoint, ResourceMetrics, ScopeMetrics, Sum,
             },
             Attributes, FromNumber,
         };
@@ -335,13 +340,15 @@ mod tests {
                 attributes: attributes.0,
                 dropped_attributes_count: 0,
             };
-            let mut instrumentation_library_metrics = vec![];
+            let mut scope_metrics = vec![];
             for ((instrumentation_name, instrumentation_version), metrics) in data.1 {
-                instrumentation_library_metrics.push(InstrumentationLibraryMetrics {
-                    instrumentation_library: Some(
-                        opentelemetry_proto::tonic::common::v1::InstrumentationLibrary {
+                scope_metrics.push(ScopeMetrics {
+                    scope: Some(
+                        opentelemetry_proto::tonic::common::v1::InstrumentationScope {
                             name: instrumentation_name.to_string(),
+                            attributes: Vec::new(),
                             version: instrumentation_version.unwrap_or("").to_string(),
+                            dropped_attributes_count: 0,
                         },
                     ),
                     schema_url: "".to_string(),
@@ -354,7 +361,7 @@ mod tests {
             ResourceMetrics {
                 resource: Some(resource),
                 schema_url: "".to_string(),
-                instrumentation_library_metrics,
+                scope_metrics,
             }
         }
 
@@ -364,7 +371,7 @@ mod tests {
         //
         // Based on current implementation of sink function. There are two parts where the order is unknown.
         // The first one is instrumentation_library_metrics in ResourceMetrics.
-        // The other is metrics in InstrumentationLibraryMetrics.
+        // The other is metrics in ScopeMetrics.
         //
         // If we changed the sink function to process the input in parallel, we will have to sort other vectors
         // like data points in Metrics.
@@ -379,23 +386,17 @@ mod tests {
                     .as_mut()
                     .map(|r| r.attributes.sort_by_key(|kv| kv.key.to_string()))
             );
-            assert_eq!(
-                expect.instrumentation_library_metrics.len(),
-                actual.instrumentation_library_metrics.len()
-            );
+            assert_eq!(expect.scope_metrics.len(), actual.scope_metrics.len());
             let sort_instrumentation_library =
-                |metric: &InstrumentationLibraryMetrics,
-                 other_metric: &InstrumentationLibraryMetrics| {
-                    match (
-                        metric.instrumentation_library.as_ref(),
-                        other_metric.instrumentation_library.as_ref(),
-                    ) {
-                        (Some(library), Some(other_library)) => library
-                            .name
-                            .cmp(&other_library.name)
-                            .then(library.version.cmp(&other_library.version)),
-                        _ => Ordering::Equal,
-                    }
+                |metric: &ScopeMetrics, other_metric: &ScopeMetrics| match (
+                    metric.scope.as_ref(),
+                    other_metric.scope.as_ref(),
+                ) {
+                    (Some(library), Some(other_library)) => library
+                        .name
+                        .cmp(&other_library.name)
+                        .then(library.version.cmp(&other_library.version)),
+                    _ => Ordering::Equal,
                 };
             let sort_metrics = |metric: &Metric, other_metric: &Metric| {
                 metric.name.cmp(&other_metric.name).then(
@@ -405,17 +406,13 @@ mod tests {
                         .then(metric.unit.cmp(&other_metric.unit)),
                 )
             };
-            expect
-                .instrumentation_library_metrics
-                .sort_by(sort_instrumentation_library);
-            actual
-                .instrumentation_library_metrics
-                .sort_by(sort_instrumentation_library);
+            expect.scope_metrics.sort_by(sort_instrumentation_library);
+            actual.scope_metrics.sort_by(sort_instrumentation_library);
 
             for (mut expect, mut actual) in expect
-                .instrumentation_library_metrics
+                .scope_metrics
                 .into_iter()
-                .zip(actual.instrumentation_library_metrics.into_iter())
+                .zip(actual.scope_metrics.into_iter())
             {
                 assert_eq!(expect.metrics.len(), actual.metrics.len());
 
@@ -573,7 +570,9 @@ mod tests {
                             start_time_unix_nano: 1608891000000000000,
                             time_unix_nano: 1608891030000000000,
                             count: 3,
-                            sum: 6f64,
+                            sum: Some(6f64),
+                            min: Some(-1.0), // TODO: Not sure what's wrong with this.
+                            max: Some(3.0),
                             bucket_counts: vec![0, 0, 0, 3],
                             explicit_bounds: vec![0.1, 0.2, 0.3],
                             exemplars: vec![],

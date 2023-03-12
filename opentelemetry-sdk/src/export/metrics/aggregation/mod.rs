@@ -21,6 +21,18 @@ pub trait Aggregation {
     fn kind(&self) -> &AggregationKind;
 }
 
+/// Sum returns an aggregated min.
+pub trait Min: Aggregation {
+    /// The min of the currently aggregated metrics
+    fn min(&self) -> Result<Number>;
+}
+
+/// Sum returns an aggregated max.
+pub trait Max: Aggregation {
+    /// The max of the currently aggregated metrics
+    fn max(&self) -> Result<Number>;
+}
+
 /// Sum returns an aggregated sum.
 pub trait Sum: Aggregation {
     /// The sum of the currently aggregated metrics
@@ -73,7 +85,7 @@ impl Buckets {
 }
 
 /// Histogram returns the count of events in pre-determined buckets.
-pub trait Histogram: Sum + Count + Aggregation {
+pub trait Histogram: Sum + Count + Min + Max + Aggregation {
     /// Buckets for this histogram.
     fn histogram(&self) -> Result<Buckets>;
 }
@@ -99,6 +111,12 @@ impl AggregationKind {
 
     /// Aggregations that return a distribution
     pub const HISTOGRAM: Self = AggregationKind("HISTOGRAM");
+
+    /// Aggregations that return a minimum.
+    pub const MIN: Self = AggregationKind("MIN");
+
+    /// Aggregations that return a minimum.
+    pub const MAX: Self = AggregationKind("MAX");
 
     /// Aggregations that return only the latest value.
     pub const LAST_VALUE: AggregationKind = AggregationKind("LAST_VALUE");

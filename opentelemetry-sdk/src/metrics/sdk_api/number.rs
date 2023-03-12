@@ -86,6 +86,120 @@ impl AtomicNumber {
         self.0.store(val.0, Ordering::Relaxed)
     }
 
+    /// Sets the number to the new minimum.
+    pub fn fetch_set_min(&self, number_kind: &NumberKind, val: &Number) {
+        match number_kind {
+            NumberKind::I64 => {
+                let mut old = self.0.load(Ordering::Acquire);
+                if (old as i64) <= (val.0 as i64) {
+                    return; // Early return since already minimum.
+                }
+                loop {
+                    match self.0.compare_exchange_weak(
+                        old,
+                        val.0,
+                        Ordering::AcqRel,
+                        Ordering::Acquire,
+                    ) {
+                        Ok(_) => break,
+                        Err(x) => old = x,
+                    };
+                }
+            }
+            NumberKind::F64 => {
+                let mut old = self.0.load(Ordering::Acquire);
+                if u64_to_f64(old) <= u64_to_f64(val.0) {
+                    return;
+                }
+                loop {
+                    match self.0.compare_exchange_weak(
+                        old,
+                        val.0,
+                        Ordering::AcqRel,
+                        Ordering::Acquire,
+                    ) {
+                        Ok(_) => break,
+                        Err(x) => old = x,
+                    };
+                }
+            }
+            NumberKind::U64 => {
+                let mut old = self.0.load(Ordering::Acquire);
+                if old <= val.0 {
+                    return;
+                }
+                loop {
+                    match self.0.compare_exchange_weak(
+                        old,
+                        val.0,
+                        Ordering::AcqRel,
+                        Ordering::Acquire,
+                    ) {
+                        Ok(_) => break,
+                        Err(x) => old = x,
+                    };
+                }
+            }
+        }
+    }
+
+    /// Sets the number to the new maximum.
+    pub fn fetch_set_max(&self, number_kind: &NumberKind, val: &Number) {
+        match number_kind {
+            NumberKind::I64 => {
+                let mut old = self.0.load(Ordering::Acquire);
+                if (old as i64) >= (val.0 as i64) {
+                    return; // Early return since already minimum.
+                }
+                loop {
+                    match self.0.compare_exchange_weak(
+                        old,
+                        val.0,
+                        Ordering::AcqRel,
+                        Ordering::Acquire,
+                    ) {
+                        Ok(_) => break,
+                        Err(x) => old = x,
+                    };
+                }
+            }
+            NumberKind::F64 => {
+                let mut old = self.0.load(Ordering::Acquire);
+                if u64_to_f64(old) >= u64_to_f64(val.0) {
+                    return;
+                }
+                loop {
+                    match self.0.compare_exchange_weak(
+                        old,
+                        val.0,
+                        Ordering::AcqRel,
+                        Ordering::Acquire,
+                    ) {
+                        Ok(_) => break,
+                        Err(x) => old = x,
+                    };
+                }
+            }
+            NumberKind::U64 => {
+                let mut old = self.0.load(Ordering::Acquire);
+                if old >= val.0 {
+                    return;
+                }
+                loop {
+                    match self.0.compare_exchange_weak(
+                        old,
+                        val.0,
+                        Ordering::AcqRel,
+                        Ordering::Acquire,
+                    ) {
+                        Ok(_) => break,
+                        Err(x) => old = x,
+                    };
+                }
+            }
+        }
+    }
+
     /// Adds to the current number. Both numbers must be of the same kind.
     ///
     /// This operation wraps around on overflow for `u64` and `i64` types and is

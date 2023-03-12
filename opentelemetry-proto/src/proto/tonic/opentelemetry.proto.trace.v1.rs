@@ -19,7 +19,7 @@ pub struct TracesData {
     #[prost(message, repeated, tag = "1")]
     pub resource_spans: ::prost::alloc::vec::Vec<ResourceSpans>,
 }
-/// A collection of InstrumentationLibrarySpans from a Resource.
+/// A collection of ScopeSpans from a Resource.
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ResourceSpans {
@@ -27,42 +27,31 @@ pub struct ResourceSpans {
     /// If this field is not set then no resource info is known.
     #[prost(message, optional, tag = "1")]
     pub resource: ::core::option::Option<super::super::resource::v1::Resource>,
-    /// A list of InstrumentationLibrarySpans that originate from a resource.
+    /// A list of ScopeSpans that originate from a resource.
     #[prost(message, repeated, tag = "2")]
-    pub instrumentation_library_spans: ::prost::alloc::vec::Vec<
-        InstrumentationLibrarySpans,
-    >,
+    pub scope_spans: ::prost::alloc::vec::Vec<ScopeSpans>,
     /// This schema_url applies to the data in the "resource" field. It does not apply
-    /// to the data in the "instrumentation_library_spans" field which have their own
-    /// schema_url field.
+    /// to the data in the "scope_spans" field which have their own schema_url field.
     #[prost(string, tag = "3")]
     pub schema_url: ::prost::alloc::string::String,
 }
-/// A collection of Spans produced by an InstrumentationLibrary.
+/// A collection of Spans produced by an InstrumentationScope.
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct InstrumentationLibrarySpans {
-    /// The instrumentation library information for the spans in this message.
-    /// Semantically when InstrumentationLibrary isn't set, it is equivalent with
-    /// an empty instrumentation library name (unknown).
+pub struct ScopeSpans {
+    /// The instrumentation scope information for the spans in this message.
+    /// Semantically when InstrumentationScope isn't set, it is equivalent with
+    /// an empty instrumentation scope name (unknown).
     #[prost(message, optional, tag = "1")]
-    pub instrumentation_library: ::core::option::Option<
-        super::super::common::v1::InstrumentationLibrary,
-    >,
-    /// A list of Spans that originate from an instrumentation library.
+    pub scope: ::core::option::Option<super::super::common::v1::InstrumentationScope>,
+    /// A list of Spans that originate from an instrumentation scope.
     #[prost(message, repeated, tag = "2")]
     pub spans: ::prost::alloc::vec::Vec<Span>,
     /// This schema_url applies to all spans and span events in the "spans" field.
     #[prost(string, tag = "3")]
     pub schema_url: ::prost::alloc::string::String,
 }
-/// Span represents a single operation within a trace. Spans can be
-/// nested to form a trace tree. Spans may also be linked to other spans
-/// from the same or different trace and form graphs. Often, a trace
-/// contains a root span that describes the end-to-end latency, and one
-/// or more subspans for its sub-operations. A trace can also contain
-/// multiple root spans, or none at all. Spans do not need to be
-/// contiguous - there may be gaps or overlaps between spans in a trace.
+/// A Span represents a single operation performed by a single component of the system.
 ///
 /// The next available field id is 17.
 #[allow(clippy::derive_partial_eq_without_eq)]
@@ -140,7 +129,7 @@ pub struct Span {
     ///      "abc.com/score": 10.239
     ///
     /// The OpenTelemetry API specification further restricts the allowed value types:
-    /// <https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/common/common.md#attributes>
+    /// <https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/common/README.md#attribute>
     /// Attribute keys MUST be unique (it is not allowed to have more than one
     /// attribute with the same key).
     #[prost(message, repeated, tag = "9")]
@@ -349,112 +338,4 @@ pub mod status {
             }
         }
     }
-}
-/// Global configuration of the trace service. All fields must be specified, or
-/// the default (zero) values will be used for each type.
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct TraceConfig {
-    /// The global default max number of attributes per span.
-    #[prost(int64, tag = "4")]
-    pub max_number_of_attributes: i64,
-    /// The global default max number of annotation events per span.
-    #[prost(int64, tag = "5")]
-    pub max_number_of_timed_events: i64,
-    /// The global default max number of attributes per timed event.
-    #[prost(int64, tag = "6")]
-    pub max_number_of_attributes_per_timed_event: i64,
-    /// The global default max number of link entries per span.
-    #[prost(int64, tag = "7")]
-    pub max_number_of_links: i64,
-    /// The global default max number of attributes per span.
-    #[prost(int64, tag = "8")]
-    pub max_number_of_attributes_per_link: i64,
-    /// The global default sampler used to make decisions on span sampling.
-    #[prost(oneof = "trace_config::Sampler", tags = "1, 2, 3")]
-    pub sampler: ::core::option::Option<trace_config::Sampler>,
-}
-/// Nested message and enum types in `TraceConfig`.
-pub mod trace_config {
-    /// The global default sampler used to make decisions on span sampling.
-    #[allow(clippy::derive_partial_eq_without_eq)]
-    #[derive(Clone, PartialEq, ::prost::Oneof)]
-    pub enum Sampler {
-        #[prost(message, tag = "1")]
-        ConstantSampler(super::ConstantSampler),
-        #[prost(message, tag = "2")]
-        TraceIdRatioBased(super::TraceIdRatioBased),
-        #[prost(message, tag = "3")]
-        RateLimitingSampler(super::RateLimitingSampler),
-    }
-}
-/// Sampler that always makes a constant decision on span sampling.
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct ConstantSampler {
-    #[prost(enumeration = "constant_sampler::ConstantDecision", tag = "1")]
-    pub decision: i32,
-}
-/// Nested message and enum types in `ConstantSampler`.
-pub mod constant_sampler {
-    /// How spans should be sampled:
-    /// - Always off
-    /// - Always on
-    /// - Always follow the parent Span's decision (off if no parent).
-    #[derive(
-        Clone,
-        Copy,
-        Debug,
-        PartialEq,
-        Eq,
-        Hash,
-        PartialOrd,
-        Ord,
-        ::prost::Enumeration
-    )]
-    #[repr(i32)]
-    pub enum ConstantDecision {
-        AlwaysOff = 0,
-        AlwaysOn = 1,
-        AlwaysParent = 2,
-    }
-    impl ConstantDecision {
-        /// String value of the enum field names used in the ProtoBuf definition.
-        ///
-        /// The values are not transformed in any way and thus are considered stable
-        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
-        pub fn as_str_name(&self) -> &'static str {
-            match self {
-                ConstantDecision::AlwaysOff => "ALWAYS_OFF",
-                ConstantDecision::AlwaysOn => "ALWAYS_ON",
-                ConstantDecision::AlwaysParent => "ALWAYS_PARENT",
-            }
-        }
-        /// Creates an enum from field names used in the ProtoBuf definition.
-        pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
-            match value {
-                "ALWAYS_OFF" => Some(Self::AlwaysOff),
-                "ALWAYS_ON" => Some(Self::AlwaysOn),
-                "ALWAYS_PARENT" => Some(Self::AlwaysParent),
-                _ => None,
-            }
-        }
-    }
-}
-/// Sampler that tries to uniformly sample traces with a given ratio.
-/// The ratio of sampling a trace is equal to that of the specified ratio.
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct TraceIdRatioBased {
-    /// The desired ratio of sampling. Must be within [0.0, 1.0].
-    #[prost(double, tag = "1")]
-    pub sampling_ratio: f64,
-}
-/// Sampler that tries to sample with a rate per time window.
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct RateLimitingSampler {
-    /// Rate per second.
-    #[prost(int64, tag = "1")]
-    pub qps: i64,
 }

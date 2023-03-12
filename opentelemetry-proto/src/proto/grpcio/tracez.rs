@@ -1673,36 +1673,35 @@ impl ::protobuf::reflect::ProtobufValue for ErrorData {
 }
 
 static file_descriptor_proto_data: &'static [u8] = b"\
-    \n\x0ctracez.proto\x1a*opentelemetry/proto/common/v1/common.proto\x1a.op\
-    entelemetry/proto/resource/v1/resource.proto\x1a(opentelemetry/proto/tra\
-    ce/v1/trace.proto\"t\n\x0cTracezCounts\x12\x1a\n\x08spanname\x18\x01\x20\
-    \x01(\tR\x08spanname\x12\x18\n\x07latency\x18\x02\x20\x03(\rR\x07latency\
-    \x12\x18\n\x07running\x18\x03\x20\x01(\rR\x07running\x12\x14\n\x05error\
-    \x18\x04\x20\x01(\rR\x05error\"\xdd\x02\n\x0bLatencyData\x12\x18\n\x07tr\
-    aceid\x18\x01\x20\x01(\x0cR\x07traceid\x12\x16\n\x06spanid\x18\x02\x20\
-    \x01(\x0cR\x06spanid\x12\x1a\n\x08parentid\x18\x03\x20\x01(\x0cR\x08pare\
-    ntid\x12\x1c\n\tstarttime\x18\x04\x20\x01(\x06R\tstarttime\x12\x18\n\x07\
-    endtime\x18\x05\x20\x01(\x06R\x07endtime\x12G\n\nattributes\x18\x06\x20\
-    \x03(\x0b2'.opentelemetry.proto.common.v1.KeyValueR\nattributes\x12@\n\
-    \x06events\x18\x07\x20\x03(\x0b2(.opentelemetry.proto.trace.v1.Span.Even\
-    tR\x06events\x12=\n\x05links\x18\x08\x20\x03(\x0b2'.opentelemetry.proto.\
-    trace.v1.Span.LinkR\x05links\"\xc3\x02\n\x0bRunningData\x12\x18\n\x07tra\
-    ceid\x18\x01\x20\x01(\x0cR\x07traceid\x12\x16\n\x06spanid\x18\x02\x20\
-    \x01(\x0cR\x06spanid\x12\x1a\n\x08parentid\x18\x03\x20\x01(\x0cR\x08pare\
-    ntid\x12\x1c\n\tstarttime\x18\x04\x20\x01(\x06R\tstarttime\x12G\n\nattri\
-    butes\x18\x05\x20\x03(\x0b2'.opentelemetry.proto.common.v1.KeyValueR\nat\
-    tributes\x12@\n\x06events\x18\x06\x20\x03(\x0b2(.opentelemetry.proto.tra\
-    ce.v1.Span.EventR\x06events\x12=\n\x05links\x18\x07\x20\x03(\x0b2'.opent\
-    elemetry.proto.trace.v1.Span.LinkR\x05links\"\xff\x02\n\tErrorData\x12\
-    \x18\n\x07traceid\x18\x01\x20\x01(\x0cR\x07traceid\x12\x16\n\x06spanid\
-    \x18\x02\x20\x01(\x0cR\x06spanid\x12\x1a\n\x08parentid\x18\x03\x20\x01(\
-    \x0cR\x08parentid\x12\x1c\n\tstarttime\x18\x04\x20\x01(\x06R\tstarttime\
-    \x12G\n\nattributes\x18\x05\x20\x03(\x0b2'.opentelemetry.proto.common.v1\
-    .KeyValueR\nattributes\x12@\n\x06events\x18\x06\x20\x03(\x0b2(.opentelem\
-    etry.proto.trace.v1.Span.EventR\x06events\x12=\n\x05links\x18\x07\x20\
-    \x03(\x0b2'.opentelemetry.proto.trace.v1.Span.LinkR\x05links\x12<\n\x06s\
-    tatus\x18\x08\x20\x01(\x0b2$.opentelemetry.proto.trace.v1.StatusR\x06sta\
-    tusb\x06proto3\
+    \n\x0ctracez.proto\x1a*opentelemetry/proto/common/v1/common.proto\x1a(op\
+    entelemetry/proto/trace/v1/trace.proto\"t\n\x0cTracezCounts\x12\x1a\n\
+    \x08spanname\x18\x01\x20\x01(\tR\x08spanname\x12\x18\n\x07latency\x18\
+    \x02\x20\x03(\rR\x07latency\x12\x18\n\x07running\x18\x03\x20\x01(\rR\x07\
+    running\x12\x14\n\x05error\x18\x04\x20\x01(\rR\x05error\"\xdd\x02\n\x0bL\
+    atencyData\x12\x18\n\x07traceid\x18\x01\x20\x01(\x0cR\x07traceid\x12\x16\
+    \n\x06spanid\x18\x02\x20\x01(\x0cR\x06spanid\x12\x1a\n\x08parentid\x18\
+    \x03\x20\x01(\x0cR\x08parentid\x12\x1c\n\tstarttime\x18\x04\x20\x01(\x06\
+    R\tstarttime\x12\x18\n\x07endtime\x18\x05\x20\x01(\x06R\x07endtime\x12G\
+    \n\nattributes\x18\x06\x20\x03(\x0b2'.opentelemetry.proto.common.v1.KeyV\
+    alueR\nattributes\x12@\n\x06events\x18\x07\x20\x03(\x0b2(.opentelemetry.\
+    proto.trace.v1.Span.EventR\x06events\x12=\n\x05links\x18\x08\x20\x03(\
+    \x0b2'.opentelemetry.proto.trace.v1.Span.LinkR\x05links\"\xc3\x02\n\x0bR\
+    unningData\x12\x18\n\x07traceid\x18\x01\x20\x01(\x0cR\x07traceid\x12\x16\
+    \n\x06spanid\x18\x02\x20\x01(\x0cR\x06spanid\x12\x1a\n\x08parentid\x18\
+    \x03\x20\x01(\x0cR\x08parentid\x12\x1c\n\tstarttime\x18\x04\x20\x01(\x06\
+    R\tstarttime\x12G\n\nattributes\x18\x05\x20\x03(\x0b2'.opentelemetry.pro\
+    to.common.v1.KeyValueR\nattributes\x12@\n\x06events\x18\x06\x20\x03(\x0b\
+    2(.opentelemetry.proto.trace.v1.Span.EventR\x06events\x12=\n\x05links\
+    \x18\x07\x20\x03(\x0b2'.opentelemetry.proto.trace.v1.Span.LinkR\x05links\
+    \"\xff\x02\n\tErrorData\x12\x18\n\x07traceid\x18\x01\x20\x01(\x0cR\x07tr\
+    aceid\x12\x16\n\x06spanid\x18\x02\x20\x01(\x0cR\x06spanid\x12\x1a\n\x08p\
+    arentid\x18\x03\x20\x01(\x0cR\x08parentid\x12\x1c\n\tstarttime\x18\x04\
+    \x20\x01(\x06R\tstarttime\x12G\n\nattributes\x18\x05\x20\x03(\x0b2'.open\
+    telemetry.proto.common.v1.KeyValueR\nattributes\x12@\n\x06events\x18\x06\
+    \x20\x03(\x0b2(.opentelemetry.proto.trace.v1.Span.EventR\x06events\x12=\
+    \n\x05links\x18\x07\x20\x03(\x0b2'.opentelemetry.proto.trace.v1.Span.Lin\
+    kR\x05links\x12<\n\x06status\x18\x08\x20\x01(\x0b2$.opentelemetry.proto.\
+    trace.v1.StatusR\x06statusb\x06proto3\
 ";
 
 static file_descriptor_proto_lazy: ::protobuf::rt::LazyV2<::protobuf::descriptor::FileDescriptorProto> = ::protobuf::rt::LazyV2::INIT;

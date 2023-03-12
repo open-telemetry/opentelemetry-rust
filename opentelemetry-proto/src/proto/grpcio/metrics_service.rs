@@ -195,6 +195,8 @@ impl ::protobuf::reflect::ProtobufValue for ExportMetricsServiceRequest {
 #[derive(PartialEq,Clone,Default)]
 #[cfg_attr(feature = "with-serde", derive(::serde::Serialize, ::serde::Deserialize))]
 pub struct ExportMetricsServiceResponse {
+    // message fields
+    pub partial_success: ::protobuf::SingularPtrField<ExportMetricsPartialSuccess>,
     // special fields
     #[cfg_attr(feature = "with-serde", serde(skip))]
     pub unknown_fields: ::protobuf::UnknownFields,
@@ -212,10 +214,48 @@ impl ExportMetricsServiceResponse {
     pub fn new() -> ExportMetricsServiceResponse {
         ::std::default::Default::default()
     }
+
+    // .opentelemetry.proto.collector.metrics.v1.ExportMetricsPartialSuccess partial_success = 1;
+
+
+    pub fn get_partial_success(&self) -> &ExportMetricsPartialSuccess {
+        self.partial_success.as_ref().unwrap_or_else(|| <ExportMetricsPartialSuccess as ::protobuf::Message>::default_instance())
+    }
+    pub fn clear_partial_success(&mut self) {
+        self.partial_success.clear();
+    }
+
+    pub fn has_partial_success(&self) -> bool {
+        self.partial_success.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_partial_success(&mut self, v: ExportMetricsPartialSuccess) {
+        self.partial_success = ::protobuf::SingularPtrField::some(v);
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_partial_success(&mut self) -> &mut ExportMetricsPartialSuccess {
+        if self.partial_success.is_none() {
+            self.partial_success.set_default();
+        }
+        self.partial_success.as_mut().unwrap()
+    }
+
+    // Take field
+    pub fn take_partial_success(&mut self) -> ExportMetricsPartialSuccess {
+        self.partial_success.take().unwrap_or_else(|| ExportMetricsPartialSuccess::new())
+    }
 }
 
 impl ::protobuf::Message for ExportMetricsServiceResponse {
     fn is_initialized(&self) -> bool {
+        for v in &self.partial_success {
+            if !v.is_initialized() {
+                return false;
+            }
+        };
         true
     }
 
@@ -223,6 +263,9 @@ impl ::protobuf::Message for ExportMetricsServiceResponse {
         while !is.eof()? {
             let (field_number, wire_type) = is.read_tag_unpack()?;
             match field_number {
+                1 => {
+                    ::protobuf::rt::read_singular_message_into(wire_type, is, &mut self.partial_success)?;
+                },
                 _ => {
                     ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
                 },
@@ -235,12 +278,21 @@ impl ::protobuf::Message for ExportMetricsServiceResponse {
     #[allow(unused_variables)]
     fn compute_size(&self) -> u32 {
         let mut my_size = 0;
+        if let Some(ref v) = self.partial_success.as_ref() {
+            let len = v.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
+        }
         my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
         self.cached_size.set(my_size);
         my_size
     }
 
     fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
+        if let Some(ref v) = self.partial_success.as_ref() {
+            os.write_tag(1, ::protobuf::wire_format::WireTypeLengthDelimited)?;
+            os.write_raw_varint32(v.get_cached_size())?;
+            v.write_to_with_cached_sizes(os)?;
+        }
         os.write_unknown_fields(self.get_unknown_fields())?;
         ::std::result::Result::Ok(())
     }
@@ -278,7 +330,12 @@ impl ::protobuf::Message for ExportMetricsServiceResponse {
     fn descriptor_static() -> &'static ::protobuf::reflect::MessageDescriptor {
         static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
         descriptor.get(|| {
-            let fields = ::std::vec::Vec::new();
+            let mut fields = ::std::vec::Vec::new();
+            fields.push(::protobuf::reflect::accessor::make_singular_ptr_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<ExportMetricsPartialSuccess>>(
+                "partial_success",
+                |m: &ExportMetricsServiceResponse| { &m.partial_success },
+                |m: &mut ExportMetricsServiceResponse| { &mut m.partial_success },
+            ));
             ::protobuf::reflect::MessageDescriptor::new_pb_name::<ExportMetricsServiceResponse>(
                 "ExportMetricsServiceResponse",
                 fields,
@@ -295,6 +352,7 @@ impl ::protobuf::Message for ExportMetricsServiceResponse {
 
 impl ::protobuf::Clear for ExportMetricsServiceResponse {
     fn clear(&mut self) {
+        self.partial_success.clear();
         self.unknown_fields.clear();
     }
 }
@@ -311,17 +369,219 @@ impl ::protobuf::reflect::ProtobufValue for ExportMetricsServiceResponse {
     }
 }
 
+#[derive(PartialEq,Clone,Default)]
+#[cfg_attr(feature = "with-serde", derive(::serde::Serialize, ::serde::Deserialize))]
+pub struct ExportMetricsPartialSuccess {
+    // message fields
+    pub rejected_data_points: i64,
+    pub error_message: ::std::string::String,
+    // special fields
+    #[cfg_attr(feature = "with-serde", serde(skip))]
+    pub unknown_fields: ::protobuf::UnknownFields,
+    #[cfg_attr(feature = "with-serde", serde(skip))]
+    pub cached_size: ::protobuf::CachedSize,
+}
+
+impl<'a> ::std::default::Default for &'a ExportMetricsPartialSuccess {
+    fn default() -> &'a ExportMetricsPartialSuccess {
+        <ExportMetricsPartialSuccess as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl ExportMetricsPartialSuccess {
+    pub fn new() -> ExportMetricsPartialSuccess {
+        ::std::default::Default::default()
+    }
+
+    // int64 rejected_data_points = 1;
+
+
+    pub fn get_rejected_data_points(&self) -> i64 {
+        self.rejected_data_points
+    }
+    pub fn clear_rejected_data_points(&mut self) {
+        self.rejected_data_points = 0;
+    }
+
+    // Param is passed by value, moved
+    pub fn set_rejected_data_points(&mut self, v: i64) {
+        self.rejected_data_points = v;
+    }
+
+    // string error_message = 2;
+
+
+    pub fn get_error_message(&self) -> &str {
+        &self.error_message
+    }
+    pub fn clear_error_message(&mut self) {
+        self.error_message.clear();
+    }
+
+    // Param is passed by value, moved
+    pub fn set_error_message(&mut self, v: ::std::string::String) {
+        self.error_message = v;
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_error_message(&mut self) -> &mut ::std::string::String {
+        &mut self.error_message
+    }
+
+    // Take field
+    pub fn take_error_message(&mut self) -> ::std::string::String {
+        ::std::mem::replace(&mut self.error_message, ::std::string::String::new())
+    }
+}
+
+impl ::protobuf::Message for ExportMetricsPartialSuccess {
+    fn is_initialized(&self) -> bool {
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::ProtobufResult<()> {
+        while !is.eof()? {
+            let (field_number, wire_type) = is.read_tag_unpack()?;
+            match field_number {
+                1 => {
+                    if wire_type != ::protobuf::wire_format::WireTypeVarint {
+                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
+                    }
+                    let tmp = is.read_int64()?;
+                    self.rejected_data_points = tmp;
+                },
+                2 => {
+                    ::protobuf::rt::read_singular_proto3_string_into(wire_type, is, &mut self.error_message)?;
+                },
+                _ => {
+                    ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u32 {
+        let mut my_size = 0;
+        if self.rejected_data_points != 0 {
+            my_size += ::protobuf::rt::value_size(1, self.rejected_data_points, ::protobuf::wire_format::WireTypeVarint);
+        }
+        if !self.error_message.is_empty() {
+            my_size += ::protobuf::rt::string_size(2, &self.error_message);
+        }
+        my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
+        self.cached_size.set(my_size);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
+        if self.rejected_data_points != 0 {
+            os.write_int64(1, self.rejected_data_points)?;
+        }
+        if !self.error_message.is_empty() {
+            os.write_string(2, &self.error_message)?;
+        }
+        os.write_unknown_fields(self.get_unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn get_cached_size(&self) -> u32 {
+        self.cached_size.get()
+    }
+
+    fn get_unknown_fields(&self) -> &::protobuf::UnknownFields {
+        &self.unknown_fields
+    }
+
+    fn mut_unknown_fields(&mut self) -> &mut ::protobuf::UnknownFields {
+        &mut self.unknown_fields
+    }
+
+    fn as_any(&self) -> &dyn (::std::any::Any) {
+        self as &dyn (::std::any::Any)
+    }
+    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
+        self as &mut dyn (::std::any::Any)
+    }
+    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
+        self
+    }
+
+    fn descriptor(&self) -> &'static ::protobuf::reflect::MessageDescriptor {
+        Self::descriptor_static()
+    }
+
+    fn new() -> ExportMetricsPartialSuccess {
+        ExportMetricsPartialSuccess::new()
+    }
+
+    fn descriptor_static() -> &'static ::protobuf::reflect::MessageDescriptor {
+        static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
+        descriptor.get(|| {
+            let mut fields = ::std::vec::Vec::new();
+            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeInt64>(
+                "rejected_data_points",
+                |m: &ExportMetricsPartialSuccess| { &m.rejected_data_points },
+                |m: &mut ExportMetricsPartialSuccess| { &mut m.rejected_data_points },
+            ));
+            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeString>(
+                "error_message",
+                |m: &ExportMetricsPartialSuccess| { &m.error_message },
+                |m: &mut ExportMetricsPartialSuccess| { &mut m.error_message },
+            ));
+            ::protobuf::reflect::MessageDescriptor::new_pb_name::<ExportMetricsPartialSuccess>(
+                "ExportMetricsPartialSuccess",
+                fields,
+                file_descriptor_proto()
+            )
+        })
+    }
+
+    fn default_instance() -> &'static ExportMetricsPartialSuccess {
+        static instance: ::protobuf::rt::LazyV2<ExportMetricsPartialSuccess> = ::protobuf::rt::LazyV2::INIT;
+        instance.get(ExportMetricsPartialSuccess::new)
+    }
+}
+
+impl ::protobuf::Clear for ExportMetricsPartialSuccess {
+    fn clear(&mut self) {
+        self.rejected_data_points = 0;
+        self.error_message.clear();
+        self.unknown_fields.clear();
+    }
+}
+
+impl ::std::fmt::Debug for ExportMetricsPartialSuccess {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        ::protobuf::text_format::fmt(self, f)
+    }
+}
+
+impl ::protobuf::reflect::ProtobufValue for ExportMetricsPartialSuccess {
+    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
+        ::protobuf::reflect::ReflectValueRef::Message(self)
+    }
+}
+
 static file_descriptor_proto_data: &'static [u8] = b"\
     \n>opentelemetry/proto/collector/metrics/v1/metrics_service.proto\x12(op\
     entelemetry.proto.collector.metrics.v1\x1a,opentelemetry/proto/metrics/v\
     1/metrics.proto\"y\n\x1bExportMetricsServiceRequest\x12Z\n\x10resource_m\
     etrics\x18\x01\x20\x03(\x0b2/.opentelemetry.proto.metrics.v1.ResourceMet\
-    ricsR\x0fresourceMetrics\"\x1e\n\x1cExportMetricsServiceResponse2\xac\
-    \x01\n\x0eMetricsService\x12\x99\x01\n\x06Export\x12E.opentelemetry.prot\
-    o.collector.metrics.v1.ExportMetricsServiceRequest\x1aF.opentelemetry.pr\
-    oto.collector.metrics.v1.ExportMetricsServiceResponse\"\0By\n+io.opentel\
-    emetry.proto.collector.metrics.v1B\x13MetricsServiceProtoP\x01Z3go.opent\
-    elemetry.io/proto/otlp/collector/metrics/v1b\x06proto3\
+    ricsR\x0fresourceMetrics\"\x8e\x01\n\x1cExportMetricsServiceResponse\x12\
+    n\n\x0fpartial_success\x18\x01\x20\x01(\x0b2E.opentelemetry.proto.collec\
+    tor.metrics.v1.ExportMetricsPartialSuccessR\x0epartialSuccess\"t\n\x1bEx\
+    portMetricsPartialSuccess\x120\n\x14rejected_data_points\x18\x01\x20\x01\
+    (\x03R\x12rejectedDataPoints\x12#\n\rerror_message\x18\x02\x20\x01(\tR\
+    \x0cerrorMessage2\xac\x01\n\x0eMetricsService\x12\x99\x01\n\x06Export\
+    \x12E.opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceReque\
+    st\x1aF.opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceRes\
+    ponse\"\0B\xa4\x01\n+io.opentelemetry.proto.collector.metrics.v1B\x13Met\
+    ricsServiceProtoP\x01Z3go.opentelemetry.io/proto/otlp/collector/metrics/\
+    v1\xaa\x02(OpenTelemetry.Proto.Collector.Metrics.V1b\x06proto3\
 ";
 
 static file_descriptor_proto_lazy: ::protobuf::rt::LazyV2<::protobuf::descriptor::FileDescriptorProto> = ::protobuf::rt::LazyV2::INIT;
