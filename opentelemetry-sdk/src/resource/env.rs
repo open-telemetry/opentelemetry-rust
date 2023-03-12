@@ -9,6 +9,7 @@ use std::time::Duration;
 
 const OTEL_RESOURCE_ATTRIBUTES: &str = "OTEL_RESOURCE_ATTRIBUTES";
 const OTEL_SERVICE_NAME: &str = "OTEL_SERVICE_NAME";
+const CARGO_BIN_NAME: &str = "CARGO_BIN_NAME";
 
 /// Resource detector implements ResourceDetector and is used to extract
 /// general SDK configuration from environment.
@@ -88,7 +89,12 @@ impl ResourceDetector for SdkProvidedResourceDetector {
                         .get(Key::new("service.name"))
                         .map(|v| v.to_string())
                         .filter(|s| !s.is_empty())
-                        .unwrap_or_else(|| "unknown_service".to_string())
+                        .unwrap_or_else(|| {
+                            env::var(CARGO_BIN_NAME)
+                                .ok()
+                                .filter(|s| !s.is_empty())
+                                .unwrap_or_else(|| "unknown_service".to_string())
+                        })
                 }),
         )])
     }
@@ -97,7 +103,7 @@ impl ResourceDetector for SdkProvidedResourceDetector {
 #[cfg(test)]
 mod tests {
     use crate::resource::env::{
-        SdkProvidedResourceDetector, OTEL_RESOURCE_ATTRIBUTES, OTEL_SERVICE_NAME,
+        SdkProvidedResourceDetector, CARGO_BIN_NAME, OTEL_RESOURCE_ATTRIBUTES, OTEL_SERVICE_NAME,
     };
     use crate::resource::{EnvResourceDetector, Resource, ResourceDetector};
     use opentelemetry_api::{Key, KeyValue, Value};
@@ -140,6 +146,13 @@ mod tests {
             Some(Value::from("unknown_service")),
         );
 
+        env::set_var(CARGO_BIN_NAME, "test cargo");
+        let cargo_bin = SdkProvidedResourceDetector.detect(Duration::from_secs(1));
+        assert_eq!(
+            cargo_bin.get(Key::from_static_str(SERVICE_NAME)),
+            Some(Value::from("test cargo"))
+        );
+
         env::set_var(OTEL_SERVICE_NAME, "test service");
         let with_service = SdkProvidedResourceDetector.detect(Duration::from_secs(1));
         assert_eq!(
@@ -163,6 +176,7 @@ mod tests {
             with_service.get(Key::from_static_str(SERVICE_NAME)),
             Some(Value::from("test service"))
         );
+        env::set_var(CARGO_BIN_NAME, "");
         env::set_var(OTEL_RESOURCE_ATTRIBUTES, "");
         env::set_var(OTEL_SERVICE_NAME, ""); // clear the env var
     }
