@@ -365,6 +365,404 @@ pub struct CustomHttpPattern {
     #[prost(string, tag = "2")]
     pub path: ::prost::alloc::string::String,
 }
+/// The launch stage as defined by [Google Cloud Platform
+/// Launch Stages](<https://cloud.google.com/terms/launch-stages>).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum LaunchStage {
+    /// Do not use this default value.
+    Unspecified = 0,
+    /// The feature is not yet implemented. Users can not use it.
+    Unimplemented = 6,
+    /// Prelaunch features are hidden from users and are only visible internally.
+    Prelaunch = 7,
+    /// Early Access features are limited to a closed group of testers. To use
+    /// these features, you must sign up in advance and sign a Trusted Tester
+    /// agreement (which includes confidentiality provisions). These features may
+    /// be unstable, changed in backward-incompatible ways, and are not
+    /// guaranteed to be released.
+    EarlyAccess = 1,
+    /// Alpha is a limited availability test for releases before they are cleared
+    /// for widespread use. By Alpha, all significant design issues are resolved
+    /// and we are in the process of verifying functionality. Alpha customers
+    /// need to apply for access, agree to applicable terms, and have their
+    /// projects allowlisted. Alpha releases don't have to be feature complete,
+    /// no SLAs are provided, and there are no technical support obligations, but
+    /// they will be far enough along that customers can actually use them in
+    /// test environments or for limited-use tests -- just like they would in
+    /// normal production cases.
+    Alpha = 2,
+    /// Beta is the point at which we are ready to open a release for any
+    /// customer to use. There are no SLA or technical support obligations in a
+    /// Beta release. Products will be complete from a feature perspective, but
+    /// may have some open outstanding issues. Beta releases are suitable for
+    /// limited production use cases.
+    Beta = 3,
+    /// GA features are open to all developers and are considered stable and
+    /// fully qualified for production use.
+    Ga = 4,
+    /// Deprecated features are scheduled to be shut down and removed. For more
+    /// information, see the "Deprecation Policy" section of our [Terms of
+    /// Service](<https://cloud.google.com/terms/>)
+    /// and the [Google Cloud Platform Subject to the Deprecation
+    /// Policy](<https://cloud.google.com/terms/deprecation>) documentation.
+    Deprecated = 5,
+}
+impl LaunchStage {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            LaunchStage::Unspecified => "LAUNCH_STAGE_UNSPECIFIED",
+            LaunchStage::Unimplemented => "UNIMPLEMENTED",
+            LaunchStage::Prelaunch => "PRELAUNCH",
+            LaunchStage::EarlyAccess => "EARLY_ACCESS",
+            LaunchStage::Alpha => "ALPHA",
+            LaunchStage::Beta => "BETA",
+            LaunchStage::Ga => "GA",
+            LaunchStage::Deprecated => "DEPRECATED",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "LAUNCH_STAGE_UNSPECIFIED" => Some(Self::Unspecified),
+            "UNIMPLEMENTED" => Some(Self::Unimplemented),
+            "PRELAUNCH" => Some(Self::Prelaunch),
+            "EARLY_ACCESS" => Some(Self::EarlyAccess),
+            "ALPHA" => Some(Self::Alpha),
+            "BETA" => Some(Self::Beta),
+            "GA" => Some(Self::Ga),
+            "DEPRECATED" => Some(Self::Deprecated),
+            _ => None,
+        }
+    }
+}
+/// Required information for every language.
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct CommonLanguageSettings {
+    /// Link to automatically generated reference documentation.  Example:
+    /// <https://cloud.google.com/nodejs/docs/reference/asset/latest>
+    #[deprecated]
+    #[prost(string, tag = "1")]
+    pub reference_docs_uri: ::prost::alloc::string::String,
+    /// The destination where API teams want this client library to be published.
+    #[prost(enumeration = "ClientLibraryDestination", repeated, tag = "2")]
+    pub destinations: ::prost::alloc::vec::Vec<i32>,
+}
+/// Details about how and where to publish client libraries.
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ClientLibrarySettings {
+    /// Version of the API to apply these settings to.
+    #[prost(string, tag = "1")]
+    pub version: ::prost::alloc::string::String,
+    /// Launch stage of this version of the API.
+    #[prost(enumeration = "LaunchStage", tag = "2")]
+    pub launch_stage: i32,
+    /// When using transport=rest, the client request will encode enums as
+    /// numbers rather than strings.
+    #[prost(bool, tag = "3")]
+    pub rest_numeric_enums: bool,
+    /// Settings for legacy Java features, supported in the Service YAML.
+    #[prost(message, optional, tag = "21")]
+    pub java_settings: ::core::option::Option<JavaSettings>,
+    /// Settings for C++ client libraries.
+    #[prost(message, optional, tag = "22")]
+    pub cpp_settings: ::core::option::Option<CppSettings>,
+    /// Settings for PHP client libraries.
+    #[prost(message, optional, tag = "23")]
+    pub php_settings: ::core::option::Option<PhpSettings>,
+    /// Settings for Python client libraries.
+    #[prost(message, optional, tag = "24")]
+    pub python_settings: ::core::option::Option<PythonSettings>,
+    /// Settings for Node client libraries.
+    #[prost(message, optional, tag = "25")]
+    pub node_settings: ::core::option::Option<NodeSettings>,
+    /// Settings for .NET client libraries.
+    #[prost(message, optional, tag = "26")]
+    pub dotnet_settings: ::core::option::Option<DotnetSettings>,
+    /// Settings for Ruby client libraries.
+    #[prost(message, optional, tag = "27")]
+    pub ruby_settings: ::core::option::Option<RubySettings>,
+    /// Settings for Go client libraries.
+    #[prost(message, optional, tag = "28")]
+    pub go_settings: ::core::option::Option<GoSettings>,
+}
+/// This message configures the settings for publishing [Google Cloud Client
+/// libraries](<https://cloud.google.com/apis/docs/cloud-client-libraries>)
+/// generated from the service config.
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct Publishing {
+    /// A list of API method settings, e.g. the behavior for methods that use the
+    /// long-running operation pattern.
+    #[prost(message, repeated, tag = "2")]
+    pub method_settings: ::prost::alloc::vec::Vec<MethodSettings>,
+    /// Link to a place that API users can report issues.  Example:
+    /// <https://issuetracker.google.com/issues/new?component=190865&template=1161103>
+    #[prost(string, tag = "101")]
+    pub new_issue_uri: ::prost::alloc::string::String,
+    /// Link to product home page.  Example:
+    /// <https://cloud.google.com/asset-inventory/docs/overview>
+    #[prost(string, tag = "102")]
+    pub documentation_uri: ::prost::alloc::string::String,
+    /// Used as a tracking tag when collecting data about the APIs developer
+    /// relations artifacts like docs, packages delivered to package managers,
+    /// etc.  Example: "speech".
+    #[prost(string, tag = "103")]
+    pub api_short_name: ::prost::alloc::string::String,
+    /// GitHub label to apply to issues and pull requests opened for this API.
+    #[prost(string, tag = "104")]
+    pub github_label: ::prost::alloc::string::String,
+    /// GitHub teams to be added to CODEOWNERS in the directory in GitHub
+    /// containing source code for the client libraries for this API.
+    #[prost(string, repeated, tag = "105")]
+    pub codeowner_github_teams: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    /// A prefix used in sample code when demarking regions to be included in
+    /// documentation.
+    #[prost(string, tag = "106")]
+    pub doc_tag_prefix: ::prost::alloc::string::String,
+    /// For whom the client library is being published.
+    #[prost(enumeration = "ClientLibraryOrganization", tag = "107")]
+    pub organization: i32,
+    /// Client library settings.  If the same version string appears multiple
+    /// times in this list, then the last one wins.  Settings from earlier
+    /// settings with the same version string are discarded.
+    #[prost(message, repeated, tag = "109")]
+    pub library_settings: ::prost::alloc::vec::Vec<ClientLibrarySettings>,
+}
+/// Settings for Java client libraries.
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct JavaSettings {
+    /// The package name to use in Java. Clobbers the java_package option
+    /// set in the protobuf. This should be used **only** by APIs
+    /// who have already set the language_settings.java.package_name" field
+    /// in gapic.yaml. API teams should use the protobuf java_package option
+    /// where possible.
+    ///
+    /// Example of a YAML configuration::
+    ///
+    ///   publishing:
+    ///     java_settings:
+    ///       library_package: com.google.cloud.pubsub.v1
+    #[prost(string, tag = "1")]
+    pub library_package: ::prost::alloc::string::String,
+    /// Configure the Java class name to use instead of the service's for its
+    /// corresponding generated GAPIC client. Keys are fully-qualified
+    /// service names as they appear in the protobuf (including the full
+    /// the language_settings.java.interface_names" field in gapic.yaml. API
+    /// teams should otherwise use the service name as it appears in the
+    /// protobuf.
+    ///
+    /// Example of a YAML configuration::
+    ///
+    ///   publishing:
+    ///     java_settings:
+    ///       service_class_names:
+    ///         - google.pubsub.v1.Publisher: TopicAdmin
+    ///         - google.pubsub.v1.Subscriber: SubscriptionAdmin
+    #[prost(map = "string, string", tag = "2")]
+    pub service_class_names:
+        ::std::collections::HashMap<::prost::alloc::string::String, ::prost::alloc::string::String>,
+    /// Some settings.
+    #[prost(message, optional, tag = "3")]
+    pub common: ::core::option::Option<CommonLanguageSettings>,
+}
+/// Settings for C++ client libraries.
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct CppSettings {
+    /// Some settings.
+    #[prost(message, optional, tag = "1")]
+    pub common: ::core::option::Option<CommonLanguageSettings>,
+}
+/// Settings for Php client libraries.
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct PhpSettings {
+    /// Some settings.
+    #[prost(message, optional, tag = "1")]
+    pub common: ::core::option::Option<CommonLanguageSettings>,
+}
+/// Settings for Python client libraries.
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct PythonSettings {
+    /// Some settings.
+    #[prost(message, optional, tag = "1")]
+    pub common: ::core::option::Option<CommonLanguageSettings>,
+}
+/// Settings for Node client libraries.
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct NodeSettings {
+    /// Some settings.
+    #[prost(message, optional, tag = "1")]
+    pub common: ::core::option::Option<CommonLanguageSettings>,
+}
+/// Settings for Dotnet client libraries.
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct DotnetSettings {
+    /// Some settings.
+    #[prost(message, optional, tag = "1")]
+    pub common: ::core::option::Option<CommonLanguageSettings>,
+}
+/// Settings for Ruby client libraries.
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct RubySettings {
+    /// Some settings.
+    #[prost(message, optional, tag = "1")]
+    pub common: ::core::option::Option<CommonLanguageSettings>,
+}
+/// Settings for Go client libraries.
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct GoSettings {
+    /// Some settings.
+    #[prost(message, optional, tag = "1")]
+    pub common: ::core::option::Option<CommonLanguageSettings>,
+}
+/// Describes the generator configuration for a method.
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct MethodSettings {
+    /// The fully qualified name of the method, for which the options below apply.
+    /// This is used to find the method to apply the options.
+    #[prost(string, tag = "1")]
+    pub selector: ::prost::alloc::string::String,
+    /// Describes settings to use for long-running operations when generating
+    /// API methods for RPCs. Complements RPCs that use the annotations in
+    /// google/longrunning/operations.proto.
+    ///
+    /// Example of a YAML configuration::
+    ///
+    ///   publishing:
+    ///     method_behavior:
+    ///       - selector: CreateAdDomain
+    ///         long_running:
+    ///           initial_poll_delay:
+    ///             seconds: 60 # 1 minute
+    ///           poll_delay_multiplier: 1.5
+    ///           max_poll_delay:
+    ///             seconds: 360 # 6 minutes
+    ///           total_poll_timeout:
+    ///              seconds: 54000 # 90 minutes
+    #[prost(message, optional, tag = "2")]
+    pub long_running: ::core::option::Option<method_settings::LongRunning>,
+}
+/// Nested message and enum types in `MethodSettings`.
+pub mod method_settings {
+    /// Describes settings to use when generating API methods that use the
+    /// long-running operation pattern.
+    /// All default values below are from those used in the client library
+    /// generators (e.g.
+    /// \[Java\](<https://github.com/googleapis/gapic-generator-java/blob/04c2faa191a9b5a10b92392fe8482279c4404803/src/main/java/com/google/api/generator/gapic/composer/common/RetrySettingsComposer.java>)).
+    #[allow(clippy::derive_partial_eq_without_eq)]
+    #[derive(Clone, PartialEq, ::prost::Message)]
+    pub struct LongRunning {
+        /// Initial delay after which the first poll request will be made.
+        /// Default value: 5 seconds.
+        #[prost(message, optional, tag = "1")]
+        pub initial_poll_delay: ::core::option::Option<::prost_types::Duration>,
+        /// Multiplier to gradually increase delay between subsequent polls until it
+        /// reaches max_poll_delay.
+        /// Default value: 1.5.
+        #[prost(float, tag = "2")]
+        pub poll_delay_multiplier: f32,
+        /// Maximum time between two subsequent poll requests.
+        /// Default value: 45 seconds.
+        #[prost(message, optional, tag = "3")]
+        pub max_poll_delay: ::core::option::Option<::prost_types::Duration>,
+        /// Total polling timeout.
+        /// Default value: 5 minutes.
+        #[prost(message, optional, tag = "4")]
+        pub total_poll_timeout: ::core::option::Option<::prost_types::Duration>,
+    }
+}
+/// The organization for which the client libraries are being published.
+/// Affects the url where generated docs are published, etc.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum ClientLibraryOrganization {
+    /// Not useful.
+    Unspecified = 0,
+    /// Google Cloud Platform Org.
+    Cloud = 1,
+    /// Ads (Advertising) Org.
+    Ads = 2,
+    /// Photos Org.
+    Photos = 3,
+    /// Street View Org.
+    StreetView = 4,
+}
+impl ClientLibraryOrganization {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            ClientLibraryOrganization::Unspecified => "CLIENT_LIBRARY_ORGANIZATION_UNSPECIFIED",
+            ClientLibraryOrganization::Cloud => "CLOUD",
+            ClientLibraryOrganization::Ads => "ADS",
+            ClientLibraryOrganization::Photos => "PHOTOS",
+            ClientLibraryOrganization::StreetView => "STREET_VIEW",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "CLIENT_LIBRARY_ORGANIZATION_UNSPECIFIED" => Some(Self::Unspecified),
+            "CLOUD" => Some(Self::Cloud),
+            "ADS" => Some(Self::Ads),
+            "PHOTOS" => Some(Self::Photos),
+            "STREET_VIEW" => Some(Self::StreetView),
+            _ => None,
+        }
+    }
+}
+/// To where should client libraries be published?
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum ClientLibraryDestination {
+    /// Client libraries will neither be generated nor published to package
+    /// managers.
+    Unspecified = 0,
+    /// Generate the client library in a repo under github.com/googleapis,
+    /// but don't publish it to package managers.
+    Github = 10,
+    /// Publish the library to package managers like nuget.org and npmjs.com.
+    PackageManager = 20,
+}
+impl ClientLibraryDestination {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            ClientLibraryDestination::Unspecified => "CLIENT_LIBRARY_DESTINATION_UNSPECIFIED",
+            ClientLibraryDestination::Github => "GITHUB",
+            ClientLibraryDestination::PackageManager => "PACKAGE_MANAGER",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "CLIENT_LIBRARY_DESTINATION_UNSPECIFIED" => Some(Self::Unspecified),
+            "GITHUB" => Some(Self::Github),
+            "PACKAGE_MANAGER" => Some(Self::PackageManager),
+            _ => None,
+        }
+    }
+}
 /// An indicator of the behavior of a given field (for example, that a field
 /// is required in requests, or given as output but ignored as input).
 /// This **does not** change the behavior in protocol buffers itself; it only
@@ -732,81 +1130,6 @@ pub mod label_descriptor {
         }
     }
 }
-/// The launch stage as defined by [Google Cloud Platform
-/// Launch Stages](<http://cloud.google.com/terms/launch-stages>).
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
-#[repr(i32)]
-pub enum LaunchStage {
-    /// Do not use this default value.
-    Unspecified = 0,
-    /// The feature is not yet implemented. Users can not use it.
-    Unimplemented = 6,
-    /// Prelaunch features are hidden from users and are only visible internally.
-    Prelaunch = 7,
-    /// Early Access features are limited to a closed group of testers. To use
-    /// these features, you must sign up in advance and sign a Trusted Tester
-    /// agreement (which includes confidentiality provisions). These features may
-    /// be unstable, changed in backward-incompatible ways, and are not
-    /// guaranteed to be released.
-    EarlyAccess = 1,
-    /// Alpha is a limited availability test for releases before they are cleared
-    /// for widespread use. By Alpha, all significant design issues are resolved
-    /// and we are in the process of verifying functionality. Alpha customers
-    /// need to apply for access, agree to applicable terms, and have their
-    /// projects allowlisted. Alpha releases don’t have to be feature complete,
-    /// no SLAs are provided, and there are no technical support obligations, but
-    /// they will be far enough along that customers can actually use them in
-    /// test environments or for limited-use tests -- just like they would in
-    /// normal production cases.
-    Alpha = 2,
-    /// Beta is the point at which we are ready to open a release for any
-    /// customer to use. There are no SLA or technical support obligations in a
-    /// Beta release. Products will be complete from a feature perspective, but
-    /// may have some open outstanding issues. Beta releases are suitable for
-    /// limited production use cases.
-    Beta = 3,
-    /// GA features are open to all developers and are considered stable and
-    /// fully qualified for production use.
-    Ga = 4,
-    /// Deprecated features are scheduled to be shut down and removed. For more
-    /// information, see the “Deprecation Policy” section of our [Terms of
-    /// Service](<https://cloud.google.com/terms/>)
-    /// and the [Google Cloud Platform Subject to the Deprecation
-    /// Policy](<https://cloud.google.com/terms/deprecation>) documentation.
-    Deprecated = 5,
-}
-impl LaunchStage {
-    /// String value of the enum field names used in the ProtoBuf definition.
-    ///
-    /// The values are not transformed in any way and thus are considered stable
-    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
-    pub fn as_str_name(&self) -> &'static str {
-        match self {
-            LaunchStage::Unspecified => "LAUNCH_STAGE_UNSPECIFIED",
-            LaunchStage::Unimplemented => "UNIMPLEMENTED",
-            LaunchStage::Prelaunch => "PRELAUNCH",
-            LaunchStage::EarlyAccess => "EARLY_ACCESS",
-            LaunchStage::Alpha => "ALPHA",
-            LaunchStage::Beta => "BETA",
-            LaunchStage::Ga => "GA",
-            LaunchStage::Deprecated => "DEPRECATED",
-        }
-    }
-    /// Creates an enum from field names used in the ProtoBuf definition.
-    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
-        match value {
-            "LAUNCH_STAGE_UNSPECIFIED" => Some(Self::Unspecified),
-            "UNIMPLEMENTED" => Some(Self::Unimplemented),
-            "PRELAUNCH" => Some(Self::Prelaunch),
-            "EARLY_ACCESS" => Some(Self::EarlyAccess),
-            "ALPHA" => Some(Self::Alpha),
-            "BETA" => Some(Self::Beta),
-            "GA" => Some(Self::Ga),
-            "DEPRECATED" => Some(Self::Deprecated),
-            _ => None,
-        }
-    }
-}
 /// An object that describes the schema of a \[MonitoredResource][google.api.MonitoredResource\] object using a
 /// type name and a set of labels.  For example, the monitored resource
 /// descriptor for Google Compute Engine VM instances has a type of
@@ -830,6 +1153,10 @@ pub struct MonitoredResourceDescriptor {
     pub name: ::prost::alloc::string::String,
     /// Required. The monitored resource type. For example, the type
     /// `"cloudsql_database"` represents databases in Google Cloud SQL.
+    ///   For a list of types, see [Monitoring resource
+    ///   types](<https://cloud.google.com/monitoring/api/resources>)
+    /// and [Logging resource
+    /// types](<https://cloud.google.com/logging/docs/api/v2/resource-list>).
     #[prost(string, tag = "1")]
     pub r#type: ::prost::alloc::string::String,
     /// Optional. A concise name for the monitored resource type that might be
@@ -859,10 +1186,11 @@ pub struct MonitoredResourceDescriptor {
 /// its attributes according to the schema. For example, a particular Compute
 /// Engine VM instance could be represented by the following object, because the
 /// \[MonitoredResourceDescriptor][google.api.MonitoredResourceDescriptor\] for `"gce_instance"` has labels
-/// `"instance_id"` and `"zone"`:
+/// `"project_id"`, `"instance_id"` and `"zone"`:
 ///
 ///      { "type": "gce_instance",
-///        "labels": { "instance_id": "12345678901234",
+///        "labels": { "project_id": "my-project",
+///                    "instance_id": "12345678901234",
 ///                    "zone": "us-central1-a" }}
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -870,6 +1198,8 @@ pub struct MonitoredResource {
     /// Required. The monitored resource type. This field must match
     /// the `type` field of a \[MonitoredResourceDescriptor][google.api.MonitoredResourceDescriptor\] object. For
     /// example, the type of a Compute Engine VM instance is `gce_instance`.
+    /// Some descriptors include the service name in the type; for example,
+    /// the type of a Datastream stream is `datastream.googleapis.com/Stream`.
     #[prost(string, tag = "1")]
     pub r#type: ::prost::alloc::string::String,
     /// Required. Values for all of the labels listed in the associated monitored
