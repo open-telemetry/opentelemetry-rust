@@ -363,3 +363,63 @@ fn u64_to_f64(val: u64) -> f64 {
 fn f64_to_u64(val: f64) -> u64 {
     f64::to_bits(val)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_zero() {
+        assert_eq!(
+            NumberKind::I64.zero().to_f64(&NumberKind::I64),
+            NumberKind::U64.zero().to_f64(&NumberKind::U64)
+        );
+    }
+    #[test]
+    fn test_minimum_comparison_float() {
+        // I64
+        let subject = NumberKind::I64.zero().to_atomic();
+        subject.fetch_set_min(&NumberKind::I64, &Number::from(-1_i64));
+        assert_eq!(subject.load().to_i64(&NumberKind::I64), -1);
+        subject.fetch_set_min(&NumberKind::I64, &Number::from(2_i64));
+        assert_eq!(subject.load().to_i64(&NumberKind::I64), -1);
+
+        // U64 as a signed number is greater than 5
+        let subject = NumberKind::U64.max().to_atomic();
+        subject.fetch_set_min(&NumberKind::U64, &Number::from(5_u64));
+        assert_eq!(subject.load().to_u64(&NumberKind::U64), 5);
+        subject.fetch_set_min(&NumberKind::U64, &Number::from(7_u64));
+        assert_eq!(subject.load().to_u64(&NumberKind::U64), 5);
+
+        // F64
+        let subject = NumberKind::F64.zero().to_atomic();
+        subject.fetch_set_min(&NumberKind::F64, &Number::from(-2_f64));
+        assert_eq!(subject.load().to_f64(&NumberKind::F64), -2_f64);
+        subject.fetch_set_min(&NumberKind::F64, &Number::from(4_f64));
+        assert_eq!(subject.load().to_f64(&NumberKind::F64), -2_f64);
+    }
+
+    #[test]
+    fn test_maximum_comparison() {
+        // I64
+        let subject = NumberKind::I64.zero().to_atomic();
+        subject.fetch_set_max(&NumberKind::I64, &Number::from(-1_i64));
+        assert_eq!(subject.load().to_i64(&NumberKind::I64), 0);
+        subject.fetch_set_max(&NumberKind::I64, &Number::from(2_i64));
+        assert_eq!(subject.load().to_i64(&NumberKind::I64), 2);
+
+        // U64 as a signed number is greater than 5
+        let subject = NumberKind::U64.zero().to_atomic();
+        subject.fetch_set_max(&NumberKind::U64, &Number::from(5_u64));
+        assert_eq!(subject.load().to_u64(&NumberKind::U64), 5);
+        subject.fetch_set_max(&NumberKind::U64, &Number::from(4_u64));
+        assert_eq!(subject.load().to_u64(&NumberKind::U64), 5);
+
+        // F64
+        let subject = NumberKind::F64.zero().to_atomic();
+        subject.fetch_set_max(&NumberKind::F64, &Number::from(-2_f64));
+        assert_eq!(subject.load().to_f64(&NumberKind::F64), 0_f64);
+        subject.fetch_set_max(&NumberKind::F64, &Number::from(4_f64));
+        assert_eq!(subject.load().to_f64(&NumberKind::F64), 4_f64);
+    }
+}

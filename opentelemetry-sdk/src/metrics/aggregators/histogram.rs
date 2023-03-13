@@ -52,8 +52,9 @@ impl State {
             bucket_counts: vec![0.0; boundaries.len() + 1],
             count: NumberKind::U64.zero().to_atomic(),
             sum: NumberKind::U64.zero().to_atomic(),
-            min: NumberKind::U64.max().to_atomic(), // TODO: Will need to see how these are
-            // specified to be
+            min: NumberKind::I64.max().to_atomic(), // TODO: This could result in some fun bugs,
+            // but we currently don't have access to the
+            // kind so this could be a problem.
             max: NumberKind::U64.min().to_atomic(),
         }
     }

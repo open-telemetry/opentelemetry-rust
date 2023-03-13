@@ -571,7 +571,7 @@ mod tests {
                             time_unix_nano: 1608891030000000000,
                             count: 3,
                             sum: Some(6f64),
-                            min: Some(-1.0), // TODO: Not sure what's wrong with this.
+                            min: Some(1.0),
                             max: Some(3.0),
                             bucket_counts: vec![0, 0, 0, 3],
                             explicit_bounds: vec![0.1, 0.2, 0.3],
