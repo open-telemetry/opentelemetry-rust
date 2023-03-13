@@ -11,11 +11,7 @@ The Rust [OpenTelemetry](https://opentelemetry.io/) implementation.
 [![LICENSE](https://img.shields.io/crates/l/opentelemetry)](./LICENSE)
 [![GitHub Actions CI](https://github.com/open-telemetry/opentelemetry-rust/workflows/CI/badge.svg)](https://github.com/open-telemetry/opentelemetry-rust/actions?query=workflow%3ACI+branch%3Amain)
 [![codecov](https://codecov.io/gh/open-telemetry/opentelemetry-rust/branch/main/graph/badge.svg)](https://codecov.io/gh/open-telemetry/opentelemetry-rust)
-[![Gitter chat](https://img.shields.io/badge/gitter-join%20chat%20%E2%86%92-brightgreen.svg)](https://gitter.im/open-telemetry/opentelemetry-rust)
-
-[Website](https://opentelemetry.io/) |
-[Slack](https://cloud-native.slack.com/archives/C03GDP0H023) |
-[Documentation](https://docs.rs/opentelemetry)
+[![Slack](https://img.shields.io/badge/slack-@cncf/otel/rust-brightgreen.svg?logo=slack)](https://cloud-native.slack.com/archives/C03GDP0H023)
 
 ## Overview
 
