@@ -100,7 +100,7 @@ impl OtlpTracePipeline {
         self
     }
 
-    /// Set the batch span processor configuration.
+    /// Set the batch span processor configuration, and it will override the env vars.
     pub fn with_batch_config(mut self, batch_config: sdk::trace::BatchConfig) -> Self {
         self.batch_config = Some(batch_config);
         self
