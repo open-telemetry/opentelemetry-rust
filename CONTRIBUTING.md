@@ -9,7 +9,7 @@ See the [public meeting
 notes](https://docs.google.com/document/d/1tGKuCsSnyT2McDncVJrMgg74_z8V06riWZa0Sr79I_4/edit)
 for a summary description of past meetings. To request edit access,
 join the meeting or get in touch on
-[Gitter](https://gitter.im/open-telemetry/opentelemetry-rust).
+[Slack](https://cloud-native.slack.com/archives/C03GDP0H023).
 
 ## Pull Requests
 

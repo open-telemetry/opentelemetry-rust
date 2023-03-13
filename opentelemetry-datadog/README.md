@@ -13,7 +13,7 @@ Community supported vendor integrations for applications instrumented with [`Ope
 [![Gitter chat](https://img.shields.io/badge/gitter-join%20chat%20%E2%86%92-brightgreen.svg)](https://gitter.im/open-telemetry/opentelemetry-rust)
 
 [Documentation](https://docs.rs/opentelemetry-datadog) |
-[Chat](https://gitter.im/open-telemetry/opentelemetry-rust)
+[Slack](https://cloud-native.slack.com/archives/C03GDP0H023)
 
 ## Overview
 
