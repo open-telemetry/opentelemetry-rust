@@ -394,17 +394,17 @@ impl SpanExporter {
         }
 
         let channel: GrpcChannel = match (grpcio_config.credentials, grpcio_config.use_tls) {
-            (None, Some(true)) => builder.secure_connect(
-                config.endpoint.as_str(),
-                ChannelCredentialsBuilder::new().build(),
-            ),
+            (None, Some(true)) => builder
+                .set_credentials(ChannelCredentialsBuilder::new().build())
+                .connect(config.endpoint.as_str()),
             (None, _) => builder.connect(config.endpoint.as_str()),
-            (Some(credentials), _) => builder.secure_connect(
-                config.endpoint.as_str(),
-                ChannelCredentialsBuilder::new()
-                    .cert(credentials.cert.into(), credentials.key.into())
-                    .build(),
-            ),
+            (Some(credentials), _) => builder
+                .set_credentials(
+                    ChannelCredentialsBuilder::new()
+                        .cert(credentials.cert.into(), credentials.key.into())
+                        .build(),
+                )
+                .connect(config.endpoint.as_str()),
         };
 
         SpanExporter::Grpcio {

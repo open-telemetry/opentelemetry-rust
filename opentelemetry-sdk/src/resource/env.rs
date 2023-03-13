@@ -64,11 +64,11 @@ fn construct_otel_resources(s: String) -> Resource {
 ///
 /// This detector will first try `OTEL_SERVICE_NAME` env. If it's not available,
 /// then it will check the `OTEL_RESOURCE_ATTRIBUTES` env and see if it contains
-/// `service.name` resource. If it's also not available, it will use
-/// `unknown_service`.
+/// `service.name` resource. If it's not available, it will try to use the env
+/// `CARGO_BIN_NAME` that should have been present at build time. If that was
+/// not available, it will use `unknown_service`.
 ///
-/// Note that if `service.name` is empty, it will be ignored and the service name will
-/// be `unknown_service`. If users want to set an empty service name, they can provide
+/// If users want to set an empty service name, they can provide
 /// a resource with empty value and `service.name` key.
 ///
 /// [the Resource SDK specification]:https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/resource/sdk.md#sdk-provided-resource-attributes
@@ -88,7 +88,10 @@ impl ResourceDetector for SdkProvidedResourceDetector {
                         .get(Key::new("service.name"))
                         .map(|v| v.to_string())
                         .filter(|s| !s.is_empty())
-                        .unwrap_or_else(|| "unknown_service".to_string())
+                        .unwrap_or_else(|| match option_env!("CARGO_BIN_NAME") {
+                            Some(s) => s.to_string(),
+                            None => "unknown_service".to_string(),
+                        })
                 }),
         )])
     }
