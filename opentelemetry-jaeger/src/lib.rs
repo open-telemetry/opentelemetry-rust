@@ -1,11 +1,17 @@
 //! Collects OpenTelemetry spans and reports them to a given Jaeger
 //! `agent` or `collector` endpoint, propagate the tracing context between the applications using [Jaeger propagation format].
 //!
+//! *Warning*: Note that the exporter component from this crate will be [deprecated][jaeger-deprecation]
+//! in the future. Users are advised to move to [opentelemetry_otlp][otlp-exporter] instead as [Jaeger][jaeger-otlp]
+//! supports accepting data in the OTLP protocol.
 //! See the [Jaeger Docs] for details about Jaeger and deployment information.
 //!
 //! *Compiler support: [requires `rustc` 1.60+][msrv]*
 //!
 //! [Jaeger Docs]: https://www.jaegertracing.io/docs/
+//! [jaeger-deprecation]: https://github.com/open-telemetry/opentelemetry-specification/pull/2858/files
+//! [jaeger-otlp]: https://www.jaegertracing.io/docs/1.38/apis/#opentelemetry-protocol-stable
+//! [otlp-exporter]: https://docs.rs/opentelemetry-otlp/latest/opentelemetry_otlp/
 //! [msrv]: #supported-rust-versions
 //! [jaeger propagation format]: https://www.jaegertracing.io/docs/1.18/client-libraries/#propagation-format
 //!
