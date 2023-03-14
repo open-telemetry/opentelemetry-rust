@@ -33,7 +33,7 @@ async-trait = "0.1"
 futures = { version = "0.3", default-features = false, features = ["std"] }
 futures-util = { version = "0.3", default-features = false, features = ["std"] }
 
-opentelemetry-proto = { version = "0.1", path = "../opentelemetry-proto", default-features = false }
+opentelemetry-proto = { version = "0.2", path = "../opentelemetry-proto", default-features = false }
 
 grpcio = { version = "0.12", optional = true}
 opentelemetry = { version = "0.18", default-features = false, features = ["trace"], path = "../opentelemetry" }
