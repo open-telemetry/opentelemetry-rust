@@ -9,3 +9,4 @@
 //!
 //! This module also provides relative types for those propagators.
 pub mod binary;
+pub mod trace_context_response;
