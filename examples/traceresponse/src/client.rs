@@ -7,6 +7,7 @@ use opentelemetry::sdk::{
     propagation::TraceContextPropagator,
     trace::{self, Sampler},
 };
+use opentelemetry::trace::SpanKind;
 use opentelemetry::{
     trace::{TraceContextExt, Tracer},
     Context, KeyValue,
@@ -29,7 +30,11 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error + Send + Sy
     let _tracer = init_tracer();
 
     let client = Client::new();
-    let span = global::tracer("example/client").start("say hello");
+    let tracer = global::tracer("example/client");
+    let span = tracer
+        .span_builder("say hello")
+        .with_kind(SpanKind::Client)
+        .start(&tracer);
     let cx = Context::current_with_span(span);
 
     let mut req = hyper::Request::builder().uri("http://127.0.0.1:3000");

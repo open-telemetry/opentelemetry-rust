@@ -1,7 +1,8 @@
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Request, Response, Server};
 use opentelemetry::propagation::TextMapPropagator;
-use opentelemetry::trace::FutureExt;
+use opentelemetry::trace::{FutureExt, SpanKind, TraceContextExt};
+use opentelemetry::Context;
 use opentelemetry::{
     global,
     sdk::export::trace::stdout,
@@ -9,7 +10,7 @@ use opentelemetry::{
         propagation::TraceContextPropagator,
         trace::{self, Sampler},
     },
-    trace::{Span, Tracer},
+    trace::Tracer,
 };
 use opentelemetry_contrib::trace::propagator::trace_context_response::TraceContextResponsePropagator;
 use opentelemetry_http::{HeaderExtractor, HeaderInjector};
@@ -20,13 +21,21 @@ async fn handle(req: Request<Body>) -> Result<Response<Body>, Infallible> {
         propagator.extract(&HeaderExtractor(req.headers()))
     });
     let _cx_guard = parent_cx.attach();
-    let mut span = global::tracer("example/server").start("hello");
-    span.add_event("handling this...", Vec::new());
+
+    let tracer = global::tracer("example/client");
+    let span = tracer
+        .span_builder("say hello")
+        .with_kind(SpanKind::Server)
+        .start(&tracer);
+
+    let cx = Context::current_with_span(span);
+
+    cx.span().add_event("handling this...", Vec::new());
 
     let mut res = Response::new("Hello, World!".into());
 
     let response_propagator: &dyn TextMapPropagator = &TraceContextResponsePropagator::new();
-    response_propagator.inject(&mut HeaderInjector(res.headers_mut()));
+    response_propagator.inject_context(&cx, &mut HeaderInjector(res.headers_mut()));
 
     Ok(res)
 }

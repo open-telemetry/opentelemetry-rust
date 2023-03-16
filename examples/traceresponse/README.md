@@ -6,7 +6,6 @@ from client to server, and from the server back to the client using the
 such as:
 
 - Root Span (on Client)
-- Child Span (on Client)
 - Child Span from a Remote Parent (on Server)
 - SpanContext Propagation (from Client to Server)
 - SpanContext Propagation (from Server to Client)
