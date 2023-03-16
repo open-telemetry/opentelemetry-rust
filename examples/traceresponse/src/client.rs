@@ -36,7 +36,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error + Send + Sy
     global::get_text_map_propagator(|propagator| {
         propagator.inject_context(&cx, &mut HeaderInjector(req.headers_mut().unwrap()))
     });
-    let res = client.request(req.body(Body::from("Hallo!"))?).await?;
+    let res = client.request(req.body(Body::from("Hello!"))?).await?;
 
     let response_propagator: &dyn TextMapPropagator = &TraceContextResponsePropagator::new();
 
