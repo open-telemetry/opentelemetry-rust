@@ -46,7 +46,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error + Send + Sy
     let response_propagator: &dyn TextMapPropagator = &TraceContextResponsePropagator::new();
 
     let response_cx =
-        response_propagator.extract_with_context(&cx, &mut HeaderExtractor(res.headers()));
+        response_propagator.extract_with_context(&cx, &HeaderExtractor(res.headers()));
 
     let response_span = response_cx.span();
 

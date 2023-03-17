@@ -1,7 +1,7 @@
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Request, Response, Server};
 use opentelemetry::propagation::TextMapPropagator;
-use opentelemetry::trace::{FutureExt, SpanKind, TraceContextExt};
+use opentelemetry::trace::{SpanKind, TraceContextExt};
 use opentelemetry::Context;
 use opentelemetry::{
     global,
