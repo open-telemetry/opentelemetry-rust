@@ -197,7 +197,7 @@ impl ::protobuf::reflect::ProtobufValue for TracesData {
 pub struct ResourceSpans {
     // message fields
     pub resource: ::protobuf::SingularPtrField<super::resource::Resource>,
-    pub instrumentation_library_spans: ::protobuf::RepeatedField<InstrumentationLibrarySpans>,
+    pub scope_spans: ::protobuf::RepeatedField<ScopeSpans>,
     pub schema_url: ::std::string::String,
     // special fields
     #[cfg_attr(feature = "with-serde", serde(skip))]
@@ -250,29 +250,29 @@ impl ResourceSpans {
         self.resource.take().unwrap_or_else(|| super::resource::Resource::new())
     }
 
-    // repeated .opentelemetry.proto.trace.v1.InstrumentationLibrarySpans instrumentation_library_spans = 2;
+    // repeated .opentelemetry.proto.trace.v1.ScopeSpans scope_spans = 2;
 
 
-    pub fn get_instrumentation_library_spans(&self) -> &[InstrumentationLibrarySpans] {
-        &self.instrumentation_library_spans
+    pub fn get_scope_spans(&self) -> &[ScopeSpans] {
+        &self.scope_spans
     }
-    pub fn clear_instrumentation_library_spans(&mut self) {
-        self.instrumentation_library_spans.clear();
+    pub fn clear_scope_spans(&mut self) {
+        self.scope_spans.clear();
     }
 
     // Param is passed by value, moved
-    pub fn set_instrumentation_library_spans(&mut self, v: ::protobuf::RepeatedField<InstrumentationLibrarySpans>) {
-        self.instrumentation_library_spans = v;
+    pub fn set_scope_spans(&mut self, v: ::protobuf::RepeatedField<ScopeSpans>) {
+        self.scope_spans = v;
     }
 
     // Mutable pointer to the field.
-    pub fn mut_instrumentation_library_spans(&mut self) -> &mut ::protobuf::RepeatedField<InstrumentationLibrarySpans> {
-        &mut self.instrumentation_library_spans
+    pub fn mut_scope_spans(&mut self) -> &mut ::protobuf::RepeatedField<ScopeSpans> {
+        &mut self.scope_spans
     }
 
     // Take field
-    pub fn take_instrumentation_library_spans(&mut self) -> ::protobuf::RepeatedField<InstrumentationLibrarySpans> {
-        ::std::mem::replace(&mut self.instrumentation_library_spans, ::protobuf::RepeatedField::new())
+    pub fn take_scope_spans(&mut self) -> ::protobuf::RepeatedField<ScopeSpans> {
+        ::std::mem::replace(&mut self.scope_spans, ::protobuf::RepeatedField::new())
     }
 
     // string schema_url = 3;
@@ -309,7 +309,7 @@ impl ::protobuf::Message for ResourceSpans {
                 return false;
             }
         };
-        for v in &self.instrumentation_library_spans {
+        for v in &self.scope_spans {
             if !v.is_initialized() {
                 return false;
             }
@@ -325,7 +325,7 @@ impl ::protobuf::Message for ResourceSpans {
                     ::protobuf::rt::read_singular_message_into(wire_type, is, &mut self.resource)?;
                 },
                 2 => {
-                    ::protobuf::rt::read_repeated_message_into(wire_type, is, &mut self.instrumentation_library_spans)?;
+                    ::protobuf::rt::read_repeated_message_into(wire_type, is, &mut self.scope_spans)?;
                 },
                 3 => {
                     ::protobuf::rt::read_singular_proto3_string_into(wire_type, is, &mut self.schema_url)?;
@@ -346,7 +346,7 @@ impl ::protobuf::Message for ResourceSpans {
             let len = v.compute_size();
             my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
         }
-        for value in &self.instrumentation_library_spans {
+        for value in &self.scope_spans {
             let len = value.compute_size();
             my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
         };
@@ -364,7 +364,7 @@ impl ::protobuf::Message for ResourceSpans {
             os.write_raw_varint32(v.get_cached_size())?;
             v.write_to_with_cached_sizes(os)?;
         }
-        for v in &self.instrumentation_library_spans {
+        for v in &self.scope_spans {
             os.write_tag(2, ::protobuf::wire_format::WireTypeLengthDelimited)?;
             os.write_raw_varint32(v.get_cached_size())?;
             v.write_to_with_cached_sizes(os)?;
@@ -415,10 +415,10 @@ impl ::protobuf::Message for ResourceSpans {
                 |m: &ResourceSpans| { &m.resource },
                 |m: &mut ResourceSpans| { &mut m.resource },
             ));
-            fields.push(::protobuf::reflect::accessor::make_repeated_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<InstrumentationLibrarySpans>>(
-                "instrumentation_library_spans",
-                |m: &ResourceSpans| { &m.instrumentation_library_spans },
-                |m: &mut ResourceSpans| { &mut m.instrumentation_library_spans },
+            fields.push(::protobuf::reflect::accessor::make_repeated_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<ScopeSpans>>(
+                "scope_spans",
+                |m: &ResourceSpans| { &m.scope_spans },
+                |m: &mut ResourceSpans| { &mut m.scope_spans },
             ));
             fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeString>(
                 "schema_url",
@@ -442,7 +442,7 @@ impl ::protobuf::Message for ResourceSpans {
 impl ::protobuf::Clear for ResourceSpans {
     fn clear(&mut self) {
         self.resource.clear();
-        self.instrumentation_library_spans.clear();
+        self.scope_spans.clear();
         self.schema_url.clear();
         self.unknown_fields.clear();
     }
@@ -462,9 +462,9 @@ impl ::protobuf::reflect::ProtobufValue for ResourceSpans {
 
 #[derive(PartialEq,Clone,Default)]
 #[cfg_attr(feature = "with-serde", derive(::serde::Serialize, ::serde::Deserialize))]
-pub struct InstrumentationLibrarySpans {
+pub struct ScopeSpans {
     // message fields
-    pub instrumentation_library: ::protobuf::SingularPtrField<super::common::InstrumentationLibrary>,
+    pub scope: ::protobuf::SingularPtrField<super::common::InstrumentationScope>,
     pub spans: ::protobuf::RepeatedField<Span>,
     pub schema_url: ::std::string::String,
     // special fields
@@ -474,48 +474,48 @@ pub struct InstrumentationLibrarySpans {
     pub cached_size: ::protobuf::CachedSize,
 }
 
-impl<'a> ::std::default::Default for &'a InstrumentationLibrarySpans {
-    fn default() -> &'a InstrumentationLibrarySpans {
-        <InstrumentationLibrarySpans as ::protobuf::Message>::default_instance()
+impl<'a> ::std::default::Default for &'a ScopeSpans {
+    fn default() -> &'a ScopeSpans {
+        <ScopeSpans as ::protobuf::Message>::default_instance()
     }
 }
 
-impl InstrumentationLibrarySpans {
-    pub fn new() -> InstrumentationLibrarySpans {
+impl ScopeSpans {
+    pub fn new() -> ScopeSpans {
         ::std::default::Default::default()
     }
 
-    // .opentelemetry.proto.common.v1.InstrumentationLibrary instrumentation_library = 1;
+    // .opentelemetry.proto.common.v1.InstrumentationScope scope = 1;
 
 
-    pub fn get_instrumentation_library(&self) -> &super::common::InstrumentationLibrary {
-        self.instrumentation_library.as_ref().unwrap_or_else(|| <super::common::InstrumentationLibrary as ::protobuf::Message>::default_instance())
+    pub fn get_scope(&self) -> &super::common::InstrumentationScope {
+        self.scope.as_ref().unwrap_or_else(|| <super::common::InstrumentationScope as ::protobuf::Message>::default_instance())
     }
-    pub fn clear_instrumentation_library(&mut self) {
-        self.instrumentation_library.clear();
+    pub fn clear_scope(&mut self) {
+        self.scope.clear();
     }
 
-    pub fn has_instrumentation_library(&self) -> bool {
-        self.instrumentation_library.is_some()
+    pub fn has_scope(&self) -> bool {
+        self.scope.is_some()
     }
 
     // Param is passed by value, moved
-    pub fn set_instrumentation_library(&mut self, v: super::common::InstrumentationLibrary) {
-        self.instrumentation_library = ::protobuf::SingularPtrField::some(v);
+    pub fn set_scope(&mut self, v: super::common::InstrumentationScope) {
+        self.scope = ::protobuf::SingularPtrField::some(v);
     }
 
     // Mutable pointer to the field.
     // If field is not initialized, it is initialized with default value first.
-    pub fn mut_instrumentation_library(&mut self) -> &mut super::common::InstrumentationLibrary {
-        if self.instrumentation_library.is_none() {
-            self.instrumentation_library.set_default();
+    pub fn mut_scope(&mut self) -> &mut super::common::InstrumentationScope {
+        if self.scope.is_none() {
+            self.scope.set_default();
         }
-        self.instrumentation_library.as_mut().unwrap()
+        self.scope.as_mut().unwrap()
     }
 
     // Take field
-    pub fn take_instrumentation_library(&mut self) -> super::common::InstrumentationLibrary {
-        self.instrumentation_library.take().unwrap_or_else(|| super::common::InstrumentationLibrary::new())
+    pub fn take_scope(&mut self) -> super::common::InstrumentationScope {
+        self.scope.take().unwrap_or_else(|| super::common::InstrumentationScope::new())
     }
 
     // repeated .opentelemetry.proto.trace.v1.Span spans = 2;
@@ -570,9 +570,9 @@ impl InstrumentationLibrarySpans {
     }
 }
 
-impl ::protobuf::Message for InstrumentationLibrarySpans {
+impl ::protobuf::Message for ScopeSpans {
     fn is_initialized(&self) -> bool {
-        for v in &self.instrumentation_library {
+        for v in &self.scope {
             if !v.is_initialized() {
                 return false;
             }
@@ -590,7 +590,7 @@ impl ::protobuf::Message for InstrumentationLibrarySpans {
             let (field_number, wire_type) = is.read_tag_unpack()?;
             match field_number {
                 1 => {
-                    ::protobuf::rt::read_singular_message_into(wire_type, is, &mut self.instrumentation_library)?;
+                    ::protobuf::rt::read_singular_message_into(wire_type, is, &mut self.scope)?;
                 },
                 2 => {
                     ::protobuf::rt::read_repeated_message_into(wire_type, is, &mut self.spans)?;
@@ -610,7 +610,7 @@ impl ::protobuf::Message for InstrumentationLibrarySpans {
     #[allow(unused_variables)]
     fn compute_size(&self) -> u32 {
         let mut my_size = 0;
-        if let Some(ref v) = self.instrumentation_library.as_ref() {
+        if let Some(ref v) = self.scope.as_ref() {
             let len = v.compute_size();
             my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
         }
@@ -627,7 +627,7 @@ impl ::protobuf::Message for InstrumentationLibrarySpans {
     }
 
     fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
-        if let Some(ref v) = self.instrumentation_library.as_ref() {
+        if let Some(ref v) = self.scope.as_ref() {
             os.write_tag(1, ::protobuf::wire_format::WireTypeLengthDelimited)?;
             os.write_raw_varint32(v.get_cached_size())?;
             v.write_to_with_cached_sizes(os)?;
@@ -670,59 +670,59 @@ impl ::protobuf::Message for InstrumentationLibrarySpans {
         Self::descriptor_static()
     }
 
-    fn new() -> InstrumentationLibrarySpans {
-        InstrumentationLibrarySpans::new()
+    fn new() -> ScopeSpans {
+        ScopeSpans::new()
     }
 
     fn descriptor_static() -> &'static ::protobuf::reflect::MessageDescriptor {
         static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
         descriptor.get(|| {
             let mut fields = ::std::vec::Vec::new();
-            fields.push(::protobuf::reflect::accessor::make_singular_ptr_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<super::common::InstrumentationLibrary>>(
-                "instrumentation_library",
-                |m: &InstrumentationLibrarySpans| { &m.instrumentation_library },
-                |m: &mut InstrumentationLibrarySpans| { &mut m.instrumentation_library },
+            fields.push(::protobuf::reflect::accessor::make_singular_ptr_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<super::common::InstrumentationScope>>(
+                "scope",
+                |m: &ScopeSpans| { &m.scope },
+                |m: &mut ScopeSpans| { &mut m.scope },
             ));
             fields.push(::protobuf::reflect::accessor::make_repeated_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<Span>>(
                 "spans",
-                |m: &InstrumentationLibrarySpans| { &m.spans },
-                |m: &mut InstrumentationLibrarySpans| { &mut m.spans },
+                |m: &ScopeSpans| { &m.spans },
+                |m: &mut ScopeSpans| { &mut m.spans },
             ));
             fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeString>(
                 "schema_url",
-                |m: &InstrumentationLibrarySpans| { &m.schema_url },
-                |m: &mut InstrumentationLibrarySpans| { &mut m.schema_url },
+                |m: &ScopeSpans| { &m.schema_url },
+                |m: &mut ScopeSpans| { &mut m.schema_url },
             ));
-            ::protobuf::reflect::MessageDescriptor::new_pb_name::<InstrumentationLibrarySpans>(
-                "InstrumentationLibrarySpans",
+            ::protobuf::reflect::MessageDescriptor::new_pb_name::<ScopeSpans>(
+                "ScopeSpans",
                 fields,
                 file_descriptor_proto()
             )
         })
     }
 
-    fn default_instance() -> &'static InstrumentationLibrarySpans {
-        static instance: ::protobuf::rt::LazyV2<InstrumentationLibrarySpans> = ::protobuf::rt::LazyV2::INIT;
-        instance.get(InstrumentationLibrarySpans::new)
+    fn default_instance() -> &'static ScopeSpans {
+        static instance: ::protobuf::rt::LazyV2<ScopeSpans> = ::protobuf::rt::LazyV2::INIT;
+        instance.get(ScopeSpans::new)
     }
 }
 
-impl ::protobuf::Clear for InstrumentationLibrarySpans {
+impl ::protobuf::Clear for ScopeSpans {
     fn clear(&mut self) {
-        self.instrumentation_library.clear();
+        self.scope.clear();
         self.spans.clear();
         self.schema_url.clear();
         self.unknown_fields.clear();
     }
 }
 
-impl ::std::fmt::Debug for InstrumentationLibrarySpans {
+impl ::std::fmt::Debug for ScopeSpans {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
         ::protobuf::text_format::fmt(self, f)
     }
 }
 
-impl ::protobuf::reflect::ProtobufValue for InstrumentationLibrarySpans {
+impl ::protobuf::reflect::ProtobufValue for ScopeSpans {
     fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
         ::protobuf::reflect::ReflectValueRef::Message(self)
     }
@@ -2394,50 +2394,50 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     race.v1\x1a*opentelemetry/proto/common/v1/common.proto\x1a.opentelemetry\
     /proto/resource/v1/resource.proto\"`\n\nTracesData\x12R\n\x0eresource_sp\
     ans\x18\x01\x20\x03(\x0b2+.opentelemetry.proto.trace.v1.ResourceSpansR\r\
-    resourceSpans\"\xf4\x01\n\rResourceSpans\x12E\n\x08resource\x18\x01\x20\
-    \x01(\x0b2).opentelemetry.proto.resource.v1.ResourceR\x08resource\x12}\n\
-    \x1dinstrumentation_library_spans\x18\x02\x20\x03(\x0b29.opentelemetry.p\
-    roto.trace.v1.InstrumentationLibrarySpansR\x1binstrumentationLibrarySpan\
-    s\x12\x1d\n\nschema_url\x18\x03\x20\x01(\tR\tschemaUrl\"\xe6\x01\n\x1bIn\
-    strumentationLibrarySpans\x12n\n\x17instrumentation_library\x18\x01\x20\
-    \x01(\x0b25.opentelemetry.proto.common.v1.InstrumentationLibraryR\x16ins\
-    trumentationLibrary\x128\n\x05spans\x18\x02\x20\x03(\x0b2\".opentelemetr\
-    y.proto.trace.v1.SpanR\x05spans\x12\x1d\n\nschema_url\x18\x03\x20\x01(\t\
-    R\tschemaUrl\"\x9c\n\n\x04Span\x12\x19\n\x08trace_id\x18\x01\x20\x01(\
-    \x0cR\x07traceId\x12\x17\n\x07span_id\x18\x02\x20\x01(\x0cR\x06spanId\
-    \x12\x1f\n\x0btrace_state\x18\x03\x20\x01(\tR\ntraceState\x12$\n\x0epare\
-    nt_span_id\x18\x04\x20\x01(\x0cR\x0cparentSpanId\x12\x12\n\x04name\x18\
-    \x05\x20\x01(\tR\x04name\x12?\n\x04kind\x18\x06\x20\x01(\x0e2+.opentelem\
-    etry.proto.trace.v1.Span.SpanKindR\x04kind\x12/\n\x14start_time_unix_nan\
-    o\x18\x07\x20\x01(\x06R\x11startTimeUnixNano\x12+\n\x12end_time_unix_nan\
-    o\x18\x08\x20\x01(\x06R\x0fendTimeUnixNano\x12G\n\nattributes\x18\t\x20\
+    resourceSpans\"\xc8\x01\n\rResourceSpans\x12E\n\x08resource\x18\x01\x20\
+    \x01(\x0b2).opentelemetry.proto.resource.v1.ResourceR\x08resource\x12I\n\
+    \x0bscope_spans\x18\x02\x20\x03(\x0b2(.opentelemetry.proto.trace.v1.Scop\
+    eSpansR\nscopeSpans\x12\x1d\n\nschema_url\x18\x03\x20\x01(\tR\tschemaUrl\
+    J\x06\x08\xe8\x07\x10\xe9\x07\"\xb0\x01\n\nScopeSpans\x12I\n\x05scope\
+    \x18\x01\x20\x01(\x0b23.opentelemetry.proto.common.v1.InstrumentationSco\
+    peR\x05scope\x128\n\x05spans\x18\x02\x20\x03(\x0b2\".opentelemetry.proto\
+    .trace.v1.SpanR\x05spans\x12\x1d\n\nschema_url\x18\x03\x20\x01(\tR\tsche\
+    maUrl\"\x9c\n\n\x04Span\x12\x19\n\x08trace_id\x18\x01\x20\x01(\x0cR\x07t\
+    raceId\x12\x17\n\x07span_id\x18\x02\x20\x01(\x0cR\x06spanId\x12\x1f\n\
+    \x0btrace_state\x18\x03\x20\x01(\tR\ntraceState\x12$\n\x0eparent_span_id\
+    \x18\x04\x20\x01(\x0cR\x0cparentSpanId\x12\x12\n\x04name\x18\x05\x20\x01\
+    (\tR\x04name\x12?\n\x04kind\x18\x06\x20\x01(\x0e2+.opentelemetry.proto.t\
+    race.v1.Span.SpanKindR\x04kind\x12/\n\x14start_time_unix_nano\x18\x07\
+    \x20\x01(\x06R\x11startTimeUnixNano\x12+\n\x12end_time_unix_nano\x18\x08\
+    \x20\x01(\x06R\x0fendTimeUnixNano\x12G\n\nattributes\x18\t\x20\x03(\x0b2\
+    '.opentelemetry.proto.common.v1.KeyValueR\nattributes\x128\n\x18dropped_\
+    attributes_count\x18\n\x20\x01(\rR\x16droppedAttributesCount\x12@\n\x06e\
+    vents\x18\x0b\x20\x03(\x0b2(.opentelemetry.proto.trace.v1.Span.EventR\
+    \x06events\x120\n\x14dropped_events_count\x18\x0c\x20\x01(\rR\x12dropped\
+    EventsCount\x12=\n\x05links\x18\r\x20\x03(\x0b2'.opentelemetry.proto.tra\
+    ce.v1.Span.LinkR\x05links\x12.\n\x13dropped_links_count\x18\x0e\x20\x01(\
+    \rR\x11droppedLinksCount\x12<\n\x06status\x18\x0f\x20\x01(\x0b2$.opentel\
+    emetry.proto.trace.v1.StatusR\x06status\x1a\xc4\x01\n\x05Event\x12$\n\
+    \x0etime_unix_nano\x18\x01\x20\x01(\x06R\x0ctimeUnixNano\x12\x12\n\x04na\
+    me\x18\x02\x20\x01(\tR\x04name\x12G\n\nattributes\x18\x03\x20\x03(\x0b2'\
+    .opentelemetry.proto.common.v1.KeyValueR\nattributes\x128\n\x18dropped_a\
+    ttributes_count\x18\x04\x20\x01(\rR\x16droppedAttributesCount\x1a\xde\
+    \x01\n\x04Link\x12\x19\n\x08trace_id\x18\x01\x20\x01(\x0cR\x07traceId\
+    \x12\x17\n\x07span_id\x18\x02\x20\x01(\x0cR\x06spanId\x12\x1f\n\x0btrace\
+    _state\x18\x03\x20\x01(\tR\ntraceState\x12G\n\nattributes\x18\x04\x20\
     \x03(\x0b2'.opentelemetry.proto.common.v1.KeyValueR\nattributes\x128\n\
-    \x18dropped_attributes_count\x18\n\x20\x01(\rR\x16droppedAttributesCount\
-    \x12@\n\x06events\x18\x0b\x20\x03(\x0b2(.opentelemetry.proto.trace.v1.Sp\
-    an.EventR\x06events\x120\n\x14dropped_events_count\x18\x0c\x20\x01(\rR\
-    \x12droppedEventsCount\x12=\n\x05links\x18\r\x20\x03(\x0b2'.opentelemetr\
-    y.proto.trace.v1.Span.LinkR\x05links\x12.\n\x13dropped_links_count\x18\
-    \x0e\x20\x01(\rR\x11droppedLinksCount\x12<\n\x06status\x18\x0f\x20\x01(\
-    \x0b2$.opentelemetry.proto.trace.v1.StatusR\x06status\x1a\xc4\x01\n\x05E\
-    vent\x12$\n\x0etime_unix_nano\x18\x01\x20\x01(\x06R\x0ctimeUnixNano\x12\
-    \x12\n\x04name\x18\x02\x20\x01(\tR\x04name\x12G\n\nattributes\x18\x03\
-    \x20\x03(\x0b2'.opentelemetry.proto.common.v1.KeyValueR\nattributes\x128\
-    \n\x18dropped_attributes_count\x18\x04\x20\x01(\rR\x16droppedAttributesC\
-    ount\x1a\xde\x01\n\x04Link\x12\x19\n\x08trace_id\x18\x01\x20\x01(\x0cR\
-    \x07traceId\x12\x17\n\x07span_id\x18\x02\x20\x01(\x0cR\x06spanId\x12\x1f\
-    \n\x0btrace_state\x18\x03\x20\x01(\tR\ntraceState\x12G\n\nattributes\x18\
-    \x04\x20\x03(\x0b2'.opentelemetry.proto.common.v1.KeyValueR\nattributes\
-    \x128\n\x18dropped_attributes_count\x18\x05\x20\x01(\rR\x16droppedAttrib\
-    utesCount\"\x99\x01\n\x08SpanKind\x12\x19\n\x15SPAN_KIND_UNSPECIFIED\x10\
-    \0\x12\x16\n\x12SPAN_KIND_INTERNAL\x10\x01\x12\x14\n\x10SPAN_KIND_SERVER\
-    \x10\x02\x12\x14\n\x10SPAN_KIND_CLIENT\x10\x03\x12\x16\n\x12SPAN_KIND_PR\
-    ODUCER\x10\x04\x12\x16\n\x12SPAN_KIND_CONSUMER\x10\x05\"\xbd\x01\n\x06St\
-    atus\x12\x18\n\x07message\x18\x02\x20\x01(\tR\x07message\x12C\n\x04code\
-    \x18\x03\x20\x01(\x0e2/.opentelemetry.proto.trace.v1.Status.StatusCodeR\
-    \x04code\"N\n\nStatusCode\x12\x15\n\x11STATUS_CODE_UNSET\x10\0\x12\x12\n\
-    \x0eSTATUS_CODE_OK\x10\x01\x12\x15\n\x11STATUS_CODE_ERROR\x10\x02J\x04\
-    \x08\x01\x10\x02BX\n\x1fio.opentelemetry.proto.trace.v1B\nTraceProtoP\
-    \x01Z'go.opentelemetry.io/proto/otlp/trace/v1b\x06proto3\
+    \x18dropped_attributes_count\x18\x05\x20\x01(\rR\x16droppedAttributesCou\
+    nt\"\x99\x01\n\x08SpanKind\x12\x19\n\x15SPAN_KIND_UNSPECIFIED\x10\0\x12\
+    \x16\n\x12SPAN_KIND_INTERNAL\x10\x01\x12\x14\n\x10SPAN_KIND_SERVER\x10\
+    \x02\x12\x14\n\x10SPAN_KIND_CLIENT\x10\x03\x12\x16\n\x12SPAN_KIND_PRODUC\
+    ER\x10\x04\x12\x16\n\x12SPAN_KIND_CONSUMER\x10\x05\"\xbd\x01\n\x06Status\
+    \x12\x18\n\x07message\x18\x02\x20\x01(\tR\x07message\x12C\n\x04code\x18\
+    \x03\x20\x01(\x0e2/.opentelemetry.proto.trace.v1.Status.StatusCodeR\x04c\
+    ode\"N\n\nStatusCode\x12\x15\n\x11STATUS_CODE_UNSET\x10\0\x12\x12\n\x0eS\
+    TATUS_CODE_OK\x10\x01\x12\x15\n\x11STATUS_CODE_ERROR\x10\x02J\x04\x08\
+    \x01\x10\x02Bw\n\x1fio.opentelemetry.proto.trace.v1B\nTraceProtoP\x01Z'g\
+    o.opentelemetry.io/proto/otlp/trace/v1\xaa\x02\x1cOpenTelemetry.Proto.Tr\
+    ace.V1b\x06proto3\
 ";
 
 static file_descriptor_proto_lazy: ::protobuf::rt::LazyV2<::protobuf::descriptor::FileDescriptorProto> = ::protobuf::rt::LazyV2::INIT;

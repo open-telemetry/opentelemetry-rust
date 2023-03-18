@@ -1136,10 +1136,12 @@ impl ::protobuf::reflect::ProtobufValue for KeyValue {
 
 #[derive(PartialEq,Clone,Default)]
 #[cfg_attr(feature = "with-serde", derive(::serde::Serialize, ::serde::Deserialize))]
-pub struct InstrumentationLibrary {
+pub struct InstrumentationScope {
     // message fields
     pub name: ::std::string::String,
     pub version: ::std::string::String,
+    pub attributes: ::protobuf::RepeatedField<KeyValue>,
+    pub dropped_attributes_count: u32,
     // special fields
     #[cfg_attr(feature = "with-serde", serde(skip))]
     pub unknown_fields: ::protobuf::UnknownFields,
@@ -1147,14 +1149,14 @@ pub struct InstrumentationLibrary {
     pub cached_size: ::protobuf::CachedSize,
 }
 
-impl<'a> ::std::default::Default for &'a InstrumentationLibrary {
-    fn default() -> &'a InstrumentationLibrary {
-        <InstrumentationLibrary as ::protobuf::Message>::default_instance()
+impl<'a> ::std::default::Default for &'a InstrumentationScope {
+    fn default() -> &'a InstrumentationScope {
+        <InstrumentationScope as ::protobuf::Message>::default_instance()
     }
 }
 
-impl InstrumentationLibrary {
-    pub fn new() -> InstrumentationLibrary {
+impl InstrumentationScope {
+    pub fn new() -> InstrumentationScope {
         ::std::default::Default::default()
     }
 
@@ -1209,10 +1211,55 @@ impl InstrumentationLibrary {
     pub fn take_version(&mut self) -> ::std::string::String {
         ::std::mem::replace(&mut self.version, ::std::string::String::new())
     }
+
+    // repeated .opentelemetry.proto.common.v1.KeyValue attributes = 3;
+
+
+    pub fn get_attributes(&self) -> &[KeyValue] {
+        &self.attributes
+    }
+    pub fn clear_attributes(&mut self) {
+        self.attributes.clear();
+    }
+
+    // Param is passed by value, moved
+    pub fn set_attributes(&mut self, v: ::protobuf::RepeatedField<KeyValue>) {
+        self.attributes = v;
+    }
+
+    // Mutable pointer to the field.
+    pub fn mut_attributes(&mut self) -> &mut ::protobuf::RepeatedField<KeyValue> {
+        &mut self.attributes
+    }
+
+    // Take field
+    pub fn take_attributes(&mut self) -> ::protobuf::RepeatedField<KeyValue> {
+        ::std::mem::replace(&mut self.attributes, ::protobuf::RepeatedField::new())
+    }
+
+    // uint32 dropped_attributes_count = 4;
+
+
+    pub fn get_dropped_attributes_count(&self) -> u32 {
+        self.dropped_attributes_count
+    }
+    pub fn clear_dropped_attributes_count(&mut self) {
+        self.dropped_attributes_count = 0;
+    }
+
+    // Param is passed by value, moved
+    pub fn set_dropped_attributes_count(&mut self, v: u32) {
+        self.dropped_attributes_count = v;
+    }
 }
 
-impl ::protobuf::Message for InstrumentationLibrary {
+impl ::protobuf::Message for InstrumentationScope {
     fn is_initialized(&self) -> bool {
+        for v in &self.attributes {
+            if !v.is_initialized() {
+                return false;
+            }
+        };
         true
     }
 
@@ -1225,6 +1272,16 @@ impl ::protobuf::Message for InstrumentationLibrary {
                 },
                 2 => {
                     ::protobuf::rt::read_singular_proto3_string_into(wire_type, is, &mut self.version)?;
+                },
+                3 => {
+                    ::protobuf::rt::read_repeated_message_into(wire_type, is, &mut self.attributes)?;
+                },
+                4 => {
+                    if wire_type != ::protobuf::wire_format::WireTypeVarint {
+                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
+                    }
+                    let tmp = is.read_uint32()?;
+                    self.dropped_attributes_count = tmp;
                 },
                 _ => {
                     ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
@@ -1244,6 +1301,13 @@ impl ::protobuf::Message for InstrumentationLibrary {
         if !self.version.is_empty() {
             my_size += ::protobuf::rt::string_size(2, &self.version);
         }
+        for value in &self.attributes {
+            let len = value.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
+        };
+        if self.dropped_attributes_count != 0 {
+            my_size += ::protobuf::rt::value_size(4, self.dropped_attributes_count, ::protobuf::wire_format::WireTypeVarint);
+        }
         my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
         self.cached_size.set(my_size);
         my_size
@@ -1255,6 +1319,14 @@ impl ::protobuf::Message for InstrumentationLibrary {
         }
         if !self.version.is_empty() {
             os.write_string(2, &self.version)?;
+        }
+        for v in &self.attributes {
+            os.write_tag(3, ::protobuf::wire_format::WireTypeLengthDelimited)?;
+            os.write_raw_varint32(v.get_cached_size())?;
+            v.write_to_with_cached_sizes(os)?;
+        };
+        if self.dropped_attributes_count != 0 {
+            os.write_uint32(4, self.dropped_attributes_count)?;
         }
         os.write_unknown_fields(self.get_unknown_fields())?;
         ::std::result::Result::Ok(())
@@ -1286,8 +1358,8 @@ impl ::protobuf::Message for InstrumentationLibrary {
         Self::descriptor_static()
     }
 
-    fn new() -> InstrumentationLibrary {
-        InstrumentationLibrary::new()
+    fn new() -> InstrumentationScope {
+        InstrumentationScope::new()
     }
 
     fn descriptor_static() -> &'static ::protobuf::reflect::MessageDescriptor {
@@ -1296,43 +1368,55 @@ impl ::protobuf::Message for InstrumentationLibrary {
             let mut fields = ::std::vec::Vec::new();
             fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeString>(
                 "name",
-                |m: &InstrumentationLibrary| { &m.name },
-                |m: &mut InstrumentationLibrary| { &mut m.name },
+                |m: &InstrumentationScope| { &m.name },
+                |m: &mut InstrumentationScope| { &mut m.name },
             ));
             fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeString>(
                 "version",
-                |m: &InstrumentationLibrary| { &m.version },
-                |m: &mut InstrumentationLibrary| { &mut m.version },
+                |m: &InstrumentationScope| { &m.version },
+                |m: &mut InstrumentationScope| { &mut m.version },
             ));
-            ::protobuf::reflect::MessageDescriptor::new_pb_name::<InstrumentationLibrary>(
-                "InstrumentationLibrary",
+            fields.push(::protobuf::reflect::accessor::make_repeated_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<KeyValue>>(
+                "attributes",
+                |m: &InstrumentationScope| { &m.attributes },
+                |m: &mut InstrumentationScope| { &mut m.attributes },
+            ));
+            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeUint32>(
+                "dropped_attributes_count",
+                |m: &InstrumentationScope| { &m.dropped_attributes_count },
+                |m: &mut InstrumentationScope| { &mut m.dropped_attributes_count },
+            ));
+            ::protobuf::reflect::MessageDescriptor::new_pb_name::<InstrumentationScope>(
+                "InstrumentationScope",
                 fields,
                 file_descriptor_proto()
             )
         })
     }
 
-    fn default_instance() -> &'static InstrumentationLibrary {
-        static instance: ::protobuf::rt::LazyV2<InstrumentationLibrary> = ::protobuf::rt::LazyV2::INIT;
-        instance.get(InstrumentationLibrary::new)
+    fn default_instance() -> &'static InstrumentationScope {
+        static instance: ::protobuf::rt::LazyV2<InstrumentationScope> = ::protobuf::rt::LazyV2::INIT;
+        instance.get(InstrumentationScope::new)
     }
 }
 
-impl ::protobuf::Clear for InstrumentationLibrary {
+impl ::protobuf::Clear for InstrumentationScope {
     fn clear(&mut self) {
         self.name.clear();
         self.version.clear();
+        self.attributes.clear();
+        self.dropped_attributes_count = 0;
         self.unknown_fields.clear();
     }
 }
 
-impl ::std::fmt::Debug for InstrumentationLibrary {
+impl ::std::fmt::Debug for InstrumentationScope {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
         ::protobuf::text_format::fmt(self, f)
     }
 }
 
-impl ::protobuf::reflect::ProtobufValue for InstrumentationLibrary {
+impl ::protobuf::reflect::ProtobufValue for InstrumentationScope {
     fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
         ::protobuf::reflect::ReflectValueRef::Message(self)
     }
@@ -1353,10 +1437,13 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     \x20\x03(\x0b2'.opentelemetry.proto.common.v1.KeyValueR\x06values\"[\n\
     \x08KeyValue\x12\x10\n\x03key\x18\x01\x20\x01(\tR\x03key\x12=\n\x05value\
     \x18\x02\x20\x01(\x0b2'.opentelemetry.proto.common.v1.AnyValueR\x05value\
-    \"F\n\x16InstrumentationLibrary\x12\x12\n\x04name\x18\x01\x20\x01(\tR\
-    \x04name\x12\x18\n\x07version\x18\x02\x20\x01(\tR\x07versionB[\n\x20io.o\
-    pentelemetry.proto.common.v1B\x0bCommonProtoP\x01Z(go.opentelemetry.io/p\
-    roto/otlp/common/v1b\x06proto3\
+    \"\xc7\x01\n\x14InstrumentationScope\x12\x12\n\x04name\x18\x01\x20\x01(\
+    \tR\x04name\x12\x18\n\x07version\x18\x02\x20\x01(\tR\x07version\x12G\n\n\
+    attributes\x18\x03\x20\x03(\x0b2'.opentelemetry.proto.common.v1.KeyValue\
+    R\nattributes\x128\n\x18dropped_attributes_count\x18\x04\x20\x01(\rR\x16\
+    droppedAttributesCountB{\n\x20io.opentelemetry.proto.common.v1B\x0bCommo\
+    nProtoP\x01Z(go.opentelemetry.io/proto/otlp/common/v1\xaa\x02\x1dOpenTel\
+    emetry.Proto.Common.V1b\x06proto3\
 ";
 
 static file_descriptor_proto_lazy: ::protobuf::rt::LazyV2<::protobuf::descriptor::FileDescriptorProto> = ::protobuf::rt::LazyV2::INIT;

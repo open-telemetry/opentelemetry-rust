@@ -1,5 +1,5 @@
 use crate::export::metrics::aggregation::{
-    Aggregation, AggregationKind, Buckets, Count, Histogram, Sum,
+    Aggregation, AggregationKind, Buckets, Count, Histogram, Max, Min, Sum,
 };
 use crate::metrics::{
     aggregators::Aggregator,
@@ -42,6 +42,8 @@ struct State {
     bucket_counts: Vec<f64>,
     count: AtomicNumber,
     sum: AtomicNumber,
+    min: AtomicNumber,
+    max: AtomicNumber,
 }
 
 impl State {
@@ -50,6 +52,10 @@ impl State {
             bucket_counts: vec![0.0; boundaries.len() + 1],
             count: NumberKind::U64.zero().to_atomic(),
             sum: NumberKind::U64.zero().to_atomic(),
+            min: NumberKind::I64.max().to_atomic(), // TODO: This could result in some fun bugs,
+            // but we currently don't have access to the
+            // kind so this could be a problem.
+            max: NumberKind::U64.min().to_atomic(),
         }
     }
 }
@@ -60,6 +66,24 @@ impl Sum for HistogramAggregator {
             .read()
             .map_err(From::from)
             .map(|inner| inner.state.sum.load())
+    }
+}
+
+impl Min for HistogramAggregator {
+    fn min(&self) -> Result<Number> {
+        self.inner
+            .read()
+            .map_err(From::from)
+            .map(|inner| inner.state.min.load())
+    }
+}
+
+impl Max for HistogramAggregator {
+    fn max(&self) -> Result<Number> {
+        self.inner
+            .read()
+            .map_err(From::from)
+            .map(|inner| inner.state.max.load())
     }
 }
 
@@ -106,6 +130,8 @@ impl Aggregator for HistogramAggregator {
 
             inner.state.count.fetch_add(&NumberKind::U64, &1u64.into());
             inner.state.sum.fetch_add(kind, number);
+            inner.state.min.fetch_set_min(kind, number);
+            inner.state.max.fetch_set_max(kind, number);
             inner.state.bucket_counts[bucket_id] += 1.0;
         })
     }
@@ -148,7 +174,14 @@ impl Aggregator for HistogramAggregator {
                             .state
                             .count
                             .fetch_add(&NumberKind::U64, &other.state.count.load());
-
+                        inner
+                            .state
+                            .min
+                            .fetch_set_min(desc.number_kind(), &other.state.min.load());
+                        inner
+                            .state
+                            .max
+                            .fetch_set_min(desc.number_kind(), &other.state.max.load());
                         for idx in 0..inner.state.bucket_counts.len() {
                             inner.state.bucket_counts[idx] += other.state.bucket_counts[idx];
                         }

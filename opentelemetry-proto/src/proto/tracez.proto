@@ -14,7 +14,6 @@
 
 syntax = "proto3";
 import "opentelemetry/proto/common/v1/common.proto";
-import "opentelemetry/proto/resource/v1/resource.proto";
 import "opentelemetry/proto/trace/v1/trace.proto";
 
 message TracezCounts {

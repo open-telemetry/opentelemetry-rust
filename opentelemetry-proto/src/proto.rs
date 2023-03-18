@@ -85,8 +85,6 @@ pub mod grpcio {
     #[cfg(feature = "traces")]
     pub mod trace;
     #[cfg(feature = "traces")]
-    pub mod trace_config;
-    #[cfg(feature = "traces")]
     pub mod trace_service;
     #[cfg(feature = "traces")]
     pub mod trace_service_grpc;
