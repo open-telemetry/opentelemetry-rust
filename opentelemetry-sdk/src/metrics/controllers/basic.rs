@@ -414,10 +414,10 @@ impl BasicControllerBuilder {
     /// Sets the interval between calls to `collect` a checkpoint.
     ///
     /// When pulling metrics and not exporting, this is the minimum time between
-    /// calls to `collect.In a pull-only configuration, collection is performed on
-    /// demand; set this to `0` to always recompute the export record set.
+    /// calls to a pull-only configuration, collection is performed on
+    /// demand; set this to `0` to always collect.
     ///
-    /// When exporting metrics, this must be > 0.
+    /// When exporting metrics, this must be > 0s.
     ///
     /// Default value is 10s.
     pub fn with_collect_period(mut self, collect_period: Duration) -> Self {

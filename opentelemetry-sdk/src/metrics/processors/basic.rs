@@ -27,33 +27,17 @@ where
     BasicProcessorBuilder {
         aggregator_selector: Arc::new(aggregator_selector),
         temporality_selector: Arc::new(temporality_selector),
-        memory: false,
     }
 }
 
 pub struct BasicProcessorBuilder {
     aggregator_selector: Arc<dyn AggregatorSelector + Send + Sync>,
     temporality_selector: Arc<dyn TemporalitySelector + Send + Sync>,
-    memory: bool,
-}
-
-impl BasicProcessorBuilder {
-    /// Memory controls whether the processor remembers metric instruments and
-    /// attribute sets that were previously reported.
-    ///
-    /// When Memory is `true`, [`Reader::try_for_each`] will visit metrics that were
-    /// not updated in the most recent interval.
-    pub fn with_memory(mut self, memory: bool) -> Self {
-        self.memory = memory;
-        self
-    }
 }
 
 impl fmt::Debug for BasicProcessorBuilder {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("BasicProcessorBuilder")
-            .field("memory", &self.memory)
-            .finish()
+        f.debug_struct("BasicProcessorBuilder").finish()
     }
 }
 
@@ -62,7 +46,7 @@ impl CheckpointerFactory for BasicProcessorBuilder {
         Arc::new(BasicProcessor {
             aggregator_selector: Arc::clone(&self.aggregator_selector),
             temporality_selector: Arc::clone(&self.temporality_selector),
-            state: Mutex::new(BasicProcessorState::with_memory(self.memory)),
+            state: Mutex::new(BasicProcessorState::default()),
         })
     }
 }
@@ -240,7 +224,6 @@ impl LockedCheckpointer for BasicLockedProcessor<'_> {
         }
         let finished_collection = self.state.finished_collection;
         self.state.finished_collection = self.state.finished_collection.wrapping_add(1);
-        let has_memory = self.state.config.memory;
 
         let mut result = Ok(());
 
@@ -261,7 +244,7 @@ impl LockedCheckpointer for BasicLockedProcessor<'_> {
                 // If this processor does not require memory, stale, stateless
                 // entries can be removed. This implies that they were not updated
                 // over the previous full collection interval.
-                if stale && stateless && !has_memory {
+                if stale && stateless {
                     return false;
                 }
                 return true;
@@ -285,18 +268,8 @@ impl LockedCheckpointer for BasicLockedProcessor<'_> {
     }
 }
 
-#[derive(Debug, Default)]
-struct BasicProcessorConfig {
-    /// Memory controls whether the processor remembers metric instruments and attribute
-    /// sets that were previously reported. When Memory is true,
-    /// `CheckpointSet::try_for_each` will visit metrics that were not updated in
-    /// the most recent interval.
-    memory: bool,
-}
-
 #[derive(Debug)]
 struct BasicProcessorState {
-    config: BasicProcessorConfig,
     values: HashMap<StateKey, StateValue>,
     // Note: the timestamp logic currently assumes all exports are deltas.
     process_start: SystemTime,
@@ -306,18 +279,9 @@ struct BasicProcessorState {
     finished_collection: u64,
 }
 
-impl BasicProcessorState {
-    fn with_memory(memory: bool) -> Self {
-        let mut state = BasicProcessorState::default();
-        state.config.memory = memory;
-        state
-    }
-}
-
 impl Default for BasicProcessorState {
     fn default() -> Self {
         BasicProcessorState {
-            config: BasicProcessorConfig::default(),
             values: HashMap::default(),
             process_start: opentelemetry_api::time::now(),
             interval_start: opentelemetry_api::time::now(),
@@ -344,12 +308,6 @@ impl Reader for BasicProcessorState {
             let agg;
             let start;
 
-            // If the processor does not have memory and it was not updated in the
-            // prior round, do not visit this value.
-            if !self.config.memory && value.updated != self.finished_collection.wrapping_sub(1) {
-                return Ok(());
-            }
-
             match temporality_selector
                 .temporality_for(&value.descriptor, value.current.aggregation().kind())
             {
@@ -369,6 +327,12 @@ impl Reader for BasicProcessorState {
                     // Precomputed sums are a special case.
                     if instrument_kind.precomputed_sum() {
                         return Err(MetricsError::Other("No cumulative to delta".into()));
+                    }
+
+                    if value.updated != self.finished_collection.wrapping_sub(1) {
+                        // skip processing if there is no update in last collection internal and
+                        // temporality is Delta
+                        return Ok(());
                     }
 
                     agg = Some(&value.current);
@@ -417,7 +381,7 @@ struct StateValue {
     /// multiple `Accumulator`s during a single collection
     /// round, which may happen either because:
     ///
-    /// (1) multiple `Accumulator`s output the same `Accumulation.
+    /// (1) multiple `Accumulator`s output the same `Accumulation`.
     /// (2) one `Accumulator` is configured with dimensionality reduction.
     current_owned: bool,
 

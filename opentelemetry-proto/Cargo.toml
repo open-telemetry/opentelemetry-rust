@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-proto"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["OpenTelemetry Authors <cncf-opentelemetry-contributors@lists.cncf.io>"]
 description = "Protobuf generated files and transmationes"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-proto"
@@ -14,7 +14,7 @@ categories = [
 keywords = ["opentelemetry", "otlp", "logging", "tracing", "metrics"]
 license = "Apache-2.0"
 edition = "2021"
-rust-version = "1.56"
+rust-version = "1.60"
 autotests = false
 
 [lib]
@@ -43,7 +43,7 @@ zpages = ["traces"]
 with-serde = ["protobuf/with-serde", "serde", "serde_json"]
 
 [dependencies]
-grpcio = { version = "0.11", optional = true }
+grpcio = { version = "0.12", optional = true }
 tonic = { version = "0.8.0", optional = true }
 prost = { version = "0.11.0", optional = true }
 protobuf = { version = "2.18", optional = true } # todo: update to 3.0 so we have docs for generated types.

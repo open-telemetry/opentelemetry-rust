@@ -12,9 +12,7 @@ use std::convert::TryInto;
 mod jaeger_remote;
 
 #[cfg(feature = "jaeger_remote_sampler")]
-use jaeger_remote::JaegerRemoteSampler;
-#[cfg(feature = "jaeger_remote_sampler")]
-pub use jaeger_remote::JaegerRemoteSamplerBuilder;
+pub use jaeger_remote::{JaegerRemoteSampler, JaegerRemoteSamplerBuilder};
 #[cfg(feature = "jaeger_remote_sampler")]
 use opentelemetry_http::HttpClient;
 
@@ -51,7 +49,7 @@ use opentelemetry_http::HttpClient;
 ///   and [`SpanExporter`]s will receive spans with the `Sampled` flag set for
 ///   processing.
 ///
-/// The flag combination `Sampled == false` and `is_recording` == true` means
+/// The flag combination `Sampled == false` and `is_recording == true` means
 /// that the current `Span` does record information, but most likely the child
 /// `Span` will not.
 ///
@@ -142,13 +140,13 @@ pub enum Sampler {
 }
 
 impl Sampler {
-    /// Create a jaeger remote sampler.
+    /// Create a jaeger remote sampler builder.
     ///
-    /// user needs to provide
-    /// - a `runtime` to run the http client
-    /// - a http client to query the sampling endpoint
-    /// - a default sampler to make sampling decision when the remote is unavailable or before the SDK receive the first response,
-    /// - the service name. This is a required parameter to query the sampling endpoint.
+    /// ### Arguments
+    /// * `runtime` - A runtime to run the HTTP client.
+    /// * `http_client` - An HTTP client to query the sampling endpoint.
+    /// * `default_sampler` - A default sampler to make a sampling decision when the remote is unavailable or before the SDK receives the first response from remote.
+    /// * `service_name` - The name of the service. This is a required parameter to query the sampling endpoint.
     ///
     /// See [here](https://github.com/open-telemetry/opentelemetry-rust/blob/main/examples/jaeger-remote-sampler/src/main.rs) for an example.
     #[cfg(feature = "jaeger_remote_sampler")]
@@ -185,19 +183,22 @@ impl ShouldSample for Sampler {
             // Never sample the trace
             Sampler::AlwaysOff => SamplingDecision::Drop,
             // The parent decision if sampled; otherwise the decision of delegate_sampler
-            Sampler::ParentBased(delegate_sampler) => {
-                parent_context.filter(|cx| cx.has_active_span()).map_or(
-                    delegate_sampler
-                        .should_sample(
-                            parent_context,
-                            trace_id,
-                            name,
-                            span_kind,
-                            attributes,
-                            links,
-                            instrumentation_library,
-                        )
-                        .decision,
+            Sampler::ParentBased(delegate_sampler) => parent_context
+                .filter(|cx| cx.has_active_span())
+                .map_or_else(
+                    || {
+                        delegate_sampler
+                            .should_sample(
+                                parent_context,
+                                trace_id,
+                                name,
+                                span_kind,
+                                attributes,
+                                links,
+                                instrumentation_library,
+                            )
+                            .decision
+                    },
                     |ctx| {
                         let span = ctx.span();
                         let parent_span_context = span.span_context();
@@ -207,8 +208,7 @@ impl ShouldSample for Sampler {
                             SamplingDecision::Drop
                         }
                     },
-                )
-            }
+                ),
             // Probabilistically sample the trace.
             Sampler::TraceIdRatioBased(prob) => sample_based_on_probability(prob, trace_id),
             #[cfg(feature = "jaeger_remote_sampler")]
@@ -410,20 +410,55 @@ mod tests {
     }
 
     #[test]
-    fn filter_parent_sampler_for_active_spans() {
-        let sampler = Sampler::ParentBased(Box::new(Sampler::AlwaysOn));
-        let cx = Context::current_with_value("some_value");
-        let instrumentation_library = InstrumentationLibrary::default();
-        let result = sampler.should_sample(
-            Some(&cx),
-            TraceId::from_u128(1),
-            "should sample",
-            &SpanKind::Internal,
-            &Default::default(),
-            &[],
-            &instrumentation_library,
-        );
+    fn parent_sampler() {
+        // name, delegate, context(with or without parent), expected decision
+        let test_cases = vec![
+            (
+                "should using delegate sampler",
+                Sampler::AlwaysOn,
+                Context::new(),
+                SamplingDecision::RecordAndSample,
+            ),
+            (
+                "should use parent result, always off",
+                Sampler::AlwaysOn,
+                Context::current_with_span(TestSpan(SpanContext::new(
+                    TraceId::from_u128(1),
+                    SpanId::from_u64(1),
+                    TraceFlags::default(), // not sampling
+                    false,
+                    TraceState::default(),
+                ))),
+                SamplingDecision::Drop,
+            ),
+            (
+                "should use parent result, always on",
+                Sampler::AlwaysOff,
+                Context::current_with_span(TestSpan(SpanContext::new(
+                    TraceId::from_u128(1),
+                    SpanId::from_u64(1),
+                    TraceFlags::SAMPLED, // not sampling
+                    false,
+                    TraceState::default(),
+                ))),
+                SamplingDecision::RecordAndSample,
+            ),
+        ];
 
-        assert_eq!(result.decision, SamplingDecision::RecordAndSample);
+        for (name, delegate, parent_cx, expected) in test_cases {
+            let sampler = Sampler::ParentBased(Box::new(delegate));
+            let instrumentation_library = InstrumentationLibrary::default();
+            let result = sampler.should_sample(
+                Some(&parent_cx),
+                TraceId::from_u128(1),
+                name,
+                &SpanKind::Internal,
+                &Default::default(),
+                &[],
+                &instrumentation_library,
+            );
+
+            assert_eq!(result.decision, expected);
+        }
     }
 }

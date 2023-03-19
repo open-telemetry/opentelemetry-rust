@@ -11,11 +11,7 @@ The Rust [OpenTelemetry](https://opentelemetry.io/) implementation.
 [![LICENSE](https://img.shields.io/crates/l/opentelemetry)](./LICENSE)
 [![GitHub Actions CI](https://github.com/open-telemetry/opentelemetry-rust/workflows/CI/badge.svg)](https://github.com/open-telemetry/opentelemetry-rust/actions?query=workflow%3ACI+branch%3Amain)
 [![codecov](https://codecov.io/gh/open-telemetry/opentelemetry-rust/branch/main/graph/badge.svg)](https://codecov.io/gh/open-telemetry/opentelemetry-rust)
-[![Gitter chat](https://img.shields.io/badge/gitter-join%20chat%20%E2%86%92-brightgreen.svg)](https://gitter.im/open-telemetry/opentelemetry-rust)
-
-[Website](https://opentelemetry.io/) |
-[Chat](https://gitter.im/open-telemetry/opentelemetry-rust) |
-[Documentation](https://docs.rs/opentelemetry)
+[![Slack](https://img.shields.io/badge/slack-@cncf/otel/rust-brightgreen.svg?logo=slack)](https://cloud-native.slack.com/archives/C03GDP0H023)
 
 ## Overview
 
@@ -25,7 +21,7 @@ analysis in order to understand your software's performance and behavior. You
 can export and analyze them using [Prometheus], [Jaeger], and other
 observability tools.
 
-*Compiler support: [requires `rustc` 1.56+][msrv]*
+*Compiler support: [requires `rustc` 1.60+][msrv]*
 
 [Prometheus]: https://prometheus.io
 [Jaeger]: https://www.jaegertracing.io
@@ -130,7 +126,7 @@ above, please let us know! We'd love to add your project to the list!
 ## Supported Rust Versions
 
 OpenTelemetry is built against the latest stable release. The minimum supported
-version is 1.56. The current OpenTelemetry version is not guaranteed to build
+version is 1.60. The current OpenTelemetry version is not guaranteed to build
 on Rust versions earlier than the minimum supported version.
 
 The current stable Rust compiler and the three most recent minor versions

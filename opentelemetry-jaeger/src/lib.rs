@@ -1,11 +1,17 @@
 //! Collects OpenTelemetry spans and reports them to a given Jaeger
 //! `agent` or `collector` endpoint, propagate the tracing context between the applications using [Jaeger propagation format].
 //!
+//! *Warning*: Note that the exporter component from this crate will be [deprecated][jaeger-deprecation]
+//! in the future. Users are advised to move to [opentelemetry_otlp][otlp-exporter] instead as [Jaeger][jaeger-otlp]
+//! supports accepting data in the OTLP protocol.
 //! See the [Jaeger Docs] for details about Jaeger and deployment information.
 //!
-//! *Compiler support: [requires `rustc` 1.56+][msrv]*
+//! *Compiler support: [requires `rustc` 1.60+][msrv]*
 //!
 //! [Jaeger Docs]: https://www.jaegertracing.io/docs/
+//! [jaeger-deprecation]: https://github.com/open-telemetry/opentelemetry-specification/pull/2858/files
+//! [jaeger-otlp]: https://www.jaegertracing.io/docs/1.38/apis/#opentelemetry-protocol-stable
+//! [otlp-exporter]: https://docs.rs/opentelemetry-otlp/latest/opentelemetry_otlp/
 //! [msrv]: #supported-rust-versions
 //! [jaeger propagation format]: https://www.jaegertracing.io/docs/1.18/client-libraries/#propagation-format
 //!
@@ -184,7 +190,6 @@
 //!                 .with_id_generator(RandomIdGenerator::default())
 //!                 .with_max_events_per_span(64)
 //!                 .with_max_attributes_per_span(16)
-//!                 .with_max_events_per_span(16)
 //!                  // resources will translated to tags in jaeger spans
 //!                 .with_resource(Resource::new(vec![KeyValue::new("key", "value"),
 //!                           KeyValue::new("process_key", "process_value")])),
@@ -280,13 +285,13 @@
 //! # Supported Rust Versions
 //!
 //! OpenTelemetry is built against the latest stable release. The minimum
-//! supported version is 1.56. The current OpenTelemetry version is not
+//! supported version is 1.60. The current OpenTelemetry version is not
 //! guaranteed to build on Rust versions earlier than the minimum supported
 //! version.
 //!
 //! The current stable Rust compiler and the three most recent minor versions
 //! before it will always be supported. For example, if the current stable
-//! compiler version is 1.56, the minimum supported version will not be
+//! compiler version is 1.60, the minimum supported version will not be
 //! increased past 1.46, three minor versions prior. Increasing the minimum
 //! supported compiler version is not considered a semver breaking change as
 //! long as doing so complies with this policy.

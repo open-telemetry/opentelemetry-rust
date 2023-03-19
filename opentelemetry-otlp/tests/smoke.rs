@@ -37,7 +37,9 @@ impl TraceService for MockServer {
             .unwrap()
             .try_send(request.into_inner())
             .expect("Channel full");
-        Ok(tonic::Response::new(ExportTraceServiceResponse {}))
+        Ok(tonic::Response::new(ExportTraceServiceResponse {
+            partial_success: None,
+        }))
     }
 }
 
@@ -103,7 +105,7 @@ async fn smoke_tracer() {
         .resource_spans
         .get(0)
         .unwrap()
-        .instrumentation_library_spans
+        .scope_spans
         .get(0)
         .unwrap()
         .spans

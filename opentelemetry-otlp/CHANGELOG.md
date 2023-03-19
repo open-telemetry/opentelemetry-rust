@@ -5,6 +5,7 @@
 
 - Improve OTLP exporter environment variable handling #912
 - OTLP exporter default endpoint changed to http #912
+- Change to export using v0.19.0 protobuf definitions. #989
 
 ## v0.11.0
 

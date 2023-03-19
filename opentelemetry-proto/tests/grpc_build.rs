@@ -9,7 +9,6 @@ const GRPCIO_PROTO_FILES: &[&str] = &[
     "src/proto/opentelemetry-proto/opentelemetry/proto/common/v1/common.proto",
     "src/proto/opentelemetry-proto/opentelemetry/proto/resource/v1/resource.proto",
     "src/proto/opentelemetry-proto/opentelemetry/proto/trace/v1/trace.proto",
-    "src/proto/opentelemetry-proto/opentelemetry/proto/trace/v1/trace_config.proto",
     "src/proto/opentelemetry-proto/opentelemetry/proto/collector/trace/v1/trace_service.proto",
     "src/proto/opentelemetry-proto/opentelemetry/proto/metrics/v1/metrics.proto",
     "src/proto/opentelemetry-proto/opentelemetry/proto/collector/metrics/v1/metrics_service.proto",
@@ -22,7 +21,6 @@ const TONIC_PROTO_FILES: &[&str] = &[
     "src/proto/opentelemetry-proto/opentelemetry/proto/common/v1/common.proto",
     "src/proto/opentelemetry-proto/opentelemetry/proto/resource/v1/resource.proto",
     "src/proto/opentelemetry-proto/opentelemetry/proto/trace/v1/trace.proto",
-    "src/proto/opentelemetry-proto/opentelemetry/proto/trace/v1/trace_config.proto",
     "src/proto/opentelemetry-proto/opentelemetry/proto/collector/trace/v1/trace_service.proto",
     "src/proto/opentelemetry-proto/opentelemetry/proto/metrics/v1/metrics.proto",
     "src/proto/opentelemetry-proto/opentelemetry/proto/collector/metrics/v1/metrics_service.proto",
@@ -76,7 +74,6 @@ fn build_tonic() {
 fn build_content_map(path: impl AsRef<Path>) -> HashMap<String, String> {
     std::fs::read_dir(path)
         .expect("cannot open dictionary of generated files")
-        .into_iter()
         .flatten()
         .map(|entry| {
             let path = entry.path();

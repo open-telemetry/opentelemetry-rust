@@ -10,10 +10,7 @@
 [![Documentation](https://docs.rs/opentelemetry-jaeger/badge.svg)](https://docs.rs/opentelemetry-jaeger)
 [![LICENSE](https://img.shields.io/crates/l/opentelemetry-jaeger)](./LICENSE)
 [![GitHub Actions CI](https://github.com/open-telemetry/opentelemetry-rust/workflows/CI/badge.svg)](https://github.com/open-telemetry/opentelemetry-rust/actions?query=workflow%3ACI+branch%3Amain)
-[![Gitter chat](https://img.shields.io/badge/gitter-join%20chat%20%E2%86%92-brightgreen.svg)](https://gitter.im/open-telemetry/opentelemetry-rust)
-
-[Documentation](https://docs.rs/opentelemetry-jaeger) |
-[Chat](https://gitter.im/open-telemetry/opentelemetry-rust)
+[![Slack](https://img.shields.io/badge/slack-@cncf/otel/rust-brightgreen.svg?logo=slack)](https://cloud-native.slack.com/archives/C03GDP0H023)
 
 ## Overview
 
@@ -23,7 +20,7 @@ analysis in order to understand your software's performance and behavior. This
 crate provides a trace pipeline and exporter for sending span information to a
 Jaeger `agent` or `collector` endpoint for processing and visualization.
 
-*Compiler support: [requires `rustc` 1.56+][msrv]*
+*Compiler support: [requires `rustc` 1.60+][msrv]*
 
 [`Jaeger`]: https://www.jaegertracing.io/
 [`OpenTelemetry`]: https://crates.io/crates/opentelemetry

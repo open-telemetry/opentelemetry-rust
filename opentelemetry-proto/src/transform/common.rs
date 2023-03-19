@@ -11,16 +11,18 @@ pub(crate) fn to_nanos(time: SystemTime) -> u64 {
 #[cfg(feature = "gen-tonic")]
 pub mod tonic {
     use crate::proto::tonic::common::v1::{
-        any_value, AnyValue, ArrayValue, InstrumentationLibrary, KeyValue,
+        any_value, AnyValue, ArrayValue, InstrumentationScope, KeyValue,
     };
     use opentelemetry::{sdk::trace::EvictedHashMap, Array, Value};
     use std::borrow::Cow;
 
-    impl From<opentelemetry::sdk::InstrumentationLibrary> for InstrumentationLibrary {
+    impl From<opentelemetry::sdk::InstrumentationLibrary> for InstrumentationScope {
         fn from(library: opentelemetry::sdk::InstrumentationLibrary) -> Self {
-            InstrumentationLibrary {
+            InstrumentationScope {
                 name: library.name.to_string(),
+                attributes: Vec::new(),
                 version: library.version.unwrap_or(Cow::Borrowed("")).to_string(),
+                dropped_attributes_count: 0,
             }
         }
     }
@@ -89,14 +91,14 @@ pub mod tonic {
 
 #[cfg(feature = "gen-protoc")]
 pub mod grpcio {
-    use crate::proto::grpcio::common::{AnyValue, ArrayValue, InstrumentationLibrary, KeyValue};
+    use crate::proto::grpcio::common::{AnyValue, ArrayValue, InstrumentationScope, KeyValue};
     use opentelemetry::{sdk::trace::EvictedHashMap, Array, Value};
     use protobuf::RepeatedField;
     use std::borrow::Cow;
 
-    impl From<opentelemetry::sdk::InstrumentationLibrary> for InstrumentationLibrary {
+    impl From<opentelemetry::sdk::InstrumentationLibrary> for InstrumentationScope {
         fn from(library: opentelemetry::sdk::InstrumentationLibrary) -> Self {
-            InstrumentationLibrary {
+            InstrumentationScope {
                 name: library.name.to_string(),
                 version: library.version.unwrap_or(Cow::Borrowed("")).to_string(),
                 ..Default::default()

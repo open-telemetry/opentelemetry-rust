@@ -13,7 +13,7 @@ categories = [
 keywords = ["opentelemetry", "zipkin", "tracing", "async"]
 license = "Apache-2.0"
 edition = "2021"
-rust-version = "1.56"
+rust-version = "1.60"
 
 [package.metadata.docs.rs]
 all-features = true
@@ -21,7 +21,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 opentelemetry = { version = "0.18.0", path = "../opentelemetry", default-features = false, features = ["trace"] }
-opentelemetry-proto = { version = "0.1", path = "../opentelemetry-proto", features = ["with-serde", "zpages", "gen-protoc"], default-features = false }
+opentelemetry-proto = { version = "0.2", path = "../opentelemetry-proto", features = ["with-serde", "zpages", "gen-protoc"], default-features = false }
 async-channel = "1.6"
 futures-channel = "0.3"
 futures-util = { version = "0.3", default-features = false, features = ["std"] }

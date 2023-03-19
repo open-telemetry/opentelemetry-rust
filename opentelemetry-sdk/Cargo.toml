@@ -7,7 +7,7 @@ repository = "https://github.com/open-telemetry/opentelemetry-rust"
 readme = "README.md"
 license = "Apache-2.0"
 edition = "2021"
-rust-version = "1.56"
+rust-version = "1.60"
 
 [dependencies]
 opentelemetry_api = { version = "0.18", path = "../opentelemetry-api/" }
@@ -37,8 +37,9 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [dev-dependencies]
 bincode = "1.2"
-criterion = "0.3.1"
+criterion = "0.4.0"
 rand_distr = "0.4.0"
+crossbeam-queue = "0.3.1"
 
 [features]
 default = ["trace"]

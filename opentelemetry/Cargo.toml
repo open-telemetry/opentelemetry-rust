@@ -14,7 +14,7 @@ categories = [
 keywords = ["opentelemetry", "logging", "tracing", "metrics", "async"]
 license = "Apache-2.0"
 edition = "2021"
-rust-version = "1.56"
+rust-version = "1.60"
 
 [package.metadata.docs.rs]
 all-features = true

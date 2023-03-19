@@ -12,7 +12,7 @@ use std::time::Duration;
 
 const DEFAULT_REMOTE_SAMPLER_ENDPOINT: &str = "http://localhost:5778/sampling";
 
-/// builder of JaegerRemoteSampler.
+/// Builder for [`JaegerRemoteSampler`].
 /// See [Sampler::jaeger_remote] for details.
 #[derive(Debug)]
 pub struct JaegerRemoteSamplerBuilder<C, S, R>
@@ -72,7 +72,7 @@ where
     ///
     /// By default it's `http://localhost:5778/sampling`.
     ///
-    /// If the service name is provided as part of the
+    /// If service name is provided as part of the endpoint, it will be ignored.
     pub fn with_endpoint<Str: Into<String>>(self, endpoint: Str) -> Self {
         Self {
             endpoint: endpoint.into(),
@@ -82,6 +82,8 @@ where
 
     /// The size of the leaky bucket.
     ///
+    /// By default the size is 100.
+    ///
     /// It's used when sampling strategy is rate limiting.
     pub fn with_leaky_bucket_size(self, size: f64) -> Self {
         Self {
@@ -90,9 +92,12 @@ where
         }
     }
 
-    /// Build a jaeger remote sampler.
+    /// Build a [JaegerRemoteSampler] using provided configuration.
     ///
-    /// Return errors when the endpoint provided is invalid(e.g, service name is empty)
+    /// Return errors if:
+    ///
+    /// - the endpoint provided is empty.
+    /// - the service name provided is empty.
     pub fn build(self) -> Result<Sampler, TraceError> {
         let endpoint = Self::get_endpoint(&self.endpoint, &self.service_name)
             .map_err(|err_str| TraceError::Other(err_str.into()))?;
@@ -113,6 +118,7 @@ where
         }
         let mut endpoint = url::Url::parse(endpoint)
             .unwrap_or_else(|_| url::Url::parse(DEFAULT_REMOTE_SAMPLER_ENDPOINT).unwrap());
+
         endpoint
             .query_pairs_mut()
             .append_pair("service", service_name);
@@ -122,6 +128,13 @@ where
 }
 
 /// Sampler that fetches the sampling configuration from remotes.
+///
+/// It offers the following sampling strategies:
+/// - **Probabilistic**, fetch a probability between [0.0, 1.0] from remotes and use it to sample traces. If the probability is 0.0, it will never sample traces. If the probability is 1.0, it will always sample traces.
+/// - **Rate limiting**, ses a leaky bucket rate limiter to ensure that traces are sampled with a certain constant rate.
+/// - **Per Operations**, instead of sampling all traces, it samples traces based on the span name. Only probabilistic sampling is supported at the moment.
+///
+/// User can build a [`JaegerRemoteSampler`] by getting a [`JaegerRemoteSamplerBuilder`] from [`Sampler::jaeger_remote`].
 ///
 /// Note that the backend doesn't need to be Jaeger so long as it supports jaeger remote sampling
 /// protocol.
@@ -254,5 +267,33 @@ impl ShouldSample for JaegerRemoteSampler {
                     instrumentation_library,
                 )
             })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::trace::sampler::jaeger_remote::remote::SamplingStrategyType;
+    use std::fmt::{Debug, Formatter};
+
+    impl Debug for SamplingStrategyType {
+        fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+            match &self {
+                SamplingStrategyType::Probabilistic => f.write_str("Probabilistic"),
+                SamplingStrategyType::RateLimiting => f.write_str("RateLimiting"),
+            }
+        }
+    }
+
+    #[test]
+    fn deserialize_sampling_strategy_response() {
+        let json = r#"{
+            "strategyType": "PROBABILISTIC",
+            "probabilisticSampling": {
+                "samplingRate": 0.5
+            }
+        }"#;
+        let resp: super::SamplingStrategyResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.strategy_type, SamplingStrategyType::Probabilistic);
+        assert_eq!(resp.probabilistic_sampling.unwrap().sampling_rate, 0.5);
     }
 }

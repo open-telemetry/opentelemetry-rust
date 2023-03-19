@@ -86,6 +86,120 @@ impl AtomicNumber {
         self.0.store(val.0, Ordering::Relaxed)
     }
 
+    /// Sets the number to the new minimum.
+    pub fn fetch_set_min(&self, number_kind: &NumberKind, val: &Number) {
+        match number_kind {
+            NumberKind::I64 => {
+                let mut old = self.0.load(Ordering::Acquire);
+                if (old as i64) <= (val.0 as i64) {
+                    return; // Early return since already minimum.
+                }
+                loop {
+                    match self.0.compare_exchange_weak(
+                        old,
+                        val.0,
+                        Ordering::AcqRel,
+                        Ordering::Acquire,
+                    ) {
+                        Ok(_) => break,
+                        Err(x) => old = x,
+                    };
+                }
+            }
+            NumberKind::F64 => {
+                let mut old = self.0.load(Ordering::Acquire);
+                if u64_to_f64(old) <= u64_to_f64(val.0) {
+                    return;
+                }
+                loop {
+                    match self.0.compare_exchange_weak(
+                        old,
+                        val.0,
+                        Ordering::AcqRel,
+                        Ordering::Acquire,
+                    ) {
+                        Ok(_) => break,
+                        Err(x) => old = x,
+                    };
+                }
+            }
+            NumberKind::U64 => {
+                let mut old = self.0.load(Ordering::Acquire);
+                if old <= val.0 {
+                    return;
+                }
+                loop {
+                    match self.0.compare_exchange_weak(
+                        old,
+                        val.0,
+                        Ordering::AcqRel,
+                        Ordering::Acquire,
+                    ) {
+                        Ok(_) => break,
+                        Err(x) => old = x,
+                    };
+                }
+            }
+        }
+    }
+
+    /// Sets the number to the new maximum.
+    pub fn fetch_set_max(&self, number_kind: &NumberKind, val: &Number) {
+        match number_kind {
+            NumberKind::I64 => {
+                let mut old = self.0.load(Ordering::Acquire);
+                if (old as i64) >= (val.0 as i64) {
+                    return; // Early return since already minimum.
+                }
+                loop {
+                    match self.0.compare_exchange_weak(
+                        old,
+                        val.0,
+                        Ordering::AcqRel,
+                        Ordering::Acquire,
+                    ) {
+                        Ok(_) => break,
+                        Err(x) => old = x,
+                    };
+                }
+            }
+            NumberKind::F64 => {
+                let mut old = self.0.load(Ordering::Acquire);
+                if u64_to_f64(old) >= u64_to_f64(val.0) {
+                    return;
+                }
+                loop {
+                    match self.0.compare_exchange_weak(
+                        old,
+                        val.0,
+                        Ordering::AcqRel,
+                        Ordering::Acquire,
+                    ) {
+                        Ok(_) => break,
+                        Err(x) => old = x,
+                    };
+                }
+            }
+            NumberKind::U64 => {
+                let mut old = self.0.load(Ordering::Acquire);
+                if old >= val.0 {
+                    return;
+                }
+                loop {
+                    match self.0.compare_exchange_weak(
+                        old,
+                        val.0,
+                        Ordering::AcqRel,
+                        Ordering::Acquire,
+                    ) {
+                        Ok(_) => break,
+                        Err(x) => old = x,
+                    };
+                }
+            }
+        }
+    }
+
     /// Adds to the current number. Both numbers must be of the same kind.
     ///
     /// This operation wraps around on overflow for `u64` and `i64` types and is
@@ -248,4 +362,64 @@ fn u64_to_f64(val: u64) -> f64 {
 #[inline]
 fn f64_to_u64(val: f64) -> u64 {
     f64::to_bits(val)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_zero() {
+        assert_eq!(
+            NumberKind::I64.zero().to_f64(&NumberKind::I64),
+            NumberKind::U64.zero().to_f64(&NumberKind::U64)
+        );
+    }
+    #[test]
+    fn test_minimum_comparison_float() {
+        // I64
+        let subject = NumberKind::I64.zero().to_atomic();
+        subject.fetch_set_min(&NumberKind::I64, &Number::from(-1_i64));
+        assert_eq!(subject.load().to_i64(&NumberKind::I64), -1);
+        subject.fetch_set_min(&NumberKind::I64, &Number::from(2_i64));
+        assert_eq!(subject.load().to_i64(&NumberKind::I64), -1);
+
+        // U64 as a signed number is greater than 5
+        let subject = NumberKind::U64.max().to_atomic();
+        subject.fetch_set_min(&NumberKind::U64, &Number::from(5_u64));
+        assert_eq!(subject.load().to_u64(&NumberKind::U64), 5);
+        subject.fetch_set_min(&NumberKind::U64, &Number::from(7_u64));
+        assert_eq!(subject.load().to_u64(&NumberKind::U64), 5);
+
+        // F64
+        let subject = NumberKind::F64.zero().to_atomic();
+        subject.fetch_set_min(&NumberKind::F64, &Number::from(-2_f64));
+        assert_eq!(subject.load().to_f64(&NumberKind::F64), -2_f64);
+        subject.fetch_set_min(&NumberKind::F64, &Number::from(4_f64));
+        assert_eq!(subject.load().to_f64(&NumberKind::F64), -2_f64);
+    }
+
+    #[test]
+    fn test_maximum_comparison() {
+        // I64
+        let subject = NumberKind::I64.zero().to_atomic();
+        subject.fetch_set_max(&NumberKind::I64, &Number::from(-1_i64));
+        assert_eq!(subject.load().to_i64(&NumberKind::I64), 0);
+        subject.fetch_set_max(&NumberKind::I64, &Number::from(2_i64));
+        assert_eq!(subject.load().to_i64(&NumberKind::I64), 2);
+
+        // U64 as a signed number is greater than 5
+        let subject = NumberKind::U64.zero().to_atomic();
+        subject.fetch_set_max(&NumberKind::U64, &Number::from(5_u64));
+        assert_eq!(subject.load().to_u64(&NumberKind::U64), 5);
+        subject.fetch_set_max(&NumberKind::U64, &Number::from(4_u64));
+        assert_eq!(subject.load().to_u64(&NumberKind::U64), 5);
+
+        // F64
+        let subject = NumberKind::F64.zero().to_atomic();
+        subject.fetch_set_max(&NumberKind::F64, &Number::from(-2_f64));
+        assert_eq!(subject.load().to_f64(&NumberKind::F64), 0_f64);
+        subject.fetch_set_max(&NumberKind::F64, &Number::from(4_f64));
+        assert_eq!(subject.load().to_f64(&NumberKind::F64), 4_f64);
+    }
 }

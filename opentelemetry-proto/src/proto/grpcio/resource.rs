@@ -232,9 +232,9 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     roto.resource.v1\x1a*opentelemetry/proto/common/v1/common.proto\"\x8d\
     \x01\n\x08Resource\x12G\n\nattributes\x18\x01\x20\x03(\x0b2'.opentelemet\
     ry.proto.common.v1.KeyValueR\nattributes\x128\n\x18dropped_attributes_co\
-    unt\x18\x02\x20\x01(\rR\x16droppedAttributesCountBa\n\"io.opentelemetry.\
-    proto.resource.v1B\rResourceProtoP\x01Z*go.opentelemetry.io/proto/otlp/r\
-    esource/v1b\x06proto3\
+    unt\x18\x02\x20\x01(\rR\x16droppedAttributesCountB\x83\x01\n\"io.opentel\
+    emetry.proto.resource.v1B\rResourceProtoP\x01Z*go.opentelemetry.io/proto\
+    /otlp/resource/v1\xaa\x02\x1fOpenTelemetry.Proto.Resource.V1b\x06proto3\
 ";
 
 static file_descriptor_proto_lazy: ::protobuf::rt::LazyV2<::protobuf::descriptor::FileDescriptorProto> = ::protobuf::rt::LazyV2::INIT;

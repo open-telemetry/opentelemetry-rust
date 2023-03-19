@@ -6,9 +6,7 @@ use opentelemetry::trace::{Link, SpanId, SpanKind};
 pub mod tonic {
     use super::*;
     use crate::proto::tonic::resource::v1::Resource;
-    use crate::proto::tonic::trace::v1::{
-        span, status, InstrumentationLibrarySpans, ResourceSpans, Span, Status,
-    };
+    use crate::proto::tonic::trace::v1::{span, status, ResourceSpans, ScopeSpans, Span, Status};
     use crate::transform::common::tonic::Attributes;
     use opentelemetry::trace;
 
@@ -59,14 +57,14 @@ pub mod tonic {
                     .schema_url()
                     .map(|url| url.to_string())
                     .unwrap_or_default(),
-                instrumentation_library_spans: vec![InstrumentationLibrarySpans {
+                scope_spans: vec![ScopeSpans {
                     schema_url: source_span
                         .instrumentation_lib
                         .schema_url
                         .as_ref()
                         .map(ToString::to_string)
                         .unwrap_or_default(),
-                    instrumentation_library: Some(source_span.instrumentation_lib.into()),
+                    scope: Some(source_span.instrumentation_lib.into()),
                     spans: vec![Span {
                         trace_id: source_span.span_context.trace_id().to_bytes().to_vec(),
                         span_id: source_span.span_context.span_id().to_bytes().to_vec(),
@@ -124,8 +122,8 @@ pub mod grpcio {
     use super::*;
     use crate::proto::grpcio::resource::Resource;
     use crate::proto::grpcio::trace::{
-        InstrumentationLibrarySpans, ResourceSpans, Span, Span_Event, Span_Link, Span_SpanKind,
-        Status, Status_StatusCode,
+        ResourceSpans, ScopeSpans, Span, Span_Event, Span_Link, Span_SpanKind, Status,
+        Status_StatusCode,
     };
     use crate::transform::common::grpcio::Attributes;
     use opentelemetry::trace;
@@ -174,65 +172,61 @@ pub mod grpcio {
                     dropped_attributes_count: 0,
                     ..Default::default()
                 })),
-                instrumentation_library_spans: RepeatedField::from_vec(vec![
-                    InstrumentationLibrarySpans {
-                        schema_url: source_span
-                            .instrumentation_lib
-                            .schema_url
-                            .as_ref()
-                            .map(ToString::to_string)
-                            .unwrap_or_default(),
-                        instrumentation_library: protobuf::SingularPtrField::some(
-                            source_span.instrumentation_lib.into(),
+                scope_spans: RepeatedField::from_vec(vec![ScopeSpans {
+                    schema_url: source_span
+                        .instrumentation_lib
+                        .schema_url
+                        .as_ref()
+                        .map(ToString::to_string)
+                        .unwrap_or_default(),
+                    scope: protobuf::SingularPtrField::some(source_span.instrumentation_lib.into()),
+                    spans: RepeatedField::from_vec(vec![Span {
+                        trace_id: source_span.span_context.trace_id().to_bytes().to_vec(),
+                        span_id: source_span.span_context.span_id().to_bytes().to_vec(),
+                        trace_state: source_span.span_context.trace_state().header(),
+                        parent_span_id: {
+                            if source_span.parent_span_id != SpanId::INVALID {
+                                source_span.parent_span_id.to_bytes().to_vec()
+                            } else {
+                                vec![]
+                            }
+                        },
+                        name: source_span.name.into_owned(),
+                        kind: source_span.span_kind.into(),
+                        start_time_unix_nano: to_nanos(source_span.start_time),
+                        end_time_unix_nano: to_nanos(source_span.end_time),
+                        dropped_attributes_count: source_span.attributes.dropped_count(),
+                        attributes: Attributes::from(source_span.attributes).0,
+                        dropped_events_count: source_span.events.dropped_count(),
+                        events: RepeatedField::from_vec(
+                            source_span
+                                .events
+                                .into_iter()
+                                .map(|event| Span_Event {
+                                    time_unix_nano: to_nanos(event.timestamp),
+                                    name: event.name.into(),
+                                    attributes: Attributes::from(event.attributes).0,
+                                    dropped_attributes_count: event.dropped_attributes_count,
+                                    ..Default::default()
+                                })
+                                .collect(),
                         ),
-                        spans: RepeatedField::from_vec(vec![Span {
-                            trace_id: source_span.span_context.trace_id().to_bytes().to_vec(),
-                            span_id: source_span.span_context.span_id().to_bytes().to_vec(),
-                            trace_state: source_span.span_context.trace_state().header(),
-                            parent_span_id: {
-                                if source_span.parent_span_id != SpanId::INVALID {
-                                    source_span.parent_span_id.to_bytes().to_vec()
-                                } else {
-                                    vec![]
-                                }
+                        dropped_links_count: source_span.links.dropped_count(),
+                        links: RepeatedField::from_vec(
+                            source_span.links.into_iter().map(Into::into).collect(),
+                        ),
+                        status: SingularPtrField::some(Status {
+                            code: Status_StatusCode::from(&source_span.status),
+                            message: match source_span.status {
+                                trace::Status::Error { description } => description.to_string(),
+                                _ => Default::default(),
                             },
-                            name: source_span.name.into_owned(),
-                            kind: source_span.span_kind.into(),
-                            start_time_unix_nano: to_nanos(source_span.start_time),
-                            end_time_unix_nano: to_nanos(source_span.end_time),
-                            dropped_attributes_count: source_span.attributes.dropped_count(),
-                            attributes: Attributes::from(source_span.attributes).0,
-                            dropped_events_count: source_span.events.dropped_count(),
-                            events: RepeatedField::from_vec(
-                                source_span
-                                    .events
-                                    .into_iter()
-                                    .map(|event| Span_Event {
-                                        time_unix_nano: to_nanos(event.timestamp),
-                                        name: event.name.into(),
-                                        attributes: Attributes::from(event.attributes).0,
-                                        dropped_attributes_count: event.dropped_attributes_count,
-                                        ..Default::default()
-                                    })
-                                    .collect(),
-                            ),
-                            dropped_links_count: source_span.links.dropped_count(),
-                            links: RepeatedField::from_vec(
-                                source_span.links.into_iter().map(Into::into).collect(),
-                            ),
-                            status: SingularPtrField::some(Status {
-                                code: Status_StatusCode::from(&source_span.status),
-                                message: match source_span.status {
-                                    trace::Status::Error { description } => description.to_string(),
-                                    _ => Default::default(),
-                                },
-                                ..Default::default()
-                            }),
                             ..Default::default()
-                        }]),
+                        }),
                         ..Default::default()
-                    },
-                ]),
+                    }]),
+                    ..Default::default()
+                }]),
                 ..Default::default()
             }
         }

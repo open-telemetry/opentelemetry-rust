@@ -7,7 +7,7 @@ repository = "https://github.com/open-telemetry/opentelemetry-rust"
 keywords = ["opentelemetry", "tracing", "metrics"]
 license = "Apache-2.0"
 edition = "2021"
-rust-version = "1.56"
+rust-version = "1.60"
 
 [dependencies]
 async-trait = "0.1"

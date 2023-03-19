@@ -19,7 +19,7 @@ pub struct MetricsData {
     #[prost(message, repeated, tag = "1")]
     pub resource_metrics: ::prost::alloc::vec::Vec<ResourceMetrics>,
 }
-/// A collection of InstrumentationLibraryMetrics from a Resource.
+/// A collection of ScopeMetrics from a Resource.
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ResourceMetrics {
@@ -29,26 +29,21 @@ pub struct ResourceMetrics {
     pub resource: ::core::option::Option<super::super::resource::v1::Resource>,
     /// A list of metrics that originate from a resource.
     #[prost(message, repeated, tag = "2")]
-    pub instrumentation_library_metrics: ::prost::alloc::vec::Vec<
-        InstrumentationLibraryMetrics,
-    >,
+    pub scope_metrics: ::prost::alloc::vec::Vec<ScopeMetrics>,
     /// This schema_url applies to the data in the "resource" field. It does not apply
-    /// to the data in the "instrumentation_library_metrics" field which have their own
-    /// schema_url field.
+    /// to the data in the "scope_metrics" field which have their own schema_url field.
     #[prost(string, tag = "3")]
     pub schema_url: ::prost::alloc::string::String,
 }
-/// A collection of Metrics produced by an InstrumentationLibrary.
+/// A collection of Metrics produced by an Scope.
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct InstrumentationLibraryMetrics {
-    /// The instrumentation library information for the metrics in this message.
-    /// Semantically when InstrumentationLibrary isn't set, it is equivalent with
-    /// an empty instrumentation library name (unknown).
+pub struct ScopeMetrics {
+    /// The instrumentation scope information for the metrics in this message.
+    /// Semantically when InstrumentationScope isn't set, it is equivalent with
+    /// an empty instrumentation scope name (unknown).
     #[prost(message, optional, tag = "1")]
-    pub instrumentation_library: ::core::option::Option<
-        super::super::common::v1::InstrumentationLibrary,
-    >,
+    pub scope: ::core::option::Option<super::super::common::v1::InstrumentationScope>,
     /// A list of metrics that originate from an instrumentation library.
     #[prost(message, repeated, tag = "2")]
     pub metrics: ::prost::alloc::vec::Vec<Metric>,
@@ -59,7 +54,7 @@ pub struct InstrumentationLibraryMetrics {
 /// Defines a Metric which has one or more timeseries.  The following is a
 /// brief summary of the Metric data model.  For more details, see:
 ///
-///    <https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/datamodel.md>
+///    <https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/data-model.md>
 ///
 ///
 /// The data model and relation between entities is shown in the
@@ -341,8 +336,8 @@ pub struct HistogramDataPoint {
     /// Negative events *can* be recorded, but sum should not be filled out when
     /// doing so.  This is specifically to enforce compatibility w/ OpenMetrics,
     /// see: <https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md#histogram>
-    #[prost(double, tag = "5")]
-    pub sum: f64,
+    #[prost(double, optional, tag = "5")]
+    pub sum: ::core::option::Option<f64>,
     /// bucket_counts is an optional field contains the count values of histogram
     /// for each bucket.
     ///
@@ -375,6 +370,12 @@ pub struct HistogramDataPoint {
     /// for the available flags and their meaning.
     #[prost(uint32, tag = "10")]
     pub flags: u32,
+    /// min is the minimum value over (start_time, end_time].
+    #[prost(double, optional, tag = "11")]
+    pub min: ::core::option::Option<f64>,
+    /// max is the maximum value over (start_time, end_time].
+    #[prost(double, optional, tag = "12")]
+    pub max: ::core::option::Option<f64>,
 }
 /// ExponentialHistogramDataPoint is a single data point in a timeseries that describes the
 /// time-varying values of a ExponentialHistogram of double values. A ExponentialHistogram contains
@@ -416,8 +417,8 @@ pub struct ExponentialHistogramDataPoint {
     /// Negative events *can* be recorded, but sum should not be filled out when
     /// doing so.  This is specifically to enforce compatibility w/ OpenMetrics,
     /// see: <https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md#histogram>
-    #[prost(double, tag = "5")]
-    pub sum: f64,
+    #[prost(double, optional, tag = "5")]
+    pub sum: ::core::option::Option<f64>,
     /// scale describes the resolution of the histogram.  Boundaries are
     /// located at powers of the base, where:
     ///
@@ -459,6 +460,12 @@ pub struct ExponentialHistogramDataPoint {
     /// measurements that were used to form the data point
     #[prost(message, repeated, tag = "11")]
     pub exemplars: ::prost::alloc::vec::Vec<Exemplar>,
+    /// min is the minimum value over (start_time, end_time].
+    #[prost(double, optional, tag = "12")]
+    pub min: ::core::option::Option<f64>,
+    /// max is the maximum value over (start_time, end_time].
+    #[prost(double, optional, tag = "13")]
+    pub max: ::core::option::Option<f64>,
 }
 /// Nested message and enum types in `ExponentialHistogramDataPoint`.
 pub mod exponential_histogram_data_point {

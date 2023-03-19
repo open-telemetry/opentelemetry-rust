@@ -2,7 +2,7 @@
 //! services to capture distributed traces and metrics from your application. You
 //! can analyze them using [Prometheus], [Jaeger], and other observability tools.
 //!
-//! *Compiler support: [requires `rustc` 1.56+][msrv]*
+//! *Compiler support: [requires `rustc` 1.60+][msrv]*
 //!
 //! [Prometheus]: https://prometheus.io
 //! [Jaeger]: https://www.jaegertracing.io
@@ -192,7 +192,7 @@
 //! ## Supported Rust Versions
 //!
 //! OpenTelemetry is built against the latest stable release. The minimum
-//! supported version is 1.56. The current OpenTelemetry version is not
+//! supported version is 1.60. The current OpenTelemetry version is not
 //! guaranteed to build on Rust versions earlier than the minimum supported
 //! version.
 //!
