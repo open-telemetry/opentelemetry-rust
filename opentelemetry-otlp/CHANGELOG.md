@@ -3,6 +3,7 @@
 
 ### Added
 - Add batch config for otlp pipeline [#979](https://github.com/open-telemetry/opentelemetry-rust/pull/979).
+- Add tonic interceptor [#901](https://github.com/open-telemetry/opentelemetry-rust/pull/901).
 
 ### Changed
 
