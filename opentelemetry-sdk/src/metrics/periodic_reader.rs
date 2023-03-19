@@ -352,6 +352,8 @@ impl MetricReader for PeriodicReader {
             .try_send(Message::Flush(sender))
             .map_err(|e| MetricsError::Other(e.to_string()))?;
 
+        drop(inner); // don't hold lock when blocking on future
+
         futures_executor::block_on(receiver)
             .map_err(|err| MetricsError::Other(err.to_string()))
             .and_then(|res| res)
@@ -364,6 +366,8 @@ impl MetricReader for PeriodicReader {
             .message_sender
             .try_send(Message::Shutdown(sender))
             .map_err(|e| MetricsError::Other(e.to_string()))?;
+
+        drop(inner); // don't hold lock when blocking on future
 
         futures_executor::block_on(receiver)
             .map_err(|err| MetricsError::Other(err.to_string()))
