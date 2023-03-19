@@ -12,6 +12,9 @@
 - Update `opentelemetry-semantic-conventions` to 0.11.
 - Bump MSRV to 1.57 [#953](https://github.com/open-telemetry/opentelemetry-rust/pull/953).
 - Include packet length for `SizeLimit` error messages [#938](https://github.com/open-telemetry/opentelemetry-rust/pull/938).
+- Update dependencies and bump MSRV to 1.60 [#969](https://github.com/open-telemetry/opentelemetry-rust/pull/969).
+- Make `JaegerRemoteSampler` public, revise doc [#975](https://github.com/open-telemetry/opentelemetry-rust/pull/975).
+- Add warnings to docs about future deprecation [#996](https://github.com/open-telemetry/opentelemetry-rust/pull/996).
 
 ## v0.17.0
 

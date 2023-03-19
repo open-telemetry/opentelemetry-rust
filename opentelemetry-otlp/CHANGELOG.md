@@ -1,6 +1,9 @@
 # Changelog
 ## v0.12.0
 
+### Added
+- Add batch config for otlp pipeline [#979](https://github.com/open-telemetry/opentelemetry-rust/pull/979).
+
 ### Changed
 
 - Update `opentelemetry` to 0.19.
@@ -14,6 +17,7 @@
 - Report OTLP http export errors [#945](https://github.com/open-telemetry/opentelemetry-rust/pull/945).
 - Bump MSRV to 1.57 [#953](https://github.com/open-telemetry/opentelemetry-rust/pull/953).
 - Change to export using v0.19.0 protobuf definitions. [#989](https://github.com/open-telemetry/opentelemetry-rust/pull/989).
+- Update dependencies and bump MSRV to 1.60 [#969](https://github.com/open-telemetry/opentelemetry-rust/pull/969).
 
 
 ## v0.11.0

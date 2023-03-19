@@ -6,6 +6,7 @@
 - Update to `opentelemetry-http` v0.8.
 - Update to `opentelemetry-semantic-conventions` v0.11.
 - Bump MSRV to 1.57 [#953](https://github.com/open-telemetry/opentelemetry-rust/pull/953).
+- Update dependencies and bump MSRV to 1.60 [#969](https://github.com/open-telemetry/opentelemetry-rust/pull/969).
 
 ## v0.16.0
 
