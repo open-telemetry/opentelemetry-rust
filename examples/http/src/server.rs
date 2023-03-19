@@ -42,8 +42,8 @@ async fn main() {
 
     let server = Server::bind(&addr).serve(make_svc);
 
-    println!("Listening on {}", addr);
+    println!("Listening on {addr}");
     if let Err(e) = server.await {
-        eprintln!("server error: {}", e);
+        eprintln!("server error: {e}");
     }
 }

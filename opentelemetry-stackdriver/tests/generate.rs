@@ -25,7 +25,7 @@ async fn sync_schemas() {
         let filename = cache.join(path);
         let client = client.clone();
         futures.push(async move {
-            let url = format!("{}/{}", BASE_URI, path);
+            let url = format!("{BASE_URI}/{path}");
             let rsp = client.get(url).send().await.unwrap();
             let body = rsp.text().await.unwrap();
             fs::create_dir_all(filename.parent().unwrap()).unwrap();
@@ -46,7 +46,7 @@ fn generated_code_is_fresh() {
 
     let schemas = GENERATE_FROM_SCHEMAS
         .iter()
-        .map(|s| format!("google/{}", s))
+        .map(|s| format!("google/{s}"))
         .collect::<Vec<_>>();
 
     let tmp_dir = tempfile::tempdir().unwrap();

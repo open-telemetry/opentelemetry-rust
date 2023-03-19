@@ -124,7 +124,7 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     let server = Server::bind(&addr).serve(make_svc);
 
-    println!("Listening on http://{}", addr);
+    println!("Listening on http://{addr}");
 
     server.await?;
 

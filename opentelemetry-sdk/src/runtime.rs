@@ -59,7 +59,8 @@ impl Runtime for Tokio {
     }
 
     fn spawn(&self, future: BoxFuture<'static, ()>) {
-        let _ = tokio::spawn(future);
+        let handle = tokio::spawn(future);
+        drop(handle); // detach the handle
     }
 
     fn delay(&self, duration: Duration) -> Self::Delay {
@@ -121,7 +122,8 @@ impl Runtime for AsyncStd {
     }
 
     fn spawn(&self, future: BoxFuture<'static, ()>) {
-        let _ = async_std::task::spawn(future);
+        let handle = async_std::task::spawn(future);
+        drop(handle); // detach the handle
     }
 
     fn delay(&self, duration: Duration) -> Self::Delay {

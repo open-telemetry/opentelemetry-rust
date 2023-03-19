@@ -54,7 +54,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
 
     cx.span().add_event(
         "response-received".to_string(),
-        vec![KeyValue::new("response", format!("{:?}", response))],
+        vec![KeyValue::new("response", format!("{response:?}"))],
     );
 
     shutdown_tracer_provider();

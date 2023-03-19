@@ -13,7 +13,7 @@ async fn index(username: actix_web::web::Path<String>) -> String {
 #[tracing::instrument]
 fn greet_user(username: &str) -> String {
     tracing::info!("preparing to greet user");
-    format!("Hello {}", username)
+    format!("Hello {username}")
 }
 
 #[actix_web::main]

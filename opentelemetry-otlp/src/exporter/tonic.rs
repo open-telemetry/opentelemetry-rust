@@ -10,6 +10,7 @@ use super::default_headers;
 ///
 /// [tonic]: https://github.com/hyperium/tonic
 #[derive(Debug, Default)]
+#[non_exhaustive]
 pub struct TonicConfig {
     /// Custom metadata entries to send to the collector.
     pub metadata: Option<MetadataMap>,
