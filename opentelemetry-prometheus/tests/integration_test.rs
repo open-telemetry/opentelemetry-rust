@@ -20,6 +20,7 @@ fn prometheus_exporter_integration() {
         name: &'static str,
         empty_resource: bool,
         custom_resource_attrs: Vec<KeyValue>,
+        #[allow(clippy::type_complexity)]
         record_metrics: Box<dyn Fn(&Context, Meter)>,
         builder: ExporterBuilder,
         expected_file: &'static str,
@@ -260,11 +261,7 @@ fn prometheus_exporter_integration() {
     for tc in test_cases {
         let cx = Context::default();
         let registry = prometheus::Registry::new();
-        let exporter = tc
-            .builder
-            .with_registry(registry.clone())
-            .build()
-            .expect(&format!("exporter init for {}", tc.name));
+        let exporter = tc.builder.with_registry(registry.clone()).build().unwrap();
 
         let res = if tc.empty_resource {
             Resource::empty()
@@ -381,6 +378,7 @@ fn duplicate_metrics() {
     struct TestCase {
         name: &'static str,
         custom_resource_attrs: Vec<KeyValue>,
+        #[allow(clippy::type_complexity)]
         record_metrics: Box<dyn Fn(&Context, Meter, Meter)>,
         builder: ExporterBuilder,
         expected_files: Vec<&'static str>,
@@ -665,11 +663,7 @@ fn duplicate_metrics() {
     for tc in test_cases {
         let cx = Context::default();
         let registry = prometheus::Registry::new();
-        let exporter = tc
-            .builder
-            .with_registry(registry.clone())
-            .build()
-            .expect(&format!("exporter init for {}", tc.name));
+        let exporter = tc.builder.with_registry(registry.clone()).build().unwrap();
 
         let resource = Resource::from_detectors(
             Duration::from_secs(0),
