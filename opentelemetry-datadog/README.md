@@ -31,7 +31,7 @@ to [`Datadog`].
 
 ## Kitchen Sink Full Configuration
 
- [Example]((https://docs.rs/opentelemetry-datadog/latest/opentelemetry_datadog/#kitchen-sink-full-configuration)) showing how to override all configuration options. See the
+ [Example](https://docs.rs/opentelemetry-datadog/latest/opentelemetry_datadog/#kitchen-sink-full-configuration) showing how to override all configuration options. See the
  [`DatadogPipelineBuilder`] docs for details of each option.
 
  [`DatadogPipelineBuilder`]: https://docs.rs/opentelemetry-datadog/latest/opentelemetry_datadog/struct.DatadogPipelineBuilder.html
