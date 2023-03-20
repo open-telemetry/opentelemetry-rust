@@ -38,6 +38,12 @@ pub struct ManualReader {
     aggregation_selector: Box<dyn AggregationSelector>,
 }
 
+impl Default for ManualReader {
+    fn default() -> Self {
+        ManualReader::builder().build()
+    }
+}
+
 impl fmt::Debug for ManualReader {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str("ManualReader")
