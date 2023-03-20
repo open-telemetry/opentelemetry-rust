@@ -7,6 +7,7 @@ use super::default_headers;
 
 /// Configuration of grpcio
 #[derive(Debug)]
+#[non_exhaustive]
 pub struct GrpcioConfig {
     /// The credentials to use when communicating with the collector.
     pub credentials: Option<Credentials>,

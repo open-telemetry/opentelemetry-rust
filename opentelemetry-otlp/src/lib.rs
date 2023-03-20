@@ -212,11 +212,11 @@ use opentelemetry_sdk::export::ExportError;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 #[cfg(feature = "grpc-sys")]
-pub use crate::exporter::grpcio::{Compression, Credentials, GrpcioExporterBuilder};
+pub use crate::exporter::grpcio::{Compression, Credentials, GrpcioConfig, GrpcioExporterBuilder};
 #[cfg(feature = "http-proto")]
 pub use crate::exporter::http::HttpExporterBuilder;
 #[cfg(feature = "grpc-tonic")]
-pub use crate::exporter::tonic::TonicExporterBuilder;
+pub use crate::exporter::tonic::{TonicConfig, TonicExporterBuilder};
 
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
