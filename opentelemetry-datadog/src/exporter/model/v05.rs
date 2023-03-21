@@ -9,7 +9,7 @@ use std::time::SystemTime;
 
 use super::unified_tags::{UnifiedTagField, UnifiedTags};
 
-const SPAN_NUM_ELEMENTS: &u32 = 12;
+const SPAN_NUM_ELEMENTS: u32 = 12;
 
 // Protocol documentation sourced from https://github.com/DataDog/datadog-agent/blob/c076ea9a1ffbde4c76d35343dbc32aecbbf99cb9/pkg/trace/api/version.go
 //
