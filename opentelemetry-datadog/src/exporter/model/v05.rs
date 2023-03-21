@@ -9,9 +9,11 @@ use std::time::SystemTime;
 
 use super::unified_tags::{UnifiedTagField, UnifiedTags};
 
+const SPAN_NUM_ELEMENTS: &u32 = 12;
+
 // Protocol documentation sourced from https://github.com/DataDog/datadog-agent/blob/c076ea9a1ffbde4c76d35343dbc32aecbbf99cb9/pkg/trace/api/version.go
 //
-// The payload is an array containing exactly 2 elements:
+// The payload is an array containing exactly 12 elements:
 //
 // 	1. An array of all unique strings present in the payload (a dictionary referred to by index).
 // 	2. An array of traces, where each trace is an array of spans. A span is encoded as an array having
@@ -154,7 +156,7 @@ where
             };
 
             // Datadog span name is OpenTelemetry component name - see module docs for more information
-            rmp::encode::write_array_len(&mut encoded, 13)?;
+            rmp::encode::write_array_len(&mut encoded, SPAN_NUM_ELEMENTS)?;
             rmp::encode::write_u32(
                 &mut encoded,
                 interner.intern(get_service_name(&span, model_config)),
