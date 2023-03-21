@@ -54,7 +54,7 @@ impl InstrumentProvider for NoopMeterCore {
     fn register_callback(
         &self,
         _instruments: &[Arc<dyn Any>],
-        _callback: Box<dyn Fn(&Context, &dyn Observer) + Send + Sync>,
+        _callback: Box<dyn Fn(&dyn Observer) + Send + Sync>,
     ) -> Result<Box<dyn Registration>> {
         Ok(Box::new(NoopRegistration::new()))
     }
@@ -124,7 +124,7 @@ impl NoopAsyncInstrument {
 }
 
 impl<T> AsyncInstrument<T> for NoopAsyncInstrument {
-    fn observe(&self, _cx: &Context, _value: T, _attributes: &[KeyValue]) {
+    fn observe(&self, _value: T, _attributes: &[KeyValue]) {
         // Ignored
     }
 

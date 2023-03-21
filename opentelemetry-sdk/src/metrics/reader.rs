@@ -33,14 +33,17 @@ pub trait MetricReader:
     /// and send aggregated metric measurements.
     fn register_pipeline(&self, pipeline: Weak<Pipeline>);
 
-    /// Registers a an external Producer with this [MetricReader]. The Producer is
-    /// used as a source of aggregated metric data which is incorporated into
-    /// metrics collected from the SDK.
+    /// Registers a an external Producer with this [MetricReader].
+    ///
+    /// The [MetricProducer] is used as a source of aggregated metric data which is
+    /// incorporated into metrics collected from the SDK.
     fn register_producer(&self, producer: Box<dyn MetricProducer>);
 
-    /// Gathers and returns all metric data related to the [MetricReader] from the SDK and
-    /// stores it in out. An error is returned if this is called after shutdown
-    fn collect(&self, cx: &Context, rm: &mut ResourceMetrics) -> Result<()>;
+    /// Gathers and returns all metric data related to the [MetricReader] from the
+    /// SDK and stores it in the provided [ResourceMetrics] reference.
+    ///
+    /// An error is returned if this is called after shutdown.
+    fn collect(&self, rm: &mut ResourceMetrics) -> Result<()>;
 
     /// Flushes all metric measurements held in an export pipeline.
     ///
@@ -62,13 +65,13 @@ pub trait MetricReader:
 /// Produces metrics for a [MetricReader].
 pub(crate) trait SdkProducer: fmt::Debug + Send + Sync {
     /// Returns aggregated metrics from a single collection.
-    fn produce(&self, cx: &Context, rm: &mut ResourceMetrics) -> Result<()>;
+    fn produce(&self, rm: &mut ResourceMetrics) -> Result<()>;
 }
 
 /// Produces metrics for a [MetricReader] from an external source.
 pub trait MetricProducer: fmt::Debug + Send + Sync {
     /// Returns aggregated metrics from an external source.
-    fn produce(&self, cx: &Context) -> Result<ScopeMetrics>;
+    fn produce(&self) -> Result<ScopeMetrics>;
 }
 
 /// An interface for selecting the temporality for an [InstrumentKind].

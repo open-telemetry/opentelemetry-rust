@@ -40,8 +40,8 @@ impl MetricReader for SharedReader {
         self.0.register_producer(producer)
     }
 
-    fn collect(&self, cx: &Context, rm: &mut ResourceMetrics) -> Result<()> {
-        self.0.collect(cx, rm)
+    fn collect(&self, rm: &mut ResourceMetrics) -> Result<()> {
+        self.0.collect(rm)
     }
 
     fn force_flush(&self, cx: &Context) -> Result<()> {
@@ -118,7 +118,7 @@ fn counters(c: &mut Criterion) {
         let mut v = 0;
         b.iter(|| {
             cntr.add(&cx, 1, &[KeyValue::new("K", v)]);
-            let _ = rdr.collect(&cx, &mut rm);
+            let _ = rdr.collect(&mut rm);
             v += 1;
         })
     });
@@ -129,7 +129,7 @@ fn counters(c: &mut Criterion) {
             for i in 0..10 {
                 cntr.add(&cx, 1, &[KeyValue::new("K", i)]);
             }
-            let _ = rdr.collect(&cx, &mut rm);
+            let _ = rdr.collect(&mut rm);
             v += 1;
         })
     });
@@ -163,7 +163,7 @@ fn benchmark_collect_histogram(b: &mut Bencher, n: usize) {
     };
 
     b.iter(|| {
-        let _ = r.collect(&cx, &mut rm);
+        let _ = r.collect(&mut rm);
         assert_eq!(rm.scope_metrics[0].metrics.len(), n);
     })
 }

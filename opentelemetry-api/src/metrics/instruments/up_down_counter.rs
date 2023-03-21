@@ -93,14 +93,14 @@ impl<T> ObservableUpDownCounter<T> {
     /// It is only valid to call this within a callback. If called outside of the
     /// registered callback it should have no effect on the instrument, and an
     /// error will be reported via the error handler.
-    pub fn observe(&self, cx: &Context, value: T, attributes: &[KeyValue]) {
-        self.0.observe(cx, value, attributes)
+    pub fn observe(&self, value: T, attributes: &[KeyValue]) {
+        self.0.observe(value, attributes)
     }
 }
 
 impl<T> AsyncInstrument<T> for ObservableUpDownCounter<T> {
-    fn observe(&self, cx: &Context, measurement: T, attributes: &[KeyValue]) {
-        self.0.observe(cx, measurement, attributes)
+    fn observe(&self, measurement: T, attributes: &[KeyValue]) {
+        self.0.observe(measurement, attributes)
     }
 
     fn as_any(&self) -> Arc<dyn std::any::Any> {

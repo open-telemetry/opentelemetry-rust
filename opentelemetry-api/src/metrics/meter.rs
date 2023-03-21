@@ -7,13 +7,21 @@ use crate::metrics::{
     AsyncInstrumentBuilder, Counter, Histogram, InstrumentBuilder, InstrumentProvider,
     ObservableCounter, ObservableGauge, ObservableUpDownCounter, Result, UpDownCounter,
 };
-use crate::{Context, InstrumentationLibrary, KeyValue};
+use crate::{InstrumentationLibrary, KeyValue};
 
 use super::AsyncInstrument;
 
-/// Returns named meter instances
+/// Provides access to named [Meter] instances, for instrumenting an application
+/// or crate.
 pub trait MeterProvider {
-    /// Creates a named [`Meter`] instance.
+    /// Returns a new [Meter] with the provided name and default configuration.
+    ///
+    /// A [Meter] should be scoped at most to a single application or crate. The
+    /// name needs to be unique so it does not collide with other names used by
+    /// an application, nor other applications.
+    ///
+    /// If the name is empty, then an implementation defined default name will
+    /// be used instead.
     fn meter(&self, name: &'static str) -> Meter {
         self.versioned_meter(name, None, None)
     }
@@ -177,7 +185,7 @@ impl Meter {
         callback: F,
     ) -> Result<Box<dyn Registration>>
     where
-        F: Fn(&Context, &dyn Observer) + Send + Sync + 'static,
+        F: Fn(&dyn Observer) + Send + Sync + 'static,
     {
         self.instrument_provider
             .register_callback(instruments, Box::new(callback))
@@ -196,31 +204,13 @@ pub trait Registration {
 /// Records measurements for multiple instruments in a callback.
 pub trait Observer {
     /// Records the f64 value with attributes for the observable.
-    fn observe_f64(
-        &self,
-        cx: &Context,
-        inst: &dyn AsyncInstrument<f64>,
-        measurement: f64,
-        attrs: &[KeyValue],
-    );
+    fn observe_f64(&self, inst: &dyn AsyncInstrument<f64>, measurement: f64, attrs: &[KeyValue]);
 
     /// Records the u64 value with attributes for the observable.
-    fn observe_u64(
-        &self,
-        cx: &Context,
-        inst: &dyn AsyncInstrument<u64>,
-        measurement: u64,
-        attrs: &[KeyValue],
-    );
+    fn observe_u64(&self, inst: &dyn AsyncInstrument<u64>, measurement: u64, attrs: &[KeyValue]);
 
     /// Records the i64 value with attributes for the observable.
-    fn observe_i64(
-        &self,
-        cx: &Context,
-        inst: &dyn AsyncInstrument<i64>,
-        measurement: i64,
-        attrs: &[KeyValue],
-    );
+    fn observe_i64(&self, inst: &dyn AsyncInstrument<i64>, measurement: i64, attrs: &[KeyValue]);
 }
 
 impl fmt::Debug for Meter {

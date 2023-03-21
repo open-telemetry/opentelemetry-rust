@@ -1,5 +1,5 @@
 use crate::metrics::{Meter, MetricsError, Result, Unit};
-use crate::{global, Context, KeyValue};
+use crate::{global, KeyValue};
 use core::fmt;
 use std::any::Any;
 use std::borrow::Cow;
@@ -27,7 +27,7 @@ pub trait AsyncInstrument<T>: Send + Sync {
     /// Observes the state of the instrument.
     ///
     /// It is only valid to call this within a callback.
-    fn observe(&self, cx: &Context, measurement: T, attributes: &[KeyValue]);
+    fn observe(&self, measurement: T, attributes: &[KeyValue]);
 
     /// Used for SDKs to downcast instruments in callbacks.
     fn as_any(&self) -> Arc<dyn Any>;
@@ -147,7 +147,7 @@ impl<T> fmt::Debug for InstrumentBuilder<'_, T> {
 /// for these instruments.
 ///
 /// The function needs to complete in a finite amount of time.
-pub type Callback<T> = Box<dyn Fn(&Context, &dyn AsyncInstrument<T>) + Send + Sync>;
+pub type Callback<T> = Box<dyn Fn(&dyn AsyncInstrument<T>) + Send + Sync>;
 
 /// Configuration for building an async instrument.
 pub struct AsyncInstrumentBuilder<'a, I, M>
@@ -200,7 +200,7 @@ where
     /// Set the callback to be called for this instrument.
     pub fn with_callback<F>(mut self, callback: F) -> Self
     where
-        F: Fn(&Context, &dyn AsyncInstrument<M>) + Send + Sync + 'static,
+        F: Fn(&dyn AsyncInstrument<M>) + Send + Sync + 'static,
     {
         self.callback = Some(Box::new(callback));
         self

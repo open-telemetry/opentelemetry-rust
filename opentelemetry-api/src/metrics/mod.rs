@@ -10,7 +10,7 @@ mod instruments;
 mod meter;
 pub mod noop;
 
-use crate::{Context, ExportError};
+use crate::ExportError;
 pub use instruments::{
     counter::{Counter, ObservableCounter, SyncCounter},
     gauge::ObservableGauge,
@@ -258,4 +258,4 @@ pub trait InstrumentProvider {
     ) -> Result<Box<dyn Registration>>;
 }
 
-type MultiInstrumentCallback = dyn Fn(&Context, &dyn Observer) + Send + Sync;
+type MultiInstrumentCallback = dyn Fn(&dyn Observer) + Send + Sync;

@@ -167,8 +167,8 @@ impl MetricReader for PrometheusExporter {
         self.reader.register_producer(producer)
     }
 
-    fn collect(&self, cx: &Context, rm: &mut ResourceMetrics) -> Result<()> {
-        self.reader.collect(cx, rm)
+    fn collect(&self, rm: &mut ResourceMetrics) -> Result<()> {
+        self.reader.collect(rm)
     }
 
     fn force_flush(&self, cx: &Context) -> Result<()> {
@@ -223,7 +223,7 @@ impl prometheus::core::Collector for Collector {
             resource: Resource::empty(),
             scope_metrics: vec![],
         };
-        if let Err(err) = self.reader.collect(&Context::new(), &mut metrics) {
+        if let Err(err) = self.reader.collect(&mut metrics) {
             global::handle_error(err);
             return vec![];
         }

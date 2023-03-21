@@ -234,7 +234,7 @@ struct PeriodicReaderWorker<RT: Runtime> {
 
 impl<RT: Runtime> PeriodicReaderWorker<RT> {
     async fn collect_and_export(&mut self) -> Result<()> {
-        self.reader.collect(&Context::current(), &mut self.rm)?;
+        self.reader.collect(&mut self.rm)?;
 
         let export = self.reader.exporter.export(&mut self.rm);
         let timeout = self.runtime.delay(self.timeout);
@@ -318,10 +318,10 @@ impl MetricReader for PeriodicReader {
         });
     }
 
-    fn collect(&self, cx: &Context, rm: &mut ResourceMetrics) -> Result<()> {
+    fn collect(&self, rm: &mut ResourceMetrics) -> Result<()> {
         let inner = self.inner.lock()?;
         match &inner.sdk_producer.as_ref().and_then(|w| w.upgrade()) {
-            Some(producer) => producer.produce(cx, rm)?,
+            Some(producer) => producer.produce(rm)?,
             None => {
                 return Err(MetricsError::Other(
                     "reader is shut down or not registered".into(),
@@ -331,7 +331,7 @@ impl MetricReader for PeriodicReader {
 
         let mut errs = vec![];
         for producer in &inner.external_producers {
-            match producer.produce(cx) {
+            match producer.produce() {
                 Ok(metrics) => rm.scope_metrics.push(metrics),
                 Err(err) => errs.push(err),
             }

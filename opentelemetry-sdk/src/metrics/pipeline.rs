@@ -47,7 +47,7 @@ impl fmt::Debug for Pipeline {
 }
 
 /// Single or multi-instrument callbacks
-type GenericCallback = Arc<dyn Fn(&Context) + Send + Sync>;
+type GenericCallback = Arc<dyn Fn() + Send + Sync>;
 
 #[derive(Default)]
 struct PipelineInner {
@@ -78,7 +78,7 @@ impl Pipeline {
     }
 
     /// Registers a single instrument callback to be run when `produce` is called.
-    fn add_callback(&self, callback: Arc<dyn Fn(&Context) + Send + Sync>) {
+    fn add_callback(&self, callback: GenericCallback) {
         let _ = self
             .inner
             .lock()
@@ -88,7 +88,7 @@ impl Pipeline {
     /// Registers a multi-instrument callback to be run when `produce` is called.
     fn add_multi_callback(
         &self,
-        callback: Arc<dyn Fn(&Context) + Send + Sync>,
+        callback: GenericCallback,
     ) -> Result<impl FnOnce(&Pipeline) -> Result<()>> {
         let mut inner = self.inner.lock()?;
         inner.multi_callbacks.push(Some(callback));
@@ -115,16 +115,16 @@ impl Pipeline {
 
 impl SdkProducer for Pipeline {
     /// Returns aggregated metrics from a single collection.
-    fn produce(&self, cx: &Context, rm: &mut ResourceMetrics) -> Result<()> {
+    fn produce(&self, rm: &mut ResourceMetrics) -> Result<()> {
         let inner = self.inner.lock()?;
         for cb in &inner.callbacks {
             // TODO consider parallel callbacks.
-            cb(cx);
+            cb();
         }
 
         for mcb in inner.multi_callbacks.iter().flatten() {
             // TODO consider parallel multi callbacks.
-            mcb(cx);
+            mcb();
         }
 
         rm.resource = self.resource.clone();
@@ -582,7 +582,7 @@ impl Pipelines {
 
     pub(crate) fn register_callback<F>(&self, callback: F)
     where
-        F: Fn(&Context) + Send + Sync + 'static,
+        F: Fn() + Send + Sync + 'static,
     {
         let cb = Arc::new(callback);
         for pipe in &self.0 {
@@ -593,7 +593,7 @@ impl Pipelines {
     /// Registers a multi-instrument callback to be run when `produce` is called.
     pub(crate) fn register_multi_callback<F>(&self, f: F) -> Result<Box<dyn Registration>>
     where
-        F: Fn(&Context) + Send + Sync + 'static,
+        F: Fn() + Send + Sync + 'static,
     {
         let cb = Arc::new(f);
 

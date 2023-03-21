@@ -118,10 +118,10 @@ impl MetricReader for ManualReader {
     /// callbacks necessary and returning the results.
     ///
     /// Returns an error if called after shutdown.
-    fn collect(&self, cx: &Context, rm: &mut ResourceMetrics) -> Result<()> {
+    fn collect(&self, rm: &mut ResourceMetrics) -> Result<()> {
         let inner = self.inner.lock()?;
         match &inner.sdk_producer.as_ref().and_then(|w| w.upgrade()) {
-            Some(producer) => producer.produce(cx, rm)?,
+            Some(producer) => producer.produce(rm)?,
             None => {
                 return Err(MetricsError::Other(
                     "reader is shut down or not registered".into(),
@@ -131,7 +131,7 @@ impl MetricReader for ManualReader {
 
         let mut errs = vec![];
         for producer in &inner.external_producers {
-            match producer.produce(cx) {
+            match producer.produce() {
                 Ok(metrics) => rm.scope_metrics.push(metrics),
                 Err(err) => errs.push(err),
             }

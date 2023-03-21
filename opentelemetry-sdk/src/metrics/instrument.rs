@@ -363,7 +363,7 @@ impl<T> Observable<T> {
 }
 
 impl<T: Copy + Send + Sync + 'static> AsyncInstrument<T> for Observable<T> {
-    fn observe(&self, _cx: &Context, measurement: T, attrs: &[KeyValue]) {
+    fn observe(&self, measurement: T, attrs: &[KeyValue]) {
         for agg in &self.aggregators {
             agg.aggregate(measurement, AttributeSet::from(attrs))
         }

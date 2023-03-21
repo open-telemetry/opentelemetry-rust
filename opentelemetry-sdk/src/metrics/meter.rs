@@ -13,7 +13,7 @@ use opentelemetry_api::{
         MetricsError, ObservableCounter, ObservableGauge, ObservableUpDownCounter,
         Observer as ApiObserver, Registration, Result, Unit, UpDownCounter,
     },
-    Context, KeyValue,
+    KeyValue,
 };
 
 use crate::instrumentation::Scope;
@@ -126,7 +126,7 @@ impl InstrumentProvider for Meter {
 
         if let Some(callback) = callback.filter(|_| !is_drop) {
             self.pipes
-                .register_callback(move |cx: &Context| callback(cx, cb_inst.as_ref()));
+                .register_callback(move || callback(cb_inst.as_ref()));
         }
 
         Ok(ObservableCounter::new(observable))
@@ -158,7 +158,7 @@ impl InstrumentProvider for Meter {
 
         if let Some(callback) = callback.filter(|_| !is_drop) {
             self.pipes
-                .register_callback(move |cx: &Context| callback(cx, cb_inst.as_ref()));
+                .register_callback(move || callback(cb_inst.as_ref()));
         }
 
         Ok(ObservableCounter::new(observable))
@@ -223,7 +223,7 @@ impl InstrumentProvider for Meter {
 
         if let Some(callback) = callback.filter(|_| !is_drop) {
             self.pipes
-                .register_callback(move |cx: &Context| callback(cx, cb_inst.as_ref()));
+                .register_callback(move || callback(cb_inst.as_ref()));
         }
 
         Ok(ObservableUpDownCounter::new(observable))
@@ -256,7 +256,7 @@ impl InstrumentProvider for Meter {
 
         if let Some(callback) = callback.filter(|_| !is_drop) {
             self.pipes
-                .register_callback(move |cx: &Context| callback(cx, cb_inst.as_ref()));
+                .register_callback(move || callback(cb_inst.as_ref()));
         }
 
         Ok(ObservableUpDownCounter::new(observable))
@@ -289,7 +289,7 @@ impl InstrumentProvider for Meter {
 
         if let Some(callback) = callback.filter(|_| !is_drop) {
             self.pipes
-                .register_callback(move |cx: &Context| callback(cx, cb_inst.as_ref()));
+                .register_callback(move || callback(cb_inst.as_ref()));
         }
 
         Ok(ObservableGauge::new(observable))
@@ -322,7 +322,7 @@ impl InstrumentProvider for Meter {
 
         if let Some(callback) = callback.filter(|_| !is_drop) {
             self.pipes
-                .register_callback(move |cx: &Context| callback(cx, cb_inst.as_ref()));
+                .register_callback(move || callback(cb_inst.as_ref()));
         }
 
         Ok(ObservableGauge::new(observable))
@@ -355,7 +355,7 @@ impl InstrumentProvider for Meter {
 
         if let Some(callback) = callback.filter(|_| !is_drop) {
             self.pipes
-                .register_callback(move |cx: &Context| callback(cx, cb_inst.as_ref()));
+                .register_callback(move || callback(cb_inst.as_ref()));
         }
 
         Ok(ObservableGauge::new(observable))
@@ -412,7 +412,7 @@ impl InstrumentProvider for Meter {
     fn register_callback(
         &self,
         insts: &[Arc<dyn Any>],
-        callback: Box<dyn Fn(&Context, &dyn ApiObserver) + Send + Sync>,
+        callback: Box<dyn Fn(&dyn ApiObserver) + Send + Sync>,
     ) -> Result<Box<dyn Registration>> {
         if insts.is_empty() {
             return Ok(Box::new(NoopRegistration::new()));
@@ -462,8 +462,7 @@ impl InstrumentProvider for Meter {
             return Ok(Box::new(NoopRegistration::new()));
         }
 
-        self.pipes
-            .register_multi_callback(move |cx: &Context| callback(cx, &reg))
+        self.pipes.register_multi_callback(move || callback(&reg))
     }
 }
 
@@ -493,16 +492,10 @@ impl Observer {
 }
 
 impl ApiObserver for Observer {
-    fn observe_f64(
-        &self,
-        cx: &Context,
-        inst: &dyn AsyncInstrument<f64>,
-        measurement: f64,
-        attrs: &[KeyValue],
-    ) {
+    fn observe_f64(&self, inst: &dyn AsyncInstrument<f64>, measurement: f64, attrs: &[KeyValue]) {
         if let Some(f64_obs) = inst.as_any().downcast_ref::<Observable<f64>>() {
             if self.f64s.contains(&f64_obs.id) {
-                f64_obs.observe(cx, measurement, attrs)
+                f64_obs.observe(measurement, attrs)
             } else {
                 global::handle_error(
                     MetricsError::Other(format!("observable instrument not registered for callback, failed to record. name: {}, description: {}, unit: {:?}, number: f64",
@@ -518,16 +511,10 @@ impl ApiObserver for Observer {
         }
     }
 
-    fn observe_u64(
-        &self,
-        cx: &Context,
-        inst: &dyn AsyncInstrument<u64>,
-        measurement: u64,
-        attrs: &[KeyValue],
-    ) {
+    fn observe_u64(&self, inst: &dyn AsyncInstrument<u64>, measurement: u64, attrs: &[KeyValue]) {
         if let Some(u64_obs) = inst.as_any().downcast_ref::<Observable<u64>>() {
             if self.u64s.contains(&u64_obs.id) {
-                u64_obs.observe(cx, measurement, attrs)
+                u64_obs.observe(measurement, attrs)
             } else {
                 global::handle_error(
                     MetricsError::Other(format!("observable instrument not registered for callback, failed to record. name: {}, description: {}, unit: {:?}, number: f64",
@@ -543,16 +530,10 @@ impl ApiObserver for Observer {
         }
     }
 
-    fn observe_i64(
-        &self,
-        cx: &Context,
-        inst: &dyn AsyncInstrument<i64>,
-        measurement: i64,
-        attrs: &[KeyValue],
-    ) {
+    fn observe_i64(&self, inst: &dyn AsyncInstrument<i64>, measurement: i64, attrs: &[KeyValue]) {
         if let Some(i64_obs) = inst.as_any().downcast_ref::<Observable<i64>>() {
             if self.i64s.contains(&i64_obs.id) {
-                i64_obs.observe(cx, measurement, attrs)
+                i64_obs.observe(measurement, attrs)
             } else {
                 global::handle_error(
                     MetricsError::Other(format!("observable instrument not registered for callback, failed to record. name: {}, description: {}, unit: {:?}, number: f64",
