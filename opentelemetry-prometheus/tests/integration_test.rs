@@ -296,7 +296,7 @@ fn prometheus_exporter_integration() {
                         boundaries: vec![
                             0.0, 5.0, 10.0, 25.0, 50.0, 75.0, 100.0, 250.0, 500.0, 1000.0,
                         ],
-                        no_min_max: false,
+                        record_min_max: true,
                     }),
                 )
                 .unwrap(),

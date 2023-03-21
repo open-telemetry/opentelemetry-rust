@@ -121,17 +121,17 @@ pub(crate) fn new_delta_histogram<T>(cfg: &aggregation::Aggregation) -> Arc<dyn 
 where
     T: Number<T>,
 {
-    let (boundaries, no_min_max) = match cfg {
+    let (boundaries, record_min_max) = match cfg {
         aggregation::Aggregation::ExplicitBucketHistogram {
             boundaries,
-            no_min_max,
-        } => (boundaries.clone(), *no_min_max),
-        _ => (Vec::new(), false),
+            record_min_max,
+        } => (boundaries.clone(), *record_min_max),
+        _ => (Vec::new(), true),
     };
 
     Arc::new(DeltaHistogram {
         hist_values: HistValues::new(boundaries),
-        no_min_max,
+        record_min_max,
         start: Mutex::new(SystemTime::now()),
     })
 }
@@ -140,7 +140,7 @@ where
 /// histogram with explicitly defined buckets.
 struct DeltaHistogram<T> {
     hist_values: HistValues<T>,
-    no_min_max: bool,
+    record_min_max: bool,
     start: Mutex<SystemTime>,
 }
 
@@ -177,7 +177,7 @@ impl<T: Number<T>> Aggregator<T> for DeltaHistogram<T> {
                     exemplars: vec![],
                 };
 
-                if !self.no_min_max {
+                if self.record_min_max {
                     hdp.min = Some(b.min);
                     hdp.max = Some(b.max);
                 }
@@ -208,17 +208,17 @@ pub(crate) fn new_cumulative_histogram<T>(cfg: &aggregation::Aggregation) -> Arc
 where
     T: Number<T>,
 {
-    let (boundaries, no_min_max) = match cfg {
+    let (boundaries, record_min_max) = match cfg {
         aggregation::Aggregation::ExplicitBucketHistogram {
             boundaries,
-            no_min_max,
-        } => (boundaries.clone(), *no_min_max),
-        _ => (Vec::new(), false),
+            record_min_max,
+        } => (boundaries.clone(), *record_min_max),
+        _ => (Vec::new(), true),
     };
 
     Arc::new(CumulativeHistogram {
         hist_values: HistValues::new(boundaries),
-        no_min_max,
+        record_min_max,
         start: Mutex::new(SystemTime::now()),
     })
 }
@@ -228,7 +228,7 @@ where
 struct CumulativeHistogram<T> {
     hist_values: HistValues<T>,
 
-    no_min_max: bool,
+    record_min_max: bool,
     start: Mutex<SystemTime>,
 }
 
@@ -271,7 +271,7 @@ where
                     exemplars: vec![],
                 };
 
-                if !self.no_min_max {
+                if self.record_min_max {
                     hdp.min = Some(b.min);
                     hdp.max = Some(b.max);
                 }

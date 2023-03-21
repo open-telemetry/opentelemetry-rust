@@ -50,13 +50,14 @@ pub enum Aggregation {
 
         /// Indicates whether to not record the min and max of the distribution.
         ///
-        /// By default, these extrema are recorded.
+        /// By default, these values are recorded.
         ///
-        /// Recording these extrema for cumulative data is expected to have little
-        /// value, they will represent the entire life of the instrument instead of just
-        /// the current collection cycle. It is recommended to set this to true for that
-        /// type of data to avoid computing the low-value extrema.
-        no_min_max: bool,
+        /// Recording these values for cumulative data is expected to have little
+        /// value, they will represent the entire life of the instrument instead of
+        /// just the current collection cycle. It is recommended to set this to
+        /// `false` for that type of data to avoid computing the low-value
+        /// instances.
+        record_min_max: bool,
     },
 }
 
