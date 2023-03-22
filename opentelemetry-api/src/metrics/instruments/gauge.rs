@@ -65,7 +65,7 @@ impl TryFrom<AsyncInstrumentBuilder<'_, ObservableGauge<u64>, u64>> for Observab
             builder.name,
             builder.description,
             builder.unit,
-            builder.callback,
+            builder.callbacks,
         )
     }
 }
@@ -80,7 +80,7 @@ impl TryFrom<AsyncInstrumentBuilder<'_, ObservableGauge<f64>, f64>> for Observab
             builder.name,
             builder.description,
             builder.unit,
-            builder.callback,
+            builder.callbacks,
         )
     }
 }
@@ -95,7 +95,7 @@ impl TryFrom<AsyncInstrumentBuilder<'_, ObservableGauge<i64>, i64>> for Observab
             builder.name,
             builder.description,
             builder.unit,
-            builder.callback,
+            builder.callbacks,
         )
     }
 }

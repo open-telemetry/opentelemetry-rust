@@ -8,7 +8,7 @@ use crate::{
         AsyncInstrument, InstrumentProvider, Meter, MeterProvider, Observer, Registration, Result,
         SyncCounter, SyncHistogram, SyncUpDownCounter,
     },
-    Context, InstrumentationLibrary, KeyValue,
+    Context, KeyValue,
 };
 use std::{any::Any, sync::Arc};
 
@@ -28,12 +28,11 @@ impl NoopMeterProvider {
 impl MeterProvider for NoopMeterProvider {
     fn versioned_meter(
         &self,
-        name: &'static str,
-        version: Option<&'static str>,
-        schema_url: Option<&'static str>,
+        _name: &'static str,
+        _version: Option<&'static str>,
+        _schema_url: Option<&'static str>,
     ) -> Meter {
-        let library = InstrumentationLibrary::new(name, version, schema_url);
-        Meter::new(library, Arc::new(NoopMeterCore::new()))
+        Meter::new(Arc::new(NoopMeterCore::new()))
     }
 }
 

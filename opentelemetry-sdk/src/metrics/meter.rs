@@ -9,9 +9,10 @@ use std::{
 use opentelemetry_api::{
     global,
     metrics::{
-        noop::NoopRegistration, AsyncInstrument, Callback, Counter, Histogram, InstrumentProvider,
-        MetricsError, ObservableCounter, ObservableGauge, ObservableUpDownCounter,
-        Observer as ApiObserver, Registration, Result, Unit, UpDownCounter,
+        noop::{NoopAsyncInstrument, NoopRegistration},
+        AsyncInstrument, Callback, Counter, Histogram, InstrumentProvider, MetricsError,
+        ObservableCounter, ObservableGauge, ObservableUpDownCounter, Observer as ApiObserver,
+        Registration, Result, Unit, UpDownCounter,
     },
     KeyValue,
 };
@@ -104,7 +105,7 @@ impl InstrumentProvider for Meter {
         name: Cow<'static, str>,
         description: Option<Cow<'static, str>>,
         unit: Option<Unit>,
-        callback: Option<Callback<u64>>,
+        callbacks: Vec<Callback<u64>>,
     ) -> Result<ObservableCounter<u64>> {
         let aggs = self.u64_inst_provider.aggregators(
             InstrumentKind::ObservableCounter,
@@ -112,7 +113,9 @@ impl InstrumentProvider for Meter {
             description.clone(),
             unit.clone().unwrap_or_default(),
         )?;
-        let is_drop = aggs.is_empty();
+        if aggs.is_empty() {
+            return Ok(ObservableCounter::new(Arc::new(NoopAsyncInstrument::new())));
+        }
 
         let observable = Arc::new(Observable::new(
             self.scope.clone(),
@@ -122,9 +125,9 @@ impl InstrumentProvider for Meter {
             unit.unwrap_or_default(),
             aggs,
         ));
-        let cb_inst = Arc::clone(&observable);
 
-        if let Some(callback) = callback.filter(|_| !is_drop) {
+        for callback in callbacks {
+            let cb_inst = Arc::clone(&observable);
             self.pipes
                 .register_callback(move || callback(cb_inst.as_ref()));
         }
@@ -137,7 +140,7 @@ impl InstrumentProvider for Meter {
         name: Cow<'static, str>,
         description: Option<Cow<'static, str>>,
         unit: Option<Unit>,
-        callback: Option<Callback<f64>>,
+        callbacks: Vec<Callback<f64>>,
     ) -> Result<ObservableCounter<f64>> {
         let aggs = self.f64_inst_provider.aggregators(
             InstrumentKind::ObservableCounter,
@@ -145,7 +148,9 @@ impl InstrumentProvider for Meter {
             description.clone(),
             unit.clone().unwrap_or_default(),
         )?;
-        let is_drop = aggs.is_empty();
+        if aggs.is_empty() {
+            return Ok(ObservableCounter::new(Arc::new(NoopAsyncInstrument::new())));
+        }
         let observable = Arc::new(Observable::new(
             self.scope.clone(),
             InstrumentKind::ObservableCounter,
@@ -154,9 +159,9 @@ impl InstrumentProvider for Meter {
             unit.unwrap_or_default(),
             aggs,
         ));
-        let cb_inst = Arc::clone(&observable);
 
-        if let Some(callback) = callback.filter(|_| !is_drop) {
+        for callback in callbacks {
+            let cb_inst = Arc::clone(&observable);
             self.pipes
                 .register_callback(move || callback(cb_inst.as_ref()));
         }
@@ -201,7 +206,7 @@ impl InstrumentProvider for Meter {
         name: Cow<'static, str>,
         description: Option<Cow<'static, str>>,
         unit: Option<Unit>,
-        callback: Option<Callback<i64>>,
+        callbacks: Vec<Callback<i64>>,
     ) -> Result<ObservableUpDownCounter<i64>> {
         let aggs = self.i64_inst_provider.aggregators(
             InstrumentKind::ObservableUpDownCounter,
@@ -209,7 +214,11 @@ impl InstrumentProvider for Meter {
             description.clone(),
             unit.clone().unwrap_or_default(),
         )?;
-        let is_drop = aggs.is_empty();
+        if aggs.is_empty() {
+            return Ok(ObservableUpDownCounter::new(Arc::new(
+                NoopAsyncInstrument::new(),
+            )));
+        }
 
         let observable = Arc::new(Observable::new(
             self.scope.clone(),
@@ -219,9 +228,9 @@ impl InstrumentProvider for Meter {
             unit.unwrap_or_default(),
             aggs,
         ));
-        let cb_inst = Arc::clone(&observable);
 
-        if let Some(callback) = callback.filter(|_| !is_drop) {
+        for callback in callbacks {
+            let cb_inst = Arc::clone(&observable);
             self.pipes
                 .register_callback(move || callback(cb_inst.as_ref()));
         }
@@ -234,7 +243,7 @@ impl InstrumentProvider for Meter {
         name: Cow<'static, str>,
         description: Option<Cow<'static, str>>,
         unit: Option<Unit>,
-        callback: Option<Callback<f64>>,
+        callbacks: Vec<Callback<f64>>,
     ) -> Result<ObservableUpDownCounter<f64>> {
         let aggs = self.f64_inst_provider.aggregators(
             InstrumentKind::ObservableUpDownCounter,
@@ -242,7 +251,11 @@ impl InstrumentProvider for Meter {
             description.clone(),
             unit.clone().unwrap_or_default(),
         )?;
-        let is_drop = aggs.is_empty();
+        if aggs.is_empty() {
+            return Ok(ObservableUpDownCounter::new(Arc::new(
+                NoopAsyncInstrument::new(),
+            )));
+        }
 
         let observable = Arc::new(Observable::new(
             self.scope.clone(),
@@ -252,9 +265,9 @@ impl InstrumentProvider for Meter {
             unit.unwrap_or_default(),
             aggs,
         ));
-        let cb_inst = Arc::clone(&observable);
 
-        if let Some(callback) = callback.filter(|_| !is_drop) {
+        for callback in callbacks {
+            let cb_inst = Arc::clone(&observable);
             self.pipes
                 .register_callback(move || callback(cb_inst.as_ref()));
         }
@@ -267,7 +280,7 @@ impl InstrumentProvider for Meter {
         name: Cow<'static, str>,
         description: Option<Cow<'static, str>>,
         unit: Option<Unit>,
-        callback: Option<Callback<u64>>,
+        callbacks: Vec<Callback<u64>>,
     ) -> Result<ObservableGauge<u64>> {
         let aggs = self.u64_inst_provider.aggregators(
             InstrumentKind::ObservableGauge,
@@ -275,7 +288,9 @@ impl InstrumentProvider for Meter {
             description.clone(),
             unit.clone().unwrap_or_default(),
         )?;
-        let is_drop = aggs.is_empty();
+        if aggs.is_empty() {
+            return Ok(ObservableGauge::new(Arc::new(NoopAsyncInstrument::new())));
+        }
 
         let observable = Arc::new(Observable::new(
             self.scope.clone(),
@@ -285,9 +300,9 @@ impl InstrumentProvider for Meter {
             unit.unwrap_or_default(),
             aggs,
         ));
-        let cb_inst = Arc::clone(&observable);
 
-        if let Some(callback) = callback.filter(|_| !is_drop) {
+        for callback in callbacks {
+            let cb_inst = Arc::clone(&observable);
             self.pipes
                 .register_callback(move || callback(cb_inst.as_ref()));
         }
@@ -300,7 +315,7 @@ impl InstrumentProvider for Meter {
         name: Cow<'static, str>,
         description: Option<Cow<'static, str>>,
         unit: Option<Unit>,
-        callback: Option<Callback<i64>>,
+        callbacks: Vec<Callback<i64>>,
     ) -> Result<ObservableGauge<i64>> {
         let aggs = self.i64_inst_provider.aggregators(
             InstrumentKind::ObservableGauge,
@@ -308,7 +323,9 @@ impl InstrumentProvider for Meter {
             description.clone(),
             unit.clone().unwrap_or_default(),
         )?;
-        let is_drop = aggs.is_empty();
+        if aggs.is_empty() {
+            return Ok(ObservableGauge::new(Arc::new(NoopAsyncInstrument::new())));
+        }
 
         let observable = Arc::new(Observable::new(
             self.scope.clone(),
@@ -318,9 +335,9 @@ impl InstrumentProvider for Meter {
             unit.unwrap_or_default(),
             aggs,
         ));
-        let cb_inst = Arc::clone(&observable);
 
-        if let Some(callback) = callback.filter(|_| !is_drop) {
+        for callback in callbacks {
+            let cb_inst = Arc::clone(&observable);
             self.pipes
                 .register_callback(move || callback(cb_inst.as_ref()));
         }
@@ -333,7 +350,7 @@ impl InstrumentProvider for Meter {
         name: Cow<'static, str>,
         description: Option<Cow<'static, str>>,
         unit: Option<Unit>,
-        callback: Option<Callback<f64>>,
+        callbacks: Vec<Callback<f64>>,
     ) -> Result<ObservableGauge<f64>> {
         let aggs = self.f64_inst_provider.aggregators(
             InstrumentKind::ObservableGauge,
@@ -341,7 +358,9 @@ impl InstrumentProvider for Meter {
             description.clone(),
             unit.clone().unwrap_or_default(),
         )?;
-        let is_drop = aggs.is_empty();
+        if aggs.is_empty() {
+            return Ok(ObservableGauge::new(Arc::new(NoopAsyncInstrument::new())));
+        }
 
         let observable = Arc::new(Observable::new(
             self.scope.clone(),
@@ -351,9 +370,9 @@ impl InstrumentProvider for Meter {
             unit.unwrap_or_default(),
             aggs,
         ));
-        let cb_inst = Arc::clone(&observable);
 
-        if let Some(callback) = callback.filter(|_| !is_drop) {
+        for callback in callbacks {
+            let cb_inst = Arc::clone(&observable);
             self.pipes
                 .register_callback(move || callback(cb_inst.as_ref()));
         }

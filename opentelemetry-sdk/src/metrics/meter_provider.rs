@@ -1,8 +1,11 @@
 use core::fmt;
-use std::sync::Arc;
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
 
 use opentelemetry_api::{
-    metrics::{Meter as ApiMeter, Result},
+    metrics::{noop::NoopMeterCore, InstrumentProvider, Meter as ApiMeter, MetricsError, Result},
     Context,
 };
 
@@ -20,6 +23,7 @@ use super::{meter::Meter as SdkMeter, pipeline::Pipelines, reader::MetricReader,
 #[derive(Clone, Debug)]
 pub struct MeterProvider {
     pipes: Arc<Pipelines>,
+    is_shutdown: Arc<AtomicBool>,
 }
 
 impl MeterProvider {
@@ -52,7 +56,17 @@ impl MeterProvider {
     /// There is no guaranteed that all telemetry be flushed or all resources have
     /// been released on error.
     pub fn shutdown(&self) -> Result<()> {
-        self.pipes.shutdown()
+        if self
+            .is_shutdown
+            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+            .is_ok()
+        {
+            self.pipes.shutdown()
+        } else {
+            Err(MetricsError::Other(
+                "metrics provider already shut down".into(),
+            ))
+        }
     }
 }
 
@@ -63,11 +77,15 @@ impl opentelemetry_api::metrics::MeterProvider for MeterProvider {
         version: Option<&'static str>,
         schema_url: Option<&'static str>,
     ) -> ApiMeter {
-        let scope = Scope::new(name, version, schema_url);
-        ApiMeter::new(
-            scope.clone(),
-            Arc::new(SdkMeter::new(scope, self.pipes.clone())),
-        )
+        let inst_provider: Arc<dyn InstrumentProvider + Send + Sync> =
+            if !self.is_shutdown.load(Ordering::Relaxed) {
+                let scope = Scope::new(name, version, schema_url);
+                Arc::new(SdkMeter::new(scope, self.pipes.clone()))
+            } else {
+                Arc::new(NoopMeterCore::new())
+            };
+
+        ApiMeter::new(inst_provider)
     }
 }
 
@@ -122,6 +140,7 @@ impl MeterProviderBuilder {
                 self.readers,
                 self.views,
             )),
+            is_shutdown: Arc::new(AtomicBool::new(false)),
         }
     }
 }

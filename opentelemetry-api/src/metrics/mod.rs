@@ -109,7 +109,7 @@ pub trait InstrumentProvider {
         _name: Cow<'static, str>,
         _description: Option<Cow<'static, str>>,
         _unit: Option<Unit>,
-        _callback: Option<Callback<u64>>,
+        _callback: Vec<Callback<u64>>,
     ) -> Result<ObservableCounter<u64>> {
         Ok(ObservableCounter::new(Arc::new(
             noop::NoopAsyncInstrument::new(),
@@ -122,7 +122,7 @@ pub trait InstrumentProvider {
         _name: Cow<'static, str>,
         _description: Option<Cow<'static, str>>,
         _unit: Option<Unit>,
-        _callback: Option<Callback<f64>>,
+        _callback: Vec<Callback<f64>>,
     ) -> Result<ObservableCounter<f64>> {
         Ok(ObservableCounter::new(Arc::new(
             noop::NoopAsyncInstrument::new(),
@@ -159,7 +159,7 @@ pub trait InstrumentProvider {
         _name: Cow<'static, str>,
         _description: Option<Cow<'static, str>>,
         _unit: Option<Unit>,
-        _callback: Option<Callback<i64>>,
+        _callback: Vec<Callback<i64>>,
     ) -> Result<ObservableUpDownCounter<i64>> {
         Ok(ObservableUpDownCounter::new(Arc::new(
             noop::NoopAsyncInstrument::new(),
@@ -172,7 +172,7 @@ pub trait InstrumentProvider {
         _name: Cow<'static, str>,
         _description: Option<Cow<'static, str>>,
         _unit: Option<Unit>,
-        _callback: Option<Callback<f64>>,
+        _callback: Vec<Callback<f64>>,
     ) -> Result<ObservableUpDownCounter<f64>> {
         Ok(ObservableUpDownCounter::new(Arc::new(
             noop::NoopAsyncInstrument::new(),
@@ -185,7 +185,7 @@ pub trait InstrumentProvider {
         _name: Cow<'static, str>,
         _description: Option<Cow<'static, str>>,
         _unit: Option<Unit>,
-        _callback: Option<Callback<u64>>,
+        _callback: Vec<Callback<u64>>,
     ) -> Result<ObservableGauge<u64>> {
         Ok(ObservableGauge::new(Arc::new(
             noop::NoopAsyncInstrument::new(),
@@ -198,7 +198,7 @@ pub trait InstrumentProvider {
         _name: Cow<'static, str>,
         _description: Option<Cow<'static, str>>,
         _unit: Option<Unit>,
-        _callback: Option<Callback<i64>>,
+        _callback: Vec<Callback<i64>>,
     ) -> Result<ObservableGauge<i64>> {
         Ok(ObservableGauge::new(Arc::new(
             noop::NoopAsyncInstrument::new(),
@@ -211,7 +211,7 @@ pub trait InstrumentProvider {
         _name: Cow<'static, str>,
         _description: Option<Cow<'static, str>>,
         _unit: Option<Unit>,
-        _callback: Option<Callback<f64>>,
+        _callback: Vec<Callback<f64>>,
     ) -> Result<ObservableGauge<f64>> {
         Ok(ObservableGauge::new(Arc::new(
             noop::NoopAsyncInstrument::new(),
@@ -254,7 +254,7 @@ pub trait InstrumentProvider {
     fn register_callback(
         &self,
         instruments: &[Arc<dyn Any>],
-        callback: Box<MultiInstrumentCallback>,
+        callbacks: Box<MultiInstrumentCallback>,
     ) -> Result<Box<dyn Registration>>;
 }
 

@@ -159,7 +159,7 @@ where
     description: Option<Cow<'static, str>>,
     unit: Option<Unit>,
     _inst: marker::PhantomData<I>,
-    callback: Option<Callback<M>>,
+    callbacks: Vec<Callback<M>>,
 }
 
 impl<'a, I, M> AsyncInstrumentBuilder<'a, I, M>
@@ -175,7 +175,7 @@ where
             description: None,
             unit: None,
             _inst: marker::PhantomData,
-            callback: None,
+            callbacks: Vec::new(),
         }
     }
 
@@ -202,7 +202,7 @@ where
     where
         F: Fn(&dyn AsyncInstrument<M>) + Send + Sync + 'static,
     {
-        self.callback = Some(Box::new(callback));
+        self.callbacks.push(Box::new(callback));
         self
     }
 
@@ -270,7 +270,7 @@ where
             .field("description", &self.description)
             .field("unit", &self.unit)
             .field("kind", &std::any::type_name::<I>())
-            .field("callback_present", &self.callback.is_some())
+            .field("callbacks_len", &self.callbacks.len())
             .finish()
     }
 }
@@ -283,15 +283,11 @@ mod tests {
     };
     use crate::metrics::noop::NoopMeterCore;
     use crate::metrics::{Counter, InstrumentBuilder, Unit};
-    use crate::InstrumentationLibrary;
     use std::sync::Arc;
 
     #[test]
     fn test_instrument_config_validation() {
-        let meter = crate::metrics::Meter::new(
-            InstrumentationLibrary::default(),
-            Arc::new(NoopMeterCore::new()),
-        );
+        let meter = crate::metrics::Meter::new(Arc::new(NoopMeterCore::new()));
         // (name, expected error)
         let instrument_name_test_cases = vec![
             ("validateName", ""),

@@ -123,7 +123,7 @@ impl TryFrom<AsyncInstrumentBuilder<'_, ObservableUpDownCounter<i64>, i64>>
                 builder.name,
                 builder.description,
                 builder.unit,
-                builder.callback,
+                builder.callbacks,
             )
     }
 }
@@ -143,7 +143,7 @@ impl TryFrom<AsyncInstrumentBuilder<'_, ObservableUpDownCounter<f64>, f64>>
                 builder.name,
                 builder.description,
                 builder.unit,
-                builder.callback,
+                builder.callbacks,
             )
     }
 }

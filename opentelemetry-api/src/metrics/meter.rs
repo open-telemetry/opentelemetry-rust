@@ -7,7 +7,7 @@ use crate::metrics::{
     AsyncInstrumentBuilder, Counter, Histogram, InstrumentBuilder, InstrumentProvider,
     ObservableCounter, ObservableGauge, ObservableUpDownCounter, Result, UpDownCounter,
 };
-use crate::{InstrumentationLibrary, KeyValue};
+use crate::KeyValue;
 
 use super::AsyncInstrument;
 
@@ -43,19 +43,14 @@ pub trait MeterProvider {
 /// Provides access to instrument instances for recording metrics.
 #[derive(Clone)]
 pub struct Meter {
-    pub(crate) instrumentation_library: InstrumentationLibrary,
     pub(crate) instrument_provider: Arc<dyn InstrumentProvider + Send + Sync>,
 }
 
 impl Meter {
     /// Create a new named meter from an instrumentation provider
     #[doc(hidden)]
-    pub fn new(
-        instrumentation_library: InstrumentationLibrary,
-        instrument_provider: Arc<dyn InstrumentProvider + Send + Sync>,
-    ) -> Self {
+    pub fn new(instrument_provider: Arc<dyn InstrumentProvider + Send + Sync>) -> Self {
         Meter {
-            instrumentation_library,
             instrument_provider,
         }
     }
@@ -215,8 +210,6 @@ pub trait Observer {
 
 impl fmt::Debug for Meter {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Meter")
-            .field("instrumentation_library", &self.instrumentation_library)
-            .finish()
+        f.write_str("Meter")
     }
 }
