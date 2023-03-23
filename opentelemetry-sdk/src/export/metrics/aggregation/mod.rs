@@ -21,39 +21,39 @@ pub trait Aggregation {
     fn kind(&self) -> &AggregationKind;
 }
 
-/// Sum returns an aggregated min.
+/// [`Min`] returns an aggregated min.
 pub trait Min: Aggregation {
     /// The min of the currently aggregated metrics
     fn min(&self) -> Result<Number>;
 }
 
-/// Sum returns an aggregated max.
+/// [`Max`] returns an aggregated max.
 pub trait Max: Aggregation {
     /// The max of the currently aggregated metrics
     fn max(&self) -> Result<Number>;
 }
 
-/// Sum returns an aggregated sum.
+/// [`Sum`] returns an aggregated sum.
 pub trait Sum: Aggregation {
     /// The sum of the currently aggregated metrics
     fn sum(&self) -> Result<Number>;
 }
 
-/// Count returns the number of values that were aggregated.
+/// [`Count`] returns the number of values that were aggregated.
 pub trait Count: Aggregation {
     /// The count of the currently aggregated metrics
     fn count(&self) -> Result<u64>;
 }
 
-/// LastValue returns the latest value that was aggregated.
+/// [`LastValue`] returns the latest value that was aggregated.
 pub trait LastValue: Aggregation {
     /// The last value of the currently aggregated metrics
     fn last_value(&self) -> Result<(Number, SystemTime)>;
 }
 
-/// Buckets represent histogram buckets boundaries and counts.
+/// [`Buckets`] represent histogram buckets boundaries and counts.
 ///
-/// For a Histogram with N defined boundaries, e.g, [x, y, z]. There are N+1
+/// For a [`Histogram`] with N defined boundaries, e.g, [x, y, z]. There are N+1
 /// counts: [-inf, x), [x, y), [y, z), [z, +inf]
 #[derive(Debug)]
 pub struct Buckets {
@@ -99,7 +99,7 @@ pub trait Histogram: Sum + Count + Min + Max + Aggregation {
 /// Kind value, when deciding how to expose metric data.  This enables
 /// user-supplied Aggregators to replace builtin Aggregators.
 ///
-/// For example, test for a Histogram before testing for a Sum, and so on.
+/// For example, test for a [`Histogram`] before testing for a [`Sum`], and so on.
 ///
 /// [`Aggregator`]: crate::metrics::aggregators::Aggregator
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -115,7 +115,7 @@ impl AggregationKind {
     /// Aggregations that return a minimum.
     pub const MIN: Self = AggregationKind("MIN");
 
-    /// Aggregations that return a minimum.
+    /// Aggregations that return a maximum.
     pub const MAX: Self = AggregationKind("MAX");
 
     /// Aggregations that return only the latest value.
