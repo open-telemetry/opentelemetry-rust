@@ -12,7 +12,7 @@ For a full list of configurations. See SDK docs of [JaegerRemoteSamplerBuilder](
 Start a jaeger collector and an opentelemetry collector locally using docker
 
 ```
-docker-comopse run -d
+docker-compose run -d
 ```
 
 It will allow you to
