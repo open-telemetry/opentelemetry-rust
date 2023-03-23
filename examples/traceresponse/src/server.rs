@@ -22,7 +22,7 @@ async fn handle(req: Request<Body>) -> Result<Response<Body>, Infallible> {
     });
     let _cx_guard = parent_cx.attach();
 
-    let tracer = global::tracer("example/client");
+    let tracer = global::tracer("example/server");
     let span = tracer
         .span_builder("say hello")
         .with_kind(SpanKind::Server)
