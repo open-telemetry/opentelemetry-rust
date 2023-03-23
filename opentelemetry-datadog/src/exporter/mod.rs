@@ -34,6 +34,10 @@ const DEFAULT_AGENT_ENDPOINT: &str = "http://127.0.0.1:8126";
 /// Header name used to inform the Datadog agent of the number of traces in the payload
 const DATADOG_TRACE_COUNT_HEADER: &str = "X-Datadog-Trace-Count";
 
+/// Header name use to inform datadog as to what version
+const DATADOG_META_LANG_HEADER: &str = "Datadog-Meta-Lang";
+const DATADOG_META_TRACER_VERSION_HEADER: &str = "Datadog-Meta-Tracer-Version";
+
 // Struct to hold the mapping between Opentelemetry spans and datadog spans.
 pub struct Mapping {
     resource: Option<FieldMapping>,
@@ -101,6 +105,8 @@ impl DatadogExporter {
             .uri(self.request_url.clone())
             .header(http::header::CONTENT_TYPE, self.api_version.content_type())
             .header(DATADOG_TRACE_COUNT_HEADER, trace_count)
+            .header(DATADOG_META_LANG_HEADER, "rust")
+            .header(DATADOG_META_TRACER_VERSION_HEADER, env!("CARGO_PKG_VERSION"))
             .body(data)
             .map_err::<Error, _>(Into::into)?;
 
