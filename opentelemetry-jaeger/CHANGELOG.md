@@ -15,6 +15,7 @@
 - Update dependencies and bump MSRV to 1.60 [#969](https://github.com/open-telemetry/opentelemetry-rust/pull/969).
 - Make `JaegerRemoteSampler` public, revise doc [#975](https://github.com/open-telemetry/opentelemetry-rust/pull/975).
 - Add warnings to docs about future deprecation [#996](https://github.com/open-telemetry/opentelemetry-rust/pull/996).
+- Fix array encoding length of datadog version v5 exporter(#1002)(https://github.com/open-telemetry/opentelemetry-rust/pull/1002).
 
 ## v0.17.0
 
