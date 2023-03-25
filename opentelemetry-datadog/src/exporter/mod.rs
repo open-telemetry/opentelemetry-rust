@@ -106,7 +106,10 @@ impl DatadogExporter {
             .header(http::header::CONTENT_TYPE, self.api_version.content_type())
             .header(DATADOG_TRACE_COUNT_HEADER, trace_count)
             .header(DATADOG_META_LANG_HEADER, "rust")
-            .header(DATADOG_META_TRACER_VERSION_HEADER, env!("CARGO_PKG_VERSION"))
+            .header(
+                DATADOG_META_TRACER_VERSION_HEADER,
+                env!("CARGO_PKG_VERSION"),
+            )
             .body(data)
             .map_err::<Error, _>(Into::into)?;
 
