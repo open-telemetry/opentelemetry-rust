@@ -4,10 +4,7 @@
 //!
 //! Currently, OTEL metrics exporter only support GRPC connection via tonic on tokio runtime.
 
-use crate::exporter::{
-    tonic::{TonicConfig, TonicExporterBuilder},
-    ExportConfig,
-};
+use crate::exporter::tonic::TonicExporterBuilder;
 use crate::transform::{record_to_metric, sink, CheckpointedMetrics};
 use crate::{Error, OtlpPipeline};
 use core::fmt;
@@ -93,11 +90,9 @@ impl MetricsExporterBuilder {
     ) -> Result<MetricsExporter> {
         match self {
             #[cfg(feature = "grpc-tonic")]
-            MetricsExporterBuilder::Tonic(builder) => Ok(MetricsExporter::new(
-                builder.exporter_config,
-                builder.tonic_config,
-                temporality_selector,
-            )?),
+            MetricsExporterBuilder::Tonic(builder) => {
+                Ok(MetricsExporter::new(builder, temporality_selector)?)
+            }
         }
     }
 }
@@ -235,10 +230,12 @@ impl MetricsExporter {
     /// Create a new OTLP metrics exporter.
     #[cfg(feature = "grpc-tonic")]
     pub fn new(
-        config: ExportConfig,
-        mut tonic_config: TonicConfig,
+        export_builder: TonicExporterBuilder,
         temporality_selector: Box<dyn TemporalitySelector + Send + Sync>,
     ) -> Result<MetricsExporter> {
+        let config = export_builder.exporter_config;
+        let mut tonic_config = export_builder.tonic_config;
+
         let endpoint = match std::env::var(OTEL_EXPORTER_OTLP_METRICS_ENDPOINT) {
             Ok(val) => val,
             Err(_) => format!("{}{}", config.endpoint, "/v1/metrics"),
@@ -267,27 +264,47 @@ impl MetricsExporter {
         #[cfg(not(feature = "tls"))]
         let channel = endpoint.timeout(config.timeout).connect_lazy();
 
-        let client = MetricsServiceClient::new(channel);
-
-        let (sender, mut receiver) = tokio::sync::mpsc::channel::<ExportMsg>(2);
-        tokio::spawn(Box::pin(async move {
-            while let Some(msg) = receiver.recv().await {
-                match msg {
-                    ExportMsg::Shutdown => {
-                        break;
-                    }
-                    ExportMsg::Export(req) => {
-                        let _ = client.to_owned().export(req).await;
-                    }
+        let (sender, receiver) = tokio::sync::mpsc::channel::<ExportMsg>(2);
+        tokio::spawn(async move {
+            match export_builder.interceptor {
+                Some(interceptor) => {
+                    let client = MetricsServiceClient::with_interceptor(channel, interceptor);
+                    export_sink(client, receiver).await
+                }
+                None => {
+                    let client = MetricsServiceClient::new(channel);
+                    export_sink(client, receiver).await
                 }
             }
-        }));
+        });
 
         Ok(MetricsExporter {
             sender: Mutex::new(sender),
             temporality_selector,
             metadata: tonic_config.metadata.take(),
         })
+    }
+}
+
+use tonic::codegen::{Body, Bytes, StdError};
+async fn export_sink<T>(
+    mut client: MetricsServiceClient<T>,
+    mut receiver: tokio::sync::mpsc::Receiver<ExportMsg>,
+) where
+    T: tonic::client::GrpcService<tonic::body::BoxBody>,
+    T::Error: Into<StdError>,
+    T::ResponseBody: Body<Data = Bytes> + Send + 'static,
+    <T::ResponseBody as Body>::Error: Into<StdError> + Send,
+{
+    while let Some(msg) = receiver.recv().await {
+        match msg {
+            ExportMsg::Shutdown => {
+                break;
+            }
+            ExportMsg::Export(req) => {
+                let _r = client.export(req).await;
+            }
+        }
     }
 }
 
