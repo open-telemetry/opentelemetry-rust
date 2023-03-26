@@ -30,6 +30,7 @@ members = [
     "examples/grpc",
     "examples/http",
     "examples/hyper-prometheus",
+    "examples/traceresponse",
     "examples/tracing-grpc",
     "examples/jaeger-remote-sampler",
     "examples/zipkin",

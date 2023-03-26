@@ -1,10 +1,21 @@
 # Changelog
-## Main
+## v0.18.0
 
 ### Added
 
-- Added `CollectorPipeline::build_collector_exporter` #894
+- Added `CollectorPipeline::build_collector_exporter` [#894](https://github.com/open-telemetry/opentelemetry-rust/pull/894).
+- Support IPv6 in sync uploader [#938](https://github.com/open-telemetry/opentelemetry-rust/pull/938).
 
+### Changed
+- Update `opentelemetry` to 0.19
+- Update `opentelemetry-http` to 0.8
+- Update `opentelemetry-semantic-conventions` to 0.11.
+- Bump MSRV to 1.57 [#953](https://github.com/open-telemetry/opentelemetry-rust/pull/953).
+- Include packet length for `SizeLimit` error messages [#938](https://github.com/open-telemetry/opentelemetry-rust/pull/938).
+- Update dependencies and bump MSRV to 1.60 [#969](https://github.com/open-telemetry/opentelemetry-rust/pull/969).
+- Make `JaegerRemoteSampler` public, revise doc [#975](https://github.com/open-telemetry/opentelemetry-rust/pull/975).
+- Add warnings to docs about future deprecation [#996](https://github.com/open-telemetry/opentelemetry-rust/pull/996).
+- Fix array encoding length of datadog version v5 exporter(#1002)(https://github.com/open-telemetry/opentelemetry-rust/pull/1002).
 
 ## v0.17.0
 

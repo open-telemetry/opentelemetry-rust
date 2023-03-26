@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.12.0
+
+### Changed
+- [Breaking] Add `_total` suffix for all counters [#952](https://github.com/open-telemetry/opentelemetry-rust/pull/952).
+- Update to `opentelemetry` v0.19.
+- Bump MSRV to 1.57 [#953](https://github.com/open-telemetry/opentelemetry-rust/pull/953).
+- Update dependencies and bump MSRV to 1.60 [#969](https://github.com/open-telemetry/opentelemetry-rust/pull/969).
+- Add `otel_scope_info` and `scope` labels [#974](https://github.com/open-telemetry/opentelemetry-rust/pull/974). 
+
 ## v0.11.0
 
 ### Changed
