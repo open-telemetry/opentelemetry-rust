@@ -40,8 +40,8 @@ opentelemetry = { version = "0.19", default-features = false, features = ["trace
 opentelemetry-http = { version = "0.8", path = "../opentelemetry-http", optional = true }
 protobuf = { version = "2.18", optional = true }
 
-prost = { version = "0.11.0", optional = true }
-tonic = { version = "0.8.0", optional = true }
+prost = { version = "0.11", optional = true }
+tonic = { version = "0.8", optional = true }
 tokio = { version = "1.0", features = ["sync", "rt"], optional = true }
 
 reqwest = { version = "0.11", optional = true, default-features = false }
