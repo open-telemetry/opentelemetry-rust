@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-dynatrace"
-version = "0.2.0"
+version = "0.3.0"
 description = "Dynatrace exporters and propagators for OpenTelemetry"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-dynatrace"
 repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-dynatrace"
@@ -57,8 +57,8 @@ getrandom = { version = "0.2", optional = true }
 http = "0.2"
 isahc = { version = "1.4", default-features = false, optional = true }
 js-sys = { version = "0.3.5", optional = true }
-opentelemetry = { version = "0.18", path = "../opentelemetry", default-features = false }
-opentelemetry-http = { version = "0.7", path = "../opentelemetry-http", default-features = false }
+opentelemetry = { version = "0.19", path = "../opentelemetry", default-features = false }
+opentelemetry-http = { version = "0.8", path = "../opentelemetry-http", default-features = false }
 reqwest = { version = "0.11", default-features = false, optional = true }
 surf = { version = "2.0", default-features = false, optional = true }
 thiserror = "1.0"

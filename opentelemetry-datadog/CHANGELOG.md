@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.7.0
+### Added
+- [Breaking] Add support for unified tagging [#931](https://github.com/open-telemetry/opentelemetry-rust/pull/931).
+
+### Changed
+- Update `opentelemetry` to 0.19
+- Update `opentelemetry-http` to 0.8
+- Update `opentelemetry-semantic-conventions` to 0.11.
+- Bump MSRV to 1.57 [#953](https://github.com/open-telemetry/opentelemetry-rust/pull/953)
+- Send resource with attributes [#880](https://github.com/open-telemetry/opentelemetry-rust/pull/880).
+- Update msgpack accounting for sampling_priority [#903](https://github.com/open-telemetry/opentelemetry-rust/pull/903).
+- Update dependencies and bump MSRV to 1.60 [#969](https://github.com/open-telemetry/opentelemetry-rust/pull/969).
+
 ## v0.6.0
 
 ### Changed

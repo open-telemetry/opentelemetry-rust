@@ -1,5 +1,8 @@
 # Changelog
 
+## [v0.19.0](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.18.0...v0.19.0)
+This release should been seen as 1.0-rc2 following 1.0-rc1 in v0.18.0. Refer to CHANGELOG.md in individual creates for details on changes made in different creates.
+
 ## [v0.18.0](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.17.0...v0.18.0)
 
 This release is the first beta release of the `trace` API and SDK. If no other

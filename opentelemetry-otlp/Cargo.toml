@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-otlp"
-version = "0.11.0"
+version = "0.12.0"
 description = "Exporter for the OpenTelemetry Collector"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-otlp"
 repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-otlp"
@@ -35,9 +35,9 @@ futures-util = { version = "0.3", default-features = false, features = ["std"] }
 
 opentelemetry-proto = { version = "0.2", path = "../opentelemetry-proto", default-features = false }
 
-grpcio = { version = "0.12", optional = true}
-opentelemetry = { version = "0.18", default-features = false, features = ["trace"], path = "../opentelemetry" }
-opentelemetry-http = { version = "0.7", path = "../opentelemetry-http", optional = true }
+grpcio = { version = "0.12", optional = true }
+opentelemetry = { version = "0.19", default-features = false, features = ["trace"], path = "../opentelemetry" }
+opentelemetry-http = { version = "0.8", path = "../opentelemetry-http", optional = true }
 protobuf = { version = "2.18", optional = true }
 
 prost = { version = "0.11.0", optional = true }
