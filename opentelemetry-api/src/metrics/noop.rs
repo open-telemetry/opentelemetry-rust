@@ -59,7 +59,7 @@ impl InstrumentProvider for NoopMeterCore {
     }
 }
 
-/// A no-op instance of a callback [Registration].
+/// A no-op instance of a callback [CallbackRegistration].
 #[derive(Debug, Default)]
 pub struct NoopRegistration {
     _private: (),
