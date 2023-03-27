@@ -49,8 +49,8 @@ fn empty_view(_inst: &Instrument) -> Option<Stream> {
 pub trait View: Send + Sync + 'static {
     /// Defines how data should be collected for certain instruments.
     ///
-    /// Return `true` and the exact [Stream] to use for matching [Instrument]s,
-    /// otherwise if there is no match, return `false`.
+    /// Return [Stream] to use for matching [Instrument]s,
+    /// otherwise if there is no match, return `None`.
     fn match_inst(&self, inst: &Instrument) -> Option<Stream>;
 }
 
