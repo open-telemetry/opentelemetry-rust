@@ -18,7 +18,7 @@ pub use instruments::{
     up_down_counter::{ObservableUpDownCounter, SyncUpDownCounter, UpDownCounter},
     AsyncInstrument, AsyncInstrumentBuilder, Callback, InstrumentBuilder,
 };
-pub use meter::{Meter, MeterProvider, Observer, Registration};
+pub use meter::{CallbackRegistration, Meter, MeterProvider, Observer};
 
 /// A specialized `Result` type for metric operations.
 pub type Result<T> = result::Result<T, MetricsError>;
@@ -255,7 +255,7 @@ pub trait InstrumentProvider {
         &self,
         instruments: &[Arc<dyn Any>],
         callbacks: Box<MultiInstrumentCallback>,
-    ) -> Result<Box<dyn Registration>>;
+    ) -> Result<Box<dyn CallbackRegistration>>;
 }
 
 type MultiInstrumentCallback = dyn Fn(&dyn Observer) + Send + Sync;

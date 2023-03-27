@@ -7,7 +7,7 @@ use std::{
 
 use opentelemetry_api::{
     global,
-    metrics::{MetricsError, Registration, Result, Unit},
+    metrics::{CallbackRegistration, MetricsError, Result, Unit},
     Context,
 };
 
@@ -591,7 +591,7 @@ impl Pipelines {
     }
 
     /// Registers a multi-instrument callback to be run when `produce` is called.
-    pub(crate) fn register_multi_callback<F>(&self, f: F) -> Result<Box<dyn Registration>>
+    pub(crate) fn register_multi_callback<F>(&self, f: F) -> Result<Box<dyn CallbackRegistration>>
     where
         F: Fn() + Send + Sync + 'static,
     {
@@ -643,9 +643,9 @@ impl Pipelines {
     }
 }
 
-struct Unregister(Vec<Box<dyn FnOnce() -> Result<()>>>);
+struct Unregister(Vec<Box<dyn FnOnce() -> Result<()> + Send + Sync>>);
 
-impl Registration for Unregister {
+impl CallbackRegistration for Unregister {
     fn unregister(&mut self) -> Result<()> {
         let mut errs = vec![];
         while let Some(unreg) = self.0.pop() {
@@ -661,23 +661,6 @@ impl Registration for Unregister {
         }
     }
 }
-
-// func (p pipelines) registerMultiCallback(c multiCallback) metric.Registration {
-// 	unregs := make([]func(), len(p))
-// 	for i, pipe := range p {
-// 		unregs[i] = pipe.addMultiCallback(c)
-// 	}
-// 	return unregisterFuncs(unregs)
-// }
-//
-// type unregisterFuncs []func()
-//
-// func (u unregisterFuncs) Unregister() error {
-// 	for _, f := range u {
-// 		f()
-// 	}
-// 	return nil
-// }
 
 /// resolver facilitates resolving Aggregators an instrument needs to aggregate
 /// measurements with while updating all pipelines that need to pull from those

@@ -115,6 +115,7 @@ jobs:
           toolchain: stable
           components: rustfmt,llvm-tools-preview
           override: true
+      - uses: arduino/setup-protoc@v1
       - name: cargo install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
       - name: cargo generate-lockfile

@@ -147,6 +147,8 @@ pub struct PrometheusExporter {
 }
 
 impl TemporalitySelector for PrometheusExporter {
+    /// Note: Prometheus only supports cumulative temporality so this will always be
+    /// [Temporality::Cumulative].
     fn temporality(&self, kind: InstrumentKind) -> Temporality {
         self.reader.temporality(kind)
     }

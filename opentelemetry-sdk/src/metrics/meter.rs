@@ -10,9 +10,9 @@ use opentelemetry_api::{
     global,
     metrics::{
         noop::{NoopAsyncInstrument, NoopRegistration},
-        AsyncInstrument, Callback, Counter, Histogram, InstrumentProvider, MetricsError,
-        ObservableCounter, ObservableGauge, ObservableUpDownCounter, Observer as ApiObserver,
-        Registration, Result, Unit, UpDownCounter,
+        AsyncInstrument, Callback, CallbackRegistration, Counter, Histogram, InstrumentProvider,
+        MetricsError, ObservableCounter, ObservableGauge, ObservableUpDownCounter,
+        Observer as ApiObserver, Result, Unit, UpDownCounter,
     },
     KeyValue,
 };
@@ -432,7 +432,7 @@ impl InstrumentProvider for Meter {
         &self,
         insts: &[Arc<dyn Any>],
         callback: Box<dyn Fn(&dyn ApiObserver) + Send + Sync>,
-    ) -> Result<Box<dyn Registration>> {
+    ) -> Result<Box<dyn CallbackRegistration>> {
         if insts.is_empty() {
             return Ok(Box::new(NoopRegistration::new()));
         }

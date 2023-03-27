@@ -5,8 +5,8 @@
 //! to have minimal resource utilization and runtime impact.
 use crate::{
     metrics::{
-        AsyncInstrument, InstrumentProvider, Meter, MeterProvider, Observer, Registration, Result,
-        SyncCounter, SyncHistogram, SyncUpDownCounter,
+        AsyncInstrument, CallbackRegistration, InstrumentProvider, Meter, MeterProvider, Observer,
+        Result, SyncCounter, SyncHistogram, SyncUpDownCounter,
     },
     Context, KeyValue,
 };
@@ -54,7 +54,7 @@ impl InstrumentProvider for NoopMeterCore {
         &self,
         _instruments: &[Arc<dyn Any>],
         _callback: Box<dyn Fn(&dyn Observer) + Send + Sync>,
-    ) -> Result<Box<dyn Registration>> {
+    ) -> Result<Box<dyn CallbackRegistration>> {
         Ok(Box::new(NoopRegistration::new()))
     }
 }
@@ -72,7 +72,7 @@ impl NoopRegistration {
     }
 }
 
-impl Registration for NoopRegistration {
+impl CallbackRegistration for NoopRegistration {
     fn unregister(&mut self) -> Result<()> {
         Ok(())
     }

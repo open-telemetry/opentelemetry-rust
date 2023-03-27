@@ -178,7 +178,7 @@ impl Meter {
         &self,
         instruments: &[Arc<dyn Any>],
         callback: F,
-    ) -> Result<Box<dyn Registration>>
+    ) -> Result<Box<dyn CallbackRegistration>>
     where
         F: Fn(&dyn Observer) + Send + Sync + 'static,
     {
@@ -189,10 +189,8 @@ impl Meter {
 
 /// A token representing the unique registration of a callback for a set of
 /// instruments with a [Meter].
-pub trait Registration {
+pub trait CallbackRegistration: Send + Sync {
     /// Removes the callback registration from its associated [Meter].
-    ///
-    /// This method needs to be idempotent and concurrent safe.
     fn unregister(&mut self) -> Result<()>;
 }
 

@@ -39,7 +39,7 @@ pub struct Metric {
     pub description: Cow<'static, str>,
     /// The unit in which the instrument reports.
     pub unit: Unit,
-    /// The aggregated data from an instrument].
+    /// The aggregated data from an instrument.
     pub data: Box<dyn Aggregation>,
 }
 
