@@ -24,7 +24,6 @@ use std::{
     env::{remove_var, set_var, var, vars},
     error::Error,
     str::FromStr,
-    time::Duration,
 };
 
 // Use the variables to try and export the example to any external collector that accepts otlp
