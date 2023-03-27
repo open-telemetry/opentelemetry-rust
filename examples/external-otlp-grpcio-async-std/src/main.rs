@@ -99,9 +99,6 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         });
     });
 
-    // wait for 1 minutes so that we could see metrics being pushed via OTLP every 10 seconds.
-    sleep(Duration::from_secs(60)).await;
-
     shutdown_tracer_provider();
 
     Ok(())
