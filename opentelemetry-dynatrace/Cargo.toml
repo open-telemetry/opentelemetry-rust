@@ -80,6 +80,6 @@ features = [
 optional = true
 
 [dev-dependencies]
-opentelemetry = { version = "0.18.0", features = ["rt-tokio"] }
+opentelemetry = { version = "0.19.0", features = ["rt-tokio"] }
 tokio = { version = "1.0", default-features = false, features = ["macros", "rt-multi-thread", "sync", "test-util"] }
 hyper = { version = "0.14", default-features = false, features = ["server", "tcp", "http1"] }
