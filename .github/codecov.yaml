@@ -17,3 +17,4 @@ ignore:
   - "opentelemetry-jaeger/src/testing" # test harness
   - "opentelemetry-jaeger/src/exporter/thrift" # auto generated files
   - "opentelemetry-otlp/src/proto" # auto generated files
+  - "opentelemetry-proto/src/proto" # auto generated files
