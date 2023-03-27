@@ -291,7 +291,7 @@ pub(crate) struct IdInner {
     pub(crate) description: Cow<'static, str>,
     /// The functional group of the instrument.
     kind: InstrumentKind,
-    /// Unit is the unit of measurement recorded by the instrument.
+    /// The unit of measurement recorded by the instrument.
     pub(crate) unit: Unit,
     /// The instrumentation that created the instrument.
     scope: Scope,
