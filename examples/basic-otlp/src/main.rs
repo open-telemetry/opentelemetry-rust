@@ -1,19 +1,15 @@
-use opentelemetry::global::shutdown_tracer_provider;
-use opentelemetry::runtime;
-use opentelemetry::sdk::export::metrics::aggregation::cumulative_temporality_selector;
-use opentelemetry::sdk::metrics::controllers::BasicController;
-use opentelemetry::sdk::metrics::selectors;
-use opentelemetry::sdk::Resource;
-use opentelemetry::trace::TraceError;
-use opentelemetry::{global, sdk::trace as sdktrace};
-use opentelemetry::{
+use once_cell::sync::Lazy;
+use opentelemetry_api::global;
+use opentelemetry_api::global::shutdown_tracer_provider;
+use opentelemetry_api::trace::TraceError;
+use opentelemetry_api::{
     metrics,
     trace::{TraceContextExt, Tracer},
     Context, Key, KeyValue,
 };
 use opentelemetry_otlp::{ExportConfig, WithExportConfig};
+use opentelemetry_sdk::{metrics::MeterProvider, runtime, trace as sdktrace, Resource};
 use std::error::Error;
-use std::time::Duration;
 
 fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
     opentelemetry_otlp::new_pipeline()
@@ -29,20 +25,16 @@ fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
                 "trace-demo",
             )])),
         )
-        .install_batch(opentelemetry::runtime::Tokio)
+        .install_batch(runtime::Tokio)
 }
 
-fn init_metrics() -> metrics::Result<BasicController> {
+fn init_metrics() -> metrics::Result<MeterProvider> {
     let export_config = ExportConfig {
         endpoint: "http://localhost:4317".to_string(),
         ..ExportConfig::default()
     };
     opentelemetry_otlp::new_pipeline()
-        .metrics(
-            selectors::simple::inexpensive(),
-            cumulative_temporality_selector(),
-            runtime::Tokio,
-        )
+        .metrics(runtime::Tokio)
         .with_exporter(
             opentelemetry_otlp::new_exporter()
                 .tonic()
@@ -54,14 +46,14 @@ fn init_metrics() -> metrics::Result<BasicController> {
 const LEMONS_KEY: Key = Key::from_static_str("lemons");
 const ANOTHER_KEY: Key = Key::from_static_str("ex.com/another");
 
-lazy_static::lazy_static! {
-    static ref COMMON_ATTRIBUTES: [KeyValue; 4] = [
+static COMMON_ATTRIBUTES: Lazy<[KeyValue; 4]> = Lazy::new(|| {
+    [
         LEMONS_KEY.i64(10),
         KeyValue::new("A", "1"),
         KeyValue::new("B", "2"),
         KeyValue::new("C", "3"),
-    ];
-}
+    ]
+});
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
@@ -69,7 +61,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // matches the containing block, reporting traces and metrics during the whole
     // execution.
     let _ = init_tracer()?;
-    let metrics_controller = init_metrics()?;
+    let meter_provider = init_metrics()?;
     let cx = Context::new();
 
     let tracer = global::tracer("ex.com/basic");
@@ -79,7 +71,10 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         .f64_observable_gauge("ex.com.one")
         .with_description("A gauge set to 1.0")
         .init();
-    meter.register_callback(move |cx| gauge.observe(cx, 1.0, COMMON_ATTRIBUTES.as_ref()))?;
+
+    meter.register_callback(&[gauge.as_any()], move |observer| {
+        observer.observe_f64(&gauge, 1.0, COMMON_ATTRIBUTES.as_ref())
+    })?;
 
     let histogram = meter.f64_histogram("ex.com.two").init();
     histogram.record(&cx, 5.5, COMMON_ATTRIBUTES.as_ref());
@@ -102,11 +97,8 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         });
     });
 
-    // wait for 1 minutes so that we could see metrics being pushed via OTLP every 10 seconds.
-    tokio::time::sleep(Duration::from_secs(60)).await;
-
     shutdown_tracer_provider();
-    metrics_controller.stop(&cx)?;
+    meter_provider.shutdown()?;
 
     Ok(())
 }

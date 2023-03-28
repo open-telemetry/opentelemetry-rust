@@ -30,8 +30,6 @@ pub use os::OsResourceDetector;
 pub use process::ProcessResourceDetector;
 pub use telemetry::TelemetryResourceDetector;
 
-#[cfg(feature = "metrics")]
-use opentelemetry_api::attributes;
 use opentelemetry_api::{Key, KeyValue, Value};
 use std::borrow::Cow;
 use std::collections::{hash_map, HashMap};
@@ -190,13 +188,6 @@ impl Resource {
     /// Retrieve the value from resource associate with given key.
     pub fn get(&self, key: Key) -> Option<Value> {
         self.attrs.get(&key).cloned()
-    }
-
-    /// Encoded attributes
-    #[cfg(feature = "metrics")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "metrics")))]
-    pub fn encoded(&self, encoder: &dyn attributes::Encoder) -> String {
-        encoder.encode(&mut self.into_iter())
     }
 }
 

@@ -88,9 +88,10 @@ impl ResourceDetector for SdkProvidedResourceDetector {
                         .get(Key::new("service.name"))
                         .map(|v| v.to_string())
                         .filter(|s| !s.is_empty())
-                        .unwrap_or_else(|| match option_env!("CARGO_BIN_NAME") {
-                            Some(s) => s.to_string(),
-                            None => "unknown_service".to_string(),
+                        .unwrap_or_else(|| {
+                            option_env!("CARGO_BIN_NAME")
+                                .unwrap_or("unknown_service")
+                                .into()
                         })
                 }),
         )])

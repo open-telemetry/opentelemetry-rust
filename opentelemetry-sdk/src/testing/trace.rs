@@ -131,6 +131,7 @@ impl Display for TestExportError {
     }
 }
 
+#[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
 impl<T> From<tokio::sync::mpsc::error::SendError<T>> for TestExportError {
     fn from(err: tokio::sync::mpsc::error::SendError<T>) -> Self {
         TestExportError(err.to_string())

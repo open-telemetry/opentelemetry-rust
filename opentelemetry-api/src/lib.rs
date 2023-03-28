@@ -59,10 +59,6 @@ pub use common::{Array, ExportError, InstrumentationLibrary, Key, KeyValue, Stri
 
 #[cfg(feature = "metrics")]
 #[cfg_attr(docsrs, doc(cfg(feature = "metrics")))]
-pub mod attributes;
-
-#[cfg(feature = "metrics")]
-#[cfg_attr(docsrs, doc(cfg(feature = "metrics")))]
 pub mod metrics;
 
 pub mod propagation;

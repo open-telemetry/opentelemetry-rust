@@ -5,12 +5,13 @@
 //! to have minimal resource utilization and runtime impact.
 use crate::{
     metrics::{
-        AsyncCounter, AsyncGauge, AsyncUpDownCounter, InstrumentProvider, Meter, MeterProvider,
+        AsyncInstrument, CallbackRegistration, InstrumentProvider, Meter, MeterProvider, Observer,
         Result, SyncCounter, SyncHistogram, SyncUpDownCounter,
     },
-    Context, InstrumentationLibrary, KeyValue,
+    Context, KeyValue,
 };
-use std::sync::Arc;
+use std::{any::Any, sync::Arc};
+
 /// A no-op instance of a `MetricProvider`
 #[derive(Debug, Default)]
 pub struct NoopMeterProvider {
@@ -27,12 +28,11 @@ impl NoopMeterProvider {
 impl MeterProvider for NoopMeterProvider {
     fn versioned_meter(
         &self,
-        name: &'static str,
-        version: Option<&'static str>,
-        schema_url: Option<&'static str>,
+        _name: &'static str,
+        _version: Option<&'static str>,
+        _schema_url: Option<&'static str>,
     ) -> Meter {
-        let library = InstrumentationLibrary::new(name, version, schema_url);
-        Meter::new(library, Arc::new(NoopMeterCore::new()))
+        Meter::new(Arc::new(NoopMeterCore::new()))
     }
 }
 
@@ -50,7 +50,30 @@ impl NoopMeterCore {
 }
 
 impl InstrumentProvider for NoopMeterCore {
-    fn register_callback(&self, _callback: Box<dyn Fn(&Context) + Send + Sync>) -> Result<()> {
+    fn register_callback(
+        &self,
+        _instruments: &[Arc<dyn Any>],
+        _callback: Box<dyn Fn(&dyn Observer) + Send + Sync>,
+    ) -> Result<Box<dyn CallbackRegistration>> {
+        Ok(Box::new(NoopRegistration::new()))
+    }
+}
+
+/// A no-op instance of a callback [CallbackRegistration].
+#[derive(Debug, Default)]
+pub struct NoopRegistration {
+    _private: (),
+}
+
+impl NoopRegistration {
+    /// Create a new no-op registration.
+    pub fn new() -> Self {
+        NoopRegistration { _private: () }
+    }
+}
+
+impl CallbackRegistration for NoopRegistration {
+    fn unregister(&mut self) -> Result<()> {
         Ok(())
     }
 }
@@ -99,20 +122,12 @@ impl NoopAsyncInstrument {
     }
 }
 
-impl<T> AsyncGauge<T> for NoopAsyncInstrument {
-    fn observe(&self, _cx: &Context, _value: T, _attributes: &[KeyValue]) {
+impl<T> AsyncInstrument<T> for NoopAsyncInstrument {
+    fn observe(&self, _value: T, _attributes: &[KeyValue]) {
         // Ignored
     }
-}
 
-impl<T> AsyncCounter<T> for NoopAsyncInstrument {
-    fn observe(&self, _cx: &Context, _value: T, _attributes: &[KeyValue]) {
-        // Ignored
-    }
-}
-
-impl<T> AsyncUpDownCounter<T> for NoopAsyncInstrument {
-    fn observe(&self, _cx: &Context, _value: T, _attributes: &[KeyValue]) {
-        // Ignored
+    fn as_any(&self) -> Arc<dyn Any> {
+        Arc::new(())
     }
 }

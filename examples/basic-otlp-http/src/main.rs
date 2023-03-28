@@ -6,7 +6,6 @@ use opentelemetry::{
 };
 use opentelemetry_otlp::WithExportConfig;
 use std::error::Error;
-use std::time::Duration;
 
 fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
     opentelemetry_otlp::new_pipeline()
@@ -43,9 +42,6 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
             span.add_event("Sub span event", vec![]);
         });
     });
-
-    // wait for 1 minutes so that we could see metrics being pushed via OTLP every 10 seconds.
-    tokio::time::sleep(Duration::from_secs(60)).await;
 
     global::shutdown_tracer_provider();
 

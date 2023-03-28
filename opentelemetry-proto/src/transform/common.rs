@@ -19,9 +19,24 @@ pub mod tonic {
     impl From<opentelemetry::sdk::InstrumentationLibrary> for InstrumentationScope {
         fn from(library: opentelemetry::sdk::InstrumentationLibrary) -> Self {
             InstrumentationScope {
-                name: library.name.to_string(),
+                name: library.name.into_owned(),
                 attributes: Vec::new(),
                 version: library.version.unwrap_or(Cow::Borrowed("")).to_string(),
+                dropped_attributes_count: 0,
+            }
+        }
+    }
+
+    impl From<&opentelemetry::sdk::InstrumentationLibrary> for InstrumentationScope {
+        fn from(library: &opentelemetry::sdk::InstrumentationLibrary) -> Self {
+            InstrumentationScope {
+                name: library.name.to_string(),
+                attributes: Vec::new(),
+                version: library
+                    .version
+                    .as_ref()
+                    .map(ToString::to_string)
+                    .unwrap_or_default(),
                 dropped_attributes_count: 0,
             }
         }

@@ -24,7 +24,6 @@ use std::{
     env::{remove_var, set_var, var, vars},
     error::Error,
     str::FromStr,
-    time::Duration,
 };
 
 // Use the variables to try and export the example to any external collector that accepts otlp
@@ -100,9 +99,6 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
             span.add_event("Sub span event", vec![]);
         });
     });
-
-    // wait for 1 minutes so that we could see metrics being pushed via OTLP every 10 seconds.
-    tokio::time::sleep(Duration::from_secs(60)).await;
 
     shutdown_tracer_provider();
 

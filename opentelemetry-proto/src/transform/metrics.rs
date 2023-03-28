@@ -5,42 +5,62 @@
 #[allow(deprecated)]
 #[cfg(feature = "gen-tonic")]
 pub mod tonic {
-    use crate::proto::tonic::{
-        common::v1::KeyValue,
-        metrics::v1::{number_data_point, AggregationTemporality},
-    };
-    use opentelemetry::{
-        metrics::MetricsError,
-        sdk::{
-            export::metrics::aggregation::Temporality,
-            metrics::sdk_api::{Number, NumberKind},
-        },
-    };
+    use crate::proto::tonic::{common::v1::KeyValue, metrics::v1::AggregationTemporality};
+    use crate::tonic::metrics::v1::{exemplar, number_data_point};
+    use opentelemetry::{metrics::MetricsError, sdk::metrics::data::Temporality};
 
     use opentelemetry::{Key, Value};
 
-    /// Convert [`Number`](opentelemetry::sdk::metrics::sdk_api::Number) to target type based
-    /// on it's [`NumberKind`](opentelemetry::sdk::metrics::sdk_api::NumberKind).
-    pub trait FromNumber {
-        fn from_number(number: Number, number_kind: &NumberKind) -> Self;
+    impl From<u64> for exemplar::Value {
+        fn from(value: u64) -> Self {
+            exemplar::Value::AsInt(i64::try_from(value).unwrap_or_default())
+        }
     }
 
-    impl FromNumber for number_data_point::Value {
-        fn from_number(number: Number, number_kind: &NumberKind) -> Self {
-            match &number_kind {
-                NumberKind::I64 | NumberKind::U64 => {
-                    number_data_point::Value::AsInt(number.to_i64(number_kind))
-                }
-                NumberKind::F64 => number_data_point::Value::AsDouble(number.to_f64(number_kind)),
-            }
+    impl From<i64> for exemplar::Value {
+        fn from(value: i64) -> Self {
+            exemplar::Value::AsInt(value)
+        }
+    }
+
+    impl From<f64> for exemplar::Value {
+        fn from(value: f64) -> Self {
+            exemplar::Value::AsDouble(value)
+        }
+    }
+
+    impl From<u64> for number_data_point::Value {
+        fn from(value: u64) -> Self {
+            number_data_point::Value::AsInt(i64::try_from(value).unwrap_or_default())
+        }
+    }
+
+    impl From<i64> for number_data_point::Value {
+        fn from(value: i64) -> Self {
+            number_data_point::Value::AsInt(value)
+        }
+    }
+
+    impl From<f64> for number_data_point::Value {
+        fn from(value: f64) -> Self {
+            number_data_point::Value::AsDouble(value)
         }
     }
 
     impl From<(&Key, &Value)> for KeyValue {
         fn from(kv: (&Key, &Value)) -> Self {
             KeyValue {
-                key: kv.0.clone().into(),
+                key: kv.0.to_string(),
                 value: Some(kv.1.clone().into()),
+            }
+        }
+    }
+
+    impl From<&opentelemetry::KeyValue> for KeyValue {
+        fn from(kv: &opentelemetry::KeyValue) -> Self {
+            KeyValue {
+                key: kv.key.to_string(),
+                value: Some(kv.value.clone().into()),
             }
         }
     }

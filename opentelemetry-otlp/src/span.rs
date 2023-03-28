@@ -53,14 +53,14 @@ use {std::collections::HashMap, std::sync::Arc};
 use crate::exporter::ExportConfig;
 use crate::OtlpPipeline;
 
-use opentelemetry::{
+use opentelemetry_api::{
     global,
-    sdk::{
-        self,
-        export::trace::{ExportResult, SpanData},
-        trace::TraceRuntime,
-    },
     trace::{TraceError, TracerProvider},
+};
+use opentelemetry_sdk::{
+    self as sdk,
+    export::trace::{ExportResult, SpanData},
+    trace::TraceRuntime,
 };
 
 use async_trait::async_trait;
@@ -122,7 +122,7 @@ impl OtlpTracePipeline {
     ///
     /// Returns a [`Tracer`] with the name `opentelemetry-otlp` and current crate version.
     ///
-    /// [`Tracer`]: opentelemetry::trace::Tracer
+    /// [`Tracer`]: opentelemetry_api::trace::Tracer
     pub fn install_simple(self) -> Result<sdk::trace::Tracer, TraceError> {
         Ok(build_simple_with_exporter(
             self.exporter_builder
@@ -139,7 +139,7 @@ impl OtlpTracePipeline {
     ///
     /// `install_batch` will panic if not called within a tokio runtime
     ///
-    /// [`Tracer`]: opentelemetry::trace::Tracer
+    /// [`Tracer`]: opentelemetry_api::trace::Tracer
     pub fn install_batch<R: TraceRuntime>(
         self,
         runtime: R,
@@ -496,7 +496,7 @@ async fn http_send_request(
 }
 
 #[async_trait]
-impl opentelemetry::sdk::export::trace::SpanExporter for SpanExporter {
+impl opentelemetry_sdk::export::trace::SpanExporter for SpanExporter {
     fn export(
         &mut self,
         batch: Vec<SpanData>,

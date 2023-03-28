@@ -57,8 +57,8 @@ getrandom = { version = "0.2", optional = true }
 http = "0.2"
 isahc = { version = "1.4", default-features = false, optional = true }
 js-sys = { version = "0.3.5", optional = true }
-opentelemetry = { version = "0.19", path = "../opentelemetry", default-features = false }
-opentelemetry-http = { version = "0.8", path = "../opentelemetry-http", default-features = false }
+opentelemetry = { version = "0.19", default-features = false }
+opentelemetry-http = { version = "0.8", default-features = false }
 reqwest = { version = "0.11", default-features = false, optional = true }
 surf = { version = "2.0", default-features = false, optional = true }
 thiserror = "1.0"
@@ -80,6 +80,6 @@ features = [
 optional = true
 
 [dev-dependencies]
-opentelemetry = { path = "../opentelemetry", features = ["rt-tokio"] }
+opentelemetry = { version = "0.19.0", features = ["rt-tokio"] }
 tokio = { version = "1.0", default-features = false, features = ["macros", "rt-multi-thread", "sync", "test-util"] }
 hyper = { version = "0.14", default-features = false, features = ["server", "tcp", "http1"] }
