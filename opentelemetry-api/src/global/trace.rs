@@ -226,6 +226,13 @@ impl trace::Span for BoxedSpan {
 /// [`GlobalTracerProvider`]: crate::global::GlobalTracerProvider
 pub struct BoxedTracer(Box<dyn ObjectSafeTracer + Send + Sync>);
 
+impl BoxedTracer {
+    /// Create a `BoxedTracer` from an object-safe tracer.
+    pub fn new(tracer: Box<dyn ObjectSafeTracer + Send + Sync>) -> Self {
+        BoxedTracer(tracer)
+    }
+}
+
 impl fmt::Debug for BoxedTracer {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str("BoxedTracer")
