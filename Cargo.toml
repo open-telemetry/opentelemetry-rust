@@ -35,6 +35,13 @@ members = [
     "examples/jaeger-remote-sampler",
     "examples/zipkin",
     "examples/multiple-span-processors",
-    "examples/zpages"
+    "examples/zpages",
+    "examples/wasm-wasi-bring-your-own-client"
 ]
 exclude = ["examples/external-otlp-grpcio-async-std"]
+
+[patch.crates-io]
+opentelemetry = { path = "./opentelemetry"}
+opentelemetry-otlp = { path = "./opentelemetry-otlp"}
+opentelemetry-http = { path = "./opentelemetry-http"}
+opentelemetry_api = { path = "./opentelemetry-api"}

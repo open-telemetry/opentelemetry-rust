@@ -213,7 +213,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 #[cfg(feature = "grpc-sys")]
 pub use crate::exporter::grpcio::{Compression, Credentials, GrpcioConfig, GrpcioExporterBuilder};
-#[cfg(feature = "http-proto")]
+#[cfg(any(feature = "http-proto", feature = "my-http"))]
 pub use crate::exporter::http::HttpExporterBuilder;
 #[cfg(feature = "grpc-tonic")]
 pub use crate::exporter::tonic::{TonicConfig, TonicExporterBuilder};
@@ -289,7 +289,7 @@ pub enum Error {
     Transport(#[from] tonic::transport::Error),
 
     /// Wrap the [`tonic::codegen::http::uri::InvalidUri`] error
-    #[cfg(any(feature = "grpc-tonic", feature = "http-proto"))]
+    #[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "my-http"))]
     #[error("invalid URI {0}")]
     InvalidUri(#[from] http::uri::InvalidUri),
 
@@ -316,22 +316,22 @@ pub enum Error {
     NoHttpClient,
 
     /// Http requests failed.
-    #[cfg(feature = "http-proto")]
+    #[cfg(any(feature = "http-proto", feature = "my-http"))]
     #[error("http request failed with {0}")]
     RequestFailed(#[from] http::Error),
 
     /// The provided value is invalid in HTTP headers.
-    #[cfg(feature = "http-proto")]
+    #[cfg(any(feature = "http-proto", feature = "my-http"))]
     #[error("http header value error {0}")]
     InvalidHeaderValue(#[from] http::header::InvalidHeaderValue),
 
     /// The provided name is invalid in HTTP headers.
-    #[cfg(feature = "http-proto")]
+    #[cfg(any(feature = "http-proto", feature = "my-http"))]
     #[error("http header name error {0}")]
     InvalidHeaderName(#[from] http::header::InvalidHeaderName),
 
     /// Prost encode failed
-    #[cfg(feature = "http-proto")]
+    #[cfg(any(feature = "http-proto", feature = "my-http"))]
     #[error("prost encoding error {0}")]
     EncodeError(#[from] prost::EncodeError),
 

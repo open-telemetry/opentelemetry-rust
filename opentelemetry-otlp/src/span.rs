@@ -47,7 +47,20 @@ use {
     std::convert::TryFrom,
 };
 
-#[cfg(any(feature = "grpc-sys", feature = "http-proto"))]
+#[cfg(feature = "my-http")]
+use {
+    crate::exporter::http::{HttpConfig, HttpExporterBuilder},
+    http::{
+        header::{HeaderName, HeaderValue, CONTENT_TYPE},
+        Method, Uri,
+    },
+    opentelemetry_http::HttpClient,
+    opentelemetry_proto::tonic::collector::trace::v1::ExportTraceServiceRequest as ProstRequest,
+    prost::Message,
+    // std::convert::TryFrom,
+};
+
+#[cfg(any(feature = "grpc-sys", feature = "http-proto", feature = "my-http"))]
 use {std::collections::HashMap, std::sync::Arc};
 
 use crate::exporter::ExportConfig;
@@ -206,7 +219,7 @@ pub enum SpanExporterBuilder {
     #[cfg(feature = "grpc-sys")]
     Grpcio(GrpcioExporterBuilder),
     /// Http span exporter builder
-    #[cfg(feature = "http-proto")]
+    #[cfg(any(feature = "http-proto", feature = "my-http"))]
     Http(HttpExporterBuilder),
 }
 
@@ -228,7 +241,7 @@ impl SpanExporterBuilder {
                 builder.exporter_config,
                 builder.grpcio_config,
             )),
-            #[cfg(feature = "http-proto")]
+            #[cfg(any(feature = "http-proto", feature = "my-http"))]
             SpanExporterBuilder::Http(builder) => Ok(SpanExporter::new_http(
                 builder.exporter_config,
                 builder.http_config,
@@ -251,7 +264,7 @@ impl From<GrpcioExporterBuilder> for SpanExporterBuilder {
     }
 }
 
-#[cfg(feature = "http-proto")]
+#[cfg(any(feature = "http-proto", feature = "my-http"))]
 impl From<HttpExporterBuilder> for SpanExporterBuilder {
     fn from(exporter: HttpExporterBuilder) -> Self {
         SpanExporterBuilder::Http(exporter)
@@ -280,7 +293,7 @@ pub enum SpanExporter {
         /// The Grpc trace exporter
         trace_exporter: GrpcioTraceServiceClient,
     },
-    #[cfg(feature = "http-proto")]
+    #[cfg(any(feature = "http-proto", feature = "my-http"))]
     /// Trace Exporter using HTTP transport
     Http {
         /// Duration of timeout when sending spans to backend.
@@ -315,7 +328,7 @@ impl Debug for SpanExporter {
                 .field("timeout", &timeout)
                 .field("trace_exporter", &"TraceServiceClient")
                 .finish(),
-            #[cfg(feature = "http-proto")]
+            #[cfg(any(feature = "http-proto", feature = "my-http"))]
             SpanExporter::Http {
                 headers, timeout, ..
             } => f
@@ -415,7 +428,7 @@ impl SpanExporter {
     }
 
     /// Builds a new span exporter with the given configuration
-    #[cfg(feature = "http-proto")]
+    #[cfg(any(feature = "http-proto", feature = "my-http"))]
     pub fn new_http(config: ExportConfig, http_config: HttpConfig) -> Result<Self, crate::Error> {
         let url: Uri = config
             .endpoint
@@ -458,7 +471,7 @@ async fn tonic_send_request(
     Ok(())
 }
 
-#[cfg(feature = "http-proto")]
+#[cfg(any(feature = "http-proto", feature = "my-http"))]
 async fn http_send_request(
     batch: Vec<SpanData>,
     client: std::sync::Arc<dyn HttpClient>,
@@ -561,7 +574,7 @@ impl opentelemetry_sdk::export::trace::SpanExporter for SpanExporter {
                 Box::pin(tonic_send_request(trace_exporter.to_owned(), request))
             }
 
-            #[cfg(feature = "http-proto")]
+            #[cfg(any(feature = "http-proto", feature = "my-http"))]
             SpanExporter::Http {
                 trace_exporter,
                 collector_endpoint,
@@ -577,9 +590,11 @@ impl opentelemetry_sdk::export::trace::SpanExporter for SpanExporter {
                         collector_endpoint.clone(),
                     ))
                 } else {
-                    Box::pin(std::future::ready(Err(crate::Error::NoHttpClient.into())))
+                    todo!()
+                    // Box::pin(std::future::ready(Err(crate::Error::NoHttpClient.into())))
                 }
             }
         }
     }
 }
+
