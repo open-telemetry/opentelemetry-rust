@@ -57,7 +57,7 @@ pub trait PushMetricsExporter:
 ///
 /// # Example
 ///
-/// ```
+/// ```no_run
 ///# use opentelemetry_sdk::{metrics, runtime};
 ///# use opentelemetry_api::{Context, KeyValue};
 ///# use opentelemetry_api::metrics::MeterProvider;
