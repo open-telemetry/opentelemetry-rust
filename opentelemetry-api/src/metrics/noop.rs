@@ -10,7 +10,7 @@ use crate::{
     },
     Context, KeyValue,
 };
-use std::{any::Any, sync::Arc};
+use std::{any::Any, borrow::Cow, sync::Arc};
 
 /// A no-op instance of a `MetricProvider`
 #[derive(Debug, Default)]
@@ -28,9 +28,9 @@ impl NoopMeterProvider {
 impl MeterProvider for NoopMeterProvider {
     fn versioned_meter(
         &self,
-        _name: &'static str,
-        _version: Option<&'static str>,
-        _schema_url: Option<&'static str>,
+        _name: Cow<'static, str>,
+        _version: Option<Cow<'static, str>>,
+        _schema_url: Option<Cow<'static, str>>,
     ) -> Meter {
         Meter::new(Arc::new(NoopMeterCore::new()))
     }

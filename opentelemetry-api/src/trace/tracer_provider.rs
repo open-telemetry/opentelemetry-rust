@@ -34,7 +34,7 @@ pub trait TracerProvider {
     ///     Some("https://opentelemetry.io/schema/1.0.0")
     /// );
     /// ```
-    fn tracer(&self, name: impl Into<Cow<'static, str>>) -> Self::Tracer {
+    fn tracer(&self, name: Cow<'static, str>) -> Self::Tracer {
         self.versioned_tracer(name, None, None)
     }
 
@@ -63,8 +63,8 @@ pub trait TracerProvider {
     /// ```
     fn versioned_tracer(
         &self,
-        name: impl Into<Cow<'static, str>>,
-        version: Option<&'static str>,
-        schema_url: Option<&'static str>,
+        name: Cow<'static, str>,
+        version: Option<Cow<'static, str>>,
+        schema_url: Option<Cow<'static, str>>,
     ) -> Self::Tracer;
 }
