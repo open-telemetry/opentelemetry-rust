@@ -14,7 +14,7 @@ path = "src/client.rs"
 
 [dependencies]
 http = "0.2"
-tonic = { version = "0.6.2", default-features = false }
+tonic = "0.6.2"
 prost = "0.9"
 tokio = { version = "1.0", features = ["full"] }
 opentelemetry = { version = "0.14", features = ["rt-tokio"] }
