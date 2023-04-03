@@ -16,7 +16,7 @@ doc = false
 
 [dependencies]
 http = "0.2"
-tonic = "0.6.2"
+tonic = { version = "0.6.2", default-features = false }
 prost = "0.9"
 tokio = { version = "1.0", features = ["full"] }
 opentelemetry = { path = "../../opentelemetry" }

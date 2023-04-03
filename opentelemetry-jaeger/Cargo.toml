@@ -45,7 +45,7 @@ tokio = { version = "1.0", features = ["net", "sync"], optional = true }
 wasm-bindgen = { version = "0.2", optional = true }
 wasm-bindgen-futures = { version = "0.4.18", optional = true }
 
-tonic = { version = "0.8.3", optional = true }
+tonic = { version = "0.8.3", default-features = false, optional = true }
 prost = { version = "0.11.6", optional = true }
 prost-types = { version = "0.11.6", optional = true }
 
