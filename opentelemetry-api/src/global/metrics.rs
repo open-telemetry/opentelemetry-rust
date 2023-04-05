@@ -75,8 +75,8 @@ pub fn meter_provider() -> GlobalMeterProvider {
 /// If the name is an empty string, the provider will use a default name.
 ///
 /// This is a more convenient way of expressing `global::meter_provider().meter(name, None, None)`.
-pub fn meter(name: Cow<'static, str>) -> Meter {
-    meter_provider().versioned_meter(name, None, None)
+pub fn meter(name: impl Into<Cow<'static, str>>) -> Meter {
+    meter_provider().versioned_meter(name.into(), None, None)
 }
 
 /// Creates a [`Meter`] with the name, version and schema url.
@@ -93,9 +93,9 @@ pub fn meter(name: Cow<'static, str>) -> Meter {
 /// ```
 ///
 pub fn meter_with_version(
-    name: Cow<'static, str>,
+    name: impl Into<Cow<'static, str>>,
     version: Option<Cow<'static, str>>,
     schema_url: Option<Cow<'static, str>>,
 ) -> Meter {
-    meter_provider().versioned_meter(name, version, schema_url)
+    meter_provider().versioned_meter(name.into(), version, schema_url)
 }
