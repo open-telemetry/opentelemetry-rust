@@ -440,8 +440,8 @@ pub struct InstrumentationLibrary {
     ///
     /// ```
     /// let library = opentelemetry_api::InstrumentationLibrary::new(
-    ///     "my-crate",
-    ///     Some(env!("CARGO_PKG_VERSION")),
+    ///     "my-crate".into(),
+    ///     Some(env!("CARGO_PKG_VERSION").into()),
     ///     None,
     /// );
     /// ```

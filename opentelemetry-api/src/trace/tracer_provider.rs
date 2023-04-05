@@ -29,9 +29,9 @@ pub trait TracerProvider {
     ///
     /// // tracer used in libraries/crates that optionally includes version and schema url
     /// let tracer = provider.versioned_tracer(
-    ///     "my_library",
-    ///     Some(env!("CARGO_PKG_VERSION")),
-    ///     Some("https://opentelemetry.io/schema/1.0.0")
+    ///     "my_library".into(),
+    ///     Some(env!("CARGO_PKG_VERSION").into()),
+    ///     Some("https://opentelemetry.io/schema/1.0.0".into())
     /// );
     /// ```
     fn tracer(&self, name: Cow<'static, str>) -> Self::Tracer {
@@ -56,9 +56,9 @@ pub trait TracerProvider {
     ///
     /// // tracer used in libraries/crates that optionally includes version and schema url
     /// let tracer = provider.versioned_tracer(
-    ///     "my_library",
-    ///     Some(env!("CARGO_PKG_VERSION")),
-    ///     Some("https://opentelemetry.io/schema/1.0.0")
+    ///     "my_library".into(),
+    ///     Some(env!("CARGO_PKG_VERSION").into()),
+    ///     Some("https://opentelemetry.io/schema/1.0.0".into())
     /// );
     /// ```
     fn versioned_tracer(
