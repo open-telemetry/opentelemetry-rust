@@ -244,22 +244,23 @@ enum ExportMsg {
 }
 
 /// Export metrics in OTEL format.
-#[cfg(feature = "tokio")]
-pub struct MetricsExporter {
+pub enum MetricsExporter {
     #[cfg(feature = "tokio")]
-    sender: Mutex<tokio::sync::mpsc::Sender<ExportMsg>>,
-    #[cfg(feature = "tokio")]
-    metadata: Option<tonic::metadata::MetadataMap>,
-    temporality_selector: Box<dyn TemporalitySelector>,
-    aggregation_selector: Box<dyn AggregationSelector>,
+    Tonic {
+        sender: Mutex<tokio::sync::mpsc::Sender<ExportMsg>>,
+        metadata: Option<tonic::metadata::MetadataMap>,
+        temporality_selector: Box<dyn TemporalitySelector>,
+        aggregation_selector: Box<dyn AggregationSelector>,
+    },
     #[cfg(feature = "http-proto")]
-    timeout: Duration,
-    #[cfg(feature = "http-proto")]
-    headers: Option<HashMap<String, String>>,
-    #[cfg(feature = "http-proto")]
-    collector_endpoint: Uri,
-    #[cfg(feature = "http-proto")]
-    metrics_exporter: Option<Arc<dyn HttpClient>>,
+    Http {
+        timeout: Duration,
+        headers: Option<HashMap<String, String>>,
+        collector_endpoint: Uri,
+        metrics_exporter: Option<Arc<dyn HttpClient>>,
+        temporality_selector: Box<dyn TemporalitySelector>,
+        aggregation_selector: Box<dyn AggregationSelector>,
+    }
 }
 
 impl Debug for MetricsExporter {
@@ -273,13 +274,25 @@ impl Debug for MetricsExporter {
 
 impl TemporalitySelector for MetricsExporter {
     fn temporality(&self, kind: InstrumentKind) -> Temporality {
-        self.temporality_selector.temporality(kind)
+        match self {
+            #[cfg(feature = "grpc-tonic")]
+            MetricsExporter::Tonic {
+                sender, metadata, temporality_selector, ..
+            } =>
+            temporality_selector.temporality(kind)
+        }
     }
 }
 
 impl AggregationSelector for MetricsExporter {
     fn aggregation(&self, kind: InstrumentKind) -> Aggregation {
-        self.aggregation_selector.aggregation(kind)
+        match self {
+            #[cfg(feature = "grpc-tonic")]
+            MetricsExporter::Tonic {
+                sender, metadata, temporality_selector, aggregation_selector
+            } =>
+            aggregation_selector.aggregation(kind)
+        }
     }
 }
 
@@ -336,7 +349,7 @@ impl MetricsExporter {
             }
         });
 
-        Ok(MetricsExporter {
+        Ok(MetricsExporter::Tonic {
             sender: Mutex::new(sender),
             temporality_selector,
             aggregation_selector,
