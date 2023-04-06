@@ -79,7 +79,7 @@ openssl = ["grpcio/openssl"]
 openssl-vendored = ["grpcio/openssl-vendored"]
 
 # http binary
-http-proto = ["prost", "opentelemetry-http", "opentelemetry-proto/gen-tonic", "http", "trace"]
+http-proto = ["prost", "opentelemetry-http", "opentelemetry-proto/gen-tonic", "http", "trace", "metrics"]
 reqwest-blocking-client = ["reqwest/blocking", "opentelemetry-http/reqwest"]
 reqwest-client = ["reqwest", "opentelemetry-http/reqwest"]
 reqwest-rustls = ["reqwest", "reqwest/rustls-tls-native-roots"]

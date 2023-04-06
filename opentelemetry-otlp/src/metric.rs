@@ -74,6 +74,8 @@ pub enum MetricsExporterBuilder {
     /// Tonic metrics exporter builder
     #[cfg(feature = "grpc-tonic")]
     Tonic(TonicExporterBuilder),
+    #[cfg(feature = "http-proto")]
+    Http(HttpExporterBuilder),
 }
 
 impl MetricsExporterBuilder {
@@ -90,7 +92,14 @@ impl MetricsExporterBuilder {
                 temporality_selector,
                 aggregation_selector,
             )?),
+            #[cfg(feature = "http-proto")]
+            MetricsExporterBuilder::Http(builder) => Ok(MetricsExporter::new_http(
+                builder,
+                temporality_selector,
+                aggregation_selector,
+            )?),
         }
+        
     }
 }
 
@@ -221,12 +230,21 @@ enum ExportMsg {
 }
 
 /// Export metrics in OTEL format.
+#[cfg(feature = "tokio")]
 pub struct MetricsExporter {
-    #[cfg(feature = "tokio")]
     sender: Mutex<tokio::sync::mpsc::Sender<ExportMsg>>,
     temporality_selector: Box<dyn TemporalitySelector>,
     aggregation_selector: Box<dyn AggregationSelector>,
     metadata: Option<tonic::metadata::MetadataMap>,
+}
+#[cfg(feature = "http-proto")]
+pub struct MetricsExporter{
+    timeout: Duration,
+    headers: Option<HashMap<String, String>>,
+    collector_endpoint: Uri,
+    metrics_exporter: Option<Arc<dyn HttpClient>>,
+    temporality_selector: Box<dyn TemporalitySelector>,
+    aggregation_selector: Box<dyn AggregationSelector>,    
 }
 
 impl Debug for MetricsExporter {
@@ -309,6 +327,37 @@ impl MetricsExporter {
             aggregation_selector,
             metadata: tonic_config.metadata.take(),
         })
+    }
+
+    #[cfg(feature = "http-proto")]
+    pub fn new_http(
+        export_builder: HttpExporterBuilder,
+        temporality_selector: Box<dyn TemporalitySelector>,
+        aggregation_selector: Box<dyn AggregationSelector>,
+        ) -> Result<MetricsExporter> {
+            let config = export_builder.exporter_config;
+            let endpoint = match std::env::var(OTEL_EXPORTER_OTLP_METRICS_ENDPOINT) {
+                Ok(val) => val,
+                Err(_) => format!("{}{}", config.endpoint, "/v1/metrics"),
+            };
+    
+            let _timeout = match std::env::var(OTEL_EXPORTER_OTLP_METRICS_TIMEOUT) {
+                Ok(val) => match u64::from_str(&val) {
+                    Ok(seconds) => Duration::from_secs(seconds),
+                    Err(_) => config.timeout,
+                },
+                Err(_) => config.timeout,
+            };
+
+            Ok(MetricsExporter::Http) {
+                metrics_exporter: http_config.client,
+                timeout: config.timeout,
+                collector_endpoint: url,
+                headers: http_config.headers,
+                temporality_selector,
+                aggregation_selector,
+            }
+
     }
 }
 
