@@ -41,6 +41,20 @@ use tonic::metadata::KeyAndValueRef;
 use tonic::transport::Channel;
 #[cfg(feature = "grpc-tonic")]
 use tonic::Request;
+#[cfg(feature = "http-proto")]
+use {
+    crate::exporter::http::{HttpConfig, HttpExporterBuilder},
+    http::{
+        header::{HeaderName, HeaderValue, CONTENT_TYPE},
+        Method, Uri,
+    },
+    opentelemetry_http::HttpClient,
+    opentelemetry_proto::tonic::collector::trace::v1::ExportTraceServiceRequest as ProstRequest,
+    prost::Message,
+    std::convert::TryFrom,
+    std::collections::HashMap,
+    std::sync::Arc,
+};
 
 /// Target to which the exporter is going to send metrics, defaults to https://localhost:4317/v1/metrics.
 /// Learn about the relationship between this constant and default/spans/logs at
@@ -232,19 +246,20 @@ enum ExportMsg {
 /// Export metrics in OTEL format.
 #[cfg(feature = "tokio")]
 pub struct MetricsExporter {
+    #[cfg(feature = "tokio")]
     sender: Mutex<tokio::sync::mpsc::Sender<ExportMsg>>,
+    #[cfg(feature = "tokio")]
+    metadata: Option<tonic::metadata::MetadataMap>,
     temporality_selector: Box<dyn TemporalitySelector>,
     aggregation_selector: Box<dyn AggregationSelector>,
-    metadata: Option<tonic::metadata::MetadataMap>,
-}
-#[cfg(feature = "http-proto")]
-pub struct MetricsExporter{
+    #[cfg(feature = "http-proto")]
     timeout: Duration,
+    #[cfg(feature = "http-proto")]
     headers: Option<HashMap<String, String>>,
+    #[cfg(feature = "http-proto")]
     collector_endpoint: Uri,
+    #[cfg(feature = "http-proto")]
     metrics_exporter: Option<Arc<dyn HttpClient>>,
-    temporality_selector: Box<dyn TemporalitySelector>,
-    aggregation_selector: Box<dyn AggregationSelector>,    
 }
 
 impl Debug for MetricsExporter {
@@ -336,6 +351,7 @@ impl MetricsExporter {
         aggregation_selector: Box<dyn AggregationSelector>,
         ) -> Result<MetricsExporter> {
             let config = export_builder.exporter_config;
+            let http_config = export_builder.http_config;
             let endpoint = match std::env::var(OTEL_EXPORTER_OTLP_METRICS_ENDPOINT) {
                 Ok(val) => val,
                 Err(_) => format!("{}{}", config.endpoint, "/v1/metrics"),
@@ -349,14 +365,14 @@ impl MetricsExporter {
                 Err(_) => config.timeout,
             };
 
-            Ok(MetricsExporter::Http) {
+            Ok(MetricsExporter::Http {
                 metrics_exporter: http_config.client,
                 timeout: config.timeout,
-                collector_endpoint: url,
+                collector_endpoint: endpoint,
                 headers: http_config.headers,
                 temporality_selector,
                 aggregation_selector,
-            }
+            })
 
     }
 }
