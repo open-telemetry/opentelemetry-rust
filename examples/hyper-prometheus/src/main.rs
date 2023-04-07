@@ -76,7 +76,7 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let provider = MeterProvider::builder().with_reader(exporter).build();
     let cx = Context::new();
 
-    let meter = provider.meter("hyper-prometheus-example");
+    let meter = provider.meter("hyper-prometheus-example".into());
     let state = Arc::new(AppState {
         registry,
         http_counter: meter
