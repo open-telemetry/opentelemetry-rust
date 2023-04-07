@@ -9,6 +9,7 @@ use async_trait::async_trait;
 use opentelemetry_api::{
     propagation::{Extractor, Injector},
     trace::TraceError,
+    metrics:: MetricsError,
 };
 
 pub struct HeaderInjector<'a>(pub &'a mut http::HeaderMap);
@@ -246,6 +247,7 @@ pub mod hyper {
 pub trait ResponseExt: Sized {
     /// Turn a response into an error if the HTTP status does not indicate success (200 - 299).
     fn error_for_status(self) -> Result<Self, TraceError>;
+    fn metrics_error_for_status(self) -> Result<Self, MetricsError>;
 }
 
 impl<T> ResponseExt for Response<T> {
@@ -255,6 +257,15 @@ impl<T> ResponseExt for Response<T> {
         } else {
             Err(format!("request failed with status {}", self.status()).into())
         }
+    }
+
+    fn metrics_error_for_status(self) -> Result<Self, MetricsError> {
+        if self.status().is_success() {
+            Ok(self)
+        } else {
+            Err(Error::PoisonedLock(
+            Err(format!("request failed with status {}", self.status()).into())
+        }       
     }
 }
 

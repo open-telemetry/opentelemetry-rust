@@ -408,6 +408,7 @@ impl MetricsExporter {
 }
 
 #[cfg(feature = "http-proto")]
+use opentelemetry_http::ResponseExt;
 async fn http_send_request(
     metrics: &ResourceMetrics,
     client: std::sync::Arc<dyn HttpClient>,
@@ -433,7 +434,7 @@ async fn http_send_request(
                 request.headers_mut().insert(key, value);
             }
         }
-        client.send(request).await?.error_for_status()?;
+        client.send(request).await?.metrics_error_for_status()?;
         Ok(())
 }
 
