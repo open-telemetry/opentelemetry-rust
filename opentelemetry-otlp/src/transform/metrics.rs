@@ -1,4 +1,4 @@
-#[cfg(feature = "grpc-tonic")]
+#[cfg(any(feature = "grpc-tonic", feature = "http-proto"))]
 pub(crate) mod tonic {
     use std::any::Any;
     use std::fmt;

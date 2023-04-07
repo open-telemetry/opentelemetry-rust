@@ -49,7 +49,7 @@ use {
         Method, Uri,
     },
     opentelemetry_http::HttpClient,
-    opentelemetry_proto::tonic::collector::trace::v1::ExportTraceServiceRequest as ProstRequest,
+    opentelemetry_proto::tonic::collector::metrics::v1::ExportMetricsServiceRequest as ProstRequest,
     prost::Message,
     std::convert::TryFrom,
     std::collections::HashMap,
@@ -189,7 +189,7 @@ where
         }
     }
 
-    /// Build push controller.
+    /// Build MeterProvider
     pub fn build(self) -> Result<MeterProvider> {
         let exporter = self
             .exporter_pipeline
@@ -237,7 +237,7 @@ impl<RT> fmt::Debug for OtlpMetricPipeline<RT> {
     }
 }
 
-enum ExportMsg {
+pub enum ExportMsg {
     #[cfg(feature = "grpc-tonic")]
     Export(tonic::Request<ExportMetricsServiceRequest>),
     Shutdown,
@@ -279,7 +279,13 @@ impl TemporalitySelector for MetricsExporter {
             MetricsExporter::Tonic {
                 sender, metadata, temporality_selector, ..
             } =>
-            temporality_selector.temporality(kind)
+            temporality_selector.temporality(kind),
+
+            #[cfg(feature = "http-proto")]
+            MetricsExporter::Http {
+                timeout, headers, collector_endpoint, metrics_exporter, temporality_selector, ..
+            } =>
+            temporality_selector.temporality(kind),
         }
     }
 }
@@ -291,7 +297,13 @@ impl AggregationSelector for MetricsExporter {
             MetricsExporter::Tonic {
                 sender, metadata, temporality_selector, aggregation_selector
             } =>
-            aggregation_selector.aggregation(kind)
+            aggregation_selector.aggregation(kind),
+
+            #[cfg(feature = "http-proto")]
+            MetricsExporter::Http {
+                timeout, headers, collector_endpoint, metrics_exporter, temporality_selector, aggregation_selector
+            } =>
+            aggregation_selector.aggregation(kind),
         }
     }
 }
@@ -365,11 +377,16 @@ impl MetricsExporter {
         ) -> Result<MetricsExporter> {
             let config = export_builder.exporter_config;
             let http_config = export_builder.http_config;
-            let endpoint = match std::env::var(OTEL_EXPORTER_OTLP_METRICS_ENDPOINT) {
+            let _endpoint = match std::env::var(OTEL_EXPORTER_OTLP_METRICS_ENDPOINT) {
                 Ok(val) => val,
                 Err(_) => format!("{}{}", config.endpoint, "/v1/metrics"),
             };
-    
+
+            let url: Uri = config
+            .endpoint
+            .parse()
+            .map_err::<crate::Error, _>(Into::into)?;
+
             let _timeout = match std::env::var(OTEL_EXPORTER_OTLP_METRICS_TIMEOUT) {
                 Ok(val) => match u64::from_str(&val) {
                     Ok(seconds) => Duration::from_secs(seconds),
@@ -381,13 +398,43 @@ impl MetricsExporter {
             Ok(MetricsExporter::Http {
                 metrics_exporter: http_config.client,
                 timeout: config.timeout,
-                collector_endpoint: endpoint,
+                collector_endpoint: url,
                 headers: http_config.headers,
                 temporality_selector,
                 aggregation_selector,
             })
 
     }
+}
+
+#[cfg(feature = "http-proto")]
+async fn http_send_request(
+    metrics: &ResourceMetrics,
+    client: std::sync::Arc<dyn HttpClient>,
+    headers: Option<HashMap<String, String>>,
+    collector_endpoint: Uri,
+) -> Result<()> { 
+    let mut req = sink(metrics);
+    let mut buf = vec![];
+    req.encode(&mut buf)
+    .map_err::<crate::Error, _>(Into::into)?;
+    let mut request = http::Request::builder()
+        .method(Method::POST)
+        .uri(collector_endpoint)
+        .header(CONTENT_TYPE, "application/x-protobuf")
+        .body(buf)
+        .map_err::<crate::Error, _>(Into::into)?;
+
+        if let Some(headers) = headers {
+            for (k, val) in headers {
+                let value =
+                    HeaderValue::from_str(val.as_ref()).map_err::<crate::Error, _>(Into::into)?;
+                let key = HeaderName::try_from(&k).map_err::<crate::Error, _>(Into::into)?;
+                request.headers_mut().insert(key, value);
+            }
+        }
+        client.send(request).await?.error_for_status()?;
+        Ok(())
 }
 
 use tonic::codegen::{Body, Bytes, StdError};
@@ -415,26 +462,40 @@ async fn export_sink<T>(
 #[async_trait]
 impl PushMetricsExporter for MetricsExporter {
     async fn export(&self, metrics: &mut ResourceMetrics) -> Result<()> {
-        let mut request = Request::new(sink(metrics));
-        if let Some(metadata) = &self.metadata {
-            for key_and_value in metadata.iter() {
-                match key_and_value {
-                    KeyAndValueRef::Ascii(key, value) => {
-                        request.metadata_mut().append(key, value.to_owned())
+        match self {
+            #[cfg(feature = "grpc-tonic")]
+            MetricsExporter::Tonic {
+                sender, metadata, temporality_selector, aggregation_selector
+            } => {
+                let mut request = Request::new(sink(metrics));
+                if let Some(metadata) = metadata {
+                    for key_and_value in metadata.iter() {
+                        match key_and_value {
+                            KeyAndValueRef::Ascii(key, value) => {
+                                request.metadata_mut().append(key, value.to_owned())
+                            }
+                            KeyAndValueRef::Binary(key, value) => {
+                                request.metadata_mut().append_bin(key, value.to_owned())
+                            }
+                        };
                     }
-                    KeyAndValueRef::Binary(key, value) => {
-                        request.metadata_mut().append_bin(key, value.to_owned())
-                    }
-                };
+                }       
+                sender
+                .lock()
+                .map(|sender| {
+                    let _ = sender.try_send(ExportMsg::Export(request));
+                })
+                .map_err(|_| Error::PoisonedLock("otlp metric exporter's tonic sender"))?;
+                Ok(())
+            },
+            #[cfg(feature = "http-proto")]
+            MetricsExporter::Http {
+                timeout, headers, collector_endpoint, metrics_exporter, temporality_selector, aggregation_selector
+            } => {
+
+                Ok(())
             }
         }
-        self.sender
-            .lock()
-            .map(|sender| {
-                let _ = sender.try_send(ExportMsg::Export(request));
-            })
-            .map_err(|_| Error::PoisonedLock("otlp metric exporter's tonic sender"))?;
-        Ok(())
     }
 
     async fn force_flush(&self) -> Result<()> {
@@ -443,9 +504,22 @@ impl PushMetricsExporter for MetricsExporter {
     }
 
     async fn shutdown(&self) -> Result<()> {
-        let sender = self.sender.lock()?;
-        sender
-            .try_send(ExportMsg::Shutdown)
-            .map_err(|e| MetricsError::Other(format!("error shutting down otlp {e}")))
+        match self {
+            #[cfg(feature = "grpc-tonic")]
+            MetricsExporter::Tonic {
+                sender, ..
+             } =>  {
+                let sender_lk = sender.lock()?;
+                sender_lk
+                .try_send(ExportMsg::Shutdown)
+                .map_err(|e| MetricsError::Other(format!("error shutting down otlp {e}")))
+            },
+            #[cfg(feature = "http-proto")]
+            MetricsExporter::Http {
+                ..
+            } => {
+                Ok(())
+            }
+        }
     }
 }
