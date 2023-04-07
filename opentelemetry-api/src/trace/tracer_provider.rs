@@ -25,7 +25,7 @@ pub trait TracerProvider {
     /// let provider = global::tracer_provider();
     ///
     /// // tracer used in applications/binaries
-    /// let tracer = provider.tracer("my_app");
+    /// let tracer = provider.tracer("my_app".into());
     ///
     /// // tracer used in libraries/crates that optionally includes version and schema url
     /// let tracer = provider.versioned_tracer(
@@ -52,7 +52,7 @@ pub trait TracerProvider {
     /// let provider = global::tracer_provider();
     ///
     /// // tracer used in applications/binaries
-    /// let tracer = provider.tracer("my_app");
+    /// let tracer = provider.tracer("my_app".into());
     ///
     /// // tracer used in libraries/crates that optionally includes version and schema url
     /// let tracer = provider.versioned_tracer(

@@ -535,7 +535,7 @@ mod tests {
         let provider_builder =
             crate::trace::TracerProvider::builder().with_simple_exporter(exporter);
         let provider = provider_builder.build();
-        let tracer = provider.tracer("opentelemetry-test");
+        let tracer = provider.tracer("opentelemetry-test".into());
 
         let mut link = Link::new(
             SpanContext::new(
@@ -569,7 +569,7 @@ mod tests {
         let provider = crate::trace::TracerProvider::builder()
             .with_simple_exporter(NoopSpanExporter::new())
             .build();
-        let tracer = provider.tracer("test");
+        let tracer = provider.tracer("test".into());
 
         let mut span = tracer.start("test_span");
         span.add_event("test_event", vec![]);
