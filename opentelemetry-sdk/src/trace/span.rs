@@ -251,7 +251,7 @@ mod tests {
     fn init() -> (crate::trace::Tracer, SpanData) {
         let provider = crate::trace::TracerProvider::default();
         let config = provider.config();
-        let tracer = provider.tracer("opentelemetry");
+        let tracer = provider.tracer("opentelemetry".into());
         let data = SpanData {
             parent_span_id: SpanId::from_u64(0),
             span_kind: trace::SpanKind::Internal,
@@ -500,7 +500,7 @@ mod tests {
         let provider_builder =
             crate::trace::TracerProvider::builder().with_simple_exporter(exporter);
         let provider = provider_builder.build();
-        let tracer = provider.tracer("opentelemetry-test");
+        let tracer = provider.tracer("opentelemetry-test".into());
 
         let mut event1 = Event::with_name("test event");
         for i in 0..(DEFAULT_MAX_ATTRIBUTES_PER_EVENT * 2) {
