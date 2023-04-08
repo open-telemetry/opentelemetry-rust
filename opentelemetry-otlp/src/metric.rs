@@ -443,7 +443,7 @@ async fn http_send_request(
         }
         client.send(request)
         .await
-        .map_err( |_| Error::PoisonedLock("test"))?;
+        .map_err( |_| Error::PoisonedLock("Error sending to collector"))?;
         Ok(())
 }
 
@@ -502,7 +502,16 @@ impl PushMetricsExporter for MetricsExporter {
             MetricsExporter::Http {
                 timeout, headers, collector_endpoint, metrics_exporter, temporality_selector, aggregation_selector
             } => {
-
+                if let Some(ref client) = metrics_exporter {
+                    let client = Arc::clone(client);
+                    http_send_request(
+                        metrics,
+                        client,
+                        headers.clone(),
+                        collector_endpoint.clone(),
+                     ).await?;
+                } else {
+                }
                 Ok(())
             }
         }
@@ -528,6 +537,7 @@ impl PushMetricsExporter for MetricsExporter {
             MetricsExporter::Http {
                 ..
             } => {
+                
                 Ok(())
             }
         }
