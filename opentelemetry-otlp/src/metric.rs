@@ -115,7 +115,6 @@ impl MetricsExporterBuilder {
                 aggregation_selector,
             )?),
         }
-        
     }
 }
 
@@ -411,7 +410,6 @@ impl MetricsExporter {
                 temporality_selector,
                 aggregation_selector,
             })
-
     }
 }
 
