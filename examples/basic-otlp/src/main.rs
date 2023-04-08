@@ -61,7 +61,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // matches the containing block, reporting traces and metrics during the whole
     // execution.
     let _ = init_tracer()?;
-    let _ = init_metrics()?;
+    let meter_provider = init_metrics()?;
     let cx = Context::new();
 
     let tracer = global::tracer("ex.com/basic");
@@ -98,6 +98,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     });
 
     shutdown_tracer_provider();
+    meter_provider.shutdown()?;
 
     Ok(())
 }

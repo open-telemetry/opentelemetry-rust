@@ -537,7 +537,6 @@ impl PushMetricsExporter for MetricsExporter {
             MetricsExporter::Http {
                 ..
             } => {
-                
                 Ok(())
             }
         }
