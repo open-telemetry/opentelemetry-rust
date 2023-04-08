@@ -8,6 +8,8 @@ use crate::exporter::tonic::TonicExporterBuilder;
 use crate::transform::sink;
 use crate::{Error, OtlpPipeline};
 use async_trait::async_trait;
+#[cfg(feature = "grpc-sys")]
+use opentelemetry_proto::grpcio::metrics::Metric;
 use core::fmt;
 use opentelemetry_api::{
     global,
@@ -43,7 +45,7 @@ use tonic::transport::Channel;
 use tonic::Request;
 #[cfg(feature = "http-proto")]
 use {
-    crate::exporter::http::{HttpConfig, HttpExporterBuilder},
+    crate::exporter::http::{HttpExporterBuilder},
     http::{
         header::{HeaderName, HeaderValue, CONTENT_TYPE},
         Method, Uri,
@@ -120,6 +122,12 @@ impl MetricsExporterBuilder {
 impl From<TonicExporterBuilder> for MetricsExporterBuilder {
     fn from(exporter: TonicExporterBuilder) -> Self {
         MetricsExporterBuilder::Tonic(exporter)
+    }
+}
+
+impl From<HttpExporterBuilder> for MetricsExporterBuilder {
+    fn from(exporter: HttpExporterBuilder) -> Self {
+        MetricsExporterBuilder::Http(exporter)
     }
 }
 
@@ -408,14 +416,13 @@ impl MetricsExporter {
 }
 
 #[cfg(feature = "http-proto")]
-use opentelemetry_http::ResponseExt;
 async fn http_send_request(
     metrics: &ResourceMetrics,
     client: std::sync::Arc<dyn HttpClient>,
     headers: Option<HashMap<String, String>>,
     collector_endpoint: Uri,
 ) -> Result<()> { 
-    let mut req = sink(metrics);
+    let req = sink(metrics);
     let mut buf = vec![];
     req.encode(&mut buf)
     .map_err::<crate::Error, _>(Into::into)?;
@@ -434,7 +441,9 @@ async fn http_send_request(
                 request.headers_mut().insert(key, value);
             }
         }
-        client.send(request).await?.metrics_error_for_status()?;
+        client.send(request)
+        .await
+        .map_err( |_| Error::PoisonedLock("test"))?;
         Ok(())
 }
 

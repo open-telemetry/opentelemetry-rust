@@ -55,17 +55,6 @@ impl<T> From<PoisonError<T>> for MetricsError {
     }
 }
 
-impl From<String> for MetricsError {
-    fn from(err_msg: String) -> Self {
-        MetricsError::Other(err_msg)
-    }
-}
-
-/// Wrap type for string
-#[derive(Error, Debug)]
-#[error("{0}")]
-struct Custom(String);
-
 /// Units denote underlying data units tracked by `Meter`s.
 #[derive(Clone, Default, Debug, PartialEq, Eq, Hash)]
 pub struct Unit(Cow<'static, str>);

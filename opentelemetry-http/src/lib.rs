@@ -263,8 +263,7 @@ impl<T> ResponseExt for Response<T> {
         if self.status().is_success() {
             Ok(self)
         } else {
-            Err(Error::PoisonedLock(
-            Err(format!("request failed with status {}", self.status()).into())
+            Err(MetricsError::Other(format!("request failed with status {}", self.status()).into()))
         }       
     }
 }

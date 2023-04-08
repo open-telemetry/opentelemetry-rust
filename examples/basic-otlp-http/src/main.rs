@@ -1,8 +1,9 @@
 use opentelemetry::trace::TraceError;
-use opentelemetry::{global, sdk::trace as sdktrace};
+use opentelemetry::{global, sdk::trace as sdktrace, sdk::metrics as sdkmetrics};
 use opentelemetry::{
     trace::{TraceContextExt, Tracer},
     Key,
+    metrics,
 };
 use opentelemetry_otlp::WithExportConfig;
 use std::error::Error;
@@ -16,6 +17,21 @@ fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
                 .with_endpoint("http://localhost:4318/v1/traces"),
         )
         .install_batch(opentelemetry::runtime::Tokio)
+}
+
+fn init_metrics() -> metrics::Result<sdkmetrics::MeterProvider> {
+    let export_config = opentelemetry_otlp::ExportConfig {
+        endpoint: "http://localhost:4317".to_string(),
+        ..opentelemetry_otlp::ExportConfig::default()
+    };
+    opentelemetry_otlp::new_pipeline()
+        .metrics(opentelemetry::runtime::Tokio)
+        .with_exporter(
+            opentelemetry_otlp::new_exporter()
+                .http()
+                .with_export_config(export_config),
+        )
+        .build()
 }
 
 const LEMONS_KEY: Key = Key::from_static_str("ex.com/lemons");
