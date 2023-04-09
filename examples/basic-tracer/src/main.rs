@@ -1,4 +1,3 @@
-use opentelemetry::global;
 use opentelemetry::sdk::export::trace::stdout;
 use opentelemetry::sdk::{
     trace::{self, Sampler},
@@ -18,8 +17,7 @@ fn init_tracer() -> impl Tracer {
 #[tokio::main]
 async fn main() -> std::result::Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let _tracer = init_tracer();
-
-    let _span = global::tracer("example/client").start("say hello");
+    let _span = _tracer.start("say hello");
 
     Ok(())
 }
