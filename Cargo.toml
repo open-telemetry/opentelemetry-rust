@@ -22,6 +22,7 @@ members = [
     "examples/actix-udp",
     "examples/async",
     "examples/aws-xray",
+    "examples/basic-tracer",
     "examples/basic-otlp",
     "examples/basic-otlp-http",
     "examples/datadog",

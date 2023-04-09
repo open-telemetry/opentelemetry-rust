@@ -179,6 +179,7 @@ impl ZipkinPipelineBuilder {
             "opentelemetry-zipkin",
             Some(env!("CARGO_PKG_VERSION")),
             None,
+            None,
         );
         let _ = global::set_tracer_provider(provider);
         Ok(tracer)
@@ -199,6 +200,7 @@ impl ZipkinPipelineBuilder {
         let tracer = provider.versioned_tracer(
             "opentelemetry-zipkin",
             Some(env!("CARGO_PKG_VERSION")),
+            None,
             None,
         );
         let _ = global::set_tracer_provider(provider);

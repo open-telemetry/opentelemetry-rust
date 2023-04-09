@@ -100,11 +100,30 @@ where
         let provider = provider_builder.build();
 
         let tracer =
-            provider.versioned_tracer("opentelemetry", Some(env!("CARGO_PKG_VERSION")), None);
+            provider.versioned_tracer("opentelemetry", Some(env!("CARGO_PKG_VERSION")), None, None);
         let _ = global::set_tracer_provider(provider);
 
         tracer
     }
+
+    /// Install the stdout exporter pipeline with the recommended defaults and specific attributes
+    pub fn install_with_tracer_attributes(mut self, attributes: Vec<opentelemetry_api::KeyValue>) -> crate::trace::Tracer {
+        let exporter = Exporter::new(self.writer, self.pretty_print);
+
+        let mut provider_builder =
+            crate::trace::TracerProvider::builder().with_simple_exporter(exporter);
+        if let Some(config) = self.trace_config.take() {
+            provider_builder = provider_builder.with_config(config);
+        }
+        let provider = provider_builder.build();
+
+        let tracer =
+            provider.versioned_tracer("opentelemetry", Some(env!("CARGO_PKG_VERSION")), None, Some(attributes));
+        let _ = global::set_tracer_provider(provider);
+
+        tracer
+    }
+
 }
 
 /// A [`SpanExporter`] that writes to [`Stdout`] or other configured [`Write`].

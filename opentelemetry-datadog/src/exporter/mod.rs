@@ -293,6 +293,7 @@ impl DatadogPipelineBuilder {
             "opentelemetry-datadog",
             Some(env!("CARGO_PKG_VERSION")),
             None,
+            None,
         );
         let _ = global::set_tracer_provider(provider);
         Ok(tracer)
@@ -313,6 +314,7 @@ impl DatadogPipelineBuilder {
         let tracer = provider.versioned_tracer(
             "opentelemetry-datadog",
             Some(env!("CARGO_PKG_VERSION")),
+            None,
             None,
         );
         let _ = global::set_tracer_provider(provider);

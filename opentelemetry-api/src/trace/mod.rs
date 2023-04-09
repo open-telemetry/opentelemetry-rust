@@ -54,7 +54,8 @@
 //!     let tracer = tracer_provider.versioned_tracer(
 //!         "my_name",
 //!         Some(env!("CARGO_PKG_VERSION")),
-//!         None
+//!         None,
+//!         None,
 //!     );
 //!
 //!     // Create spans

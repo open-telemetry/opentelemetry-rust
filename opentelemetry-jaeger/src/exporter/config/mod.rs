@@ -124,6 +124,7 @@ pub(crate) fn install_tracer_provider_and_get_tracer(
         "opentelemetry-jaeger",
         Some(env!("CARGO_PKG_VERSION")),
         None,
+        None,
     );
     let _ = global::set_tracer_provider(tracer_provider);
     Ok(tracer)

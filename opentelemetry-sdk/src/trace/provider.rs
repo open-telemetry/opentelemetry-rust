@@ -125,6 +125,7 @@ impl opentelemetry_api::trace::TracerProvider for TracerProvider {
         name: impl Into<Cow<'static, str>>,
         version: Option<&'static str>,
         schema_url: Option<&'static str>,
+        attributes: Option<Vec<opentelemetry_api::KeyValue>>,
     ) -> Self::Tracer {
         let name = name.into();
         // Use default value if name is invalid empty string
@@ -137,6 +138,7 @@ impl opentelemetry_api::trace::TracerProvider for TracerProvider {
             component_name,
             version.map(Into::into),
             schema_url.map(Into::into),
+            attributes,
         );
 
         Tracer::new(instrumentation_lib, Arc::downgrade(&self.inner))

@@ -1,4 +1,4 @@
-use crate::trace::Tracer;
+use crate::{trace::Tracer, KeyValue};
 use std::borrow::Cow;
 
 /// Types that can create instances of [`Tracer`].
@@ -31,11 +31,12 @@ pub trait TracerProvider {
     /// let tracer = provider.versioned_tracer(
     ///     "my_library",
     ///     Some(env!("CARGO_PKG_VERSION")),
-    ///     Some("https://opentelemetry.io/schema/1.0.0")
+    ///     Some("https://opentelemetry.io/schema/1.0.0"),
+    ///     None,
     /// );
     /// ```
     fn tracer(&self, name: impl Into<Cow<'static, str>>) -> Self::Tracer {
-        self.versioned_tracer(name, None, None)
+        self.versioned_tracer(name, None, None, None)
     }
 
     /// Returns a new versioned tracer with a given name.
@@ -58,7 +59,8 @@ pub trait TracerProvider {
     /// let tracer = provider.versioned_tracer(
     ///     "my_library",
     ///     Some(env!("CARGO_PKG_VERSION")),
-    ///     Some("https://opentelemetry.io/schema/1.0.0")
+    ///     Some("https://opentelemetry.io/schema/1.0.0"),
+    ///     None,
     /// );
     /// ```
     fn versioned_tracer(
@@ -66,5 +68,6 @@ pub trait TracerProvider {
         name: impl Into<Cow<'static, str>>,
         version: Option<&'static str>,
         schema_url: Option<&'static str>,
+        attributes: Option<Vec<KeyValue>>,
     ) -> Self::Tracer;
 }
