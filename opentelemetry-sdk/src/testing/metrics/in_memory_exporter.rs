@@ -1,14 +1,17 @@
+use crate::metrics::data::{Histogram, Metric, ResourceMetrics, ScopeMetrics, Temporality};
+use crate::metrics::exporter::PushMetricsExporter;
+use crate::metrics::reader::{
+    AggregationSelector, DefaultAggregationSelector, DefaultTemporalitySelector,
+    TemporalitySelector,
+};
+use crate::metrics::{data, Aggregation, InstrumentKind};
+use async_trait::async_trait;
+use opentelemetry_api::metrics::MetricsError;
+use opentelemetry_api::metrics::Result;
 use std::any::Any;
 use std::collections::VecDeque;
 use std::fmt;
 use std::sync::{Arc, Mutex};
-use opentelemetry_api::metrics::MetricsError;
-use crate::metrics::{Aggregation, data, InstrumentKind};
-use crate::metrics::data::{Histogram, Metric, ResourceMetrics, ScopeMetrics, Temporality};
-use crate::metrics::exporter::PushMetricsExporter;
-use crate::metrics::reader::{AggregationSelector, DefaultAggregationSelector, DefaultTemporalitySelector, TemporalitySelector};
-use opentelemetry_api::metrics::Result;
-use async_trait::async_trait;
 
 /// An in-memory metrics exporter that stores metrics data in memory.
 ///
@@ -122,8 +125,8 @@ impl InMemoryMetricsExporterBuilder {
 
     /// Sets the aggregation selector for the exporter.
     pub fn with_aggregation_selector<T>(mut self, aggregation_selector: T) -> Self
-        where
-            T: AggregationSelector + Send + Sync + 'static,
+    where
+        T: AggregationSelector + Send + Sync + 'static,
     {
         self.aggregation_selector = Some(Arc::new(aggregation_selector));
         self
@@ -131,8 +134,8 @@ impl InMemoryMetricsExporterBuilder {
 
     /// Sets the temporality selector for the exporter.
     pub fn with_temporality_selector<T>(mut self, temporality_selector: T) -> Self
-        where
-            T: TemporalitySelector + Send + Sync + 'static,
+    where
+        T: TemporalitySelector + Send + Sync + 'static,
     {
         self.temporality_selector = Some(Arc::new(temporality_selector));
         self
