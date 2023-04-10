@@ -39,7 +39,6 @@
 //! [Resource]: crate::Resource
 
 pub(crate) mod aggregation;
-pub(crate) mod attributes;
 pub mod data;
 pub mod exporter;
 pub(crate) mod instrument;

@@ -11,10 +11,10 @@
 //! use opentelemetry::sdk;
 //! use opentelemetry_semantic_conventions as semcov;
 //!
-//! let _tracer = opentelemetry::sdk::export::trace::stdout::new_pipeline()
-//!     .with_trace_config(sdk::trace::config().with_resource(sdk::Resource::new(vec![
-//!         semcov::resource::SERVICE_NAME.string("my-service"),
-//!         semcov::resource::SERVICE_NAMESPACE.string("my-namespace"),
+//! let _tracer = sdk::trace::TracerProvider::builder()
+//!     .with_config(sdk::trace::config().with_resource(sdk::Resource::new(vec![
+//!         semconv::resource::SERVICE_NAME.string("my-service"),
+//!         semconv::resource::SERVICE_NAMESPACE.string("my-namespace"),
 //!     ])))
-//!     .install_simple();
+//!     .build();
 //! ```

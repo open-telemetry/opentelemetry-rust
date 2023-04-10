@@ -4,7 +4,7 @@ use std::{any, borrow::Cow, fmt, time::SystemTime};
 
 use opentelemetry_api::{metrics::Unit, KeyValue};
 
-use crate::{instrumentation::Scope, metrics::attributes::AttributeSet, Resource};
+use crate::{attributes::AttributeSet, instrumentation::Scope, Resource};
 
 pub use self::temporality::Temporality;
 
@@ -68,7 +68,7 @@ impl<T: fmt::Debug + Send + Sync + 'static> Aggregation for Gauge<T> {
 
 /// Represents the sum of all measurements of values from an instrument.
 #[derive(Debug)]
-pub struct Sum<T: fmt::Debug> {
+pub struct Sum<T> {
     /// Represents individual aggregated measurements with unique attributes.
     pub data_points: Vec<DataPoint<T>>,
     /// Describes if the aggregation is reported as the change from the last report

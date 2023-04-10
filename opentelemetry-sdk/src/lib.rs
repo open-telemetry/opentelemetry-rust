@@ -8,11 +8,17 @@
 //! # #[cfg(feature = "trace")]
 //! # {
 //! use opentelemetry_api::{global, trace::Tracer};
-//! use opentelemetry_sdk::export::trace::stdout;
+//! use opentelemetry_sdk::trace::TracerProvider;
 //!
 //! fn main() {
+//!     // Choose an exporter like `opentelemetry_stdout::SpanExporter`
+//!     # fn new_exporter() -> impl opentelemetry_sdk::export::trace::SpanExporter { todo!() }
+//!     let exporter = new_exporter();
+//!
 //!     // Create a new trace pipeline that prints to stdout
-//!     let tracer = stdout::new_pipeline().install_simple();
+//!     let tracer = TracerProvider::builder()
+//!         .with_simple_exporter(exporter)
+//!         .build();
 //!
 //!     tracer.in_span("doing_work", |cx| {
 //!         // Traced app logic here...
@@ -101,6 +107,7 @@
 )]
 #![cfg_attr(test, deny(warnings))]
 
+pub(crate) mod attributes;
 pub mod export;
 mod instrumentation;
 #[cfg(feature = "metrics")]
@@ -120,6 +127,7 @@ pub mod trace;
 #[doc(hidden)]
 pub mod util;
 
+pub use attributes::*;
 pub use instrumentation::{InstrumentationLibrary, Scope};
 #[doc(inline)]
 pub use resource::Resource;

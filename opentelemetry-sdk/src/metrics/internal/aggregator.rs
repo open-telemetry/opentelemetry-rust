@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::metrics::{attributes::AttributeSet, data::Aggregation};
+use crate::{attributes::AttributeSet, metrics::data::Aggregation};
 
 /// Forms an aggregation from a collection of recorded measurements.
 pub(crate) trait Aggregator<T>: Send + Sync {

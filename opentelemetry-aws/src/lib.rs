@@ -10,14 +10,18 @@
 //! ```no_run
 //! use opentelemetry::global;
 //! use opentelemetry_aws::trace::XrayPropagator;
-//! use opentelemetry::{sdk::export::trace::stdout, trace::Tracer};
+//! use opentelemetry_sdk::trace::TracerProvider;
+//! use opentelemetry_stdout::SpanExporter;
+//! use opentelemetry::trace::Tracer;
 //! use opentelemetry_http::HeaderInjector;
 //!
 //! #[tokio::main]
 //! async fn main() -> std::result::Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 //!     // Set the global propagator to X-Ray propagator
 //!     global::set_text_map_propagator(XrayPropagator::default());
-//!     let tracer = stdout::new_pipeline().install_simple();
+//!     let tracer = TracerProvider::builder()
+//!         .with_simple_exporter(SpanExporter::default())
+//!         .build()
 //!
 //!     let mut req = hyper::Request::builder().uri("http://127.0.0.1:3000");
 //!     tracer.in_span("doing_work", |cx| {

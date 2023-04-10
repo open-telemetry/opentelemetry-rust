@@ -8,9 +8,10 @@ use opentelemetry_api::{
 };
 
 use crate::{
+    attributes::AttributeSet,
     instrumentation::Scope,
     metrics::data::Temporality,
-    metrics::{aggregation::Aggregation, attributes::AttributeSet, internal::Aggregator},
+    metrics::{aggregation::Aggregation, internal::Aggregator},
 };
 
 pub(crate) const EMPTY_AGG_MSG: &str = "no aggregators for observable instrument";

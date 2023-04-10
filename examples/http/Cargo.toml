@@ -19,3 +19,4 @@ hyper = { version = "0.14", features = ["full"] }
 tokio = { version = "1.0", features = ["full"] }
 opentelemetry = { path = "../../opentelemetry" }
 opentelemetry-http = { path = "../../opentelemetry-http" }
+opentelemetry-stdout = { path = "../../opentelemetry-stdout", features = ["trace"] }

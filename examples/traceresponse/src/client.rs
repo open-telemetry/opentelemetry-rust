@@ -2,11 +2,8 @@ use hyper::http::HeaderValue;
 use hyper::{body::Body, Client};
 use opentelemetry::global;
 use opentelemetry::propagation::TextMapPropagator;
-use opentelemetry::sdk::export::trace::stdout;
-use opentelemetry::sdk::{
-    propagation::TraceContextPropagator,
-    trace::{self, Sampler},
-};
+use opentelemetry::sdk::propagation::TraceContextPropagator;
+use opentelemetry::sdk::trace::TracerProvider;
 use opentelemetry::trace::SpanKind;
 use opentelemetry::{
     trace::{TraceContextExt, Tracer},
@@ -14,20 +11,23 @@ use opentelemetry::{
 };
 use opentelemetry_contrib::trace::propagator::trace_context_response::TraceContextResponsePropagator;
 use opentelemetry_http::{HeaderExtractor, HeaderInjector};
+use opentelemetry_stdout::SpanExporter;
 
-fn init_tracer() -> impl Tracer {
+fn init_tracer() {
     global::set_text_map_propagator(TraceContextPropagator::new());
     // Install stdout exporter pipeline to be able to retrieve the collected spans.
     // For the demonstration, use `Sampler::AlwaysOn` sampler to sample all traces. In a production
     // application, use `Sampler::ParentBased` or `Sampler::TraceIdRatioBased` with a desired ratio.
-    stdout::new_pipeline()
-        .with_trace_config(trace::config().with_sampler(Sampler::AlwaysOn))
-        .install_simple()
+    let provider = TracerProvider::builder()
+        .with_simple_exporter(SpanExporter::default())
+        .build();
+
+    global::set_tracer_provider(provider);
 }
 
 #[tokio::main]
 async fn main() -> std::result::Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let _tracer = init_tracer();
+    init_tracer();
 
     let client = Client::new();
     let tracer = global::tracer("example/client");

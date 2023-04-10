@@ -1,10 +1,9 @@
 use opentelemetry::global::{self, shutdown_tracer_provider};
-use opentelemetry::sdk::export::trace::stdout::Exporter as StdoutExporter;
 use opentelemetry::sdk::trace::{BatchSpanProcessor, Config, TracerProvider};
 use opentelemetry::sdk::Resource;
 use opentelemetry::trace::{mark_span_as_active, TraceError, Tracer};
 use opentelemetry::KeyValue;
-use std::io::stdout;
+use opentelemetry_stdout::SpanExporter as StdoutExporter;
 use std::time::Duration;
 
 fn init_tracer() -> Result<(), TraceError> {
@@ -33,7 +32,7 @@ fn init_tracer() -> Result<(), TraceError> {
         // helper function to build a batch span processor
         .with_batch_exporter(zipkin_exporter, opentelemetry::runtime::Tokio)
         // Same helper function is also available to build a simple span processor.
-        .with_simple_exporter(StdoutExporter::new(stdout(), true))
+        .with_simple_exporter(StdoutExporter::default())
         .build();
 
     let _ = global::set_tracer_provider(provider);
