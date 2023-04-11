@@ -74,7 +74,7 @@ pub fn meter_provider() -> GlobalMeterProvider {
 ///
 /// If the name is an empty string, the provider will use a default name.
 ///
-/// This is a more convenient way of expressing `global::meter_provider().meter(name, None, None)`.
+/// This is a more convenient way of expressing `global::meter_provider().meter(name, None, None, None)`.
 pub fn meter(name: &'static str) -> Meter {
     meter_provider().versioned_meter(name, None, None, None)
 }
@@ -89,7 +89,8 @@ pub fn meter(name: &'static str) -> Meter {
 /// # Example
 /// ```rust
 /// use opentelemetry_api::global::meter_with_version;
-/// let meter = meter_with_version("io.opentelemetry", Some("0.17"), Some("https://opentelemetry.io/schemas/1.2.0"), None);
+/// use opentelemetry_api::KeyValue;
+/// let meter = meter_with_version("io.opentelemetry", Some("0.17"), Some("https://opentelemetry.io/schemas/1.2.0"), Some(vec![KeyValue::new("key", "value")]));
 /// ```
 ///
 pub fn meter_with_version(
