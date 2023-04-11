@@ -4,7 +4,7 @@
 
 #[cfg(feature = "grpc-sys")]
 use crate::exporter::grpcio::GrpcioExporterBuilder;
-#[cfg(feature = "http-proto")]
+#[cfg(any(feature = "http-proto", feature = "my-http"))]
 use crate::exporter::http::HttpExporterBuilder;
 #[cfg(feature = "grpc-tonic")]
 use crate::exporter::tonic::TonicExporterBuilder;
@@ -22,7 +22,9 @@ pub const OTEL_EXPORTER_OTLP_ENDPOINT_DEFAULT: &str = OTEL_EXPORTER_OTLP_HTTP_EN
 /// Protocol the exporter will use. Either `http/protobuf` or `grpc`.
 pub const OTEL_EXPORTER_OTLP_PROTOCOL: &str = "OTEL_EXPORTER_OTLP_PROTOCOL";
 
-#[cfg(feature = "http-proto")]
+#[cfg(
+    not(any(feature = "grpc-tonic", feature = "grpcio"))
+)]
 /// Default protocol, using http-proto.
 pub const OTEL_EXPORTER_OTLP_PROTOCOL_DEFAULT: &str = OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_PROTOBUF;
 #[cfg(all(
@@ -46,7 +48,7 @@ const OTEL_EXPORTER_OTLP_HTTP_ENDPOINT_DEFAULT: &str = "http://localhost:4318";
 
 #[cfg(feature = "grpc-sys")]
 pub(crate) mod grpcio;
-#[cfg(feature = "http-proto")]
+#[cfg(any(feature = "http-proto", feature = "my-http"))]
 pub(crate) mod http;
 #[cfg(feature = "grpc-tonic")]
 pub(crate) mod tonic;
@@ -123,7 +125,7 @@ impl HasExportConfig for GrpcioExporterBuilder {
     }
 }
 
-#[cfg(feature = "http-proto")]
+#[cfg(any(feature = "http-proto", feature = "my-http"))]
 impl HasExportConfig for HttpExporterBuilder {
     fn export_config(&mut self) -> &mut ExportConfig {
         &mut self.exporter_config

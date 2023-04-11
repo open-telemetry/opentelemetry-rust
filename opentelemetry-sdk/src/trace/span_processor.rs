@@ -100,37 +100,15 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
 /// ended. If you find this limiting, consider the batch processor instead.
 #[derive(Debug)]
 pub struct SimpleSpanProcessor {
-    sender: crossbeam_channel::Sender<Option<SpanData>>,
-    shutdown: crossbeam_channel::Receiver<()>,
+    exporter: std::sync::Arc<std::sync::Mutex<Box<dyn SpanExporter>>>,
 }
 
 impl SimpleSpanProcessor {
-    pub(crate) fn new(mut exporter: Box<dyn SpanExporter>) -> Self {
-        let (span_tx, span_rx) = crossbeam_channel::unbounded();
-        let (shutdown_tx, shutdown_rx) = crossbeam_channel::bounded(0);
+    pub(crate) fn new(exporter: Box<dyn SpanExporter>) -> Self {
 
-        let _ = thread::Builder::new()
-            .name("opentelemetry-exporter".to_string())
-            .spawn(move || {
-                while let Ok(Some(span)) = span_rx.recv() {
-                    if let Err(err) = futures_executor::block_on(exporter.export(vec![span])) {
-                        global::handle_error(err);
-                    }
-                }
-
-                exporter.shutdown();
-
-                if let Err(err) = shutdown_tx.send(()) {
-                    global::handle_error(TraceError::from(format!(
-                        "could not send shutdown: {:?}",
-                        err
-                    )));
-                }
-            });
 
         SimpleSpanProcessor {
-            sender: span_tx,
-            shutdown: shutdown_rx,
+            exporter: std::sync::Arc::new(std::sync::Mutex::new(exporter))
         }
     }
 }
@@ -145,8 +123,10 @@ impl SpanProcessor for SimpleSpanProcessor {
             return;
         }
 
-        if let Err(err) = self.sender.send(Some(span)) {
-            global::handle_error(TraceError::from(format!("error processing span {:?}", err)));
+        let mut e = self.exporter.lock().unwrap();
+
+        if let Err(err) = futures_executor::block_on(e.export(vec![span])) {
+            global::handle_error(err);
         }
     }
 
@@ -156,15 +136,6 @@ impl SpanProcessor for SimpleSpanProcessor {
     }
 
     fn shutdown(&mut self) -> TraceResult<()> {
-        if self.sender.send(None).is_ok() {
-            if let Err(err) = self.shutdown.recv() {
-                global::handle_error(TraceError::from(format!(
-                    "error shutting down span processor: {:?}",
-                    err
-                )))
-            }
-        }
-
         Ok(())
     }
 }

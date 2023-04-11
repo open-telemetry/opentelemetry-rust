@@ -6,7 +6,7 @@ use std::sync::Arc;
 use super::default_headers;
 
 /// Configuration of the http transport
-#[cfg(feature = "http-proto")]
+#[cfg(any(feature = "http-proto", feature = "my-http"))]
 #[derive(Debug)]
 #[cfg_attr(
     all(

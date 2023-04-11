@@ -51,6 +51,7 @@ pub struct ExportTracePartialSuccess {
     #[prost(string, tag = "2")]
     pub error_message: ::prost::alloc::string::String,
 }
+#[cfg(feature = "clients")]
 /// Generated client implementations.
 pub mod trace_service_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]

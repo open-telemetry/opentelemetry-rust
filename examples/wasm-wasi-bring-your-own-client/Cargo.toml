@@ -1,0 +1,14 @@
+[package]
+name = "wasm-wasi-bring-your-own-client"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+opentelemetry = { version = "0.19", default-features = false }
+opentelemetry-otlp = { version = "0.12", default-features = false, features = ["my-http"] }
+opentelemetry-http = { version = "0.8", default-features = false }
+async-trait = "0.1"
+tokio = { version = "1.27.0", default-features = false, features = ["macros", "rt"] }
+opentelemetry-semantic-conventions = { version = "0.11" } 
