@@ -442,7 +442,8 @@ pub struct InstrumentationLibrary {
     /// let library = opentelemetry_api::InstrumentationLibrary::new(
     ///     "my-crate",
     ///     Some(env!("CARGO_PKG_VERSION")),
-    ///     Some(vec![KeyValue::new("key", "value")]),
+    ///     None,
+    ///     None,
     /// );
     /// ```
     pub version: Option<Cow<'static, str>>,
