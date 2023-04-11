@@ -1,5 +1,5 @@
-use crate::KeyValue;
 use crate::metrics::{self, Meter, MeterProvider};
+use crate::KeyValue;
 use core::fmt;
 use once_cell::sync::Lazy;
 use std::sync::{Arc, RwLock};
@@ -32,7 +32,8 @@ impl MeterProvider for GlobalMeterProvider {
         schema_url: Option<&'static str>,
         attributes: Option<Vec<KeyValue>>,
     ) -> Meter {
-        self.provider.versioned_meter(name, version, schema_url, attributes)
+        self.provider
+            .versioned_meter(name, version, schema_url, attributes)
     }
 }
 
@@ -88,7 +89,7 @@ pub fn meter(name: &'static str) -> Meter {
 /// # Example
 /// ```rust
 /// use opentelemetry_api::global::meter_with_version;
-/// let meter = meter_with_version("io.opentelemetry", Some("0.17"), Some("https://opentelemetry.io/schemas/1.2.0"));
+/// let meter = meter_with_version("io.opentelemetry", Some("0.17"), Some("https://opentelemetry.io/schemas/1.2.0", None));
 /// ```
 ///
 pub fn meter_with_version(

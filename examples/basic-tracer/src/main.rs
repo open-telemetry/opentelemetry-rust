@@ -1,11 +1,6 @@
 use opentelemetry::sdk::export::trace::stdout;
-use opentelemetry::sdk::{
-    trace::{self, Sampler},
-};
-use opentelemetry::{
-    trace::Tracer,
-    KeyValue,
-};
+use opentelemetry::sdk::trace::{self, Sampler};
+use opentelemetry::{trace::Tracer, KeyValue};
 
 fn init_tracer() -> impl Tracer {
     let v = vec![KeyValue::new("key", "value")];

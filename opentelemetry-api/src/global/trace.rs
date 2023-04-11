@@ -356,10 +356,12 @@ impl trace::TracerProvider for GlobalTracerProvider {
         schema_url: Option<&'static str>,
         attributes: Option<Vec<KeyValue>>,
     ) -> Self::Tracer {
-        BoxedTracer(
-            self.provider
-                .versioned_tracer_boxed(name.into(), version, schema_url, attributes),
-        )
+        BoxedTracer(self.provider.versioned_tracer_boxed(
+            name.into(),
+            version,
+            schema_url,
+            attributes,
+        ))
     }
 }
 

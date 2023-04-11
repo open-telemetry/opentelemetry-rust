@@ -6,8 +6,7 @@ use std::sync::{
 
 use opentelemetry_api::{
     metrics::{noop::NoopMeterCore, InstrumentProvider, Meter as ApiMeter, MetricsError, Result},
-    Context,
-    KeyValue,
+    Context, KeyValue,
 };
 
 use crate::{instrumentation::Scope, Resource};

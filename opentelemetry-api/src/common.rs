@@ -454,15 +454,16 @@ pub struct InstrumentationLibrary {
 
     /// Specifies the instrumentation scope attributes to associate with emitted telemetry.
     pub attributes: Option<Vec<KeyValue>>,
-
 }
 
 // Uniqueness for InstrumentationLibrary/InstrumentationScope does not depend on attributes
 impl Eq for InstrumentationLibrary {}
 
 impl PartialEq for InstrumentationLibrary {
-    fn eq(& self, other: &Self) -> bool {
-        self.name == other.name && self.version == other.version && self.schema_url == other.schema_url
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name
+            && self.version == other.version
+            && self.schema_url == other.schema_url
     }
 }
 
@@ -476,7 +477,12 @@ impl hash::Hash for InstrumentationLibrary {
 
 impl InstrumentationLibrary {
     /// Create an new instrumentation library.
-    pub fn new<T>(name: T, version: Option<T>, schema_url: Option<T>, attributes: Option<Vec<KeyValue>>) -> InstrumentationLibrary
+    pub fn new<T>(
+        name: T,
+        version: Option<T>,
+        schema_url: Option<T>,
+        attributes: Option<Vec<KeyValue>>,
+    ) -> InstrumentationLibrary
     where
         T: Into<Cow<'static, str>>,
     {
