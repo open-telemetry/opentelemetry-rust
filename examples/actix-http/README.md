@@ -1,7 +1,7 @@
-# Actix-web - Jaeger example with HTTP collector and batch exporter 
+# Actix-web - Jaeger example with OTLP Exporter
 
 This example shows how to export spans from an actix-web application and ship
-them to Jaeger via OTLP/gRPC.It uses the batch exporter to avoid excessive
+them to Jaeger via OTLP/gRPC. It uses the batch exporter to avoid excessive
 network roundtrips to Jaeger.
 
 Note: Jaeger supports native OTLP ingestion from
