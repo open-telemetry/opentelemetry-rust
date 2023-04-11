@@ -31,6 +31,7 @@ impl MeterProvider for NoopMeterProvider {
         _name: &'static str,
         _version: Option<&'static str>,
         _schema_url: Option<&'static str>,
+        _attributes: Option<Vec<KeyValue>>,
     ) -> Meter {
         Meter::new(Arc::new(NoopMeterCore::new()))
     }

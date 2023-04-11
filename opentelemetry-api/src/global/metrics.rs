@@ -1,3 +1,4 @@
+use crate::KeyValue;
 use crate::metrics::{self, Meter, MeterProvider};
 use core::fmt;
 use once_cell::sync::Lazy;
@@ -29,8 +30,9 @@ impl MeterProvider for GlobalMeterProvider {
         name: &'static str,
         version: Option<&'static str>,
         schema_url: Option<&'static str>,
+        attributes: Option<Vec<KeyValue>>,
     ) -> Meter {
-        self.provider.versioned_meter(name, version, schema_url)
+        self.provider.versioned_meter(name, version, schema_url, attributes)
     }
 }
 
@@ -73,7 +75,7 @@ pub fn meter_provider() -> GlobalMeterProvider {
 ///
 /// This is a more convenient way of expressing `global::meter_provider().meter(name, None, None)`.
 pub fn meter(name: &'static str) -> Meter {
-    meter_provider().versioned_meter(name, None, None)
+    meter_provider().versioned_meter(name, None, None, None)
 }
 
 /// Creates a [`Meter`] with the name, version and schema url.
@@ -93,6 +95,7 @@ pub fn meter_with_version(
     name: &'static str,
     version: Option<&'static str>,
     schema_url: Option<&'static str>,
+    attributes: Option<Vec<KeyValue>>,
 ) -> Meter {
-    meter_provider().versioned_meter(name, version, schema_url)
+    meter_provider().versioned_meter(name, version, schema_url, attributes)
 }

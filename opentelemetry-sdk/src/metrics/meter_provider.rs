@@ -7,6 +7,7 @@ use std::sync::{
 use opentelemetry_api::{
     metrics::{noop::NoopMeterCore, InstrumentProvider, Meter as ApiMeter, MetricsError, Result},
     Context,
+    KeyValue,
 };
 
 use crate::{instrumentation::Scope, Resource};
@@ -76,10 +77,11 @@ impl opentelemetry_api::metrics::MeterProvider for MeterProvider {
         name: &'static str,
         version: Option<&'static str>,
         schema_url: Option<&'static str>,
+        attributes: Option<Vec<KeyValue>>,
     ) -> ApiMeter {
         let inst_provider: Arc<dyn InstrumentProvider + Send + Sync> =
             if !self.is_shutdown.load(Ordering::Relaxed) {
-                let scope = Scope::new(name, version, schema_url);
+                let scope = Scope::new(name, version, schema_url, attributes);
                 Arc::new(SdkMeter::new(scope, self.pipes.clone()))
             } else {
                 Arc::new(NoopMeterCore::new())
