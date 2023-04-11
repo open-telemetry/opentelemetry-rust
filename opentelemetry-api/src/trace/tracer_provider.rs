@@ -21,6 +21,7 @@ pub trait TracerProvider {
     ///
     /// ```
     /// use opentelemetry_api::{global, trace::TracerProvider};
+    /// use opentelemetry_api::KeyValue;
     ///
     /// let provider = global::tracer_provider();
     ///
@@ -32,7 +33,7 @@ pub trait TracerProvider {
     ///     "my_library",
     ///     Some(env!("CARGO_PKG_VERSION")),
     ///     Some("https://opentelemetry.io/schema/1.0.0"),
-    ///     None,
+    ///     Some(vec![KeyValue::new("key", "value")]),
     /// );
     /// ```
     fn tracer(&self, name: impl Into<Cow<'static, str>>) -> Self::Tracer {
