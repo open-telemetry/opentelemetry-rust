@@ -9,8 +9,7 @@ fn init_tracer() -> impl Tracer {
         .install_with_tracer_attributes(v)
 }
 
-#[tokio::main]
-async fn main() -> std::result::Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+fn main() -> std::result::Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let _tracer = init_tracer();
     let _span = _tracer.start("say hello");
 
