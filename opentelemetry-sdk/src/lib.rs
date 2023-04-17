@@ -7,18 +7,19 @@
 //! ```no_run
 //! # #[cfg(feature = "trace")]
 //! # {
-//! use opentelemetry_api::{global, trace::Tracer};
+//! use opentelemetry_api::{global, trace::{Tracer, TracerProvider as _}};
 //! use opentelemetry_sdk::trace::TracerProvider;
 //!
 //! fn main() {
 //!     // Choose an exporter like `opentelemetry_stdout::SpanExporter`
-//!     # fn new_exporter() -> impl opentelemetry_sdk::export::trace::SpanExporter { todo!() }
+//!     # fn example<T: opentelemetry_sdk::export::trace::SpanExporter + 'static>(new_exporter: impl Fn() -> T) {
 //!     let exporter = new_exporter();
 //!
 //!     // Create a new trace pipeline that prints to stdout
-//!     let tracer = TracerProvider::builder()
+//!     let provider = TracerProvider::builder()
 //!         .with_simple_exporter(exporter)
 //!         .build();
+//!     let tracer = provider.tracer("readme_example");
 //!
 //!     tracer.in_span("doing_work", |cx| {
 //!         // Traced app logic here...
@@ -26,6 +27,7 @@
 //!
 //!     // Shutdown trace pipeline
 //!     global::shutdown_tracer_provider();
+//!     # }
 //! }
 //! # }
 //! ```

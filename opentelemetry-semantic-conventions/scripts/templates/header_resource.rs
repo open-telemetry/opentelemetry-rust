@@ -9,7 +9,7 @@
 //!
 //! ```rust,no_run
 //! use opentelemetry::sdk;
-//! use opentelemetry_semantic_conventions as semcov;
+//! use opentelemetry_semantic_conventions as semconv;
 //!
 //! let _tracer = sdk::trace::TracerProvider::builder()
 //!     .with_config(sdk::trace::config().with_resource(sdk::Resource::new(vec![

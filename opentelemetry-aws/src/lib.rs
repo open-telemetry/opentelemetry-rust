@@ -8,20 +8,20 @@
 //!
 //! ### Quick start
 //! ```no_run
-//! use opentelemetry::global;
+//! use opentelemetry_api::{global, trace::{Tracer, TracerProvider as _}};
 //! use opentelemetry_aws::trace::XrayPropagator;
 //! use opentelemetry_sdk::trace::TracerProvider;
 //! use opentelemetry_stdout::SpanExporter;
-//! use opentelemetry::trace::Tracer;
 //! use opentelemetry_http::HeaderInjector;
 //!
 //! #[tokio::main]
 //! async fn main() -> std::result::Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 //!     // Set the global propagator to X-Ray propagator
 //!     global::set_text_map_propagator(XrayPropagator::default());
-//!     let tracer = TracerProvider::builder()
+//!     let provider = TracerProvider::builder()
 //!         .with_simple_exporter(SpanExporter::default())
-//!         .build()
+//!         .build();
+//!     let tracer = provider.tracer("readme_example");
 //!
 //!     let mut req = hyper::Request::builder().uri("http://127.0.0.1:3000");
 //!     tracer.in_span("doing_work", |cx| {
@@ -41,7 +41,7 @@
 #[cfg(feature = "trace")]
 pub mod trace {
     use once_cell::sync::Lazy;
-    use opentelemetry::{
+    use opentelemetry_api::{
         global::{self, Error},
         propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
         trace::{
@@ -77,7 +77,7 @@ pub mod trace {
     /// ## Example
     ///
     /// ```
-    /// use opentelemetry::global;
+    /// use opentelemetry_api::global;
     /// use opentelemetry_aws::trace::XrayPropagator;
     ///
     /// global::set_text_map_propagator(XrayPropagator::default());
@@ -306,8 +306,8 @@ pub mod trace {
     #[cfg(test)]
     mod tests {
         use super::*;
-        use opentelemetry::testing::trace::TestSpan;
-        use opentelemetry::trace::TraceState;
+        use opentelemetry_api::trace::TraceState;
+        use opentelemetry_sdk::testing::trace::TestSpan;
         use std::collections::HashMap;
         use std::str::FromStr;
 
