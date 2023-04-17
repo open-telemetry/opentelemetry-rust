@@ -386,4 +386,5 @@ pub mod trace {
     }
 }
 
+#[cfg(feature = "trace")]
 pub use trace::XrayPropagator;

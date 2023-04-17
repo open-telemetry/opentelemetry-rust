@@ -1,13 +1,12 @@
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Request, Response, Server};
-use opentelemetry::sdk::trace::TracerProvider;
-use opentelemetry::{
+use opentelemetry_api::{
     global,
-    sdk::trace as sdktrace,
     trace::{Span, Tracer},
 };
 use opentelemetry_aws::XrayPropagator;
 use opentelemetry_http::HeaderExtractor;
+use opentelemetry_sdk::trace::{self as sdktrace, TracerProvider};
 use opentelemetry_stdout::SpanExporter;
 use std::{convert::Infallible, net::SocketAddr};
 

@@ -1,12 +1,12 @@
 use hyper::{body::Body, Client};
-use opentelemetry::{
+use opentelemetry_api::{
     global,
-    sdk::trace::{self as sdktrace, TracerProvider},
     trace::{TraceContextExt, Tracer},
     Context, KeyValue,
 };
 use opentelemetry_aws::XrayPropagator;
 use opentelemetry_http::HeaderInjector;
+use opentelemetry_sdk::trace::{self as sdktrace, TracerProvider};
 use opentelemetry_stdout::SpanExporter;
 
 fn init_tracer() {

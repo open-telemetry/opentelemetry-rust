@@ -1,12 +1,12 @@
 use hyper::{body::Body, Client};
-use opentelemetry::global;
-use opentelemetry::sdk::propagation::TraceContextPropagator;
-use opentelemetry::sdk::trace::TracerProvider;
-use opentelemetry::{
+use opentelemetry_api::global;
+use opentelemetry_api::{
     trace::{TraceContextExt, Tracer},
     Context, KeyValue,
 };
 use opentelemetry_http::HeaderInjector;
+use opentelemetry_sdk::propagation::TraceContextPropagator;
+use opentelemetry_sdk::trace::TracerProvider;
 use opentelemetry_stdout::SpanExporter;
 
 fn init_tracer() {
