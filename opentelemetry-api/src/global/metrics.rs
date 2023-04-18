@@ -79,7 +79,7 @@ pub fn meter_provider() -> GlobalMeterProvider {
 ///
 /// This is a more convenient way of expressing `global::meter_provider().meter(name, None, None, None)`.
 pub fn meter(name: impl Into<Cow<'static, str>>) -> Meter {
-    meter_provider().versioned_meter(name.into(), None, None, None)
+    meter_provider().meter(name.into())
 }
 
 /// Creates a [`Meter`] with the name, version and schema url.

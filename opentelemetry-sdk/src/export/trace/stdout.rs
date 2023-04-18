@@ -125,8 +125,8 @@ where
         let provider = provider_builder.build();
 
         let tracer = provider.versioned_tracer(
-            "opentelemetry",
-            Some(env!("CARGO_PKG_VERSION")),
+            "opentelemetry".into(),
+            Some(env!("CARGO_PKG_VERSION").into()),
             None,
             Some(attributes),
         );
