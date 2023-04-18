@@ -303,6 +303,7 @@ fn prometheus_exporter_integration() {
             )
             .build();
         let meter = provider.versioned_meter("testmeter".into(), Some("v0.1.0".into()), None, None);
+        (tc.record_metrics)(&cx, meter);
 
         let content = fs::read_to_string(Path::new("./tests/data").join(tc.expected_file))
             .expect(tc.expected_file);
@@ -354,7 +355,11 @@ fn multiple_scopes() {
 
     let foo_counter = provider
         .versioned_meter("meterfoo".into(), Some("v0.1.0".into()), None, None)
+        .u64_counter("foo")
+        .with_unit(Unit::new("ms"))
+        .with_description("meter foo counter")
         .init();
+    foo_counter.add(&cx, 100, &[KeyValue::new("type", "foo")]);
 
     let bar_counter = provider
         .versioned_meter("meterbar".into(), Some("v0.1.0".into()), None, None)
