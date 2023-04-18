@@ -1,8 +1,0 @@
-[package]
-name = "basic-tracer"
-version = "0.1.0"
-edition = "2021"
-publish = false
-
-[dependencies]
-opentelemetry = { path = "../../opentelemetry" }
