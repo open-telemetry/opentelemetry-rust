@@ -57,8 +57,8 @@
 //!     // End users of your library will configure their global tracer provider
 //!     // so you can use the global tracer without any setup
 //!     let tracer = global::tracer_provider().versioned_tracer(
-//!         "my-library-name",
-//!         Some(env!("CARGO_PKG_VERSION")),
+//!         "my-library-name".into(),
+//!         Some(env!("CARGO_PKG_VERSION").into()),
 //!         None,
 //!     );
 //!
