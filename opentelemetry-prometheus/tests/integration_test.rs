@@ -366,7 +366,11 @@ fn multiple_scopes() {
 
     let content = fs::read_to_string("./tests/data/multi_scopes.txt").unwrap();
     gather_and_compare(registry, content, "multi_scope");
+}
+
+#[test]
 fn duplicate_metrics() {
+    struct TestCase {
         name: &'static str,
         custom_resource_attrs: Vec<KeyValue>,
         #[allow(clippy::type_complexity)]
@@ -696,8 +700,13 @@ fn duplicate_metrics() {
 
 fn gather_and_compare_multi(
     registry: prometheus::Registry,
+    expected: Vec<String>,
+    name: &'static str,
+) {
+    let mut output = Vec::new();
     let encoder = TextEncoder::new();
     let metric_families = registry.gather();
+    encoder.encode(&metric_families, &mut output).unwrap();
     let output_string = String::from_utf8(output).unwrap();
 
     assert!(

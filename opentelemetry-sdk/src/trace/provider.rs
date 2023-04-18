@@ -133,12 +133,8 @@ impl opentelemetry_api::trace::TracerProvider for TracerProvider {
         } else {
             name
         };
-        let instrumentation_lib = InstrumentationLibrary::new(
-            component_name,
-            version,
-            schema_url,
-            attributes,
-        );
+        let instrumentation_lib =
+            InstrumentationLibrary::new(component_name, version, schema_url, attributes);
 
         Tracer::new(instrumentation_lib, Arc::downgrade(&self.inner))
     }
