@@ -22,7 +22,7 @@ pub trait MeterProvider {
     ///
     /// If the name is empty, then an implementation defined default name will
     /// be used instead.
-    fn meter(&self, name: &'static str) -> Meter {
+    fn meter(&self, name: Cow<'static, str>) -> Meter {
         self.versioned_meter(name, None, None, None)
     }
 
@@ -34,9 +34,9 @@ pub trait MeterProvider {
     /// default name will be used instead.
     fn versioned_meter(
         &self,
-        name: &'static str,
-        version: Option<&'static str>,
-        schema_url: Option<&'static str>,
+        name: Cow<'static, str>,
+        version: Option<Cow<'static, str>>,
+        schema_url: Option<Cow<'static, str>>,
         attributes: Option<Vec<KeyValue>>,
     ) -> Meter;
 }

@@ -26,17 +26,17 @@ pub trait TracerProvider {
     /// let provider = global::tracer_provider();
     ///
     /// // tracer used in applications/binaries
-    /// let tracer = provider.tracer("my_app");
+    /// let tracer = provider.tracer("my_app".into());
     ///
     /// // tracer used in libraries/crates that optionally includes version and schema url
     /// let tracer = provider.versioned_tracer(
-    ///     "my_library",
-    ///     Some(env!("CARGO_PKG_VERSION")),
-    ///     Some("https://opentelemetry.io/schema/1.0.0"),
+    ///     "my_library".into(),
+    ///     Some(env!("CARGO_PKG_VERSION").into()),
+    ///     Some("https://opentelemetry.io/schema/1.0.0".into()),
     ///     Some(vec![KeyValue::new("key", "value")]),
     /// );
     /// ```
-    fn tracer(&self, name: impl Into<Cow<'static, str>>) -> Self::Tracer {
+    fn tracer(&self, name: Cow<'static, str>) -> Self::Tracer {
         self.versioned_tracer(name, None, None, None)
     }
 
@@ -54,21 +54,21 @@ pub trait TracerProvider {
     /// let provider = global::tracer_provider();
     ///
     /// // tracer used in applications/binaries
-    /// let tracer = provider.tracer("my_app");
+    /// let tracer = provider.tracer("my_app".into());
     ///
     /// // tracer used in libraries/crates that optionally includes version and schema url
     /// let tracer = provider.versioned_tracer(
-    ///     "my_library",
-    ///     Some(env!("CARGO_PKG_VERSION")),
-    ///     Some("https://opentelemetry.io/schema/1.0.0"),
+    ///     "my_library".into(),
+    ///     Some(env!("CARGO_PKG_VERSION").into()),
+    ///     Some("https://opentelemetry.io/schema/1.0.0".into()),
     ///     None,
     /// );
     /// ```
     fn versioned_tracer(
         &self,
-        name: impl Into<Cow<'static, str>>,
-        version: Option<&'static str>,
-        schema_url: Option<&'static str>,
+        name: Cow<'static, str>,
+        version: Option<Cow<'static, str>>,
+        schema_url: Option<Cow<'static, str>>,
         attributes: Option<Vec<KeyValue>>,
     ) -> Self::Tracer;
 }

@@ -20,7 +20,7 @@
 //!
 //! // set up a meter meter to create instruments
 //! let provider = MeterProvider::builder().with_reader(exporter).build();
-//! let meter = provider.meter("my-app");
+//! let meter = provider.meter("my-app".into());
 //!
 //! // Use two instruments
 //! let counter = meter

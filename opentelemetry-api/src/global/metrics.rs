@@ -2,7 +2,10 @@ use crate::metrics::{self, Meter, MeterProvider};
 use crate::KeyValue;
 use core::fmt;
 use once_cell::sync::Lazy;
-use std::sync::{Arc, RwLock};
+use std::{
+    borrow::Cow,
+    sync::{Arc, RwLock},
+};
 
 /// The global `Meter` provider singleton.
 static GLOBAL_METER_PROVIDER: Lazy<RwLock<GlobalMeterProvider>> = Lazy::new(|| {
@@ -27,9 +30,9 @@ impl fmt::Debug for GlobalMeterProvider {
 impl MeterProvider for GlobalMeterProvider {
     fn versioned_meter(
         &self,
-        name: &'static str,
-        version: Option<&'static str>,
-        schema_url: Option<&'static str>,
+        name: Cow<'static, str>,
+        version: Option<Cow<'static, str>>,
+        schema_url: Option<Cow<'static, str>>,
         attributes: Option<Vec<KeyValue>>,
     ) -> Meter {
         self.provider
@@ -75,8 +78,8 @@ pub fn meter_provider() -> GlobalMeterProvider {
 /// If the name is an empty string, the provider will use a default name.
 ///
 /// This is a more convenient way of expressing `global::meter_provider().meter(name, None, None, None)`.
-pub fn meter(name: &'static str) -> Meter {
-    meter_provider().versioned_meter(name, None, None, None)
+pub fn meter(name: impl Into<Cow<'static, str>>) -> Meter {
+    meter_provider().versioned_meter(name.into(), None, None, None)
 }
 
 /// Creates a [`Meter`] with the name, version and schema url.
@@ -89,15 +92,14 @@ pub fn meter(name: &'static str) -> Meter {
 /// # Example
 /// ```rust
 /// use opentelemetry_api::global::meter_with_version;
-/// use opentelemetry_api::KeyValue;
-/// let meter = meter_with_version("io.opentelemetry", Some("0.17"), Some("https://opentelemetry.io/schemas/1.2.0"), Some(vec![KeyValue::new("key", "value")]));
+/// let meter = meter_with_version("io.opentelemetry", Some("0.17".into()), Some("https://opentelemetry.io/schemas/1.2.0".into()));
 /// ```
 ///
 pub fn meter_with_version(
-    name: &'static str,
-    version: Option<&'static str>,
-    schema_url: Option<&'static str>,
+    name: impl Into<Cow<'static, str>>,
+    version: Option<Cow<'static, str>>,
+    schema_url: Option<Cow<'static, str>>,
     attributes: Option<Vec<KeyValue>>,
 ) -> Meter {
-    meter_provider().versioned_meter(name, version, schema_url, attributes)
+    meter_provider().versioned_meter(name.into(), version, schema_url, attributes)
 }

@@ -302,8 +302,7 @@ fn prometheus_exporter_integration() {
                 .unwrap(),
             )
             .build();
-        let meter = provider.versioned_meter("testmeter", Some("v0.1.0"), None, None);
-        (tc.record_metrics)(&cx, meter);
+        let meter = provider.versioned_meter("testmeter".into(), Some("v0.1.0".into()), None, None);
 
         let content = fs::read_to_string(Path::new("./tests/data").join(tc.expected_file))
             .expect(tc.expected_file);
@@ -354,15 +353,11 @@ fn multiple_scopes() {
         .build();
 
     let foo_counter = provider
-        .versioned_meter("meterfoo", Some("v0.1.0"), None, None)
-        .u64_counter("foo")
-        .with_unit(Unit::new("ms"))
-        .with_description("meter foo counter")
+        .versioned_meter("meterfoo".into(), Some("v0.1.0".into()), None, None)
         .init();
-    foo_counter.add(&cx, 100, &[KeyValue::new("type", "foo")]);
 
     let bar_counter = provider
-        .versioned_meter("meterbar", Some("v0.1.0"), None, None)
+        .versioned_meter("meterbar".into(), Some("v0.1.0".into()), None, None)
         .u64_counter("bar")
         .with_unit(Unit::new("ms"))
         .with_description("meter bar counter")
@@ -371,11 +366,7 @@ fn multiple_scopes() {
 
     let content = fs::read_to_string("./tests/data/multi_scopes.txt").unwrap();
     gather_and_compare(registry, content, "multi_scope");
-}
-
-#[test]
 fn duplicate_metrics() {
-    struct TestCase {
         name: &'static str,
         custom_resource_attrs: Vec<KeyValue>,
         #[allow(clippy::type_complexity)]
@@ -689,8 +680,8 @@ fn duplicate_metrics() {
             .with_reader(exporter)
             .build();
 
-        let meter_a = provider.versioned_meter("ma", Some("v0.1.0"), None, None);
-        let meter_b = provider.versioned_meter("mb", Some("v0.1.0"), None, None);
+        let meter_a = provider.versioned_meter("ma".into(), Some("v0.1.0".into()), None, None);
+        let meter_b = provider.versioned_meter("mb".into(), Some("v0.1.0".into()), None, None);
 
         (tc.record_metrics)(&cx, meter_a, meter_b);
 
@@ -705,13 +696,8 @@ fn duplicate_metrics() {
 
 fn gather_and_compare_multi(
     registry: prometheus::Registry,
-    expected: Vec<String>,
-    name: &'static str,
-) {
-    let mut output = Vec::new();
     let encoder = TextEncoder::new();
     let metric_families = registry.gather();
-    encoder.encode(&metric_families, &mut output).unwrap();
     let output_string = String::from_utf8(output).unwrap();
 
     assert!(

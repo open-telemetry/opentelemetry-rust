@@ -291,8 +291,8 @@ pub trait ObjectSafeTracerProvider {
     fn versioned_tracer_boxed(
         &self,
         name: Cow<'static, str>,
-        version: Option<&'static str>,
-        schema_url: Option<&'static str>,
+        version: Option<Cow<'static, str>>,
+        schema_url: Option<Cow<'static, str>>,
         attributes: Option<Vec<KeyValue>>,
     ) -> Box<dyn ObjectSafeTracer + Send + Sync>;
 }
@@ -307,8 +307,8 @@ where
     fn versioned_tracer_boxed(
         &self,
         name: Cow<'static, str>,
-        version: Option<&'static str>,
-        schema_url: Option<&'static str>,
+        version: Option<Cow<'static, str>>,
+        schema_url: Option<Cow<'static, str>>,
         attributes: Option<Vec<KeyValue>>,
     ) -> Box<dyn ObjectSafeTracer + Send + Sync> {
         Box::new(self.versioned_tracer(name, version, schema_url, attributes))
@@ -351,17 +351,15 @@ impl trace::TracerProvider for GlobalTracerProvider {
     /// Create a versioned tracer using the global provider.
     fn versioned_tracer(
         &self,
-        name: impl Into<Cow<'static, str>>,
-        version: Option<&'static str>,
-        schema_url: Option<&'static str>,
+        name: Cow<'static, str>,
+        version: Option<Cow<'static, str>>,
+        schema_url: Option<Cow<'static, str>>,
         attributes: Option<Vec<KeyValue>>,
     ) -> Self::Tracer {
-        BoxedTracer(self.provider.versioned_tracer_boxed(
-            name.into(),
-            version,
-            schema_url,
-            attributes,
-        ))
+        BoxedTracer(
+            self.provider
+                .versioned_tracer_boxed(name, version, schema_url, attributes),
+        )
     }
 }
 

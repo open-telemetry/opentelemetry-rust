@@ -165,8 +165,8 @@ fn build_simple_with_exporter(
     }
     let provider = provider_builder.build();
     let tracer = provider.versioned_tracer(
-        "opentelemetry-otlp",
-        Some(env!("CARGO_PKG_VERSION")),
+        "opentelemetry-otlp".into(),
+        Some(env!("CARGO_PKG_VERSION").into()),
         None,
         None,
     );
@@ -191,8 +191,8 @@ fn build_batch_with_exporter<R: TraceRuntime>(
     }
     let provider = provider_builder.build();
     let tracer = provider.versioned_tracer(
-        "opentelemetry-otlp",
-        Some(env!("CARGO_PKG_VERSION")),
+        "opentelemetry-otlp".into(),
+        Some(env!("CARGO_PKG_VERSION").into()),
         None,
         None,
     );
