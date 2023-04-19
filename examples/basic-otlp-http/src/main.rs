@@ -1,12 +1,10 @@
 use once_cell::sync::Lazy;
 use opentelemetry::trace::TraceError;
-use opentelemetry::{global, sdk::trace as sdktrace, sdk::metrics as sdkmetrics};
+use opentelemetry::{global, sdk::metrics as sdkmetrics, sdk::trace as sdktrace};
 use opentelemetry::{
-    trace::{TraceContextExt, Tracer},
-    Key,
     metrics,
-    Context,
-    KeyValue,
+    trace::{TraceContextExt, Tracer},
+    Context, Key, KeyValue,
 };
 use opentelemetry_otlp::WithExportConfig;
 use std::error::Error;
