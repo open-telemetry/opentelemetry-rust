@@ -252,8 +252,9 @@ pub enum ExportMsg {
     Shutdown,
 }
 
+#[cfg(feature = "grpc-tonic")]
 impl fmt::Debug for ExportMsg {
-    fn fmt(&self, f: &mut fmt::Formatter)-> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str("ExportMsg")
     }
 }
@@ -494,9 +495,7 @@ impl PushMetricsExporter for MetricsExporter {
         match self {
             #[cfg(feature = "grpc-tonic")]
             MetricsExporter::Tonic {
-                sender,
-                metadata,
-                ..
+                sender, metadata, ..
             } => {
                 let mut request = Request::new(sink(metrics));
                 if let Some(metadata) = metadata {
