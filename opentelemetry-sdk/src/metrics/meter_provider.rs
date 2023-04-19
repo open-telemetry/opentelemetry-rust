@@ -1,7 +1,10 @@
 use core::fmt;
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc,
+use std::{
+    borrow::Cow,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
 };
 
 use opentelemetry_api::{
@@ -73,9 +76,9 @@ impl MeterProvider {
 impl opentelemetry_api::metrics::MeterProvider for MeterProvider {
     fn versioned_meter(
         &self,
-        name: &'static str,
-        version: Option<&'static str>,
-        schema_url: Option<&'static str>,
+        name: Cow<'static, str>,
+        version: Option<Cow<'static, str>>,
+        schema_url: Option<Cow<'static, str>>,
     ) -> ApiMeter {
         let inst_provider: Arc<dyn InstrumentProvider + Send + Sync> =
             if !self.is_shutdown.load(Ordering::Relaxed) {
