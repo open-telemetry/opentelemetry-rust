@@ -13,8 +13,6 @@ use opentelemetry_api::{
     global,
     metrics::{MetricsError, Result},
 };
-//#[cfg(feature = "grpc-sys")]
-//use opentelemetry_proto::grpcio::metrics::Metric;
 #[cfg(feature = "grpc-tonic")]
 use opentelemetry_proto::tonic::collector::metrics::v1::{
     metrics_service_client::MetricsServiceClient, ExportMetricsServiceRequest,
