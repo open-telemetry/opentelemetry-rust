@@ -6,7 +6,6 @@ pub use bytes::Bytes;
 #[doc(no_inline)]
 pub use http::{Request, Response};
 use opentelemetry_api::{
-    metrics::MetricsError,
     propagation::{Extractor, Injector},
     trace::TraceError,
 };
