@@ -22,7 +22,7 @@ fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
         .with_trace_config(sdktrace::config().with_resource(Resource::new(vec![
             opentelemetry::KeyValue::new("service.name", "trace-http-demo"),
         ])))
-        .install_batch(opentelemetry::runtime::Tokio)
+        .install_batch(opentelemetry::runtime::TokioCurrentThread)
 }
 
 async fn index() -> &'static str {
