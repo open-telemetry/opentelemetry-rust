@@ -51,7 +51,6 @@ use {
         Method, Uri,
     },
     opentelemetry_http::HttpClient,
-    opentelemetry_proto::tonic::collector::metrics::v1::ExportMetricsServiceRequest as ProstRequest,
     prost::Message,
     std::collections::HashMap,
     std::convert::TryFrom,
