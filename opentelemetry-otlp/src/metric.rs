@@ -117,12 +117,14 @@ impl MetricsExporterBuilder {
     }
 }
 
+#[cfg(feature = "grpc-tonic")]
 impl From<TonicExporterBuilder> for MetricsExporterBuilder {
     fn from(exporter: TonicExporterBuilder) -> Self {
         MetricsExporterBuilder::Tonic(exporter)
     }
 }
 
+#[cfg(feature = "http-proto")]
 impl From<HttpExporterBuilder> for MetricsExporterBuilder {
     fn from(exporter: HttpExporterBuilder) -> Self {
         MetricsExporterBuilder::Http(exporter)
