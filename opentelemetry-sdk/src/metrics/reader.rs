@@ -102,6 +102,28 @@ impl TemporalitySelector for DefaultTemporalitySelector {
     }
 }
 
+/// Configure delta temporality for all [InstrumentKind]
+///
+/// [Temporality::Delta] will be used for all instrument kinds if this
+/// [TemporalitySelector] is used.
+#[derive(Clone, Default, Debug)]
+pub struct DeltaTemporalitySelector {
+    pub(crate) _private: (),
+}
+
+impl DeltaTemporalitySelector {
+    /// Create a new default temporality selector.
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
+
+impl TemporalitySelector for DeltaTemporalitySelector {
+    fn temporality(&self, _kind: InstrumentKind) -> Temporality {
+        Temporality::Delta
+    }
+}
+
 /// An interface for selecting the aggregation and the parameters for an
 /// [InstrumentKind].
 pub trait AggregationSelector: Send + Sync {
