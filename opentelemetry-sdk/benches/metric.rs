@@ -9,10 +9,7 @@ use opentelemetry_sdk::{
     metrics::{
         data::{ResourceMetrics, Temporality},
         new_view,
-        reader::{
-            AggregationSelector, MetricProducer, MetricReader,
-            TemporalitySelector,
-        },
+        reader::{AggregationSelector, MetricProducer, MetricReader, TemporalitySelector},
         Aggregation, Instrument, InstrumentKind, ManualReader, MeterProvider, Pipeline, Stream,
         View,
     },
