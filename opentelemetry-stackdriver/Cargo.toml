@@ -16,7 +16,7 @@ gcp_auth = { version = "0.7", optional = true }
 hex = "0.4"
 http = "0.2"
 hyper = "0.14.2"
-hyper-rustls = { version = "0.23", optional = true }
+hyper-rustls = { version = "0.24", optional = true }
 opentelemetry = { version = "0.19", path = "../opentelemetry" }
 opentelemetry-semantic-conventions = { version = "0.11", path = "../opentelemetry-semantic-conventions" }
 prost = "0.11.0"
