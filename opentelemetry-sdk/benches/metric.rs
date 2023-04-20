@@ -60,18 +60,18 @@ impl MetricReader for SharedReader {
 // Intel(R) Core(TM) i7-8850H CPU @ 2.60GHz   2.59 GHz
 // 12 logical and 6 physical cores
 
-// Counter/AddNoAttrs      time:   [67.386 ns 68.039 ns 68.860 ns]
-// Counter/AddNoAttrsDelta time:   [66.993 ns 67.387 ns 67.910 ns]
-// Counter/AddOneAttr      time:   [355.10 ns 360.43 ns 366.83 ns]
-// Counter/AddOneAttrDelta time:   [3.0428 µs 3.0500 µs 3.0576 µs]
-// Counter/AddThreeAttr    time:   [610.76 ns 614.73 ns 619.08 ns]
+// Counter/AddNoAttrs      time:   [65.406 ns 65.535 ns 65.675 ns]
+// Counter/AddNoAttrsDelta time:   [65.553 ns 65.761 ns 65.981 ns]
+// Counter/AddOneAttr      time:   [341.55 ns 344.40 ns 347.58 ns]
+// Counter/AddOneAttrDelta time:   [340.11 ns 342.42 ns 344.89 ns]
+// Counter/AddThreeAttr    time:   [619.01 ns 624.16 ns 630.16 ns]
 // Counter/AddThreeAttrDelta
-//                         time:   [606.70 ns 611.39 ns 616.65 ns]
-// Counter/AddFiveAttr     time:   [1.0227 µs 1.0371 µs 1.0529 µs]
+//                         time:   [606.71 ns 611.45 ns 616.66 ns]
+// Counter/AddFiveAttr     time:   [3.7551 µs 3.7813 µs 3.8094 µs]
 // Counter/AddFiveAttrDelta
 //                         time:   [3.7550 µs 3.7870 µs 3.8266 µs]
-// Counter/AddTenAttr      time:   [2.0143 µs 2.0317 µs 2.0514 µs]
-// Counter/AddTenAttrDelta time:   [2.0142 µs 2.0354 µs 2.0586 µs]
+// Counter/AddTenAttr      time:   [4.7684 µs 4.7909 µs 4.8146 µs]
+// Counter/AddTenAttrDelta time:   [4.7682 µs 4.8152 µs 4.8722 µs]
 // Counter/AddInvalidAttr  time:   [469.31 ns 472.97 ns 476.92 ns]
 // Counter/AddSingleUseAttrs
 //                         time:   [749.15 ns 805.09 ns 868.03 ns]
@@ -80,6 +80,7 @@ impl MetricReader for SharedReader {
 // Counter/AddSingleUseFiltered
 //                         time:   [677.00 ns 681.63 ns 686.88 ns]
 // Counter/CollectOneAttr  time:   [659.29 ns 681.20 ns 708.04 ns]
+// Counter/CollectTenAttrs time:   [3.5048 µs 3.5384 µs 3.5777 µs]
 fn bench_counter(view: Option<Box<dyn View>>, temporality: &str) -> (Context, SharedReader, Counter<u64>) {
     let cx = Context::new();
     let rdr = if temporality == "cumulative" {
@@ -104,6 +105,7 @@ fn counters(c: &mut Criterion) {
     let mut group = c.benchmark_group("Counter");
     group.bench_function("AddNoAttrs", |b| b.iter(|| cntr.add(&cx, 1, &[])));
     group.bench_function("AddNoAttrsDelta", |b| b.iter(|| cntr2.add(&cx, 1, &[])));
+    
     group.bench_function("AddOneAttr", |b| {
         b.iter(|| cntr.add(&cx, 1, &[KeyValue::new("K", "V")]))
     });
@@ -291,5 +293,5 @@ fn benchmark_collect_histogram(b: &mut Bencher, n: usize) {
     })
 }
 
-criterion_group!(benches, counters, histograms);
+criterion_group!(benches, counters);
 criterion_main!(benches);
