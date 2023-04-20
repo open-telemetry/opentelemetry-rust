@@ -45,7 +45,7 @@ use std::sync::{Arc, Mutex};
 ///      .build();
 ///
 ///  // Create and record metrics using the MeterProvider
-///  let meter = meter_provider.meter("example");
+///  let meter = meter_provider.meter(std::borrow::Cow::Borrowed("example"));
 ///  let cx = Context::new();
 ///  let counter = meter.u64_counter("my_counter").init();
 ///  counter.add(&cx, 1, &[KeyValue::new("key", "value")]);

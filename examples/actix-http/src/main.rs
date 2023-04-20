@@ -8,12 +8,20 @@ use opentelemetry::{
     trace::{FutureExt, TraceContextExt, Tracer},
     Key,
 };
+use opentelemetry_otlp::WithExportConfig;
+use opentelemetry_sdk::Resource;
 
 fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
-    opentelemetry_jaeger::new_collector_pipeline()
-        .with_endpoint("http://127.0.0.1:14268/api/traces")
-        .with_service_name("trace-http-demo")
-        .with_reqwest()
+    opentelemetry_otlp::new_pipeline()
+        .tracing()
+        .with_exporter(
+            opentelemetry_otlp::new_exporter()
+                .tonic()
+                .with_endpoint("http://localhost:4317"),
+        )
+        .with_trace_config(sdktrace::config().with_resource(Resource::new(vec![
+            opentelemetry::KeyValue::new("service.name", "trace-http-demo"),
+        ])))
         .install_batch(opentelemetry::runtime::TokioCurrentThread)
 }
 
