@@ -4,7 +4,7 @@
 ### Added
 - Add instrument validation to `InstrumentBuilder` [#884](https://github.com/open-telemetry/opentelemetry-rust/pull/884).
 - Add `TelemetryResourceDetector` [#899](https://github.com/open-telemetry/opentelemetry-rust/pull/899).
-- Added `delta` temporality to metric counter benchmark tests [#899](https://github.com/open-telemetry/opentelemetry-rust/pull/899).
+- Added `delta` temporality to metric counter benchmark tests [#1034](https://github.com/open-telemetry/opentelemetry-rust/pull/1034).
 
 ### Changed
 - Update to `opentelemetry_api` v0.19.
