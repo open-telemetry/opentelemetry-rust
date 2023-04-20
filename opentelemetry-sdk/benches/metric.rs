@@ -9,7 +9,10 @@ use opentelemetry_sdk::{
     metrics::{
         data::{ResourceMetrics, Temporality},
         new_view,
-        reader::{AggregationSelector, DeltaTemporalitySelector, MetricProducer, MetricReader, TemporalitySelector},
+        reader::{
+            AggregationSelector, MetricProducer, MetricReader,
+            TemporalitySelector,
+        },
         Aggregation, Instrument, InstrumentKind, ManualReader, MeterProvider, Pipeline, Stream,
         View,
     },
@@ -53,6 +56,28 @@ impl MetricReader for SharedReader {
     }
 }
 
+/// Configure delta temporality for all [InstrumentKind]
+///
+/// [Temporality::Delta] will be used for all instrument kinds if this
+/// [TemporalitySelector] is used.
+#[derive(Clone, Default, Debug)]
+pub struct DeltaTemporalitySelector {
+    pub(crate) _private: (),
+}
+
+impl DeltaTemporalitySelector {
+    /// Create a new default temporality selector.
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
+
+impl TemporalitySelector for DeltaTemporalitySelector {
+    fn temporality(&self, _kind: InstrumentKind) -> Temporality {
+        Temporality::Delta
+    }
+}
+
 // * Summary *
 
 // rustc 1.68.0 (2c8cc3432 2023-03-06)
@@ -81,12 +106,19 @@ impl MetricReader for SharedReader {
 //                         time:   [677.00 ns 681.63 ns 686.88 ns]
 // Counter/CollectOneAttr  time:   [659.29 ns 681.20 ns 708.04 ns]
 // Counter/CollectTenAttrs time:   [3.5048 µs 3.5384 µs 3.5777 µs]
-fn bench_counter(view: Option<Box<dyn View>>, temporality: &str) -> (Context, SharedReader, Counter<u64>) {
+fn bench_counter(
+    view: Option<Box<dyn View>>,
+    temporality: &str,
+) -> (Context, SharedReader, Counter<u64>) {
     let cx = Context::new();
     let rdr = if temporality == "cumulative" {
         SharedReader(Arc::new(ManualReader::builder().build()))
     } else {
-        SharedReader(Arc::new(ManualReader::builder().with_temporality_selector(DeltaTemporalitySelector::new()).build()))
+        SharedReader(Arc::new(
+            ManualReader::builder()
+                .with_temporality_selector(DeltaTemporalitySelector::new())
+                .build(),
+        ))
     };
     let mut builder = MeterProvider::builder().with_reader(rdr.clone());
     if let Some(view) = view {
@@ -105,7 +137,7 @@ fn counters(c: &mut Criterion) {
     let mut group = c.benchmark_group("Counter");
     group.bench_function("AddNoAttrs", |b| b.iter(|| cntr.add(&cx, 1, &[])));
     group.bench_function("AddNoAttrsDelta", |b| b.iter(|| cntr2.add(&cx, 1, &[])));
-    
+
     group.bench_function("AddOneAttr", |b| {
         b.iter(|| cntr.add(&cx, 1, &[KeyValue::new("K", "V")]))
     });
@@ -113,88 +145,100 @@ fn counters(c: &mut Criterion) {
         b.iter(|| cntr2.add(&cx2, 1, &[KeyValue::new("K", "V")]))
     });
     group.bench_function("AddThreeAttr", |b| {
-        b.iter(|| cntr.add(
-            &cx,
-            1,
-            &[
-                KeyValue::new("K", "V"),
-                KeyValue::new("K2", "V2"),
-                KeyValue::new("K3", "V3")
-            ]
-        ))
+        b.iter(|| {
+            cntr.add(
+                &cx,
+                1,
+                &[
+                    KeyValue::new("K", "V"),
+                    KeyValue::new("K2", "V2"),
+                    KeyValue::new("K3", "V3"),
+                ],
+            )
+        })
     });
     group.bench_function("AddThreeAttrDelta", |b| {
-        b.iter(|| cntr2.add(
-            &cx2,
-            1,
-            &[
-                KeyValue::new("K", "V"),
-                KeyValue::new("K2", "V2"),
-                KeyValue::new("K3", "V3")
-            ]
-        ))
+        b.iter(|| {
+            cntr2.add(
+                &cx2,
+                1,
+                &[
+                    KeyValue::new("K", "V"),
+                    KeyValue::new("K2", "V2"),
+                    KeyValue::new("K3", "V3"),
+                ],
+            )
+        })
     });
     group.bench_function("AddFiveAttr", |b| {
-        b.iter(|| cntr.add(
-            &cx,
-            1,
-            &[
-                KeyValue::new("K", "V"),
-                KeyValue::new("K2", "V2"),
-                KeyValue::new("K3", "V3"),
-                KeyValue::new("K4", "V4"),
-                KeyValue::new("K5", "V5"),
-            ]
-        ))
+        b.iter(|| {
+            cntr.add(
+                &cx,
+                1,
+                &[
+                    KeyValue::new("K", "V"),
+                    KeyValue::new("K2", "V2"),
+                    KeyValue::new("K3", "V3"),
+                    KeyValue::new("K4", "V4"),
+                    KeyValue::new("K5", "V5"),
+                ],
+            )
+        })
     });
     group.bench_function("AddFiveAttrDelta", |b| {
-        b.iter(|| cntr2.add(
-            &cx2,
-            1,
-            &[
-                KeyValue::new("K", "V"),
-                KeyValue::new("K2", "V2"),
-                KeyValue::new("K3", "V3"),
-                KeyValue::new("K4", "V4"),
-                KeyValue::new("K5", "V5"),
-            ]
-        ))
+        b.iter(|| {
+            cntr2.add(
+                &cx2,
+                1,
+                &[
+                    KeyValue::new("K", "V"),
+                    KeyValue::new("K2", "V2"),
+                    KeyValue::new("K3", "V3"),
+                    KeyValue::new("K4", "V4"),
+                    KeyValue::new("K5", "V5"),
+                ],
+            )
+        })
     });
     group.bench_function("AddTenAttr", |b| {
-        b.iter(|| cntr.add(
-            &cx,
-            1,
-            &[
-                KeyValue::new("K", "V"),
-                KeyValue::new("K2", "V2"),
-                KeyValue::new("K3", "V3"),
-                KeyValue::new("K4", "V4"),
-                KeyValue::new("K5", "V5"),
-                KeyValue::new("K6", "V6"),
-                KeyValue::new("K7", "V7"),
-                KeyValue::new("K8", "V8"),
-                KeyValue::new("K9", "V9"),
-                KeyValue::new("K10", "V10"),
-            ]
-        ))
+        b.iter(|| {
+            cntr.add(
+                &cx,
+                1,
+                &[
+                    KeyValue::new("K", "V"),
+                    KeyValue::new("K2", "V2"),
+                    KeyValue::new("K3", "V3"),
+                    KeyValue::new("K4", "V4"),
+                    KeyValue::new("K5", "V5"),
+                    KeyValue::new("K6", "V6"),
+                    KeyValue::new("K7", "V7"),
+                    KeyValue::new("K8", "V8"),
+                    KeyValue::new("K9", "V9"),
+                    KeyValue::new("K10", "V10"),
+                ],
+            )
+        })
     });
     group.bench_function("AddTenAttrDelta", |b| {
-        b.iter(|| cntr2.add(
-            &cx2,
-            1,
-            &[
-                KeyValue::new("K", "V"),
-                KeyValue::new("K2", "V2"),
-                KeyValue::new("K3", "V3"),
-                KeyValue::new("K4", "V4"),
-                KeyValue::new("K5", "V5"),
-                KeyValue::new("K6", "V6"),
-                KeyValue::new("K7", "V7"),
-                KeyValue::new("K8", "V8"),
-                KeyValue::new("K9", "V9"),
-                KeyValue::new("K10", "V10"),
-            ]
-        ))
+        b.iter(|| {
+            cntr2.add(
+                &cx2,
+                1,
+                &[
+                    KeyValue::new("K", "V"),
+                    KeyValue::new("K2", "V2"),
+                    KeyValue::new("K3", "V3"),
+                    KeyValue::new("K4", "V4"),
+                    KeyValue::new("K5", "V5"),
+                    KeyValue::new("K6", "V6"),
+                    KeyValue::new("K7", "V7"),
+                    KeyValue::new("K8", "V8"),
+                    KeyValue::new("K9", "V9"),
+                    KeyValue::new("K10", "V10"),
+                ],
+            )
+        })
     });
     group.bench_function("AddInvalidAttr", |b| {
         b.iter(|| cntr.add(&cx, 1, &[KeyValue::new("", "V"), KeyValue::new("K", "V")]))
@@ -293,5 +337,5 @@ fn benchmark_collect_histogram(b: &mut Bencher, n: usize) {
     })
 }
 
-criterion_group!(benches, counters);
+criterion_group!(benches, counters, histograms);
 criterion_main!(benches);
