@@ -1,5 +1,5 @@
 Fixes #
-Design discussion issue #
+Design discussion issue (if applicable) #
 
 ## Changes
 
