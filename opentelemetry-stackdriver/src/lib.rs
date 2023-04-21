@@ -44,7 +44,7 @@ use thiserror::Error;
 use tonic::metadata::MetadataValue;
 use tonic::{
     transport::{Channel, ClientTlsConfig},
-    Request,
+    Code, Request,
 };
 #[cfg(feature = "yup-authorizer")]
 use yup_oauth2::authenticator::Authenticator;
@@ -54,16 +54,18 @@ pub mod proto;
 
 const HTTP_HOST: Key = Key::from_static_str("http.host");
 
+use proto::devtools::cloudtrace::v2::span::{
+    time_event::Annotation, Attributes, SpanKind, TimeEvent, TimeEvents,
+};
 use proto::devtools::cloudtrace::v2::BatchWriteSpansRequest;
 use proto::devtools::cloudtrace::v2::{
-    span::{time_event::Annotation, Attributes, TimeEvent, TimeEvents},
-    trace_service_client::TraceServiceClient,
-    AttributeValue, Span, TruncatableString,
+    trace_service_client::TraceServiceClient, AttributeValue, Span, TruncatableString,
 };
 use proto::logging::v2::{
     log_entry::Payload, logging_service_v2_client::LoggingServiceV2Client, LogEntry,
     LogEntrySourceLocation, WriteLogEntriesRequest,
 };
+use proto::rpc::Status;
 
 /// Exports opentelemetry tracing spans to Google StackDriver.
 ///
@@ -327,6 +329,8 @@ where
                     time_event,
                     ..Default::default()
                 }),
+                status: status(span.status),
+                span_kind: SpanKind::from(span.span_kind) as i32,
                 ..Default::default()
             });
         }
@@ -736,6 +740,33 @@ const KEY_MAP: [(&Key, &str); 7] = [
     (&HTTP_ROUTE, "/http/route"),
 ];
 
+impl From<opentelemetry::trace::SpanKind> for SpanKind {
+    fn from(span_kind: opentelemetry::trace::SpanKind) -> Self {
+        match span_kind {
+            opentelemetry::trace::SpanKind::Client => SpanKind::Client,
+            opentelemetry::trace::SpanKind::Server => SpanKind::Server,
+            opentelemetry::trace::SpanKind::Producer => SpanKind::Producer,
+            opentelemetry::trace::SpanKind::Consumer => SpanKind::Consumer,
+            opentelemetry::trace::SpanKind::Internal => SpanKind::Internal,
+        }
+    }
+}
+
+fn status(value: opentelemetry::trace::Status) -> Option<Status> {
+    match value {
+        opentelemetry::trace::Status::Ok => Some(Status {
+            code: Code::Ok as i32,
+            message: "".to_owned(),
+            details: vec![],
+        }),
+        opentelemetry::trace::Status::Unset => None,
+        opentelemetry::trace::Status::Error { description } => Some(Status {
+            code: Code::Unknown as i32,
+            message: description.into(),
+            details: vec![],
+        }),
+    }
+}
 const TRACE_APPEND: &str = "https://www.googleapis.com/auth/trace.append";
 const LOGGING_WRITE: &str = "https://www.googleapis.com/auth/logging.write";
 const HTTP_PATH_ATTRIBUTE: &str = "http.path";
