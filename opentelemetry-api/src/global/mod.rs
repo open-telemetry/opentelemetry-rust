@@ -60,6 +60,7 @@
 //!         "my-library-name".into(),
 //!         Some(env!("CARGO_PKG_VERSION").into()),
 //!         None,
+//!         None,
 //!     );
 //!
 //!     tracer.in_span("doing_library_work", |cx| {

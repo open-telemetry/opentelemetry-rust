@@ -23,7 +23,7 @@ pub trait MeterProvider {
     /// If the name is empty, then an implementation defined default name will
     /// be used instead.
     fn meter(&self, name: Cow<'static, str>) -> Meter {
-        self.versioned_meter(name, None, None)
+        self.versioned_meter(name, None, None, None)
     }
 
     /// Creates an implementation of the [`Meter`] interface.
@@ -37,6 +37,7 @@ pub trait MeterProvider {
         name: Cow<'static, str>,
         version: Option<Cow<'static, str>>,
         schema_url: Option<Cow<'static, str>>,
+        attributes: Option<Vec<KeyValue>>,
     ) -> Meter;
 }
 

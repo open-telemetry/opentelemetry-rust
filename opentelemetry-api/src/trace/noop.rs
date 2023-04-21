@@ -34,6 +34,7 @@ impl trace::TracerProvider for NoopTracerProvider {
         _name: Cow<'static, str>,
         _version: Option<Cow<'static, str>>,
         _schema_url: Option<Cow<'static, str>>,
+        _attributes: Option<Vec<KeyValue>>,
     ) -> Self::Tracer {
         NoopTracer::new()
     }
