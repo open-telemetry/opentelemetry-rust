@@ -92,7 +92,7 @@ pub fn meter(name: impl Into<Cow<'static, str>>) -> Meter {
 /// # Example
 /// ```rust
 /// use opentelemetry_api::global::meter_with_version;
-/// let meter = meter_with_version("io.opentelemetry", Some("0.17".into()), Some("https://opentelemetry.io/schemas/1.2.0".into()));
+/// let meter = meter_with_version("io.opentelemetry", Some("0.17".into()), Some("https://opentelemetry.io/schemas/1.2.0".into()), Some(vec![KeyValue::new("key", "value")]));
 /// ```
 ///
 pub fn meter_with_version(
