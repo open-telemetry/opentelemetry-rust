@@ -103,6 +103,7 @@ where
             "opentelemetry".into(),
             Some(env!("CARGO_PKG_VERSION").into()),
             None,
+            None,
         );
         let _ = global::set_tracer_provider(provider);
 

@@ -9,7 +9,7 @@ use std::{
 
 use opentelemetry_api::{
     metrics::{noop::NoopMeterCore, InstrumentProvider, Meter as ApiMeter, MetricsError, Result},
-    Context,
+    Context, KeyValue,
 };
 
 use crate::{instrumentation::Scope, Resource};
@@ -79,10 +79,11 @@ impl opentelemetry_api::metrics::MeterProvider for MeterProvider {
         name: Cow<'static, str>,
         version: Option<Cow<'static, str>>,
         schema_url: Option<Cow<'static, str>>,
+        attributes: Option<Vec<KeyValue>>,
     ) -> ApiMeter {
         let inst_provider: Arc<dyn InstrumentProvider + Send + Sync> =
             if !self.is_shutdown.load(Ordering::Relaxed) {
-                let scope = Scope::new(name, version, schema_url);
+                let scope = Scope::new(name, version, schema_url, attributes);
                 Arc::new(SdkMeter::new(scope, self.pipes.clone()))
             } else {
                 Arc::new(NoopMeterCore::new())

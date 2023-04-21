@@ -125,6 +125,7 @@ impl opentelemetry_api::trace::TracerProvider for TracerProvider {
         name: Cow<'static, str>,
         version: Option<Cow<'static, str>>,
         schema_url: Option<Cow<'static, str>>,
+        attributes: Option<Vec<opentelemetry_api::KeyValue>>,
     ) -> Self::Tracer {
         // Use default value if name is invalid empty string
         let component_name = if name.is_empty() {
@@ -132,7 +133,8 @@ impl opentelemetry_api::trace::TracerProvider for TracerProvider {
         } else {
             name
         };
-        let instrumentation_lib = InstrumentationLibrary::new(component_name, version, schema_url);
+        let instrumentation_lib =
+            InstrumentationLibrary::new(component_name, version, schema_url, attributes);
 
         Tracer::new(instrumentation_lib, Arc::downgrade(&self.inner))
     }

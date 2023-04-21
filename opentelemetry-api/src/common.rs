@@ -426,7 +426,7 @@ pub trait ExportError: std::error::Error + Send + Sync + 'static {
 /// See the [instrumentation libraries] spec for more information.
 ///
 /// [instrumentation libraries]: https://github.com/open-telemetry/opentelemetry-specification/blob/v1.9.0/specification/overview.md#instrumentation-libraries
-#[derive(Debug, Default, Hash, Clone, PartialEq, Eq)]
+#[derive(Debug, Default, Clone)]
 #[non_exhaustive]
 pub struct InstrumentationLibrary {
     /// The library name.
@@ -443,6 +443,7 @@ pub struct InstrumentationLibrary {
     ///     "my-crate",
     ///     Some(env!("CARGO_PKG_VERSION")),
     ///     None,
+    ///     None,
     /// );
     /// ```
     pub version: Option<Cow<'static, str>>,
@@ -451,11 +452,38 @@ pub struct InstrumentationLibrary {
     ///
     /// [Schema url]: https://github.com/open-telemetry/opentelemetry-specification/blob/v1.9.0/specification/schemas/overview.md#schema-url
     pub schema_url: Option<Cow<'static, str>>,
+
+    /// Specifies the instrumentation scope attributes to associate with emitted telemetry.
+    pub attributes: Option<Vec<KeyValue>>,
+}
+
+// Uniqueness for InstrumentationLibrary/InstrumentationScope does not depend on attributes
+impl Eq for InstrumentationLibrary {}
+
+impl PartialEq for InstrumentationLibrary {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name
+            && self.version == other.version
+            && self.schema_url == other.schema_url
+    }
+}
+
+impl hash::Hash for InstrumentationLibrary {
+    fn hash<H: hash::Hasher>(&self, state: &mut H) {
+        self.name.hash(state);
+        self.version.hash(state);
+        self.schema_url.hash(state);
+    }
 }
 
 impl InstrumentationLibrary {
     /// Create an new instrumentation library.
-    pub fn new<T>(name: T, version: Option<T>, schema_url: Option<T>) -> InstrumentationLibrary
+    pub fn new<T>(
+        name: T,
+        version: Option<T>,
+        schema_url: Option<T>,
+        attributes: Option<Vec<KeyValue>>,
+    ) -> InstrumentationLibrary
     where
         T: Into<Cow<'static, str>>,
     {
@@ -463,6 +491,7 @@ impl InstrumentationLibrary {
             name: name.into(),
             version: version.map(Into::into),
             schema_url: schema_url.map(Into::into),
+            attributes,
         }
     }
 }

@@ -302,7 +302,7 @@ fn prometheus_exporter_integration() {
                 .unwrap(),
             )
             .build();
-        let meter = provider.versioned_meter("testmeter".into(), Some("v0.1.0".into()), None);
+        let meter = provider.versioned_meter("testmeter".into(), Some("v0.1.0".into()), None, None);
         (tc.record_metrics)(&cx, meter);
 
         let content = fs::read_to_string(Path::new("./tests/data").join(tc.expected_file))
@@ -354,7 +354,7 @@ fn multiple_scopes() {
         .build();
 
     let foo_counter = provider
-        .versioned_meter("meterfoo".into(), Some("v0.1.0".into()), None)
+        .versioned_meter("meterfoo".into(), Some("v0.1.0".into()), None, None)
         .u64_counter("foo")
         .with_unit(Unit::new("ms"))
         .with_description("meter foo counter")
@@ -362,7 +362,7 @@ fn multiple_scopes() {
     foo_counter.add(&cx, 100, &[KeyValue::new("type", "foo")]);
 
     let bar_counter = provider
-        .versioned_meter("meterbar".into(), Some("v0.1.0".into()), None)
+        .versioned_meter("meterbar".into(), Some("v0.1.0".into()), None, None)
         .u64_counter("bar")
         .with_unit(Unit::new("ms"))
         .with_description("meter bar counter")
@@ -689,8 +689,8 @@ fn duplicate_metrics() {
             .with_reader(exporter)
             .build();
 
-        let meter_a = provider.versioned_meter("ma".into(), Some("v0.1.0".into()), None);
-        let meter_b = provider.versioned_meter("mb".into(), Some("v0.1.0".into()), None);
+        let meter_a = provider.versioned_meter("ma".into(), Some("v0.1.0".into()), None, None);
+        let meter_b = provider.versioned_meter("mb".into(), Some("v0.1.0".into()), None, None);
 
         (tc.record_metrics)(&cx, meter_a, meter_b);
 
