@@ -139,7 +139,7 @@ fn counters(c: &mut Criterion) {
         b.iter(|| cntr.add(&cx, 1, &[KeyValue::new("K", "V")]))
     });
     group.bench_function("AddOneAttrDelta", |b| {
-        b.iter(|| cntr2.add(&cx2, 1, &[KeyValue::new("K", "V")]))
+        b.iter(|| cntr2.add(&cx2, 1, &[KeyValue::new("K1", "V1")]))
     });
     group.bench_function("AddThreeAttr", |b| {
         b.iter(|| {
@@ -147,9 +147,9 @@ fn counters(c: &mut Criterion) {
                 &cx,
                 1,
                 &[
-                    KeyValue::new("K", "V"),
                     KeyValue::new("K2", "V2"),
                     KeyValue::new("K3", "V3"),
+                    KeyValue::new("K4", "V4"),
                 ],
             )
         })
@@ -160,9 +160,9 @@ fn counters(c: &mut Criterion) {
                 &cx2,
                 1,
                 &[
-                    KeyValue::new("K", "V"),
                     KeyValue::new("K2", "V2"),
                     KeyValue::new("K3", "V3"),
+                    KeyValue::new("K4", "V4"),
                 ],
             )
         })
@@ -173,11 +173,11 @@ fn counters(c: &mut Criterion) {
                 &cx,
                 1,
                 &[
-                    KeyValue::new("K", "V"),
-                    KeyValue::new("K2", "V2"),
-                    KeyValue::new("K3", "V3"),
-                    KeyValue::new("K4", "V4"),
                     KeyValue::new("K5", "V5"),
+                    KeyValue::new("K6", "V6"),
+                    KeyValue::new("K7", "V7"),
+                    KeyValue::new("K8", "V8"),
+                    KeyValue::new("K9", "V9"),
                 ],
             )
         })
@@ -188,11 +188,11 @@ fn counters(c: &mut Criterion) {
                 &cx2,
                 1,
                 &[
-                    KeyValue::new("K", "V"),
-                    KeyValue::new("K2", "V2"),
-                    KeyValue::new("K3", "V3"),
-                    KeyValue::new("K4", "V4"),
                     KeyValue::new("K5", "V5"),
+                    KeyValue::new("K6", "V6"),
+                    KeyValue::new("K7", "V7"),
+                    KeyValue::new("K8", "V8"),
+                    KeyValue::new("K9", "V9"),
                 ],
             )
         })
@@ -203,16 +203,16 @@ fn counters(c: &mut Criterion) {
                 &cx,
                 1,
                 &[
-                    KeyValue::new("K", "V"),
-                    KeyValue::new("K2", "V2"),
-                    KeyValue::new("K3", "V3"),
-                    KeyValue::new("K4", "V4"),
-                    KeyValue::new("K5", "V5"),
-                    KeyValue::new("K6", "V6"),
-                    KeyValue::new("K7", "V7"),
-                    KeyValue::new("K8", "V8"),
-                    KeyValue::new("K9", "V9"),
                     KeyValue::new("K10", "V10"),
+                    KeyValue::new("K11", "V11"),
+                    KeyValue::new("K12", "V12"),
+                    KeyValue::new("K13", "V13"),
+                    KeyValue::new("K14", "V14"),
+                    KeyValue::new("K15", "V15"),
+                    KeyValue::new("K16", "V16"),
+                    KeyValue::new("K17", "V17"),
+                    KeyValue::new("K18", "V18"),
+                    KeyValue::new("K19", "V19"),
                 ],
             )
         })
@@ -223,16 +223,16 @@ fn counters(c: &mut Criterion) {
                 &cx2,
                 1,
                 &[
-                    KeyValue::new("K", "V"),
-                    KeyValue::new("K2", "V2"),
-                    KeyValue::new("K3", "V3"),
-                    KeyValue::new("K4", "V4"),
-                    KeyValue::new("K5", "V5"),
-                    KeyValue::new("K6", "V6"),
-                    KeyValue::new("K7", "V7"),
-                    KeyValue::new("K8", "V8"),
-                    KeyValue::new("K9", "V9"),
                     KeyValue::new("K10", "V10"),
+                    KeyValue::new("K11", "V11"),
+                    KeyValue::new("K12", "V12"),
+                    KeyValue::new("K13", "V13"),
+                    KeyValue::new("K14", "V14"),
+                    KeyValue::new("K15", "V15"),
+                    KeyValue::new("K16", "V16"),
+                    KeyValue::new("K17", "V17"),
+                    KeyValue::new("K18", "V18"),
+                    KeyValue::new("K19", "V19"),
                 ],
             )
         })

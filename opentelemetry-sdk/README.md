@@ -13,7 +13,6 @@ The Rust [OpenTelemetry](https://opentelemetry.io/) implementation.
 [![codecov](https://codecov.io/gh/open-telemetry/opentelemetry-rust/branch/main/graph/badge.svg)](https://codecov.io/gh/open-telemetry/opentelemetry-rust)
 [![Slack](https://img.shields.io/badge/slack-@cncf/otel/rust-brightgreen.svg?logo=slack)](https://cloud-native.slack.com/archives/C03GDP0H023)
 
-
 ## Overview
 
 OpenTelemetry is a collection of tools, APIs, and SDKs used to instrument,
@@ -27,3 +26,11 @@ observability tools.
 [Prometheus]: https://prometheus.io
 [Jaeger]: https://www.jaegertracing.io
 [msrv]: #supported-rust-versions
+
+## OpenTelemetry Benchmarks
+
+From the root folder, run the following command:
+
+```sh
+cargo bench
+```
