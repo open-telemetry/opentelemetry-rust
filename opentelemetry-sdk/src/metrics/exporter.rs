@@ -1,5 +1,6 @@
 //! Interfaces for exporting metrics
 use async_trait::async_trait;
+
 use opentelemetry_api::metrics::Result;
 
 use crate::metrics::{

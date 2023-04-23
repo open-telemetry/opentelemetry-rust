@@ -24,7 +24,7 @@
 //! let provider = MeterProvider::builder().with_resource(resource).build();
 //!
 //! // Use the meter provider to create meter instances
-//! let meter = provider.meter("my_app");
+//! let meter = provider.meter("my_app".into());
 //!
 //! // Create instruments scoped to the meter
 //! let counter = meter

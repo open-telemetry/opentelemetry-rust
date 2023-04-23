@@ -290,8 +290,9 @@ impl DatadogPipelineBuilder {
         provider_builder = provider_builder.with_config(config);
         let provider = provider_builder.build();
         let tracer = provider.versioned_tracer(
-            "opentelemetry-datadog",
-            Some(env!("CARGO_PKG_VERSION")),
+            "opentelemetry-datadog".into(),
+            Some(env!("CARGO_PKG_VERSION").into()),
+            None,
             None,
         );
         let _ = global::set_tracer_provider(provider);
@@ -311,8 +312,9 @@ impl DatadogPipelineBuilder {
         provider_builder = provider_builder.with_config(config);
         let provider = provider_builder.build();
         let tracer = provider.versioned_tracer(
-            "opentelemetry-datadog",
-            Some(env!("CARGO_PKG_VERSION")),
+            "opentelemetry-datadog".into(),
+            Some(env!("CARGO_PKG_VERSION").into()),
+            None,
             None,
         );
         let _ = global::set_tracer_provider(provider);

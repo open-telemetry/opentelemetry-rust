@@ -100,6 +100,18 @@ pub struct DataPoint<T> {
     pub exemplars: Vec<Exemplar<T>>,
 }
 
+impl<T: Copy> Clone for DataPoint<T> {
+    fn clone(&self) -> Self {
+        Self {
+            attributes: self.attributes.clone(),
+            start_time: self.start_time,
+            time: self.time,
+            value: self.value,
+            exemplars: self.exemplars.clone(),
+        }
+    }
+}
+
 /// Represents the histogram of all measurements of values from an instrument.
 #[derive(Debug)]
 pub struct Histogram<T> {
@@ -146,6 +158,23 @@ pub struct HistogramDataPoint<T> {
     pub exemplars: Vec<Exemplar<T>>,
 }
 
+impl<T: Copy> Clone for HistogramDataPoint<T> {
+    fn clone(&self) -> Self {
+        Self {
+            attributes: self.attributes.clone(),
+            start_time: self.start_time,
+            time: self.time,
+            count: self.count,
+            bounds: self.bounds.clone(),
+            bucket_counts: self.bucket_counts.clone(),
+            min: self.min,
+            max: self.max,
+            sum: self.sum,
+            exemplars: self.exemplars.clone(),
+        }
+    }
+}
+
 /// A measurement sampled from a time series providing a typical example.
 #[derive(Debug)]
 pub struct Exemplar<T> {
@@ -164,4 +193,16 @@ pub struct Exemplar<T> {
     ///
     /// If no span was active or the span was not sampled this will be empty.
     pub trace_id: [u8; 16],
+}
+
+impl<T: Copy> Clone for Exemplar<T> {
+    fn clone(&self) -> Self {
+        Self {
+            filtered_attributes: self.filtered_attributes.clone(),
+            time: self.time,
+            value: self.value,
+            span_id: self.span_id,
+            trace_id: self.trace_id,
+        }
+    }
 }

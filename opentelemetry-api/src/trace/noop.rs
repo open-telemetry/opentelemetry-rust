@@ -31,9 +31,10 @@ impl trace::TracerProvider for NoopTracerProvider {
     /// Returns a new `NoopTracer` instance.
     fn versioned_tracer(
         &self,
-        _name: impl Into<Cow<'static, str>>,
-        _version: Option<&'static str>,
-        _schema_url: Option<&'static str>,
+        _name: Cow<'static, str>,
+        _version: Option<Cow<'static, str>>,
+        _schema_url: Option<Cow<'static, str>>,
+        _attributes: Option<Vec<KeyValue>>,
     ) -> Self::Tracer {
         NoopTracer::new()
     }
