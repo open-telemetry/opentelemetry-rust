@@ -34,7 +34,6 @@ impl MetricsExporter {
         MetricsExporterBuilder::default()
     }
 }
-
 impl Default for MetricsExporter {
     fn default() -> Self {
         MetricsExporterBuilder::default().build()

@@ -22,9 +22,6 @@ async fn handle(req: Request<Body>) -> Result<Response<Body>, Infallible> {
 fn init_tracer() {
     global::set_text_map_propagator(TraceContextPropagator::new());
 
-    // Install stdout exporter pipeline to be able to retrieve the collected spans.
-    // For the demonstration, use `Sampler::AlwaysOn` sampler to sample all traces. In a production
-    // application, use `Sampler::ParentBased` or `Sampler::TraceIdRatioBased` with a desired ratio.
     let provider = TracerProvider::builder()
         .with_simple_exporter(SpanExporter::default())
         .build();

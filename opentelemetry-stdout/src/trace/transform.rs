@@ -136,7 +136,6 @@ enum SpanKind {
     Server = 2,
     Client = 3,
     Producer = 4,
-    #[allow(dead_code)]
     Consumer = 5,
 }
 
@@ -155,7 +154,7 @@ impl From<opentelemetry_api::trace::SpanKind> for SpanKind {
             opentelemetry_api::trace::SpanKind::Client => SpanKind::Client,
             opentelemetry_api::trace::SpanKind::Server => SpanKind::Server,
             opentelemetry_api::trace::SpanKind::Producer => SpanKind::Producer,
-            opentelemetry_api::trace::SpanKind::Consumer => SpanKind::Server,
+            opentelemetry_api::trace::SpanKind::Consumer => SpanKind::Consumer,
             opentelemetry_api::trace::SpanKind::Internal => SpanKind::Internal,
         }
     }
