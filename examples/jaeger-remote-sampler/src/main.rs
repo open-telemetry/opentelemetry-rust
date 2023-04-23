@@ -1,6 +1,5 @@
 use opentelemetry_api::global;
 use opentelemetry_api::trace::Tracer;
-use opentelemetry_sdk::export::trace::stdout::Exporter as StdoutExporter;
 use opentelemetry_sdk::runtime;
 use opentelemetry_sdk::trace::{Sampler, TracerProvider as SdkTracerProvider};
 use std::time::Duration;
@@ -18,7 +17,7 @@ fn setup() {
 
     let provider = SdkTracerProvider::builder()
         .with_config(config)
-        .with_simple_exporter(StdoutExporter::new(std::io::stdout(), true))
+        .with_simple_exporter(opentelemetry_stdout::SpanExporter::default())
         .build();
 
     global::set_tracer_provider(provider);

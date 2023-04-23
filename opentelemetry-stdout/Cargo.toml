@@ -1,0 +1,33 @@
+[package]
+name = "opentelemetry-stdout"
+version = "0.1.0"
+description = "An OpenTelemetry exporter for stdout"
+homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-stdout"
+repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-stdout"
+readme = "README.md"
+categories = [
+    "development-tools::debugging",
+    "development-tools::profiling",
+    "asynchronous",
+]
+keywords = ["opentelemetry", "tracing", "metrics"]
+license = "Apache-2.0"
+edition = "2021"
+rust-version = "1.60"
+
+[features]
+trace = ["opentelemetry_api/trace", "opentelemetry_sdk/trace", "futures-util"]
+metrics = ["async-trait", "opentelemetry_api/metrics", "opentelemetry_sdk/metrics"]
+
+[dependencies]
+async-trait = { version = "0.1", optional = true }
+futures-util = { version = "0.3", optional = true, default-features = false }
+opentelemetry_api = { version = "0.19", path = "../opentelemetry-api", default_features = false }
+opentelemetry_sdk = { version = "0.19", path = "../opentelemetry-sdk", default_features = false }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+[dev-dependencies]
+opentelemetry_api = { version = "0.19", path = "../opentelemetry-api", features = ["metrics"] }
+opentelemetry_sdk = { version = "0.19", path = "../opentelemetry-sdk", features = ["rt-tokio", "metrics"] }
+tokio = { version = "1.27", features = ["full"] }

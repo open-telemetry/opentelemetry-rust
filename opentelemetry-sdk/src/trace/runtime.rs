@@ -123,94 +123,73 @@ impl TraceRuntime for AsyncStd {
 // need to run those tests one by one as the GlobalTracerProvider is a shared object between
 // threads Use cargo test -- --ignored --test-threads=1 to run those tests.
 mod tests {
+    use crate::export::trace::{ExportResult, SpanExporter};
     #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
     use crate::runtime;
     #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
     use crate::trace::TraceRuntime;
+    use futures_util::future::BoxFuture;
     #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
     use opentelemetry_api::global::*;
     #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
     use opentelemetry_api::trace::Tracer;
+    use std::fmt::Debug;
+    use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::Arc;
-    use std::{fmt::Debug, io::Write, sync::Mutex};
 
     #[derive(Debug)]
-    struct AssertWriter {
-        buf: Arc<Mutex<Vec<u8>>>,
+    struct SpanCountExporter {
+        span_count: Arc<AtomicUsize>,
+    }
+
+    impl SpanExporter for SpanCountExporter {
+        fn export(
+            &mut self,
+            batch: Vec<crate::export::trace::SpanData>,
+        ) -> BoxFuture<'static, ExportResult> {
+            self.span_count.fetch_add(batch.len(), Ordering::SeqCst);
+            Box::pin(async { Ok(()) })
+        }
     }
 
     #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
-    impl AssertWriter {
-        fn new() -> AssertWriter {
-            AssertWriter {
-                buf: Arc::new(Mutex::new(Vec::new())),
-            }
-        }
-
-        fn len(&self) -> usize {
-            self.buf
-                .lock()
-                .expect("cannot acquire the lock of assert writer")
-                .len()
-        }
-    }
-
-    impl Write for AssertWriter {
-        fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-            let mut buffer = self
-                .buf
-                .lock()
-                .expect("cannot acquire the lock of assert writer");
-            buffer.write(buf)
-        }
-
-        fn flush(&mut self) -> std::io::Result<()> {
-            let mut buffer = self
-                .buf
-                .lock()
-                .expect("cannot acquire the lock of assert writer");
-            buffer.flush()
-        }
-    }
-
-    impl Clone for AssertWriter {
-        fn clone(&self) -> Self {
-            AssertWriter {
-                buf: self.buf.clone(),
+    impl SpanCountExporter {
+        fn new() -> SpanCountExporter {
+            SpanCountExporter {
+                span_count: Arc::new(AtomicUsize::new(0)),
             }
         }
     }
 
     #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
     fn build_batch_tracer_provider<R: TraceRuntime>(
-        assert_writer: AssertWriter,
+        exporter: SpanCountExporter,
         runtime: R,
     ) -> crate::trace::TracerProvider {
         use crate::trace::TracerProvider;
-        let exporter = crate::export::trace::stdout::Exporter::new(assert_writer, true);
         TracerProvider::builder()
             .with_batch_exporter(exporter, runtime)
             .build()
     }
 
     #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
-    fn build_simple_tracer_provider(assert_writer: AssertWriter) -> crate::trace::TracerProvider {
+    fn build_simple_tracer_provider(exporter: SpanCountExporter) -> crate::trace::TracerProvider {
         use crate::trace::TracerProvider;
-        let exporter = crate::export::trace::stdout::Exporter::new(assert_writer, true);
         TracerProvider::builder()
             .with_simple_exporter(exporter)
             .build()
     }
 
     #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
-    async fn test_set_provider_in_tokio<R: TraceRuntime>(runtime: R) -> AssertWriter {
-        let buffer = AssertWriter::new();
-        let _ = set_tracer_provider(build_batch_tracer_provider(buffer.clone(), runtime));
+    async fn test_set_provider_in_tokio<R: TraceRuntime>(runtime: R) -> Arc<AtomicUsize> {
+        let exporter = SpanCountExporter::new();
+        let span_count = exporter.span_count.clone();
+        let _ = set_tracer_provider(build_batch_tracer_provider(exporter, runtime));
         let tracer = tracer("opentelemetery");
 
         tracer.in_span("test", |_cx| {});
 
-        buffer
+        span_count
     }
 
     // When using `tokio::spawn` to spawn the worker task in batch processor
@@ -233,8 +212,8 @@ mod tests {
     #[ignore = "requires --test-threads=1"]
     #[cfg(feature = "rt-tokio")]
     async fn test_set_provider_multiple_thread_tokio() {
-        let assert_writer = test_set_provider_in_tokio(runtime::Tokio).await;
-        assert_eq!(assert_writer.len(), 0);
+        let span_count = test_set_provider_in_tokio(runtime::Tokio).await;
+        assert_eq!(span_count.load(Ordering::SeqCst), 0);
     }
 
     // Test if the multiple thread tokio runtime could exit successfully when force flushing spans
@@ -242,9 +221,9 @@ mod tests {
     #[ignore = "requires --test-threads=1"]
     #[cfg(feature = "rt-tokio")]
     async fn test_set_provider_multiple_thread_tokio_shutdown() {
-        let assert_writer = test_set_provider_in_tokio(runtime::Tokio).await;
+        let span_count = test_set_provider_in_tokio(runtime::Tokio).await;
         shutdown_tracer_provider();
-        assert!(assert_writer.len() > 0);
+        assert!(span_count.load(Ordering::SeqCst) > 0);
     }
 
     // Test use simple processor in single thread tokio runtime.
@@ -253,15 +232,16 @@ mod tests {
     #[ignore = "requires --test-threads=1"]
     #[cfg(feature = "rt-tokio")]
     async fn test_set_provider_single_thread_tokio_with_simple_processor() {
-        let assert_writer = AssertWriter::new();
-        let _ = set_tracer_provider(build_simple_tracer_provider(assert_writer.clone()));
+        let exporter = SpanCountExporter::new();
+        let span_count = exporter.span_count.clone();
+        let _ = set_tracer_provider(build_simple_tracer_provider(exporter));
         let tracer = tracer("opentelemetry");
 
         tracer.in_span("test", |_cx| {});
 
         shutdown_tracer_provider();
 
-        assert!(assert_writer.len() > 0);
+        assert!(span_count.load(Ordering::SeqCst) > 0);
     }
 
     // Test if the single thread tokio runtime could exit successfully when not force flushing spans
@@ -269,8 +249,8 @@ mod tests {
     #[ignore = "requires --test-threads=1"]
     #[cfg(feature = "rt-tokio-current-thread")]
     async fn test_set_provider_single_thread_tokio() {
-        let assert_writer = test_set_provider_in_tokio(runtime::TokioCurrentThread).await;
-        assert_eq!(assert_writer.len(), 0)
+        let span_count = test_set_provider_in_tokio(runtime::TokioCurrentThread).await;
+        assert_eq!(span_count.load(Ordering::SeqCst), 0)
     }
 
     // Test if the single thread tokio runtime could exit successfully when force flushing spans.
@@ -278,8 +258,8 @@ mod tests {
     #[ignore = "requires --test-threads=1"]
     #[cfg(feature = "rt-tokio-current-thread")]
     async fn test_set_provider_single_thread_tokio_shutdown() {
-        let assert_writer = test_set_provider_in_tokio(runtime::TokioCurrentThread).await;
+        let span_count = test_set_provider_in_tokio(runtime::TokioCurrentThread).await;
         shutdown_tracer_provider();
-        assert!(assert_writer.len() > 0);
+        assert!(span_count.load(Ordering::SeqCst) > 0)
     }
 }

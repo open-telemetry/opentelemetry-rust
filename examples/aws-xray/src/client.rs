@@ -1,32 +1,35 @@
 use hyper::{body::Body, Client};
-use opentelemetry::{
+use opentelemetry_api::{
     global,
-    sdk::export::trace::stdout,
-    sdk::trace as sdktrace,
     trace::{TraceContextExt, Tracer},
     Context, KeyValue,
 };
 use opentelemetry_aws::XrayPropagator;
 use opentelemetry_http::HeaderInjector;
+use opentelemetry_sdk::trace::{self as sdktrace, TracerProvider};
+use opentelemetry_stdout::SpanExporter;
 
-fn init_tracer() -> sdktrace::Tracer {
+fn init_tracer() {
     global::set_text_map_propagator(XrayPropagator::new());
 
     // Install stdout exporter pipeline to be able to retrieve the collected spans.
     // For the demonstration, use `Sampler::AlwaysOn` sampler to sample all traces. In a production
     // application, use `Sampler::ParentBased` or `Sampler::TraceIdRatioBased` with a desired ratio.
-    stdout::new_pipeline()
-        .with_trace_config(
+    let provider = TracerProvider::builder()
+        .with_config(
             sdktrace::config()
                 .with_sampler(sdktrace::Sampler::AlwaysOn)
                 .with_id_generator(sdktrace::XrayIdGenerator::default()),
         )
-        .install_simple()
+        .with_simple_exporter(SpanExporter::default())
+        .build();
+
+    global::set_tracer_provider(provider);
 }
 
 #[tokio::main]
 async fn main() -> std::result::Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let _tracer = init_tracer();
+    init_tracer();
 
     let client = Client::new();
     let span = global::tracer("example/client").start("say hello");

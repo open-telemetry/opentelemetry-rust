@@ -690,7 +690,7 @@ mod tests {
         OTEL_BSP_MAX_EXPORT_BATCH_SIZE, OTEL_BSP_MAX_QUEUE_SIZE, OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT,
         OTEL_BSP_SCHEDULE_DELAY, OTEL_BSP_SCHEDULE_DELAY_DEFAULT,
     };
-    use crate::export::trace::{stdout, ExportResult, SpanData, SpanExporter};
+    use crate::export::trace::{ExportResult, SpanData, SpanExporter};
     use crate::runtime;
     use crate::testing::trace::{
         new_test_export_span_data, new_test_exporter, new_tokio_test_exporter,
@@ -762,10 +762,7 @@ mod tests {
         std::env::set_var(OTEL_BSP_EXPORT_TIMEOUT, "2046");
         std::env::set_var(OTEL_BSP_SCHEDULE_DELAY, "I am not number");
 
-        let mut builder = BatchSpanProcessor::builder(
-            stdout::Exporter::new(std::io::stdout(), true),
-            runtime::Tokio,
-        );
+        let mut builder = BatchSpanProcessor::builder(new_test_exporter().0, runtime::Tokio);
         // export batch size cannot exceed max queue size
         assert_eq!(builder.config.max_export_batch_size, 500);
         assert_eq!(
@@ -782,10 +779,7 @@ mod tests {
         );
 
         std::env::set_var(OTEL_BSP_MAX_QUEUE_SIZE, "120");
-        builder = BatchSpanProcessor::builder(
-            stdout::Exporter::new(std::io::stdout(), true),
-            runtime::Tokio,
-        );
+        builder = BatchSpanProcessor::builder(new_test_exporter().0, runtime::Tokio);
 
         assert_eq!(builder.config.max_export_batch_size, 120);
         assert_eq!(builder.config.max_queue_size, 120);
