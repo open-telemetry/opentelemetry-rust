@@ -139,7 +139,7 @@ impl SpanRef<'_> {
     ///
     /// [standard attributes]: https://github.com/open-telemetry/opentelemetry-specification/blob/v1.9.0/specification/trace/semantic_conventions/README.md
     /// [opentelemetry_semantic_conventions]: https://docs.rs/opentelemetry-semantic-conventions
-    pub fn set_attributes(&mut self, attributes: impl IntoIterator<Item = KeyValue>) {
+    pub fn set_attributes(&self, attributes: impl IntoIterator<Item = KeyValue>) {
         self.with_inner_mut(move |inner| inner.set_attributes(attributes))
     }
 
