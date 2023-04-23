@@ -19,7 +19,7 @@
 //!     let provider = TracerProvider::builder()
 //!         .with_simple_exporter(exporter)
 //!         .build();
-//!     let tracer = provider.tracer("readme_example");
+//!     let tracer = provider.tracer("readme_example".into());
 //!
 //!     tracer.in_span("doing_work", |cx| {
 //!         // Traced app logic here...
