@@ -52,9 +52,9 @@
 //!
 //!     // Get a tracer for this library
 //!     let tracer = tracer_provider.versioned_tracer(
-//!         "my_name".into(),
-//!         Some(env!("CARGO_PKG_VERSION").into()),
-//!         None,
+//!         "my_name",
+//!         Some(env!("CARGO_PKG_VERSION")),
+//!         Some("https://opentelemetry.io/schemas/1.17.0"),
 //!         None
 //!     );
 //!

@@ -57,9 +57,9 @@
 //!     // End users of your library will configure their global tracer provider
 //!     // so you can use the global tracer without any setup
 //!     let tracer = global::tracer_provider().versioned_tracer(
-//!         "my-library-name".into(),
-//!         Some(env!("CARGO_PKG_VERSION").into()),
-//!         None,
+//!         "my-library-name",
+//!         Some(env!("CARGO_PKG_VERSION")),
+//!         Some("https://opentelemetry.io/schemas/1.17.0"),
 //!         None,
 //!     );
 //!
@@ -152,15 +152,10 @@ mod trace;
 pub use error_handler::{handle_error, set_error_handler, Error};
 #[cfg(feature = "metrics")]
 #[cfg_attr(docsrs, doc(cfg(feature = "metrics")))]
-pub use metrics::{
-    meter, meter_provider, meter_with_version, set_meter_provider, GlobalMeterProvider,
-};
+pub use metrics::*;
 #[cfg(feature = "trace")]
 #[cfg_attr(docsrs, doc(cfg(feature = "trace")))]
-pub use propagation::{get_text_map_propagator, set_text_map_propagator};
+pub use propagation::*;
 #[cfg(feature = "trace")]
 #[cfg_attr(docsrs, doc(cfg(feature = "trace")))]
-pub use trace::{
-    set_tracer_provider, shutdown_tracer_provider, tracer, tracer_provider, BoxedSpan, BoxedTracer,
-    GlobalTracerProvider, ObjectSafeTracer, ObjectSafeTracerProvider,
-};
+pub use trace::*;

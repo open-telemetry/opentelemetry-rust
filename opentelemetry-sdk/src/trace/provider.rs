@@ -122,12 +122,13 @@ impl opentelemetry_api::trace::TracerProvider for TracerProvider {
     /// Create a new versioned `Tracer` instance.
     fn versioned_tracer(
         &self,
-        name: Cow<'static, str>,
-        version: Option<Cow<'static, str>>,
-        schema_url: Option<Cow<'static, str>>,
+        name: impl Into<Cow<'static, str>>,
+        version: Option<impl Into<Cow<'static, str>>>,
+        schema_url: Option<impl Into<Cow<'static, str>>>,
         attributes: Option<Vec<opentelemetry_api::KeyValue>>,
     ) -> Self::Tracer {
         // Use default value if name is invalid empty string
+        let name = name.into();
         let component_name = if name.is_empty() {
             Cow::Borrowed(DEFAULT_COMPONENT_NAME)
         } else {

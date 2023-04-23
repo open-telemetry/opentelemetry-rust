@@ -7,6 +7,8 @@ use std::mem;
 use std::sync::{Arc, RwLock};
 use std::time::SystemTime;
 
+/// Allows a specific [`crate::trace::Span`] to be used generically by [`BoxedSpan`]
+/// instances by mirroring the interface and boxing the return types.
 pub trait ObjectSafeSpan {
     /// An API to record events at a specific time in the context of a given `Span`.
     ///
@@ -351,15 +353,17 @@ impl trace::TracerProvider for GlobalTracerProvider {
     /// Create a versioned tracer using the global provider.
     fn versioned_tracer(
         &self,
-        name: Cow<'static, str>,
-        version: Option<Cow<'static, str>>,
-        schema_url: Option<Cow<'static, str>>,
+        name: impl Into<Cow<'static, str>>,
+        version: Option<impl Into<Cow<'static, str>>>,
+        schema_url: Option<impl Into<Cow<'static, str>>>,
         attributes: Option<Vec<KeyValue>>,
     ) -> Self::Tracer {
-        BoxedTracer(
-            self.provider
-                .versioned_tracer_boxed(name, version, schema_url, attributes),
-        )
+        BoxedTracer(self.provider.versioned_tracer_boxed(
+            name.into(),
+            version.map(Into::into),
+            schema_url.map(Into::into),
+            attributes,
+        ))
     }
 }
 
