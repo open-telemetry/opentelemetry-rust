@@ -1,4 +1,3 @@
-use crate::InstrumentationLibrary;
 use opentelemetry_api::trace::OrderMap;
 use opentelemetry_api::{
     trace::{
