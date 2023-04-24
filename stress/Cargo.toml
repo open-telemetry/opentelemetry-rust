@@ -1,0 +1,15 @@
+[package]
+name = "stress"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[[bin]] # Bin to run the metrics stress tests
+name = "metrics"
+path = "src/metrics.rs"
+doc = false
+
+[dependencies]
+ctrlc = "3.2.5"
+num_cpus = "1.15.0"
+rayon = "1.7.0"
