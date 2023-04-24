@@ -211,14 +211,7 @@ impl ShouldSample for Sampler {
             #[cfg(feature = "jaeger_remote_sampler")]
             Sampler::JaegerRemote(remote_sampler) => {
                 remote_sampler
-                    .should_sample(
-                        parent_context,
-                        trace_id,
-                        name,
-                        span_kind,
-                        attributes,
-                        links,
-                    )
+                    .should_sample(parent_context, trace_id, name, span_kind, attributes, links)
                     .decision
             }
         };
