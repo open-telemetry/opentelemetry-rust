@@ -37,7 +37,7 @@ use opentelemetry::{
 };
 use opentelemetry_semantic_conventions::resource::SERVICE_NAME;
 use opentelemetry_semantic_conventions::trace::{
-    HTTP_METHOD, HTTP_ROUTE, HTTP_STATUS_CODE, HTTP_TARGET, HTTP_URL, HTTP_USER_AGENT,
+    HTTP_METHOD, HTTP_ROUTE, HTTP_STATUS_CODE, HTTP_TARGET, HTTP_URL,
 };
 use thiserror::Error;
 #[cfg(any(feature = "yup-authorizer", feature = "gcp_auth"))]
@@ -53,6 +53,7 @@ use yup_oauth2::authenticator::Authenticator;
 pub mod proto;
 
 const HTTP_HOST: Key = Key::from_static_str("http.host");
+const HTTP_USER_AGENT: Key = Key::from_static_str("http.user_agent");
 
 use proto::devtools::cloudtrace::v2::BatchWriteSpansRequest;
 use proto::devtools::cloudtrace::v2::{
@@ -772,8 +773,7 @@ mod tests {
         );
 
         // 	userAgentAttribute  = "http.user_agent"
-        attributes
-            .insert(semcov::trace::HTTP_USER_AGENT.string("CERN-LineMode/2.15 libwww/2.17b3"));
+        attributes.insert(HTTP_USER_AGENT.string("CERN-LineMode/2.15 libwww/2.17b3"));
 
         // 	statusCodeAttribute = "http.status_code"
         attributes.insert(semcov::trace::HTTP_STATUS_CODE.i64(200));
