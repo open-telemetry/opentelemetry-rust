@@ -58,6 +58,10 @@ Open a pull request against the main
 [opentelemetry-rust](https://github.com/open-telemetry/opentelemetry-rust)
 repo.
 
+> **Note**
+> It is recommended to run [pre-commit script](precommit.sh) from the root of
+the repo to catch any issues locally.
+
 ### How to Receive Comments
 
 * If the PR is not ready for review, please put `[WIP]` in the title,
