@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Fix `SpanRef::set_attributes` mutability requirement. [#1038](https://github.com/open-telemetry/opentelemetry-rust/pull/1038)
+
 ## v0.19.0
 ### Added
 - Add `WithContext` to public api [#893](https://github.com/open-telemetry/opentelemetry-rust/pull/893).
