@@ -7,26 +7,7 @@
 //! [`LogRecord`]: crate::log::LogRecord
 //! [`Write`]: std::io::Write
 //! [`Stdout`]: std::io::Stdout
-//!
-//! # Examples
-//!
-//! ```no_run
-//! use opentelemetry_api::global::shutdown_tracer_provider;
-//! use opentelemetry_api::trace::Tracer;
-//! use opentelemetry_sdk::export::trace::stdout;
-//!
-//! fn main() {
-//!     let tracer = stdout::new_pipeline()
-//!         .with_pretty_print(true)
-//!         .install_simple();
-//!
-//!     tracer.in_span("doing_work", |cx| {
-//!         // Traced app logic here...
-//!     });
-//!
-//!     shutdown_tracer_provider(); // sending remaining spans
-//! }
-//! ```
+// TODO: Add an example for using this exporter.
 use crate::export::{
     logs::{ExportResult, LogData, LogExporter},
     ExportError,
