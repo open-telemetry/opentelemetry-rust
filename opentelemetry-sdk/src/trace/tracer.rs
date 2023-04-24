@@ -273,7 +273,6 @@ mod tests {
     use crate::{
         testing::trace::TestSpan,
         trace::{Config, Sampler, ShouldSample},
-        InstrumentationLibrary,
     };
     use opentelemetry_api::{
         trace::{
