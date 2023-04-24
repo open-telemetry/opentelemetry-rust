@@ -24,7 +24,7 @@
 //!     let provider = TracerProvider::builder()
 //!         .with_simple_exporter(opentelemetry_stdout::SpanExporter::default())
 //!         .build();
-//!     let tracer = provider.tracer("readme_example".into());
+//!     let tracer = provider.tracer("readme_example");
 //!
 //!     tracer.in_span("doing_work", |cx| {
 //!         // Traced app logic here...

@@ -442,7 +442,7 @@ pub struct InstrumentationLibrary {
     /// let library = opentelemetry_api::InstrumentationLibrary::new(
     ///     "my-crate",
     ///     Some(env!("CARGO_PKG_VERSION")),
-    ///     None,
+    ///     Some("https://opentelemetry.io/schemas/1.17.0"),
     ///     None,
     /// );
     /// ```
@@ -478,15 +478,12 @@ impl hash::Hash for InstrumentationLibrary {
 
 impl InstrumentationLibrary {
     /// Create an new instrumentation library.
-    pub fn new<T>(
-        name: T,
-        version: Option<T>,
-        schema_url: Option<T>,
+    pub fn new(
+        name: impl Into<Cow<'static, str>>,
+        version: Option<impl Into<Cow<'static, str>>>,
+        schema_url: Option<impl Into<Cow<'static, str>>>,
         attributes: Option<Vec<KeyValue>>,
-    ) -> InstrumentationLibrary
-    where
-        T: Into<Cow<'static, str>>,
-    {
+    ) -> InstrumentationLibrary {
         InstrumentationLibrary {
             name: name.into(),
             version: version.map(Into::into),

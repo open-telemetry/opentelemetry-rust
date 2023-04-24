@@ -26,18 +26,23 @@ pub trait TracerProvider {
     /// let provider = global::tracer_provider();
     ///
     /// // tracer used in applications/binaries
-    /// let tracer = provider.tracer("my_app".into());
+    /// let tracer = provider.tracer("my_app");
     ///
     /// // tracer used in libraries/crates that optionally includes version and schema url
     /// let tracer = provider.versioned_tracer(
-    ///     "my_library".into(),
-    ///     Some(env!("CARGO_PKG_VERSION").into()),
-    ///     Some("https://opentelemetry.io/schema/1.0.0".into()),
+    ///     "my_library",
+    ///     Some(env!("CARGO_PKG_VERSION")),
+    ///     Some("https://opentelemetry.io/schema/1.0.0"),
     ///     Some(vec![KeyValue::new("key", "value")]),
     /// );
     /// ```
-    fn tracer(&self, name: Cow<'static, str>) -> Self::Tracer {
-        self.versioned_tracer(name, None, None, None)
+    fn tracer(&self, name: impl Into<Cow<'static, str>>) -> Self::Tracer {
+        self.versioned_tracer(
+            name,
+            None::<Cow<'static, str>>,
+            None::<Cow<'static, str>>,
+            None,
+        )
     }
 
     /// Returns a new versioned tracer with a given name.
@@ -54,21 +59,21 @@ pub trait TracerProvider {
     /// let provider = global::tracer_provider();
     ///
     /// // tracer used in applications/binaries
-    /// let tracer = provider.tracer("my_app".into());
+    /// let tracer = provider.tracer("my_app");
     ///
     /// // tracer used in libraries/crates that optionally includes version and schema url
     /// let tracer = provider.versioned_tracer(
-    ///     "my_library".into(),
-    ///     Some(env!("CARGO_PKG_VERSION").into()),
-    ///     Some("https://opentelemetry.io/schema/1.0.0".into()),
+    ///     "my_library",
+    ///     Some(env!("CARGO_PKG_VERSION")),
+    ///     Some("https://opentelemetry.io/schema/1.0.0"),
     ///     None,
     /// );
     /// ```
     fn versioned_tracer(
         &self,
-        name: Cow<'static, str>,
-        version: Option<Cow<'static, str>>,
-        schema_url: Option<Cow<'static, str>>,
+        name: impl Into<Cow<'static, str>>,
+        version: Option<impl Into<Cow<'static, str>>>,
+        schema_url: Option<impl Into<Cow<'static, str>>>,
         attributes: Option<Vec<KeyValue>>,
     ) -> Self::Tracer;
 }

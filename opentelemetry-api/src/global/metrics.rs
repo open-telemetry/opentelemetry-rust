@@ -14,11 +14,41 @@ static GLOBAL_METER_PROVIDER: Lazy<RwLock<GlobalMeterProvider>> = Lazy::new(|| {
     ))
 });
 
+/// Allows a specific [MeterProvider] to be used generically by the
+/// [GlobalMeterProvider] by mirroring the interface and boxing the return types.
+pub trait ObjectSafeMeterProvider {
+    /// Creates a versioned named meter instance that is a trait object through the underlying
+    /// [MeterProvider].
+    fn versioned_meter_cow(
+        &self,
+        name: Cow<'static, str>,
+        version: Option<Cow<'static, str>>,
+        schema_url: Option<Cow<'static, str>>,
+        attributes: Option<Vec<KeyValue>>,
+    ) -> Meter;
+}
+
+impl<P> ObjectSafeMeterProvider for P
+where
+    P: MeterProvider,
+{
+    /// Return a versioned boxed tracer
+    fn versioned_meter_cow(
+        &self,
+        name: Cow<'static, str>,
+        version: Option<Cow<'static, str>>,
+        schema_url: Option<Cow<'static, str>>,
+        attributes: Option<Vec<KeyValue>>,
+    ) -> Meter {
+        self.versioned_meter(name, version, schema_url, attributes)
+    }
+}
+
 /// Represents the globally configured [`MeterProvider`] instance for this
 /// application.
 #[derive(Clone)]
 pub struct GlobalMeterProvider {
-    provider: Arc<dyn MeterProvider + Send + Sync>,
+    provider: Arc<dyn ObjectSafeMeterProvider + Send + Sync>,
 }
 
 impl fmt::Debug for GlobalMeterProvider {
@@ -30,13 +60,17 @@ impl fmt::Debug for GlobalMeterProvider {
 impl MeterProvider for GlobalMeterProvider {
     fn versioned_meter(
         &self,
-        name: Cow<'static, str>,
-        version: Option<Cow<'static, str>>,
-        schema_url: Option<Cow<'static, str>>,
+        name: impl Into<Cow<'static, str>>,
+        version: Option<impl Into<Cow<'static, str>>>,
+        schema_url: Option<impl Into<Cow<'static, str>>>,
         attributes: Option<Vec<KeyValue>>,
     ) -> Meter {
-        self.provider
-            .versioned_meter(name, version, schema_url, attributes)
+        self.provider.versioned_meter_cow(
+            name.into(),
+            version.map(Into::into),
+            schema_url.map(Into::into),
+            attributes,
+        )
     }
 }
 
@@ -77,7 +111,7 @@ pub fn meter_provider() -> GlobalMeterProvider {
 ///
 /// If the name is an empty string, the provider will use a default name.
 ///
-/// This is a more convenient way of expressing `global::meter_provider().meter(name, None, None, None)`.
+/// This is a more convenient way of expressing `global::meter_provider().versioned_meter(name, None, None, None)`.
 pub fn meter(name: impl Into<Cow<'static, str>>) -> Meter {
     meter_provider().meter(name.into())
 }
@@ -88,19 +122,31 @@ pub fn meter(name: impl Into<Cow<'static, str>>) -> Meter {
 /// - version specifies the version of the instrumentation scope if the scope has a version
 /// - schema url specifies the Schema URL that should be recorded in the emitted telemetry.
 ///
-/// This is a convenient way of `global::meter_provider().meter(...)`
+/// This is a convenient way of `global::meter_provider().versioned_meter(...)`
+///
 /// # Example
-/// ```rust
+///
+/// ```
 /// use opentelemetry_api::global::meter_with_version;
 /// use opentelemetry_api::KeyValue;
-/// let meter = meter_with_version("io.opentelemetry", Some("0.17".into()), Some("https://opentelemetry.io/schemas/1.2.0".into()), Some(vec![KeyValue::new("key", "value")]));
-/// ```
 ///
+/// let meter = meter_with_version(
+///     "io.opentelemetry",
+///     Some("0.17"),
+///     Some("https://opentelemetry.io/schemas/1.2.0"),
+///     Some(vec![KeyValue::new("key", "value")]),
+/// );
+/// ```
 pub fn meter_with_version(
     name: impl Into<Cow<'static, str>>,
-    version: Option<Cow<'static, str>>,
-    schema_url: Option<Cow<'static, str>>,
+    version: Option<impl Into<Cow<'static, str>>>,
+    schema_url: Option<impl Into<Cow<'static, str>>>,
     attributes: Option<Vec<KeyValue>>,
 ) -> Meter {
-    meter_provider().versioned_meter(name.into(), version, schema_url, attributes)
+    meter_provider().versioned_meter(
+        name.into(),
+        version.map(Into::into),
+        schema_url.map(Into::into),
+        attributes,
+    )
 }

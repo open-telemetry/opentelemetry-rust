@@ -6,6 +6,7 @@ use futures::{future::BoxFuture, FutureExt};
 use opentelemetry::sdk::export::trace::{ExportResult, SpanData, SpanExporter};
 use opentelemetry::sdk::trace::{TraceRuntime, Tracer};
 use opentelemetry::trace::{SpanId, TraceError};
+use opentelemetry_semantic_conventions::SCHEMA_URL;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
@@ -46,9 +47,9 @@ impl<R: JaegerJsonRuntime> JaegerJsonExporter<R> {
         let provider = provider_builder.build();
 
         let tracer = provider.versioned_tracer(
-            "opentelemetry".into(),
-            Some(env!("CARGO_PKG_VERSION").into()),
-            None,
+            "opentelemetry",
+            Some(env!("CARGO_PKG_VERSION")),
+            Some(SCHEMA_URL),
             None,
         );
         let _ = opentelemetry::global::set_tracer_provider(provider);

@@ -122,7 +122,7 @@ fn bench_counter(
         builder = builder.with_view(view);
     }
     let provider = builder.build();
-    let cntr = provider.meter("test".into()).u64_counter("hello").init();
+    let cntr = provider.meter("test").u64_counter("hello").init();
 
     (cx, rdr, cntr)
 }
@@ -316,7 +316,7 @@ fn benchmark_collect_histogram(b: &mut Bencher, n: usize) {
     let mtr = MeterProvider::builder()
         .with_reader(r.clone())
         .build()
-        .meter("sdk/metric/bench/histogram".into());
+        .meter("sdk/metric/bench/histogram");
 
     for i in 0..n {
         let h = mtr.i64_histogram(format!("fake_data_{i}")).init();

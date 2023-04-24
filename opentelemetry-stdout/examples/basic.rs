@@ -35,12 +35,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let meter_provider = init_metrics();
     let cx = Context::new();
 
-    let tracer = tracer_provider.tracer("stdout-test".into());
+    let tracer = tracer_provider.tracer("stdout-test");
     let mut span = tracer.start("test_span");
     span.set_attribute(KeyValue::new("test_key", "test_value"));
     span.end();
 
-    let meter = meter_provider.meter("stdout-test".into());
+    let meter = meter_provider.meter("stdout-test");
     let c = meter.u64_counter("test_events").init();
     c.add(&cx, 1, &[KeyValue::new("test_key", "test_value")]);
 

@@ -322,7 +322,7 @@ mod tests {
         let tracer_provider = crate::trace::TracerProvider::builder()
             .with_config(config)
             .build();
-        let tracer = tracer_provider.tracer("test".into());
+        let tracer = tracer_provider.tracer("test");
         let trace_state = TraceState::from_key_value(vec![("foo", "bar")]).unwrap();
 
         let parent_context = Context::new().with_span(TestSpan(SpanContext::new(
@@ -349,7 +349,7 @@ mod tests {
             .build();
 
         let context = Context::current_with_span(TestSpan(SpanContext::empty_context()));
-        let tracer = tracer_provider.tracer("test".into());
+        let tracer = tracer_provider.tracer("test");
         let span = tracer.start_with_context("must_not_be_sampled", &context);
 
         assert!(!span.span_context().is_sampled());
@@ -362,7 +362,7 @@ mod tests {
         let tracer_provider = crate::trace::TracerProvider::builder()
             .with_config(config)
             .build();
-        let tracer = tracer_provider.tracer("test".into());
+        let tracer = tracer_provider.tracer("test");
 
         let _attached = Context::current_with_span(TestSpan(SpanContext::empty_context())).attach();
         let span = tracer.span_builder("must_not_be_sampled").start(&tracer);

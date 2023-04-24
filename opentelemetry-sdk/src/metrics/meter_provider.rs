@@ -76,9 +76,9 @@ impl MeterProvider {
 impl opentelemetry_api::metrics::MeterProvider for MeterProvider {
     fn versioned_meter(
         &self,
-        name: Cow<'static, str>,
-        version: Option<Cow<'static, str>>,
-        schema_url: Option<Cow<'static, str>>,
+        name: impl Into<Cow<'static, str>>,
+        version: Option<impl Into<Cow<'static, str>>>,
+        schema_url: Option<impl Into<Cow<'static, str>>>,
         attributes: Option<Vec<KeyValue>>,
     ) -> ApiMeter {
         let inst_provider: Arc<dyn InstrumentProvider + Send + Sync> =

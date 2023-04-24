@@ -21,7 +21,7 @@
 //!     let provider = TracerProvider::builder()
 //!         .with_simple_exporter(SpanExporter::default())
 //!         .build();
-//!     let tracer = provider.tracer("readme_example".into());
+//!     let tracer = provider.tracer("readme_example");
 //!
 //!     let mut req = hyper::Request::builder().uri("http://127.0.0.1:3000");
 //!     tracer.in_span("doing_work", |cx| {

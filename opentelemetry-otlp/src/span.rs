@@ -62,6 +62,7 @@ use opentelemetry_sdk::{
     export::trace::{ExportResult, SpanData},
     trace::TraceRuntime,
 };
+use opentelemetry_semantic_conventions::SCHEMA_URL;
 
 use async_trait::async_trait;
 
@@ -165,9 +166,9 @@ fn build_simple_with_exporter(
     }
     let provider = provider_builder.build();
     let tracer = provider.versioned_tracer(
-        "opentelemetry-otlp".into(),
-        Some(env!("CARGO_PKG_VERSION").into()),
-        None,
+        "opentelemetry-otlp",
+        Some(env!("CARGO_PKG_VERSION")),
+        Some(SCHEMA_URL),
         None,
     );
     let _ = global::set_tracer_provider(provider);
@@ -191,9 +192,9 @@ fn build_batch_with_exporter<R: TraceRuntime>(
     }
     let provider = provider_builder.build();
     let tracer = provider.versioned_tracer(
-        "opentelemetry-otlp".into(),
-        Some(env!("CARGO_PKG_VERSION").into()),
-        None,
+        "opentelemetry-otlp",
+        Some(env!("CARGO_PKG_VERSION")),
+        Some(SCHEMA_URL),
         None,
     );
     let _ = global::set_tracer_provider(provider);

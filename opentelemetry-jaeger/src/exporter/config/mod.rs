@@ -121,9 +121,9 @@ pub(crate) fn install_tracer_provider_and_get_tracer(
     tracer_provider: sdk::trace::TracerProvider,
 ) -> Result<sdk::trace::Tracer, TraceError> {
     let tracer = tracer_provider.versioned_tracer(
-        "opentelemetry-jaeger".into(),
-        Some(env!("CARGO_PKG_VERSION").into()),
-        None,
+        "opentelemetry-jaeger",
+        Some(env!("CARGO_PKG_VERSION")),
+        Some(semcov::SCHEMA_URL),
         None,
     );
     let _ = global::set_tracer_provider(tracer_provider);
