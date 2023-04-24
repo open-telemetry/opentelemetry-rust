@@ -295,7 +295,6 @@ mod tests {
             _span_kind: &SpanKind,
             _attributes: &OrderMap<Key, Value>,
             _links: &[Link],
-            _instrumentation_library: &InstrumentationLibrary,
         ) -> SamplingResult {
             let trace_state = parent_context
                 .unwrap()

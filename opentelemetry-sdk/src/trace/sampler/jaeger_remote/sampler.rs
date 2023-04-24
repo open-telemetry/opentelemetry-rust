@@ -252,7 +252,6 @@ impl ShouldSample for JaegerRemoteSampler {
         span_kind: &SpanKind,
         attributes: &OrderMap<Key, Value>,
         links: &[Link],
-        instrumentation_library: &InstrumentationLibrary,
     ) -> SamplingResult {
         self.inner
             .should_sample(parent_context, trace_id, name)
@@ -264,7 +263,6 @@ impl ShouldSample for JaegerRemoteSampler {
                     span_kind,
                     attributes,
                     links,
-                    instrumentation_library,
                 )
             })
     }

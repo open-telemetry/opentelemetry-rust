@@ -379,7 +379,6 @@ mod tests {
         let cloned_sampler = sampler.clone();
 
         let cx = Context::current_with_value("some_value");
-        let instrumentation_library = InstrumentationLibrary::default();
 
         let result = sampler.should_sample(
             Some(&cx),
@@ -440,7 +439,6 @@ mod tests {
 
         for (name, delegate, parent_cx, expected) in test_cases {
             let sampler = Sampler::ParentBased(Box::new(delegate));
-            let instrumentation_library = InstrumentationLibrary::default();
             let result = sampler.should_sample(
                 Some(&parent_cx),
                 TraceId::from_u128(1),
