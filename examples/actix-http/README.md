@@ -1,15 +1,20 @@
-# Actix-web - Jaeger example with HTTP collector and batch exporter 
+# Actix-web - Jaeger example with OTLP Exporter
 
-This example shows how to export spans from an actix-web application and ship them
- to the collector directly via HTTP.  
- It uses the batch exporter to avoid excessive network roundtrips to Jaeger.
+This example shows how to export spans from an actix-web application and ship
+them to Jaeger via OTLP/gRPC. It uses the batch exporter to avoid excessive
+network roundtrips to Jaeger.
+
+Note: Jaeger supports native OTLP ingestion from
+[v1.35](https://medium.com/jaegertracing/introducing-native-support-for-opentelemetry-in-jaeger-eb661be8183c).
+If you are using older version and cannot upgrade, use [these
+instructions](https://github.com/open-telemetry/opentelemetry-rust/tree/v0.19.0/examples/actix-http/README.md).
 
 ## Usage
 
 Launch the application:
 ```shell
-# Run jaeger in background
-$ docker run -d -p6831:6831/udp -p6832:6832/udp -p16686:16686 -p14268:14268 jaegertracing/all-in-one:latest
+# Run jaeger in background with OTLP ingestion enabled.
+$ docker run -d -p16686:16686 -p4317:4317 -e COLLECTOR_OTLP_ENABLED=true jaegertracing/all-in-one:latest
 
 # Start the actix-web server 
 $ cargo run

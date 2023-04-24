@@ -3,6 +3,7 @@
 ## v0.19.0
 ### Added
 - Add `WithContext` to public api [#893](https://github.com/open-telemetry/opentelemetry-rust/pull/893).
+- Add support for instrumentation scope attributes [#1021](https://github.com/open-telemetry/opentelemetry-rust/pull/1021).
 
 ### Changed
 - Implement `Display` on `Baggage` [#921](https://github.com/open-telemetry/opentelemetry-rust/pull/921).

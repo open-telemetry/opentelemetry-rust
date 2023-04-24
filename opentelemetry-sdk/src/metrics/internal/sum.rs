@@ -4,10 +4,8 @@ use std::{
     time::SystemTime,
 };
 
-use crate::metrics::{
-    attributes::AttributeSet,
-    data::{self, Aggregation, DataPoint, Temporality},
-};
+use crate::attributes::AttributeSet;
+use crate::metrics::data::{self, Aggregation, DataPoint, Temporality};
 
 use super::{aggregator::PrecomputeAggregator, Aggregator, Number};
 

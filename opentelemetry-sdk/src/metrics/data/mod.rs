@@ -4,7 +4,7 @@ use std::{any, borrow::Cow, fmt, time::SystemTime};
 
 use opentelemetry_api::{metrics::Unit, KeyValue};
 
-use crate::{instrumentation::Scope, metrics::attributes::AttributeSet, Resource};
+use crate::{attributes::AttributeSet, instrumentation::Scope, Resource};
 
 pub use self::temporality::Temporality;
 
@@ -68,7 +68,7 @@ impl<T: fmt::Debug + Send + Sync + 'static> Aggregation for Gauge<T> {
 
 /// Represents the sum of all measurements of values from an instrument.
 #[derive(Debug)]
-pub struct Sum<T: fmt::Debug> {
+pub struct Sum<T> {
     /// Represents individual aggregated measurements with unique attributes.
     pub data_points: Vec<DataPoint<T>>,
     /// Describes if the aggregation is reported as the change from the last report
@@ -98,6 +98,18 @@ pub struct DataPoint<T> {
     pub value: T,
     /// The sampled [Exemplar]s collected during the time series.
     pub exemplars: Vec<Exemplar<T>>,
+}
+
+impl<T: Copy> Clone for DataPoint<T> {
+    fn clone(&self) -> Self {
+        Self {
+            attributes: self.attributes.clone(),
+            start_time: self.start_time,
+            time: self.time,
+            value: self.value,
+            exemplars: self.exemplars.clone(),
+        }
+    }
 }
 
 /// Represents the histogram of all measurements of values from an instrument.
@@ -146,6 +158,23 @@ pub struct HistogramDataPoint<T> {
     pub exemplars: Vec<Exemplar<T>>,
 }
 
+impl<T: Copy> Clone for HistogramDataPoint<T> {
+    fn clone(&self) -> Self {
+        Self {
+            attributes: self.attributes.clone(),
+            start_time: self.start_time,
+            time: self.time,
+            count: self.count,
+            bounds: self.bounds.clone(),
+            bucket_counts: self.bucket_counts.clone(),
+            min: self.min,
+            max: self.max,
+            sum: self.sum,
+            exemplars: self.exemplars.clone(),
+        }
+    }
+}
+
 /// A measurement sampled from a time series providing a typical example.
 #[derive(Debug)]
 pub struct Exemplar<T> {
@@ -164,4 +193,16 @@ pub struct Exemplar<T> {
     ///
     /// If no span was active or the span was not sampled this will be empty.
     pub trace_id: [u8; 16],
+}
+
+impl<T: Copy> Clone for Exemplar<T> {
+    fn clone(&self) -> Self {
+        Self {
+            filtered_attributes: self.filtered_attributes.clone(),
+            time: self.time,
+            value: self.value,
+            span_id: self.span_id,
+            trace_id: self.trace_id,
+        }
+    }
 }

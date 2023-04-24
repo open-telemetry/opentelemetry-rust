@@ -608,7 +608,7 @@ pub mod logging_service_v2_client {
         /// Attempt to create a new client by connecting to a given endpoint.
         pub async fn connect<D>(dst: D) -> Result<Self, tonic::transport::Error>
         where
-            D: std::convert::TryInto<tonic::transport::Endpoint>,
+            D: TryInto<tonic::transport::Endpoint>,
             D::Error: Into<StdError>,
         {
             let conn = tonic::transport::Endpoint::new(dst)?.connect().await?;
@@ -663,6 +663,22 @@ pub mod logging_service_v2_client {
             self.inner = self.inner.accept_compressed(encoding);
             self
         }
+        /// Limits the maximum size of a decoded message.
+        ///
+        /// Default: `4MB`
+        #[must_use]
+        pub fn max_decoding_message_size(mut self, limit: usize) -> Self {
+            self.inner = self.inner.max_decoding_message_size(limit);
+            self
+        }
+        /// Limits the maximum size of an encoded message.
+        ///
+        /// Default: `usize::MAX`
+        #[must_use]
+        pub fn max_encoding_message_size(mut self, limit: usize) -> Self {
+            self.inner = self.inner.max_encoding_message_size(limit);
+            self
+        }
         /// Deletes all the log entries in a log for the _Default Log Bucket. The log
         /// reappears if it receives new entries. Log entries written shortly before
         /// the delete operation might not be deleted. Entries received after the
@@ -670,7 +686,7 @@ pub mod logging_service_v2_client {
         pub async fn delete_log(
             &mut self,
             request: impl tonic::IntoRequest<super::DeleteLogRequest>,
-        ) -> Result<tonic::Response<()>, tonic::Status> {
+        ) -> std::result::Result<tonic::Response<()>, tonic::Status> {
             self.inner.ready().await.map_err(|e| {
                 tonic::Status::new(
                     tonic::Code::Unknown,
@@ -681,7 +697,12 @@ pub mod logging_service_v2_client {
             let path = http::uri::PathAndQuery::from_static(
                 "/google.logging.v2.LoggingServiceV2/DeleteLog",
             );
-            self.inner.unary(request.into_request(), path, codec).await
+            let mut req = request.into_request();
+            req.extensions_mut().insert(GrpcMethod::new(
+                "google.logging.v2.LoggingServiceV2",
+                "DeleteLog",
+            ));
+            self.inner.unary(req, path, codec).await
         }
         /// Writes log entries to Logging. This API method is the
         /// only way to send log entries to Logging. This method
@@ -693,7 +714,8 @@ pub mod logging_service_v2_client {
         pub async fn write_log_entries(
             &mut self,
             request: impl tonic::IntoRequest<super::WriteLogEntriesRequest>,
-        ) -> Result<tonic::Response<super::WriteLogEntriesResponse>, tonic::Status> {
+        ) -> std::result::Result<tonic::Response<super::WriteLogEntriesResponse>, tonic::Status>
+        {
             self.inner.ready().await.map_err(|e| {
                 tonic::Status::new(
                     tonic::Code::Unknown,
@@ -704,7 +726,12 @@ pub mod logging_service_v2_client {
             let path = http::uri::PathAndQuery::from_static(
                 "/google.logging.v2.LoggingServiceV2/WriteLogEntries",
             );
-            self.inner.unary(request.into_request(), path, codec).await
+            let mut req = request.into_request();
+            req.extensions_mut().insert(GrpcMethod::new(
+                "google.logging.v2.LoggingServiceV2",
+                "WriteLogEntries",
+            ));
+            self.inner.unary(req, path, codec).await
         }
         /// Lists log entries.  Use this method to retrieve log entries that originated
         /// from a project/folder/organization/billing account.  For ways to export log
@@ -713,7 +740,8 @@ pub mod logging_service_v2_client {
         pub async fn list_log_entries(
             &mut self,
             request: impl tonic::IntoRequest<super::ListLogEntriesRequest>,
-        ) -> Result<tonic::Response<super::ListLogEntriesResponse>, tonic::Status> {
+        ) -> std::result::Result<tonic::Response<super::ListLogEntriesResponse>, tonic::Status>
+        {
             self.inner.ready().await.map_err(|e| {
                 tonic::Status::new(
                     tonic::Code::Unknown,
@@ -724,14 +752,21 @@ pub mod logging_service_v2_client {
             let path = http::uri::PathAndQuery::from_static(
                 "/google.logging.v2.LoggingServiceV2/ListLogEntries",
             );
-            self.inner.unary(request.into_request(), path, codec).await
+            let mut req = request.into_request();
+            req.extensions_mut().insert(GrpcMethod::new(
+                "google.logging.v2.LoggingServiceV2",
+                "ListLogEntries",
+            ));
+            self.inner.unary(req, path, codec).await
         }
         /// Lists the descriptors for monitored resource types used by Logging.
         pub async fn list_monitored_resource_descriptors(
             &mut self,
             request: impl tonic::IntoRequest<super::ListMonitoredResourceDescriptorsRequest>,
-        ) -> Result<tonic::Response<super::ListMonitoredResourceDescriptorsResponse>, tonic::Status>
-        {
+        ) -> std::result::Result<
+            tonic::Response<super::ListMonitoredResourceDescriptorsResponse>,
+            tonic::Status,
+        > {
             self.inner.ready().await.map_err(|e| {
                 tonic::Status::new(
                     tonic::Code::Unknown,
@@ -742,14 +777,19 @@ pub mod logging_service_v2_client {
             let path = http::uri::PathAndQuery::from_static(
                 "/google.logging.v2.LoggingServiceV2/ListMonitoredResourceDescriptors",
             );
-            self.inner.unary(request.into_request(), path, codec).await
+            let mut req = request.into_request();
+            req.extensions_mut().insert(GrpcMethod::new(
+                "google.logging.v2.LoggingServiceV2",
+                "ListMonitoredResourceDescriptors",
+            ));
+            self.inner.unary(req, path, codec).await
         }
         /// Lists the logs in projects, organizations, folders, or billing accounts.
         /// Only logs that have entries are listed.
         pub async fn list_logs(
             &mut self,
             request: impl tonic::IntoRequest<super::ListLogsRequest>,
-        ) -> Result<tonic::Response<super::ListLogsResponse>, tonic::Status> {
+        ) -> std::result::Result<tonic::Response<super::ListLogsResponse>, tonic::Status> {
             self.inner.ready().await.map_err(|e| {
                 tonic::Status::new(
                     tonic::Code::Unknown,
@@ -760,14 +800,19 @@ pub mod logging_service_v2_client {
             let path = http::uri::PathAndQuery::from_static(
                 "/google.logging.v2.LoggingServiceV2/ListLogs",
             );
-            self.inner.unary(request.into_request(), path, codec).await
+            let mut req = request.into_request();
+            req.extensions_mut().insert(GrpcMethod::new(
+                "google.logging.v2.LoggingServiceV2",
+                "ListLogs",
+            ));
+            self.inner.unary(req, path, codec).await
         }
         /// Streaming read of log entries as they are ingested. Until the stream is
         /// terminated, it will continue reading logs.
         pub async fn tail_log_entries(
             &mut self,
             request: impl tonic::IntoStreamingRequest<Message = super::TailLogEntriesRequest>,
-        ) -> Result<
+        ) -> std::result::Result<
             tonic::Response<tonic::codec::Streaming<super::TailLogEntriesResponse>>,
             tonic::Status,
         > {
@@ -781,9 +826,12 @@ pub mod logging_service_v2_client {
             let path = http::uri::PathAndQuery::from_static(
                 "/google.logging.v2.LoggingServiceV2/TailLogEntries",
             );
-            self.inner
-                .streaming(request.into_streaming_request(), path, codec)
-                .await
+            let mut req = request.into_streaming_request();
+            req.extensions_mut().insert(GrpcMethod::new(
+                "google.logging.v2.LoggingServiceV2",
+                "TailLogEntries",
+            ));
+            self.inner.streaming(req, path, codec).await
         }
     }
 }

@@ -5,9 +5,9 @@ use std::{
     time::SystemTime,
 };
 
+use crate::attributes::AttributeSet;
 use crate::metrics::{
     aggregation,
-    attributes::AttributeSet,
     data::{self, Aggregation},
 };
 

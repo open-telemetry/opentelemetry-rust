@@ -24,7 +24,7 @@
 //! let provider = MeterProvider::builder().with_resource(resource).build();
 //!
 //! // Use the meter provider to create meter instances
-//! let meter = provider.meter("my_app");
+//! let meter = provider.meter("my_app".into());
 //!
 //! // Create instruments scoped to the meter
 //! let counter = meter
@@ -39,7 +39,6 @@
 //! [Resource]: crate::Resource
 
 pub(crate) mod aggregation;
-pub(crate) mod attributes;
 pub mod data;
 pub mod exporter;
 pub(crate) mod instrument;

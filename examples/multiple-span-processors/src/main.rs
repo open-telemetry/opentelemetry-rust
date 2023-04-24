@@ -1,10 +1,9 @@
-use opentelemetry::global::{self, shutdown_tracer_provider};
-use opentelemetry::sdk::export::trace::stdout::Exporter as StdoutExporter;
-use opentelemetry::sdk::trace::{BatchSpanProcessor, Config, TracerProvider};
-use opentelemetry::sdk::Resource;
-use opentelemetry::trace::{mark_span_as_active, TraceError, Tracer};
-use opentelemetry::KeyValue;
-use std::io::stdout;
+use opentelemetry_api::global::{self, shutdown_tracer_provider};
+use opentelemetry_api::trace::{mark_span_as_active, TraceError, Tracer};
+use opentelemetry_api::KeyValue;
+use opentelemetry_sdk::trace::{BatchSpanProcessor, Config, TracerProvider};
+use opentelemetry_sdk::Resource;
+use opentelemetry_stdout::SpanExporter as StdoutExporter;
 use std::time::Duration;
 
 fn init_tracer() -> Result<(), TraceError> {
@@ -16,8 +15,8 @@ fn init_tracer() -> Result<(), TraceError> {
                 Config::default()
                     .with_resource(Resource::new(vec![KeyValue::new("exporter", "jaeger")])),
             )
-            .build_async_agent_exporter(opentelemetry::runtime::Tokio)?,
-        opentelemetry::runtime::Tokio,
+            .build_async_agent_exporter(opentelemetry_sdk::runtime::Tokio)?,
+        opentelemetry_sdk::runtime::Tokio,
     )
     .build();
 
@@ -31,9 +30,9 @@ fn init_tracer() -> Result<(), TraceError> {
         .with_span_processor(jaeger_processor)
         // For batch span processor, we can also provide the exporter and runtime and use this
         // helper function to build a batch span processor
-        .with_batch_exporter(zipkin_exporter, opentelemetry::runtime::Tokio)
+        .with_batch_exporter(zipkin_exporter, opentelemetry_sdk::runtime::Tokio)
         // Same helper function is also available to build a simple span processor.
-        .with_simple_exporter(StdoutExporter::new(stdout(), true))
+        .with_simple_exporter(StdoutExporter::default())
         .build();
 
     let _ = global::set_tracer_provider(provider);
