@@ -122,7 +122,10 @@ pub mod tonic {
 #[cfg(feature = "gen-protoc")]
 pub mod grpcio {
     use crate::proto::grpcio::common::{AnyValue, ArrayValue, InstrumentationScope, KeyValue};
-    use opentelemetry::{sdk::trace::EvictedHashMap, Array, Value};
+    use opentelemetry::{
+        sdk::{trace::EvictedHashMap, Resource},
+        Array, Value,
+    };
     use protobuf::RepeatedField;
     use std::borrow::Cow;
 

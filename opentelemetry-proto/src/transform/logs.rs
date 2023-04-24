@@ -10,7 +10,7 @@ pub mod tonic {
     use crate::{
         tonic::{
             common::v1::{any_value::Value, AnyValue, ArrayValue, KeyValue, KeyValueList},
-            logs::v1::{InstrumentationLibraryLogs, LogRecord, ResourceLogs, SeverityNumber},
+            logs::v1::{LogRecord, ResourceLogs, ScopeLogs, SeverityNumber},
             resource::v1::Resource,
         },
         transform::common::tonic::resource_attributes,
@@ -89,7 +89,7 @@ pub mod tonic {
                 Some(Severity::Fatal2) => SeverityNumber::Fatal2,
                 Some(Severity::Fatal3) => SeverityNumber::Fatal3,
                 Some(Severity::Fatal4) => SeverityNumber::Fatal4,
-                None => SeverityNumber::Unspecified
+                None => SeverityNumber::Unspecified,
             };
 
             let record = LogRecord {
@@ -105,7 +105,7 @@ pub mod tonic {
                 }),
                 attributes: log_record
                     .attributes
-                    .map(attributes_to_keyvalue)
+                    .map(attributes_to_key_value)
                     .unwrap_or_default(),
                 dropped_attributes_count: 0,
                 flags: trace_context
@@ -136,15 +136,16 @@ pub mod tonic {
                     dropped_attributes_count: 0,
                 }),
                 schema_url: "".to_string(),
-                instrumentation_library_logs: vec![InstrumentationLibraryLogs {
+                scope_logs: vec![ScopeLogs {
                     schema_url: log_data
                         .instrumentation
                         .schema_url
                         .clone()
                         .map(Into::into)
                         .unwrap_or_default(),
-                    instrumentation_library: Some(log_data.instrumentation.into()),
+                    scope: Some(log_data.instrumentation.into()),
                     log_records: vec![log_data.record.into()],
+                    ..Default::default()
                 }],
             }
         }
@@ -158,7 +159,7 @@ pub mod grpcio {
     use crate::{
         proto::grpcio::{
             common::{AnyValue, AnyValue_oneof_value, ArrayValue, KeyValue, KeyValueList},
-            logs::{InstrumentationLibraryLogs, LogRecord, ResourceLogs, SeverityNumber},
+            logs::{LogRecord, ResourceLogs, ScopeLogs, SeverityNumber},
             resource::Resource,
         },
         transform::common::grpcio::resource_attributes,
@@ -294,21 +295,17 @@ pub mod grpcio {
                     ..Default::default()
                 }),
                 schema_url: "".to_string(),
-                instrumentation_library_logs: RepeatedField::from_vec(vec![
-                    InstrumentationLibraryLogs {
-                        schema_url: log_data
-                            .instrumentation
-                            .schema_url
-                            .clone()
-                            .map(Into::into)
-                            .unwrap_or_default(),
-                        instrumentation_library: SingularPtrField::some(
-                            log_data.instrumentation.into(),
-                        ),
-                        log_records: RepeatedField::from_vec(vec![log_data.record.into()]),
-                        ..Default::default()
-                    },
-                ]),
+                scope_logs: RepeatedField::from_vec(vec![ScopeLogs {
+                    schema_url: log_data
+                        .instrumentation
+                        .schema_url
+                        .clone()
+                        .map(Into::into)
+                        .unwrap_or_default(),
+                    scope: SingularPtrField::some(log_data.instrumentation.into()),
+                    log_records: RepeatedField::from_vec(vec![log_data.record.into()]),
+                    ..Default::default()
+                }]),
                 ..Default::default()
             }
         }

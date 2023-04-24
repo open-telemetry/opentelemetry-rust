@@ -7,7 +7,7 @@ pub mod tonic {
     use super::*;
     use crate::proto::tonic::resource::v1::Resource;
     use crate::proto::tonic::trace::v1::{span, status, ResourceSpans, ScopeSpans, Span, Status};
-    use crate::transform::common::tonic::Attributes;
+    use crate::transform::common::tonic::{resource_attributes, Attributes};
     use opentelemetry::trace;
 
     impl From<SpanKind> for span::SpanKind {
@@ -49,7 +49,7 @@ pub mod tonic {
             let span_kind: span::SpanKind = source_span.span_kind.into();
             ResourceSpans {
                 resource: Some(Resource {
-                    attributes: resource_attributes(&source_span.resource).0,
+                    attributes: resource_attributes(Some(&source_span.resource)).0,
                     dropped_attributes_count: 0,
                 }),
                 schema_url: source_span
@@ -107,14 +107,6 @@ pub mod tonic {
             }
         }
     }
-
-    fn resource_attributes(resource: &sdk::Resource) -> Attributes {
-        resource
-            .iter()
-            .map(|(k, v)| opentelemetry::KeyValue::new(k.clone(), v.clone()))
-            .collect::<Vec<_>>()
-            .into()
-    }
 }
 
 #[cfg(feature = "gen-protoc")]
@@ -168,7 +160,7 @@ pub mod grpcio {
         fn from(source_span: SpanData) -> Self {
             ResourceSpans {
                 resource: SingularPtrField::from(Some(Resource {
-                    attributes: resource_attributes(&source_span.resource).0,
+                    attributes: resource_attributes(Some(&source_span.resource)).0,
                     dropped_attributes_count: 0,
                     ..Default::default()
                 })),
@@ -230,13 +222,5 @@ pub mod grpcio {
                 ..Default::default()
             }
         }
-    }
-
-    fn resource_attributes(resource: &sdk::Resource) -> Attributes {
-        resource
-            .iter()
-            .map(|(k, v)| opentelemetry::KeyValue::new(k.clone(), v.clone()))
-            .collect::<Vec<_>>()
-            .into()
     }
 }
