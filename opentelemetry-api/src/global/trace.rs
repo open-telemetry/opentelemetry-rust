@@ -103,7 +103,7 @@ pub trait ObjectSafeSpan {
     ///
     /// For more details, refer to [`Span::end`]
     ///
-    /// [`Span::end`]: Span::end()
+    /// [`Span::end`]: trace::Span::end
     fn end_with_timestamp(&mut self, timestamp: SystemTime);
 }
 
