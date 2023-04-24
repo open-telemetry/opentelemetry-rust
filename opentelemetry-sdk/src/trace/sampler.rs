@@ -82,7 +82,6 @@ pub trait ShouldSample: CloneShouldSample + Send + Sync + std::fmt::Debug {
         span_kind: &SpanKind,
         attributes: &OrderMap<Key, Value>,
         links: &[Link],
-        instrumentation_library: &InstrumentationLibrary,
     ) -> SamplingResult;
 }
 
@@ -175,7 +174,6 @@ impl ShouldSample for Sampler {
         span_kind: &SpanKind,
         attributes: &OrderMap<Key, Value>,
         links: &[Link],
-        instrumentation_library: &InstrumentationLibrary,
     ) -> SamplingResult {
         let decision = match self {
             // Always sample the trace
@@ -195,7 +193,6 @@ impl ShouldSample for Sampler {
                                 span_kind,
                                 attributes,
                                 links,
-                                instrumentation_library,
                             )
                             .decision
                     },
@@ -221,7 +218,6 @@ impl ShouldSample for Sampler {
                         span_kind,
                         attributes,
                         links,
-                        instrumentation_library,
                     )
                     .decision
             }
@@ -348,7 +344,6 @@ mod tests {
                         &SpanKind::Internal,
                         &Default::default(),
                         &[],
-                        &InstrumentationLibrary::default(),
                     )
                     .decision
                     == SamplingDecision::RecordAndSample
@@ -393,7 +388,6 @@ mod tests {
             &SpanKind::Internal,
             &Default::default(),
             &[],
-            &instrumentation_library,
         );
 
         let cloned_result = cloned_sampler.should_sample(
@@ -403,7 +397,6 @@ mod tests {
             &SpanKind::Internal,
             &Default::default(),
             &[],
-            &instrumentation_library,
         );
 
         assert_eq!(result, cloned_result);
@@ -455,7 +448,6 @@ mod tests {
                 &SpanKind::Internal,
                 &Default::default(),
                 &[],
-                &instrumentation_library,
             );
 
             assert_eq!(result.decision, expected);
