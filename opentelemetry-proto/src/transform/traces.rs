@@ -1,6 +1,6 @@
 use crate::transform::common::to_nanos;
-use opentelemetry::sdk::export::trace::SpanData;
-use opentelemetry::trace::{Link, SpanId, SpanKind};
+use opentelemetry_api::trace::{Link, SpanId, SpanKind};
+use opentelemetry_sdk::export::trace::SpanData;
 
 #[cfg(feature = "gen-tonic")]
 pub mod tonic {
@@ -8,7 +8,7 @@ pub mod tonic {
     use crate::proto::tonic::resource::v1::Resource;
     use crate::proto::tonic::trace::v1::{span, status, ResourceSpans, ScopeSpans, Span, Status};
     use crate::transform::common::tonic::{resource_attributes, Attributes};
-    use opentelemetry::trace;
+    use opentelemetry_api::trace;
 
     impl From<SpanKind> for span::SpanKind {
         fn from(span_kind: SpanKind) -> Self {
@@ -118,7 +118,7 @@ pub mod grpcio {
         Status_StatusCode,
     };
     use crate::transform::common::grpcio::{resource_attributes, Attributes};
-    use opentelemetry::trace;
+    use opentelemetry_api::trace;
     use protobuf::{RepeatedField, SingularPtrField};
 
     impl From<SpanKind> for Span_SpanKind {

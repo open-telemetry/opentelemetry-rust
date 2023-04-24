@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use opentelemetry_api::KeyValue;
 
-use crate::metrics::{attributes::AttributeSet, data::Aggregation};
+use crate::{attributes::AttributeSet, metrics::data::Aggregation};
 
 use super::{aggregator::PrecomputeAggregator, Aggregator, Number};
 

@@ -234,7 +234,7 @@ pub(crate) mod tests {
             links,
             status: Status::Ok,
             resource: Cow::Owned(resource),
-            instrumentation_lib: InstrumentationLibrary::new("component", None, None),
+            instrumentation_lib: InstrumentationLibrary::new("component", None, None, None),
         }
     }
 

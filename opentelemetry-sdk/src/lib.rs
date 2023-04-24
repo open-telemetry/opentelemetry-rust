@@ -7,12 +7,19 @@
 //! ```no_run
 //! # #[cfg(feature = "trace")]
 //! # {
-//! use opentelemetry_api::{global, trace::Tracer};
-//! use opentelemetry_sdk::export::trace::stdout;
+//! use opentelemetry_api::{global, trace::{Tracer, TracerProvider as _}};
+//! use opentelemetry_sdk::trace::TracerProvider;
 //!
 //! fn main() {
+//!     // Choose an exporter like `opentelemetry_stdout::SpanExporter`
+//!     # fn example<T: opentelemetry_sdk::export::trace::SpanExporter + 'static>(new_exporter: impl Fn() -> T) {
+//!     let exporter = new_exporter();
+//!
 //!     // Create a new trace pipeline that prints to stdout
-//!     let tracer = stdout::new_pipeline().install_simple();
+//!     let provider = TracerProvider::builder()
+//!         .with_simple_exporter(exporter)
+//!         .build();
+//!     let tracer = provider.tracer("readme_example".into());
 //!
 //!     tracer.in_span("doing_work", |cx| {
 //!         // Traced app logic here...
@@ -20,6 +27,7 @@
 //!
 //!     // Shutdown trace pipeline
 //!     global::shutdown_tracer_provider();
+//!     # }
 //! }
 //! # }
 //! ```
@@ -101,6 +109,7 @@
 )]
 #![cfg_attr(test, deny(warnings))]
 
+pub(crate) mod attributes;
 pub mod export;
 mod instrumentation;
 #[cfg(feature = "logs")]
@@ -124,6 +133,7 @@ pub mod trace;
 #[doc(hidden)]
 pub mod util;
 
+pub use attributes::*;
 pub use instrumentation::{InstrumentationLibrary, Scope};
 #[doc(inline)]
 pub use resource::Resource;

@@ -7,12 +7,12 @@
 //! OTLP_TONIC_X_HONEYCOMB_DATASET=dataset \
 //! cargo run --bin external-otlp-tonic-tokio
 //! ```
-use opentelemetry::{
+use opentelemetry_api::{
     global::{shutdown_tracer_provider, tracer},
-    sdk::trace as sdktrace,
     trace::{TraceContextExt, TraceError, Tracer},
     Key,
 };
+use opentelemetry_sdk::trace as sdktrace;
 use tonic::{
     metadata::{MetadataKey, MetadataMap},
     transport::ClientTlsConfig,
@@ -68,7 +68,7 @@ fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
                     ),
                 ),
         )
-        .install_batch(opentelemetry::runtime::Tokio)
+        .install_batch(opentelemetry_sdk::runtime::Tokio)
 }
 
 const LEMONS_KEY: Key = Key::from_static_str("ex.com/lemons");

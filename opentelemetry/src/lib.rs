@@ -13,11 +13,18 @@
 //! ```no_run
 //! # #[cfg(feature = "trace")]
 //! # {
-//! use opentelemetry::{global, sdk::export::trace::stdout, trace::Tracer};
+//! use opentelemetry::{
+//!     global,
+//!     sdk::trace::TracerProvider,
+//!     trace::{Tracer, TracerProvider as _},
+//! };
 //!
 //! fn main() {
 //!     // Create a new trace pipeline that prints to stdout
-//!     let tracer = stdout::new_pipeline().install_simple();
+//!     let provider = TracerProvider::builder()
+//!         .with_simple_exporter(opentelemetry_stdout::SpanExporter::default())
+//!         .build();
+//!     let tracer = provider.tracer("readme_example".into());
 //!
 //!     tracer.in_span("doing_work", |cx| {
 //!         // Traced app logic here...

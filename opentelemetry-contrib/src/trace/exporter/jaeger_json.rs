@@ -49,6 +49,7 @@ impl<R: JaegerJsonRuntime> JaegerJsonExporter<R> {
             "opentelemetry".into(),
             Some(env!("CARGO_PKG_VERSION").into()),
             None,
+            None,
         );
         let _ = opentelemetry::global::set_tracer_provider(provider);
 

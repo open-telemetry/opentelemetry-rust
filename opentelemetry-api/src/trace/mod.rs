@@ -54,6 +54,7 @@
 //!     let tracer = tracer_provider.versioned_tracer(
 //!         "my_name".into(),
 //!         Some(env!("CARGO_PKG_VERSION").into()),
+//!         None,
 //!         None
 //!     );
 //!

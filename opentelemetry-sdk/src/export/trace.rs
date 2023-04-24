@@ -6,8 +6,6 @@ use std::borrow::Cow;
 use std::fmt::Debug;
 use std::time::SystemTime;
 
-pub mod stdout;
-
 /// Describes the result of an export.
 pub type ExportResult = Result<(), TraceError>;
 

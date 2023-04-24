@@ -7,6 +7,8 @@ use std::{
 use opentelemetry_api::{Array, Key, KeyValue, Value};
 use ordered_float::OrderedFloat;
 
+use crate::Resource;
+
 #[derive(Clone, Debug)]
 struct HashKeyValue(KeyValue);
 
@@ -125,18 +127,37 @@ impl From<&[KeyValue]> for AttributeSet {
     }
 }
 
+impl From<&Resource> for AttributeSet {
+    fn from(values: &Resource) -> Self {
+        AttributeSet(
+            values
+                .iter()
+                .map(|(key, value)| HashKeyValue(KeyValue::new(key.clone(), value.clone())))
+                .collect(),
+        )
+    }
+}
+
 impl AttributeSet {
-    pub(crate) fn len(&self) -> usize {
+    /// Returns the number of elements in the set.
+    pub fn len(&self) -> usize {
         self.0.len()
     }
 
-    pub(crate) fn retain<F>(&mut self, f: F)
+    /// Returns `true` if the set contains no elements.
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    /// Retains only the attributes specified by the predicate.
+    pub fn retain<F>(&mut self, f: F)
     where
         F: Fn(&KeyValue) -> bool,
     {
         self.0.retain(|kv| f(&kv.0))
     }
 
+    /// Iterate over key value pairs in the set
     pub fn iter(&self) -> impl Iterator<Item = (&Key, &Value)> {
         self.0.iter().map(|kv| (&kv.0.key, &kv.0.value))
     }

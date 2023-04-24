@@ -20,14 +20,16 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = ["trace"]
-trace = ["opentelemetry/trace"]
+trace = ["opentelemetry_api/trace"]
 
 [dependencies]
 once_cell = "1.12"
-opentelemetry = { version = "0.19", path = "../opentelemetry", features = ["trace"] }
+opentelemetry_api = { version = "0.19", path = "../opentelemetry-api" }
 
 [dev-dependencies]
-opentelemetry = { path = "../opentelemetry", features = ["trace", "testing"] }
+opentelemetry_api = { path = "../opentelemetry-api", features = ["trace"] }
+opentelemetry_sdk = { path = "../opentelemetry-sdk", features = ["trace", "testing"] }
 opentelemetry-http = { path = "../opentelemetry-http" }
+opentelemetry-stdout = { path = "../opentelemetry-stdout", features = ["trace"] }
 hyper = { version = "0.14" }
 tokio = { version = "1.0", features = ["macros", "rt"] }

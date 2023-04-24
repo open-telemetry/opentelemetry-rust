@@ -13,14 +13,12 @@ pub mod tonic {
     use crate::proto::tonic::common::v1::{
         any_value, AnyValue, ArrayValue, InstrumentationScope, KeyValue,
     };
-    use opentelemetry::{
-        sdk::{trace::EvictedHashMap, Resource},
-        Array, Value,
-    };
+    use opentelemetry_api::{Array, Value};
+    use opentelemetry_sdk::{trace::EvictedHashMap, Resource};
     use std::borrow::Cow;
 
-    impl From<opentelemetry::sdk::InstrumentationLibrary> for InstrumentationScope {
-        fn from(library: opentelemetry::sdk::InstrumentationLibrary) -> Self {
+    impl From<opentelemetry_sdk::InstrumentationLibrary> for InstrumentationScope {
+        fn from(library: opentelemetry_sdk::InstrumentationLibrary) -> Self {
             InstrumentationScope {
                 name: library.name.into_owned(),
                 attributes: Vec::new(),
@@ -30,8 +28,8 @@ pub mod tonic {
         }
     }
 
-    impl From<&opentelemetry::sdk::InstrumentationLibrary> for InstrumentationScope {
-        fn from(library: &opentelemetry::sdk::InstrumentationLibrary) -> Self {
+    impl From<&opentelemetry_sdk::InstrumentationLibrary> for InstrumentationScope {
+        fn from(library: &opentelemetry_sdk::InstrumentationLibrary) -> Self {
             InstrumentationScope {
                 name: library.name.to_string(),
                 attributes: Vec::new(),
@@ -62,8 +60,8 @@ pub mod tonic {
         }
     }
 
-    impl From<Vec<opentelemetry::KeyValue>> for Attributes {
-        fn from(kvs: Vec<opentelemetry::KeyValue>) -> Self {
+    impl From<Vec<opentelemetry_api::KeyValue>> for Attributes {
+        fn from(kvs: Vec<opentelemetry_api::KeyValue>) -> Self {
             Attributes(
                 kvs.into_iter()
                     .map(|api_kv| KeyValue {
@@ -122,15 +120,13 @@ pub mod tonic {
 #[cfg(feature = "gen-protoc")]
 pub mod grpcio {
     use crate::proto::grpcio::common::{AnyValue, ArrayValue, InstrumentationScope, KeyValue};
-    use opentelemetry::{
-        sdk::{trace::EvictedHashMap, Resource},
-        Array, Value,
-    };
+    use opentelemetry_api::{Array, Value};
+    use opentelemetry_sdk::trace::EvictedHashMap;
     use protobuf::RepeatedField;
     use std::borrow::Cow;
 
-    impl From<opentelemetry::sdk::InstrumentationLibrary> for InstrumentationScope {
-        fn from(library: opentelemetry::sdk::InstrumentationLibrary) -> Self {
+    impl From<opentelemetry_sdk::InstrumentationLibrary> for InstrumentationScope {
+        fn from(library: opentelemetry_sdk::InstrumentationLibrary) -> Self {
             InstrumentationScope {
                 name: library.name.to_string(),
                 version: library.version.unwrap_or(Cow::Borrowed("")).to_string(),
@@ -157,8 +153,8 @@ pub mod grpcio {
         }
     }
 
-    impl From<Vec<opentelemetry::KeyValue>> for Attributes {
-        fn from(kvs: Vec<opentelemetry::KeyValue>) -> Self {
+    impl From<Vec<opentelemetry_api::KeyValue>> for Attributes {
+        fn from(kvs: Vec<opentelemetry_api::KeyValue>) -> Self {
             Attributes(RepeatedField::from_vec(
                 kvs.into_iter()
                     .map(|api_kv| {
