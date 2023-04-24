@@ -98,7 +98,7 @@ where
         }
         let provider = provider_builder.build();
 
-        provider.versioned_log_emitter("opentelemetry", Some(env!("CARGO_PKG_VERSION")))
+        provider.versioned_log_emitter("opentelemetry", Some(env!("CARGO_PKG_VERSION")), None, None)
     }
 }
 

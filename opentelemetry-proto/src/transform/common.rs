@@ -109,7 +109,7 @@ pub mod tonic {
         resource
             .map(|res| {
                 res.iter()
-                    .map(|(k, v)| opentelemetry::KeyValue::new(k.clone(), v.clone()))
+                    .map(|(k, v)| opentelemetry_api::KeyValue::new(k.clone(), v.clone()))
                     .collect::<Vec<_>>()
             })
             .unwrap_or_default()
@@ -121,7 +121,7 @@ pub mod tonic {
 pub mod grpcio {
     use crate::proto::grpcio::common::{AnyValue, ArrayValue, InstrumentationScope, KeyValue};
     use opentelemetry_api::{Array, Value};
-    use opentelemetry_sdk::trace::EvictedHashMap;
+    use opentelemetry_sdk::{trace::EvictedHashMap, Resource};
     use protobuf::RepeatedField;
     use std::borrow::Cow;
 
@@ -209,7 +209,7 @@ pub mod grpcio {
             .map(|resource| {
                 resource
                     .iter()
-                    .map(|(k, v)| opentelemetry::KeyValue::new(k.clone(), v.clone()))
+                    .map(|(k, v)| opentelemetry_api::KeyValue::new(k.clone(), v.clone()))
                     .collect::<Vec<_>>()
             })
             .unwrap_or_default()

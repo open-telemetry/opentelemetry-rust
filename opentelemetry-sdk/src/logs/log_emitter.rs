@@ -35,16 +35,13 @@ impl LogEmitterProvider {
         Builder::default()
     }
 
-    /// Create a new `LogEmitter`.
-    pub fn log_emitter(&self, name: impl Into<Cow<'static, str>>) -> LogEmitter {
-        self.versioned_log_emitter(name, None)
-    }
-
-    /// Create a new version `LogEmitter` instance.
+    /// Create a new versioned `LogEmitter` instance.
     pub fn versioned_log_emitter(
         &self,
         name: impl Into<Cow<'static, str>>,
         version: Option<&'static str>,
+        schema_url: Option<Cow<'static, str>>,
+        attributes: Option<Vec<opentelemetry_api::KeyValue>>,
     ) -> LogEmitter {
         let name = name.into();
 
@@ -55,7 +52,12 @@ impl LogEmitterProvider {
         };
 
         LogEmitter::new(
-            InstrumentationLibrary::new(component_name, version.map(Into::into), None),
+            InstrumentationLibrary::new(
+                component_name,
+                version.map(Into::into),
+                schema_url,
+                attributes,
+            ),
             Arc::downgrade(&self.inner),
         )
     }
