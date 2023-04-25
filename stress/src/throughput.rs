@@ -1,6 +1,6 @@
-use std::sync::{Arc, Mutex};
 use rayon::prelude::*;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 const SLIDING_WINDOW_SIZE: u64 = 2; // In seconds
@@ -9,7 +9,7 @@ static STOP: AtomicBool = AtomicBool::new(false);
 
 pub fn test_throughput<F>(func: F)
 where
-F: Fn() + Sync + Send + 'static,
+    F: Fn() + Sync + Send + 'static,
 {
     ctrlc::set_handler(move || {
         STOP.store(true, Ordering::SeqCst);
@@ -22,20 +22,17 @@ F: Fn() + Sync + Send + 'static,
     let counts = counter.clone();
 
     rayon::spawn(move || {
-        (0..num_cpus::get()).into_par_iter().for_each(|i| {
-            loop {
-                func();
-                let mut counts = counts.lock().unwrap();
-                counts[i] += 1;
-                if STOP.load(Ordering::SeqCst) {
-                    break;
-                }
+        (0..num_cpus::get()).into_par_iter().for_each(|i| loop {
+            func();
+            let mut counts = counts.lock().unwrap();
+            counts[i] += 1;
+            if STOP.load(Ordering::SeqCst) {
+                break;
             }
         });
     });
 
     loop {
-
         let elapsed = end_time.duration_since(start_time).as_secs();
         if elapsed >= SLIDING_WINDOW_SIZE {
             let counts = counter.lock().unwrap();
@@ -53,5 +50,4 @@ F: Fn() + Sync + Send + 'static,
 
         end_time = Instant::now();
     }
-
 }
