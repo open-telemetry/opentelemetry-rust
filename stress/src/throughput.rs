@@ -6,7 +6,6 @@ const SLIDING_WINDOW_SIZE: u64 = 2; // In seconds
 
 static STOP: AtomicBool = AtomicBool::new(false);
 
-
 pub fn test_throughput<F>(func: F)
 where
     F: Fn() + Sync,

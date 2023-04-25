@@ -13,7 +13,7 @@
 Open a console, run the following command from the current folder:
 
 ```sh
-cargo run --bin X
+cargo run --release --bin X
 ```
 
 where `X` is the specific stress test you would like to run.
@@ -21,7 +21,7 @@ where `X` is the specific stress test you would like to run.
 e.g.
 
 ```sh
-cargo run --bin metrics
+cargo run --release --bin metrics
 ```
 
 ```text
