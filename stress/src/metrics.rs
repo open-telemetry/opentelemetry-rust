@@ -1,45 +1,26 @@
-use rayon::prelude::*;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::time::Instant;
+use lazy_static::lazy_static;
+use opentelemetry_api::{
+    metrics::{Counter, MeterProvider as _,},
+    Context,
+};
+use opentelemetry_sdk::{
+    metrics::{
+        ManualReader, MeterProvider
+    },
+};
 
-const SLIDING_WINDOW_SIZE: u64 = 2; // In seconds
+mod throughput;
 
-static STOP: AtomicBool = AtomicBool::new(false);
+lazy_static! {
+    static ref CONTEXT: Context = Context::new();
+    static ref PROVIDER: MeterProvider = MeterProvider::builder().with_reader(ManualReader::builder().build()).build();
+    static ref COUNTER: Counter<u64> = PROVIDER.meter("test".into()).u64_counter("hello").init();
+}
 
 fn main() {
-    ctrlc::set_handler(move || {
-        STOP.store(true, Ordering::SeqCst);
-    })
-    .expect("Error setting Ctrl-C handler");
+    throughput::test_throughput(test_counter);
+}
 
-    // Main loop
-    let mut start_time = Instant::now();
-    let mut end_time = Instant::now();
-    let mut count: u64 = 0;
-    let mut total_count: u64 = 0;
-    loop {
-        let elapsed = end_time.duration_since(start_time).as_secs();
-        if elapsed >= SLIDING_WINDOW_SIZE {
-            let throughput = count as f64 / elapsed as f64;
-            println!("Throughput: {:.2} requests/sec", throughput);
-            start_time = Instant::now();
-            count = 0;
-        }
-
-        let num_threads = num_cpus::get();
-        (0..num_threads).into_par_iter().for_each(|_| {
-            let x = 1 + 1;
-        });
-
-        count += num_threads as u64;
-        total_count += num_threads as u64;
-
-        if STOP.load(Ordering::SeqCst) {
-            break;
-        }
-
-        end_time = Instant::now();
-    }
-
-    println!("Total requests processed: {}", total_count);
+fn test_counter() {
+    COUNTER.add(&CONTEXT, 1, &[]);
 }
