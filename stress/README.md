@@ -25,14 +25,12 @@ cargo run --release --bin metrics
 ```
 
 ```text
-Throughput: 412998.00 requests/sec
-Throughput: 404226.00 requests/sec
-Throughput: 417000.00 requests/sec
-Throughput: 403440.00 requests/sec
-Throughput: 395148.00 requests/sec
-Throughput: 404172.00 requests/sec
-Throughput: 395412.00 requests/sec
-Throughput: 400740.00 requests/sec
-Throughput: 390132.00 requests/sec
-Total requests processed: 7418976
+Throughput: 4278494.00 requests/sec
+Throughput: 4157096.50 requests/sec
+Throughput: 4190185.50 requests/sec
+Throughput: 4185362.50 requests/sec
+Throughput: 4225514.00 requests/sec
+Throughput: 4220563.00 requests/sec
+Throughput: 4203673.50 requests/sec
+Throughput: 4230679.50 requests/sec
 ```
