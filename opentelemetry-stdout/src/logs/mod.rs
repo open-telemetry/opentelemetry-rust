@@ -3,17 +3,20 @@
 //! The stdout [`LogExporter`] writes debug printed [`LogRecord`]s to its configured
 //! [`Write`] instance. By default it will write to [`Stdout`].
 //!
-//! [`LogExporter`]: super::LogExporter
-//! [`LogRecord`]: crate::log::LogRecord
+//! [`LogExporter`]: opentelemetry_sdk::export::logs::LogExporter
+//! [`LogRecord`]: crate::logs::LogRecord
 //! [`Write`]: std::io::Write
 //! [`Stdout`]: std::io::Stdout
 // TODO: Add an example for using this exporter.
-use crate::export::{
-    logs::{ExportResult, LogData, LogExporter},
-    ExportError,
-};
 use async_trait::async_trait;
 use opentelemetry_api::logs::LogError;
+use opentelemetry_sdk::{
+    export::{
+        logs::{ExportResult, LogData, LogExporter},
+        ExportError,
+    },
+    logs::{Config, LogEmitter, LogEmitterProvider},
+};
 use std::fmt::Debug;
 use std::io::{stdout, Stdout, Write};
 
@@ -21,7 +24,7 @@ use std::io::{stdout, Stdout, Write};
 #[derive(Debug)]
 pub struct PipelineBuilder<W: Write> {
     pretty_print: bool,
-    log_config: Option<crate::logs::Config>,
+    log_config: Option<Config>,
     writer: W,
 }
 
@@ -48,8 +51,8 @@ impl<W: Write> PipelineBuilder<W> {
         self
     }
 
-    /// Assign the SDK trace configuration.
-    pub fn with_trace_config(mut self, config: crate::logs::Config) -> Self {
+    /// Assign the SDK logs configuration.
+    pub fn with_logs_config(mut self, config: crate::logs::Config) -> Self {
         self.log_config = Some(config);
         self
     }
@@ -69,11 +72,10 @@ where
     W: Write + Debug + Send + 'static,
 {
     /// Install the stdout exporter pipeline with the recommended defaults.
-    pub fn install_simple(mut self) -> crate::logs::LogEmitter {
+    pub fn install_simple(mut self) -> LogEmitter {
         let exporter = Exporter::new(self.writer, self.pretty_print);
 
-        let mut provider_builder =
-            crate::logs::LogEmitterProvider::builder().with_simple_exporter(exporter);
+        let mut provider_builder = LogEmitterProvider::builder().with_simple_exporter(exporter);
         if let Some(config) = self.log_config.take() {
             provider_builder = provider_builder.with_config(config);
         }
@@ -85,7 +87,7 @@ where
 
 /// A [`LogExporter`] that writes to [`Stdout`] or other configured [`Write`].
 ///
-/// [`LogExporter`]: super::LogExporter
+/// [`LogExporter`]: opentelemetry_sdk::export::logs::LogExporter
 /// [`Write`]: std::io::Write
 /// [`Stdout`]: std::io::Stdout
 #[derive(Debug)]

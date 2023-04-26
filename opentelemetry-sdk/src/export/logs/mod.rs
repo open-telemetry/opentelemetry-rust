@@ -5,8 +5,6 @@ use opentelemetry_api::logs::LogError;
 use opentelemetry_api::{logs::LogResult, InstrumentationLibrary};
 use std::{fmt::Debug, sync::Arc};
 
-pub mod stdout;
-
 /// `LogExporter` defines the interface that log exporters should implement.
 #[async_trait]
 pub trait LogExporter: Send + Debug {

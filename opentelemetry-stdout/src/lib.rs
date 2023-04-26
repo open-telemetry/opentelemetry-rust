@@ -50,3 +50,9 @@ mod trace;
 #[cfg_attr(docsrs, doc(cfg(feature = "trace")))]
 #[cfg(feature = "trace")]
 pub use trace::*;
+
+#[cfg(feature = "logs")]
+mod logs;
+#[cfg_attr(docsrs, doc(cfg(feature = "logs")))]
+#[cfg(feature = "logs")]
+pub use logs::*;
