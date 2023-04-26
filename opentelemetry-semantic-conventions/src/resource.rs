@@ -13,7 +13,7 @@
 //!
 //! ## Usage
 //!
-//! ```no_run
+//! ```
 //! use opentelemetry::sdk;
 //! use opentelemetry_semantic_conventions as semconv;
 //!
@@ -55,15 +55,6 @@ pub const BROWSER_PLATFORM: Key = Key::from_static_str("browser.platform");
 /// This value is intended to be taken from the [UA client hints API](https://wicg.github.io/ua-client-hints/#interface) (`navigator.userAgentData.mobile`). If unavailable, this attribute SHOULD be left unset.
 pub const BROWSER_MOBILE: Key = Key::from_static_str("browser.mobile");
 
-/// Full user-agent string provided by the browser.
-///
-/// The user-agent value SHOULD be provided only from browsers that do not have a mechanism to retrieve brands and platform individually from the User-Agent Client Hints API. To retrieve the value, the legacy `navigator.userAgent` API can be used.
-///
-/// # Examples
-///
-/// - `Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/95.0.4638.54 Safari/537.36`
-pub const BROWSER_USER_AGENT: Key = Key::from_static_str("browser.user_agent");
-
 /// Preferred language of the user using the browser.
 ///
 /// This value is intended to be taken from the Navigator API `navigator.language`.
@@ -89,13 +80,40 @@ pub const CLOUD_ACCOUNT_ID: Key = Key::from_static_str("cloud.account.id");
 
 /// The geographical region the resource is running.
 ///
-/// Refer to your provider&#39;s docs to see the available regions, for example [Alibaba Cloud regions](https://www.alibabacloud.com/help/doc-detail/40654.htm), [AWS regions](https://aws.amazon.com/about-aws/global-infrastructure/regions_az/), [Azure regions](https://azure.microsoft.com/en-us/global-infrastructure/geographies/), [Google Cloud regions](https://cloud.google.com/about/locations), or [Tencent Cloud regions](https://intl.cloud.tencent.com/document/product/213/6091).
+/// Refer to your provider&#39;s docs to see the available regions, for example [Alibaba Cloud regions](https://www.alibabacloud.com/help/doc-detail/40654.htm), [AWS regions](https://aws.amazon.com/about-aws/global-infrastructure/regions_az/), [Azure regions](https://azure.microsoft.com/en-us/global-infrastructure/geographies/), [Google Cloud regions](https://cloud.google.com/about/locations), or [Tencent Cloud regions](https://www.tencentcloud.com/document/product/213/6091).
 ///
 /// # Examples
 ///
 /// - `us-central1`
 /// - `us-east-1`
 pub const CLOUD_REGION: Key = Key::from_static_str("cloud.region");
+
+/// Cloud provider-specific native identifier of the monitored cloud resource (e.g. an [ARN](https://docs.aws.amazon.com/general/latest/gr/aws-arns-and-namespaces.html) on AWS, a [fully qualified resource ID](https://learn.microsoft.com/en-us/rest/api/resources/resources/get-by-id) on Azure, a [full resource name](https://cloud.google.com/apis/design/resource_names#full_resource_name) on GCP).
+///
+/// On some cloud providers, it may not be possible to determine the full ID at startup,
+/// so it may be necessary to set `cloud.resource_id` as a span attribute instead.
+///
+/// The exact value to use for `cloud.resource_id` depends on the cloud provider.
+/// The following well-known definitions MUST be used if you set this attribute and they apply:
+///
+/// * **AWS Lambda:** The function [ARN](https://docs.aws.amazon.com/general/latest/gr/aws-arns-and-namespaces.html).
+///   Take care not to use the &#34;invoked ARN&#34; directly but replace any
+///   [alias suffix](https://docs.aws.amazon.com/lambda/latest/dg/configuration-aliases.html)
+///   with the resolved function version, as the same runtime instance may be invokable with
+///   multiple different aliases.
+/// * **GCP:** The [URI of the resource](https://cloud.google.com/iam/docs/full-resource-names)
+/// * **Azure:** The [Fully Qualified Resource ID](https://docs.microsoft.com/en-us/rest/api/resources/resources/get-by-id) of the invoked function,
+///   *not* the function app, having the form
+///   `/subscriptions/&lt;SUBSCIPTION_GUID&gt;/resourceGroups/&lt;RG&gt;/providers/Microsoft.Web/sites/&lt;FUNCAPP&gt;/functions/&lt;FUNC&gt;`.
+///   This means that a span attribute MUST be used, as an Azure function app can host multiple functions that would usually share
+///   a TracerProvider.
+///
+/// # Examples
+///
+/// - `arn:aws:lambda:REGION:ACCOUNT_ID:function:my-function`
+/// - `//run.googleapis.com/projects/PROJECT_ID/locations/LOCATION_ID/services/SERVICE_ID`
+/// - `/subscriptions/<SUBSCIPTION_GUID>/resourceGroups/<RG>/providers/Microsoft.Web/sites/<FUNCAPP>/functions/<FUNC>`
+pub const CLOUD_RESOURCE_ID: Key = Key::from_static_str("cloud.resource_id");
 
 /// Cloud regions often have multiple, isolated locations known as zones to increase availability. Availability zone represents the zone where the resource is running.
 ///
@@ -191,6 +209,28 @@ pub const AWS_LOG_STREAM_NAMES: Key = Key::from_static_str("aws.log.stream.names
 ///
 /// - `arn:aws:logs:us-west-1:123456789012:log-group:/aws/my/group:log-stream:logs/main/10838bed-421f-43ef-870a-f43feacbbb5b`
 pub const AWS_LOG_STREAM_ARNS: Key = Key::from_static_str("aws.log.stream.arns");
+
+/// Time and date the release was created.
+///
+/// # Examples
+///
+/// - `2022-10-23T18:00:42Z`
+pub const HEROKU_RELEASE_CREATION_TIMESTAMP: Key =
+    Key::from_static_str("heroku.release.creation_timestamp");
+
+/// Commit hash for the current release.
+///
+/// # Examples
+///
+/// - `e6134959463efd8966b20e75b913cafe3f5ec`
+pub const HEROKU_RELEASE_COMMIT: Key = Key::from_static_str("heroku.release.commit");
+
+/// Unique identifier for the application.
+///
+/// # Examples
+///
+/// - `2daa2797-e42b-4624-9322-ec3f968df4da`
+pub const HEROKU_APP_ID: Key = Key::from_static_str("heroku.app.id");
 
 /// Container name used by container runtime.
 ///
@@ -293,37 +333,13 @@ pub const DEVICE_MANUFACTURER: Key = Key::from_static_str("device.manufacturer")
 ///   can also be seen in the resource JSON for the function).
 ///   This means that a span attribute MUST be used, as an Azure function
 ///   app can host multiple functions that would usually share
-///   a TracerProvider (see also the `faas.id` attribute).
+///   a TracerProvider (see also the `cloud.resource_id` attribute).
 ///
 /// # Examples
 ///
 /// - `my-function`
 /// - `myazurefunctionapp/some-function-name`
 pub const FAAS_NAME: Key = Key::from_static_str("faas.name");
-
-/// The unique ID of the single function that this runtime instance executes.
-///
-/// On some cloud providers, it may not be possible to determine the full ID at startup,
-/// so consider setting `faas.id` as a span attribute instead.
-///
-/// The exact value to use for `faas.id` depends on the cloud provider:
-///
-/// * **AWS Lambda:** The function [ARN](https://docs.aws.amazon.com/general/latest/gr/aws-arns-and-namespaces.html).
-///   Take care not to use the &#34;invoked ARN&#34; directly but replace any
-///   [alias suffix](https://docs.aws.amazon.com/lambda/latest/dg/configuration-aliases.html)
-///   with the resolved function version, as the same runtime instance may be invokable with
-///   multiple different aliases.
-/// * **GCP:** The [URI of the resource](https://cloud.google.com/iam/docs/full-resource-names)
-/// * **Azure:** The [Fully Qualified Resource ID](https://docs.microsoft.com/en-us/rest/api/resources/resources/get-by-id) of the invoked function,
-///   *not* the function app, having the form
-///   `/subscriptions/&lt;SUBSCIPTION_GUID&gt;/resourceGroups/&lt;RG&gt;/providers/Microsoft.Web/sites/&lt;FUNCAPP&gt;/functions/&lt;FUNC&gt;`.
-///   This means that a span attribute MUST be used, as an Azure function app can host multiple functions that would usually share
-///   a TracerProvider.
-///
-/// # Examples
-///
-/// - `arn:aws:lambda:us-west-2:123456789012:function:my-function`
-pub const FAAS_ID: Key = Key::from_static_str("faas.id");
 
 /// The immutable version of the function being executed.
 ///
@@ -352,16 +368,16 @@ pub const FAAS_VERSION: Key = Key::from_static_str("faas.version");
 /// - `2021/06/28/[$LATEST]2f399eb14537447da05ab2a2e39309de`
 pub const FAAS_INSTANCE: Key = Key::from_static_str("faas.instance");
 
-/// The amount of memory available to the serverless function in MiB.
+/// The amount of memory available to the serverless function converted to Bytes.
 ///
-/// It&#39;s recommended to set this attribute since e.g. too little memory can easily stop a Java AWS Lambda function from working correctly. On AWS Lambda, the environment variable `AWS_LAMBDA_FUNCTION_MEMORY_SIZE` provides this information.
+/// It&#39;s recommended to set this attribute since e.g. too little memory can easily stop a Java AWS Lambda function from working correctly. On AWS Lambda, the environment variable `AWS_LAMBDA_FUNCTION_MEMORY_SIZE` provides this information (which must be multiplied by 1,048,576).
 ///
 /// # Examples
 ///
-/// - `128`
+/// - `134217728`
 pub const FAAS_MAX_MEMORY: Key = Key::from_static_str("faas.max_memory");
 
-/// Unique host ID. For Cloud, this must be the instance_id assigned by the cloud provider. For non-containerized Linux systems, the `machine-id` located in `/etc/machine-id` or `/var/lib/dbus/machine-id` may be used.
+/// Unique host ID. For Cloud, this must be the instance_id assigned by the cloud provider. For non-containerized systems, this should be the `machine-id`. See the table below for the sources to use to determine the `machine-id` based on operating system.
 ///
 /// # Examples
 ///
@@ -678,6 +694,7 @@ pub const SERVICE_NAMESPACE: Key = Key::from_static_str("service.namespace");
 ///
 /// # Examples
 ///
+/// - `my-k8s-pod-deployment-1`
 /// - `627cc493-f310-47de-96bd-71410b7dec09`
 pub const SERVICE_INSTANCE_ID: Key = Key::from_static_str("service.instance.id");
 
@@ -732,3 +749,33 @@ pub const WEBENGINE_VERSION: Key = Key::from_static_str("webengine.version");
 ///
 /// - `WildFly Full 21.0.0.Final (WildFly Core 13.0.1.Final) - 2.2.2.Final`
 pub const WEBENGINE_DESCRIPTION: Key = Key::from_static_str("webengine.description");
+
+/// The name of the instrumentation scope - (`InstrumentationScope.Name` in OTLP).
+///
+/// # Examples
+///
+/// - `io.opentelemetry.contrib.mongodb`
+pub const OTEL_SCOPE_NAME: Key = Key::from_static_str("otel.scope.name");
+
+/// The version of the instrumentation scope - (`InstrumentationScope.Version` in OTLP).
+///
+/// # Examples
+///
+/// - `1.0.0`
+pub const OTEL_SCOPE_VERSION: Key = Key::from_static_str("otel.scope.version");
+
+/// Deprecated, use the `otel.scope.name` attribute.
+///
+/// # Examples
+///
+/// - `io.opentelemetry.contrib.mongodb`
+#[deprecated]
+pub const OTEL_LIBRARY_NAME: Key = Key::from_static_str("otel.library.name");
+
+/// Deprecated, use the `otel.scope.version` attribute.
+///
+/// # Examples
+///
+/// - `1.0.0`
+#[deprecated]
+pub const OTEL_LIBRARY_VERSION: Key = Key::from_static_str("otel.library.version");

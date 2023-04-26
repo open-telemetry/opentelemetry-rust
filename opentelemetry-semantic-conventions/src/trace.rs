@@ -13,7 +13,7 @@
 //!
 //! ## Usage
 //!
-//! ```rust
+//! ```
 //! use opentelemetry::{global, trace::Tracer as _};
 //! use opentelemetry_semantic_conventions as semcov;
 //!
@@ -52,6 +52,41 @@ pub const EXCEPTION_MESSAGE: Key = Key::from_static_str("exception.message");
 /// - `Exception in thread "main" java.lang.RuntimeException: Test exception\n at com.example.GenerateTrace.methodB(GenerateTrace.java:13)\n at com.example.GenerateTrace.methodA(GenerateTrace.java:9)\n at com.example.GenerateTrace.main(GenerateTrace.java:5)`
 pub const EXCEPTION_STACKTRACE: Key = Key::from_static_str("exception.stacktrace");
 
+/// HTTP request method.
+///
+/// # Examples
+///
+/// - `GET`
+/// - `POST`
+/// - `HEAD`
+pub const HTTP_METHOD: Key = Key::from_static_str("http.method");
+
+/// [HTTP response status code](https://tools.ietf.org/html/rfc7231#section-6).
+///
+/// # Examples
+///
+/// - `200`
+pub const HTTP_STATUS_CODE: Key = Key::from_static_str("http.status_code");
+
+/// The URI scheme identifying the used protocol.
+///
+/// # Examples
+///
+/// - `http`
+/// - `https`
+pub const HTTP_SCHEME: Key = Key::from_static_str("http.scheme");
+
+/// The matched route (path template in the format used by the respective server framework). See note below.
+///
+/// MUST NOT be populated when this is not supported by the HTTP server framework as the route attribute should have low-cardinality and the URI path can NOT substitute it.
+/// SHOULD include the [application root](/specification/trace/semantic_conventions/http.md#http-server-definitions) if there is one.
+///
+/// # Examples
+///
+/// - `/users/:userID?`
+/// - `{controller}/{action}/{id?}`
+pub const HTTP_ROUTE: Key = Key::from_static_str("http.route");
+
 /// The name identifies the event.
 ///
 /// # Examples
@@ -66,39 +101,19 @@ pub const EVENT_NAME: Key = Key::from_static_str("event.name");
 /// unrelated events.
 pub const EVENT_DOMAIN: Key = Key::from_static_str("event.domain");
 
-/// The name of the instrumentation scope - (`InstrumentationScope.Name` in OTLP).
+/// A unique identifier for the Log Record.
+///
+/// If an id is provided, other log records with the same id will be considered duplicates and can be removed safely. This means, that two distinguishable log records MUST have different values.
+/// The id MAY be an [Universally Unique Lexicographically Sortable Identifier (ULID)](https://github.com/ulid/spec), but other identifiers (e.g. UUID) may be used as needed.
 ///
 /// # Examples
 ///
-/// - `io.opentelemetry.contrib.mongodb`
-pub const OTEL_SCOPE_NAME: Key = Key::from_static_str("otel.scope.name");
-
-/// The version of the instrumentation scope - (`InstrumentationScope.Version` in OTLP).
-///
-/// # Examples
-///
-/// - `1.0.0`
-pub const OTEL_SCOPE_VERSION: Key = Key::from_static_str("otel.scope.version");
-
-/// Deprecated, use the `otel.scope.name` attribute.
-///
-/// # Examples
-///
-/// - `io.opentelemetry.contrib.mongodb`
-#[deprecated]
-pub const OTEL_LIBRARY_NAME: Key = Key::from_static_str("otel.library.name");
-
-/// Deprecated, use the `otel.scope.version` attribute.
-///
-/// # Examples
-///
-/// - `1.0.0`
-#[deprecated]
-pub const OTEL_LIBRARY_VERSION: Key = Key::from_static_str("otel.library.version");
+/// - `01ARZ3NDEKTSV4RRFFQ69G5FAV`
+pub const LOG_RECORD_UID: Key = Key::from_static_str("log.record.uid");
 
 /// The full invoked ARN as provided on the `Context` passed to the function (`Lambda-Runtime-Invoked-Function-Arn` header on the `/runtime/invocation/next` applicable).
 ///
-/// This may be different from `faas.id` if an alias is involved.
+/// This may be different from `cloud.resource_id` if an alias is involved.
 ///
 /// # Examples
 ///
@@ -187,8 +202,6 @@ pub const DB_JDBC_DRIVER_CLASSNAME: Key = Key::from_static_str("db.jdbc.driver_c
 pub const DB_NAME: Key = Key::from_static_str("db.name");
 
 /// The database statement being executed.
-///
-/// The value may be sanitized to exclude sensitive information.
 ///
 /// # Examples
 ///
@@ -289,6 +302,54 @@ pub const DB_MONGODB_COLLECTION: Key = Key::from_static_str("db.mongodb.collecti
 /// - `customers`
 pub const DB_SQL_TABLE: Key = Key::from_static_str("db.sql.table");
 
+/// Unique Cosmos client instance id.
+///
+/// # Examples
+///
+/// - `3ba4827d-4422-483f-b59f-85b74211c11d`
+pub const DB_COSMOSDB_CLIENT_ID: Key = Key::from_static_str("db.cosmosdb.client_id");
+
+/// CosmosDB Operation Type.
+pub const DB_COSMOSDB_OPERATION_TYPE: Key = Key::from_static_str("db.cosmosdb.operation_type");
+
+/// Cosmos client connection mode.
+pub const DB_COSMOSDB_CONNECTION_MODE: Key = Key::from_static_str("db.cosmosdb.connection_mode");
+
+/// Cosmos DB container name.
+///
+/// # Examples
+///
+/// - `anystring`
+pub const DB_COSMOSDB_CONTAINER: Key = Key::from_static_str("db.cosmosdb.container");
+
+/// Request payload size in bytes.
+pub const DB_COSMOSDB_REQUEST_CONTENT_LENGTH: Key =
+    Key::from_static_str("db.cosmosdb.request_content_length");
+
+/// Cosmos DB status code.
+///
+/// # Examples
+///
+/// - `200`
+/// - `201`
+pub const DB_COSMOSDB_STATUS_CODE: Key = Key::from_static_str("db.cosmosdb.status_code");
+
+/// Cosmos DB sub status code.
+///
+/// # Examples
+///
+/// - `1000`
+/// - `1002`
+pub const DB_COSMOSDB_SUB_STATUS_CODE: Key = Key::from_static_str("db.cosmosdb.sub_status_code");
+
+/// RU consumed for that operation.
+///
+/// # Examples
+///
+/// - `46.18`
+/// - `1.0`
+pub const DB_COSMOSDB_REQUEST_CHARGE: Key = Key::from_static_str("db.cosmosdb.request_charge");
+
 /// Name of the code, either &#34;OK&#34; or &#34;ERROR&#34;. MUST NOT be set if the status code is UNSET.
 pub const OTEL_STATUS_CODE: Key = Key::from_static_str("otel.status_code");
 
@@ -299,7 +360,7 @@ pub const OTEL_STATUS_CODE: Key = Key::from_static_str("otel.status_code");
 /// - `resource not found`
 pub const OTEL_STATUS_DESCRIPTION: Key = Key::from_static_str("otel.status_description");
 
-/// Type of the trigger which caused this function execution.
+/// Type of the trigger which caused this function invocation.
 ///
 /// For the server/consumer span on the incoming side,
 /// `faas.trigger` MUST be set.
@@ -312,12 +373,12 @@ pub const OTEL_STATUS_DESCRIPTION: Key = Key::from_static_str("otel.status_descr
 /// call to invoke the lambda, which is often HTTP).
 pub const FAAS_TRIGGER: Key = Key::from_static_str("faas.trigger");
 
-/// The execution ID of the current function execution.
+/// The invocation ID of the current function invocation.
 ///
 /// # Examples
 ///
 /// - `af9d5aa4-a685-4c5f-a22b-444f80b3cc28`
-pub const FAAS_EXECUTION: Key = Key::from_static_str("faas.execution");
+pub const FAAS_INVOCATION_ID: Key = Key::from_static_str("faas.invocation_id");
 
 /// The name of the source on which the triggering operation was performed. For example, in Cloud Storage or S3 corresponds to the bucket name, and in Cosmos DB to the database name.
 ///
@@ -427,16 +488,16 @@ pub const NET_TRANSPORT: Key = Key::from_static_str("net.transport");
 /// - `amqp`
 /// - `http`
 /// - `mqtt`
-pub const NET_APP_PROTOCOL_NAME: Key = Key::from_static_str("net.app.protocol.name");
+pub const NET_PROTOCOL_NAME: Key = Key::from_static_str("net.protocol.name");
 
 /// Version of the application layer protocol used. See note below.
 ///
-/// `net.app.protocol.version` refers to the version of the protocol used and might be different from the protocol client&#39;s version. If the HTTP client used has a version of `0.27.2`, but sends HTTP version `1.1`, this attribute should be set to `1.1`.
+/// `net.protocol.version` refers to the version of the protocol used and might be different from the protocol client&#39;s version. If the HTTP client used has a version of `0.27.2`, but sends HTTP version `1.1`, this attribute should be set to `1.1`.
 ///
 /// # Examples
 ///
 /// - `3.1.1`
-pub const NET_APP_PROTOCOL_VERSION: Key = Key::from_static_str("net.app.protocol.version");
+pub const NET_PROTOCOL_VERSION: Key = Key::from_static_str("net.protocol.version");
 
 /// Remote socket peer name.
 ///
@@ -633,34 +694,6 @@ pub const CODE_LINENO: Key = Key::from_static_str("code.lineno");
 /// - `16`
 pub const CODE_COLUMN: Key = Key::from_static_str("code.column");
 
-/// HTTP request method.
-///
-/// # Examples
-///
-/// - `GET`
-/// - `POST`
-/// - `HEAD`
-pub const HTTP_METHOD: Key = Key::from_static_str("http.method");
-
-/// [HTTP response status code](https://tools.ietf.org/html/rfc7231#section-6).
-///
-/// # Examples
-///
-/// - `200`
-pub const HTTP_STATUS_CODE: Key = Key::from_static_str("http.status_code");
-
-/// Kind of HTTP protocol used.
-///
-/// If `net.transport` is not specified, it can be assumed to be `IP.TCP` except if `http.flavor` is `QUIC`, in which case `IP.UDP` is assumed.
-pub const HTTP_FLAVOR: Key = Key::from_static_str("http.flavor");
-
-/// Value of the [HTTP User-Agent](https://www.rfc-editor.org/rfc/rfc9110.html#field.user-agent) header sent by the client.
-///
-/// # Examples
-///
-/// - `CERN-LineMode/2.15 libwww/2.17b3`
-pub const HTTP_USER_AGENT: Key = Key::from_static_str("http.user_agent");
-
 /// The size of the request payload body in bytes. This is the number of bytes transferred excluding headers and is often, but not always, present as the [Content-Length](https://www.rfc-editor.org/rfc/rfc9110.html#field.content-length) header. For requests using transport encoding, this should be the compressed size.
 ///
 /// # Examples
@@ -693,30 +726,12 @@ pub const HTTP_URL: Key = Key::from_static_str("http.url");
 /// - `3`
 pub const HTTP_RESEND_COUNT: Key = Key::from_static_str("http.resend_count");
 
-/// The URI scheme identifying the used protocol.
-///
-/// # Examples
-///
-/// - `http`
-/// - `https`
-pub const HTTP_SCHEME: Key = Key::from_static_str("http.scheme");
-
 /// The full request target as passed in a HTTP request line or equivalent.
 ///
 /// # Examples
 ///
-/// - `/path/12314/?q=ddds`
+/// - `/users/12314/?q=ddds`
 pub const HTTP_TARGET: Key = Key::from_static_str("http.target");
-
-/// The matched route (path template in the format used by the respective server framework). See note below.
-///
-/// &#39;http.route&#39; MUST NOT be populated when this is not supported by the HTTP server framework as the route attribute should have low-cardinality and the URI path can NOT substitute it.
-///
-/// # Examples
-///
-/// - `/users/:userID?`
-/// - `{controller}/{action}/{id?}`
-pub const HTTP_ROUTE: Key = Key::from_static_str("http.route");
 
 /// The IP address of the original client behind all proxies, if known (e.g. from [X-Forwarded-For](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Forwarded-For)).
 ///
@@ -736,6 +751,14 @@ pub const HTTP_ROUTE: Key = Key::from_static_str("http.route");
 ///
 /// - `83.164.160.102`
 pub const HTTP_CLIENT_IP: Key = Key::from_static_str("http.client_ip");
+
+/// The AWS request ID as returned in the response headers `x-amz-request-id` or `x-amz-requestid`.
+///
+/// # Examples
+///
+/// - `79b9da39-b7ae-508a-a6bc-864b2829c622`
+/// - `C9ER4AJX75574TDJ`
+pub const AWS_REQUEST_ID: Key = Key::from_static_str("aws.request_id");
 
 /// The keys in the `RequestItems` object field.
 ///
@@ -901,6 +924,94 @@ pub const AWS_DYNAMODB_ATTRIBUTE_DEFINITIONS: Key =
 pub const AWS_DYNAMODB_GLOBAL_SECONDARY_INDEX_UPDATES: Key =
     Key::from_static_str("aws.dynamodb.global_secondary_index_updates");
 
+/// The S3 bucket name the request refers to. Corresponds to the `--bucket` parameter of the [S3 API](https://docs.aws.amazon.com/cli/latest/reference/s3api/index.html) operations.
+///
+/// The `bucket` attribute is applicable to all S3 operations that reference a bucket, i.e. that require the bucket name as a mandatory parameter.
+/// This applies to almost all S3 operations except `list-buckets`.
+///
+/// # Examples
+///
+/// - `some-bucket-name`
+pub const AWS_S3_BUCKET: Key = Key::from_static_str("aws.s3.bucket");
+
+/// The S3 object key the request refers to. Corresponds to the `--key` parameter of the [S3 API](https://docs.aws.amazon.com/cli/latest/reference/s3api/index.html) operations.
+///
+/// The `key` attribute is applicable to all object-related S3 operations, i.e. that require the object key as a mandatory parameter.
+/// This applies in particular to the following operations:
+///
+/// - [copy-object](https://docs.aws.amazon.com/cli/latest/reference/s3api/copy-object.html)
+/// - [delete-object](https://docs.aws.amazon.com/cli/latest/reference/s3api/delete-object.html)
+/// - [get-object](https://docs.aws.amazon.com/cli/latest/reference/s3api/get-object.html)
+/// - [head-object](https://docs.aws.amazon.com/cli/latest/reference/s3api/head-object.html)
+/// - [put-object](https://docs.aws.amazon.com/cli/latest/reference/s3api/put-object.html)
+/// - [restore-object](https://docs.aws.amazon.com/cli/latest/reference/s3api/restore-object.html)
+/// - [select-object-content](https://docs.aws.amazon.com/cli/latest/reference/s3api/select-object-content.html)
+/// - [abort-multipart-upload](https://docs.aws.amazon.com/cli/latest/reference/s3api/abort-multipart-upload.html)
+/// - [complete-multipart-upload](https://docs.aws.amazon.com/cli/latest/reference/s3api/complete-multipart-upload.html)
+/// - [create-multipart-upload](https://docs.aws.amazon.com/cli/latest/reference/s3api/create-multipart-upload.html)
+/// - [list-parts](https://docs.aws.amazon.com/cli/latest/reference/s3api/list-parts.html)
+/// - [upload-part](https://docs.aws.amazon.com/cli/latest/reference/s3api/upload-part.html)
+/// - [upload-part-copy](https://docs.aws.amazon.com/cli/latest/reference/s3api/upload-part-copy.html)
+///
+/// # Examples
+///
+/// - `someFile.yml`
+pub const AWS_S3_KEY: Key = Key::from_static_str("aws.s3.key");
+
+/// The source object (in the form `bucket`/`key`) for the copy operation.
+///
+/// The `copy_source` attribute applies to S3 copy operations and corresponds to the `--copy-source` parameter
+/// of the [copy-object operation within the S3 API](https://docs.aws.amazon.com/cli/latest/reference/s3api/copy-object.html).
+/// This applies in particular to the following operations:
+///
+/// - [copy-object](https://docs.aws.amazon.com/cli/latest/reference/s3api/copy-object.html)
+/// - [upload-part-copy](https://docs.aws.amazon.com/cli/latest/reference/s3api/upload-part-copy.html)
+///
+/// # Examples
+///
+/// - `someFile.yml`
+pub const AWS_S3_COPY_SOURCE: Key = Key::from_static_str("aws.s3.copy_source");
+
+/// Upload ID that identifies the multipart upload.
+///
+/// The `upload_id` attribute applies to S3 multipart-upload operations and corresponds to the `--upload-id` parameter
+/// of the [S3 API](https://docs.aws.amazon.com/cli/latest/reference/s3api/index.html) multipart operations.
+/// This applies in particular to the following operations:
+///
+/// - [abort-multipart-upload](https://docs.aws.amazon.com/cli/latest/reference/s3api/abort-multipart-upload.html)
+/// - [complete-multipart-upload](https://docs.aws.amazon.com/cli/latest/reference/s3api/complete-multipart-upload.html)
+/// - [list-parts](https://docs.aws.amazon.com/cli/latest/reference/s3api/list-parts.html)
+/// - [upload-part](https://docs.aws.amazon.com/cli/latest/reference/s3api/upload-part.html)
+/// - [upload-part-copy](https://docs.aws.amazon.com/cli/latest/reference/s3api/upload-part-copy.html)
+///
+/// # Examples
+///
+/// - `dfRtDYWFbkRONycy.Yxwh66Yjlx.cph0gtNBtJ`
+pub const AWS_S3_UPLOAD_ID: Key = Key::from_static_str("aws.s3.upload_id");
+
+/// The delete request container that specifies the objects to be deleted.
+///
+/// The `delete` attribute is only applicable to the [delete-object](https://docs.aws.amazon.com/cli/latest/reference/s3api/delete-object.html) operation.
+/// The `delete` attribute corresponds to the `--delete` parameter of the
+/// [delete-objects operation within the S3 API](https://docs.aws.amazon.com/cli/latest/reference/s3api/delete-objects.html).
+///
+/// # Examples
+///
+/// - `Objects=[{Key=string,VersionId=string},{Key=string,VersionId=string}],Quiet=boolean`
+pub const AWS_S3_DELETE: Key = Key::from_static_str("aws.s3.delete");
+
+/// The part number of the part being uploaded in a multipart-upload operation. This is a positive integer between 1 and 10,000.
+///
+/// The `part_number` attribute is only applicable to the [upload-part](https://docs.aws.amazon.com/cli/latest/reference/s3api/upload-part.html)
+/// and [upload-part-copy](https://docs.aws.amazon.com/cli/latest/reference/s3api/upload-part-copy.html) operations.
+/// The `part_number` attribute corresponds to the `--part-number` parameter of the
+/// [upload-part operation within the S3 API](https://docs.aws.amazon.com/cli/latest/reference/s3api/upload-part.html).
+///
+/// # Examples
+///
+/// - `3456`
+pub const AWS_S3_PART_NUMBER: Key = Key::from_static_str("aws.s3.part_number");
+
 /// The name of the operation being executed.
 ///
 /// # Examples
@@ -968,9 +1079,6 @@ pub const MESSAGING_MESSAGE_PAYLOAD_COMPRESSED_SIZE_BYTES: Key =
 /// - `MyTopic`
 pub const MESSAGING_DESTINATION_NAME: Key = Key::from_static_str("messaging.destination.name");
 
-/// The kind of message destination.
-pub const MESSAGING_DESTINATION_KIND: Key = Key::from_static_str("messaging.destination.kind");
-
 /// Low cardinality representation of the messaging destination name.
 ///
 /// Destination names could be constructed from templates. An example would be a destination name involving a user name or product id. Although the destination name in this case is of high cardinality, the underlying template is of low cardinality and can be effectively used for grouping and aggregation.
@@ -999,9 +1107,6 @@ pub const MESSAGING_DESTINATION_ANONYMOUS: Key =
 /// - `MyQueue`
 /// - `MyTopic`
 pub const MESSAGING_SOURCE_NAME: Key = Key::from_static_str("messaging.source.name");
-
-/// The kind of message source.
-pub const MESSAGING_SOURCE_KIND: Key = Key::from_static_str("messaging.source.kind");
 
 /// Low cardinality representation of the messaging source name.
 ///
@@ -1255,6 +1360,9 @@ pub const MESSAGE_COMPRESSED_SIZE: Key = Key::from_static_str("message.compresse
 /// Uncompressed size of the message in bytes.
 pub const MESSAGE_UNCOMPRESSED_SIZE: Key = Key::from_static_str("message.uncompressed_size");
 
+/// The [error codes](https://connect.build/docs/protocol/#error-codes) of the Connect request. Error codes are always string values.
+pub const RPC_CONNECT_RPC_ERROR_CODE: Key = Key::from_static_str("rpc.connect_rpc.error_code");
+
 /// SHOULD be set to true if the exception event is recorded at a point where it is known that the exception is escaping the scope of the span.
 ///
 /// An exception is considered to have escaped (or left) the scope of a span,
@@ -1274,3 +1382,10 @@ pub const MESSAGE_UNCOMPRESSED_SIZE: Key = Key::from_static_str("message.uncompr
 /// since the event might have been recorded at a time where it was not
 /// clear whether the exception will escape.
 pub const EXCEPTION_ESCAPED: Key = Key::from_static_str("exception.escaped");
+
+/// Value of the [HTTP User-Agent](https://www.rfc-editor.org/rfc/rfc9110.html#field.user-agent) header sent by the client.
+///
+/// # Examples
+///
+/// - `CERN-LineMode/2.15 libwww/2.17b3`
+pub const USER_AGENT_ORIGINAL: Key = Key::from_static_str("user_agent.original");
