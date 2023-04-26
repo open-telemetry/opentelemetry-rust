@@ -1,4 +1,3 @@
-use crate::InstrumentationLibrary;
 use opentelemetry_api::trace::OrderMap;
 use opentelemetry_api::{
     trace::{
@@ -82,7 +81,6 @@ pub trait ShouldSample: CloneShouldSample + Send + Sync + std::fmt::Debug {
         span_kind: &SpanKind,
         attributes: &OrderMap<Key, Value>,
         links: &[Link],
-        instrumentation_library: &InstrumentationLibrary,
     ) -> SamplingResult;
 }
 
@@ -175,7 +173,6 @@ impl ShouldSample for Sampler {
         span_kind: &SpanKind,
         attributes: &OrderMap<Key, Value>,
         links: &[Link],
-        instrumentation_library: &InstrumentationLibrary,
     ) -> SamplingResult {
         let decision = match self {
             // Always sample the trace
@@ -195,7 +192,6 @@ impl ShouldSample for Sampler {
                                 span_kind,
                                 attributes,
                                 links,
-                                instrumentation_library,
                             )
                             .decision
                     },
@@ -214,15 +210,7 @@ impl ShouldSample for Sampler {
             #[cfg(feature = "jaeger_remote_sampler")]
             Sampler::JaegerRemote(remote_sampler) => {
                 remote_sampler
-                    .should_sample(
-                        parent_context,
-                        trace_id,
-                        name,
-                        span_kind,
-                        attributes,
-                        links,
-                        instrumentation_library,
-                    )
+                    .should_sample(parent_context, trace_id, name, span_kind, attributes, links)
                     .decision
             }
         };
@@ -348,7 +336,6 @@ mod tests {
                         &SpanKind::Internal,
                         &Default::default(),
                         &[],
-                        &InstrumentationLibrary::default(),
                     )
                     .decision
                     == SamplingDecision::RecordAndSample
@@ -384,7 +371,6 @@ mod tests {
         let cloned_sampler = sampler.clone();
 
         let cx = Context::current_with_value("some_value");
-        let instrumentation_library = InstrumentationLibrary::default();
 
         let result = sampler.should_sample(
             Some(&cx),
@@ -393,7 +379,6 @@ mod tests {
             &SpanKind::Internal,
             &Default::default(),
             &[],
-            &instrumentation_library,
         );
 
         let cloned_result = cloned_sampler.should_sample(
@@ -403,7 +388,6 @@ mod tests {
             &SpanKind::Internal,
             &Default::default(),
             &[],
-            &instrumentation_library,
         );
 
         assert_eq!(result, cloned_result);
@@ -447,7 +431,6 @@ mod tests {
 
         for (name, delegate, parent_cx, expected) in test_cases {
             let sampler = Sampler::ParentBased(Box::new(delegate));
-            let instrumentation_library = InstrumentationLibrary::default();
             let result = sampler.should_sample(
                 Some(&parent_cx),
                 TraceId::from_u128(1),
@@ -455,7 +438,6 @@ mod tests {
                 &SpanKind::Internal,
                 &Default::default(),
                 &[],
-                &instrumentation_library,
             );
 
             assert_eq!(result.decision, expected);
