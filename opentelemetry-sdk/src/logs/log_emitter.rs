@@ -1,9 +1,5 @@
 use super::{BatchLogProcessor, Config, LogProcessor, LogRecord, LogRuntime, SimpleLogProcessor};
-use crate::{
-    export::logs::{LogData, LogExporter},
-    resource::{EnvResourceDetector, SdkProvidedResourceDetector},
-    Resource,
-};
+use crate::export::logs::{LogData, LogExporter};
 use opentelemetry_api::{
     global::{handle_error, Error},
     logs::LogResult,
@@ -12,7 +8,6 @@ use opentelemetry_api::{
 use std::{
     borrow::Cow,
     sync::{Arc, Weak},
-    time::Duration,
 };
 
 #[derive(Debug, Clone)]
@@ -122,28 +117,11 @@ pub(crate) struct LogEmitterProviderInner {
     config: Config,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 /// Builder for provider attributes.
 pub struct Builder {
     processors: Vec<Box<dyn LogProcessor>>,
     config: Config,
-    sdk_provided_resource: Resource,
-}
-
-impl Default for Builder {
-    fn default() -> Self {
-        Builder {
-            processors: Default::default(),
-            config: Default::default(),
-            sdk_provided_resource: Resource::from_detectors(
-                Duration::from_secs(0),
-                vec![
-                    Box::new(SdkProvidedResourceDetector),
-                    Box::new(EnvResourceDetector::new()),
-                ],
-            ),
-        }
-    }
 }
 
 impl Builder {
@@ -178,32 +156,12 @@ impl Builder {
         Builder { config, ..self }
     }
 
-    /// Return the clone of sdk provided resource.
-    ///
-    /// See <https://github.com/open-telemetry/opentelemetry-specification/blob/v1.8.0/specification/resource/sdk.md#sdk-provided-resource-attributes>
-    /// for details.
-    pub fn sdk_provided_resource(&self) -> Resource {
-        self.sdk_provided_resource.clone()
-    }
-
     /// Create a new provider from this configuration.
     pub fn build(self) -> LogEmitterProvider {
-        let mut config = self.config;
-        config.resource = match config.resource {
-            None => Some(Arc::new(self.sdk_provided_resource)),
-            Some(resource) => {
-                if resource.is_empty() {
-                    None
-                } else {
-                    Some(Arc::new(self.sdk_provided_resource.merge(resource)))
-                }
-            }
-        };
-
         LogEmitterProvider {
             inner: Arc::new(LogEmitterProviderInner {
                 processors: self.processors,
-                config,
+                config: self.config,
             }),
         }
     }
