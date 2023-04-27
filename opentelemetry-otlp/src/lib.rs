@@ -203,7 +203,7 @@ pub use crate::metric::{
 };
 
 #[cfg(feature = "logs")]
-pub use crate::log::*;
+pub use crate::logs::*;
 
 pub use crate::exporter::{
     HasExportConfig, WithExportConfig, OTEL_EXPORTER_OTLP_ENDPOINT,

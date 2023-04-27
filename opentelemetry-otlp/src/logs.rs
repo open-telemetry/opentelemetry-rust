@@ -54,10 +54,8 @@ use std::{
     time::Duration,
 };
 
-use opentelemetry::{
-    log::LogError,
-    sdk::{self, export::log::LogData, log::LogRuntime},
-};
+use opentelemetry_api::logs::LogError;
+use opentelemetry_sdk::{self, export::logs::LogData, logs::LogRuntime};
 
 impl OtlpPipeline {
     /// Create a OTLP logging pipeline.
@@ -162,7 +160,7 @@ pub enum LogExporter {
         /// The Collector URL
         collector_endpoint: Uri,
         /// The HTTP log exporter
-        log_exporter: Option<Box<dyn HttpClient>>,
+        log_exporter: Option<Arc<dyn HttpClient>>,
     },
 }
 
@@ -253,17 +251,17 @@ impl LogExporter {
         }
 
         let channel: GrpcChannel = match (grpcio_config.credentials, grpcio_config.use_tls) {
-            (None, Some(true)) => builder.secure_connect(
-                config.endpoint.as_str(),
-                ChannelCredentialsBuilder::new().build(),
-            ),
+            (None, Some(true)) => builder
+                .set_credentials(ChannelCredentialsBuilder::new().build())
+                .connect(config.endpoint.as_str()),
             (None, _) => builder.connect(config.endpoint.as_str()),
-            (Some(credentials), _) => builder.secure_connect(
-                config.endpoint.as_str(),
-                ChannelCredentialsBuilder::new()
-                    .cert(credentials.cert.into(), credentials.key.into())
-                    .build(),
-            ),
+            (Some(credentials), _) => builder
+                .set_credentials(
+                    ChannelCredentialsBuilder::new()
+                        .cert(credentials.cert.into(), credentials.key.into())
+                        .build(),
+                )
+                .connect(config.endpoint.as_str()),
         };
 
         LogExporter::Grpcio {
@@ -291,8 +289,8 @@ impl LogExporter {
 }
 
 #[async_trait]
-impl opentelemetry::sdk::export::log::LogExporter for LogExporter {
-    async fn export(&mut self, batch: Vec<LogData>) -> opentelemetry::log::LogResult<()> {
+impl opentelemetry_sdk::export::logs::LogExporter for LogExporter {
+    async fn export(&mut self, batch: Vec<LogData>) -> opentelemetry_api::logs::LogResult<()> {
         match self {
             #[cfg(feature = "grpc-sys")]
             LogExporter::Grpcio {
@@ -405,7 +403,7 @@ impl opentelemetry::sdk::export::log::LogExporter for LogExporter {
 #[derive(Default, Debug)]
 pub struct OtlpLogPipeline {
     exporter_builder: Option<LogExporterBuilder>,
-    log_config: Option<sdk::log::Config>,
+    log_config: Option<opentelemetry_sdk::logs::Config>,
 }
 
 impl OtlpLogPipeline {
@@ -418,8 +416,8 @@ impl OtlpLogPipeline {
     /// Returns a [`LogEmitter`] with the name `opentelemetry-otlp` and the
     /// current crate version, using the configured log exporter.
     ///
-    /// [`LogEmitter`]: opentelemetry::sdk::log::LogEmitter
-    pub fn simple(self) -> Result<sdk::log::LogEmitter, LogError> {
+    /// [`LogEmitter`]: opentelemetry::opentelemetry_sdk::logs::LogEmitter
+    pub fn simple(self) -> Result<opentelemetry_sdk::logs::LogEmitter, LogError> {
         Ok(build_simple_with_exporter(
             self.exporter_builder
                 .ok_or(crate::Error::NoExporterBuilder)?
@@ -433,7 +431,10 @@ impl OtlpLogPipeline {
     /// batch log processor.
     ///
     /// [`LogEmitter`]: opentelemetry::log::LogEmitter
-    pub fn batch<R: LogRuntime>(self, runtime: R) -> Result<sdk::log::LogEmitter, LogError> {
+    pub fn batch<R: LogRuntime>(
+        self,
+        runtime: R,
+    ) -> Result<opentelemetry_sdk::logs::LogEmitter, LogError> {
         Ok(build_batch_with_exporter(
             self.exporter_builder
                 .ok_or(crate::Error::NoExporterBuilder)?
@@ -446,27 +447,37 @@ impl OtlpLogPipeline {
 
 fn build_simple_with_exporter(
     exporter: LogExporter,
-    log_config: Option<sdk::log::Config>,
-) -> sdk::log::LogEmitter {
+    log_config: Option<opentelemetry_sdk::logs::Config>,
+) -> opentelemetry_sdk::logs::LogEmitter {
     let mut provider_builder =
-        sdk::log::LogEmitterProvider::builder().with_simple_exporter(exporter);
+        opentelemetry_sdk::logs::LogEmitterProvider::builder().with_simple_exporter(exporter);
     if let Some(config) = log_config {
         provider_builder = provider_builder.with_config(config);
     }
     let provider = provider_builder.build();
-    provider.versioned_log_emitter("opentelemetry-otlp", Some(env!("CARGO_PKG_VERSION")))
+    provider.versioned_log_emitter(
+        "opentelemetry-otlp",
+        Some(env!("CARGO_PKG_VERSION")),
+        None,
+        None,
+    )
 }
 
 fn build_batch_with_exporter<R: LogRuntime>(
     exporter: LogExporter,
-    log_config: Option<sdk::log::Config>,
+    log_config: Option<opentelemetry_sdk::logs::Config>,
     runtime: R,
-) -> sdk::log::LogEmitter {
-    let mut provider_builder =
-        sdk::log::LogEmitterProvider::builder().with_batch_exporter(exporter, runtime);
+) -> opentelemetry_sdk::logs::LogEmitter {
+    let mut provider_builder = opentelemetry_sdk::logs::LogEmitterProvider::builder()
+        .with_batch_exporter(exporter, runtime);
     if let Some(config) = log_config {
         provider_builder = provider_builder.with_config(config);
     }
     let provider = provider_builder.build();
-    provider.versioned_log_emitter("opentelemetry-otlp", Some(env!("CARGO_PKG_VERSION")))
+    provider.versioned_log_emitter(
+        "opentelemetry-otlp",
+        Some(env!("CARGO_PKG_VERSION")),
+        None,
+        None,
+    )
 }
