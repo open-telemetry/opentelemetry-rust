@@ -346,6 +346,7 @@ static MAX_BOUND: usize = 100000;
 
 fn bench_histogram(bound_count: usize) -> (Context, SharedReader, Histogram<i64>) {
     let mut bounds = vec![0; bound_count];
+    #[allow(clippy::needless_range_loop)]
     for i in 0..bounds.len() {
         bounds[i] = i * MAX_BOUND / bound_count
     }
