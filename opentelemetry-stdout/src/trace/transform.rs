@@ -1,13 +1,9 @@
-use std::{
-    borrow::Cow,
-    collections::HashMap,
-    time::{SystemTime, UNIX_EPOCH},
-};
+use std::{borrow::Cow, collections::HashMap, time::SystemTime};
 
 use opentelemetry_sdk::AttributeSet;
 use serde::{Serialize, Serializer};
 
-use crate::common::{KeyValue, Resource, Scope};
+use crate::common::{as_unix_nano, KeyValue, Resource, Scope};
 
 /// Transformed trace data that can be serialized
 #[derive(Debug, Serialize)]
@@ -90,18 +86,6 @@ struct Span {
     links: Vec<Link>,
     dropped_links_count: u32,
     status: Status,
-}
-
-fn as_unix_nano<S>(time: &SystemTime, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    let nanos = time
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_nanos();
-
-    serializer.serialize_u128(nanos)
 }
 
 impl From<opentelemetry_sdk::export::trace::SpanData> for Span {
