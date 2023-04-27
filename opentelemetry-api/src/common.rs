@@ -99,6 +99,16 @@ impl From<Arc<str>> for Key {
     }
 }
 
+impl From<Cow<'static, str>> for Key {
+    /// Convert a `Cow<'static, str>` to a `Key`
+    fn from(string: Cow<'static, str>) -> Self {
+        match string {
+            Cow::Borrowed(s) => Key(OtelString::Static(s)),
+            Cow::Owned(s) => Key(OtelString::Owned(s)),
+        }
+    }
+}
+
 impl fmt::Debug for Key {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.0.fmt(fmt)
