@@ -344,9 +344,7 @@ fn counters(c: &mut Criterion) {
 
 static MAX_BOUND: usize = 100000;
 
-fn bench_histogram(
-    bound_count: usize
-) -> (Context, SharedReader, Histogram<i64>) {
+fn bench_histogram(bound_count: usize) -> (Context, SharedReader, Histogram<i64>) {
     let mut bounds = vec![0; bound_count];
     for i in 0..bounds.len() {
         bounds[i] = i * MAX_BOUND / bound_count
@@ -358,7 +356,8 @@ fn bench_histogram(
                 boundaries: bounds.iter().map(|&x| x as f64).collect(),
                 record_min_max: true,
             }),
-        ).unwrap()
+        )
+        .unwrap(),
     );
 
     let cx = Context::new();
@@ -367,10 +366,10 @@ fn bench_histogram(
     if let Some(view) = view {
         builder = builder.with_view(view);
     }
-    let mtr = builder
-        .build()
-        .meter("test_meter");
-    let hist = mtr.i64_histogram(format!("histogram_{}", bound_count)).init();
+    let mtr = builder.build().meter("test_meter");
+    let hist = mtr
+        .i64_histogram(format!("histogram_{}", bound_count))
+        .init();
 
     (cx, r, hist)
 }
@@ -384,10 +383,16 @@ fn histograms(c: &mut Criterion) {
         for attr_size in [0, 3, 5, 7, 10].iter() {
             let mut attributes: Vec<KeyValue> = Vec::new();
             for i in 0..*attr_size {
-                attributes.push(KeyValue::new(format!("K,{},{}", bound_size, attr_size), format!("V,{},{},{}", bound_size, attr_size, i)))
+                attributes.push(KeyValue::new(
+                    format!("K,{},{}", bound_size, attr_size),
+                    format!("V,{},{},{}", bound_size, attr_size, i),
+                ))
             }
             let value: i64 = rng.gen_range(0..MAX_BOUND).try_into().unwrap();
-            group.bench_function(format!("Record{}Attrs{}bounds", attr_size, bound_size), |b| b.iter(|| hist.record(&cx, value, &attributes)));
+            group.bench_function(
+                format!("Record{}Attrs{}bounds", attr_size, bound_size),
+                |b| b.iter(|| hist.record(&cx, value, &attributes)),
+            );
         }
     }
     group.bench_function("CollectOne", |b| benchmark_collect_histogram(b, 1));
