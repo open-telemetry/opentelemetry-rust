@@ -188,6 +188,7 @@ struct Collector {
     without_units: bool,
     disable_scope_info: bool,
     create_target_info_once: OnceCell<MetricFamily>,
+    namespace: Option<String>,
     inner: Mutex<CollectorInner>,
 }
 
@@ -200,9 +201,14 @@ struct CollectorInner {
 impl Collector {
     fn get_name(&self, m: &data::Metric) -> Cow<'static, str> {
         let name = sanitize_name(&m.name);
-        match get_unit_suffixes(&m.unit) {
-            Some(suffix) if !self.without_units => Cow::Owned(format!("{name}{suffix}")),
-            _ => name,
+        match (
+            &self.namespace,
+            get_unit_suffixes(&m.unit).filter(|_| !self.without_units),
+        ) {
+            (Some(namespace), Some(suffix)) => Cow::Owned(format!("{namespace}{name}{suffix}")),
+            (Some(namespace), None) => Cow::Owned(format!("{namespace}{name}")),
+            (None, Some(suffix)) => Cow::Owned(format!("{name}{suffix}")),
+            (None, None) => name,
         }
     }
 }
