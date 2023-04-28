@@ -355,7 +355,7 @@ fn validate_metrics(
     }
 }
 
-fn add_histogram_metric<T>(
+fn add_histogram_metric<T: Numeric>(
     res: &mut Vec<MetricFamily>,
     histogram: &data::Histogram<T>,
     mut description: Cow<'static, str>,
@@ -390,7 +390,7 @@ fn add_histogram_metric<T>(
         );
 
         let mut h = prometheus::proto::Histogram::default();
-        h.set_sample_sum(dp.sum);
+        h.set_sample_sum(dp.sum.as_f64());
         h.set_sample_count(dp.count);
         h.set_bucket(protobuf::RepeatedField::from_vec(bucket));
         let mut pm = prometheus::proto::Metric::default();

@@ -1,6 +1,5 @@
 use std::{
     collections::HashMap,
-    marker,
     sync::{Arc, Mutex},
     time::SystemTime,
 };
@@ -14,24 +13,24 @@ use crate::metrics::{
 use super::{Aggregator, Number};
 
 #[derive(Default)]
-struct Buckets {
+struct Buckets<T> {
     counts: Vec<u64>,
     count: u64,
-    sum: f64,
-    min: f64,
-    max: f64,
+    sum: T,
+    min: T,
+    max: T,
 }
 
-impl Buckets {
+impl<T: Number<T>> Buckets<T> {
     /// returns buckets with `n` bins.
-    fn new(n: usize) -> Buckets {
+    fn new(n: usize) -> Buckets<T> {
         Buckets {
             counts: vec![0; n],
             ..Default::default()
         }
     }
 
-    fn bin(&mut self, idx: usize, value: f64) {
+    fn bin(&mut self, idx: usize, value: T) {
         self.counts[idx] += 1;
         self.count += 1;
         self.sum += value;
@@ -46,8 +45,7 @@ impl Buckets {
 /// Summarizes a set of measurements as an histValues with explicitly defined buckets.
 struct HistValues<T> {
     bounds: Vec<f64>,
-    values: Mutex<HashMap<AttributeSet, Buckets>>,
-    _marker: marker::PhantomData<T>,
+    values: Mutex<HashMap<AttributeSet, Buckets<T>>>,
 }
 
 impl<T: Number<T>> HistValues<T> {
@@ -58,7 +56,6 @@ impl<T: Number<T>> HistValues<T> {
         HistValues {
             bounds,
             values: Mutex::new(Default::default()),
-            _marker: marker::PhantomData,
         }
     }
 }
@@ -68,20 +65,14 @@ where
     T: Number<T>,
 {
     fn aggregate(&self, measurement: T, attrs: AttributeSet) {
-        // Accept all types to satisfy the Aggregator interface. However, since
-        // the Aggregation produced by this Aggregator is only float64, convert
-        // here to only use this type.
-        let v = match measurement.try_into_float() {
-            Ok(v) => v,
-            Err(_) => return,
-        };
+        let f = measurement.into_float();
 
         // This search will return an index in the range `[0, bounds.len()]`, where
         // it will return `bounds.len()` if value is greater than the last element
         // of `bounds`. This aligns with the buckets in that the length of buckets
         // is `bounds.len()+1`, with the last bucket representing:
         // `(bounds[bounds.len()-1], +∞)`.
-        let idx = self.bounds.partition_point(|x| x < &v);
+        let idx = self.bounds.partition_point(|&x| x < f);
 
         let mut values = match self.values.lock() {
             Ok(guard) => guard,
@@ -98,11 +89,11 @@ where
             //   buckets = (-∞, 0], (0, 5.0], (5.0, 10.0], (10.0, +∞)
             let mut b = Buckets::new(self.bounds.len() + 1);
             // Ensure min and max are recorded values (not zero), for new buckets.
-            (b.min, b.max) = (v, v);
+            (b.min, b.max) = (measurement, measurement);
 
             b
         });
-        b.bin(idx, v)
+        b.bin(idx, measurement)
     }
 
     fn aggregation(&self) -> Option<Box<dyn Aggregation>> {

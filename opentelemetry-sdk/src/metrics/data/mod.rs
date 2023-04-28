@@ -148,11 +148,11 @@ pub struct HistogramDataPoint<T> {
     pub bucket_counts: Vec<u64>,
 
     /// The minimum value recorded.
-    pub min: Option<f64>,
+    pub min: Option<T>,
     /// The maximum value recorded.
-    pub max: Option<f64>,
+    pub max: Option<T>,
     /// The sum of the values recorded.
-    pub sum: f64,
+    pub sum: T,
 
     /// The sampled [Exemplar]s collected during the time series.
     pub exemplars: Vec<Exemplar<T>>,
