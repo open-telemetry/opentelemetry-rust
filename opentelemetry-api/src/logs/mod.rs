@@ -5,6 +5,10 @@ use futures_channel::{mpsc::TrySendError, oneshot::Canceled};
 use std::time::Duration;
 use thiserror::Error;
 
+mod record;
+
+pub use record::{Any, LogRecord, LogRecordBuilder, Severity, TraceContext};
+
 /// Describe the result of operations in log SDK.
 pub type LogResult<T> = Result<T, LogError>;
 

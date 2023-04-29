@@ -413,11 +413,11 @@ impl OtlpLogPipeline {
         self
     }
 
-    /// Returns a [`LogEmitter`] with the name `opentelemetry-otlp` and the
+    /// Returns a [`Logger`] with the name `opentelemetry-otlp` and the
     /// current crate version, using the configured log exporter.
     ///
-    /// [`LogEmitter`]: opentelemetry::opentelemetry_sdk::logs::LogEmitter
-    pub fn simple(self) -> Result<opentelemetry_sdk::logs::LogEmitter, LogError> {
+    /// [`Logger`]: opentelemetry::opentelemetry_sdk::logs::Logger
+    pub fn simple(self) -> Result<opentelemetry_sdk::logs::Logger, LogError> {
         Ok(build_simple_with_exporter(
             self.exporter_builder
                 .ok_or(crate::Error::NoExporterBuilder)?
@@ -426,15 +426,15 @@ impl OtlpLogPipeline {
         ))
     }
 
-    /// Returns a [`LogEmitter`] with the name `opentelemetry-otlp` and the
+    /// Returns a [`Logger`] with the name `opentelemetry-otlp` and the
     /// current crate version, using the configured log exporter and a
     /// batch log processor.
     ///
-    /// [`LogEmitter`]: opentelemetry::log::LogEmitter
+    /// [`Logger`]: opentelemetry::log::Logger
     pub fn batch<R: LogRuntime>(
         self,
         runtime: R,
-    ) -> Result<opentelemetry_sdk::logs::LogEmitter, LogError> {
+    ) -> Result<opentelemetry_sdk::logs::Logger, LogError> {
         Ok(build_batch_with_exporter(
             self.exporter_builder
                 .ok_or(crate::Error::NoExporterBuilder)?
@@ -448,9 +448,9 @@ impl OtlpLogPipeline {
 fn build_simple_with_exporter(
     exporter: LogExporter,
     log_config: Option<opentelemetry_sdk::logs::Config>,
-) -> opentelemetry_sdk::logs::LogEmitter {
+) -> opentelemetry_sdk::logs::Logger {
     let mut provider_builder =
-        opentelemetry_sdk::logs::LogEmitterProvider::builder().with_simple_exporter(exporter);
+        opentelemetry_sdk::logs::LoggerProvider::builder().with_simple_exporter(exporter);
     if let Some(config) = log_config {
         provider_builder = provider_builder.with_config(config);
     }
@@ -467,9 +467,9 @@ fn build_batch_with_exporter<R: LogRuntime>(
     exporter: LogExporter,
     log_config: Option<opentelemetry_sdk::logs::Config>,
     runtime: R,
-) -> opentelemetry_sdk::logs::LogEmitter {
-    let mut provider_builder = opentelemetry_sdk::logs::LogEmitterProvider::builder()
-        .with_batch_exporter(exporter, runtime);
+) -> opentelemetry_sdk::logs::Logger {
+    let mut provider_builder =
+        opentelemetry_sdk::logs::LoggerProvider::builder().with_batch_exporter(exporter, runtime);
     if let Some(config) = log_config {
         provider_builder = provider_builder.with_config(config);
     }

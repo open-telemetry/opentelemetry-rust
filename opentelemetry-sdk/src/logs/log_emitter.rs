@@ -1,8 +1,8 @@
-use super::{BatchLogProcessor, Config, LogProcessor, LogRecord, LogRuntime, SimpleLogProcessor};
+use super::{BatchLogProcessor, Config, LogProcessor, LogRuntime, SimpleLogProcessor};
 use crate::export::logs::{LogData, LogExporter};
 use opentelemetry_api::{
     global::{handle_error, Error},
-    logs::LogResult,
+    logs::{LogRecord, LogResult},
     InstrumentationLibrary,
 };
 use std::{
@@ -12,17 +12,17 @@ use std::{
 
 #[derive(Debug, Clone)]
 /// Creator for `LogEmitter` instances.
-pub struct LogEmitterProvider {
-    inner: Arc<LogEmitterProviderInner>,
+pub struct LoggerProvider {
+    inner: Arc<LoggerProviderInner>,
 }
 
 /// Default log emitter name if empty string is provided.
 const DEFAULT_COMPONENT_NAME: &str = "rust.opentelemetry.io/sdk/logemitter";
 
-impl LogEmitterProvider {
+impl LoggerProvider {
     /// Build a new log emitter provider.
-    pub(crate) fn new(inner: Arc<LogEmitterProviderInner>) -> Self {
-        LogEmitterProvider { inner }
+    pub(crate) fn new(inner: Arc<LoggerProviderInner>) -> Self {
+        LoggerProvider { inner }
     }
 
     /// Create a new `LogEmitterProvider` builder.
@@ -37,7 +37,7 @@ impl LogEmitterProvider {
         version: Option<&'static str>,
         schema_url: Option<Cow<'static, str>>,
         attributes: Option<Vec<opentelemetry_api::KeyValue>>,
-    ) -> LogEmitter {
+    ) -> Logger {
         let name = name.into();
 
         let component_name = if name.is_empty() {
@@ -46,7 +46,7 @@ impl LogEmitterProvider {
             name
         };
 
-        LogEmitter::new(
+        Logger::new(
             InstrumentationLibrary::new(
                 component_name,
                 version.map(Into::into),
@@ -94,7 +94,7 @@ impl LogEmitterProvider {
     }
 }
 
-impl Drop for LogEmitterProvider {
+impl Drop for LoggerProvider {
     fn drop(&mut self) {
         match self.try_shutdown() {
             None => handle_error(Error::Other(
@@ -112,7 +112,7 @@ impl Drop for LogEmitterProvider {
 }
 
 #[derive(Debug)]
-pub(crate) struct LogEmitterProviderInner {
+pub(crate) struct LoggerProviderInner {
     processors: Vec<Box<dyn LogProcessor>>,
     config: Config,
 }
@@ -157,9 +157,9 @@ impl Builder {
     }
 
     /// Create a new provider from this configuration.
-    pub fn build(self) -> LogEmitterProvider {
-        LogEmitterProvider {
-            inner: Arc::new(LogEmitterProviderInner {
+    pub fn build(self) -> LoggerProvider {
+        LoggerProvider {
+            inner: Arc::new(LoggerProviderInner {
                 processors: self.processors,
                 config: self.config,
             }),
@@ -171,25 +171,25 @@ impl Builder {
 /// The object for emitting [`LogRecord`]s.
 ///
 /// [`LogRecord`]: crate::log::LogRecord
-pub struct LogEmitter {
+pub struct Logger {
     instrumentation_lib: InstrumentationLibrary,
-    provider: Weak<LogEmitterProviderInner>,
+    provider: Weak<LoggerProviderInner>,
 }
 
-impl LogEmitter {
+impl Logger {
     pub(crate) fn new(
         instrumentation_lib: InstrumentationLibrary,
-        provider: Weak<LogEmitterProviderInner>,
+        provider: Weak<LoggerProviderInner>,
     ) -> Self {
-        LogEmitter {
+        Logger {
             instrumentation_lib,
             provider,
         }
     }
 
     /// LogEmitterProvider associated with this tracer.
-    pub fn provider(&self) -> Option<LogEmitterProvider> {
-        self.provider.upgrade().map(LogEmitterProvider::new)
+    pub fn provider(&self) -> Option<LoggerProvider> {
+        self.provider.upgrade().map(LoggerProvider::new)
     }
 
     /// Instrumentation library information of this tracer.

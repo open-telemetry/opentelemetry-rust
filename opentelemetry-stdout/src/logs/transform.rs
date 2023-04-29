@@ -1,6 +1,7 @@
 use std::{borrow::Cow, collections::HashMap, time::SystemTime};
 
-use crate::common::{as_unix_nano, AttributeSet, KeyValue, Resource, Scope, Value};
+use crate::common::{as_unix_nano, KeyValue, Resource, Scope, Value};
+use opentelemetry_sdk::AttributeSet;
 use serde::{Serialize, Serializer};
 
 /// Transformed logs data that can be serialized.
@@ -15,24 +16,14 @@ impl From<Vec<opentelemetry_sdk::export::logs::LogData>> for LogData {
     fn from(sdk_logs: Vec<opentelemetry_sdk::export::logs::LogData>) -> LogData {
         let mut resource_logs = HashMap::<AttributeSet, ResourceLogs>::new();
 
-        for mut sdk_log in sdk_logs {
+        for sdk_log in sdk_logs {
             let resource_schema_url = sdk_log.resource.schema_url().map(|s| s.to_string().into());
             let schema_url = sdk_log.instrumentation.schema_url.clone();
             let scope: Scope = sdk_log.instrumentation.clone().into();
             let resource: Resource = sdk_log.resource.as_ref().into();
 
-            let mut attrs: AttributeSet = sdk_log.resource.as_ref().into();
-            if let Some(record_resource) = sdk_log.record.resource.take() {
-                for (key, value) in record_resource.into_iter() {
-                    let key = key.into();
-                    if !attrs.0.contains_key(&key) {
-                        attrs.0.insert(key, value.into());
-                    }
-                }
-            }
-
             let rl = resource_logs
-                .entry(attrs)
+                .entry(sdk_log.resource.as_ref().into())
                 .or_insert_with(move || ResourceLogs {
                     resource,
                     scope_logs: Vec::with_capacity(1),

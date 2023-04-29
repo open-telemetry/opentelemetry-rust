@@ -49,7 +49,7 @@ pub mod tonic {
             let span_kind: span::SpanKind = source_span.span_kind.into();
             ResourceSpans {
                 resource: Some(Resource {
-                    attributes: resource_attributes(Some(&source_span.resource)).0,
+                    attributes: resource_attributes(&source_span.resource).0,
                     dropped_attributes_count: 0,
                 }),
                 schema_url: source_span
@@ -160,7 +160,7 @@ pub mod grpcio {
         fn from(source_span: SpanData) -> Self {
             ResourceSpans {
                 resource: SingularPtrField::from(Some(Resource {
-                    attributes: resource_attributes(Some(&source_span.resource)).0,
+                    attributes: resource_attributes(&source_span.resource).0,
                     dropped_attributes_count: 0,
                     ..Default::default()
                 })),

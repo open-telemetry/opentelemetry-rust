@@ -1,5 +1,8 @@
-use opentelemetry_api::trace::{SpanContext, SpanId, TraceContextExt, TraceFlags, TraceId};
-use std::{borrow::Cow, collections::BTreeMap, time::SystemTime};
+use crate::{
+    trace::{OrderMap, SpanContext, SpanId, TraceContextExt, TraceFlags, TraceId},
+    Array, Key, StringValue, Value,
+};
+use std::{borrow::Cow, time::SystemTime};
 
 #[derive(Debug, Clone, Default)]
 #[non_exhaustive]
@@ -23,10 +26,8 @@ pub struct LogRecord {
     /// Record body
     pub body: Option<Any>,
 
-    /// Resource attributes for the entity that produced this record
-    pub resource: Option<BTreeMap<Cow<'static, str>, Any>>,
     /// Additional attributes associated with this record
-    pub attributes: Option<BTreeMap<Cow<'static, str>, Any>>,
+    pub attributes: Option<OrderMap<Key, Any>>,
 }
 
 impl LogRecord {
@@ -57,7 +58,7 @@ pub enum Any {
     /// A double value
     Double(f64),
     /// A string value
-    String(Cow<'static, str>),
+    String(StringValue),
     /// A boolean value
     Boolean(bool),
     /// A byte array
@@ -65,7 +66,7 @@ pub enum Any {
     /// An array of `Any` values
     ListAny(Vec<Any>),
     /// A map of string keys to `Any` values, arbitrarily nested.
-    Map(BTreeMap<Cow<'static, str>, Any>),
+    Map(OrderMap<Key, Any>),
 }
 
 macro_rules! impl_trivial_from {
@@ -93,19 +94,46 @@ impl_trivial_from!(f32, Any::Double);
 impl_trivial_from!(String, Any::String);
 impl_trivial_from!(Cow<'static, str>, Any::String);
 impl_trivial_from!(&'static str, Any::String);
+impl_trivial_from!(StringValue, Any::String);
 
 impl_trivial_from!(bool, Any::Boolean);
 
-impl<T: Into<Any>> From<Vec<T>> for Any {
-    /// Converts a list of `Into<Any>` values into a [`Any::ListAny`]
-    /// value.
-    fn from(val: Vec<T>) -> Any {
-        Any::ListAny(val.into_iter().map(Into::into).collect())
+impl<T: Into<Any>> FromIterator<T> for Any {
+    /// Creates an [`Any::ListAny`] value from a sequence of `Into<Any>` values.
+    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+        Any::ListAny(iter.into_iter().map(Into::into).collect())
+    }
+}
+
+impl<K: Into<Key>, V: Into<Any>> FromIterator<(K, V)> for Any {
+    /// Creates an [`Any::Map`] value from a sequence of key-value pairs
+    /// that can be converted into a `Key` and `Any` respectively.
+    fn from_iter<I: IntoIterator<Item = (K, V)>>(iter: I) -> Self {
+        Any::Map(OrderMap::from_iter(
+            iter.into_iter().map(|(k, v)| (k.into(), v.into())),
+        ))
+    }
+}
+
+impl From<Value> for Any {
+    fn from(value: Value) -> Self {
+        match value {
+            Value::Bool(b) => b.into(),
+            Value::I64(i) => i.into(),
+            Value::F64(f) => f.into(),
+            Value::String(s) => s.into(),
+            Value::Array(a) => match a {
+                Array::Bool(b) => Any::from_iter(b),
+                Array::F64(f) => Any::from_iter(f),
+                Array::I64(i) => Any::from_iter(i),
+                Array::String(s) => Any::from_iter(s),
+            },
+        }
     }
 }
 
 /// A normalized severity value.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd)]
 pub enum Severity {
     /// TRACE
     Trace = 1,
@@ -155,6 +183,44 @@ pub enum Severity {
     Fatal3 = 23,
     /// FATAL4
     Fatal4 = 24,
+}
+
+impl Severity {
+    /// Return the string representing the short name for the `Severity`
+    /// value as specified by the OpenTelemetry logs data model.
+    pub const fn name(&self) -> &'static str {
+        match &self {
+            Severity::Trace => "TRACE",
+            Severity::Trace2 => "TRACE2",
+            Severity::Trace3 => "TRACE3",
+            Severity::Trace4 => "TRACE4",
+
+            Severity::Debug => "DEBUG",
+            Severity::Debug2 => "DEBUG2",
+            Severity::Debug3 => "DEBUG3",
+            Severity::Debug4 => "DEBUG4",
+
+            Severity::Info => "INFO",
+            Severity::Info2 => "INFO2",
+            Severity::Info3 => "INFO3",
+            Severity::Info4 => "INFO4",
+
+            Severity::Warn => "WARN",
+            Severity::Warn2 => "WARN2",
+            Severity::Warn3 => "WARN3",
+            Severity::Warn4 => "WARN4",
+
+            Severity::Error => "ERROR",
+            Severity::Error2 => "ERROR2",
+            Severity::Error3 => "ERROR3",
+            Severity::Error4 => "ERROR4",
+
+            Severity::Fatal => "FATAL",
+            Severity::Fatal2 => "FATAL2",
+            Severity::Fatal3 => "FATAL3",
+            Severity::Fatal4 => "FATAL4",
+        }
+    }
 }
 
 /// A builder for [`LogRecord`] values.
@@ -250,18 +316,8 @@ impl LogRecordBuilder {
         }
     }
 
-    /// Assign resource
-    pub fn with_resource(self, resource: BTreeMap<Cow<'static, str>, Any>) -> Self {
-        Self {
-            record: LogRecord {
-                resource: Some(resource),
-                ..self.record
-            },
-        }
-    }
-
     /// Assign attributes, overriding previously set attributes
-    pub fn with_attributes(self, attributes: BTreeMap<Cow<'static, str>, Any>) -> Self {
+    pub fn with_attributes(self, attributes: OrderMap<Key, Any>) -> Self {
         Self {
             record: LogRecord {
                 attributes: Some(attributes),
@@ -273,13 +329,15 @@ impl LogRecordBuilder {
     /// Set a single attribute for this record
     pub fn with_attribute<K, V>(mut self, key: K, value: V) -> Self
     where
-        K: Into<Cow<'static, str>>,
+        K: Into<Key>,
         V: Into<Any>,
     {
         if let Some(ref mut map) = self.record.attributes {
             map.insert(key.into(), value.into());
         } else {
-            self.record.attributes = Some(BTreeMap::from([(key.into(), value.into())]));
+            let mut map = OrderMap::with_capacity(1);
+            map.insert(key.into(), value.into());
+            self.record.attributes = Some(map);
         }
 
         self

@@ -33,18 +33,6 @@ impl From<&opentelemetry_sdk::Resource> for AttributeSet {
     }
 }
 
-#[cfg(feature = "logs")]
-impl From<BTreeMap<Cow<'static, str>, opentelemetry_sdk::logs::Any>> for AttributeSet {
-    fn from(value: BTreeMap<Cow<'static, str>, opentelemetry_sdk::logs::Any>) -> Self {
-        AttributeSet(
-            value
-                .into_iter()
-                .map(|(key, value)| (key.into(), value.into()))
-                .collect(),
-        )
-    }
-}
-
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct Resource {
@@ -159,25 +147,25 @@ impl From<opentelemetry_api::Value> for Value {
 }
 
 #[cfg(feature = "logs")]
-impl From<opentelemetry_sdk::logs::Any> for Value {
-    fn from(value: opentelemetry_sdk::logs::Any) -> Self {
+impl From<opentelemetry_api::logs::Any> for Value {
+    fn from(value: opentelemetry_api::logs::Any) -> Self {
         match value {
-            opentelemetry_sdk::logs::Any::Boolean(b) => Value::Bool(b),
-            opentelemetry_sdk::logs::Any::Int(i) => Value::Int(i),
-            opentelemetry_sdk::logs::Any::Double(d) => Value::Double(d),
-            opentelemetry_sdk::logs::Any::String(s) => Value::String(s.into()),
-            opentelemetry_sdk::logs::Any::ListAny(a) => {
+            opentelemetry_api::logs::Any::Boolean(b) => Value::Bool(b),
+            opentelemetry_api::logs::Any::Int(i) => Value::Int(i),
+            opentelemetry_api::logs::Any::Double(d) => Value::Double(d),
+            opentelemetry_api::logs::Any::String(s) => Value::String(s.into()),
+            opentelemetry_api::logs::Any::ListAny(a) => {
                 Value::Array(a.into_iter().map(Into::into).collect())
             }
-            opentelemetry_sdk::logs::Any::Map(m) => Value::KeyValues(
+            opentelemetry_api::logs::Any::Map(m) => Value::KeyValues(
                 m.into_iter()
                     .map(|(key, value)| KeyValue {
-                        key: Key(key),
+                        key: key.into(),
                         value: value.into(),
                     })
                     .collect(),
             ),
-            opentelemetry_sdk::logs::Any::Bytes(b) => Value::BytesValue(b),
+            opentelemetry_api::logs::Any::Bytes(b) => Value::BytesValue(b),
         }
     }
 }
@@ -190,8 +178,8 @@ pub(crate) struct KeyValue {
 }
 
 #[cfg(feature = "logs")]
-impl From<(Cow<'static, str>, opentelemetry_sdk::logs::Any)> for KeyValue {
-    fn from((key, value): (Cow<'static, str>, opentelemetry_sdk::logs::Any)) -> Self {
+impl From<(opentelemetry_api::Key, opentelemetry_api::logs::Any)> for KeyValue {
+    fn from((key, value): (opentelemetry_api::Key, opentelemetry_api::logs::Any)) -> Self {
         KeyValue {
             key: key.into(),
             value: value.into(),

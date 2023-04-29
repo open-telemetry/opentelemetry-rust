@@ -1,8 +1,10 @@
 //! Log exporters
-use crate::{logs::LogRecord, Resource};
+use crate::Resource;
 use async_trait::async_trait;
-use opentelemetry_api::logs::LogError;
-use opentelemetry_api::{logs::LogResult, InstrumentationLibrary};
+use opentelemetry_api::{
+    logs::{LogError, LogRecord, LogResult},
+    InstrumentationLibrary,
+};
 use std::{borrow::Cow, fmt::Debug};
 
 /// `LogExporter` defines the interface that log exporters should implement.

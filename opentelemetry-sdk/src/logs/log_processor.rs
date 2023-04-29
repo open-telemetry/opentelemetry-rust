@@ -272,7 +272,7 @@ pub struct BatchConfig {
     max_queue_size: usize,
 
     /// The delay interval in milliseconds between two consecutive processing
-    /// of batches. The default value is 5 seconds.
+    /// of batches. The default value is 1 second.
     scheduled_delay: Duration,
 
     /// The maximum number of logs to process in a single batch. If there are
@@ -289,7 +289,7 @@ impl Default for BatchConfig {
     fn default() -> Self {
         BatchConfig {
             max_queue_size: 2_048,
-            scheduled_delay: Duration::from_millis(5_000),
+            scheduled_delay: Duration::from_millis(1_000),
             max_export_batch_size: 512,
             max_export_timeout: Duration::from_millis(30_000),
         }

@@ -1,19 +1,27 @@
 use crate::transform::common::to_nanos;
-use std::borrow::Cow;
 
 #[cfg(feature = "gen-tonic")]
 pub mod tonic {
-    use std::collections::BTreeMap;
-
-    use opentelemetry_sdk::logs::{Any, Severity};
-
-    use crate::tonic::{
-        common::v1::{any_value::Value, AnyValue, ArrayValue, KeyValue, KeyValueList},
-        logs::v1::{LogRecord, ResourceLogs, ScopeLogs, SeverityNumber},
-        resource::v1::Resource,
+    use crate::{
+        tonic::{
+            common::v1::{any_value::Value, AnyValue, ArrayValue, KeyValue, KeyValueList},
+            logs::v1::{LogRecord, ResourceLogs, ScopeLogs, SeverityNumber},
+            resource::v1::Resource,
+            Attributes,
+        },
+        transform::common::tonic::resource_attributes,
     };
+    use opentelemetry_api::logs::{Any, Severity};
 
     use super::*;
+
+    impl From<Any> for AnyValue {
+        fn from(value: Any) -> Self {
+            AnyValue {
+                value: Some(value.into()),
+            }
+        }
+    }
 
     impl From<Any> for Value {
         fn from(value: Any) -> Self {
@@ -34,7 +42,7 @@ pub mod tonic {
                     values: m
                         .into_iter()
                         .map(|(key, value)| KeyValue {
-                            key: key.into_owned(),
+                            key: key.into(),
                             value: Some(AnyValue {
                                 value: Some(value.into()),
                             }),
@@ -46,52 +54,8 @@ pub mod tonic {
         }
     }
 
-    fn attributes_to_key_value(attributes: BTreeMap<Cow<'static, str>, Any>) -> Vec<KeyValue> {
-        attributes
-            .into_iter()
-            .map(|(key, value)| KeyValue {
-                key: key.into_owned(),
-                value: Some(AnyValue {
-                    value: Some(value.into()),
-                }),
-            })
-            .collect()
-    }
-
-    fn build_resource_key_values(
-        resource: &opentelemetry_sdk::Resource,
-        log_resource: Option<BTreeMap<Cow<'static, str>, Any>>,
-    ) -> Vec<KeyValue> {
-        let mut final_kv: Vec<KeyValue> = Vec::new();
-
-        if let Some(log_resource) = log_resource {
-            for (key, value) in log_resource.into_iter() {
-                let api_key = opentelemetry_api::Key::from(key);
-                if resource.get(api_key.clone()).is_some() {
-                    continue;
-                }
-
-                final_kv.push(KeyValue {
-                    key: api_key.into(),
-                    value: Some(AnyValue {
-                        value: Some(value.into()),
-                    }),
-                });
-            }
-        }
-
-        for (key, value) in resource.iter() {
-            final_kv.push(KeyValue {
-                key: key.clone().into(),
-                value: Some(value.clone().into()),
-            })
-        }
-
-        final_kv
-    }
-
-    impl From<opentelemetry_sdk::logs::LogRecord> for LogRecord {
-        fn from(log_record: opentelemetry_sdk::logs::LogRecord) -> Self {
+    impl From<opentelemetry_api::logs::LogRecord> for LogRecord {
+        fn from(log_record: opentelemetry_api::logs::LogRecord) -> Self {
             let trace_context = log_record.trace_context.as_ref();
             let severity_number = match log_record.severity_number {
                 Some(Severity::Trace) => SeverityNumber::Trace,
@@ -129,13 +93,12 @@ pub mod tonic {
                     .unwrap_or_default(),
                 severity_number: severity_number.into(),
                 severity_text: log_record.severity_text.map(Into::into).unwrap_or_default(),
-                body: Some(AnyValue {
-                    value: log_record.body.map(Into::into),
-                }),
+                body: log_record.body.map(Into::into),
                 attributes: log_record
                     .attributes
-                    .map(attributes_to_key_value)
-                    .unwrap_or_default(),
+                    .map(|attrs| Attributes::from_iter(attrs.into_iter()))
+                    .unwrap_or_default()
+                    .0,
                 dropped_attributes_count: 0,
                 flags: trace_context
                     .map(|ctx| {
@@ -157,13 +120,10 @@ pub mod tonic {
     }
 
     impl From<opentelemetry_sdk::export::logs::LogData> for ResourceLogs {
-        fn from(mut log_data: opentelemetry_sdk::export::logs::LogData) -> Self {
+        fn from(log_data: opentelemetry_sdk::export::logs::LogData) -> Self {
             ResourceLogs {
                 resource: Some(Resource {
-                    attributes: build_resource_key_values(
-                        log_data.resource.as_ref(),
-                        log_data.record.resource.take(),
-                    ),
+                    attributes: resource_attributes(&log_data.resource).0,
                     dropped_attributes_count: 0,
                 }),
                 schema_url: "".to_string(),
@@ -185,17 +145,28 @@ pub mod tonic {
 
 #[cfg(feature = "gen-protoc")]
 pub mod grpcio {
-    use std::collections::BTreeMap;
-
-    use crate::proto::grpcio::{
-        common::{AnyValue, AnyValue_oneof_value, ArrayValue, KeyValue, KeyValueList},
-        logs::{LogRecord, ResourceLogs, ScopeLogs, SeverityNumber},
-        resource::Resource,
+    use crate::{
+        grpcio::Attributes,
+        proto::grpcio::{
+            common::{AnyValue, AnyValue_oneof_value, ArrayValue, KeyValue, KeyValueList},
+            logs::{LogRecord, ResourceLogs, ScopeLogs, SeverityNumber},
+            resource::Resource,
+        },
+        transform::common::grpcio::resource_attributes,
     };
-    use opentelemetry_sdk::logs::{Any, Severity};
+    use opentelemetry_api::logs::{Any, Severity};
     use protobuf::{RepeatedField, SingularPtrField};
 
     use super::*;
+
+    impl From<Any> for AnyValue {
+        fn from(value: Any) -> Self {
+            AnyValue {
+                value: Some(value.into()),
+                ..Default::default()
+            }
+        }
+    }
 
     impl From<Any> for AnyValue_oneof_value {
         fn from(value: Any) -> Self {
@@ -219,7 +190,7 @@ pub mod grpcio {
                     values: RepeatedField::from_vec(
                         m.into_iter()
                             .map(|(key, value)| KeyValue {
-                                key: key.into_owned(),
+                                key: key.into(),
                                 value: SingularPtrField::some(AnyValue {
                                     value: Some(value.into()),
                                     ..Default::default()
@@ -235,57 +206,8 @@ pub mod grpcio {
         }
     }
 
-    fn attributes_to_keyvalue(attributes: BTreeMap<Cow<'static, str>, Any>) -> Vec<KeyValue> {
-        attributes
-            .into_iter()
-            .map(|(key, value)| KeyValue {
-                key: key.into_owned(),
-                value: SingularPtrField::some(AnyValue {
-                    value: Some(value.into()),
-                    ..Default::default()
-                }),
-                ..Default::default()
-            })
-            .collect()
-    }
-
-    fn build_resource_key_values(
-        resource: &opentelemetry_sdk::Resource,
-        log_resource: Option<BTreeMap<Cow<'static, str>, Any>>,
-    ) -> Vec<KeyValue> {
-        let mut final_kv: Vec<KeyValue> = Vec::new();
-
-        if let Some(log_resource) = log_resource {
-            for (key, value) in log_resource.into_iter() {
-                let api_key = opentelemetry_api::Key::from(key);
-                if resource.get(api_key.clone()).is_some() {
-                    continue;
-                }
-
-                final_kv.push(KeyValue {
-                    key: api_key.into(),
-                    value: SingularPtrField::some(AnyValue {
-                        value: Some(value.into()),
-                        ..Default::default()
-                    }),
-                    ..Default::default()
-                });
-            }
-        }
-
-        for (key, value) in resource.iter() {
-            final_kv.push(KeyValue {
-                key: key.clone().into(),
-                value: SingularPtrField::some(value.clone().into()),
-                ..Default::default()
-            })
-        }
-
-        final_kv
-    }
-
-    impl From<opentelemetry_sdk::logs::LogRecord> for LogRecord {
-        fn from(log_record: opentelemetry_sdk::logs::LogRecord) -> Self {
+    impl From<opentelemetry_api::logs::LogRecord> for LogRecord {
+        fn from(log_record: opentelemetry_api::logs::LogRecord) -> Self {
             let trace_context = log_record.trace_context.as_ref();
             let severity_number = match log_record.severity_number {
                 Some(Severity::Trace) => SeverityNumber::SEVERITY_NUMBER_TRACE,
@@ -319,16 +241,12 @@ pub mod grpcio {
                 time_unix_nano: log_record.timestamp.map(to_nanos).unwrap_or(0),
                 severity_number,
                 severity_text: log_record.severity_text.map(Into::into).unwrap_or_default(),
-                body: SingularPtrField::some(AnyValue {
-                    value: log_record.body.map(Into::into),
-                    ..Default::default()
-                }),
-                attributes: RepeatedField::from_vec(
-                    log_record
-                        .attributes
-                        .map(attributes_to_keyvalue)
-                        .unwrap_or_default(),
-                ),
+                body: log_record.body.map(Into::into).into(),
+                attributes: log_record
+                    .attributes
+                    .map(|attrs| Attributes::from_iter(attrs.into_iter()))
+                    .unwrap_or_default()
+                    .0,
                 dropped_attributes_count: 0,
                 flags: trace_context
                     .map(|ctx| {
@@ -349,13 +267,10 @@ pub mod grpcio {
     }
 
     impl From<opentelemetry_sdk::export::logs::LogData> for ResourceLogs {
-        fn from(mut log_data: opentelemetry_sdk::export::logs::LogData) -> Self {
+        fn from(log_data: opentelemetry_sdk::export::logs::LogData) -> Self {
             ResourceLogs {
                 resource: SingularPtrField::some(Resource {
-                    attributes: RepeatedField::from_vec(build_resource_key_values(
-                        log_data.resource.as_ref(),
-                        log_data.record.resource.take(),
-                    )),
+                    attributes: resource_attributes(&log_data.resource).0,
                     dropped_attributes_count: 0,
                     ..Default::default()
                 }),
