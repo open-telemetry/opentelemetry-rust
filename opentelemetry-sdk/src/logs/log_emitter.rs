@@ -19,6 +19,30 @@ pub struct LoggerProvider {
 /// Default log emitter name if empty string is provided.
 const DEFAULT_COMPONENT_NAME: &str = "rust.opentelemetry.io/sdk/logemitter";
 
+impl opentelemetry_api::logs::LoggerProvider for LoggerProvider {
+    type Logger = Logger;
+
+    /// Create a new versioned `LogEmitter` instance.
+    fn versioned_logger(
+        &self,
+        name: Cow<'static, str>,
+        version: Option<Cow<'static, str>>,
+        schema_url: Option<Cow<'static, str>>,
+        attributes: Option<Vec<opentelemetry_api::KeyValue>>,
+    ) -> Logger {
+        let component_name = if name.is_empty() {
+            Cow::Borrowed(DEFAULT_COMPONENT_NAME)
+        } else {
+            name
+        };
+
+        Logger::new(
+            InstrumentationLibrary::new(component_name, version, schema_url, attributes),
+            Arc::downgrade(&self.inner),
+        )
+    }
+}
+
 impl LoggerProvider {
     /// Build a new log emitter provider.
     pub(crate) fn new(inner: Arc<LoggerProviderInner>) -> Self {
@@ -28,33 +52,6 @@ impl LoggerProvider {
     /// Create a new `LogEmitterProvider` builder.
     pub fn builder() -> Builder {
         Builder::default()
-    }
-
-    /// Create a new versioned `LogEmitter` instance.
-    pub fn versioned_log_emitter(
-        &self,
-        name: impl Into<Cow<'static, str>>,
-        version: Option<&'static str>,
-        schema_url: Option<Cow<'static, str>>,
-        attributes: Option<Vec<opentelemetry_api::KeyValue>>,
-    ) -> Logger {
-        let name = name.into();
-
-        let component_name = if name.is_empty() {
-            Cow::Borrowed(DEFAULT_COMPONENT_NAME)
-        } else {
-            name
-        };
-
-        Logger::new(
-            InstrumentationLibrary::new(
-                component_name,
-                version.map(Into::into),
-                schema_url,
-                attributes,
-            ),
-            Arc::downgrade(&self.inner),
-        )
     }
 
     /// Config associated with this provider.
@@ -196,9 +193,11 @@ impl Logger {
     pub fn instrumentation_library(&self) -> &InstrumentationLibrary {
         &self.instrumentation_lib
     }
+}
 
+impl opentelemetry_api::logs::Logger for Logger {
     /// Emit a `LogRecord`.
-    pub fn emit(&self, record: LogRecord) {
+    fn emit(&self, record: LogRecord) {
         let provider = match self.provider() {
             Some(provider) => provider,
             None => return,
