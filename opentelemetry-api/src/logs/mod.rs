@@ -5,8 +5,12 @@ use futures_channel::{mpsc::TrySendError, oneshot::Canceled};
 use std::time::Duration;
 use thiserror::Error;
 
+mod logger;
+mod noop;
 mod record;
 
+pub use logger::{Logger, LoggerProvider};
+pub use noop::NoopLoggerProvider;
 pub use record::{Any, LogRecord, LogRecordBuilder, Severity, TraceContext};
 
 /// Describe the result of operations in log SDK.
