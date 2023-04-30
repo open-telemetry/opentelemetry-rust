@@ -50,11 +50,12 @@ use crate::exporter::ExportConfig;
 use crate::OtlpPipeline;
 use async_trait::async_trait;
 use std::{
+    borrow::Cow,
     fmt::{self, Debug},
     time::Duration,
 };
 
-use opentelemetry_api::logs::LogError;
+use opentelemetry_api::logs::{LogError, LoggerProvider};
 use opentelemetry_sdk::{self, export::logs::LogData, logs::LogRuntime};
 
 impl OtlpPipeline {
@@ -455,9 +456,9 @@ fn build_simple_with_exporter(
         provider_builder = provider_builder.with_config(config);
     }
     let provider = provider_builder.build();
-    provider.versioned_log_emitter(
-        "opentelemetry-otlp",
-        Some(env!("CARGO_PKG_VERSION")),
+    provider.versioned_logger(
+        Cow::Borrowed("opentelemetry-otlp"),
+        Some(Cow::Borrowed(env!("CARGO_PKG_VERSION"))),
         None,
         None,
     )
@@ -474,9 +475,9 @@ fn build_batch_with_exporter<R: LogRuntime>(
         provider_builder = provider_builder.with_config(config);
     }
     let provider = provider_builder.build();
-    provider.versioned_log_emitter(
-        "opentelemetry-otlp",
-        Some(env!("CARGO_PKG_VERSION")),
+    provider.versioned_logger(
+        Cow::Borrowed("opentelemetry-otlp"),
+        Some(Cow::Borrowed("CARGO_PKG_VERSION")),
         None,
         None,
     )
