@@ -256,6 +256,28 @@ fn prometheus_exporter_integration() {
             }),
             ..Default::default()
         },
+        TestCase {
+            name: "with namespace",
+            builder: ExporterBuilder::default().with_namespace("test"),
+            expected_file: "with_namespace.txt",
+            record_metrics: Box::new(|cx, meter| {
+                let attrs = vec![
+                    Key::new("A").string("B"),
+                    Key::new("C").string("D"),
+                    Key::new("E").bool(true),
+                    Key::new("F").i64(42),
+                ];
+                let counter = meter
+                    .f64_counter("foo")
+                    .with_description("a simple counter")
+                    .init();
+
+                counter.add(cx, 5.0, &attrs);
+                counter.add(cx, 10.3, &attrs);
+                counter.add(cx, 9.0, &attrs);
+            }),
+            ..Default::default()
+        },
     ];
 
     for tc in test_cases {
