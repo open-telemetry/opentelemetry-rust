@@ -103,9 +103,30 @@ pub(crate) mod tonic {
         }
     }
 
-    fn transform_histogram<T: Into<TonicExemplarValue> + Into<TonicDataPointValue> + Copy>(
-        hist: &SdkHistogram<T>,
-    ) -> TonicHistogram {
+    trait Numeric: Into<TonicExemplarValue> + Into<TonicDataPointValue> + Copy {
+        // lossy at large values for u64 and i64 but otlp histograms only handle float values
+        fn into_f64(self) -> f64;
+    }
+
+    impl Numeric for u64 {
+        fn into_f64(self) -> f64 {
+            self as f64
+        }
+    }
+
+    impl Numeric for i64 {
+        fn into_f64(self) -> f64 {
+            self as f64
+        }
+    }
+
+    impl Numeric for f64 {
+        fn into_f64(self) -> f64 {
+            self
+        }
+    }
+
+    fn transform_histogram<T: Numeric>(hist: &SdkHistogram<T>) -> TonicHistogram {
         TonicHistogram {
             data_points: hist
                 .data_points
@@ -115,13 +136,13 @@ pub(crate) mod tonic {
                     start_time_unix_nano: to_nanos(dp.start_time),
                     time_unix_nano: to_nanos(dp.time),
                     count: dp.count,
-                    sum: Some(dp.sum),
+                    sum: Some(dp.sum.into_f64()),
                     bucket_counts: dp.bucket_counts.clone(),
                     explicit_bounds: dp.bounds.clone(),
                     exemplars: dp.exemplars.iter().map(transform_exemplar).collect(),
                     flags: TonicDataPointFlags::default() as u32,
-                    min: dp.min,
-                    max: dp.max,
+                    min: dp.min.map(Numeric::into_f64),
+                    max: dp.max.map(Numeric::into_f64),
                 })
                 .collect(),
             aggregation_temporality: TonicTemporality::from(hist.temporality).into(),
