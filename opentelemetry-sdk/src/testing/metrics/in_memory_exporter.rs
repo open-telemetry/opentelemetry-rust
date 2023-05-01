@@ -8,7 +8,6 @@ use crate::metrics::{data, Aggregation, InstrumentKind};
 use async_trait::async_trait;
 use opentelemetry_api::metrics::MetricsError;
 use opentelemetry_api::metrics::Result;
-use std::any::Any;
 use std::collections::VecDeque;
 use std::fmt;
 use std::sync::{Arc, Mutex};
@@ -27,7 +26,7 @@ use std::sync::{Arc, Mutex};
 ///
 /// # Example
 ///
-/// ```no_run
+/// ```
 ///# use opentelemetry_sdk::{metrics, runtime};
 ///# use opentelemetry_api::{Context, KeyValue};
 ///# use opentelemetry_api::metrics::MeterProvider;
@@ -211,7 +210,7 @@ impl InMemoryMetricsExporter {
                             description: metric.description.clone(),
                             unit: metric.unit.clone(),
                             // we don't expect any unknown data type here
-                            data: Self::clone_data(&metric.data).unwrap(),
+                            data: Self::clone_data(metric.data.as_ref()).unwrap(),
                         })
                         .collect(),
                 })
@@ -219,49 +218,49 @@ impl InMemoryMetricsExporter {
         }
     }
 
-    fn clone_data(data: &dyn Any) -> Option<Box<dyn data::Aggregation>> {
-        if let Some(hist) = data.downcast_ref::<Histogram<i64>>() {
+    fn clone_data(data: &dyn data::Aggregation) -> Option<Box<dyn data::Aggregation>> {
+        if let Some(hist) = data.as_any().downcast_ref::<Histogram<i64>>() {
             Some(Box::new(Histogram {
                 data_points: hist.data_points.clone(),
                 temporality: hist.temporality,
             }))
-        } else if let Some(hist) = data.downcast_ref::<Histogram<f64>>() {
+        } else if let Some(hist) = data.as_any().downcast_ref::<Histogram<f64>>() {
             Some(Box::new(Histogram {
                 data_points: hist.data_points.clone(),
                 temporality: hist.temporality,
             }))
-        } else if let Some(hist) = data.downcast_ref::<Histogram<u64>>() {
+        } else if let Some(hist) = data.as_any().downcast_ref::<Histogram<u64>>() {
             Some(Box::new(Histogram {
                 data_points: hist.data_points.clone(),
                 temporality: hist.temporality,
             }))
-        } else if let Some(sum) = data.downcast_ref::<data::Sum<i64>>() {
+        } else if let Some(sum) = data.as_any().downcast_ref::<data::Sum<i64>>() {
             Some(Box::new(data::Sum {
                 data_points: sum.data_points.clone(),
                 temporality: sum.temporality,
                 is_monotonic: sum.is_monotonic,
             }))
-        } else if let Some(sum) = data.downcast_ref::<data::Sum<f64>>() {
+        } else if let Some(sum) = data.as_any().downcast_ref::<data::Sum<f64>>() {
             Some(Box::new(data::Sum {
                 data_points: sum.data_points.clone(),
                 temporality: sum.temporality,
                 is_monotonic: sum.is_monotonic,
             }))
-        } else if let Some(sum) = data.downcast_ref::<data::Sum<u64>>() {
+        } else if let Some(sum) = data.as_any().downcast_ref::<data::Sum<u64>>() {
             Some(Box::new(data::Sum {
                 data_points: sum.data_points.clone(),
                 temporality: sum.temporality,
                 is_monotonic: sum.is_monotonic,
             }))
-        } else if let Some(gauge) = data.downcast_ref::<data::Gauge<i64>>() {
+        } else if let Some(gauge) = data.as_any().downcast_ref::<data::Gauge<i64>>() {
             Some(Box::new(data::Gauge {
                 data_points: gauge.data_points.clone(),
             }))
-        } else if let Some(gauge) = data.downcast_ref::<data::Gauge<f64>>() {
+        } else if let Some(gauge) = data.as_any().downcast_ref::<data::Gauge<f64>>() {
             Some(Box::new(data::Gauge {
                 data_points: gauge.data_points.clone(),
             }))
-        } else if let Some(gauge) = data.downcast_ref::<data::Gauge<u64>>() {
+        } else if let Some(gauge) = data.as_any().downcast_ref::<data::Gauge<u64>>() {
             Some(Box::new(data::Gauge {
                 data_points: gauge.data_points.clone(),
             }))
