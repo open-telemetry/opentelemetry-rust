@@ -24,6 +24,10 @@ e.g.
 cargo run --release --bin metrics
 ```
 
+Press (Ctrl + C) to quit the tests.
+
+Example output:
+
 ```text
 Throughput: 4813019.00 requests/sec
 Throughput: 4805997.50 requests/sec

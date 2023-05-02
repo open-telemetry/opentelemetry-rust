@@ -21,7 +21,7 @@ where
     let total_count = Arc::new(AtomicU64::new(0));
     let total_count_clone = Arc::clone(&total_count);
 
-    rayon::spawn( move || {
+    rayon::spawn(move || {
         (0..num_cpus::get()).into_par_iter().for_each(|_| loop {
             func();
             total_count_clone.fetch_add(1, Ordering::SeqCst);
