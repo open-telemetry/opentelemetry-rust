@@ -342,7 +342,7 @@ fn counters(c: &mut Criterion) {
     });
 }
 
-static MAX_BOUND: usize = 100000;
+const MAX_BOUND: usize = 100000;
 
 fn bench_histogram(bound_count: usize) -> (Context, SharedReader, Histogram<i64>) {
     let mut bounds = vec![0; bound_count];
