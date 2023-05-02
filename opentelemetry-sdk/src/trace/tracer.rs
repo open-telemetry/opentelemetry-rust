@@ -75,7 +75,6 @@ impl Tracer {
         attributes: &OrderMap<Key, Value>,
         links: &[Link],
         config: &Config,
-        instrumentation_library: &InstrumentationLibrary,
     ) -> Option<(TraceFlags, Vec<KeyValue>, TraceState)> {
         let sampling_result = config.sampler.should_sample(
             Some(parent_cx),
@@ -84,7 +83,6 @@ impl Tracer {
             span_kind,
             attributes,
             links,
-            instrumentation_library,
         );
 
         self.process_sampling_result(sampling_result, parent_cx)
@@ -184,7 +182,6 @@ impl opentelemetry_api::trace::Tracer for Tracer {
                 &attribute_options,
                 link_options.as_deref().unwrap_or(&[]),
                 provider.config(),
-                &self.instrumentation_lib,
             )
         };
 
@@ -276,7 +273,6 @@ mod tests {
     use crate::{
         testing::trace::TestSpan,
         trace::{Config, Sampler, ShouldSample},
-        InstrumentationLibrary,
     };
     use opentelemetry_api::{
         trace::{
@@ -298,7 +294,6 @@ mod tests {
             _span_kind: &SpanKind,
             _attributes: &OrderMap<Key, Value>,
             _links: &[Link],
-            _instrumentation_library: &InstrumentationLibrary,
         ) -> SamplingResult {
             let trace_state = parent_context
                 .unwrap()

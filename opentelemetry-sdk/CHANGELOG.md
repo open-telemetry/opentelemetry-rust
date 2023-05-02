@@ -1,4 +1,12 @@
 # Changelog
+
+## Unreleased
+
+### Removed
+- Samplers no longer has access to `InstrumentationLibrary` as one of parameters
+  to `should_sample`.
+  [#1041](https://github.com/open-telemetry/opentelemetry-rust/pull/1041).
+
 ## v0.19.0
 
 ### Added

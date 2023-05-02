@@ -13,6 +13,7 @@ pub struct ExporterBuilder {
     registry: Option<prometheus::Registry>,
     disable_target_info: bool,
     without_units: bool,
+    namespace: Option<String>,
     aggregation: Option<Box<dyn AggregationSelector>>,
     disable_scope_info: bool,
 }
@@ -23,6 +24,7 @@ impl fmt::Debug for ExporterBuilder {
             .field("registry", &self.registry)
             .field("disable_target_info", &self.disable_target_info)
             .field("without_units", &self.without_units)
+            .field("namespace", &self.namespace)
             .field("aggregation", &self.aggregation.is_some())
             .field("disable_scope_info", &self.disable_scope_info)
             .finish()
@@ -63,6 +65,23 @@ impl ExporterBuilder {
         self
     }
 
+    /// Configures the exporter to prefix metrics with the given namespace.
+    ///
+    /// Metrics such as `target_info` and `otel_scope_info` are not prefixed since
+    /// these have special behavior based on their name.
+    pub fn with_namespace(mut self, namespace: impl Into<String>) -> Self {
+        let mut namespace = namespace.into();
+
+        // namespace and metric names should be separated with an underscore,
+        // adds a trailing underscore if there is not one already.
+        if !namespace.ends_with('_') {
+            namespace.push('_')
+        }
+
+        self.namespace = Some(namespace);
+        self
+    }
+
     /// Configures which [prometheus::Registry] the exporter will use.
     ///
     /// If no registry is specified, the prometheus default is used.
@@ -95,6 +114,7 @@ impl ExporterBuilder {
             without_units: self.without_units,
             disable_scope_info: self.disable_scope_info,
             create_target_info_once: OnceCell::new(),
+            namespace: self.namespace,
             inner: Mutex::new(Default::default()),
         };
 

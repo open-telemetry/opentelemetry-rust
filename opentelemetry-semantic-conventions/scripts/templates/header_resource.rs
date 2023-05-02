@@ -7,7 +7,7 @@
 //!
 //! ## Usage
 //!
-//! ```rust,no_run
+//! ```
 //! use opentelemetry::sdk;
 //! use opentelemetry_semantic_conventions as semconv;
 //!

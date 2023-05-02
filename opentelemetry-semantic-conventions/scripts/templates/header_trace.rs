@@ -7,7 +7,7 @@
 //!
 //! ## Usage
 //!
-//! ```rust
+//! ```
 //! use opentelemetry::{global, trace::Tracer as _};
 //! use opentelemetry_semantic_conventions as semcov;
 //!
