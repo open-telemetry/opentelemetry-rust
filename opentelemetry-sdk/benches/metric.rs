@@ -1,8 +1,9 @@
+use rand::Rng;
 use std::sync::{Arc, Weak};
 
 use criterion::{criterion_group, criterion_main, Bencher, Criterion};
 use opentelemetry_api::{
-    metrics::{Counter, MeterProvider as _, Result},
+    metrics::{Counter, Histogram, MeterProvider as _, Result},
     Context, Key, KeyValue,
 };
 use opentelemetry_sdk::{
@@ -103,6 +104,46 @@ impl TemporalitySelector for DeltaTemporalitySelector {
 //                         time:   [677.00 ns 681.63 ns 686.88 ns]
 // Counter/CollectOneAttr  time:   [659.29 ns 681.20 ns 708.04 ns]
 // Counter/CollectTenAttrs time:   [3.5048 µs 3.5384 µs 3.5777 µs]
+// Histogram/Record0Attrs10bounds
+//                         time:   [75.790 ns 77.235 ns 78.825 ns]
+// Histogram/Record3Attrs10bounds
+//                         time:   [580.88 ns 603.84 ns 628.71 ns]
+// Histogram/Record5Attrs10bounds
+//                         time:   [3.8539 µs 3.8988 µs 3.9519 µs]
+// Histogram/Record7Attrs10bounds
+//                         time:   [699.46 ns 720.17 ns 742.24 ns]
+// Histogram/Record10Attrs10bounds
+//                         time:   [844.95 ns 861.92 ns 880.23 ns]
+// Histogram/Record0Attrs49bounds
+//                         time:   [75.198 ns 77.081 ns 79.449 ns]
+// Histogram/Record3Attrs49bounds
+//                         time:   [533.82 ns 540.44 ns 547.30 ns]
+// Histogram/Record5Attrs49bounds
+//                         time:   [583.01 ns 588.27 ns 593.98 ns]
+// Histogram/Record7Attrs49bounds
+//                         time:   [645.67 ns 652.03 ns 658.35 ns]
+// Histogram/Record10Attrs49bounds
+//                         time:   [747.24 ns 755.42 ns 764.37 ns]
+// Histogram/Record0Attrs50bounds
+//                         time:   [72.023 ns 72.218 ns 72.426 ns]
+// Histogram/Record3Attrs50bounds
+//                         time:   [530.21 ns 534.23 ns 538.63 ns]
+// Histogram/Record5Attrs50bounds
+//                         time:   [3.2934 µs 3.3069 µs 3.3228 µs]
+// Histogram/Record7Attrs50bounds
+//                         time:   [633.88 ns 638.87 ns 644.52 ns]
+// Histogram/Record10Attrs50bounds
+//                         time:   [759.69 ns 768.42 ns 778.12 ns]
+// Histogram/Record0Attrs1000bounds
+//                         time:   [75.495 ns 75.942 ns 76.529 ns]
+// Histogram/Record3Attrs1000bounds
+//                         time:   [542.06 ns 548.37 ns 555.31 ns]
+// Histogram/Record5Attrs1000bounds
+//                         time:   [3.2935 µs 3.3058 µs 3.3215 µs]
+// Histogram/Record7Attrs1000bounds
+//                         time:   [643.75 ns 649.05 ns 655.14 ns]
+// Histogram/Record10Attrs1000bounds
+//                         time:   [726.87 ns 736.52 ns 747.09 ns]
 fn bench_counter(
     view: Option<Box<dyn View>>,
     temporality: &str,
@@ -301,9 +342,60 @@ fn counters(c: &mut Criterion) {
     });
 }
 
+const MAX_BOUND: usize = 100000;
+
+fn bench_histogram(bound_count: usize) -> (Context, SharedReader, Histogram<i64>) {
+    let mut bounds = vec![0; bound_count];
+    #[allow(clippy::needless_range_loop)]
+    for i in 0..bounds.len() {
+        bounds[i] = i * MAX_BOUND / bound_count
+    }
+    let view = Some(
+        new_view(
+            Instrument::new().name("histogram_*"),
+            Stream::new().aggregation(Aggregation::ExplicitBucketHistogram {
+                boundaries: bounds.iter().map(|&x| x as f64).collect(),
+                record_min_max: true,
+            }),
+        )
+        .unwrap(),
+    );
+
+    let cx = Context::new();
+    let r = SharedReader(Arc::new(ManualReader::default()));
+    let mut builder = MeterProvider::builder().with_reader(r.clone());
+    if let Some(view) = view {
+        builder = builder.with_view(view);
+    }
+    let mtr = builder.build().meter("test_meter");
+    let hist = mtr
+        .i64_histogram(format!("histogram_{}", bound_count))
+        .init();
+
+    (cx, r, hist)
+}
+
 fn histograms(c: &mut Criterion) {
     let mut group = c.benchmark_group("Histogram");
+    let mut rng = rand::thread_rng();
 
+    for bound_size in [10, 49, 50, 1000].iter() {
+        let (cx, _, hist) = bench_histogram(*bound_size);
+        for attr_size in [0, 3, 5, 7, 10].iter() {
+            let mut attributes: Vec<KeyValue> = Vec::new();
+            for i in 0..*attr_size {
+                attributes.push(KeyValue::new(
+                    format!("K,{},{}", bound_size, attr_size),
+                    format!("V,{},{},{}", bound_size, attr_size, i),
+                ))
+            }
+            let value: i64 = rng.gen_range(0..MAX_BOUND).try_into().unwrap();
+            group.bench_function(
+                format!("Record{}Attrs{}bounds", attr_size, bound_size),
+                |b| b.iter(|| hist.record(&cx, value, &attributes)),
+            );
+        }
+    }
     group.bench_function("CollectOne", |b| benchmark_collect_histogram(b, 1));
     group.bench_function("CollectFive", |b| benchmark_collect_histogram(b, 5));
     group.bench_function("CollectTen", |b| benchmark_collect_histogram(b, 10));
