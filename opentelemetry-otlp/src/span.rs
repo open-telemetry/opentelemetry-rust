@@ -424,12 +424,37 @@ impl SpanExporter {
     }
 
     /// Builds a new span exporter with the given configuration
+    ///
+    /// Endpoint selection:
+    /// * OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, unchanged
+    /// * config.endpoint, unchanged, if it contains a path
+    /// * config.endpoint with /v1/traces appended
     #[cfg(feature = "http-proto")]
     pub fn new_http(config: ExportConfig, http_config: HttpConfig) -> Result<Self, crate::Error> {
-        let url: Uri = config
-            .endpoint
+        let endpoint_str = match std::env::var(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT) {
+            Ok(val) => val,
+            Err(_) => config.endpoint,
+        };
+
+        let url: Uri = endpoint_str
             .parse()
             .map_err::<crate::Error, _>(Into::into)?;
+
+        // Preserve backwards compatability by checking if the endpoint
+        // has a path part, and using the endpoint unchanged in that case.
+        // If no path is supplied we append the standard path for traces.
+        // This means that non-standard location of the traces endpoint must
+        // be specified in full.
+        let url: Uri = match url.path() {
+            "" | "/" => {
+                let mut parts = url.into_parts();
+                parts.path_and_query = Some(http::uri::PathAndQuery::from_static("/v1/traces"));
+                parts.try_into().expect(
+                    "Should always be a valid URL, since we are constructing from a valid URL",
+                )
+            }
+            _ => url,
+        };
 
         Ok(SpanExporter::Http {
             trace_exporter: http_config.client,
@@ -588,6 +613,46 @@ impl opentelemetry_sdk::export::trace::SpanExporter for SpanExporter {
                 } else {
                     Box::pin(std::future::ready(Err(crate::Error::NoHttpClient.into())))
                 }
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[cfg(feature = "http-proto")]
+    #[test]
+    fn test_http_endpoint_parser() {
+        use crate::SpanExporter;
+
+        let tests_cases = vec![
+            (
+                "https://example.org/something/specific",
+                "https://example.org/something/specific",
+            ),
+            ("https://example.org", "https://example.org/v1/traces"),
+            ("https://example.org/", "https://example.org/v1/traces"),
+        ];
+
+        for test_case in tests_cases {
+            let http_config = super::HttpConfig::default();
+            let config = super::ExportConfig {
+                endpoint: test_case.0.to_owned(),
+                ..Default::default()
+            };
+
+            let result = super::SpanExporter::new_http(config, http_config);
+
+            if let Ok(SpanExporter::Http {
+                timeout: _,
+                headers: _,
+                collector_endpoint: endpoint,
+                trace_exporter: _,
+            }) = result
+            {
+                assert_eq!(endpoint.to_string(), test_case.1);
+            } else {
+                assert!(result.is_ok());
             }
         }
     }
