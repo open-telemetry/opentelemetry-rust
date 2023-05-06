@@ -18,6 +18,7 @@ pub trait ObjectSafeLoggerProvider {
         version: Option<Cow<'static, str>>,
         schema_url: Option<Cow<'static, str>>,
         attributes: Option<Vec<KeyValue>>,
+        include_trace_context: bool,
     ) -> Box<dyn Logger + Send + Sync + 'static>;
 }
 
@@ -32,8 +33,15 @@ where
         version: Option<Cow<'static, str>>,
         schema_url: Option<Cow<'static, str>>,
         attributes: Option<Vec<KeyValue>>,
+        include_trace_context: bool,
     ) -> Box<dyn Logger + Send + Sync + 'static> {
-        Box::new(self.versioned_logger(name, version, schema_url, attributes))
+        Box::new(self.versioned_logger(
+            name,
+            version,
+            schema_url,
+            attributes,
+            include_trace_context,
+        ))
     }
 }
 
@@ -80,15 +88,19 @@ impl LoggerProvider for GlobalLoggerProvider {
 
     fn versioned_logger(
         &self,
-        name: Cow<'static, str>,
+        name: impl Into<Cow<'static, str>>,
         version: Option<Cow<'static, str>>,
         schema_url: Option<Cow<'static, str>>,
         attributes: Option<Vec<KeyValue>>,
+        include_trace_context: bool,
     ) -> Self::Logger {
-        BoxedLogger(
-            self.provider
-                .versioned_logger_boxed(name, version, schema_url, attributes),
-        )
+        BoxedLogger(self.provider.versioned_logger_boxed(
+            name.into(),
+            version,
+            schema_url,
+            attributes,
+            include_trace_context,
+        ))
     }
 }
 

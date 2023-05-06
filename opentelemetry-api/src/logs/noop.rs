@@ -1,4 +1,9 @@
-use crate::logs::{LogRecord, Logger, LoggerProvider};
+use std::borrow::Cow;
+
+use crate::{
+    logs::{LogRecord, Logger, LoggerProvider},
+    KeyValue,
+};
 
 /// A no-op implementation of a [`LoggerProvider`].
 #[derive(Clone, Debug, Default)]
@@ -15,10 +20,11 @@ impl LoggerProvider for NoopLoggerProvider {
 
     fn versioned_logger(
         &self,
-        _name: std::borrow::Cow<'static, str>,
-        _version: Option<std::borrow::Cow<'static, str>>,
-        _schema_url: Option<std::borrow::Cow<'static, str>>,
-        _attributes: Option<Vec<crate::KeyValue>>,
+        _name: impl Into<Cow<'static, str>>,
+        _version: Option<Cow<'static, str>>,
+        _schema_url: Option<Cow<'static, str>>,
+        _attributes: Option<Vec<KeyValue>>,
+        _include_trace_context: bool,
     ) -> Self::Logger {
         NoopLogger(())
     }

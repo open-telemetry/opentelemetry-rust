@@ -50,6 +50,16 @@ pub struct TraceContext {
     pub trace_flags: Option<TraceFlags>,
 }
 
+impl From<&SpanContext> for TraceContext {
+    fn from(span_context: &SpanContext) -> Self {
+        TraceContext {
+            trace_id: span_context.trace_id(),
+            span_id: span_context.span_id(),
+            trace_flags: Some(span_context.trace_flags()),
+        }
+    }
+}
+
 /// Value types for representing arbitrary values in a log record.
 #[derive(Debug, Clone)]
 pub enum Any {

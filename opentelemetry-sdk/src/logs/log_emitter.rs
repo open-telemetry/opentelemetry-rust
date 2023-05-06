@@ -3,7 +3,8 @@ use crate::export::logs::{LogData, LogExporter};
 use opentelemetry_api::{
     global::{handle_error, Error},
     logs::{LogRecord, LogResult},
-    InstrumentationLibrary,
+    trace::TraceContextExt,
+    Context, InstrumentationLibrary,
 };
 use std::{
     borrow::Cow,
@@ -25,11 +26,14 @@ impl opentelemetry_api::logs::LoggerProvider for LoggerProvider {
     /// Create a new versioned `LogEmitter` instance.
     fn versioned_logger(
         &self,
-        name: Cow<'static, str>,
+        name: impl Into<Cow<'static, str>>,
         version: Option<Cow<'static, str>>,
         schema_url: Option<Cow<'static, str>>,
         attributes: Option<Vec<opentelemetry_api::KeyValue>>,
+        include_trace_context: bool,
     ) -> Logger {
+        let name = name.into();
+
         let component_name = if name.is_empty() {
             Cow::Borrowed(DEFAULT_COMPONENT_NAME)
         } else {
@@ -39,6 +43,7 @@ impl opentelemetry_api::logs::LoggerProvider for LoggerProvider {
         Logger::new(
             InstrumentationLibrary::new(component_name, version, schema_url, attributes),
             Arc::downgrade(&self.inner),
+            include_trace_context,
         )
     }
 }
@@ -169,6 +174,7 @@ impl Builder {
 ///
 /// [`LogRecord`]: crate::log::LogRecord
 pub struct Logger {
+    include_trace_context: bool,
     instrumentation_lib: InstrumentationLibrary,
     provider: Weak<LoggerProviderInner>,
 }
@@ -177,8 +183,10 @@ impl Logger {
     pub(crate) fn new(
         instrumentation_lib: InstrumentationLibrary,
         provider: Weak<LoggerProviderInner>,
+        include_trace_context: bool,
     ) -> Self {
         Logger {
+            include_trace_context,
             instrumentation_lib,
             provider,
         }
@@ -205,8 +213,16 @@ impl opentelemetry_api::logs::Logger for Logger {
 
         let config = provider.config();
         for processor in provider.log_processors() {
+            let mut record = record.clone();
+            if self.include_trace_context {
+                let ctx = Context::current();
+                if ctx.has_active_span() {
+                    let span = ctx.span();
+                    record.trace_context = Some(span.span_context().into());
+                }
+            }
             let data = LogData {
-                record: record.clone(),
+                record,
                 resource: config.resource.clone(),
                 instrumentation: self.instrumentation_lib.clone(),
             };

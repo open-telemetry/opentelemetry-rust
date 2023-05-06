@@ -418,12 +418,16 @@ impl OtlpLogPipeline {
     /// current crate version, using the configured log exporter.
     ///
     /// [`Logger`]: opentelemetry::opentelemetry_sdk::logs::Logger
-    pub fn simple(self) -> Result<opentelemetry_sdk::logs::Logger, LogError> {
+    pub fn simple(
+        self,
+        include_trace_context: bool,
+    ) -> Result<opentelemetry_sdk::logs::Logger, LogError> {
         Ok(build_simple_with_exporter(
             self.exporter_builder
                 .ok_or(crate::Error::NoExporterBuilder)?
                 .build_log_exporter()?,
             self.log_config,
+            include_trace_context,
         ))
     }
 
@@ -435,6 +439,7 @@ impl OtlpLogPipeline {
     pub fn batch<R: LogRuntime>(
         self,
         runtime: R,
+        include_trace_context: bool,
     ) -> Result<opentelemetry_sdk::logs::Logger, LogError> {
         Ok(build_batch_with_exporter(
             self.exporter_builder
@@ -442,6 +447,7 @@ impl OtlpLogPipeline {
                 .build_log_exporter()?,
             self.log_config,
             runtime,
+            include_trace_context,
         ))
     }
 }
@@ -449,6 +455,7 @@ impl OtlpLogPipeline {
 fn build_simple_with_exporter(
     exporter: LogExporter,
     log_config: Option<opentelemetry_sdk::logs::Config>,
+    include_trace_context: bool,
 ) -> opentelemetry_sdk::logs::Logger {
     let mut provider_builder =
         opentelemetry_sdk::logs::LoggerProvider::builder().with_simple_exporter(exporter);
@@ -461,6 +468,7 @@ fn build_simple_with_exporter(
         Some(Cow::Borrowed(env!("CARGO_PKG_VERSION"))),
         None,
         None,
+        include_trace_context,
     )
 }
 
@@ -468,6 +476,7 @@ fn build_batch_with_exporter<R: LogRuntime>(
     exporter: LogExporter,
     log_config: Option<opentelemetry_sdk::logs::Config>,
     runtime: R,
+    include_trace_context: bool,
 ) -> opentelemetry_sdk::logs::Logger {
     let mut provider_builder =
         opentelemetry_sdk::logs::LoggerProvider::builder().with_batch_exporter(exporter, runtime);
@@ -480,5 +489,6 @@ fn build_batch_with_exporter<R: LogRuntime>(
         Some(Cow::Borrowed("CARGO_PKG_VERSION")),
         None,
         None,
+        include_trace_context,
     )
 }

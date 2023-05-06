@@ -11,13 +11,14 @@ pub trait LoggerProvider {
 
     fn versioned_logger(
         &self,
-        name: Cow<'static, str>,
+        name: impl Into<Cow<'static, str>>,
         version: Option<Cow<'static, str>>,
         schema_url: Option<Cow<'static, str>>,
         attributes: Option<Vec<KeyValue>>,
+        include_trace_context: bool,
     ) -> Self::Logger;
 
-    fn logger(&self, name: Cow<'static, str>) -> Self::Logger {
-        self.versioned_logger(name, None, None, None)
+    fn logger(&self, name: impl Into<Cow<'static, str>>) -> Self::Logger {
+        self.versioned_logger(name, None, None, None, true)
     }
 }
