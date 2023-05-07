@@ -11,7 +11,16 @@ use crate::{
     KeyValue,
 };
 
+/// Allows a specific [`LoggerProvider`] to be used generically, by mirroring
+/// the interface, and boxing the returned types.
+///
+/// [`LoggerProvider`]: crate::logs::LoggerProvider.
 pub trait ObjectSafeLoggerProvider {
+    /// Creates a versioned named [`Logger`] instance that is a trait object
+    /// through the underlying [`LoggerProvider`].
+    ///
+    /// [`Logger`]: crate::logs::Logger
+    /// [`LoggerProvider`]: crate::logs::LoggerProvider
     fn versioned_logger_boxed(
         &self,
         name: Cow<'static, str>,
@@ -60,6 +69,7 @@ impl Logger for BoxedLogger {
 }
 
 #[derive(Clone)]
+/// Represents the globally configured [`LoggerProvider`] instance.
 pub struct GlobalLoggerProvider {
     provider: Arc<dyn ObjectSafeLoggerProvider + Send + Sync>,
 }
@@ -71,7 +81,7 @@ impl fmt::Debug for GlobalLoggerProvider {
 }
 
 impl GlobalLoggerProvider {
-    pub fn new<
+    fn new<
         L: Logger + Send + Sync + 'static,
         P: LoggerProvider<Logger = L> + Send + Sync + 'static,
     >(
@@ -107,6 +117,10 @@ impl LoggerProvider for GlobalLoggerProvider {
 static GLOBAL_LOGGER_PROVIDER: Lazy<RwLock<GlobalLoggerProvider>> =
     Lazy::new(|| RwLock::new(GlobalLoggerProvider::new(NoopLoggerProvider::new())));
 
+/// Returns an instance of the currently configured global [`LoggerProvider`]
+/// through [`GlobalLoggerProvider`].
+///
+/// [`LoggerProvider`]: crate::logs::LoggerProvider
 pub fn logger_provider() -> GlobalLoggerProvider {
     GLOBAL_LOGGER_PROVIDER
         .read()
@@ -114,10 +128,19 @@ pub fn logger_provider() -> GlobalLoggerProvider {
         .clone()
 }
 
+/// Creates a named instance of [`Logger`] via the configured
+/// [`GlobalLoggerProvider`].
+///
+/// If `name` is an empty string, the provider will use a default name.
+///
+/// [`Logger`]: crate::logs::Logger
 pub fn logger(name: Cow<'static, str>) -> BoxedLogger {
     logger_provider().logger(name)
 }
 
+/// Sets the given [`LoggerProvider`] instance as the current global provider,
+/// returning the [`LoggerProvider`] instance that was previously set as global
+/// provider.
 pub fn set_logger_provider<L, P>(new_provider: P) -> GlobalLoggerProvider
 where
     L: Logger + Send + Sync + 'static,
@@ -129,6 +152,7 @@ where
     mem::replace(&mut *provider, GlobalLoggerProvider::new(new_provider))
 }
 
+/// Shut down the current global [`LoggerProvider`].
 pub fn shutdown_logger_provider() {
     let _ = set_logger_provider(NoopLoggerProvider::new());
 }

@@ -22,6 +22,7 @@ pub struct LogExporter {
 }
 
 impl LogExporter {
+    /// Create a builder to configure this exporter.
     pub fn builder() -> LogExporterBuilder {
         Default::default()
     }
@@ -69,6 +70,7 @@ impl ExportError for Error {
     }
 }
 
+/// Configuration for the stdout log exporter
 #[derive(Default)]
 pub struct LogExporterBuilder {
     writer: Option<Box<dyn Write + Send + Sync>>,
@@ -82,6 +84,16 @@ impl fmt::Debug for LogExporterBuilder {
 }
 
 impl LogExporterBuilder {
+    /// Set the writer that the exporter will write to
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use opentelemetry_stdout::LogExporterBuilder;
+    ///
+    /// let buffer = Vec::new(); // Any type that implements `Write`
+    /// let exporter = LogExporterBuilder::default().with_writer(buffer).build();
+    /// ```
     pub fn with_writer<W>(mut self, writer: W) -> Self
     where
         W: Write + Send + Sync + 'static,
@@ -90,7 +102,20 @@ impl LogExporterBuilder {
         self
     }
 
-    pub fn with_exporter<E>(mut self, encoder: E) -> Self
+    /// Set the encoder that the exporter will use.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use opentelemetry_stdout::LogExporterBuilder;
+    /// use serde_json;
+    ///
+    /// let exporter = LogExporterBuilder::default()
+    ///     .with_encoder(|writer, data|
+    /// 		  Ok(serde_json::to_writer_pretty(writer, &data).unwrap()))
+    ///     .build();
+    /// ```
+    pub fn with_encoder<E>(mut self, encoder: E) -> Self
     where
         E: Fn(&mut dyn Write, crate::logs::transform::LogData) -> LogResult<()>
             + Send
@@ -101,6 +126,7 @@ impl LogExporterBuilder {
         self
     }
 
+    /// Create a log exporter with the current configuration.
     pub fn build(self) -> LogExporter {
         LogExporter {
             writer: Some(self.writer.unwrap_or_else(|| Box::new(stdout()))),

@@ -2,7 +2,7 @@
 //! Log runtime is an extension to [`Runtime`]. Currently it provides a channel that used
 //! by [`BatchLogProcessor`].
 //!
-//! [`BatchLogProcessor`]: crate::log::BatchLogProcessor
+//! [`BatchLogProcessor`]: crate::logs::BatchLogProcessor
 //! [`Runtime`]: crate::runtime::Runtime
 use crate::logs::BatchMessage;
 #[cfg(feature = "rt-async-std")]
@@ -34,7 +34,7 @@ const CHANNEL_CLOSED_ERROR: &str =
 /// Log runtime is an extension to [`Runtime`]. Currently it provides a channel that used
 /// by [`BatchLogProcessor`].
 ///
-/// [`BatchLogProcessor`]: crate::log::BatchLogProcessor
+/// [`BatchLogProcessor`]: crate::logs::BatchLogProcessor
 /// [`Runtime`]: crate::runtime::Runtime
 pub trait LogRuntime: Runtime {
     /// A future stream to receive the batch messages from channels.

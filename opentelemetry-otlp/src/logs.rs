@@ -417,7 +417,7 @@ impl OtlpLogPipeline {
     /// Returns a [`Logger`] with the name `opentelemetry-otlp` and the
     /// current crate version, using the configured log exporter.
     ///
-    /// [`Logger`]: opentelemetry::opentelemetry_sdk::logs::Logger
+    /// [`Logger`]: opentelemetry_sdk::logs::Logger
     pub fn simple(
         self,
         include_trace_context: bool,
@@ -435,7 +435,7 @@ impl OtlpLogPipeline {
     /// current crate version, using the configured log exporter and a
     /// batch log processor.
     ///
-    /// [`Logger`]: opentelemetry::log::Logger
+    /// [`Logger`]: opentelemetry_sdk::logs::Logger
     pub fn batch<R: LogRuntime>(
         self,
         runtime: R,

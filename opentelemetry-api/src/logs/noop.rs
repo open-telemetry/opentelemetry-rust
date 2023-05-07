@@ -10,6 +10,7 @@ use crate::{
 pub struct NoopLoggerProvider(());
 
 impl NoopLoggerProvider {
+    /// Create a new no-op logger provider.
     pub fn new() -> Self {
         NoopLoggerProvider(())
     }

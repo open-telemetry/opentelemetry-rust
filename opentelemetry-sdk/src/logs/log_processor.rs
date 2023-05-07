@@ -18,9 +18,9 @@ use std::{
     time::Duration,
 };
 
-/// The interface for plugging into a [`LogEmitter`].
+/// The interface for plugging into a [`Logger`].
 ///
-/// [`LogEmitter`]: crate::log::LogEmitter
+/// [`Logger`]: crate::logs::Logger
 pub trait LogProcessor: Send + Sync + Debug {
     /// Called when a log record is ready to processed and exported.
     fn emit(&self, data: LogData);

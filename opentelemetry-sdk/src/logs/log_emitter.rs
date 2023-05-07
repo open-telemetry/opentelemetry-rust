@@ -12,18 +12,18 @@ use std::{
 };
 
 #[derive(Debug, Clone)]
-/// Creator for `LogEmitter` instances.
+/// Creator for `Logger` instances.
 pub struct LoggerProvider {
     inner: Arc<LoggerProviderInner>,
 }
 
-/// Default log emitter name if empty string is provided.
-const DEFAULT_COMPONENT_NAME: &str = "rust.opentelemetry.io/sdk/logemitter";
+/// Default logger name if empty string is provided.
+const DEFAULT_COMPONENT_NAME: &str = "rust.opentelemetry.io/sdk/logger";
 
 impl opentelemetry_api::logs::LoggerProvider for LoggerProvider {
     type Logger = Logger;
 
-    /// Create a new versioned `LogEmitter` instance.
+    /// Create a new versioned `Logger` instance.
     fn versioned_logger(
         &self,
         name: impl Into<Cow<'static, str>>,
@@ -49,12 +49,12 @@ impl opentelemetry_api::logs::LoggerProvider for LoggerProvider {
 }
 
 impl LoggerProvider {
-    /// Build a new log emitter provider.
+    /// Build a new logger provider.
     pub(crate) fn new(inner: Arc<LoggerProviderInner>) -> Self {
         LoggerProvider { inner }
     }
 
-    /// Create a new `LogEmitterProvider` builder.
+    /// Create a new `LoggerProvider` builder.
     pub fn builder() -> Builder {
         Builder::default()
     }
@@ -77,14 +77,14 @@ impl LoggerProvider {
             .collect()
     }
 
-    /// Shuts down this `LogEmitterProvider`, panicking on failure.
+    /// Shuts down this `LoggerProvider`, panicking on failure.
     pub fn shutdown(&mut self) -> Vec<LogResult<()>> {
         self.try_shutdown()
-            .expect("canont shutdown LogEmitterProvider when child LogEmitters are still active")
+            .expect("canont shutdown LoggerProvider when child Loggers are still active")
     }
 
-    /// Attempts to shutdown this `LogEmitterProvider`, succeeding only when
-    /// all cloned `LogEmitterProvider` values have been dropped.
+    /// Attempts to shutdown this `LoggerProvider`, succeeding only when
+    /// all cloned `LoggerProvider` values have been dropped.
     pub fn try_shutdown(&mut self) -> Option<Vec<LogResult<()>>> {
         Arc::get_mut(&mut self.inner).map(|inner| {
             inner
@@ -100,7 +100,7 @@ impl Drop for LoggerProvider {
     fn drop(&mut self) {
         match self.try_shutdown() {
             None => handle_error(Error::Other(
-                "canont shutdown LogEmitterProvider when child LogEmitters are still active".into(),
+                "canont shutdown LoggerProvider when child Loggers are still active".into(),
             )),
             Some(results) => {
                 for result in results {
@@ -172,7 +172,7 @@ impl Builder {
 #[derive(Debug)]
 /// The object for emitting [`LogRecord`]s.
 ///
-/// [`LogRecord`]: crate::log::LogRecord
+/// [`LogRecord`]: opentelemetry_api::logs::LogRecord
 pub struct Logger {
     include_trace_context: bool,
     instrumentation_lib: InstrumentationLibrary,
@@ -192,12 +192,12 @@ impl Logger {
         }
     }
 
-    /// LogEmitterProvider associated with this tracer.
+    /// LoggerProvider associated with this logger.
     pub fn provider(&self) -> Option<LoggerProvider> {
         self.provider.upgrade().map(LoggerProvider::new)
     }
 
-    /// Instrumentation library information of this tracer.
+    /// Instrumentation library information of this logger.
     pub fn instrumentation_library(&self) -> &InstrumentationLibrary {
         &self.instrumentation_lib
     }
