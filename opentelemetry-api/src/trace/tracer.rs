@@ -1,4 +1,4 @@
-use crate::trace::OrderMap;
+use crate::OrderMap;
 use crate::{
     trace::{Event, Link, Span, SpanId, SpanKind, Status, TraceContextExt, TraceId, TraceState},
     Context, Key, KeyValue, Value,

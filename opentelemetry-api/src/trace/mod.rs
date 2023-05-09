@@ -169,7 +169,6 @@ use thiserror::Error;
 
 mod context;
 pub mod noop;
-mod order_map;
 mod span;
 mod span_context;
 mod tracer;
@@ -179,7 +178,6 @@ pub use self::{
     context::{
         get_active_span, mark_span_as_active, FutureExt, SpanRef, TraceContextExt, WithContext,
     },
-    order_map::OrderMap,
     span::{Span, SpanKind, Status},
     span_context::{SpanContext, SpanId, TraceFlags, TraceId, TraceState},
     tracer::{SamplingDecision, SamplingResult, SpanBuilder, Tracer},

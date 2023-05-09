@@ -1,9 +1,8 @@
-use opentelemetry_api::trace::OrderMap;
 use opentelemetry_api::{
     trace::{
         Link, SamplingDecision, SamplingResult, SpanKind, TraceContextExt, TraceId, TraceState,
     },
-    Context, Key, Value,
+    Context, Key, OrderMap, Value,
 };
 use std::convert::TryInto;
 

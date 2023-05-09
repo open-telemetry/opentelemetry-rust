@@ -17,10 +17,10 @@ use crate::{
     InstrumentationLibrary,
 };
 use opentelemetry_api::trace::{
-    Link, OrderMap, SamplingDecision, SamplingResult, SpanBuilder, SpanContext, SpanId, SpanKind,
+    Link, SamplingDecision, SamplingResult, SpanBuilder, SpanContext, SpanId, SpanKind,
     TraceContextExt, TraceFlags, TraceId, TraceState,
 };
-use opentelemetry_api::{Context, Key, KeyValue, Value};
+use opentelemetry_api::{Context, Key, KeyValue, OrderMap, Value};
 use std::fmt;
 use std::sync::Weak;
 
