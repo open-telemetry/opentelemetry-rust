@@ -1,4 +1,11 @@
 # Changelog
+
+## Unreleased
+
+### Added
+- Added builder methods to configure delta, low-memory temporality for OTLP
+  Metric pipeline
+
 ## v0.12.0
 
 ### Added

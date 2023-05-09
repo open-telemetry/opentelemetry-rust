@@ -100,6 +100,57 @@ impl From<TonicExporterBuilder> for MetricsExporterBuilder {
     }
 }
 
+/// Configure delta temporality for all [InstrumentKind]
+///
+/// [Temporality::Delta] will be used for Counter, Asynchronous Counter and Histogram
+/// [Temporality::Cumulative] will be used for UpDownCounter and Asynchronous UpDownCounter
+#[derive(Clone, Default, Debug)]
+struct DeltaTemporalitySelector {
+    pub(crate) _private: (),
+}
+
+impl DeltaTemporalitySelector {
+    /// Create a new default temporality selector.
+    fn new() -> Self {
+        Self::default()
+    }
+}
+
+impl TemporalitySelector for DeltaTemporalitySelector {
+    fn temporality(&self, _kind: InstrumentKind) -> Temporality {
+        Temporality::Delta
+    }
+}
+
+/// Configure low memory temporality for all [InstrumentKind]
+///
+/// [Temporality::Delta] will be used for Counter and Histogram
+/// [Temporality::Cumulative] will be used for UpDownCounter, Asynchronous Counter and Asynchronous UpDownCounter
+#[derive(Clone, Default, Debug)]
+struct LowMemoryTemporalitySelector {
+    pub(crate) _private: (),
+}
+
+impl LowMemoryTemporalitySelector {
+    /// Create a new default temporality selector.
+    fn new() -> Self {
+        Self::default()
+    }
+}
+
+impl TemporalitySelector for LowMemoryTemporalitySelector {
+    fn temporality(&self, kind: InstrumentKind) -> Temporality {
+        match kind {
+            InstrumentKind::Counter            
+            | InstrumentKind::Histogram => Temporality::Delta,
+            InstrumentKind::UpDownCounter
+            | InstrumentKind::ObservableCounter
+            | InstrumentKind::ObservableGauge
+            | InstrumentKind::ObservableUpDownCounter => Temporality::Cumulative
+        }
+    }
+}
+
 /// Pipeline to build OTLP metrics exporter
 ///
 /// Note that currently the OTLP metrics exporter only supports tonic as it's grpc layer and tokio as
@@ -154,6 +205,28 @@ where
     pub fn with_temporality_selector<T: TemporalitySelector + 'static>(self, selector: T) -> Self {
         OtlpMetricPipeline {
             temporality_selector: Some(Box::new(selector)),
+            ..self
+        }
+    }
+
+    /// Build with Delta temporality
+    /// This choses Delta for Counter, Asynchronous Counter and Histogram,
+    /// and choses Cumulative for UpDownCounter and Asynchronous UpDownCounter
+    pub fn with_delta_temporality(self) -> Self {
+        // This implements Delta from : https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/sdk_exporters/otlp.md#additional-configuration
+        OtlpMetricPipeline {
+            temporality_selector: Some(Box::new(DeltaTemporalitySelector::new())),
+            ..self
+        }
+    }
+
+    /// Build with "LowMemory" temporality
+    /// This choses Delta for Synchronous Counter and Histogram,
+    /// and choses Cumulative for UpDownCounter, Asynchronous Counter and Asynchronous UpDownCounter
+    pub fn with_low_memory_temporality(self) -> Self {
+        // This implements LowMemory from : https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/sdk_exporters/otlp.md#additional-configuration
+        OtlpMetricPipeline {
+            temporality_selector: Some(Box::new(DeltaTemporalitySelector::new())),
             ..self
         }
     }
