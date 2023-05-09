@@ -141,12 +141,11 @@ impl LowMemoryTemporalitySelector {
 impl TemporalitySelector for LowMemoryTemporalitySelector {
     fn temporality(&self, kind: InstrumentKind) -> Temporality {
         match kind {
-            InstrumentKind::Counter            
-            | InstrumentKind::Histogram => Temporality::Delta,
+            InstrumentKind::Counter | InstrumentKind::Histogram => Temporality::Delta,
             InstrumentKind::UpDownCounter
             | InstrumentKind::ObservableCounter
             | InstrumentKind::ObservableGauge
-            | InstrumentKind::ObservableUpDownCounter => Temporality::Cumulative
+            | InstrumentKind::ObservableUpDownCounter => Temporality::Cumulative,
         }
     }
 }
