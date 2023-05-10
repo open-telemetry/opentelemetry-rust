@@ -1,7 +1,6 @@
-use crate::OrderMap;
 use crate::{
     trace::{Event, Link, Span, SpanId, SpanKind, Status, TraceContextExt, TraceId, TraceState},
-    Context, Key, KeyValue, Value,
+    Context, Key, KeyValue, OrderMap, Value,
 };
 use std::borrow::Cow;
 use std::iter::FromIterator;
