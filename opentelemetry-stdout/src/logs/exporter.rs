@@ -44,14 +44,12 @@ impl fmt::Debug for LogExporter {
 impl opentelemetry_sdk::export::logs::LogExporter for LogExporter {
     /// Export spans to stdout
     async fn export(&mut self, batch: Vec<LogData>) -> ExportResult {
-        let res = if let Some(writer) = &mut self.writer {
-            (self.encoder)(writer, crate::logs::LogData::from(batch))
-                .and_then(|_| writer.write_all(b"\n").map_err(|e| Error(e).into()))
+        if let Some(writer) = &mut self.writer {
+            let result = (self.encoder)(writer, crate::logs::LogData::from(batch)) as LogResult<()>;
+            result.and_then(|_| writer.write_all(b"\n").map_err(|e| Error(e).into()))
         } else {
             Err("exporter is shut down".into())
-        };
-
-        res
+        }
     }
 
     fn shutdown(&mut self) {
@@ -112,7 +110,7 @@ impl LogExporterBuilder {
     ///
     /// let exporter = LogExporterBuilder::default()
     ///     .with_encoder(|writer, data|
-    /// 		  Ok(serde_json::to_writer_pretty(writer, &data).unwrap()))
+    ///          Ok(serde_json::to_writer_pretty(writer, &data).unwrap()))
     ///     .build();
     /// ```
     pub fn with_encoder<E>(mut self, encoder: E) -> Self

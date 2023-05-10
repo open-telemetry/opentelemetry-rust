@@ -14,8 +14,11 @@ pub mod tonic {
         any_value, AnyValue, ArrayValue, InstrumentationScope, KeyValue,
     };
     use opentelemetry_api::{Array, Value};
-    use opentelemetry_sdk::{trace::EvictedHashMap, Resource};
+    use opentelemetry_sdk::trace::EvictedHashMap;
     use std::borrow::Cow;
+
+    #[cfg(any(feature = "traces", feature = "logs"))]
+    use opentelemetry_sdk::Resource;
 
     impl From<opentelemetry_sdk::InstrumentationLibrary> for InstrumentationScope {
         fn from(library: opentelemetry_sdk::InstrumentationLibrary) -> Self {
@@ -134,7 +137,9 @@ pub mod grpcio {
     use crate::proto::grpcio::common::{AnyValue, ArrayValue, InstrumentationScope, KeyValue};
     use opentelemetry_api::{Array, Value};
     use opentelemetry_sdk::{trace::EvictedHashMap, Resource};
-    use protobuf::{RepeatedField, SingularPtrField};
+    use protobuf::RepeatedField;
+    #[cfg(feature = "logs")]
+    use protobuf::SingularPtrField;
     use std::borrow::Cow;
 
     impl From<opentelemetry_sdk::InstrumentationLibrary> for InstrumentationScope {

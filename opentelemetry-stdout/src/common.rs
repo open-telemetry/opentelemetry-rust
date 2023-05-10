@@ -76,6 +76,7 @@ impl From<opentelemetry_api::Key> for Key {
 }
 
 #[derive(Debug, Serialize, Clone)]
+#[allow(dead_code)]
 pub(crate) enum Value {
     #[serde(rename = "boolValue")]
     Bool(bool),
