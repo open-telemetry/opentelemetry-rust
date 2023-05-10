@@ -5,6 +5,7 @@
 ### Fixed
 
 - Fix `SpanRef::set_attributes` mutability requirement. [#1038](https://github.com/open-telemetry/opentelemetry-rust/pull/1038)
+- Move OrderMap module to root of otel-api crate. [#1061](https://github.com/open-telemetry/opentelemetry-rust/pull/1061)
 
 ## v0.19.0
 ### Added
