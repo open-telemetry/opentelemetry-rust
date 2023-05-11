@@ -3,8 +3,8 @@ use crate::{
     Context, KeyValue,
 };
 use core::fmt;
-use std::{any::Any, convert::TryFrom};
 use std::sync::Arc;
+use std::{any::Any, convert::TryFrom};
 
 use super::{AsyncInstrument, AsyncInstrumentBuilder};
 
