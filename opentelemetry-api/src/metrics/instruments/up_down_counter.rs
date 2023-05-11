@@ -3,7 +3,7 @@ use crate::{
     Context, KeyValue,
 };
 use core::fmt;
-use std::convert::TryFrom;
+use std::{any::Any, convert::TryFrom};
 use std::sync::Arc;
 
 use super::{AsyncInstrument, AsyncInstrumentBuilder};
@@ -95,6 +95,11 @@ impl<T> ObservableUpDownCounter<T> {
     /// error will be reported via the error handler.
     pub fn observe(&self, value: T, attributes: &[KeyValue]) {
         self.0.observe(value, attributes)
+    }
+
+    /// Used for SDKs to downcast instruments in callbacks.
+    pub fn as_any(&self) -> Arc<dyn Any> {
+        self.0.as_any()
     }
 }
 
