@@ -1,0 +1,14 @@
+[package]
+name = "metrics-basic"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
+once_cell = "1.17"
+opentelemetry_api = { path = "../../opentelemetry-api", features = ["metrics"] }
+opentelemetry_sdk = { path = "../../opentelemetry-sdk", features = ["metrics", "rt-tokio"] }
+opentelemetry-stdout = { path = "../../opentelemetry-stdout", features = ["metrics"]}
+serde_json = "1.0"
+tokio = { version = "1.0", features = ["full"] }
