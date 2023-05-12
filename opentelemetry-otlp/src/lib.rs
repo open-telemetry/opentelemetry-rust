@@ -251,8 +251,7 @@ impl OtlpExporterPipeline {
     /// Use HTTP as transport layer, return a `HttpExporterBuilder` to config the http transport
     /// and build the exporter.
     ///
-    /// This exporter can only be used in `tracing` pipeline. Support for `metrics` pipeline will be
-    /// added in the future.
+    /// This exporter can be used in both `tracing` and `metrics` pipeline.
     #[cfg(feature = "http-proto")]
     pub fn http(self) -> HttpExporterBuilder {
         HttpExporterBuilder::default()
