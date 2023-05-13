@@ -11,26 +11,26 @@ pub mod tonic {
         },
         transform::common::tonic::resource_attributes,
     };
-    use opentelemetry_api::logs::{Any, Severity};
+    use opentelemetry_api::logs::{AnyValue as LogsAnyValue, Severity};
 
     use super::*;
 
-    impl From<Any> for AnyValue {
-        fn from(value: Any) -> Self {
+    impl From<LogsAnyValue> for AnyValue {
+        fn from(value: LogsAnyValue) -> Self {
             AnyValue {
                 value: Some(value.into()),
             }
         }
     }
 
-    impl From<Any> for Value {
-        fn from(value: Any) -> Self {
+    impl From<LogsAnyValue> for Value {
+        fn from(value: LogsAnyValue) -> Self {
             match value {
-                Any::Double(f) => Value::DoubleValue(f),
-                Any::Int(i) => Value::IntValue(i),
-                Any::String(s) => Value::StringValue(s.into()),
-                Any::Boolean(b) => Value::BoolValue(b),
-                Any::ListAny(v) => Value::ArrayValue(ArrayValue {
+                LogsAnyValue::Double(f) => Value::DoubleValue(f),
+                LogsAnyValue::Int(i) => Value::IntValue(i),
+                LogsAnyValue::String(s) => Value::StringValue(s.into()),
+                LogsAnyValue::Boolean(b) => Value::BoolValue(b),
+                LogsAnyValue::ListAny(v) => Value::ArrayValue(ArrayValue {
                     values: v
                         .into_iter()
                         .map(|v| AnyValue {
@@ -38,7 +38,7 @@ pub mod tonic {
                         })
                         .collect(),
                 }),
-                Any::Map(m) => Value::KvlistValue(KeyValueList {
+                LogsAnyValue::Map(m) => Value::KvlistValue(KeyValueList {
                     values: m
                         .into_iter()
                         .map(|(key, value)| KeyValue {
@@ -49,7 +49,7 @@ pub mod tonic {
                         })
                         .collect(),
                 }),
-                Any::Bytes(v) => Value::BytesValue(v),
+                LogsAnyValue::Bytes(v) => Value::BytesValue(v),
             }
         }
     }
@@ -85,7 +85,7 @@ pub mod tonic {
                 None => SeverityNumber::Unspecified,
             };
 
-            LogRecord {
+            let record = LogRecord {
                 time_unix_nano: log_record.timestamp.map(to_nanos).unwrap_or_default(),
                 observed_time_unix_nano: log_record
                     .observed_timestamp
@@ -113,7 +113,9 @@ pub mod tonic {
                 trace_id: trace_context
                     .map(|ctx| ctx.trace_id.to_bytes().to_vec())
                     .unwrap_or_default(),
-            }
+                ..Default::default()
+            };
+            record
         }
     }
 
@@ -134,6 +136,7 @@ pub mod tonic {
                         .unwrap_or_default(),
                     scope: Some(log_data.instrumentation.into()),
                     log_records: vec![log_data.record.into()],
+                    ..Default::default()
                 }],
             }
         }
@@ -151,13 +154,13 @@ pub mod grpcio {
         },
         transform::common::grpcio::resource_attributes,
     };
-    use opentelemetry_api::logs::{Any, Severity};
+    use opentelemetry_api::logs::{AnyValue as LogsAnyValue, Severity};
     use protobuf::{RepeatedField, SingularPtrField};
 
     use super::*;
 
-    impl From<Any> for AnyValue {
-        fn from(value: Any) -> Self {
+    impl From<LogsAnyValue> for AnyValue {
+        fn from(value: LogsAnyValue) -> Self {
             AnyValue {
                 value: Some(value.into()),
                 ..Default::default()
@@ -165,14 +168,14 @@ pub mod grpcio {
         }
     }
 
-    impl From<Any> for AnyValue_oneof_value {
-        fn from(value: Any) -> Self {
+    impl From<LogsAnyValue> for AnyValue_oneof_value {
+        fn from(value: LogsAnyValue) -> Self {
             match value {
-                Any::Double(f) => AnyValue_oneof_value::double_value(f),
-                Any::Int(i) => AnyValue_oneof_value::int_value(i),
-                Any::String(s) => AnyValue_oneof_value::string_value(s.into()),
-                Any::Boolean(b) => AnyValue_oneof_value::bool_value(b),
-                Any::ListAny(v) => AnyValue_oneof_value::array_value(ArrayValue {
+                LogsAnyValue::Double(f) => AnyValue_oneof_value::double_value(f),
+                LogsAnyValue::Int(i) => AnyValue_oneof_value::int_value(i),
+                LogsAnyValue::String(s) => AnyValue_oneof_value::string_value(s.into()),
+                LogsAnyValue::Boolean(b) => AnyValue_oneof_value::bool_value(b),
+                LogsAnyValue::ListAny(v) => AnyValue_oneof_value::array_value(ArrayValue {
                     values: RepeatedField::from_vec(
                         v.into_iter()
                             .map(|v| AnyValue {
@@ -183,7 +186,7 @@ pub mod grpcio {
                     ),
                     ..Default::default()
                 }),
-                Any::Map(m) => AnyValue_oneof_value::kvlist_value(KeyValueList {
+                LogsAnyValue::Map(m) => AnyValue_oneof_value::kvlist_value(KeyValueList {
                     values: RepeatedField::from_vec(
                         m.into_iter()
                             .map(|(key, value)| KeyValue {
@@ -198,7 +201,7 @@ pub mod grpcio {
                     ),
                     ..Default::default()
                 }),
-                Any::Bytes(v) => AnyValue_oneof_value::bytes_value(v),
+                LogsAnyValue::Bytes(v) => AnyValue_oneof_value::bytes_value(v),
             }
         }
     }

@@ -24,10 +24,10 @@ pub struct LogRecord {
     pub severity_number: Option<Severity>,
 
     /// Record body
-    pub body: Option<Any>,
+    pub body: Option<AnyValue>,
 
     /// Additional attributes associated with this record
-    pub attributes: Option<OrderMap<Key, Any>>,
+    pub attributes: Option<OrderMap<Key, AnyValue>>,
 }
 
 impl LogRecord {
@@ -62,7 +62,7 @@ impl From<&SpanContext> for TraceContext {
 
 /// Value types for representing arbitrary values in a log record.
 #[derive(Debug, Clone)]
-pub enum Any {
+pub enum AnyValue {
     /// An integer value
     Int(i64),
     /// A double value
@@ -74,58 +74,58 @@ pub enum Any {
     /// A byte array
     Bytes(Vec<u8>),
     /// An array of `Any` values
-    ListAny(Vec<Any>),
+    ListAny(Vec<AnyValue>),
     /// A map of string keys to `Any` values, arbitrarily nested.
-    Map(OrderMap<Key, Any>),
+    Map(OrderMap<Key, AnyValue>),
 }
 
 macro_rules! impl_trivial_from {
     ($t:ty, $variant:path) => {
-        impl From<$t> for Any {
-            fn from(val: $t) -> Any {
+        impl From<$t> for AnyValue {
+            fn from(val: $t) -> AnyValue {
                 $variant(val.into())
             }
         }
     };
 }
 
-impl_trivial_from!(i8, Any::Int);
-impl_trivial_from!(i16, Any::Int);
-impl_trivial_from!(i32, Any::Int);
-impl_trivial_from!(i64, Any::Int);
+impl_trivial_from!(i8, AnyValue::Int);
+impl_trivial_from!(i16, AnyValue::Int);
+impl_trivial_from!(i32, AnyValue::Int);
+impl_trivial_from!(i64, AnyValue::Int);
 
-impl_trivial_from!(u8, Any::Int);
-impl_trivial_from!(u16, Any::Int);
-impl_trivial_from!(u32, Any::Int);
+impl_trivial_from!(u8, AnyValue::Int);
+impl_trivial_from!(u16, AnyValue::Int);
+impl_trivial_from!(u32, AnyValue::Int);
 
-impl_trivial_from!(f64, Any::Double);
-impl_trivial_from!(f32, Any::Double);
+impl_trivial_from!(f64, AnyValue::Double);
+impl_trivial_from!(f32, AnyValue::Double);
 
-impl_trivial_from!(String, Any::String);
-impl_trivial_from!(Cow<'static, str>, Any::String);
-impl_trivial_from!(&'static str, Any::String);
-impl_trivial_from!(StringValue, Any::String);
+impl_trivial_from!(String, AnyValue::String);
+impl_trivial_from!(Cow<'static, str>, AnyValue::String);
+impl_trivial_from!(&'static str, AnyValue::String);
+impl_trivial_from!(StringValue, AnyValue::String);
 
-impl_trivial_from!(bool, Any::Boolean);
+impl_trivial_from!(bool, AnyValue::Boolean);
 
-impl<T: Into<Any>> FromIterator<T> for Any {
+impl<T: Into<AnyValue>> FromIterator<T> for AnyValue {
     /// Creates an [`Any::ListAny`] value from a sequence of `Into<Any>` values.
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
-        Any::ListAny(iter.into_iter().map(Into::into).collect())
+        AnyValue::ListAny(iter.into_iter().map(Into::into).collect())
     }
 }
 
-impl<K: Into<Key>, V: Into<Any>> FromIterator<(K, V)> for Any {
+impl<K: Into<Key>, V: Into<AnyValue>> FromIterator<(K, V)> for AnyValue {
     /// Creates an [`Any::Map`] value from a sequence of key-value pairs
     /// that can be converted into a `Key` and `Any` respectively.
     fn from_iter<I: IntoIterator<Item = (K, V)>>(iter: I) -> Self {
-        Any::Map(OrderMap::from_iter(
+        AnyValue::Map(OrderMap::from_iter(
             iter.into_iter().map(|(k, v)| (k.into(), v.into())),
         ))
     }
 }
 
-impl From<Value> for Any {
+impl From<Value> for AnyValue {
     fn from(value: Value) -> Self {
         match value {
             Value::Bool(b) => b.into(),
@@ -133,10 +133,10 @@ impl From<Value> for Any {
             Value::F64(f) => f.into(),
             Value::String(s) => s.into(),
             Value::Array(a) => match a {
-                Array::Bool(b) => Any::from_iter(b),
-                Array::F64(f) => Any::from_iter(f),
-                Array::I64(i) => Any::from_iter(i),
-                Array::String(s) => Any::from_iter(s),
+                Array::Bool(b) => AnyValue::from_iter(b),
+                Array::F64(f) => AnyValue::from_iter(f),
+                Array::I64(i) => AnyValue::from_iter(i),
+                Array::String(s) => AnyValue::from_iter(s),
             },
         }
     }
@@ -317,7 +317,7 @@ impl LogRecordBuilder {
     }
 
     /// Assign body
-    pub fn with_body(self, body: Any) -> Self {
+    pub fn with_body(self, body: AnyValue) -> Self {
         Self {
             record: LogRecord {
                 body: Some(body),
@@ -327,7 +327,7 @@ impl LogRecordBuilder {
     }
 
     /// Assign attributes, overriding previously set attributes
-    pub fn with_attributes(self, attributes: OrderMap<Key, Any>) -> Self {
+    pub fn with_attributes(self, attributes: OrderMap<Key, AnyValue>) -> Self {
         Self {
             record: LogRecord {
                 attributes: Some(attributes),
@@ -340,7 +340,7 @@ impl LogRecordBuilder {
     pub fn with_attribute<K, V>(mut self, key: K, value: V) -> Self
     where
         K: Into<Key>,
-        V: Into<Any>,
+        V: Into<AnyValue>,
     {
         if let Some(ref mut map) = self.record.attributes {
             map.insert(key.into(), value.into());

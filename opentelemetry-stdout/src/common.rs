@@ -148,17 +148,17 @@ impl From<opentelemetry_api::Value> for Value {
 }
 
 #[cfg(feature = "logs")]
-impl From<opentelemetry_api::logs::Any> for Value {
-    fn from(value: opentelemetry_api::logs::Any) -> Self {
+impl From<opentelemetry_api::logs::AnyValue> for Value {
+    fn from(value: opentelemetry_api::logs::AnyValue) -> Self {
         match value {
-            opentelemetry_api::logs::Any::Boolean(b) => Value::Bool(b),
-            opentelemetry_api::logs::Any::Int(i) => Value::Int(i),
-            opentelemetry_api::logs::Any::Double(d) => Value::Double(d),
-            opentelemetry_api::logs::Any::String(s) => Value::String(s.into()),
-            opentelemetry_api::logs::Any::ListAny(a) => {
+            opentelemetry_api::logs::AnyValue::Boolean(b) => Value::Bool(b),
+            opentelemetry_api::logs::AnyValue::Int(i) => Value::Int(i),
+            opentelemetry_api::logs::AnyValue::Double(d) => Value::Double(d),
+            opentelemetry_api::logs::AnyValue::String(s) => Value::String(s.into()),
+            opentelemetry_api::logs::AnyValue::ListAny(a) => {
                 Value::Array(a.into_iter().map(Into::into).collect())
             }
-            opentelemetry_api::logs::Any::Map(m) => Value::KeyValues(
+            opentelemetry_api::logs::AnyValue::Map(m) => Value::KeyValues(
                 m.into_iter()
                     .map(|(key, value)| KeyValue {
                         key: key.into(),
@@ -166,7 +166,7 @@ impl From<opentelemetry_api::logs::Any> for Value {
                     })
                     .collect(),
             ),
-            opentelemetry_api::logs::Any::Bytes(b) => Value::BytesValue(b),
+            opentelemetry_api::logs::AnyValue::Bytes(b) => Value::BytesValue(b),
         }
     }
 }
@@ -179,8 +179,8 @@ pub(crate) struct KeyValue {
 }
 
 #[cfg(feature = "logs")]
-impl From<(opentelemetry_api::Key, opentelemetry_api::logs::Any)> for KeyValue {
-    fn from((key, value): (opentelemetry_api::Key, opentelemetry_api::logs::Any)) -> Self {
+impl From<(opentelemetry_api::Key, opentelemetry_api::logs::AnyValue)> for KeyValue {
+    fn from((key, value): (opentelemetry_api::Key, opentelemetry_api::logs::AnyValue)) -> Self {
         KeyValue {
             key: key.into(),
             value: value.into(),
