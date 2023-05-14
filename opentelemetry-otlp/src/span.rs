@@ -51,7 +51,7 @@ use {
 use {std::collections::HashMap, std::sync::Arc};
 
 use crate::exporter::ExportConfig;
-use crate::OtlpPipeline;
+use crate::{OtlpPipeline, OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, OTEL_EXPORTER_OTLP_TRACES_TIMEOUT};
 
 use opentelemetry_api::{
     global,
@@ -65,13 +65,6 @@ use opentelemetry_sdk::{
 use opentelemetry_semantic_conventions::SCHEMA_URL;
 
 use async_trait::async_trait;
-
-/// Target to which the exporter is going to send spans, defaults to https://localhost:4317/v1/traces.
-/// Learn about the relationship between this constant and default/metrics/logs at
-/// <https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/protocol/exporter.md#endpoint-urls-for-otlphttp>
-pub const OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: &str = "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT";
-/// Max waiting time for the backend to process each spans batch, defaults to 10s.
-pub const OTEL_EXPORTER_OTLP_TRACES_TIMEOUT: &str = "OTEL_EXPORTER_OTLP_TRACES_TIMEOUT";
 
 impl OtlpPipeline {
     /// Create a OTLP tracing pipeline.

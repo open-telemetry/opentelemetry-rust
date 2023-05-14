@@ -58,6 +58,7 @@ tokio-stream = { version = "0.1", features = ["net"] }
 opentelemetry_sdk = { features = ["trace", "rt-tokio", "testing"], path = "../opentelemetry-sdk" }
 time = { version = "0.3", features = ["macros"] }
 tokio = { version = "1.0", features = ["macros", "rt-multi-thread"] }
+temp-env = "0.3.1"
 
 [features]
 # telemetry pillars and functions
