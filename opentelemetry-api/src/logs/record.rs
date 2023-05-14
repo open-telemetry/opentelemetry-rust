@@ -109,15 +109,15 @@ impl_trivial_from!(StringValue, AnyValue::String);
 impl_trivial_from!(bool, AnyValue::Boolean);
 
 impl<T: Into<AnyValue>> FromIterator<T> for AnyValue {
-    /// Creates an [`Any::ListAny`] value from a sequence of `Into<Any>` values.
+    /// Creates an [`AnyValue::ListAny`] value from a sequence of `Into<AnyValue>` values.
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
         AnyValue::ListAny(iter.into_iter().map(Into::into).collect())
     }
 }
 
 impl<K: Into<Key>, V: Into<AnyValue>> FromIterator<(K, V)> for AnyValue {
-    /// Creates an [`Any::Map`] value from a sequence of key-value pairs
-    /// that can be converted into a `Key` and `Any` respectively.
+    /// Creates an [`AnyValue::Map`] value from a sequence of key-value pairs
+    /// that can be converted into a `Key` and `AnyValue` respectively.
     fn from_iter<I: IntoIterator<Item = (K, V)>>(iter: I) -> Self {
         AnyValue::Map(OrderMap::from_iter(
             iter.into_iter().map(|(k, v)| (k.into(), v.into())),

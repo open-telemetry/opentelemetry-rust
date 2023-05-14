@@ -85,7 +85,7 @@ pub mod tonic {
                 None => SeverityNumber::Unspecified,
             };
 
-            let record = LogRecord {
+            LogRecord {
                 time_unix_nano: log_record.timestamp.map(to_nanos).unwrap_or_default(),
                 observed_time_unix_nano: log_record
                     .observed_timestamp
@@ -113,9 +113,7 @@ pub mod tonic {
                 trace_id: trace_context
                     .map(|ctx| ctx.trace_id.to_bytes().to_vec())
                     .unwrap_or_default(),
-                ..Default::default()
-            };
-            record
+            }
         }
     }
 
@@ -136,7 +134,6 @@ pub mod tonic {
                         .unwrap_or_default(),
                     scope: Some(log_data.instrumentation.into()),
                     log_records: vec![log_data.record.into()],
-                    ..Default::default()
                 }],
             }
         }
