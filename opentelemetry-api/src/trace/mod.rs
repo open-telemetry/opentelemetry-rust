@@ -169,7 +169,6 @@ use thiserror::Error;
 
 mod context;
 pub mod noop;
-mod order_map;
 mod span;
 mod span_context;
 mod tracer;
@@ -179,13 +178,16 @@ pub use self::{
     context::{
         get_active_span, mark_span_as_active, FutureExt, SpanRef, TraceContextExt, WithContext,
     },
-    order_map::OrderMap,
     span::{Span, SpanKind, Status},
     span_context::{SpanContext, SpanId, TraceFlags, TraceId, TraceState},
     tracer::{SamplingDecision, SamplingResult, SpanBuilder, Tracer},
     tracer_provider::TracerProvider,
 };
 use crate::{ExportError, KeyValue};
+use std::collections::hash_map::RandomState;
+
+/// re-export OrderMap to mitigate breaking change
+pub type OrderMap<K, V, S = RandomState> = crate::order_map::OrderMap<K, V, S>;
 
 /// Describe the result of operations in tracing API.
 pub type TraceResult<T> = Result<T, TraceError>;
