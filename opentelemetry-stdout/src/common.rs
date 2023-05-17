@@ -1,12 +1,29 @@
-use std::{borrow::Cow, collections::BTreeMap};
+use std::{
+    borrow::Cow,
+    collections::BTreeMap,
+    hash::{Hash, Hasher},
+    time::{SystemTime, UNIX_EPOCH},
+};
 
-use serde::Serialize;
+use ordered_float::OrderedFloat;
+use serde::{Serialize, Serializer};
 
-#[derive(Debug, Serialize, Clone)]
-pub(crate) struct AttributeSet(BTreeMap<Key, Value>);
+#[derive(Debug, Serialize, Clone, Hash, Eq, PartialEq)]
+pub(crate) struct AttributeSet(pub BTreeMap<Key, Value>);
 
 impl From<&opentelemetry_sdk::AttributeSet> for AttributeSet {
     fn from(value: &opentelemetry_sdk::AttributeSet) -> Self {
+        AttributeSet(
+            value
+                .iter()
+                .map(|(key, value)| (Key::from(key.clone()), Value::from(value.clone())))
+                .collect(),
+        )
+    }
+}
+
+impl From<&opentelemetry_sdk::Resource> for AttributeSet {
+    fn from(value: &opentelemetry_sdk::Resource) -> Self {
         AttributeSet(
             value
                 .iter()
@@ -43,8 +60,14 @@ impl From<&opentelemetry_sdk::Resource> for Resource {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Serialize, Hash, PartialEq, Eq, Ord, PartialOrd)]
 pub(crate) struct Key(Cow<'static, str>);
+
+impl From<Cow<'static, str>> for Key {
+    fn from(value: Cow<'static, str>) -> Self {
+        Key(value)
+    }
+}
 
 impl From<opentelemetry_api::Key> for Key {
     fn from(value: opentelemetry_api::Key) -> Self {
@@ -52,7 +75,8 @@ impl From<opentelemetry_api::Key> for Key {
     }
 }
 
-#[derive(Debug, Serialize, PartialEq, Clone)]
+#[derive(Debug, Serialize, Clone)]
+#[allow(dead_code)]
 pub(crate) enum Value {
     #[serde(rename = "boolValue")]
     Bool(bool),
@@ -64,6 +88,38 @@ pub(crate) enum Value {
     String(String),
     #[serde(rename = "arrayValue")]
     Array(Vec<Value>),
+    #[serde(rename = "kvListValue")]
+    KeyValues(Vec<KeyValue>),
+    #[serde(rename = "bytesValue")]
+    BytesValue(Vec<u8>),
+}
+
+impl PartialEq for Value {
+    fn eq(&self, other: &Self) -> bool {
+        match (&self, &other) {
+            (Value::Double(f), Value::Double(of)) => OrderedFloat(*f).eq(&OrderedFloat(*of)),
+            (non_double, other_non_double) => non_double.eq(other_non_double),
+        }
+    }
+}
+
+impl Eq for Value {}
+
+impl Hash for Value {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        match &self {
+            Value::Bool(b) => b.hash(state),
+            Value::Int(i) => i.hash(state),
+            Value::Double(f) => OrderedFloat(*f).hash(state),
+            Value::String(s) => s.hash(state),
+            Value::Array(a) => a.iter().for_each(|v| v.hash(state)),
+            Value::KeyValues(kv) => kv.iter().for_each(|kv| {
+                kv.key.hash(state);
+                kv.value.hash(state);
+            }),
+            Value::BytesValue(b) => b.hash(state),
+        }
+    }
 }
 
 impl From<opentelemetry_api::Value> for Value {
@@ -91,11 +147,45 @@ impl From<opentelemetry_api::Value> for Value {
     }
 }
 
+#[cfg(feature = "logs")]
+impl From<opentelemetry_api::logs::AnyValue> for Value {
+    fn from(value: opentelemetry_api::logs::AnyValue) -> Self {
+        match value {
+            opentelemetry_api::logs::AnyValue::Boolean(b) => Value::Bool(b),
+            opentelemetry_api::logs::AnyValue::Int(i) => Value::Int(i),
+            opentelemetry_api::logs::AnyValue::Double(d) => Value::Double(d),
+            opentelemetry_api::logs::AnyValue::String(s) => Value::String(s.into()),
+            opentelemetry_api::logs::AnyValue::ListAny(a) => {
+                Value::Array(a.into_iter().map(Into::into).collect())
+            }
+            opentelemetry_api::logs::AnyValue::Map(m) => Value::KeyValues(
+                m.into_iter()
+                    .map(|(key, value)| KeyValue {
+                        key: key.into(),
+                        value: value.into(),
+                    })
+                    .collect(),
+            ),
+            opentelemetry_api::logs::AnyValue::Bytes(b) => Value::BytesValue(b),
+        }
+    }
+}
+
 #[derive(Debug, Serialize, PartialEq, Clone)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct KeyValue {
     key: Key,
     value: Value,
+}
+
+#[cfg(feature = "logs")]
+impl From<(opentelemetry_api::Key, opentelemetry_api::logs::AnyValue)> for KeyValue {
+    fn from((key, value): (opentelemetry_api::Key, opentelemetry_api::logs::AnyValue)) -> Self {
+        KeyValue {
+            key: key.into(),
+            value: value.into(),
+        }
+    }
 }
 
 impl From<opentelemetry_api::KeyValue> for KeyValue {
@@ -147,4 +237,16 @@ impl From<opentelemetry_sdk::Scope> for Scope {
             dropped_attributes_count: 0,
         }
     }
+}
+
+pub(crate) fn as_unix_nano<S>(time: &SystemTime, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    let nanos = time
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos();
+
+    serializer.serialize_u128(nanos)
 }

@@ -142,6 +142,8 @@
 //! [`set_meter_provider`]: crate::global::set_meter_provider
 
 mod error_handler;
+#[cfg(feature = "logs")]
+mod logs;
 #[cfg(feature = "metrics")]
 mod metrics;
 #[cfg(feature = "trace")]
@@ -150,6 +152,12 @@ mod propagation;
 mod trace;
 
 pub use error_handler::{handle_error, set_error_handler, Error};
+#[cfg(feature = "logs")]
+#[cfg_attr(docsrs, doc(cfg(feature = "logs")))]
+pub use logs::{
+    logger, logger_provider, set_logger_provider, shutdown_logger_provider, GlobalLoggerProvider,
+    ObjectSafeLoggerProvider,
+};
 #[cfg(feature = "metrics")]
 #[cfg_attr(docsrs, doc(cfg(feature = "metrics")))]
 pub use metrics::*;

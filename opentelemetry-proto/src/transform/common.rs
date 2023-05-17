@@ -1,7 +1,7 @@
-#[cfg(feature = "traces")]
+#[cfg(any(feature = "traces", feature = "logs"))]
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-#[cfg(feature = "traces")]
+#[cfg(any(feature = "traces", feature = "logs"))]
 pub(crate) fn to_nanos(time: SystemTime) -> u64 {
     time.duration_since(UNIX_EPOCH)
         .unwrap_or_else(|_| Duration::from_secs(0))
@@ -16,6 +16,9 @@ pub mod tonic {
     use opentelemetry_api::{Array, Value};
     use opentelemetry_sdk::trace::EvictedHashMap;
     use std::borrow::Cow;
+
+    #[cfg(any(feature = "traces", feature = "logs"))]
+    use opentelemetry_sdk::Resource;
 
     impl From<opentelemetry_sdk::InstrumentationLibrary> for InstrumentationScope {
         fn from(library: opentelemetry_sdk::InstrumentationLibrary) -> Self {
@@ -44,6 +47,7 @@ pub mod tonic {
     }
 
     /// Wrapper type for Vec<[`KeyValue`](crate::proto::tonic::common::v1::KeyValue)>
+    #[derive(Default)]
     pub struct Attributes(pub ::std::vec::Vec<crate::proto::tonic::common::v1::KeyValue>);
 
     impl From<EvictedHashMap> for Attributes {
@@ -67,6 +71,20 @@ pub mod tonic {
                     .map(|api_kv| KeyValue {
                         key: api_kv.key.as_str().to_string(),
                         value: Some(api_kv.value.into()),
+                    })
+                    .collect(),
+            )
+        }
+    }
+
+    #[cfg(feature = "logs")]
+    impl<K: Into<String>, V: Into<AnyValue>> FromIterator<(K, V)> for Attributes {
+        fn from_iter<T: IntoIterator<Item = (K, V)>>(iter: T) -> Self {
+            Attributes(
+                iter.into_iter()
+                    .map(|(k, v)| KeyValue {
+                        key: k.into(),
+                        value: Some(v.into()),
                     })
                     .collect(),
             )
@@ -103,14 +121,25 @@ pub mod tonic {
 
         ArrayValue { values }
     }
+
+    #[cfg(any(feature = "traces", feature = "logs"))]
+    pub(crate) fn resource_attributes(resource: &Resource) -> Attributes {
+        resource
+            .iter()
+            .map(|(k, v)| opentelemetry_api::KeyValue::new(k.clone(), v.clone()))
+            .collect::<Vec<_>>()
+            .into()
+    }
 }
 
 #[cfg(feature = "gen-protoc")]
 pub mod grpcio {
     use crate::proto::grpcio::common::{AnyValue, ArrayValue, InstrumentationScope, KeyValue};
     use opentelemetry_api::{Array, Value};
-    use opentelemetry_sdk::trace::EvictedHashMap;
+    use opentelemetry_sdk::{trace::EvictedHashMap, Resource};
     use protobuf::RepeatedField;
+    #[cfg(feature = "logs")]
+    use protobuf::SingularPtrField;
     use std::borrow::Cow;
 
     impl From<opentelemetry_sdk::InstrumentationLibrary> for InstrumentationScope {
@@ -123,6 +152,7 @@ pub mod grpcio {
         }
     }
 
+    #[derive(Default)]
     pub struct Attributes(pub ::protobuf::RepeatedField<crate::proto::grpcio::common::KeyValue>);
 
     impl From<EvictedHashMap> for Attributes {
@@ -150,6 +180,21 @@ pub mod grpcio {
                         kv.set_key(api_kv.key.as_str().to_string());
                         kv.set_value(api_kv.value.into());
                         kv
+                    })
+                    .collect(),
+            ))
+        }
+    }
+
+    #[cfg(feature = "logs")]
+    impl<K: Into<String>, V: Into<AnyValue>> FromIterator<(K, V)> for Attributes {
+        fn from_iter<T: IntoIterator<Item = (K, V)>>(iter: T) -> Self {
+            Attributes(RepeatedField::from_vec(
+                iter.into_iter()
+                    .map(|(k, v)| KeyValue {
+                        key: k.into(),
+                        value: SingularPtrField::some(v.into()),
+                        ..Default::default()
                     })
                     .collect(),
             ))
@@ -189,5 +234,14 @@ pub mod grpcio {
         let mut array_value = ArrayValue::new();
         array_value.set_values(values);
         array_value
+    }
+
+    #[cfg(any(feature = "traces", feature = "logs"))]
+    pub(crate) fn resource_attributes(resource: &Resource) -> Attributes {
+        resource
+            .iter()
+            .map(|(k, v)| opentelemetry_api::KeyValue::new(k.clone(), v.clone()))
+            .collect::<Vec<_>>()
+            .into()
     }
 }

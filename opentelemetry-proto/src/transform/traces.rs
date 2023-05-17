@@ -7,7 +7,7 @@ pub mod tonic {
     use super::*;
     use crate::proto::tonic::resource::v1::Resource;
     use crate::proto::tonic::trace::v1::{span, status, ResourceSpans, ScopeSpans, Span, Status};
-    use crate::transform::common::tonic::Attributes;
+    use crate::transform::common::tonic::{resource_attributes, Attributes};
     use opentelemetry_api::trace;
 
     impl From<SpanKind> for span::SpanKind {
@@ -107,14 +107,6 @@ pub mod tonic {
             }
         }
     }
-
-    fn resource_attributes(resource: &opentelemetry_sdk::Resource) -> Attributes {
-        resource
-            .iter()
-            .map(|(k, v)| opentelemetry_api::KeyValue::new(k.clone(), v.clone()))
-            .collect::<Vec<_>>()
-            .into()
-    }
 }
 
 #[cfg(feature = "gen-protoc")]
@@ -125,7 +117,7 @@ pub mod grpcio {
         ResourceSpans, ScopeSpans, Span, Span_Event, Span_Link, Span_SpanKind, Status,
         Status_StatusCode,
     };
-    use crate::transform::common::grpcio::Attributes;
+    use crate::transform::common::grpcio::{resource_attributes, Attributes};
     use opentelemetry_api::trace;
     use protobuf::{RepeatedField, SingularPtrField};
 
@@ -230,13 +222,5 @@ pub mod grpcio {
                 ..Default::default()
             }
         }
-    }
-
-    fn resource_attributes(resource: &opentelemetry_sdk::Resource) -> Attributes {
-        resource
-            .iter()
-            .map(|(k, v)| opentelemetry_api::KeyValue::new(k.clone(), v.clone()))
-            .collect::<Vec<_>>()
-            .into()
     }
 }

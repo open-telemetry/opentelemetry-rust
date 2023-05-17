@@ -18,14 +18,17 @@ rust-version = "1.60"
 [features]
 trace = ["opentelemetry_api/trace", "opentelemetry_sdk/trace", "futures-util"]
 metrics = ["async-trait", "opentelemetry_api/metrics", "opentelemetry_sdk/metrics"]
+logs = ["opentelemetry_api/logs", "opentelemetry_sdk/logs", "async-trait", "thiserror"]
 
 [dependencies]
 async-trait = { version = "0.1", optional = true }
+thiserror = { version = "1", optional = true }
 futures-util = { version = "0.3", optional = true, default-features = false }
 opentelemetry_api = { version = "0.19", path = "../opentelemetry-api", default_features = false }
 opentelemetry_sdk = { version = "0.19", path = "../opentelemetry-sdk", default_features = false }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+ordered-float = "3.4.0"
 
 [dev-dependencies]
 opentelemetry_api = { version = "0.19", path = "../opentelemetry-api", features = ["metrics"] }

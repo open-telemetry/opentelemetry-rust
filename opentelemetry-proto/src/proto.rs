@@ -72,6 +72,12 @@ pub mod tonic {
 /// Generated files using [`grpcio`](https://docs.rs/crate/grpcio) and [`protobuf`](https://docs.rs/crate/protobuf/latest)
 pub mod grpcio {
     pub mod common;
+    #[cfg(feature = "logs")]
+    pub mod logs;
+    #[cfg(feature = "logs")]
+    pub mod logs_service;
+    #[cfg(feature = "logs")]
+    pub mod logs_service_grpc;
     #[cfg(feature = "metrics")]
     pub mod metrics;
     #[cfg(feature = "metrics")]

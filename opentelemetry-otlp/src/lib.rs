@@ -181,6 +181,8 @@
 #![cfg_attr(test, deny(warnings))]
 
 mod exporter;
+#[cfg(feature = "logs")]
+mod logs;
 #[cfg(feature = "metrics")]
 mod metric;
 #[cfg(feature = "trace")]
@@ -199,6 +201,9 @@ pub use crate::metric::{
     MetricsExporter, MetricsExporterBuilder, OtlpMetricPipeline,
     OTEL_EXPORTER_OTLP_METRICS_ENDPOINT, OTEL_EXPORTER_OTLP_METRICS_TIMEOUT,
 };
+
+#[cfg(feature = "logs")]
+pub use crate::logs::*;
 
 pub use crate::exporter::{
     HasExportConfig, WithExportConfig, OTEL_EXPORTER_OTLP_ENDPOINT,
