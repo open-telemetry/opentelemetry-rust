@@ -225,7 +225,6 @@ impl<T: Number<T>> Aggregator<T> for PrecomputedMap<T> {
             Ok(guard) => guard,
             Err(_) => return,
         };
-
         let size = values.len();
         match values.entry(attrs) {
             Entry::Occupied(mut occupied_entry) => {
@@ -239,7 +238,12 @@ impl<T: Number<T>> Aggregator<T> for PrecomputedMap<T> {
                         ..Default::default()
                     });
                 } else {
-                    println!("Warning: Maximum metric streams exceeded. Entry not added.");
+                    values
+                        .insert(STREAM_OVERFLOW_ATTRIBUTE_SET.clone(), PrecomputedValue { 
+                            measured: measurement,
+                            ..Default::default()
+                        });
+                    println!("Warning: Maximum data points for metric stream exceeded. Entry added to overflow.");
                 }
             }
         }

@@ -3,7 +3,7 @@ use lazy_static::lazy_static;
 use crate::{attributes::AttributeSet, metrics::data::Aggregation};
 use opentelemetry_api::KeyValue;
 
-const STREAM_CARDINALITY_LIMIT: u32 = 2;
+const STREAM_CARDINALITY_LIMIT: u32 = 2000;
 lazy_static! {
     pub static ref STREAM_OVERFLOW_ATTRIBUTE_SET: AttributeSet = {
         let key_values: [KeyValue; 1] = [KeyValue::new("otel.metric.overflow", "true")];
