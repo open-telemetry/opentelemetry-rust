@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, hash_map::Entry},
     sync::{Arc, Mutex},
     time::SystemTime,
 };
@@ -7,7 +7,7 @@ use std::{
 use crate::attributes::AttributeSet;
 use crate::metrics::data::{self, Gauge};
 
-use super::{Aggregator, Number};
+use super::{aggregator::STREAM_OVERFLOW_ATTRIBUTE_SET, Aggregator, Number};
 
 /// Timestamped measurement data.
 struct DataPointValue<T> {
@@ -28,11 +28,27 @@ struct LastValue<T> {
 
 impl<T: Number<T>> Aggregator<T> for LastValue<T> {
     fn aggregate(&self, measurement: T, attrs: AttributeSet) {
-        let d = DataPointValue {
+        let d: DataPointValue<T> = DataPointValue {
             timestamp: SystemTime::now(),
             value: measurement,
         };
-        let _ = self.values.lock().map(|mut values| values.insert(attrs, d));
+        if let Ok(mut values) = self.values.lock() {
+            let size = values.len();
+            match values.entry(attrs) {
+                Entry::Occupied(mut occupied_entry) => {
+                    occupied_entry.insert(d);
+                }
+                Entry::Vacant(vacant_entry) => {
+                    if self.check_stream_cardinality(size) {
+                        vacant_entry.insert(d);
+                    } else {
+                        values.insert(STREAM_OVERFLOW_ATTRIBUTE_SET.clone(), d);
+                        println!("Warning: Maximum data points for metric stream exceeded. Entry added to overflow.");
+                    }
+                }
+            }
+        }
+    
     }
 
     fn aggregation(&self) -> Option<Box<dyn crate::metrics::data::Aggregation>> {
