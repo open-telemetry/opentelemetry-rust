@@ -6,6 +6,7 @@ use async_trait::async_trait;
 use futures_core::future::BoxFuture;
 use http::Uri;
 use model::endpoint::Endpoint;
+use opentelemetry::runtime::MessageRuntime;
 use opentelemetry::sdk::resource::ResourceDetector;
 use opentelemetry::sdk::resource::SdkProvidedResourceDetector;
 use opentelemetry::sdk::trace::Config;
@@ -13,7 +14,7 @@ use opentelemetry::sdk::Resource;
 use opentelemetry::{
     global, sdk,
     sdk::export::{trace, ExportError},
-    sdk::trace::TraceRuntime,
+    sdk::trace::BatchMessage,
     trace::{TraceError, TracerProvider},
     KeyValue,
 };
@@ -187,7 +188,7 @@ impl ZipkinPipelineBuilder {
 
     /// Install the Zipkin trace exporter pipeline with a batch span processor using the specified
     /// runtime.
-    pub fn install_batch<R: TraceRuntime>(
+    pub fn install_batch<R: MessageRuntime<BatchMessage>>(
         mut self,
         runtime: R,
     ) -> Result<sdk::trace::Tracer, TraceError> {

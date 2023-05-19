@@ -1,6 +1,7 @@
+use crate::runtime::MessageRuntime;
 use crate::trace::sampler::jaeger_remote::remote::SamplingStrategyResponse;
 use crate::trace::sampler::jaeger_remote::sampling_strategy::Inner;
-use crate::trace::{Sampler, ShouldSample, TraceRuntime};
+use crate::trace::{BatchMessage, Sampler, ShouldSample};
 use futures_util::{stream, StreamExt as _};
 use http::Uri;
 use opentelemetry_api::trace::{Link, SamplingResult, SpanKind, TraceError, TraceId};
@@ -17,7 +18,7 @@ const DEFAULT_REMOTE_SAMPLER_ENDPOINT: &str = "http://localhost:5778/sampling";
 #[derive(Debug)]
 pub struct JaegerRemoteSamplerBuilder<C, S, R>
 where
-    R: TraceRuntime,
+    R: MessageRuntime<BatchMessage>,
     C: HttpClient + 'static,
     S: ShouldSample + 'static,
 {
@@ -34,7 +35,7 @@ impl<C, S, R> JaegerRemoteSamplerBuilder<C, S, R>
 where
     C: HttpClient + 'static,
     S: ShouldSample + 'static,
-    R: TraceRuntime,
+    R: MessageRuntime<BatchMessage>,
 {
     pub(crate) fn new<Svc>(
         runtime: R,
@@ -154,7 +155,7 @@ impl JaegerRemoteSampler {
         leaky_bucket_size: f64,
     ) -> Self
     where
-        R: TraceRuntime,
+        R: MessageRuntime<BatchMessage>,
         C: HttpClient + 'static,
         S: ShouldSample + 'static,
     {
@@ -184,7 +185,7 @@ impl JaegerRemoteSampler {
         shutdown: futures_channel::mpsc::Receiver<()>,
         endpoint: Uri,
     ) where
-        R: TraceRuntime,
+        R: MessageRuntime<BatchMessage>,
         C: HttpClient + 'static,
     {
         // todo: review if we need 'static here

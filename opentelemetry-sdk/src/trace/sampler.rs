@@ -156,7 +156,7 @@ impl Sampler {
     where
         C: HttpClient + 'static,
         Sampler: ShouldSample,
-        R: crate::trace::TraceRuntime,
+        R: crate::runtime::MessageRuntime<crate::trace::BatchMessage>,
         Svc: Into<String>,
     {
         JaegerRemoteSamplerBuilder::new(runtime, http_client, default_sampler, service_name)

@@ -5,14 +5,14 @@
 ))]
 use crate::exporter::addrs_and_family;
 use async_trait::async_trait;
-use opentelemetry::sdk::trace::TraceRuntime;
+use opentelemetry::{runtime::MessageRuntime, sdk::trace::BatchMessage};
 use std::net::ToSocketAddrs;
 
-/// Jaeger Trace Runtime is an extension to [`TraceRuntime`].
+/// Jaeger Trace Runtime is an extension to [`MessageRuntime`].
 ///
-/// [`TraceRuntime`]: opentelemetry::sdk::trace::TraceRuntime
+/// [`MessageRuntime`]: opentelemetry::sdk::runtime::MessageRuntime
 #[async_trait]
-pub trait JaegerTraceRuntime: TraceRuntime + std::fmt::Debug {
+pub trait JaegerTraceRuntime: MessageRuntime<BatchMessage> + std::fmt::Debug {
     /// A communication socket between Jaeger client and agent.
     type Socket: std::fmt::Debug + Send + Sync;
 
