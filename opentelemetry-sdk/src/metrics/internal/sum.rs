@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, hash_map::Entry},
+    collections::{hash_map::Entry, HashMap},
     sync::{Arc, Mutex},
     time::SystemTime,
 };
@@ -7,7 +7,10 @@ use std::{
 use crate::attributes::AttributeSet;
 use crate::metrics::data::{self, Aggregation, DataPoint, Temporality};
 
-use super::{aggregator::{STREAM_OVERFLOW_ATTRIBUTE_SET, PrecomputeAggregator}, Aggregator, Number};
+use super::{
+    aggregator::{PrecomputeAggregator, STREAM_OVERFLOW_ATTRIBUTE_SET},
+    Aggregator, Number,
+};
 
 /// The storage for sums.
 #[derive(Default)]
@@ -233,16 +236,18 @@ impl<T: Number<T>> Aggregator<T> for PrecomputedMap<T> {
             }
             Entry::Vacant(vacant_entry) => {
                 if self.check_stream_cardinality(size) {
-                    vacant_entry.insert(PrecomputedValue { 
+                    vacant_entry.insert(PrecomputedValue {
                         measured: measurement,
                         ..Default::default()
                     });
                 } else {
-                    values
-                        .insert(STREAM_OVERFLOW_ATTRIBUTE_SET.clone(), PrecomputedValue { 
+                    values.insert(
+                        STREAM_OVERFLOW_ATTRIBUTE_SET.clone(),
+                        PrecomputedValue {
                             measured: measurement,
                             ..Default::default()
-                        });
+                        },
+                    );
                     println!("Warning: Maximum data points for metric stream exceeded. Entry added to overflow.");
                 }
             }

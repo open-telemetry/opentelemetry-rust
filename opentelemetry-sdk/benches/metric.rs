@@ -283,7 +283,7 @@ fn counters(c: &mut Criterion) {
     const MAX_DATA_POINTS: i64 = 2000;
     let mut max_attributes: Vec<KeyValue> = Vec::new();
 
-    for i in 0..MAX_DATA_POINTS-2 {
+    for i in 0..MAX_DATA_POINTS - 2 {
         max_attributes.push(KeyValue::new(i.to_string(), i))
     }
 
@@ -291,7 +291,7 @@ fn counters(c: &mut Criterion) {
         b.iter(|| cntr3.add(&cx, 1, &max_attributes))
     });
 
-    for i in MAX_DATA_POINTS..MAX_DATA_POINTS*2 {
+    for i in MAX_DATA_POINTS..MAX_DATA_POINTS * 2 {
         max_attributes.push(KeyValue::new(i.to_string(), i))
     }
 

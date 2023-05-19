@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, hash_map::Entry},
+    collections::{hash_map::Entry, HashMap},
     sync::{Arc, Mutex},
     time::SystemTime,
 };
@@ -48,7 +48,6 @@ impl<T: Number<T>> Aggregator<T> for LastValue<T> {
                 }
             }
         }
-    
     }
 
     fn aggregation(&self) -> Option<Box<dyn crate::metrics::data::Aggregation>> {

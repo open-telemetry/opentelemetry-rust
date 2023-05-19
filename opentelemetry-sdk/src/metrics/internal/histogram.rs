@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, hash_map::Entry},
+    collections::{hash_map::Entry, HashMap},
     sync::{Arc, Mutex},
     time::SystemTime,
 };
@@ -81,9 +81,7 @@ where
         let size = values.len();
 
         match values.entry(attrs) {
-            Entry::Occupied(mut occupied_entry) => {
-                occupied_entry.get_mut().bin(idx, measurement)
-            }
+            Entry::Occupied(mut occupied_entry) => occupied_entry.get_mut().bin(idx, measurement),
             Entry::Vacant(vacant_entry) => {
                 if self.check_stream_cardinality(size) {
                     // N+1 buckets. For example:
@@ -111,7 +109,6 @@ where
                 }
             }
         }
-
     }
 
     fn aggregation(&self) -> Option<Box<dyn Aggregation>> {

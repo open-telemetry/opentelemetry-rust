@@ -1,7 +1,7 @@
-use std::sync::Arc;
-use lazy_static::lazy_static;
 use crate::{attributes::AttributeSet, metrics::data::Aggregation};
+use lazy_static::lazy_static;
 use opentelemetry_api::KeyValue;
+use std::sync::Arc;
 
 const STREAM_CARDINALITY_LIMIT: u32 = 2000;
 lazy_static! {
