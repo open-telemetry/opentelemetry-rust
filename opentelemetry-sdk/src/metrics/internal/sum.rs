@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, hash_map::Entry},
     sync::{Arc, Mutex},
     time::SystemTime,
 };
@@ -26,10 +26,20 @@ impl<T: Number<T>> ValueMap<T> {
 impl<T: Number<T>> Aggregator<T> for ValueMap<T> {
     fn aggregate(&self, measurement: T, attrs: AttributeSet) {
         if let Ok(mut values) = self.values.lock() {
-            values
-                .entry(attrs)
-                .and_modify(|val| *val += measurement)
-                .or_insert(measurement);
+            let size = values.len();
+            match values.entry(attrs) {
+                Entry::Occupied(mut occupied_entry) => {
+                    let count = occupied_entry.get_mut();
+                    *count += measurement;
+                }
+                Entry::Vacant(vacant_entry) => {
+                    if self.check_stream_cardinality(size) {
+                        vacant_entry.insert(measurement);
+                    } else {
+                        println!("Warning: Maximum metric streams exceeded. Entry not added.");
+                    }
+                }
+            }
         }
     }
 
@@ -212,13 +222,23 @@ impl<T: Number<T>> Aggregator<T> for PrecomputedMap<T> {
             Err(_) => return,
         };
 
-        values
-            .entry(attrs)
-            .and_modify(|v| v.measured = measurement)
-            .or_insert(PrecomputedValue {
-                measured: measurement,
-                ..Default::default()
-            });
+        let size = values.len();
+        match values.entry(attrs) {
+            Entry::Occupied(mut occupied_entry) => {
+                let v = occupied_entry.get_mut();
+                v.measured = measurement;
+            }
+            Entry::Vacant(vacant_entry) => {
+                if self.check_stream_cardinality(size) {
+                    vacant_entry.insert(PrecomputedValue { 
+                        measured: measurement,
+                        ..Default::default()
+                    });
+                } else {
+                    println!("Warning: Maximum metric streams exceeded. Entry not added.");
+                }
+            }
+        }
     }
 
     fn aggregation(&self) -> Option<Box<dyn Aggregation>> {

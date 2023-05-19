@@ -2,6 +2,8 @@ use std::sync::Arc;
 
 use crate::{attributes::AttributeSet, metrics::data::Aggregation};
 
+const STREAM_CARDINALITY_LIMIT: u32 = 2000;
+
 /// Forms an aggregation from a collection of recorded measurements.
 pub(crate) trait Aggregator<T>: Send + Sync {
     /// Records the measurement, scoped by attr, and aggregates it into an aggregation.
@@ -14,6 +16,11 @@ pub(crate) trait Aggregator<T>: Send + Sync {
     /// Used when filtering aggregators
     fn as_precompute_aggregator(&self) -> Option<Arc<dyn PrecomputeAggregator<T>>> {
         None
+    }
+
+    /// Checks whether aggregator has hit cardinality limit for metric streams
+    fn check_stream_cardinality(&self, size: usize) -> bool {
+        size < STREAM_CARDINALITY_LIMIT as usize
     }
 }
 
