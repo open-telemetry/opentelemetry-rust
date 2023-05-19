@@ -7,7 +7,7 @@ use std::{
 use crate::attributes::AttributeSet;
 use crate::metrics::data::{self, Aggregation, DataPoint, Temporality};
 
-use super::{aggregator::PrecomputeAggregator, Aggregator, Number};
+use super::{aggregator::{STREAM_OVERFLOW_ATTRIBUTE_SET, PrecomputeAggregator}, Aggregator, Number};
 
 /// The storage for sums.
 #[derive(Default)]
@@ -29,14 +29,18 @@ impl<T: Number<T>> Aggregator<T> for ValueMap<T> {
             let size = values.len();
             match values.entry(attrs) {
                 Entry::Occupied(mut occupied_entry) => {
-                    let count = occupied_entry.get_mut();
-                    *count += measurement;
+                    let sum = occupied_entry.get_mut();
+                    *sum += measurement;
                 }
                 Entry::Vacant(vacant_entry) => {
                     if self.check_stream_cardinality(size) {
                         vacant_entry.insert(measurement);
                     } else {
-                        println!("Warning: Maximum metric streams exceeded. Entry not added.");
+                        values
+                            .entry(STREAM_OVERFLOW_ATTRIBUTE_SET.clone())
+                            .and_modify(|val| *val += measurement)
+                            .or_insert(measurement);
+                        println!("Warning: Maximum data points for metric stream exceeded. Entry added to overflow.");
                     }
                 }
             }
