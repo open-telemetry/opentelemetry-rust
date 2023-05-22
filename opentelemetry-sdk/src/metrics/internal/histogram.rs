@@ -94,6 +94,7 @@ where
                     let mut b = Buckets::new(self.bounds.len() + 1);
                     // Ensure min and max are recorded values (not zero), for new buckets.
                     (b.min, b.max) = (measurement, measurement);
+                    b.bin(idx, measurement);
                     vacant_entry.insert(b);
                 } else {
                     values
