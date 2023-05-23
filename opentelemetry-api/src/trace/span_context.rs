@@ -6,6 +6,8 @@ use std::num::ParseIntError;
 use std::ops::{BitAnd, BitOr, Not};
 use std::str::FromStr;
 use thiserror::Error;
+#[cfg(feature = "serde")]
+use serde::{Serialize, Deserialize};
 
 /// Flags that can be set on a [`SpanContext`].
 ///
@@ -17,6 +19,7 @@ use thiserror::Error;
 ///
 /// [trace-flags]: https://www.w3.org/TR/trace-context/#trace-flags
 #[derive(Clone, Debug, Default, PartialEq, Eq, Copy, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct TraceFlags(u8);
 
 impl TraceFlags {
@@ -87,6 +90,7 @@ impl fmt::LowerHex for TraceFlags {
 ///
 /// The id is valid if it contains at least one non-zero byte.
 #[derive(Clone, PartialEq, Eq, Copy, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct TraceId(u128);
 
 impl TraceId {
@@ -148,6 +152,7 @@ impl fmt::LowerHex for TraceId {
 ///
 /// The id is valid if it contains at least one non-zero byte.
 #[derive(Clone, PartialEq, Eq, Copy, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct SpanId(u64);
 
 impl SpanId {
@@ -213,6 +218,7 @@ impl fmt::LowerHex for SpanId {
 ///
 /// [W3C specification]: https://www.w3.org/TR/trace-context/#tracestate-header
 #[derive(Clone, Debug, Default, Eq, PartialEq, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct TraceState(Option<VecDeque<(String, String)>>);
 
 impl TraceState {
@@ -448,6 +454,7 @@ impl From<TraceStateError> for TraceError {
 /// [`Span`]: crate::trace::Span
 /// [W3C TraceContext specification]: https://www.w3.org/TR/trace-context
 #[derive(Clone, Debug, PartialEq, Hash, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct SpanContext {
     trace_id: TraceId,
     span_id: SpanId,
