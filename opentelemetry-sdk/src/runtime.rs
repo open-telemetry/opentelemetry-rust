@@ -133,8 +133,11 @@ impl Runtime for AsyncStd {
     }
 }
 
-/// Message runtime is an extension to [`Runtime`]. Currently, it provides a
-/// channel that is used by the log and span batch processors.
+/// `MessageRuntime` is an extension to [`Runtime`]. Currently, it provides a
+/// channel that is used by the [log] and [span] batch processors.
+///
+/// [log]: crate::logs::BatchLogProcessor
+/// [span]: crate::trace::BatchSpanProcessor
 pub trait MessageRuntime<T: Debug + Send>: Runtime {
     /// A future stream to receive batch messages from channels.
     type Receiver: Stream<Item = T> + Send;
@@ -159,7 +162,7 @@ pub enum TrySendError {
     Other(#[from] Box<dyn std::error::Error + Send + Sync + 'static>),
 }
 
-/// TrySend is an abstraction of Sender that is capable of sending messages through a reference.
+/// TrySend is an abstraction of `Sender` that is capable of sending messages through a reference.
 pub trait TrySend: Sync + Send {
     /// The message that will be sent.
     type Message;
@@ -174,7 +177,7 @@ pub trait TrySend: Sync + Send {
 impl<T: Send> TrySend for tokio::sync::mpsc::Sender<T> {
     type Message = T;
 
-    fn try_send(&self, item: T) -> Result<(), TrySendError> {
+    fn try_send(&self, item: Self::Message) -> Result<(), TrySendError> {
         self.try_send(item).map_err(|err| match err {
             tokio::sync::mpsc::error::TrySendError::Full(_) => TrySendError::ChannelFull,
             tokio::sync::mpsc::error::TrySendError::Closed(_) => TrySendError::ChannelClosed,
@@ -216,7 +219,7 @@ impl<T: Debug + Send> MessageRuntime<T> for TokioCurrentThread {
 impl<T: Send> TrySend for async_std::channel::Sender<T> {
     type Message = T;
 
-    fn try_send(&self, item: T) -> Result<(), TrySendError> {
+    fn try_send(&self, item: Self::Message) -> Result<(), TrySendError> {
         self.try_send(item).map_err(|err| match err {
             async_std::channel::TrySendError::Full(_) => TrySendError::ChannelFull,
             async_std::channel::TrySendError::Closed(_) => TrySendError::ChannelClosed,
