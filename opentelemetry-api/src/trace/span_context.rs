@@ -1,4 +1,6 @@
 use crate::trace::{TraceError, TraceResult};
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 use std::fmt;
 use std::hash::Hash;
@@ -6,8 +8,6 @@ use std::num::ParseIntError;
 use std::ops::{BitAnd, BitOr, Not};
 use std::str::FromStr;
 use thiserror::Error;
-#[cfg(feature = "serde")]
-use serde::{Serialize, Deserialize};
 
 /// Flags that can be set on a [`SpanContext`].
 ///
