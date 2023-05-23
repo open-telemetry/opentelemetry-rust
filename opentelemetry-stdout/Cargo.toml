@@ -10,7 +10,7 @@ categories = [
     "development-tools::profiling",
     "asynchronous",
 ]
-keywords = ["opentelemetry", "tracing", "metrics"]
+keywords = ["opentelemetry", "tracing", "metrics", "logs"]
 license = "Apache-2.0"
 edition = "2021"
 rust-version = "1.60"
@@ -24,8 +24,8 @@ logs = ["opentelemetry_api/logs", "opentelemetry_sdk/logs", "async-trait", "this
 async-trait = { version = "0.1", optional = true }
 thiserror = { version = "1", optional = true }
 futures-util = { version = "0.3", optional = true, default-features = false }
-opentelemetry_api = { version = "0.19", path = "../opentelemetry-api", default_features = false }
-opentelemetry_sdk = { version = "0.19", path = "../opentelemetry-sdk", default_features = false }
+opentelemetry_api = { path = "../opentelemetry-api", default_features = false, features = ["logs", "trace", "metrics"] }
+opentelemetry_sdk = { path = "../opentelemetry-sdk", default_features = false, features = ["logs", "trace", "metrics"]}
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 ordered-float = "3.4.0"
