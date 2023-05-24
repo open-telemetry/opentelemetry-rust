@@ -93,7 +93,7 @@ impl NoopSyncInstrument {
 }
 
 impl<T> SyncCounter<T> for NoopSyncInstrument {
-    fn add(&self, _cx: &Context, _value: T, _attributes: &[KeyValue]) {
+    fn add(&self, _value: T, _attributes: &[KeyValue]) {
         // Ignored
     }
 }

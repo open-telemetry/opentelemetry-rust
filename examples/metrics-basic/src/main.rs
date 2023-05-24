@@ -29,7 +29,6 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
 
     // Record measurements using the Counter instrument.
     counter.add(
-        &Context::current(),
         10,
         [
             KeyValue::new("mykey1", "myvalue1"),

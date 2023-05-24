@@ -254,7 +254,7 @@ pub(crate) struct InstrumentImpl<T> {
 }
 
 impl<T: Copy> SyncCounter<T> for InstrumentImpl<T> {
-    fn add(&self, _cx: &Context, val: T, attrs: &[KeyValue]) {
+    fn add(&self, val: T, attrs: &[KeyValue]) {
         for agg in &self.aggregators {
             agg.aggregate(val, AttributeSet::from(attrs))
         }

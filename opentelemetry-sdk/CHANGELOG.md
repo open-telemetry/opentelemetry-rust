@@ -6,6 +6,8 @@
 - Samplers no longer has access to `InstrumentationLibrary` as one of parameters
   to `should_sample`.
   [#1041](https://github.com/open-telemetry/opentelemetry-rust/pull/1041).
+- Synchronous instruments no longer accepts `Context` while reporting
+  measurements.  
 
 ## v0.19.0
 
