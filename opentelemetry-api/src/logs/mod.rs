@@ -19,9 +19,6 @@ use std::collections::hash_map::RandomState;
 /// Describe the result of operations in log SDK.
 pub type LogResult<T> = Result<T, LogError>;
 
-/// re-export OrderMap to mitigate breaking change
-pub type OrderMap<K, V, S = RandomState> = crate::order_map::OrderMap<K, V, S>;
-
 #[derive(Error, Debug)]
 #[non_exhaustive]
 /// Errors returned by the log SDK.
