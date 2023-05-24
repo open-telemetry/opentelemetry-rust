@@ -6,6 +6,7 @@ use std::{
 
 use crate::attributes::AttributeSet;
 use crate::metrics::data::{self, Gauge};
+use opentelemetry_api::{global, metrics::MetricsError};
 
 use super::{aggregator::STREAM_OVERFLOW_ATTRIBUTE_SET, Aggregator, Number};
 
@@ -43,7 +44,7 @@ impl<T: Number<T>> Aggregator<T> for LastValue<T> {
                         vacant_entry.insert(d);
                     } else {
                         values.insert(STREAM_OVERFLOW_ATTRIBUTE_SET.clone(), d);
-                        println!("Warning: Maximum data points for metric stream exceeded. Entry added to overflow.");
+                        global::handle_error(MetricsError::Other("Warning: Maximum data points for metric stream exceeded. Entry added to overflow.".into()));
                     }
                 }
             }

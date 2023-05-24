@@ -9,6 +9,7 @@ use crate::metrics::{
     aggregation,
     data::{self, Aggregation},
 };
+use opentelemetry_api::{global, metrics::MetricsError};
 
 use super::{aggregator::STREAM_OVERFLOW_ATTRIBUTE_SET, Aggregator, Number};
 
@@ -106,7 +107,7 @@ where
                             b.bin(idx, measurement);
                             b
                         });
-                    println!("Warning: Maximum data points for metric stream exceeded. Entry added to overflow.");
+                    global::handle_error(MetricsError::Other("Warning: Maximum data points for metric stream exceeded. Entry added to overflow.".into()));
                 }
             }
         }
