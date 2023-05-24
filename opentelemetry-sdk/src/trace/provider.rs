@@ -8,7 +8,7 @@
 //! propagators) are provided by the [`TracerProvider`]. [`Tracer`] instances do
 //! not duplicate this data to avoid that different [`Tracer`] instances
 //! of the [`TracerProvider`] have different versions of these data.
-use crate::runtime::MessageRuntime;
+use crate::runtime::RuntimeChannel;
 use crate::trace::{BatchMessage, BatchSpanProcessor, SimpleSpanProcessor, Tracer};
 use crate::{export::trace::SpanExporter, trace::SpanProcessor};
 use crate::{InstrumentationLibrary, Resource};
@@ -159,7 +159,7 @@ impl Builder {
     }
 
     /// The [`SpanExporter`] setup using a default [`BatchSpanProcessor`] that this provider should use.
-    pub fn with_batch_exporter<T: SpanExporter + 'static, R: MessageRuntime<BatchMessage>>(
+    pub fn with_batch_exporter<T: SpanExporter + 'static, R: RuntimeChannel<BatchMessage>>(
         self,
         exporter: T,
         runtime: R,

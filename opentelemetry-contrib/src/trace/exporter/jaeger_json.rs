@@ -3,7 +3,7 @@
 
 use async_trait::async_trait;
 use futures::{future::BoxFuture, FutureExt};
-use opentelemetry::runtime::MessageRuntime;
+use opentelemetry::runtime::RuntimeChannel;
 use opentelemetry::sdk::export::trace::{ExportResult, SpanData, SpanExporter};
 use opentelemetry::sdk::trace::{BatchMessage, Tracer};
 use opentelemetry::trace::{SpanId, TraceError};
@@ -216,7 +216,7 @@ fn opentelemetry_value_to_json(value: &opentelemetry::Value) -> (&str, serde_jso
 ///
 /// [`MessageRuntime`]: opentelemetry::sdk::runtime::MessageRuntime
 #[async_trait]
-pub trait JaegerJsonRuntime: MessageRuntime<BatchMessage> + std::fmt::Debug {
+pub trait JaegerJsonRuntime: RuntimeChannel<BatchMessage> + std::fmt::Debug {
     /// Create a new directory if the given path does not exist yet
     async fn create_dir(&self, path: &Path) -> ExportResult;
     /// Write the provided content to a new file at the given path

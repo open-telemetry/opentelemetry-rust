@@ -56,7 +56,7 @@ use std::{
 };
 
 use opentelemetry_api::logs::{LogError, LoggerProvider};
-use opentelemetry_sdk::{self, export::logs::LogData, logs::BatchMessage, runtime::MessageRuntime};
+use opentelemetry_sdk::{self, export::logs::LogData, logs::BatchMessage, runtime::RuntimeChannel};
 
 impl OtlpPipeline {
     /// Create a OTLP logging pipeline.
@@ -436,7 +436,7 @@ impl OtlpLogPipeline {
     /// batch log processor.
     ///
     /// [`Logger`]: opentelemetry_sdk::logs::Logger
-    pub fn batch<R: MessageRuntime<BatchMessage>>(
+    pub fn batch<R: RuntimeChannel<BatchMessage>>(
         self,
         runtime: R,
         include_trace_context: bool,
@@ -472,7 +472,7 @@ fn build_simple_with_exporter(
     )
 }
 
-fn build_batch_with_exporter<R: MessageRuntime<BatchMessage>>(
+fn build_batch_with_exporter<R: RuntimeChannel<BatchMessage>>(
     exporter: LogExporter,
     log_config: Option<opentelemetry_sdk::logs::Config>,
     runtime: R,

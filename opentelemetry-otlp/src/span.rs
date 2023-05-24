@@ -65,7 +65,7 @@ use opentelemetry_sdk::{
 use opentelemetry_semantic_conventions::SCHEMA_URL;
 
 use async_trait::async_trait;
-use sdk::runtime::MessageRuntime;
+use sdk::runtime::RuntimeChannel;
 
 /// Target to which the exporter is going to send spans, defaults to https://localhost:4317/v1/traces.
 /// Learn about the relationship between this constant and default/metrics/logs at
@@ -142,7 +142,7 @@ impl OtlpTracePipeline {
     /// `install_batch` will panic if not called within a tokio runtime
     ///
     /// [`Tracer`]: opentelemetry_api::trace::Tracer
-    pub fn install_batch<R: MessageRuntime<BatchMessage>>(
+    pub fn install_batch<R: RuntimeChannel<BatchMessage>>(
         self,
         runtime: R,
     ) -> Result<sdk::trace::Tracer, TraceError> {
@@ -176,7 +176,7 @@ fn build_simple_with_exporter(
     tracer
 }
 
-fn build_batch_with_exporter<R: MessageRuntime<BatchMessage>>(
+fn build_batch_with_exporter<R: RuntimeChannel<BatchMessage>>(
     exporter: SpanExporter,
     trace_config: Option<sdk::trace::Config>,
     runtime: R,

@@ -4,7 +4,7 @@ mod model;
 pub use model::ApiVersion;
 pub use model::Error;
 pub use model::FieldMappingFn;
-use opentelemetry::runtime::MessageRuntime;
+use opentelemetry::runtime::RuntimeChannel;
 
 use std::borrow::Cow;
 use std::fmt::{Debug, Formatter};
@@ -302,7 +302,7 @@ impl DatadogPipelineBuilder {
 
     /// Install the Datadog trace exporter pipeline using a batch span processor with the specified
     /// runtime.
-    pub fn install_batch<R: MessageRuntime<BatchMessage>>(
+    pub fn install_batch<R: RuntimeChannel<BatchMessage>>(
         mut self,
         runtime: R,
     ) -> Result<sdk::trace::Tracer, TraceError> {

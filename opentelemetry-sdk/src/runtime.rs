@@ -138,7 +138,7 @@ impl Runtime for AsyncStd {
 ///
 /// [log]: crate::logs::BatchLogProcessor
 /// [span]: crate::trace::BatchSpanProcessor
-pub trait MessageRuntime<T: Debug + Send>: Runtime {
+pub trait RuntimeChannel<T: Debug + Send>: Runtime {
     /// A future stream to receive batch messages from channels.
     type Receiver: Stream<Item = T> + Send;
     /// A batch messages sender that can be sent across threads safely.
@@ -187,7 +187,7 @@ impl<T: Send> TrySend for tokio::sync::mpsc::Sender<T> {
 
 #[cfg(feature = "rt-tokio")]
 #[cfg_attr(docsrs, doc(cfg(feature = "rt-tokio")))]
-impl<T: Debug + Send> MessageRuntime<T> for Tokio {
+impl<T: Debug + Send> RuntimeChannel<T> for Tokio {
     type Receiver = tokio_stream::wrappers::ReceiverStream<T>;
     type Sender = tokio::sync::mpsc::Sender<T>;
 
@@ -202,7 +202,7 @@ impl<T: Debug + Send> MessageRuntime<T> for Tokio {
 
 #[cfg(feature = "rt-tokio-current-thread")]
 #[cfg_attr(docsrs, doc(cfg(feature = "rt-tokio-current-thread")))]
-impl<T: Debug + Send> MessageRuntime<T> for TokioCurrentThread {
+impl<T: Debug + Send> RuntimeChannel<T> for TokioCurrentThread {
     type Receiver = tokio_stream::wrappers::ReceiverStream<T>;
     type Sender = tokio::sync::mpsc::Sender<T>;
 
@@ -229,7 +229,7 @@ impl<T: Send> TrySend for async_std::channel::Sender<T> {
 
 #[cfg(feature = "rt-async-std")]
 #[cfg_attr(docsrs, doc(cfg(feature = "rt-async-std")))]
-impl<T: Debug + Send> MessageRuntime<T> for AsyncStd {
+impl<T: Debug + Send> RuntimeChannel<T> for AsyncStd {
     type Receiver = async_std::channel::Receiver<T>;
     type Sender = async_std::channel::Sender<T>;
 
