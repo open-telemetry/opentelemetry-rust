@@ -9,7 +9,7 @@ pub struct Config {
     pub resource: Cow<'static, crate::Resource>,
 }
 
-impl Config {    
+impl Config {
     /// Specify the attributes representing the entity that produces telemetry
     pub fn with_resource(mut self, resource: Resource) -> Self {
         self.resource = Cow::Owned(resource);

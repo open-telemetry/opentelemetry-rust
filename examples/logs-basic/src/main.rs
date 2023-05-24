@@ -1,18 +1,21 @@
-use log::{Level, trace, error};
+use log::{error, Level};
 use opentelemetry_api::KeyValue;
 use opentelemetry_appender_log::OpenTelemetryLogBridge;
-use opentelemetry_sdk::logs::{LoggerProvider, Config};
-use opentelemetry_sdk::{Resource};
+use opentelemetry_sdk::logs::{Config, LoggerProvider};
+use opentelemetry_sdk::Resource;
 
-fn main(){
+fn main() {
     // Setup LoggerProvider with a stdout exporter
     let exporter = opentelemetry_stdout::LogExporter::default();
     let logger_provider = LoggerProvider::builder()
-            .with_config(Config::default().with_resource(Resource::new(vec![KeyValue::new(
+        .with_config(
+            Config::default().with_resource(Resource::new(vec![KeyValue::new(
                 "service.name",
                 "logs-basic-example",
-            )])))
-            .with_simple_exporter(exporter).build();
+            )])),
+        )
+        .with_simple_exporter(exporter)
+        .build();
 
     // Setup Log Appender for the log crate.
     let otel_log_appender = OpenTelemetryLogBridge::new(Level::Info, &logger_provider);
@@ -20,6 +23,5 @@ fn main(){
 
     // Emit logs using macros from the log crate.
     // These logs gets piped through OpenTelemetry bridge and gets exported to stdout.
-    error!(target: "cijo-warn", "hello from {}. My price is {}", "apple", 2.99);
-    trace!(target: "cijo-warn", "hello from {}, My price is {}", "orange", 2.99);
+    error!(target: "my-target", "hello from {}. My price is {}", "apple", 2.99);
 }
