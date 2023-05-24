@@ -8,7 +8,7 @@ use crate::attributes::AttributeSet;
 use crate::metrics::data::{self, Gauge};
 use opentelemetry_api::{global, metrics::MetricsError};
 
-use super::{aggregator::STREAM_OVERFLOW_ATTRIBUTE_SET, Aggregator, Number};
+use super::{aggregator::get_stream_overflow_attribute_set, Aggregator, Number};
 
 /// Timestamped measurement data.
 struct DataPointValue<T> {
@@ -40,10 +40,10 @@ impl<T: Number<T>> Aggregator<T> for LastValue<T> {
                     occupied_entry.insert(d);
                 }
                 Entry::Vacant(vacant_entry) => {
-                    if self.check_stream_cardinality(size) {
+                    if self.is_under_cardinality_limit(size) {
                         vacant_entry.insert(d);
                     } else {
-                        values.insert(STREAM_OVERFLOW_ATTRIBUTE_SET.clone(), d);
+                        values.insert(get_stream_overflow_attribute_set().clone(), d);
                         global::handle_error(MetricsError::Other("Warning: Maximum data points for metric stream exceeded. Entry added to overflow.".into()));
                     }
                 }
