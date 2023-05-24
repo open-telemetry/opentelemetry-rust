@@ -9,7 +9,7 @@ use crate::metrics::data::{self, Aggregation, DataPoint, Temporality};
 use opentelemetry_api::{global, metrics::MetricsError};
 
 use super::{
-    aggregator::{PrecomputeAggregator, get_stream_overflow_attribute_set},
+    aggregator::{get_stream_overflow_attribute_set, PrecomputeAggregator},
     Aggregator, Number,
 };
 
