@@ -1,9 +1,8 @@
 use log::{Level, Record, Metadata};
-use opentelemetry_api::logs::{LoggerProvider as _, Logger as _, LogRecordBuilder, Severity, AnyValue};
-use opentelemetry_sdk::logs::{LoggerProvider, Logger};
+use opentelemetry_api::logs::{LoggerProvider, Logger, LogRecordBuilder, Severity, AnyValue};
 
 pub struct OpenTelemetryLogBridge<>{
-    logger: Logger,
+    logger: dyn Logger,
     min_level: Level,
 }
 
@@ -26,7 +25,7 @@ impl log::Log for OpenTelemetryLogBridge {
 }
 
 impl OpenTelemetryLogBridge {
-    pub fn new(level: Level, provider: &LoggerProvider) -> Self {        
+    pub fn new(level: Level, provider: &dyn LoggerProvider) -> Self { 
             log::set_max_level(level.to_level_filter());
             OpenTelemetryLogBridge {
                 logger: provider.logger("opentelemetry-log-appender"),
