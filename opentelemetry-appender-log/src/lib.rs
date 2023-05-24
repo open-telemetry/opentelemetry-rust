@@ -1,12 +1,21 @@
 use log::{Level, Record, Metadata};
 use opentelemetry_api::logs::{LoggerProvider, Logger, LogRecordBuilder, Severity, AnyValue};
 
-pub struct OpenTelemetryLogBridge<>{
-    logger: dyn Logger,
+pub struct OpenTelemetryLogBridge<P, L>
+where
+    P: LoggerProvider<Logger = L> + Send + Sync,
+    L: Logger + Send + Sync,
+{
+    logger: L,
     min_level: Level,
+    _phantom: std::marker::PhantomData<P>, // P is not used in this struct
 }
 
-impl log::Log for OpenTelemetryLogBridge {
+impl<P, L> log::Log for OpenTelemetryLogBridge<P, L> 
+where
+    P: LoggerProvider<Logger = L> + Send + Sync,
+    L: Logger + Send + Sync,
+{
     fn enabled(&self, metadata: &Metadata) -> bool {
         metadata.level() <= self.min_level
     }
@@ -24,12 +33,17 @@ impl log::Log for OpenTelemetryLogBridge {
     fn flush(&self) {}
 }
 
-impl OpenTelemetryLogBridge {
-    pub fn new(level: Level, provider: &dyn LoggerProvider) -> Self { 
+impl<P, L> OpenTelemetryLogBridge<P, L> 
+where 
+    P: LoggerProvider<Logger = L> + Send + Sync,
+    L: Logger + Send + Sync,
+{
+    pub fn new(level: Level, provider: &P) -> Self { 
             log::set_max_level(level.to_level_filter());
             OpenTelemetryLogBridge {
                 logger: provider.logger("opentelemetry-log-appender"),
                 min_level: level,
+                _phantom: Default::default(),
             }
     }
 }
