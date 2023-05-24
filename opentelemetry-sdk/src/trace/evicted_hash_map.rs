@@ -137,7 +137,7 @@ impl<'a> IntoIterator for &'a EvictedHashMap {
 }
 
 /// An iterator over the entries of an `EvictedHashMap`.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Iter<'a>(std::collections::hash_map::Iter<'a, Key, Value>);
 
 impl<'a> Iterator for Iter<'a> {

@@ -209,7 +209,10 @@ impl fmt::Display for Array {
     }
 }
 
-fn display_array_str<T: fmt::Display>(slice: &[T], fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+pub(crate) fn display_array_str<T: fmt::Display>(
+    slice: &[T],
+    fmt: &mut fmt::Formatter<'_>,
+) -> fmt::Result {
     write!(fmt, "[")?;
     for (i, t) in slice.iter().enumerate() {
         if i > 0 {
