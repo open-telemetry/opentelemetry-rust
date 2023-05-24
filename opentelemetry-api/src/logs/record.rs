@@ -108,13 +108,11 @@ impl fmt::Display for AnyValue {
                 }
 
                 write!(fmt, "{{")?;
-                let mut i = 0;
-                for (k, v) in map {
+                for (i, (k, v)) in map.into_iter().enumerate() {
                     if i > 0 {
                         write!(fmt, ",")?;
                     }
                     write!(fmt, "{k}: {v}")?;
-                    i += 1;
                 }
                 write!(fmt, "}}")
             }
