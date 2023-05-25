@@ -2,7 +2,13 @@
 
 ## Unreleased
 
+### Added
+
+- Implement cardinality limits for metric streams
+  [#1066](https://github.com/open-telemetry/opentelemetry-rust/pull/1066).
+
 ### Removed
+
 - Samplers no longer has access to `InstrumentationLibrary` as one of parameters
   to `should_sample`.
   [#1041](https://github.com/open-telemetry/opentelemetry-rust/pull/1041).

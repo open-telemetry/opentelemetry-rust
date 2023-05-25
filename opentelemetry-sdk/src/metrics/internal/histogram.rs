@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{hash_map::Entry, HashMap},
     sync::{Arc, Mutex},
     time::SystemTime,
 };
@@ -9,8 +9,9 @@ use crate::metrics::{
     aggregation,
     data::{self, Aggregation},
 };
+use opentelemetry_api::{global, metrics::MetricsError};
 
-use super::{Aggregator, Number};
+use super::{aggregator::STREAM_OVERFLOW_ATTRIBUTE_SET, Aggregator, Number};
 
 #[derive(Default)]
 struct Buckets<T> {
@@ -78,22 +79,38 @@ where
             Ok(guard) => guard,
             Err(_) => return,
         };
+        let size = values.len();
 
-        let b = values.entry(attrs).or_insert_with(|| {
-            // N+1 buckets. For example:
-            //
-            //   bounds = [0, 5, 10]
-            //
-            // Then,
-            //
-            //   buckets = (-∞, 0], (0, 5.0], (5.0, 10.0], (10.0, +∞)
-            let mut b = Buckets::new(self.bounds.len() + 1);
-            // Ensure min and max are recorded values (not zero), for new buckets.
-            (b.min, b.max) = (measurement, measurement);
-
-            b
-        });
-        b.bin(idx, measurement)
+        match values.entry(attrs) {
+            Entry::Occupied(mut occupied_entry) => occupied_entry.get_mut().bin(idx, measurement),
+            Entry::Vacant(vacant_entry) => {
+                if self.is_under_cardinality_limit(size) {
+                    // N+1 buckets. For example:
+                    //
+                    //   bounds = [0, 5, 10]
+                    //
+                    // Then,
+                    //
+                    //   buckets = (-∞, 0], (0, 5.0], (5.0, 10.0], (10.0, +∞)
+                    let mut b = Buckets::new(self.bounds.len() + 1);
+                    // Ensure min and max are recorded values (not zero), for new buckets.
+                    (b.min, b.max) = (measurement, measurement);
+                    b.bin(idx, measurement);
+                    vacant_entry.insert(b);
+                } else {
+                    values
+                        .entry(STREAM_OVERFLOW_ATTRIBUTE_SET.clone())
+                        .and_modify(|val| val.bin(idx, measurement))
+                        .or_insert_with(|| {
+                            let mut b = Buckets::new(self.bounds.len() + 1);
+                            (b.min, b.max) = (measurement, measurement);
+                            b.bin(idx, measurement);
+                            b
+                        });
+                    global::handle_error(MetricsError::Other("Warning: Maximum data points for metric stream exceeded. Entry added to overflow.".into()));
+                }
+            }
+        }
     }
 
     fn aggregation(&self) -> Option<Box<dyn Aggregation>> {

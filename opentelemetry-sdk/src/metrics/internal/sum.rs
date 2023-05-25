@@ -1,13 +1,17 @@
 use std::{
-    collections::HashMap,
+    collections::{hash_map::Entry, HashMap},
     sync::{Arc, Mutex},
     time::SystemTime,
 };
 
 use crate::attributes::AttributeSet;
 use crate::metrics::data::{self, Aggregation, DataPoint, Temporality};
+use opentelemetry_api::{global, metrics::MetricsError};
 
-use super::{aggregator::PrecomputeAggregator, Aggregator, Number};
+use super::{
+    aggregator::{PrecomputeAggregator, STREAM_OVERFLOW_ATTRIBUTE_SET},
+    Aggregator, Number,
+};
 
 /// The storage for sums.
 #[derive(Default)]
@@ -26,10 +30,24 @@ impl<T: Number<T>> ValueMap<T> {
 impl<T: Number<T>> Aggregator<T> for ValueMap<T> {
     fn aggregate(&self, measurement: T, attrs: AttributeSet) {
         if let Ok(mut values) = self.values.lock() {
-            values
-                .entry(attrs)
-                .and_modify(|val| *val += measurement)
-                .or_insert(measurement);
+            let size = values.len();
+            match values.entry(attrs) {
+                Entry::Occupied(mut occupied_entry) => {
+                    let sum = occupied_entry.get_mut();
+                    *sum += measurement;
+                }
+                Entry::Vacant(vacant_entry) => {
+                    if self.is_under_cardinality_limit(size) {
+                        vacant_entry.insert(measurement);
+                    } else {
+                        values
+                            .entry(STREAM_OVERFLOW_ATTRIBUTE_SET.clone())
+                            .and_modify(|val| *val += measurement)
+                            .or_insert(measurement);
+                        global::handle_error(MetricsError::Other("Warning: Maximum data points for metric stream exceeded. Entry added to overflow.".into()));
+                    }
+                }
+            }
         }
     }
 
@@ -211,14 +229,30 @@ impl<T: Number<T>> Aggregator<T> for PrecomputedMap<T> {
             Ok(guard) => guard,
             Err(_) => return,
         };
-
-        values
-            .entry(attrs)
-            .and_modify(|v| v.measured = measurement)
-            .or_insert(PrecomputedValue {
-                measured: measurement,
-                ..Default::default()
-            });
+        let size = values.len();
+        match values.entry(attrs) {
+            Entry::Occupied(mut occupied_entry) => {
+                let v = occupied_entry.get_mut();
+                v.measured = measurement;
+            }
+            Entry::Vacant(vacant_entry) => {
+                if self.is_under_cardinality_limit(size) {
+                    vacant_entry.insert(PrecomputedValue {
+                        measured: measurement,
+                        ..Default::default()
+                    });
+                } else {
+                    values.insert(
+                        STREAM_OVERFLOW_ATTRIBUTE_SET.clone(),
+                        PrecomputedValue {
+                            measured: measurement,
+                            ..Default::default()
+                        },
+                    );
+                    global::handle_error(MetricsError::Other("Warning: Maximum data points for metric stream exceeded. Entry added to overflow.".into()));
+                }
+            }
+        }
     }
 
     fn aggregation(&self) -> Option<Box<dyn Aggregation>> {
