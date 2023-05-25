@@ -278,16 +278,14 @@ fn counters(c: &mut Criterion) {
     }
 
     group.bench_function("AddOneTillMaxAttr", |b| {
-        b.iter(|| cntr3.add(&cx3, 1, &max_attributes))
+        b.iter(|| cntr3.add(1, &max_attributes))
     });
 
     for i in MAX_DATA_POINTS..MAX_DATA_POINTS * 2 {
         max_attributes.push(KeyValue::new(i.to_string(), i))
     }
 
-    group.bench_function("AddMaxAttr", |b| {
-        b.iter(|| cntr3.add(&cx3, 1, &max_attributes))
-    });
+    group.bench_function("AddMaxAttr", |b| b.iter(|| cntr3.add(1, &max_attributes)));
 
     group.bench_function("AddInvalidAttr", |b| {
         b.iter(|| cntr.add(1, &[KeyValue::new("", "V"), KeyValue::new("K", "V")]))
