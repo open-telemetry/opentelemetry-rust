@@ -11,7 +11,7 @@ use crate::metrics::{
 };
 use opentelemetry_api::{global, metrics::MetricsError};
 
-use super::{aggregator::get_stream_overflow_attribute_set, Aggregator, Number};
+use super::{aggregator::STREAM_OVERFLOW_ATTRIBUTE_SET, Aggregator, Number};
 
 #[derive(Default)]
 struct Buckets<T> {
@@ -99,7 +99,7 @@ where
                     vacant_entry.insert(b);
                 } else {
                     values
-                        .entry(get_stream_overflow_attribute_set().clone())
+                        .entry(STREAM_OVERFLOW_ATTRIBUTE_SET.clone())
                         .and_modify(|val| val.bin(idx, measurement))
                         .or_insert_with(|| {
                             let mut b = Buckets::new(self.bounds.len() + 1);

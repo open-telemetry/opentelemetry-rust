@@ -1,19 +1,13 @@
 use crate::{attributes::AttributeSet, metrics::data::Aggregation};
-use once_cell::sync::OnceCell;
+use once_cell::sync::Lazy;
 use opentelemetry_api::KeyValue;
 use std::sync::Arc;
 
 const STREAM_CARDINALITY_LIMIT: u32 = 2000;
-static STREAM_OVERFLOW_ATTRIBUTE_SET: OnceCell<AttributeSet> = OnceCell::new();
-
-fn initialize_stream_overflow_attribute_set() -> AttributeSet {
+pub(crate) static STREAM_OVERFLOW_ATTRIBUTE_SET: Lazy<AttributeSet> = Lazy::new(|| {
     let key_values: [KeyValue; 1] = [KeyValue::new("otel.metric.overflow", "true")];
     AttributeSet::from(&key_values[..])
-}
-
-pub(crate) fn get_stream_overflow_attribute_set() -> &'static AttributeSet {
-    STREAM_OVERFLOW_ATTRIBUTE_SET.get_or_init(initialize_stream_overflow_attribute_set)
-}
+});
 
 /// Forms an aggregation from a collection of recorded measurements.
 pub(crate) trait Aggregator<T>: Send + Sync {

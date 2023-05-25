@@ -9,7 +9,7 @@ use crate::metrics::data::{self, Aggregation, DataPoint, Temporality};
 use opentelemetry_api::{global, metrics::MetricsError};
 
 use super::{
-    aggregator::{get_stream_overflow_attribute_set, PrecomputeAggregator},
+    aggregator::{PrecomputeAggregator, STREAM_OVERFLOW_ATTRIBUTE_SET},
     Aggregator, Number,
 };
 
@@ -41,7 +41,7 @@ impl<T: Number<T>> Aggregator<T> for ValueMap<T> {
                         vacant_entry.insert(measurement);
                     } else {
                         values
-                            .entry(get_stream_overflow_attribute_set().clone())
+                            .entry(STREAM_OVERFLOW_ATTRIBUTE_SET.clone())
                             .and_modify(|val| *val += measurement)
                             .or_insert(measurement);
                         global::handle_error(MetricsError::Other("Warning: Maximum data points for metric stream exceeded. Entry added to overflow.".into()));
@@ -243,7 +243,7 @@ impl<T: Number<T>> Aggregator<T> for PrecomputedMap<T> {
                     });
                 } else {
                     values.insert(
-                        get_stream_overflow_attribute_set().clone(),
+                        STREAM_OVERFLOW_ATTRIBUTE_SET.clone(),
                         PrecomputedValue {
                             measured: measurement,
                             ..Default::default()
