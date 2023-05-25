@@ -20,6 +20,9 @@ thiserror = "1"
 tokio-stream = { version = "0.1", optional = true }
 urlencoding = "2.1.2"
 
+[target.'cfg(all(target_arch = "wasm32", not(target_os = "wasi")))'.dependencies]
+js-sys = "0.3.63"
+
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
