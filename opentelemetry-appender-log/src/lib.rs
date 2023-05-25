@@ -7,7 +7,6 @@ where
     L: Logger + Send + Sync,
 {
     logger: L,
-    min_level: Level,
     _phantom: std::marker::PhantomData<P>, // P is not used in this struct
 }
 
@@ -16,8 +15,9 @@ where
     P: LoggerProvider<Logger = L> + Send + Sync,
     L: Logger + Send + Sync,
 {
-    fn enabled(&self, metadata: &Metadata) -> bool {
-        metadata.level() <= self.min_level
+    fn enabled(&self, _metadata: &Metadata) -> bool {
+        // TODO: This should be dynamic instead of the current hardcoded value.
+        true
     }
 
     fn log(&self, record: &Record) {
@@ -40,11 +40,9 @@ where
     P: LoggerProvider<Logger = L> + Send + Sync,
     L: Logger + Send + Sync,
 {
-    pub fn new(level: Level, provider: &P) -> Self {
-        log::set_max_level(level.to_level_filter());
+    pub fn new(provider: &P) -> Self {
         OpenTelemetryLogBridge {
             logger: provider.logger("opentelemetry-log-appender"),
-            min_level: level,
             _phantom: Default::default(),
         }
     }

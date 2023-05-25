@@ -18,8 +18,9 @@ fn main() {
         .build();
 
     // Setup Log Appender for the log crate.
-    let otel_log_appender = OpenTelemetryLogBridge::new(Level::Info, &logger_provider);
+    let otel_log_appender = OpenTelemetryLogBridge::new(&logger_provider);
     log::set_boxed_logger(Box::new(otel_log_appender)).unwrap();
+    log::set_max_level(Level::Error.to_level_filter());
 
     // Emit logs using macros from the log crate.
     // These logs gets piped through OpenTelemetry bridge and gets exported to stdout.
