@@ -459,7 +459,10 @@ pub struct SpanContext {
     trace_id: TraceId,
     span_id: SpanId,
     trace_flags: TraceFlags,
-    #[cfg_attr(feature = "serde", serde(skip, default = "SpanContext::deserialize_is_remote"))]
+    #[cfg_attr(
+        feature = "serde",
+        serde(skip, default = "SpanContext::deserialize_is_remote")
+    )]
     is_remote: bool,
     trace_state: TraceState,
 }
