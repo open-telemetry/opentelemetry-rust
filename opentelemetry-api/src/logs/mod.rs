@@ -13,9 +13,6 @@ pub use logger::{Logger, LoggerProvider};
 pub use noop::NoopLoggerProvider;
 pub use record::{AnyValue, LogRecord, LogRecordBuilder, Severity, TraceContext};
 
-use std::collections::hash_map::RandomState;
-
-
 /// Describe the result of operations in log SDK.
 pub type LogResult<T> = Result<T, LogError>;
 
