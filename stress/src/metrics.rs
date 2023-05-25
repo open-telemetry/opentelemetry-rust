@@ -1,7 +1,5 @@
 use lazy_static::lazy_static;
-use opentelemetry_api::{
-    metrics::{Counter, MeterProvider as _},
-};
+use opentelemetry_api::metrics::{Counter, MeterProvider as _};
 use opentelemetry_sdk::metrics::{ManualReader, MeterProvider};
 use std::borrow::Cow;
 

@@ -286,7 +286,7 @@ fn counters(c: &mut Criterion) {
         })
     });
 
-    let (cx, _, cntr) = bench_counter(
+    let (_, cntr) = bench_counter(
         Some(
             new_view(
                 Instrument::new().name("*"),
