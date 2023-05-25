@@ -32,7 +32,7 @@
 //!     .init();
 //!
 //! counter.add(100, &[KeyValue::new("key", "value")]);
-//! histogram.record(&cx, 100, &[KeyValue::new("key", "value")]);
+//! histogram.record(100, &[KeyValue::new("key", "value")]);
 //!
 //! // Encode data as text or protobuf
 //! let encoder = TextEncoder::new();
