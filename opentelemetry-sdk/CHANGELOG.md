@@ -7,7 +7,7 @@
   to `should_sample`.
   [#1041](https://github.com/open-telemetry/opentelemetry-rust/pull/1041).
 - Synchronous instruments no longer accepts `Context` while reporting
-  measurements.  
+  measurements. [#1076](https://github.com/open-telemetry/opentelemetry-rust/pull/1076).
 
 ## v0.19.0
 

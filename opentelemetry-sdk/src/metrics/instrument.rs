@@ -4,7 +4,7 @@ use opentelemetry_api::{
     metrics::{
         AsyncInstrument, MetricsError, Result, SyncCounter, SyncHistogram, SyncUpDownCounter, Unit,
     },
-    Context, KeyValue,
+    KeyValue,
 };
 
 use crate::{
@@ -262,7 +262,7 @@ impl<T: Copy> SyncCounter<T> for InstrumentImpl<T> {
 }
 
 impl<T: Copy> SyncUpDownCounter<T> for InstrumentImpl<T> {
-    fn add(&self, _cx: &Context, val: T, attrs: &[KeyValue]) {
+    fn add(&self, val: T, attrs: &[KeyValue]) {
         for agg in &self.aggregators {
             agg.aggregate(val, AttributeSet::from(attrs))
         }
@@ -270,7 +270,7 @@ impl<T: Copy> SyncUpDownCounter<T> for InstrumentImpl<T> {
 }
 
 impl<T: Copy> SyncHistogram<T> for InstrumentImpl<T> {
-    fn record(&self, _cx: &Context, val: T, attrs: &[KeyValue]) {
+    fn record(&self, val: T, attrs: &[KeyValue]) {
         for agg in &self.aggregators {
             agg.aggregate(val, AttributeSet::from(attrs))
         }

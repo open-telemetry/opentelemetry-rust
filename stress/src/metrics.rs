@@ -9,7 +9,6 @@ use std::borrow::Cow;
 mod throughput;
 
 lazy_static! {
-    static ref CONTEXT: Context = Context::new();
     static ref PROVIDER: MeterProvider = MeterProvider::builder()
         .with_reader(ManualReader::builder().build())
         .build();
@@ -24,5 +23,5 @@ fn main() {
 }
 
 fn test_counter() {
-    COUNTER.add(&CONTEXT, 1, &[]);
+    COUNTER.add(1, &[]);
 }

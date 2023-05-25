@@ -144,11 +144,7 @@ impl TemporalitySelector for DeltaTemporalitySelector {
 //                         time:   [643.75 ns 649.05 ns 655.14 ns]
 // Histogram/Record10Attrs1000bounds
 //                         time:   [726.87 ns 736.52 ns 747.09 ns]
-fn bench_counter(
-    view: Option<Box<dyn View>>,
-    temporality: &str,
-) -> (Context, SharedReader, Counter<u64>) {
-    let cx = Context::new();
+fn bench_counter(view: Option<Box<dyn View>>, temporality: &str) -> (SharedReader, Counter<u64>) {
     let rdr = if temporality == "cumulative" {
         SharedReader(Arc::new(ManualReader::builder().build()))
     } else {
@@ -165,27 +161,26 @@ fn bench_counter(
     let provider = builder.build();
     let cntr = provider.meter("test").u64_counter("hello").init();
 
-    (cx, rdr, cntr)
+    (rdr, cntr)
 }
 
 fn counters(c: &mut Criterion) {
-    let (cx, _, cntr) = bench_counter(None, "cumulative");
-    let (cx2, _, cntr2) = bench_counter(None, "delta");
+    let (_, cntr) = bench_counter(None, "cumulative");
+    let (_, cntr2) = bench_counter(None, "delta");
 
     let mut group = c.benchmark_group("Counter");
-    group.bench_function("AddNoAttrs", |b| b.iter(|| cntr.add(&cx, 1, &[])));
-    group.bench_function("AddNoAttrsDelta", |b| b.iter(|| cntr2.add(&cx, 1, &[])));
+    group.bench_function("AddNoAttrs", |b| b.iter(|| cntr.add(1, &[])));
+    group.bench_function("AddNoAttrsDelta", |b| b.iter(|| cntr2.add(1, &[])));
 
     group.bench_function("AddOneAttr", |b| {
-        b.iter(|| cntr.add(&cx, 1, &[KeyValue::new("K", "V")]))
+        b.iter(|| cntr.add(1, &[KeyValue::new("K", "V")]))
     });
     group.bench_function("AddOneAttrDelta", |b| {
-        b.iter(|| cntr2.add(&cx2, 1, &[KeyValue::new("K1", "V1")]))
+        b.iter(|| cntr2.add(1, &[KeyValue::new("K1", "V1")]))
     });
     group.bench_function("AddThreeAttr", |b| {
         b.iter(|| {
             cntr.add(
-                &cx,
                 1,
                 &[
                     KeyValue::new("K2", "V2"),
@@ -198,7 +193,6 @@ fn counters(c: &mut Criterion) {
     group.bench_function("AddThreeAttrDelta", |b| {
         b.iter(|| {
             cntr2.add(
-                &cx2,
                 1,
                 &[
                     KeyValue::new("K2", "V2"),
@@ -211,7 +205,6 @@ fn counters(c: &mut Criterion) {
     group.bench_function("AddFiveAttr", |b| {
         b.iter(|| {
             cntr.add(
-                &cx,
                 1,
                 &[
                     KeyValue::new("K5", "V5"),
@@ -226,7 +219,6 @@ fn counters(c: &mut Criterion) {
     group.bench_function("AddFiveAttrDelta", |b| {
         b.iter(|| {
             cntr2.add(
-                &cx2,
                 1,
                 &[
                     KeyValue::new("K5", "V5"),
@@ -241,7 +233,6 @@ fn counters(c: &mut Criterion) {
     group.bench_function("AddTenAttr", |b| {
         b.iter(|| {
             cntr.add(
-                &cx,
                 1,
                 &[
                     KeyValue::new("K10", "V10"),
@@ -261,7 +252,6 @@ fn counters(c: &mut Criterion) {
     group.bench_function("AddTenAttrDelta", |b| {
         b.iter(|| {
             cntr2.add(
-                &cx2,
                 1,
                 &[
                     KeyValue::new("K10", "V10"),
@@ -279,19 +269,19 @@ fn counters(c: &mut Criterion) {
         })
     });
     group.bench_function("AddInvalidAttr", |b| {
-        b.iter(|| cntr.add(&cx, 1, &[KeyValue::new("", "V"), KeyValue::new("K", "V")]))
+        b.iter(|| cntr.add(1, &[KeyValue::new("", "V"), KeyValue::new("K", "V")]))
     });
     group.bench_function("AddSingleUseAttrs", |b| {
         let mut v = 0;
         b.iter(|| {
-            cntr.add(&cx, 1, &[KeyValue::new("K", v)]);
+            cntr.add(1, &[KeyValue::new("K", v)]);
             v += 1;
         })
     });
     group.bench_function("AddSingleUseInvalid", |b| {
         let mut v = 0;
         b.iter(|| {
-            cntr.add(&cx, 1, &[KeyValue::new("", v), KeyValue::new("K", v)]);
+            cntr.add(1, &[KeyValue::new("", v), KeyValue::new("K", v)]);
             v += 1;
         })
     });
@@ -310,12 +300,12 @@ fn counters(c: &mut Criterion) {
     group.bench_function("AddSingleUseFiltered", |b| {
         let mut v = 0;
         b.iter(|| {
-            cntr.add(&cx, 1, &[KeyValue::new("L", v), KeyValue::new("K", v)]);
+            cntr.add(1, &[KeyValue::new("L", v), KeyValue::new("K", v)]);
             v += 1;
         })
     });
 
-    let (cx, rdr, cntr) = bench_counter(None, "cumulative");
+    let (rdr, cntr) = bench_counter(None, "cumulative");
     let mut rm = ResourceMetrics {
         resource: Resource::empty(),
         scope_metrics: Vec::new(),
@@ -324,7 +314,7 @@ fn counters(c: &mut Criterion) {
     group.bench_function("CollectOneAttr", |b| {
         let mut v = 0;
         b.iter(|| {
-            cntr.add(&cx, 1, &[KeyValue::new("K", v)]);
+            cntr.add(1, &[KeyValue::new("K", v)]);
             let _ = rdr.collect(&mut rm);
             v += 1;
         })
@@ -334,7 +324,7 @@ fn counters(c: &mut Criterion) {
         let mut v = 0;
         b.iter(|| {
             for i in 0..10 {
-                cntr.add(&cx, 1, &[KeyValue::new("K", i)]);
+                cntr.add(1, &[KeyValue::new("K", i)]);
             }
             let _ = rdr.collect(&mut rm);
             v += 1;
@@ -344,7 +334,7 @@ fn counters(c: &mut Criterion) {
 
 const MAX_BOUND: usize = 100000;
 
-fn bench_histogram(bound_count: usize) -> (Context, SharedReader, Histogram<i64>) {
+fn bench_histogram(bound_count: usize) -> (SharedReader, Histogram<i64>) {
     let mut bounds = vec![0; bound_count];
     #[allow(clippy::needless_range_loop)]
     for i in 0..bounds.len() {
@@ -361,7 +351,6 @@ fn bench_histogram(bound_count: usize) -> (Context, SharedReader, Histogram<i64>
         .unwrap(),
     );
 
-    let cx = Context::new();
     let r = SharedReader(Arc::new(ManualReader::default()));
     let mut builder = MeterProvider::builder().with_reader(r.clone());
     if let Some(view) = view {
@@ -372,7 +361,7 @@ fn bench_histogram(bound_count: usize) -> (Context, SharedReader, Histogram<i64>
         .i64_histogram(format!("histogram_{}", bound_count))
         .init();
 
-    (cx, r, hist)
+    (r, hist)
 }
 
 fn histograms(c: &mut Criterion) {
@@ -380,7 +369,7 @@ fn histograms(c: &mut Criterion) {
     let mut rng = rand::thread_rng();
 
     for bound_size in [10, 49, 50, 1000].iter() {
-        let (cx, _, hist) = bench_histogram(*bound_size);
+        let (_, hist) = bench_histogram(*bound_size);
         for attr_size in [0, 3, 5, 7, 10].iter() {
             let mut attributes: Vec<KeyValue> = Vec::new();
             for i in 0..*attr_size {
@@ -392,7 +381,7 @@ fn histograms(c: &mut Criterion) {
             let value: i64 = rng.gen_range(0..MAX_BOUND).try_into().unwrap();
             group.bench_function(
                 format!("Record{}Attrs{}bounds", attr_size, bound_size),
-                |b| b.iter(|| hist.record(&cx, value, &attributes)),
+                |b| b.iter(|| hist.record(value, &attributes)),
             );
         }
     }
@@ -403,7 +392,6 @@ fn histograms(c: &mut Criterion) {
 }
 
 fn benchmark_collect_histogram(b: &mut Bencher, n: usize) {
-    let cx = Context::new();
     let r = SharedReader(Arc::new(ManualReader::default()));
     let mtr = MeterProvider::builder()
         .with_reader(r.clone())
@@ -412,7 +400,7 @@ fn benchmark_collect_histogram(b: &mut Bencher, n: usize) {
 
     for i in 0..n {
         let h = mtr.i64_histogram(format!("fake_data_{i}")).init();
-        h.record(&cx, 1, &[]);
+        h.record(1, &[]);
     }
 
     let mut rm = ResourceMetrics {
