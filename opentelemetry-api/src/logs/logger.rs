@@ -17,7 +17,7 @@ pub trait Logger {
 /// Interfaces that can create [`Logger`] instances.
 pub trait LoggerProvider {
     /// The [`Logger`] type that this provider will return.
-    type Logger;
+    type Logger: Logger;
 
     /// Returns a new versioned logger with a given name.
     ///
