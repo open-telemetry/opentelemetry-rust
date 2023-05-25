@@ -3,12 +3,11 @@
 //! [Prometheus]: https://prometheus.io
 //!
 //! ```
-//! use opentelemetry_api::{metrics::MeterProvider as _, Context, KeyValue};
+//! use opentelemetry_api::{metrics::MeterProvider as _, KeyValue};
 //! use opentelemetry_sdk::metrics::MeterProvider;
 //! use prometheus::{Encoder, TextEncoder};
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
-//! let cx = Context::current();
 //!
 //! // create a new prometheus registry
 //! let registry = prometheus::Registry::new();
@@ -32,7 +31,7 @@
 //!     .with_description("Records values")
 //!     .init();
 //!
-//! counter.add(&cx, 100, &[KeyValue::new("key", "value")]);
+//! counter.add(100, &[KeyValue::new("key", "value")]);
 //! histogram.record(&cx, 100, &[KeyValue::new("key", "value")]);
 //!
 //! // Encode data as text or protobuf
