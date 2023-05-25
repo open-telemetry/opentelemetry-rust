@@ -8,7 +8,7 @@ publish = false
 futures = "0.3"
 http = "0.2"
 lazy_static = "1.4"
-opentelemetry = { version = "0.19", default-features = false, features = ["trace"] }
+opentelemetry = { path = "../../opentelemetry", default-features = false, features = ["trace"] }
 opentelemetry-dynatrace = { path = "../../opentelemetry-dynatrace" }
 opentelemetry-http = { version = "0.8", default-features = false }
 opentelemetry-otlp = { version = "0.12", default-features = false, features = ["http-proto", "reqwest-client"] }
