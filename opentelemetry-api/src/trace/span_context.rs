@@ -1,6 +1,6 @@
 use crate::trace::{TraceError, TraceResult};
 #[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
+use serde::{self, Deserialize, Serialize};
 use std::collections::VecDeque;
 use std::fmt;
 use std::hash::Hash;
@@ -459,6 +459,7 @@ pub struct SpanContext {
     trace_id: TraceId,
     span_id: SpanId,
     trace_flags: TraceFlags,
+    #[cfg_attr(feature = "serde", serde(skip, default = "SpanContext::deserialize_is_remote"))]
     is_remote: bool,
     trace_state: TraceState,
 }
@@ -531,6 +532,15 @@ impl SpanContext {
     /// A reference to the span context's [`TraceState`].
     pub fn trace_state(&self) -> &TraceState {
         &self.trace_state
+    }
+
+    /// Provides the value for self.is_remote when deserializing.
+    /// Since deserializing implies the span context was propagated, this
+    /// value is always true.
+    /// See https://serde.rs/field-attrs.html#default--path
+    #[cfg(feature = "serde")]
+    fn deserialize_is_remote() -> bool {
+        true
     }
 }
 
