@@ -1,6 +1,13 @@
+use crate::{attributes::AttributeSet, metrics::data::Aggregation};
+use once_cell::sync::Lazy;
+use opentelemetry_api::KeyValue;
 use std::sync::Arc;
 
-use crate::{attributes::AttributeSet, metrics::data::Aggregation};
+const STREAM_CARDINALITY_LIMIT: u32 = 2000;
+pub(crate) static STREAM_OVERFLOW_ATTRIBUTE_SET: Lazy<AttributeSet> = Lazy::new(|| {
+    let key_values: [KeyValue; 1] = [KeyValue::new("otel.metric.overflow", "true")];
+    AttributeSet::from(&key_values[..])
+});
 
 /// Forms an aggregation from a collection of recorded measurements.
 pub(crate) trait Aggregator<T>: Send + Sync {
@@ -14,6 +21,11 @@ pub(crate) trait Aggregator<T>: Send + Sync {
     /// Used when filtering aggregators
     fn as_precompute_aggregator(&self) -> Option<Arc<dyn PrecomputeAggregator<T>>> {
         None
+    }
+
+    /// Checks whether aggregator has hit cardinality limit for metric streams
+    fn is_under_cardinality_limit(&self, size: usize) -> bool {
+        size < STREAM_CARDINALITY_LIMIT as usize - 1
     }
 }
 

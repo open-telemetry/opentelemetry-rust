@@ -167,6 +167,7 @@ fn bench_counter(view: Option<Box<dyn View>>, temporality: &str) -> (SharedReade
 fn counters(c: &mut Criterion) {
     let (_, cntr) = bench_counter(None, "cumulative");
     let (_, cntr2) = bench_counter(None, "delta");
+    let (_, cntr3) = bench_counter(None, "cumulative");
 
     let mut group = c.benchmark_group("Counter");
     group.bench_function("AddNoAttrs", |b| b.iter(|| cntr.add(1, &[])));
@@ -268,6 +269,26 @@ fn counters(c: &mut Criterion) {
             )
         })
     });
+
+    const MAX_DATA_POINTS: i64 = 2000;
+    let mut max_attributes: Vec<KeyValue> = Vec::new();
+
+    for i in 0..MAX_DATA_POINTS - 2 {
+        max_attributes.push(KeyValue::new(i.to_string(), i))
+    }
+
+    group.bench_function("AddOneTillMaxAttr", |b| {
+        b.iter(|| cntr3.add(&cx3, 1, &max_attributes))
+    });
+
+    for i in MAX_DATA_POINTS..MAX_DATA_POINTS * 2 {
+        max_attributes.push(KeyValue::new(i.to_string(), i))
+    }
+
+    group.bench_function("AddMaxAttr", |b| {
+        b.iter(|| cntr3.add(&cx3, 1, &max_attributes))
+    });
+
     group.bench_function("AddInvalidAttr", |b| {
         b.iter(|| cntr.add(1, &[KeyValue::new("", "V"), KeyValue::new("K", "V")]))
     });
