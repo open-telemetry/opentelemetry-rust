@@ -4,11 +4,11 @@
 
 # OpenTelemetry Log Appender
 
-Community supported vendor integrations for applications instrumented with [`OpenTelemetry`].
+A [Log Appender](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/glossary.md#log-appender--bridge) that bridges logs from the [log crate](https://docs.rs/log/latest/log/) to OpenTelemetry.
 
-[![Crates.io: opentelemetry-contrib](https://img.shields.io/crates/v/opentelemetry-contrib.svg)](https://crates.io/crates/opentelemetry-contrib)
-[![Documentation](https://docs.rs/opentelemetry-contrib/badge.svg)](https://docs.rs/opentelemetry-contrib)
-[![LICENSE](https://img.shields.io/crates/l/opentelemetry-contrib)](./LICENSE)
+[![Crates.io: opentelemetry-appender-log](https://img.shields.io/crates/v/opentelemetry-appender-log.svg)](https://crates.io/crates/opentelemetry-appender-log)
+[![Documentation](https://docs.rs/opentelemetry-appender-log/badge.svg)](https://docs.rs/opentelemetry-appender-log)
+[![LICENSE](https://img.shields.io/crates/l/opentelemetry-appender-log)](./LICENSE)
 [![GitHub Actions CI](https://github.com/open-telemetry/opentelemetry-rust/workflows/CI/badge.svg)](https://github.com/open-telemetry/opentelemetry-rust/actions?query=workflow%3ACI+branch%3Amain)
 [![Slack](https://img.shields.io/badge/slack-@cncf/otel/rust-brightgreen.svg?logo=slack)](https://cloud-native.slack.com/archives/C03GDP0H023)
 
