@@ -36,7 +36,6 @@ where
     let worker_stats_shared = Arc::new(worker_stats_vec);
     let worker_stats_shared_monitor = Arc::clone(&worker_stats_shared);
 
-    // let total_count_clone = Arc::clone(&total_count);
     let handle1 = thread::spawn(move || {
         let mut start_time = Instant::now();
         let mut end_time = start_time;
@@ -44,7 +43,6 @@ where
         loop {
             let elapsed = end_time.duration_since(start_time).as_secs();
             if elapsed >= SLIDING_WINDOW_SIZE {
-                // let total_count_u64 = total_count_clone.load(Ordering::Relaxed);
                 let total_count_u64: u64 = worker_stats_shared_monitor.iter().map(|worker_stat| worker_stat.count.load(Ordering::Relaxed)).sum();
                 let current_count = total_count_u64 - total_count_old;
                 total_count_old = total_count_u64;
@@ -73,7 +71,6 @@ where
                     func_arc_clone();
                 }
                 worker_stats_shared[thread_index].count.fetch_add(1000, Ordering::Relaxed);
-                // total_count_clone.fetch_add(1000, Ordering::Relaxed);
                 if STOP.load(Ordering::SeqCst) {
                     break;
                 }
