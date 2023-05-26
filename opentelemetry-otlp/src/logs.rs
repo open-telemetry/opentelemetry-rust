@@ -27,7 +27,6 @@ use {
         logs_service::ExportLogsServiceRequest as GrpcRequest,
         logs_service_grpc::LogsServiceClient as GrpcioLogServiceClient,
     },
-    std::sync::Arc,
 };
 
 #[cfg(feature = "http-proto")]
@@ -44,7 +43,7 @@ use {
 };
 
 #[cfg(any(feature = "grpc-sys", feature = "http-proto"))]
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use crate::exporter::ExportConfig;
 use crate::OtlpPipeline;
