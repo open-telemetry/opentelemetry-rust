@@ -1,0 +1,12 @@
+[package]
+name = "logs-basic"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+opentelemetry_api = { path = "../../opentelemetry-api", features = ["logs"] }
+opentelemetry_sdk = { path = "../../opentelemetry-sdk", features = ["logs"] }
+opentelemetry-stdout = { path = "../../opentelemetry-stdout", features = ["logs"]}
+opentelemetry-appender-log = { path = "../../opentelemetry-appender-log"}
+log = {version = "0.4.17"}

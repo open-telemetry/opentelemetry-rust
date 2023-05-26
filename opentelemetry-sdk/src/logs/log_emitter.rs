@@ -1,7 +1,7 @@
 use super::{BatchLogProcessor, Config, LogProcessor, LogRuntime, SimpleLogProcessor};
 use crate::export::logs::{LogData, LogExporter};
 use opentelemetry_api::{
-    global::{handle_error, Error},
+    global::{self},
     logs::{LogRecord, LogResult},
     trace::TraceContextExt,
     Context, InstrumentationLibrary,
@@ -96,27 +96,20 @@ impl LoggerProvider {
     }
 }
 
-impl Drop for LoggerProvider {
-    fn drop(&mut self) {
-        match self.try_shutdown() {
-            None => handle_error(Error::Other(
-                "canont shutdown LoggerProvider when child Loggers are still active".into(),
-            )),
-            Some(results) => {
-                for result in results {
-                    if let Err(err) = result {
-                        handle_error(err)
-                    }
-                }
-            }
-        }
-    }
-}
-
 #[derive(Debug)]
 pub(crate) struct LoggerProviderInner {
     processors: Vec<Box<dyn LogProcessor>>,
     config: Config,
+}
+
+impl Drop for LoggerProviderInner {
+    fn drop(&mut self) {
+        for processor in &mut self.processors {
+            if let Err(err) = processor.shutdown() {
+                global::handle_error(err);
+            }
+        }
+    }
 }
 
 #[derive(Debug, Default)]
