@@ -1,8 +1,8 @@
+use num_format::{Locale, ToFormattedString};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, Instant};
-use num_format::{Locale, ToFormattedString};
 
 const SLIDING_WINDOW_SIZE: u64 = 2; // In seconds
 const BATCH_SIZE: u64 = 1000;
@@ -52,7 +52,10 @@ where
                 let current_count = total_count_u64 - total_count_old;
                 total_count_old = total_count_u64;
                 let throughput = current_count / elapsed;
-                println!("Throughput: {} iterations/sec", throughput.to_formatted_string(&Locale::en));
+                println!(
+                    "Throughput: {} iterations/sec",
+                    throughput.to_formatted_string(&Locale::en)
+                );
                 start_time = Instant::now();
             }
 
