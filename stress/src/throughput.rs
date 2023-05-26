@@ -2,8 +2,10 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, Instant};
+use num_format::{Locale, ToFormattedString};
 
 const SLIDING_WINDOW_SIZE: u64 = 2; // In seconds
+const BATCH_SIZE: u64 = 1000;
 
 static STOP: AtomicBool = AtomicBool::new(false);
 
@@ -49,8 +51,8 @@ where
                     .sum();
                 let current_count = total_count_u64 - total_count_old;
                 total_count_old = total_count_u64;
-                let throughput = current_count as f64 / elapsed as f64;
-                println!("Throughput: {:.2} iterations/sec", throughput);
+                let throughput = current_count / elapsed;
+                println!("Throughput: {} iterations/sec", throughput.to_formatted_string(&Locale::en));
                 start_time = Instant::now();
             }
 
@@ -69,12 +71,12 @@ where
         let worker_stats_shared = Arc::clone(&worker_stats_shared);
         let func_arc_clone = Arc::clone(&func_arc);
         let handle = thread::spawn(move || loop {
-            for _ in 0..1000 {
+            for _ in 0..BATCH_SIZE {
                 func_arc_clone();
             }
             worker_stats_shared[thread_index]
                 .count
-                .fetch_add(1000, Ordering::Relaxed);
+                .fetch_add(BATCH_SIZE, Ordering::Relaxed);
             if STOP.load(Ordering::SeqCst) {
                 break;
             }
