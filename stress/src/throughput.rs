@@ -11,6 +11,8 @@ static STOP: AtomicBool = AtomicBool::new(false);
 #[derive(Default)]
 struct WorkerStats {
     count: AtomicU64,
+    /// We use a padding for the struct to allow each thread to have exclusive access to each WorkerStat
+    /// Otherwise, there would be some cpu contention with threads needing to take ownership of the cache lines
     padding: [u64; 15],
 }
 
@@ -34,7 +36,7 @@ where
     let worker_stats_shared = Arc::new(worker_stats_vec);
     let worker_stats_shared_monitor = Arc::clone(&worker_stats_shared);
 
-    let handle1 = thread::spawn(move || {
+    let handle_main_thread = thread::spawn(move || {
         let mut start_time = Instant::now();
         let mut end_time = start_time;
         let mut total_count_old: u64 = 0;
@@ -48,7 +50,7 @@ where
                 let current_count = total_count_u64 - total_count_old;
                 total_count_old = total_count_u64;
                 let throughput = current_count as f64 / elapsed as f64;
-                println!("Throughput: {:.2} requests/sec", throughput);
+                println!("Throughput: {:.2} iterations/sec", throughput);
                 start_time = Instant::now();
             }
 
@@ -61,7 +63,7 @@ where
         }
     });
 
-    handles.push(handle1);
+    handles.push(handle_main_thread);
 
     for thread_index in 0..num_threads - 1 {
         let worker_stats_shared = Arc::clone(&worker_stats_shared);
