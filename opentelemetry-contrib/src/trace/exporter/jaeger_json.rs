@@ -212,9 +212,9 @@ fn opentelemetry_value_to_json(value: &opentelemetry::Value) -> (&str, serde_jso
     }
 }
 
-/// Jaeger Json Runtime is an extension to [`MessageRuntime`].
+/// Jaeger Json Runtime is an extension to [`RuntimeChannel`].
 ///
-/// [`MessageRuntime`]: opentelemetry::sdk::runtime::MessageRuntime
+/// [`RuntimeChannel`]: opentelemetry::sdk::runtime::RuntimeChannel
 #[async_trait]
 pub trait JaegerJsonRuntime: RuntimeChannel<BatchMessage> + std::fmt::Debug {
     /// Create a new directory if the given path does not exist yet
