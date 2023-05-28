@@ -484,11 +484,18 @@ mod propagator {
 
         /// Extract span id from the header.
         fn extract_span_id(&self, span_id: &str) -> Result<SpanId, ()> {
-            if span_id.len() != 16 {
-                return Err(());
+            match span_id.len() {
+                // exact 16
+                16 => SpanId::from_hex(span_id).map_err(|_| ()),
+                // more than 16 is invalid
+                17.. => Err(()),
+                // less than 16 will result padding on left
+                _ => {
+                    let mut padded = String::with_capacity(16 - span_id.len());
+                    padded.push_str(span_id);
+                    SpanId::from_hex(&padded).map_err(|_| ())
+                }
             }
-
-            SpanId::from_hex(span_id).map_err(|_| ())
         }
 
         /// Extract flag from the header
@@ -589,6 +596,7 @@ mod propagator {
         const SHORT_TRACE_ID_STR: &str = "4d0000000000000016";
         const TRACE_ID: u128 = 0x0000_0000_0000_004d_0000_0000_0000_0016;
         const SPAN_ID_STR: &str = "0000000000017c29";
+        const SHORT_SPAN_ID_STR: &str = "17c29";
         const SPAN_ID: u64 = 0x0000_0000_0001_7c29;
 
         fn get_extract_data() -> Vec<(&'static str, &'static str, u8, SpanContext)> {
@@ -608,6 +616,18 @@ mod propagator {
                 (
                     SHORT_TRACE_ID_STR,
                     SPAN_ID_STR,
+                    1,
+                    SpanContext::new(
+                        TraceId::from_u128(TRACE_ID),
+                        SpanId::from_u64(SPAN_ID),
+                        TraceFlags::SAMPLED,
+                        true,
+                        TraceState::default(),
+                    ),
+                ),
+                (
+                    SHORT_TRACE_ID_STR,
+                    SHORT_SPAN_ID_STR,
                     1,
                     SpanContext::new(
                         TraceId::from_u128(TRACE_ID),
