@@ -11,7 +11,6 @@ mod evicted_hash_map;
 mod evicted_queue;
 mod id_generator;
 mod provider;
-mod runtime;
 mod sampler;
 mod span;
 mod span_limit;
@@ -23,7 +22,6 @@ pub use evicted_hash_map::EvictedHashMap;
 pub use evicted_queue::EvictedQueue;
 pub use id_generator::{aws::XrayIdGenerator, IdGenerator, RandomIdGenerator};
 pub use provider::{Builder, TracerProvider};
-pub use runtime::{TraceRuntime, TrySend};
 pub use sampler::{Sampler, ShouldSample};
 pub use span::Span;
 pub use span_limit::SpanLimits;
@@ -35,3 +33,6 @@ pub use tracer::Tracer;
 
 #[cfg(feature = "jaeger_remote_sampler")]
 pub use sampler::{JaegerRemoteSampler, JaegerRemoteSamplerBuilder};
+
+#[cfg(test)]
+mod runtime_tests;

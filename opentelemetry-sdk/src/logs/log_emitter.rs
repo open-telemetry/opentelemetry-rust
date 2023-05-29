@@ -1,5 +1,8 @@
-use super::{BatchLogProcessor, Config, LogProcessor, LogRuntime, SimpleLogProcessor};
-use crate::export::logs::{LogData, LogExporter};
+use super::{BatchLogProcessor, BatchMessage, Config, LogProcessor, SimpleLogProcessor};
+use crate::{
+    export::logs::{LogData, LogExporter},
+    runtime::RuntimeChannel,
+};
 use opentelemetry_api::{
     global::{self},
     logs::{LogRecord, LogResult},
@@ -129,7 +132,7 @@ impl Builder {
     }
 
     /// The `LogExporter` setup using a default `BatchLogProcessor` that this provider should use.
-    pub fn with_batch_exporter<T: LogExporter + 'static, R: LogRuntime>(
+    pub fn with_batch_exporter<T: LogExporter + 'static, R: RuntimeChannel<BatchMessage>>(
         self,
         exporter: T,
         runtime: R,

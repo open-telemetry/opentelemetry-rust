@@ -35,7 +35,7 @@
 //! [`TracerProvider`]: opentelemetry_api::trace::TracerProvider
 
 use crate::export::trace::{ExportResult, SpanData, SpanExporter};
-use crate::trace::runtime::{TraceRuntime, TrySend};
+use crate::runtime::{RuntimeChannel, TrySend};
 use crate::trace::Span;
 use futures_channel::oneshot;
 use futures_util::{
@@ -248,11 +248,11 @@ enum Message {
 /// [`executor`]: https://docs.rs/futures/0.3/futures/executor/index.html
 /// [`tokio`]: https://tokio.rs
 /// [`async-std`]: https://async.rs
-pub struct BatchSpanProcessor<R: TraceRuntime> {
+pub struct BatchSpanProcessor<R: RuntimeChannel<BatchMessage>> {
     message_sender: R::Sender,
 }
 
-impl<R: TraceRuntime> fmt::Debug for BatchSpanProcessor<R> {
+impl<R: RuntimeChannel<BatchMessage>> fmt::Debug for BatchSpanProcessor<R> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("BatchSpanProcessor")
             .field("message_sender", &self.message_sender)
@@ -260,7 +260,7 @@ impl<R: TraceRuntime> fmt::Debug for BatchSpanProcessor<R> {
     }
 }
 
-impl<R: TraceRuntime> SpanProcessor for BatchSpanProcessor<R> {
+impl<R: RuntimeChannel<BatchMessage>> SpanProcessor for BatchSpanProcessor<R> {
     fn on_start(&self, _span: &mut Span, _cx: &Context) {
         // Ignored
     }
@@ -273,14 +273,15 @@ impl<R: TraceRuntime> SpanProcessor for BatchSpanProcessor<R> {
         let result = self.message_sender.try_send(BatchMessage::ExportSpan(span));
 
         if let Err(err) = result {
-            global::handle_error(err);
+            global::handle_error(TraceError::Other(err.into()));
         }
     }
 
     fn force_flush(&self) -> TraceResult<()> {
         let (res_sender, res_receiver) = oneshot::channel();
         self.message_sender
-            .try_send(BatchMessage::Flush(Some(res_sender)))?;
+            .try_send(BatchMessage::Flush(Some(res_sender)))
+            .map_err(|err| TraceError::Other(err.into()))?;
 
         futures_executor::block_on(res_receiver)
             .map_err(|err| TraceError::Other(err.into()))
@@ -290,7 +291,8 @@ impl<R: TraceRuntime> SpanProcessor for BatchSpanProcessor<R> {
     fn shutdown(&mut self) -> TraceResult<()> {
         let (res_sender, res_receiver) = oneshot::channel();
         self.message_sender
-            .try_send(BatchMessage::Shutdown(res_sender))?;
+            .try_send(BatchMessage::Shutdown(res_sender))
+            .map_err(|err| TraceError::Other(err.into()))?;
 
         futures_executor::block_on(res_receiver)
             .map_err(|err| TraceError::Other(err.into()))
@@ -322,7 +324,7 @@ struct BatchSpanProcessorInternal<R> {
     config: BatchConfig,
 }
 
-impl<R: TraceRuntime> BatchSpanProcessorInternal<R> {
+impl<R: RuntimeChannel<BatchMessage>> BatchSpanProcessorInternal<R> {
     async fn flush(&mut self, res_channel: Option<oneshot::Sender<ExportResult>>) {
         let export_task = self.export();
         let task = Box::pin(async move {
@@ -459,7 +461,7 @@ impl<R: TraceRuntime> BatchSpanProcessorInternal<R> {
     }
 }
 
-impl<R: TraceRuntime> BatchSpanProcessor<R> {
+impl<R: RuntimeChannel<BatchMessage>> BatchSpanProcessor<R> {
     pub(crate) fn new(exporter: Box<dyn SpanExporter>, config: BatchConfig, runtime: R) -> Self {
         let (message_sender, message_receiver) =
             runtime.batch_message_channel(config.max_queue_size);
@@ -642,7 +644,7 @@ pub struct BatchSpanProcessorBuilder<E, R> {
 impl<E, R> BatchSpanProcessorBuilder<E, R>
 where
     E: SpanExporter + 'static,
-    R: TraceRuntime,
+    R: RuntimeChannel<BatchMessage>,
 {
     /// Set max queue size for batches
     pub fn with_max_queue_size(self, size: usize) -> Self {
