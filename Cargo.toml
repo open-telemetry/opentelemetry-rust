@@ -9,6 +9,7 @@ members = [
     "opentelemetry-http",
     "opentelemetry-jaeger",
     "opentelemetry-appender-log",
+    "opentelemetry-appender-tracing",
     "opentelemetry-otlp",
     "opentelemetry-prometheus",
     "opentelemetry-proto",
