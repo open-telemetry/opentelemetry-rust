@@ -150,23 +150,22 @@ impl opentelemetry_api::trace::Tracer for Tracer {
         let span_kind = builder.span_kind.take().unwrap_or(SpanKind::Internal);
         let mut attribute_options = builder.attributes.take().unwrap_or_default();
         let mut link_options = builder.links.take();
-        let mut parent_span_id = SpanId::INVALID;
-        let trace_id;
-
-        let parent_span = if parent_cx.has_active_span() {
-            Some(parent_cx.span())
-        } else {
-            None
-        };
 
         // Build context for sampling decision
-        if let Some(sc) = parent_span.as_ref().map(|parent| parent.span_context()) {
-            parent_span_id = sc.span_id();
-            trace_id = sc.trace_id();
-        } else {
-            trace_id = builder
-                .trace_id
-                .unwrap_or_else(|| config.id_generator.new_trace_id());
+        let (parent_span_id, trace_id) = {
+            if parent_cx.span().span_context().is_valid() {
+                (
+                    parent_cx.span().span_context().span_id(),
+                    parent_cx.span().span_context().trace_id(),
+                )
+            } else {
+                (
+                    SpanId::INVALID,
+                    builder
+                        .trace_id
+                        .unwrap_or_else(|| config.id_generator.new_trace_id()),
+                )
+            }
         };
 
         // In order to accomodate use cases like `tracing-opentelemetry` we there is the ability
