@@ -28,6 +28,13 @@ impl<'a> tracing::field::Visit for EventVisitor<'a> {
         if field.name() == "message" {
             self.log_record.body = Some(format!("{value:?}").into());
         }
+        else if let Some(ref mut map) = self.log_record.attributes {
+            map.insert(field.name().into(), format!("{value:?}").into());
+        } else {
+            let mut map = OrderMap::with_capacity(1);
+            map.insert(field.name().into(), format!("{value:?}").into());
+            self.log_record.attributes = Some(map);
+        }
     }
 
     fn record_f64(&mut self, field: &tracing::field::Field, value: f64) {
@@ -65,21 +72,6 @@ impl<'a> tracing::field::Visit for EventVisitor<'a> {
     }
 }
 
-impl<'a> EventVisitor<'a>{
-    fn update_severity(&mut self, level: &str){
-        self.log_record.severity_text = Some(level.to_string().into());
-
-        //self.log_record_builder.with_severity_text(level);
-        match level {
-            "Info" => self.log_record.severity_number =  Some(Severity::Info),
-            "Debug" => self.log_record.severity_number =  Some(Severity::Debug),
-            "Trace" => self.log_record.severity_number =  Some(Severity::Trace),
-            "Warn" => self.log_record.severity_number =  Some(Severity::Warn),
-            "Error" =>self.log_record.severity_number =  Some(Severity::Error),
-            _ => self.log_record.severity_number = Some(Severity::Info) // won't reach here
-        };
-    }
-}
 
 pub struct OpenTelemetryTracingBridge <P, L>
 where
@@ -116,9 +108,22 @@ where
         ) {
             let meta = event.metadata();
             let mut log_record: LogRecord = LogRecord::default();
+            log_record.severity_number =Some(map_severity_to_otel_severity(meta.level().as_str()));
+            log_record.severity_text = Some(meta.level().to_string().into());
+
             let mut visitor = EventVisitor{log_record: &mut log_record};
-            visitor.update_severity( meta.level().as_str());
             event.record(&mut visitor);
             self.logger.emit(log_record);
         }
     }
+
+fn map_severity_to_otel_severity(level: &str) -> Severity {
+       match level {
+        "INFO" => Severity::Info,
+        "DEBUG" => Severity::Debug,
+        "TRACE" => Severity::Trace,
+        "WARN" => Severity::Warn,
+        "ERROR" => Severity::Error,
+        _ => Severity::Info // won't reach here
+    }
+}

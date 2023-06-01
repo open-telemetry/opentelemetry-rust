@@ -20,6 +20,6 @@ fn main() {
     let layer  = layer::OpenTelemetryTracingBridge::new(&provider);
     tracing_subscriber::registry().with(layer).init();
 
-    info!(fruit = "apple", price = 2.99, message = "hello from from price");
+    error!(fruit = "apple", price = 2.99, message = "hello fruit with price");
     drop(provider);
 }
