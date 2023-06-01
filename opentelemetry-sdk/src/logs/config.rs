@@ -1,5 +1,6 @@
-use crate::Resource;
 use std::borrow::Cow;
+
+use crate::Resource;
 
 /// Log emitter configuration.
 #[derive(Debug, Default)]
