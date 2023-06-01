@@ -491,8 +491,7 @@ mod propagator {
                 17.. => Err(()),
                 // less than 16 will result padding on left
                 _ => {
-                    let mut padded = String::with_capacity(16 - span_id.len());
-                    padded.push_str(span_id);
+                    let padded = format!("{span_id:0>16}");
                     SpanId::from_hex(&padded).map_err(|_| ())
                 }
             }
