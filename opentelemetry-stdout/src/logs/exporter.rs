@@ -6,7 +6,7 @@ use opentelemetry_api::{
     logs::{LogError, LogResult},
     ExportError,
 };
-use opentelemetry_sdk::export::logs::{ExportResult, LogData};
+use opentelemetry_sdk::export::logs::LogData;
 
 type Encoder =
     Box<dyn Fn(&mut dyn Write, crate::logs::transform::LogData) -> LogResult<()> + Send + Sync>;
@@ -43,7 +43,7 @@ impl fmt::Debug for LogExporter {
 #[async_trait]
 impl opentelemetry_sdk::export::logs::LogExporter for LogExporter {
     /// Export spans to stdout
-    async fn export(&mut self, batch: Vec<LogData>) -> ExportResult {
+    async fn export(&mut self, batch: Vec<LogData>) -> LogResult<()> {
         if let Some(writer) = &mut self.writer {
             let result = (self.encoder)(writer, crate::logs::LogData::from(batch)) as LogResult<()>;
             result.and_then(|_| writer.write_all(b"\n").map_err(|e| Error(e).into()))
