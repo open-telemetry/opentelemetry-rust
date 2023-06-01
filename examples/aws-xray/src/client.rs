@@ -45,7 +45,8 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error + Send + Sy
 
     let res = client.request(req.body(Body::from("Hallo!"))?).await?;
 
-    cx.span().add_event(
+    // `cx` initialized with span above, so unwrapping is safe
+    cx.span().unwrap().add_event(
         "Got response!".to_string(),
         vec![KeyValue::new("status", res.status().to_string())],
     );

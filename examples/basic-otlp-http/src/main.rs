@@ -62,7 +62,11 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     histogram.record(&cx, 5.5, COMMON_ATTRIBUTES.as_ref());
 
     tracer.in_span("operation", |cx| {
-        let span = cx.span();
+        let span = match cx.span() {
+            Some(span) => span,
+            None => return,
+        };
+
         span.add_event(
             "Nice operation!".to_string(),
             vec![Key::new("bogons").i64(100)],
@@ -70,7 +74,11 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         span.set_attribute(ANOTHER_KEY.string("yes"));
 
         tracer.in_span("Sub operation...", |cx| {
-            let span = cx.span();
+            let span = match cx.span() {
+                Some(span) => span,
+                None => return,
+            };
+
             span.set_attribute(LEMONS_KEY.string("five"));
 
             span.add_event("Sub span event", vec![]);

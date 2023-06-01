@@ -52,7 +52,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
 
     let response = client.say_hello(request).await?;
 
-    cx.span().add_event(
+    // `cx` initialized with span above, so unwrapping is safe
+    cx.span().unwrap().add_event(
         "response-received".to_string(),
         vec![KeyValue::new("response", format!("{response:?}"))],
     );

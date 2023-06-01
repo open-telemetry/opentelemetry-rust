@@ -286,8 +286,8 @@ impl LogRecordBuilder {
     where
         T: TraceContextExt,
     {
-        if context.has_active_span() {
-            self.with_span_context(context.span().span_context())
+        if let Some(span) = context.span() {
+            self.with_span_context(span.span_context())
         } else {
             self
         }

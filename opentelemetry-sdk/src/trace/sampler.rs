@@ -179,31 +179,22 @@ impl ShouldSample for Sampler {
             // Never sample the trace
             Sampler::AlwaysOff => SamplingDecision::Drop,
             // The parent decision if sampled; otherwise the decision of delegate_sampler
-            Sampler::ParentBased(delegate_sampler) => parent_context
-                .filter(|cx| cx.has_active_span())
-                .map_or_else(
-                    || {
-                        delegate_sampler
-                            .should_sample(
-                                parent_context,
-                                trace_id,
-                                name,
-                                span_kind,
-                                attributes,
-                                links,
-                            )
-                            .decision
-                    },
-                    |ctx| {
-                        let span = ctx.span();
-                        let parent_span_context = span.span_context();
-                        if parent_span_context.is_sampled() {
-                            SamplingDecision::RecordAndSample
-                        } else {
-                            SamplingDecision::Drop
-                        }
-                    },
-                ),
+            Sampler::ParentBased(delegate_sampler) => match parent_context.and_then(|cx| cx.span())
+            {
+                Some(span) => {
+                    let parent_span_context = span.span_context();
+                    if parent_span_context.is_sampled() {
+                        SamplingDecision::RecordAndSample
+                    } else {
+                        SamplingDecision::Drop
+                    }
+                }
+                None => {
+                    delegate_sampler
+                        .should_sample(parent_context, trace_id, name, span_kind, attributes, links)
+                        .decision
+                }
+            },
             // Probabilistically sample the trace.
             Sampler::TraceIdRatioBased(prob) => sample_based_on_probability(prob, trace_id),
             #[cfg(feature = "jaeger_remote_sampler")]
@@ -218,8 +209,8 @@ impl ShouldSample for Sampler {
             // No extra attributes ever set by the SDK samplers.
             attributes: Vec::new(),
             // all sampler in SDK will not modify trace state.
-            trace_state: match parent_context {
-                Some(ctx) => ctx.span().span_context().trace_state().clone(),
+            trace_state: match parent_context.and_then(|ctx| ctx.span()) {
+                Some(span) => span.span_context().trace_state().clone(),
                 None => TraceState::default(),
             },
         }

@@ -173,8 +173,8 @@ impl Inner {
                     Some(SamplingResult {
                         decision,
                         attributes: Vec::new(),
-                        trace_state: match parent_context {
-                            Some(ctx) => ctx.span().span_context().trace_state().clone(),
+                        trace_state: match parent_context.and_then(|ctx| ctx.span()) {
+                            Some(span) => span.span_context().trace_state().clone(),
                             None => TraceState::default(),
                         },
                     })

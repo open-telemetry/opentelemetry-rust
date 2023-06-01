@@ -138,7 +138,11 @@ mod tests {
 
     impl TextMapPropagator for TestPropagator {
         fn inject_context(&self, cx: &Context, injector: &mut dyn Injector) {
-            let span = cx.span();
+            let span = match cx.span() {
+                Some(span) => span,
+                None => return,
+            };
+
             let span_context = span.span_context();
             injector.set(
                 "testheader",
@@ -210,6 +214,7 @@ mod tests {
                 composite_propagator
                     .extract(&extractor)
                     .span()
+                    .unwrap()
                     .span_context(),
                 &SpanContext::empty_context()
             );
@@ -256,6 +261,7 @@ mod tests {
                 composite_propagator
                     .extract(&extractor)
                     .span()
+                    .unwrap()
                     .span_context(),
                 &SpanContext::new(
                     TraceId::from_u128(1),
