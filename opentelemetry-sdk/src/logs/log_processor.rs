@@ -1,5 +1,5 @@
 use crate::{
-    export::logs::{ExportResult, LogData, LogExporter},
+    export::logs::{LogData, LogExporter},
     runtime::{RuntimeChannel, TrySend},
 };
 use futures_channel::oneshot;
@@ -246,7 +246,7 @@ async fn export_with_timeout<R, E>(
     exporter: &mut E,
     runtime: &R,
     batch: Vec<LogData>,
-) -> ExportResult
+) -> LogResult<()>
 where
     R: RuntimeChannel<BatchMessage>,
     E: LogExporter + ?Sized,
@@ -261,7 +261,7 @@ where
     pin_mut!(timeout);
     match future::select(export, timeout).await {
         Either::Left((export_res, _)) => export_res,
-        Either::Right((_, _)) => ExportResult::Err(LogError::ExportTimedOut(time_out)),
+        Either::Right((_, _)) => LogResult::Err(LogError::ExportTimedOut(time_out)),
     }
 }
 
@@ -363,7 +363,7 @@ pub enum BatchMessage {
     ExportLog(LogData),
     /// Flush the current buffer to the backend, it can be triggered by
     /// pre configured interval or a call to `force_push` function.
-    Flush(Option<oneshot::Sender<ExportResult>>),
+    Flush(Option<oneshot::Sender<LogResult<()>>>),
     /// Shut down the worker thread, push all logs in buffer to the backend.
-    Shutdown(oneshot::Sender<ExportResult>),
+    Shutdown(oneshot::Sender<LogResult<()>>),
 }

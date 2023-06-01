@@ -7,14 +7,11 @@ use opentelemetry_api::{
 };
 use std::{borrow::Cow, fmt::Debug};
 
-/// Describes the result of an export.
-pub type ExportResult = LogResult<()>;
-
 /// `LogExporter` defines the interface that log exporters should implement.
 #[async_trait]
 pub trait LogExporter: Send + Debug {
     /// Exports a batch of `ResourceLogs`.
-    async fn export(&mut self, batch: Vec<LogData>) -> ExportResult;
+    async fn export(&mut self, batch: Vec<LogData>) -> LogResult<()>;
     /// Shuts down the expoter.
     fn shutdown(&mut self) {}
 }

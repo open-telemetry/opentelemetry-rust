@@ -89,10 +89,6 @@ impl fmt::Display for AnyValue {
             AnyValue::Boolean(v) => v.fmt(fmt),
             AnyValue::Bytes(v) => common::display_array_str(v.as_slice(), fmt),
             AnyValue::ListAny(values) => {
-                if values.is_empty() {
-                    return Ok(());
-                }
-
                 write!(fmt, "[")?;
                 for (i, t) in values.iter().enumerate() {
                     if i > 0 {
@@ -103,10 +99,6 @@ impl fmt::Display for AnyValue {
                 write!(fmt, "]")
             }
             AnyValue::Map(map) => {
-                if map.is_empty() {
-                    return Ok(());
-                }
-
                 write!(fmt, "{{")?;
                 for (i, (k, v)) in map.into_iter().enumerate() {
                     if i > 0 {
