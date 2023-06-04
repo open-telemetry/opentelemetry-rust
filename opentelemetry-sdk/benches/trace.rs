@@ -8,6 +8,7 @@ use opentelemetry_sdk::{
     export::trace::{ExportResult, SpanData, SpanExporter},
     trace as sdktrace,
 };
+use pprof::criterion::{Output, PProfProfiler};
 
 fn criterion_benchmark(c: &mut Criterion) {
     let mut group = c.benchmark_group("EvictedHashMap");
@@ -132,5 +133,9 @@ fn trace_benchmark_group<F: Fn(&sdktrace::Tracer)>(c: &mut Criterion, name: &str
     group.finish();
 }
 
-criterion_group!(benches, criterion_benchmark);
+criterion_group! {
+    name = benches;
+    config = Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
+    targets = criterion_benchmark
+}
 criterion_main!(benches);

@@ -43,3 +43,9 @@ members = [
     "stress",
 ]
 exclude = ["examples/external-otlp-grpcio-async-std"]
+
+[profile.bench]
+# https://doc.rust-lang.org/cargo/reference/profiles.html#bench
+# See function names in profiling reports.
+# 2/true is too much, 0 is not enough, 1 is just right for back traces
+debug = 1
