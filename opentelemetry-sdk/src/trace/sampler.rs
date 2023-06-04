@@ -326,7 +326,7 @@ mod tests {
                     None
                 };
 
-                let trace_id = TraceId::from(rng.gen::<[u8; 16]>());
+                let trace_id = TraceId::from(rng.gen::<u128>());
                 if sampler
                     .should_sample(
                         parent_context.as_ref(),
