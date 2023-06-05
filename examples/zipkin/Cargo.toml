@@ -1,9 +1,0 @@
-[package]
-name = "zipkin"
-version = "0.1.0"
-edition = "2021"
-publish = false
-
-[dependencies]
-opentelemetry = { path = "../../opentelemetry" }
-opentelemetry-zipkin = { path = "../../opentelemetry-zipkin" }

@@ -2,7 +2,7 @@
 
 This example shows how to export spans from an actix-web application and ship them
  to the collector directly via HTTP.  
- It uses the batch exporter to avoid excessive network roundtrips to Jaeger.
+ It uses the batch exporter to avoid excessive network round trips to Jaeger.
 
 ## Usage
 

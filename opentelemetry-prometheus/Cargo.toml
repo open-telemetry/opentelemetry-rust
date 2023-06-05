@@ -28,6 +28,8 @@ protobuf = "2.14"
 
 [dev-dependencies]
 opentelemetry-semantic-conventions = { path = "../opentelemetry-semantic-conventions" }
+hyper = { version = "0.14", features = ["full"] }
+tokio = { version = "1", features = ["full"] }
 
 [features]
 prometheus-encoding = []

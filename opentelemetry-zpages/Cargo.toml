@@ -31,3 +31,9 @@ serde_json = "1.0"
 [dev-dependencies]
 tokio = { version = "1.0", features = ["macros", "rt"] }
 opentelemetry = { path = "../opentelemetry", features = ["trace", "testing"] }
+rand = "0.8"
+hyper = { version = "0.14", features = ["full"] }
+
+[[example]]
+name = "zpages"
+path = "examples/zpages.rs"
