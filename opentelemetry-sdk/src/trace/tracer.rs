@@ -22,12 +22,12 @@ use opentelemetry_api::trace::{
 };
 use opentelemetry_api::{Context, Key, KeyValue, OrderMap, Value};
 use std::fmt;
-use std::sync::Weak;
+use std::sync::{Arc, Weak};
 
 /// `Tracer` implementation to create and manage spans
 #[derive(Clone)]
 pub struct Tracer {
-    instrumentation_lib: InstrumentationLibrary,
+    instrumentation_lib: Arc<InstrumentationLibrary>,
     provider: Weak<TracerProviderInner>,
 }
 
@@ -45,7 +45,7 @@ impl fmt::Debug for Tracer {
 impl Tracer {
     /// Create a new tracer (used internally by `TracerProvider`s).
     pub(crate) fn new(
-        instrumentation_lib: InstrumentationLibrary,
+        instrumentation_lib: Arc<InstrumentationLibrary>,
         provider: Weak<TracerProviderInner>,
     ) -> Self {
         Tracer {
