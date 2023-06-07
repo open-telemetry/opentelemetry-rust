@@ -201,14 +201,14 @@ mod propagator {
         fn extract_trace_id(&self, trace_id: &str) -> Result<TraceId, ExtractError> {
             trace_id
                 .parse::<u64>()
-                .map(|id| TraceId::from((id as u128).to_be_bytes()))
+                .map(|id| TraceId::from(id as u128))
                 .map_err(|_| ExtractError::TraceId)
         }
 
         fn extract_span_id(&self, span_id: &str) -> Result<SpanId, ExtractError> {
             span_id
                 .parse::<u64>()
-                .map(|id| SpanId::from(id.to_be_bytes()))
+                .map(SpanId::from)
                 .map_err(|_| ExtractError::SpanId)
         }
 

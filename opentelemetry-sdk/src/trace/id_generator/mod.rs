@@ -25,11 +25,11 @@ pub struct RandomIdGenerator {
 
 impl IdGenerator for RandomIdGenerator {
     fn new_trace_id(&self) -> TraceId {
-        CURRENT_RNG.with(|rng| TraceId::from(rng.borrow_mut().gen::<[u8; 16]>()))
+        CURRENT_RNG.with(|rng| TraceId::from(rng.borrow_mut().gen::<u128>()))
     }
 
     fn new_span_id(&self) -> SpanId {
-        CURRENT_RNG.with(|rng| SpanId::from(rng.borrow_mut().gen::<[u8; 8]>()))
+        CURRENT_RNG.with(|rng| SpanId::from(rng.borrow_mut().gen::<u64>()))
     }
 }
 

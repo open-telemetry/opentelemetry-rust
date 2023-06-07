@@ -1,6 +1,6 @@
 use crate::{
-    trace::{OrderMap, SpanContext, SpanId, TraceContextExt, TraceFlags, TraceId},
-    Array, Key, StringValue, Value,
+    trace::{SpanContext, SpanId, TraceContextExt, TraceFlags, TraceId},
+    Array, Key, OrderMap, StringValue, Value,
 };
 use std::{borrow::Cow, time::SystemTime};
 

@@ -36,10 +36,8 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dev-dependencies]
-bincode = "1.2"
-criterion = "0.4.0"
-rand_distr = "0.4.0"
-crossbeam-queue = "0.3.1"
+criterion = { version = "0.4.0", features = ["html_reports"] }
+pprof = { version = "0.11.1", features = ["flamegraph", "criterion"] }
 
 [features]
 default = ["trace"]

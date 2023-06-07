@@ -38,7 +38,7 @@ mod proto;
 #[cfg(feature = "gen-protoc")]
 pub use proto::grpcio;
 
-#[cfg(feature = "gen-tonic")]
+#[cfg(feature = "gen-tonic-messages")]
 pub use proto::tonic;
 
 mod transform;

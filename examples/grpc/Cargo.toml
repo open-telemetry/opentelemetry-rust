@@ -15,7 +15,6 @@ path = "src/client.rs"
 doc = false
 
 [dependencies]
-http = "0.2"
 tonic = "0.6.2"
 prost = "0.9"
 tokio = { version = "1.0", features = ["full"] }

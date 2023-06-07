@@ -9,7 +9,6 @@ env_logger = "0.9.0"
 opentelemetry_api = {path = "../../opentelemetry-api" }
 opentelemetry_sdk = {path = "../../opentelemetry-sdk", features = ["rt-tokio", "metrics"]}
 opentelemetry-otlp = {path = "../../opentelemetry-otlp", features = ["tonic", "tls", "tls-roots"]}
-serde_json = "1.0"
 tokio = {version = "1.0", features = ["full"]}
 tonic = {version = "0.9.0", features = ["tls"]}
 url = "2.2.0"

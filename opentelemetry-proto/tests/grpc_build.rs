@@ -65,6 +65,8 @@ fn build_tonic() {
     tonic_build::configure()
         .build_server(true)
         .build_client(true)
+        .server_mod_attribute(".", "#[cfg(feature = \"gen-tonic\")]")
+        .client_mod_attribute(".", "#[cfg(feature = \"gen-tonic\")]")
         .out_dir(out_dir.path())
         .compile(TONIC_PROTO_FILES, TONIC_INCLUDES)
         .expect("cannot compile protobuf using tonic");
