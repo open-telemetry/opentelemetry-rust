@@ -24,7 +24,6 @@ reqwest-client = ["reqwest", "opentelemetry-http/reqwest"]
 surf-client = ["surf", "opentelemetry-http/surf"]
 
 [dependencies]
-async-trait = "0.1"
 indexmap = "1.8"
 once_cell = "1.12"
 opentelemetry = { version = "0.19", path = "../opentelemetry", features = ["trace"] }
@@ -40,6 +39,7 @@ http = "0.2"
 futures-core = "0.3"
 
 [dev-dependencies]
+async-trait = "0.1"
 base64 = "0.13"
 bytes = "1"
 futures-util = { version = "0.3", features = ["io"] }
