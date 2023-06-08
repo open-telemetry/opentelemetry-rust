@@ -256,7 +256,7 @@ pub enum Value {
 
 /// Wrapper for string-like values
 #[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct  StringValue(OtelString);
+pub struct StringValue(OtelString);
 
 impl fmt::Debug for StringValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
