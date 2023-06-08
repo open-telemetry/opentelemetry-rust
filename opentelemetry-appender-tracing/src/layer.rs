@@ -28,7 +28,7 @@ impl<'a> tracing::field::Visit for EventVisitor<'a> {
     }
 
     // TODO: All record functions should be implemented instead of relying
-    // of record_debug.
+    // of record_debug which stores everything as string.
 }
 
 pub struct OpenTelemetryTracingBridge<P, L>

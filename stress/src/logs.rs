@@ -12,7 +12,7 @@ mod throughput;
 struct NoopEventVisitor;
 
 impl tracing::field::Visit for NoopEventVisitor {
-    fn record_debug(&mut self, field: &tracing::field::Field, _value: &dyn std::fmt::Debug) {}
+    fn record_debug(&mut self, _field: &tracing::field::Field, _value: &dyn std::fmt::Debug) {}
 }
 
 struct NoOpLogLayer;
