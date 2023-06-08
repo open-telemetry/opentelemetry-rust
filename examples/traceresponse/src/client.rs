@@ -48,9 +48,13 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error + Send + Sy
     let response_cx =
         response_propagator.extract_with_context(&cx, &HeaderExtractor(res.headers()));
 
-    let response_span = response_cx.span();
+    let response_span = match response_cx.span() {
+        Some(response_span) => response_span,
+        None => return Ok(()),
+    };
 
-    cx.span().add_event(
+    // `cx` initialized with span above, so unwrapping is safe
+    cx.span().unwrap().add_event(
         "Got response!".to_string(),
         vec![
             KeyValue::new("status", res.status().to_string()),

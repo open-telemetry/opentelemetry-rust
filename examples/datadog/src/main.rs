@@ -24,7 +24,11 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         .install_simple()?;
 
     tracer.in_span("foo", |cx| {
-        let span = cx.span();
+        let span = match cx.span() {
+            Some(span) => span,
+            None => return,
+        };
+
         span.set_attribute(Key::new("span.type").string("web"));
         span.set_attribute(Key::new("http.url").string("http://localhost:8080/foo"));
         span.set_attribute(Key::new("http.method").string("GET"));

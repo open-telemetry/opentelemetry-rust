@@ -103,7 +103,10 @@ impl Tracer {
                 attributes,
                 trace_state,
             } => {
-                let trace_flags = parent_cx.span().span_context().trace_flags();
+                let trace_flags = match parent_cx.span() {
+                    Some(span) => span.span_context().trace_flags(),
+                    None => TraceFlags::default(),
+                };
                 Some((trace_flags.with_sampled(false), attributes, trace_state))
             }
             SamplingResult {
@@ -111,7 +114,10 @@ impl Tracer {
                 attributes,
                 trace_state,
             } => {
-                let trace_flags = parent_cx.span().span_context().trace_flags();
+                let trace_flags = match parent_cx.span() {
+                    Some(span) => span.span_context().trace_flags(),
+                    None => TraceFlags::default(),
+                };
                 Some((trace_flags.with_sampled(true), attributes, trace_state))
             }
         }
@@ -150,23 +156,18 @@ impl opentelemetry_api::trace::Tracer for Tracer {
         let span_kind = builder.span_kind.take().unwrap_or(SpanKind::Internal);
         let mut attribute_options = builder.attributes.take().unwrap_or_default();
         let mut link_options = builder.links.take();
-        let mut parent_span_id = SpanId::INVALID;
-        let trace_id;
 
-        let parent_span = if parent_cx.has_active_span() {
-            Some(parent_cx.span())
-        } else {
-            None
-        };
-
-        // Build context for sampling decision
-        if let Some(sc) = parent_span.as_ref().map(|parent| parent.span_context()) {
-            parent_span_id = sc.span_id();
-            trace_id = sc.trace_id();
-        } else {
-            trace_id = builder
-                .trace_id
-                .unwrap_or_else(|| config.id_generator.new_trace_id());
+        let (parent_span_id, trace_id) = match parent_cx.span() {
+            Some(span) => {
+                let span_context = span.span_context();
+                (span_context.span_id(), span_context.trace_id())
+            }
+            None => (
+                SpanId::INVALID,
+                builder
+                    .trace_id
+                    .unwrap_or_else(|| config.id_generator.new_trace_id()),
+            ),
         };
 
         // In order to accomodate use cases like `tracing-opentelemetry` we there is the ability
@@ -298,6 +299,7 @@ mod tests {
             let trace_state = parent_context
                 .unwrap()
                 .span()
+                .unwrap()
                 .span_context()
                 .trace_state()
                 .clone();

@@ -31,16 +31,20 @@ mod tests {
                 tracer.in_span("step-2-1", |_cx| {});
                 tracer.in_span("step-2-2", |_cx| {
                     tracer.in_span("step-3-1", |cx| {
-                        let span = cx.span();
-                        span.set_status(Status::error("some err"))
+                        if let Some(span) = cx.span() {
+                            span.set_status(Status::error("some err"));
+                        }
                     });
                     tracer.in_span("step-3-2", |cx| {
-                        cx.span()
-                            .set_attribute(KeyValue::new("tag-3-2-1", "tag-value-3-2-1"))
+                        if let Some(span) = cx.span() {
+                            span.set_attribute(KeyValue::new("tag-3-2-1", "tag-value-3-2-1"))
+                        }
                     })
                 });
-                cx.span()
-                    .add_event("something happened", vec![KeyValue::new("key1", "value1")]);
+
+                if let Some(span) = cx.span() {
+                    span.add_event("something happened", vec![KeyValue::new("key1", "value1")]);
+                }
             });
         }
     }

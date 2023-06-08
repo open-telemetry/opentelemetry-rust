@@ -211,7 +211,11 @@ pub mod trace {
 
     impl TextMapPropagator for XrayPropagator {
         fn inject_context(&self, cx: &Context, injector: &mut dyn Injector) {
-            let span = cx.span();
+            let span = match cx.span() {
+                Some(span) => span,
+                None => return,
+            };
+
             let span_context = span.span_context();
             if let Some(header_value) = span_context_to_string(span_context) {
                 injector.set(AWS_XRAY_TRACE_HEADER, header_value);
@@ -352,7 +356,7 @@ pub mod trace {
 
                 let propagator = XrayPropagator::default();
                 let context = propagator.extract(&map);
-                assert_eq!(context.span().span_context(), &expected);
+                assert_eq!(context.span().unwrap().span_context(), &expected);
             }
         }
 
@@ -361,7 +365,10 @@ pub mod trace {
             let map: HashMap<String, String> = HashMap::new();
             let propagator = XrayPropagator::default();
             let context = propagator.extract(&map);
-            assert_eq!(context.span().span_context(), &SpanContext::empty_context())
+            assert_eq!(
+                context.span().unwrap().span_context(),
+                &SpanContext::empty_context()
+            )
         }
 
         #[test]

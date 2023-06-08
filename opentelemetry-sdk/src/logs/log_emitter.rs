@@ -212,8 +212,7 @@ impl opentelemetry_api::logs::Logger for Logger {
             let mut record = record.clone();
             if self.include_trace_context {
                 let ctx = Context::current();
-                if ctx.has_active_span() {
-                    let span = ctx.span();
+                if let Some(span) = ctx.span() {
                     record.trace_context = Some(span.span_context().into());
                 }
             }

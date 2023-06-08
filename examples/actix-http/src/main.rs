@@ -28,7 +28,9 @@ fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
 async fn index() -> &'static str {
     let tracer = global::tracer("request");
     tracer.in_span("index", |ctx| {
-        ctx.span().set_attribute(Key::new("parameter").i64(10));
+        if let Some(span) = ctx.span() {
+            span.set_attribute(Key::new("parameter").i64(10));
+        }
         "Index"
     })
 }
@@ -45,8 +47,9 @@ async fn main() -> std::io::Result<()> {
             .wrap(Logger::default())
             .wrap_fn(move |req, srv| {
                 tracer.in_span("middleware", move |cx| {
-                    cx.span()
-                        .set_attribute(Key::new("path").string(req.path().to_string()));
+                    if let Some(span) = cx.span() {
+                        span.set_attribute(Key::new("path").string(req.path().to_string()));
+                    }
                     srv.call(req).with_context(cx)
                 })
             })

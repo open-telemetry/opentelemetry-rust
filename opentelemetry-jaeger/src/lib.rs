@@ -546,7 +546,11 @@ mod propagator {
 
     impl TextMapPropagator for Propagator {
         fn inject_context(&self, cx: &Context, injector: &mut dyn Injector) {
-            let span = cx.span();
+            let span = match cx.span() {
+                Some(span) => span,
+                None => return,
+            };
+
             let span_context = span.span_context();
             if span_context.is_valid() {
                 let flag: u8 = if span_context.is_sampled() {
@@ -724,7 +728,7 @@ mod propagator {
                 let mut map: HashMap<String, String> = HashMap::new();
                 map.set(context_key, format!("{}:{}:0:{}", trace_id, span_id, flag));
                 let context = propagator.extract(&map);
-                assert_eq!(context.span().span_context(), &expected);
+                assert_eq!(context.span().unwrap().span_context(), &expected);
             }
         }
 
@@ -747,7 +751,10 @@ mod propagator {
             let map: HashMap<String, String> = HashMap::new();
             let propagator = Propagator::new();
             let context = propagator.extract(&map);
-            assert_eq!(context.span().span_context(), &SpanContext::empty_context())
+            assert_eq!(
+                context.span().unwrap().span_context(),
+                &SpanContext::empty_context()
+            )
         }
 
         #[test]
@@ -768,7 +775,7 @@ mod propagator {
                     format!("{}:{}:0:{}", trace_id, span_id, flag),
                 );
                 let context = propagator.extract(&map);
-                assert_eq!(context.span().span_context(), &expected);
+                assert_eq!(context.span().unwrap().span_context(), &expected);
             }
         }
 
@@ -781,7 +788,10 @@ mod propagator {
             );
             let propagator = Propagator::new();
             let context = propagator.extract(&map);
-            assert_eq!(context.span().span_context(), &SpanContext::empty_context());
+            assert_eq!(
+                context.span().unwrap().span_context(),
+                &SpanContext::empty_context()
+            );
         }
 
         #[test]
@@ -793,7 +803,10 @@ mod propagator {
             );
             let propagator = Propagator::new();
             let context = propagator.extract(&map);
-            assert_eq!(context.span().span_context(), &SpanContext::empty_context());
+            assert_eq!(
+                context.span().unwrap().span_context(),
+                &SpanContext::empty_context()
+            );
         }
 
         #[test]
@@ -806,7 +819,7 @@ mod propagator {
             let propagator = Propagator::new();
             let context = propagator.extract(&map);
             assert_eq!(
-                context.span().span_context(),
+                context.span().unwrap().span_context(),
                 &SpanContext::new(
                     TraceId::from_u128(TRACE_ID),
                     SpanId::from_u64(SPAN_ID),

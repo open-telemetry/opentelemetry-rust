@@ -5,7 +5,6 @@ use crate::{
     Context, ContextGuard, KeyValue,
 };
 use futures_util::{sink::Sink, stream::Stream};
-use once_cell::sync::Lazy;
 use pin_project_lite::pin_project;
 use std::{
     borrow::Cow,
@@ -14,11 +13,6 @@ use std::{
     sync::Mutex,
     task::{Context as TaskContext, Poll},
 };
-
-static NOOP_SPAN: Lazy<SynchronizedSpan> = Lazy::new(|| SynchronizedSpan {
-    span_context: SpanContext::empty_context(),
-    inner: None,
-});
 
 /// A reference to the currently active span in this context.
 #[derive(Debug)]
@@ -220,8 +214,7 @@ pub trait TraceContextExt {
     ///
     fn with_span<T: crate::trace::Span + Send + Sync + 'static>(&self, span: T) -> Self;
 
-    /// Returns a reference to this context's span, or the default no-op span if
-    /// none has been set.
+    /// Returns a reference to this context's span if it has been set.
     ///
     /// # Examples
     ///
@@ -229,20 +222,11 @@ pub trait TraceContextExt {
     /// use opentelemetry_api::{trace::TraceContextExt, Context};
     ///
     /// // Add an event to the currently active span
-    /// Context::current().span().add_event("An event!", vec![]);
+    /// if let Some(span) = Context::current().span() {
+    ///     span.add_event("An event!", vec![]);
+    /// }
     /// ```
-    fn span(&self) -> SpanRef<'_>;
-
-    /// Returns whether or not an active span has been set.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use opentelemetry_api::{trace::TraceContextExt, Context};
-    ///
-    /// assert!(!Context::current().has_active_span());
-    /// ```
-    fn has_active_span(&self) -> bool;
+    fn span(&self) -> Option<SpanRef<'_>>;
 
     /// Returns a copy of this context with the span context included.
     ///
@@ -265,16 +249,8 @@ impl TraceContextExt for Context {
         })
     }
 
-    fn span(&self) -> SpanRef<'_> {
-        if let Some(span) = self.get::<SynchronizedSpan>() {
-            SpanRef(span)
-        } else {
-            SpanRef(&NOOP_SPAN)
-        }
-    }
-
-    fn has_active_span(&self) -> bool {
-        self.get::<SynchronizedSpan>().is_some()
+    fn span(&self) -> Option<SpanRef<'_>> {
+        self.get::<SynchronizedSpan>().map(SpanRef)
     }
 
     fn with_remote_span_context(&self, span_context: crate::trace::SpanContext) -> Self {
@@ -323,6 +299,9 @@ pub fn mark_span_as_active<T: crate::trace::Span + Send + Sync + 'static>(span: 
 
 /// Executes a closure with a reference to this thread's current span.
 ///
+/// If the current thread has an active span, calls the closure `f` on it and yields `Some` with
+/// the result of the closure. Otherwise, yields `None` without calling `f`.
+///
 /// # Examples
 ///
 /// ```
@@ -344,11 +323,11 @@ pub fn mark_span_as_active<T: crate::trace::Span + Send + Sync + 'static>(span: 
 ///     })
 /// }
 /// ```
-pub fn get_active_span<F, T>(f: F) -> T
+pub fn get_active_span<F, T>(f: F) -> Option<T>
 where
     F: FnOnce(SpanRef<'_>) -> T,
 {
-    f(Context::current().span())
+    Context::current().span().map(f)
 }
 
 pin_project! {

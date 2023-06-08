@@ -221,7 +221,11 @@ impl TextMapPropagator for Propagator {
     /// Properly encodes the values of the `Context`'s `SpanContext` and injects
     /// them into the `Injector`.
     fn inject_context(&self, context: &Context, injector: &mut dyn Injector) {
-        let span = context.span();
+        let span = match context.span() {
+            Some(span) => span,
+            None => return,
+        };
+
         let span_context = span.span_context();
         if span_context.is_valid() {
             let is_deferred =
@@ -489,6 +493,7 @@ mod tests {
                 single_header_propagator
                     .extract(&extractor)
                     .span()
+                    .unwrap()
                     .span_context()
                     .clone(),
                 expected_context
@@ -502,6 +507,7 @@ mod tests {
                 multi_header_propagator
                     .extract(&extractor)
                     .span()
+                    .unwrap()
                     .span_context()
                     .clone(),
                 expected_context
@@ -510,6 +516,7 @@ mod tests {
                 unspecific_header_propagator
                     .extract(&extractor)
                     .span()
+                    .unwrap()
                     .span_context()
                     .clone(),
                 expected_context
@@ -526,6 +533,7 @@ mod tests {
                 single_header_propagator
                     .extract(&extractor)
                     .span()
+                    .unwrap()
                     .span_context()
                     .clone(),
                 expected_context
@@ -534,6 +542,7 @@ mod tests {
                 single_multi_propagator
                     .extract(&extractor)
                     .span()
+                    .unwrap()
                     .span_context()
                     .clone(),
                 expected_context
@@ -550,6 +559,7 @@ mod tests {
                 single_header_propagator
                     .extract(&extractor)
                     .span()
+                    .unwrap()
                     .span_context(),
                 &SpanContext::empty_context(),
             )
@@ -562,6 +572,7 @@ mod tests {
                 multi_header_propagator
                     .extract(&extractor)
                     .span()
+                    .unwrap()
                     .span_context(),
                 &SpanContext::empty_context(),
             )

@@ -24,7 +24,7 @@ async fn handle(req: Request<Body>) -> Result<Response<Body>, Infallible> {
 
     let cx = Context::current_with_span(span);
 
-    cx.span().add_event("handling this...", Vec::new());
+    cx.span().unwrap().add_event("handling this...", Vec::new());
 
     let mut res = Response::new("Hello, World!".into());
 

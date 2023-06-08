@@ -100,7 +100,11 @@ impl TextMapPropagator for TraceContextResponsePropagator {
     /// Properly encodes the values of the `SpanContext` and injects them
     /// into the `Injector`.
     fn inject_context(&self, cx: &Context, injector: &mut dyn Injector) {
-        let span = cx.span();
+        let span = match cx.span() {
+            Some(span) => span,
+            None => return,
+        };
+
         let span_context = span.span_context();
         if span_context.is_valid() {
             let header_value = format!(
@@ -194,7 +198,11 @@ mod tests {
             extractor.insert(TRACERESPONSE_HEADER.to_string(), traceresponse.to_string());
 
             assert_eq!(
-                propagator.extract(&extractor).span().span_context(),
+                propagator
+                    .extract(&extractor)
+                    .span()
+                    .unwrap()
+                    .span_context(),
                 &expected_context
             )
         }
@@ -209,7 +217,11 @@ mod tests {
             extractor.insert(TRACERESPONSE_HEADER.to_string(), invalid_header.to_string());
 
             assert_eq!(
-                propagator.extract(&extractor).span().span_context(),
+                propagator
+                    .extract(&extractor)
+                    .span()
+                    .unwrap()
+                    .span_context(),
                 &SpanContext::empty_context(),
                 "{}",
                 reason
