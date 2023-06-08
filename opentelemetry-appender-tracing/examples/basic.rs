@@ -6,7 +6,7 @@ use opentelemetry_sdk::{
     logs::{Config, LoggerProvider},
     Resource,
 };
-use tracing::{error, info};
+use tracing::{error};
 use tracing_subscriber::prelude::*;
 
 fn main() {
