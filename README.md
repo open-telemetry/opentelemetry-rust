@@ -51,14 +51,16 @@ available:
 * opentelemetry-appender-tracing // TODO: Add link once available
 * opentelemetry-appender-slog // TODO: Add link once available
 
-If you already use the logging APIs from above, continue to use them, and use the appenders above to bridge the logs to OpenTelemetry. If you are using a library not listed here, feel free to
-contribute a new appender for the same.
+If you already use the logging APIs from above, continue to use them, and use
+the appenders above to bridge the logs to OpenTelemetry. If you are using a
+library not listed here, feel free to contribute a new appender for the same.
 
 If you are starting fresh, then consider using
 [tracing](https://github.com/tokio-rs/tracing) as your logging API. It supports
 structured logging and is actively maintained.
 
-Project versioning information and stability guarantees can be found [here](VERSIONING.md).
+Project versioning information and stability guarantees can be found
+[here](VERSIONING.md).
 
 ## Getting Started
 
