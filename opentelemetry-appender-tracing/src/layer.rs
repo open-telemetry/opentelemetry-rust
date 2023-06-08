@@ -1,6 +1,6 @@
 use opentelemetry_api::{
     logs::LoggerProvider,
-    logs::{AnyValue, Severity},
+    logs::Severity,
     logs::{LogRecord, Logger},
     OrderMap,
 };
