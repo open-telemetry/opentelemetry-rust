@@ -47,7 +47,6 @@ impl UserEventsExporter {
         exporter_config: ExporterConfig,
     ) -> Self
     {
-        println!("Registered...\n");
         let mut options = eventheader_dynamic::Provider::new_options();
         options = *options.group_name(provider_name);
         let mut provider: eventheader_dynamic::Provider = eventheader_dynamic::Provider::new(provider_name, &options);
@@ -80,10 +79,8 @@ impl UserEventsExporter {
         }
     }
 
-    pub(crate) fn export_log_data(&self,log_data: &opentelemetry_sdk::export::logs::LogData ) -> opentelemetry_sdk::export::logs::ExportResult {
-
-        println!("Called...\n");
-
+    pub(crate) fn export_log_data(&self,log_data: &opentelemetry_sdk::export::logs::LogData ) -> opentelemetry_sdk::export::logs::ExportResult 
+    {
         let level = match log_data.record.severity_number.unwrap() {
             Severity::Debug 
             | Severity::Debug2 
@@ -142,13 +139,11 @@ impl UserEventsExporter {
                 eb.add_struct("PartB", 2, 0);
                 eb.write(&log_es, None, None);
 
-                
+                //TBD - Add remaining LogRecord attributes.
             });
             return Ok(());
         }
         Ok(())
-
-
     }
 }
 
