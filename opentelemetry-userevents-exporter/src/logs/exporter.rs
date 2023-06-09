@@ -8,12 +8,13 @@ use async_trait::async_trait;
 use std::sync::Arc;
 use std::fmt::Debug;
 use std::borrow::Cow;
+use chrono::{Datelike, Timelike};
+
 
 use std::{cell::RefCell, time::SystemTime};
 use opentelemetry_api::logs::Severity;
 
 pub type ProviderGroup = Option<Cow<'static, str>>;
-
 
 thread_local! { static EBW: RefCell<EventBuilder> = RefCell::new(EventBuilder::new());}
 
@@ -120,8 +121,6 @@ impl UserEventsExporter {
             return Ok(());
         };
         if log_es.enabled() {
-            println!("Enabled...lets call..\n");
-
             EBW.with(|eb| {
 
                 let mut eb = eb.borrow_mut();
@@ -131,14 +130,22 @@ impl UserEventsExporter {
                 eb.opcode(Opcode::Info);
 
                 eb.add_value("__csver__", 0x0401u16, FieldFormat::HexInt, 0);
+                eb.add_struct("PartA", 2 /* + exts.len() as u8*/, 0);
+                {
+                    if (log_data.record.timestamp.is_some()) {
+                        let time: String = chrono::DateTime::to_rfc3339(
+                         &chrono::DateTime::<chrono::Utc>::from(log_data.record.timestamp.unwrap()));
 
+                        eb.add_str("time", time, FieldFormat::Default, 0);
+                    }
+                }
+                eb.add_struct("PartB", 2, 0);
                 eb.write(&log_es, None, None);
 
                 
             });
             return Ok(());
         }
-        println!("Not enabled...\n");
         Ok(())
 
 

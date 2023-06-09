@@ -6,8 +6,8 @@ use std::fmt::Debug;
 use opentelemetry_api::{InstrumentationLibrary, logs::LogRecord, logs::LogResult};
 use opentelemetry_sdk::{export::logs::LogExporter, export::logs::LogData, export::logs::ExportResult};
 
-use crate::exporter::*;
-use crate::exporter::ExporterConfig;
+use crate::logs::exporter::*;
+use crate::logs::exporter::ExporterConfig;
 //use crate::exporter_traits::*;
 
 use std::cell::Cell; 

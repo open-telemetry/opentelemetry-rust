@@ -2,22 +2,16 @@
 
 [splash]: https://raw.githubusercontent.com/open-telemetry/opentelemetry-rust/main/assets/logo-text.png
 
-# OpenTelemetry Log Appender
-
-A [Log Appender](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/glossary.md#log-appender--bridge) that bridges logs from the [log crate](https://docs.rs/log/latest/log/) to OpenTelemetry.
-
-[![Crates.io: opentelemetry-appender-log](https://img.shields.io/crates/v/opentelemetry-appender-log.svg)](https://crates.io/crates/opentelemetry-appender-log)
-[![Documentation](https://docs.rs/opentelemetry-appender-log/badge.svg)](https://docs.rs/opentelemetry-appender-log)
-[![LICENSE](https://img.shields.io/crates/l/opentelemetry-appender-log)](./LICENSE)
-[![GitHub Actions CI](https://github.com/open-telemetry/opentelemetry-rust/workflows/CI/badge.svg)](https://github.com/open-telemetry/opentelemetry-rust/actions?query=workflow%3ACI+branch%3Amain)
-[![Slack](https://img.shields.io/badge/slack-@cncf/otel/rust-brightgreen.svg?logo=slack)](https://cloud-native.slack.com/archives/C03GDP0H023)
+# OpenTelemetry user_events Exporter
 
 ## Overview
 
-[`OpenTelemetry`] is a collection of tools, APIs, and SDKs used to instrument,
-generate, collect, and export telemetry data (metrics, logs, and traces) for
-analysis in order to understand your software's performance and behavior. This
-crate provides additional propagators and exporters for sending telemetry data
-to vendors or using experimental propagators like `base64`.
+[user_events](https://docs.kernel.org/trace/user_events.html) is Linux solution for user process tracing, similar to ETW (Event Tracing for Windows) on Windows. It builds on top of the Linux Tracepoints, and so allows user processes to create events and trace data that can be viewed via existing tools like ftrace and perf.
 
-[`OpenTelemetry`]: https://crates.io/crates/opentelemetry
+This kernel feature is supported started in Linux kernel 5.18 onwards. The feature enables
+ - A faster path for tracing from user mode application utilizing kernel mode memory address space. 
+ - User processes can now export telemetry events only when it is useful, and there is a agent listening for the set of registered events.
+
+ This user_events exporter enables applications to use OpenTelemetry API to capture the telemetry events, and write to user_events subsystem. From user_events, the events can be
+  - Captured by the agents running locally, and listening for specific events withing user_events subsystem.
+  - Or real-time monitoring using local Linux tool like [perf](https://perf.wiki.kernel.org/index.php/Main_Page) or ftrace.
