@@ -88,7 +88,7 @@ impl From<&'static str> for Key {
 impl From<String> for Key {
     /// Convert a `String` to a `Key`.
     fn from(string: String) -> Self {
-        Key(OtelString::Owned(string))
+        Key(OtelString::Owned(string.into_boxed_str()))
     }
 }
 
@@ -104,7 +104,7 @@ impl From<Cow<'static, str>> for Key {
     fn from(string: Cow<'static, str>) -> Self {
         match string {
             Cow::Borrowed(s) => Key(OtelString::Static(s)),
-            Cow::Owned(s) => Key(OtelString::Owned(s)),
+            Cow::Owned(s) => Key(OtelString::Owned(s.into_boxed_str())),
         }
     }
 }
@@ -118,7 +118,7 @@ impl fmt::Debug for Key {
 impl From<Key> for String {
     fn from(key: Key) -> Self {
         match key.0 {
-            OtelString::Owned(s) => s,
+            OtelString::Owned(s) => s.to_string(),
             OtelString::Static(s) => s.to_string(),
             OtelString::RefCounted(s) => s.to_string(),
         }
@@ -137,8 +137,8 @@ impl fmt::Display for Key {
 
 #[derive(Clone, Debug, Eq)]
 enum OtelString {
+    Owned(Box<str>),
     Static(&'static str),
-    Owned(String),
     RefCounted(Arc<str>),
 }
 
@@ -290,7 +290,7 @@ impl StringValue {
 impl From<StringValue> for String {
     fn from(s: StringValue) -> Self {
         match s.0 {
-            OtelString::Owned(s) => s,
+            OtelString::Owned(s) => s.to_string(),
             OtelString::Static(s) => s.to_string(),
             OtelString::RefCounted(s) => s.to_string(),
         }
@@ -305,7 +305,7 @@ impl From<&'static str> for StringValue {
 
 impl From<String> for StringValue {
     fn from(s: String) -> Self {
-        StringValue(OtelString::Owned(s))
+        StringValue(OtelString::Owned(s.into_boxed_str()))
     }
 }
 
@@ -318,7 +318,7 @@ impl From<Arc<str>> for StringValue {
 impl From<Cow<'static, str>> for StringValue {
     fn from(s: Cow<'static, str>) -> Self {
         match s {
-            Cow::Owned(s) => StringValue(OtelString::Owned(s)),
+            Cow::Owned(s) => StringValue(OtelString::Owned(s.into_boxed_str())),
             Cow::Borrowed(s) => StringValue(OtelString::Static(s)),
         }
     }
