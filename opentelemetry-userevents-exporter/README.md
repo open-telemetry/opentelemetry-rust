@@ -10,7 +10,7 @@
 
 This kernel feature is supported started in Linux kernel 5.18 onwards. The feature enables
  - A faster path for tracing from user mode application utilizing kernel mode memory address space. 
- - User processes can now export telemetry events only when it is useful, and there is a agent listening for the set of registered events.
+ - User processes can now export telemetry events only when it is useful i.e, when the registered set of tracepoint events are enabled.
 
  This user_events exporter enables applications to use OpenTelemetry API to capture the telemetry events, and write to user_events subsystem. From user_events, the events can be
   - Captured by the agents running locally, and listening for specific events withing user_events subsystem.
