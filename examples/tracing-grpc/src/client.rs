@@ -1,6 +1,5 @@
 use hello_world::greeter_client::GreeterClient;
 use hello_world::HelloRequest;
-use opentelemetry::sdk::propagation::TraceContextPropagator;
 use opentelemetry::{global, propagation::Injector};
 use tracing::*;
 use tracing_futures::Instrument;
@@ -13,7 +12,7 @@ impl<'a> Injector for MetadataMap<'a> {
     /// Set a key and value in the MetadataMap.  Does nothing if the key or value are not valid inputs
     fn set(&mut self, key: &str, value: String) {
         if let Ok(key) = tonic::metadata::MetadataKey::from_bytes(key.as_bytes()) {
-            if let Ok(val) = tonic::metadata::MetadataValue::from_str(&value) {
+            if let Ok(val) = tonic::metadata::MetadataValue::try_from(&value) {
                 self.0.insert(key, val);
             }
         }
@@ -53,8 +52,8 @@ async fn greet() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    global::set_text_map_propagator(TraceContextPropagator::new());
-    let tracer = opentelemetry_jaeger::new_pipeline()
+    global::set_text_map_propagator(opentelemetry_jaeger::Propagator::new());
+    let tracer = opentelemetry_jaeger::new_agent_pipeline()
         .with_service_name("grpc-client")
         .install_simple()?;
     tracing_subscriber::registry()
