@@ -10,4 +10,3 @@ opentelemetry-jaeger = { path = "../../opentelemetry-jaeger", features = ["hyper
 actix-web = "4.1.0"
 actix-service = "2.0.0"
 env_logger = "0.9.0"
-tokio = { version = "1", features = ["full"] }
