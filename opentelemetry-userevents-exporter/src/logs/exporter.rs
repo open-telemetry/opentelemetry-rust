@@ -36,12 +36,12 @@ impl ExporterConfig {
     }
 }
 
-
 pub(crate) struct UserEventsExporter {
     provider: Arc<eventheader_dynamic::Provider>,
     exporter_config: ExporterConfig,
 }
 
+//TBD - How to configure provider name and provider group
 impl UserEventsExporter {
     pub(crate) fn new(
         provider_name: &str,
@@ -65,7 +65,6 @@ impl UserEventsExporter {
         provider.create_unregistered(true, eventheader::Level::Error, exporter_config.get_log_event_keyword());
         provider.create_unregistered(true, eventheader::Level::CriticalError, exporter_config.get_log_event_keyword());
 
-
         UserEventsExporter { 
             provider: Arc::new(provider),
             exporter_config 
@@ -78,6 +77,9 @@ impl UserEventsExporter {
         attribs: &mut dyn Iterator<Item = (&Key, &AnyValue)>,
     ) {
         for attrib in attribs {
+            if attrib.0.to_string() == "event_id" || attrib.0.to_string() == "event_name" {
+                continue;
+            }
             let field_name = &attrib.0.to_string();
             match attrib.1 {
                 AnyValue::Boolean(b) => {
@@ -145,19 +147,20 @@ impl UserEventsExporter {
             return Ok(());
         };
         if log_es.enabled() {
-            print!("Enabled...\n");
             EBW.with(|eb| {
-
+                let [mut cs_a_count, mut cs_b_count, mut cs_c_count] = [0 ; 3];
                 let mut eb = eb.borrow_mut();
-                //let attributes = log_data.resource.iter().chain(log_data.record.attributes.iter());
-                let event_tags: u32 = 0; // TODO
+                let event_tags: u32 = 0; // TBD name and event_tag values
                 eb.reset(log_data.instrumentation.name.as_ref(), event_tags as u16);
                 eb.opcode(Opcode::Info);
 
                 eb.add_value("__csver__", 0x0401u16, FieldFormat::HexInt, 0);
-                eb.add_struct("PartA", 1 /* + exts.len() as u8*/, 0);
+                if log_data.record.timestamp.is_some() {
+                    cs_a_count = cs_a_count + 1;
+                }
+                eb.add_struct("PartA", cs_a_count , 0);
                 {
-                    if (log_data.record.timestamp.is_some()) {
+                    if log_data.record.timestamp.is_some() {
                         let time: String = chrono::DateTime::to_rfc3339(
                          &chrono::DateTime::<chrono::Utc>::from(log_data.record.timestamp.unwrap()));
 
@@ -181,21 +184,32 @@ impl UserEventsExporter {
                         }
                     }
                 }
-                eb.add_struct("PartB", 2 + event_count, 0);
+                cs_b_count = cs_b_count + event_count;
+                if log_data.record.body.is_some() {
+                    cs_b_count = cs_b_count + 1;
+                }
+                if log_data.record.severity_number.is_some() {
+                    cs_b_count = cs_b_count + 1;
+                }
+                eb.add_struct("PartB", cs_b_count, 0);
                 {
-                    eb.add_value("severityNumber", level.as_int(), FieldFormat::SignedInt, 0);
-                    eb.add_str("body",
-                        match log_data.record.body.as_ref().unwrap() {
-                            AnyValue::Int(value) => value.to_string(),
-                            AnyValue::String(value) => value.to_string(),
-                            AnyValue::Boolean(value) => value.to_string(),
-                            AnyValue::Double(value) => value.to_string(),
-                            AnyValue::Bytes(value) => String::from_utf8_lossy(&value).to_string(),
-                            AnyValue::ListAny(value) => "".to_string(),
-                            AnyValue::Map(value) => "".to_string()
-                        },
-                        FieldFormat::Default,
-                        0);
+                    if log_data.record.severity_number.is_some() {
+                        eb.add_value("severityNumber", level.as_int(), FieldFormat::SignedInt, 0);
+                    }
+                    if log_data.record.body.is_some() {
+                        eb.add_str("body",
+                match log_data.record.body.as_ref().unwrap() {
+                                AnyValue::Int(value) => value.to_string(),
+                                AnyValue::String(value) => value.to_string(),
+                                AnyValue::Boolean(value) => value.to_string(),
+                                AnyValue::Double(value) => value.to_string(),
+                                AnyValue::Bytes(value) => String::from_utf8_lossy(&value).to_string(),
+                                AnyValue::ListAny(value) => "".to_string(),
+                                AnyValue::Map(value) => "".to_string()
+                            },
+                    FieldFormat::Default,
+                0);
+                    }
                     if event_id > 0 {
                         eb.add_value("eventId", event_id, FieldFormat::SignedInt, 0);
                     }
@@ -203,18 +217,19 @@ impl UserEventsExporter {
                         eb.add_str("name", event_name, FieldFormat::Default, 0);
                     }
                 };
-                eb.add_struct("PartC", log_data.record.attributes.as_ref().unwrap().len() as u8, 0);
-                {
-                    self.add_attributes_to_event(&mut eb, &mut log_data.record.attributes.as_ref().unwrap().iter());
+                if log_data.record.attributes.is_some() {
+                    cs_c_count = log_data.record.attributes.as_ref().unwrap().len() as u8 - event_count as u8;
                 }
-
+                eb.add_struct("PartC", cs_c_count, 0);
+                {
+                    if log_data.record.attributes.is_some() {
+                        self.add_attributes_to_event(&mut eb, &mut log_data.record.attributes.as_ref().unwrap().iter());
+                    }
+                }
                 eb.write(&log_es, None, None);
-
-                //TBD - Add remaining LogRecord attributes.
             });
             return Ok(());
         }
-        print!("Not enabled...\n");
         Ok(())
     }
     

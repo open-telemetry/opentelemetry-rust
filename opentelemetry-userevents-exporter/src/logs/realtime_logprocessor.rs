@@ -8,7 +8,6 @@ use opentelemetry_sdk::{export::logs::LogExporter, export::logs::LogData, export
 
 use crate::logs::exporter::*;
 use crate::logs::exporter::ExporterConfig;
-//use crate::exporter_traits::*;
 
 use std::cell::Cell; 
 
