@@ -45,3 +45,7 @@ bytes = "1"
 futures-util = { version = "0.3", features = ["io"] }
 isahc = "1.4"
 opentelemetry = { path = "../opentelemetry", features = ["trace", "testing"] }
+
+[[example]]
+name = "datadog"
+path = "examples/datadog.rs"

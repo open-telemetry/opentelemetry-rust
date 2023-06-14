@@ -1,9 +1,0 @@
-[package]
-name = "datadog"
-version = "0.1.0"
-edition = "2021"
-publish = false
-
-[dependencies]
-opentelemetry = { path = "../../opentelemetry" }
-opentelemetry-datadog = { path = "../../opentelemetry-datadog", features = ["reqwest-blocking-client"] }
