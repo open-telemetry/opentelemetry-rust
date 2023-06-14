@@ -5,14 +5,16 @@ use eventheader_dynamic::{EventBuilder, EventSet};
 //use crate::exporter_traits::*;
 use async_trait::async_trait;
 
+use std::any::Any;
+use std::fs::File;
 use std::sync::Arc;
 use std::fmt::Debug;
 use std::borrow::Cow;
 use chrono::{Datelike, Timelike};
 
 
-use std::{cell::RefCell, time::SystemTime};
-use opentelemetry_api::logs::Severity;
+use std::{cell::RefCell, time::SystemTime, str};
+use opentelemetry_api::{logs::Severity, logs::AnyValue, Array, Key, Value};
 
 pub type ProviderGroup = Option<Cow<'static, str>>;
 
@@ -70,6 +72,31 @@ impl UserEventsExporter {
         }
     }
 
+    fn add_attributes_to_event(
+        &self,
+        eb: &mut EventBuilder,
+        attribs: &mut dyn Iterator<Item = (&Key, &AnyValue)>,
+    ) {
+        for attrib in attribs {
+            let field_name = &attrib.0.to_string();
+            match attrib.1 {
+                AnyValue::Boolean(b) => {
+                    eb.add_value(field_name, *b, FieldFormat::Boolean, 0);
+                }
+                AnyValue::Int(i) => {
+                    eb.add_value(field_name, *i, FieldFormat::SignedInt, 0);
+                }
+                AnyValue::Double(f) => {
+                    eb.add_value(field_name, *f, FieldFormat::Float, 0);
+                }
+                AnyValue::String(s) => {
+                    eb.add_str(field_name, &s.to_string(), FieldFormat::Default, 0);
+                },
+                _ => ()
+            }
+        }
+    }
+
     fn enabled(&self, level: u8, keyword: u64) -> bool{
         let es = self.provider.find_set(level.into(), keyword);
         if es.is_some() {
@@ -81,7 +108,7 @@ impl UserEventsExporter {
 
     pub(crate) fn export_log_data(&self,log_data: &opentelemetry_sdk::export::logs::LogData ) -> opentelemetry_sdk::export::logs::ExportResult 
     {
-        let level = match log_data.record.severity_number.unwrap() {
+        let level: Level = match log_data.record.severity_number.unwrap() {
             Severity::Debug 
             | Severity::Debug2 
             | Severity::Debug3 
@@ -118,6 +145,7 @@ impl UserEventsExporter {
             return Ok(());
         };
         if log_es.enabled() {
+            print!("Enabled...\n");
             EBW.with(|eb| {
 
                 let mut eb = eb.borrow_mut();
@@ -127,7 +155,7 @@ impl UserEventsExporter {
                 eb.opcode(Opcode::Info);
 
                 eb.add_value("__csver__", 0x0401u16, FieldFormat::HexInt, 0);
-                eb.add_struct("PartA", 2 /* + exts.len() as u8*/, 0);
+                eb.add_struct("PartA", 1 /* + exts.len() as u8*/, 0);
                 {
                     if (log_data.record.timestamp.is_some()) {
                         let time: String = chrono::DateTime::to_rfc3339(
@@ -136,15 +164,60 @@ impl UserEventsExporter {
                         eb.add_str("time", time, FieldFormat::Default, 0);
                     }
                 }
-                eb.add_struct("PartB", 2, 0);
+                // Get Event_Id and Event_Name if present.
+                let (mut event_id, mut event_name) = (0, "");
+                let mut event_count = 0;
+                for (k, v ) in log_data.record.attributes.as_ref().unwrap().into_iter() {
+                    if k.as_str()== "event_id" {
+                        event_id = match v {
+                            AnyValue::Int(value) => {event_count = event_count + 1; *value}
+                            _ => 0
+                        }
+                    }
+                    if k.as_str() == "event_name" {
+                        event_name = match v {
+                            AnyValue::String(value) => {event_count = event_count + 1; value.as_ref()}
+                            _ => ""
+                        }
+                    }
+                }
+                eb.add_struct("PartB", 2 + event_count, 0);
+                {
+                    eb.add_value("severityNumber", level.as_int(), FieldFormat::SignedInt, 0);
+                    eb.add_str("body",
+                        match log_data.record.body.as_ref().unwrap() {
+                            AnyValue::Int(value) => value.to_string(),
+                            AnyValue::String(value) => value.to_string(),
+                            AnyValue::Boolean(value) => value.to_string(),
+                            AnyValue::Double(value) => value.to_string(),
+                            AnyValue::Bytes(value) => String::from_utf8_lossy(&value).to_string(),
+                            AnyValue::ListAny(value) => "".to_string(),
+                            AnyValue::Map(value) => "".to_string()
+                        },
+                        FieldFormat::Default,
+                        0);
+                    if event_id > 0 {
+                        eb.add_value("eventId", event_id, FieldFormat::SignedInt, 0);
+                    }
+                    if event_name.len() > 0 {
+                        eb.add_str("name", event_name, FieldFormat::Default, 0);
+                    }
+                };
+                eb.add_struct("PartC", log_data.record.attributes.as_ref().unwrap().len() as u8, 0);
+                {
+                    self.add_attributes_to_event(&mut eb, &mut log_data.record.attributes.as_ref().unwrap().iter());
+                }
+
                 eb.write(&log_es, None, None);
 
                 //TBD - Add remaining LogRecord attributes.
             });
             return Ok(());
         }
+        print!("Not enabled...\n");
         Ok(())
     }
+    
 }
 
 impl Debug for UserEventsExporter {
