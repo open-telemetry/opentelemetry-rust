@@ -220,7 +220,6 @@ impl UserEventsExporter {
                     is_severity_text_present = true;
                 }
 
-                println!("CS_B_COUNT: {}", cs_b_count);
                 if cs_b_count > 0 {
                     eb.add_struct("PartB", cs_b_count, 0);
                     {
@@ -257,7 +256,6 @@ impl UserEventsExporter {
                 if log_data.record.attributes.is_some() {
                     cs_c_count = log_data.record.attributes.as_ref().unwrap().len() as u8 - event_count as u8;
                 }
-                println!("CS_C_COUNT: {}", cs_c_count);
                 if cs_c_count > 0 {
                     eb.add_struct("PartC", cs_c_count, 0);
                     {
