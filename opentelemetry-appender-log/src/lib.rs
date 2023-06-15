@@ -1,7 +1,6 @@
-use std::time::SystemTime;
-
 use log::{Level, Metadata, Record};
 use opentelemetry_api::logs::{AnyValue, LogRecordBuilder, Logger, LoggerProvider, Severity};
+use std::time::SystemTime;
 
 pub struct OpenTelemetryLogBridge<P, L>
 where
@@ -18,13 +17,11 @@ where
     L: Logger + Send + Sync,
 {
     fn enabled(&self, _metadata: &Metadata) -> bool {
-        println!("enabled called...");
         // TODO: This should be dynamic instead of the current hardcoded value.
         true
     }
 
     fn log(&self, record: &Record) {
-        print!( " \nlog crate called...\n");
         if self.enabled(record.metadata()) {
             self.logger.emit(
                 LogRecordBuilder::new()
