@@ -11,12 +11,16 @@ use crate::logs::exporter::ExporterConfig;
 
 use std::cell::Cell; 
 
+// This export processor exports without synchronization.
+// This is currently only used in users_event export, where we know
+// that the underlying system is safe under concurrent calls
+
 #[derive(Debug)]
-pub struct RealTimeLogProcessor {
+pub struct ReenterantLogProcessor {
     event_exporter: UserEventsExporter,
 }
 
-impl RealTimeLogProcessor{
+impl ReenterantLogProcessor{
     pub fn new(
         provider_name: &str,
         provider_group: ProviderGroup,
@@ -25,20 +29,24 @@ impl RealTimeLogProcessor{
         let exporter = UserEventsExporter::new(
             provider_name, provider_group, exporter_config
         );
-        RealTimeLogProcessor { event_exporter:  exporter }
+        ReenterantLogProcessor { event_exporter:  exporter }
     }
 }
 
-impl opentelemetry_sdk::logs::LogProcessor for RealTimeLogProcessor {
+impl opentelemetry_sdk::logs::LogProcessor for ReenterantLogProcessor {
 
     fn emit(&self, data: LogData) {
         self.event_exporter.export_log_data(&data);
     }
 
+    // This is a no-op as this processor doesn't keep anything 
+    // in memort to be flushed out.
     fn force_flush(&self) -> LogResult<()> {
         Ok(())
     }
 
+    // This is a no-op no special cleanup is required before
+    // shutdown.
     fn shutdown(&mut self) -> LogResult<()>{
         Ok(())
     }

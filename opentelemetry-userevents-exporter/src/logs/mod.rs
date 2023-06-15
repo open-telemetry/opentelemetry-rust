@@ -1,5 +1,5 @@
 mod exporter;
 pub use exporter::*;
 
-mod realtime_logprocessor;
-pub use realtime_logprocessor::*;
+mod reenterant_logprocessor;
+pub use reenterant_logprocessor::*;

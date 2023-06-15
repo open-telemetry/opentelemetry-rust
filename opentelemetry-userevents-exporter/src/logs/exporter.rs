@@ -5,13 +5,12 @@ use eventheader_dynamic::{EventBuilder, EventSet};
 //use crate::exporter_traits::*;
 use async_trait::async_trait;
 
-use std::any::Any;
+use std::{any::Any, alloc::System};
 use std::fs::File;
 use std::sync::Arc;
 use std::fmt::Debug;
 use std::borrow::Cow;
 use chrono::{Datelike, Timelike};
-
 
 use std::{cell::RefCell, time::SystemTime, str};
 use opentelemetry_api::{logs::Severity, logs::AnyValue, Array, Key, Value};
@@ -41,6 +40,9 @@ pub(crate) struct UserEventsExporter {
     exporter_config: ExporterConfig,
 }
 
+const EVENT_ID: &'static str  = "event_id";
+const EVENT_NAME: &'static str  = "event_name";
+
 //TBD - How to configure provider name and provider group
 impl UserEventsExporter {
     pub(crate) fn new(
@@ -51,22 +53,21 @@ impl UserEventsExporter {
     {
         let mut options = eventheader_dynamic::Provider::new_options();
         options = *options.group_name(provider_name);
-        let mut provider: eventheader_dynamic::Provider = eventheader_dynamic::Provider::new(provider_name, &options);
-        provider.register_set(eventheader::Level::Informational, exporter_config.get_log_event_keyword());
-        provider.register_set(eventheader::Level::Verbose, exporter_config.get_log_event_keyword());
-        provider.register_set(eventheader::Level::Warning, exporter_config.get_log_event_keyword());
-        provider.register_set(eventheader::Level::Error, exporter_config.get_log_event_keyword());
-        provider.register_set(eventheader::Level::CriticalError, exporter_config.get_log_event_keyword());
+        let mut eventheader_provider: eventheader_dynamic::Provider = eventheader_dynamic::Provider::new(provider_name, &options);
+        eventheader_provider.register_set(eventheader::Level::Informational, exporter_config.get_log_event_keyword());
+        eventheader_provider.register_set(eventheader::Level::Verbose, exporter_config.get_log_event_keyword());
+        eventheader_provider.register_set(eventheader::Level::Warning, exporter_config.get_log_event_keyword());
+        eventheader_provider.register_set(eventheader::Level::Error, exporter_config.get_log_event_keyword());
+        eventheader_provider.register_set(eventheader::Level::CriticalError, exporter_config.get_log_event_keyword());
 
-
-        provider.create_unregistered(true,eventheader::Level::Informational,exporter_config.get_log_event_keyword());
-        provider.create_unregistered(true, eventheader::Level::Verbose, exporter_config.get_log_event_keyword());
-        provider.create_unregistered(true, eventheader::Level::Warning, exporter_config.get_log_event_keyword());
-        provider.create_unregistered(true, eventheader::Level::Error, exporter_config.get_log_event_keyword());
-        provider.create_unregistered(true, eventheader::Level::CriticalError, exporter_config.get_log_event_keyword());
+        eventheader_provider.create_unregistered(true,eventheader::Level::Informational,exporter_config.get_log_event_keyword());
+        eventheader_provider.create_unregistered(true, eventheader::Level::Verbose, exporter_config.get_log_event_keyword());
+        eventheader_provider.create_unregistered(true, eventheader::Level::Warning, exporter_config.get_log_event_keyword());
+        eventheader_provider.create_unregistered(true, eventheader::Level::Error, exporter_config.get_log_event_keyword());
+        eventheader_provider.create_unregistered(true, eventheader::Level::CriticalError, exporter_config.get_log_event_keyword());
 
         UserEventsExporter { 
-            provider: Arc::new(provider),
+            provider: Arc::new(eventheader_provider),
             exporter_config 
         }
     }
@@ -77,7 +78,7 @@ impl UserEventsExporter {
         attribs: &mut dyn Iterator<Item = (&Key, &AnyValue)>,
     ) {
         for attrib in attribs {
-            if attrib.0.to_string() == "event_id" || attrib.0.to_string() == "event_name" {
+            if attrib.0.to_string() == EVENT_ID || attrib.0.to_string() == EVENT_NAME {
                 continue;
             }
             let field_name = &attrib.0.to_string();
@@ -99,18 +100,11 @@ impl UserEventsExporter {
         }
     }
 
-    fn enabled(&self, level: u8, keyword: u64) -> bool{
-        let es = self.provider.find_set(level.into(), keyword);
-        if es.is_some() {
-            es.unwrap().enabled()
-        } else {
-            false
-        }
-    }
-
-    pub(crate) fn export_log_data(&self,log_data: &opentelemetry_sdk::export::logs::LogData ) -> opentelemetry_sdk::export::logs::ExportResult 
-    {
-        let level: Level = match log_data.record.severity_number.unwrap() {
+    fn get_serverity_level(
+        &self,
+        severity: Severity
+    ) -> Level {
+        let level: Level = match severity {
             Severity::Debug 
             | Severity::Debug2 
             | Severity::Debug3 
@@ -140,6 +134,24 @@ impl UserEventsExporter {
             | Severity::Warn3
             | Severity::Warn4 => eventheader::Level::Warning
         };
+        level
+    }
+
+    fn enabled(&self, level: u8, keyword: u64) -> bool{
+        let es = self.provider.find_set(level.into(), keyword);
+        if es.is_some() {
+            es.unwrap().enabled()
+        } else {
+            false
+        }
+    }
+
+    pub(crate) fn export_log_data(&self,log_data: &opentelemetry_sdk::export::logs::LogData ) -> opentelemetry_sdk::export::logs::ExportResult 
+    {
+        let mut level : Level = Level::Invalid;
+        if log_data.record.severity_number.is_some() {
+            level = self.get_serverity_level( log_data.record.severity_number.unwrap());
+        }
         let log_es = if let Some(es) = self.provider.find_set(level.as_int().into(), self.exporter_config.get_log_event_keyword())
         {
             es
@@ -155,74 +167,100 @@ impl UserEventsExporter {
                 eb.opcode(Opcode::Info);
 
                 eb.add_value("__csver__", 0x0401u16, FieldFormat::HexInt, 0);
+
+                // populate CS PartA
+                let event_time:SystemTime;
                 if log_data.record.timestamp.is_some() {
-                    cs_a_count = cs_a_count + 1;
+                    event_time = log_data.record.timestamp.unwrap();
+                } else if log_data.record.observed_timestamp.is_some() {
+                    event_time = log_data.record.observed_timestamp.unwrap();
+                } else {
+                    event_time = SystemTime::now();
                 }
+                cs_a_count = cs_a_count + 1;  // for event_time
                 eb.add_struct("PartA", cs_a_count , 0);
                 {
-                    if log_data.record.timestamp.is_some() {
-                        let time: String = chrono::DateTime::to_rfc3339(
-                         &chrono::DateTime::<chrono::Utc>::from(log_data.record.timestamp.unwrap()));
-
-                        eb.add_str("time", time, FieldFormat::Default, 0);
-                    }
+                    let time: String = chrono::DateTime::to_rfc3339(
+                        &chrono::DateTime::<chrono::Utc>::from(event_time));
+                    eb.add_str("time", time, FieldFormat::Default, 0);
                 }
+
+                // populate CS PartB
                 // Get Event_Id and Event_Name if present.
                 let (mut event_id, mut event_name) = (0, "");
                 let mut event_count = 0;
-                for (k, v ) in log_data.record.attributes.as_ref().unwrap().into_iter() {
-                    if k.as_str()== "event_id" {
-                        event_id = match v {
-                            AnyValue::Int(value) => {event_count = event_count + 1; *value}
-                            _ => 0
+                if log_data.record.attributes.is_some() {
+                    for (k, v ) in log_data.record.attributes.as_ref().unwrap().into_iter() {
+                        if k.as_str()== EVENT_ID {
+                            event_id = match v {
+                                AnyValue::Int(value) => {event_count = event_count + 1; *value}
+                                _ => 0
+                            }
                         }
-                    }
-                    if k.as_str() == "event_name" {
-                        event_name = match v {
-                            AnyValue::String(value) => {event_count = event_count + 1; value.as_ref()}
-                            _ => ""
+                        if k.as_str() == EVENT_NAME {
+                            event_name = match v {
+                                AnyValue::String(value) => {event_count = event_count + 1; value.as_ref()}
+                                _ => ""
+                            }
                         }
-                    }
+                    }    
                 }
                 cs_b_count = cs_b_count + event_count;
+                // check body, severity number and severity text
+                let (mut is_body_present, mut is_severity_text_present) = (false, false);
                 if log_data.record.body.is_some() {
                     cs_b_count = cs_b_count + 1;
+                    is_body_present = true;
                 }
-                if log_data.record.severity_number.is_some() {
+                if level != Level::Invalid {
                     cs_b_count = cs_b_count + 1;
                 }
-                eb.add_struct("PartB", cs_b_count, 0);
-                {
-                    if log_data.record.severity_number.is_some() {
-                        eb.add_value("severityNumber", level.as_int(), FieldFormat::SignedInt, 0);
-                    }
-                    if log_data.record.body.is_some() {
-                        eb.add_str("body",
-                match log_data.record.body.as_ref().unwrap() {
-                                AnyValue::Int(value) => value.to_string(),
-                                AnyValue::String(value) => value.to_string(),
-                                AnyValue::Boolean(value) => value.to_string(),
-                                AnyValue::Double(value) => value.to_string(),
-                                AnyValue::Bytes(value) => String::from_utf8_lossy(&value).to_string(),
-                                AnyValue::ListAny(value) => "".to_string(),
-                                AnyValue::Map(value) => "".to_string()
-                            },
-                    FieldFormat::Default,
-                0);
-                    }
-                    if event_id > 0 {
-                        eb.add_value("eventId", event_id, FieldFormat::SignedInt, 0);
-                    }
-                    if event_name.len() > 0 {
-                        eb.add_str("name", event_name, FieldFormat::Default, 0);
-                    }
-                };
+                if log_data.record.severity_text.is_some() {
+                    cs_b_count = cs_b_count + 1;
+                    is_severity_text_present = true;
+                }
+
+                println!("CS_B_COUNT: {}", cs_b_count);
+                if cs_b_count > 0 {
+                    eb.add_struct("PartB", cs_b_count, 0);
+                    {
+                        if level != Level::Invalid {
+                            eb.add_value("severityNumber", level.as_int(), FieldFormat::SignedInt, 0);
+                        }
+                        if is_severity_text_present {
+                            eb.add_str("severityText", log_data.record.severity_text.as_ref().unwrap().as_ref(), FieldFormat::SignedInt, 0);
+                        }
+                        if is_body_present {
+                            eb.add_str("body",
+                    match log_data.record.body.as_ref().unwrap() {
+                                    AnyValue::Int(value) => value.to_string(),
+                                    AnyValue::String(value) => value.to_string(),
+                                    AnyValue::Boolean(value) => value.to_string(),
+                                    AnyValue::Double(value) => value.to_string(),
+                                    AnyValue::Bytes(value) => String::from_utf8_lossy(&value).to_string(),
+                                    AnyValue::ListAny(value) => "".to_string(),
+                                    AnyValue::Map(value) => "".to_string()
+                                },
+                        FieldFormat::Default,
+                    0);
+                        }
+                        if event_id > 0 {
+                            eb.add_value("eventId", event_id, FieldFormat::SignedInt, 0);
+                        }
+                        if event_name.len() > 0 {
+                            eb.add_str("name", event_name, FieldFormat::Default, 0);
+                        }
+                    };
+                }
+
+                // populate CS PartC
                 if log_data.record.attributes.is_some() {
                     cs_c_count = log_data.record.attributes.as_ref().unwrap().len() as u8 - event_count as u8;
                 }
-                eb.add_struct("PartC", cs_c_count, 0);
-                {
-                    if log_data.record.attributes.is_some() {
+                println!("CS_C_COUNT: {}", cs_c_count);
+                if cs_c_count > 0 {
+                    eb.add_struct("PartC", cs_c_count, 0);
+                    {
                         self.add_attributes_to_event(&mut eb, &mut log_data.record.attributes.as_ref().unwrap().iter());
                     }
                 }

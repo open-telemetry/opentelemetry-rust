@@ -16,30 +16,39 @@ use opentelemetry_sdk::{
     runtime,
     trace::TracerProvider,
 };
+use log::{Log, info, error, log, debug, Level};
 
-use opentelemetry_userevents_exporter_log::{ExporterConfig, RealTimeLogProcessor, ProviderGroup};
+use opentelemetry_appender_log::OpenTelemetryLogBridge;
+use opentelemetry_userevents_exporter::{ExporterConfig, ReenterantLogProcessor, ProviderGroup};
 use std::time::SystemTime;
 use std::thread;
 
 fn init_logger() -> LoggerProvider {
     let exporter_config = ExporterConfig{keyword : 1};
-    let prov_group = Some("prov_group");
-    let realtime_processor = RealTimeLogProcessor::new("test12345", None , exporter_config);
+    let reenterant_processor = ReenterantLogProcessor::new("test", None , exporter_config);
     LoggerProvider::builder()
-    .with_log_processor(realtime_processor).build()
+    .with_log_processor(reenterant_processor).build()
 }
 
 fn main() {
-    let logger_provider = init_logger();
-    let prov_group = Some("test1234");
-    let logger: opentelemetry_sdk::logs::Logger = logger_provider.logger("test");
 
-    let mut messages: Vec<String> = vec![String::new(); 1000];
-    for i in 1..1000 {
+    // Example with log crate appender.
+    let logger_provider = init_logger();
+    let logger = OpenTelemetryLogBridge::new(&logger_provider);
+    log::set_boxed_logger(Box::new(logger));
+    log::set_max_level(log::LevelFilter::Info);
+    info!("test");
+
+    // Example with LogBridge API - this is NOT supposed to be used by end user
+    let logger_provider = init_logger();
+    let logger: opentelemetry_sdk::logs::Logger = logger_provider.logger("test");
+    let num_of_messages = 1;
+    let mut messages: Vec<String> = vec![String::new(); num_of_messages+1];
+    for i in 0..num_of_messages {
         messages[i] = i.to_string().to_owned() + "_body";
     }
-
-    for i in 1..1000 {
+    let handle = thread::spawn( move || {
+    for i in 0..num_of_messages {
         let log_record = opentelemetry_api::logs::LogRecordBuilder::new()
             .with_body(messages[i].to_owned().into())
             .with_severity_number(Severity::Debug)
@@ -48,8 +57,9 @@ fn main() {
             .with_attribute("event_name", "test_event")
             .with_timestamp(SystemTime::now())
             .build();
-    
         logger.emit(log_record);
     }
-    println!("Emission done...\n");
+    });
+    handle.join().unwrap();
+
 }
