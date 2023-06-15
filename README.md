@@ -34,7 +34,33 @@ observability tools.
 
 ## Project Status
 
-[OpenTelemetry Signal Status for Rust][otel-signals-rust]. Libraries adhere to [Stability Guarantees.][otel-signal-stability]
+| Signal  | Status     |
+| ------- | ---------- |
+| Logs    | Alpha*     |
+| Metrics | Alpha      |
+| Traces  | Beta       |
+
+*OpenTelemetry Rust is not introducing a new end user callable Logging API.
+Instead, it provides [Logs Bridge
+API](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/logs/bridge-api.md),
+that allows one to write log appenders that can bridge existing logging
+libraries to the OpenTelemetry log data model. The following log appenders are
+available:
+
+* [opentelemetry-appender-log](opentelemetry-appender-log/README.md)
+* opentelemetry-appender-tracing // TODO: Add link once available
+* opentelemetry-appender-slog // TODO: Add link once available
+
+If you already use the logging APIs from above, continue to use them, and use
+the appenders above to bridge the logs to OpenTelemetry. If you are using a
+library not listed here, feel free to contribute a new appender for the same.
+
+If you are starting fresh, then consider using
+[tracing](https://github.com/tokio-rs/tracing) as your logging API. It supports
+structured logging and is actively maintained.
+
+Project versioning information and stability guarantees can be found
+[here](VERSIONING.md).
 
 ## Getting Started
 
@@ -138,8 +164,6 @@ above, please let us know! We'd love to add your project to the list!
 [`Tide`]: https://crates.io/crates/tide
 [`opentelemetry-stackdriver`]: https://crates.io/crates/opentelemetry-stackdriver
 [Cloud Trace]: https://cloud.google.com/trace/
-[otel-signals-rust]: https://opentelemetry.io/docs/instrumentation/rust/#status-and-releases
-[otel-signal-stability]: https://opentelemetry.io/docs/reference/specification/versioning-and-stability/
 
 ## Supported Rust Versions
 
