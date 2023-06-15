@@ -20,6 +20,13 @@ analysis in order to understand your software's performance and behavior. This
 crate provides additional propagators and exporters for sending telemetry data
 to [`Dynatrace`].
 
+> **Warning**
+> This exporter is deprecated.
+> Dynatrace supports ingesting Traces and Metrics natively via OTLP, and therefore these should be sent directly to Dynatrace via **OTLP protobuf over HTTP** using the built-in [`opentelemetry-otlp`] exporter instead.
+> See the [Dynatrace documentation for Rust] and the [Dynatrace documentation for ingesting metrics via OTLP] for details.
+
+[Dynatrace documentation for ingesting metrics via OTLP]: https://www.dynatrace.com/support/help/shortlink/send-metrics-via-otlp-exporter
+
 ## Exporter features
 
 * **Metrics** - Ingest metric data to Dynatrace using the [Dynatrace Metrics ingestion protocol].
@@ -35,7 +42,7 @@ state of the OpenTelemetry SDK for Rust.
 
 [Dynatrace]: https://www.dynatrace.com/
 [Dynatrace Metrics ingestion protocol]: https://www.dynatrace.com/support/help/how-to-use-dynatrace/metrics/metric-ingestion/metric-ingestion-protocol/
-[Dynatrace documentation for Rust]: https://www.dynatrace.com/support/help/extend-dynatrace/opentelemetry/opentelemetry-ingest/opent-rust/
+[Dynatrace documentation for Rust]: https://www.dynatrace.com/support/help/shortlink/opent-rust
 [`open-telemetry/opentelemetry-rust`]: https://github.com/open-telemetry/opentelemetry-rust
 
 ### Examples
