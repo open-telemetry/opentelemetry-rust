@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Removed
+
+- Synchronous instruments no longer accepts `Context` while reporting
+  measurements. [#1076](https://github.com/open-telemetry/opentelemetry-rust/pull/1076).
+
 ### Fixed
 
 - Fix `SpanRef::set_attributes` mutability requirement. [#1038](https://github.com/open-telemetry/opentelemetry-rust/pull/1038)

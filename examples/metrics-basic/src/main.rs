@@ -1,5 +1,5 @@
 use opentelemetry_api::metrics::Unit;
-use opentelemetry_api::{metrics::MeterProvider as _, Context, KeyValue};
+use opentelemetry_api::{metrics::MeterProvider as _, KeyValue};
 use opentelemetry_sdk::metrics::{MeterProvider, PeriodicReader};
 use opentelemetry_sdk::{runtime, Resource};
 use std::error::Error;
@@ -29,7 +29,6 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
 
     // Record measurements using the Counter instrument.
     counter.add(
-        &Context::current(),
         10,
         [
             KeyValue::new("mykey1", "myvalue1"),
@@ -62,7 +61,6 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
 
     // Record measurements using the UpCounter instrument.
     updown_counter.add(
-        &Context::current(),
         -10,
         [
             KeyValue::new("mykey1", "myvalue1"),
@@ -98,7 +96,6 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
 
     // Record measurements using the histogram instrument.
     histogram.record(
-        &Context::current(),
         10.5,
         [
             KeyValue::new("mykey1", "myvalue1"),

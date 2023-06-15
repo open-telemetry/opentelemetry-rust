@@ -4,7 +4,7 @@ use opentelemetry_api::trace::TraceError;
 use opentelemetry_api::{
     metrics,
     trace::{TraceContextExt, Tracer},
-    Context, Key, KeyValue,
+    Key, KeyValue,
 };
 use opentelemetry_otlp::WithExportConfig;
 use opentelemetry_sdk::metrics as sdkmetrics;
@@ -58,8 +58,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     let meter = global::meter("ex.com/basic");
 
     let histogram = meter.f64_histogram("ex.com.two").init();
-    let cx = Context::new();
-    histogram.record(&cx, 5.5, COMMON_ATTRIBUTES.as_ref());
+    histogram.record(5.5, COMMON_ATTRIBUTES.as_ref());
 
     tracer.in_span("operation", |cx| {
         let span = cx.span();
