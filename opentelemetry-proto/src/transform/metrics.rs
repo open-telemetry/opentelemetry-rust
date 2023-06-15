@@ -3,7 +3,7 @@
 // We cannot ignore it as it's not an optional field.
 // We can remove this after we removed the labels field from proto.
 #[allow(deprecated)]
-#[cfg(feature = "gen-tonic")]
+#[cfg(feature = "gen-tonic-messages")]
 pub mod tonic {
     use crate::proto::tonic::{common::v1::KeyValue, metrics::v1::AggregationTemporality};
     use crate::tonic::metrics::v1::{exemplar, number_data_point};

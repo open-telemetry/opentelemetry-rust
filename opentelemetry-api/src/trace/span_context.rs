@@ -120,9 +120,9 @@ impl TraceId {
     }
 }
 
-impl From<[u8; 16]> for TraceId {
-    fn from(bytes: [u8; 16]) -> Self {
-        TraceId::from_bytes(bytes)
+impl From<u128> for TraceId {
+    fn from(value: u128) -> Self {
+        TraceId(value)
     }
 }
 
@@ -181,9 +181,9 @@ impl SpanId {
     }
 }
 
-impl From<[u8; 8]> for SpanId {
-    fn from(bytes: [u8; 8]) -> Self {
-        SpanId::from_bytes(bytes)
+impl From<u64> for SpanId {
+    fn from(value: u64) -> Self {
+        SpanId(value)
     }
 }
 

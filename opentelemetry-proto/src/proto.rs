@@ -1,4 +1,4 @@
-#[cfg(feature = "gen-tonic")]
+#[cfg(feature = "gen-tonic-messages")]
 #[path = "proto/tonic"]
 /// Generated files using [`tonic`](https://docs.rs/crate/grpcio) and [`prost`](https://docs.rs/crate/protobuf/latest)
 pub mod tonic {

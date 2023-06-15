@@ -45,7 +45,7 @@ jobs:
   non-default-examples:
     strategy:
       matrix:
-        example: [examples/external-otlp-grpcio-async-std]
+        example: [opentelemetry-otlp/examples/external-otlp-grpcio-async-std]
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1

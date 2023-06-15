@@ -156,7 +156,7 @@ impl Sampler {
     where
         C: HttpClient + 'static,
         Sampler: ShouldSample,
-        R: crate::trace::TraceRuntime,
+        R: crate::runtime::RuntimeChannel<crate::trace::BatchMessage>,
         Svc: Into<String>,
     {
         JaegerRemoteSamplerBuilder::new(runtime, http_client, default_sampler, service_name)
@@ -326,7 +326,7 @@ mod tests {
                     None
                 };
 
-                let trace_id = TraceId::from(rng.gen::<[u8; 16]>());
+                let trace_id = TraceId::from(rng.gen::<u128>());
                 if sampler
                     .should_sample(
                         parent_context.as_ref(),
@@ -367,6 +367,7 @@ mod tests {
     #[test]
     fn clone_a_parent_sampler() {
         let sampler = Sampler::ParentBased(Box::new(Sampler::AlwaysOn));
+        #[allow(clippy::redundant_clone)]
         let cloned_sampler = sampler.clone();
 
         let cx = Context::current_with_value("some_value");

@@ -27,7 +27,6 @@ use {
         logs_service::ExportLogsServiceRequest as GrpcRequest,
         logs_service_grpc::LogsServiceClient as GrpcioLogServiceClient,
     },
-    std::sync::Arc,
 };
 
 #[cfg(feature = "http-proto")]
@@ -44,7 +43,7 @@ use {
 };
 
 #[cfg(any(feature = "grpc-sys", feature = "http-proto"))]
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use crate::exporter::ExportConfig;
 use crate::OtlpPipeline;
@@ -56,7 +55,7 @@ use std::{
 };
 
 use opentelemetry_api::logs::{LogError, LoggerProvider};
-use opentelemetry_sdk::{self, export::logs::LogData, logs::LogRuntime};
+use opentelemetry_sdk::{self, export::logs::LogData, logs::BatchMessage, runtime::RuntimeChannel};
 
 impl OtlpPipeline {
     /// Create a OTLP logging pipeline.
@@ -436,7 +435,7 @@ impl OtlpLogPipeline {
     /// batch log processor.
     ///
     /// [`Logger`]: opentelemetry_sdk::logs::Logger
-    pub fn batch<R: LogRuntime>(
+    pub fn batch<R: RuntimeChannel<BatchMessage>>(
         self,
         runtime: R,
         include_trace_context: bool,
@@ -472,7 +471,7 @@ fn build_simple_with_exporter(
     )
 }
 
-fn build_batch_with_exporter<R: LogRuntime>(
+fn build_batch_with_exporter<R: RuntimeChannel<BatchMessage>>(
     exporter: LogExporter,
     log_config: Option<opentelemetry_sdk::logs::Config>,
     runtime: R,

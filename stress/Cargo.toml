@@ -13,6 +13,6 @@ doc = false
 ctrlc = "3.2.5"
 lazy_static = "1.4.0"
 num_cpus = "1.15.0"
-rayon = "1.7.0"
 opentelemetry_api = { path = "../opentelemetry-api", features = ["metrics"] }
 opentelemetry_sdk = { path = "../opentelemetry-sdk", features = ["metrics"] }
+num-format = "0.4.4"

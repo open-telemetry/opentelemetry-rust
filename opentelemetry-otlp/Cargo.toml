@@ -31,7 +31,6 @@ rustdoc-args = ["--cfg", "docsrs"]
 [dependencies]
 async-trait = "0.1"
 futures = { version = "0.3", default-features = false, features = ["std"] }
-futures-util = { version = "0.3", default-features = false, features = ["std"] }
 
 opentelemetry-proto = { version = "0.2", path = "../opentelemetry-proto", default-features = false }
 
@@ -81,7 +80,7 @@ openssl = ["grpcio/openssl"]
 openssl-vendored = ["grpcio/openssl-vendored"]
 
 # http binary
-http-proto = ["prost", "opentelemetry-http", "opentelemetry-proto/gen-tonic", "http", "trace", "metrics"]
+http-proto = ["prost", "opentelemetry-http", "opentelemetry-proto/gen-tonic-messages", "http", "trace", "metrics"]
 reqwest-blocking-client = ["reqwest/blocking", "opentelemetry-http/reqwest"]
 reqwest-client = ["reqwest", "opentelemetry-http/reqwest"]
 reqwest-rustls = ["reqwest", "reqwest/rustls-tls-native-roots"]

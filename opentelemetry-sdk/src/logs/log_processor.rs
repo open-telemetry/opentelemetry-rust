@@ -1,7 +1,6 @@
-use super::LogRuntime;
 use crate::{
     export::logs::{ExportResult, LogData, LogExporter},
-    logs::TrySend,
+    runtime::{RuntimeChannel, TrySend},
 };
 use futures_channel::oneshot;
 use futures_util::{
@@ -101,11 +100,11 @@ impl LogProcessor for SimpleLogProcessor {
 
 /// A [`LogProcessor`] that asynchronously buffers log records and reports
 /// them at a preconfigured interval.
-pub struct BatchLogProcessor<R: LogRuntime> {
+pub struct BatchLogProcessor<R: RuntimeChannel<BatchMessage>> {
     message_sender: R::Sender,
 }
 
-impl<R: LogRuntime> Debug for BatchLogProcessor<R> {
+impl<R: RuntimeChannel<BatchMessage>> Debug for BatchLogProcessor<R> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("BatchLogProcessor")
             .field("message_sender", &self.message_sender)
@@ -113,19 +112,20 @@ impl<R: LogRuntime> Debug for BatchLogProcessor<R> {
     }
 }
 
-impl<R: LogRuntime> LogProcessor for BatchLogProcessor<R> {
+impl<R: RuntimeChannel<BatchMessage>> LogProcessor for BatchLogProcessor<R> {
     fn emit(&self, data: LogData) {
         let result = self.message_sender.try_send(BatchMessage::ExportLog(data));
 
         if let Err(err) = result {
-            global::handle_error(err);
+            global::handle_error(LogError::Other(err.into()));
         }
     }
 
     fn force_flush(&self) -> LogResult<()> {
         let (res_sender, res_receiver) = oneshot::channel();
         self.message_sender
-            .try_send(BatchMessage::Flush(Some(res_sender)))?;
+            .try_send(BatchMessage::Flush(Some(res_sender)))
+            .map_err(|err| LogError::Other(err.into()))?;
 
         futures_executor::block_on(res_receiver)
             .map_err(|err| LogError::Other(err.into()))
@@ -135,7 +135,8 @@ impl<R: LogRuntime> LogProcessor for BatchLogProcessor<R> {
     fn shutdown(&mut self) -> LogResult<()> {
         let (res_sender, res_receiver) = oneshot::channel();
         self.message_sender
-            .try_send(BatchMessage::Shutdown(res_sender))?;
+            .try_send(BatchMessage::Shutdown(res_sender))
+            .map_err(|err| LogError::Other(err.into()))?;
 
         futures_executor::block_on(res_receiver)
             .map_err(|err| LogError::Other(err.into()))
@@ -143,7 +144,7 @@ impl<R: LogRuntime> LogProcessor for BatchLogProcessor<R> {
     }
 }
 
-impl<R: LogRuntime> BatchLogProcessor<R> {
+impl<R: RuntimeChannel<BatchMessage>> BatchLogProcessor<R> {
     pub(crate) fn new(mut exporter: Box<dyn LogExporter>, config: BatchConfig, runtime: R) -> Self {
         let (message_sender, message_receiver) =
             runtime.batch_message_channel(config.max_queue_size);
@@ -247,7 +248,7 @@ async fn export_with_timeout<R, E>(
     batch: Vec<LogData>,
 ) -> ExportResult
 where
-    R: LogRuntime,
+    R: RuntimeChannel<BatchMessage>,
     E: LogExporter + ?Sized,
 {
     if batch.is_empty() {
@@ -308,7 +309,7 @@ pub struct BatchLogProcessorBuilder<E, R> {
 impl<E, R> BatchLogProcessorBuilder<E, R>
 where
     E: LogExporter + 'static,
-    R: LogRuntime,
+    R: RuntimeChannel<BatchMessage>,
 {
     /// Set max queue size for batches
     pub fn with_max_queue_size(self, size: usize) -> Self {

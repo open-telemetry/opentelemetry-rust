@@ -7,27 +7,29 @@
 //! and exposes methods for creating and activating new `Spans`.
 //!
 //! Docs: <https://github.com/open-telemetry/opentelemetry-specification/blob/v1.3.0/specification/trace/api.md#tracer>
-use crate::trace::SpanLimits;
 use crate::{
     trace::{
         provider::{TracerProvider, TracerProviderInner},
         span::{Span, SpanData},
-        Config, EvictedHashMap, EvictedQueue,
+        Config, EvictedHashMap, EvictedQueue, SpanLimits,
     },
     InstrumentationLibrary,
 };
-use opentelemetry_api::trace::{
-    Link, SamplingDecision, SamplingResult, SpanBuilder, SpanContext, SpanId, SpanKind,
-    TraceContextExt, TraceFlags, TraceId, TraceState,
+use once_cell::sync::Lazy;
+use opentelemetry_api::{
+    trace::{
+        Link, SamplingDecision, SamplingResult, SpanBuilder, SpanContext, SpanId, SpanKind,
+        TraceContextExt, TraceFlags, TraceId, TraceState,
+    },
+    Context, Key, KeyValue, OrderMap, Value,
 };
-use opentelemetry_api::{Context, Key, KeyValue, OrderMap, Value};
 use std::fmt;
-use std::sync::Weak;
+use std::sync::{Arc, Weak};
 
 /// `Tracer` implementation to create and manage spans
 #[derive(Clone)]
 pub struct Tracer {
-    instrumentation_lib: InstrumentationLibrary,
+    instrumentation_lib: Arc<InstrumentationLibrary>,
     provider: Weak<TracerProviderInner>,
 }
 
@@ -45,7 +47,7 @@ impl fmt::Debug for Tracer {
 impl Tracer {
     /// Create a new tracer (used internally by `TracerProvider`s).
     pub(crate) fn new(
-        instrumentation_lib: InstrumentationLibrary,
+        instrumentation_lib: Arc<InstrumentationLibrary>,
         provider: Weak<TracerProviderInner>,
     ) -> Self {
         Tracer {
@@ -118,6 +120,8 @@ impl Tracer {
     }
 }
 
+static EMPTY_ATTRIBUTES: Lazy<OrderMap<Key, Value>> = Lazy::new(Default::default);
+
 impl opentelemetry_api::trace::Tracer for Tracer {
     /// This implementation of `Tracer` produces `sdk::Span` instances.
     type Span = Span;
@@ -148,8 +152,6 @@ impl opentelemetry_api::trace::Tracer for Tracer {
             .take()
             .unwrap_or_else(|| config.id_generator.new_span_id());
         let span_kind = builder.span_kind.take().unwrap_or(SpanKind::Internal);
-        let mut attribute_options = builder.attributes.take().unwrap_or_default();
-        let mut link_options = builder.links.take();
         let mut parent_span_id = SpanId::INVALID;
         let trace_id;
 
@@ -179,8 +181,8 @@ impl opentelemetry_api::trace::Tracer for Tracer {
                 trace_id,
                 &builder.name,
                 &span_kind,
-                &attribute_options,
-                link_options.as_deref().unwrap_or(&[]),
+                builder.attributes.as_ref().unwrap_or(&EMPTY_ATTRIBUTES),
+                builder.links.as_deref().unwrap_or(&[]),
                 provider.config(),
             )
         };
@@ -196,6 +198,7 @@ impl opentelemetry_api::trace::Tracer for Tracer {
 
         // Build optional inner context, `None` if not recording.
         let mut span = if let Some((flags, extra_attrs, trace_state)) = sampling_decision {
+            let mut attribute_options = builder.attributes.take().unwrap_or_default();
             for extra_attr in extra_attrs {
                 attribute_options.insert(extra_attr.key, extra_attr.value);
             }
@@ -204,6 +207,8 @@ impl opentelemetry_api::trace::Tracer for Tracer {
             for (key, value) in attribute_options {
                 attributes.insert(KeyValue::new(key, value));
             }
+
+            let mut link_options = builder.links.take();
             let mut links = EvictedQueue::new(span_limits.max_links_per_span);
             if let Some(link_options) = &mut link_options {
                 let link_attributes_limit = span_limits.max_attributes_per_link as usize;
