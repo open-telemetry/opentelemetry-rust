@@ -4,7 +4,7 @@
 use opentelemetry_api::{
     metrics::MeterProvider as _,
     trace::{Span, Tracer, TracerProvider as _},
-    Context, KeyValue,
+    KeyValue,
 };
 #[cfg(all(feature = "metrics", feature = "trace"))]
 use opentelemetry_sdk::{
@@ -33,7 +33,6 @@ fn init_metrics() -> MeterProvider {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let tracer_provider = init_trace();
     let meter_provider = init_metrics();
-    let cx = Context::new();
 
     let tracer = tracer_provider.tracer("stdout-test");
     let mut span = tracer.start("test_span");
@@ -42,7 +41,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let meter = meter_provider.meter("stdout-test");
     let c = meter.u64_counter("test_events").init();
-    c.add(&cx, 1, &[KeyValue::new("test_key", "test_value")]);
+    c.add(1, &[KeyValue::new("test_key", "test_value")]);
 
     meter_provider.shutdown()?;
 

@@ -6,7 +6,7 @@ use hyper::{
 use once_cell::sync::Lazy;
 use opentelemetry_api::{
     metrics::{Counter, Histogram, MeterProvider as _, Unit},
-    Context, KeyValue,
+    KeyValue,
 };
 use opentelemetry_sdk::metrics::MeterProvider;
 use prometheus::{Encoder, Registry, TextEncoder};
@@ -17,14 +17,13 @@ use std::time::SystemTime;
 static HANDLER_ALL: Lazy<[KeyValue; 1]> = Lazy::new(|| [KeyValue::new("handler", "all")]);
 
 async fn serve_req(
-    cx: Context,
     req: Request<Body>,
     state: Arc<AppState>,
 ) -> Result<Response<Body>, hyper::Error> {
     println!("Receiving request at path {}", req.uri());
     let request_start = SystemTime::now();
 
-    state.http_counter.add(&cx, 1, HANDLER_ALL.as_ref());
+    state.http_counter.add(1, HANDLER_ALL.as_ref());
 
     let response = match (req.method(), req.uri().path()) {
         (&Method::GET, "/metrics") => {
@@ -34,7 +33,7 @@ async fn serve_req(
             encoder.encode(&metric_families, &mut buffer).unwrap();
             state
                 .http_body_gauge
-                .record(&cx, buffer.len() as u64, HANDLER_ALL.as_ref());
+                .record(buffer.len() as u64, HANDLER_ALL.as_ref());
 
             Response::builder()
                 .status(200)
@@ -53,7 +52,6 @@ async fn serve_req(
     };
 
     state.http_req_histogram.record(
-        &cx,
         request_start.elapsed().map_or(0.0, |d| d.as_secs_f64()),
         &[],
     );
@@ -74,7 +72,6 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .with_registry(registry.clone())
         .build()?;
     let provider = MeterProvider::builder().with_reader(exporter).build();
-    let cx = Context::new();
 
     let meter = provider.meter("hyper-example");
     let state = Arc::new(AppState {
@@ -99,15 +96,10 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // incoming HTTP requests on said connection.
     let make_svc = make_service_fn(move |_conn| {
         let state = state.clone();
-        let cx = cx.clone();
         // This is the `Service` that will handle the connection.
         // `service_fn` is a helper to convert a function that
         // returns a Response into a `Service`.
-        async move {
-            Ok::<_, Infallible>(service_fn(move |req| {
-                serve_req(cx.clone(), req, state.clone())
-            }))
-        }
+        async move { Ok::<_, Infallible>(service_fn(move |req| serve_req(req, state.clone()))) }
     });
 
     let addr = ([127, 0, 0, 1], 3000).into();

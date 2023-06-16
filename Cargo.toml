@@ -11,6 +11,7 @@ members = [
     "opentelemetry-jaeger/examples/actix-udp",
     "opentelemetry-jaeger/examples/remote-sampler",
     "opentelemetry-appender-log",
+    "opentelemetry-appender-tracing",
     "opentelemetry-otlp",
     "opentelemetry-prometheus",
     "opentelemetry-proto",

@@ -5,7 +5,7 @@ use opentelemetry_api::trace::TraceError;
 use opentelemetry_api::{
     metrics,
     trace::{TraceContextExt, Tracer},
-    Context, Key, KeyValue,
+    Key, KeyValue,
 };
 use opentelemetry_otlp::{ExportConfig, WithExportConfig};
 use opentelemetry_sdk::{metrics::MeterProvider, runtime, trace as sdktrace, Resource};
@@ -62,7 +62,6 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // execution.
     let _ = init_tracer()?;
     let meter_provider = init_metrics()?;
-    let cx = Context::new();
 
     let tracer = global::tracer("ex.com/basic");
     let meter = global::meter("ex.com/basic");
@@ -77,7 +76,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     })?;
 
     let histogram = meter.f64_histogram("ex.com.two").init();
-    histogram.record(&cx, 5.5, COMMON_ATTRIBUTES.as_ref());
+    histogram.record(5.5, COMMON_ATTRIBUTES.as_ref());
 
     tracer.in_span("operation", |cx| {
         let span = cx.span();
@@ -93,7 +92,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
 
             span.add_event("Sub span event", vec![]);
 
-            histogram.record(&cx, 1.3, &[]);
+            histogram.record(1.3, &[]);
         });
     });
 

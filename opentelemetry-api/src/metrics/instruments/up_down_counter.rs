@@ -1,6 +1,6 @@
 use crate::{
     metrics::{InstrumentBuilder, MetricsError},
-    Context, KeyValue,
+    KeyValue,
 };
 use core::fmt;
 use std::sync::Arc;
@@ -11,7 +11,7 @@ use super::{AsyncInstrument, AsyncInstrumentBuilder};
 /// An SDK implemented instrument that records increasing or decreasing values.
 pub trait SyncUpDownCounter<T> {
     /// Records an increment or decrement to the counter.
-    fn add(&self, cx: &Context, value: T, attributes: &[KeyValue]);
+    fn add(&self, value: T, attributes: &[KeyValue]);
 }
 
 /// An instrument that records increasing or decreasing values.
@@ -37,8 +37,8 @@ impl<T> UpDownCounter<T> {
     }
 
     /// Records an increment or decrement to the counter.
-    pub fn add(&self, cx: &Context, value: T, attributes: &[KeyValue]) {
-        self.0.add(cx, value, attributes)
+    pub fn add(&self, value: T, attributes: &[KeyValue]) {
+        self.0.add(value, attributes)
     }
 }
 

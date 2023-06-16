@@ -9,10 +9,20 @@ name = "metrics"
 path = "src/metrics.rs"
 doc = false
 
+[[bin]] # Bin to run the logs stress tests
+name = "logs"
+path = "src/logs.rs"
+doc = false
+
 [dependencies]
 ctrlc = "3.2.5"
 lazy_static = "1.4.0"
 num_cpus = "1.15.0"
-opentelemetry_api = { path = "../opentelemetry-api", features = ["metrics"] }
-opentelemetry_sdk = { path = "../opentelemetry-sdk", features = ["metrics"] }
+opentelemetry_api = { path = "../opentelemetry-api", features = ["metrics", "logs"] }
+opentelemetry_sdk = { path = "../opentelemetry-sdk", features = ["metrics", "logs"] }
+opentelemetry-appender-tracing = { path = "../opentelemetry-appender-tracing"}
+opentelemetry-stdout = { path = "../opentelemetry-stdout", features = ["logs"]}
+tracing = {version = "0.1.37", default-features = false, features = ["std"]}
+tracing-core = "0.1.31"
+tracing-subscriber = { version = "0.3.0", default-features = false, features = ["registry", "std"] }
 num-format = "0.4.4"

@@ -8,7 +8,7 @@ use crate::{
         AsyncInstrument, CallbackRegistration, InstrumentProvider, Meter, MeterProvider, Observer,
         Result, SyncCounter, SyncHistogram, SyncUpDownCounter,
     },
-    Context, KeyValue,
+    KeyValue,
 };
 use std::{any::Any, borrow::Cow, sync::Arc};
 
@@ -93,19 +93,19 @@ impl NoopSyncInstrument {
 }
 
 impl<T> SyncCounter<T> for NoopSyncInstrument {
-    fn add(&self, _cx: &Context, _value: T, _attributes: &[KeyValue]) {
+    fn add(&self, _value: T, _attributes: &[KeyValue]) {
         // Ignored
     }
 }
 
 impl<T> SyncUpDownCounter<T> for NoopSyncInstrument {
-    fn add(&self, _cx: &Context, _value: T, _attributes: &[KeyValue]) {
+    fn add(&self, _value: T, _attributes: &[KeyValue]) {
         // Ignored
     }
 }
 
 impl<T> SyncHistogram<T> for NoopSyncInstrument {
-    fn record(&self, _cx: &Context, _value: T, _attributes: &[KeyValue]) {
+    fn record(&self, _value: T, _attributes: &[KeyValue]) {
         // Ignored
     }
 }
