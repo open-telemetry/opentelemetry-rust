@@ -31,7 +31,11 @@ const METRICS_EVENT_DEF: &[u8] = b"OpenTelemetryMetrics __rel_loc u8[] data\0";
 /// provided to help with debugging and should usually be ignored in release builds.
 pub fn write(data: &[u8]) -> i32 {
     // This must stay in sync with the METRICS_EVENT_DEF string.
-    assert!(data.len() <= u16::MAX as usize);
+    // Return error -1 if data exceeds max size
+    if data.len() > u16::MAX as usize {
+        println!("Data exceeds max length.");
+        return -1;
+    }
 
     // The rel_loc for the data field stores the size and offset of the data.
     // - High 16 bits store the size = data.len()

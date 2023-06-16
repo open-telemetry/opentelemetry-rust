@@ -1,4 +1,4 @@
-use crate::transform::transform::transform_resource_metrics;
+use crate::transform::transform_resource_metrics;
 use async_trait::async_trait;
 
 use opentelemetry_api::metrics::{MetricsError, Result};
@@ -30,10 +30,23 @@ impl MetricsExporter {
     }
 }
 
+impl Default for MetricsExporter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TemporalitySelector for MetricsExporter {
-    fn temporality(&self, _kind: InstrumentKind) -> Temporality {
+    fn temporality(&self, kind: InstrumentKind) -> Temporality {
         // TODO: Implement temporality selection feature
-        Temporality::Cumulative
+        match kind {
+            InstrumentKind::Counter
+            | InstrumentKind::ObservableCounter
+            | InstrumentKind::ObservableGauge
+            | InstrumentKind::Histogram => Temporality::Delta,
+            InstrumentKind::UpDownCounter
+            | InstrumentKind::ObservableUpDownCounter => Temporality::Cumulative,
+        }
     }
 }
 
@@ -57,12 +70,9 @@ impl PushMetricsExporter for MetricsExporter {
             let proto_message = transform_resource_metrics(metrics);
 
             let mut byte_array = Vec::new();
-            let encode_result = proto_message
+            let _encode_result = proto_message
                 .encode(&mut byte_array)
-                .map_err(|err| MetricsError::Other(err.to_string()));
-            if let Err(error) = encode_result {
-                return Err(error);
-            }
+                .map_err(|err| MetricsError::Other(err.to_string()))?;
             let result = tracepoint::write(byte_array.as_slice());
             if result != 0 {
                 return Err(MetricsError::Other("Tracepoint failed to write.".into()));
