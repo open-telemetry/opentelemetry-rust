@@ -16,7 +16,7 @@ members = [
     "opentelemetry-semantic-conventions",
     "opentelemetry-stackdriver",
     "opentelemetry-stdout",
-    "opentelemetry-userevents-logs",
+    "opentelemetry-user-events-logs",
     "opentelemetry-zipkin",
     "opentelemetry-zpages",
     "examples/actix-http",

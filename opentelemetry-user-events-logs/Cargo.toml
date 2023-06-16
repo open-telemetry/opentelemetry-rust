@@ -1,5 +1,5 @@
 [package]
-name = "opentelemetry-userevents-logs"
+name = "opentelemetry-user_events-logs"
 description = "OpenTelemetry-Rust exporter to userevents"
 version = "0.1.0"
 edition = "2021"

@@ -16,7 +16,7 @@ use log::{debug, error, info, log, Level, Log};
 use opentelemetry_sdk::{logs::LoggerProvider, runtime, trace::TracerProvider};
 
 use opentelemetry_appender_log::OpenTelemetryLogBridge;
-use opentelemetry_userevents_logs::{ExporterConfig, ProviderGroup, ReentrantLogProcessor};
+use opentelemetry_user_events_logs::{ExporterConfig, ProviderGroup, ReentrantLogProcessor};
 use std::time::SystemTime;
 
 fn init_logger() -> LoggerProvider {
