@@ -26,6 +26,7 @@ fn init_metrics(exporter: MetricsExporter) -> MeterProvider {
 }
 
 #[tokio::main]
+#[allow(unused_must_use)]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let exporter = opentelemetry_user_events_metrics::MetricsExporter::new();
     let meter_provider = init_metrics(exporter);
@@ -54,7 +55,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     meter_provider.shutdown()?;
     // Call this explictly since provider shutdown is not propagated to exporter for now
     // Waiting on: https://github.com/open-telemetry/opentelemetry-rust/issues/1118
-    #[allow(unused_must_use)]
     exporter.shutdown();
 
     thread::sleep(Duration::from_secs(5));
