@@ -54,7 +54,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     meter_provider.shutdown()?;
     // Call this explictly since provider shutdown is not propagated to exporter for now
     // Waiting on: https://github.com/open-telemetry/opentelemetry-rust/issues/1118
-    let _ = exporter.shutdown();
+    #[allow(unused_must_use)]
+    exporter.shutdown();
 
     thread::sleep(Duration::from_secs(5));
 
