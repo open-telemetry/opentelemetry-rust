@@ -44,8 +44,9 @@ impl TemporalitySelector for MetricsExporter {
             | InstrumentKind::ObservableCounter
             | InstrumentKind::ObservableGauge
             | InstrumentKind::Histogram => Temporality::Delta,
-            InstrumentKind::UpDownCounter
-            | InstrumentKind::ObservableUpDownCounter => Temporality::Cumulative,
+            InstrumentKind::UpDownCounter | InstrumentKind::ObservableUpDownCounter => {
+                Temporality::Cumulative
+            }
         }
     }
 }
