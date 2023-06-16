@@ -12,19 +12,20 @@ pub(crate) mod transform {
             exemplar::Value as TonicExemplarValue, metric::Data as TonicMetricData,
             number_data_point::Value as TonicDataPointValue,
             AggregationTemporality as TonicTemporality, DataPointFlags as TonicDataPointFlags,
-            Exemplar as TonicExemplar,
-            Metric as TonicMetric,
-            NumberDataPoint as TonicNumberDataPoint, ResourceMetrics as TonicResourceMetrics,
-            ScopeMetrics as TonicScopeMetrics, Sum as TonicSum,
+            Metric as TonicMetric, NumberDataPoint as TonicNumberDataPoint,
+            ResourceMetrics as TonicResourceMetrics, ScopeMetrics as TonicScopeMetrics,
+            Sum as TonicSum,
         },
     };
     use opentelemetry_sdk::metrics::data::{
-        Exemplar as SdkExemplar,
-        Metric as SdkMetric, ResourceMetrics as SDKResourceMetrics, ScopeMetrics as SdkScopeMetrics, Sum as SdkSum,
+        Metric as SdkMetric, ResourceMetrics as SDKResourceMetrics,
+        ScopeMetrics as SdkScopeMetrics, Sum as SdkSum,
     };
     use opentelemetry_sdk::Resource as SdkResource;
 
-    pub(crate) fn transform_resource_metrics(metrics: &SDKResourceMetrics) -> ExportMetricsServiceRequest {
+    pub(crate) fn transform_resource_metrics(
+        metrics: &SDKResourceMetrics,
+    ) -> ExportMetricsServiceRequest {
         ExportMetricsServiceRequest {
             resource_metrics: vec![TonicResourceMetrics {
                 resource: transform_resource(&metrics.resource),
@@ -102,7 +103,8 @@ pub(crate) mod transform {
                     attributes: dp.attributes.iter().map(Into::into).collect(),
                     start_time_unix_nano: dp.start_time.map(to_nanos).unwrap_or_default(),
                     time_unix_nano: dp.time.map(to_nanos).unwrap_or_default(),
-                    exemplars: dp.exemplars.iter().map(transform_exemplar).collect(),
+                    // No support for exemplars
+                    exemplars: Vec::new(),
                     flags: TonicDataPointFlags::default() as u32,
                     value: Some(dp.value.into()),
                 })
@@ -112,26 +114,9 @@ pub(crate) mod transform {
         }
     }
 
-    fn transform_exemplar<T: Into<TonicExemplarValue> + Copy>(
-        ex: &SdkExemplar<T>,
-    ) -> TonicExemplar {
-        TonicExemplar {
-            filtered_attributes: ex
-                .filtered_attributes
-                .iter()
-                .map(|kv| (&kv.key, &kv.value).into())
-                .collect(),
-            time_unix_nano: to_nanos(ex.time),
-            span_id: ex.span_id.into(),
-            trace_id: ex.trace_id.into(),
-            value: Some(ex.value.into()),
-        }
-    }
-
     fn to_nanos(time: SystemTime) -> u64 {
         time.duration_since(UNIX_EPOCH)
             .unwrap_or_else(|_| Duration::from_secs(0))
             .as_nanos() as u64
     }
-    
 }

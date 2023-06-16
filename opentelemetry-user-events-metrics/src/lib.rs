@@ -1,5 +1,5 @@
 mod exporter;
-mod transform;
 mod tracepoint;
+mod transform;
 
 pub use exporter::MetricsExporter;

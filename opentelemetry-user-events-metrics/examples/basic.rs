@@ -2,14 +2,14 @@
 
 use opentelemetry_api::{
     metrics::{MeterProvider as _, Unit},
-    Context, KeyValue,
+    KeyValue,
 };
+use opentelemetry_sdk::metrics::exporter::PushMetricsExporter;
 use opentelemetry_sdk::{
     metrics::{MeterProvider, PeriodicReader},
     runtime, Resource,
 };
 use opentelemetry_user_events_metrics::MetricsExporter;
-use opentelemetry_sdk::metrics::exporter::PushMetricsExporter;
 
 use std::thread;
 use std::time::Duration;
@@ -28,8 +28,7 @@ fn init_metrics(exporter: MetricsExporter) -> MeterProvider {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let exporter = opentelemetry_user_events_metrics::MetricsExporter::new();
-    let meter_provider  = init_metrics(exporter);
-    let cx = Context::new();
+    let meter_provider = init_metrics(exporter);
 
     let meter = meter_provider.versioned_meter(
         "user-event-test",
@@ -43,13 +42,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_unit(Unit::new("test_unit"))
         .init();
 
-    c.add(&cx, 1.0, [
-        KeyValue::new("mykey1", "myvalue1"),
-        KeyValue::new("mykey3", "myvalue3"),
-    ].as_ref());
+    c.add(
+        1.0,
+        [
+            KeyValue::new("mykey1", "myvalue1"),
+            KeyValue::new("mykey3", "myvalue3"),
+        ]
+        .as_ref(),
+    );
 
     meter_provider.shutdown()?;
     // Call this explictly since provider shutdown is not propagated to exporter for now
+    // Waiting on: https://github.com/open-telemetry/opentelemetry-rust/issues/1118
     let _ = exporter.shutdown();
 
     thread::sleep(Duration::from_secs(5));

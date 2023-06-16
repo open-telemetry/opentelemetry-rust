@@ -38,7 +38,8 @@ pub fn write(data: &[u8]) -> i32 {
     // - Low 16 bits store the offset of the data from the end of the rel_loc field = 0.
     let data_rel_loc: u32 = (data.len() as u32) << 16;
 
-    METRICS_EVENT.write(&mut [ // mut because the write method does some fix-ups.
+    METRICS_EVENT.write(&mut [
+        // mut because the write method does some fix-ups.
         ehi::EventDataDescriptor::zero(), // First item in array MUST be zero().
         ehi::EventDataDescriptor::from_value(&data_rel_loc), // rel_loc for the data field.
         ehi::EventDataDescriptor::from_slice(data), // data field.
