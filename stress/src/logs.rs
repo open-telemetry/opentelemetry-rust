@@ -41,13 +41,13 @@ where
 fn main() {
     // LoggerProvider without any exporter.
     let provider: LoggerProvider = LoggerProvider::builder()
-    .with_config(
-        Config::default().with_resource(Resource::new(vec![KeyValue::new(
-            "service.name",
-            "log-appender-tracing-example",
-        )])),
-    )
-    .build();
+        .with_config(
+            Config::default().with_resource(Resource::new(vec![KeyValue::new(
+                "service.name",
+                "log-appender-tracing-example",
+            )])),
+        )
+        .build();
 
     // Use the OpenTelemetryTracingBridge to test the throughput of the appender-tracing.
     let layer = layer::OpenTelemetryTracingBridge::new(&provider);
