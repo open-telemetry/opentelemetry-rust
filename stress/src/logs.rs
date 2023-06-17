@@ -39,15 +39,15 @@ where
 }
 
 fn main() {
-      // LoggerProvider without any exporter.
-      let provider: LoggerProvider = LoggerProvider::builder()
-      .with_config(
-          Config::default().with_resource(Resource::new(vec![KeyValue::new(
-              "service.name",
-              "log-appender-tracing-example",
-          )])),
-      )
-      .build();
+    // LoggerProvider without any exporter.
+    let provider: LoggerProvider = LoggerProvider::builder()
+    .with_config(
+        Config::default().with_resource(Resource::new(vec![KeyValue::new(
+            "service.name",
+            "log-appender-tracing-example",
+        )])),
+    )
+    .build();
 
     // Use the OpenTelemetryTracingBridge to test the throughput of the appender-tracing.
     let layer = layer::OpenTelemetryTracingBridge::new(&provider);
@@ -57,7 +57,7 @@ fn main() {
     // OpenTelemetry overhead. This helps measure the OpenTelemetry overhead.
     // let noop_layer = NoOpLogLayer;
     // tracing_subscriber::registry().with(noop_layer).init();
-    
+
     throughput::test_throughput(test_log);
 }
 
