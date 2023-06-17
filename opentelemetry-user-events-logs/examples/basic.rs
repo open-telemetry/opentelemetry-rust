@@ -1,13 +1,10 @@
 //! run with `$ cargo run --example basic --all-features
 
-use opentelemetry_api::{logs::Logger, logs::LoggerProvider as _, logs::Severity};
-
-use log::info;
 use opentelemetry_sdk::logs::LoggerProvider;
-
-use opentelemetry_appender_log::OpenTelemetryLogBridge;
+use opentelemetry_appender_tracing::layer;
 use opentelemetry_user_events_logs::{ExporterConfig, ReentrantLogProcessor};
-use std::time::SystemTime;
+use tracing::error;
+use tracing_subscriber::prelude::*;
 
 fn init_logger() -> LoggerProvider {
     let exporter_config = ExporterConfig { keyword: 1 };
@@ -18,23 +15,15 @@ fn init_logger() -> LoggerProvider {
 }
 
 fn main() {
-    // Example with log crate appender.
+    // Example with tracing appender.
     let logger_provider = init_logger();
-    let logger = OpenTelemetryLogBridge::new(&logger_provider);
-    let _ = log::set_boxed_logger(Box::new(logger));
-    log::set_max_level(log::LevelFilter::Info);
-    info!("test");
+    let layer = layer::OpenTelemetryTracingBridge::new(&logger_provider);
+    tracing_subscriber::registry().with(layer).init();
 
-    // Example with LogBridge API - this is NOT supposed to be used by end user
-    let logger_provider = init_logger();
-    let logger: opentelemetry_sdk::logs::Logger = logger_provider.logger("test");
-    let log_record = opentelemetry_api::logs::LogRecordBuilder::new()
-        .with_body("test message".into())
-        .with_severity_number(Severity::Debug)
-        .with_attribute("key1", "value1")
-        .with_attribute("event_id", 23)
-        .with_attribute("event_name", "test_event")
-        .with_timestamp(SystemTime::now())
-        .build();
-    logger.emit(log_record);
+    // event_name is now passed as an attribute, but once https://github.com/tokio-rs/tracing/issues/1426
+    // is done, it can be passed with name:"my-event_name", so it'll be available as metadata for
+    // fast filtering.
+    // event_id is also passed as an attribute now, there is nothing in metadata where a
+    // numeric id can be stored.
+    error!(user_name = "otel user", user_email = "otel@opentelemetry.io");
 }
