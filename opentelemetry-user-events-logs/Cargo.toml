@@ -15,13 +15,13 @@ eventheader = "0.2"
 eventheader_dynamic = "0.2"
 opentelemetry_api = { version = "0.19", path = "../opentelemetry-api", features = ["logs"]}
 opentelemetry_sdk = { version = "0.19", path = "../opentelemetry-sdk", features = ["logs"]}
+async-std = {version="1.6"}
+async-trait = {version="0.1"}
+chrono = {version="0.4", default-features = false, features=["std"]}
+
+[dev-dependencies]
 opentelemetry-appender-tracing = {path = "../opentelemetry-appender-tracing"}
 tracing = {version = "0.1.37", default-features = false, features = ["std"]}
 tracing-core = "0.1.31"
 tracing-subscriber = { version = "0.3.0", default-features = false, features = ["registry", "std"] }
-tokio = {version="1.0", optional=true, features=["rt-multi-thread", "rt"]}
-async-std = {version="1.6"}
-async-trait = {version="0.1"}
-chrono = {version="0.4", default-features = false, features=["std"]}
-log =  { version ="0.4.17", features = ["std"]}
 

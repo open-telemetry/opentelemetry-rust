@@ -21,9 +21,9 @@ fn main() {
     tracing_subscriber::registry().with(layer).init();
 
     // event_name is now passed as an attribute, but once https://github.com/tokio-rs/tracing/issues/1426
-    // is done, it can be passed with name:"my-event_name", so it'll be available as metadata for
+    // is done, it can be passed with name:"my-event-name", so it'll be available as metadata for
     // fast filtering.
     // event_id is also passed as an attribute now, there is nothing in metadata where a
     // numeric id can be stored.
-    error!(user_name = "otel user", user_email = "otel@opentelemetry.io");
+    error!(event_name = "my-event-name", event_id = 20, user_name = "otel user", user_email = "otel@opentelemetry.io");
 }
