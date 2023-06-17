@@ -48,7 +48,7 @@ libraries to the OpenTelemetry log data model. The following log appenders are
 available:
 
 * [opentelemetry-appender-log](opentelemetry-appender-log/README.md)
-* opentelemetry-appender-tracing // TODO: Add link once available
+* [opentelemetry-appender-tracing](opentelemetry-appender-tracing/README.md)
 * opentelemetry-appender-slog // TODO: Add link once available
 
 If you already use the logging APIs from above, continue to use them, and use
