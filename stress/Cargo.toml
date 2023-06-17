@@ -21,7 +21,6 @@ num_cpus = "1.15.0"
 opentelemetry_api = { path = "../opentelemetry-api", features = ["metrics", "logs"] }
 opentelemetry_sdk = { path = "../opentelemetry-sdk", features = ["metrics", "logs"] }
 opentelemetry-appender-tracing = { path = "../opentelemetry-appender-tracing"}
-opentelemetry-user-events-logs = { path = "../opentelemetry-user-events-logs"}
 opentelemetry-stdout = { path = "../opentelemetry-stdout", features = ["logs"]}
 tracing = {version = "0.1.37", default-features = false, features = ["std"]}
 tracing-core = "0.1.31"

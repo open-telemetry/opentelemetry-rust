@@ -4,7 +4,6 @@ use opentelemetry_sdk::{
     logs::{Config, LoggerProvider},
     Resource,
 };
-use opentelemetry_user_events_logs::{ExporterConfig, ReentrantLogProcessor};
 use tracing::error;
 use tracing_subscriber::{prelude::*, Layer};
 
@@ -39,21 +38,26 @@ where
     }
 }
 
-fn init_logger() -> LoggerProvider {
-    let exporter_config = ExporterConfig { keyword: 1 };
-    let reenterant_processor = ReentrantLogProcessor::new("test", None, exporter_config);
-    LoggerProvider::builder()
-        .with_log_processor(reenterant_processor)
-        .build()
-}
-
 fn main() {
-    // LoggerProvider with user_events exporter.
-    let provider: LoggerProvider = init_logger();
+      // LoggerProvider without any exporter.
+      let provider: LoggerProvider = LoggerProvider::builder()
+      .with_config(
+          Config::default().with_resource(Resource::new(vec![KeyValue::new(
+              "service.name",
+              "log-appender-tracing-example",
+          )])),
+      )
+      .build();
 
     // Use the OpenTelemetryTracingBridge to test the throughput of the appender-tracing.
     let layer = layer::OpenTelemetryTracingBridge::new(&provider);
     tracing_subscriber::registry().with(layer).init();
+
+    // Use a "Do-Nothing" layer to test the throughput of the tracing system without
+    // OpenTelemetry overhead. This helps measure the OpenTelemetry overhead.
+    // let noop_layer = NoOpLogLayer;
+    // tracing_subscriber::registry().with(noop_layer).init();
+    
     throughput::test_throughput(test_log);
 }
 
