@@ -45,7 +45,6 @@ impl<'a> tracing::field::Visit for EventVisitor<'a> {
             map.insert(field.name().into(), value.into());
             self.log_record.attributes = Some(map);
         }
-
     }
 
     // TODO: All record functions should be implemented instead of relying

@@ -1,7 +1,7 @@
 //! run with `$ cargo run --example basic --all-features
 
-use opentelemetry_sdk::logs::LoggerProvider;
 use opentelemetry_appender_tracing::layer;
+use opentelemetry_sdk::logs::LoggerProvider;
 use opentelemetry_user_events_logs::{ExporterConfig, ReentrantLogProcessor};
 use tracing::error;
 use tracing_subscriber::prelude::*;
@@ -25,5 +25,10 @@ fn main() {
     // fast filtering.
     // event_id is also passed as an attribute now, there is nothing in metadata where a
     // numeric id can be stored.
-    error!(event_name = "my-event-name", event_id = 20, user_name = "otel user", user_email = "otel@opentelemetry.io");
+    error!(
+        event_name = "my-event-name",
+        event_id = 20,
+        user_name = "otel user",
+        user_email = "otel@opentelemetry.io"
+    );
 }
