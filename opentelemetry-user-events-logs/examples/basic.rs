@@ -1,10 +1,6 @@
 //! run with `$ cargo run --example basic --all-features
 
-use opentelemetry_api::{
-    logs::Logger,
-    logs::LoggerProvider as _,
-    logs::Severity,
-};
+use opentelemetry_api::{logs::Logger, logs::LoggerProvider as _, logs::Severity};
 
 use log::info;
 use opentelemetry_sdk::logs::LoggerProvider;
