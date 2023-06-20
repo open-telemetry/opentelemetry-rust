@@ -1,16 +1,11 @@
-#![allow(unused_imports, unused_mut, unused_variables, dead_code)]
-
 use async_trait::async_trait;
-use chrono::{Datelike, Timelike};
 use eventheader::{FieldFormat, Level, Opcode};
-use eventheader_dynamic::{EventBuilder, EventSet};
+use eventheader_dynamic::EventBuilder;
 use std::borrow::Cow;
 use std::fmt::Debug;
-use std::fs::File;
 use std::sync::Arc;
-use std::{alloc::System, any::Any};
 
-use opentelemetry_api::{logs::AnyValue, logs::Severity, Array, Key, Value};
+use opentelemetry_api::{logs::AnyValue, logs::Severity, Key};
 use std::{cell::RefCell, str, time::SystemTime};
 
 /// Provider group associated with the user_events exporter
@@ -49,7 +44,7 @@ const EVENT_NAME: &str = "event_name";
 impl UserEventsExporter {
     pub(crate) fn new(
         provider_name: &str,
-        provider_group: ProviderGroup,
+        _provider_group: ProviderGroup,
         exporter_config: ExporterConfig,
     ) -> Self {
         let mut options = eventheader_dynamic::Provider::new_options();
@@ -167,6 +162,7 @@ impl UserEventsExporter {
         level
     }
 
+    #[allow(dead_code)]
     fn enabled(&self, level: u8, keyword: u64) -> bool {
         let es = self.provider.find_set(level.into(), keyword);
         match es {
@@ -291,8 +287,8 @@ impl UserEventsExporter {
                                     AnyValue::Bytes(value) => {
                                         String::from_utf8_lossy(value).to_string()
                                     }
-                                    AnyValue::ListAny(value) => "".to_string(),
-                                    AnyValue::Map(value) => "".to_string(),
+                                    AnyValue::ListAny(_value) => "".to_string(),
+                                    AnyValue::Map(_value) => "".to_string(),
                                 },
                                 FieldFormat::Default,
                                 0,

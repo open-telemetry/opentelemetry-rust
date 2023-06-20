@@ -1,22 +1,16 @@
-#![allow(unused_imports, unused_mut, unused_variables, dead_code)]
-
 //! run with `$ cargo run --example basic --all-features
 
 use opentelemetry_api::{
-    logs::AnyValue,
-    logs::LogRecordBuilder,
     logs::Logger,
     logs::LoggerProvider as _,
     logs::Severity,
-    trace::{mark_span_as_active, Span, Tracer, TracerProvider as _},
-    Context, KeyValue,
 };
 
-use log::{debug, error, info, log, Level, Log};
-use opentelemetry_sdk::{logs::LoggerProvider, runtime, trace::TracerProvider};
+use log::info;
+use opentelemetry_sdk::logs::LoggerProvider;
 
 use opentelemetry_appender_log::OpenTelemetryLogBridge;
-use opentelemetry_user_events_logs::{ExporterConfig, ProviderGroup, ReentrantLogProcessor};
+use opentelemetry_user_events_logs::{ExporterConfig, ReentrantLogProcessor};
 use std::time::SystemTime;
 
 fn init_logger() -> LoggerProvider {
