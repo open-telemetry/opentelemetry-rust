@@ -1,26 +1,10 @@
-#![allow(
-    unused_imports,
-    unused_mut,
-    unused_variables,
-    unused_must_use,
-    dead_code
-)]
-
 use std::fmt::Debug;
-use std::{
-    borrow::Cow,
-    sync::{Arc, Weak},
-};
 
-use opentelemetry_api::{logs::LogRecord, logs::LogResult, InstrumentationLibrary};
-use opentelemetry_sdk::{
-    export::logs::ExportResult, export::logs::LogData, export::logs::LogExporter,
-};
+use opentelemetry_api::logs::LogResult;
+use opentelemetry_sdk::export::logs::LogData;
 
 use crate::logs::exporter::ExporterConfig;
 use crate::logs::exporter::*;
-
-use std::cell::Cell;
 
 /// This export processor exports without synchronization.
 /// This is currently only used in users_event exporter, where we know
@@ -47,7 +31,7 @@ impl ReentrantLogProcessor {
 
 impl opentelemetry_sdk::logs::LogProcessor for ReentrantLogProcessor {
     fn emit(&self, data: LogData) {
-        self.event_exporter.export_log_data(&data);
+        _ = self.event_exporter.export_log_data(&data);
     }
 
     // This is a no-op as this processor doesn't keep anything
