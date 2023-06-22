@@ -27,6 +27,26 @@ impl<'a> tracing::field::Visit for EventVisitor<'a> {
         }
     }
 
+    fn record_f64(&mut self, field: &tracing::field::Field, value: f64) {
+        if let Some(ref mut map) = self.log_record.attributes {
+            map.insert(field.name().into(), value.into());
+        } else {
+            let mut map = OrderMap::with_capacity(1);
+            map.insert(field.name().into(), value.into());
+            self.log_record.attributes = Some(map);
+        }
+    }
+
+    fn record_i64(&mut self, field: &tracing::field::Field, value: i64) {
+        if let Some(ref mut map) = self.log_record.attributes {
+            map.insert(field.name().into(), value.into());
+        } else {
+            let mut map = OrderMap::with_capacity(1);
+            map.insert(field.name().into(), value.into());
+            self.log_record.attributes = Some(map);
+        }
+    }
+
     // TODO: All record functions should be implemented instead of relying
     // of record_debug which stores everything as string.
 }
