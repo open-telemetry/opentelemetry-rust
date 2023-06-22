@@ -34,7 +34,7 @@ use opentelemetry::{
         trace::EvictedHashMap,
         Resource,
     },
-    trace::TraceError,
+    trace::{SpanId, TraceError},
     Key, Value,
 };
 use opentelemetry_semantic_conventions::resource::SERVICE_NAME;
@@ -324,7 +324,12 @@ where
                 ),
                 display_name: Some(to_truncate(span.name.into_owned())),
                 span_id: hex::encode(span.span_context.span_id().to_bytes()),
-                parent_span_id: hex::encode(span.parent_span_id.to_bytes()),
+                /// From the API docs: If this is a root span,
+                /// then this field must be empty.
+                parent_span_id: match span.parent_span_id {
+                    SpanId::INVALID => "".to_owned(),
+                    _ => hex::encode(span.parent_span_id.to_bytes()),
+                },
                 start_time: Some(span.start_time.into()),
                 end_time: Some(span.end_time.into()),
                 attributes: Some((span.attributes, span.resource.as_ref()).into()),
