@@ -36,6 +36,7 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dev-dependencies]
+indexmap = "1.8"
 criterion = { version = "0.4.0", features = ["html_reports"] }
 pprof = { version = "0.11.1", features = ["flamegraph", "criterion"] }
 
@@ -49,6 +50,14 @@ testing = ["opentelemetry_api/testing", "trace", "metrics", "logs", "rt-async-st
 rt-tokio = ["tokio", "tokio-stream"]
 rt-tokio-current-thread = ["tokio", "tokio-stream"]
 rt-async-std = ["async-std"]
+
+[[bench]]
+name = "key_value_map"
+harness = false
+
+[[bench]]
+name = "span_builder"
+harness = false
 
 [[bench]]
 name = "trace"
