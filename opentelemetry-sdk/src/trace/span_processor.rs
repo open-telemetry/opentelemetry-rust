@@ -92,7 +92,7 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
     fn shutdown(&mut self) -> TraceResult<()>;
 }
 
-/// A [`SpanProcessor`] that passes finished spans to the configured `SpanExporter`, as
+/// A [SpanProcessor] that passes finished spans to the configured `SpanExporter`, as
 /// soon as they are finished, without any batching.
 #[derive(Debug)]
 pub struct SimpleSpanProcessor {
