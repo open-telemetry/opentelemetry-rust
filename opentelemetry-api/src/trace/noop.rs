@@ -5,12 +5,10 @@
 //! to have minimal resource utilization and runtime impact.
 use crate::{
     propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
-    trace,
-    trace::{TraceContextExt, TraceFlags, TraceState},
-    Context, KeyValue,
+    trace::{self, TraceContextExt, TraceFlags, TraceState},
+    Context, InstrumentationLibrary, KeyValue,
 };
-use std::borrow::Cow;
-use std::time::SystemTime;
+use std::{borrow::Cow, sync::Arc, time::SystemTime};
 
 /// A no-op instance of a `TracerProvider`.
 #[derive(Clone, Debug, Default)]
@@ -29,13 +27,7 @@ impl trace::TracerProvider for NoopTracerProvider {
     type Tracer = NoopTracer;
 
     /// Returns a new `NoopTracer` instance.
-    fn versioned_tracer(
-        &self,
-        _name: impl Into<Cow<'static, str>>,
-        _version: Option<impl Into<Cow<'static, str>>>,
-        _schema_url: Option<impl Into<Cow<'static, str>>>,
-        _attributes: Option<Vec<KeyValue>>,
-    ) -> Self::Tracer {
+    fn library_tracer(&self, _library: Arc<InstrumentationLibrary>) -> Self::Tracer {
         NoopTracer::new()
     }
 }
