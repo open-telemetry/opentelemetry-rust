@@ -6,7 +6,9 @@
 
 use crate::exporter::tonic::TonicExporterBuilder;
 use crate::transform::sink;
-use crate::{Error, OtlpPipeline};
+use crate::{
+    Error, OtlpPipeline, OTEL_EXPORTER_OTLP_METRICS_ENDPOINT, OTEL_EXPORTER_OTLP_METRICS_TIMEOUT,
+};
 use async_trait::async_trait;
 use core::fmt;
 use opentelemetry_api::{
@@ -54,13 +56,6 @@ use {
     std::convert::TryFrom,
     std::sync::Arc,
 };
-
-/// Target to which the exporter is going to send metrics, defaults to https://localhost:4317/v1/metrics.
-/// Learn about the relationship between this constant and default/spans/logs at
-/// <https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/protocol/exporter.md#endpoint-urls-for-otlphttp>
-pub const OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: &str = "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT";
-/// Max waiting time for the backend to process each metrics batch, defaults to 10s.
-pub const OTEL_EXPORTER_OTLP_METRICS_TIMEOUT: &str = "OTEL_EXPORTER_OTLP_METRICS_TIMEOUT";
 
 impl OtlpPipeline {
     /// Create a OTLP metrics pipeline.
