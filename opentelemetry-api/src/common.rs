@@ -464,7 +464,7 @@ pub struct InstrumentationLibrary {
     pub schema_url: Option<Cow<'static, str>>,
 
     /// Specifies the instrumentation scope attributes to associate with emitted telemetry.
-    pub attributes: Option<Vec<KeyValue>>,
+    pub attributes: Vec<KeyValue>,
 }
 
 // Uniqueness for InstrumentationLibrary/InstrumentationScope does not depend on attributes
@@ -498,7 +498,7 @@ impl InstrumentationLibrary {
             name: name.into(),
             version: version.map(Into::into),
             schema_url: schema_url.map(Into::into),
-            attributes,
+            attributes: attributes.unwrap_or_default(),
         }
     }
 }
