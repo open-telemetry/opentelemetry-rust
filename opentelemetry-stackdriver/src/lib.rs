@@ -462,6 +462,12 @@ impl GcpAuthorizer {
             project_id,
         })
     }
+    pub fn from_gcp_auth(manager: gcp_auth::AuthenticationManager, project_id: String) -> Self {
+        Self {
+            manager,
+            project_id,
+        }
+    }
 }
 
 #[cfg(feature = "gcp_auth")]
