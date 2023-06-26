@@ -4,10 +4,8 @@ use crate::{logs::LogRecord, KeyValue};
 
 /// The interface for emitting [`LogRecord`]s.
 pub trait Logger {
-    /// Emit a [`LogRecord`]. If there is currently active trace context,
-    ///  the logger will set the record's
-    /// [`TraceContext`] to the active trace context, using the current thread's
-    /// [`Context`].
+    /// Emit a [`LogRecord`]. If there is active current thread's [`Context`],
+    ///  the logger will set the record's [`TraceContext`] to the active trace context,
     ///
     /// [`Context`]: crate::Context
     /// [`TraceContext`]: crate::logs::TraceContext
