@@ -24,8 +24,6 @@ pub trait LoggerProvider {
     /// The `name` should be the application name or the name of the library
     /// providing instrumentation. If the name is empty, then an
     /// implementation-defined default name may be used instead.
-    ///
-
     fn versioned_logger(
         &self,
         name: impl Into<Cow<'static, str>>,
