@@ -22,7 +22,8 @@ use std::{
 };
 
 use async_trait::async_trait;
-use futures::{future::BoxFuture, stream::StreamExt};
+use futures_core::future::BoxFuture;
+use futures_util::stream::StreamExt;
 use opentelemetry::{
     global::handle_error,
     sdk::{
@@ -75,7 +76,7 @@ use proto::rpc::Status;
 /// so this struct does not send link information.
 #[derive(Clone)]
 pub struct StackDriverExporter {
-    tx: futures::channel::mpsc::Sender<Vec<SpanData>>,
+    tx: futures_channel::mpsc::Sender<Vec<SpanData>>,
     pending_count: Arc<AtomicUsize>,
     maximum_shutdown_duration: Duration,
 }
@@ -196,7 +197,7 @@ impl Builder {
             None => None,
         };
 
-        let (tx, rx) = futures::channel::mpsc::channel(64);
+        let (tx, rx) = futures_channel::mpsc::channel(64);
         let pending_count = Arc::new(AtomicUsize::new(0));
         let scopes = Arc::new(match log_client {
             Some(_) => vec![TRACE_APPEND, LOGGING_WRITE],

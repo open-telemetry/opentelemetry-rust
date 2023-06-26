@@ -30,10 +30,8 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 async-trait = "0.1"
-futures = { version = "0.3", default-features = false, features = ["std"] }
-
+futures-core = "0.3"
 opentelemetry-proto = { version = "0.2", path = "../opentelemetry-proto", default-features = false }
-
 grpcio = { version = "0.12", optional = true }
 opentelemetry_api = { version = "0.19", default-features = false, path = "../opentelemetry-api" }
 opentelemetry_sdk = { version = "0.19", default-features = false, path = "../opentelemetry-sdk" }
@@ -57,6 +55,7 @@ tokio-stream = { version = "0.1", features = ["net"] }
 opentelemetry_sdk = { features = ["trace", "rt-tokio", "testing"], path = "../opentelemetry-sdk" }
 time = { version = "0.3", features = ["macros"] }
 tokio = { version = "1.0", features = ["macros", "rt-multi-thread"] }
+futures = { version = "0.3", default-features = false, features = ["std"] }
 
 [features]
 # telemetry pillars and functions

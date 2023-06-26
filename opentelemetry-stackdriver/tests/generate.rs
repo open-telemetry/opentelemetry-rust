@@ -4,8 +4,8 @@ use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
 
-use futures::stream::FuturesUnordered;
-use futures::stream::StreamExt;
+use futures_util::stream::FuturesUnordered;
+use futures_util::stream::StreamExt;
 use walkdir::WalkDir;
 
 /// Download the latest protobuf schemas from the Google APIs GitHub repository.

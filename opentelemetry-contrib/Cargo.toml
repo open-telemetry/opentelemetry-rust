@@ -22,7 +22,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 default = []
 base64_format = ["base64", "binary_propagator"]
 binary_propagator = []
-jaeger_json_exporter = ["serde_json", "futures", "async-trait", "opentelemetry-semantic-conventions"]
+jaeger_json_exporter = ["serde_json", "futures-core", "futures-util", "async-trait", "opentelemetry-semantic-conventions"]
 rt-tokio = ["tokio", "opentelemetry/rt-tokio"]
 rt-tokio-current-thread = ["tokio", "opentelemetry/rt-tokio-current-thread"]
 rt-async-std = ["async-std", "opentelemetry/rt-async-std"]
@@ -31,13 +31,16 @@ rt-async-std = ["async-std", "opentelemetry/rt-async-std"]
 async-std = { version = "1.10", optional = true }
 async-trait = { version = "0.1", optional = true }
 base64 = { version = "0.13", optional = true }
-futures = { version = "0.3", optional = true }
 once_cell = "1.17.1"
 opentelemetry = { version = "0.19", path = "../opentelemetry", features = ["trace"] }
 opentelemetry_api = { version = "0.19", path = "../opentelemetry-api" }
 opentelemetry-semantic-conventions = { version = "0.11", path = "../opentelemetry-semantic-conventions", optional = true }
 serde_json = { version = "1", optional = true }
 tokio = { version = "1.0", features = ["fs", "io-util"], optional = true }
+
+# futures
+futures-core = { version = "0.3", optional = true }
+futures-util = { version = "0.3", optional = true }
 
 [dev-dependencies]
 base64 = "0.13"
