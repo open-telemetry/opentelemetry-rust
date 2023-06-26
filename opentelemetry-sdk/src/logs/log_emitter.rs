@@ -32,7 +32,7 @@ impl opentelemetry_api::logs::LoggerProvider for LoggerProvider {
         name: impl Into<Cow<'static, str>>,
         version: Option<Cow<'static, str>>,
         schema_url: Option<Cow<'static, str>>,
-        attributes: Option<Vec<opentelemetry_api::KeyValue>>
+        attributes: Option<Vec<opentelemetry_api::KeyValue>>,
     ) -> Logger {
         let name = name.into();
 
@@ -44,7 +44,7 @@ impl opentelemetry_api::logs::LoggerProvider for LoggerProvider {
 
         Logger::new(
             InstrumentationLibrary::new(component_name, version, schema_url, attributes),
-            Arc::downgrade(&self.inner)
+            Arc::downgrade(&self.inner),
         )
     }
 }
@@ -175,7 +175,7 @@ pub struct Logger {
 impl Logger {
     pub(crate) fn new(
         instrumentation_lib: InstrumentationLibrary,
-        provider: Weak<LoggerProviderInner>
+        provider: Weak<LoggerProviderInner>,
     ) -> Self {
         Logger {
             instrumentation_lib,

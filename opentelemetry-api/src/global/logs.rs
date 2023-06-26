@@ -26,7 +26,7 @@ pub trait ObjectSafeLoggerProvider {
         name: Cow<'static, str>,
         version: Option<Cow<'static, str>>,
         schema_url: Option<Cow<'static, str>>,
-        attributes: Option<Vec<KeyValue>>
+        attributes: Option<Vec<KeyValue>>,
     ) -> Box<dyn Logger + Send + Sync + 'static>;
 }
 
@@ -42,12 +42,7 @@ where
         schema_url: Option<Cow<'static, str>>,
         attributes: Option<Vec<KeyValue>>,
     ) -> Box<dyn Logger + Send + Sync + 'static> {
-        Box::new(self.versioned_logger(
-            name,
-            version,
-            schema_url,
-            attributes
-        ))
+        Box::new(self.versioned_logger(name, version, schema_url, attributes))
     }
 }
 
@@ -98,13 +93,13 @@ impl LoggerProvider for GlobalLoggerProvider {
         name: impl Into<Cow<'static, str>>,
         version: Option<Cow<'static, str>>,
         schema_url: Option<Cow<'static, str>>,
-        attributes: Option<Vec<KeyValue>>
+        attributes: Option<Vec<KeyValue>>,
     ) -> Self::Logger {
         BoxedLogger(self.provider.versioned_logger_boxed(
             name.into(),
             version,
             schema_url,
-            attributes
+            attributes,
         ))
     }
 }

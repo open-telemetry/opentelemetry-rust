@@ -31,7 +31,7 @@ pub trait LoggerProvider {
         name: impl Into<Cow<'static, str>>,
         version: Option<Cow<'static, str>>,
         schema_url: Option<Cow<'static, str>>,
-        attributes: Option<Vec<KeyValue>>
+        attributes: Option<Vec<KeyValue>>,
     ) -> Self::Logger;
 
     /// Returns a new logger with the given name.
