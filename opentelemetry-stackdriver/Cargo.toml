@@ -11,7 +11,6 @@ rust-version = "1.60"
 
 [dependencies]
 async-trait = "0.1.48"
-futures = { version = "0.3", default-features = false, features = ["alloc"] }
 gcp_auth = { version = "0.8", optional = true }
 hex = "0.4"
 http = "0.2"
@@ -25,6 +24,11 @@ thiserror = "1.0.30"
 tonic = { version = "0.9.0", features = ["gzip", "tls", "transport"] }
 yup-oauth2 = { version = "8.1.0", optional = true }
 
+# Futures
+futures-core = "0.3"
+futures-util = { version = "0.3", default-features = false, features = ["alloc"] }
+futures-channel = { version = "0.3", default-features = false, features = ["std"] }
+
 [features]
 default = ["yup-authorizer", "tls-native-roots"]
 yup-authorizer = ["hyper-rustls", "yup-oauth2"]
@@ -37,3 +41,4 @@ tempfile = "3.3.0"
 tokio = "1"
 tonic-build = "0.9.0"
 walkdir = "2.3.2"
+futures = "0.3"
