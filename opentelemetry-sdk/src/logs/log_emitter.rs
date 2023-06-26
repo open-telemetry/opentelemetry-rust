@@ -32,8 +32,7 @@ impl opentelemetry_api::logs::LoggerProvider for LoggerProvider {
         name: impl Into<Cow<'static, str>>,
         version: Option<Cow<'static, str>>,
         schema_url: Option<Cow<'static, str>>,
-        attributes: Option<Vec<opentelemetry_api::KeyValue>>,
-        include_trace_context: bool,
+        attributes: Option<Vec<opentelemetry_api::KeyValue>>
     ) -> Logger {
         let name = name.into();
 
@@ -45,8 +44,7 @@ impl opentelemetry_api::logs::LoggerProvider for LoggerProvider {
 
         Logger::new(
             InstrumentationLibrary::new(component_name, version, schema_url, attributes),
-            Arc::downgrade(&self.inner),
-            include_trace_context,
+            Arc::downgrade(&self.inner)
         )
     }
 }
@@ -170,7 +168,6 @@ impl Builder {
 ///
 /// [`LogRecord`]: opentelemetry_api::logs::LogRecord
 pub struct Logger {
-    include_trace_context: bool,
     instrumentation_lib: InstrumentationLibrary,
     provider: Weak<LoggerProviderInner>,
 }
@@ -178,11 +175,9 @@ pub struct Logger {
 impl Logger {
     pub(crate) fn new(
         instrumentation_lib: InstrumentationLibrary,
-        provider: Weak<LoggerProviderInner>,
-        include_trace_context: bool,
+        provider: Weak<LoggerProviderInner>
     ) -> Self {
         Logger {
-            include_trace_context,
             instrumentation_lib,
             provider,
         }
@@ -210,12 +205,10 @@ impl opentelemetry_api::logs::Logger for Logger {
         let config = provider.config();
         for processor in provider.log_processors() {
             let mut record = record.clone();
-            if self.include_trace_context {
-                let ctx = Context::current();
-                if ctx.has_active_span() {
-                    let span = ctx.span();
-                    record.trace_context = Some(span.span_context().into());
-                }
+            let ctx = Context::current();
+            if ctx.has_active_span() {
+                let span = ctx.span();
+                record.trace_context = Some(span.span_context().into());
             }
             let data = LogData {
                 record,

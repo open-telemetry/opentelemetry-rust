@@ -24,8 +24,7 @@ impl LoggerProvider for NoopLoggerProvider {
         _name: impl Into<Cow<'static, str>>,
         _version: Option<Cow<'static, str>>,
         _schema_url: Option<Cow<'static, str>>,
-        _attributes: Option<Vec<KeyValue>>,
-        _include_trace_context: bool,
+        _attributes: Option<Vec<KeyValue>>
     ) -> Self::Logger {
         NoopLogger(())
     }
