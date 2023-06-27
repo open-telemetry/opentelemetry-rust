@@ -53,7 +53,7 @@ pub trait LoggerProvider {
     /// # Examples
     ///
     /// ```
-    /// use opentelemetry_api::{global, InstrumentationLibrary, trace::LoggerProvider};
+    /// use opentelemetry_api::{global, InstrumentationLibrary, logs::LoggerProvider};
     ///
     /// let provider = global::logger_provider();
     ///
