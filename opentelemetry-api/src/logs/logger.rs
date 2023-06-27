@@ -62,7 +62,7 @@ pub trait LoggerProvider {
     /// // logger used in libraries/crates that optionally includes version and schema url
     /// let library = std::sync::Arc::new(InstrumentationLibrary::new(
     ///     env!("CARGO_PKG_NAME"),
-    ///     Some(env!("CARGO_PKG_VERSION"))
+    ///     Some(env!("CARGO_PKG_VERSION")),
     ///     Some("https://opentelemetry.io/schema/1.0.0"),
     ///     None,
     /// ));
