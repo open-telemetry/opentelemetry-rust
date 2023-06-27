@@ -1,4 +1,5 @@
 use crate::trace::{noop::NoopTracerProvider, SpanContext, Status};
+use crate::InstrumentationLibrary;
 use crate::{trace, trace::TracerProvider, Context, KeyValue};
 use once_cell::sync::Lazy;
 use std::borrow::Cow;
@@ -290,12 +291,9 @@ where
 pub trait ObjectSafeTracerProvider {
     /// Creates a versioned named tracer instance that is a trait object through the underlying
     /// `TracerProvider`.
-    fn versioned_tracer_boxed(
+    fn boxed_tracer(
         &self,
-        name: Cow<'static, str>,
-        version: Option<Cow<'static, str>>,
-        schema_url: Option<Cow<'static, str>>,
-        attributes: Option<Vec<KeyValue>>,
+        library: Arc<InstrumentationLibrary>,
     ) -> Box<dyn ObjectSafeTracer + Send + Sync>;
 }
 
@@ -306,14 +304,11 @@ where
     P: trace::TracerProvider<Tracer = T>,
 {
     /// Return a versioned boxed tracer
-    fn versioned_tracer_boxed(
+    fn boxed_tracer(
         &self,
-        name: Cow<'static, str>,
-        version: Option<Cow<'static, str>>,
-        schema_url: Option<Cow<'static, str>>,
-        attributes: Option<Vec<KeyValue>>,
+        library: Arc<InstrumentationLibrary>,
     ) -> Box<dyn ObjectSafeTracer + Send + Sync> {
-        Box::new(self.versioned_tracer(name, version, schema_url, attributes))
+        Box::new(self.library_tracer(library))
     }
 }
 
@@ -350,20 +345,9 @@ impl GlobalTracerProvider {
 impl trace::TracerProvider for GlobalTracerProvider {
     type Tracer = BoxedTracer;
 
-    /// Create a versioned tracer using the global provider.
-    fn versioned_tracer(
-        &self,
-        name: impl Into<Cow<'static, str>>,
-        version: Option<impl Into<Cow<'static, str>>>,
-        schema_url: Option<impl Into<Cow<'static, str>>>,
-        attributes: Option<Vec<KeyValue>>,
-    ) -> Self::Tracer {
-        BoxedTracer(self.provider.versioned_tracer_boxed(
-            name.into(),
-            version.map(Into::into),
-            schema_url.map(Into::into),
-            attributes,
-        ))
+    /// Create a tracer using the global provider.
+    fn library_tracer(&self, library: Arc<InstrumentationLibrary>) -> Self::Tracer {
+        BoxedTracer(self.provider.boxed_tracer(library))
     }
 }
 

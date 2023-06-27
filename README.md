@@ -48,7 +48,7 @@ libraries to the OpenTelemetry log data model. The following log appenders are
 available:
 
 * [opentelemetry-appender-log](opentelemetry-appender-log/README.md)
-* opentelemetry-appender-tracing // TODO: Add link once available
+* [opentelemetry-appender-tracing](opentelemetry-appender-tracing/README.md)
 * opentelemetry-appender-slog // TODO: Add link once available
 
 If you already use the logging APIs from above, continue to use them, and use
@@ -181,3 +181,20 @@ this policy.
 ## Contributing
 
 See the [contributing file](CONTRIBUTING.md).
+
+The Rust special interest group (SIG) meets weekly on Tuesdays at 9 AM Pacific
+Time (16:00 UTC). The meeting is subject to change depending on contributors'
+availability. Check the [OpenTelemetry community
+calendar](https://calendar.google.com/calendar/embed?src=google.com_b79e3e90j7bbsa2n2p5an5lf60%40group.calendar.google.com)
+for specific dates and for Zoom meeting links. "OTel Rust SIG" is the name of
+meeting for this group.
+
+Meeting notes are available as a public [Google
+doc](https://docs.google.com/document/d/1tGKuCsSnyT2McDncVJrMgg74_z8V06riWZa0Sr79I_4/edit).
+If you have trouble accessing the doc, please get in touch on
+[Slack](https://cloud-native.slack.com/archives/C03GDP0H023).
+
+The meeting is open for all to join. We invite everyone to join our meeting,
+regardless of your experience level. Whether you're a seasoned OpenTelemetry
+developer, just starting your journey, or simply curious about the work we do,
+you're more than welcome to participate!

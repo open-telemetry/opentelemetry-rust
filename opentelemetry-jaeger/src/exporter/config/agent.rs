@@ -381,9 +381,9 @@ impl AgentPipeline {
             self.auto_split_batch,
         )
         .map_err::<Error, _>(Into::into)?;
-        Ok(Arc::new(AsyncUploader::Agent(futures::lock::Mutex::new(
-            agent,
-        ))))
+        Ok(Arc::new(AsyncUploader::Agent(
+            futures_util::lock::Mutex::new(agent),
+        )))
     }
 
     fn build_sync_agent_uploader(self) -> Result<Arc<dyn Uploader>, TraceError> {

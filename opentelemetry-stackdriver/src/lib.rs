@@ -22,7 +22,8 @@ use std::{
 };
 
 use async_trait::async_trait;
-use futures::{future::BoxFuture, stream::StreamExt};
+use futures_core::future::BoxFuture;
+use futures_util::stream::StreamExt;
 use opentelemetry::{
     global::handle_error,
     sdk::{
@@ -31,6 +32,7 @@ use opentelemetry::{
             ExportError,
         },
         trace::EvictedHashMap,
+        Resource,
     },
     trace::TraceError,
     Key, Value,
@@ -44,7 +46,7 @@ use thiserror::Error;
 use tonic::metadata::MetadataValue;
 use tonic::{
     transport::{Channel, ClientTlsConfig},
-    Request,
+    Code, Request,
 };
 #[cfg(feature = "yup-authorizer")]
 use yup_oauth2::authenticator::Authenticator;
@@ -55,16 +57,18 @@ pub mod proto;
 const HTTP_HOST: Key = Key::from_static_str("http.host");
 const HTTP_USER_AGENT: Key = Key::from_static_str("http.user_agent");
 
+use proto::devtools::cloudtrace::v2::span::{
+    time_event::Annotation, Attributes, SpanKind, TimeEvent, TimeEvents,
+};
 use proto::devtools::cloudtrace::v2::BatchWriteSpansRequest;
 use proto::devtools::cloudtrace::v2::{
-    span::{time_event::Annotation, Attributes, TimeEvent, TimeEvents},
-    trace_service_client::TraceServiceClient,
-    AttributeValue, Span, TruncatableString,
+    trace_service_client::TraceServiceClient, AttributeValue, Span, TruncatableString,
 };
 use proto::logging::v2::{
     log_entry::Payload, logging_service_v2_client::LoggingServiceV2Client, LogEntry,
     LogEntrySourceLocation, WriteLogEntriesRequest,
 };
+use proto::rpc::Status;
 
 /// Exports opentelemetry tracing spans to Google StackDriver.
 ///
@@ -72,7 +76,7 @@ use proto::logging::v2::{
 /// so this struct does not send link information.
 #[derive(Clone)]
 pub struct StackDriverExporter {
-    tx: futures::channel::mpsc::Sender<Vec<SpanData>>,
+    tx: futures_channel::mpsc::Sender<Vec<SpanData>>,
     pending_count: Arc<AtomicUsize>,
     maximum_shutdown_duration: Duration,
 }
@@ -193,7 +197,7 @@ impl Builder {
             None => None,
         };
 
-        let (tx, rx) = futures::channel::mpsc::channel(64);
+        let (tx, rx) = futures_channel::mpsc::channel(64);
         let pending_count = Arc::new(AtomicUsize::new(0));
         let scopes = Arc::new(match log_client {
             Some(_) => vec![TRACE_APPEND, LOGGING_WRITE],
@@ -323,11 +327,13 @@ where
                 parent_span_id: hex::encode(span.parent_span_id.to_bytes()),
                 start_time: Some(span.start_time.into()),
                 end_time: Some(span.end_time.into()),
-                attributes: Some(span.attributes.into()),
+                attributes: Some((span.attributes, span.resource.as_ref()).into()),
                 time_events: Some(TimeEvents {
                     time_event,
                     ..Default::default()
                 }),
+                status: status(span.status),
+                span_kind: SpanKind::from(span.span_kind) as i32,
                 ..Default::default()
             });
         }
@@ -456,6 +462,12 @@ impl GcpAuthorizer {
             manager,
             project_id,
         })
+    }
+    pub fn from_gcp_auth(manager: gcp_auth::AuthenticationManager, project_id: String) -> Self {
+        Self {
+            manager,
+            project_id,
+        }
     }
 }
 
@@ -692,11 +704,19 @@ pub enum MonitoredResource {
     },
 }
 
-impl From<EvictedHashMap> for Attributes {
-    fn from(attributes: EvictedHashMap) -> Self {
+impl From<(EvictedHashMap, &Resource)> for Attributes {
+    /// Combines `EvictedHashMap` and `Resource` attributes into a maximum of 32.
+    ///
+    /// The `Resource` takes precedence over the `EvictedHashMap` attributes.
+    fn from((attributes, resource): (EvictedHashMap, &Resource)) -> Self {
         let mut dropped_attributes_count: i32 = 0;
-        let attribute_map = attributes
+        let num_resource_attributes = resource.len();
+        let num_attributes = attributes.len();
+
+        let attribute_map = resource
             .into_iter()
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .chain(attributes.into_iter())
             .flat_map(|(k, v)| {
                 let key = k.as_str();
                 if key.len() > 128 {
@@ -718,10 +738,14 @@ impl From<EvictedHashMap> for Attributes {
 
                 Some((key.to_owned(), v.into()))
             })
+            .take(MAX_ATTRIBUTES_PER_SPAN)
             .collect();
+
         Attributes {
             attribute_map,
-            dropped_attributes_count,
+            dropped_attributes_count: dropped_attributes_count
+                + (num_resource_attributes + num_attributes).saturating_sub(MAX_ATTRIBUTES_PER_SPAN)
+                    as i32,
         }
     }
 }
@@ -737,11 +761,39 @@ const KEY_MAP: [(&Key, &str); 7] = [
     (&HTTP_ROUTE, "/http/route"),
 ];
 
+impl From<opentelemetry::trace::SpanKind> for SpanKind {
+    fn from(span_kind: opentelemetry::trace::SpanKind) -> Self {
+        match span_kind {
+            opentelemetry::trace::SpanKind::Client => SpanKind::Client,
+            opentelemetry::trace::SpanKind::Server => SpanKind::Server,
+            opentelemetry::trace::SpanKind::Producer => SpanKind::Producer,
+            opentelemetry::trace::SpanKind::Consumer => SpanKind::Consumer,
+            opentelemetry::trace::SpanKind::Internal => SpanKind::Internal,
+        }
+    }
+}
+
+fn status(value: opentelemetry::trace::Status) -> Option<Status> {
+    match value {
+        opentelemetry::trace::Status::Ok => Some(Status {
+            code: Code::Ok as i32,
+            message: "".to_owned(),
+            details: vec![],
+        }),
+        opentelemetry::trace::Status::Unset => None,
+        opentelemetry::trace::Status::Error { description } => Some(Status {
+            code: Code::Unknown as i32,
+            message: description.into(),
+            details: vec![],
+        }),
+    }
+}
 const TRACE_APPEND: &str = "https://www.googleapis.com/auth/trace.append";
 const LOGGING_WRITE: &str = "https://www.googleapis.com/auth/logging.write";
 const HTTP_PATH_ATTRIBUTE: &str = "http.path";
 const GCP_HTTP_PATH: &str = "/http/path";
 const GCP_SERVICE_NAME: &str = "g.co/gae/app/module";
+const MAX_ATTRIBUTES_PER_SPAN: usize = 32;
 
 #[cfg(test)]
 mod tests {
@@ -782,9 +834,9 @@ mod tests {
         attributes.insert(semcov::trace::HTTP_ROUTE.string("/webshop/articles/:article_id"));
 
         // 	serviceAttribute    = "service.name"
-        attributes.insert(semcov::resource::SERVICE_NAME.string("Test Service Name"));
+        let resources = Resource::new([semcov::resource::SERVICE_NAME.string("Test Service Name")]);
 
-        let actual: Attributes = attributes.into();
+        let actual: Attributes = (attributes, &resources).into();
 
         assert_eq!(actual.attribute_map.len(), 8);
         assert_eq!(actual.dropped_attributes_count, 0);
@@ -835,6 +887,29 @@ mod tests {
     }
 
     #[test]
+    fn test_too_many() {
+        let resources = Resource::new([semcov::resource::SERVICE_NAME.string("Test Service Name")]);
+        let mut attributes = EvictedHashMap::new(32, 0);
+        for i in 0..32 {
+            attributes.insert(KeyValue::new(
+                format!("key{}", i),
+                Value::String(format!("value{}", i).into()),
+            ));
+        }
+
+        let actual: Attributes = (attributes, &resources).into();
+
+        assert_eq!(actual.attribute_map.len(), 32);
+        assert_eq!(actual.dropped_attributes_count, 1);
+        assert_eq!(
+            actual.attribute_map.get("g.co/gae/app/module"),
+            Some(&AttributeValue::from(Value::String(
+                "Test Service Name".into()
+            ))),
+        );
+    }
+
+    #[test]
     fn test_attributes_mapping_http_target() {
         let capacity = 10;
         let mut attributes = EvictedHashMap::new(capacity, 0);
@@ -842,7 +917,8 @@ mod tests {
         //	hostAttribute       = "http.target"
         attributes.insert(semcov::trace::HTTP_TARGET.string("/path/12314/?q=ddds#123"));
 
-        let actual: Attributes = attributes.into();
+        let resources = Resource::new([]);
+        let actual: Attributes = (attributes, &resources).into();
 
         assert_eq!(actual.attribute_map.len(), 1);
         assert_eq!(actual.dropped_attributes_count, 0);
@@ -861,7 +937,8 @@ mod tests {
         attributes.insert(KeyValue::new("answer", Value::I64(42)));
         attributes.insert(KeyValue::new("long_attribute_key_dvwmacxpeefbuemoxljmqvldjxmvvihoeqnuqdsyovwgljtnemouidabhkmvsnauwfnaihekcfwhugejboiyfthyhmkpsaxtidlsbwsmirebax", Value::String("Some value".into())));
 
-        let actual: Attributes = attributes.into();
+        let resources = Resource::new([]);
+        let actual: Attributes = (attributes, &resources).into();
         assert_eq!(
             actual,
             Attributes {

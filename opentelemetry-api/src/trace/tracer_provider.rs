@@ -1,5 +1,5 @@
-use crate::{trace::Tracer, KeyValue};
-use std::borrow::Cow;
+use crate::{trace::Tracer, InstrumentationLibrary, KeyValue};
+use std::{borrow::Cow, sync::Arc};
 
 /// Types that can create instances of [`Tracer`].
 ///
@@ -75,5 +75,32 @@ pub trait TracerProvider {
         version: Option<impl Into<Cow<'static, str>>>,
         schema_url: Option<impl Into<Cow<'static, str>>>,
         attributes: Option<Vec<KeyValue>>,
-    ) -> Self::Tracer;
+    ) -> Self::Tracer {
+        self.library_tracer(Arc::new(InstrumentationLibrary::new(
+            name, version, schema_url, attributes,
+        )))
+    }
+
+    /// Returns a new versioned tracer with the given instrumentation library.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use opentelemetry_api::{global, InstrumentationLibrary, trace::TracerProvider};
+    ///
+    /// let provider = global::tracer_provider();
+    ///
+    /// // tracer used in applications/binaries
+    /// let tracer = provider.tracer("my_app");
+    ///
+    /// // tracer used in libraries/crates that optionally includes version and schema url
+    /// let library = std::sync::Arc::new(InstrumentationLibrary::new(
+    ///     env!("CARGO_PKG_NAME"),
+    ///     Some(env!("CARGO_PKG_VERSION")),
+    ///     Some("https://opentelemetry.io/schema/1.0.0"),
+    ///     None,
+    /// ));
+    /// let tracer = provider.library_tracer(library);
+    /// ```
+    fn library_tracer(&self, library: Arc<InstrumentationLibrary>) -> Self::Tracer;
 }

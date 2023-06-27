@@ -41,7 +41,7 @@ impl Uploader for SyncUploader {
 #[derive(Debug)]
 pub(crate) enum AsyncUploader<R: JaegerTraceRuntime> {
     /// Agent async client
-    Agent(futures::lock::Mutex<agent::AgentAsyncClientUdp<R>>),
+    Agent(futures_util::lock::Mutex<agent::AgentAsyncClientUdp<R>>),
     /// Collector sync client
     #[cfg(feature = "collector_client")]
     Collector(collector::AsyncHttpClient),

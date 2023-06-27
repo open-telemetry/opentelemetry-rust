@@ -2,7 +2,8 @@
 //!
 
 use async_trait::async_trait;
-use futures::{future::BoxFuture, FutureExt};
+use futures_core::future::BoxFuture;
+use futures_util::FutureExt;
 use opentelemetry::runtime::RuntimeChannel;
 use opentelemetry::sdk::export::trace::{ExportResult, SpanData, SpanExporter};
 use opentelemetry::sdk::trace::{BatchMessage, Tracer};

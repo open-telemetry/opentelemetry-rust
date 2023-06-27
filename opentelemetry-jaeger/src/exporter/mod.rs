@@ -18,7 +18,7 @@ use std::convert::TryFrom;
 
 use self::runtime::JaegerTraceRuntime;
 use self::thrift::jaeger;
-use futures::future::BoxFuture;
+use futures_core::future::BoxFuture;
 use std::convert::TryInto;
 use std::fmt::Display;
 use std::io;

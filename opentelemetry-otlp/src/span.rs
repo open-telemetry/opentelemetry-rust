@@ -65,6 +65,7 @@ use opentelemetry_sdk::{
 use opentelemetry_semantic_conventions::SCHEMA_URL;
 
 use async_trait::async_trait;
+use futures_core::future::BoxFuture;
 use sdk::runtime::RuntimeChannel;
 
 /// Target to which the exporter is going to send spans, defaults to https://localhost:4317/v1/traces.
@@ -507,10 +508,7 @@ async fn http_send_request(
 
 #[async_trait]
 impl opentelemetry_sdk::export::trace::SpanExporter for SpanExporter {
-    fn export(
-        &mut self,
-        batch: Vec<SpanData>,
-    ) -> futures::future::BoxFuture<'static, ExportResult> {
+    fn export(&mut self, batch: Vec<SpanData>) -> BoxFuture<'static, ExportResult> {
         match self {
             #[cfg(feature = "grpc-sys")]
             SpanExporter::Grpcio {
