@@ -66,7 +66,7 @@ pub trait LoggerProvider {
     ///     Some("https://opentelemetry.io/schema/1.0.0"),
     ///     None,
     /// ));
-    /// let logger = provider.library_logger(library);
+    /// let logger = provider.library_logger(library, true);
     /// ```
     fn library_logger(
         &self,
