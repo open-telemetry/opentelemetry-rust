@@ -1,6 +1,6 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, sync::Arc};
 
-use crate::{logs::LogRecord, KeyValue};
+use crate::{logs::LogRecord, InstrumentationLibrary, KeyValue};
 
 /// The interface for emitting [`LogRecord`]s.
 pub trait Logger {
@@ -38,6 +38,39 @@ pub trait LoggerProvider {
         version: Option<Cow<'static, str>>,
         schema_url: Option<Cow<'static, str>>,
         attributes: Option<Vec<KeyValue>>,
+        include_trace_context: bool,
+    ) -> Self::Logger {
+        self.library_logger(
+            Arc::new(InstrumentationLibrary::new(
+                name, version, schema_url, attributes,
+            )),
+            include_trace_context,
+        )
+    }
+
+    /// Returns a new versioned logger with the given instrumentation library.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use opentelemetry_api::{global, InstrumentationLibrary, trace::LoggerProvider};
+    ///
+    /// let provider = global::logger_provider();
+    ///
+    /// // logger used in applications/binaries
+    /// let logger = provider.logger("my_app");
+    /// // logger used in libraries/crates that optionally includes version and schema url
+    /// let library = std::sync::Arc::new(InstrumentationLibrary::new(
+    ///     env!("CARGO_PKG_NAME"),
+    ///     Some(env!("CARGO_PKG_VERSION"))
+    ///     Some("https://opentelemetry.io/schema/1.0.0"),
+    ///     None,
+    /// ));
+    /// let logger = provider.library_logger(library);
+    /// ```
+    fn library_logger(
+        &self,
+        library: Arc<InstrumentationLibrary>,
         include_trace_context: bool,
     ) -> Self::Logger;
 
