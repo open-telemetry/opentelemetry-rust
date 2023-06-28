@@ -18,12 +18,12 @@ pub struct MetricsExporter {}
 
 impl MetricsExporter {
     pub fn new() -> MetricsExporter {
-        // This is unsafe because if the code is used in a shared object (DLL),
+        // This is unsafe because if the code is used in a shared object,
         // the event MUST be unregistered before the shared object unloads.
         unsafe {
             let result = tracepoint::register();
             if result != 0 {
-                println!("Tracepoint failed to register.");
+                eprintln!("Tracepoint failed to register.");
             }
         }
         MetricsExporter {}
@@ -89,7 +89,7 @@ impl PushMetricsExporter for MetricsExporter {
     async fn shutdown(&self) -> Result<()> {
         let result = tracepoint::unregister();
         if result != 0 {
-            println!("Tracepoint failed to unregister.");
+            eprintln!("Tracepoint failed to unregister.");
         }
         Ok(())
     }

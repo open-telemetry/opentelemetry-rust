@@ -33,7 +33,7 @@ pub fn write(data: &[u8]) -> i32 {
     // This must stay in sync with the METRICS_EVENT_DEF string.
     // Return error -1 if data exceeds max size
     if data.len() > u16::MAX as usize {
-        println!("Data exceeds max length.");
+        eprintln!("Data exceeds max length.");
         return -1;
     }
 
@@ -65,7 +65,7 @@ pub fn enabled() -> bool {
 ///
 /// # Safety
 ///
-/// If this code is used in a shared object (DLL), the tracepoint MUST be
+/// If this code is used in a shared object, the tracepoint MUST be
 /// unregistered before the shared object unloads from memory.
 pub unsafe fn register() -> i32 {
     debug_assert!(METRICS_EVENT_DEF[METRICS_EVENT_DEF.len() - 1] == b'\0');
