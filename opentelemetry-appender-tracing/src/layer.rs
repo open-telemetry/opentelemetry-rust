@@ -1,8 +1,6 @@
 use opentelemetry_api::{
-    logs::LoggerProvider,
-    logs::Severity,
-    logs::{LogRecord, Logger},
-    OrderMap,
+    logs::{AnyValue, LogRecord, Logger, LoggerProvider, Severity},
+    Key, OrderMap,
 };
 
 use tracing_subscriber::Layer;
@@ -27,6 +25,27 @@ impl<'a> tracing::field::Visit for EventVisitor<'a> {
         }
     }
 
+    fn record_str(&mut self, field: &tracing_core::Field, value: &str) {
+        if let Some(ref mut map) = self.log_record.attributes {
+            map.insert(field.name().into(), value.to_owned().into());
+        } else {
+            let mut map = OrderMap::with_capacity(1);
+            let k: Key = field.name().into();
+            let v: AnyValue = value.to_owned().into();
+            map.insert(k, v);
+        }
+    }
+
+    fn record_bool(&mut self, field: &tracing_core::Field, value: bool) {
+        if let Some(ref mut map) = self.log_record.attributes {
+            map.insert(field.name().into(), value.into());
+        } else {
+            let mut map = OrderMap::with_capacity(1);
+            map.insert(field.name().into(), value.into());
+            self.log_record.attributes = Some(map);
+        }
+    }
+
     fn record_f64(&mut self, field: &tracing::field::Field, value: f64) {
         if let Some(ref mut map) = self.log_record.attributes {
             map.insert(field.name().into(), value.into());
@@ -47,8 +66,7 @@ impl<'a> tracing::field::Visit for EventVisitor<'a> {
         }
     }
 
-    // TODO: All record functions should be implemented instead of relying
-    // of record_debug which stores everything as string.
+    // TODO: Remaining field types from AnyValue : Bytes, ListAny, Boolean
 }
 
 pub struct OpenTelemetryTracingBridge<P, L>
