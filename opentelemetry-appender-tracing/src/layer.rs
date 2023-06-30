@@ -31,6 +31,7 @@ impl<'a> tracing::field::Visit for EventVisitor<'a> {
         } else {
             let mut map: OrderMap<Key, AnyValue> = OrderMap::with_capacity(1);
             map.insert(field.name().into(), value.to_owned().into());
+            self.log_record.attributes = Some(map);
         }
     }
 
