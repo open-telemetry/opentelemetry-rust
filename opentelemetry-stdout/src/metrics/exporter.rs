@@ -76,7 +76,7 @@ impl PushMetricsExporter for MetricsExporter {
         Ok(())
     }
 
-    async fn shutdown(&self) -> Result<()> {
+    fn shutdown(&self) -> Result<()> {
         self.writer.lock()?.take();
         Ok(())
     }

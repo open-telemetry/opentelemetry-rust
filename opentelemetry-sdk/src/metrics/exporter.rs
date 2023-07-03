@@ -26,10 +26,9 @@ pub trait PushMetricsExporter:
     /// Flushes any metric data held by an exporter.
     async fn force_flush(&self) -> Result<()>;
 
-    /// Flushes all metric data held by an exporter and releases any held
-    /// computational resources.
+    /// Releases any held computational resources.
     ///
     /// After Shutdown is called, calls to Export will perform no operation and
     /// instead will return an error indicating the shutdown state.
-    async fn shutdown(&self) -> Result<()>;
+    fn shutdown(&self) -> Result<()>;
 }
