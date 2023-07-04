@@ -136,7 +136,7 @@ pub trait Tracer {
     where
         T: Into<Cow<'static, str>>,
     {
-        self.build_with_context(SpanBuilder::from_name(name), &Context::current())
+        Context::map_current(|cx| self.start_with_context(name, cx))
     }
 
     /// Starts a new [`Span`] with a given context.
