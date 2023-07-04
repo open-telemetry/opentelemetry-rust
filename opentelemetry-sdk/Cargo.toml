@@ -52,6 +52,10 @@ rt-tokio-current-thread = ["tokio", "tokio-stream"]
 rt-async-std = ["async-std"]
 
 [[bench]]
+name = "context"
+harness = false
+
+[[bench]]
 name = "key_value_map"
 harness = false
 
