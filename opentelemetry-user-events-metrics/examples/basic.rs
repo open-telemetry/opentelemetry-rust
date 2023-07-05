@@ -4,7 +4,6 @@ use opentelemetry_api::{
     metrics::{MeterProvider as _, Unit},
     KeyValue,
 };
-use opentelemetry_sdk::metrics::exporter::PushMetricsExporter;
 use opentelemetry_sdk::{
     metrics::{MeterProvider, PeriodicReader},
     runtime, Resource,
