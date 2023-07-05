@@ -37,8 +37,8 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [dev-dependencies]
 indexmap = "1.8"
-criterion = { version = "0.4.0", features = ["html_reports"] }
-pprof = { version = "0.11.1", features = ["flamegraph", "criterion"] }
+criterion = { version = "0.5", features = ["html_reports"] }
+pprof = { version = "0.12", features = ["flamegraph", "criterion"] }
 
 [features]
 default = ["trace"]
