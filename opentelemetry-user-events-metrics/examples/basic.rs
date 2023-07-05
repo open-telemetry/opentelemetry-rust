@@ -11,8 +11,8 @@ use opentelemetry_sdk::{
 };
 use opentelemetry_user_events_metrics::MetricsExporter;
 
-use std::thread;
 use std::time::Duration;
+use tokio::time::sleep;
 
 fn init_metrics(exporter: MetricsExporter) -> MeterProvider {
     let reader = PeriodicReader::builder(exporter, runtime::Tokio).build();
@@ -53,11 +53,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     meter_provider.shutdown()?;
-    // Call this explictly since provider shutdown is not propagated to exporter for now
-    // Waiting on: https://github.com/open-telemetry/opentelemetry-rust/issues/1118
-    exporter.shutdown();
 
-    thread::sleep(Duration::from_secs(5));
+    sleep(Duration::from_secs(5));
 
     Ok(())
 }

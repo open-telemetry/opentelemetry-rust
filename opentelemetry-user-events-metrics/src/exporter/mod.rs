@@ -86,7 +86,7 @@ impl PushMetricsExporter for MetricsExporter {
         Ok(()) // In this implementation, flush does nothing
     }
 
-    async fn shutdown(&self) -> Result<()> {
+    fn shutdown(&self) -> Result<()> {
         let result = tracepoint::unregister();
         if result != 0 {
             eprintln!("Tracepoint failed to unregister.");
