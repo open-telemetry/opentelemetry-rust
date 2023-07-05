@@ -262,6 +262,7 @@ impl<RT: Runtime> PeriodicReaderWorker<RT> {
             }
             Message::Shutdown(ch) => {
                 let res = self.collect_and_export().await;
+                let _ = self.reader.exporter.shutdown();
                 if ch.send(res).is_err() {
                     global::handle_error(MetricsError::Other("shutdown channel closed".into()))
                 }

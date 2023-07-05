@@ -31,10 +31,10 @@ use opentelemetry::{
             trace::{ExportResult, SpanData, SpanExporter},
             ExportError,
         },
-        trace::EvictedHashMap,
+        trace::{EvictedHashMap, EvictedQueue},
         Resource,
     },
-    trace::TraceError,
+    trace::{SpanId, TraceError},
     Key, Value,
 };
 use opentelemetry_semantic_conventions::resource::SERVICE_NAME;
@@ -57,12 +57,13 @@ pub mod proto;
 const HTTP_HOST: Key = Key::from_static_str("http.host");
 const HTTP_USER_AGENT: Key = Key::from_static_str("http.user_agent");
 
+use proto::devtools::cloudtrace::v2::span::time_event::Annotation;
 use proto::devtools::cloudtrace::v2::span::{
-    time_event::Annotation, Attributes, SpanKind, TimeEvent, TimeEvents,
+    Attributes, Link, Links, SpanKind, TimeEvent, TimeEvents,
 };
-use proto::devtools::cloudtrace::v2::BatchWriteSpansRequest;
+use proto::devtools::cloudtrace::v2::trace_service_client::TraceServiceClient;
 use proto::devtools::cloudtrace::v2::{
-    trace_service_client::TraceServiceClient, AttributeValue, Span, TruncatableString,
+    AttributeValue, BatchWriteSpansRequest, Span, TruncatableString,
 };
 use proto::logging::v2::{
     log_entry::Payload, logging_service_v2_client::LoggingServiceV2Client, LogEntry,
@@ -324,7 +325,12 @@ where
                 ),
                 display_name: Some(to_truncate(span.name.into_owned())),
                 span_id: hex::encode(span.span_context.span_id().to_bytes()),
-                parent_span_id: hex::encode(span.parent_span_id.to_bytes()),
+                /// From the API docs: If this is a root span,
+                /// then this field must be empty.
+                parent_span_id: match span.parent_span_id {
+                    SpanId::INVALID => "".to_owned(),
+                    _ => hex::encode(span.parent_span_id.to_bytes()),
+                },
                 start_time: Some(span.start_time.into()),
                 end_time: Some(span.end_time.into()),
                 attributes: Some((span.attributes, span.resource.as_ref()).into()),
@@ -332,6 +338,7 @@ where
                     time_event,
                     ..Default::default()
                 }),
+                links: transform_links(&span.links),
                 status: status(span.status),
                 span_kind: SpanKind::from(span.span_kind) as i32,
                 ..Default::default()
@@ -748,6 +755,24 @@ impl From<(EvictedHashMap, &Resource)> for Attributes {
                     as i32,
         }
     }
+}
+
+fn transform_links(links: &EvictedQueue<opentelemetry::trace::Link>) -> Option<Links> {
+    if links.is_empty() {
+        return None;
+    }
+
+    Some(Links {
+        dropped_links_count: links.dropped_count() as i32,
+        link: links
+            .iter()
+            .map(|link| Link {
+                trace_id: hex::encode(link.span_context.trace_id().to_bytes()),
+                span_id: hex::encode(link.span_context.span_id().to_bytes()),
+                ..Default::default()
+            })
+            .collect(),
+    })
 }
 
 // Map conventional OpenTelemetry keys to their GCP counterparts.
