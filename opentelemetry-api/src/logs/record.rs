@@ -27,7 +27,7 @@ pub struct LogRecord {
     pub body: Option<AnyValue>,
 
     /// Additional attributes associated with this record
-    pub attributes: Option<OrderMap<Key, AnyValue>>,
+    pub attributes: Option<Vec<(Key, AnyValue)>>,
 }
 
 impl LogRecord {
@@ -327,7 +327,7 @@ impl LogRecordBuilder {
     }
 
     /// Assign attributes, overriding previously set attributes
-    pub fn with_attributes(self, attributes: OrderMap<Key, AnyValue>) -> Self {
+    pub fn with_attributes(self, attributes: Vec<(Key, AnyValue)>) -> Self {
         Self {
             record: LogRecord {
                 attributes: Some(attributes),
@@ -343,10 +343,10 @@ impl LogRecordBuilder {
         V: Into<AnyValue>,
     {
         if let Some(ref mut map) = self.record.attributes {
-            map.insert(key.into(), value.into());
+            map.push((key.into(), value.into()));
         } else {
-            let mut map = OrderMap::with_capacity(1);
-            map.insert(key.into(), value.into());
+            let mut map = Vec::with_capacity(1);
+            map.push((key.into(), value.into()));
             self.record.attributes = Some(map);
         }
 

@@ -1,6 +1,6 @@
 use opentelemetry_api::{
     logs::{AnyValue, LogRecord, Logger, LoggerProvider, Severity},
-    Key, OrderMap,
+    Key,
 };
 
 use tracing_subscriber::Layer;
@@ -17,50 +17,50 @@ impl<'a> tracing::field::Visit for EventVisitor<'a> {
         if field.name() == "message" {
             self.log_record.body = Some(format!("{value:?}").into());
         } else if let Some(ref mut map) = self.log_record.attributes {
-            map.insert(field.name().into(), format!("{value:?}").into());
+            map.push((field.name().into(), format!("{value:?}").into()));
         } else {
-            let mut map = OrderMap::with_capacity(1);
-            map.insert(field.name().into(), format!("{value:?}").into());
+            let mut map = Vec::with_capacity(1);
+            map.push((field.name().into(), format!("{value:?}").into()));
             self.log_record.attributes = Some(map);
         }
     }
 
     fn record_str(&mut self, field: &tracing_core::Field, value: &str) {
         if let Some(ref mut map) = self.log_record.attributes {
-            map.insert(field.name().into(), value.to_owned().into());
+            map.push((field.name().into(), value.to_owned().into()));
         } else {
-            let mut map: OrderMap<Key, AnyValue> = OrderMap::with_capacity(1);
-            map.insert(field.name().into(), value.to_owned().into());
+            let mut map: Vec<(Key, AnyValue)> = Vec::with_capacity(1);
+            map.push((field.name().into(), value.to_owned().into()));
             self.log_record.attributes = Some(map);
         }
     }
 
     fn record_bool(&mut self, field: &tracing_core::Field, value: bool) {
         if let Some(ref mut map) = self.log_record.attributes {
-            map.insert(field.name().into(), value.into());
+            map.push((field.name().into(), value.into()));
         } else {
-            let mut map = OrderMap::with_capacity(1);
-            map.insert(field.name().into(), value.into());
+            let mut map = Vec::with_capacity(1);
+            map.push((field.name().into(), value.into()));
             self.log_record.attributes = Some(map);
         }
     }
 
     fn record_f64(&mut self, field: &tracing::field::Field, value: f64) {
         if let Some(ref mut map) = self.log_record.attributes {
-            map.insert(field.name().into(), value.into());
+            map.push((field.name().into(), value.into()));
         } else {
-            let mut map = OrderMap::with_capacity(1);
-            map.insert(field.name().into(), value.into());
+            let mut map = Vec::with_capacity(1);
+            map.push((field.name().into(), value.into()));
             self.log_record.attributes = Some(map);
         }
     }
 
     fn record_i64(&mut self, field: &tracing::field::Field, value: i64) {
         if let Some(ref mut map) = self.log_record.attributes {
-            map.insert(field.name().into(), value.into());
+            map.push((field.name().into(), value.into()));
         } else {
-            let mut map = OrderMap::with_capacity(1);
-            map.insert(field.name().into(), value.into());
+            let mut map = Vec::with_capacity(1);
+            map.push((field.name().into(), value.into()));
             self.log_record.attributes = Some(map);
         }
     }
