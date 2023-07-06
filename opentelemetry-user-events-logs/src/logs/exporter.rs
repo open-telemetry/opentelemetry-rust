@@ -221,7 +221,7 @@ impl UserEventsExporter {
                 let (mut event_id, mut event_name) = (0, "");
                 let mut event_count = 0;
                 if log_data.record.attributes.is_some() {
-                    for (k, v) in log_data.record.attributes.as_ref().unwrap().into_iter() {
+                    for (k, v) in log_data.record.attributes.as_ref().unwrap().iter() {
                         if k.as_str() == EVENT_ID {
                             event_id = match v {
                                 AnyValue::Int(value) => {

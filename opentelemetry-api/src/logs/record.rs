@@ -342,12 +342,11 @@ impl LogRecordBuilder {
         K: Into<Key>,
         V: Into<AnyValue>,
     {
-        if let Some(ref mut map) = self.record.attributes {
-            map.push((key.into(), value.into()));
+        if let Some(ref mut vec) = self.record.attributes {
+            vec.push((key.into(), value.into()));
         } else {
-            let mut map = Vec::with_capacity(1);
-            map.push((key.into(), value.into()));
-            self.record.attributes = Some(map);
+            let vec = vec![(key.into(), value.into())];
+            self.record.attributes = Some(vec);
         }
 
         self
