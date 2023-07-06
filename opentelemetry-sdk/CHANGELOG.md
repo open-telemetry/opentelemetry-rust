@@ -7,7 +7,7 @@
 - Implement cardinality limits for metric streams
   [#1066](https://github.com/open-telemetry/opentelemetry-rust/pull/1066).
 - Propagate shutdown calls from `PeriodicReader` to metrics exporter
-  [#1066](https://github.com/open-telemetry/opentelemetry-rust/pull/1066).
+  [#1138](https://github.com/open-telemetry/opentelemetry-rust/pull/1138).
 
 ### Removed
 
