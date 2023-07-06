@@ -308,8 +308,9 @@ pub trait BaggageExt {
     /// ```
     /// use opentelemetry_api::{baggage::BaggageExt, Context, KeyValue, Value};
     ///
-    /// let some_context = Context::current();
-    /// let cx = some_context.with_baggage(vec![KeyValue::new("my-name", "my-value")]);
+    /// let cx = Context::map_current(|cx| {
+    ///     cx.with_baggage(vec![KeyValue::new("my-name", "my-value")])
+    /// });
     ///
     /// assert_eq!(
     ///     cx.baggage().get("my-name"),
@@ -339,14 +340,14 @@ pub trait BaggageExt {
         baggage: T,
     ) -> Self;
 
-    /// Returns a clone of the given context with the included name/value pairs.
+    /// Returns a clone of the given context with no baggage.
     ///
     /// # Examples
     ///
     /// ```
     /// use opentelemetry_api::{baggage::BaggageExt, Context, KeyValue, Value};
     ///
-    /// let cx = Context::current().with_cleared_baggage();
+    /// let cx = Context::map_current(|cx| cx.with_cleared_baggage());
     ///
     /// assert_eq!(cx.baggage().len(), 0);
     /// ```
@@ -377,7 +378,7 @@ impl BaggageExt for Context {
     }
 
     fn current_with_baggage<T: IntoIterator<Item = I>, I: Into<KeyValueMetadata>>(kvs: T) -> Self {
-        Context::current().with_baggage(kvs)
+        Context::map_current(|cx| cx.with_baggage(kvs))
     }
 
     fn with_cleared_baggage(&self) -> Self {
