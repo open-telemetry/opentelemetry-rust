@@ -282,7 +282,7 @@ mod tests {
         let mut injector: HashMap<String, String> = HashMap::new();
         injector.set(TRACESTATE_HEADER, state.to_string());
 
-        propagator.inject_context(&Context::current(), &mut injector);
+        Context::map_current(|cx| propagator.inject_context(cx, &mut injector));
 
         assert_eq!(Extractor::get(&injector, TRACESTATE_HEADER), Some(state))
     }
