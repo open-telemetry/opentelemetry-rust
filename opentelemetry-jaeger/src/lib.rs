@@ -96,7 +96,7 @@
 //! variables. All variables are optional, a full list of accepted options can
 //! be found in the [jaeger variables spec].
 //!
-//! [jaeger variables spec]: https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/sdk-environment-variables.md#jaeger-exporter
+//! [jaeger variables spec]: https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/configuration/sdk-environment-variables.md
 //!
 //! ## Jaeger Collector Example
 //!
