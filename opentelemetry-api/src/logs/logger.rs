@@ -52,7 +52,7 @@ pub trait LoggerProvider {
     ///     Some("https://opentelemetry.io/schema/1.0.0"),
     ///     None,
     /// ));
-    /// let logger = provider.library_logger(library, true);
+    /// let logger = provider.library_logger(library);
     /// ```
     fn library_logger(&self, library: Arc<InstrumentationLibrary>) -> Self::Logger;
 
