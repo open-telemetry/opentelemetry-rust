@@ -326,7 +326,7 @@ impl LogRecordBuilder {
         }
     }
 
-    /// Assign attributes. 
+    /// Assign attributes.
     /// The SDK doesn't carry on any deduplication on these attributes.
     pub fn with_attributes(self, attributes: Vec<(Key, AnyValue)>) -> Self {
         Self {
