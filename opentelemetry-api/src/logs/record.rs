@@ -326,7 +326,8 @@ impl LogRecordBuilder {
         }
     }
 
-    /// Assign attributes, overriding previously set attributes
+    /// Assign attributes. 
+    /// The SDK doesn't carry on any deduplication on these attributes.
     pub fn with_attributes(self, attributes: Vec<(Key, AnyValue)>) -> Self {
         Self {
             record: LogRecord {
@@ -336,7 +337,8 @@ impl LogRecordBuilder {
         }
     }
 
-    /// Set a single attribute for this record
+    /// Set a single attribute for this record.
+    /// The SDK doesn't carry on any deduplication on these attributes.
     pub fn with_attribute<K, V>(mut self, key: K, value: V) -> Self
     where
         K: Into<Key>,
