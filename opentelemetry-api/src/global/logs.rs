@@ -24,7 +24,6 @@ pub trait ObjectSafeLoggerProvider {
     fn boxed_logger(
         &self,
         library: Arc<InstrumentationLibrary>,
-        include_trace_context: bool,
     ) -> Box<dyn Logger + Send + Sync + 'static>;
 }
 
@@ -36,9 +35,8 @@ where
     fn boxed_logger(
         &self,
         library: Arc<InstrumentationLibrary>,
-        include_trace_context: bool,
     ) -> Box<dyn Logger + Send + Sync + 'static> {
-        Box::new(self.library_logger(library, include_trace_context))
+        Box::new(self.library_logger(library))
     }
 }
 
@@ -84,12 +82,8 @@ impl GlobalLoggerProvider {
 impl LoggerProvider for GlobalLoggerProvider {
     type Logger = BoxedLogger;
 
-    fn library_logger(
-        &self,
-        library: Arc<InstrumentationLibrary>,
-        include_trace_context: bool,
-    ) -> Self::Logger {
-        BoxedLogger(self.provider.boxed_logger(library, include_trace_context))
+    fn library_logger(&self, library: Arc<InstrumentationLibrary>) -> Self::Logger {
+        BoxedLogger(self.provider.boxed_logger(library))
     }
 }
 

@@ -33,7 +33,6 @@ impl opentelemetry_api::logs::LoggerProvider for LoggerProvider {
         version: Option<Cow<'static, str>>,
         schema_url: Option<Cow<'static, str>>,
         attributes: Option<Vec<opentelemetry_api::KeyValue>>,
-        include_trace_context: bool,
     ) -> Logger {
         let name = name.into();
 
@@ -43,23 +42,16 @@ impl opentelemetry_api::logs::LoggerProvider for LoggerProvider {
             name
         };
 
-        self.library_logger(
-            Arc::new(InstrumentationLibrary::new(
-                component_name,
-                version,
-                schema_url,
-                attributes,
-            )),
-            include_trace_context,
-        )
+        self.library_logger(Arc::new(InstrumentationLibrary::new(
+            component_name,
+            version,
+            schema_url,
+            attributes,
+        )))
     }
 
-    fn library_logger(
-        &self,
-        library: Arc<InstrumentationLibrary>,
-        include_trace_context: bool,
-    ) -> Self::Logger {
-        Logger::new(library, Arc::downgrade(&self.inner), include_trace_context)
+    fn library_logger(&self, library: Arc<InstrumentationLibrary>) -> Self::Logger {
+        Logger::new(library, Arc::downgrade(&self.inner))
     }
 }
 
@@ -182,7 +174,6 @@ impl Builder {
 ///
 /// [`LogRecord`]: opentelemetry_api::logs::LogRecord
 pub struct Logger {
-    include_trace_context: bool,
     instrumentation_lib: Arc<InstrumentationLibrary>,
     provider: Weak<LoggerProviderInner>,
 }
@@ -191,10 +182,8 @@ impl Logger {
     pub(crate) fn new(
         instrumentation_lib: Arc<InstrumentationLibrary>,
         provider: Weak<LoggerProviderInner>,
-        include_trace_context: bool,
     ) -> Self {
         Logger {
-            include_trace_context,
             instrumentation_lib,
             provider,
         }
@@ -218,14 +207,10 @@ impl opentelemetry_api::logs::Logger for Logger {
             Some(provider) => provider,
             None => return,
         };
-        let trace_context = if self.include_trace_context {
-            Context::map_current(|cx| {
-                cx.has_active_span()
-                    .then(|| TraceContext::from(cx.span().span_context()))
-            })
-        } else {
-            None
-        };
+        let trace_context = Context::map_current(|cx| {
+            cx.has_active_span()
+                .then(|| TraceContext::from(cx.span().span_context()))
+        });
         let config = provider.config();
         for processor in provider.log_processors() {
             let mut record = record.clone();
