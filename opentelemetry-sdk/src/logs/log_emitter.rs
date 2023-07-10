@@ -5,7 +5,7 @@ use crate::{
 };
 use opentelemetry_api::{
     global::{self},
-    logs::{LogRecord, LogResult},
+    logs::{LogRecord, LogResult, TraceContext},
     trace::TraceContextExt,
     Context, InstrumentationLibrary,
 };
@@ -42,10 +42,22 @@ impl opentelemetry_api::logs::LoggerProvider for LoggerProvider {
             name
         };
 
-        Logger::new(
-            InstrumentationLibrary::new(component_name, version, schema_url, attributes),
-            Arc::downgrade(&self.inner),
+        self.library_logger(
+            Arc::new(InstrumentationLibrary::new(
+                component_name,
+                version,
+                schema_url,
+                attributes,
+            )),
         )
+    }
+
+    fn library_logger(
+        &self,
+        library: Arc<InstrumentationLibrary>,
+        include_trace_context: bool,
+    ) -> Self::Logger {
+        Logger::new(library, Arc::downgrade(&self.inner), include_trace_context)
     }
 }
 
@@ -168,13 +180,13 @@ impl Builder {
 ///
 /// [`LogRecord`]: opentelemetry_api::logs::LogRecord
 pub struct Logger {
-    instrumentation_lib: InstrumentationLibrary,
+    instrumentation_lib: Arc<InstrumentationLibrary>,
     provider: Weak<LoggerProviderInner>,
 }
 
 impl Logger {
     pub(crate) fn new(
-        instrumentation_lib: InstrumentationLibrary,
+        instrumentation_lib: Arc<InstrumentationLibrary>,
         provider: Weak<LoggerProviderInner>,
     ) -> Self {
         Logger {
@@ -201,19 +213,21 @@ impl opentelemetry_api::logs::Logger for Logger {
             Some(provider) => provider,
             None => return,
         };
-
+        let trace_context = 
+            Context::map_current(|cx| {
+                cx.has_active_span()
+                    .then(|| TraceContext::from(cx.span().span_context()))
+            });
         let config = provider.config();
         for processor in provider.log_processors() {
             let mut record = record.clone();
-            let ctx = Context::current();
-            if ctx.has_active_span() {
-                let span = ctx.span();
-                record.trace_context = Some(span.span_context().into());
+            if let Some(ref trace_context) = trace_context {
+                record.trace_context = Some(trace_context.clone())
             }
             let data = LogData {
                 record,
                 resource: config.resource.clone(),
-                instrumentation: self.instrumentation_lib.clone(),
+                instrumentation: self.instrumentation_library().clone(),
             };
             processor.emit(data);
         }

@@ -229,7 +229,7 @@ pub trait TraceContextExt {
     /// use opentelemetry_api::{trace::TraceContextExt, Context};
     ///
     /// // Add an event to the currently active span
-    /// Context::current().span().add_event("An event!", vec![]);
+    /// Context::map_current(|cx| cx.span().add_event("An event!", vec![]));
     /// ```
     fn span(&self) -> SpanRef<'_>;
 
@@ -240,7 +240,7 @@ pub trait TraceContextExt {
     /// ```
     /// use opentelemetry_api::{trace::TraceContextExt, Context};
     ///
-    /// assert!(!Context::current().has_active_span());
+    /// assert!(!Context::map_current(|cx| cx.has_active_span()));
     /// ```
     fn has_active_span(&self) -> bool;
 
@@ -348,7 +348,7 @@ pub fn get_active_span<F, T>(f: F) -> T
 where
     F: FnOnce(SpanRef<'_>) -> T,
 {
-    f(Context::current().span())
+    Context::map_current(|cx| f(cx.span()))
 }
 
 pin_project! {

@@ -539,7 +539,7 @@ impl PushMetricsExporter for MetricsExporter {
         Ok(())
     }
 
-    async fn shutdown(&self) -> Result<()> {
+    fn shutdown(&self) -> Result<()> {
         match self {
             #[cfg(feature = "grpc-tonic")]
             MetricsExporter::Tonic { sender, .. } => {

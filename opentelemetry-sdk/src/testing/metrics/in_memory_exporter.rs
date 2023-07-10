@@ -298,7 +298,7 @@ impl PushMetricsExporter for InMemoryMetricsExporter {
         Ok(()) // In this implementation, flush does nothing
     }
 
-    async fn shutdown(&self) -> Result<()> {
+    fn shutdown(&self) -> Result<()> {
         self.metrics
             .lock()
             .map(|mut metrics_guard| metrics_guard.clear())

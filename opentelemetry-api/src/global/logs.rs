@@ -8,7 +8,7 @@ use once_cell::sync::Lazy;
 
 use crate::{
     logs::{Logger, LoggerProvider, NoopLoggerProvider},
-    KeyValue,
+    InstrumentationLibrary,
 };
 
 /// Allows a specific [`LoggerProvider`] to be used generically, by mirroring
@@ -21,12 +21,9 @@ pub trait ObjectSafeLoggerProvider {
     ///
     /// [`Logger`]: crate::logs::Logger
     /// [`LoggerProvider`]: crate::logs::LoggerProvider
-    fn versioned_logger_boxed(
+    fn boxed_logger(
         &self,
-        name: Cow<'static, str>,
-        version: Option<Cow<'static, str>>,
-        schema_url: Option<Cow<'static, str>>,
-        attributes: Option<Vec<KeyValue>>,
+        library: Arc<InstrumentationLibrary>,
     ) -> Box<dyn Logger + Send + Sync + 'static>;
 }
 
@@ -35,14 +32,11 @@ where
     L: Logger + Send + Sync + 'static,
     P: LoggerProvider<Logger = L>,
 {
-    fn versioned_logger_boxed(
+    fn boxed_logger(
         &self,
-        name: Cow<'static, str>,
-        version: Option<Cow<'static, str>>,
-        schema_url: Option<Cow<'static, str>>,
-        attributes: Option<Vec<KeyValue>>,
+        library: Arc<InstrumentationLibrary>,
     ) -> Box<dyn Logger + Send + Sync + 'static> {
-        Box::new(self.versioned_logger(name, version, schema_url, attributes))
+        Box::new(self.library_logger(library, include_trace_context))
     }
 }
 
@@ -88,19 +82,11 @@ impl GlobalLoggerProvider {
 impl LoggerProvider for GlobalLoggerProvider {
     type Logger = BoxedLogger;
 
-    fn versioned_logger(
+    fn library_logger(
         &self,
-        name: impl Into<Cow<'static, str>>,
-        version: Option<Cow<'static, str>>,
-        schema_url: Option<Cow<'static, str>>,
-        attributes: Option<Vec<KeyValue>>,
+        library: Arc<InstrumentationLibrary>,
     ) -> Self::Logger {
-        BoxedLogger(self.provider.versioned_logger_boxed(
-            name.into(),
-            version,
-            schema_url,
-            attributes,
-        ))
+        BoxedLogger(self.provider.boxed_logger(library, include_trace_context))
     }
 }
 
