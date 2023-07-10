@@ -29,11 +29,9 @@ pub trait LoggerProvider {
         schema_url: Option<Cow<'static, str>>,
         attributes: Option<Vec<KeyValue>>,
     ) -> Self::Logger {
-        self.library_logger(
-            Arc::new(InstrumentationLibrary::new(
-                name, version, schema_url, attributes,
-            )),
-        )
+        self.library_logger(Arc::new(InstrumentationLibrary::new(
+            name, version, schema_url, attributes,
+        )))
     }
 
     /// Returns a new versioned logger with the given instrumentation library.
@@ -56,10 +54,7 @@ pub trait LoggerProvider {
     /// ));
     /// let logger = provider.library_logger(library, true);
     /// ```
-    fn library_logger(
-        &self,
-        library: Arc<InstrumentationLibrary>,
-    ) -> Self::Logger;
+    fn library_logger(&self, library: Arc<InstrumentationLibrary>) -> Self::Logger;
 
     /// Returns a new logger with the given name.
     ///

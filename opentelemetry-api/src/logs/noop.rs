@@ -19,11 +19,7 @@ impl NoopLoggerProvider {
 impl LoggerProvider for NoopLoggerProvider {
     type Logger = NoopLogger;
 
-    fn library_logger(
-        &self,
-        _library: Arc<InstrumentationLibrary>,
-        _include_trace_context: bool,
-    ) -> Self::Logger {
+    fn library_logger(&self, _library: Arc<InstrumentationLibrary>) -> Self::Logger {
         NoopLogger(())
     }
 

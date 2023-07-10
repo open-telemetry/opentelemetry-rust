@@ -42,22 +42,16 @@ impl opentelemetry_api::logs::LoggerProvider for LoggerProvider {
             name
         };
 
-        self.library_logger(
-            Arc::new(InstrumentationLibrary::new(
-                component_name,
-                version,
-                schema_url,
-                attributes,
-            )),
-        )
+        self.library_logger(Arc::new(InstrumentationLibrary::new(
+            component_name,
+            version,
+            schema_url,
+            attributes,
+        )))
     }
 
-    fn library_logger(
-        &self,
-        library: Arc<InstrumentationLibrary>,
-        include_trace_context: bool,
-    ) -> Self::Logger {
-        Logger::new(library, Arc::downgrade(&self.inner), include_trace_context)
+    fn library_logger(&self, library: Arc<InstrumentationLibrary>) -> Self::Logger {
+        Logger::new(library, Arc::downgrade(&self.inner))
     }
 }
 
@@ -213,11 +207,10 @@ impl opentelemetry_api::logs::Logger for Logger {
             Some(provider) => provider,
             None => return,
         };
-        let trace_context = 
-            Context::map_current(|cx| {
-                cx.has_active_span()
-                    .then(|| TraceContext::from(cx.span().span_context()))
-            });
+        let trace_context = Context::map_current(|cx| {
+            cx.has_active_span()
+                .then(|| TraceContext::from(cx.span().span_context()))
+        });
         let config = provider.config();
         for processor in provider.log_processors() {
             let mut record = record.clone();
