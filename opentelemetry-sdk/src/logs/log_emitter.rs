@@ -43,11 +43,23 @@ impl opentelemetry_api::logs::LoggerProvider for LoggerProvider {
             name
         };
 
-        Logger::new(
-            InstrumentationLibrary::new(component_name, version, schema_url, attributes),
-            Arc::downgrade(&self.inner),
+        self.library_logger(
+            Arc::new(InstrumentationLibrary::new(
+                component_name,
+                version,
+                schema_url,
+                attributes,
+            )),
             include_trace_context,
         )
+    }
+
+    fn library_logger(
+        &self,
+        library: Arc<InstrumentationLibrary>,
+        include_trace_context: bool,
+    ) -> Self::Logger {
+        Logger::new(library, Arc::downgrade(&self.inner), include_trace_context)
     }
 }
 
@@ -171,13 +183,13 @@ impl Builder {
 /// [`LogRecord`]: opentelemetry_api::logs::LogRecord
 pub struct Logger {
     include_trace_context: bool,
-    instrumentation_lib: InstrumentationLibrary,
+    instrumentation_lib: Arc<InstrumentationLibrary>,
     provider: Weak<LoggerProviderInner>,
 }
 
 impl Logger {
     pub(crate) fn new(
-        instrumentation_lib: InstrumentationLibrary,
+        instrumentation_lib: Arc<InstrumentationLibrary>,
         provider: Weak<LoggerProviderInner>,
         include_trace_context: bool,
     ) -> Self {
@@ -223,7 +235,7 @@ impl opentelemetry_api::logs::Logger for Logger {
             let data = LogData {
                 record,
                 resource: config.resource.clone(),
-                instrumentation: self.instrumentation_lib.clone(),
+                instrumentation: self.instrumentation_library().clone(),
             };
             processor.emit(data);
         }
