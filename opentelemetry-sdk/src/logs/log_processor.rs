@@ -11,6 +11,8 @@ use opentelemetry_api::{
     global,
     logs::{LogError, LogResult},
 };
+#[cfg(feature = "logs_level_enabled")]
+use opentelemetry_api::logs::Severity;
 use std::thread;
 use std::{
     fmt::{self, Debug, Formatter},
@@ -27,6 +29,9 @@ pub trait LogProcessor: Send + Sync + Debug {
     fn force_flush(&self) -> LogResult<()>;
     /// Shuts down the processor.
     fn shutdown(&mut self) -> LogResult<()>;
+    #[cfg(feature = "logs_level_enabled")]
+    /// Check if logging is enabled
+    fn event_enabled(&self, name: &str, level: Severity) -> bool;
 }
 
 /// A [`LogProcessor`] that exports synchronously when logs are emitted.
@@ -93,8 +98,12 @@ impl LogProcessor for SimpleLogProcessor {
                 )))
             }
         }
-
         Ok(())
+    }
+
+    #[cfg(feature = "logs_level_enabled")]
+    fn event_enabled(&self, _name: &str, _level: Severity) -> bool {
+        true
     }
 }
 
@@ -119,6 +128,11 @@ impl<R: RuntimeChannel<BatchMessage>> LogProcessor for BatchLogProcessor<R> {
         if let Err(err) = result {
             global::handle_error(LogError::Other(err.into()));
         }
+    }
+
+    #[cfg(feature = "logs_level_enabled")]
+    fn event_enabled(&self, _name: &str, _level: Severity) -> bool {
+        true
     }
 
     fn force_flush(&self) -> LogResult<()> {

@@ -2,7 +2,11 @@ use std::borrow::Cow;
 
 use crate::{logs::LogRecord, KeyValue};
 
+#[cfg(feature = "logs_level_enabled")]
+use super::Severity;
+
 /// The interface for emitting [`LogRecord`]s.
+
 pub trait Logger {
     /// Emit a [`LogRecord`]. If this `Logger` was created with
     /// `include_trace_context` set to `true`, the logger will set the record's
@@ -12,6 +16,9 @@ pub trait Logger {
     /// [`Context`]: crate::Context
     /// [`TraceContext`]: crate::logs::TraceContext
     fn emit(&self, record: LogRecord);
+
+    #[cfg(feature = "logs_level_enabled")]
+    fn event_enabled(&self, level : Severity) -> bool;
 }
 
 /// Interfaces that can create [`Logger`] instances.

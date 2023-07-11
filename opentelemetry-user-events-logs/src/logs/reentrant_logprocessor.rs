@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use opentelemetry_api::logs::LogResult;
-use opentelemetry_sdk::export::logs::LogData;
+use opentelemetry_sdk::export::logs::{LogData, LogExporter};
 
 use crate::logs::exporter::ExporterConfig;
 use crate::logs::exporter::*;
@@ -44,5 +44,10 @@ impl opentelemetry_sdk::logs::LogProcessor for ReentrantLogProcessor {
     // shutdown.
     fn shutdown(&mut self) -> LogResult<()> {
         Ok(())
+    }
+    
+    #[cfg(feature = "logs_level_enabled")]
+    fn event_enabled(&self, name: &str, level: opentelemetry_api::logs::Severity) -> bool {
+        self.event_exporter.event_enabled(name, level)
     }
 }

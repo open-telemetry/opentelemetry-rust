@@ -2,7 +2,7 @@
 use crate::Resource;
 use async_trait::async_trait;
 use opentelemetry_api::{
-    logs::{LogError, LogRecord, LogResult},
+    logs::{LogError, LogRecord, LogResult, Severity},
     InstrumentationLibrary,
 };
 use std::{borrow::Cow, fmt::Debug};
@@ -14,6 +14,8 @@ pub trait LogExporter: Send + Debug {
     async fn export(&mut self, batch: Vec<LogData>) -> LogResult<()>;
     /// Shuts down the expoter.
     fn shutdown(&mut self) {}
+    /// Chek if logs are enabled.
+    fn event_enabled(&self, _name: &str, _level: Severity) -> bool {true}
 }
 
 /// `LogData` associates a [`LogRecord`] with a [`Resource`] and
