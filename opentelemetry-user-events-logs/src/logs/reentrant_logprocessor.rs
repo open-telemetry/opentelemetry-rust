@@ -45,7 +45,7 @@ impl opentelemetry_sdk::logs::LogProcessor for ReentrantLogProcessor {
     fn shutdown(&mut self) -> LogResult<()> {
         Ok(())
     }
-    
+
     #[cfg(feature = "logs_level_enabled")]
     fn event_enabled(&self, name: &str, level: opentelemetry_api::logs::Severity) -> bool {
         self.event_exporter.event_enabled(name, level)

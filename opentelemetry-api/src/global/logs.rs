@@ -68,7 +68,7 @@ impl Logger for BoxedLogger {
     }
 
     #[cfg(feature = "logs_level_enabled")]
-    fn event_enabled(&self, level : crate::logs::Severity) -> bool {
+    fn event_enabled(&self, level: crate::logs::Severity) -> bool {
         self.0.event_enabled(level)
     }
 }

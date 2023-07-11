@@ -7,12 +7,12 @@ use futures_util::{
     future::{self, Either},
     {pin_mut, stream, StreamExt as _},
 };
+#[cfg(feature = "logs_level_enabled")]
+use opentelemetry_api::logs::Severity;
 use opentelemetry_api::{
     global,
     logs::{LogError, LogResult},
 };
-#[cfg(feature = "logs_level_enabled")]
-use opentelemetry_api::logs::Severity;
 use std::thread;
 use std::{
     fmt::{self, Debug, Formatter},

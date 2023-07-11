@@ -38,5 +38,7 @@ pub struct NoopLogger(());
 impl Logger for NoopLogger {
     fn emit(&self, _record: LogRecord) {}
     #[cfg(feature = "logs_level_enabled")]
-    fn event_enabled(&self, _level : super::Severity) -> bool {true}
+    fn event_enabled(&self, _level: super::Severity) -> bool {
+        true
+    }
 }

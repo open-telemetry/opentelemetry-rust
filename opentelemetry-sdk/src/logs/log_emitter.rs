@@ -234,7 +234,7 @@ impl opentelemetry_api::logs::Logger for Logger {
     }
 
     #[cfg(feature = "logs_level_enabled")]
-    fn event_enabled(&self, level : Severity) -> bool {
+    fn event_enabled(&self, level: Severity) -> bool {
         let provider = match self.provider() {
             Some(provider) => provider,
             None => return false,
@@ -242,7 +242,8 @@ impl opentelemetry_api::logs::Logger for Logger {
 
         let mut enabled = false;
         for processor in provider.log_processors() {
-            enabled = enabled || processor.event_enabled(self.instrumentation_lib.name.as_ref(), level)
+            enabled =
+                enabled || processor.event_enabled(self.instrumentation_lib.name.as_ref(), level)
         }
         enabled
     }
