@@ -20,6 +20,7 @@ thread_local! { static EBW: RefCell<EventBuilder> = RefCell::new(EventBuilder::n
 pub struct ExporterConfig {
     /// keyword associated with user_events name
     pub keywords_map: HashMap<String, u64>,
+    /// default keyword if map is not defined.
     pub default_keyword: u64,
 }
 
@@ -40,7 +41,7 @@ impl ExporterConfig {
         }
     }
 
-    pub(crate) fn get_log_keywork_or_default(&self, name: &str) -> Option<u64> {
+    pub(crate) fn get_log_keyword_or_default(&self, name: &str) -> Option<u64> {
         let mut keyword = None;
         if self.keywords_map.len() == 0 {
             keyword = Some(self.default_keyword);
@@ -75,7 +76,7 @@ impl UserEventsExporter {
             eventheader_dynamic::Provider::new(provider_name, &options);
         if exporter_config.keywords_map.len() == 0 {
             println!(
-                "Register default keyworkd {}",
+                "Register default keyword {}",
                 exporter_config.default_keyword
             );
             Self::register_events(&mut eventheader_provider, exporter_config.default_keyword)
@@ -95,12 +96,6 @@ impl UserEventsExporter {
         eventheader_provider.register_set(eventheader::Level::Warning, keyword);
         eventheader_provider.register_set(eventheader::Level::Error, keyword);
         eventheader_provider.register_set(eventheader::Level::CriticalError, keyword);
-
-        eventheader_provider.create_unregistered(true, eventheader::Level::Informational, keyword);
-        eventheader_provider.create_unregistered(true, eventheader::Level::Verbose, keyword);
-        eventheader_provider.create_unregistered(true, eventheader::Level::Warning, keyword);
-        eventheader_provider.create_unregistered(true, eventheader::Level::Error, keyword);
-        eventheader_provider.create_unregistered(true, eventheader::Level::CriticalError, keyword);
     }
 
     fn add_attributes_to_event(
@@ -182,7 +177,7 @@ impl UserEventsExporter {
 
         let keyword = self
             .exporter_config
-            .get_log_keywork_or_default(log_data.instrumentation.name.as_ref());
+            .get_log_keyword_or_default(log_data.instrumentation.name.as_ref());
 
         if keyword == None {
             return Ok(());
@@ -351,6 +346,7 @@ impl opentelemetry_sdk::export::logs::LogExporter for UserEventsExporter {
         Ok(())
     }
 
+    #[cfg(feature = "logs_level_enabled")]
     fn event_enabled(&self, name: &str, level: Severity) -> bool {
         //print!("LALIT:event-enabled check for {} and {:?}", name, level);
 
