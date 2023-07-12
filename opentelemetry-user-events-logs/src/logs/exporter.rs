@@ -1,7 +1,6 @@
 use async_trait::async_trait;
 use eventheader::{FieldFormat, Level, Opcode};
 use eventheader_dynamic::EventBuilder;
-use opentelemetry_sdk::export;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -35,23 +34,15 @@ impl Default for ExporterConfig {
 
 impl ExporterConfig {
     pub(crate) fn get_log_keyword(&self, name: &str) -> Option<u64> {
-        match self.keywords_map.get(name) {
-            Some(value) => Some(*value),
-            _ => None,
-        }
+        self.keywords_map.get(name).copied()
     }
 
     pub(crate) fn get_log_keyword_or_default(&self, name: &str) -> Option<u64> {
-        let mut keyword = None;
-        if self.keywords_map.len() == 0 {
-            keyword = Some(self.default_keyword);
+        if self.keywords_map.is_empty() {
+            Some(self.default_keyword)
         } else {
-            keyword = match self.get_log_keyword(name) {
-                Some(x) => Some(x),
-                _ => None,
-            }
+            self.get_log_keyword(name)
         }
-        keyword
     }
 }
 
@@ -74,14 +65,14 @@ impl UserEventsExporter {
         options = *options.group_name(provider_name);
         let mut eventheader_provider: eventheader_dynamic::Provider =
             eventheader_dynamic::Provider::new(provider_name, &options);
-        if exporter_config.keywords_map.len() == 0 {
+        if exporter_config.keywords_map.is_empty() {
             println!(
                 "Register default keyword {}",
                 exporter_config.default_keyword
             );
             Self::register_events(&mut eventheader_provider, exporter_config.default_keyword)
         }
-        for keyword in exporter_config.keywords_map.values().into_iter() {
+        for keyword in exporter_config.keywords_map.values() {
             Self::register_events(&mut eventheader_provider, *keyword)
         }
         UserEventsExporter {
@@ -179,7 +170,7 @@ impl UserEventsExporter {
             .exporter_config
             .get_log_keyword_or_default(log_data.instrumentation.name.as_ref());
 
-        if keyword == None {
+        if keyword.is_none() {
             return Ok(());
         }
 

@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use opentelemetry_api::logs::LogResult;
-use opentelemetry_sdk::export::logs::{LogData, LogExporter};
+use opentelemetry_sdk::export::logs::LogData;
 
 use crate::logs::exporter::ExporterConfig;
 use crate::logs::exporter::*;
