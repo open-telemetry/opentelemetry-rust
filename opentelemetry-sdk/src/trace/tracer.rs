@@ -368,15 +368,16 @@ mod tests {
         let span = tracer.span_builder("must_not_be_sampled").start(&tracer);
         assert!(!span.span_context().is_sampled());
 
-        let _attached = Context::current()
-            .with_remote_span_context(SpanContext::new(
+        let context = Context::map_current(|cx| {
+            cx.with_remote_span_context(SpanContext::new(
                 TraceId::from_u128(1),
                 SpanId::from_u64(1),
                 TraceFlags::default(),
                 true,
                 Default::default(),
             ))
-            .attach();
+        });
+        let _attached = context.attach();
         let span = tracer.span_builder("must_not_be_sampled").start(&tracer);
 
         assert!(!span.span_context().is_sampled());
