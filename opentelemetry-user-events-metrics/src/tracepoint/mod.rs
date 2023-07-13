@@ -1,8 +1,7 @@
 use core::ffi;
 use std::pin::Pin;
+use std::panic;
 use eventheader::_internal as ehi;
-
-// static METRICS_EVENT: ehi::TracepointState = ehi::TracepointState::new(0);
 
 /// This is the command string for the event. It needs to follow the
 /// [Command Format](https://docs.kernel.org/trace/user_events.html#command-format)
@@ -42,7 +41,6 @@ pub fn write(trace_point: &ehi::TracepointState, data: &[u8]) -> i32 {
     // - Low 16 bits store the offset of the data from the end of the rel_loc field = 0.
     let data_rel_loc: u32 = (data.len() as u32) << 16;
 
-    println!("Called Write");
     trace_point.write(&mut [
         // mut because the write method does some fix-ups.
         ehi::EventDataDescriptor::zero(), // First item in array MUST be zero().
@@ -51,14 +49,7 @@ pub fn write(trace_point: &ehi::TracepointState, data: &[u8]) -> i32 {
     ])
 }
 
-/// Returns true if this tracepoint is registered and enabled.
-#[inline(always)]
-pub fn enabled(trace_point: &ehi::TracepointState) -> bool {
-    println!("Called enabled");
-    trace_point.enabled()
-}
-
-/// Registers the passed in tracepoint.
+/// Registers the passed in tracepoint. 
 ///
 /// Requires: this tracepoint is not currently registered.
 /// The tracepoint must be in a Pin<&TracepointState> because we must ensure it will never be moved
@@ -73,17 +64,18 @@ pub fn enabled(trace_point: &ehi::TracepointState) -> bool {
 pub unsafe fn register(trace_point: Pin<&ehi::TracepointState>) -> i32 {
     debug_assert!(METRICS_EVENT_DEF[METRICS_EVENT_DEF.len() - 1] == b'\0');
 
-    // CStr::from_bytes_with_nul_unchecked is ok because METRICS_EVENT_DEF ends with "\0".
-    println!("Called register {:x}", &*trace_point as *const ehi::TracepointState as usize);
-    trace_point
-        .register(ffi::CStr::from_bytes_with_nul_unchecked(METRICS_EVENT_DEF))
-}
-
-/// Unregisters this tracepoint.
-///
-/// Return value is 0 for success or an errno code for error. The return value is
-/// provided to help with debugging and should usually be ignored in release builds.
-pub fn unregister(trace_point: &ehi::TracepointState) -> i32 {
-    println!("Called unregister {:x}", trace_point as *const ehi::TracepointState as usize);
-    trace_point.unregister()
+    let result = panic::catch_unwind(|| {
+        // CStr::from_bytes_with_nul_unchecked is ok because METRICS_EVENT_DEF ends with "\0".
+        trace_point
+            .register(ffi::CStr::from_bytes_with_nul_unchecked(METRICS_EVENT_DEF))
+    });
+    match result {
+        Ok(value) => {
+            value
+        }
+        // We don't want to ever panic so we catch the error and return a unique code for retry
+        Err(_err) => {
+            -1
+        }
+    }
 }

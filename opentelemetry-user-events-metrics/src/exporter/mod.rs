@@ -26,9 +26,11 @@ impl MetricsExporter {
         // the event MUST be unregistered before the shared object unloads.
         unsafe {
             let result = tracepoint::register(trace_point.as_ref());
-            println!("{}", result);
-            if result != 0 {
-                eprintln!("Tracepoint failed to register.");
+            // If result is -1, tracepoint might be in an erroneous state, attempt to retry
+            if result == -1 {
+                eprintln!("Tracepoint failed to register. Try restarting your application.");
+            } else if result != 0 {
+                eprintln!("Tracepoint failed to register. Error code: {}", result);
             }
         }
         MetricsExporter {
@@ -75,7 +77,6 @@ impl Debug for MetricsExporter {
 impl PushMetricsExporter for MetricsExporter {
     async fn export(&self, metrics: &mut ResourceMetrics) -> Result<()> {
         if self.trace_point.enabled() {
-            println!("enabled");
             let proto_message = transform_resource_metrics(metrics);
 
             let mut byte_array = Vec::new();
@@ -84,7 +85,7 @@ impl PushMetricsExporter for MetricsExporter {
                 .map_err(|err| MetricsError::Other(err.to_string()))?;
             let result = tracepoint::write(&self.trace_point, byte_array.as_slice());
             if result != 0 {
-                return Err(MetricsError::Other("Tracepoint failed to write.".into()));
+                return Err(MetricsError::Other(format!("Tracepoint failed to write. Error code: {}", result).into()));
             }
         }
         Ok(())
@@ -95,11 +96,8 @@ impl PushMetricsExporter for MetricsExporter {
     }
 
     fn shutdown(&self) -> Result<()> {
-        let result = tracepoint::unregister(&self.trace_point);
-        eprintln!("{}", result);
-        if result != 0 {
-            eprintln!("Tracepoint failed to unregister.");
-        }
+        // TracepointState automatically unregisters when dropped
+        // https://github.com/microsoft/LinuxTracepoints-Rust/blob/main/eventheader/src/native.rs#L618
         Ok(())
     }
 }

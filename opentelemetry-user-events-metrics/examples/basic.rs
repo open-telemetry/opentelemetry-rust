@@ -43,7 +43,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         1.0,
         [
             KeyValue::new("mykey1", "myvalue1"),
-            KeyValue::new("mykey4", "myvalue4"),
+            KeyValue::new("mykey2", "myvalue2"),
         ]
         .as_ref(),
     );
