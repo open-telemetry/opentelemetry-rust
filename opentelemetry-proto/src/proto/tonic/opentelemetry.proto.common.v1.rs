@@ -76,6 +76,9 @@ pub struct InstrumentationScope {
     pub name: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
     pub version: ::prost::alloc::string::String,
+    /// Additional attributes that describe the scope. \[Optional\].
+    /// Attribute keys MUST be unique (it is not allowed to have more than one
+    /// attribute with the same key).
     #[prost(message, repeated, tag = "3")]
     pub attributes: ::prost::alloc::vec::Vec<KeyValue>,
     #[prost(uint32, tag = "4")]
