@@ -210,6 +210,38 @@ pub const AWS_LOG_STREAM_NAMES: Key = Key::from_static_str("aws.log.stream.names
 /// - `arn:aws:logs:us-west-1:123456789012:log-group:/aws/my/group:log-stream:logs/main/10838bed-421f-43ef-870a-f43feacbbb5b`
 pub const AWS_LOG_STREAM_ARNS: Key = Key::from_static_str("aws.log.stream.arns");
 
+/// The name of the Cloud Run [execution](https://cloud.google.com/run/docs/managing/job-executions) being run for the Job, as set by the [`CLOUD_RUN_EXECUTION`](https://cloud.google.com/run/docs/container-contract#jobs-env-vars) environment variable.
+///
+/// # Examples
+///
+/// - `job-name-xxxx`
+/// - `sample-job-mdw84`
+pub const GCP_CLOUD_RUN_JOB_EXECUTION: Key = Key::from_static_str("gcp.cloud_run.job.execution");
+
+/// The index for a task within an execution as provided by the [`CLOUD_RUN_TASK_INDEX`](https://cloud.google.com/run/docs/container-contract#jobs-env-vars) environment variable.
+///
+/// # Examples
+///
+/// - `0`
+/// - `1`
+pub const GCP_CLOUD_RUN_JOB_TASK_INDEX: Key = Key::from_static_str("gcp.cloud_run.job.task_index");
+
+/// The instance name of a GCE instance. This is the value provided by `host.name`, the visible name of the instance in the Cloud Console UI, and the prefix for the default hostname of the instance as defined by the [default internal DNS name](https://cloud.google.com/compute/docs/internal-dns#instance-fully-qualified-domain-names).
+///
+/// # Examples
+///
+/// - `instance-1`
+/// - `my-vm-name`
+pub const GCP_GCE_INSTANCE_NAME: Key = Key::from_static_str("gcp.gce.instance.name");
+
+/// The hostname of a GCE instance. This is the full value of the default or [custom hostname](https://cloud.google.com/compute/docs/instances/custom-hostname-vm).
+///
+/// # Examples
+///
+/// - `my-host1234.example.com`
+/// - `sample-vm.us-west1-b.c.my-project.internal`
+pub const GCP_GCE_INSTANCE_HOSTNAME: Key = Key::from_static_str("gcp.gce.instance.hostname");
+
 /// Time and date the release was created.
 ///
 /// # Examples
@@ -269,6 +301,40 @@ pub const CONTAINER_IMAGE_NAME: Key = Key::from_static_str("container.image.name
 /// - `0.1`
 pub const CONTAINER_IMAGE_TAG: Key = Key::from_static_str("container.image.tag");
 
+/// Runtime specific image identifier. Usually a hash algorithm followed by a UUID.
+///
+/// Docker defines a sha256 of the image id; `container.image.id` corresponds to the `Image` field from the Docker container inspect [API](https://docs.docker.com/engine/api/v1.43/#tag/Container/operation/ContainerInspect) endpoint.
+/// K8s defines a link to the container registry repository with digest `&#34;imageID&#34;: &#34;registry.azurecr.io /namespace/service/dockerfile@sha256:bdeabd40c3a8a492eaf9e8e44d0ebbb84bac7ee25ac0cf8a7159d25f62555625&#34;`.
+/// OCI defines a digest of manifest.
+///
+/// # Examples
+///
+/// - `sha256:19c92d0a00d1b66d897bceaa7319bee0dd38a10a851c60bcec9474aa3f01e50f`
+pub const CONTAINER_IMAGE_ID: Key = Key::from_static_str("container.image.id");
+
+/// The command used to run the container (i.e. the command name).
+///
+/// If using embedded credentials or sensitive data, it is recommended to remove them to prevent potential leakage.
+///
+/// # Examples
+///
+/// - `otelcontribcol`
+pub const CONTAINER_COMMAND: Key = Key::from_static_str("container.command");
+
+/// The full command run by the container as a single string representing the full command.
+///
+/// # Examples
+///
+/// - `otelcontribcol --config config.yaml`
+pub const CONTAINER_COMMAND_LINE: Key = Key::from_static_str("container.command_line");
+
+/// All the command arguments (including the command/executable itself) run by the container.
+///
+/// # Examples
+///
+/// - `otelcontribcol, --config, config.yaml`
+pub const CONTAINER_COMMAND_ARGS: Key = Key::from_static_str("container.command_args");
+
 /// Name of the [deployment environment](https://en.wikipedia.org/wiki/Deployment_environment) (aka deployment tier).
 ///
 /// # Examples
@@ -321,7 +387,7 @@ pub const DEVICE_MANUFACTURER: Key = Key::from_static_str("device.manufacturer")
 /// This is the name of the function as configured/deployed on the FaaS
 /// platform and is usually different from the name of the callback
 /// function (which may be stored in the
-/// [`code.namespace`/`code.function`](../../trace/semantic_conventions/span-general.md#source-code-attributes)
+/// [`code.namespace`/`code.function`](/docs/general/general-attributes.md#source-code-attributes)
 /// span attributes).
 ///
 /// For some cloud providers, the above definition is ambiguous. The following
@@ -347,7 +413,7 @@ pub const FAAS_NAME: Key = Key::from_static_str("faas.name");
 ///
 /// * **AWS Lambda:** The [function version](https://docs.aws.amazon.com/lambda/latest/dg/configuration-versions.html)
 ///   (an integer represented as a decimal string).
-/// * **Google Cloud Run:** The [revision](https://cloud.google.com/run/docs/managing/revisions)
+/// * **Google Cloud Run (Services):** The [revision](https://cloud.google.com/run/docs/managing/revisions)
 ///   (i.e., the function name plus the revision suffix).
 /// * **Google Cloud Functions:** The value of the
 ///   [`K_REVISION` environment variable](https://cloud.google.com/functions/docs/env-var#runtime_environment_variables_set_automatically).
@@ -409,14 +475,14 @@ pub const HOST_ARCH: Key = Key::from_static_str("host.arch");
 /// - `CentOS-8-x86_64-1905`
 pub const HOST_IMAGE_NAME: Key = Key::from_static_str("host.image.name");
 
-/// VM image ID. For Cloud, this value is from the provider.
+/// VM image ID or host OS image ID. For Cloud, this value is from the provider.
 ///
 /// # Examples
 ///
 /// - `ami-07b06b442921831e5`
 pub const HOST_IMAGE_ID: Key = Key::from_static_str("host.image.id");
 
-/// The version string of the VM image as defined in [Version Attributes](README.md#version-attributes).
+/// The version string of the VM image or host OS as defined in [Version Attributes](README.md#version-attributes).
 ///
 /// # Examples
 ///
@@ -429,6 +495,36 @@ pub const HOST_IMAGE_VERSION: Key = Key::from_static_str("host.image.version");
 ///
 /// - `opentelemetry-cluster`
 pub const K8S_CLUSTER_NAME: Key = Key::from_static_str("k8s.cluster.name");
+
+/// A pseudo-ID for the cluster, set to the UID of the `kube-system` namespace.
+///
+/// K8s does not have support for obtaining a cluster ID. If this is ever
+/// added, we will recommend collecting the `k8s.cluster.uid` through the
+/// official APIs. In the meantime, we are able to use the `uid` of the
+/// `kube-system` namespace as a proxy for cluster ID. Read on for the
+/// rationale.
+///
+/// Every object created in a K8s cluster is assigned a distinct UID. The
+/// `kube-system` namespace is used by Kubernetes itself and will exist
+/// for the lifetime of the cluster. Using the `uid` of the `kube-system`
+/// namespace is a reasonable proxy for the K8s ClusterID as it will only
+/// change if the cluster is rebuilt. Furthermore, Kubernetes UIDs are
+/// UUIDs as standardized by
+/// [ISO/IEC 9834-8 and ITU-T X.667](https://www.itu.int/ITU-T/studygroups/com17/oid.html).
+/// Which states:
+///
+/// &gt; If generated according to one of the mechanisms defined in Rec.
+///   ITU-T X.667 | ISO/IEC 9834-8, a UUID is either guaranteed to be
+///   different from all other UUIDs generated before 3603 A.D., or is
+///   extremely likely to be different (depending on the mechanism chosen).
+///
+/// Therefore, UIDs between clusters should be extremely unlikely to
+/// conflict.
+///
+/// # Examples
+///
+/// - `218fc5a9-a5f1-4b54-aa05-46717d0ab26d`
+pub const K8S_CLUSTER_UID: Key = Key::from_static_str("k8s.cluster.uid");
 
 /// The name of the Node.
 ///
@@ -584,7 +680,7 @@ pub const OS_DESCRIPTION: Key = Key::from_static_str("os.description");
 /// - `Ubuntu`
 pub const OS_NAME: Key = Key::from_static_str("os.name");
 
-/// The version string of the operating system as defined in [Version Attributes](../../resource/semantic_conventions/README.md#version-attributes).
+/// The version string of the operating system as defined in [Version Attributes](/docs/resource/README.md#version-attributes).
 ///
 /// # Examples
 ///
@@ -679,6 +775,14 @@ pub const PROCESS_RUNTIME_DESCRIPTION: Key = Key::from_static_str("process.runti
 /// - `shoppingcart`
 pub const SERVICE_NAME: Key = Key::from_static_str("service.name");
 
+/// The version string of the service API or implementation. The format is not defined by these conventions.
+///
+/// # Examples
+///
+/// - `2.0.0`
+/// - `a01dbef8a`
+pub const SERVICE_VERSION: Key = Key::from_static_str("service.version");
+
 /// A namespace for `service.name`.
 ///
 /// A string value having a meaning that helps to distinguish a group of services, for example the team name that owns a group of services. `service.name` is expected to be unique within the same namespace. If `service.namespace` is not specified in the Resource then `service.name` is expected to be unique for all services that have no explicit namespace defined (so the empty/unspecified namespace is simply one more valid namespace). Zero-length namespace string is assumed equal to unspecified namespace.
@@ -698,14 +802,14 @@ pub const SERVICE_NAMESPACE: Key = Key::from_static_str("service.namespace");
 /// - `627cc493-f310-47de-96bd-71410b7dec09`
 pub const SERVICE_INSTANCE_ID: Key = Key::from_static_str("service.instance.id");
 
-/// The version string of the service API or implementation.
-///
-/// # Examples
-///
-/// - `2.0.0`
-pub const SERVICE_VERSION: Key = Key::from_static_str("service.version");
-
 /// The name of the telemetry SDK as defined above.
+///
+/// The OpenTelemetry SDK MUST set the `telemetry.sdk.name` attribute to `opentelemetry`.
+/// If another SDK, like a fork or a vendor-provided implementation, is used, this SDK MUST set the
+/// `telemetry.sdk.name` attribute to the fully-qualified class or module name of this SDK&#39;s main entry point
+/// or another suitable identifier depending on the language.
+/// The identifier `opentelemetry` is reserved and MUST NOT be used in this case.
+/// All custom identifiers SHOULD be stable across different versions of an implementation.
 ///
 /// # Examples
 ///
