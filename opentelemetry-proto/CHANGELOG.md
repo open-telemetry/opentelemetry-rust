@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Update protobuf definitions to v1.0.0
+
 ## v0.2.0
 ### Changed
 - Update to opentelemetry v0.19.0.
