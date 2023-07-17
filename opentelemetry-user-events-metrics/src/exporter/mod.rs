@@ -10,23 +10,24 @@ use opentelemetry_sdk::metrics::{
 };
 
 use crate::tracepoint;
+use eventheader::_internal as ehi;
 use prost::Message;
 use std::fmt::{Debug, Formatter};
+use std::pin::Pin;
 
-#[derive(Clone, Copy)]
-pub struct MetricsExporter {}
+pub struct MetricsExporter {
+    trace_point: Pin<Box<ehi::TracepointState>>,
+}
 
 impl MetricsExporter {
     pub fn new() -> MetricsExporter {
+        let trace_point = Box::pin(ehi::TracepointState::new(0));
         // This is unsafe because if the code is used in a shared object,
         // the event MUST be unregistered before the shared object unloads.
         unsafe {
-            let result = tracepoint::register();
-            if result != 0 {
-                eprintln!("Tracepoint failed to register.");
-            }
+            let _result = tracepoint::register(trace_point.as_ref());
         }
-        MetricsExporter {}
+        MetricsExporter { trace_point }
     }
 }
 
@@ -67,17 +68,14 @@ impl Debug for MetricsExporter {
 #[async_trait]
 impl PushMetricsExporter for MetricsExporter {
     async fn export(&self, metrics: &mut ResourceMetrics) -> Result<()> {
-        if tracepoint::enabled() {
+        if self.trace_point.enabled() {
             let proto_message = transform_resource_metrics(metrics);
 
             let mut byte_array = Vec::new();
             let _encode_result = proto_message
                 .encode(&mut byte_array)
                 .map_err(|err| MetricsError::Other(err.to_string()))?;
-            let result = tracepoint::write(byte_array.as_slice());
-            if result != 0 {
-                return Err(MetricsError::Other("Tracepoint failed to write.".into()));
-            }
+            let _result = tracepoint::write(&self.trace_point, byte_array.as_slice());
         }
         Ok(())
     }
@@ -87,10 +85,8 @@ impl PushMetricsExporter for MetricsExporter {
     }
 
     fn shutdown(&self) -> Result<()> {
-        let result = tracepoint::unregister();
-        if result != 0 {
-            eprintln!("Tracepoint failed to unregister.");
-        }
+        // TracepointState automatically unregisters when dropped
+        // https://github.com/microsoft/LinuxTracepoints-Rust/blob/main/eventheader/src/native.rs#L618
         Ok(())
     }
 }
