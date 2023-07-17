@@ -64,18 +64,7 @@ pub fn write(trace_point: &ehi::TracepointState, data: &[u8]) -> i32 {
 pub unsafe fn register(trace_point: Pin<&ehi::TracepointState>) -> i32 {
     debug_assert!(METRICS_EVENT_DEF[METRICS_EVENT_DEF.len() - 1] == b'\0');
 
-    let result = panic::catch_unwind(|| {
-        // CStr::from_bytes_with_nul_unchecked is ok because METRICS_EVENT_DEF ends with "\0".
-        trace_point
-            .register(ffi::CStr::from_bytes_with_nul_unchecked(METRICS_EVENT_DEF))
-    });
-    match result {
-        Ok(value) => {
-            value
-        }
-        // We don't want to ever panic so we catch the error and return a unique code for retry
-        Err(_err) => {
-            -1
-        }
-    }
+    // CStr::from_bytes_with_nul_unchecked is ok because METRICS_EVENT_DEF ends with "\0".
+    trace_point
+        .register(ffi::CStr::from_bytes_with_nul_unchecked(METRICS_EVENT_DEF))
 }

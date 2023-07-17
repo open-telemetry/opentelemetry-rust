@@ -26,12 +26,6 @@ impl MetricsExporter {
         // the event MUST be unregistered before the shared object unloads.
         unsafe {
             let result = tracepoint::register(trace_point.as_ref());
-            // If result is -1, tracepoint might be in an erroneous state, attempt to retry
-            if result == -1 {
-                eprintln!("Tracepoint failed to register. Try restarting your application.");
-            } else if result != 0 {
-                eprintln!("Tracepoint failed to register. Error code: {}", result);
-            }
         }
         MetricsExporter {
             trace_point
@@ -84,9 +78,6 @@ impl PushMetricsExporter for MetricsExporter {
                 .encode(&mut byte_array)
                 .map_err(|err| MetricsError::Other(err.to_string()))?;
             let result = tracepoint::write(&self.trace_point, byte_array.as_slice());
-            if result != 0 {
-                return Err(MetricsError::Other(format!("Tracepoint failed to write. Error code: {}", result).into()));
-            }
         }
         Ok(())
     }
