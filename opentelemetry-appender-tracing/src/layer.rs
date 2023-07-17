@@ -112,6 +112,15 @@ where
         event.record(&mut visitor);
         self.logger.emit(log_record);
     }
+
+    fn event_enabled(
+        &self,
+        _event: &tracing_core::Event<'_>,
+        _ctx: tracing_subscriber::layer::Context<'_, S>,
+    ) -> bool {
+        let severity = map_severity_to_otel_severity(_event.metadata().level().as_str());
+        self.logger.event_enabled(severity)
+    }
 }
 
 fn map_severity_to_otel_severity(level: &str) -> Severity {
