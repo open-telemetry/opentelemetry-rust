@@ -25,7 +25,7 @@ impl MetricsExporter {
         // This is unsafe because if the code is used in a shared object,
         // the event MUST be unregistered before the shared object unloads.
         unsafe {
-            let result = tracepoint::register(trace_point.as_ref());
+            let _result = tracepoint::register(trace_point.as_ref());
         }
         MetricsExporter { trace_point }
     }
@@ -75,7 +75,7 @@ impl PushMetricsExporter for MetricsExporter {
             let _encode_result = proto_message
                 .encode(&mut byte_array)
                 .map_err(|err| MetricsError::Other(err.to_string()))?;
-            let result = tracepoint::write(&self.trace_point, byte_array.as_slice());
+            let _result = tracepoint::write(&self.trace_point, byte_array.as_slice());
         }
         Ok(())
     }

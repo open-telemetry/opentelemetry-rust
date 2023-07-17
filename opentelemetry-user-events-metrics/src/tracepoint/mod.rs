@@ -1,6 +1,5 @@
 use core::ffi;
 use eventheader::_internal as ehi;
-use std::panic;
 use std::pin::Pin;
 
 /// This is the command string for the event. It needs to follow the
