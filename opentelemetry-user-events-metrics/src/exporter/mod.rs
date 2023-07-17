@@ -2,21 +2,21 @@ use crate::transform::transform_resource_metrics;
 use async_trait::async_trait;
 
 use opentelemetry_api::metrics::{MetricsError, Result};
-use opentelemetry_sdk::{metrics::{
+use opentelemetry_sdk::metrics::{
     data::{ResourceMetrics, Temporality},
     exporter::PushMetricsExporter,
     reader::{AggregationSelector, TemporalitySelector},
     Aggregation, InstrumentKind,
-}};
+};
 
 use crate::tracepoint;
+use eventheader::_internal as ehi;
 use prost::Message;
 use std::fmt::{Debug, Formatter};
 use std::pin::Pin;
-use eventheader::_internal as ehi;
 
 pub struct MetricsExporter {
-    trace_point: Pin<Box<ehi::TracepointState>>
+    trace_point: Pin<Box<ehi::TracepointState>>,
 }
 
 impl MetricsExporter {
@@ -27,9 +27,7 @@ impl MetricsExporter {
         unsafe {
             let result = tracepoint::register(trace_point.as_ref());
         }
-        MetricsExporter {
-            trace_point
-        }
+        MetricsExporter { trace_point }
     }
 }
 

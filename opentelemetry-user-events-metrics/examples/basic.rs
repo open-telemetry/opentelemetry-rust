@@ -9,7 +9,6 @@ use opentelemetry_sdk::{
 };
 use opentelemetry_user_events_metrics::MetricsExporter;
 
-
 fn init_metrics(exporter: MetricsExporter) -> MeterProvider {
     let reader = PeriodicReader::builder(exporter, runtime::Tokio).build();
     MeterProvider::builder()
@@ -47,7 +46,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         ]
         .as_ref(),
     );
-    
+
     meter_provider.shutdown()?;
 
     Ok(())

@@ -1,7 +1,7 @@
 use core::ffi;
-use std::pin::Pin;
-use std::panic;
 use eventheader::_internal as ehi;
+use std::panic;
+use std::pin::Pin;
 
 /// This is the command string for the event. It needs to follow the
 /// [Command Format](https://docs.kernel.org/trace/user_events.html#command-format)
@@ -49,7 +49,7 @@ pub fn write(trace_point: &ehi::TracepointState, data: &[u8]) -> i32 {
     ])
 }
 
-/// Registers the passed in tracepoint. 
+/// Registers the passed in tracepoint.
 ///
 /// Requires: this tracepoint is not currently registered.
 /// The tracepoint must be in a Pin<&TracepointState> because we must ensure it will never be moved
@@ -65,6 +65,5 @@ pub unsafe fn register(trace_point: Pin<&ehi::TracepointState>) -> i32 {
     debug_assert!(METRICS_EVENT_DEF[METRICS_EVENT_DEF.len() - 1] == b'\0');
 
     // CStr::from_bytes_with_nul_unchecked is ok because METRICS_EVENT_DEF ends with "\0".
-    trace_point
-        .register(ffi::CStr::from_bytes_with_nul_unchecked(METRICS_EVENT_DEF))
+    trace_point.register(ffi::CStr::from_bytes_with_nul_unchecked(METRICS_EVENT_DEF))
 }
