@@ -359,7 +359,7 @@ impl MetricsExporter {
 
         let endpoint = Channel::from_shared(endpoint).map_err::<crate::Error, _>(Into::into)?;
 
-        #[cfg(all(feature = "tls"))]
+        #[cfg(feature = "tls")]
         let channel = match tonic_config.tls_config {
             Some(tls_config) => endpoint
                 .tls_config(tls_config)

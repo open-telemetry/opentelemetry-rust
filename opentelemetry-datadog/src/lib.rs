@@ -136,6 +136,12 @@
 
 mod exporter;
 
+pub use exporter::{
+    new_pipeline, ApiVersion, DatadogExporter, DatadogPipelineBuilder, Error, FieldMappingFn,
+    ModelConfig,
+};
+pub use propagator::DatadogPropagator;
+
 mod propagator {
     use once_cell::sync::Lazy;
     use opentelemetry::{
@@ -387,9 +393,3 @@ mod propagator {
         }
     }
 }
-
-pub use exporter::{
-    new_pipeline, ApiVersion, DatadogExporter, DatadogPipelineBuilder, Error, FieldMappingFn,
-    ModelConfig,
-};
-pub use propagator::DatadogPropagator;

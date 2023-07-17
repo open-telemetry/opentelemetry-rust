@@ -4,10 +4,8 @@ use crate::{logs::LogRecord, InstrumentationLibrary, KeyValue};
 
 /// The interface for emitting [`LogRecord`]s.
 pub trait Logger {
-    /// Emit a [`LogRecord`]. If this `Logger` was created with
-    /// `include_trace_context` set to `true`, the logger will set the record's
-    /// [`TraceContext`] to the active trace context, using the current thread's
-    /// [`Context`].
+    /// Emit a [`LogRecord`]. If there is active current thread's [`Context`],
+    ///  the logger will set the record's [`TraceContext`] to the active trace context,
     ///
     /// [`Context`]: crate::Context
     /// [`TraceContext`]: crate::logs::TraceContext
@@ -24,28 +22,16 @@ pub trait LoggerProvider {
     /// The `name` should be the application name or the name of the library
     /// providing instrumentation. If the name is empty, then an
     /// implementation-defined default name may be used instead.
-    ///
-    /// If `include_trace_context` is `true`, the newly created [`Logger`]
-    /// should set the [`TraceContext`] associated with a record to the
-    /// current thread's active trace context, using [`Context`].
-    ///
-    /// [`Context`]: crate::Context
-    /// [`TraceContext`]: crate::logs::TraceContext
-
     fn versioned_logger(
         &self,
         name: impl Into<Cow<'static, str>>,
         version: Option<Cow<'static, str>>,
         schema_url: Option<Cow<'static, str>>,
         attributes: Option<Vec<KeyValue>>,
-        include_trace_context: bool,
     ) -> Self::Logger {
-        self.library_logger(
-            Arc::new(InstrumentationLibrary::new(
-                name, version, schema_url, attributes,
-            )),
-            include_trace_context,
-        )
+        self.library_logger(Arc::new(InstrumentationLibrary::new(
+            name, version, schema_url, attributes,
+        )))
     }
 
     /// Returns a new versioned logger with the given instrumentation library.
@@ -66,13 +52,9 @@ pub trait LoggerProvider {
     ///     Some("https://opentelemetry.io/schema/1.0.0"),
     ///     None,
     /// ));
-    /// let logger = provider.library_logger(library, true);
+    /// let logger = provider.library_logger(library);
     /// ```
-    fn library_logger(
-        &self,
-        library: Arc<InstrumentationLibrary>,
-        include_trace_context: bool,
-    ) -> Self::Logger;
+    fn library_logger(&self, library: Arc<InstrumentationLibrary>) -> Self::Logger;
 
     /// Returns a new logger with the given name.
     ///
@@ -80,6 +62,6 @@ pub trait LoggerProvider {
     /// providing instrumentation. If the name is empty, then an
     /// implementation-defined default name may be used instead.
     fn logger(&self, name: impl Into<Cow<'static, str>>) -> Self::Logger {
-        self.versioned_logger(name, None, None, None, true)
+        self.versioned_logger(name, None, None, None)
     }
 }

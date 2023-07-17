@@ -4,7 +4,7 @@
 
 ### Changed
 
-- Update to v1.20.0 spec
+- Update to v1.21.0 spec
 
 ## v0.11.0
 ### Changed

@@ -38,6 +38,10 @@
 //! }
 //! ```
 //! A more detailed example can be found in [opentelemetry-rust](https://github.com/open-telemetry/opentelemetry-rust/tree/main/examples/aws-xray) repo
+
+#[cfg(feature = "trace")]
+pub use trace::XrayPropagator;
+
 #[cfg(feature = "trace")]
 pub mod trace {
     use once_cell::sync::Lazy;
@@ -385,6 +389,3 @@ pub mod trace {
         }
     }
 }
-
-#[cfg(feature = "trace")]
-pub use trace::XrayPropagator;

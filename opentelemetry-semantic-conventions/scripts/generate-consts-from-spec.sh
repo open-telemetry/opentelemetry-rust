@@ -5,23 +5,23 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CRATE_DIR="${SCRIPT_DIR}/../"
 
 # freeze the spec version and generator version to make generation reproducible
-SPEC_VERSION=1.20.0
-SEMCOVGEN_VERSION=0.18.0
+SPEC_VERSION=1.21.0
+SEMCOVGEN_VERSION=0.19.0
 
 cd "$CRATE_DIR"
 
-rm -rf opentelemetry-specification || true
-mkdir opentelemetry-specification
-cd opentelemetry-specification
+rm -rf semantic-conventions || true
+mkdir semantic-conventions
+cd semantic-conventions
 
 git init
-git remote add origin https://github.com/open-telemetry/opentelemetry-specification.git
+git remote add origin https://github.com/open-telemetry/semantic-conventions.git
 git fetch origin "v$SPEC_VERSION"
 git reset --hard FETCH_HEAD
 cd "$CRATE_DIR"
 
 docker run --rm \
-	-v "${CRATE_DIR}/opentelemetry-specification/semantic_conventions:/source" \
+	-v "${CRATE_DIR}/semantic-conventions/model:/source" \
 	-v "${CRATE_DIR}/scripts/templates:/templates" \
 	-v "${CRATE_DIR}/src:/output" \
 	otel/semconvgen:$SEMCOVGEN_VERSION \
@@ -32,7 +32,7 @@ docker run --rm \
 	--parameters conventions=trace
 
 docker run --rm \
-	-v "${CRATE_DIR}/opentelemetry-specification/semantic_conventions:/source" \
+	-v "${CRATE_DIR}/semantic-conventions/model:/source" \
 	-v "${CRATE_DIR}/scripts/templates:/templates" \
 	-v "${CRATE_DIR}/src:/output" \
 	otel/semconvgen:$SEMCOVGEN_VERSION \
