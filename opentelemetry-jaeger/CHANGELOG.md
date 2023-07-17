@@ -1,5 +1,12 @@
 # Changelog
-## Main
+
+## v0.19.0
+
+### Changed
+
+- Add warning to jaeger docs about future deprecation #996
+- Update to opentelemetry-api v0.20.0
+
 ### Fixed
 - allow span id to be less than 16 characters in propagator [#1084](https://github.com/open-telemetry/opentelemetry-rust/pull/1084)
 
@@ -94,7 +101,7 @@
 ### Fixed
 - Allow user to use hostname like `localhost` in the `OTEL_EXPORTER_JAEGER_AGENT_HOST` environment variable. #448
 
-### Removed 
+### Removed
 - Removed `from_env` and use environment variables to initialize the configurations by default #459
 
 ### Changed

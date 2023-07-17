@@ -1,10 +1,14 @@
 # Changelog
 
-## Unreleased
+## v0.13.0
 
 ### Added
 
 - Add `with_namespace` option to exporter config.
+
+### Changed
+
+- Update to opentelemetry-api v0.20.0
 
 ## v0.12.0
 

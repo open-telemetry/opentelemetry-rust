@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.20.0
 
 ### Added
 
@@ -8,6 +8,13 @@
   [#1066](https://github.com/open-telemetry/opentelemetry-rust/pull/1066).
 - Propagate shutdown calls from `PeriodicReader` to metrics exporter
   [#1138](https://github.com/open-telemetry/opentelemetry-rust/pull/1138).
+- Add in memory metrics exporter #1017
+
+### Changed
+
+- New metrics SDK #1000
+- Use `Cow<'static, str>` instead of `&'static str` #1018
+- Unify trace and logs runtime extensions traits. #1067
 
 ### Removed
 
@@ -16,6 +23,11 @@
   [#1041](https://github.com/open-telemetry/opentelemetry-rust/pull/1041).
 - Synchronous instruments no longer accepts `Context` while reporting
   measurements. [#1076](https://github.com/open-telemetry/opentelemetry-rust/pull/1076).
+- Don't use CARGO_BIN_NAME for service name #1150
+
+### Fixed
+
+- Wait for exports on the simple span processor's ForceFlush #1030
 
 ## v0.19.0
 

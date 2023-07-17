@@ -1,4 +1,11 @@
 # Changelog
+
+## v0.9.0
+
+### Changed
+
+- Update to opentelemetry-api v0.20.0
+
 ## v0.8.0
 ### Changed
 - Add response headers in response for `HttpClient` implementations [#918](https://github.com/open-telemetry/opentelemetry-rust/pull/918).
