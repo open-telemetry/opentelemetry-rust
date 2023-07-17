@@ -96,7 +96,7 @@
 use once_cell::sync::OnceCell;
 use opentelemetry_api::{
     global,
-    metrics::{MetricsError, Result, Unit},
+    metrics::{MetricsError, Result},
     Context, Key, Value,
 };
 use opentelemetry_sdk::{
@@ -131,6 +131,7 @@ const SCOPE_INFO_KEYS: [&str; 2] = ["otel_scope_name", "otel_scope_version"];
 const COUNTER_SUFFIX: &str = "_total";
 
 mod config;
+mod utils;
 
 pub use config::ExporterBuilder;
 
@@ -199,14 +200,19 @@ struct CollectorInner {
 
 impl Collector {
     fn get_name(&self, m: &data::Metric) -> Cow<'static, str> {
-        let name = sanitize_name(&m.name);
+        let name = utils::sanitize_name(&m.name);
+        let unit_suffixes = if self.without_units {
+            None
+        } else {
+            utils::get_unit_suffixes(&m.unit)
+        };
         match (
             &self.namespace,
-            get_unit_suffixes(&m.unit).filter(|_| !self.without_units),
+            unit_suffixes,
         ) {
-            (Some(namespace), Some(suffix)) => Cow::Owned(format!("{namespace}{name}{suffix}")),
+            (Some(namespace), Some(suffix)) => Cow::Owned(format!("{namespace}{name}_{suffix}")),
             (Some(namespace), None) => Cow::Owned(format!("{namespace}{name}")),
-            (None, Some(suffix)) => Cow::Owned(format!("{name}{suffix}")),
+            (None, Some(suffix)) => Cow::Owned(format!("{name}_{suffix}")),
             (None, None) => name,
         }
     }
@@ -308,7 +314,7 @@ impl prometheus::core::Collector for Collector {
 fn get_attrs(kvs: &mut dyn Iterator<Item = (&Key, &Value)>, extra: &[LabelPair]) -> Vec<LabelPair> {
     let mut keys_map = BTreeMap::<String, Vec<String>>::new();
     for (key, value) in kvs {
-        let key = sanitize_prom_kv(key.as_str());
+        let key = utils::sanitize_prom_kv(key.as_str());
         keys_map
             .entry(key)
             .and_modify(|v| v.push(value.to_string()))
@@ -545,63 +551,6 @@ fn create_scope_info_metric(scope: &Scope) -> MetricFamily {
     mf
 }
 
-fn get_unit_suffixes(unit: &Unit) -> Option<&'static str> {
-    match unit.as_str() {
-        "1" => Some("_ratio"),
-        "By" => Some("_bytes"),
-        "ms" => Some("_milliseconds"),
-        _ => None,
-    }
-}
-
-#[allow(clippy::ptr_arg)]
-fn sanitize_name(s: &Cow<'static, str>) -> Cow<'static, str> {
-    // prefix chars to add in case name starts with number
-    let mut prefix = "";
-
-    // Find first invalid char
-    if let Some((replace_idx, _)) = s.char_indices().find(|(i, c)| {
-        if *i == 0 && c.is_ascii_digit() {
-            // first char is number, add prefix and replace reset of chars
-            prefix = "_";
-            true
-        } else {
-            // keep checking
-            !c.is_alphanumeric() && *c != '_' && *c != ':'
-        }
-    }) {
-        // up to `replace_idx` have been validated, convert the rest
-        let (valid, rest) = s.split_at(replace_idx);
-        Cow::Owned(
-            prefix
-                .chars()
-                .chain(valid.chars())
-                .chain(rest.chars().map(|c| {
-                    if c.is_ascii_alphanumeric() || c == '_' || c == ':' {
-                        c
-                    } else {
-                        '_'
-                    }
-                }))
-                .collect(),
-        )
-    } else {
-        s.clone() // no invalid chars found, return existing
-    }
-}
-
-fn sanitize_prom_kv(s: &str) -> String {
-    s.chars()
-        .map(|c| {
-            if c.is_ascii_alphanumeric() || c == ':' {
-                c
-            } else {
-                '_'
-            }
-        })
-        .collect()
-}
-
 trait Numeric: fmt::Debug {
     // lossy at large values for u64 and i64 but prometheus only handles floats
     fn as_f64(&self) -> f64;
@@ -625,33 +574,4 @@ impl Numeric for f64 {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
 
-    #[test]
-    fn name_sanitization() {
-        let tests = vec![
-            ("nam€_with_3_width_rune", "nam__with_3_width_rune"),
-            ("`", "_"),
-            (
-              r##"! "#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWKYZ[]\^_abcdefghijklmnopqrstuvwkyz{|}~"##,
-              "________________0123456789:______ABCDEFGHIJKLMNOPQRSTUVWKYZ_____abcdefghijklmnopqrstuvwkyz____",
-            ),
-
-            ("Avalid_23name", "Avalid_23name"),
-            ("_Avalid_23name", "_Avalid_23name"),
-            ("1valid_23name", "_1valid_23name"),
-            ("avalid_23name", "avalid_23name"),
-            ("Ava:lid_23name", "Ava:lid_23name"),
-            ("a lid_23name", "a_lid_23name"),
-            (":leading_colon", ":leading_colon"),
-            ("colon:in:the:middle", "colon:in:the:middle"),
-            ("", ""),
-          ];
-
-        for (input, want) in tests {
-            assert_eq!(want, sanitize_name(&input.into()), "input: {input}")
-        }
-    }
-}
