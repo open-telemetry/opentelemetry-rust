@@ -206,10 +206,7 @@ impl Collector {
         } else {
             utils::get_unit_suffixes(&m.unit)
         };
-        match (
-            &self.namespace,
-            unit_suffixes,
-        ) {
+        match (&self.namespace, unit_suffixes) {
             (Some(namespace), Some(suffix)) => Cow::Owned(format!("{namespace}{name}_{suffix}")),
             (Some(namespace), None) => Cow::Owned(format!("{namespace}{name}")),
             (None, Some(suffix)) => Cow::Owned(format!("{name}_{suffix}")),
@@ -573,5 +570,3 @@ impl Numeric for f64 {
         *self
     }
 }
-
-

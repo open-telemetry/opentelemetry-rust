@@ -3393,7 +3393,6 @@ pub struct ExponentialHistogramDataPoint {
     pub negative: ::protobuf::SingularPtrField<ExponentialHistogramDataPoint_Buckets>,
     pub flags: u32,
     pub exemplars: ::protobuf::RepeatedField<Exemplar>,
-    pub zero_threshold: f64,
     // message oneof groups
     pub _sum: ::std::option::Option<ExponentialHistogramDataPoint_oneof__sum>,
     pub _min: ::std::option::Option<ExponentialHistogramDataPoint_oneof__min>,
@@ -3714,21 +3713,6 @@ impl ExponentialHistogramDataPoint {
     pub fn set_max(&mut self, v: f64) {
         self._max = ::std::option::Option::Some(ExponentialHistogramDataPoint_oneof__max::max(v))
     }
-
-    // double zero_threshold = 14;
-
-
-    pub fn get_zero_threshold(&self) -> f64 {
-        self.zero_threshold
-    }
-    pub fn clear_zero_threshold(&mut self) {
-        self.zero_threshold = 0.;
-    }
-
-    // Param is passed by value, moved
-    pub fn set_zero_threshold(&mut self, v: f64) {
-        self.zero_threshold = v;
-    }
 }
 
 impl ::protobuf::Message for ExponentialHistogramDataPoint {
@@ -3832,13 +3816,6 @@ impl ::protobuf::Message for ExponentialHistogramDataPoint {
                     }
                     self._max = ::std::option::Option::Some(ExponentialHistogramDataPoint_oneof__max::max(is.read_double()?));
                 },
-                14 => {
-                    if wire_type != ::protobuf::wire_format::WireTypeFixed64 {
-                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
-                    }
-                    let tmp = is.read_double()?;
-                    self.zero_threshold = tmp;
-                },
                 _ => {
                     ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
                 },
@@ -3885,9 +3862,6 @@ impl ::protobuf::Message for ExponentialHistogramDataPoint {
             let len = value.compute_size();
             my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
         };
-        if self.zero_threshold != 0. {
-            my_size += 9;
-        }
         if let ::std::option::Option::Some(ref v) = self._sum {
             match v {
                 &ExponentialHistogramDataPoint_oneof__sum::sum(v) => {
@@ -3953,9 +3927,6 @@ impl ::protobuf::Message for ExponentialHistogramDataPoint {
             os.write_raw_varint32(v.get_cached_size())?;
             v.write_to_with_cached_sizes(os)?;
         };
-        if self.zero_threshold != 0. {
-            os.write_double(14, self.zero_threshold)?;
-        }
         if let ::std::option::Option::Some(ref v) = self._sum {
             match v {
                 &ExponentialHistogramDataPoint_oneof__sum::sum(v) => {
@@ -4080,11 +4051,6 @@ impl ::protobuf::Message for ExponentialHistogramDataPoint {
                 ExponentialHistogramDataPoint::has_max,
                 ExponentialHistogramDataPoint::get_max,
             ));
-            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeDouble>(
-                "zero_threshold",
-                |m: &ExponentialHistogramDataPoint| { &m.zero_threshold },
-                |m: &mut ExponentialHistogramDataPoint| { &mut m.zero_threshold },
-            ));
             ::protobuf::reflect::MessageDescriptor::new_pb_name::<ExponentialHistogramDataPoint>(
                 "ExponentialHistogramDataPoint",
                 fields,
@@ -4114,7 +4080,6 @@ impl ::protobuf::Clear for ExponentialHistogramDataPoint {
         self.exemplars.clear();
         self._min = ::std::option::Option::None;
         self._max = ::std::option::Option::None;
-        self.zero_threshold = 0.;
         self.unknown_fields.clear();
     }
 }
@@ -5358,8 +5323,8 @@ impl ::protobuf::reflect::ProtobufValue for AggregationTemporality {
 #[derive(Clone,PartialEq,Eq,Debug,Hash)]
 #[cfg_attr(feature = "with-serde", derive(::serde::Serialize, ::serde::Deserialize))]
 pub enum DataPointFlags {
-    DATA_POINT_FLAGS_DO_NOT_USE = 0,
-    DATA_POINT_FLAGS_NO_RECORDED_VALUE_MASK = 1,
+    FLAG_NONE = 0,
+    FLAG_NO_RECORDED_VALUE = 1,
 }
 
 impl ::protobuf::ProtobufEnum for DataPointFlags {
@@ -5369,16 +5334,16 @@ impl ::protobuf::ProtobufEnum for DataPointFlags {
 
     fn from_i32(value: i32) -> ::std::option::Option<DataPointFlags> {
         match value {
-            0 => ::std::option::Option::Some(DataPointFlags::DATA_POINT_FLAGS_DO_NOT_USE),
-            1 => ::std::option::Option::Some(DataPointFlags::DATA_POINT_FLAGS_NO_RECORDED_VALUE_MASK),
+            0 => ::std::option::Option::Some(DataPointFlags::FLAG_NONE),
+            1 => ::std::option::Option::Some(DataPointFlags::FLAG_NO_RECORDED_VALUE),
             _ => ::std::option::Option::None
         }
     }
 
     fn values() -> &'static [Self] {
         static values: &'static [DataPointFlags] = &[
-            DataPointFlags::DATA_POINT_FLAGS_DO_NOT_USE,
-            DataPointFlags::DATA_POINT_FLAGS_NO_RECORDED_VALUE_MASK,
+            DataPointFlags::FLAG_NONE,
+            DataPointFlags::FLAG_NO_RECORDED_VALUE,
         ];
         values
     }
@@ -5396,7 +5361,7 @@ impl ::std::marker::Copy for DataPointFlags {
 
 impl ::std::default::Default for DataPointFlags {
     fn default() -> Self {
-        DataPointFlags::DATA_POINT_FLAGS_DO_NOT_USE
+        DataPointFlags::FLAG_NONE
     }
 }
 
@@ -5465,7 +5430,7 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     ars\x12\x14\n\x05flags\x18\n\x20\x01(\rR\x05flags\x12\x15\n\x03min\x18\
     \x0b\x20\x01(\x01H\x01R\x03min\x88\x01\x01\x12\x15\n\x03max\x18\x0c\x20\
     \x01(\x01H\x02R\x03max\x88\x01\x01B\x06\n\x04_sumB\x06\n\x04_minB\x06\n\
-    \x04_maxJ\x04\x08\x01\x10\x02\"\xfa\x05\n\x1dExponentialHistogramDataPoi\
+    \x04_maxJ\x04\x08\x01\x10\x02\"\xd3\x05\n\x1dExponentialHistogramDataPoi\
     nt\x12G\n\nattributes\x18\x01\x20\x03(\x0b2'.opentelemetry.proto.common.\
     v1.KeyValueR\nattributes\x12/\n\x14start_time_unix_nano\x18\x02\x20\x01(\
     \x06R\x11startTimeUnixNano\x12$\n\x0etime_unix_nano\x18\x03\x20\x01(\x06\
@@ -5479,14 +5444,13 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     \x18\n\x20\x01(\rR\x05flags\x12F\n\texemplars\x18\x0b\x20\x03(\x0b2(.ope\
     ntelemetry.proto.metrics.v1.ExemplarR\texemplars\x12\x15\n\x03min\x18\
     \x0c\x20\x01(\x01H\x01R\x03min\x88\x01\x01\x12\x15\n\x03max\x18\r\x20\
-    \x01(\x01H\x02R\x03max\x88\x01\x01\x12%\n\x0ezero_threshold\x18\x0e\x20\
-    \x01(\x01R\rzeroThreshold\x1aF\n\x07Buckets\x12\x16\n\x06offset\x18\x01\
-    \x20\x01(\x11R\x06offset\x12#\n\rbucket_counts\x18\x02\x20\x03(\x04R\x0c\
-    bucketCountsB\x06\n\x04_sumB\x06\n\x04_minB\x06\n\x04_max\"\xa6\x03\n\
-    \x10SummaryDataPoint\x12G\n\nattributes\x18\x07\x20\x03(\x0b2'.opentelem\
-    etry.proto.common.v1.KeyValueR\nattributes\x12/\n\x14start_time_unix_nan\
-    o\x18\x02\x20\x01(\x06R\x11startTimeUnixNano\x12$\n\x0etime_unix_nano\
-    \x18\x03\x20\x01(\x06R\x0ctimeUnixNano\x12\x14\n\x05count\x18\x04\x20\
+    \x01(\x01H\x02R\x03max\x88\x01\x01\x1aF\n\x07Buckets\x12\x16\n\x06offset\
+    \x18\x01\x20\x01(\x11R\x06offset\x12#\n\rbucket_counts\x18\x02\x20\x03(\
+    \x04R\x0cbucketCountsB\x06\n\x04_sumB\x06\n\x04_minB\x06\n\x04_max\"\xa6\
+    \x03\n\x10SummaryDataPoint\x12G\n\nattributes\x18\x07\x20\x03(\x0b2'.ope\
+    ntelemetry.proto.common.v1.KeyValueR\nattributes\x12/\n\x14start_time_un\
+    ix_nano\x18\x02\x20\x01(\x06R\x11startTimeUnixNano\x12$\n\x0etime_unix_n\
+    ano\x18\x03\x20\x01(\x06R\x0ctimeUnixNano\x12\x14\n\x05count\x18\x04\x20\
     \x01(\x06R\x05count\x12\x10\n\x03sum\x18\x05\x20\x01(\x01R\x03sum\x12i\n\
     \x0fquantile_values\x18\x06\x20\x03(\x0b2@.opentelemetry.proto.metrics.v\
     1.SummaryDataPoint.ValueAtQuantileR\x0equantileValues\x12\x14\n\x05flags\
@@ -5501,11 +5465,11 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     _id\x18\x05\x20\x01(\x0cR\x07traceIdB\x07\n\x05valueJ\x04\x08\x01\x10\
     \x02*\x8c\x01\n\x16AggregationTemporality\x12'\n#AGGREGATION_TEMPORALITY\
     _UNSPECIFIED\x10\0\x12!\n\x1dAGGREGATION_TEMPORALITY_DELTA\x10\x01\x12&\
-    \n\"AGGREGATION_TEMPORALITY_CUMULATIVE\x10\x02*^\n\x0eDataPointFlags\x12\
-    \x1f\n\x1bDATA_POINT_FLAGS_DO_NOT_USE\x10\0\x12+\n'DATA_POINT_FLAGS_NO_R\
-    ECORDED_VALUE_MASK\x10\x01B\x7f\n!io.opentelemetry.proto.metrics.v1B\x0c\
-    MetricsProtoP\x01Z)go.opentelemetry.io/proto/otlp/metrics/v1\xaa\x02\x1e\
-    OpenTelemetry.Proto.Metrics.V1b\x06proto3\
+    \n\"AGGREGATION_TEMPORALITY_CUMULATIVE\x10\x02*;\n\x0eDataPointFlags\x12\
+    \r\n\tFLAG_NONE\x10\0\x12\x1a\n\x16FLAG_NO_RECORDED_VALUE\x10\x01B\x7f\n\
+    !io.opentelemetry.proto.metrics.v1B\x0cMetricsProtoP\x01Z)go.opentelemet\
+    ry.io/proto/otlp/metrics/v1\xaa\x02\x1eOpenTelemetry.Proto.Metrics.V1b\
+    \x06proto3\
 ";
 
 static file_descriptor_proto_lazy: ::protobuf::rt::LazyV2<::protobuf::descriptor::FileDescriptorProto> = ::protobuf::rt::LazyV2::INIT;

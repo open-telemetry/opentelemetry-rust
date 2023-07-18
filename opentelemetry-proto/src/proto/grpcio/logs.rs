@@ -1374,8 +1374,8 @@ impl ::protobuf::reflect::ProtobufValue for SeverityNumber {
 #[derive(Clone,PartialEq,Eq,Debug,Hash)]
 #[cfg_attr(feature = "with-serde", derive(::serde::Serialize, ::serde::Deserialize))]
 pub enum LogRecordFlags {
-    LOG_RECORD_FLAGS_DO_NOT_USE = 0,
-    LOG_RECORD_FLAGS_TRACE_FLAGS_MASK = 255,
+    LOG_RECORD_FLAG_UNSPECIFIED = 0,
+    LOG_RECORD_FLAG_TRACE_FLAGS_MASK = 255,
 }
 
 impl ::protobuf::ProtobufEnum for LogRecordFlags {
@@ -1385,16 +1385,16 @@ impl ::protobuf::ProtobufEnum for LogRecordFlags {
 
     fn from_i32(value: i32) -> ::std::option::Option<LogRecordFlags> {
         match value {
-            0 => ::std::option::Option::Some(LogRecordFlags::LOG_RECORD_FLAGS_DO_NOT_USE),
-            255 => ::std::option::Option::Some(LogRecordFlags::LOG_RECORD_FLAGS_TRACE_FLAGS_MASK),
+            0 => ::std::option::Option::Some(LogRecordFlags::LOG_RECORD_FLAG_UNSPECIFIED),
+            255 => ::std::option::Option::Some(LogRecordFlags::LOG_RECORD_FLAG_TRACE_FLAGS_MASK),
             _ => ::std::option::Option::None
         }
     }
 
     fn values() -> &'static [Self] {
         static values: &'static [LogRecordFlags] = &[
-            LogRecordFlags::LOG_RECORD_FLAGS_DO_NOT_USE,
-            LogRecordFlags::LOG_RECORD_FLAGS_TRACE_FLAGS_MASK,
+            LogRecordFlags::LOG_RECORD_FLAG_UNSPECIFIED,
+            LogRecordFlags::LOG_RECORD_FLAG_TRACE_FLAGS_MASK,
         ];
         values
     }
@@ -1412,7 +1412,7 @@ impl ::std::marker::Copy for LogRecordFlags {
 
 impl ::std::default::Default for LogRecordFlags {
     fn default() -> Self {
-        LogRecordFlags::LOG_RECORD_FLAGS_DO_NOT_USE
+        LogRecordFlags::LOG_RECORD_FLAG_UNSPECIFIED
     }
 }
 
@@ -1461,11 +1461,11 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     \x1a\n\x16SEVERITY_NUMBER_ERROR3\x10\x13\x12\x1a\n\x16SEVERITY_NUMBER_ER\
     ROR4\x10\x14\x12\x19\n\x15SEVERITY_NUMBER_FATAL\x10\x15\x12\x1a\n\x16SEV\
     ERITY_NUMBER_FATAL2\x10\x16\x12\x1a\n\x16SEVERITY_NUMBER_FATAL3\x10\x17\
-    \x12\x1a\n\x16SEVERITY_NUMBER_FATAL4\x10\x18*Y\n\x0eLogRecordFlags\x12\
-    \x1f\n\x1bLOG_RECORD_FLAGS_DO_NOT_USE\x10\0\x12&\n!LOG_RECORD_FLAGS_TRAC\
-    E_FLAGS_MASK\x10\xff\x01Bs\n\x1eio.opentelemetry.proto.logs.v1B\tLogsPro\
-    toP\x01Z&go.opentelemetry.io/proto/otlp/logs/v1\xaa\x02\x1bOpenTelemetry\
-    .Proto.Logs.V1b\x06proto3\
+    \x12\x1a\n\x16SEVERITY_NUMBER_FATAL4\x10\x18*X\n\x0eLogRecordFlags\x12\
+    \x1f\n\x1bLOG_RECORD_FLAG_UNSPECIFIED\x10\0\x12%\n\x20LOG_RECORD_FLAG_TR\
+    ACE_FLAGS_MASK\x10\xff\x01Bs\n\x1eio.opentelemetry.proto.logs.v1B\tLogsP\
+    rotoP\x01Z&go.opentelemetry.io/proto/otlp/logs/v1\xaa\x02\x1bOpenTelemet\
+    ry.Proto.Logs.V1b\x06proto3\
 ";
 
 static file_descriptor_proto_lazy: ::protobuf::rt::LazyV2<::protobuf::descriptor::FileDescriptorProto> = ::protobuf::rt::LazyV2::INIT;
