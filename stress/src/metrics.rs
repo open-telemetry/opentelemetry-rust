@@ -4,7 +4,7 @@ use opentelemetry_api::{
     KeyValue,
 };
 use opentelemetry_sdk::metrics::{ManualReader, MeterProvider};
-use rand::{rngs::SmallRng, SeedableRng, Rng};
+use rand::{rngs::SmallRng, Rng, SeedableRng};
 use std::borrow::Cow;
 
 mod throughput;
