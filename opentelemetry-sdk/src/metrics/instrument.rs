@@ -172,9 +172,8 @@ pub struct Stream {
     /// An allow-list of attribute keys that will be preserved for the stream.
     ///
     /// Any attribute recorded for the stream with a key not in this set will be
-    /// dropped.
-    ///
-    /// If this set is empty or `None`, all attributes will be kept.
+    /// dropped. If the set is empty, all attributes will be dropped, if `None` all
+    /// attributes will be kept.
     pub allowed_attribute_keys: Option<Arc<HashSet<Key>>>,
 }
 
@@ -211,15 +210,9 @@ impl Stream {
     /// Set the stream allowed attribute keys.
     ///
     /// Any attribute recorded for the stream with a key not in this set will be
-    /// dropped.
-    ///
-    /// If this set is empty or `None`, all attributes will be kept.
+    /// dropped. If this set is empty all attributes will be dropped.
     pub fn allowed_attribute_keys(mut self, attribute_keys: impl IntoIterator<Item = Key>) -> Self {
-        let keys: HashSet<_> = attribute_keys.into_iter().collect();
-
-        if !keys.is_empty() {
-            self.allowed_attribute_keys = Some(Arc::new(keys));
-        }
+        self.allowed_attribute_keys = Some(Arc::new(attribute_keys.into_iter().collect()));
 
         self
     }
