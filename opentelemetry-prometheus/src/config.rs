@@ -13,6 +13,7 @@ pub struct ExporterBuilder {
     registry: Option<prometheus::Registry>,
     disable_target_info: bool,
     without_units: bool,
+    without_counter_suffixes: bool,
     namespace: Option<String>,
     aggregation: Option<Box<dyn AggregationSelector>>,
     disable_scope_info: bool,
@@ -24,6 +25,7 @@ impl fmt::Debug for ExporterBuilder {
             .field("registry", &self.registry)
             .field("disable_target_info", &self.disable_target_info)
             .field("without_units", &self.without_units)
+            .field("without_counter_suffixes", &self.without_counter_suffixes)
             .field("namespace", &self.namespace)
             .field("aggregation", &self.aggregation.is_some())
             .field("disable_scope_info", &self.disable_scope_info)
@@ -41,6 +43,17 @@ impl ExporterBuilder {
     /// With this option set, the name would instead be `request_duration_total`.
     pub fn without_units(mut self) -> Self {
         self.without_units = true;
+        self
+    }
+
+    /// Disables exporter's addition `_total` suffixes on counters.
+    ///
+    /// By default, metric names include a `_total` suffix to follow Prometheus
+    /// naming conventions. For example, the counter metric `happy.people` would
+    /// become `happy_people_total`. With this option set, the name would instead be
+    /// `happy_people`.
+    pub fn without_counter_suffixes(mut self) -> Self {
+        self.without_counter_suffixes = true;
         self
     }
 
@@ -112,6 +125,7 @@ impl ExporterBuilder {
             reader: Arc::clone(&reader),
             disable_target_info: self.disable_target_info,
             without_units: self.without_units,
+            without_counter_suffixes: self.without_counter_suffixes,
             disable_scope_info: self.disable_scope_info,
             create_target_info_once: OnceCell::new(),
             namespace: self.namespace,

@@ -425,8 +425,8 @@ pub struct ExponentialHistogramDataPoint {
     ///    base = (2^(2^-scale))
     ///
     /// The histogram bucket identified by `index`, a signed integer,
-    /// contains values that are greater than or equal to (base^index) and
-    /// less than (base^(index+1)).
+    /// contains values that are greater than (base^index) and
+    /// less than or equal to (base^(index+1)).
     ///
     /// The positive and negative ranges of the histogram are expressed
     /// separately.  Negative values are mapped by their absolute value
@@ -466,6 +466,14 @@ pub struct ExponentialHistogramDataPoint {
     /// max is the maximum value over (start_time, end_time].
     #[prost(double, optional, tag = "13")]
     pub max: ::core::option::Option<f64>,
+    /// ZeroThreshold may be optionally set to convey the width of the zero
+    /// region. Where the zero region is defined as the closed interval
+    /// [-ZeroThreshold, ZeroThreshold].
+    /// When ZeroThreshold is 0, zero count bucket stores values that cannot be
+    /// expressed using the standard exponential formula as well as values that
+    /// have been rounded to zero.
+    #[prost(double, tag = "14")]
+    pub zero_threshold: f64,
 }
 /// Nested message and enum types in `ExponentialHistogramDataPoint`.
 pub mod exponential_histogram_data_point {
@@ -479,9 +487,9 @@ pub mod exponential_histogram_data_point {
         /// Note: This uses a varint encoding as a simple form of compression.
         #[prost(sint32, tag = "1")]
         pub offset: i32,
-        /// Count is an array of counts, where count\[i\] carries the count
-        /// of the bucket at index (offset+i).  count\[i\] is the count of
-        /// values greater than or equal to base^(offset+i) and less than
+        /// bucket_counts is an array of count values, where bucket_counts\[i\] carries
+        /// the count of the bucket at index (offset+i). bucket_counts\[i\] is the count
+        /// of values greater than base^(offset+i) and less than or equal to
         /// base^(offset+i+1).
         ///
         /// Note: By contrast, the explicit HistogramDataPoint uses
@@ -709,16 +717,18 @@ impl AggregationTemporality {
 /// enum is a bit-mask.  To test the presence of a single flag in the flags of
 /// a data point, for example, use an expression like:
 ///
-///    (point.flags & FLAG_NO_RECORDED_VALUE) == FLAG_NO_RECORDED_VALUE
+///    (point.flags & DATA_POINT_FLAGS_NO_RECORDED_VALUE_MASK) == DATA_POINT_FLAGS_NO_RECORDED_VALUE_MASK
 ///
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
 pub enum DataPointFlags {
-    FlagNone = 0,
+    /// The zero value for the enum. Should not be used for comparisons.
+    /// Instead use bitwise "and" with the appropriate mask as shown above.
+    DoNotUse = 0,
     /// This DataPoint is valid but has no recorded value.  This value
     /// SHOULD be used to reflect explicitly missing data in a series, as
     /// for an equivalent to the Prometheus "staleness marker".
-    FlagNoRecordedValue = 1,
+    NoRecordedValueMask = 1,
 }
 impl DataPointFlags {
     /// String value of the enum field names used in the ProtoBuf definition.
@@ -727,15 +737,17 @@ impl DataPointFlags {
     /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
-            DataPointFlags::FlagNone => "FLAG_NONE",
-            DataPointFlags::FlagNoRecordedValue => "FLAG_NO_RECORDED_VALUE",
+            DataPointFlags::DoNotUse => "DATA_POINT_FLAGS_DO_NOT_USE",
+            DataPointFlags::NoRecordedValueMask => {
+                "DATA_POINT_FLAGS_NO_RECORDED_VALUE_MASK"
+            }
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
     pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
         match value {
-            "FLAG_NONE" => Some(Self::FlagNone),
-            "FLAG_NO_RECORDED_VALUE" => Some(Self::FlagNoRecordedValue),
+            "DATA_POINT_FLAGS_DO_NOT_USE" => Some(Self::DoNotUse),
+            "DATA_POINT_FLAGS_NO_RECORDED_VALUE_MASK" => Some(Self::NoRecordedValueMask),
             _ => None,
         }
     }

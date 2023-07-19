@@ -361,7 +361,7 @@ impl CollectorPipeline {
     ///
     /// If the service name is not set. It will default to be `unknown_service`.
     pub fn with_service_name<T: Into<String>>(mut self, service_name: T) -> Self {
-        self.set_transformation_config(|mut config| {
+        self.set_transformation_config(|config| {
             config.service_name = Some(service_name.into());
         });
         self
@@ -377,7 +377,7 @@ impl CollectorPipeline {
     ///
     /// [report instrumentation library as span tags]: https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/sdk_exporters/non-otlp.md#instrumentationscope
     pub fn with_instrumentation_library_tags(mut self, should_export: bool) -> Self {
-        self.set_transformation_config(|mut config| {
+        self.set_transformation_config(|config| {
             config.export_instrument_library = should_export;
         });
         self

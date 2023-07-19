@@ -1,8 +1,6 @@
 use core::ffi;
-use core::pin;
 use eventheader::_internal as ehi;
-
-static METRICS_EVENT: ehi::TracepointState = ehi::TracepointState::new(0);
+use std::pin::Pin;
 
 /// This is the command string for the event. It needs to follow the
 /// [Command Format](https://docs.kernel.org/trace/user_events.html#command-format)
@@ -13,12 +11,12 @@ static METRICS_EVENT: ehi::TracepointState = ehi::TracepointState::new(0);
 ///
 /// For this event:
 ///
-/// - Event is named "OpenTelemetryMetrics".
+/// - Event is named "otlp_metrics".
 /// - Field 1 is named "data" and has type "variable-length array of u8".
 ///
 /// "__rel_loc" is a special type for variable-length fields. It requires
 /// special handling in the write() method.
-const METRICS_EVENT_DEF: &[u8] = b"OpenTelemetryMetrics __rel_loc u8[] data\0";
+const METRICS_EVENT_DEF: &[u8] = b"otlp_metrics __rel_loc u8[] data\0";
 
 /// If the tracepoint is registered and enabled, writes an event. If the tracepoint
 /// is unregistered or disabled, this does nothing and returns 0. You should usually
@@ -29,7 +27,7 @@ const METRICS_EVENT_DEF: &[u8] = b"OpenTelemetryMetrics __rel_loc u8[] data\0";
 ///
 /// Return value is 0 for success or an errno code for error. The return value is
 /// provided to help with debugging and should usually be ignored in release builds.
-pub fn write(data: &[u8]) -> i32 {
+pub fn write(trace_point: &ehi::TracepointState, data: &[u8]) -> i32 {
     // This must stay in sync with the METRICS_EVENT_DEF string.
     // Return error -1 if data exceeds max size
     if data.len() > u16::MAX as usize {
@@ -42,7 +40,7 @@ pub fn write(data: &[u8]) -> i32 {
     // - Low 16 bits store the offset of the data from the end of the rel_loc field = 0.
     let data_rel_loc: u32 = (data.len() as u32) << 16;
 
-    METRICS_EVENT.write(&mut [
+    trace_point.write(&mut [
         // mut because the write method does some fix-ups.
         ehi::EventDataDescriptor::zero(), // First item in array MUST be zero().
         ehi::EventDataDescriptor::from_value(&data_rel_loc), // rel_loc for the data field.
@@ -50,15 +48,10 @@ pub fn write(data: &[u8]) -> i32 {
     ])
 }
 
-/// Returns true if this tracepoint is registered and enabled.
-#[inline(always)]
-pub fn enabled() -> bool {
-    METRICS_EVENT.enabled()
-}
-
-/// Registers this tracepoint.
+/// Registers the passed in tracepoint.
 ///
 /// Requires: this tracepoint is not currently registered.
+/// The tracepoint must be in a Pin<&TracepointState> because we must ensure it will never be moved
 ///
 /// Return value is 0 for success or an errno code for error. The return value is
 /// provided to help with debugging and should usually be ignored in release builds.
@@ -67,19 +60,9 @@ pub fn enabled() -> bool {
 ///
 /// If this code is used in a shared object, the tracepoint MUST be
 /// unregistered before the shared object unloads from memory.
-pub unsafe fn register() -> i32 {
+pub unsafe fn register(trace_point: Pin<&ehi::TracepointState>) -> i32 {
     debug_assert!(METRICS_EVENT_DEF[METRICS_EVENT_DEF.len() - 1] == b'\0');
 
-    // Pin is OK because METRICS_EVENT is static.
     // CStr::from_bytes_with_nul_unchecked is ok because METRICS_EVENT_DEF ends with "\0".
-    pin::Pin::new_unchecked(&METRICS_EVENT)
-        .register(ffi::CStr::from_bytes_with_nul_unchecked(METRICS_EVENT_DEF))
-}
-
-/// Unregisters this tracepoint.
-///
-/// Return value is 0 for success or an errno code for error. The return value is
-/// provided to help with debugging and should usually be ignored in release builds.
-pub fn unregister() -> i32 {
-    METRICS_EVENT.unregister()
+    trace_point.register(ffi::CStr::from_bytes_with_nul_unchecked(METRICS_EVENT_DEF))
 }
