@@ -26,11 +26,12 @@ impl<T> EvictedQueue<T> {
     /// recording dropped count if over capacity.
     pub(crate) fn push_back(&mut self, value: T) {
         let queue = self.queue.get_or_insert_with(Default::default);
-        if queue.len() as u32 == self.max_len {
+        queue.push_back(value);
+
+        if queue.len() as u32 > self.max_len {
             queue.pop_front();
             self.dropped_count += 1;
         }
-        queue.push_back(value);
     }
 
     /// Moves all the elements of other into self, leaving other empty.
@@ -111,6 +112,21 @@ mod tests {
         for i in 0..=capacity {
             queue.push_back(i)
         }
+
+        assert_eq!(queue.dropped_count, 1);
+        assert_eq!(queue.len(), capacity as usize);
+        assert_eq!(
+            queue.queue.unwrap(),
+            (1..=capacity).collect::<VecDeque<_>>()
+        );
+    }
+
+    #[test]
+    fn zero_capacity_test() {
+        let capacity = 0;
+        let mut queue = EvictedQueue::new(capacity);
+
+        queue.push_back(1);
 
         assert_eq!(queue.dropped_count, 1);
         assert_eq!(queue.len(), capacity as usize);
