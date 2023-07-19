@@ -5,6 +5,7 @@
 ### Added
 
 - Add `with_namespace` option to exporter config.
+- Add `without_counter_suffixes` option to exporter config.
 
 ## v0.12.0
 

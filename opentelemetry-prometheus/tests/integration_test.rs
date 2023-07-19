@@ -69,6 +69,35 @@ fn prometheus_exporter_integration() {
             ..Default::default()
         },
         TestCase {
+            name: "counter with suffixes disabled",
+            expected_file: "counter_disabled_suffix.txt",
+            builder: ExporterBuilder::default().without_counter_suffixes(),
+            record_metrics: Box::new(|meter| {
+                let attrs = vec![
+                    Key::new("A").string("B"),
+                    Key::new("C").string("D"),
+                    Key::new("E").bool(true),
+                    Key::new("F").i64(42),
+                ];
+                let counter = meter
+                    .f64_counter("foo")
+                    .with_description("a simple counter without a total suffix")
+                    .with_unit(Unit::new("ms"))
+                    .init();
+                counter.add(5.0, &attrs);
+                counter.add(10.3, &attrs);
+                counter.add(9.0, &attrs);
+                let attrs2 = vec![
+                    Key::new("A").string("D"),
+                    Key::new("C").string("B"),
+                    Key::new("E").bool(true),
+                    Key::new("F").i64(42),
+                ];
+                counter.add(5.0, &attrs2);
+            }),
+            ..Default::default()
+        },
+        TestCase {
             name: "gauge",
             expected_file: "gauge.txt",
             record_metrics: Box::new(|meter| {
