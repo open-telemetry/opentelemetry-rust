@@ -4,7 +4,7 @@ use opentelemetry_api::{
     KeyValue,
 };
 use opentelemetry_sdk::metrics::{ManualReader, MeterProvider};
-use rand::Rng;
+use rand::{rngs::SmallRng, SeedableRng, Rng};
 use std::borrow::Cow;
 
 mod throughput;
@@ -28,7 +28,7 @@ fn main() {
 }
 
 fn test_counter() {
-    let mut rng = rand::thread_rng();
+    let mut rng = SmallRng::from_entropy();
     let len = ATTRIBUTE_VALUES.len();
     let index_first_attribute = rng.gen_range(0..len);
     let index_second_attribute = rng.gen_range(0..len);
