@@ -249,13 +249,15 @@ impl<B: HasExportConfig> WithExportConfig for B {
 mod tests {
     // If an env test fails then the mutex will be poisoned and the following error will be displayed.
     const LOCK_POISONED_MESSAGE: &str = "one of the other pipeline builder from env tests failed";
+
     use crate::exporter::{
         default_endpoint, default_protocol, WithExportConfig, OTEL_EXPORTER_OTLP_ENDPOINT,
         OTEL_EXPORTER_OTLP_GRPC_ENDPOINT_DEFAULT, OTEL_EXPORTER_OTLP_HTTP_ENDPOINT_DEFAULT,
         OTEL_EXPORTER_OTLP_PROTOCOL_GRPC, OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_PROTOBUF,
         OTEL_EXPORTER_OTLP_TIMEOUT, OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT,
     };
-    use crate::{new_exporter, Protocol, OTEL_EXPORTER_OTLP_PROTOCOL};
+    use crate::{new_exporter, Compression, Protocol, OTEL_EXPORTER_OTLP_PROTOCOL};
+    use std::str::FromStr;
     use std::sync::Mutex;
 
     // Make sure env tests are not running concurrently
@@ -376,5 +378,16 @@ mod tests {
 
         std::env::remove_var(OTEL_EXPORTER_OTLP_TIMEOUT);
         assert!(std::env::var(OTEL_EXPORTER_OTLP_TIMEOUT).is_err());
+    }
+
+    #[test]
+    fn test_compression_parse() {
+        assert_eq!(Compression::from_str("gzip").unwrap(), Compression::Gzip);
+        Compression::from_str("bad_compression").expect_err("bad compression");
+    }
+
+    #[test]
+    fn test_compression_to_str() {
+        assert_eq!(Compression::Gzip.to_string(), "gzip");
     }
 }
