@@ -413,6 +413,12 @@ impl OtlpLogPipeline {
         self
     }
 
+    /// Set the log provider configuration.
+    pub fn with_log_config(mut self, log_config: opentelemetry_sdk::logs::Config) -> Self {
+        self.log_config = Some(log_config);
+        self
+    }
+
     /// Returns a [`Logger`] with the name `opentelemetry-otlp` and the
     /// current crate version, using the configured log exporter.
     ///
