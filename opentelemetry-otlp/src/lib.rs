@@ -398,6 +398,7 @@ pub(crate) fn to_nanos(time: SystemTime) -> u64 {
         .as_nanos() as u64
 }
 
+#[cfg(feature = "grpc-tonic")]
 pub(crate) fn resolve_compression(
     tonic_config: &TonicConfig,
     env_override: &'static str,
