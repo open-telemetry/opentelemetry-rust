@@ -4,7 +4,7 @@
 
 #[cfg(feature = "grpc-tonic")]
 use {
-    crate::exporter::tonic::{TonicConfig, TonicExporterBuilder},
+    crate::exporter::tonic::{resolve_compression, TonicConfig, TonicExporterBuilder},
     opentelemetry_proto::tonic::collector::logs::v1::{
         logs_service_client::LogsServiceClient as TonicLogsServiceClient,
         ExportLogsServiceRequest as TonicRequest,
@@ -46,7 +46,7 @@ use {
 use std::{collections::HashMap, sync::Arc};
 
 use crate::exporter::ExportConfig;
-use crate::{resolve_compression, OtlpPipeline};
+use crate::OtlpPipeline;
 use async_trait::async_trait;
 use std::{
     borrow::Cow,
@@ -239,7 +239,7 @@ impl LogExporter {
         if let Some(compression) =
             resolve_compression(&tonic_config, OTEL_EXPORTER_OTLP_LOGS_COMPRESSION)?
         {
-            log_exporter = log_exporter.send_compressed(compression.into());
+            log_exporter = log_exporter.send_compressed(compression);
         }
         Ok(LogExporter::Tonic {
             timeout: config.timeout,

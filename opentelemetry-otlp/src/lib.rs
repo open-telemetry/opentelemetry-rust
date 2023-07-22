@@ -397,20 +397,3 @@ pub(crate) fn to_nanos(time: SystemTime) -> u64 {
         .unwrap_or_else(|_| Duration::from_secs(0))
         .as_nanos() as u64
 }
-
-#[cfg(feature = "grpc-tonic")]
-pub(crate) fn resolve_compression(
-    tonic_config: &TonicConfig,
-    env_override: &'static str,
-) -> Result<Option<Compression>, Error> {
-    tonic_config
-        .compression
-        .map(Ok)
-        .or_else(|| {
-            std::env::var(OTEL_EXPORTER_OTLP_COMPRESSION)
-                .or_else(|_| std::env::var(env_override))
-                .ok()
-                .map(|v| v.parse())
-        })
-        .transpose()
-}

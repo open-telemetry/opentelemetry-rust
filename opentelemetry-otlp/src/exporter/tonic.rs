@@ -1,6 +1,7 @@
 use crate::exporter::Compression;
-use crate::ExportConfig;
+use crate::{ExportConfig, OTEL_EXPORTER_OTLP_COMPRESSION};
 use std::fmt::{Debug, Formatter};
+use tonic::codec::CompressionEncoding;
 use tonic::metadata::MetadataMap;
 #[cfg(feature = "tls")]
 use tonic::transport::ClientTlsConfig;
@@ -24,17 +25,34 @@ pub struct TonicConfig {
     pub compression: Option<Compression>,
 }
 
-impl From<Compression> for tonic::codec::CompressionEncoding {
-    fn from(compression: Compression) -> Self {
-        match compression {
+impl TryFrom<Compression> for tonic::codec::CompressionEncoding {
+    type Error = crate::Error;
+
+    fn try_from(value: Compression) -> Result<Self, Self::Error> {
+        match value {
             #[cfg(feature = "gzip-tonic")]
-            Compression::Gzip => tonic::codec::CompressionEncoding::Gzip,
+            Compression::Gzip => Ok(tonic::codec::CompressionEncoding::Gzip),
             #[cfg(not(feature = "gzip-tonic"))]
-            Compression::Gzip => panic!(
-                "gzip compression is not enabled, add the tonic feature 'gzip' to your project"
-            ),
+            Compression::Gzip => Err(crate::Error::UnsupportedCompressionAlgorithm(
+                value.to_string(),
+            )),
         }
     }
+}
+
+pub(crate) fn resolve_compression(
+    tonic_config: &TonicConfig,
+    env_override: &'static str,
+) -> Result<Option<CompressionEncoding>, crate::Error> {
+    if let Some(compression) = tonic_config.compression {
+        return Ok(Some(compression.try_into()?));
+    }
+    if let Ok(compression) = std::env::var(env_override) {
+        return Ok(Some(compression.parse::<Compression>()?.try_into()?));
+    } else if let Ok(compression) = std::env::var(OTEL_EXPORTER_OTLP_COMPRESSION) {
+        return Ok(Some(compression.parse::<Compression>()?.try_into()?));
+    };
+    Ok(None)
 }
 
 /// Build a trace exporter that uses [tonic] as grpc layer and opentelemetry protocol.

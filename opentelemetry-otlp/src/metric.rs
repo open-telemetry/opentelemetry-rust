@@ -4,20 +4,15 @@
 //!
 //! Currently, OTEL metrics exporter only support GRPC connection via tonic on tokio runtime.
 
-use crate::exporter::tonic::TonicExporterBuilder;
 use crate::transform::sink;
-use crate::{resolve_compression, Error, OtlpPipeline};
+use crate::{Error, OtlpPipeline};
 use async_trait::async_trait;
 use core::fmt;
 use opentelemetry_api::{
     global,
     metrics::{MetricsError, Result},
 };
-use opentelemetry_http::Bytes;
-#[cfg(feature = "grpc-tonic")]
-use opentelemetry_proto::tonic::collector::metrics::v1::{
-    metrics_service_client::MetricsServiceClient, ExportMetricsServiceRequest,
-};
+
 use opentelemetry_sdk::{
     metrics::{
         data::{ResourceMetrics, Temporality},
@@ -32,17 +27,23 @@ use opentelemetry_sdk::{
     Resource,
 };
 use std::fmt::{Debug, Formatter};
-#[cfg(feature = "grpc-tonic")]
-use std::str::FromStr;
 use std::sync::Mutex;
 use std::time;
 use std::time::Duration;
 use tonic::codegen::{Body, StdError};
 use tonic::metadata::KeyAndValueRef;
 #[cfg(feature = "grpc-tonic")]
-use tonic::transport::Channel;
-#[cfg(feature = "grpc-tonic")]
-use tonic::Request;
+use {
+    crate::exporter::tonic::{resolve_compression, TonicExporterBuilder},
+    opentelemetry_proto::tonic::collector::metrics::v1::{
+        metrics_service_client::MetricsServiceClient, ExportMetricsServiceRequest,
+    },
+    std::str::FromStr,
+    tonic::codegen::Bytes,
+    tonic::transport::Channel,
+    tonic::Request,
+};
+
 #[cfg(feature = "http-proto")]
 use {
     crate::exporter::http::HttpExporterBuilder,
@@ -383,7 +384,7 @@ impl MetricsExporter {
                 Some(interceptor) => {
                     let mut client = MetricsServiceClient::with_interceptor(channel, interceptor);
                     if let Some(compression) = compression {
-                        client = client.send_compressed(compression.into());
+                        client = client.send_compressed(compression);
                     }
 
                     export_sink(client, receiver).await
@@ -391,7 +392,7 @@ impl MetricsExporter {
                 None => {
                     let mut client = MetricsServiceClient::new(channel);
                     if let Some(compression) = compression {
-                        client = client.send_compressed(compression.into())
+                        client = client.send_compressed(compression)
                     }
                     export_sink(client, receiver).await
                 }
@@ -477,6 +478,7 @@ async fn http_send_request(
     Ok(())
 }
 
+#[cfg(feature = "grpc-tonic")]
 async fn export_sink<T>(
     mut client: MetricsServiceClient<T>,
     mut receiver: tokio::sync::mpsc::Receiver<ExportMsg>,

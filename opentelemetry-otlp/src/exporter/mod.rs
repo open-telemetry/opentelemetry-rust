@@ -12,6 +12,7 @@ use crate::{Error, Protocol};
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 use std::time::Duration;
 
@@ -88,8 +89,15 @@ impl Default for ExportConfig {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Compression {
     /// Compresses data using gzip.
-    #[cfg(any(feature = "gzip-tonic", feature = "grpc-sys"))]
     Gzip,
+}
+
+impl Display for Compression {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Compression::Gzip => write!(f, "gzip"),
+        }
+    }
 }
 
 impl FromStr for Compression {
@@ -97,7 +105,6 @@ impl FromStr for Compression {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            #[cfg(any(feature = "gzip-tonic", feature = "grpc-sys"))]
             "gzip" => Ok(Compression::Gzip),
             _ => Err(Error::UnsupportedCompressionAlgorithm(s.to_string())),
         }

@@ -9,7 +9,7 @@ use std::time::Duration;
 use std::str::FromStr;
 #[cfg(feature = "grpc-tonic")]
 use {
-    crate::exporter::tonic::{TonicConfig, TonicExporterBuilder},
+    crate::exporter::tonic::{resolve_compression, TonicConfig, TonicExporterBuilder},
     opentelemetry_proto::tonic::collector::trace::v1::{
         trace_service_client::TraceServiceClient as TonicTraceServiceClient,
         ExportTraceServiceRequest as TonicRequest,
@@ -51,8 +51,6 @@ use {
 use {std::collections::HashMap, std::sync::Arc};
 
 use crate::exporter::ExportConfig;
-#[cfg(feature = "gzip-tonic")]
-use crate::resolve_compression;
 use crate::OtlpPipeline;
 
 use opentelemetry_api::{
@@ -392,11 +390,10 @@ impl SpanExporter {
     ) -> Result<Self, crate::Error> {
         #[allow(unused_mut)]
         let mut trace_exporter = TonicTraceServiceClient::new(channel);
-        #[cfg(feature = "gzip-tonic")]
         if let Some(compression) =
             resolve_compression(&tonic_config, OTEL_EXPORTER_OTLP_TRACES_COMPRESSION)?
         {
-            trace_exporter = trace_exporter.send_compressed(compression.into())
+            trace_exporter = trace_exporter.send_compressed(compression)
         }
 
         Ok(SpanExporter::Tonic {
