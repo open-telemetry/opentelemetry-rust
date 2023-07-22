@@ -8,7 +8,9 @@ use crate::exporter::grpcio::GrpcioExporterBuilder;
 use crate::exporter::http::HttpExporterBuilder;
 #[cfg(feature = "grpc-tonic")]
 use crate::exporter::tonic::TonicExporterBuilder;
-use crate::Protocol;
+use crate::{Error, Protocol};
+#[cfg(feature = "serialize")]
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::time::Duration;
@@ -21,6 +23,8 @@ pub const OTEL_EXPORTER_OTLP_ENDPOINT: &str = "OTEL_EXPORTER_OTLP_ENDPOINT";
 pub const OTEL_EXPORTER_OTLP_ENDPOINT_DEFAULT: &str = OTEL_EXPORTER_OTLP_HTTP_ENDPOINT_DEFAULT;
 /// Protocol the exporter will use. Either `http/protobuf` or `grpc`.
 pub const OTEL_EXPORTER_OTLP_PROTOCOL: &str = "OTEL_EXPORTER_OTLP_PROTOCOL";
+/// Compression algorithm to use, defaults to none.
+pub const OTEL_EXPORTER_OTLP_COMPRESSION: &str = "OTEL_EXPORTER_OTLP_COMPRESSION";
 
 #[cfg(feature = "http-proto")]
 /// Default protocol, using http-proto.
@@ -75,6 +79,27 @@ impl Default for ExportConfig {
             endpoint: default_endpoint(protocol),
             protocol,
             timeout: Duration::from_secs(OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT),
+        }
+    }
+}
+
+/// The compression algorithm to use when sending data.
+#[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum Compression {
+    /// Compresses data using gzip.
+    #[cfg(any(feature = "gzip-tonic", feature = "grpc-sys"))]
+    Gzip,
+}
+
+impl FromStr for Compression {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            #[cfg(any(feature = "gzip-tonic", feature = "grpc-sys"))]
+            "gzip" => Ok(Compression::Gzip),
+            _ => Err(Error::UnsupportedCompressionAlgorithm(s.to_string())),
         }
     }
 }

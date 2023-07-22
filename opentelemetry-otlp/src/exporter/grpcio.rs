@@ -1,3 +1,4 @@
+use crate::exporter::Compression;
 use crate::ExportConfig;
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
@@ -45,14 +46,6 @@ pub struct Credentials {
     pub cert: String,
     /// Credential key
     pub key: String,
-}
-
-/// The compression algorithm to use when sending data.
-#[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
-#[derive(Clone, Copy, Debug)]
-pub enum Compression {
-    /// Compresses data using gzip.
-    Gzip,
 }
 
 impl From<Compression> for grpcio::CompressionAlgorithms {

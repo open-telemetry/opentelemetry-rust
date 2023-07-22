@@ -51,6 +51,8 @@ use {
 use {std::collections::HashMap, std::sync::Arc};
 
 use crate::exporter::ExportConfig;
+#[cfg(feature = "gzip-tonic")]
+use crate::resolve_compression;
 use crate::OtlpPipeline;
 
 use opentelemetry_api::{
@@ -74,6 +76,8 @@ use sdk::runtime::RuntimeChannel;
 pub const OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: &str = "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT";
 /// Max waiting time for the backend to process each spans batch, defaults to 10s.
 pub const OTEL_EXPORTER_OTLP_TRACES_TIMEOUT: &str = "OTEL_EXPORTER_OTLP_TRACES_TIMEOUT";
+/// Compression algorithm to use, defaults to none.
+pub const OTEL_EXPORTER_OTLP_TRACES_COMPRESSION: &str = "OTEL_EXPORTER_OTLP_TRACES_COMPRESSION";
 
 impl OtlpPipeline {
     /// Create a OTLP tracing pipeline.
@@ -386,10 +390,19 @@ impl SpanExporter {
         tonic_config: TonicConfig,
         channel: tonic::transport::Channel,
     ) -> Result<Self, crate::Error> {
+        #[allow(unused_mut)]
+        let mut trace_exporter = TonicTraceServiceClient::new(channel);
+        #[cfg(feature = "gzip-tonic")]
+        if let Some(compression) =
+            resolve_compression(&tonic_config, OTEL_EXPORTER_OTLP_TRACES_COMPRESSION)?
+        {
+            trace_exporter = trace_exporter.send_compressed(compression.into())
+        }
+
         Ok(SpanExporter::Tonic {
             timeout: config.timeout,
             metadata: tonic_config.metadata,
-            trace_exporter: TonicTraceServiceClient::new(channel),
+            trace_exporter,
         })
     }
 
