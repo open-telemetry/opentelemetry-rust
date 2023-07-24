@@ -86,9 +86,9 @@ impl View for Box<dyn View> {
 /// The [Stream] mask only applies updates for non-empty fields. By default, the
 /// [Instrument] the [View] matches against will be use for the name,
 /// description, and unit of the returned [Stream] and no `aggregation` or
-/// `attribute_filter` are set. All non-empty fields of mask are used instead of
-/// the default. If you need to set a an empty value in the returned stream,
-/// create a custom [View] directly.
+/// `allowed_attribute_keys` are set. All non-empty fields of mask are used
+/// instead of the default. If you need to set a an empty value in the returned
+/// stream, create a custom [View] directly.
 ///
 /// # Example
 ///
@@ -167,7 +167,7 @@ pub fn new_view(criteria: Instrument, mask: Stream) -> Result<Box<dyn View>> {
                     i.unit.clone()
                 },
                 aggregation: agg.clone(),
-                attribute_filter: mask.attribute_filter.clone(),
+                allowed_attribute_keys: mask.allowed_attribute_keys.clone(),
             })
         } else {
             None
