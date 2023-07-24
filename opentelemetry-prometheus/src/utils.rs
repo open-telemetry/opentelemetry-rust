@@ -20,16 +20,11 @@ pub(crate) fn get_unit_suffixes(unit: &Unit) -> Option<Cow<'static, str>> {
     // e.g
     // "test/y" => "per_year"
     // "km/s" => "kilometers_per_second"
-    if unit.as_str().contains('/') {
-        let components = unit.as_str().splitn(2, '/').collect::<Vec<&str>>();
-        if components.len() != 2 {
-            return None;
-        }
-
+    if let Some((first, second)) = unit.as_str().split_once('/') {
         return match (
-            NON_APPLICABLE_ON_PER_UNIT.contains(&components[0]),
-            get_prom_units(components[0]),
-            get_prom_per_unit(components[1]),
+            NON_APPLICABLE_ON_PER_UNIT.contains(&first),
+            get_prom_units(first),
+            get_prom_per_unit(second),
         ) {
             (true, _, Some(second_part)) | (false, None, Some(second_part)) => {
                 Some(Cow::Owned(format!("per_{}", second_part)))
