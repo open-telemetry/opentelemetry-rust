@@ -45,14 +45,14 @@ pub(crate) fn resolve_compression(
     env_override: &'static str,
 ) -> Result<Option<CompressionEncoding>, crate::Error> {
     if let Some(compression) = tonic_config.compression {
-        return Ok(Some(compression.try_into()?));
-    }
-    if let Ok(compression) = std::env::var(env_override) {
-        return Ok(Some(compression.parse::<Compression>()?.try_into()?));
+        Ok(Some(compression.try_into()?))
+    } else if let Ok(compression) = std::env::var(env_override) {
+        Ok(Some(compression.parse::<Compression>()?.try_into()?))
     } else if let Ok(compression) = std::env::var(OTEL_EXPORTER_OTLP_COMPRESSION) {
-        return Ok(Some(compression.parse::<Compression>()?.try_into()?));
-    };
-    Ok(None)
+        Ok(Some(compression.parse::<Compression>()?.try_into()?))
+    } else {
+        Ok(None)
+    }
 }
 
 /// Build a trace exporter that uses [tonic] as grpc layer and opentelemetry protocol.
