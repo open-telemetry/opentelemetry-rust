@@ -388,7 +388,6 @@ impl SpanExporter {
         tonic_config: TonicConfig,
         channel: tonic::transport::Channel,
     ) -> Result<Self, crate::Error> {
-        #[allow(unused_mut)]
         let mut trace_exporter = TonicTraceServiceClient::new(channel);
         if let Some(compression) =
             resolve_compression(&tonic_config, OTEL_EXPORTER_OTLP_TRACES_COMPRESSION)?
