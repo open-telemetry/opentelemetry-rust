@@ -92,22 +92,22 @@ impl UserEventsExporter {
     fn add_attributes_to_event(
         &self,
         eb: &mut EventBuilder,
-        attribs: &mut dyn Iterator<Item = (&Key, &AnyValue)>,
+        attribs: &mut dyn Iterator<Item = &(Key, AnyValue)>,
     ) {
         for attrib in attribs {
             if attrib.0.to_string() == EVENT_ID || attrib.0.to_string() == EVENT_NAME {
                 continue;
             }
             let field_name = &attrib.0.to_string();
-            match attrib.1 {
+            match attrib.1.to_owned() {
                 AnyValue::Boolean(b) => {
-                    eb.add_value(field_name, *b, FieldFormat::Boolean, 0);
+                    eb.add_value(field_name, b, FieldFormat::Boolean, 0);
                 }
                 AnyValue::Int(i) => {
-                    eb.add_value(field_name, *i, FieldFormat::SignedInt, 0);
+                    eb.add_value(field_name, i, FieldFormat::SignedInt, 0);
                 }
                 AnyValue::Double(f) => {
-                    eb.add_value(field_name, *f, FieldFormat::Float, 0);
+                    eb.add_value(field_name, f, FieldFormat::Float, 0);
                 }
                 AnyValue::String(s) => {
                     eb.add_str(field_name, &s.to_string(), FieldFormat::Default, 0);
@@ -215,7 +215,7 @@ impl UserEventsExporter {
                 let (mut event_id, mut event_name) = (0, "");
                 let mut event_count = 0;
                 if log_data.record.attributes.is_some() {
-                    for (k, v) in log_data.record.attributes.as_ref().unwrap().into_iter() {
+                    for (k, v) in log_data.record.attributes.as_ref().unwrap().iter() {
                         if k.as_str() == EVENT_ID {
                             event_id = match v {
                                 AnyValue::Int(value) => {

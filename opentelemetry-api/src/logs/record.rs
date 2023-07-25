@@ -27,7 +27,7 @@ pub struct LogRecord {
     pub body: Option<AnyValue>,
 
     /// Additional attributes associated with this record
-    pub attributes: Option<OrderMap<Key, AnyValue>>,
+    pub attributes: Option<Vec<(Key, AnyValue)>>,
 }
 
 impl LogRecord {
@@ -326,8 +326,9 @@ impl LogRecordBuilder {
         }
     }
 
-    /// Assign attributes, overriding previously set attributes
-    pub fn with_attributes(self, attributes: OrderMap<Key, AnyValue>) -> Self {
+    /// Assign attributes.
+    /// The SDK doesn't carry on any deduplication on these attributes.
+    pub fn with_attributes(self, attributes: Vec<(Key, AnyValue)>) -> Self {
         Self {
             record: LogRecord {
                 attributes: Some(attributes),
@@ -336,18 +337,18 @@ impl LogRecordBuilder {
         }
     }
 
-    /// Set a single attribute for this record
+    /// Set a single attribute for this record.
+    /// The SDK doesn't carry on any deduplication on these attributes.
     pub fn with_attribute<K, V>(mut self, key: K, value: V) -> Self
     where
         K: Into<Key>,
         V: Into<AnyValue>,
     {
-        if let Some(ref mut map) = self.record.attributes {
-            map.insert(key.into(), value.into());
+        if let Some(ref mut vec) = self.record.attributes {
+            vec.push((key.into(), value.into()));
         } else {
-            let mut map = OrderMap::with_capacity(1);
-            map.insert(key.into(), value.into());
-            self.record.attributes = Some(map);
+            let vec = vec![(key.into(), value.into())];
+            self.record.attributes = Some(vec);
         }
 
         self
