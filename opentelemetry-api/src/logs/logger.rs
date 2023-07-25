@@ -16,7 +16,7 @@ pub trait Logger {
     fn emit(&self, record: LogRecord);
 
     #[cfg(feature = "logs_level_enabled")]
-    fn event_enabled(&self, level: Severity) -> bool;
+    fn event_enabled(&self, level: Severity, target: &str) -> bool;
 }
 
 /// Interfaces that can create [`Logger`] instances.

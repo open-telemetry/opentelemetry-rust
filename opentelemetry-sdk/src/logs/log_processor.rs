@@ -31,7 +31,7 @@ pub trait LogProcessor: Send + Sync + Debug {
     fn shutdown(&mut self) -> LogResult<()>;
     #[cfg(feature = "logs_level_enabled")]
     /// Check if logging is enabled
-    fn event_enabled(&self, name: &str, level: Severity) -> bool;
+    fn event_enabled(&self, level: Severity, target: &str, name: &str) -> bool;
 }
 
 /// A [`LogProcessor`] that exports synchronously when logs are emitted.
@@ -102,7 +102,7 @@ impl LogProcessor for SimpleLogProcessor {
     }
 
     #[cfg(feature = "logs_level_enabled")]
-    fn event_enabled(&self, _name: &str, _level: Severity) -> bool {
+    fn event_enabled(&self, _level: Severity, _target: &str, _name: &str) -> bool {
         true
     }
 }
@@ -131,7 +131,7 @@ impl<R: RuntimeChannel<BatchMessage>> LogProcessor for BatchLogProcessor<R> {
     }
 
     #[cfg(feature = "logs_level_enabled")]
-    fn event_enabled(&self, _name: &str, _level: Severity) -> bool {
+    fn event_enabled(&self, _level: Severity, _target: &str, _name: &str) -> bool {
         true
     }
 

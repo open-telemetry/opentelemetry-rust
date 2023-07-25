@@ -18,6 +18,7 @@ thread_local! { static EBW: RefCell<EventBuilder> = RefCell::new(EventBuilder::n
 #[derive(Debug)]
 pub struct ExporterConfig {
     /// keyword associated with user_events name
+    /// These should be mapped to logger_name as of now.
     pub keywords_map: HashMap<String, u64>,
     /// default keyword if map is not defined.
     pub default_keyword: u64,
@@ -338,10 +339,11 @@ impl opentelemetry_sdk::export::logs::LogExporter for UserEventsExporter {
     }
 
     #[cfg(feature = "logs_level_enabled")]
-    fn event_enabled(&self, name: &str, level: Severity) -> bool {
+    fn event_enabled(&self, level: Severity, target: &str, name: &str) -> bool {
         let (found, keyword) = if self.exporter_config.keywords_map.len() == 0 {
             (true, self.exporter_config.default_keyword)
         } else {
+            // TBD - target is not used as of now for comparison.
             match self.exporter_config.get_log_keyword(name) {
                 Some(x) => (true, x),
                 _ => (false, 0),
