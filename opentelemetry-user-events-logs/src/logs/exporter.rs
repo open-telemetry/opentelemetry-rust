@@ -339,8 +339,6 @@ impl opentelemetry_sdk::export::logs::LogExporter for UserEventsExporter {
 
     #[cfg(feature = "logs_level_enabled")]
     fn event_enabled(&self, name: &str, level: Severity) -> bool {
-        //print!("LALIT:event-enabled check for {} and {:?}", name, level);
-
         let (found, keyword) = if self.exporter_config.keywords_map.len() == 0 {
             (true, self.exporter_config.default_keyword)
         } else {
@@ -352,7 +350,6 @@ impl opentelemetry_sdk::export::logs::LogExporter for UserEventsExporter {
         if !found {
             return false;
         }
-
         let es = self
             .provider
             .find_set(self.get_serverity_level(level), keyword);
