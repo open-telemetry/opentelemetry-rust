@@ -9,7 +9,6 @@ use opentelemetry::sdk;
 use opentelemetry::sdk::trace::{BatchConfig, Config, TracerProvider};
 use opentelemetry::trace::TraceError;
 use std::borrow::BorrowMut;
-use std::env::VarError;
 use std::sync::Arc;
 use std::{env, net};
 
