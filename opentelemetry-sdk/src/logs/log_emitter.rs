@@ -239,8 +239,12 @@ impl opentelemetry_api::logs::Logger for Logger {
 
         let mut enabled = false;
         for processor in provider.log_processors() {
-            enabled =
-                enabled || processor.event_enabled(level, target, self.instrumentation_library());
+            enabled = enabled
+                || processor.event_enabled(
+                    level,
+                    target,
+                    self.instrumentation_library().name.as_ref(),
+                );
         }
         enabled
     }

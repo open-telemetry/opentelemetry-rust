@@ -16,6 +16,7 @@ pub trait Logger {
     fn emit(&self, record: LogRecord);
 
     #[cfg(feature = "logs_level_enabled")]
+    /// Check if the given log level is enabled.
     fn event_enabled(&self, level: Severity, target: &str) -> bool;
 }
 
