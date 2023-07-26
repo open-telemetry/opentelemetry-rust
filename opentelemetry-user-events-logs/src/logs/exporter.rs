@@ -162,6 +162,7 @@ impl UserEventsExporter {
         &self,
         log_data: &opentelemetry_sdk::export::logs::LogData,
     ) -> opentelemetry_sdk::export::logs::ExportResult {
+        println!("export_log_data called");
         let mut level: Level = Level::Invalid;
         if log_data.record.severity_number.is_some() {
             level = self.get_serverity_level(log_data.record.severity_number.unwrap());
@@ -340,8 +341,8 @@ impl opentelemetry_sdk::export::logs::LogExporter for UserEventsExporter {
 
     #[cfg(feature = "logs_level_enabled")]
     fn event_enabled(&self, level: Severity, _target: &str, name: &str) -> bool {
-        println!("called");
-        let (found, keyword) = if self.exporter_config.keywords_map.len() == 0 {
+        println!("event_enabled called");
+        let (found, keyword) = if self.exporter_config.keywords_map.is_empty() {
             (true, self.exporter_config.default_keyword)
         } else {
             // TBD - target is not used as of now for comparison.
