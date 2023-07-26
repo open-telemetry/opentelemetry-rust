@@ -9,6 +9,7 @@ use opentelemetry::sdk;
 use opentelemetry::sdk::trace::{BatchConfig, Config, TracerProvider};
 use opentelemetry::trace::TraceError;
 use std::borrow::BorrowMut;
+use std::env::VarError;
 use std::sync::Arc;
 use std::{env, net};
 
@@ -96,14 +97,15 @@ impl Default for AgentPipeline {
             auto_split_batch: false,
         };
 
-        if let (Ok(host), Ok(port)) = (env::var(ENV_AGENT_HOST), env::var(ENV_AGENT_PORT)) {
-            pipeline = pipeline.with_endpoint(format!("{}:{}", host.trim(), port.trim()));
-        } else if let Ok(port) = env::var(ENV_AGENT_PORT) {
-            pipeline =
-                pipeline.with_endpoint(format!("{DEFAULT_AGENT_ENDPOINT_HOST}:{}", port.trim()))
-        } else if let Ok(host) = env::var(ENV_AGENT_HOST) {
-            pipeline =
-                pipeline.with_endpoint(format!("{}:{DEFAULT_AGENT_ENDPOINT_PORT}", host.trim()))
+        let endpoint = match (env::var(ENV_AGENT_HOST), env::var(ENV_AGENT_PORT)) {
+            (Ok(host), Ok(port)) => Some(format!("{}:{}", host.trim(), port.trim())),
+            (Ok(host), _) => Some(format!("{}:{DEFAULT_AGENT_ENDPOINT_PORT}", host.trim())),
+            (_, Ok(port)) => Some(format!("{DEFAULT_AGENT_ENDPOINT_HOST}:{}", port.trim())),
+            (_, _) => None,
+        };
+
+        if let Some(endpoint) = endpoint {
+            pipeline = pipeline.with_endpoint(endpoint);
         }
 
         pipeline
