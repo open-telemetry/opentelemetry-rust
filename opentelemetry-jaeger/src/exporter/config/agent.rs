@@ -23,8 +23,11 @@ const ENV_AGENT_HOST: &str = "OTEL_EXPORTER_JAEGER_AGENT_HOST";
 /// e.g. 6832
 const ENV_AGENT_PORT: &str = "OTEL_EXPORTER_JAEGER_AGENT_PORT";
 
-/// Default agent endpoint if none is provided
-const DEFAULT_AGENT_ENDPOINT: &str = "127.0.0.1:6831";
+/// Default agent host if none is provided
+const DEFAULT_AGENT_ENDPOINT_HOST: &str = "127.0.0.1";
+
+/// Default agent port if none is provided
+const DEFAULT_AGENT_ENDPOINT_PORT: &str = "6831";
 
 /// AgentPipeline config and build a exporter targeting a jaeger agent using UDP as transport layer protocol.
 ///
@@ -84,7 +87,11 @@ impl Default for AgentPipeline {
             transformation_config: Default::default(),
             trace_config: Default::default(),
             batch_config: Some(Default::default()),
-            agent_endpoint: Ok(vec![DEFAULT_AGENT_ENDPOINT.parse().unwrap()]),
+            agent_endpoint: Ok(vec![format!(
+                "{DEFAULT_AGENT_ENDPOINT_HOST}:{DEFAULT_AGENT_ENDPOINT_PORT}"
+            )
+            .parse()
+            .unwrap()]),
             max_packet_size: UDP_PACKET_MAX_LENGTH,
             auto_split_batch: false,
         };
@@ -92,8 +99,13 @@ impl Default for AgentPipeline {
         if let (Ok(host), Ok(port)) = (env::var(ENV_AGENT_HOST), env::var(ENV_AGENT_PORT)) {
             pipeline = pipeline.with_endpoint(format!("{}:{}", host.trim(), port.trim()));
         } else if let Ok(port) = env::var(ENV_AGENT_PORT) {
-            pipeline = pipeline.with_endpoint(format!("127.0.0.1:{}", port.trim()))
+            pipeline =
+                pipeline.with_endpoint(format!("{DEFAULT_AGENT_ENDPOINT_HOST}:{}", port.trim()))
+        } else if let Ok(host) = env::var(ENV_AGENT_HOST) {
+            pipeline =
+                pipeline.with_endpoint(format!("{}:{DEFAULT_AGENT_ENDPOINT_PORT}", host.trim()))
         }
+
         pipeline
     }
 }
