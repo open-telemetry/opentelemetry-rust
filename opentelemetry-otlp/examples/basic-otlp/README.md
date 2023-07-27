@@ -33,8 +33,7 @@ and inspect the logs to see traces being transferred.
 
 ```shell
 # From the current directory, run `opentelemetry-collector`
-$ docker run  -p4317:4317 otel/opentelemetry-collector:latest
-docker run --rm -it -p 4317:4317 -p 4318:4318 -v $(pwd):/cfg otel/opentelemetry-collector:latest --config=/cfg/otel-collector-config.yaml
+$ docker run --rm -it -p 4317:4317 -p 4318:4318 -v $(pwd):/cfg otel/opentelemetry-collector:latest --config=/cfg/otel-collector-config.yaml
 
 # Report spans/metrics
 $ cargo run
