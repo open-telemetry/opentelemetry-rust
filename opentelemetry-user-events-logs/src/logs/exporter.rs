@@ -118,7 +118,7 @@ impl UserEventsExporter {
         }
     }
 
-    fn get_serverity_level(&self, severity: Severity) -> Level {
+    fn get_severity_level(&self, severity: Severity) -> Level {
         let level: Level = match severity {
             Severity::Debug
             | Severity::Debug2
@@ -165,7 +165,7 @@ impl UserEventsExporter {
         println!("export_log_data called");
         let mut level: Level = Level::Invalid;
         if log_data.record.severity_number.is_some() {
-            level = self.get_serverity_level(log_data.record.severity_number.unwrap());
+            level = self.get_severity_level(log_data.record.severity_number.unwrap());
         }
 
         let keyword = self
@@ -355,7 +355,7 @@ impl opentelemetry_sdk::export::logs::LogExporter for UserEventsExporter {
         }
         let es = self
             .provider
-            .find_set(self.get_serverity_level(level), keyword);
+            .find_set(self.get_severity_level(level), keyword);
         match es {
             Some(x) => x.enabled(),
             _ => false,
