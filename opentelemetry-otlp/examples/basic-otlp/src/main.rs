@@ -1,17 +1,19 @@
-use log::{Level, error};
+use log::{error, Level};
 use once_cell::sync::Lazy;
-use opentelemetry_api::logs::LogError;
 use opentelemetry_api::global;
-use opentelemetry_api::global::{shutdown_tracer_provider, logger_provider, shutdown_logger_provider};
-use opentelemetry_appender_log::OpenTelemetryLogBridge;
-use opentelemetry_sdk::logs::Config;
+use opentelemetry_api::global::{
+    logger_provider, shutdown_logger_provider, shutdown_tracer_provider,
+};
+use opentelemetry_api::logs::LogError;
 use opentelemetry_api::trace::TraceError;
 use opentelemetry_api::{
     metrics,
     trace::{TraceContextExt, Tracer},
     Key, KeyValue,
 };
+use opentelemetry_appender_log::OpenTelemetryLogBridge;
 use opentelemetry_otlp::{ExportConfig, WithExportConfig};
+use opentelemetry_sdk::logs::Config;
 use opentelemetry_sdk::{metrics::MeterProvider, runtime, trace as sdktrace, Resource};
 use std::error::Error;
 
