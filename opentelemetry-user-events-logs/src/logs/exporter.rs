@@ -162,7 +162,6 @@ impl UserEventsExporter {
         &self,
         log_data: &opentelemetry_sdk::export::logs::LogData,
     ) -> opentelemetry_sdk::export::logs::ExportResult {
-        println!("export_log_data called");
         let mut level: Level = Level::Invalid;
         if log_data.record.severity_number.is_some() {
             level = self.get_severity_level(log_data.record.severity_number.unwrap());
