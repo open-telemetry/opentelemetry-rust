@@ -1,16 +1,19 @@
-use opentelemetry_api::Key;
 use opentelemetry_api::metrics::Unit;
+use opentelemetry_api::Key;
 use opentelemetry_api::{metrics::MeterProvider as _, KeyValue};
 use opentelemetry_sdk::metrics::{Instrument, MeterProvider, PeriodicReader, Stream};
 use opentelemetry_sdk::{runtime, Resource};
 use std::error::Error;
 
 fn init_meter_provider() -> MeterProvider {
-
     // for example 1
     let my_view_rename_and_unit = |i: &Instrument| {
         if i.name == "my_histogram" {
-            Some(Stream::new().name("my_histogram_renamed").unit(Unit::new("milliseconds")))
+            Some(
+                Stream::new()
+                    .name("my_histogram_renamed")
+                    .unit(Unit::new("milliseconds")),
+            )
         } else {
             None
         }
@@ -31,7 +34,7 @@ fn init_meter_provider() -> MeterProvider {
         .with_reader(reader)
         .with_resource(Resource::new(vec![KeyValue::new(
             "service.name",
-            "metrics-basic-example",
+            "metrics-advanced-example",
         )]))
         .with_view(my_view_rename_and_unit)
         .with_view(my_view_drop_attributes)
@@ -40,7 +43,6 @@ fn init_meter_provider() -> MeterProvider {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
-    
     let meter_provider = init_meter_provider();
     let meter = meter_provider.meter("mylibraryname");
 
@@ -52,8 +54,8 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         .f64_histogram("my_histogram")
         .with_unit(Unit::new("ms"))
         .with_description("My histogram example description")
-        .init();   
-    
+        .init();
+
     // Record measurements using the histogram instrument.
     histogram.record(
         10.5,
@@ -68,7 +70,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
 
     // Example 2 - Drop unwanted attributes using view.
     let counter = meter.u64_counter("my_counter").init();
-    
+
     // Record measurements using the Counter instrument.
     // Though we are passing 4 attributes here, only 1 will be used
     // for aggregation as view is configured to use only "mykey1"
