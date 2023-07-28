@@ -1,4 +1,4 @@
-use log::{error, Level};
+use log::{info, Level};
 use once_cell::sync::Lazy;
 use opentelemetry_api::global;
 use opentelemetry_api::global::{
@@ -99,7 +99,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // Create a new OpenTelemetryLogBridge using the above LoggerProvider.
     let otel_log_appender = OpenTelemetryLogBridge::new(&logger_provider);
     log::set_boxed_logger(Box::new(otel_log_appender)).unwrap();
-    log::set_max_level(Level::Error.to_level_filter());
+    log::set_max_level(Level::Info.to_level_filter());
 
     let tracer = global::tracer("ex.com/basic");
     let meter = global::meter("ex.com/basic");
@@ -124,7 +124,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         );
         span.set_attribute(ANOTHER_KEY.string("yes"));
 
-        error!(target: "my-target", "hello from {}. My price is {}. I am also inside a Span!", "banana", 2.99);
+        info!(target: "my-target", "hello from {}. My price is {}. I am also inside a Span!", "banana", 2.99);
 
         tracer.in_span("Sub operation...", |cx| {
             let span = cx.span();
@@ -136,7 +136,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         });
     });
 
-    error!(target: "my-target", "hello from {}. My price is {}", "banana", 2.99);
+    info!(target: "my-target", "hello from {}. My price is {}", "apple", 1.99);
 
     shutdown_tracer_provider();
     shutdown_logger_provider();
