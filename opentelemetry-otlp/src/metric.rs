@@ -4,7 +4,6 @@
 //!
 //! Currently, OTEL metrics exporter only support GRPC connection via tonic on tokio runtime.
 
-use crate::exporter::tonic::TonicExporterBuilder;
 use crate::transform::sink;
 use crate::{Error, OtlpPipeline};
 use async_trait::async_trait;
@@ -13,10 +12,7 @@ use opentelemetry_api::{
     global,
     metrics::{MetricsError, Result},
 };
-#[cfg(feature = "grpc-tonic")]
-use opentelemetry_proto::tonic::collector::metrics::v1::{
-    metrics_service_client::MetricsServiceClient, ExportMetricsServiceRequest,
-};
+
 use opentelemetry_sdk::{
     metrics::{
         data::{ResourceMetrics, Temporality},
@@ -31,16 +27,23 @@ use opentelemetry_sdk::{
     Resource,
 };
 use std::fmt::{Debug, Formatter};
-#[cfg(feature = "grpc-tonic")]
-use std::str::FromStr;
 use std::sync::Mutex;
 use std::time;
 use std::time::Duration;
+use tonic::codegen::{Body, StdError};
 use tonic::metadata::KeyAndValueRef;
 #[cfg(feature = "grpc-tonic")]
-use tonic::transport::Channel;
-#[cfg(feature = "grpc-tonic")]
-use tonic::Request;
+use {
+    crate::exporter::tonic::{resolve_compression, TonicExporterBuilder},
+    opentelemetry_proto::tonic::collector::metrics::v1::{
+        metrics_service_client::MetricsServiceClient, ExportMetricsServiceRequest,
+    },
+    std::str::FromStr,
+    tonic::codegen::Bytes,
+    tonic::transport::Channel,
+    tonic::Request,
+};
+
 #[cfg(feature = "http-proto")]
 use {
     crate::exporter::http::HttpExporterBuilder,
@@ -61,7 +64,8 @@ use {
 pub const OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: &str = "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT";
 /// Max waiting time for the backend to process each metrics batch, defaults to 10s.
 pub const OTEL_EXPORTER_OTLP_METRICS_TIMEOUT: &str = "OTEL_EXPORTER_OTLP_METRICS_TIMEOUT";
-
+/// Compression algorithm to use, defaults to none.
+pub const OTEL_EXPORTER_OTLP_METRICS_COMPRESSION: &str = "OTEL_EXPORTER_OTLP_METRICS_COMPRESSION";
 impl OtlpPipeline {
     /// Create a OTLP metrics pipeline.
     pub fn metrics<RT>(self, rt: RT) -> OtlpMetricPipeline<RT>
@@ -356,6 +360,8 @@ impl MetricsExporter {
             },
             Err(_) => config.timeout,
         };
+        let compression =
+            resolve_compression(&tonic_config, OTEL_EXPORTER_OTLP_METRICS_COMPRESSION)?;
 
         let endpoint = Channel::from_shared(endpoint).map_err::<crate::Error, _>(Into::into)?;
 
@@ -376,11 +382,18 @@ impl MetricsExporter {
         tokio::spawn(async move {
             match export_builder.interceptor {
                 Some(interceptor) => {
-                    let client = MetricsServiceClient::with_interceptor(channel, interceptor);
+                    let mut client = MetricsServiceClient::with_interceptor(channel, interceptor);
+                    if let Some(compression) = compression {
+                        client = client.send_compressed(compression);
+                    }
+
                     export_sink(client, receiver).await
                 }
                 None => {
-                    let client = MetricsServiceClient::new(channel);
+                    let mut client = MetricsServiceClient::new(channel);
+                    if let Some(compression) = compression {
+                        client = client.send_compressed(compression)
+                    }
                     export_sink(client, receiver).await
                 }
             }
@@ -465,7 +478,7 @@ async fn http_send_request(
     Ok(())
 }
 
-use tonic::codegen::{Body, Bytes, StdError};
+#[cfg(feature = "grpc-tonic")]
 async fn export_sink<T>(
     mut client: MetricsServiceClient<T>,
     mut receiver: tokio::sync::mpsc::Receiver<ExportMsg>,

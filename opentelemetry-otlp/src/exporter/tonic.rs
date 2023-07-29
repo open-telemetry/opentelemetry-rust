@@ -1,5 +1,7 @@
-use crate::ExportConfig;
+use crate::exporter::Compression;
+use crate::{ExportConfig, OTEL_EXPORTER_OTLP_COMPRESSION};
 use std::fmt::{Debug, Formatter};
+use tonic::codec::CompressionEncoding;
 use tonic::metadata::MetadataMap;
 #[cfg(feature = "tls")]
 use tonic::transport::ClientTlsConfig;
@@ -18,6 +20,39 @@ pub struct TonicConfig {
     /// TLS settings for the collector endpoint.
     #[cfg(feature = "tls")]
     pub tls_config: Option<ClientTlsConfig>,
+
+    /// The compression algorithm to use when communicating with the collector.
+    pub compression: Option<Compression>,
+}
+
+impl TryFrom<Compression> for tonic::codec::CompressionEncoding {
+    type Error = crate::Error;
+
+    fn try_from(value: Compression) -> Result<Self, Self::Error> {
+        match value {
+            #[cfg(feature = "gzip-tonic")]
+            Compression::Gzip => Ok(tonic::codec::CompressionEncoding::Gzip),
+            #[cfg(not(feature = "gzip-tonic"))]
+            Compression::Gzip => Err(crate::Error::UnsupportedCompressionAlgorithm(
+                value.to_string(),
+            )),
+        }
+    }
+}
+
+pub(crate) fn resolve_compression(
+    tonic_config: &TonicConfig,
+    env_override: &'static str,
+) -> Result<Option<CompressionEncoding>, crate::Error> {
+    if let Some(compression) = tonic_config.compression {
+        Ok(Some(compression.try_into()?))
+    } else if let Ok(compression) = std::env::var(env_override) {
+        Ok(Some(compression.parse::<Compression>()?.try_into()?))
+    } else if let Ok(compression) = std::env::var(OTEL_EXPORTER_OTLP_COMPRESSION) {
+        Ok(Some(compression.parse::<Compression>()?.try_into()?))
+    } else {
+        Ok(None)
+    }
 }
 
 /// Build a trace exporter that uses [tonic] as grpc layer and opentelemetry protocol.
@@ -60,6 +95,7 @@ impl Default for TonicExporterBuilder {
             )),
             #[cfg(feature = "tls")]
             tls_config: None,
+            compression: None,
         };
 
         TonicExporterBuilder {
@@ -94,6 +130,12 @@ impl TonicExporterBuilder {
         self
     }
 
+    /// Set the compression algorithm to use when communicating with the collector.
+    pub fn with_compression(mut self, compression: Compression) -> Self {
+        self.tonic_config.compression = Some(compression);
+        self
+    }
+
     /// Use `channel` as tonic's transport channel.
     /// this will override tls config and should only be used
     /// when working with non-HTTP transports.
@@ -119,6 +161,8 @@ impl TonicExporterBuilder {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(feature = "gzip-tonic")]
+    use crate::exporter::Compression;
     use crate::TonicExporterBuilder;
     use tonic::metadata::{MetadataMap, MetadataValue};
 
@@ -150,5 +194,15 @@ mod tests {
                 .unwrap()
                 .len()
         );
+    }
+
+    #[test]
+    #[cfg(feature = "gzip-tonic")]
+    fn test_with_compression() {
+        // metadata should merge with the current one with priority instead of just replacing it
+        let mut metadata = MetadataMap::new();
+        metadata.insert("foo", "bar".parse().unwrap());
+        let builder = TonicExporterBuilder::default().with_compression(Compression::Gzip);
+        assert_eq!(builder.tonic_config.compression.unwrap(), Compression::Gzip);
     }
 }

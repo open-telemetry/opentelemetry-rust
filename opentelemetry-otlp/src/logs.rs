@@ -4,7 +4,7 @@
 
 #[cfg(feature = "grpc-tonic")]
 use {
-    crate::exporter::tonic::{TonicConfig, TonicExporterBuilder},
+    crate::exporter::tonic::{resolve_compression, TonicConfig, TonicExporterBuilder},
     opentelemetry_proto::tonic::collector::logs::v1::{
         logs_service_client::LogsServiceClient as TonicLogsServiceClient,
         ExportLogsServiceRequest as TonicRequest,
@@ -59,6 +59,9 @@ use opentelemetry_api::{
     logs::{LogError, LoggerProvider},
 };
 use opentelemetry_sdk::{self, export::logs::LogData, logs::BatchMessage, runtime::RuntimeChannel};
+
+/// Compression algorithm to use, defaults to none.
+pub const OTEL_EXPORTER_OTLP_LOGS_COMPRESSION: &str = "OTEL_EXPORTER_OTLP_LOGS_COMPRESSION";
 
 impl OtlpPipeline {
     /// Create a OTLP logging pipeline.
@@ -235,10 +238,16 @@ impl LogExporter {
         tonic_config: TonicConfig,
         channel: tonic::transport::Channel,
     ) -> Result<Self, crate::Error> {
+        let mut log_exporter = TonicLogsServiceClient::new(channel);
+        if let Some(compression) =
+            resolve_compression(&tonic_config, OTEL_EXPORTER_OTLP_LOGS_COMPRESSION)?
+        {
+            log_exporter = log_exporter.send_compressed(compression);
+        }
         Ok(LogExporter::Tonic {
             timeout: config.timeout,
             metadata: tonic_config.metadata,
-            log_exporter: TonicLogsServiceClient::new(channel),
+            log_exporter,
         })
     }
 
