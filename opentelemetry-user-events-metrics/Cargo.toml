@@ -13,8 +13,8 @@ rust-version = "1.60"
 [dependencies]
 opentelemetry_api = { version = "0.20", path = "../opentelemetry-api", features = ["metrics"] }
 opentelemetry_sdk = { version = "0.20", path = "../opentelemetry-sdk", features = ["metrics", "rt-tokio"] }
-eventheader = { version = "= 0.3.1" }
 opentelemetry-proto = { version = "0.3", path = "../opentelemetry-proto", features = ["gen-tonic", "metrics"] }
+eventheader = { version = "= 0.3.2" }
 async-trait = "0.1"
 prost = "0.11"
 

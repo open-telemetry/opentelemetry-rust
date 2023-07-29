@@ -2,6 +2,7 @@ use async_trait::async_trait;
 use eventheader::{FieldFormat, Level, Opcode};
 use eventheader_dynamic::EventBuilder;
 use std::borrow::Cow;
+use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
 
@@ -17,18 +18,32 @@ thread_local! { static EBW: RefCell<EventBuilder> = RefCell::new(EventBuilder::n
 #[derive(Debug)]
 pub struct ExporterConfig {
     /// keyword associated with user_events name
-    pub keyword: u64,
+    /// These should be mapped to logger_name as of now.
+    pub keywords_map: HashMap<String, u64>,
+    /// default keyword if map is not defined.
+    pub default_keyword: u64,
 }
 
 impl Default for ExporterConfig {
     fn default() -> Self {
-        ExporterConfig { keyword: 1 }
+        ExporterConfig {
+            keywords_map: HashMap::new(),
+            default_keyword: 1,
+        }
     }
 }
 
 impl ExporterConfig {
-    pub(crate) fn get_log_event_keyword(&self) -> u64 {
-        self.keyword
+    pub(crate) fn get_log_keyword(&self, name: &str) -> Option<u64> {
+        self.keywords_map.get(name).copied()
+    }
+
+    pub(crate) fn get_log_keyword_or_default(&self, name: &str) -> Option<u64> {
+        if self.keywords_map.is_empty() {
+            Some(self.default_keyword)
+        } else {
+            self.get_log_keyword(name)
+        }
     }
 }
 
@@ -51,57 +66,28 @@ impl UserEventsExporter {
         options = *options.group_name(provider_name);
         let mut eventheader_provider: eventheader_dynamic::Provider =
             eventheader_dynamic::Provider::new(provider_name, &options);
-        eventheader_provider.register_set(
-            eventheader::Level::Informational,
-            exporter_config.get_log_event_keyword(),
-        );
-        eventheader_provider.register_set(
-            eventheader::Level::Verbose,
-            exporter_config.get_log_event_keyword(),
-        );
-        eventheader_provider.register_set(
-            eventheader::Level::Warning,
-            exporter_config.get_log_event_keyword(),
-        );
-        eventheader_provider.register_set(
-            eventheader::Level::Error,
-            exporter_config.get_log_event_keyword(),
-        );
-        eventheader_provider.register_set(
-            eventheader::Level::CriticalError,
-            exporter_config.get_log_event_keyword(),
-        );
-
-        eventheader_provider.create_unregistered(
-            true,
-            eventheader::Level::Informational,
-            exporter_config.get_log_event_keyword(),
-        );
-        eventheader_provider.create_unregistered(
-            true,
-            eventheader::Level::Verbose,
-            exporter_config.get_log_event_keyword(),
-        );
-        eventheader_provider.create_unregistered(
-            true,
-            eventheader::Level::Warning,
-            exporter_config.get_log_event_keyword(),
-        );
-        eventheader_provider.create_unregistered(
-            true,
-            eventheader::Level::Error,
-            exporter_config.get_log_event_keyword(),
-        );
-        eventheader_provider.create_unregistered(
-            true,
-            eventheader::Level::CriticalError,
-            exporter_config.get_log_event_keyword(),
-        );
-
+        if exporter_config.keywords_map.is_empty() {
+            println!(
+                "Register default keyword {}",
+                exporter_config.default_keyword
+            );
+            Self::register_events(&mut eventheader_provider, exporter_config.default_keyword)
+        }
+        for keyword in exporter_config.keywords_map.values() {
+            Self::register_events(&mut eventheader_provider, *keyword)
+        }
         UserEventsExporter {
             provider: Arc::new(eventheader_provider),
             exporter_config,
         }
+    }
+
+    fn register_events(eventheader_provider: &mut eventheader_dynamic::Provider, keyword: u64) {
+        eventheader_provider.register_set(eventheader::Level::Informational, keyword);
+        eventheader_provider.register_set(eventheader::Level::Verbose, keyword);
+        eventheader_provider.register_set(eventheader::Level::Warning, keyword);
+        eventheader_provider.register_set(eventheader::Level::Error, keyword);
+        eventheader_provider.register_set(eventheader::Level::CriticalError, keyword);
     }
 
     fn add_attributes_to_event(
@@ -132,7 +118,7 @@ impl UserEventsExporter {
         }
     }
 
-    fn get_serverity_level(&self, severity: Severity) -> Level {
+    fn get_severity_level(&self, severity: Severity) -> Level {
         let level: Level = match severity {
             Severity::Debug
             | Severity::Debug2
@@ -178,12 +164,21 @@ impl UserEventsExporter {
     ) -> opentelemetry_sdk::export::logs::ExportResult {
         let mut level: Level = Level::Invalid;
         if log_data.record.severity_number.is_some() {
-            level = self.get_serverity_level(log_data.record.severity_number.unwrap());
+            level = self.get_severity_level(log_data.record.severity_number.unwrap());
         }
-        let log_es = if let Some(es) = self.provider.find_set(
-            level.as_int().into(),
-            self.exporter_config.get_log_event_keyword(),
-        ) {
+
+        let keyword = self
+            .exporter_config
+            .get_log_keyword_or_default(log_data.instrumentation.name.as_ref());
+
+        if keyword.is_none() {
+            return Ok(());
+        }
+
+        let log_es = if let Some(es) = self
+            .provider
+            .find_set(level.as_int().into(), keyword.unwrap())
+        {
             es
         } else {
             return Ok(());
@@ -341,5 +336,29 @@ impl opentelemetry_sdk::export::logs::LogExporter for UserEventsExporter {
             let _ = self.export_log_data(&log_data);
         }
         Ok(())
+    }
+
+    #[cfg(feature = "logs_level_enabled")]
+    fn event_enabled(&self, level: Severity, _target: &str, name: &str) -> bool {
+        let (found, keyword) = if self.exporter_config.keywords_map.is_empty() {
+            (true, self.exporter_config.default_keyword)
+        } else {
+            // TBD - target is not used as of now for comparison.
+            match self.exporter_config.get_log_keyword(name) {
+                Some(x) => (true, x),
+                _ => (false, 0),
+            }
+        };
+        if !found {
+            return false;
+        }
+        let es = self
+            .provider
+            .find_set(self.get_severity_level(level), keyword);
+        match es {
+            Some(x) => x.enabled(),
+            _ => false,
+        };
+        false
     }
 }

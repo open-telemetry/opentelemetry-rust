@@ -9,6 +9,10 @@ use opentelemetry_api::{
     trace::TraceContextExt,
     Context, InstrumentationLibrary,
 };
+
+#[cfg(feature = "logs_level_enabled")]
+use opentelemetry_api::logs::Severity;
+
 use std::{
     borrow::Cow,
     sync::{Arc, Weak},
@@ -224,5 +228,24 @@ impl opentelemetry_api::logs::Logger for Logger {
             };
             processor.emit(data);
         }
+    }
+
+    #[cfg(feature = "logs_level_enabled")]
+    fn event_enabled(&self, level: Severity, target: &str) -> bool {
+        let provider = match self.provider() {
+            Some(provider) => provider,
+            None => return false,
+        };
+
+        let mut enabled = false;
+        for processor in provider.log_processors() {
+            enabled = enabled
+                || processor.event_enabled(
+                    level,
+                    target,
+                    self.instrumentation_library().name.as_ref(),
+                );
+        }
+        enabled
     }
 }

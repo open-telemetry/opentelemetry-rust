@@ -13,3 +13,7 @@ edition = "2021"
 [dependencies]
 opentelemetry_api = { version = "0.20", path = "../opentelemetry-api", features = ["logs"]}
 log = {version = "0.4.17", features = ["kv_unstable", "std"]}
+
+[features]
+logs_level_enabled = ["opentelemetry_api/logs_level_enabled"]
+default = ["logs_level_enabled"]
