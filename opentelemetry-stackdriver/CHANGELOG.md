@@ -1,5 +1,18 @@
 # Changelog
 
+## V0.17.0
+
+### Added
+
+- Send resource along with span attributes and kind/status #1035
+- Add option to authenticate with existing GCP Authentication Manager #1128
+
+### Changed
+
+- Update gRPC schemas #992
+- Upgrade gcp-auth to 0.9 #1137
+- Update to opentelemetry v0.20.0
+
 ## v0.16.0
 ### Changed
 - Update to `opentelemetry` v0.19.

@@ -1,5 +1,8 @@
 # Changelog
 
+## [v0.20.0](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.19.0...v0.20.0)
+This release should been seen as 1.0-rc3 following 1.0-rc2 in v0.19.0. Refer to CHANGELOG.md in individual creates for details on changes made in different creates.
+
 ## [v0.19.0](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.18.0...v0.19.0)
 This release should been seen as 1.0-rc2 following 1.0-rc1 in v0.18.0. Refer to CHANGELOG.md in individual creates for details on changes made in different creates.
 
@@ -61,7 +64,7 @@ and SDK are still unstable.
 - Allow `String` data in instrumentation library. #670
 - Remove `std::fmt::Debug` and `'static` requirements from `TracerProvider`,
   `Tracer`, and `Span` #664
-- Remove unused `Tracer::invalid` method #683 
+- Remove unused `Tracer::invalid` method #683
 - Split `TracerProvider::tracer` and `TracerProvider::versioned_tracer` methods #682
 - Reduce dependency on `futures` crate #684
 - Switch to parent context references #687

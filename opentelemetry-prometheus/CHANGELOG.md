@@ -1,12 +1,16 @@
 # Changelog
 
-## Unreleased
+## v0.13.0
 
 ### Added
 
 - Add `with_namespace` option to exporter config.
 - Add more units conversions between OTEL metrics and prometheus metrics [#1157](https://github.com/open-telemetry/opentelemetry-rust/pull/1157).
 - Add `without_counter_suffixes` option to exporter config.
+
+### Changed
+
+- Update to opentelemetry-api v0.20.0
 
 ## v0.12.0
 

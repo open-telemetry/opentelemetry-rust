@@ -1,4 +1,11 @@
 # Changelog
+
+## v0.5.0
+
+### Updates
+
+- Update to opentelemetry-api v0.20.0
+
 ## v0.4.0
 - Update to opentelemetry v0.19.0
 - Update to opentelemetry-proto v0.2.0

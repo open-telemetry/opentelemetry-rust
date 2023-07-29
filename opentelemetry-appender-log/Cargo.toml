@@ -11,7 +11,7 @@ rust-version = "1.60"
 edition = "2021"
 
 [dependencies]
-opentelemetry_api = { version = "0.19", path = "../opentelemetry-api", features = ["logs"]}
+opentelemetry_api = { version = "0.20", path = "../opentelemetry-api", features = ["logs"]}
 log = {version = "0.4.17", features = ["kv_unstable", "std"]}
 
 [features]

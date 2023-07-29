@@ -1,6 +1,12 @@
 # Changelog
 
 ## v0.17.0
+
+### Changed
+
+- Update to opentelemetry v0.20.0
+
+## v0.17.0
 ## Changed
 - Update to `opentelemetry` v0.19.
 - Update to `opentelemetry-http` v0.8.
