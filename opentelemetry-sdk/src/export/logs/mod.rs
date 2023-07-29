@@ -1,7 +1,7 @@
 //! Log exporters
 use crate::Resource;
 use async_trait::async_trait;
-//#[cfg(feature = "logs_level_enabled")]
+#[cfg(feature = "logs_level_enabled")]
 use opentelemetry_api::logs::Severity;
 use opentelemetry_api::{
     logs::{LogError, LogRecord, LogResult},
