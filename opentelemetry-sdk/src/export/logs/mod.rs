@@ -16,7 +16,7 @@ pub trait LogExporter: Send + Debug {
     async fn export(&mut self, batch: Vec<LogData>) -> LogResult<()>;
     /// Shuts down the expoter.
     fn shutdown(&mut self) {}
-    //#[cfg(feature = "logs_level_enabled")]
+    #[cfg(feature = "logs_level_enabled")]
     /// Chek if logs are enabled.
     fn event_enabled(&self, _level: Severity, _target: &str, _name: &str) -> bool {
         true
