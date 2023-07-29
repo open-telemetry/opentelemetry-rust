@@ -27,6 +27,7 @@ members = [
     "opentelemetry-otlp/examples/basic-otlp-http",
     "opentelemetry-otlp/examples/external-otlp-grpcio-async-std",
     "examples/metrics-basic",
+    "examples/metrics-advanced",
     "examples/logs-basic",
     "examples/traceresponse",
     "examples/tracing-grpc",
