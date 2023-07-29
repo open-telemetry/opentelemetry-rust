@@ -9,6 +9,11 @@
 - Propagate shutdown calls from `PeriodicReader` to metrics exporter
   [#1138](https://github.com/open-telemetry/opentelemetry-rust/pull/1138).
 
+### Changed
+
+- Fix EvictedQueue bug when capacity is set to 0
+  [#1151](https://github.com/open-telemetry/opentelemetry-rust/pull/1151).
+
 ### Removed
 
 - Samplers no longer has access to `InstrumentationLibrary` as one of parameters

@@ -104,7 +104,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         .as_ref(),
     );
 
-    // Note that there is no ObservableHistogram instruments.
+    // Note that there is no ObservableHistogram instrument.
 
     // Create a ObservableGauge instrument and register a callback that reports the measurement.
     let gauge = meter
@@ -128,7 +128,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
 
     // Note that Gauge only has a Observable version.
 
-    // Metrics are exported by default every 30 seconds,
+    // Metrics are exported by default every 30 seconds when using stdout exporter,
     // however shutting down the MeterProvider here instantly flushes
     // the metrics, instead of waiting for the 30 sec interval.
     meter_provider.shutdown()?;

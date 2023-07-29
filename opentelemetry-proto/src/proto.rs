@@ -1,6 +1,6 @@
 #[cfg(feature = "gen-tonic-messages")]
 #[path = "proto/tonic"]
-/// Generated files using [`tonic`](https://docs.rs/crate/grpcio) and [`prost`](https://docs.rs/crate/protobuf/latest)
+/// Generated files using [`tonic`](https://docs.rs/crate/tonic) and [`prost`](https://docs.rs/crate/prost)
 pub mod tonic {
     /// Service stub and clients
     #[path = ""]

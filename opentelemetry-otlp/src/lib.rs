@@ -189,24 +189,28 @@ mod metric;
 mod span;
 mod transform;
 
+pub use crate::exporter::Compression;
 pub use crate::exporter::ExportConfig;
 #[cfg(feature = "trace")]
 pub use crate::span::{
-    OtlpTracePipeline, SpanExporter, SpanExporterBuilder, OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
-    OTEL_EXPORTER_OTLP_TRACES_TIMEOUT,
+    OtlpTracePipeline, SpanExporter, SpanExporterBuilder, OTEL_EXPORTER_OTLP_TRACES_COMPRESSION,
+    OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, OTEL_EXPORTER_OTLP_TRACES_TIMEOUT,
 };
 
 #[cfg(feature = "metrics")]
 pub use crate::metric::{
     MetricsExporter, MetricsExporterBuilder, OtlpMetricPipeline,
-    OTEL_EXPORTER_OTLP_METRICS_ENDPOINT, OTEL_EXPORTER_OTLP_METRICS_TIMEOUT,
+    OTEL_EXPORTER_OTLP_METRICS_COMPRESSION, OTEL_EXPORTER_OTLP_METRICS_ENDPOINT,
+    OTEL_EXPORTER_OTLP_METRICS_TIMEOUT,
 };
 
 #[cfg(feature = "logs")]
-pub use crate::logs::*;
+pub use crate::logs::{
+    LogExporter, LogExporterBuilder, OtlpLogPipeline, OTEL_EXPORTER_OTLP_LOGS_COMPRESSION,
+};
 
 pub use crate::exporter::{
-    HasExportConfig, WithExportConfig, OTEL_EXPORTER_OTLP_ENDPOINT,
+    HasExportConfig, WithExportConfig, OTEL_EXPORTER_OTLP_COMPRESSION, OTEL_EXPORTER_OTLP_ENDPOINT,
     OTEL_EXPORTER_OTLP_ENDPOINT_DEFAULT, OTEL_EXPORTER_OTLP_PROTOCOL,
     OTEL_EXPORTER_OTLP_PROTOCOL_DEFAULT, OTEL_EXPORTER_OTLP_TIMEOUT,
     OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT,
@@ -217,7 +221,7 @@ use opentelemetry_sdk::export::ExportError;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 #[cfg(feature = "grpc-sys")]
-pub use crate::exporter::grpcio::{Compression, Credentials, GrpcioConfig, GrpcioExporterBuilder};
+pub use crate::exporter::grpcio::{Credentials, GrpcioConfig, GrpcioExporterBuilder};
 #[cfg(feature = "http-proto")]
 pub use crate::exporter::http::HttpExporterBuilder;
 #[cfg(feature = "grpc-tonic")]
@@ -347,6 +351,10 @@ pub enum Error {
     /// The pipeline will need a exporter to complete setup. Throw this error if none is provided.
     #[error("no exporter builder is provided, please provide one using with_exporter() method")]
     NoExporterBuilder,
+
+    /// Unsupported compression algorithm.
+    #[error("unsupported compression algorithm '{0}'")]
+    UnsupportedCompressionAlgorithm(String),
 }
 
 #[cfg(feature = "grpc-tonic")]

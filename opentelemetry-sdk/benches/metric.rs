@@ -309,7 +309,7 @@ fn counters(c: &mut Criterion) {
         Some(
             new_view(
                 Instrument::new().name("*"),
-                Stream::new().attribute_filter(|kv| kv.key == Key::new("K")),
+                Stream::new().allowed_attribute_keys([Key::new("K")]),
             )
             .unwrap(),
         ),
