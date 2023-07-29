@@ -70,6 +70,7 @@ default = ["grpc-tonic", "trace"]
 
 # grpc using tonic
 grpc-tonic = ["tonic", "prost", "http", "tokio", "opentelemetry-proto/gen-tonic"]
+gzip-tonic = ["tonic/gzip"]
 tls = ["tonic/tls"]
 tls-roots = ["tls", "tonic/tls-roots"]
 

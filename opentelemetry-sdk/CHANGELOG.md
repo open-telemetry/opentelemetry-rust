@@ -16,6 +16,11 @@
 - Use `Cow<'static, str>` instead of `&'static str` #1018
 - Unify trace and logs runtime extensions traits. #1067
 
+### Changed
+
+- Fix EvictedQueue bug when capacity is set to 0
+  [#1151](https://github.com/open-telemetry/opentelemetry-rust/pull/1151).
+
 ### Removed
 
 - Samplers no longer has access to `InstrumentationLibrary` as one of parameters

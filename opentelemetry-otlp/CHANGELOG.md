@@ -4,6 +4,7 @@
 
 ### Added
 - Add OTLP HTTP Metrics Exporter [#1020](https://github.com/open-telemetry/opentelemetry-rust/pull/1020).
+- Add tonic compression support [#1165](https://github.com/open-telemetry/opentelemetry-rust/pull/1165).
 
 ### Changed
 

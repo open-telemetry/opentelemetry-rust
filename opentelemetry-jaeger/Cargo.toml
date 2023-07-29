@@ -91,7 +91,7 @@ hyper_tls_collector_client = ["hyper_collector_client", "hyper-tls"]
 isahc_collector_client = ["isahc", "opentelemetry-http/isahc"]
 reqwest_blocking_collector_client = ["reqwest/blocking", "collector_client", "headers", "opentelemetry-http/reqwest"]
 reqwest_collector_client = ["reqwest", "collector_client", "headers", "opentelemetry-http/reqwest"]
-reqwest_rustls_collector_client = ["reqwest", "reqwest/rustls-tls-native-roots", "collector_client", "headers", "opentelemetry-http/reqwest"]
+reqwest_rustls_collector_client = ["reqwest_collector_client", "reqwest/rustls-tls-native-roots"]
 surf_collector_client = ["surf", "collector_client", "opentelemetry-http/surf"]
 wasm_collector_client = [
     "base64",

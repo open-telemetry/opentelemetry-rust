@@ -1,13 +1,19 @@
+use log::{info, Level};
 use once_cell::sync::Lazy;
 use opentelemetry_api::global;
-use opentelemetry_api::global::shutdown_tracer_provider;
+use opentelemetry_api::global::{
+    logger_provider, shutdown_logger_provider, shutdown_tracer_provider,
+};
+use opentelemetry_api::logs::LogError;
 use opentelemetry_api::trace::TraceError;
 use opentelemetry_api::{
     metrics,
     trace::{TraceContextExt, Tracer},
     Key, KeyValue,
 };
+use opentelemetry_appender_log::OpenTelemetryLogBridge;
 use opentelemetry_otlp::{ExportConfig, WithExportConfig};
+use opentelemetry_sdk::logs::Config;
 use opentelemetry_sdk::{metrics::MeterProvider, runtime, trace as sdktrace, Resource};
 use std::error::Error;
 
@@ -22,7 +28,7 @@ fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
         .with_trace_config(
             sdktrace::config().with_resource(Resource::new(vec![KeyValue::new(
                 opentelemetry_semantic_conventions::resource::SERVICE_NAME,
-                "trace-demo",
+                "basic-otlp-tracing-example",
             )])),
         )
         .install_batch(runtime::Tokio)
@@ -40,7 +46,28 @@ fn init_metrics() -> metrics::Result<MeterProvider> {
                 .tonic()
                 .with_export_config(export_config),
         )
+        .with_resource(Resource::new(vec![KeyValue::new(
+            opentelemetry_semantic_conventions::resource::SERVICE_NAME,
+            "basic-otlp-metrics-example",
+        )]))
         .build()
+}
+
+fn init_logs() -> Result<opentelemetry_sdk::logs::Logger, LogError> {
+    opentelemetry_otlp::new_pipeline()
+        .logging()
+        .with_log_config(
+            Config::default().with_resource(Resource::new(vec![KeyValue::new(
+                opentelemetry_semantic_conventions::resource::SERVICE_NAME,
+                "basic-otlp-logging-example",
+            )])),
+        )
+        .with_exporter(
+            opentelemetry_otlp::new_exporter()
+                .tonic()
+                .with_endpoint("http://localhost:4317"),
+        )
+        .install_batch(runtime::Tokio)
 }
 
 const LEMONS_KEY: Key = Key::from_static_str("lemons");
@@ -62,6 +89,17 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // execution.
     let _ = init_tracer()?;
     let meter_provider = init_metrics()?;
+
+    // Initialize logs, which sets the global loggerprovider.
+    let _ = init_logs();
+
+    // Retrieve the global LoggerProvider.
+    let logger_provider = logger_provider();
+
+    // Create a new OpenTelemetryLogBridge using the above LoggerProvider.
+    let otel_log_appender = OpenTelemetryLogBridge::new(&logger_provider);
+    log::set_boxed_logger(Box::new(otel_log_appender)).unwrap();
+    log::set_max_level(Level::Info.to_level_filter());
 
     let tracer = global::tracer("ex.com/basic");
     let meter = global::meter("ex.com/basic");
@@ -86,6 +124,8 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         );
         span.set_attribute(ANOTHER_KEY.string("yes"));
 
+        info!(target: "my-target", "hello from {}. My price is {}. I am also inside a Span!", "banana", 2.99);
+
         tracer.in_span("Sub operation...", |cx| {
             let span = cx.span();
             span.set_attribute(LEMONS_KEY.string("five"));
@@ -96,7 +136,10 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         });
     });
 
+    info!(target: "my-target", "hello from {}. My price is {}", "apple", 1.99);
+
     shutdown_tracer_provider();
+    shutdown_logger_provider();
     meter_provider.shutdown()?;
 
     Ok(())

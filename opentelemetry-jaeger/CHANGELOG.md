@@ -9,6 +9,7 @@
 
 ### Fixed
 - allow span id to be less than 16 characters in propagator [#1084](https://github.com/open-telemetry/opentelemetry-rust/pull/1084)
+- `reqwest_rustls_collector_client` now includes `with_reqwest` [#1159](https://github.com/open-telemetry/opentelemetry-rust/pull/1159)
 
 ## v0.18.0
 

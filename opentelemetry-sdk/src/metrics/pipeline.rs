@@ -303,7 +303,7 @@ where
             description: inst.description,
             unit: inst.unit,
             aggregation: None,
-            attribute_filter: None,
+            allowed_attribute_keys: None,
         };
 
         match self.cached_aggregator(&inst.scope, kind, stream) {
@@ -369,8 +369,8 @@ where
                 other => return other, // Drop aggregator or error
             };
 
-            if let Some(filter) = &stream.attribute_filter {
-                agg = internal::new_filter(agg, Arc::clone(filter));
+            if let Some(allowed) = stream.allowed_attribute_keys.as_ref().map(Arc::clone) {
+                agg = internal::new_filter(agg, Arc::new(move |kv| allowed.contains(&kv.key)));
             }
 
             self.pipeline.add_sync(

@@ -1,10 +1,10 @@
-use std::{any::Any, borrow::Cow, fmt, hash::Hash, marker, sync::Arc};
+use std::{any::Any, borrow::Cow, collections::HashSet, hash::Hash, marker, sync::Arc};
 
 use opentelemetry_api::{
     metrics::{
         AsyncInstrument, MetricsError, Result, SyncCounter, SyncHistogram, SyncUpDownCounter, Unit,
     },
-    KeyValue,
+    Key, KeyValue,
 };
 
 use crate::{
@@ -158,7 +158,7 @@ impl Instrument {
 /// let view = new_view(criteria, mask);
 /// # drop(view);
 /// ```
-#[derive(Default)]
+#[derive(Default, Debug)]
 #[non_exhaustive]
 pub struct Stream {
     /// The human-readable identifier of the stream.
@@ -169,11 +169,13 @@ pub struct Stream {
     pub unit: Unit,
     /// Aggregation the stream uses for an instrument.
     pub aggregation: Option<Aggregation>,
-    /// applied to all attributes recorded for an instrument.
-    pub attribute_filter: Option<Filter>,
+    /// An allow-list of attribute keys that will be preserved for the stream.
+    ///
+    /// Any attribute recorded for the stream with a key not in this set will be
+    /// dropped. If the set is empty, all attributes will be dropped, if `None` all
+    /// attributes will be kept.
+    pub allowed_attribute_keys: Option<Arc<HashSet<Key>>>,
 }
-
-type Filter = Arc<dyn Fn(&KeyValue) -> bool + Send + Sync>;
 
 impl Stream {
     /// Create a new stream with empty values.
@@ -205,25 +207,14 @@ impl Stream {
         self
     }
 
-    /// Set the stream attribute filter.
-    pub fn attribute_filter(
-        mut self,
-        filter: impl Fn(&KeyValue) -> bool + Send + Sync + 'static,
-    ) -> Self {
-        self.attribute_filter = Some(Arc::new(filter));
-        self
-    }
-}
+    /// Set the stream allowed attribute keys.
+    ///
+    /// Any attribute recorded for the stream with a key not in this set will be
+    /// dropped. If this set is empty all attributes will be dropped.
+    pub fn allowed_attribute_keys(mut self, attribute_keys: impl IntoIterator<Item = Key>) -> Self {
+        self.allowed_attribute_keys = Some(Arc::new(attribute_keys.into_iter().collect()));
 
-impl fmt::Debug for Stream {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Stream")
-            .field("name", &self.name)
-            .field("description", &self.description)
-            .field("unit", &self.unit)
-            .field("aggregation", &self.aggregation)
-            .field("attribute_filter", &self.attribute_filter.is_some())
-            .finish()
+        self
     }
 }
 

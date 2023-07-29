@@ -4,7 +4,7 @@
 
 #[cfg(feature = "grpc-tonic")]
 use {
-    crate::exporter::tonic::{TonicConfig, TonicExporterBuilder},
+    crate::exporter::tonic::{resolve_compression, TonicConfig, TonicExporterBuilder},
     opentelemetry_proto::tonic::collector::logs::v1::{
         logs_service_client::LogsServiceClient as TonicLogsServiceClient,
         ExportLogsServiceRequest as TonicRequest,
@@ -54,8 +54,14 @@ use std::{
     time::Duration,
 };
 
-use opentelemetry_api::logs::{LogError, LoggerProvider};
+use opentelemetry_api::{
+    global,
+    logs::{LogError, LoggerProvider},
+};
 use opentelemetry_sdk::{self, export::logs::LogData, logs::BatchMessage, runtime::RuntimeChannel};
+
+/// Compression algorithm to use, defaults to none.
+pub const OTEL_EXPORTER_OTLP_LOGS_COMPRESSION: &str = "OTEL_EXPORTER_OTLP_LOGS_COMPRESSION";
 
 impl OtlpPipeline {
     /// Create a OTLP logging pipeline.
@@ -232,10 +238,16 @@ impl LogExporter {
         tonic_config: TonicConfig,
         channel: tonic::transport::Channel,
     ) -> Result<Self, crate::Error> {
+        let mut log_exporter = TonicLogsServiceClient::new(channel);
+        if let Some(compression) =
+            resolve_compression(&tonic_config, OTEL_EXPORTER_OTLP_LOGS_COMPRESSION)?
+        {
+            log_exporter = log_exporter.send_compressed(compression);
+        }
         Ok(LogExporter::Tonic {
             timeout: config.timeout,
             metadata: tonic_config.metadata,
-            log_exporter: TonicLogsServiceClient::new(channel),
+            log_exporter,
         })
     }
 
@@ -413,11 +425,18 @@ impl OtlpLogPipeline {
         self
     }
 
-    /// Returns a [`Logger`] with the name `opentelemetry-otlp` and the
-    /// current crate version, using the configured log exporter.
+    /// Set the log provider configuration.
+    pub fn with_log_config(mut self, log_config: opentelemetry_sdk::logs::Config) -> Self {
+        self.log_config = Some(log_config);
+        self
+    }
+
+    /// Install the configured log exporter.
+    ///
+    /// Returns a [`Logger`] with the name `opentelemetry-otlp` and the current crate version.
     ///
     /// [`Logger`]: opentelemetry_sdk::logs::Logger
-    pub fn simple(self) -> Result<opentelemetry_sdk::logs::Logger, LogError> {
+    pub fn install_simple(self) -> Result<opentelemetry_sdk::logs::Logger, LogError> {
         Ok(build_simple_with_exporter(
             self.exporter_builder
                 .ok_or(crate::Error::NoExporterBuilder)?
@@ -426,12 +445,13 @@ impl OtlpLogPipeline {
         ))
     }
 
-    /// Returns a [`Logger`] with the name `opentelemetry-otlp` and the
-    /// current crate version, using the configured log exporter and a
-    /// batch log processor.
+    /// Install the configured log exporter and a batch span processor using the
+    /// specified runtime.
+    ///
+    /// Returns a [`Logger`] with the name `opentelemetry-otlp` and the current crate version.
     ///
     /// [`Logger`]: opentelemetry_sdk::logs::Logger
-    pub fn batch<R: RuntimeChannel<BatchMessage>>(
+    pub fn install_batch<R: RuntimeChannel<BatchMessage>>(
         self,
         runtime: R,
     ) -> Result<opentelemetry_sdk::logs::Logger, LogError> {
@@ -455,12 +475,14 @@ fn build_simple_with_exporter(
         provider_builder = provider_builder.with_config(config);
     }
     let provider = provider_builder.build();
-    provider.versioned_logger(
+    let logger = provider.versioned_logger(
         Cow::Borrowed("opentelemetry-otlp"),
         Some(Cow::Borrowed(env!("CARGO_PKG_VERSION"))),
         None,
         None,
-    )
+    );
+    let _ = global::set_logger_provider(provider);
+    logger
 }
 
 fn build_batch_with_exporter<R: RuntimeChannel<BatchMessage>>(
@@ -474,10 +496,12 @@ fn build_batch_with_exporter<R: RuntimeChannel<BatchMessage>>(
         provider_builder = provider_builder.with_config(config);
     }
     let provider = provider_builder.build();
-    provider.versioned_logger(
+    let logger = provider.versioned_logger(
         Cow::Borrowed("opentelemetry-otlp"),
         Some(Cow::Borrowed("CARGO_PKG_VERSION")),
         None,
         None,
-    )
+    );
+    let _ = global::set_logger_provider(provider);
+    logger
 }
