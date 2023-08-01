@@ -1,4 +1,4 @@
-use std::{vec, time::SystemTime};
+use std::{time::SystemTime, vec};
 
 use opentelemetry_api::logs::{LogRecord, Logger, LoggerProvider, Severity};
 
