@@ -75,10 +75,9 @@ struct LogRecord {
     )]
     time_unix_nano: Option<SystemTime>,
     #[serde(
-        skip_serializing_if = "Option::is_none",
-        serialize_with = "opt_as_unix_nano"
+        serialize_with = "as_unix_nano"
     )]
-    observed_time_unix_nano: Option<SystemTime>,
+    observed_time_unix_nano: SystemTime,
     severity_number: u32,
     #[serde(skip_serializing_if = "Option::is_none")]
     severity_text: Option<Cow<'static, str>>,
@@ -113,7 +112,7 @@ impl From<opentelemetry_sdk::export::logs::LogData> for LogRecord {
                 .map(|c| c.trace_flags.map(|f| f.to_u8()))
                 .unwrap_or_default(),
             time_unix_nano: value.record.timestamp,
-            observed_time_unix_nano: value.record.observed_timestamp,
+            observed_time_unix_nano: value.record.observed_timestamp.time,
             severity_number: value
                 .record
                 .severity_number

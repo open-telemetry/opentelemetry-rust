@@ -11,7 +11,9 @@ mod record;
 
 pub use logger::{Logger, LoggerProvider};
 pub use noop::NoopLoggerProvider;
-pub use record::{AnyValue, LogRecord, LogRecordBuilder, Severity, TraceContext};
+pub use record::{
+    AnyValue, LogRecord, LogRecordBuilder, ObservedTimeStamp, Severity, TraceContext,
+};
 
 /// Describe the result of operations in log SDK.
 pub type LogResult<T> = Result<T, LogError>;
