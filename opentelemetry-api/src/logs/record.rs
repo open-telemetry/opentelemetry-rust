@@ -7,14 +7,14 @@ use std::{borrow::Cow, time::SystemTime};
 #[derive(Debug, Clone)]
 /// Timestamp for when the record was observed by OpenTelemetry
 /// Defaults to the current time.
-pub struct ObservedTimeStamp {
+pub struct ObservedTimestamp {
     /// Time when the record was observed by OpenTelemetry
     pub time: SystemTime,
 }
 
-impl Default for ObservedTimeStamp {
+impl Default for ObservedTimestamp {
     fn default() -> Self {
-        ObservedTimeStamp {
+        ObservedTimestamp {
             time: SystemTime::now(),
         }
     }
@@ -29,7 +29,7 @@ pub struct LogRecord {
     pub timestamp: Option<SystemTime>,
 
     /// Timestamp for when the record was observed by OpenTelemetry
-    pub observed_timestamp: ObservedTimeStamp,
+    pub observed_timestamp: ObservedTimestamp,
 
     /// Trace context for logs associated with spans
     pub trace_context: Option<TraceContext>,
@@ -277,7 +277,7 @@ impl LogRecordBuilder {
     pub fn with_observed_timestamp(self, timestamp: SystemTime) -> Self {
         Self {
             record: LogRecord {
-                observed_timestamp: ObservedTimeStamp { time: timestamp },
+                observed_timestamp: ObservedTimestamp { time: timestamp },
                 ..self.record
             },
         }

@@ -12,7 +12,7 @@ mod record;
 pub use logger::{Logger, LoggerProvider};
 pub use noop::NoopLoggerProvider;
 pub use record::{
-    AnyValue, LogRecord, LogRecordBuilder, ObservedTimeStamp, Severity, TraceContext,
+    AnyValue, LogRecord, LogRecordBuilder, ObservedTimestamp, Severity, TraceContext,
 };
 
 /// Describe the result of operations in log SDK.
