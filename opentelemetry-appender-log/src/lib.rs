@@ -1,6 +1,6 @@
 use log::{Level, Metadata, Record};
 use opentelemetry_api::logs::{AnyValue, LogRecordBuilder, Logger, LoggerProvider, Severity};
-use std::time::SystemTime;
+use std::{borrow::Cow, time::SystemTime};
 
 pub struct OpenTelemetryLogBridge<P, L>
 where
@@ -49,7 +49,12 @@ where
 {
     pub fn new(provider: &P) -> Self {
         OpenTelemetryLogBridge {
-            logger: provider.logger("opentelemetry-log-appender"),
+            logger: provider.versioned_logger(
+                "opentelemetry-log-appender",
+                Some(Cow::Borrowed(env!("CARGO_PKG_VERSION"))),
+                None,
+                None,
+            ),
             _phantom: Default::default(),
         }
     }
