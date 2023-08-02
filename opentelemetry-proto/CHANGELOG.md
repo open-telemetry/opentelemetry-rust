@@ -1,5 +1,11 @@
 # Changelog
 
+## vNext
+
+### Fixed
+
+- Rename `traces` feature to the more standard `trace` (#1183)
+
 ## v0.3.0
 
 ### Updated

@@ -1,7 +1,7 @@
-#[cfg(any(feature = "traces", feature = "logs"))]
+#[cfg(any(feature = "trace", feature = "logs"))]
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-#[cfg(any(feature = "traces", feature = "logs"))]
+#[cfg(any(feature = "trace", feature = "logs"))]
 pub(crate) fn to_nanos(time: SystemTime) -> u64 {
     time.duration_since(UNIX_EPOCH)
         .unwrap_or_else(|_| Duration::from_secs(0))
@@ -17,7 +17,7 @@ pub mod tonic {
     use opentelemetry_sdk::trace::EvictedHashMap;
     use std::borrow::Cow;
 
-    #[cfg(any(feature = "traces", feature = "logs"))]
+    #[cfg(any(feature = "trace", feature = "logs"))]
     use opentelemetry_sdk::Resource;
 
     impl From<opentelemetry_sdk::InstrumentationLibrary> for InstrumentationScope {
@@ -122,7 +122,7 @@ pub mod tonic {
         ArrayValue { values }
     }
 
-    #[cfg(any(feature = "traces", feature = "logs"))]
+    #[cfg(any(feature = "trace", feature = "logs"))]
     pub(crate) fn resource_attributes(resource: &Resource) -> Attributes {
         resource
             .iter()
@@ -237,7 +237,7 @@ pub mod grpcio {
         array_value
     }
 
-    #[cfg(any(feature = "traces", feature = "logs"))]
+    #[cfg(any(feature = "trace", feature = "logs"))]
     pub(crate) fn resource_attributes(resource: &Resource) -> Attributes {
         resource
             .iter()
