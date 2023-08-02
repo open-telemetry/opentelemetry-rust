@@ -99,7 +99,7 @@ where
         let mut log_record: LogRecord = LogRecord::default();
         log_record.severity_number = Some(map_severity_to_otel_severity(meta.level().as_str()));
         log_record.severity_text = Some(meta.level().to_string().into());
-        
+
         // Not populating ObservedTimestamp, instead relying on OpenTelemetry
         // API to populate it with current time.
 
