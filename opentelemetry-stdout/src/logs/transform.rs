@@ -110,7 +110,7 @@ impl From<opentelemetry_sdk::export::logs::LogData> for LogRecord {
                 .map(|c| c.trace_flags.map(|f| f.to_u8()))
                 .unwrap_or_default(),
             time_unix_nano: value.record.timestamp,
-            observed_time_unix_nano: value.record.observed_timestamp.time,
+            observed_time_unix_nano: value.record.observed_timestamp,
             severity_number: value
                 .record
                 .severity_number
