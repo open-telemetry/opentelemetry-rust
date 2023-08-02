@@ -194,7 +194,10 @@ impl UserEventsExporter {
                 eb.add_value("__csver__", 0x0401u16, FieldFormat::HexInt, 0);
 
                 // populate CS PartA
-                let event_time: SystemTime = log_data.record.timestamp.unwrap_or(log_data.record.observed_timestamp.time);
+                let event_time: SystemTime = log_data
+                    .record
+                    .timestamp
+                    .unwrap_or(log_data.record.observed_timestamp.time);
                 cs_a_count += 1; // for event_time
                 eb.add_struct("PartA", cs_a_count, 0);
                 {

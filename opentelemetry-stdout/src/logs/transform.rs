@@ -74,9 +74,7 @@ struct LogRecord {
         serialize_with = "opt_as_unix_nano"
     )]
     time_unix_nano: Option<SystemTime>,
-    #[serde(
-        serialize_with = "as_unix_nano"
-    )]
+    #[serde(serialize_with = "as_unix_nano")]
     observed_time_unix_nano: SystemTime,
     severity_number: u32,
     #[serde(skip_serializing_if = "Option::is_none")]
