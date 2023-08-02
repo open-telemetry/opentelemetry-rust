@@ -24,9 +24,9 @@ pub mod tonic {
         fn from(library: opentelemetry_sdk::InstrumentationLibrary) -> Self {
             InstrumentationScope {
                 name: library.name.into_owned(),
-                attributes: Vec::new(),
-                version: library.version.unwrap_or(Cow::Borrowed("")).to_string(),
-                dropped_attributes_count: 0,
+                version: library.version.map(Cow::into_owned).unwrap_or_default(),
+                attributes: Attributes::from(library.attributes).0,
+                ..Default::default()
             }
         }
     }
@@ -35,13 +35,13 @@ pub mod tonic {
         fn from(library: &opentelemetry_sdk::InstrumentationLibrary) -> Self {
             InstrumentationScope {
                 name: library.name.to_string(),
-                attributes: Vec::new(),
                 version: library
                     .version
                     .as_ref()
                     .map(ToString::to_string)
                     .unwrap_or_default(),
-                dropped_attributes_count: 0,
+                attributes: Attributes::from(library.attributes.clone()).0,
+                ..Default::default()
             }
         }
     }
@@ -145,8 +145,9 @@ pub mod grpcio {
     impl From<opentelemetry_sdk::InstrumentationLibrary> for InstrumentationScope {
         fn from(library: opentelemetry_sdk::InstrumentationLibrary) -> Self {
             InstrumentationScope {
-                name: library.name.to_string(),
-                version: library.version.unwrap_or(Cow::Borrowed("")).to_string(),
+                name: library.name.into_owned(),
+                version: library.version.map(Cow::into_owned).unwrap_or_default(),
+                attributes: Attributes::from(library.attributes).0,
                 ..Default::default()
             }
         }
