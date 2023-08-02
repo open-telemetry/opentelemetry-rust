@@ -4,7 +4,7 @@ use crate::{
 };
 use std::{borrow::Cow, time::SystemTime};
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 #[non_exhaustive]
 /// LogRecord represents all data carried by a log record, and
 /// is provided to `LogExporter`s as input.
@@ -13,7 +13,7 @@ pub struct LogRecord {
     pub timestamp: Option<SystemTime>,
 
     /// Timestamp for when the record was observed by OpenTelemetry
-    pub observed_timestamp: Option<SystemTime>,
+    pub observed_timestamp: SystemTime,
 
     /// Trace context for logs associated with spans
     pub trace_context: Option<TraceContext>,
@@ -28,6 +28,20 @@ pub struct LogRecord {
 
     /// Additional attributes associated with this record
     pub attributes: Option<Vec<(Key, AnyValue)>>,
+}
+
+impl Default for LogRecord {
+    fn default() -> Self {
+        LogRecord {
+            timestamp: None,
+            observed_timestamp: SystemTime::now(),
+            trace_context: None,
+            severity_text: None,
+            severity_number: None,
+            body: None,
+            attributes: None,
+        }
+    }
 }
 
 impl LogRecord {
@@ -261,7 +275,7 @@ impl LogRecordBuilder {
     pub fn with_observed_timestamp(self, timestamp: SystemTime) -> Self {
         Self {
             record: LogRecord {
-                observed_timestamp: Some(timestamp),
+                observed_timestamp: timestamp,
                 ..self.record
             },
         }
