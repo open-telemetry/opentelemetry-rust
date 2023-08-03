@@ -1,4 +1,4 @@
-use std::{time::SystemTime, vec};
+use std::{borrow::Cow, time::SystemTime};
 
 use opentelemetry_api::logs::{LogRecord, Logger, LoggerProvider, Severity};
 
@@ -78,7 +78,12 @@ where
 {
     pub fn new(provider: &P) -> Self {
         OpenTelemetryTracingBridge {
-            logger: provider.logger(INSTRUMENTATION_LIBRARY_NAME),
+            logger: provider.versioned_logger(
+                INSTRUMENTATION_LIBRARY_NAME,
+                Some(Cow::Borrowed(env!("CARGO_PKG_VERSION"))),
+                None,
+                None,
+            ),
             _phantom: Default::default(),
         }
     }
