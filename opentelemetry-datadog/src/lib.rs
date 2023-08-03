@@ -304,11 +304,9 @@ mod propagator {
         }
 
         fn extract_with_context(&self, cx: &Context, extractor: &dyn Extractor) -> Context {
-            let extracted = self
-                .extract_span_context(extractor)
-                .unwrap_or_else(|_| SpanContext::empty_context());
-
-            cx.with_remote_span_context(extracted)
+            self.extract_span_context(extractor)
+                .map(|sc| cx.with_remote_span_context(sc))
+                .unwrap_or_else(|_| cx.clone())
         }
 
         fn fields(&self) -> FieldIter<'_> {
@@ -369,6 +367,14 @@ mod propagator {
             let propagator = DatadogPropagator::default();
             let context = propagator.extract(&map);
             assert_eq!(context.span().span_context(), &SpanContext::empty_context())
+        }
+
+        #[test]
+        fn test_extract_with_empty_remote_context() {
+            let map: HashMap<String, String> = HashMap::new();
+            let propagator = DatadogPropagator::default();
+            let context = propagator.extract_with_context(&Context::new(), &map);
+            assert!(!context.has_active_span())
         }
 
         #[test]

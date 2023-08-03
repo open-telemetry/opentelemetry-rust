@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.9.0
+
+### Fixed
+
+- Do not set an empty span as the active span when the propagator does not find a remote span.
+
 ## V0.8.0
 
 ### Changed
