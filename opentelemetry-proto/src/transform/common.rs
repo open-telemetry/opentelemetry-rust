@@ -14,7 +14,6 @@ pub mod tonic {
         any_value, AnyValue, ArrayValue, InstrumentationScope, KeyValue,
     };
     use opentelemetry_api::{Array, Value};
-    use opentelemetry_sdk::trace::EvictedHashMap;
     use std::borrow::Cow;
 
     #[cfg(any(feature = "trace", feature = "logs"))]
@@ -50,8 +49,9 @@ pub mod tonic {
     #[derive(Default)]
     pub struct Attributes(pub ::std::vec::Vec<crate::proto::tonic::common::v1::KeyValue>);
 
-    impl From<EvictedHashMap> for Attributes {
-        fn from(attributes: EvictedHashMap) -> Self {
+    #[cfg(feature = "trace")]
+    impl From<opentelemetry_sdk::trace::EvictedHashMap> for Attributes {
+        fn from(attributes: opentelemetry_sdk::trace::EvictedHashMap) -> Self {
             Attributes(
                 attributes
                     .into_iter()
@@ -136,7 +136,7 @@ pub mod tonic {
 pub mod grpcio {
     use crate::proto::grpcio::common::{AnyValue, ArrayValue, InstrumentationScope, KeyValue};
     use opentelemetry_api::{Array, Value};
-    use opentelemetry_sdk::{trace::EvictedHashMap, Resource};
+    use opentelemetry_sdk::Resource;
     use protobuf::RepeatedField;
     #[cfg(feature = "logs")]
     use protobuf::SingularPtrField;
@@ -156,8 +156,9 @@ pub mod grpcio {
     #[derive(Default)]
     pub struct Attributes(pub ::protobuf::RepeatedField<crate::proto::grpcio::common::KeyValue>);
 
-    impl From<EvictedHashMap> for Attributes {
-        fn from(attributes: EvictedHashMap) -> Self {
+    #[cfg(feature = "trace")]
+    impl From<opentelemetry_sdk::trace::EvictedHashMap> for Attributes {
+        fn from(attributes: opentelemetry_sdk::trace::EvictedHashMap) -> Self {
             Attributes(RepeatedField::from_vec(
                 attributes
                     .into_iter()
