@@ -1,4 +1,4 @@
-use std::{borrow::Cow, time::SystemTime};
+use std::borrow::Cow;
 
 use opentelemetry_api::logs::{LogRecord, Logger, LoggerProvider, Severity};
 
