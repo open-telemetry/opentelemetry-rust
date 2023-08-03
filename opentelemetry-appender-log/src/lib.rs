@@ -1,6 +1,6 @@
 use log::{Level, Metadata, Record};
 use opentelemetry_api::logs::{AnyValue, LogRecordBuilder, Logger, LoggerProvider, Severity};
-use std::{borrow::Cow, time::SystemTime};
+use std::borrow::Cow;
 
 pub struct OpenTelemetryLogBridge<P, L>
 where
@@ -31,8 +31,9 @@ where
             self.logger.emit(
                 LogRecordBuilder::new()
                     .with_severity_number(map_severity_to_otel_severity(record.level()))
-                    .with_timestamp(SystemTime::now())
                     .with_severity_text(record.level().as_str())
+                    // Not populating ObservedTimestamp, instead relying on OpenTelemetry
+                    // API to populate it with current time.
                     .with_body(AnyValue::from(record.args().to_string()))
                     .build(),
             );

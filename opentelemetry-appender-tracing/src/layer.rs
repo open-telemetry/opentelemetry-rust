@@ -1,4 +1,4 @@
-use std::{borrow::Cow, time::SystemTime};
+use std::borrow::Cow;
 
 use opentelemetry_api::logs::{LogRecord, Logger, LoggerProvider, Severity};
 
@@ -104,7 +104,9 @@ where
         let mut log_record: LogRecord = LogRecord::default();
         log_record.severity_number = Some(map_severity_to_otel_severity(meta.level().as_str()));
         log_record.severity_text = Some(meta.level().to_string().into());
-        log_record.timestamp = Some(SystemTime::now());
+
+        // Not populating ObservedTimestamp, instead relying on OpenTelemetry
+        // API to populate it with current time.
 
         let mut visitor = EventVisitor {
             log_record: &mut log_record,
