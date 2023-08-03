@@ -2,8 +2,9 @@
 
 ## vNext
 
-- Populate TimeStamp on LogRecord, instead of ObservedTimeStamp
-  [#1175](https://github.com/open-telemetry/opentelemetry-rust/pull/1175).
+### Fixed
+
+- Add log appender versions to loggers (#1182).
 
 ## v0.1.0
 

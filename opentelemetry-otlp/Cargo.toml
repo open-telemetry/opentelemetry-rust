@@ -59,7 +59,7 @@ futures = { version = "0.3", default-features = false, features = ["std"] }
 
 [features]
 # telemetry pillars and functions
-trace = ["opentelemetry_api/trace", "opentelemetry_sdk/trace", "opentelemetry-proto/traces"]
+trace = ["opentelemetry_api/trace", "opentelemetry_sdk/trace", "opentelemetry-proto/trace"]
 metrics = ["opentelemetry_api/metrics", "opentelemetry_sdk/metrics", "opentelemetry-proto/metrics", "grpc-tonic"]
 logs = ["opentelemetry_api/logs", "opentelemetry_sdk/logs", "opentelemetry-proto/logs"]
 
