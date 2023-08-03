@@ -1,5 +1,11 @@
 # Changelog
 
+## vNext
+
+### Added
+
+- Implement tonic metrics proto transformations (#1184)
+
 ## v0.3.0
 
 ### Updated
