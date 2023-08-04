@@ -4,7 +4,6 @@
 //!
 //! Currently, OTEL metrics exporter only support GRPC connection via tonic on tokio runtime.
 
-use crate::transform::sink;
 use crate::{Error, OtlpPipeline};
 use async_trait::async_trait;
 use core::fmt;
@@ -452,7 +451,7 @@ async fn http_send_request(
     headers: Option<HashMap<String, String>>,
     collector_endpoint: Uri,
 ) -> Result<()> {
-    let req = sink(metrics);
+    let req: ExportMetricsServiceRequest = metrics.into();
     let mut buf = vec![];
     req.encode(&mut buf)
         .map_err::<crate::Error, _>(Into::into)?;
@@ -508,7 +507,7 @@ impl PushMetricsExporter for MetricsExporter {
             MetricsExporter::Tonic {
                 sender, metadata, ..
             } => {
-                let mut request = Request::new(sink(metrics));
+                let mut request = Request::new((&*metrics).into());
                 if let Some(metadata) = metadata {
                     for key_and_value in metadata.iter() {
                         match key_and_value {

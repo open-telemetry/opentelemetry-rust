@@ -2,6 +2,10 @@
 
 ## vNext
 
+### Added
+
+- Implement tonic metrics proto transformations (#1184)
+
 ### Fixed
 
 - Rename `traces` feature to the more standard `trace` (#1183)

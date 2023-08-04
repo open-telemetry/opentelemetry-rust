@@ -187,7 +187,6 @@ mod logs;
 mod metric;
 #[cfg(feature = "trace")]
 mod span;
-mod transform;
 
 pub use crate::exporter::Compression;
 pub use crate::exporter::ExportConfig;
@@ -217,8 +216,6 @@ pub use crate::exporter::{
 };
 
 use opentelemetry_sdk::export::ExportError;
-#[cfg(feature = "metrics")]
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 #[cfg(feature = "grpc-sys")]
 pub use crate::exporter::grpcio::{Credentials, GrpcioConfig, GrpcioExporterBuilder};
@@ -389,11 +386,4 @@ pub enum Protocol {
     // HttpJson,
     /// HTTP protocol with binary protobuf
     HttpBinary,
-}
-
-#[cfg(feature = "metrics")]
-pub(crate) fn to_nanos(time: SystemTime) -> u64 {
-    time.duration_since(UNIX_EPOCH)
-        .unwrap_or_else(|_| Duration::from_secs(0))
-        .as_nanos() as u64
 }
