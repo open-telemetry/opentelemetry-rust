@@ -16,9 +16,6 @@ edition = "2021"
 rust-version = "1.60"
 autotests = false
 
-[lib]
-doctest = false
-
 [[test]]
 name = "smoke"
 path = "tests/smoke.rs"

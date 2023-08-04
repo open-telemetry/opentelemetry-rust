@@ -8,7 +8,7 @@
 //! Prometheus, etc.) sending to multiple open-source or commercial back-ends.
 //!
 //! Currently, this crate only support sending tracing data or metrics in OTLP
-//! via grpc and http(in binary format). Supports for other format and protocol
+//! via grpc and http (in binary format). Supports for other format and protocol
 //! will be added in the future. The details of what's currently offering in this
 //! crate can be found in this doc.
 //!
@@ -28,22 +28,25 @@
 //! `new_pipeline().metrics()` respectively.
 //!
 //! ```no_run
-//! use opentelemetry::trace::Tracer;
+//! # #[cfg(all(feature = "trace", feature = "grpc-tonic"))]
+//! # {
+//! use opentelemetry_api::trace::Tracer;
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 //!     // First, create a OTLP exporter builder. Configure it as you need.
 //!     let otlp_exporter = opentelemetry_otlp::new_exporter().tonic();
 //!     // Then pass it into pipeline builder
 //!     let tracer = opentelemetry_otlp::new_pipeline()
-//!             .tracing()
-//!             .with_exporter(otlp_exporter)
-//!             .install_simple()?;
+//!         .tracing()
+//!         .with_exporter(otlp_exporter)
+//!         .install_simple()?;
 //!
 //!     tracer.in_span("doing_work", |cx| {
 //!         // Traced app logic here...
 //!     });
 //!
 //!     Ok(())
+//!   # }
 //! }
 //! ```
 //!
@@ -57,17 +60,20 @@
 //!
 //! ```toml
 //! [dependencies]
-//! opentelemetry = { version = "*", features = ["async-std"] }
+//! opentelemetry_sdk = { version = "*", features = ["async-std"] }
 //! opentelemetry-otlp = { version = "*", features = ["grpc-sys"] }
 //! ```
 //!
 //! ```no_run
-//! # fn main() -> Result<(), opentelemetry::trace::TraceError> {
+//! # #[cfg(all(feature = "trace", feature = "grpc-tonic"))]
+//! # {
+//! # fn main() -> Result<(), opentelemetry_api::trace::TraceError> {
 //! let tracer = opentelemetry_otlp::new_pipeline()
 //!     .tracing()
 //!     .with_exporter(opentelemetry_otlp::new_exporter().tonic())
-//!     .install_batch(opentelemetry::runtime::AsyncStd)?;
+//!     .install_batch(opentelemetry_sdk::runtime::AsyncStd)?;
 //! # Ok(())
+//! # }
 //! # }
 //! ```
 //!
@@ -87,13 +93,16 @@
 //! ```no_run
 //! use opentelemetry_api::{KeyValue, trace::Tracer};
 //! use opentelemetry_sdk::{trace::{self, RandomIdGenerator, Sampler}, Resource};
-//! use opentelemetry_sdk::metrics::{selectors, PushController};
-//! use opentelemetry_sdk::util::tokio_interval_stream;
+//! # #[cfg(feature = "metrics")]
+//! use opentelemetry_sdk::metrics::reader::{DefaultAggregationSelector, DefaultTemporalitySelector};
 //! use opentelemetry_otlp::{Protocol, WithExportConfig, ExportConfig};
 //! use std::time::Duration;
+//! # #[cfg(feature = "grpc-tonic")]
 //! use tonic::metadata::*;
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+//!     # #[cfg(all(feature = "trace", feature = "grpc-tonic"))]
+//!     # let tracer = {
 //!     let mut map = MetadataMap::with_capacity(3);
 //!
 //!     map.insert("x-host", "example.com".parse().unwrap());
@@ -118,8 +127,12 @@
 //!                 .with_max_events_per_span(16)
 //!                 .with_resource(Resource::new(vec![KeyValue::new("service.name", "example")])),
 //!         )
-//!         .install_batch(opentelemetry::runtime::Tokio)?;
+//!         .install_batch(opentelemetry_sdk::runtime::Tokio)?;
+//!         # tracer
+//!     # };
 //!
+//!     # #[cfg(all(feature = "metrics", feature = "grpc-tonic"))]
+//!     # {
 //!     let export_config = ExportConfig {
 //!         endpoint: "http://localhost:4317".to_string(),
 //!         timeout: Duration::from_secs(3),
@@ -127,22 +140,27 @@
 //!     };
 //!
 //!     let meter = opentelemetry_otlp::new_pipeline()
-//!         .metrics(tokio::spawn, tokio_interval_stream)
+//!         .metrics(opentelemetry_sdk::runtime::Tokio)
 //!         .with_exporter(
 //!             opentelemetry_otlp::new_exporter()
 //!                 .tonic()
 //!                 .with_export_config(export_config),
 //!                 // can also config it using with_* functions like the tracing part above.
 //!         )
-//!         .with_stateful(true)
+//!         .with_resource(Resource::new(vec![KeyValue::new("service.name", "example")]))
 //!         .with_period(Duration::from_secs(3))
 //!         .with_timeout(Duration::from_secs(10))
-//!         .with_aggregator_selector(selectors::simple::Selector::Exact)
+//!         .with_aggregation_selector(DefaultAggregationSelector::new())
+//!         .with_temporality_selector(DefaultTemporalitySelector::new())
 //!         .build();
+//!     # }
 //!
+//! # #[cfg(all(feature = "trace", feature = "grpc-tonic"))]
+//! # {
 //!     tracer.in_span("doing_work", |cx| {
 //!         // Traced app logic here...
 //!     });
+//! # }
 //!
 //!     Ok(())
 //! }
@@ -206,6 +224,7 @@ pub use crate::metric::{
 #[cfg(feature = "logs")]
 pub use crate::logs::{
     LogExporter, LogExporterBuilder, OtlpLogPipeline, OTEL_EXPORTER_OTLP_LOGS_COMPRESSION,
+    OTEL_EXPORTER_OTLP_LOGS_ENDPOINT, OTEL_EXPORTER_OTLP_LOGS_TIMEOUT,
 };
 
 pub use crate::exporter::{
@@ -219,8 +238,10 @@ use opentelemetry_sdk::export::ExportError;
 
 #[cfg(feature = "grpc-sys")]
 pub use crate::exporter::grpcio::{Credentials, GrpcioConfig, GrpcioExporterBuilder};
+
 #[cfg(feature = "http-proto")]
 pub use crate::exporter::http::HttpExporterBuilder;
+
 #[cfg(feature = "grpc-tonic")]
 pub use crate::exporter::tonic::{TonicConfig, TonicExporterBuilder};
 
@@ -270,8 +291,8 @@ impl OtlpExporterPipeline {
 ///
 /// ```no_run
 /// fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-///     let tracing_builder = opentelemetry_otlp::new_pipeline()
-///                    .tracing();
+///     # #[cfg(feature = "trace")]
+///     let tracing_builder = opentelemetry_otlp::new_pipeline().tracing();
 ///
 ///     Ok(())
 /// }
@@ -323,7 +344,7 @@ pub enum Error {
     /// Http requests failed.
     #[cfg(feature = "http-proto")]
     #[error("http request failed with {0}")]
-    RequestFailed(#[from] http::Error),
+    RequestFailed(#[from] opentelemetry_http::HttpError),
 
     /// The provided value is invalid in HTTP headers.
     #[cfg(feature = "http-proto")]
