@@ -11,7 +11,6 @@ use crate::exporter::tonic::TonicExporterBuilder;
 use crate::{Error, Protocol};
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 use std::time::Duration;
@@ -129,8 +128,9 @@ fn default_endpoint(protocol: Protocol) -> String {
 }
 
 /// default user-agent headers
-fn default_headers() -> HashMap<String, String> {
-    let mut headers = HashMap::new();
+#[cfg(any(feature = "grpc-tonic", feature = "grpc-sys", feature = "http-proto"))]
+fn default_headers() -> std::collections::HashMap<String, String> {
+    let mut headers = std::collections::HashMap::new();
     headers.insert(
         "User-Agent".to_string(),
         format!("OTel OTLP Exporter Rust/{}", env!("CARGO_PKG_VERSION")),
@@ -170,11 +170,14 @@ impl HasExportConfig for HttpExporterBuilder {
 /// This trait will be implemented for every struct that implemented [`HasExportConfig`] trait.
 ///
 /// ## Examples
-/// ```no_run
+/// ```
+/// # #[cfg(all(feature = "trace", feature = "grpc-tonic"))]
+/// # {
 /// use crate::opentelemetry_otlp::WithExportConfig;
 /// let exporter_builder = opentelemetry_otlp::new_exporter()
-///                         .tonic()
-///                         .with_endpoint("http://localhost:7201");
+///     .tonic()
+///     .with_endpoint("http://localhost:7201");
+/// # }
 /// ```
 pub trait WithExportConfig {
     /// Set the address of the OTLP collector. If not set, the default address is used.
