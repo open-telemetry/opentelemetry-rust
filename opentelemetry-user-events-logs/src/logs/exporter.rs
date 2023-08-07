@@ -356,10 +356,3 @@ impl opentelemetry_sdk::export::logs::LogExporter for UserEventsExporter {
         false
     }
 }
-
-#[cfg(target_os = "linux")]
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn validate_user_events_output() {}
-}
