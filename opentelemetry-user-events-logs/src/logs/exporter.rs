@@ -1,10 +1,10 @@
 use async_trait::async_trait;
 use eventheader::{FieldFormat, Level, Opcode};
 use eventheader_dynamic::EventBuilder;
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
-use std::{borrow::Cow};
 
 use opentelemetry_api::{logs::AnyValue, logs::Severity, Key};
 use std::{cell::RefCell, str, time::SystemTime};
@@ -246,7 +246,6 @@ impl UserEventsExporter {
                     cs_b_count += 1;
                     is_severity_text_present = true;
                 }
-                print!("cs_b_count {}", cs_b_count);
                 if cs_b_count > 0 {
                     eb.add_struct("PartB", cs_b_count, 0);
                     {
