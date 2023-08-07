@@ -1,10 +1,10 @@
 use async_trait::async_trait;
 use eventheader::{FieldFormat, Level, Opcode};
 use eventheader_dynamic::EventBuilder;
-use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
+use std::{borrow::Cow};
 
 use opentelemetry_api::{logs::AnyValue, logs::Severity, Key};
 use std::{cell::RefCell, str, time::SystemTime};
@@ -46,7 +46,6 @@ impl ExporterConfig {
         }
     }
 }
-
 pub(crate) struct UserEventsExporter {
     provider: Arc<eventheader_dynamic::Provider>,
     exporter_config: ExporterConfig,
@@ -241,13 +240,13 @@ impl UserEventsExporter {
                     is_body_present = true;
                 }
                 if level != Level::Invalid {
-                    cs_b_count += cs_b_count;
+                    cs_b_count += 1;
                 }
                 if log_data.record.severity_text.is_some() {
-                    cs_b_count += cs_b_count;
+                    cs_b_count += 1;
                     is_severity_text_present = true;
                 }
-
+                print!("cs_b_count {}", cs_b_count);
                 if cs_b_count > 0 {
                     eb.add_struct("PartB", cs_b_count, 0);
                     {
@@ -357,4 +356,11 @@ impl opentelemetry_sdk::export::logs::LogExporter for UserEventsExporter {
         };
         false
     }
+}
+
+#[cfg(target_os = "linux")]
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn validate_user_events_output() {}
 }
