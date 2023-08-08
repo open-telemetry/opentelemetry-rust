@@ -46,7 +46,6 @@ impl ExporterConfig {
         }
     }
 }
-
 pub(crate) struct UserEventsExporter {
     provider: Arc<eventheader_dynamic::Provider>,
     exporter_config: ExporterConfig,
@@ -241,13 +240,12 @@ impl UserEventsExporter {
                     is_body_present = true;
                 }
                 if level != Level::Invalid {
-                    cs_b_count += cs_b_count;
+                    cs_b_count += 1;
                 }
                 if log_data.record.severity_text.is_some() {
-                    cs_b_count += cs_b_count;
+                    cs_b_count += 1;
                     is_severity_text_present = true;
                 }
-
                 if cs_b_count > 0 {
                     eb.add_struct("PartB", cs_b_count, 0);
                     {
