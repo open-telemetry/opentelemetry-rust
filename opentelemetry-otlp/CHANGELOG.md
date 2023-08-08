@@ -5,6 +5,7 @@
 ## Added
 
 - Add `build_{signal}_exporter` methods to client builders (#1187)
+- Add grpcio metrics exporter
 
 ## v0.13.0
 

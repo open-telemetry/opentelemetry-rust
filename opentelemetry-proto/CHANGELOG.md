@@ -10,6 +10,11 @@
 
 - Rename `traces` feature to the more standard `trace` (#1183)
 
+### Changed
+
+- Switch to `prost` for `grpcio` protos.
+  The `gen-protoc` feature is accordingly renamed to `gen-grpcio`.
+
 ## v0.3.0
 
 ### Updated

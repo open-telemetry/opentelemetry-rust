@@ -11,17 +11,14 @@
 //! The following is the full list of currently supported features:
 //!
 //! ## Signals
-//! - `trace`: generate types that used in traces. Currently supports `gen-tonic` or `gen-protoc`.
+//! - `trace`: generate types that used in traces. Currently supports `gen-tonic` or `gen-grpcio`.
 //! - `metrics`: generate types that used in metrics. Currently supports `gen-tonic`.
 //! - `logs`: generate types that used in logs. Currently supports `gen-tonic`.
-//! - `zpages`: generate types that used in zPages. Currently only tracez related types will be generated. Currently supports `gen-tonic` or `gen-protoc`.
+//! - `zpages`: generate types that used in zPages. Currently only tracez related types will be generated. Currently supports `gen-tonic` or `gen-grpcio`.
 //!
 //! ## Creates used to generate files
 //! - `gen-tonic`: generate rs files using [tonic](https://github.com/hyperium/tonic) and [prost](https://github.com/tokio-rs/prost).
-//! - `gen-protoc`: generate rs files using [grpcio](https://github.com/tikv/grpc-rs).
-//!
-//! ## Additional configurations
-//! - `with-serde`: add serde annotations to generated types. Only applicable to `gen-protoc`.
+//! - `gen-grpcio`: generate rs files using [grpcio](https://github.com/tikv/grpc-rs).
 //!
 //! ## Misc
 //! - `full`: enabled all features above.
@@ -35,7 +32,7 @@
 #[doc(hidden)]
 mod proto;
 
-#[cfg(feature = "gen-protoc")]
+#[cfg(feature = "gen-grpcio")]
 pub use proto::grpcio;
 
 #[cfg(feature = "gen-tonic-messages")]

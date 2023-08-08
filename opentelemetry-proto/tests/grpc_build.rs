@@ -1,5 +1,3 @@
-use protobuf_codegen::Customize;
-use protoc_grpcio::compile_grpc_protos;
 use std::collections::HashMap;
 use std::path::Path;
 use tempfile::TempDir;
@@ -38,20 +36,14 @@ const TONIC_INCLUDES: &[&str] = &["src/proto/opentelemetry-proto"];
 fn build_grpc() {
     let before_build = build_content_map(GRPCIO_OUT_DIR);
 
-    let out_dir = TempDir::new().expect("failed to create temp dir to store the generated files");
-
-    compile_grpc_protos(
+    grpcio_compiler::prost_codegen::compile_protos(
         GRPCIO_PROTO_FILES,
         GRPCIO_INCLUDES,
-        out_dir.path(),
-        Some(Customize {
-            expose_fields: Some(true),
-            serde_derive: Some(true),
-            ..Default::default()
-        }),
+        GRPCIO_OUT_DIR,
     )
-    .expect("error generating protobuf");
-    let after_build = build_content_map(out_dir.path());
+    .expect("cannot compile protobuf using grpcio");
+
+    let after_build = build_content_map(GRPCIO_OUT_DIR);
     ensure_files_are_same(before_build, after_build, GRPCIO_OUT_DIR);
 }
 
@@ -97,6 +89,8 @@ fn ensure_files_are_same(
     after_build: HashMap<String, String>,
     target_dir: &'static str,
 ) {
+    dbg!(&before_build.keys());
+    dbg!(&after_build.keys());
     if after_build == before_build {
         return;
     }

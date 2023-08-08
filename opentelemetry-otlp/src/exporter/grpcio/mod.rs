@@ -16,6 +16,9 @@ mod logs;
 #[cfg(feature = "trace")]
 mod trace;
 
+#[cfg(feature = "metrics")]
+mod metrics;
+
 /// Configuration of grpcio
 #[derive(Debug)]
 #[non_exhaustive]
@@ -89,6 +92,15 @@ impl From<Compression> for grpcio::CompressionAlgorithms {
 /// // Create a span exporter you can use to when configuring tracer providers
 /// # #[cfg(feature="trace")]
 /// let span_exporter = opentelemetry_otlp::new_exporter().grpcio().build_span_exporter()?;
+///
+/// // Create a metrics exporter you can use when configuring meter providers
+/// # #[cfg(feature="metrics")]
+/// let metrics_exporter = opentelemetry_otlp::new_exporter()
+///     .grpcio()
+///     .build_metrics_exporter(
+///         Box::new(DefaultAggregationSelector::new()),
+///         Box::new(DefaultTemporalitySelector::new()),
+///     )?;
 ///
 /// // Create a log exporter you can use when configuring logger providers
 /// # #[cfg(feature="logs")]
@@ -169,8 +181,9 @@ impl GrpcioExporterBuilder {
     pub fn build_span_exporter(
         mut self,
     ) -> Result<crate::SpanExporter, opentelemetry_api::trace::TraceError> {
+        use opentelemetry_proto::grpcio::collector::trace::v1::TraceServiceClient;
+
         use self::trace::GrpcioTraceClient;
-        use opentelemetry_proto::grpcio::trace_service_grpc::TraceServiceClient;
 
         let channel = self.build_channel()?;
 
@@ -189,7 +202,7 @@ impl GrpcioExporterBuilder {
         mut self,
     ) -> Result<crate::logs::LogExporter, opentelemetry_api::logs::LogError> {
         use self::logs::GrpcioLogsClient;
-        use opentelemetry_proto::grpcio::logs_service_grpc::LogsServiceClient;
+        use opentelemetry_proto::grpcio::collector::logs::v1::LogsServiceClient;
 
         let channel = self.build_channel()?;
 
@@ -200,6 +213,31 @@ impl GrpcioExporterBuilder {
         );
 
         Ok(crate::logs::LogExporter::new(client))
+    }
+
+    #[cfg(feature = "metrics")]
+    /// Builds a new metrics exporter with the given configuration
+    pub fn build_metrics_exporter(
+        mut self,
+        aggregation_selector: Box<dyn opentelemetry_sdk::metrics::reader::AggregationSelector>,
+        temporality_selector: Box<dyn opentelemetry_sdk::metrics::reader::TemporalitySelector>,
+    ) -> opentelemetry_api::metrics::Result<crate::MetricsExporter> {
+        use self::metrics::GrpcioMetricsClient;
+        use opentelemetry_proto::grpcio::collector::metrics::v1::MetricsServiceClient;
+
+        let channel = self.build_channel()?;
+
+        let client = GrpcioMetricsClient::new(
+            MetricsServiceClient::new(channel),
+            self.exporter_config.timeout,
+            self.grpcio_config.headers.unwrap_or_default(),
+        );
+
+        Ok(crate::MetricsExporter::new(
+            client,
+            temporality_selector,
+            aggregation_selector,
+        ))
     }
 }
 
