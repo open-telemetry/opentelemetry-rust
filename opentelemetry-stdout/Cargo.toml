@@ -22,6 +22,7 @@ logs = ["opentelemetry_api/logs", "opentelemetry_sdk/logs", "async-trait", "this
 
 [dependencies]
 async-trait = { version = "0.1", optional = true }
+chrono = "0.4"
 thiserror = { version = "1", optional = true }
 futures-util = { version = "0.3", optional = true, default-features = false }
 opentelemetry_api = { version = "0.20", path = "../opentelemetry-api", default_features = false }

@@ -2,11 +2,10 @@ use std::{
     borrow::Cow,
     collections::BTreeMap,
     hash::{Hash, Hasher},
-    time::{SystemTime, UNIX_EPOCH},
 };
 
 use ordered_float::OrderedFloat;
-use serde::{Serialize, Serializer};
+use serde::Serialize;
 
 #[derive(Debug, Serialize, Clone, Hash, Eq, PartialEq)]
 pub(crate) struct AttributeSet(pub BTreeMap<Key, Value>);
@@ -237,16 +236,4 @@ impl From<opentelemetry_sdk::Scope> for Scope {
             dropped_attributes_count: 0,
         }
     }
-}
-
-pub(crate) fn as_unix_nano<S>(time: &SystemTime, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    let nanos = time
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_nanos();
-
-    serializer.serialize_u128(nanos)
 }

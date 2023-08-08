@@ -1,3 +1,4 @@
+use chrono::{LocalResult, TimeZone, Utc};
 use opentelemetry_api::{global, metrics::MetricsError};
 use opentelemetry_sdk::metrics::data;
 use serde::{Serialize, Serializer};
@@ -223,10 +224,10 @@ impl<T: Into<DataValue> + Copy> From<&data::Sum<T>> for Sum {
 #[serde(rename_all = "camelCase")]
 struct DataPoint {
     attributes: AttributeSet,
-    #[serde(serialize_with = "as_opt_unix_nano")]
-    start_time_unix_nano: Option<SystemTime>,
-    #[serde(serialize_with = "as_opt_unix_nano")]
-    time_unix_nano: Option<SystemTime>,
+    #[serde(serialize_with = "as_opt_human_readable")]
+    start_time: Option<SystemTime>,
+    #[serde(serialize_with = "as_opt_human_readable")]
+    time: Option<SystemTime>,
     value: DataValue,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     exemplars: Vec<Exemplar>,
@@ -242,8 +243,8 @@ impl<T: Into<DataValue> + Copy> From<&data::DataPoint<T>> for DataPoint {
     fn from(value: &data::DataPoint<T>) -> Self {
         DataPoint {
             attributes: AttributeSet::from(&value.attributes),
-            start_time_unix_nano: value.start_time,
-            time_unix_nano: value.time,
+            start_time: value.start_time,
+            time: value.time,
             value: value.value.into(),
             exemplars: value.exemplars.iter().map(Into::into).collect(),
             flags: 0,
@@ -271,10 +272,10 @@ impl<T: Into<DataValue> + Copy> From<&data::Histogram<T>> for Histogram {
 #[serde(rename_all = "camelCase")]
 struct HistogramDataPoint {
     attributes: AttributeSet,
-    #[serde(serialize_with = "as_unix_nano")]
-    start_time_unix_nano: SystemTime,
-    #[serde(serialize_with = "as_unix_nano")]
-    time_unix_nano: SystemTime,
+    #[serde(serialize_with = "as_human_readable")]
+    start_time: SystemTime,
+    #[serde(serialize_with = "as_human_readable")]
+    time: SystemTime,
     count: u64,
     explicit_bounds: Vec<f64>,
     bucket_counts: Vec<u64>,
@@ -289,8 +290,8 @@ impl<T: Into<DataValue> + Copy> From<&data::HistogramDataPoint<T>> for Histogram
     fn from(value: &data::HistogramDataPoint<T>) -> Self {
         HistogramDataPoint {
             attributes: AttributeSet::from(&value.attributes),
-            start_time_unix_nano: value.start_time,
-            time_unix_nano: value.time,
+            start_time: value.start_time,
+            time: value.time,
             count: value.count,
             explicit_bounds: value.bounds.clone(),
             bucket_counts: value.bucket_counts.clone(),
@@ -307,32 +308,38 @@ impl<T: Into<DataValue> + Copy> From<&data::HistogramDataPoint<T>> for Histogram
 #[serde(rename_all = "camelCase")]
 struct Exemplar {
     filtered_attributes: Vec<KeyValue>,
-    #[serde(serialize_with = "as_unix_nano")]
-    time_unix_nano: SystemTime,
+    #[serde(serialize_with = "as_human_readable")]
+    time: SystemTime,
     value: DataValue,
     span_id: String,
     trace_id: String,
 }
 
-fn as_unix_nano<S>(time: &SystemTime, serializer: S) -> Result<S::Ok, S::Error>
+fn as_human_readable<S>(time: &SystemTime, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
-    let nanos = time
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_nanos();
+    let duration_since_epoch = time.duration_since(UNIX_EPOCH).unwrap_or_default();
 
-    serializer.serialize_u128(nanos)
+    match Utc.timestamp_opt(
+        duration_since_epoch.as_secs() as i64,
+        duration_since_epoch.subsec_nanos(),
+    ) {
+        LocalResult::Single(datetime) => {
+            let human_readable_date = datetime.format("%Y-%m-%d %H:%M:%S.%3f").to_string();
+            serializer.serialize_str(&human_readable_date)
+        }
+        _ => Err(serde::ser::Error::custom("Invalid Timestamp.")),
+    }
 }
 
-fn as_opt_unix_nano<S>(time: &Option<SystemTime>, serializer: S) -> Result<S::Ok, S::Error>
+fn as_opt_human_readable<S>(time: &Option<SystemTime>, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
     match time {
         None => serializer.serialize_none(),
-        Some(time) => as_unix_nano(time, serializer),
+        Some(time) => as_human_readable(time, serializer),
     }
 }
 
@@ -340,7 +347,7 @@ impl<T: Into<DataValue> + Copy> From<&data::Exemplar<T>> for Exemplar {
     fn from(value: &data::Exemplar<T>) -> Self {
         Exemplar {
             filtered_attributes: value.filtered_attributes.iter().map(Into::into).collect(),
-            time_unix_nano: value.time,
+            time: value.time,
             value: value.value.into(),
             span_id: format!("{:016x}", u64::from_be_bytes(value.span_id)),
             trace_id: format!("{:032x}", u128::from_be_bytes(value.trace_id)),
