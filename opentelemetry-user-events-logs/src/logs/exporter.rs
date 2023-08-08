@@ -351,10 +351,10 @@ impl opentelemetry_sdk::export::logs::LogExporter for UserEventsExporter {
         let es = self
             .provider
             .find_set(self.get_severity_level(level), keyword);
-        match es {
+        let res = match es {
             Some(x) => x.enabled(),
             _ => false,
         };
-        false
+        res
     }
 }
