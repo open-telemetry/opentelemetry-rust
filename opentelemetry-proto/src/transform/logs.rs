@@ -87,10 +87,7 @@ pub mod tonic {
 
             LogRecord {
                 time_unix_nano: log_record.timestamp.map(to_nanos).unwrap_or_default(),
-                observed_time_unix_nano: log_record
-                    .observed_timestamp
-                    .map(to_nanos)
-                    .unwrap_or_default(),
+                observed_time_unix_nano: to_nanos(log_record.observed_timestamp),
                 severity_number: severity_number.into(),
                 severity_text: log_record.severity_text.map(Into::into).unwrap_or_default(),
                 body: log_record.body.map(Into::into),
@@ -124,7 +121,11 @@ pub mod tonic {
                     attributes: resource_attributes(&log_data.resource).0,
                     dropped_attributes_count: 0,
                 }),
-                schema_url: "".to_string(),
+                schema_url: log_data
+                    .resource
+                    .schema_url()
+                    .map(Into::into)
+                    .unwrap_or_default(),
                 scope_logs: vec![ScopeLogs {
                     schema_url: log_data
                         .instrumentation
@@ -271,7 +272,11 @@ pub mod grpcio {
                     dropped_attributes_count: 0,
                     ..Default::default()
                 }),
-                schema_url: "".to_string(),
+                schema_url: log_data
+                    .resource
+                    .schema_url()
+                    .map(Into::into)
+                    .unwrap_or_default(),
                 scope_logs: RepeatedField::from_vec(vec![ScopeLogs {
                     schema_url: log_data
                         .instrumentation

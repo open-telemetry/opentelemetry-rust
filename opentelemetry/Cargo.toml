@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry"
-version = "0.19.0"
+version = "0.20.0"
 description = "A metrics collection and distributed tracing framework"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust"
 repository = "https://github.com/open-telemetry/opentelemetry-rust"
@@ -21,17 +21,18 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-opentelemetry_api = { version = "0.19", path = "../opentelemetry-api" }
-opentelemetry_sdk = { version = "0.19", path = "../opentelemetry-sdk" }
+opentelemetry_api = { version = "0.20", path = "../opentelemetry-api" }
+opentelemetry_sdk = { version = "0.20", path = "../opentelemetry-sdk" }
 
 [dev-dependencies]
-opentelemetry-stdout = { path = "../opentelemetry-stdout" }
+opentelemetry-stdout = { version = "0.1", path = "../opentelemetry-stdout", features = ["trace"] }
 
 [features]
 default = ["trace"]
-trace = ["opentelemetry_api/trace", "opentelemetry_sdk/trace", "opentelemetry-stdout/trace"]
-metrics = ["opentelemetry_api/metrics", "opentelemetry_sdk/metrics", "opentelemetry-stdout/metrics"]
+trace = ["opentelemetry_api/trace", "opentelemetry_sdk/trace"]
+metrics = ["opentelemetry_api/metrics", "opentelemetry_sdk/metrics"]
 logs = ["opentelemetry_sdk/logs"]
+logs_level_enabled = ["logs"]
 testing = ["opentelemetry_api/testing", "opentelemetry_sdk/testing"]
 rt-tokio = ["opentelemetry_sdk/rt-tokio"]
 rt-tokio-current-thread = ["opentelemetry_sdk/rt-tokio-current-thread"]

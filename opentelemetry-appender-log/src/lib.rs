@@ -1,6 +1,6 @@
 use log::{Level, Metadata, Record};
 use opentelemetry_api::logs::{AnyValue, LogRecordBuilder, Logger, LoggerProvider, Severity};
-use std::time::SystemTime;
+use std::borrow::Cow;
 
 pub struct OpenTelemetryLogBridge<P, L>
 where
@@ -17,7 +17,12 @@ where
     L: Logger + Send + Sync,
 {
     fn enabled(&self, _metadata: &Metadata) -> bool {
-        // TODO: This should be dynamic instead of the current hardcoded value.
+        #[cfg(feature = "logs_level_enabled")]
+        return self.logger.event_enabled(
+            map_severity_to_otel_severity(_metadata.level()),
+            _metadata.target(),
+        );
+        #[cfg(not(feature = "logs_level_enabled"))]
         true
     }
 
@@ -26,8 +31,9 @@ where
             self.logger.emit(
                 LogRecordBuilder::new()
                     .with_severity_number(map_severity_to_otel_severity(record.level()))
-                    .with_observed_timestamp(SystemTime::now())
                     .with_severity_text(record.level().as_str())
+                    // Not populating ObservedTimestamp, instead relying on OpenTelemetry
+                    // API to populate it with current time.
                     .with_body(AnyValue::from(record.args().to_string()))
                     .build(),
             );
@@ -44,7 +50,12 @@ where
 {
     pub fn new(provider: &P) -> Self {
         OpenTelemetryLogBridge {
-            logger: provider.logger("opentelemetry-log-appender"),
+            logger: provider.versioned_logger(
+                "opentelemetry-log-appender",
+                Some(Cow::Borrowed(env!("CARGO_PKG_VERSION"))),
+                None,
+                None,
+            ),
             _phantom: Default::default(),
         }
     }

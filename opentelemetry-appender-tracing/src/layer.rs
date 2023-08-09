@@ -1,4 +1,4 @@
-use std::vec;
+use std::borrow::Cow;
 
 use opentelemetry_api::logs::{LogRecord, Logger, LoggerProvider, Severity};
 
@@ -78,7 +78,12 @@ where
 {
     pub fn new(provider: &P) -> Self {
         OpenTelemetryTracingBridge {
-            logger: provider.logger(INSTRUMENTATION_LIBRARY_NAME),
+            logger: provider.versioned_logger(
+                INSTRUMENTATION_LIBRARY_NAME,
+                Some(Cow::Borrowed(env!("CARGO_PKG_VERSION"))),
+                None,
+                None,
+            ),
             _phantom: Default::default(),
         }
     }
@@ -100,11 +105,25 @@ where
         log_record.severity_number = Some(map_severity_to_otel_severity(meta.level().as_str()));
         log_record.severity_text = Some(meta.level().to_string().into());
 
+        // Not populating ObservedTimestamp, instead relying on OpenTelemetry
+        // API to populate it with current time.
+
         let mut visitor = EventVisitor {
             log_record: &mut log_record,
         };
         event.record(&mut visitor);
         self.logger.emit(log_record);
+    }
+
+    #[cfg(feature = "logs_level_enabled")]
+    fn event_enabled(
+        &self,
+        _event: &tracing_core::Event<'_>,
+        _ctx: tracing_subscriber::layer::Context<'_, S>,
+    ) -> bool {
+        let severity = map_severity_to_otel_severity(_event.metadata().level().as_str());
+        self.logger
+            .event_enabled(severity, _event.metadata().target())
     }
 }
 

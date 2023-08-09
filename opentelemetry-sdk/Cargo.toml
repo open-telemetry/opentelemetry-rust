@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry_sdk"
-version = "0.19.0"
+version = "0.20.0"
 description = "The SDK for the OpenTelemetry metrics collection and distributed tracing framework"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust"
 repository = "https://github.com/open-telemetry/opentelemetry-rust"
@@ -10,8 +10,8 @@ edition = "2021"
 rust-version = "1.60"
 
 [dependencies]
-opentelemetry_api = { version = "0.19", path = "../opentelemetry-api/" }
-opentelemetry-http = { version = "0.8", path = "../opentelemetry-http", optional = true }
+opentelemetry_api = { version = "0.20", path = "../opentelemetry-api/" }
+opentelemetry-http = { version = "0.9", path = "../opentelemetry-http", optional = true }
 async-std = { version = "1.6", features = ["unstable"], optional = true }
 async-trait = { version = "0.1", optional = true }
 crossbeam-channel = { version = "0.5", optional = true }
@@ -45,6 +45,7 @@ default = ["trace"]
 trace = ["opentelemetry_api/trace", "crossbeam-channel", "rand", "async-trait", "percent-encoding"]
 jaeger_remote_sampler = ["trace", "opentelemetry-http", "http", "serde", "serde_json", "url"]
 logs = ["opentelemetry_api/logs", "crossbeam-channel", "async-trait", "serde_json"]
+logs_level_enabled = ["logs", "opentelemetry_api/logs_level_enabled"]
 metrics = ["opentelemetry_api/metrics", "regex", "async-trait"]
 testing = ["opentelemetry_api/testing", "trace", "metrics", "logs", "rt-async-std", "rt-tokio", "rt-tokio-current-thread", "tokio/macros", "tokio/rt-multi-thread"]
 rt-tokio = ["tokio", "tokio-stream"]

@@ -1,7 +1,7 @@
-#[cfg(any(feature = "traces", feature = "logs"))]
+#[cfg(any(feature = "trace", feature = "logs", feature = "metrics"))]
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-#[cfg(any(feature = "traces", feature = "logs"))]
+#[cfg(any(feature = "trace", feature = "logs", feature = "metrics"))]
 pub(crate) fn to_nanos(time: SystemTime) -> u64 {
     time.duration_since(UNIX_EPOCH)
         .unwrap_or_else(|_| Duration::from_secs(0))
@@ -14,19 +14,18 @@ pub mod tonic {
         any_value, AnyValue, ArrayValue, InstrumentationScope, KeyValue,
     };
     use opentelemetry_api::{Array, Value};
-    use opentelemetry_sdk::trace::EvictedHashMap;
     use std::borrow::Cow;
 
-    #[cfg(any(feature = "traces", feature = "logs"))]
+    #[cfg(any(feature = "trace", feature = "logs"))]
     use opentelemetry_sdk::Resource;
 
     impl From<opentelemetry_sdk::InstrumentationLibrary> for InstrumentationScope {
         fn from(library: opentelemetry_sdk::InstrumentationLibrary) -> Self {
             InstrumentationScope {
                 name: library.name.into_owned(),
-                attributes: Vec::new(),
-                version: library.version.unwrap_or(Cow::Borrowed("")).to_string(),
-                dropped_attributes_count: 0,
+                version: library.version.map(Cow::into_owned).unwrap_or_default(),
+                attributes: Attributes::from(library.attributes).0,
+                ..Default::default()
             }
         }
     }
@@ -35,13 +34,13 @@ pub mod tonic {
         fn from(library: &opentelemetry_sdk::InstrumentationLibrary) -> Self {
             InstrumentationScope {
                 name: library.name.to_string(),
-                attributes: Vec::new(),
                 version: library
                     .version
                     .as_ref()
                     .map(ToString::to_string)
                     .unwrap_or_default(),
-                dropped_attributes_count: 0,
+                attributes: Attributes::from(library.attributes.clone()).0,
+                ..Default::default()
             }
         }
     }
@@ -50,8 +49,9 @@ pub mod tonic {
     #[derive(Default)]
     pub struct Attributes(pub ::std::vec::Vec<crate::proto::tonic::common::v1::KeyValue>);
 
-    impl From<EvictedHashMap> for Attributes {
-        fn from(attributes: EvictedHashMap) -> Self {
+    #[cfg(feature = "trace")]
+    impl From<opentelemetry_sdk::trace::EvictedHashMap> for Attributes {
+        fn from(attributes: opentelemetry_sdk::trace::EvictedHashMap) -> Self {
             Attributes(
                 attributes
                     .into_iter()
@@ -122,7 +122,7 @@ pub mod tonic {
         ArrayValue { values }
     }
 
-    #[cfg(any(feature = "traces", feature = "logs"))]
+    #[cfg(any(feature = "trace", feature = "logs"))]
     pub(crate) fn resource_attributes(resource: &Resource) -> Attributes {
         resource
             .iter()
@@ -136,7 +136,7 @@ pub mod tonic {
 pub mod grpcio {
     use crate::proto::grpcio::common::{AnyValue, ArrayValue, InstrumentationScope, KeyValue};
     use opentelemetry_api::{Array, Value};
-    use opentelemetry_sdk::{trace::EvictedHashMap, Resource};
+    use opentelemetry_sdk::Resource;
     use protobuf::RepeatedField;
     #[cfg(feature = "logs")]
     use protobuf::SingularPtrField;
@@ -145,8 +145,9 @@ pub mod grpcio {
     impl From<opentelemetry_sdk::InstrumentationLibrary> for InstrumentationScope {
         fn from(library: opentelemetry_sdk::InstrumentationLibrary) -> Self {
             InstrumentationScope {
-                name: library.name.to_string(),
-                version: library.version.unwrap_or(Cow::Borrowed("")).to_string(),
+                name: library.name.into_owned(),
+                version: library.version.map(Cow::into_owned).unwrap_or_default(),
+                attributes: Attributes::from(library.attributes).0,
                 ..Default::default()
             }
         }
@@ -155,8 +156,9 @@ pub mod grpcio {
     #[derive(Default)]
     pub struct Attributes(pub ::protobuf::RepeatedField<crate::proto::grpcio::common::KeyValue>);
 
-    impl From<EvictedHashMap> for Attributes {
-        fn from(attributes: EvictedHashMap) -> Self {
+    #[cfg(feature = "trace")]
+    impl From<opentelemetry_sdk::trace::EvictedHashMap> for Attributes {
+        fn from(attributes: opentelemetry_sdk::trace::EvictedHashMap) -> Self {
             Attributes(RepeatedField::from_vec(
                 attributes
                     .into_iter()
@@ -236,7 +238,7 @@ pub mod grpcio {
         array_value
     }
 
-    #[cfg(any(feature = "traces", feature = "logs"))]
+    #[cfg(any(feature = "trace", feature = "logs"))]
     pub(crate) fn resource_attributes(resource: &Resource) -> Attributes {
         resource
             .iter()

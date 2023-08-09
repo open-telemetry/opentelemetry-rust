@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-proto"
-version = "0.2.0"
+version = "0.3.0"
 description = "Protobuf generated files and transformations."
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-proto"
 repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-proto"
@@ -26,7 +26,7 @@ path = "tests/grpc_build.rs"
 [features]
 default = []
 
-full = ["gen-tonic", "gen-protoc", "traces", "logs", "metrics", "zpages", "with-serde"]
+full = ["gen-tonic", "gen-protoc", "trace", "logs", "metrics", "zpages", "with-serde"]
 
 # crates used to generate rs files
 gen-tonic = ["gen-tonic-messages", "tonic/transport"]
@@ -34,10 +34,10 @@ gen-tonic-messages = ["tonic", "prost"]
 gen-protoc = ["grpcio", "protobuf", "futures"]
 
 # telemetry pillars and functions
-traces = []
-metrics = []
-logs = []
-zpages = ["traces"]
+trace = ["opentelemetry_api/trace", "opentelemetry_sdk/trace"]
+metrics = ["opentelemetry_api/metrics", "opentelemetry_sdk/metrics"]
+logs = ["opentelemetry_api/logs", "opentelemetry_sdk/logs"]
+zpages = ["trace"]
 
 # add ons
 with-serde = ["protobuf/with-serde", "serde"]
@@ -47,8 +47,8 @@ grpcio = { version = "0.12", optional = true }
 tonic = { version = "0.9.0", default-features = false, optional = true, features = ["codegen", "prost"] }
 prost = { version = "0.11.0", optional = true }
 protobuf = { version = "2.18", optional = true } # todo: update to 3.0 so we have docs for generated types.
-opentelemetry_api = { version = "0.19", default-features = false, features = ["trace", "metrics", "logs"], path = "../opentelemetry-api" }
-opentelemetry_sdk = { version = "0.19", default-features = false, features = ["trace", "metrics", "logs"], path = "../opentelemetry-sdk" }
+opentelemetry_api = { version = "0.20", default-features = false, path = "../opentelemetry-api" }
+opentelemetry_sdk = { version = "0.20", default-features = false, path = "../opentelemetry-sdk" }
 futures = { version = "0.3", default-features = false, features = ["std"], optional = true } # cannot use futures-* crates as it's in generated code when working with grpcio
 serde = { version = "1.0", optional = true }
 

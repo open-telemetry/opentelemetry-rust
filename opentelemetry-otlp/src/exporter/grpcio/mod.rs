@@ -1,9 +1,20 @@
-use crate::ExportConfig;
+use std::collections::HashMap;
+use std::sync::Arc;
+
+use grpcio::{Channel, ChannelBuilder, ChannelCredentialsBuilder, Environment};
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+
+use crate::exporter::Compression;
+use crate::ExportConfig;
 
 use super::default_headers;
+
+#[cfg(feature = "logs")]
+mod logs;
+
+#[cfg(feature = "trace")]
+mod trace;
 
 /// Configuration of grpcio
 #[derive(Debug)]
@@ -47,14 +58,6 @@ pub struct Credentials {
     pub key: String,
 }
 
-/// The compression algorithm to use when sending data.
-#[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
-#[derive(Clone, Copy, Debug)]
-pub enum Compression {
-    /// Compresses data using gzip.
-    Gzip,
-}
-
 impl From<Compression> for grpcio::CompressionAlgorithms {
     fn from(compression: Compression) -> Self {
         match compression {
@@ -63,9 +66,9 @@ impl From<Compression> for grpcio::CompressionAlgorithms {
     }
 }
 
-/// Build a trace exporter that uses [grpcio] as grpc layer and opentelemetry protocol.
+/// Configuration for the [grpcio] OTLP GRPC exporter.
 ///
-/// It allows users to
+/// It allows you to
 /// - setup credentials
 /// - add additional headers
 /// - config compression
@@ -73,6 +76,26 @@ impl From<Compression> for grpcio::CompressionAlgorithms {
 /// - set the number of GRPC worker threads to poll queues
 ///
 /// [grpcio]: https://github.com/tikv/grpc-rs
+///
+/// ## Examples
+///
+/// ```no_run
+/// # #[cfg(feature="metrics")]
+/// use opentelemetry_sdk::metrics::reader::{
+///     DefaultAggregationSelector, DefaultTemporalitySelector,
+/// };
+///
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// // Create a span exporter you can use to when configuring tracer providers
+/// # #[cfg(feature="trace")]
+/// let span_exporter = opentelemetry_otlp::new_exporter().grpcio().build_span_exporter()?;
+///
+/// // Create a log exporter you can use when configuring logger providers
+/// # #[cfg(feature="logs")]
+/// let log_exporter = opentelemetry_otlp::new_exporter().grpcio().build_log_exporter()?;
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Default, Debug)]
 pub struct GrpcioExporterBuilder {
     pub(crate) exporter_config: ExportConfig,
@@ -110,6 +133,73 @@ impl GrpcioExporterBuilder {
     pub fn with_completion_queue_count(mut self, count: usize) -> Self {
         self.grpcio_config.completion_queue_count = count;
         self
+    }
+
+    fn build_channel(&mut self) -> Result<Channel, crate::Error> {
+        let mut builder: ChannelBuilder = ChannelBuilder::new(Arc::new(Environment::new(
+            self.grpcio_config.completion_queue_count,
+        )));
+
+        if let Some(compression) = self.grpcio_config.compression {
+            builder = builder.default_compression_algorithm(compression.into());
+        }
+
+        let channel = match (
+            self.grpcio_config.credentials.take(),
+            self.grpcio_config.use_tls.take(),
+        ) {
+            (None, Some(true)) => builder
+                .set_credentials(ChannelCredentialsBuilder::new().build())
+                .connect(self.exporter_config.endpoint.as_str()),
+            (None, _) => builder.connect(self.exporter_config.endpoint.as_str()),
+            (Some(credentials), _) => builder
+                .set_credentials(
+                    ChannelCredentialsBuilder::new()
+                        .cert(credentials.cert.into(), credentials.key.into())
+                        .build(),
+                )
+                .connect(self.exporter_config.endpoint.as_str()),
+        };
+
+        Ok(channel)
+    }
+
+    /// Create a new span exporter with the current configuration
+    #[cfg(feature = "trace")]
+    pub fn build_span_exporter(
+        mut self,
+    ) -> Result<crate::SpanExporter, opentelemetry_api::trace::TraceError> {
+        use self::trace::GrpcioTraceClient;
+        use opentelemetry_proto::grpcio::trace_service_grpc::TraceServiceClient;
+
+        let channel = self.build_channel()?;
+
+        let client = GrpcioTraceClient::new(
+            TraceServiceClient::new(channel),
+            self.exporter_config.timeout,
+            self.grpcio_config.headers.unwrap_or_default(),
+        );
+
+        Ok(crate::SpanExporter::new(client))
+    }
+
+    #[cfg(feature = "logs")]
+    /// Builds a new log exporter with the given configuration
+    pub fn build_log_exporter(
+        mut self,
+    ) -> Result<crate::logs::LogExporter, opentelemetry_api::logs::LogError> {
+        use self::logs::GrpcioLogsClient;
+        use opentelemetry_proto::grpcio::logs_service_grpc::LogsServiceClient;
+
+        let channel = self.build_channel()?;
+
+        let client = GrpcioLogsClient::new(
+            LogsServiceClient::new(channel),
+            self.exporter_config.timeout,
+            self.grpcio_config.headers.unwrap_or_default(),
+        );
+
+        Ok(crate::logs::LogExporter::new(client))
     }
 }
 

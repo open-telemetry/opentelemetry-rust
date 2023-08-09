@@ -49,6 +49,7 @@ impl Default for Resource {
             Duration::from_secs(0),
             vec![
                 Box::new(SdkProvidedResourceDetector),
+                Box::new(TelemetryResourceDetector),
                 Box::new(EnvResourceDetector::new()),
             ],
         )

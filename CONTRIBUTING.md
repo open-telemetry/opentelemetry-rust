@@ -137,7 +137,9 @@ For GitHub groups see the [code owners](CODEOWNERS) file.
 
 ### Approvers
 
+* [Cijo Thomas](https://github.com/cijothomas)
 * [Harold Dost](https://github.com/hdost)
+* [Lalit Kumar Bhasin](https://github.com/lalitb)
 
 ### Emeritus
 

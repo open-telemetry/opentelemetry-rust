@@ -11,7 +11,7 @@
 //! The following is the full list of currently supported features:
 //!
 //! ## Signals
-//! - `traces`: generate types that used in traces. Currently supports `gen-tonic` or `gen-protoc`.
+//! - `trace`: generate types that used in traces. Currently supports `gen-tonic` or `gen-protoc`.
 //! - `metrics`: generate types that used in metrics. Currently supports `gen-tonic`.
 //! - `logs`: generate types that used in logs. Currently supports `gen-tonic`.
 //! - `zpages`: generate types that used in zPages. Currently only tracez related types will be generated. Currently supports `gen-tonic` or `gen-protoc`.

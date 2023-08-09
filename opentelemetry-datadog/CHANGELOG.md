@@ -1,5 +1,21 @@
 # Changelog
 
+## vNext
+
+### Fixed
+
+- Do not set an empty span as the active span when the propagator does not find a remote span.
+
+## V0.8.0
+
+### Changed
+
+- Update to opentelemetry-api v0.20.0
+
+### Fixed
+
+- Fix the array encoding length of datadog version 05 exporter #1002
+
 ## v0.7.0
 ### Added
 - [Breaking] Add support for unified tagging [#931](https://github.com/open-telemetry/opentelemetry-rust/pull/931).

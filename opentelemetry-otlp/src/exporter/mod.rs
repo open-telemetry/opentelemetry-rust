@@ -8,8 +8,10 @@ use crate::exporter::grpcio::GrpcioExporterBuilder;
 use crate::exporter::http::HttpExporterBuilder;
 #[cfg(feature = "grpc-tonic")]
 use crate::exporter::tonic::TonicExporterBuilder;
-use crate::Protocol;
-use std::collections::HashMap;
+use crate::{Error, Protocol};
+#[cfg(feature = "serialize")]
+use serde::{Deserialize, Serialize};
+use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 use std::time::Duration;
 
@@ -21,6 +23,8 @@ pub const OTEL_EXPORTER_OTLP_ENDPOINT: &str = "OTEL_EXPORTER_OTLP_ENDPOINT";
 pub const OTEL_EXPORTER_OTLP_ENDPOINT_DEFAULT: &str = OTEL_EXPORTER_OTLP_HTTP_ENDPOINT_DEFAULT;
 /// Protocol the exporter will use. Either `http/protobuf` or `grpc`.
 pub const OTEL_EXPORTER_OTLP_PROTOCOL: &str = "OTEL_EXPORTER_OTLP_PROTOCOL";
+/// Compression algorithm to use, defaults to none.
+pub const OTEL_EXPORTER_OTLP_COMPRESSION: &str = "OTEL_EXPORTER_OTLP_COMPRESSION";
 
 #[cfg(feature = "http-proto")]
 /// Default protocol, using http-proto.
@@ -79,6 +83,33 @@ impl Default for ExportConfig {
     }
 }
 
+/// The compression algorithm to use when sending data.
+#[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum Compression {
+    /// Compresses data using gzip.
+    Gzip,
+}
+
+impl Display for Compression {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Compression::Gzip => write!(f, "gzip"),
+        }
+    }
+}
+
+impl FromStr for Compression {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "gzip" => Ok(Compression::Gzip),
+            _ => Err(Error::UnsupportedCompressionAlgorithm(s.to_string())),
+        }
+    }
+}
+
 /// default protocol based on enabled features
 fn default_protocol() -> Protocol {
     match OTEL_EXPORTER_OTLP_PROTOCOL_DEFAULT {
@@ -97,8 +128,9 @@ fn default_endpoint(protocol: Protocol) -> String {
 }
 
 /// default user-agent headers
-fn default_headers() -> HashMap<String, String> {
-    let mut headers = HashMap::new();
+#[cfg(any(feature = "grpc-tonic", feature = "grpc-sys", feature = "http-proto"))]
+fn default_headers() -> std::collections::HashMap<String, String> {
+    let mut headers = std::collections::HashMap::new();
     headers.insert(
         "User-Agent".to_string(),
         format!("OTel OTLP Exporter Rust/{}", env!("CARGO_PKG_VERSION")),
@@ -138,11 +170,14 @@ impl HasExportConfig for HttpExporterBuilder {
 /// This trait will be implemented for every struct that implemented [`HasExportConfig`] trait.
 ///
 /// ## Examples
-/// ```no_run
+/// ```
+/// # #[cfg(all(feature = "trace", feature = "grpc-tonic"))]
+/// # {
 /// use crate::opentelemetry_otlp::WithExportConfig;
 /// let exporter_builder = opentelemetry_otlp::new_exporter()
-///                         .tonic()
-///                         .with_endpoint("http://localhost:7201");
+///     .tonic()
+///     .with_endpoint("http://localhost:7201");
+/// # }
 /// ```
 pub trait WithExportConfig {
     /// Set the address of the OTLP collector. If not set, the default address is used.
@@ -217,13 +252,15 @@ impl<B: HasExportConfig> WithExportConfig for B {
 mod tests {
     // If an env test fails then the mutex will be poisoned and the following error will be displayed.
     const LOCK_POISONED_MESSAGE: &str = "one of the other pipeline builder from env tests failed";
+
     use crate::exporter::{
         default_endpoint, default_protocol, WithExportConfig, OTEL_EXPORTER_OTLP_ENDPOINT,
         OTEL_EXPORTER_OTLP_GRPC_ENDPOINT_DEFAULT, OTEL_EXPORTER_OTLP_HTTP_ENDPOINT_DEFAULT,
         OTEL_EXPORTER_OTLP_PROTOCOL_GRPC, OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_PROTOBUF,
         OTEL_EXPORTER_OTLP_TIMEOUT, OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT,
     };
-    use crate::{new_exporter, Protocol, OTEL_EXPORTER_OTLP_PROTOCOL};
+    use crate::{new_exporter, Compression, Protocol, OTEL_EXPORTER_OTLP_PROTOCOL};
+    use std::str::FromStr;
     use std::sync::Mutex;
 
     // Make sure env tests are not running concurrently
@@ -344,5 +381,16 @@ mod tests {
 
         std::env::remove_var(OTEL_EXPORTER_OTLP_TIMEOUT);
         assert!(std::env::var(OTEL_EXPORTER_OTLP_TIMEOUT).is_err());
+    }
+
+    #[test]
+    fn test_compression_parse() {
+        assert_eq!(Compression::from_str("gzip").unwrap(), Compression::Gzip);
+        Compression::from_str("bad_compression").expect_err("bad compression");
+    }
+
+    #[test]
+    fn test_compression_to_str() {
+        assert_eq!(Compression::Gzip.to_string(), "gzip");
     }
 }

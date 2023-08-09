@@ -1,9 +1,25 @@
 # Changelog
 
-## Main
+## vNext
+
+## Added
+
+- Add `build_{signal}_exporter` methods to client builders (#1187)
+
+## v0.13.0
 
 ### Added
 - Add OTLP HTTP Metrics Exporter [#1020](https://github.com/open-telemetry/opentelemetry-rust/pull/1020).
+- Add tonic compression support [#1165](https://github.com/open-telemetry/opentelemetry-rust/pull/1165).
+
+### Changed
+
+- make the tonic/transport feature optional #985
+- update to opentelemetry-api v0.20.0
+
+### Fixed
+
+- Fix a missing import when http-proto is enabled without grpc-sys #1081
 
 ## v0.12.0
 

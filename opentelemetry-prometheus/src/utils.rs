@@ -36,7 +36,7 @@ pub(crate) fn get_unit_suffixes(unit: &Unit) -> Option<Cow<'static, str>> {
         };
     }
 
-    None
+    Some(Cow::Owned(unit.as_str().to_string()))
 }
 
 fn get_prom_units(unit: &str) -> Option<&'static str> {
@@ -185,7 +185,9 @@ mod tests {
             ("1/y", Some(Cow::Owned("per_year".to_owned()))),
             ("m/s", Some(Cow::Owned("meters_per_second".to_owned()))),
             // No match
-            ("invalid", None),
+            ("invalid", Some(Cow::Owned("invalid".to_string()))),
+            ("invalid/invalid", None),
+            ("seconds", Some(Cow::Owned("seconds".to_string()))),
             ("", None),
         ];
         for (unit_str, expected_suffix) in test_cases {

@@ -275,7 +275,7 @@ mod tests {
 
     #[test]
     fn test_tracer_provider_default_resource() {
-        // If users didn't provided a resource and there isn't a env var set. Use default one
+        // If users didn't provide a resource and there isn't a env var set. Use default one.
         let assert_service_name = |provider: super::TracerProvider,
                                    expect: Option<&'static str>| {
             assert_eq!(
@@ -290,7 +290,7 @@ mod tests {
         let default_config_provider = super::TracerProvider::builder().build();
         assert_service_name(default_config_provider, Some("unknown_service"));
 
-        // If user didn't provided a resource, try to get a default from env var
+        // If user provided a resource, use that.
         let custom_config_provider = super::TracerProvider::builder()
             .with_config(Config {
                 resource: Cow::Owned(Resource::new(vec![KeyValue::new(
@@ -308,6 +308,9 @@ mod tests {
         assert_eq!(
             env_resource_provider.config().resource,
             Cow::Owned(Resource::new(vec![
+                KeyValue::new("telemetry.sdk.name", "opentelemetry"),
+                KeyValue::new("telemetry.sdk.version", env!("CARGO_PKG_VERSION")),
+                KeyValue::new("telemetry.sdk.language", "rust"),
                 KeyValue::new("key1", "value1"),
                 KeyValue::new("k3", "value2"),
                 KeyValue::new("service.name", "unknown_service"),
@@ -330,6 +333,9 @@ mod tests {
         assert_eq!(
             user_provided_resource_config_provider.config().resource,
             Cow::Owned(Resource::new(vec![
+                KeyValue::new("telemetry.sdk.name", "opentelemetry"),
+                KeyValue::new("telemetry.sdk.version", env!("CARGO_PKG_VERSION")),
+                KeyValue::new("telemetry.sdk.language", "rust"),
                 KeyValue::new("my-custom-key", "my-custom-value"),
                 KeyValue::new("k2", "value2"),
                 KeyValue::new("service.name", "unknown_service"),

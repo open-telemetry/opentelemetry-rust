@@ -1,6 +1,6 @@
 #[cfg(feature = "gen-tonic-messages")]
 #[path = "proto/tonic"]
-/// Generated files using [`tonic`](https://docs.rs/crate/grpcio) and [`prost`](https://docs.rs/crate/protobuf/latest)
+/// Generated files using [`tonic`](https://docs.rs/crate/tonic) and [`prost`](https://docs.rs/crate/prost)
 pub mod tonic {
     /// Service stub and clients
     #[path = ""]
@@ -19,7 +19,7 @@ pub mod tonic {
             pub mod v1;
         }
 
-        #[cfg(feature = "traces")]
+        #[cfg(feature = "trace")]
         #[path = ""]
         pub mod trace {
             #[path = "opentelemetry.proto.collector.trace.v1.rs"]
@@ -58,7 +58,7 @@ pub mod tonic {
     }
 
     /// Generated types used in traces.
-    #[cfg(feature = "traces")]
+    #[cfg(feature = "trace")]
     #[path = ""]
     pub mod trace {
         #[path = "opentelemetry.proto.trace.v1.rs"]
@@ -85,11 +85,11 @@ pub mod grpcio {
     #[cfg(feature = "metrics")]
     pub mod metrics_service_grpc;
     pub mod resource;
-    #[cfg(feature = "traces")]
+    #[cfg(feature = "trace")]
     pub mod trace;
-    #[cfg(feature = "traces")]
+    #[cfg(feature = "trace")]
     pub mod trace_service;
-    #[cfg(feature = "traces")]
+    #[cfg(feature = "trace")]
     pub mod trace_service_grpc;
     #[cfg(feature = "zpages")]
     pub mod tracez;

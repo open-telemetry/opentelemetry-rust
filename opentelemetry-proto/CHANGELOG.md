@@ -1,8 +1,21 @@
 # Changelog
 
-## Unreleased
+## vNext
 
-- Update protobuf definitions to v1.0.0
+### Added
+
+- Implement tonic metrics proto transformations (#1184)
+
+### Fixed
+
+- Rename `traces` feature to the more standard `trace` (#1183)
+
+## v0.3.0
+
+### Updated
+
+- Update protobuf definitions to v1.0.0 #1154
+- Update to opentelemetry-api v0.20.0
 
 ## v0.2.0
 ### Changed
