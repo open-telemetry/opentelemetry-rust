@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+### Changed
+- allow custom units in prometheus suffix [#1188](https://github.com/open-telemetry/opentelemetry-rust/pull/1188)
+
 ## v0.13.0
 
 ### Added
