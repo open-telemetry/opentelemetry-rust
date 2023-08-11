@@ -4,7 +4,7 @@
 //!
 //! Currently, OTEL metrics exporter only support GRPC connection via tonic on tokio runtime.
 
-use crate::{Error, GrpcioExporterBuilder, OtlpPipeline};
+use crate::{Error, OtlpPipeline};
 use async_trait::async_trait;
 use core::fmt;
 use opentelemetry_api::{global, metrics::Result};
@@ -26,6 +26,9 @@ use opentelemetry_sdk::{
 };
 use std::fmt::{Debug, Formatter};
 use std::time;
+
+#[cfg(feature = "grpc-sys")]
+use crate::exporter::grpcio::GrpcioExporterBuilder;
 
 #[cfg(feature = "http-proto")]
 use crate::exporter::http::HttpExporterBuilder;
