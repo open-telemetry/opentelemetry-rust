@@ -10,7 +10,7 @@ categories = [
     "development-tools::profiling",
     "asynchronous",
 ]
-keywords = ["opentelemetry", "tracing", "metrics"]
+keywords = ["opentelemetry", "tracing", "metrics", "logs"]
 license = "Apache-2.0"
 edition = "2021"
 rust-version = "1.60"
