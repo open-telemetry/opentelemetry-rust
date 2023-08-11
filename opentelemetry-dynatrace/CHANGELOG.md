@@ -1,10 +1,11 @@
 # Changelog
 
-## Unreleased
+## vNext
 
 ### Changed
 
 - Add deprecation note to Dynatrace exporter
+- Bump MSRV to 1.64 [#1203](https://github.com/open-telemetry/opentelemetry-rust/pull/1203)
 
 ## v0.3.0
 

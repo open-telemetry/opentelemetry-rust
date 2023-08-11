@@ -1,5 +1,11 @@
 # Changelog
 
+## vNext
+
+### Changed
+
+- Bump MSRV to 1.64 [#1203](https://github.com/open-telemetry/opentelemetry-rust/pull/1203)
+
 ## v0.20.0
 
 ### Added
