@@ -260,9 +260,10 @@ pub enum SpanKind {
 ///
 /// Only the value of the last call will be recorded, and implementations are
 /// free to ignore previous calls.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, PartialOrd)]
 pub enum Status {
     /// The default status.
+    #[default]
     Unset,
 
     /// The operation contains an error.
@@ -295,12 +296,6 @@ impl Status {
         Status::Error {
             description: description.into(),
         }
-    }
-}
-
-impl Default for Status {
-    fn default() -> Self {
-        Status::Unset
     }
 }
 

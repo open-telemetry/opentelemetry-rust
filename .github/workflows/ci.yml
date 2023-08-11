@@ -70,7 +70,7 @@ jobs:
     - uses: actions-rs/toolchain@v1
       with:
         profile: minimal
-        toolchain: 1.60.0
+        toolchain: 1.64.0
         override: true
     - name: Patch dependencies versions # some dependencies bump MSRV without major version bump
       run: ./scripts/patch_dependencies.sh

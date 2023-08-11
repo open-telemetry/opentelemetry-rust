@@ -377,7 +377,7 @@ impl<K, V, S> OrderMap<K, V, S> {
     /// Valid indices are *0 <= index < self.len()*
     ///
     /// Computes in **O(1)** time.
-    pub fn get_index_mut(&mut self, index: usize) -> Option<(&mut K, &mut V)> {
+    pub fn get_index_mut(&mut self, index: usize) -> Option<(&K, &mut V)> {
         self.0.get_index_mut(index)
     }
 
