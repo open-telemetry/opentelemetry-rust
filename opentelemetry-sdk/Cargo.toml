@@ -7,7 +7,7 @@ repository = "https://github.com/open-telemetry/opentelemetry-rust"
 readme = "README.md"
 license = "Apache-2.0"
 edition = "2021"
-rust-version = "1.60"
+rust-version = "1.64"
 
 [dependencies]
 opentelemetry_api = { version = "0.20", path = "../opentelemetry-api/" }
@@ -36,7 +36,7 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dev-dependencies]
-indexmap = "1.8"
+indexmap = "2.0"
 criterion = { version = "0.5", features = ["html_reports"] }
 pprof = { version = "0.12", features = ["flamegraph", "criterion"] }
 

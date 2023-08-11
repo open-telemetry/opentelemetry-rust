@@ -172,6 +172,7 @@ enum ClientConfig {
     Wasm, // no config is available for wasm for now. But we can add in the future
 }
 
+#[allow(clippy::derivable_impls)]
 impl Default for ClientConfig {
     fn default() -> Self {
         // as long as collector is enabled, we will in favor of it
