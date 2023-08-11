@@ -1,14 +1,14 @@
-use crate::transform::common::to_nanos;
-use opentelemetry_api::trace::{Link, SpanId, SpanKind};
-use opentelemetry_sdk::export::trace::SpanData;
-
 #[cfg(feature = "gen-tonic-messages")]
 pub mod tonic {
-    use super::*;
     use crate::proto::tonic::resource::v1::Resource;
     use crate::proto::tonic::trace::v1::{span, status, ResourceSpans, ScopeSpans, Span, Status};
-    use crate::transform::common::tonic::{resource_attributes, Attributes};
+    use crate::transform::common::{
+        to_nanos,
+        tonic::{resource_attributes, Attributes},
+    };
     use opentelemetry_api::trace;
+    use opentelemetry_api::trace::{Link, SpanId, SpanKind};
+    use opentelemetry_sdk::export::trace::SpanData;
 
     impl From<SpanKind> for span::SpanKind {
         fn from(span_kind: SpanKind) -> Self {
@@ -111,11 +111,15 @@ pub mod tonic {
 
 #[cfg(feature = "gen-grpcio")]
 pub mod grpcio {
-    use super::*;
     use crate::proto::grpcio::resource::v1::Resource;
     use crate::proto::grpcio::trace::v1::{span, status, ResourceSpans, ScopeSpans, Span, Status};
-    use crate::transform::common::grpcio::{resource_attributes, Attributes};
+    use crate::transform::common::{
+        grpcio::{resource_attributes, Attributes},
+        to_nanos,
+    };
     use opentelemetry_api::trace;
+    use opentelemetry_api::trace::{Link, SpanId, SpanKind};
+    use opentelemetry_sdk::export::trace::SpanData;
 
     impl From<SpanKind> for span::SpanKind {
         fn from(span_kind: SpanKind) -> Self {

@@ -1,5 +1,3 @@
-use crate::transform::common::to_nanos;
-
 #[cfg(feature = "gen-tonic")]
 pub mod tonic {
     use crate::{
@@ -9,11 +7,9 @@ pub mod tonic {
             resource::v1::Resource,
             Attributes,
         },
-        transform::common::tonic::resource_attributes,
+        transform::common::{to_nanos, tonic::resource_attributes},
     };
     use opentelemetry_api::logs::{AnyValue as LogsAnyValue, Severity};
-
-    use super::*;
 
     impl From<LogsAnyValue> for AnyValue {
         fn from(value: LogsAnyValue) -> Self {
@@ -150,11 +146,9 @@ pub mod grpcio {
             resource::v1::Resource,
             Attributes,
         },
-        transform::common::grpcio::resource_attributes,
+        transform::common::{grpcio::resource_attributes, to_nanos},
     };
     use opentelemetry_api::logs::{AnyValue as LogsAnyValue, Severity};
-
-    use super::*;
 
     impl From<LogsAnyValue> for AnyValue {
         fn from(value: LogsAnyValue) -> Self {
