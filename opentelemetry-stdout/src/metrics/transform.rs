@@ -339,9 +339,12 @@ where
         duration_since_epoch.as_secs() as i64,
         duration_since_epoch.subsec_nanos(),
     ) {
-        LocalResult::Single(datetime) => {            
-            serializer.serialize_str(datetime.format("%Y-%m-%d %H:%M:%S.%3f").to_string().as_ref())
-        }
+        LocalResult::Single(datetime) => serializer.serialize_str(
+            datetime
+                .format("%Y-%m-%d %H:%M:%S.%3f")
+                .to_string()
+                .as_ref(),
+        ),
         _ => Err(serde::ser::Error::custom("Invalid Timestamp.")),
     }
 }
