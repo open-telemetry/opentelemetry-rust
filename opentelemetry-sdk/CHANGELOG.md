@@ -2,9 +2,12 @@
 
 ## vNext
 
+### Changed
+
 - Default Resource (the one used when no other Resource is explicitly provided) now includes `TelemetryResourceDetector`,
   populating "telemetry.sdk.*" attributes.
   [#1066](https://github.com/open-telemetry/opentelemetry-rust/pull/1193).
+- Bump MSRV to 1.64 [#1203](https://github.com/open-telemetry/opentelemetry-rust/pull/1203)
 
 ## v0.20.0
 

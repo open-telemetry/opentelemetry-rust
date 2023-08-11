@@ -1,8 +1,11 @@
 # Changelog
 
-## Unreleased
+## vNext
+
 ### Changed
+
 - allow custom units in prometheus suffix [#1188](https://github.com/open-telemetry/opentelemetry-rust/pull/1188)
+- Bump MSRV to 1.64 [#1203](https://github.com/open-telemetry/opentelemetry-rust/pull/1203)
 
 ## v0.13.0
 
