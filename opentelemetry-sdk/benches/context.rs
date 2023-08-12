@@ -10,6 +10,7 @@ use opentelemetry_sdk::{
     export::trace::{ExportResult, SpanData, SpanExporter},
     trace as sdktrace,
 };
+#[cfg(not(target_os = "windows"))]
 use pprof::criterion::{Output, PProfProfiler};
 
 fn criterion_benchmark(c: &mut Criterion) {
@@ -86,9 +87,16 @@ impl SpanExporter for NoopExporter {
     }
 }
 
+#[cfg(not(target_os = "windows"))]
 criterion_group! {
     name = benches;
     config = Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
+    targets = criterion_benchmark
+}
+#[cfg(target_os = "windows")]
+criterion_group! {
+    name = benches;
+    config = Criterion::default();
     targets = criterion_benchmark
 }
 criterion_main!(benches);
