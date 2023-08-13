@@ -4,6 +4,7 @@ use criterion::{
 use indexmap::IndexMap;
 use opentelemetry_api::{Key, KeyValue, Value};
 use opentelemetry_sdk::trace::EvictedHashMap;
+#[cfg(not(target_os = "windows"))]
 use pprof::criterion::{Output, PProfProfiler};
 use std::iter::Iterator;
 
@@ -200,9 +201,16 @@ const MAP_KEYS: [&str; 64] = [
     "key.56", "key.57", "key.58", "key.59", "key.60", "key.61", "key.62", "key.63", "key.64",
 ];
 
+#[cfg(not(target_os = "windows"))]
 criterion_group! {
     name = benches;
     config = Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
+    targets = criterion_benchmark
+}
+#[cfg(target_os = "windows")]
+criterion_group! {
+    name = benches;
+    config = Criterion::default();
     targets = criterion_benchmark
 }
 criterion_main!(benches);

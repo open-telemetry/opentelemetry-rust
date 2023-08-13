@@ -6,6 +6,10 @@
 
 - Implement tonic metrics proto transformations (#1184)
 
+### Changed
+
+- Bump MSRV to 1.64 [#1203](https://github.com/open-telemetry/opentelemetry-rust/pull/1203)
+
 ### Fixed
 
 - Rename `traces` feature to the more standard `trace` (#1183)

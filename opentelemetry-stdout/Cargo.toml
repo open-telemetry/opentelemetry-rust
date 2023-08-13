@@ -10,10 +10,10 @@ categories = [
     "development-tools::profiling",
     "asynchronous",
 ]
-keywords = ["opentelemetry", "tracing", "metrics"]
+keywords = ["opentelemetry", "tracing", "metrics", "logs"]
 license = "Apache-2.0"
 edition = "2021"
-rust-version = "1.60"
+rust-version = "1.64"
 
 [features]
 trace = ["opentelemetry_api/trace", "opentelemetry_sdk/trace", "futures-util"]
@@ -22,6 +22,7 @@ logs = ["opentelemetry_api/logs", "opentelemetry_sdk/logs", "async-trait", "this
 
 [dependencies]
 async-trait = { version = "0.1", optional = true }
+chrono = { version = "0.4.22", default-features = false, features = ["clock"] }
 thiserror = { version = "1", optional = true }
 futures-util = { version = "0.3", optional = true, default-features = false }
 opentelemetry_api = { version = "0.20", path = "../opentelemetry-api", default_features = false }

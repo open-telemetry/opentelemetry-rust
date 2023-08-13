@@ -2,14 +2,19 @@
 
 ## vNext
 
-## Added
+### Added
 
 - Add `build_{signal}_exporter` methods to client builders (#1187)
 - Add `grpcio` metrics exporter (#1202)
 
+### Changed
+
+- Bump MSRV to 1.64 [#1203](https://github.com/open-telemetry/opentelemetry-rust/pull/1203)
+
 ## v0.13.0
 
 ### Added
+
 - Add OTLP HTTP Metrics Exporter [#1020](https://github.com/open-telemetry/opentelemetry-rust/pull/1020).
 - Add tonic compression support [#1165](https://github.com/open-telemetry/opentelemetry-rust/pull/1165).
 
@@ -25,6 +30,7 @@
 ## v0.12.0
 
 ### Added
+
 - Add batch config for otlp pipeline [#979](https://github.com/open-telemetry/opentelemetry-rust/pull/979).
 - Add tonic interceptor [#901](https://github.com/open-telemetry/opentelemetry-rust/pull/901).
 
@@ -39,7 +45,6 @@
 - Fix the issue where tonic exporter builder ignored provided metadata [#937](https://github.com/open-telemetry/opentelemetry-rust/pull/937).
 - Export `MetricsExporterBuilder` [#943](https://github.com/open-telemetry/opentelemetry-rust/pull/943).
 - Report OTLP http export errors [#945](https://github.com/open-telemetry/opentelemetry-rust/pull/945).
-- Bump MSRV to 1.57 [#953](https://github.com/open-telemetry/opentelemetry-rust/pull/953).
 - Change to export using v0.19.0 protobuf definitions. [#989](https://github.com/open-telemetry/opentelemetry-rust/pull/989).
 - Update dependencies and bump MSRV to 1.60 [#969](https://github.com/open-telemetry/opentelemetry-rust/pull/969).
 
