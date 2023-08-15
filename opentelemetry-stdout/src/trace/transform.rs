@@ -3,7 +3,7 @@ use std::{borrow::Cow, collections::HashMap, time::SystemTime};
 use opentelemetry_sdk::AttributeSet;
 use serde::{Serialize, Serializer};
 
-use crate::common::{as_unix_nano, KeyValue, Resource, Scope};
+use crate::common::{as_human_readable, as_unix_nano, KeyValue, Resource, Scope};
 
 /// Transformed trace data that can be serialized
 #[derive(Debug, Serialize)]
@@ -75,8 +75,12 @@ struct Span {
     kind: SpanKind,
     #[serde(serialize_with = "as_unix_nano")]
     start_time_unix_nano: SystemTime,
+    #[serde(serialize_with = "as_human_readable")]
+    start_time: SystemTime,
     #[serde(serialize_with = "as_unix_nano")]
     end_time_unix_nano: SystemTime,
+    #[serde(serialize_with = "as_human_readable")]
+    end_time: SystemTime,
     attributes: Vec<KeyValue>,
     dropped_attributes_count: u32,
     #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -100,7 +104,9 @@ impl From<opentelemetry_sdk::export::trace::SpanData> for Span {
             name: value.name,
             kind: value.span_kind.into(),
             start_time_unix_nano: value.start_time,
+            start_time: value.start_time,
             end_time_unix_nano: value.end_time,
+            end_time: value.end_time,
             dropped_attributes_count: value.attributes.dropped_count(),
             attributes: value.attributes.into_iter().map(Into::into).collect(),
             dropped_events_count: value.events.dropped_count(),

@@ -5,6 +5,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
+use chrono::{LocalResult, TimeZone, Utc};
 use ordered_float::OrderedFloat;
 use serde::{Serialize, Serializer};
 
@@ -239,6 +240,39 @@ impl From<opentelemetry_sdk::Scope> for Scope {
     }
 }
 
+pub(crate) fn as_human_readable<S>(time: &SystemTime, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    let duration_since_epoch = time.duration_since(UNIX_EPOCH).unwrap_or_default();
+
+    match Utc.timestamp_opt(
+        duration_since_epoch.as_secs() as i64,
+        duration_since_epoch.subsec_nanos(),
+    ) {
+        LocalResult::Single(datetime) => serializer.serialize_str(
+            datetime
+                .format("%Y-%m-%d %H:%M:%S.%3f")
+                .to_string()
+                .as_ref(),
+        ),
+        _ => Err(serde::ser::Error::custom("Invalid Timestamp.")),
+    }
+}
+
+pub(crate) fn as_opt_human_readable<S>(
+    time: &Option<SystemTime>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    match time {
+        None => serializer.serialize_none(),
+        Some(time) => as_human_readable(time, serializer),
+    }
+}
+
 pub(crate) fn as_unix_nano<S>(time: &SystemTime, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
@@ -249,4 +283,17 @@ where
         .as_nanos();
 
     serializer.serialize_u128(nanos)
+}
+
+pub(crate) fn as_opt_unix_nano<S>(
+    time: &Option<SystemTime>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    match time {
+        None => serializer.serialize_none(),
+        Some(time) => as_unix_nano(time, serializer),
+    }
 }
