@@ -105,7 +105,7 @@ impl MetricsExporterBuilder {
                 drop(temporality_selector);
                 drop(aggregation_selector);
                 Err(opentelemetry_api::metrics::MetricsError::Other(
-                    "no configured span exporter".into(),
+                    "no configured metrics exporter, enable `http-proto`, `grpc-sys` or `grpc-tonic` feature to configure a metrics exporter".into(),
                 ))
             }
         }
