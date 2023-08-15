@@ -260,6 +260,7 @@ where
     }
 }
 
+#[allow(dead_code)]
 pub(crate) fn as_opt_human_readable<S>(
     time: &Option<SystemTime>,
     serializer: S,
@@ -285,6 +286,7 @@ where
     serializer.serialize_u128(nanos)
 }
 
+#[allow(dead_code)]
 pub(crate) fn as_opt_unix_nano<S>(
     time: &Option<SystemTime>,
     serializer: S,
