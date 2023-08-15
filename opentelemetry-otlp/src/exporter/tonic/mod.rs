@@ -145,7 +145,10 @@ impl Default for TonicExporterBuilder {
         };
 
         TonicExporterBuilder {
-            exporter_config: ExportConfig::default(),
+            exporter_config: ExportConfig {
+                protocol: crate::Protocol::Grpc,
+                ..Default::default()
+            },
             tonic_config,
             channel: Option::default(),
             interceptor: Option::default(),
