@@ -89,8 +89,6 @@ fn ensure_files_are_same(
     after_build: HashMap<String, String>,
     target_dir: &'static str,
 ) {
-    dbg!(&before_build.keys());
-    dbg!(&after_build.keys());
     if after_build == before_build {
         return;
     }
