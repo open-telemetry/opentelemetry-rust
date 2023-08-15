@@ -34,7 +34,6 @@ opentelemetry_api = { version = "0.20", default-features = false, path = "../ope
 opentelemetry_sdk = { version = "0.20", default-features = false, path = "../opentelemetry-sdk" }
 opentelemetry-http = { version = "0.9", path = "../opentelemetry-http", optional = true }
 opentelemetry-semantic-conventions = { version = "0.12", path = "../opentelemetry-semantic-conventions" }
-protobuf = { version = "2.18", optional = true }
 
 prost = { version = "0.11.0", optional = true }
 tonic = { version = "0.9.0", optional = true }
@@ -57,7 +56,7 @@ futures = { version = "0.3", default-features = false, features = ["std"] }
 [features]
 # telemetry pillars and functions
 trace = ["opentelemetry_api/trace", "opentelemetry_sdk/trace", "opentelemetry-proto/trace"]
-metrics = ["opentelemetry_api/metrics", "opentelemetry_sdk/metrics", "opentelemetry-proto/metrics", "grpc-tonic"]
+metrics = ["opentelemetry_api/metrics", "opentelemetry_sdk/metrics", "opentelemetry-proto/metrics"]
 logs = ["opentelemetry_api/logs", "opentelemetry_sdk/logs", "opentelemetry-proto/logs"]
 
 # add ons
@@ -72,7 +71,7 @@ tls = ["tonic/tls"]
 tls-roots = ["tls", "tonic/tls-roots"]
 
 # grpc using grpcio
-grpc-sys = ["grpcio", "opentelemetry-proto/gen-protoc", "protobuf"]
+grpc-sys = ["grpcio", "opentelemetry-proto/gen-grpcio"]
 openssl = ["grpcio/openssl"]
 openssl-vendored = ["grpcio/openssl-vendored"]
 

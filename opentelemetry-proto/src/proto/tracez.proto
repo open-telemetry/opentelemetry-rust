@@ -13,6 +13,9 @@
 // limitations under the License.
 
 syntax = "proto3";
+
+package opentelemetry.proto.tracez.v1;
+
 import "opentelemetry/proto/common/v1/common.proto";
 import "opentelemetry/proto/trace/v1/trace.proto";
 

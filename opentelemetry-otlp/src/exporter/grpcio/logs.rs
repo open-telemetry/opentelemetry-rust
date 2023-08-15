@@ -4,14 +4,12 @@ use std::{collections::HashMap, time::Duration};
 use async_trait::async_trait;
 use grpcio::CallOption;
 use opentelemetry_api::logs::{LogError, LogResult};
+use opentelemetry_proto::grpcio::collector::logs::v1::{
+    ExportLogsServiceRequest, LogsServiceClient,
+};
 use opentelemetry_sdk::export::logs::{LogData, LogExporter};
 
-use {
-    grpcio::MetadataBuilder,
-    opentelemetry_proto::grpcio::{
-        logs_service::ExportLogsServiceRequest, logs_service_grpc::LogsServiceClient,
-    },
-};
+use grpcio::MetadataBuilder;
 
 pub(crate) struct GrpcioLogsClient {
     client: Option<LogsServiceClient>,
@@ -49,10 +47,7 @@ impl LogExporter for GrpcioLogsClient {
         };
 
         let request = ExportLogsServiceRequest {
-            resource_logs: protobuf::RepeatedField::from_vec(
-                batch.into_iter().map(Into::into).collect(),
-            ),
-            ..Default::default()
+            resource_logs: batch.into_iter().map(Into::into).collect(),
         };
 
         let mut call_options = CallOption::default().timeout(self.timeout);

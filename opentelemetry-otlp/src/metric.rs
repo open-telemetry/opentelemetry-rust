@@ -27,6 +27,9 @@ use opentelemetry_sdk::{
 use std::fmt::{Debug, Formatter};
 use std::time;
 
+#[cfg(feature = "grpc-sys")]
+use crate::exporter::grpcio::GrpcioExporterBuilder;
+
 #[cfg(feature = "http-proto")]
 use crate::exporter::http::HttpExporterBuilder;
 
@@ -63,9 +66,17 @@ pub enum MetricsExporterBuilder {
     /// Tonic metrics exporter builder
     #[cfg(feature = "grpc-tonic")]
     Tonic(TonicExporterBuilder),
+    /// Grpcio metrics exporter builder
+    #[cfg(feature = "grpc-sys")]
+    Grpcio(GrpcioExporterBuilder),
     /// Http metrics exporter builder
     #[cfg(feature = "http-proto")]
     Http(HttpExporterBuilder),
+
+    /// Missing exporter builder
+    #[doc(hidden)]
+    #[cfg(not(any(feature = "http-proto", feature = "grpc-sys", feature = "grpc-tonic")))]
+    Unconfigured,
 }
 
 impl MetricsExporterBuilder {
@@ -80,9 +91,22 @@ impl MetricsExporterBuilder {
             MetricsExporterBuilder::Tonic(builder) => {
                 builder.build_metrics_exporter(aggregation_selector, temporality_selector)
             }
+            #[cfg(feature = "grpc-sys")]
+            MetricsExporterBuilder::Grpcio(builder) => {
+                builder.build_metrics_exporter(aggregation_selector, temporality_selector)
+            }
             #[cfg(feature = "http-proto")]
             MetricsExporterBuilder::Http(builder) => {
                 builder.build_metrics_exporter(aggregation_selector, temporality_selector)
+            }
+
+            #[cfg(not(any(feature = "http-proto", feature = "grpc-sys", feature = "grpc-tonic")))]
+            MetricsExporterBuilder::Unconfigured => {
+                drop(temporality_selector);
+                drop(aggregation_selector);
+                Err(opentelemetry_api::metrics::MetricsError::Other(
+                    "no configured metrics exporter, enable `http-proto`, `grpc-sys` or `grpc-tonic` feature to configure a metrics exporter".into(),
+                ))
             }
         }
     }
@@ -216,8 +240,9 @@ impl<RT> fmt::Debug for OtlpMetricPipeline<RT> {
     }
 }
 
+/// An interface for OTLP metrics clients
 #[async_trait]
-pub(crate) trait MetricsClient: fmt::Debug + Send + Sync + 'static {
+pub trait MetricsClient: fmt::Debug + Send + Sync + 'static {
     async fn export(&self, metrics: &mut ResourceMetrics) -> Result<()>;
     fn shutdown(&self) -> Result<()>;
 }
@@ -265,7 +290,7 @@ impl PushMetricsExporter for MetricsExporter {
 
 impl MetricsExporter {
     /// Create a new metrics exporter
-    pub(crate) fn new(
+    pub fn new(
         client: impl MetricsClient,
         temporality_selector: Box<dyn TemporalitySelector>,
         aggregation_selector: Box<dyn AggregationSelector>,

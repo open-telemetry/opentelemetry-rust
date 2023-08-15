@@ -4,8 +4,8 @@ use std::{collections::HashMap, time::Duration};
 use futures_core::future::BoxFuture;
 use grpcio::CallOption;
 use opentelemetry_api::trace::TraceError;
-use opentelemetry_proto::grpcio::{
-    trace_service::ExportTraceServiceRequest, trace_service_grpc::TraceServiceClient,
+use opentelemetry_proto::grpcio::collector::trace::v1::{
+    ExportTraceServiceRequest, TraceServiceClient,
 };
 use opentelemetry_sdk::export::trace::{ExportResult, SpanData, SpanExporter};
 
@@ -50,10 +50,7 @@ impl SpanExporter for GrpcioTraceClient {
         };
 
         let request = ExportTraceServiceRequest {
-            resource_spans: protobuf::RepeatedField::from_vec(
-                batch.into_iter().map(Into::into).collect(),
-            ),
-            ..Default::default()
+            resource_spans: batch.into_iter().map(Into::into).collect(),
         };
 
         let mut call_options = CallOption::default().timeout(self.timeout);
