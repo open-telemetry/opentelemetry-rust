@@ -10,8 +10,8 @@
 //! [jaeger deployment guide]: https://www.jaegertracing.io/docs/1.31/deployment
 
 use crate::Process;
-use opentelemetry::trace::{TraceError, TracerProvider};
-use opentelemetry::{global, sdk, KeyValue};
+use opentelemetry::{global, trace::TraceError, KeyValue};
+use opentelemetry_sdk::trace::{BatchConfig, Config, Tracer, TracerProvider};
 use opentelemetry_semantic_conventions as semcov;
 
 /// Config a exporter that sends the spans to a [jaeger agent](https://www.jaegertracing.io/docs/1.31/deployment/#agent).
@@ -42,9 +42,9 @@ trait HasRequiredConfig {
     where
         T: FnOnce(&mut TransformationConfig);
 
-    fn set_trace_config(&mut self, config: sdk::trace::Config);
+    fn set_trace_config(&mut self, config: Config);
 
-    fn set_batch_config(&mut self, config: sdk::trace::BatchConfig);
+    fn set_batch_config(&mut self, config: BatchConfig);
 }
 
 // To reduce the overhead of copying service name in every spans. We convert resource into jaeger tags
@@ -53,9 +53,9 @@ trait HasRequiredConfig {
 // There are multiple ways to set the service name. A `service.name` tag will be always added
 // to the process tags.
 fn build_config_and_process(
-    config: Option<sdk::trace::Config>,
+    config: Option<Config>,
     service_name_opt: Option<String>,
-) -> (sdk::trace::Config, Process) {
+) -> (Config, Process) {
     let config = config.unwrap_or_default();
 
     let service_name = service_name_opt.unwrap_or_else(|| {
@@ -86,9 +86,8 @@ fn build_config_and_process(
 mod tests {
     use crate::exporter::config::build_config_and_process;
     use crate::new_agent_pipeline;
-    use opentelemetry::sdk::trace::Config;
-    use opentelemetry::sdk::Resource;
     use opentelemetry::KeyValue;
+    use opentelemetry_sdk::{trace::Config, Resource};
     use std::env;
 
     #[test]
@@ -118,9 +117,10 @@ mod tests {
 }
 
 pub(crate) fn install_tracer_provider_and_get_tracer(
-    tracer_provider: sdk::trace::TracerProvider,
-) -> Result<sdk::trace::Tracer, TraceError> {
-    let tracer = tracer_provider.versioned_tracer(
+    tracer_provider: TracerProvider,
+) -> Result<Tracer, TraceError> {
+    let tracer = opentelemetry::trace::TracerProvider::versioned_tracer(
+        &tracer_provider,
         "opentelemetry-jaeger",
         Some(env!("CARGO_PKG_VERSION")),
         Some(semcov::SCHEMA_URL),

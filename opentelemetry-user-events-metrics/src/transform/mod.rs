@@ -1,8 +1,4 @@
-use std::any::Any;
-use std::fmt;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
-
-use opentelemetry_api::{global, metrics::MetricsError};
+use opentelemetry::{global, metrics::MetricsError};
 use opentelemetry_proto::tonic::common::v1::InstrumentationScope as TonicInstrumentationScope;
 use opentelemetry_proto::tonic::resource::v1::Resource as TonicResource;
 use opentelemetry_proto::tonic::{
@@ -21,6 +17,9 @@ use opentelemetry_sdk::metrics::data::{
     Sum as SdkSum,
 };
 use opentelemetry_sdk::Resource as SdkResource;
+use std::any::Any;
+use std::fmt;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 pub(crate) fn transform_resource_metrics(
     metrics: &SDKResourceMetrics,

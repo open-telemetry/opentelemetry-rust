@@ -1,5 +1,5 @@
-use opentelemetry_api::metrics::Unit;
-use opentelemetry_api::{metrics::MeterProvider as _, KeyValue};
+use opentelemetry::metrics::Unit;
+use opentelemetry::{metrics::MeterProvider as _, KeyValue};
 use opentelemetry_sdk::metrics::{MeterProvider, PeriodicReader};
 use opentelemetry_sdk::{runtime, Resource};
 use std::error::Error;

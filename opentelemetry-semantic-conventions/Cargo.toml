@@ -20,7 +20,7 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-opentelemetry = { version = "0.20", default-features = false, path = "../opentelemetry" }
+opentelemetry = { version = "0.21", default-features = false, path = "../opentelemetry" }
 
 [dev-dependencies]
-opentelemetry = { default-features = false, features = ["trace"], path = "../opentelemetry" }
+opentelemetry_sdk = { features = ["trace"], path = "../opentelemetry-sdk" }

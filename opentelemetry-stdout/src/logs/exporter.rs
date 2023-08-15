@@ -1,12 +1,11 @@
-use core::fmt;
-use std::io::{stdout, Write};
-
 use async_trait::async_trait;
-use opentelemetry_api::{
+use core::fmt;
+use opentelemetry::{
     logs::{LogError, LogResult},
     ExportError,
 };
 use opentelemetry_sdk::export::logs::{ExportResult, LogData};
+use std::io::{stdout, Write};
 
 type Encoder =
     Box<dyn Fn(&mut dyn Write, crate::logs::transform::LogData) -> LogResult<()> + Send + Sync>;

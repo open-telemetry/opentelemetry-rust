@@ -1,14 +1,12 @@
 use crate::exporter::model::{Error, SAMPLING_PRIORITY_KEY};
 use crate::exporter::ModelConfig;
-use opentelemetry::sdk::export::trace;
-use opentelemetry::sdk::export::trace::SpanData;
-use opentelemetry::trace::Status;
-use opentelemetry::{Key, Value};
+use opentelemetry::{trace::Status, Key, Value};
+use opentelemetry_sdk::export::trace::SpanData;
 use std::time::SystemTime;
 
 pub(crate) fn encode<S, N, R>(
     model_config: &ModelConfig,
-    traces: Vec<Vec<trace::SpanData>>,
+    traces: Vec<Vec<SpanData>>,
     get_service_name: S,
     get_name: N,
     get_resource: R,

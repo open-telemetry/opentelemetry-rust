@@ -1,7 +1,7 @@
 //! # Span Queue
 
-use opentelemetry::sdk::export::trace::SpanData;
 use opentelemetry::trace::SpanContext;
+use opentelemetry_sdk::export::trace::SpanData;
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -106,8 +106,8 @@ impl SpanQueue {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use opentelemetry::testing::trace::new_test_export_span_data;
     use opentelemetry::trace::{SpanId, TraceFlags, TraceId, TraceState};
+    use opentelemetry_sdk::testing::trace::new_test_export_span_data;
     use std::time::SystemTime;
 
     enum Action {

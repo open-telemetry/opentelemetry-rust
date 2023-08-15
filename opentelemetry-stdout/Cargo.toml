@@ -16,22 +16,22 @@ edition = "2021"
 rust-version = "1.64"
 
 [features]
-trace = ["opentelemetry_api/trace", "opentelemetry_sdk/trace", "futures-util"]
-metrics = ["async-trait", "opentelemetry_api/metrics", "opentelemetry_sdk/metrics"]
-logs = ["opentelemetry_api/logs", "opentelemetry_sdk/logs", "async-trait", "thiserror"]
+trace = ["opentelemetry/trace", "opentelemetry_sdk/trace", "futures-util"]
+metrics = ["async-trait", "opentelemetry/metrics", "opentelemetry_sdk/metrics"]
+logs = ["opentelemetry/logs", "opentelemetry_sdk/logs", "async-trait", "thiserror"]
 
 [dependencies]
 async-trait = { version = "0.1", optional = true }
 chrono = { version = "0.4.22", default-features = false, features = ["clock"] }
 thiserror = { version = "1", optional = true }
 futures-util = { version = "0.3", optional = true, default-features = false }
-opentelemetry_api = { version = "0.20", path = "../opentelemetry-api", default_features = false }
+opentelemetry = { version = "0.21", path = "../opentelemetry", default_features = false }
 opentelemetry_sdk = { version = "0.20", path = "../opentelemetry-sdk", default_features = false }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 ordered-float = "3.4.0"
 
 [dev-dependencies]
-opentelemetry_api = { version = "0.20", path = "../opentelemetry-api", features = ["metrics"] }
+opentelemetry = { version = "0.21", path = "../opentelemetry", features = ["metrics"] }
 opentelemetry_sdk = { version = "0.20", path = "../opentelemetry-sdk", features = ["rt-tokio", "metrics"] }
 tokio = { version = "1.27", features = ["full"] }

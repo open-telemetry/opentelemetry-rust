@@ -1,9 +1,7 @@
 use once_cell::sync::Lazy;
-use opentelemetry_api::global;
-use opentelemetry_api::trace::TraceError;
-use opentelemetry_api::{
-    metrics,
-    trace::{TraceContextExt, Tracer},
+use opentelemetry::{
+    global, metrics,
+    trace::{TraceContextExt, TraceError, Tracer},
     Key, KeyValue,
 };
 use opentelemetry_otlp::WithExportConfig;

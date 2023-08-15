@@ -6,7 +6,7 @@ license = "Apache-2.0"
 publish = false
 
 [dependencies]
-opentelemetry_api = { path = "../../opentelemetry-api", features = ["logs"] }
+opentelemetry = { path = "../../opentelemetry", features = ["logs"] }
 opentelemetry_sdk = { path = "../../opentelemetry-sdk", features = ["logs"] }
 opentelemetry-stdout = { path = "../../opentelemetry-stdout", features = ["logs"]}
 opentelemetry-appender-log = { path = "../../opentelemetry-appender-log", default-features = false}

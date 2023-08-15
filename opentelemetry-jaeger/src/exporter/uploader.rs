@@ -3,8 +3,7 @@
 use crate::exporter::collector;
 use crate::exporter::{agent, jaeger};
 use async_trait::async_trait;
-use opentelemetry::sdk::export::trace;
-use opentelemetry::sdk::export::trace::ExportResult;
+use opentelemetry_sdk::export::trace::ExportResult;
 use std::fmt::Debug;
 
 use crate::exporter::thrift::jaeger::Batch;
@@ -12,7 +11,7 @@ use crate::exporter::JaegerTraceRuntime;
 
 #[async_trait]
 pub(crate) trait Uploader: Debug + Send + Sync {
-    async fn upload(&self, batch: jaeger::Batch) -> trace::ExportResult;
+    async fn upload(&self, batch: jaeger::Batch) -> ExportResult;
 }
 
 #[derive(Debug)]
@@ -22,10 +21,10 @@ pub(crate) enum SyncUploader {
 
 #[async_trait]
 impl Uploader for SyncUploader {
-    async fn upload(&self, batch: jaeger::Batch) -> trace::ExportResult {
+    async fn upload(&self, batch: jaeger::Batch) -> ExportResult {
         match self {
             SyncUploader::Agent(client) => {
-                // TODO Implement retry behaviour
+                // TODO Implement retry behavior
                 client
                     .lock()
                     .expect("Failed to lock agent client")

@@ -1,12 +1,10 @@
 use log::{info, Level};
 use once_cell::sync::Lazy;
-use opentelemetry_api::global;
-use opentelemetry_api::global::{
-    logger_provider, shutdown_logger_provider, shutdown_tracer_provider,
-};
-use opentelemetry_api::logs::LogError;
-use opentelemetry_api::trace::TraceError;
-use opentelemetry_api::{
+use opentelemetry::global;
+use opentelemetry::global::{logger_provider, shutdown_logger_provider, shutdown_tracer_provider};
+use opentelemetry::logs::LogError;
+use opentelemetry::trace::TraceError;
+use opentelemetry::{
     metrics,
     trace::{TraceContextExt, Tracer},
     Key, KeyValue,

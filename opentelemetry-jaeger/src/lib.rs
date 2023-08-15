@@ -28,11 +28,10 @@
 //! exporting telemetry:
 //!
 //! ```no_run
-//! use opentelemetry::trace::Tracer;
-//! use opentelemetry::global;
+//! use opentelemetry::{global, trace::{Tracer, TraceError}};
 //!
 //! #[tokio::main]
-//! async fn main() -> Result<(), opentelemetry::trace::TraceError> {
+//! async fn main() -> Result<(), TraceError> {
 //!     global::set_text_map_propagator(opentelemetry_jaeger::Propagator::new());
 //!     let tracer = opentelemetry_jaeger::new_agent_pipeline().install_simple()?;
 //!
@@ -48,11 +47,10 @@
 //!
 //! Or if you are running on an async runtime like Tokio and want to report spans in batches
 //! ```no_run
-//! use opentelemetry::trace::Tracer;
-//! use opentelemetry::global;
-//! use opentelemetry::runtime::Tokio;
+//! use opentelemetry::{global, trace::{Tracer, TraceError}};
+//! use opentelemetry_sdk::runtime::Tokio;
 //!
-//! fn main() -> Result<(), opentelemetry::trace::TraceError> {
+//! fn main() -> Result<(), TraceError> {
 //!     global::set_text_map_propagator(opentelemetry_jaeger::Propagator::new());
 //!     let tracer = opentelemetry_jaeger::new_agent_pipeline().install_batch(Tokio)?;
 //!
@@ -75,14 +73,14 @@
 //!
 //! ```toml
 //! [dependencies]
-//! opentelemetry = { version = "*", features = ["rt-tokio"] }
+//! opentelemetry_sdk = { version = "*", features = ["rt-tokio"] }
 //! opentelemetry-jaeger = { version = "*", features = ["rt-tokio"] }
 //! ```
 //!
 //! ```no_run
 //! # fn main() -> Result<(), opentelemetry::trace::TraceError> {
 //! let tracer = opentelemetry_jaeger::new_agent_pipeline()
-//!     .install_batch(opentelemetry::runtime::Tokio)?;
+//!     .install_batch(opentelemetry_sdk::runtime::Tokio)?;
 //! # Ok(())
 //! # }
 //! ```
@@ -127,7 +125,7 @@
 //!         .with_password("s3cr3t")
 //!         .with_isahc()
 //!         //.with_http_client(<your client>) provide custom http client implementation
-//!         .install_batch(opentelemetry::runtime::Tokio)?;
+//!         .install_batch(opentelemetry_sdk::runtime::Tokio)?;
 //!
 //!     tracer.in_span("doing_work", |cx| {
 //!         // Traced app logic here...
@@ -174,7 +172,8 @@
 //!
 //! ### Export to agents
 //! ```no_run
-//! use opentelemetry::{sdk::{trace::{self, RandomIdGenerator, Sampler}, Resource}, global, KeyValue, trace::{Tracer, TraceError}};
+//! use opentelemetry::{global, KeyValue, trace::{Tracer, TraceError}};
+//! use opentelemetry_sdk::{trace::{config, RandomIdGenerator, Sampler}, Resource};
 //!
 //! fn main() -> Result<(), TraceError> {
 //!     global::set_text_map_propagator(opentelemetry_jaeger::Propagator::new());
@@ -185,7 +184,7 @@
 //!         .with_auto_split_batch(true)
 //!         .with_instrumentation_library_tags(false)
 //!         .with_trace_config(
-//!             trace::config()
+//!             config()
 //!                 .with_sampler(Sampler::AlwaysOn)
 //!                 .with_id_generator(RandomIdGenerator::default())
 //!                 .with_max_events_per_span(64)
@@ -194,7 +193,7 @@
 //!                 .with_resource(Resource::new(vec![KeyValue::new("key", "value"),
 //!                           KeyValue::new("process_key", "process_value")])),
 //!         )
-//!         .install_batch(opentelemetry::runtime::Tokio)?;
+//!         .install_batch(opentelemetry_sdk::runtime::Tokio)?;
 //!
 //!     tracer.in_span("doing_work", |cx| {
 //!         // Traced app logic here...
@@ -210,7 +209,8 @@
 //! ### Export to collectors
 //! Note that this example requires `collecotr_client` and `isahc_collector_client` feature.
 //! ```ignore
-//! use opentelemetry::{sdk::{trace::{self, RandomIdGenerator, Sampler}, Resource}, global, KeyValue, trace::{Tracer, TraceError}};
+//! use opentelemetry::{global, KeyValue, trace::{Tracer, TraceError}};
+//! use opentelemetry_sdk::{trace::{config, RandomIdGenerator, Sampler}, Resource};
 //!
 //! fn main() -> Result<(), TraceError> {
 //!     global::set_text_map_propagator(opentelemetry_jaeger::Propagator::new());
@@ -218,7 +218,7 @@
 //!         .with_endpoint("http://localhost:14250/api/trace") // set collector endpoint
 //!         .with_service_name("my_app") // the name of the application
 //!         .with_trace_config(
-//!             trace::config()
+//!             config()
 //!                 .with_sampler(Sampler::AlwaysOn)
 //!                 .with_id_generator(RandomIdGenerator::default())
 //!                 .with_max_events_per_span(64)
@@ -234,7 +234,7 @@
 //!         .with_username("username")
 //!         .with_password("s3cr3t")
 //!         .with_timeout(std::time::Duration::from_secs(2))
-//!         .install_batch(opentelemetry::runtime::Tokio)?;
+//!         .install_batch(opentelemetry_sdk::runtime::Tokio)?;
 //!
 //!     tracer.in_span("doing_work", |cx| {
 //!         // Traced app logic here...

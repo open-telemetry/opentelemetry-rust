@@ -76,7 +76,7 @@ opentelemetry-otlp = { version = "*", features = ["grpc-sys"] }
 
 ```rust
 let tracer = opentelemetry_otlp::new_pipeline()
-    .install_batch(opentelemetry::runtime::AsyncStd)?;
+    .install_batch(opentelemetry_sdk::runtime::AsyncStd)?;
 ```
 
 [`tokio`]: https://tokio.rs
