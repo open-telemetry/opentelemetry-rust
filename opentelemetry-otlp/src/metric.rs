@@ -41,6 +41,7 @@ pub const OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: &str = "OTEL_EXPORTER_OTLP_METRIC
 pub const OTEL_EXPORTER_OTLP_METRICS_TIMEOUT: &str = "OTEL_EXPORTER_OTLP_METRICS_TIMEOUT";
 /// Compression algorithm to use, defaults to none.
 pub const OTEL_EXPORTER_OTLP_METRICS_COMPRESSION: &str = "OTEL_EXPORTER_OTLP_METRICS_COMPRESSION";
+
 impl OtlpPipeline {
     /// Create a OTLP metrics pipeline.
     pub fn metrics<RT>(self, rt: RT) -> OtlpMetricPipeline<RT>

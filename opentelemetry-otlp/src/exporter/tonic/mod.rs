@@ -1,6 +1,4 @@
-use std::env;
 use std::fmt::{Debug, Formatter};
-use std::time::Duration;
 
 use tonic::codec::CompressionEncoding;
 use tonic::metadata::{KeyAndValueRef, MetadataMap};
@@ -11,10 +9,7 @@ use tonic::transport::ClientTlsConfig;
 
 use super::default_headers;
 use crate::exporter::Compression;
-use crate::{
-    ExportConfig, OTEL_EXPORTER_OTLP_COMPRESSION, OTEL_EXPORTER_OTLP_ENDPOINT,
-    OTEL_EXPORTER_OTLP_TIMEOUT,
-};
+use crate::ExportConfig;
 
 #[cfg(feature = "logs")]
 mod logs;
@@ -54,21 +49,6 @@ impl TryFrom<Compression> for tonic::codec::CompressionEncoding {
                 value.to_string(),
             )),
         }
-    }
-}
-
-fn resolve_compression(
-    tonic_config: &TonicConfig,
-    env_override: &str,
-) -> Result<Option<CompressionEncoding>, crate::Error> {
-    if let Some(compression) = tonic_config.compression {
-        Ok(Some(compression.try_into()?))
-    } else if let Ok(compression) = env::var(env_override) {
-        Ok(Some(compression.parse::<Compression>()?.try_into()?))
-    } else if let Ok(compression) = env::var(OTEL_EXPORTER_OTLP_COMPRESSION) {
-        Ok(Some(compression.parse::<Compression>()?.try_into()?))
-    } else {
-        Ok(None)
     }
 }
 
@@ -214,25 +194,20 @@ impl TonicExporterBuilder {
         let config = &mut self.exporter_config;
         let tonic_config = &mut self.tonic_config;
 
-        let endpoint = match env::var(signal_endpoint_var)
-            .ok()
-            .or(env::var(OTEL_EXPORTER_OTLP_ENDPOINT).ok())
-        {
-            Some(val) => val,
-            None => format!("{}{signal_endpoint_path}", config.endpoint),
-        };
-
-        let timeout = match env::var(signal_timeout_var)
-            .ok()
-            .or(env::var(OTEL_EXPORTER_OTLP_TIMEOUT).ok())
-        {
-            Some(val) => match val.parse() {
-                Ok(seconds) => Duration::from_secs(seconds),
-                Err(_) => config.timeout,
-            },
-            None => config.timeout,
-        };
-        let compression = resolve_compression(tonic_config, signal_compression_var)?;
+        let endpoint = crate::exporter::resolve_endpoint(
+            &config.endpoint,
+            signal_endpoint_var,
+            signal_endpoint_path,
+        );
+        let timeout = crate::exporter::resolve_timeout(config.timeout, signal_timeout_var);
+        let compression =
+            crate::exporter::resolve_compression(tonic_config.compression, signal_compression_var)?;
+        let compression_encoding: Option<CompressionEncoding> =
+            if let Some(compression) = compression {
+                Some(compression.try_into()?)
+            } else {
+                None
+            };
 
         let endpoint = Channel::from_shared(endpoint).map_err(crate::Error::from)?;
 
@@ -272,7 +247,7 @@ impl TonicExporterBuilder {
             None => BoxInterceptor(Box::new(add_metadata)),
         };
 
-        Ok((channel, interceptor, compression))
+        Ok((channel, interceptor, compression_encoding))
     }
 
     /// Build a new tonic log exporter
