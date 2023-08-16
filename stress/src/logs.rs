@@ -1,7 +1,7 @@
 use opentelemetry_api::KeyValue;
 use opentelemetry_appender_tracing::layer;
 use opentelemetry_sdk::{
-    logs::{Config, LoggerProvider},
+    logs::{Config, LoggerProvider, LogProcessor},
     Resource,
 };
 use tracing::error;
@@ -38,15 +38,36 @@ where
     }
 }
 
+#[derive(Debug)]
+pub struct NoOpLogProcessor;
+
+impl LogProcessor for NoOpLogProcessor {
+    fn emit(&self, _data: opentelemetry_sdk::export::logs::LogData) {
+        
+    }
+
+    fn force_flush(&self) -> opentelemetry_api::logs::LogResult<()> {
+        Ok(())
+    }
+
+    fn shutdown(&mut self) -> opentelemetry_api::logs::LogResult<()> {
+        Ok(())
+    }
+
+    fn event_enabled(&self, _level: opentelemetry_api::logs::Severity, _target: &str, _name: &str) -> bool {
+        true
+    }
+}
+
 fn main() {
-    // LoggerProvider without any exporter.
+    // LoggerProvider with a no-op processor.
     let provider: LoggerProvider = LoggerProvider::builder()
         .with_config(
             Config::default().with_resource(Resource::new(vec![KeyValue::new(
                 "service.name",
                 "log-appender-tracing-example",
-            )])),
-        )
+            )])))
+        .with_log_processor(NoOpLogProcessor {})
         .build();
 
     // Use the OpenTelemetryTracingBridge to test the throughput of the appender-tracing.
