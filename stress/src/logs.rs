@@ -1,7 +1,7 @@
 use opentelemetry_api::KeyValue;
 use opentelemetry_appender_tracing::layer;
 use opentelemetry_sdk::{
-    logs::{Config, LoggerProvider, LogProcessor},
+    logs::{Config, LogProcessor, LoggerProvider},
     Resource,
 };
 use tracing::error;
@@ -42,9 +42,7 @@ where
 pub struct NoOpLogProcessor;
 
 impl LogProcessor for NoOpLogProcessor {
-    fn emit(&self, _data: opentelemetry_sdk::export::logs::LogData) {
-        
-    }
+    fn emit(&self, _data: opentelemetry_sdk::export::logs::LogData) {}
 
     fn force_flush(&self) -> opentelemetry_api::logs::LogResult<()> {
         Ok(())
@@ -54,7 +52,12 @@ impl LogProcessor for NoOpLogProcessor {
         Ok(())
     }
 
-    fn event_enabled(&self, _level: opentelemetry_api::logs::Severity, _target: &str, _name: &str) -> bool {
+    fn event_enabled(
+        &self,
+        _level: opentelemetry_api::logs::Severity,
+        _target: &str,
+        _name: &str,
+    ) -> bool {
         true
     }
 }
@@ -66,7 +69,8 @@ fn main() {
             Config::default().with_resource(Resource::new(vec![KeyValue::new(
                 "service.name",
                 "log-appender-tracing-example",
-            )])))
+            )])),
+        )
         .with_log_processor(NoOpLogProcessor {})
         .build();
 
