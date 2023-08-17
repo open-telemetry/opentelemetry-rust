@@ -5,7 +5,10 @@ use opentelemetry_sdk::{runtime, Resource};
 use std::error::Error;
 
 fn init_meter_provider() -> MeterProvider {
-    let exporter = opentelemetry_stdout::MetricsExporter::default();
+    // let exporter = opentelemetry_stdout::MetricsExporter::default();
+    let exporter = opentelemetry_stdout::MetricsExporterBuilder::default()
+        .with_encoder(|writer, data| Ok(serde_json::to_writer_pretty(writer, &data).unwrap()))
+        .build();
     let reader = PeriodicReader::builder(exporter, runtime::Tokio).build();
     MeterProvider::builder()
         .with_reader(reader)
