@@ -22,6 +22,26 @@ pub trait MeterProvider {
     ///
     /// If the name is empty, then an implementation defined default name will
     /// be used instead.
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// use opentelemetry_api::{global, metrics::MeterProvider};
+    /// use opentelemetry_api::KeyValue;
+    /// 
+    /// let provider = global::meter_provider();
+    /// 
+    /// // meter used in applications
+    /// let meter = provider.meter("my_app");
+    /// 
+    /// // meter used in libraries/crates that optionally includes version and schema url
+    /// let meter = provider.versioned_meter(
+    ///     "my_library",
+    ///     Some(env!("CARGO_PKG_VERSION")),
+    ///     Some("https://opentelemetry.io/schema/1.0.0"),
+    ///     Some(vec![KeyValue::new("key", "value")]),
+    /// );
+    /// ```
     fn meter(&self, name: impl Into<Cow<'static, str>>) -> Meter {
         self.versioned_meter(
             name,
@@ -31,7 +51,7 @@ pub trait MeterProvider {
         )
     }
 
-    /// Creates an implementation of the [`Meter`] interface.
+    /// Returns a new versioned meter with a given name.
     ///
     /// The instrumentation name must be the name of the library providing instrumentation. This
     /// name may be the same as the instrumented code only if that code provides built-in
