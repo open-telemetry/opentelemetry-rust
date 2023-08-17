@@ -14,6 +14,7 @@
 - Add js-sys as dependency for api crate when building wasm targets #1078
 - Create tracer using a shared instrumentation library #1129
 - Add `Context::map_current` #1140
+- Add unit/doc tests for metrics #1140
 
 ### Changed
 
