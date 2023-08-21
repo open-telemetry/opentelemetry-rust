@@ -1,13 +1,13 @@
-#[cfg(feature = "gen-grpcio")]
+#[cfg(all(feature = "gen-tonic-messages", feature = "zpages"))]
 mod grpcio {
     use opentelemetry_api::trace::{Event, Status};
     use opentelemetry_sdk::export::trace::SpanData;
 
-    use crate::proto::grpcio::{
+    use crate::proto::tonic::{
         trace::v1::{span::Event as SpanEvent, Status as SpanStatus},
         tracez::v1::{ErrorData, LatencyData, RunningData},
     };
-    use crate::transform::common::{grpcio::Attributes, to_nanos};
+    use crate::transform::common::{to_nanos, tonic::Attributes};
 
     impl From<SpanData> for LatencyData {
         fn from(span_data: SpanData) -> Self {
