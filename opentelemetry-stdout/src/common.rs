@@ -261,6 +261,7 @@ where
 }
 
 #[allow(dead_code)]
+// Used for serde serialization. Not used in traces.
 pub(crate) fn as_opt_human_readable<S>(
     time: &Option<SystemTime>,
     serializer: S,
