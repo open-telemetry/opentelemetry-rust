@@ -9,7 +9,7 @@ fn init_meter_provider() -> MeterProvider {
         // uncomment the below lines to pretty print output.
         //  .with_encoder(|writer, data|
         //    Ok(serde_json::to_writer_pretty(writer, &data).unwrap()))
-           .build();
+        .build();
     let reader = PeriodicReader::builder(exporter, runtime::Tokio).build();
     MeterProvider::builder()
         .with_reader(reader)
