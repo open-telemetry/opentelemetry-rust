@@ -34,7 +34,7 @@ use super::{
 /// pipeline.
 #[doc(hidden)]
 pub struct Pipeline {
-    resource: Resource,
+    pub(crate) resource: Resource,
     reader: Box<dyn MetricReader>,
     views: Vec<Arc<dyn View>>,
     inner: Box<Mutex<PipelineInner>>,
@@ -557,7 +557,7 @@ fn is_aggregator_compatible(kind: &InstrumentKind, agg: &aggregation::Aggregatio
 
 /// The group of pipelines connecting Readers with instrument measurement.
 #[derive(Clone, Debug)]
-pub(crate) struct Pipelines(Vec<Arc<Pipeline>>);
+pub(crate) struct Pipelines(pub(crate) Vec<Arc<Pipeline>>);
 
 impl Pipelines {
     pub(crate) fn new(
