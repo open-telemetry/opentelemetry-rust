@@ -29,6 +29,12 @@ pub struct MeterProvider {
     is_shutdown: Arc<AtomicBool>,
 }
 
+impl Default for MeterProvider {
+    fn default() -> Self {
+        MeterProvider::builder().build()
+    }
+}
+
 impl MeterProvider {
     /// Flushes all pending telemetry.
     ///
@@ -42,6 +48,39 @@ impl MeterProvider {
     ///
     /// There is no guaranteed that all telemetry be flushed or all resources have
     /// been released on error.
+    /// 
+    /// # Examples
+    ///
+    /// ```
+    /// use opentelemetry_api::{global, Context};
+    /// use opentelemetry_sdk::metrics::MeterProvider;
+    ///
+    /// fn init_metrics() -> MeterProvider {
+    ///     let provider = MeterProvider::default();
+    ///
+    ///     // Set provider to be used as global meter provider
+    ///     let _ = global::set_meter_provider(provider.clone());
+    ///
+    ///     provider
+    /// }
+    ///
+    /// fn main() {
+    ///     let provider = init_metrics();
+    ///     let cx = Context::new();
+    ///
+    ///     // create instruments + record measurements
+    /// 
+    ///     // force all instruments to flush
+    ///     provider.force_flush(&cx).unwrap();
+    ///
+    ///     // record more measurements..
+    ///
+    ///     // dropping provider and shutting down global provider ensure all
+    ///     // remaining metrics data are exported
+    ///     drop(provider);
+    ///     global::shutdown_meter_provider();
+    /// }
+    /// ```
     pub fn force_flush(&self, cx: &Context) -> Result<()> {
         self.pipes.force_flush(cx)
     }
