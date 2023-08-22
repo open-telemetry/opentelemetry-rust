@@ -48,7 +48,7 @@ impl MeterProvider {
     ///
     /// There is no guaranteed that all telemetry be flushed or all resources have
     /// been released on error.
-    /// 
+    ///
     /// # Examples
     ///
     /// ```
@@ -60,7 +60,7 @@ impl MeterProvider {
     ///
     ///     // Set provider to be used as global meter provider
     ///     let _ = global::set_meter_provider(provider.clone());
-    /// 
+    ///
     ///     // Setup metric pipelines with readers + views
     ///
     ///     provider
@@ -71,7 +71,7 @@ impl MeterProvider {
     ///     let cx = Context::new();
     ///
     ///     // create instruments + record measurements
-    /// 
+    ///
     ///     // force all instruments to flush
     ///     provider.force_flush(&cx).unwrap();
     ///
@@ -201,32 +201,30 @@ impl fmt::Debug for MeterProviderBuilder {
 }
 #[cfg(test)]
 mod tests {
-    use opentelemetry_api::Key;
-    use crate::Resource;
     use crate::testing::metrics::metric_reader::TestMetricReader;
+    use crate::Resource;
+    use opentelemetry_api::Key;
     use opentelemetry_api::KeyValue;
     use std::env;
 
     #[test]
     fn test_meter_provider_resource() {
         // If users didn't provide a resource and there isn't a env var set. Use default one.
-        let assert_service_name = |provider: super::MeterProvider,
-                                   expect: Option<&'static str>| {
+        let assert_service_name = |provider: super::MeterProvider, expect: Option<&'static str>| {
             assert_eq!(
-                provider
-                    .pipes.0[0]
+                provider.pipes.0[0]
                     .resource
                     .get(Key::from_static_str("service.name"))
                     .map(|v| v.to_string()),
                 expect.map(|s| s.to_string())
             );
         };
-        let reader = TestMetricReader{};
+        let reader = TestMetricReader {};
         let default_meter_provider = super::MeterProvider::builder().with_reader(reader).build();
         assert_service_name(default_meter_provider, Some("unknown_service"));
-    
+
         // If user provided a resource, use that.
-        let reader2 = TestMetricReader{};
+        let reader2 = TestMetricReader {};
         let custom_meter_provider = super::MeterProvider::builder()
             .with_reader(reader2)
             .with_resource(Resource::new(vec![KeyValue::new(
@@ -237,7 +235,7 @@ mod tests {
         assert_service_name(custom_meter_provider, Some("test_service"));
 
         // If `OTEL_RESOURCE_ATTRIBUTES` is set, read them automatically
-        let reader3 = TestMetricReader{};
+        let reader3 = TestMetricReader {};
         env::set_var("OTEL_RESOURCE_ATTRIBUTES", "key1=value1, k2, k3=value2");
         let env_resource_provider = super::MeterProvider::builder().with_reader(reader3).build();
         assert_eq!(
@@ -257,13 +255,14 @@ mod tests {
             "OTEL_RESOURCE_ATTRIBUTES",
             "my-custom-key=env-val,k2=value2",
         );
-        let reader4 = TestMetricReader{};
+        let reader4 = TestMetricReader {};
         let user_provided_resource_config_provider = super::MeterProvider::builder()
             .with_reader(reader4)
             .with_resource(
-                Resource::default().merge(
-                    &mut Resource::new(vec![KeyValue::new("my-custom-key", "my-custom-value"),])
-                )
+                Resource::default().merge(&mut Resource::new(vec![KeyValue::new(
+                    "my-custom-key",
+                    "my-custom-value",
+                )])),
             )
             .build();
         assert_eq!(
@@ -278,9 +277,9 @@ mod tests {
             ])
         );
         env::remove_var("OTEL_RESOURCE_ATTRIBUTES");
-        
+
         // If user provided a resource, it takes priority during collision.
-        let reader5 = TestMetricReader{};
+        let reader5 = TestMetricReader {};
         let no_service_name = super::MeterProvider::builder()
             .with_reader(reader5)
             .with_resource(Resource::empty())
@@ -288,5 +287,4 @@ mod tests {
 
         assert_service_name(no_service_name, None);
     }
-
 }

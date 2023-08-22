@@ -1,24 +1,21 @@
 use std::sync::Weak;
 
-use opentelemetry_api::{metrics::Result, Context};
 use crate::metrics::{
     aggregation::Aggregation,
     data::{ResourceMetrics, Temporality},
     instrument::InstrumentKind,
-    reader::{AggregationSelector, MetricProducer, MetricReader, TemporalitySelector},
     pipeline::Pipeline,
+    reader::{AggregationSelector, MetricProducer, MetricReader, TemporalitySelector},
 };
-
+use opentelemetry_api::{metrics::Result, Context};
 
 #[derive(Debug)]
 pub struct TestMetricReader {}
 
 impl MetricReader for TestMetricReader {
-    fn register_pipeline(&self, _pipeline: Weak<Pipeline>) {
-    }
+    fn register_pipeline(&self, _pipeline: Weak<Pipeline>) {}
 
-    fn register_producer(&self, _producer: Box<dyn MetricProducer>) {
-    }
+    fn register_producer(&self, _producer: Box<dyn MetricProducer>) {}
 
     fn collect(&self, _rm: &mut ResourceMetrics) -> Result<()> {
         Ok(())
