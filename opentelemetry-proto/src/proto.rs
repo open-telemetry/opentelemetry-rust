@@ -65,6 +65,14 @@ pub mod tonic {
         pub mod v1;
     }
 
+    /// Generated types used in zpages.
+    #[cfg(feature = "zpages")]
+    #[path = ""]
+    pub mod tracez {
+        #[path = "opentelemetry.proto.tracez.v1.rs"]
+        pub mod v1;
+    }
+
     pub use crate::transform::common::tonic::Attributes;
 }
 
@@ -131,14 +139,6 @@ pub mod grpcio {
     #[path = ""]
     pub mod trace {
         #[path = "opentelemetry.proto.trace.v1.rs"]
-        pub mod v1;
-    }
-
-    /// Generated types used in zpages.
-    #[cfg(feature = "zpages")]
-    #[path = ""]
-    pub mod tracez {
-        #[path = "opentelemetry.proto.tracez.v1.rs"]
         pub mod v1;
     }
 

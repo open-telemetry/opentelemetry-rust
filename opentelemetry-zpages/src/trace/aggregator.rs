@@ -14,7 +14,7 @@ use opentelemetry::trace::Status;
 use crate::trace::{TracezError, TracezMessage, TracezQuery, TracezResponse};
 use crate::SpanQueue;
 use opentelemetry::sdk::export::trace::SpanData;
-use opentelemetry_proto::grpcio::tracez::TracezCounts;
+use opentelemetry_proto::tonic::tracez::v1::TracezCounts;
 
 const LATENCY_BUCKET: [Duration; 9] = [
     Duration::from_micros(0),
@@ -116,7 +116,6 @@ impl SpanAggregator {
                             .collect(),
                         running: summary.running.count() as u32,
                         error: summary.error.count() as u32,
-                        ..Default::default()
                     })
                     .collect(),
             )),

@@ -1,6 +1,6 @@
 //! Tracez implementation
 //!
-use opentelemetry_proto::grpcio::tracez::{ErrorData, LatencyData, RunningData, TracezCounts};
+use opentelemetry_proto::tonic::tracez::v1::{ErrorData, LatencyData, RunningData, TracezCounts};
 
 use async_channel::{SendError, Sender};
 use futures_channel::oneshot::{self, Canceled};

@@ -5,6 +5,7 @@
 ### Added
 
 - Implement tonic metrics proto transformations (#1184)
+- Move proto for zPage to tonic [#1214](https://github.com/open-telemetry/opentelemetry-rust/pull/1214)
 
 ### Changed
 
