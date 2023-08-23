@@ -4,7 +4,7 @@ use async_trait::async_trait;
 #[cfg(feature = "logs_level_enabled")]
 use opentelemetry_api::logs::Severity;
 use opentelemetry_api::{
-    logs::{LogError, LogRecord, LogResult},
+    logs::{LogRecord, LogResult},
     InstrumentationLibrary,
 };
 use std::{borrow::Cow, fmt::Debug};
@@ -34,6 +34,3 @@ pub struct LogData {
     /// Instrumentation details for the emitter who produced this `LogData`.
     pub instrumentation: InstrumentationLibrary,
 }
-
-/// Describes the result of an export.
-pub type ExportResult = Result<(), LogError>;

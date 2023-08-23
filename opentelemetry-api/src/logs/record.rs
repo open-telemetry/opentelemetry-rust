@@ -1,8 +1,9 @@
 use crate::{
+    common,
     trace::{SpanContext, SpanId, TraceContextExt, TraceFlags, TraceId},
     Array, Key, OrderMap, StringValue, Value,
 };
-use std::{borrow::Cow, time::SystemTime};
+use std::{borrow::Cow, fmt, time::SystemTime};
 
 #[derive(Debug, Clone)]
 #[non_exhaustive]
@@ -91,6 +92,38 @@ pub enum AnyValue {
     ListAny(Vec<AnyValue>),
     /// A map of string keys to `Any` values, arbitrarily nested.
     Map(OrderMap<Key, AnyValue>),
+}
+
+impl fmt::Display for AnyValue {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            AnyValue::Int(v) => v.fmt(fmt),
+            AnyValue::Double(v) => v.fmt(fmt),
+            AnyValue::String(v) => fmt.write_str(v.as_str()),
+            AnyValue::Boolean(v) => v.fmt(fmt),
+            AnyValue::Bytes(v) => common::display_array_str(v.as_slice(), fmt),
+            AnyValue::ListAny(values) => {
+                write!(fmt, "[")?;
+                for (i, t) in values.iter().enumerate() {
+                    if i > 0 {
+                        write!(fmt, ",")?;
+                    }
+                    write!(fmt, "{t}")?;
+                }
+                write!(fmt, "]")
+            }
+            AnyValue::Map(map) => {
+                write!(fmt, "{{")?;
+                for (i, (k, v)) in map.into_iter().enumerate() {
+                    if i > 0 {
+                        write!(fmt, ",")?;
+                    }
+                    write!(fmt, "{k}: {v}")?;
+                }
+                write!(fmt, "}}")
+            }
+        }
+    }
 }
 
 macro_rules! impl_trivial_from {
