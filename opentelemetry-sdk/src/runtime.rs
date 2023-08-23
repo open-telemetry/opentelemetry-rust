@@ -24,8 +24,8 @@ pub trait Runtime: Clone + Send + Sync + 'static {
     /// not important.
     type Delay: Future + Send + Unpin;
 
-    /// Create a [Stream][futures_util::stream::Stream], which returns a new item every
-    /// [Duration][std::time::Duration].
+    /// Create a [futures_util::stream::Stream], which returns a new item every
+    /// [std::time::Duration].
     fn interval(&self, duration: Duration) -> Self::Interval;
 
     /// Spawn a new task or thread, which executes the given future.
@@ -39,7 +39,7 @@ pub trait Runtime: Clone + Send + Sync + 'static {
     /// the given future even if the main thread is blocked.
     fn spawn(&self, future: BoxFuture<'static, ()>);
 
-    /// Return a new future, which resolves after the specified [Duration][std::time::Duration].
+    /// Return a new future, which resolves after the specified [std::time::Duration].
     fn delay(&self, duration: Duration) -> Self::Delay;
 }
 
