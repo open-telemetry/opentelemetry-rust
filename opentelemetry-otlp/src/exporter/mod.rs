@@ -1,6 +1,10 @@
 //! OTLP exporter builder and configurations.
 //!
 //! OTLP supports sending data via different protocols and formats.
+//!
+//! Learn about the relationship between the OTEL_EXPORTER_OTLP_* environment variables
+//! and metrics/spans/logs at
+//! <https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/protocol/exporter.md#endpoint-urls-for-otlphttp>
 
 #[cfg(feature = "grpc-sys")]
 use crate::exporter::grpcio::GrpcioExporterBuilder;
@@ -15,16 +19,20 @@ use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 use std::time::Duration;
 
-/// Target to which the exporter is going to send signals, defaults to https://localhost:4317.
-/// Learn about the relationship between this constant and metrics/spans/logs at
-/// <https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/protocol/exporter.md#endpoint-urls-for-otlphttp>
-pub const OTEL_EXPORTER_OTLP_ENDPOINT: &str = "OTEL_EXPORTER_OTLP_ENDPOINT";
-/// Default target to which the exporter is going to send signals.
-pub const OTEL_EXPORTER_OTLP_ENDPOINT_DEFAULT: &str = OTEL_EXPORTER_OTLP_HTTP_ENDPOINT_DEFAULT;
+// Environment variables
+//
+// These are used if no corresponding 'per-signal' environment variable is set.
+
 /// Protocol the exporter will use. Either `http/protobuf` or `grpc`.
 pub const OTEL_EXPORTER_OTLP_PROTOCOL: &str = "OTEL_EXPORTER_OTLP_PROTOCOL";
+/// Target to which the exporter is going to send signals, defaults to https://localhost:4317.
+pub const OTEL_EXPORTER_OTLP_ENDPOINT: &str = "OTEL_EXPORTER_OTLP_ENDPOINT";
+/// Max waiting time for the backend to process each signal batch, defaults to 10 seconds.
+pub const OTEL_EXPORTER_OTLP_TIMEOUT: &str = "OTEL_EXPORTER_OTLP_TIMEOUT";
 /// Compression algorithm to use, defaults to none.
 pub const OTEL_EXPORTER_OTLP_COMPRESSION: &str = "OTEL_EXPORTER_OTLP_COMPRESSION";
+
+// Defaults
 
 #[cfg(feature = "http-proto")]
 /// Default protocol, using http-proto.
@@ -42,14 +50,15 @@ pub const OTEL_EXPORTER_OTLP_PROTOCOL_DEFAULT: &str = "";
 const OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_PROTOBUF: &str = "http/protobuf";
 const OTEL_EXPORTER_OTLP_PROTOCOL_GRPC: &str = "grpc";
 
-/// Max waiting time for the backend to process each signal batch, defaults to 10 seconds.
-pub const OTEL_EXPORTER_OTLP_TIMEOUT: &str = "OTEL_EXPORTER_OTLP_TIMEOUT";
-/// Default max waiting time for the backend to process each signal batch.
-pub const OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT: u64 = 10;
+/// Default target to which the exporter is going to send signals.
+pub const OTEL_EXPORTER_OTLP_ENDPOINT_DEFAULT: &str = OTEL_EXPORTER_OTLP_HTTP_ENDPOINT_DEFAULT;
 
 // Endpoints per protocol https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/protocol/exporter.md
 const OTEL_EXPORTER_OTLP_GRPC_ENDPOINT_DEFAULT: &str = "http://localhost:4317";
 const OTEL_EXPORTER_OTLP_HTTP_ENDPOINT_DEFAULT: &str = "http://localhost:4318";
+
+/// Default max waiting time for the backend to process each signal batch.
+pub const OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT: u64 = 10;
 
 #[cfg(feature = "grpc-sys")]
 pub(crate) mod grpcio;
@@ -57,6 +66,60 @@ pub(crate) mod grpcio;
 pub(crate) mod http;
 #[cfg(feature = "grpc-tonic")]
 pub(crate) mod tonic;
+
+pub(crate) fn resolve_endpoint(
+    config_value: &str,
+    signal_endpoint_var: &str,
+    signal_endpoint_path: &str,
+) -> String {
+    if let Ok(endpoint) = std::env::var(signal_endpoint_var) {
+        endpoint
+    } else if let Ok(endpoint) = std::env::var(OTEL_EXPORTER_OTLP_ENDPOINT) {
+        with_path(&endpoint, signal_endpoint_path)
+    } else {
+        with_path(config_value, signal_endpoint_path)
+    }
+}
+
+/// a helper function to add path to a base URL
+fn with_path(base: &str, path: &str) -> String {
+    let b = match base.strip_suffix('/') {
+        Some(s) => s,
+        None => base,
+    };
+    format!("{}{}", b, path)
+}
+
+pub(crate) fn resolve_timeout(config_value: Duration, signal_timeout_var: &str) -> Duration {
+    if let Ok(val) = std::env::var(signal_timeout_var) {
+        match val.parse() {
+            Ok(seconds) => Duration::from_secs(seconds),
+            Err(_) => config_value,
+        }
+    } else if let Ok(val) = std::env::var(OTEL_EXPORTER_OTLP_TIMEOUT) {
+        match val.parse() {
+            Ok(seconds) => Duration::from_secs(seconds),
+            Err(_) => config_value,
+        }
+    } else {
+        config_value
+    }
+}
+
+pub(crate) fn resolve_compression(
+    config_value: Option<Compression>,
+    signal_compression_var: &str,
+) -> Result<Option<Compression>, crate::Error> {
+    if let Some(compression) = config_value {
+        Ok(Some(compression))
+    } else if let Ok(compression) = std::env::var(signal_compression_var) {
+        Ok(Some(compression.parse::<Compression>()?))
+    } else if let Ok(compression) = std::env::var(OTEL_EXPORTER_OTLP_COMPRESSION) {
+        Ok(Some(compression.parse::<Compression>()?))
+    } else {
+        Ok(None)
+    }
+}
 
 /// Configuration for the OTLP exporter.
 #[derive(Debug)]
@@ -254,10 +317,11 @@ mod tests {
     const LOCK_POISONED_MESSAGE: &str = "one of the other pipeline builder from env tests failed";
 
     use crate::exporter::{
-        default_endpoint, default_protocol, WithExportConfig, OTEL_EXPORTER_OTLP_ENDPOINT,
-        OTEL_EXPORTER_OTLP_GRPC_ENDPOINT_DEFAULT, OTEL_EXPORTER_OTLP_HTTP_ENDPOINT_DEFAULT,
-        OTEL_EXPORTER_OTLP_PROTOCOL_GRPC, OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_PROTOBUF,
-        OTEL_EXPORTER_OTLP_TIMEOUT, OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT,
+        default_endpoint, default_protocol, resolve_endpoint, ExportConfig, HasExportConfig,
+        WithExportConfig, OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_GRPC_ENDPOINT_DEFAULT,
+        OTEL_EXPORTER_OTLP_HTTP_ENDPOINT_DEFAULT, OTEL_EXPORTER_OTLP_PROTOCOL_GRPC,
+        OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_PROTOBUF, OTEL_EXPORTER_OTLP_TIMEOUT,
+        OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT,
     };
     use crate::{new_exporter, Compression, Protocol, OTEL_EXPORTER_OTLP_PROTOCOL};
     use std::str::FromStr;
@@ -392,5 +456,134 @@ mod tests {
     #[test]
     fn test_compression_to_str() {
         assert_eq!(Compression::Gzip.to_string(), "gzip");
+    }
+
+    #[derive(Default)]
+    struct DummyExportBuilder {
+        exporter_config: ExportConfig,
+    }
+    impl HasExportConfig for DummyExportBuilder {
+        fn export_config(&mut self) -> &mut ExportConfig {
+            &mut self.exporter_config
+        }
+    }
+
+    // Test the examples from
+    // <https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/protocol/exporter.md#endpoint-urls-for-otlphttp>
+    #[test]
+    fn test_resolve_endpoint() {
+        let _env_lock = ENV_LOCK.lock().expect(LOCK_POISONED_MESSAGE);
+
+        // These constants are defined in `span` and `metrics` crates, but they are only
+        // built if the right features are selected. We only want to test the logic of
+        // resolving env variables, so we don't need the actual functionality. So redefine
+        // these here, so that the test works even without the 'logs' or 'metrics'
+        // features.
+        const OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: &str = "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT";
+        const OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: &str = "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT";
+
+        // Example 1:
+        //
+        // The following configuration sends all signals to the same collector:
+        //
+        // export OTEL_EXPORTER_OTLP_ENDPOINT=http://collector:4318
+        //
+        // Traces are sent to http://collector:4318/v1/traces,
+        // metrics to http://collector:4318/v1/metrics and
+        // logs to http://collector:4318/v1/logs.
+        std::env::set_var(OTEL_EXPORTER_OTLP_ENDPOINT, "http://collector:4318");
+        let builder = DummyExportBuilder::default().with_env();
+        assert_eq!(
+            resolve_endpoint(
+                &builder.exporter_config.endpoint,
+                OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+                "/v1/traces"
+            ),
+            "http://collector:4318/v1/traces"
+        );
+        assert_eq!(
+            resolve_endpoint(
+                &builder.exporter_config.endpoint,
+                OTEL_EXPORTER_OTLP_METRICS_ENDPOINT,
+                "/v1/metrics"
+            ),
+            "http://collector:4318/v1/metrics"
+        );
+        std::env::remove_var(OTEL_EXPORTER_OTLP_ENDPOINT);
+
+        // Example 2
+        //
+        // Traces and metrics are sent to different collectors and paths:
+        //
+        // export OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://collector:4318
+        // export OTEL_EXPORTER_OTLP_METRICS_ENDPOINT=https://collector.example.com/v1/metrics
+        //
+        // This will send traces directly to the root path http://collector:4318/
+        // (/v1/traces is only automatically added when using the non-signal-specific environment variable) and
+        // metrics to https://collector.example.com/v1/metrics, using the default https port (443).
+        std::env::set_var(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, "http://collector:4318");
+        std::env::set_var(
+            OTEL_EXPORTER_OTLP_METRICS_ENDPOINT,
+            "https://collector.example.com/v1/metrics",
+        );
+        let builder = DummyExportBuilder::default().with_env();
+        // The example says this should be "http://collector:4318/", with trailing slash. However, it earlier
+        // also says that for the per-signal configuration options, "the URL is used as-is for them, without any modifications".
+        assert_eq!(
+            resolve_endpoint(
+                &builder.exporter_config.endpoint,
+                OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+                "/v1/traces"
+            ),
+            "http://collector:4318"
+        );
+        assert_eq!(
+            resolve_endpoint(
+                &builder.exporter_config.endpoint,
+                OTEL_EXPORTER_OTLP_METRICS_ENDPOINT,
+                "/v1/metrics"
+            ),
+            "https://collector.example.com/v1/metrics"
+        );
+        std::env::remove_var(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT);
+        std::env::remove_var(OTEL_EXPORTER_OTLP_METRICS_ENDPOINT);
+
+        // Example 3
+        // The following configuration sends all signals except for metrics to the same collector:
+        //
+        // export OTEL_EXPORTER_OTLP_ENDPOINT=http://collector:4318/mycollector/
+        // export OTEL_EXPORTER_OTLP_METRICS_ENDPOINT=https://collector.example.com/v1/metrics/
+        //
+        // Traces are sent to http://collector:4318/mycollector/v1/traces,
+        // logs to http://collector:4318/mycollector/v1/logs and
+        // metrics to https://collector.example.com/v1/metrics/, using the default https port (443).
+        // Other signals, (if there were any) would be sent to their specific paths relative to http://collector:4318/mycollector/.
+        std::env::set_var(
+            OTEL_EXPORTER_OTLP_ENDPOINT,
+            "http://collector:4318/mycollector/",
+        );
+        std::env::set_var(
+            OTEL_EXPORTER_OTLP_METRICS_ENDPOINT,
+            "https://collector.example.com/v1/metrics/",
+        );
+        let builder = DummyExportBuilder::default().with_env();
+        assert_eq!(
+            resolve_endpoint(
+                &builder.exporter_config.endpoint,
+                OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+                "/v1/traces"
+            ),
+            "http://collector:4318/mycollector/v1/traces"
+        );
+        assert_eq!(
+            resolve_endpoint(
+                &builder.exporter_config.endpoint,
+                OTEL_EXPORTER_OTLP_METRICS_ENDPOINT,
+                "/v1/metrics"
+            ),
+            "https://collector.example.com/v1/metrics/"
+        );
+        std::env::remove_var(OTEL_EXPORTER_OTLP_ENDPOINT);
+        std::env::remove_var(OTEL_EXPORTER_OTLP_METRICS_ENDPOINT);
     }
 }

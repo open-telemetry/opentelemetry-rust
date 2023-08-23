@@ -1,8 +1,7 @@
-use crate::{ExportConfig, Protocol, OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_TIMEOUT};
+use crate::{ExportConfig, Protocol};
 use http::{HeaderName, HeaderValue, Uri};
 use opentelemetry_http::HttpClient;
 use std::collections::HashMap;
-use std::env;
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -144,25 +143,15 @@ impl HttpExporterBuilder {
         signal_endpoint_path: &str,
         signal_timeout_var: &str,
     ) -> Result<OtlpHttpClient, crate::Error> {
-        let endpoint = match env::var(signal_endpoint_var)
-            .ok()
-            .or(env::var(OTEL_EXPORTER_OTLP_ENDPOINT).ok())
-            .and_then(|s| s.parse().ok())
-        {
-            Some(val) => val,
-            None => format!("{}{signal_endpoint_path}", self.exporter_config.endpoint).parse()?,
-        };
+        let endpoint = crate::exporter::resolve_endpoint(
+            &self.exporter_config.endpoint,
+            signal_endpoint_var,
+            signal_endpoint_path,
+        )
+        .parse()?;
 
-        let timeout = match env::var(signal_timeout_var)
-            .ok()
-            .or(env::var(OTEL_EXPORTER_OTLP_TIMEOUT).ok())
-        {
-            Some(val) => match val.parse() {
-                Ok(seconds) => Duration::from_secs(seconds),
-                Err(_) => self.exporter_config.timeout,
-            },
-            None => self.exporter_config.timeout,
-        };
+        let timeout =
+            crate::exporter::resolve_timeout(self.exporter_config.timeout, signal_timeout_var);
 
         let http_client = self
             .http_config
