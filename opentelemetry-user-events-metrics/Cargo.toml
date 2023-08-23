@@ -20,7 +20,6 @@ prost = "0.11"
 
 [dev-dependencies]
 tokio = { version = "1.0", features = ["full"] }
-structopt = "0.3"
 
 [[example]]
 name = "basic"

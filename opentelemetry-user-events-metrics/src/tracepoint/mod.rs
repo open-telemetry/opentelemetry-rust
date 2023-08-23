@@ -5,7 +5,6 @@ use std::pin::Pin;
 /// Protocol constant
 const PROTOCOL_FIELD_VALUE: u32 = 0;
 /// Protobuf definition version
-// const PROTOBUF_VERSION: [u8; 8] = [b'v', b'0', b'.', b'1', b'9', b'.', b'0', b'0'];
 const PROTOBUF_VERSION: &[u8; 8] = b"v0.19.00";
 
 /// This is the command string for the event. It needs to follow the
@@ -24,7 +23,8 @@ const PROTOBUF_VERSION: &[u8; 8] = b"v0.19.00";
 ///
 /// "__rel_loc" is a special type for variable-length fields. It requires
 /// special handling in the write() method.
-const METRICS_EVENT_DEF: &[u8] = b"otlp_metrics u32 protocol;char[8] version;__rel_loc u8[] buffer;\0";
+const METRICS_EVENT_DEF: &[u8] =
+    b"otlp_metrics u32 protocol;char[8] version;__rel_loc u8[] buffer;\0";
 
 /// If the tracepoint is registered and enabled, writes an event. If the tracepoint
 /// is unregistered or disabled, this does nothing and returns 0. You should usually
@@ -57,9 +57,9 @@ pub fn write(trace_point: &ehi::TracepointState, buffer: &[u8]) -> i32 {
         // mut because the write method does some fix-ups.
         ehi::EventDataDescriptor::zero(), // First item before buffer MUST be zero().
         ehi::EventDataDescriptor::from_value(&PROTOCOL_FIELD_VALUE), // protocol value 0 for protobuf
-        ehi::EventDataDescriptor::from_slice(PROTOBUF_VERSION), // protobuf definition version
+        ehi::EventDataDescriptor::from_slice(PROTOBUF_VERSION),      // protobuf definition version
         ehi::EventDataDescriptor::from_value(&buffer_rel_loc), // rel_loc for the buffer field.
-        ehi::EventDataDescriptor::from_slice(buffer), // buffer field.
+        ehi::EventDataDescriptor::from_slice(buffer),          // buffer field.
     ])
 }
 
