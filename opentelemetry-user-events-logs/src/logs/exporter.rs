@@ -196,14 +196,12 @@ impl UserEventsExporter {
                     );
                     eb.add_str("time", time, FieldFormat::Default, 0);
                 }
-
                 //populate CS PartC
                 let (mut is_event_id, mut event_id) = (false, 0);
                 let (mut is_event_name, mut event_name) = (false, "");
 
                 if let Some(attr_list) = &log_data.record.attributes {
-                    let (mut is_part_c_present, cs_c_bookmark, mut cs_c_count) = (false, 0, 0);
-                    eb.add_struct("PartC", 0, 0);
+                    let (mut is_part_c_present, mut cs_c_bookmark, mut cs_c_count) = (false, 0, 0);
                     for attrib in attr_list.iter() {
                         match (attrib.0.as_str(), &attrib.1) {
                             (EVENT_ID, AnyValue::Int(value)) => {
@@ -218,7 +216,7 @@ impl UserEventsExporter {
                             }
                             _ => {
                                 if !is_part_c_present {
-                                    eb.add_struct("PartC", 0, 0);
+                                    eb.add_struct_with_bookmark("PartC", 1, 0, &mut cs_c_bookmark);
                                     is_part_c_present = true;
                                 }
                                 self.add_attribute_to_event(&mut eb, attrib);
@@ -230,7 +228,6 @@ impl UserEventsExporter {
                         eb.set_struct_field_count(cs_c_bookmark, cs_c_count);
                     }
                 }
-
                 // populate CS PartB
                 let mut cs_b_bookmark: usize = 0;
                 let mut cs_b_count = 0;
@@ -321,10 +318,10 @@ impl opentelemetry_sdk::export::logs::LogExporter for UserEventsExporter {
         let es = self
             .provider
             .find_set(self.get_severity_level(level), keyword);
-        match es {
+        let res = match es {
             Some(x) => x.enabled(),
             _ => false,
         };
-        false
+        res
     }
 }
