@@ -133,7 +133,7 @@ impl HttpExporterBuilder {
     pub fn with_headers(mut self, headers: HashMap<String, String>) -> Self {
         // headers will be wrapped, so we must do some logic to unwrap first.
         let mut inst_headers = self.http_config.headers.unwrap_or_default();
-        inst_headers.extend(headers.into_iter());
+        inst_headers.extend(headers);
         self.http_config.headers = Some(inst_headers);
         self
     }

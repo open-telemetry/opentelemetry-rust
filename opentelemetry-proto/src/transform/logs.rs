@@ -89,7 +89,7 @@ pub mod tonic {
                 body: log_record.body.map(Into::into),
                 attributes: log_record
                     .attributes
-                    .map(|attrs| Attributes::from_iter(attrs.into_iter()))
+                    .map(Attributes::from_iter)
                     .unwrap_or_default()
                     .0,
                 dropped_attributes_count: 0,
@@ -228,7 +228,7 @@ pub mod grpcio {
                 body: log_record.body.map(Into::into),
                 attributes: log_record
                     .attributes
-                    .map(|attrs| Attributes::from_iter(attrs.into_iter()))
+                    .map(Attributes::from_iter)
                     .unwrap_or_default()
                     .0,
                 dropped_attributes_count: 0,

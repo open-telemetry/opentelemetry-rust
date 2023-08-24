@@ -713,7 +713,7 @@ mod tests {
 
     #[test]
     fn test_record_to_metric_line() -> Result<(), MetricsError> {
-        let attributes = vec![("KEY", "VALUE"), ("test.abc_123-", "value.123_foo-bar")];
+        let attributes = [("KEY", "VALUE"), ("test.abc_123-", "value.123_foo-bar")];
         let attribute_set = AttributeSet::from_attributes(
             attributes
                 .iter()

@@ -724,7 +724,7 @@ impl From<(EvictedHashMap, &Resource)> for Attributes {
         let attribute_map = resource
             .into_iter()
             .map(|(k, v)| (k.clone(), v.clone()))
-            .chain(attributes.into_iter())
+            .chain(attributes)
             .flat_map(|(k, v)| {
                 let key = k.as_str();
                 if key.len() > 128 {

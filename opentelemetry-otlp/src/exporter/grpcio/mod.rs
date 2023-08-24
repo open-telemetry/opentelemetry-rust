@@ -124,7 +124,7 @@ impl GrpcioExporterBuilder {
     /// Set additional headers to send to the collector.
     pub fn with_headers(mut self, headers: HashMap<String, String>) -> Self {
         let mut inst_headers = self.grpcio_config.headers.unwrap_or_default();
-        inst_headers.extend(headers.into_iter());
+        inst_headers.extend(headers);
         self.grpcio_config.headers = Some(inst_headers);
         self
     }
