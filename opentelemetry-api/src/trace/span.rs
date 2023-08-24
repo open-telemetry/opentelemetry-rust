@@ -283,7 +283,7 @@ impl Status {
     /// # Examples
     ///
     /// ```
-    /// use opentelemetry_api::trace::Status;
+    /// use opentelemetry::trace::Status;
     ///
     /// // record error with `str` description
     /// let error_status = Status::error("something went wrong");

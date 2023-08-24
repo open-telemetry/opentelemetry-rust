@@ -11,7 +11,7 @@ use futures_util::{
     stream::{self, FusedStream},
     Stream, StreamExt,
 };
-use opentelemetry_api::{
+use opentelemetry::{
     global,
     metrics::{MetricsError, Result},
     Context,

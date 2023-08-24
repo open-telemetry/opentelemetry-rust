@@ -192,7 +192,7 @@ impl HttpExporterBuilder {
     #[cfg(feature = "trace")]
     pub fn build_span_exporter(
         mut self,
-    ) -> Result<crate::SpanExporter, opentelemetry_api::trace::TraceError> {
+    ) -> Result<crate::SpanExporter, opentelemetry::trace::TraceError> {
         use crate::{OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, OTEL_EXPORTER_OTLP_TRACES_TIMEOUT};
 
         let client = self.build_client(
@@ -206,7 +206,7 @@ impl HttpExporterBuilder {
 
     /// Create a log exporter with the current configuration
     #[cfg(feature = "logs")]
-    pub fn build_log_exporter(mut self) -> opentelemetry_api::logs::LogResult<crate::LogExporter> {
+    pub fn build_log_exporter(mut self) -> opentelemetry::logs::LogResult<crate::LogExporter> {
         use crate::{OTEL_EXPORTER_OTLP_LOGS_ENDPOINT, OTEL_EXPORTER_OTLP_LOGS_TIMEOUT};
 
         let client = self.build_client(
@@ -224,7 +224,7 @@ impl HttpExporterBuilder {
         mut self,
         aggregation_selector: Box<dyn opentelemetry_sdk::metrics::reader::AggregationSelector>,
         temporality_selector: Box<dyn opentelemetry_sdk::metrics::reader::TemporalitySelector>,
-    ) -> opentelemetry_api::metrics::Result<crate::MetricsExporter> {
+    ) -> opentelemetry::metrics::Result<crate::MetricsExporter> {
         use crate::{OTEL_EXPORTER_OTLP_METRICS_ENDPOINT, OTEL_EXPORTER_OTLP_METRICS_TIMEOUT};
 
         let client = self.build_client(

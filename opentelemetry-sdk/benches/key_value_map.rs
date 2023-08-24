@@ -2,7 +2,7 @@ use criterion::{
     black_box, criterion_group, criterion_main, BatchSize::SmallInput, BenchmarkId, Criterion,
 };
 use indexmap::IndexMap;
-use opentelemetry_api::{Key, KeyValue, Value};
+use opentelemetry::{Key, KeyValue, Value};
 use opentelemetry_sdk::trace::EvictedHashMap;
 #[cfg(not(target_os = "windows"))]
 use pprof::criterion::{Output, PProfProfiler};

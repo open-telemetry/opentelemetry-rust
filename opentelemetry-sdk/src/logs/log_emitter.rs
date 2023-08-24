@@ -3,7 +3,7 @@ use crate::{
     export::logs::{LogData, LogExporter},
     runtime::RuntimeChannel,
 };
-use opentelemetry_api::{
+use opentelemetry::{
     global::{self},
     logs::{LogRecord, LogResult, TraceContext},
     trace::TraceContextExt,
@@ -11,7 +11,7 @@ use opentelemetry_api::{
 };
 
 #[cfg(feature = "logs_level_enabled")]
-use opentelemetry_api::logs::Severity;
+use opentelemetry::logs::Severity;
 
 use std::{
     borrow::Cow,
@@ -27,7 +27,7 @@ pub struct LoggerProvider {
 /// Default logger name if empty string is provided.
 const DEFAULT_COMPONENT_NAME: &str = "rust.opentelemetry.io/sdk/logger";
 
-impl opentelemetry_api::logs::LoggerProvider for LoggerProvider {
+impl opentelemetry::logs::LoggerProvider for LoggerProvider {
     type Logger = Logger;
 
     /// Create a new versioned `Logger` instance.
@@ -36,7 +36,7 @@ impl opentelemetry_api::logs::LoggerProvider for LoggerProvider {
         name: impl Into<Cow<'static, str>>,
         version: Option<Cow<'static, str>>,
         schema_url: Option<Cow<'static, str>>,
-        attributes: Option<Vec<opentelemetry_api::KeyValue>>,
+        attributes: Option<Vec<opentelemetry::KeyValue>>,
     ) -> Logger {
         let name = name.into();
 
@@ -176,7 +176,7 @@ impl Builder {
 #[derive(Debug)]
 /// The object for emitting [`LogRecord`]s.
 ///
-/// [`LogRecord`]: opentelemetry_api::logs::LogRecord
+/// [`LogRecord`]: opentelemetry::logs::LogRecord
 pub struct Logger {
     instrumentation_lib: Arc<InstrumentationLibrary>,
     provider: Weak<LoggerProviderInner>,
@@ -204,7 +204,7 @@ impl Logger {
     }
 }
 
-impl opentelemetry_api::logs::Logger for Logger {
+impl opentelemetry::logs::Logger for Logger {
     /// Emit a `LogRecord`.
     fn emit(&self, record: LogRecord) {
         let provider = match self.provider() {

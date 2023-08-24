@@ -13,7 +13,7 @@ use std::time::SystemTime;
 /// Spans can be created and nested manually:
 ///
 /// ```
-/// use opentelemetry_api::{global, trace::{Span, Tracer, TraceContextExt}, Context};
+/// use opentelemetry::{global, trace::{Span, Tracer, TraceContextExt}, Context};
 ///
 /// let tracer = global::tracer("my-component");
 ///
@@ -30,7 +30,7 @@ use std::time::SystemTime;
 /// Spans can also use the current thread's [`Context`] to track which span is active:
 ///
 /// ```
-/// use opentelemetry_api::{global, trace::{SpanKind, Tracer}};
+/// use opentelemetry::{global, trace::{SpanKind, Tracer}};
 ///
 /// let tracer = global::tracer("my-component");
 ///
@@ -49,7 +49,7 @@ use std::time::SystemTime;
 /// greater control over when the span is no longer considered active.
 ///
 /// ```
-/// use opentelemetry_api::{global, trace::{Span, Tracer, mark_span_as_active}};
+/// use opentelemetry::{global, trace::{Span, Tracer, mark_span_as_active}};
 /// let tracer = global::tracer("my-component");
 ///
 /// let parent_span = tracer.start("foo");
@@ -78,7 +78,7 @@ use std::time::SystemTime;
 /// the following example _will not_ work:
 ///
 /// ```no_run
-/// # use opentelemetry_api::{global, trace::{Tracer, mark_span_as_active}};
+/// # use opentelemetry::{global, trace::{Tracer, mark_span_as_active}};
 /// # let tracer = global::tracer("foo");
 /// # let span = tracer.start("foo-span");
 /// async {
@@ -99,7 +99,7 @@ use std::time::SystemTime;
 ///
 /// ```
 /// # async fn run() -> Result<(), ()> {
-/// use opentelemetry_api::{trace::FutureExt, Context};
+/// use opentelemetry::{trace::FutureExt, Context};
 /// let cx = Context::current();
 ///
 /// let my_future = async {
@@ -185,7 +185,7 @@ pub trait Tracer {
     /// # Examples
     ///
     /// ```
-    /// use opentelemetry_api::{global, trace::{Span, Tracer, get_active_span}, KeyValue};
+    /// use opentelemetry::{global, trace::{Span, Tracer, get_active_span}, KeyValue};
     ///
     /// fn my_function() {
     ///     // start an active span in one function
@@ -219,7 +219,7 @@ pub trait Tracer {
 /// has started.
 ///
 /// ```
-/// use opentelemetry_api::{
+/// use opentelemetry::{
 ///     global,
 ///     trace::{TracerProvider, SpanBuilder, SpanKind, Tracer},
 /// };

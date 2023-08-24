@@ -2,7 +2,7 @@
 
 use std::{any, borrow::Cow, fmt, time::SystemTime};
 
-use opentelemetry_api::{metrics::Unit, KeyValue};
+use opentelemetry::{metrics::Unit, KeyValue};
 
 use crate::{attributes::AttributeSet, instrumentation::Scope, Resource};
 
