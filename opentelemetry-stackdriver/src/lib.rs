@@ -96,7 +96,9 @@ impl StackDriverExporter {
 impl SpanExporter for StackDriverExporter {
     fn export(&mut self, batch: Vec<SpanData>) -> BoxFuture<'static, ExportResult> {
         match self.tx.try_send(batch) {
-            Err(e) => Box::pin(std::future::ready(Err(e.into()))),
+            Err(e) => Box::pin(std::future::ready(Err(TraceError::Other(Box::new(
+                e.into_send_error(),
+            ))))),
             Ok(()) => {
                 self.pending_count.fetch_add(1, Ordering::Relaxed);
                 Box::pin(std::future::ready(Ok(())))

@@ -1,7 +1,6 @@
 //! # OpenTelemetry Logs API
 
 use crate::ExportError;
-use futures_channel::{mpsc::TrySendError, oneshot::Canceled};
 use std::time::Duration;
 use thiserror::Error;
 
@@ -39,18 +38,6 @@ where
 {
     fn from(err: T) -> Self {
         LogError::ExportFailed(Box::new(err))
-    }
-}
-
-impl<T> From<TrySendError<T>> for LogError {
-    fn from(err: TrySendError<T>) -> Self {
-        LogError::Other(Box::new(err.into_send_error()))
-    }
-}
-
-impl From<Canceled> for LogError {
-    fn from(err: Canceled) -> Self {
-        LogError::Other(Box::new(err))
     }
 }
 
