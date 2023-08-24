@@ -58,11 +58,12 @@ See the [examples](./examples) directory for different integration patterns.
 
 ### Related Crates
 
-In addition to `opentelemetry`, the [`open-telemetry/opentelemetry-rust`]
-repository contains several additional crates designed to be used with the
-`opentelemetry` ecosystem. This includes a collection of trace `SpanExporter`
-and metrics pull and push controller implementations, as well as utility and
-adapter crates to assist in propagating state and instrumenting applications.
+In addition to `opentelemetry`, which only carries the API, the
+[`open-telemetry/opentelemetry-rust`] repository contains several additional
+crates designed to be used with the `opentelemetry` ecosystem. This includes a
+collection of trace `SpanExporter` and metrics pull and push controller
+implementations, as well as utility and adapter crates to assist in propagating
+state and instrumenting applications.
 
 In particular, the following crates are likely to be of interest:
 
@@ -79,6 +80,8 @@ In particular, the following crates are likely to be of interest:
   format to the OpenTelemetry collector.
 - [`opentelemetry-prometheus`] provides a pipeline and exporter for sending
   metrics information to [`Prometheus`].
+- [`opentelemetry_sdk`] provides the standard reference implementation of
+  opentelemetry.
 - [`opentelemetry-semantic-conventions`] provides standard names and semantic
   otel conventions.
 - [`opentelemetry-stackdriver`] provides an exporter for Google's [Cloud Trace]
