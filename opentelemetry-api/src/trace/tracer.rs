@@ -334,7 +334,7 @@ impl SpanBuilder {
         I: IntoIterator<Item = KeyValue>,
     {
         SpanBuilder {
-            attributes: Some(OrderMap::from_iter(attributes.into_iter())),
+            attributes: Some(OrderMap::from_iter(attributes)),
             ..self
         }
     }

@@ -170,7 +170,7 @@ impl TonicExporterBuilder {
             .metadata
             .unwrap_or_default()
             .into_headers();
-        existing_headers.extend(incoming_headers.into_iter());
+        existing_headers.extend(incoming_headers);
 
         self.tonic_config.metadata = Some(MetadataMap::from_headers(existing_headers));
         self
