@@ -1,5 +1,5 @@
 use log::{Level, Metadata, Record};
-use opentelemetry_api::logs::{AnyValue, LogRecordBuilder, Logger, LoggerProvider, Severity};
+use opentelemetry::logs::{AnyValue, LogRecordBuilder, Logger, LoggerProvider, Severity};
 use std::borrow::Cow;
 
 pub struct OpenTelemetryLogBridge<P, L>

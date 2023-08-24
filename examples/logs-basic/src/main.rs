@@ -1,5 +1,5 @@
 use log::{error, Level};
-use opentelemetry_api::KeyValue;
+use opentelemetry::KeyValue;
 use opentelemetry_appender_log::OpenTelemetryLogBridge;
 use opentelemetry_sdk::logs::{Config, LoggerProvider};
 use opentelemetry_sdk::Resource;

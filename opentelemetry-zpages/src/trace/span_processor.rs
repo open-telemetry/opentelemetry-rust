@@ -4,14 +4,14 @@
 //! for further process.
 //!
 //! [`SpanAggregator`]:../struct.SpanAggregator.html
-use std::fmt::Formatter;
-
-use async_channel::Sender;
-
 use crate::trace::TracezMessage;
-use opentelemetry::sdk::trace::{Span, SpanProcessor};
-use opentelemetry::trace::TraceResult;
-use opentelemetry::{sdk::export::trace::SpanData, Context};
+use async_channel::Sender;
+use opentelemetry::{trace::TraceResult, Context};
+use opentelemetry_sdk::{
+    export::trace::SpanData,
+    trace::{Span, SpanProcessor},
+};
+use std::fmt::Formatter;
 
 /// ZPagesSpanProcessor is an alternative to external exporters. It sends span data to zPages server
 /// where it will be archive and user can use this information for debug purpose.

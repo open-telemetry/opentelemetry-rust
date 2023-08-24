@@ -74,7 +74,7 @@ opentelemetry-jaeger = { version = "*", features = ["rt-tokio"] }
 
 ```rust
 let tracer = opentelemetry_jaeger::new_agent_pipeline()
-    .install_batch(opentelemetry::runtime::Tokio)?;
+    .install_batch(opentelemetry_sdk::runtime::Tokio)?;
 ```
 
 [`rt-tokio`]: https://tokio.rs

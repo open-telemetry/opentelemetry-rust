@@ -8,7 +8,7 @@
 //!
 //! ### Quick start
 //! ```no_run
-//! use opentelemetry_api::{global, trace::{Tracer, TracerProvider as _}};
+//! use opentelemetry::{global, trace::{Tracer, TracerProvider as _}};
 //! use opentelemetry_aws::trace::XrayPropagator;
 //! use opentelemetry_sdk::trace::TracerProvider;
 //! use opentelemetry_stdout::SpanExporter;
@@ -45,7 +45,7 @@ pub use trace::XrayPropagator;
 #[cfg(feature = "trace")]
 pub mod trace {
     use once_cell::sync::Lazy;
-    use opentelemetry_api::{
+    use opentelemetry::{
         global::{self, Error},
         propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
         trace::{
@@ -81,7 +81,7 @@ pub mod trace {
     /// ## Example
     ///
     /// ```
-    /// use opentelemetry_api::global;
+    /// use opentelemetry::global;
     /// use opentelemetry_aws::trace::XrayPropagator;
     ///
     /// global::set_text_map_propagator(XrayPropagator::default());
@@ -310,7 +310,7 @@ pub mod trace {
     #[cfg(test)]
     mod tests {
         use super::*;
-        use opentelemetry_api::trace::TraceState;
+        use opentelemetry::trace::TraceState;
         use opentelemetry_sdk::testing::trace::TestSpan;
         use std::collections::HashMap;
         use std::str::FromStr;

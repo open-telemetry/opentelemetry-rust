@@ -69,8 +69,8 @@ impl From<Cow<'static, str>> for Key {
     }
 }
 
-impl From<opentelemetry_api::Key> for Key {
-    fn from(value: opentelemetry_api::Key) -> Self {
+impl From<opentelemetry::Key> for Key {
+    fn from(value: opentelemetry::Key) -> Self {
         Key(value.as_str().to_string().into())
     }
 }
@@ -122,24 +122,24 @@ impl Hash for Value {
     }
 }
 
-impl From<opentelemetry_api::Value> for Value {
-    fn from(value: opentelemetry_api::Value) -> Self {
+impl From<opentelemetry::Value> for Value {
+    fn from(value: opentelemetry::Value) -> Self {
         match value {
-            opentelemetry_api::Value::Bool(b) => Value::Bool(b),
-            opentelemetry_api::Value::I64(i) => Value::Int(i),
-            opentelemetry_api::Value::F64(f) => Value::Double(f),
-            opentelemetry_api::Value::String(s) => Value::String(s.into()),
-            opentelemetry_api::Value::Array(a) => match a {
-                opentelemetry_api::Array::Bool(b) => {
+            opentelemetry::Value::Bool(b) => Value::Bool(b),
+            opentelemetry::Value::I64(i) => Value::Int(i),
+            opentelemetry::Value::F64(f) => Value::Double(f),
+            opentelemetry::Value::String(s) => Value::String(s.into()),
+            opentelemetry::Value::Array(a) => match a {
+                opentelemetry::Array::Bool(b) => {
                     Value::Array(b.into_iter().map(Value::Bool).collect())
                 }
-                opentelemetry_api::Array::I64(i) => {
+                opentelemetry::Array::I64(i) => {
                     Value::Array(i.into_iter().map(Value::Int).collect())
                 }
-                opentelemetry_api::Array::F64(f) => {
+                opentelemetry::Array::F64(f) => {
                     Value::Array(f.into_iter().map(Value::Double).collect())
                 }
-                opentelemetry_api::Array::String(s) => {
+                opentelemetry::Array::String(s) => {
                     Value::Array(s.into_iter().map(|s| Value::String(s.into())).collect())
                 }
             },
@@ -148,17 +148,17 @@ impl From<opentelemetry_api::Value> for Value {
 }
 
 #[cfg(feature = "logs")]
-impl From<opentelemetry_api::logs::AnyValue> for Value {
-    fn from(value: opentelemetry_api::logs::AnyValue) -> Self {
+impl From<opentelemetry::logs::AnyValue> for Value {
+    fn from(value: opentelemetry::logs::AnyValue) -> Self {
         match value {
-            opentelemetry_api::logs::AnyValue::Boolean(b) => Value::Bool(b),
-            opentelemetry_api::logs::AnyValue::Int(i) => Value::Int(i),
-            opentelemetry_api::logs::AnyValue::Double(d) => Value::Double(d),
-            opentelemetry_api::logs::AnyValue::String(s) => Value::String(s.into()),
-            opentelemetry_api::logs::AnyValue::ListAny(a) => {
+            opentelemetry::logs::AnyValue::Boolean(b) => Value::Bool(b),
+            opentelemetry::logs::AnyValue::Int(i) => Value::Int(i),
+            opentelemetry::logs::AnyValue::Double(d) => Value::Double(d),
+            opentelemetry::logs::AnyValue::String(s) => Value::String(s.into()),
+            opentelemetry::logs::AnyValue::ListAny(a) => {
                 Value::Array(a.into_iter().map(Into::into).collect())
             }
-            opentelemetry_api::logs::AnyValue::Map(m) => Value::KeyValues(
+            opentelemetry::logs::AnyValue::Map(m) => Value::KeyValues(
                 m.into_iter()
                     .map(|(key, value)| KeyValue {
                         key: key.into(),
@@ -166,7 +166,7 @@ impl From<opentelemetry_api::logs::AnyValue> for Value {
                     })
                     .collect(),
             ),
-            opentelemetry_api::logs::AnyValue::Bytes(b) => Value::BytesValue(b),
+            opentelemetry::logs::AnyValue::Bytes(b) => Value::BytesValue(b),
         }
     }
 }
@@ -179,8 +179,8 @@ pub(crate) struct KeyValue {
 }
 
 #[cfg(feature = "logs")]
-impl From<(opentelemetry_api::Key, opentelemetry_api::logs::AnyValue)> for KeyValue {
-    fn from((key, value): (opentelemetry_api::Key, opentelemetry_api::logs::AnyValue)) -> Self {
+impl From<(opentelemetry::Key, opentelemetry::logs::AnyValue)> for KeyValue {
+    fn from((key, value): (opentelemetry::Key, opentelemetry::logs::AnyValue)) -> Self {
         KeyValue {
             key: key.into(),
             value: value.into(),
@@ -188,8 +188,8 @@ impl From<(opentelemetry_api::Key, opentelemetry_api::logs::AnyValue)> for KeyVa
     }
 }
 
-impl From<opentelemetry_api::KeyValue> for KeyValue {
-    fn from(value: opentelemetry_api::KeyValue) -> Self {
+impl From<opentelemetry::KeyValue> for KeyValue {
+    fn from(value: opentelemetry::KeyValue) -> Self {
         KeyValue {
             key: value.key.into(),
             value: value.value.into(),
@@ -197,8 +197,8 @@ impl From<opentelemetry_api::KeyValue> for KeyValue {
     }
 }
 
-impl From<&opentelemetry_api::KeyValue> for KeyValue {
-    fn from(value: &opentelemetry_api::KeyValue) -> Self {
+impl From<&opentelemetry::KeyValue> for KeyValue {
+    fn from(value: &opentelemetry::KeyValue) -> Self {
         KeyValue {
             key: value.key.clone().into(),
             value: value.value.clone().into(),
@@ -206,8 +206,8 @@ impl From<&opentelemetry_api::KeyValue> for KeyValue {
     }
 }
 
-impl From<(opentelemetry_api::Key, opentelemetry_api::Value)> for KeyValue {
-    fn from((key, value): (opentelemetry_api::Key, opentelemetry_api::Value)) -> Self {
+impl From<(opentelemetry::Key, opentelemetry::Value)> for KeyValue {
+    fn from((key, value): (opentelemetry::Key, opentelemetry::Value)) -> Self {
         KeyValue {
             key: key.into(),
             value: value.into(),

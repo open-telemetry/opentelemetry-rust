@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
 
-use opentelemetry_api::{logs::AnyValue, logs::Severity, Key};
+use opentelemetry::{logs::AnyValue, logs::Severity, Key};
 use std::{cell::RefCell, str, time::SystemTime};
 
 /// Provider group associated with the user_events exporter
@@ -325,7 +325,7 @@ impl opentelemetry_sdk::export::logs::LogExporter for UserEventsExporter {
     async fn export(
         &mut self,
         batch: Vec<opentelemetry_sdk::export::logs::LogData>,
-    ) -> opentelemetry_api::logs::LogResult<()> {
+    ) -> opentelemetry::logs::LogResult<()> {
         for log_data in batch {
             let _ = self.export_log_data(&log_data);
         }

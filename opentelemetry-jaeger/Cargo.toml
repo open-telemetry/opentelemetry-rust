@@ -29,7 +29,8 @@ hyper = { version = "0.14", default-features = false, features = ["client"], opt
 hyper-tls = { version = "0.5.0", default-features = false, optional = true }
 isahc = { version = "1.4", default-features = false, optional = true }
 js-sys = { version = "0.3", optional = true }
-opentelemetry = { version = "0.20", default-features = false, features = ["trace"], path = "../opentelemetry" }
+opentelemetry = { version = "0.21", default-features = false, features = ["trace"], path = "../opentelemetry" }
+opentelemetry_sdk = { version = "0.20", default-features = false, features = ["trace"], path = "../opentelemetry-sdk" }
 opentelemetry-http = { version = "0.9", path = "../opentelemetry-http", optional = true }
 opentelemetry-semantic-conventions = { version = "0.12", path = "../opentelemetry-semantic-conventions" }
 pin-project-lite = { version = "0.2", optional = true }
@@ -53,7 +54,7 @@ futures-util = { version = "0.3", default-features = false, features = ["std", "
 tokio = { version = "1.0", features = ["net", "sync"] }
 bytes = "1"
 futures-executor = "0.3"
-opentelemetry = { default-features = false, features = ["trace", "testing"], path = "../opentelemetry" }
+opentelemetry_sdk = { features = ["trace", "testing", "rt-tokio"], path = "../opentelemetry-sdk" }
 
 [dependencies.web-sys]
 version = "0.3.4"
@@ -102,7 +103,7 @@ wasm_collector_client = [
     "wasm-bindgen-futures",
     "web-sys",
 ]
-rt-tokio = ["tokio", "opentelemetry/rt-tokio"]
-rt-tokio-current-thread = ["tokio", "opentelemetry/rt-tokio-current-thread"]
-rt-async-std = ["async-std", "opentelemetry/rt-async-std"]
+rt-tokio = ["tokio", "opentelemetry_sdk/rt-tokio"]
+rt-tokio-current-thread = ["tokio", "opentelemetry_sdk/rt-tokio-current-thread"]
+rt-async-std = ["async-std", "opentelemetry_sdk/rt-async-std"]
 integration_test = ["tonic", "prost", "prost-types", "rt-tokio", "collector_client", "hyper_collector_client", "hyper_tls_collector_client", "reqwest_collector_client", "surf_collector_client", "isahc_collector_client"]

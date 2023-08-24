@@ -1,6 +1,5 @@
-use opentelemetry::global;
-use opentelemetry::global::shutdown_tracer_provider;
 use opentelemetry::{
+    global::{self, shutdown_tracer_provider},
     trace::{Span, TraceContextExt, Tracer},
     Key,
 };

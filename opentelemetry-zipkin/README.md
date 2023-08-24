@@ -73,7 +73,7 @@ opentelemetry-zipkin = { version = "*", features = ["reqwest-client"], default-f
 
 ```rust
 let tracer = opentelemetry_zipkin::new_pipeline()
-    .install_batch(opentelemetry::runtime::Tokio)?;
+    .install_batch(opentelemetry_sdk::runtime::Tokio)?;
 ```
 
 [`rt-tokio`]: https://tokio.rs

@@ -2,9 +2,9 @@ use std::fs;
 use std::path::Path;
 use std::time::Duration;
 
-use opentelemetry_api::metrics::{Meter, MeterProvider as _, Unit};
-use opentelemetry_api::Key;
-use opentelemetry_api::KeyValue;
+use opentelemetry::metrics::{Meter, MeterProvider as _, Unit};
+use opentelemetry::Key;
+use opentelemetry::KeyValue;
 use opentelemetry_prometheus::ExporterBuilder;
 use opentelemetry_sdk::metrics::{new_view, Aggregation, Instrument, MeterProvider, Stream};
 use opentelemetry_sdk::resource::{

@@ -1,6 +1,7 @@
-use opentelemetry::global;
-use opentelemetry::global::shutdown_tracer_provider;
-use opentelemetry::trace::{Span, Tracer};
+use opentelemetry::{
+    global::{self, shutdown_tracer_provider},
+    trace::{Span, Tracer},
+};
 use std::thread;
 use std::time::Duration;
 
