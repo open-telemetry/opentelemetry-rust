@@ -4,7 +4,8 @@ use crate::{
     trace::{Span, SpanContext, Status},
     Context, ContextGuard, KeyValue,
 };
-use futures_util::{sink::Sink, stream::Stream};
+use futures_core::stream::Stream;
+use futures_sink::Sink;
 use once_cell::sync::Lazy;
 use pin_project_lite::pin_project;
 use std::{
