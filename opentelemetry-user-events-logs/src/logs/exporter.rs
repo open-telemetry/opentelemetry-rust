@@ -65,16 +65,7 @@ impl UserEventsExporter {
         options = *options.group_name(provider_name);
         let mut eventheader_provider: eventheader_dynamic::Provider =
             eventheader_dynamic::Provider::new(provider_name, &options);
-        if exporter_config.keywords_map.is_empty() {
-            println!(
-                "Register default keyword {}",
-                exporter_config.default_keyword
-            );
-            Self::register_events(&mut eventheader_provider, exporter_config.default_keyword)
-        }
-        for keyword in exporter_config.keywords_map.values() {
-            Self::register_events(&mut eventheader_provider, *keyword)
-        }
+        Self::register_keywords(&mut eventheader_provider, &exporter_config);
         UserEventsExporter {
             provider: Arc::new(eventheader_provider),
             exporter_config,
@@ -82,11 +73,34 @@ impl UserEventsExporter {
     }
 
     fn register_events(eventheader_provider: &mut eventheader_dynamic::Provider, keyword: u64) {
-        eventheader_provider.register_set(eventheader::Level::Informational, keyword);
-        eventheader_provider.register_set(eventheader::Level::Verbose, keyword);
-        eventheader_provider.register_set(eventheader::Level::Warning, keyword);
-        eventheader_provider.register_set(eventheader::Level::Error, keyword);
-        eventheader_provider.register_set(eventheader::Level::CriticalError, keyword);
+        let levels = [
+            eventheader::Level::Informational,
+            eventheader::Level::Verbose,
+            eventheader::Level::Warning,
+            eventheader::Level::Error,
+            eventheader::Level::CriticalError,
+        ];
+
+        for &level in levels.iter() {
+            eventheader_provider.register_set(level, keyword);
+        }
+    }
+
+    fn register_keywords(
+        eventheader_provider: &mut eventheader_dynamic::Provider,
+        exporter_config: &ExporterConfig,
+    ) {
+        if exporter_config.keywords_map.is_empty() {
+            println!(
+                "Register default keyword {}",
+                exporter_config.default_keyword
+            );
+            Self::register_events(eventheader_provider, exporter_config.default_keyword);
+        }
+
+        for keyword in exporter_config.keywords_map.values() {
+            Self::register_events(eventheader_provider, *keyword);
+        }
     }
 
     fn add_attribute_to_event(&self, eb: &mut EventBuilder, attrib: &(Key, AnyValue)) {
@@ -109,7 +123,7 @@ impl UserEventsExporter {
     }
 
     fn get_severity_level(&self, severity: Severity) -> Level {
-        let level: Level = match severity {
+        match severity {
             Severity::Debug
             | Severity::Debug2
             | Severity::Debug3
@@ -134,8 +148,7 @@ impl UserEventsExporter {
             Severity::Warn | Severity::Warn2 | Severity::Warn3 | Severity::Warn4 => {
                 eventheader::Level::Warning
             }
-        };
-        level
+        }
     }
 
     #[allow(dead_code)]
@@ -318,10 +331,9 @@ impl opentelemetry_sdk::export::logs::LogExporter for UserEventsExporter {
         let es = self
             .provider
             .find_set(self.get_severity_level(level), keyword);
-        let res = match es {
+        match es {
             Some(x) => x.enabled(),
             _ => false,
-        };
-        res
+        }
     }
 }
