@@ -15,9 +15,9 @@
 //! # {
 //! use opentelemetry::{
 //!     global,
-//!     sdk::trace::TracerProvider,
 //!     trace::{Tracer, TracerProvider as _},
 //! };
+//! use opentelemetry_sdk::trace::TracerProvider;
 //!
 //! fn main() {
 //!     // Create a new trace pipeline that prints to stdout
@@ -228,22 +228,3 @@
 #![cfg_attr(test, deny(warnings))]
 
 pub use opentelemetry_api::*;
-pub use opentelemetry_sdk::runtime;
-
-#[doc(hidden)]
-#[cfg(feature = "testing")]
-pub mod testing {
-    pub use opentelemetry_sdk::testing::*;
-}
-
-/// # OpenTelemetry SDK
-///
-/// This SDK provides an opinionated reference implementation of
-/// the OpenTelemetry API. The SDK implements the specifics of
-/// deciding which data to collect through `Sampler`s, and
-/// facilitates the delivery of telemetry data to storage systems
-/// through `Exporter`s. These can be configured on `Tracer` and
-/// `Meter` creation.
-pub mod sdk {
-    pub use opentelemetry_sdk::*;
-}

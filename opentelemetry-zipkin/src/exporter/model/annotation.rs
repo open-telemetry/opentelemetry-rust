@@ -1,7 +1,6 @@
-use std::time::{Duration, SystemTime};
-
 use opentelemetry::trace::Event;
 use serde::Serialize;
+use std::time::{Duration, SystemTime};
 
 #[derive(TypedBuilder, Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]

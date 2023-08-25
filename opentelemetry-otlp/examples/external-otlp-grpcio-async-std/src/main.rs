@@ -9,26 +9,24 @@
 //! ```
 use opentelemetry::{
     global::{shutdown_tracer_provider, tracer},
-    sdk::trace as sdktrace,
     trace::TraceError,
     trace::{TraceContextExt, Tracer},
     Key,
 };
 use opentelemetry_otlp::WithExportConfig;
-use url::Url;
-
 use std::{
     collections::HashMap,
     env::{remove_var, set_var, var, vars},
     error::Error,
 };
+use url::Url;
 
 // Use the variables to try and export the example to any external collector that accepts otlp
 // like: oltp itself, honeycomb or lightstep
 const ENDPOINT: &str = "OTLP_GRPCIO_ENDPOINT";
 const HEADER_PREFIX: &str = "OTLP_GRPCIO_";
 
-fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
+fn init_tracer() -> Result<opentelemetry_sdk::trace::Tracer, TraceError> {
     let endpoint = var(ENDPOINT).unwrap_or_else(|_| {
         panic!(
             "You must specify and endpoint to connect to with the variable {:?}.",
@@ -65,7 +63,7 @@ fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
                 .with_headers(headers)
                 .with_tls(true),
         )
-        .install_batch(opentelemetry::runtime::AsyncStd)
+        .install_batch(opentelemetry_sdk::runtime::AsyncStd)
 }
 
 const LEMONS_KEY: Key = Key::from_static_str("ex.com/lemons");

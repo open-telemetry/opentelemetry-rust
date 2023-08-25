@@ -2,9 +2,9 @@ use std::fs;
 use std::path::Path;
 use std::time::Duration;
 
-use opentelemetry_api::metrics::{Meter, MeterProvider as _, Unit};
-use opentelemetry_api::Key;
-use opentelemetry_api::KeyValue;
+use opentelemetry::metrics::{Meter, MeterProvider as _, Unit};
+use opentelemetry::Key;
+use opentelemetry::KeyValue;
 use opentelemetry_prometheus::ExporterBuilder;
 use opentelemetry_sdk::metrics::{new_view, Aggregation, Instrument, MeterProvider, Stream};
 use opentelemetry_sdk::resource::{
@@ -388,15 +388,12 @@ fn multiple_scopes() {
             Box::new(TelemetryResourceDetector),
         ],
     )
-    .merge(&mut Resource::new(
-        vec![
-            // always specify service.name because the default depends on the running OS
-            SERVICE_NAME.string("prometheus_test"),
-            // Overwrite the semconv.TelemetrySDKVersionKey value so we don't need to update every version
-            TELEMETRY_SDK_VERSION.string("latest"),
-        ]
-        .into_iter(),
-    ));
+    .merge(&mut Resource::new(vec![
+        // always specify service.name because the default depends on the running OS
+        SERVICE_NAME.string("prometheus_test"),
+        // Overwrite the semconv.TelemetrySDKVersionKey value so we don't need to update every version
+        TELEMETRY_SDK_VERSION.string("latest"),
+    ]));
 
     let provider = MeterProvider::builder()
         .with_reader(exporter)

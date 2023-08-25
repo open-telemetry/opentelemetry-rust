@@ -5,6 +5,7 @@
 ### Changed
 
 - Bump MSRV to 1.64 [#1203](https://github.com/open-telemetry/opentelemetry-rust/pull/1203)
+- Use tonic based generated files [#1214](https://github.com/open-telemetry/opentelemetry-rust/pull/1214)
 
 ## v0.5.0
 

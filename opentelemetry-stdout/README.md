@@ -31,7 +31,7 @@ crate provides exporters that export to stdout or any implementation of
 Export telemetry signals to stdout.
 
 ```rust
-use opentelemetry_api::{
+use opentelemetry::{
     metrics::MeterProvider as _,
     trace::{Span, Tracer, TracerProvider as _},
     Context, KeyValue,

@@ -98,6 +98,14 @@ where
     *global_provider = GlobalMeterProvider::new(new_provider);
 }
 
+/// Shut down the current meter global meter provider.
+pub fn shutdown_meter_provider() {
+    let mut global_provider = GLOBAL_METER_PROVIDER
+        .write()
+        .expect("GLOBAL_METER_PROVIDER RwLock poisoned");
+    *global_provider = GlobalMeterProvider::new(metrics::noop::NoopMeterProvider::new());
+}
+
 /// Returns an instance of the currently configured global [`MeterProvider`]
 /// through [`GlobalMeterProvider`].
 pub fn meter_provider() -> GlobalMeterProvider {

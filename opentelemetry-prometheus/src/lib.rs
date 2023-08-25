@@ -3,7 +3,7 @@
 //! [Prometheus]: https://prometheus.io
 //!
 //! ```
-//! use opentelemetry_api::{metrics::MeterProvider as _, KeyValue};
+//! use opentelemetry::{metrics::MeterProvider as _, KeyValue};
 //! use opentelemetry_sdk::metrics::MeterProvider;
 //! use prometheus::{Encoder, TextEncoder};
 //!
@@ -94,7 +94,7 @@
 #![cfg_attr(test, deny(warnings))]
 
 use once_cell::sync::{Lazy, OnceCell};
-use opentelemetry_api::{
+use opentelemetry::{
     global,
     metrics::{MetricsError, Result},
     Context, Key, Value,

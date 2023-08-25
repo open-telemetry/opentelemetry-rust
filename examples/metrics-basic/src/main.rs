@@ -1,11 +1,15 @@
-use opentelemetry_api::metrics::Unit;
-use opentelemetry_api::{metrics::MeterProvider as _, KeyValue};
+use opentelemetry::metrics::Unit;
+use opentelemetry::{metrics::MeterProvider as _, KeyValue};
 use opentelemetry_sdk::metrics::{MeterProvider, PeriodicReader};
 use opentelemetry_sdk::{runtime, Resource};
 use std::error::Error;
 
 fn init_meter_provider() -> MeterProvider {
-    let exporter = opentelemetry_stdout::MetricsExporter::default();
+    let exporter = opentelemetry_stdout::MetricsExporterBuilder::default()
+        // uncomment the below lines to pretty print output.
+        //  .with_encoder(|writer, data|
+        //    Ok(serde_json::to_writer_pretty(writer, &data).unwrap()))
+        .build();
     let reader = PeriodicReader::builder(exporter, runtime::Tokio).build();
     MeterProvider::builder()
         .with_reader(reader)

@@ -1,10 +1,8 @@
 use crate::exporter::intern::StringInterner;
 use crate::exporter::model::SAMPLING_PRIORITY_KEY;
 use crate::exporter::{Error, ModelConfig};
-use opentelemetry::sdk::export::trace;
-use opentelemetry::sdk::export::trace::SpanData;
-use opentelemetry::trace::Status;
-use opentelemetry::{Key, Value};
+use opentelemetry::{trace::Status, Key, Value};
+use opentelemetry_sdk::export::trace::SpanData;
 use std::time::SystemTime;
 
 use super::unified_tags::{UnifiedTagField, UnifiedTags};
@@ -58,7 +56,7 @@ const SPAN_NUM_ELEMENTS: u32 = 12;
 //
 pub(crate) fn encode<S, N, R>(
     model_config: &ModelConfig,
-    traces: Vec<Vec<trace::SpanData>>,
+    traces: Vec<Vec<SpanData>>,
     get_service_name: S,
     get_name: N,
     get_resource: R,
@@ -122,7 +120,7 @@ fn encode_traces<S, N, R>(
     get_service_name: S,
     get_name: N,
     get_resource: R,
-    traces: Vec<Vec<trace::SpanData>>,
+    traces: Vec<Vec<SpanData>>,
     unified_tags: &UnifiedTags,
 ) -> Result<Vec<u8>, Error>
 where
