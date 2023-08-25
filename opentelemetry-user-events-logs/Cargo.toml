@@ -1,7 +1,7 @@
 [package]
 name = "opentelemetry-user-events-logs"
 description = "OpenTelemetry-Rust exporter to userevents"
-version = "0.2.0"
+version = "0.1.0"
 edition = "2021"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-user-events-logs"
 repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-user-events-logs"
