@@ -110,7 +110,7 @@ impl InMemoryLogsExporter {
     pub fn get_emitted_logs(&self) -> LogResult<Vec<LogData>> {
         self.logs
             .lock()
-            .map(|logs_guard| logs_guard.iter().map(Self::clone_log).collect())
+            .map(|logs_guard| logs_guard.iter().cloned().collect())
             .map_err(LogError::from)
     }
 
@@ -135,10 +135,6 @@ impl InMemoryLogsExporter {
             .lock()
             .map(|mut logs_guard| logs_guard.clear())
             .map_err(LogError::from);
-    }
-
-    fn clone_log(log: &LogData) -> LogData {
-        log.clone()
     }
 }
 
