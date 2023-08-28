@@ -2,7 +2,7 @@
 
 use crate::ExportError;
 use futures_channel::{mpsc::TrySendError, oneshot::Canceled};
-use std::time::Duration;
+use std::{time::Duration, sync::PoisonError};
 use thiserror::Error;
 
 mod logger;
@@ -63,6 +63,12 @@ impl From<String> for LogError {
 impl From<&'static str> for LogError {
     fn from(err_msg: &'static str) -> Self {
         LogError::Other(Box::new(Custom(err_msg.into())))
+    }
+}
+
+impl<T> From<PoisonError<T>> for LogError {
+    fn from(err: PoisonError<T>) -> Self {
+        LogError::Other(err.to_string().into())
     }
 }
 
