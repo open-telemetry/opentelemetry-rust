@@ -20,8 +20,12 @@ default = ["logs_level_enabled"]
 
 [dev-dependencies]
 <<<<<<< HEAD
+<<<<<<< HEAD
 opentelemetry_sdk = { path = "../opentelemetry-sdk", features = [ "testing", "logs"] }
 =======
 opentelemetry_sdk = { path = "../opentelemetry-sdk", features = [ "testing"] }
 >>>>>>> 1ee6b54 (remove proj example in favor of single file)
+=======
+opentelemetry_sdk = { path = "../opentelemetry-sdk", features = [ "testing", "logs"] }
+>>>>>>> 12faf74 (corrected dependency, removed repeated code)
 tokio = "1.32.0"
