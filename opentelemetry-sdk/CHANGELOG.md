@@ -11,7 +11,7 @@
 - Add unit/doc tests for MeterProvider #1220
 - Changed dependency from `opentelemetry_api` to `opentelemetry` as the latter
   is now the API crate. [#1226](https://github.com/open-telemetry/opentelemetry-rust/pull/1226)
-- Add in memory log exporter 
+- Add in memory log exporter [#1231](https://github.com/open-telemetry/opentelemetry-rust/pull/1231)
 
 ## v0.20.0
 
