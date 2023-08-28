@@ -1,14 +1,10 @@
 use crate::common::{AttributeSet, KeyValue, Resource, Scope};
-use chrono::{LocalResult, TimeZone, Utc};
 use opentelemetry::{global, metrics::MetricsError};
 use opentelemetry_sdk::metrics::data;
 use serde::{Serialize, Serializer};
 use std::{any::Any, borrow::Cow, time::SystemTime};
 
-use crate::common::{
-    as_human_readable, as_opt_human_readable, as_opt_unix_nano, as_unix_nano, AttributeSet,
-    KeyValue, Resource, Scope,
-};
+use crate::common::{as_human_readable, as_opt_human_readable, as_opt_unix_nano, as_unix_nano};
 
 /// Transformed metrics data that can be serialized
 #[derive(Serialize, Debug, Clone)]

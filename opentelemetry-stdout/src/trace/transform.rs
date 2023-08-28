@@ -1,9 +1,7 @@
-use crate::common::{as_unix_nano, KeyValue, Resource, Scope};
+use crate::common::{as_human_readable, as_unix_nano, KeyValue, Resource, Scope};
 use opentelemetry_sdk::AttributeSet;
 use serde::{Serialize, Serializer};
 use std::{borrow::Cow, collections::HashMap, time::SystemTime};
-
-use crate::common::{as_human_readable, as_unix_nano, KeyValue, Resource, Scope};
 
 /// Transformed trace data that can be serialized
 #[derive(Debug, Serialize)]
