@@ -27,6 +27,9 @@ This release should been seen as 1.0-rc3 following 1.0-rc2 in v0.19.0. Refer to 
 - Drop include_trace_context parameter from Logs API/SDK. [#1133](https://github.com/open-telemetry/opentelemetry-rust/issues/1133)
 - Synchronous instruments no longer accepts `Context` while reporting
   measurements. [#1076](https://github.com/open-telemetry/opentelemetry-rust/pull/1076).
+- Fallible conversions from `futures-channel` error types to `LogError` and
+  `TraceError` removed.
+  [#1201](https://github.com/open-telemetry/opentelemetry-rust/issues/1201)
 
 ### Fixed
 
