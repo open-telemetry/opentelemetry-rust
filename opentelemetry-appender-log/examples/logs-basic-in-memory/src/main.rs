@@ -25,8 +25,8 @@ async fn main() {
 
     logger_provider.force_flush();
 
-    let finished_logs = exporter.get_finished_logs().unwrap();
-    for log in finished_logs {
+    let emitted_logs = exporter.get_emitted_logs().unwrap();
+    for log in emitted_logs {
         println!("{:?}", log);
     }
 }

@@ -29,7 +29,6 @@ members = [
     "examples/metrics-basic",
     "examples/metrics-advanced",
     "examples/logs-basic",
-    "examples/logs-basic-in-memory",
     "examples/traceresponse",
     "examples/tracing-grpc",
     "stress",

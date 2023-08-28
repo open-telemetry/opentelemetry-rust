@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex};
 ///
 /// This exporter is useful for testing and debugging purposes.
 /// It stores logs in a `Vec<LogData>`. Logs can be retrieved using
-/// `get_finished_logs` method.
+/// `get_emitted_logs` method.
 ///
 /// # Example
 /// ```
@@ -59,8 +59,8 @@ impl Default for InMemoryLogsExporter {
 
 ///    logger_provider.force_flush();
 
-///    let finished_logs = exporter.get_finished_logs().unwrap();
-///    for log in finished_logs {
+///    let emitted_logs = exporter.get_emitted_logs().unwrap();
+///    for log in emitted_logs {
 ///        println!("{:?}", log);
 ///    }
 ///
@@ -92,7 +92,7 @@ impl InMemoryLogsExporterBuilder {
 }
 
 impl InMemoryLogsExporter {
-    /// Returns the finished metrics as a vector of `LogData`.
+    /// Returns the logs emitted via Logger as a vector of `LogData`.
     ///
     /// # Errors
     ///
@@ -104,10 +104,10 @@ impl InMemoryLogsExporter {
     /// use opentelemetry_sdk::testing::logs::{InMemoryLogsExporter};
     ///
     /// let exporter = InMemoryLogsExporterBuilder::default();
-    /// let finished_logs = exporter.get_finished_logs().unwrap();
+    /// let emitted_logs = exporter.get_emitted_logs().unwrap();
     /// ```
     ///
-    pub fn get_finished_logs(&self) -> LogResult<Vec<LogData>> {
+    pub fn get_emitted_logs(&self) -> LogResult<Vec<LogData>> {
         self.logs
             .lock()
             .map(|logs_guard| logs_guard.iter().map(Self::clone_log).collect())
