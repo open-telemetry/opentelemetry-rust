@@ -1,13 +1,10 @@
 use crate::common::{AttributeSet, KeyValue, Resource, Scope};
-use chrono::{LocalResult, TimeZone, Utc};
 use opentelemetry::{global, metrics::MetricsError};
 use opentelemetry_sdk::metrics::data;
 use serde::{Serialize, Serializer};
-use std::{
-    any::Any,
-    borrow::Cow,
-    time::{SystemTime, UNIX_EPOCH},
-};
+use std::{any::Any, borrow::Cow, time::SystemTime};
+
+use crate::common::{as_human_readable, as_opt_human_readable, as_opt_unix_nano, as_unix_nano};
 
 /// Transformed metrics data that can be serialized
 #[derive(Serialize, Debug, Clone)]
@@ -326,58 +323,6 @@ struct Exemplar {
     value: DataValue,
     span_id: String,
     trace_id: String,
-}
-
-fn as_human_readable<S>(time: &SystemTime, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    let duration_since_epoch = time.duration_since(UNIX_EPOCH).unwrap_or_default();
-
-    match Utc.timestamp_opt(
-        duration_since_epoch.as_secs() as i64,
-        duration_since_epoch.subsec_nanos(),
-    ) {
-        LocalResult::Single(datetime) => serializer.serialize_str(
-            datetime
-                .format("%Y-%m-%d %H:%M:%S.%3f")
-                .to_string()
-                .as_ref(),
-        ),
-        _ => Err(serde::ser::Error::custom("Invalid Timestamp.")),
-    }
-}
-
-fn as_opt_human_readable<S>(time: &Option<SystemTime>, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    match time {
-        None => serializer.serialize_none(),
-        Some(time) => as_human_readable(time, serializer),
-    }
-}
-
-fn as_unix_nano<S>(time: &SystemTime, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    let nanos = time
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_nanos();
-
-    serializer.serialize_u128(nanos)
-}
-
-fn as_opt_unix_nano<S>(time: &Option<SystemTime>, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    match time {
-        None => serializer.serialize_none(),
-        Some(time) => as_unix_nano(time, serializer),
-    }
 }
 
 impl<T: Into<DataValue> + Copy> From<&data::Exemplar<T>> for Exemplar {

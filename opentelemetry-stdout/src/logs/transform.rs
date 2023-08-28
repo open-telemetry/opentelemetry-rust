@@ -1,8 +1,11 @@
 use std::{borrow::Cow, collections::HashMap, time::SystemTime};
 
-use crate::common::{as_unix_nano, KeyValue, Resource, Scope, Value};
+use crate::common::{
+    as_human_readable, as_opt_human_readable, as_opt_unix_nano, as_unix_nano, KeyValue, Resource,
+    Scope, Value,
+};
 use opentelemetry_sdk::AttributeSet;
-use serde::{Serialize, Serializer};
+use serde::Serialize;
 
 /// Transformed logs data that can be serialized.
 #[derive(Debug, Serialize)]
@@ -69,13 +72,14 @@ struct ScopeLogs {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct LogRecord {
-    #[serde(
-        skip_serializing_if = "Option::is_none",
-        serialize_with = "opt_as_unix_nano"
-    )]
+    #[serde(serialize_with = "as_opt_unix_nano")]
     time_unix_nano: Option<SystemTime>,
+    #[serde(serialize_with = "as_opt_human_readable")]
+    time: Option<SystemTime>,
     #[serde(serialize_with = "as_unix_nano")]
     observed_time_unix_nano: SystemTime,
+    #[serde(serialize_with = "as_human_readable")]
+    observed_time: SystemTime,
     severity_number: u32,
     #[serde(skip_serializing_if = "Option::is_none")]
     severity_text: Option<Cow<'static, str>>,
@@ -110,7 +114,9 @@ impl From<opentelemetry_sdk::export::logs::LogData> for LogRecord {
                 .map(|c| c.trace_flags.map(|f| f.to_u8()))
                 .unwrap_or_default(),
             time_unix_nano: value.record.timestamp,
+            time: value.record.timestamp,
             observed_time_unix_nano: value.record.observed_timestamp,
+            observed_time: value.record.observed_timestamp,
             severity_number: value
                 .record
                 .severity_number
@@ -131,11 +137,4 @@ impl From<opentelemetry_sdk::export::logs::LogData> for LogRecord {
             body: value.record.body.map(|a| a.into()),
         }
     }
-}
-
-fn opt_as_unix_nano<S>(time: &Option<SystemTime>, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    as_unix_nano(time.as_ref().unwrap(), serializer)
 }
