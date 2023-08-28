@@ -9,7 +9,9 @@
   [#1066](https://github.com/open-telemetry/opentelemetry-rust/pull/1193).
 - Bump MSRV to 1.64 [#1203](https://github.com/open-telemetry/opentelemetry-rust/pull/1203)
 - Add unit/doc tests for MeterProvider #1220
-- Add in memory log exporter [#1231](https://github.com/open-telemetry/opentelemetry-rust/pull/1231)
+- Changed dependency from `opentelemetry_api` to `opentelemetry` as the latter
+  is now the API crate. [#1226](https://github.com/open-telemetry/opentelemetry-rust/pull/1226)
+- Add in memory log exporter 
 
 ## v0.20.0
 
