@@ -109,7 +109,7 @@ impl Context {
         Context::map_current(|cx| cx.clone())
     }
 
-    /// Applys a function to the current context returning its value.
+    /// Applies a function to the current context returning its value.
     ///
     /// This can be used to build higher performing algebraic expressions for
     /// optionally creating a new context without the overhead of cloning the
