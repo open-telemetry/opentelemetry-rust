@@ -2,18 +2,18 @@
 use crate::transform::common::get_time;
 use opentelemetry::attributes::merge_iters;
 use opentelemetry::metrics::MetricsError;
-use opentelemetry::sdk::export::metrics::aggregation::{Count, Temporality, TemporalitySelector};
-use opentelemetry::sdk::metrics::aggregators::{
+use opentelemetry::{global, Key, KeyValue, Value};
+use opentelemetry_sdk::export::metrics::aggregation::{Count, Temporality, TemporalitySelector};
+use opentelemetry_sdk::metrics::aggregators::{
     HistogramAggregator, LastValueAggregator, SumAggregator,
 };
-use opentelemetry::sdk::{
+use opentelemetry_sdk::{
     export::metrics::{
         aggregation::{Histogram as SdkHistogram, LastValue, Sum as SdkSum},
         Record,
     },
     metrics::sdk_api::{Number, NumberKind},
 };
-use opentelemetry::{global, Key, KeyValue, Value};
 use std::borrow::Cow;
 use std::cmp;
 use std::collections::{btree_map, BTreeMap};
@@ -600,16 +600,16 @@ mod tests {
     use crate::transform::common::get_time;
     use crate::transform::metrics::MetricLine;
     use crate::transform::record_to_metric_line;
-    use opentelemetry::sdk::export::metrics::aggregation::{
-        cumulative_temporality_selector, delta_temporality_selector,
-    };
-    use opentelemetry::sdk::export::metrics::record;
-    use opentelemetry::sdk::metrics::aggregators::{
-        histogram, last_value, Aggregator, SumAggregator,
-    };
-    use opentelemetry::sdk::metrics::sdk_api::{Descriptor, InstrumentKind, Number, NumberKind};
     use opentelemetry::{attributes::AttributeSet, metrics::MetricsError};
     use opentelemetry::{Context, KeyValue};
+    use opentelemetry_sdk::export::metrics::aggregation::{
+        cumulative_temporality_selector, delta_temporality_selector,
+    };
+    use opentelemetry_sdk::export::metrics::record;
+    use opentelemetry_sdk::metrics::aggregators::{
+        histogram, last_value, Aggregator, SumAggregator,
+    };
+    use opentelemetry_sdk::metrics::sdk_api::{Descriptor, InstrumentKind, Number, NumberKind};
     use std::borrow::Cow;
     use std::sync::Arc;
     use std::time::{Duration, SystemTime};
@@ -713,7 +713,7 @@ mod tests {
 
     #[test]
     fn test_record_to_metric_line() -> Result<(), MetricsError> {
-        let attributes = vec![("KEY", "VALUE"), ("test.abc_123-", "value.123_foo-bar")];
+        let attributes = [("KEY", "VALUE"), ("test.abc_123-", "value.123_foo-bar")];
         let attribute_set = AttributeSet::from_attributes(
             attributes
                 .iter()

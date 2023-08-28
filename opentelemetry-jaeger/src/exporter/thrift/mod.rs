@@ -1,10 +1,9 @@
 //! Thrift generated Jaeger client
 //!
 //! Definitions: <https://github.com/uber/jaeger-idl/blob/master/thrift/>
-use std::time::{Duration, SystemTime};
 
-use opentelemetry::trace::Event;
-use opentelemetry::{Key, KeyValue, Value};
+use opentelemetry::{trace::Event, Key, KeyValue, Value};
+use std::time::{Duration, SystemTime};
 
 pub(crate) mod agent;
 pub(crate) mod jaeger;

@@ -18,7 +18,7 @@
 //!
 //! [w3c trace-context docs]: https://w3c.github.io/trace-context/
 use once_cell::sync::Lazy;
-use opentelemetry_api::{
+use opentelemetry::{
     propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
     trace::{SpanContext, SpanId, TraceContextExt, TraceFlags, TraceId, TraceState},
     Context,
@@ -144,7 +144,7 @@ impl TextMapPropagator for TraceContextPropagator {
 mod tests {
     use super::*;
     use crate::testing::trace::TestSpan;
-    use opentelemetry_api::{
+    use opentelemetry::{
         propagation::{Extractor, Injector, TextMapPropagator},
         trace::{SpanContext, SpanId, TraceId},
     };

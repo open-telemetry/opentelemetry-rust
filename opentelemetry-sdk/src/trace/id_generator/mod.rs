@@ -1,7 +1,7 @@
 //! Id Generator
 pub(super) mod aws;
 
-use opentelemetry_api::trace::{SpanId, TraceId};
+use opentelemetry::trace::{SpanId, TraceId};
 use rand::{rngs, Rng};
 use std::cell::RefCell;
 use std::fmt;

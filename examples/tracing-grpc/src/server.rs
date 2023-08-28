@@ -68,7 +68,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
     global::set_text_map_propagator(opentelemetry_jaeger::Propagator::new());
     let tracer = opentelemetry_jaeger::new_agent_pipeline()
         .with_service_name("grpc-server")
-        .install_batch(opentelemetry::runtime::Tokio)?;
+        .install_batch(opentelemetry_sdk::runtime::Tokio)?;
     tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::new("INFO"))
         .with(tracing_opentelemetry::layer().with_tracer(tracer))

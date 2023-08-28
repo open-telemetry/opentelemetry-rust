@@ -1,5 +1,5 @@
-use opentelemetry_api::global;
-use opentelemetry_api::trace::Tracer;
+use opentelemetry::global;
+use opentelemetry::trace::Tracer;
 use opentelemetry_sdk::runtime;
 use opentelemetry_sdk::trace::{Sampler, TracerProvider as SdkTracerProvider};
 use std::time::Duration;

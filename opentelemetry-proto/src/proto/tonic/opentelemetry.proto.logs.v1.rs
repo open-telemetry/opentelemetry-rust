@@ -8,6 +8,7 @@
 ///
 /// When new fields are added into this message, the OTLP request MUST be updated
 /// as well.
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct LogsData {
@@ -20,6 +21,7 @@ pub struct LogsData {
     pub resource_logs: ::prost::alloc::vec::Vec<ResourceLogs>,
 }
 /// A collection of ScopeLogs from a Resource.
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ResourceLogs {
@@ -36,6 +38,7 @@ pub struct ResourceLogs {
     pub schema_url: ::prost::alloc::string::String,
 }
 /// A collection of Logs produced by a Scope.
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ScopeLogs {
@@ -53,6 +56,7 @@ pub struct ScopeLogs {
 }
 /// A log record according to OpenTelemetry Log Data Model:
 /// <https://github.com/open-telemetry/oteps/blob/main/text/logs/0097-log-data-model.md>
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct LogRecord {
@@ -134,6 +138,7 @@ pub struct LogRecord {
     pub span_id: ::prost::alloc::vec::Vec<u8>,
 }
 /// Possible values for LogRecord.SeverityNumber.
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
 pub enum SeverityNumber {
@@ -236,6 +241,7 @@ impl SeverityNumber {
 ///
 ///    (logRecord.flags & LOG_RECORD_FLAGS_TRACE_FLAGS_MASK)
 ///
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
 pub enum LogRecordFlags {

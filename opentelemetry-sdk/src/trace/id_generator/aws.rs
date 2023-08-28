@@ -1,5 +1,5 @@
 use crate::trace::{IdGenerator, RandomIdGenerator};
-use opentelemetry_api::trace::{SpanId, TraceId};
+use opentelemetry::trace::{SpanId, TraceId};
 use std::time::{Duration, UNIX_EPOCH};
 
 /// Generates AWS X-Ray compliant Trace and Span ids.
@@ -46,7 +46,7 @@ impl IdGenerator for XrayIdGenerator {
 
         default_trace_id.truncate(24);
 
-        let epoch_time_seconds: u64 = opentelemetry_api::time::now()
+        let epoch_time_seconds: u64 = opentelemetry::time::now()
             .duration_since(UNIX_EPOCH)
             .unwrap_or_else(|_| Duration::from_secs(0))
             .as_secs();
@@ -68,7 +68,7 @@ mod tests {
 
     #[test]
     fn test_trace_id_generation() {
-        let before: u64 = opentelemetry_api::time::now()
+        let before: u64 = opentelemetry::time::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_secs();
@@ -78,7 +78,7 @@ mod tests {
         let trace_id: TraceId = generator.new_trace_id();
 
         sleep(Duration::from_secs(1));
-        let after: u64 = opentelemetry_api::time::now()
+        let after: u64 = opentelemetry::time::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_secs();

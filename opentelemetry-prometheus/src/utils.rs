@@ -1,4 +1,4 @@
-use opentelemetry_api::metrics::Unit;
+use opentelemetry::metrics::Unit;
 use std::borrow::Cow;
 
 const NON_APPLICABLE_ON_PER_UNIT: [&str; 8] = ["1", "d", "h", "min", "s", "ms", "us", "ns"];

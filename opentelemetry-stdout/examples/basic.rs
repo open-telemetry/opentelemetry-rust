@@ -1,7 +1,7 @@
 //! run with `$ cargo run --example basic --all-features
 
 #[cfg(all(feature = "metrics", feature = "trace"))]
-use opentelemetry_api::{
+use opentelemetry::{
     metrics::MeterProvider as _,
     trace::{Span, Tracer, TracerProvider as _},
     KeyValue,

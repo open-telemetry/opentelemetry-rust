@@ -55,7 +55,7 @@
 //! ```no_run
 //! # fn main() -> Result<(), opentelemetry::trace::TraceError> {
 //! let tracer = opentelemetry_zipkin::new_pipeline()
-//!     .install_batch(opentelemetry::runtime::Tokio)?;
+//!     .install_batch(opentelemetry_sdk::runtime::Tokio)?;
 //! # Ok(())
 //! # }
 //! ```
@@ -87,10 +87,9 @@
 //!
 //!
 //! ```no_run
-//! use opentelemetry::{KeyValue, trace::Tracer};
-//! use opentelemetry::sdk::{trace::{self, RandomIdGenerator, Sampler}, Resource};
-//! use opentelemetry::sdk::export::trace::ExportResult;
-//! use opentelemetry::global;
+//! use opentelemetry::{global, KeyValue, trace::Tracer};
+//! use opentelemetry_sdk::{trace::{self, RandomIdGenerator, Sampler}, Resource};
+//! use opentelemetry_sdk::export::trace::ExportResult;
 //! use opentelemetry_http::{HttpClient, HttpError};
 //! use async_trait::async_trait;
 //! use bytes::Bytes;
@@ -143,7 +142,7 @@
 //!                 .with_max_events_per_span(16)
 //!                 .with_resource(Resource::new(vec![KeyValue::new("key", "value")])),
 //!         )
-//!         .install_batch(opentelemetry::runtime::Tokio)?;
+//!         .install_batch(opentelemetry_sdk::runtime::Tokio)?;
 //!
 //!     tracer.in_span("doing_work", |cx| {
 //!         // Traced app logic here...

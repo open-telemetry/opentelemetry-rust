@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use opentelemetry_api::KeyValue;
+use opentelemetry::KeyValue;
 
 use crate::{attributes::AttributeSet, metrics::data::Aggregation};
 

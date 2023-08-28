@@ -16,7 +16,7 @@ use crate::{
     InstrumentationLibrary,
 };
 use once_cell::sync::Lazy;
-use opentelemetry_api::{
+use opentelemetry::{
     trace::{
         Link, SamplingDecision, SamplingResult, SpanBuilder, SpanContext, SpanId, SpanKind,
         TraceContextExt, TraceFlags, TraceId, TraceState,
@@ -122,7 +122,7 @@ impl Tracer {
 
 static EMPTY_ATTRIBUTES: Lazy<OrderMap<Key, Value>> = Lazy::new(Default::default);
 
-impl opentelemetry_api::trace::Tracer for Tracer {
+impl opentelemetry::trace::Tracer for Tracer {
     /// This implementation of `Tracer` produces `sdk::Span` instances.
     type Span = Span;
 
@@ -220,7 +220,7 @@ impl opentelemetry_api::trace::Tracer for Tracer {
                 }
                 links.append_vec(link_options);
             }
-            let start_time = start_time.unwrap_or_else(opentelemetry_api::time::now);
+            let start_time = start_time.unwrap_or_else(opentelemetry::time::now);
             let end_time = end_time.unwrap_or(start_time);
             let mut events_queue = EvictedQueue::new(span_limits.max_events_per_span);
             if let Some(mut events) = events {
@@ -279,7 +279,7 @@ mod tests {
         testing::trace::TestSpan,
         trace::{Config, Sampler, ShouldSample},
     };
-    use opentelemetry_api::{
+    use opentelemetry::{
         trace::{
             Link, SamplingDecision, SamplingResult, Span, SpanContext, SpanId, SpanKind,
             TraceContextExt, TraceFlags, TraceId, TraceState, Tracer, TracerProvider,

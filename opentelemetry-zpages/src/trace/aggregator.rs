@@ -2,19 +2,15 @@
 //!
 //! Process the span information, aggregate counts for latency, running, and errors for spans grouped
 //! by name.
-use std::collections::HashMap;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
-
-use async_channel::Receiver;
-
-use futures_util::StreamExt as _;
-
-use opentelemetry::trace::Status;
-
 use crate::trace::{TracezError, TracezMessage, TracezQuery, TracezResponse};
 use crate::SpanQueue;
-use opentelemetry::sdk::export::trace::SpanData;
-use opentelemetry_proto::grpcio::tracez::TracezCounts;
+use async_channel::Receiver;
+use futures_util::StreamExt as _;
+use opentelemetry::trace::Status;
+use opentelemetry_proto::tonic::tracez::v1::TracezCounts;
+use opentelemetry_sdk::export::trace::SpanData;
+use std::collections::HashMap;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 const LATENCY_BUCKET: [Duration; 9] = [
     Duration::from_micros(0),
@@ -116,7 +112,6 @@ impl SpanAggregator {
                             .collect(),
                         running: summary.running.count() as u32,
                         error: summary.error.count() as u32,
-                        ..Default::default()
                     })
                     .collect(),
             )),
@@ -197,17 +192,16 @@ impl<T: From<SpanData>> From<SpanQueue> for Vec<T> {
 
 #[cfg(test)]
 mod tests {
-    use std::time::{Duration, SystemTime};
-
+    use crate::trace::{
+        aggregator::{SpanAggregator, LATENCY_BUCKET_COUNT},
+        span_queue::SpanQueue,
+        TracezMessage,
+    };
     use opentelemetry::trace::{SpanContext, SpanId, Status, TraceFlags, TraceId, TraceState};
-
-    use crate::trace::aggregator::{SpanAggregator, LATENCY_BUCKET_COUNT};
-    use crate::trace::span_queue::SpanQueue;
-    use crate::trace::TracezMessage;
-    use opentelemetry::sdk::export::trace::SpanData;
-    use opentelemetry::testing::trace::new_test_export_span_data;
+    use opentelemetry_sdk::{export::trace::SpanData, testing::trace::new_test_export_span_data};
     use std::borrow::Cow;
     use std::cmp::min;
+    use std::time::{Duration, SystemTime};
 
     enum Action {
         Start,

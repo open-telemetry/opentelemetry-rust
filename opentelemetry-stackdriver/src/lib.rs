@@ -27,16 +27,16 @@ use futures_core::future::BoxFuture;
 use futures_util::stream::StreamExt;
 use opentelemetry::{
     global::handle_error,
-    sdk::{
-        export::{
-            trace::{ExportResult, SpanData, SpanExporter},
-            ExportError,
-        },
-        trace::{EvictedHashMap, EvictedQueue},
-        Resource,
-    },
     trace::{SpanId, TraceError},
     Key, Value,
+};
+use opentelemetry_sdk::{
+    export::{
+        trace::{ExportResult, SpanData, SpanExporter},
+        ExportError,
+    },
+    trace::{EvictedHashMap, EvictedQueue},
+    Resource,
 };
 use opentelemetry_semantic_conventions::resource::SERVICE_NAME;
 use opentelemetry_semantic_conventions::trace::{
@@ -724,7 +724,7 @@ impl From<(EvictedHashMap, &Resource)> for Attributes {
         let attribute_map = resource
             .into_iter()
             .map(|(k, v)| (k.clone(), v.clone()))
-            .chain(attributes.into_iter())
+            .chain(attributes)
             .flat_map(|(k, v)| {
                 let key = k.as_str();
                 if key.len() > 128 {
@@ -824,8 +824,8 @@ const MAX_ATTRIBUTES_PER_SPAN: usize = 32;
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    use opentelemetry::{sdk::trace::EvictedHashMap, KeyValue, Value};
+    use opentelemetry::{KeyValue, Value};
+    use opentelemetry_sdk::trace::EvictedHashMap;
     use opentelemetry_semantic_conventions as semcov;
 
     #[test]

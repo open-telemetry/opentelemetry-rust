@@ -5,12 +5,12 @@
 ))]
 use crate::exporter::addrs_and_family;
 use async_trait::async_trait;
-use opentelemetry::{runtime::RuntimeChannel, sdk::trace::BatchMessage};
+use opentelemetry_sdk::{runtime::RuntimeChannel, trace::BatchMessage};
 use std::net::ToSocketAddrs;
 
 /// Jaeger Trace Runtime is an extension to [`RuntimeChannel`].
 ///
-/// [`RuntimeChannel`]: opentelemetry::sdk::runtime::RuntimeChannel
+/// [`RuntimeChannel`]: opentelemetry_sdk::runtime::RuntimeChannel
 #[async_trait]
 pub trait JaegerTraceRuntime: RuntimeChannel<BatchMessage> + std::fmt::Debug {
     /// A communication socket between Jaeger client and agent.
@@ -25,7 +25,7 @@ pub trait JaegerTraceRuntime: RuntimeChannel<BatchMessage> + std::fmt::Debug {
 
 #[cfg(feature = "rt-tokio")]
 #[async_trait]
-impl JaegerTraceRuntime for opentelemetry::runtime::Tokio {
+impl JaegerTraceRuntime for opentelemetry_sdk::runtime::Tokio {
     type Socket = tokio::net::UdpSocket;
 
     fn create_socket<T: ToSocketAddrs>(&self, endpoint: T) -> thrift::Result<Self::Socket> {
@@ -44,7 +44,7 @@ impl JaegerTraceRuntime for opentelemetry::runtime::Tokio {
 
 #[cfg(feature = "rt-tokio-current-thread")]
 #[async_trait]
-impl JaegerTraceRuntime for opentelemetry::runtime::TokioCurrentThread {
+impl JaegerTraceRuntime for opentelemetry_sdk::runtime::TokioCurrentThread {
     type Socket = tokio::net::UdpSocket;
 
     fn create_socket<T: ToSocketAddrs>(&self, endpoint: T) -> thrift::Result<Self::Socket> {
@@ -63,7 +63,7 @@ impl JaegerTraceRuntime for opentelemetry::runtime::TokioCurrentThread {
 
 #[cfg(feature = "rt-async-std")]
 #[async_trait]
-impl JaegerTraceRuntime for opentelemetry::runtime::AsyncStd {
+impl JaegerTraceRuntime for opentelemetry_sdk::runtime::AsyncStd {
     type Socket = async_std::net::UdpSocket;
 
     fn create_socket<T: ToSocketAddrs>(&self, endpoint: T) -> thrift::Result<Self::Socket> {

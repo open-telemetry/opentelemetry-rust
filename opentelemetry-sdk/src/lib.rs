@@ -7,7 +7,7 @@
 //! ```no_run
 //! # #[cfg(feature = "trace")]
 //! # {
-//! use opentelemetry_api::{global, trace::{Tracer, TracerProvider as _}};
+//! use opentelemetry::{global, trace::{Tracer, TracerProvider as _}};
 //! use opentelemetry_sdk::trace::TracerProvider;
 //!
 //! fn main() {
@@ -38,7 +38,7 @@
 //! spans.
 //!
 //! [examples]: https://github.com/open-telemetry/opentelemetry-rust/tree/main/examples
-//! [`trace`]: https://docs.rs/opentelemetry_api/latest/opentelemetry_api/trace/index.html
+//! [`trace`]: https://docs.rs/opentelemetry/latest/opentelemetry/trace/index.html
 //!
 //! # Metrics (Beta)
 //!
@@ -50,7 +50,7 @@
 //! ```
 //! # #[cfg(feature = "metrics")]
 //! # {
-//! use opentelemetry_api::{global, KeyValue};
+//! use opentelemetry::{global, KeyValue};
 //!
 //! // get a meter from a provider
 //! let meter = global::meter("my_service");
@@ -69,7 +69,7 @@
 //! managing instruments.
 //!
 //! [examples]: https://github.com/open-telemetry/opentelemetry-rust/tree/main/examples
-//! [`metrics`]: https://docs.rs/opentelemetry_api/latest/opentelemetry_api/metrics/index.html
+//! [`metrics`]: https://docs.rs/opentelemetry/latest/opentelemetry/metrics/index.html
 //!
 //! ## Crate Feature Flags
 //!

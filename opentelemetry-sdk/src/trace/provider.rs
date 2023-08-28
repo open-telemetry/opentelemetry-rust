@@ -13,7 +13,7 @@ use crate::trace::{BatchMessage, BatchSpanProcessor, SimpleSpanProcessor, Tracer
 use crate::{export::trace::SpanExporter, trace::SpanProcessor};
 use crate::{InstrumentationLibrary, Resource};
 use once_cell::sync::OnceCell;
-use opentelemetry_api::{global, trace::TraceResult};
+use opentelemetry::{global, trace::TraceResult};
 use std::borrow::Cow;
 use std::sync::Arc;
 
@@ -76,7 +76,7 @@ impl TracerProvider {
     /// # Examples
     ///
     /// ```
-    /// use opentelemetry_api::global;
+    /// use opentelemetry::global;
     /// use opentelemetry_sdk::trace::TracerProvider;
     ///
     /// fn init_tracing() -> TracerProvider {
@@ -116,7 +116,7 @@ impl TracerProvider {
     }
 }
 
-impl opentelemetry_api::trace::TracerProvider for TracerProvider {
+impl opentelemetry::trace::TracerProvider for TracerProvider {
     /// This implementation of `TracerProvider` produces `Tracer` instances.
     type Tracer = crate::trace::Tracer;
 
@@ -126,7 +126,7 @@ impl opentelemetry_api::trace::TracerProvider for TracerProvider {
         name: impl Into<Cow<'static, str>>,
         version: Option<impl Into<Cow<'static, str>>>,
         schema_url: Option<impl Into<Cow<'static, str>>>,
-        attributes: Option<Vec<opentelemetry_api::KeyValue>>,
+        attributes: Option<Vec<opentelemetry::KeyValue>>,
     ) -> Self::Tracer {
         // Use default value if name is invalid empty string
         let name = name.into();
@@ -226,8 +226,8 @@ mod tests {
     use crate::trace::provider::TracerProviderInner;
     use crate::trace::{Config, Span, SpanProcessor};
     use crate::Resource;
-    use opentelemetry_api::trace::{TraceError, TraceResult};
-    use opentelemetry_api::{Context, Key, KeyValue};
+    use opentelemetry::trace::{TraceError, TraceResult};
+    use opentelemetry::{Context, Key, KeyValue};
     use std::borrow::Cow;
     use std::env;
     use std::sync::Arc;

@@ -1,6 +1,6 @@
 //! run with `$ cargo run --example basic
 
-use opentelemetry_api::KeyValue;
+use opentelemetry::KeyValue;
 use opentelemetry_appender_tracing::layer;
 use opentelemetry_sdk::{
     logs::{Config, LoggerProvider},

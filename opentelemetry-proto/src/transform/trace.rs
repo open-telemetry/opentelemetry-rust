@@ -6,8 +6,8 @@ pub mod tonic {
         to_nanos,
         tonic::{resource_attributes, Attributes},
     };
-    use opentelemetry_api::trace;
-    use opentelemetry_api::trace::{Link, SpanId, SpanKind};
+    use opentelemetry::trace;
+    use opentelemetry::trace::{Link, SpanId, SpanKind};
     use opentelemetry_sdk::export::trace::SpanData;
 
     impl From<SpanKind> for span::SpanKind {
@@ -117,8 +117,8 @@ pub mod grpcio {
         grpcio::{resource_attributes, Attributes},
         to_nanos,
     };
-    use opentelemetry_api::trace;
-    use opentelemetry_api::trace::{Link, SpanId, SpanKind};
+    use opentelemetry::trace;
+    use opentelemetry::trace::{Link, SpanId, SpanKind};
     use opentelemetry_sdk::export::trace::SpanData;
 
     impl From<SpanKind> for span::SpanKind {

@@ -18,7 +18,7 @@ doc = false
 ctrlc = "3.2.5"
 lazy_static = "1.4.0"
 num_cpus = "1.15.0"
-opentelemetry_api = { path = "../opentelemetry-api", features = ["metrics", "logs"] }
+opentelemetry = { path = "../opentelemetry", features = ["metrics", "logs"] }
 opentelemetry_sdk = { path = "../opentelemetry-sdk", features = ["metrics", "logs"] }
 opentelemetry-appender-tracing = { path = "../opentelemetry-appender-tracing"}
 opentelemetry-stdout = { path = "../opentelemetry-stdout", features = ["logs"]}

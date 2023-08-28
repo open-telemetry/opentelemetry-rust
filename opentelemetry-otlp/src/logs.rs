@@ -15,7 +15,7 @@ use crate::OtlpPipeline;
 use async_trait::async_trait;
 use std::{borrow::Cow, fmt::Debug};
 
-use opentelemetry_api::{
+use opentelemetry::{
     global,
     logs::{LogError, LoggerProvider},
 };
@@ -114,7 +114,7 @@ impl LogExporter {
 
 #[async_trait]
 impl opentelemetry_sdk::export::logs::LogExporter for LogExporter {
-    async fn export(&mut self, batch: Vec<LogData>) -> opentelemetry_api::logs::LogResult<()> {
+    async fn export(&mut self, batch: Vec<LogData>) -> opentelemetry::logs::LogResult<()> {
         self.client.export(batch).await
     }
 }

@@ -1,8 +1,13 @@
 use hyper::http::{Request, Response};
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Server};
-use opentelemetry::trace::{Span, Status};
-use opentelemetry::{global, runtime::Tokio, sdk::trace, trace::Tracer};
+use opentelemetry::trace::Tracer;
+use opentelemetry::{
+    global,
+    trace::{Span, Status},
+};
+use opentelemetry_sdk::runtime::Tokio;
+use opentelemetry_sdk::trace::TracerProvider;
 use opentelemetry_zpages::{tracez, TracezError, TracezQuerier, TracezResponse};
 use rand::Rng;
 use std::str::FromStr;
@@ -85,7 +90,7 @@ fn tracez_response_or_server_error(resp: Result<TracezResponse, TracezError>) ->
 #[tokio::main]
 async fn main() {
     let (processor, querier) = tracez(5, Tokio);
-    let provider = trace::TracerProvider::builder()
+    let provider = TracerProvider::builder()
         .with_span_processor(processor)
         .build();
     global::set_tracer_provider(provider);

@@ -1,4 +1,6 @@
-use opentelemetry_api::{global, metrics::MetricsError};
+use crate::common::{AttributeSet, KeyValue, Resource, Scope};
+use chrono::{LocalResult, TimeZone, Utc};
+use opentelemetry::{global, metrics::MetricsError};
 use opentelemetry_sdk::metrics::data;
 use serde::{Serialize, Serializer};
 use std::{any::Any, borrow::Cow, time::SystemTime};
@@ -71,8 +73,8 @@ impl Unit {
     }
 }
 
-impl From<opentelemetry_api::metrics::Unit> for Unit {
-    fn from(unit: opentelemetry_api::metrics::Unit) -> Self {
+impl From<opentelemetry::metrics::Unit> for Unit {
+    fn from(unit: opentelemetry::metrics::Unit) -> Self {
         Unit(unit.as_str().to_string().into())
     }
 }

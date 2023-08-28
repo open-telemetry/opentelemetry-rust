@@ -5,7 +5,7 @@
 use std::fmt::Debug;
 
 use futures_core::future::BoxFuture;
-use opentelemetry_api::{
+use opentelemetry::{
     global,
     trace::{TraceError, TracerProvider},
 };
@@ -87,7 +87,7 @@ impl OtlpTracePipeline {
     ///
     /// Returns a [`Tracer`] with the name `opentelemetry-otlp` and current crate version.
     ///
-    /// [`Tracer`]: opentelemetry_api::trace::Tracer
+    /// [`Tracer`]: opentelemetry::trace::Tracer
     pub fn install_simple(self) -> Result<sdk::trace::Tracer, TraceError> {
         Ok(build_simple_with_exporter(
             self.exporter_builder
@@ -104,7 +104,7 @@ impl OtlpTracePipeline {
     ///
     /// `install_batch` will panic if not called within a tokio runtime
     ///
-    /// [`Tracer`]: opentelemetry_api::trace::Tracer
+    /// [`Tracer`]: opentelemetry::trace::Tracer
     pub fn install_batch<R: RuntimeChannel<BatchMessage>>(
         self,
         runtime: R,

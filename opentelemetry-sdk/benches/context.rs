@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use futures_util::future::BoxFuture;
-use opentelemetry_api::{
+use opentelemetry::{
     trace::{TraceContextExt, Tracer, TracerProvider},
     Context,
 };

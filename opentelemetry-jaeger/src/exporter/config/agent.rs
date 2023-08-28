@@ -5,9 +5,12 @@ use crate::exporter::config::{
 };
 use crate::exporter::uploader::{AsyncUploader, SyncUploader, Uploader};
 use crate::{Error, Exporter, JaegerTraceRuntime};
-use opentelemetry::sdk;
-use opentelemetry::sdk::trace::{BatchConfig, Config, TracerProvider};
 use opentelemetry::trace::TraceError;
+use opentelemetry_sdk::trace::{BatchSpanProcessor, Tracer};
+use opentelemetry_sdk::{
+    self,
+    trace::{BatchConfig, Config, TracerProvider},
+};
 use std::borrow::BorrowMut;
 use std::sync::Arc;
 use std::{env, net};
@@ -43,21 +46,20 @@ const DEFAULT_AGENT_ENDPOINT_PORT: &str = "6831";
 /// Set `auto_split_batch` to true will config the exporter to split the batch based on `max_packet_size`
 /// automatically. Note that it has a performance overhead as every batch could require multiple requests to export.
 ///
-///
 /// For example, OSX UDP packet limit is 9216 by default. You can configure the pipeline as following
 /// to avoid UDP packet breaches the limit.
-///```no_run
-/// # use opentelemetry::trace::TraceError;
-/// # fn main() -> Result<(), TraceError>{
-/// let tracer = opentelemetry_jaeger::new_agent_pipeline()
+///
+/// ```no_run
+/// # use opentelemetry_sdk::runtime::Tokio;
+/// # fn main() {
+///     let tracer = opentelemetry_jaeger::new_agent_pipeline()
 ///         .with_endpoint("localhost:6831")
 ///         .with_service_name("my_app")
 ///         .with_max_packet_size(9_216)
 ///         .with_auto_split_batch(true)
-///         .install_batch(opentelemetry::runtime::Tokio).unwrap();
-/// # Ok(())
+///         .install_batch(Tokio).unwrap();
 /// # }
-///```
+/// ```
 ///
 /// [`with_auto_split_batch`]: AgentPipeline::with_auto_split_batch
 /// [`with_max_packet_size`]: AgentPipeline::with_max_packet_size
@@ -74,8 +76,8 @@ const DEFAULT_AGENT_ENDPOINT_PORT: &str = "6831";
 #[derive(Debug)]
 pub struct AgentPipeline {
     transformation_config: TransformationConfig,
-    trace_config: Option<sdk::trace::Config>,
-    batch_config: Option<sdk::trace::BatchConfig>,
+    trace_config: Option<Config>,
+    batch_config: Option<BatchConfig>,
     agent_endpoint: Result<Vec<net::SocketAddr>, crate::Error>,
     max_packet_size: usize,
     auto_split_batch: bool,
@@ -231,16 +233,17 @@ impl AgentPipeline {
     /// # Examples
     /// Set service name via resource.
     /// ```rust
-    /// use opentelemetry::{sdk::{self, Resource}, KeyValue};
+    /// use opentelemetry::KeyValue;
+    /// use opentelemetry_sdk::{Resource, trace::Config};
     ///
     /// let pipeline = opentelemetry_jaeger::new_agent_pipeline()
     ///                 .with_trace_config(
-    ///                       sdk::trace::Config::default()
+    ///                       Config::default()
     ///                         .with_resource(Resource::new(vec![KeyValue::new("service.name", "my-service")]))
     ///                 );
     ///
     /// ```
-    pub fn with_trace_config(mut self, config: sdk::trace::Config) -> Self {
+    pub fn with_trace_config(mut self, config: Config) -> Self {
         self.set_trace_config(config);
         self
     }
@@ -253,7 +256,7 @@ impl AgentPipeline {
     /// # Examples
     /// Set max queue size.
     /// ```rust
-    /// use opentelemetry::sdk::trace::BatchConfig;
+    /// use opentelemetry_sdk::trace::BatchConfig;
     ///
     /// let pipeline = opentelemetry_jaeger::new_agent_pipeline()
     ///                 .with_batch_processor_config(
@@ -270,7 +273,7 @@ impl AgentPipeline {
     ///
     /// The exporter will send each span to the agent upon the span ends.
     pub fn build_simple(mut self) -> Result<TracerProvider, TraceError> {
-        let mut builder = sdk::trace::TracerProvider::builder();
+        let mut builder = TracerProvider::builder();
 
         let (config, process) = build_config_and_process(
             self.trace_config.take(),
@@ -304,7 +307,7 @@ impl AgentPipeline {
     where
         R: JaegerTraceRuntime,
     {
-        let mut builder = sdk::trace::TracerProvider::builder();
+        let mut builder = TracerProvider::builder();
 
         let export_instrument_library = self.transformation_config.export_instrument_library;
         // build sdk trace config and jaeger process.
@@ -316,7 +319,7 @@ impl AgentPipeline {
         let batch_config = self.batch_config.take();
         let uploader = self.build_async_agent_uploader(runtime.clone())?;
         let exporter = Exporter::new(process.into(), export_instrument_library, uploader);
-        let batch_processor = sdk::trace::BatchSpanProcessor::builder(exporter, runtime)
+        let batch_processor = BatchSpanProcessor::builder(exporter, runtime)
             .with_batch_config(batch_config.unwrap_or_default())
             .build();
 
@@ -330,7 +333,7 @@ impl AgentPipeline {
     /// tracer provider.
     ///
     /// The tracer name is `opentelemetry-jaeger`. The tracer version will be the version of this crate.
-    pub fn install_simple(self) -> Result<sdk::trace::Tracer, TraceError> {
+    pub fn install_simple(self) -> Result<Tracer, TraceError> {
         let tracer_provider = self.build_simple()?;
         install_tracer_provider_and_get_tracer(tracer_provider)
     }
@@ -339,7 +342,7 @@ impl AgentPipeline {
     /// tracer provider.
     ///
     /// The tracer name is `opentelemetry-jaeger`. The tracer version will be the version of this crate.
-    pub fn install_batch<R>(self, runtime: R) -> Result<sdk::trace::Tracer, TraceError>
+    pub fn install_batch<R>(self, runtime: R) -> Result<Tracer, TraceError>
     where
         R: JaegerTraceRuntime,
     {

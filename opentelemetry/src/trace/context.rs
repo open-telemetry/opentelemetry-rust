@@ -181,7 +181,7 @@ pub trait TraceContextExt {
     /// # Examples
     ///
     /// ```
-    /// use opentelemetry_api::{global, trace::{TraceContextExt, Tracer}, Context};
+    /// use opentelemetry::{global, trace::{TraceContextExt, Tracer}, Context};
     ///
     /// let tracer = global::tracer("example");
     ///
@@ -202,7 +202,7 @@ pub trait TraceContextExt {
     /// # Examples
     ///
     /// ```
-    /// use opentelemetry_api::{global, trace::{TraceContextExt, Tracer}, Context};
+    /// use opentelemetry::{global, trace::{TraceContextExt, Tracer}, Context};
     ///
     /// fn fn_with_passed_in_context(cx: &Context) {
     ///     let tracer = global::tracer("example");
@@ -226,7 +226,7 @@ pub trait TraceContextExt {
     /// # Examples
     ///
     /// ```
-    /// use opentelemetry_api::{trace::TraceContextExt, Context};
+    /// use opentelemetry::{trace::TraceContextExt, Context};
     ///
     /// // Add an event to the currently active span
     /// Context::map_current(|cx| cx.span().add_event("An event!", vec![]));
@@ -238,7 +238,7 @@ pub trait TraceContextExt {
     /// # Examples
     ///
     /// ```
-    /// use opentelemetry_api::{trace::TraceContextExt, Context};
+    /// use opentelemetry::{trace::TraceContextExt, Context};
     ///
     /// assert!(!Context::map_current(|cx| cx.has_active_span()));
     /// ```
@@ -296,8 +296,8 @@ impl TraceContextExt for Context {
 /// # Examples
 ///
 /// ```
-/// use opentelemetry_api::{global, trace::{Span, Tracer}, KeyValue};
-/// use opentelemetry_api::trace::{get_active_span, mark_span_as_active};
+/// use opentelemetry::{global, trace::{Span, Tracer}, KeyValue};
+/// use opentelemetry::trace::{get_active_span, mark_span_as_active};
 ///
 /// fn my_function() {
 ///     let tracer = global::tracer("my-component-a");
@@ -326,8 +326,8 @@ pub fn mark_span_as_active<T: crate::trace::Span + Send + Sync + 'static>(span: 
 /// # Examples
 ///
 /// ```
-/// use opentelemetry_api::{global, trace::{Span, Tracer}, KeyValue};
-/// use opentelemetry_api::trace::get_active_span;
+/// use opentelemetry::{global, trace::{Span, Tracer}, KeyValue};
+/// use opentelemetry::trace::get_active_span;
 ///
 /// fn my_function() {
 ///     // start an active span in one function

@@ -1,7 +1,7 @@
 use core::fmt;
 
 use async_trait::async_trait;
-use opentelemetry_api::logs::{LogError, LogResult};
+use opentelemetry::logs::{LogError, LogResult};
 use opentelemetry_proto::tonic::collector::logs::v1::{
     logs_service_client::LogsServiceClient, ExportLogsServiceRequest,
 };

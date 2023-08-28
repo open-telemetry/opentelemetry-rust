@@ -1,6 +1,6 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use futures_util::future::BoxFuture;
-use opentelemetry_api::{
+use opentelemetry::{
     trace::{OrderMap, Span, Tracer, TracerProvider},
     KeyValue,
 };

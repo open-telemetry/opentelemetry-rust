@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::Mutex, time::Duration};
 
 use async_trait::async_trait;
 use grpcio::CallOption;
-use opentelemetry_api::metrics::{MetricsError, Result};
+use opentelemetry::metrics::{MetricsError, Result};
 use opentelemetry_proto::grpcio::collector::metrics::v1::{
     ExportMetricsServiceRequest, MetricsServiceClient,
 };

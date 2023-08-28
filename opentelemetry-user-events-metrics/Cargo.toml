@@ -11,7 +11,7 @@ edition = "2021"
 rust-version = "1.64"
 
 [dependencies]
-opentelemetry_api = { version = "0.20", path = "../opentelemetry-api", features = ["metrics"] }
+opentelemetry = { version = "0.21", path = "../opentelemetry", features = ["metrics"] }
 opentelemetry_sdk = { version = "0.20", path = "../opentelemetry-sdk", features = ["metrics", "rt-tokio"] }
 opentelemetry-proto = { version = "0.3", path = "../opentelemetry-proto", features = ["gen-tonic", "metrics"] }
 eventheader = { version = "= 0.3.2" }

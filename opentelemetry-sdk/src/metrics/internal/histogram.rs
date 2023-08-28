@@ -9,7 +9,7 @@ use crate::metrics::{
     aggregation,
     data::{self, Aggregation},
 };
-use opentelemetry_api::{global, metrics::MetricsError};
+use opentelemetry::{global, metrics::MetricsError};
 
 use super::{aggregator::STREAM_OVERFLOW_ATTRIBUTE_SET, Aggregator, Number};
 

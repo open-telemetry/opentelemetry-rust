@@ -30,7 +30,7 @@
 //! ```no_run
 //! # #[cfg(all(feature = "trace", feature = "grpc-tonic"))]
 //! # {
-//! use opentelemetry_api::trace::Tracer;
+//! use opentelemetry::trace::Tracer;
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 //!     // First, create a OTLP exporter builder. Configure it as you need.
@@ -67,7 +67,7 @@
 //! ```no_run
 //! # #[cfg(all(feature = "trace", feature = "grpc-tonic"))]
 //! # {
-//! # fn main() -> Result<(), opentelemetry_api::trace::TraceError> {
+//! # fn main() -> Result<(), opentelemetry::trace::TraceError> {
 //! let tracer = opentelemetry_otlp::new_pipeline()
 //!     .tracing()
 //!     .with_exporter(opentelemetry_otlp::new_exporter().tonic())
@@ -91,7 +91,7 @@
 //! on the choice of exporters.
 //!
 //! ```no_run
-//! use opentelemetry_api::{KeyValue, trace::Tracer};
+//! use opentelemetry::{KeyValue, trace::Tracer};
 //! use opentelemetry_sdk::{trace::{self, RandomIdGenerator, Sampler}, Resource};
 //! # #[cfg(feature = "metrics")]
 //! use opentelemetry_sdk::metrics::reader::{DefaultAggregationSelector, DefaultTemporalitySelector};

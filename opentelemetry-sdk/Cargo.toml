@@ -10,7 +10,7 @@ edition = "2021"
 rust-version = "1.64"
 
 [dependencies]
-opentelemetry_api = { version = "0.20", path = "../opentelemetry-api/" }
+opentelemetry = { version = "0.21", path = "../opentelemetry/" }
 opentelemetry-http = { version = "0.9", path = "../opentelemetry-http", optional = true }
 async-std = { version = "1.6", features = ["unstable"], optional = true }
 async-trait = { version = "0.1", optional = true }
@@ -43,12 +43,12 @@ pprof = { version = "0.12", features = ["flamegraph", "criterion"] }
 
 [features]
 default = ["trace"]
-trace = ["opentelemetry_api/trace", "crossbeam-channel", "rand", "async-trait", "percent-encoding"]
+trace = ["opentelemetry/trace", "crossbeam-channel", "rand", "async-trait", "percent-encoding"]
 jaeger_remote_sampler = ["trace", "opentelemetry-http", "http", "serde", "serde_json", "url"]
-logs = ["opentelemetry_api/logs", "crossbeam-channel", "async-trait", "serde_json"]
-logs_level_enabled = ["logs", "opentelemetry_api/logs_level_enabled"]
-metrics = ["opentelemetry_api/metrics", "regex", "async-trait"]
-testing = ["opentelemetry_api/testing", "trace", "metrics", "logs", "rt-async-std", "rt-tokio", "rt-tokio-current-thread", "tokio/macros", "tokio/rt-multi-thread"]
+logs = ["opentelemetry/logs", "crossbeam-channel", "async-trait", "serde_json"]
+logs_level_enabled = ["logs", "opentelemetry/logs_level_enabled"]
+metrics = ["opentelemetry/metrics", "regex", "async-trait"]
+testing = ["opentelemetry/testing", "trace", "metrics", "logs", "rt-async-std", "rt-tokio", "rt-tokio-current-thread", "tokio/macros", "tokio/rt-multi-thread"]
 rt-tokio = ["tokio", "tokio-stream"]
 rt-tokio-current-thread = ["tokio", "tokio-stream"]
 rt-async-std = ["async-std"]

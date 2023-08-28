@@ -4,7 +4,7 @@
 
 use crate::resource::ResourceDetector;
 use crate::Resource;
-use opentelemetry_api::{KeyValue, StringValue, Value};
+use opentelemetry::{KeyValue, StringValue, Value};
 use std::env::args_os;
 use std::process::id;
 use std::time::Duration;

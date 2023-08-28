@@ -1,7 +1,7 @@
-use std::{borrow::Cow, collections::HashMap, time::SystemTime};
-
+use crate::common::{as_unix_nano, KeyValue, Resource, Scope};
 use opentelemetry_sdk::AttributeSet;
 use serde::{Serialize, Serializer};
+use std::{borrow::Cow, collections::HashMap, time::SystemTime};
 
 use crate::common::{as_human_readable, as_unix_nano, KeyValue, Resource, Scope};
 
@@ -138,14 +138,14 @@ impl Serialize for SpanKind {
     }
 }
 
-impl From<opentelemetry_api::trace::SpanKind> for SpanKind {
-    fn from(value: opentelemetry_api::trace::SpanKind) -> Self {
+impl From<opentelemetry::trace::SpanKind> for SpanKind {
+    fn from(value: opentelemetry::trace::SpanKind) -> Self {
         match value {
-            opentelemetry_api::trace::SpanKind::Client => SpanKind::Client,
-            opentelemetry_api::trace::SpanKind::Server => SpanKind::Server,
-            opentelemetry_api::trace::SpanKind::Producer => SpanKind::Producer,
-            opentelemetry_api::trace::SpanKind::Consumer => SpanKind::Consumer,
-            opentelemetry_api::trace::SpanKind::Internal => SpanKind::Internal,
+            opentelemetry::trace::SpanKind::Client => SpanKind::Client,
+            opentelemetry::trace::SpanKind::Server => SpanKind::Server,
+            opentelemetry::trace::SpanKind::Producer => SpanKind::Producer,
+            opentelemetry::trace::SpanKind::Consumer => SpanKind::Consumer,
+            opentelemetry::trace::SpanKind::Internal => SpanKind::Internal,
         }
     }
 }
@@ -158,8 +158,8 @@ struct Event {
     dropped_attributes_count: u32,
 }
 
-impl From<opentelemetry_api::trace::Event> for Event {
-    fn from(value: opentelemetry_api::trace::Event) -> Self {
+impl From<opentelemetry::trace::Event> for Event {
+    fn from(value: opentelemetry::trace::Event) -> Self {
         Event {
             name: value.name,
             attributes: value.attributes.into_iter().map(Into::into).collect(),
@@ -179,8 +179,8 @@ struct Link {
     dropped_attributes_count: u32,
 }
 
-impl From<opentelemetry_api::trace::Link> for Link {
-    fn from(value: opentelemetry_api::trace::Link) -> Self {
+impl From<opentelemetry::trace::Link> for Link {
+    fn from(value: opentelemetry::trace::Link) -> Self {
         Link {
             trace_id: format!("{:x}", value.span_context.trace_id()),
             span_id: format!("{:x}", value.span_context.span_id()),
@@ -204,18 +204,18 @@ fn is_zero(v: &u32) -> bool {
     *v == 0
 }
 
-impl From<opentelemetry_api::trace::Status> for Status {
-    fn from(value: opentelemetry_api::trace::Status) -> Self {
+impl From<opentelemetry::trace::Status> for Status {
+    fn from(value: opentelemetry::trace::Status) -> Self {
         match value {
-            opentelemetry_api::trace::Status::Unset => Status {
+            opentelemetry::trace::Status::Unset => Status {
                 message: None,
                 code: 0,
             },
-            opentelemetry_api::trace::Status::Error { description } => Status {
+            opentelemetry::trace::Status::Error { description } => Status {
                 message: Some(description),
                 code: 1,
             },
-            opentelemetry_api::trace::Status::Ok => Status {
+            opentelemetry::trace::Status::Ok => Status {
                 message: None,
                 code: 2,
             },

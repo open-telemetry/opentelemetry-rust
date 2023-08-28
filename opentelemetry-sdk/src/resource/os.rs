@@ -3,7 +3,7 @@
 //! Detect the runtime operating system type.
 use crate::resource::ResourceDetector;
 use crate::Resource;
-use opentelemetry_api::KeyValue;
+use opentelemetry::KeyValue;
 use std::env::consts::OS;
 use std::time::Duration;
 
@@ -28,7 +28,7 @@ impl ResourceDetector for OsResourceDetector {
 mod tests {
     use crate::resource::os::OsResourceDetector;
     use crate::resource::ResourceDetector;
-    use opentelemetry_api::Key;
+    use opentelemetry::Key;
     use std::time::Duration;
 
     #[test]
