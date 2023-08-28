@@ -1,4 +1,4 @@
-use log::{error, info, Level, warn};
+use log::{error, info, warn, Level};
 use opentelemetry_appender_log::OpenTelemetryLogBridge;
 use opentelemetry_sdk::logs::{BatchLogProcessor, LoggerProvider};
 use opentelemetry_sdk::runtime;

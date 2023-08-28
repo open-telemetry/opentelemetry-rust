@@ -1,11 +1,11 @@
+use crate::export::logs::{LogData, LogExporter};
 use async_trait::async_trait;
 use opentelemetry_api::logs::{LogError, LogResult};
-use crate::export::logs::{LogData, LogExporter};
 use std::sync::{Arc, Mutex};
 
 /// An in-memory logs exporter that stores logs data in memory..
 ///
-/// This exporter is useful for testing and debugging purposes. 
+/// This exporter is useful for testing and debugging purposes.
 /// It stores logs in a `Vec<LogData>`. Logs can be retrieved using
 /// `get_finished_logs` method.
 ///
@@ -27,7 +27,7 @@ impl Default for InMemoryLogsExporter {
 
 ///Builder for ['InMemoryLogsExporter'].
 /// # Example
-/// 
+///
 /// ```
 /// use opentelemetry_sdk::testing::logs::{InMemoryLogsExporter, InMemoryLogsExporterBuilder};
 ///
@@ -63,7 +63,7 @@ impl Default for InMemoryLogsExporter {
 ///    for log in finished_logs {
 ///        println!("{:?}", log);
 ///    }
-/// 
+///
 /// ```
 ///
 #[derive(Debug, Clone)]

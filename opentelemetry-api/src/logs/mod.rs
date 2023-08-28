@@ -2,7 +2,7 @@
 
 use crate::ExportError;
 use futures_channel::{mpsc::TrySendError, oneshot::Canceled};
-use std::{time::Duration, sync::PoisonError};
+use std::{sync::PoisonError, time::Duration};
 use thiserror::Error;
 
 mod logger;
