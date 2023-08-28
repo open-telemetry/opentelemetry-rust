@@ -10,8 +10,8 @@
 //! These cannot be changed after the `Span`'s end time has been set.
 use crate::trace::SpanLimits;
 use crate::Resource;
-use opentelemetry_api::trace::{Event, SpanContext, SpanId, SpanKind, Status};
-use opentelemetry_api::{trace, KeyValue};
+use opentelemetry::trace::{Event, SpanContext, SpanId, SpanKind, Status};
+use opentelemetry::{trace, KeyValue};
 use std::borrow::Cow;
 use std::time::SystemTime;
 
@@ -82,7 +82,7 @@ impl Span {
     }
 }
 
-impl opentelemetry_api::trace::Span for Span {
+impl opentelemetry::trace::Span for Span {
     /// Records events at a specific time in the context of a given `Span`.
     ///
     /// Note that the OpenTelemetry project documents certain ["standard event names and
@@ -180,7 +180,7 @@ impl Span {
         if let Some(timestamp) = timestamp {
             data.end_time = timestamp;
         } else if data.end_time == data.start_time {
-            data.end_time = opentelemetry_api::time::now();
+            data.end_time = opentelemetry::time::now();
         }
 
         match provider.span_processors().as_slice() {
@@ -244,8 +244,8 @@ mod tests {
     use crate::trace::span_limit::{
         DEFAULT_MAX_ATTRIBUTES_PER_EVENT, DEFAULT_MAX_ATTRIBUTES_PER_LINK,
     };
-    use opentelemetry_api::trace::{Link, TraceFlags, TraceId, Tracer};
-    use opentelemetry_api::{trace::Span as _, trace::TracerProvider, KeyValue};
+    use opentelemetry::trace::{Link, TraceFlags, TraceId, Tracer};
+    use opentelemetry::{trace::Span as _, trace::TracerProvider, KeyValue};
     use std::time::Duration;
 
     fn init() -> (crate::trace::Tracer, SpanData) {
@@ -256,8 +256,8 @@ mod tests {
             parent_span_id: SpanId::from_u64(0),
             span_kind: trace::SpanKind::Internal,
             name: "opentelemetry".into(),
-            start_time: opentelemetry_api::time::now(),
-            end_time: opentelemetry_api::time::now(),
+            start_time: opentelemetry::time::now(),
+            end_time: opentelemetry::time::now(),
             attributes: crate::trace::EvictedHashMap::new(
                 config.span_limits.max_attributes_per_span,
                 0,
@@ -324,7 +324,7 @@ mod tests {
         let mut span = create_span();
         let name = "some_event";
         let attributes = vec![KeyValue::new("k", "v")];
-        let timestamp = opentelemetry_api::time::now();
+        let timestamp = opentelemetry::time::now();
         span.add_event_with_timestamp(name, timestamp, attributes.clone());
         span.with_data(|data| {
             if let Some(event) = data.events.iter().next() {
@@ -436,7 +436,7 @@ mod tests {
     #[test]
     fn end_with_timestamp() {
         let mut span = create_span();
-        let timestamp = opentelemetry_api::time::now();
+        let timestamp = opentelemetry::time::now();
         span.end_with_timestamp(timestamp);
         span.with_data(|data| assert_eq!(data.end_time, timestamp));
     }
@@ -451,7 +451,7 @@ mod tests {
     #[test]
     fn end_only_once() {
         let mut span = create_span();
-        let timestamp = opentelemetry_api::time::now();
+        let timestamp = opentelemetry::time::now();
         span.end_with_timestamp(timestamp);
         span.end_with_timestamp(timestamp.checked_add(Duration::from_secs(10)).unwrap());
         span.with_data(|data| assert_eq!(data.end_time, timestamp));
@@ -465,7 +465,7 @@ mod tests {
         span.add_event("some_event", vec![KeyValue::new("k", "v")]);
         span.add_event_with_timestamp(
             "some_event",
-            opentelemetry_api::time::now(),
+            opentelemetry::time::now(),
             vec![KeyValue::new("k", "v")],
         );
         let err = std::io::Error::from(std::io::ErrorKind::Other);

@@ -19,7 +19,7 @@ pub mod tonic {
     use crate::proto::tonic::common::v1::{
         any_value, AnyValue, ArrayValue, InstrumentationScope, KeyValue,
     };
-    use opentelemetry_api::{Array, Value};
+    use opentelemetry::{Array, Value};
     use std::borrow::Cow;
 
     #[cfg(any(feature = "trace", feature = "logs"))]
@@ -70,8 +70,8 @@ pub mod tonic {
         }
     }
 
-    impl From<Vec<opentelemetry_api::KeyValue>> for Attributes {
-        fn from(kvs: Vec<opentelemetry_api::KeyValue>) -> Self {
+    impl From<Vec<opentelemetry::KeyValue>> for Attributes {
+        fn from(kvs: Vec<opentelemetry::KeyValue>) -> Self {
             Attributes(
                 kvs.into_iter()
                     .map(|api_kv| KeyValue {
@@ -132,7 +132,7 @@ pub mod tonic {
     pub(crate) fn resource_attributes(resource: &Resource) -> Attributes {
         resource
             .iter()
-            .map(|(k, v)| opentelemetry_api::KeyValue::new(k.clone(), v.clone()))
+            .map(|(k, v)| opentelemetry::KeyValue::new(k.clone(), v.clone()))
             .collect::<Vec<_>>()
             .into()
     }
@@ -143,7 +143,7 @@ pub mod grpcio {
     use crate::proto::grpcio::common::v1::{
         any_value, AnyValue, ArrayValue, InstrumentationScope, KeyValue,
     };
-    use opentelemetry_api::{Array, Value};
+    use opentelemetry::{Array, Value};
     use std::borrow::Cow;
 
     #[cfg(any(feature = "trace", feature = "logs"))]
@@ -194,8 +194,8 @@ pub mod grpcio {
         }
     }
 
-    impl From<Vec<opentelemetry_api::KeyValue>> for Attributes {
-        fn from(kvs: Vec<opentelemetry_api::KeyValue>) -> Self {
+    impl From<Vec<opentelemetry::KeyValue>> for Attributes {
+        fn from(kvs: Vec<opentelemetry::KeyValue>) -> Self {
             Attributes(
                 kvs.into_iter()
                     .map(|api_kv| KeyValue {
@@ -256,7 +256,7 @@ pub mod grpcio {
     pub(crate) fn resource_attributes(resource: &Resource) -> Attributes {
         resource
             .iter()
-            .map(|(k, v)| opentelemetry_api::KeyValue::new(k.clone(), v.clone()))
+            .map(|(k, v)| opentelemetry::KeyValue::new(k.clone(), v.clone()))
             .collect::<Vec<_>>()
             .into()
     }

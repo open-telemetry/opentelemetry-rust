@@ -5,7 +5,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use opentelemetry_api::{
+use opentelemetry::{
     global,
     metrics::{CallbackRegistration, MetricsError, Result, Unit},
     Context,

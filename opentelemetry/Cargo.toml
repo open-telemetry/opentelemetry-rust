@@ -21,7 +21,16 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-opentelemetry_api = { version = "0.20", path = "../opentelemetry-api" }
+futures-channel = "0.3"
+futures-util = { version = "0.3", default-features = false, features = ["std", "sink"] }
+indexmap = "2.0"
+once_cell = "1.12.0"
+pin-project-lite = { version = "0.2", optional = true }
+thiserror = "1"
+urlencoding = "2.1.2"
+
+[target.'cfg(all(target_arch = "wasm32", not(target_os = "wasi")))'.dependencies]
+js-sys = "0.3.63"
 
 [dev-dependencies]
 opentelemetry_sdk = { version = "0.20", path = "../opentelemetry-sdk" }
@@ -29,8 +38,8 @@ opentelemetry-stdout = { version = "0.1", path = "../opentelemetry-stdout", feat
 
 [features]
 default = ["trace"]
-trace = ["opentelemetry_api/trace"]
-metrics = ["opentelemetry_api/metrics"]
-logs = ["opentelemetry_api/logs"]
+trace = ["pin-project-lite"]
+metrics = []
+testing = ["trace", "metrics"]
+logs = []
 logs_level_enabled = ["logs"]
-testing = ["opentelemetry_api/testing"]

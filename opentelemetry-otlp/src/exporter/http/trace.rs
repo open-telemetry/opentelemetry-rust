@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use futures_core::future::BoxFuture;
 use http::{header::CONTENT_TYPE, Method};
-use opentelemetry_api::trace::{TraceError, TraceResult};
+use opentelemetry::trace::{TraceError, TraceResult};
 use opentelemetry_sdk::export::trace::{ExportResult, SpanData, SpanExporter};
 
 use super::OtlpHttpClient;

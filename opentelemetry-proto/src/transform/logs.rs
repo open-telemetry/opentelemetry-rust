@@ -9,7 +9,7 @@ pub mod tonic {
         },
         transform::common::{to_nanos, tonic::resource_attributes},
     };
-    use opentelemetry_api::logs::{AnyValue as LogsAnyValue, Severity};
+    use opentelemetry::logs::{AnyValue as LogsAnyValue, Severity};
 
     impl From<LogsAnyValue> for AnyValue {
         fn from(value: LogsAnyValue) -> Self {
@@ -50,8 +50,8 @@ pub mod tonic {
         }
     }
 
-    impl From<opentelemetry_api::logs::LogRecord> for LogRecord {
-        fn from(log_record: opentelemetry_api::logs::LogRecord) -> Self {
+    impl From<opentelemetry::logs::LogRecord> for LogRecord {
+        fn from(log_record: opentelemetry::logs::LogRecord) -> Self {
             let trace_context = log_record.trace_context.as_ref();
             let severity_number = match log_record.severity_number {
                 Some(Severity::Trace) => SeverityNumber::Trace,
@@ -148,7 +148,7 @@ pub mod grpcio {
         },
         transform::common::{grpcio::resource_attributes, to_nanos},
     };
-    use opentelemetry_api::logs::{AnyValue as LogsAnyValue, Severity};
+    use opentelemetry::logs::{AnyValue as LogsAnyValue, Severity};
 
     impl From<LogsAnyValue> for AnyValue {
         fn from(value: LogsAnyValue) -> Self {
@@ -189,8 +189,8 @@ pub mod grpcio {
         }
     }
 
-    impl From<opentelemetry_api::logs::LogRecord> for LogRecord {
-        fn from(log_record: opentelemetry_api::logs::LogRecord) -> Self {
+    impl From<opentelemetry::logs::LogRecord> for LogRecord {
+        fn from(log_record: opentelemetry::logs::LogRecord) -> Self {
             let trace_context = log_record.trace_context.as_ref();
             let severity_number = match log_record.severity_number {
                 Some(Severity::Trace) => SeverityNumber::Trace,

@@ -3,10 +3,10 @@ use crate::trace::sampler::jaeger_remote::remote::{
     SamplingStrategyResponse,
 };
 use crate::trace::sampler::sample_based_on_probability;
-use opentelemetry_api::trace::{
+use opentelemetry::trace::{
     SamplingDecision, SamplingResult, TraceContextExt, TraceError, TraceId, TraceState,
 };
-use opentelemetry_api::{global, Context};
+use opentelemetry::{global, Context};
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 use std::sync::Mutex;

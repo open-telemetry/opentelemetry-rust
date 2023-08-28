@@ -8,8 +8,8 @@ use crate::{
 };
 use async_trait::async_trait;
 use futures_util::future::BoxFuture;
-pub use opentelemetry_api::testing::trace::TestSpan;
-use opentelemetry_api::trace::{
+pub use opentelemetry::testing::trace::TestSpan;
+use opentelemetry::trace::{
     SpanContext, SpanId, SpanKind, Status, TraceFlags, TraceId, TraceState,
 };
 use std::fmt::{Display, Formatter};
@@ -28,8 +28,8 @@ pub fn new_test_export_span_data() -> SpanData {
         parent_span_id: SpanId::INVALID,
         span_kind: SpanKind::Internal,
         name: "opentelemetry".into(),
-        start_time: opentelemetry_api::time::now(),
-        end_time: opentelemetry_api::time::now(),
+        start_time: opentelemetry::time::now(),
+        end_time: opentelemetry::time::now(),
         attributes: EvictedHashMap::new(config.span_limits.max_attributes_per_span, 0),
         events: EvictedQueue::new(config.span_limits.max_events_per_span),
         links: EvictedQueue::new(config.span_limits.max_links_per_span),

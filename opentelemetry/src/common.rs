@@ -16,7 +16,7 @@ impl Key {
     /// # Examples
     ///
     /// ```
-    /// use opentelemetry_api::Key;
+    /// use opentelemetry::Key;
     /// use std::sync::Arc;
     ///
     /// let key1 = Key::new("my_static_str");
@@ -449,7 +449,7 @@ pub struct InstrumentationLibrary {
     /// # Examples
     ///
     /// ```
-    /// let library = opentelemetry_api::InstrumentationLibrary::new(
+    /// let library = opentelemetry::InstrumentationLibrary::new(
     ///     "my-crate",
     ///     Some(env!("CARGO_PKG_VERSION")),
     ///     Some("https://opentelemetry.io/schemas/1.17.0"),

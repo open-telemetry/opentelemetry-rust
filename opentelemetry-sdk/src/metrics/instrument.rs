@@ -1,6 +1,6 @@
 use std::{any::Any, borrow::Cow, collections::HashSet, hash::Hash, marker, sync::Arc};
 
-use opentelemetry_api::{
+use opentelemetry::{
     metrics::{
         AsyncInstrument, MetricsError, Result, SyncCounter, SyncHistogram, SyncUpDownCounter, Unit,
     },

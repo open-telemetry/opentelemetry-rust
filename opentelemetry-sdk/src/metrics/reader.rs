@@ -1,7 +1,7 @@
 //! Interfaces for reading and producing metrics
 use std::{fmt, sync::Weak};
 
-use opentelemetry_api::{metrics::Result, Context};
+use opentelemetry::{metrics::Result, Context};
 
 use super::{
     aggregation::Aggregation,

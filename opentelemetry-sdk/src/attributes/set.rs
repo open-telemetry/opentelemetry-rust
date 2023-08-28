@@ -4,7 +4,7 @@ use std::{
     hash::{Hash, Hasher},
 };
 
-use opentelemetry_api::{Array, Key, KeyValue, Value};
+use opentelemetry::{Array, Key, KeyValue, Value};
 use ordered_float::OrderedFloat;
 
 use crate::Resource;

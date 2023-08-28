@@ -26,8 +26,8 @@ pub trait MeterProvider {
     /// # Examples
     ///
     /// ```
-    /// use opentelemetry_api::{global, metrics::MeterProvider};
-    /// use opentelemetry_api::KeyValue;
+    /// use opentelemetry::{global, metrics::MeterProvider};
+    /// use opentelemetry::KeyValue;
     ///
     /// let provider = global::meter_provider();
     ///
@@ -69,7 +69,7 @@ pub trait MeterProvider {
 /// Provides access to instrument instances for recording metrics.
 ///
 /// ```
-/// use opentelemetry_api::{global, KeyValue};
+/// use opentelemetry::{global, KeyValue};
 ///
 /// let meter = global::meter("my-meter");
 ///

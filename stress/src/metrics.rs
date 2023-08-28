@@ -1,5 +1,5 @@
 use lazy_static::lazy_static;
-use opentelemetry_api::{
+use opentelemetry::{
     metrics::{Counter, MeterProvider as _},
     KeyValue,
 };

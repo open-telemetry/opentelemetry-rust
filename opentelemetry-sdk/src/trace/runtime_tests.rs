@@ -10,9 +10,9 @@ use crate::runtime::RuntimeChannel;
 use crate::trace::BatchMessage;
 use futures_util::future::BoxFuture;
 #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
-use opentelemetry_api::global::*;
+use opentelemetry::global::*;
 #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
-use opentelemetry_api::trace::Tracer;
+use opentelemetry::trace::Tracer;
 use std::fmt::Debug;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;

@@ -1,4 +1,4 @@
-use opentelemetry_api::{
+use opentelemetry::{
     global,
     metrics::{MetricsError, Result},
 };
