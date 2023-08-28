@@ -144,14 +144,11 @@ impl HttpExporterBuilder {
         signal_endpoint_path: &str,
         signal_timeout_var: &str,
     ) -> Result<OtlpHttpClient, crate::Error> {
-        let endpoint = match env::var(signal_endpoint_var)
-            .ok()
-            .or(env::var(OTEL_EXPORTER_OTLP_ENDPOINT).ok())
-            .and_then(|s| s.parse().ok())
-        {
-            Some(val) => val,
-            None => format!("{}{signal_endpoint_path}", self.exporter_config.endpoint).parse()?,
-        };
+        let endpoint = resolve_endpoint(
+            signal_endpoint_var,
+            signal_endpoint_path,
+            self.exporter_config.endpoint.as_str(),
+        )?;
 
         let timeout = match env::var(signal_timeout_var)
             .ok()
@@ -263,5 +260,154 @@ impl OtlpHttpClient {
             headers,
             _timeout: timeout,
         }
+    }
+}
+
+// see https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/protocol/exporter.md#endpoint-urls-for-otlphttp
+fn resolve_endpoint(
+    signal_endpoint_var: &str,
+    signal_endpoint_path: &str,
+    provided_or_default_endpoint: &str,
+) -> Result<Uri, crate::Error> {
+    // per signal env var is not modified
+    if let Some(endpoint) = env::var(signal_endpoint_var)
+        .ok()
+        .and_then(|s| s.parse().ok())
+    {
+        return Ok(endpoint);
+    }
+
+    // if signal env var is not set, then we check if the OTEL_EXPORTER_OTLP_ENDPOINT is set
+    if let Some(endpoint) = env::var(OTEL_EXPORTER_OTLP_ENDPOINT)
+        .ok()
+        .and_then(|s| format!("{s}{signal_endpoint_path}").parse().ok())
+    {
+        return Ok(endpoint);
+    }
+
+    // if neither works, we use the one provided in pipeline. If user never provide one, we will use the default one
+    format!("{provided_or_default_endpoint}{signal_endpoint_path}")
+        .parse()
+        .map_err(From::from)
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_TRACES_ENDPOINT};
+    use std::sync::Mutex;
+
+    // Make sure env tests are not running concurrently
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
+
+    fn run_env_test<T, F>(env_vars: T, f: F)
+    where
+        F: FnOnce(),
+        T: Into<Vec<(&'static str, &'static str)>>,
+    {
+        let _env_lock = ENV_LOCK.lock().expect("env test lock poisoned");
+        let env_vars = env_vars.into();
+        for (k, v) in env_vars.iter() {
+            std::env::set_var(k, v);
+        }
+        f();
+        for (k, _) in env_vars {
+            std::env::remove_var(k);
+        }
+    }
+
+    #[test]
+    fn test_append_signal_path_to_generic_env() {
+        run_env_test(
+            vec![(OTEL_EXPORTER_OTLP_ENDPOINT, "http://example.com")],
+            || {
+                let endpoint = super::resolve_endpoint(
+                    OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+                    "/v1/traces",
+                    "http://localhost:4317",
+                )
+                .unwrap();
+                assert_eq!(endpoint, "http://example.com/v1/traces");
+            },
+        )
+    }
+
+    #[test]
+    fn test_not_append_signal_path_to_signal_env() {
+        run_env_test(
+            vec![(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, "http://example.com")],
+            || {
+                let endpoint = super::resolve_endpoint(
+                    OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+                    "/v1/traces",
+                    "http://localhost:4317",
+                )
+                .unwrap();
+                assert_eq!(endpoint, "http://example.com");
+            },
+        )
+    }
+
+    #[test]
+    fn test_priority_of_signal_env_over_generic_env() {
+        run_env_test(
+            vec![
+                (OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, "http://example.com"),
+                (OTEL_EXPORTER_OTLP_ENDPOINT, "http://wrong.com"),
+            ],
+            || {
+                let endpoint = super::resolve_endpoint(
+                    OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+                    "/v1/traces",
+                    "http://localhost:4317",
+                )
+                .unwrap();
+                assert_eq!(endpoint, "http://example.com");
+            },
+        );
+    }
+
+    #[test]
+    fn test_use_provided_or_default_when_others_missing() {
+        run_env_test(vec![], || {
+            let endpoint =
+                super::resolve_endpoint("NON_EXISTENT_VAR", "/v1/traces", "http://localhost:4317")
+                    .unwrap();
+            assert_eq!(endpoint, "http://localhost:4317/v1/traces");
+        });
+    }
+
+    #[test]
+    fn test_invalid_uri_in_signal_env_falls_back_to_generic_env() {
+        run_env_test(
+            vec![
+                (
+                    OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+                    "-*/*-/*-//-/-/invalid-uri",
+                ),
+                (OTEL_EXPORTER_OTLP_ENDPOINT, "http://example.com"),
+            ],
+            || {
+                let endpoint = super::resolve_endpoint(
+                    OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+                    "/v1/traces",
+                    "http://localhost:4317",
+                )
+                .unwrap();
+                assert_eq!(endpoint, "http://example.com/v1/traces");
+            },
+        );
+    }
+
+    #[test]
+    fn test_all_invalid_urls_falls_back_to_error() {
+        run_env_test(vec![], || {
+            let result = super::resolve_endpoint(
+                OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+                "/v1/traces",
+                "-*/*-/*-//-/-/yet-another-invalid-uri",
+            );
+            assert!(result.is_err());
+            // You may also want to assert on the specific error type if applicable
+        });
     }
 }
