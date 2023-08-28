@@ -1,3 +1,9 @@
+//! run with `$ cargo run --example logs-basic-in-memory 
+
+/// This example shows how to use the opentelemetry-appender-log crate, which is a
+/// [logging appender](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/glossary.md#log-appender--bridge) that bridges logs from the [log crate](https://docs.rs/log/latest/log/) to OpenTelemetry.
+/// The example setups a LoggerProvider with a in-memory exporter, so emitted logs are stored in memory.
+///
 use log::{error, info, warn, Level};
 use opentelemetry_appender_log::OpenTelemetryLogBridge;
 use opentelemetry_sdk::logs::{BatchLogProcessor, LoggerProvider};
