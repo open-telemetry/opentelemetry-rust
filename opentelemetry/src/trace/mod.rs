@@ -162,7 +162,7 @@
 //! some_work().with_context(Context::current_with_span(span));
 //! ```
 
-use futures_channel::{mpsc::TrySendError, oneshot::Canceled};
+
 use std::borrow::Cow;
 use std::time;
 use thiserror::Error;
@@ -215,18 +215,6 @@ where
 {
     fn from(err: T) -> Self {
         TraceError::ExportFailed(Box::new(err))
-    }
-}
-
-impl<T> From<TrySendError<T>> for TraceError {
-    fn from(err: TrySendError<T>) -> Self {
-        TraceError::Other(Box::new(err.into_send_error()))
-    }
-}
-
-impl From<Canceled> for TraceError {
-    fn from(err: Canceled) -> Self {
-        TraceError::Other(Box::new(err))
     }
 }
 

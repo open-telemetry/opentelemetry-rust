@@ -13,6 +13,7 @@
   is now the API crate. [#1226](https://github.com/open-telemetry/opentelemetry-rust/pull/1226)
 - Add in memory log exporter [#1231](https://github.com/open-telemetry/opentelemetry-rust/pull/1231)
 
+
 ## v0.20.0
 
 ### Added

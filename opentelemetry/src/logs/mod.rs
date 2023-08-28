@@ -1,7 +1,7 @@
 //! # OpenTelemetry Logs API
 
 use crate::ExportError;
-use futures_channel::{mpsc::TrySendError, oneshot::Canceled};
+
 use std::{sync::PoisonError, time::Duration};
 use thiserror::Error;
 
@@ -42,18 +42,6 @@ where
     }
 }
 
-impl<T> From<TrySendError<T>> for LogError {
-    fn from(err: TrySendError<T>) -> Self {
-        LogError::Other(Box::new(err.into_send_error()))
-    }
-}
-
-impl From<Canceled> for LogError {
-    fn from(err: Canceled) -> Self {
-        LogError::Other(Box::new(err))
-    }
-}
-
 impl From<String> for LogError {
     fn from(err_msg: String) -> Self {
         LogError::Other(Box::new(Custom(err_msg)))
@@ -71,7 +59,6 @@ impl<T> From<PoisonError<T>> for LogError {
         LogError::Other(err.to_string().into())
     }
 }
-
 /// Wrap type for string
 #[derive(Error, Debug)]
 #[error("{0}")]
