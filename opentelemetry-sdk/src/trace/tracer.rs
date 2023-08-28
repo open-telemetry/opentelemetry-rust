@@ -171,7 +171,7 @@ impl opentelemetry::trace::Tracer for Tracer {
                 .unwrap_or_else(|| config.id_generator.new_trace_id());
         };
 
-        // In order to accomodate use cases like `tracing-opentelemetry` we there is the ability
+        // In order to accommodate use cases like `tracing-opentelemetry` we there is the ability
         // to use pre-sampling. Otherwise, the standard method of sampling is followed.
         let sampling_decision = if let Some(sampling_result) = builder.sampling_result.take() {
             self.process_sampling_result(sampling_result, parent_cx)
