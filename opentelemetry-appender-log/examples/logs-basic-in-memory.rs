@@ -1,16 +1,4 @@
-<<<<<<< HEAD
-<<<<<<< HEAD
 //! run with `$ cargo run --example logs-basic-in-memory
-=======
-<<<<<<<< HEAD:opentelemetry-appender-log/examples/logs-basic-in-memory/src/main.rs
-//! run with `$ cargo run --example logs-basic-in-memory
-========
-//! run with `$ cargo run --example logs-basic-in-memory 
->>>>>>>> 1ee6b54 (remove proj example in favor of single file):opentelemetry-appender-log/examples/logs-basic-in-memory.rs
->>>>>>> 1ee6b54 (remove proj example in favor of single file)
-=======
-//! run with `$ cargo run --example logs-basic-in-memory
->>>>>>> 12faf74 (corrected dependency, removed repeated code)
 
 /// This example shows how to use the opentelemetry-appender-log crate, which is a
 /// [logging appender](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/glossary.md#log-appender--bridge) that bridges logs from the [log crate](https://docs.rs/log/latest/log/) to OpenTelemetry.
