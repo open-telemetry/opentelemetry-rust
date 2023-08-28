@@ -6,7 +6,7 @@ use std::{
 
 use crate::attributes::AttributeSet;
 use crate::metrics::data::{self, Aggregation, DataPoint, Temporality};
-use opentelemetry_api::{global, metrics::MetricsError};
+use opentelemetry::{global, metrics::MetricsError};
 
 use super::{
     aggregator::{PrecomputeAggregator, STREAM_OVERFLOW_ATTRIBUTE_SET},

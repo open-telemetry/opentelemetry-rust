@@ -3,7 +3,7 @@ use std::{collections::HashMap, time::Duration};
 
 use futures_core::future::BoxFuture;
 use grpcio::CallOption;
-use opentelemetry_api::trace::TraceError;
+use opentelemetry::trace::TraceError;
 use opentelemetry_proto::grpcio::collector::trace::v1::{
     ExportTraceServiceRequest, TraceServiceClient,
 };

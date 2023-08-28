@@ -7,7 +7,7 @@ use crate::metrics::{
     pipeline::Pipeline,
     reader::{AggregationSelector, MetricProducer, MetricReader, TemporalitySelector},
 };
-use opentelemetry_api::{metrics::Result, Context};
+use opentelemetry::{metrics::Result, Context};
 
 #[derive(Debug)]
 pub struct TestMetricReader {}

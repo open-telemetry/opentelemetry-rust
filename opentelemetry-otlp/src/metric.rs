@@ -7,7 +7,7 @@
 use crate::{Error, OtlpPipeline};
 use async_trait::async_trait;
 use core::fmt;
-use opentelemetry_api::{global, metrics::Result};
+use opentelemetry::{global, metrics::Result};
 
 #[cfg(feature = "grpc-tonic")]
 use crate::exporter::tonic::TonicExporterBuilder;
@@ -104,7 +104,7 @@ impl MetricsExporterBuilder {
             MetricsExporterBuilder::Unconfigured => {
                 drop(temporality_selector);
                 drop(aggregation_selector);
-                Err(opentelemetry_api::metrics::MetricsError::Other(
+                Err(opentelemetry::metrics::MetricsError::Other(
                     "no configured metrics exporter, enable `http-proto`, `grpc-sys` or `grpc-tonic` feature to configure a metrics exporter".into(),
                 ))
             }

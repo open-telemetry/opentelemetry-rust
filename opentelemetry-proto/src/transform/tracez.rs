@@ -1,6 +1,6 @@
 #[cfg(all(feature = "gen-tonic-messages", feature = "zpages"))]
 mod grpcio {
-    use opentelemetry_api::trace::{Event, Status};
+    use opentelemetry::trace::{Event, Status};
     use opentelemetry_sdk::export::trace::SpanData;
 
     use crate::proto::tonic::{

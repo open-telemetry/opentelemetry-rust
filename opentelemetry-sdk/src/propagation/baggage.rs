@@ -7,13 +7,13 @@
 //! `Baggage`s are serialized according to the editor's draft of
 //! the [W3C Baggage] specification.
 //!
-//! [`Baggage`]: opentelemetry_api::baggage::Baggage
+//! [`Baggage`]: opentelemetry::baggage::Baggage
 //! [W3C Baggage]: https://w3c.github.io/baggage/
 //!
 //! # Examples
 //!
 //! ```
-//! use opentelemetry_api::{baggage::BaggageExt, Key, propagation::TextMapPropagator};
+//! use opentelemetry::{baggage::BaggageExt, Key, propagation::TextMapPropagator};
 //! use opentelemetry_sdk::propagation::BaggagePropagator;
 //! use std::collections::HashMap;
 //!
@@ -41,7 +41,7 @@
 //! assert!(header_value.contains("server_id=42"), "contains new name-value pair");
 //! ```
 use once_cell::sync::Lazy;
-use opentelemetry_api::{
+use opentelemetry::{
     baggage::{BaggageExt, KeyValueMetadata},
     propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
     Context,
@@ -65,7 +65,7 @@ static BAGGAGE_FIELDS: Lazy<[String; 1]> = Lazy::new(|| [BAGGAGE_HEADER.to_owned
 /// # Examples
 ///
 /// ```
-/// use opentelemetry_api::{baggage::BaggageExt, Key, propagation::TextMapPropagator};
+/// use opentelemetry::{baggage::BaggageExt, Key, propagation::TextMapPropagator};
 /// use opentelemetry_sdk::propagation::BaggagePropagator;
 /// use std::collections::HashMap;
 ///
@@ -94,7 +94,7 @@ static BAGGAGE_FIELDS: Lazy<[String; 1]> = Lazy::new(|| [BAGGAGE_HEADER.to_owned
 /// ```
 ///
 /// [W3C Baggage]: https://w3c.github.io/baggage
-/// [`Baggage`]: opentelemetry_api::baggage::Baggage
+/// [`Baggage`]: opentelemetry::baggage::Baggage
 #[derive(Debug, Default)]
 pub struct BaggagePropagator {
     _private: (),
@@ -181,7 +181,7 @@ impl TextMapPropagator for BaggagePropagator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use opentelemetry_api::{
+    use opentelemetry::{
         baggage::BaggageMetadata, propagation::TextMapPropagator, Key, KeyValue, StringValue, Value,
     };
     use std::collections::HashMap;

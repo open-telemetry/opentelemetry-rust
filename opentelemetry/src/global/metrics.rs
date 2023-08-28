@@ -135,8 +135,8 @@ pub fn meter(name: impl Into<Cow<'static, str>>) -> Meter {
 /// # Example
 ///
 /// ```
-/// use opentelemetry_api::global::meter_with_version;
-/// use opentelemetry_api::KeyValue;
+/// use opentelemetry::global::meter_with_version;
+/// use opentelemetry::KeyValue;
 ///
 /// let meter = meter_with_version(
 ///     "io.opentelemetry",

@@ -7,7 +7,7 @@ use std::{
     },
 };
 
-use opentelemetry_api::{
+use opentelemetry::{
     metrics::{noop::NoopMeterCore, InstrumentProvider, Meter as ApiMeter, MetricsError, Result},
     Context, KeyValue,
 };
@@ -52,7 +52,7 @@ impl MeterProvider {
     /// # Examples
     ///
     /// ```
-    /// use opentelemetry_api::{global, Context};
+    /// use opentelemetry::{global, Context};
     /// use opentelemetry_sdk::metrics::MeterProvider;
     ///
     /// fn init_metrics() -> MeterProvider {
@@ -114,7 +114,7 @@ impl MeterProvider {
     }
 }
 
-impl opentelemetry_api::metrics::MeterProvider for MeterProvider {
+impl opentelemetry::metrics::MeterProvider for MeterProvider {
     fn versioned_meter(
         &self,
         name: impl Into<Cow<'static, str>>,
@@ -203,8 +203,8 @@ impl fmt::Debug for MeterProviderBuilder {
 mod tests {
     use crate::testing::metrics::metric_reader::TestMetricReader;
     use crate::Resource;
-    use opentelemetry_api::Key;
-    use opentelemetry_api::KeyValue;
+    use opentelemetry::Key;
+    use opentelemetry::KeyValue;
     use std::env;
 
     #[test]

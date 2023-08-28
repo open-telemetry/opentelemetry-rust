@@ -9,7 +9,7 @@
 //! ### Example
 //!
 //! ```
-//! use opentelemetry_api::{
+//! use opentelemetry::{
 //!     metrics::{MeterProvider as _, Unit},
 //!     KeyValue,
 //! };

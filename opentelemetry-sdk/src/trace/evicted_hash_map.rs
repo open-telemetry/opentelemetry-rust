@@ -1,6 +1,6 @@
 //! # Evicted Map
 
-use opentelemetry_api::{Key, KeyValue, Value};
+use opentelemetry::{Key, KeyValue, Value};
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, LinkedList};
 

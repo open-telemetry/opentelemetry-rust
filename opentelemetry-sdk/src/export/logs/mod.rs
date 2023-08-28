@@ -2,8 +2,8 @@
 use crate::Resource;
 use async_trait::async_trait;
 #[cfg(feature = "logs_level_enabled")]
-use opentelemetry_api::logs::Severity;
-use opentelemetry_api::{
+use opentelemetry::logs::Severity;
+use opentelemetry::{
     logs::{LogError, LogRecord, LogResult},
     InstrumentationLibrary,
 };

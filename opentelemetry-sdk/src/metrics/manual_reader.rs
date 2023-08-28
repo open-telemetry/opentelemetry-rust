@@ -3,7 +3,7 @@ use std::{
     sync::{Mutex, Weak},
 };
 
-use opentelemetry_api::{
+use opentelemetry::{
     global,
     metrics::{MetricsError, Result},
     Context,

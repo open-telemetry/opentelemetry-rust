@@ -30,7 +30,7 @@ async-trait = "0.1"
 futures-core = "0.3"
 opentelemetry-proto = { version = "0.3", path = "../opentelemetry-proto", default-features = false }
 grpcio = { version = "0.12", optional = true }
-opentelemetry_api = { version = "0.20", default-features = false, path = "../opentelemetry-api" }
+opentelemetry = { version = "0.21", default-features = false, path = "../opentelemetry" }
 opentelemetry_sdk = { version = "0.20", default-features = false, path = "../opentelemetry-sdk" }
 opentelemetry-http = { version = "0.9", path = "../opentelemetry-http", optional = true }
 opentelemetry-semantic-conventions = { version = "0.12", path = "../opentelemetry-semantic-conventions" }
@@ -55,9 +55,9 @@ futures = { version = "0.3", default-features = false, features = ["std"] }
 
 [features]
 # telemetry pillars and functions
-trace = ["opentelemetry_api/trace", "opentelemetry_sdk/trace", "opentelemetry-proto/trace"]
-metrics = ["opentelemetry_api/metrics", "opentelemetry_sdk/metrics", "opentelemetry-proto/metrics"]
-logs = ["opentelemetry_api/logs", "opentelemetry_sdk/logs", "opentelemetry-proto/logs"]
+trace = ["opentelemetry/trace", "opentelemetry_sdk/trace", "opentelemetry-proto/trace"]
+metrics = ["opentelemetry/metrics", "opentelemetry_sdk/metrics", "opentelemetry-proto/metrics"]
+logs = ["opentelemetry/logs", "opentelemetry_sdk/logs", "opentelemetry-proto/logs"]
 
 # add ons
 serialize = ["serde"]
