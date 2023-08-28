@@ -147,10 +147,6 @@ impl LogExporter for InMemoryLogsExporter {
             .map_err(LogError::from)
     }
     fn shutdown(&mut self) {
-        let _ = self
-            .logs
-            .lock()
-            .map(|mut logs_guard| logs_guard.clear())
-            .map_err(LogError::from);
+        self.reset();
     }
 }

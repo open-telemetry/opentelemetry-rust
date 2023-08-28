@@ -19,5 +19,5 @@ logs_level_enabled = ["opentelemetry/logs_level_enabled"]
 default = ["logs_level_enabled"]
 
 [dev-dependencies]
-opentelemetry_sdk = { path = "../opentelemetry-sdk", features = [ "testing"] }
+opentelemetry_sdk = { path = "../opentelemetry-sdk", features = [ "testing", "logs"] }
 tokio = "1.32.0"
