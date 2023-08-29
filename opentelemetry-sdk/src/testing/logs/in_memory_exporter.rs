@@ -45,7 +45,7 @@ use std::sync::{Arc, Mutex};
 ///    for log in emitted_logs {
 ///        println!("{:?}", log);
 ///    }
-///
+/// }
 /// ```
 ///
 #[derive(Clone, Debug)]
@@ -75,28 +75,25 @@ impl Default for InMemoryLogsExporter {
 /// [tokio::main]
 /// async fn main() {
 ///    //Create an InMemoryLogsExporter
-///    let exporter: InMemoryLogsExporter = InMemoryLogsExporter::default();
+///    let exporter: InMemoryLogsExporter = InMemoryLogsExporterBuilder::default().build();
 ///    //Create a LoggerProvider and register the exporter
 ///    let logger_provider = LoggerProvider::builder()
 ///        .with_log_processor(BatchLogProcessor::builder(exporter.clone(), runtime::Tokio).build())
 ///        .build();
-
 ///    // Setup Log Appender for the log crate.
 ///    let otel_log_appender = OpenTelemetryLogBridge::new(&logger_provider);
 ///    log::set_boxed_logger(Box::new(otel_log_appender)).unwrap();
 ///    log::set_max_level(Level::Info.to_level_filter());
-
 ///    // Emit logs using macros from the log crate.
 ///    error!("hello from {}. My price is {}", "apple", 2.99);
 ///    warn!("warn!");
 ///    info!("test log!");
-
 ///    logger_provider.force_flush();
-
 ///    let emitted_logs = exporter.get_emitted_logs().unwrap();
 ///    for log in emitted_logs {
 ///        println!("{:?}", log);
 ///    }
+/// }
 ///
 /// ```
 ///
@@ -135,9 +132,9 @@ impl InMemoryLogsExporter {
     /// # Example
     ///
     /// ```
-    /// use opentelemetry_sdk::testing::logs::{InMemoryLogsExporter};
+    /// use opentelemetry_sdk::testing::logs::{InMemoryLogsExporter, InMemoryLogsExporterBuilder};
     ///
-    /// let exporter = InMemoryLogsExporterBuilder::default();
+    /// let exporter = InMemoryLogsExporterBuilder::default().build();
     /// let emitted_logs = exporter.get_emitted_logs().unwrap();
     /// ```
     ///
@@ -157,9 +154,9 @@ impl InMemoryLogsExporter {
     /// # Example
     ///
     /// ```
-    /// use opentelemetry_sdk::testing::logs::{InMemoryLogsExporter};
+    /// use opentelemetry_sdk::testing::logs::{InMemoryLogsExporter, InMemoryLogsExporterBuilder};
     ///
-    /// let exporter = InMemoryLogsExporterBuilder::default();
+    /// let exporter = InMemoryLogsExporterBuilder::default().build();
     /// exporter.reset();
     /// ```
     ///
