@@ -162,7 +162,6 @@
 //! some_work().with_context(Context::current_with_span(span));
 //! ```
 
-
 use std::borrow::Cow;
 use std::time;
 use thiserror::Error;

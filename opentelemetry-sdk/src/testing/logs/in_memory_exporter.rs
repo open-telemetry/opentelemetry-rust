@@ -1,6 +1,6 @@
 use crate::export::logs::{LogData, LogExporter};
 use async_trait::async_trait;
-use opentelemetry_api::logs::{LogError, LogResult};
+use opentelemetry::logs::{LogError, LogResult};
 use std::sync::{Arc, Mutex};
 
 /// An in-memory logs exporter that stores logs data in memory..
