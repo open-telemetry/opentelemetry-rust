@@ -43,7 +43,7 @@ futures-core = "0.3"
 async-trait = "0.1"
 base64 = "0.13"
 bytes = "1"
-futures-util = { version = "0.3", features = ["io"] }
+futures-util = { version = "0.3", default-features = false, features = ["io"] }
 isahc = "1.4"
 opentelemetry_sdk = { path = "../opentelemetry-sdk", features = ["trace", "testing"] }
 
