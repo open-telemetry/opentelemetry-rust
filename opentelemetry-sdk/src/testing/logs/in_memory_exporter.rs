@@ -11,17 +11,14 @@ use std::sync::{Arc, Mutex};
 ///
 /// # Example
 /// ```no_run
-/// use opentelemetry_sdk::testing::logs::{InMemoryLogsExporter, InMemoryLogsExporterBuilder};
+///# use log::{error, info, Level, warn};
+///# use opentelemetry_appender_log::OpenTelemetryLogBridge;
+///# use opentelemetry_sdk::logs::{BatchLogProcessor, LoggerProvider};
+///# use opentelemetry_sdk::runtime;
+///# use opentelemetry_sdk::testing::logs::InMemoryLogsExporter;
 ///
-/// use log::{error, info, Level, warn};
-/// use opentelemetry_appender_log::OpenTelemetryLogBridge;
-/// use opentelemetry_sdk::logs::{BatchLogProcessor, LoggerProvider};
-/// use opentelemetry_sdk::runtime;
-/// use opentelemetry_sdk::testing::logs::InMemoryLogsExporter;
-///
-///
-/// [tokio::main]
-/// async fn main() {
+///# #[tokio::main]
+///# async fn main() {
 ///    //Create an InMemoryLogsExporter
 ///    let exporter: InMemoryLogsExporter = InMemoryLogsExporter::default();
 ///    //Create a LoggerProvider and register the exporter
@@ -45,7 +42,7 @@ use std::sync::{Arc, Mutex};
 ///    for log in emitted_logs {
 ///        println!("{:?}", log);
 ///    }
-/// }
+///# }
 /// ```
 ///
 #[derive(Clone, Debug)]
@@ -63,17 +60,14 @@ impl Default for InMemoryLogsExporter {
 /// # Example
 ///
 /// ```no_run
-/// use opentelemetry_sdk::testing::logs::{InMemoryLogsExporter, InMemoryLogsExporterBuilder};
+///# use opentelemetry_sdk::testing::logs::{InMemoryLogsExporter, InMemoryLogsExporterBuilder};
+///# use log::{error, info, Level, warn};
+///# use opentelemetry_appender_log::OpenTelemetryLogBridge;
+///# use opentelemetry_sdk::logs::{BatchLogProcessor, LoggerProvider};
+///# use opentelemetry_sdk::runtime;
 ///
-/// use log::{error, info, Level, warn};
-/// use opentelemetry_appender_log::OpenTelemetryLogBridge;
-/// use opentelemetry_sdk::logs::{BatchLogProcessor, LoggerProvider};
-/// use opentelemetry_sdk::runtime;
-/// use opentelemetry_sdk::testing::logs::{InMemoryLogsExporter,InMemoryLogsExporterBuilder};
-///
-///
-/// [tokio::main]
-/// async fn main() {
+///# #[tokio::main]
+///# async fn main() {
 ///    //Create an InMemoryLogsExporter
 ///    let exporter: InMemoryLogsExporter = InMemoryLogsExporterBuilder::default().build();
 ///    //Create a LoggerProvider and register the exporter
@@ -93,7 +87,7 @@ impl Default for InMemoryLogsExporter {
 ///    for log in emitted_logs {
 ///        println!("{:?}", log);
 ///    }
-/// }
+///# }
 ///
 /// ```
 ///
@@ -160,7 +154,7 @@ impl InMemoryLogsExporter {
     /// exporter.reset();
     /// ```
     ///
-    pub fn reset(&mut self) {
+    pub fn reset(&self) {
         let _ = self
             .logs
             .lock()
