@@ -1,6 +1,6 @@
 #[cfg(all(feature = "metrics", feature = "rt-tokio"))]
 mod test {
-    use futures::future::BoxFuture;
+    use futures_util::future::BoxFuture;
     use http::header::{HeaderValue, AUTHORIZATION, USER_AGENT};
     use hyper::{
         body,
@@ -20,18 +20,18 @@ mod test {
         tick_rx: tokio::sync::watch::Receiver<usize>,
     }
     impl runtime::Runtime for TestRuntime {
-        type Interval = futures::stream::Once<BoxFuture<'static, ()>>;
+        type Interval = futures_util::stream::Once<BoxFuture<'static, ()>>;
 
         type Delay = Pin<Box<tokio::time::Sleep>>;
 
         fn interval(&self, _duration: Duration) -> Self::Interval {
             let mut tick_rx = self.tick_rx.clone();
-            futures::stream::once(Box::pin(async move {
+            futures_util::stream::once(Box::pin(async move {
                 let _ = tick_rx.changed().await.is_ok();
             }))
         }
 
-        fn spawn(&self, future: futures::future::BoxFuture<'static, ()>) {
+        fn spawn(&self, future: BoxFuture<'static, ()>) {
             tokio::spawn(future);
         }
 
