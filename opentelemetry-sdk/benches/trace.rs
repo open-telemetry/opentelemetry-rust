@@ -16,20 +16,28 @@ fn criterion_benchmark(c: &mut Criterion) {
 
     trace_benchmark_group(c, "start-end-span-4-attrs", |tracer| {
         let mut span = tracer.start("foo");
-        span.set_attribute(Key::new("key1").bool(false));
-        span.set_attribute(Key::new("key2").string("hello"));
-        span.set_attribute(Key::new("key4").f64(123.456));
+        if span.is_recording()
+        {
+            span.set_attribute(Key::new("key1").bool(false));
+            span.set_attribute(Key::new("key2").string("hello"));
+            span.set_attribute(Key::new("key4").f64(123.456));
+        }
+        
         span.end();
     });
 
     trace_benchmark_group(c, "start-end-span-8-attrs", |tracer| {
         let mut span = tracer.start("foo");
-        span.set_attribute(Key::new("key1").bool(false));
-        span.set_attribute(Key::new("key2").string("hello"));
-        span.set_attribute(Key::new("key4").f64(123.456));
-        span.set_attribute(Key::new("key11").bool(false));
-        span.set_attribute(Key::new("key12").string("hello"));
-        span.set_attribute(Key::new("key14").f64(123.456));
+        if span.is_recording()
+        {
+            span.set_attribute(Key::new("key1").bool(false));
+            span.set_attribute(Key::new("key2").string("hello"));
+            span.set_attribute(Key::new("key4").f64(123.456));
+            span.set_attribute(Key::new("key11").bool(false));
+            span.set_attribute(Key::new("key12").string("hello"));
+            span.set_attribute(Key::new("key14").f64(123.456));
+        }
+        
         span.end();
     });
 
