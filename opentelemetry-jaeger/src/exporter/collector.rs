@@ -14,7 +14,7 @@ pub(crate) use wasm_collector_client::WasmCollector;
 mod collector_client {
     use super::*;
     use crate::exporter::thrift::jaeger;
-    use opentelemetry::sdk::export::trace::ExportResult;
+    use opentelemetry_sdk::export::trace::ExportResult;
     use std::io::Cursor;
     use std::sync::atomic::{AtomicUsize, Ordering};
     use thrift::protocol::TBinaryOutputProtocol;

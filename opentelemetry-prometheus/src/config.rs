@@ -1,9 +1,8 @@
 use core::fmt;
-use std::sync::{Arc, Mutex};
-
 use once_cell::sync::OnceCell;
-use opentelemetry_api::metrics::{MetricsError, Result};
+use opentelemetry::metrics::{MetricsError, Result};
 use opentelemetry_sdk::metrics::{reader::AggregationSelector, ManualReaderBuilder};
+use std::sync::{Arc, Mutex};
 
 use crate::{Collector, PrometheusExporter};
 

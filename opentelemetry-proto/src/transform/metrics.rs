@@ -8,7 +8,7 @@ pub mod tonic {
     use std::any::Any;
     use std::fmt;
 
-    use opentelemetry_api::{global, metrics::MetricsError, Key, Value};
+    use opentelemetry::{global, metrics::MetricsError, Key, Value};
     use opentelemetry_sdk::metrics::data::{
         self, Exemplar as SdkExemplar, Gauge as SdkGauge, Histogram as SdkHistogram,
         Metric as SdkMetric, ScopeMetrics as SdkScopeMetrics, Sum as SdkSum, Temporality,
@@ -77,8 +77,8 @@ pub mod tonic {
         }
     }
 
-    impl From<&opentelemetry_api::KeyValue> for KeyValue {
-        fn from(kv: &opentelemetry_api::KeyValue) -> Self {
+    impl From<&opentelemetry::KeyValue> for KeyValue {
+        fn from(kv: &opentelemetry::KeyValue) -> Self {
             KeyValue {
                 key: kv.key.to_string(),
                 value: Some(kv.value.clone().into()),
@@ -92,7 +92,7 @@ pub mod tonic {
                 Temporality::Cumulative => AggregationTemporality::Cumulative,
                 Temporality::Delta => AggregationTemporality::Delta,
                 other => {
-                    opentelemetry_api::global::handle_error(MetricsError::Other(format!(
+                    opentelemetry::global::handle_error(MetricsError::Other(format!(
                         "Unknown temporality {:?}, using default instead.",
                         other
                     )));
@@ -300,7 +300,7 @@ pub mod grpcio {
     use std::any::Any;
     use std::fmt;
 
-    use opentelemetry_api::{global, metrics::MetricsError, Key, Value};
+    use opentelemetry::{global, metrics::MetricsError, Key, Value};
     use opentelemetry_sdk::metrics::data::{
         self, Exemplar as SdkExemplar, Gauge as SdkGauge, Histogram as SdkHistogram,
         Metric as SdkMetric, ScopeMetrics as SdkScopeMetrics, Sum as SdkSum, Temporality,
@@ -369,8 +369,8 @@ pub mod grpcio {
         }
     }
 
-    impl From<&opentelemetry_api::KeyValue> for KeyValue {
-        fn from(kv: &opentelemetry_api::KeyValue) -> Self {
+    impl From<&opentelemetry::KeyValue> for KeyValue {
+        fn from(kv: &opentelemetry::KeyValue) -> Self {
             KeyValue {
                 key: kv.key.to_string(),
                 value: Some(kv.value.clone().into()),
@@ -384,7 +384,7 @@ pub mod grpcio {
                 Temporality::Cumulative => AggregationTemporality::Cumulative,
                 Temporality::Delta => AggregationTemporality::Delta,
                 other => {
-                    opentelemetry_api::global::handle_error(MetricsError::Other(format!(
+                    opentelemetry::global::handle_error(MetricsError::Other(format!(
                         "Unknown temporality {:?}, using default instead.",
                         other
                     )));

@@ -1,4 +1,4 @@
-use opentelemetry_api::trace::TraceError;
+use opentelemetry::trace::TraceError;
 use std::time::SystemTime;
 
 // leaky bucket based rate limit
@@ -16,7 +16,7 @@ impl LeakyBucket {
             span_per_sec,
             available: bucket_size,
             bucket_size,
-            last_time: opentelemetry_api::time::now(),
+            last_time: opentelemetry::time::now(),
         }
     }
 
@@ -25,7 +25,7 @@ impl LeakyBucket {
     }
 
     pub(crate) fn should_sample(&mut self) -> bool {
-        self.check_availability(opentelemetry_api::time::now)
+        self.check_availability(opentelemetry::time::now)
     }
 
     fn check_availability<F>(&mut self, now: F) -> bool
@@ -54,7 +54,7 @@ impl LeakyBucket {
                     }
                 }
                 Err(_) => {
-                    opentelemetry_api::global::handle_error(TraceError::Other(
+                    opentelemetry::global::handle_error(TraceError::Other(
                         "jaeger remote sampler gets rewinded timestamp".into(),
                     ));
                     true

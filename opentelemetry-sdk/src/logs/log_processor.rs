@@ -8,8 +8,8 @@ use futures_util::{
     {pin_mut, stream, StreamExt as _},
 };
 #[cfg(feature = "logs_level_enabled")]
-use opentelemetry_api::logs::Severity;
-use opentelemetry_api::{
+use opentelemetry::logs::Severity;
+use opentelemetry::{
     global,
     logs::{LogError, LogResult},
 };

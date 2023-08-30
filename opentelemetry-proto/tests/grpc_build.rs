@@ -12,9 +12,8 @@ const GRPCIO_PROTO_FILES: &[&str] = &[
     "src/proto/opentelemetry-proto/opentelemetry/proto/collector/metrics/v1/metrics_service.proto",
     "src/proto/opentelemetry-proto/opentelemetry/proto/logs/v1/logs.proto",
     "src/proto/opentelemetry-proto/opentelemetry/proto/collector/logs/v1/logs_service.proto",
-    "src/proto/tracez.proto",
 ];
-const GRPCIO_INCLUDES: &[&str] = &["src/proto/opentelemetry-proto/", "src/proto"];
+const GRPCIO_INCLUDES: &[&str] = &["src/proto/opentelemetry-proto/"];
 
 const TONIC_OUT_DIR: &str = "src/proto/tonic";
 const TONIC_PROTO_FILES: &[&str] = &[
@@ -26,8 +25,9 @@ const TONIC_PROTO_FILES: &[&str] = &[
     "src/proto/opentelemetry-proto/opentelemetry/proto/collector/metrics/v1/metrics_service.proto",
     "src/proto/opentelemetry-proto/opentelemetry/proto/logs/v1/logs.proto",
     "src/proto/opentelemetry-proto/opentelemetry/proto/collector/logs/v1/logs_service.proto",
+    "src/proto/tracez.proto",
 ];
-const TONIC_INCLUDES: &[&str] = &["src/proto/opentelemetry-proto"];
+const TONIC_INCLUDES: &[&str] = &["src/proto/opentelemetry-proto", "src/proto"];
 
 // This test helps to keep files generated and used by grpcio update to date.
 // If the test fails, it means the generated files has been changed. Please commit the change
@@ -59,6 +59,10 @@ fn build_tonic() {
         .build_client(true)
         .server_mod_attribute(".", "#[cfg(feature = \"gen-tonic\")]")
         .client_mod_attribute(".", "#[cfg(feature = \"gen-tonic\")]")
+        .type_attribute(
+            ".",
+            "#[cfg_attr(feature = \"with-serde\", derive(serde::Serialize, serde::Deserialize))]",
+        )
         .out_dir(out_dir.path())
         .compile(TONIC_PROTO_FILES, TONIC_INCLUDES)
         .expect("cannot compile protobuf using tonic");

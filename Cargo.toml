@@ -1,7 +1,6 @@
 [workspace]
 members = [
     "opentelemetry",
-    "opentelemetry-api",
     "opentelemetry-aws",
     "opentelemetry-contrib",
     "opentelemetry-datadog",

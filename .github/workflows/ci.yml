@@ -76,7 +76,7 @@ jobs:
       run: ./scripts/patch_dependencies.sh
     - name: Run tests
       run: cargo --version &&
-        cargo test --manifest-path=opentelemetry/Cargo.toml --features trace,metrics,rt-tokio,testing &&
+        cargo test --manifest-path=opentelemetry/Cargo.toml --features trace,metrics,testing &&
         cargo test --manifest-path=opentelemetry-jaeger/Cargo.toml --features rt-tokio &&
         cargo test --manifest-path=opentelemetry-zipkin/Cargo.toml
   cargo-deny:

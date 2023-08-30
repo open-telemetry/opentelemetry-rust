@@ -1,6 +1,6 @@
 use crate::exporter::ModelConfig;
 use http::uri;
-use opentelemetry::sdk::export::{
+use opentelemetry_sdk::export::{
     trace::{self, SpanData},
     ExportError,
 };
@@ -48,7 +48,7 @@ static SAMPLING_PRIORITY_KEY: &str = "_sampling_priority_v1";
 ///                 "datadog spans"
 ///             })
 ///            .with_agent_endpoint("http://localhost:8126")
-///            .install_batch(opentelemetry::runtime::Tokio)?;
+///            .install_batch(opentelemetry_sdk::runtime::Tokio)?;
 ///
 ///    Ok(())
 /// }
@@ -189,11 +189,14 @@ impl ApiVersion {
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
-    use opentelemetry::sdk::InstrumentationLibrary;
-    use opentelemetry::sdk::{self, Resource};
     use opentelemetry::{
         trace::{SpanContext, SpanId, SpanKind, Status, TraceFlags, TraceId, TraceState},
         Key, KeyValue,
+    };
+    use opentelemetry_sdk::{
+        self,
+        trace::{EvictedHashMap, EvictedQueue},
+        InstrumentationLibrary, Resource,
     };
     use std::borrow::Cow;
     use std::time::{Duration, SystemTime};
@@ -215,11 +218,11 @@ pub(crate) mod tests {
         let end_time = start_time.checked_add(Duration::from_secs(1)).unwrap();
 
         let capacity = 3;
-        let mut attributes = sdk::trace::EvictedHashMap::new(capacity, capacity as usize);
+        let mut attributes = EvictedHashMap::new(capacity, capacity as usize);
         attributes.insert(Key::new("span.type").string("web"));
 
-        let events = sdk::trace::EvictedQueue::new(capacity);
-        let links = sdk::trace::EvictedQueue::new(capacity);
+        let events = EvictedQueue::new(capacity);
+        let links = EvictedQueue::new(capacity);
         let resource = Resource::new(vec![KeyValue::new("host.name", "test")]);
 
         trace::SpanData {

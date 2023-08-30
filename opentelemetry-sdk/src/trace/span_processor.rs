@@ -31,8 +31,8 @@
 //!   +-----+--------------+   +---------------------+
 //! ```
 //!
-//! [`is_recording`]: opentelemetry_api::trace::Span::is_recording()
-//! [`TracerProvider`]: opentelemetry_api::trace::TracerProvider
+//! [`is_recording`]: opentelemetry::trace::Span::is_recording()
+//! [`TracerProvider`]: opentelemetry::trace::TracerProvider
 
 use crate::export::trace::{ExportResult, SpanData, SpanExporter};
 use crate::runtime::{RuntimeChannel, TrySend};
@@ -44,8 +44,8 @@ use futures_util::{
     stream::{self, FusedStream, FuturesUnordered},
     Stream, StreamExt as _,
 };
-use opentelemetry_api::global;
-use opentelemetry_api::{
+use opentelemetry::global;
+use opentelemetry::{
     trace::{TraceError, TraceResult},
     Context,
 };
@@ -222,7 +222,7 @@ enum Message {
 /// ```
 /// # #[cfg(feature="tokio")]
 /// # {
-/// use opentelemetry_api::global;
+/// use opentelemetry::global;
 /// use opentelemetry_sdk::{runtime, testing::trace::NoopSpanExporter, trace};
 /// use std::time::Duration;
 ///
@@ -720,7 +720,7 @@ mod tests {
     };
     use crate::trace::{BatchConfig, EvictedHashMap, EvictedQueue};
     use async_trait::async_trait;
-    use opentelemetry_api::trace::{SpanContext, SpanId, SpanKind, Status};
+    use opentelemetry::trace::{SpanContext, SpanId, SpanKind, Status};
     use std::fmt::Debug;
     use std::future::Future;
     use std::time::Duration;
@@ -743,8 +743,8 @@ mod tests {
             parent_span_id: SpanId::INVALID,
             span_kind: SpanKind::Internal,
             name: "opentelemetry".into(),
-            start_time: opentelemetry_api::time::now(),
-            end_time: opentelemetry_api::time::now(),
+            start_time: opentelemetry::time::now(),
+            end_time: opentelemetry::time::now(),
             attributes: EvictedHashMap::new(0, 0),
             events: EvictedQueue::new(0),
             links: EvictedQueue::new(0),

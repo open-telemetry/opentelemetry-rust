@@ -185,8 +185,8 @@ mod collector_client_tests {
     use crate::config::collector::http_client::test_http_client;
     use crate::exporter::thrift::jaeger::Batch;
     use crate::new_collector_pipeline;
-    use opentelemetry::runtime::Tokio;
     use opentelemetry::trace::TraceError;
+    use opentelemetry_sdk::runtime::Tokio;
 
     #[test]
     fn test_bring_your_own_client() -> Result<(), TraceError> {

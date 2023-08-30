@@ -6,7 +6,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use opentelemetry_api::{
+use opentelemetry::{
     global,
     metrics::{
         noop::{NoopAsyncInstrument, NoopRegistration},
@@ -35,7 +35,7 @@ use crate::metrics::{
 ///
 /// See the [Meter API] docs for usage.
 ///
-/// [Meter API]: opentelemetry_api::metrics::Meter
+/// [Meter API]: opentelemetry::metrics::Meter
 pub struct Meter {
     scope: Scope,
     pipes: Arc<Pipelines>,

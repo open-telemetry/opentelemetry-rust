@@ -15,9 +15,9 @@
 //! # {
 //! use opentelemetry::{
 //!     global,
-//!     sdk::trace::TracerProvider,
 //!     trace::{Tracer, TracerProvider as _},
 //! };
+//! use opentelemetry_sdk::trace::TracerProvider;
 //!
 //! fn main() {
 //!     // Create a new trace pipeline that prints to stdout
@@ -227,23 +227,57 @@
 )]
 #![cfg_attr(test, deny(warnings))]
 
-pub use opentelemetry_api::*;
-pub use opentelemetry_sdk::runtime;
+pub mod global;
+
+pub mod baggage;
+
+mod context;
+
+pub use context::{Context, ContextGuard};
+
+mod common;
+
+mod order_map;
+
+pub use order_map::OrderMap;
+
+#[cfg(any(feature = "testing", test))]
+#[doc(hidden)]
+pub mod testing;
+
+pub use common::{Array, ExportError, InstrumentationLibrary, Key, KeyValue, StringValue, Value};
+
+#[cfg(feature = "metrics")]
+#[cfg_attr(docsrs, doc(cfg(feature = "metrics")))]
+pub mod metrics;
+
+pub mod propagation;
+
+#[cfg(feature = "trace")]
+#[cfg_attr(docsrs, doc(cfg(feature = "trace")))]
+pub mod trace;
+
+#[cfg(feature = "logs")]
+#[cfg_attr(docsrs, doc(cfg(feature = "logs")))]
+pub mod logs;
 
 #[doc(hidden)]
-#[cfg(feature = "testing")]
-pub mod testing {
-    pub use opentelemetry_sdk::testing::*;
-}
+#[cfg(any(feature = "metrics", feature = "trace"))]
+pub mod time {
+    use std::time::SystemTime;
 
-/// # OpenTelemetry SDK
-///
-/// This SDK provides an opinionated reference implementation of
-/// the OpenTelemetry API. The SDK implements the specifics of
-/// deciding which data to collect through `Sampler`s, and
-/// facilitates the delivery of telemetry data to storage systems
-/// through `Exporter`s. These can be configured on `Tracer` and
-/// `Meter` creation.
-pub mod sdk {
-    pub use opentelemetry_sdk::*;
+    #[doc(hidden)]
+    #[cfg(any(
+        not(target_arch = "wasm32"),
+        all(target_arch = "wasm32", target_os = "wasi")
+    ))]
+    pub fn now() -> SystemTime {
+        SystemTime::now()
+    }
+
+    #[doc(hidden)]
+    #[cfg(all(target_arch = "wasm32", not(target_os = "wasi")))]
+    pub fn now() -> SystemTime {
+        SystemTime::UNIX_EPOCH + std::time::Duration::from_millis(js_sys::Date::now() as u64)
+    }
 }

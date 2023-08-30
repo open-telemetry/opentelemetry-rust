@@ -70,7 +70,7 @@ impl Baggage {
     /// # Examples
     ///
     /// ```
-    /// use opentelemetry_api::{baggage::Baggage, Value};
+    /// use opentelemetry::{baggage::Baggage, Value};
     ///
     /// let mut cc = Baggage::new();
     /// let _ = cc.insert("my-name", "my-value");
@@ -85,7 +85,7 @@ impl Baggage {
     ///
     /// # Examples
     /// ```
-    /// use opentelemetry_api::{baggage::{Baggage, BaggageMetadata}, Value};
+    /// use opentelemetry::{baggage::{Baggage, BaggageMetadata}, Value};
     ///
     /// let mut cc = Baggage::new();
     /// let _ = cc.insert("my-name", "my-value");
@@ -105,7 +105,7 @@ impl Baggage {
     /// # Examples
     ///
     /// ```
-    /// use opentelemetry_api::{baggage::Baggage, Value};
+    /// use opentelemetry::{baggage::Baggage, Value};
     ///
     /// let mut cc = Baggage::new();
     /// let _ = cc.insert("my-name", "my-value");
@@ -129,7 +129,7 @@ impl Baggage {
     /// # Examples
     ///
     /// ```
-    /// use opentelemetry_api::{baggage::{Baggage, BaggageMetadata}, Value};
+    /// use opentelemetry::{baggage::{Baggage, BaggageMetadata}, Value};
     ///
     /// let mut cc = Baggage::new();
     /// let _ = cc.insert_with_metadata("my-name", "my-value", "test");
@@ -306,7 +306,7 @@ pub trait BaggageExt {
     /// # Examples
     ///
     /// ```
-    /// use opentelemetry_api::{baggage::BaggageExt, Context, KeyValue, Value};
+    /// use opentelemetry::{baggage::BaggageExt, Context, KeyValue, Value};
     ///
     /// let cx = Context::map_current(|cx| {
     ///     cx.with_baggage(vec![KeyValue::new("my-name", "my-value")])
@@ -327,7 +327,7 @@ pub trait BaggageExt {
     /// # Examples
     ///
     /// ```
-    /// use opentelemetry_api::{baggage::BaggageExt, Context, KeyValue, Value};
+    /// use opentelemetry::{baggage::BaggageExt, Context, KeyValue, Value};
     ///
     /// let cx = Context::current_with_baggage(vec![KeyValue::new("my-name", "my-value")]);
     ///
@@ -345,7 +345,7 @@ pub trait BaggageExt {
     /// # Examples
     ///
     /// ```
-    /// use opentelemetry_api::{baggage::BaggageExt, Context, KeyValue, Value};
+    /// use opentelemetry::{baggage::BaggageExt, Context, KeyValue, Value};
     ///
     /// let cx = Context::map_current(|cx| cx.with_cleared_baggage());
     ///

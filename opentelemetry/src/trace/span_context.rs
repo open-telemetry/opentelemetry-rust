@@ -108,7 +108,7 @@ impl TraceId {
     /// # Examples
     ///
     /// ```
-    /// use opentelemetry_api::trace::TraceId;
+    /// use opentelemetry::trace::TraceId;
     ///
     /// assert!(TraceId::from_hex("42").is_ok());
     /// assert!(TraceId::from_hex("58406520a006649127e371903a2de979").is_ok());
@@ -169,7 +169,7 @@ impl SpanId {
     /// # Examples
     ///
     /// ```
-    /// use opentelemetry_api::trace::SpanId;
+    /// use opentelemetry::trace::SpanId;
     ///
     /// assert!(SpanId::from_hex("42").is_ok());
     /// assert!(SpanId::from_hex("58406520a0066491").is_ok());
@@ -264,7 +264,7 @@ impl TraceState {
     /// # Examples
     ///
     /// ```
-    /// use opentelemetry_api::trace::TraceState;
+    /// use opentelemetry::trace::TraceState;
     ///
     /// let kvs = vec![("foo", "bar"), ("apple", "banana")];
     /// let trace_state = TraceState::from_key_value(kvs);

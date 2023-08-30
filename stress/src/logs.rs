@@ -1,4 +1,4 @@
-use opentelemetry_api::KeyValue;
+use opentelemetry::KeyValue;
 use opentelemetry_appender_tracing::layer;
 use opentelemetry_sdk::{
     logs::{Config, LogProcessor, LoggerProvider},
@@ -44,17 +44,17 @@ pub struct NoOpLogProcessor;
 impl LogProcessor for NoOpLogProcessor {
     fn emit(&self, _data: opentelemetry_sdk::export::logs::LogData) {}
 
-    fn force_flush(&self) -> opentelemetry_api::logs::LogResult<()> {
+    fn force_flush(&self) -> opentelemetry::logs::LogResult<()> {
         Ok(())
     }
 
-    fn shutdown(&mut self) -> opentelemetry_api::logs::LogResult<()> {
+    fn shutdown(&mut self) -> opentelemetry::logs::LogResult<()> {
         Ok(())
     }
 
     fn event_enabled(
         &self,
-        _level: opentelemetry_api::logs::Severity,
+        _level: opentelemetry::logs::Severity,
         _target: &str,
         _name: &str,
     ) -> bool {

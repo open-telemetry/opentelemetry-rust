@@ -12,10 +12,9 @@
 //!
 //! [w3c trace-context docs]: https://w3c.github.io/trace-context/#traceresponse-header
 use once_cell::sync::Lazy;
-use opentelemetry::trace::{SpanContext, SpanId, TraceId, TraceState};
-use opentelemetry_api::{
+use opentelemetry::{
     propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
-    trace::{TraceContextExt, TraceFlags},
+    trace::{SpanContext, SpanId, TraceContextExt, TraceFlags, TraceId, TraceState},
     Context,
 };
 
@@ -132,10 +131,10 @@ impl TextMapPropagator for TraceContextResponsePropagator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use opentelemetry::{testing::trace::TestSpan, trace::TraceState};
-    use opentelemetry_api::{
+    use opentelemetry::{
         propagation::{Extractor, TextMapPropagator},
-        trace::{SpanContext, SpanId, TraceId},
+        testing::trace::TestSpan,
+        trace::{SpanContext, SpanId, TraceId, TraceState},
     };
     use std::{collections::HashMap, str::FromStr};
 

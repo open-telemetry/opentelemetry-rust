@@ -1,6 +1,6 @@
 use std::fmt;
 
-use opentelemetry_api::metrics::{MetricsError, Result};
+use opentelemetry::metrics::{MetricsError, Result};
 
 /// The way recorded measurements are summarized.
 #[derive(Clone, Debug, PartialEq)]

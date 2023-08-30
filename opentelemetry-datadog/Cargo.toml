@@ -26,7 +26,8 @@ surf-client = ["surf", "opentelemetry-http/surf"]
 [dependencies]
 indexmap = "2.0"
 once_cell = "1.12"
-opentelemetry = { version = "0.20", path = "../opentelemetry", features = ["trace"] }
+opentelemetry = { version = "0.21", path = "../opentelemetry", features = ["trace"] }
+opentelemetry_sdk = { version = "0.20", path = "../opentelemetry-sdk", features = ["trace"] }
 opentelemetry-http = { version = "0.9", path = "../opentelemetry-http" }
 opentelemetry-semantic-conventions = { version = "0.12", path = "../opentelemetry-semantic-conventions" }
 rmp = "0.8"
@@ -34,7 +35,7 @@ url = "2.2"
 reqwest = { version = "0.11", default-features = false, optional = true }
 surf = { version = "2.0", default-features = false, optional = true }
 thiserror = "1.0"
-itertools = "0.10"
+itertools = "0.11"
 http = "0.2"
 futures-core = "0.3"
 
@@ -44,7 +45,7 @@ base64 = "0.13"
 bytes = "1"
 futures-util = { version = "0.3", features = ["io"] }
 isahc = "1.4"
-opentelemetry = { path = "../opentelemetry", features = ["trace", "testing"] }
+opentelemetry_sdk = { path = "../opentelemetry-sdk", features = ["trace", "testing"] }
 
 [[example]]
 name = "datadog"

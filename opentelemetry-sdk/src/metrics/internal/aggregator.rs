@@ -1,6 +1,6 @@
 use crate::{attributes::AttributeSet, metrics::data::Aggregation};
 use once_cell::sync::Lazy;
-use opentelemetry_api::KeyValue;
+use opentelemetry::KeyValue;
 use std::sync::Arc;
 
 const STREAM_CARDINALITY_LIMIT: u32 = 2000;

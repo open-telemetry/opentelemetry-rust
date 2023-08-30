@@ -7,8 +7,9 @@ publish = false
 
 [dependencies]
 async-std = { version = "= 1.10.0", features = ["attributes"] }
-env_logger = "0.9.0"
-opentelemetry = { path = "../../../opentelemetry", features = ["rt-async-std"] }
+env_logger = "0.10.0"
+opentelemetry = { path = "../../../opentelemetry" }
+opentelemetry_sdk = { path = "../../../opentelemetry-sdk", features = ["rt-async-std"] }
 opentelemetry-otlp = { path = "../../../opentelemetry-otlp", features = [
     "grpc-sys",
     "trace",

@@ -9,9 +9,9 @@
 //!
 //! ```no_run
 //! use opentelemetry::runtime;
-//! use opentelemetry::sdk::export::metrics::aggregation::cumulative_temporality_selector;
-//! use opentelemetry::sdk::metrics::selectors;
-//! use opentelemetry::sdk::util::tokio_interval_stream;
+//! use opentelemetry_sdk::export::metrics::aggregation::cumulative_temporality_selector;
+//! use opentelemetry_sdk::metrics::selectors;
+//! use opentelemetry_sdk::util::tokio_interval_stream;
 //! use opentelemetry_dynatrace::ExportConfig;
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
@@ -44,8 +44,8 @@
 //! ```
 //! # #[cfg(feature = "reqwest-client")] {
 //! use opentelemetry::runtime;
-//! use opentelemetry::sdk::metrics::selectors;
-//! use opentelemetry::sdk::export::metrics::aggregation::cumulative_temporality_selector;
+//! use opentelemetry_sdk::metrics::selectors;
+//! use opentelemetry_sdk::export::metrics::aggregation::cumulative_temporality_selector;
 //! use opentelemetry::KeyValue;
 //! use opentelemetry_dynatrace::transform::DimensionSet;
 //! use opentelemetry_dynatrace::ExportConfig;
@@ -122,8 +122,8 @@ pub use crate::exporter::ExportConfig;
 #[cfg(feature = "metrics")]
 pub use crate::metric::{DynatraceMetricsPipeline, MetricsExporter};
 
-use opentelemetry::sdk::export::ExportError;
 use opentelemetry_http::HttpClient;
+use opentelemetry_sdk::export::ExportError;
 use std::collections::HashMap;
 
 /// Dynatrace pipeline builder.
@@ -237,8 +237,8 @@ impl DynatraceExporterBuilder {
 ///
 /// ```no_run
 /// use opentelemetry::runtime;
-/// use opentelemetry::sdk::export::metrics::aggregation::cumulative_temporality_selector;
-/// use opentelemetry::sdk::metrics::selectors;
+/// use opentelemetry_sdk::export::metrics::aggregation::cumulative_temporality_selector;
+/// use opentelemetry_sdk::metrics::selectors;
 /// # fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 /// let meter = opentelemetry_dynatrace::new_pipeline()
 ///     .metrics(

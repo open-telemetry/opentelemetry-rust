@@ -1,3 +1,4 @@
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct TracezCounts {
@@ -11,6 +12,7 @@ pub struct TracezCounts {
     #[prost(uint32, tag = "4")]
     pub error: u32,
 }
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct LatencyData {
@@ -34,6 +36,7 @@ pub struct LatencyData {
     #[prost(message, repeated, tag = "8")]
     pub links: ::prost::alloc::vec::Vec<super::super::trace::v1::span::Link>,
 }
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct RunningData {
@@ -55,6 +58,7 @@ pub struct RunningData {
     #[prost(message, repeated, tag = "7")]
     pub links: ::prost::alloc::vec::Vec<super::super::trace::v1::span::Link>,
 }
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ErrorData {

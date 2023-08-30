@@ -124,7 +124,7 @@ impl GrpcioExporterBuilder {
     /// Set additional headers to send to the collector.
     pub fn with_headers(mut self, headers: HashMap<String, String>) -> Self {
         let mut inst_headers = self.grpcio_config.headers.unwrap_or_default();
-        inst_headers.extend(headers.into_iter());
+        inst_headers.extend(headers);
         self.grpcio_config.headers = Some(inst_headers);
         self
     }
@@ -180,7 +180,7 @@ impl GrpcioExporterBuilder {
     #[cfg(feature = "trace")]
     pub fn build_span_exporter(
         mut self,
-    ) -> Result<crate::SpanExporter, opentelemetry_api::trace::TraceError> {
+    ) -> Result<crate::SpanExporter, opentelemetry::trace::TraceError> {
         use opentelemetry_proto::grpcio::collector::trace::v1::TraceServiceClient;
 
         use self::trace::GrpcioTraceClient;
@@ -200,7 +200,7 @@ impl GrpcioExporterBuilder {
     /// Builds a new log exporter with the given configuration
     pub fn build_log_exporter(
         mut self,
-    ) -> Result<crate::logs::LogExporter, opentelemetry_api::logs::LogError> {
+    ) -> Result<crate::logs::LogExporter, opentelemetry::logs::LogError> {
         use self::logs::GrpcioLogsClient;
         use opentelemetry_proto::grpcio::collector::logs::v1::LogsServiceClient;
 
@@ -221,7 +221,7 @@ impl GrpcioExporterBuilder {
         mut self,
         aggregation_selector: Box<dyn opentelemetry_sdk::metrics::reader::AggregationSelector>,
         temporality_selector: Box<dyn opentelemetry_sdk::metrics::reader::TemporalitySelector>,
-    ) -> opentelemetry_api::metrics::Result<crate::MetricsExporter> {
+    ) -> opentelemetry::metrics::Result<crate::MetricsExporter> {
         use self::metrics::GrpcioMetricsClient;
         use opentelemetry_proto::grpcio::collector::metrics::v1::MetricsServiceClient;
 

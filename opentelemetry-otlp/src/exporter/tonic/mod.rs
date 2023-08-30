@@ -145,7 +145,10 @@ impl Default for TonicExporterBuilder {
         };
 
         TonicExporterBuilder {
-            exporter_config: ExportConfig::default(),
+            exporter_config: ExportConfig {
+                protocol: crate::Protocol::Grpc,
+                ..Default::default()
+            },
             tonic_config,
             channel: Option::default(),
             interceptor: Option::default(),
@@ -170,7 +173,7 @@ impl TonicExporterBuilder {
             .metadata
             .unwrap_or_default()
             .into_headers();
-        existing_headers.extend(incoming_headers.into_iter());
+        existing_headers.extend(incoming_headers);
 
         self.tonic_config.metadata = Some(MetadataMap::from_headers(existing_headers));
         self
@@ -279,7 +282,7 @@ impl TonicExporterBuilder {
     #[cfg(feature = "logs")]
     pub fn build_log_exporter(
         mut self,
-    ) -> Result<crate::logs::LogExporter, opentelemetry_api::logs::LogError> {
+    ) -> Result<crate::logs::LogExporter, opentelemetry::logs::LogError> {
         use crate::exporter::tonic::logs::TonicLogsClient;
 
         let (channel, interceptor, compression) = self.build_channel(
@@ -300,7 +303,7 @@ impl TonicExporterBuilder {
         mut self,
         aggregation_selector: Box<dyn opentelemetry_sdk::metrics::reader::AggregationSelector>,
         temporality_selector: Box<dyn opentelemetry_sdk::metrics::reader::TemporalitySelector>,
-    ) -> opentelemetry_api::metrics::Result<crate::MetricsExporter> {
+    ) -> opentelemetry::metrics::Result<crate::MetricsExporter> {
         use crate::MetricsExporter;
         use metrics::TonicMetricsClient;
 
@@ -324,7 +327,7 @@ impl TonicExporterBuilder {
     #[cfg(feature = "trace")]
     pub fn build_span_exporter(
         mut self,
-    ) -> Result<crate::SpanExporter, opentelemetry_api::trace::TraceError> {
+    ) -> Result<crate::SpanExporter, opentelemetry::trace::TraceError> {
         use crate::exporter::tonic::trace::TonicTracesClient;
 
         let (channel, interceptor, compression) = self.build_channel(

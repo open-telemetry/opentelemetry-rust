@@ -8,6 +8,9 @@
   populating "telemetry.sdk.*" attributes.
   [#1066](https://github.com/open-telemetry/opentelemetry-rust/pull/1193).
 - Bump MSRV to 1.64 [#1203](https://github.com/open-telemetry/opentelemetry-rust/pull/1203)
+- Add unit/doc tests for MeterProvider #1220
+- Changed dependency from `opentelemetry_api` to `opentelemetry` as the latter
+  is now the API crate. [#1226](https://github.com/open-telemetry/opentelemetry-rust/pull/1226)
 - Add in memory span exporter [#1216](https://github.com/open-telemetry/opentelemetry-rust/pull/1216)
 
 ## v0.20.0
@@ -47,11 +50,13 @@
 ## v0.19.0
 
 ### Added
+
 - Add instrument validation to `InstrumentBuilder` [#884](https://github.com/open-telemetry/opentelemetry-rust/pull/884).
 - Add `TelemetryResourceDetector` [#899](https://github.com/open-telemetry/opentelemetry-rust/pull/899).
 - Add support for instrumentation scope attributes [#1021](https://github.com/open-telemetry/opentelemetry-rust/pull/1021).
 
 ### Changed
+
 - Update to `opentelemetry_api` v0.19.
 - Update to `opentelemetry_http` v0.8.
 - Bump MSRV to 1.57 [#953](https://github.com/open-telemetry/opentelemetry-rust/pull/953).
@@ -62,6 +67,7 @@
 - Use CARGO_BIN_NAME as default service name [#991](https://github.com/open-telemetry/opentelemetry-rust/pull/991).
 
 ### Removed
+
 - Remove `in_memory` settings [#946](https://github.com/open-telemetry/opentelemetry-rust/pull/946).
 
 ## main

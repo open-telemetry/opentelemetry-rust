@@ -4,7 +4,7 @@
 //! [`Write`] instance. By default it will write to [`Stdout`].
 //!
 //! [`LogExporter`]: opentelemetry_sdk::export::logs::LogExporter
-//! [`LogRecord`]: opentelemetry_api::logs::LogRecord
+//! [`LogRecord`]: opentelemetry::logs::LogRecord
 //! [`Write`]: std::io::Write
 //! [`Stdout`]: std::io::Stdout
 // TODO: Add an example for using this exporter.

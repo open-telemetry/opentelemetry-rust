@@ -10,6 +10,8 @@
 ### Changed
 
 - Bump MSRV to 1.64 [#1203](https://github.com/open-telemetry/opentelemetry-rust/pull/1203)
+- Changed dependency from `opentelemetry_api` to `opentelemetry` as the latter
+  is now the API crate. [#1226](https://github.com/open-telemetry/opentelemetry-rust/pull/1226)
 
 ## v0.13.0
 

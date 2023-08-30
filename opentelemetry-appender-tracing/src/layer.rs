@@ -1,7 +1,5 @@
+use opentelemetry::logs::{LogRecord, Logger, LoggerProvider, Severity};
 use std::borrow::Cow;
-
-use opentelemetry_api::logs::{LogRecord, Logger, LoggerProvider, Severity};
-
 use tracing_subscriber::Layer;
 
 const INSTRUMENTATION_LIBRARY_NAME: &str = "opentelemetry-appender-tracing";

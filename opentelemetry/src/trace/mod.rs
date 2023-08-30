@@ -14,8 +14,8 @@
 //! In application code:
 //!
 //! ```
-//! use opentelemetry_api::trace::{Tracer, noop::NoopTracerProvider};
-//! use opentelemetry_api::global;
+//! use opentelemetry::trace::{Tracer, noop::NoopTracerProvider};
+//! use opentelemetry::global;
 //!
 //! fn init_tracer() {
 //!     // Swap this no-op provider for your tracing service of choice (jaeger, zipkin, etc)
@@ -43,7 +43,7 @@
 //! In library code:
 //!
 //! ```
-//! use opentelemetry_api::{global, trace::{Span, Tracer, TracerProvider}};
+//! use opentelemetry::{global, trace::{Span, Tracer, TracerProvider}};
 //!
 //! fn my_library_function() {
 //!     // Use the global tracer provider to get access to the user-specified
@@ -100,7 +100,7 @@
 //! [`Context`]: crate::Context
 //!
 //! ```
-//! use opentelemetry_api::{global, trace::{self, Span, Status, Tracer, TracerProvider}};
+//! use opentelemetry::{global, trace::{self, Span, Status, Tracer, TracerProvider}};
 //!
 //! fn may_error(rand: f32) {
 //!     if rand < 0.5 {
@@ -131,7 +131,7 @@
 //! managing the parent context.
 //!
 //! ```
-//! use opentelemetry_api::{global, trace::Tracer};
+//! use opentelemetry::{global, trace::Tracer};
 //!
 //! // Get a tracer
 //! let tracer = global::tracer("my_tracer");
@@ -148,7 +148,7 @@
 //! Async spans can be propagated with [`TraceContextExt`] and [`FutureExt`].
 //!
 //! ```
-//! use opentelemetry_api::{Context, global, trace::{FutureExt, TraceContextExt, Tracer}};
+//! use opentelemetry::{Context, global, trace::{FutureExt, TraceContextExt, Tracer}};
 //!
 //! async fn some_work() { }
 //!
@@ -162,7 +162,6 @@
 //! some_work().with_context(Context::current_with_span(span));
 //! ```
 
-use futures_channel::{mpsc::TrySendError, oneshot::Canceled};
 use std::borrow::Cow;
 use std::time;
 use thiserror::Error;
@@ -216,18 +215,6 @@ where
 {
     fn from(err: T) -> Self {
         TraceError::ExportFailed(Box::new(err))
-    }
-}
-
-impl<T> From<TrySendError<T>> for TraceError {
-    fn from(err: TrySendError<T>) -> Self {
-        TraceError::Other(Box::new(err.into_send_error()))
-    }
-}
-
-impl From<Canceled> for TraceError {
-    fn from(err: Canceled) -> Self {
-        TraceError::Other(Box::new(err))
     }
 }
 
