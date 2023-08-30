@@ -108,7 +108,7 @@ impl InMemorySpanExporter {
     pub fn get_finished_spans(&self) -> TraceResult<Vec<SpanData>> {
         self.spans
             .lock()
-            .map(|spans_guard| spans_guard.iter().map(Self::clone_span).collect())
+            .map(|spans_guard| spans_guard.iter().cloned().collect())
             .map_err(TraceError::from)
     }
 
@@ -124,10 +124,6 @@ impl InMemorySpanExporter {
     /// ```
     pub fn reset(&self) {
         let _ = self.spans.lock().map(|mut spans_guard| spans_guard.clear());
-    }
-
-    fn clone_span(span: &SpanData) -> SpanData {
-        span.clone()
     }
 }
 
