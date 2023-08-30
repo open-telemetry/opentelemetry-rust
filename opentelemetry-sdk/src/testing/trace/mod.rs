@@ -1,3 +1,7 @@
+pub use in_memory_exporter::{InMemorySpanExporter, InMemorySpanExporterBuilder};
+
+mod in_memory_exporter;
+
 use crate::{
     export::{
         trace::{ExportResult, SpanData, SpanExporter},

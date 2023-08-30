@@ -1,6 +1,6 @@
 use crate::export::trace::{ExportResult, SpanData, SpanExporter};
 use futures_util::future::BoxFuture;
-use opentelemetry_api::trace::{TraceError, TraceResult};
+use opentelemetry::trace::{TraceError, TraceResult};
 use std::sync::{Arc, Mutex};
 
 /// An in-memory span exporter that stores span data in memory.
@@ -14,7 +14,7 @@ use std::sync::{Arc, Mutex};
 ///# use opentelemetry_api::{global, trace::Tracer, Context};
 ///# use opentelemetry_sdk::propagation::TraceContextPropagator;
 ///# use opentelemetry_sdk::runtime;
-///# use opentelemetry_sdk::testing::span::InMemorySpanExporterBuilder;
+///# use opentelemetry_sdk::testing::trace::InMemorySpanExporterBuilder;
 ///# use opentelemetry_sdk::trace::{BatchSpanProcessor, TracerProvider};
 ///
 ///# #[tokio::main]
@@ -63,7 +63,7 @@ impl Default for InMemorySpanExporter {
 /// Builder for [`InMemorySpanExporter`].
 /// # Example
 /// ```
-///# use opentelemetry_sdk::testing::span::InMemorySpanExporterBuilder;
+///# use opentelemetry_sdk::testing::trace::InMemorySpanExporterBuilder;
 ///
 /// let exporter = InMemorySpanExporterBuilder::new().build();
 /// ```
@@ -100,7 +100,7 @@ impl InMemorySpanExporter {
     /// # Example
     ///
     /// ```
-    /// # use opentelemetry_sdk::testing::span::InMemorySpanExporter;
+    /// # use opentelemetry_sdk::testing::trace::InMemorySpanExporter;
     ///
     /// let exporter = InMemorySpanExporter::default();
     /// let finished_spans = exporter.get_finished_spans().unwrap();
@@ -117,7 +117,7 @@ impl InMemorySpanExporter {
     /// # Example
     ///
     /// ```
-    /// # use opentelemetry_sdk::testing::span::InMemorySpanExporter;
+    /// # use opentelemetry_sdk::testing::trace::InMemorySpanExporter;
     ///
     /// let exporter = InMemorySpanExporter::default();
     /// exporter.reset();
