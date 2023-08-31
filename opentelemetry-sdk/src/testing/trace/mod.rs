@@ -11,13 +11,13 @@ use crate::{
     InstrumentationLibrary,
 };
 use async_trait::async_trait;
+use crossbeam_channel::{unbounded, Receiver, SendError, Sender};
 use futures_util::future::BoxFuture;
 pub use opentelemetry::testing::trace::TestSpan;
 use opentelemetry::trace::{
     SpanContext, SpanId, SpanKind, Status, TraceFlags, TraceId, TraceState,
 };
 use std::fmt::{Display, Formatter};
-use std::sync::mpsc::{channel, Receiver, Sender};
 
 pub fn new_test_export_span_data() -> SpanData {
     let config = Config::default();
@@ -70,8 +70,8 @@ impl SpanExporter for TestSpanExporter {
 }
 
 pub fn new_test_exporter() -> (TestSpanExporter, Receiver<SpanData>, Receiver<()>) {
-    let (tx_export, rx_export) = channel();
-    let (tx_shutdown, rx_shutdown) = channel();
+    let (tx_export, rx_export) = unbounded();
+    let (tx_shutdown, rx_shutdown) = unbounded();
     let exporter = TestSpanExporter {
         tx_export,
         tx_shutdown,
@@ -142,8 +142,8 @@ impl<T> From<tokio::sync::mpsc::error::SendError<T>> for TestExportError {
     }
 }
 
-impl<T> From<std::sync::mpsc::SendError<T>> for TestExportError {
-    fn from(err: std::sync::mpsc::SendError<T>) -> Self {
+impl<T> From<crossbeam_channel::SendError<T>> for TestExportError {
+    fn from(err: SendError<T>) -> Self {
         TestExportError(err.to_string())
     }
 }
