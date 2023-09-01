@@ -4,7 +4,7 @@ use std::sync::{Arc, Weak};
 use criterion::{criterion_group, criterion_main, Bencher, Criterion};
 use opentelemetry::{
     metrics::{Counter, Histogram, MeterProvider as _, Result},
-    Context, Key, KeyValue,
+    Key, KeyValue,
 };
 use opentelemetry_sdk::{
     metrics::{
