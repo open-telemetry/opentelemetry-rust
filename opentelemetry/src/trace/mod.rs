@@ -184,6 +184,7 @@ pub use self::{
 };
 use crate::{ExportError, KeyValue};
 use std::collections::hash_map::RandomState;
+use std::sync::PoisonError;
 
 /// re-export OrderMap to mitigate breaking change
 pub type OrderMap<K, V, S = RandomState> = crate::order_map::OrderMap<K, V, S>;
@@ -226,6 +227,12 @@ impl From<String> for TraceError {
 impl From<&'static str> for TraceError {
     fn from(err_msg: &'static str) -> Self {
         TraceError::Other(Box::new(Custom(err_msg.into())))
+    }
+}
+
+impl<T> From<PoisonError<T>> for TraceError {
+    fn from(err: PoisonError<T>) -> Self {
+        TraceError::Other(err.to_string().into())
     }
 }
 
