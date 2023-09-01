@@ -36,11 +36,10 @@ surf-client = ["surf", "opentelemetry-http/surf"]
 isahc-client = ["isahc", "opentelemetry-http/isahc"]
 
 rt-tokio = ["tokio", "opentelemetry/rt-tokio"]
-rt-async-std = ["async-std"]
+rt-async-std = ["async-std", "futures-channel"]
 
 wasm = [
     "base64",
-    "futures-util",
     "getrandom/js",
     "js-sys",
     "wasm-bindgen",
@@ -51,8 +50,7 @@ wasm = [
 [dependencies]
 async-std = { version = "= 1.10.0", features = ["unstable"], optional = true }
 base64 = { version = "0.21", optional = true }
-futures = "0.3"
-futures-util = { version = "0.3", optional = true }
+futures-channel = { version = "0.3", optional = true }
 getrandom = { version = "0.2", optional = true }
 http = "0.2"
 isahc = { version = "1.4", default-features = false, optional = true }
@@ -82,5 +80,6 @@ optional = true
 
 [dev-dependencies]
 opentelemetry_sdk = { version = "0.19.0", features = ["rt-tokio"] }
+futures-util = { version = "0.3", default-features = false }
 tokio = { version = "1.0", default-features = false, features = ["macros", "rt-multi-thread", "sync", "test-util"] }
 hyper = { version = "0.14", default-features = false, features = ["server", "tcp", "http1"] }
