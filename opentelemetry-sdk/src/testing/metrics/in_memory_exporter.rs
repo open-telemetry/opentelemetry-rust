@@ -28,7 +28,7 @@ use std::sync::{Arc, Mutex};
 ///
 /// ```
 ///# use opentelemetry_sdk::{metrics, runtime};
-///# use opentelemetry::{Context, KeyValue};
+///# use opentelemetry::{KeyValue};
 ///# use opentelemetry::metrics::MeterProvider;
 ///# use opentelemetry_sdk::testing::metrics::InMemoryMetricsExporter;
 ///# use opentelemetry_sdk::metrics::PeriodicReader;
@@ -45,11 +45,10 @@ use std::sync::{Arc, Mutex};
 ///
 ///  // Create and record metrics using the MeterProvider
 ///  let meter = meter_provider.meter(std::borrow::Cow::Borrowed("example"));
-///  let cx = Context::new();
 ///  let counter = meter.u64_counter("my_counter").init();
 ///  counter.add(1, &[KeyValue::new("key", "value")]);
 ///
-///  meter_provider.force_flush(&cx).unwrap();
+///  meter_provider.force_flush().unwrap();
 ///
 ///  // Retrieve the finished metrics from the exporter
 ///  let finished_metrics = exporter.get_finished_metrics().unwrap();

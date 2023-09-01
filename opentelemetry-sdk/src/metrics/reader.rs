@@ -1,7 +1,7 @@
 //! Interfaces for reading and producing metrics
 use std::{fmt, sync::Weak};
 
-use opentelemetry::{metrics::Result, Context};
+use opentelemetry::metrics::Result;
 
 use super::{
     aggregation::Aggregation,
@@ -49,7 +49,7 @@ pub trait MetricReader:
     ///
     /// There is no guaranteed that all telemetry be flushed or all resources have
     /// been released on error.
-    fn force_flush(&self, cx: &Context) -> Result<()>;
+    fn force_flush(&self) -> Result<()>;
 
     /// Flushes all metric measurements held in an export pipeline and releases any
     /// held computational resources.

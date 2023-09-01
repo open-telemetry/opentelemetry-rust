@@ -97,7 +97,7 @@ use once_cell::sync::{Lazy, OnceCell};
 use opentelemetry::{
     global,
     metrics::{MetricsError, Result},
-    Context, Key, Value,
+    Key, Value,
 };
 use opentelemetry_sdk::{
     metrics::{
@@ -174,8 +174,8 @@ impl MetricReader for PrometheusExporter {
         self.reader.collect(rm)
     }
 
-    fn force_flush(&self, cx: &Context) -> Result<()> {
-        self.reader.force_flush(cx)
+    fn force_flush(&self) -> Result<()> {
+        self.reader.force_flush()
     }
 
     fn shutdown(&self) -> Result<()> {
