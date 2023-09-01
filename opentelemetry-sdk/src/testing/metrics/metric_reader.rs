@@ -7,7 +7,7 @@ use crate::metrics::{
     pipeline::Pipeline,
     reader::{AggregationSelector, MetricProducer, MetricReader, TemporalitySelector},
 };
-use opentelemetry::{metrics::Result, Context};
+use opentelemetry::metrics::Result;
 
 #[derive(Debug)]
 pub struct TestMetricReader {}
@@ -21,13 +21,12 @@ impl MetricReader for TestMetricReader {
         Ok(())
     }
 
-    fn force_flush(&self, _cx: &Context) -> Result<()> {
+    fn force_flush(&self) -> Result<()> {
         Ok(())
     }
 
     fn shutdown(&self) -> Result<()> {
-        let cx = Context::new();
-        self.force_flush(&cx)
+        self.force_flush()
     }
 }
 

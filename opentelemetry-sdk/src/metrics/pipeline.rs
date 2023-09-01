@@ -8,7 +8,6 @@ use std::{
 use opentelemetry::{
     global,
     metrics::{CallbackRegistration, MetricsError, Result, Unit},
-    Context,
 };
 
 use crate::{
@@ -103,8 +102,8 @@ impl Pipeline {
     }
 
     /// Send accumulated telemetry
-    fn force_flush(&self, cx: &Context) -> Result<()> {
-        self.reader.force_flush(cx)
+    fn force_flush(&self) -> Result<()> {
+        self.reader.force_flush()
     }
 
     /// Shut down pipeline
@@ -611,10 +610,10 @@ impl Pipelines {
     }
 
     /// Force flush all pipelines
-    pub(crate) fn force_flush(&self, cx: &Context) -> Result<()> {
+    pub(crate) fn force_flush(&self) -> Result<()> {
         let mut errs = vec![];
         for pipeline in &self.0 {
-            if let Err(err) = pipeline.force_flush(cx) {
+            if let Err(err) = pipeline.force_flush() {
                 errs.push(err);
             }
         }

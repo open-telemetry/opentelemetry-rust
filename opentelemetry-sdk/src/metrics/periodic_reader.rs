@@ -14,7 +14,6 @@ use futures_util::{
 use opentelemetry::{
     global,
     metrics::{MetricsError, Result},
-    Context,
 };
 
 use crate::runtime::Runtime;
@@ -345,7 +344,7 @@ impl MetricReader for PeriodicReader {
         }
     }
 
-    fn force_flush(&self, _cx: &Context) -> Result<()> {
+    fn force_flush(&self) -> Result<()> {
         let mut inner = self.inner.lock()?;
         let (sender, receiver) = oneshot::channel();
         inner

@@ -45,8 +45,8 @@ impl MetricReader for SharedReader {
         self.0.collect(rm)
     }
 
-    fn force_flush(&self, cx: &Context) -> Result<()> {
-        self.0.force_flush(cx)
+    fn force_flush(&self) -> Result<()> {
+        self.0.force_flush()
     }
 
     fn shutdown(&self) -> Result<()> {
