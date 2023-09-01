@@ -19,7 +19,6 @@ use std::sync::{Arc, Mutex};
 ///
 ///# #[tokio::main]
 ///# async fn main() {
-///     global::set_text_map_propagator(TraceContextPropagator::new());
 ///     let exporter = InMemorySpanExporterBuilder::new().build();
 ///     let provider = TracerProvider::builder()
 ///         .with_span_processor(BatchSpanProcessor::builder(exporter.clone(), runtime::Tokio).build())
