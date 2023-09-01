@@ -17,12 +17,12 @@ where
     L: Logger + Send + Sync,
 {
     fn enabled(&self, _metadata: &Metadata) -> bool {
-        //#[cfg(feature = "logs_level_enabled")]
-        //return self.logger.event_enabled(
-        //    map_severity_to_otel_severity(_metadata.level()),
-        //    _metadata.target(),
-        // );
-        // #[cfg(not(feature = "logs_level_enabled"))]
+        #[cfg(feature = "logs_level_enabled")]
+        return self.logger.event_enabled(
+            map_severity_to_otel_severity(_metadata.level()),
+            _metadata.target(),
+        );
+        #[cfg(not(feature = "logs_level_enabled"))]
         true
     }
 
