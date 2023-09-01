@@ -1,9 +1,6 @@
 use std::{borrow::Cow, collections::HashMap, time::SystemTime};
 
-use crate::common::{
-    as_human_readable, as_opt_human_readable, as_opt_unix_nano, as_unix_nano, KeyValue, Resource,
-    Scope, Value,
-};
+use crate::common::{as_opt_human_readable, as_opt_unix_nano, KeyValue, Resource, Scope, Value};
 use opentelemetry_sdk::AttributeSet;
 use serde::Serialize;
 
@@ -76,10 +73,10 @@ struct LogRecord {
     time_unix_nano: Option<SystemTime>,
     #[serde(serialize_with = "as_opt_human_readable")]
     time: Option<SystemTime>,
-    #[serde(serialize_with = "as_unix_nano")]
-    observed_time_unix_nano: SystemTime,
-    #[serde(serialize_with = "as_human_readable")]
-    observed_time: SystemTime,
+    #[serde(serialize_with = "as_opt_unix_nano")]
+    observed_time_unix_nano: Option<SystemTime>,
+    #[serde(serialize_with = "as_opt_human_readable")]
+    observed_time: Option<SystemTime>,
     severity_number: u32,
     #[serde(skip_serializing_if = "Option::is_none")]
     severity_text: Option<Cow<'static, str>>,

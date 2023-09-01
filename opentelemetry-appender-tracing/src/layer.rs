@@ -1,4 +1,4 @@
-use opentelemetry::logs::{LogRecord, Logger, LoggerProvider, Severity};
+use opentelemetry::logs::{AnyValue, LogRecordBuilder, Logger, LoggerProvider, Severity};
 use std::borrow::Cow;
 use tracing_subscriber::Layer;
 
@@ -6,55 +6,35 @@ const INSTRUMENTATION_LIBRARY_NAME: &str = "opentelemetry-appender-tracing";
 
 /// Visitor to record the fields from the event record.
 struct EventVisitor<'a> {
-    log_record: &'a mut LogRecord,
+    log_record_builder: &'a mut LogRecordBuilder,
 }
 
 impl<'a> tracing::field::Visit for EventVisitor<'a> {
     fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
         if field.name() == "message" {
-            self.log_record.body = Some(format!("{value:?}").into());
-        } else if let Some(ref mut vec) = self.log_record.attributes {
-            vec.push((field.name().into(), format!("{value:?}").into()));
+            self.log_record_builder
+                .with_body(AnyValue::from(format!("{:?}", value)));
         } else {
-            let vec = vec![(field.name().into(), format!("{value:?}").into())];
-            self.log_record.attributes = Some(vec);
+            self.log_record_builder
+                .with_attribute(field.name(), format!("{:?}", value));
         }
     }
 
     fn record_str(&mut self, field: &tracing_core::Field, value: &str) {
-        if let Some(ref mut vec) = self.log_record.attributes {
-            vec.push((field.name().into(), value.to_owned().into()));
-        } else {
-            let vec = vec![(field.name().into(), value.to_owned().into())];
-            self.log_record.attributes = Some(vec);
-        }
+        self.log_record_builder
+            .with_attribute(field.name(), value.to_owned());
     }
 
     fn record_bool(&mut self, field: &tracing_core::Field, value: bool) {
-        if let Some(ref mut vec) = self.log_record.attributes {
-            vec.push((field.name().into(), value.into()));
-        } else {
-            let vec = vec![(field.name().into(), value.into())];
-            self.log_record.attributes = Some(vec);
-        }
+        self.log_record_builder.with_attribute(field.name(), value);
     }
 
     fn record_f64(&mut self, field: &tracing::field::Field, value: f64) {
-        if let Some(ref mut vec) = self.log_record.attributes {
-            vec.push((field.name().into(), value.into()));
-        } else {
-            let vec = vec![(field.name().into(), value.into())];
-            self.log_record.attributes = Some(vec);
-        }
+        self.log_record_builder.with_attribute(field.name(), value);
     }
 
     fn record_i64(&mut self, field: &tracing::field::Field, value: i64) {
-        if let Some(ref mut vec) = self.log_record.attributes {
-            vec.push((field.name().into(), value.into()));
-        } else {
-            let vec = vec![(field.name().into(), value.into())];
-            self.log_record.attributes = Some(vec);
-        }
+        self.log_record_builder.with_attribute(field.name(), value);
     }
 
     // TODO: Remaining field types from AnyValue : Bytes, ListAny, Boolean
@@ -99,18 +79,19 @@ where
         _ctx: tracing_subscriber::layer::Context<'_, S>,
     ) {
         let meta = event.metadata();
-        let mut log_record: LogRecord = LogRecord::default();
-        log_record.severity_number = Some(map_severity_to_otel_severity(meta.level().as_str()));
-        log_record.severity_text = Some(meta.level().to_string().into());
+        let mut log_record_builder = LogRecordBuilder::new();
+        log_record_builder
+            .with_severity_number(map_severity_to_otel_severity(meta.level().as_str()))
+            .with_severity_text(meta.level().to_string());
 
         // Not populating ObservedTimestamp, instead relying on OpenTelemetry
         // API to populate it with current time.
 
         let mut visitor = EventVisitor {
-            log_record: &mut log_record,
+            log_record_builder: &mut log_record_builder,
         };
         event.record(&mut visitor);
-        self.logger.emit(log_record);
+        self.logger.emit(log_record_builder.build());
     }
 
     #[cfg(feature = "logs_level_enabled")]
@@ -119,9 +100,10 @@ where
         _event: &tracing_core::Event<'_>,
         _ctx: tracing_subscriber::layer::Context<'_, S>,
     ) -> bool {
-        let severity = map_severity_to_otel_severity(_event.metadata().level().as_str());
-        self.logger
-            .event_enabled(severity, _event.metadata().target())
+        true
+        //let severity = map_severity_to_otel_severity(_event.metadata().level().as_str());
+        //self.logger
+        //    .event_enabled(severity, _event.metadata().target())
     }
 }
 

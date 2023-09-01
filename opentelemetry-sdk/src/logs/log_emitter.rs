@@ -211,24 +211,39 @@ impl opentelemetry::logs::Logger for Logger {
             Some(provider) => provider,
             None => return,
         };
+
         let trace_context = Context::map_current(|cx| {
             cx.has_active_span()
                 .then(|| TraceContext::from(cx.span().span_context()))
         });
+
         let config = provider.config();
-        for processor in provider.log_processors() {
-            let mut record = record.clone();
+        let processors = provider.log_processors();
+        let num_processors = processors.len();
+
+        for (i, processor) in processors.iter().enumerate() {
+            let record = if i < num_processors - 1 {
+                record.clone()
+            } else {
+                record
+            };
+
+            let mut record_to_pass = record; // This line is added to move the value
+
             if let Some(ref trace_context) = trace_context {
-                record.trace_context = Some(trace_context.clone())
+                record_to_pass.trace_context = Some(trace_context.clone());
             }
+
             let data = LogData {
-                record,
+                record: record_to_pass,
                 resource: config.resource.clone(),
                 instrumentation: self.instrumentation_library().clone(),
             };
+
             processor.emit(data);
         }
     }
+    
 
     #[cfg(feature = "logs_level_enabled")]
     fn event_enabled(&self, level: Severity, target: &str) -> bool {

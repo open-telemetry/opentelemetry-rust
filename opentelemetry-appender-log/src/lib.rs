@@ -17,26 +17,26 @@ where
     L: Logger + Send + Sync,
 {
     fn enabled(&self, _metadata: &Metadata) -> bool {
-        #[cfg(feature = "logs_level_enabled")]
-        return self.logger.event_enabled(
-            map_severity_to_otel_severity(_metadata.level()),
-            _metadata.target(),
-        );
-        #[cfg(not(feature = "logs_level_enabled"))]
+        //#[cfg(feature = "logs_level_enabled")]
+        //return self.logger.event_enabled(
+        //    map_severity_to_otel_severity(_metadata.level()),
+        //    _metadata.target(),
+        // );
+        // #[cfg(not(feature = "logs_level_enabled"))]
         true
     }
 
     fn log(&self, record: &Record) {
         if self.enabled(record.metadata()) {
-            self.logger.emit(
-                LogRecordBuilder::new()
-                    .with_severity_number(map_severity_to_otel_severity(record.level()))
-                    .with_severity_text(record.level().as_str())
-                    // Not populating ObservedTimestamp, instead relying on OpenTelemetry
-                    // API to populate it with current time.
-                    .with_body(AnyValue::from(record.args().to_string()))
-                    .build(),
-            );
+            let mut log_record_builder = LogRecordBuilder::new();
+            log_record_builder
+                .with_severity_number(map_severity_to_otel_severity(record.level()))
+                .with_severity_text(record.level().as_str())
+                // Not populating ObservedTimestamp, instead relying on OpenTelemetry
+                // API to populate it with current time.
+                .with_body(AnyValue::from(record.args().to_string()));
+            let log_record = log_record_builder.build();
+            self.logger.emit(log_record);
         }
     }
 

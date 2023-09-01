@@ -197,10 +197,12 @@ impl UserEventsExporter {
 
                 // populate CS PartA
                 let mut cs_a_count = 0;
-                let event_time: SystemTime = log_data
-                    .record
-                    .timestamp
-                    .unwrap_or(log_data.record.observed_timestamp);
+                let event_time: SystemTime = log_data.record.timestamp.unwrap_or(
+                    log_data
+                        .record
+                        .observed_timestamp
+                        .unwrap_or(SystemTime::now()),
+                );
                 cs_a_count += 1; // for event_time
                 eb.add_struct("PartA", cs_a_count, 0);
                 {
