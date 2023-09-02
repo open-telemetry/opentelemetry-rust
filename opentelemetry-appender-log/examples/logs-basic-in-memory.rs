@@ -1,6 +1,6 @@
 //! run with `$ cargo run --example logs-basic-in-memory
 
-/// This example shows how to use the opentelemetry-appender-log crate, which is a
+/// This example shows how to use in_memory_exporter for logs. This uses opentelemetry-appender-log crate, which is a
 /// [logging appender](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/glossary.md#log-appender--bridge) that bridges logs from the [log crate](https://docs.rs/log/latest/log/) to OpenTelemetry.
 /// The example setups a LoggerProvider with a in-memory exporter, so emitted logs are stored in memory.
 ///
