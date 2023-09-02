@@ -6,7 +6,6 @@ use std::{
 use opentelemetry::{
     global,
     metrics::{MetricsError, Result},
-    Context,
 };
 
 use super::{
@@ -145,7 +144,7 @@ impl MetricReader for ManualReader {
     }
 
     /// ForceFlush is a no-op, it always returns nil.
-    fn force_flush(&self, _cx: &Context) -> Result<()> {
+    fn force_flush(&self) -> Result<()> {
         Ok(())
     }
 

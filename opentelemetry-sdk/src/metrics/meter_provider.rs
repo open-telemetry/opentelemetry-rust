@@ -9,7 +9,7 @@ use std::{
 
 use opentelemetry::{
     metrics::{noop::NoopMeterCore, InstrumentProvider, Meter as ApiMeter, MetricsError, Result},
-    Context, KeyValue,
+    KeyValue,
 };
 
 use crate::{instrumentation::Scope, Resource};
@@ -68,12 +68,11 @@ impl MeterProvider {
     ///
     /// fn main() {
     ///     let provider = init_metrics();
-    ///     let cx = Context::new();
     ///
     ///     // create instruments + record measurements
     ///
     ///     // force all instruments to flush
-    ///     provider.force_flush(&cx).unwrap();
+    ///     provider.force_flush().unwrap();
     ///
     ///     // record more measurements..
     ///
@@ -83,8 +82,8 @@ impl MeterProvider {
     ///     global::shutdown_meter_provider();
     /// }
     /// ```
-    pub fn force_flush(&self, cx: &Context) -> Result<()> {
-        self.pipes.force_flush(cx)
+    pub fn force_flush(&self) -> Result<()> {
+        self.pipes.force_flush()
     }
 
     /// Shuts down the meter provider flushing all pending telemetry and releasing

@@ -233,7 +233,7 @@ pub struct MetricsExporter {
     sender: Arc<Mutex<tokio::sync::mpsc::Sender<ClientMessage>>>,
 
     #[cfg(all(not(feature = "rt-tokio"), feature = "rt-async-std"))]
-    sender: Arc<Mutex<futures::channel::mpsc::Sender<ClientMessage>>>,
+    sender: Arc<Mutex<futures_channel::mpsc::Sender<ClientMessage>>>,
 
     endpoint: Uri,
 
@@ -292,7 +292,7 @@ impl MetricsExporter {
         }));
 
         #[cfg(all(not(feature = "rt-tokio"), feature = "rt-async-std"))]
-        let (sender, mut receiver) = futures::channel::mpsc::channel::<ClientMessage>(2);
+        let (sender, mut receiver) = futures_channel::mpsc::channel::<ClientMessage>(2);
 
         #[cfg(all(not(feature = "rt-tokio"), feature = "rt-async-std"))]
         async_std::task::spawn(Box::pin(async move {

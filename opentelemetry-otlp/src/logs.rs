@@ -206,7 +206,7 @@ fn build_batch_with_exporter<R: RuntimeChannel<BatchMessage>>(
     let provider = provider_builder.build();
     let logger = provider.versioned_logger(
         Cow::Borrowed("opentelemetry-otlp"),
-        Some(Cow::Borrowed("CARGO_PKG_VERSION")),
+        Some(Cow::Borrowed(env!("CARGO_PKG_VERSION"))),
         None,
         None,
     );
