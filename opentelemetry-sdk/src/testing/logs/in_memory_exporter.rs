@@ -119,10 +119,6 @@ impl InMemoryLogsExporterBuilder {
 impl InMemoryLogsExporter {
     /// Returns the logs emitted via Logger as a vector of `LogData`.
     ///
-    /// # Errors
-    ///
-    /// Returns a `LogError` if the internal lock cannot be acquired.
-    ///
     /// # Example
     ///
     /// ```
@@ -140,10 +136,6 @@ impl InMemoryLogsExporter {
     }
 
     /// Clears the internal (in-memory) storage of logs.
-    ///
-    /// # Errors
-    ///
-    /// Returns a `LogError` if the internal lock cannot be acquired.
     ///
     /// # Example
     ///
