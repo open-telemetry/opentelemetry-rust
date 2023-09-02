@@ -38,6 +38,8 @@ rustdoc-args = ["--cfg", "docsrs"]
 [dev-dependencies]
 indexmap = "2.0"
 criterion = { version = "0.5", features = ["html_reports"] }
+log = { version = "0.4.17" }
+opentelemetry-appender-log = { path = "../opentelemetry-appender-log" }
 [target.'cfg(not(target_os = "windows"))'.dev-dependencies]
 pprof = { version = "0.12", features = ["flamegraph", "criterion"] }
 

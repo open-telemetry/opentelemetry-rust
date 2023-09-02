@@ -25,7 +25,7 @@ pub trait LogExporter: Send + Debug {
 
 /// `LogData` associates a [`LogRecord`] with a [`Resource`] and
 /// [`InstrumentationLibrary`].
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct LogData {
     /// Log record
     pub record: LogRecord,

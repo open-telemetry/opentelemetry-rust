@@ -17,3 +17,7 @@ log = {version = "0.4.17", features = ["kv_unstable", "std"]}
 [features]
 logs_level_enabled = ["opentelemetry/logs_level_enabled"]
 default = ["logs_level_enabled"]
+
+[dev-dependencies]
+opentelemetry_sdk = { path = "../opentelemetry-sdk", features = [ "testing", "logs_level_enabled" ] }
+tokio = "1.32.0"

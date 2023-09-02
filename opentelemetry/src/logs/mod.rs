@@ -1,7 +1,8 @@
 //! # OpenTelemetry Logs API
 
 use crate::ExportError;
-use std::time::Duration;
+
+use std::{sync::PoisonError, time::Duration};
 use thiserror::Error;
 
 mod logger;
@@ -53,6 +54,11 @@ impl From<&'static str> for LogError {
     }
 }
 
+impl<T> From<PoisonError<T>> for LogError {
+    fn from(err: PoisonError<T>) -> Self {
+        LogError::Other(err.to_string().into())
+    }
+}
 /// Wrap type for string
 #[derive(Error, Debug)]
 #[error("{0}")]
