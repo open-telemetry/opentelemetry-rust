@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use crate::Resource;
 
-/// Default trace configuration
+/// Default log configuration
 pub fn config() -> Config {
     Config::default()
 }
