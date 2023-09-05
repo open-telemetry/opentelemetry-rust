@@ -13,6 +13,7 @@
   is now the API crate. [#1226](https://github.com/open-telemetry/opentelemetry-rust/pull/1226)
 - Add in memory span exporter [#1216](https://github.com/open-telemetry/opentelemetry-rust/pull/1216)
 - Add in memory log exporter [#1231](https://github.com/open-telemetry/opentelemetry-rust/pull/1231)
+- Add `Sync` bound to the `SpanExporter` and `LogExporter` traits [#1240](https://github.com/open-telemetry/opentelemetry-rust/pull/1240)
 
 ### Removed
 

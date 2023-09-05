@@ -11,7 +11,7 @@ use std::{borrow::Cow, fmt::Debug};
 
 /// `LogExporter` defines the interface that log exporters should implement.
 #[async_trait]
-pub trait LogExporter: Send + Debug {
+pub trait LogExporter: Send + Sync + Debug {
     /// Exports a batch of [`LogData`].
     async fn export(&mut self, batch: Vec<LogData>) -> LogResult<()>;
     /// Shuts down the exporter.

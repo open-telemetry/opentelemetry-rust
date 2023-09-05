@@ -16,7 +16,7 @@ pub type ExportResult = Result<(), TraceError>;
 /// The goal of the interface is to minimize burden of implementation for
 /// protocol-dependent telemetry exporters. The protocol exporter is expected to
 /// be primarily a simple telemetry data encoder and transmitter.
-pub trait SpanExporter: Send + Debug {
+pub trait SpanExporter: Send + Sync + Debug {
     /// Exports a batch of readable spans. Protocol exporters that will
     /// implement this function are typically expected to serialize and transmit
     /// the data to the destination.
