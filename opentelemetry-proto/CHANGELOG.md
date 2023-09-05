@@ -1,6 +1,6 @@
 # Changelog
 
-## vNext
+## vNext (v0.4.0)
 
 ### Added
 
@@ -9,6 +9,7 @@
 
 ### Changed
 
+- [Breaking] Update tonic to v0.10, prost to v0.12
 - Bump MSRV to 1.64 [#1203](https://github.com/open-telemetry/opentelemetry-rust/pull/1203)
 
 ### Fixed

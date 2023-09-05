@@ -1,6 +1,6 @@
 # Changelog
 
-## vNext
+## vNext (v0.14.0)
 
 ### Added
 
@@ -9,6 +9,7 @@
 
 ### Changed
 
+- [Breaking] Update tonic to v0.10, prost to v0.12
 - Bump MSRV to 1.64 [#1203](https://github.com/open-telemetry/opentelemetry-rust/pull/1203)
 - Changed dependency from `opentelemetry_api` to `opentelemetry` as the latter
   is now the API crate. [#1226](https://github.com/open-telemetry/opentelemetry-rust/pull/1226)
