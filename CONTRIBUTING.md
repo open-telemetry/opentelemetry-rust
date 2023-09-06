@@ -140,6 +140,7 @@ For GitHub groups see the [code owners](CODEOWNERS) file.
 * [Cijo Thomas](https://github.com/cijothomas)
 * [Harold Dost](https://github.com/hdost)
 * [Lalit Kumar Bhasin](https://github.com/lalitb)
+* [Shaun Cox](https://github.com/shaun-cox)
 
 ### Emeritus
 
