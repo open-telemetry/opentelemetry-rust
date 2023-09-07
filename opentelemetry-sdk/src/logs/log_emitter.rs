@@ -214,7 +214,8 @@ impl opentelemetry::logs::Logger for Logger {
         let trace_context = Context::map_current(|cx| {
             cx.has_active_span()
                 .then(|| TraceContext::from(cx.span().span_context()))
-        });
+        })
+        .flatten();
         let config = provider.config();
         for processor in provider.log_processors() {
             let mut record = record.clone();

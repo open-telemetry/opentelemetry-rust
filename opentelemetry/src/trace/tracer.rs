@@ -136,7 +136,7 @@ pub trait Tracer {
     where
         T: Into<Cow<'static, str>>,
     {
-        Context::map_current(|cx| self.start_with_context(name, cx))
+        Context::with_current_or_default(|cx| self.start_with_context(name, cx))
     }
 
     /// Starts a new [`Span`] with a given context.
@@ -169,7 +169,7 @@ pub trait Tracer {
 
     /// Start a [`Span`] from a [`SpanBuilder`].
     fn build(&self, builder: SpanBuilder) -> Self::Span {
-        Context::map_current(|cx| self.build_with_context(builder, cx))
+        Context::with_current_or_default(|cx| self.build_with_context(builder, cx))
     }
 
     /// Start a span from a [`SpanBuilder`] with a parent context.
@@ -382,7 +382,7 @@ impl SpanBuilder {
 
     /// Builds a span with the given tracer from this configuration.
     pub fn start<T: Tracer>(self, tracer: &T) -> T::Span {
-        Context::map_current(|cx| tracer.build_with_context(self, cx))
+        Context::with_current_or_default(|cx| tracer.build_with_context(self, cx))
     }
 
     /// Builds a span with the given tracer from this configuration and parent.

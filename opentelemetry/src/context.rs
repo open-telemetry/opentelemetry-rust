@@ -7,7 +7,7 @@ use std::marker::PhantomData;
 use std::sync::Arc;
 
 thread_local! {
-    static CURRENT_CONTEXT: RefCell<Context> = RefCell::new(Context::default());
+    static CURRENT_CONTEXT: RefCell<Option<Context>> = const { RefCell::new(None) }
 }
 
 /// An execution-scoped collection of values.
@@ -106,10 +106,10 @@ impl Context {
     /// do_work()
     /// ```
     pub fn current() -> Self {
-        Context::map_current(|cx| cx.clone())
+        Context::map_current(|cx| cx.clone()).unwrap_or_default()
     }
 
-    /// Applies a function to the current context returning its value.
+    /// Applies a function to the current context, if one exists, returning its value.
     ///
     /// This can be used to build higher performing algebraic expressions for
     /// optionally creating a new context without the overhead of cloning the
@@ -117,8 +117,21 @@ impl Context {
     ///
     /// Note: This function will panic if you attempt to attach another context
     /// while the current one is still borrowed.
-    pub fn map_current<T>(f: impl FnOnce(&Context) -> T) -> T {
-        CURRENT_CONTEXT.with(|cx| f(&cx.borrow()))
+    pub fn map_current<T>(f: impl FnOnce(&Context) -> T) -> Option<T> {
+        CURRENT_CONTEXT.with(|current| current.borrow().as_ref().map(f))
+    }
+
+    /// Applies a function either to the current context, if it exists, or a
+    /// default context, returning its value.
+    pub fn with_current_or_default<T>(f: impl FnOnce(&Context) -> T) -> T {
+        CURRENT_CONTEXT.with(|current| {
+            if let Some(cx) = current.borrow().as_ref() {
+                f(cx)
+            } else {
+                let cx = Context::default();
+                f(&cx)
+            }
+        })
     }
 
     /// Returns a clone of the current thread's context with the given value.
@@ -295,8 +308,9 @@ impl Context {
     /// ```
     pub fn attach(self) -> ContextGuard {
         let previous_cx = CURRENT_CONTEXT
-            .try_with(|current| current.replace(self))
-            .ok();
+            .try_with(|current| current.replace(Some(self)))
+            .ok()
+            .flatten();
 
         ContextGuard {
             previous_cx,
@@ -323,9 +337,8 @@ pub struct ContextGuard {
 
 impl Drop for ContextGuard {
     fn drop(&mut self) {
-        if let Some(previous_cx) = self.previous_cx.take() {
-            let _ = CURRENT_CONTEXT.try_with(|current| current.replace(previous_cx));
-        }
+        let previous_cx = self.previous_cx.take();
+        _ = CURRENT_CONTEXT.try_with(|current| current.replace(previous_cx));
     }
 }
 
@@ -379,7 +392,8 @@ mod tests {
                 assert_eq!(cx.get(), Some(&ValueA("a")));
                 assert_eq!(cx.get(), Some(&ValueB(42)));
                 true
-            }));
+            })
+            .unwrap());
         }
 
         // Resets to only value `a` when inner guard is dropped
@@ -391,6 +405,7 @@ mod tests {
             assert_eq!(cx.get(), Some(&ValueA("a")));
             assert_eq!(cx.get::<ValueB>(), None);
             true
-        }));
+        })
+        .unwrap());
     }
 }

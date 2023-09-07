@@ -241,7 +241,7 @@ pub trait TraceContextExt {
     /// ```
     /// use opentelemetry::{trace::TraceContextExt, Context};
     ///
-    /// assert!(!Context::map_current(|cx| cx.has_active_span()));
+    /// assert!(!Context::map_current(|cx| cx.has_active_span()).unwrap_or_default());
     /// ```
     fn has_active_span(&self) -> bool;
 
@@ -349,7 +349,7 @@ pub fn get_active_span<F, T>(f: F) -> T
 where
     F: FnOnce(SpanRef<'_>) -> T,
 {
-    Context::map_current(|cx| f(cx.span()))
+    Context::with_current_or_default(|cx| f(cx.span()))
 }
 
 pin_project! {

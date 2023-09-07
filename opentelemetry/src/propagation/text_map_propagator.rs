@@ -18,7 +18,7 @@ pub trait TextMapPropagator: Debug {
     /// [`Context`]: crate::Context
     /// [`Injector`]: crate::propagation::Injector
     fn inject(&self, injector: &mut dyn Injector) {
-        Context::map_current(|cx| self.inject_context(cx, injector))
+        Context::map_current(|cx| self.inject_context(cx, injector));
     }
 
     /// Properly encodes the values of the [`Context`] and injects them into the
@@ -35,7 +35,7 @@ pub trait TextMapPropagator: Debug {
     /// [`Context`]: crate::Context
     /// [`Injector`]: crate::propagation::Extractor
     fn extract(&self, extractor: &dyn Extractor) -> Context {
-        Context::map_current(|cx| self.extract_with_context(cx, extractor))
+        Context::with_current_or_default(|cx| self.extract_with_context(cx, extractor))
     }
 
     /// Retrieves encoded data using the provided [`Extractor`]. If no data for this

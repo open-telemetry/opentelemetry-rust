@@ -29,6 +29,7 @@
         "opentelemetry",
         "OTLP",
         "quantile",
+        "Runtimes",
         "zipkin"
     ],
     "enabledLanguageIds": [
