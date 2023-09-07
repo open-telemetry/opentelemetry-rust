@@ -32,6 +32,7 @@ members = [
     "examples/tracing-grpc",
     "stress",
 ]
+resolver = "2"
 
 [profile.bench]
 # https://doc.rust-lang.org/cargo/reference/profiles.html#bench
