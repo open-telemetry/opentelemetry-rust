@@ -25,13 +25,4 @@ services:
       - jaeger-all-in-one
 
 
-  # metrics-rust:
-  #   build:
-  #     dockerfile: $PWD/Dockerfile
-  #     context: ./basic-otlp-http
-  #   environment:
-  #     - OTLP_TONIC_ENDPOINT=otel-collector:4317
-  #   depends_on:
-  #     - otel-collector
-
 
