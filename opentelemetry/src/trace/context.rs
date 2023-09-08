@@ -26,7 +26,7 @@ static NOOP_SPAN: Lazy<SynchronizedSpan> = Lazy::new(|| SynchronizedSpan {
 pub struct SpanRef<'a>(&'a SynchronizedSpan);
 
 #[derive(Debug)]
-struct SynchronizedSpan {
+pub(crate) struct SynchronizedSpan {
     /// Immutable span context
     span_context: SpanContext,
     /// Mutable span inner that requires synchronization
@@ -251,23 +251,26 @@ pub trait TraceContextExt {
     fn with_remote_span_context(&self, span_context: crate::trace::SpanContext) -> Self;
 }
 
-impl TraceContextExt for Context {
-    fn current_with_span<T: crate::trace::Span + Send + Sync + 'static>(span: T) -> Self {
-        Context::current_with_value(SynchronizedSpan {
+impl SynchronizedSpan {
+    fn new<T: crate::trace::Span + Send + Sync + 'static>(span: T) -> Self {
+        SynchronizedSpan {
             span_context: span.span_context().clone(),
             inner: Some(Mutex::new(global::BoxedSpan::new(span))),
-        })
+        }
+    }
+}
+
+impl TraceContextExt for Context {
+    fn current_with_span<T: crate::trace::Span + Send + Sync + 'static>(span: T) -> Self {
+        Context::current_with_trace_context(SynchronizedSpan::new(span))
     }
 
     fn with_span<T: crate::trace::Span + Send + Sync + 'static>(&self, span: T) -> Self {
-        self.with_value(SynchronizedSpan {
-            span_context: span.span_context().clone(),
-            inner: Some(Mutex::new(global::BoxedSpan::new(span))),
-        })
+        self.with_trace_context(SynchronizedSpan::new(span))
     }
 
     fn span(&self) -> SpanRef<'_> {
-        if let Some(span) = self.get::<SynchronizedSpan>() {
+        if let Some(span) = self.trace.as_ref() {
             SpanRef(span)
         } else {
             SpanRef(&NOOP_SPAN)
@@ -275,11 +278,11 @@ impl TraceContextExt for Context {
     }
 
     fn has_active_span(&self) -> bool {
-        self.get::<SynchronizedSpan>().is_some()
+        self.trace.is_some()
     }
 
     fn with_remote_span_context(&self, span_context: crate::trace::SpanContext) -> Self {
-        self.with_value(SynchronizedSpan {
+        self.with_trace_context(SynchronizedSpan {
             span_context,
             inner: None,
         })

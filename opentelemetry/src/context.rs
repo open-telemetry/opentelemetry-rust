@@ -74,6 +74,7 @@ thread_local! {
 /// ```
 #[derive(Clone, Default)]
 pub struct Context {
+    pub(super) trace: Option<Arc<super::trace::context::SynchronizedSpan>>,
     entries: HashMap<TypeId, Arc<dyn Any + Sync + Send>, BuildHasherDefault<IdHasher>>,
 }
 
@@ -301,6 +302,25 @@ impl Context {
         ContextGuard {
             previous_cx,
             _marker: PhantomData,
+        }
+    }
+
+    pub(super) fn current_with_trace_context(
+        value: super::trace::context::SynchronizedSpan,
+    ) -> Self {
+        Context {
+            trace: Some(Arc::new(value)),
+            entries: Context::map_current(|cx| cx.entries.clone()),
+        }
+    }
+
+    pub(super) fn with_trace_context(
+        &self,
+        value: super::trace::context::SynchronizedSpan,
+    ) -> Self {
+        Context {
+            trace: Some(Arc::new(value)),
+            entries: self.entries.clone(),
         }
     }
 }
