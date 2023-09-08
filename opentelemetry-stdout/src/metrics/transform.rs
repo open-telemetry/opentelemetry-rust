@@ -184,7 +184,11 @@ impl Serialize for Temporality {
     where
         S: Serializer,
     {
-        serializer.serialize_u8(*self as u32 as u8)
+        match &self {
+            Temporality::Cumulative => serializer.serialize_str("Cumulative"),
+            Temporality::Delta => serializer.serialize_str("Delta"),
+            Temporality::Unspecified => serializer.serialize_str("Unspecified"),
+        }
     }
 }
 
