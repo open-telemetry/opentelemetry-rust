@@ -1,7 +1,7 @@
 use opentelemetry::metrics::Unit;
 use opentelemetry::Key;
 use opentelemetry::{metrics::MeterProvider as _, KeyValue};
-use opentelemetry_sdk::metrics::{Instrument, MeterProvider, PeriodicReader, Stream};
+use opentelemetry_sdk::metrics::{Aggregation, Instrument, MeterProvider, PeriodicReader, Stream};
 use opentelemetry_sdk::{runtime, Resource};
 use std::error::Error;
 
@@ -28,7 +28,25 @@ fn init_meter_provider() -> MeterProvider {
         }
     };
 
-    let exporter = opentelemetry_stdout::MetricsExporter::default();
+    // for example 3
+    let my_view_change_aggregation = |i: &Instrument| {
+        if i.name == "my_second_histogram" {
+            Some(
+                Stream::new().aggregation(Aggregation::ExplicitBucketHistogram {
+                    boundaries: vec![0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5],
+                    record_min_max: false,
+                }),
+            )
+        } else {
+            None
+        }
+    };
+
+    let exporter = opentelemetry_stdout::MetricsExporterBuilder::default()
+        // uncomment the below lines to pretty print output.
+        // .with_encoder(|writer, data|
+        //   Ok(serde_json::to_writer_pretty(writer, &data).unwrap()))
+        .build();
     let reader = PeriodicReader::builder(exporter, runtime::Tokio).build();
     MeterProvider::builder()
         .with_reader(reader)
@@ -38,6 +56,7 @@ fn init_meter_provider() -> MeterProvider {
         )]))
         .with_view(my_view_rename_and_unit)
         .with_view(my_view_drop_attributes)
+        .with_view(my_view_change_aggregation)
         .build()
 }
 
@@ -77,6 +96,52 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // attribute.
     counter.add(
         10,
+        [
+            KeyValue::new("mykey1", "myvalue1"),
+            KeyValue::new("mykey2", "myvalue2"),
+            KeyValue::new("mykey3", "myvalue3"),
+            KeyValue::new("mykey4", "myvalue4"),
+        ]
+        .as_ref(),
+    );
+
+    // Example 3 - Change Aggregation configuration using View.
+    // Histograms are by default aggregated using ExplicitBucketHistogram
+    // with default buckets. The configured view will change the aggregation to
+    // use a custom set of boundaries, and min/max values will not be recorded.
+    let histogram2 = meter
+        .f64_histogram("my_second_histogram")
+        .with_unit(Unit::new("ms"))
+        .with_description("My histogram example description")
+        .init();
+
+    // Record measurements using the histogram instrument.
+    // The values recorded are in the range of 1.2 to 1.5, warranting
+    // the change of boundaries.
+    histogram2.record(
+        1.5,
+        [
+            KeyValue::new("mykey1", "myvalue1"),
+            KeyValue::new("mykey2", "myvalue2"),
+            KeyValue::new("mykey3", "myvalue3"),
+            KeyValue::new("mykey4", "myvalue4"),
+        ]
+        .as_ref(),
+    );
+
+    histogram2.record(
+        1.2,
+        [
+            KeyValue::new("mykey1", "myvalue1"),
+            KeyValue::new("mykey2", "myvalue2"),
+            KeyValue::new("mykey3", "myvalue3"),
+            KeyValue::new("mykey4", "myvalue4"),
+        ]
+        .as_ref(),
+    );
+
+    histogram2.record(
+        1.23,
         [
             KeyValue::new("mykey1", "myvalue1"),
             KeyValue::new("mykey2", "myvalue2"),
