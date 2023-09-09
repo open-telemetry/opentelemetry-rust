@@ -2,7 +2,6 @@
 //!
 //! Defines a [MetricsExporter] to send metric data to backend via OTEL protocol.
 //!
-//! Currently, OTEL metrics exporter only support GRPC connection via tonic on tokio runtime.
 
 use crate::{Error, OtlpPipeline};
 use async_trait::async_trait;
