@@ -1,7 +1,10 @@
 use core::fmt;
 use once_cell::sync::OnceCell;
 use opentelemetry::metrics::{MetricsError, Result};
-use opentelemetry_sdk::metrics::{reader::AggregationSelector, ManualReaderBuilder};
+use opentelemetry_sdk::metrics::{
+    reader::{AggregationSelector, MetricProducer},
+    ManualReaderBuilder,
+};
 use std::sync::{Arc, Mutex};
 
 use crate::{Collector, PrometheusExporter};
@@ -14,8 +17,8 @@ pub struct ExporterBuilder {
     without_units: bool,
     without_counter_suffixes: bool,
     namespace: Option<String>,
-    aggregation: Option<Box<dyn AggregationSelector>>,
     disable_scope_info: bool,
+    reader: ManualReaderBuilder,
 }
 
 impl fmt::Debug for ExporterBuilder {
@@ -26,7 +29,6 @@ impl fmt::Debug for ExporterBuilder {
             .field("without_units", &self.without_units)
             .field("without_counter_suffixes", &self.without_counter_suffixes)
             .field("namespace", &self.namespace)
-            .field("aggregation", &self.aggregation.is_some())
             .field("disable_scope_info", &self.disable_scope_info)
             .finish()
     }
@@ -108,17 +110,22 @@ impl ExporterBuilder {
     ///
     /// [DefaultAggregationSelector]: opentelemetry_sdk::metrics::reader::DefaultAggregationSelector
     pub fn with_aggregation_selector(mut self, agg: impl AggregationSelector + 'static) -> Self {
-        self.aggregation = Some(Box::new(agg));
+        self.reader = self.reader.with_aggregation_selector(agg);
+        self
+    }
+
+    /// Registers a an external [MetricProducer] with this reader.
+    ///
+    /// The producer is used as a source of aggregated metric data which is
+    /// incorporated into metrics collected from the SDK.
+    pub fn with_producer(mut self, producer: impl MetricProducer + 'static) -> Self {
+        self.reader = self.reader.with_producer(producer);
         self
     }
 
     /// Creates a new [PrometheusExporter] from this configuration.
     pub fn build(self) -> Result<PrometheusExporter> {
-        let mut reader = ManualReaderBuilder::new();
-        if let Some(selector) = self.aggregation {
-            reader = reader.with_aggregation_selector(selector)
-        }
-        let reader = Arc::new(reader.build());
+        let reader = Arc::new(self.reader.build());
 
         let collector = Collector {
             reader: Arc::clone(&reader),

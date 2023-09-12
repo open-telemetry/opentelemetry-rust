@@ -33,12 +33,6 @@ pub trait MetricReader:
     /// and send aggregated metric measurements.
     fn register_pipeline(&self, pipeline: Weak<Pipeline>);
 
-    /// Registers a an external Producer with this [MetricReader].
-    ///
-    /// The [MetricProducer] is used as a source of aggregated metric data which is
-    /// incorporated into metrics collected from the SDK.
-    fn register_producer(&self, producer: Box<dyn MetricProducer>);
-
     /// Gathers and returns all metric data related to the [MetricReader] from the
     /// SDK and stores it in the provided [ResourceMetrics] reference.
     ///

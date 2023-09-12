@@ -1,14 +1,16 @@
 use std::{
     collections::{hash_map::Entry, HashMap},
-    sync::{Arc, Mutex},
+    sync::Mutex,
     time::SystemTime,
 };
 
-use crate::attributes::AttributeSet;
-use crate::metrics::data::{self, Gauge};
+use crate::{attributes::AttributeSet, metrics::data::DataPoint};
 use opentelemetry::{global, metrics::MetricsError};
 
-use super::{aggregator::STREAM_OVERFLOW_ATTRIBUTE_SET, Aggregator, Number};
+use super::{
+    aggregate::{is_under_cardinality_limit, STREAM_OVERFLOW_ATTRIBUTE_SET},
+    Number,
+};
 
 /// Timestamped measurement data.
 struct DataPointValue<T> {
@@ -16,19 +18,18 @@ struct DataPointValue<T> {
     value: T,
 }
 
-/// An Aggregator that summarizes a set of measurements as the last one made.
-pub(crate) fn new_last_value<T: Number<T>>() -> Arc<dyn Aggregator<T>> {
-    Arc::new(LastValue::default())
-}
-
 /// Summarizes a set of measurements as the last one made.
 #[derive(Default)]
-struct LastValue<T> {
+pub(crate) struct LastValue<T> {
     values: Mutex<HashMap<AttributeSet, DataPointValue<T>>>,
 }
 
-impl<T: Number<T>> Aggregator<T> for LastValue<T> {
-    fn aggregate(&self, measurement: T, attrs: AttributeSet) {
+impl<T: Number<T>> LastValue<T> {
+    pub(crate) fn new() -> Self {
+        Self::default()
+    }
+
+    pub(crate) fn measure(&self, measurement: T, attrs: AttributeSet) {
         let d: DataPointValue<T> = DataPointValue {
             timestamp: SystemTime::now(),
             value: measurement,
@@ -40,7 +41,7 @@ impl<T: Number<T>> Aggregator<T> for LastValue<T> {
                     occupied_entry.insert(d);
                 }
                 Entry::Vacant(vacant_entry) => {
-                    if self.is_under_cardinality_limit(size) {
+                    if is_under_cardinality_limit(size) {
                         vacant_entry.insert(d);
                     } else {
                         values.insert(STREAM_OVERFLOW_ATTRIBUTE_SET.clone(), d);
@@ -51,23 +52,34 @@ impl<T: Number<T>> Aggregator<T> for LastValue<T> {
         }
     }
 
-    fn aggregation(&self) -> Option<Box<dyn crate::metrics::data::Aggregation>> {
+    pub(crate) fn compute_aggregation(&self, dest: &mut Vec<DataPoint<T>>) {
         let mut values = match self.values.lock() {
             Ok(guard) if !guard.is_empty() => guard,
-            _ => return None,
+            _ => return,
         };
+        let n = values.len();
+        if n > dest.capacity() {
+            dest.reserve(n - dest.capacity());
+        }
 
-        let data_points = values
-            .drain()
-            .map(|(attrs, value)| data::DataPoint {
-                attributes: attrs,
-                time: Some(value.timestamp),
-                value: value.value,
-                start_time: None,
-                exemplars: vec![],
-            })
-            .collect();
+        for (i, (attrs, value)) in values.drain().enumerate() {
+            if let Some(dp) = dest.get_mut(i) {
+                dp.attributes = attrs;
+                dp.time = Some(value.timestamp);
+                dp.value = value.value;
+                dp.start_time = None;
+                dp.exemplars.clear();
+            } else {
+                dest.push(DataPoint {
+                    attributes: attrs,
+                    time: Some(value.timestamp),
+                    value: value.value,
+                    start_time: None,
+                    exemplars: vec![],
+                });
+            }
+        }
 
-        Some(Box::new(Gauge { data_points }))
+        dest.truncate(n)
     }
 }

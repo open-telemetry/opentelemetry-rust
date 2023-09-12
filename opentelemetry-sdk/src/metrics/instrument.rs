@@ -10,11 +10,10 @@ use opentelemetry::{
 use crate::{
     attributes::AttributeSet,
     instrumentation::Scope,
-    metrics::data::Temporality,
-    metrics::{aggregation::Aggregation, internal::Aggregator},
+    metrics::{aggregation::Aggregation, internal::Measure},
 };
 
-pub(crate) const EMPTY_AGG_MSG: &str = "no aggregators for observable instrument";
+pub(crate) const EMPTY_MEASURE_MSG: &str = "no aggregators for observable instrument";
 
 /// The identifier of a group of instruments that all perform the same function.
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
@@ -218,52 +217,57 @@ impl Stream {
     }
 }
 
-/// the identifying properties of a stream.
+/// The identifying properties of a instrument.
 #[derive(Debug, PartialEq, Eq, Hash)]
-pub(crate) struct StreamId {
+pub(crate) struct InstId {
     /// The human-readable identifier of the stream.
     pub(crate) name: Cow<'static, str>,
     /// Describes the purpose of the data.
     pub(crate) description: Cow<'static, str>,
+    /// Defines the functional group of the instrument.
+    pub(crate) kind: InstrumentKind,
     /// the unit of measurement recorded.
     pub(crate) unit: Unit,
-    /// The stream uses for an instrument.
-    pub(crate) aggregation: String,
-    /// Monotonic is the monotonicity of an instruments data type. This field is
-    /// not used for all data types, so a zero value needs to be understood in the
-    /// context of Aggregation.
-    pub(crate) monotonic: bool,
-    /// Temporality is the temporality of a stream's data type. This field is
-    /// not used by some data types.
-    pub(crate) temporality: Option<Temporality>,
     /// Number is the number type of the stream.
     pub(crate) number: Cow<'static, str>,
 }
 
+impl InstId {
+    /// Instrument names are considered case-insensitive.
+    ///
+    /// Standardize the instrument name to always be lowercase so it can be compared
+    /// via hash.
+    pub(crate) fn normalize(&mut self) {
+        if self.name.chars().any(|c| c.is_ascii_uppercase()) {
+            self.name = self.name.to_lowercase().into();
+        }
+    }
+}
+
 pub(crate) struct InstrumentImpl<T> {
-    pub(crate) aggregators: Vec<Arc<dyn Aggregator<T>>>,
+    pub(crate) measures: Vec<Arc<dyn Measure<T>>>,
 }
 
-impl<T: Copy> SyncCounter<T> for InstrumentImpl<T> {
+impl<T: Copy + 'static> SyncCounter<T> for InstrumentImpl<T> {
     fn add(&self, val: T, attrs: &[KeyValue]) {
-        for agg in &self.aggregators {
-            agg.aggregate(val, AttributeSet::from(attrs))
+        for measure in &self.measures {
+            measure.call(val, AttributeSet::from(attrs))
         }
     }
 }
 
-impl<T: Copy> SyncUpDownCounter<T> for InstrumentImpl<T> {
+impl<T: Copy + 'static> SyncUpDownCounter<T> for InstrumentImpl<T> {
     fn add(&self, val: T, attrs: &[KeyValue]) {
-        for agg in &self.aggregators {
-            agg.aggregate(val, AttributeSet::from(attrs))
+        for measure in &self.measures {
+            measure.call(val, AttributeSet::from(attrs))
         }
     }
 }
 
-impl<T: Copy> SyncHistogram<T> for InstrumentImpl<T> {
+impl<T: Copy + 'static> SyncHistogram<T> for InstrumentImpl<T> {
     fn record(&self, val: T, attrs: &[KeyValue]) {
-        for agg in &self.aggregators {
-            agg.aggregate(val, AttributeSet::from(attrs))
+        for measure in &self.measures {
+            measure.call(val, AttributeSet::from(attrs))
         }
     }
 }
@@ -306,7 +310,7 @@ impl<T> Eq for ObservableId<T> {}
 #[derive(Clone)]
 pub(crate) struct Observable<T> {
     pub(crate) id: ObservableId<T>,
-    aggregators: Vec<Arc<dyn Aggregator<T>>>,
+    measures: Vec<Arc<dyn Measure<T>>>,
 }
 
 impl<T> Observable<T> {
@@ -316,7 +320,7 @@ impl<T> Observable<T> {
         name: Cow<'static, str>,
         description: Cow<'static, str>,
         unit: Unit,
-        aggregators: Vec<Arc<dyn Aggregator<T>>>,
+        measures: Vec<Arc<dyn Measure<T>>>,
     ) -> Self {
         Self {
             id: ObservableId {
@@ -329,7 +333,7 @@ impl<T> Observable<T> {
                 },
                 _marker: marker::PhantomData,
             },
-            aggregators,
+            measures,
         }
     }
 
@@ -340,8 +344,8 @@ impl<T> Observable<T> {
     /// any aggregators. Also, an error is returned if scope defines a Meter other
     /// than the observable it was created by.
     pub(crate) fn registerable(&self, scope: &Scope) -> Result<()> {
-        if self.aggregators.is_empty() {
-            return Err(MetricsError::Other(EMPTY_AGG_MSG.into()));
+        if self.measures.is_empty() {
+            return Err(MetricsError::Other(EMPTY_MEASURE_MSG.into()));
         }
         if &self.id.inner.scope != scope {
             return Err(MetricsError::Other(format!(
@@ -356,8 +360,8 @@ impl<T> Observable<T> {
 
 impl<T: Copy + Send + Sync + 'static> AsyncInstrument<T> for Observable<T> {
     fn observe(&self, measurement: T, attrs: &[KeyValue]) {
-        for agg in &self.aggregators {
-            agg.aggregate(measurement, AttributeSet::from(attrs))
+        for measure in &self.measures {
+            measure.call(measurement, AttributeSet::from(attrs))
         }
     }
 

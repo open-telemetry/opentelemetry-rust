@@ -102,7 +102,7 @@ use opentelemetry::{
 use opentelemetry_sdk::{
     metrics::{
         data::{self, ResourceMetrics, Temporality},
-        reader::{AggregationSelector, MetricProducer, MetricReader, TemporalitySelector},
+        reader::{AggregationSelector, MetricReader, TemporalitySelector},
         Aggregation, InstrumentKind, ManualReader, Pipeline,
     },
     Resource, Scope,
@@ -164,10 +164,6 @@ impl AggregationSelector for PrometheusExporter {
 impl MetricReader for PrometheusExporter {
     fn register_pipeline(&self, pipeline: Weak<Pipeline>) {
         self.reader.register_pipeline(pipeline)
-    }
-
-    fn register_producer(&self, producer: Box<dyn MetricProducer>) {
-        self.reader.register_producer(producer)
     }
 
     fn collect(&self, rm: &mut ResourceMetrics) -> Result<()> {

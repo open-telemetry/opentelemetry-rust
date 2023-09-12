@@ -49,7 +49,7 @@ impl fmt::Debug for ManualReader {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 struct ManualReaderInner {
     sdk_producer: Option<Weak<dyn SdkProducer>>,
     is_shutdown: bool,
@@ -66,9 +66,14 @@ impl ManualReader {
     pub(crate) fn new(
         temporality_selector: Box<dyn TemporalitySelector>,
         aggregation_selector: Box<dyn AggregationSelector>,
+        producers: Vec<Box<dyn MetricProducer>>,
     ) -> Self {
         ManualReader {
-            inner: Box::new(Mutex::new(ManualReaderInner::default())),
+            inner: Box::new(Mutex::new(ManualReaderInner {
+                sdk_producer: None,
+                is_shutdown: false,
+                external_producers: producers,
+            })),
             temporality_selector,
             aggregation_selector,
         }
@@ -99,16 +104,6 @@ impl MetricReader for ManualReader {
                 global::handle_error(MetricsError::Config(
                     "duplicate reader registration, did not register manual reader".into(),
                 ))
-            }
-        });
-    }
-
-    /// Stores the external [MetricProducer] which enables the caller to read
-    /// metrics on demand.
-    fn register_producer(&self, producer: Box<dyn MetricProducer>) {
-        let _ = self.inner.lock().map(|mut inner| {
-            if !inner.is_shutdown {
-                inner.external_producers.push(producer);
             }
         });
     }
@@ -165,6 +160,7 @@ impl MetricReader for ManualReader {
 pub struct ManualReaderBuilder {
     temporality_selector: Box<dyn TemporalitySelector>,
     aggregation_selector: Box<dyn AggregationSelector>,
+    producers: Vec<Box<dyn MetricProducer>>,
 }
 
 impl fmt::Debug for ManualReaderBuilder {
@@ -178,6 +174,7 @@ impl Default for ManualReaderBuilder {
         ManualReaderBuilder {
             temporality_selector: Box::new(DefaultTemporalitySelector { _private: () }),
             aggregation_selector: Box::new(DefaultAggregationSelector { _private: () }),
+            producers: vec![],
         }
     }
 }
@@ -207,14 +204,27 @@ impl ManualReaderBuilder {
     /// instrument.
     pub fn with_aggregation_selector(
         mut self,
-        aggregation_selector: Box<dyn AggregationSelector>,
+        aggregation_selector: impl AggregationSelector + 'static,
     ) -> Self {
-        self.aggregation_selector = aggregation_selector;
+        self.aggregation_selector = Box::new(aggregation_selector);
+        self
+    }
+
+    /// Registers a an external [MetricProducer] with this reader.
+    ///
+    /// The producer is used as a source of aggregated metric data which is
+    /// incorporated into metrics collected from the SDK.
+    pub fn with_producer(mut self, producer: impl MetricProducer + 'static) -> Self {
+        self.producers.push(Box::new(producer));
         self
     }
 
     /// Create a new [ManualReader] from this configuration.
     pub fn build(self) -> ManualReader {
-        ManualReader::new(self.temporality_selector, self.aggregation_selector)
+        ManualReader::new(
+            self.temporality_selector,
+            self.aggregation_selector,
+            self.producers,
+        )
     }
 }

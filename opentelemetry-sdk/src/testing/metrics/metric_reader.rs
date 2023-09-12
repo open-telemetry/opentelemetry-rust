@@ -5,7 +5,7 @@ use crate::metrics::{
     data::{ResourceMetrics, Temporality},
     instrument::InstrumentKind,
     pipeline::Pipeline,
-    reader::{AggregationSelector, MetricProducer, MetricReader, TemporalitySelector},
+    reader::{AggregationSelector, MetricReader, TemporalitySelector},
 };
 use opentelemetry::metrics::Result;
 
@@ -14,8 +14,6 @@ pub struct TestMetricReader {}
 
 impl MetricReader for TestMetricReader {
     fn register_pipeline(&self, _pipeline: Weak<Pipeline>) {}
-
-    fn register_producer(&self, _producer: Box<dyn MetricProducer>) {}
 
     fn collect(&self, _rm: &mut ResourceMetrics) -> Result<()> {
         Ok(())
