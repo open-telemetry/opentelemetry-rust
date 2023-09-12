@@ -9,6 +9,7 @@ use crate::{
 };
 
 use super::{
+    exponential_histogram::ExpoHistogram,
     histogram::Histogram,
     last_value::LastValue,
     sum::{PrecomputedSum, Sum},
@@ -171,6 +172,32 @@ impl<T: Number<T>> AggregateBuilder<T> {
         record_sum: bool,
     ) -> (impl Measure<T>, impl ComputeAggregation) {
         let h = Arc::new(Histogram::new(boundaries, record_min_max, record_sum));
+        let agg_h = Arc::clone(&h);
+        let t = self.temporality;
+
+        (
+            self.filter(move |n, a| h.measure(n, a)),
+            move |dest: Option<&mut dyn Aggregation>| match t {
+                Some(Temporality::Delta) => agg_h.delta(dest),
+                _ => agg_h.cumulative(dest),
+            },
+        )
+    }
+
+    /// Builds an exponential histogram aggregate function input and output.
+    pub(crate) fn exponential_bucket_histogram(
+        &self,
+        max_size: u32,
+        max_scale: i8,
+        record_min_max: bool,
+        record_sum: bool,
+    ) -> (impl Measure<T>, impl ComputeAggregation) {
+        let h = Arc::new(ExpoHistogram::new(
+            max_size,
+            max_scale,
+            record_min_max,
+            record_sum,
+        ));
         let agg_h = Arc::clone(&h);
         let t = self.temporality;
 

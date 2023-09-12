@@ -226,7 +226,7 @@ pub(crate) struct InstrumentId {
     pub(crate) description: Cow<'static, str>,
     /// Defines the functional group of the instrument.
     pub(crate) kind: InstrumentKind,
-    /// the unit of measurement recorded.
+    /// The unit of measurement recorded.
     pub(crate) unit: Unit,
     /// Number is the underlying data type of the instrument.
     pub(crate) number: Cow<'static, str>,

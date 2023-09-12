@@ -10,8 +10,9 @@ pub mod tonic {
 
     use opentelemetry::{global, metrics::MetricsError, Key, Value};
     use opentelemetry_sdk::metrics::data::{
-        self, Exemplar as SdkExemplar, Gauge as SdkGauge, Histogram as SdkHistogram,
-        Metric as SdkMetric, ScopeMetrics as SdkScopeMetrics, Sum as SdkSum, Temporality,
+        self, Exemplar as SdkExemplar, ExponentialHistogram as SdkExponentialHistogram,
+        Gauge as SdkGauge, Histogram as SdkHistogram, Metric as SdkMetric,
+        ScopeMetrics as SdkScopeMetrics, Sum as SdkSum, Temporality,
     };
     use opentelemetry_sdk::Resource as SdkResource;
 
@@ -19,14 +20,18 @@ pub mod tonic {
         collector::metrics::v1::ExportMetricsServiceRequest,
         common::v1::KeyValue,
         metrics::v1::{
-            exemplar, exemplar::Value as TonicExemplarValue, metric::Data as TonicMetricData,
-            number_data_point, number_data_point::Value as TonicDataPointValue,
+            exemplar, exemplar::Value as TonicExemplarValue,
+            exponential_histogram_data_point::Buckets as TonicBuckets,
+            metric::Data as TonicMetricData, number_data_point,
+            number_data_point::Value as TonicDataPointValue,
             AggregationTemporality as TonicTemporality, AggregationTemporality,
-            DataPointFlags as TonicDataPointFlags, Exemplar as TonicExemplar, Gauge as TonicGauge,
-            Histogram as TonicHistogram, HistogramDataPoint as TonicHistogramDataPoint,
-            Metric as TonicMetric, NumberDataPoint as TonicNumberDataPoint,
-            ResourceMetrics as TonicResourceMetrics, ScopeMetrics as TonicScopeMetrics,
-            Sum as TonicSum,
+            DataPointFlags as TonicDataPointFlags, Exemplar as TonicExemplar,
+            ExponentialHistogram as TonicExponentialHistogram,
+            ExponentialHistogramDataPoint as TonicExponentialHistogramDataPoint,
+            Gauge as TonicGauge, Histogram as TonicHistogram,
+            HistogramDataPoint as TonicHistogramDataPoint, Metric as TonicMetric,
+            NumberDataPoint as TonicNumberDataPoint, ResourceMetrics as TonicResourceMetrics,
+            ScopeMetrics as TonicScopeMetrics, Sum as TonicSum,
         },
         resource::v1::Resource as TonicResource,
     };
@@ -159,6 +164,12 @@ pub mod tonic {
                 Ok(TonicMetricData::Histogram(hist.into()))
             } else if let Some(hist) = data.downcast_ref::<SdkHistogram<f64>>() {
                 Ok(TonicMetricData::Histogram(hist.into()))
+            } else if let Some(hist) = data.downcast_ref::<SdkExponentialHistogram<i64>>() {
+                Ok(TonicMetricData::ExponentialHistogram(hist.into()))
+            } else if let Some(hist) = data.downcast_ref::<SdkExponentialHistogram<u64>>() {
+                Ok(TonicMetricData::ExponentialHistogram(hist.into()))
+            } else if let Some(hist) = data.downcast_ref::<SdkExponentialHistogram<f64>>() {
+                Ok(TonicMetricData::ExponentialHistogram(hist.into()))
             } else if let Some(sum) = data.downcast_ref::<SdkSum<u64>>() {
                 Ok(TonicMetricData::Sum(sum.into()))
             } else if let Some(sum) = data.downcast_ref::<SdkSum<i64>>() {
@@ -222,6 +233,43 @@ pub mod tonic {
                         flags: TonicDataPointFlags::default() as u32,
                         min: dp.min.map(Numeric::into_f64),
                         max: dp.max.map(Numeric::into_f64),
+                    })
+                    .collect(),
+                aggregation_temporality: TonicTemporality::from(hist.temporality).into(),
+            }
+        }
+    }
+
+    impl<T> From<&SdkExponentialHistogram<T>> for TonicExponentialHistogram
+    where
+        T: Numeric,
+    {
+        fn from(hist: &SdkExponentialHistogram<T>) -> Self {
+            TonicExponentialHistogram {
+                data_points: hist
+                    .data_points
+                    .iter()
+                    .map(|dp| TonicExponentialHistogramDataPoint {
+                        attributes: dp.attributes.iter().map(Into::into).collect(),
+                        start_time_unix_nano: to_nanos(dp.start_time),
+                        time_unix_nano: to_nanos(dp.time),
+                        count: dp.count as u64,
+                        sum: Some(dp.sum.into_f64()),
+                        scale: dp.scale.into(),
+                        zero_count: dp.zero_count,
+                        positive: Some(TonicBuckets {
+                            offset: dp.positive_bucket.offset,
+                            bucket_counts: dp.positive_bucket.counts.clone(),
+                        }),
+                        negative: Some(TonicBuckets {
+                            offset: dp.negative_bucket.offset,
+                            bucket_counts: dp.negative_bucket.counts.clone(),
+                        }),
+                        flags: TonicDataPointFlags::default() as u32,
+                        exemplars: dp.exemplars.iter().map(Into::into).collect(),
+                        min: dp.min.map(Numeric::into_f64),
+                        max: dp.max.map(Numeric::into_f64),
+                        zero_threshold: dp.zero_threshold,
                     })
                     .collect(),
                 aggregation_temporality: TonicTemporality::from(hist.temporality).into(),
@@ -302,8 +350,9 @@ pub mod grpcio {
 
     use opentelemetry::{global, metrics::MetricsError, Key, Value};
     use opentelemetry_sdk::metrics::data::{
-        self, Exemplar as SdkExemplar, Gauge as SdkGauge, Histogram as SdkHistogram,
-        Metric as SdkMetric, ScopeMetrics as SdkScopeMetrics, Sum as SdkSum, Temporality,
+        self, Exemplar as SdkExemplar, ExponentialHistogram as SdkExponentialHistogram,
+        Gauge as SdkGauge, Histogram as SdkHistogram, Metric as SdkMetric,
+        ScopeMetrics as SdkScopeMetrics, Sum as SdkSum, Temporality,
     };
     use opentelemetry_sdk::Resource as SdkResource;
 
@@ -311,10 +360,14 @@ pub mod grpcio {
         collector::metrics::v1::ExportMetricsServiceRequest,
         common::v1::KeyValue,
         metrics::v1::{
-            exemplar, exemplar::Value as GrpcioExemplarValue, metric::Data as GrpcioMetricData,
-            number_data_point, number_data_point::Value as GrpcioDataPointValue,
+            exemplar, exemplar::Value as GrpcioExemplarValue,
+            exponential_histogram_data_point::Buckets as GrpcioBuckets,
+            metric::Data as GrpcioMetricData, number_data_point,
+            number_data_point::Value as GrpcioDataPointValue,
             AggregationTemporality as GrpcioTemporality, AggregationTemporality,
             DataPointFlags as GrpcioDataPointFlags, Exemplar as GrpcioExemplar,
+            ExponentialHistogram as GrpcioExponentialHistogram,
+            ExponentialHistogramDataPoint as GrpcioExponentialHistogramDataPoint,
             Gauge as GrpcioGauge, Histogram as GrpcioHistogram,
             HistogramDataPoint as GrpcioHistogramDataPoint, Metric as GrpcioMetric,
             NumberDataPoint as GrpcioNumberDataPoint, ResourceMetrics as GrpcioResourceMetrics,
@@ -451,6 +504,12 @@ pub mod grpcio {
                 Ok(GrpcioMetricData::Histogram(hist.into()))
             } else if let Some(hist) = data.downcast_ref::<SdkHistogram<f64>>() {
                 Ok(GrpcioMetricData::Histogram(hist.into()))
+            } else if let Some(hist) = data.downcast_ref::<SdkExponentialHistogram<i64>>() {
+                Ok(GrpcioMetricData::ExponentialHistogram(hist.into()))
+            } else if let Some(hist) = data.downcast_ref::<SdkExponentialHistogram<u64>>() {
+                Ok(GrpcioMetricData::ExponentialHistogram(hist.into()))
+            } else if let Some(hist) = data.downcast_ref::<SdkExponentialHistogram<f64>>() {
+                Ok(GrpcioMetricData::ExponentialHistogram(hist.into()))
             } else if let Some(sum) = data.downcast_ref::<SdkSum<u64>>() {
                 Ok(GrpcioMetricData::Sum(sum.into()))
             } else if let Some(sum) = data.downcast_ref::<SdkSum<i64>>() {
@@ -514,6 +573,43 @@ pub mod grpcio {
                         flags: GrpcioDataPointFlags::default() as u32,
                         min: dp.min.map(Numeric::into_f64),
                         max: dp.max.map(Numeric::into_f64),
+                    })
+                    .collect(),
+                aggregation_temporality: GrpcioTemporality::from(hist.temporality).into(),
+            }
+        }
+    }
+
+    impl<T> From<&SdkExponentialHistogram<T>> for GrpcioExponentialHistogram
+    where
+        T: Numeric,
+    {
+        fn from(hist: &SdkExponentialHistogram<T>) -> Self {
+            GrpcioExponentialHistogram {
+                data_points: hist
+                    .data_points
+                    .iter()
+                    .map(|dp| GrpcioExponentialHistogramDataPoint {
+                        attributes: dp.attributes.iter().map(Into::into).collect(),
+                        start_time_unix_nano: to_nanos(dp.start_time),
+                        time_unix_nano: to_nanos(dp.time),
+                        count: dp.count as u64,
+                        sum: Some(dp.sum.into_f64()),
+                        scale: dp.scale.into(),
+                        zero_count: dp.zero_count,
+                        positive: Some(GrpcioBuckets {
+                            offset: dp.positive_bucket.offset,
+                            bucket_counts: dp.positive_bucket.counts.clone(),
+                        }),
+                        negative: Some(GrpcioBuckets {
+                            offset: dp.negative_bucket.offset,
+                            bucket_counts: dp.negative_bucket.counts.clone(),
+                        }),
+                        flags: GrpcioDataPointFlags::default() as u32,
+                        exemplars: dp.exemplars.iter().map(Into::into).collect(),
+                        min: dp.min.map(Numeric::into_f64),
+                        max: dp.max.map(Numeric::into_f64),
+                        zero_threshold: dp.zero_threshold,
                     })
                     .collect(),
                 aggregation_temporality: GrpcioTemporality::from(hist.temporality).into(),
