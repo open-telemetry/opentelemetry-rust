@@ -3,10 +3,13 @@ use futures_util::future::BoxFuture;
 use opentelemetry::{
     global::BoxedTracer,
     trace::{
-        noop::NoopTracer, SpanContext, SpanId, TraceContextExt, TraceFlags, TraceId, TraceState,
-        TracerProvider as _,
+        mark_span_as_active, noop::NoopTracer, SpanBuilder, SpanContext, SpanId,
+        TraceContextExt as _, TraceFlags, TraceId, TraceState, Tracer as _, TracerProvider as _,
     },
     Context, ContextGuard,
+};
+use opentelemetry_contrib::trace::{
+    new_span_if_parent_sampled, new_span_if_recording, TracerSource,
 };
 use opentelemetry_sdk::{
     export::trace::{ExportResult, SpanData, SpanExporter},
@@ -17,37 +20,60 @@ use pprof::criterion::{Output, PProfProfiler};
 use std::fmt::Display;
 
 fn criterion_benchmark(c: &mut Criterion) {
-    let mut group = c.benchmark_group("context");
+    let mut group = c.benchmark_group("new_span");
     group.throughput(Throughput::Elements(1));
     for env in [
         Environment::InContext,
         Environment::NoContext,
         Environment::NoSdk,
     ] {
-        let (_provider, _tracer, _guard) = env.setup();
+        let (_provider, tracer, _guard) = env.setup();
 
         for api in [Api::Alt, Api::Spec] {
             let param = format!("{env}/{api}");
             group.bench_function(
-                BenchmarkId::new("has_active_span", param.clone()),
+                BenchmarkId::new("if_parent_sampled", param.clone()),
+                // m2max, in-cx/alt: 530ns
+                // m2max, no-cx/alt: 5.9ns
+                // m2max, no-sdk/alt: 5.9ns
+                // m2max, in-cx/spec: 505ns
+                // m2max, no-cx/spec: 255ns
+                // m2max, no-sdk/spec: 170ns
                 |b| match api {
-                    Api::Alt => b.iter(|| Context::map_current(TraceContextExt::has_active_span)),
-                    Api::Spec => b.iter(|| Context::current().has_active_span()),
+                    Api::Alt => b.iter(|| {
+                        new_span_if_parent_sampled(
+                            || SpanBuilder::from_name("new_span"),
+                            TracerSource::borrowed(&tracer),
+                        )
+                        .map(|cx| cx.attach())
+                    }),
+                    Api::Spec => b.iter(|| mark_span_as_active(tracer.start("new_span"))),
                 },
             );
             group.bench_function(
-                BenchmarkId::new("is_sampled", param.clone()),
+                BenchmarkId::new("if_recording", param.clone()),
+                // m2max, in-cx/alt: 8ns
+                // m2max, no-cx/alt: 5.9ns
+                // m2max, no-sdk/alt: 5.9ns
+                // m2max, in-cx/spec: 31ns
+                // m2max, no-cx/spec: 5.8ns
+                // m2max, no-sdk/spec: 5.7ns
                 |b| match api {
-                    Api::Alt => {
-                        b.iter(|| Context::map_current(|cx| cx.span().span_context().is_sampled()))
-                    }
-                    Api::Spec => b.iter(|| Context::current().span().span_context().is_sampled()),
+                    Api::Alt => b.iter(|| {
+                        new_span_if_recording(
+                            || SpanBuilder::from_name("new_span"),
+                            TracerSource::borrowed(&tracer),
+                        )
+                        .map(|cx| cx.attach())
+                    }),
+                    Api::Spec => b.iter(|| {
+                        Context::current()
+                            .span()
+                            .is_recording()
+                            .then(|| mark_span_as_active(tracer.start("new_span")))
+                    }),
                 },
             );
-            group.bench_function(BenchmarkId::new("is_recording", param), |b| match api {
-                Api::Alt => b.iter(|| Context::map_current(|cx| cx.span().is_recording())),
-                Api::Spec => b.iter(|| Context::current().span().is_recording()),
-            });
         }
     }
 }

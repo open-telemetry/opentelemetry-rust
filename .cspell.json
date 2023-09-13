@@ -25,6 +25,7 @@
     // these are words that are always correct and can be thought of as our
     // workspace dictionary.
     "words": [
+        "hasher",
         "opentelemetry",
         "OTLP",
         "quantile",

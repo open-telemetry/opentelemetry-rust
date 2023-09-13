@@ -19,6 +19,7 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
+api = []
 default = []
 base64_format = ["base64", "binary_propagator"]
 binary_propagator = []
@@ -31,17 +32,24 @@ rt-async-std = ["async-std", "opentelemetry_sdk/rt-async-std"]
 async-std = { version = "1.10", optional = true }
 async-trait = { version = "0.1", optional = true }
 base64 = { version = "0.13", optional = true }
+futures-core = { version = "0.3", optional = true }
+futures-util = { version = "0.3", optional = true, default-features = false }
 once_cell = "1.17.1"
 opentelemetry = { version = "0.21", path = "../opentelemetry" }
-opentelemetry_sdk = { version = "0.20", path = "../opentelemetry-sdk" }
-opentelemetry-semantic-conventions = { version = "0.12", path = "../opentelemetry-semantic-conventions", optional = true }
+opentelemetry_sdk = { version = "0.20", optional = true, path = "../opentelemetry-sdk" }
+opentelemetry-semantic-conventions = { version = "0.12", optional = true, path = "../opentelemetry-semantic-conventions" }
 serde_json = { version = "1", optional = true }
 tokio = { version = "1.0", features = ["fs", "io-util"], optional = true }
 
-# futures
-futures-core = { version = "0.3", optional = true }
-futures-util = { version = "0.3", optional = true, default-features = false }
-
 [dev-dependencies]
 base64 = "0.13"
+criterion = { version = "0.5", features = ["html_reports"] }
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
 opentelemetry_sdk = { path = "../opentelemetry-sdk", features = ["trace", "testing"] }
+[target.'cfg(not(target_os = "windows"))'.dev-dependencies]
+pprof = { version = "0.12", features = ["flamegraph", "criterion"] }
+
+[[bench]]
+name = "new_span"
+harness = false
+required-features = ["api"]
