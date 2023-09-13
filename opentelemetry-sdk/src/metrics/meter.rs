@@ -46,7 +46,7 @@ pub struct Meter {
     u64_resolver: Resolver<u64>,
     i64_resolver: Resolver<i64>,
     f64_resolver: Resolver<f64>,
-    validation_policy: InstValidationPolicy,
+    validation_policy: InstrumentValidationPolicy,
 }
 
 impl Meter {
@@ -59,12 +59,12 @@ impl Meter {
             u64_resolver: Resolver::new(Arc::clone(&pipes), Arc::clone(&view_cache)),
             i64_resolver: Resolver::new(Arc::clone(&pipes), Arc::clone(&view_cache)),
             f64_resolver: Resolver::new(pipes, view_cache),
-            validation_policy: InstValidationPolicy::HandleGlobalAndIgnore,
+            validation_policy: InstrumentValidationPolicy::HandleGlobalAndIgnore,
         }
     }
 
     #[cfg(test)]
-    fn with_validation_policy(self, validation_policy: InstValidationPolicy) -> Self {
+    fn with_validation_policy(self, validation_policy: InstrumentValidationPolicy) -> Self {
         Self {
             validation_policy,
             ..self
@@ -515,7 +515,7 @@ impl InstrumentProvider for Meter {
 
 /// Validation policy for instrument
 #[derive(Clone, Copy)]
-enum InstValidationPolicy {
+enum InstrumentValidationPolicy {
     HandleGlobalAndIgnore,
     /// Currently only for test
     #[cfg(test)]
@@ -525,17 +525,17 @@ enum InstValidationPolicy {
 fn validate_instrument_config(
     name: &str,
     unit: Option<&Unit>,
-    policy: InstValidationPolicy,
+    policy: InstrumentValidationPolicy,
 ) -> Result<()> {
     match validate_instrument_name(name).and_then(|_| validate_instrument_unit(unit)) {
         Ok(_) => Ok(()),
         Err(err) => match policy {
-            InstValidationPolicy::HandleGlobalAndIgnore => {
+            InstrumentValidationPolicy::HandleGlobalAndIgnore => {
                 global::handle_error(err);
                 Ok(())
             }
             #[cfg(test)]
-            InstValidationPolicy::Strict => Err(err),
+            InstrumentValidationPolicy::Strict => Err(err),
         },
     }
 }
@@ -726,7 +726,7 @@ mod tests {
     use opentelemetry::metrics::{InstrumentProvider, MetricsError, Unit};
 
     use super::{
-        InstValidationPolicy, Meter, INSTRUMENT_NAME_FIRST_ALPHABETIC,
+        InstrumentValidationPolicy, Meter, INSTRUMENT_NAME_FIRST_ALPHABETIC,
         INSTRUMENT_NAME_INVALID_CHAR, INSTRUMENT_NAME_LENGTH, INSTRUMENT_UNIT_INVALID_CHAR,
         INSTRUMENT_UNIT_LENGTH,
     };
@@ -739,7 +739,7 @@ mod tests {
             Scope::default(),
             Arc::new(Pipelines::new(Resource::default(), Vec::new(), Vec::new())),
         )
-        .with_validation_policy(InstValidationPolicy::Strict);
+        .with_validation_policy(InstrumentValidationPolicy::Strict);
         // (name, expected error)
         let instrument_name_test_cases = vec![
             ("validateName", ""),
