@@ -58,6 +58,7 @@ pub struct PeriodicReaderBuilder<E, RT> {
     interval: Duration,
     timeout: Duration,
     exporter: E,
+    producers: Vec<Box<dyn MetricProducer>>,
     runtime: RT,
 }
 
@@ -79,6 +80,7 @@ where
         PeriodicReaderBuilder {
             interval,
             timeout,
+            producers: vec![],
             exporter,
             runtime,
         }
@@ -113,6 +115,15 @@ where
         self
     }
 
+    /// Registers a an external [MetricProducer] with this reader.
+    ///
+    /// The producer is used as a source of aggregated metric data which is
+    /// incorporated into metrics collected from the SDK.
+    pub fn with_producer(mut self, producer: impl MetricProducer + 'static) -> Self {
+        self.producers.push(Box::new(producer));
+        self
+    }
+
     /// Create a [PeriodicReader] with the given config.
     pub fn build(self) -> PeriodicReader {
         let (message_sender, message_receiver) = mpsc::channel(256);
@@ -128,7 +139,7 @@ where
                 message_sender,
                 sdk_producer: None,
                 is_shutdown: false,
-                external_producers: vec![],
+                external_producers: self.producers,
             })),
         };
 
@@ -310,16 +321,12 @@ impl MetricReader for PeriodicReader {
         }
     }
 
-    fn register_producer(&self, producer: Box<dyn MetricProducer>) {
-        let _ = self.inner.lock().map(|mut inner| {
-            if !inner.is_shutdown {
-                inner.external_producers.push(producer);
-            }
-        });
-    }
-
     fn collect(&self, rm: &mut ResourceMetrics) -> Result<()> {
         let inner = self.inner.lock()?;
+        if inner.is_shutdown {
+            return Err(MetricsError::Other("reader is shut down".into()));
+        }
+
         match &inner.sdk_producer.as_ref().and_then(|w| w.upgrade()) {
             Some(producer) => producer.produce(rm)?,
             None => {
@@ -346,6 +353,9 @@ impl MetricReader for PeriodicReader {
 
     fn force_flush(&self) -> Result<()> {
         let mut inner = self.inner.lock()?;
+        if inner.is_shutdown {
+            return Err(MetricsError::Other("reader is shut down".into()));
+        }
         let (sender, receiver) = oneshot::channel();
         inner
             .message_sender
@@ -361,6 +371,11 @@ impl MetricReader for PeriodicReader {
 
     fn shutdown(&self) -> Result<()> {
         let mut inner = self.inner.lock()?;
+        if inner.is_shutdown {
+            return Err(MetricsError::Other("reader is already shut down".into()));
+        }
+        inner.is_shutdown = true;
+
         let (sender, receiver) = oneshot::channel();
         inner
             .message_sender

@@ -103,6 +103,9 @@ impl View for Box<dyn View> {
 /// ```
 pub fn new_view(criteria: Instrument, mask: Stream) -> Result<Box<dyn View>> {
     if criteria.is_empty() {
+        global::handle_error(MetricsError::Config(format!(
+            "no criteria provided, dropping view. mask: {mask:?}"
+        )));
         return Ok(Box::new(empty_view));
     }
     let contains_wildcard = criteria.name.contains(|c| c == '*' || c == '?');

@@ -29,7 +29,7 @@ pub enum Aggregation {
     /// An aggregation that summarizes a set of measurements as the last one made.
     LastValue,
 
-    /// An aggregation that summarizes a set of measurements as an histogram with
+    /// An aggregation that summarizes a set of measurements as a histogram with
     /// explicitly defined buckets.
     ExplicitBucketHistogram {
         /// The increasing bucket boundary values.

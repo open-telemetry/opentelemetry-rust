@@ -1,5 +1,4 @@
-mod aggregator;
-mod filter;
+mod aggregate;
 mod histogram;
 mod last_value;
 mod sum;
@@ -7,13 +6,7 @@ mod sum;
 use core::fmt;
 use std::ops::{Add, AddAssign, Sub};
 
-pub(crate) use aggregator::Aggregator;
-pub(crate) use filter::new_filter;
-pub(crate) use histogram::{new_cumulative_histogram, new_delta_histogram};
-pub(crate) use last_value::new_last_value;
-pub(crate) use sum::{
-    new_cumulative_sum, new_delta_sum, new_precomputed_cumulative_sum, new_precomputed_delta_sum,
-};
+pub(crate) use aggregate::{AggregateBuilder, ComputeAggregation, Measure};
 
 pub(crate) trait Number<T>:
     Add<Output = T>

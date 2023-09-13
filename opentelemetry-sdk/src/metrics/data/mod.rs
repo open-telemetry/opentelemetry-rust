@@ -51,6 +51,8 @@ pub struct Metric {
 pub trait Aggregation: fmt::Debug + any::Any + Send + Sync {
     /// Support downcasting
     fn as_any(&self) -> &dyn any::Any;
+    /// Support downcasting during aggregation
+    fn as_mut(&mut self) -> &mut dyn any::Any;
 }
 
 /// A measurement of the current value of an instrument.
@@ -62,6 +64,9 @@ pub struct Gauge<T> {
 
 impl<T: fmt::Debug + Send + Sync + 'static> Aggregation for Gauge<T> {
     fn as_any(&self) -> &dyn any::Any {
+        self
+    }
+    fn as_mut(&mut self) -> &mut dyn any::Any {
         self
     }
 }
@@ -80,6 +85,9 @@ pub struct Sum<T> {
 
 impl<T: fmt::Debug + Send + Sync + 'static> Aggregation for Sum<T> {
     fn as_any(&self) -> &dyn any::Any {
+        self
+    }
+    fn as_mut(&mut self) -> &mut dyn any::Any {
         self
     }
 }
@@ -124,6 +132,9 @@ pub struct Histogram<T> {
 
 impl<T: fmt::Debug + Send + Sync + 'static> Aggregation for Histogram<T> {
     fn as_any(&self) -> &dyn any::Any {
+        self
+    }
+    fn as_mut(&mut self) -> &mut dyn any::Any {
         self
     }
 }

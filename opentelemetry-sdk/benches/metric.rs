@@ -10,7 +10,7 @@ use opentelemetry_sdk::{
     metrics::{
         data::{ResourceMetrics, Temporality},
         new_view,
-        reader::{AggregationSelector, MetricProducer, MetricReader, TemporalitySelector},
+        reader::{AggregationSelector, MetricReader, TemporalitySelector},
         Aggregation, Instrument, InstrumentKind, ManualReader, MeterProvider, Pipeline, Stream,
         View,
     },
@@ -35,10 +35,6 @@ impl AggregationSelector for SharedReader {
 impl MetricReader for SharedReader {
     fn register_pipeline(&self, pipeline: Weak<Pipeline>) {
         self.0.register_pipeline(pipeline)
-    }
-
-    fn register_producer(&self, producer: Box<dyn MetricProducer>) {
-        self.0.register_producer(producer)
     }
 
     fn collect(&self, rm: &mut ResourceMetrics) -> Result<()> {

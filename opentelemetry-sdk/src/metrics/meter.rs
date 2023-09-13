@@ -1,10 +1,5 @@
 use core::fmt;
-use std::{
-    any::Any,
-    borrow::Cow,
-    collections::{HashMap, HashSet},
-    sync::{Arc, Mutex},
-};
+use std::{any::Any, borrow::Cow, collections::HashSet, sync::Arc};
 
 use opentelemetry::{
     global,
@@ -20,8 +15,7 @@ use opentelemetry::{
 use crate::instrumentation::Scope;
 use crate::metrics::{
     instrument::{
-        Instrument, InstrumentImpl, InstrumentKind, Observable, ObservableId, StreamId,
-        EMPTY_AGG_MSG,
+        Instrument, InstrumentImpl, InstrumentKind, Observable, ObservableId, EMPTY_MEASURE_MSG,
     },
     internal::{self, Number},
     pipeline::{Pipelines, Resolver},
@@ -39,9 +33,9 @@ use crate::metrics::{
 pub struct Meter {
     scope: Scope,
     pipes: Arc<Pipelines>,
-    u64_inst_provider: InstProvider<u64>,
-    i64_inst_provider: InstProvider<i64>,
-    f64_inst_provider: InstProvider<f64>,
+    u64_resolver: Resolver<u64>,
+    i64_resolver: Resolver<i64>,
+    f64_resolver: Resolver<f64>,
 }
 
 impl Meter {
@@ -51,17 +45,9 @@ impl Meter {
         Meter {
             scope: scope.clone(),
             pipes: Arc::clone(&pipes),
-            u64_inst_provider: InstProvider::new(
-                scope.clone(),
-                Arc::clone(&pipes),
-                Arc::clone(&view_cache),
-            ),
-            i64_inst_provider: InstProvider::new(
-                scope.clone(),
-                Arc::clone(&pipes),
-                Arc::clone(&view_cache),
-            ),
-            f64_inst_provider: InstProvider::new(scope, pipes, view_cache),
+            u64_resolver: Resolver::new(Arc::clone(&pipes), Arc::clone(&view_cache)),
+            i64_resolver: Resolver::new(Arc::clone(&pipes), Arc::clone(&view_cache)),
+            f64_resolver: Resolver::new(pipes, view_cache),
         }
     }
 }
@@ -74,14 +60,14 @@ impl InstrumentProvider for Meter {
         description: Option<Cow<'static, str>>,
         unit: Option<Unit>,
     ) -> Result<Counter<u64>> {
-        self.u64_inst_provider
-            .lookup(
-                InstrumentKind::Counter,
-                name,
-                description,
-                unit.unwrap_or_default(),
-            )
-            .map(|i| Counter::new(Arc::new(i)))
+        let p = InstProvider::new(self, &self.u64_resolver);
+        p.lookup(
+            InstrumentKind::Counter,
+            name,
+            description,
+            unit.unwrap_or_default(),
+        )
+        .map(|i| Counter::new(Arc::new(i)))
     }
 
     fn f64_counter(
@@ -90,14 +76,14 @@ impl InstrumentProvider for Meter {
         description: Option<Cow<'static, str>>,
         unit: Option<Unit>,
     ) -> Result<Counter<f64>> {
-        self.f64_inst_provider
-            .lookup(
-                InstrumentKind::Counter,
-                name,
-                description,
-                unit.unwrap_or_default(),
-            )
-            .map(|i| Counter::new(Arc::new(i)))
+        let p = InstProvider::new(self, &self.f64_resolver);
+        p.lookup(
+            InstrumentKind::Counter,
+            name,
+            description,
+            unit.unwrap_or_default(),
+        )
+        .map(|i| Counter::new(Arc::new(i)))
     }
 
     fn u64_observable_counter(
@@ -107,13 +93,14 @@ impl InstrumentProvider for Meter {
         unit: Option<Unit>,
         callbacks: Vec<Callback<u64>>,
     ) -> Result<ObservableCounter<u64>> {
-        let aggs = self.u64_inst_provider.aggregators(
+        let p = InstProvider::new(self, &self.u64_resolver);
+        let ms = p.measures(
             InstrumentKind::ObservableCounter,
             name.clone(),
             description.clone(),
             unit.clone().unwrap_or_default(),
         )?;
-        if aggs.is_empty() {
+        if ms.is_empty() {
             return Ok(ObservableCounter::new(Arc::new(NoopAsyncInstrument::new())));
         }
 
@@ -123,7 +110,7 @@ impl InstrumentProvider for Meter {
             name,
             description.unwrap_or_default(),
             unit.unwrap_or_default(),
-            aggs,
+            ms,
         ));
 
         for callback in callbacks {
@@ -142,13 +129,14 @@ impl InstrumentProvider for Meter {
         unit: Option<Unit>,
         callbacks: Vec<Callback<f64>>,
     ) -> Result<ObservableCounter<f64>> {
-        let aggs = self.f64_inst_provider.aggregators(
+        let p = InstProvider::new(self, &self.f64_resolver);
+        let ms = p.measures(
             InstrumentKind::ObservableCounter,
             name.clone(),
             description.clone(),
             unit.clone().unwrap_or_default(),
         )?;
-        if aggs.is_empty() {
+        if ms.is_empty() {
             return Ok(ObservableCounter::new(Arc::new(NoopAsyncInstrument::new())));
         }
         let observable = Arc::new(Observable::new(
@@ -157,7 +145,7 @@ impl InstrumentProvider for Meter {
             name,
             description.unwrap_or_default(),
             unit.unwrap_or_default(),
-            aggs,
+            ms,
         ));
 
         for callback in callbacks {
@@ -175,14 +163,14 @@ impl InstrumentProvider for Meter {
         description: Option<Cow<'static, str>>,
         unit: Option<Unit>,
     ) -> Result<UpDownCounter<i64>> {
-        self.i64_inst_provider
-            .lookup(
-                InstrumentKind::UpDownCounter,
-                name,
-                description,
-                unit.unwrap_or_default(),
-            )
-            .map(|i| UpDownCounter::new(Arc::new(i)))
+        let p = InstProvider::new(self, &self.i64_resolver);
+        p.lookup(
+            InstrumentKind::UpDownCounter,
+            name,
+            description,
+            unit.unwrap_or_default(),
+        )
+        .map(|i| UpDownCounter::new(Arc::new(i)))
     }
 
     fn f64_up_down_counter(
@@ -191,14 +179,14 @@ impl InstrumentProvider for Meter {
         description: Option<Cow<'static, str>>,
         unit: Option<Unit>,
     ) -> Result<UpDownCounter<f64>> {
-        self.f64_inst_provider
-            .lookup(
-                InstrumentKind::UpDownCounter,
-                name,
-                description,
-                unit.unwrap_or_default(),
-            )
-            .map(|i| UpDownCounter::new(Arc::new(i)))
+        let p = InstProvider::new(self, &self.f64_resolver);
+        p.lookup(
+            InstrumentKind::UpDownCounter,
+            name,
+            description,
+            unit.unwrap_or_default(),
+        )
+        .map(|i| UpDownCounter::new(Arc::new(i)))
     }
 
     fn i64_observable_up_down_counter(
@@ -208,13 +196,14 @@ impl InstrumentProvider for Meter {
         unit: Option<Unit>,
         callbacks: Vec<Callback<i64>>,
     ) -> Result<ObservableUpDownCounter<i64>> {
-        let aggs = self.i64_inst_provider.aggregators(
+        let p = InstProvider::new(self, &self.i64_resolver);
+        let ms = p.measures(
             InstrumentKind::ObservableUpDownCounter,
             name.clone(),
             description.clone(),
             unit.clone().unwrap_or_default(),
         )?;
-        if aggs.is_empty() {
+        if ms.is_empty() {
             return Ok(ObservableUpDownCounter::new(Arc::new(
                 NoopAsyncInstrument::new(),
             )));
@@ -226,7 +215,7 @@ impl InstrumentProvider for Meter {
             name,
             description.unwrap_or_default(),
             unit.unwrap_or_default(),
-            aggs,
+            ms,
         ));
 
         for callback in callbacks {
@@ -245,13 +234,14 @@ impl InstrumentProvider for Meter {
         unit: Option<Unit>,
         callbacks: Vec<Callback<f64>>,
     ) -> Result<ObservableUpDownCounter<f64>> {
-        let aggs = self.f64_inst_provider.aggregators(
+        let p = InstProvider::new(self, &self.f64_resolver);
+        let ms = p.measures(
             InstrumentKind::ObservableUpDownCounter,
             name.clone(),
             description.clone(),
             unit.clone().unwrap_or_default(),
         )?;
-        if aggs.is_empty() {
+        if ms.is_empty() {
             return Ok(ObservableUpDownCounter::new(Arc::new(
                 NoopAsyncInstrument::new(),
             )));
@@ -263,7 +253,7 @@ impl InstrumentProvider for Meter {
             name,
             description.unwrap_or_default(),
             unit.unwrap_or_default(),
-            aggs,
+            ms,
         ));
 
         for callback in callbacks {
@@ -282,13 +272,14 @@ impl InstrumentProvider for Meter {
         unit: Option<Unit>,
         callbacks: Vec<Callback<u64>>,
     ) -> Result<ObservableGauge<u64>> {
-        let aggs = self.u64_inst_provider.aggregators(
+        let p = InstProvider::new(self, &self.u64_resolver);
+        let ms = p.measures(
             InstrumentKind::ObservableGauge,
             name.clone(),
             description.clone(),
             unit.clone().unwrap_or_default(),
         )?;
-        if aggs.is_empty() {
+        if ms.is_empty() {
             return Ok(ObservableGauge::new(Arc::new(NoopAsyncInstrument::new())));
         }
 
@@ -298,7 +289,7 @@ impl InstrumentProvider for Meter {
             name,
             description.unwrap_or_default(),
             unit.unwrap_or_default(),
-            aggs,
+            ms,
         ));
 
         for callback in callbacks {
@@ -317,13 +308,14 @@ impl InstrumentProvider for Meter {
         unit: Option<Unit>,
         callbacks: Vec<Callback<i64>>,
     ) -> Result<ObservableGauge<i64>> {
-        let aggs = self.i64_inst_provider.aggregators(
+        let p = InstProvider::new(self, &self.i64_resolver);
+        let ms = p.measures(
             InstrumentKind::ObservableGauge,
             name.clone(),
             description.clone(),
             unit.clone().unwrap_or_default(),
         )?;
-        if aggs.is_empty() {
+        if ms.is_empty() {
             return Ok(ObservableGauge::new(Arc::new(NoopAsyncInstrument::new())));
         }
 
@@ -333,7 +325,7 @@ impl InstrumentProvider for Meter {
             name,
             description.unwrap_or_default(),
             unit.unwrap_or_default(),
-            aggs,
+            ms,
         ));
 
         for callback in callbacks {
@@ -352,13 +344,14 @@ impl InstrumentProvider for Meter {
         unit: Option<Unit>,
         callbacks: Vec<Callback<f64>>,
     ) -> Result<ObservableGauge<f64>> {
-        let aggs = self.f64_inst_provider.aggregators(
+        let p = InstProvider::new(self, &self.f64_resolver);
+        let ms = p.measures(
             InstrumentKind::ObservableGauge,
             name.clone(),
             description.clone(),
             unit.clone().unwrap_or_default(),
         )?;
-        if aggs.is_empty() {
+        if ms.is_empty() {
             return Ok(ObservableGauge::new(Arc::new(NoopAsyncInstrument::new())));
         }
 
@@ -368,7 +361,7 @@ impl InstrumentProvider for Meter {
             name,
             description.unwrap_or_default(),
             unit.unwrap_or_default(),
-            aggs,
+            ms,
         ));
 
         for callback in callbacks {
@@ -386,14 +379,14 @@ impl InstrumentProvider for Meter {
         description: Option<Cow<'static, str>>,
         unit: Option<Unit>,
     ) -> Result<Histogram<f64>> {
-        self.f64_inst_provider
-            .lookup(
-                InstrumentKind::Histogram,
-                name,
-                description,
-                unit.unwrap_or_default(),
-            )
-            .map(|i| Histogram::new(Arc::new(i)))
+        let p = InstProvider::new(self, &self.f64_resolver);
+        p.lookup(
+            InstrumentKind::Histogram,
+            name,
+            description,
+            unit.unwrap_or_default(),
+        )
+        .map(|i| Histogram::new(Arc::new(i)))
     }
 
     fn u64_histogram(
@@ -402,14 +395,14 @@ impl InstrumentProvider for Meter {
         description: Option<Cow<'static, str>>,
         unit: Option<Unit>,
     ) -> Result<Histogram<u64>> {
-        self.u64_inst_provider
-            .lookup(
-                InstrumentKind::Histogram,
-                name,
-                description,
-                unit.unwrap_or_default(),
-            )
-            .map(|i| Histogram::new(Arc::new(i)))
+        let p = InstProvider::new(self, &self.u64_resolver);
+        p.lookup(
+            InstrumentKind::Histogram,
+            name,
+            description,
+            unit.unwrap_or_default(),
+        )
+        .map(|i| Histogram::new(Arc::new(i)))
     }
 
     fn i64_histogram(
@@ -418,14 +411,15 @@ impl InstrumentProvider for Meter {
         description: Option<Cow<'static, str>>,
         unit: Option<Unit>,
     ) -> Result<Histogram<i64>> {
-        self.i64_inst_provider
-            .lookup(
-                InstrumentKind::Histogram,
-                name,
-                description,
-                unit.unwrap_or_default(),
-            )
-            .map(|i| Histogram::new(Arc::new(i)))
+        let p = InstProvider::new(self, &self.i64_resolver);
+
+        p.lookup(
+            InstrumentKind::Histogram,
+            name,
+            description,
+            unit.unwrap_or_default(),
+        )
+        .map(|i| Histogram::new(Arc::new(i)))
     }
 
     fn register_callback(
@@ -442,7 +436,7 @@ impl InstrumentProvider for Meter {
         for inst in insts {
             if let Some(i64_obs) = inst.downcast_ref::<Observable<i64>>() {
                 if let Err(err) = i64_obs.registerable(&self.scope) {
-                    if !err.to_string().contains(EMPTY_AGG_MSG) {
+                    if !err.to_string().contains(EMPTY_MEASURE_MSG) {
                         errs.push(err);
                     }
                     continue;
@@ -450,7 +444,7 @@ impl InstrumentProvider for Meter {
                 reg.register_i64(i64_obs.id.clone());
             } else if let Some(u64_obs) = inst.downcast_ref::<Observable<u64>>() {
                 if let Err(err) = u64_obs.registerable(&self.scope) {
-                    if !err.to_string().contains(EMPTY_AGG_MSG) {
+                    if !err.to_string().contains(EMPTY_MEASURE_MSG) {
                         errs.push(err);
                     }
                     continue;
@@ -458,7 +452,7 @@ impl InstrumentProvider for Meter {
                 reg.register_u64(u64_obs.id.clone());
             } else if let Some(f64_obs) = inst.downcast_ref::<Observable<f64>>() {
                 if let Err(err) = f64_obs.registerable(&self.scope) {
-                    if !err.to_string().contains(EMPTY_AGG_MSG) {
+                    if !err.to_string().contains(EMPTY_MEASURE_MSG) {
                         errs.push(err);
                     }
                     continue;
@@ -477,7 +471,7 @@ impl InstrumentProvider for Meter {
         }
 
         if reg.is_empty() {
-            // All instruments use drop aggregation.
+            // All instruments use drop aggregation or are invalid.
             return Ok(Box::new(NoopRegistration::new()));
         }
 
@@ -576,24 +570,17 @@ impl fmt::Debug for Meter {
 }
 
 /// Provides all OpenTelemetry instruments.
-struct InstProvider<T> {
-    scope: Scope,
-    resolve: Resolver<T>,
+struct InstProvider<'a, T> {
+    meter: &'a Meter,
+    resolve: &'a Resolver<T>,
 }
 
-impl<T> InstProvider<T>
+impl<'a, T> InstProvider<'a, T>
 where
     T: Number<T>,
 {
-    fn new(
-        scope: Scope,
-        pipes: Arc<Pipelines>,
-        cache: Arc<Mutex<HashMap<Cow<'static, str>, StreamId>>>,
-    ) -> Self {
-        InstProvider {
-            scope,
-            resolve: Resolver::new(pipes, cache),
-        }
+    fn new(meter: &'a Meter, resolve: &'a Resolver<T>) -> Self {
+        InstProvider { meter, resolve }
     }
 
     /// lookup returns the resolved InstrumentImpl.
@@ -604,25 +591,27 @@ where
         description: Option<Cow<'static, str>>,
         unit: Unit,
     ) -> Result<InstrumentImpl<T>> {
-        let aggregators = self.aggregators(kind, name, description, unit)?;
-        Ok(InstrumentImpl { aggregators })
+        let aggregators = self.measures(kind, name, description, unit)?;
+        Ok(InstrumentImpl {
+            measures: aggregators,
+        })
     }
 
-    fn aggregators(
+    fn measures(
         &self,
         kind: InstrumentKind,
         name: Cow<'static, str>,
         description: Option<Cow<'static, str>>,
         unit: Unit,
-    ) -> Result<Vec<Arc<dyn internal::Aggregator<T>>>> {
+    ) -> Result<Vec<Arc<dyn internal::Measure<T>>>> {
         let inst = Instrument {
             name,
             description: description.unwrap_or_default(),
             unit,
             kind: Some(kind),
-            scope: self.scope.clone(),
+            scope: self.meter.scope.clone(),
         };
 
-        self.resolve.aggregators(inst)
+        self.resolve.measures(inst)
     }
 }
