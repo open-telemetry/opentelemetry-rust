@@ -4,9 +4,9 @@
 
 ### Added
 
-- Log warning if two instruments have the same name with different
+- Log warning if two instruments have the same name with different (#1266)
   casing
-- Log warning if view is created with empty criteria
+- Log warning if view is created with empty criteria (#1266)
 
 ### Changed
 
@@ -20,8 +20,8 @@
 - Add in memory span exporter [#1216](https://github.com/open-telemetry/opentelemetry-rust/pull/1216)
 - Add in memory log exporter [#1231](https://github.com/open-telemetry/opentelemetry-rust/pull/1231)
 - Add `Sync` bound to the `SpanExporter` and `LogExporter` traits [#1240](https://github.com/open-telemetry/opentelemetry-rust/pull/1240)
-- Move `MetricsProducer` config to builders to match other config
-- Return error earlier if readers are shut down
+- Move `MetricsProducer` config to builders to match other config (#1266)
+- Return error earlier if readers are shut down (#1266)
 
 ### Removed
 
