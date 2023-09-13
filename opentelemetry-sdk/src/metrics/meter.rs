@@ -21,6 +21,12 @@ use crate::metrics::{
     pipeline::{Pipelines, Resolver},
 };
 
+// maximum length of instrument name
+const INSTRUMENT_NAME_MAX_LENGTH: usize = 255;
+// maximum length of instrument unit name
+const INSTRUMENT_UNIT_NAME_MAX_LENGTH: usize = 63;
+const INSTRUMENT_NAME_ALLOWED_NON_ALPHANUMERIC_CHARS: [char; 4] = ['-', '.', '-', '/'];
+
 // instrument validation error strings
 const INSTRUMENT_NAME_EMPTY: &str = "instrument name must be non-empty";
 const INSTRUMENT_NAME_LENGTH: &str = "instrument name must be less than 256 characters";
@@ -546,7 +552,7 @@ fn validate_instrument_name(name: &str) -> Result<()> {
             INSTRUMENT_NAME_EMPTY,
         ));
     }
-    if name.len() > 255 {
+    if name.len() > INSTRUMENT_NAME_MAX_LENGTH {
         return Err(MetricsError::InvalidInstrumentConfiguration(
             INSTRUMENT_NAME_LENGTH,
         ));
@@ -557,7 +563,7 @@ fn validate_instrument_name(name: &str) -> Result<()> {
         ));
     }
     if name.contains(|c: char| {
-        !c.is_ascii_alphanumeric() && c != '_' && c != '.' && c != '-' && c != '/'
+        !c.is_ascii_alphanumeric() && !INSTRUMENT_NAME_ALLOWED_NON_ALPHANUMERIC_CHARS.contains(&c)
     }) {
         return Err(MetricsError::InvalidInstrumentConfiguration(
             INSTRUMENT_NAME_INVALID_CHAR,
@@ -568,7 +574,7 @@ fn validate_instrument_name(name: &str) -> Result<()> {
 
 fn validate_instrument_unit(unit: Option<&Unit>) -> Result<()> {
     if let Some(unit) = unit {
-        if unit.as_str().len() > 63 {
+        if unit.as_str().len() > INSTRUMENT_UNIT_NAME_MAX_LENGTH {
             return Err(MetricsError::InvalidInstrumentConfiguration(
                 INSTRUMENT_UNIT_LENGTH,
             ));
