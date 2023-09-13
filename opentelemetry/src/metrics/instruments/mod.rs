@@ -1,5 +1,5 @@
 use crate::metrics::{Meter, MetricsError, Result, Unit};
-use crate::{global, KeyValue};
+use crate::KeyValue;
 use core::fmt;
 use std::any::Any;
 use std::borrow::Cow;
@@ -11,16 +11,6 @@ pub(super) mod counter;
 pub(super) mod gauge;
 pub(super) mod histogram;
 pub(super) mod up_down_counter;
-
-// instrument validation error strings
-const INSTRUMENT_NAME_EMPTY: &str = "instrument name must be non-empty";
-const INSTRUMENT_NAME_LENGTH: &str = "instrument name must be less than 64 characters";
-const INSTRUMENT_NAME_INVALID_CHAR: &str =
-    "characters in instrument name must be ASCII and belong to the alphanumeric characters, '_', '.', and '-'";
-const INSTRUMENT_NAME_FIRST_ALPHABETIC: &str =
-    "instrument name must start with an alphabetic character";
-const INSTRUMENT_UNIT_LENGTH: &str = "instrument unit must be less than 64 characters";
-const INSTRUMENT_UNIT_INVALID_CHAR: &str = "characters in instrument unit must be ASCII";
 
 /// An SDK implemented instrument that records measurements via callback.
 pub trait AsyncInstrument<T>: Send + Sync {
@@ -77,55 +67,19 @@ where
 
     /// Validate the instrument configuration and creates a new instrument.
     pub fn try_init(self) -> Result<T> {
-        self.validate_instrument_config()
-            .map_err(MetricsError::InvalidInstrumentConfiguration)?;
         T::try_from(self)
     }
 
     /// Creates a new instrument.
     ///
-    /// This method reports configuration errors but still returns the instrument.
+    /// Validate the instrument configuration and crates a new instrument.
     ///
     /// # Panics
     ///
     /// Panics if the instrument cannot be created. Use
     /// [`try_init`](InstrumentBuilder::try_init) if you want to handle errors.
     pub fn init(self) -> T {
-        if let Err(err) = self.validate_instrument_config() {
-            global::handle_error(MetricsError::InvalidInstrumentConfiguration(err));
-        }
-
         T::try_from(self).unwrap()
-    }
-
-    fn validate_instrument_config(&self) -> std::result::Result<(), &'static str> {
-        // validate instrument name
-        if self.name.is_empty() {
-            return Err(INSTRUMENT_NAME_EMPTY);
-        }
-        if self.name.len() > 63 {
-            return Err(INSTRUMENT_NAME_LENGTH);
-        }
-        if self.name.starts_with(|c: char| !c.is_ascii_alphabetic()) {
-            return Err(INSTRUMENT_NAME_FIRST_ALPHABETIC);
-        }
-        if self
-            .name
-            .contains(|c: char| !c.is_ascii_alphanumeric() && c != '_' && c != '.' && c != '-')
-        {
-            return Err(INSTRUMENT_NAME_INVALID_CHAR);
-        }
-
-        // validate instrument unit
-        if let Some(unit) = &self.unit {
-            if unit.as_str().len() > 63 {
-                return Err(INSTRUMENT_UNIT_LENGTH);
-            }
-            if unit.as_str().contains(|c: char| !c.is_ascii()) {
-                return Err(INSTRUMENT_UNIT_INVALID_CHAR);
-            }
-        }
-        Ok(())
     }
 }
 
@@ -208,55 +162,19 @@ where
 
     /// Validate the instrument configuration and creates a new instrument.
     pub fn try_init(self) -> Result<I> {
-        self.validate_instrument_config()
-            .map_err(MetricsError::InvalidInstrumentConfiguration)?;
         I::try_from(self)
     }
 
     /// Creates a new instrument.
     ///
-    /// This method reports configuration errors but still returns the instrument.
+    /// Validate the instrument configuration and creates a new instrument.
     ///
     /// # Panics
     ///
     /// Panics if the instrument cannot be created. Use
     /// [`try_init`](InstrumentBuilder::try_init) if you want to handle errors.
     pub fn init(self) -> I {
-        if let Err(err) = self.validate_instrument_config() {
-            global::handle_error(MetricsError::InvalidInstrumentConfiguration(err));
-        }
-
         I::try_from(self).unwrap()
-    }
-
-    fn validate_instrument_config(&self) -> std::result::Result<(), &'static str> {
-        // validate instrument name
-        if self.name.is_empty() {
-            return Err(INSTRUMENT_NAME_EMPTY);
-        }
-        if self.name.len() > 63 {
-            return Err(INSTRUMENT_NAME_LENGTH);
-        }
-        if self.name.starts_with(|c: char| !c.is_ascii_alphabetic()) {
-            return Err(INSTRUMENT_NAME_FIRST_ALPHABETIC);
-        }
-        if self
-            .name
-            .contains(|c: char| !c.is_ascii_alphanumeric() && c != '_' && c != '.' && c != '-')
-        {
-            return Err(INSTRUMENT_NAME_INVALID_CHAR);
-        }
-
-        // validate instrument unit
-        if let Some(unit) = &self.unit {
-            if unit.as_str().len() > 63 {
-                return Err(INSTRUMENT_UNIT_LENGTH);
-            }
-            if unit.as_str().contains(|c: char| !c.is_ascii()) {
-                return Err(INSTRUMENT_UNIT_INVALID_CHAR);
-            }
-        }
-        Ok(())
     }
 }
 
@@ -272,71 +190,5 @@ where
             .field("kind", &std::any::type_name::<I>())
             .field("callbacks_len", &self.callbacks.len())
             .finish()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::metrics::instruments::{
-        INSTRUMENT_NAME_FIRST_ALPHABETIC, INSTRUMENT_NAME_INVALID_CHAR, INSTRUMENT_NAME_LENGTH,
-        INSTRUMENT_UNIT_INVALID_CHAR, INSTRUMENT_UNIT_LENGTH,
-    };
-    use crate::metrics::noop::NoopMeterCore;
-    use crate::metrics::{Counter, InstrumentBuilder, Unit};
-    use std::sync::Arc;
-
-    #[test]
-    fn test_instrument_config_validation() {
-        let meter = crate::metrics::Meter::new(Arc::new(NoopMeterCore::new()));
-        // (name, expected error)
-        let instrument_name_test_cases = vec![
-            ("validateName", ""),
-            ("_startWithNoneAlphabet", INSTRUMENT_NAME_FIRST_ALPHABETIC),
-            ("utf8char锈", INSTRUMENT_NAME_INVALID_CHAR),
-            (
-                "a12345678901234567890123456789012345678901234567890123456789012",
-                "",
-            ),
-            (
-                "a123456789012345678901234567890123456789012345678901234567890123",
-                INSTRUMENT_NAME_LENGTH,
-            ),
-            ("invalid name", INSTRUMENT_NAME_INVALID_CHAR),
-        ];
-        for (name, expected_error) in instrument_name_test_cases {
-            let builder: InstrumentBuilder<'_, Counter<u64>> =
-                InstrumentBuilder::new(&meter, name.into());
-            if expected_error.is_empty() {
-                assert!(builder.validate_instrument_config().is_ok());
-            } else {
-                assert_eq!(
-                    builder.validate_instrument_config().unwrap_err(),
-                    expected_error
-                );
-            }
-        }
-
-        // (unit, expected error)
-        let instrument_unit_test_cases = vec![
-            (
-                "0123456789012345678901234567890123456789012345678901234567890123",
-                INSTRUMENT_UNIT_LENGTH,
-            ),
-            ("utf8char锈", INSTRUMENT_UNIT_INVALID_CHAR),
-            ("kb", ""),
-        ];
-
-        for (unit, expected_error) in instrument_unit_test_cases {
-            let builder: InstrumentBuilder<'_, Counter<u64>> =
-                InstrumentBuilder::new(&meter, "test".into()).with_unit(Unit::new(unit));
-            if expected_error.is_empty() {
-                assert!(builder.validate_instrument_config().is_ok());
-            } else {
-                assert_eq!(
-                    builder.validate_instrument_config().unwrap_err(),
-                    expected_error
-                );
-            }
-        }
     }
 }
