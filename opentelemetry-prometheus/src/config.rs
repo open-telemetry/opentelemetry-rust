@@ -114,7 +114,7 @@ impl ExporterBuilder {
         self
     }
 
-    /// Registers a an external [MetricProducer] with this reader.
+    /// Registers an external [MetricProducer] with this reader.
     ///
     /// The producer is used as a source of aggregated metric data which is
     /// incorporated into metrics collected from the SDK.

@@ -217,10 +217,10 @@ impl Stream {
     }
 }
 
-/// The identifying properties of a instrument.
+/// The identifying properties of an instrument.
 #[derive(Debug, PartialEq, Eq, Hash)]
-pub(crate) struct InstId {
-    /// The human-readable identifier of the stream.
+pub(crate) struct InstrumentId {
+    /// The human-readable identifier of the instrument.
     pub(crate) name: Cow<'static, str>,
     /// Describes the purpose of the data.
     pub(crate) description: Cow<'static, str>,
@@ -228,18 +228,22 @@ pub(crate) struct InstId {
     pub(crate) kind: InstrumentKind,
     /// the unit of measurement recorded.
     pub(crate) unit: Unit,
-    /// Number is the number type of the stream.
+    /// Number is the underlying data type of the instrument.
     pub(crate) number: Cow<'static, str>,
 }
 
-impl InstId {
-    /// Instrument names are considered case-insensitive.
+impl InstrumentId {
+    /// Instrument names are considered case-insensitive ASCII.
     ///
     /// Standardize the instrument name to always be lowercase so it can be compared
     /// via hash.
+    ///
+    /// See [naming syntax] for full requirements.
+    ///
+    /// [naming syntax]: https://github.com/open-telemetry/opentelemetry-specification/blob/v1.21.0/specification/metrics/api.md#instrument-name-syntax
     pub(crate) fn normalize(&mut self) {
         if self.name.chars().any(|c| c.is_ascii_uppercase()) {
-            self.name = self.name.to_lowercase().into();
+            self.name = self.name.to_ascii_lowercase().into();
         }
     }
 }

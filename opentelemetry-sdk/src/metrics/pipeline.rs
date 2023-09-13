@@ -16,7 +16,7 @@ use crate::{
     metrics::{
         aggregation,
         data::{Metric, ResourceMetrics, ScopeMetrics},
-        instrument::{InstId, Instrument, InstrumentKind, Stream},
+        instrument::{Instrument, InstrumentId, InstrumentKind, Stream},
         internal,
         internal::AggregateBuilder,
         internal::Number,
@@ -206,7 +206,7 @@ impl fmt::Debug for InstrumentSync {
     }
 }
 
-type Cache<T> = Mutex<HashMap<InstId, Result<Option<Arc<dyn internal::Measure<T>>>>>>;
+type Cache<T> = Mutex<HashMap<InstrumentId, Result<Option<Arc<dyn internal::Measure<T>>>>>>;
 
 /// Facilitates inserting of new instruments from a single scope into a pipeline.
 struct Inserter<T> {
@@ -225,7 +225,7 @@ struct Inserter<T> {
     /// It is provided from the `Meter` that owns this inserter. This cache ensures
     /// that during the creation of instruments with the same name but different
     /// options (e.g. description, unit) a warning message is logged.
-    views: Arc<Mutex<HashMap<Cow<'static, str>, InstId>>>,
+    views: Arc<Mutex<HashMap<Cow<'static, str>, InstrumentId>>>,
 
     pipeline: Arc<Pipeline>,
 }
@@ -234,7 +234,7 @@ impl<T> Inserter<T>
 where
     T: Number<T>,
 {
-    fn new(p: Arc<Pipeline>, vc: Arc<Mutex<HashMap<Cow<'static, str>, InstId>>>) -> Self {
+    fn new(p: Arc<Pipeline>, vc: Arc<Mutex<HashMap<Cow<'static, str>, InstrumentId>>>) -> Self {
         Inserter {
             aggregators: Default::default(),
             views: vc,
@@ -418,7 +418,7 @@ where
     /// Validates if an instrument with the same name as id has already been created.
     ///
     /// If that instrument conflicts with id, a warning is logged.
-    fn log_conflict(&self, id: &InstId) {
+    fn log_conflict(&self, id: &InstrumentId) {
         if let Ok(views) = self.views.lock() {
             if let Some(existing) = views.get(id.name.to_lowercase().as_str()) {
                 if existing == id {
@@ -437,8 +437,8 @@ where
         }
     }
 
-    fn inst_id(&self, kind: InstrumentKind, stream: &Stream) -> InstId {
-        InstId {
+    fn inst_id(&self, kind: InstrumentKind, stream: &Stream) -> InstrumentId {
+        InstrumentId {
             name: stream.name.clone(),
             description: stream.description.clone(),
             kind,
@@ -683,7 +683,7 @@ where
 {
     pub(crate) fn new(
         pipelines: Arc<Pipelines>,
-        view_cache: Arc<Mutex<HashMap<Cow<'static, str>, InstId>>>,
+        view_cache: Arc<Mutex<HashMap<Cow<'static, str>, InstrumentId>>>,
     ) -> Self {
         let inserters = pipelines
             .0
