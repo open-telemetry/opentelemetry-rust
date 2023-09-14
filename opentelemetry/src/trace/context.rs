@@ -6,7 +6,6 @@ use crate::{
 };
 use futures_core::stream::Stream;
 use futures_sink::Sink;
-use once_cell::sync::Lazy;
 use pin_project_lite::pin_project;
 use std::{
     borrow::Cow,
@@ -16,10 +15,10 @@ use std::{
     task::{Context as TaskContext, Poll},
 };
 
-static NOOP_SPAN: Lazy<SynchronizedSpan> = Lazy::new(|| SynchronizedSpan {
-    span_context: SpanContext::empty_context(),
+const NOOP_SPAN: SynchronizedSpan = SynchronizedSpan {
+    span_context: SpanContext::NONE,
     inner: None,
-});
+};
 
 /// A reference to the currently active span in this context.
 #[derive(Debug)]
