@@ -166,7 +166,7 @@ use std::borrow::Cow;
 use std::time;
 use thiserror::Error;
 
-mod context;
+pub(crate) mod context;
 pub mod noop;
 mod span;
 mod span_context;
