@@ -22,6 +22,8 @@
 - Add `Sync` bound to the `SpanExporter` and `LogExporter` traits [#1240](https://github.com/open-telemetry/opentelemetry-rust/pull/1240)
 - Move `MetricsProducer` config to builders to match other config (#1266)
 - Return error earlier if readers are shut down (#1266)
+- Add `/` to valid characters for instrument names (#1269)
+- Increase instrument name maximum length from 63 to 255 (#1269)
 
 ### Removed
 
