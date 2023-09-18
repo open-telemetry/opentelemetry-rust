@@ -57,13 +57,13 @@ impl OtlpPipeline {
 /// let tracing_pipeline = opentelemetry_otlp::new_pipeline().tracing();
 /// ```
 #[derive(Debug)]
-pub struct OtlpTracePipeline<T> {
-    exporter_builder: T,
+pub struct OtlpTracePipeline<EB> {
+    exporter_builder: EB,
     trace_config: Option<sdk::trace::Config>,
     batch_config: Option<sdk::trace::BatchConfig>,
 }
 
-impl<T> OtlpTracePipeline<T> {
+impl<EB> OtlpTracePipeline<EB> {
     /// Set the trace provider configuration.
     pub fn with_trace_config(mut self, trace_config: sdk::trace::Config) -> Self {
         self.trace_config = Some(trace_config);

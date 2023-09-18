@@ -116,12 +116,12 @@ impl opentelemetry_sdk::export::logs::LogExporter for LogExporter {
 
 /// Recommended configuration for an OTLP exporter pipeline.
 #[derive(Debug)]
-pub struct OtlpLogPipeline<T> {
-    exporter_builder: T,
+pub struct OtlpLogPipeline<EB> {
+    exporter_builder: EB,
     log_config: Option<opentelemetry_sdk::logs::Config>,
 }
 
-impl<T> OtlpLogPipeline<T> {
+impl<EB> OtlpLogPipeline<EB> {
     /// Set the log provider configuration.
     pub fn with_log_config(mut self, log_config: opentelemetry_sdk::logs::Config) -> Self {
         self.log_config = Some(log_config);
