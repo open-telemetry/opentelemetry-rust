@@ -11,8 +11,9 @@ use crate::exporter::grpcio::GrpcioExporterBuilder;
 #[cfg(feature = "http-proto")]
 use crate::exporter::http::HttpExporterBuilder;
 
-use crate::OtlpPipeline;
+use crate::{NoExporterConfig, OtlpPipeline};
 use async_trait::async_trait;
+use std::marker::PhantomData;
 use std::{borrow::Cow, fmt::Debug};
 
 use opentelemetry::{
@@ -32,8 +33,11 @@ pub const OTEL_EXPORTER_OTLP_LOGS_TIMEOUT: &str = "OTEL_EXPORTER_OTLP_LOGS_TIMEO
 
 impl OtlpPipeline {
     /// Create a OTLP logging pipeline.
-    pub fn logging(self) -> OtlpLogPipeline {
-        OtlpLogPipeline::default()
+    pub fn logging(self) -> OtlpLogPipeline<NoExporterConfig> {
+        OtlpLogPipeline {
+            log_config: None,
+            exporter_builder: NoExporterConfig(PhantomData),
+        }
     }
 }
 
@@ -51,11 +55,6 @@ pub enum LogExporterBuilder {
     /// Http log exporter builder
     #[cfg(feature = "http-proto")]
     Http(HttpExporterBuilder),
-
-    /// Missing exporter builder
-    #[doc(hidden)]
-    #[cfg(not(any(feature = "http-proto", feature = "grpc-sys", feature = "grpc-tonic")))]
-    Unconfigured,
 }
 
 impl LogExporterBuilder {
@@ -68,10 +67,6 @@ impl LogExporterBuilder {
             LogExporterBuilder::Grpcio(builder) => builder.build_log_exporter(),
             #[cfg(feature = "http-proto")]
             LogExporterBuilder::Http(builder) => builder.build_log_exporter(),
-            #[cfg(not(any(feature = "http-proto", feature = "grpc-sys", feature = "grpc-tonic")))]
-            LogExporterBuilder::Unconfigured => {
-                Err(LogError::Other("no configured span exporter".into()))
-            }
         }
     }
 }
@@ -120,25 +115,34 @@ impl opentelemetry_sdk::export::logs::LogExporter for LogExporter {
 }
 
 /// Recommended configuration for an OTLP exporter pipeline.
-#[derive(Default, Debug)]
-pub struct OtlpLogPipeline {
-    exporter_builder: Option<LogExporterBuilder>,
+#[derive(Debug)]
+pub struct OtlpLogPipeline<T> {
+    exporter_builder: T,
     log_config: Option<opentelemetry_sdk::logs::Config>,
 }
 
-impl OtlpLogPipeline {
-    /// Set the OTLP log exporter builder.
-    pub fn with_exporter<B: Into<LogExporterBuilder>>(mut self, pipeline: B) -> Self {
-        self.exporter_builder = Some(pipeline.into());
-        self
-    }
-
+impl<T> OtlpLogPipeline<T> {
     /// Set the log provider configuration.
     pub fn with_log_config(mut self, log_config: opentelemetry_sdk::logs::Config) -> Self {
         self.log_config = Some(log_config);
         self
     }
+}
 
+impl OtlpLogPipeline<NoExporterConfig> {
+    /// Set the OTLP log exporter builder.
+    pub fn with_exporter<B: Into<LogExporterBuilder>>(
+        self,
+        pipeline: B,
+    ) -> OtlpLogPipeline<LogExporterBuilder> {
+        OtlpLogPipeline {
+            exporter_builder: pipeline.into(),
+            log_config: self.log_config,
+        }
+    }
+}
+
+impl OtlpLogPipeline<LogExporterBuilder> {
     /// Install the configured log exporter.
     ///
     /// Returns a [`Logger`] with the name `opentelemetry-otlp` and the current crate version.
@@ -146,9 +150,7 @@ impl OtlpLogPipeline {
     /// [`Logger`]: opentelemetry_sdk::logs::Logger
     pub fn install_simple(self) -> Result<opentelemetry_sdk::logs::Logger, LogError> {
         Ok(build_simple_with_exporter(
-            self.exporter_builder
-                .ok_or(crate::Error::NoExporterBuilder)?
-                .build_log_exporter()?,
+            self.exporter_builder.build_log_exporter()?,
             self.log_config,
         ))
     }
@@ -164,9 +166,7 @@ impl OtlpLogPipeline {
         runtime: R,
     ) -> Result<opentelemetry_sdk::logs::Logger, LogError> {
         Ok(build_batch_with_exporter(
-            self.exporter_builder
-                .ok_or(crate::Error::NoExporterBuilder)?
-                .build_log_exporter()?,
+            self.exporter_builder.build_log_exporter()?,
             self.log_config,
             runtime,
         ))

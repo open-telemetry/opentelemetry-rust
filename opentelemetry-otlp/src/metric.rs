@@ -3,7 +3,7 @@
 //! Defines a [MetricsExporter] to send metric data to backend via OTEL protocol.
 //!
 
-use crate::{Error, OtlpPipeline};
+use crate::{NoExporterConfig, OtlpPipeline};
 use async_trait::async_trait;
 use core::fmt;
 use opentelemetry::{global, metrics::Result};
@@ -24,6 +24,7 @@ use opentelemetry_sdk::{
     Resource,
 };
 use std::fmt::{Debug, Formatter};
+use std::marker::PhantomData;
 use std::time;
 
 #[cfg(feature = "grpc-sys")]
@@ -42,7 +43,7 @@ pub const OTEL_EXPORTER_OTLP_METRICS_TIMEOUT: &str = "OTEL_EXPORTER_OTLP_METRICS
 pub const OTEL_EXPORTER_OTLP_METRICS_COMPRESSION: &str = "OTEL_EXPORTER_OTLP_METRICS_COMPRESSION";
 impl OtlpPipeline {
     /// Create a OTLP metrics pipeline.
-    pub fn metrics<RT>(self, rt: RT) -> OtlpMetricPipeline<RT>
+    pub fn metrics<RT>(self, rt: RT) -> OtlpMetricPipeline<RT, NoExporterConfig>
     where
         RT: Runtime,
     {
@@ -50,7 +51,7 @@ impl OtlpPipeline {
             rt,
             aggregator_selector: None,
             temporality_selector: None,
-            exporter_pipeline: None,
+            exporter_pipeline: NoExporterConfig(PhantomData),
             resource: None,
             period: None,
             timeout: None,
@@ -129,17 +130,17 @@ impl From<HttpExporterBuilder> for MetricsExporterBuilder {
 ///
 /// Note that currently the OTLP metrics exporter only supports tonic as it's grpc layer and tokio as
 /// runtime.
-pub struct OtlpMetricPipeline<RT> {
+pub struct OtlpMetricPipeline<RT, EB> {
     rt: RT,
     aggregator_selector: Option<Box<dyn AggregationSelector>>,
     temporality_selector: Option<Box<dyn TemporalitySelector>>,
-    exporter_pipeline: Option<MetricsExporterBuilder>,
+    exporter_pipeline: EB,
     resource: Option<Resource>,
     period: Option<time::Duration>,
     timeout: Option<time::Duration>,
 }
 
-impl<RT> OtlpMetricPipeline<RT>
+impl<RT, EB> OtlpMetricPipeline<RT, EB>
 where
     RT: Runtime,
 {
@@ -147,14 +148,6 @@ where
     pub fn with_resource(self, resource: Resource) -> Self {
         OtlpMetricPipeline {
             resource: Some(resource),
-            ..self
-        }
-    }
-
-    /// Build with the exporter
-    pub fn with_exporter<B: Into<MetricsExporterBuilder>>(self, pipeline: B) -> Self {
-        OtlpMetricPipeline {
-            exporter_pipeline: Some(pipeline.into()),
             ..self
         }
     }
@@ -190,18 +183,41 @@ where
             ..self
         }
     }
+}
 
+impl<RT> OtlpMetricPipeline<RT, NoExporterConfig>
+where
+    RT: Runtime,
+{
+    /// Build with the exporter
+    pub fn with_exporter<B: Into<MetricsExporterBuilder>>(
+        self,
+        pipeline: B,
+    ) -> OtlpMetricPipeline<RT, MetricsExporterBuilder> {
+        OtlpMetricPipeline {
+            exporter_pipeline: pipeline.into(),
+            rt: self.rt,
+            aggregator_selector: self.aggregator_selector,
+            temporality_selector: self.temporality_selector,
+            resource: self.resource,
+            period: self.period,
+            timeout: self.timeout,
+        }
+    }
+}
+
+impl<RT> OtlpMetricPipeline<RT, MetricsExporterBuilder>
+where
+    RT: Runtime,
+{
     /// Build MeterProvider
     pub fn build(self) -> Result<MeterProvider> {
-        let exporter = self
-            .exporter_pipeline
-            .ok_or(Error::NoExporterBuilder)?
-            .build_metrics_exporter(
-                self.temporality_selector
-                    .unwrap_or_else(|| Box::new(DefaultTemporalitySelector::new())),
-                self.aggregator_selector
-                    .unwrap_or_else(|| Box::new(DefaultAggregationSelector::new())),
-            )?;
+        let exporter = self.exporter_pipeline.build_metrics_exporter(
+            self.temporality_selector
+                .unwrap_or_else(|| Box::new(DefaultTemporalitySelector::new())),
+            self.aggregator_selector
+                .unwrap_or_else(|| Box::new(DefaultAggregationSelector::new())),
+        )?;
 
         let mut builder = PeriodicReader::builder(exporter, self.rt);
 
@@ -228,7 +244,7 @@ where
     }
 }
 
-impl<RT> fmt::Debug for OtlpMetricPipeline<RT> {
+impl<RT, EB: Debug> Debug for OtlpMetricPipeline<RT, EB> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("OtlpMetricPipeline")
             .field("exporter_pipeline", &self.exporter_pipeline)

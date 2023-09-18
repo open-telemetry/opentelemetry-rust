@@ -213,6 +213,7 @@ pub use crate::span::{
     OtlpTracePipeline, SpanExporter, SpanExporterBuilder, OTEL_EXPORTER_OTLP_TRACES_COMPRESSION,
     OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, OTEL_EXPORTER_OTLP_TRACES_TIMEOUT,
 };
+use std::marker::PhantomData;
 
 #[cfg(feature = "metrics")]
 pub use crate::metric::{
@@ -366,10 +367,6 @@ pub enum Error {
     #[error("the lock of the {0} has been poisoned")]
     PoisonedLock(&'static str),
 
-    /// The pipeline will need a exporter to complete setup. Throw this error if none is provided.
-    #[error("no exporter builder is provided, please provide one using with_exporter() method")]
-    NoExporterBuilder,
-
     /// Unsupported compression algorithm.
     #[error("unsupported compression algorithm '{0}'")]
     UnsupportedCompressionAlgorithm(String),
@@ -408,3 +405,9 @@ pub enum Protocol {
     /// HTTP protocol with binary protobuf
     HttpBinary,
 }
+
+#[derive(Debug, Default)]
+#[doc(hidden)]
+/// Placeholder type when no exporter pipeline has been configured in telemetry pipeline.
+/// Users shouldn't be able to use this type, hence the private PhantomData.
+pub struct NoExporterConfig(PhantomData<()>);

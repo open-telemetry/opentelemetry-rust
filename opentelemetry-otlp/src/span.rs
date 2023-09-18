@@ -3,6 +3,7 @@
 //! Defines a [SpanExporter] to send trace data via the OpenTelemetry Protocol (OTLP)
 
 use std::fmt::Debug;
+use std::marker::PhantomData;
 
 use futures_core::future::BoxFuture;
 use opentelemetry::{
@@ -26,7 +27,7 @@ use crate::exporter::grpcio::GrpcioExporterBuilder;
 #[cfg(feature = "http-proto")]
 use crate::exporter::http::HttpExporterBuilder;
 
-use crate::OtlpPipeline;
+use crate::{NoExporterConfig, OtlpPipeline};
 
 /// Target to which the exporter is going to send spans, defaults to https://localhost:4317/v1/traces.
 /// Learn about the relationship between this constant and default/metrics/logs at
@@ -39,8 +40,12 @@ pub const OTEL_EXPORTER_OTLP_TRACES_COMPRESSION: &str = "OTEL_EXPORTER_OTLP_TRAC
 
 impl OtlpPipeline {
     /// Create a OTLP tracing pipeline.
-    pub fn tracing(self) -> OtlpTracePipeline {
-        OtlpTracePipeline::default()
+    pub fn tracing(self) -> OtlpTracePipeline<NoExporterConfig> {
+        OtlpTracePipeline {
+            exporter_builder: NoExporterConfig(PhantomData),
+            trace_config: None,
+            batch_config: None,
+        }
     }
 }
 
@@ -51,14 +56,14 @@ impl OtlpPipeline {
 /// ```no_run
 /// let tracing_pipeline = opentelemetry_otlp::new_pipeline().tracing();
 /// ```
-#[derive(Default, Debug)]
-pub struct OtlpTracePipeline {
-    exporter_builder: Option<SpanExporterBuilder>,
+#[derive(Debug)]
+pub struct OtlpTracePipeline<T> {
+    exporter_builder: T,
     trace_config: Option<sdk::trace::Config>,
     batch_config: Option<sdk::trace::BatchConfig>,
 }
 
-impl OtlpTracePipeline {
+impl<T> OtlpTracePipeline<T> {
     /// Set the trace provider configuration.
     pub fn with_trace_config(mut self, trace_config: sdk::trace::Config) -> Self {
         self.trace_config = Some(trace_config);
@@ -70,7 +75,9 @@ impl OtlpTracePipeline {
         self.batch_config = Some(batch_config);
         self
     }
+}
 
+impl OtlpTracePipeline<NoExporterConfig> {
     /// Set the OTLP span exporter builder.
     ///
     /// Note that the pipeline will not build the exporter until [`install_batch`] or [`install_simple`]
@@ -78,11 +85,19 @@ impl OtlpTracePipeline {
     ///
     /// [`install_batch`]: OtlpTracePipeline::install_batch
     /// [`install_simple`]: OtlpTracePipeline::install_simple
-    pub fn with_exporter<B: Into<SpanExporterBuilder>>(mut self, pipeline: B) -> Self {
-        self.exporter_builder = Some(pipeline.into());
-        self
+    pub fn with_exporter<B: Into<SpanExporterBuilder>>(
+        self,
+        pipeline: B,
+    ) -> OtlpTracePipeline<SpanExporterBuilder> {
+        OtlpTracePipeline {
+            exporter_builder: pipeline.into(),
+            trace_config: self.trace_config,
+            batch_config: self.batch_config,
+        }
     }
+}
 
+impl OtlpTracePipeline<SpanExporterBuilder> {
     /// Install the configured span exporter.
     ///
     /// Returns a [`Tracer`] with the name `opentelemetry-otlp` and current crate version.
@@ -90,9 +105,7 @@ impl OtlpTracePipeline {
     /// [`Tracer`]: opentelemetry::trace::Tracer
     pub fn install_simple(self) -> Result<sdk::trace::Tracer, TraceError> {
         Ok(build_simple_with_exporter(
-            self.exporter_builder
-                .ok_or(crate::Error::NoExporterBuilder)?
-                .build_span_exporter()?,
+            self.exporter_builder.build_span_exporter()?,
             self.trace_config,
         ))
     }
@@ -110,9 +123,7 @@ impl OtlpTracePipeline {
         runtime: R,
     ) -> Result<sdk::trace::Tracer, TraceError> {
         Ok(build_batch_with_exporter(
-            self.exporter_builder
-                .ok_or(crate::Error::NoExporterBuilder)?
-                .build_span_exporter()?,
+            self.exporter_builder.build_span_exporter()?,
             self.trace_config,
             runtime,
             self.batch_config,
@@ -181,11 +192,6 @@ pub enum SpanExporterBuilder {
     /// Http span exporter builder
     #[cfg(feature = "http-proto")]
     Http(HttpExporterBuilder),
-
-    /// Missing exporter builder
-    #[doc(hidden)]
-    #[cfg(not(any(feature = "http-proto", feature = "grpc-sys", feature = "grpc-tonic")))]
-    Unconfigured,
 }
 
 impl SpanExporterBuilder {
@@ -198,10 +204,6 @@ impl SpanExporterBuilder {
             SpanExporterBuilder::Grpcio(builder) => builder.build_span_exporter(),
             #[cfg(feature = "http-proto")]
             SpanExporterBuilder::Http(builder) => builder.build_span_exporter(),
-            #[cfg(not(any(feature = "http-proto", feature = "grpc-sys", feature = "grpc-tonic")))]
-            SpanExporterBuilder::Unconfigured => {
-                Err(TraceError::Other("no configured span exporter".into()))
-            }
         }
     }
 }
