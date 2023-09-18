@@ -24,7 +24,10 @@ impl MetricsExporter {
         // This is unsafe because if the code is used in a shared object,
         // the event MUST be unregistered before the shared object unloads.
         unsafe {
-            let _result = tracepoint::register(trace_point.as_ref());
+            let result = tracepoint::register(trace_point.as_ref());
+            if result == -1 {
+                eprintln!("Tracepoint failed to register.");
+            }
         }
         MetricsExporter { trace_point }
     }

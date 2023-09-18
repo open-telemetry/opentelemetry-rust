@@ -1,5 +1,6 @@
 use core::ffi;
 use eventheader::_internal as ehi;
+use std::panic;
 use std::pin::Pin;
 
 /// Protocol constant
@@ -68,8 +69,7 @@ pub fn write(trace_point: &ehi::TracepointState, buffer: &[u8]) -> i32 {
 /// Requires: this tracepoint is not currently registered.
 /// The tracepoint must be in a Pin<&TracepointState> because we must ensure it will never be moved
 ///
-/// Return value is 0 for success or an errno code for error. The return value is
-/// provided to help with debugging and should usually be ignored in release builds.
+/// Return value is 0 for success or -1 for failed register.
 ///
 /// # Safety
 ///
@@ -79,5 +79,32 @@ pub unsafe fn register(trace_point: Pin<&ehi::TracepointState>) -> i32 {
     debug_assert!(METRICS_EVENT_DEF[METRICS_EVENT_DEF.len() - 1] == b'\0');
 
     // CStr::from_bytes_with_nul_unchecked is ok because METRICS_EVENT_DEF ends with "\0".
-    trace_point.register(ffi::CStr::from_bytes_with_nul_unchecked(METRICS_EVENT_DEF))
+    // Returns errno code 95 if trace/debug file systems are not mounted
+    // Returns errno code 13 if insufficient permissions
+    // If tracepoint doesn't exist, it will create one automatically
+    let result = panic::catch_unwind(|| {
+        // CStr::from_bytes_with_nul_unchecked is ok because METRICS_EVENT_DEF ends with "\0".
+        trace_point
+            .register(ffi::CStr::from_bytes_with_nul_unchecked(METRICS_EVENT_DEF))
+    });
+
+    match result {
+        Ok(value) => {
+            if value == 0 {
+                0
+            } else {
+                if value == 95 {
+                    eprintln!("Trace/debug file systems are not mounted.");
+                } else if value == 13 {
+                    eprintln!("Insuufficient permissions. You need read/write/execute permissions to user_events tracing directory.");
+                }
+                -1
+            }
+        }
+        // We don't want to ever panic so we catch the error and return a unique code for retry
+        Err(_err) => {
+            eprintln!("Tracepoint failed to register. Try restarting your application.");
+            -1
+        }
+    }
 }
