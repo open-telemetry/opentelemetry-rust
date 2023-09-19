@@ -25,7 +25,7 @@ use crate::metrics::{
 const INSTRUMENT_NAME_MAX_LENGTH: usize = 255;
 // maximum length of instrument unit name
 const INSTRUMENT_UNIT_NAME_MAX_LENGTH: usize = 63;
-const INSTRUMENT_NAME_ALLOWED_NON_ALPHANUMERIC_CHARS: [char; 4] = ['-', '.', '-', '/'];
+const INSTRUMENT_NAME_ALLOWED_NON_ALPHANUMERIC_CHARS: [char; 4] = ['_', '.', '-', '/'];
 
 // instrument validation error strings
 const INSTRUMENT_NAME_EMPTY: &str = "instrument name must be non-empty";

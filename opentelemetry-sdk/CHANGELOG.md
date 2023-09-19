@@ -29,6 +29,9 @@
 
 - Remove context from Metric force_flush [#1245](https://github.com/open-telemetry/opentelemetry-rust/pull/1245)
 
+### Fixed
+
+- Fix metric instrument name validation to include `_` #1030
 
 ## v0.20.0
 
