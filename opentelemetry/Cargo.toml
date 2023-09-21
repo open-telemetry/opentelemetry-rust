@@ -32,10 +32,6 @@ urlencoding = "2.1.2"
 [target.'cfg(all(target_arch = "wasm32", not(target_os = "wasi")))'.dependencies]
 js-sys = "0.3.63"
 
-[dev-dependencies]
-opentelemetry_sdk = { version = "0.20", path = "../opentelemetry-sdk" }
-opentelemetry-stdout = { version = "0.1", path = "../opentelemetry-stdout", features = ["trace"] }
-
 [features]
 default = ["trace"]
 trace = ["pin-project-lite"]

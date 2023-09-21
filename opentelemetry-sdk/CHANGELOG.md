@@ -24,6 +24,8 @@
 - Return error earlier if readers are shut down (#1266)
 - Add `/` to valid characters for instrument names (#1269)
 - Increase instrument name maximum length from 63 to 255 (#1269)
+- Updated crate documentation and examples.
+  [#1256](https://github.com/open-telemetry/opentelemetry-rust/issues/1256)
 
 ### Removed
 
