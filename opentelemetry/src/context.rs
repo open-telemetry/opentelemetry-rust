@@ -1,3 +1,4 @@
+use crate::trace::context::SynchronizedSpan;
 use std::any::{Any, TypeId};
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -74,6 +75,7 @@ thread_local! {
 /// ```
 #[derive(Clone, Default)]
 pub struct Context {
+    pub(super) span: Option<Arc<SynchronizedSpan>>,
     entries: HashMap<TypeId, Arc<dyn Any + Sync + Send>, BuildHasherDefault<IdHasher>>,
 }
 
@@ -301,6 +303,20 @@ impl Context {
         ContextGuard {
             previous_cx,
             _marker: PhantomData,
+        }
+    }
+
+    pub(super) fn current_with_synchronized_span(value: SynchronizedSpan) -> Self {
+        Context {
+            span: Some(Arc::new(value)),
+            entries: Context::map_current(|cx| cx.entries.clone()),
+        }
+    }
+
+    pub(super) fn with_synchronized_span(&self, value: SynchronizedSpan) -> Self {
+        Context {
+            span: Some(Arc::new(value)),
+            entries: self.entries.clone(),
         }
     }
 }
