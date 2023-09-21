@@ -6,6 +6,8 @@
 
 - Bump MSRV to 1.64 [#1203](https://github.com/open-telemetry/opentelemetry-rust/pull/1203)
 - `opentelemetry` crate now only carries the API types #1186. Use the `opentelemetry_sdk` crate for the SDK types. 
+- `trace::noop::NoopSpan` no longer implements `Default` and instead exposes
+  a `const DEFAULT` value. [#1270](https://github.com/open-telemetry/opentelemetry-rust/pull/1270)
 
 ## [v0.20.0](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.19.0...v0.20.0)
 This release should been seen as 1.0-rc3 following 1.0-rc2 in v0.19.0. Refer to CHANGELOG.md in individual creates for details on changes made in different creates.

@@ -20,6 +20,14 @@ use thiserror::Error;
 pub struct TraceFlags(u8);
 
 impl TraceFlags {
+    /// Trace flags with the `sampled` flag set to `0`.
+    ///
+    /// Spans that are not sampled will be ignored by most tracing tools.
+    /// See the `sampled` section of the [W3C TraceContext specification] for details.
+    ///
+    /// [W3C TraceContext specification]: https://www.w3.org/TR/trace-context/#sampled-flag
+    pub const NOT_SAMPLED: TraceFlags = TraceFlags(0x00);
+
     /// Trace flags with the `sampled` flag set to `1`.
     ///
     /// Spans that are not sampled will be ignored by most tracing tools.
@@ -216,6 +224,9 @@ impl fmt::LowerHex for SpanId {
 pub struct TraceState(Option<VecDeque<(String, String)>>);
 
 impl TraceState {
+    /// The default `TraceState`, as a constant
+    pub const NONE: TraceState = TraceState(None);
+
     /// Validates that the given `TraceState` list-member key is valid per the [W3 Spec].
     ///
     /// [W3 Spec]: https://www.w3.org/TR/trace-context/#key
@@ -457,15 +468,18 @@ pub struct SpanContext {
 }
 
 impl SpanContext {
+    /// An invalid span context
+    pub const NONE: SpanContext = SpanContext {
+        trace_id: TraceId::INVALID,
+        span_id: SpanId::INVALID,
+        trace_flags: TraceFlags::NOT_SAMPLED,
+        is_remote: false,
+        trace_state: TraceState::NONE,
+    };
+
     /// Create an invalid empty span context
     pub fn empty_context() -> Self {
-        SpanContext::new(
-            TraceId::INVALID,
-            SpanId::INVALID,
-            TraceFlags::default(),
-            false,
-            TraceState::default(),
-        )
+        SpanContext::NONE
     }
 
     /// Construct a new `SpanContext`
