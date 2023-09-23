@@ -409,5 +409,4 @@ pub enum Protocol {
 #[derive(Debug, Default)]
 #[doc(hidden)]
 /// Placeholder type when no exporter pipeline has been configured in telemetry pipeline.
-/// Users shouldn't be able to use this type, hence the private PhantomData.
-pub struct NoExporterConfig(PhantomData<()>);
+pub struct NoExporterConfig(());
