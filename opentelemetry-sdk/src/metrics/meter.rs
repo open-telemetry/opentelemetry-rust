@@ -60,7 +60,7 @@ impl Meter {
         let view_cache = Default::default();
 
         Meter {
-            scope: scope.clone(),
+            scope,
             pipes: Arc::clone(&pipes),
             u64_resolver: Resolver::new(Arc::clone(&pipes), Arc::clone(&view_cache)),
             i64_resolver: Resolver::new(Arc::clone(&pipes), Arc::clone(&view_cache)),
