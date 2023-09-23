@@ -7,7 +7,7 @@
 //! through a system. This module implements the OpenTelemetry [trace
 //! specification].
 //!
-//! [trace specification]: https://github.com/open-telemetry/opentelemetry-specification/blob/v1.3.0/specification/trace/api.md
+//! [trace specification]: https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/api.md
 //!
 //! ## Getting Started
 //!
