@@ -42,7 +42,7 @@ impl OtlpPipeline {
     /// Create a OTLP tracing pipeline.
     pub fn tracing(self) -> OtlpTracePipeline<NoExporterConfig> {
         OtlpTracePipeline {
-            exporter_builder: NoExporterConfig(PhantomData),
+            exporter_builder: NoExporterConfig(()),
             trace_config: None,
             batch_config: None,
         }

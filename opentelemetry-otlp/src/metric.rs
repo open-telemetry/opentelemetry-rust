@@ -51,7 +51,7 @@ impl OtlpPipeline {
             rt,
             aggregator_selector: None,
             temporality_selector: None,
-            exporter_pipeline: NoExporterConfig(PhantomData),
+            exporter_pipeline: NoExporterConfig(()),
             resource: None,
             period: None,
             timeout: None,

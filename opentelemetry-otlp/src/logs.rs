@@ -36,7 +36,7 @@ impl OtlpPipeline {
     pub fn logging(self) -> OtlpLogPipeline<NoExporterConfig> {
         OtlpLogPipeline {
             log_config: None,
-            exporter_builder: NoExporterConfig(PhantomData),
+            exporter_builder: NoExporterConfig(()),
         }
     }
 }
