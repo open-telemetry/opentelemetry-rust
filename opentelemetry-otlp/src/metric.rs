@@ -24,7 +24,6 @@ use opentelemetry_sdk::{
     Resource,
 };
 use std::fmt::{Debug, Formatter};
-use std::marker::PhantomData;
 use std::time;
 
 #[cfg(feature = "grpc-sys")]

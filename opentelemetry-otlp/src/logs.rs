@@ -13,7 +13,6 @@ use crate::exporter::http::HttpExporterBuilder;
 
 use crate::{NoExporterConfig, OtlpPipeline};
 use async_trait::async_trait;
-use std::marker::PhantomData;
 use std::{borrow::Cow, fmt::Debug};
 
 use opentelemetry::{

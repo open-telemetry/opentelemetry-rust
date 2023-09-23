@@ -213,7 +213,6 @@ pub use crate::span::{
     OtlpTracePipeline, SpanExporter, SpanExporterBuilder, OTEL_EXPORTER_OTLP_TRACES_COMPRESSION,
     OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, OTEL_EXPORTER_OTLP_TRACES_TIMEOUT,
 };
-use std::marker::PhantomData;
 
 #[cfg(feature = "metrics")]
 pub use crate::metric::{

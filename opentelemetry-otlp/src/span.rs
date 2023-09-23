@@ -3,7 +3,6 @@
 //! Defines a [SpanExporter] to send trace data via the OpenTelemetry Protocol (OTLP)
 
 use std::fmt::Debug;
-use std::marker::PhantomData;
 
 use futures_core::future::BoxFuture;
 use opentelemetry::{
