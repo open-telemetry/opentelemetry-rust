@@ -1,25 +1,21 @@
 //! # Jaeger Exporter
 //!
-mod agent;
-#[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
-mod collector;
-pub(crate) mod runtime;
-#[allow(clippy::all, unreachable_pub, dead_code)]
-#[rustfmt::skip] // don't format generated files
-mod thrift;
-pub mod config;
-pub(crate) mod transport;
-mod uploader;
-
 // Linting isn't detecting that it's used seems like linting bug.
 #[allow(unused_imports)]
 #[cfg(feature = "surf_collector_client")]
 use std::convert::TryFrom;
+use std::convert::TryInto;
+use std::fmt::Display;
+use std::io;
+use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, ToSocketAddrs};
+use std::sync::Arc;
+use std::time::{Duration, SystemTime};
 
-use self::runtime::JaegerTraceRuntime;
-use self::thrift::jaeger;
-use crate::exporter::uploader::Uploader;
 use futures_core::future::BoxFuture;
+#[cfg(feature = "isahc_collector_client")]
+#[allow(unused_imports)] // this is actually used to configure authentication
+use isahc::prelude::Configurable;
+
 use opentelemetry::{
     trace::{Event, Link, SpanKind, Status},
     InstrumentationLibrary, Key, KeyValue,
@@ -31,16 +27,22 @@ use opentelemetry_sdk::{
     },
     trace::EvictedQueue,
 };
-use std::convert::TryInto;
-use std::fmt::Display;
-use std::io;
-use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, ToSocketAddrs};
-use std::sync::Arc;
-use std::time::{Duration, SystemTime};
 
-#[cfg(feature = "isahc_collector_client")]
-#[allow(unused_imports)] // this is actually used to configure authentication
-use isahc::prelude::Configurable;
+use crate::exporter::uploader::Uploader;
+
+use self::runtime::JaegerTraceRuntime;
+use self::thrift::jaeger;
+
+mod agent;
+#[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
+mod collector;
+pub(crate) mod runtime;
+#[allow(clippy::all, unreachable_pub, dead_code)]
+#[rustfmt::skip] // don't format generated files
+mod thrift;
+pub mod config;
+pub(crate) mod transport;
+mod uploader;
 
 /// Instrument Library name MUST be reported in Jaeger Span tags with the following key
 const INSTRUMENTATION_LIBRARY_NAME: &str = "otel.library.name";
@@ -341,26 +343,24 @@ impl ExportError for Error {
 /// Sample the first address provided to designate which IP family to bind the socket to.
 /// IP families returned be INADDR_ANY as [`Ipv4Addr::UNSPECIFIED`] or
 /// IN6ADDR_ANY as [`Ipv6Addr::UNSPECIFIED`].
-fn addrs_and_family(
-    host_port: &impl ToSocketAddrs,
-) -> Result<(Vec<SocketAddr>, SocketAddr), io::Error> {
-    let addrs = host_port.to_socket_addrs()?.collect::<Vec<_>>();
-    let family = match addrs.first() {
+fn address_family(addrs: &[SocketAddr]) -> SocketAddr {
+    match addrs.first() {
         Some(SocketAddr::V4(_)) | None => SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0)),
         Some(SocketAddr::V6(_)) => SocketAddr::from((Ipv6Addr::UNSPECIFIED, 0)),
-    };
-    Ok((addrs, family))
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::SPAN_KIND;
-    use crate::exporter::thrift::jaeger::Tag;
-    use crate::exporter::{build_span_tags, OTEL_STATUS_CODE, OTEL_STATUS_DESCRIPTION};
     use opentelemetry::{
         trace::{SpanKind, Status},
         KeyValue,
     };
+
+    use crate::exporter::thrift::jaeger::Tag;
+    use crate::exporter::{build_span_tags, OTEL_STATUS_CODE, OTEL_STATUS_DESCRIPTION};
+
+    use super::SPAN_KIND;
 
     fn assert_tag_contains(tags: Vec<Tag>, key: &'static str, expect_val: &'static str) {
         assert_eq!(

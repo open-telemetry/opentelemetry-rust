@@ -1,19 +1,22 @@
-use crate::exporter::agent::{AgentAsyncClientUdp, AgentSyncClientUdp};
-use crate::exporter::config::{
-    build_config_and_process, install_tracer_provider_and_get_tracer, HasRequiredConfig,
-    TransformationConfig,
-};
-use crate::exporter::uploader::{AsyncUploader, SyncUploader, Uploader};
-use crate::{Error, Exporter, JaegerTraceRuntime};
+use std::{env, net};
+use std::borrow::BorrowMut;
+use std::net::ToSocketAddrs;
+use std::sync::Arc;
+
 use opentelemetry::trace::TraceError;
-use opentelemetry_sdk::trace::{BatchSpanProcessor, Tracer};
 use opentelemetry_sdk::{
     self,
     trace::{BatchConfig, Config, TracerProvider},
 };
-use std::borrow::BorrowMut;
-use std::sync::Arc;
-use std::{env, net};
+use opentelemetry_sdk::trace::{BatchSpanProcessor, Tracer};
+
+use crate::{Error, Exporter, JaegerTraceRuntime};
+use crate::exporter::agent::{AgentAsyncClientUdp, AgentSyncClientUdp};
+use crate::exporter::config::{
+    build_config_and_process, HasRequiredConfig, install_tracer_provider_and_get_tracer,
+    TransformationConfig,
+};
+use crate::exporter::uploader::{AsyncUploader, SyncUploader, Uploader};
 
 /// The max size of UDP packet we want to send, synced with jaeger-agent
 const UDP_PACKET_MAX_LENGTH: usize = 65_000;
@@ -78,38 +81,23 @@ pub struct AgentPipeline {
     transformation_config: TransformationConfig,
     trace_config: Option<Config>,
     batch_config: Option<BatchConfig>,
-    agent_endpoint: Result<Vec<net::SocketAddr>, crate::Error>,
+    agent_endpoint: Option<String>,
     max_packet_size: usize,
     auto_split_batch: bool,
 }
 
 impl Default for AgentPipeline {
     fn default() -> Self {
-        let mut pipeline = AgentPipeline {
+        AgentPipeline {
             transformation_config: Default::default(),
             trace_config: Default::default(),
             batch_config: Some(Default::default()),
-            agent_endpoint: Ok(vec![format!(
+            agent_endpoint: Some(format!(
                 "{DEFAULT_AGENT_ENDPOINT_HOST}:{DEFAULT_AGENT_ENDPOINT_PORT}"
-            )
-            .parse()
-            .unwrap()]),
+            )),
             max_packet_size: UDP_PACKET_MAX_LENGTH,
             auto_split_batch: false,
-        };
-
-        let endpoint = match (env::var(ENV_AGENT_HOST), env::var(ENV_AGENT_PORT)) {
-            (Ok(host), Ok(port)) => Some(format!("{}:{}", host.trim(), port.trim())),
-            (Ok(host), _) => Some(format!("{}:{DEFAULT_AGENT_ENDPOINT_PORT}", host.trim())),
-            (_, Ok(port)) => Some(format!("{DEFAULT_AGENT_ENDPOINT_HOST}:{}", port.trim())),
-            (_, _) => None,
-        };
-
-        if let Some(endpoint) = endpoint {
-            pipeline = pipeline.with_endpoint(endpoint);
         }
-
-        pipeline
     }
 }
 
@@ -147,16 +135,9 @@ impl AgentPipeline {
     /// Any valid socket address can be used.
     ///
     /// Default to be `127.0.0.1:6831`.
-    pub fn with_endpoint<T: net::ToSocketAddrs>(self, agent_endpoint: T) -> Self {
+    pub fn with_endpoint<T: Into<String>>(self, agent_endpoint: T) -> Self {
         AgentPipeline {
-            agent_endpoint: agent_endpoint
-                .to_socket_addrs()
-                .map(|addrs| addrs.collect())
-                .map_err(|io_err| crate::Error::ConfigError {
-                    pipeline_name: "agent",
-                    config_name: "endpoint",
-                    reason: io_err.to_string(),
-                }),
+            agent_endpoint: Some(agent_endpoint.into()),
             ..self
         }
     }
@@ -391,10 +372,10 @@ impl AgentPipeline {
         R: JaegerTraceRuntime,
     {
         let agent = AgentAsyncClientUdp::new(
-            self.agent_endpoint?.as_slice(),
             self.max_packet_size,
             runtime,
             self.auto_split_batch,
+            self.resolve_endpoint()?,
         )
         .map_err::<Error, _>(Into::into)?;
         Ok(Arc::new(AsyncUploader::Agent(
@@ -404,12 +385,37 @@ impl AgentPipeline {
 
     fn build_sync_agent_uploader(self) -> Result<Arc<dyn Uploader>, TraceError> {
         let agent = AgentSyncClientUdp::new(
-            self.agent_endpoint?.as_slice(),
             self.max_packet_size,
             self.auto_split_batch,
+            self.resolve_endpoint()?,
         )
         .map_err::<Error, _>(Into::into)?;
         Ok(Arc::new(SyncUploader::Agent(std::sync::Mutex::new(agent))))
+    }
+
+    // resolve the agent endpoint from the environment variables or the builder
+    // if only one of the environment variables is set, the other one will be set to the default value
+    // if no environment variable is set, the builder value will be used.
+    fn resolve_endpoint(self) -> Result<Vec<net::SocketAddr>, TraceError> {
+        let endpoint_str = match (env::var(ENV_AGENT_HOST), env::var(ENV_AGENT_PORT)) {
+            (Ok(host), Ok(port)) => format!("{}:{}", host.trim(), port.trim()),
+            (Ok(host), _) => format!("{}:{DEFAULT_AGENT_ENDPOINT_PORT}", host.trim()),
+            (_, Ok(port)) => format!("{DEFAULT_AGENT_ENDPOINT_HOST}:{}", port.trim()),
+            (_, _) => self.agent_endpoint.unwrap_or(format!(
+                "{DEFAULT_AGENT_ENDPOINT_HOST}:{DEFAULT_AGENT_ENDPOINT_PORT}"
+            )),
+        };
+        endpoint_str
+            .to_socket_addrs()
+            .map(|addrs| addrs.collect())
+            .map_err(|io_err| {
+                Error::ConfigError {
+                    pipeline_name: "agent",
+                    config_name: "endpoint",
+                    reason: io_err.to_string(),
+                }
+                .into()
+            })
     }
 }
 
@@ -429,9 +435,12 @@ mod tests {
             ("127.0.0.1:1001", true),
         ];
         for (socket_str, is_ok) in test_cases.into_iter() {
-            let pipeline = AgentPipeline::default().with_endpoint(socket_str);
+            let resolved_endpoint = AgentPipeline::default()
+                .with_endpoint(socket_str)
+                .resolve_endpoint();
             assert_eq!(
-                pipeline.agent_endpoint.is_ok(),
+                resolved_endpoint.is_ok(),
+                // if is_ok is true, use socket_str, otherwise use the default endpoint
                 is_ok,
                 "endpoint string {}",
                 socket_str
