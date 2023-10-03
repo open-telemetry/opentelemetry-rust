@@ -6,8 +6,7 @@
 use std::convert::TryFrom;
 use std::convert::TryInto;
 use std::fmt::Display;
-use std::io;
-use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, ToSocketAddrs};
+use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 

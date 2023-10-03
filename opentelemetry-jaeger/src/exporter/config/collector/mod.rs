@@ -1,12 +1,3 @@
-use crate::exporter::config::{
-    build_config_and_process, install_tracer_provider_and_get_tracer, HasRequiredConfig,
-    TransformationConfig,
-};
-use crate::exporter::uploader::{AsyncUploader, Uploader};
-use crate::{Exporter, JaegerTraceRuntime};
-use http::Uri;
-use opentelemetry::trace::TraceError;
-use opentelemetry_sdk::trace::{BatchConfig, BatchSpanProcessor, Config, Tracer, TracerProvider};
 use std::borrow::BorrowMut;
 use std::convert::TryFrom;
 use std::env;
@@ -14,16 +5,25 @@ use std::sync::Arc;
 #[cfg(feature = "collector_client")]
 use std::time::Duration;
 
+use http::Uri;
+
+use opentelemetry::trace::TraceError;
 #[cfg(feature = "collector_client")]
 use opentelemetry_http::HttpClient;
+use opentelemetry_sdk::trace::{BatchConfig, BatchSpanProcessor, Config, Tracer, TracerProvider};
 
 #[cfg(feature = "collector_client")]
 use crate::config::collector::http_client::CollectorHttpClient;
-
 #[cfg(feature = "collector_client")]
 use crate::exporter::collector::AsyncHttpClient;
 #[cfg(feature = "wasm_collector_client")]
 use crate::exporter::collector::WasmCollector;
+use crate::exporter::config::{
+    build_config_and_process, install_tracer_provider_and_get_tracer, HasRequiredConfig,
+    TransformationConfig,
+};
+use crate::exporter::uploader::{AsyncUploader, Uploader};
+use crate::{Exporter, JaegerTraceRuntime};
 
 #[cfg(feature = "collector_client")]
 mod http_client;
@@ -43,7 +43,7 @@ const ENV_TIMEOUT: &str = "OTEL_EXPORTER_JAEGER_TIMEOUT";
 const DEFAULT_COLLECTOR_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// Username to send as part of "Basic" authentication to the collector endpoint.
-const ENV_USER: &str = "OTEL_EXPORTER_JAEGER_USER";
+const ENV_USERNAME: &str = "OTEL_EXPORTER_JAEGER_USER";
 
 /// Password to send as part of "Basic" authentication to the collector endpoint.
 const ENV_PASSWORD: &str = "OTEL_EXPORTER_JAEGER_PASSWORD";
@@ -97,7 +97,7 @@ pub struct CollectorPipeline {
     #[cfg(feature = "collector_client")]
     collector_timeout: Duration,
     // only used by builtin http clients.
-    collector_endpoint: Option<Result<http::Uri, http::uri::InvalidUri>>,
+    collector_endpoint: Option<String>,
     collector_username: Option<String>,
     collector_password: Option<String>,
 
@@ -106,7 +106,7 @@ pub struct CollectorPipeline {
 
 impl Default for CollectorPipeline {
     fn default() -> Self {
-        let mut pipeline = Self {
+        Self {
             #[cfg(feature = "collector_client")]
             collector_timeout: DEFAULT_COLLECTOR_TIMEOUT,
             collector_endpoint: None,
@@ -116,33 +116,7 @@ impl Default for CollectorPipeline {
             transformation_config: Default::default(),
             trace_config: Default::default(),
             batch_config: Some(Default::default()),
-        };
-
-        #[cfg(feature = "collector_client")]
-        if let Some(timeout) = env::var(ENV_TIMEOUT).ok().filter(|var| !var.is_empty()) {
-            let timeout = match timeout.parse() {
-                Ok(timeout) => Duration::from_millis(timeout),
-                Err(e) => {
-                    eprintln!("{} malformed defaulting to 10000: {}", ENV_TIMEOUT, e);
-                    DEFAULT_COLLECTOR_TIMEOUT
-                }
-            };
-            pipeline = pipeline.with_timeout(timeout);
         }
-
-        if let Some(endpoint) = env::var(ENV_ENDPOINT).ok().filter(|var| !var.is_empty()) {
-            pipeline = pipeline.with_endpoint(endpoint);
-        }
-
-        if let Some(user) = env::var(ENV_USER).ok().filter(|var| !var.is_empty()) {
-            pipeline = pipeline.with_username(user);
-        }
-
-        if let Some(password) = env::var(ENV_PASSWORD).ok().filter(|var| !var.is_empty()) {
-            pipeline = pipeline.with_password(password);
-        }
-
-        pipeline
     }
 }
 
@@ -224,15 +198,9 @@ impl CollectorPipeline {
     /// Set the collector endpoint.
     ///
     /// E.g. "http://localhost:14268/api/traces"
-    pub fn with_endpoint<T>(self, collector_endpoint: T) -> Self
-    where
-        http::Uri: core::convert::TryFrom<T>,
-        <http::Uri as core::convert::TryFrom<T>>::Error: Into<http::uri::InvalidUri>,
-    {
+    pub fn with_endpoint<T: Into<String>>(self, collector_endpoint: T) -> Self {
         Self {
-            collector_endpoint: Some(
-                core::convert::TryFrom::try_from(collector_endpoint).map_err(Into::into),
-            ),
+            collector_endpoint: Some(collector_endpoint.into()),
             ..self
         }
     }
@@ -491,64 +459,95 @@ impl CollectorPipeline {
     where
         R: JaegerTraceRuntime,
     {
-        let endpoint = self
-            .collector_endpoint
-            .transpose()
-            .map_err::<crate::Error, _>(|err| crate::Error::ConfigError {
-                pipeline_name: "collector",
-                config_name: "collector_endpoint",
-                reason: format!("invalid uri, {}", err),
-            })?
-            .unwrap_or_else(|| {
-                Uri::try_from(DEFAULT_ENDPOINT).unwrap() // default endpoint should always valid
-            });
+        let endpoint = self.resolve_endpoint()?;
+        let username = self.resolve_username();
+        let password = self.resolve_password();
+        #[cfg(feature = "collector_client")]
+        let timeout = self.resolve_timeout();
         match self.client_config {
             #[cfg(feature = "collector_client")]
             ClientConfig::Http { client_type } => {
-                let client = client_type.build_client(
-                    self.collector_username,
-                    self.collector_password,
-                    self.collector_timeout,
-                )?;
+                let client = client_type.build_client(username, password, timeout)?;
 
                 let collector = AsyncHttpClient::new(endpoint, client);
                 Ok(Arc::new(AsyncUploader::<R>::Collector(collector)))
             }
             #[cfg(feature = "wasm_collector_client")]
             ClientConfig::Wasm => {
-                let collector =
-                    WasmCollector::new(endpoint, self.collector_username, self.collector_password)
-                        .map_err::<crate::Error, _>(Into::into)?;
+                let collector = WasmCollector::new(endpoint, username, password)
+                    .map_err::<crate::Error, _>(Into::into)?;
                 Ok(Arc::new(AsyncUploader::<R>::WasmCollector(collector)))
             }
         }
+    }
+
+    fn resolve_env_var(env_var: &'static str) -> Option<String> {
+        env::var(env_var).ok().filter(|var| !var.is_empty())
+    }
+
+    // if provided value from environment variable or the builder is invalid, return error
+    fn resolve_endpoint(&self) -> Result<Uri, crate::Error> {
+        let endpoint_from_env = Self::resolve_env_var(ENV_ENDPOINT)
+            .map(|endpoint| {
+                Uri::try_from(endpoint.as_str()).map_err::<crate::Error, _>(|err| {
+                    crate::Error::ConfigError {
+                        pipeline_name: "collector",
+                        config_name: "collector_endpoint",
+                        reason: format!("invalid uri from environment variable, {}", err),
+                    }
+                })
+            })
+            .transpose()?;
+
+        Ok(match endpoint_from_env {
+            Some(endpoint) => endpoint,
+            None => {
+                if let Some(endpoint) = &self.collector_endpoint {
+                    Uri::try_from(endpoint.as_str()).map_err::<crate::Error, _>(|err| {
+                        crate::Error::ConfigError {
+                            pipeline_name: "collector",
+                            config_name: "collector_endpoint",
+                            reason: format!("invalid uri from the builder, {}", err),
+                        }
+                    })?
+                } else {
+                    Uri::try_from(DEFAULT_ENDPOINT).unwrap() // default endpoint should always valid
+                }
+            }
+        })
+    }
+
+    #[cfg(feature = "collector_client")]
+    fn resolve_timeout(&self) -> Duration {
+        match Self::resolve_env_var(ENV_TIMEOUT) {
+            Some(timeout) => match timeout.parse() {
+                Ok(timeout) => Duration::from_millis(timeout),
+                Err(e) => {
+                    eprintln!("{} malformed defaulting to 10s: {}", ENV_TIMEOUT, e);
+                    self.collector_timeout
+                }
+            },
+            None => self.collector_timeout,
+        }
+    }
+
+    fn resolve_username(&self) -> Option<String> {
+        Self::resolve_env_var(ENV_USERNAME).or_else(|| self.collector_username.clone())
+    }
+
+    fn resolve_password(&self) -> Option<String> {
+        Self::resolve_env_var(ENV_PASSWORD).or_else(|| self.collector_password.clone())
     }
 }
 
 #[cfg(test)]
 #[cfg(feature = "rt-tokio")]
 mod tests {
-    use super::*;
-    use crate::config::collector::http_client::test_http_client;
     use opentelemetry_sdk::runtime::Tokio;
 
-    #[test]
-    fn test_collector_defaults() {
-        // No Env Variable
-        std::env::remove_var(ENV_TIMEOUT);
-        let builder = CollectorPipeline::default();
-        assert_eq!(DEFAULT_COLLECTOR_TIMEOUT, builder.collector_timeout);
+    use crate::config::collector::http_client::test_http_client;
 
-        // Bad Env Variable
-        std::env::set_var(ENV_TIMEOUT, "a");
-        let builder = CollectorPipeline::default();
-        assert_eq!(DEFAULT_COLLECTOR_TIMEOUT, builder.collector_timeout);
-
-        // Good Env Variable
-        std::env::set_var(ENV_TIMEOUT, "777");
-        let builder = CollectorPipeline::default();
-        assert_eq!(Duration::from_millis(777), builder.collector_timeout);
-    }
+    use super::*;
 
     #[test]
     fn test_set_collector_endpoint() {

@@ -3,7 +3,6 @@
     feature = "rt-tokio",
     feature = "rt-tokio-current-thread"
 ))]
-use crate::exporter::addrs_and_family;
 use async_trait::async_trait;
 use opentelemetry_sdk::runtime::RuntimeChannel;
 use std::net::ToSocketAddrs;

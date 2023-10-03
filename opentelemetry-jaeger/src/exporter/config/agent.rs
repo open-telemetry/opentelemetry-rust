@@ -1,22 +1,22 @@
-use std::{env, net};
 use std::borrow::BorrowMut;
 use std::net::ToSocketAddrs;
 use std::sync::Arc;
+use std::{env, net};
 
 use opentelemetry::trace::TraceError;
+use opentelemetry_sdk::trace::{BatchSpanProcessor, Tracer};
 use opentelemetry_sdk::{
     self,
     trace::{BatchConfig, Config, TracerProvider},
 };
-use opentelemetry_sdk::trace::{BatchSpanProcessor, Tracer};
 
-use crate::{Error, Exporter, JaegerTraceRuntime};
 use crate::exporter::agent::{AgentAsyncClientUdp, AgentSyncClientUdp};
 use crate::exporter::config::{
-    build_config_and_process, HasRequiredConfig, install_tracer_provider_and_get_tracer,
+    build_config_and_process, install_tracer_provider_and_get_tracer, HasRequiredConfig,
     TransformationConfig,
 };
 use crate::exporter::uploader::{AsyncUploader, SyncUploader, Uploader};
+use crate::{Error, Exporter, JaegerTraceRuntime};
 
 /// The max size of UDP packet we want to send, synced with jaeger-agent
 const UDP_PACKET_MAX_LENGTH: usize = 65_000;

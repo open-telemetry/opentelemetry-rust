@@ -54,7 +54,7 @@ impl AgentSyncClientUdp {
             TCompactOutputProtocol::new(write),
         );
 
-        let conn = UdpSocket::bind(address_family(&agent_address.as_slice()))?;
+        let conn = UdpSocket::bind(address_family(agent_address.as_slice()))?;
         conn.connect(agent_address.as_slice())?;
 
         Ok(AgentSyncClientUdp {
