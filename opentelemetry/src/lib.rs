@@ -63,8 +63,6 @@
 //!
 //! # Metrics
 //!
-//! Note: the metrics specification is **still in progress** and **subject to major
-//! changes**.
 //!
 //! The [`metrics`] module includes types for recording measurements about a
 //! service at runtime.
