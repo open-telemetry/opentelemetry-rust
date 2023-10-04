@@ -47,7 +47,7 @@ criterion = { version = "0.5", features = ["html_reports"] }
 futures-util = { version = "0.3", default-features = false, features = ["std"] }
 opentelemetry_sdk = { path = "../opentelemetry-sdk", features = ["trace", "testing"] }
 [target.'cfg(not(target_os = "windows"))'.dev-dependencies]
-pprof = { version = "0.12", features = ["flamegraph", "criterion"] }
+pprof = { version = "0.13", features = ["flamegraph", "criterion"] }
 
 [[bench]]
 name = "new_span"
