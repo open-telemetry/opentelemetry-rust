@@ -36,6 +36,11 @@ pub const OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: &str = "OTEL_EXPORTER_OTLP_TRACES_
 pub const OTEL_EXPORTER_OTLP_TRACES_TIMEOUT: &str = "OTEL_EXPORTER_OTLP_TRACES_TIMEOUT";
 /// Compression algorithm to use, defaults to none.
 pub const OTEL_EXPORTER_OTLP_TRACES_COMPRESSION: &str = "OTEL_EXPORTER_OTLP_TRACES_COMPRESSION";
+/// Key-value pairs to be used as headers associated with gRPC or HTTP requests
+/// for sending spans.
+/// Example: `k1=v1,k2=v2`
+/// Note: this is only supported for HTTP.
+pub const OTEL_EXPORTER_OTLP_TRACES_HEADERS: &str = "OTEL_EXPORTER_OTLP_TRACES_HEADERS";
 
 impl OtlpPipeline {
     /// Create a OTLP tracing pipeline.

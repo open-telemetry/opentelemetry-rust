@@ -30,6 +30,12 @@ pub const OTEL_EXPORTER_OTLP_LOGS_ENDPOINT: &str = "OTEL_EXPORTER_OTLP_LOGS_ENDP
 /// Maximum time the OTLP exporter will wait for each batch logs export.
 pub const OTEL_EXPORTER_OTLP_LOGS_TIMEOUT: &str = "OTEL_EXPORTER_OTLP_LOGS_TIMEOUT";
 
+/// Key-value pairs to be used as headers associated with gRPC or HTTP requests
+/// for sending logs.
+/// Example: `k1=v1,k2=v2`
+/// Note: this is only supported for HTTP.
+pub const OTEL_EXPORTER_OTLP_LOGS_HEADERS: &str = "OTEL_EXPORTER_OTLP_LOGS_HEADERS";
+
 impl OtlpPipeline {
     /// Create a OTLP logging pipeline.
     pub fn logging(self) -> OtlpLogPipeline<NoExporterConfig> {

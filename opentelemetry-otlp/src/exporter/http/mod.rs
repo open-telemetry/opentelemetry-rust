@@ -1,4 +1,7 @@
-use crate::{ExportConfig, Protocol, OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_TIMEOUT};
+use crate::{
+    ExportConfig, Protocol, OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_HEADERS,
+    OTEL_EXPORTER_OTLP_TIMEOUT,
+};
 use http::{HeaderName, HeaderValue, Uri};
 use opentelemetry_http::HttpClient;
 use std::collections::HashMap;
@@ -143,6 +146,7 @@ impl HttpExporterBuilder {
         signal_endpoint_var: &str,
         signal_endpoint_path: &str,
         signal_timeout_var: &str,
+        signal_http_headers_var: &str,
     ) -> Result<OtlpHttpClient, crate::Error> {
         let endpoint = resolve_endpoint(
             signal_endpoint_var,
@@ -167,8 +171,7 @@ impl HttpExporterBuilder {
             .take()
             .ok_or(crate::Error::NoHttpClient)?;
 
-        #[allow(clippy::mutable_key_type)] // http headers are not mutated
-        let headers = self
+        let mut headers: HashMap<HeaderName, HeaderValue> = self
             .http_config
             .headers
             .take()
@@ -182,6 +185,28 @@ impl HttpExporterBuilder {
             })
             .collect();
 
+        if let Ok(input) =
+            env::var(signal_http_headers_var).or_else(|_| env::var(OTEL_EXPORTER_OTLP_HEADERS))
+        {
+            for pair in input.split(',') {
+                if pair.is_empty() {
+                    continue;
+                }
+                let mut kv_iter = pair.splitn(2, '=');
+                match (kv_iter.next(), kv_iter.next()) {
+                    (Some(k), Some(v)) if !k.trim().is_empty() && !v.trim().is_empty() => {
+                        headers.insert(
+                            HeaderName::from_str(k.trim()).ok().unwrap(),
+                            HeaderValue::from_str(v.trim()).ok().unwrap(),
+                        );
+                    }
+                    _ => {
+                        break; // stop parsing on error
+                    }
+                }
+            }
+        }
+
         Ok(OtlpHttpClient::new(http_client, endpoint, headers, timeout))
     }
 
@@ -190,12 +215,16 @@ impl HttpExporterBuilder {
     pub fn build_span_exporter(
         mut self,
     ) -> Result<crate::SpanExporter, opentelemetry::trace::TraceError> {
-        use crate::{OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, OTEL_EXPORTER_OTLP_TRACES_TIMEOUT};
+        use crate::{
+            OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, OTEL_EXPORTER_OTLP_TRACES_HEADERS,
+            OTEL_EXPORTER_OTLP_TRACES_TIMEOUT,
+        };
 
         let client = self.build_client(
             OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
             "/v1/traces",
             OTEL_EXPORTER_OTLP_TRACES_TIMEOUT,
+            OTEL_EXPORTER_OTLP_TRACES_HEADERS,
         )?;
 
         Ok(crate::SpanExporter::new(client))
@@ -204,12 +233,16 @@ impl HttpExporterBuilder {
     /// Create a log exporter with the current configuration
     #[cfg(feature = "logs")]
     pub fn build_log_exporter(mut self) -> opentelemetry::logs::LogResult<crate::LogExporter> {
-        use crate::{OTEL_EXPORTER_OTLP_LOGS_ENDPOINT, OTEL_EXPORTER_OTLP_LOGS_TIMEOUT};
+        use crate::{
+            OTEL_EXPORTER_OTLP_LOGS_ENDPOINT, OTEL_EXPORTER_OTLP_LOGS_HEADERS,
+            OTEL_EXPORTER_OTLP_LOGS_TIMEOUT,
+        };
 
         let client = self.build_client(
             OTEL_EXPORTER_OTLP_LOGS_ENDPOINT,
             "/v1/logs",
             OTEL_EXPORTER_OTLP_LOGS_TIMEOUT,
+            OTEL_EXPORTER_OTLP_LOGS_HEADERS,
         )?;
 
         Ok(crate::LogExporter::new(client))
@@ -222,12 +255,16 @@ impl HttpExporterBuilder {
         aggregation_selector: Box<dyn opentelemetry_sdk::metrics::reader::AggregationSelector>,
         temporality_selector: Box<dyn opentelemetry_sdk::metrics::reader::TemporalitySelector>,
     ) -> opentelemetry::metrics::Result<crate::MetricsExporter> {
-        use crate::{OTEL_EXPORTER_OTLP_METRICS_ENDPOINT, OTEL_EXPORTER_OTLP_METRICS_TIMEOUT};
+        use crate::{
+            OTEL_EXPORTER_OTLP_METRICS_ENDPOINT, OTEL_EXPORTER_OTLP_METRICS_HEADERS,
+            OTEL_EXPORTER_OTLP_METRICS_TIMEOUT,
+        };
 
         let client = self.build_client(
             OTEL_EXPORTER_OTLP_METRICS_ENDPOINT,
             "/v1/metrics",
             OTEL_EXPORTER_OTLP_METRICS_TIMEOUT,
+            OTEL_EXPORTER_OTLP_METRICS_HEADERS,
         )?;
 
         Ok(crate::MetricsExporter::new(

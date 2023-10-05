@@ -21,6 +21,8 @@ use std::time::Duration;
 pub const OTEL_EXPORTER_OTLP_ENDPOINT: &str = "OTEL_EXPORTER_OTLP_ENDPOINT";
 /// Default target to which the exporter is going to send signals.
 pub const OTEL_EXPORTER_OTLP_ENDPOINT_DEFAULT: &str = OTEL_EXPORTER_OTLP_HTTP_ENDPOINT_DEFAULT;
+/// Key-value pairs to be used as headers associated with gRPC or HTTP requests
+pub const OTEL_EXPORTER_OTLP_HEADERS: &str = "OTEL_EXPORTER_OTLP_HEADERS";
 /// Protocol the exporter will use. Either `http/protobuf` or `grpc`.
 pub const OTEL_EXPORTER_OTLP_PROTOCOL: &str = "OTEL_EXPORTER_OTLP_PROTOCOL";
 /// Compression algorithm to use, defaults to none.

@@ -1,6 +1,7 @@
 use crate::transform::transform_resource_metrics;
 use async_trait::async_trait;
 use opentelemetry::metrics::{MetricsError, Result};
+use opentelemetry_sdk::metrics::reader::DefaultAggregationSelector;
 use opentelemetry_sdk::metrics::{
     data::{ResourceMetrics, Temporality},
     exporter::PushMetricsExporter,
@@ -54,7 +55,7 @@ impl TemporalitySelector for MetricsExporter {
 impl AggregationSelector for MetricsExporter {
     fn aggregation(&self, _kind: InstrumentKind) -> Aggregation {
         // TODO: Implement aggregation selection feature
-        Aggregation::Sum
+        DefaultAggregationSelector::default().aggregation(_kind)
     }
 }
 
