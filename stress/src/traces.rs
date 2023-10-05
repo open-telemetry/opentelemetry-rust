@@ -19,10 +19,7 @@ fn main() {
 }
 
 fn test_span() {
-    let mut span_builder = SpanBuilder::from_name("test_span");
-    // let mut span_builder = TRACER.span_builder("test_span"); same as above?
-
-    span_builder = span_builder.with_attributes(vec![
+    let span_builder = SpanBuilder::from_name("test_span").with_attributes(vec![
         KeyValue::new("attribute_at_span_start1", "value1"),
         KeyValue::new("attribute_at_span_start2", "value2"),
     ]);
