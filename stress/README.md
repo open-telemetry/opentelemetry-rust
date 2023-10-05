@@ -29,12 +29,10 @@ Press (Ctrl + C) to quit the tests.
 Example output:
 
 ```text
-Throughput: 4813019.00 requests/sec
-Throughput: 4805997.50 requests/sec
-Throughput: 4796934.50 requests/sec
-Throughput: 4817836.50 requests/sec
-Throughput: 4812457.00 requests/sec
-Throughput: 4773890.50 requests/sec
-Throughput: 4760047.00 requests/sec
-Throughput: 4851061.50 requests/sec
+Number of threads: 4
+Throughput: 4,714,600 iterations/sec
+Throughput: 4,840,200 iterations/sec
+Throughput: 3,905,200 iterations/sec
+Throughput: 4,106,600 iterations/sec
+Throughput: 5,075,400 iterations/sec
 ```

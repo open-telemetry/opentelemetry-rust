@@ -66,7 +66,7 @@ pub trait MeterProvider {
     ) -> Meter;
 }
 
-/// Provides access to instrument instances for recording metrics.
+/// Provides access to instrument instances for recording measurements.
 ///
 /// ```
 /// use opentelemetry::{global, KeyValue};
@@ -99,7 +99,7 @@ pub trait MeterProvider {
 ///     ].as_ref()
 /// );
 ///
-/// // u6 oberservable counter
+/// // u6 observable counter
 /// let observable_u4_counter = meter.u64_observable_counter("my_observable_u64_counter").init();
 ///
 /// // Register a callback to this meter for an asynchronous instrument to record measurements
@@ -114,7 +114,7 @@ pub trait MeterProvider {
 ///     )
 /// });
 ///
-/// // f64 oberservable counter
+/// // f64 observable counter
 /// let observable_f64_counter = meter.f64_observable_counter("my_observable_f64_counter").init();
 ///
 /// // Register a callback to this meter for an asynchronous instrument to record measurements
@@ -153,7 +153,7 @@ pub trait MeterProvider {
 ///     ].as_ref(),
 /// );
 ///
-/// // i64 oberservable updown counter
+/// // i64 observable updown counter
 /// let observable_i64_up_down_counter = meter.i64_observable_up_down_counter("my_observable_i64_updown_counter").init();
 ///
 /// // Register a callback to this meter for an asynchronous instrument to record measurements
@@ -168,7 +168,7 @@ pub trait MeterProvider {
 ///     )
 /// });
 ///
-/// // f64 oberservable updown counter
+/// // f64 observable updown counter
 /// let observable_f64_up_down_counter = meter.f64_observable_up_down_counter("my_observable_f64_updown_counter").init();
 ///
 /// // Register a callback to this meter for an asynchronous instrument to record measurements
@@ -183,7 +183,7 @@ pub trait MeterProvider {
 ///     )
 /// });
 ///
-/// // Oberservable f64 gauge
+/// // Observable f64 gauge
 /// let f64_gauge = meter.f64_observable_gauge("my_f64_gauge").init();
 ///
 /// // Register a callback to this meter for an asynchronous instrument to record measurements
@@ -198,7 +198,7 @@ pub trait MeterProvider {
 ///     )
 /// });
 ///
-/// // Oberservable i64 gauge
+/// // Observable i64 gauge
 /// let i64_gauge = meter.i64_observable_gauge("my_i64_gauge").init();
 ///
 /// // Register a callback to this meter for an asynchronous instrument to record measurements
@@ -213,7 +213,7 @@ pub trait MeterProvider {
 ///     )
 /// });
 ///
-/// // Oberservable u64 gauge
+/// // Observable u64 gauge
 /// let u64_gauge = meter.u64_observable_gauge("my_u64_gauge").init();
 ///
 /// // Register a callback to this meter for an asynchronous instrument to record measurements
