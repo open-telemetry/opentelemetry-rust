@@ -37,7 +37,6 @@ impl Default for MetricsExporter {
 }
 
 impl TemporalitySelector for MetricsExporter {
-
     // This is matching OTLP exporters delta.
     fn temporality(&self, kind: InstrumentKind) -> Temporality {
         match kind {
