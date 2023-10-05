@@ -1,5 +1,6 @@
 use std::fmt;
 
+use crate::metrics::internal::{EXPO_MAX_SCALE, EXPO_MIN_SCALE};
 use opentelemetry::metrics::{MetricsError, Result};
 
 /// The way recorded measurements are summarized.
@@ -127,13 +128,13 @@ impl Aggregation {
                 Ok(())
             }
             Aggregation::Base2ExponentialHistogram { max_scale, .. } => {
-                if *max_scale > 20 {
+                if *max_scale > EXPO_MAX_SCALE {
                     return Err(MetricsError::Config(format!(
                         "aggregation: exponential histogram: max scale ({}) is greater than 20",
                         max_scale,
                     )));
                 }
-                if *max_scale < -10 {
+                if *max_scale < -EXPO_MIN_SCALE {
                     return Err(MetricsError::Config(format!(
                         "aggregation: exponential histogram: max scale ({}) is less than -10",
                         max_scale,

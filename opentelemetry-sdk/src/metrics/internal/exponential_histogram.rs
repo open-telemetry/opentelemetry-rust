@@ -15,8 +15,8 @@ use crate::{
 
 use super::Number;
 
-const EXPO_MAX_SCALE: i8 = 20;
-const EXPO_MIN_SCALE: i8 = -10;
+pub(crate) const EXPO_MAX_SCALE: i8 = 20;
+pub(crate) const EXPO_MIN_SCALE: i8 = -10;
 
 /// A single data point in an exponential histogram.
 #[derive(Debug, PartialEq)]
