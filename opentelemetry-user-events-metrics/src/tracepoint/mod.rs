@@ -104,7 +104,7 @@ pub unsafe fn register(trace_point: Pin<&ehi::TracepointState>) -> i32 {
             value
         }
         // We don't want to ever panic so we catch the error and return a unique code for retry
-        Err(err)=> {
+        Err(err) => {
             global::handle_error(MetricsError::Other(format!(
                 "Tracepoint failed to register: {:?}.",
                 err,
