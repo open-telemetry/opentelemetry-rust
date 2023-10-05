@@ -85,7 +85,7 @@ pub unsafe fn register(trace_point: Pin<&ehi::TracepointState>) -> i32 {
     // If tracepoint doesn't exist, it will create one automatically
     let result = panic::catch_unwind(|| {
         // CStr::from_bytes_with_nul_unchecked is ok because METRICS_EVENT_DEF ends with "\0".
-        trace_point.register(ffi::CStr::from_bytes_with_nul_unchecked(METRICS_EVENT_DEF));
+        trace_point.register(ffi::CStr::from_bytes_with_nul_unchecked(METRICS_EVENT_DEF))
     });
 
     match result {
