@@ -1,5 +1,6 @@
 use core::ffi;
 use eventheader::_internal as ehi;
+use opentelemetry::{global, metrics::MetricsError};
 use std::panic;
 use std::pin::Pin;
 
@@ -84,25 +85,30 @@ pub unsafe fn register(trace_point: Pin<&ehi::TracepointState>) -> i32 {
     // If tracepoint doesn't exist, it will create one automatically
     let result = panic::catch_unwind(|| {
         // CStr::from_bytes_with_nul_unchecked is ok because METRICS_EVENT_DEF ends with "\0".
-        trace_point.register(ffi::CStr::from_bytes_with_nul_unchecked(METRICS_EVENT_DEF))
+        trace_point.register(ffi::CStr::from_bytes_with_nul_unchecked(METRICS_EVENT_DEF));
     });
 
     match result {
         Ok(value) => {
             if value == 0 {
-                0
-            } else {
-                if value == 95 {
-                    eprintln!("Trace/debug file systems are not mounted.");
-                } else if value == 13 {
-                    eprintln!("Insuufficient permissions. You need read/write/execute permissions to user_events tracing directory.");
-                }
-                -1
+                println!("Tracepoint registered successfully.")
+            } else if value == 95 {
+                global::handle_error(MetricsError::Other(
+                    "Trace/debug file systems are not mounted.".into(),
+                ));
+            } else if value == 13 {
+                global::handle_error(MetricsError::Other(
+                    "Insuufficient permissions. You need read/write/execute permissions to user_events tracing directory.".into(),
+                ));
             }
+            value
         }
         // We don't want to ever panic so we catch the error and return a unique code for retry
-        Err(_err) => {
-            eprintln!("Tracepoint failed to register. Try restarting your application.");
+        Err(err)=> {
+            global::handle_error(MetricsError::Other(format!(
+                "Tracepoint failed to register: {:?}.",
+                err,
+            )));
             -1
         }
     }
