@@ -13,7 +13,7 @@ use super::default_headers;
 use crate::exporter::Compression;
 use crate::{
     ExportConfig, OTEL_EXPORTER_OTLP_COMPRESSION, OTEL_EXPORTER_OTLP_ENDPOINT,
-    /*OTEL_EXPORTER_OTLP_HEADERS,*/ OTEL_EXPORTER_OTLP_TIMEOUT,
+    OTEL_EXPORTER_OTLP_TIMEOUT,
 };
 
 #[cfg(feature = "logs")]
@@ -212,7 +212,7 @@ impl TonicExporterBuilder {
         signal_endpoint_var: &str,
         signal_endpoint_path: &str,
         signal_timeout_var: &str,
-        signal_compression_var: &str, //signal_metadata_var: &str,
+        signal_compression_var: &str,
     ) -> Result<(Channel, BoxInterceptor, Option<CompressionEncoding>), crate::Error> {
         let config = &mut self.exporter_config;
         let tonic_config: &mut TonicConfig = &mut self.tonic_config;
@@ -253,30 +253,6 @@ impl TonicExporterBuilder {
         let channel = endpoint.timeout(timeout).connect_lazy();
 
         let metadata = tonic_config.metadata.take().unwrap_or_default();
-
-        /*  if let Ok(input) = env::var(signal_metadata_var).or_else(|_| env::var(OTEL_EXPORTER_OTLP_HEADERS)) {
-            for pair in input.split(','){
-                if pair.is_empty(){
-                    continue;
-                }
-                let mut kv_iter = pair.splitn(2, '=');
-                match (kv_iter.next(), kv_iter.next()) {
-                    (Some(k), Some(v)) if !k.trim().is_empty() && !v.trim().is_empty() => {
-                        if metadata.contains_key(k) {
-                            metadata.remove(k.trim());
-                        }
-                        if let Ok(value) = v.trim().parse() {
-                            let key : BinaryMetadataKey = k.trim().to_string().as_bytes();
-                            metadata.insert(k.trim().to_string().to_owned(), value);
-                        }
-                    }
-                    _ => {
-                        break; // stop parsing on error
-                    }
-                }
-            }
-        } */
-
         let add_metadata = move |mut req: tonic::Request<()>| {
             for key_and_value in metadata.iter() {
                 match key_and_value {
@@ -314,7 +290,6 @@ impl TonicExporterBuilder {
             "/v1/logs",
             crate::logs::OTEL_EXPORTER_OTLP_LOGS_TIMEOUT,
             crate::logs::OTEL_EXPORTER_OTLP_LOGS_COMPRESSION,
-            //crate::logs::OTEL_EXPORTER_OTLP_LOGS_HEADERS,
         )?;
 
         let client = TonicLogsClient::new(channel, interceptor, compression);
@@ -337,7 +312,6 @@ impl TonicExporterBuilder {
             "/v1/metrics",
             crate::metric::OTEL_EXPORTER_OTLP_METRICS_TIMEOUT,
             crate::metric::OTEL_EXPORTER_OTLP_METRICS_COMPRESSION,
-            //crate::metric::OTEL_EXPORTER_OTLP_METRICS_HEADERS,
         )?;
 
         let client = TonicMetricsClient::new(channel, interceptor, compression);
@@ -361,7 +335,6 @@ impl TonicExporterBuilder {
             "/v1/traces",
             crate::span::OTEL_EXPORTER_OTLP_TRACES_TIMEOUT,
             crate::span::OTEL_EXPORTER_OTLP_TRACES_COMPRESSION,
-            //crate::span::OTEL_EXPORTER_OTLP_TRACES_HEADERS
         )?;
 
         let client = TonicTracesClient::new(channel, interceptor, compression);

@@ -55,7 +55,7 @@ impl TemporalitySelector for MetricsExporter {
 impl AggregationSelector for MetricsExporter {
     fn aggregation(&self, _kind: InstrumentKind) -> Aggregation {
         // TODO: Implement aggregation selection feature
-        DefaultAggregationSelector::default().aggregation(_kind)
+        Aggregation::Sum
     }
 }
 
