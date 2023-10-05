@@ -98,7 +98,7 @@ pub unsafe fn register(trace_point: Pin<&ehi::TracepointState>) -> i32 {
                 ));
             } else if value == 13 {
                 global::handle_error(MetricsError::Other(
-                    "Insuufficient permissions. You need read/write/execute permissions to user_events tracing directory.".into(),
+                    "Insufficient permissions. You need read/write/execute permissions to user_events tracing directory.".into(),
                 ));
             }
             value
