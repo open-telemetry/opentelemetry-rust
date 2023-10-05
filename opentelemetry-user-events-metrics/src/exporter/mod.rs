@@ -37,8 +37,9 @@ impl Default for MetricsExporter {
 }
 
 impl TemporalitySelector for MetricsExporter {
+
+    // This is matching OTLP exporters delta.
     fn temporality(&self, kind: InstrumentKind) -> Temporality {
-        // TODO: Implement temporality selection feature
         match kind {
             InstrumentKind::Counter
             | InstrumentKind::ObservableCounter
@@ -52,9 +53,23 @@ impl TemporalitySelector for MetricsExporter {
 }
 
 impl AggregationSelector for MetricsExporter {
-    fn aggregation(&self, _kind: InstrumentKind) -> Aggregation {
-        // TODO: Implement aggregation selection feature
-        Aggregation::Sum
+    // TODO: this should ideally be done at SDK level by default
+    // without exporters having to do it.
+    fn aggregation(&self, kind: InstrumentKind) -> Aggregation {
+        match kind {
+            InstrumentKind::Counter
+            | InstrumentKind::UpDownCounter
+            | InstrumentKind::ObservableCounter
+            | InstrumentKind::ObservableUpDownCounter => Aggregation::Sum,
+            InstrumentKind::ObservableGauge => Aggregation::LastValue,
+            InstrumentKind::Histogram => Aggregation::ExplicitBucketHistogram {
+                boundaries: vec![
+                    0.0, 5.0, 10.0, 25.0, 50.0, 75.0, 100.0, 250.0, 500.0, 750.0, 1000.0, 2500.0,
+                    5000.0, 7500.0, 10000.0,
+                ],
+                record_min_max: true,
+            },
+        }
     }
 }
 
