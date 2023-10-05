@@ -1,7 +1,7 @@
 ![OpenTelemetry — An observability framework for cloud-native software.][splash]
 
 [splash]: https://raw.githubusercontent.com/open-telemetry/opentelemetry-rust/main/assets/logo-text.png
-
+ 
 # OpenTelemetry Rust
 
 The Rust [OpenTelemetry](https://opentelemetry.io/) implementation.
