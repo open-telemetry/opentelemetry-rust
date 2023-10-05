@@ -7,6 +7,7 @@
 - Log warning if two instruments have the same name with different (#1266)
   casing
 - Log warning if view is created with empty criteria (#1266)
+- Add exponential histogram support (#1267)
 
 ### Changed
 

@@ -14,12 +14,17 @@ name = "logs"
 path = "src/logs.rs"
 doc = false
 
+[[bin]] # Bin to run the traces stress tests
+name = "traces"
+path = "src/traces.rs"
+doc = false
+
 [dependencies]
 ctrlc = "3.2.5"
 lazy_static = "1.4.0"
 num_cpus = "1.15.0"
-opentelemetry = { path = "../opentelemetry", features = ["metrics", "logs"] }
-opentelemetry_sdk = { path = "../opentelemetry-sdk", features = ["metrics", "logs"] }
+opentelemetry = { path = "../opentelemetry", features = ["metrics", "logs", "trace"] }
+opentelemetry_sdk = { path = "../opentelemetry-sdk", features = ["metrics", "logs", "trace"] }
 opentelemetry-appender-tracing = { path = "../opentelemetry-appender-tracing"}
 opentelemetry-stdout = { path = "../opentelemetry-stdout", features = ["logs"]}
 rand = { version = "0.8.4", features = ["small_rng"] }

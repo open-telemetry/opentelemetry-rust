@@ -27,7 +27,7 @@ where
     })
     .expect("Error setting Ctrl-C handler");
     let num_threads = num_cpus::get_physical();
-    println!("Number threads: {}", num_threads);
+    println!("Number of threads: {}", num_threads);
     let mut handles = Vec::with_capacity(num_threads);
     let func_arc = Arc::new(func);
     let mut worker_stats_vec: Vec<WorkerStats> = Vec::new();
