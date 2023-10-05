@@ -186,6 +186,88 @@ impl<T: Copy> Clone for HistogramDataPoint<T> {
     }
 }
 
+/// The histogram of all measurements of values from an instrument.
+#[derive(Debug)]
+pub struct ExponentialHistogram<T> {
+    /// The individual aggregated measurements with unique attributes.
+    pub data_points: Vec<ExponentialHistogramDataPoint<T>>,
+
+    /// Describes if the aggregation is reported as the change from the last report
+    /// time, or the cumulative changes since a fixed start time.
+    pub temporality: Temporality,
+}
+
+impl<T: fmt::Debug + Send + Sync + 'static> Aggregation for ExponentialHistogram<T> {
+    fn as_any(&self) -> &dyn any::Any {
+        self
+    }
+    fn as_mut(&mut self) -> &mut dyn any::Any {
+        self
+    }
+}
+
+/// A single exponential histogram data point in a time series.
+#[derive(Debug)]
+pub struct ExponentialHistogramDataPoint<T> {
+    /// The set of key value pairs that uniquely identify the time series.
+    pub attributes: AttributeSet,
+    /// When the time series was started.
+    pub start_time: SystemTime,
+    /// The time when the time series was recorded.
+    pub time: SystemTime,
+
+    /// The number of updates this histogram has been calculated with.
+    pub count: usize,
+    /// The minimum value recorded.
+    pub min: Option<T>,
+    /// The maximum value recorded.
+    pub max: Option<T>,
+    /// The sum of the values recorded.
+    pub sum: T,
+
+    /// Describes the resolution of the histogram.
+    ///
+    /// Boundaries are located at powers of the base, where:
+    ///
+    ///   base = 2 ^ (2 ^ -scale)
+    pub scale: i8,
+
+    /// The number of values whose absolute value is less than or equal to
+    /// `zero_threshold`.
+    ///
+    /// When `zero_threshold` is `0`, this is the number of values that cannot be
+    /// expressed using the standard exponential formula as well as values that have
+    /// been rounded to zero.
+    pub zero_count: u64,
+
+    /// The range of positive value bucket counts.
+    pub positive_bucket: ExponentialBucket,
+    /// The range of negative value bucket counts.
+    pub negative_bucket: ExponentialBucket,
+
+    /// The width of the zero region.
+    ///
+    /// Where the zero region is defined as the closed interval
+    /// [-zero_threshold, zero_threshold].
+    pub zero_threshold: f64,
+
+    /// The sampled exemplars collected during the time series.
+    pub exemplars: Vec<Exemplar<T>>,
+}
+
+/// A set of bucket counts, encoded in a contiguous array of counts.
+#[derive(Debug, PartialEq)]
+pub struct ExponentialBucket {
+    /// The bucket index of the first entry in the `counts` vec.
+    pub offset: i32,
+
+    /// A vec where `counts[i]` carries the count of the bucket at index `offset + i`.
+    ///
+    /// `counts[i]` is the count of values greater than base^(offset+i) and less than
+    /// or equal to base^(offset+i+1).
+    pub counts: Vec<u64>,
+}
+
 /// A measurement sampled from a time series providing a typical example.
 #[derive(Debug)]
 pub struct Exemplar<T> {

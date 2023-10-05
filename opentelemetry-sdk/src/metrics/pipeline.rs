@@ -504,6 +504,24 @@ fn aggregate_fn<T: Number<T>>(
                 record_sum,
             ))))
         }
+        Aggregation::Base2ExponentialHistogram {
+            max_size,
+            max_scale,
+            record_min_max,
+        } => {
+            let record_sum = !matches!(
+                kind,
+                InstrumentKind::UpDownCounter
+                    | InstrumentKind::ObservableUpDownCounter
+                    | InstrumentKind::ObservableGauge
+            );
+            Ok(Some(box_val(b.exponential_bucket_histogram(
+                *max_size,
+                *max_scale,
+                *record_min_max,
+                record_sum,
+            ))))
+        }
     }
 }
 
@@ -511,19 +529,20 @@ fn aggregate_fn<T: Number<T>>(
 ///
 /// Current compatibility:
 ///
-/// | Instrument Kind          | Drop | LastValue | Sum | Histogram |
-/// |--------------------------|------|-----------|-----|-----------|
-/// | Counter                  | ✓    |           | ✓   | ✓         |
-/// | UpDownCounter            | ✓    |           | ✓   | ✓         |
-/// | Histogram                | ✓    |           | ✓   | ✓         |
-/// | Observable Counter       | ✓    |           | ✓   | ✓         |
-/// | Observable UpDownCounter | ✓    |           | ✓   | ✓         |
-/// | Observable Gauge         | ✓    | ✓         |     | ✓         |
+/// | Instrument Kind          | Drop | LastValue | Sum | Histogram | Exponential Histogram |
+/// |--------------------------|------|-----------|-----|-----------|-----------------------|
+/// | Counter                  | ✓    |           | ✓   | ✓         | ✓                     |
+/// | UpDownCounter            | ✓    |           | ✓   | ✓         | ✓                     |
+/// | Histogram                | ✓    |           | ✓   | ✓         | ✓                     |
+/// | Observable Counter       | ✓    |           | ✓   | ✓         | ✓                     |
+/// | Observable UpDownCounter | ✓    |           | ✓   | ✓         | ✓                     |
+/// | Observable Gauge         | ✓    | ✓         |     | ✓         | ✓                     |
 fn is_aggregator_compatible(kind: &InstrumentKind, agg: &aggregation::Aggregation) -> Result<()> {
     use aggregation::Aggregation;
     match agg {
         Aggregation::Default => Ok(()),
-        Aggregation::ExplicitBucketHistogram { .. } => {
+        Aggregation::ExplicitBucketHistogram { .. }
+        | Aggregation::Base2ExponentialHistogram { .. } => {
             if matches!(
                 kind,
                 InstrumentKind::Counter

@@ -105,6 +105,12 @@ fn map_data(data: &dyn Any) -> Option<MetricData> {
         Some(MetricData::Histogram(hist.into()))
     } else if let Some(hist) = data.downcast_ref::<data::Histogram<f64>>() {
         Some(MetricData::Histogram(hist.into()))
+    } else if let Some(hist) = data.downcast_ref::<data::ExponentialHistogram<i64>>() {
+        Some(MetricData::ExponentialHistogram(hist.into()))
+    } else if let Some(hist) = data.downcast_ref::<data::ExponentialHistogram<u64>>() {
+        Some(MetricData::ExponentialHistogram(hist.into()))
+    } else if let Some(hist) = data.downcast_ref::<data::ExponentialHistogram<f64>>() {
+        Some(MetricData::ExponentialHistogram(hist.into()))
     } else if let Some(sum) = data.downcast_ref::<data::Sum<u64>>() {
         Some(MetricData::Sum(sum.into()))
     } else if let Some(sum) = data.downcast_ref::<data::Sum<i64>>() {
@@ -129,6 +135,7 @@ enum MetricData {
     Gauge(Gauge),
     Sum(Sum),
     Histogram(Histogram),
+    ExponentialHistogram(ExponentialHistogram),
 }
 
 #[derive(Serialize, Debug, Clone)]
@@ -314,6 +321,86 @@ impl<T: Into<DataValue> + Copy> From<&data::HistogramDataPoint<T>> for Histogram
             flags: 0,
         }
     }
+}
+#[derive(Serialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+struct ExponentialHistogram {
+    data_points: Vec<ExponentialHistogramDataPoint>,
+    aggregation_temporality: Temporality,
+}
+
+impl<T: Into<DataValue> + Copy> From<&data::ExponentialHistogram<T>> for ExponentialHistogram {
+    fn from(value: &data::ExponentialHistogram<T>) -> Self {
+        ExponentialHistogram {
+            data_points: value.data_points.iter().map(Into::into).collect(),
+            aggregation_temporality: value.temporality.into(),
+        }
+    }
+}
+
+#[derive(Serialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+struct ExponentialHistogramDataPoint {
+    attributes: AttributeSet,
+    #[serde(serialize_with = "as_unix_nano")]
+    start_time_unix_nano: SystemTime,
+    #[serde(serialize_with = "as_unix_nano")]
+    time_unix_nano: SystemTime,
+    #[serde(serialize_with = "as_human_readable")]
+    start_time: SystemTime,
+    #[serde(serialize_with = "as_human_readable")]
+    time: SystemTime,
+    count: usize,
+    min: Option<DataValue>,
+    max: Option<DataValue>,
+    sum: DataValue,
+    scale: i8,
+    zero_count: u64,
+    positive: ExponentialBucket,
+    negative: ExponentialBucket,
+    zero_threshold: f64,
+    exemplars: Vec<Exemplar>,
+    flags: u8,
+}
+
+impl<T: Into<DataValue> + Copy> From<&data::ExponentialHistogramDataPoint<T>>
+    for ExponentialHistogramDataPoint
+{
+    fn from(value: &data::ExponentialHistogramDataPoint<T>) -> Self {
+        ExponentialHistogramDataPoint {
+            attributes: AttributeSet::from(&value.attributes),
+            start_time_unix_nano: value.start_time,
+            time_unix_nano: value.time,
+            start_time: value.start_time,
+            time: value.time,
+            count: value.count,
+            min: value.min.map(Into::into),
+            max: value.max.map(Into::into),
+            sum: value.sum.into(),
+            scale: value.scale,
+            zero_count: value.zero_count,
+            positive: (&value.positive_bucket).into(),
+            negative: (&value.negative_bucket).into(),
+            zero_threshold: value.zero_threshold,
+            exemplars: value.exemplars.iter().map(Into::into).collect(),
+            flags: 0,
+        }
+    }
+}
+
+impl From<&data::ExponentialBucket> for ExponentialBucket {
+    fn from(b: &data::ExponentialBucket) -> Self {
+        ExponentialBucket {
+            offset: b.offset,
+            bucket_counts: b.counts.clone(),
+        }
+    }
+}
+
+#[derive(Serialize, Debug, Clone)]
+struct ExponentialBucket {
+    offset: i32,
+    bucket_counts: Vec<u64>,
 }
 
 #[derive(Serialize, Debug, Clone)]
