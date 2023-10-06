@@ -188,23 +188,7 @@ impl HttpExporterBuilder {
         if let Ok(input) =
             env::var(signal_http_headers_var).or_else(|_| env::var(OTEL_EXPORTER_OTLP_HEADERS))
         {
-            for pair in input.split(',') {
-                if pair.is_empty() {
-                    continue;
-                }
-                let mut kv_iter = pair.splitn(2, '=');
-                match (kv_iter.next(), kv_iter.next()) {
-                    (Some(k), Some(v)) if !k.trim().is_empty() && !v.trim().is_empty() => {
-                        headers.insert(
-                            HeaderName::from_str(k.trim()).ok().unwrap(),
-                            HeaderValue::from_str(v.trim()).ok().unwrap(),
-                        );
-                    }
-                    _ => {
-                        break; // stop parsing on error
-                    }
-                }
-            }
+            add_header_from_string(&input, &mut headers);
         }
 
         Ok(OtlpHttpClient::new(http_client, endpoint, headers, timeout))
@@ -328,6 +312,26 @@ fn resolve_endpoint(
         .map_err(From::from)
 }
 
+fn add_header_from_string(input: &str, headers: &mut HashMap<HeaderName, HeaderValue>) {
+    for pair in input.split(',') {
+        if pair.is_empty() {
+            continue;
+        }
+        let mut kv_iter = pair.splitn(2, '=');
+        match (kv_iter.next(), kv_iter.next()) {
+            (Some(k), Some(v)) if !k.trim().is_empty() && !v.trim().is_empty() => {
+                headers.insert(
+                    HeaderName::from_str(k.trim()).ok().unwrap(),
+                    HeaderValue::from_str(v.trim()).ok().unwrap(),
+                );
+            }
+            _ => {
+                break; // stop parsing on error
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::{OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_TRACES_ENDPOINT};
@@ -447,4 +451,20 @@ mod tests {
             // You may also want to assert on the specific error type if applicable
         });
     }
+
+    #[test]
+    fn test_add_header_from_string() {
+        use std::collections::HashMap;
+        use http::{HeaderName, HeaderValue};
+
+        let mut headers: HashMap<HeaderName, HeaderValue> = std::collections::HashMap::new();
+        headers.insert(HeaderName::from_static("k1"), HeaderValue::from_static("v1"));
+        headers.insert(HeaderName::from_static("k2"), HeaderValue::from_static("v2"));
+        super::add_header_from_string("k1=new_v1, k3=v3", &mut headers);
+        assert_eq!(headers.len(), 3);
+        assert_eq!(headers.get("k1").unwrap(), "v1_new");
+        assert_eq!(headers.get("k2").unwrap(), "v2");
+        assert_eq!(headers.get("k3").unwrap(), "v3");
+    }
+    
 }

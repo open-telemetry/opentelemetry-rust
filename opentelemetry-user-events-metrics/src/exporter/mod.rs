@@ -1,7 +1,6 @@
 use crate::transform::transform_resource_metrics;
 use async_trait::async_trait;
 use opentelemetry::metrics::{MetricsError, Result};
-use opentelemetry_sdk::metrics::reader::DefaultAggregationSelector;
 use opentelemetry_sdk::metrics::{
     data::{ResourceMetrics, Temporality},
     exporter::PushMetricsExporter,
