@@ -138,7 +138,7 @@ impl ExporterBuilder {
             inner: Mutex::new(Default::default()),
         };
 
-        let registry = self.registry.unwrap_or_else(prometheus::Registry::new);
+        let registry = self.registry.unwrap_or_default();
         registry
             .register(Box::new(collector))
             .map_err(|e| MetricsError::Other(e.to_string()))?;
