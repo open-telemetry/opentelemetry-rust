@@ -7,6 +7,7 @@
 - Log warning if two instruments have the same name with different (#1266)
   casing
 - Log warning if view is created with empty criteria (#1266)
+- Add exponential histogram support (#1267)
 
 ### Changed
 
@@ -24,11 +25,16 @@
 - Return error earlier if readers are shut down (#1266)
 - Add `/` to valid characters for instrument names (#1269)
 - Increase instrument name maximum length from 63 to 255 (#1269)
+- Updated crate documentation and examples.
+  [#1256](https://github.com/open-telemetry/opentelemetry-rust/issues/1256)
 
 ### Removed
 
 - Remove context from Metric force_flush [#1245](https://github.com/open-telemetry/opentelemetry-rust/pull/1245)
 
+### Fixed
+
+- Fix metric instrument name validation to include `_` #1030
 
 ## v0.20.0
 

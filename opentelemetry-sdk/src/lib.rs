@@ -1,6 +1,10 @@
-//! OpenTelemetry is a collection of tools, APIs, and SDKs. Use it to
-//! instrument, generate, collect, and export telemetry data (metrics, logs, and
-//! traces) to help you analyze your software's performance and behavior.
+//! Implements the [`SDK`] component of [OpenTelemetry].
+//!
+//! *Compiler support: [requires `rustc` 1.64+][msrv]*
+//!
+//! [`SDK`]: https://opentelemetry.io/docs/specs/otel/overview/#sdk
+//! [OpenTelemetry]: https://opentelemetry.io/docs/what-is-opentelemetry/
+//! [msrv]: #supported-rust-versions
 //!
 //! # Getting Started
 //!

@@ -25,7 +25,7 @@ use crate::metrics::{
 const INSTRUMENT_NAME_MAX_LENGTH: usize = 255;
 // maximum length of instrument unit name
 const INSTRUMENT_UNIT_NAME_MAX_LENGTH: usize = 63;
-const INSTRUMENT_NAME_ALLOWED_NON_ALPHANUMERIC_CHARS: [char; 4] = ['-', '.', '-', '/'];
+const INSTRUMENT_NAME_ALLOWED_NON_ALPHANUMERIC_CHARS: [char; 4] = ['_', '.', '-', '/'];
 
 // instrument validation error strings
 const INSTRUMENT_NAME_EMPTY: &str = "instrument name must be non-empty";
@@ -60,7 +60,7 @@ impl Meter {
         let view_cache = Default::default();
 
         Meter {
-            scope: scope.clone(),
+            scope,
             pipes: Arc::clone(&pipes),
             u64_resolver: Resolver::new(Arc::clone(&pipes), Arc::clone(&view_cache)),
             i64_resolver: Resolver::new(Arc::clone(&pipes), Arc::clone(&view_cache)),

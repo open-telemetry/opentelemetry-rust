@@ -25,10 +25,13 @@
     // these are words that are always correct and can be thought of as our
     // workspace dictionary.
     "words": [
+        "deque",
         "hasher",
+        "msrv",
         "opentelemetry",
         "OTLP",
         "quantile",
+        "rustc",
         "zipkin"
     ],
     "enabledLanguageIds": [

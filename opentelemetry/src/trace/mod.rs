@@ -7,7 +7,7 @@
 //! through a system. This module implements the OpenTelemetry [trace
 //! specification].
 //!
-//! [trace specification]: https://github.com/open-telemetry/opentelemetry-specification/blob/v1.3.0/specification/trace/api.md
+//! [trace specification]: https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/api.md
 //!
 //! ## Getting Started
 //!
@@ -81,7 +81,7 @@
 //!
 //! Exporting spans often involves sending data over a network or performing
 //! other I/O tasks. OpenTelemetry allows you to schedule these tasks using
-//! whichever runtime you area already using such as [Tokio] or [async-std].
+//! whichever runtime you are already using such as [Tokio] or [async-std].
 //! When using an async runtime it's best to use the batch span processor
 //! where the spans will be sent in batches as opposed to being sent once ended,
 //! which often ends up being more efficient.
@@ -166,7 +166,7 @@ use std::borrow::Cow;
 use std::time;
 use thiserror::Error;
 
-mod context;
+pub(crate) mod context;
 pub mod noop;
 mod span;
 mod span_context;

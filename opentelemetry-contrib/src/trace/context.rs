@@ -1,7 +1,7 @@
 use super::TracerSource;
 use opentelemetry::{
     trace::{SpanBuilder, TraceContextExt as _, Tracer as _},
-    Context,
+    Context, ContextGuard,
 };
 use std::{
     fmt::{Debug, Formatter},
@@ -129,6 +129,12 @@ impl<T> Contextualized<T> {
     pub fn into_inner(self) -> (T, Option<Context>) {
         (self.0, self.1)
     }
+
+    /// Attach the contained context if it exists and return both the
+    /// associated value and an optional guard for the attached context.
+    pub fn attach(self) -> (T, Option<ContextGuard>) {
+        (self.0, self.1.map(|cx| cx.attach()))
+    }
 }
 
 impl<T: Clone> Clone for Contextualized<T> {
@@ -157,5 +163,22 @@ impl<T> Deref for Contextualized<T> {
 impl<T> DerefMut for Contextualized<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cover_contextualized() {
+        let cx = Contextualized::new(17, None);
+        let (i, cx) = cx.into_inner();
+        assert_eq!(i, 17);
+        assert!(cx.is_none());
+
+        let cx = Contextualized::pass_thru(17);
+        let (i, _guard) = cx.attach();
+        assert_eq!(i, 17);
     }
 }

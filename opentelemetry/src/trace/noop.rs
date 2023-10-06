@@ -5,7 +5,7 @@
 //! to have minimal resource utilization and runtime impact.
 use crate::{
     propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
-    trace::{self, TraceContextExt, TraceFlags, TraceState},
+    trace::{self, TraceContextExt as _},
     Context, InstrumentationLibrary, KeyValue,
 };
 use std::{borrow::Cow, sync::Arc, time::SystemTime};
@@ -38,25 +38,11 @@ pub struct NoopSpan {
     span_context: trace::SpanContext,
 }
 
-impl Default for NoopSpan {
-    fn default() -> Self {
-        NoopSpan::new()
-    }
-}
-
 impl NoopSpan {
-    /// Creates a new `NoopSpan` instance.
-    pub fn new() -> Self {
-        NoopSpan {
-            span_context: trace::SpanContext::new(
-                trace::TraceId::INVALID,
-                trace::SpanId::INVALID,
-                TraceFlags::default(),
-                false,
-                TraceState::default(),
-            ),
-        }
-    }
+    /// The default `NoopSpan`, as a constant
+    pub const DEFAULT: NoopSpan = NoopSpan {
+        span_context: trace::SpanContext::NONE,
+    };
 }
 
 impl trace::Span for NoopSpan {
@@ -135,12 +121,8 @@ impl trace::Tracer for NoopTracer {
     /// If the span builder or the context's current span contains a valid span context, it is
     /// propagated.
     fn build_with_context(&self, _builder: trace::SpanBuilder, parent_cx: &Context) -> Self::Span {
-        if parent_cx.has_active_span() {
-            NoopSpan {
-                span_context: parent_cx.span().span_context().clone(),
-            }
-        } else {
-            NoopSpan::new()
+        NoopSpan {
+            span_context: parent_cx.span().span_context().clone(),
         }
     }
 }
@@ -178,7 +160,7 @@ impl TextMapPropagator for NoopTextMapPropagator {
 mod tests {
     use super::*;
     use crate::testing::trace::TestSpan;
-    use crate::trace::{self, Span, Tracer};
+    use crate::trace::{self, Span, TraceState, Tracer};
 
     fn valid_span_context() -> trace::SpanContext {
         trace::SpanContext::new(

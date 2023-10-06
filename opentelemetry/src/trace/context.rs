@@ -6,7 +6,6 @@ use crate::{
 };
 use futures_core::stream::Stream;
 use futures_sink::Sink;
-use once_cell::sync::Lazy;
 use pin_project_lite::pin_project;
 use std::{
     borrow::Cow,
@@ -16,21 +15,39 @@ use std::{
     task::{Context as TaskContext, Poll},
 };
 
-static NOOP_SPAN: Lazy<SynchronizedSpan> = Lazy::new(|| SynchronizedSpan {
-    span_context: SpanContext::empty_context(),
+const NOOP_SPAN: SynchronizedSpan = SynchronizedSpan {
+    span_context: SpanContext::NONE,
     inner: None,
-});
+};
 
 /// A reference to the currently active span in this context.
 #[derive(Debug)]
 pub struct SpanRef<'a>(&'a SynchronizedSpan);
 
 #[derive(Debug)]
-struct SynchronizedSpan {
+pub(crate) struct SynchronizedSpan {
     /// Immutable span context
     span_context: SpanContext,
     /// Mutable span inner that requires synchronization
     inner: Option<Mutex<global::BoxedSpan>>,
+}
+
+impl From<SpanContext> for SynchronizedSpan {
+    fn from(value: SpanContext) -> Self {
+        Self {
+            span_context: value,
+            inner: None,
+        }
+    }
+}
+
+impl<T: Span + Send + Sync + 'static> From<T> for SynchronizedSpan {
+    fn from(value: T) -> Self {
+        Self {
+            span_context: value.span_context().clone(),
+            inner: Some(Mutex::new(global::BoxedSpan::new(value))),
+        }
+    }
 }
 
 impl SpanRef<'_> {
@@ -253,21 +270,15 @@ pub trait TraceContextExt {
 
 impl TraceContextExt for Context {
     fn current_with_span<T: crate::trace::Span + Send + Sync + 'static>(span: T) -> Self {
-        Context::current_with_value(SynchronizedSpan {
-            span_context: span.span_context().clone(),
-            inner: Some(Mutex::new(global::BoxedSpan::new(span))),
-        })
+        Context::current_with_synchronized_span(span.into())
     }
 
     fn with_span<T: crate::trace::Span + Send + Sync + 'static>(&self, span: T) -> Self {
-        self.with_value(SynchronizedSpan {
-            span_context: span.span_context().clone(),
-            inner: Some(Mutex::new(global::BoxedSpan::new(span))),
-        })
+        self.with_synchronized_span(span.into())
     }
 
     fn span(&self) -> SpanRef<'_> {
-        if let Some(span) = self.get::<SynchronizedSpan>() {
+        if let Some(span) = self.span.as_ref() {
             SpanRef(span)
         } else {
             SpanRef(&NOOP_SPAN)
@@ -275,14 +286,11 @@ impl TraceContextExt for Context {
     }
 
     fn has_active_span(&self) -> bool {
-        self.get::<SynchronizedSpan>().is_some()
+        self.span.is_some()
     }
 
     fn with_remote_span_context(&self, span_context: crate::trace::SpanContext) -> Self {
-        self.with_value(SynchronizedSpan {
-            span_context,
-            inner: None,
-        })
+        self.with_synchronized_span(span_context.into())
     }
 }
 

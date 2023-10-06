@@ -1,5 +1,6 @@
 use std::fmt;
 
+use crate::metrics::internal::{EXPO_MAX_SCALE, EXPO_MIN_SCALE};
 use opentelemetry::metrics::{MetricsError, Result};
 
 /// The way recorded measurements are summarized.
@@ -62,6 +63,32 @@ pub enum Aggregation {
         /// instances.
         record_min_max: bool,
     },
+
+    /// An aggregation that summarizes a set of measurements as a histogram with
+    /// bucket widths that grow exponentially.
+    Base2ExponentialHistogram {
+        /// The maximum number of buckets to use for the histogram.
+        max_size: u32,
+
+        /// The maximum resolution scale to use for the histogram.
+        ///
+        /// The maximum value is `20`, in which case the maximum number of buckets
+        /// that can fit within the range of a signed 32-bit integer index could be
+        /// used.
+        ///
+        /// The minimum value is `-10` in which case only two buckets will be used.
+        max_scale: i8,
+
+        /// Indicates whether to not record the min and max of the distribution.
+        ///
+        /// By default, these values are recorded.
+        ///
+        /// It is generally not valuable to record min and max for cumulative data
+        /// as they will represent the entire life of the instrument instead of just
+        /// the current collection cycle, you can opt out by setting this value to
+        /// `false`
+        record_min_max: bool,
+    },
 }
 
 impl fmt::Display for Aggregation {
@@ -73,6 +100,7 @@ impl fmt::Display for Aggregation {
             Aggregation::Sum => "Sum",
             Aggregation::LastValue => "LastValue",
             Aggregation::ExplicitBucketHistogram { .. } => "ExplicitBucketHistogram",
+            Aggregation::Base2ExponentialHistogram { .. } => "Base2ExponentialHistogram",
         };
 
         f.write_str(name)
@@ -95,6 +123,22 @@ impl Aggregation {
                             boundaries,
                         )));
                     }
+                }
+
+                Ok(())
+            }
+            Aggregation::Base2ExponentialHistogram { max_scale, .. } => {
+                if *max_scale > EXPO_MAX_SCALE {
+                    return Err(MetricsError::Config(format!(
+                        "aggregation: exponential histogram: max scale ({}) is greater than 20",
+                        max_scale,
+                    )));
+                }
+                if *max_scale < -EXPO_MIN_SCALE {
+                    return Err(MetricsError::Config(format!(
+                        "aggregation: exponential histogram: max scale ({}) is less than -10",
+                        max_scale,
+                    )));
                 }
 
                 Ok(())
