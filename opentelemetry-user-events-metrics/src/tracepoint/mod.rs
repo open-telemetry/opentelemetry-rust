@@ -91,6 +91,8 @@ pub unsafe fn register(trace_point: Pin<&ehi::TracepointState>) -> i32 {
     match result {
         Ok(value) => {
             if value == 0 {
+                // Temporary print as a measure for quick testing
+                // will be replaced with proper logging mechanism
                 println!("Tracepoint registered successfully.")
             } else if value == 95 {
                 global::handle_error(MetricsError::Other(
