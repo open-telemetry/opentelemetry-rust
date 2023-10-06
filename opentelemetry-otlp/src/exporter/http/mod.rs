@@ -171,6 +171,7 @@ impl HttpExporterBuilder {
             .take()
             .ok_or(crate::Error::NoHttpClient)?;
 
+        #[allow(clippy::mutable_key_type)] // http headers are not mutated
         let mut headers: HashMap<HeaderName, HeaderValue> = self
             .http_config
             .headers
@@ -185,6 +186,7 @@ impl HttpExporterBuilder {
             })
             .collect();
 
+        // read headers from env var - signal specific env var is preferred over general
         if let Ok(input) =
             env::var(signal_http_headers_var).or_else(|_| env::var(OTEL_EXPORTER_OTLP_HEADERS))
         {
@@ -312,21 +314,20 @@ fn resolve_endpoint(
         .map_err(From::from)
 }
 
+#[allow(clippy::mutable_key_type)] // http headers are not mutated
 fn add_header_from_string(input: &str, headers: &mut HashMap<HeaderName, HeaderValue>) {
-    for pair in input.split(',') {
-        if pair.is_empty() {
+    for pair in input.split_terminator(',') {
+        if pair.trim().is_empty() {
             continue;
         }
-        let mut kv_iter = pair.splitn(2, '=');
-        match (kv_iter.next(), kv_iter.next()) {
-            (Some(k), Some(v)) if !k.trim().is_empty() && !v.trim().is_empty() => {
-                headers.insert(
-                    HeaderName::from_str(k.trim()).ok().unwrap(),
-                    HeaderValue::from_str(v.trim()).ok().unwrap(),
-                );
-            }
-            _ => {
-                break; // stop parsing on error
+        if let Some((k, v)) = pair.trim().split_once('=') {
+            if !k.trim().is_empty() && !v.trim().is_empty() {
+                if let (Ok(key), Ok(value)) = (
+                    HeaderName::from_str(k.trim()),
+                    HeaderValue::from_str(v.trim()),
+                ) {
+                    headers.insert(key, value);
+                }
             }
         }
     }
@@ -456,6 +457,43 @@ mod tests {
     fn test_add_header_from_string() {
         use http::{HeaderName, HeaderValue};
         use std::collections::HashMap;
+        let test_cases = vec![
+            // Format: (input_str, expected_headers)
+            ("k1=v1", vec![("k1", "v1")]),
+            ("k1=v1,k2=v2", vec![("k1", "v1"), ("k2", "v2")]),
+            ("k1=v1=10,k2,k3", vec![("k1", "v1=10")]),
+            ("k1=v1,,,k2,k3=10", vec![("k1", "v1"), ("k3", "10")]),
+        ];
+
+        for (input_str, expected_headers) in test_cases {
+            #[allow(clippy::mutable_key_type)] // http headers are not mutated
+            let mut headers: HashMap<HeaderName, HeaderValue> = HashMap::new();
+            super::add_header_from_string(input_str, &mut headers);
+
+            assert_eq!(
+                headers.len(),
+                expected_headers.len(),
+                "Failed on input: {}",
+                input_str
+            );
+
+            for (expected_key, expected_value) in expected_headers {
+                assert_eq!(
+                    headers.get(&HeaderName::from_static(expected_key)),
+                    Some(&HeaderValue::from_static(expected_value)),
+                    "Failed on key: {} with input: {}",
+                    expected_key,
+                    input_str
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_merge_header_from_string() {
+        use http::{HeaderName, HeaderValue};
+        use std::collections::HashMap;
+        #[allow(clippy::mutable_key_type)] // http headers are not mutated
         let mut headers: HashMap<HeaderName, HeaderValue> = std::collections::HashMap::new();
         headers.insert(
             HeaderName::from_static("k1"),
@@ -465,7 +503,39 @@ mod tests {
             HeaderName::from_static("k2"),
             HeaderValue::from_static("v2"),
         );
-        super::add_header_from_string("k1=new_v1, k3=v3", &mut headers);
-        assert_eq!(headers.len(), 3);
+        let test_cases = vec![
+            // Format: (input_str, expected_headers)
+            ("k1=v1_new", vec![("k1", "v1_new"), ("k2", "v2")]),
+            (
+                "k3=val=10,22,34,k4=,k5=10",
+                vec![
+                    ("k1", "v1_new"),
+                    ("k2", "v2"),
+                    ("k3", "val=10"),
+                    ("k5", "10"),
+                ],
+            ),
+        ];
+
+        for (input_str, expected_headers) in test_cases {
+            super::add_header_from_string(input_str, &mut headers);
+
+            assert_eq!(
+                headers.len(),
+                expected_headers.len(),
+                "Failed on input: {}",
+                input_str
+            );
+
+            for (expected_key, expected_value) in expected_headers {
+                assert_eq!(
+                    headers.get(&HeaderName::from_static(expected_key)),
+                    Some(&HeaderValue::from_static(expected_value)),
+                    "Failed on key: {} with input: {}",
+                    expected_key,
+                    input_str
+                );
+            }
+        }
     }
 }
