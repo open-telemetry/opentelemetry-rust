@@ -154,7 +154,7 @@ impl OtelString {
 
 impl PartialOrd for OtelString {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
+        self.as_str().partial_cmp(other.as_str())
     }
 }
 
