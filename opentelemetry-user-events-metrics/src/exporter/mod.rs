@@ -4,7 +4,7 @@ use opentelemetry::metrics::{MetricsError, Result};
 use opentelemetry_sdk::metrics::{
     data::{ResourceMetrics, Temporality},
     exporter::PushMetricsExporter,
-    reader::{AggregationSelector, TemporalitySelector},
+    reader::{AggregationSelector, TemporalitySelector, DefaultAggregationSelector},
     Aggregation, InstrumentKind,
 };
 
@@ -53,22 +53,9 @@ impl TemporalitySelector for MetricsExporter {
 
 impl AggregationSelector for MetricsExporter {
     // TODO: this should ideally be done at SDK level by default
-    // without exporters having to do it.
+    // without exporters having to do it.    
     fn aggregation(&self, kind: InstrumentKind) -> Aggregation {
-        match kind {
-            InstrumentKind::Counter
-            | InstrumentKind::UpDownCounter
-            | InstrumentKind::ObservableCounter
-            | InstrumentKind::ObservableUpDownCounter => Aggregation::Sum,
-            InstrumentKind::ObservableGauge => Aggregation::LastValue,
-            InstrumentKind::Histogram => Aggregation::ExplicitBucketHistogram {
-                boundaries: vec![
-                    0.0, 5.0, 10.0, 25.0, 50.0, 75.0, 100.0, 250.0, 500.0, 750.0, 1000.0, 2500.0,
-                    5000.0, 7500.0, 10000.0,
-                ],
-                record_min_max: true,
-            },
-        }
+        DefaultAggregationSelector::new().aggregation(kind)
     }
 }
 
