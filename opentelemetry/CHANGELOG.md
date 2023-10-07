@@ -21,6 +21,7 @@ This release should been seen as 1.0-rc3 following 1.0-rc2 in v0.19.0. Refer to 
 - Create tracer using a shared instrumentation library #1129
 - Add `Context::map_current` #1140
 - Add unit/doc tests for metrics #1213
+- Add `opentelemetry::sdk::logs::config()` for parity with `opentelemetry::sdk::trace::config()` (#1197)
 
 ### Changed
 
