@@ -1,4 +1,7 @@
-use crate::{ExportConfig, Protocol, OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_TIMEOUT};
+use crate::{
+    ExportConfig, Protocol, OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_HEADERS,
+    OTEL_EXPORTER_OTLP_TIMEOUT,
+};
 use http::{HeaderName, HeaderValue, Uri};
 use opentelemetry_http::HttpClient;
 use std::collections::HashMap;
@@ -143,6 +146,7 @@ impl HttpExporterBuilder {
         signal_endpoint_var: &str,
         signal_endpoint_path: &str,
         signal_timeout_var: &str,
+        signal_http_headers_var: &str,
     ) -> Result<OtlpHttpClient, crate::Error> {
         let endpoint = resolve_endpoint(
             signal_endpoint_var,
@@ -168,7 +172,7 @@ impl HttpExporterBuilder {
             .ok_or(crate::Error::NoHttpClient)?;
 
         #[allow(clippy::mutable_key_type)] // http headers are not mutated
-        let headers = self
+        let mut headers: HashMap<HeaderName, HeaderValue> = self
             .http_config
             .headers
             .take()
@@ -182,6 +186,13 @@ impl HttpExporterBuilder {
             })
             .collect();
 
+        // read headers from env var - signal specific env var is preferred over general
+        if let Ok(input) =
+            env::var(signal_http_headers_var).or_else(|_| env::var(OTEL_EXPORTER_OTLP_HEADERS))
+        {
+            add_header_from_string(&input, &mut headers);
+        }
+
         Ok(OtlpHttpClient::new(http_client, endpoint, headers, timeout))
     }
 
@@ -190,12 +201,16 @@ impl HttpExporterBuilder {
     pub fn build_span_exporter(
         mut self,
     ) -> Result<crate::SpanExporter, opentelemetry::trace::TraceError> {
-        use crate::{OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, OTEL_EXPORTER_OTLP_TRACES_TIMEOUT};
+        use crate::{
+            OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, OTEL_EXPORTER_OTLP_TRACES_HEADERS,
+            OTEL_EXPORTER_OTLP_TRACES_TIMEOUT,
+        };
 
         let client = self.build_client(
             OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
             "/v1/traces",
             OTEL_EXPORTER_OTLP_TRACES_TIMEOUT,
+            OTEL_EXPORTER_OTLP_TRACES_HEADERS,
         )?;
 
         Ok(crate::SpanExporter::new(client))
@@ -204,12 +219,16 @@ impl HttpExporterBuilder {
     /// Create a log exporter with the current configuration
     #[cfg(feature = "logs")]
     pub fn build_log_exporter(mut self) -> opentelemetry::logs::LogResult<crate::LogExporter> {
-        use crate::{OTEL_EXPORTER_OTLP_LOGS_ENDPOINT, OTEL_EXPORTER_OTLP_LOGS_TIMEOUT};
+        use crate::{
+            OTEL_EXPORTER_OTLP_LOGS_ENDPOINT, OTEL_EXPORTER_OTLP_LOGS_HEADERS,
+            OTEL_EXPORTER_OTLP_LOGS_TIMEOUT,
+        };
 
         let client = self.build_client(
             OTEL_EXPORTER_OTLP_LOGS_ENDPOINT,
             "/v1/logs",
             OTEL_EXPORTER_OTLP_LOGS_TIMEOUT,
+            OTEL_EXPORTER_OTLP_LOGS_HEADERS,
         )?;
 
         Ok(crate::LogExporter::new(client))
@@ -222,12 +241,16 @@ impl HttpExporterBuilder {
         aggregation_selector: Box<dyn opentelemetry_sdk::metrics::reader::AggregationSelector>,
         temporality_selector: Box<dyn opentelemetry_sdk::metrics::reader::TemporalitySelector>,
     ) -> opentelemetry::metrics::Result<crate::MetricsExporter> {
-        use crate::{OTEL_EXPORTER_OTLP_METRICS_ENDPOINT, OTEL_EXPORTER_OTLP_METRICS_TIMEOUT};
+        use crate::{
+            OTEL_EXPORTER_OTLP_METRICS_ENDPOINT, OTEL_EXPORTER_OTLP_METRICS_HEADERS,
+            OTEL_EXPORTER_OTLP_METRICS_TIMEOUT,
+        };
 
         let client = self.build_client(
             OTEL_EXPORTER_OTLP_METRICS_ENDPOINT,
             "/v1/metrics",
             OTEL_EXPORTER_OTLP_METRICS_TIMEOUT,
+            OTEL_EXPORTER_OTLP_METRICS_HEADERS,
         )?;
 
         Ok(crate::MetricsExporter::new(
@@ -289,6 +312,25 @@ fn resolve_endpoint(
     format!("{provided_or_default_endpoint}{signal_endpoint_path}")
         .parse()
         .map_err(From::from)
+}
+
+#[allow(clippy::mutable_key_type)] // http headers are not mutated
+fn add_header_from_string(input: &str, headers: &mut HashMap<HeaderName, HeaderValue>) {
+    for pair in input.split_terminator(',') {
+        if pair.trim().is_empty() {
+            continue;
+        }
+        if let Some((k, v)) = pair.trim().split_once('=') {
+            if !k.trim().is_empty() && !v.trim().is_empty() {
+                if let (Ok(key), Ok(value)) = (
+                    HeaderName::from_str(k.trim()),
+                    HeaderValue::from_str(v.trim()),
+                ) {
+                    headers.insert(key, value);
+                }
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -409,5 +451,91 @@ mod tests {
             assert!(result.is_err());
             // You may also want to assert on the specific error type if applicable
         });
+    }
+
+    #[test]
+    fn test_add_header_from_string() {
+        use http::{HeaderName, HeaderValue};
+        use std::collections::HashMap;
+        let test_cases = vec![
+            // Format: (input_str, expected_headers)
+            ("k1=v1", vec![("k1", "v1")]),
+            ("k1=v1,k2=v2", vec![("k1", "v1"), ("k2", "v2")]),
+            ("k1=v1=10,k2,k3", vec![("k1", "v1=10")]),
+            ("k1=v1,,,k2,k3=10", vec![("k1", "v1"), ("k3", "10")]),
+        ];
+
+        for (input_str, expected_headers) in test_cases {
+            #[allow(clippy::mutable_key_type)] // http headers are not mutated
+            let mut headers: HashMap<HeaderName, HeaderValue> = HashMap::new();
+            super::add_header_from_string(input_str, &mut headers);
+
+            assert_eq!(
+                headers.len(),
+                expected_headers.len(),
+                "Failed on input: {}",
+                input_str
+            );
+
+            for (expected_key, expected_value) in expected_headers {
+                assert_eq!(
+                    headers.get(&HeaderName::from_static(expected_key)),
+                    Some(&HeaderValue::from_static(expected_value)),
+                    "Failed on key: {} with input: {}",
+                    expected_key,
+                    input_str
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_merge_header_from_string() {
+        use http::{HeaderName, HeaderValue};
+        use std::collections::HashMap;
+        #[allow(clippy::mutable_key_type)] // http headers are not mutated
+        let mut headers: HashMap<HeaderName, HeaderValue> = std::collections::HashMap::new();
+        headers.insert(
+            HeaderName::from_static("k1"),
+            HeaderValue::from_static("v1"),
+        );
+        headers.insert(
+            HeaderName::from_static("k2"),
+            HeaderValue::from_static("v2"),
+        );
+        let test_cases = vec![
+            // Format: (input_str, expected_headers)
+            ("k1=v1_new", vec![("k1", "v1_new"), ("k2", "v2")]),
+            (
+                "k3=val=10,22,34,k4=,k5=10",
+                vec![
+                    ("k1", "v1_new"),
+                    ("k2", "v2"),
+                    ("k3", "val=10"),
+                    ("k5", "10"),
+                ],
+            ),
+        ];
+
+        for (input_str, expected_headers) in test_cases {
+            super::add_header_from_string(input_str, &mut headers);
+
+            assert_eq!(
+                headers.len(),
+                expected_headers.len(),
+                "Failed on input: {}",
+                input_str
+            );
+
+            for (expected_key, expected_value) in expected_headers {
+                assert_eq!(
+                    headers.get(&HeaderName::from_static(expected_key)),
+                    Some(&HeaderValue::from_static(expected_value)),
+                    "Failed on key: {} with input: {}",
+                    expected_key,
+                    input_str
+                );
+            }
+        }
     }
 }
