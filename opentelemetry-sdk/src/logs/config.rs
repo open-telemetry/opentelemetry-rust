@@ -2,6 +2,11 @@ use std::borrow::Cow;
 
 use crate::Resource;
 
+/// Default log configuration
+pub fn config() -> Config {
+    Config::default()
+}
+
 /// Log emitter configuration.
 #[derive(Debug, Default)]
 pub struct Config {

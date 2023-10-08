@@ -8,6 +8,7 @@
   casing
 - Log warning if view is created with empty criteria (#1266)
 - Add exponential histogram support (#1267)
+- Add `opentelemetry::sdk::logs::config()` for parity with `opentelemetry::sdk::trace::config()` (#1197)
 
 ### Changed
 
