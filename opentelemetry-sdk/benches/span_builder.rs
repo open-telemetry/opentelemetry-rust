@@ -54,7 +54,7 @@ fn span_builder_benchmark_group(c: &mut Criterion) {
         b.iter(|| {
             let mut span = tracer
                 .span_builder("span")
-                .with_attributes_map(OrderMap::from_iter([KeyValue::new(MAP_KEYS[0], "value")]))
+                .with_attributes([KeyValue::new(MAP_KEYS[0], "value")])
                 .start(&tracer);
             span.end();
         })
@@ -64,7 +64,7 @@ fn span_builder_benchmark_group(c: &mut Criterion) {
         b.iter(|| {
             let mut span = tracer
                 .span_builder("span")
-                .with_attributes_map(OrderMap::from_iter([KeyValue::new(MAP_KEYS[0], "value")]))
+                .with_attributes([KeyValue::new(MAP_KEYS[0], "value")])
                 .start(&tracer);
             span.end();
         })
