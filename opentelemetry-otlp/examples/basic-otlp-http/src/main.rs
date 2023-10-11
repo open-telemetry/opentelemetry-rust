@@ -84,9 +84,6 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     let layer = OpenTelemetryTracingBridge::new(&logger_provider);
     tracing_subscriber::registry().with(layer).init();
 
-    let histogram = meter.f64_histogram("ex.com.two").init();
-    histogram.record(5.5, COMMON_ATTRIBUTES.as_ref());
-
     tracer.in_span("operation", |cx| {
         let span = cx.span();
         span.add_event(
@@ -105,9 +102,12 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     });
     info!(target: "my-target", "hello from {}. My price is {}", "apple", 1.99);
 
-    meter_provider.shutdown()?;
+    let histogram = meter.f64_histogram("ex.com.two").init();
+    histogram.record(5.5, COMMON_ATTRIBUTES.as_ref());
+
     global::shutdown_tracer_provider();
     global::shutdown_logger_provider();
+    meter_provider.shutdown()?;
 
     Ok(())
 }
