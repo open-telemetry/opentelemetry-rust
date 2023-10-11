@@ -1,20 +1,17 @@
 * The application send data directly to a Collector (port 4318)
 * Run the application locally, to run as a docker container you have to change the relative paths from the `Cargo.toml`
-* The Collector then sends the data to the appropriate backend, in this case JAEGER
+* The Collector then sends the data to the appropriate backend, in this case Debug Exporter. The Debug Exporter exports data to console.
 
 This demo uses `docker-compose` and by default runs against the `otel/opentelemetry-collector-dev:latest` image,
 and uses `http` as the transport.
 
 ```shell
 docker-compose up
-or
-docker-compose up -d
 ```
 
 In another terminal run the application `cargo run`
 
-Use the browser to see the trace:
-- Jaeger at http://0.0.0.0:16686
+The docker-compose terminal will display traces, metrics.
 
 Tear it down:
 

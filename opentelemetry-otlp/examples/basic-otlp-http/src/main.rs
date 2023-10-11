@@ -4,10 +4,33 @@ use opentelemetry::{
     trace::{TraceContextExt, TraceError, Tracer},
     Key, KeyValue,
 };
+use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
 use opentelemetry_otlp::WithExportConfig;
+use opentelemetry_sdk::logs as sdklogs;
 use opentelemetry_sdk::metrics as sdkmetrics;
+use opentelemetry_sdk::resource;
 use opentelemetry_sdk::trace as sdktrace;
+
 use std::error::Error;
+use tracing::info;
+use tracing_subscriber::prelude::*;
+
+fn init_logs() -> Result<sdklogs::Logger, opentelemetry::logs::LogError> {
+    opentelemetry_otlp::new_pipeline()
+        .logging()
+        .with_log_config(
+            sdklogs::Config::default().with_resource(resource::Resource::new(vec![KeyValue::new(
+                opentelemetry_semantic_conventions::resource::SERVICE_NAME,
+                "basic-otlp-logging-example",
+            )])),
+        )
+        .with_exporter(
+            opentelemetry_otlp::new_exporter()
+                .http()
+                .with_endpoint("http://localhost:4318"),
+        )
+        .install_batch(opentelemetry_sdk::runtime::Tokio)
+}
 
 fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
     opentelemetry_otlp::new_pipeline()
@@ -51,9 +74,15 @@ static COMMON_ATTRIBUTES: Lazy<[KeyValue; 4]> = Lazy::new(|| {
 async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     let _ = init_tracer()?;
     let meter_provider = init_metrics()?;
+    let _ = init_logs();
 
     let tracer = global::tracer("ex.com/basic");
     let meter = global::meter("ex.com/basic");
+
+    // configure the global logger to use our opentelemetry logger
+    let logger_provider = opentelemetry::global::logger_provider();
+    let layer = OpenTelemetryTracingBridge::new(&logger_provider);
+    tracing_subscriber::registry().with(layer).init();
 
     let histogram = meter.f64_histogram("ex.com.two").init();
     histogram.record(5.5, COMMON_ATTRIBUTES.as_ref());
@@ -72,10 +101,13 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
 
             span.add_event("Sub span event", vec![]);
         });
+        info!(target: "my-target", "hello from {}. My price is {}. I am also inside a Span!", "banana", 2.99);
     });
+    info!(target: "my-target", "hello from {}. My price is {}", "apple", 1.99);
 
     meter_provider.shutdown()?;
     global::shutdown_tracer_provider();
+    global::shutdown_logger_provider();
 
     Ok(())
 }

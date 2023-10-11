@@ -1,36 +1,29 @@
+# This is a configuration file for the OpenTelemetry Collector intended to be
+# used in conjunction with the opentelemetry-otlp example.
+#
+# For more information about the OpenTelemetry Collector see:
+#   https://github.com/open-telemetry/opentelemetry-collector
+#
 receivers:
   otlp:
     protocols:
-      http:
       grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint:  0.0.0.0:4318
 
 exporters:
-  logging:
-    loglevel: debug
-
-  jaeger:
-    endpoint: jaeger-all-in-one:14250
-    tls:
-      insecure: true
-
-processors:
-  batch:
-
-extensions:
-  health_check:
-  pprof:
-    endpoint: :1888
-  zpages:
-    endpoint: :55679
+  debug:
+    verbosity: detailed
 
 service:
-  extensions: [pprof, zpages, health_check]
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [batch]
-      exporters: [logging, jaeger]
+      exporters: [logging]
     metrics:
       receivers: [otlp]
-      processors: [batch]
+      exporters: [logging]
+    logs:
+      receivers: [otlp]
       exporters: [logging]
