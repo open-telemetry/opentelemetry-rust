@@ -80,7 +80,7 @@ pub mod tonic {
                         kind: span_kind as i32,
                         start_time_unix_nano: to_nanos(source_span.start_time),
                         end_time_unix_nano: to_nanos(source_span.end_time),
-                        dropped_attributes_count: source_span.attributes.dropped_count(),
+                        dropped_attributes_count: 0,
                         attributes: Attributes::from(source_span.attributes).0,
                         dropped_events_count: source_span.events.dropped_count(),
                         events: source_span

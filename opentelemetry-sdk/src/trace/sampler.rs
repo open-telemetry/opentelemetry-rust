@@ -2,7 +2,7 @@ use opentelemetry::{
     trace::{
         Link, SamplingDecision, SamplingResult, SpanKind, TraceContextExt, TraceId, TraceState,
     },
-    Context, Key, OrderMap, Value,
+    Context, KeyValue,
 };
 use std::convert::TryInto;
 
@@ -78,7 +78,7 @@ pub trait ShouldSample: CloneShouldSample + Send + Sync + std::fmt::Debug {
         trace_id: TraceId,
         name: &str,
         span_kind: &SpanKind,
-        attributes: &OrderMap<Key, Value>,
+        attributes: &Vec<KeyValue>,
         links: &[Link],
     ) -> SamplingResult;
 }
@@ -170,7 +170,7 @@ impl ShouldSample for Sampler {
         trace_id: TraceId,
         name: &str,
         span_kind: &SpanKind,
-        attributes: &OrderMap<Key, Value>,
+        attributes: &Vec<KeyValue>,
         links: &[Link],
     ) -> SamplingResult {
         let decision = match self {

@@ -19,7 +19,7 @@ pub mod tonic {
     use crate::proto::tonic::common::v1::{
         any_value, AnyValue, ArrayValue, InstrumentationScope, KeyValue,
     };
-    use opentelemetry::{Array, Value};
+    use opentelemetry::{Array, Value, Key};
     use std::borrow::Cow;
 
     #[cfg(any(feature = "trace", feature = "logs"))]

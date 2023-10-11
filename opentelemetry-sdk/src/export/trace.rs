@@ -1,6 +1,7 @@
 //! Trace exporters
 use crate::Resource;
 use futures_util::future::BoxFuture;
+use opentelemetry::KeyValue;
 use opentelemetry::trace::{Event, Link, SpanContext, SpanId, SpanKind, Status, TraceError};
 use std::borrow::Cow;
 use std::fmt::Debug;
@@ -81,7 +82,7 @@ pub struct SpanData {
     /// Span end time
     pub end_time: SystemTime,
     /// Span attributes
-    pub attributes: crate::trace::EvictedHashMap,
+    pub attributes: Vec<KeyValue>,
     /// Span events
     pub events: crate::trace::EvictedQueue<Event>,
     /// Span Links
