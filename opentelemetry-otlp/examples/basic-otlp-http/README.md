@@ -11,7 +11,7 @@ docker-compose up
 
 In another terminal run the application `cargo run`
 
-The docker-compose terminal will display traces, metrics.
+The docker-compose terminal will display logs, metrics and traces.
 
 Tear it down:
 
