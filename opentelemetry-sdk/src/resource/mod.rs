@@ -32,6 +32,7 @@ pub use telemetry::TelemetryResourceDetector;
 
 use opentelemetry::{Key, KeyValue, Value};
 use std::borrow::Cow;
+use std::collections::hash_map::Entry;
 use std::collections::{hash_map, HashMap};
 use std::ops::Deref;
 use std::time::Duration;
@@ -65,6 +66,19 @@ impl Resource {
         }
     }
 
+    /// Insert and entry if it does not exist or is an empty string
+    fn insert(&mut self, key: Key, value: Value) {
+        match self.attrs.entry(key) {
+            Entry::Occupied(mut e) if e.get().to_string().is_empty() => {
+                e.insert(value);
+            }
+            Entry::Vacant(e) => {
+                e.insert(value);
+            }
+            _ => {}
+        };
+    }
+
     /// Create a new `Resource` from key value pairs.
     ///
     /// Values are de-duplicated by key, and the first key-value pair with a non-empty string value
@@ -73,7 +87,7 @@ impl Resource {
         let mut resource = Resource::empty();
 
         for kv in kvs.into_iter() {
-            resource.attrs.insert(kv.key, kv.value);
+            resource.insert(kv.key, kv.value);
         }
 
         resource
@@ -99,6 +113,9 @@ impl Resource {
 
     /// Create a new `Resource` from resource detectors.
     ///
+    /// Values are de-duplicated by key, and the first key-value pair with a non-empty string value
+    /// will be retained.
+    ///
     /// timeout will be applied to each detector.
     pub fn from_detectors(timeout: Duration, detectors: Vec<Box<dyn ResourceDetector>>) -> Self {
         let mut resource = Resource::empty();
@@ -106,7 +123,7 @@ impl Resource {
             let detected_res = detector.detect(timeout);
             for (key, value) in detected_res.into_iter() {
                 // using insert instead of merge to avoid clone.
-                resource.attrs.insert(key, value);
+                resource.insert(key, value);
             }
         }
 
@@ -259,7 +276,11 @@ mod tests {
 
     #[test]
     fn new_resource() {
-        let args_with_dupe_keys = vec![KeyValue::new("a", ""), KeyValue::new("a", "final")];
+        let args_with_dupe_keys = vec![
+            KeyValue::new("a", ""),
+            KeyValue::new("a", "final"),
+            KeyValue::new("a", "ignored"),
+        ];
 
         let mut expected_attrs = HashMap::new();
         expected_attrs.insert(Key::new("a"), Value::from("final"));
@@ -352,6 +373,42 @@ mod tests {
                 KeyValue::new("k", "v"),
                 KeyValue::new("a", "x"),
                 KeyValue::new("a", "z"),
+            ])
+        )
+    }
+
+    impl ResourceDetector for Resource {
+        fn detect(&self, _timeout: Duration) -> Resource {
+            self.clone()
+        }
+    }
+
+    #[test]
+    fn detect_resource_merge() {
+        env::set_var("OTEL_RESOURCE_ATTRIBUTES", "key=value, k = v , a= x, a=z");
+        env::set_var("irrelevant".to_uppercase(), "20200810");
+
+        let resource1 = Resource::new(vec![
+            KeyValue::new("a", ""),
+            KeyValue::new("b", "2"),
+            KeyValue::new("c", "3"),
+        ]);
+        let resource2 = Resource::new(vec![
+            KeyValue::new("a", "1"),
+            KeyValue::new("b", "ignored"),
+            KeyValue::new("d", "4"),
+        ]);
+        let resource = Resource::from_detectors(
+            time::Duration::from_secs(5),
+            vec![Box::new(resource1), Box::new(resource2)],
+        );
+        assert_eq!(
+            resource,
+            Resource::new(vec![
+                KeyValue::new("a", "1"),
+                KeyValue::new("b", "2"),
+                KeyValue::new("c", "3"),
+                KeyValue::new("d", "4"),
             ])
         )
     }
