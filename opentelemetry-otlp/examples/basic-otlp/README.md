@@ -2,7 +2,9 @@
 
 This example shows how to setup OpenTelemetry OTLP exporter for logs, metrics
 and traces to exports them to the [OpenTelemetry
-Collector](https://github.com/open-telemetry/opentelemetry-collector) via OTLP.
+Collector](https://github.com/open-telemetry/opentelemetry-collector) via OTLP. 
+The Collector then sends the data to the appropriate backend, in this case 
+Debug Exporter. The Debug Exporter exports data to console.
 
 ## Usage
 
@@ -13,14 +15,11 @@ By default runs against the `otel/opentelemetry-collector-dev:latest` image, and
 
 ```shell
 docker-compose up
-or
-docker-compose up -d
 ```
 
 In another terminal run the application `cargo run`
 
-Use the browser to see the trace:
-- Jaeger at http://0.0.0.0:16686
+The docker-compose terminal will display traces, metrics.
 
 Tear it down:
 
