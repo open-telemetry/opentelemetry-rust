@@ -19,7 +19,7 @@ docker-compose up
 
 In another terminal run the application `cargo run`
 
-The docker-compose terminal will display traces, metrics.
+The docker-compose terminal will display logs, traces, metrics.
 
 Tear it down:
 
@@ -34,7 +34,7 @@ and inspect the logs to see traces being transferred.
 
 ```shell
 # From the current directory, run `opentelemetry-collector`
-$ docker run --rm -it -p 4317:4317 -p 4318:4318 -v $(pwd):/cfg otel/opentelemetry-collector:latest --config=/cfg/otel-collector-config.yaml
+$ docker run --rm -it -p 4317:4317 -v $(pwd):/cfg otel/opentelemetry-collector:latest --config=/cfg/otel-collector-config.yaml
 
 # Run the app which exports logs, metrics and traces via OTLP to the collector.
 $ cargo run
