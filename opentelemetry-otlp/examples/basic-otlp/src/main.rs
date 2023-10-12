@@ -52,12 +52,14 @@ fn init_metrics() -> metrics::Result<MeterProvider> {
 }
 
 fn init_logs() -> Result<opentelemetry_sdk::logs::Logger, LogError> {
+    let service_name = std::env::var("CARGO_BIN_NAME")
+        .unwrap_or_else(|_| String::from("basic-otlp-logging-example"));
     opentelemetry_otlp::new_pipeline()
         .logging()
         .with_log_config(
             Config::default().with_resource(Resource::new(vec![KeyValue::new(
                 opentelemetry_semantic_conventions::resource::SERVICE_NAME,
-                "basic-otlp-logging-example",
+                service_name,
             )])),
         )
         .with_exporter(
