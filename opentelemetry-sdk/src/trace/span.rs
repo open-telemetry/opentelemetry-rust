@@ -131,8 +131,9 @@ impl opentelemetry::trace::Span for Span {
     /// attributes"](https://github.com/open-telemetry/opentelemetry-specification/tree/v0.5.0/specification/trace/semantic_conventions/README.md)
     /// that have prescribed semantic meanings.
     fn set_attribute(&mut self, attribute: KeyValue) {
+        let span_attribute_limit = self.span_limits.max_attributes_per_span as usize;
         self.with_data(|data| {
-            if data.attributes.len() < self.span_limits.max_attributes_per_span as usize {
+            if data.attributes.len() < span_attribute_limit {
                 data.attributes.push(attribute);
             } else {
                 data.dropped_attributes_count += 1;

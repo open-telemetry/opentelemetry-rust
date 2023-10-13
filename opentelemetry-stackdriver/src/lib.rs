@@ -28,14 +28,14 @@ use futures_util::stream::StreamExt;
 use opentelemetry::{
     global::handle_error,
     trace::{SpanId, TraceError},
-    Key, Value,
+    Key, Value, KeyValue,
 };
 use opentelemetry_sdk::{
     export::{
         trace::{ExportResult, SpanData, SpanExporter},
         ExportError,
     },
-    trace::{EvictedHashMap, EvictedQueue},
+    trace::EvictedQueue,
     Resource,
 };
 use opentelemetry_semantic_conventions::resource::SERVICE_NAME;
@@ -714,11 +714,11 @@ pub enum MonitoredResource {
     },
 }
 
-impl From<(EvictedHashMap, &Resource)> for Attributes {
+impl From<(Vec<KeyValue>, &Resource)> for Attributes {
     /// Combines `EvictedHashMap` and `Resource` attributes into a maximum of 32.
     ///
     /// The `Resource` takes precedence over the `EvictedHashMap` attributes.
-    fn from((attributes, resource): (EvictedHashMap, &Resource)) -> Self {
+    fn from((attributes, resource): (Vec<KeyValue>, &Resource)) -> Self {
         let mut dropped_attributes_count: i32 = 0;
         let num_resource_attributes = resource.len();
         let num_attributes = attributes.len();

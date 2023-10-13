@@ -96,9 +96,9 @@ where
                 rmp::encode::write_str(&mut encoded, key.as_str())?;
                 rmp::encode::write_str(&mut encoded, value.as_str().as_ref())?;
             }
-            for (key, value) in span.attributes.iter() {
-                rmp::encode::write_str(&mut encoded, key.as_str())?;
-                rmp::encode::write_str(&mut encoded, value.as_str().as_ref())?;
+            for kv in span.attributes.iter() {
+                rmp::encode::write_str(&mut encoded, kv.key.as_str())?;
+                rmp::encode::write_str(&mut encoded, kv.value.as_str().as_ref())?;
             }
 
             rmp::encode::write_str(&mut encoded, "metrics")?;

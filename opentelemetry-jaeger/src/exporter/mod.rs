@@ -29,7 +29,7 @@ use opentelemetry_sdk::{
         trace::{ExportResult, SpanData, SpanExporter},
         ExportError,
     },
-    trace::{EvictedHashMap, EvictedQueue},
+    trace::{EvictedQueue},
 };
 use std::convert::TryInto;
 use std::fmt::Display;
@@ -165,7 +165,7 @@ fn convert_otel_span_into_jaeger_span(span: SpanData, export_instrument_lib: boo
 }
 
 fn build_span_tags(
-    attrs: EvictedHashMap,
+    attrs: Vec<KeyValue>,
     instrumentation_lib: Option<InstrumentationLibrary>,
     status: Status,
     kind: SpanKind,
@@ -174,9 +174,9 @@ fn build_span_tags(
     // TODO determine if namespacing is required to avoid collisions with set attributes
     let mut tags = attrs
         .into_iter()
-        .map(|(k, v)| {
-            user_overrides.record_attr(k.as_str());
-            KeyValue::new(k, v).into()
+        .map(|kv| {
+            user_overrides.record_attr(kv.key.as_str());
+            kv.into()
         })
         .collect::<Vec<_>>();
 
