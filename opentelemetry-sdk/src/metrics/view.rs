@@ -1,10 +1,9 @@
+use super::instrument::{Instrument, Stream};
+use glob::Pattern;
 use opentelemetry::{
     global,
     metrics::{MetricsError, Result},
 };
-use regex::Regex;
-
-use super::instrument::{Instrument, Stream};
 
 fn empty_view(_inst: &Instrument) -> Option<Stream> {
     None
@@ -119,16 +118,12 @@ pub fn new_view(criteria: Instrument, mask: Stream) -> Result<Box<dyn View>> {
             return Ok(Box::new(empty_view));
         }
 
-        let pattern = criteria
-            .name
-            .trim_start_matches('^')
-            .trim_end_matches('$')
-            .replace('?', ".")
-            .replace('*', ".*");
-        let re =
-            Regex::new(&format!("^{pattern}$")).map_err(|e| MetricsError::Config(e.to_string()))?;
+        let pattern = criteria.name.clone();
+        let glob_pattern =
+            Pattern::new(&pattern).map_err(|e| MetricsError::Config(e.to_string()))?;
+
         Box::new(move |i| {
-            re.is_match(&i.name)
+            glob_pattern.matches(&i.name)
                 && criteria.matches_description(i)
                 && criteria.matches_kind(i)
                 && criteria.matches_unit(i)
