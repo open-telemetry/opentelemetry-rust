@@ -66,7 +66,7 @@ impl Resource {
         }
     }
 
-    /// Insert and entry if it does not exist or is an empty string
+    /// Insert an entry if it does not exist or is an empty string
     fn insert(&mut self, key: Key, value: Value) {
         match self.attrs.entry(key) {
             Entry::Occupied(mut e) if e.get().as_str().is_empty() => {
