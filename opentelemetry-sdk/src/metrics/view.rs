@@ -189,9 +189,6 @@ mod tests {
         assert!(view
             .match_inst(&Instrument::new().name("counter"))
             .is_some());
-        assert!(view
-            .match_inst(&Instrument::new().name("counter2"))
-            .is_none());
         assert!(view.match_inst(&Instrument::new().name("*")).is_some());
         assert!(view
             .match_inst(&Instrument::new().name("counter*"))
@@ -203,6 +200,9 @@ mod tests {
             .match_inst(&Instrument::new().name("counter?*"))
             .is_some());
         assert!(view.match_inst(&Instrument::new().name("c*r")).is_some());
+        assert!(view
+            .match_inst(&Instrument::new().name("counter2"))
+            .is_none());
         Ok(())
     }
 }
