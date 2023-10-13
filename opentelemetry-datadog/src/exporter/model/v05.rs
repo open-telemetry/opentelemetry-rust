@@ -1,8 +1,7 @@
 use crate::exporter::intern::StringInterner;
 use crate::exporter::model::SAMPLING_PRIORITY_KEY;
 use crate::exporter::{Error, ModelConfig};
-use opentelemetry::KeyValue;
-use opentelemetry::{trace::Status, Key, Value};
+use opentelemetry::trace::Status;
 use opentelemetry_sdk::export::trace::SpanData;
 use std::time::SystemTime;
 
@@ -149,10 +148,18 @@ where
                 .map(|x| x.as_nanos() as i64)
                 .unwrap_or(0);
 
-            let span_type = match span.attributes.get(&Key::new("span.type")) {
-                Some(Value::String(s)) => interner.intern(s.as_str()),
-                _ => interner.intern(""),
-            };
+            // let span_type = match span.attributes.get(&Key::new("span.type")) {
+            //     Some(Value::String(s)) => interner.intern(s.as_str()),
+            //     _ => interner.intern(""),
+            // };
+
+            let mut span_type = interner.intern("");
+            for kv in &span.attributes {
+                if kv.key.as_str() == "span.type" {
+                    span_type = interner.intern(kv.value.as_str().as_ref());
+                    break;
+                }
+            }
 
             // Datadog span name is OpenTelemetry component name - see module docs for more information
             rmp::encode::write_array_len(&mut encoded, SPAN_NUM_ELEMENTS)?;
