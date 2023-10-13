@@ -83,7 +83,7 @@ mod tests {
             .unwrap()
             .as_secs();
 
-        let trace_as_hex: String = format!("{:032x}", trace_id);
+        let trace_as_hex = trace_id.to_string();
         let (timestamp, _xray_id) = trace_as_hex.split_at(8_usize);
 
         let trace_time: u64 = u64::from_str_radix(timestamp, 16).unwrap();

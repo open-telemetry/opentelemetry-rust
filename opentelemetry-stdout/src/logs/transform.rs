@@ -102,12 +102,12 @@ impl From<opentelemetry_sdk::export::logs::LogData> for LogRecord {
                 .record
                 .trace_context
                 .as_ref()
-                .map(|c| format!("{:x}", c.trace_id)),
+                .map(|c| c.trace_id.to_string()),
             span_id: value
                 .record
                 .trace_context
                 .as_ref()
-                .map(|c| format!("{:x}", c.span_id)),
+                .map(|c| c.span_id.to_string()),
             flags: value
                 .record
                 .trace_context

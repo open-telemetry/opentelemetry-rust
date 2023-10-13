@@ -143,7 +143,7 @@ mod tests {
             injector.set(
                 "testheader",
                 format!(
-                    "{:x}-{:x}-{:02x}",
+                    "{}-{}-{:02x}",
                     span_context.trace_id(),
                     span_context.span_id(),
                     span_context.trace_flags()
