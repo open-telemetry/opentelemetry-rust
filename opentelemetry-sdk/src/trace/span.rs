@@ -368,7 +368,11 @@ mod tests {
         let attributes = KeyValue::new("k", "v");
         span.set_attribute(attributes.clone());
         span.with_data(|data| {
-            let matching_attribute:Vec<&KeyValue> = data.attributes.iter().filter(|kv| kv.key.as_str() == attributes.key.as_str()).collect();
+            let matching_attribute: Vec<&KeyValue> = data
+                .attributes
+                .iter()
+                .filter(|kv| kv.key.as_str() == attributes.key.as_str())
+                .collect();
             if matching_attribute.len() == 1 {
                 assert_eq!(matching_attribute[0].value, attributes.value);
             } else {

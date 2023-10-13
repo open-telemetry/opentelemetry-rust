@@ -283,7 +283,7 @@ pub(crate) mod tests {
             &Mapping::empty(),
             &unified_tags,
         )?);
-        
+
         // TODO: Need someone to generate the expected result or instructions to do so.
         // assert_eq!(encoded.as_str(), "kp6jd2VirHNlcnZpY2VfbmFtZaljb21wb25lbnSocmVzb3VyY2WpaG9zdC5uYW\
         // 1lpHRlc3Snc2VydmljZax0ZXN0LXNlcnZpY2WjZW52qHRlc3QtZW52p3ZlcnNpb26sdGVzdC12ZXJzaW9uqXNwYW4udH\
