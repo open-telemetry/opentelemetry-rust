@@ -258,7 +258,10 @@ pub struct SpanBuilder {
     /// Span end time
     pub end_time: Option<SystemTime>,
 
-    /// Span attributes
+    /// Span attributes that are provided at the span creation time.
+    /// More attributes can be added afterwards.
+    /// Providing duplicate keys will result in multiple attributes
+    /// with the same key, as there is no de-duplication performed.
     pub attributes: Option<Vec<KeyValue>>,
 
     /// Span events
@@ -325,9 +328,8 @@ impl SpanBuilder {
     }
 
     /// Assign span attributes from an iterable.
-    ///
-    /// Check out [`SpanBuilder::with_attributes_map`] to assign span attributes
-    /// via an [`OrderMap`] instance.
+    /// Providing duplicate keys will result in multiple attributes
+    /// with the same key, as there is no de-duplication performed.    
     pub fn with_attributes<I>(self, attributes: I) -> Self
     where
         I: IntoIterator<Item = KeyValue>,
