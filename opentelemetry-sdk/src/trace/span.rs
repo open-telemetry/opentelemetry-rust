@@ -367,27 +367,24 @@ mod tests {
         let mut span = create_span();
         let attributes = KeyValue::new("k", "v");
         span.set_attribute(attributes.clone());
-        // span.with_data(|data| {
-        //     // numbers.iter().filter(|&&x| x % 2 == 0).collect(
-        //     let matching_attribute:Vec<(Key, Value)> = data.attributes.iter().filter(|(key, _)| key.as_str() == "k").collect();
-        //     if let Some(val) = data.attributes.get(&attributes.key) {
-        //         assert_eq!(*val, attributes.value);
-        //     } else {
-        //         panic!("no attribute");
-        //     }
-        // });
+        span.with_data(|data| {
+            let matching_attribute:Vec<&KeyValue> = data.attributes.iter().filter(|kv| kv.key.as_str() == attributes.key.as_str()).collect();
+            if matching_attribute.len() == 1 {
+                assert_eq!(matching_attribute[0].value, attributes.value);
+            } else {
+                panic!("no attribute");
+            }
+        });
     }
 
     #[test]
     fn set_attributes() {
         let mut span = create_span();
         let attributes = vec![KeyValue::new("k1", "v1"), KeyValue::new("k2", "v2")];
-        span.set_attributes(attributes.to_vec());
-        // span.with_data(|data| {
-        //     for kv in attributes {
-        //         assert_eq!(data.attributes.get(&kv.key), Some(&kv.value))
-        //     }
-        // });
+        span.set_attributes(attributes);
+        span.with_data(|data| {
+            assert_eq!(data.attributes.len(), 2);
+        });
     }
 
     #[test]
