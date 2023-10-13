@@ -361,7 +361,6 @@ mod tests {
         trace::{SpanKind, Status},
         KeyValue,
     };
-    use opentelemetry_sdk::trace::EvictedHashMap;
 
     fn assert_tag_contains(tags: Vec<Tag>, key: &'static str, expect_val: &'static str) {
         assert_eq!(
@@ -421,17 +420,17 @@ mod tests {
 
     #[test]
     fn ignores_user_set_values() {
-        let mut attributes = EvictedHashMap::new(20, 20);
+        let mut attributes = Vec::new();
         let user_error = true;
         let user_kind = "server";
         let user_status_description = "Something bad happened";
         let user_status = Status::Error {
             description: user_status_description.into(),
         };
-        attributes.insert(KeyValue::new("error", user_error));
-        attributes.insert(KeyValue::new(SPAN_KIND, user_kind));
-        attributes.insert(KeyValue::new(OTEL_STATUS_CODE, "ERROR"));
-        attributes.insert(KeyValue::new(
+        attributes.push(KeyValue::new("error", user_error));
+        attributes.push(KeyValue::new(SPAN_KIND, user_kind));
+        attributes.push(KeyValue::new(OTEL_STATUS_CODE, "ERROR"));
+        attributes.push(KeyValue::new(
             OTEL_STATUS_DESCRIPTION,
             user_status_description,
         ));

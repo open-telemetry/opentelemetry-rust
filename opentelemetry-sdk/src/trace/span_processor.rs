@@ -184,6 +184,7 @@ impl SpanProcessor for SimpleSpanProcessor {
 }
 
 #[derive(Debug)]
+#[allow(clippy::large_enum_variant)]
 enum Message {
     ExportSpan(SpanData),
     Flush(crossbeam_channel::Sender<()>),

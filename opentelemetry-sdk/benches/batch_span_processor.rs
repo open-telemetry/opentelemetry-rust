@@ -5,7 +5,7 @@ use opentelemetry::trace::{
 use opentelemetry_sdk::export::trace::SpanData;
 use opentelemetry_sdk::runtime::Tokio;
 use opentelemetry_sdk::testing::trace::NoopSpanExporter;
-use opentelemetry_sdk::trace::{BatchSpanProcessor, EvictedHashMap, EvictedQueue, SpanProcessor};
+use opentelemetry_sdk::trace::{BatchSpanProcessor, EvictedQueue, SpanProcessor};
 use opentelemetry_sdk::Resource;
 use std::borrow::Cow;
 use std::sync::Arc;

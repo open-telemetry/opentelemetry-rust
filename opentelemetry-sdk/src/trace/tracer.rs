@@ -74,7 +74,7 @@ impl Tracer {
         trace_id: TraceId,
         name: &str,
         span_kind: &SpanKind,
-        attributes: &Vec<KeyValue>,
+        attributes: &[KeyValue],
         links: &[Link],
         config: &Config,
     ) -> Option<(TraceFlags, Vec<KeyValue>, TraceState)> {
@@ -300,7 +300,7 @@ mod tests {
             _trace_id: TraceId,
             _name: &str,
             _span_kind: &SpanKind,
-            _attributes: &Vec<KeyValue>,
+            _attributes: &[KeyValue],
             _links: &[Link],
         ) -> SamplingResult {
             let trace_state = parent_context

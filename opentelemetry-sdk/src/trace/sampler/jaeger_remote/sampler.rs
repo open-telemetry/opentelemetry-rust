@@ -251,7 +251,7 @@ impl ShouldSample for JaegerRemoteSampler {
         trace_id: TraceId,
         name: &str,
         span_kind: &SpanKind,
-        attributes: &Vec<KeyValue>,
+        attributes: &[KeyValue],
         links: &[Link],
     ) -> SamplingResult {
         self.inner

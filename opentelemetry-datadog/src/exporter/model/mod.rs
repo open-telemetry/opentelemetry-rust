@@ -191,13 +191,9 @@ pub(crate) mod tests {
     use super::*;
     use opentelemetry::{
         trace::{SpanContext, SpanId, SpanKind, Status, TraceFlags, TraceId, TraceState},
-        Key, KeyValue,
+        KeyValue,
     };
-    use opentelemetry_sdk::{
-        self,
-        trace::{EvictedHashMap, EvictedQueue},
-        InstrumentationLibrary, Resource,
-    };
+    use opentelemetry_sdk::{self, trace::EvictedQueue, InstrumentationLibrary, Resource};
     use std::borrow::Cow;
     use std::time::{Duration, SystemTime};
 
@@ -218,9 +214,7 @@ pub(crate) mod tests {
         let end_time = start_time.checked_add(Duration::from_secs(1)).unwrap();
 
         let capacity = 3;
-        let mut attributes = Vec::new();
-        attributes.push(KeyValue::new("key", "value"));
-
+        let attributes = vec![KeyValue::new("key", "value")];
         let events = EvictedQueue::new(capacity);
         let links = EvictedQueue::new(capacity);
         let resource = Resource::new(vec![KeyValue::new("host.name", "test")]);
