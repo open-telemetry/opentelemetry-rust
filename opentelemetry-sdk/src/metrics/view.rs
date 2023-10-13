@@ -176,33 +176,80 @@ pub fn new_view(criteria: Instrument, mask: Stream) -> Result<Box<dyn View>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::metrics::Aggregation;
     use crate::metrics::Instrument;
-    use std::error::Error;
-    use std::result::Result;
     #[test]
-    fn test_new_view() -> Result<(), Box<dyn Error>> {
-        let criteria = Instrument::new().name("counter");
-        let mask = Stream::new().aggregation(Aggregation::Sum);
-        let view = new_view(criteria, mask)?;
+    fn test_new_view_matching_all() {
+        let criteria = Instrument::new().name("*");
+        let mask = Stream::new();
 
-        assert!(view
-            .match_inst(&Instrument::new().name("counter"))
-            .is_some());
-        assert!(view.match_inst(&Instrument::new().name("*")).is_some());
-        assert!(view
-            .match_inst(&Instrument::new().name("counter*"))
-            .is_some());
-        assert!(view
-            .match_inst(&Instrument::new().name("counter?"))
-            .is_some());
-        assert!(view
-            .match_inst(&Instrument::new().name("counter?*"))
-            .is_some());
-        assert!(view.match_inst(&Instrument::new().name("c*r")).is_some());
-        assert!(view
-            .match_inst(&Instrument::new().name("counter2"))
-            .is_none());
-        Ok(())
+        let view = new_view(criteria, mask).expect("Expected to create a new view");
+
+        let test_instrument = Instrument::new().name("test_instrument");
+        assert!(
+            view.match_inst(&test_instrument).is_some(),
+            "Expected to match all instruments with * pattern"
+        );
+    }
+
+    #[test]
+    fn test_new_view_exact_match() {
+        let criteria = Instrument::new().name("counter_exact_match");
+        let mask = Stream::new();
+
+        let view = new_view(criteria, mask).expect("Expected to create a new view");
+
+        let matching_instrument = Instrument::new().name("counter_exact_match");
+        assert!(
+            view.match_inst(&matching_instrument).is_some(),
+            "Expected to match instrument with exact name"
+        );
+
+        let non_matching_instrument = Instrument::new().name("counter_non_exact_match");
+        assert!(
+            view.match_inst(&non_matching_instrument).is_none(),
+            "Expected not to match instrument with different name"
+        );
+    }
+
+    #[test]
+    fn test_new_view_with_wildcard_pattern() {
+        let criteria = Instrument::new().name("prefix_*");
+        let mask = Stream::new();
+
+        let view = new_view(criteria, mask).expect("Expected to create a new view");
+
+        let matching_instrument = Instrument::new().name("prefix_counter");
+        assert!(
+            view.match_inst(&matching_instrument).is_some(),
+            "Expected to match instrument with matching prefix"
+        );
+
+        let non_matching_instrument = Instrument::new().name("nonprefix_counter");
+        assert!(
+            view.match_inst(&non_matching_instrument).is_none(),
+            "Expected not to match instrument with different prefix"
+        );
+    }
+
+    #[test]
+    fn test_new_view_wildcard_question_mark() {
+        let criteria = Instrument::new().name("test_?");
+        let mask = Stream::new();
+
+        let view = new_view(criteria, mask).expect("Expected to create a new view");
+
+        // Instrument name that should match the pattern "test_?".
+        let matching_instrument = Instrument::new().name("test_1");
+        assert!(
+            view.match_inst(&matching_instrument).is_some(),
+            "Expected to match instrument with test_? pattern"
+        );
+
+        // Instrument name that should not match the pattern "test_?".
+        let non_matching_instrument = Instrument::new().name("test_12");
+        assert!(
+            view.match_inst(&non_matching_instrument).is_none(),
+            "Expected not to match instrument with test_? pattern"
+        );
     }
 }
