@@ -185,6 +185,8 @@ impl SpanProcessor for SimpleSpanProcessor {
 
 #[derive(Debug)]
 #[allow(clippy::large_enum_variant)]
+// reason = "TODO: SpanData storing dropped_attribute_count separately triggered this clippy warning.
+//           Expecting to address that separately in the future."")
 enum Message {
     ExportSpan(SpanData),
     Flush(crossbeam_channel::Sender<()>),
