@@ -7,7 +7,7 @@ use crate::{
         trace::{ExportResult, SpanData, SpanExporter},
         ExportError,
     },
-    trace::{Config, EvictedHashMap, EvictedQueue},
+    trace::{Config, EvictedQueue},
     InstrumentationLibrary,
 };
 use async_trait::async_trait;
@@ -34,7 +34,8 @@ pub fn new_test_export_span_data() -> SpanData {
         name: "opentelemetry".into(),
         start_time: opentelemetry::time::now(),
         end_time: opentelemetry::time::now(),
-        attributes: EvictedHashMap::new(config.span_limits.max_attributes_per_span, 0),
+        attributes: Vec::new(),
+        dropped_attributes_count: 0,
         events: EvictedQueue::new(config.span_limits.max_events_per_span),
         links: EvictedQueue::new(config.span_limits.max_links_per_span),
         status: Status::Unset,

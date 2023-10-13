@@ -29,7 +29,7 @@ use opentelemetry_sdk::{
         trace::{ExportResult, SpanData, SpanExporter},
         ExportError,
     },
-    trace::{EvictedQueue},
+    trace::EvictedQueue,
 };
 use std::convert::TryInto;
 use std::fmt::Display;

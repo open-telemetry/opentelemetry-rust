@@ -204,7 +204,9 @@ impl opentelemetry::trace::Tracer for Tracer {
             }
 
             let span_attributes_limit = span_limits.max_attributes_per_span as usize;
-            let dropped_attributes_count = attribute_options.len().saturating_sub(span_attributes_limit);
+            let dropped_attributes_count = attribute_options
+                .len()
+                .saturating_sub(span_attributes_limit);
             attribute_options.truncate(span_attributes_limit);
             let dropped_attributes_count = dropped_attributes_count as u32;
 

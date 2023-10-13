@@ -28,7 +28,7 @@ use futures_util::stream::StreamExt;
 use opentelemetry::{
     global::handle_error,
     trace::{SpanId, TraceError},
-    Key, Value, KeyValue,
+    Key, KeyValue, Value,
 };
 use opentelemetry_sdk::{
     export::{
@@ -723,7 +723,10 @@ impl From<(Vec<KeyValue>, &Resource)> for Attributes {
         let num_resource_attributes = resource.len();
         let num_attributes = attributes.len();
 
-        let attributes_as_key_value_tuples: Vec<(Key, Value)> = attributes.into_iter().map(|kv| (kv.key, kv.value)).collect();
+        let attributes_as_key_value_tuples: Vec<(Key, Value)> = attributes
+            .into_iter()
+            .map(|kv| (kv.key, kv.value))
+            .collect();
 
         let attribute_map = resource
             .into_iter()

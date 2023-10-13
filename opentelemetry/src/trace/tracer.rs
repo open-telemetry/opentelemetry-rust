@@ -333,7 +333,7 @@ impl SpanBuilder {
     pub fn with_attributes<I>(self, attributes: I) -> Self
     where
         I: IntoIterator<Item = KeyValue>,
-    {        
+    {
         SpanBuilder {
             attributes: Some(attributes.into_iter().collect()),
             ..self
