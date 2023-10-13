@@ -385,9 +385,6 @@ mod tests {
 
     #[test]
     fn detect_resource_merge() {
-        env::set_var("OTEL_RESOURCE_ATTRIBUTES", "key=value, k = v , a= x, a=z");
-        env::set_var("irrelevant".to_uppercase(), "20200810");
-
         let resource1 = Resource::new(vec![
             KeyValue::new("a", ""),
             KeyValue::new("b", "2"),
