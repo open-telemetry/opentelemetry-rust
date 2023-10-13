@@ -172,3 +172,37 @@ pub fn new_view(criteria: Instrument, mask: Stream) -> Result<Box<dyn View>> {
         }
     }))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::metrics::Aggregation;
+    use crate::metrics::Instrument;
+    use std::error::Error;
+    use std::result::Result;
+    #[test]
+    fn test_new_view() -> Result<(), Box<dyn Error>> {
+        let criteria = Instrument::new().name("counter");
+        let mask = Stream::new().aggregation(Aggregation::Sum);
+        let view = new_view(criteria, mask)?;
+
+        assert!(view
+            .match_inst(&Instrument::new().name("counter"))
+            .is_some());
+        assert!(view
+            .match_inst(&Instrument::new().name("counter2"))
+            .is_none());
+        assert!(view.match_inst(&Instrument::new().name("*")).is_some());
+        assert!(view
+            .match_inst(&Instrument::new().name("counter*"))
+            .is_some());
+        assert!(view
+            .match_inst(&Instrument::new().name("counter?"))
+            .is_some());
+        assert!(view
+            .match_inst(&Instrument::new().name("counter?*"))
+            .is_some());
+        assert!(view.match_inst(&Instrument::new().name("c*r")).is_some());
+        Ok(())
+    }
+}
