@@ -723,10 +723,12 @@ impl From<(Vec<KeyValue>, &Resource)> for Attributes {
         let num_resource_attributes = resource.len();
         let num_attributes = attributes.len();
 
+        let attributes_as_key_value_tuples: Vec<(Key, Value)> = attributes.into_iter().map(|kv| (kv.key, kv.value)).collect();
+
         let attribute_map = resource
             .into_iter()
             .map(|(k, v)| (k.clone(), v.clone()))
-            .chain(attributes)
+            .chain(attributes_as_key_value_tuples)
             .flat_map(|(k, v)| {
                 let key = k.as_str();
                 if key.len() > 128 {
