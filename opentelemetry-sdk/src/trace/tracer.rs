@@ -203,6 +203,11 @@ impl opentelemetry::trace::Tracer for Tracer {
                 attribute_options.push(extra_attr);
             }
 
+            let span_attributes_limit = span_limits.max_attributes_per_span as usize;
+            let dropped_attributes_count = attribute_options.len().saturating_sub(span_attributes_limit);
+            attribute_options.truncate(span_attributes_limit);
+            let dropped_attributes_count = dropped_attributes_count as u32;
+
             let mut link_options = builder.links.take();
             let mut links = EvictedQueue::new(span_limits.max_links_per_span);
             if let Some(link_options) = &mut link_options {
@@ -241,6 +246,7 @@ impl opentelemetry::trace::Tracer for Tracer {
                     start_time,
                     end_time,
                     attributes: attribute_options,
+                    dropped_attributes_count,
                     events: events_queue,
                     links,
                     status,

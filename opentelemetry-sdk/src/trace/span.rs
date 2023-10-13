@@ -38,6 +38,9 @@ pub(crate) struct SpanData {
     pub(crate) end_time: SystemTime,
     /// Span attributes
     pub(crate) attributes: Vec<KeyValue>,
+    /// The number of attributes that were above the configured limit, and thus
+    /// dropped.
+    pub(crate) dropped_attributes_count: u32,
     /// Span events
     pub(crate) events: crate::trace::EvictedQueue<trace::Event>,
     /// Span Links
@@ -129,7 +132,11 @@ impl opentelemetry::trace::Span for Span {
     /// that have prescribed semantic meanings.
     fn set_attribute(&mut self, attribute: KeyValue) {
         self.with_data(|data| {
-            data.attributes.push(attribute);
+            if data.attributes.len() < self.span_limits.max_attributes_per_span as usize {
+                data.attributes.push(attribute);
+            } else {
+                data.dropped_attributes_count += 1;
+            }
         });
     }
 
@@ -229,6 +236,7 @@ fn build_export_data(
         start_time: data.start_time,
         end_time: data.end_time,
         attributes: data.attributes,
+        dropped_attributes_count: data.dropped_attributes_count,
         events: data.events,
         links: data.links,
         status: data.status,
@@ -259,6 +267,7 @@ mod tests {
             start_time: opentelemetry::time::now(),
             end_time: opentelemetry::time::now(),
             attributes: Vec::new(),
+            dropped_attributes_count: 0,
             events: crate::trace::EvictedQueue::new(config.span_limits.max_events_per_span),
             links: crate::trace::EvictedQueue::new(config.span_limits.max_links_per_span),
             status: Status::Unset,

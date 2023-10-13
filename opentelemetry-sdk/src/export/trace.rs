@@ -83,6 +83,9 @@ pub struct SpanData {
     pub end_time: SystemTime,
     /// Span attributes
     pub attributes: Vec<KeyValue>,
+    /// The number of attributes that were above the configured limit, and thus
+    /// dropped.
+    pub dropped_attributes_count: u32,
     /// Span events
     pub events: crate::trace::EvictedQueue<Event>,
     /// Span Links
