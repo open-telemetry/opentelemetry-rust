@@ -404,7 +404,7 @@ mod tests {
     #[test]
     fn test_set_status() {
         for (status, status_tag_val, msg_tag_val) in get_error_tag_test_data() {
-            let tags = build_span_tags(EvictedHashMap::new(20, 20), None, status, SpanKind::Client);
+            let tags = build_span_tags(Vec::new(), None, status, SpanKind::Client);
             if let Some(val) = status_tag_val {
                 assert_tag_contains(tags.clone(), OTEL_STATUS_CODE, val);
             } else {

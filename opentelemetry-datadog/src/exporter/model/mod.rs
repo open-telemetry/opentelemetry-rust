@@ -218,8 +218,8 @@ pub(crate) mod tests {
         let end_time = start_time.checked_add(Duration::from_secs(1)).unwrap();
 
         let capacity = 3;
-        let mut attributes = EvictedHashMap::new(capacity, capacity as usize);
-        attributes.insert(Key::new("span.type").string("web"));
+        let mut attributes = Vec::new();
+        attributes.push(KeyValue::new("key", "value"));
 
         let events = EvictedQueue::new(capacity);
         let links = EvictedQueue::new(capacity);
@@ -233,6 +233,7 @@ pub(crate) mod tests {
             start_time,
             end_time,
             attributes,
+            dropped_attributes_count: 0,
             events,
             links,
             status: Status::Ok,
