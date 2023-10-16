@@ -559,7 +559,7 @@ mod propagator {
                     0x00
                 };
                 let header_value = format!(
-                    "{:032x}:{:016x}:{:01}:{:01x}",
+                    "{}:{}:{:01}:{:01x}",
                     span_context.trace_id(),
                     span_context.span_id(),
                     DEPRECATED_PARENT_SPAN,

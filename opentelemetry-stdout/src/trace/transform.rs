@@ -93,10 +93,10 @@ struct Span {
 impl From<opentelemetry_sdk::export::trace::SpanData> for Span {
     fn from(value: opentelemetry_sdk::export::trace::SpanData) -> Self {
         Span {
-            trace_id: format!("{:x}", value.span_context.trace_id()),
-            span_id: format!("{:x}", value.span_context.span_id()),
+            trace_id: value.span_context.trace_id().to_string(),
+            span_id: value.span_context.span_id().to_string(),
             trace_state: Some(value.span_context.trace_state().header()).filter(|s| !s.is_empty()),
-            parent_span_id: Some(format!("{:x}", value.parent_span_id))
+            parent_span_id: Some(value.parent_span_id.to_string())
                 .filter(|s| s != "0")
                 .unwrap_or_default(),
             name: value.name,
@@ -180,8 +180,8 @@ struct Link {
 impl From<opentelemetry::trace::Link> for Link {
     fn from(value: opentelemetry::trace::Link) -> Self {
         Link {
-            trace_id: format!("{:x}", value.span_context.trace_id()),
-            span_id: format!("{:x}", value.span_context.span_id()),
+            trace_id: value.span_context.trace_id().to_string(),
+            span_id: value.span_context.span_id().to_string(),
             trace_state: Some(value.span_context.trace_state().header()).filter(|s| !s.is_empty()),
             attributes: value.attributes.into_iter().map(Into::into).collect(),
             dropped_attributes_count: value.dropped_attributes_count,
