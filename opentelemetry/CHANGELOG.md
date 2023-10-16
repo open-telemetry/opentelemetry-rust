@@ -10,8 +10,9 @@
   a `const DEFAULT` value. [#1270](https://github.com/open-telemetry/opentelemetry-rust/pull/1270)
 - Updated crate documentation and examples.
   [#1256](https://github.com/open-telemetry/opentelemetry-rust/issues/1256)
-- **Breaking** SpanBuilder attributes changed from `OrderMap<Key, Value>` to
-  `Vec<KeyValue>`. This implies that OpenTelemetry API will no longer perform
+- **Breaking** `SpanBuilder` attributes changed from `OrderMap<Key, Value>` to
+  `Vec<KeyValue>` and `with_attributes_map` method is removed from `SpanBuilder`.
+  This implies that OpenTelemetry API will no longer perform
   de-dup of attribute Keys.
   [#1293](https://github.com/open-telemetry/opentelemetry-rust/issues/1293).
   Please share [feedback

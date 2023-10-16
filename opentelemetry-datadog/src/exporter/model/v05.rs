@@ -148,11 +148,6 @@ where
                 .map(|x| x.as_nanos() as i64)
                 .unwrap_or(0);
 
-            // let span_type = match span.attributes.get(&Key::new("span.type")) {
-            //     Some(Value::String(s)) => interner.intern(s.as_str()),
-            //     _ => interner.intern(""),
-            // };
-
             let mut span_type = interner.intern("");
             for kv in &span.attributes {
                 if kv.key.as_str() == "span.type" {

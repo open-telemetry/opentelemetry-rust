@@ -36,14 +36,6 @@ where
                 .map(|x| x.as_nanos() as i64)
                 .unwrap_or(0);
 
-            // if let Some(Value::String(s)) = span.attributes.get(&Key::new("span.type")) {
-            //     rmp::encode::write_map_len(&mut encoded, 12)?;
-            //     rmp::encode::write_str(&mut encoded, "type")?;
-            //     rmp::encode::write_str(&mut encoded, s.as_str())?;
-            // } else {
-            //     rmp::encode::write_map_len(&mut encoded, 11)?;
-            // }
-
             let mut span_type_found = false;
             for kv in &span.attributes {
                 if kv.key.as_str() == "span.type" {

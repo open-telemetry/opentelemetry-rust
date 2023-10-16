@@ -214,7 +214,7 @@ pub(crate) mod tests {
         let end_time = start_time.checked_add(Duration::from_secs(1)).unwrap();
 
         let capacity = 3;
-        let attributes = vec![KeyValue::new("key", "value")];
+        let attributes = vec![KeyValue::new("span.type", "web")];
         let events = EvictedQueue::new(capacity);
         let links = EvictedQueue::new(capacity);
         let resource = Resource::new(vec![KeyValue::new("host.name", "test")]);
@@ -248,18 +248,17 @@ pub(crate) mod tests {
             service_name: "service_name".to_string(),
             ..Default::default()
         };
-        let _encoded = base64::encode(ApiVersion::Version03.encode(
+        let encoded = base64::encode(ApiVersion::Version03.encode(
             &model_config,
             traces,
             &Mapping::empty(),
             &UnifiedTags::new(),
         )?);
 
-        // TODO: Need someone to generate the expected result or instructions to do so.
-        // assert_eq!(encoded.as_str(), "kZGMpHR5cGWjd2Vip3NlcnZpY2Wsc2VydmljZV9uYW1lpG5hbWWpY29tcG9uZW\
-        // 50qHJlc291cmNlqHJlc291cmNlqHRyYWNlX2lkzwAAAAAAAAAHp3NwYW5faWTPAAAAAAAAAGOpcGFyZW50X2lkzwAAAA\
-        // AAAAABpXN0YXJ00wAAAAAAAAAAqGR1cmF0aW9u0wAAAAA7msoApWVycm9y0gAAAACkbWV0YYKpaG9zdC5uYW1lpHRlc3\
-        // Spc3Bhbi50eXBlo3dlYqdtZXRyaWNzgbVfc2FtcGxpbmdfcHJpb3JpdHlfdjHLAAAAAAAAAAA=");
+        assert_eq!(encoded.as_str(), "kZGMpHR5cGWjd2Vip3NlcnZpY2Wsc2VydmljZV9uYW1lpG5hbWWpY29tcG9uZW\
+        50qHJlc291cmNlqHJlc291cmNlqHRyYWNlX2lkzwAAAAAAAAAHp3NwYW5faWTPAAAAAAAAAGOpcGFyZW50X2lkzwAAAA\
+        AAAAABpXN0YXJ00wAAAAAAAAAAqGR1cmF0aW9u0wAAAAA7msoApWVycm9y0gAAAACkbWV0YYKpaG9zdC5uYW1lpHRlc3\
+        Spc3Bhbi50eXBlo3dlYqdtZXRyaWNzgbVfc2FtcGxpbmdfcHJpb3JpdHlfdjHLAAAAAAAAAAA=");
 
         Ok(())
     }
