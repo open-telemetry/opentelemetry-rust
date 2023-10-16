@@ -1,10 +1,9 @@
+use super::instrument::{Instrument, Stream};
+use glob::Pattern;
 use opentelemetry::{
     global,
     metrics::{MetricsError, Result},
 };
-use regex::Regex;
-
-use super::instrument::{Instrument, Stream};
 
 fn empty_view(_inst: &Instrument) -> Option<Stream> {
     None
@@ -119,16 +118,12 @@ pub fn new_view(criteria: Instrument, mask: Stream) -> Result<Box<dyn View>> {
             return Ok(Box::new(empty_view));
         }
 
-        let pattern = criteria
-            .name
-            .trim_start_matches('^')
-            .trim_end_matches('$')
-            .replace('?', ".")
-            .replace('*', ".*");
-        let re =
-            Regex::new(&format!("^{pattern}$")).map_err(|e| MetricsError::Config(e.to_string()))?;
+        let pattern = criteria.name.clone();
+        let glob_pattern =
+            Pattern::new(&pattern).map_err(|e| MetricsError::Config(e.to_string()))?;
+
         Box::new(move |i| {
-            re.is_match(&i.name)
+            glob_pattern.matches(&i.name)
                 && criteria.matches_description(i)
                 && criteria.matches_kind(i)
                 && criteria.matches_unit(i)
@@ -176,4 +171,85 @@ pub fn new_view(criteria: Instrument, mask: Stream) -> Result<Box<dyn View>> {
             None
         }
     }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::metrics::Instrument;
+    #[test]
+    fn test_new_view_matching_all() {
+        let criteria = Instrument::new().name("*");
+        let mask = Stream::new();
+
+        let view = new_view(criteria, mask).expect("Expected to create a new view");
+
+        let test_instrument = Instrument::new().name("test_instrument");
+        assert!(
+            view.match_inst(&test_instrument).is_some(),
+            "Expected to match all instruments with * pattern"
+        );
+    }
+
+    #[test]
+    fn test_new_view_exact_match() {
+        let criteria = Instrument::new().name("counter_exact_match");
+        let mask = Stream::new();
+
+        let view = new_view(criteria, mask).expect("Expected to create a new view");
+
+        let matching_instrument = Instrument::new().name("counter_exact_match");
+        assert!(
+            view.match_inst(&matching_instrument).is_some(),
+            "Expected to match instrument with exact name"
+        );
+
+        let non_matching_instrument = Instrument::new().name("counter_non_exact_match");
+        assert!(
+            view.match_inst(&non_matching_instrument).is_none(),
+            "Expected not to match instrument with different name"
+        );
+    }
+
+    #[test]
+    fn test_new_view_with_wildcard_pattern() {
+        let criteria = Instrument::new().name("prefix_*");
+        let mask = Stream::new();
+
+        let view = new_view(criteria, mask).expect("Expected to create a new view");
+
+        let matching_instrument = Instrument::new().name("prefix_counter");
+        assert!(
+            view.match_inst(&matching_instrument).is_some(),
+            "Expected to match instrument with matching prefix"
+        );
+
+        let non_matching_instrument = Instrument::new().name("nonprefix_counter");
+        assert!(
+            view.match_inst(&non_matching_instrument).is_none(),
+            "Expected not to match instrument with different prefix"
+        );
+    }
+
+    #[test]
+    fn test_new_view_wildcard_question_mark() {
+        let criteria = Instrument::new().name("test_?");
+        let mask = Stream::new();
+
+        let view = new_view(criteria, mask).expect("Expected to create a new view");
+
+        // Instrument name that should match the pattern "test_?".
+        let matching_instrument = Instrument::new().name("test_1");
+        assert!(
+            view.match_inst(&matching_instrument).is_some(),
+            "Expected to match instrument with test_? pattern"
+        );
+
+        // Instrument name that should not match the pattern "test_?".
+        let non_matching_instrument = Instrument::new().name("test_12");
+        assert!(
+            view.match_inst(&non_matching_instrument).is_none(),
+            "Expected not to match instrument with test_? pattern"
+        );
+    }
 }

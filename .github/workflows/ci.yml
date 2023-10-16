@@ -13,6 +13,12 @@ jobs:
         rust: [stable, beta]
     runs-on: ubuntu-latest
     steps:
+    - name: Free disk space
+      run: |
+        df -h
+        sudo rm -rf /usr/local/lib/android
+        sudo rm -rf /usr/share/dotnet
+        df -h
     - uses: actions/checkout@v1
       with:
         submodules: true
