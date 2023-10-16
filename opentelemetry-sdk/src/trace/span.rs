@@ -251,9 +251,10 @@ mod tests {
     use super::*;
     use crate::testing::trace::NoopSpanExporter;
     use crate::trace::span_limit::{
-        DEFAULT_MAX_ATTRIBUTES_PER_EVENT, DEFAULT_MAX_ATTRIBUTES_PER_LINK, DEFAULT_MAX_ATTRIBUTES_PER_SPAN,
+        DEFAULT_MAX_ATTRIBUTES_PER_EVENT, DEFAULT_MAX_ATTRIBUTES_PER_LINK,
+        DEFAULT_MAX_ATTRIBUTES_PER_SPAN,
     };
-    use opentelemetry::trace::{Link, TraceFlags, TraceId, Tracer, SpanBuilder};
+    use opentelemetry::trace::{Link, SpanBuilder, TraceFlags, TraceId, Tracer};
     use opentelemetry::{trace::Span as _, trace::TracerProvider, KeyValue};
     use std::time::Duration;
     use std::vec;
@@ -513,7 +514,7 @@ mod tests {
         let provider = provider_builder.build();
         let tracer = provider.tracer("opentelemetry-test");
 
-        let mut initial_attributes = Vec::new();   
+        let mut initial_attributes = Vec::new();
         let mut expected_dropped_count = 1;
         for i in 0..(DEFAULT_MAX_ATTRIBUTES_PER_SPAN + 1) {
             initial_attributes.push(KeyValue::new(format!("key {}", i), i.to_string()))
@@ -525,15 +526,23 @@ mod tests {
         span.set_attribute(KeyValue::new("key3", "value3"));
 
         expected_dropped_count += 2;
-        let span_attributes_after_creation = vec![
-            KeyValue::new("foo", "1"),
-            KeyValue::new("bar", "2"),
-        ];
+        let span_attributes_after_creation =
+            vec![KeyValue::new("foo", "1"), KeyValue::new("bar", "2")];
         span.set_attributes(span_attributes_after_creation);
 
-        let actual_span = span.data.clone().expect("span data should not be empty as we already set it before");
-        assert_eq!(actual_span.attributes.len(), DEFAULT_MAX_ATTRIBUTES_PER_SPAN as usize, "Span attributes should be truncated to the max limit");
-        assert_eq!(actual_span.dropped_attributes_count, expected_dropped_count, "Dropped count should match the actual count of attributes dropped");
+        let actual_span = span
+            .data
+            .clone()
+            .expect("span data should not be empty as we already set it before");
+        assert_eq!(
+            actual_span.attributes.len(),
+            DEFAULT_MAX_ATTRIBUTES_PER_SPAN as usize,
+            "Span attributes should be truncated to the max limit"
+        );
+        assert_eq!(
+            actual_span.dropped_attributes_count, expected_dropped_count,
+            "Dropped count should match the actual count of attributes dropped"
+        );
     }
 
     #[test]
