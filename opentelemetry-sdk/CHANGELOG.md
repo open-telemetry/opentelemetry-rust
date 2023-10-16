@@ -8,6 +8,7 @@
   casing
 - Log warning if view is created with empty criteria (#1266)
 - Add exponential histogram support (#1267)
+- Add `opentelemetry::sdk::logs::config()` for parity with `opentelemetry::sdk::trace::config()` (#1197)
 
 ### Changed
 
@@ -27,6 +28,7 @@
 - Increase instrument name maximum length from 63 to 255 (#1269)
 - Updated crate documentation and examples.
   [#1256](https://github.com/open-telemetry/opentelemetry-rust/issues/1256)
+- Replace regex with glob (#1301)
 - **Breaking**
   [#1293](https://github.com/open-telemetry/opentelemetry-rust/issues/1293)
   makes few breaking changes with respect to how Span attributes are stored to

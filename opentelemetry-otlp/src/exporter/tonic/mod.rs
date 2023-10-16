@@ -215,7 +215,7 @@ impl TonicExporterBuilder {
         signal_compression_var: &str,
     ) -> Result<(Channel, BoxInterceptor, Option<CompressionEncoding>), crate::Error> {
         let config = &mut self.exporter_config;
-        let tonic_config = &mut self.tonic_config;
+        let tonic_config: &mut TonicConfig = &mut self.tonic_config;
 
         let endpoint = match env::var(signal_endpoint_var)
             .ok()

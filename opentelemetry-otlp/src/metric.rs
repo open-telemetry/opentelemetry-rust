@@ -40,6 +40,11 @@ pub const OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: &str = "OTEL_EXPORTER_OTLP_METRIC
 pub const OTEL_EXPORTER_OTLP_METRICS_TIMEOUT: &str = "OTEL_EXPORTER_OTLP_METRICS_TIMEOUT";
 /// Compression algorithm to use, defaults to none.
 pub const OTEL_EXPORTER_OTLP_METRICS_COMPRESSION: &str = "OTEL_EXPORTER_OTLP_METRICS_COMPRESSION";
+/// Key-value pairs to be used as headers associated with gRPC or HTTP requests
+/// for sending metrics.
+/// Example: `k1=v1,k2=v2`
+/// Note: this is only supported for HTTP.
+pub const OTEL_EXPORTER_OTLP_METRICS_HEADERS: &str = "OTEL_EXPORTER_OTLP_METRICS_HEADERS";
 impl OtlpPipeline {
     /// Create a OTLP metrics pipeline.
     pub fn metrics<RT>(self, rt: RT) -> OtlpMetricPipeline<RT, NoExporterConfig>

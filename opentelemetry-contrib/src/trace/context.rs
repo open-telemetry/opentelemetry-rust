@@ -30,7 +30,7 @@ use std::{
 /// }
 /// ```
 pub fn new_span_if_parent_sampled(
-    builder_fn: impl Fn() -> SpanBuilder,
+    builder_fn: impl FnOnce() -> SpanBuilder,
     tracer: TracerSource<'_>,
 ) -> Option<Context> {
     Context::map_current(|current| {
@@ -64,7 +64,7 @@ pub fn new_span_if_parent_sampled(
 /// }
 /// ```
 pub fn new_span_if_recording(
-    builder_fn: impl Fn() -> SpanBuilder,
+    builder_fn: impl FnOnce() -> SpanBuilder,
     tracer: TracerSource<'_>,
 ) -> Option<Context> {
     Context::map_current(|current| {
