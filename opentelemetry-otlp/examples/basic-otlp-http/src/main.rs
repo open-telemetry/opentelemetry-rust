@@ -16,8 +16,7 @@ use tracing::info;
 use tracing_subscriber::prelude::*;
 
 fn init_logs() -> Result<sdklogs::Logger, opentelemetry::logs::LogError> {
-    let service_name = std::env::var("CARGO_BIN_NAME")
-        .unwrap_or_else(|_| String::from("basic-otlp-http-logging-example"));
+    let service_name = env!("CARGO_BIN_NAME");
     opentelemetry_otlp::new_pipeline()
         .logging()
         .with_log_config(
