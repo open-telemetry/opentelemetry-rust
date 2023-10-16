@@ -13,6 +13,17 @@ jobs:
         rust: [stable, beta]
     runs-on: ubuntu-latest
     steps:
+    - name: Free disk space
+      run:
+        df -h
+        sudo apt-get remove -y '^ghc-8.*'
+        sudo apt-get remove -y '^dotnet-.*'
+        sudo apt-get remove -y powershell mono-devel
+        sudo apt-get autoremove -y
+        sudo apt-get clean
+        sudo rm -rf /usr/local/lib/android
+        sudo rm -rf /usr/share/dotnet
+        df -h
     - uses: actions/checkout@v1
       with:
         submodules: true
