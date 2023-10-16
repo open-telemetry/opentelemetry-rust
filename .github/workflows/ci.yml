@@ -16,7 +16,6 @@ jobs:
     - name: Free disk space
       run: |
         df -h
-        sudo apt-get remove -y '^ghc-8.*'
         sudo apt-get remove -y '^dotnet-.*'
         sudo apt-get remove -y powershell mono-devel
         sudo apt-get autoremove -y
