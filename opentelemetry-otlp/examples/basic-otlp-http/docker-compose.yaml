@@ -1,14 +1,6 @@
 version: "2"
 services:
 
-  # Jaeger
-  jaeger-all-in-one:
-    image: jaegertracing/all-in-one:latest
-    ports:
-      - "16686:16686"
-      - "14268"
-      - "14250"
-
   # Collector
   otel-collector:
     image: otel/opentelemetry-collector:latest
@@ -18,20 +10,9 @@ services:
     ports:
       - "1888:1888"   # pprof extension
       - "13133:13133" # health_check extension
-      - "4317:4317"   # OTLP gRPC receiver
       - "4318:4318"   # OTLP HTTP receiver
       - "55670:55679" # zpages extension
-    depends_on:
-      - jaeger-all-in-one
 
 
-  # metrics-rust:
-  #   build:
-  #     dockerfile: $PWD/Dockerfile
-  #     context: ./basic-otlp-http
-  #   environment:
-  #     - OTLP_TONIC_ENDPOINT=otel-collector:4317
-  #   depends_on:
-  #     - otel-collector
 
 
