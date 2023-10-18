@@ -347,10 +347,7 @@ impl DatadogPipelineBuilder {
     }
 
     /// Choose the http client used by uploader
-    pub fn with_http_client<T: HttpClient + 'static>(
-        mut self,
-        client: Arc<dyn HttpClient>,
-    ) -> Self {
+    pub fn with_http_client(mut self, client: Arc<dyn HttpClient>) -> Self {
         self.client = Some(client);
         self
     }
