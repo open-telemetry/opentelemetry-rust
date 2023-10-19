@@ -45,8 +45,14 @@ mod tests {
             .get_emitted_logs()
             .expect("Logs are expected to be exported.");
         assert_eq!(exported_logs.len(), 1);
-        let log = exported_logs.get(0).expect("Atleast one log is expected to be present.");
-        let attributes: Vec<(Key, AnyValue)> = log.record.attributes.clone().expect("Attributes are expected");
+        let log = exported_logs
+            .get(0)
+            .expect("Atleast one log is expected to be present.");
+        let attributes: Vec<(Key, AnyValue)> = log
+            .record
+            .attributes
+            .clone()
+            .expect("Attributes are expected");
         assert_eq!(attributes.len(), 2);
     }
 }
