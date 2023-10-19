@@ -9,6 +9,7 @@
 ### Fixed
 
 - Do not set an empty span as the active span when the propagator does not find a remote span.
+- Change type signature of `with_http_client()` to use the provided generic as argument.
 
 ## V0.8.0
 

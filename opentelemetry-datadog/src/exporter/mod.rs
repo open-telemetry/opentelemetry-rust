@@ -347,8 +347,8 @@ impl DatadogPipelineBuilder {
     }
 
     /// Choose the http client used by uploader
-    pub fn with_http_client(mut self, client: Arc<dyn HttpClient>) -> Self {
-        self.client = Some(client);
+    pub fn with_http_client<T: HttpClient + 'static>(mut self, client: T) -> Self {
+        self.client = Some(Arc::new(client));
         self
     }
 
@@ -492,5 +492,26 @@ mod tests {
             "http://localhost:8126/v0.5/traces?api_key=123"
         );
         assert!(invalid.is_err())
+    }
+
+    #[derive(Debug)]
+    struct DummyClient;
+
+    #[async_trait::async_trait]
+    impl HttpClient for DummyClient {
+        async fn send(
+            &self,
+            _request: Request<Vec<u8>>,
+        ) -> Result<http::Response<bytes::Bytes>, opentelemetry_http::HttpError> {
+            Ok(http::Response::new("dummy response".into()))
+        }
+    }
+
+    #[test]
+    fn test_custom_http_client() {
+        new_pipeline()
+            .with_http_client(DummyClient)
+            .build_exporter()
+            .unwrap();
     }
 }
