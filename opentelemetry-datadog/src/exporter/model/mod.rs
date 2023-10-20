@@ -193,7 +193,11 @@ pub(crate) mod tests {
         trace::{SpanContext, SpanId, SpanKind, Status, TraceFlags, TraceId, TraceState},
         KeyValue,
     };
-    use opentelemetry_sdk::{self, trace::{EvictedQueue, Links}, InstrumentationLibrary, Resource};
+    use opentelemetry_sdk::{
+        self,
+        trace::{EvictedQueue, Links},
+        InstrumentationLibrary, Resource,
+    };
     use std::borrow::Cow;
     use std::time::{Duration, SystemTime};
 
