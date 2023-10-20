@@ -89,7 +89,7 @@ pub struct SpanData {
     /// Span events
     pub events: crate::trace::EvictedQueue<Event>,
     /// Span Links
-    pub links: crate::trace::SpanLinks,
+    pub span_links: crate::trace::SpanLinks,
     /// Span status
     pub status: Status,
     /// Resource contains attributes representing an entity that produced this span.

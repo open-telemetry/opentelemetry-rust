@@ -233,7 +233,7 @@ pub(crate) mod tests {
             attributes,
             dropped_attributes_count: 0,
             events,
-            links,
+            span_links: links,
             status: Status::Ok,
             resource: Cow::Owned(resource),
             instrumentation_lib: InstrumentationLibrary::new(

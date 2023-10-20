@@ -239,7 +239,7 @@ fn build_export_data(
         attributes: data.attributes,
         dropped_attributes_count: data.dropped_attributes_count,
         events: data.events,
-        links: data.span_links,
+        span_links: data.span_links,
         status: data.status,
         resource,
         instrumentation_lib: tracer.instrumentation_library().clone(),

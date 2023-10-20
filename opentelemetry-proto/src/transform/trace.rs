@@ -93,9 +93,9 @@ pub mod tonic {
                                 dropped_attributes_count: event.dropped_attributes_count,
                             })
                             .collect(),
-                        dropped_links_count: source_span.links.dropped_count,
+                        dropped_links_count: source_span.span_links.dropped_count,
                         links: source_span
-                            .links
+                            .span_links
                             .links
                             .into_iter()
                             .map(Into::into)
@@ -209,9 +209,9 @@ pub mod grpcio {
                                 dropped_attributes_count: event.dropped_attributes_count,
                             })
                             .collect(),
-                        dropped_links_count: source_span.links.dropped_count,
+                        dropped_links_count: source_span.span_links.dropped_count,
                         links: source_span
-                            .links
+                            .span_links
                             .links
                             .into_iter()
                             .map(Into::into)

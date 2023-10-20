@@ -20,7 +20,7 @@ mod grpcio {
                 attributes: Attributes::from(span_data.attributes).0,
                 events: span_data.events.iter().cloned().map(Into::into).collect(),
                 links: span_data
-                    .links
+                    .span_links
                     .links
                     .iter()
                     .cloned()
@@ -40,7 +40,7 @@ mod grpcio {
                 attributes: Attributes::from(span_data.attributes).0,
                 events: span_data.events.iter().cloned().map(Into::into).collect(),
                 links: span_data
-                    .links
+                    .span_links
                     .links
                     .iter()
                     .cloned()
@@ -67,7 +67,7 @@ mod grpcio {
                 attributes: Attributes::from(span_data.attributes).0,
                 events: span_data.events.iter().cloned().map(Into::into).collect(),
                 links: span_data
-                    .links
+                    .span_links
                     .links
                     .iter()
                     .cloned()

@@ -751,7 +751,7 @@ mod tests {
             attributes: Vec::new(),
             dropped_attributes_count: 0,
             events: EvictedQueue::new(0),
-            links: SpanLinks::default(),
+            span_links: SpanLinks::default(),
             status: Status::Unset,
             resource: Default::default(),
             instrumentation_lib: Default::default(),
