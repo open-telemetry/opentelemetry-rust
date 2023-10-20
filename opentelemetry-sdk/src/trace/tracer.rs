@@ -11,7 +11,7 @@ use crate::{
     trace::{
         provider::{TracerProvider, TracerProviderInner},
         span::{Span, SpanData},
-        Config, EvictedQueue, SpanLinks, SpanLimits,
+        Config, EvictedQueue, SpanLimits, SpanLinks,
     },
     InstrumentationLibrary,
 };
