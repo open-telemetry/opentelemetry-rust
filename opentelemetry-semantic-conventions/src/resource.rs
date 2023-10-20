@@ -321,14 +321,14 @@ pub const CONTAINER_IMAGE_ID: Key = Key::from_static_str("container.image.id");
 /// - `otelcontribcol`
 pub const CONTAINER_COMMAND: Key = Key::from_static_str("container.command");
 
-/// The full command run by the container as a single string representing the full command. [2].
+/// The full command run by the container as a single string representing the full command.
 ///
 /// # Examples
 ///
 /// - `otelcontribcol --config config.yaml`
 pub const CONTAINER_COMMAND_LINE: Key = Key::from_static_str("container.command_line");
 
-/// All the command arguments (including the command/executable itself) run by the container. [2].
+/// All the command arguments (including the command/executable itself) run by the container.
 ///
 /// # Examples
 ///
