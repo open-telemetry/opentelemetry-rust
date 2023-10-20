@@ -47,7 +47,7 @@ mod tests {
     };
 
     #[test]
-    fn tracing_in_span_test() {
+    fn tracing_in_span() {
         // Arrange
         let exporter = InMemorySpanExporterBuilder::new().build();
         let provider = TracerProvider::builder()
@@ -71,7 +71,7 @@ mod tests {
     }
 
     #[test]
-    fn tracing_tracer_start_test() {
+    fn tracing_tracer_start() {
         // Arrange
         let exporter = InMemorySpanExporterBuilder::new().build();
         let provider = TracerProvider::builder()
