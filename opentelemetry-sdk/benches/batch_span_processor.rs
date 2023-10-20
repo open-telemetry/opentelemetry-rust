@@ -5,7 +5,7 @@ use opentelemetry::trace::{
 use opentelemetry_sdk::export::trace::SpanData;
 use opentelemetry_sdk::runtime::Tokio;
 use opentelemetry_sdk::testing::trace::NoopSpanExporter;
-use opentelemetry_sdk::trace::{BatchSpanProcessor, EvictedQueue, SpanProcessor};
+use opentelemetry_sdk::trace::{BatchSpanProcessor, EvictedQueue, SpanProcessor, SpanLinks};
 use opentelemetry_sdk::Resource;
 use std::borrow::Cow;
 use std::sync::Arc;
@@ -30,7 +30,7 @@ fn get_span_data() -> Vec<SpanData> {
             attributes: Vec::new(),
             dropped_attributes_count: 0,
             events: EvictedQueue::new(12),
-            span_links: EvictedQueue::new(12),
+            span_links: SpanLinks::default(),
             status: Status::Unset,
             resource: Cow::Owned(Resource::empty()),
             instrumentation_lib: Default::default(),
