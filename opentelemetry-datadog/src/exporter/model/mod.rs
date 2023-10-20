@@ -193,7 +193,7 @@ pub(crate) mod tests {
         trace::{SpanContext, SpanId, SpanKind, Status, TraceFlags, TraceId, TraceState},
         KeyValue,
     };
-    use opentelemetry_sdk::{self, trace::EvictedQueue, InstrumentationLibrary, Resource};
+    use opentelemetry_sdk::{self, trace::{EvictedQueue, Links}, InstrumentationLibrary, Resource};
     use std::borrow::Cow;
     use std::time::{Duration, SystemTime};
 
@@ -216,7 +216,7 @@ pub(crate) mod tests {
         let capacity = 3;
         let attributes = vec![KeyValue::new("span.type", "web")];
         let events = EvictedQueue::new(capacity);
-        let links = EvictedQueue::new(capacity);
+        let links = Links::default();
         let resource = Resource::new(vec![KeyValue::new("host.name", "test")]);
 
         trace::SpanData {

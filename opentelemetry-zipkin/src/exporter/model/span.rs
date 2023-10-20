@@ -60,6 +60,7 @@ mod tests {
     use crate::exporter::model::span::{Kind, Span};
     use crate::exporter::model::{into_zipkin_span, OTEL_ERROR_DESCRIPTION, OTEL_STATUS_CODE};
     use opentelemetry::trace::{SpanContext, SpanId, SpanKind, Status, TraceFlags, TraceId};
+    use opentelemetry_sdk::trace::Links;
     use opentelemetry_sdk::{export::trace::SpanData, trace::EvictedQueue, Resource};
     use std::borrow::Cow;
     use std::collections::HashMap;
@@ -163,7 +164,7 @@ mod tests {
                 attributes: Vec::new(),
                 dropped_attributes_count: 0,
                 events: EvictedQueue::new(20),
-                links: EvictedQueue::new(20),
+                links: Links::default(),
                 status,
                 resource: Cow::Owned(Resource::default()),
                 instrumentation_lib: Default::default(),
