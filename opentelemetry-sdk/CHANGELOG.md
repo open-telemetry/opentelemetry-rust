@@ -28,6 +28,8 @@
 - Increase instrument name maximum length from 63 to 255 (#1269)
 - Updated crate documentation and examples.
   [#1256](https://github.com/open-telemetry/opentelemetry-rust/issues/1256)
+- Replace regex with glob (#1301)
+
 
 ### Removed
 

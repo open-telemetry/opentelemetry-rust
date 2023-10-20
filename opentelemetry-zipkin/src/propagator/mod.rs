@@ -228,11 +228,7 @@ impl TextMapPropagator for Propagator {
                 span_context.trace_flags() & TRACE_FLAG_DEFERRED == TRACE_FLAG_DEFERRED;
             let is_debug = span_context.trace_flags() & TRACE_FLAG_DEBUG == TRACE_FLAG_DEBUG;
             if self.inject_encoding.support(&B3Encoding::SingleHeader) {
-                let mut value = format!(
-                    "{:032x}-{:016x}",
-                    span_context.trace_id(),
-                    span_context.span_id(),
-                );
+                let mut value = format!("{}-{}", span_context.trace_id(), span_context.span_id());
                 if !is_deferred {
                     let flag = if is_debug {
                         "d"
@@ -250,14 +246,8 @@ impl TextMapPropagator for Propagator {
                 || self.inject_encoding.support(&B3Encoding::UnSpecified)
             {
                 // if inject_encoding is Unspecified, default to use MultipleHeader
-                injector.set(
-                    B3_TRACE_ID_HEADER,
-                    format!("{:032x}", span_context.trace_id()),
-                );
-                injector.set(
-                    B3_SPAN_ID_HEADER,
-                    format!("{:016x}", span_context.span_id()),
-                );
+                injector.set(B3_TRACE_ID_HEADER, span_context.trace_id().to_string());
+                injector.set(B3_SPAN_ID_HEADER, span_context.span_id().to_string());
 
                 if is_debug {
                     injector.set(B3_DEBUG_FLAG_HEADER, "1".to_string());
