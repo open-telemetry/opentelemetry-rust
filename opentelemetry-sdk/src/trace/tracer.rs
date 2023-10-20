@@ -11,7 +11,7 @@ use crate::{
     trace::{
         provider::{TracerProvider, TracerProviderInner},
         span::{Span, SpanData},
-        Config, EvictedQueue, Links, SpanLimits,
+        Config, EvictedQueue, SpanLinks, SpanLimits,
     },
     InstrumentationLibrary,
 };
@@ -217,7 +217,7 @@ impl opentelemetry::trace::Tracer for Tracer {
             // once the spec for that stabilizes.
 
             let spans_links_limit = span_limits.max_links_per_span as usize;
-            let span_links: Links = if let Some(mut links) = builder.links.take() {
+            let span_links: SpanLinks = if let Some(mut links) = builder.links.take() {
                 let dropped_count = links.len().saturating_sub(spans_links_limit);
                 links.truncate(spans_links_limit);
                 let link_attributes_limit = span_limits.max_attributes_per_link as usize;
@@ -227,12 +227,12 @@ impl opentelemetry::trace::Tracer for Tracer {
                     link.attributes.truncate(link_attributes_limit);
                     link.dropped_attributes_count = dropped_attributes_count as u32;
                 }
-                Links {
+                SpanLinks {
                     links: links,
                     dropped_count: dropped_count as u32,
                 }
             } else {
-                Links::default()
+                SpanLinks::default()
             };
 
             let start_time = start_time.unwrap_or_else(opentelemetry::time::now);
@@ -263,7 +263,7 @@ impl opentelemetry::trace::Tracer for Tracer {
                     attributes: attribute_options,
                     dropped_attributes_count,
                     events: events_queue,
-                    links: span_links,
+                    span_links,
                     status,
                 }),
                 self.clone(),

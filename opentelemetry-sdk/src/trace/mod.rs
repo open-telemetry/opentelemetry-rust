@@ -22,7 +22,7 @@ pub use config::{config, Config};
 pub use evicted_hash_map::EvictedHashMap;
 pub use evicted_queue::EvictedQueue;
 pub use id_generator::{aws::XrayIdGenerator, IdGenerator, RandomIdGenerator};
-pub use links::Links;
+pub use links::SpanLinks;
 pub use provider::{Builder, TracerProvider};
 pub use sampler::{Sampler, ShouldSample};
 pub use span::Span;

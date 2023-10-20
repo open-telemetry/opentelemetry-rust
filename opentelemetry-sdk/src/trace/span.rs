@@ -44,7 +44,7 @@ pub(crate) struct SpanData {
     /// Span events
     pub(crate) events: crate::trace::EvictedQueue<trace::Event>,
     /// Span Links
-    pub(crate) links: crate::trace::Links,
+    pub(crate) span_links: crate::trace::SpanLinks,
     /// Span status
     pub(crate) status: Status,
 }
@@ -239,7 +239,7 @@ fn build_export_data(
         attributes: data.attributes,
         dropped_attributes_count: data.dropped_attributes_count,
         events: data.events,
-        links: data.links,
+        links: data.span_links,
         status: data.status,
         resource,
         instrumentation_lib: tracer.instrumentation_library().clone(),
@@ -254,7 +254,7 @@ mod tests {
         DEFAULT_MAX_ATTRIBUTES_PER_EVENT, DEFAULT_MAX_ATTRIBUTES_PER_LINK,
         DEFAULT_MAX_ATTRIBUTES_PER_SPAN, DEFAULT_MAX_LINKS_PER_SPAN,
     };
-    use crate::trace::Links;
+    use crate::trace::SpanLinks;
     use opentelemetry::trace::{Link, SpanBuilder, TraceFlags, TraceId, Tracer};
     use opentelemetry::{trace::Span as _, trace::TracerProvider, KeyValue};
     use std::time::Duration;
@@ -273,7 +273,7 @@ mod tests {
             attributes: Vec::new(),
             dropped_attributes_count: 0,
             events: crate::trace::EvictedQueue::new(config.span_limits.max_events_per_span),
-            links: Links::default(),
+            span_links: SpanLinks::default(),
             status: Status::Unset,
         };
         (tracer, data)
@@ -610,7 +610,7 @@ mod tests {
             .data
             .clone()
             .expect("span data should not be empty as we already set it before")
-            .links;
+            .span_links;
         let link_vec: Vec<_> = link_queue.links;
         let processed_link = link_vec.get(0).expect("should have at least one link");
         assert_eq!(processed_link.attributes.len(), 128);
@@ -644,7 +644,7 @@ mod tests {
             .data
             .clone()
             .expect("span data should not be empty as we already set it before")
-            .links;
+            .span_links;
         let link_vec: Vec<_> = link_queue.links;
         assert_eq!(link_vec.len(), DEFAULT_MAX_LINKS_PER_SPAN as usize);
     }

@@ -764,7 +764,7 @@ impl From<(Vec<KeyValue>, &Resource)> for Attributes {
     }
 }
 
-fn transform_links(links: &opentelemetry_sdk::trace::Links) -> Option<Links> {
+fn transform_links(links: &opentelemetry_sdk::trace::SpanLinks) -> Option<Links> {
     if links.links.is_empty() {
         return None;
     }
