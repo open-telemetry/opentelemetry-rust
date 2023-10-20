@@ -12,7 +12,7 @@
 //! use opentelemetry_semantic_conventions as semconv;
 //!
 //! let _tracer = TracerProvider::builder()
-//!     .with_config(config().with_resource(sdk::Resource::new(vec![
+//!     .with_config(config().with_resource(Resource::new(vec![
 //!         semconv::resource::SERVICE_NAME.string("my-service"),
 //!         semconv::resource::SERVICE_NAMESPACE.string("my-namespace"),
 //!     ])))
