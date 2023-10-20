@@ -19,7 +19,7 @@ mod grpcio {
                 endtime: to_nanos(span_data.end_time),
                 attributes: Attributes::from(span_data.attributes).0,
                 events: span_data.events.iter().cloned().map(Into::into).collect(),
-                links: span_data.links.iter().cloned().map(Into::into).collect(),
+                links: span_data.links.links.iter().cloned().map(Into::into).collect(),
             }
         }
     }
@@ -33,7 +33,7 @@ mod grpcio {
                 starttime: to_nanos(span_data.start_time),
                 attributes: Attributes::from(span_data.attributes).0,
                 events: span_data.events.iter().cloned().map(Into::into).collect(),
-                links: span_data.links.iter().cloned().map(Into::into).collect(),
+                links: span_data.links.links.iter().cloned().map(Into::into).collect(),
                 status: match span_data.status {
                     Status::Error { description } => Some(SpanStatus {
                         message: description.to_string(),
@@ -54,7 +54,7 @@ mod grpcio {
                 starttime: to_nanos(span_data.start_time),
                 attributes: Attributes::from(span_data.attributes).0,
                 events: span_data.events.iter().cloned().map(Into::into).collect(),
-                links: span_data.links.iter().cloned().map(Into::into).collect(),
+                links: span_data.links.links.iter().cloned().map(Into::into).collect(),
             }
         }
     }

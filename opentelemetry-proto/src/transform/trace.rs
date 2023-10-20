@@ -93,8 +93,8 @@ pub mod tonic {
                                 dropped_attributes_count: event.dropped_attributes_count,
                             })
                             .collect(),
-                        dropped_links_count: source_span.links.dropped_count(),
-                        links: source_span.links.into_iter().map(Into::into).collect(),
+                        dropped_links_count: source_span.links.dropped_count,
+                        links: source_span.links.links.into_iter().map(Into::into).collect(),
                         status: Some(Status {
                             code: status::StatusCode::from(&source_span.status).into(),
                             message: match source_span.status {
@@ -204,8 +204,8 @@ pub mod grpcio {
                                 dropped_attributes_count: event.dropped_attributes_count,
                             })
                             .collect(),
-                        dropped_links_count: source_span.links.dropped_count(),
-                        links: source_span.links.into_iter().map(Into::into).collect(),
+                        dropped_links_count: source_span.links.dropped_count,
+                        links: source_span.links.links.into_iter().map(Into::into).collect(),
                         status: Some(Status {
                             code: status::StatusCode::from(&source_span.status).into(),
                             message: match source_span.status {
