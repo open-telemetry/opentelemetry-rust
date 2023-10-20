@@ -101,7 +101,7 @@ impl SpanExporter for Exporter {
     }
 }
 
-fn links_to_references(links: EvictedQueue<Link>) -> Option<Vec<jaeger::SpanRef>> {
+fn links_to_references(links: Vec<Link>) -> Option<Vec<jaeger::SpanRef>> {
     if !links.is_empty() {
         let refs = links
             .iter()
@@ -138,7 +138,7 @@ fn convert_otel_span_into_jaeger_span(span: SpanData, export_instrument_lib: boo
         span_id: i64::from_be_bytes(span.span_context.span_id().to_bytes()),
         parent_span_id: i64::from_be_bytes(span.parent_span_id.to_bytes()),
         operation_name: span.name.into_owned(),
-        references: links_to_references(span.links),
+        references: links_to_references(span.links.links),
         flags: span.span_context.trace_flags().to_u8() as i32,
         start_time: span
             .start_time

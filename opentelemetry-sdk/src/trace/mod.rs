@@ -42,9 +42,14 @@ mod runtime_tests;
 #[cfg(all(test, feature = "testing"))]
 mod tests {
     use super::*;
-    use crate::{testing::trace::InMemorySpanExporterBuilder, trace::span_limit::DEFAULT_MAX_LINKS_PER_SPAN};
+    use crate::{
+        testing::trace::InMemorySpanExporterBuilder, trace::span_limit::DEFAULT_MAX_LINKS_PER_SPAN,
+    };
     use opentelemetry::{
-        trace::{Span, Tracer, TracerProvider as _, SpanBuilder, Link, SpanContext, TraceId, SpanId, TraceFlags},
+        trace::{
+            Link, Span, SpanBuilder, SpanContext, SpanId, TraceFlags, TraceId, Tracer,
+            TracerProvider as _,
+        },
         KeyValue,
     };
 
@@ -107,7 +112,7 @@ mod tests {
 
         // Act
         let tracer = provider.tracer("test_tracer");
-        
+
         let mut links = Vec::new();
         for _i in 0..(DEFAULT_MAX_LINKS_PER_SPAN * 2) {
             links.push(Link::new(
@@ -121,7 +126,7 @@ mod tests {
                 Vec::new(),
             ))
         }
-        
+
         let span_builder = SpanBuilder::from_name("span_name").with_links(links);
         let mut span = tracer.build(span_builder);
         span.end();
