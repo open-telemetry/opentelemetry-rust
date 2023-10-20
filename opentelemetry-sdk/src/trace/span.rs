@@ -44,7 +44,7 @@ pub(crate) struct SpanData {
     /// Span events
     pub(crate) events: crate::trace::EvictedQueue<trace::Event>,
     /// Span Links
-    pub(crate) links: crate::trace::EvictedQueue<trace::Link>,
+    pub(crate) links: crate::trace::Links,
     /// Span status
     pub(crate) status: Status,
 }
@@ -250,9 +250,10 @@ fn build_export_data(
 mod tests {
     use super::*;
     use crate::testing::trace::NoopSpanExporter;
+    use crate::trace::Links;
     use crate::trace::span_limit::{
         DEFAULT_MAX_ATTRIBUTES_PER_EVENT, DEFAULT_MAX_ATTRIBUTES_PER_LINK,
-        DEFAULT_MAX_ATTRIBUTES_PER_SPAN,
+        DEFAULT_MAX_ATTRIBUTES_PER_SPAN, DEFAULT_MAX_LINKS_PER_SPAN,
     };
     use opentelemetry::trace::{Link, SpanBuilder, TraceFlags, TraceId, Tracer};
     use opentelemetry::{trace::Span as _, trace::TracerProvider, KeyValue};
@@ -272,7 +273,7 @@ mod tests {
             attributes: Vec::new(),
             dropped_attributes_count: 0,
             events: crate::trace::EvictedQueue::new(config.span_limits.max_events_per_span),
-            links: crate::trace::EvictedQueue::new(config.span_limits.max_links_per_span),
+            links: Links::default(),
             status: Status::Unset,
         };
         (tracer, data)
@@ -610,9 +611,42 @@ mod tests {
             .clone()
             .expect("span data should not be empty as we already set it before")
             .links;
-        let link_vec: Vec<_> = link_queue.iter().collect();
+        let link_vec: Vec<_> = link_queue.links;
         let processed_link = link_vec.get(0).expect("should have at least one link");
         assert_eq!(processed_link.attributes.len(), 128);
+    }
+
+    #[test]
+    fn exceed_span_links_limit() {
+        let exporter = NoopSpanExporter::new();
+        let provider_builder =
+            crate::trace::TracerProvider::builder().with_simple_exporter(exporter);
+        let provider = provider_builder.build();
+        let tracer = provider.tracer("opentelemetry-test");
+
+        let mut links = Vec::new();
+        for _i in 0..(DEFAULT_MAX_LINKS_PER_SPAN * 2) {
+            links.push(Link::new(
+                SpanContext::new(
+                    TraceId::from_u128(12),
+                    SpanId::from_u64(12),
+                    TraceFlags::default(),
+                    false,
+                    Default::default(),
+                ),
+                Vec::new(),
+            ))
+        }
+
+        let span_builder = tracer.span_builder("test").with_links(links);
+        let span = tracer.build(span_builder);
+        let link_queue = span
+            .data
+            .clone()
+            .expect("span data should not be empty as we already set it before")
+            .links;
+        let link_vec: Vec<_> = link_queue.links;
+        assert_eq!(link_vec.len(), DEFAULT_MAX_LINKS_PER_SPAN as usize);
     }
 
     #[test]

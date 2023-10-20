@@ -721,7 +721,7 @@ mod tests {
     use crate::testing::trace::{
         new_test_export_span_data, new_test_exporter, new_tokio_test_exporter,
     };
-    use crate::trace::{BatchConfig, EvictedQueue};
+    use crate::trace::{BatchConfig, EvictedQueue, Links};
     use async_trait::async_trait;
     use opentelemetry::trace::{SpanContext, SpanId, SpanKind, Status};
     use std::fmt::Debug;
@@ -751,7 +751,7 @@ mod tests {
             attributes: Vec::new(),
             dropped_attributes_count: 0,
             events: EvictedQueue::new(0),
-            links: EvictedQueue::new(0),
+            links: Links::default(),
             status: Status::Unset,
             resource: Default::default(),
             instrumentation_lib: Default::default(),

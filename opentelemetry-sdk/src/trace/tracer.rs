@@ -11,11 +11,10 @@ use crate::{
     trace::{
         provider::{TracerProvider, TracerProviderInner},
         span::{Span, SpanData},
-        Config, EvictedQueue, SpanLimits,
+        Config, EvictedQueue, Links, SpanLimits,
     },
     InstrumentationLibrary,
 };
-use once_cell::sync::Lazy;
 use opentelemetry::{
     trace::{
         Link, SamplingDecision, SamplingResult, SpanBuilder, SpanContext, SpanId, SpanKind,
@@ -120,8 +119,6 @@ impl Tracer {
     }
 }
 
-static EMPTY_ATTRIBUTES: Lazy<Vec<KeyValue>> = Lazy::new(Default::default);
-
 impl opentelemetry::trace::Tracer for Tracer {
     /// This implementation of `Tracer` produces `sdk::Span` instances.
     type Span = Span;
@@ -181,7 +178,7 @@ impl opentelemetry::trace::Tracer for Tracer {
                 trace_id,
                 &builder.name,
                 &span_kind,
-                builder.attributes.as_ref().unwrap_or(&EMPTY_ATTRIBUTES),
+                builder.attributes.as_ref().unwrap_or(&Vec::new()),
                 builder.links.as_deref().unwrap_or(&[]),
                 provider.config(),
             )
@@ -210,18 +207,34 @@ impl opentelemetry::trace::Tracer for Tracer {
             attribute_options.truncate(span_attributes_limit);
             let dropped_attributes_count = dropped_attributes_count as u32;
 
-            let mut link_options = builder.links.take();
-            let mut links = EvictedQueue::new(span_limits.max_links_per_span);
-            if let Some(link_options) = &mut link_options {
+            // Links are available as Option<Vec<Link>> in the builder
+            // If it is None, then there are no links to process.
+            // In that case Span.Links will be default (empty Vec<Link>, 0 drop count)
+            // Otherwise, truncate Vec<Link> to keep until limits and use that in Span.Links.
+            // Store the count of excess links into Span.Links.dropped_count.
+            // There is no ability today to add Links after Span creation,
+            // but such a capability will be needed in the future
+            // once the spec for that stabilizes.
+
+            let spans_links_limit = span_limits.max_links_per_span as usize;
+            let span_links: Links = if let Some(mut links) = builder.links.take() {
+                let dropped_count = links.len().saturating_sub(spans_links_limit);
+                links.truncate(spans_links_limit);
                 let link_attributes_limit = span_limits.max_attributes_per_link as usize;
-                for link in link_options.iter_mut() {
+                for link in links.iter_mut() {
                     let dropped_attributes_count =
                         link.attributes.len().saturating_sub(link_attributes_limit);
                     link.attributes.truncate(link_attributes_limit);
                     link.dropped_attributes_count = dropped_attributes_count as u32;
                 }
-                links.append_vec(link_options);
-            }
+                Links {
+                    links: links,
+                    dropped_count: dropped_count as u32,
+                }
+            } else {
+                Links::default()
+            };
+
             let start_time = start_time.unwrap_or_else(opentelemetry::time::now);
             let end_time = end_time.unwrap_or(start_time);
             let mut events_queue = EvictedQueue::new(span_limits.max_events_per_span);
@@ -250,7 +263,7 @@ impl opentelemetry::trace::Tracer for Tracer {
                     attributes: attribute_options,
                     dropped_attributes_count,
                     events: events_queue,
-                    links,
+                    links: span_links,
                     status,
                 }),
                 self.clone(),
