@@ -30,8 +30,9 @@
   [#1256](https://github.com/open-telemetry/opentelemetry-rust/issues/1256)
 - Replace regex with glob (#1301)
 - **Breaking**
-  [#1293](https://github.com/open-telemetry/opentelemetry-rust/issues/1293)
-  makes few breaking changes with respect to how Span attributes are stored to
+  [#1293](https://github.com/open-telemetry/opentelemetry-rust/issues/1293),
+  [#1313](https://github.com/open-telemetry/opentelemetry-rust/issues/1313)
+  makes few breaking changes with respect to how Span attributes/links are stored to
   achieve performance gains. See below for details:
   
   *Behavior Change*:
@@ -41,11 +42,22 @@
   here](https://github.com/open-telemetry/opentelemetry-rust/issues/1300), if
   you are affected.
   
+  When enforcing `max_attributes_per_span` from `SpanLimits`, attributes are
+  kept in the first-come order. The previous "eviction" based approach is no
+  longer performed.
+
+  When enforcing `max_links_per_span` from `SpanLimits`, links are kept in the
+  first-come order. The previous "eviction" based approach is no longer
+  performed.
+
   *Breaking Change Affecting Exporter authors*:
   
-   `SpanData` now stores `attributes` as `Vec<KeyValue>` instead of
+  `SpanData` now stores `attributes` as `Vec<KeyValue>` instead of
   `EvictedHashMap`. `SpanData` now expose `dropped_attributes_count` as a
   separate field.
+
+  `SpanData` now stores `links` as `Links` instead of `EvictedQueue`. `Links` is
+  a struct with a `Vec` of links and `dropped_count`.
   
   *Breaking Change Affecting Sampler authors*:
   
