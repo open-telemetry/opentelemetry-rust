@@ -43,6 +43,6 @@ docker run --rm \
 	--parameters conventions=resource
 
 # Keep `SCHEMA_URL` key in sync with spec version
-sed -i '' "s/\(opentelemetry.io\/schemas\/\)[^\"]*\"/\1$SPEC_VERSION\"/" src/lib.rs
+sed -i "s/\(opentelemetry.io\/schemas\/\)[^\"]*\"/\1$SPEC_VERSION\"/" src/lib.rs
 
 cargo fmt
