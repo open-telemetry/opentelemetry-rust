@@ -8,11 +8,11 @@
 //! ## Usage
 //!
 //! ```
-//! use opentelemetry::sdk;
+//! use opentelemetry_sdk::{trace::{config, TracerProvider}, Resource};
 //! use opentelemetry_semantic_conventions as semconv;
 //!
-//! let _tracer = sdk::trace::TracerProvider::builder()
-//!     .with_config(sdk::trace::config().with_resource(sdk::Resource::new(vec![
+//! let _tracer = TracerProvider::builder()
+//!     .with_config(config().with_resource(sdk::Resource::new(vec![
 //!         semconv::resource::SERVICE_NAME.string("my-service"),
 //!         semconv::resource::SERVICE_NAMESPACE.string("my-namespace"),
 //!     ])))
