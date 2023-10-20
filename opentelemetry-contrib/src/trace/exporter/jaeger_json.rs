@@ -150,10 +150,10 @@ fn span_data_to_jaeger_json(span: SpanData) -> serde_json::Value {
     let tags = span
         .attributes
         .iter()
-        .map(|(key, value)| {
-            let (tpe, value) = opentelemetry_value_to_json(value);
+        .map(|kv| {
+            let (tpe, value) = opentelemetry_value_to_json(&kv.value);
             serde_json::json!({
-            "key": key.as_str(),
+            "key": kv.key.as_str(),
             "type": tpe,
             "value": value,
             })

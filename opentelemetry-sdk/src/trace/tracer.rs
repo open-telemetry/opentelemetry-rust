@@ -11,7 +11,7 @@ use crate::{
     trace::{
         provider::{TracerProvider, TracerProviderInner},
         span::{Span, SpanData},
-        Config, EvictedHashMap, EvictedQueue, SpanLimits,
+        Config, EvictedQueue, SpanLimits,
     },
     InstrumentationLibrary,
 };
@@ -21,7 +21,7 @@ use opentelemetry::{
         Link, SamplingDecision, SamplingResult, SpanBuilder, SpanContext, SpanId, SpanKind,
         TraceContextExt, TraceFlags, TraceId, TraceState,
     },
-    Context, Key, KeyValue, OrderMap, Value,
+    Context, KeyValue,
 };
 use std::fmt;
 use std::sync::{Arc, Weak};
@@ -74,7 +74,7 @@ impl Tracer {
         trace_id: TraceId,
         name: &str,
         span_kind: &SpanKind,
-        attributes: &OrderMap<Key, Value>,
+        attributes: &[KeyValue],
         links: &[Link],
         config: &Config,
     ) -> Option<(TraceFlags, Vec<KeyValue>, TraceState)> {
@@ -120,7 +120,7 @@ impl Tracer {
     }
 }
 
-static EMPTY_ATTRIBUTES: Lazy<OrderMap<Key, Value>> = Lazy::new(Default::default);
+static EMPTY_ATTRIBUTES: Lazy<Vec<KeyValue>> = Lazy::new(Default::default);
 
 impl opentelemetry::trace::Tracer for Tracer {
     /// This implementation of `Tracer` produces `sdk::Span` instances.
@@ -200,13 +200,15 @@ impl opentelemetry::trace::Tracer for Tracer {
         let mut span = if let Some((flags, extra_attrs, trace_state)) = sampling_decision {
             let mut attribute_options = builder.attributes.take().unwrap_or_default();
             for extra_attr in extra_attrs {
-                attribute_options.insert(extra_attr.key, extra_attr.value);
+                attribute_options.push(extra_attr);
             }
-            let mut attributes =
-                EvictedHashMap::new(span_limits.max_attributes_per_span, attribute_options.len());
-            for (key, value) in attribute_options {
-                attributes.insert(KeyValue::new(key, value));
-            }
+
+            let span_attributes_limit = span_limits.max_attributes_per_span as usize;
+            let dropped_attributes_count = attribute_options
+                .len()
+                .saturating_sub(span_attributes_limit);
+            attribute_options.truncate(span_attributes_limit);
+            let dropped_attributes_count = dropped_attributes_count as u32;
 
             let mut link_options = builder.links.take();
             let mut links = EvictedQueue::new(span_limits.max_links_per_span);
@@ -245,7 +247,8 @@ impl opentelemetry::trace::Tracer for Tracer {
                     name,
                     start_time,
                     end_time,
-                    attributes,
+                    attributes: attribute_options,
+                    dropped_attributes_count,
                     events: events_queue,
                     links,
                     status,
@@ -284,7 +287,7 @@ mod tests {
             Link, SamplingDecision, SamplingResult, Span, SpanContext, SpanId, SpanKind,
             TraceContextExt, TraceFlags, TraceId, TraceState, Tracer, TracerProvider,
         },
-        Context, Key, OrderMap, Value,
+        Context, KeyValue,
     };
 
     #[derive(Clone, Debug)]
@@ -297,7 +300,7 @@ mod tests {
             _trace_id: TraceId,
             _name: &str,
             _span_kind: &SpanKind,
-            _attributes: &OrderMap<Key, Value>,
+            _attributes: &[KeyValue],
             _links: &[Link],
         ) -> SamplingResult {
             let trace_state = parent_context

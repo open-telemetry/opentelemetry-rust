@@ -37,7 +37,10 @@ pub(crate) struct SpanData {
     /// Span end time
     pub(crate) end_time: SystemTime,
     /// Span attributes
-    pub(crate) attributes: crate::trace::EvictedHashMap,
+    pub(crate) attributes: Vec<KeyValue>,
+    /// The number of attributes that were above the configured limit, and thus
+    /// dropped.
+    pub(crate) dropped_attributes_count: u32,
     /// Span events
     pub(crate) events: crate::trace::EvictedQueue<trace::Event>,
     /// Span Links
@@ -128,8 +131,13 @@ impl opentelemetry::trace::Span for Span {
     /// attributes"](https://github.com/open-telemetry/opentelemetry-specification/tree/v0.5.0/specification/trace/semantic_conventions/README.md)
     /// that have prescribed semantic meanings.
     fn set_attribute(&mut self, attribute: KeyValue) {
+        let span_attribute_limit = self.span_limits.max_attributes_per_span as usize;
         self.with_data(|data| {
-            data.attributes.insert(attribute);
+            if data.attributes.len() < span_attribute_limit {
+                data.attributes.push(attribute);
+            } else {
+                data.dropped_attributes_count += 1;
+            }
         });
     }
 
@@ -229,6 +237,7 @@ fn build_export_data(
         start_time: data.start_time,
         end_time: data.end_time,
         attributes: data.attributes,
+        dropped_attributes_count: data.dropped_attributes_count,
         events: data.events,
         links: data.links,
         status: data.status,
@@ -243,10 +252,12 @@ mod tests {
     use crate::testing::trace::NoopSpanExporter;
     use crate::trace::span_limit::{
         DEFAULT_MAX_ATTRIBUTES_PER_EVENT, DEFAULT_MAX_ATTRIBUTES_PER_LINK,
+        DEFAULT_MAX_ATTRIBUTES_PER_SPAN,
     };
-    use opentelemetry::trace::{Link, TraceFlags, TraceId, Tracer};
+    use opentelemetry::trace::{Link, SpanBuilder, TraceFlags, TraceId, Tracer};
     use opentelemetry::{trace::Span as _, trace::TracerProvider, KeyValue};
     use std::time::Duration;
+    use std::vec;
 
     fn init() -> (crate::trace::Tracer, SpanData) {
         let provider = crate::trace::TracerProvider::default();
@@ -258,10 +269,8 @@ mod tests {
             name: "opentelemetry".into(),
             start_time: opentelemetry::time::now(),
             end_time: opentelemetry::time::now(),
-            attributes: crate::trace::EvictedHashMap::new(
-                config.span_limits.max_attributes_per_span,
-                0,
-            ),
+            attributes: Vec::new(),
+            dropped_attributes_count: 0,
             events: crate::trace::EvictedQueue::new(config.span_limits.max_events_per_span),
             links: crate::trace::EvictedQueue::new(config.span_limits.max_links_per_span),
             status: Status::Unset,
@@ -361,8 +370,13 @@ mod tests {
         let attributes = KeyValue::new("k", "v");
         span.set_attribute(attributes.clone());
         span.with_data(|data| {
-            if let Some(val) = data.attributes.get(&attributes.key) {
-                assert_eq!(*val, attributes.value);
+            let matching_attribute: Vec<&KeyValue> = data
+                .attributes
+                .iter()
+                .filter(|kv| kv.key.as_str() == attributes.key.as_str())
+                .collect();
+            if matching_attribute.len() == 1 {
+                assert_eq!(matching_attribute[0].value, attributes.value);
             } else {
                 panic!("no attribute");
             }
@@ -373,11 +387,9 @@ mod tests {
     fn set_attributes() {
         let mut span = create_span();
         let attributes = vec![KeyValue::new("k1", "v1"), KeyValue::new("k2", "v2")];
-        span.set_attributes(attributes.to_vec());
+        span.set_attributes(attributes);
         span.with_data(|data| {
-            for kv in attributes {
-                assert_eq!(data.attributes.get(&kv.key), Some(&kv.value))
-            }
+            assert_eq!(data.attributes.len(), 2);
         });
     }
 
@@ -492,6 +504,45 @@ mod tests {
         let mut span = create_span();
         span.end();
         assert!(!span.is_recording());
+    }
+
+    #[test]
+    fn exceed_span_attributes_limit() {
+        let exporter = NoopSpanExporter::new();
+        let provider_builder =
+            crate::trace::TracerProvider::builder().with_simple_exporter(exporter);
+        let provider = provider_builder.build();
+        let tracer = provider.tracer("opentelemetry-test");
+
+        let mut initial_attributes = Vec::new();
+        let mut expected_dropped_count = 1;
+        for i in 0..(DEFAULT_MAX_ATTRIBUTES_PER_SPAN + 1) {
+            initial_attributes.push(KeyValue::new(format!("key {}", i), i.to_string()))
+        }
+        let span_builder = SpanBuilder::from_name("test_span").with_attributes(initial_attributes);
+
+        let mut span = tracer.build(span_builder);
+        expected_dropped_count += 1;
+        span.set_attribute(KeyValue::new("key3", "value3"));
+
+        expected_dropped_count += 2;
+        let span_attributes_after_creation =
+            vec![KeyValue::new("foo", "1"), KeyValue::new("bar", "2")];
+        span.set_attributes(span_attributes_after_creation);
+
+        let actual_span = span
+            .data
+            .clone()
+            .expect("span data should not be empty as we already set it before");
+        assert_eq!(
+            actual_span.attributes.len(),
+            DEFAULT_MAX_ATTRIBUTES_PER_SPAN as usize,
+            "Span attributes should be truncated to the max limit"
+        );
+        assert_eq!(
+            actual_span.dropped_attributes_count, expected_dropped_count,
+            "Dropped count should match the actual count of attributes dropped"
+        );
     }
 
     #[test]

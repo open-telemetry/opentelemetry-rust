@@ -29,7 +29,7 @@ use opentelemetry_sdk::{
         trace::{ExportResult, SpanData, SpanExporter},
         ExportError,
     },
-    trace::{EvictedHashMap, EvictedQueue},
+    trace::EvictedQueue,
 };
 use std::convert::TryInto;
 use std::fmt::Display;
@@ -165,7 +165,7 @@ fn convert_otel_span_into_jaeger_span(span: SpanData, export_instrument_lib: boo
 }
 
 fn build_span_tags(
-    attrs: EvictedHashMap,
+    attrs: Vec<KeyValue>,
     instrumentation_lib: Option<InstrumentationLibrary>,
     status: Status,
     kind: SpanKind,
@@ -174,9 +174,9 @@ fn build_span_tags(
     // TODO determine if namespacing is required to avoid collisions with set attributes
     let mut tags = attrs
         .into_iter()
-        .map(|(k, v)| {
-            user_overrides.record_attr(k.as_str());
-            KeyValue::new(k, v).into()
+        .map(|kv| {
+            user_overrides.record_attr(kv.key.as_str());
+            kv.into()
         })
         .collect::<Vec<_>>();
 
@@ -361,7 +361,6 @@ mod tests {
         trace::{SpanKind, Status},
         KeyValue,
     };
-    use opentelemetry_sdk::trace::EvictedHashMap;
 
     fn assert_tag_contains(tags: Vec<Tag>, key: &'static str, expect_val: &'static str) {
         assert_eq!(
@@ -404,7 +403,7 @@ mod tests {
     #[test]
     fn test_set_status() {
         for (status, status_tag_val, msg_tag_val) in get_error_tag_test_data() {
-            let tags = build_span_tags(EvictedHashMap::new(20, 20), None, status, SpanKind::Client);
+            let tags = build_span_tags(Vec::new(), None, status, SpanKind::Client);
             if let Some(val) = status_tag_val {
                 assert_tag_contains(tags.clone(), OTEL_STATUS_CODE, val);
             } else {
@@ -421,17 +420,17 @@ mod tests {
 
     #[test]
     fn ignores_user_set_values() {
-        let mut attributes = EvictedHashMap::new(20, 20);
+        let mut attributes = Vec::new();
         let user_error = true;
         let user_kind = "server";
         let user_status_description = "Something bad happened";
         let user_status = Status::Error {
             description: user_status_description.into(),
         };
-        attributes.insert(KeyValue::new("error", user_error));
-        attributes.insert(KeyValue::new(SPAN_KIND, user_kind));
-        attributes.insert(KeyValue::new(OTEL_STATUS_CODE, "ERROR"));
-        attributes.insert(KeyValue::new(
+        attributes.push(KeyValue::new("error", user_error));
+        attributes.push(KeyValue::new(SPAN_KIND, user_kind));
+        attributes.push(KeyValue::new(OTEL_STATUS_CODE, "ERROR"));
+        attributes.push(KeyValue::new(
             OTEL_STATUS_DESCRIPTION,
             user_status_description,
         ));

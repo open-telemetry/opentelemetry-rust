@@ -5,7 +5,7 @@ use crate::trace::{BatchMessage, Sampler, ShouldSample};
 use futures_util::{stream, StreamExt as _};
 use http::Uri;
 use opentelemetry::trace::{Link, SamplingResult, SpanKind, TraceError, TraceId};
-use opentelemetry::{global, Context, Key, OrderMap, Value};
+use opentelemetry::{global, Context, KeyValue};
 use opentelemetry_http::HttpClient;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -251,7 +251,7 @@ impl ShouldSample for JaegerRemoteSampler {
         trace_id: TraceId,
         name: &str,
         span_kind: &SpanKind,
-        attributes: &OrderMap<Key, Value>,
+        attributes: &[KeyValue],
         links: &[Link],
     ) -> SamplingResult {
         self.inner
