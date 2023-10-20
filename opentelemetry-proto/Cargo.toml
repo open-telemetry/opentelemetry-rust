@@ -31,7 +31,8 @@ full = ["gen-tonic", "gen-grpcio", "trace", "logs", "metrics", "zpages", "with-s
 # crates used to generate rs files
 gen-tonic = ["gen-tonic-messages", "tonic/transport"]
 gen-tonic-messages = ["tonic", "prost"]
-gen-grpcio = ["grpcio", "prost"]
+gen-grpcio = ["gen-grpcio-messages", "grpcio"]
+gen-grpcio-messages = ["prost"]
 
 # telemetry pillars and functions
 trace = ["opentelemetry/trace", "opentelemetry_sdk/trace"]
