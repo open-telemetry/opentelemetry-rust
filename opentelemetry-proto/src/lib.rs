@@ -32,10 +32,13 @@
 #[doc(hidden)]
 mod proto;
 
-#[cfg(feature = "gen-grpcio")]
+#[cfg(feature = "gen-grpcio-messages")]
 pub use proto::grpcio;
 
 #[cfg(feature = "gen-tonic-messages")]
 pub use proto::tonic;
 
-mod transform;
+pub mod transform;
+
+#[cfg(feature = "gen-grpcio-messages")]
+pub use prost;
