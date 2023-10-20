@@ -56,8 +56,8 @@
   `EvictedHashMap`. `SpanData` now expose `dropped_attributes_count` as a
   separate field.
 
-  `SpanData` now stores `links` as `Links` instead of `EvictedQueue`. `Links` is
-  a struct with a `Vec` of links and `dropped_count`.
+  `SpanData` now stores `links` as `SpanLinks` instead of `EvictedQueue`.
+  `SpanLinks` is a struct with a `Vec` of links and `dropped_count`.
   
   *Breaking Change Affecting Sampler authors*:
   

@@ -228,7 +228,7 @@ impl opentelemetry::trace::Tracer for Tracer {
                     link.dropped_attributes_count = dropped_attributes_count as u32;
                 }
                 SpanLinks {
-                    links: links,
+                    links,
                     dropped_count: dropped_count as u32,
                 }
             } else {
