@@ -3,7 +3,7 @@
 //! The [resource semantic conventions] define a set of standardized attributes
 //! to be used in `Resource`s.
 //!
-//! [resource semantic conventions]: https://github.com/open-telemetry/opentelemetry-specification/tree/master/specification/resource/semantic_conventions
+//! [resource semantic conventions]: https://github.com/open-telemetry/semantic-conventions/tree/main/model/resource
 //!
 //! ## Usage
 //!
