@@ -43,6 +43,9 @@ docker run --rm \
 	--parameters conventions=resource
 
 # Keep `SCHEMA_URL` key in sync with spec version
-sed -i '' "s/\(opentelemetry.io\/schemas\/\)[^\"]*\"/\1$SPEC_VERSION\"/" src/lib.rs
+sed -i "s/\(opentelemetry.io\/schemas\/\)[^\"]*\"/\1$SPEC_VERSION\"/" src/lib.rs
+
+# handle doc generation failures
+sed -i 's/\[2\]\.$//' src/resource.rs # remove trailing [2] from few of the doc comments
 
 cargo fmt
