@@ -125,6 +125,7 @@ pub mod metrics;
 pub mod propagation;
 pub mod resource;
 pub mod runtime;
+pub mod suppression;
 #[cfg(any(feature = "testing", test))]
 #[doc(hidden)]
 pub mod testing;
