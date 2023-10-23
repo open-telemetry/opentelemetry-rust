@@ -26,8 +26,7 @@ pub use sampler::{Sampler, ShouldSample};
 pub use span::Span;
 pub use span_limit::SpanLimits;
 pub use span_processor::{
-    BatchConfig, BatchMessage, BatchSpanProcessor, BatchSpanProcessorBuilder, SimpleSpanProcessor,
-    SpanProcessor,
+    BatchConfig, BatchSpanProcessor, BatchSpanProcessorBuilder, SimpleSpanProcessor, SpanProcessor,
 };
 pub use tracer::Tracer;
 

@@ -52,10 +52,12 @@
 
   `should_sample` changes `attributes` from `OrderMap<Key, Value>` to
   `Vec<KeyValue>`.
+- **Breaking** Move type argument from `RuntimeChannel<T>` to associated types [#1314](https://github.com/open-telemetry/opentelemetry-rust/pull/1314)
 
 ### Removed
 
 - Remove context from Metric force_flush [#1245](https://github.com/open-telemetry/opentelemetry-rust/pull/1245)
+- Remove `logs::BatchMessage` and `trace::BatchMessage` types [#1314](https://github.com/open-telemetry/opentelemetry-rust/pull/1314)
 
 ### Fixed
 
