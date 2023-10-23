@@ -523,7 +523,7 @@ impl CollectorPipeline {
             Some(timeout) => match timeout.parse() {
                 Ok(timeout) => Duration::from_millis(timeout),
                 Err(e) => {
-                    eprintln!("{} malformed defaulting to 10s: {}", ENV_TIMEOUT, e);
+                    eprintln!("{} malformed default to 10s: {}", ENV_TIMEOUT, e);
                     self.collector_timeout
                 }
             },
@@ -558,7 +558,7 @@ mod tests {
         assert!(invalid_uri.is_err());
         assert_eq!(
             format!("{:?}", invalid_uri.err().unwrap()),
-            "ConfigError { pipeline_name: \"collector\", config_name: \"collector_endpoint\", reason: \"invalid uri, invalid format\" }",
+            "ConfigError { pipeline_name: \"collector\", config_name: \"collector_endpoint\", reason: \"invalid uri from the builder, invalid format\" }",
         );
 
         let valid_uri = new_collector_pipeline()
