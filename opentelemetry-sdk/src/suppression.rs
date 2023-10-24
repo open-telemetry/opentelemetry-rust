@@ -1,33 +1,31 @@
+use tokio::task_local;
 
-use opentelemetry::Context;
-use std::any::{Any, TypeId};
-use std::sync::Arc;
+// Define the async local storage for suppression.
+task_local! {
+    static SUPPRESSION_FLAG: bool;
+}
 
-#[derive(Debug, PartialEq, Clone, Copy)]
-struct SuppressionKey(bool); // true means logging is suppressed
+/// Represents a scope within which logging is suppressed.
+/// Logging is suppressed for the duration of the guard's lifetime.
+#[derive(Debug)]
+pub struct SuppressionGuard(bool); // Capture the original state
 
-pub struct Suppression;
-
-impl Suppression {
+impl SuppressionGuard {
+    /// doc1
     pub fn new() -> Self {
-        // Suppress logging when a new Suppression instance is created
-        let mut new_context = Context::current();
-        new_context.entries.insert(TypeId::of::<SuppressionKey>(), Arc::new(SuppressionKey(true)));
-        new_context.attach();
-
-        Suppression
+        let original_state = SUPPRESSION_FLAG.try_with(|&flag| flag).unwrap_or(false);
+        SUPPRESSION_FLAG.scope(true, async {});
+        SuppressionGuard(original_state)
     }
 
+    /// doc2
     pub fn is_logging_suppressed() -> bool {
-        Context::current().get::<SuppressionKey>().cloned().unwrap_or(SuppressionKey(false)).0
+        SUPPRESSION_FLAG.try_with(|&flag| flag).unwrap_or(false)
     }
 }
 
-impl Drop for Suppression {
+impl Drop for SuppressionGuard {
     fn drop(&mut self) {
-        // Resume logging when the Suppression instance is dropped
-        let mut new_context = Context::current();
-        new_context.entries.insert(TypeId::of::<SuppressionKey>(), Arc::new(SuppressionKey(false)));
-        new_context.attach();
+        SUPPRESSION_FLAG.scope(self.0, async {}); // Restore the original state
     }
 }
