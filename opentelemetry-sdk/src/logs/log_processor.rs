@@ -133,8 +133,7 @@ impl<R: RuntimeChannel<BatchMessage>> LogProcessor for BatchLogProcessor<R> {
 
     #[cfg(feature = "logs_level_enabled")]
     fn event_enabled(&self, _level: Severity, _target: &str, _name: &str) -> bool {
-        let suppress = SuppressionGuard::is_logging_suppressed();
-        !suppress
+        !SuppressionGuard::is_logging_suppressed()
     }
 
     fn force_flush(&self) -> LogResult<()> {
