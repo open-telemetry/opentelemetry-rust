@@ -6,8 +6,8 @@ use crate::metrics::reader::{
 };
 use crate::metrics::{data, Aggregation, InstrumentKind};
 use async_trait::async_trait;
-use opentelemetry_api::metrics::MetricsError;
-use opentelemetry_api::metrics::Result;
+use opentelemetry::metrics::MetricsError;
+use opentelemetry::metrics::Result;
 use std::collections::VecDeque;
 use std::fmt;
 use std::sync::{Arc, Mutex};
@@ -28,8 +28,8 @@ use std::sync::{Arc, Mutex};
 ///
 /// ```
 ///# use opentelemetry_sdk::{metrics, runtime};
-///# use opentelemetry_api::{Context, KeyValue};
-///# use opentelemetry_api::metrics::MeterProvider;
+///# use opentelemetry::{KeyValue};
+///# use opentelemetry::metrics::MeterProvider;
 ///# use opentelemetry_sdk::testing::metrics::InMemoryMetricsExporter;
 ///# use opentelemetry_sdk::metrics::PeriodicReader;
 ///
@@ -45,11 +45,10 @@ use std::sync::{Arc, Mutex};
 ///
 ///  // Create and record metrics using the MeterProvider
 ///  let meter = meter_provider.meter(std::borrow::Cow::Borrowed("example"));
-///  let cx = Context::new();
 ///  let counter = meter.u64_counter("my_counter").init();
-///  counter.add(&cx, 1, &[KeyValue::new("key", "value")]);
+///  counter.add(1, &[KeyValue::new("key", "value")]);
 ///
-///  meter_provider.force_flush(&cx).unwrap();
+///  meter_provider.force_flush().unwrap();
 ///
 ///  // Retrieve the finished metrics from the exporter
 ///  let finished_metrics = exporter.get_finished_metrics().unwrap();
@@ -298,7 +297,7 @@ impl PushMetricsExporter for InMemoryMetricsExporter {
         Ok(()) // In this implementation, flush does nothing
     }
 
-    async fn shutdown(&self) -> Result<()> {
+    fn shutdown(&self) -> Result<()> {
         self.metrics
             .lock()
             .map(|mut metrics_guard| metrics_guard.clear())

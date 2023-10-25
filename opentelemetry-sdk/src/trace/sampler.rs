@@ -1,9 +1,8 @@
-use opentelemetry_api::trace::OrderMap;
-use opentelemetry_api::{
+use opentelemetry::{
     trace::{
         Link, SamplingDecision, SamplingResult, SpanKind, TraceContextExt, TraceId, TraceState,
     },
-    Context, Key, Value,
+    Context, KeyValue,
 };
 use std::convert::TryInto;
 
@@ -57,12 +56,12 @@ use opentelemetry_http::HttpClient;
 /// MUST NOT allow this combination.
 ///
 /// [OpenTelemetry SDK]: https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/sdk.md#sampling
-/// [`SpanContext`]: opentelemetry_api::trace::SpanContext
-/// [`SpanContext::trace_flags()`]: opentelemetry_api::trace::SpanContext#method.trace_flags
+/// [`SpanContext`]: opentelemetry::trace::SpanContext
+/// [`SpanContext::trace_flags()`]: opentelemetry::trace::SpanContext#method.trace_flags
 /// [`SpanExporter`]: crate::export::trace::SpanExporter
 /// [`SpanProcessor`]: crate::trace::SpanProcessor
-/// [`Span`]: opentelemetry_api::trace::Span
-/// [`Span::is_recording()`]: opentelemetry_api::trace::Span#tymethod.is_recording
+/// [`Span`]: opentelemetry::trace::Span
+/// [`Span::is_recording()`]: opentelemetry::trace::Span#tymethod.is_recording
 pub trait ShouldSample: CloneShouldSample + Send + Sync + std::fmt::Debug {
     /// Returns the [`SamplingDecision`] for a [`Span`] to be created.
     ///
@@ -70,7 +69,7 @@ pub trait ShouldSample: CloneShouldSample + Send + Sync + std::fmt::Debug {
     /// make a decision about whether or not a [`Span`] should or should not be sampled. However,
     /// there are performance implications on the creation of a span
     ///
-    /// [`Span`]: opentelemetry_api::trace::Span
+    /// [`Span`]: opentelemetry::trace::Span
     /// [`should_sample`]: ShouldSample::should_sample
     #[allow(clippy::too_many_arguments)]
     fn should_sample(
@@ -79,7 +78,7 @@ pub trait ShouldSample: CloneShouldSample + Send + Sync + std::fmt::Debug {
         trace_id: TraceId,
         name: &str,
         span_kind: &SpanKind,
-        attributes: &OrderMap<Key, Value>,
+        attributes: &[KeyValue],
         links: &[Link],
     ) -> SamplingResult;
 }
@@ -157,7 +156,7 @@ impl Sampler {
     where
         C: HttpClient + 'static,
         Sampler: ShouldSample,
-        R: crate::trace::TraceRuntime,
+        R: crate::runtime::RuntimeChannel<crate::trace::BatchMessage>,
         Svc: Into<String>,
     {
         JaegerRemoteSamplerBuilder::new(runtime, http_client, default_sampler, service_name)
@@ -171,7 +170,7 @@ impl ShouldSample for Sampler {
         trace_id: TraceId,
         name: &str,
         span_kind: &SpanKind,
-        attributes: &OrderMap<Key, Value>,
+        attributes: &[KeyValue],
         links: &[Link],
     ) -> SamplingResult {
         let decision = match self {
@@ -252,7 +251,7 @@ mod tests {
     use super::*;
     use crate::testing::trace::TestSpan;
     use crate::trace::{Sampler, ShouldSample};
-    use opentelemetry_api::trace::{SamplingDecision, SpanContext, SpanId, TraceFlags, TraceState};
+    use opentelemetry::trace::{SamplingDecision, SpanContext, SpanId, TraceFlags, TraceState};
     use rand::Rng;
 
     #[rustfmt::skip]
@@ -327,14 +326,14 @@ mod tests {
                     None
                 };
 
-                let trace_id = TraceId::from(rng.gen::<[u8; 16]>());
+                let trace_id = TraceId::from(rng.gen::<u128>());
                 if sampler
                     .should_sample(
                         parent_context.as_ref(),
                         trace_id,
                         name,
                         &SpanKind::Internal,
-                        &Default::default(),
+                        &[],
                         &[],
                     )
                     .decision
@@ -368,6 +367,7 @@ mod tests {
     #[test]
     fn clone_a_parent_sampler() {
         let sampler = Sampler::ParentBased(Box::new(Sampler::AlwaysOn));
+        #[allow(clippy::redundant_clone)]
         let cloned_sampler = sampler.clone();
 
         let cx = Context::current_with_value("some_value");
@@ -377,7 +377,7 @@ mod tests {
             TraceId::from_u128(1),
             "should sample",
             &SpanKind::Internal,
-            &Default::default(),
+            &[],
             &[],
         );
 
@@ -386,7 +386,7 @@ mod tests {
             TraceId::from_u128(1),
             "should sample",
             &SpanKind::Internal,
-            &Default::default(),
+            &[],
             &[],
         );
 
@@ -436,7 +436,7 @@ mod tests {
                 TraceId::from_u128(1),
                 name,
                 &SpanKind::Internal,
-                &Default::default(),
+                &[],
                 &[],
             );
 

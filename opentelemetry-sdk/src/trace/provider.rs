@@ -8,11 +8,12 @@
 //! propagators) are provided by the [`TracerProvider`]. [`Tracer`] instances do
 //! not duplicate this data to avoid that different [`Tracer`] instances
 //! of the [`TracerProvider`] have different versions of these data.
-use crate::trace::{runtime::TraceRuntime, BatchSpanProcessor, SimpleSpanProcessor, Tracer};
+use crate::runtime::RuntimeChannel;
+use crate::trace::{BatchMessage, BatchSpanProcessor, SimpleSpanProcessor, Tracer};
 use crate::{export::trace::SpanExporter, trace::SpanProcessor};
 use crate::{InstrumentationLibrary, Resource};
 use once_cell::sync::OnceCell;
-use opentelemetry_api::{global, trace::TraceResult};
+use opentelemetry::{global, trace::TraceResult};
 use std::borrow::Cow;
 use std::sync::Arc;
 
@@ -75,7 +76,7 @@ impl TracerProvider {
     /// # Examples
     ///
     /// ```
-    /// use opentelemetry_api::global;
+    /// use opentelemetry::global;
     /// use opentelemetry_sdk::trace::TracerProvider;
     ///
     /// fn init_tracing() -> TracerProvider {
@@ -115,7 +116,7 @@ impl TracerProvider {
     }
 }
 
-impl opentelemetry_api::trace::TracerProvider for TracerProvider {
+impl opentelemetry::trace::TracerProvider for TracerProvider {
     /// This implementation of `TracerProvider` produces `Tracer` instances.
     type Tracer = crate::trace::Tracer;
 
@@ -125,7 +126,7 @@ impl opentelemetry_api::trace::TracerProvider for TracerProvider {
         name: impl Into<Cow<'static, str>>,
         version: Option<impl Into<Cow<'static, str>>>,
         schema_url: Option<impl Into<Cow<'static, str>>>,
-        attributes: Option<Vec<opentelemetry_api::KeyValue>>,
+        attributes: Option<Vec<opentelemetry::KeyValue>>,
     ) -> Self::Tracer {
         // Use default value if name is invalid empty string
         let name = name.into();
@@ -134,10 +135,17 @@ impl opentelemetry_api::trace::TracerProvider for TracerProvider {
         } else {
             name
         };
-        let instrumentation_lib =
-            InstrumentationLibrary::new(component_name, version, schema_url, attributes);
 
-        Tracer::new(instrumentation_lib, Arc::downgrade(&self.inner))
+        self.library_tracer(Arc::new(InstrumentationLibrary::new(
+            component_name,
+            version,
+            schema_url,
+            attributes,
+        )))
+    }
+
+    fn library_tracer(&self, library: Arc<InstrumentationLibrary>) -> Self::Tracer {
+        Tracer::new(library, Arc::downgrade(&self.inner))
     }
 }
 
@@ -158,7 +166,7 @@ impl Builder {
     }
 
     /// The [`SpanExporter`] setup using a default [`BatchSpanProcessor`] that this provider should use.
-    pub fn with_batch_exporter<T: SpanExporter + 'static, R: TraceRuntime>(
+    pub fn with_batch_exporter<T: SpanExporter + 'static, R: RuntimeChannel<BatchMessage>>(
         self,
         exporter: T,
         runtime: R,
@@ -218,8 +226,8 @@ mod tests {
     use crate::trace::provider::TracerProviderInner;
     use crate::trace::{Config, Span, SpanProcessor};
     use crate::Resource;
-    use opentelemetry_api::trace::{TraceError, TraceResult};
-    use opentelemetry_api::{Context, Key, KeyValue};
+    use opentelemetry::trace::{TraceError, TraceResult};
+    use opentelemetry::{Context, Key, KeyValue};
     use std::borrow::Cow;
     use std::env;
     use std::sync::Arc;
@@ -267,7 +275,7 @@ mod tests {
 
     #[test]
     fn test_tracer_provider_default_resource() {
-        // If users didn't provided a resource and there isn't a env var set. Use default one
+        // If users didn't provide a resource and there isn't a env var set. Use default one.
         let assert_service_name = |provider: super::TracerProvider,
                                    expect: Option<&'static str>| {
             assert_eq!(
@@ -282,7 +290,7 @@ mod tests {
         let default_config_provider = super::TracerProvider::builder().build();
         assert_service_name(default_config_provider, Some("unknown_service"));
 
-        // If user didn't provided a resource, try to get a default from env var
+        // If user provided a resource, use that.
         let custom_config_provider = super::TracerProvider::builder()
             .with_config(Config {
                 resource: Cow::Owned(Resource::new(vec![KeyValue::new(
@@ -300,6 +308,9 @@ mod tests {
         assert_eq!(
             env_resource_provider.config().resource,
             Cow::Owned(Resource::new(vec![
+                KeyValue::new("telemetry.sdk.name", "opentelemetry"),
+                KeyValue::new("telemetry.sdk.version", env!("CARGO_PKG_VERSION")),
+                KeyValue::new("telemetry.sdk.language", "rust"),
                 KeyValue::new("key1", "value1"),
                 KeyValue::new("k3", "value2"),
                 KeyValue::new("service.name", "unknown_service"),
@@ -322,6 +333,9 @@ mod tests {
         assert_eq!(
             user_provided_resource_config_provider.config().resource,
             Cow::Owned(Resource::new(vec![
+                KeyValue::new("telemetry.sdk.name", "opentelemetry"),
+                KeyValue::new("telemetry.sdk.version", env!("CARGO_PKG_VERSION")),
+                KeyValue::new("telemetry.sdk.language", "rust"),
                 KeyValue::new("my-custom-key", "my-custom-value"),
                 KeyValue::new("k2", "value2"),
                 KeyValue::new("service.name", "unknown_service"),

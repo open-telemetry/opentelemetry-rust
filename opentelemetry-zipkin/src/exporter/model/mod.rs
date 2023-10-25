@@ -1,8 +1,8 @@
 use opentelemetry::{
-    sdk::export::trace,
     trace::{SpanKind, Status},
     Key, KeyValue,
 };
+use opentelemetry_sdk::export::trace::SpanData;
 use std::collections::HashMap;
 use std::time::{Duration, SystemTime};
 
@@ -28,20 +28,20 @@ fn into_zipkin_span_kind(kind: SpanKind) -> Option<span::Kind> {
     }
 }
 
-/// Converts a `trace::SpanData` to a `span::SpanData` for a given `ExporterConfig`, which can then
+/// Converts a `SpanData` to a `SpanData` for a given `ExporterConfig`, which can then
 /// be ingested into a Zipkin collector.
-pub(crate) fn into_zipkin_span(local_endpoint: Endpoint, span_data: trace::SpanData) -> span::Span {
+pub(crate) fn into_zipkin_span(local_endpoint: Endpoint, span_data: SpanData) -> span::Span {
     // see tests in create/exporter/model/span.rs
     let mut user_defined_span_kind = false;
     let mut tags = map_from_kvs(
         span_data
             .attributes
             .into_iter()
-            .map(|(k, v)| {
-                if k == Key::new("span.kind") {
+            .map(|kv| {
+                if kv.key == Key::new("span.kind") {
                     user_defined_span_kind = true;
                 }
-                KeyValue::new(k, v)
+                kv
             })
             .chain(
                 [

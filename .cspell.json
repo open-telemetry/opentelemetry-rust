@@ -1,0 +1,69 @@
+// http://cspell.org/configuration/
+{
+    "version": "0.2",
+    "language": "en,en-US",
+    "useGitignore": true,
+    "minWordLength": 4,
+    "ignorePaths": [
+        "target/**"
+    ],
+    // list of words to be ignored.  unlike `words` below, these won't be
+    // suggested as corrections for misspelled words.
+    "ignoreWords": [
+        "otel",
+        "rustdoc",
+        "rustfilt"
+    ],
+    // these are words that are always considered incorrect.
+    "flagWords": [
+        "recieve",
+        "reciever",
+        "seperate",
+        "hte",
+        "teh"
+    ],
+    // these are words that are always correct and can be thought of as our
+    // workspace dictionary.
+    "words": [
+        "deque",
+        "hasher",
+        "msrv",
+        "opentelemetry",
+        "OTLP",
+        "quantile",
+        "rustc",
+        "zipkin"
+    ],
+    "enabledLanguageIds": [
+        "jsonc",
+        "markdown",
+        "plaintext",
+        "rust",
+        "shellscript"
+    ],
+    "languageSettings": [
+        {
+            "languageId": "jsonc",
+            "includeRegExpList": [
+                "CStyleComment"
+            ]
+        },
+        {
+            "languageId": "markdown",
+            "caseSensitive": false
+        },
+        {
+            "languageId": "rust",
+            "includeRegExpList": [
+                "CStyleComment",
+                "strings"
+            ]
+        },
+        {
+            "languageId": "shellscript",
+            "includeRegExpList": [
+                "/#.*/g"
+            ]
+        }
+    ]
+}

@@ -1,6 +1,23 @@
 # Changelog
 
+## vNext
+
+### Changed
+
+- Bump MSRV to 1.64 [#1203](https://github.com/open-telemetry/opentelemetry-rust/pull/1203)
+
+## v0.12.0
+
+### Added
+
+-  Implement w3c trace context response propagation #998
+
+### Changed
+
+- update to opentelemetry-api v0.20.0
+
 ## v0.11.0
+
 ### Changed
 - Handle `parent_span_id` in jaeger JSON exporter [#907](https://github.com/open-telemetry/opentelemetry-rust/pull/907).
 - Bump MSRV to 1.57 [#953](https://github.com/open-telemetry/opentelemetry-rust/pull/953).

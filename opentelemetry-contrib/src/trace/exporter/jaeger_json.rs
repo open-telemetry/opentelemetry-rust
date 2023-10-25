@@ -2,10 +2,14 @@
 //!
 
 use async_trait::async_trait;
-use futures::{future::BoxFuture, FutureExt};
-use opentelemetry::sdk::export::trace::{ExportResult, SpanData, SpanExporter};
-use opentelemetry::sdk::trace::{TraceRuntime, Tracer};
+use futures_core::future::BoxFuture;
+use futures_util::FutureExt;
 use opentelemetry::trace::{SpanId, TraceError};
+use opentelemetry_sdk::{
+    export::trace::{ExportResult, SpanData, SpanExporter},
+    runtime::RuntimeChannel,
+    trace::{BatchMessage, Tracer, TracerProvider},
+};
 use opentelemetry_semantic_conventions::SCHEMA_URL;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -38,15 +42,11 @@ impl<R: JaegerJsonRuntime> JaegerJsonExporter<R> {
 
     /// Install the exporter using the internal provided runtime
     pub fn install_batch(self) -> Tracer {
-        use opentelemetry::trace::TracerProvider;
-
         let runtime = self.runtime.clone();
-        let provider_builder =
-            opentelemetry::sdk::trace::TracerProvider::builder().with_batch_exporter(self, runtime);
-
+        let provider_builder = TracerProvider::builder().with_batch_exporter(self, runtime);
         let provider = provider_builder.build();
-
-        let tracer = provider.versioned_tracer(
+        let tracer = opentelemetry::trace::TracerProvider::versioned_tracer(
+            &provider,
             "opentelemetry",
             Some(env!("CARGO_PKG_VERSION")),
             Some(SCHEMA_URL),
@@ -118,9 +118,7 @@ impl<R: JaegerJsonRuntime> SpanExporter for JaegerJsonExporter<R> {
     }
 }
 
-fn span_data_to_jaeger_json(
-    span: opentelemetry::sdk::export::trace::SpanData,
-) -> serde_json::Value {
+fn span_data_to_jaeger_json(span: SpanData) -> serde_json::Value {
     let events = span
         .events
         .iter()
@@ -152,10 +150,10 @@ fn span_data_to_jaeger_json(
     let tags = span
         .attributes
         .iter()
-        .map(|(key, value)| {
-            let (tpe, value) = opentelemetry_value_to_json(value);
+        .map(|kv| {
+            let (tpe, value) = opentelemetry_value_to_json(&kv.value);
             serde_json::json!({
-            "key": key.as_str(),
+            "key": kv.key.as_str(),
             "type": tpe,
             "value": value,
             })
@@ -211,11 +209,11 @@ fn opentelemetry_value_to_json(value: &opentelemetry::Value) -> (&str, serde_jso
     }
 }
 
-/// Jaeger Json Runtime is an extension to [`TraceRuntime`].
+/// Jaeger Json Runtime is an extension to [`RuntimeChannel`].
 ///
-/// [`TraceRuntime`]: opentelemetry::sdk::trace::TraceRuntime
+/// [`RuntimeChannel`]: opentelemetry_sdk::runtime::RuntimeChannel
 #[async_trait]
-pub trait JaegerJsonRuntime: TraceRuntime + std::fmt::Debug {
+pub trait JaegerJsonRuntime: RuntimeChannel<BatchMessage> + std::fmt::Debug {
     /// Create a new directory if the given path does not exist yet
     async fn create_dir(&self, path: &Path) -> ExportResult;
     /// Write the provided content to a new file at the given path
@@ -224,7 +222,7 @@ pub trait JaegerJsonRuntime: TraceRuntime + std::fmt::Debug {
 
 #[cfg(feature = "rt-tokio")]
 #[async_trait]
-impl JaegerJsonRuntime for opentelemetry::runtime::Tokio {
+impl JaegerJsonRuntime for opentelemetry_sdk::runtime::Tokio {
     async fn create_dir(&self, path: &Path) -> ExportResult {
         if tokio::fs::metadata(path).await.is_err() {
             tokio::fs::create_dir_all(path)
@@ -254,7 +252,7 @@ impl JaegerJsonRuntime for opentelemetry::runtime::Tokio {
 
 #[cfg(feature = "rt-tokio-current-thread")]
 #[async_trait]
-impl JaegerJsonRuntime for opentelemetry::runtime::TokioCurrentThread {
+impl JaegerJsonRuntime for opentelemetry_sdk::runtime::TokioCurrentThread {
     async fn create_dir(&self, path: &Path) -> ExportResult {
         if tokio::fs::metadata(path).await.is_err() {
             tokio::fs::create_dir_all(path)
@@ -284,7 +282,7 @@ impl JaegerJsonRuntime for opentelemetry::runtime::TokioCurrentThread {
 
 #[cfg(feature = "rt-async-std")]
 #[async_trait]
-impl JaegerJsonRuntime for opentelemetry::runtime::AsyncStd {
+impl JaegerJsonRuntime for opentelemetry_sdk::runtime::AsyncStd {
     async fn create_dir(&self, path: &Path) -> ExportResult {
         if async_std::fs::metadata(path).await.is_err() {
             async_std::fs::create_dir_all(path)

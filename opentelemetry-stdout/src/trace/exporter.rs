@@ -1,9 +1,8 @@
 use core::fmt;
-use std::io::{stdout, Write};
-
 use futures_util::future::BoxFuture;
-use opentelemetry_api::trace::{TraceError, TraceResult};
+use opentelemetry::trace::{TraceError, TraceResult};
 use opentelemetry_sdk::export::{self, trace::ExportResult};
+use std::io::{stdout, Write};
 
 use crate::trace::transform::SpanData;
 

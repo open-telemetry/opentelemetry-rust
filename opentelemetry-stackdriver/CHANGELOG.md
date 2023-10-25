@@ -1,6 +1,26 @@
 # Changelog
 
+## vNext
+
+### Changed
+
+- Bump MSRV to 1.64 [#1203](https://github.com/open-telemetry/opentelemetry-rust/pull/1203)
+
+## v0.17.0
+
+### Added
+
+- Send resource along with span attributes and kind/status #1035
+- Add option to authenticate with existing GCP Authentication Manager #1128
+
+### Changed
+
+- Update gRPC schemas #992
+- Upgrade gcp-auth to 0.9 #1137
+- Update to opentelemetry v0.20.0
+
 ## v0.16.0
+
 ### Changed
 - Update to `opentelemetry` v0.19.
 - Update to `opentelemetry-semantic-conventions` v0.11.

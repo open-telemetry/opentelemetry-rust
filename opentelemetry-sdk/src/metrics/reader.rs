@@ -1,7 +1,7 @@
 //! Interfaces for reading and producing metrics
 use std::{fmt, sync::Weak};
 
-use opentelemetry_api::{metrics::Result, Context};
+use opentelemetry::metrics::Result;
 
 use super::{
     aggregation::Aggregation,
@@ -33,12 +33,6 @@ pub trait MetricReader:
     /// and send aggregated metric measurements.
     fn register_pipeline(&self, pipeline: Weak<Pipeline>);
 
-    /// Registers a an external Producer with this [MetricReader].
-    ///
-    /// The [MetricProducer] is used as a source of aggregated metric data which is
-    /// incorporated into metrics collected from the SDK.
-    fn register_producer(&self, producer: Box<dyn MetricProducer>);
-
     /// Gathers and returns all metric data related to the [MetricReader] from the
     /// SDK and stores it in the provided [ResourceMetrics] reference.
     ///
@@ -49,7 +43,7 @@ pub trait MetricReader:
     ///
     /// There is no guaranteed that all telemetry be flushed or all resources have
     /// been released on error.
-    fn force_flush(&self, cx: &Context) -> Result<()>;
+    fn force_flush(&self) -> Result<()>;
 
     /// Flushes all metric measurements held in an export pipeline and releases any
     /// held computational resources.

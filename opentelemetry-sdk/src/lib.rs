@@ -1,13 +1,17 @@
-//! OpenTelemetry is a collection of tools, APIs, and SDKs. Use it to
-//! instrument, generate, collect, and export telemetry data (metrics, logs, and
-//! traces) to help you analyze your software's performance and behavior.
+//! Implements the [`SDK`] component of [OpenTelemetry].
+//!
+//! *Compiler support: [requires `rustc` 1.64+][msrv]*
+//!
+//! [`SDK`]: https://opentelemetry.io/docs/specs/otel/overview/#sdk
+//! [OpenTelemetry]: https://opentelemetry.io/docs/what-is-opentelemetry/
+//! [msrv]: #supported-rust-versions
 //!
 //! # Getting Started
 //!
 //! ```no_run
 //! # #[cfg(feature = "trace")]
 //! # {
-//! use opentelemetry_api::{global, trace::{Tracer, TracerProvider as _}};
+//! use opentelemetry::{global, trace::{Tracer, TracerProvider as _}};
 //! use opentelemetry_sdk::trace::TracerProvider;
 //!
 //! fn main() {
@@ -38,7 +42,7 @@
 //! spans.
 //!
 //! [examples]: https://github.com/open-telemetry/opentelemetry-rust/tree/main/examples
-//! [`trace`]: https://docs.rs/opentelemetry_api/latest/opentelemetry_api/trace/index.html
+//! [`trace`]: https://docs.rs/opentelemetry/latest/opentelemetry/trace/index.html
 //!
 //! # Metrics (Beta)
 //!
@@ -50,9 +54,7 @@
 //! ```
 //! # #[cfg(feature = "metrics")]
 //! # {
-//! use opentelemetry_api::{global, Context, KeyValue};
-//!
-//! let cx = Context::current();
+//! use opentelemetry::{global, KeyValue};
 //!
 //! // get a meter from a provider
 //! let meter = global::meter("my_service");
@@ -61,7 +63,7 @@
 //! let counter = meter.u64_counter("my_counter").init();
 //!
 //! // record a measurement
-//! counter.add(&cx, 1, &[KeyValue::new("http.client_ip", "83.164.160.102")]);
+//! counter.add(1, &[KeyValue::new("http.client_ip", "83.164.160.102")]);
 //! # }
 //! ```
 //!
@@ -71,7 +73,7 @@
 //! managing instruments.
 //!
 //! [examples]: https://github.com/open-telemetry/opentelemetry-rust/tree/main/examples
-//! [`metrics`]: https://docs.rs/opentelemetry_api/latest/opentelemetry_api/metrics/index.html
+//! [`metrics`]: https://docs.rs/opentelemetry/latest/opentelemetry/metrics/index.html
 //!
 //! ## Crate Feature Flags
 //!
@@ -112,6 +114,9 @@
 pub(crate) mod attributes;
 pub mod export;
 mod instrumentation;
+#[cfg(feature = "logs")]
+#[cfg_attr(docsrs, doc(cfg(feature = "logs")))]
+pub mod logs;
 #[cfg(feature = "metrics")]
 #[cfg_attr(docsrs, doc(cfg(feature = "metrics")))]
 pub mod metrics;
@@ -126,6 +131,7 @@ pub mod testing;
 #[cfg(feature = "trace")]
 #[cfg_attr(docsrs, doc(cfg(feature = "trace")))]
 pub mod trace;
+
 #[doc(hidden)]
 pub mod util;
 

@@ -1,6 +1,6 @@
-use futures::StreamExt;
-use opentelemetry_api::global::shutdown_tracer_provider;
-use opentelemetry_api::trace::{Span, SpanKind, Tracer};
+use futures_util::StreamExt;
+use opentelemetry::global::shutdown_tracer_provider;
+use opentelemetry::trace::{Span, SpanKind, Tracer};
 use opentelemetry_otlp::WithExportConfig;
 use opentelemetry_proto::tonic::collector::trace::v1::{
     trace_service_server::{TraceService, TraceServiceServer},
@@ -9,6 +9,8 @@ use opentelemetry_proto::tonic::collector::trace::v1::{
 use std::{net::SocketAddr, sync::Mutex};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::TcpListenerStream;
+#[cfg(feature = "gzip-tonic")]
+use tonic::codec::CompressionEncoding;
 
 struct MockServer {
     tx: Mutex<mpsc::Sender<ExportTraceServiceRequest>>,
@@ -57,6 +59,10 @@ async fn setup() -> (SocketAddr, mpsc::Receiver<ExportTraceServiceRequest>) {
     });
 
     let (req_tx, req_rx) = mpsc::channel(10);
+    #[cfg(feature = "gzip-tonic")]
+    let service = TraceServiceServer::new(MockServer::new(req_tx))
+        .accept_compressed(CompressionEncoding::Gzip);
+    #[cfg(not(feature = "gzip-tonic"))]
     let service = TraceServiceServer::new(MockServer::new(req_tx));
     tokio::task::spawn(async move {
         tonic::transport::Server::builder()
@@ -80,6 +86,13 @@ async fn smoke_tracer() {
         let tracer = opentelemetry_otlp::new_pipeline()
             .tracing()
             .with_exporter(
+                #[cfg(feature = "gzip-tonic")]
+                opentelemetry_otlp::new_exporter()
+                    .tonic()
+                    .with_compression(opentelemetry_otlp::Compression::Gzip)
+                    .with_endpoint(format!("http://{}", addr))
+                    .with_metadata(metadata),
+                #[cfg(not(feature = "gzip-tonic"))]
                 opentelemetry_otlp::new_exporter()
                     .tonic()
                     .with_endpoint(format!("http://{}", addr))

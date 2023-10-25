@@ -1,10 +1,8 @@
 use crate::exporter::intern::StringInterner;
 use crate::exporter::model::SAMPLING_PRIORITY_KEY;
 use crate::exporter::{Error, ModelConfig};
-use opentelemetry::sdk::export::trace;
-use opentelemetry::sdk::export::trace::SpanData;
 use opentelemetry::trace::Status;
-use opentelemetry::{Key, Value};
+use opentelemetry_sdk::export::trace::SpanData;
 use std::time::SystemTime;
 
 use super::unified_tags::{UnifiedTagField, UnifiedTags};
@@ -58,7 +56,7 @@ const SPAN_NUM_ELEMENTS: u32 = 12;
 //
 pub(crate) fn encode<S, N, R>(
     model_config: &ModelConfig,
-    traces: Vec<Vec<trace::SpanData>>,
+    traces: Vec<Vec<SpanData>>,
     get_service_name: S,
     get_name: N,
     get_resource: R,
@@ -122,7 +120,7 @@ fn encode_traces<S, N, R>(
     get_service_name: S,
     get_name: N,
     get_resource: R,
-    traces: Vec<Vec<trace::SpanData>>,
+    traces: Vec<Vec<SpanData>>,
     unified_tags: &UnifiedTags,
 ) -> Result<Vec<u8>, Error>
 where
@@ -150,10 +148,13 @@ where
                 .map(|x| x.as_nanos() as i64)
                 .unwrap_or(0);
 
-            let span_type = match span.attributes.get(&Key::new("span.type")) {
-                Some(Value::String(s)) => interner.intern(s.as_str()),
-                _ => interner.intern(""),
-            };
+            let mut span_type = interner.intern("");
+            for kv in &span.attributes {
+                if kv.key.as_str() == "span.type" {
+                    span_type = interner.intern(kv.value.as_str().as_ref());
+                    break;
+                }
+            }
 
             // Datadog span name is OpenTelemetry component name - see module docs for more information
             rmp::encode::write_array_len(&mut encoded, SPAN_NUM_ELEMENTS)?;
@@ -199,9 +200,9 @@ where
 
             write_unified_tags(&mut encoded, interner, unified_tags)?;
 
-            for (key, value) in span.attributes.iter() {
-                rmp::encode::write_u32(&mut encoded, interner.intern(key.as_str()))?;
-                rmp::encode::write_u32(&mut encoded, interner.intern(value.as_str().as_ref()))?;
+            for kv in span.attributes.iter() {
+                rmp::encode::write_u32(&mut encoded, interner.intern(kv.key.as_str()))?;
+                rmp::encode::write_u32(&mut encoded, interner.intern(kv.value.as_str().as_ref()))?;
             }
             rmp::encode::write_map_len(&mut encoded, 1)?;
             rmp::encode::write_u32(&mut encoded, interner.intern(SAMPLING_PRIORITY_KEY))?;

@@ -13,17 +13,17 @@ use http::{
     Method, Uri, Version,
 };
 use opentelemetry::metrics::Result;
-use opentelemetry::runtime::Runtime;
-use opentelemetry::sdk::export::metrics::aggregation::{
-    AggregationKind, Temporality, TemporalitySelector,
-};
-use opentelemetry::sdk::export::metrics::{AggregatorSelector, InstrumentationLibraryReader};
-use opentelemetry::sdk::metrics::controllers::BasicController;
-use opentelemetry::sdk::metrics::sdk_api::Descriptor;
-use opentelemetry::sdk::metrics::{controllers, processors};
-use opentelemetry::sdk::{export::metrics, Resource};
 use opentelemetry::{global, Context};
 use opentelemetry_http::HttpClient;
+use opentelemetry_sdk::export::metrics::aggregation::{
+    AggregationKind, Temporality, TemporalitySelector,
+};
+use opentelemetry_sdk::export::metrics::{AggregatorSelector, InstrumentationLibraryReader};
+use opentelemetry_sdk::metrics::controllers::BasicController;
+use opentelemetry_sdk::metrics::sdk_api::Descriptor;
+use opentelemetry_sdk::metrics::{controllers, processors};
+use opentelemetry_sdk::runtime::Runtime;
+use opentelemetry_sdk::{export::metrics, Resource};
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::fmt::{Debug, Formatter, Write};
@@ -233,7 +233,7 @@ pub struct MetricsExporter {
     sender: Arc<Mutex<tokio::sync::mpsc::Sender<ClientMessage>>>,
 
     #[cfg(all(not(feature = "rt-tokio"), feature = "rt-async-std"))]
-    sender: Arc<Mutex<futures::channel::mpsc::Sender<ClientMessage>>>,
+    sender: Arc<Mutex<futures_channel::mpsc::Sender<ClientMessage>>>,
 
     endpoint: Uri,
 
@@ -292,7 +292,7 @@ impl MetricsExporter {
         }));
 
         #[cfg(all(not(feature = "rt-tokio"), feature = "rt-async-std"))]
-        let (sender, mut receiver) = futures::channel::mpsc::channel::<ClientMessage>(2);
+        let (sender, mut receiver) = futures_channel::mpsc::channel::<ClientMessage>(2);
 
         #[cfg(all(not(feature = "rt-tokio"), feature = "rt-async-std"))]
         async_std::task::spawn(Box::pin(async move {

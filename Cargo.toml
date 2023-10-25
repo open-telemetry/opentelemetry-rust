@@ -1,13 +1,16 @@
 [workspace]
 members = [
     "opentelemetry",
-    "opentelemetry-api",
     "opentelemetry-aws",
     "opentelemetry-contrib",
     "opentelemetry-datadog",
     "opentelemetry-dynatrace",
     "opentelemetry-http",
     "opentelemetry-jaeger",
+    "opentelemetry-jaeger/examples/actix-udp",
+    "opentelemetry-jaeger/examples/remote-sampler",
+    "opentelemetry-appender-log",
+    "opentelemetry-appender-tracing",
     "opentelemetry-otlp",
     "opentelemetry-prometheus",
     "opentelemetry-proto",
@@ -15,27 +18,24 @@ members = [
     "opentelemetry-semantic-conventions",
     "opentelemetry-stackdriver",
     "opentelemetry-stdout",
+    "opentelemetry-user-events-logs",
+    "opentelemetry-user-events-metrics",
     "opentelemetry-zipkin",
     "opentelemetry-zpages",
-    "examples/actix-http",
-    "examples/actix-http-tracing",
-    "examples/actix-hyper",
-    "examples/actix-udp",
-    "examples/async",
-    "examples/aws-xray",
-    "examples/basic-otlp",
-    "examples/basic-otlp-http",
-    "examples/datadog",
-    "examples/dynatrace",
-    "examples/external-otlp-tonic-tokio",
-    "examples/grpc",
-    "examples/http",
-    "examples/hyper-prometheus",
+    "opentelemetry-otlp/examples/basic-otlp",
+    "opentelemetry-otlp/examples/basic-otlp-http",
+    "opentelemetry-otlp/examples/external-otlp-grpcio-async-std",
+    "examples/metrics-basic",
+    "examples/metrics-advanced",
+    "examples/logs-basic",
     "examples/traceresponse",
     "examples/tracing-grpc",
-    "examples/jaeger-remote-sampler",
-    "examples/zipkin",
-    "examples/multiple-span-processors",
-    "examples/zpages"
+    "stress",
 ]
-exclude = ["examples/external-otlp-grpcio-async-std"]
+resolver = "2"
+
+[profile.bench]
+# https://doc.rust-lang.org/cargo/reference/profiles.html#bench
+# See function names in profiling reports.
+# 2/true is too much, 0 is not enough, 1 is just right for back traces
+debug = 1

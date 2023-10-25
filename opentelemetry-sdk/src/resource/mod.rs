@@ -30,7 +30,7 @@ pub use os::OsResourceDetector;
 pub use process::ProcessResourceDetector;
 pub use telemetry::TelemetryResourceDetector;
 
-use opentelemetry_api::{Key, KeyValue, Value};
+use opentelemetry::{Key, KeyValue, Value};
 use std::borrow::Cow;
 use std::collections::{hash_map, HashMap};
 use std::ops::Deref;
@@ -49,6 +49,7 @@ impl Default for Resource {
             Duration::from_secs(0),
             vec![
                 Box::new(SdkProvidedResourceDetector),
+                Box::new(TelemetryResourceDetector),
                 Box::new(EnvResourceDetector::new()),
             ],
         )

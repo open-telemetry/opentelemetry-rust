@@ -1,20 +1,19 @@
-use std::{any::Any, borrow::Cow, fmt, hash::Hash, marker, sync::Arc};
+use std::{any::Any, borrow::Cow, collections::HashSet, hash::Hash, marker, sync::Arc};
 
-use opentelemetry_api::{
+use opentelemetry::{
     metrics::{
         AsyncInstrument, MetricsError, Result, SyncCounter, SyncHistogram, SyncUpDownCounter, Unit,
     },
-    Context, KeyValue,
+    Key, KeyValue,
 };
 
 use crate::{
     attributes::AttributeSet,
     instrumentation::Scope,
-    metrics::data::Temporality,
-    metrics::{aggregation::Aggregation, internal::Aggregator},
+    metrics::{aggregation::Aggregation, internal::Measure},
 };
 
-pub(crate) const EMPTY_AGG_MSG: &str = "no aggregators for observable instrument";
+pub(crate) const EMPTY_MEASURE_MSG: &str = "no aggregators for observable instrument";
 
 /// The identifier of a group of instruments that all perform the same function.
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
@@ -158,7 +157,7 @@ impl Instrument {
 /// let view = new_view(criteria, mask);
 /// # drop(view);
 /// ```
-#[derive(Default)]
+#[derive(Default, Debug)]
 #[non_exhaustive]
 pub struct Stream {
     /// The human-readable identifier of the stream.
@@ -169,11 +168,13 @@ pub struct Stream {
     pub unit: Unit,
     /// Aggregation the stream uses for an instrument.
     pub aggregation: Option<Aggregation>,
-    /// applied to all attributes recorded for an instrument.
-    pub attribute_filter: Option<Filter>,
+    /// An allow-list of attribute keys that will be preserved for the stream.
+    ///
+    /// Any attribute recorded for the stream with a key not in this set will be
+    /// dropped. If the set is empty, all attributes will be dropped, if `None` all
+    /// attributes will be kept.
+    pub allowed_attribute_keys: Option<Arc<HashSet<Key>>>,
 }
-
-type Filter = Arc<dyn Fn(&KeyValue) -> bool + Send + Sync>;
 
 impl Stream {
     /// Create a new stream with empty values.
@@ -205,74 +206,72 @@ impl Stream {
         self
     }
 
-    /// Set the stream attribute filter.
-    pub fn attribute_filter(
-        mut self,
-        filter: impl Fn(&KeyValue) -> bool + Send + Sync + 'static,
-    ) -> Self {
-        self.attribute_filter = Some(Arc::new(filter));
+    /// Set the stream allowed attribute keys.
+    ///
+    /// Any attribute recorded for the stream with a key not in this set will be
+    /// dropped. If this set is empty all attributes will be dropped.
+    pub fn allowed_attribute_keys(mut self, attribute_keys: impl IntoIterator<Item = Key>) -> Self {
+        self.allowed_attribute_keys = Some(Arc::new(attribute_keys.into_iter().collect()));
+
         self
     }
 }
 
-impl fmt::Debug for Stream {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Stream")
-            .field("name", &self.name)
-            .field("description", &self.description)
-            .field("unit", &self.unit)
-            .field("aggregation", &self.aggregation)
-            .field("attribute_filter", &self.attribute_filter.is_some())
-            .finish()
-    }
-}
-
-/// the identifying properties of a stream.
+/// The identifying properties of an instrument.
 #[derive(Debug, PartialEq, Eq, Hash)]
-pub(crate) struct StreamId {
-    /// The human-readable identifier of the stream.
+pub(crate) struct InstrumentId {
+    /// The human-readable identifier of the instrument.
     pub(crate) name: Cow<'static, str>,
     /// Describes the purpose of the data.
     pub(crate) description: Cow<'static, str>,
-    /// the unit of measurement recorded.
+    /// Defines the functional group of the instrument.
+    pub(crate) kind: InstrumentKind,
+    /// The unit of measurement recorded.
     pub(crate) unit: Unit,
-    /// The stream uses for an instrument.
-    pub(crate) aggregation: String,
-    /// Monotonic is the monotonicity of an instruments data type. This field is
-    /// not used for all data types, so a zero value needs to be understood in the
-    /// context of Aggregation.
-    pub(crate) monotonic: bool,
-    /// Temporality is the temporality of a stream's data type. This field is
-    /// not used by some data types.
-    pub(crate) temporality: Option<Temporality>,
-    /// Number is the number type of the stream.
+    /// Number is the underlying data type of the instrument.
     pub(crate) number: Cow<'static, str>,
 }
 
+impl InstrumentId {
+    /// Instrument names are considered case-insensitive ASCII.
+    ///
+    /// Standardize the instrument name to always be lowercase so it can be compared
+    /// via hash.
+    ///
+    /// See [naming syntax] for full requirements.
+    ///
+    /// [naming syntax]: https://github.com/open-telemetry/opentelemetry-specification/blob/v1.21.0/specification/metrics/api.md#instrument-name-syntax
+    pub(crate) fn normalize(&mut self) {
+        if self.name.chars().any(|c| c.is_ascii_uppercase()) {
+            self.name = self.name.to_ascii_lowercase().into();
+        }
+    }
+}
+
 pub(crate) struct InstrumentImpl<T> {
-    pub(crate) aggregators: Vec<Arc<dyn Aggregator<T>>>,
+    pub(crate) measures: Vec<Arc<dyn Measure<T>>>,
 }
 
-impl<T: Copy> SyncCounter<T> for InstrumentImpl<T> {
-    fn add(&self, _cx: &Context, val: T, attrs: &[KeyValue]) {
-        for agg in &self.aggregators {
-            agg.aggregate(val, AttributeSet::from(attrs))
+impl<T: Copy + 'static> SyncCounter<T> for InstrumentImpl<T> {
+    fn add(&self, val: T, attrs: &[KeyValue]) {
+        for measure in &self.measures {
+            measure.call(val, AttributeSet::from(attrs))
         }
     }
 }
 
-impl<T: Copy> SyncUpDownCounter<T> for InstrumentImpl<T> {
-    fn add(&self, _cx: &Context, val: T, attrs: &[KeyValue]) {
-        for agg in &self.aggregators {
-            agg.aggregate(val, AttributeSet::from(attrs))
+impl<T: Copy + 'static> SyncUpDownCounter<T> for InstrumentImpl<T> {
+    fn add(&self, val: T, attrs: &[KeyValue]) {
+        for measure in &self.measures {
+            measure.call(val, AttributeSet::from(attrs))
         }
     }
 }
 
-impl<T: Copy> SyncHistogram<T> for InstrumentImpl<T> {
-    fn record(&self, _cx: &Context, val: T, attrs: &[KeyValue]) {
-        for agg in &self.aggregators {
-            agg.aggregate(val, AttributeSet::from(attrs))
+impl<T: Copy + 'static> SyncHistogram<T> for InstrumentImpl<T> {
+    fn record(&self, val: T, attrs: &[KeyValue]) {
+        for measure in &self.measures {
+            measure.call(val, AttributeSet::from(attrs))
         }
     }
 }
@@ -315,7 +314,7 @@ impl<T> Eq for ObservableId<T> {}
 #[derive(Clone)]
 pub(crate) struct Observable<T> {
     pub(crate) id: ObservableId<T>,
-    aggregators: Vec<Arc<dyn Aggregator<T>>>,
+    measures: Vec<Arc<dyn Measure<T>>>,
 }
 
 impl<T> Observable<T> {
@@ -325,7 +324,7 @@ impl<T> Observable<T> {
         name: Cow<'static, str>,
         description: Cow<'static, str>,
         unit: Unit,
-        aggregators: Vec<Arc<dyn Aggregator<T>>>,
+        measures: Vec<Arc<dyn Measure<T>>>,
     ) -> Self {
         Self {
             id: ObservableId {
@@ -338,7 +337,7 @@ impl<T> Observable<T> {
                 },
                 _marker: marker::PhantomData,
             },
-            aggregators,
+            measures,
         }
     }
 
@@ -349,8 +348,8 @@ impl<T> Observable<T> {
     /// any aggregators. Also, an error is returned if scope defines a Meter other
     /// than the observable it was created by.
     pub(crate) fn registerable(&self, scope: &Scope) -> Result<()> {
-        if self.aggregators.is_empty() {
-            return Err(MetricsError::Other(EMPTY_AGG_MSG.into()));
+        if self.measures.is_empty() {
+            return Err(MetricsError::Other(EMPTY_MEASURE_MSG.into()));
         }
         if &self.id.inner.scope != scope {
             return Err(MetricsError::Other(format!(
@@ -365,8 +364,8 @@ impl<T> Observable<T> {
 
 impl<T: Copy + Send + Sync + 'static> AsyncInstrument<T> for Observable<T> {
     fn observe(&self, measurement: T, attrs: &[KeyValue]) {
-        for agg in &self.aggregators {
-            agg.aggregate(measurement, AttributeSet::from(attrs))
+        for measure in &self.measures {
+            measure.call(measurement, AttributeSet::from(attrs))
         }
     }
 

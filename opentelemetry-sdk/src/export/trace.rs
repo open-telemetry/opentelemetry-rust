@@ -1,7 +1,8 @@
 //! Trace exporters
 use crate::Resource;
 use futures_util::future::BoxFuture;
-use opentelemetry_api::trace::{Event, Link, SpanContext, SpanId, SpanKind, Status, TraceError};
+use opentelemetry::trace::{Event, Link, SpanContext, SpanId, SpanKind, Status, TraceError};
+use opentelemetry::KeyValue;
 use std::borrow::Cow;
 use std::fmt::Debug;
 use std::time::SystemTime;
@@ -16,7 +17,7 @@ pub type ExportResult = Result<(), TraceError>;
 /// The goal of the interface is to minimize burden of implementation for
 /// protocol-dependent telemetry exporters. The protocol exporter is expected to
 /// be primarily a simple telemetry data encoder and transmitter.
-pub trait SpanExporter: Send + Debug {
+pub trait SpanExporter: Send + Sync + Debug {
     /// Exports a batch of readable spans. Protocol exporters that will
     /// implement this function are typically expected to serialize and transmit
     /// the data to the destination.
@@ -81,7 +82,10 @@ pub struct SpanData {
     /// Span end time
     pub end_time: SystemTime,
     /// Span attributes
-    pub attributes: crate::trace::EvictedHashMap,
+    pub attributes: Vec<KeyValue>,
+    /// The number of attributes that were above the configured limit, and thus
+    /// dropped.
+    pub dropped_attributes_count: u32,
     /// Span events
     pub events: crate::trace::EvictedQueue<Event>,
     /// Span Links

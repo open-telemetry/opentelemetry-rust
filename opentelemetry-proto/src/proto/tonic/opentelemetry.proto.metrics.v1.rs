@@ -8,6 +8,7 @@
 ///
 /// When new fields are added into this message, the OTLP request MUST be updated
 /// as well.
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct MetricsData {
@@ -20,6 +21,7 @@ pub struct MetricsData {
     pub resource_metrics: ::prost::alloc::vec::Vec<ResourceMetrics>,
 }
 /// A collection of ScopeMetrics from a Resource.
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ResourceMetrics {
@@ -36,6 +38,7 @@ pub struct ResourceMetrics {
     pub schema_url: ::prost::alloc::string::String,
 }
 /// A collection of Metrics produced by an Scope.
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ScopeMetrics {
@@ -136,6 +139,7 @@ pub struct ScopeMetrics {
 /// to support correct rate calculation.  Although it may be omitted
 /// when the start time is truly unknown, setting StartTimeUnixNano is
 /// strongly encouraged.
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Metric {
@@ -160,6 +164,7 @@ pub mod metric {
     /// Data determines the aggregation type (if any) of the metric, what is the
     /// reported value type for the data points, as well as the relatationship to
     /// the time interval over which they are reported.
+    #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
     #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Data {
@@ -184,6 +189,7 @@ pub mod metric {
 /// aggregation, regardless of aggregation temporalities. Therefore,
 /// AggregationTemporality is not included. Consequently, this also means
 /// "StartTimeUnixNano" is ignored for all data points.
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Gauge {
@@ -192,6 +198,7 @@ pub struct Gauge {
 }
 /// Sum represents the type of a scalar metric that is calculated as a sum of all
 /// reported measurements over a time interval.
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Sum {
@@ -207,6 +214,7 @@ pub struct Sum {
 }
 /// Histogram represents the type of a metric that is calculated by aggregating
 /// as a Histogram of all reported measurements over a time interval.
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Histogram {
@@ -219,6 +227,7 @@ pub struct Histogram {
 }
 /// ExponentialHistogram represents the type of a metric that is calculated by aggregating
 /// as a ExponentialHistogram of all reported double measurements over a time interval.
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ExponentialHistogram {
@@ -235,6 +244,7 @@ pub struct ExponentialHistogram {
 /// data type. These data points cannot always be merged in a meaningful way.
 /// While they can be useful in some applications, histogram data points are
 /// recommended for new applications.
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Summary {
@@ -243,6 +253,7 @@ pub struct Summary {
 }
 /// NumberDataPoint is a single data point in a timeseries that describes the
 /// time-varying scalar value of a metric.
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct NumberDataPoint {
@@ -282,6 +293,7 @@ pub struct NumberDataPoint {
 pub mod number_data_point {
     /// The value itself.  A point is considered invalid when one of the recognized
     /// value fields is not present inside this oneof.
+    #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
     #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Value {
@@ -301,6 +313,7 @@ pub mod number_data_point {
 /// If the histogram does not contain the distribution of values, then both
 /// "explicit_bounds" and "bucket_counts" must be omitted and only "count" and
 /// "sum" are known.
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct HistogramDataPoint {
@@ -382,6 +395,7 @@ pub struct HistogramDataPoint {
 /// summary statistics for a population of values, it may optionally contain the
 /// distribution of those values across a set of buckets.
 ///
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ExponentialHistogramDataPoint {
@@ -425,8 +439,8 @@ pub struct ExponentialHistogramDataPoint {
     ///    base = (2^(2^-scale))
     ///
     /// The histogram bucket identified by `index`, a signed integer,
-    /// contains values that are greater than or equal to (base^index) and
-    /// less than (base^(index+1)).
+    /// contains values that are greater than (base^index) and
+    /// less than or equal to (base^(index+1)).
     ///
     /// The positive and negative ranges of the histogram are expressed
     /// separately.  Negative values are mapped by their absolute value
@@ -466,11 +480,20 @@ pub struct ExponentialHistogramDataPoint {
     /// max is the maximum value over (start_time, end_time].
     #[prost(double, optional, tag = "13")]
     pub max: ::core::option::Option<f64>,
+    /// ZeroThreshold may be optionally set to convey the width of the zero
+    /// region. Where the zero region is defined as the closed interval
+    /// [-ZeroThreshold, ZeroThreshold].
+    /// When ZeroThreshold is 0, zero count bucket stores values that cannot be
+    /// expressed using the standard exponential formula as well as values that
+    /// have been rounded to zero.
+    #[prost(double, tag = "14")]
+    pub zero_threshold: f64,
 }
 /// Nested message and enum types in `ExponentialHistogramDataPoint`.
 pub mod exponential_histogram_data_point {
     /// Buckets are a set of bucket counts, encoded in a contiguous array
     /// of counts.
+    #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
     #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct Buckets {
@@ -479,9 +502,9 @@ pub mod exponential_histogram_data_point {
         /// Note: This uses a varint encoding as a simple form of compression.
         #[prost(sint32, tag = "1")]
         pub offset: i32,
-        /// Count is an array of counts, where count\[i\] carries the count
-        /// of the bucket at index (offset+i).  count\[i\] is the count of
-        /// values greater than or equal to base^(offset+i) and less than
+        /// bucket_counts is an array of count values, where bucket_counts\[i\] carries
+        /// the count of the bucket at index (offset+i). bucket_counts\[i\] is the count
+        /// of values greater than base^(offset+i) and less than or equal to
         /// base^(offset+i+1).
         ///
         /// Note: By contrast, the explicit HistogramDataPoint uses
@@ -494,6 +517,7 @@ pub mod exponential_histogram_data_point {
 }
 /// SummaryDataPoint is a single data point in a timeseries that describes the
 /// time-varying values of a Summary metric.
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct SummaryDataPoint {
@@ -548,6 +572,7 @@ pub mod summary_data_point {
     ///
     /// See the following issue for more context:
     /// <https://github.com/open-telemetry/opentelemetry-proto/issues/125>
+    #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
     #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct ValueAtQuantile {
@@ -566,6 +591,7 @@ pub mod summary_data_point {
 /// Exemplars also hold information about the environment when the measurement
 /// was recorded, for example the span and trace ID of the active span when the
 /// exemplar was recorded.
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Exemplar {
@@ -603,6 +629,7 @@ pub mod exemplar {
     /// The value of the measurement that was recorded. An exemplar is
     /// considered invalid when one of the recognized value fields is not present
     /// inside this oneof.
+    #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
     #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Value {
@@ -615,6 +642,7 @@ pub mod exemplar {
 /// AggregationTemporality defines how a metric aggregator reports aggregated
 /// values. It describes how those values relate to the time interval over
 /// which they are aggregated.
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
 pub enum AggregationTemporality {
@@ -709,16 +737,19 @@ impl AggregationTemporality {
 /// enum is a bit-mask.  To test the presence of a single flag in the flags of
 /// a data point, for example, use an expression like:
 ///
-///    (point.flags & FLAG_NO_RECORDED_VALUE) == FLAG_NO_RECORDED_VALUE
+///    (point.flags & DATA_POINT_FLAGS_NO_RECORDED_VALUE_MASK) == DATA_POINT_FLAGS_NO_RECORDED_VALUE_MASK
 ///
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
 pub enum DataPointFlags {
-    FlagNone = 0,
+    /// The zero value for the enum. Should not be used for comparisons.
+    /// Instead use bitwise "and" with the appropriate mask as shown above.
+    DoNotUse = 0,
     /// This DataPoint is valid but has no recorded value.  This value
     /// SHOULD be used to reflect explicitly missing data in a series, as
     /// for an equivalent to the Prometheus "staleness marker".
-    FlagNoRecordedValue = 1,
+    NoRecordedValueMask = 1,
 }
 impl DataPointFlags {
     /// String value of the enum field names used in the ProtoBuf definition.
@@ -727,15 +758,17 @@ impl DataPointFlags {
     /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
-            DataPointFlags::FlagNone => "FLAG_NONE",
-            DataPointFlags::FlagNoRecordedValue => "FLAG_NO_RECORDED_VALUE",
+            DataPointFlags::DoNotUse => "DATA_POINT_FLAGS_DO_NOT_USE",
+            DataPointFlags::NoRecordedValueMask => {
+                "DATA_POINT_FLAGS_NO_RECORDED_VALUE_MASK"
+            }
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
     pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
         match value {
-            "FLAG_NONE" => Some(Self::FlagNone),
-            "FLAG_NO_RECORDED_VALUE" => Some(Self::FlagNoRecordedValue),
+            "DATA_POINT_FLAGS_DO_NOT_USE" => Some(Self::DoNotUse),
+            "DATA_POINT_FLAGS_NO_RECORDED_VALUE_MASK" => Some(Self::NoRecordedValueMask),
             _ => None,
         }
     }

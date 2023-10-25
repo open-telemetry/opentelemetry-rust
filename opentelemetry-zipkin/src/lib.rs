@@ -3,7 +3,7 @@
 //! Collects OpenTelemetry spans and reports them to a given Zipkin collector
 //! endpoint. See the [Zipkin Docs] for details and deployment information.
 //!
-//! *Compiler support: [requires `rustc` 1.60+][msrv]*
+//! *Compiler support: [requires `rustc` 1.64+][msrv]*
 //!
 //! [Zipkin Docs]: https://zipkin.io/
 //! [msrv]: #supported-rust-versions
@@ -55,7 +55,7 @@
 //! ```no_run
 //! # fn main() -> Result<(), opentelemetry::trace::TraceError> {
 //! let tracer = opentelemetry_zipkin::new_pipeline()
-//!     .install_batch(opentelemetry::runtime::Tokio)?;
+//!     .install_batch(opentelemetry_sdk::runtime::Tokio)?;
 //! # Ok(())
 //! # }
 //! ```
@@ -87,10 +87,9 @@
 //!
 //!
 //! ```no_run
-//! use opentelemetry::{KeyValue, trace::Tracer};
-//! use opentelemetry::sdk::{trace::{self, RandomIdGenerator, Sampler}, Resource};
-//! use opentelemetry::sdk::export::trace::ExportResult;
-//! use opentelemetry::global;
+//! use opentelemetry::{global, KeyValue, trace::Tracer};
+//! use opentelemetry_sdk::{trace::{self, RandomIdGenerator, Sampler}, Resource};
+//! use opentelemetry_sdk::export::trace::ExportResult;
 //! use opentelemetry_http::{HttpClient, HttpError};
 //! use async_trait::async_trait;
 //! use bytes::Bytes;
@@ -143,7 +142,7 @@
 //!                 .with_max_events_per_span(16)
 //!                 .with_resource(Resource::new(vec![KeyValue::new("key", "value")])),
 //!         )
-//!         .install_batch(opentelemetry::runtime::Tokio)?;
+//!         .install_batch(opentelemetry_sdk::runtime::Tokio)?;
 //!
 //!     tracer.in_span("doing_work", |cx| {
 //!         // Traced app logic here...
@@ -167,7 +166,7 @@
 //! ## Supported Rust Versions
 //!
 //! OpenTelemetry is built against the latest stable release. The minimum
-//! supported version is 1.60. The current OpenTelemetry version is not
+//! supported version is 1.64. The current OpenTelemetry version is not
 //! guaranteed to build on Rust versions earlier than the minimum supported
 //! version.
 //!

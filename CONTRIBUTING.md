@@ -2,7 +2,7 @@
 
 The Rust special interest group (SIG) meets regularly. See the
 OpenTelemetry
-[community](https://github.com/open-telemetry/community#rust-sig)
+[community](https://github.com/open-telemetry/community#implementation-sigs)
 repo for information on this and other language SIGs.
 
 See the [public meeting
@@ -137,7 +137,10 @@ For GitHub groups see the [code owners](CODEOWNERS) file.
 
 ### Approvers
 
+* [Cijo Thomas](https://github.com/cijothomas)
 * [Harold Dost](https://github.com/hdost)
+* [Lalit Kumar Bhasin](https://github.com/lalitb)
+* [Shaun Cox](https://github.com/shaun-cox)
 
 ### Emeritus
 
@@ -148,6 +151,10 @@ For GitHub groups see the [code owners](CODEOWNERS) file.
 
 See the [community membership document in OpenTelemetry community
 repo](https://github.com/open-telemetry/community/blob/master/community-membership.md).
+
+### Thanks to all the people who have contributed
+
+[![contributors](https://contributors-img.web.app/image?repo=open-telemetry/opentelemetry-rust)](https://github.com/open-telemetry/opentelemetry-rust/graphs/contributors)
 
 ## FAQ
 ### Where should I put third party propagators/exporters, contrib or standalone crates?

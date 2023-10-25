@@ -1,5 +1,19 @@
 # Changelog
+
+## vNext
+
+### Changed
+
+- Bump MSRV to 1.64 [#1203](https://github.com/open-telemetry/opentelemetry-rust/pull/1203)
+
+## v0.9.0
+
+### Changed
+
+- Update to opentelemetry-api v0.20.0
+
 ## v0.8.0
+
 ### Changed
 - Add response headers in response for `HttpClient` implementations [#918](https://github.com/open-telemetry/opentelemetry-rust/pull/918).
 - Bump MSRV to 1.57 [#953](https://github.com/open-telemetry/opentelemetry-rust/pull/953).

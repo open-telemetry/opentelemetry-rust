@@ -1,7 +1,66 @@
 # Changelog
 
+## vNext
+
+### Changed
+
+- Bump MSRV to 1.64 [#1203](https://github.com/open-telemetry/opentelemetry-rust/pull/1203)
+- `opentelemetry` crate now only carries the API types #1186. Use the `opentelemetry_sdk` crate for the SDK types. 
+- `trace::noop::NoopSpan` no longer implements `Default` and instead exposes
+  a `const DEFAULT` value. [#1270](https://github.com/open-telemetry/opentelemetry-rust/pull/1270)
+- Updated crate documentation and examples.
+  [#1256](https://github.com/open-telemetry/opentelemetry-rust/issues/1256)
+- **Breaking** `SpanBuilder` attributes changed from `OrderMap<Key, Value>` to
+  `Vec<KeyValue>` and `with_attributes_map` method is removed from `SpanBuilder`.
+  This implies that OpenTelemetry API will no longer perform
+  de-dup of attribute Keys.
+  [#1293](https://github.com/open-telemetry/opentelemetry-rust/issues/1293).
+  Please share [feedback
+  here](https://github.com/open-telemetry/opentelemetry-rust/issues/1300), if
+  you are affected.
+
+## [v0.20.0](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.19.0...v0.20.0)
+This release should been seen as 1.0-rc3 following 1.0-rc2 in v0.19.0. Refer to CHANGELOG.md in individual creates for details on changes made in different creates.
+
+### Added
+
+- Add `new` method to `BoxedTracer` #1009
+- Add js-sys as dependency for api crate when building wasm targets #1078
+- Create tracer using a shared instrumentation library #1129
+- Add `Context::map_current` #1140
+- Add unit/doc tests for metrics #1213
+- Add `opentelemetry::sdk::logs::config()` for parity with `opentelemetry::sdk::trace::config()` (#1197)
+
+### Changed
+
+- `OtelString::Owned` carries `Box<str>` instead of `String` #1096
+
+### Removed
+
+- Drop include_trace_context parameter from Logs API/SDK. [#1133](https://github.com/open-telemetry/opentelemetry-rust/issues/1133)
+- Synchronous instruments no longer accepts `Context` while reporting
+  measurements. [#1076](https://github.com/open-telemetry/opentelemetry-rust/pull/1076).
+- Fallible conversions from `futures-channel` error types to `LogError` and
+  `TraceError` removed.
+  [#1201](https://github.com/open-telemetry/opentelemetry-rust/issues/1201)
+
+### Fixed
+
+- Fix `SpanRef::set_attributes` mutability requirement. [#1038](https://github.com/open-telemetry/opentelemetry-rust/pull/1038)
+- Move OrderMap module to root of otel-api crate. [#1061](https://github.com/open-telemetry/opentelemetry-rust/pull/1061)
+- Use the browser-only js-sys workaround only when actually targeting a browser #1008
+
 ## [v0.19.0](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.18.0...v0.19.0)
 This release should been seen as 1.0-rc2 following 1.0-rc1 in v0.18.0. Refer to CHANGELOG.md in individual creates for details on changes made in different creates.
+
+### Added
+- Add `WithContext` to public api [#893](https://github.com/open-telemetry/opentelemetry-rust/pull/893).
+- Add support for instrumentation scope attributes [#1021](https://github.com/open-telemetry/opentelemetry-rust/pull/1021).
+
+### Changed
+- Implement `Display` on `Baggage` [#921](https://github.com/open-telemetry/opentelemetry-rust/pull/921).
+- Bump MSRV to 1.57 [#953](https://github.com/open-telemetry/opentelemetry-rust/pull/953).
+- Update dependencies and bump MSRV to 1.60 [#969](https://github.com/open-telemetry/opentelemetry-rust/pull/969).
 
 ## [v0.18.0](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.17.0...v0.18.0)
 
@@ -61,7 +120,7 @@ and SDK are still unstable.
 - Allow `String` data in instrumentation library. #670
 - Remove `std::fmt::Debug` and `'static` requirements from `TracerProvider`,
   `Tracer`, and `Span` #664
-- Remove unused `Tracer::invalid` method #683 
+- Remove unused `Tracer::invalid` method #683
 - Split `TracerProvider::tracer` and `TracerProvider::versioned_tracer` methods #682
 - Reduce dependency on `futures` crate #684
 - Switch to parent context references #687

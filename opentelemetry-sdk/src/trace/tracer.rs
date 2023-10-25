@@ -7,27 +7,29 @@
 //! and exposes methods for creating and activating new `Spans`.
 //!
 //! Docs: <https://github.com/open-telemetry/opentelemetry-specification/blob/v1.3.0/specification/trace/api.md#tracer>
-use crate::trace::SpanLimits;
 use crate::{
     trace::{
         provider::{TracerProvider, TracerProviderInner},
         span::{Span, SpanData},
-        Config, EvictedHashMap, EvictedQueue,
+        Config, EvictedQueue, SpanLimits,
     },
     InstrumentationLibrary,
 };
-use opentelemetry_api::trace::{
-    Link, OrderMap, SamplingDecision, SamplingResult, SpanBuilder, SpanContext, SpanId, SpanKind,
-    TraceContextExt, TraceFlags, TraceId, TraceState,
+use once_cell::sync::Lazy;
+use opentelemetry::{
+    trace::{
+        Link, SamplingDecision, SamplingResult, SpanBuilder, SpanContext, SpanId, SpanKind,
+        TraceContextExt, TraceFlags, TraceId, TraceState,
+    },
+    Context, KeyValue,
 };
-use opentelemetry_api::{Context, Key, KeyValue, Value};
 use std::fmt;
-use std::sync::Weak;
+use std::sync::{Arc, Weak};
 
 /// `Tracer` implementation to create and manage spans
 #[derive(Clone)]
 pub struct Tracer {
-    instrumentation_lib: InstrumentationLibrary,
+    instrumentation_lib: Arc<InstrumentationLibrary>,
     provider: Weak<TracerProviderInner>,
 }
 
@@ -45,7 +47,7 @@ impl fmt::Debug for Tracer {
 impl Tracer {
     /// Create a new tracer (used internally by `TracerProvider`s).
     pub(crate) fn new(
-        instrumentation_lib: InstrumentationLibrary,
+        instrumentation_lib: Arc<InstrumentationLibrary>,
         provider: Weak<TracerProviderInner>,
     ) -> Self {
         Tracer {
@@ -72,7 +74,7 @@ impl Tracer {
         trace_id: TraceId,
         name: &str,
         span_kind: &SpanKind,
-        attributes: &OrderMap<Key, Value>,
+        attributes: &[KeyValue],
         links: &[Link],
         config: &Config,
     ) -> Option<(TraceFlags, Vec<KeyValue>, TraceState)> {
@@ -118,7 +120,9 @@ impl Tracer {
     }
 }
 
-impl opentelemetry_api::trace::Tracer for Tracer {
+static EMPTY_ATTRIBUTES: Lazy<Vec<KeyValue>> = Lazy::new(Default::default);
+
+impl opentelemetry::trace::Tracer for Tracer {
     /// This implementation of `Tracer` produces `sdk::Span` instances.
     type Span = Span;
 
@@ -148,8 +152,6 @@ impl opentelemetry_api::trace::Tracer for Tracer {
             .take()
             .unwrap_or_else(|| config.id_generator.new_span_id());
         let span_kind = builder.span_kind.take().unwrap_or(SpanKind::Internal);
-        let mut attribute_options = builder.attributes.take().unwrap_or_default();
-        let mut link_options = builder.links.take();
         let mut parent_span_id = SpanId::INVALID;
         let trace_id;
 
@@ -169,7 +171,7 @@ impl opentelemetry_api::trace::Tracer for Tracer {
                 .unwrap_or_else(|| config.id_generator.new_trace_id());
         };
 
-        // In order to accomodate use cases like `tracing-opentelemetry` we there is the ability
+        // In order to accommodate use cases like `tracing-opentelemetry` we there is the ability
         // to use pre-sampling. Otherwise, the standard method of sampling is followed.
         let sampling_decision = if let Some(sampling_result) = builder.sampling_result.take() {
             self.process_sampling_result(sampling_result, parent_cx)
@@ -179,8 +181,8 @@ impl opentelemetry_api::trace::Tracer for Tracer {
                 trace_id,
                 &builder.name,
                 &span_kind,
-                &attribute_options,
-                link_options.as_deref().unwrap_or(&[]),
+                builder.attributes.as_ref().unwrap_or(&EMPTY_ATTRIBUTES),
+                builder.links.as_deref().unwrap_or(&[]),
                 provider.config(),
             )
         };
@@ -196,14 +198,19 @@ impl opentelemetry_api::trace::Tracer for Tracer {
 
         // Build optional inner context, `None` if not recording.
         let mut span = if let Some((flags, extra_attrs, trace_state)) = sampling_decision {
+            let mut attribute_options = builder.attributes.take().unwrap_or_default();
             for extra_attr in extra_attrs {
-                attribute_options.insert(extra_attr.key, extra_attr.value);
+                attribute_options.push(extra_attr);
             }
-            let mut attributes =
-                EvictedHashMap::new(span_limits.max_attributes_per_span, attribute_options.len());
-            for (key, value) in attribute_options {
-                attributes.insert(KeyValue::new(key, value));
-            }
+
+            let span_attributes_limit = span_limits.max_attributes_per_span as usize;
+            let dropped_attributes_count = attribute_options
+                .len()
+                .saturating_sub(span_attributes_limit);
+            attribute_options.truncate(span_attributes_limit);
+            let dropped_attributes_count = dropped_attributes_count as u32;
+
+            let mut link_options = builder.links.take();
             let mut links = EvictedQueue::new(span_limits.max_links_per_span);
             if let Some(link_options) = &mut link_options {
                 let link_attributes_limit = span_limits.max_attributes_per_link as usize;
@@ -215,7 +222,7 @@ impl opentelemetry_api::trace::Tracer for Tracer {
                 }
                 links.append_vec(link_options);
             }
-            let start_time = start_time.unwrap_or_else(opentelemetry_api::time::now);
+            let start_time = start_time.unwrap_or_else(opentelemetry::time::now);
             let end_time = end_time.unwrap_or(start_time);
             let mut events_queue = EvictedQueue::new(span_limits.max_events_per_span);
             if let Some(mut events) = events {
@@ -240,7 +247,8 @@ impl opentelemetry_api::trace::Tracer for Tracer {
                     name,
                     start_time,
                     end_time,
-                    attributes,
+                    attributes: attribute_options,
+                    dropped_attributes_count,
                     events: events_queue,
                     links,
                     status,
@@ -274,12 +282,12 @@ mod tests {
         testing::trace::TestSpan,
         trace::{Config, Sampler, ShouldSample},
     };
-    use opentelemetry_api::{
+    use opentelemetry::{
         trace::{
-            Link, OrderMap, SamplingDecision, SamplingResult, Span, SpanContext, SpanId, SpanKind,
+            Link, SamplingDecision, SamplingResult, Span, SpanContext, SpanId, SpanKind,
             TraceContextExt, TraceFlags, TraceId, TraceState, Tracer, TracerProvider,
         },
-        Context, Key, Value,
+        Context, KeyValue,
     };
 
     #[derive(Clone, Debug)]
@@ -292,7 +300,7 @@ mod tests {
             _trace_id: TraceId,
             _name: &str,
             _span_kind: &SpanKind,
-            _attributes: &OrderMap<Key, Value>,
+            _attributes: &[KeyValue],
             _links: &[Link],
         ) -> SamplingResult {
             let trace_state = parent_context
@@ -363,15 +371,16 @@ mod tests {
         let span = tracer.span_builder("must_not_be_sampled").start(&tracer);
         assert!(!span.span_context().is_sampled());
 
-        let _attached = Context::current()
-            .with_remote_span_context(SpanContext::new(
+        let context = Context::map_current(|cx| {
+            cx.with_remote_span_context(SpanContext::new(
                 TraceId::from_u128(1),
                 SpanId::from_u64(1),
                 TraceFlags::default(),
                 true,
                 Default::default(),
             ))
-            .attach();
+        });
+        let _attached = context.attach();
         let span = tracer.span_builder("must_not_be_sampled").start(&tracer);
 
         assert!(!span.span_context().is_sampled());

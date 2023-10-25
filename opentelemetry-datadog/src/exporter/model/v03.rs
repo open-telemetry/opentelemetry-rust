@@ -1,14 +1,12 @@
 use crate::exporter::model::{Error, SAMPLING_PRIORITY_KEY};
 use crate::exporter::ModelConfig;
-use opentelemetry::sdk::export::trace;
-use opentelemetry::sdk::export::trace::SpanData;
 use opentelemetry::trace::Status;
-use opentelemetry::{Key, Value};
+use opentelemetry_sdk::export::trace::SpanData;
 use std::time::SystemTime;
 
 pub(crate) fn encode<S, N, R>(
     model_config: &ModelConfig,
-    traces: Vec<Vec<trace::SpanData>>,
+    traces: Vec<Vec<SpanData>>,
     get_service_name: S,
     get_name: N,
     get_resource: R,
@@ -38,11 +36,18 @@ where
                 .map(|x| x.as_nanos() as i64)
                 .unwrap_or(0);
 
-            if let Some(Value::String(s)) = span.attributes.get(&Key::new("span.type")) {
-                rmp::encode::write_map_len(&mut encoded, 12)?;
-                rmp::encode::write_str(&mut encoded, "type")?;
-                rmp::encode::write_str(&mut encoded, s.as_str())?;
-            } else {
+            let mut span_type_found = false;
+            for kv in &span.attributes {
+                if kv.key.as_str() == "span.type" {
+                    span_type_found = true;
+                    rmp::encode::write_map_len(&mut encoded, 12)?;
+                    rmp::encode::write_str(&mut encoded, "type")?;
+                    rmp::encode::write_str(&mut encoded, kv.value.as_str().as_ref())?;
+                    break;
+                }
+            }
+
+            if !span_type_found {
                 rmp::encode::write_map_len(&mut encoded, 11)?;
             }
 
@@ -98,9 +103,9 @@ where
                 rmp::encode::write_str(&mut encoded, key.as_str())?;
                 rmp::encode::write_str(&mut encoded, value.as_str().as_ref())?;
             }
-            for (key, value) in span.attributes.iter() {
-                rmp::encode::write_str(&mut encoded, key.as_str())?;
-                rmp::encode::write_str(&mut encoded, value.as_str().as_ref())?;
+            for kv in span.attributes.iter() {
+                rmp::encode::write_str(&mut encoded, kv.key.as_str())?;
+                rmp::encode::write_str(&mut encoded, kv.value.as_str().as_ref())?;
             }
 
             rmp::encode::write_str(&mut encoded, "metrics")?;

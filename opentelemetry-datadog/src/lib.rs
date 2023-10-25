@@ -49,7 +49,7 @@
 //! ```no_run
 //! # fn main() -> Result<(), opentelemetry::trace::TraceError> {
 //! let tracer = opentelemetry_datadog::new_pipeline()
-//!     .install_batch(opentelemetry::runtime::Tokio)?;
+//!     .install_batch(opentelemetry_sdk::runtime::Tokio)?;
 //! # Ok(())
 //! # }
 //! ```
@@ -81,8 +81,8 @@
 //!
 //! ```no_run
 //! use opentelemetry::{KeyValue, trace::Tracer};
-//! use opentelemetry::sdk::{trace::{self, RandomIdGenerator, Sampler}, Resource};
-//! use opentelemetry::sdk::export::trace::ExportResult;
+//! use opentelemetry_sdk::{trace::{self, RandomIdGenerator, Sampler}, Resource};
+//! use opentelemetry_sdk::export::trace::ExportResult;
 //! use opentelemetry::global::shutdown_tracer_provider;
 //! use opentelemetry_datadog::{new_pipeline, ApiVersion, Error};
 //! use opentelemetry_http::{HttpClient, HttpError};
@@ -122,7 +122,7 @@
 //!                 .with_sampler(Sampler::AlwaysOn)
 //!                 .with_id_generator(RandomIdGenerator::default())
 //!         )
-//!         .install_batch(opentelemetry::runtime::Tokio)?;
+//!         .install_batch(opentelemetry_sdk::runtime::Tokio)?;
 //!
 //!     tracer.in_span("doing_work", |cx| {
 //!         // Traced app logic here...
@@ -135,6 +135,12 @@
 //! ```
 
 mod exporter;
+
+pub use exporter::{
+    new_pipeline, ApiVersion, DatadogExporter, DatadogPipelineBuilder, Error, FieldMappingFn,
+    ModelConfig,
+};
+pub use propagator::DatadogPropagator;
 
 mod propagator {
     use once_cell::sync::Lazy;
@@ -201,14 +207,14 @@ mod propagator {
         fn extract_trace_id(&self, trace_id: &str) -> Result<TraceId, ExtractError> {
             trace_id
                 .parse::<u64>()
-                .map(|id| TraceId::from((id as u128).to_be_bytes()))
+                .map(|id| TraceId::from(id as u128))
                 .map_err(|_| ExtractError::TraceId)
         }
 
         fn extract_span_id(&self, span_id: &str) -> Result<SpanId, ExtractError> {
             span_id
                 .parse::<u64>()
-                .map(|id| SpanId::from(id.to_be_bytes()))
+                .map(SpanId::from)
                 .map_err(|_| ExtractError::SpanId)
         }
 
@@ -298,11 +304,9 @@ mod propagator {
         }
 
         fn extract_with_context(&self, cx: &Context, extractor: &dyn Extractor) -> Context {
-            let extracted = self
-                .extract_span_context(extractor)
-                .unwrap_or_else(|_| SpanContext::empty_context());
-
-            cx.with_remote_span_context(extracted)
+            self.extract_span_context(extractor)
+                .map(|sc| cx.with_remote_span_context(sc))
+                .unwrap_or_else(|_| cx.clone())
         }
 
         fn fields(&self) -> FieldIter<'_> {
@@ -313,8 +317,8 @@ mod propagator {
     #[cfg(test)]
     mod tests {
         use super::*;
-        use opentelemetry::testing::trace::TestSpan;
         use opentelemetry::trace::TraceState;
+        use opentelemetry_sdk::testing::trace::TestSpan;
         use std::collections::HashMap;
 
         #[rustfmt::skip]
@@ -366,6 +370,14 @@ mod propagator {
         }
 
         #[test]
+        fn test_extract_with_empty_remote_context() {
+            let map: HashMap<String, String> = HashMap::new();
+            let propagator = DatadogPropagator::default();
+            let context = propagator.extract_with_context(&Context::new(), &map);
+            assert!(!context.has_active_span())
+        }
+
+        #[test]
         fn test_inject() {
             let propagator = DatadogPropagator::default();
             for (header_values, span_context) in inject_test_data() {
@@ -387,9 +399,3 @@ mod propagator {
         }
     }
 }
-
-pub use exporter::{
-    new_pipeline, ApiVersion, DatadogExporter, DatadogPipelineBuilder, Error, FieldMappingFn,
-    ModelConfig,
-};
-pub use propagator::DatadogPropagator;

@@ -4,7 +4,7 @@ use std::{
     hash::{Hash, Hasher},
 };
 
-use opentelemetry_api::{Array, Key, KeyValue, Value};
+use opentelemetry::{Array, Key, KeyValue, Value};
 use ordered_float::OrderedFloat;
 
 use crate::Resource;
@@ -104,7 +104,7 @@ impl Eq for HashKeyValue {}
 ///
 /// This must implement [Hash], [PartialEq], and [Eq] so it may be used as
 /// HashMap keys and other de-duplication methods.
-#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+#[derive(Clone, Default, Debug, Hash, PartialEq, Eq)]
 pub struct AttributeSet(BTreeSet<HashKeyValue>);
 
 impl From<&[KeyValue]> for AttributeSet {

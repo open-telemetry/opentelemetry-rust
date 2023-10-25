@@ -1,0 +1,23 @@
+[package]
+name = "opentelemetry-appender-log"
+version = "0.1.0"
+description = "An OpenTelemetry appender for the log crate"
+homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-appender-log"
+repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-appender-log"
+readme = "README.md"
+keywords = ["opentelemetry", "log", "logs"]
+license = "Apache-2.0"
+rust-version = "1.64"
+edition = "2021"
+
+[dependencies]
+opentelemetry = { version = "0.21", path = "../opentelemetry", features = ["logs"]}
+log = {version = "0.4.17", features = ["kv_unstable", "std"]}
+
+[features]
+logs_level_enabled = ["opentelemetry/logs_level_enabled"]
+default = ["logs_level_enabled"]
+
+[dev-dependencies]
+opentelemetry_sdk = { path = "../opentelemetry-sdk", features = [ "testing", "logs_level_enabled" ] }
+tokio = "1.32.0"

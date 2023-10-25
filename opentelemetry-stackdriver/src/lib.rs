@@ -4,6 +4,7 @@
 // When this PR is merged we should be able to remove this attribute:
 // https://github.com/danburkert/prost/pull/291
 #![allow(
+    deprecated,
     rustdoc::bare_urls,
     rustdoc::broken_intra_doc_links,
     rustdoc::invalid_rust_codeblocks
@@ -22,18 +23,20 @@ use std::{
 };
 
 use async_trait::async_trait;
-use futures::{future::BoxFuture, stream::StreamExt};
+use futures_core::future::BoxFuture;
+use futures_util::stream::StreamExt;
 use opentelemetry::{
     global::handle_error,
-    sdk::{
-        export::{
-            trace::{ExportResult, SpanData, SpanExporter},
-            ExportError,
-        },
-        trace::EvictedHashMap,
+    trace::{SpanId, TraceError},
+    Key, KeyValue, Value,
+};
+use opentelemetry_sdk::{
+    export::{
+        trace::{ExportResult, SpanData, SpanExporter},
+        ExportError,
     },
-    trace::TraceError,
-    Key, Value,
+    trace::EvictedQueue,
+    Resource,
 };
 use opentelemetry_semantic_conventions::resource::SERVICE_NAME;
 use opentelemetry_semantic_conventions::trace::{
@@ -44,7 +47,7 @@ use thiserror::Error;
 use tonic::metadata::MetadataValue;
 use tonic::{
     transport::{Channel, ClientTlsConfig},
-    Request,
+    Code, Request,
 };
 #[cfg(feature = "yup-authorizer")]
 use yup_oauth2::authenticator::Authenticator;
@@ -55,16 +58,19 @@ pub mod proto;
 const HTTP_HOST: Key = Key::from_static_str("http.host");
 const HTTP_USER_AGENT: Key = Key::from_static_str("http.user_agent");
 
-use proto::devtools::cloudtrace::v2::BatchWriteSpansRequest;
+use proto::devtools::cloudtrace::v2::span::time_event::Annotation;
+use proto::devtools::cloudtrace::v2::span::{
+    Attributes, Link, Links, SpanKind, TimeEvent, TimeEvents,
+};
+use proto::devtools::cloudtrace::v2::trace_service_client::TraceServiceClient;
 use proto::devtools::cloudtrace::v2::{
-    span::{time_event::Annotation, Attributes, TimeEvent, TimeEvents},
-    trace_service_client::TraceServiceClient,
-    AttributeValue, Span, TruncatableString,
+    AttributeValue, BatchWriteSpansRequest, Span, TruncatableString,
 };
 use proto::logging::v2::{
     log_entry::Payload, logging_service_v2_client::LoggingServiceV2Client, LogEntry,
     LogEntrySourceLocation, WriteLogEntriesRequest,
 };
+use proto::rpc::Status;
 
 /// Exports opentelemetry tracing spans to Google StackDriver.
 ///
@@ -72,7 +78,7 @@ use proto::logging::v2::{
 /// so this struct does not send link information.
 #[derive(Clone)]
 pub struct StackDriverExporter {
-    tx: futures::channel::mpsc::Sender<Vec<SpanData>>,
+    tx: futures_channel::mpsc::Sender<Vec<SpanData>>,
     pending_count: Arc<AtomicUsize>,
     maximum_shutdown_duration: Duration,
 }
@@ -90,7 +96,9 @@ impl StackDriverExporter {
 impl SpanExporter for StackDriverExporter {
     fn export(&mut self, batch: Vec<SpanData>) -> BoxFuture<'static, ExportResult> {
         match self.tx.try_send(batch) {
-            Err(e) => Box::pin(std::future::ready(Err(e.into()))),
+            Err(e) => Box::pin(std::future::ready(Err(TraceError::Other(Box::new(
+                e.into_send_error(),
+            ))))),
             Ok(()) => {
                 self.pending_count.fetch_add(1, Ordering::Relaxed);
                 Box::pin(std::future::ready(Ok(())))
@@ -193,7 +201,7 @@ impl Builder {
             None => None,
         };
 
-        let (tx, rx) = futures::channel::mpsc::channel(64);
+        let (tx, rx) = futures_channel::mpsc::channel(64);
         let pending_count = Arc::new(AtomicUsize::new(0));
         let scopes = Arc::new(match log_client {
             Some(_) => vec![TRACE_APPEND, LOGGING_WRITE],
@@ -320,14 +328,22 @@ where
                 ),
                 display_name: Some(to_truncate(span.name.into_owned())),
                 span_id: hex::encode(span.span_context.span_id().to_bytes()),
-                parent_span_id: hex::encode(span.parent_span_id.to_bytes()),
+                // From the API docs: If this is a root span,
+                // then this field must be empty.
+                parent_span_id: match span.parent_span_id {
+                    SpanId::INVALID => "".to_owned(),
+                    _ => hex::encode(span.parent_span_id.to_bytes()),
+                },
                 start_time: Some(span.start_time.into()),
                 end_time: Some(span.end_time.into()),
-                attributes: Some(span.attributes.into()),
+                attributes: Some((span.attributes, span.resource.as_ref()).into()),
                 time_events: Some(TimeEvents {
                     time_event,
                     ..Default::default()
                 }),
+                links: transform_links(&span.links),
+                status: status(span.status),
+                span_kind: SpanKind::from(span.span_kind) as i32,
                 ..Default::default()
             });
         }
@@ -456,6 +472,12 @@ impl GcpAuthorizer {
             manager,
             project_id,
         })
+    }
+    pub fn from_gcp_auth(manager: gcp_auth::AuthenticationManager, project_id: String) -> Self {
+        Self {
+            manager,
+            project_id,
+        }
     }
 }
 
@@ -692,11 +714,24 @@ pub enum MonitoredResource {
     },
 }
 
-impl From<EvictedHashMap> for Attributes {
-    fn from(attributes: EvictedHashMap) -> Self {
+impl From<(Vec<KeyValue>, &Resource)> for Attributes {
+    /// Combines `EvictedHashMap` and `Resource` attributes into a maximum of 32.
+    ///
+    /// The `Resource` takes precedence over the `EvictedHashMap` attributes.
+    fn from((attributes, resource): (Vec<KeyValue>, &Resource)) -> Self {
         let mut dropped_attributes_count: i32 = 0;
-        let attribute_map = attributes
+        let num_resource_attributes = resource.len();
+        let num_attributes = attributes.len();
+
+        let attributes_as_key_value_tuples: Vec<(Key, Value)> = attributes
             .into_iter()
+            .map(|kv| (kv.key, kv.value))
+            .collect();
+
+        let attribute_map = resource
+            .into_iter()
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .chain(attributes_as_key_value_tuples)
             .flat_map(|(k, v)| {
                 let key = k.as_str();
                 if key.len() > 128 {
@@ -718,12 +753,34 @@ impl From<EvictedHashMap> for Attributes {
 
                 Some((key.to_owned(), v.into()))
             })
+            .take(MAX_ATTRIBUTES_PER_SPAN)
             .collect();
+
         Attributes {
             attribute_map,
-            dropped_attributes_count,
+            dropped_attributes_count: dropped_attributes_count
+                + (num_resource_attributes + num_attributes).saturating_sub(MAX_ATTRIBUTES_PER_SPAN)
+                    as i32,
         }
     }
+}
+
+fn transform_links(links: &EvictedQueue<opentelemetry::trace::Link>) -> Option<Links> {
+    if links.is_empty() {
+        return None;
+    }
+
+    Some(Links {
+        dropped_links_count: links.dropped_count() as i32,
+        link: links
+            .iter()
+            .map(|link| Link {
+                trace_id: hex::encode(link.span_context.trace_id().to_bytes()),
+                span_id: hex::encode(link.span_context.span_id().to_bytes()),
+                ..Default::default()
+            })
+            .collect(),
+    })
 }
 
 // Map conventional OpenTelemetry keys to their GCP counterparts.
@@ -737,54 +794,81 @@ const KEY_MAP: [(&Key, &str); 7] = [
     (&HTTP_ROUTE, "/http/route"),
 ];
 
+impl From<opentelemetry::trace::SpanKind> for SpanKind {
+    fn from(span_kind: opentelemetry::trace::SpanKind) -> Self {
+        match span_kind {
+            opentelemetry::trace::SpanKind::Client => SpanKind::Client,
+            opentelemetry::trace::SpanKind::Server => SpanKind::Server,
+            opentelemetry::trace::SpanKind::Producer => SpanKind::Producer,
+            opentelemetry::trace::SpanKind::Consumer => SpanKind::Consumer,
+            opentelemetry::trace::SpanKind::Internal => SpanKind::Internal,
+        }
+    }
+}
+
+fn status(value: opentelemetry::trace::Status) -> Option<Status> {
+    match value {
+        opentelemetry::trace::Status::Ok => Some(Status {
+            code: Code::Ok as i32,
+            message: "".to_owned(),
+            details: vec![],
+        }),
+        opentelemetry::trace::Status::Unset => None,
+        opentelemetry::trace::Status::Error { description } => Some(Status {
+            code: Code::Unknown as i32,
+            message: description.into(),
+            details: vec![],
+        }),
+    }
+}
 const TRACE_APPEND: &str = "https://www.googleapis.com/auth/trace.append";
 const LOGGING_WRITE: &str = "https://www.googleapis.com/auth/logging.write";
 const HTTP_PATH_ATTRIBUTE: &str = "http.path";
 const GCP_HTTP_PATH: &str = "/http/path";
 const GCP_SERVICE_NAME: &str = "g.co/gae/app/module";
+const MAX_ATTRIBUTES_PER_SPAN: usize = 32;
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    use opentelemetry::{sdk::trace::EvictedHashMap, KeyValue, Value};
+    use opentelemetry::{KeyValue, Value};
     use opentelemetry_semantic_conventions as semcov;
 
     #[test]
     fn test_attributes_mapping() {
         let capacity = 10;
-        let mut attributes = EvictedHashMap::new(capacity, 0);
+        let mut attributes = Vec::with_capacity(capacity);
 
         //	hostAttribute       = "http.host"
-        attributes.insert(HTTP_HOST.string("example.com:8080"));
+        attributes.push(HTTP_HOST.string("example.com:8080"));
 
         // 	methodAttribute     = "http.method"
-        attributes.insert(semcov::trace::HTTP_METHOD.string("POST"));
+        attributes.push(semcov::trace::HTTP_METHOD.string("POST"));
 
         // 	pathAttribute       = "http.path"
-        attributes.insert(KeyValue::new(
+        attributes.push(KeyValue::new(
             "http.path",
             Value::String("/path/12314/?q=ddds#123".into()),
         ));
 
         // 	urlAttribute        = "http.url"
-        attributes.insert(
+        attributes.push(
             semcov::trace::HTTP_URL.string("https://example.com:8080/webshop/articles/4?s=1"),
         );
 
         // 	userAgentAttribute  = "http.user_agent"
-        attributes.insert(HTTP_USER_AGENT.string("CERN-LineMode/2.15 libwww/2.17b3"));
+        attributes.push(HTTP_USER_AGENT.string("CERN-LineMode/2.15 libwww/2.17b3"));
 
         // 	statusCodeAttribute = "http.status_code"
-        attributes.insert(semcov::trace::HTTP_STATUS_CODE.i64(200));
+        attributes.push(semcov::trace::HTTP_STATUS_CODE.i64(200));
 
         // 	statusCodeAttribute = "http.route"
-        attributes.insert(semcov::trace::HTTP_ROUTE.string("/webshop/articles/:article_id"));
+        attributes.push(semcov::trace::HTTP_ROUTE.string("/webshop/articles/:article_id"));
 
         // 	serviceAttribute    = "service.name"
-        attributes.insert(semcov::resource::SERVICE_NAME.string("Test Service Name"));
+        let resources = Resource::new([semcov::resource::SERVICE_NAME.string("Test Service Name")]);
 
-        let actual: Attributes = attributes.into();
+        let actual: Attributes = (attributes, &resources).into();
 
         assert_eq!(actual.attribute_map.len(), 8);
         assert_eq!(actual.dropped_attributes_count, 0);
@@ -835,14 +919,36 @@ mod tests {
     }
 
     #[test]
+    fn test_too_many() {
+        let resources = Resource::new([semcov::resource::SERVICE_NAME.string("Test Service Name")]);
+        let mut attributes = Vec::with_capacity(32);
+        for i in 0..32 {
+            attributes.push(KeyValue::new(
+                format!("key{}", i),
+                Value::String(format!("value{}", i).into()),
+            ));
+        }
+
+        let actual: Attributes = (attributes, &resources).into();
+
+        assert_eq!(actual.attribute_map.len(), 32);
+        assert_eq!(actual.dropped_attributes_count, 1);
+        assert_eq!(
+            actual.attribute_map.get("g.co/gae/app/module"),
+            Some(&AttributeValue::from(Value::String(
+                "Test Service Name".into()
+            ))),
+        );
+    }
+
+    #[test]
     fn test_attributes_mapping_http_target() {
-        let capacity = 10;
-        let mut attributes = EvictedHashMap::new(capacity, 0);
+        let attributes = vec![semcov::trace::HTTP_TARGET.string("/path/12314/?q=ddds#123")];
 
         //	hostAttribute       = "http.target"
-        attributes.insert(semcov::trace::HTTP_TARGET.string("/path/12314/?q=ddds#123"));
 
-        let actual: Attributes = attributes.into();
+        let resources = Resource::new([]);
+        let actual: Attributes = (attributes, &resources).into();
 
         assert_eq!(actual.attribute_map.len(), 1);
         assert_eq!(actual.dropped_attributes_count, 0);
@@ -856,12 +962,10 @@ mod tests {
 
     #[test]
     fn test_attributes_mapping_dropped_attributes_count() {
-        let capacity = 10;
-        let mut attributes = EvictedHashMap::new(capacity, 0);
-        attributes.insert(KeyValue::new("answer", Value::I64(42)));
-        attributes.insert(KeyValue::new("long_attribute_key_dvwmacxpeefbuemoxljmqvldjxmvvihoeqnuqdsyovwgljtnemouidabhkmvsnauwfnaihekcfwhugejboiyfthyhmkpsaxtidlsbwsmirebax", Value::String("Some value".into())));
+        let attributes = vec![KeyValue::new("answer", Value::I64(42)),KeyValue::new("long_attribute_key_dvwmacxpeefbuemoxljmqvldjxmvvihoeqnuqdsyovwgljtnemouidabhkmvsnauwfnaihekcfwhugejboiyfthyhmkpsaxtidlsbwsmirebax", Value::String("Some value".into()))];
 
-        let actual: Attributes = attributes.into();
+        let resources = Resource::new([]);
+        let actual: Attributes = (attributes, &resources).into();
         assert_eq!(
             actual,
             Attributes {

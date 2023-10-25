@@ -1,5 +1,3 @@
-use protobuf_codegen::Customize;
-use protoc_grpcio::compile_grpc_protos;
 use std::collections::HashMap;
 use std::path::Path;
 use tempfile::TempDir;
@@ -12,9 +10,10 @@ const GRPCIO_PROTO_FILES: &[&str] = &[
     "src/proto/opentelemetry-proto/opentelemetry/proto/collector/trace/v1/trace_service.proto",
     "src/proto/opentelemetry-proto/opentelemetry/proto/metrics/v1/metrics.proto",
     "src/proto/opentelemetry-proto/opentelemetry/proto/collector/metrics/v1/metrics_service.proto",
-    "src/proto/tracez.proto",
+    "src/proto/opentelemetry-proto/opentelemetry/proto/logs/v1/logs.proto",
+    "src/proto/opentelemetry-proto/opentelemetry/proto/collector/logs/v1/logs_service.proto",
 ];
-const GRPCIO_INCLUDES: &[&str] = &["src/proto/opentelemetry-proto/", "src/proto"];
+const GRPCIO_INCLUDES: &[&str] = &["src/proto/opentelemetry-proto/"];
 
 const TONIC_OUT_DIR: &str = "src/proto/tonic";
 const TONIC_PROTO_FILES: &[&str] = &[
@@ -26,8 +25,9 @@ const TONIC_PROTO_FILES: &[&str] = &[
     "src/proto/opentelemetry-proto/opentelemetry/proto/collector/metrics/v1/metrics_service.proto",
     "src/proto/opentelemetry-proto/opentelemetry/proto/logs/v1/logs.proto",
     "src/proto/opentelemetry-proto/opentelemetry/proto/collector/logs/v1/logs_service.proto",
+    "src/proto/tracez.proto",
 ];
-const TONIC_INCLUDES: &[&str] = &["src/proto/opentelemetry-proto"];
+const TONIC_INCLUDES: &[&str] = &["src/proto/opentelemetry-proto", "src/proto"];
 
 // This test helps to keep files generated and used by grpcio update to date.
 // If the test fails, it means the generated files has been changed. Please commit the change
@@ -36,20 +36,14 @@ const TONIC_INCLUDES: &[&str] = &["src/proto/opentelemetry-proto"];
 fn build_grpc() {
     let before_build = build_content_map(GRPCIO_OUT_DIR);
 
-    let out_dir = TempDir::new().expect("failed to create temp dir to store the generated files");
-
-    compile_grpc_protos(
+    grpcio_compiler::prost_codegen::compile_protos(
         GRPCIO_PROTO_FILES,
         GRPCIO_INCLUDES,
-        out_dir.path(),
-        Some(Customize {
-            expose_fields: Some(true),
-            serde_derive: Some(true),
-            ..Default::default()
-        }),
+        GRPCIO_OUT_DIR,
     )
-    .expect("error generating protobuf");
-    let after_build = build_content_map(out_dir.path());
+    .expect("cannot compile protobuf using grpcio");
+
+    let after_build = build_content_map(GRPCIO_OUT_DIR);
     ensure_files_are_same(before_build, after_build, GRPCIO_OUT_DIR);
 }
 
@@ -63,6 +57,12 @@ fn build_tonic() {
     tonic_build::configure()
         .build_server(true)
         .build_client(true)
+        .server_mod_attribute(".", "#[cfg(feature = \"gen-tonic\")]")
+        .client_mod_attribute(".", "#[cfg(feature = \"gen-tonic\")]")
+        .type_attribute(
+            ".",
+            "#[cfg_attr(feature = \"with-serde\", derive(serde::Serialize, serde::Deserialize))]",
+        )
         .out_dir(out_dir.path())
         .compile(TONIC_PROTO_FILES, TONIC_INCLUDES)
         .expect("cannot compile protobuf using tonic");

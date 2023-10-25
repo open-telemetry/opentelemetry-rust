@@ -1,11 +1,6 @@
-use core::fmt;
-use std::{
-    io::{stdout, Write},
-    sync::Mutex,
-};
-
 use async_trait::async_trait;
-use opentelemetry_api::metrics::{MetricsError, Result};
+use core::fmt;
+use opentelemetry::metrics::{MetricsError, Result};
 use opentelemetry_sdk::metrics::{
     data,
     exporter::PushMetricsExporter,
@@ -14,6 +9,10 @@ use opentelemetry_sdk::metrics::{
         TemporalitySelector,
     },
     Aggregation, InstrumentKind,
+};
+use std::{
+    io::{stdout, Write},
+    sync::Mutex,
 };
 
 use crate::MetricsData;
@@ -76,7 +75,7 @@ impl PushMetricsExporter for MetricsExporter {
         Ok(())
     }
 
-    async fn shutdown(&self) -> Result<()> {
+    fn shutdown(&self) -> Result<()> {
         self.writer.lock()?.take();
         Ok(())
     }

@@ -9,7 +9,7 @@
 //! The [trace semantic conventions] define a set of standardized attributes to
 //! be used in `Span`s.
 //!
-//! [trace semantic conventions]: https://github.com/open-telemetry/opentelemetry-specification/tree/master/specification/trace/semantic_conventions
+//! [trace semantic conventions]: https://github.com/open-telemetry/semantic-conventions/tree/main/model/trace
 //!
 //! ## Usage
 //!
@@ -28,6 +28,221 @@
 //! ```
 
 use opentelemetry::Key;
+
+/// Client address - unix domain socket name, IPv4 or IPv6 address.
+///
+/// When observed from the server side, and when communicating through an intermediary, `client.address` SHOULD represent client address behind any intermediaries (e.g. proxies) if it&#39;s available.
+///
+/// # Examples
+///
+/// - `/tmp/my.sock`
+/// - `10.1.2.80`
+pub const CLIENT_ADDRESS: Key = Key::from_static_str("client.address");
+
+/// Client port number.
+///
+/// When observed from the server side, and when communicating through an intermediary, `client.port` SHOULD represent client port behind any intermediaries (e.g. proxies) if it&#39;s available.
+///
+/// # Examples
+///
+/// - `65123`
+pub const CLIENT_PORT: Key = Key::from_static_str("client.port");
+
+/// Immediate client peer address - unix domain socket name, IPv4 or IPv6 address.
+///
+/// # Examples
+///
+/// - `/tmp/my.sock`
+/// - `127.0.0.1`
+pub const CLIENT_SOCKET_ADDRESS: Key = Key::from_static_str("client.socket.address");
+
+/// Immediate client peer port number.
+///
+/// # Examples
+///
+/// - `35555`
+pub const CLIENT_SOCKET_PORT: Key = Key::from_static_str("client.socket.port");
+
+/// Deprecated, use `http.request.method` instead.
+///
+/// # Examples
+///
+/// - `GET`
+/// - `POST`
+/// - `HEAD`
+#[deprecated]
+pub const HTTP_METHOD: Key = Key::from_static_str("http.method");
+
+/// Deprecated, use `http.response.status_code` instead.
+///
+/// # Examples
+///
+/// - `200`
+#[deprecated]
+pub const HTTP_STATUS_CODE: Key = Key::from_static_str("http.status_code");
+
+/// Deprecated, use `url.scheme` instead.
+///
+/// # Examples
+///
+/// - `http`
+/// - `https`
+#[deprecated]
+pub const HTTP_SCHEME: Key = Key::from_static_str("http.scheme");
+
+/// Deprecated, use `url.full` instead.
+///
+/// # Examples
+///
+/// - `https://www.foo.bar/search?q=OpenTelemetry#SemConv`
+#[deprecated]
+pub const HTTP_URL: Key = Key::from_static_str("http.url");
+
+/// Deprecated, use `url.path` and `url.query` instead.
+///
+/// # Examples
+///
+/// - `/search?q=OpenTelemetry#SemConv`
+#[deprecated]
+pub const HTTP_TARGET: Key = Key::from_static_str("http.target");
+
+/// Deprecated, use `http.request.body.size` instead.
+///
+/// # Examples
+///
+/// - `3495`
+#[deprecated]
+pub const HTTP_REQUEST_CONTENT_LENGTH: Key = Key::from_static_str("http.request_content_length");
+
+/// Deprecated, use `http.response.body.size` instead.
+///
+/// # Examples
+///
+/// - `3495`
+#[deprecated]
+pub const HTTP_RESPONSE_CONTENT_LENGTH: Key = Key::from_static_str("http.response_content_length");
+
+/// Deprecated, use `server.socket.domain` on client spans.
+///
+/// # Examples
+///
+/// - `/var/my.sock`
+#[deprecated]
+pub const NET_SOCK_PEER_NAME: Key = Key::from_static_str("net.sock.peer.name");
+
+/// Deprecated, use `server.socket.address` on client spans and `client.socket.address` on server spans.
+///
+/// # Examples
+///
+/// - `192.168.0.1`
+#[deprecated]
+pub const NET_SOCK_PEER_ADDR: Key = Key::from_static_str("net.sock.peer.addr");
+
+/// Deprecated, use `server.socket.port` on client spans and `client.socket.port` on server spans.
+///
+/// # Examples
+///
+/// - `65531`
+#[deprecated]
+pub const NET_SOCK_PEER_PORT: Key = Key::from_static_str("net.sock.peer.port");
+
+/// Deprecated, use `server.address` on client spans and `client.address` on server spans.
+///
+/// # Examples
+///
+/// - `example.com`
+#[deprecated]
+pub const NET_PEER_NAME: Key = Key::from_static_str("net.peer.name");
+
+/// Deprecated, use `server.port` on client spans and `client.port` on server spans.
+///
+/// # Examples
+///
+/// - `8080`
+#[deprecated]
+pub const NET_PEER_PORT: Key = Key::from_static_str("net.peer.port");
+
+/// Deprecated, use `server.address`.
+///
+/// # Examples
+///
+/// - `example.com`
+#[deprecated]
+pub const NET_HOST_NAME: Key = Key::from_static_str("net.host.name");
+
+/// Deprecated, use `server.port`.
+///
+/// # Examples
+///
+/// - `8080`
+#[deprecated]
+pub const NET_HOST_PORT: Key = Key::from_static_str("net.host.port");
+
+/// Deprecated, use `server.socket.address`.
+///
+/// # Examples
+///
+/// - `/var/my.sock`
+#[deprecated]
+pub const NET_SOCK_HOST_ADDR: Key = Key::from_static_str("net.sock.host.addr");
+
+/// Deprecated, use `server.socket.port`.
+///
+/// # Examples
+///
+/// - `8080`
+#[deprecated]
+pub const NET_SOCK_HOST_PORT: Key = Key::from_static_str("net.sock.host.port");
+
+/// Deprecated, use `network.transport`.
+#[deprecated]
+pub const NET_TRANSPORT: Key = Key::from_static_str("net.transport");
+
+/// Deprecated, use `network.protocol.name`.
+///
+/// # Examples
+///
+/// - `amqp`
+/// - `http`
+/// - `mqtt`
+#[deprecated]
+pub const NET_PROTOCOL_NAME: Key = Key::from_static_str("net.protocol.name");
+
+/// Deprecated, use `network.protocol.version`.
+///
+/// # Examples
+///
+/// - `3.1.1`
+#[deprecated]
+pub const NET_PROTOCOL_VERSION: Key = Key::from_static_str("net.protocol.version");
+
+/// Deprecated, use `network.transport` and `network.type`.
+#[deprecated]
+pub const NET_SOCK_FAMILY: Key = Key::from_static_str("net.sock.family");
+
+/// The domain name of the destination system.
+///
+/// This value may be a host name, a fully qualified domain name, or another host naming format.
+///
+/// # Examples
+///
+/// - `foo.example.com`
+pub const DESTINATION_DOMAIN: Key = Key::from_static_str("destination.domain");
+
+/// Peer address, for example IP address or UNIX socket name.
+///
+/// # Examples
+///
+/// - `10.5.3.2`
+pub const DESTINATION_ADDRESS: Key = Key::from_static_str("destination.address");
+
+/// Peer port number.
+///
+/// # Examples
+///
+/// - `3389`
+/// - `2888`
+pub const DESTINATION_PORT: Key = Key::from_static_str("destination.port");
 
 /// The type of the exception (its fully-qualified class name, if applicable). The dynamic type of the exception should be preferred over the static type in languages that support it.
 ///
@@ -54,32 +269,40 @@ pub const EXCEPTION_STACKTRACE: Key = Key::from_static_str("exception.stacktrace
 
 /// HTTP request method.
 ///
+/// HTTP request method value SHOULD be &#34;known&#34; to the instrumentation.
+/// By default, this convention defines &#34;known&#34; methods as the ones listed in [RFC9110](https://www.rfc-editor.org/rfc/rfc9110.html#name-methods)
+/// and the PATCH method defined in [RFC5789](https://www.rfc-editor.org/rfc/rfc5789.html).
+///
+/// If the HTTP request method is not known to instrumentation, it MUST set the `http.request.method` attribute to `_OTHER` and, except if reporting a metric, MUST
+/// set the exact method received in the request line as value of the `http.request.method_original` attribute.
+///
+/// If the HTTP instrumentation could end up converting valid HTTP request methods to `_OTHER`, then it MUST provide a way to override
+/// the list of known HTTP methods. If this override is done via environment variable, then the environment variable MUST be named
+/// OTEL_INSTRUMENTATION_HTTP_KNOWN_METHODS and support a comma-separated list of case-sensitive known HTTP methods
+/// (this list MUST be a full override of the default known method, it is not a list of known methods in addition to the defaults).
+///
+/// HTTP method names are case-sensitive and `http.request.method` attribute value MUST match a known HTTP method name exactly.
+/// Instrumentations for specific web frameworks that consider HTTP methods to be case insensitive, SHOULD populate a canonical equivalent.
+/// Tracing instrumentations that do so, MUST also set `http.request.method_original` to the original value.
+///
 /// # Examples
 ///
 /// - `GET`
 /// - `POST`
 /// - `HEAD`
-pub const HTTP_METHOD: Key = Key::from_static_str("http.method");
+pub const HTTP_REQUEST_METHOD: Key = Key::from_static_str("http.request.method");
 
 /// [HTTP response status code](https://tools.ietf.org/html/rfc7231#section-6).
 ///
 /// # Examples
 ///
 /// - `200`
-pub const HTTP_STATUS_CODE: Key = Key::from_static_str("http.status_code");
-
-/// The URI scheme identifying the used protocol.
-///
-/// # Examples
-///
-/// - `http`
-/// - `https`
-pub const HTTP_SCHEME: Key = Key::from_static_str("http.scheme");
+pub const HTTP_RESPONSE_STATUS_CODE: Key = Key::from_static_str("http.response.status_code");
 
 /// The matched route (path template in the format used by the respective server framework). See note below.
 ///
 /// MUST NOT be populated when this is not supported by the HTTP server framework as the route attribute should have low-cardinality and the URI path can NOT substitute it.
-/// SHOULD include the [application root](/specification/trace/semantic_conventions/http.md#http-server-definitions) if there is one.
+/// SHOULD include the [application root](/docs/http/http-spans.md#http-server-definitions) if there is one.
 ///
 /// # Examples
 ///
@@ -110,6 +333,119 @@ pub const EVENT_DOMAIN: Key = Key::from_static_str("event.domain");
 ///
 /// - `01ARZ3NDEKTSV4RRFFQ69G5FAV`
 pub const LOG_RECORD_UID: Key = Key::from_static_str("log.record.uid");
+
+/// The stream associated with the log. See below for a list of well-known values.
+pub const LOG_IOSTREAM: Key = Key::from_static_str("log.iostream");
+
+/// The basename of the file.
+///
+/// # Examples
+///
+/// - `audit.log`
+pub const LOG_FILE_NAME: Key = Key::from_static_str("log.file.name");
+
+/// The full path to the file.
+///
+/// # Examples
+///
+/// - `/var/log/mysql/audit.log`
+pub const LOG_FILE_PATH: Key = Key::from_static_str("log.file.path");
+
+/// The basename of the file, with symlinks resolved.
+///
+/// # Examples
+///
+/// - `uuid.log`
+pub const LOG_FILE_NAME_RESOLVED: Key = Key::from_static_str("log.file.name_resolved");
+
+/// The full path to the file, with symlinks resolved.
+///
+/// # Examples
+///
+/// - `/var/lib/docker/uuid.log`
+pub const LOG_FILE_PATH_RESOLVED: Key = Key::from_static_str("log.file.path_resolved");
+
+/// The type of memory.
+///
+/// # Examples
+///
+/// - `heap`
+/// - `non_heap`
+pub const TYPE: Key = Key::from_static_str("type");
+
+/// Name of the memory pool.
+///
+/// Pool names are generally obtained via [MemoryPoolMXBean#getName()](https://docs.oracle.com/en/java/javase/11/docs/api/java.management/java/lang/management/MemoryPoolMXBean.html#getName()).
+///
+/// # Examples
+///
+/// - `G1 Old Gen`
+/// - `G1 Eden space`
+/// - `G1 Survivor Space`
+pub const POOL: Key = Key::from_static_str("pool");
+
+/// Logical server hostname, matches server FQDN if available, and IP or socket address if FQDN is not known.
+///
+/// # Examples
+///
+/// - `example.com`
+pub const SERVER_ADDRESS: Key = Key::from_static_str("server.address");
+
+/// Logical server port number.
+///
+/// # Examples
+///
+/// - `80`
+/// - `8080`
+/// - `443`
+pub const SERVER_PORT: Key = Key::from_static_str("server.port");
+
+/// The domain name of an immediate peer.
+///
+/// Typically observed from the client side, and represents a proxy or other intermediary domain name.
+///
+/// # Examples
+///
+/// - `proxy.example.com`
+pub const SERVER_SOCKET_DOMAIN: Key = Key::from_static_str("server.socket.domain");
+
+/// Physical server IP address or Unix socket address. If set from the client, should simply use the socket&#39;s peer address, and not attempt to find any actual server IP (i.e., if set from client, this may represent some proxy server instead of the logical server).
+///
+/// # Examples
+///
+/// - `10.5.3.2`
+pub const SERVER_SOCKET_ADDRESS: Key = Key::from_static_str("server.socket.address");
+
+/// Physical server port.
+///
+/// # Examples
+///
+/// - `16456`
+pub const SERVER_SOCKET_PORT: Key = Key::from_static_str("server.socket.port");
+
+/// The domain name of the source system.
+///
+/// This value may be a host name, a fully qualified domain name, or another host naming format.
+///
+/// # Examples
+///
+/// - `foo.example.com`
+pub const SOURCE_DOMAIN: Key = Key::from_static_str("source.domain");
+
+/// Source address, for example IP address or Unix socket name.
+///
+/// # Examples
+///
+/// - `10.5.3.2`
+pub const SOURCE_ADDRESS: Key = Key::from_static_str("source.address");
+
+/// Source port number.
+///
+/// # Examples
+///
+/// - `3389`
+/// - `2888`
+pub const SOURCE_PORT: Key = Key::from_static_str("source.port");
 
 /// The full invoked ARN as provided on the `Context` passed to the function (`Lambda-Runtime-Invoked-Function-Arn` header on the `/runtime/invocation/next` applicable).
 ///
@@ -222,7 +558,7 @@ pub const DB_OPERATION: Key = Key::from_static_str("db.operation");
 
 /// The Microsoft SQL Server [instance name](https://docs.microsoft.com/en-us/sql/connect/jdbc/building-the-connection-url?view=sql-server-ver15) connecting to. This name is used to determine the port of a named instance.
 ///
-/// If setting a `db.mssql.instance_name`, `net.peer.port` is no longer required (but still recommended if non-standard).
+/// If setting a `db.mssql.instance_name`, `server.port` is no longer required (but still recommended if non-standard).
 ///
 /// # Examples
 ///
@@ -478,146 +814,83 @@ pub const FEATURE_FLAG_PROVIDER_NAME: Key = Key::from_static_str("feature_flag.p
 /// - `on`
 pub const FEATURE_FLAG_VARIANT: Key = Key::from_static_str("feature_flag.variant");
 
-/// Transport protocol used. See note below.
-pub const NET_TRANSPORT: Key = Key::from_static_str("net.transport");
+/// [OSI Transport Layer](https://osi-model.com/transport-layer/) or [Inter-process Communication method](https://en.wikipedia.org/wiki/Inter-process_communication). The value SHOULD be normalized to lowercase.
+///
+/// # Examples
+///
+/// - `tcp`
+/// - `udp`
+pub const NETWORK_TRANSPORT: Key = Key::from_static_str("network.transport");
 
-/// Application layer protocol used. The value SHOULD be normalized to lowercase.
+/// [OSI Network Layer](https://osi-model.com/network-layer/) or non-OSI equivalent. The value SHOULD be normalized to lowercase.
+///
+/// # Examples
+///
+/// - `ipv4`
+/// - `ipv6`
+pub const NETWORK_TYPE: Key = Key::from_static_str("network.type");
+
+/// [OSI Application Layer](https://osi-model.com/application-layer/) or non-OSI equivalent. The value SHOULD be normalized to lowercase.
 ///
 /// # Examples
 ///
 /// - `amqp`
 /// - `http`
 /// - `mqtt`
-pub const NET_PROTOCOL_NAME: Key = Key::from_static_str("net.protocol.name");
+pub const NETWORK_PROTOCOL_NAME: Key = Key::from_static_str("network.protocol.name");
 
 /// Version of the application layer protocol used. See note below.
 ///
-/// `net.protocol.version` refers to the version of the protocol used and might be different from the protocol client&#39;s version. If the HTTP client used has a version of `0.27.2`, but sends HTTP version `1.1`, this attribute should be set to `1.1`.
+/// `network.protocol.version` refers to the version of the protocol used and might be different from the protocol client&#39;s version. If the HTTP client used has a version of `0.27.2`, but sends HTTP version `1.1`, this attribute should be set to `1.1`.
 ///
 /// # Examples
 ///
 /// - `3.1.1`
-pub const NET_PROTOCOL_VERSION: Key = Key::from_static_str("net.protocol.version");
+pub const NETWORK_PROTOCOL_VERSION: Key = Key::from_static_str("network.protocol.version");
 
-/// Remote socket peer name.
-///
-/// # Examples
-///
-/// - `proxy.example.com`
-pub const NET_SOCK_PEER_NAME: Key = Key::from_static_str("net.sock.peer.name");
-
-/// Remote socket peer address: IPv4 or IPv6 for internet protocols, path for local communication, [etc](https://man7.org/linux/man-pages/man7/address_families.7.html).
-///
-/// # Examples
-///
-/// - `127.0.0.1`
-/// - `/tmp/mysql.sock`
-pub const NET_SOCK_PEER_ADDR: Key = Key::from_static_str("net.sock.peer.addr");
-
-/// Remote socket peer port.
-///
-/// # Examples
-///
-/// - `16456`
-pub const NET_SOCK_PEER_PORT: Key = Key::from_static_str("net.sock.peer.port");
-
-/// Protocol [address family](https://man7.org/linux/man-pages/man7/address_families.7.html) which is used for communication.
-///
-/// # Examples
-///
-/// - `inet6`
-/// - `bluetooth`
-pub const NET_SOCK_FAMILY: Key = Key::from_static_str("net.sock.family");
-
-/// Logical remote hostname, see note below.
-///
-/// `net.peer.name` SHOULD NOT be set if capturing it would require an extra DNS lookup.
-///
-/// # Examples
-///
-/// - `example.com`
-pub const NET_PEER_NAME: Key = Key::from_static_str("net.peer.name");
-
-/// Logical remote port number.
-///
-/// # Examples
-///
-/// - `80`
-/// - `8080`
-/// - `443`
-pub const NET_PEER_PORT: Key = Key::from_static_str("net.peer.port");
-
-/// Logical local hostname or similar, see note below.
-///
-/// # Examples
-///
-/// - `localhost`
-pub const NET_HOST_NAME: Key = Key::from_static_str("net.host.name");
-
-/// Logical local port number, preferably the one that the peer used to connect.
-///
-/// # Examples
-///
-/// - `8080`
-pub const NET_HOST_PORT: Key = Key::from_static_str("net.host.port");
-
-/// Local socket address. Useful in case of a multi-IP host.
-///
-/// # Examples
-///
-/// - `192.168.0.1`
-pub const NET_SOCK_HOST_ADDR: Key = Key::from_static_str("net.sock.host.addr");
-
-/// Local socket port number.
-///
-/// # Examples
-///
-/// - `35555`
-pub const NET_SOCK_HOST_PORT: Key = Key::from_static_str("net.sock.host.port");
-
-/// The internet connection type currently being used by the host.
+/// The internet connection type.
 ///
 /// # Examples
 ///
 /// - `wifi`
-pub const NET_HOST_CONNECTION_TYPE: Key = Key::from_static_str("net.host.connection.type");
+pub const NETWORK_CONNECTION_TYPE: Key = Key::from_static_str("network.connection.type");
 
 /// This describes more details regarding the connection.type. It may be the type of cell technology connection, but it could be used for describing details about a wifi connection.
 ///
 /// # Examples
 ///
 /// - `LTE`
-pub const NET_HOST_CONNECTION_SUBTYPE: Key = Key::from_static_str("net.host.connection.subtype");
+pub const NETWORK_CONNECTION_SUBTYPE: Key = Key::from_static_str("network.connection.subtype");
 
 /// The name of the mobile carrier.
 ///
 /// # Examples
 ///
 /// - `sprint`
-pub const NET_HOST_CARRIER_NAME: Key = Key::from_static_str("net.host.carrier.name");
+pub const NETWORK_CARRIER_NAME: Key = Key::from_static_str("network.carrier.name");
 
 /// The mobile carrier country code.
 ///
 /// # Examples
 ///
 /// - `310`
-pub const NET_HOST_CARRIER_MCC: Key = Key::from_static_str("net.host.carrier.mcc");
+pub const NETWORK_CARRIER_MCC: Key = Key::from_static_str("network.carrier.mcc");
 
 /// The mobile carrier network code.
 ///
 /// # Examples
 ///
 /// - `001`
-pub const NET_HOST_CARRIER_MNC: Key = Key::from_static_str("net.host.carrier.mnc");
+pub const NETWORK_CARRIER_MNC: Key = Key::from_static_str("network.carrier.mnc");
 
 /// The ISO 3166-1 alpha-2 2-character country code associated with the mobile carrier network.
 ///
 /// # Examples
 ///
 /// - `DE`
-pub const NET_HOST_CARRIER_ICC: Key = Key::from_static_str("net.host.carrier.icc");
+pub const NETWORK_CARRIER_ICC: Key = Key::from_static_str("network.carrier.icc");
 
-/// The [`service.name`](../../resource/semantic_conventions/README.md#service) of the remote service. SHOULD be equal to the actual `service.name` resource attribute of the remote service if any.
+/// The [`service.name`](/docs/resource/README.md#service) of the remote service. SHOULD be equal to the actual `service.name` resource attribute of the remote service if any.
 ///
 /// # Examples
 ///
@@ -694,28 +967,28 @@ pub const CODE_LINENO: Key = Key::from_static_str("code.lineno");
 /// - `16`
 pub const CODE_COLUMN: Key = Key::from_static_str("code.column");
 
+/// Original HTTP method sent by the client in the request line.
+///
+/// # Examples
+///
+/// - `GeT`
+/// - `ACL`
+/// - `foo`
+pub const HTTP_REQUEST_METHOD_ORIGINAL: Key = Key::from_static_str("http.request.method_original");
+
 /// The size of the request payload body in bytes. This is the number of bytes transferred excluding headers and is often, but not always, present as the [Content-Length](https://www.rfc-editor.org/rfc/rfc9110.html#field.content-length) header. For requests using transport encoding, this should be the compressed size.
 ///
 /// # Examples
 ///
 /// - `3495`
-pub const HTTP_REQUEST_CONTENT_LENGTH: Key = Key::from_static_str("http.request_content_length");
+pub const HTTP_REQUEST_BODY_SIZE: Key = Key::from_static_str("http.request.body.size");
 
 /// The size of the response payload body in bytes. This is the number of bytes transferred excluding headers and is often, but not always, present as the [Content-Length](https://www.rfc-editor.org/rfc/rfc9110.html#field.content-length) header. For requests using transport encoding, this should be the compressed size.
 ///
 /// # Examples
 ///
 /// - `3495`
-pub const HTTP_RESPONSE_CONTENT_LENGTH: Key = Key::from_static_str("http.response_content_length");
-
-/// Full HTTP request URL in the form `scheme://host[:port]/path?query[#fragment]`. Usually the fragment is not transmitted over HTTP, but if it is known, it should be included nevertheless.
-///
-/// `http.url` MUST NOT contain credentials passed via URL in form of `https://username:password@www.example.com/`. In such case the attribute&#39;s value should be `https://www.example.com/`.
-///
-/// # Examples
-///
-/// - `https://www.foo.bar/search?q=OpenTelemetry#SemConv`
-pub const HTTP_URL: Key = Key::from_static_str("http.url");
+pub const HTTP_RESPONSE_BODY_SIZE: Key = Key::from_static_str("http.response.body.size");
 
 /// The ordinal number of request resending attempt (for any reason, including redirects).
 ///
@@ -725,32 +998,6 @@ pub const HTTP_URL: Key = Key::from_static_str("http.url");
 ///
 /// - `3`
 pub const HTTP_RESEND_COUNT: Key = Key::from_static_str("http.resend_count");
-
-/// The full request target as passed in a HTTP request line or equivalent.
-///
-/// # Examples
-///
-/// - `/users/12314/?q=ddds`
-pub const HTTP_TARGET: Key = Key::from_static_str("http.target");
-
-/// The IP address of the original client behind all proxies, if known (e.g. from [X-Forwarded-For](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Forwarded-For)).
-///
-/// This is not necessarily the same as `net.sock.peer.addr`, which would
-/// identify the network-level peer, which may be a proxy.
-///
-/// This attribute should be set when a source of information different
-/// from the one used for `net.sock.peer.addr`, is available even if that other
-/// source just confirms the same value as `net.sock.peer.addr`.
-/// Rationale: For `net.sock.peer.addr`, one typically does not know if it
-/// comes from a proxy, reverse proxy, or the actual client. Setting
-/// `http.client_ip` when it&#39;s the same as `net.sock.peer.addr` means that
-/// one is at least somewhat confident that the address is not that of
-/// the closest proxy.
-///
-/// # Examples
-///
-/// - `83.164.160.102`
-pub const HTTP_CLIENT_IP: Key = Key::from_static_str("http.client_ip");
 
 /// The AWS request ID as returned in the response headers `x-amz-request-id` or `x-amz-requestid`.
 ///
@@ -1097,32 +1344,6 @@ pub const MESSAGING_DESTINATION_TEMPORARY: Key =
 pub const MESSAGING_DESTINATION_ANONYMOUS: Key =
     Key::from_static_str("messaging.destination.anonymous");
 
-/// The message source name.
-///
-/// Source name SHOULD uniquely identify a specific queue, topic, or other entity within the broker. If
-/// the broker does not have such notion, the source name SHOULD uniquely identify the broker.
-///
-/// # Examples
-///
-/// - `MyQueue`
-/// - `MyTopic`
-pub const MESSAGING_SOURCE_NAME: Key = Key::from_static_str("messaging.source.name");
-
-/// Low cardinality representation of the messaging source name.
-///
-/// Source names could be constructed from templates. An example would be a source name involving a user name or product id. Although the source name in this case is of high cardinality, the underlying template is of low cardinality and can be effectively used for grouping and aggregation.
-///
-/// # Examples
-///
-/// - `/customers/{customerId}`
-pub const MESSAGING_SOURCE_TEMPLATE: Key = Key::from_static_str("messaging.source.template");
-
-/// A boolean that is true if the message source is temporary and might not exist anymore after messages are processed.
-pub const MESSAGING_SOURCE_TEMPORARY: Key = Key::from_static_str("messaging.source.temporary");
-
-/// A boolean that is true if the message source is anonymous (could be unnamed or have auto-generated name).
-pub const MESSAGING_SOURCE_ANONYMOUS: Key = Key::from_static_str("messaging.source.anonymous");
-
 /// A string identifying the messaging system.
 ///
 /// # Examples
@@ -1151,12 +1372,13 @@ pub const MESSAGING_OPERATION: Key = Key::from_static_str("messaging.operation")
 pub const MESSAGING_BATCH_MESSAGE_COUNT: Key =
     Key::from_static_str("messaging.batch.message_count");
 
-/// The identifier for the consumer receiving a message. For Kafka, set it to `{messaging.kafka.consumer.group} - {messaging.kafka.client_id}`, if both are present, or only `messaging.kafka.consumer.group`. For brokers, such as RabbitMQ and Artemis, set it to the `client_id` of the client consuming the message.
+/// A unique identifier for the client that consumes or produces a message.
 ///
 /// # Examples
 ///
-/// - `mygroup - client-6`
-pub const MESSAGING_CONSUMER_ID: Key = Key::from_static_str("messaging.consumer.id");
+/// - `client-5`
+/// - `myhost@8742@s8083jm`
+pub const MESSAGING_CLIENT_ID: Key = Key::from_static_str("messaging.client_id");
 
 /// RabbitMQ message routing key.
 ///
@@ -1183,13 +1405,6 @@ pub const MESSAGING_KAFKA_MESSAGE_KEY: Key = Key::from_static_str("messaging.kaf
 pub const MESSAGING_KAFKA_CONSUMER_GROUP: Key =
     Key::from_static_str("messaging.kafka.consumer.group");
 
-/// Client Id for the Consumer or Producer that is handling the message.
-///
-/// # Examples
-///
-/// - `client-5`
-pub const MESSAGING_KAFKA_CLIENT_ID: Key = Key::from_static_str("messaging.kafka.client_id");
-
 /// Partition the message is sent to.
 ///
 /// # Examples
@@ -1197,14 +1412,6 @@ pub const MESSAGING_KAFKA_CLIENT_ID: Key = Key::from_static_str("messaging.kafka
 /// - `2`
 pub const MESSAGING_KAFKA_DESTINATION_PARTITION: Key =
     Key::from_static_str("messaging.kafka.destination.partition");
-
-/// Partition the message is received from.
-///
-/// # Examples
-///
-/// - `2`
-pub const MESSAGING_KAFKA_SOURCE_PARTITION: Key =
-    Key::from_static_str("messaging.kafka.source.partition");
 
 /// The offset of a record in the corresponding Kafka partition.
 ///
@@ -1232,13 +1439,6 @@ pub const MESSAGING_ROCKETMQ_NAMESPACE: Key = Key::from_static_str("messaging.ro
 /// - `myConsumerGroup`
 pub const MESSAGING_ROCKETMQ_CLIENT_GROUP: Key =
     Key::from_static_str("messaging.rocketmq.client_group");
-
-/// The unique identifier for each client.
-///
-/// # Examples
-///
-/// - `myhost@8742@s8083jm`
-pub const MESSAGING_ROCKETMQ_CLIENT_ID: Key = Key::from_static_str("messaging.rocketmq.client_id");
 
 /// The timestamp in milliseconds that the delay message is expected to be delivered to consumer.
 ///
@@ -1382,6 +1582,52 @@ pub const RPC_CONNECT_RPC_ERROR_CODE: Key = Key::from_static_str("rpc.connect_rp
 /// since the event might have been recorded at a time where it was not
 /// clear whether the exception will escape.
 pub const EXCEPTION_ESCAPED: Key = Key::from_static_str("exception.escaped");
+
+/// The [URI scheme](https://www.rfc-editor.org/rfc/rfc3986#section-3.1) component identifying the used protocol.
+///
+/// # Examples
+///
+/// - `https`
+/// - `ftp`
+/// - `telnet`
+pub const URL_SCHEME: Key = Key::from_static_str("url.scheme");
+
+/// Absolute URL describing a network resource according to [RFC3986](https://www.rfc-editor.org/rfc/rfc3986).
+///
+/// For network calls, URL usually has `scheme://host[:port][path][?query][#fragment]` format, where the fragment is not transmitted over HTTP, but if it is known, it should be included nevertheless.
+/// `url.full` MUST NOT contain credentials passed via URL in form of `https://username:password@www.example.com/`. In such case username and password should be redacted and attribute&#39;s value should be `https://REDACTED:REDACTED@www.example.com/`.
+/// `url.full` SHOULD capture the absolute URL when it is available (or can be reconstructed) and SHOULD NOT be validated or modified except for sanitizing purposes.
+///
+/// # Examples
+///
+/// - `https://www.foo.bar/search?q=OpenTelemetry#SemConv`
+/// - `//localhost`
+pub const URL_FULL: Key = Key::from_static_str("url.full");
+
+/// The [URI path](https://www.rfc-editor.org/rfc/rfc3986#section-3.3) component.
+///
+/// When missing, the value is assumed to be `/`
+///
+/// # Examples
+///
+/// - `/search`
+pub const URL_PATH: Key = Key::from_static_str("url.path");
+
+/// The [URI query](https://www.rfc-editor.org/rfc/rfc3986#section-3.4) component.
+///
+/// Sensitive content provided in query string SHOULD be scrubbed when instrumentations can identify it.
+///
+/// # Examples
+///
+/// - `q=OpenTelemetry`
+pub const URL_QUERY: Key = Key::from_static_str("url.query");
+
+/// The [URI fragment](https://www.rfc-editor.org/rfc/rfc3986#section-3.5) component.
+///
+/// # Examples
+///
+/// - `SemConv`
+pub const URL_FRAGMENT: Key = Key::from_static_str("url.fragment");
 
 /// Value of the [HTTP User-Agent](https://www.rfc-editor.org/rfc/rfc9110.html#field.user-agent) header sent by the client.
 ///

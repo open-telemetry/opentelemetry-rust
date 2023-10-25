@@ -3,12 +3,11 @@
 //! [Prometheus]: https://prometheus.io
 //!
 //! ```
-//! use opentelemetry_api::{metrics::MeterProvider as _, Context, KeyValue};
+//! use opentelemetry::{metrics::MeterProvider as _, KeyValue};
 //! use opentelemetry_sdk::metrics::MeterProvider;
 //! use prometheus::{Encoder, TextEncoder};
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
-//! let cx = Context::current();
 //!
 //! // create a new prometheus registry
 //! let registry = prometheus::Registry::new();
@@ -32,8 +31,8 @@
 //!     .with_description("Records values")
 //!     .init();
 //!
-//! counter.add(&cx, 100, &[KeyValue::new("key", "value")]);
-//! histogram.record(&cx, 100, &[KeyValue::new("key", "value")]);
+//! counter.add(100, &[KeyValue::new("key", "value")]);
+//! histogram.record(100, &[KeyValue::new("key", "value")]);
 //!
 //! // Encode data as text or protobuf
 //! let encoder = TextEncoder::new();
@@ -94,16 +93,16 @@
 )]
 #![cfg_attr(test, deny(warnings))]
 
-use once_cell::sync::OnceCell;
-use opentelemetry_api::{
+use once_cell::sync::{Lazy, OnceCell};
+use opentelemetry::{
     global,
-    metrics::{MetricsError, Result, Unit},
-    Context, Key, Value,
+    metrics::{MetricsError, Result},
+    Key, Value,
 };
 use opentelemetry_sdk::{
     metrics::{
         data::{self, ResourceMetrics, Temporality},
-        reader::{AggregationSelector, MetricProducer, MetricReader, TemporalitySelector},
+        reader::{AggregationSelector, MetricReader, TemporalitySelector},
         Aggregation, InstrumentKind, ManualReader, Pipeline,
     },
     Resource, Scope,
@@ -113,6 +112,7 @@ use prometheus::{
     proto::{LabelPair, MetricFamily, MetricType},
 };
 use std::{
+    any::TypeId,
     borrow::Cow,
     collections::{BTreeMap, HashMap},
     sync::{Arc, Mutex},
@@ -127,11 +127,12 @@ const SCOPE_INFO_DESCRIPTION: &str = "Instrumentation Scope metadata";
 
 const SCOPE_INFO_KEYS: [&str; 2] = ["otel_scope_name", "otel_scope_version"];
 
-// prometheus counters MUST have a _total suffix:
-// https://github.com/open-telemetry/opentelemetry-specification/blob/v1.19.0/specification/compatibility/prometheus_and_openmetrics.md?plain=1#L282
+// prometheus counters MUST have a _total suffix by default:
+// https://github.com/open-telemetry/opentelemetry-specification/blob/v1.20.0/specification/compatibility/prometheus_and_openmetrics.md
 const COUNTER_SUFFIX: &str = "_total";
 
 mod config;
+mod utils;
 
 pub use config::ExporterBuilder;
 
@@ -165,16 +166,12 @@ impl MetricReader for PrometheusExporter {
         self.reader.register_pipeline(pipeline)
     }
 
-    fn register_producer(&self, producer: Box<dyn MetricProducer>) {
-        self.reader.register_producer(producer)
-    }
-
     fn collect(&self, rm: &mut ResourceMetrics) -> Result<()> {
         self.reader.collect(rm)
     }
 
-    fn force_flush(&self, cx: &Context) -> Result<()> {
-        self.reader.force_flush(cx)
+    fn force_flush(&self) -> Result<()> {
+        self.reader.force_flush()
     }
 
     fn shutdown(&self) -> Result<()> {
@@ -186,6 +183,7 @@ struct Collector {
     reader: Arc<ManualReader>,
     disable_target_info: bool,
     without_units: bool,
+    without_counter_suffixes: bool,
     disable_scope_info: bool,
     create_target_info_once: OnceCell<MetricFamily>,
     namespace: Option<String>,
@@ -198,16 +196,76 @@ struct CollectorInner {
     metric_families: HashMap<String, MetricFamily>,
 }
 
+// TODO: Remove lazy and switch to pattern matching once `TypeId` is stable in
+// const context: https://github.com/rust-lang/rust/issues/77125
+static HISTOGRAM_TYPES: Lazy<[TypeId; 3]> = Lazy::new(|| {
+    [
+        TypeId::of::<data::Histogram<i64>>(),
+        TypeId::of::<data::Histogram<u64>>(),
+        TypeId::of::<data::Histogram<f64>>(),
+    ]
+});
+static SUM_TYPES: Lazy<[TypeId; 3]> = Lazy::new(|| {
+    [
+        TypeId::of::<data::Sum<i64>>(),
+        TypeId::of::<data::Sum<u64>>(),
+        TypeId::of::<data::Sum<f64>>(),
+    ]
+});
+static GAUGE_TYPES: Lazy<[TypeId; 3]> = Lazy::new(|| {
+    [
+        TypeId::of::<data::Gauge<i64>>(),
+        TypeId::of::<data::Gauge<u64>>(),
+        TypeId::of::<data::Gauge<f64>>(),
+    ]
+});
+
 impl Collector {
+    fn metric_type_and_name(&self, m: &data::Metric) -> Option<(MetricType, Cow<'static, str>)> {
+        let mut name = self.get_name(m);
+
+        let data = m.data.as_any();
+        let type_id = data.type_id();
+
+        if HISTOGRAM_TYPES.contains(&type_id) {
+            Some((MetricType::HISTOGRAM, name))
+        } else if GAUGE_TYPES.contains(&type_id) {
+            Some((MetricType::GAUGE, name))
+        } else if SUM_TYPES.contains(&type_id) {
+            let is_monotonic = if let Some(v) = data.downcast_ref::<data::Sum<i64>>() {
+                v.is_monotonic
+            } else if let Some(v) = data.downcast_ref::<data::Sum<u64>>() {
+                v.is_monotonic
+            } else if let Some(v) = data.downcast_ref::<data::Sum<f64>>() {
+                v.is_monotonic
+            } else {
+                false
+            };
+
+            if is_monotonic {
+                if !self.without_counter_suffixes {
+                    name = format!("{name}{COUNTER_SUFFIX}").into();
+                }
+                Some((MetricType::COUNTER, name))
+            } else {
+                Some((MetricType::GAUGE, name))
+            }
+        } else {
+            None
+        }
+    }
+
     fn get_name(&self, m: &data::Metric) -> Cow<'static, str> {
-        let name = sanitize_name(&m.name);
-        match (
-            &self.namespace,
-            get_unit_suffixes(&m.unit).filter(|_| !self.without_units),
-        ) {
-            (Some(namespace), Some(suffix)) => Cow::Owned(format!("{namespace}{name}{suffix}")),
+        let name = utils::sanitize_name(&m.name);
+        let unit_suffixes = if self.without_units {
+            None
+        } else {
+            utils::get_unit_suffixes(&m.unit)
+        };
+        match (&self.namespace, unit_suffixes) {
+            (Some(namespace), Some(suffix)) => Cow::Owned(format!("{namespace}{name}_{suffix}")),
             (Some(namespace), None) => Cow::Owned(format!("{namespace}{name}")),
-            (None, Some(suffix)) => Cow::Owned(format!("{name}{suffix}")),
+            (None, Some(suffix)) => Cow::Owned(format!("{name}_{suffix}")),
             (None, None) => name,
         }
     }
@@ -272,28 +330,38 @@ impl prometheus::core::Collector for Collector {
             };
 
             for metrics in scope_metrics.metrics {
-                let name = self.get_name(&metrics);
-                let description = metrics.description;
-                let data = metrics.data.as_any();
+                let (metric_type, name) = match self.metric_type_and_name(&metrics) {
+                    Some((metric_type, name)) => (metric_type, name),
+                    _ => continue,
+                };
+
                 let mfs = &mut inner.metric_families;
+                let (drop, help) = validate_metrics(&name, &metrics.description, metric_type, mfs);
+                if drop {
+                    continue;
+                }
+
+                let description = help.unwrap_or_else(|| metrics.description.into());
+                let data = metrics.data.as_any();
+
                 if let Some(hist) = data.downcast_ref::<data::Histogram<i64>>() {
-                    add_histogram_metric(&mut res, hist, description, &scope_labels, name, mfs);
+                    add_histogram_metric(&mut res, hist, description, &scope_labels, name);
                 } else if let Some(hist) = data.downcast_ref::<data::Histogram<u64>>() {
-                    add_histogram_metric(&mut res, hist, description, &scope_labels, name, mfs);
+                    add_histogram_metric(&mut res, hist, description, &scope_labels, name);
                 } else if let Some(hist) = data.downcast_ref::<data::Histogram<f64>>() {
-                    add_histogram_metric(&mut res, hist, description, &scope_labels, name, mfs);
+                    add_histogram_metric(&mut res, hist, description, &scope_labels, name);
                 } else if let Some(sum) = data.downcast_ref::<data::Sum<u64>>() {
-                    add_sum_metric(&mut res, sum, description, &scope_labels, name, mfs);
+                    add_sum_metric(&mut res, sum, description, &scope_labels, name);
                 } else if let Some(sum) = data.downcast_ref::<data::Sum<i64>>() {
-                    add_sum_metric(&mut res, sum, description, &scope_labels, name, mfs);
+                    add_sum_metric(&mut res, sum, description, &scope_labels, name);
                 } else if let Some(sum) = data.downcast_ref::<data::Sum<f64>>() {
-                    add_sum_metric(&mut res, sum, description, &scope_labels, name, mfs);
+                    add_sum_metric(&mut res, sum, description, &scope_labels, name);
                 } else if let Some(g) = data.downcast_ref::<data::Gauge<u64>>() {
-                    add_gauge_metric(&mut res, g, description, &scope_labels, name, mfs);
+                    add_gauge_metric(&mut res, g, description, &scope_labels, name);
                 } else if let Some(g) = data.downcast_ref::<data::Gauge<i64>>() {
-                    add_gauge_metric(&mut res, g, description, &scope_labels, name, mfs);
+                    add_gauge_metric(&mut res, g, description, &scope_labels, name);
                 } else if let Some(g) = data.downcast_ref::<data::Gauge<f64>>() {
-                    add_gauge_metric(&mut res, g, description, &scope_labels, name, mfs);
+                    add_gauge_metric(&mut res, g, description, &scope_labels, name);
                 }
             }
         }
@@ -309,7 +377,7 @@ impl prometheus::core::Collector for Collector {
 fn get_attrs(kvs: &mut dyn Iterator<Item = (&Key, &Value)>, extra: &[LabelPair]) -> Vec<LabelPair> {
     let mut keys_map = BTreeMap::<String, Vec<String>>::new();
     for (key, value) in kvs {
-        let key = sanitize_prom_kv(key.as_str());
+        let key = utils::sanitize_prom_kv(key.as_str());
         keys_map
             .entry(key)
             .and_modify(|v| v.push(value.to_string()))
@@ -364,20 +432,12 @@ fn validate_metrics(
 fn add_histogram_metric<T: Numeric>(
     res: &mut Vec<MetricFamily>,
     histogram: &data::Histogram<T>,
-    mut description: Cow<'static, str>,
+    description: String,
     extra: &[LabelPair],
     name: Cow<'static, str>,
-    mfs: &mut HashMap<String, MetricFamily>,
 ) {
     // Consider supporting exemplars when `prometheus` crate has the feature
     // See: https://github.com/tikv/rust-prometheus/issues/393
-    let (drop, help) = validate_metrics(&name, &description, MetricType::HISTOGRAM, mfs);
-    if drop {
-        return;
-    }
-    if let Some(help) = help {
-        description = help.into();
-    }
 
     for dp in &histogram.data_points {
         let kvs = get_attrs(&mut dp.attributes.iter(), extra);
@@ -405,7 +465,7 @@ fn add_histogram_metric<T: Numeric>(
 
         let mut mf = prometheus::proto::MetricFamily::default();
         mf.set_name(name.to_string());
-        mf.set_help(description.to_string());
+        mf.set_help(description.clone());
         mf.set_field_type(prometheus::proto::MetricType::HISTOGRAM);
         mf.set_metric(protobuf::RepeatedField::from_vec(vec![pm]));
         res.push(mf);
@@ -415,26 +475,15 @@ fn add_histogram_metric<T: Numeric>(
 fn add_sum_metric<T: Numeric>(
     res: &mut Vec<MetricFamily>,
     sum: &data::Sum<T>,
-    mut description: Cow<'static, str>,
+    description: String,
     extra: &[LabelPair],
-    mut name: Cow<'static, str>,
-    mfs: &mut HashMap<String, MetricFamily>,
+    name: Cow<'static, str>,
 ) {
-    let metric_type;
-    if sum.is_monotonic {
-        name = format!("{name}{COUNTER_SUFFIX}").into();
-        metric_type = MetricType::COUNTER;
+    let metric_type = if sum.is_monotonic {
+        MetricType::COUNTER
     } else {
-        metric_type = MetricType::GAUGE;
-    }
-
-    let (drop, help) = validate_metrics(&name, &description, metric_type, mfs);
-    if drop {
-        return;
-    }
-    if let Some(help) = help {
-        description = help.into();
-    }
+        MetricType::GAUGE
+    };
 
     for dp in &sum.data_points {
         let kvs = get_attrs(&mut dp.attributes.iter(), extra);
@@ -454,7 +503,7 @@ fn add_sum_metric<T: Numeric>(
 
         let mut mf = prometheus::proto::MetricFamily::default();
         mf.set_name(name.to_string());
-        mf.set_help(description.to_string());
+        mf.set_help(description.clone());
         mf.set_field_type(metric_type);
         mf.set_metric(protobuf::RepeatedField::from_vec(vec![pm]));
         res.push(mf);
@@ -464,19 +513,10 @@ fn add_sum_metric<T: Numeric>(
 fn add_gauge_metric<T: Numeric>(
     res: &mut Vec<MetricFamily>,
     gauge: &data::Gauge<T>,
-    mut description: Cow<'static, str>,
+    description: String,
     extra: &[LabelPair],
     name: Cow<'static, str>,
-    mfs: &mut HashMap<String, MetricFamily>,
 ) {
-    let (drop, help) = validate_metrics(&name, &description, MetricType::GAUGE, mfs);
-    if drop {
-        return;
-    }
-    if let Some(help) = help {
-        description = help.into();
-    }
-
     for dp in &gauge.data_points {
         let kvs = get_attrs(&mut dp.attributes.iter(), extra);
 
@@ -546,63 +586,6 @@ fn create_scope_info_metric(scope: &Scope) -> MetricFamily {
     mf
 }
 
-fn get_unit_suffixes(unit: &Unit) -> Option<&'static str> {
-    match unit.as_str() {
-        "1" => Some("_ratio"),
-        "By" => Some("_bytes"),
-        "ms" => Some("_milliseconds"),
-        _ => None,
-    }
-}
-
-#[allow(clippy::ptr_arg)]
-fn sanitize_name(s: &Cow<'static, str>) -> Cow<'static, str> {
-    // prefix chars to add in case name starts with number
-    let mut prefix = "";
-
-    // Find first invalid char
-    if let Some((replace_idx, _)) = s.char_indices().find(|(i, c)| {
-        if *i == 0 && c.is_ascii_digit() {
-            // first char is number, add prefix and replace reset of chars
-            prefix = "_";
-            true
-        } else {
-            // keep checking
-            !c.is_alphanumeric() && *c != '_' && *c != ':'
-        }
-    }) {
-        // up to `replace_idx` have been validated, convert the rest
-        let (valid, rest) = s.split_at(replace_idx);
-        Cow::Owned(
-            prefix
-                .chars()
-                .chain(valid.chars())
-                .chain(rest.chars().map(|c| {
-                    if c.is_ascii_alphanumeric() || c == '_' || c == ':' {
-                        c
-                    } else {
-                        '_'
-                    }
-                }))
-                .collect(),
-        )
-    } else {
-        s.clone() // no invalid chars found, return existing
-    }
-}
-
-fn sanitize_prom_kv(s: &str) -> String {
-    s.chars()
-        .map(|c| {
-            if c.is_ascii_alphanumeric() || c == ':' {
-                c
-            } else {
-                '_'
-            }
-        })
-        .collect()
-}
-
 trait Numeric: fmt::Debug {
     // lossy at large values for u64 and i64 but prometheus only handles floats
     fn as_f64(&self) -> f64;
@@ -623,36 +606,5 @@ impl Numeric for i64 {
 impl Numeric for f64 {
     fn as_f64(&self) -> f64 {
         *self
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn name_sanitization() {
-        let tests = vec![
-            ("nam€_with_3_width_rune", "nam__with_3_width_rune"),
-            ("`", "_"),
-            (
-              r##"! "#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWKYZ[]\^_abcdefghijklmnopqrstuvwkyz{|}~"##,
-              "________________0123456789:______ABCDEFGHIJKLMNOPQRSTUVWKYZ_____abcdefghijklmnopqrstuvwkyz____",
-            ),
-
-            ("Avalid_23name", "Avalid_23name"),
-            ("_Avalid_23name", "_Avalid_23name"),
-            ("1valid_23name", "_1valid_23name"),
-            ("avalid_23name", "avalid_23name"),
-            ("Ava:lid_23name", "Ava:lid_23name"),
-            ("a lid_23name", "a_lid_23name"),
-            (":leading_colon", ":leading_colon"),
-            ("colon:in:the:middle", "colon:in:the:middle"),
-            ("", ""),
-          ];
-
-        for (input, want) in tests {
-            assert_eq!(want, sanitize_name(&input.into()), "input: {input}")
-        }
     }
 }

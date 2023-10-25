@@ -8,8 +8,10 @@ use crate::exporter::grpcio::GrpcioExporterBuilder;
 use crate::exporter::http::HttpExporterBuilder;
 #[cfg(feature = "grpc-tonic")]
 use crate::exporter::tonic::TonicExporterBuilder;
-use crate::Protocol;
-use std::collections::HashMap;
+use crate::{Error, Protocol};
+#[cfg(feature = "serialize")]
+use serde::{Deserialize, Serialize};
+use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 use std::time::Duration;
 
@@ -19,8 +21,14 @@ use std::time::Duration;
 pub const OTEL_EXPORTER_OTLP_ENDPOINT: &str = "OTEL_EXPORTER_OTLP_ENDPOINT";
 /// Default target to which the exporter is going to send signals.
 pub const OTEL_EXPORTER_OTLP_ENDPOINT_DEFAULT: &str = OTEL_EXPORTER_OTLP_HTTP_ENDPOINT_DEFAULT;
+/// Key-value pairs to be used as headers associated with gRPC or HTTP requests
+/// Example: `k1=v1,k2=v2`
+/// Note: as of now, this is only supported for HTTP requests.
+pub const OTEL_EXPORTER_OTLP_HEADERS: &str = "OTEL_EXPORTER_OTLP_HEADERS";
 /// Protocol the exporter will use. Either `http/protobuf` or `grpc`.
 pub const OTEL_EXPORTER_OTLP_PROTOCOL: &str = "OTEL_EXPORTER_OTLP_PROTOCOL";
+/// Compression algorithm to use, defaults to none.
+pub const OTEL_EXPORTER_OTLP_COMPRESSION: &str = "OTEL_EXPORTER_OTLP_COMPRESSION";
 
 #[cfg(feature = "http-proto")]
 /// Default protocol, using http-proto.
@@ -79,6 +87,33 @@ impl Default for ExportConfig {
     }
 }
 
+/// The compression algorithm to use when sending data.
+#[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum Compression {
+    /// Compresses data using gzip.
+    Gzip,
+}
+
+impl Display for Compression {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Compression::Gzip => write!(f, "gzip"),
+        }
+    }
+}
+
+impl FromStr for Compression {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "gzip" => Ok(Compression::Gzip),
+            _ => Err(Error::UnsupportedCompressionAlgorithm(s.to_string())),
+        }
+    }
+}
+
 /// default protocol based on enabled features
 fn default_protocol() -> Protocol {
     match OTEL_EXPORTER_OTLP_PROTOCOL_DEFAULT {
@@ -97,8 +132,9 @@ fn default_endpoint(protocol: Protocol) -> String {
 }
 
 /// default user-agent headers
-fn default_headers() -> HashMap<String, String> {
-    let mut headers = HashMap::new();
+#[cfg(any(feature = "grpc-tonic", feature = "grpc-sys", feature = "http-proto"))]
+fn default_headers() -> std::collections::HashMap<String, String> {
+    let mut headers = std::collections::HashMap::new();
     headers.insert(
         "User-Agent".to_string(),
         format!("OTel OTLP Exporter Rust/{}", env!("CARGO_PKG_VERSION")),
@@ -138,11 +174,14 @@ impl HasExportConfig for HttpExporterBuilder {
 /// This trait will be implemented for every struct that implemented [`HasExportConfig`] trait.
 ///
 /// ## Examples
-/// ```no_run
+/// ```
+/// # #[cfg(all(feature = "trace", feature = "grpc-tonic"))]
+/// # {
 /// use crate::opentelemetry_otlp::WithExportConfig;
 /// let exporter_builder = opentelemetry_otlp::new_exporter()
-///                         .tonic()
-///                         .with_endpoint("http://localhost:7201");
+///     .tonic()
+///     .with_endpoint("http://localhost:7201");
+/// # }
 /// ```
 pub trait WithExportConfig {
     /// Set the address of the OTLP collector. If not set, the default address is used.
@@ -151,13 +190,12 @@ pub trait WithExportConfig {
     ///
     /// Note that protocols that are not supported by exporters will be ignore. The exporter
     /// will use default protocol in this case.
+    ///
+    /// ## Note
+    /// All exporters in this crate are only support one protocol thus choosing the protocol is an no-op at the moment
     fn with_protocol(self, protocol: Protocol) -> Self;
     /// Set the timeout to the collector.
     fn with_timeout(self, timeout: Duration) -> Self;
-    /// Set the trace provider configuration from the given environment variables.
-    ///
-    /// If the value in environment variables is illegal, will fall back to use default value.
-    fn with_env(self) -> Self;
     /// Set export config. This will override all previous configuration.
     fn with_export_config(self, export_config: ExportConfig) -> Self;
 }
@@ -178,171 +216,10 @@ impl<B: HasExportConfig> WithExportConfig for B {
         self
     }
 
-    fn with_env(mut self) -> Self {
-        let protocol = match std::env::var(OTEL_EXPORTER_OTLP_PROTOCOL)
-            .unwrap_or_else(|_| OTEL_EXPORTER_OTLP_PROTOCOL_DEFAULT.to_string())
-            .as_str()
-        {
-            OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_PROTOBUF => Protocol::HttpBinary,
-            OTEL_EXPORTER_OTLP_PROTOCOL_GRPC => Protocol::Grpc,
-            _ => default_protocol(),
-        };
-
-        self.export_config().protocol = protocol;
-
-        let endpoint = match std::env::var(OTEL_EXPORTER_OTLP_ENDPOINT) {
-            Ok(val) => val,
-            Err(_) => default_endpoint(protocol),
-        };
-        self.export_config().endpoint = endpoint;
-
-        let timeout = match std::env::var(OTEL_EXPORTER_OTLP_TIMEOUT) {
-            Ok(val) => u64::from_str(&val).unwrap_or(OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT),
-            Err(_) => OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT,
-        };
-        self.export_config().timeout = Duration::from_secs(timeout);
-        self
-    }
-
     fn with_export_config(mut self, exporter_config: ExportConfig) -> Self {
         self.export_config().endpoint = exporter_config.endpoint;
         self.export_config().protocol = exporter_config.protocol;
         self.export_config().timeout = exporter_config.timeout;
         self
-    }
-}
-
-#[cfg(test)]
-#[cfg(feature = "grpc-tonic")]
-mod tests {
-    // If an env test fails then the mutex will be poisoned and the following error will be displayed.
-    const LOCK_POISONED_MESSAGE: &str = "one of the other pipeline builder from env tests failed";
-    use crate::exporter::{
-        default_endpoint, default_protocol, WithExportConfig, OTEL_EXPORTER_OTLP_ENDPOINT,
-        OTEL_EXPORTER_OTLP_GRPC_ENDPOINT_DEFAULT, OTEL_EXPORTER_OTLP_HTTP_ENDPOINT_DEFAULT,
-        OTEL_EXPORTER_OTLP_PROTOCOL_GRPC, OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_PROTOBUF,
-        OTEL_EXPORTER_OTLP_TIMEOUT, OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT,
-    };
-    use crate::{new_exporter, Protocol, OTEL_EXPORTER_OTLP_PROTOCOL};
-    use std::sync::Mutex;
-
-    // Make sure env tests are not running concurrently
-    static ENV_LOCK: Mutex<usize> = Mutex::new(0);
-
-    #[test]
-    fn test_pipeline_builder_from_env_default_vars() {
-        let _env_lock = ENV_LOCK.lock().expect(LOCK_POISONED_MESSAGE);
-        let exporter_builder = new_exporter().tonic().with_env();
-        assert_eq!(
-            exporter_builder.exporter_config.protocol,
-            default_protocol()
-        );
-        assert_eq!(
-            exporter_builder.exporter_config.endpoint,
-            default_endpoint(default_protocol())
-        );
-        assert_eq!(
-            exporter_builder.exporter_config.timeout,
-            std::time::Duration::from_secs(OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT)
-        );
-    }
-
-    #[test]
-    fn test_pipeline_builder_from_env_endpoint() {
-        let _env_lock = ENV_LOCK.lock().expect(LOCK_POISONED_MESSAGE);
-        std::env::set_var(OTEL_EXPORTER_OTLP_ENDPOINT, "http://example.com");
-        let exporter_builder = new_exporter().tonic().with_env();
-        assert_eq!(
-            exporter_builder.exporter_config.endpoint,
-            "http://example.com"
-        );
-        std::env::remove_var(OTEL_EXPORTER_OTLP_ENDPOINT);
-        assert!(std::env::var(OTEL_EXPORTER_OTLP_ENDPOINT).is_err());
-    }
-
-    #[test]
-    fn test_pipeline_builder_from_env_protocol_http_protobuf() {
-        let _env_lock = ENV_LOCK.lock().expect(LOCK_POISONED_MESSAGE);
-        std::env::set_var(
-            OTEL_EXPORTER_OTLP_PROTOCOL,
-            OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_PROTOBUF,
-        );
-        let exporter_builder = new_exporter().tonic().with_env();
-        assert_eq!(
-            exporter_builder.exporter_config.protocol,
-            Protocol::HttpBinary
-        );
-        assert_eq!(
-            exporter_builder.exporter_config.endpoint,
-            OTEL_EXPORTER_OTLP_HTTP_ENDPOINT_DEFAULT
-        );
-
-        std::env::remove_var(OTEL_EXPORTER_OTLP_PROTOCOL);
-        assert!(std::env::var(OTEL_EXPORTER_OTLP_PROTOCOL).is_err());
-    }
-
-    #[test]
-    fn test_pipeline_builder_from_env_protocol_grpc() {
-        let _env_lock = ENV_LOCK.lock().expect(LOCK_POISONED_MESSAGE);
-        std::env::set_var(
-            OTEL_EXPORTER_OTLP_PROTOCOL,
-            OTEL_EXPORTER_OTLP_PROTOCOL_GRPC,
-        );
-        let exporter_builder = new_exporter().tonic().with_env();
-        assert_eq!(exporter_builder.exporter_config.protocol, Protocol::Grpc);
-        assert_eq!(
-            exporter_builder.exporter_config.endpoint,
-            OTEL_EXPORTER_OTLP_GRPC_ENDPOINT_DEFAULT
-        );
-
-        std::env::remove_var(OTEL_EXPORTER_OTLP_PROTOCOL);
-        assert!(std::env::var(OTEL_EXPORTER_OTLP_PROTOCOL).is_err());
-    }
-
-    #[test]
-    fn test_pipeline_builder_from_env_bad_protocol() {
-        let _env_lock = ENV_LOCK.lock().expect(LOCK_POISONED_MESSAGE);
-        std::env::set_var(OTEL_EXPORTER_OTLP_PROTOCOL, "bad_protocol");
-        let exporter_builder = new_exporter().tonic().with_env();
-        assert_eq!(
-            exporter_builder.exporter_config.protocol,
-            default_protocol()
-        );
-        assert_eq!(
-            exporter_builder.exporter_config.endpoint,
-            default_endpoint(default_protocol())
-        );
-
-        std::env::remove_var(OTEL_EXPORTER_OTLP_PROTOCOL);
-        assert!(std::env::var(OTEL_EXPORTER_OTLP_PROTOCOL).is_err());
-    }
-
-    #[test]
-    fn test_pipeline_builder_from_env_timeout() {
-        let _env_lock = ENV_LOCK.lock().expect(LOCK_POISONED_MESSAGE);
-        std::env::set_var(OTEL_EXPORTER_OTLP_TIMEOUT, "60");
-        let exporter_builder = new_exporter().tonic().with_env();
-        assert_eq!(
-            exporter_builder.exporter_config.timeout,
-            std::time::Duration::from_secs(60)
-        );
-
-        std::env::remove_var(OTEL_EXPORTER_OTLP_TIMEOUT);
-        assert!(std::env::var(OTEL_EXPORTER_OTLP_TIMEOUT).is_err());
-    }
-
-    #[test]
-    fn test_pipeline_builder_from_env_bad_timeout() {
-        let _env_lock = ENV_LOCK.lock().expect(LOCK_POISONED_MESSAGE);
-        std::env::set_var(OTEL_EXPORTER_OTLP_TIMEOUT, "bad_timeout");
-
-        let exporter_builder = new_exporter().tonic().with_env();
-        assert_eq!(
-            exporter_builder.exporter_config.timeout,
-            std::time::Duration::from_secs(OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT)
-        );
-
-        std::env::remove_var(OTEL_EXPORTER_OTLP_TIMEOUT);
-        assert!(std::env::var(OTEL_EXPORTER_OTLP_TIMEOUT).is_err());
     }
 }

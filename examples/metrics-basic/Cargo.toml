@@ -1,0 +1,13 @@
+[package]
+name = "metrics-basic"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+publish = false
+
+[dependencies]
+opentelemetry = { path = "../../opentelemetry", features = ["metrics"] }
+opentelemetry_sdk = { path = "../../opentelemetry-sdk", features = ["metrics", "rt-tokio"] }
+opentelemetry-stdout = { path = "../../opentelemetry-stdout", features = ["metrics"]}
+tokio = { version = "1.0", features = ["full"] }
+serde_json = {version = "1.0"}

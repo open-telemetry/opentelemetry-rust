@@ -1,10 +1,9 @@
-use opentelemetry_api::{
+use super::instrument::{Instrument, Stream};
+use glob::Pattern;
+use opentelemetry::{
     global,
     metrics::{MetricsError, Result},
 };
-use regex::Regex;
-
-use super::instrument::{Instrument, Stream};
 
 fn empty_view(_inst: &Instrument) -> Option<Stream> {
     None
@@ -86,9 +85,9 @@ impl View for Box<dyn View> {
 /// The [Stream] mask only applies updates for non-empty fields. By default, the
 /// [Instrument] the [View] matches against will be use for the name,
 /// description, and unit of the returned [Stream] and no `aggregation` or
-/// `attribute_filter` are set. All non-empty fields of mask are used instead of
-/// the default. If you need to set a an empty value in the returned stream,
-/// create a custom [View] directly.
+/// `allowed_attribute_keys` are set. All non-empty fields of mask are used
+/// instead of the default. If you need to set a an empty value in the returned
+/// stream, create a custom [View] directly.
 ///
 /// # Example
 ///
@@ -103,6 +102,9 @@ impl View for Box<dyn View> {
 /// ```
 pub fn new_view(criteria: Instrument, mask: Stream) -> Result<Box<dyn View>> {
     if criteria.is_empty() {
+        global::handle_error(MetricsError::Config(format!(
+            "no criteria provided, dropping view. mask: {mask:?}"
+        )));
         return Ok(Box::new(empty_view));
     }
     let contains_wildcard = criteria.name.contains(|c| c == '*' || c == '?');
@@ -116,16 +118,12 @@ pub fn new_view(criteria: Instrument, mask: Stream) -> Result<Box<dyn View>> {
             return Ok(Box::new(empty_view));
         }
 
-        let pattern = criteria
-            .name
-            .trim_start_matches('^')
-            .trim_end_matches('$')
-            .replace('?', ".")
-            .replace('*', ".*");
-        let re =
-            Regex::new(&format!("^{pattern}$")).map_err(|e| MetricsError::Config(e.to_string()))?;
+        let pattern = criteria.name.clone();
+        let glob_pattern =
+            Pattern::new(&pattern).map_err(|e| MetricsError::Config(e.to_string()))?;
+
         Box::new(move |i| {
-            re.is_match(&i.name)
+            glob_pattern.matches(&i.name)
                 && criteria.matches_description(i)
                 && criteria.matches_kind(i)
                 && criteria.matches_unit(i)
@@ -167,10 +165,91 @@ pub fn new_view(criteria: Instrument, mask: Stream) -> Result<Box<dyn View>> {
                     i.unit.clone()
                 },
                 aggregation: agg.clone(),
-                attribute_filter: mask.attribute_filter.clone(),
+                allowed_attribute_keys: mask.allowed_attribute_keys.clone(),
             })
         } else {
             None
         }
     }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::metrics::Instrument;
+    #[test]
+    fn test_new_view_matching_all() {
+        let criteria = Instrument::new().name("*");
+        let mask = Stream::new();
+
+        let view = new_view(criteria, mask).expect("Expected to create a new view");
+
+        let test_instrument = Instrument::new().name("test_instrument");
+        assert!(
+            view.match_inst(&test_instrument).is_some(),
+            "Expected to match all instruments with * pattern"
+        );
+    }
+
+    #[test]
+    fn test_new_view_exact_match() {
+        let criteria = Instrument::new().name("counter_exact_match");
+        let mask = Stream::new();
+
+        let view = new_view(criteria, mask).expect("Expected to create a new view");
+
+        let matching_instrument = Instrument::new().name("counter_exact_match");
+        assert!(
+            view.match_inst(&matching_instrument).is_some(),
+            "Expected to match instrument with exact name"
+        );
+
+        let non_matching_instrument = Instrument::new().name("counter_non_exact_match");
+        assert!(
+            view.match_inst(&non_matching_instrument).is_none(),
+            "Expected not to match instrument with different name"
+        );
+    }
+
+    #[test]
+    fn test_new_view_with_wildcard_pattern() {
+        let criteria = Instrument::new().name("prefix_*");
+        let mask = Stream::new();
+
+        let view = new_view(criteria, mask).expect("Expected to create a new view");
+
+        let matching_instrument = Instrument::new().name("prefix_counter");
+        assert!(
+            view.match_inst(&matching_instrument).is_some(),
+            "Expected to match instrument with matching prefix"
+        );
+
+        let non_matching_instrument = Instrument::new().name("nonprefix_counter");
+        assert!(
+            view.match_inst(&non_matching_instrument).is_none(),
+            "Expected not to match instrument with different prefix"
+        );
+    }
+
+    #[test]
+    fn test_new_view_wildcard_question_mark() {
+        let criteria = Instrument::new().name("test_?");
+        let mask = Stream::new();
+
+        let view = new_view(criteria, mask).expect("Expected to create a new view");
+
+        // Instrument name that should match the pattern "test_?".
+        let matching_instrument = Instrument::new().name("test_1");
+        assert!(
+            view.match_inst(&matching_instrument).is_some(),
+            "Expected to match instrument with test_? pattern"
+        );
+
+        // Instrument name that should not match the pattern "test_?".
+        let non_matching_instrument = Instrument::new().name("test_12");
+        assert!(
+            view.match_inst(&non_matching_instrument).is_none(),
+            "Expected not to match instrument with test_? pattern"
+        );
+    }
 }

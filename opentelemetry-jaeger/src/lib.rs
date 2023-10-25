@@ -6,7 +6,7 @@
 //! supports accepting data in the OTLP protocol.
 //! See the [Jaeger Docs] for details about Jaeger and deployment information.
 //!
-//! *Compiler support: [requires `rustc` 1.60+][msrv]*
+//! *Compiler support: [requires `rustc` 1.64+][msrv]*
 //!
 //! [Jaeger Docs]: https://www.jaegertracing.io/docs/
 //! [jaeger-deprecation]: https://github.com/open-telemetry/opentelemetry-specification/pull/2858/files
@@ -28,11 +28,10 @@
 //! exporting telemetry:
 //!
 //! ```no_run
-//! use opentelemetry::trace::Tracer;
-//! use opentelemetry::global;
+//! use opentelemetry::{global, trace::{Tracer, TraceError}};
 //!
 //! #[tokio::main]
-//! async fn main() -> Result<(), opentelemetry::trace::TraceError> {
+//! async fn main() -> Result<(), TraceError> {
 //!     global::set_text_map_propagator(opentelemetry_jaeger::Propagator::new());
 //!     let tracer = opentelemetry_jaeger::new_agent_pipeline().install_simple()?;
 //!
@@ -48,11 +47,10 @@
 //!
 //! Or if you are running on an async runtime like Tokio and want to report spans in batches
 //! ```no_run
-//! use opentelemetry::trace::Tracer;
-//! use opentelemetry::global;
-//! use opentelemetry::runtime::Tokio;
+//! use opentelemetry::{global, trace::{Tracer, TraceError}};
+//! use opentelemetry_sdk::runtime::Tokio;
 //!
-//! fn main() -> Result<(), opentelemetry::trace::TraceError> {
+//! fn main() -> Result<(), TraceError> {
 //!     global::set_text_map_propagator(opentelemetry_jaeger::Propagator::new());
 //!     let tracer = opentelemetry_jaeger::new_agent_pipeline().install_batch(Tokio)?;
 //!
@@ -75,14 +73,14 @@
 //!
 //! ```toml
 //! [dependencies]
-//! opentelemetry = { version = "*", features = ["rt-tokio"] }
+//! opentelemetry_sdk = { version = "*", features = ["rt-tokio"] }
 //! opentelemetry-jaeger = { version = "*", features = ["rt-tokio"] }
 //! ```
 //!
 //! ```no_run
 //! # fn main() -> Result<(), opentelemetry::trace::TraceError> {
 //! let tracer = opentelemetry_jaeger::new_agent_pipeline()
-//!     .install_batch(opentelemetry::runtime::Tokio)?;
+//!     .install_batch(opentelemetry_sdk::runtime::Tokio)?;
 //! # Ok(())
 //! # }
 //! ```
@@ -96,7 +94,7 @@
 //! variables. All variables are optional, a full list of accepted options can
 //! be found in the [jaeger variables spec].
 //!
-//! [jaeger variables spec]: https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/sdk-environment-variables.md#jaeger-exporter
+//! [jaeger variables spec]: https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/configuration/sdk-environment-variables.md
 //!
 //! ## Jaeger Collector Example
 //!
@@ -127,7 +125,7 @@
 //!         .with_password("s3cr3t")
 //!         .with_isahc()
 //!         //.with_http_client(<your client>) provide custom http client implementation
-//!         .install_batch(opentelemetry::runtime::Tokio)?;
+//!         .install_batch(opentelemetry_sdk::runtime::Tokio)?;
 //!
 //!     tracer.in_span("doing_work", |cx| {
 //!         // Traced app logic here...
@@ -174,7 +172,8 @@
 //!
 //! ### Export to agents
 //! ```no_run
-//! use opentelemetry::{sdk::{trace::{self, RandomIdGenerator, Sampler}, Resource}, global, KeyValue, trace::{Tracer, TraceError}};
+//! use opentelemetry::{global, KeyValue, trace::{Tracer, TraceError}};
+//! use opentelemetry_sdk::{trace::{config, RandomIdGenerator, Sampler}, Resource};
 //!
 //! fn main() -> Result<(), TraceError> {
 //!     global::set_text_map_propagator(opentelemetry_jaeger::Propagator::new());
@@ -185,7 +184,7 @@
 //!         .with_auto_split_batch(true)
 //!         .with_instrumentation_library_tags(false)
 //!         .with_trace_config(
-//!             trace::config()
+//!             config()
 //!                 .with_sampler(Sampler::AlwaysOn)
 //!                 .with_id_generator(RandomIdGenerator::default())
 //!                 .with_max_events_per_span(64)
@@ -194,7 +193,7 @@
 //!                 .with_resource(Resource::new(vec![KeyValue::new("key", "value"),
 //!                           KeyValue::new("process_key", "process_value")])),
 //!         )
-//!         .install_batch(opentelemetry::runtime::Tokio)?;
+//!         .install_batch(opentelemetry_sdk::runtime::Tokio)?;
 //!
 //!     tracer.in_span("doing_work", |cx| {
 //!         // Traced app logic here...
@@ -210,7 +209,8 @@
 //! ### Export to collectors
 //! Note that this example requires `collecotr_client` and `isahc_collector_client` feature.
 //! ```ignore
-//! use opentelemetry::{sdk::{trace::{self, RandomIdGenerator, Sampler}, Resource}, global, KeyValue, trace::{Tracer, TraceError}};
+//! use opentelemetry::{global, KeyValue, trace::{Tracer, TraceError}};
+//! use opentelemetry_sdk::{trace::{config, RandomIdGenerator, Sampler}, Resource};
 //!
 //! fn main() -> Result<(), TraceError> {
 //!     global::set_text_map_propagator(opentelemetry_jaeger::Propagator::new());
@@ -218,7 +218,7 @@
 //!         .with_endpoint("http://localhost:14250/api/trace") // set collector endpoint
 //!         .with_service_name("my_app") // the name of the application
 //!         .with_trace_config(
-//!             trace::config()
+//!             config()
 //!                 .with_sampler(Sampler::AlwaysOn)
 //!                 .with_id_generator(RandomIdGenerator::default())
 //!                 .with_max_events_per_span(64)
@@ -234,7 +234,7 @@
 //!         .with_username("username")
 //!         .with_password("s3cr3t")
 //!         .with_timeout(std::time::Duration::from_secs(2))
-//!         .install_batch(opentelemetry::runtime::Tokio)?;
+//!         .install_batch(opentelemetry_sdk::runtime::Tokio)?;
 //!
 //!     tracer.in_span("doing_work", |cx| {
 //!         // Traced app logic here...
@@ -285,13 +285,13 @@
 //! # Supported Rust Versions
 //!
 //! OpenTelemetry is built against the latest stable release. The minimum
-//! supported version is 1.60. The current OpenTelemetry version is not
+//! supported version is 1.64. The current OpenTelemetry version is not
 //! guaranteed to build on Rust versions earlier than the minimum supported
 //! version.
 //!
 //! The current stable Rust compiler and the three most recent minor versions
 //! before it will always be supported. For example, if the current stable
-//! compiler version is 1.60, the minimum supported version will not be
+//! compiler version is 1.64, the minimum supported version will not be
 //! increased past 1.46, three minor versions prior. Increasing the minimum
 //! supported compiler version is not considered a semver breaking change as
 //! long as doing so complies with this policy.
@@ -484,11 +484,17 @@ mod propagator {
 
         /// Extract span id from the header.
         fn extract_span_id(&self, span_id: &str) -> Result<SpanId, ()> {
-            if span_id.len() != 16 {
-                return Err(());
+            match span_id.len() {
+                // exact 16
+                16 => SpanId::from_hex(span_id).map_err(|_| ()),
+                // more than 16 is invalid
+                17.. => Err(()),
+                // less than 16 will result padding on left
+                _ => {
+                    let padded = format!("{span_id:0>16}");
+                    SpanId::from_hex(&padded).map_err(|_| ())
+                }
             }
-
-            SpanId::from_hex(span_id).map_err(|_| ())
         }
 
         /// Extract flag from the header
@@ -553,7 +559,7 @@ mod propagator {
                     0x00
                 };
                 let header_value = format!(
-                    "{:032x}:{:016x}:{:01}:{:01x}",
+                    "{}:{}:{:01}:{:01x}",
                     span_context.trace_id(),
                     span_context.span_id(),
                     DEPRECATED_PARENT_SPAN,
@@ -589,6 +595,7 @@ mod propagator {
         const SHORT_TRACE_ID_STR: &str = "4d0000000000000016";
         const TRACE_ID: u128 = 0x0000_0000_0000_004d_0000_0000_0000_0016;
         const SPAN_ID_STR: &str = "0000000000017c29";
+        const SHORT_SPAN_ID_STR: &str = "17c29";
         const SPAN_ID: u64 = 0x0000_0000_0001_7c29;
 
         fn get_extract_data() -> Vec<(&'static str, &'static str, u8, SpanContext)> {
@@ -608,6 +615,18 @@ mod propagator {
                 (
                     SHORT_TRACE_ID_STR,
                     SPAN_ID_STR,
+                    1,
+                    SpanContext::new(
+                        TraceId::from_u128(TRACE_ID),
+                        SpanId::from_u64(SPAN_ID),
+                        TraceFlags::SAMPLED,
+                        true,
+                        TraceState::default(),
+                    ),
+                ),
+                (
+                    SHORT_TRACE_ID_STR,
+                    SHORT_SPAN_ID_STR,
                     1,
                     SpanContext::new(
                         TraceId::from_u128(TRACE_ID),

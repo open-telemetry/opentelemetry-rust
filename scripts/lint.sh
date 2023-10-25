@@ -14,7 +14,7 @@ if rustup component add clippy; then
     `# Exit with a nonzero code if there are clippy warnings` \
     -Dwarnings
 
-  cargo_feature opentelemetry "trace,rt-tokio,rt-tokio-current-thread,rt-async-std,testing"
+  cargo_feature opentelemetry "trace,metrics,logs,logs_level_enabled,testing"
 
   cargo_feature opentelemetry-otlp "default"
   cargo_feature opentelemetry-otlp "default,tls"
@@ -50,14 +50,15 @@ if rustup component add clippy; then
 
   cargo_feature opentelemetry-proto "default"
   cargo_feature opentelemetry-proto "full"
-  cargo_feature opentelemetry-proto "gen-tonic,traces"
-  cargo_feature opentelemetry-proto "gen-tonic,traces,with-serde"
-  cargo_feature opentelemetry-proto "gen-tonic,traces"
+  cargo_feature opentelemetry-proto "gen-tonic,trace"
+  cargo_feature opentelemetry-proto "gen-tonic,trace,with-serde"
   cargo_feature opentelemetry-proto "gen-tonic,metrics"
-  cargo_feature opentelemetry-proto "gen-protoc,traces"
-  cargo_feature opentelemetry-proto "gen-protoc,traces,with-serde"
-  cargo_feature opentelemetry-proto "gen-protoc,zpages"
-  cargo_feature opentelemetry-proto "gen-protoc,zpages,with-serde"
-  cargo_feature opentelemetry-proto "gen-tonic, logs"
+  cargo_feature opentelemetry-proto "gen-tonic,logs"
+  cargo_feature opentelemetry-proto "gen-grpcio,trace"
+  cargo_feature opentelemetry-proto "gen-grpcio,trace,with-serde"
+  cargo_feature opentelemetry-proto "gen-grpcio,metrics"
+  cargo_feature opentelemetry-proto "gen-grpcio,logs"
+  cargo_feature opentelemetry-proto "gen-grpcio,zpages"
+  cargo_feature opentelemetry-proto "gen-grpcio,zpages,with-serde"
 
 fi

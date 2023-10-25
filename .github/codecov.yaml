@@ -12,9 +12,19 @@ coverage:
         threshold: 0.5%
 
 ignore:
-  - "examples"
   - "opentelemetry/src/testing" # test harnesses
   - "opentelemetry-jaeger/src/testing" # test harness
   - "opentelemetry-jaeger/src/exporter/thrift" # auto generated files
   - "opentelemetry-otlp/src/proto" # auto generated files
   - "opentelemetry-proto/src/proto" # auto generated files
+  # examples below
+  - "examples"
+  - "opentelemetry-jaeger/examples"
+  - "opentelemetry-zipkin/examples"
+  - "opentelemetry-otlp/examples"
+  - "opentelemetry-aws/examples"
+  - "opentelemetry-datadog/examples"
+  - "opentelemetry-dynatrace/examples"
+  - "opentelemetry-http/examples"
+  - "opentelemetry-prometheus/examples"
+  - "opentelemetry-zpages/examples"

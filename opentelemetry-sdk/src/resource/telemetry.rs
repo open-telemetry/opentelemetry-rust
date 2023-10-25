@@ -1,6 +1,6 @@
 use crate::resource::ResourceDetector;
 use crate::Resource;
-use opentelemetry_api::KeyValue;
+use opentelemetry::KeyValue;
 use std::time::Duration;
 
 /// Detect the telemetry SDK information used to capture data recorded by the instrumentation libraries.

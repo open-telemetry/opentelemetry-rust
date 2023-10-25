@@ -9,13 +9,11 @@
 //! ### Example
 //!
 //! ```
-//! use opentelemetry_api::{
+//! use opentelemetry::{
 //!     metrics::{MeterProvider as _, Unit},
-//!     Context, KeyValue,
+//!     KeyValue,
 //! };
 //! use opentelemetry_sdk::{metrics::MeterProvider, Resource};
-//!
-//! let cx = Context::current();
 //!
 //! // Generate SDK configuration, resource, views, etc
 //! let resource = Resource::default(); // default attributes about the current process
@@ -33,7 +31,7 @@
 //!     .init();
 //!
 //! // use instruments to record measurements
-//! counter.add(&cx, 10, &[KeyValue::new("rate", "standard")]);
+//! counter.add(10, &[KeyValue::new("rate", "standard")]);
 //! ```
 //!
 //! [Resource]: crate::Resource

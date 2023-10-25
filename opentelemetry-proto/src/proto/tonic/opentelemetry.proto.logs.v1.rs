@@ -8,6 +8,7 @@
 ///
 /// When new fields are added into this message, the OTLP request MUST be updated
 /// as well.
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct LogsData {
@@ -20,6 +21,7 @@ pub struct LogsData {
     pub resource_logs: ::prost::alloc::vec::Vec<ResourceLogs>,
 }
 /// A collection of ScopeLogs from a Resource.
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ResourceLogs {
@@ -36,6 +38,7 @@ pub struct ResourceLogs {
     pub schema_url: ::prost::alloc::string::String,
 }
 /// A collection of Logs produced by a Scope.
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ScopeLogs {
@@ -53,6 +56,7 @@ pub struct ScopeLogs {
 }
 /// A log record according to OpenTelemetry Log Data Model:
 /// <https://github.com/open-telemetry/oteps/blob/main/text/logs/0097-log-data-model.md>
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct LogRecord {
@@ -102,23 +106,39 @@ pub struct LogRecord {
     /// defined in W3C Trace Context specification. 24 most significant bits are reserved
     /// and must be set to 0. Readers must not assume that 24 most significant bits
     /// will be zero and must correctly mask the bits when reading 8-bit trace flag (use
-    /// flags & TRACE_FLAGS_MASK). \[Optional\].
+    /// flags & LOG_RECORD_FLAGS_TRACE_FLAGS_MASK). \[Optional\].
     #[prost(fixed32, tag = "8")]
     pub flags: u32,
     /// A unique identifier for a trace. All logs from the same trace share
-    /// the same `trace_id`. The ID is a 16-byte array. An ID with all zeroes
-    /// is considered invalid. Can be set for logs that are part of request processing
-    /// and have an assigned trace id. \[Optional\].
+    /// the same `trace_id`. The ID is a 16-byte array. An ID with all zeroes OR
+    /// of length other than 16 bytes is considered invalid (empty string in OTLP/JSON
+    /// is zero-length and thus is also invalid).
+    ///
+    /// This field is optional.
+    ///
+    /// The receivers SHOULD assume that the log record is not associated with a
+    /// trace if any of the following is true:
+    ///    - the field is not present,
+    ///    - the field contains an invalid value.
     #[prost(bytes = "vec", tag = "9")]
     pub trace_id: ::prost::alloc::vec::Vec<u8>,
     /// A unique identifier for a span within a trace, assigned when the span
-    /// is created. The ID is an 8-byte array. An ID with all zeroes is considered
-    /// invalid. Can be set for logs that are part of a particular processing span.
-    /// If span_id is present trace_id SHOULD be also present. \[Optional\].
+    /// is created. The ID is an 8-byte array. An ID with all zeroes OR of length
+    /// other than 8 bytes is considered invalid (empty string in OTLP/JSON
+    /// is zero-length and thus is also invalid).
+    ///
+    /// This field is optional. If the sender specifies a valid span_id then it SHOULD also
+    /// specify a valid trace_id.
+    ///
+    /// The receivers SHOULD assume that the log record is not associated with a
+    /// span if any of the following is true:
+    ///    - the field is not present,
+    ///    - the field contains an invalid value.
     #[prost(bytes = "vec", tag = "10")]
     pub span_id: ::prost::alloc::vec::Vec<u8>,
 }
 /// Possible values for LogRecord.SeverityNumber.
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
 pub enum SeverityNumber {
@@ -215,12 +235,21 @@ impl SeverityNumber {
         }
     }
 }
-/// Masks for LogRecord.flags field.
+/// LogRecordFlags is defined as a protobuf 'uint32' type and is to be used as
+/// bit-fields. Each non-zero value defined in this enum is a bit-mask.
+/// To extract the bit-field, for example, use an expression like:
+///
+///    (logRecord.flags & LOG_RECORD_FLAGS_TRACE_FLAGS_MASK)
+///
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
 pub enum LogRecordFlags {
-    LogRecordFlagUnspecified = 0,
-    LogRecordFlagTraceFlagsMask = 255,
+    /// The zero value for the enum. Should not be used for comparisons.
+    /// Instead use bitwise "and" with the appropriate mask as shown above.
+    DoNotUse = 0,
+    /// Bits 0-7 are used for trace flags.
+    TraceFlagsMask = 255,
 }
 impl LogRecordFlags {
     /// String value of the enum field names used in the ProtoBuf definition.
@@ -229,17 +258,15 @@ impl LogRecordFlags {
     /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
-            LogRecordFlags::LogRecordFlagUnspecified => "LOG_RECORD_FLAG_UNSPECIFIED",
-            LogRecordFlags::LogRecordFlagTraceFlagsMask => {
-                "LOG_RECORD_FLAG_TRACE_FLAGS_MASK"
-            }
+            LogRecordFlags::DoNotUse => "LOG_RECORD_FLAGS_DO_NOT_USE",
+            LogRecordFlags::TraceFlagsMask => "LOG_RECORD_FLAGS_TRACE_FLAGS_MASK",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
     pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
         match value {
-            "LOG_RECORD_FLAG_UNSPECIFIED" => Some(Self::LogRecordFlagUnspecified),
-            "LOG_RECORD_FLAG_TRACE_FLAGS_MASK" => Some(Self::LogRecordFlagTraceFlagsMask),
+            "LOG_RECORD_FLAGS_DO_NOT_USE" => Some(Self::DoNotUse),
+            "LOG_RECORD_FLAGS_TRACE_FLAGS_MASK" => Some(Self::TraceFlagsMask),
             _ => None,
         }
     }

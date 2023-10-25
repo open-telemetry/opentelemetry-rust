@@ -1,22 +1,19 @@
-use std::{
-    collections::HashMap,
-    sync::{Arc, Mutex},
-    time::SystemTime,
-};
+use std::{collections::HashMap, sync::Mutex, time::SystemTime};
 
-use crate::attributes::AttributeSet;
-use crate::metrics::{
-    aggregation,
-    data::{self, Aggregation},
-};
+use crate::metrics::data::{self, Aggregation, Temporality};
+use crate::{attributes::AttributeSet, metrics::data::HistogramDataPoint};
+use opentelemetry::{global, metrics::MetricsError};
 
-use super::{Aggregator, Number};
+use super::{
+    aggregate::{is_under_cardinality_limit, STREAM_OVERFLOW_ATTRIBUTE_SET},
+    Number,
+};
 
 #[derive(Default)]
 struct Buckets<T> {
     counts: Vec<u64>,
     count: u64,
-    sum: T,
+    total: T,
     min: T,
     max: T,
 }
@@ -30,10 +27,13 @@ impl<T: Number<T>> Buckets<T> {
         }
     }
 
+    fn sum(&mut self, value: T) {
+        self.total += value;
+    }
+
     fn bin(&mut self, idx: usize, value: T) {
         self.counts[idx] += 1;
         self.count += 1;
-        self.sum += value;
         if value < self.min {
             self.min = value;
         } else if value > self.max {
@@ -42,29 +42,28 @@ impl<T: Number<T>> Buckets<T> {
     }
 }
 
-/// Summarizes a set of measurements as an histValues with explicitly defined buckets.
+/// Summarizes a set of measurements with explicitly defined buckets.
 struct HistValues<T> {
+    record_sum: bool,
     bounds: Vec<f64>,
     values: Mutex<HashMap<AttributeSet, Buckets<T>>>,
 }
 
 impl<T: Number<T>> HistValues<T> {
-    fn new(mut bounds: Vec<f64>) -> Self {
+    fn new(mut bounds: Vec<f64>, record_sum: bool) -> Self {
         bounds.retain(|v| !v.is_nan());
         bounds.sort_by(|a, b| a.partial_cmp(b).expect("NaNs filtered out"));
 
         HistValues {
+            record_sum,
             bounds,
             values: Mutex::new(Default::default()),
         }
     }
 }
 
-impl<T> Aggregator<T> for HistValues<T>
-where
-    T: Number<T>,
-{
-    fn aggregate(&self, measurement: T, attrs: AttributeSet) {
+impl<T: Number<T>> HistValues<T> {
+    fn measure(&self, measurement: T, attrs: AttributeSet) {
         let f = measurement.into_float();
 
         // This search will return an index in the range `[0, bounds.len()]`, where
@@ -78,8 +77,11 @@ where
             Ok(guard) => guard,
             Err(_) => return,
         };
+        let size = values.len();
 
-        let b = values.entry(attrs).or_insert_with(|| {
+        let b = if let Some(b) = values.get_mut(&attrs) {
+            b
+        } else {
             // N+1 buckets. For example:
             //
             //   bounds = [0, 5, 10]
@@ -91,150 +93,51 @@ where
             // Ensure min and max are recorded values (not zero), for new buckets.
             (b.min, b.max) = (measurement, measurement);
 
-            b
-        });
-        b.bin(idx, measurement)
-    }
+            if is_under_cardinality_limit(size) {
+                values.entry(attrs).or_insert(b)
+            } else {
+                global::handle_error(MetricsError::Other("Warning: Maximum data points for metric stream exceeded. Entry added to overflow.".into()));
+                values
+                    .entry(STREAM_OVERFLOW_ATTRIBUTE_SET.clone())
+                    .or_insert(b)
+            }
+        };
 
-    fn aggregation(&self) -> Option<Box<dyn Aggregation>> {
-        None // Never used
+        b.bin(idx, measurement);
+        if self.record_sum {
+            b.sum(measurement)
+        }
     }
 }
 
-/// Returns an Aggregator that summarizes a set of
-/// measurements as an histogram. Each histogram is scoped by attributes and
-/// the aggregation cycle the measurements were made in.
-///
-/// Each aggregation cycle is treated independently. When the returned
-/// Aggregator's Aggregations method is called it will reset all histogram
-/// counts to zero.
-pub(crate) fn new_delta_histogram<T>(cfg: &aggregation::Aggregation) -> Arc<dyn Aggregator<T>>
-where
-    T: Number<T>,
-{
-    let (boundaries, record_min_max) = match cfg {
-        aggregation::Aggregation::ExplicitBucketHistogram {
-            boundaries,
-            record_min_max,
-        } => (boundaries.clone(), *record_min_max),
-        _ => (Vec::new(), true),
-    };
-
-    Arc::new(DeltaHistogram {
-        hist_values: HistValues::new(boundaries),
-        record_min_max,
-        start: Mutex::new(SystemTime::now()),
-    })
-}
-
-/// Summarizes a set of measurements made in a single aggregation cycle as an
-/// histogram with explicitly defined buckets.
-struct DeltaHistogram<T> {
+/// Summarizes a set of measurements as a histogram with explicitly defined
+/// buckets.
+pub(crate) struct Histogram<T> {
     hist_values: HistValues<T>,
     record_min_max: bool,
     start: Mutex<SystemTime>,
 }
 
-impl<T: Number<T>> Aggregator<T> for DeltaHistogram<T> {
-    fn aggregate(&self, measurement: T, attrs: AttributeSet) {
-        self.hist_values.aggregate(measurement, attrs)
-    }
-
-    fn aggregation(&self) -> Option<Box<dyn Aggregation>> {
-        let mut values = match self.hist_values.values.lock() {
-            Ok(guard) if !guard.is_empty() => guard,
-            _ => return None,
-        };
-        let mut start = match self.start.lock() {
-            Ok(guard) => guard,
-            Err(_) => return None,
-        };
-
-        let t = SystemTime::now();
-
-        let data_points = values
-            .drain()
-            .map(|(a, b)| {
-                let mut hdp = data::HistogramDataPoint {
-                    attributes: a,
-                    start_time: *start,
-                    time: t,
-                    count: b.count,
-                    bounds: self.hist_values.bounds.clone(),
-                    bucket_counts: b.counts,
-                    sum: b.sum,
-                    min: None,
-                    max: None,
-                    exemplars: vec![],
-                };
-
-                if self.record_min_max {
-                    hdp.min = Some(b.min);
-                    hdp.max = Some(b.max);
-                }
-
-                hdp
-            })
-            .collect::<Vec<data::HistogramDataPoint<T>>>();
-
-        // The delta collection cycle resets.
-        *start = t;
-        drop(start);
-
-        Some(Box::new(data::Histogram {
-            temporality: data::Temporality::Delta,
-            data_points,
-        }))
-    }
-}
-
-/// An [Aggregator] that summarizes a set of measurements as an histogram.
-///
-/// Each histogram is scoped by attributes.
-///
-/// Each aggregation cycle builds from the previous, the histogram counts are
-/// the bucketed counts of all values aggregated since the returned Aggregator
-/// was created.
-pub(crate) fn new_cumulative_histogram<T>(cfg: &aggregation::Aggregation) -> Arc<dyn Aggregator<T>>
-where
-    T: Number<T>,
-{
-    let (boundaries, record_min_max) = match cfg {
-        aggregation::Aggregation::ExplicitBucketHistogram {
-            boundaries,
+impl<T: Number<T>> Histogram<T> {
+    pub(crate) fn new(boundaries: Vec<f64>, record_min_max: bool, record_sum: bool) -> Self {
+        Histogram {
+            hist_values: HistValues::new(boundaries, record_sum),
             record_min_max,
-        } => (boundaries.clone(), *record_min_max),
-        _ => (Vec::new(), true),
-    };
-
-    Arc::new(CumulativeHistogram {
-        hist_values: HistValues::new(boundaries),
-        record_min_max,
-        start: Mutex::new(SystemTime::now()),
-    })
-}
-
-/// Summarizes a set of measurements made over all aggregation cycles as an
-/// histogram with explicitly defined buckets.
-struct CumulativeHistogram<T> {
-    hist_values: HistValues<T>,
-
-    record_min_max: bool,
-    start: Mutex<SystemTime>,
-}
-
-impl<T> Aggregator<T> for CumulativeHistogram<T>
-where
-    T: Number<T>,
-{
-    fn aggregate(&self, measurement: T, attrs: AttributeSet) {
-        self.hist_values.aggregate(measurement, attrs)
+            start: Mutex::new(SystemTime::now()),
+        }
     }
 
-    fn aggregation(&self) -> Option<Box<dyn Aggregation>> {
+    pub(crate) fn measure(&self, measurement: T, attrs: AttributeSet) {
+        self.hist_values.measure(measurement, attrs)
+    }
+
+    pub(crate) fn delta(
+        &self,
+        dest: Option<&mut dyn Aggregation>,
+    ) -> (usize, Option<Box<dyn Aggregation>>) {
         let mut values = match self.hist_values.values.lock() {
             Ok(guard) if !guard.is_empty() => guard,
-            _ => return None,
+            _ => return (0, None),
         };
         let t = SystemTime::now();
         let start = self
@@ -242,38 +145,174 @@ where
             .lock()
             .map(|s| *s)
             .unwrap_or_else(|_| SystemTime::now());
+        let h = dest.and_then(|d| d.as_mut().downcast_mut::<data::Histogram<T>>());
+        let mut new_agg = if h.is_none() {
+            Some(data::Histogram {
+                data_points: vec![],
+                temporality: Temporality::Delta,
+            })
+        } else {
+            None
+        };
+        let h = h.unwrap_or_else(|| new_agg.as_mut().expect("present if h is none"));
+        h.temporality = Temporality::Delta;
 
-        // TODO: This will use an unbounded amount of memory if there are unbounded
-        // number of attribute sets being aggregated. Attribute sets that become
-        // "stale" need to be forgotten so this will not overload the system.
-        let data_points = values
-            .iter_mut()
-            .map(|(a, b)| {
-                let mut hdp = data::HistogramDataPoint {
+        let n = values.len();
+        if n > h.data_points.capacity() {
+            h.data_points.reserve_exact(n - h.data_points.capacity());
+        }
+
+        for (i, (a, b)) in values.drain().enumerate() {
+            if let Some(dp) = h.data_points.get_mut(i) {
+                dp.attributes = a;
+                dp.start_time = start;
+                dp.time = t;
+                dp.count = b.count;
+                dp.bounds = self.hist_values.bounds.clone();
+                dp.bucket_counts = b.counts.clone();
+                dp.sum = if self.hist_values.record_sum {
+                    b.total
+                } else {
+                    T::default()
+                };
+                dp.min = if self.record_min_max {
+                    Some(b.min)
+                } else {
+                    None
+                };
+                dp.max = if self.record_min_max {
+                    Some(b.max)
+                } else {
+                    None
+                };
+                dp.exemplars.clear();
+            } else {
+                h.data_points.push(HistogramDataPoint {
+                    attributes: a,
+                    start_time: start,
+                    time: t,
+                    count: b.count,
+                    bounds: self.hist_values.bounds.clone(),
+                    bucket_counts: b.counts.clone(),
+                    sum: if self.hist_values.record_sum {
+                        b.total
+                    } else {
+                        T::default()
+                    },
+                    min: if self.record_min_max {
+                        Some(b.min)
+                    } else {
+                        None
+                    },
+                    max: if self.record_min_max {
+                        Some(b.max)
+                    } else {
+                        None
+                    },
+                    exemplars: vec![],
+                });
+            };
+        }
+
+        // The delta collection cycle resets.
+        if let Ok(mut start) = self.start.lock() {
+            *start = t;
+        }
+
+        h.data_points.truncate(n);
+
+        (n, new_agg.map(|a| Box::new(a) as Box<_>))
+    }
+
+    pub(crate) fn cumulative(
+        &self,
+        dest: Option<&mut dyn Aggregation>,
+    ) -> (usize, Option<Box<dyn Aggregation>>) {
+        let values = match self.hist_values.values.lock() {
+            Ok(guard) if !guard.is_empty() => guard,
+            _ => return (0, None),
+        };
+        let t = SystemTime::now();
+        let start = self
+            .start
+            .lock()
+            .map(|s| *s)
+            .unwrap_or_else(|_| SystemTime::now());
+        let h = dest.and_then(|d| d.as_mut().downcast_mut::<data::Histogram<T>>());
+        let mut new_agg = if h.is_none() {
+            Some(data::Histogram {
+                data_points: vec![],
+                temporality: Temporality::Cumulative,
+            })
+        } else {
+            None
+        };
+        let h = h.unwrap_or_else(|| new_agg.as_mut().expect("present if h is none"));
+        h.temporality = Temporality::Cumulative;
+
+        let n = values.len();
+        if n > h.data_points.capacity() {
+            h.data_points.reserve(n - h.data_points.capacity());
+        }
+
+        // TODO: This will use an unbounded amount of memory if there
+        // are unbounded number of attribute sets being aggregated. Attribute
+        // sets that become "stale" need to be forgotten so this will not
+        // overload the system.
+        for (i, (a, b)) in values.iter().enumerate() {
+            if let Some(dp) = h.data_points.get_mut(i) {
+                dp.attributes = a.clone();
+                dp.start_time = start;
+                dp.time = t;
+                dp.count = b.count;
+                dp.bounds = self.hist_values.bounds.clone();
+                dp.bucket_counts = b.counts.clone();
+                dp.sum = if self.hist_values.record_sum {
+                    b.total
+                } else {
+                    T::default()
+                };
+                dp.min = if self.record_min_max {
+                    Some(b.min)
+                } else {
+                    None
+                };
+                dp.max = if self.record_min_max {
+                    Some(b.max)
+                } else {
+                    None
+                };
+                dp.exemplars.clear();
+            } else {
+                h.data_points.push(HistogramDataPoint {
                     attributes: a.clone(),
                     start_time: start,
                     time: t,
                     count: b.count,
                     bounds: self.hist_values.bounds.clone(),
                     bucket_counts: b.counts.clone(),
-                    sum: b.sum,
-                    min: None,
-                    max: None,
+                    sum: if self.hist_values.record_sum {
+                        b.total
+                    } else {
+                        T::default()
+                    },
+                    min: if self.record_min_max {
+                        Some(b.min)
+                    } else {
+                        None
+                    },
+                    max: if self.record_min_max {
+                        Some(b.max)
+                    } else {
+                        None
+                    },
                     exemplars: vec![],
-                };
+                });
+            };
+        }
 
-                if self.record_min_max {
-                    hdp.min = Some(b.min);
-                    hdp.max = Some(b.max);
-                }
+        h.data_points.truncate(n);
 
-                hdp
-            })
-            .collect::<Vec<data::HistogramDataPoint<T>>>();
-
-        Some(Box::new(data::Histogram {
-            temporality: data::Temporality::Cumulative,
-            data_points,
-        }))
+        (n, new_agg.map(|a| Box::new(a) as Box<_>))
     }
 }

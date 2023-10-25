@@ -8,6 +8,7 @@
 ///
 /// When new fields are added into this message, the OTLP request MUST be updated
 /// as well.
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct TracesData {
@@ -20,6 +21,7 @@ pub struct TracesData {
     pub resource_spans: ::prost::alloc::vec::Vec<ResourceSpans>,
 }
 /// A collection of ScopeSpans from a Resource.
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ResourceSpans {
@@ -36,6 +38,7 @@ pub struct ResourceSpans {
     pub schema_url: ::prost::alloc::string::String,
 }
 /// A collection of Spans produced by an InstrumentationScope.
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ScopeSpans {
@@ -54,25 +57,22 @@ pub struct ScopeSpans {
 /// A Span represents a single operation performed by a single component of the system.
 ///
 /// The next available field id is 17.
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Span {
     /// A unique identifier for a trace. All spans from the same trace share
-    /// the same `trace_id`. The ID is a 16-byte array. An ID with all zeroes
-    /// is considered invalid.
-    ///
-    /// This field is semantically required. Receiver should generate new
-    /// random trace_id if empty or invalid trace_id was received.
+    /// the same `trace_id`. The ID is a 16-byte array. An ID with all zeroes OR
+    /// of length other than 16 bytes is considered invalid (empty string in OTLP/JSON
+    /// is zero-length and thus is also invalid).
     ///
     /// This field is required.
     #[prost(bytes = "vec", tag = "1")]
     pub trace_id: ::prost::alloc::vec::Vec<u8>,
     /// A unique identifier for a span within a trace, assigned when the span
-    /// is created. The ID is an 8-byte array. An ID with all zeroes is considered
-    /// invalid.
-    ///
-    /// This field is semantically required. Receiver should generate new
-    /// random span_id if empty or invalid span_id was received.
+    /// is created. The ID is an 8-byte array. An ID with all zeroes OR of length
+    /// other than 8 bytes is considered invalid (empty string in OTLP/JSON
+    /// is zero-length and thus is also invalid).
     ///
     /// This field is required.
     #[prost(bytes = "vec", tag = "2")]
@@ -125,8 +125,8 @@ pub struct Span {
     ///
     ///      "/http/user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36"
     ///      "/http/server_latency": 300
-    ///      "abc.com/myattribute": true
-    ///      "abc.com/score": 10.239
+    ///      "example.com/myattribute": true
+    ///      "example.com/score": 10.239
     ///
     /// The OpenTelemetry API specification further restricts the allowed value types:
     /// <https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/common/README.md#attribute>
@@ -163,6 +163,7 @@ pub struct Span {
 pub mod span {
     /// Event is a time-stamped annotation of the span, consisting of user-supplied
     /// text description and key-value pairs.
+    #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
     #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct Event {
@@ -189,6 +190,7 @@ pub mod span {
     /// different trace. For example, this can be used in batching operations,
     /// where a single batch handler processes multiple requests from different
     /// traces or when the handler receives a request from a different project.
+    #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
     #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct Link {
@@ -216,6 +218,7 @@ pub mod span {
     }
     /// SpanKind is the type of span. Can be used to specify additional relationships between spans
     /// in addition to a parent/child relationship.
+    #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
     #[derive(
         Clone,
         Copy,
@@ -281,6 +284,7 @@ pub mod span {
 }
 /// The Status type defines a logical error model that is suitable for different
 /// programming environments, including REST APIs and RPC APIs.
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Status {
@@ -295,6 +299,7 @@ pub struct Status {
 pub mod status {
     /// For the semantics of status codes see
     /// <https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/api.md#set-status>
+    #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
     #[derive(
         Clone,
         Copy,
@@ -310,8 +315,8 @@ pub mod status {
     pub enum StatusCode {
         /// The default status.
         Unset = 0,
-        /// The Span has been validated by an Application developers or Operator to have
-        /// completed successfully.
+        /// The Span has been validated by an Application developer or Operator to
+        /// have completed successfully.
         Ok = 1,
         /// The Span contains an error.
         Error = 2,

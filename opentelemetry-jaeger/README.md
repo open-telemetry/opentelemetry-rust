@@ -20,7 +20,7 @@ analysis in order to understand your software's performance and behavior. This
 crate provides a trace pipeline and exporter for sending span information to a
 Jaeger `agent` or `collector` endpoint for processing and visualization.
 
-*Compiler support: [requires `rustc` 1.60+][msrv]*
+*Compiler support: [requires `rustc` 1.64+][msrv]*
 
 [`Jaeger`]: https://www.jaegertracing.io/
 [`OpenTelemetry`]: https://crates.io/crates/opentelemetry
@@ -74,7 +74,7 @@ opentelemetry-jaeger = { version = "*", features = ["rt-tokio"] }
 
 ```rust
 let tracer = opentelemetry_jaeger::new_agent_pipeline()
-    .install_batch(opentelemetry::runtime::Tokio)?;
+    .install_batch(opentelemetry_sdk::runtime::Tokio)?;
 ```
 
 [`rt-tokio`]: https://tokio.rs
@@ -87,7 +87,7 @@ The jaeger pipeline builder can be configured dynamically via environment
 variables. All variables are optional, a full list of accepted options can be
 found in the [jaeger variables spec].
 
-[jaeger variables spec]: https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/sdk-environment-variables.md#jaeger-exporter
+[jaeger variables spec]: https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/configuration/sdk-environment-variables.md
 
 ### Jaeger Collector Example
 
@@ -146,7 +146,7 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 ## Supported Rust Versions
 
 OpenTelemetry is built against the latest stable release. The minimum supported
-version is 1.60. The current OpenTelemetry version is not guaranteed to build
+version is 1.64. The current OpenTelemetry version is not guaranteed to build
 on Rust versions earlier than the minimum supported version.
 
 The current stable Rust compiler and the three most recent minor versions

@@ -3,7 +3,7 @@
 //! Implementation of `ResourceDetector` to extract a `Resource` from environment
 //! variables.
 use crate::resource::{Resource, ResourceDetector};
-use opentelemetry_api::{Key, KeyValue};
+use opentelemetry::{Key, KeyValue, Value};
 use std::env;
 use std::time::Duration;
 
@@ -64,9 +64,7 @@ fn construct_otel_resources(s: String) -> Resource {
 ///
 /// This detector will first try `OTEL_SERVICE_NAME` env. If it's not available,
 /// then it will check the `OTEL_RESOURCE_ATTRIBUTES` env and see if it contains
-/// `service.name` resource. If it's not available, it will try to use the env
-/// `CARGO_BIN_NAME` that should have been present at build time. If that was
-/// not available, it will use `unknown_service`.
+/// `service.name` resource. If it's also not available, it will use `unknown_service`.
 ///
 /// If users want to set an empty service name, they can provide
 /// a resource with empty value and `service.name` key.
@@ -82,18 +80,13 @@ impl ResourceDetector for SdkProvidedResourceDetector {
             env::var(OTEL_SERVICE_NAME)
                 .ok()
                 .filter(|s| !s.is_empty())
-                .unwrap_or_else(|| {
+                .map(Value::from)
+                .or_else(|| {
                     EnvResourceDetector::new()
                         .detect(Duration::from_secs(0))
                         .get(Key::new("service.name"))
-                        .map(|v| v.to_string())
-                        .filter(|s| !s.is_empty())
-                        .unwrap_or_else(|| {
-                            option_env!("CARGO_BIN_NAME")
-                                .unwrap_or("unknown_service")
-                                .into()
-                        })
-                }),
+                })
+                .unwrap_or_else(|| "unknown_service".into()),
         )])
     }
 }
@@ -104,7 +97,7 @@ mod tests {
         SdkProvidedResourceDetector, OTEL_RESOURCE_ATTRIBUTES, OTEL_SERVICE_NAME,
     };
     use crate::resource::{EnvResourceDetector, Resource, ResourceDetector};
-    use opentelemetry_api::{Key, KeyValue, Value};
+    use opentelemetry::{Key, KeyValue, Value};
     use std::time::Duration;
     use std::{env, time};
 

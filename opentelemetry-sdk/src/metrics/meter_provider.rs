@@ -7,9 +7,9 @@ use std::{
     },
 };
 
-use opentelemetry_api::{
+use opentelemetry::{
     metrics::{noop::NoopMeterCore, InstrumentProvider, Meter as ApiMeter, MetricsError, Result},
-    Context, KeyValue,
+    KeyValue,
 };
 
 use crate::{instrumentation::Scope, Resource};
@@ -29,6 +29,12 @@ pub struct MeterProvider {
     is_shutdown: Arc<AtomicBool>,
 }
 
+impl Default for MeterProvider {
+    fn default() -> Self {
+        MeterProvider::builder().build()
+    }
+}
+
 impl MeterProvider {
     /// Flushes all pending telemetry.
     ///
@@ -42,8 +48,42 @@ impl MeterProvider {
     ///
     /// There is no guaranteed that all telemetry be flushed or all resources have
     /// been released on error.
-    pub fn force_flush(&self, cx: &Context) -> Result<()> {
-        self.pipes.force_flush(cx)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use opentelemetry::{global, Context};
+    /// use opentelemetry_sdk::metrics::MeterProvider;
+    ///
+    /// fn init_metrics() -> MeterProvider {
+    ///     let provider = MeterProvider::default();
+    ///
+    ///     // Set provider to be used as global meter provider
+    ///     let _ = global::set_meter_provider(provider.clone());
+    ///
+    ///     // Setup metric pipelines with readers + views
+    ///
+    ///     provider
+    /// }
+    ///
+    /// fn main() {
+    ///     let provider = init_metrics();
+    ///
+    ///     // create instruments + record measurements
+    ///
+    ///     // force all instruments to flush
+    ///     provider.force_flush().unwrap();
+    ///
+    ///     // record more measurements..
+    ///
+    ///     // dropping provider and shutting down global provider ensure all
+    ///     // remaining metrics data are exported
+    ///     drop(provider);
+    ///     global::shutdown_meter_provider();
+    /// }
+    /// ```
+    pub fn force_flush(&self) -> Result<()> {
+        self.pipes.force_flush()
     }
 
     /// Shuts down the meter provider flushing all pending telemetry and releasing
@@ -73,7 +113,7 @@ impl MeterProvider {
     }
 }
 
-impl opentelemetry_api::metrics::MeterProvider for MeterProvider {
+impl opentelemetry::metrics::MeterProvider for MeterProvider {
     fn versioned_meter(
         &self,
         name: impl Into<Cow<'static, str>>,
@@ -156,5 +196,94 @@ impl fmt::Debug for MeterProviderBuilder {
             .field("readers", &self.readers)
             .field("views", &self.views.len())
             .finish()
+    }
+}
+#[cfg(test)]
+mod tests {
+    use crate::testing::metrics::metric_reader::TestMetricReader;
+    use crate::Resource;
+    use opentelemetry::Key;
+    use opentelemetry::KeyValue;
+    use std::env;
+
+    #[test]
+    fn test_meter_provider_resource() {
+        // If users didn't provide a resource and there isn't a env var set. Use default one.
+        let assert_service_name = |provider: super::MeterProvider, expect: Option<&'static str>| {
+            assert_eq!(
+                provider.pipes.0[0]
+                    .resource
+                    .get(Key::from_static_str("service.name"))
+                    .map(|v| v.to_string()),
+                expect.map(|s| s.to_string())
+            );
+        };
+        let reader = TestMetricReader {};
+        let default_meter_provider = super::MeterProvider::builder().with_reader(reader).build();
+        assert_service_name(default_meter_provider, Some("unknown_service"));
+
+        // If user provided a resource, use that.
+        let reader2 = TestMetricReader {};
+        let custom_meter_provider = super::MeterProvider::builder()
+            .with_reader(reader2)
+            .with_resource(Resource::new(vec![KeyValue::new(
+                "service.name",
+                "test_service",
+            )]))
+            .build();
+        assert_service_name(custom_meter_provider, Some("test_service"));
+
+        // If `OTEL_RESOURCE_ATTRIBUTES` is set, read them automatically
+        let reader3 = TestMetricReader {};
+        env::set_var("OTEL_RESOURCE_ATTRIBUTES", "key1=value1, k2, k3=value2");
+        let env_resource_provider = super::MeterProvider::builder().with_reader(reader3).build();
+        assert_eq!(
+            env_resource_provider.pipes.0[0].resource,
+            Resource::new(vec![
+                KeyValue::new("telemetry.sdk.name", "opentelemetry"),
+                KeyValue::new("telemetry.sdk.version", env!("CARGO_PKG_VERSION")),
+                KeyValue::new("telemetry.sdk.language", "rust"),
+                KeyValue::new("key1", "value1"),
+                KeyValue::new("k3", "value2"),
+                KeyValue::new("service.name", "unknown_service"),
+            ])
+        );
+
+        // When `OTEL_RESOURCE_ATTRIBUTES` is set and also user provided config
+        env::set_var(
+            "OTEL_RESOURCE_ATTRIBUTES",
+            "my-custom-key=env-val,k2=value2",
+        );
+        let reader4 = TestMetricReader {};
+        let user_provided_resource_config_provider = super::MeterProvider::builder()
+            .with_reader(reader4)
+            .with_resource(
+                Resource::default().merge(&mut Resource::new(vec![KeyValue::new(
+                    "my-custom-key",
+                    "my-custom-value",
+                )])),
+            )
+            .build();
+        assert_eq!(
+            user_provided_resource_config_provider.pipes.0[0].resource,
+            Resource::new(vec![
+                KeyValue::new("telemetry.sdk.name", "opentelemetry"),
+                KeyValue::new("telemetry.sdk.version", env!("CARGO_PKG_VERSION")),
+                KeyValue::new("telemetry.sdk.language", "rust"),
+                KeyValue::new("my-custom-key", "my-custom-value"),
+                KeyValue::new("k2", "value2"),
+                KeyValue::new("service.name", "unknown_service"),
+            ])
+        );
+        env::remove_var("OTEL_RESOURCE_ATTRIBUTES");
+
+        // If user provided a resource, it takes priority during collision.
+        let reader5 = TestMetricReader {};
+        let no_service_name = super::MeterProvider::builder()
+            .with_reader(reader5)
+            .with_resource(Resource::empty())
+            .build();
+
+        assert_service_name(no_service_name, None);
     }
 }

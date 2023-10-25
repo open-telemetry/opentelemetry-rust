@@ -1,6 +1,7 @@
 use std::fmt;
 
-use opentelemetry_api::metrics::{MetricsError, Result};
+use crate::metrics::internal::{EXPO_MAX_SCALE, EXPO_MIN_SCALE};
+use opentelemetry::metrics::{MetricsError, Result};
 
 /// The way recorded measurements are summarized.
 #[derive(Clone, Debug, PartialEq)]
@@ -29,7 +30,7 @@ pub enum Aggregation {
     /// An aggregation that summarizes a set of measurements as the last one made.
     LastValue,
 
-    /// An aggregation that summarizes a set of measurements as an histogram with
+    /// An aggregation that summarizes a set of measurements as a histogram with
     /// explicitly defined buckets.
     ExplicitBucketHistogram {
         /// The increasing bucket boundary values.
@@ -40,12 +41,15 @@ pub enum Aggregation {
         /// bucket with a boundary that is greater than or equal to the measurement. As
         /// an example, boundaries defined as:
         ///
-        /// vec![0.0, 5.0, 10.0, 25.0, 50.0, 75.0, 100.0, 250.0, 500.0, 1000.0];
+        /// vec![0.0, 5.0, 10.0, 25.0, 50.0, 75.0, 100.0, 250.0, 500.0, 750.0,
+        /// 1000.0, 2500.0, 5000.0, 7500.0, 10000.0];
         ///
         /// Will define these buckets:
         ///
-        /// (-∞, 0], (0, 5.0], (5.0, 10.0], (10.0, 25.0], (25.0, 50.0], (50.0, 75.0],
-        /// (75.0, 100.0], (100.0, 250.0], (250.0, 500.0], (500.0, 1000.0], (1000.0, +∞)
+        /// (-∞, 0], (0, 5.0], (5.0, 10.0], (10.0, 25.0], (25.0, 50.0], (50.0,
+        ///  75.0], (75.0, 100.0], (100.0, 250.0], (250.0, 500.0], (500.0,
+        ///  750.0], (750.0, 1000.0], (1000.0, 2500.0], (2500.0, 5000.0],
+        ///  (5000.0, 7500.0], (7500.0, 10000.0], (10000.0, +∞)
         boundaries: Vec<f64>,
 
         /// Indicates whether to not record the min and max of the distribution.
@@ -59,6 +63,32 @@ pub enum Aggregation {
         /// instances.
         record_min_max: bool,
     },
+
+    /// An aggregation that summarizes a set of measurements as a histogram with
+    /// bucket widths that grow exponentially.
+    Base2ExponentialHistogram {
+        /// The maximum number of buckets to use for the histogram.
+        max_size: u32,
+
+        /// The maximum resolution scale to use for the histogram.
+        ///
+        /// The maximum value is `20`, in which case the maximum number of buckets
+        /// that can fit within the range of a signed 32-bit integer index could be
+        /// used.
+        ///
+        /// The minimum value is `-10` in which case only two buckets will be used.
+        max_scale: i8,
+
+        /// Indicates whether to not record the min and max of the distribution.
+        ///
+        /// By default, these values are recorded.
+        ///
+        /// It is generally not valuable to record min and max for cumulative data
+        /// as they will represent the entire life of the instrument instead of just
+        /// the current collection cycle, you can opt out by setting this value to
+        /// `false`
+        record_min_max: bool,
+    },
 }
 
 impl fmt::Display for Aggregation {
@@ -70,6 +100,7 @@ impl fmt::Display for Aggregation {
             Aggregation::Sum => "Sum",
             Aggregation::LastValue => "LastValue",
             Aggregation::ExplicitBucketHistogram { .. } => "ExplicitBucketHistogram",
+            Aggregation::Base2ExponentialHistogram { .. } => "Base2ExponentialHistogram",
         };
 
         f.write_str(name)
@@ -92,6 +123,22 @@ impl Aggregation {
                             boundaries,
                         )));
                     }
+                }
+
+                Ok(())
+            }
+            Aggregation::Base2ExponentialHistogram { max_scale, .. } => {
+                if *max_scale > EXPO_MAX_SCALE {
+                    return Err(MetricsError::Config(format!(
+                        "aggregation: exponential histogram: max scale ({}) is greater than 20",
+                        max_scale,
+                    )));
+                }
+                if *max_scale < -EXPO_MIN_SCALE {
+                    return Err(MetricsError::Config(format!(
+                        "aggregation: exponential histogram: max scale ({}) is less than -10",
+                        max_scale,
+                    )));
                 }
 
                 Ok(())

@@ -1,11 +1,9 @@
-//! OpenTelemetry provides a single set of APIs, libraries, agents, and collector
-//! services to capture distributed traces and metrics from your application. You
-//! can analyze them using [Prometheus], [Jaeger], and other observability tools.
+//! Implements the [`API`] component of [OpenTelemetry].
 //!
-//! *Compiler support: [requires `rustc` 1.60+][msrv]*
+//! *Compiler support: [requires `rustc` 1.64+][msrv]*
 //!
-//! [Prometheus]: https://prometheus.io
-//! [Jaeger]: https://www.jaegertracing.io
+//! [`API`]: https://opentelemetry.io/docs/specs/otel/overview/#api
+//! [OpenTelemetry]: https://opentelemetry.io/docs/what-is-opentelemetry/
 //! [msrv]: #supported-rust-versions
 //!
 //! # Getting Started
@@ -13,25 +11,12 @@
 //! ```no_run
 //! # #[cfg(feature = "trace")]
 //! # {
-//! use opentelemetry::{
-//!     global,
-//!     sdk::trace::TracerProvider,
-//!     trace::{Tracer, TracerProvider as _},
-//! };
+//! use opentelemetry::{global, trace::{TraceContextExt, Tracer}, Context };
 //!
-//! fn main() {
-//!     // Create a new trace pipeline that prints to stdout
-//!     let provider = TracerProvider::builder()
-//!         .with_simple_exporter(opentelemetry_stdout::SpanExporter::default())
-//!         .build();
-//!     let tracer = provider.tracer("readme_example");
-//!
-//!     tracer.in_span("doing_work", |cx| {
-//!         // Traced app logic here...
-//!     });
-//!
-//!     // Shutdown trace pipeline
-//!     global::shutdown_tracer_provider();
+//! fn do_something() {
+//!     let tracer = global::tracer("my_component");
+//!     let _guard = Context::current_with_span(tracer.start("my_span")).attach();
+//!     // do work tracked by the now current span
 //! }
 //! # }
 //! ```
@@ -78,8 +63,6 @@
 //!
 //! # Metrics
 //!
-//! Note: the metrics specification is **still in progress** and **subject to major
-//! changes**.
 //!
 //! The [`metrics`] module includes types for recording measurements about a
 //! service at runtime.
@@ -89,9 +72,7 @@
 //! ```
 //! # #[cfg(feature = "metrics")]
 //! # {
-//! use opentelemetry::{global, Context, KeyValue};
-//!
-//! let cx = Context::current();
+//! use opentelemetry::{global, KeyValue};
 //!
 //! // get a meter from a provider
 //! let meter = global::meter("my_service");
@@ -100,7 +81,7 @@
 //! let counter = meter.u64_counter("my_counter").init();
 //!
 //! // record a measurement
-//! counter.add(&cx, 1, &[KeyValue::new("http.client_ip", "83.164.160.102")]);
+//! counter.add(1, &[KeyValue::new("http.client_ip", "83.164.160.102")]);
 //! # }
 //! ```
 //!
@@ -111,18 +92,9 @@
 //!
 //! The following core crate feature flags are available:
 //!
-//! * `trace`: Includes the trace API and SDK (enabled by default).
-//! * `metrics`: Includes the unstable metrics API and SDK.
-//!
-//! Support for recording and exporting telemetry asynchronously can be added
-//! via the following flags:
-//!
-//! * `rt-tokio`: Spawn telemetry tasks using [tokio]'s multi-thread runtime.
-//! * `rt-tokio-current-thread`: Spawn telemetry tasks on a separate runtime so that the main runtime won't be blocked.
-//! * `rt-async-std`: Spawn telemetry tasks using [async-std]'s runtime.
-//!
-//! [tokio]: https://crates.io/crates/tokio
-//! [async-std]: https://crates.io/crates/async-std
+//! * `trace`: Includes the trace API (enabled by default).
+//! * `metrics`: Includes the unstable metrics API.
+//! * `logs`: Includes the logs bridge API.
 //!
 //! ## Related Crates
 //!
@@ -135,6 +107,7 @@
 //!
 //! In particular, the following crates are likely to be of interest:
 //!
+//! - [`opentelemetry_sdk`] provides the SDK used to configure providers.
 //! - [`opentelemetry-http`] provides an interface for injecting and extracting
 //!   trace information from [`http`] headers.
 //! - [`opentelemetry-jaeger`] provides a pipeline and exporter for sending
@@ -169,37 +142,37 @@
 //! If you're the maintainer of an `opentelemetry` ecosystem crate not listed
 //! above, please let us know! We'd love to add your project to the list!
 //!
-//! [`open-telemetry/opentelemetry-rust`]: https://github.com/open-telemetry/opentelemetry-rust
-//! [`opentelemetry-jaeger`]: https://crates.io/crates/opentelemetry-jaeger
-//! [`Jaeger`]: https://www.jaegertracing.io
-//! [`opentelemetry-otlp`]: https://crates.io/crates/opentelemetry-otlp
-//! [`opentelemetry-http`]: https://crates.io/crates/opentelemetry-http
-//! [`opentelemetry-prometheus`]: https://crates.io/crates/opentelemetry-prometheus
-//! [`opentelemetry-aws`]: https://crates.io/crates/opentelemetry-aws
-//! [`Prometheus`]: https://prometheus.io
-//! [`opentelemetry-zipkin`]: https://crates.io/crates/opentelemetry-zipkin
-//! [`http`]: https://crates.io/crates/http
-//! [`Zipkin`]: https://zipkin.io
-//! [`opentelemetry-contrib`]: https://crates.io/crates/opentelemetry-contrib
-//! [`opentelemetry-datadog`]: https://crates.io/crates/opentelemetry-datadog
-//! [`Datadog`]: https://www.datadoghq.com
-//! [`opentelemetry-semantic-conventions`]: https://crates.io/crates/opentelemetry-semantic-conventions
-//!
-//! [`tracing-opentelemetry`]: https://crates.io/crates/tracing-opentelemetry
-//! [`tracing`]: https://crates.io/crates/tracing
 //! [`actix-web-opentelemetry`]: https://crates.io/crates/actix-web-opentelemetry
 //! [`actix-web`]: https://crates.io/crates/actix-web
+//! [`Datadog`]: https://www.datadoghq.com
+//! [`http`]: https://crates.io/crates/http
+//! [`Jaeger`]: https://www.jaegertracing.io
+//! [`open-telemetry/opentelemetry-rust`]: https://github.com/open-telemetry/opentelemetry-rust
+//! [`opentelemetry_sdk`]: https://crates.io/crates/opentelemetry_sdk
 //! [`opentelemetry-application-insights`]: https://crates.io/crates/opentelemetry-application-insights
-//! [Azure Application Insights]: https://docs.microsoft.com/en-us/azure/azure-monitor/app/app-insights-overview
-//! [`opentelemetry-tide`]: https://crates.io/crates/opentelemetry-tide
-//! [`Tide`]: https://crates.io/crates/tide
+//! [`opentelemetry-aws`]: https://crates.io/crates/opentelemetry-aws
+//! [`opentelemetry-contrib`]: https://crates.io/crates/opentelemetry-contrib
+//! [`opentelemetry-datadog`]: https://crates.io/crates/opentelemetry-datadog
+//! [`opentelemetry-http`]: https://crates.io/crates/opentelemetry-http
+//! [`opentelemetry-jaeger`]: https://crates.io/crates/opentelemetry-jaeger
+//! [`opentelemetry-otlp`]: https://crates.io/crates/opentelemetry-otlp
+//! [`opentelemetry-prometheus`]: https://crates.io/crates/opentelemetry-prometheus
+//! [`opentelemetry-semantic-conventions`]: https://crates.io/crates/opentelemetry-semantic-conventions
 //! [`opentelemetry-stackdriver`]: https://crates.io/crates/opentelemetry-stackdriver
+//! [`opentelemetry-tide`]: https://crates.io/crates/opentelemetry-tide
+//! [`opentelemetry-zipkin`]: https://crates.io/crates/opentelemetry-zipkin
+//! [`Prometheus`]: https://prometheus.io
+//! [`Tide`]: https://crates.io/crates/tide
+//! [`tracing-opentelemetry`]: https://crates.io/crates/tracing-opentelemetry
+//! [`tracing`]: https://crates.io/crates/tracing
+//! [`Zipkin`]: https://zipkin.io
+//! [Azure Application Insights]: https://docs.microsoft.com/en-us/azure/azure-monitor/app/app-insights-overview
 //! [Cloud Trace]: https://cloud.google.com/trace/
 //!
 //! ## Supported Rust Versions
 //!
 //! OpenTelemetry is built against the latest stable release. The minimum
-//! supported version is 1.60. The current OpenTelemetry version is not
+//! supported version is 1.64. The current OpenTelemetry version is not
 //! guaranteed to build on Rust versions earlier than the minimum supported
 //! version.
 //!
@@ -229,23 +202,57 @@
 )]
 #![cfg_attr(test, deny(warnings))]
 
-pub use opentelemetry_api::*;
-pub use opentelemetry_sdk::runtime;
+pub mod global;
+
+pub mod baggage;
+
+mod context;
+
+pub use context::{Context, ContextGuard};
+
+mod common;
+
+mod order_map;
+
+pub use order_map::OrderMap;
+
+#[cfg(any(feature = "testing", test))]
+#[doc(hidden)]
+pub mod testing;
+
+pub use common::{Array, ExportError, InstrumentationLibrary, Key, KeyValue, StringValue, Value};
+
+#[cfg(feature = "metrics")]
+#[cfg_attr(docsrs, doc(cfg(feature = "metrics")))]
+pub mod metrics;
+
+pub mod propagation;
+
+#[cfg(feature = "trace")]
+#[cfg_attr(docsrs, doc(cfg(feature = "trace")))]
+pub mod trace;
+
+#[cfg(feature = "logs")]
+#[cfg_attr(docsrs, doc(cfg(feature = "logs")))]
+pub mod logs;
 
 #[doc(hidden)]
-#[cfg(feature = "testing")]
-pub mod testing {
-    pub use opentelemetry_sdk::testing::*;
-}
+#[cfg(any(feature = "metrics", feature = "trace"))]
+pub mod time {
+    use std::time::SystemTime;
 
-/// # OpenTelemetry SDK
-///
-/// This SDK provides an opinionated reference implementation of
-/// the OpenTelemetry API. The SDK implements the specifics of
-/// deciding which data to collect through `Sampler`s, and
-/// facilitates the delivery of telemetry data to storage systems
-/// through `Exporter`s. These can be configured on `Tracer` and
-/// `Meter` creation.
-pub mod sdk {
-    pub use opentelemetry_sdk::*;
+    #[doc(hidden)]
+    #[cfg(any(
+        not(target_arch = "wasm32"),
+        all(target_arch = "wasm32", target_os = "wasi")
+    ))]
+    pub fn now() -> SystemTime {
+        SystemTime::now()
+    }
+
+    #[doc(hidden)]
+    #[cfg(all(target_arch = "wasm32", not(target_os = "wasi")))]
+    pub fn now() -> SystemTime {
+        SystemTime::UNIX_EPOCH + std::time::Duration::from_millis(js_sys::Date::now() as u64)
+    }
 }

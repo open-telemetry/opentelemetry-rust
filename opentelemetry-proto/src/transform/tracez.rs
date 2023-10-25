@@ -1,16 +1,13 @@
-#[cfg(feature = "gen-protoc")]
+#[cfg(all(feature = "gen-tonic-messages", feature = "zpages"))]
 mod grpcio {
-    use opentelemetry_api::trace::{self, Event};
+    use opentelemetry::trace::{Event, Status};
     use opentelemetry_sdk::export::trace::SpanData;
 
-    use crate::transform::common::{grpcio::Attributes, to_nanos};
-    use crate::{
-        grpcio::trace::Status_StatusCode,
-        proto::grpcio::{
-            trace::{Span_Event, Status},
-            tracez::{ErrorData, LatencyData, RunningData},
-        },
+    use crate::proto::tonic::{
+        trace::v1::{span::Event as SpanEvent, Status as SpanStatus},
+        tracez::v1::{ErrorData, LatencyData, RunningData},
     };
+    use crate::transform::common::{to_nanos, tonic::Attributes};
 
     impl From<SpanData> for LatencyData {
         fn from(span_data: SpanData) -> Self {
@@ -23,7 +20,6 @@ mod grpcio {
                 attributes: Attributes::from(span_data.attributes).0,
                 events: span_data.events.iter().cloned().map(Into::into).collect(),
                 links: span_data.links.iter().cloned().map(Into::into).collect(),
-                ..Default::default()
             }
         }
     }
@@ -38,17 +34,13 @@ mod grpcio {
                 attributes: Attributes::from(span_data.attributes).0,
                 events: span_data.events.iter().cloned().map(Into::into).collect(),
                 links: span_data.links.iter().cloned().map(Into::into).collect(),
-                status: ::protobuf::SingularPtrField::from(match span_data.status {
-                    trace::Status::Error {
-                        description: message,
-                    } => Some(Status {
-                        message: message.to_string(),
-                        code: Status_StatusCode::STATUS_CODE_ERROR,
-                        ..Default::default()
+                status: match span_data.status {
+                    Status::Error { description } => Some(SpanStatus {
+                        message: description.to_string(),
+                        code: 2,
                     }),
                     _ => None,
-                }),
-                ..Default::default()
+                },
             }
         }
     }
@@ -63,19 +55,17 @@ mod grpcio {
                 attributes: Attributes::from(span_data.attributes).0,
                 events: span_data.events.iter().cloned().map(Into::into).collect(),
                 links: span_data.links.iter().cloned().map(Into::into).collect(),
-                ..Default::default()
             }
         }
     }
 
-    impl From<Event> for Span_Event {
+    impl From<Event> for SpanEvent {
         fn from(event: Event) -> Self {
-            Span_Event {
+            SpanEvent {
                 time_unix_nano: to_nanos(event.timestamp),
                 name: event.name.to_string(),
                 attributes: Attributes::from(event.attributes).0,
                 dropped_attributes_count: event.dropped_attributes_count,
-                ..Default::default()
             }
         }
     }

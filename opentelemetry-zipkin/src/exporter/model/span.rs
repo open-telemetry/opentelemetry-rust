@@ -59,10 +59,8 @@ mod tests {
     use crate::exporter::model::endpoint::Endpoint;
     use crate::exporter::model::span::{Kind, Span};
     use crate::exporter::model::{into_zipkin_span, OTEL_ERROR_DESCRIPTION, OTEL_STATUS_CODE};
-    use opentelemetry::sdk::export::trace::SpanData;
-    use opentelemetry::sdk::trace::{EvictedHashMap, EvictedQueue};
-    use opentelemetry::sdk::Resource;
     use opentelemetry::trace::{SpanContext, SpanId, SpanKind, Status, TraceFlags, TraceId};
+    use opentelemetry_sdk::{export::trace::SpanData, trace::EvictedQueue, Resource};
     use std::borrow::Cow;
     use std::collections::HashMap;
     use std::net::Ipv4Addr;
@@ -162,7 +160,8 @@ mod tests {
                 name: "".into(),
                 start_time: SystemTime::now(),
                 end_time: SystemTime::now(),
-                attributes: EvictedHashMap::new(20, 20),
+                attributes: Vec::new(),
+                dropped_attributes_count: 0,
                 events: EvictedQueue::new(20),
                 links: EvictedQueue::new(20),
                 status,

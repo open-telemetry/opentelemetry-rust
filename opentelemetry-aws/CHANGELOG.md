@@ -1,5 +1,17 @@
 # Changelog
 
+## vNext
+
+### Changed
+
+- Bump MSRV to 1.64 [#1203](https://github.com/open-telemetry/opentelemetry-rust/pull/1203)
+
+## v0.8.0
+
+### Changed
+
+- Update to opentelemetry-api v0.20.0
+
 ## v0.7.0
 ### Added
 - Add public functions for AWS trace header [#887](https://github.com/open-telemetry/opentelemetry-rust/pull/887).

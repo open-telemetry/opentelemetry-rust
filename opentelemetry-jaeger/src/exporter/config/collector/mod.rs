@@ -5,8 +5,8 @@ use crate::exporter::config::{
 use crate::exporter::uploader::{AsyncUploader, Uploader};
 use crate::{Exporter, JaegerTraceRuntime};
 use http::Uri;
-use opentelemetry::sdk::trace::BatchConfig;
-use opentelemetry::{sdk, sdk::trace::Config as TraceConfig, trace::TraceError};
+use opentelemetry::trace::TraceError;
+use opentelemetry_sdk::trace::{BatchConfig, BatchSpanProcessor, Config, Tracer, TracerProvider};
 use std::borrow::BorrowMut;
 use std::convert::TryFrom;
 use std::env;
@@ -80,7 +80,7 @@ const ENV_PASSWORD: &str = "OTEL_EXPORTER_JAEGER_PASSWORD";
 /// let tracer = opentelemetry_jaeger::new_collector_pipeline()
 ///         .with_surf()
 ///         .with_reqwest()
-///         .install_batch(opentelemetry::runtime::Tokio)
+///         .install_batch(opentelemetry_sdk::runtime::Tokio)
 /// #       .unwrap();
 /// ```
 ///
@@ -91,7 +91,7 @@ const ENV_PASSWORD: &str = "OTEL_EXPORTER_JAEGER_PASSWORD";
 #[derive(Debug)]
 pub struct CollectorPipeline {
     transformation_config: TransformationConfig,
-    trace_config: Option<TraceConfig>,
+    trace_config: Option<Config>,
     batch_config: Option<BatchConfig>,
 
     #[cfg(feature = "collector_client")]
@@ -155,7 +155,7 @@ impl HasRequiredConfig for CollectorPipeline {
         f(self.transformation_config.borrow_mut())
     }
 
-    fn set_trace_config(&mut self, config: TraceConfig) {
+    fn set_trace_config(&mut self, config: Config) {
         self.trace_config = Some(config)
     }
 
@@ -172,6 +172,7 @@ enum ClientConfig {
     Wasm, // no config is available for wasm for now. But we can add in the future
 }
 
+#[allow(clippy::derivable_impls)]
 impl Default for ClientConfig {
     fn default() -> Self {
         // as long as collector is enabled, we will in favor of it
@@ -361,7 +362,7 @@ impl CollectorPipeline {
     ///
     /// If the service name is not set. It will default to be `unknown_service`.
     pub fn with_service_name<T: Into<String>>(mut self, service_name: T) -> Self {
-        self.set_transformation_config(|mut config| {
+        self.set_transformation_config(|config| {
             config.service_name = Some(service_name.into());
         });
         self
@@ -377,7 +378,7 @@ impl CollectorPipeline {
     ///
     /// [report instrumentation library as span tags]: https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/sdk_exporters/non-otlp.md#instrumentationscope
     pub fn with_instrumentation_library_tags(mut self, should_export: bool) -> Self {
-        self.set_transformation_config(|mut config| {
+        self.set_transformation_config(|config| {
             config.export_instrument_library = should_export;
         });
         self
@@ -391,16 +392,17 @@ impl CollectorPipeline {
     /// # Examples
     /// Set service name via resource.
     /// ```rust
-    /// use opentelemetry::{sdk::{self, Resource}, KeyValue};
+    /// use opentelemetry::KeyValue;
+    /// use opentelemetry_sdk::{Resource, trace::Config};
     ///
     /// let pipeline = opentelemetry_jaeger::new_collector_pipeline()
     ///                 .with_trace_config(
-    ///                       sdk::trace::Config::default()
+    ///                       Config::default()
     ///                         .with_resource(Resource::new(vec![KeyValue::new("service.name", "my-service")]))
     ///                 );
     ///
     /// ```
-    pub fn with_trace_config(mut self, config: sdk::trace::Config) -> Self {
+    pub fn with_trace_config(mut self, config: Config) -> Self {
         self.set_trace_config(config);
         self
     }
@@ -410,7 +412,7 @@ impl CollectorPipeline {
     /// # Examples
     /// Set max queue size.
     /// ```rust
-    /// use opentelemetry::sdk::trace::BatchConfig;
+    /// use opentelemetry_sdk::trace::BatchConfig;
     ///
     /// let pipeline = opentelemetry_jaeger::new_collector_pipeline()
     ///                 .with_batch_processor_config(
@@ -439,8 +441,8 @@ impl CollectorPipeline {
     pub fn build_batch<R: JaegerTraceRuntime>(
         mut self,
         runtime: R,
-    ) -> Result<sdk::trace::TracerProvider, TraceError> {
-        let mut builder = sdk::trace::TracerProvider::builder();
+    ) -> Result<TracerProvider, TraceError> {
+        let mut builder = TracerProvider::builder();
         // build sdk trace config and jaeger process.
         // some attributes like service name has attributes like service name
         let export_instrument_library = self.transformation_config.export_instrument_library;
@@ -451,7 +453,7 @@ impl CollectorPipeline {
         let batch_config = self.batch_config.take();
         let uploader = self.build_uploader::<R>()?;
         let exporter = Exporter::new(process.into(), export_instrument_library, uploader);
-        let batch_processor = sdk::trace::BatchSpanProcessor::builder(exporter, runtime)
+        let batch_processor = BatchSpanProcessor::builder(exporter, runtime)
             .with_batch_config(batch_config.unwrap_or_default())
             .build();
 
@@ -465,10 +467,7 @@ impl CollectorPipeline {
     /// tracer provider.
     ///
     /// The tracer name is `opentelemetry-jaeger`. The tracer version will be the version of this crate.
-    pub fn install_batch<R: JaegerTraceRuntime>(
-        self,
-        runtime: R,
-    ) -> Result<sdk::trace::Tracer, TraceError> {
+    pub fn install_batch<R: JaegerTraceRuntime>(self, runtime: R) -> Result<Tracer, TraceError> {
         let tracer_provider = self.build_batch(runtime)?;
         install_tracer_provider_and_get_tracer(tracer_provider)
     }
@@ -531,7 +530,7 @@ impl CollectorPipeline {
 mod tests {
     use super::*;
     use crate::config::collector::http_client::test_http_client;
-    use opentelemetry::runtime::Tokio;
+    use opentelemetry_sdk::runtime::Tokio;
 
     #[test]
     fn test_collector_defaults() {

@@ -20,7 +20,7 @@ analysis in order to understand your software's performance and behavior. This
 crate provides exporters that export to stdout or any implementation of
 [`std::io::Write`].
 
-*Compiler support: [requires `rustc` 1.60+][msrv]*
+*Compiler support: [requires `rustc` 1.64+][msrv]*
 
 [`std::io::Write`]: https://doc.rust-lang.org/std/io/trait.Write.html
 [`OpenTelemetry`]: https://crates.io/crates/opentelemetry
@@ -31,7 +31,7 @@ crate provides exporters that export to stdout or any implementation of
 Export telemetry signals to stdout.
 
 ```rust
-use opentelemetry_api::{
+use opentelemetry::{
     metrics::MeterProvider as _,
     trace::{Span, Tracer, TracerProvider as _},
     Context, KeyValue,
@@ -70,7 +70,7 @@ Recorded traces and metrics will now be sent to stdout:
 ## Supported Rust Versions
 
 OpenTelemetry is built against the latest stable release. The minimum supported
-version is 1.60. The current OpenTelemetry version is not guaranteed to build
+version is 1.64. The current OpenTelemetry version is not guaranteed to build
 on Rust versions earlier than the minimum supported version.
 
 The current stable Rust compiler and the three most recent minor versions

@@ -1,3 +1,4 @@
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ExportMetricsServiceRequest {
@@ -11,6 +12,7 @@ pub struct ExportMetricsServiceRequest {
         super::super::super::metrics::v1::ResourceMetrics,
     >,
 }
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ExportMetricsServiceResponse {
@@ -32,6 +34,7 @@ pub struct ExportMetricsServiceResponse {
     #[prost(message, optional, tag = "1")]
     pub partial_success: ::core::option::Option<ExportMetricsPartialSuccess>,
 }
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ExportMetricsPartialSuccess {
@@ -52,6 +55,7 @@ pub struct ExportMetricsPartialSuccess {
     pub error_message: ::prost::alloc::string::String,
 }
 /// Generated client implementations.
+#[cfg(feature = "gen-tonic")]
 pub mod metrics_service_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;
@@ -174,6 +178,7 @@ pub mod metrics_service_client {
     }
 }
 /// Generated server implementations.
+#[cfg(feature = "gen-tonic")]
 pub mod metrics_service_server {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;

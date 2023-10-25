@@ -5,9 +5,9 @@
 //! ```no_run
 //! # #[cfg(all(feature = "metrics", feature = "trace"))]
 //! {
-//! use opentelemetry_api::metrics::MeterProvider as _;
-//! use opentelemetry_api::trace::{Span, Tracer, TracerProvider as _};
-//! use opentelemetry_api::{Context, KeyValue};
+//! use opentelemetry::metrics::MeterProvider as _;
+//! use opentelemetry::trace::{Span, Tracer, TracerProvider as _};
+//! use opentelemetry::{Context, KeyValue};
 //!
 //! use opentelemetry_sdk::metrics::{MeterProvider, PeriodicReader};
 //! use opentelemetry_sdk::runtime;
@@ -50,3 +50,9 @@ mod trace;
 #[cfg_attr(docsrs, doc(cfg(feature = "trace")))]
 #[cfg(feature = "trace")]
 pub use trace::*;
+
+#[cfg(feature = "logs")]
+mod logs;
+#[cfg_attr(docsrs, doc(cfg(feature = "logs")))]
+#[cfg(feature = "logs")]
+pub use logs::*;

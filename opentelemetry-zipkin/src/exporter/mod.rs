@@ -6,18 +6,15 @@ use async_trait::async_trait;
 use futures_core::future::BoxFuture;
 use http::Uri;
 use model::endpoint::Endpoint;
-use opentelemetry::sdk::resource::ResourceDetector;
-use opentelemetry::sdk::resource::SdkProvidedResourceDetector;
-use opentelemetry::sdk::trace::Config;
-use opentelemetry::sdk::Resource;
-use opentelemetry::{
-    global, sdk,
-    sdk::export::{trace, ExportError},
-    sdk::trace::TraceRuntime,
-    trace::{TraceError, TracerProvider},
-    KeyValue,
-};
+use opentelemetry::{global, trace::TraceError, KeyValue};
 use opentelemetry_http::HttpClient;
+use opentelemetry_sdk::{
+    export::{trace, ExportError},
+    resource::{ResourceDetector, SdkProvidedResourceDetector},
+    runtime::RuntimeChannel,
+    trace::{BatchMessage, Config, Tracer, TracerProvider},
+    Resource,
+};
 use opentelemetry_semantic_conventions as semcov;
 use std::borrow::Cow;
 #[cfg(all(
@@ -57,7 +54,7 @@ pub struct ZipkinPipelineBuilder {
     service_name: Option<String>,
     service_addr: Option<SocketAddr>,
     collector_endpoint: String,
-    trace_config: Option<sdk::trace::Config>,
+    trace_config: Option<Config>,
     client: Option<Arc<dyn HttpClient>>,
 }
 
@@ -168,14 +165,14 @@ impl ZipkinPipelineBuilder {
     }
 
     /// Install the Zipkin trace exporter pipeline with a simple span processor.
-    pub fn install_simple(mut self) -> Result<sdk::trace::Tracer, TraceError> {
+    pub fn install_simple(mut self) -> Result<Tracer, TraceError> {
         let (config, endpoint) = self.init_config_and_endpoint();
         let exporter = self.init_exporter_with_endpoint(endpoint)?;
-        let mut provider_builder =
-            sdk::trace::TracerProvider::builder().with_simple_exporter(exporter);
+        let mut provider_builder = TracerProvider::builder().with_simple_exporter(exporter);
         provider_builder = provider_builder.with_config(config);
         let provider = provider_builder.build();
-        let tracer = provider.versioned_tracer(
+        let tracer = opentelemetry::trace::TracerProvider::versioned_tracer(
+            &provider,
             "opentelemetry-zipkin",
             Some(env!("CARGO_PKG_VERSION")),
             Some(semcov::SCHEMA_URL),
@@ -187,17 +184,17 @@ impl ZipkinPipelineBuilder {
 
     /// Install the Zipkin trace exporter pipeline with a batch span processor using the specified
     /// runtime.
-    pub fn install_batch<R: TraceRuntime>(
+    pub fn install_batch<R: RuntimeChannel<BatchMessage>>(
         mut self,
         runtime: R,
-    ) -> Result<sdk::trace::Tracer, TraceError> {
+    ) -> Result<Tracer, TraceError> {
         let (config, endpoint) = self.init_config_and_endpoint();
         let exporter = self.init_exporter_with_endpoint(endpoint)?;
-        let mut provider_builder =
-            sdk::trace::TracerProvider::builder().with_batch_exporter(exporter, runtime);
+        let mut provider_builder = TracerProvider::builder().with_batch_exporter(exporter, runtime);
         provider_builder = provider_builder.with_config(config);
         let provider = provider_builder.build();
-        let tracer = provider.versioned_tracer(
+        let tracer = opentelemetry::trace::TracerProvider::versioned_tracer(
+            &provider,
             "opentelemetry-zipkin",
             Some(env!("CARGO_PKG_VERSION")),
             Some(semcov::SCHEMA_URL),
@@ -232,7 +229,7 @@ impl ZipkinPipelineBuilder {
     }
 
     /// Assign the SDK trace configuration.
-    pub fn with_trace_config(mut self, config: sdk::trace::Config) -> Self {
+    pub fn with_trace_config(mut self, config: Config) -> Self {
         self.trace_config = Some(config);
         self
     }

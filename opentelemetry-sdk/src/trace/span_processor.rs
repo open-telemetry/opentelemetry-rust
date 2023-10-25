@@ -31,11 +31,11 @@
 //!   +-----+--------------+   +---------------------+
 //! ```
 //!
-//! [`is_recording`]: opentelemetry_api::trace::Span::is_recording()
-//! [`TracerProvider`]: opentelemetry_api::trace::TracerProvider
+//! [`is_recording`]: opentelemetry::trace::Span::is_recording()
+//! [`TracerProvider`]: opentelemetry::trace::TracerProvider
 
 use crate::export::trace::{ExportResult, SpanData, SpanExporter};
-use crate::trace::runtime::{TraceRuntime, TrySend};
+use crate::runtime::{RuntimeChannel, TrySend};
 use crate::trace::Span;
 use futures_channel::oneshot;
 use futures_util::{
@@ -44,8 +44,8 @@ use futures_util::{
     stream::{self, FusedStream, FuturesUnordered},
     Stream, StreamExt as _,
 };
-use opentelemetry_api::global;
-use opentelemetry_api::{
+use opentelemetry::global;
+use opentelemetry::{
     trace::{TraceError, TraceResult},
     Context,
 };
@@ -92,7 +92,8 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
     fn shutdown(&mut self) -> TraceResult<()>;
 }
 
-/// A [`SpanProcessor`] that exports when spans are finished.
+/// A [SpanProcessor] that passes finished spans to the configured `SpanExporter`, as
+/// soon as they are finished, without any batching.
 #[derive(Debug)]
 pub struct SimpleSpanProcessor {
     message_sender: crossbeam_channel::Sender<Message>,
@@ -183,6 +184,9 @@ impl SpanProcessor for SimpleSpanProcessor {
 }
 
 #[derive(Debug)]
+#[allow(clippy::large_enum_variant)]
+// reason = "TODO: SpanData storing dropped_attribute_count separately triggered this clippy warning.
+//           Expecting to address that separately in the future."")
 enum Message {
     ExportSpan(SpanData),
     Flush(crossbeam_channel::Sender<()>),
@@ -221,7 +225,7 @@ enum Message {
 /// ```
 /// # #[cfg(feature="tokio")]
 /// # {
-/// use opentelemetry_api::global;
+/// use opentelemetry::global;
 /// use opentelemetry_sdk::{runtime, testing::trace::NoopSpanExporter, trace};
 /// use std::time::Duration;
 ///
@@ -248,11 +252,11 @@ enum Message {
 /// [`executor`]: https://docs.rs/futures/0.3/futures/executor/index.html
 /// [`tokio`]: https://tokio.rs
 /// [`async-std`]: https://async.rs
-pub struct BatchSpanProcessor<R: TraceRuntime> {
+pub struct BatchSpanProcessor<R: RuntimeChannel<BatchMessage>> {
     message_sender: R::Sender,
 }
 
-impl<R: TraceRuntime> fmt::Debug for BatchSpanProcessor<R> {
+impl<R: RuntimeChannel<BatchMessage>> fmt::Debug for BatchSpanProcessor<R> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("BatchSpanProcessor")
             .field("message_sender", &self.message_sender)
@@ -260,7 +264,7 @@ impl<R: TraceRuntime> fmt::Debug for BatchSpanProcessor<R> {
     }
 }
 
-impl<R: TraceRuntime> SpanProcessor for BatchSpanProcessor<R> {
+impl<R: RuntimeChannel<BatchMessage>> SpanProcessor for BatchSpanProcessor<R> {
     fn on_start(&self, _span: &mut Span, _cx: &Context) {
         // Ignored
     }
@@ -273,14 +277,15 @@ impl<R: TraceRuntime> SpanProcessor for BatchSpanProcessor<R> {
         let result = self.message_sender.try_send(BatchMessage::ExportSpan(span));
 
         if let Err(err) = result {
-            global::handle_error(err);
+            global::handle_error(TraceError::Other(err.into()));
         }
     }
 
     fn force_flush(&self) -> TraceResult<()> {
         let (res_sender, res_receiver) = oneshot::channel();
         self.message_sender
-            .try_send(BatchMessage::Flush(Some(res_sender)))?;
+            .try_send(BatchMessage::Flush(Some(res_sender)))
+            .map_err(|err| TraceError::Other(err.into()))?;
 
         futures_executor::block_on(res_receiver)
             .map_err(|err| TraceError::Other(err.into()))
@@ -290,7 +295,8 @@ impl<R: TraceRuntime> SpanProcessor for BatchSpanProcessor<R> {
     fn shutdown(&mut self) -> TraceResult<()> {
         let (res_sender, res_receiver) = oneshot::channel();
         self.message_sender
-            .try_send(BatchMessage::Shutdown(res_sender))?;
+            .try_send(BatchMessage::Shutdown(res_sender))
+            .map_err(|err| TraceError::Other(err.into()))?;
 
         futures_executor::block_on(res_receiver)
             .map_err(|err| TraceError::Other(err.into()))
@@ -322,7 +328,7 @@ struct BatchSpanProcessorInternal<R> {
     config: BatchConfig,
 }
 
-impl<R: TraceRuntime> BatchSpanProcessorInternal<R> {
+impl<R: RuntimeChannel<BatchMessage>> BatchSpanProcessorInternal<R> {
     async fn flush(&mut self, res_channel: Option<oneshot::Sender<ExportResult>>) {
         let export_task = self.export();
         let task = Box::pin(async move {
@@ -459,7 +465,7 @@ impl<R: TraceRuntime> BatchSpanProcessorInternal<R> {
     }
 }
 
-impl<R: TraceRuntime> BatchSpanProcessor<R> {
+impl<R: RuntimeChannel<BatchMessage>> BatchSpanProcessor<R> {
     pub(crate) fn new(exporter: Box<dyn SpanExporter>, config: BatchConfig, runtime: R) -> Self {
         let (message_sender, message_receiver) =
             runtime.batch_message_channel(config.max_queue_size);
@@ -642,7 +648,7 @@ pub struct BatchSpanProcessorBuilder<E, R> {
 impl<E, R> BatchSpanProcessorBuilder<E, R>
 where
     E: SpanExporter + 'static,
-    R: TraceRuntime,
+    R: RuntimeChannel<BatchMessage>,
 {
     /// Set max queue size for batches
     pub fn with_max_queue_size(self, size: usize) -> Self {
@@ -715,9 +721,9 @@ mod tests {
     use crate::testing::trace::{
         new_test_export_span_data, new_test_exporter, new_tokio_test_exporter,
     };
-    use crate::trace::{BatchConfig, EvictedHashMap, EvictedQueue};
+    use crate::trace::{BatchConfig, EvictedQueue};
     use async_trait::async_trait;
-    use opentelemetry_api::trace::{SpanContext, SpanId, SpanKind, Status};
+    use opentelemetry::trace::{SpanContext, SpanId, SpanKind, Status};
     use std::fmt::Debug;
     use std::future::Future;
     use std::time::Duration;
@@ -740,9 +746,10 @@ mod tests {
             parent_span_id: SpanId::INVALID,
             span_kind: SpanKind::Internal,
             name: "opentelemetry".into(),
-            start_time: opentelemetry_api::time::now(),
-            end_time: opentelemetry_api::time::now(),
-            attributes: EvictedHashMap::new(0, 0),
+            start_time: opentelemetry::time::now(),
+            end_time: opentelemetry::time::now(),
+            attributes: Vec::new(),
+            dropped_attributes_count: 0,
             events: EvictedQueue::new(0),
             links: EvictedQueue::new(0),
             status: Status::Unset,

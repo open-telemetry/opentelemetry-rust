@@ -69,8 +69,8 @@ impl BinaryFormat for BinaryPropagator {
         }
 
         let span_context = SpanContext::new(
-            TraceId::from(trace_id),
-            SpanId::from(span_id),
+            TraceId::from_bytes(trace_id),
+            SpanId::from_bytes(span_id),
             TraceFlags::new(trace_flags),
             true,
             // TODO traceparent and tracestate should both begin with a 0 byte, figure out how to differentiate

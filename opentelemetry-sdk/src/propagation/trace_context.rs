@@ -18,7 +18,7 @@
 //!
 //! [w3c trace-context docs]: https://w3c.github.io/trace-context/
 use once_cell::sync::Lazy;
-use opentelemetry_api::{
+use opentelemetry::{
     propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
     trace::{SpanContext, SpanId, TraceContextExt, TraceFlags, TraceId, TraceState},
     Context,
@@ -114,7 +114,7 @@ impl TextMapPropagator for TraceContextPropagator {
         let span_context = span.span_context();
         if span_context.is_valid() {
             let header_value = format!(
-                "{:02x}-{:032x}-{:016x}-{:02x}",
+                "{:02x}-{}-{}-{:02x}",
                 SUPPORTED_VERSION,
                 span_context.trace_id(),
                 span_context.span_id(),
@@ -144,7 +144,7 @@ impl TextMapPropagator for TraceContextPropagator {
 mod tests {
     use super::*;
     use crate::testing::trace::TestSpan;
-    use opentelemetry_api::{
+    use opentelemetry::{
         propagation::{Extractor, Injector, TextMapPropagator},
         trace::{SpanContext, SpanId, TraceId},
     };
@@ -282,7 +282,7 @@ mod tests {
         let mut injector: HashMap<String, String> = HashMap::new();
         injector.set(TRACESTATE_HEADER, state.to_string());
 
-        propagator.inject_context(&Context::current(), &mut injector);
+        Context::map_current(|cx| propagator.inject_context(cx, &mut injector));
 
         assert_eq!(Extractor::get(&injector, TRACESTATE_HEADER), Some(state))
     }

@@ -18,27 +18,29 @@ use std::convert::TryFrom;
 
 use self::runtime::JaegerTraceRuntime;
 use self::thrift::jaeger;
-use futures::future::BoxFuture;
+use crate::exporter::uploader::Uploader;
+use futures_core::future::BoxFuture;
+use opentelemetry::{
+    trace::{Event, Link, SpanKind, Status},
+    InstrumentationLibrary, Key, KeyValue,
+};
+use opentelemetry_sdk::{
+    export::{
+        trace::{ExportResult, SpanData, SpanExporter},
+        ExportError,
+    },
+    trace::EvictedQueue,
+};
 use std::convert::TryInto;
 use std::fmt::Display;
 use std::io;
 use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, ToSocketAddrs};
 use std::sync::Arc;
+use std::time::{Duration, SystemTime};
 
 #[cfg(feature = "isahc_collector_client")]
 #[allow(unused_imports)] // this is actually used to configure authentication
 use isahc::prelude::Configurable;
-
-use opentelemetry::sdk::export::ExportError;
-use opentelemetry::{
-    sdk,
-    sdk::export::trace,
-    trace::{Event, Link, SpanKind, Status},
-    Key, KeyValue,
-};
-
-use crate::exporter::uploader::Uploader;
-use std::time::{Duration, SystemTime};
 
 /// Instrument Library name MUST be reported in Jaeger Span tags with the following key
 const INSTRUMENTATION_LIBRARY_NAME: &str = "otel.library.name";
@@ -78,8 +80,8 @@ pub struct Process {
     pub tags: Vec<KeyValue>,
 }
 
-impl trace::SpanExporter for Exporter {
-    fn export(&mut self, batch: Vec<trace::SpanData>) -> BoxFuture<'static, trace::ExportResult> {
+impl SpanExporter for Exporter {
+    fn export(&mut self, batch: Vec<SpanData>) -> BoxFuture<'static, ExportResult> {
         let mut jaeger_spans: Vec<jaeger::Span> = Vec::with_capacity(batch.len());
         let process = self.process.clone();
 
@@ -99,7 +101,7 @@ impl trace::SpanExporter for Exporter {
     }
 }
 
-fn links_to_references(links: sdk::trace::EvictedQueue<Link>) -> Option<Vec<jaeger::SpanRef>> {
+fn links_to_references(links: EvictedQueue<Link>) -> Option<Vec<jaeger::SpanRef>> {
     if !links.is_empty() {
         let refs = links
             .iter()
@@ -125,10 +127,7 @@ fn links_to_references(links: sdk::trace::EvictedQueue<Link>) -> Option<Vec<jaeg
 }
 
 /// Convert spans to jaeger thrift span for exporting.
-fn convert_otel_span_into_jaeger_span(
-    span: trace::SpanData,
-    export_instrument_lib: bool,
-) -> jaeger::Span {
+fn convert_otel_span_into_jaeger_span(span: SpanData, export_instrument_lib: bool) -> jaeger::Span {
     let trace_id_bytes = span.span_context.trace_id().to_bytes();
     let (high, low) = trace_id_bytes.split_at(8);
     let trace_id_high = i64::from_be_bytes(high.try_into().unwrap());
@@ -166,8 +165,8 @@ fn convert_otel_span_into_jaeger_span(
 }
 
 fn build_span_tags(
-    attrs: sdk::trace::EvictedHashMap,
-    instrumentation_lib: Option<sdk::InstrumentationLibrary>,
+    attrs: Vec<KeyValue>,
+    instrumentation_lib: Option<InstrumentationLibrary>,
     status: Status,
     kind: SpanKind,
 ) -> Vec<jaeger::Tag> {
@@ -175,9 +174,9 @@ fn build_span_tags(
     // TODO determine if namespacing is required to avoid collisions with set attributes
     let mut tags = attrs
         .into_iter()
-        .map(|(k, v)| {
-            user_overrides.record_attr(k.as_str());
-            KeyValue::new(k, v).into()
+        .map(|kv| {
+            user_overrides.record_attr(kv.key.as_str());
+            kv.into()
         })
         .collect::<Vec<_>>();
 
@@ -255,7 +254,7 @@ impl UserOverrides {
     }
 }
 
-fn events_to_logs(events: sdk::trace::EvictedQueue<Event>) -> Option<Vec<jaeger::Log>> {
+fn events_to_logs(events: EvictedQueue<Event>) -> Option<Vec<jaeger::Log>> {
     if events.is_empty() {
         None
     } else {
@@ -358,9 +357,10 @@ mod tests {
     use super::SPAN_KIND;
     use crate::exporter::thrift::jaeger::Tag;
     use crate::exporter::{build_span_tags, OTEL_STATUS_CODE, OTEL_STATUS_DESCRIPTION};
-    use opentelemetry::sdk::trace::EvictedHashMap;
-    use opentelemetry::trace::{SpanKind, Status};
-    use opentelemetry::KeyValue;
+    use opentelemetry::{
+        trace::{SpanKind, Status},
+        KeyValue,
+    };
 
     fn assert_tag_contains(tags: Vec<Tag>, key: &'static str, expect_val: &'static str) {
         assert_eq!(
@@ -403,7 +403,7 @@ mod tests {
     #[test]
     fn test_set_status() {
         for (status, status_tag_val, msg_tag_val) in get_error_tag_test_data() {
-            let tags = build_span_tags(EvictedHashMap::new(20, 20), None, status, SpanKind::Client);
+            let tags = build_span_tags(Vec::new(), None, status, SpanKind::Client);
             if let Some(val) = status_tag_val {
                 assert_tag_contains(tags.clone(), OTEL_STATUS_CODE, val);
             } else {
@@ -420,17 +420,17 @@ mod tests {
 
     #[test]
     fn ignores_user_set_values() {
-        let mut attributes = EvictedHashMap::new(20, 20);
+        let mut attributes = Vec::new();
         let user_error = true;
         let user_kind = "server";
         let user_status_description = "Something bad happened";
         let user_status = Status::Error {
             description: user_status_description.into(),
         };
-        attributes.insert(KeyValue::new("error", user_error));
-        attributes.insert(KeyValue::new(SPAN_KIND, user_kind));
-        attributes.insert(KeyValue::new(OTEL_STATUS_CODE, "ERROR"));
-        attributes.insert(KeyValue::new(
+        attributes.push(KeyValue::new("error", user_error));
+        attributes.push(KeyValue::new(SPAN_KIND, user_kind));
+        attributes.push(KeyValue::new(OTEL_STATUS_CODE, "ERROR"));
+        attributes.push(KeyValue::new(
             OTEL_STATUS_DESCRIPTION,
             user_status_description,
         ));

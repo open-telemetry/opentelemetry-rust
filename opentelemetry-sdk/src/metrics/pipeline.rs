@@ -5,23 +5,25 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use opentelemetry_api::{
+use opentelemetry::{
     global,
     metrics::{CallbackRegistration, MetricsError, Result, Unit},
-    Context,
+    KeyValue,
 };
 
 use crate::{
     instrumentation::Scope,
-    metrics::{aggregation, data, internal, view::View},
+    metrics::{
+        aggregation,
+        data::{Metric, ResourceMetrics, ScopeMetrics},
+        instrument::{Instrument, InstrumentId, InstrumentKind, Stream},
+        internal,
+        internal::AggregateBuilder,
+        internal::Number,
+        reader::{AggregationSelector, DefaultAggregationSelector, MetricReader, SdkProducer},
+        view::View,
+    },
     Resource,
-};
-
-use super::{
-    data::{Metric, ResourceMetrics, ScopeMetrics, Temporality},
-    instrument::{Instrument, InstrumentKind, Stream, StreamId},
-    internal::Number,
-    reader::{MetricReader, SdkProducer},
 };
 
 /// Connects all of the instruments created by a meter provider to a [MetricReader].
@@ -30,11 +32,11 @@ use super::{
 /// created.
 ///
 /// As instruments are created the instrument should be checked if it exists in
-/// the views of a the Reader, and if so each aggregator should be added to the
-/// pipeline.
+/// the views of a the reader, and if so each aggregate function should be added
+/// to the pipeline.
 #[doc(hidden)]
 pub struct Pipeline {
-    resource: Resource,
+    pub(crate) resource: Resource,
     reader: Box<dyn MetricReader>,
     views: Vec<Arc<dyn View>>,
     inner: Box<Mutex<PipelineInner>>,
@@ -103,8 +105,8 @@ impl Pipeline {
     }
 
     /// Send accumulated telemetry
-    fn force_flush(&self, cx: &Context) -> Result<()> {
-        self.reader.force_flush(cx)
+    fn force_flush(&self) -> Result<()> {
+        self.reader.force_flush()
     }
 
     /// Shut down pipeline
@@ -128,7 +130,10 @@ impl SdkProducer for Pipeline {
         }
 
         rm.resource = self.resource.clone();
-        rm.scope_metrics.reserve(inner.aggregations.len());
+        if inner.aggregations.len() > rm.scope_metrics.len() {
+            rm.scope_metrics
+                .reserve(inner.aggregations.len() - rm.scope_metrics.len());
+        }
 
         let mut i = 0;
         for (scope, instruments) in inner.aggregations.iter() {
@@ -139,23 +144,35 @@ impl SdkProducer for Pipeline {
                     rm.scope_metrics.last_mut().unwrap()
                 }
             };
-            sm.metrics.reserve(instruments.len());
+            if instruments.len() > sm.metrics.len() {
+                sm.metrics.reserve(instruments.len() - sm.metrics.len());
+            }
 
             let mut j = 0;
             for inst in instruments {
-                if let Some(data) = inst.aggregator.aggregation() {
-                    let m = Metric {
+                let mut m = sm.metrics.get_mut(j);
+                match (inst.comp_agg.call(m.as_mut().map(|m| m.data.as_mut())), m) {
+                    // No metric to re-use, expect agg to create new metric data
+                    ((len, Some(initial_agg)), None) if len > 0 => sm.metrics.push(Metric {
                         name: inst.name.clone(),
                         description: inst.description.clone(),
                         unit: inst.unit.clone(),
-                        data,
-                    };
-                    match sm.metrics.get_mut(j) {
-                        Some(old) => *old = m,
-                        None => sm.metrics.push(m),
-                    };
-                    j += 1;
+                        data: initial_agg,
+                    }),
+                    // Existing metric can be re-used, update its values
+                    ((len, data), Some(prev_agg)) if len > 0 => {
+                        if let Some(data) = data {
+                            // previous aggregation was of a different type
+                            prev_agg.data = data;
+                        }
+                        prev_agg.name = inst.name.clone();
+                        prev_agg.description = inst.description.clone();
+                        prev_agg.unit = inst.unit.clone();
+                    }
+                    _ => continue,
                 }
+
+                j += 1;
             }
 
             sm.metrics.truncate(j);
@@ -171,22 +188,12 @@ impl SdkProducer for Pipeline {
     }
 }
 
-trait Aggregator: Send + Sync {
-    fn aggregation(&self) -> Option<Box<dyn data::Aggregation>>;
-}
-
-impl<T> Aggregator for Arc<dyn internal::Aggregator<T>> {
-    fn aggregation(&self) -> Option<Box<dyn data::Aggregation>> {
-        self.as_ref().aggregation()
-    }
-}
-
-/// A synchronization point between a [Pipeline] and an instrument's aggregators.
+/// A synchronization point between a [Pipeline] and an instrument's aggregate function.
 struct InstrumentSync {
     name: Cow<'static, str>,
     description: Cow<'static, str>,
     unit: Unit,
-    aggregator: Box<dyn Aggregator>,
+    comp_agg: Box<dyn internal::ComputeAggregation>,
 }
 
 impl fmt::Debug for InstrumentSync {
@@ -199,15 +206,17 @@ impl fmt::Debug for InstrumentSync {
     }
 }
 
-type Cache<T> = Mutex<HashMap<StreamId, Result<Option<Arc<dyn internal::Aggregator<T>>>>>>;
+type Cache<T> = Mutex<HashMap<InstrumentId, Result<Option<Arc<dyn internal::Measure<T>>>>>>;
 
 /// Facilitates inserting of new instruments from a single scope into a pipeline.
 struct Inserter<T> {
-    /// A cache that holds [Aggregator]s inserted into the underlying reader pipeline.
+    /// A cache that holds aggregate function inputs whose
+    /// outputs have been inserted into the underlying reader pipeline.
     ///
-    /// This cache ensures no duplicate `Aggregator`s are inserted into the reader
-    /// pipeline and if a new request during an instrument creation asks for the same
-    /// `Aggregator` the same instance is returned.
+    /// This cache ensures no duplicate aggregate functions are inserted into
+    /// the reader pipeline and if a new request during an instrument creation
+    /// asks for the same aggregate function input the same instance is
+    /// returned.
     aggregators: Cache<T>,
 
     /// A cache that holds instrument identifiers for all the instruments a [Meter] has
@@ -216,7 +225,7 @@ struct Inserter<T> {
     /// It is provided from the `Meter` that owns this inserter. This cache ensures
     /// that during the creation of instruments with the same name but different
     /// options (e.g. description, unit) a warning message is logged.
-    views: Arc<Mutex<HashMap<Cow<'static, str>, StreamId>>>,
+    views: Arc<Mutex<HashMap<Cow<'static, str>, InstrumentId>>>,
 
     pipeline: Arc<Pipeline>,
 }
@@ -225,7 +234,7 @@ impl<T> Inserter<T>
 where
     T: Number<T>,
 {
-    fn new(p: Arc<Pipeline>, vc: Arc<Mutex<HashMap<Cow<'static, str>, StreamId>>>) -> Self {
+    fn new(p: Arc<Pipeline>, vc: Arc<Mutex<HashMap<Cow<'static, str>, InstrumentId>>>) -> Self {
         Inserter {
             aggregators: Default::default(),
             views: vc,
@@ -239,24 +248,26 @@ where
     /// that creates a unique [Aggregator] will be inserted into the pipeline and
     /// included in the returned list.
     ///
-    /// The returned `Aggregator`s are ensured to be deduplicated and unique. If
-    /// another view in another pipeline that is cached by this inserter's cache has
-    /// already inserted the same `Aggregator` for the same instrument, that
-    /// `Aggregator` instance is returned.
+    /// The returned aggregate functions are ensured to be deduplicated and unique.
+    /// If another view in another pipeline that is cached by this inserter's cache
+    /// has already inserted the same aggregate function for the same instrument,
+    /// that function's instance is returned.
     ///
     /// If another instrument has already been inserted by this inserter, or any
     /// other using the same cache, and it conflicts with the instrument being
-    /// inserted in this call, an `Aggregator` matching the arguments will still be
-    /// returned but a log message will also be logged to the OTel global logger.
+    /// inserted in this call, an aggregate function matching the arguments will
+    /// still be returned but a log message will also be logged to the OTel global
+    /// logger.
     ///
-    /// If the passed instrument would result in an incompatible `Aggregator`, an
-    /// error is returned and that `Aggregator` is not inserted or returned.
+    /// If the passed instrument would result in an incompatible aggregate function,
+    /// an error is returned and that aggregate function is not inserted or
+    /// returned.
     ///
-    /// If an instrument is determined to use a [aggregation::Aggregation::Drop], that instrument is
-    /// not inserted nor returned.
-    fn instrument(&self, inst: Instrument) -> Result<Vec<Arc<dyn internal::Aggregator<T>>>> {
+    /// If an instrument is determined to use a [aggregation::Aggregation::Drop],
+    /// that instrument is not inserted nor returned.
+    fn instrument(&self, inst: Instrument) -> Result<Vec<Arc<dyn internal::Measure<T>>>> {
         let mut matched = false;
-        let mut aggs = vec![];
+        let mut measures = vec![];
         let mut errs = vec![];
         let kind = match inst.kind {
             Some(kind) => kind,
@@ -272,7 +283,7 @@ where
             };
             matched = true;
 
-            let id = self.stream_id(kind, &stream);
+            let id = self.inst_id(kind, &stream);
             if seen.contains(&id) {
                 continue; // This aggregator has already been added
             }
@@ -286,12 +297,12 @@ where
                 }
             };
             seen.insert(id);
-            aggs.push(agg);
+            measures.push(agg);
         }
 
         if matched {
             if errs.is_empty() {
-                return Ok(aggs);
+                return Ok(measures);
             } else {
                 return Err(MetricsError::Other(format!("{errs:?}")));
             }
@@ -303,16 +314,16 @@ where
             description: inst.description,
             unit: inst.unit,
             aggregation: None,
-            attribute_filter: None,
+            allowed_attribute_keys: None,
         };
 
         match self.cached_aggregator(&inst.scope, kind, stream) {
             Ok(agg) => {
                 if errs.is_empty() {
                     if let Some(agg) = agg {
-                        aggs.push(agg);
+                        measures.push(agg);
                     }
-                    Ok(aggs)
+                    Ok(measures)
                 } else {
                     Err(MetricsError::Other(format!("{errs:?}")))
                 }
@@ -324,16 +335,16 @@ where
         }
     }
 
-    /// Returns the appropriate Aggregator for an instrument
-    /// configuration. If the exact instrument has been created within the
-    /// inst.Scope, that Aggregator instance will be returned. Otherwise, a new
-    /// computed Aggregator will be cached and returned.
+    /// Returns the appropriate aggregate functions for an instrument configuration.
+    ///
+    /// If the exact instrument has been created within the [Scope], that
+    /// aggregate function instance will be returned. Otherwise, a new computed
+    /// aggregate function will be cached and returned.
     ///
     /// If the instrument configuration conflicts with an instrument that has
     /// already been created (e.g. description, unit, data type) a warning will be
-    /// logged at the "Info" level with the global OTel logger. A valid new
-    /// Aggregator for the instrument configuration will still be returned without
-    /// an error.
+    /// logged with the global OTel logger. A valid new aggregate function for the
+    /// instrument configuration will still be returned without an error.
     ///
     /// If the instrument defines an unknown or incompatible aggregation, an error
     /// is returned.
@@ -342,36 +353,48 @@ where
         scope: &Scope,
         kind: InstrumentKind,
         mut stream: Stream,
-    ) -> Result<Option<Arc<dyn internal::Aggregator<T>>>> {
-        let agg = if let Some(agg) = stream.aggregation.as_ref() {
-            agg
-        } else {
-            stream.aggregation = Some(self.pipeline.reader.aggregation(kind));
-            stream.aggregation.as_ref().unwrap()
-        };
+    ) -> Result<Option<Arc<dyn internal::Measure<T>>>> {
+        let mut agg = stream
+            .aggregation
+            .take()
+            .unwrap_or_else(|| self.pipeline.reader.aggregation(kind));
 
-        if let Err(err) = is_aggregator_compatible(&kind, agg) {
+        // Apply default if stream or reader aggregation returns default
+        if matches!(agg, aggregation::Aggregation::Default) {
+            agg = DefaultAggregationSelector::new().aggregation(kind);
+        }
+
+        if let Err(err) = is_aggregator_compatible(&kind, &agg) {
             return Err(MetricsError::Other(format!(
                 "creating aggregator with instrumentKind: {:?}, aggregation {:?}: {:?}",
                 kind, stream.aggregation, err,
             )));
         }
 
-        let id = self.stream_id(kind, &stream);
+        let mut id = self.inst_id(kind, &stream);
         // If there is a conflict, the specification says the view should
         // still be applied and a warning should be logged.
         self.log_conflict(&id);
-        let (id_temporality, id_monotonic) = (id.temporality, id.monotonic);
-        let mut cache = self.aggregators.lock()?;
-        let cached = cache.entry(id).or_insert_with(|| {
-            let mut agg = match self.aggregator(agg, kind, id_temporality, id_monotonic) {
-                Ok(Some(agg)) => agg,
-                other => return other, // Drop aggregator or error
-            };
 
-            if let Some(filter) = &stream.attribute_filter {
-                agg = internal::new_filter(agg, Arc::clone(filter));
-            }
+        // If there are requests for the same instrument with different name
+        // casing, the first-seen needs to be returned. Use a normalize ID for the
+        // cache lookup to ensure the correct comparison.
+        id.normalize();
+
+        let mut cache = self.aggregators.lock()?;
+
+        let cached = cache.entry(id).or_insert_with(|| {
+            let filter = stream
+                .allowed_attribute_keys
+                .as_ref()
+                .map(Arc::clone)
+                .map(|allowed| Arc::new(move |kv: &KeyValue| allowed.contains(&kv.key)) as Arc<_>);
+
+            let b = AggregateBuilder::new(Some(self.pipeline.reader.temporality(kind)), filter);
+            let (m, ca) = match aggregate_fn(b, &agg, kind) {
+                Ok(Some((m, ca))) => (m, ca),
+                other => return other.map(|fs| fs.map(|(m, _)| m)), // Drop aggregator or error
+            };
 
             self.pipeline.add_sync(
                 scope.clone(),
@@ -379,11 +402,11 @@ where
                     name: stream.name,
                     description: stream.description,
                     unit: stream.unit,
-                    aggregator: Box::new(Arc::clone(&agg)),
+                    comp_agg: ca,
                 },
             );
 
-            Ok(Some(agg))
+            Ok(Some(m))
         });
 
         cached
@@ -395,106 +418,109 @@ where
     /// Validates if an instrument with the same name as id has already been created.
     ///
     /// If that instrument conflicts with id, a warning is logged.
-    fn log_conflict(&self, id: &StreamId) {
-        let _ = self.views.lock().map(|views| {
-            if let Some(existing) = views.get(&id.name) {
-                if existing == id { return; }
+    fn log_conflict(&self, id: &InstrumentId) {
+        if let Ok(views) = self.views.lock() {
+            if let Some(existing) = views.get(id.name.to_lowercase().as_str()) {
+                if existing == id {
+                    return;
+                }
+
                 global::handle_error(MetricsError::Other(format!(
-                "duplicate metric stream definitions, names: ({} and {}), descriptions: ({} and {}), units: ({:?} and {:?}), numbers: ({} and {}), aggregations: ({:?} and {:?}), monotonics: ({} and {}), temporalities: ({:?} and {:?})",
-                existing.name, id.name,
-                existing.description, id.description,
-                existing.unit, id.unit,
-                existing.number, id.number,
-                existing.aggregation, id.aggregation,
-                existing.monotonic, id.monotonic,
-                existing.temporality, id.temporality)))
+                    "duplicate metric stream definitions, names: ({} and {}), descriptions: ({} and {}), kinds: ({:?} and {:?}), units: ({:?} and {:?}), and numbers: ({} and {})",
+                    existing.name, id.name,
+                    existing.description, id.description,
+                    existing.kind, id.kind,
+                    existing.unit, id.unit,
+                    existing.number, id.number,
+               )))
             }
-        });
-    }
-
-    fn stream_id(&self, kind: InstrumentKind, stream: &Stream) -> StreamId {
-        let aggregation = stream
-            .aggregation
-            .as_ref()
-            .map(ToString::to_string)
-            .unwrap_or_default();
-
-        StreamId {
-            name: stream.name.clone(),
-            description: stream.description.clone(),
-            unit: stream.unit.clone(),
-            aggregation,
-            temporality: Some(self.pipeline.reader.temporality(kind)),
-            number: Cow::Borrowed(std::any::type_name::<T>()),
-            monotonic: matches!(
-                kind,
-                InstrumentKind::ObservableCounter
-                    | InstrumentKind::Counter
-                    | InstrumentKind::Histogram
-            ),
         }
     }
 
-    /// Returns a new [Aggregator] for the given params.
-    ///
-    /// If the aggregation is unknown or temporality is invalid, an error is returned.
-    fn aggregator(
-        &self,
-        agg: &aggregation::Aggregation,
-        kind: InstrumentKind,
-        temporality: Option<Temporality>,
-        monotonic: bool,
-    ) -> Result<Option<Arc<dyn internal::Aggregator<T>>>> {
-        use aggregation::Aggregation;
-        match agg {
-            Aggregation::Drop => Ok(None),
-            Aggregation::LastValue => Ok(Some(internal::new_last_value())),
-            Aggregation::Sum => {
-                match kind {
-                    InstrumentKind::ObservableCounter | InstrumentKind::ObservableUpDownCounter => {
-                        // Asynchronous counters and up-down-counters are defined to record
-                        // the absolute value of the count:
-                        // https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/api.md#asynchronous-counter-creation
-                        match temporality {
-                            Some(Temporality::Cumulative) => {
-                                return Ok(Some(internal::new_precomputed_cumulative_sum(
-                                    monotonic,
-                                )))
-                            }
-                            Some(Temporality::Delta) => {
-                                return Ok(Some(internal::new_precomputed_delta_sum(monotonic)))
-                            }
-                            _ => {
-                                return Err(MetricsError::Other(format!(
-                                    "unrecognized temporality: {:?}",
-                                    temporality
-                                )))
-                            }
-                        }
-                    }
-                    _ => {}
-                };
+    fn inst_id(&self, kind: InstrumentKind, stream: &Stream) -> InstrumentId {
+        InstrumentId {
+            name: stream.name.clone(),
+            description: stream.description.clone(),
+            kind,
+            unit: stream.unit.clone(),
+            number: Cow::Borrowed(std::any::type_name::<T>()),
+        }
+    }
+}
 
-                match temporality {
-                    Some(Temporality::Cumulative) => {
-                        Ok(Some(internal::new_cumulative_sum(monotonic)))
-                    }
-                    Some(Temporality::Delta) => Ok(Some(internal::new_delta_sum(monotonic))),
-                    _ => Err(MetricsError::Other(format!(
-                        "unrecognized temporality: {:?}",
-                        temporality
-                    ))),
-                }
-            }
-            a @ Aggregation::ExplicitBucketHistogram { .. } => match temporality {
-                Some(Temporality::Cumulative) => Ok(Some(internal::new_cumulative_histogram(a))),
-                Some(Temporality::Delta) => Ok(Some(internal::new_delta_histogram(a))),
-                _ => Err(MetricsError::Other(format!(
-                    "unrecognized temporality: {:?}",
-                    temporality
-                ))),
-            },
-            _ => Err(MetricsError::Other("unknown aggregation".into())),
+type AggregateFns<T> = (
+    Arc<dyn internal::Measure<T>>,
+    Box<dyn internal::ComputeAggregation>,
+);
+
+/// Returns new aggregate functions for the given params.
+///
+/// If the aggregation is unknown or temporality is invalid, an error is returned.
+fn aggregate_fn<T: Number<T>>(
+    b: AggregateBuilder<T>,
+    agg: &aggregation::Aggregation,
+    kind: InstrumentKind,
+) -> Result<Option<AggregateFns<T>>> {
+    use aggregation::Aggregation;
+    fn box_val<T>(
+        (m, ca): (impl internal::Measure<T>, impl internal::ComputeAggregation),
+    ) -> (
+        Arc<dyn internal::Measure<T>>,
+        Box<dyn internal::ComputeAggregation>,
+    ) {
+        (Arc::new(m), Box::new(ca))
+    }
+
+    match agg {
+        Aggregation::Default => aggregate_fn(
+            b,
+            &DefaultAggregationSelector::new().aggregation(kind),
+            kind,
+        ),
+        Aggregation::Drop => Ok(None),
+        Aggregation::LastValue => Ok(Some(box_val(b.last_value()))),
+        Aggregation::Sum => {
+            let fns = match kind {
+                InstrumentKind::ObservableCounter => box_val(b.precomputed_sum(true)),
+                InstrumentKind::ObservableUpDownCounter => box_val(b.precomputed_sum(false)),
+                InstrumentKind::Counter | InstrumentKind::Histogram => box_val(b.sum(true)),
+                _ => box_val(b.sum(false)),
+            };
+            Ok(Some(fns))
+        }
+        Aggregation::ExplicitBucketHistogram {
+            boundaries,
+            record_min_max,
+        } => {
+            let record_sum = !matches!(
+                kind,
+                InstrumentKind::UpDownCounter
+                    | InstrumentKind::ObservableUpDownCounter
+                    | InstrumentKind::ObservableGauge
+            );
+            Ok(Some(box_val(b.explicit_bucket_histogram(
+                boundaries.to_vec(),
+                *record_min_max,
+                record_sum,
+            ))))
+        }
+        Aggregation::Base2ExponentialHistogram {
+            max_size,
+            max_scale,
+            record_min_max,
+        } => {
+            let record_sum = !matches!(
+                kind,
+                InstrumentKind::UpDownCounter
+                    | InstrumentKind::ObservableUpDownCounter
+                    | InstrumentKind::ObservableGauge
+            );
+            Ok(Some(box_val(b.exponential_bucket_histogram(
+                *max_size,
+                *max_scale,
+                *record_min_max,
+                record_sum,
+            ))))
         }
     }
 }
@@ -505,21 +531,29 @@ where
 ///
 /// | Instrument Kind          | Drop | LastValue | Sum | Histogram | Exponential Histogram |
 /// |--------------------------|------|-----------|-----|-----------|-----------------------|
-/// | Counter                  | X    |           | X   | X         | X                     |
-/// | UpDownCounter            | X    |           | X   |           |                       |
-/// | Histogram                | X    |           | X   | X         | X                     |
-/// | Observable Counter       | X    |           | X   |           |                       |
-/// | Observable UpDownCounter | X    |           | X   |           |                       |
-/// | Observable Gauge         | X    | X         |     |           |                       |.
+/// | Counter                  | ✓    |           | ✓   | ✓         | ✓                     |
+/// | UpDownCounter            | ✓    |           | ✓   | ✓         | ✓                     |
+/// | Histogram                | ✓    |           | ✓   | ✓         | ✓                     |
+/// | Observable Counter       | ✓    |           | ✓   | ✓         | ✓                     |
+/// | Observable UpDownCounter | ✓    |           | ✓   | ✓         | ✓                     |
+/// | Observable Gauge         | ✓    | ✓         |     | ✓         | ✓                     |
 fn is_aggregator_compatible(kind: &InstrumentKind, agg: &aggregation::Aggregation) -> Result<()> {
     use aggregation::Aggregation;
     match agg {
-        Aggregation::ExplicitBucketHistogram { .. } => {
-            if kind == &InstrumentKind::Counter || kind == &InstrumentKind::Histogram {
+        Aggregation::Default => Ok(()),
+        Aggregation::ExplicitBucketHistogram { .. }
+        | Aggregation::Base2ExponentialHistogram { .. } => {
+            if matches!(
+                kind,
+                InstrumentKind::Counter
+                    | InstrumentKind::UpDownCounter
+                    | InstrumentKind::Histogram
+                    | InstrumentKind::ObservableCounter
+                    | InstrumentKind::ObservableUpDownCounter
+                    | InstrumentKind::ObservableGauge
+            ) {
                 return Ok(());
             }
-            // TODO: review need for aggregation check after
-            // https://github.com/open-telemetry/opentelemetry-specification/issues/2710
             Err(MetricsError::Other("incompatible aggregation".into()))
         }
         Aggregation::Sum => {
@@ -545,19 +579,12 @@ fn is_aggregator_compatible(kind: &InstrumentKind, agg: &aggregation::Aggregatio
             Err(MetricsError::Other("incompatible aggregation".into()))
         }
         Aggregation::Drop => Ok(()),
-        _ => {
-            // This is used passed checking for default, it should be an error at this point.
-            Err(MetricsError::Other(format!(
-                "unknown aggregation {:?}",
-                agg
-            )))
-        }
     }
 }
 
 /// The group of pipelines connecting Readers with instrument measurement.
 #[derive(Clone, Debug)]
-pub(crate) struct Pipelines(Vec<Arc<Pipeline>>);
+pub(crate) struct Pipelines(pub(crate) Vec<Arc<Pipeline>>);
 
 impl Pipelines {
     pub(crate) fn new(
@@ -611,10 +638,10 @@ impl Pipelines {
     }
 
     /// Force flush all pipelines
-    pub(crate) fn force_flush(&self, cx: &Context) -> Result<()> {
+    pub(crate) fn force_flush(&self) -> Result<()> {
         let mut errs = vec![];
         for pipeline in &self.0 {
-            if let Err(err) = pipeline.force_flush(cx) {
+            if let Err(err) = pipeline.force_flush() {
                 errs.push(err);
             }
         }
@@ -662,9 +689,9 @@ impl CallbackRegistration for Unregister {
     }
 }
 
-/// resolver facilitates resolving Aggregators an instrument needs to aggregate
-/// measurements with while updating all pipelines that need to pull from those
-/// aggregations.
+/// resolver facilitates resolving aggregate functions an instrument calls to
+/// aggregate measurements with while updating all pipelines that need to pull from
+/// those aggregations.
 pub(crate) struct Resolver<T> {
     inserters: Vec<Inserter<T>>,
 }
@@ -675,35 +702,30 @@ where
 {
     pub(crate) fn new(
         pipelines: Arc<Pipelines>,
-        view_cache: Arc<Mutex<HashMap<Cow<'static, str>, StreamId>>>,
+        view_cache: Arc<Mutex<HashMap<Cow<'static, str>, InstrumentId>>>,
     ) -> Self {
-        let inserters = pipelines.0.iter().fold(Vec::new(), |mut acc, pipe| {
-            acc.push(Inserter::new(Arc::clone(pipe), Arc::clone(&view_cache)));
-            acc
-        });
+        let inserters = pipelines
+            .0
+            .iter()
+            .map(|pipe| Inserter::new(Arc::clone(pipe), Arc::clone(&view_cache)))
+            .collect();
 
         Resolver { inserters }
     }
 
-    /// Aggregators returns the Aggregators that must be updated by the instrument
-    /// defined by key.
-    pub(crate) fn aggregators(
-        &self,
-        id: Instrument,
-    ) -> Result<Vec<Arc<dyn internal::Aggregator<T>>>> {
-        let (aggs, errs) =
-            self.inserters
-                .iter()
-                .fold((vec![], vec![]), |(mut aggs, mut errs), inserter| {
-                    match inserter.instrument(id.clone()) {
-                        Ok(agg) => aggs.extend(agg),
-                        Err(err) => errs.push(err),
-                    };
-                    (aggs, errs)
-                });
+    /// The measures that must be updated by the instrument defined by key.
+    pub(crate) fn measures(&self, id: Instrument) -> Result<Vec<Arc<dyn internal::Measure<T>>>> {
+        let (mut measures, mut errs) = (vec![], vec![]);
+
+        for inserter in &self.inserters {
+            match inserter.instrument(id.clone()) {
+                Ok(ms) => measures.extend(ms),
+                Err(err) => errs.push(err),
+            }
+        }
 
         if errs.is_empty() {
-            Ok(aggs)
+            Ok(measures)
         } else {
             Err(MetricsError::Other(format!("{errs:?}")))
         }
