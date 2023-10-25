@@ -12,7 +12,7 @@ use std::ops::{Index, IndexMut, RangeBounds};
 ///
 /// Entries will be returned according to their insertion order when iterating over the collection.
 #[derive(Clone, Debug)]
-pub struct OrderMap<K, V, S = RandomState>(IndexMap<K, V, S>);
+pub(crate) struct OrderMap<K, V, S = RandomState>(IndexMap<K, V, S>);
 
 impl<K, V> OrderMap<K, V> {
     /// Create a new map. (Does not allocate)
