@@ -8,6 +8,7 @@
 
 ### Changed
 
+- Bump MSRV to 1.65 [#1318](https://github.com/open-telemetry/opentelemetry-rust/pull/1318)
 - Include error diagnosing messages for registering tracepoint
     [#1273](https://github.com/open-telemetry/opentelemetry-rust/pull/1273).
 - Add version, protocol to schema
