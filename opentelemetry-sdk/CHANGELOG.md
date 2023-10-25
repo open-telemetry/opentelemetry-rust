@@ -12,6 +12,7 @@
 
 ### Changed
 
+- Bump MSRV to 1.65 [#1318](https://github.com/open-telemetry/opentelemetry-rust/pull/1318)
 - Default Resource (the one used when no other Resource is explicitly provided) now includes `TelemetryResourceDetector`,
   populating "telemetry.sdk.*" attributes.
   [#1066](https://github.com/open-telemetry/opentelemetry-rust/pull/1193).
@@ -33,22 +34,22 @@
   [#1293](https://github.com/open-telemetry/opentelemetry-rust/issues/1293)
   makes few breaking changes with respect to how Span attributes are stored to
   achieve performance gains. See below for details:
-  
+
   *Behavior Change*:
-  
+
   SDK will no longer perform de-duplication of Span attribute Keys. Please share
   [feedback
   here](https://github.com/open-telemetry/opentelemetry-rust/issues/1300), if
   you are affected.
-  
+
   *Breaking Change Affecting Exporter authors*:
-  
+
    `SpanData` now stores `attributes` as `Vec<KeyValue>` instead of
   `EvictedHashMap`. `SpanData` now expose `dropped_attributes_count` as a
   separate field.
-  
+
   *Breaking Change Affecting Sampler authors*:
-  
+
   `should_sample` changes `attributes` from `OrderMap<Key, Value>` to
   `Vec<KeyValue>`.
 
