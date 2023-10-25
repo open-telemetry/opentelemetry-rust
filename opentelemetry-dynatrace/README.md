@@ -4,6 +4,8 @@
 
 # Dynatrace
 
+*This is the last release of the crate!*
+
 [Dynatrace](https://www.dynatrace.com/integrations/opentelemetry) supports native
 OpenTelemetry protocol (OTLP) ingest for traces, metrics and logs.
 All signals can be sent directly to Dynatrace via **OTLP protobuf over HTTP**
@@ -11,7 +13,7 @@ using the built-in OTLP/HTTP Exporter available in the OpenTelemetry Rust SDK.
 More information on configuring your Rust applications to use the OTLP exporter can be found in the
 [Dynatrace documentation](https://www.dynatrace.com/support/help/shortlink/otel-wt-rust).
 
-## Dynatrace OpenTelemetry Metrics Exporter for Rust 
+## Dynatrace OpenTelemetry Metrics Exporter for Rust
 
 ![Static Badge](https://img.shields.io/badge/status-deprecated-orange)
 [![Crates.io: opentelemetry-dynatrace](https://img.shields.io/crates/v/opentelemetry-dynatrace.svg)](https://crates.io/crates/opentelemetry-dynatrace)
@@ -42,13 +44,13 @@ to [`Dynatrace`].
 
 * **Metrics** - Ingest metric data to Dynatrace using the [Dynatrace Metrics ingestion protocol].
 
-This exporter only supports the ingestion of metric data. For trace data, use 
-[`opentelemetry-otlp`] as described in the 
-[Dynatrace documentation for Rust]. This exporter is based on the OpenTelemetry 
-Metrics SDK for Rust, which is currently in an alpha state and neither 
-considered stable nor complete as of this writing. As such, this exporter is 
-not intended for production use until the underlying OpenTelemetry Metrics API 
-and SDK are stable. See [`open-telemetry/opentelemetry-rust`] for the current 
+This exporter only supports the ingestion of metric data. For trace data, use
+[`opentelemetry-otlp`] as described in the
+[Dynatrace documentation for Rust]. This exporter is based on the OpenTelemetry
+Metrics SDK for Rust, which is currently in an alpha state and neither
+considered stable nor complete as of this writing. As such, this exporter is
+not intended for production use until the underlying OpenTelemetry Metrics API
+and SDK are stable. See [`open-telemetry/opentelemetry-rust`] for the current
 state of the OpenTelemetry SDK for Rust.
 
 [Dynatrace]: https://www.dynatrace.com/
@@ -58,7 +60,7 @@ state of the OpenTelemetry SDK for Rust.
 
 #### Examples
 
-The examples directory contains an [advanced example](../examples/dynatrace) 
+The examples directory contains an [advanced example](../examples/dynatrace)
 showing the ingestion of trace data and metric data together.
 
 [`opentelemetry-otlp`]: https://crates.io/crates/opentelemetry-otlp
@@ -66,9 +68,9 @@ showing the ingestion of trace data and metric data together.
 
 ### Performance
 
-For optimal performance, a batch exporter is used. You can enable the `rt-tokio` 
-feature flag to use the [`tokio`] runtime, or enable the `rt-async-std` feature 
-flag to use the [`async-std`] runtime to have a batch exporter configured for 
+For optimal performance, a batch exporter is used. You can enable the `rt-tokio`
+feature flag to use the [`tokio`] runtime, or enable the `rt-async-std` feature
+flag to use the [`async-std`] runtime to have a batch exporter configured for
 you automatically.
 
 [`tokio`]: https://tokio.rs
@@ -76,8 +78,8 @@ you automatically.
 
 ### Choosing an HTTP client
 
-The HTTP client that this exporter will use can be overridden with feature 
-flags. By default the `reqwest-client` feature flag is enabled which will use 
+The HTTP client that this exporter will use can be overridden with feature
+flags. By default the `reqwest-client` feature flag is enabled which will use
 the [`reqwest`] http client.
 
 - `reqwest-client` (enabled by default): use the [`reqwest`] http client to send metric data.

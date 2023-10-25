@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-dynatrace"
-version = "0.3.0"
+version = "0.4.0"
 description = "Dynatrace exporters and propagators for OpenTelemetry"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-dynatrace"
 repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-dynatrace"
