@@ -71,7 +71,7 @@ In particular, the following crates are likely to be of interest:
 - [`opentelemetry-contrib`] provides additional exporters and propagators that
   are experimental.
 - [`opentelemetry-datadog`] provides additional exporters to [`Datadog`].
-- [`opentelemetry-dynatrace`] provides additional exporters to [`Dynatrace`].
+- [`opentelemetry-dynatrace`] *Deprecated, last release 0.4.0* provides additional exporters to [`Dynatrace`]. See [README](opentelemetry-dynatrace/README.md)
 - [`opentelemetry-http`] provides an interface for injecting and extracting
   trace information from [`http`] headers.
 - [`opentelemetry-jaeger`] provides a pipeline and exporter for sending trace
