@@ -9,7 +9,7 @@
 //! not duplicate this data to avoid that different [`Tracer`] instances
 //! of the [`TracerProvider`] have different versions of these data.
 use crate::runtime::RuntimeChannel;
-use crate::trace::{BatchMessage, BatchSpanProcessor, SimpleSpanProcessor, Tracer};
+use crate::trace::{BatchSpanProcessor, SimpleSpanProcessor, Tracer};
 use crate::{export::trace::SpanExporter, trace::SpanProcessor};
 use crate::{InstrumentationLibrary, Resource};
 use once_cell::sync::OnceCell;
@@ -166,7 +166,7 @@ impl Builder {
     }
 
     /// The [`SpanExporter`] setup using a default [`BatchSpanProcessor`] that this provider should use.
-    pub fn with_batch_exporter<T: SpanExporter + 'static, R: RuntimeChannel<BatchMessage>>(
+    pub fn with_batch_exporter<T: SpanExporter + 'static, R: RuntimeChannel>(
         self,
         exporter: T,
         runtime: R,

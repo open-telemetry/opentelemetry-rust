@@ -12,7 +12,6 @@ use opentelemetry::{
 use opentelemetry_sdk::{
     self as sdk,
     export::trace::{ExportResult, SpanData},
-    trace::BatchMessage,
 };
 use opentelemetry_semantic_conventions::SCHEMA_URL;
 use sdk::runtime::RuntimeChannel;
@@ -122,7 +121,7 @@ impl OtlpTracePipeline<SpanExporterBuilder> {
     /// `install_batch` will panic if not called within a tokio runtime
     ///
     /// [`Tracer`]: opentelemetry::trace::Tracer
-    pub fn install_batch<R: RuntimeChannel<BatchMessage>>(
+    pub fn install_batch<R: RuntimeChannel>(
         self,
         runtime: R,
     ) -> Result<sdk::trace::Tracer, TraceError> {
@@ -154,7 +153,7 @@ fn build_simple_with_exporter(
     tracer
 }
 
-fn build_batch_with_exporter<R: RuntimeChannel<BatchMessage>>(
+fn build_batch_with_exporter<R: RuntimeChannel>(
     exporter: SpanExporter,
     trace_config: Option<sdk::trace::Config>,
     runtime: R,
