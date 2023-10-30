@@ -8,7 +8,7 @@ use opentelemetry::{
 };
 #[cfg(all(feature = "metrics", feature = "trace"))]
 use opentelemetry_sdk::{
-    metrics::{MeterProvider, PeriodicReader},
+    metrics::{DefaultMeterProvider, PeriodicReader},
     runtime,
     trace::TracerProvider,
 };
@@ -22,10 +22,10 @@ fn init_trace() -> TracerProvider {
 }
 
 #[cfg(all(feature = "metrics", feature = "trace"))]
-fn init_metrics() -> MeterProvider {
+fn init_metrics() -> DefaultMeterProvider {
     let exporter = opentelemetry_stdout::MetricsExporter::default();
     let reader = PeriodicReader::builder(exporter, runtime::Tokio).build();
-    MeterProvider::builder().with_reader(reader).build()
+    DefaultMeterProvider::builder().with_reader(reader).build()
 }
 
 #[tokio::main]

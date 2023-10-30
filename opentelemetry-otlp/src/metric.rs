@@ -18,7 +18,7 @@ use opentelemetry_sdk::{
             AggregationSelector, DefaultAggregationSelector, DefaultTemporalitySelector,
             TemporalitySelector,
         },
-        Aggregation, InstrumentKind, MeterProvider, PeriodicReader,
+        Aggregation, DefaultMeterProvider, InstrumentKind, PeriodicReader,
     },
     runtime::Runtime,
     Resource,
@@ -215,7 +215,7 @@ where
     RT: Runtime,
 {
     /// Build MeterProvider
-    pub fn build(self) -> Result<MeterProvider> {
+    pub fn build(self) -> Result<DefaultMeterProvider> {
         let exporter = self.exporter_pipeline.build_metrics_exporter(
             self.temporality_selector
                 .unwrap_or_else(|| Box::new(DefaultTemporalitySelector::new())),
@@ -234,7 +234,7 @@ where
 
         let reader = builder.build();
 
-        let mut provider = MeterProvider::builder().with_reader(reader);
+        let mut provider = DefaultMeterProvider::builder().with_reader(reader);
 
         if let Some(resource) = self.resource {
             provider = provider.with_resource(resource);

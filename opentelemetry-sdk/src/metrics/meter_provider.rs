@@ -8,7 +8,10 @@ use std::{
 };
 
 use opentelemetry::{
-    metrics::{noop::NoopMeterCore, InstrumentProvider, Meter as ApiMeter, MetricsError, Result},
+    metrics::{
+        noop::NoopMeterCore, InstrumentProvider, Meter as ApiMeter, MeterProvider, MetricsError,
+        Result,
+    },
     KeyValue,
 };
 
@@ -24,18 +27,18 @@ use super::{meter::Meter as SdkMeter, pipeline::Pipelines, reader::MetricReader,
 ///
 /// [Meter]: crate::metrics::Meter
 #[derive(Clone, Debug)]
-pub struct MeterProvider {
+pub struct DefaultMeterProvider {
     pipes: Arc<Pipelines>,
     is_shutdown: Arc<AtomicBool>,
 }
 
-impl Default for MeterProvider {
+impl Default for DefaultMeterProvider {
     fn default() -> Self {
-        MeterProvider::builder().build()
+        DefaultMeterProvider::builder().build()
     }
 }
 
-impl MeterProvider {
+impl DefaultMeterProvider {
     /// Flushes all pending telemetry.
     ///
     /// There is no guaranteed that all telemetry be flushed or all resources have
@@ -113,7 +116,7 @@ impl MeterProvider {
     }
 }
 
-impl opentelemetry::metrics::MeterProvider for MeterProvider {
+impl MeterProvider for DefaultMeterProvider {
     fn versioned_meter(
         &self,
         name: impl Into<Cow<'static, str>>,
@@ -177,8 +180,8 @@ impl MeterProviderBuilder {
     }
 
     /// Construct a new [MeterProvider] with this configuration.
-    pub fn build(self) -> MeterProvider {
-        MeterProvider {
+    pub fn build(self) -> DefaultMeterProvider {
+        DefaultMeterProvider {
             pipes: Arc::new(Pipelines::new(
                 self.resource.unwrap_or_default(),
                 self.readers,
@@ -209,7 +212,8 @@ mod tests {
     #[test]
     fn test_meter_provider_resource() {
         // If users didn't provide a resource and there isn't a env var set. Use default one.
-        let assert_service_name = |provider: super::MeterProvider, expect: Option<&'static str>| {
+        let assert_service_name = |provider: super::DefaultMeterProvider,
+                                   expect: Option<&'static str>| {
             assert_eq!(
                 provider.pipes.0[0]
                     .resource
@@ -219,12 +223,14 @@ mod tests {
             );
         };
         let reader = TestMetricReader {};
-        let default_meter_provider = super::MeterProvider::builder().with_reader(reader).build();
+        let default_meter_provider = super::DefaultMeterProvider::builder()
+            .with_reader(reader)
+            .build();
         assert_service_name(default_meter_provider, Some("unknown_service"));
 
         // If user provided a resource, use that.
         let reader2 = TestMetricReader {};
-        let custom_meter_provider = super::MeterProvider::builder()
+        let custom_meter_provider = super::DefaultMeterProvider::builder()
             .with_reader(reader2)
             .with_resource(Resource::new(vec![KeyValue::new(
                 "service.name",
@@ -236,7 +242,9 @@ mod tests {
         // If `OTEL_RESOURCE_ATTRIBUTES` is set, read them automatically
         let reader3 = TestMetricReader {};
         env::set_var("OTEL_RESOURCE_ATTRIBUTES", "key1=value1, k2, k3=value2");
-        let env_resource_provider = super::MeterProvider::builder().with_reader(reader3).build();
+        let env_resource_provider = super::DefaultMeterProvider::builder()
+            .with_reader(reader3)
+            .build();
         assert_eq!(
             env_resource_provider.pipes.0[0].resource,
             Resource::new(vec![
@@ -255,7 +263,7 @@ mod tests {
             "my-custom-key=env-val,k2=value2",
         );
         let reader4 = TestMetricReader {};
-        let user_provided_resource_config_provider = super::MeterProvider::builder()
+        let user_provided_resource_config_provider = super::DefaultMeterProvider::builder()
             .with_reader(reader4)
             .with_resource(
                 Resource::default().merge(&mut Resource::new(vec![KeyValue::new(
@@ -279,7 +287,7 @@ mod tests {
 
         // If user provided a resource, it takes priority during collision.
         let reader5 = TestMetricReader {};
-        let no_service_name = super::MeterProvider::builder()
+        let no_service_name = super::DefaultMeterProvider::builder()
             .with_reader(reader5)
             .with_resource(Resource::empty())
             .build();

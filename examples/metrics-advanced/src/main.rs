@@ -1,11 +1,13 @@
 use opentelemetry::metrics::Unit;
 use opentelemetry::Key;
 use opentelemetry::{metrics::MeterProvider as _, KeyValue};
-use opentelemetry_sdk::metrics::{Aggregation, Instrument, MeterProvider, PeriodicReader, Stream};
+use opentelemetry_sdk::metrics::{
+    Aggregation, DefaultMeterProvider, Instrument, PeriodicReader, Stream,
+};
 use opentelemetry_sdk::{runtime, Resource};
 use std::error::Error;
 
-fn init_meter_provider() -> MeterProvider {
+fn init_meter_provider() -> DefaultMeterProvider {
     // for example 1
     let my_view_rename_and_unit = |i: &Instrument| {
         if i.name == "my_histogram" {
@@ -48,7 +50,7 @@ fn init_meter_provider() -> MeterProvider {
         //   Ok(serde_json::to_writer_pretty(writer, &data).unwrap()))
         .build();
     let reader = PeriodicReader::builder(exporter, runtime::Tokio).build();
-    MeterProvider::builder()
+    DefaultMeterProvider::builder()
         .with_reader(reader)
         .with_resource(Resource::new(vec![KeyValue::new(
             "service.name",
