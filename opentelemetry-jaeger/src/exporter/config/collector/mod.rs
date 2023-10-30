@@ -577,4 +577,148 @@ mod tests {
             .build_collector_exporter::<Tokio>();
         assert!(exporter.is_ok());
     }
+
+    #[test]
+    fn test_resolve_endpoint() {
+        struct TestCase<'a> {
+            description: &'a str,
+            env_var: &'a str,
+            builder_endpoint: Option<&'a str>,
+            expected_result: Result<Uri, crate::Error>,
+        }
+        let test_cases = vec![
+            TestCase {
+                description: "Positive: Endpoint from environment variable exists",
+                env_var: "http://example.com",
+                builder_endpoint: None,
+                expected_result: Ok(Uri::try_from("http://example.com").unwrap()),
+            },
+            TestCase {
+                description: "Positive: Endpoint from builder",
+                env_var: "",
+                builder_endpoint: Some("http://example.com"),
+                expected_result: Ok(Uri::try_from("http://example.com").unwrap()),
+            },
+            TestCase {
+                description: "Negative: Invalid URI from environment variable",
+                env_var: "invalid random uri",
+                builder_endpoint: None,
+                expected_result: Err(crate::Error::ConfigError {
+                    pipeline_name: "collector",
+                    config_name: "collector_endpoint",
+                    reason: "invalid uri from environment variable, invalid uri character"
+                        .to_string(),
+                }),
+            },
+            TestCase {
+                description: "Negative: Invalid URI from builder",
+                env_var: "",
+                builder_endpoint: Some("invalid random uri"),
+                expected_result: Err(crate::Error::ConfigError {
+                    pipeline_name: "collector",
+                    config_name: "collector_endpoint",
+                    reason: "invalid uri from the builder, invalid uri character".to_string(),
+                }),
+            },
+            TestCase {
+                description: "Positive: Default endpoint (no environment variable set)",
+                env_var: "",
+                builder_endpoint: None,
+                expected_result: Ok(Uri::try_from(DEFAULT_ENDPOINT).unwrap()),
+            },
+        ];
+        for test_case in test_cases {
+            env::set_var(ENV_ENDPOINT, test_case.env_var);
+            let builder = CollectorPipeline {
+                collector_endpoint: test_case.builder_endpoint.map(|s| s.to_string()),
+                ..Default::default()
+            };
+            let result = builder.resolve_endpoint();
+            match test_case.expected_result {
+                Ok(expected) => {
+                    assert_eq!(result.unwrap(), expected, "{}", test_case.description);
+                }
+                Err(expected_err) => {
+                    assert!(
+                        result.is_err(),
+                        "{}, expected error, get {}",
+                        test_case.description,
+                        result.unwrap()
+                    );
+                    match (result.unwrap_err(), expected_err) {
+                        (
+                            crate::Error::ConfigError {
+                                pipeline_name: result_pipeline_name,
+                                config_name: result_config_name,
+                                reason: result_reason,
+                            },
+                            crate::Error::ConfigError {
+                                pipeline_name: expected_pipeline_name,
+                                config_name: expected_config_name,
+                                reason: expected_reason,
+                            },
+                        ) => {
+                            assert_eq!(
+                                result_pipeline_name, expected_pipeline_name,
+                                "{}",
+                                test_case.description
+                            );
+                            assert_eq!(
+                                result_config_name, expected_config_name,
+                                "{}",
+                                test_case.description
+                            );
+                            assert_eq!(result_reason, expected_reason, "{}", test_case.description);
+                        }
+                        _ => panic!("we don't expect collector to return other error"),
+                    }
+                }
+            }
+            env::remove_var(ENV_ENDPOINT);
+        }
+    }
+
+    #[test]
+    fn test_resolve_timeout() {
+        struct TestCase<'a> {
+            description: &'a str,
+            env_var: &'a str,
+            builder_var: Option<Duration>,
+            expected_duration: Duration,
+        }
+        let test_cases = vec![
+            TestCase {
+                description: "Valid environment variable",
+                env_var: "5000",
+                builder_var: None,
+                expected_duration: Duration::from_millis(5000),
+            },
+            TestCase {
+                description: "Invalid environment variable",
+                env_var: "invalid",
+                builder_var: None,
+                expected_duration: DEFAULT_COLLECTOR_TIMEOUT,
+            },
+            TestCase {
+                description: "Missing environment variable",
+                env_var: "",
+                builder_var: Some(Duration::from_millis(5000)),
+                expected_duration: Duration::from_millis(5000),
+            },
+        ];
+        for test_case in test_cases {
+            env::set_var(ENV_TIMEOUT, test_case.env_var);
+            let mut builder = CollectorPipeline::default();
+            if let Some(timeout) = test_case.builder_var {
+                builder = builder.with_timeout(timeout);
+            }
+            let result = builder.resolve_timeout();
+            assert_eq!(
+                result, test_case.expected_duration,
+                "{}",
+                test_case.description
+            );
+            env::remove_var(ENV_TIMEOUT);
+        }
+    }
 }
