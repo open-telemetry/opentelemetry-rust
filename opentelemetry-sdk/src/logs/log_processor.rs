@@ -1,7 +1,7 @@
 use crate::{
     export::logs::{ExportResult, LogData, LogExporter},
     runtime::{RuntimeChannel, TrySend},
-    suppression::SuppressionGuard,
+    suppression::is_suppressed,
 };
 use futures_channel::oneshot;
 use futures_util::{
@@ -104,7 +104,7 @@ impl LogProcessor for SimpleLogProcessor {
 
     #[cfg(feature = "logs_level_enabled")]
     fn event_enabled(&self, _level: Severity, _target: &str, _name: &str) -> bool {
-        !SuppressionGuard::is_logging_suppressed()
+        !is_suppressed()
     }
 }
 
@@ -133,7 +133,7 @@ impl<R: RuntimeChannel<BatchMessage>> LogProcessor for BatchLogProcessor<R> {
 
     #[cfg(feature = "logs_level_enabled")]
     fn event_enabled(&self, _level: Severity, _target: &str, _name: &str) -> bool {
-        !SuppressionGuard::is_logging_suppressed()
+        !is_suppressed()
     }
 
     fn force_flush(&self) -> LogResult<()> {
