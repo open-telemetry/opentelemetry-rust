@@ -46,7 +46,7 @@ const INSTRUMENT_UNIT_INVALID_CHAR: &str = "characters in instrument unit must b
 /// See the [Meter API] docs for usage.
 ///
 /// [Meter API]: opentelemetry::metrics::Meter
-pub struct Meter {
+pub struct DefaultMeter {
     scope: Scope,
     pipes: Arc<Pipelines>,
     u64_resolver: Resolver<u64>,
@@ -55,11 +55,11 @@ pub struct Meter {
     validation_policy: InstrumentValidationPolicy,
 }
 
-impl Meter {
+impl DefaultMeter {
     pub(crate) fn new(scope: Scope, pipes: Arc<Pipelines>) -> Self {
         let view_cache = Default::default();
 
-        Meter {
+        DefaultMeter {
             scope,
             pipes: Arc::clone(&pipes),
             u64_resolver: Resolver::new(Arc::clone(&pipes), Arc::clone(&view_cache)),
@@ -79,7 +79,7 @@ impl Meter {
 }
 
 #[doc(hidden)]
-impl InstrumentProvider for Meter {
+impl InstrumentProvider for DefaultMeter {
     fn u64_counter(
         &self,
         name: Cow<'static, str>,
@@ -672,7 +672,7 @@ impl ApiObserver for Observer {
     }
 }
 
-impl fmt::Debug for Meter {
+impl fmt::Debug for DefaultMeter {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Meter").field("scope", &self.scope).finish()
     }
@@ -680,7 +680,7 @@ impl fmt::Debug for Meter {
 
 /// Provides all OpenTelemetry instruments.
 struct InstProvider<'a, T> {
-    meter: &'a Meter,
+    meter: &'a DefaultMeter,
     resolve: &'a Resolver<T>,
 }
 
@@ -688,7 +688,7 @@ impl<'a, T> InstProvider<'a, T>
 where
     T: Number<T>,
 {
-    fn new(meter: &'a Meter, resolve: &'a Resolver<T>) -> Self {
+    fn new(meter: &'a DefaultMeter, resolve: &'a Resolver<T>) -> Self {
         InstProvider { meter, resolve }
     }
 
@@ -732,7 +732,7 @@ mod tests {
     use opentelemetry::metrics::{InstrumentProvider, MetricsError, Unit};
 
     use super::{
-        InstrumentValidationPolicy, Meter, INSTRUMENT_NAME_FIRST_ALPHABETIC,
+        DefaultMeter, InstrumentValidationPolicy, INSTRUMENT_NAME_FIRST_ALPHABETIC,
         INSTRUMENT_NAME_INVALID_CHAR, INSTRUMENT_NAME_LENGTH, INSTRUMENT_UNIT_INVALID_CHAR,
         INSTRUMENT_UNIT_LENGTH,
     };
@@ -741,7 +741,7 @@ mod tests {
     #[test]
     fn test_instrument_config_validation() {
         // scope and pipelines are not related to test
-        let meter = Meter::new(
+        let meter = DefaultMeter::new(
             Scope::default(),
             Arc::new(Pipelines::new(Resource::default(), Vec::new(), Vec::new())),
         )

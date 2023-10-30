@@ -17,7 +17,7 @@ use opentelemetry::{
 
 use crate::{instrumentation::Scope, Resource};
 
-use super::{meter::Meter as SdkMeter, pipeline::Pipelines, reader::MetricReader, view::View};
+use super::{meter::DefaultMeter, pipeline::Pipelines, reader::MetricReader, view::View};
 
 /// Handles the creation and coordination of [Meter]s.
 ///
@@ -127,7 +127,7 @@ impl MeterProvider for DefaultMeterProvider {
         let inst_provider: Arc<dyn InstrumentProvider + Send + Sync> =
             if !self.is_shutdown.load(Ordering::Relaxed) {
                 let scope = Scope::new(name, version, schema_url, attributes);
-                Arc::new(SdkMeter::new(scope, self.pipes.clone()))
+                Arc::new(DefaultMeter::new(scope, self.pipes.clone()))
             } else {
                 Arc::new(NoopMeterCore::new())
             };
