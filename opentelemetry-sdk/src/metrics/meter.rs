@@ -87,7 +87,7 @@ impl InstrumentProvider for DefaultMeter {
         unit: Option<Unit>,
     ) -> Result<Counter<u64>> {
         validate_instrument_config(name.as_ref(), unit.as_ref(), self.validation_policy)?;
-        let p = InstProvider::new(self, &self.u64_resolver);
+        let p = InstrumentResolver::new(self, &self.u64_resolver);
         p.lookup(
             InstrumentKind::Counter,
             name,
@@ -104,7 +104,7 @@ impl InstrumentProvider for DefaultMeter {
         unit: Option<Unit>,
     ) -> Result<Counter<f64>> {
         validate_instrument_config(name.as_ref(), unit.as_ref(), self.validation_policy)?;
-        let p = InstProvider::new(self, &self.f64_resolver);
+        let p = InstrumentResolver::new(self, &self.f64_resolver);
         p.lookup(
             InstrumentKind::Counter,
             name,
@@ -122,7 +122,7 @@ impl InstrumentProvider for DefaultMeter {
         callbacks: Vec<Callback<u64>>,
     ) -> Result<ObservableCounter<u64>> {
         validate_instrument_config(name.as_ref(), unit.as_ref(), self.validation_policy)?;
-        let p = InstProvider::new(self, &self.u64_resolver);
+        let p = InstrumentResolver::new(self, &self.u64_resolver);
         let ms = p.measures(
             InstrumentKind::ObservableCounter,
             name.clone(),
@@ -159,7 +159,7 @@ impl InstrumentProvider for DefaultMeter {
         callbacks: Vec<Callback<f64>>,
     ) -> Result<ObservableCounter<f64>> {
         validate_instrument_config(name.as_ref(), unit.as_ref(), self.validation_policy)?;
-        let p = InstProvider::new(self, &self.f64_resolver);
+        let p = InstrumentResolver::new(self, &self.f64_resolver);
         let ms = p.measures(
             InstrumentKind::ObservableCounter,
             name.clone(),
@@ -194,7 +194,7 @@ impl InstrumentProvider for DefaultMeter {
         unit: Option<Unit>,
     ) -> Result<UpDownCounter<i64>> {
         validate_instrument_config(name.as_ref(), unit.as_ref(), self.validation_policy)?;
-        let p = InstProvider::new(self, &self.i64_resolver);
+        let p = InstrumentResolver::new(self, &self.i64_resolver);
         p.lookup(
             InstrumentKind::UpDownCounter,
             name,
@@ -211,7 +211,7 @@ impl InstrumentProvider for DefaultMeter {
         unit: Option<Unit>,
     ) -> Result<UpDownCounter<f64>> {
         validate_instrument_config(name.as_ref(), unit.as_ref(), self.validation_policy)?;
-        let p = InstProvider::new(self, &self.f64_resolver);
+        let p = InstrumentResolver::new(self, &self.f64_resolver);
         p.lookup(
             InstrumentKind::UpDownCounter,
             name,
@@ -229,7 +229,7 @@ impl InstrumentProvider for DefaultMeter {
         callbacks: Vec<Callback<i64>>,
     ) -> Result<ObservableUpDownCounter<i64>> {
         validate_instrument_config(name.as_ref(), unit.as_ref(), self.validation_policy)?;
-        let p = InstProvider::new(self, &self.i64_resolver);
+        let p = InstrumentResolver::new(self, &self.i64_resolver);
         let ms = p.measures(
             InstrumentKind::ObservableUpDownCounter,
             name.clone(),
@@ -268,7 +268,7 @@ impl InstrumentProvider for DefaultMeter {
         callbacks: Vec<Callback<f64>>,
     ) -> Result<ObservableUpDownCounter<f64>> {
         validate_instrument_config(name.as_ref(), unit.as_ref(), self.validation_policy)?;
-        let p = InstProvider::new(self, &self.f64_resolver);
+        let p = InstrumentResolver::new(self, &self.f64_resolver);
         let ms = p.measures(
             InstrumentKind::ObservableUpDownCounter,
             name.clone(),
@@ -307,7 +307,7 @@ impl InstrumentProvider for DefaultMeter {
         callbacks: Vec<Callback<u64>>,
     ) -> Result<ObservableGauge<u64>> {
         validate_instrument_config(name.as_ref(), unit.as_ref(), self.validation_policy)?;
-        let p = InstProvider::new(self, &self.u64_resolver);
+        let p = InstrumentResolver::new(self, &self.u64_resolver);
         let ms = p.measures(
             InstrumentKind::ObservableGauge,
             name.clone(),
@@ -344,7 +344,7 @@ impl InstrumentProvider for DefaultMeter {
         callbacks: Vec<Callback<i64>>,
     ) -> Result<ObservableGauge<i64>> {
         validate_instrument_config(name.as_ref(), unit.as_ref(), self.validation_policy)?;
-        let p = InstProvider::new(self, &self.i64_resolver);
+        let p = InstrumentResolver::new(self, &self.i64_resolver);
         let ms = p.measures(
             InstrumentKind::ObservableGauge,
             name.clone(),
@@ -381,7 +381,7 @@ impl InstrumentProvider for DefaultMeter {
         callbacks: Vec<Callback<f64>>,
     ) -> Result<ObservableGauge<f64>> {
         validate_instrument_config(name.as_ref(), unit.as_ref(), self.validation_policy)?;
-        let p = InstProvider::new(self, &self.f64_resolver);
+        let p = InstrumentResolver::new(self, &self.f64_resolver);
         let ms = p.measures(
             InstrumentKind::ObservableGauge,
             name.clone(),
@@ -417,7 +417,7 @@ impl InstrumentProvider for DefaultMeter {
         unit: Option<Unit>,
     ) -> Result<Histogram<f64>> {
         validate_instrument_config(name.as_ref(), unit.as_ref(), self.validation_policy)?;
-        let p = InstProvider::new(self, &self.f64_resolver);
+        let p = InstrumentResolver::new(self, &self.f64_resolver);
         p.lookup(
             InstrumentKind::Histogram,
             name,
@@ -434,7 +434,7 @@ impl InstrumentProvider for DefaultMeter {
         unit: Option<Unit>,
     ) -> Result<Histogram<u64>> {
         validate_instrument_config(name.as_ref(), unit.as_ref(), self.validation_policy)?;
-        let p = InstProvider::new(self, &self.u64_resolver);
+        let p = InstrumentResolver::new(self, &self.u64_resolver);
         p.lookup(
             InstrumentKind::Histogram,
             name,
@@ -451,7 +451,7 @@ impl InstrumentProvider for DefaultMeter {
         unit: Option<Unit>,
     ) -> Result<Histogram<i64>> {
         validate_instrument_config(name.as_ref(), unit.as_ref(), self.validation_policy)?;
-        let p = InstProvider::new(self, &self.i64_resolver);
+        let p = InstrumentResolver::new(self, &self.i64_resolver);
 
         p.lookup(
             InstrumentKind::Histogram,
@@ -679,20 +679,20 @@ impl fmt::Debug for DefaultMeter {
 }
 
 /// Provides all OpenTelemetry instruments.
-struct InstProvider<'a, T> {
+struct InstrumentResolver<'a, T> {
     meter: &'a DefaultMeter,
     resolve: &'a Resolver<T>,
 }
 
-impl<'a, T> InstProvider<'a, T>
+impl<'a, T> InstrumentResolver<'a, T>
 where
     T: Number<T>,
 {
     fn new(meter: &'a DefaultMeter, resolve: &'a Resolver<T>) -> Self {
-        InstProvider { meter, resolve }
+        InstrumentResolver { meter, resolve }
     }
 
-    /// lookup returns the resolved InstrumentImpl.
+    /// lookup returns the resolved DefaultInstrument.
     fn lookup(
         &self,
         kind: InstrumentKind,
