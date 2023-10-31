@@ -15,7 +15,7 @@ use opentelemetry::{
 use crate::instrumentation::Scope;
 use crate::metrics::{
     instrument::{
-        DefaultInstrument, Instrument, InstrumentKind, Observable, ObservableId, EMPTY_MEASURE_MSG,
+        Instrument, InstrumentKind, Observable, ObservableId, ResolvedMeasures, EMPTY_MEASURE_MSG,
     },
     internal::{self, Number},
     pipeline::{Pipelines, Resolver},
@@ -692,16 +692,16 @@ where
         InstrumentResolver { meter, resolve }
     }
 
-    /// lookup returns the resolved DefaultInstrument.
+    /// lookup returns the resolved measures.
     fn lookup(
         &self,
         kind: InstrumentKind,
         name: Cow<'static, str>,
         description: Option<Cow<'static, str>>,
         unit: Unit,
-    ) -> Result<DefaultInstrument<T>> {
+    ) -> Result<ResolvedMeasures<T>> {
         let aggregators = self.measures(kind, name, description, unit)?;
-        Ok(DefaultInstrument {
+        Ok(ResolvedMeasures {
             measures: aggregators,
         })
     }
