@@ -248,11 +248,11 @@ impl InstrumentId {
     }
 }
 
-pub(crate) struct InstrumentImpl<T> {
+pub(crate) struct DefaultInstrument<T> {
     pub(crate) measures: Vec<Arc<dyn Measure<T>>>,
 }
 
-impl<T: Copy + 'static> SyncCounter<T> for InstrumentImpl<T> {
+impl<T: Copy + 'static> SyncCounter<T> for DefaultInstrument<T> {
     fn add(&self, val: T, attrs: &[KeyValue]) {
         for measure in &self.measures {
             measure.call(val, AttributeSet::from(attrs))
@@ -260,7 +260,7 @@ impl<T: Copy + 'static> SyncCounter<T> for InstrumentImpl<T> {
     }
 }
 
-impl<T: Copy + 'static> SyncUpDownCounter<T> for InstrumentImpl<T> {
+impl<T: Copy + 'static> SyncUpDownCounter<T> for DefaultInstrument<T> {
     fn add(&self, val: T, attrs: &[KeyValue]) {
         for measure in &self.measures {
             measure.call(val, AttributeSet::from(attrs))
@@ -268,7 +268,7 @@ impl<T: Copy + 'static> SyncUpDownCounter<T> for InstrumentImpl<T> {
     }
 }
 
-impl<T: Copy + 'static> SyncHistogram<T> for InstrumentImpl<T> {
+impl<T: Copy + 'static> SyncHistogram<T> for DefaultInstrument<T> {
     fn record(&self, val: T, attrs: &[KeyValue]) {
         for measure in &self.measures {
             measure.call(val, AttributeSet::from(attrs))

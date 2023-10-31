@@ -15,7 +15,7 @@ use opentelemetry::{
 use crate::instrumentation::Scope;
 use crate::metrics::{
     instrument::{
-        Instrument, InstrumentImpl, InstrumentKind, Observable, ObservableId, EMPTY_MEASURE_MSG,
+        DefaultInstrument, Instrument, InstrumentKind, Observable, ObservableId, EMPTY_MEASURE_MSG,
     },
     internal::{self, Number},
     pipeline::{Pipelines, Resolver},
@@ -699,9 +699,9 @@ where
         name: Cow<'static, str>,
         description: Option<Cow<'static, str>>,
         unit: Unit,
-    ) -> Result<InstrumentImpl<T>> {
+    ) -> Result<DefaultInstrument<T>> {
         let aggregators = self.measures(kind, name, description, unit)?;
-        Ok(InstrumentImpl {
+        Ok(DefaultInstrument {
             measures: aggregators,
         })
     }
