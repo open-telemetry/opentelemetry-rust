@@ -25,7 +25,7 @@ use super::{meter::DefaultMeter, pipeline::Pipelines, reader::MetricReader, view
 /// [Resource], have the same [View]s applied to them, and have their produced
 /// metric telemetry passed to the configured [MetricReader]s.
 ///
-/// [Meter]: crate::metrics::Meter
+/// [Meter]: opentelemetry::metrics::Meter
 #[derive(Clone, Debug)]
 pub struct DefaultMeterProvider {
     pipes: Arc<Pipelines>,
@@ -56,7 +56,7 @@ impl DefaultMeterProvider {
     ///
     /// ```
     /// use opentelemetry::{global, Context};
-    /// use opentelemetry_sdk::metrics::MeterProvider;
+    /// use opentelemetry_sdk::metrics::DefaultMeterProvider;
     ///
     /// fn init_metrics() -> MeterProvider {
     ///     let provider = MeterProvider::default();
@@ -152,7 +152,7 @@ impl MeterProviderBuilder {
     ///
     /// By default, if this option is not used, the default [Resource] will be used.
     ///
-    /// [Meter]: crate::metrics::Meter
+    /// [Meter]: opentelemetry::metrics::Meter
     pub fn with_resource(mut self, resource: Resource) -> Self {
         self.resource = Some(resource);
         self

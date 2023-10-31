@@ -4,7 +4,7 @@
 //!
 //! ```
 //! use opentelemetry::{metrics::MeterProvider as _, KeyValue};
-//! use opentelemetry_sdk::metrics::MeterProvider;
+//! use opentelemetry_sdk::metrics::DefaultMeterProvider;
 //! use prometheus::{Encoder, TextEncoder};
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {

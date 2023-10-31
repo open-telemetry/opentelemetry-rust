@@ -2,7 +2,7 @@
 //!
 //! ## Configuration
 //!
-//! The metrics SDK configuration is stored with each [MeterProvider].
+//! The metrics SDK configuration is stored with each [DefaultMeterProvider].
 //! Configuration for [Resource]s, [View]s, and [ManualReader] or
 //! [PeriodicReader] instances can be specified.
 //!
