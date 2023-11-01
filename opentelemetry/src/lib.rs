@@ -208,7 +208,7 @@ pub mod baggage;
 
 mod context;
 
-pub use context::{Context, ContextGuard};
+pub use context::{Context, ContextGuard, FutureExt, WithContext};
 
 mod common;
 

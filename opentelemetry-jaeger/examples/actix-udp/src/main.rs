@@ -1,9 +1,10 @@
 use actix_service::Service;
 use actix_web::middleware::Logger;
 use actix_web::{web, App, HttpServer};
+use opentelemetry::FutureExt;
 use opentelemetry::{
     global,
-    trace::{FutureExt, TraceContextExt, TraceError, Tracer},
+    trace::{TraceContextExt, TraceError, Tracer},
     Key, KeyValue,
 };
 use opentelemetry_sdk::{trace::config, Resource};

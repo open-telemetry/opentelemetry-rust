@@ -19,6 +19,8 @@ use std::{
     time::Duration,
 };
 
+use opentelemetry::Context;
+
 /// The interface for plugging into a [`Logger`].
 ///
 /// [`Logger`]: crate::logs::Logger
@@ -103,7 +105,7 @@ impl LogProcessor for SimpleLogProcessor {
 
     #[cfg(feature = "logs_level_enabled")]
     fn event_enabled(&self, _level: Severity, _target: &str, _name: &str) -> bool {
-        true
+        !Context::current().suppress_logs
     }
 }
 
@@ -132,7 +134,7 @@ impl<R: RuntimeChannel<BatchMessage>> LogProcessor for BatchLogProcessor<R> {
 
     #[cfg(feature = "logs_level_enabled")]
     fn event_enabled(&self, _level: Severity, _target: &str, _name: &str) -> bool {
-        true
+        !Context::current().suppress_logs
     }
 
     fn force_flush(&self) -> LogResult<()> {
