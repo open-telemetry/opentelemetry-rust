@@ -1,7 +1,7 @@
 // DO NOT EDIT, this is an auto-generated file
 //
 // If you want to update the file:
-// - Edit the template at scripts/templates/semantic_attributes.rs.j2
+// - Edit the template at scripts/templates/semconv_semantic_attributes.rs.j2
 // - Run the script at scripts/generate-consts-from-spec.sh
 
 //! # Resource Semantic Conventions
@@ -13,10 +13,8 @@
 //!
 //! ## Usage
 //!
-//! `tracing`:
-//!
 //! ```
-//! use opentelemetry_semantic_conventions as semconv;
+//! use opentelemetry_semantic_conventions::semconv;
 //! use tracing::span;
 //!
 //! let span = span!(
@@ -25,21 +23,6 @@
 //!     { semconv::resource::SERVICE_NAME = "my-service" },
 //!     { semconv::resource::SERVICE_NAMESPACE = "my-namespace" }
 //! );
-//! ```
-//!
-//! OpenTelemetry SDK:
-//!
-//! ```
-//! use opentelemetry::KeyValue;
-//! use opentelemetry_sdk::{trace::{config, TracerProvider}, Resource};
-//! use opentelemetry_semantic_conventions as semconv;
-//!
-//! let _tracer = TracerProvider::builder()
-//!     .with_config(config().with_resource(Resource::new(vec![
-//!         KeyValue::new(semconv::resource::SERVICE_NAME, "my-service"),
-//!         KeyValue::new(semconv::resource::SERVICE_NAMESPACE, "my-namespace"),
-//!     ])))
-//!     .build();
 //! ```
 
 /// Array of brand name and version separated by a space.
@@ -107,10 +90,10 @@ pub const CLOUD_REGION: &str = "cloud.region";
 ///
 /// On some cloud providers, it may not be possible to determine the full ID at startup,
 /// so it may be necessary to set `cloud.resource_id` as a span attribute instead.
-///
+/// 
 /// The exact value to use for `cloud.resource_id` depends on the cloud provider.
 /// The following well-known definitions MUST be used if you set this attribute and they apply:
-///
+/// 
 /// * **AWS Lambda:** The function [ARN](https://docs.aws.amazon.com/general/latest/gr/aws-arns-and-namespaces.html).
 ///   Take care not to use the &#34;invoked ARN&#34; directly but replace any
 ///   [alias suffix](https://docs.aws.amazon.com/lambda/latest/dg/configuration-aliases.html)
@@ -335,14 +318,14 @@ pub const CONTAINER_IMAGE_ID: &str = "container.image.id";
 /// - `otelcontribcol`
 pub const CONTAINER_COMMAND: &str = "container.command";
 
-/// The full command run by the container as a single string representing the full command.
+/// The full command run by the container as a single string representing the full command. [2].
 ///
 /// # Examples
 ///
 /// - `otelcontribcol --config config.yaml`
 pub const CONTAINER_COMMAND_LINE: &str = "container.command_line";
 
-/// All the command arguments (including the command/executable itself) run by the container.
+/// All the command arguments (including the command/executable itself) run by the container. [2].
 ///
 /// # Examples
 ///
@@ -403,11 +386,11 @@ pub const DEVICE_MANUFACTURER: &str = "device.manufacturer";
 /// function (which may be stored in the
 /// [`code.namespace`/`code.function`](/docs/general/general-attributes.md#source-code-attributes)
 /// span attributes).
-///
+/// 
 /// For some cloud providers, the above definition is ambiguous. The following
 /// definition of function name MUST be used for this attribute
 /// (and consequently the span name) for the listed cloud providers/products:
-///
+/// 
 /// * **Azure:**  The full name `&lt;FUNCAPP&gt;/&lt;FUNC&gt;`, i.e., function app name
 ///   followed by a forward slash followed by the function name (this form
 ///   can also be seen in the resource JSON for the function).
@@ -424,7 +407,7 @@ pub const FAAS_NAME: &str = "faas.name";
 /// The immutable version of the function being executed.
 ///
 /// Depending on the cloud provider and platform, use:
-///
+/// 
 /// * **AWS Lambda:** The [function version](https://docs.aws.amazon.com/lambda/latest/dg/configuration-versions.html)
 ///   (an integer represented as a decimal string).
 /// * **Google Cloud Run (Services):** The [revision](https://cloud.google.com/run/docs/managing/revisions)
@@ -517,7 +500,7 @@ pub const K8S_CLUSTER_NAME: &str = "k8s.cluster.name";
 /// official APIs. In the meantime, we are able to use the `uid` of the
 /// `kube-system` namespace as a proxy for cluster ID. Read on for the
 /// rationale.
-///
+/// 
 /// Every object created in a K8s cluster is assigned a distinct UID. The
 /// `kube-system` namespace is used by Kubernetes itself and will exist
 /// for the lifetime of the cluster. Using the `uid` of the `kube-system`
@@ -526,12 +509,12 @@ pub const K8S_CLUSTER_NAME: &str = "k8s.cluster.name";
 /// UUIDs as standardized by
 /// [ISO/IEC 9834-8 and ITU-T X.667](https://www.itu.int/ITU-T/studygroups/com17/oid.html).
 /// Which states:
-///
+/// 
 /// &gt; If generated according to one of the mechanisms defined in Rec.
 ///   ITU-T X.667 | ISO/IEC 9834-8, a UUID is either guaranteed to be
 ///   different from all other UUIDs generated before 3603 A.D., or is
 ///   extremely likely to be different (depending on the mechanism chosen).
-///
+/// 
 /// Therefore, UIDs between clusters should be extremely unlikely to
 /// conflict.
 ///

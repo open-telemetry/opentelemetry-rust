@@ -121,13 +121,13 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
             "Nice operation!".to_string(),
             vec![Key::new("bogons").i64(100)],
         );
-        span.set_attribute(ANOTHER_KEY.string("yes"));
+        span.set_attribute(KeyValue::new(ANOTHER_KEY, "yes"));
 
         info!(target: "my-target", "hello from {}. My price is {}. I am also inside a Span!", "banana", 2.99);
 
         tracer.in_span("Sub operation...", |cx| {
             let span = cx.span();
-            span.set_attribute(LEMONS_KEY.string("five"));
+            span.set_attribute(KeyValue::new(LEMONS_KEY, "five"));
 
             span.add_event("Sub span event", vec![]);
 

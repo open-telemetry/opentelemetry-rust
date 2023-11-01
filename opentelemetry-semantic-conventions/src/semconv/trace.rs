@@ -1,7 +1,7 @@
 // DO NOT EDIT, this is an auto-generated file
 //
 // If you want to update the file:
-// - Edit the template at scripts/templates/semantic_attributes.rs.j2
+// - Edit the template at scripts/templates/semconv_semantic_attributes.rs.j2
 // - Run the script at scripts/generate-consts-from-spec.sh
 
 //! # Trace Semantic Conventions
@@ -13,10 +13,8 @@
 //!
 //! ## Usage
 //!
-//! `tracing`:
-//!
 //! ```
-//! use opentelemetry_semantic_conventions as semconv;
+//! use opentelemetry_semantic_conventions::semconv;
 //! use tracing::span;
 //!
 //! let span = span!(
@@ -25,23 +23,6 @@
 //!     { semconv::trace::NET_PEER_NAME = "example.org" },
 //!     { semconv::trace::NET_PEER_PORT = 80 }
 //! );
-//! ```
-//!
-//! OpenTelemetry SDK:
-//!
-//! ```
-//! use opentelemetry::KeyValue;
-//! use opentelemetry::{global, trace::Tracer as _};
-//! use opentelemetry_semantic_conventions as semcov;
-//!
-//! let tracer = global::tracer("my-component");
-//! let _span = tracer
-//!     .span_builder("span-name")
-//!     .with_attributes(vec![
-//!         KeyValue::new(semcov::trace::NET_PEER_NAME, "example.org"),
-//!         KeyValue::new(semcov::trace::NET_PEER_PORT, 80i64),
-//!     ])
-//!     .start(&tracer);
 //! ```
 
 /// Client address - unix domain socket name, IPv4 or IPv6 address.
@@ -287,15 +268,15 @@ pub const EXCEPTION_STACKTRACE: &str = "exception.stacktrace";
 /// HTTP request method value SHOULD be &#34;known&#34; to the instrumentation.
 /// By default, this convention defines &#34;known&#34; methods as the ones listed in [RFC9110](https://www.rfc-editor.org/rfc/rfc9110.html#name-methods)
 /// and the PATCH method defined in [RFC5789](https://www.rfc-editor.org/rfc/rfc5789.html).
-///
+/// 
 /// If the HTTP request method is not known to instrumentation, it MUST set the `http.request.method` attribute to `_OTHER` and, except if reporting a metric, MUST
 /// set the exact method received in the request line as value of the `http.request.method_original` attribute.
-///
+/// 
 /// If the HTTP instrumentation could end up converting valid HTTP request methods to `_OTHER`, then it MUST provide a way to override
 /// the list of known HTTP methods. If this override is done via environment variable, then the environment variable MUST be named
 /// OTEL_INSTRUMENTATION_HTTP_KNOWN_METHODS and support a comma-separated list of case-sensitive known HTTP methods
 /// (this list MUST be a full override of the default known method, it is not a list of known methods in addition to the defaults).
-///
+/// 
 /// HTTP method names are case-sensitive and `http.request.method` attribute value MUST match a known HTTP method name exactly.
 /// Instrumentations for specific web frameworks that consider HTTP methods to be case insensitive, SHOULD populate a canonical equivalent.
 /// Tracing instrumentations that do so, MUST also set `http.request.method_original` to the original value.
@@ -607,8 +588,7 @@ pub const DB_CASSANDRA_IDEMPOTENCE: &str = "db.cassandra.idempotence";
 ///
 /// - `0`
 /// - `2`
-pub const DB_CASSANDRA_SPECULATIVE_EXECUTION_COUNT: &str =
-    "db.cassandra.speculative_execution_count";
+pub const DB_CASSANDRA_SPECULATIVE_EXECUTION_COUNT: &str = "db.cassandra.speculative_execution_count";
 
 /// The ID of the coordinating node for a query.
 ///
@@ -712,7 +692,7 @@ pub const OTEL_STATUS_DESCRIPTION: &str = "otel.status_description";
 ///
 /// For the server/consumer span on the incoming side,
 /// `faas.trigger` MUST be set.
-///
+/// 
 /// Clients invoking FaaS instances usually cannot set `faas.trigger`,
 /// since they would typically need to look in the payload to determine
 /// the event type. If clients set it, it should be the same as the
@@ -814,7 +794,7 @@ pub const FEATURE_FLAG_PROVIDER_NAME: &str = "feature_flag.provider_name";
 /// for referring to a value without including the value itself. This can
 /// provide additional context for understanding the meaning behind a value.
 /// For example, the variant `red` maybe be used for the value `#c05543`.
-///
+/// 
 /// A stringified version of the value can be used in situations where a
 /// semantic identifier is unavailable. String representation of the value
 /// should be determined by the implementer.
@@ -1171,8 +1151,7 @@ pub const AWS_DYNAMODB_ATTRIBUTE_DEFINITIONS: &str = "aws.dynamodb.attribute_def
 /// # Examples
 ///
 /// - `{ "Create": { "IndexName": "string", "KeySchema": [ { "AttributeName": "string", "KeyType": "string" } ], "Projection": { "NonKeyAttributes": [ "string" ], "ProjectionType": "string" }, "ProvisionedThroughput": { "ReadCapacityUnits": number, "WriteCapacityUnits": number } }`
-pub const AWS_DYNAMODB_GLOBAL_SECONDARY_INDEX_UPDATES: &str =
-    "aws.dynamodb.global_secondary_index_updates";
+pub const AWS_DYNAMODB_GLOBAL_SECONDARY_INDEX_UPDATES: &str = "aws.dynamodb.global_secondary_index_updates";
 
 /// The S3 bucket name the request refers to. Corresponds to the `--bucket` parameter of the [S3 API](https://docs.aws.amazon.com/cli/latest/reference/s3api/index.html) operations.
 ///
@@ -1188,7 +1167,7 @@ pub const AWS_S3_BUCKET: &str = "aws.s3.bucket";
 ///
 /// The `key` attribute is applicable to all object-related S3 operations, i.e. that require the object key as a mandatory parameter.
 /// This applies in particular to the following operations:
-///
+/// 
 /// - [copy-object](https://docs.aws.amazon.com/cli/latest/reference/s3api/copy-object.html)
 /// - [delete-object](https://docs.aws.amazon.com/cli/latest/reference/s3api/delete-object.html)
 /// - [get-object](https://docs.aws.amazon.com/cli/latest/reference/s3api/get-object.html)
@@ -1213,7 +1192,7 @@ pub const AWS_S3_KEY: &str = "aws.s3.key";
 /// The `copy_source` attribute applies to S3 copy operations and corresponds to the `--copy-source` parameter
 /// of the [copy-object operation within the S3 API](https://docs.aws.amazon.com/cli/latest/reference/s3api/copy-object.html).
 /// This applies in particular to the following operations:
-///
+/// 
 /// - [copy-object](https://docs.aws.amazon.com/cli/latest/reference/s3api/copy-object.html)
 /// - [upload-part-copy](https://docs.aws.amazon.com/cli/latest/reference/s3api/upload-part-copy.html)
 ///
@@ -1227,7 +1206,7 @@ pub const AWS_S3_COPY_SOURCE: &str = "aws.s3.copy_source";
 /// The `upload_id` attribute applies to S3 multipart-upload operations and corresponds to the `--upload-id` parameter
 /// of the [S3 API](https://docs.aws.amazon.com/cli/latest/reference/s3api/index.html) multipart operations.
 /// This applies in particular to the following operations:
-///
+/// 
 /// - [abort-multipart-upload](https://docs.aws.amazon.com/cli/latest/reference/s3api/abort-multipart-upload.html)
 /// - [complete-multipart-upload](https://docs.aws.amazon.com/cli/latest/reference/s3api/complete-multipart-upload.html)
 /// - [list-parts](https://docs.aws.amazon.com/cli/latest/reference/s3api/list-parts.html)
@@ -1313,8 +1292,7 @@ pub const MESSAGING_MESSAGE_PAYLOAD_SIZE_BYTES: &str = "messaging.message.payloa
 /// # Examples
 ///
 /// - `2048`
-pub const MESSAGING_MESSAGE_PAYLOAD_COMPRESSED_SIZE_BYTES: &str =
-    "messaging.message.payload_compressed_size_bytes";
+pub const MESSAGING_MESSAGE_PAYLOAD_COMPRESSED_SIZE_BYTES: &str = "messaging.message.payload_compressed_size_bytes";
 
 /// The message destination name.
 ///
@@ -1382,8 +1360,7 @@ pub const MESSAGING_CLIENT_ID: &str = "messaging.client_id";
 /// # Examples
 ///
 /// - `myKey`
-pub const MESSAGING_RABBITMQ_DESTINATION_ROUTING_KEY: &str =
-    "messaging.rabbitmq.destination.routing_key";
+pub const MESSAGING_RABBITMQ_DESTINATION_ROUTING_KEY: &str = "messaging.rabbitmq.destination.routing_key";
 
 /// Message keys in Kafka are used for grouping alike messages to ensure they&#39;re processed on the same partition. They differ from `messaging.message.id` in that they&#39;re not unique. If the key is `null`, the attribute MUST NOT be set.
 ///
@@ -1437,16 +1414,14 @@ pub const MESSAGING_ROCKETMQ_CLIENT_GROUP: &str = "messaging.rocketmq.client_gro
 /// # Examples
 ///
 /// - `1665987217045`
-pub const MESSAGING_ROCKETMQ_MESSAGE_DELIVERY_TIMESTAMP: &str =
-    "messaging.rocketmq.message.delivery_timestamp";
+pub const MESSAGING_ROCKETMQ_MESSAGE_DELIVERY_TIMESTAMP: &str = "messaging.rocketmq.message.delivery_timestamp";
 
 /// The delay time level for delay message, which determines the message delay time.
 ///
 /// # Examples
 ///
 /// - `3`
-pub const MESSAGING_ROCKETMQ_MESSAGE_DELAY_TIME_LEVEL: &str =
-    "messaging.rocketmq.message.delay_time_level";
+pub const MESSAGING_ROCKETMQ_MESSAGE_DELAY_TIME_LEVEL: &str = "messaging.rocketmq.message.delay_time_level";
 
 /// It is essential for FIFO message. Messages that belong to the same message group are always processed one by one within the same consumer group.
 ///
@@ -1557,13 +1532,13 @@ pub const RPC_CONNECT_RPC_ERROR_CODE: &str = "rpc.connect_rpc.error_code";
 /// This may be actually &#34;in flight&#34; in some languages (e.g. if the exception
 /// is passed to a Context manager&#39;s `__exit__` method in Python) but will
 /// usually be caught at the point of recording the exception in most languages.
-///
+/// 
 /// It is usually not possible to determine at the point where an exception is thrown
 /// whether it will escape the scope of a span.
 /// However, it is trivial to know that an exception
 /// will escape, if one checks for an active exception just before ending the span,
 /// as done in the [example above](#recording-an-exception).
-///
+/// 
 /// It follows that an exception may still escape the scope of the span
 /// even if the `exception.escaped` attribute was not set or set to false,
 /// since the event might have been recorded at a time where it was not

@@ -7,14 +7,31 @@
 //!
 //! ## Usage
 //!
+//! `tracing`:
+//! 
 //! ```
+//! use opentelemetry_semantic_conventions as semconv;
+//! use tracing::span;
+//!
+//! let span = span!(
+//!     LEVEL::INFO,
+//!     "handle_request",
+//!     { semconv::resource::SERVICE_NAME = "my-service" },
+//!     { semconv::resource::SERVICE_NAMESPACE = "my-namespace" }
+//! );
+//! ```
+//! 
+//! OpenTelemetry SDK:
+//! 
+//! ```
+//! use opentelemetry::KeyValue;
 //! use opentelemetry_sdk::{trace::{config, TracerProvider}, Resource};
 //! use opentelemetry_semantic_conventions as semconv;
 //!
 //! let _tracer = TracerProvider::builder()
 //!     .with_config(config().with_resource(Resource::new(vec![
-//!         semconv::resource::SERVICE_NAME.string("my-service"),
-//!         semconv::resource::SERVICE_NAMESPACE.string("my-namespace"),
+//!         KeyValue::new(semconv::resource::SERVICE_NAME, "my-service"),
+//!         KeyValue::new(semconv::resource::SERVICE_NAMESPACE, "my-namespace"),
 //!     ])))
 //!     .build();
 //! ```
