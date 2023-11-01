@@ -20,4 +20,3 @@ impl Deref for SpanLinks {
         &self.links
     }
 }
-
