@@ -764,15 +764,14 @@ impl From<(Vec<KeyValue>, &Resource)> for Attributes {
     }
 }
 
-fn transform_links(links: &opentelemetry_sdk::trace::SpanLinks) -> Option<Links> {
-    if links.links.is_empty() {
+fn transform_links(span_links: &opentelemetry_sdk::trace::SpanLinks) -> Option<Links> {
+    if span_links.is_empty() {
         return None;
     }
 
     Some(Links {
-        dropped_links_count: links.dropped_count as i32,
-        link: links
-            .links
+        dropped_links_count: span_links.dropped_count as i32,
+        link: span_links
             .iter()
             .map(|link| Link {
                 trace_id: hex::encode(link.span_context.trace_id().to_bytes()),

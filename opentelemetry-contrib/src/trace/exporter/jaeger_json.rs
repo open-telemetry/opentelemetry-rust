@@ -159,7 +159,7 @@ fn span_data_to_jaeger_json(span: SpanData) -> serde_json::Value {
             })
         })
         .collect::<Vec<_>>();
-    let mut references = if span.span_links.links.is_empty() {
+    let mut references = if span.span_links.is_empty() {
         None
     } else {
         Some(

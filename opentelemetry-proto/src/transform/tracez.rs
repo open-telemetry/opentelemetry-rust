@@ -21,7 +21,6 @@ mod grpcio {
                 events: span_data.events.iter().cloned().map(Into::into).collect(),
                 links: span_data
                     .span_links
-                    .links
                     .iter()
                     .cloned()
                     .map(Into::into)
@@ -41,7 +40,6 @@ mod grpcio {
                 events: span_data.events.iter().cloned().map(Into::into).collect(),
                 links: span_data
                     .span_links
-                    .links
                     .iter()
                     .cloned()
                     .map(Into::into)
