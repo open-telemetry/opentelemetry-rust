@@ -30,7 +30,7 @@ fn get_span_data() -> Vec<SpanData> {
             attributes: Vec::new(),
             dropped_attributes_count: 0,
             events: EvictedQueue::new(12),
-            span_links: SpanLinks::default(),
+            links: SpanLinks::default(),
             status: Status::Unset,
             resource: Cow::Owned(Resource::empty()),
             instrumentation_lib: Default::default(),

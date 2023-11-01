@@ -340,7 +340,7 @@ where
                     time_event,
                     ..Default::default()
                 }),
-                links: transform_links(&span.span_links),
+                links: transform_links(&span.links),
                 status: status(span.status),
                 span_kind: SpanKind::from(span.span_kind) as i32,
                 ..Default::default()

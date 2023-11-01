@@ -37,7 +37,7 @@ pub fn new_test_export_span_data() -> SpanData {
         attributes: Vec::new(),
         dropped_attributes_count: 0,
         events: EvictedQueue::new(config.span_limits.max_events_per_span),
-        span_links: SpanLinks::default(),
+        links: SpanLinks::default(),
         status: Status::Unset,
         resource: config.resource,
         instrumentation_lib: InstrumentationLibrary::default(),

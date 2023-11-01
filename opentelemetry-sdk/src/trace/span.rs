@@ -44,7 +44,7 @@ pub(crate) struct SpanData {
     /// Span events
     pub(crate) events: crate::trace::EvictedQueue<trace::Event>,
     /// Span Links
-    pub(crate) span_links: crate::trace::SpanLinks,
+    pub(crate) links: crate::trace::SpanLinks,
     /// Span status
     pub(crate) status: Status,
 }
@@ -239,7 +239,7 @@ fn build_export_data(
         attributes: data.attributes,
         dropped_attributes_count: data.dropped_attributes_count,
         events: data.events,
-        span_links: data.span_links,
+        links: data.links,
         status: data.status,
         resource,
         instrumentation_lib: tracer.instrumentation_library().clone(),
@@ -273,7 +273,7 @@ mod tests {
             attributes: Vec::new(),
             dropped_attributes_count: 0,
             events: crate::trace::EvictedQueue::new(config.span_limits.max_events_per_span),
-            span_links: SpanLinks::default(),
+            links: SpanLinks::default(),
             status: Status::Unset,
         };
         (tracer, data)
@@ -610,7 +610,7 @@ mod tests {
             .data
             .clone()
             .expect("span data should not be empty as we already set it before")
-            .span_links;
+            .links;
         let link_vec: Vec<_> = link_queue.links;
         let processed_link = link_vec.get(0).expect("should have at least one link");
         assert_eq!(processed_link.attributes.len(), 128);
@@ -644,7 +644,7 @@ mod tests {
             .data
             .clone()
             .expect("span data should not be empty as we already set it before")
-            .span_links;
+            .links;
         let link_vec: Vec<_> = link_queue.links;
         assert_eq!(link_vec.len(), DEFAULT_MAX_LINKS_PER_SPAN as usize);
     }

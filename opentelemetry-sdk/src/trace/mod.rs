@@ -140,7 +140,7 @@ mod tests {
         let span = &exported_spans[0];
         assert_eq!(span.name, "span_name");
         assert_eq!(
-            span.span_links.links.len(),
+            span.links.len(),
             DEFAULT_MAX_LINKS_PER_SPAN as usize
         );
     }

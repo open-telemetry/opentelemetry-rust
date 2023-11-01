@@ -263,7 +263,7 @@ impl opentelemetry::trace::Tracer for Tracer {
                     attributes: attribute_options,
                     dropped_attributes_count,
                     events: events_queue,
-                    span_links,
+                    links: span_links,
                     status,
                 }),
                 self.clone(),
