@@ -2,6 +2,7 @@
 
 ## vNext
 
+- Bump MSRV to 1.65 [#1318](https://github.com/open-telemetry/opentelemetry-rust/pull/1318)
 - Timestamp is additionally exported in user-friendly format.
   [#1192](https://github.com/open-telemetry/opentelemetry-rust/pull/1192).
 - MetricExporter - Temporality is exported in user-friendly format.

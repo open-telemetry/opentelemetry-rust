@@ -12,6 +12,7 @@
 
 ### Changed
 
+- Bump MSRV to 1.65 [#1318](https://github.com/open-telemetry/opentelemetry-rust/pull/1318)
 - Default Resource (the one used when no other Resource is explicitly provided) now includes `TelemetryResourceDetector`,
   populating "telemetry.sdk.*" attributes.
   [#1066](https://github.com/open-telemetry/opentelemetry-rust/pull/1193).
@@ -34,9 +35,9 @@
   [#1313](https://github.com/open-telemetry/opentelemetry-rust/issues/1313)
   makes few breaking changes with respect to how Span attributes/links are stored to
   achieve performance gains. See below for details:
-  
+
   *Behavior Change*:
-  
+
   SDK will no longer perform de-duplication of Span attribute Keys. Please share
   [feedback
   here](https://github.com/open-telemetry/opentelemetry-rust/issues/1300), if
@@ -60,13 +61,15 @@
   `SpanLinks` is a struct with a `Vec` of links and `dropped_count`.
   
   *Breaking Change Affecting Sampler authors*:
-  
+
   `should_sample` changes `attributes` from `OrderMap<Key, Value>` to
   `Vec<KeyValue>`.
+- **Breaking** Move type argument from `RuntimeChannel<T>` to associated types [#1314](https://github.com/open-telemetry/opentelemetry-rust/pull/1314)
 
 ### Removed
 
 - Remove context from Metric force_flush [#1245](https://github.com/open-telemetry/opentelemetry-rust/pull/1245)
+- Remove `logs::BatchMessage` and `trace::BatchMessage` types [#1314](https://github.com/open-telemetry/opentelemetry-rust/pull/1314)
 
 ### Fixed
 

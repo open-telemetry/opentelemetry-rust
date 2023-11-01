@@ -9,7 +9,7 @@
 //! The [trace semantic conventions] define a set of standardized attributes to
 //! be used in `Span`s.
 //!
-//! [trace semantic conventions]: https://github.com/open-telemetry/opentelemetry-specification/tree/master/specification/trace/semantic_conventions
+//! [trace semantic conventions]: https://github.com/open-telemetry/semantic-conventions/tree/main/model/trace
 //!
 //! ## Usage
 //!

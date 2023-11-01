@@ -6,7 +6,7 @@ edition = "2021"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-user-events-logs"
 repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-user-events-logs"
 readme = "README.md"
-rust-version = "1.68.0"
+rust-version = "1.65.0"
 keywords = ["opentelemetry", "log", "trace", "user_events"]
 license = "Apache-2.0"
 

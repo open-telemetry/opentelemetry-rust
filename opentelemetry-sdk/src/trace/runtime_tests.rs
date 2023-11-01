@@ -6,8 +6,6 @@ use crate::export::trace::{ExportResult, SpanExporter};
 use crate::runtime;
 #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
 use crate::runtime::RuntimeChannel;
-#[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
-use crate::trace::BatchMessage;
 use futures_util::future::BoxFuture;
 #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
 use opentelemetry::global::*;
@@ -42,7 +40,7 @@ impl SpanCountExporter {
 }
 
 #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
-fn build_batch_tracer_provider<R: RuntimeChannel<BatchMessage>>(
+fn build_batch_tracer_provider<R: RuntimeChannel>(
     exporter: SpanCountExporter,
     runtime: R,
 ) -> crate::trace::TracerProvider {
@@ -61,9 +59,7 @@ fn build_simple_tracer_provider(exporter: SpanCountExporter) -> crate::trace::Tr
 }
 
 #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
-async fn test_set_provider_in_tokio<R: RuntimeChannel<BatchMessage>>(
-    runtime: R,
-) -> Arc<AtomicUsize> {
+async fn test_set_provider_in_tokio<R: RuntimeChannel>(runtime: R) -> Arc<AtomicUsize> {
     let exporter = SpanCountExporter::new();
     let span_count = exporter.span_count.clone();
     let _ = set_tracer_provider(build_batch_tracer_provider(exporter, runtime));
