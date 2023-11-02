@@ -28,6 +28,7 @@ async fn main() {
         )
         .with(tracing_subscriber::fmt::layer())
         .with(telemetry);
+    tracing::subscriber::set_global_default(subscriber).unwrap();
 
     // build our application with a route
     let app = Router::new()
