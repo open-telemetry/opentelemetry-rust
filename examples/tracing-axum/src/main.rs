@@ -16,9 +16,18 @@ async fn main() {
     let trace_provider = opentelemetry_sdk::trace::Builder::default()
         .with_simple_exporter(opentelemetry_stdout::SpanExporter::default())
         .build();
-    let tracer = trace_provider.tracer("Axum Example");
+    let tracer = trace_provider.versioned_tracer("Axum Example", None::<&str>, None::<&str>, None);
     let telemetry = tracing_opentelemetry::layer().with_tracer(tracer);
-    tracing_subscriber::registry().with(telemetry);
+    let subscriber = tracing_subscriber::registry()
+        .with(
+            tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| {
+                // axum logs rejections from built-in extractors with the `axum::rejection`
+                // target, at `TRACE` level. `axum::rejection=trace` enables showing those events
+                "tracing_axum=debug,tower_http=debug,axum::rejection=trace".into()
+            }),
+        )
+        .with(tracing_subscriber::fmt::layer())
+        .with(telemetry);
 
     // build our application with a route
     let app = Router::new()

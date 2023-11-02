@@ -7,10 +7,10 @@ edition = "2021"
 
 [dependencies]
 axum = "0.6.20"
-opentelemetry = { version = "0.21.0", path = "../../opentelemetry" }
-opentelemetry-otlp = { version = "0.13.0", path = "../../opentelemetry-otlp" }
-opentelemetry-stdout = { version = "0.1.0", path = "../../opentelemetry-stdout", features = ["trace"] }
-opentelemetry_sdk = { version = "0.20.0", path = "../../opentelemetry-sdk" }
+opentelemetry = { version = "0.20.0" }
+opentelemetry-otlp = { version = "0.13.0" }
+opentelemetry-stdout = { version = "0.1.0", features = ["trace"] }
+opentelemetry_sdk = { version = "0.20.0" }
 tokio = { version = "1.33.0", features = ["rt-multi-thread"] }
 tower-http = { version = "0.4.4", features = ["trace"] }
 tracing = "0.1.40"
