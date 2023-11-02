@@ -1,0 +1,18 @@
+[package]
+name = "tracing-axum"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+axum = "0.6.20"
+opentelemetry = { version = "0.21.0", path = "../../opentelemetry" }
+opentelemetry-otlp = { version = "0.13.0", path = "../../opentelemetry-otlp" }
+opentelemetry-stdout = { version = "0.1.0", path = "../../opentelemetry-stdout", features = ["trace"] }
+opentelemetry_sdk = { version = "0.20.0", path = "../../opentelemetry-sdk" }
+tokio = { version = "1.33.0", features = ["rt-multi-thread"] }
+tower-http = { version = "0.4.4", features = ["trace"] }
+tracing = "0.1.40"
+tracing-opentelemetry = "0.21.0"
+tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }

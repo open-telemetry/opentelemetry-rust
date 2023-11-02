@@ -28,6 +28,7 @@ members = [
     "examples/metrics-advanced",
     "examples/logs-basic",
     "examples/traceresponse",
+    "examples/tracing-axum",
     "examples/tracing-grpc",
     "stress",
 ]
