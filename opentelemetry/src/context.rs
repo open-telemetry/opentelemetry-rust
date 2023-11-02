@@ -12,7 +12,6 @@ use std::marker::PhantomData;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context as TaskContext, Poll};
-use std::thread;
 
 thread_local! {
     static CURRENT_CONTEXT: RefCell<Context> = RefCell::new(Context::default());
@@ -84,7 +83,7 @@ thread_local! {
 pub struct Context {
     #[cfg(feature = "trace")]
     pub(super) span: Option<Arc<SynchronizedSpan>>,
-    pub suppress_logs: bool,
+    pub suppression: bool,
     entries: HashMap<TypeId, Arc<dyn Any + Sync + Send>, BuildHasherDefault<IdHasher>>,
 }
 
@@ -320,7 +319,7 @@ impl Context {
         Context {
             span: Some(Arc::new(value)),
             entries: Context::map_current(|cx| cx.entries.clone()),
-            ..Context::default()
+            suppression: Context::map_current(|cx| cx.suppression),
         }
     }
 
@@ -329,15 +328,15 @@ impl Context {
         Context {
             span: Some(Arc::new(value)),
             entries: self.entries.clone(),
-            ..self.clone()
+            suppression: self.suppression,
         }
     }
 
-    pub(super) fn with_suppression(&self) -> Self {
+    pub fn with_suppression(&self) -> Self {
         Context {
-            suppress_logs: true,
+            suppression: true,
             entries: self.entries.clone(),
-            ..self.clone()
+            span: self.span.clone(),
         }
     }
 }

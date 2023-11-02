@@ -41,7 +41,8 @@ impl LogExporter for OtlpHttpClient {
 
             Ok(())
         }
-        .with_current_context_supp()
+        //.with_current_context_supp()
+        .with_context(Context::current().with_suppression())
         .await
     }
 

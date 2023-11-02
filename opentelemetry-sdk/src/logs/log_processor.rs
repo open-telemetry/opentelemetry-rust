@@ -105,7 +105,7 @@ impl LogProcessor for SimpleLogProcessor {
 
     #[cfg(feature = "logs_level_enabled")]
     fn event_enabled(&self, _level: Severity, _target: &str, _name: &str) -> bool {
-        !Context::current().suppress_logs
+        !Context::current().suppression
     }
 }
 
@@ -134,7 +134,7 @@ impl<R: RuntimeChannel<BatchMessage>> LogProcessor for BatchLogProcessor<R> {
 
     #[cfg(feature = "logs_level_enabled")]
     fn event_enabled(&self, _level: Severity, _target: &str, _name: &str) -> bool {
-        !Context::current().suppress_logs
+        !Context::current().suppression
     }
 
     fn force_flush(&self) -> LogResult<()> {
