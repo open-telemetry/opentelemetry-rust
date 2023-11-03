@@ -1,60 +1,75 @@
-use opentelemetry::logs::{LogRecord, Logger, LoggerProvider, Severity};
+use opentelemetry::{
+    logs::{AnyValue, LogRecord, Logger, LoggerProvider, Severity},
+    Key,
+};
 use std::borrow::Cow;
+use tracing_core::Metadata;
 use tracing_subscriber::Layer;
 
 const INSTRUMENTATION_LIBRARY_NAME: &str = "opentelemetry-appender-tracing";
 
 /// Visitor to record the fields from the event record.
-struct EventVisitor<'a> {
-    log_record: &'a mut LogRecord,
+#[derive(Default)]
+struct EventVisitor {
+    log_record_attributes: Vec<(Key, AnyValue)>,
+    log_record_body: Option<AnyValue>,
 }
 
-impl<'a> tracing::field::Visit for EventVisitor<'a> {
+impl<'a> EventVisitor {
+    fn visit_metadata(&mut self, meta: &'static Metadata<'static>) {
+        self.log_record_attributes
+            .push(("log.name".into(), meta.name().into()));
+        self.log_record_attributes
+            .push(("log.target".into(), meta.target().into()));
+
+        if let Some(module_path) = meta.module_path() {
+            self.log_record_attributes
+                .push(("log.module.path".into(), module_path.into()));
+        }
+        if let Some(file) = meta.file() {
+            self.log_record_attributes
+                .push(("log.file.name".into(), file.into()));
+        }
+        if let Some(line) = meta.line() {
+            self.log_record_attributes
+                .push(("log.file.line".into(), line.into()));
+        }
+    }
+
+    fn push_to_otel_log_record(self, log_record: &mut LogRecord) {
+        log_record.body = self.log_record_body;
+        log_record.attributes = Some(self.log_record_attributes);
+    }
+}
+
+impl tracing::field::Visit for EventVisitor {
     fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
         if field.name() == "message" {
-            self.log_record.body = Some(format!("{value:?}").into());
-        } else if let Some(ref mut vec) = self.log_record.attributes {
-            vec.push((field.name().into(), format!("{value:?}").into()));
+            self.log_record_body = Some(format!("{value:?}").into());
         } else {
-            let vec = vec![(field.name().into(), format!("{value:?}").into())];
-            self.log_record.attributes = Some(vec);
+            self.log_record_attributes
+                .push((field.name().into(), format!("{value:?}").into()));
         }
     }
 
     fn record_str(&mut self, field: &tracing_core::Field, value: &str) {
-        if let Some(ref mut vec) = self.log_record.attributes {
-            vec.push((field.name().into(), value.to_owned().into()));
-        } else {
-            let vec = vec![(field.name().into(), value.to_owned().into())];
-            self.log_record.attributes = Some(vec);
-        }
+        self.log_record_attributes
+            .push((field.name().into(), value.to_owned().into()));
     }
 
     fn record_bool(&mut self, field: &tracing_core::Field, value: bool) {
-        if let Some(ref mut vec) = self.log_record.attributes {
-            vec.push((field.name().into(), value.into()));
-        } else {
-            let vec = vec![(field.name().into(), value.into())];
-            self.log_record.attributes = Some(vec);
-        }
+        self.log_record_attributes
+            .push((field.name().into(), value.into()));
     }
 
     fn record_f64(&mut self, field: &tracing::field::Field, value: f64) {
-        if let Some(ref mut vec) = self.log_record.attributes {
-            vec.push((field.name().into(), value.into()));
-        } else {
-            let vec = vec![(field.name().into(), value.into())];
-            self.log_record.attributes = Some(vec);
-        }
+        self.log_record_attributes
+            .push((field.name().into(), value.into()));
     }
 
     fn record_i64(&mut self, field: &tracing::field::Field, value: i64) {
-        if let Some(ref mut vec) = self.log_record.attributes {
-            vec.push((field.name().into(), value.into()));
-        } else {
-            let vec = vec![(field.name().into(), value.into())];
-            self.log_record.attributes = Some(vec);
-        }
+        self.log_record_attributes
+            .push((field.name().into(), value.into()));
     }
 
     // TODO: Remaining field types from AnyValue : Bytes, ListAny, Boolean
@@ -106,10 +121,12 @@ where
         // Not populating ObservedTimestamp, instead relying on OpenTelemetry
         // API to populate it with current time.
 
-        let mut visitor = EventVisitor {
-            log_record: &mut log_record,
-        };
+        let mut visitor = EventVisitor::default();
+        visitor.visit_metadata(meta);
+        // Visit fields.
         event.record(&mut visitor);
+        visitor.push_to_otel_log_record(&mut log_record);
+
         self.logger.emit(log_record);
     }
 
