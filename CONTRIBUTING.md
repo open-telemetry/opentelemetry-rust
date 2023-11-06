@@ -111,6 +111,14 @@ The Opentelemetry Rust SDK comes with an error type `openetelemetry::Error`. For
 
 For users that want to implement their own exporters. It's RECOMMENDED to wrap all errors from the exporter into a crate-level error type, and implement `ExporterError` trait.  
 
+### Priority of configurations
+OpenTelemetry supports multiple ways to configure the API, SDK and other components. The priority of configurations is as follows:
+
+- Environment variables
+- Compiling time configurations provided in the source code
+
+
+
 ## Style Guide
 
 * Run `cargo clippy --all` - this will catch common mistakes and improve
