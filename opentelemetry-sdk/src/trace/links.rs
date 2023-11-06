@@ -20,3 +20,12 @@ impl Deref for SpanLinks {
         &self.links
     }
 }
+
+impl IntoIterator for SpanLinks {
+    type Item = Link;
+    type IntoIter = std::vec::IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.links.into_iter()
+    }
+}

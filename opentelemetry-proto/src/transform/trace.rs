@@ -96,7 +96,6 @@ pub mod tonic {
                         dropped_links_count: source_span.links.dropped_count,
                         links: source_span
                             .links
-                            .links
                             .into_iter()
                             .map(Into::into)
                             .collect(),

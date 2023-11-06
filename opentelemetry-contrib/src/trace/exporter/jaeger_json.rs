@@ -164,7 +164,6 @@ fn span_data_to_jaeger_json(span: SpanData) -> serde_json::Value {
     } else {
         Some(
             span.links
-                .links
                 .iter()
                 .map(|link| {
                     let span_context = &link.span_context;
