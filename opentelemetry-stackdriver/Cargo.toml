@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-stackdriver"
-version = "0.17.0"
+version = "0.18.0"
 description = "A Rust opentelemetry exporter that uploads traces to Google Stackdriver trace."
 documentation = "https://docs.rs/opentelemetry-stackdriver/"
 repository = "https://github.com/open-telemetry/opentelemetry-rust"
@@ -17,8 +17,8 @@ http = "0.2"
 hyper = "0.14.2"
 hyper-rustls = { version = "0.24", optional = true }
 opentelemetry = { version = "0.21", path = "../opentelemetry" }
-opentelemetry_sdk = { version = "0.20", path = "../opentelemetry-sdk" }
-opentelemetry-semantic-conventions = { version = "0.12", path = "../opentelemetry-semantic-conventions" }
+opentelemetry_sdk = { version = "0.21", path = "../opentelemetry-sdk" }
+opentelemetry-semantic-conventions = { version = "0.13", path = "../opentelemetry-semantic-conventions" }
 prost = "0.11.0"
 prost-types = "0.11.1"
 thiserror = "1.0.30"

@@ -2,6 +2,8 @@
 
 ## vNext
 
+## v0.4.0
+
 ### Added
 
 - Implement tonic metrics proto transformations (#1184)

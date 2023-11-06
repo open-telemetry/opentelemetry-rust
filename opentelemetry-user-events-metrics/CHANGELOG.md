@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.2.0
+
 - Fix aggregation selector and temporality so every instruments are aggregated
   correctly with expected delta temporality.
     [#1287](https://github.com/open-telemetry/opentelemetry-rust/pull/1287).
