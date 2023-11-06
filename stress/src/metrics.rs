@@ -3,14 +3,14 @@ use opentelemetry::{
     metrics::{Counter, MeterProvider as _},
     KeyValue,
 };
-use opentelemetry_sdk::metrics::{DefaultMeterProvider, ManualReader};
+use opentelemetry_sdk::metrics::{ManualReader, SdkMeterProvider};
 use rand::{rngs::SmallRng, Rng, SeedableRng};
 use std::borrow::Cow;
 
 mod throughput;
 
 lazy_static! {
-    static ref PROVIDER: DefaultMeterProvider = DefaultMeterProvider::builder()
+    static ref PROVIDER: SdkMeterProvider = SdkMeterProvider::builder()
         .with_reader(ManualReader::builder().build())
         .build();
     static ref ATTRIBUTE_VALUES: [&'static str; 10] = [
