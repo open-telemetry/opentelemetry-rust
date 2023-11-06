@@ -5,11 +5,11 @@
 //! ```no_run
 //! # #[cfg(all(feature = "metrics", feature = "trace"))]
 //! {
-//! use opentelemetry::metrics::MeterProvider as _;
+//! use opentelemetry::metrics::MeterProvider;
 //! use opentelemetry::trace::{Span, Tracer, TracerProvider as _};
 //! use opentelemetry::{Context, KeyValue};
 //!
-//! use opentelemetry_sdk::metrics::{MeterProvider, PeriodicReader};
+//! use opentelemetry_sdk::metrics::{SdkMeterProvider, PeriodicReader};
 //! use opentelemetry_sdk::runtime;
 //! use opentelemetry_sdk::trace::TracerProvider;
 //!
@@ -20,10 +20,10 @@
 //!         .build()
 //! }
 //!
-//! fn init_metrics() -> MeterProvider {
+//! fn init_metrics() -> SdkMeterProvider {
 //!     let exporter = opentelemetry_stdout::MetricsExporter::default();
 //!     let reader = PeriodicReader::builder(exporter, runtime::Tokio).build();
-//!     MeterProvider::builder().with_reader(reader).build()
+//!     SdkMeterProvider::builder().with_reader(reader).build()
 //! }
 //!
 //! let tracer_provider = init_trace();
