@@ -9,15 +9,14 @@ use std::{
 
 use opentelemetry::{
     metrics::{
-        noop::NoopMeterCore, InstrumentProvider, Meter as ApiMeter, MeterProvider, MetricsError,
-        Result,
+        noop::NoopMeterCore, InstrumentProvider, Meter, MeterProvider, MetricsError, Result,
     },
     KeyValue,
 };
 
 use crate::{instrumentation::Scope, Resource};
 
-use super::{meter::DefaultMeter, pipeline::Pipelines, reader::MetricReader, view::View};
+use super::{meter::SdkMeter, pipeline::Pipelines, reader::MetricReader, view::View};
 
 /// Handles the creation and coordination of [Meter]s.
 ///
@@ -123,16 +122,16 @@ impl MeterProvider for SdkMeterProvider {
         version: Option<impl Into<Cow<'static, str>>>,
         schema_url: Option<impl Into<Cow<'static, str>>>,
         attributes: Option<Vec<KeyValue>>,
-    ) -> ApiMeter {
+    ) -> Meter {
         let inst_provider: Arc<dyn InstrumentProvider + Send + Sync> =
             if !self.is_shutdown.load(Ordering::Relaxed) {
                 let scope = Scope::new(name, version, schema_url, attributes);
-                Arc::new(DefaultMeter::new(scope, self.pipes.clone()))
+                Arc::new(SdkMeter::new(scope, self.pipes.clone()))
             } else {
                 Arc::new(NoopMeterCore::new())
             };
 
-        ApiMeter::new(inst_provider)
+        Meter::new(inst_provider)
     }
 }
 
