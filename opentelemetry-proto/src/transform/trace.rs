@@ -94,11 +94,7 @@ pub mod tonic {
                             })
                             .collect(),
                         dropped_links_count: source_span.links.dropped_count,
-                        links: source_span
-                            .links
-                            .into_iter()
-                            .map(Into::into)
-                            .collect(),
+                        links: source_span.links.into_iter().map(Into::into).collect(),
                         status: Some(Status {
                             code: status::StatusCode::from(&source_span.status).into(),
                             message: match source_span.status {
