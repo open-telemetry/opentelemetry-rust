@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-otlp"
-version = "0.13.0"
+version = "0.14.0"
 description = "Exporter for the OpenTelemetry Collector"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-otlp"
 repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-otlp"
@@ -28,12 +28,12 @@ rustdoc-args = ["--cfg", "docsrs"]
 [dependencies]
 async-trait = "0.1"
 futures-core = "0.3"
-opentelemetry-proto = { version = "0.3", path = "../opentelemetry-proto", default-features = false }
 grpcio = { version = "0.12", optional = true }
 opentelemetry = { version = "0.21", default-features = false, path = "../opentelemetry" }
-opentelemetry_sdk = { version = "0.20", default-features = false, path = "../opentelemetry-sdk" }
-opentelemetry-http = { version = "0.9", path = "../opentelemetry-http", optional = true }
-opentelemetry-semantic-conventions = { version = "0.12", path = "../opentelemetry-semantic-conventions" }
+opentelemetry_sdk = { version = "0.21", default-features = false, path = "../opentelemetry-sdk" }
+opentelemetry-http = { version = "0.10", path = "../opentelemetry-http", optional = true }
+opentelemetry-proto = { version = "0.4", path = "../opentelemetry-proto", default-features = false }
+opentelemetry-semantic-conventions = { version = "0.13", path = "../opentelemetry-semantic-conventions" }
 
 prost = { version = "0.11.0", optional = true }
 tonic = { version = "0.9.0", optional = true }

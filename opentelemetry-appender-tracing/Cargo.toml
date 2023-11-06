@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-appender-tracing"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "An OpenTelemetry log appender for the tracing crate"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-appender-tracing"
@@ -12,7 +12,7 @@ rust-version = "1.65"
 
 [dependencies]
 opentelemetry = { version = "0.21", path = "../opentelemetry", features = ["logs"] }
-opentelemetry_sdk = { version = "0.20", path = "../opentelemetry-sdk", features = ["logs"] }
+opentelemetry_sdk = { version = "0.21", path = "../opentelemetry-sdk", features = ["logs"] }
 tracing = {version = "0.1.37", default-features = false, features = ["std"]}
 tracing-core = "0.1.31"
 tracing-subscriber = { version = "0.3.0", default-features = false, features = ["registry", "std"] }
