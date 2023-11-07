@@ -2,6 +2,22 @@
 
 ## vNext
 
+### Changed
+
+- **Breaking**
+[#1313](https://github.com/open-telemetry/opentelemetry-rust/issues/1313)
+  Changes how Span links are stored to achieve performance gains. See below for
+  details:
+
+  *Behavior Change*: When enforcing `max_links_per_span` from `SpanLimits`,
+  links are kept in the first-come order. The previous "eviction" based approach
+  is no longer performed.
+  
+  *Breaking Change Affecting Exporter authors*:
+  
+  `SpanData` now stores `links` as `SpanLinks` instead of `EvictedQueue` where
+  `SpanLinks` is a struct with a `Vec` of links and `dropped_count`.
+
 ## v0.21.0
 
 ### Added

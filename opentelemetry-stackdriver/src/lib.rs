@@ -35,7 +35,6 @@ use opentelemetry_sdk::{
         trace::{ExportResult, SpanData, SpanExporter},
         ExportError,
     },
-    trace::EvictedQueue,
     Resource,
 };
 use opentelemetry_semantic_conventions::resource::SERVICE_NAME;
@@ -765,13 +764,13 @@ impl From<(Vec<KeyValue>, &Resource)> for Attributes {
     }
 }
 
-fn transform_links(links: &EvictedQueue<opentelemetry::trace::Link>) -> Option<Links> {
+fn transform_links(links: &opentelemetry_sdk::trace::SpanLinks) -> Option<Links> {
     if links.is_empty() {
         return None;
     }
 
     Some(Links {
-        dropped_links_count: links.dropped_count() as i32,
+        dropped_links_count: links.dropped_count as i32,
         link: links
             .iter()
             .map(|link| Link {

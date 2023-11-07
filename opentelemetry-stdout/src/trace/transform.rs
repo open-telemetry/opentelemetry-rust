@@ -109,8 +109,8 @@ impl From<opentelemetry_sdk::export::trace::SpanData> for Span {
             attributes: value.attributes.into_iter().map(Into::into).collect(),
             dropped_events_count: value.events.dropped_count(),
             events: value.events.into_iter().map(Into::into).collect(),
-            dropped_links_count: value.links.dropped_count(),
-            links: value.links.into_iter().map(Into::into).collect(),
+            dropped_links_count: value.links.dropped_count,
+            links: value.links.iter().map(Into::into).collect(),
             status: value.status.into(),
         }
     }
@@ -177,13 +177,13 @@ struct Link {
     dropped_attributes_count: u32,
 }
 
-impl From<opentelemetry::trace::Link> for Link {
-    fn from(value: opentelemetry::trace::Link) -> Self {
+impl From<&opentelemetry::trace::Link> for Link {
+    fn from(value: &opentelemetry::trace::Link) -> Self {
         Link {
             trace_id: value.span_context.trace_id().to_string(),
             span_id: value.span_context.span_id().to_string(),
             trace_state: Some(value.span_context.trace_state().header()).filter(|s| !s.is_empty()),
-            attributes: value.attributes.into_iter().map(Into::into).collect(),
+            attributes: value.attributes.iter().map(Into::into).collect(),
             dropped_attributes_count: value.dropped_attributes_count,
         }
     }
