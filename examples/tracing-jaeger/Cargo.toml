@@ -1,0 +1,13 @@
+[package]
+name = "tracing-jaeger"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+publish = false
+
+[dependencies]
+opentelemetry = { path = "../../opentelemetry" }
+opentelemetry-jaeger = { path = "../../opentelemetry-jaeger" }
+opentelemetry_sdk = { path = "../../opentelemetry-sdk", features = ["rt-tokio"] }
+opentelemetry-otlp = { path = "../../opentelemetry-otlp", features = ["tonic"] }
+tokio = { version = "1.0", features = ["full"] }

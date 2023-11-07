@@ -29,6 +29,7 @@ members = [
     "examples/logs-basic",
     "examples/traceresponse",
     "examples/tracing-grpc",
+    "examples/tracing-jaeger",
     "stress",
 ]
 resolver = "2"
