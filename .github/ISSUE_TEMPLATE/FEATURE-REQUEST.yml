@@ -1,0 +1,47 @@
+name: Feature Request
+description: Request a feature for the OpenTelemetry Rust implementation.
+title: "[Feature]: "
+labels: ["enhancement", "triage:todo"]
+projects: ["open-telemetry/opentelemetry-rust"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for using our library and trying to make it better!
+
+        Before opening a feature request against this repo, consider whether the feature
+        should/could be implemented in the [other OpenTelemetry client
+        libraries](https://github.com/open-telemetry/). If so, please [open an issue on
+        opentelemetry-specification](https://github.com/open-telemetry/opentelemetry-specification/issues/new) first.
+  - type: textarea
+    id: related-problem
+    attributes:
+      label: Related Problems?
+      description: Is your feature request related to a problem? If so, provide a concise description of the problem.
+      placeholder: Include the Issue ID from this or other repos.
+    validations:
+      required: false
+  - type: textarea
+    id: solution
+    attributes:
+      label: Describe the solution you'd like:
+      description: What do you want to happen instead? What is the expected behavior?
+      placeholder: I'd like the api to ...
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Considered Alternatives
+      description: Which alternative solutions or features have you considered?
+      placeholder: Some potential solutions
+    validations:
+      required: false
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: Add any other context about the feature request here.
+      placeholder: Some related requests in other project or upstream spec proposals.
+    validations:
+      required: false
