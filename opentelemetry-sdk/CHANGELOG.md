@@ -5,9 +5,9 @@
 ### Changed
 
 - **Breaking**
-[#1313](https://github.com/open-telemetry/opentelemetry-rust/issues/1313) makes
-  few breaking changes with respect to how Span attributes/links are stored to
-  achieve performance gains. See below for details:
+[#1313](https://github.com/open-telemetry/opentelemetry-rust/issues/1313)
+  Changes how Span links are stored to achieve performance gains. See below for
+  details:
 
   *Behavior Change*: When enforcing `max_links_per_span` from `SpanLimits`,
   links are kept in the first-come order. The previous "eviction" based approach
