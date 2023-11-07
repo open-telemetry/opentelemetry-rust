@@ -195,7 +195,7 @@ pub(crate) mod tests {
     };
     use opentelemetry_sdk::{
         self,
-        trace::{EvictedQueue, SpanLinks},
+        trace::{SpanLinks, SpanEvents},
         InstrumentationLibrary, Resource,
     };
     use std::borrow::Cow;
@@ -219,7 +219,7 @@ pub(crate) mod tests {
 
         let capacity = 3;
         let attributes = vec![KeyValue::new("span.type", "web")];
-        let events = EvictedQueue::new(capacity);
+        let events = SpanEvents::default();
         let links = SpanLinks::default();
         let resource = Resource::new(vec![KeyValue::new("host.name", "test")]);
 
