@@ -11,7 +11,7 @@
 use crate::trace::SpanLimits;
 use crate::Resource;
 use opentelemetry::trace::{Event, SpanContext, SpanId, SpanKind, Status};
-use opentelemetry::{trace, KeyValue};
+use opentelemetry::KeyValue;
 use std::borrow::Cow;
 use std::time::SystemTime;
 
@@ -42,7 +42,7 @@ pub(crate) struct SpanData {
     /// dropped.
     pub(crate) dropped_attributes_count: u32,
     /// Span events
-    pub(crate) events: crate::trace::EvictedQueue<trace::Event>,
+    pub(crate) events: crate::trace::SpanEvents,
     /// Span Links
     pub(crate) links: crate::trace::SpanLinks,
     /// Span status
@@ -99,17 +99,23 @@ impl opentelemetry::trace::Span for Span {
     ) where
         T: Into<Cow<'static, str>>,
     {
+        let span_events_limit = self.span_limits.max_events_per_span as usize;
         let event_attributes_limit = self.span_limits.max_attributes_per_event as usize;
         self.with_data(|data| {
-            let dropped_attributes_count = attributes.len().saturating_sub(event_attributes_limit);
-            attributes.truncate(event_attributes_limit);
+            if data.events.len() < span_events_limit {
+                let dropped_attributes_count =
+                    attributes.len().saturating_sub(event_attributes_limit);
+                attributes.truncate(event_attributes_limit);
 
-            data.events.push_back(Event::new(
-                name,
-                timestamp,
-                attributes,
-                dropped_attributes_count as u32,
-            ))
+                data.events.add_event(Event::new(
+                    name,
+                    timestamp,
+                    attributes,
+                    dropped_attributes_count as u32,
+                ));
+            } else {
+                data.events.dropped_count += 1;
+            }
         });
     }
 
