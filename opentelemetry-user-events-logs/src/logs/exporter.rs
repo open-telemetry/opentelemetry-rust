@@ -290,7 +290,7 @@ impl UserEventsExporter {
                     eb.add_value("eventId", event_id, FieldFormat::SignedInt, 0);
                     cs_b_count += 1;
                 }
-                if event_name.len() > 0 {
+                if !event_name.is_empty() {
                     eb.add_str("name", event_name, FieldFormat::Default, 0);
                     cs_b_count += 1;
                 }
