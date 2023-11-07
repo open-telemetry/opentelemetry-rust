@@ -1,12 +1,12 @@
+use opentelemetry::global::shutdown_tracer_provider;
 use opentelemetry::{
     global,
     trace::{TraceContextExt, TraceError, Tracer},
-    Key, KeyValue,
+    KeyValue,
 };
-use opentelemetry_sdk::{runtime, trace as sdktrace, Resource};
 use opentelemetry_otlp::WithExportConfig;
+use opentelemetry_sdk::{runtime, trace as sdktrace, Resource};
 use std::error::Error;
-use opentelemetry::global::shutdown_tracer_provider;
 
 fn init_tracer() -> Result<opentelemetry_sdk::trace::Tracer, TraceError> {
     opentelemetry_otlp::new_pipeline()
@@ -29,16 +29,17 @@ fn init_tracer() -> Result<opentelemetry_sdk::trace::Tracer, TraceError> {
 async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     let _tracer = init_tracer().expect("Failed to initialize tracer.");
 
-    let tracer = global::tracer("ex.com/basic");
-    tracer.in_span("operation", |cx| {
+    let tracer = global::tracer("tracing-jaeger");
+    tracer.in_span("main-operation", |cx| {
         let span = cx.span();
+        span.set_attribute(KeyValue::new("my-attribute", "my-value"));
         span.add_event(
-            "Nice operation!".to_string(),
-            vec![Key::new("bogons").i64(100)],
+            "Main span event".to_string(),
+            vec![KeyValue::new("foo", "1")],
         );
-        tracer.in_span("Sub operation...", |cx| {
+        tracer.in_span("child-operation...", |cx| {
             let span = cx.span();
-            span.add_event("Sub span event", vec![]);
+            span.add_event("Sub span event", vec![KeyValue::new("bar", "1")]);
         });
     });
 
