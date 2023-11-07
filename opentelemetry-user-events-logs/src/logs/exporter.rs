@@ -52,7 +52,8 @@ pub(crate) struct UserEventsExporter {
 }
 
 const EVENT_ID: &str = "event_id";
-const EVENT_NAME: &str = "event_name";
+const EVENT_NAME_PRIMARY: &str = "event_name";
+const EVENT_NAME_SECONDARY: &str = "name";
 
 //TBD - How to configure provider name and provider group
 impl UserEventsExporter {
@@ -222,9 +223,16 @@ impl UserEventsExporter {
                                 event_id = *value;
                                 continue;
                             }
-                            (EVENT_NAME, AnyValue::String(value)) => {
+                            (EVENT_NAME_PRIMARY, AnyValue::String(value)) => {
                                 is_event_name = true;
                                 event_name = value.as_str();
+                                continue;
+                            }
+                            (EVENT_NAME_SECONDARY, AnyValue::String(value)) => {
+                                println!("Event name sec is {}", value.as_str());
+                                if !is_event_name {
+                                    event_name = value.as_str();
+                                }
                                 continue;
                             }
                             _ => {
@@ -237,6 +245,7 @@ impl UserEventsExporter {
                             }
                         }
                     }
+
                     if is_part_c_present {
                         eb.set_struct_field_count(cs_c_bookmark, cs_c_count);
                     }
@@ -245,7 +254,7 @@ impl UserEventsExporter {
                 let mut cs_b_bookmark: usize = 0;
                 let mut cs_b_count = 0;
                 eb.add_struct_with_bookmark("PartB", 1, 0, &mut cs_b_bookmark);
-                eb.add_str("_typename", "Logs", FieldFormat::Default, 0);
+                eb.add_str("_typeName", "Logs", FieldFormat::Default, 0);
                 cs_b_count += 1;
 
                 if log_data.record.body.is_some() {
@@ -282,7 +291,7 @@ impl UserEventsExporter {
                     eb.add_value("eventId", event_id, FieldFormat::SignedInt, 0);
                     cs_b_count += 1;
                 }
-                if is_event_name {
+                if event_name.len() > 0 {
                     eb.add_str("name", event_name, FieldFormat::Default, 0);
                     cs_b_count += 1;
                 }

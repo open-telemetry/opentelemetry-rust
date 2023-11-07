@@ -21,7 +21,7 @@ chrono = { version="0.4", default-features = false, features=["std"] }
 
 [dev-dependencies]
 opentelemetry-appender-tracing = { path = "../opentelemetry-appender-tracing" }
-tracing = { version = "0.1.37", default-features = false, features = ["std"] }
+tracing = { version = "0.1", default-features = false, features = ["std"] }
 tracing-core = "0.1.31"
 tracing-subscriber = { version = "0.3.0", default-features = false, features = ["registry", "std"] }
 microbench = "0.5"

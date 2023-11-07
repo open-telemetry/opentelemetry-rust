@@ -30,7 +30,7 @@ fn main() {
     // event_id is also passed as an attribute now, there is nothing in metadata where a
     // numeric id can be stored.
     error!(
-        event_name = "my-event-name",
+        name: "my-event-name",
         event_id = 20,
         user_name = "otel user",
         user_email = "otel@opentelemetry.io"
