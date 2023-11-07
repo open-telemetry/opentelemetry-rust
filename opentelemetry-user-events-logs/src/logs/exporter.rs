@@ -229,7 +229,6 @@ impl UserEventsExporter {
                                 continue;
                             }
                             (EVENT_NAME_SECONDARY, AnyValue::String(value)) => {
-                                println!("Event name sec is {}", value.as_str());
                                 if !is_event_name {
                                     event_name = value.as_str();
                                 }
