@@ -19,13 +19,11 @@ use opentelemetry::{
     trace::{Event, Link, SpanKind, Status},
     InstrumentationLibrary, Key, KeyValue,
 };
-use opentelemetry_sdk::trace::SpanEvents;
-use opentelemetry_sdk::{
-    export::{
-        trace::{ExportResult, SpanData, SpanExporter},
-        ExportError,
-    },
+use opentelemetry_sdk::export::{
+    trace::{ExportResult, SpanData, SpanExporter},
+    ExportError,
 };
+use opentelemetry_sdk::trace::SpanEvents;
 
 use crate::exporter::uploader::Uploader;
 

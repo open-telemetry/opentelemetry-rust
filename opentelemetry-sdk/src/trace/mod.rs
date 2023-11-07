@@ -44,11 +44,12 @@ mod runtime_tests;
 mod tests {
     use super::*;
     use crate::{
-        testing::trace::InMemorySpanExporterBuilder, trace::span_limit::DEFAULT_MAX_LINKS_PER_SPAN,
+        testing::trace::InMemorySpanExporterBuilder,
+        trace::span_limit::{DEFAULT_MAX_EVENT_PER_SPAN, DEFAULT_MAX_LINKS_PER_SPAN},
     };
     use opentelemetry::{
         trace::{
-            Link, Span, SpanBuilder, SpanContext, SpanId, TraceFlags, TraceId, Tracer,
+            Event, Link, Span, SpanBuilder, SpanContext, SpanId, TraceFlags, TraceId, Tracer,
             TracerProvider as _,
         },
         KeyValue,
@@ -141,5 +142,41 @@ mod tests {
         let span = &exported_spans[0];
         assert_eq!(span.name, "span_name");
         assert_eq!(span.links.len(), DEFAULT_MAX_LINKS_PER_SPAN as usize);
+    }
+
+    #[test]
+    fn exceed_span_events_limit() {
+        // Arrange
+        let exporter = InMemorySpanExporterBuilder::new().build();
+        let provider = TracerProvider::builder()
+            .with_span_processor(SimpleSpanProcessor::new(Box::new(exporter.clone())))
+            .build();
+
+        // Act
+        let tracer = provider.tracer("test_tracer");
+
+        let mut events = Vec::new();
+        for _i in 0..(DEFAULT_MAX_EVENT_PER_SPAN * 2) {
+            events.push(Event::with_name("test event"))
+        }
+
+        // add events via span builder
+        let span_builder = SpanBuilder::from_name("span_name").with_events(events);
+        let mut span = tracer.build(span_builder);
+
+        // add events using span api after building the span
+        span.add_event("test event again, after span builder", Vec::new());
+        span.add_event("test event once again, after span builder", Vec::new());
+        span.end();
+        provider.force_flush();
+
+        // Assert
+        let exported_spans = exporter
+            .get_finished_spans()
+            .expect("Spans are expected to be exported.");
+        assert_eq!(exported_spans.len(), 1);
+        let span = &exported_spans[0];
+        assert_eq!(span.name, "span_name");
+        assert_eq!(span.events.len(), DEFAULT_MAX_EVENT_PER_SPAN as usize);
     }
 }
