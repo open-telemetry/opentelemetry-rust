@@ -12,11 +12,15 @@
   *Behavior Change*: When enforcing `max_links_per_span` from `SpanLimits`,
   links are kept in the first-come order. The previous "eviction" based approach
   is no longer performed.
-  
+
   *Breaking Change Affecting Exporter authors*:
-  
+
   `SpanData` now stores `links` as `SpanLinks` instead of `EvictedQueue` where
   `SpanLinks` is a struct with a `Vec` of links and `dropped_count`.
+
+### Fixed
+
+- Return consistent `Meter` for a given scope from `MeterProvider`.
 
 ## v0.21.0
 
