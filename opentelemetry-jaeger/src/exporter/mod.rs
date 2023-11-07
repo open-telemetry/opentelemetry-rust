@@ -19,12 +19,12 @@ use opentelemetry::{
     trace::{Event, Link, SpanKind, Status},
     InstrumentationLibrary, Key, KeyValue,
 };
+use opentelemetry_sdk::trace::SpanEvents;
 use opentelemetry_sdk::{
     export::{
         trace::{ExportResult, SpanData, SpanExporter},
         ExportError,
     },
-    trace::EvictedQueue,
 };
 
 use crate::exporter::uploader::Uploader;
@@ -255,7 +255,7 @@ impl UserOverrides {
     }
 }
 
-fn events_to_logs(events: EvictedQueue<Event>) -> Option<Vec<jaeger::Log>> {
+fn events_to_logs(events: SpanEvents) -> Option<Vec<jaeger::Log>> {
     if events.is_empty() {
         None
     } else {
