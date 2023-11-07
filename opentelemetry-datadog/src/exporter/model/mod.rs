@@ -195,7 +195,7 @@ pub(crate) mod tests {
     };
     use opentelemetry_sdk::{
         self,
-        trace::{SpanLinks, SpanEvents},
+        trace::{SpanEvents, SpanLinks},
         InstrumentationLibrary, Resource,
     };
     use std::borrow::Cow;
@@ -217,7 +217,6 @@ pub(crate) mod tests {
         let start_time = SystemTime::UNIX_EPOCH;
         let end_time = start_time.checked_add(Duration::from_secs(1)).unwrap();
 
-        let capacity = 3;
         let attributes = vec![KeyValue::new("span.type", "web")];
         let events = SpanEvents::default();
         let links = SpanLinks::default();

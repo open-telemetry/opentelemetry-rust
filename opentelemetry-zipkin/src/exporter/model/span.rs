@@ -60,7 +60,7 @@ mod tests {
     use crate::exporter::model::span::{Kind, Span};
     use crate::exporter::model::{into_zipkin_span, OTEL_ERROR_DESCRIPTION, OTEL_STATUS_CODE};
     use opentelemetry::trace::{SpanContext, SpanId, SpanKind, Status, TraceFlags, TraceId};
-    use opentelemetry_sdk::trace::{SpanLinks, SpanEvents};
+    use opentelemetry_sdk::trace::{SpanEvents, SpanLinks};
     use opentelemetry_sdk::{export::trace::SpanData, Resource};
     use std::borrow::Cow;
     use std::collections::HashMap;
