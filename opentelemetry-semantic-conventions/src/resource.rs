@@ -13,7 +13,7 @@
 //!
 //! ## Usage
 //!
-//! `tracing`:
+//! [`tracing`]:
 //!
 //! ```
 //! use opentelemetry_semantic_conventions as semconv;
