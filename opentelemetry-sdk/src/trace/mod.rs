@@ -178,5 +178,6 @@ mod tests {
         let span = &exported_spans[0];
         assert_eq!(span.name, "span_name");
         assert_eq!(span.events.len(), DEFAULT_MAX_EVENT_PER_SPAN as usize);
+        assert_eq!(span.events.dropped_count, DEFAULT_MAX_EVENT_PER_SPAN + 2);
     }
 }
