@@ -21,7 +21,7 @@ fn extract_context_from_request(req: &Request<Body>) -> Context {
     })
 }
 
-// Separate async function for the root endpoint
+// Separate async function for the handle endpoint
 async fn handle_health_check(_req: Request<Body>) -> Result<Response<Body>, Infallible> {
     let tracer = global::tracer("example/server");
     let mut span = tracer
@@ -29,7 +29,7 @@ async fn handle_health_check(_req: Request<Body>) -> Result<Response<Body>, Infa
         .with_kind(SpanKind::Server)
         .start(&tracer);
     span.add_event("Health check accessed", vec![]);
-    let cx = Context::current_with_span(span);
+    let cx = Context::default().with_span(span);
     let mut res = Response::new(Body::from("Server is up and running!"));
     let response_propagator: &dyn TextMapPropagator = &TraceContextResponsePropagator::new();
     response_propagator.inject_context(&cx, &mut HeaderInjector(res.headers_mut()));
@@ -44,7 +44,7 @@ async fn handle_echo(req: Request<Body>) -> Result<Response<Body>, Infallible> {
         .with_kind(SpanKind::Server)
         .start(&tracer);
     span.add_event("Echoing back the request", vec![]);
-    let cx = Context::current_with_span(span);
+    let cx = Context::default().with_span(span);
     let mut res = Response::new(req.into_body());
     let response_propagator: &dyn TextMapPropagator = &TraceContextResponsePropagator::new();
     response_propagator.inject_context(&cx, &mut HeaderInjector(res.headers_mut()));
