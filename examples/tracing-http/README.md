@@ -7,10 +7,12 @@ such as:
 
 - Root Span (on Client)
 - Child Span from a Remote Parent (on Server)
+- Child Span created on the async function parented by the first level child (on Server)
 - SpanContext Propagation (from Client to Server)
 - SpanContext Propagation (from Server to Client)
 - Span Events
 - Span Attributes
+- Context propagation across async task boundaries.
 
 [hyper]: https://hyper.rs/
 [W3C Trace Context Response]: https://w3c.github.io/trace-context/#traceresponse-header
