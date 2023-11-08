@@ -15,7 +15,7 @@ use opentelemetry::{
 use crate::instrumentation::Scope;
 use crate::metrics::{
     instrument::{
-        Instrument, InstrumentImpl, InstrumentKind, Observable, ObservableId, EMPTY_MEASURE_MSG,
+        Instrument, InstrumentKind, Observable, ObservableId, ResolvedMeasures, EMPTY_MEASURE_MSG,
     },
     internal::{self, Number},
     pipeline::{Pipelines, Resolver},
@@ -46,7 +46,7 @@ const INSTRUMENT_UNIT_INVALID_CHAR: &str = "characters in instrument unit must b
 /// See the [Meter API] docs for usage.
 ///
 /// [Meter API]: opentelemetry::metrics::Meter
-pub struct Meter {
+pub struct SdkMeter {
     scope: Scope,
     pipes: Arc<Pipelines>,
     u64_resolver: Resolver<u64>,
@@ -55,11 +55,11 @@ pub struct Meter {
     validation_policy: InstrumentValidationPolicy,
 }
 
-impl Meter {
+impl SdkMeter {
     pub(crate) fn new(scope: Scope, pipes: Arc<Pipelines>) -> Self {
         let view_cache = Default::default();
 
-        Meter {
+        SdkMeter {
             scope,
             pipes: Arc::clone(&pipes),
             u64_resolver: Resolver::new(Arc::clone(&pipes), Arc::clone(&view_cache)),
@@ -79,7 +79,7 @@ impl Meter {
 }
 
 #[doc(hidden)]
-impl InstrumentProvider for Meter {
+impl InstrumentProvider for SdkMeter {
     fn u64_counter(
         &self,
         name: Cow<'static, str>,
@@ -87,7 +87,7 @@ impl InstrumentProvider for Meter {
         unit: Option<Unit>,
     ) -> Result<Counter<u64>> {
         validate_instrument_config(name.as_ref(), unit.as_ref(), self.validation_policy)?;
-        let p = InstProvider::new(self, &self.u64_resolver);
+        let p = InstrumentResolver::new(self, &self.u64_resolver);
         p.lookup(
             InstrumentKind::Counter,
             name,
@@ -104,7 +104,7 @@ impl InstrumentProvider for Meter {
         unit: Option<Unit>,
     ) -> Result<Counter<f64>> {
         validate_instrument_config(name.as_ref(), unit.as_ref(), self.validation_policy)?;
-        let p = InstProvider::new(self, &self.f64_resolver);
+        let p = InstrumentResolver::new(self, &self.f64_resolver);
         p.lookup(
             InstrumentKind::Counter,
             name,
@@ -122,7 +122,7 @@ impl InstrumentProvider for Meter {
         callbacks: Vec<Callback<u64>>,
     ) -> Result<ObservableCounter<u64>> {
         validate_instrument_config(name.as_ref(), unit.as_ref(), self.validation_policy)?;
-        let p = InstProvider::new(self, &self.u64_resolver);
+        let p = InstrumentResolver::new(self, &self.u64_resolver);
         let ms = p.measures(
             InstrumentKind::ObservableCounter,
             name.clone(),
@@ -159,7 +159,7 @@ impl InstrumentProvider for Meter {
         callbacks: Vec<Callback<f64>>,
     ) -> Result<ObservableCounter<f64>> {
         validate_instrument_config(name.as_ref(), unit.as_ref(), self.validation_policy)?;
-        let p = InstProvider::new(self, &self.f64_resolver);
+        let p = InstrumentResolver::new(self, &self.f64_resolver);
         let ms = p.measures(
             InstrumentKind::ObservableCounter,
             name.clone(),
@@ -194,7 +194,7 @@ impl InstrumentProvider for Meter {
         unit: Option<Unit>,
     ) -> Result<UpDownCounter<i64>> {
         validate_instrument_config(name.as_ref(), unit.as_ref(), self.validation_policy)?;
-        let p = InstProvider::new(self, &self.i64_resolver);
+        let p = InstrumentResolver::new(self, &self.i64_resolver);
         p.lookup(
             InstrumentKind::UpDownCounter,
             name,
@@ -211,7 +211,7 @@ impl InstrumentProvider for Meter {
         unit: Option<Unit>,
     ) -> Result<UpDownCounter<f64>> {
         validate_instrument_config(name.as_ref(), unit.as_ref(), self.validation_policy)?;
-        let p = InstProvider::new(self, &self.f64_resolver);
+        let p = InstrumentResolver::new(self, &self.f64_resolver);
         p.lookup(
             InstrumentKind::UpDownCounter,
             name,
@@ -229,7 +229,7 @@ impl InstrumentProvider for Meter {
         callbacks: Vec<Callback<i64>>,
     ) -> Result<ObservableUpDownCounter<i64>> {
         validate_instrument_config(name.as_ref(), unit.as_ref(), self.validation_policy)?;
-        let p = InstProvider::new(self, &self.i64_resolver);
+        let p = InstrumentResolver::new(self, &self.i64_resolver);
         let ms = p.measures(
             InstrumentKind::ObservableUpDownCounter,
             name.clone(),
@@ -268,7 +268,7 @@ impl InstrumentProvider for Meter {
         callbacks: Vec<Callback<f64>>,
     ) -> Result<ObservableUpDownCounter<f64>> {
         validate_instrument_config(name.as_ref(), unit.as_ref(), self.validation_policy)?;
-        let p = InstProvider::new(self, &self.f64_resolver);
+        let p = InstrumentResolver::new(self, &self.f64_resolver);
         let ms = p.measures(
             InstrumentKind::ObservableUpDownCounter,
             name.clone(),
@@ -307,7 +307,7 @@ impl InstrumentProvider for Meter {
         callbacks: Vec<Callback<u64>>,
     ) -> Result<ObservableGauge<u64>> {
         validate_instrument_config(name.as_ref(), unit.as_ref(), self.validation_policy)?;
-        let p = InstProvider::new(self, &self.u64_resolver);
+        let p = InstrumentResolver::new(self, &self.u64_resolver);
         let ms = p.measures(
             InstrumentKind::ObservableGauge,
             name.clone(),
@@ -344,7 +344,7 @@ impl InstrumentProvider for Meter {
         callbacks: Vec<Callback<i64>>,
     ) -> Result<ObservableGauge<i64>> {
         validate_instrument_config(name.as_ref(), unit.as_ref(), self.validation_policy)?;
-        let p = InstProvider::new(self, &self.i64_resolver);
+        let p = InstrumentResolver::new(self, &self.i64_resolver);
         let ms = p.measures(
             InstrumentKind::ObservableGauge,
             name.clone(),
@@ -381,7 +381,7 @@ impl InstrumentProvider for Meter {
         callbacks: Vec<Callback<f64>>,
     ) -> Result<ObservableGauge<f64>> {
         validate_instrument_config(name.as_ref(), unit.as_ref(), self.validation_policy)?;
-        let p = InstProvider::new(self, &self.f64_resolver);
+        let p = InstrumentResolver::new(self, &self.f64_resolver);
         let ms = p.measures(
             InstrumentKind::ObservableGauge,
             name.clone(),
@@ -417,7 +417,7 @@ impl InstrumentProvider for Meter {
         unit: Option<Unit>,
     ) -> Result<Histogram<f64>> {
         validate_instrument_config(name.as_ref(), unit.as_ref(), self.validation_policy)?;
-        let p = InstProvider::new(self, &self.f64_resolver);
+        let p = InstrumentResolver::new(self, &self.f64_resolver);
         p.lookup(
             InstrumentKind::Histogram,
             name,
@@ -434,7 +434,7 @@ impl InstrumentProvider for Meter {
         unit: Option<Unit>,
     ) -> Result<Histogram<u64>> {
         validate_instrument_config(name.as_ref(), unit.as_ref(), self.validation_policy)?;
-        let p = InstProvider::new(self, &self.u64_resolver);
+        let p = InstrumentResolver::new(self, &self.u64_resolver);
         p.lookup(
             InstrumentKind::Histogram,
             name,
@@ -451,7 +451,7 @@ impl InstrumentProvider for Meter {
         unit: Option<Unit>,
     ) -> Result<Histogram<i64>> {
         validate_instrument_config(name.as_ref(), unit.as_ref(), self.validation_policy)?;
-        let p = InstProvider::new(self, &self.i64_resolver);
+        let p = InstrumentResolver::new(self, &self.i64_resolver);
 
         p.lookup(
             InstrumentKind::Histogram,
@@ -672,36 +672,36 @@ impl ApiObserver for Observer {
     }
 }
 
-impl fmt::Debug for Meter {
+impl fmt::Debug for SdkMeter {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Meter").field("scope", &self.scope).finish()
     }
 }
 
 /// Provides all OpenTelemetry instruments.
-struct InstProvider<'a, T> {
-    meter: &'a Meter,
+struct InstrumentResolver<'a, T> {
+    meter: &'a SdkMeter,
     resolve: &'a Resolver<T>,
 }
 
-impl<'a, T> InstProvider<'a, T>
+impl<'a, T> InstrumentResolver<'a, T>
 where
     T: Number<T>,
 {
-    fn new(meter: &'a Meter, resolve: &'a Resolver<T>) -> Self {
-        InstProvider { meter, resolve }
+    fn new(meter: &'a SdkMeter, resolve: &'a Resolver<T>) -> Self {
+        InstrumentResolver { meter, resolve }
     }
 
-    /// lookup returns the resolved InstrumentImpl.
+    /// lookup returns the resolved measures.
     fn lookup(
         &self,
         kind: InstrumentKind,
         name: Cow<'static, str>,
         description: Option<Cow<'static, str>>,
         unit: Unit,
-    ) -> Result<InstrumentImpl<T>> {
+    ) -> Result<ResolvedMeasures<T>> {
         let aggregators = self.measures(kind, name, description, unit)?;
-        Ok(InstrumentImpl {
+        Ok(ResolvedMeasures {
             measures: aggregators,
         })
     }
@@ -732,7 +732,7 @@ mod tests {
     use opentelemetry::metrics::{InstrumentProvider, MetricsError, Unit};
 
     use super::{
-        InstrumentValidationPolicy, Meter, INSTRUMENT_NAME_FIRST_ALPHABETIC,
+        InstrumentValidationPolicy, SdkMeter, INSTRUMENT_NAME_FIRST_ALPHABETIC,
         INSTRUMENT_NAME_INVALID_CHAR, INSTRUMENT_NAME_LENGTH, INSTRUMENT_UNIT_INVALID_CHAR,
         INSTRUMENT_UNIT_LENGTH,
     };
@@ -741,7 +741,7 @@ mod tests {
     #[test]
     fn test_instrument_config_validation() {
         // scope and pipelines are not related to test
-        let meter = Meter::new(
+        let meter = SdkMeter::new(
             Scope::default(),
             Arc::new(Pipelines::new(Resource::default(), Vec::new(), Vec::new())),
         )

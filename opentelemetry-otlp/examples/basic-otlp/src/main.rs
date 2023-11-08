@@ -12,7 +12,7 @@ use opentelemetry::{
 use opentelemetry_appender_log::OpenTelemetryLogBridge;
 use opentelemetry_otlp::{ExportConfig, WithExportConfig};
 use opentelemetry_sdk::logs::Config;
-use opentelemetry_sdk::{metrics::MeterProvider, runtime, trace as sdktrace, Resource};
+use opentelemetry_sdk::{metrics::SdkMeterProvider, runtime, trace as sdktrace, Resource};
 use std::error::Error;
 
 fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
@@ -32,7 +32,7 @@ fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
         .install_batch(runtime::Tokio)
 }
 
-fn init_metrics() -> metrics::Result<MeterProvider> {
+fn init_metrics() -> metrics::Result<SdkMeterProvider> {
     let export_config = ExportConfig {
         endpoint: "http://localhost:4317".to_string(),
         ..ExportConfig::default()

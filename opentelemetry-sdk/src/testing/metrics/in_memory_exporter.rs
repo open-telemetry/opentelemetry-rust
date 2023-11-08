@@ -39,7 +39,7 @@ use std::sync::{Arc, Mutex};
 ///  let exporter = InMemoryMetricsExporter::default();
 ///
 ///  // Create a MeterProvider and register the exporter
-///  let meter_provider = metrics::MeterProvider::builder()
+///  let meter_provider = metrics::SdkMeterProvider::builder()
 ///      .with_reader(PeriodicReader::builder(exporter.clone(), runtime::Tokio).build())
 ///      .build();
 ///
