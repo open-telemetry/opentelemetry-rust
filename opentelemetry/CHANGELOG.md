@@ -9,13 +9,13 @@ which internally used `IndexMap`. There was no requirement to maintain the order
 of entries, so moving from `IndexMap` to `HashMap` offers slight performance
 gains, and avoids `IndexMap` dependency. This affects `body` and `attributes` of
 `LogRecord`.
-[#1352](https://github.com/open-telemetry/opentelemetry-rust/pull/1352)
+[#1353](https://github.com/open-telemetry/opentelemetry-rust/pull/1353)
 
 ### Removed
 
 Removed `OrderMap` type as there was no requirement to use this over regular
 `HashMap`.
-[#1352](https://github.com/open-telemetry/opentelemetry-rust/pull/1352)
+[#1353](https://github.com/open-telemetry/opentelemetry-rust/pull/1353)
 
 ## [v0.21.0](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.20.0...v0.21.0)
 
