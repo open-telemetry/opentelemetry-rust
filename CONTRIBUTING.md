@@ -139,6 +139,7 @@ For GitHub groups see the [code owners](CODEOWNERS) file.
 
 ### Maintainers
 
+* [Cijo Thomas](https://github.com/cijothomas)
 * [Dirkjan Ochtman](https://github.com/djc)
 * [Harold Dost](https://github.com/hdost)
 * [Julian Tescher](https://github.com/jtescher)
@@ -146,7 +147,6 @@ For GitHub groups see the [code owners](CODEOWNERS) file.
 
 ### Approvers
 
-* [Cijo Thomas](https://github.com/cijothomas)
 * [Lalit Kumar Bhasin](https://github.com/lalitb)
 * [Shaun Cox](https://github.com/shaun-cox)
 
