@@ -2,6 +2,21 @@
 
 ## vNext
 
+### Changed
+
+Modified `AnyValue.Map` to be backed by `HashMap` instead of custom `OrderMap`,
+which internally used `IndexMap`. There was no requirement to maintain the order
+of entries, so moving from `IndexMap` to `HashMap` offers slight performance
+gains, and avoids `IndexMap` dependency. This affects `body` and `attributes` of
+`LogRecord`.
+[#1352](https://github.com/open-telemetry/opentelemetry-rust/pull/1352)
+
+### Removed
+
+Removed `OrderMap` type as there was no requirement to use this over regular
+`HashMap`.
+[#1352](https://github.com/open-telemetry/opentelemetry-rust/pull/1352)
+
 ## [v0.21.0](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.20.0...v0.21.0)
 
 This release should been seen as 1.0-rc4 following 1.0-rc3 in v0.20.0. Refer to CHANGELOG.md in individual creates for details on changes made in different creates.
