@@ -183,4 +183,9 @@ repo](https://github.com/open-telemetry/community/blob/master/community-membersh
 
 ### Where should I put third party propagators/exporters, contrib or standalone crates?
 
-As of now, the specification classify the propagators into three categories: Fully opened standards, platform-specific standards, proprietary headers. The conclusion is only the fully opened standards should live in SDK packages/repos. So here, only fully opened standards should live as independent crate. For more detail and discussion, see [this pr](https://github.com/open-telemetry/opentelemetry-specification/pull/1144).
+As of now, the specification classify the propagators into three categories:
+Fully opened standards, platform-specific standards, proprietary headers. The
+conclusion is only the fully opened standards should live in SDK packages/repos.
+So here, only fully opened standards should live as independent crate. For more
+detail and discussion, see [this
+pr](https://github.com/open-telemetry/opentelemetry-specification/pull/1144).
