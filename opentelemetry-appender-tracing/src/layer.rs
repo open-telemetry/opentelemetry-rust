@@ -15,6 +15,16 @@ struct EventVisitor {
     log_record_body: Option<AnyValue>,
 }
 
+fn get_filename(filepath: &str) -> &str {
+    if let Some((_, filename)) = filepath.rsplit_once('/') {
+        return filename;
+    }
+    if let Some((_, filename)) = filepath.rsplit_once('\\') {
+        return filename;
+    }
+    filepath
+}
+
 impl<'a> EventVisitor {
     fn visit_metadata(&mut self, meta: &'static Metadata<'static>) {
         self.log_record_attributes
@@ -26,9 +36,11 @@ impl<'a> EventVisitor {
             self.log_record_attributes
                 .push(("log.module.path".into(), module_path.into()));
         }
-        if let Some(file) = meta.file() {
+        if let Some(filepath) = meta.file() {
             self.log_record_attributes
-                .push(("log.file.name".into(), file.into()));
+                .push(("log.file.path".into(), filepath.into()));
+            self.log_record_attributes
+                .push(("log.file.name".into(), get_filename(filepath).into()));
         }
         if let Some(line) = meta.line() {
             self.log_record_attributes
