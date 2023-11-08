@@ -64,9 +64,7 @@ async fn router(req: Request<Body>) -> Result<Response<Body>, Infallible> {
 
         span.add_event("dispatching request", vec![]);
 
-        // Make sure the context for the span is current before awaiting on the handlers
-        let cx = Context::current_with_span(span);
-
+        let cx = Context::default().with_span(span);
         match (req.method(), req.uri().path()) {
             (&hyper::Method::GET, "/health") => handle_health_check(req).with_context(cx).await,
             (&hyper::Method::GET, "/echo") => handle_echo(req).with_context(cx).await,
