@@ -4,6 +4,7 @@ use opentelemetry::{
 };
 use std::borrow::Cow;
 use tracing_core::Metadata;
+use tracing_log::NormalizeEvent;
 use tracing_subscriber::Layer;
 
 const INSTRUMENTATION_LIBRARY_NAME: &str = "opentelemetry-appender-tracing";
@@ -25,22 +26,24 @@ fn get_filename(filepath: &str) -> &str {
     filepath
 }
 
-impl<'a> EventVisitor {
-    fn visit_metadata(&mut self, meta: &'static Metadata<'static>) {
+impl EventVisitor {
+    fn visit_metadata(&mut self, meta: &Metadata) {
         self.log_record_attributes
             .push(("log.name".into(), meta.name().into()));
         self.log_record_attributes
-            .push(("log.target".into(), meta.target().into()));
+            .push(("log.target".into(), meta.target().to_owned().into()));
 
         if let Some(module_path) = meta.module_path() {
             self.log_record_attributes
-                .push(("log.module.path".into(), module_path.into()));
+                .push(("log.module.path".into(), module_path.to_owned().into()));
         }
         if let Some(filepath) = meta.file() {
             self.log_record_attributes
-                .push(("log.file.path".into(), filepath.into()));
-            self.log_record_attributes
-                .push(("log.file.name".into(), get_filename(filepath).into()));
+                .push(("log.file.path".into(), filepath.to_owned().into()));
+            self.log_record_attributes.push((
+                "log.file.name".into(),
+                get_filename(filepath).to_owned().into(),
+            ));
         }
         if let Some(line) = meta.line() {
             self.log_record_attributes
@@ -125,7 +128,8 @@ where
         event: &tracing::Event<'_>,
         _ctx: tracing_subscriber::layer::Context<'_, S>,
     ) {
-        let meta = event.metadata();
+        let normalized_meta = event.normalized_metadata();
+        let meta = normalized_meta.as_ref().unwrap_or(event.metadata());
         let mut log_record: LogRecord = LogRecord::default();
         log_record.severity_number = Some(map_severity_to_otel_severity(meta.level().as_str()));
         log_record.severity_text = Some(meta.level().to_string().into());
