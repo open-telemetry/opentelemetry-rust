@@ -82,7 +82,7 @@ pub mod tonic {
                         end_time_unix_nano: to_nanos(source_span.end_time),
                         dropped_attributes_count: source_span.dropped_attributes_count,
                         attributes: Attributes::from(source_span.attributes).0,
-                        dropped_events_count: source_span.events.dropped_count(),
+                        dropped_events_count: source_span.events.dropped_count,
                         events: source_span
                             .events
                             .into_iter()
@@ -193,7 +193,7 @@ pub mod grpcio {
                         end_time_unix_nano: to_nanos(source_span.end_time),
                         dropped_attributes_count: source_span.dropped_attributes_count,
                         attributes: Attributes::from(source_span.attributes).0,
-                        dropped_events_count: source_span.events.dropped_count(),
+                        dropped_events_count: source_span.events.dropped_count,
                         events: source_span
                             .events
                             .into_iter()
