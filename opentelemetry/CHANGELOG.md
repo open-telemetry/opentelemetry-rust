@@ -19,7 +19,7 @@ Removed `OrderMap` type as there was no requirement to use this over regular
 
 Removed `span_builder` from `Tracer`. Use `SpanBuilder::from_name` to obtain
 `SpanBuilder`.
-[#1360](https://github.com/open-telemetry/opentelemetry-rust/pull/1360)
+[#1361](https://github.com/open-telemetry/opentelemetry-rust/pull/1361)
 
 ## [v0.21.0](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.20.0...v0.21.0)
 
