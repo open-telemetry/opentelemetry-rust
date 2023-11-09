@@ -306,8 +306,8 @@ mod tests {
     };
     use opentelemetry::{
         trace::{
-            Link, SamplingDecision, SamplingResult, Span, SpanContext, SpanId, SpanKind,
-            TraceContextExt, TraceFlags, TraceId, TraceState, Tracer, TracerProvider,
+            Link, SamplingDecision, SamplingResult, Span, SpanBuilder, SpanContext, SpanId,
+            SpanKind, TraceContextExt, TraceFlags, TraceId, TraceState, Tracer, TracerProvider,
         },
         Context, KeyValue,
     };

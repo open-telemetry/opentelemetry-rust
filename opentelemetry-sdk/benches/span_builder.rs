@@ -1,7 +1,7 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use futures_util::future::BoxFuture;
 use opentelemetry::{
-    trace::{Span, SpanBuilder, Tracer, TracerProvider},
+    trace::{Span, SpanBuilder, TracerProvider},
     KeyValue,
 };
 use opentelemetry_sdk::{
