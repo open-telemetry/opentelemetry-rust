@@ -212,10 +212,6 @@ pub use context::{Context, ContextGuard};
 
 mod common;
 
-mod order_map;
-
-pub use order_map::OrderMap;
-
 #[cfg(any(feature = "testing", test))]
 #[doc(hidden)]
 pub mod testing;
