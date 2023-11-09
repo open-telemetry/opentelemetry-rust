@@ -139,7 +139,6 @@ For GitHub groups see the [code owners](CODEOWNERS) file.
 
 ### Maintainers
 
-* [Dirkjan Ochtman](https://github.com/djc)
 * [Julian Tescher](https://github.com/jtescher)
 * [Zhongyang Wu](https://github.com/TommyCpp)
 
@@ -152,6 +151,7 @@ For GitHub groups see the [code owners](CODEOWNERS) file.
 
 ### Emeritus
 
+* [Dirkjan Ochtman](https://github.com/djc)
 * [Jan Kühle](https://github.com/frigus02)
 * [Isobel Redelmeier](https://github.com/iredelmeier)
 
