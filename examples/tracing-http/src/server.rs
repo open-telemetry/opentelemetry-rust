@@ -26,11 +26,12 @@ async fn handle_health_check(_req: Request<Body>) -> Result<Response<Body>, Infa
     let tracer = global::tracer("example/server");
     let mut span = tracer
         .span_builder("health_check")
-        .with_kind(SpanKind::Server)
+        .with_kind(SpanKind::Internal)
         .start(&tracer);
     span.add_event("Health check accessed", vec![]);
     let cx = Context::default().with_span(span);
     let mut res = Response::new(Body::from("Server is up and running!"));
+    // returning context is optional - https://w3c.github.io/trace-context/#traceresponse-header
     let response_propagator: &dyn TextMapPropagator = &TraceContextResponsePropagator::new();
     response_propagator.inject_context(&cx, &mut HeaderInjector(res.headers_mut()));
     Ok(res)
@@ -41,11 +42,12 @@ async fn handle_echo(req: Request<Body>) -> Result<Response<Body>, Infallible> {
     let tracer = global::tracer("example/server");
     let mut span = tracer
         .span_builder("echo")
-        .with_kind(SpanKind::Server)
+        .with_kind(SpanKind::Internal)
         .start(&tracer);
     span.add_event("Echoing back the request", vec![]);
     let cx = Context::default().with_span(span);
     let mut res = Response::new(req.into_body());
+    // returning context is optional - https://w3c.github.io/trace-context/#traceresponse-header
     let response_propagator: &dyn TextMapPropagator = &TraceContextResponsePropagator::new();
     response_propagator.inject_context(&cx, &mut HeaderInjector(res.headers_mut()));
     Ok(res)
@@ -69,6 +71,10 @@ async fn router(req: Request<Body>) -> Result<Response<Body>, Infallible> {
             (&hyper::Method::GET, "/health") => handle_health_check(req).with_context(cx).await,
             (&hyper::Method::GET, "/echo") => handle_echo(req).with_context(cx).await,
             _ => {
+                let error_status = opentelemetry::trace::Status::Error {
+                    description: "Not Found".into(),
+                };
+                cx.span().set_status(error_status);
                 let mut not_found = Response::default();
                 *not_found.status_mut() = StatusCode::NOT_FOUND;
                 Ok(not_found)
