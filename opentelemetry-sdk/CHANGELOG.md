@@ -13,14 +13,18 @@
   *Behavior Change*: When enforcing `max_links_per_span`, `max_events_per_span`
   from `SpanLimits`, links/events are kept in the first-come order. The previous
   "eviction" based approach is no longer performed.
-  
+
   *Breaking Change Affecting Exporter authors*:
-  
+
   `SpanData` now stores `links` as `SpanLinks` instead of `EvictedQueue` where
   `SpanLinks` is a struct with a `Vec` of links and `dropped_count`.
 
   `SpanData` now stores `events` as `SpanEvents` instead of `EvictedQueue` where
   `SpanEvents` is a struct with a `Vec` of events and `dropped_count`.
+
+### Fixed
+
+- Fix metric export corruption if gauges have not received a last value.
 
 ## v0.21.0
 
