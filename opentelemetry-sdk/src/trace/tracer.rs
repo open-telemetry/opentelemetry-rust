@@ -390,7 +390,7 @@ mod tests {
         let tracer = tracer_provider.tracer("test");
 
         let _attached = Context::current_with_span(TestSpan(SpanContext::empty_context())).attach();
-        let span = tracer.span_builder("must_not_be_sampled").start(&tracer);
+        let span = SpanBuilder::from_name("must_not_be_sampled").start(&tracer);
         assert!(!span.span_context().is_sampled());
 
         let context = Context::map_current(|cx| {
@@ -403,7 +403,7 @@ mod tests {
             ))
         });
         let _attached = context.attach();
-        let span = tracer.span_builder("must_not_be_sampled").start(&tracer);
+        let span = SpanBuilder::from_name("must_not_be_sampled").start(&tracer);
 
         assert!(!span.span_context().is_sampled());
     }

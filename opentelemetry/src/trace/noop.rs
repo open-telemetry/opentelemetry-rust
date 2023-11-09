@@ -160,7 +160,7 @@ impl TextMapPropagator for NoopTextMapPropagator {
 mod tests {
     use super::*;
     use crate::testing::trace::TestSpan;
-    use crate::trace::{self, Span, TraceState, Tracer};
+    use crate::trace::{self, Span, SpanBuilder, TraceState, Tracer};
 
     fn valid_span_context() -> trace::SpanContext {
         trace::SpanContext::new(
@@ -182,7 +182,7 @@ mod tests {
     #[test]
     fn noop_tracer_propagates_valid_span_context_from_builder() {
         let tracer = NoopTracer::new();
-        let builder = tracer.span_builder("foo");
+        let builder = SpanBuilder::from_name("foo");
         let span = tracer.build_with_context(
             builder,
             &Context::new().with_span(TestSpan(valid_span_context())),

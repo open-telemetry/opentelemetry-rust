@@ -5,7 +5,7 @@ use hyper::{
 use opentelemetry::{
     global,
     propagation::TextMapPropagator,
-    trace::{SpanKind, TraceContextExt, Tracer},
+    trace::{SpanBuilder, SpanKind, TraceContextExt},
     Context,
 };
 use opentelemetry_contrib::trace::propagator::trace_context_response::TraceContextResponsePropagator;
@@ -21,8 +21,7 @@ async fn handle(req: Request<Body>) -> Result<Response<Body>, Infallible> {
     let _cx_guard = parent_cx.attach();
 
     let tracer = global::tracer("example/server");
-    let span = tracer
-        .span_builder("say hello")
+    let span = SpanBuilder::from_name("say hello")
         .with_kind(SpanKind::Server)
         .start(&tracer);
 

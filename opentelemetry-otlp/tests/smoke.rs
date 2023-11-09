@@ -1,6 +1,6 @@
 use futures_util::StreamExt;
 use opentelemetry::global::shutdown_tracer_provider;
-use opentelemetry::trace::{Span, SpanKind, Tracer};
+use opentelemetry::trace::{Span, SpanBuilder, SpanKind, Tracer};
 use opentelemetry_otlp::WithExportConfig;
 use opentelemetry_proto::tonic::collector::trace::v1::{
     trace_service_server::{TraceService, TraceServiceServer},
@@ -102,8 +102,7 @@ async fn smoke_tracer() {
             .expect("failed to install");
 
         println!("Sending span...");
-        let mut span = tracer
-            .span_builder("my-test-span")
+        let mut span = SpanBuilder::from_name("my-test-span")
             .with_kind(SpanKind::Server)
             .start(&tracer);
         span.add_event("my-test-event", vec![]);

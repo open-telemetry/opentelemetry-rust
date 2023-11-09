@@ -17,6 +17,10 @@ Removed `OrderMap` type as there was no requirement to use this over regular
 `HashMap`.
 [#1353](https://github.com/open-telemetry/opentelemetry-rust/pull/1353)
 
+Removed `span_builder` from `Tracer`. Use `SpanBuilder::from_name` to obtain
+`SpanBuilder`.
+[#1360](https://github.com/open-telemetry/opentelemetry-rust/pull/1360)
+
 ## [v0.21.0](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.20.0...v0.21.0)
 
 This release should been seen as 1.0-rc4 following 1.0-rc3 in v0.20.0. Refer to CHANGELOG.md in individual creates for details on changes made in different creates.

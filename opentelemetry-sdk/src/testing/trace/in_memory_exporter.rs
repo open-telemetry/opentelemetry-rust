@@ -27,8 +27,7 @@ use std::sync::{Arc, Mutex};
 ///     global::set_tracer_provider(provider.clone());
 ///
 ///     let tracer = global::tracer("example/in_memory_exporter");
-///     let span = tracer
-///         .span_builder("say hello")
+///     let span = SpanBuilder::from_name("say hello")
 ///         .with_kind(SpanKind::Server)
 ///         .start(&tracer);
 ///

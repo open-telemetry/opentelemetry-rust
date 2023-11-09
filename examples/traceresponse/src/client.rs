@@ -1,9 +1,10 @@
 use hyper::http::HeaderValue;
 use hyper::{body::Body, Client};
+use opentelemetry::trace::SpanBuilder;
 use opentelemetry::{
     global,
     propagation::TextMapPropagator,
-    trace::{SpanKind, TraceContextExt, Tracer},
+    trace::{SpanKind, TraceContextExt},
     Context, KeyValue,
 };
 use opentelemetry_contrib::trace::propagator::trace_context_response::TraceContextResponsePropagator;
@@ -29,8 +30,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error + Send + Sy
 
     let client = Client::new();
     let tracer = global::tracer("example/client");
-    let span = tracer
-        .span_builder("say hello")
+    let span = SpanBuilder::from_name("say hello")
         .with_kind(SpanKind::Client)
         .start(&tracer);
     let cx = Context::current_with_span(span);
