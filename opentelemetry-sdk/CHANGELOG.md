@@ -24,7 +24,7 @@
 
 ### Fixed
 
-- Fix metric export corruption if gauges have not received a last value.
+- Fix metric export corruption if gauges have not received a last value. (#1363)
 
 ## v0.21.0
 
