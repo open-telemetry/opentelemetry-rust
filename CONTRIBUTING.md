@@ -92,7 +92,10 @@ A PR is considered to be **ready to merge** when:
 
 Any Maintainer can merge the PR once it is **ready to merge**. Note, that some
 PRs may not be merged immediately if the repo is in the process of a release and
-the maintainers decided to defer the PR to the next release train.
+the maintainers decided to defer the PR to the next release train. Also,
+maintainers may decide to wait for more than one approval for certain PRs,
+particularly ones that are affecting multiple areas, or topics that may warrant
+more discussion.
 
 ## Design Choices
 
