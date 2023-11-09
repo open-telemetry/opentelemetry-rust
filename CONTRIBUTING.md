@@ -159,7 +159,6 @@ For GitHub groups see the [code owners](CODEOWNERS) file.
 ### Maintainers
 
 * [Cijo Thomas](https://github.com/cijothomas)
-* [Dirkjan Ochtman](https://github.com/djc)
 * [Harold Dost](https://github.com/hdost)
 * [Julian Tescher](https://github.com/jtescher)
 * [Zhongyang Wu](https://github.com/TommyCpp)
