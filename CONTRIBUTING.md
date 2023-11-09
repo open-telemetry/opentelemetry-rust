@@ -123,9 +123,9 @@ For a deeper discussion, see:
 
 Currently, the Opentelemetry Rust SDK has two ways to handle errors. In the situation where errors are not allowed to return. One should call global error handler to process the errors. Otherwise, one should return the errors. 
 
-The Opentelemetry Rust SDK comes with an error type `openetelemetry::Error`. For different function, one error has been defined. All error returned by trace module MUST be wrapped in `opentelemetry::trace::TraceError`. All errors returned by metrics module MUST be wrapped in `opentelemetry::metrics::MetricsError`. 
+The Opentelemetry Rust SDK comes with an error type `openetelemetry::Error`. For different function, one error has been defined. All error returned by trace module MUST be wrapped in `opentelemetry::trace::TraceError`. All errors returned by metrics module MUST be wrapped in `opentelemetry::metrics::MetricsError`.
 
-For users that want to implement their own exporters. It's RECOMMENDED to wrap all errors from the exporter into a crate-level error type, and implement `ExporterError` trait.  
+For users that want to implement their own exporters. It's RECOMMENDED to wrap all errors from the exporter into a crate-level error type, and implement `ExporterError` trait.
 
 ### Priority of configurations
 
@@ -146,6 +146,7 @@ issues.
 * Run `cargo test --all` - this will execute code and doc tests for all
 projects in this workspace.
 * Run `cargo bench` - this will run benchmarks to show performance
+* Run `cargo bench` - this will run benchmarks to show performance
 regressions
 
 ## Approvers and Maintainers
@@ -154,7 +155,6 @@ For GitHub groups see the [code owners](CODEOWNERS) file.
 
 ### Maintainers
 
-* [Dirkjan Ochtman](https://github.com/djc)
 * [Harold Dost](https://github.com/hdost)
 * [Julian Tescher](https://github.com/jtescher)
 * [Zhongyang Wu](https://github.com/TommyCpp)
@@ -167,6 +167,7 @@ For GitHub groups see the [code owners](CODEOWNERS) file.
 
 ### Emeritus
 
+* [Dirkjan Ochtman](https://github.com/djc)
 * [Jan Kühle](https://github.com/frigus02)
 * [Isobel Redelmeier](https://github.com/iredelmeier)
 
