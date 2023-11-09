@@ -8,12 +8,32 @@ use tracing_log::NormalizeEvent;
 use tracing_subscriber::Layer;
 
 const INSTRUMENTATION_LIBRARY_NAME: &str = "opentelemetry-appender-tracing";
+const METADATA_ATTRIBUTES: &'static [&'static str] = &[
+    "log.name",
+    "log.target",
+    "log.module.path",
+    "log.file.path",
+    "log.file.name",
+    "log.file.name",
+    "log.module_path",
+    "log.file",
+    "log.line",
+];
 
 /// Visitor to record the fields from the event record.
 #[derive(Default)]
 struct EventVisitor {
     log_record_attributes: Vec<(Key, AnyValue)>,
     log_record_body: Option<AnyValue>,
+}
+
+fn is_metadata(field: &str) -> bool {
+    for metadata_field in METADATA_ATTRIBUTES {
+        if *metadata_field == field {
+            return true;
+        }
+    }
+    false
 }
 
 fn get_filename(filepath: &str) -> &str {
@@ -59,32 +79,42 @@ impl EventVisitor {
 
 impl tracing::field::Visit for EventVisitor {
     fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
-        if field.name() == "message" {
-            self.log_record_body = Some(format!("{value:?}").into());
-        } else {
-            self.log_record_attributes
-                .push((field.name().into(), format!("{value:?}").into()));
+        if !is_metadata(field.name()) {
+            if field.name() == "message" {
+                self.log_record_body = Some(format!("{value:?}").into());
+            } else {
+                self.log_record_attributes
+                    .push((field.name().into(), format!("{value:?}").into()));
+            }
         }
     }
 
     fn record_str(&mut self, field: &tracing_core::Field, value: &str) {
-        self.log_record_attributes
-            .push((field.name().into(), value.to_owned().into()));
+        if !is_metadata(field.name()) {
+            self.log_record_attributes
+                .push((field.name().into(), value.to_owned().into()));
+        }
     }
 
     fn record_bool(&mut self, field: &tracing_core::Field, value: bool) {
-        self.log_record_attributes
-            .push((field.name().into(), value.into()));
+        if !is_metadata(field.name()) {
+            self.log_record_attributes
+                .push((field.name().into(), value.into()));
+        }
     }
 
     fn record_f64(&mut self, field: &tracing::field::Field, value: f64) {
-        self.log_record_attributes
-            .push((field.name().into(), value.into()));
+        if !is_metadata(field.name()) {
+            self.log_record_attributes
+                .push((field.name().into(), value.into()));
+        }
     }
 
     fn record_i64(&mut self, field: &tracing::field::Field, value: i64) {
-        self.log_record_attributes
-            .push((field.name().into(), value.into()));
+        if !is_metadata(field.name()) {
+            self.log_record_attributes
+                .push((field.name().into(), value.into()));
+        }
     }
 
     // TODO: Remaining field types from AnyValue : Bytes, ListAny, Boolean
