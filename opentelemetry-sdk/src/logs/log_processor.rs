@@ -70,8 +70,14 @@ impl LogProcessor for SimpleLogProcessor {
     }
 
     fn shutdown(&mut self) -> LogResult<()> {
-        self.exporter.lock().unwrap().shutdown();
-        Ok(())
+        if let Ok(mut exporter) = self.exporter.lock() {
+            exporter.shutdown();
+            Ok(())
+        } else {
+            Err(LogError::Other(
+                "simple logprocessor mutex poison during shutdown".into(),
+            ))
+        }
     }
 
     #[cfg(feature = "logs_level_enabled")]
