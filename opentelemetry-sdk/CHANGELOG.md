@@ -5,22 +5,27 @@
 ### Changed
 
 - **Breaking**
-[#1313](https://github.com/open-telemetry/opentelemetry-rust/issues/1313)
-  Changes how Span links are stored to achieve performance gains. See below for
-  details:
+[#1313](https://github.com/open-telemetry/opentelemetry-rust/pull/1313)
+[#1350](https://github.com/open-telemetry/opentelemetry-rust/pull/1350)
+  Changes how Span links/events are stored to achieve performance gains. See
+  below for details:
 
-  *Behavior Change*: When enforcing `max_links_per_span` from `SpanLimits`,
-  links are kept in the first-come order. The previous "eviction" based approach
-  is no longer performed.
+  *Behavior Change*: When enforcing `max_links_per_span`, `max_events_per_span`
+  from `SpanLimits`, links/events are kept in the first-come order. The previous
+  "eviction" based approach is no longer performed.
 
   *Breaking Change Affecting Exporter authors*:
 
   `SpanData` now stores `links` as `SpanLinks` instead of `EvictedQueue` where
   `SpanLinks` is a struct with a `Vec` of links and `dropped_count`.
 
+  `SpanData` now stores `events` as `SpanEvents` instead of `EvictedQueue` where
+  `SpanEvents` is a struct with a `Vec` of events and `dropped_count`.
+
 ### Fixed
 
-- Return consistent `Meter` for a given scope from `MeterProvider`.
+- Fix metric export corruption if gauges have not received a last value. (#1363)
+- Return consistent `Meter` for a given scope from `MeterProvider`. (#1351)
 
 ## v0.21.0
 

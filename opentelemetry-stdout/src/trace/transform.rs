@@ -107,7 +107,7 @@ impl From<opentelemetry_sdk::export::trace::SpanData> for Span {
             end_time: value.end_time,
             dropped_attributes_count: value.dropped_attributes_count,
             attributes: value.attributes.into_iter().map(Into::into).collect(),
-            dropped_events_count: value.events.dropped_count(),
+            dropped_events_count: value.events.dropped_count,
             events: value.events.into_iter().map(Into::into).collect(),
             dropped_links_count: value.links.dropped_count,
             links: value.links.iter().map(Into::into).collect(),
