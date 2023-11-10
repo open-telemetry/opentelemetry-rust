@@ -25,13 +25,33 @@
     // these are words that are always correct and can be thought of as our
     // workspace dictionary.
     "words": [
+        "actix",
+        "appender",
+        "appenders",
+        "Bhasin",
+        "Cijo",
+        "codecov",
         "deque",
+        "Dirkjan",
         "hasher",
+        "isahc",
+        "Isobel",
+        "jaegertracing",
+        "Kühle",
+        "Kumar",
+        "Lalit",
         "msrv",
+        "Ochtman",
+        "openetelemetry",
         "opentelemetry",
         "OTLP",
+        "protoc",
         "quantile",
+        "Redelmeier",
+        "reqwest",
         "rustc",
+        "Tescher",
+        "Zhongyang",
         "zipkin"
     ],
     "enabledLanguageIds": [
