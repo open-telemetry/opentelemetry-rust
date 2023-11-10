@@ -1,12 +1,12 @@
 [package]
 name = "opentelemetry-user-events-logs"
 description = "OpenTelemetry-Rust exporter to userevents"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-user-events-logs"
 repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-user-events-logs"
 readme = "README.md"
-rust-version = "1.68.0"
+rust-version = "1.65.0"
 keywords = ["opentelemetry", "log", "trace", "user_events"]
 license = "Apache-2.0"
 
@@ -14,7 +14,7 @@ license = "Apache-2.0"
 eventheader = "0.3.2"
 eventheader_dynamic = "0.3.3"
 opentelemetry = { version = "0.21", path = "../opentelemetry", features = ["logs"] }
-opentelemetry_sdk = { version = "0.20", path = "../opentelemetry-sdk", features = ["logs"] }
+opentelemetry_sdk = { version = "0.21", path = "../opentelemetry-sdk", features = ["logs"] }
 async-std = { version="1.6" }
 async-trait = { version="0.1" }
 chrono = { version="0.4", default-features = false, features=["std"] }

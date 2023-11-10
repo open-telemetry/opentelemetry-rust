@@ -1,7 +1,7 @@
 use crate::exporter::intern::StringInterner;
 use crate::exporter::model::SAMPLING_PRIORITY_KEY;
 use crate::exporter::{Error, ModelConfig};
-use opentelemetry::{trace::Status, Key, Value};
+use opentelemetry::trace::Status;
 use opentelemetry_sdk::export::trace::SpanData;
 use std::time::SystemTime;
 
@@ -148,10 +148,13 @@ where
                 .map(|x| x.as_nanos() as i64)
                 .unwrap_or(0);
 
-            let span_type = match span.attributes.get(&Key::new("span.type")) {
-                Some(Value::String(s)) => interner.intern(s.as_str()),
-                _ => interner.intern(""),
-            };
+            let mut span_type = interner.intern("");
+            for kv in &span.attributes {
+                if kv.key.as_str() == "span.type" {
+                    span_type = interner.intern(kv.value.as_str().as_ref());
+                    break;
+                }
+            }
 
             // Datadog span name is OpenTelemetry component name - see module docs for more information
             rmp::encode::write_array_len(&mut encoded, SPAN_NUM_ELEMENTS)?;
@@ -197,9 +200,9 @@ where
 
             write_unified_tags(&mut encoded, interner, unified_tags)?;
 
-            for (key, value) in span.attributes.iter() {
-                rmp::encode::write_u32(&mut encoded, interner.intern(key.as_str()))?;
-                rmp::encode::write_u32(&mut encoded, interner.intern(value.as_str().as_ref()))?;
+            for kv in span.attributes.iter() {
+                rmp::encode::write_u32(&mut encoded, interner.intern(kv.key.as_str()))?;
+                rmp::encode::write_u32(&mut encoded, interner.intern(kv.value.as_str().as_ref()))?;
             }
             rmp::encode::write_map_len(&mut encoded, 1)?;
             rmp::encode::write_u32(&mut encoded, interner.intern(SAMPLING_PRIORITY_KEY))?;

@@ -44,7 +44,7 @@ fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
         .install_batch(opentelemetry_sdk::runtime::Tokio)
 }
 
-fn init_metrics() -> metrics::Result<sdkmetrics::MeterProvider> {
+fn init_metrics() -> metrics::Result<sdkmetrics::SdkMeterProvider> {
     let export_config = opentelemetry_otlp::ExportConfig {
         endpoint: "http://localhost:4318/v1/metrics".to_string(),
         ..opentelemetry_otlp::ExportConfig::default()

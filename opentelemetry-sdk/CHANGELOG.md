@@ -2,6 +2,32 @@
 
 ## vNext
 
+### Changed
+
+- **Breaking**
+[#1313](https://github.com/open-telemetry/opentelemetry-rust/pull/1313)
+[#1350](https://github.com/open-telemetry/opentelemetry-rust/pull/1350)
+  Changes how Span links/events are stored to achieve performance gains. See
+  below for details:
+
+  *Behavior Change*: When enforcing `max_links_per_span`, `max_events_per_span`
+  from `SpanLimits`, links/events are kept in the first-come order. The previous
+  "eviction" based approach is no longer performed.
+
+  *Breaking Change Affecting Exporter authors*:
+
+  `SpanData` now stores `links` as `SpanLinks` instead of `EvictedQueue` where
+  `SpanLinks` is a struct with a `Vec` of links and `dropped_count`.
+
+  `SpanData` now stores `events` as `SpanEvents` instead of `EvictedQueue` where
+  `SpanEvents` is a struct with a `Vec` of events and `dropped_count`.
+
+### Fixed
+
+- Fix metric export corruption if gauges have not received a last value. (#1363)
+
+## v0.21.0
+
 ### Added
 
 - Log warning if two instruments have the same name with different (#1266)
@@ -12,6 +38,8 @@
 
 ### Changed
 
+- Renamed `MeterProvider` and `Meter` to `SdkMeterProvider` and `SdkMeter` respectively to avoid name collision with public API types. [#1328](https://github.com/open-telemetry/opentelemetry-rust/pull/1328)
+- Bump MSRV to 1.65 [#1318](https://github.com/open-telemetry/opentelemetry-rust/pull/1318)
 - Default Resource (the one used when no other Resource is explicitly provided) now includes `TelemetryResourceDetector`,
   populating "telemetry.sdk.*" attributes.
   [#1066](https://github.com/open-telemetry/opentelemetry-rust/pull/1193).
@@ -29,11 +57,34 @@
 - Updated crate documentation and examples.
   [#1256](https://github.com/open-telemetry/opentelemetry-rust/issues/1256)
 - Replace regex with glob (#1301)
+- **Breaking**
+  [#1293](https://github.com/open-telemetry/opentelemetry-rust/issues/1293)
+  makes few breaking changes with respect to how Span attributes are stored to
+  achieve performance gains. See below for details:
 
+  *Behavior Change*:
+
+  SDK will no longer perform de-duplication of Span attribute Keys. Please share
+  [feedback
+  here](https://github.com/open-telemetry/opentelemetry-rust/issues/1300), if
+  you are affected.
+
+  *Breaking Change Affecting Exporter authors*:
+
+   `SpanData` now stores `attributes` as `Vec<KeyValue>` instead of
+  `EvictedHashMap`. `SpanData` now expose `dropped_attributes_count` as a
+  separate field.
+
+  *Breaking Change Affecting Sampler authors*:
+
+  `should_sample` changes `attributes` from `OrderMap<Key, Value>` to
+  `Vec<KeyValue>`.
+- **Breaking** Move type argument from `RuntimeChannel<T>` to associated types [#1314](https://github.com/open-telemetry/opentelemetry-rust/pull/1314)
 
 ### Removed
 
 - Remove context from Metric force_flush [#1245](https://github.com/open-telemetry/opentelemetry-rust/pull/1245)
+- Remove `logs::BatchMessage` and `trace::BatchMessage` types [#1314](https://github.com/open-telemetry/opentelemetry-rust/pull/1314)
 
 ### Fixed
 

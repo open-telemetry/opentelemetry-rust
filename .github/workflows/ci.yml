@@ -6,6 +6,8 @@ on:
   push:
     branches:
     - main
+    paths-ignore:
+    - '**.md'
 jobs:
   test:
     strategy:
@@ -48,6 +50,23 @@ jobs:
         args: --all -- --check
     - name: Lint
       run: ./scripts/lint.sh
+  external-types:
+    strategy:
+      matrix:
+        example: [opentelemetry, opentelemetry-sdk]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          components: rustfmt
+          override: true
+      - name: external-type-check
+        run: |
+          cargo install cargo-check-external-types
+          cd ${{ matrix.example }}
+          cargo check-external-types --config allowed-external-types.toml
   non-default-examples:
     strategy:
       matrix:
@@ -76,7 +95,7 @@ jobs:
     - uses: actions-rs/toolchain@v1
       with:
         profile: minimal
-        toolchain: 1.64.0
+        toolchain: 1.65.0
         override: true
     - name: Patch dependencies versions # some dependencies bump MSRV without major version bump
       run: ./scripts/patch_dependencies.sh

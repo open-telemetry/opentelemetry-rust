@@ -1,0 +1,11 @@
+contact_links:
+  - name: GitHub Discussions
+    url: https://github.com/open-telemetry/opentelemetry-rust/discussions/new/choose
+    about: Please ask questions here.
+  - name: Slack
+    url: https://cloud-native.slack.com/archives/C03GDP0H023
+    about: Or the `#otel-rust` channel in the CNCF Slack instance. (Not terribly responsive.)
+  - name: "⚠️ Report a security vulnerability"
+    url: "https://github.com/open-telemetry/opentelemetry-rust/security/advisories/new"
+    about: "Report a security vulnerability."
+

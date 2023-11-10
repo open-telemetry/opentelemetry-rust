@@ -133,19 +133,22 @@ impl Runtime for AsyncStd {
     }
 }
 
-/// `MessageRuntime` is an extension to [`Runtime`]. Currently, it provides a
+/// `RuntimeChannel` is an extension to [`Runtime`]. Currently, it provides a
 /// channel that is used by the [log] and [span] batch processors.
 ///
 /// [log]: crate::logs::BatchLogProcessor
 /// [span]: crate::trace::BatchSpanProcessor
-pub trait RuntimeChannel<T: Debug + Send>: Runtime {
+pub trait RuntimeChannel: Runtime {
     /// A future stream to receive batch messages from channels.
-    type Receiver: Stream<Item = T> + Send;
+    type Receiver<T: Debug + Send>: Stream<Item = T> + Send;
     /// A batch messages sender that can be sent across threads safely.
-    type Sender: TrySend<Message = T> + Debug;
+    type Sender<T: Debug + Send>: TrySend<Message = T> + Debug;
 
     /// Return the sender and receiver used to send batch messages.
-    fn batch_message_channel(&self, capacity: usize) -> (Self::Sender, Self::Receiver);
+    fn batch_message_channel<T: Debug + Send>(
+        &self,
+        capacity: usize,
+    ) -> (Self::Sender<T>, Self::Receiver<T>);
 }
 
 /// Error returned by a [`TrySend`] implementation.
@@ -187,11 +190,14 @@ impl<T: Send> TrySend for tokio::sync::mpsc::Sender<T> {
 
 #[cfg(feature = "rt-tokio")]
 #[cfg_attr(docsrs, doc(cfg(feature = "rt-tokio")))]
-impl<T: Debug + Send> RuntimeChannel<T> for Tokio {
-    type Receiver = tokio_stream::wrappers::ReceiverStream<T>;
-    type Sender = tokio::sync::mpsc::Sender<T>;
+impl RuntimeChannel for Tokio {
+    type Receiver<T: Debug + Send> = tokio_stream::wrappers::ReceiverStream<T>;
+    type Sender<T: Debug + Send> = tokio::sync::mpsc::Sender<T>;
 
-    fn batch_message_channel(&self, capacity: usize) -> (Self::Sender, Self::Receiver) {
+    fn batch_message_channel<T: Debug + Send>(
+        &self,
+        capacity: usize,
+    ) -> (Self::Sender<T>, Self::Receiver<T>) {
         let (sender, receiver) = tokio::sync::mpsc::channel(capacity);
         (
             sender,
@@ -202,11 +208,14 @@ impl<T: Debug + Send> RuntimeChannel<T> for Tokio {
 
 #[cfg(feature = "rt-tokio-current-thread")]
 #[cfg_attr(docsrs, doc(cfg(feature = "rt-tokio-current-thread")))]
-impl<T: Debug + Send> RuntimeChannel<T> for TokioCurrentThread {
-    type Receiver = tokio_stream::wrappers::ReceiverStream<T>;
-    type Sender = tokio::sync::mpsc::Sender<T>;
+impl RuntimeChannel for TokioCurrentThread {
+    type Receiver<T: Debug + Send> = tokio_stream::wrappers::ReceiverStream<T>;
+    type Sender<T: Debug + Send> = tokio::sync::mpsc::Sender<T>;
 
-    fn batch_message_channel(&self, capacity: usize) -> (Self::Sender, Self::Receiver) {
+    fn batch_message_channel<T: Debug + Send>(
+        &self,
+        capacity: usize,
+    ) -> (Self::Sender<T>, Self::Receiver<T>) {
         let (sender, receiver) = tokio::sync::mpsc::channel(capacity);
         (
             sender,
@@ -229,11 +238,14 @@ impl<T: Send> TrySend for async_std::channel::Sender<T> {
 
 #[cfg(feature = "rt-async-std")]
 #[cfg_attr(docsrs, doc(cfg(feature = "rt-async-std")))]
-impl<T: Debug + Send> RuntimeChannel<T> for AsyncStd {
-    type Receiver = async_std::channel::Receiver<T>;
-    type Sender = async_std::channel::Sender<T>;
+impl RuntimeChannel for AsyncStd {
+    type Receiver<T: Debug + Send> = async_std::channel::Receiver<T>;
+    type Sender<T: Debug + Send> = async_std::channel::Sender<T>;
 
-    fn batch_message_channel(&self, capacity: usize) -> (Self::Sender, Self::Receiver) {
+    fn batch_message_channel<T: Debug + Send>(
+        &self,
+        capacity: usize,
+    ) -> (Self::Sender<T>, Self::Receiver<T>) {
         async_std::channel::bounded(capacity)
     }
 }

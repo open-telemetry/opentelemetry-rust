@@ -4,7 +4,6 @@ members = [
     "opentelemetry-aws",
     "opentelemetry-contrib",
     "opentelemetry-datadog",
-    "opentelemetry-dynatrace",
     "opentelemetry-http",
     "opentelemetry-jaeger",
     "opentelemetry-jaeger/examples/actix-udp",
@@ -30,6 +29,7 @@ members = [
     "examples/logs-basic",
     "examples/traceresponse",
     "examples/tracing-grpc",
+    "examples/tracing-jaeger",
     "stress",
 ]
 resolver = "2"

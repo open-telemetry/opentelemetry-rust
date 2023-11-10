@@ -2,6 +2,8 @@
 
 ## vNext
 
+## v0.4.0
+
 ### Added
 
 - Implement tonic metrics proto transformations (#1184)
@@ -10,6 +12,7 @@
 
 ### Changed
 
+- Bump MSRV to 1.65 [#1318](https://github.com/open-telemetry/opentelemetry-rust/pull/1318)
 - Bump MSRV to 1.64 [#1203](https://github.com/open-telemetry/opentelemetry-rust/pull/1203)
 
 ### Fixed

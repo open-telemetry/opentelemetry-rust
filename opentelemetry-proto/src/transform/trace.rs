@@ -80,9 +80,9 @@ pub mod tonic {
                         kind: span_kind as i32,
                         start_time_unix_nano: to_nanos(source_span.start_time),
                         end_time_unix_nano: to_nanos(source_span.end_time),
-                        dropped_attributes_count: source_span.attributes.dropped_count(),
+                        dropped_attributes_count: source_span.dropped_attributes_count,
                         attributes: Attributes::from(source_span.attributes).0,
-                        dropped_events_count: source_span.events.dropped_count(),
+                        dropped_events_count: source_span.events.dropped_count,
                         events: source_span
                             .events
                             .into_iter()
@@ -93,7 +93,7 @@ pub mod tonic {
                                 dropped_attributes_count: event.dropped_attributes_count,
                             })
                             .collect(),
-                        dropped_links_count: source_span.links.dropped_count(),
+                        dropped_links_count: source_span.links.dropped_count,
                         links: source_span.links.into_iter().map(Into::into).collect(),
                         status: Some(Status {
                             code: status::StatusCode::from(&source_span.status).into(),
@@ -191,9 +191,9 @@ pub mod grpcio {
                         kind: span_kind as i32,
                         start_time_unix_nano: to_nanos(source_span.start_time),
                         end_time_unix_nano: to_nanos(source_span.end_time),
-                        dropped_attributes_count: source_span.attributes.dropped_count(),
+                        dropped_attributes_count: source_span.dropped_attributes_count,
                         attributes: Attributes::from(source_span.attributes).0,
-                        dropped_events_count: source_span.events.dropped_count(),
+                        dropped_events_count: source_span.events.dropped_count,
                         events: source_span
                             .events
                             .into_iter()
@@ -204,7 +204,7 @@ pub mod grpcio {
                                 dropped_attributes_count: event.dropped_attributes_count,
                             })
                             .collect(),
-                        dropped_links_count: source_span.links.dropped_count(),
+                        dropped_links_count: source_span.links.dropped_count,
                         links: source_span.links.into_iter().map(Into::into).collect(),
                         status: Some(Status {
                             code: status::StatusCode::from(&source_span.status).into(),

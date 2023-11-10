@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-zpages"
-version = "0.5.0"
+version = "0.6.0"
 description = "ZPages implementation for OpenTelemetry"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/master/opentelemetry-zpages"
 repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/master/opentelemetry-zpages"
@@ -13,16 +13,16 @@ categories = [
 keywords = ["opentelemetry", "zipkin", "tracing", "async"]
 license = "Apache-2.0"
 edition = "2021"
-rust-version = "1.64"
+rust-version = "1.65"
 
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-opentelemetry = { path = "../opentelemetry" }
-opentelemetry_sdk = { path = "../opentelemetry-sdk", default-features = false, features = ["trace"] }
-opentelemetry-proto = { path = "../opentelemetry-proto", features = ["zpages", "gen-tonic", "with-serde"], default-features = false }
+opentelemetry = { version = "0.21", path = "../opentelemetry" }
+opentelemetry_sdk = { version = "0.21", path = "../opentelemetry-sdk", default-features = false, features = ["trace"] }
+opentelemetry-proto = { version = "0.4", path = "../opentelemetry-proto", features = ["zpages", "gen-tonic", "with-serde"], default-features = false }
 async-channel = "1.6"
 futures-channel = "0.3"
 futures-util = { version = "0.3", default-features = false, features = ["std"] }

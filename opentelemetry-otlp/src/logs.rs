@@ -19,7 +19,7 @@ use opentelemetry::{
     global,
     logs::{LogError, LoggerProvider},
 };
-use opentelemetry_sdk::{self, export::logs::LogData, logs::BatchMessage, runtime::RuntimeChannel};
+use opentelemetry_sdk::{self, export::logs::LogData, runtime::RuntimeChannel};
 
 /// Compression algorithm to use, defaults to none.
 pub const OTEL_EXPORTER_OTLP_LOGS_COMPRESSION: &str = "OTEL_EXPORTER_OTLP_LOGS_COMPRESSION";
@@ -166,7 +166,7 @@ impl OtlpLogPipeline<LogExporterBuilder> {
     /// Returns a [`Logger`] with the name `opentelemetry-otlp` and the current crate version.
     ///
     /// [`Logger`]: opentelemetry_sdk::logs::Logger
-    pub fn install_batch<R: RuntimeChannel<BatchMessage>>(
+    pub fn install_batch<R: RuntimeChannel>(
         self,
         runtime: R,
     ) -> Result<opentelemetry_sdk::logs::Logger, LogError> {
@@ -198,7 +198,7 @@ fn build_simple_with_exporter(
     logger
 }
 
-fn build_batch_with_exporter<R: RuntimeChannel<BatchMessage>>(
+fn build_batch_with_exporter<R: RuntimeChannel>(
     exporter: LogExporter,
     log_config: Option<opentelemetry_sdk::logs::Config>,
     runtime: R,

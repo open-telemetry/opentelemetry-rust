@@ -4,14 +4,14 @@ use opentelemetry::{
     KeyValue,
 };
 use opentelemetry_sdk::{
-    metrics::{MeterProvider, PeriodicReader},
+    metrics::{PeriodicReader, SdkMeterProvider},
     runtime, Resource,
 };
 use opentelemetry_user_events_metrics::MetricsExporter;
 
-fn init_metrics(exporter: MetricsExporter) -> MeterProvider {
+fn init_metrics(exporter: MetricsExporter) -> SdkMeterProvider {
     let reader = PeriodicReader::builder(exporter, runtime::Tokio).build();
-    MeterProvider::builder()
+    SdkMeterProvider::builder()
         .with_resource(Resource::new(vec![KeyValue::new(
             "service.name",
             "metric-demo",

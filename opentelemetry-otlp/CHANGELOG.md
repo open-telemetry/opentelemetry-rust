@@ -2,6 +2,8 @@
 
 ## vNext
 
+## v0.14.0
+
 ### Added
 
 - Add `build_{signal}_exporter` methods to client builders (#1187)
@@ -10,6 +12,7 @@
 
 ### Changed
 
+- Bump MSRV to 1.65 [#1318](https://github.com/open-telemetry/opentelemetry-rust/pull/1318)
 - Bump MSRV to 1.64 [#1203](https://github.com/open-telemetry/opentelemetry-rust/pull/1203)
 - Changed dependency from `opentelemetry_api` to `opentelemetry` as the latter
   is now the API crate. [#1226](https://github.com/open-telemetry/opentelemetry-rust/pull/1226)

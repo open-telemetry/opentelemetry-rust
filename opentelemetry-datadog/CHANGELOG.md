@@ -2,13 +2,17 @@
 
 ## vNext
 
+## v0.9.0
+
 ### Changed
 
+- Bump MSRV to 1.65 [#1318](https://github.com/open-telemetry/opentelemetry-rust/pull/1318)
 - Bump MSRV to 1.64 [#1203](https://github.com/open-telemetry/opentelemetry-rust/pull/1203)
 
 ### Fixed
 
 - Do not set an empty span as the active span when the propagator does not find a remote span.
+- Change type signature of `with_http_client()` to use the provided generic as argument.
 
 ## V0.8.0
 
@@ -21,7 +25,7 @@
 - Fix the array encoding length of datadog version 05 exporter #1002
 
 ## v0.7.0
-  
+
 ### Added
 - [Breaking] Add support for unified tagging [#931](https://github.com/open-telemetry/opentelemetry-rust/pull/931).
 

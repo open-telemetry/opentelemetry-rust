@@ -42,7 +42,15 @@ docker run --rm \
 	--output /output/resource.rs \
 	--parameters conventions=resource
 
+SED=(sed -i)
+if [[ "$(uname)" = "Darwin" ]]; then
+  SED=(sed -i "")
+fi
+
 # Keep `SCHEMA_URL` key in sync with spec version
-sed -i '' "s/\(opentelemetry.io\/schemas\/\)[^\"]*\"/\1$SPEC_VERSION\"/" src/lib.rs
+"${SED[@]}" "s/\(opentelemetry.io\/schemas\/\)[^\"]*\"/\1$SPEC_VERSION\"/" src/lib.rs
+
+# handle doc generation failures
+"${SED[@]}" 's/\[2\]\.$//' src/resource.rs # remove trailing [2] from few of the doc comments
 
 cargo fmt

@@ -98,7 +98,7 @@ impl Pipeline {
 
         Ok(move |this: &Pipeline| {
             let mut inner = this.inner.lock()?;
-            // can't compare trait objects so use index + toumbstones to drop
+            // can't compare trait objects so use index + tombstones to drop
             inner.multi_callbacks[idx] = None;
             Ok(())
         })

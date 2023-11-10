@@ -25,12 +25,11 @@ analysis in order to understand your software's performance and behavior. You
 can export and analyze them using [Prometheus], [Jaeger], and other
 observability tools.
 
-*Compiler support: [requires `rustc` 1.64+][msrv]*
+*Compiler support: [requires `rustc` 1.65+][msrv]*
 
 [Prometheus]: https://prometheus.io
 [Jaeger]: https://www.jaegertracing.io
 [msrv]: #supported-rust-versions
-
 
 ## Project Status
 
@@ -101,36 +100,36 @@ adapter crates to assist in propagating state and instrumenting applications.
 
 In particular, the following crates are likely to be of interest:
 
-- [`opentelemetry-aws`] provides unofficial propagators for AWS X-ray.
-- [`opentelemetry-datadog`] provides additional exporters to [`Datadog`].
-- [`opentelemetry-dynatrace`] provides additional exporters to Dynatrace.
-- [`opentelemetry-contrib`] provides additional exporters and propagators that
+* [`opentelemetry-aws`] provides unofficial propagators for AWS X-ray.
+* [`opentelemetry-datadog`] provides additional exporters to [`Datadog`].
+* [`opentelemetry-dynatrace`] provides additional exporters to Dynatrace.
+* [`opentelemetry-contrib`] provides additional exporters and propagators that
   are experimental.
-- [`opentelemetry-http`] provides an interface for injecting and extracting
+* [`opentelemetry-http`] provides an interface for injecting and extracting
   trace information from [`http`] headers.
-- [`opentelemetry-jaeger`] provides a pipeline and exporter for sending trace
+* [`opentelemetry-jaeger`] provides a pipeline and exporter for sending trace
   information to [`Jaeger`].
-- [`opentelemetry-otlp`] exporter for sending trace and metric data in the OTLP
+* [`opentelemetry-otlp`] exporter for sending trace and metric data in the OTLP
   format to the OpenTelemetry collector.
-- [`opentelemetry-prometheus`] provides a pipeline and exporter for sending
+* [`opentelemetry-prometheus`] provides a pipeline and exporter for sending
   metrics information to [`Prometheus`].
-- [`opentelemetry-semantic-conventions`] provides standard names and semantic
+* [`opentelemetry-semantic-conventions`] provides standard names and semantic
   otel conventions.
-- [`opentelemetry-stackdriver`] provides an exporter for Google's [Cloud Trace]
+* [`opentelemetry-stackdriver`] provides an exporter for Google's [Cloud Trace]
   (which used to be called StackDriver).
-- [`opentelemetry-zipkin`] provides a pipeline and exporter for sending trace
+* [`opentelemetry-zipkin`] provides a pipeline and exporter for sending trace
   information to [`Zipkin`].
 
 Additionally, there are also several third-party crates which are not
 maintained by the `opentelemetry` project. These include:
 
-- [`tracing-opentelemetry`] provides integration for applications instrumented
+* [`tracing-opentelemetry`] provides integration for applications instrumented
   using the [`tracing`] API and ecosystem.
-- [`actix-web-opentelemetry`] provides integration for the [`actix-web`] web
+* [`actix-web-opentelemetry`] provides integration for the [`actix-web`] web
   server and ecosystem.
-- [`opentelemetry-application-insights`] provides an unofficial [Azure
+* [`opentelemetry-application-insights`] provides an unofficial [Azure
   Application Insights] exporter.
-- [`opentelemetry-tide`] provides integration for the [`Tide`] web server and
+* [`opentelemetry-tide`] provides integration for the [`Tide`] web server and
   ecosystem.
 
 If you're the maintainer of an `opentelemetry` ecosystem crate not listed
@@ -149,7 +148,6 @@ above, please let us know! We'd love to add your project to the list!
 [`opentelemetry-contrib`]: https://crates.io/crates/opentelemetry-contrib
 [`Datadog`]: https://www.datadoghq.com
 [`opentelemetry-datadog`]: https://crates.io/crates/opentelemetry-datadog
-[`Dynatrace`]: https://www.dynatrace.com/
 [`opentelemetry-dynatrace`]: https://crates.io/crates/opentelemetry-dynatrace
 [`opentelemetry-semantic-conventions`]: https://crates.io/crates/opentelemetry-semantic-conventions
 [`http`]: https://crates.io/crates/http
@@ -182,7 +180,7 @@ this policy.
 
 See the [contributing file](CONTRIBUTING.md).
 
-The Rust special interest group (SIG) meets weekly on Tuesdays at 9 AM Pacific
+The Rust special interest group (SIG) meets weekly on Tuesdays at 8 AM Pacific
 Time (16:00 UTC). The meeting is subject to change depending on contributors'
 availability. Check the [OpenTelemetry community
 calendar](https://calendar.google.com/calendar/embed?src=google.com_b79e3e90j7bbsa2n2p5an5lf60%40group.calendar.google.com)

@@ -28,14 +28,13 @@ use futures_util::stream::StreamExt;
 use opentelemetry::{
     global::handle_error,
     trace::{SpanId, TraceError},
-    Key, Value,
+    Key, KeyValue, Value,
 };
 use opentelemetry_sdk::{
     export::{
         trace::{ExportResult, SpanData, SpanExporter},
         ExportError,
     },
-    trace::{EvictedHashMap, EvictedQueue},
     Resource,
 };
 use opentelemetry_semantic_conventions::resource::SERVICE_NAME;
@@ -328,8 +327,8 @@ where
                 ),
                 display_name: Some(to_truncate(span.name.into_owned())),
                 span_id: hex::encode(span.span_context.span_id().to_bytes()),
-                /// From the API docs: If this is a root span,
-                /// then this field must be empty.
+                // From the API docs: If this is a root span,
+                // then this field must be empty.
                 parent_span_id: match span.parent_span_id {
                     SpanId::INVALID => "".to_owned(),
                     _ => hex::encode(span.parent_span_id.to_bytes()),
@@ -714,19 +713,24 @@ pub enum MonitoredResource {
     },
 }
 
-impl From<(EvictedHashMap, &Resource)> for Attributes {
+impl From<(Vec<KeyValue>, &Resource)> for Attributes {
     /// Combines `EvictedHashMap` and `Resource` attributes into a maximum of 32.
     ///
     /// The `Resource` takes precedence over the `EvictedHashMap` attributes.
-    fn from((attributes, resource): (EvictedHashMap, &Resource)) -> Self {
+    fn from((attributes, resource): (Vec<KeyValue>, &Resource)) -> Self {
         let mut dropped_attributes_count: i32 = 0;
         let num_resource_attributes = resource.len();
         let num_attributes = attributes.len();
 
+        let attributes_as_key_value_tuples: Vec<(Key, Value)> = attributes
+            .into_iter()
+            .map(|kv| (kv.key, kv.value))
+            .collect();
+
         let attribute_map = resource
             .into_iter()
             .map(|(k, v)| (k.clone(), v.clone()))
-            .chain(attributes)
+            .chain(attributes_as_key_value_tuples)
             .flat_map(|(k, v)| {
                 let key = k.as_str();
                 if key.len() > 128 {
@@ -760,13 +764,13 @@ impl From<(EvictedHashMap, &Resource)> for Attributes {
     }
 }
 
-fn transform_links(links: &EvictedQueue<opentelemetry::trace::Link>) -> Option<Links> {
+fn transform_links(links: &opentelemetry_sdk::trace::SpanLinks) -> Option<Links> {
     if links.is_empty() {
         return None;
     }
 
     Some(Links {
-        dropped_links_count: links.dropped_count() as i32,
+        dropped_links_count: links.dropped_count as i32,
         link: links
             .iter()
             .map(|link| Link {
@@ -827,39 +831,38 @@ const MAX_ATTRIBUTES_PER_SPAN: usize = 32;
 mod tests {
     use super::*;
     use opentelemetry::{KeyValue, Value};
-    use opentelemetry_sdk::trace::EvictedHashMap;
     use opentelemetry_semantic_conventions as semcov;
 
     #[test]
     fn test_attributes_mapping() {
         let capacity = 10;
-        let mut attributes = EvictedHashMap::new(capacity, 0);
+        let mut attributes = Vec::with_capacity(capacity);
 
         //	hostAttribute       = "http.host"
-        attributes.insert(HTTP_HOST.string("example.com:8080"));
+        attributes.push(HTTP_HOST.string("example.com:8080"));
 
         // 	methodAttribute     = "http.method"
-        attributes.insert(semcov::trace::HTTP_METHOD.string("POST"));
+        attributes.push(semcov::trace::HTTP_METHOD.string("POST"));
 
         // 	pathAttribute       = "http.path"
-        attributes.insert(KeyValue::new(
+        attributes.push(KeyValue::new(
             "http.path",
             Value::String("/path/12314/?q=ddds#123".into()),
         ));
 
         // 	urlAttribute        = "http.url"
-        attributes.insert(
+        attributes.push(
             semcov::trace::HTTP_URL.string("https://example.com:8080/webshop/articles/4?s=1"),
         );
 
         // 	userAgentAttribute  = "http.user_agent"
-        attributes.insert(HTTP_USER_AGENT.string("CERN-LineMode/2.15 libwww/2.17b3"));
+        attributes.push(HTTP_USER_AGENT.string("CERN-LineMode/2.15 libwww/2.17b3"));
 
         // 	statusCodeAttribute = "http.status_code"
-        attributes.insert(semcov::trace::HTTP_STATUS_CODE.i64(200));
+        attributes.push(semcov::trace::HTTP_STATUS_CODE.i64(200));
 
         // 	statusCodeAttribute = "http.route"
-        attributes.insert(semcov::trace::HTTP_ROUTE.string("/webshop/articles/:article_id"));
+        attributes.push(semcov::trace::HTTP_ROUTE.string("/webshop/articles/:article_id"));
 
         // 	serviceAttribute    = "service.name"
         let resources = Resource::new([semcov::resource::SERVICE_NAME.string("Test Service Name")]);
@@ -917,9 +920,9 @@ mod tests {
     #[test]
     fn test_too_many() {
         let resources = Resource::new([semcov::resource::SERVICE_NAME.string("Test Service Name")]);
-        let mut attributes = EvictedHashMap::new(32, 0);
+        let mut attributes = Vec::with_capacity(32);
         for i in 0..32 {
-            attributes.insert(KeyValue::new(
+            attributes.push(KeyValue::new(
                 format!("key{}", i),
                 Value::String(format!("value{}", i).into()),
             ));
@@ -939,11 +942,9 @@ mod tests {
 
     #[test]
     fn test_attributes_mapping_http_target() {
-        let capacity = 10;
-        let mut attributes = EvictedHashMap::new(capacity, 0);
+        let attributes = vec![semcov::trace::HTTP_TARGET.string("/path/12314/?q=ddds#123")];
 
         //	hostAttribute       = "http.target"
-        attributes.insert(semcov::trace::HTTP_TARGET.string("/path/12314/?q=ddds#123"));
 
         let resources = Resource::new([]);
         let actual: Attributes = (attributes, &resources).into();
@@ -960,10 +961,7 @@ mod tests {
 
     #[test]
     fn test_attributes_mapping_dropped_attributes_count() {
-        let capacity = 10;
-        let mut attributes = EvictedHashMap::new(capacity, 0);
-        attributes.insert(KeyValue::new("answer", Value::I64(42)));
-        attributes.insert(KeyValue::new("long_attribute_key_dvwmacxpeefbuemoxljmqvldjxmvvihoeqnuqdsyovwgljtnemouidabhkmvsnauwfnaihekcfwhugejboiyfthyhmkpsaxtidlsbwsmirebax", Value::String("Some value".into())));
+        let attributes = vec![KeyValue::new("answer", Value::I64(42)),KeyValue::new("long_attribute_key_dvwmacxpeefbuemoxljmqvldjxmvvihoeqnuqdsyovwgljtnemouidabhkmvsnauwfnaihekcfwhugejboiyfthyhmkpsaxtidlsbwsmirebax", Value::String("Some value".into()))];
 
         let resources = Resource::new([]);
         let actual: Attributes = (attributes, &resources).into();

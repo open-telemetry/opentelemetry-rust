@@ -8,7 +8,7 @@ use opentelemetry::trace::{SpanId, TraceError};
 use opentelemetry_sdk::{
     export::trace::{ExportResult, SpanData, SpanExporter},
     runtime::RuntimeChannel,
-    trace::{BatchMessage, Tracer, TracerProvider},
+    trace::{Tracer, TracerProvider},
 };
 use opentelemetry_semantic_conventions::SCHEMA_URL;
 use std::collections::HashMap;
@@ -150,10 +150,10 @@ fn span_data_to_jaeger_json(span: SpanData) -> serde_json::Value {
     let tags = span
         .attributes
         .iter()
-        .map(|(key, value)| {
-            let (tpe, value) = opentelemetry_value_to_json(value);
+        .map(|kv| {
+            let (tpe, value) = opentelemetry_value_to_json(&kv.value);
             serde_json::json!({
-            "key": key.as_str(),
+            "key": kv.key.as_str(),
             "type": tpe,
             "value": value,
             })
@@ -213,7 +213,7 @@ fn opentelemetry_value_to_json(value: &opentelemetry::Value) -> (&str, serde_jso
 ///
 /// [`RuntimeChannel`]: opentelemetry_sdk::runtime::RuntimeChannel
 #[async_trait]
-pub trait JaegerJsonRuntime: RuntimeChannel<BatchMessage> + std::fmt::Debug {
+pub trait JaegerJsonRuntime: RuntimeChannel + std::fmt::Debug {
     /// Create a new directory if the given path does not exist yet
     async fn create_dir(&self, path: &Path) -> ExportResult;
     /// Write the provided content to a new file at the given path

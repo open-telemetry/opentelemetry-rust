@@ -78,12 +78,12 @@ impl LogProcessor for SimpleLogProcessor {
 }
 
 /// A [`LogProcessor`] that asynchronously buffers log records and reports
-/// them at a pre-configured interval.
-pub struct BatchLogProcessor<R: RuntimeChannel<BatchMessage>> {
-    message_sender: R::Sender,
+/// them at a preconfigured interval.
+pub struct BatchLogProcessor<R: RuntimeChannel> {
+    message_sender: R::Sender<BatchMessage>,
 }
 
-impl<R: RuntimeChannel<BatchMessage>> Debug for BatchLogProcessor<R> {
+impl<R: RuntimeChannel> Debug for BatchLogProcessor<R> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("BatchLogProcessor")
             .field("message_sender", &self.message_sender)
@@ -91,7 +91,7 @@ impl<R: RuntimeChannel<BatchMessage>> Debug for BatchLogProcessor<R> {
     }
 }
 
-impl<R: RuntimeChannel<BatchMessage>> LogProcessor for BatchLogProcessor<R> {
+impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
     fn emit(&self, data: LogData) {
         let result = self.message_sender.try_send(BatchMessage::ExportLog(data));
 
@@ -128,7 +128,7 @@ impl<R: RuntimeChannel<BatchMessage>> LogProcessor for BatchLogProcessor<R> {
     }
 }
 
-impl<R: RuntimeChannel<BatchMessage>> BatchLogProcessor<R> {
+impl<R: RuntimeChannel> BatchLogProcessor<R> {
     pub(crate) fn new(mut exporter: Box<dyn LogExporter>, config: BatchConfig, runtime: R) -> Self {
         let (message_sender, message_receiver) =
             runtime.batch_message_channel(config.max_queue_size);
@@ -232,7 +232,7 @@ async fn export_with_timeout<R, E>(
     batch: Vec<LogData>,
 ) -> ExportResult
 where
-    R: RuntimeChannel<BatchMessage>,
+    R: RuntimeChannel,
     E: LogExporter + ?Sized,
 {
     if batch.is_empty() {
@@ -293,7 +293,7 @@ pub struct BatchLogProcessorBuilder<E, R> {
 impl<E, R> BatchLogProcessorBuilder<E, R>
 where
     E: LogExporter + 'static,
-    R: RuntimeChannel<BatchMessage>,
+    R: RuntimeChannel,
 {
     /// Set max queue size for batches
     pub fn with_max_queue_size(self, size: usize) -> Self {
@@ -342,7 +342,7 @@ where
 /// Messages sent between application thread and batch log processor's work thread.
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug)]
-pub enum BatchMessage {
+enum BatchMessage {
     /// Export logs, usually called when the log is emitted.
     ExportLog(LogData),
     /// Flush the current buffer to the backend, it can be triggered by

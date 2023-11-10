@@ -36,7 +36,9 @@ pub(crate) fn get_unit_suffixes(unit: &Unit) -> Option<Cow<'static, str>> {
         };
     }
 
-    Some(Cow::Owned(unit.as_str().to_string()))
+    // Unmatched units and annotations are ignored
+    // e.g. "{request}"
+    None
 }
 
 fn get_prom_units(unit: &str) -> Option<&'static str> {
@@ -49,9 +51,9 @@ fn get_prom_units(unit: &str) -> Option<&'static str> {
         "ms" => Some("milliseconds"),
         "us" => Some("microseconds"),
         "ns" => Some("nanoseconds"),
-        "By" => Some("bytes"),
 
         // Bytes
+        "By" => Some("bytes"),
         "KiBy" => Some("kibibytes"),
         "MiBy" => Some("mebibytes"),
         "GiBy" => Some("gibibytes"),
@@ -79,7 +81,6 @@ fn get_prom_units(unit: &str) -> Option<&'static str> {
         "Hz" => Some("hertz"),
         "1" => Some("ratio"),
         "%" => Some("percent"),
-        "$" => Some("dollars"),
         _ => None,
     }
 }
@@ -185,10 +186,12 @@ mod tests {
             ("1/y", Some(Cow::Owned("per_year".to_owned()))),
             ("m/s", Some(Cow::Owned("meters_per_second".to_owned()))),
             // No match
-            ("invalid", Some(Cow::Owned("invalid".to_string()))),
+            ("invalid", None),
             ("invalid/invalid", None),
-            ("seconds", Some(Cow::Owned("seconds".to_string()))),
+            ("seconds", None),
             ("", None),
+            // annotations
+            ("{request}", None),
         ];
         for (unit_str, expected_suffix) in test_cases {
             let unit = Unit::new(unit_str);

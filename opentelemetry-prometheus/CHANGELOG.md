@@ -2,8 +2,15 @@
 
 ## vNext
 
+### Fixed
+
+- Fix UCUM annotation escaping by ignoring unknown instrument units and annotations (#1348)
+
+## v0.14.0
+
 ### Changed
 
+- Bump MSRV to 1.65 [#1318](https://github.com/open-telemetry/opentelemetry-rust/pull/1318)
 - allow custom units in prometheus suffix [#1188](https://github.com/open-telemetry/opentelemetry-rust/pull/1188)
 - Bump MSRV to 1.64 [#1203](https://github.com/open-telemetry/opentelemetry-rust/pull/1203)
 

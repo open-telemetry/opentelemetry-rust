@@ -1,4 +1,4 @@
-use super::{BatchLogProcessor, BatchMessage, Config, LogProcessor, SimpleLogProcessor};
+use super::{BatchLogProcessor, Config, LogProcessor, SimpleLogProcessor};
 use crate::{
     export::logs::{LogData, LogExporter},
     runtime::RuntimeChannel,
@@ -140,7 +140,7 @@ impl Builder {
     }
 
     /// The `LogExporter` setup using a default `BatchLogProcessor` that this provider should use.
-    pub fn with_batch_exporter<T: LogExporter + 'static, R: RuntimeChannel<BatchMessage>>(
+    pub fn with_batch_exporter<T: LogExporter + 'static, R: RuntimeChannel>(
         self,
         exporter: T,
         runtime: R,
