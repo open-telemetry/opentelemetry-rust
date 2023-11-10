@@ -21,7 +21,7 @@ you're more than welcome to participate!
 
 ### Prerequisites
 
-Crate `opentelemetry-otlp` uses gRPC + Protocol Buffers.<br>
+Crate `opentelemetry-otlp` uses gRPC + Protocol Buffers.
 You can provide the protocol compiler protoc path programmatically (only works with tonic) or build it from source
 
 ```sh
@@ -40,13 +40,13 @@ Everyone is welcome to contribute code to `opentelemetry-rust` via
 GitHub pull requests (PRs).
 
 ```sh
-$ git clone --recurse-submodule https://github.com/open-telemetry/opentelemetry-rust
+git clone --recurse-submodule https://github.com/open-telemetry/opentelemetry-rust
 ```
 
 Enter the newly created directory and add your fork as a new remote:
 
 ```sh
-$ git remote add <YOUR_FORK> git@github.com:<YOUR_GITHUB_USERNAME>/opentelemetry-rust
+git remote add <YOUR_FORK> git@github.com:<YOUR_GITHUB_USERNAME>/opentelemetry-rust
 ```
 
 Check out a new branch, make modifications, run linters and tests, and
@@ -70,25 +70,25 @@ the repo to catch any issues locally.
 
 ### How to Receive Comments
 
-* If the PR is not ready for review, please put `[WIP]` in the title or mark it
+- If the PR is not ready for review, please put `[WIP]` in the title or mark it
   as [`draft`](https://github.blog/2019-02-14-introducing-draft-pull-requests/).
-* Make sure CLA is signed and all required CI checks are clear.
-* Submit small, focused PRs addressing a single concern/issue.
-* Make sure the PR title reflects the contribution.
-* Write a summary that helps understand the change.
-* Include usage examples in the summary, where applicable.
-* Include benchmarks (before/after) in the summary, for contributions that are
+- Make sure CLA is signed and all required CI checks are clear.
+- Submit small, focused PRs addressing a single concern/issue.
+- Make sure the PR title reflects the contribution.
+- Write a summary that helps understand the change.
+- Include usage examples in the summary, where applicable.
+- Include benchmarks (before/after) in the summary, for contributions that are
   performance enhancements.
 
 ### How to Get PRs Merged
 
 A PR is considered to be **ready to merge** when:
 
-* It has received approval from
+- It has received approval from
   [Approvers](https://github.com/open-telemetry/community/blob/main/community-membership.md#approver).
   /
   [Maintainers](https://github.com/open-telemetry/community/blob/main/community-membership.md#maintainer).
-* Major feedbacks are resolved.
+- Major feedbacks are resolved.
 
 Any Maintainer can merge the PR once it is **ready to merge**. Note, that some
 PRs may not be merged immediately if the repo is in the process of a release and
@@ -124,7 +124,7 @@ For a deeper discussion, see:
 
 ### Error Handling
 
-Currently, the Opentelemetry Rust SDK has two ways to handle errors. In the situation where errors are not allowed to return. One should call global error handler to process the errors. Otherwise, one should return the errors. 
+Currently, the Opentelemetry Rust SDK has two ways to handle errors. In the situation where errors are not allowed to return. One should call global error handler to process the errors. Otherwise, one should return the errors.
 
 The Opentelemetry Rust SDK comes with an error type `openetelemetry::Error`. For different function, one error has been defined. All error returned by trace module MUST be wrapped in `opentelemetry::trace::TraceError`. All errors returned by metrics module MUST be wrapped in `opentelemetry::metrics::MetricsError`.
 
@@ -139,17 +139,17 @@ OpenTelemetry supports multiple ways to configure the API, SDK and other compone
 
 ## Style Guide
 
-* Run `cargo clippy --all` - this will catch common mistakes and improve
+- Run `cargo clippy --all` - this will catch common mistakes and improve
 your Rust code
-* Run `cargo fmt` - this will find and fix code formatting
+- Run `cargo fmt` - this will find and fix code formatting
 issues.
 
 ## Testing and Benchmarking
 
-* Run `cargo test --all` - this will execute code and doc tests for all
+- Run `cargo test --all` - this will execute code and doc tests for all
 projects in this workspace.
-* Run `cargo bench` - this will run benchmarks to show performance
-* Run `cargo bench` - this will run benchmarks to show performance
+- Run `cargo bench` - this will run benchmarks to show performance
+- Run `cargo bench` - this will run benchmarks to show performance
 regressions
 
 ## Approvers and Maintainers
@@ -170,9 +170,9 @@ For GitHub groups see the [code owners](CODEOWNERS) file.
 
 ### Emeritus
 
-* [Dirkjan Ochtman](https://github.com/djc)
-* [Jan Kühle](https://github.com/frigus02)
-* [Isobel Redelmeier](https://github.com/iredelmeier)
+- [Dirkjan Ochtman](https://github.com/djc)
+- [Jan Kühle](https://github.com/frigus02)
+- [Isobel Redelmeier](https://github.com/iredelmeier)
 
 ### Become an Approver or a Maintainer
 
