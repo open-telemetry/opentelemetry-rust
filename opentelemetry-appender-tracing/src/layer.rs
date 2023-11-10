@@ -8,16 +8,16 @@ use tracing_log::NormalizeEvent;
 use tracing_subscriber::Layer;
 
 const INSTRUMENTATION_LIBRARY_NAME: &str = "opentelemetry-appender-tracing";
-const METADATA_ATTRIBUTES: &'static [&'static str] = &[
-    "log.name",
-    "log.target",
-    "log.module.path",
-    "log.file.path",
-    "log.file.name",
-    "log.file.name",
-    "log.module_path",
-    "log.file",
-    "log.line",
+// Start by "log."
+const LOG_METADATA_ATTRIBUTES: &'static [&'static str] = &[
+    "name",
+    "target",
+    "module.path",
+    "file.path",
+    "file.name",
+    "module_path",
+    "file",
+    "line",
 ];
 
 /// Visitor to record the fields from the event record.
@@ -28,9 +28,11 @@ struct EventVisitor {
 }
 
 fn is_metadata(field: &str) -> bool {
-    for metadata_field in METADATA_ATTRIBUTES {
-        if *metadata_field == field {
-            return true;
+    if let Some(log_field) = field.strip_prefix("log.") {
+        for log_metadata_field in LOG_METADATA_ATTRIBUTES {
+            if *log_metadata_field == log_field {
+                return true;
+            }
         }
     }
     false
