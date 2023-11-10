@@ -15,6 +15,7 @@ const LOG_METADATA_ATTRIBUTES: &'static [&'static str] = &[
     "module.path",
     "file.path",
     "file.name",
+    "file.line",
     "module_path",
     "file",
     "line",
