@@ -29,7 +29,7 @@ must remain backwards compatible. Internal types are allowed to break.
   * New signals will be stabilized via a **minor version bump**, and are not
     allowed to break existing stable interfaces.
 
-* GitHub releases will be made for all released versions.
+* [GitHub releases](https://github.com/open-telemetry/opentelemetry-rust/releases) will be made for all released versions.
 * Crates will be released on crates.io
 
 ## Example Versioning Lifecycle
