@@ -55,9 +55,8 @@ impl SimpleLogProcessor {
 
 impl LogProcessor for SimpleLogProcessor {
     fn emit(&self, data: LogData) {
-        if let Err(err) =
-            futures_executor::block_on(self.exporter.lock().unwrap().export(vec![data]))
-        {
+        let result = self.exporter.lock().map_err(|_| LogError::Other("simple logprocessor mutex poison".into())).and_then(| mut exporter | futures_executor::block_on(exporter.export(vec![data])));
+        if let Err(err) = result {
             global::handle_error(err);
         }
     }
@@ -78,7 +77,7 @@ impl LogProcessor for SimpleLogProcessor {
 }
 
 /// A [`LogProcessor`] that asynchronously buffers log records and reports
-/// them at a preconfigured interval.
+/// them at a pre-configured interval.
 pub struct BatchLogProcessor<R: RuntimeChannel> {
     message_sender: R::Sender<BatchMessage>,
 }

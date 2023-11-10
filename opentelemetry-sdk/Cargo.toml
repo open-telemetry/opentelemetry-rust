@@ -40,10 +40,6 @@ indexmap = "2.0"
 criterion = { version = "0.5", features = ["html_reports"] }
 [target.'cfg(not(target_os = "windows"))'.dev-dependencies]
 pprof = { version = "0.13", features = ["flamegraph", "criterion"] }
-opentelemetry-appender-tracing = { path = "../opentelemetry-appender-tracing"}
-tracing = {version = "0.1.37", default-features = false, features = ["std"]}
-tracing-core = "0.1.31"
-tracing-subscriber = { version = "0.3.0", default-features = false, features = ["registry", "std"] }
 
 [features]
 default = ["trace"]

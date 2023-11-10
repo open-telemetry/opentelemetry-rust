@@ -12,14 +12,10 @@ pub use log_processor::{
 
 #[cfg(all(test, feature = "testing"))]
 mod tests {
-    // use std::thread::sleep;
-
     use super::*;
     use crate::testing::logs::InMemoryLogsExporter;
+    use opentelemetry::logs::{LogRecord, Logger, LoggerProvider as _, Severity};
     use opentelemetry::{logs::AnyValue, Key};
-    use opentelemetry_appender_tracing::layer;
-    use tracing::error;
-    use tracing_subscriber::prelude::*;
 
     #[test]
     fn logging_sdk_test() {
@@ -30,14 +26,18 @@ mod tests {
             .build();
 
         // Act
-        let layer = layer::OpenTelemetryTracingBridge::new(&logger_provider);
-        tracing_subscriber::registry().with(layer).init();
-        error!(target: "my-system", event_id = 20, event_name = "my-event_name");
+        let logger = logger_provider.logger("test-logger");
+        let mut log_record: LogRecord = LogRecord::default();
+        log_record.severity_number = Some(Severity::Error);
+        log_record.severity_text = Some("Error".into());
+        let attributes = vec![
+            (Key::new("key1"), "value1".into()),
+            (Key::new("key2"), "value2".into()),
+        ];
+        log_record.attributes = Some(attributes);
+        logger.emit(log_record);
 
         logger_provider.force_flush();
-        // TODO: To remove this comment.
-        // The test will fail without the sleep prior to the flush fix.
-        // sleep(std::time::Duration::from_millis(10));
 
         // Assert
         let exported_logs = exporter
@@ -47,6 +47,8 @@ mod tests {
         let log = exported_logs
             .get(0)
             .expect("Atleast one log is expected to be present.");
+        assert_eq!(log.instrumentation.name, "test-logger");
+        assert_eq!(log.record.severity_number, Some(Severity::Error));
         let attributes: Vec<(Key, AnyValue)> = log
             .record
             .attributes
