@@ -55,7 +55,11 @@ impl SimpleLogProcessor {
 
 impl LogProcessor for SimpleLogProcessor {
     fn emit(&self, data: LogData) {
-        let result = self.exporter.lock().map_err(|_| LogError::Other("simple logprocessor mutex poison".into())).and_then(| mut exporter | futures_executor::block_on(exporter.export(vec![data])));
+        let result = self
+            .exporter
+            .lock()
+            .map_err(|_| LogError::Other("simple logprocessor mutex poison".into()))
+            .and_then(|mut exporter| futures_executor::block_on(exporter.export(vec![data])));
         if let Err(err) = result {
             global::handle_error(err);
         }
