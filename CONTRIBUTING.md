@@ -158,15 +158,15 @@ For GitHub groups see the [code owners](CODEOWNERS) file.
 
 ### Maintainers
 
-- [Harold Dost](https://github.com/hdost)
-- [Julian Tescher](https://github.com/jtescher)
-- [Zhongyang Wu](https://github.com/TommyCpp)
+* [Cijo Thomas](https://github.com/cijothomas)
+* [Harold Dost](https://github.com/hdost)
+* [Julian Tescher](https://github.com/jtescher)
+* [Zhongyang Wu](https://github.com/TommyCpp)
 
 ### Approvers
 
-- [Cijo Thomas](https://github.com/cijothomas)
-- [Lalit Kumar Bhasin](https://github.com/lalitb)
-- [Shaun Cox](https://github.com/shaun-cox)
+* [Lalit Kumar Bhasin](https://github.com/lalitb)
+* [Shaun Cox](https://github.com/shaun-cox)
 
 ### Emeritus
 
