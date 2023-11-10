@@ -1,14 +1,15 @@
 use core::fmt;
 use std::{
     borrow::Cow,
+    collections::HashMap,
     sync::{
         atomic::{AtomicBool, Ordering},
-        Arc,
+        Arc, Mutex,
     },
 };
 
 use opentelemetry::{
-    metrics::{noop::NoopMeterCore, InstrumentProvider, Meter as ApiMeter, MetricsError, Result},
+    metrics::{noop::NoopMeterCore, Meter as ApiMeter, MetricsError, Result},
     KeyValue,
 };
 
@@ -26,6 +27,7 @@ use super::{meter::Meter as SdkMeter, pipeline::Pipelines, reader::MetricReader,
 #[derive(Clone, Debug)]
 pub struct MeterProvider {
     pipes: Arc<Pipelines>,
+    meters: Arc<Mutex<HashMap<Scope, Arc<SdkMeter>>>>,
     is_shutdown: Arc<AtomicBool>,
 }
 
@@ -121,15 +123,23 @@ impl opentelemetry::metrics::MeterProvider for MeterProvider {
         schema_url: Option<impl Into<Cow<'static, str>>>,
         attributes: Option<Vec<KeyValue>>,
     ) -> ApiMeter {
-        let inst_provider: Arc<dyn InstrumentProvider + Send + Sync> =
-            if !self.is_shutdown.load(Ordering::Relaxed) {
-                let scope = Scope::new(name, version, schema_url, attributes);
-                Arc::new(SdkMeter::new(scope, self.pipes.clone()))
-            } else {
-                Arc::new(NoopMeterCore::new())
-            };
+        if self.is_shutdown.load(Ordering::Relaxed) {
+            return ApiMeter::new(Arc::new(NoopMeterCore::new()));
+        }
 
-        ApiMeter::new(inst_provider)
+        let scope = Scope::new(name, version, schema_url, attributes);
+
+        if let Ok(mut meters) = self.meters.lock() {
+            let meter = meters
+                .entry(scope)
+                .or_insert_with_key(|scope| {
+                    Arc::new(SdkMeter::new(scope.clone(), self.pipes.clone()))
+                })
+                .clone();
+            ApiMeter::new(meter)
+        } else {
+            ApiMeter::new(Arc::new(NoopMeterCore::new()))
+        }
     }
 }
 
@@ -184,6 +194,7 @@ impl MeterProviderBuilder {
                 self.readers,
                 self.views,
             )),
+            meters: Default::default(),
             is_shutdown: Arc::new(AtomicBool::new(false)),
         }
     }
