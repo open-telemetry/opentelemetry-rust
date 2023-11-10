@@ -24,4 +24,3 @@ opentelemetry = { version = "0.21", default-features = false, path = "../opentel
 
 [dev-dependencies]
 opentelemetry_sdk = { features = ["trace"], path = "../opentelemetry-sdk" }
-tracing = { version = "0.1.40", default-features = false }

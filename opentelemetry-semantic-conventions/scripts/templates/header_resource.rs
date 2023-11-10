@@ -6,22 +6,6 @@
 //! [resource semantic conventions]: https://github.com/open-telemetry/semantic-conventions/tree/main/model/resource
 //!
 //! ## Usage
-//!
-//! [`tracing`]:
-//! 
-//! ```
-//! use opentelemetry_semantic_conventions as semconv;
-//! use tracing::span;
-//!
-//! let span = span!(
-//!     LEVEL::INFO,
-//!     "handle_request",
-//!     { semconv::resource::SERVICE_NAME = "my-service" },
-//!     { semconv::resource::SERVICE_NAMESPACE = "my-namespace" }
-//! );
-//! ```
-//! 
-//! OpenTelemetry SDK:
 //! 
 //! ```
 //! use opentelemetry::KeyValue;

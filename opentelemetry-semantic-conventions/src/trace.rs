@@ -13,22 +13,6 @@
 //!
 //! ## Usage
 //!
-//! [`tracing`]:
-//!
-//! ```
-//! use opentelemetry_semantic_conventions as semconv;
-//! use tracing::span;
-//!
-//! let span = span!(
-//!     LEVEL::INFO,
-//!     "handle_request",
-//!     { semconv::trace::NET_PEER_NAME = "example.org" },
-//!     { semconv::trace::NET_PEER_PORT = 80 }
-//! );
-//! ```
-//!
-//! OpenTelemetry SDK:
-//!
 //! ```
 //! use opentelemetry::KeyValue;
 //! use opentelemetry::{global, trace::Tracer as _};

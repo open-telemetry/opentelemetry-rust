@@ -13,22 +13,6 @@
 //!
 //! ## Usage
 //!
-//! [`tracing`]:
-//!
-//! ```
-//! use opentelemetry_semantic_conventions as semconv;
-//! use tracing::span;
-//!
-//! let span = span!(
-//!     LEVEL::INFO,
-//!     "handle_request",
-//!     { semconv::resource::SERVICE_NAME = "my-service" },
-//!     { semconv::resource::SERVICE_NAMESPACE = "my-namespace" }
-//! );
-//! ```
-//!
-//! OpenTelemetry SDK:
-//!
 //! ```
 //! use opentelemetry::KeyValue;
 //! use opentelemetry_sdk::{trace::{config, TracerProvider}, Resource};
