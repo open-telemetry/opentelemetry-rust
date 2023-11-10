@@ -6,7 +6,7 @@
 //! [trace semantic conventions]: https://github.com/open-telemetry/semantic-conventions/tree/main/model/trace
 //!
 //! ## Usage
-//! 
+//!
 //! ```
 //! use opentelemetry::KeyValue;
 //! use opentelemetry::{global, trace::Tracer as _};

@@ -6,7 +6,7 @@
 //! [resource semantic conventions]: https://github.com/open-telemetry/semantic-conventions/tree/main/model/resource
 //!
 //! ## Usage
-//! 
+//!
 //! ```
 //! use opentelemetry::KeyValue;
 //! use opentelemetry_sdk::{trace::{config, TracerProvider}, Resource};
