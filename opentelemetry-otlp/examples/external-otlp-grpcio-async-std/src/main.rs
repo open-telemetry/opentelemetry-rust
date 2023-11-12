@@ -11,7 +11,7 @@ use opentelemetry::{
     global::{shutdown_tracer_provider, tracer},
     trace::TraceError,
     trace::{TraceContextExt, Tracer},
-    Key,
+    Key, KeyValue,
 };
 use opentelemetry_otlp::WithExportConfig;
 use std::{
@@ -85,11 +85,11 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
             "Nice operation!".to_string(),
             vec![Key::new("bogons").i64(100)],
         );
-        span.set_attribute(ANOTHER_KEY.string("yes"));
+        span.set_attribute(KeyValue::new(ANOTHER_KEY, "yes"));
 
         tracer.in_span("Sub operation...", |cx| {
             let span = cx.span();
-            span.set_attribute(LEMONS_KEY.string("five"));
+            span.set_attribute(KeyValue::new(LEMONS_KEY, "five"));
 
             span.add_event("Sub span event", vec![]);
         });

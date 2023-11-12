@@ -327,9 +327,9 @@ fn prometheus_exporter_integration() {
             .merge(&mut Resource::new(
                 vec![
                     // always specify service.name because the default depends on the running OS
-                    SERVICE_NAME.string("prometheus_test"),
+                    KeyValue::new(SERVICE_NAME, "prometheus_test"),
                     // Overwrite the semconv.TelemetrySDKVersionKey value so we don't need to update every version
-                    TELEMETRY_SDK_VERSION.string("latest"),
+                    KeyValue::new(TELEMETRY_SDK_VERSION, "latest"),
                 ]
                 .into_iter()
                 .chain(tc.custom_resource_attrs.into_iter()),
@@ -390,9 +390,9 @@ fn multiple_scopes() {
     )
     .merge(&mut Resource::new(vec![
         // always specify service.name because the default depends on the running OS
-        SERVICE_NAME.string("prometheus_test"),
+        KeyValue::new(SERVICE_NAME, "prometheus_test"),
         // Overwrite the semconv.TelemetrySDKVersionKey value so we don't need to update every version
-        TELEMETRY_SDK_VERSION.string("latest"),
+        KeyValue::new(TELEMETRY_SDK_VERSION, "latest"),
     ]));
 
     let provider = SdkMeterProvider::builder()
@@ -722,9 +722,9 @@ fn duplicate_metrics() {
         .merge(&mut Resource::new(
             vec![
                 // always specify service.name because the default depends on the running OS
-                SERVICE_NAME.string("prometheus_test"),
+                KeyValue::new(SERVICE_NAME, "prometheus_test"),
                 // Overwrite the semconv.TelemetrySDKVersionKey value so we don't need to update every version
-                TELEMETRY_SDK_VERSION.string("latest"),
+                KeyValue::new(TELEMETRY_SDK_VERSION, "latest"),
             ]
             .into_iter()
             .chain(tc.custom_resource_attrs.into_iter()),

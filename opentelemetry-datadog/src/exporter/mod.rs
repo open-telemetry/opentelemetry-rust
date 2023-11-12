@@ -212,7 +212,7 @@ impl DatadogPipelineBuilder {
                 cfg.resource = Cow::Owned(Resource::new(
                     cfg.resource
                         .iter()
-                        .filter(|(k, _v)| **k != semcov::resource::SERVICE_NAME)
+                        .filter(|(k, _v)| k.as_str() != semcov::resource::SERVICE_NAME)
                         .map(|(k, v)| KeyValue::new(k.clone(), v.clone())),
                 ));
                 cfg
@@ -226,7 +226,7 @@ impl DatadogPipelineBuilder {
         } else {
             let service_name = SdkProvidedResourceDetector
                 .detect(Duration::from_secs(0))
-                .get(semcov::resource::SERVICE_NAME)
+                .get(semcov::resource::SERVICE_NAME.into())
                 .unwrap()
                 .to_string();
             (

@@ -37,10 +37,7 @@ use opentelemetry_sdk::{
     },
     Resource,
 };
-use opentelemetry_semantic_conventions::resource::SERVICE_NAME;
-use opentelemetry_semantic_conventions::trace::{
-    HTTP_METHOD, HTTP_ROUTE, HTTP_STATUS_CODE, HTTP_TARGET, HTTP_URL,
-};
+use opentelemetry_semantic_conventions as semconv;
 use thiserror::Error;
 #[cfg(any(feature = "yup-authorizer", feature = "gcp_auth"))]
 use tonic::metadata::MetadataValue;
@@ -54,8 +51,11 @@ use yup_oauth2::authenticator::Authenticator;
 #[allow(clippy::derive_partial_eq_without_eq)] // tonic doesn't derive Eq for generated types
 pub mod proto;
 
-const HTTP_HOST: Key = Key::from_static_str("http.host");
-const HTTP_USER_AGENT: Key = Key::from_static_str("http.user_agent");
+const HTTP_HOST: &str = "http.host";
+const HTTP_PATH: &str = "http.path";
+const HTTP_USER_AGENT: &str = "http.user_agent";
+
+const GCP_HTTP_PATH: &str = "/http/path";
 
 use proto::devtools::cloudtrace::v2::span::time_event::Annotation;
 use proto::devtools::cloudtrace::v2::span::{
@@ -738,14 +738,14 @@ impl From<(Vec<KeyValue>, &Resource)> for Attributes {
                     return None;
                 }
 
-                if k == SERVICE_NAME {
+                if k.as_str() == semconv::resource::SERVICE_NAME {
                     return Some((GCP_SERVICE_NAME.to_owned(), v.into()));
-                } else if key == HTTP_PATH_ATTRIBUTE {
+                } else if key == HTTP_PATH {
                     return Some((GCP_HTTP_PATH.to_owned(), v.into()));
                 }
 
                 for (otel_key, gcp_key) in KEY_MAP {
-                    if otel_key == &k {
+                    if otel_key == k.as_str() {
                         return Some((gcp_key.to_owned(), v.into()));
                     }
                 }
@@ -783,14 +783,15 @@ fn transform_links(links: &opentelemetry_sdk::trace::SpanLinks) -> Option<Links>
 }
 
 // Map conventional OpenTelemetry keys to their GCP counterparts.
-const KEY_MAP: [(&Key, &str); 7] = [
-    (&HTTP_HOST, "/http/host"),
-    (&HTTP_METHOD, "/http/method"),
-    (&HTTP_TARGET, "/http/path"),
-    (&HTTP_URL, "/http/url"),
-    (&HTTP_USER_AGENT, "/http/user_agent"),
-    (&HTTP_STATUS_CODE, "/http/status_code"),
-    (&HTTP_ROUTE, "/http/route"),
+const KEY_MAP: [(&str, &str); 8] = [
+    (HTTP_HOST, "/http/host"),
+    (semconv::trace::HTTP_METHOD, "/http/method"),
+    (semconv::trace::HTTP_TARGET, "/http/path"),
+    (semconv::trace::HTTP_URL, "/http/url"),
+    (HTTP_USER_AGENT, "/http/user_agent"),
+    (semconv::trace::HTTP_STATUS_CODE, "/http/status_code"),
+    (semconv::trace::HTTP_ROUTE, "/http/route"),
+    (HTTP_PATH, GCP_HTTP_PATH),
 ];
 
 impl From<opentelemetry::trace::SpanKind> for SpanKind {
@@ -822,8 +823,6 @@ fn status(value: opentelemetry::trace::Status) -> Option<Status> {
 }
 const TRACE_APPEND: &str = "https://www.googleapis.com/auth/trace.append";
 const LOGGING_WRITE: &str = "https://www.googleapis.com/auth/logging.write";
-const HTTP_PATH_ATTRIBUTE: &str = "http.path";
-const GCP_HTTP_PATH: &str = "/http/path";
 const GCP_SERVICE_NAME: &str = "g.co/gae/app/module";
 const MAX_ATTRIBUTES_PER_SPAN: usize = 32;
 
@@ -839,33 +838,40 @@ mod tests {
         let mut attributes = Vec::with_capacity(capacity);
 
         //	hostAttribute       = "http.host"
-        attributes.push(HTTP_HOST.string("example.com:8080"));
+        attributes.push(KeyValue::new(HTTP_HOST, "example.com:8080"));
 
         // 	methodAttribute     = "http.method"
-        attributes.push(semcov::trace::HTTP_METHOD.string("POST"));
+        attributes.push(KeyValue::new(semcov::trace::HTTP_METHOD, "POST"));
 
         // 	pathAttribute       = "http.path"
-        attributes.push(KeyValue::new(
-            "http.path",
-            Value::String("/path/12314/?q=ddds#123".into()),
-        ));
+        attributes.push(KeyValue::new(HTTP_PATH, "/path/12314/?q=ddds#123"));
 
         // 	urlAttribute        = "http.url"
-        attributes.push(
-            semcov::trace::HTTP_URL.string("https://example.com:8080/webshop/articles/4?s=1"),
-        );
+        attributes.push(KeyValue::new(
+            semcov::trace::HTTP_URL,
+            "https://example.com:8080/webshop/articles/4?s=1",
+        ));
 
         // 	userAgentAttribute  = "http.user_agent"
-        attributes.push(HTTP_USER_AGENT.string("CERN-LineMode/2.15 libwww/2.17b3"));
+        attributes.push(KeyValue::new(
+            HTTP_USER_AGENT,
+            "CERN-LineMode/2.15 libwww/2.17b3",
+        ));
 
         // 	statusCodeAttribute = "http.status_code"
-        attributes.push(semcov::trace::HTTP_STATUS_CODE.i64(200));
+        attributes.push(KeyValue::new(semcov::trace::HTTP_STATUS_CODE, 200i64));
 
         // 	statusCodeAttribute = "http.route"
-        attributes.push(semcov::trace::HTTP_ROUTE.string("/webshop/articles/:article_id"));
+        attributes.push(KeyValue::new(
+            semcov::trace::HTTP_ROUTE,
+            "/webshop/articles/:article_id",
+        ));
 
         // 	serviceAttribute    = "service.name"
-        let resources = Resource::new([semcov::resource::SERVICE_NAME.string("Test Service Name")]);
+        let resources = Resource::new([KeyValue::new(
+            semcov::resource::SERVICE_NAME,
+            "Test Service Name",
+        )]);
 
         let actual: Attributes = (attributes, &resources).into();
 
@@ -919,7 +925,10 @@ mod tests {
 
     #[test]
     fn test_too_many() {
-        let resources = Resource::new([semcov::resource::SERVICE_NAME.string("Test Service Name")]);
+        let resources = Resource::new([KeyValue::new(
+            semcov::resource::SERVICE_NAME,
+            "Test Service Name",
+        )]);
         let mut attributes = Vec::with_capacity(32);
         for i in 0..32 {
             attributes.push(KeyValue::new(
@@ -942,7 +951,10 @@ mod tests {
 
     #[test]
     fn test_attributes_mapping_http_target() {
-        let attributes = vec![semcov::trace::HTTP_TARGET.string("/path/12314/?q=ddds#123")];
+        let attributes = vec![KeyValue::new(
+            semcov::trace::HTTP_TARGET,
+            "/path/12314/?q=ddds#123",
+        )];
 
         //	hostAttribute       = "http.target"
 

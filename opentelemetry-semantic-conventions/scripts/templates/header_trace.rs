@@ -8,15 +8,16 @@
 //! ## Usage
 //!
 //! ```
+//! use opentelemetry::KeyValue;
 //! use opentelemetry::{global, trace::Tracer as _};
-//! use opentelemetry_semantic_conventions as semcov;
+//! use opentelemetry_semantic_conventions as semconv;
 //!
 //! let tracer = global::tracer("my-component");
 //! let _span = tracer
 //!     .span_builder("span-name")
 //!     .with_attributes(vec![
-//!         semcov::trace::NET_PEER_NAME.string("example.org"),
-//!         semcov::trace::NET_PEER_PORT.i64(80),
+//!         KeyValue::new(semconv::trace::NET_PEER_NAME, "example.org"),
+//!         KeyValue::new(semconv::trace::NET_PEER_PORT, 80i64),
 //!     ])
 //!     .start(&tracer);
 //! ```
