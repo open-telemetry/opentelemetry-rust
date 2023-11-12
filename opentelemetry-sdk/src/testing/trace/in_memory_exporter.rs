@@ -10,7 +10,7 @@ use std::sync::{Arc, Mutex};
 /// using the `get_finished_spans` method.
 /// # Example
 /// ```
-///# use opentelemetry::trace::{SpanKind, TraceContextExt};
+///# use opentelemetry::trace::{SpanKind, SpanBuilder, TraceContextExt};
 ///# use opentelemetry::{global, trace::Tracer, Context};
 ///# use opentelemetry_sdk::propagation::TraceContextPropagator;
 ///# use opentelemetry_sdk::runtime;
@@ -27,8 +27,7 @@ use std::sync::{Arc, Mutex};
 ///     global::set_tracer_provider(provider.clone());
 ///
 ///     let tracer = global::tracer("example/in_memory_exporter");
-///     let span = tracer
-///         .span_builder("say hello")
+///     let span = SpanBuilder::from_name("say hello")
 ///         .with_kind(SpanKind::Server)
 ///         .start(&tracer);
 ///

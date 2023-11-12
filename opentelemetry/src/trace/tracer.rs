@@ -155,17 +155,6 @@ pub trait Tracer {
         self.build_with_context(SpanBuilder::from_name(name), parent_cx)
     }
 
-    /// Creates a span builder.
-    ///
-    /// [`SpanBuilder`]s allow you to specify all attributes of a [`Span`] before
-    /// the span is started.
-    fn span_builder<T>(&self, name: T) -> SpanBuilder
-    where
-        T: Into<Cow<'static, str>>,
-    {
-        SpanBuilder::from_name(name)
-    }
-
     /// Start a [`Span`] from a [`SpanBuilder`].
     fn build(&self, builder: SpanBuilder) -> Self::Span {
         Context::map_current(|cx| self.build_with_context(builder, cx))
@@ -233,8 +222,7 @@ pub trait Tracer {
 /// });
 ///
 /// // Or used with builder pattern
-/// let _span = tracer
-///     .span_builder("example-span-name")
+/// let _span = SpanBuilder::from_name("example-span-name")
 ///     .with_kind(SpanKind::Server)
 ///     .start(&tracer);
 /// ```

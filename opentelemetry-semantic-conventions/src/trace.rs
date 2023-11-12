@@ -14,12 +14,11 @@
 //! ## Usage
 //!
 //! ```
-//! use opentelemetry::{global, trace::Tracer as _};
+//! use opentelemetry::{global, trace::Tracer as _, trace::SpanBuilder};
 //! use opentelemetry_semantic_conventions as semcov;
 //!
 //! let tracer = global::tracer("my-component");
-//! let _span = tracer
-//!     .span_builder("span-name")
+//! let _span = SpanBuilder::from_name("span-name")
 //!     .with_attributes(vec![
 //!         semcov::trace::NET_PEER_NAME.string("example.org"),
 //!         semcov::trace::NET_PEER_PORT.i64(80),

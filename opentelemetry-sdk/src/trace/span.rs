@@ -568,7 +568,7 @@ mod tests {
         let event2 = event1.clone();
 
         // add event when build
-        let span_builder = tracer.span_builder("test").with_events(vec![event1]);
+        let span_builder = SpanBuilder::from_name("test").with_events(vec![event1]);
         let mut span = tracer.build(span_builder);
 
         // add event after build
@@ -609,7 +609,7 @@ mod tests {
                 .push(KeyValue::new(format!("key {}", i), i.to_string()));
         }
 
-        let span_builder = tracer.span_builder("test").with_links(vec![link]);
+        let span_builder = SpanBuilder::from_name("test").with_links(vec![link]);
         let span = tracer.build(span_builder);
         let link_queue = span
             .data
@@ -643,7 +643,7 @@ mod tests {
             ))
         }
 
-        let span_builder = tracer.span_builder("test").with_links(links);
+        let span_builder = SpanBuilder::from_name("test").with_links(links);
         let span = tracer.build(span_builder);
         let link_queue = span
             .data
@@ -668,7 +668,7 @@ mod tests {
         }
 
         // add events via span builder
-        let span_builder = tracer.span_builder("test").with_events(events);
+        let span_builder = SpanBuilder::from_name("test").with_events(events);
         let mut span = tracer.build(span_builder);
 
         // add events using span api after building the span

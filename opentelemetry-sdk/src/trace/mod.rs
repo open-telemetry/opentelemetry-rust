@@ -49,8 +49,8 @@ mod tests {
     };
     use opentelemetry::{
         trace::{
-            Event, Link, Span, SpanBuilder, SpanContext, SpanId, TraceFlags, TraceId, Tracer,
-            TracerProvider as _,
+            Event, Link, Span, SpanBuilder, SpanContext, SpanId, SpanKind, TraceFlags, TraceId,
+            Tracer, TracerProvider as _,
         },
         KeyValue,
     };
@@ -102,6 +102,47 @@ mod tests {
         let span = &exported_spans[0];
         assert_eq!(span.name, "span_name");
         assert_eq!(span.instrumentation_lib.name, "test_tracer");
+    }
+
+    #[test]
+    fn tracer_span_builder() {
+        // Arrange
+        let exporter = InMemorySpanExporterBuilder::new().build();
+        let provider = TracerProvider::builder()
+            .with_span_processor(SimpleSpanProcessor::new(Box::new(exporter.clone())))
+            .build();
+
+        // Act
+        let tracer = provider.tracer("test_tracer");
+        let mut span_builder = SpanBuilder::from_name("span_name");
+        span_builder = span_builder
+            .with_attributes(vec![
+                KeyValue::new("attribute_at_span_start1", "value1"),
+                KeyValue::new("attribute_at_span_start2", "value2"),
+            ])
+            .with_kind(SpanKind::Client);
+
+        let mut span = span_builder.start(&tracer);
+        span.set_attribute(KeyValue::new("attribute_after_span_start1", "value3"));
+
+        drop(span);
+        provider.force_flush();
+
+        // Assert
+        let exported_spans = exporter
+            .get_finished_spans()
+            .expect("Spans are expected to be exported.");
+        assert_eq!(exported_spans.len(), 1);
+        let span = &exported_spans[0];
+        assert_eq!(span.name, "span_name");
+        assert_eq!(span.instrumentation_lib.name, "test_tracer");
+        assert_eq!(span.span_kind, SpanKind::Client);
+        assert!(span
+            .attributes
+            .contains(&KeyValue::new("attribute_at_span_start1", "value1")));
+        assert!(span
+            .attributes
+            .contains(&KeyValue::new("attribute_after_span_start1", "value3")));
     }
 
     #[test]
