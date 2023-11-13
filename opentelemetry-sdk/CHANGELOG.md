@@ -22,6 +22,8 @@
   `SpanData` now stores `events` as `SpanEvents` instead of `EvictedQueue` where
   `SpanEvents` is a struct with a `Vec` of events and `dropped_count`.
 
+## v0.21.1
+
 ### Fixed
 
 - Fix metric export corruption if gauges have not received a last value. (#1363)

@@ -2,6 +2,8 @@
 
 ## vNext
 
+## v0.14.1
+
 ### Fixed
 
 - Fix UCUM annotation escaping by ignoring unknown instrument units and annotations (#1348)

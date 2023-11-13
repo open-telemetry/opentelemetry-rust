@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry_sdk"
-version = "0.21.0"
+version = "0.21.1"
 description = "The SDK for the OpenTelemetry metrics collection and distributed tracing framework"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust"
 repository = "https://github.com/open-telemetry/opentelemetry-rust"
