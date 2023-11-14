@@ -373,7 +373,7 @@ fn bench_histogram(bound_count: usize) -> (SharedReader, Histogram<i64>) {
     }
     let mtr = builder.build().meter("test_meter");
     let hist = mtr
-        .i64_histogram(format!("histogram_{}", bound_count))
+        .u64_histogram(format!("histogram_{}", bound_count))
         .init();
 
     (r, hist)
@@ -414,7 +414,7 @@ fn benchmark_collect_histogram(b: &mut Bencher, n: usize) {
         .meter("sdk/metric/bench/histogram");
 
     for i in 0..n {
-        let h = mtr.i64_histogram(format!("fake_data_{i}")).init();
+        let h = mtr.u64_histogram(format!("fake_data_{i}")).init();
         h.record(1, &[]);
     }
 
