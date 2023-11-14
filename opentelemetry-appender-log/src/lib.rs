@@ -18,10 +18,9 @@ where
 {
     fn enabled(&self, _metadata: &Metadata) -> bool {
         #[cfg(feature = "logs_level_enabled")]
-        return self.logger.event_enabled(
-            map_severity_to_otel_severity(_metadata.level()),
-            _metadata.target(),
-        );
+        return self
+            .logger
+            .event_enabled(severity_of_level(_metadata.level()), _metadata.target());
         #[cfg(not(feature = "logs_level_enabled"))]
         true
     }
@@ -30,7 +29,7 @@ where
         if self.enabled(record.metadata()) {
             self.logger.emit(
                 LogRecordBuilder::new()
-                    .with_severity_number(map_severity_to_otel_severity(record.level()))
+                    .with_severity_number(severity_of_level(record.level()))
                     .with_severity_text(record.level().as_str())
                     // Not populating ObservedTimestamp, instead relying on OpenTelemetry
                     // API to populate it with current time.
@@ -61,7 +60,7 @@ where
     }
 }
 
-fn map_severity_to_otel_severity(level: Level) -> Severity {
+const fn severity_of_level(level: Level) -> Severity {
     match level {
         Level::Error => Severity::Error,
         Level::Warn => Severity::Warn,
