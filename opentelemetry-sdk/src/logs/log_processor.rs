@@ -13,7 +13,7 @@ use opentelemetry::{
     global,
     logs::{LogError, LogResult},
 };
-use std::thread;
+use std::sync::Mutex;
 use std::{
     fmt::{self, Debug, Formatter},
     time::Duration,
@@ -42,63 +42,42 @@ pub trait LogProcessor: Send + Sync + Debug {
 /// emitted. If you find this limiting, consider the batch processor instead.
 #[derive(Debug)]
 pub struct SimpleLogProcessor {
-    sender: crossbeam_channel::Sender<Option<LogData>>,
-    shutdown: crossbeam_channel::Receiver<()>,
+    exporter: Mutex<Box<dyn LogExporter>>,
 }
 
 impl SimpleLogProcessor {
-    pub(crate) fn new(mut exporter: Box<dyn LogExporter>) -> Self {
-        let (log_tx, log_rx) = crossbeam_channel::unbounded();
-        let (shutdown_tx, shutdown_rx) = crossbeam_channel::bounded(0);
-
-        let _ = thread::Builder::new()
-            .name("opentelemetry-log-exporter".to_string())
-            .spawn(move || {
-                while let Ok(Some(log)) = log_rx.recv() {
-                    if let Err(err) = futures_executor::block_on(exporter.export(vec![log])) {
-                        global::handle_error(err);
-                    }
-                }
-
-                exporter.shutdown();
-
-                if let Err(err) = shutdown_tx.send(()) {
-                    global::handle_error(LogError::from(format!(
-                        "could not send shutdown: {:?}",
-                        err
-                    )));
-                }
-            });
-
+    pub(crate) fn new(exporter: Box<dyn LogExporter>) -> Self {
         SimpleLogProcessor {
-            sender: log_tx,
-            shutdown: shutdown_rx,
+            exporter: Mutex::new(exporter),
         }
     }
 }
 
 impl LogProcessor for SimpleLogProcessor {
     fn emit(&self, data: LogData) {
-        if let Err(err) = self.sender.send(Some(data)) {
-            global::handle_error(LogError::from(format!("error processing log {:?}", err)));
+        let result = self
+            .exporter
+            .lock()
+            .map_err(|_| LogError::Other("simple logprocessor mutex poison".into()))
+            .and_then(|mut exporter| futures_executor::block_on(exporter.export(vec![data])));
+        if let Err(err) = result {
+            global::handle_error(err);
         }
     }
 
     fn force_flush(&self) -> LogResult<()> {
-        // Ignored since all logs in Simple Processor will be exported as they ended.
         Ok(())
     }
 
     fn shutdown(&mut self) -> LogResult<()> {
-        if self.sender.send(None).is_ok() {
-            if let Err(err) = self.shutdown.recv() {
-                global::handle_error(LogError::from(format!(
-                    "error shutting down log processor: {:?}",
-                    err
-                )))
-            }
+        if let Ok(mut exporter) = self.exporter.lock() {
+            exporter.shutdown();
+            Ok(())
+        } else {
+            Err(LogError::Other(
+                "simple logprocessor mutex poison during shutdown".into(),
+            ))
         }
-        Ok(())
     }
 
     #[cfg(feature = "logs_level_enabled")]
@@ -108,7 +87,7 @@ impl LogProcessor for SimpleLogProcessor {
 }
 
 /// A [`LogProcessor`] that asynchronously buffers log records and reports
-/// them at a preconfigured interval.
+/// them at a pre-configured interval.
 pub struct BatchLogProcessor<R: RuntimeChannel> {
     message_sender: R::Sender<BatchMessage>,
 }

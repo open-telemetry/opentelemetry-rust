@@ -2,7 +2,7 @@
 pub(super) mod aws;
 
 use opentelemetry::trace::{SpanId, TraceId};
-use rand::{rngs, Rng};
+use rand::{rngs, Rng, SeedableRng};
 use std::cell::RefCell;
 use std::fmt;
 
@@ -35,5 +35,5 @@ impl IdGenerator for RandomIdGenerator {
 
 thread_local! {
     /// Store random number generator for each thread
-    static CURRENT_RNG: RefCell<rngs::ThreadRng> = RefCell::new(rngs::ThreadRng::default());
+    static CURRENT_RNG: RefCell<rngs::SmallRng> = RefCell::new(rngs::SmallRng::from_entropy());
 }

@@ -183,11 +183,7 @@ pub use self::{
     tracer_provider::TracerProvider,
 };
 use crate::{ExportError, KeyValue};
-use std::collections::hash_map::RandomState;
 use std::sync::PoisonError;
-
-/// re-export OrderMap to mitigate breaking change
-pub type OrderMap<K, V, S = RandomState> = crate::order_map::OrderMap<K, V, S>;
 
 /// Describe the result of operations in tracing API.
 pub type TraceResult<T> = Result<T, TraceError>;

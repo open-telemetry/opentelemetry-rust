@@ -1,4 +1,5 @@
-name: Feature Request
+---
+name: "Feature Request"
 description: Request a feature for the OpenTelemetry Rust implementation.
 title: "[Feature]: "
 labels: ["enhancement", "triage:todo"]
@@ -24,7 +25,7 @@ body:
   - type: textarea
     id: solution
     attributes:
-      label: Describe the solution you'd like:
+      label: "Describe the solution you'd like:"
       description: What do you want to happen instead? What is the expected behavior?
       placeholder: I'd like the api to ...
     validations:

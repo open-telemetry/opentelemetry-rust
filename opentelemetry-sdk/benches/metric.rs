@@ -11,7 +11,7 @@ use opentelemetry_sdk::{
         data::{ResourceMetrics, Temporality},
         new_view,
         reader::{AggregationSelector, MetricReader, TemporalitySelector},
-        Aggregation, Instrument, InstrumentKind, ManualReader, MeterProvider, Pipeline, Stream,
+        Aggregation, Instrument, InstrumentKind, ManualReader, Pipeline, SdkMeterProvider, Stream,
         View,
     },
     Resource,
@@ -150,7 +150,7 @@ fn bench_counter(view: Option<Box<dyn View>>, temporality: &str) -> (SharedReade
                 .build(),
         ))
     };
-    let mut builder = MeterProvider::builder().with_reader(rdr.clone());
+    let mut builder = SdkMeterProvider::builder().with_reader(rdr.clone());
     if let Some(view) = view {
         builder = builder.with_view(view);
     }
@@ -367,7 +367,7 @@ fn bench_histogram(bound_count: usize) -> (SharedReader, Histogram<i64>) {
     );
 
     let r = SharedReader(Arc::new(ManualReader::default()));
-    let mut builder = MeterProvider::builder().with_reader(r.clone());
+    let mut builder = SdkMeterProvider::builder().with_reader(r.clone());
     if let Some(view) = view {
         builder = builder.with_view(view);
     }
@@ -408,7 +408,7 @@ fn histograms(c: &mut Criterion) {
 
 fn benchmark_collect_histogram(b: &mut Bencher, n: usize) {
     let r = SharedReader(Arc::new(ManualReader::default()));
-    let mtr = MeterProvider::builder()
+    let mtr = SdkMeterProvider::builder()
         .with_reader(r.clone())
         .build()
         .meter("sdk/metric/bench/histogram");

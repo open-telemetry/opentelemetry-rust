@@ -103,6 +103,11 @@ where
         log_record.severity_number = Some(map_severity_to_otel_severity(meta.level().as_str()));
         log_record.severity_text = Some(meta.level().to_string().into());
 
+        // add the `name` metadata to attributes
+        // TBD - Propose this to be part of log_record metadata.
+        let vec = vec![("name", meta.name())];
+        log_record.attributes = Some(vec.into_iter().map(|(k, v)| (k.into(), v.into())).collect());
+
         // Not populating ObservedTimestamp, instead relying on OpenTelemetry
         // API to populate it with current time.
 
