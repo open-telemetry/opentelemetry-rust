@@ -13,9 +13,10 @@ gains, and avoids `IndexMap` dependency. This affects `body` and `attributes` of
 
 ### Removed
 
-Removed `OrderMap` type as there was no requirement to use this over regular
+- Removed `OrderMap` type as there was no requirement to use this over regular
 `HashMap`.
 [#1353](https://github.com/open-telemetry/opentelemetry-rust/pull/1353)
+- Remove API for Creating Histograms with signed integers. [#1371](https://github.com/open-telemetry/opentelemetry-rust/pull/1371)
 
 ## [v0.21.0](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.20.0...v0.21.0)
 
