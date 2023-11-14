@@ -1,6 +1,5 @@
 use std::{
     cmp::Ordering,
-    collections::{BTreeSet, HashSet},
     hash::{Hash, Hasher},
 };
 
@@ -105,25 +104,12 @@ impl Eq for HashKeyValue {}
 /// This must implement [Hash], [PartialEq], and [Eq] so it may be used as
 /// HashMap keys and other de-duplication methods.
 #[derive(Clone, Default, Debug, Hash, PartialEq, Eq)]
-pub struct AttributeSet(BTreeSet<HashKeyValue>);
+pub struct AttributeSet(Vec<HashKeyValue>);
 
 impl From<&[KeyValue]> for AttributeSet {
     fn from(values: &[KeyValue]) -> Self {
-        let mut seen = HashSet::with_capacity(values.len());
-        AttributeSet(
-            values
-                .iter()
-                .rev()
-                .filter_map(|kv| {
-                    if seen.contains(&&kv.key) {
-                        None
-                    } else {
-                        seen.insert(&kv.key);
-                        Some(HashKeyValue(kv.clone()))
-                    }
-                })
-                .collect(),
-        )
+        let vec = values.iter().map(|k| HashKeyValue(k.clone())).collect::<Vec<_>>();
+        AttributeSet(vec)
     }
 }
 
