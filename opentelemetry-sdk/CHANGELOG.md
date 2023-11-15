@@ -19,12 +19,10 @@
   `SpanData` now stores `links` as `SpanLinks` instead of `EvictedQueue` where
   `SpanLinks` is a struct with a `Vec` of links and `dropped_count`.
 
-<<<<<<< HEAD
-- [#1375](https://github.com/open-telemetry/opentelemetry-rust/pull/1375) Fix metric collections during PeriodicReader shutdown
-
-=======
   `SpanData` now stores `events` as `SpanEvents` instead of `EvictedQueue` where
   `SpanEvents` is a struct with a `Vec` of events and `dropped_count`.
+
+- [#1375](https://github.com/open-telemetry/opentelemetry-rust/pull/1375/) Fix metric collections during PeriodicReader shutdown
 
 ## v0.21.1
 
@@ -32,7 +30,6 @@
 
 - Fix metric export corruption if gauges have not received a last value. (#1363)
 - Return consistent `Meter` for a given scope from `MeterProvider`. (#1351)
->>>>>>> d07a49d36e02cedb8020bad7fb1b5fc5c2d68e00
 
 ## v0.21.0
 
