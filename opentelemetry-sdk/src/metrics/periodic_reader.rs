@@ -388,7 +388,6 @@ impl MetricReader for PeriodicReader {
         // Acquire the lock again to set the shutdown flag
         let mut inner = self.inner.lock()?;
         inner.is_shutdown = true;
-        drop(inner);
 
         shutdown_result
     }
