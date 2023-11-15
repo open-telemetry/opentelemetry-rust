@@ -8,7 +8,7 @@ use opentelemetry::{
     metrics::{Counter, Histogram, MeterProvider as _, Unit},
     KeyValue,
 };
-use opentelemetry_sdk::metrics::MeterProvider;
+use opentelemetry_sdk::metrics::SdkMeterProvider;
 use prometheus::{Encoder, Registry, TextEncoder};
 use std::convert::Infallible;
 use std::sync::Arc;
@@ -71,7 +71,7 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let exporter = opentelemetry_prometheus::exporter()
         .with_registry(registry.clone())
         .build()?;
-    let provider = MeterProvider::builder().with_reader(exporter).build();
+    let provider = SdkMeterProvider::builder().with_reader(exporter).build();
 
     let meter = provider.meter("hyper-example");
     let state = Arc::new(AppState {

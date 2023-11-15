@@ -11,7 +11,7 @@ use crate::{
     trace::{
         provider::{TracerProvider, TracerProviderInner},
         span::{Span, SpanData},
-        Config, EvictedQueue, SpanLimits, SpanLinks,
+        Config, SpanLimits, SpanLinks,
     },
     InstrumentationLibrary,
 };
@@ -24,6 +24,8 @@ use opentelemetry::{
 };
 use std::fmt;
 use std::sync::{Arc, Weak};
+
+use super::SpanEvents;
 
 /// `Tracer` implementation to create and manage spans
 #[derive(Clone)]
@@ -237,8 +239,10 @@ impl opentelemetry::trace::Tracer for Tracer {
 
             let start_time = start_time.unwrap_or_else(opentelemetry::time::now);
             let end_time = end_time.unwrap_or(start_time);
-            let mut events_queue = EvictedQueue::new(span_limits.max_events_per_span);
-            if let Some(mut events) = events {
+            let spans_events_limit = span_limits.max_events_per_span as usize;
+            let span_events: SpanEvents = if let Some(mut events) = events {
+                let dropped_count = events.len().saturating_sub(spans_events_limit);
+                events.truncate(spans_events_limit);
                 let event_attributes_limit = span_limits.max_attributes_per_event as usize;
                 for event in events.iter_mut() {
                     let dropped_attributes_count = event
@@ -248,8 +252,13 @@ impl opentelemetry::trace::Tracer for Tracer {
                     event.attributes.truncate(event_attributes_limit);
                     event.dropped_attributes_count = dropped_attributes_count as u32;
                 }
-                events_queue.append_vec(&mut events);
-            }
+                SpanEvents {
+                    events,
+                    dropped_count: dropped_count as u32,
+                }
+            } else {
+                SpanEvents::default()
+            };
 
             let span_context = SpanContext::new(trace_id, span_id, flags, false, trace_state);
             Span::new(
@@ -262,7 +271,7 @@ impl opentelemetry::trace::Tracer for Tracer {
                     end_time,
                     attributes: attribute_options,
                     dropped_attributes_count,
-                    events: events_queue,
+                    events: span_events,
                     links: span_links,
                     status,
                 }),

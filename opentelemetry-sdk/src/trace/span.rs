@@ -11,7 +11,7 @@
 use crate::trace::SpanLimits;
 use crate::Resource;
 use opentelemetry::trace::{Event, SpanContext, SpanId, SpanKind, Status};
-use opentelemetry::{trace, KeyValue};
+use opentelemetry::KeyValue;
 use std::borrow::Cow;
 use std::time::SystemTime;
 
@@ -42,7 +42,7 @@ pub(crate) struct SpanData {
     /// dropped.
     pub(crate) dropped_attributes_count: u32,
     /// Span events
-    pub(crate) events: crate::trace::EvictedQueue<trace::Event>,
+    pub(crate) events: crate::trace::SpanEvents,
     /// Span Links
     pub(crate) links: crate::trace::SpanLinks,
     /// Span status
@@ -99,17 +99,23 @@ impl opentelemetry::trace::Span for Span {
     ) where
         T: Into<Cow<'static, str>>,
     {
+        let span_events_limit = self.span_limits.max_events_per_span as usize;
         let event_attributes_limit = self.span_limits.max_attributes_per_event as usize;
         self.with_data(|data| {
-            let dropped_attributes_count = attributes.len().saturating_sub(event_attributes_limit);
-            attributes.truncate(event_attributes_limit);
+            if data.events.len() < span_events_limit {
+                let dropped_attributes_count =
+                    attributes.len().saturating_sub(event_attributes_limit);
+                attributes.truncate(event_attributes_limit);
 
-            data.events.push_back(Event::new(
-                name,
-                timestamp,
-                attributes,
-                dropped_attributes_count as u32,
-            ))
+                data.events.add_event(Event::new(
+                    name,
+                    timestamp,
+                    attributes,
+                    dropped_attributes_count as u32,
+                ));
+            } else {
+                data.events.dropped_count += 1;
+            }
         });
     }
 
@@ -252,17 +258,16 @@ mod tests {
     use crate::testing::trace::NoopSpanExporter;
     use crate::trace::span_limit::{
         DEFAULT_MAX_ATTRIBUTES_PER_EVENT, DEFAULT_MAX_ATTRIBUTES_PER_LINK,
-        DEFAULT_MAX_ATTRIBUTES_PER_SPAN, DEFAULT_MAX_LINKS_PER_SPAN,
+        DEFAULT_MAX_ATTRIBUTES_PER_SPAN, DEFAULT_MAX_EVENT_PER_SPAN, DEFAULT_MAX_LINKS_PER_SPAN,
     };
-    use crate::trace::SpanLinks;
-    use opentelemetry::trace::{Link, SpanBuilder, TraceFlags, TraceId, Tracer};
+    use crate::trace::{SpanEvents, SpanLinks};
+    use opentelemetry::trace::{self, Link, SpanBuilder, TraceFlags, TraceId, Tracer};
     use opentelemetry::{trace::Span as _, trace::TracerProvider, KeyValue};
     use std::time::Duration;
     use std::vec;
 
     fn init() -> (crate::trace::Tracer, SpanData) {
         let provider = crate::trace::TracerProvider::default();
-        let config = provider.config();
         let tracer = provider.tracer("opentelemetry");
         let data = SpanData {
             parent_span_id: SpanId::from_u64(0),
@@ -272,7 +277,7 @@ mod tests {
             end_time: opentelemetry::time::now(),
             attributes: Vec::new(),
             dropped_attributes_count: 0,
-            events: crate::trace::EvictedQueue::new(config.span_limits.max_events_per_span),
+            events: SpanEvents::default(),
             links: SpanLinks::default(),
             status: Status::Unset,
         };
@@ -647,6 +652,35 @@ mod tests {
             .links;
         let link_vec: Vec<_> = link_queue.links;
         assert_eq!(link_vec.len(), DEFAULT_MAX_LINKS_PER_SPAN as usize);
+    }
+
+    #[test]
+    fn exceed_span_events_limit() {
+        let exporter = NoopSpanExporter::new();
+        let provider_builder =
+            crate::trace::TracerProvider::builder().with_simple_exporter(exporter);
+        let provider = provider_builder.build();
+        let tracer = provider.tracer("opentelemetry-test");
+
+        let mut events = Vec::new();
+        for _i in 0..(DEFAULT_MAX_EVENT_PER_SPAN * 2) {
+            events.push(Event::with_name("test event"))
+        }
+
+        // add events via span builder
+        let span_builder = tracer.span_builder("test").with_events(events);
+        let mut span = tracer.build(span_builder);
+
+        // add events using span api after building the span
+        span.add_event("test event again, after span builder", Vec::new());
+        span.add_event("test event once again, after span builder", Vec::new());
+        let span_events = span
+            .data
+            .clone()
+            .expect("span data should not be empty as we already set it before")
+            .events;
+        let event_vec: Vec<_> = span_events.events;
+        assert_eq!(event_vec.len(), DEFAULT_MAX_EVENT_PER_SPAN as usize);
     }
 
     #[test]
