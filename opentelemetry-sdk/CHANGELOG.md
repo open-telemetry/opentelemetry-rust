@@ -18,6 +18,9 @@
   `SpanData` now stores `links` as `SpanLinks` instead of `EvictedQueue` where
   `SpanLinks` is a struct with a `Vec` of links and `dropped_count`.
 
+- [#1375](https://github.com/open-telemetry/opentelemetry-rust/pull/1375) Fix metric collections during PeriodicReader shutdown
+
+
 ## v0.21.0
 
 ### Added
