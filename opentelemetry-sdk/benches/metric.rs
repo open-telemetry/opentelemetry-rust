@@ -349,7 +349,7 @@ fn counters(c: &mut Criterion) {
 
 const MAX_BOUND: usize = 100000;
 
-fn bench_histogram(bound_count: usize) -> (SharedReader, Histogram<i64>) {
+fn bench_histogram(bound_count: usize) -> (SharedReader, Histogram<u64>) {
     let mut bounds = vec![0; bound_count];
     #[allow(clippy::needless_range_loop)]
     for i in 0..bounds.len() {
