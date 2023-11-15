@@ -6,7 +6,7 @@ use opentelemetry::metrics::{Meter, MeterProvider as _, Unit};
 use opentelemetry::Key;
 use opentelemetry::KeyValue;
 use opentelemetry_prometheus::ExporterBuilder;
-use opentelemetry_sdk::metrics::{new_view, Aggregation, Instrument, MeterProvider, Stream};
+use opentelemetry_sdk::metrics::{new_view, Aggregation, Instrument, SdkMeterProvider, Stream};
 use opentelemetry_sdk::resource::{
     EnvResourceDetector, SdkProvidedResourceDetector, TelemetryResourceDetector,
 };
@@ -327,16 +327,16 @@ fn prometheus_exporter_integration() {
             .merge(&mut Resource::new(
                 vec![
                     // always specify service.name because the default depends on the running OS
-                    SERVICE_NAME.string("prometheus_test"),
+                    KeyValue::new(SERVICE_NAME, "prometheus_test"),
                     // Overwrite the semconv.TelemetrySDKVersionKey value so we don't need to update every version
-                    TELEMETRY_SDK_VERSION.string("latest"),
+                    KeyValue::new(TELEMETRY_SDK_VERSION, "latest"),
                 ]
                 .into_iter()
                 .chain(tc.custom_resource_attrs.into_iter()),
             ))
         };
 
-        let provider = MeterProvider::builder()
+        let provider = SdkMeterProvider::builder()
             .with_resource(res)
             .with_reader(exporter)
             .with_view(
@@ -390,12 +390,12 @@ fn multiple_scopes() {
     )
     .merge(&mut Resource::new(vec![
         // always specify service.name because the default depends on the running OS
-        SERVICE_NAME.string("prometheus_test"),
+        KeyValue::new(SERVICE_NAME, "prometheus_test"),
         // Overwrite the semconv.TelemetrySDKVersionKey value so we don't need to update every version
-        TELEMETRY_SDK_VERSION.string("latest"),
+        KeyValue::new(TELEMETRY_SDK_VERSION, "latest"),
     ]));
 
-    let provider = MeterProvider::builder()
+    let provider = SdkMeterProvider::builder()
         .with_reader(exporter)
         .with_resource(resource)
         .build();
@@ -492,7 +492,7 @@ fn duplicate_metrics() {
             name: "no_conflict_two_histograms",
             record_metrics: Box::new(|meter_a, meter_b| {
                 let foo_a = meter_a
-                    .i64_histogram("foo")
+                    .u64_histogram("foo")
                     .with_unit(Unit::new("By"))
                     .with_description("meter histogram foo")
                     .init();
@@ -500,7 +500,7 @@ fn duplicate_metrics() {
                 foo_a.record(100, &[KeyValue::new("A", "B")]);
 
                 let foo_b = meter_b
-                    .i64_histogram("foo")
+                    .u64_histogram("foo")
                     .with_unit(Unit::new("By"))
                     .with_description("meter histogram foo")
                     .init();
@@ -564,7 +564,7 @@ fn duplicate_metrics() {
             name: "conflict_help_two_histograms",
             record_metrics: Box::new(|meter_a, meter_b| {
                 let bar_a = meter_a
-                    .i64_histogram("bar")
+                    .u64_histogram("bar")
                     .with_unit(Unit::new("By"))
                     .with_description("meter a bar")
                     .init();
@@ -572,7 +572,7 @@ fn duplicate_metrics() {
                 bar_a.record(100, &[KeyValue::new("A", "B")]);
 
                 let bar_b = meter_b
-                    .i64_histogram("bar")
+                    .u64_histogram("bar")
                     .with_unit(Unit::new("By"))
                     .with_description("meter b bar")
                     .init();
@@ -635,7 +635,7 @@ fn duplicate_metrics() {
             name: "conflict_unit_two_histograms",
             record_metrics: Box::new(|meter_a, meter_b| {
                 let bar_a = meter_a
-                    .i64_histogram("bar")
+                    .u64_histogram("bar")
                     .with_unit(Unit::new("By"))
                     .with_description("meter histogram bar")
                     .init();
@@ -643,7 +643,7 @@ fn duplicate_metrics() {
                 bar_a.record(100, &[KeyValue::new("A", "B")]);
 
                 let bar_b = meter_b
-                    .i64_histogram("bar")
+                    .u64_histogram("bar")
                     .with_unit(Unit::new("ms"))
                     .with_description("meter histogram bar")
                     .init();
@@ -692,7 +692,7 @@ fn duplicate_metrics() {
                 foo_a.add(100, &[KeyValue::new("A", "B")]);
 
                 let foo_histogram_a = meter_a
-                    .i64_histogram("foo")
+                    .u64_histogram("foo")
                     .with_unit(Unit::new("By"))
                     .with_description("meter histogram foo")
                     .init();
@@ -722,15 +722,15 @@ fn duplicate_metrics() {
         .merge(&mut Resource::new(
             vec![
                 // always specify service.name because the default depends on the running OS
-                SERVICE_NAME.string("prometheus_test"),
+                KeyValue::new(SERVICE_NAME, "prometheus_test"),
                 // Overwrite the semconv.TelemetrySDKVersionKey value so we don't need to update every version
-                TELEMETRY_SDK_VERSION.string("latest"),
+                KeyValue::new(TELEMETRY_SDK_VERSION, "latest"),
             ]
             .into_iter()
             .chain(tc.custom_resource_attrs.into_iter()),
         ));
 
-        let provider = MeterProvider::builder()
+        let provider = SdkMeterProvider::builder()
             .with_resource(resource)
             .with_reader(exporter)
             .build();

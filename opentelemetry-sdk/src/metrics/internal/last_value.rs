@@ -55,8 +55,12 @@ impl<T: Number<T>> LastValue<T> {
     pub(crate) fn compute_aggregation(&self, dest: &mut Vec<DataPoint<T>>) {
         let mut values = match self.values.lock() {
             Ok(guard) if !guard.is_empty() => guard,
-            _ => return,
+            _ => {
+                dest.clear(); // poisoned or no values recorded yet
+                return;
+            }
         };
+
         let n = values.len();
         if n > dest.capacity() {
             dest.reserve(n - dest.capacity());

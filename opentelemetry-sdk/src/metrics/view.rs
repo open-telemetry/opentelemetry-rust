@@ -34,7 +34,7 @@ fn empty_view(_inst: &Instrument) -> Option<Stream> {
 /// View is implemented for all `Fn(&Instrument) -> Option<Stream>`.
 ///
 /// ```
-/// use opentelemetry_sdk::metrics::{Instrument, MeterProvider, Stream};
+/// use opentelemetry_sdk::metrics::{Instrument, SdkMeterProvider, Stream};
 ///
 /// // return streams for the given instrument
 /// let my_view = |i: &Instrument| {
@@ -42,7 +42,7 @@ fn empty_view(_inst: &Instrument) -> Option<Stream> {
 ///   None
 /// };
 ///
-/// let provider = MeterProvider::builder().with_view(my_view).build();
+/// let provider = SdkMeterProvider::builder().with_view(my_view).build();
 /// # drop(provider)
 /// ```
 pub trait View: Send + Sync + 'static {

@@ -23,7 +23,6 @@ rustdoc-args = ["--cfg", "docsrs"]
 [dependencies]
 futures-core = "0.3"
 futures-sink = "0.3"
-indexmap = "2.0"
 once_cell = "1.12.0"
 pin-project-lite = { version = "0.2", optional = true }
 thiserror = "1.0.7"
