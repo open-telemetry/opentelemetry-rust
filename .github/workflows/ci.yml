@@ -23,7 +23,7 @@ jobs:
       with:
         submodules: true
     - name: Mount Cargo cache
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       with:
         path: |
           ~/.cargo/bin/
@@ -47,7 +47,7 @@ jobs:
       with:
         submodules: true
     - name: Mount Cargo cache
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       with:
         path: |
           ~/.cargo/bin/
@@ -91,7 +91,7 @@ jobs:
         example: [opentelemetry-otlp/examples/external-otlp-grpcio-async-std, opentelemetry-otlp/examples/basic-otlp]
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v3
       with:
         submodules: true
     - uses: actions-rs/toolchain@v1
