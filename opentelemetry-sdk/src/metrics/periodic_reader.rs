@@ -325,6 +325,7 @@ impl MetricReader for PeriodicReader {
         if inner.is_shutdown {
             return Err(MetricsError::Other("reader is shut down".into()));
         }
+
         match &inner.sdk_producer.as_ref().and_then(|w| w.upgrade()) {
             Some(producer) => producer.produce(rm)?,
             None => {
