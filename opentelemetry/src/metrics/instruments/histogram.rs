@@ -60,15 +60,3 @@ impl TryFrom<InstrumentBuilder<'_, Histogram<u64>>> for Histogram<u64> {
         )
     }
 }
-
-impl TryFrom<InstrumentBuilder<'_, Histogram<i64>>> for Histogram<i64> {
-    type Error = MetricsError;
-
-    fn try_from(builder: InstrumentBuilder<'_, Histogram<i64>>) -> Result<Self, Self::Error> {
-        builder.meter.instrument_provider.i64_histogram(
-            builder.name,
-            builder.description,
-            builder.unit,
-        )
-    }
-}
