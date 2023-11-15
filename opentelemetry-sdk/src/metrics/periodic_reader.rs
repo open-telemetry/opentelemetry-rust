@@ -245,6 +245,7 @@ struct PeriodicReaderWorker<RT: Runtime> {
 impl<RT: Runtime> PeriodicReaderWorker<RT> {
     async fn collect_and_export(&mut self) -> Result<()> {
         self.reader.collect(&mut self.rm)?;
+
         let export = self.reader.exporter.export(&mut self.rm);
         let timeout = self.runtime.delay(self.timeout);
         pin_mut!(export);
