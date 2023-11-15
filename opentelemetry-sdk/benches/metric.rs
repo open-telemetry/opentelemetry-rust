@@ -393,7 +393,7 @@ fn histograms(c: &mut Criterion) {
                     format!("V,{},{},{}", bound_size, attr_size, i),
                 ))
             }
-            let value: i64 = rng.gen_range(0..MAX_BOUND).try_into().unwrap();
+            let value: u64 = rng.gen_range(0..MAX_BOUND).try_into().unwrap();
             group.bench_function(
                 format!("Record{}Attrs{}bounds", attr_size, bound_size),
                 |b| b.iter(|| hist.record(value, &attributes)),
