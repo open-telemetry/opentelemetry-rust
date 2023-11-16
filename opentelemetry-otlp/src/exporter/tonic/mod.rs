@@ -208,51 +208,16 @@ impl TonicExporterBuilder {
     }
 
     fn build_channel(
-        &mut self,
+        self,
         signal_endpoint_var: &str,
         signal_endpoint_path: &str,
         signal_timeout_var: &str,
         signal_compression_var: &str,
     ) -> Result<(Channel, BoxInterceptor, Option<CompressionEncoding>), crate::Error> {
-        let config = &mut self.exporter_config;
-        let tonic_config: &mut TonicConfig = &mut self.tonic_config;
+        let tonic_config = self.tonic_config;
+        let compression = resolve_compression(&tonic_config, signal_compression_var)?;
 
-        let endpoint = match env::var(signal_endpoint_var)
-            .ok()
-            .or(env::var(OTEL_EXPORTER_OTLP_ENDPOINT).ok())
-        {
-            Some(val) => val,
-            None => format!("{}{signal_endpoint_path}", config.endpoint),
-        };
-
-        let timeout = match env::var(signal_timeout_var)
-            .ok()
-            .or(env::var(OTEL_EXPORTER_OTLP_TIMEOUT).ok())
-        {
-            Some(val) => match val.parse() {
-                Ok(seconds) => Duration::from_secs(seconds),
-                Err(_) => config.timeout,
-            },
-            None => config.timeout,
-        };
-        let compression = resolve_compression(tonic_config, signal_compression_var)?;
-
-        let endpoint = Channel::from_shared(endpoint).map_err(crate::Error::from)?;
-
-        #[cfg(feature = "tls")]
-        let channel = match tonic_config.tls_config.take() {
-            Some(tls_config) => endpoint
-                .tls_config(tls_config)
-                .map_err(crate::Error::from)?,
-            None => endpoint,
-        }
-        .timeout(timeout)
-        .connect_lazy();
-
-        #[cfg(not(feature = "tls"))]
-        let channel = endpoint.timeout(timeout).connect_lazy();
-
-        let metadata = tonic_config.metadata.take().unwrap_or_default();
+        let metadata = tonic_config.metadata.unwrap_or_default();
         let add_metadata = move |mut req: tonic::Request<()>| {
             for key_and_value in metadata.iter() {
                 match key_and_value {
@@ -268,12 +233,51 @@ impl TonicExporterBuilder {
             Ok(req)
         };
 
-        let interceptor = match self.interceptor.take() {
+        let interceptor = match self.interceptor {
             Some(mut interceptor) => {
                 BoxInterceptor(Box::new(move |req| interceptor.call(add_metadata(req)?)))
             }
             None => BoxInterceptor(Box::new(add_metadata)),
         };
+
+        // If a custom channel was provided, use that channel instead of creating one
+        if let Some(channel) = self.channel {
+            return Ok((channel, interceptor, compression));
+        }
+
+        let config = self.exporter_config;
+        let endpoint = match env::var(signal_endpoint_var)
+            .ok()
+            .or(env::var(OTEL_EXPORTER_OTLP_ENDPOINT).ok())
+        {
+            Some(val) => val,
+            None => format!("{}{signal_endpoint_path}", config.endpoint),
+        };
+
+        let endpoint = Channel::from_shared(endpoint).map_err(crate::Error::from)?;
+        let timeout = match env::var(signal_timeout_var)
+            .ok()
+            .or(env::var(OTEL_EXPORTER_OTLP_TIMEOUT).ok())
+        {
+            Some(val) => match val.parse() {
+                Ok(seconds) => Duration::from_secs(seconds),
+                Err(_) => config.timeout,
+            },
+            None => config.timeout,
+        };
+
+        #[cfg(feature = "tls")]
+        let channel = match tonic_config.tls_config {
+            Some(tls_config) => endpoint
+                .tls_config(tls_config)
+                .map_err(crate::Error::from)?,
+            None => endpoint,
+        }
+        .timeout(timeout)
+        .connect_lazy();
+
+        #[cfg(not(feature = "tls"))]
+        let channel = endpoint.timeout(timeout).connect_lazy();
 
         Ok((channel, interceptor, compression))
     }
@@ -281,7 +285,7 @@ impl TonicExporterBuilder {
     /// Build a new tonic log exporter
     #[cfg(feature = "logs")]
     pub fn build_log_exporter(
-        mut self,
+        self,
     ) -> Result<crate::logs::LogExporter, opentelemetry::logs::LogError> {
         use crate::exporter::tonic::logs::TonicLogsClient;
 
@@ -300,7 +304,7 @@ impl TonicExporterBuilder {
     /// Build a new tonic metrics exporter
     #[cfg(feature = "metrics")]
     pub fn build_metrics_exporter(
-        mut self,
+        self,
         aggregation_selector: Box<dyn opentelemetry_sdk::metrics::reader::AggregationSelector>,
         temporality_selector: Box<dyn opentelemetry_sdk::metrics::reader::TemporalitySelector>,
     ) -> opentelemetry::metrics::Result<crate::MetricsExporter> {
@@ -326,7 +330,7 @@ impl TonicExporterBuilder {
     /// Build a new tonic span exporter
     #[cfg(feature = "trace")]
     pub fn build_span_exporter(
-        mut self,
+        self,
     ) -> Result<crate::SpanExporter, opentelemetry::trace::TraceError> {
         use crate::exporter::tonic::trace::TonicTracesClient;
 

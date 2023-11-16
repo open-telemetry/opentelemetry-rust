@@ -1,20 +1,21 @@
 use core::fmt;
 use std::{
     borrow::Cow,
+    collections::HashMap,
     sync::{
         atomic::{AtomicBool, Ordering},
-        Arc,
+        Arc, Mutex,
     },
 };
 
 use opentelemetry::{
-    metrics::{noop::NoopMeterCore, InstrumentProvider, Meter as ApiMeter, MetricsError, Result},
+    metrics::{noop::NoopMeterCore, Meter, MeterProvider, MetricsError, Result},
     KeyValue,
 };
 
 use crate::{instrumentation::Scope, Resource};
 
-use super::{meter::Meter as SdkMeter, pipeline::Pipelines, reader::MetricReader, view::View};
+use super::{meter::SdkMeter, pipeline::Pipelines, reader::MetricReader, view::View};
 
 /// Handles the creation and coordination of [Meter]s.
 ///
@@ -22,20 +23,21 @@ use super::{meter::Meter as SdkMeter, pipeline::Pipelines, reader::MetricReader,
 /// [Resource], have the same [View]s applied to them, and have their produced
 /// metric telemetry passed to the configured [MetricReader]s.
 ///
-/// [Meter]: crate::metrics::Meter
+/// [Meter]: opentelemetry::metrics::Meter
 #[derive(Clone, Debug)]
-pub struct MeterProvider {
+pub struct SdkMeterProvider {
     pipes: Arc<Pipelines>,
+    meters: Arc<Mutex<HashMap<Scope, Arc<SdkMeter>>>>,
     is_shutdown: Arc<AtomicBool>,
 }
 
-impl Default for MeterProvider {
+impl Default for SdkMeterProvider {
     fn default() -> Self {
-        MeterProvider::builder().build()
+        SdkMeterProvider::builder().build()
     }
 }
 
-impl MeterProvider {
+impl SdkMeterProvider {
     /// Flushes all pending telemetry.
     ///
     /// There is no guaranteed that all telemetry be flushed or all resources have
@@ -53,10 +55,10 @@ impl MeterProvider {
     ///
     /// ```
     /// use opentelemetry::{global, Context};
-    /// use opentelemetry_sdk::metrics::MeterProvider;
+    /// use opentelemetry_sdk::metrics::SdkMeterProvider;
     ///
-    /// fn init_metrics() -> MeterProvider {
-    ///     let provider = MeterProvider::default();
+    /// fn init_metrics() -> SdkMeterProvider {
+    ///     let provider = SdkMeterProvider::default();
     ///
     ///     // Set provider to be used as global meter provider
     ///     let _ = global::set_meter_provider(provider.clone());
@@ -113,23 +115,31 @@ impl MeterProvider {
     }
 }
 
-impl opentelemetry::metrics::MeterProvider for MeterProvider {
+impl MeterProvider for SdkMeterProvider {
     fn versioned_meter(
         &self,
         name: impl Into<Cow<'static, str>>,
         version: Option<impl Into<Cow<'static, str>>>,
         schema_url: Option<impl Into<Cow<'static, str>>>,
         attributes: Option<Vec<KeyValue>>,
-    ) -> ApiMeter {
-        let inst_provider: Arc<dyn InstrumentProvider + Send + Sync> =
-            if !self.is_shutdown.load(Ordering::Relaxed) {
-                let scope = Scope::new(name, version, schema_url, attributes);
-                Arc::new(SdkMeter::new(scope, self.pipes.clone()))
-            } else {
-                Arc::new(NoopMeterCore::new())
-            };
+    ) -> Meter {
+        if self.is_shutdown.load(Ordering::Relaxed) {
+            return Meter::new(Arc::new(NoopMeterCore::new()));
+        }
 
-        ApiMeter::new(inst_provider)
+        let scope = Scope::new(name, version, schema_url, attributes);
+
+        if let Ok(mut meters) = self.meters.lock() {
+            let meter = meters
+                .entry(scope)
+                .or_insert_with_key(|scope| {
+                    Arc::new(SdkMeter::new(scope.clone(), self.pipes.clone()))
+                })
+                .clone();
+            Meter::new(meter)
+        } else {
+            Meter::new(Arc::new(NoopMeterCore::new()))
+        }
     }
 }
 
@@ -149,7 +159,7 @@ impl MeterProviderBuilder {
     ///
     /// By default, if this option is not used, the default [Resource] will be used.
     ///
-    /// [Meter]: crate::metrics::Meter
+    /// [Meter]: opentelemetry::metrics::Meter
     pub fn with_resource(mut self, resource: Resource) -> Self {
         self.resource = Some(resource);
         self
@@ -177,13 +187,14 @@ impl MeterProviderBuilder {
     }
 
     /// Construct a new [MeterProvider] with this configuration.
-    pub fn build(self) -> MeterProvider {
-        MeterProvider {
+    pub fn build(self) -> SdkMeterProvider {
+        SdkMeterProvider {
             pipes: Arc::new(Pipelines::new(
                 self.resource.unwrap_or_default(),
                 self.readers,
                 self.views,
             )),
+            meters: Default::default(),
             is_shutdown: Arc::new(AtomicBool::new(false)),
         }
     }
@@ -209,7 +220,8 @@ mod tests {
     #[test]
     fn test_meter_provider_resource() {
         // If users didn't provide a resource and there isn't a env var set. Use default one.
-        let assert_service_name = |provider: super::MeterProvider, expect: Option<&'static str>| {
+        let assert_service_name = |provider: super::SdkMeterProvider,
+                                   expect: Option<&'static str>| {
             assert_eq!(
                 provider.pipes.0[0]
                     .resource
@@ -219,12 +231,14 @@ mod tests {
             );
         };
         let reader = TestMetricReader {};
-        let default_meter_provider = super::MeterProvider::builder().with_reader(reader).build();
+        let default_meter_provider = super::SdkMeterProvider::builder()
+            .with_reader(reader)
+            .build();
         assert_service_name(default_meter_provider, Some("unknown_service"));
 
         // If user provided a resource, use that.
         let reader2 = TestMetricReader {};
-        let custom_meter_provider = super::MeterProvider::builder()
+        let custom_meter_provider = super::SdkMeterProvider::builder()
             .with_reader(reader2)
             .with_resource(Resource::new(vec![KeyValue::new(
                 "service.name",
@@ -236,7 +250,9 @@ mod tests {
         // If `OTEL_RESOURCE_ATTRIBUTES` is set, read them automatically
         let reader3 = TestMetricReader {};
         env::set_var("OTEL_RESOURCE_ATTRIBUTES", "key1=value1, k2, k3=value2");
-        let env_resource_provider = super::MeterProvider::builder().with_reader(reader3).build();
+        let env_resource_provider = super::SdkMeterProvider::builder()
+            .with_reader(reader3)
+            .build();
         assert_eq!(
             env_resource_provider.pipes.0[0].resource,
             Resource::new(vec![
@@ -255,7 +271,7 @@ mod tests {
             "my-custom-key=env-val,k2=value2",
         );
         let reader4 = TestMetricReader {};
-        let user_provided_resource_config_provider = super::MeterProvider::builder()
+        let user_provided_resource_config_provider = super::SdkMeterProvider::builder()
             .with_reader(reader4)
             .with_resource(
                 Resource::default().merge(&mut Resource::new(vec![KeyValue::new(
@@ -279,7 +295,7 @@ mod tests {
 
         // If user provided a resource, it takes priority during collision.
         let reader5 = TestMetricReader {};
-        let no_service_name = super::MeterProvider::builder()
+        let no_service_name = super::SdkMeterProvider::builder()
             .with_reader(reader5)
             .with_resource(Resource::empty())
             .build();

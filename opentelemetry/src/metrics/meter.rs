@@ -241,19 +241,6 @@ pub trait MeterProvider {
 ///     .as_ref(),
 /// );
 ///
-/// // i64 histogram
-/// let i64_histogram = meter.i64_histogram("my_i64_histogram").init();
-///
-/// // Record measurements using the histogram instrument record()
-/// i64_histogram.record(
-///     1,
-///     [
-///         KeyValue::new("mykey1", "myvalue1"),
-///         KeyValue::new("mykey2", "myvalue2"),
-///     ]
-///     .as_ref(),
-/// );
-///
 /// // u64 histogram
 /// let u64_histogram = meter.u64_histogram("my_u64_histogram").init();
 ///
@@ -383,14 +370,6 @@ impl Meter {
         &self,
         name: impl Into<Cow<'static, str>>,
     ) -> InstrumentBuilder<'_, Histogram<u64>> {
-        InstrumentBuilder::new(self, name.into())
-    }
-
-    /// creates an instrument builder for recording a distribution of values.
-    pub fn i64_histogram(
-        &self,
-        name: impl Into<Cow<'static, str>>,
-    ) -> InstrumentBuilder<'_, Histogram<i64>> {
         InstrumentBuilder::new(self, name.into())
     }
 

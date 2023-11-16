@@ -3,8 +3,8 @@
 //! [Prometheus]: https://prometheus.io
 //!
 //! ```
-//! use opentelemetry::{metrics::MeterProvider as _, KeyValue};
-//! use opentelemetry_sdk::metrics::MeterProvider;
+//! use opentelemetry::{metrics::MeterProvider, KeyValue};
+//! use opentelemetry_sdk::metrics::SdkMeterProvider;
 //! use prometheus::{Encoder, TextEncoder};
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -18,7 +18,7 @@
 //!     .build()?;
 //!
 //! // set up a meter meter to create instruments
-//! let provider = MeterProvider::builder().with_reader(exporter).build();
+//! let provider = SdkMeterProvider::builder().with_reader(exporter).build();
 //! let meter = provider.meter("my-app");
 //!
 //! // Use two instruments
@@ -27,7 +27,7 @@
 //!     .with_description("Counts things")
 //!     .init();
 //! let histogram = meter
-//!     .i64_histogram("a.histogram")
+//!     .u64_histogram("a.histogram")
 //!     .with_description("Records values")
 //!     .init();
 //!

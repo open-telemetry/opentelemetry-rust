@@ -374,18 +374,21 @@ impl MetricReader for PeriodicReader {
         if inner.is_shutdown {
             return Err(MetricsError::Other("reader is already shut down".into()));
         }
-        inner.is_shutdown = true;
 
         let (sender, receiver) = oneshot::channel();
         inner
             .message_sender
             .try_send(Message::Shutdown(sender))
             .map_err(|e| MetricsError::Other(e.to_string()))?;
-
         drop(inner); // don't hold lock when blocking on future
 
-        futures_executor::block_on(receiver)
-            .map_err(|err| MetricsError::Other(err.to_string()))
-            .and_then(|res| res)
+        let shutdown_result = futures_executor::block_on(receiver)
+            .map_err(|err| MetricsError::Other(err.to_string()))?;
+
+        // Acquire the lock again to set the shutdown flag
+        let mut inner = self.inner.lock()?;
+        inner.is_shutdown = true;
+
+        shutdown_result
     }
 }

@@ -3,7 +3,7 @@ use opentelemetry::{
     Key,
 };
 use std::borrow::Cow;
-use tracing_core::Metadata;
+use tracing_core::{Level, Metadata};
 use tracing_log::NormalizeEvent;
 use tracing_subscriber::Layer;
 
@@ -164,8 +164,13 @@ where
         let normalized_meta = event.normalized_metadata();
         let meta = normalized_meta.as_ref().unwrap_or_else(|| event.metadata());
         let mut log_record: LogRecord = LogRecord::default();
-        log_record.severity_number = Some(map_severity_to_otel_severity(meta.level().as_str()));
+        log_record.severity_number = Some(severity_of_level(meta.level()));
         log_record.severity_text = Some(meta.level().to_string().into());
+
+        // add the `name` metadata to attributes
+        // TBD - Propose this to be part of log_record metadata.
+        let vec = vec![("name", meta.name())];
+        log_record.attributes = Some(vec.into_iter().map(|(k, v)| (k.into(), v.into())).collect());
 
         // Not populating ObservedTimestamp, instead relying on OpenTelemetry
         // API to populate it with current time.
@@ -185,19 +190,18 @@ where
         _event: &tracing_core::Event<'_>,
         _ctx: tracing_subscriber::layer::Context<'_, S>,
     ) -> bool {
-        let severity = map_severity_to_otel_severity(_event.metadata().level().as_str());
+        let severity = severity_of_level(_event.metadata().level());
         self.logger
             .event_enabled(severity, _event.metadata().target())
     }
 }
 
-fn map_severity_to_otel_severity(level: &str) -> Severity {
-    match level {
-        "INFO" => Severity::Info,
-        "DEBUG" => Severity::Debug,
-        "TRACE" => Severity::Trace,
-        "WARN" => Severity::Warn,
-        "ERROR" => Severity::Error,
-        _ => Severity::Info, // won't reach here
+const fn severity_of_level(level: &Level) -> Severity {
+    match *level {
+        Level::TRACE => Severity::Trace,
+        Level::DEBUG => Severity::Debug,
+        Level::INFO => Severity::Info,
+        Level::WARN => Severity::Warn,
+        Level::ERROR => Severity::Error,
     }
 }

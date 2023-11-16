@@ -1,5 +1,5 @@
 //! # UDP Jaeger Agent Client
-use crate::exporter::addrs_and_family;
+use crate::exporter::address_family;
 use crate::exporter::runtime::JaegerTraceRuntime;
 use crate::exporter::thrift::{
     agent::{self, TAgentSyncClient},
@@ -7,7 +7,7 @@ use crate::exporter::thrift::{
 };
 use crate::exporter::transport::{TBufferChannel, TNoopChannel};
 use std::fmt;
-use std::net::{ToSocketAddrs, UdpSocket};
+use std::net::{SocketAddr, UdpSocket};
 use thrift::{
     protocol::{TCompactInputProtocol, TCompactOutputProtocol},
     transport::{ReadHalf, TIoChannel, WriteHalf},
@@ -43,10 +43,10 @@ pub(crate) struct AgentSyncClientUdp {
 
 impl AgentSyncClientUdp {
     /// Create a new UDP agent client
-    pub(crate) fn new<T: ToSocketAddrs>(
-        agent_endpoint: T,
+    pub(crate) fn new(
         max_packet_size: usize,
         auto_split: bool,
+        agent_address: Vec<SocketAddr>,
     ) -> thrift::Result<Self> {
         let (buffer, write) = TBufferChannel::with_capacity(max_packet_size).split()?;
         let client = agent::AgentSyncClient::new(
@@ -54,9 +54,8 @@ impl AgentSyncClientUdp {
             TCompactOutputProtocol::new(write),
         );
 
-        let (addrs, family) = addrs_and_family(&agent_endpoint)?;
-        let conn = UdpSocket::bind(family)?;
-        conn.connect(addrs.as_slice())?;
+        let conn = UdpSocket::bind(address_family(agent_address.as_slice()))?;
+        conn.connect(agent_address.as_slice())?;
 
         Ok(AgentSyncClientUdp {
             conn,
@@ -102,11 +101,11 @@ pub(crate) struct AgentAsyncClientUdp<R: JaegerTraceRuntime> {
 
 impl<R: JaegerTraceRuntime> AgentAsyncClientUdp<R> {
     /// Create a new UDP agent client
-    pub(crate) fn new<T: ToSocketAddrs>(
-        agent_endpoint: T,
+    pub(crate) fn new(
         max_packet_size: usize,
         runtime: R,
         auto_split: bool,
+        agent_address: Vec<SocketAddr>,
     ) -> thrift::Result<Self> {
         let (buffer, write) = TBufferChannel::with_capacity(max_packet_size).split()?;
         let client = agent::AgentSyncClient::new(
@@ -114,7 +113,7 @@ impl<R: JaegerTraceRuntime> AgentAsyncClientUdp<R> {
             TCompactOutputProtocol::new(write),
         );
 
-        let conn = runtime.create_socket(agent_endpoint)?;
+        let conn = runtime.create_socket(agent_address.as_slice())?;
 
         Ok(AgentAsyncClientUdp {
             runtime,

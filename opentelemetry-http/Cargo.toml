@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-http"
-version = "0.9.0"
+version = "0.10.0"
 description = "Helper implementations for exchange of traces and metrics over HTTP"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust"
 repository = "https://github.com/open-telemetry/opentelemetry-rust"
