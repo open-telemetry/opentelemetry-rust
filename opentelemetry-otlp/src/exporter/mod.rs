@@ -223,3 +223,61 @@ impl<B: HasExportConfig> WithExportConfig for B {
         self
     }
 }
+
+#[cfg(any(feature = "grpc-tonic", feature = "http-proto"))]
+fn parse_header_string(value: &str) -> impl Iterator<Item = (&str, &str)> {
+    value
+        .split_terminator(',')
+        .map(str::trim)
+        .filter_map(|pair| {
+            if pair.is_empty() {
+                None
+            } else {
+                pair.split_once('=')
+                    .map(|(key, value)| (key.trim(), value.trim()))
+                    .filter(|(key, value)| !key.is_empty() && !value.is_empty())
+            }
+        })
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Mutex;
+
+    // Make sure env tests are not running concurrently
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
+
+    pub(crate) fn run_env_test<T, F>(env_vars: T, f: F)
+    where
+        F: FnOnce(),
+        T: Into<Vec<(&'static str, &'static str)>>,
+    {
+        let _env_lock = ENV_LOCK.lock().expect("env test lock poisoned");
+        let env_vars = env_vars.into();
+        for (k, v) in env_vars.iter() {
+            std::env::set_var(k, v);
+        }
+        f();
+        for (k, _) in env_vars {
+            std::env::remove_var(k);
+        }
+    }
+
+    #[test]
+    fn test_parse_header_string() {
+        let test_cases = vec![
+            // Format: (input_str, expected_headers)
+            ("k1=v1", vec![("k1", "v1")]),
+            ("k1=v1,k2=v2", vec![("k1", "v1"), ("k2", "v2")]),
+            ("k1=v1=10,k2,k3", vec![("k1", "v1=10")]),
+            ("k1=v1,,,k2,k3=10", vec![("k1", "v1"), ("k3", "10")]),
+        ];
+
+        for (input_str, expected_headers) in test_cases {
+            assert_eq!(
+                super::parse_header_string(input_str).collect::<Vec<_>>(),
+                expected_headers,
+            )
+        }
+    }
+}
