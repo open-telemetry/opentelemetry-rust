@@ -242,11 +242,11 @@ fn parse_header_string(value: &str) -> impl Iterator<Item = (&str, &str)> {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Mutex;
-
     // Make sure env tests are not running concurrently
-    static ENV_LOCK: Mutex<()> = Mutex::new(());
+    #[cfg(any(feature = "grpc-tonic", feature = "http-proto"))]
+    static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
+    #[cfg(any(feature = "grpc-tonic", feature = "http-proto"))]
     pub(crate) fn run_env_test<T, F>(env_vars: T, f: F)
     where
         F: FnOnce(),
