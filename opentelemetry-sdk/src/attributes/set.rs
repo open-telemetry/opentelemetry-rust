@@ -108,7 +108,8 @@ pub struct AttributeSet(Vec<HashKeyValue>);
 
 impl From<&[KeyValue]> for AttributeSet {
     fn from(values: &[KeyValue]) -> Self {
-        let vec = values.iter().map(|k| HashKeyValue(k.clone())).collect::<Vec<_>>();
+        let mut vec = values.iter().map(|k| HashKeyValue(k.clone())).collect::<Vec<_>>();
+        vec.sort_by(|a, b| a.0.key.cmp(&b.0.key));
         AttributeSet(vec)
     }
 }
