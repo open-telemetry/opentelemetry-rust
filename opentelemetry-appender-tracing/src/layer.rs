@@ -9,7 +9,7 @@ use tracing_subscriber::Layer;
 
 const INSTRUMENTATION_LIBRARY_NAME: &str = "opentelemetry-appender-tracing";
 // Start by "log."
-const LOG_METADATA_ATTRIBUTES: &'static [&'static str] = &[
+const LOG_METADATA_ATTRIBUTES: &[&str] = &[
     "name",
     "target",
     "module.path",
