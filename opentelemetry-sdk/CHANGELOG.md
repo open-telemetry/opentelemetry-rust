@@ -22,6 +22,8 @@
   `SpanData` now stores `events` as `SpanEvents` instead of `EvictedQueue` where
   `SpanEvents` is a struct with a `Vec` of events and `dropped_count`.
 
+- [#1375](https://github.com/open-telemetry/opentelemetry-rust/pull/1375/) Fix metric collections during PeriodicReader shutdown
+
 ## v0.21.1
 
 ### Fixed
