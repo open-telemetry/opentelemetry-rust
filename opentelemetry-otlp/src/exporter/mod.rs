@@ -264,6 +264,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(any(feature = "grpc-tonic", feature = "http-proto"))]
     fn test_parse_header_string() {
         let test_cases = vec![
             // Format: (input_str, expected_headers)
