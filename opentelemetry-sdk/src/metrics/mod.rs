@@ -72,12 +72,12 @@ mod tests {
     async fn counter_aggregation() {
         // Run this test with stdout enabled to see output.
         // cargo test counter --features=metrics,testing -- --nocapture
-        
+
         // Arrange
         let exporter = InMemoryMetricsExporter::default();
         let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
         let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
-        
+
         // Act
         let meter = meter_provider.meter("test");
         let counter = meter
