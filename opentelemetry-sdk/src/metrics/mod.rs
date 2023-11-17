@@ -122,7 +122,7 @@ mod tests {
         assert_eq!(sum.data_points.len(), 2);
 
         // TODO: Don't think the order is guaranteed.
-        // Need to make it easy to write unit tests.s
+        // Need to make it easy to write unit tests.
         let data_point1 = &sum.data_points[0];
         data_point1
             .attributes
@@ -131,12 +131,12 @@ mod tests {
             .expect("kvp expected");
         assert_eq!(data_point1.value, 5);
 
-        let data_point1 = &sum.data_points[1];
-        data_point1
+        let data_point2 = &sum.data_points[1];
+        data_point2
             .attributes
             .iter()
             .find(|(k, v)| k.as_str() == "key1" && v.as_str() == "value2")
             .expect("kvp expected");
-        assert_eq!(data_point1.value, 3);
+        assert_eq!(data_point2.value, 3);
     }
 }
