@@ -8,8 +8,6 @@
 //! * The [`TracerProvider`] struct which configures and produces [`Tracer`]s.
 mod config;
 mod events;
-mod evicted_hash_map;
-mod evicted_queue;
 mod id_generator;
 mod links;
 mod provider;
@@ -21,8 +19,6 @@ mod tracer;
 
 pub use config::{config, Config};
 pub use events::SpanEvents;
-pub use evicted_hash_map::EvictedHashMap;
-pub use evicted_queue::EvictedQueue;
 pub use id_generator::{aws::XrayIdGenerator, IdGenerator, RandomIdGenerator};
 pub use links::SpanLinks;
 pub use provider::{Builder, TracerProvider};
