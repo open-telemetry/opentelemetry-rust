@@ -2,6 +2,35 @@
 
 ## vNext
 
+### Changed
+
+- **Breaking**
+[#1313](https://github.com/open-telemetry/opentelemetry-rust/pull/1313)
+[#1350](https://github.com/open-telemetry/opentelemetry-rust/pull/1350)
+  Changes how Span links/events are stored to achieve performance gains. See
+  below for details:
+
+  *Behavior Change*: When enforcing `max_links_per_span`, `max_events_per_span`
+  from `SpanLimits`, links/events are kept in the first-come order. The previous
+  "eviction" based approach is no longer performed.
+
+  *Breaking Change Affecting Exporter authors*:
+
+  `SpanData` now stores `links` as `SpanLinks` instead of `EvictedQueue` where
+  `SpanLinks` is a struct with a `Vec` of links and `dropped_count`.
+
+  `SpanData` now stores `events` as `SpanEvents` instead of `EvictedQueue` where
+  `SpanEvents` is a struct with a `Vec` of events and `dropped_count`.
+
+## v0.21.1
+
+### Fixed
+
+- Fix metric export corruption if gauges have not received a last value. (#1363)
+- Return consistent `Meter` for a given scope from `MeterProvider`. (#1351)
+
+## v0.21.0
+
 ### Added
 
 - Log warning if two instruments have the same name with different (#1266)
@@ -12,6 +41,7 @@
 
 ### Changed
 
+- Renamed `MeterProvider` and `Meter` to `SdkMeterProvider` and `SdkMeter` respectively to avoid name collision with public API types. [#1328](https://github.com/open-telemetry/opentelemetry-rust/pull/1328)
 - Bump MSRV to 1.65 [#1318](https://github.com/open-telemetry/opentelemetry-rust/pull/1318)
 - Default Resource (the one used when no other Resource is explicitly provided) now includes `TelemetryResourceDetector`,
   populating "telemetry.sdk.*" attributes.

@@ -2,8 +2,11 @@
 
 ## vNext
 
+## v0.13.0
+
 ### Changed
 
+- Replaced Key constants with &'static str [#1320]
 - Bump MSRV to 1.65 [#1318](https://github.com/open-telemetry/opentelemetry-rust/pull/1318)
 - Bump MSRV to 1.64 [#1203](https://github.com/open-telemetry/opentelemetry-rust/pull/1203)
 

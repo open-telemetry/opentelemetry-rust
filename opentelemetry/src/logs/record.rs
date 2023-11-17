@@ -1,8 +1,8 @@
 use crate::{
     trace::{SpanContext, SpanId, TraceContextExt, TraceFlags, TraceId},
-    Array, Key, OrderMap, StringValue, Value,
+    Array, Key, StringValue, Value,
 };
-use std::{borrow::Cow, time::SystemTime};
+use std::{borrow::Cow, collections::HashMap, time::SystemTime};
 
 #[derive(Debug, Clone)]
 #[non_exhaustive]
@@ -90,7 +90,7 @@ pub enum AnyValue {
     /// An array of `Any` values
     ListAny(Vec<AnyValue>),
     /// A map of string keys to `Any` values, arbitrarily nested.
-    Map(OrderMap<Key, AnyValue>),
+    Map(HashMap<Key, AnyValue>),
 }
 
 macro_rules! impl_trivial_from {
@@ -133,7 +133,7 @@ impl<K: Into<Key>, V: Into<AnyValue>> FromIterator<(K, V)> for AnyValue {
     /// Creates an [`AnyValue::Map`] value from a sequence of key-value pairs
     /// that can be converted into a `Key` and `AnyValue` respectively.
     fn from_iter<I: IntoIterator<Item = (K, V)>>(iter: I) -> Self {
-        AnyValue::Map(OrderMap::from_iter(
+        AnyValue::Map(HashMap::from_iter(
             iter.into_iter().map(|(k, v)| (k.into(), v.into())),
         ))
     }

@@ -2,6 +2,8 @@
 
 ## vNext
 
+## v0.14.0
+
 ### Added
 
 - Add `build_{signal}_exporter` methods to client builders (#1187)

@@ -61,7 +61,7 @@ fn build_config_and_process(
     let service_name = service_name_opt.unwrap_or_else(|| {
         config
             .resource
-            .get(semcov::resource::SERVICE_NAME)
+            .get(semcov::resource::SERVICE_NAME.into())
             .map(|v| v.to_string())
             .unwrap_or_else(|| "unknown_service".to_string())
     });
@@ -70,7 +70,7 @@ fn build_config_and_process(
     let mut tags = config
         .resource
         .iter()
-        .filter(|(key, _)| **key != semcov::resource::SERVICE_NAME)
+        .filter(|(key, _)| key.as_str() != semcov::resource::SERVICE_NAME)
         .map(|(key, value)| KeyValue::new(key.clone(), value.clone()))
         .collect::<Vec<KeyValue>>();
 

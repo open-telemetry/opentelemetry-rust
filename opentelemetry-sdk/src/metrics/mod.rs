@@ -2,7 +2,7 @@
 //!
 //! ## Configuration
 //!
-//! The metrics SDK configuration is stored with each [MeterProvider].
+//! The metrics SDK configuration is stored with each [SdkMeterProvider].
 //! Configuration for [Resource]s, [View]s, and [ManualReader] or
 //! [PeriodicReader] instances can be specified.
 //!
@@ -10,16 +10,16 @@
 //!
 //! ```
 //! use opentelemetry::{
-//!     metrics::{MeterProvider as _, Unit},
+//!     metrics::{MeterProvider, Unit},
 //!     KeyValue,
 //! };
-//! use opentelemetry_sdk::{metrics::MeterProvider, Resource};
+//! use opentelemetry_sdk::{metrics::SdkMeterProvider, Resource};
 //!
 //! // Generate SDK configuration, resource, views, etc
 //! let resource = Resource::default(); // default attributes about the current process
 //!
 //! // Create a meter provider with the desired config
-//! let provider = MeterProvider::builder().with_resource(resource).build();
+//! let provider = SdkMeterProvider::builder().with_resource(resource).build();
 //!
 //! // Use the meter provider to create meter instances
 //! let meter = provider.meter("my_app");
