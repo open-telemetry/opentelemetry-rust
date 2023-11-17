@@ -38,6 +38,7 @@ fn test_counter() {
     // each attribute has 10 possible values, so there are 1000 possible combinations (time-series)
     COUNTER.add(
         1,
+        // attributes are intentionally unsorted to account for any sorting/normalization costs
         &[
             KeyValue::new("attribute4", ATTRIBUTE_VALUES[index_fourth_attribute]),
             KeyValue::new("attribute2", ATTRIBUTE_VALUES[index_second_attribute]),
