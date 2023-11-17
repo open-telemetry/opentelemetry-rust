@@ -184,8 +184,7 @@ mod tests {
             TraceState::default(),
         )));
         // setup for baggage propagator
-        cx = cx.with_baggage(vec![KeyValue::new("baggagekey", "value")]);
-        return cx;
+        cx.with_baggage(vec![KeyValue::new("baggagekey", "value")])
     }
 
     fn test_data() -> Vec<(&'static str, &'static str)> {
@@ -261,17 +260,23 @@ mod tests {
         let test_cases = vec![
             // name, header_name, expected_result
             ("single propagator", vec!["span-id"], vec!["span-id"]),
-            ("multiple propagators with order", vec!["span-id", "baggage"], vec!["span-id", "baggage"]),
+            (
+                "multiple propagators with order",
+                vec!["span-id", "baggage"],
+                vec!["span-id", "baggage"],
+            ),
         ];
 
         for test_case in test_cases {
-            let test_propagators = test_case.1.into_iter().map(|name | {
-                Box::new(TestPropagator::new(name)) as Box<dyn TextMapPropagator + Send + Sync>
-            }).collect();
+            let test_propagators = test_case
+                .1
+                .into_iter()
+                .map(|name| {
+                    Box::new(TestPropagator::new(name)) as Box<dyn TextMapPropagator + Send + Sync>
+                })
+                .collect();
 
-            let composite_propagator = TextMapCompositePropagator::new(
-                test_propagators
-            );
+            let composite_propagator = TextMapCompositePropagator::new(test_propagators);
 
             let fields = composite_propagator
                 .fields()
