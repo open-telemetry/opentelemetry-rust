@@ -231,12 +231,14 @@ fn parse_header_string(value: &str) -> impl Iterator<Item = (HeaderName, HeaderV
     value
         .split_terminator(',')
         .map(str::trim)
-        .filter_map(|pair| parse_header_string_pair(pair).ok()?)
+        .filter_map(|key_value_string| parse_header_key_value_string(key_value_string).ok()?)
 }
 
 #[cfg(any(feature = "grpc-tonic", feature = "http-proto"))]
-fn parse_header_string_pair(pair: &str) -> Result<Option<(HeaderName, HeaderValue)>, Error> {
-    if let Some((key, value)) = pair
+fn parse_header_key_value_string(
+    key_value_string: &str,
+) -> Result<Option<(HeaderName, HeaderValue)>, Error> {
+    if let Some((key, value)) = key_value_string
         .split_once('=')
         .map(|(key, value)| (key.trim(), value.trim()))
         .filter(|(key, value)| !key.is_empty() && !value.is_empty())
@@ -328,18 +330,18 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_header_string_pair() {
+    fn test_parse_header_key_value_string() {
         assert_eq!(
-            super::parse_header_string_pair("k1=v1").unwrap(),
+            super::parse_header_key_value_string("k1=v1").unwrap(),
             Some((
                 HeaderName::from_static("k1"),
                 HeaderValue::from_static("v1")
             ))
         );
-        assert_eq!(super::parse_header_string_pair("").unwrap(), None);
-        assert_eq!(super::parse_header_string_pair("=v1").unwrap(), None);
-        assert_eq!(super::parse_header_string_pair("k1=").unwrap(), None);
-        assert!(super::parse_header_string_pair("k1=\x7F").is_err(),);
-        assert!(super::parse_header_string_pair("\x7F=1").is_err(),);
+        assert_eq!(super::parse_header_key_value_string("").unwrap(), None);
+        assert_eq!(super::parse_header_key_value_string("=v1").unwrap(), None);
+        assert_eq!(super::parse_header_key_value_string("k1=").unwrap(), None);
+        assert!(super::parse_header_key_value_string("k1=\x7F").is_err(),);
+        assert!(super::parse_header_key_value_string("\x7F=1").is_err(),);
     }
 }
