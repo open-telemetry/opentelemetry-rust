@@ -3,7 +3,7 @@
 //! as objects used to read and write context data to and from messages exchanged by the applications.
 //!
 //! `Propagator`s leverage the [`Context`] to inject and extract data for each cross-cutting concern,
-//! such as [`TraceContext`] and [`Baggage`].
+//! such as `TraceContext` and [`Baggage`].
 //!
 //! The Propagators API is expected to be leveraged by users writing instrumentation libraries.
 //!
@@ -16,6 +16,9 @@
 //! `Propagator`s uses [`Injector`] and [`Extractor`] to read and write context data to and from messages.
 //! Each specific Propagator type defines its expected carrier type, such as a string map or a byte array.
 //!
+//! [`Baggage`]: crate::baggage::Baggage
+//! [`Context`]: crate::Context
+
 use std::collections::HashMap;
 
 pub mod composite;

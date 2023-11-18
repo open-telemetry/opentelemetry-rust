@@ -19,8 +19,6 @@ use std::collections::HashSet;
 /// Injection and extraction from this propagator will preserve the order of the
 /// injectors and extractors passed in during initialization.
 ///
-/// [`TextMapPropagator`]: opentelemetry::propagation::TextMapPropagator
-///
 /// # Examples
 ///
 /// ```
