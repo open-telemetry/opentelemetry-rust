@@ -9,6 +9,8 @@ use crate::exporter::http::HttpExporterBuilder;
 #[cfg(feature = "grpc-tonic")]
 use crate::exporter::tonic::TonicExporterBuilder;
 use crate::{Error, Protocol};
+#[cfg(any(feature = "grpc-tonic", feature = "http-proto"))]
+use ::http::header::{HeaderName, HeaderValue};
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
@@ -225,28 +227,36 @@ impl<B: HasExportConfig> WithExportConfig for B {
 }
 
 #[cfg(any(feature = "grpc-tonic", feature = "http-proto"))]
-fn parse_header_string(value: &str) -> impl Iterator<Item = (&str, &str)> {
+fn parse_header_string(value: &str) -> impl Iterator<Item = (HeaderName, HeaderValue)> + '_ {
     value
         .split_terminator(',')
         .map(str::trim)
-        .filter_map(|pair| {
-            if pair.is_empty() {
-                None
-            } else {
-                pair.split_once('=')
-                    .map(|(key, value)| (key.trim(), value.trim()))
-                    .filter(|(key, value)| !key.is_empty() && !value.is_empty())
-            }
-        })
+        .filter_map(|pair| parse_header_string_pair(pair).ok()?)
+}
+
+#[cfg(any(feature = "grpc-tonic", feature = "http-proto"))]
+fn parse_header_string_pair(pair: &str) -> Result<Option<(HeaderName, HeaderValue)>, Error> {
+    if let Some((key, value)) = pair
+        .split_once('=')
+        .map(|(key, value)| (key.trim(), value.trim()))
+        .filter(|(key, value)| !key.is_empty() && !value.is_empty())
+    {
+        Ok(Some((
+            HeaderName::from_str(key)?,
+            HeaderValue::from_str(value)?,
+        )))
+    } else {
+        Ok(None)
+    }
 }
 
 #[cfg(test)]
+#[cfg(any(feature = "grpc-tonic", feature = "http-proto"))]
 mod tests {
+    use ::http::{HeaderName, HeaderValue};
     // Make sure env tests are not running concurrently
-    #[cfg(any(feature = "grpc-tonic", feature = "http-proto"))]
     static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
-    #[cfg(any(feature = "grpc-tonic", feature = "http-proto"))]
     pub(crate) fn run_env_test<T, F>(env_vars: T, f: F)
     where
         F: FnOnce(),
@@ -264,14 +274,49 @@ mod tests {
     }
 
     #[test]
-    #[cfg(any(feature = "grpc-tonic", feature = "http-proto"))]
     fn test_parse_header_string() {
         let test_cases = vec![
             // Format: (input_str, expected_headers)
-            ("k1=v1", vec![("k1", "v1")]),
-            ("k1=v1,k2=v2", vec![("k1", "v1"), ("k2", "v2")]),
-            ("k1=v1=10,k2,k3", vec![("k1", "v1=10")]),
-            ("k1=v1,,,k2,k3=10", vec![("k1", "v1"), ("k3", "10")]),
+            (
+                "k1=v1",
+                vec![(
+                    HeaderName::from_static("k1"),
+                    HeaderValue::from_static("v1"),
+                )],
+            ),
+            (
+                "k1=v1,k2=v2",
+                vec![
+                    (
+                        HeaderName::from_static("k1"),
+                        HeaderValue::from_static("v1"),
+                    ),
+                    (
+                        HeaderName::from_static("k2"),
+                        HeaderValue::from_static("v2"),
+                    ),
+                ],
+            ),
+            (
+                "k1=v1=10,k2,k3",
+                vec![(
+                    HeaderName::from_static("k1"),
+                    HeaderValue::from_static("v1=10"),
+                )],
+            ),
+            (
+                "k1=v1,,,k2,k3=10,k4=\x7F",
+                vec![
+                    (
+                        HeaderName::from_static("k1"),
+                        HeaderValue::from_static("v1"),
+                    ),
+                    (
+                        HeaderName::from_static("k3"),
+                        HeaderValue::from_static("10"),
+                    ),
+                ],
+            ),
         ];
 
         for (input_str, expected_headers) in test_cases {
@@ -280,5 +325,21 @@ mod tests {
                 expected_headers,
             )
         }
+    }
+
+    #[test]
+    fn test_parse_header_string_pair() {
+        assert_eq!(
+            super::parse_header_string_pair("k1=v1").unwrap(),
+            Some((
+                HeaderName::from_static("k1"),
+                HeaderValue::from_static("v1")
+            ))
+        );
+        assert_eq!(super::parse_header_string_pair("").unwrap(), None);
+        assert_eq!(super::parse_header_string_pair("=v1").unwrap(), None);
+        assert_eq!(super::parse_header_string_pair("k1=").unwrap(), None);
+        assert!(super::parse_header_string_pair("k1=\x7F").is_err(),);
+        assert!(super::parse_header_string_pair("\x7F=1").is_err(),);
     }
 }
