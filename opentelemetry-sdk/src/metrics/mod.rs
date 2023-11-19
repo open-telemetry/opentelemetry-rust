@@ -101,7 +101,7 @@ mod tests {
         let resource_metrics = exporter
             .get_finished_metrics()
             .expect("metrics are expected to be exported.");
-        assert_eq!(resource_metrics.len() > 0, true);
+        assert!(!resource_metrics.is_empty());
         let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
         assert_eq!(metric.name, "my_counter");
         assert_eq!(metric.unit.as_str(), "my_unit");
@@ -113,7 +113,7 @@ mod tests {
 
         // Expecting 2 time-series.
         assert_eq!(sum.data_points.len(), 2);
-        assert_eq!(sum.is_monotonic, true, "Counter should produce monotonic.");
+        assert!(sum.is_monotonic, "Counter should produce monotonic.");
         assert_eq!(
             sum.temporality,
             data::Temporality::Cumulative,
@@ -126,8 +126,7 @@ mod tests {
             if datapoint
                 .attributes
                 .iter()
-                .find(|(k, v)| k.as_str() == "key1" && v.as_str() == "value1")
-                .is_some()
+                .any(|(k, v)| k.as_str() == "key1" && v.as_str() == "value1")
             {
                 data_point1 = Some(datapoint);
             }
@@ -145,8 +144,7 @@ mod tests {
             if datapoint
                 .attributes
                 .iter()
-                .find(|(k, v)| k.as_str() == "key1" && v.as_str() == "value2")
-                .is_some()
+                .any(|(k, v)| k.as_str() == "key1" && v.as_str() == "value2")
             {
                 data_point1 = Some(datapoint);
             }
