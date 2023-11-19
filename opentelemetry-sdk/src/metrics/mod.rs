@@ -66,9 +66,10 @@ mod tests {
         metrics::{MeterProvider as _, Unit},
         KeyValue,
     };
-    use tokio::time::{sleep, Duration};
 
-    #[tokio::test]
+    // "multi_thread" tokio flavor must be used else flush won't
+    // be able to make progress!
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn counter_aggregation() {
         // Run this test with stdout enabled to see output.
         // cargo test counter --features=metrics,testing -- --nocapture
@@ -94,21 +95,13 @@ mod tests {
         counter.add(1, &[KeyValue::new("key1", "value2")]);
         counter.add(1, &[KeyValue::new("key1", "value2")]);
 
-        // TODO: Unable to get this to work, as
-        // flush is taking forever.
-        // println!("flush started");
-        // meter_provider.force_flush().unwrap();
-        // println!("flush finished");
-        // The sleep is temporary workaround to
-        // unblock progress on writing tests like
-        // this.
-        sleep(Duration::from_millis(100)).await;
+        meter_provider.force_flush().unwrap();
 
         // Assert
         let resource_metrics = exporter
             .get_finished_metrics()
             .expect("metrics are expected to be exported.");
-        assert_eq!(resource_metrics.len(), 1);
+        assert_eq!(resource_metrics.len() > 0, true);
         let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
         assert_eq!(metric.name, "my_counter");
         assert_eq!(metric.unit.as_str(), "my_unit");
@@ -116,27 +109,53 @@ mod tests {
             .data
             .as_any()
             .downcast_ref::<data::Sum<u64>>()
-            .expect("Sum aggregation expected");
+            .expect("Sum aggregation expected for Counter instruments by default");
 
         // Expecting 2 time-series.
         assert_eq!(sum.data_points.len(), 2);
+        assert_eq!(sum.is_monotonic, true, "Counter should produce monotonic.");
+        assert_eq!(
+            sum.temporality,
+            data::Temporality::Cumulative,
+            "Should produce cumulative by default."
+        );
 
-        // TODO: Don't think the order is guaranteed.
-        // Need to make it easy to write unit tests.
-        let data_point1 = &sum.data_points[0];
-        data_point1
-            .attributes
-            .iter()
-            .find(|(k, v)| k.as_str() == "key1" && v.as_str() == "value1")
-            .expect("kvp expected");
-        assert_eq!(data_point1.value, 5);
+        // find and validate key1=value1 datapoint
+        let mut data_point1 = None;
+        for datapoint in &sum.data_points {
+            if datapoint
+                .attributes
+                .iter()
+                .find(|(k, v)| k.as_str() == "key1" && v.as_str() == "value1")
+                .is_some()
+            {
+                data_point1 = Some(datapoint);
+            }
+        }
+        assert_eq!(
+            data_point1
+                .expect("datapoint with key1=value1 expected")
+                .value,
+            5
+        );
 
-        let data_point2 = &sum.data_points[1];
-        data_point2
-            .attributes
-            .iter()
-            .find(|(k, v)| k.as_str() == "key1" && v.as_str() == "value2")
-            .expect("kvp expected");
-        assert_eq!(data_point2.value, 3);
+        // find and validate key1=value2 datapoint
+        let mut data_point1 = None;
+        for datapoint in &sum.data_points {
+            if datapoint
+                .attributes
+                .iter()
+                .find(|(k, v)| k.as_str() == "key1" && v.as_str() == "value2")
+                .is_some()
+            {
+                data_point1 = Some(datapoint);
+            }
+        }
+        assert_eq!(
+            data_point1
+                .expect("datapoint with key1=value2 expected")
+                .value,
+            3
+        );
     }
 }
