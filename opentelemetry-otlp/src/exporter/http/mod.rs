@@ -316,7 +316,12 @@ fn resolve_endpoint(
 
 #[allow(clippy::mutable_key_type)] // http headers are not mutated
 fn add_header_from_string(input: &str, headers: &mut HashMap<HeaderName, HeaderValue>) {
-    headers.extend(parse_header_string(input));
+    headers.extend(parse_header_string(input).filter_map(|(key, value)| {
+        Some((
+            HeaderName::from_str(key).ok()?,
+            HeaderValue::from_str(value).ok()?,
+        ))
+    }));
 }
 
 #[cfg(test)]

@@ -1,8 +1,9 @@
 use std::env;
 use std::fmt::{Debug, Formatter};
+use std::str::FromStr;
 use std::time::Duration;
 
-use http::HeaderMap;
+use http::{HeaderMap, HeaderName, HeaderValue};
 use tonic::codec::CompressionEncoding;
 use tonic::metadata::{KeyAndValueRef, MetadataMap};
 use tonic::service::Interceptor;
@@ -374,7 +375,16 @@ fn merge_metadata_with_headers_from_env(
 fn parse_headers_from_env(signal_headers_var: &str) -> HeaderMap {
     env::var(signal_headers_var)
         .or_else(|_| env::var(OTEL_EXPORTER_OTLP_HEADERS))
-        .map(|input| parse_header_string(&input).collect::<HeaderMap>())
+        .map(|input| {
+            parse_header_string(&input)
+                .filter_map(|(key, value)| {
+                    Some((
+                        HeaderName::from_str(key).ok()?,
+                        HeaderValue::from_str(value).ok()?,
+                    ))
+                })
+                .collect::<HeaderMap>()
+        })
         .unwrap_or_default()
 }
 
