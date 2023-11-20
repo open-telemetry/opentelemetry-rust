@@ -349,12 +349,12 @@ pub enum Error {
     RequestFailed(#[from] opentelemetry_http::HttpError),
 
     /// The provided value is invalid in HTTP headers.
-    #[cfg(feature = "http-proto")]
+    #[cfg(any(feature = "grpc-tonic", feature = "http-proto"))]
     #[error("http header value error {0}")]
     InvalidHeaderValue(#[from] http::header::InvalidHeaderValue),
 
     /// The provided name is invalid in HTTP headers.
-    #[cfg(feature = "http-proto")]
+    #[cfg(any(feature = "grpc-tonic", feature = "http-proto"))]
     #[error("http header name error {0}")]
     InvalidHeaderName(#[from] http::header::InvalidHeaderName),
 
