@@ -8,18 +8,6 @@ use tracing_log::NormalizeEvent;
 use tracing_subscriber::Layer;
 
 const INSTRUMENTATION_LIBRARY_NAME: &str = "opentelemetry-appender-tracing";
-// Start by "log."
-const LOG_METADATA_ATTRIBUTES: &[&str] = &[
-    "name",
-    "target",
-    "module.path",
-    "file.path",
-    "file.name",
-    "file.line",
-    "module_path",
-    "file",
-    "line",
-];
 
 /// Visitor to record the fields from the event record.
 #[derive(Default)]
@@ -28,15 +16,24 @@ struct EventVisitor {
     log_record_body: Option<AnyValue>,
 }
 
-fn is_metadata(field: &str) -> bool {
-    if let Some(log_field) = field.strip_prefix("log.") {
-        for log_metadata_field in LOG_METADATA_ATTRIBUTES {
-            if *log_metadata_field == log_field {
-                return true;
-            }
-        }
-    }
-    false
+fn is_metadata(field: &'static str) -> bool {
+    field
+        .strip_prefix("log.")
+        .map(|remainder| {
+            matches!(
+                remainder,
+                "file.line"
+                    | "file.name"
+                    | "file.path"
+                    | "file"
+                    | "line"
+                    | "module_path"
+                    | "module.path"
+                    | "name"
+                    | "target"
+            )
+        })
+        .unwrap_or(false)
 }
 
 fn get_filename(filepath: &str) -> &str {
@@ -100,17 +97,13 @@ impl tracing::field::Visit for EventVisitor {
     }
 
     fn record_bool(&mut self, field: &tracing_core::Field, value: bool) {
-        if !is_metadata(field.name()) {
-            self.log_record_attributes
-                .push((field.name().into(), value.into()));
-        }
+        self.log_record_attributes
+            .push((field.name().into(), value.into()));
     }
 
     fn record_f64(&mut self, field: &tracing::field::Field, value: f64) {
-        if !is_metadata(field.name()) {
-            self.log_record_attributes
-                .push((field.name().into(), value.into()));
-        }
+        self.log_record_attributes
+            .push((field.name().into(), value.into()));
     }
 
     fn record_i64(&mut self, field: &tracing::field::Field, value: i64) {
