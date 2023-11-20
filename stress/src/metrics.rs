@@ -33,14 +33,13 @@ fn test_counter() {
     let index_first_attribute = rng.gen_range(0..len);
     let index_second_attribute = rng.gen_range(0..len);
     let index_third_attribute = rng.gen_range(0..len);
-    let index_fourth_attribute = rng.gen_range(0..len);
 
     // each attribute has 10 possible values, so there are 1000 possible combinations (time-series)
     COUNTER.add(
         1,
         // attributes are intentionally unsorted to account for any sorting/normalization costs
         &[
-            KeyValue::new("attribute4", ATTRIBUTE_VALUES[index_fourth_attribute]),
+            KeyValue::new("attribute4", ATTRIBUTE_VALUES[index_third_attribute]),
             KeyValue::new("attribute2", ATTRIBUTE_VALUES[index_second_attribute]),
             KeyValue::new("attribute3", ATTRIBUTE_VALUES[index_third_attribute]),
             KeyValue::new("attribute1", ATTRIBUTE_VALUES[index_first_attribute]),

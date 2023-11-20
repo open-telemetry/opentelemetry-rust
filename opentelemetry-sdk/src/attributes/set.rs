@@ -1,8 +1,9 @@
+use std::collections::hash_map::DefaultHasher;
+use std::collections::HashSet;
 use std::{
     cmp::Ordering,
     hash::{Hash, Hasher},
 };
-use std::collections::hash_map::DefaultHasher;
 
 use opentelemetry::{Array, Key, KeyValue, Value};
 use ordered_float::OrderedFloat;
@@ -109,12 +110,19 @@ pub struct AttributeSet(Vec<HashKeyValue>, u64);
 
 impl From<&[KeyValue]> for AttributeSet {
     fn from(values: &[KeyValue]) -> Self {
+        let mut seen_keys = HashSet::with_capacity(values.len());
         let mut vec = values
             .iter()
-            .map(|k| HashKeyValue(k.clone()))
+            .rev()
+            .filter_map(|k| {
+                if seen_keys.insert(k.key.clone()) {
+                    Some(HashKeyValue(k.clone()))
+                } else {
+                    None
+                }
+            })
             .collect::<Vec<_>>();
-        vec.sort_by(|a, b| a.0.key.cmp(&b.0.key));
-        vec.dedup_by(|a, b| a.0.key.eq(&b.0.key));
+        vec.sort();
 
         let mut hasher = DefaultHasher::new();
         for value in &vec {
