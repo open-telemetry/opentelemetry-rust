@@ -122,7 +122,7 @@ impl From<&[KeyValue]> for AttributeSet {
                 }
             })
             .collect::<Vec<_>>();
-        vec.sort();
+        vec.sort_unstable();
 
         let mut hasher = DefaultHasher::new();
         for value in &vec {
@@ -135,10 +135,11 @@ impl From<&[KeyValue]> for AttributeSet {
 
 impl From<&Resource> for AttributeSet {
     fn from(values: &Resource) -> Self {
-        let vec = values
+        let mut vec = values
             .iter()
             .map(|(key, value)| HashKeyValue(KeyValue::new(key.clone(), value.clone())))
             .collect::<Vec<_>>();
+        vec.sort_unstable();
 
         let mut hasher = DefaultHasher::new();
         for value in &vec {
