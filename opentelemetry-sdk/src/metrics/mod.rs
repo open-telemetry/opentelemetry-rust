@@ -190,7 +190,10 @@ mod tests {
         let resource_metrics = exporter
             .get_finished_metrics()
             .expect("metrics are expected to be exported.");
-        assert!(resource_metrics[0].scope_metrics[0].metrics.len() == 1, "There should be single metric merging duplicate instruments");
+        assert!(
+            resource_metrics[0].scope_metrics[0].metrics.len() == 1,
+            "There should be single metric merging duplicate instruments"
+        );
         let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
         assert_eq!(metric.name, "my_counter");
         assert_eq!(metric.unit.as_str(), "my_unit");
