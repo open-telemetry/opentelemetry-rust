@@ -113,7 +113,7 @@ impl TextMapPropagator for TextMapCompositePropagator {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "trace"))]
 mod tests {
     use crate::baggage::BaggageExt;
     use crate::propagation::TextMapCompositePropagator;
