@@ -238,16 +238,6 @@ pub trait InstrumentProvider {
         Ok(Histogram::new(Arc::new(noop::NoopSyncInstrument::new())))
     }
 
-    /// creates an instrument for recording a distribution of values.
-    fn i64_histogram(
-        &self,
-        _name: Cow<'static, str>,
-        _description: Option<Cow<'static, str>>,
-        _unit: Option<Unit>,
-    ) -> Result<Histogram<i64>> {
-        Ok(Histogram::new(Arc::new(noop::NoopSyncInstrument::new())))
-    }
-
     /// Captures the function that will be called during data collection.
     ///
     /// It is only valid to call `observe` within the scope of the passed function.

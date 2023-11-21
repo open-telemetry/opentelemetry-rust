@@ -4,18 +4,21 @@
 
 ### Changed
 
-Modified `AnyValue.Map` to be backed by `HashMap` instead of custom `OrderMap`,
+- Modified `AnyValue.Map` to be backed by `HashMap` instead of custom `OrderMap`,
 which internally used `IndexMap`. There was no requirement to maintain the order
 of entries, so moving from `IndexMap` to `HashMap` offers slight performance
 gains, and avoids `IndexMap` dependency. This affects `body` and `attributes` of
 `LogRecord`.
 [#1353](https://github.com/open-telemetry/opentelemetry-rust/pull/1353)
 
+- Add `TextMapCompositePropagator` [#1373](https://github.com/open-telemetry/opentelemetry-rust/pull/1373)
+
 ### Removed
 
-Removed `OrderMap` type as there was no requirement to use this over regular
+- Removed `OrderMap` type as there was no requirement to use this over regular
 `HashMap`.
 [#1353](https://github.com/open-telemetry/opentelemetry-rust/pull/1353)
+- Remove API for Creating Histograms with signed integers. [#1371](https://github.com/open-telemetry/opentelemetry-rust/pull/1371)
 
 ## [v0.21.0](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.20.0...v0.21.0)
 

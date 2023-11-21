@@ -10,7 +10,7 @@ use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use super::default_headers;
+use super::{default_headers, parse_header_string};
 
 #[cfg(feature = "metrics")]
 mod metrics;
@@ -316,46 +316,18 @@ fn resolve_endpoint(
 
 #[allow(clippy::mutable_key_type)] // http headers are not mutated
 fn add_header_from_string(input: &str, headers: &mut HashMap<HeaderName, HeaderValue>) {
-    for pair in input.split_terminator(',') {
-        if pair.trim().is_empty() {
-            continue;
-        }
-        if let Some((k, v)) = pair.trim().split_once('=') {
-            if !k.trim().is_empty() && !v.trim().is_empty() {
-                if let (Ok(key), Ok(value)) = (
-                    HeaderName::from_str(k.trim()),
-                    HeaderValue::from_str(v.trim()),
-                ) {
-                    headers.insert(key, value);
-                }
-            }
-        }
-    }
+    headers.extend(parse_header_string(input).filter_map(|(key, value)| {
+        Some((
+            HeaderName::from_str(key).ok()?,
+            HeaderValue::from_str(value).ok()?,
+        ))
+    }));
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::exporter::tests::run_env_test;
     use crate::{OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_TRACES_ENDPOINT};
-    use std::sync::Mutex;
-
-    // Make sure env tests are not running concurrently
-    static ENV_LOCK: Mutex<()> = Mutex::new(());
-
-    fn run_env_test<T, F>(env_vars: T, f: F)
-    where
-        F: FnOnce(),
-        T: Into<Vec<(&'static str, &'static str)>>,
-    {
-        let _env_lock = ENV_LOCK.lock().expect("env test lock poisoned");
-        let env_vars = env_vars.into();
-        for (k, v) in env_vars.iter() {
-            std::env::set_var(k, v);
-        }
-        f();
-        for (k, _) in env_vars {
-            std::env::remove_var(k);
-        }
-    }
 
     #[test]
     fn test_append_signal_path_to_generic_env() {

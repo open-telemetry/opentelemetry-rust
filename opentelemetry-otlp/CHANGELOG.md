@@ -9,6 +9,8 @@
 - Add `build_{signal}_exporter` methods to client builders (#1187)
 - Add `grpcio` metrics exporter (#1202)
 - Allow specifying OTLP HTTP headers from env variable (#1290)
+- Support custom channels in topic exporters  [#1335](https://github.com/open-telemetry/opentelemetry-rust/pull/1335)
+- Allow specifying OTLP Tonic metadata from env variable (#1377)
 
 ### Changed
 

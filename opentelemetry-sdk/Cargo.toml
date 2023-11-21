@@ -58,10 +58,6 @@ name = "context"
 harness = false
 
 [[bench]]
-name = "key_value_map"
-harness = false
-
-[[bench]]
 name = "span_builder"
 harness = false
 

@@ -1,7 +1,9 @@
 use std::env;
 use std::fmt::{Debug, Formatter};
+use std::str::FromStr;
 use std::time::Duration;
 
+use http::{HeaderMap, HeaderName, HeaderValue};
 use tonic::codec::CompressionEncoding;
 use tonic::metadata::{KeyAndValueRef, MetadataMap};
 use tonic::service::Interceptor;
@@ -9,11 +11,11 @@ use tonic::transport::Channel;
 #[cfg(feature = "tls")]
 use tonic::transport::ClientTlsConfig;
 
-use super::default_headers;
+use super::{default_headers, parse_header_string};
 use crate::exporter::Compression;
 use crate::{
     ExportConfig, OTEL_EXPORTER_OTLP_COMPRESSION, OTEL_EXPORTER_OTLP_ENDPOINT,
-    OTEL_EXPORTER_OTLP_TIMEOUT,
+    OTEL_EXPORTER_OTLP_HEADERS, OTEL_EXPORTER_OTLP_TIMEOUT,
 };
 
 #[cfg(feature = "logs")]
@@ -208,51 +210,22 @@ impl TonicExporterBuilder {
     }
 
     fn build_channel(
-        &mut self,
+        self,
         signal_endpoint_var: &str,
         signal_endpoint_path: &str,
         signal_timeout_var: &str,
         signal_compression_var: &str,
+        signal_headers_var: &str,
     ) -> Result<(Channel, BoxInterceptor, Option<CompressionEncoding>), crate::Error> {
-        let config = &mut self.exporter_config;
-        let tonic_config: &mut TonicConfig = &mut self.tonic_config;
+        let tonic_config = self.tonic_config;
+        let compression = resolve_compression(&tonic_config, signal_compression_var)?;
 
-        let endpoint = match env::var(signal_endpoint_var)
-            .ok()
-            .or(env::var(OTEL_EXPORTER_OTLP_ENDPOINT).ok())
-        {
-            Some(val) => val,
-            None => format!("{}{signal_endpoint_path}", config.endpoint),
-        };
+        let headers_from_env = parse_headers_from_env(signal_headers_var);
+        let metadata = merge_metadata_with_headers_from_env(
+            tonic_config.metadata.unwrap_or_default(),
+            headers_from_env,
+        );
 
-        let timeout = match env::var(signal_timeout_var)
-            .ok()
-            .or(env::var(OTEL_EXPORTER_OTLP_TIMEOUT).ok())
-        {
-            Some(val) => match val.parse() {
-                Ok(seconds) => Duration::from_secs(seconds),
-                Err(_) => config.timeout,
-            },
-            None => config.timeout,
-        };
-        let compression = resolve_compression(tonic_config, signal_compression_var)?;
-
-        let endpoint = Channel::from_shared(endpoint).map_err(crate::Error::from)?;
-
-        #[cfg(feature = "tls")]
-        let channel = match tonic_config.tls_config.take() {
-            Some(tls_config) => endpoint
-                .tls_config(tls_config)
-                .map_err(crate::Error::from)?,
-            None => endpoint,
-        }
-        .timeout(timeout)
-        .connect_lazy();
-
-        #[cfg(not(feature = "tls"))]
-        let channel = endpoint.timeout(timeout).connect_lazy();
-
-        let metadata = tonic_config.metadata.take().unwrap_or_default();
         let add_metadata = move |mut req: tonic::Request<()>| {
             for key_and_value in metadata.iter() {
                 match key_and_value {
@@ -268,12 +241,51 @@ impl TonicExporterBuilder {
             Ok(req)
         };
 
-        let interceptor = match self.interceptor.take() {
+        let interceptor = match self.interceptor {
             Some(mut interceptor) => {
                 BoxInterceptor(Box::new(move |req| interceptor.call(add_metadata(req)?)))
             }
             None => BoxInterceptor(Box::new(add_metadata)),
         };
+
+        // If a custom channel was provided, use that channel instead of creating one
+        if let Some(channel) = self.channel {
+            return Ok((channel, interceptor, compression));
+        }
+
+        let config = self.exporter_config;
+        let endpoint = match env::var(signal_endpoint_var)
+            .ok()
+            .or(env::var(OTEL_EXPORTER_OTLP_ENDPOINT).ok())
+        {
+            Some(val) => val,
+            None => format!("{}{signal_endpoint_path}", config.endpoint),
+        };
+
+        let endpoint = Channel::from_shared(endpoint).map_err(crate::Error::from)?;
+        let timeout = match env::var(signal_timeout_var)
+            .ok()
+            .or(env::var(OTEL_EXPORTER_OTLP_TIMEOUT).ok())
+        {
+            Some(val) => match val.parse() {
+                Ok(seconds) => Duration::from_secs(seconds),
+                Err(_) => config.timeout,
+            },
+            None => config.timeout,
+        };
+
+        #[cfg(feature = "tls")]
+        let channel = match tonic_config.tls_config {
+            Some(tls_config) => endpoint
+                .tls_config(tls_config)
+                .map_err(crate::Error::from)?,
+            None => endpoint,
+        }
+        .timeout(timeout)
+        .connect_lazy();
+
+        #[cfg(not(feature = "tls"))]
+        let channel = endpoint.timeout(timeout).connect_lazy();
 
         Ok((channel, interceptor, compression))
     }
@@ -281,7 +293,7 @@ impl TonicExporterBuilder {
     /// Build a new tonic log exporter
     #[cfg(feature = "logs")]
     pub fn build_log_exporter(
-        mut self,
+        self,
     ) -> Result<crate::logs::LogExporter, opentelemetry::logs::LogError> {
         use crate::exporter::tonic::logs::TonicLogsClient;
 
@@ -290,6 +302,7 @@ impl TonicExporterBuilder {
             "/v1/logs",
             crate::logs::OTEL_EXPORTER_OTLP_LOGS_TIMEOUT,
             crate::logs::OTEL_EXPORTER_OTLP_LOGS_COMPRESSION,
+            crate::logs::OTEL_EXPORTER_OTLP_LOGS_HEADERS,
         )?;
 
         let client = TonicLogsClient::new(channel, interceptor, compression);
@@ -300,7 +313,7 @@ impl TonicExporterBuilder {
     /// Build a new tonic metrics exporter
     #[cfg(feature = "metrics")]
     pub fn build_metrics_exporter(
-        mut self,
+        self,
         aggregation_selector: Box<dyn opentelemetry_sdk::metrics::reader::AggregationSelector>,
         temporality_selector: Box<dyn opentelemetry_sdk::metrics::reader::TemporalitySelector>,
     ) -> opentelemetry::metrics::Result<crate::MetricsExporter> {
@@ -312,6 +325,7 @@ impl TonicExporterBuilder {
             "/v1/metrics",
             crate::metric::OTEL_EXPORTER_OTLP_METRICS_TIMEOUT,
             crate::metric::OTEL_EXPORTER_OTLP_METRICS_COMPRESSION,
+            crate::metric::OTEL_EXPORTER_OTLP_METRICS_HEADERS,
         )?;
 
         let client = TonicMetricsClient::new(channel, interceptor, compression);
@@ -326,7 +340,7 @@ impl TonicExporterBuilder {
     /// Build a new tonic span exporter
     #[cfg(feature = "trace")]
     pub fn build_span_exporter(
-        mut self,
+        self,
     ) -> Result<crate::SpanExporter, opentelemetry::trace::TraceError> {
         use crate::exporter::tonic::trace::TonicTracesClient;
 
@@ -335,6 +349,7 @@ impl TonicExporterBuilder {
             "/v1/traces",
             crate::span::OTEL_EXPORTER_OTLP_TRACES_TIMEOUT,
             crate::span::OTEL_EXPORTER_OTLP_TRACES_COMPRESSION,
+            crate::span::OTEL_EXPORTER_OTLP_TRACES_HEADERS,
         )?;
 
         let client = TonicTracesClient::new(channel, interceptor, compression);
@@ -343,11 +358,44 @@ impl TonicExporterBuilder {
     }
 }
 
+fn merge_metadata_with_headers_from_env(
+    metadata: MetadataMap,
+    headers_from_env: HeaderMap,
+) -> MetadataMap {
+    if headers_from_env.is_empty() {
+        metadata
+    } else {
+        let mut existing_headers: HeaderMap = metadata.into_headers();
+        existing_headers.extend(headers_from_env);
+
+        MetadataMap::from_headers(existing_headers)
+    }
+}
+
+fn parse_headers_from_env(signal_headers_var: &str) -> HeaderMap {
+    env::var(signal_headers_var)
+        .or_else(|_| env::var(OTEL_EXPORTER_OTLP_HEADERS))
+        .map(|input| {
+            parse_header_string(&input)
+                .filter_map(|(key, value)| {
+                    Some((
+                        HeaderName::from_str(key).ok()?,
+                        HeaderValue::from_str(value).ok()?,
+                    ))
+                })
+                .collect::<HeaderMap>()
+        })
+        .unwrap_or_default()
+}
+
 #[cfg(test)]
 mod tests {
+    use crate::exporter::tests::run_env_test;
     #[cfg(feature = "gzip-tonic")]
     use crate::exporter::Compression;
     use crate::TonicExporterBuilder;
+    use crate::{OTEL_EXPORTER_OTLP_HEADERS, OTEL_EXPORTER_OTLP_TRACES_HEADERS};
+    use http::{HeaderMap, HeaderName, HeaderValue};
     use tonic::metadata::{MetadataMap, MetadataValue};
 
     #[test]
@@ -388,5 +436,63 @@ mod tests {
         metadata.insert("foo", "bar".parse().unwrap());
         let builder = TonicExporterBuilder::default().with_compression(Compression::Gzip);
         assert_eq!(builder.tonic_config.compression.unwrap(), Compression::Gzip);
+    }
+
+    #[test]
+    fn test_parse_headers_from_env() {
+        run_env_test(
+            vec![
+                (OTEL_EXPORTER_OTLP_TRACES_HEADERS, "k1=v1,k2=v2"),
+                (OTEL_EXPORTER_OTLP_HEADERS, "k3=v3"),
+            ],
+            || {
+                assert_eq!(
+                    super::parse_headers_from_env(OTEL_EXPORTER_OTLP_TRACES_HEADERS),
+                    HeaderMap::from_iter([
+                        (
+                            HeaderName::from_static("k1"),
+                            HeaderValue::from_static("v1")
+                        ),
+                        (
+                            HeaderName::from_static("k2"),
+                            HeaderValue::from_static("v2")
+                        ),
+                    ])
+                );
+
+                assert_eq!(
+                    super::parse_headers_from_env("EMPTY_ENV"),
+                    HeaderMap::from_iter([(
+                        HeaderName::from_static("k3"),
+                        HeaderValue::from_static("v3")
+                    )])
+                );
+            },
+        )
+    }
+
+    #[test]
+    fn test_merge_metadata_with_headers_from_env() {
+        run_env_test(
+            vec![(OTEL_EXPORTER_OTLP_TRACES_HEADERS, "k1=v1,k2=v2")],
+            || {
+                let headers_from_env =
+                    super::parse_headers_from_env(OTEL_EXPORTER_OTLP_TRACES_HEADERS);
+
+                let mut metadata = MetadataMap::new();
+                metadata.insert("foo", "bar".parse().unwrap());
+                metadata.insert("k1", "v0".parse().unwrap());
+
+                let result =
+                    super::merge_metadata_with_headers_from_env(metadata, headers_from_env);
+
+                assert_eq!(
+                    result.get("foo").unwrap(),
+                    MetadataValue::from_static("bar")
+                );
+                assert_eq!(result.get("k1").unwrap(), MetadataValue::from_static("v1"));
+                assert_eq!(result.get("k2").unwrap(), MetadataValue::from_static("v2"));
+            },
+        );
     }
 }
