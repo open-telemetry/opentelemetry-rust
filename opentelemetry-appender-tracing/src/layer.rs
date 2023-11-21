@@ -22,14 +22,14 @@ fn is_metadata(field: &'static str) -> bool {
         .map(|remainder| {
             matches!(
                 remainder,
-                "file.line"
-                    | "file.name"
-                    | "file.path"
-                    | "file"
+                "file"
                     | "line"
                     | "module_path"
                     | "module.path"
                     | "name"
+                    | "source.file.line"
+                    | "source.file.path"
+                    | "source.file.name"
                     | "target"
             )
         })
@@ -59,15 +59,15 @@ impl EventVisitor {
         }
         if let Some(filepath) = meta.file() {
             self.log_record_attributes
-                .push(("log.file.path".into(), filepath.to_owned().into()));
+                .push(("log.source.file.path".into(), filepath.to_owned().into()));
             self.log_record_attributes.push((
-                "log.file.name".into(),
+                "log.source.file.name".into(),
                 get_filename(filepath).to_owned().into(),
             ));
         }
         if let Some(line) = meta.line() {
             self.log_record_attributes
-                .push(("log.file.line".into(), line.into()));
+                .push(("log.source.file.line".into(), line.into()));
         }
     }
 
