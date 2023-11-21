@@ -1,7 +1,13 @@
-//! # Text Propagator
+//! # TextMapPropagator
 //!
-//! `TextMapPropagator` is a formatter to serialize and deserialize a value into a
-//! text format.
+//! [`TextMapPropagator`] performs the injection and extraction of a cross-cutting concern value as
+//! string key/values pairs into carriers that travel in-band across process boundaries.
+//!
+//! The carrier of propagated data on both the client (injector) and server (extractor) side is
+//! usually an HTTP request.
+//!
+//! In order to increase compatibility, the key/value pairs MUST only consist of US-ASCII characters
+//! that make up valid HTTP header fields as per RFC 7230.
 use crate::{
     propagation::{Extractor, Injector},
     Context,

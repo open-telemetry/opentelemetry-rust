@@ -38,3 +38,6 @@ metrics = []
 testing = ["trace", "metrics"]
 logs = []
 logs_level_enabled = ["logs"]
+
+[dev-dependencies]
+opentelemetry_sdk = { path = "../opentelemetry-sdk" } # for documentation tests
