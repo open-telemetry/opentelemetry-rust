@@ -114,9 +114,9 @@ impl From<&[KeyValue]> for AttributeSet {
         let mut vec = values
             .iter()
             .rev()
-            .filter_map(|k| {
-                if seen_keys.insert(k.key.clone()) {
-                    Some(HashKeyValue(k.clone()))
+            .filter_map(|kv| {
+                if seen_keys.insert(kv.key.clone()) {
+                    Some(HashKeyValue(kv.clone()))
                 } else {
                     None
                 }
