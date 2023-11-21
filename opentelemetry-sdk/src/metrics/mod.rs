@@ -156,4 +156,57 @@ mod tests {
             3
         );
     }
+
+    // "multi_thread" tokio flavor must be used else flush won't
+    // be able to make progress!
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn counter_duplicate_instrument_merge() {
+        // Arrange
+        let exporter = InMemoryMetricsExporter::default();
+        let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
+        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+
+        // Act
+        let meter = meter_provider.meter("test");
+        let counter = meter
+            .u64_counter("my_counter")
+            .with_unit(Unit::new("my_unit"))
+            .with_description("my_description")
+            .init();
+
+        let counter_duplicated = meter
+            .u64_counter("my_counter")
+            .with_unit(Unit::new("my_unit"))
+            .with_description("my_description")
+            .init();
+
+        let attribute = vec![KeyValue::new("key1", "value1")];
+        counter.add(10, &attribute);
+        counter_duplicated.add(5, &attribute);
+
+        meter_provider.force_flush().unwrap();
+
+        // Assert
+        let resource_metrics = exporter
+            .get_finished_metrics()
+            .expect("metrics are expected to be exported.");
+        assert!(
+            resource_metrics[0].scope_metrics[0].metrics.len() == 1,
+            "There should be single metric merging duplicate instruments"
+        );
+        let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
+        assert_eq!(metric.name, "my_counter");
+        assert_eq!(metric.unit.as_str(), "my_unit");
+        let sum = metric
+            .data
+            .as_any()
+            .downcast_ref::<data::Sum<u64>>()
+            .expect("Sum aggregation expected for Counter instruments by default");
+
+        // Expecting 1 time-series.
+        assert_eq!(sum.data_points.len(), 1);
+
+        let datapoint = &sum.data_points[0];
+        assert_eq!(datapoint.value, 15);
+    }
 }
