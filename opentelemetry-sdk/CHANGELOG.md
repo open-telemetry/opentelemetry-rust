@@ -24,6 +24,12 @@
 - **Breaking** Remove `TextMapCompositePropagator` [#1373](https://github.com/open-telemetry/opentelemetry-rust/pull/1373). Use `TextMapCompositePropagator` in opentelemetry API.
 
 - [#1375](https://github.com/open-telemetry/opentelemetry-rust/pull/1375/) Fix metric collections during PeriodicReader shutdown
+- **Breaking**
+  [#1397](https://github.com/open-telemetry/opentelemetry-rust/issues/1397)
+  Removes de-duplication of Metric attribute keys to achieve performance gains.
+  Please share [feedback
+  here](https://github.com/open-telemetry/opentelemetry-rust/issues/1300), if
+  you are affected.
 
 ## v0.21.1
 
