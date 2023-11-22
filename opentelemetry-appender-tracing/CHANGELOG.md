@@ -2,6 +2,8 @@
 
 ## vNext
 
+- Support trace correlation by setting the trace_id and span_id on the log records
+
 ## v0.2.0
 
 ### Changed
