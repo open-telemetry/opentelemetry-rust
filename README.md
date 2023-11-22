@@ -107,8 +107,7 @@ In particular, the following crates are likely to be of interest:
   are experimental.
 * [`opentelemetry-http`] provides an interface for injecting and extracting
   trace information from [`http`] headers.
-* [`opentelemetry-jaeger`] provides a pipeline and exporter for sending trace
-  information to [`Jaeger`].
+* [`opentelemetry-jaeger`] provides context propagation using [jaeger propagation format](https://www.jaegertracing.io/docs/1.18/client-libraries/#propagation-format).
 * [`opentelemetry-otlp`] exporter for sending trace and metric data in the OTLP
   format to the OpenTelemetry collector.
 * [`opentelemetry-prometheus`] provides a pipeline and exporter for sending
