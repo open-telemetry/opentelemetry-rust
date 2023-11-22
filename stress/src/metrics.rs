@@ -13,8 +13,10 @@ lazy_static! {
     static ref PROVIDER: SdkMeterProvider = SdkMeterProvider::builder()
         .with_reader(ManualReader::builder().build())
         .build();
-    static ref ATTRIBUTE_VALUES: [&'static str; 6] =
-        ["value1", "value2", "value3", "value4", "value5", "value6"];
+    static ref ATTRIBUTE_VALUES: [&'static str; 10] = [
+        "value1", "value2", "value3", "value4", "value5", "value6", "value7", "value8", "value9",
+        "value10"
+    ];
     static ref COUNTER: Counter<u64> = PROVIDER
         .meter(<&str as Into<Cow<'static, str>>>::into("test"))
         .u64_counter("hello")
@@ -31,17 +33,14 @@ fn test_counter() {
     let index_first_attribute = rng.gen_range(0..len);
     let index_second_attribute = rng.gen_range(0..len);
     let index_third_attribute = rng.gen_range(0..len);
-    let index_fourth_attribute = rng.gen_range(0..len);
 
-    // each attribute has 6 possible values, so there are 1296 possible combinations (time-series)
+    // each attribute has 10 possible values, so there are 1000 possible combinations (time-series)
     COUNTER.add(
         1,
-        // attributes are intentionally unsorted to account for any sorting/normalization costs
         &[
-            KeyValue::new("attribute4", ATTRIBUTE_VALUES[index_fourth_attribute]),
+            KeyValue::new("attribute1", ATTRIBUTE_VALUES[index_first_attribute]),
             KeyValue::new("attribute2", ATTRIBUTE_VALUES[index_second_attribute]),
             KeyValue::new("attribute3", ATTRIBUTE_VALUES[index_third_attribute]),
-            KeyValue::new("attribute1", ATTRIBUTE_VALUES[index_first_attribute]),
         ],
     );
 }
