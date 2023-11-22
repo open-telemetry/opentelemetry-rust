@@ -2,6 +2,9 @@ use criterion::{criterion_group, criterion_main, Criterion};
 use opentelemetry::KeyValue;
 use opentelemetry_sdk::AttributeSet;
 
+// Run this benchmark with:
+// cargo bench --bench metric_counter
+
 fn criterion_benchmark(c: &mut Criterion) {
     attribute_set(c);
 }
