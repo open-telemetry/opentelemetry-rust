@@ -51,8 +51,9 @@ fn counter_add(c: &mut Criterion) {
     c.bench_function("Counter_Add_Unsorted", |b| {
         b.iter(|| {
             let mut rng = SmallRng::from_entropy();
-            let index_first_attribute = rng.gen_range(0..2);
-            let index_second_attribute = rng.gen_range(0..5);
+            // 4*4*10*10 = 1600 time series.
+            let index_first_attribute = rng.gen_range(0..4);
+            let index_second_attribute = rng.gen_range(0..4);
             let index_third_attribute = rng.gen_range(0..10);
             let index_forth_attribute = rng.gen_range(0..10);
             counter.add(
