@@ -18,10 +18,10 @@ fn create_counter() -> Counter<u64> {
 }
 
 fn criterion_benchmark(c: &mut Criterion) {
-    counter_no_attributes(c);
+    counter_add(c);
 }
 
-fn counter_no_attributes(c: &mut Criterion) {
+fn counter_add(c: &mut Criterion) {
     let attribute_values = [
         "value1", "value2", "value3", "value4", "value5", "value6", "value7", "value8", "value9",
         "value10",
