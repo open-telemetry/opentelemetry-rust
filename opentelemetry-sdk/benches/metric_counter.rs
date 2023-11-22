@@ -3,10 +3,8 @@ use opentelemetry::{
     metrics::{Counter, MeterProvider as _},
     KeyValue,
 };
-use opentelemetry_sdk::metrics::{
-        ManualReader, SdkMeterProvider,
-    };
-use rand::{rngs::SmallRng, SeedableRng, Rng};
+use opentelemetry_sdk::metrics::{ManualReader, SdkMeterProvider};
+use rand::{rngs::SmallRng, Rng, SeedableRng};
 
 // Run this benchmark with:
 // cargo bench --bench metric_counter --features=metrics,testing
@@ -26,7 +24,7 @@ fn criterion_benchmark(c: &mut Criterion) {
 fn counter_no_attributes(c: &mut Criterion) {
     let attribute_values = [
         "value1", "value2", "value3", "value4", "value5", "value6", "value7", "value8", "value9",
-        "value10"        
+        "value10",
     ];
 
     let counter = create_counter();
@@ -38,13 +36,15 @@ fn counter_no_attributes(c: &mut Criterion) {
             let index_second_attribute = rng.gen_range(0..4);
             let index_third_attribute = rng.gen_range(0..10);
             let index_forth_attribute = rng.gen_range(0..10);
-            counter.add(1,
+            counter.add(
+                1,
                 &[
                     KeyValue::new("attribute1", attribute_values[index_first_attribute]),
                     KeyValue::new("attribute2", attribute_values[index_second_attribute]),
                     KeyValue::new("attribute3", attribute_values[index_third_attribute]),
                     KeyValue::new("attribute4", attribute_values[index_forth_attribute]),
-                ]);
+                ],
+            );
         });
     });
 
@@ -55,13 +55,15 @@ fn counter_no_attributes(c: &mut Criterion) {
             let index_second_attribute = rng.gen_range(0..5);
             let index_third_attribute = rng.gen_range(0..10);
             let index_forth_attribute = rng.gen_range(0..10);
-            counter.add(1,
-                &[                    
+            counter.add(
+                1,
+                &[
                     KeyValue::new("attribute2", attribute_values[index_second_attribute]),
                     KeyValue::new("attribute3", attribute_values[index_third_attribute]),
                     KeyValue::new("attribute1", attribute_values[index_first_attribute]),
                     KeyValue::new("attribute4", attribute_values[index_forth_attribute]),
-                ]);
+                ],
+            );
         });
     });
 }
