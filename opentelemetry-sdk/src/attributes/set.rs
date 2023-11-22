@@ -1,4 +1,3 @@
-use std::collections::hash_map::DefaultHasher;
 use std::collections::HashSet;
 use std::{
     cmp::Ordering,
@@ -105,8 +104,8 @@ impl Eq for HashKeyValue {}
 ///
 /// This must implement [Hash], [PartialEq], and [Eq] so it may be used as
 /// HashMap keys and other de-duplication methods.
-#[derive(Clone, Default, Debug, PartialEq, Eq)]
-pub struct AttributeSet(Vec<HashKeyValue>, u64);
+#[derive(Clone, Default, Debug, Hash, PartialEq, Eq)]
+pub struct AttributeSet(Vec<HashKeyValue>);
 
 impl From<&[KeyValue]> for AttributeSet {
     fn from(values: &[KeyValue]) -> Self {
@@ -124,12 +123,7 @@ impl From<&[KeyValue]> for AttributeSet {
             .collect::<Vec<_>>();
         vec.sort_unstable();
 
-        let mut hasher = DefaultHasher::new();
-        for value in &vec {
-            value.hash(&mut hasher);
-        }
-
-        AttributeSet(vec, hasher.finish())
+        AttributeSet(vec)
     }
 }
 
@@ -141,11 +135,7 @@ impl From<&Resource> for AttributeSet {
             .collect::<Vec<_>>();
         vec.sort_unstable();
 
-        let mut hasher = DefaultHasher::new();
-        for value in &vec {
-            value.hash(&mut hasher);
-        }
-        AttributeSet(vec, hasher.finish())
+        AttributeSet(vec)
     }
 }
 
@@ -171,11 +161,5 @@ impl AttributeSet {
     /// Iterate over key value pairs in the set
     pub fn iter(&self) -> impl Iterator<Item = (&Key, &Value)> {
         self.0.iter().map(|kv| (&kv.0.key, &kv.0.value))
-    }
-}
-
-impl Hash for AttributeSet {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        state.write_u64(self.1)
     }
 }
