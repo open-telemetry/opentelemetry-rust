@@ -14,15 +14,15 @@ name = "grpc-client"
 path = "src/client.rs"
 
 [dependencies]
-opentelemetry = { version = "0.20" }
-opentelemetry_sdk = { version = "0.20", features = ["rt-tokio"] }
-opentelemetry-jaeger = { version = "0.19", features = ["rt-tokio"] }
+opentelemetry = { path = "../../opentelemetry" }
+opentelemetry_sdk = { path = "../../opentelemetry-sdk", features = ["rt-tokio"] }
+opentelemetry-jaeger = { path = "../../opentelemetry-jaeger", features = ["rt-tokio"] }
 prost = "0.11"
 tokio = { version = "1.28", features = ["full"] }
 tonic = "0.9.2"
 tracing = "0.1"
 tracing-futures = "0.2"
-tracing-opentelemetry = "0.20"
+tracing-opentelemetry = "0.22"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 [build-dependencies]
