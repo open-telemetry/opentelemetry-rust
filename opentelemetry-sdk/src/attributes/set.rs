@@ -1,6 +1,7 @@
+use std::collections::hash_map::DefaultHasher;
+use std::collections::HashSet;
 use std::{
     cmp::Ordering,
-    collections::{BTreeSet, HashSet},
     hash::{Hash, Hasher},
 };
 
@@ -104,37 +105,47 @@ impl Eq for HashKeyValue {}
 ///
 /// This must implement [Hash], [PartialEq], and [Eq] so it may be used as
 /// HashMap keys and other de-duplication methods.
-#[derive(Clone, Default, Debug, Hash, PartialEq, Eq)]
-pub struct AttributeSet(BTreeSet<HashKeyValue>);
+#[derive(Clone, Default, Debug, PartialEq, Eq)]
+pub struct AttributeSet(Vec<HashKeyValue>, u64);
 
 impl From<&[KeyValue]> for AttributeSet {
     fn from(values: &[KeyValue]) -> Self {
-        let mut seen = HashSet::with_capacity(values.len());
-        AttributeSet(
-            values
-                .iter()
-                .rev()
-                .filter_map(|kv| {
-                    if seen.contains(&&kv.key) {
-                        None
-                    } else {
-                        seen.insert(&kv.key);
-                        Some(HashKeyValue(kv.clone()))
-                    }
-                })
-                .collect(),
-        )
+        let mut seen_keys = HashSet::with_capacity(values.len());
+        let mut vec = values
+            .iter()
+            .rev()
+            .filter_map(|kv| {
+                if seen_keys.insert(kv.key.clone()) {
+                    Some(HashKeyValue(kv.clone()))
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
+        vec.sort_unstable();
+
+        let mut hasher = DefaultHasher::new();
+        for value in &vec {
+            value.hash(&mut hasher);
+        }
+
+        AttributeSet(vec, hasher.finish())
     }
 }
 
 impl From<&Resource> for AttributeSet {
     fn from(values: &Resource) -> Self {
-        AttributeSet(
-            values
-                .iter()
-                .map(|(key, value)| HashKeyValue(KeyValue::new(key.clone(), value.clone())))
-                .collect(),
-        )
+        let mut vec = values
+            .iter()
+            .map(|(key, value)| HashKeyValue(KeyValue::new(key.clone(), value.clone())))
+            .collect::<Vec<_>>();
+        vec.sort_unstable();
+
+        let mut hasher = DefaultHasher::new();
+        for value in &vec {
+            value.hash(&mut hasher);
+        }
+        AttributeSet(vec, hasher.finish())
     }
 }
 
@@ -160,5 +171,11 @@ impl AttributeSet {
     /// Iterate over key value pairs in the set
     pub fn iter(&self) -> impl Iterator<Item = (&Key, &Value)> {
         self.0.iter().map(|kv| (&kv.0.key, &kv.0.value))
+    }
+}
+
+impl Hash for AttributeSet {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        state.write_u64(self.1)
     }
 }
