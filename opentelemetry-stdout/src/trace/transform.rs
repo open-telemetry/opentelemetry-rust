@@ -154,6 +154,10 @@ struct Event {
     name: Cow<'static, str>,
     attributes: Vec<KeyValue>,
     dropped_attributes_count: u32,
+    #[serde(serialize_with = "as_unix_nano")]
+    time_unix_nano: SystemTime,
+    #[serde(serialize_with = "as_human_readable")]
+    time: SystemTime,
 }
 
 impl From<opentelemetry::trace::Event> for Event {
@@ -162,6 +166,8 @@ impl From<opentelemetry::trace::Event> for Event {
             name: value.name,
             attributes: value.attributes.into_iter().map(Into::into).collect(),
             dropped_attributes_count: value.dropped_attributes_count,
+            time_unix_nano: value.timestamp,
+            time: value.timestamp,
         }
     }
 }
