@@ -226,9 +226,8 @@ mod tests {
             .iter()
             .any(|(k, v)| k.as_str() == "key1" && v.as_str() == "value2");
 
-        assert_eq!(
+        assert!(
             key_value1_found && key_value2_found,
-            true,
             "Should have found both key1=value1 and key1=value2 attributes as does not dedup"
         );
     }
