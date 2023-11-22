@@ -37,6 +37,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let tracer = tracer_provider.tracer("stdout-test");
     let mut span = tracer.start("test_span");
     span.set_attribute(KeyValue::new("test_key", "test_value"));
+    span.add_event(
+        "test_event",
+        vec![KeyValue::new("test_event_key", "test_event_value")],
+    );
     span.end();
 
     let meter = meter_provider.meter("stdout-test");
