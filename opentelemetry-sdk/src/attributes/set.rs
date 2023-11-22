@@ -111,9 +111,7 @@ impl From<&[KeyValue]> for AttributeSet {
         let mut vec = values
             .iter()
             .rev()
-            .filter_map(|kv| {
-                Some(HashKeyValue(kv.clone()))
-            })
+            .filter_map(|kv| Some(HashKeyValue(kv.clone())))
             .collect::<Vec<_>>();
         vec.sort_unstable();
 

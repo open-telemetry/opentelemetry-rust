@@ -175,8 +175,20 @@ mod tests {
             .u64_counter("my_counter")
             .with_unit(Unit::new("my_unit"))
             .init();
-        counter.add(1, &[KeyValue::new("key1", "value1"),KeyValue::new("key1", "value2")]);
-        counter.add(1, &[KeyValue::new("key1", "value1"),KeyValue::new("key1", "value2")]);
+        counter.add(
+            1,
+            &[
+                KeyValue::new("key1", "value1"),
+                KeyValue::new("key1", "value2"),
+            ],
+        );
+        counter.add(
+            1,
+            &[
+                KeyValue::new("key1", "value1"),
+                KeyValue::new("key1", "value2"),
+            ],
+        );
 
         meter_provider.force_flush().unwrap();
 
@@ -197,14 +209,14 @@ mod tests {
         // Expecting 1 time-series.
         assert_eq!(sum.data_points.len(), 1);
 
-        // find and validate key1=value1,key1=value2 datapoint        
+        // find and validate key1=value1,key1=value2 datapoint
         let data_point = &sum.data_points[0];
+        assert_eq!(data_point.value, 2);
         assert_eq!(
-            data_point
-                .value,
-            2
+            data_point.attributes.len(),
+            2,
+            "Should have 2 attributes as sdk is not deduplicating attributes"
         );
-        assert_eq!(data_point.attributes.len(), 2, "Should have 2 attributes as sdk is not deduplicating attributes");
         let key_value1_found = data_point
             .attributes
             .iter()
@@ -214,7 +226,11 @@ mod tests {
             .iter()
             .any(|(k, v)| k.as_str() == "key1" && v.as_str() == "value2");
 
-        assert_eq!(key_value1_found && key_value2_found, true, "Should have found both key1=value1 and key1=value2 attributes as does not dedup");
+        assert_eq!(
+            key_value1_found && key_value2_found,
+            true,
+            "Should have found both key1=value1 and key1=value2 attributes as does not dedup"
+        );
     }
 
     // "multi_thread" tokio flavor must be used else flush won't
