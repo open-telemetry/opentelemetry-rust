@@ -373,7 +373,8 @@ impl prometheus::core::Collector for Collector {
 /// Maps attributes into Prometheus-style label pairs.
 ///
 /// It sanitizes invalid characters and handles duplicate keys (due to
-/// sanitization) by sorting and concatenating the values following the spec.
+/// sanitization or when user provides duplicate keys) by sorting and 
+/// concatenating the values following the spec.
 fn get_attrs(kvs: &mut dyn Iterator<Item = (&Key, &Value)>, extra: &[LabelPair]) -> Vec<LabelPair> {
     let mut keys_map = BTreeMap::<String, Vec<String>>::new();
     for (key, value) in kvs {

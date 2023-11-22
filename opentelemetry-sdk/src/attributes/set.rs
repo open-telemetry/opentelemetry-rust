@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use std::{
     cmp::Ordering,
     hash::{Hash, Hasher},
@@ -109,16 +108,11 @@ pub struct AttributeSet(Vec<HashKeyValue>);
 
 impl From<&[KeyValue]> for AttributeSet {
     fn from(values: &[KeyValue]) -> Self {
-        let mut seen_keys = HashSet::with_capacity(values.len());
         let mut vec = values
             .iter()
             .rev()
             .filter_map(|kv| {
-                if seen_keys.insert(kv.key.clone()) {
-                    Some(HashKeyValue(kv.clone()))
-                } else {
-                    None
-                }
+                Some(HashKeyValue(kv.clone()))
             })
             .collect::<Vec<_>>();
         vec.sort_unstable();

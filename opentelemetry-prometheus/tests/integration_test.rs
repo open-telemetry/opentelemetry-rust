@@ -135,7 +135,13 @@ fn prometheus_exporter_integration() {
             builder: ExporterBuilder::default().without_units(),
             record_metrics: Box::new(|meter| {
                 let attrs = vec![
-                    // exact match, value should be overwritten
+                    // exact match, SDK will not do de-duplication,
+                    // values should be concatenated.
+                    // The order X;Q vs Q:X is not guaranteed.
+                    // We expect end-users to not produce duplicates in the
+                    // first place, but if that cannot be done,
+                    // we can offer a opt-in feature in SDK to do it.
+                    // https://github.com/open-telemetry/opentelemetry-rust/issues/1300
                     Key::new("A.B").string("X"),
                     Key::new("A.B").string("Q"),
                     // unintended match due to sanitization, values should be concatenated
