@@ -23,6 +23,10 @@ fn main() {
     let layer = layer::OpenTelemetryTracingBridge::new(&provider);
     tracing_subscriber::registry().with(layer).init();
 
+    info_span!("my-span").in_scope(|| {
+        info!(target: "my-system", "an info log");
+    })
+
     error!(name: "my-event-name", target: "my-system", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io");
     drop(provider);
 }

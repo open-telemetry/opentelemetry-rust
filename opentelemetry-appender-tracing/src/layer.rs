@@ -105,7 +105,7 @@ where
         log_record.severity_text = Some(meta.level().to_string().into());
 
         // Extract the trace_id & span_id from the opentelemetry extension.
-        if let Some((trace_id, span_id)) = ctx.event_span(event).and_then(|span| {
+        if let Some((trace_id, span_id)) = ctx.lookup_current().and_then(|span| {
             span.extensions()
                 .get::<OtelData>()
                 .and_then(|ext| ext.builder.trace_id.zip(ext.builder.span_id))
