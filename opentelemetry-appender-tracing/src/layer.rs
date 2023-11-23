@@ -16,6 +16,7 @@ struct EventVisitor {
     log_record_body: Option<AnyValue>,
 }
 
+#[cfg(feature = "experimental_metadata_attributes")]
 fn is_metadata(field: &'static str) -> bool {
     field
         .strip_prefix("log.")
@@ -36,6 +37,7 @@ fn is_metadata(field: &'static str) -> bool {
         .unwrap_or(false)
 }
 
+#[cfg(feature = "experimental_metadata_attributes")]
 fn get_filename(filepath: &str) -> &str {
     if let Some((_, filename)) = filepath.rsplit_once('/') {
         return filename;
@@ -50,13 +52,17 @@ impl EventVisitor {
     fn visit_metadata(&mut self, meta: &Metadata) {
         self.log_record_attributes
             .push(("log.name".into(), meta.name().into()));
+
+        #[cfg(feature = "experimental_metadata_attributes")]
         self.log_record_attributes
             .push(("log.target".into(), meta.target().to_owned().into()));
 
+        #[cfg(feature = "experimental_metadata_attributes")]
         if let Some(module_path) = meta.module_path() {
             self.log_record_attributes
                 .push(("log.module.path".into(), module_path.to_owned().into()));
         }
+        #[cfg(feature = "experimental_metadata_attributes")]
         if let Some(filepath) = meta.file() {
             self.log_record_attributes
                 .push(("log.source.file.path".into(), filepath.to_owned().into()));
@@ -65,6 +71,7 @@ impl EventVisitor {
                 get_filename(filepath).to_owned().into(),
             ));
         }
+        #[cfg(feature = "experimental_metadata_attributes")]
         if let Some(line) = meta.line() {
             self.log_record_attributes
                 .push(("log.source.file.line".into(), line.into()));
@@ -79,21 +86,25 @@ impl EventVisitor {
 
 impl tracing::field::Visit for EventVisitor {
     fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
-        if !is_metadata(field.name()) {
-            if field.name() == "message" {
-                self.log_record_body = Some(format!("{value:?}").into());
-            } else {
-                self.log_record_attributes
-                    .push((field.name().into(), format!("{value:?}").into()));
-            }
+        #[cfg(feature = "experimental_metadata_attributes")]
+        if is_metadata(field.name()) {
+            return;
+        }
+        if field.name() == "message" {
+            self.log_record_body = Some(format!("{value:?}").into());
+        } else {
+            self.log_record_attributes
+                .push((field.name().into(), format!("{value:?}").into()));
         }
     }
 
     fn record_str(&mut self, field: &tracing_core::Field, value: &str) {
-        if !is_metadata(field.name()) {
-            self.log_record_attributes
-                .push((field.name().into(), value.to_owned().into()));
+        #[cfg(feature = "experimental_metadata_attributes")]
+        if is_metadata(field.name()) {
+            return;
         }
+        self.log_record_attributes
+            .push((field.name().into(), value.to_owned().into()));
     }
 
     fn record_bool(&mut self, field: &tracing_core::Field, value: bool) {
@@ -107,10 +118,12 @@ impl tracing::field::Visit for EventVisitor {
     }
 
     fn record_i64(&mut self, field: &tracing::field::Field, value: i64) {
-        if !is_metadata(field.name()) {
-            self.log_record_attributes
-                .push((field.name().into(), value.into()));
+        #[cfg(feature = "experimental_metadata_attributes")]
+        if is_metadata(field.name()) {
+            return;
         }
+        self.log_record_attributes
+            .push((field.name().into(), value.into()));
     }
 
     // TODO: Remaining field types from AnyValue : Bytes, ListAny, Boolean
