@@ -110,7 +110,8 @@ pub trait Span {
     /// Set an attribute of this span.
     ///
     /// Setting an attribute with the same key as an existing attribute
-    /// generally overwrites the existing attribute's value.
+    /// results in both being stored as attribute, without any de-duplication
+    /// performed.
     ///
     /// Note that the OpenTelemetry project documents certain "[standard
     /// attributes]" that have prescribed semantic meanings and are available via
@@ -123,7 +124,8 @@ pub trait Span {
     /// Set multiple attributes of this span.
     ///
     /// Setting an attribute with the same key as an existing attribute
-    /// generally overwrites the existing attribute's value.
+    /// results in both being stored as attribute, without any de-duplication
+    /// performed.
     ///
     /// Note that the OpenTelemetry project documents certain "[standard
     /// attributes]" that have prescribed semantic meanings and are available via

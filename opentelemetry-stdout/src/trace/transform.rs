@@ -93,10 +93,10 @@ struct Span {
 impl From<opentelemetry_sdk::export::trace::SpanData> for Span {
     fn from(value: opentelemetry_sdk::export::trace::SpanData) -> Self {
         Span {
-            trace_id: format!("{:x}", value.span_context.trace_id()),
-            span_id: format!("{:x}", value.span_context.span_id()),
+            trace_id: value.span_context.trace_id().to_string(),
+            span_id: value.span_context.span_id().to_string(),
             trace_state: Some(value.span_context.trace_state().header()).filter(|s| !s.is_empty()),
-            parent_span_id: Some(format!("{:x}", value.parent_span_id))
+            parent_span_id: Some(value.parent_span_id.to_string())
                 .filter(|s| s != "0")
                 .unwrap_or_default(),
             name: value.name,
@@ -105,12 +105,12 @@ impl From<opentelemetry_sdk::export::trace::SpanData> for Span {
             start_time: value.start_time,
             end_time_unix_nano: value.end_time,
             end_time: value.end_time,
-            dropped_attributes_count: value.attributes.dropped_count(),
+            dropped_attributes_count: value.dropped_attributes_count,
             attributes: value.attributes.into_iter().map(Into::into).collect(),
-            dropped_events_count: value.events.dropped_count(),
+            dropped_events_count: value.events.dropped_count,
             events: value.events.into_iter().map(Into::into).collect(),
-            dropped_links_count: value.links.dropped_count(),
-            links: value.links.into_iter().map(Into::into).collect(),
+            dropped_links_count: value.links.dropped_count,
+            links: value.links.iter().map(Into::into).collect(),
             status: value.status.into(),
         }
     }
@@ -154,6 +154,10 @@ struct Event {
     name: Cow<'static, str>,
     attributes: Vec<KeyValue>,
     dropped_attributes_count: u32,
+    #[serde(serialize_with = "as_unix_nano")]
+    time_unix_nano: SystemTime,
+    #[serde(serialize_with = "as_human_readable")]
+    time: SystemTime,
 }
 
 impl From<opentelemetry::trace::Event> for Event {
@@ -162,6 +166,8 @@ impl From<opentelemetry::trace::Event> for Event {
             name: value.name,
             attributes: value.attributes.into_iter().map(Into::into).collect(),
             dropped_attributes_count: value.dropped_attributes_count,
+            time_unix_nano: value.timestamp,
+            time: value.timestamp,
         }
     }
 }
@@ -177,13 +183,13 @@ struct Link {
     dropped_attributes_count: u32,
 }
 
-impl From<opentelemetry::trace::Link> for Link {
-    fn from(value: opentelemetry::trace::Link) -> Self {
+impl From<&opentelemetry::trace::Link> for Link {
+    fn from(value: &opentelemetry::trace::Link) -> Self {
         Link {
-            trace_id: format!("{:x}", value.span_context.trace_id()),
-            span_id: format!("{:x}", value.span_context.span_id()),
+            trace_id: value.span_context.trace_id().to_string(),
+            span_id: value.span_context.span_id().to_string(),
             trace_state: Some(value.span_context.trace_state().header()).filter(|s| !s.is_empty()),
-            attributes: value.attributes.into_iter().map(Into::into).collect(),
+            attributes: value.attributes.iter().map(Into::into).collect(),
             dropped_attributes_count: value.dropped_attributes_count,
         }
     }

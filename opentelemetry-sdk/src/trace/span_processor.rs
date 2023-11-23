@@ -184,6 +184,9 @@ impl SpanProcessor for SimpleSpanProcessor {
 }
 
 #[derive(Debug)]
+#[allow(clippy::large_enum_variant)]
+// reason = "TODO: SpanData storing dropped_attribute_count separately triggered this clippy warning.
+//           Expecting to address that separately in the future."")
 enum Message {
     ExportSpan(SpanData),
     Flush(crossbeam_channel::Sender<()>),
@@ -249,11 +252,11 @@ enum Message {
 /// [`executor`]: https://docs.rs/futures/0.3/futures/executor/index.html
 /// [`tokio`]: https://tokio.rs
 /// [`async-std`]: https://async.rs
-pub struct BatchSpanProcessor<R: RuntimeChannel<BatchMessage>> {
-    message_sender: R::Sender,
+pub struct BatchSpanProcessor<R: RuntimeChannel> {
+    message_sender: R::Sender<BatchMessage>,
 }
 
-impl<R: RuntimeChannel<BatchMessage>> fmt::Debug for BatchSpanProcessor<R> {
+impl<R: RuntimeChannel> fmt::Debug for BatchSpanProcessor<R> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("BatchSpanProcessor")
             .field("message_sender", &self.message_sender)
@@ -261,7 +264,7 @@ impl<R: RuntimeChannel<BatchMessage>> fmt::Debug for BatchSpanProcessor<R> {
     }
 }
 
-impl<R: RuntimeChannel<BatchMessage>> SpanProcessor for BatchSpanProcessor<R> {
+impl<R: RuntimeChannel> SpanProcessor for BatchSpanProcessor<R> {
     fn on_start(&self, _span: &mut Span, _cx: &Context) {
         // Ignored
     }
@@ -307,7 +310,7 @@ impl<R: RuntimeChannel<BatchMessage>> SpanProcessor for BatchSpanProcessor<R> {
 // 2. Most of the messages will be ExportSpan.
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug)]
-pub enum BatchMessage {
+enum BatchMessage {
     /// Export spans, usually called when span ends
     ExportSpan(SpanData),
     /// Flush the current buffer to the backend, it can be triggered by
@@ -325,7 +328,7 @@ struct BatchSpanProcessorInternal<R> {
     config: BatchConfig,
 }
 
-impl<R: RuntimeChannel<BatchMessage>> BatchSpanProcessorInternal<R> {
+impl<R: RuntimeChannel> BatchSpanProcessorInternal<R> {
     async fn flush(&mut self, res_channel: Option<oneshot::Sender<ExportResult>>) {
         let export_task = self.export();
         let task = Box::pin(async move {
@@ -462,7 +465,7 @@ impl<R: RuntimeChannel<BatchMessage>> BatchSpanProcessorInternal<R> {
     }
 }
 
-impl<R: RuntimeChannel<BatchMessage>> BatchSpanProcessor<R> {
+impl<R: RuntimeChannel> BatchSpanProcessor<R> {
     pub(crate) fn new(exporter: Box<dyn SpanExporter>, config: BatchConfig, runtime: R) -> Self {
         let (message_sender, message_receiver) =
             runtime.batch_message_channel(config.max_queue_size);
@@ -645,7 +648,7 @@ pub struct BatchSpanProcessorBuilder<E, R> {
 impl<E, R> BatchSpanProcessorBuilder<E, R>
 where
     E: SpanExporter + 'static,
-    R: RuntimeChannel<BatchMessage>,
+    R: RuntimeChannel,
 {
     /// Set max queue size for batches
     pub fn with_max_queue_size(self, size: usize) -> Self {
@@ -718,7 +721,7 @@ mod tests {
     use crate::testing::trace::{
         new_test_export_span_data, new_test_exporter, new_tokio_test_exporter,
     };
-    use crate::trace::{BatchConfig, EvictedHashMap, EvictedQueue};
+    use crate::trace::{BatchConfig, SpanEvents, SpanLinks};
     use async_trait::async_trait;
     use opentelemetry::trace::{SpanContext, SpanId, SpanKind, Status};
     use std::fmt::Debug;
@@ -745,9 +748,10 @@ mod tests {
             name: "opentelemetry".into(),
             start_time: opentelemetry::time::now(),
             end_time: opentelemetry::time::now(),
-            attributes: EvictedHashMap::new(0, 0),
-            events: EvictedQueue::new(0),
-            links: EvictedQueue::new(0),
+            attributes: Vec::new(),
+            dropped_attributes_count: 0,
+            events: SpanEvents::default(),
+            links: SpanLinks::default(),
             status: Status::Unset,
             resource: Default::default(),
             instrumentation_lib: Default::default(),

@@ -114,7 +114,7 @@ impl TextMapPropagator for TraceContextPropagator {
         let span_context = span.span_context();
         if span_context.is_valid() {
             let header_value = format!(
-                "{:02x}-{:032x}-{:016x}-{:02x}",
+                "{:02x}-{}-{}-{:02x}",
                 SUPPORTED_VERSION,
                 span_context.trace_id(),
                 span_context.span_id(),

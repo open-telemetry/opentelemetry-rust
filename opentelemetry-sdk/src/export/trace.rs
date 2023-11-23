@@ -1,7 +1,8 @@
 //! Trace exporters
 use crate::Resource;
 use futures_util::future::BoxFuture;
-use opentelemetry::trace::{Event, Link, SpanContext, SpanId, SpanKind, Status, TraceError};
+use opentelemetry::trace::{SpanContext, SpanId, SpanKind, Status, TraceError};
+use opentelemetry::KeyValue;
 use std::borrow::Cow;
 use std::fmt::Debug;
 use std::time::SystemTime;
@@ -81,11 +82,14 @@ pub struct SpanData {
     /// Span end time
     pub end_time: SystemTime,
     /// Span attributes
-    pub attributes: crate::trace::EvictedHashMap,
+    pub attributes: Vec<KeyValue>,
+    /// The number of attributes that were above the configured limit, and thus
+    /// dropped.
+    pub dropped_attributes_count: u32,
     /// Span events
-    pub events: crate::trace::EvictedQueue<Event>,
+    pub events: crate::trace::SpanEvents,
     /// Span Links
-    pub links: crate::trace::EvictedQueue<Link>,
+    pub links: crate::trace::SpanLinks,
     /// Span status
     pub status: Status,
     /// Resource contains attributes representing an entity that produced this span.

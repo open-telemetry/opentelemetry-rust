@@ -1,5 +1,35 @@
 //! # Jaeger Exporter
 //!
+// Linting isn't detecting that it's used seems like linting bug.
+#[allow(unused_imports)]
+#[cfg(feature = "surf_collector_client")]
+use std::convert::TryFrom;
+use std::convert::TryInto;
+use std::fmt::Display;
+use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr};
+use std::sync::Arc;
+use std::time::{Duration, SystemTime};
+
+use futures_core::future::BoxFuture;
+#[cfg(feature = "isahc_collector_client")]
+#[allow(unused_imports)] // this is actually used to configure authentication
+use isahc::prelude::Configurable;
+
+use opentelemetry::{
+    trace::{Event, Link, SpanKind, Status},
+    InstrumentationLibrary, Key, KeyValue,
+};
+use opentelemetry_sdk::export::{
+    trace::{ExportResult, SpanData, SpanExporter},
+    ExportError,
+};
+use opentelemetry_sdk::trace::SpanEvents;
+
+use crate::exporter::uploader::Uploader;
+
+use self::runtime::JaegerTraceRuntime;
+use self::thrift::jaeger;
+
 mod agent;
 #[cfg(any(feature = "collector_client", feature = "wasm_collector_client"))]
 mod collector;
@@ -10,37 +40,6 @@ mod thrift;
 pub mod config;
 pub(crate) mod transport;
 mod uploader;
-
-// Linting isn't detecting that it's used seems like linting bug.
-#[allow(unused_imports)]
-#[cfg(feature = "surf_collector_client")]
-use std::convert::TryFrom;
-
-use self::runtime::JaegerTraceRuntime;
-use self::thrift::jaeger;
-use crate::exporter::uploader::Uploader;
-use futures_core::future::BoxFuture;
-use opentelemetry::{
-    trace::{Event, Link, SpanKind, Status},
-    InstrumentationLibrary, Key, KeyValue,
-};
-use opentelemetry_sdk::{
-    export::{
-        trace::{ExportResult, SpanData, SpanExporter},
-        ExportError,
-    },
-    trace::{EvictedHashMap, EvictedQueue},
-};
-use std::convert::TryInto;
-use std::fmt::Display;
-use std::io;
-use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, ToSocketAddrs};
-use std::sync::Arc;
-use std::time::{Duration, SystemTime};
-
-#[cfg(feature = "isahc_collector_client")]
-#[allow(unused_imports)] // this is actually used to configure authentication
-use isahc::prelude::Configurable;
 
 /// Instrument Library name MUST be reported in Jaeger Span tags with the following key
 const INSTRUMENTATION_LIBRARY_NAME: &str = "otel.library.name";
@@ -101,7 +100,7 @@ impl SpanExporter for Exporter {
     }
 }
 
-fn links_to_references(links: EvictedQueue<Link>) -> Option<Vec<jaeger::SpanRef>> {
+fn links_to_references(links: &[Link]) -> Option<Vec<jaeger::SpanRef>> {
     if !links.is_empty() {
         let refs = links
             .iter()
@@ -138,7 +137,7 @@ fn convert_otel_span_into_jaeger_span(span: SpanData, export_instrument_lib: boo
         span_id: i64::from_be_bytes(span.span_context.span_id().to_bytes()),
         parent_span_id: i64::from_be_bytes(span.parent_span_id.to_bytes()),
         operation_name: span.name.into_owned(),
-        references: links_to_references(span.links),
+        references: links_to_references(span.links.as_ref()),
         flags: span.span_context.trace_flags().to_u8() as i32,
         start_time: span
             .start_time
@@ -165,7 +164,7 @@ fn convert_otel_span_into_jaeger_span(span: SpanData, export_instrument_lib: boo
 }
 
 fn build_span_tags(
-    attrs: EvictedHashMap,
+    attrs: Vec<KeyValue>,
     instrumentation_lib: Option<InstrumentationLibrary>,
     status: Status,
     kind: SpanKind,
@@ -174,9 +173,9 @@ fn build_span_tags(
     // TODO determine if namespacing is required to avoid collisions with set attributes
     let mut tags = attrs
         .into_iter()
-        .map(|(k, v)| {
-            user_overrides.record_attr(k.as_str());
-            KeyValue::new(k, v).into()
+        .map(|kv| {
+            user_overrides.record_attr(kv.key.as_str());
+            kv.into()
         })
         .collect::<Vec<_>>();
 
@@ -254,7 +253,7 @@ impl UserOverrides {
     }
 }
 
-fn events_to_logs(events: EvictedQueue<Event>) -> Option<Vec<jaeger::Log>> {
+fn events_to_logs(events: SpanEvents) -> Option<Vec<jaeger::Log>> {
     if events.is_empty() {
         None
     } else {
@@ -341,27 +340,24 @@ impl ExportError for Error {
 /// Sample the first address provided to designate which IP family to bind the socket to.
 /// IP families returned be INADDR_ANY as [`Ipv4Addr::UNSPECIFIED`] or
 /// IN6ADDR_ANY as [`Ipv6Addr::UNSPECIFIED`].
-fn addrs_and_family(
-    host_port: &impl ToSocketAddrs,
-) -> Result<(Vec<SocketAddr>, SocketAddr), io::Error> {
-    let addrs = host_port.to_socket_addrs()?.collect::<Vec<_>>();
-    let family = match addrs.first() {
+fn address_family(addrs: &[SocketAddr]) -> SocketAddr {
+    match addrs.first() {
         Some(SocketAddr::V4(_)) | None => SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0)),
         Some(SocketAddr::V6(_)) => SocketAddr::from((Ipv6Addr::UNSPECIFIED, 0)),
-    };
-    Ok((addrs, family))
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::SPAN_KIND;
-    use crate::exporter::thrift::jaeger::Tag;
-    use crate::exporter::{build_span_tags, OTEL_STATUS_CODE, OTEL_STATUS_DESCRIPTION};
     use opentelemetry::{
         trace::{SpanKind, Status},
         KeyValue,
     };
-    use opentelemetry_sdk::trace::EvictedHashMap;
+
+    use crate::exporter::thrift::jaeger::Tag;
+    use crate::exporter::{build_span_tags, OTEL_STATUS_CODE, OTEL_STATUS_DESCRIPTION};
+
+    use super::SPAN_KIND;
 
     fn assert_tag_contains(tags: Vec<Tag>, key: &'static str, expect_val: &'static str) {
         assert_eq!(
@@ -404,7 +400,7 @@ mod tests {
     #[test]
     fn test_set_status() {
         for (status, status_tag_val, msg_tag_val) in get_error_tag_test_data() {
-            let tags = build_span_tags(EvictedHashMap::new(20, 20), None, status, SpanKind::Client);
+            let tags = build_span_tags(Vec::new(), None, status, SpanKind::Client);
             if let Some(val) = status_tag_val {
                 assert_tag_contains(tags.clone(), OTEL_STATUS_CODE, val);
             } else {
@@ -421,17 +417,17 @@ mod tests {
 
     #[test]
     fn ignores_user_set_values() {
-        let mut attributes = EvictedHashMap::new(20, 20);
+        let mut attributes = Vec::new();
         let user_error = true;
         let user_kind = "server";
         let user_status_description = "Something bad happened";
         let user_status = Status::Error {
             description: user_status_description.into(),
         };
-        attributes.insert(KeyValue::new("error", user_error));
-        attributes.insert(KeyValue::new(SPAN_KIND, user_kind));
-        attributes.insert(KeyValue::new(OTEL_STATUS_CODE, "ERROR"));
-        attributes.insert(KeyValue::new(
+        attributes.push(KeyValue::new("error", user_error));
+        attributes.push(KeyValue::new(SPAN_KIND, user_kind));
+        attributes.push(KeyValue::new(OTEL_STATUS_CODE, "ERROR"));
+        attributes.push(KeyValue::new(
             OTEL_STATUS_DESCRIPTION,
             user_status_description,
         ));

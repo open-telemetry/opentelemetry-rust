@@ -11,20 +11,21 @@ use crate::{
     trace::{
         provider::{TracerProvider, TracerProviderInner},
         span::{Span, SpanData},
-        Config, EvictedHashMap, EvictedQueue, SpanLimits,
+        Config, SpanLimits, SpanLinks,
     },
     InstrumentationLibrary,
 };
-use once_cell::sync::Lazy;
 use opentelemetry::{
     trace::{
         Link, SamplingDecision, SamplingResult, SpanBuilder, SpanContext, SpanId, SpanKind,
         TraceContextExt, TraceFlags, TraceId, TraceState,
     },
-    Context, Key, KeyValue, OrderMap, Value,
+    Context, KeyValue,
 };
 use std::fmt;
 use std::sync::{Arc, Weak};
+
+use super::SpanEvents;
 
 /// `Tracer` implementation to create and manage spans
 #[derive(Clone)]
@@ -74,7 +75,7 @@ impl Tracer {
         trace_id: TraceId,
         name: &str,
         span_kind: &SpanKind,
-        attributes: &OrderMap<Key, Value>,
+        attributes: &[KeyValue],
         links: &[Link],
         config: &Config,
     ) -> Option<(TraceFlags, Vec<KeyValue>, TraceState)> {
@@ -119,8 +120,6 @@ impl Tracer {
         }
     }
 }
-
-static EMPTY_ATTRIBUTES: Lazy<OrderMap<Key, Value>> = Lazy::new(Default::default);
 
 impl opentelemetry::trace::Tracer for Tracer {
     /// This implementation of `Tracer` produces `sdk::Span` instances.
@@ -181,7 +180,7 @@ impl opentelemetry::trace::Tracer for Tracer {
                 trace_id,
                 &builder.name,
                 &span_kind,
-                builder.attributes.as_ref().unwrap_or(&EMPTY_ATTRIBUTES),
+                builder.attributes.as_ref().unwrap_or(&Vec::new()),
                 builder.links.as_deref().unwrap_or(&[]),
                 provider.config(),
             )
@@ -200,30 +199,50 @@ impl opentelemetry::trace::Tracer for Tracer {
         let mut span = if let Some((flags, extra_attrs, trace_state)) = sampling_decision {
             let mut attribute_options = builder.attributes.take().unwrap_or_default();
             for extra_attr in extra_attrs {
-                attribute_options.insert(extra_attr.key, extra_attr.value);
-            }
-            let mut attributes =
-                EvictedHashMap::new(span_limits.max_attributes_per_span, attribute_options.len());
-            for (key, value) in attribute_options {
-                attributes.insert(KeyValue::new(key, value));
+                attribute_options.push(extra_attr);
             }
 
-            let mut link_options = builder.links.take();
-            let mut links = EvictedQueue::new(span_limits.max_links_per_span);
-            if let Some(link_options) = &mut link_options {
+            let span_attributes_limit = span_limits.max_attributes_per_span as usize;
+            let dropped_attributes_count = attribute_options
+                .len()
+                .saturating_sub(span_attributes_limit);
+            attribute_options.truncate(span_attributes_limit);
+            let dropped_attributes_count = dropped_attributes_count as u32;
+
+            // Links are available as Option<Vec<Link>> in the builder
+            // If it is None, then there are no links to process.
+            // In that case Span.Links will be default (empty Vec<Link>, 0 drop count)
+            // Otherwise, truncate Vec<Link> to keep until limits and use that in Span.Links.
+            // Store the count of excess links into Span.Links.dropped_count.
+            // There is no ability today to add Links after Span creation,
+            // but such a capability will be needed in the future
+            // once the spec for that stabilizes.
+
+            let spans_links_limit = span_limits.max_links_per_span as usize;
+            let span_links: SpanLinks = if let Some(mut links) = builder.links.take() {
+                let dropped_count = links.len().saturating_sub(spans_links_limit);
+                links.truncate(spans_links_limit);
                 let link_attributes_limit = span_limits.max_attributes_per_link as usize;
-                for link in link_options.iter_mut() {
+                for link in links.iter_mut() {
                     let dropped_attributes_count =
                         link.attributes.len().saturating_sub(link_attributes_limit);
                     link.attributes.truncate(link_attributes_limit);
                     link.dropped_attributes_count = dropped_attributes_count as u32;
                 }
-                links.append_vec(link_options);
-            }
+                SpanLinks {
+                    links,
+                    dropped_count: dropped_count as u32,
+                }
+            } else {
+                SpanLinks::default()
+            };
+
             let start_time = start_time.unwrap_or_else(opentelemetry::time::now);
             let end_time = end_time.unwrap_or(start_time);
-            let mut events_queue = EvictedQueue::new(span_limits.max_events_per_span);
-            if let Some(mut events) = events {
+            let spans_events_limit = span_limits.max_events_per_span as usize;
+            let span_events: SpanEvents = if let Some(mut events) = events {
+                let dropped_count = events.len().saturating_sub(spans_events_limit);
+                events.truncate(spans_events_limit);
                 let event_attributes_limit = span_limits.max_attributes_per_event as usize;
                 for event in events.iter_mut() {
                     let dropped_attributes_count = event
@@ -233,8 +252,13 @@ impl opentelemetry::trace::Tracer for Tracer {
                     event.attributes.truncate(event_attributes_limit);
                     event.dropped_attributes_count = dropped_attributes_count as u32;
                 }
-                events_queue.append_vec(&mut events);
-            }
+                SpanEvents {
+                    events,
+                    dropped_count: dropped_count as u32,
+                }
+            } else {
+                SpanEvents::default()
+            };
 
             let span_context = SpanContext::new(trace_id, span_id, flags, false, trace_state);
             Span::new(
@@ -245,9 +269,10 @@ impl opentelemetry::trace::Tracer for Tracer {
                     name,
                     start_time,
                     end_time,
-                    attributes,
-                    events: events_queue,
-                    links,
+                    attributes: attribute_options,
+                    dropped_attributes_count,
+                    events: span_events,
+                    links: span_links,
                     status,
                 }),
                 self.clone(),
@@ -284,7 +309,7 @@ mod tests {
             Link, SamplingDecision, SamplingResult, Span, SpanContext, SpanId, SpanKind,
             TraceContextExt, TraceFlags, TraceId, TraceState, Tracer, TracerProvider,
         },
-        Context, Key, OrderMap, Value,
+        Context, KeyValue,
     };
 
     #[derive(Clone, Debug)]
@@ -297,7 +322,7 @@ mod tests {
             _trace_id: TraceId,
             _name: &str,
             _span_kind: &SpanKind,
-            _attributes: &OrderMap<Key, Value>,
+            _attributes: &[KeyValue],
             _links: &[Link],
         ) -> SamplingResult {
             let trace_state = parent_context

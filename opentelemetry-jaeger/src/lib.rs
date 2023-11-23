@@ -151,7 +151,7 @@
 //! You can set it using one of the following methods from highest priority to lowest priority.
 //! 1. [`with_service_name`].
 //! 2. include a `service.name` key value pairs when configure resource using [`with_trace_config`].
-//! 3. set the service name as `OTEL_SERVCE_NAME` environment variable.
+//! 3. set the service name as `OTEL_SERVICE_NAME` environment variable.
 //! 4. set the `service.name` attributes in `OTEL_RESOURCE_ATTRIBUTES`.
 //! 5. if the service name is not provided by the above method. `unknown_service` will be used.
 //!
@@ -207,7 +207,7 @@
 //! ```
 //!
 //! ### Export to collectors
-//! Note that this example requires `collecotr_client` and `isahc_collector_client` feature.
+//! Note that this example requires `collector_client` and `isahc_collector_client` feature.
 //! ```ignore
 //! use opentelemetry::{global, KeyValue, trace::{Tracer, TraceError}};
 //! use opentelemetry_sdk::{trace::{config, RandomIdGenerator, Sampler}, Resource};
@@ -559,7 +559,7 @@ mod propagator {
                     0x00
                 };
                 let header_value = format!(
-                    "{:032x}:{:016x}:{:01}:{:01x}",
+                    "{}:{}:{:01}:{:01x}",
                     span_context.trace_id(),
                     span_context.span_id(),
                     DEPRECATED_PARENT_SPAN,

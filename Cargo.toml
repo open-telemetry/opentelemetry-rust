@@ -1,10 +1,6 @@
 [workspace]
 members = [
     "opentelemetry",
-    "opentelemetry-aws",
-    "opentelemetry-contrib",
-    "opentelemetry-datadog",
-    "opentelemetry-dynatrace",
     "opentelemetry-http",
     "opentelemetry-jaeger",
     "opentelemetry-jaeger/examples/actix-udp",
@@ -16,20 +12,16 @@ members = [
     "opentelemetry-proto",
     "opentelemetry-sdk",
     "opentelemetry-semantic-conventions",
-    "opentelemetry-stackdriver",
     "opentelemetry-stdout",
-    "opentelemetry-user-events-logs",
-    "opentelemetry-user-events-metrics",
     "opentelemetry-zipkin",
-    "opentelemetry-zpages",
     "opentelemetry-otlp/examples/basic-otlp",
     "opentelemetry-otlp/examples/basic-otlp-http",
     "opentelemetry-otlp/examples/external-otlp-grpcio-async-std",
     "examples/metrics-basic",
     "examples/metrics-advanced",
     "examples/logs-basic",
-    "examples/traceresponse",
     "examples/tracing-grpc",
+    "examples/tracing-jaeger",
     "stress",
 ]
 resolver = "2"

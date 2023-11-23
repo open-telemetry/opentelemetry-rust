@@ -12,7 +12,7 @@ use opentelemetry_sdk::{
     export::{trace, ExportError},
     resource::{ResourceDetector, SdkProvidedResourceDetector},
     runtime::RuntimeChannel,
-    trace::{BatchMessage, Config, Tracer, TracerProvider},
+    trace::{Config, Tracer, TracerProvider},
     Resource,
 };
 use opentelemetry_semantic_conventions as semcov;
@@ -120,7 +120,7 @@ impl ZipkinPipelineBuilder {
                 cfg.resource = Cow::Owned(Resource::new(
                     cfg.resource
                         .iter()
-                        .filter(|(k, _v)| **k != semcov::resource::SERVICE_NAME)
+                        .filter(|(k, _v)| k.as_str() != semcov::resource::SERVICE_NAME)
                         .map(|(k, v)| KeyValue::new(k.clone(), v.clone()))
                         .collect::<Vec<KeyValue>>(),
                 ));
@@ -135,7 +135,7 @@ impl ZipkinPipelineBuilder {
         } else {
             let service_name = SdkProvidedResourceDetector
                 .detect(Duration::from_secs(0))
-                .get(semcov::resource::SERVICE_NAME)
+                .get(semcov::resource::SERVICE_NAME.into())
                 .unwrap()
                 .to_string();
             (
@@ -184,10 +184,7 @@ impl ZipkinPipelineBuilder {
 
     /// Install the Zipkin trace exporter pipeline with a batch span processor using the specified
     /// runtime.
-    pub fn install_batch<R: RuntimeChannel<BatchMessage>>(
-        mut self,
-        runtime: R,
-    ) -> Result<Tracer, TraceError> {
+    pub fn install_batch<R: RuntimeChannel>(mut self, runtime: R) -> Result<Tracer, TraceError> {
         let (config, endpoint) = self.init_config_and_endpoint();
         let exporter = self.init_exporter_with_endpoint(endpoint)?;
         let mut provider_builder = TracerProvider::builder().with_batch_exporter(exporter, runtime);

@@ -12,7 +12,7 @@ use opentelemetry::{
 use opentelemetry_appender_log::OpenTelemetryLogBridge;
 use opentelemetry_otlp::{ExportConfig, WithExportConfig};
 use opentelemetry_sdk::logs::Config;
-use opentelemetry_sdk::{metrics::MeterProvider, runtime, trace as sdktrace, Resource};
+use opentelemetry_sdk::{metrics::SdkMeterProvider, runtime, trace as sdktrace, Resource};
 use std::error::Error;
 
 fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
@@ -32,7 +32,7 @@ fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
         .install_batch(runtime::Tokio)
 }
 
-fn init_metrics() -> metrics::Result<MeterProvider> {
+fn init_metrics() -> metrics::Result<SdkMeterProvider> {
     let export_config = ExportConfig {
         endpoint: "http://localhost:4317".to_string(),
         ..ExportConfig::default()
@@ -52,12 +52,13 @@ fn init_metrics() -> metrics::Result<MeterProvider> {
 }
 
 fn init_logs() -> Result<opentelemetry_sdk::logs::Logger, LogError> {
+    let service_name = env!("CARGO_BIN_NAME");
     opentelemetry_otlp::new_pipeline()
         .logging()
         .with_log_config(
             Config::default().with_resource(Resource::new(vec![KeyValue::new(
                 opentelemetry_semantic_conventions::resource::SERVICE_NAME,
-                "basic-otlp-logging-example",
+                service_name,
             )])),
         )
         .with_exporter(
@@ -120,13 +121,13 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
             "Nice operation!".to_string(),
             vec![Key::new("bogons").i64(100)],
         );
-        span.set_attribute(ANOTHER_KEY.string("yes"));
+        span.set_attribute(KeyValue::new(ANOTHER_KEY, "yes"));
 
         info!(target: "my-target", "hello from {}. My price is {}. I am also inside a Span!", "banana", 2.99);
 
         tracer.in_span("Sub operation...", |cx| {
             let span = cx.span();
-            span.set_attribute(LEMONS_KEY.string("five"));
+            span.set_attribute(KeyValue::new(LEMONS_KEY, "five"));
 
             span.add_event("Sub span event", vec![]);
 

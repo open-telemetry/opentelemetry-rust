@@ -55,21 +55,6 @@ pub mod tonic {
     #[derive(Default)]
     pub struct Attributes(pub ::std::vec::Vec<crate::proto::tonic::common::v1::KeyValue>);
 
-    #[cfg(feature = "trace")]
-    impl From<opentelemetry_sdk::trace::EvictedHashMap> for Attributes {
-        fn from(attributes: opentelemetry_sdk::trace::EvictedHashMap) -> Self {
-            Attributes(
-                attributes
-                    .into_iter()
-                    .map(|(key, value)| KeyValue {
-                        key: key.as_str().to_string(),
-                        value: Some(value.into()),
-                    })
-                    .collect(),
-            )
-        }
-    }
-
     impl From<Vec<opentelemetry::KeyValue>> for Attributes {
         fn from(kvs: Vec<opentelemetry::KeyValue>) -> Self {
             Attributes(
@@ -178,21 +163,6 @@ pub mod grpcio {
     /// Wrapper type for Vec<[`KeyValue`](crate::proto::grpcio::common::v1::KeyValue)>
     #[derive(Default)]
     pub struct Attributes(pub ::std::vec::Vec<crate::proto::grpcio::common::v1::KeyValue>);
-
-    #[cfg(feature = "trace")]
-    impl From<opentelemetry_sdk::trace::EvictedHashMap> for Attributes {
-        fn from(attributes: opentelemetry_sdk::trace::EvictedHashMap) -> Self {
-            Attributes(
-                attributes
-                    .into_iter()
-                    .map(|(key, value)| KeyValue {
-                        key: key.as_str().to_string(),
-                        value: Some(value.into()),
-                    })
-                    .collect(),
-            )
-        }
-    }
 
     impl From<Vec<opentelemetry::KeyValue>> for Attributes {
         fn from(kvs: Vec<opentelemetry::KeyValue>) -> Self {

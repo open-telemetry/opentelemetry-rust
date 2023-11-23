@@ -9,25 +9,24 @@
 //! The [trace semantic conventions] define a set of standardized attributes to
 //! be used in `Span`s.
 //!
-//! [trace semantic conventions]: https://github.com/open-telemetry/opentelemetry-specification/tree/master/specification/trace/semantic_conventions
+//! [trace semantic conventions]: https://github.com/open-telemetry/semantic-conventions/tree/main/model/trace
 //!
 //! ## Usage
 //!
 //! ```
+//! use opentelemetry::KeyValue;
 //! use opentelemetry::{global, trace::Tracer as _};
-//! use opentelemetry_semantic_conventions as semcov;
+//! use opentelemetry_semantic_conventions as semconv;
 //!
 //! let tracer = global::tracer("my-component");
 //! let _span = tracer
 //!     .span_builder("span-name")
 //!     .with_attributes(vec![
-//!         semcov::trace::NET_PEER_NAME.string("example.org"),
-//!         semcov::trace::NET_PEER_PORT.i64(80),
+//!         KeyValue::new(semconv::trace::NET_PEER_NAME, "example.org"),
+//!         KeyValue::new(semconv::trace::NET_PEER_PORT, 80i64),
 //!     ])
 //!     .start(&tracer);
 //! ```
-
-use opentelemetry::Key;
 
 /// Client address - unix domain socket name, IPv4 or IPv6 address.
 ///
@@ -37,7 +36,7 @@ use opentelemetry::Key;
 ///
 /// - `/tmp/my.sock`
 /// - `10.1.2.80`
-pub const CLIENT_ADDRESS: Key = Key::from_static_str("client.address");
+pub const CLIENT_ADDRESS: &str = "client.address";
 
 /// Client port number.
 ///
@@ -46,7 +45,7 @@ pub const CLIENT_ADDRESS: Key = Key::from_static_str("client.address");
 /// # Examples
 ///
 /// - `65123`
-pub const CLIENT_PORT: Key = Key::from_static_str("client.port");
+pub const CLIENT_PORT: &str = "client.port";
 
 /// Immediate client peer address - unix domain socket name, IPv4 or IPv6 address.
 ///
@@ -54,14 +53,14 @@ pub const CLIENT_PORT: Key = Key::from_static_str("client.port");
 ///
 /// - `/tmp/my.sock`
 /// - `127.0.0.1`
-pub const CLIENT_SOCKET_ADDRESS: Key = Key::from_static_str("client.socket.address");
+pub const CLIENT_SOCKET_ADDRESS: &str = "client.socket.address";
 
 /// Immediate client peer port number.
 ///
 /// # Examples
 ///
 /// - `35555`
-pub const CLIENT_SOCKET_PORT: Key = Key::from_static_str("client.socket.port");
+pub const CLIENT_SOCKET_PORT: &str = "client.socket.port";
 
 /// Deprecated, use `http.request.method` instead.
 ///
@@ -71,7 +70,7 @@ pub const CLIENT_SOCKET_PORT: Key = Key::from_static_str("client.socket.port");
 /// - `POST`
 /// - `HEAD`
 #[deprecated]
-pub const HTTP_METHOD: Key = Key::from_static_str("http.method");
+pub const HTTP_METHOD: &str = "http.method";
 
 /// Deprecated, use `http.response.status_code` instead.
 ///
@@ -79,7 +78,7 @@ pub const HTTP_METHOD: Key = Key::from_static_str("http.method");
 ///
 /// - `200`
 #[deprecated]
-pub const HTTP_STATUS_CODE: Key = Key::from_static_str("http.status_code");
+pub const HTTP_STATUS_CODE: &str = "http.status_code";
 
 /// Deprecated, use `url.scheme` instead.
 ///
@@ -88,7 +87,7 @@ pub const HTTP_STATUS_CODE: Key = Key::from_static_str("http.status_code");
 /// - `http`
 /// - `https`
 #[deprecated]
-pub const HTTP_SCHEME: Key = Key::from_static_str("http.scheme");
+pub const HTTP_SCHEME: &str = "http.scheme";
 
 /// Deprecated, use `url.full` instead.
 ///
@@ -96,7 +95,7 @@ pub const HTTP_SCHEME: Key = Key::from_static_str("http.scheme");
 ///
 /// - `https://www.foo.bar/search?q=OpenTelemetry#SemConv`
 #[deprecated]
-pub const HTTP_URL: Key = Key::from_static_str("http.url");
+pub const HTTP_URL: &str = "http.url";
 
 /// Deprecated, use `url.path` and `url.query` instead.
 ///
@@ -104,7 +103,7 @@ pub const HTTP_URL: Key = Key::from_static_str("http.url");
 ///
 /// - `/search?q=OpenTelemetry#SemConv`
 #[deprecated]
-pub const HTTP_TARGET: Key = Key::from_static_str("http.target");
+pub const HTTP_TARGET: &str = "http.target";
 
 /// Deprecated, use `http.request.body.size` instead.
 ///
@@ -112,7 +111,7 @@ pub const HTTP_TARGET: Key = Key::from_static_str("http.target");
 ///
 /// - `3495`
 #[deprecated]
-pub const HTTP_REQUEST_CONTENT_LENGTH: Key = Key::from_static_str("http.request_content_length");
+pub const HTTP_REQUEST_CONTENT_LENGTH: &str = "http.request_content_length";
 
 /// Deprecated, use `http.response.body.size` instead.
 ///
@@ -120,7 +119,7 @@ pub const HTTP_REQUEST_CONTENT_LENGTH: Key = Key::from_static_str("http.request_
 ///
 /// - `3495`
 #[deprecated]
-pub const HTTP_RESPONSE_CONTENT_LENGTH: Key = Key::from_static_str("http.response_content_length");
+pub const HTTP_RESPONSE_CONTENT_LENGTH: &str = "http.response_content_length";
 
 /// Deprecated, use `server.socket.domain` on client spans.
 ///
@@ -128,7 +127,7 @@ pub const HTTP_RESPONSE_CONTENT_LENGTH: Key = Key::from_static_str("http.respons
 ///
 /// - `/var/my.sock`
 #[deprecated]
-pub const NET_SOCK_PEER_NAME: Key = Key::from_static_str("net.sock.peer.name");
+pub const NET_SOCK_PEER_NAME: &str = "net.sock.peer.name";
 
 /// Deprecated, use `server.socket.address` on client spans and `client.socket.address` on server spans.
 ///
@@ -136,7 +135,7 @@ pub const NET_SOCK_PEER_NAME: Key = Key::from_static_str("net.sock.peer.name");
 ///
 /// - `192.168.0.1`
 #[deprecated]
-pub const NET_SOCK_PEER_ADDR: Key = Key::from_static_str("net.sock.peer.addr");
+pub const NET_SOCK_PEER_ADDR: &str = "net.sock.peer.addr";
 
 /// Deprecated, use `server.socket.port` on client spans and `client.socket.port` on server spans.
 ///
@@ -144,7 +143,7 @@ pub const NET_SOCK_PEER_ADDR: Key = Key::from_static_str("net.sock.peer.addr");
 ///
 /// - `65531`
 #[deprecated]
-pub const NET_SOCK_PEER_PORT: Key = Key::from_static_str("net.sock.peer.port");
+pub const NET_SOCK_PEER_PORT: &str = "net.sock.peer.port";
 
 /// Deprecated, use `server.address` on client spans and `client.address` on server spans.
 ///
@@ -152,7 +151,7 @@ pub const NET_SOCK_PEER_PORT: Key = Key::from_static_str("net.sock.peer.port");
 ///
 /// - `example.com`
 #[deprecated]
-pub const NET_PEER_NAME: Key = Key::from_static_str("net.peer.name");
+pub const NET_PEER_NAME: &str = "net.peer.name";
 
 /// Deprecated, use `server.port` on client spans and `client.port` on server spans.
 ///
@@ -160,7 +159,7 @@ pub const NET_PEER_NAME: Key = Key::from_static_str("net.peer.name");
 ///
 /// - `8080`
 #[deprecated]
-pub const NET_PEER_PORT: Key = Key::from_static_str("net.peer.port");
+pub const NET_PEER_PORT: &str = "net.peer.port";
 
 /// Deprecated, use `server.address`.
 ///
@@ -168,7 +167,7 @@ pub const NET_PEER_PORT: Key = Key::from_static_str("net.peer.port");
 ///
 /// - `example.com`
 #[deprecated]
-pub const NET_HOST_NAME: Key = Key::from_static_str("net.host.name");
+pub const NET_HOST_NAME: &str = "net.host.name";
 
 /// Deprecated, use `server.port`.
 ///
@@ -176,7 +175,7 @@ pub const NET_HOST_NAME: Key = Key::from_static_str("net.host.name");
 ///
 /// - `8080`
 #[deprecated]
-pub const NET_HOST_PORT: Key = Key::from_static_str("net.host.port");
+pub const NET_HOST_PORT: &str = "net.host.port";
 
 /// Deprecated, use `server.socket.address`.
 ///
@@ -184,7 +183,7 @@ pub const NET_HOST_PORT: Key = Key::from_static_str("net.host.port");
 ///
 /// - `/var/my.sock`
 #[deprecated]
-pub const NET_SOCK_HOST_ADDR: Key = Key::from_static_str("net.sock.host.addr");
+pub const NET_SOCK_HOST_ADDR: &str = "net.sock.host.addr";
 
 /// Deprecated, use `server.socket.port`.
 ///
@@ -192,11 +191,11 @@ pub const NET_SOCK_HOST_ADDR: Key = Key::from_static_str("net.sock.host.addr");
 ///
 /// - `8080`
 #[deprecated]
-pub const NET_SOCK_HOST_PORT: Key = Key::from_static_str("net.sock.host.port");
+pub const NET_SOCK_HOST_PORT: &str = "net.sock.host.port";
 
 /// Deprecated, use `network.transport`.
 #[deprecated]
-pub const NET_TRANSPORT: Key = Key::from_static_str("net.transport");
+pub const NET_TRANSPORT: &str = "net.transport";
 
 /// Deprecated, use `network.protocol.name`.
 ///
@@ -206,7 +205,7 @@ pub const NET_TRANSPORT: Key = Key::from_static_str("net.transport");
 /// - `http`
 /// - `mqtt`
 #[deprecated]
-pub const NET_PROTOCOL_NAME: Key = Key::from_static_str("net.protocol.name");
+pub const NET_PROTOCOL_NAME: &str = "net.protocol.name";
 
 /// Deprecated, use `network.protocol.version`.
 ///
@@ -214,11 +213,11 @@ pub const NET_PROTOCOL_NAME: Key = Key::from_static_str("net.protocol.name");
 ///
 /// - `3.1.1`
 #[deprecated]
-pub const NET_PROTOCOL_VERSION: Key = Key::from_static_str("net.protocol.version");
+pub const NET_PROTOCOL_VERSION: &str = "net.protocol.version";
 
 /// Deprecated, use `network.transport` and `network.type`.
 #[deprecated]
-pub const NET_SOCK_FAMILY: Key = Key::from_static_str("net.sock.family");
+pub const NET_SOCK_FAMILY: &str = "net.sock.family";
 
 /// The domain name of the destination system.
 ///
@@ -227,14 +226,14 @@ pub const NET_SOCK_FAMILY: Key = Key::from_static_str("net.sock.family");
 /// # Examples
 ///
 /// - `foo.example.com`
-pub const DESTINATION_DOMAIN: Key = Key::from_static_str("destination.domain");
+pub const DESTINATION_DOMAIN: &str = "destination.domain";
 
 /// Peer address, for example IP address or UNIX socket name.
 ///
 /// # Examples
 ///
 /// - `10.5.3.2`
-pub const DESTINATION_ADDRESS: Key = Key::from_static_str("destination.address");
+pub const DESTINATION_ADDRESS: &str = "destination.address";
 
 /// Peer port number.
 ///
@@ -242,7 +241,7 @@ pub const DESTINATION_ADDRESS: Key = Key::from_static_str("destination.address")
 ///
 /// - `3389`
 /// - `2888`
-pub const DESTINATION_PORT: Key = Key::from_static_str("destination.port");
+pub const DESTINATION_PORT: &str = "destination.port";
 
 /// The type of the exception (its fully-qualified class name, if applicable). The dynamic type of the exception should be preferred over the static type in languages that support it.
 ///
@@ -250,7 +249,7 @@ pub const DESTINATION_PORT: Key = Key::from_static_str("destination.port");
 ///
 /// - `java.net.ConnectException`
 /// - `OSError`
-pub const EXCEPTION_TYPE: Key = Key::from_static_str("exception.type");
+pub const EXCEPTION_TYPE: &str = "exception.type";
 
 /// The exception message.
 ///
@@ -258,14 +257,14 @@ pub const EXCEPTION_TYPE: Key = Key::from_static_str("exception.type");
 ///
 /// - `Division by zero`
 /// - `Can't convert 'int' object to str implicitly`
-pub const EXCEPTION_MESSAGE: Key = Key::from_static_str("exception.message");
+pub const EXCEPTION_MESSAGE: &str = "exception.message";
 
 /// A stacktrace as a string in the natural representation for the language runtime. The representation is to be determined and documented by each language SIG.
 ///
 /// # Examples
 ///
 /// - `Exception in thread "main" java.lang.RuntimeException: Test exception\n at com.example.GenerateTrace.methodB(GenerateTrace.java:13)\n at com.example.GenerateTrace.methodA(GenerateTrace.java:9)\n at com.example.GenerateTrace.main(GenerateTrace.java:5)`
-pub const EXCEPTION_STACKTRACE: Key = Key::from_static_str("exception.stacktrace");
+pub const EXCEPTION_STACKTRACE: &str = "exception.stacktrace";
 
 /// HTTP request method.
 ///
@@ -290,14 +289,14 @@ pub const EXCEPTION_STACKTRACE: Key = Key::from_static_str("exception.stacktrace
 /// - `GET`
 /// - `POST`
 /// - `HEAD`
-pub const HTTP_REQUEST_METHOD: Key = Key::from_static_str("http.request.method");
+pub const HTTP_REQUEST_METHOD: &str = "http.request.method";
 
 /// [HTTP response status code](https://tools.ietf.org/html/rfc7231#section-6).
 ///
 /// # Examples
 ///
 /// - `200`
-pub const HTTP_RESPONSE_STATUS_CODE: Key = Key::from_static_str("http.response.status_code");
+pub const HTTP_RESPONSE_STATUS_CODE: &str = "http.response.status_code";
 
 /// The matched route (path template in the format used by the respective server framework). See note below.
 ///
@@ -308,7 +307,7 @@ pub const HTTP_RESPONSE_STATUS_CODE: Key = Key::from_static_str("http.response.s
 ///
 /// - `/users/:userID?`
 /// - `{controller}/{action}/{id?}`
-pub const HTTP_ROUTE: Key = Key::from_static_str("http.route");
+pub const HTTP_ROUTE: &str = "http.route";
 
 /// The name identifies the event.
 ///
@@ -316,13 +315,13 @@ pub const HTTP_ROUTE: Key = Key::from_static_str("http.route");
 ///
 /// - `click`
 /// - `exception`
-pub const EVENT_NAME: Key = Key::from_static_str("event.name");
+pub const EVENT_NAME: &str = "event.name";
 
 /// The domain identifies the business context for the events.
 ///
 /// Events across different domains may have same `event.name`, yet be
 /// unrelated events.
-pub const EVENT_DOMAIN: Key = Key::from_static_str("event.domain");
+pub const EVENT_DOMAIN: &str = "event.domain";
 
 /// A unique identifier for the Log Record.
 ///
@@ -332,38 +331,38 @@ pub const EVENT_DOMAIN: Key = Key::from_static_str("event.domain");
 /// # Examples
 ///
 /// - `01ARZ3NDEKTSV4RRFFQ69G5FAV`
-pub const LOG_RECORD_UID: Key = Key::from_static_str("log.record.uid");
+pub const LOG_RECORD_UID: &str = "log.record.uid";
 
 /// The stream associated with the log. See below for a list of well-known values.
-pub const LOG_IOSTREAM: Key = Key::from_static_str("log.iostream");
+pub const LOG_IOSTREAM: &str = "log.iostream";
 
 /// The basename of the file.
 ///
 /// # Examples
 ///
 /// - `audit.log`
-pub const LOG_FILE_NAME: Key = Key::from_static_str("log.file.name");
+pub const LOG_FILE_NAME: &str = "log.file.name";
 
 /// The full path to the file.
 ///
 /// # Examples
 ///
 /// - `/var/log/mysql/audit.log`
-pub const LOG_FILE_PATH: Key = Key::from_static_str("log.file.path");
+pub const LOG_FILE_PATH: &str = "log.file.path";
 
 /// The basename of the file, with symlinks resolved.
 ///
 /// # Examples
 ///
 /// - `uuid.log`
-pub const LOG_FILE_NAME_RESOLVED: Key = Key::from_static_str("log.file.name_resolved");
+pub const LOG_FILE_NAME_RESOLVED: &str = "log.file.name_resolved";
 
 /// The full path to the file, with symlinks resolved.
 ///
 /// # Examples
 ///
 /// - `/var/lib/docker/uuid.log`
-pub const LOG_FILE_PATH_RESOLVED: Key = Key::from_static_str("log.file.path_resolved");
+pub const LOG_FILE_PATH_RESOLVED: &str = "log.file.path_resolved";
 
 /// The type of memory.
 ///
@@ -371,7 +370,7 @@ pub const LOG_FILE_PATH_RESOLVED: Key = Key::from_static_str("log.file.path_reso
 ///
 /// - `heap`
 /// - `non_heap`
-pub const TYPE: Key = Key::from_static_str("type");
+pub const TYPE: &str = "type";
 
 /// Name of the memory pool.
 ///
@@ -382,14 +381,14 @@ pub const TYPE: Key = Key::from_static_str("type");
 /// - `G1 Old Gen`
 /// - `G1 Eden space`
 /// - `G1 Survivor Space`
-pub const POOL: Key = Key::from_static_str("pool");
+pub const POOL: &str = "pool";
 
 /// Logical server hostname, matches server FQDN if available, and IP or socket address if FQDN is not known.
 ///
 /// # Examples
 ///
 /// - `example.com`
-pub const SERVER_ADDRESS: Key = Key::from_static_str("server.address");
+pub const SERVER_ADDRESS: &str = "server.address";
 
 /// Logical server port number.
 ///
@@ -398,7 +397,7 @@ pub const SERVER_ADDRESS: Key = Key::from_static_str("server.address");
 /// - `80`
 /// - `8080`
 /// - `443`
-pub const SERVER_PORT: Key = Key::from_static_str("server.port");
+pub const SERVER_PORT: &str = "server.port";
 
 /// The domain name of an immediate peer.
 ///
@@ -407,21 +406,21 @@ pub const SERVER_PORT: Key = Key::from_static_str("server.port");
 /// # Examples
 ///
 /// - `proxy.example.com`
-pub const SERVER_SOCKET_DOMAIN: Key = Key::from_static_str("server.socket.domain");
+pub const SERVER_SOCKET_DOMAIN: &str = "server.socket.domain";
 
 /// Physical server IP address or Unix socket address. If set from the client, should simply use the socket&#39;s peer address, and not attempt to find any actual server IP (i.e., if set from client, this may represent some proxy server instead of the logical server).
 ///
 /// # Examples
 ///
 /// - `10.5.3.2`
-pub const SERVER_SOCKET_ADDRESS: Key = Key::from_static_str("server.socket.address");
+pub const SERVER_SOCKET_ADDRESS: &str = "server.socket.address";
 
 /// Physical server port.
 ///
 /// # Examples
 ///
 /// - `16456`
-pub const SERVER_SOCKET_PORT: Key = Key::from_static_str("server.socket.port");
+pub const SERVER_SOCKET_PORT: &str = "server.socket.port";
 
 /// The domain name of the source system.
 ///
@@ -430,14 +429,14 @@ pub const SERVER_SOCKET_PORT: Key = Key::from_static_str("server.socket.port");
 /// # Examples
 ///
 /// - `foo.example.com`
-pub const SOURCE_DOMAIN: Key = Key::from_static_str("source.domain");
+pub const SOURCE_DOMAIN: &str = "source.domain";
 
 /// Source address, for example IP address or Unix socket name.
 ///
 /// # Examples
 ///
 /// - `10.5.3.2`
-pub const SOURCE_ADDRESS: Key = Key::from_static_str("source.address");
+pub const SOURCE_ADDRESS: &str = "source.address";
 
 /// Source port number.
 ///
@@ -445,7 +444,7 @@ pub const SOURCE_ADDRESS: Key = Key::from_static_str("source.address");
 ///
 /// - `3389`
 /// - `2888`
-pub const SOURCE_PORT: Key = Key::from_static_str("source.port");
+pub const SOURCE_PORT: &str = "source.port";
 
 /// The full invoked ARN as provided on the `Context` passed to the function (`Lambda-Runtime-Invoked-Function-Arn` header on the `/runtime/invocation/next` applicable).
 ///
@@ -454,7 +453,7 @@ pub const SOURCE_PORT: Key = Key::from_static_str("source.port");
 /// # Examples
 ///
 /// - `arn:aws:lambda:us-east-1:123456:function:myfunction:myalias`
-pub const AWS_LAMBDA_INVOKED_ARN: Key = Key::from_static_str("aws.lambda.invoked_arn");
+pub const AWS_LAMBDA_INVOKED_ARN: &str = "aws.lambda.invoked_arn";
 
 /// The [event_id](https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/spec.md#id) uniquely identifies the event.
 ///
@@ -462,7 +461,7 @@ pub const AWS_LAMBDA_INVOKED_ARN: Key = Key::from_static_str("aws.lambda.invoked
 ///
 /// - `123e4567-e89b-12d3-a456-426614174000`
 /// - `0001`
-pub const CLOUDEVENTS_EVENT_ID: Key = Key::from_static_str("cloudevents.event_id");
+pub const CLOUDEVENTS_EVENT_ID: &str = "cloudevents.event_id";
 
 /// The [source](https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/spec.md#source-1) identifies the context in which an event happened.
 ///
@@ -471,15 +470,14 @@ pub const CLOUDEVENTS_EVENT_ID: Key = Key::from_static_str("cloudevents.event_id
 /// - `https://github.com/cloudevents`
 /// - `/cloudevents/spec/pull/123`
 /// - `my-service`
-pub const CLOUDEVENTS_EVENT_SOURCE: Key = Key::from_static_str("cloudevents.event_source");
+pub const CLOUDEVENTS_EVENT_SOURCE: &str = "cloudevents.event_source";
 
 /// The [version of the CloudEvents specification](https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/spec.md#specversion) which the event uses.
 ///
 /// # Examples
 ///
 /// - `1.0`
-pub const CLOUDEVENTS_EVENT_SPEC_VERSION: Key =
-    Key::from_static_str("cloudevents.event_spec_version");
+pub const CLOUDEVENTS_EVENT_SPEC_VERSION: &str = "cloudevents.event_spec_version";
 
 /// The [event_type](https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/spec.md#type) contains a value describing the type of event related to the originating occurrence.
 ///
@@ -487,29 +485,29 @@ pub const CLOUDEVENTS_EVENT_SPEC_VERSION: Key =
 ///
 /// - `com.github.pull_request.opened`
 /// - `com.example.object.deleted.v2`
-pub const CLOUDEVENTS_EVENT_TYPE: Key = Key::from_static_str("cloudevents.event_type");
+pub const CLOUDEVENTS_EVENT_TYPE: &str = "cloudevents.event_type";
 
 /// The [subject](https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/spec.md#subject) of the event in the context of the event producer (identified by source).
 ///
 /// # Examples
 ///
 /// - `mynewfile.jpg`
-pub const CLOUDEVENTS_EVENT_SUBJECT: Key = Key::from_static_str("cloudevents.event_subject");
+pub const CLOUDEVENTS_EVENT_SUBJECT: &str = "cloudevents.event_subject";
 
 /// Parent-child Reference type.
 ///
 /// The causal relationship between a child Span and a parent Span.
-pub const OPENTRACING_REF_TYPE: Key = Key::from_static_str("opentracing.ref_type");
+pub const OPENTRACING_REF_TYPE: &str = "opentracing.ref_type";
 
 /// An identifier for the database management system (DBMS) product being used. See below for a list of well-known identifiers.
-pub const DB_SYSTEM: Key = Key::from_static_str("db.system");
+pub const DB_SYSTEM: &str = "db.system";
 
 /// The connection string used to connect to the database. It is recommended to remove embedded credentials.
 ///
 /// # Examples
 ///
 /// - `Server=(localdb)\v11.0;Integrated Security=true;`
-pub const DB_CONNECTION_STRING: Key = Key::from_static_str("db.connection_string");
+pub const DB_CONNECTION_STRING: &str = "db.connection_string";
 
 /// Username for accessing the database.
 ///
@@ -517,7 +515,7 @@ pub const DB_CONNECTION_STRING: Key = Key::from_static_str("db.connection_string
 ///
 /// - `readonly_user`
 /// - `reporting_user`
-pub const DB_USER: Key = Key::from_static_str("db.user");
+pub const DB_USER: &str = "db.user";
 
 /// The fully-qualified class name of the [Java Database Connectivity (JDBC)](https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/) driver used to connect.
 ///
@@ -525,7 +523,7 @@ pub const DB_USER: Key = Key::from_static_str("db.user");
 ///
 /// - `org.postgresql.Driver`
 /// - `com.microsoft.sqlserver.jdbc.SQLServerDriver`
-pub const DB_JDBC_DRIVER_CLASSNAME: Key = Key::from_static_str("db.jdbc.driver_classname");
+pub const DB_JDBC_DRIVER_CLASSNAME: &str = "db.jdbc.driver_classname";
 
 /// This attribute is used to report the name of the database being accessed. For commands that switch the database, this should be set to the target database (even if the command fails).
 ///
@@ -535,7 +533,7 @@ pub const DB_JDBC_DRIVER_CLASSNAME: Key = Key::from_static_str("db.jdbc.driver_c
 ///
 /// - `customers`
 /// - `main`
-pub const DB_NAME: Key = Key::from_static_str("db.name");
+pub const DB_NAME: &str = "db.name";
 
 /// The database statement being executed.
 ///
@@ -543,7 +541,7 @@ pub const DB_NAME: Key = Key::from_static_str("db.name");
 ///
 /// - `SELECT * FROM wuser_table`
 /// - `SET mykey "WuValue"`
-pub const DB_STATEMENT: Key = Key::from_static_str("db.statement");
+pub const DB_STATEMENT: &str = "db.statement";
 
 /// The name of the operation being executed, e.g. the [MongoDB command name](https://docs.mongodb.com/manual/reference/command/#database-operations) such as `findAndModify`, or the SQL keyword.
 ///
@@ -554,7 +552,7 @@ pub const DB_STATEMENT: Key = Key::from_static_str("db.statement");
 /// - `findAndModify`
 /// - `HMSET`
 /// - `SELECT`
-pub const DB_OPERATION: Key = Key::from_static_str("db.operation");
+pub const DB_OPERATION: &str = "db.operation";
 
 /// The Microsoft SQL Server [instance name](https://docs.microsoft.com/en-us/sql/connect/jdbc/building-the-connection-url?view=sql-server-ver15) connecting to. This name is used to determine the port of a named instance.
 ///
@@ -563,18 +561,17 @@ pub const DB_OPERATION: Key = Key::from_static_str("db.operation");
 /// # Examples
 ///
 /// - `MSSQLSERVER`
-pub const DB_MSSQL_INSTANCE_NAME: Key = Key::from_static_str("db.mssql.instance_name");
+pub const DB_MSSQL_INSTANCE_NAME: &str = "db.mssql.instance_name";
 
 /// The fetch size used for paging, i.e. how many rows will be returned at once.
 ///
 /// # Examples
 ///
 /// - `5000`
-pub const DB_CASSANDRA_PAGE_SIZE: Key = Key::from_static_str("db.cassandra.page_size");
+pub const DB_CASSANDRA_PAGE_SIZE: &str = "db.cassandra.page_size";
 
 /// The consistency level of the query. Based on consistency values from [CQL](https://docs.datastax.com/en/cassandra-oss/3.0/cassandra/dml/dmlConfigConsistency.html).
-pub const DB_CASSANDRA_CONSISTENCY_LEVEL: Key =
-    Key::from_static_str("db.cassandra.consistency_level");
+pub const DB_CASSANDRA_CONSISTENCY_LEVEL: &str = "db.cassandra.consistency_level";
 
 /// The name of the primary table that the operation is acting upon, including the keyspace name (if applicable).
 ///
@@ -583,10 +580,10 @@ pub const DB_CASSANDRA_CONSISTENCY_LEVEL: Key =
 /// # Examples
 ///
 /// - `mytable`
-pub const DB_CASSANDRA_TABLE: Key = Key::from_static_str("db.cassandra.table");
+pub const DB_CASSANDRA_TABLE: &str = "db.cassandra.table";
 
 /// Whether or not the query is idempotent.
-pub const DB_CASSANDRA_IDEMPOTENCE: Key = Key::from_static_str("db.cassandra.idempotence");
+pub const DB_CASSANDRA_IDEMPOTENCE: &str = "db.cassandra.idempotence";
 
 /// The number of times a query was speculatively executed. Not set or `0` if the query was not executed speculatively.
 ///
@@ -594,22 +591,22 @@ pub const DB_CASSANDRA_IDEMPOTENCE: Key = Key::from_static_str("db.cassandra.ide
 ///
 /// - `0`
 /// - `2`
-pub const DB_CASSANDRA_SPECULATIVE_EXECUTION_COUNT: Key =
-    Key::from_static_str("db.cassandra.speculative_execution_count");
+pub const DB_CASSANDRA_SPECULATIVE_EXECUTION_COUNT: &str =
+    "db.cassandra.speculative_execution_count";
 
 /// The ID of the coordinating node for a query.
 ///
 /// # Examples
 ///
 /// - `be13faa2-8574-4d71-926d-27f16cf8a7af`
-pub const DB_CASSANDRA_COORDINATOR_ID: Key = Key::from_static_str("db.cassandra.coordinator.id");
+pub const DB_CASSANDRA_COORDINATOR_ID: &str = "db.cassandra.coordinator.id";
 
 /// The data center of the coordinating node for a query.
 ///
 /// # Examples
 ///
 /// - `us-west-2`
-pub const DB_CASSANDRA_COORDINATOR_DC: Key = Key::from_static_str("db.cassandra.coordinator.dc");
+pub const DB_CASSANDRA_COORDINATOR_DC: &str = "db.cassandra.coordinator.dc";
 
 /// The index of the database being accessed as used in the [`SELECT` command](https://redis.io/commands/select), provided as an integer. To be used instead of the generic `db.name` attribute.
 ///
@@ -618,7 +615,7 @@ pub const DB_CASSANDRA_COORDINATOR_DC: Key = Key::from_static_str("db.cassandra.
 /// - `0`
 /// - `1`
 /// - `15`
-pub const DB_REDIS_DATABASE_INDEX: Key = Key::from_static_str("db.redis.database_index");
+pub const DB_REDIS_DATABASE_INDEX: &str = "db.redis.database_index";
 
 /// The collection being accessed within the database stated in `db.name`.
 ///
@@ -626,7 +623,7 @@ pub const DB_REDIS_DATABASE_INDEX: Key = Key::from_static_str("db.redis.database
 ///
 /// - `customers`
 /// - `products`
-pub const DB_MONGODB_COLLECTION: Key = Key::from_static_str("db.mongodb.collection");
+pub const DB_MONGODB_COLLECTION: &str = "db.mongodb.collection";
 
 /// The name of the primary table that the operation is acting upon, including the database name (if applicable).
 ///
@@ -636,31 +633,30 @@ pub const DB_MONGODB_COLLECTION: Key = Key::from_static_str("db.mongodb.collecti
 ///
 /// - `public.users`
 /// - `customers`
-pub const DB_SQL_TABLE: Key = Key::from_static_str("db.sql.table");
+pub const DB_SQL_TABLE: &str = "db.sql.table";
 
 /// Unique Cosmos client instance id.
 ///
 /// # Examples
 ///
 /// - `3ba4827d-4422-483f-b59f-85b74211c11d`
-pub const DB_COSMOSDB_CLIENT_ID: Key = Key::from_static_str("db.cosmosdb.client_id");
+pub const DB_COSMOSDB_CLIENT_ID: &str = "db.cosmosdb.client_id";
 
 /// CosmosDB Operation Type.
-pub const DB_COSMOSDB_OPERATION_TYPE: Key = Key::from_static_str("db.cosmosdb.operation_type");
+pub const DB_COSMOSDB_OPERATION_TYPE: &str = "db.cosmosdb.operation_type";
 
 /// Cosmos client connection mode.
-pub const DB_COSMOSDB_CONNECTION_MODE: Key = Key::from_static_str("db.cosmosdb.connection_mode");
+pub const DB_COSMOSDB_CONNECTION_MODE: &str = "db.cosmosdb.connection_mode";
 
 /// Cosmos DB container name.
 ///
 /// # Examples
 ///
 /// - `anystring`
-pub const DB_COSMOSDB_CONTAINER: Key = Key::from_static_str("db.cosmosdb.container");
+pub const DB_COSMOSDB_CONTAINER: &str = "db.cosmosdb.container";
 
 /// Request payload size in bytes.
-pub const DB_COSMOSDB_REQUEST_CONTENT_LENGTH: Key =
-    Key::from_static_str("db.cosmosdb.request_content_length");
+pub const DB_COSMOSDB_REQUEST_CONTENT_LENGTH: &str = "db.cosmosdb.request_content_length";
 
 /// Cosmos DB status code.
 ///
@@ -668,7 +664,7 @@ pub const DB_COSMOSDB_REQUEST_CONTENT_LENGTH: Key =
 ///
 /// - `200`
 /// - `201`
-pub const DB_COSMOSDB_STATUS_CODE: Key = Key::from_static_str("db.cosmosdb.status_code");
+pub const DB_COSMOSDB_STATUS_CODE: &str = "db.cosmosdb.status_code";
 
 /// Cosmos DB sub status code.
 ///
@@ -676,7 +672,7 @@ pub const DB_COSMOSDB_STATUS_CODE: Key = Key::from_static_str("db.cosmosdb.statu
 ///
 /// - `1000`
 /// - `1002`
-pub const DB_COSMOSDB_SUB_STATUS_CODE: Key = Key::from_static_str("db.cosmosdb.sub_status_code");
+pub const DB_COSMOSDB_SUB_STATUS_CODE: &str = "db.cosmosdb.sub_status_code";
 
 /// RU consumed for that operation.
 ///
@@ -684,17 +680,17 @@ pub const DB_COSMOSDB_SUB_STATUS_CODE: Key = Key::from_static_str("db.cosmosdb.s
 ///
 /// - `46.18`
 /// - `1.0`
-pub const DB_COSMOSDB_REQUEST_CHARGE: Key = Key::from_static_str("db.cosmosdb.request_charge");
+pub const DB_COSMOSDB_REQUEST_CHARGE: &str = "db.cosmosdb.request_charge";
 
 /// Name of the code, either &#34;OK&#34; or &#34;ERROR&#34;. MUST NOT be set if the status code is UNSET.
-pub const OTEL_STATUS_CODE: Key = Key::from_static_str("otel.status_code");
+pub const OTEL_STATUS_CODE: &str = "otel.status_code";
 
 /// Description of the Status if it has a value, otherwise not set.
 ///
 /// # Examples
 ///
 /// - `resource not found`
-pub const OTEL_STATUS_DESCRIPTION: Key = Key::from_static_str("otel.status_description");
+pub const OTEL_STATUS_DESCRIPTION: &str = "otel.status_description";
 
 /// Type of the trigger which caused this function invocation.
 ///
@@ -707,14 +703,14 @@ pub const OTEL_STATUS_DESCRIPTION: Key = Key::from_static_str("otel.status_descr
 /// trigger that corresponding incoming would have (i.e., this has
 /// nothing to do with the underlying transport used to make the API
 /// call to invoke the lambda, which is often HTTP).
-pub const FAAS_TRIGGER: Key = Key::from_static_str("faas.trigger");
+pub const FAAS_TRIGGER: &str = "faas.trigger";
 
 /// The invocation ID of the current function invocation.
 ///
 /// # Examples
 ///
 /// - `af9d5aa4-a685-4c5f-a22b-444f80b3cc28`
-pub const FAAS_INVOCATION_ID: Key = Key::from_static_str("faas.invocation_id");
+pub const FAAS_INVOCATION_ID: &str = "faas.invocation_id";
 
 /// The name of the source on which the triggering operation was performed. For example, in Cloud Storage or S3 corresponds to the bucket name, and in Cosmos DB to the database name.
 ///
@@ -722,17 +718,17 @@ pub const FAAS_INVOCATION_ID: Key = Key::from_static_str("faas.invocation_id");
 ///
 /// - `myBucketName`
 /// - `myDbName`
-pub const FAAS_DOCUMENT_COLLECTION: Key = Key::from_static_str("faas.document.collection");
+pub const FAAS_DOCUMENT_COLLECTION: &str = "faas.document.collection";
 
 /// Describes the type of the operation that was performed on the data.
-pub const FAAS_DOCUMENT_OPERATION: Key = Key::from_static_str("faas.document.operation");
+pub const FAAS_DOCUMENT_OPERATION: &str = "faas.document.operation";
 
 /// A string containing the time when the data was accessed in the [ISO 8601](https://www.iso.org/iso-8601-date-and-time-format.html) format expressed in [UTC](https://www.w3.org/TR/NOTE-datetime).
 ///
 /// # Examples
 ///
 /// - `2020-01-23T13:47:06Z`
-pub const FAAS_DOCUMENT_TIME: Key = Key::from_static_str("faas.document.time");
+pub const FAAS_DOCUMENT_TIME: &str = "faas.document.time";
 
 /// The document name/table subjected to the operation. For example, in Cloud Storage or S3 is the name of the file, and in Cosmos DB the table name.
 ///
@@ -740,24 +736,24 @@ pub const FAAS_DOCUMENT_TIME: Key = Key::from_static_str("faas.document.time");
 ///
 /// - `myFile.txt`
 /// - `myTableName`
-pub const FAAS_DOCUMENT_NAME: Key = Key::from_static_str("faas.document.name");
+pub const FAAS_DOCUMENT_NAME: &str = "faas.document.name";
 
 /// A string containing the function invocation time in the [ISO 8601](https://www.iso.org/iso-8601-date-and-time-format.html) format expressed in [UTC](https://www.w3.org/TR/NOTE-datetime).
 ///
 /// # Examples
 ///
 /// - `2020-01-23T13:47:06Z`
-pub const FAAS_TIME: Key = Key::from_static_str("faas.time");
+pub const FAAS_TIME: &str = "faas.time";
 
 /// A string containing the schedule period as [Cron Expression](https://docs.oracle.com/cd/E12058_01/doc/doc.1014/e12030/cron_expressions.htm).
 ///
 /// # Examples
 ///
 /// - `0/5 * * * ? *`
-pub const FAAS_CRON: Key = Key::from_static_str("faas.cron");
+pub const FAAS_CRON: &str = "faas.cron";
 
 /// A boolean that is true if the serverless function is executed for the first time (aka cold-start).
-pub const FAAS_COLDSTART: Key = Key::from_static_str("faas.coldstart");
+pub const FAAS_COLDSTART: &str = "faas.coldstart";
 
 /// The name of the invoked function.
 ///
@@ -766,12 +762,12 @@ pub const FAAS_COLDSTART: Key = Key::from_static_str("faas.coldstart");
 /// # Examples
 ///
 /// - `my-function`
-pub const FAAS_INVOKED_NAME: Key = Key::from_static_str("faas.invoked_name");
+pub const FAAS_INVOKED_NAME: &str = "faas.invoked_name";
 
 /// The cloud provider of the invoked function.
 ///
 /// SHOULD be equal to the `cloud.provider` resource attribute of the invoked function.
-pub const FAAS_INVOKED_PROVIDER: Key = Key::from_static_str("faas.invoked_provider");
+pub const FAAS_INVOKED_PROVIDER: &str = "faas.invoked_provider";
 
 /// The cloud region of the invoked function.
 ///
@@ -780,21 +776,21 @@ pub const FAAS_INVOKED_PROVIDER: Key = Key::from_static_str("faas.invoked_provid
 /// # Examples
 ///
 /// - `eu-central-1`
-pub const FAAS_INVOKED_REGION: Key = Key::from_static_str("faas.invoked_region");
+pub const FAAS_INVOKED_REGION: &str = "faas.invoked_region";
 
 /// The unique identifier of the feature flag.
 ///
 /// # Examples
 ///
 /// - `logo-color`
-pub const FEATURE_FLAG_KEY: Key = Key::from_static_str("feature_flag.key");
+pub const FEATURE_FLAG_KEY: &str = "feature_flag.key";
 
 /// The name of the service provider that performs the flag evaluation.
 ///
 /// # Examples
 ///
 /// - `Flag Manager`
-pub const FEATURE_FLAG_PROVIDER_NAME: Key = Key::from_static_str("feature_flag.provider_name");
+pub const FEATURE_FLAG_PROVIDER_NAME: &str = "feature_flag.provider_name";
 
 /// SHOULD be a semantic identifier for a value. If one is unavailable, a stringified version of the value can be used.
 ///
@@ -812,7 +808,7 @@ pub const FEATURE_FLAG_PROVIDER_NAME: Key = Key::from_static_str("feature_flag.p
 /// - `red`
 /// - `true`
 /// - `on`
-pub const FEATURE_FLAG_VARIANT: Key = Key::from_static_str("feature_flag.variant");
+pub const FEATURE_FLAG_VARIANT: &str = "feature_flag.variant";
 
 /// [OSI Transport Layer](https://osi-model.com/transport-layer/) or [Inter-process Communication method](https://en.wikipedia.org/wiki/Inter-process_communication). The value SHOULD be normalized to lowercase.
 ///
@@ -820,7 +816,7 @@ pub const FEATURE_FLAG_VARIANT: Key = Key::from_static_str("feature_flag.variant
 ///
 /// - `tcp`
 /// - `udp`
-pub const NETWORK_TRANSPORT: Key = Key::from_static_str("network.transport");
+pub const NETWORK_TRANSPORT: &str = "network.transport";
 
 /// [OSI Network Layer](https://osi-model.com/network-layer/) or non-OSI equivalent. The value SHOULD be normalized to lowercase.
 ///
@@ -828,7 +824,7 @@ pub const NETWORK_TRANSPORT: Key = Key::from_static_str("network.transport");
 ///
 /// - `ipv4`
 /// - `ipv6`
-pub const NETWORK_TYPE: Key = Key::from_static_str("network.type");
+pub const NETWORK_TYPE: &str = "network.type";
 
 /// [OSI Application Layer](https://osi-model.com/application-layer/) or non-OSI equivalent. The value SHOULD be normalized to lowercase.
 ///
@@ -837,7 +833,7 @@ pub const NETWORK_TYPE: Key = Key::from_static_str("network.type");
 /// - `amqp`
 /// - `http`
 /// - `mqtt`
-pub const NETWORK_PROTOCOL_NAME: Key = Key::from_static_str("network.protocol.name");
+pub const NETWORK_PROTOCOL_NAME: &str = "network.protocol.name";
 
 /// Version of the application layer protocol used. See note below.
 ///
@@ -846,126 +842,126 @@ pub const NETWORK_PROTOCOL_NAME: Key = Key::from_static_str("network.protocol.na
 /// # Examples
 ///
 /// - `3.1.1`
-pub const NETWORK_PROTOCOL_VERSION: Key = Key::from_static_str("network.protocol.version");
+pub const NETWORK_PROTOCOL_VERSION: &str = "network.protocol.version";
 
 /// The internet connection type.
 ///
 /// # Examples
 ///
 /// - `wifi`
-pub const NETWORK_CONNECTION_TYPE: Key = Key::from_static_str("network.connection.type");
+pub const NETWORK_CONNECTION_TYPE: &str = "network.connection.type";
 
 /// This describes more details regarding the connection.type. It may be the type of cell technology connection, but it could be used for describing details about a wifi connection.
 ///
 /// # Examples
 ///
 /// - `LTE`
-pub const NETWORK_CONNECTION_SUBTYPE: Key = Key::from_static_str("network.connection.subtype");
+pub const NETWORK_CONNECTION_SUBTYPE: &str = "network.connection.subtype";
 
 /// The name of the mobile carrier.
 ///
 /// # Examples
 ///
 /// - `sprint`
-pub const NETWORK_CARRIER_NAME: Key = Key::from_static_str("network.carrier.name");
+pub const NETWORK_CARRIER_NAME: &str = "network.carrier.name";
 
 /// The mobile carrier country code.
 ///
 /// # Examples
 ///
 /// - `310`
-pub const NETWORK_CARRIER_MCC: Key = Key::from_static_str("network.carrier.mcc");
+pub const NETWORK_CARRIER_MCC: &str = "network.carrier.mcc";
 
 /// The mobile carrier network code.
 ///
 /// # Examples
 ///
 /// - `001`
-pub const NETWORK_CARRIER_MNC: Key = Key::from_static_str("network.carrier.mnc");
+pub const NETWORK_CARRIER_MNC: &str = "network.carrier.mnc";
 
 /// The ISO 3166-1 alpha-2 2-character country code associated with the mobile carrier network.
 ///
 /// # Examples
 ///
 /// - `DE`
-pub const NETWORK_CARRIER_ICC: Key = Key::from_static_str("network.carrier.icc");
+pub const NETWORK_CARRIER_ICC: &str = "network.carrier.icc";
 
 /// The [`service.name`](/docs/resource/README.md#service) of the remote service. SHOULD be equal to the actual `service.name` resource attribute of the remote service if any.
 ///
 /// # Examples
 ///
 /// - `AuthTokenCache`
-pub const PEER_SERVICE: Key = Key::from_static_str("peer.service");
+pub const PEER_SERVICE: &str = "peer.service";
 
 /// Username or client_id extracted from the access token or [Authorization](https://tools.ietf.org/html/rfc7235#section-4.2) header in the inbound request from outside the system.
 ///
 /// # Examples
 ///
 /// - `username`
-pub const ENDUSER_ID: Key = Key::from_static_str("enduser.id");
+pub const ENDUSER_ID: &str = "enduser.id";
 
 /// Actual/assumed role the client is making the request under extracted from token or application security context.
 ///
 /// # Examples
 ///
 /// - `admin`
-pub const ENDUSER_ROLE: Key = Key::from_static_str("enduser.role");
+pub const ENDUSER_ROLE: &str = "enduser.role";
 
 /// Scopes or granted authorities the client currently possesses extracted from token or application security context. The value would come from the scope associated with an [OAuth 2.0 Access Token](https://tools.ietf.org/html/rfc6749#section-3.3) or an attribute value in a [SAML 2.0 Assertion](http://docs.oasis-open.org/security/saml/Post2.0/sstc-saml-tech-overview-2.0.html).
 ///
 /// # Examples
 ///
 /// - `read:message, write:files`
-pub const ENDUSER_SCOPE: Key = Key::from_static_str("enduser.scope");
+pub const ENDUSER_SCOPE: &str = "enduser.scope";
 
 /// Current &#34;managed&#34; thread ID (as opposed to OS thread ID).
 ///
 /// # Examples
 ///
 /// - `42`
-pub const THREAD_ID: Key = Key::from_static_str("thread.id");
+pub const THREAD_ID: &str = "thread.id";
 
 /// Current thread name.
 ///
 /// # Examples
 ///
 /// - `main`
-pub const THREAD_NAME: Key = Key::from_static_str("thread.name");
+pub const THREAD_NAME: &str = "thread.name";
 
 /// The method or function name, or equivalent (usually rightmost part of the code unit&#39;s name).
 ///
 /// # Examples
 ///
 /// - `serveRequest`
-pub const CODE_FUNCTION: Key = Key::from_static_str("code.function");
+pub const CODE_FUNCTION: &str = "code.function";
 
 /// The &#34;namespace&#34; within which `code.function` is defined. Usually the qualified class or module name, such that `code.namespace` + some separator + `code.function` form a unique identifier for the code unit.
 ///
 /// # Examples
 ///
 /// - `com.example.MyHttpService`
-pub const CODE_NAMESPACE: Key = Key::from_static_str("code.namespace");
+pub const CODE_NAMESPACE: &str = "code.namespace";
 
 /// The source code file name that identifies the code unit as uniquely as possible (preferably an absolute file path).
 ///
 /// # Examples
 ///
 /// - `/usr/local/MyApplication/content_root/app/index.php`
-pub const CODE_FILEPATH: Key = Key::from_static_str("code.filepath");
+pub const CODE_FILEPATH: &str = "code.filepath";
 
 /// The line number in `code.filepath` best representing the operation. It SHOULD point within the code unit named in `code.function`.
 ///
 /// # Examples
 ///
 /// - `42`
-pub const CODE_LINENO: Key = Key::from_static_str("code.lineno");
+pub const CODE_LINENO: &str = "code.lineno";
 
 /// The column number in `code.filepath` best representing the operation. It SHOULD point within the code unit named in `code.function`.
 ///
 /// # Examples
 ///
 /// - `16`
-pub const CODE_COLUMN: Key = Key::from_static_str("code.column");
+pub const CODE_COLUMN: &str = "code.column";
 
 /// Original HTTP method sent by the client in the request line.
 ///
@@ -974,21 +970,21 @@ pub const CODE_COLUMN: Key = Key::from_static_str("code.column");
 /// - `GeT`
 /// - `ACL`
 /// - `foo`
-pub const HTTP_REQUEST_METHOD_ORIGINAL: Key = Key::from_static_str("http.request.method_original");
+pub const HTTP_REQUEST_METHOD_ORIGINAL: &str = "http.request.method_original";
 
 /// The size of the request payload body in bytes. This is the number of bytes transferred excluding headers and is often, but not always, present as the [Content-Length](https://www.rfc-editor.org/rfc/rfc9110.html#field.content-length) header. For requests using transport encoding, this should be the compressed size.
 ///
 /// # Examples
 ///
 /// - `3495`
-pub const HTTP_REQUEST_BODY_SIZE: Key = Key::from_static_str("http.request.body.size");
+pub const HTTP_REQUEST_BODY_SIZE: &str = "http.request.body.size";
 
 /// The size of the response payload body in bytes. This is the number of bytes transferred excluding headers and is often, but not always, present as the [Content-Length](https://www.rfc-editor.org/rfc/rfc9110.html#field.content-length) header. For requests using transport encoding, this should be the compressed size.
 ///
 /// # Examples
 ///
 /// - `3495`
-pub const HTTP_RESPONSE_BODY_SIZE: Key = Key::from_static_str("http.response.body.size");
+pub const HTTP_RESPONSE_BODY_SIZE: &str = "http.response.body.size";
 
 /// The ordinal number of request resending attempt (for any reason, including redirects).
 ///
@@ -997,7 +993,7 @@ pub const HTTP_RESPONSE_BODY_SIZE: Key = Key::from_static_str("http.response.bod
 /// # Examples
 ///
 /// - `3`
-pub const HTTP_RESEND_COUNT: Key = Key::from_static_str("http.resend_count");
+pub const HTTP_RESEND_COUNT: &str = "http.resend_count";
 
 /// The AWS request ID as returned in the response headers `x-amz-request-id` or `x-amz-requestid`.
 ///
@@ -1005,7 +1001,7 @@ pub const HTTP_RESEND_COUNT: Key = Key::from_static_str("http.resend_count");
 ///
 /// - `79b9da39-b7ae-508a-a6bc-864b2829c622`
 /// - `C9ER4AJX75574TDJ`
-pub const AWS_REQUEST_ID: Key = Key::from_static_str("aws.request_id");
+pub const AWS_REQUEST_ID: &str = "aws.request_id";
 
 /// The keys in the `RequestItems` object field.
 ///
@@ -1013,23 +1009,21 @@ pub const AWS_REQUEST_ID: Key = Key::from_static_str("aws.request_id");
 ///
 /// - `Users`
 /// - `Cats`
-pub const AWS_DYNAMODB_TABLE_NAMES: Key = Key::from_static_str("aws.dynamodb.table_names");
+pub const AWS_DYNAMODB_TABLE_NAMES: &str = "aws.dynamodb.table_names";
 
 /// The JSON-serialized value of each item in the `ConsumedCapacity` response field.
 ///
 /// # Examples
 ///
 /// - `{ "CapacityUnits": number, "GlobalSecondaryIndexes": { "string" : { "CapacityUnits": number, "ReadCapacityUnits": number, "WriteCapacityUnits": number } }, "LocalSecondaryIndexes": { "string" : { "CapacityUnits": number, "ReadCapacityUnits": number, "WriteCapacityUnits": number } }, "ReadCapacityUnits": number, "Table": { "CapacityUnits": number, "ReadCapacityUnits": number, "WriteCapacityUnits": number }, "TableName": "string", "WriteCapacityUnits": number }`
-pub const AWS_DYNAMODB_CONSUMED_CAPACITY: Key =
-    Key::from_static_str("aws.dynamodb.consumed_capacity");
+pub const AWS_DYNAMODB_CONSUMED_CAPACITY: &str = "aws.dynamodb.consumed_capacity";
 
 /// The JSON-serialized value of the `ItemCollectionMetrics` response field.
 ///
 /// # Examples
 ///
 /// - `{ "string" : [ { "ItemCollectionKey": { "string" : { "B": blob, "BOOL": boolean, "BS": [ blob ], "L": [ "AttributeValue" ], "M": { "string" : "AttributeValue" }, "N": "string", "NS": [ "string" ], "NULL": boolean, "S": "string", "SS": [ "string" ] } }, "SizeEstimateRangeGB": [ number ] } ] }`
-pub const AWS_DYNAMODB_ITEM_COLLECTION_METRICS: Key =
-    Key::from_static_str("aws.dynamodb.item_collection_metrics");
+pub const AWS_DYNAMODB_ITEM_COLLECTION_METRICS: &str = "aws.dynamodb.item_collection_metrics";
 
 /// The value of the `ProvisionedThroughput.ReadCapacityUnits` request parameter.
 ///
@@ -1037,8 +1031,7 @@ pub const AWS_DYNAMODB_ITEM_COLLECTION_METRICS: Key =
 ///
 /// - `1.0`
 /// - `2.0`
-pub const AWS_DYNAMODB_PROVISIONED_READ_CAPACITY: Key =
-    Key::from_static_str("aws.dynamodb.provisioned_read_capacity");
+pub const AWS_DYNAMODB_PROVISIONED_READ_CAPACITY: &str = "aws.dynamodb.provisioned_read_capacity";
 
 /// The value of the `ProvisionedThroughput.WriteCapacityUnits` request parameter.
 ///
@@ -1046,11 +1039,10 @@ pub const AWS_DYNAMODB_PROVISIONED_READ_CAPACITY: Key =
 ///
 /// - `1.0`
 /// - `2.0`
-pub const AWS_DYNAMODB_PROVISIONED_WRITE_CAPACITY: Key =
-    Key::from_static_str("aws.dynamodb.provisioned_write_capacity");
+pub const AWS_DYNAMODB_PROVISIONED_WRITE_CAPACITY: &str = "aws.dynamodb.provisioned_write_capacity";
 
 /// The value of the `ConsistentRead` request parameter.
-pub const AWS_DYNAMODB_CONSISTENT_READ: Key = Key::from_static_str("aws.dynamodb.consistent_read");
+pub const AWS_DYNAMODB_CONSISTENT_READ: &str = "aws.dynamodb.consistent_read";
 
 /// The value of the `ProjectionExpression` request parameter.
 ///
@@ -1059,14 +1051,14 @@ pub const AWS_DYNAMODB_CONSISTENT_READ: Key = Key::from_static_str("aws.dynamodb
 /// - `Title`
 /// - `Title, Price, Color`
 /// - `Title, Description, RelatedItems, ProductReviews`
-pub const AWS_DYNAMODB_PROJECTION: Key = Key::from_static_str("aws.dynamodb.projection");
+pub const AWS_DYNAMODB_PROJECTION: &str = "aws.dynamodb.projection";
 
 /// The value of the `Limit` request parameter.
 ///
 /// # Examples
 ///
 /// - `10`
-pub const AWS_DYNAMODB_LIMIT: Key = Key::from_static_str("aws.dynamodb.limit");
+pub const AWS_DYNAMODB_LIMIT: &str = "aws.dynamodb.limit";
 
 /// The value of the `AttributesToGet` request parameter.
 ///
@@ -1074,15 +1066,14 @@ pub const AWS_DYNAMODB_LIMIT: Key = Key::from_static_str("aws.dynamodb.limit");
 ///
 /// - `lives`
 /// - `id`
-pub const AWS_DYNAMODB_ATTRIBUTES_TO_GET: Key =
-    Key::from_static_str("aws.dynamodb.attributes_to_get");
+pub const AWS_DYNAMODB_ATTRIBUTES_TO_GET: &str = "aws.dynamodb.attributes_to_get";
 
 /// The value of the `IndexName` request parameter.
 ///
 /// # Examples
 ///
 /// - `name_to_group`
-pub const AWS_DYNAMODB_INDEX_NAME: Key = Key::from_static_str("aws.dynamodb.index_name");
+pub const AWS_DYNAMODB_INDEX_NAME: &str = "aws.dynamodb.index_name";
 
 /// The value of the `Select` request parameter.
 ///
@@ -1090,23 +1081,21 @@ pub const AWS_DYNAMODB_INDEX_NAME: Key = Key::from_static_str("aws.dynamodb.inde
 ///
 /// - `ALL_ATTRIBUTES`
 /// - `COUNT`
-pub const AWS_DYNAMODB_SELECT: Key = Key::from_static_str("aws.dynamodb.select");
+pub const AWS_DYNAMODB_SELECT: &str = "aws.dynamodb.select";
 
 /// The JSON-serialized value of each item of the `GlobalSecondaryIndexes` request field.
 ///
 /// # Examples
 ///
 /// - `{ "IndexName": "string", "KeySchema": [ { "AttributeName": "string", "KeyType": "string" } ], "Projection": { "NonKeyAttributes": [ "string" ], "ProjectionType": "string" }, "ProvisionedThroughput": { "ReadCapacityUnits": number, "WriteCapacityUnits": number } }`
-pub const AWS_DYNAMODB_GLOBAL_SECONDARY_INDEXES: Key =
-    Key::from_static_str("aws.dynamodb.global_secondary_indexes");
+pub const AWS_DYNAMODB_GLOBAL_SECONDARY_INDEXES: &str = "aws.dynamodb.global_secondary_indexes";
 
 /// The JSON-serialized value of each item of the `LocalSecondaryIndexes` request field.
 ///
 /// # Examples
 ///
 /// - `{ "IndexArn": "string", "IndexName": "string", "IndexSizeBytes": number, "ItemCount": number, "KeySchema": [ { "AttributeName": "string", "KeyType": "string" } ], "Projection": { "NonKeyAttributes": [ "string" ], "ProjectionType": "string" } }`
-pub const AWS_DYNAMODB_LOCAL_SECONDARY_INDEXES: Key =
-    Key::from_static_str("aws.dynamodb.local_secondary_indexes");
+pub const AWS_DYNAMODB_LOCAL_SECONDARY_INDEXES: &str = "aws.dynamodb.local_secondary_indexes";
 
 /// The value of the `ExclusiveStartTableName` request parameter.
 ///
@@ -1114,62 +1103,60 @@ pub const AWS_DYNAMODB_LOCAL_SECONDARY_INDEXES: Key =
 ///
 /// - `Users`
 /// - `CatsTable`
-pub const AWS_DYNAMODB_EXCLUSIVE_START_TABLE: Key =
-    Key::from_static_str("aws.dynamodb.exclusive_start_table");
+pub const AWS_DYNAMODB_EXCLUSIVE_START_TABLE: &str = "aws.dynamodb.exclusive_start_table";
 
 /// The the number of items in the `TableNames` response parameter.
 ///
 /// # Examples
 ///
 /// - `20`
-pub const AWS_DYNAMODB_TABLE_COUNT: Key = Key::from_static_str("aws.dynamodb.table_count");
+pub const AWS_DYNAMODB_TABLE_COUNT: &str = "aws.dynamodb.table_count";
 
 /// The value of the `ScanIndexForward` request parameter.
-pub const AWS_DYNAMODB_SCAN_FORWARD: Key = Key::from_static_str("aws.dynamodb.scan_forward");
+pub const AWS_DYNAMODB_SCAN_FORWARD: &str = "aws.dynamodb.scan_forward";
 
 /// The value of the `Segment` request parameter.
 ///
 /// # Examples
 ///
 /// - `10`
-pub const AWS_DYNAMODB_SEGMENT: Key = Key::from_static_str("aws.dynamodb.segment");
+pub const AWS_DYNAMODB_SEGMENT: &str = "aws.dynamodb.segment";
 
 /// The value of the `TotalSegments` request parameter.
 ///
 /// # Examples
 ///
 /// - `100`
-pub const AWS_DYNAMODB_TOTAL_SEGMENTS: Key = Key::from_static_str("aws.dynamodb.total_segments");
+pub const AWS_DYNAMODB_TOTAL_SEGMENTS: &str = "aws.dynamodb.total_segments";
 
 /// The value of the `Count` response parameter.
 ///
 /// # Examples
 ///
 /// - `10`
-pub const AWS_DYNAMODB_COUNT: Key = Key::from_static_str("aws.dynamodb.count");
+pub const AWS_DYNAMODB_COUNT: &str = "aws.dynamodb.count";
 
 /// The value of the `ScannedCount` response parameter.
 ///
 /// # Examples
 ///
 /// - `50`
-pub const AWS_DYNAMODB_SCANNED_COUNT: Key = Key::from_static_str("aws.dynamodb.scanned_count");
+pub const AWS_DYNAMODB_SCANNED_COUNT: &str = "aws.dynamodb.scanned_count";
 
 /// The JSON-serialized value of each item in the `AttributeDefinitions` request field.
 ///
 /// # Examples
 ///
 /// - `{ "AttributeName": "string", "AttributeType": "string" }`
-pub const AWS_DYNAMODB_ATTRIBUTE_DEFINITIONS: Key =
-    Key::from_static_str("aws.dynamodb.attribute_definitions");
+pub const AWS_DYNAMODB_ATTRIBUTE_DEFINITIONS: &str = "aws.dynamodb.attribute_definitions";
 
 /// The JSON-serialized value of each item in the the `GlobalSecondaryIndexUpdates` request field.
 ///
 /// # Examples
 ///
 /// - `{ "Create": { "IndexName": "string", "KeySchema": [ { "AttributeName": "string", "KeyType": "string" } ], "Projection": { "NonKeyAttributes": [ "string" ], "ProjectionType": "string" }, "ProvisionedThroughput": { "ReadCapacityUnits": number, "WriteCapacityUnits": number } }`
-pub const AWS_DYNAMODB_GLOBAL_SECONDARY_INDEX_UPDATES: Key =
-    Key::from_static_str("aws.dynamodb.global_secondary_index_updates");
+pub const AWS_DYNAMODB_GLOBAL_SECONDARY_INDEX_UPDATES: &str =
+    "aws.dynamodb.global_secondary_index_updates";
 
 /// The S3 bucket name the request refers to. Corresponds to the `--bucket` parameter of the [S3 API](https://docs.aws.amazon.com/cli/latest/reference/s3api/index.html) operations.
 ///
@@ -1179,7 +1166,7 @@ pub const AWS_DYNAMODB_GLOBAL_SECONDARY_INDEX_UPDATES: Key =
 /// # Examples
 ///
 /// - `some-bucket-name`
-pub const AWS_S3_BUCKET: Key = Key::from_static_str("aws.s3.bucket");
+pub const AWS_S3_BUCKET: &str = "aws.s3.bucket";
 
 /// The S3 object key the request refers to. Corresponds to the `--key` parameter of the [S3 API](https://docs.aws.amazon.com/cli/latest/reference/s3api/index.html) operations.
 ///
@@ -1203,7 +1190,7 @@ pub const AWS_S3_BUCKET: Key = Key::from_static_str("aws.s3.bucket");
 /// # Examples
 ///
 /// - `someFile.yml`
-pub const AWS_S3_KEY: Key = Key::from_static_str("aws.s3.key");
+pub const AWS_S3_KEY: &str = "aws.s3.key";
 
 /// The source object (in the form `bucket`/`key`) for the copy operation.
 ///
@@ -1217,7 +1204,7 @@ pub const AWS_S3_KEY: Key = Key::from_static_str("aws.s3.key");
 /// # Examples
 ///
 /// - `someFile.yml`
-pub const AWS_S3_COPY_SOURCE: Key = Key::from_static_str("aws.s3.copy_source");
+pub const AWS_S3_COPY_SOURCE: &str = "aws.s3.copy_source";
 
 /// Upload ID that identifies the multipart upload.
 ///
@@ -1234,7 +1221,7 @@ pub const AWS_S3_COPY_SOURCE: Key = Key::from_static_str("aws.s3.copy_source");
 /// # Examples
 ///
 /// - `dfRtDYWFbkRONycy.Yxwh66Yjlx.cph0gtNBtJ`
-pub const AWS_S3_UPLOAD_ID: Key = Key::from_static_str("aws.s3.upload_id");
+pub const AWS_S3_UPLOAD_ID: &str = "aws.s3.upload_id";
 
 /// The delete request container that specifies the objects to be deleted.
 ///
@@ -1245,7 +1232,7 @@ pub const AWS_S3_UPLOAD_ID: Key = Key::from_static_str("aws.s3.upload_id");
 /// # Examples
 ///
 /// - `Objects=[{Key=string,VersionId=string},{Key=string,VersionId=string}],Quiet=boolean`
-pub const AWS_S3_DELETE: Key = Key::from_static_str("aws.s3.delete");
+pub const AWS_S3_DELETE: &str = "aws.s3.delete";
 
 /// The part number of the part being uploaded in a multipart-upload operation. This is a positive integer between 1 and 10,000.
 ///
@@ -1257,14 +1244,14 @@ pub const AWS_S3_DELETE: Key = Key::from_static_str("aws.s3.delete");
 /// # Examples
 ///
 /// - `3456`
-pub const AWS_S3_PART_NUMBER: Key = Key::from_static_str("aws.s3.part_number");
+pub const AWS_S3_PART_NUMBER: &str = "aws.s3.part_number";
 
 /// The name of the operation being executed.
 ///
 /// # Examples
 ///
 /// - `findBookById`
-pub const GRAPHQL_OPERATION_NAME: Key = Key::from_static_str("graphql.operation.name");
+pub const GRAPHQL_OPERATION_NAME: &str = "graphql.operation.name";
 
 /// The type of the operation being executed.
 ///
@@ -1273,7 +1260,7 @@ pub const GRAPHQL_OPERATION_NAME: Key = Key::from_static_str("graphql.operation.
 /// - `query`
 /// - `mutation`
 /// - `subscription`
-pub const GRAPHQL_OPERATION_TYPE: Key = Key::from_static_str("graphql.operation.type");
+pub const GRAPHQL_OPERATION_TYPE: &str = "graphql.operation.type";
 
 /// The GraphQL document being executed.
 ///
@@ -1282,38 +1269,36 @@ pub const GRAPHQL_OPERATION_TYPE: Key = Key::from_static_str("graphql.operation.
 /// # Examples
 ///
 /// - `query findBookById { bookById(id: ?) { name } }`
-pub const GRAPHQL_DOCUMENT: Key = Key::from_static_str("graphql.document");
+pub const GRAPHQL_DOCUMENT: &str = "graphql.document";
 
 /// A value used by the messaging system as an identifier for the message, represented as a string.
 ///
 /// # Examples
 ///
 /// - `452a7c7c7c7048c2f887f61572b18fc2`
-pub const MESSAGING_MESSAGE_ID: Key = Key::from_static_str("messaging.message.id");
+pub const MESSAGING_MESSAGE_ID: &str = "messaging.message.id";
 
 /// The [conversation ID](#conversations) identifying the conversation to which the message belongs, represented as a string. Sometimes called &#34;Correlation ID&#34;.
 ///
 /// # Examples
 ///
 /// - `MyConversationId`
-pub const MESSAGING_MESSAGE_CONVERSATION_ID: Key =
-    Key::from_static_str("messaging.message.conversation_id");
+pub const MESSAGING_MESSAGE_CONVERSATION_ID: &str = "messaging.message.conversation_id";
 
 /// The (uncompressed) size of the message payload in bytes. Also use this attribute if it is unknown whether the compressed or uncompressed payload size is reported.
 ///
 /// # Examples
 ///
 /// - `2738`
-pub const MESSAGING_MESSAGE_PAYLOAD_SIZE_BYTES: Key =
-    Key::from_static_str("messaging.message.payload_size_bytes");
+pub const MESSAGING_MESSAGE_PAYLOAD_SIZE_BYTES: &str = "messaging.message.payload_size_bytes";
 
 /// The compressed size of the message payload in bytes.
 ///
 /// # Examples
 ///
 /// - `2048`
-pub const MESSAGING_MESSAGE_PAYLOAD_COMPRESSED_SIZE_BYTES: Key =
-    Key::from_static_str("messaging.message.payload_compressed_size_bytes");
+pub const MESSAGING_MESSAGE_PAYLOAD_COMPRESSED_SIZE_BYTES: &str =
+    "messaging.message.payload_compressed_size_bytes";
 
 /// The message destination name.
 ///
@@ -1324,7 +1309,7 @@ pub const MESSAGING_MESSAGE_PAYLOAD_COMPRESSED_SIZE_BYTES: Key =
 ///
 /// - `MyQueue`
 /// - `MyTopic`
-pub const MESSAGING_DESTINATION_NAME: Key = Key::from_static_str("messaging.destination.name");
+pub const MESSAGING_DESTINATION_NAME: &str = "messaging.destination.name";
 
 /// Low cardinality representation of the messaging destination name.
 ///
@@ -1333,16 +1318,13 @@ pub const MESSAGING_DESTINATION_NAME: Key = Key::from_static_str("messaging.dest
 /// # Examples
 ///
 /// - `/customers/{customerId}`
-pub const MESSAGING_DESTINATION_TEMPLATE: Key =
-    Key::from_static_str("messaging.destination.template");
+pub const MESSAGING_DESTINATION_TEMPLATE: &str = "messaging.destination.template";
 
 /// A boolean that is true if the message destination is temporary and might not exist anymore after messages are processed.
-pub const MESSAGING_DESTINATION_TEMPORARY: Key =
-    Key::from_static_str("messaging.destination.temporary");
+pub const MESSAGING_DESTINATION_TEMPORARY: &str = "messaging.destination.temporary";
 
 /// A boolean that is true if the message destination is anonymous (could be unnamed or have auto-generated name).
-pub const MESSAGING_DESTINATION_ANONYMOUS: Key =
-    Key::from_static_str("messaging.destination.anonymous");
+pub const MESSAGING_DESTINATION_ANONYMOUS: &str = "messaging.destination.anonymous";
 
 /// A string identifying the messaging system.
 ///
@@ -1353,12 +1335,12 @@ pub const MESSAGING_DESTINATION_ANONYMOUS: Key =
 /// - `rocketmq`
 /// - `activemq`
 /// - `AmazonSQS`
-pub const MESSAGING_SYSTEM: Key = Key::from_static_str("messaging.system");
+pub const MESSAGING_SYSTEM: &str = "messaging.system";
 
 /// A string identifying the kind of messaging operation as defined in the [Operation names](#operation-names) section above.
 ///
 /// If a custom value is used, it MUST be of low cardinality.
-pub const MESSAGING_OPERATION: Key = Key::from_static_str("messaging.operation");
+pub const MESSAGING_OPERATION: &str = "messaging.operation";
 
 /// The number of messages sent, received, or processed in the scope of the batching operation.
 ///
@@ -1369,8 +1351,7 @@ pub const MESSAGING_OPERATION: Key = Key::from_static_str("messaging.operation")
 /// - `0`
 /// - `1`
 /// - `2`
-pub const MESSAGING_BATCH_MESSAGE_COUNT: Key =
-    Key::from_static_str("messaging.batch.message_count");
+pub const MESSAGING_BATCH_MESSAGE_COUNT: &str = "messaging.batch.message_count";
 
 /// A unique identifier for the client that consumes or produces a message.
 ///
@@ -1378,15 +1359,15 @@ pub const MESSAGING_BATCH_MESSAGE_COUNT: Key =
 ///
 /// - `client-5`
 /// - `myhost@8742@s8083jm`
-pub const MESSAGING_CLIENT_ID: Key = Key::from_static_str("messaging.client_id");
+pub const MESSAGING_CLIENT_ID: &str = "messaging.client_id";
 
 /// RabbitMQ message routing key.
 ///
 /// # Examples
 ///
 /// - `myKey`
-pub const MESSAGING_RABBITMQ_DESTINATION_ROUTING_KEY: Key =
-    Key::from_static_str("messaging.rabbitmq.destination.routing_key");
+pub const MESSAGING_RABBITMQ_DESTINATION_ROUTING_KEY: &str =
+    "messaging.rabbitmq.destination.routing_key";
 
 /// Message keys in Kafka are used for grouping alike messages to ensure they&#39;re processed on the same partition. They differ from `messaging.message.id` in that they&#39;re not unique. If the key is `null`, the attribute MUST NOT be set.
 ///
@@ -1395,86 +1376,78 @@ pub const MESSAGING_RABBITMQ_DESTINATION_ROUTING_KEY: Key =
 /// # Examples
 ///
 /// - `myKey`
-pub const MESSAGING_KAFKA_MESSAGE_KEY: Key = Key::from_static_str("messaging.kafka.message.key");
+pub const MESSAGING_KAFKA_MESSAGE_KEY: &str = "messaging.kafka.message.key";
 
 /// Name of the Kafka Consumer Group that is handling the message. Only applies to consumers, not producers.
 ///
 /// # Examples
 ///
 /// - `my-group`
-pub const MESSAGING_KAFKA_CONSUMER_GROUP: Key =
-    Key::from_static_str("messaging.kafka.consumer.group");
+pub const MESSAGING_KAFKA_CONSUMER_GROUP: &str = "messaging.kafka.consumer.group";
 
 /// Partition the message is sent to.
 ///
 /// # Examples
 ///
 /// - `2`
-pub const MESSAGING_KAFKA_DESTINATION_PARTITION: Key =
-    Key::from_static_str("messaging.kafka.destination.partition");
+pub const MESSAGING_KAFKA_DESTINATION_PARTITION: &str = "messaging.kafka.destination.partition";
 
 /// The offset of a record in the corresponding Kafka partition.
 ///
 /// # Examples
 ///
 /// - `42`
-pub const MESSAGING_KAFKA_MESSAGE_OFFSET: Key =
-    Key::from_static_str("messaging.kafka.message.offset");
+pub const MESSAGING_KAFKA_MESSAGE_OFFSET: &str = "messaging.kafka.message.offset";
 
 /// A boolean that is true if the message is a tombstone.
-pub const MESSAGING_KAFKA_MESSAGE_TOMBSTONE: Key =
-    Key::from_static_str("messaging.kafka.message.tombstone");
+pub const MESSAGING_KAFKA_MESSAGE_TOMBSTONE: &str = "messaging.kafka.message.tombstone";
 
 /// Namespace of RocketMQ resources, resources in different namespaces are individual.
 ///
 /// # Examples
 ///
 /// - `myNamespace`
-pub const MESSAGING_ROCKETMQ_NAMESPACE: Key = Key::from_static_str("messaging.rocketmq.namespace");
+pub const MESSAGING_ROCKETMQ_NAMESPACE: &str = "messaging.rocketmq.namespace";
 
 /// Name of the RocketMQ producer/consumer group that is handling the message. The client type is identified by the SpanKind.
 ///
 /// # Examples
 ///
 /// - `myConsumerGroup`
-pub const MESSAGING_ROCKETMQ_CLIENT_GROUP: Key =
-    Key::from_static_str("messaging.rocketmq.client_group");
+pub const MESSAGING_ROCKETMQ_CLIENT_GROUP: &str = "messaging.rocketmq.client_group";
 
 /// The timestamp in milliseconds that the delay message is expected to be delivered to consumer.
 ///
 /// # Examples
 ///
 /// - `1665987217045`
-pub const MESSAGING_ROCKETMQ_MESSAGE_DELIVERY_TIMESTAMP: Key =
-    Key::from_static_str("messaging.rocketmq.message.delivery_timestamp");
+pub const MESSAGING_ROCKETMQ_MESSAGE_DELIVERY_TIMESTAMP: &str =
+    "messaging.rocketmq.message.delivery_timestamp";
 
 /// The delay time level for delay message, which determines the message delay time.
 ///
 /// # Examples
 ///
 /// - `3`
-pub const MESSAGING_ROCKETMQ_MESSAGE_DELAY_TIME_LEVEL: Key =
-    Key::from_static_str("messaging.rocketmq.message.delay_time_level");
+pub const MESSAGING_ROCKETMQ_MESSAGE_DELAY_TIME_LEVEL: &str =
+    "messaging.rocketmq.message.delay_time_level";
 
 /// It is essential for FIFO message. Messages that belong to the same message group are always processed one by one within the same consumer group.
 ///
 /// # Examples
 ///
 /// - `myMessageGroup`
-pub const MESSAGING_ROCKETMQ_MESSAGE_GROUP: Key =
-    Key::from_static_str("messaging.rocketmq.message.group");
+pub const MESSAGING_ROCKETMQ_MESSAGE_GROUP: &str = "messaging.rocketmq.message.group";
 
 /// Type of message.
-pub const MESSAGING_ROCKETMQ_MESSAGE_TYPE: Key =
-    Key::from_static_str("messaging.rocketmq.message.type");
+pub const MESSAGING_ROCKETMQ_MESSAGE_TYPE: &str = "messaging.rocketmq.message.type";
 
 /// The secondary classifier of message besides topic.
 ///
 /// # Examples
 ///
 /// - `tagA`
-pub const MESSAGING_ROCKETMQ_MESSAGE_TAG: Key =
-    Key::from_static_str("messaging.rocketmq.message.tag");
+pub const MESSAGING_ROCKETMQ_MESSAGE_TAG: &str = "messaging.rocketmq.message.tag";
 
 /// Key(s) of message, another way to mark message besides message id.
 ///
@@ -1482,15 +1455,13 @@ pub const MESSAGING_ROCKETMQ_MESSAGE_TAG: Key =
 ///
 /// - `keyA`
 /// - `keyB`
-pub const MESSAGING_ROCKETMQ_MESSAGE_KEYS: Key =
-    Key::from_static_str("messaging.rocketmq.message.keys");
+pub const MESSAGING_ROCKETMQ_MESSAGE_KEYS: &str = "messaging.rocketmq.message.keys";
 
 /// Model of message consumption. This only applies to consumer spans.
-pub const MESSAGING_ROCKETMQ_CONSUMPTION_MODEL: Key =
-    Key::from_static_str("messaging.rocketmq.consumption_model");
+pub const MESSAGING_ROCKETMQ_CONSUMPTION_MODEL: &str = "messaging.rocketmq.consumption_model";
 
 /// A string identifying the remoting system. See below for a list of well-known identifiers.
-pub const RPC_SYSTEM: Key = Key::from_static_str("rpc.system");
+pub const RPC_SYSTEM: &str = "rpc.system";
 
 /// The full (logical) name of the service being called, including its package name, if applicable.
 ///
@@ -1499,7 +1470,7 @@ pub const RPC_SYSTEM: Key = Key::from_static_str("rpc.system");
 /// # Examples
 ///
 /// - `myservice.EchoService`
-pub const RPC_SERVICE: Key = Key::from_static_str("rpc.service");
+pub const RPC_SERVICE: &str = "rpc.service";
 
 /// The name of the (logical) method being called, must be equal to the $method part in the span name.
 ///
@@ -1508,10 +1479,10 @@ pub const RPC_SERVICE: Key = Key::from_static_str("rpc.service");
 /// # Examples
 ///
 /// - `exampleMethod`
-pub const RPC_METHOD: Key = Key::from_static_str("rpc.method");
+pub const RPC_METHOD: &str = "rpc.method";
 
 /// The [numeric status code](https://github.com/grpc/grpc/blob/v1.33.2/doc/statuscodes.md) of the gRPC request.
-pub const RPC_GRPC_STATUS_CODE: Key = Key::from_static_str("rpc.grpc.status_code");
+pub const RPC_GRPC_STATUS_CODE: &str = "rpc.grpc.status_code";
 
 /// Protocol version as in `jsonrpc` property of request/response. Since JSON-RPC 1.0 does not specify this, the value can be omitted.
 ///
@@ -1519,7 +1490,7 @@ pub const RPC_GRPC_STATUS_CODE: Key = Key::from_static_str("rpc.grpc.status_code
 ///
 /// - `2.0`
 /// - `1.0`
-pub const RPC_JSONRPC_VERSION: Key = Key::from_static_str("rpc.jsonrpc.version");
+pub const RPC_JSONRPC_VERSION: &str = "rpc.jsonrpc.version";
 
 /// `id` property of request or response. Since protocol allows id to be int, string, `null` or missing (for notifications), value is expected to be cast to string for simplicity. Use empty string in case of `null` value. Omit entirely if this is a notification.
 ///
@@ -1528,7 +1499,7 @@ pub const RPC_JSONRPC_VERSION: Key = Key::from_static_str("rpc.jsonrpc.version")
 /// - `10`
 /// - `request-7`
 /// - ``
-pub const RPC_JSONRPC_REQUEST_ID: Key = Key::from_static_str("rpc.jsonrpc.request_id");
+pub const RPC_JSONRPC_REQUEST_ID: &str = "rpc.jsonrpc.request_id";
 
 /// `error.code` property of response if it is an error response.
 ///
@@ -1536,7 +1507,7 @@ pub const RPC_JSONRPC_REQUEST_ID: Key = Key::from_static_str("rpc.jsonrpc.reques
 ///
 /// - `-32700`
 /// - `100`
-pub const RPC_JSONRPC_ERROR_CODE: Key = Key::from_static_str("rpc.jsonrpc.error_code");
+pub const RPC_JSONRPC_ERROR_CODE: &str = "rpc.jsonrpc.error_code";
 
 /// `error.message` property of response if it is an error response.
 ///
@@ -1544,24 +1515,24 @@ pub const RPC_JSONRPC_ERROR_CODE: Key = Key::from_static_str("rpc.jsonrpc.error_
 ///
 /// - `Parse error`
 /// - `User already exists`
-pub const RPC_JSONRPC_ERROR_MESSAGE: Key = Key::from_static_str("rpc.jsonrpc.error_message");
+pub const RPC_JSONRPC_ERROR_MESSAGE: &str = "rpc.jsonrpc.error_message";
 
 /// Whether this is a received or sent message.
-pub const MESSAGE_TYPE: Key = Key::from_static_str("message.type");
+pub const MESSAGE_TYPE: &str = "message.type";
 
 /// MUST be calculated as two different counters starting from `1` one for sent messages and one for received message.
 ///
 /// This way we guarantee that the values will be consistent between different implementations.
-pub const MESSAGE_ID: Key = Key::from_static_str("message.id");
+pub const MESSAGE_ID: &str = "message.id";
 
 /// Compressed size of the message in bytes.
-pub const MESSAGE_COMPRESSED_SIZE: Key = Key::from_static_str("message.compressed_size");
+pub const MESSAGE_COMPRESSED_SIZE: &str = "message.compressed_size";
 
 /// Uncompressed size of the message in bytes.
-pub const MESSAGE_UNCOMPRESSED_SIZE: Key = Key::from_static_str("message.uncompressed_size");
+pub const MESSAGE_UNCOMPRESSED_SIZE: &str = "message.uncompressed_size";
 
 /// The [error codes](https://connect.build/docs/protocol/#error-codes) of the Connect request. Error codes are always string values.
-pub const RPC_CONNECT_RPC_ERROR_CODE: Key = Key::from_static_str("rpc.connect_rpc.error_code");
+pub const RPC_CONNECT_RPC_ERROR_CODE: &str = "rpc.connect_rpc.error_code";
 
 /// SHOULD be set to true if the exception event is recorded at a point where it is known that the exception is escaping the scope of the span.
 ///
@@ -1581,7 +1552,7 @@ pub const RPC_CONNECT_RPC_ERROR_CODE: Key = Key::from_static_str("rpc.connect_rp
 /// even if the `exception.escaped` attribute was not set or set to false,
 /// since the event might have been recorded at a time where it was not
 /// clear whether the exception will escape.
-pub const EXCEPTION_ESCAPED: Key = Key::from_static_str("exception.escaped");
+pub const EXCEPTION_ESCAPED: &str = "exception.escaped";
 
 /// The [URI scheme](https://www.rfc-editor.org/rfc/rfc3986#section-3.1) component identifying the used protocol.
 ///
@@ -1590,7 +1561,7 @@ pub const EXCEPTION_ESCAPED: Key = Key::from_static_str("exception.escaped");
 /// - `https`
 /// - `ftp`
 /// - `telnet`
-pub const URL_SCHEME: Key = Key::from_static_str("url.scheme");
+pub const URL_SCHEME: &str = "url.scheme";
 
 /// Absolute URL describing a network resource according to [RFC3986](https://www.rfc-editor.org/rfc/rfc3986).
 ///
@@ -1602,7 +1573,7 @@ pub const URL_SCHEME: Key = Key::from_static_str("url.scheme");
 ///
 /// - `https://www.foo.bar/search?q=OpenTelemetry#SemConv`
 /// - `//localhost`
-pub const URL_FULL: Key = Key::from_static_str("url.full");
+pub const URL_FULL: &str = "url.full";
 
 /// The [URI path](https://www.rfc-editor.org/rfc/rfc3986#section-3.3) component.
 ///
@@ -1611,7 +1582,7 @@ pub const URL_FULL: Key = Key::from_static_str("url.full");
 /// # Examples
 ///
 /// - `/search`
-pub const URL_PATH: Key = Key::from_static_str("url.path");
+pub const URL_PATH: &str = "url.path";
 
 /// The [URI query](https://www.rfc-editor.org/rfc/rfc3986#section-3.4) component.
 ///
@@ -1620,18 +1591,18 @@ pub const URL_PATH: Key = Key::from_static_str("url.path");
 /// # Examples
 ///
 /// - `q=OpenTelemetry`
-pub const URL_QUERY: Key = Key::from_static_str("url.query");
+pub const URL_QUERY: &str = "url.query";
 
 /// The [URI fragment](https://www.rfc-editor.org/rfc/rfc3986#section-3.5) component.
 ///
 /// # Examples
 ///
 /// - `SemConv`
-pub const URL_FRAGMENT: Key = Key::from_static_str("url.fragment");
+pub const URL_FRAGMENT: &str = "url.fragment";
 
 /// Value of the [HTTP User-Agent](https://www.rfc-editor.org/rfc/rfc9110.html#field.user-agent) header sent by the client.
 ///
 /// # Examples
 ///
 /// - `CERN-LineMode/2.15 libwww/2.17b3`
-pub const USER_AGENT_ORIGINAL: Key = Key::from_static_str("user_agent.original");
+pub const USER_AGENT_ORIGINAL: &str = "user_agent.original";

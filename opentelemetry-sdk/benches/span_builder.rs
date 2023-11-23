@@ -1,7 +1,7 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use futures_util::future::BoxFuture;
 use opentelemetry::{
-    trace::{OrderMap, Span, Tracer, TracerProvider},
+    trace::{Span, Tracer, TracerProvider},
     KeyValue,
 };
 use opentelemetry_sdk::{
@@ -45,26 +45,6 @@ fn span_builder_benchmark_group(c: &mut Criterion) {
                     KeyValue::new(MAP_KEYS[2], "value"),
                     KeyValue::new(MAP_KEYS[3], "value"),
                 ])
-                .start(&tracer);
-            span.end();
-        })
-    });
-    group.bench_function(BenchmarkId::new("with_attributes_map", "1"), |b| {
-        let (_provider, tracer) = not_sampled_provider();
-        b.iter(|| {
-            let mut span = tracer
-                .span_builder("span")
-                .with_attributes_map(OrderMap::from_iter([KeyValue::new(MAP_KEYS[0], "value")]))
-                .start(&tracer);
-            span.end();
-        })
-    });
-    group.bench_function(BenchmarkId::new("with_attributes_map", "4"), |b| {
-        let (_provider, tracer) = not_sampled_provider();
-        b.iter(|| {
-            let mut span = tracer
-                .span_builder("span")
-                .with_attributes_map(OrderMap::from_iter([KeyValue::new(MAP_KEYS[0], "value")]))
                 .start(&tracer);
             span.end();
         })
