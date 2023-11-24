@@ -75,7 +75,7 @@ impl From<&SpanContext> for TraceContext {
 }
 
 /// Value types for representing arbitrary values in a log record.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum AnyValue {
     /// An integer value
     Int(i64),
