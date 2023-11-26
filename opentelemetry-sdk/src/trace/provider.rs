@@ -303,45 +303,51 @@ mod tests {
         assert_service_name(custom_config_provider, Some("test_service"));
 
         // If `OTEL_RESOURCE_ATTRIBUTES` is set, read them automatically
-        env::set_var("OTEL_RESOURCE_ATTRIBUTES", "key1=value1, k2, k3=value2");
-        let env_resource_provider = super::TracerProvider::builder().build();
-        assert_eq!(
-            env_resource_provider.config().resource,
-            Cow::Owned(Resource::new(vec![
-                KeyValue::new("telemetry.sdk.name", "opentelemetry"),
-                KeyValue::new("telemetry.sdk.version", env!("CARGO_PKG_VERSION")),
-                KeyValue::new("telemetry.sdk.language", "rust"),
-                KeyValue::new("key1", "value1"),
-                KeyValue::new("k3", "value2"),
-                KeyValue::new("service.name", "unknown_service"),
-            ]))
+        temp_env::with_var(
+            "OTEL_RESOURCE_ATTRIBUTES",
+            Some("key1=value1, k2, k3=value2"),
+            || {
+                let env_resource_provider = super::TracerProvider::builder().build();
+                assert_eq!(
+                    env_resource_provider.config().resource,
+                    Cow::Owned(Resource::new(vec![
+                        KeyValue::new("telemetry.sdk.name", "opentelemetry"),
+                        KeyValue::new("telemetry.sdk.version", env!("CARGO_PKG_VERSION")),
+                        KeyValue::new("telemetry.sdk.language", "rust"),
+                        KeyValue::new("key1", "value1"),
+                        KeyValue::new("k3", "value2"),
+                        KeyValue::new("service.name", "unknown_service"),
+                    ]))
+                );
+            },
         );
 
         // When `OTEL_RESOURCE_ATTRIBUTES` is set and also user provided config
-        env::set_var(
+        temp_env::with_var(
             "OTEL_RESOURCE_ATTRIBUTES",
-            "my-custom-key=env-val,k2=value2",
+            Some("my-custom-key=env-val,k2=value2"),
+            || {
+                let user_provided_resource_config_provider = super::TracerProvider::builder()
+                    .with_config(Config {
+                        resource: Cow::Owned(Resource::default().merge(&mut Resource::new(vec![
+                            KeyValue::new("my-custom-key", "my-custom-value"),
+                        ]))),
+                        ..Default::default()
+                    })
+                    .build();
+                assert_eq!(
+                    user_provided_resource_config_provider.config().resource,
+                    Cow::Owned(Resource::new(vec![
+                        KeyValue::new("telemetry.sdk.name", "opentelemetry"),
+                        KeyValue::new("telemetry.sdk.version", env!("CARGO_PKG_VERSION")),
+                        KeyValue::new("telemetry.sdk.language", "rust"),
+                        KeyValue::new("my-custom-key", "my-custom-value"),
+                        KeyValue::new("k2", "value2"),
+                        KeyValue::new("service.name", "unknown_service"),
+                    ]))
+                );
+            },
         );
-        let user_provided_resource_config_provider = super::TracerProvider::builder()
-            .with_config(Config {
-                resource: Cow::Owned(Resource::default().merge(&mut Resource::new(vec![
-                    KeyValue::new("my-custom-key", "my-custom-value"),
-                ]))),
-                ..Default::default()
-            })
-            .build();
-        assert_eq!(
-            user_provided_resource_config_provider.config().resource,
-            Cow::Owned(Resource::new(vec![
-                KeyValue::new("telemetry.sdk.name", "opentelemetry"),
-                KeyValue::new("telemetry.sdk.version", env!("CARGO_PKG_VERSION")),
-                KeyValue::new("telemetry.sdk.language", "rust"),
-                KeyValue::new("my-custom-key", "my-custom-value"),
-                KeyValue::new("k2", "value2"),
-                KeyValue::new("service.name", "unknown_service"),
-            ]))
-        );
-        env::remove_var("OTEL_RESOURCE_ATTRIBUTES");
 
         // If user provided a resource, it takes priority during collision.
         let no_service_name = super::TracerProvider::builder()

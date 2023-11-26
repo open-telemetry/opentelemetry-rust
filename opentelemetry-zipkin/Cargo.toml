@@ -47,3 +47,4 @@ bytes = "1"
 futures-util = { version = "0.3", features = ["io"] }
 hyper = "0.14"
 opentelemetry_sdk = { default-features = false, features = ["trace", "testing"], path = "../opentelemetry-sdk" }
+temp-env = "0.3.6"
