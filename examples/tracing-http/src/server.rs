@@ -1,10 +1,10 @@
 use hyper::{
     service::{make_service_fn, service_fn},
-    Body, Request, Response, Server,
+    Body, Request, Response, Server, StatusCode,
 };
 use opentelemetry::{
     global,
-    trace::{SpanKind, TraceContextExt, Tracer},
+    trace::{FutureExt, Span, SpanKind, TraceContextExt, Tracer},
     Context,
 };
 use opentelemetry_http::HeaderExtractor;
@@ -12,22 +12,66 @@ use opentelemetry_sdk::{propagation::TraceContextPropagator, trace::TracerProvid
 use opentelemetry_stdout::SpanExporter;
 use std::{convert::Infallible, net::SocketAddr};
 
-async fn handle(req: Request<Body>) -> Result<Response<Body>, Infallible> {
-    let parent_cx = global::get_text_map_propagator(|propagator| {
+// Utility function to extract the context from the incoming request headers
+fn extract_context_from_request(req: &Request<Body>) -> Context {
+    global::get_text_map_propagator(|propagator| {
         propagator.extract(&HeaderExtractor(req.headers()))
-    });
-    let _cx_guard = parent_cx.attach();
+    })
+}
 
+// Separate async function for the handle endpoint
+async fn handle_health_check(_req: Request<Body>) -> Result<Response<Body>, Infallible> {
     let tracer = global::tracer("example/server");
-    let span = tracer
-        .span_builder("say hello")
-        .with_kind(SpanKind::Server)
+    let mut span = tracer
+        .span_builder("health_check")
+        .with_kind(SpanKind::Internal)
         .start(&tracer);
-
-    let cx = Context::current_with_span(span);
-    cx.span().add_event("handling this...", Vec::new());
-    let res = Response::new("Hello, World!".into());
+    span.add_event("Health check accessed", vec![]);
+    let res = Response::new(Body::from("Server is up and running!"));
     Ok(res)
+}
+
+// Separate async function for the echo endpoint
+async fn handle_echo(req: Request<Body>) -> Result<Response<Body>, Infallible> {
+    let tracer = global::tracer("example/server");
+    let mut span = tracer
+        .span_builder("echo")
+        .with_kind(SpanKind::Internal)
+        .start(&tracer);
+    span.add_event("Echoing back the request", vec![]);
+    let res = Response::new(req.into_body());
+    Ok(res)
+}
+
+async fn router(req: Request<Body>) -> Result<Response<Body>, Infallible> {
+    // Extract the context from the incoming request headers
+    let parent_cx = extract_context_from_request(&req);
+    let response = {
+        // Create a span parenting the remote client span.
+        let tracer = global::tracer("example/server");
+        let mut span = tracer
+            .span_builder("router")
+            .with_kind(SpanKind::Server)
+            .start_with_context(&tracer, &parent_cx);
+
+        span.add_event("dispatching request", vec![]);
+
+        let cx = Context::default().with_span(span);
+        match (req.method(), req.uri().path()) {
+            (&hyper::Method::GET, "/health") => handle_health_check(req).with_context(cx).await,
+            (&hyper::Method::GET, "/echo") => handle_echo(req).with_context(cx).await,
+            _ => {
+                let error_status = opentelemetry::trace::Status::Error {
+                    description: "Not Found".into(),
+                };
+                cx.span().set_status(error_status);
+                let mut not_found = Response::default();
+                *not_found.status_mut() = StatusCode::NOT_FOUND;
+                Ok(not_found)
+            }
+        }
+    };
+    response
 }
 
 fn init_tracer() {
@@ -48,7 +92,7 @@ async fn main() {
     init_tracer();
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
 
-    let make_svc = make_service_fn(|_conn| async { Ok::<_, Infallible>(service_fn(handle)) });
+    let make_svc = make_service_fn(|_conn| async { Ok::<_, Infallible>(service_fn(router)) });
 
     let server = Server::bind(&addr).serve(make_svc);
 
