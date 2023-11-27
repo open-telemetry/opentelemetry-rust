@@ -243,23 +243,20 @@ fn parse_header_key_value_string(key_value_string: &str) -> Option<(&str, &str)>
 #[cfg(test)]
 #[cfg(any(feature = "grpc-tonic", feature = "http-proto"))]
 mod tests {
-    // Make sure env tests are not running concurrently
-    static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
     pub(crate) fn run_env_test<T, F>(env_vars: T, f: F)
     where
         F: FnOnce(),
         T: Into<Vec<(&'static str, &'static str)>>,
     {
-        let _env_lock = ENV_LOCK.lock().expect("env test lock poisoned");
-        let env_vars = env_vars.into();
-        for (k, v) in env_vars.iter() {
-            std::env::set_var(k, v);
-        }
-        f();
-        for (k, _) in env_vars {
-            std::env::remove_var(k);
-        }
+        temp_env::with_vars(
+            env_vars
+                .into()
+                .iter()
+                .map(|&(k, v)| (k, Some(v)))
+                .collect::<Vec<(&'static str, Option<&'static str>)>>(),
+            f,
+        )
     }
 
     #[test]

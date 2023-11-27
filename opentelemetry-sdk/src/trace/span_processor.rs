@@ -785,31 +785,36 @@ mod tests {
 
     #[test]
     fn test_build_batch_span_processor_builder() {
-        std::env::set_var(OTEL_BSP_MAX_EXPORT_BATCH_SIZE, "500");
-        std::env::set_var(OTEL_BSP_EXPORT_TIMEOUT, "2046");
-        std::env::set_var(OTEL_BSP_SCHEDULE_DELAY, "I am not number");
+        let mut env_vars = vec![
+            (OTEL_BSP_MAX_EXPORT_BATCH_SIZE, Some("500")),
+            (OTEL_BSP_SCHEDULE_DELAY, Some("I am not number")),
+            (OTEL_BSP_EXPORT_TIMEOUT, Some("2046")),
+        ];
+        temp_env::with_vars(env_vars.clone(), || {
+            let builder = BatchSpanProcessor::builder(new_test_exporter().0, runtime::Tokio);
+            // export batch size cannot exceed max queue size
+            assert_eq!(builder.config.max_export_batch_size, 500);
+            assert_eq!(
+                builder.config.scheduled_delay,
+                Duration::from_millis(OTEL_BSP_SCHEDULE_DELAY_DEFAULT)
+            );
+            assert_eq!(
+                builder.config.max_queue_size,
+                OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT
+            );
+            assert_eq!(
+                builder.config.max_export_timeout,
+                Duration::from_millis(2046)
+            );
+        });
 
-        let mut builder = BatchSpanProcessor::builder(new_test_exporter().0, runtime::Tokio);
-        // export batch size cannot exceed max queue size
-        assert_eq!(builder.config.max_export_batch_size, 500);
-        assert_eq!(
-            builder.config.scheduled_delay,
-            Duration::from_millis(OTEL_BSP_SCHEDULE_DELAY_DEFAULT)
-        );
-        assert_eq!(
-            builder.config.max_queue_size,
-            OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT
-        );
-        assert_eq!(
-            builder.config.max_export_timeout,
-            Duration::from_millis(2046)
-        );
+        env_vars.push((OTEL_BSP_MAX_QUEUE_SIZE, Some("120")));
 
-        std::env::set_var(OTEL_BSP_MAX_QUEUE_SIZE, "120");
-        builder = BatchSpanProcessor::builder(new_test_exporter().0, runtime::Tokio);
-
-        assert_eq!(builder.config.max_export_batch_size, 120);
-        assert_eq!(builder.config.max_queue_size, 120);
+        temp_env::with_vars(env_vars, || {
+            let builder = BatchSpanProcessor::builder(new_test_exporter().0, runtime::Tokio);
+            assert_eq!(builder.config.max_export_batch_size, 120);
+            assert_eq!(builder.config.max_queue_size, 120);
+        });
     }
 
     #[tokio::test]
