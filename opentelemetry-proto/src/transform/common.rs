@@ -51,7 +51,7 @@ pub mod tonic {
         }
     }
 
-    /// Wrapper type for Vec<[`KeyValue`](crate::proto::tonic::common::v1::KeyValue)>
+    /// Wrapper type for Vec<`KeyValue`>
     #[derive(Default)]
     pub struct Attributes(pub ::std::vec::Vec<crate::proto::tonic::common::v1::KeyValue>);
 
@@ -160,7 +160,7 @@ pub mod grpcio {
         }
     }
 
-    /// Wrapper type for Vec<[`KeyValue`](crate::proto::grpcio::common::v1::KeyValue)>
+    /// Wrapper type for Vec<`KeyValue`>
     #[derive(Default)]
     pub struct Attributes(pub ::std::vec::Vec<crate::proto::grpcio::common::v1::KeyValue>);
 
