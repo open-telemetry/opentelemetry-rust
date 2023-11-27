@@ -52,6 +52,7 @@ opentelemetry_sdk = { features = ["trace", "rt-tokio", "testing"], path = "../op
 time = { version = "0.3", features = ["macros"] }
 tokio = { version = "1.0", features = ["macros", "rt-multi-thread"] }
 futures-util = { version = "0.3", default-features = false }
+temp-env = "0.3.6"
 
 [features]
 # telemetry pillars and functions

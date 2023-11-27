@@ -343,7 +343,7 @@ pub mod tonic {
     }
 }
 
-#[cfg(feature = "gen-grpcio")]
+#[cfg(feature = "gen-grpcio-messages")]
 pub mod grpcio {
     use std::any::Any;
     use std::fmt;

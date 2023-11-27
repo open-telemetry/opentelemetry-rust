@@ -99,30 +99,34 @@ mod tests {
     use crate::resource::{EnvResourceDetector, Resource, ResourceDetector};
     use opentelemetry::{Key, KeyValue, Value};
     use std::time::Duration;
-    use std::{env, time};
 
     #[test]
     fn test_read_from_env() {
-        env::set_var(OTEL_RESOURCE_ATTRIBUTES, "key=value, k = v , a= x, a=z");
-        env::set_var("irrelevant".to_uppercase(), "20200810");
-
-        let detector = EnvResourceDetector::new();
-        let resource = detector.detect(time::Duration::from_secs(5));
-        assert_eq!(
-            resource,
-            Resource::new(vec![
-                KeyValue::new("key", "value"),
-                KeyValue::new("k", "v"),
-                KeyValue::new("a", "x"),
-                KeyValue::new("a", "z"),
-            ])
+        temp_env::with_vars(
+            [
+                (
+                    "OTEL_RESOURCE_ATTRIBUTES",
+                    Some("key=value, k = v , a= x, a=z"),
+                ),
+                ("IRRELEVANT", Some("20200810")),
+            ],
+            || {
+                let detector = EnvResourceDetector::new();
+                let resource = detector.detect(Duration::from_secs(5));
+                assert_eq!(
+                    resource,
+                    Resource::new(vec![
+                        KeyValue::new("key", "value"),
+                        KeyValue::new("k", "v"),
+                        KeyValue::new("a", "x"),
+                        KeyValue::new("a", "z"),
+                    ])
+                );
+            },
         );
 
-        // Test this case in same test to avoid race condition when running tests in parallel.
-        env::set_var(OTEL_RESOURCE_ATTRIBUTES, "");
-
         let detector = EnvResourceDetector::new();
-        let resource = detector.detect(time::Duration::from_secs(5));
+        let resource = detector.detect(Duration::from_secs(5));
         assert!(resource.is_empty());
     }
 
@@ -130,37 +134,45 @@ mod tests {
     fn test_sdk_provided_resource_detector() {
         const SERVICE_NAME: &str = "service.name";
         // Ensure no env var set
-        env::remove_var(OTEL_RESOURCE_ATTRIBUTES);
         let no_env = SdkProvidedResourceDetector.detect(Duration::from_secs(1));
         assert_eq!(
             no_env.get(Key::from_static_str(SERVICE_NAME)),
             Some(Value::from("unknown_service")),
         );
 
-        env::set_var(OTEL_SERVICE_NAME, "test service");
-        let with_service = SdkProvidedResourceDetector.detect(Duration::from_secs(1));
-        assert_eq!(
-            with_service.get(Key::from_static_str(SERVICE_NAME)),
-            Some(Value::from("test service")),
-        );
-        env::set_var(OTEL_SERVICE_NAME, ""); // clear the env var
+        temp_env::with_var(OTEL_SERVICE_NAME, Some("test service"), || {
+            let with_service = SdkProvidedResourceDetector.detect(Duration::from_secs(1));
+            assert_eq!(
+                with_service.get(Key::from_static_str(SERVICE_NAME)),
+                Some(Value::from("test service")),
+            )
+        });
 
-        // Fall back to OTEL_RESOURCE_ATTRIBUTES
-        env::set_var(OTEL_RESOURCE_ATTRIBUTES, "service.name=test service1");
-        let with_service = SdkProvidedResourceDetector.detect(Duration::from_secs(1));
-        assert_eq!(
-            with_service.get(Key::from_static_str(SERVICE_NAME)),
-            Some(Value::from("test service1"))
+        temp_env::with_var(
+            OTEL_RESOURCE_ATTRIBUTES,
+            Some("service.name=test service1"),
+            || {
+                let with_service = SdkProvidedResourceDetector.detect(Duration::from_secs(1));
+                assert_eq!(
+                    with_service.get(Key::from_static_str(SERVICE_NAME)),
+                    Some(Value::from("test service1")),
+                )
+            },
         );
 
         // OTEL_SERVICE_NAME takes priority
-        env::set_var(OTEL_SERVICE_NAME, "test service");
-        let with_service = SdkProvidedResourceDetector.detect(Duration::from_secs(1));
-        assert_eq!(
-            with_service.get(Key::from_static_str(SERVICE_NAME)),
-            Some(Value::from("test service"))
+        temp_env::with_vars(
+            [
+                (OTEL_SERVICE_NAME, Some("test service")),
+                (OTEL_RESOURCE_ATTRIBUTES, Some("service.name=test service3")),
+            ],
+            || {
+                let with_service = SdkProvidedResourceDetector.detect(Duration::from_secs(1));
+                assert_eq!(
+                    with_service.get(Key::from_static_str(SERVICE_NAME)),
+                    Some(Value::from("test service"))
+                );
+            },
         );
-        env::set_var(OTEL_RESOURCE_ATTRIBUTES, "");
-        env::set_var(OTEL_SERVICE_NAME, ""); // clear the env var
     }
 }
