@@ -255,7 +255,7 @@ mod tests {
     use super::*;
     use crate::resource::EnvResourceDetector;
     use std::collections::HashMap;
-    use std::{env, time};
+    use std::time;
 
     #[test]
     fn new_resource() {
@@ -339,20 +339,30 @@ mod tests {
 
     #[test]
     fn detect_resource() {
-        env::set_var("OTEL_RESOURCE_ATTRIBUTES", "key=value, k = v , a= x, a=z");
-        env::set_var("irrelevant".to_uppercase(), "20200810");
-
-        let detector = EnvResourceDetector::new();
-        let resource =
-            Resource::from_detectors(time::Duration::from_secs(5), vec![Box::new(detector)]);
-        assert_eq!(
-            resource,
-            Resource::new(vec![
-                KeyValue::new("key", "value"),
-                KeyValue::new("k", "v"),
-                KeyValue::new("a", "x"),
-                KeyValue::new("a", "z"),
-            ])
+        temp_env::with_vars(
+            [
+                (
+                    "OTEL_RESOURCE_ATTRIBUTES",
+                    Some("key=value, k = v , a= x, a=z"),
+                ),
+                ("IRRELEVANT", Some("20200810")),
+            ],
+            || {
+                let detector = EnvResourceDetector::new();
+                let resource = Resource::from_detectors(
+                    time::Duration::from_secs(5),
+                    vec![Box::new(detector)],
+                );
+                assert_eq!(
+                    resource,
+                    Resource::new(vec![
+                        KeyValue::new("key", "value"),
+                        KeyValue::new("k", "v"),
+                        KeyValue::new("a", "x"),
+                        KeyValue::new("a", "z"),
+                    ])
+                )
+            },
         )
     }
 }

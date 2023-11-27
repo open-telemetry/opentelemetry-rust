@@ -109,7 +109,7 @@ pub mod tonic {
     }
 }
 
-#[cfg(feature = "gen-grpcio")]
+#[cfg(feature = "gen-grpcio-messages")]
 pub mod grpcio {
     use crate::proto::grpcio::resource::v1::Resource;
     use crate::proto::grpcio::trace::v1::{span, status, ResourceSpans, ScopeSpans, Span, Status};

@@ -37,21 +37,22 @@ pub(crate) fn get_endpoint() -> String {
 #[test]
 fn test_collector_defaults() {
     // Ensure the variables are undefined.
-    env::remove_var(ENV_TIMEOUT);
-    env::remove_var(ENV_ENDPOINT);
     assert_eq!(DEFAULT_COLLECTOR_TIMEOUT, get_timeout());
     assert_eq!(DEFAULT_COLLECTOR_ENDPOINT, get_endpoint());
 
     // Bad Timeout Value
-    env::set_var(ENV_TIMEOUT, "a");
-    assert_eq!(DEFAULT_COLLECTOR_TIMEOUT, get_timeout());
+    temp_env::with_var(ENV_TIMEOUT, Some("a"), || {
+        assert_eq!(DEFAULT_COLLECTOR_TIMEOUT, get_timeout());
+    });
 
     // Good Timeout Value
-    env::set_var(ENV_TIMEOUT, "777");
-    assert_eq!(Duration::from_millis(777), get_timeout());
+    temp_env::with_var(ENV_TIMEOUT, Some("777"), || {
+        assert_eq!(Duration::from_millis(777), get_timeout());
+    });
 
     // Custom Endpoint
     let custom_endpoint = "https://example.com/api/v2/spans";
-    env::set_var(ENV_ENDPOINT, custom_endpoint);
-    assert_eq!(custom_endpoint, get_endpoint());
+    temp_env::with_var(ENV_ENDPOINT, Some(custom_endpoint), || {
+        assert_eq!(custom_endpoint, get_endpoint());
+    });
 }
