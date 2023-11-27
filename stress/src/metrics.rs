@@ -13,9 +13,8 @@ lazy_static! {
     static ref PROVIDER: SdkMeterProvider = SdkMeterProvider::builder()
         .with_reader(ManualReader::builder().build())
         .build();
-    static ref ATTRIBUTE_VALUES: [&'static str; 6] = [
-        "value1", "value2", "value3", "value4", "value5", "value6"
-    ];
+    static ref ATTRIBUTE_VALUES: [&'static str; 6] =
+        ["value1", "value2", "value3", "value4", "value5", "value6"];
     static ref COUNTER: Counter<u64> = PROVIDER
         .meter(<&str as Into<Cow<'static, str>>>::into("test"))
         .u64_counter("hello")
