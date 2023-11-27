@@ -76,10 +76,11 @@ pub mod tonic {
     pub use crate::transform::common::tonic::Attributes;
 }
 
-#[cfg(feature = "gen-grpcio")]
+#[cfg(feature = "gen-grpcio-messages")]
 /// Generated files using [`grpcio`](https://docs.rs/crate/grpcio) and [`grpcio-compiler`](https://docs.rs/grpcio-compiler)
 pub mod grpcio {
     /// Service stub and clients
+    #[cfg(feature = "gen-grpcio")]
     #[path = ""]
     pub mod collector {
         #[cfg(feature = "logs")]
