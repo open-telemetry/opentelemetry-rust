@@ -5,10 +5,11 @@ use hyper::{
 use opentelemetry::{
     global,
     trace::{FutureExt, Span, SpanKind, TraceContextExt, Tracer},
-    Context,
+    Context, KeyValue,
 };
 use opentelemetry_http::HeaderExtractor;
 use opentelemetry_sdk::{propagation::TraceContextPropagator, trace::TracerProvider};
+use opentelemetry_semantic_conventions::trace;
 use opentelemetry_stdout::SpanExporter;
 use std::{convert::Infallible, net::SocketAddr};
 
@@ -61,10 +62,8 @@ async fn router(req: Request<Body>) -> Result<Response<Body>, Infallible> {
             (&hyper::Method::GET, "/health") => handle_health_check(req).with_context(cx).await,
             (&hyper::Method::GET, "/echo") => handle_echo(req).with_context(cx).await,
             _ => {
-                let error_status = opentelemetry::trace::Status::Error {
-                    description: "Not Found".into(),
-                };
-                cx.span().set_status(error_status);
+                cx.span()
+                    .set_attribute(KeyValue::new(trace::HTTP_RESPONSE_STATUS_CODE, 404));
                 let mut not_found = Response::default();
                 *not_found.status_mut() = StatusCode::NOT_FOUND;
                 Ok(not_found)
