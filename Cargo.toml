@@ -21,7 +21,7 @@ members = [
     "examples/metrics-advanced",
     "examples/logs-basic",
     "examples/tracing-grpc",
-    "examples/tracing-http",
+    "examples/tracing-http-propagator",
     "examples/tracing-jaeger",
     "stress",
 ]
