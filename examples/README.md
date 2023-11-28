@@ -20,13 +20,12 @@ This example uses following crates from this repo:
 
 Check this example if you want to understand *how to instrument metrics using opentelemetry*.
 
-## traceresponse
+## tracing-http-propagator
 **Tracing**
 
 This example uses following crates from this repo:
 - opentelemetry(tracing)
 - opentelemetry-http
-- opentelemetry-contrib(TraceContextResponsePropagator)
 - opentelemetry-stdout
 
 ## tracing-grpc
