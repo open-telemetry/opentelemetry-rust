@@ -221,20 +221,20 @@ mod tests {
         let exporter = InMemoryMetricsExporter::default();
         let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
         let criteria = Instrument::new().name("test_histogram");
-        let stream_invalid_aggregation = Stream::new()           
-           .aggregation(Aggregation::ExplicitBucketHistogram 
-            {
+        let stream_invalid_aggregation = Stream::new()
+            .aggregation(Aggregation::ExplicitBucketHistogram {
                 boundaries: vec![0.9, 1.9, 1.2, 1.3, 1.4, 1.5], // invalid boundaries
                 record_min_max: false,
             })
-           .name("test_histogram_renamed")
-           .unit(Unit::new("test_unit_renamed")
-        );
+            .name("test_histogram_renamed")
+            .unit(Unit::new("test_unit_renamed"));
 
-        let view = new_view(criteria, stream_invalid_aggregation).expect("Expected to create a new view");
-        let meter_provider = SdkMeterProvider::builder().with_reader(reader)
-        .with_view(view)
-        .build();
+        let view =
+            new_view(criteria, stream_invalid_aggregation).expect("Expected to create a new view");
+        let meter_provider = SdkMeterProvider::builder()
+            .with_reader(reader)
+            .with_view(view)
+            .build();
 
         // Act
         let meter = meter_provider.meter("test");
@@ -242,7 +242,7 @@ mod tests {
             .f64_histogram("test_histogram")
             .with_unit(Unit::new("test_unit"))
             .init();
-       
+
         histogram.record(1.5, &[KeyValue::new("key1", "value1")]);
         meter_provider.force_flush().unwrap();
 
@@ -252,7 +252,14 @@ mod tests {
             .expect("metrics are expected to be exported.");
         assert!(!resource_metrics.is_empty());
         let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
-        assert_eq!(metric.name, "test_histogram", "View rename should be ignored and original name retained.");
-        assert_eq!(metric.unit.as_str(), "test_unit", "View rename of unit should be ignored and original unit retained.");
+        assert_eq!(
+            metric.name, "test_histogram",
+            "View rename should be ignored and original name retained."
+        );
+        assert_eq!(
+            metric.unit.as_str(),
+            "test_unit",
+            "View rename of unit should be ignored and original unit retained."
+        );
     }
 }
