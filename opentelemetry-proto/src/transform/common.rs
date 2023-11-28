@@ -1,11 +1,11 @@
 #[cfg(all(
-    any(feature = "gen-tonic-messages", feature = "gen-grpcio"),
+    any(feature = "gen-tonic-messages", feature = "gen-grpcio-messages"),
     any(feature = "trace", feature = "metrics", feature = "logs")
 ))]
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 #[cfg(all(
-    any(feature = "gen-tonic-messages", feature = "gen-grpcio"),
+    any(feature = "gen-tonic-messages", feature = "gen-grpcio-messages"),
     any(feature = "trace", feature = "metrics", feature = "logs")
 ))]
 pub(crate) fn to_nanos(time: SystemTime) -> u64 {
@@ -51,7 +51,7 @@ pub mod tonic {
         }
     }
 
-    /// Wrapper type for Vec<[`KeyValue`](crate::proto::tonic::common::v1::KeyValue)>
+    /// Wrapper type for Vec<`KeyValue`>
     #[derive(Default)]
     pub struct Attributes(pub ::std::vec::Vec<crate::proto::tonic::common::v1::KeyValue>);
 
@@ -123,7 +123,7 @@ pub mod tonic {
     }
 }
 
-#[cfg(feature = "gen-grpcio")]
+#[cfg(feature = "gen-grpcio-messages")]
 pub mod grpcio {
     use crate::proto::grpcio::common::v1::{
         any_value, AnyValue, ArrayValue, InstrumentationScope, KeyValue,
@@ -160,7 +160,7 @@ pub mod grpcio {
         }
     }
 
-    /// Wrapper type for Vec<[`KeyValue`](crate::proto::grpcio::common::v1::KeyValue)>
+    /// Wrapper type for Vec<`KeyValue`>
     #[derive(Default)]
     pub struct Attributes(pub ::std::vec::Vec<crate::proto::grpcio::common::v1::KeyValue>);
 
