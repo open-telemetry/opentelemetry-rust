@@ -51,7 +51,7 @@ fn get_filename(filepath: &str) -> &str {
 impl EventVisitor {
     fn visit_metadata(&mut self, meta: &Metadata) {
         self.log_record_attributes
-            .push(("log.name".into(), meta.name().into()));
+            .push(("name".into(), meta.name().into()));
 
         #[cfg(feature = "experimental_metadata_attributes")]
         self.log_record_attributes
