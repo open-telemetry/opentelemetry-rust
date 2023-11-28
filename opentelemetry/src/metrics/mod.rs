@@ -13,7 +13,7 @@ pub mod noop;
 use crate::ExportError;
 pub use instruments::{
     counter::{Counter, ObservableCounter, SyncCounter},
-    gauge::ObservableGauge,
+    gauge::{Gauge, ObservableGauge, SyncGauge},
     histogram::{Histogram, SyncHistogram},
     up_down_counter::{ObservableUpDownCounter, SyncUpDownCounter, UpDownCounter},
     AsyncInstrument, AsyncInstrumentBuilder, Callback, InstrumentBuilder,
@@ -177,6 +177,36 @@ pub trait InstrumentProvider {
         Ok(ObservableUpDownCounter::new(Arc::new(
             noop::NoopAsyncInstrument::new(),
         )))
+    }
+
+    /// creates an instrument for recording independent values.
+    fn u64_gauge(
+        &self,
+        _name: Cow<'static, str>,
+        _description: Option<Cow<'static, str>>,
+        _unit: Option<Unit>,
+    ) -> Result<Gauge<u64>> {
+        Ok(Gauge::new(Arc::new(noop::NoopSyncInstrument::new())))
+    }
+
+    /// creates an instrument for recording independent values.
+    fn f64_gauge(
+        &self,
+        _name: Cow<'static, str>,
+        _description: Option<Cow<'static, str>>,
+        _unit: Option<Unit>,
+    ) -> Result<Gauge<f64>> {
+        Ok(Gauge::new(Arc::new(noop::NoopSyncInstrument::new())))
+    }
+
+    /// creates an instrument for recording independent values.
+    fn i64_gauge(
+        &self,
+        _name: Cow<'static, str>,
+        _description: Option<Cow<'static, str>>,
+        _unit: Option<Unit>,
+    ) -> Result<Gauge<i64>> {
+        Ok(Gauge::new(Arc::new(noop::NoopSyncInstrument::new())))
     }
 
     /// creates an instrument for recording the current value via callback.
