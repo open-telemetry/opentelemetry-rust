@@ -58,30 +58,29 @@ impl SdkMeterProvider {
     /// use opentelemetry_sdk::metrics::SdkMeterProvider;
     ///
     /// fn init_metrics() -> SdkMeterProvider {
+    ///     // Setup metric pipelines with readers + views, default has no
+    ///     // readers so nothing is exported.
     ///     let provider = SdkMeterProvider::default();
     ///
     ///     // Set provider to be used as global meter provider
     ///     let _ = global::set_meter_provider(provider.clone());
     ///
-    ///     // Setup metric pipelines with readers + views
-    ///
     ///     provider
     /// }
     ///
-    /// fn main() {
+    /// fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let provider = init_metrics();
     ///
     ///     // create instruments + record measurements
     ///
     ///     // force all instruments to flush
-    ///     provider.force_flush().unwrap();
+    ///     provider.force_flush()?;
     ///
     ///     // record more measurements..
     ///
-    ///     // dropping provider and shutting down global provider ensure all
-    ///     // remaining metrics data are exported
-    ///     drop(provider);
-    ///     global::shutdown_meter_provider();
+    ///     // shutting down meter provider ensure all remaining metrics data
+    ///     // are exported
+    ///     provider.shutdown()?;
     /// }
     /// ```
     pub fn force_flush(&self) -> Result<()> {
