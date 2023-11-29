@@ -78,8 +78,8 @@ impl SdkMeterProvider {
     ///
     ///     // record more measurements..
     ///
-    ///     // shutting down meter provider ensure all remaining metrics data
-    ///     // are exported
+    ///     // shutdown ensures any cleanup required by the provider is done,
+    ///     // and also invokes shutdown on the readers.
     ///     provider.shutdown()?;
     ///
     ///     Ok(())
