@@ -11,8 +11,6 @@ gains, and avoids `IndexMap` dependency. This affects `body` and `attributes` of
 `LogRecord`.
 [#1353](https://github.com/open-telemetry/opentelemetry-rust/pull/1353)
 - Add `TextMapCompositePropagator` [#1373](https://github.com/open-telemetry/opentelemetry-rust/pull/1373)
-- Remove `global::shutdown_meter_provider`, use `SdkMeterProvider::shutdown`
-  directly instead (#1412).
 
 ### Removed
 
@@ -20,6 +18,8 @@ gains, and avoids `IndexMap` dependency. This affects `body` and `attributes` of
 `HashMap`.
 [#1353](https://github.com/open-telemetry/opentelemetry-rust/pull/1353)
 - Remove API for Creating Histograms with signed integers. [#1371](https://github.com/open-telemetry/opentelemetry-rust/pull/1371)
+- Remove `global::shutdown_meter_provider`, use `SdkMeterProvider::shutdown`
+  directly instead (#1412).
 
 ## [v0.21.0](https://github.com/open-telemetry/opentelemetry-rust/compare/v0.20.0...v0.21.0)
 
