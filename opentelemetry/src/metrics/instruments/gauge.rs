@@ -8,7 +8,7 @@ use std::{any::Any, convert::TryFrom};
 
 /// An SDK implemented instrument that records independent values
 pub trait SyncGauge<T> {
-    /// Records an increment to the counter.
+    /// Records an independent value.
     fn record(&self, value: T, attributes: &[KeyValue]);
 }
 
@@ -26,12 +26,12 @@ where
 }
 
 impl<T> Gauge<T> {
-    /// Create a new counter.
+    /// Create a new gauge.
     pub fn new(inner: Arc<dyn SyncGauge<T> + Send + Sync>) -> Self {
         Gauge(inner)
     }
 
-    /// Records an increment to the counter.
+    /// Records an independent value.
     pub fn record(&self, value: T, attributes: &[KeyValue]) {
         self.0.record(value, attributes)
     }

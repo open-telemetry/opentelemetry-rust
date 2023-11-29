@@ -111,7 +111,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // Note that there is no ObservableHistogram instrument.
 
     // Create a Gauge Instrument.
-    // Note that the Guage instrument is experimental, and can be changed/removed in the future releases.
+    // Note that the Gauge instrument is experimental, and can be changed/removed in the future releases.
     #[cfg(feature = "sync-gauge-experimental")]
     let gauge = meter
         .f64_gauge("my_gauge")
