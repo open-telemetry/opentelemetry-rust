@@ -11,3 +11,7 @@ opentelemetry_sdk = { path = "../../opentelemetry-sdk", features = ["metrics", "
 opentelemetry-stdout = { path = "../../opentelemetry-stdout", features = ["metrics"]}
 tokio = { version = "1.0", features = ["full"] }
 serde_json = {version = "1.0"}
+
+[features]
+default = ["sync-gauge-experimental"]
+sync-gauge-experimental = ["opentelemetry/sync-gauge-experimental"]
