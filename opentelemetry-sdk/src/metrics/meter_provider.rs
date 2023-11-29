@@ -81,6 +81,8 @@ impl SdkMeterProvider {
     ///     // shutting down meter provider ensure all remaining metrics data
     ///     // are exported
     ///     provider.shutdown()?;
+    ///
+    ///     Ok(())
     /// }
     /// ```
     pub fn force_flush(&self) -> Result<()> {
