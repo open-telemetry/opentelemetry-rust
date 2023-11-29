@@ -3,8 +3,10 @@ use std::any::Any;
 use std::borrow::Cow;
 use std::sync::Arc;
 
+#[cfg(feature = "sync-gauge-experimental")]
+use crate::metrics::Gauge;
 use crate::metrics::{
-    AsyncInstrumentBuilder, Counter, Gauge, Histogram, InstrumentBuilder, InstrumentProvider,
+    AsyncInstrumentBuilder, Counter, Histogram, InstrumentBuilder, InstrumentProvider,
     ObservableCounter, ObservableGauge, ObservableUpDownCounter, Result, UpDownCounter,
 };
 use crate::KeyValue;
@@ -336,6 +338,7 @@ impl Meter {
     /// # Experimental
     /// This method is experimental and can be changed/removed in future releases.
     /// creates an instrument builder for recording independent values.
+    #[cfg(feature = "sync-gauge-experimental")]
     pub fn u64_gauge(
         &self,
         name: impl Into<Cow<'static, str>>,
@@ -346,6 +349,7 @@ impl Meter {
     /// # Experimental
     /// This method is experimental and can be changed/removed in future releases.
     /// creates an instrument builder for recording independent values.
+    #[cfg(feature = "sync-gauge-experimental")]
     pub fn f64_gauge(
         &self,
         name: impl Into<Cow<'static, str>>,
@@ -356,6 +360,7 @@ impl Meter {
     /// # Experimental
     /// This method is experimental and can be changed/removed in future releases.
     /// creates an instrument builder for recording indenpendent values.
+    #[cfg(feature = "sync-gauge-experimental")]
     pub fn i64_gauge(
         &self,
         name: impl Into<Cow<'static, str>>,

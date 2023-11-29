@@ -6,7 +6,7 @@ license = "Apache-2.0"
 publish = false
 
 [dependencies]
-opentelemetry = { path = "../../opentelemetry", features = ["metrics"] }
+opentelemetry = { path = "../../opentelemetry", features = ["metrics", "sync-gauge-experimental"] }
 opentelemetry_sdk = { path = "../../opentelemetry-sdk", features = ["metrics", "rt-tokio"] }
 opentelemetry-stdout = { path = "../../opentelemetry-stdout", features = ["metrics"]}
 tokio = { version = "1.0", features = ["full"] }

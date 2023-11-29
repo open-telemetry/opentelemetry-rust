@@ -112,11 +112,13 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
 
     // Create a Gauge Instrument.
     // Note that the Guage instrument is experimental, and can be changed/removed in the future releases.
+    #[cfg(feature = "sync-gauge-experimental")]
     let gauge = meter
         .f64_gauge("my_gauge")
-        .with_description("My gauge example description")
+        .with_description("A gauge set to 1.0")
         .with_unit(Unit::new("myunit"))
         .init();
+    #[cfg(feature = "sync-gauge-experimental")]
     gauge.record(
         1.0,
         [
@@ -129,7 +131,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // Create a ObservableGauge instrument and register a callback that reports the measurement.
     let observable_gauge = meter
         .f64_observable_gauge("my_observable_gauge")
-        .with_description("A gauge set to 1.0")
+        .with_description("An observable gauge set to 1.0")
         .with_unit(Unit::new("myunit"))
         .init();
 
