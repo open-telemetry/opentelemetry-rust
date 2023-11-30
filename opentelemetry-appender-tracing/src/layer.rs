@@ -371,5 +371,16 @@ mod tests {
         assert!(attributes.contains(&(Key::new("event_id"), 20.into())));
         assert!(attributes.contains(&(Key::new("user_name"), "otel".into())));
         assert!(attributes.contains(&(Key::new("user_email"), "otel@opentelemetry.io".into())));
+        #[cfg(feature = "experimental_metadata_attributes")]
+        {
+            assert!(attributes.contains(&(Key::new("log.source.file.name"), "layer.rs".into())));
+            assert!(attributes.contains(&(
+                Key::new("log.module.path"),
+                "opentelemetry_appender_tracing::layer::tests".into()
+            )));
+            // The other 3 experimental_metadata_attributes are too unstable to check statically.
+            // Ex.: The path will be different on a Windows and Linux machine.
+            // Ex.: The line can change easily if someone makes changes in this source file.
+        }
     }
 }
