@@ -137,6 +137,19 @@ OpenTelemetry supports multiple ways to configure the API, SDK and other compone
 - Environment variables
 - Compiling time configurations provided in the source code
 
+### Experimental/Unstable features:
+
+Use `otel_unstable` flag for implementation of specification with [experimental](https://github.com/open-telemetry/opentelemetry-specification/blob/v1.27.0/specification/document-status.md) status. This approach ensures clear demarcation and safe integration of new or evolving features. Utilize the following structure:
+
+```rust
+#[cfg(otel_unstable)]
+{
+    // Your feature implementation
+}
+```
+
+It's important to regularly review and remove the `otel_unstable` flag from the code once the feature becomes stable. This cleanup process is crucial to maintain the overall code quality and to ensure that stable features are accurately reflected in the main build.
+
 ## Style Guide
 
 - Run `cargo clippy --all` - this will catch common mistakes and improve
