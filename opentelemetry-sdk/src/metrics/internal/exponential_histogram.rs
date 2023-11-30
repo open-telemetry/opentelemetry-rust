@@ -8,9 +8,7 @@ use std::{
 use once_cell::sync::Lazy;
 use opentelemetry::{attributes::AttributeSet, metrics::MetricsError};
 
-use crate::{
-    metrics::data::{self, Aggregation, Temporality},
-};
+use crate::metrics::data::{self, Aggregation, Temporality};
 
 use super::Number;
 

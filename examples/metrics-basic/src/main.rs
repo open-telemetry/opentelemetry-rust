@@ -38,7 +38,8 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
             KeyValue::new("mykey1", "myvalue1"),
             KeyValue::new("mykey2", "myvalue2"),
         ]
-        .as_ref(),
+        .as_slice()
+        .into(),
     );
 
     // Create a ObservableCounter instrument and register a callback that reports the measurement.
@@ -56,7 +57,8 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
                 KeyValue::new("mykey1", "myvalue1"),
                 KeyValue::new("mykey2", "myvalue2"),
             ]
-            .as_ref(),
+            .as_slice()
+            .into(),
         )
     })?;
 
@@ -70,7 +72,8 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
             KeyValue::new("mykey1", "myvalue1"),
             KeyValue::new("mykey2", "myvalue2"),
         ]
-        .as_ref(),
+        .as_slice()
+        .into(),
     );
 
     // Create a Observable UpDownCounter instrument and register a callback that reports the measurement.
@@ -88,7 +91,8 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
                 KeyValue::new("mykey1", "myvalue1"),
                 KeyValue::new("mykey2", "myvalue2"),
             ]
-            .as_ref(),
+            .as_slice()
+            .into(),
         )
     })?;
 
@@ -105,7 +109,8 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
             KeyValue::new("mykey1", "myvalue1"),
             KeyValue::new("mykey2", "myvalue2"),
         ]
-        .as_ref(),
+        .as_slice()
+        .into(),
     );
 
     // Note that there is no ObservableHistogram instrument.
@@ -126,7 +131,8 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
                 KeyValue::new("mykey1", "myvalue1"),
                 KeyValue::new("mykey2", "myvalue2"),
             ]
-            .as_ref(),
+            .as_slice()
+            .into(),
         )
     })?;
 

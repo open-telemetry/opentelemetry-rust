@@ -11,6 +11,7 @@ use opentelemetry_sdk::metrics as sdkmetrics;
 use opentelemetry_sdk::resource;
 use opentelemetry_sdk::trace as sdktrace;
 
+use opentelemetry::attributes::AttributeSet;
 use std::error::Error;
 use tracing::info;
 use tracing_subscriber::prelude::*;
@@ -62,13 +63,15 @@ fn init_metrics() -> metrics::Result<sdkmetrics::SdkMeterProvider> {
 const LEMONS_KEY: Key = Key::from_static_str("ex.com/lemons");
 const ANOTHER_KEY: Key = Key::from_static_str("ex.com/another");
 
-static COMMON_ATTRIBUTES: Lazy<[KeyValue; 4]> = Lazy::new(|| {
+static COMMON_ATTRIBUTES: Lazy<AttributeSet> = Lazy::new(|| {
     [
         LEMONS_KEY.i64(10),
         KeyValue::new("A", "1"),
         KeyValue::new("B", "2"),
         KeyValue::new("C", "3"),
     ]
+    .as_slice()
+    .into()
 });
 
 #[tokio::main]
@@ -104,7 +107,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     info!(target: "my-target", "hello from {}. My price is {}", "apple", 1.99);
 
     let histogram = meter.f64_histogram("ex.com.two").init();
-    histogram.record(5.5, COMMON_ATTRIBUTES.as_ref());
+    histogram.record(5.5, COMMON_ATTRIBUTES.clone());
 
     global::shutdown_tracer_provider();
     global::shutdown_logger_provider();

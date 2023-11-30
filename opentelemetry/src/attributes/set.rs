@@ -1,5 +1,7 @@
+use once_cell::sync::Lazy;
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashSet;
+use std::sync::Arc;
 use std::{
     cmp::Ordering,
     hash::{Hash, Hasher},
@@ -85,28 +87,46 @@ impl PartialEq for HashKeyValue {
     fn eq(&self, other: &Self) -> bool {
         self.0.key == other.0.key
             && match (&self.0.value, &other.0.value) {
-            (Value::F64(f), Value::F64(of)) => OrderedFloat(*f).eq(&OrderedFloat(*of)),
-            (Value::Array(Array::F64(f)), Value::Array(Array::F64(of))) => {
-                f.len() == of.len()
-                    && f.iter()
-                    .zip(of.iter())
-                    .all(|(f, of)| OrderedFloat(*f).eq(&OrderedFloat(*of)))
+                (Value::F64(f), Value::F64(of)) => OrderedFloat(*f).eq(&OrderedFloat(*of)),
+                (Value::Array(Array::F64(f)), Value::Array(Array::F64(of))) => {
+                    f.len() == of.len()
+                        && f.iter()
+                            .zip(of.iter())
+                            .all(|(f, of)| OrderedFloat(*f).eq(&OrderedFloat(*of)))
+                }
+                (non_float, other_non_float) => non_float.eq(other_non_float),
             }
-            (non_float, other_non_float) => non_float.eq(other_non_float),
-        }
     }
 }
 
 impl Eq for HashKeyValue {}
 
-/// A unique set of attributes that can be used as instrument identifiers.
-///
-/// This must implement [Hash], [PartialEq], and [Eq] so it may be used as
-/// HashMap keys and other de-duplication methods.
-#[derive(Clone, Default, Debug, PartialEq, Eq)]
-pub struct AttributeSet(Vec<HashKeyValue>, u64);
+static EMPTY_SET: Lazy<Arc<InternalAttributeSet>> =
+    Lazy::new(|| Arc::new(InternalAttributeSet::new(Vec::with_capacity(0))));
 
-impl From<&[KeyValue]> for AttributeSet {
+#[derive(Eq, PartialEq, Debug)]
+struct InternalAttributeSet {
+    key_values: Vec<HashKeyValue>,
+    hash: u64,
+}
+
+impl InternalAttributeSet {
+    fn new(mut values: Vec<HashKeyValue>) -> Self {
+        values.sort_unstable();
+        let mut hasher = DefaultHasher::new();
+        values.iter().fold(&mut hasher, |mut hasher, item| {
+            item.hash(&mut hasher);
+            hasher
+        });
+
+        InternalAttributeSet {
+            key_values: values,
+            hash: hasher.finish(),
+        }
+    }
+}
+
+impl From<&[KeyValue]> for InternalAttributeSet {
     fn from(values: &[KeyValue]) -> Self {
         let mut seen_keys = HashSet::with_capacity(values.len());
         let vec = values
@@ -121,49 +141,64 @@ impl From<&[KeyValue]> for AttributeSet {
             })
             .collect::<Vec<_>>();
 
-        AttributeSet::new(vec)
+        InternalAttributeSet::new(vec)
     }
 }
 
+impl Hash for InternalAttributeSet {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        state.write_u64(self.hash)
+    }
+}
+
+/// A unique set of attributes that can be used as instrument identifiers.
+///
+/// This must implement [Hash], [PartialEq], and [Eq] so it may be used as
+/// HashMap keys and other de-duplication methods.
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+pub struct AttributeSet(Arc<InternalAttributeSet>);
+
+impl From<&[KeyValue]> for AttributeSet {
+    fn from(values: &[KeyValue]) -> Self {
+        AttributeSet(Arc::new(InternalAttributeSet::from(values)))
+    }
+}
 
 impl AttributeSet {
-    fn new(mut values: Vec<HashKeyValue>) -> Self {
-        values.sort_unstable();
-        let mut hasher = DefaultHasher::new();
-        values.iter().fold(&mut hasher, |mut hasher, item| {
-            item.hash(&mut hasher);
-            hasher
-        });
-
-        AttributeSet(values, hasher.finish())
-    }
-
     /// Returns the number of elements in the set.
     pub fn len(&self) -> usize {
-        self.0.len()
+        self.0.key_values.len()
     }
 
     /// Returns `true` if the set contains no elements.
     pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
+        self.0.key_values.is_empty()
     }
 
-    /// Retains only the attributes specified by the predicate.
-    pub fn retain<F>(&mut self, f: F)
-        where
-            F: Fn(&KeyValue) -> bool,
+    /// Creates a new attribute set that retains only the attributes specified by the predicate.
+    pub fn clone_with<F>(&self, f: F) -> AttributeSet
+    where
+        F: Fn(&KeyValue) -> bool,
     {
-        self.0.retain(|kv| f(&kv.0))
+        let key_values = self
+            .0
+            .key_values
+            .iter()
+            .filter(|kv| f(&kv.0))
+            .cloned()
+            .collect::<Vec<_>>();
+
+        AttributeSet(Arc::new(InternalAttributeSet::new(key_values)))
     }
 
     /// Iterate over key value pairs in the set
     pub fn iter(&self) -> impl Iterator<Item = (&Key, &Value)> {
-        self.0.iter().map(|kv| (&kv.0.key, &kv.0.value))
+        self.0.key_values.iter().map(|kv| (&kv.0.key, &kv.0.value))
     }
 }
 
-impl Hash for AttributeSet {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        state.write_u64(self.1)
+impl Default for AttributeSet {
+    fn default() -> Self {
+        AttributeSet(EMPTY_SET.clone())
     }
 }

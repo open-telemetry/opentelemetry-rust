@@ -45,7 +45,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let meter = meter_provider.meter("stdout-test");
     let c = meter.u64_counter("test_events").init();
-    c.add(1, &[KeyValue::new("test_key", "test_value")]);
+    c.add(
+        1,
+        [KeyValue::new("test_key", "test_value")].as_slice().into(),
+    );
 
     meter_provider.shutdown()?;
 

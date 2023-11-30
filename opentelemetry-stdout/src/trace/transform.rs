@@ -1,5 +1,5 @@
 use crate::common::{as_human_readable, as_unix_nano, KeyValue, Resource, Scope};
-use opentelemetry_sdk::AttributeSet;
+use opentelemetry::attributes::AttributeSet;
 use serde::{Serialize, Serializer};
 use std::{borrow::Cow, collections::HashMap, time::SystemTime};
 

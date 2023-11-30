@@ -4,6 +4,7 @@ use hyper::{
     Body, Method, Request, Response, Server,
 };
 use once_cell::sync::Lazy;
+use opentelemetry::attributes::AttributeSet;
 use opentelemetry::{
     metrics::{Counter, Histogram, MeterProvider as _, Unit},
     KeyValue,
@@ -23,7 +24,7 @@ async fn serve_req(
     println!("Receiving request at path {}", req.uri());
     let request_start = SystemTime::now();
 
-    state.http_counter.add(1, HANDLER_ALL.as_ref());
+    state.http_counter.add(1, HANDLER_ALL.as_ref().into());
 
     let response = match (req.method(), req.uri().path()) {
         (&Method::GET, "/metrics") => {
@@ -33,7 +34,7 @@ async fn serve_req(
             encoder.encode(&metric_families, &mut buffer).unwrap();
             state
                 .http_body_gauge
-                .record(buffer.len() as u64, HANDLER_ALL.as_ref());
+                .record(buffer.len() as u64, HANDLER_ALL.as_ref().into());
 
             Response::builder()
                 .status(200)
@@ -53,7 +54,7 @@ async fn serve_req(
 
     state.http_req_histogram.record(
         request_start.elapsed().map_or(0.0, |d| d.as_secs_f64()),
-        &[],
+        AttributeSet::default(),
     );
     Ok(response)
 }

@@ -1,10 +1,11 @@
+use crate::Resource;
 use opentelemetry::attributes::AttributeSet;
 use opentelemetry::KeyValue;
-use crate::Resource;
 
 impl From<&Resource> for AttributeSet {
     fn from(values: &Resource) -> Self {
-        let key_values = values.iter()
+        let key_values = values
+            .iter()
             .map(|(key, value)| KeyValue::new(key.clone(), value.clone()))
             .collect::<Vec<_>>();
 

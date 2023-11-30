@@ -1,5 +1,6 @@
 use log::{info, Level};
 use once_cell::sync::Lazy;
+use opentelemetry::attributes::AttributeSet;
 use opentelemetry::global;
 use opentelemetry::global::{logger_provider, shutdown_logger_provider, shutdown_tracer_provider};
 use opentelemetry::logs::LogError;
@@ -72,13 +73,16 @@ fn init_logs() -> Result<opentelemetry_sdk::logs::Logger, LogError> {
 const LEMONS_KEY: Key = Key::from_static_str("lemons");
 const ANOTHER_KEY: Key = Key::from_static_str("ex.com/another");
 
-static COMMON_ATTRIBUTES: Lazy<[KeyValue; 4]> = Lazy::new(|| {
-    [
-        LEMONS_KEY.i64(10),
-        KeyValue::new("A", "1"),
-        KeyValue::new("B", "2"),
-        KeyValue::new("C", "3"),
-    ]
+static COMMON_ATTRIBUTES: Lazy<AttributeSet> = Lazy::new(|| {
+    AttributeSet::from(
+        [
+            LEMONS_KEY.i64(10),
+            KeyValue::new("A", "1"),
+            KeyValue::new("B", "2"),
+            KeyValue::new("C", "3"),
+        ]
+        .as_slice(),
+    )
 });
 
 #[tokio::main]
@@ -109,11 +113,11 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         .init();
 
     meter.register_callback(&[gauge.as_any()], move |observer| {
-        observer.observe_f64(&gauge, 1.0, COMMON_ATTRIBUTES.as_ref())
+        observer.observe_f64(&gauge, 1.0, COMMON_ATTRIBUTES.clone())
     })?;
 
     let histogram = meter.f64_histogram("ex.com.two").init();
-    histogram.record(5.5, COMMON_ATTRIBUTES.as_ref());
+    histogram.record(5.5, COMMON_ATTRIBUTES.clone());
 
     tracer.in_span("operation", |cx| {
         let span = cx.span();
@@ -131,7 +135,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
 
             span.add_event("Sub span event", vec![]);
 
-            histogram.record(1.3, &[]);
+            histogram.record(1.3, AttributeSet::default());
         });
     });
 

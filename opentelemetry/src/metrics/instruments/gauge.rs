@@ -1,7 +1,5 @@
-use crate::{
-    metrics::{AsyncInstrument, AsyncInstrumentBuilder, MetricsError},
-    KeyValue,
-};
+use crate::attributes::AttributeSet;
+use crate::metrics::{AsyncInstrument, AsyncInstrumentBuilder, MetricsError};
 use core::fmt;
 use std::sync::Arc;
 use std::{any::Any, convert::TryFrom};
@@ -28,7 +26,7 @@ impl<T> ObservableGauge<T> {
     /// It is only valid to call this within a callback. If called outside of the
     /// registered callback it should have no effect on the instrument, and an
     /// error will be reported via the error handler.
-    pub fn observe(&self, measurement: T, attributes: &[KeyValue]) {
+    pub fn observe(&self, measurement: T, attributes: AttributeSet) {
         self.0.observe(measurement, attributes)
     }
 
@@ -39,7 +37,7 @@ impl<T> ObservableGauge<T> {
 }
 
 impl<M> AsyncInstrument<M> for ObservableGauge<M> {
-    fn observe(&self, measurement: M, attributes: &[KeyValue]) {
+    fn observe(&self, measurement: M, attributes: AttributeSet) {
         self.observe(measurement, attributes)
     }
 

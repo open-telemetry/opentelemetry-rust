@@ -1,11 +1,9 @@
 use std::{marker, sync::Arc};
 
 use once_cell::sync::Lazy;
-use opentelemetry::{KeyValue, attributes::AttributeSet};
+use opentelemetry::{attributes::AttributeSet, KeyValue};
 
-use crate::{
-    metrics::data::{Aggregation, Gauge, Temporality},
-};
+use crate::metrics::data::{Aggregation, Gauge, Temporality};
 
 use super::{
     exponential_histogram::ExpoHistogram,
@@ -95,7 +93,7 @@ impl<T: Number<T>> AggregateBuilder<T> {
         let filter = self.filter.as_ref().map(Arc::clone);
         move |n, mut attrs: AttributeSet| {
             if let Some(filter) = &filter {
-                attrs.retain(filter.as_ref());
+                attrs = attrs.clone_with(filter.as_ref());
             }
             f.call(n, attrs)
         }

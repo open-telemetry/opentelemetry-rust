@@ -4,7 +4,7 @@ use std::{
     time::SystemTime,
 };
 
-use crate::{metrics::data::DataPoint};
+use crate::metrics::data::DataPoint;
 use opentelemetry::{attributes::AttributeSet, global, metrics::MetricsError};
 
 use super::{

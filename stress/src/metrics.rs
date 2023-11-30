@@ -37,10 +37,12 @@ fn test_counter() {
     // each attribute has 10 possible values, so there are 1000 possible combinations (time-series)
     COUNTER.add(
         1,
-        &[
+        [
             KeyValue::new("attribute1", ATTRIBUTE_VALUES[index_first_attribute]),
             KeyValue::new("attribute2", ATTRIBUTE_VALUES[index_second_attribute]),
             KeyValue::new("attribute3", ATTRIBUTE_VALUES[index_third_attribute]),
-        ],
+        ]
+        .as_slice()
+        .into(),
     );
 }

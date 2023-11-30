@@ -2,6 +2,7 @@ use std::fs;
 use std::path::Path;
 use std::time::Duration;
 
+use opentelemetry::attributes::AttributeSet;
 use opentelemetry::metrics::{Meter, MeterProvider as _, Unit};
 use opentelemetry::Key;
 use opentelemetry::KeyValue;
@@ -44,27 +45,32 @@ fn prometheus_exporter_integration() {
             name: "counter",
             expected_file: "counter.txt",
             record_metrics: Box::new(|meter| {
-                let attrs = vec![
-                    Key::new("A").string("B"),
-                    Key::new("C").string("D"),
-                    Key::new("E").bool(true),
-                    Key::new("F").i64(42),
-                ];
+                let attrs = AttributeSet::from(
+                    [
+                        Key::new("A").string("B"),
+                        Key::new("C").string("D"),
+                        Key::new("E").bool(true),
+                        Key::new("F").i64(42),
+                    ]
+                    .as_slice(),
+                );
+
                 let counter = meter
                     .f64_counter("foo")
                     .with_description("a simple counter")
                     .with_unit(Unit::new("ms"))
                     .init();
-                counter.add(5.0, &attrs);
-                counter.add(10.3, &attrs);
-                counter.add(9.0, &attrs);
+                counter.add(5.0, attrs.clone());
+                counter.add(10.3, attrs.clone());
+                counter.add(9.0, attrs.clone());
+
                 let attrs2 = vec![
                     Key::new("A").string("D"),
                     Key::new("C").string("B"),
                     Key::new("E").bool(true),
                     Key::new("F").i64(42),
                 ];
-                counter.add(5.0, &attrs2);
+                counter.add(5.0, attrs2.as_slice().into());
             }),
             ..Default::default()
         },
@@ -73,27 +79,31 @@ fn prometheus_exporter_integration() {
             expected_file: "counter_disabled_suffix.txt",
             builder: ExporterBuilder::default().without_counter_suffixes(),
             record_metrics: Box::new(|meter| {
-                let attrs = vec![
-                    Key::new("A").string("B"),
-                    Key::new("C").string("D"),
-                    Key::new("E").bool(true),
-                    Key::new("F").i64(42),
-                ];
+                let attrs = AttributeSet::from(
+                    [
+                        Key::new("A").string("B"),
+                        Key::new("C").string("D"),
+                        Key::new("E").bool(true),
+                        Key::new("F").i64(42),
+                    ]
+                    .as_slice(),
+                );
+
                 let counter = meter
                     .f64_counter("foo")
                     .with_description("a simple counter without a total suffix")
                     .with_unit(Unit::new("ms"))
                     .init();
-                counter.add(5.0, &attrs);
-                counter.add(10.3, &attrs);
-                counter.add(9.0, &attrs);
-                let attrs2 = vec![
+                counter.add(5.0, attrs.clone());
+                counter.add(10.3, attrs.clone());
+                counter.add(9.0, attrs.clone());
+                let attrs2 = [
                     Key::new("A").string("D"),
                     Key::new("C").string("B"),
                     Key::new("E").bool(true),
                     Key::new("F").i64(42),
                 ];
-                counter.add(5.0, &attrs2);
+                counter.add(5.0, attrs2.as_slice().into());
             }),
             ..Default::default()
         },
@@ -101,14 +111,16 @@ fn prometheus_exporter_integration() {
             name: "gauge",
             expected_file: "gauge.txt",
             record_metrics: Box::new(|meter| {
-                let attrs = vec![Key::new("A").string("B"), Key::new("C").string("D")];
+                let attrs = AttributeSet::from(
+                    [Key::new("A").string("B"), Key::new("C").string("D")].as_slice(),
+                );
                 let gauge = meter
                     .f64_up_down_counter("bar")
                     .with_description("a fun little gauge")
                     .with_unit(Unit::new("1"))
                     .init();
-                gauge.add(1.0, &attrs);
-                gauge.add(-0.25, &attrs);
+                gauge.add(1.0, attrs.clone());
+                gauge.add(-0.25, attrs);
             }),
             ..Default::default()
         },
@@ -116,16 +128,18 @@ fn prometheus_exporter_integration() {
             name: "histogram",
             expected_file: "histogram.txt",
             record_metrics: Box::new(|meter| {
-                let attrs = vec![Key::new("A").string("B"), Key::new("C").string("D")];
+                let attrs = AttributeSet::from(
+                    [Key::new("A").string("B"), Key::new("C").string("D")].as_slice(),
+                );
                 let histogram = meter
                     .f64_histogram("histogram_baz")
                     .with_description("a very nice histogram")
                     .with_unit(Unit::new("By"))
                     .init();
-                histogram.record(23.0, &attrs);
-                histogram.record(7.0, &attrs);
-                histogram.record(101.0, &attrs);
-                histogram.record(105.0, &attrs);
+                histogram.record(23.0, attrs.clone());
+                histogram.record(7.0, attrs.clone());
+                histogram.record(101.0, attrs.clone());
+                histogram.record(105.0, attrs);
             }),
             ..Default::default()
         },
@@ -134,23 +148,26 @@ fn prometheus_exporter_integration() {
             expected_file: "sanitized_labels.txt",
             builder: ExporterBuilder::default().without_units(),
             record_metrics: Box::new(|meter| {
-                let attrs = vec![
-                    // exact match, value should be overwritten
-                    Key::new("A.B").string("X"),
-                    Key::new("A.B").string("Q"),
-                    // unintended match due to sanitization, values should be concatenated
-                    Key::new("C.D").string("Y"),
-                    Key::new("C/D").string("Z"),
-                ];
+                let attrs = AttributeSet::from(
+                    [
+                        // exact match, value should be overwritten
+                        Key::new("A.B").string("X"),
+                        Key::new("A.B").string("Q"),
+                        // unintended match due to sanitization, values should be concatenated
+                        Key::new("C.D").string("Y"),
+                        Key::new("C/D").string("Z"),
+                    ]
+                    .as_slice(),
+                );
                 let counter = meter
                     .f64_counter("foo")
                     .with_description("a sanitary counter")
                     // This unit is not added to
                     .with_unit(Unit::new("By"))
                     .init();
-                counter.add(5.0, &attrs);
-                counter.add(10.3, &attrs);
-                counter.add(9.0, &attrs);
+                counter.add(5.0, attrs.clone());
+                counter.add(10.3, attrs.clone());
+                counter.add(9.0, attrs);
             }),
             ..Default::default()
         },
@@ -158,33 +175,35 @@ fn prometheus_exporter_integration() {
             name: "invalid instruments are renamed",
             expected_file: "sanitized_names.txt",
             record_metrics: Box::new(|meter| {
-                let attrs = vec![Key::new("A").string("B"), Key::new("C").string("D")];
+                let attrs = AttributeSet::from(
+                    [Key::new("A").string("B"), Key::new("C").string("D")].as_slice(),
+                );
                 // Valid.
                 let mut gauge = meter
                     .f64_up_down_counter("bar")
                     .with_description("a fun little gauge")
                     .init();
-                gauge.add(100., &attrs);
-                gauge.add(-25.0, &attrs);
+                gauge.add(100., attrs.clone());
+                gauge.add(-25.0, attrs.clone());
 
                 // Invalid, will be renamed.
                 gauge = meter
                     .f64_up_down_counter("invalid.gauge.name")
                     .with_description("a gauge with an invalid name")
                     .init();
-                gauge.add(100.0, &attrs);
+                gauge.add(100.0, attrs.clone());
 
                 let counter = meter
                     .f64_counter("0invalid.counter.name")
                     .with_description("a counter with an invalid name")
                     .init();
-                counter.add(100.0, &attrs);
+                counter.add(100.0, attrs.clone());
 
                 let histogram = meter
                     .f64_histogram("invalid.hist.name")
                     .with_description("a histogram with an invalid name")
                     .init();
-                histogram.record(23.0, &attrs);
+                histogram.record(23.0, attrs);
             }),
             ..Default::default()
         },
@@ -193,19 +212,22 @@ fn prometheus_exporter_integration() {
             empty_resource: true,
             expected_file: "empty_resource.txt",
             record_metrics: Box::new(|meter| {
-                let attrs = vec![
-                    Key::new("A").string("B"),
-                    Key::new("C").string("D"),
-                    Key::new("E").bool(true),
-                    Key::new("F").i64(42),
-                ];
+                let attrs = AttributeSet::from(
+                    [
+                        Key::new("A").string("B"),
+                        Key::new("C").string("D"),
+                        Key::new("E").bool(true),
+                        Key::new("F").i64(42),
+                    ]
+                    .as_slice(),
+                );
                 let counter = meter
                     .f64_counter("foo")
                     .with_description("a simple counter")
                     .init();
-                counter.add(5.0, &attrs);
-                counter.add(10.3, &attrs);
-                counter.add(9.0, &attrs);
+                counter.add(5.0, attrs.clone());
+                counter.add(10.3, attrs.clone());
+                counter.add(9.0, attrs.clone());
             }),
             ..Default::default()
         },
@@ -214,19 +236,22 @@ fn prometheus_exporter_integration() {
             custom_resource_attrs: vec![Key::new("A").string("B"), Key::new("C").string("D")],
             expected_file: "custom_resource.txt",
             record_metrics: Box::new(|meter| {
-                let attrs = vec![
-                    Key::new("A").string("B"),
-                    Key::new("C").string("D"),
-                    Key::new("E").bool(true),
-                    Key::new("F").i64(42),
-                ];
+                let attrs = AttributeSet::from(
+                    [
+                        Key::new("A").string("B"),
+                        Key::new("C").string("D"),
+                        Key::new("E").bool(true),
+                        Key::new("F").i64(42),
+                    ]
+                    .as_slice(),
+                );
                 let counter = meter
                     .f64_counter("foo")
                     .with_description("a simple counter")
                     .init();
-                counter.add(5., &attrs);
-                counter.add(10.3, &attrs);
-                counter.add(9.0, &attrs);
+                counter.add(5., attrs.clone());
+                counter.add(10.3, attrs.clone());
+                counter.add(9.0, attrs);
             }),
             ..Default::default()
         },
@@ -235,19 +260,22 @@ fn prometheus_exporter_integration() {
             builder: ExporterBuilder::default().without_target_info(),
             expected_file: "without_target_info.txt",
             record_metrics: Box::new(|meter| {
-                let attrs = vec![
-                    Key::new("A").string("B"),
-                    Key::new("C").string("D"),
-                    Key::new("E").bool(true),
-                    Key::new("F").i64(42),
-                ];
+                let attrs = AttributeSet::from(
+                    [
+                        Key::new("A").string("B"),
+                        Key::new("C").string("D"),
+                        Key::new("E").bool(true),
+                        Key::new("F").i64(42),
+                    ]
+                    .as_slice(),
+                );
                 let counter = meter
                     .f64_counter("foo")
                     .with_description("a simple counter")
                     .init();
-                counter.add(5.0, &attrs);
-                counter.add(10.3, &attrs);
-                counter.add(9.0, &attrs);
+                counter.add(5.0, attrs.clone());
+                counter.add(10.3, attrs.clone());
+                counter.add(9.0, attrs);
             }),
             ..Default::default()
         },
@@ -256,14 +284,16 @@ fn prometheus_exporter_integration() {
             builder: ExporterBuilder::default().without_scope_info(),
             expected_file: "without_scope_info.txt",
             record_metrics: Box::new(|meter| {
-                let attrs = vec![Key::new("A").string("B"), Key::new("C").string("D")];
+                let attrs = AttributeSet::from(
+                    [Key::new("A").string("B"), Key::new("C").string("D")].as_slice(),
+                );
                 let gauge = meter
                     .i64_up_down_counter("bar")
                     .with_description("a fun little gauge")
                     .with_unit(Unit::new("1"))
                     .init();
-                gauge.add(2, &attrs);
-                gauge.add(-1, &attrs);
+                gauge.add(2, attrs.clone());
+                gauge.add(-1, attrs);
             }),
             ..Default::default()
         },
@@ -274,14 +304,16 @@ fn prometheus_exporter_integration() {
                 .without_target_info(),
             expected_file: "without_scope_and_target_info.txt",
             record_metrics: Box::new(|meter| {
-                let attrs = vec![Key::new("A").string("B"), Key::new("C").string("D")];
+                let attrs = AttributeSet::from(
+                    [Key::new("A").string("B"), Key::new("C").string("D")].as_slice(),
+                );
                 let counter = meter
                     .u64_counter("bar")
                     .with_description("a fun little counter")
                     .with_unit(Unit::new("By"))
                     .init();
-                counter.add(2, &attrs);
-                counter.add(1, &attrs);
+                counter.add(2, attrs.clone());
+                counter.add(1, attrs);
             }),
             ..Default::default()
         },
@@ -290,20 +322,23 @@ fn prometheus_exporter_integration() {
             builder: ExporterBuilder::default().with_namespace("test"),
             expected_file: "with_namespace.txt",
             record_metrics: Box::new(|meter| {
-                let attrs = vec![
-                    Key::new("A").string("B"),
-                    Key::new("C").string("D"),
-                    Key::new("E").bool(true),
-                    Key::new("F").i64(42),
-                ];
+                let attrs = AttributeSet::from(
+                    [
+                        Key::new("A").string("B"),
+                        Key::new("C").string("D"),
+                        Key::new("E").bool(true),
+                        Key::new("F").i64(42),
+                    ]
+                    .as_slice(),
+                );
                 let counter = meter
                     .f64_counter("foo")
                     .with_description("a simple counter")
                     .init();
 
-                counter.add(5.0, &attrs);
-                counter.add(10.3, &attrs);
-                counter.add(9.0, &attrs);
+                counter.add(5.0, attrs.clone());
+                counter.add(10.3, attrs.clone());
+                counter.add(9.0, attrs);
             }),
             ..Default::default()
         },
@@ -406,7 +441,7 @@ fn multiple_scopes() {
         .with_unit(Unit::new("ms"))
         .with_description("meter foo counter")
         .init();
-    foo_counter.add(100, &[KeyValue::new("type", "foo")]);
+    foo_counter.add(100, [KeyValue::new("type", "foo")].as_slice().into());
 
     let bar_counter = provider
         .versioned_meter("meterbar", Some("v0.1.0"), None::<&'static str>, None)
@@ -414,7 +449,7 @@ fn multiple_scopes() {
         .with_unit(Unit::new("ms"))
         .with_description("meter bar counter")
         .init();
-    bar_counter.add(200, &[KeyValue::new("type", "bar")]);
+    bar_counter.add(200, [KeyValue::new("type", "bar")].as_slice().into());
 
     let content = fs::read_to_string("./tests/data/multi_scopes.txt").unwrap();
     gather_and_compare(registry, content, "multi_scope");
@@ -453,7 +488,7 @@ fn duplicate_metrics() {
                     .with_description("meter counter foo")
                     .init();
 
-                foo_a.add(100, &[KeyValue::new("A", "B")]);
+                foo_a.add(100, [KeyValue::new("A", "B")].as_slice().into());
 
                 let foo_b = meter_b
                     .u64_counter("foo")
@@ -461,7 +496,7 @@ fn duplicate_metrics() {
                     .with_description("meter counter foo")
                     .init();
 
-                foo_b.add(100, &[KeyValue::new("A", "B")]);
+                foo_b.add(100, [KeyValue::new("A", "B")].as_slice().into());
             }),
             expected_files: vec!["no_conflict_two_counters.txt"],
             ..Default::default()
@@ -475,7 +510,7 @@ fn duplicate_metrics() {
                     .with_description("meter gauge foo")
                     .init();
 
-                foo_a.add(100, &[KeyValue::new("A", "B")]);
+                foo_a.add(100, [KeyValue::new("A", "B")].as_slice().into());
 
                 let foo_b = meter_b
                     .i64_up_down_counter("foo")
@@ -483,7 +518,7 @@ fn duplicate_metrics() {
                     .with_description("meter gauge foo")
                     .init();
 
-                foo_b.add(100, &[KeyValue::new("A", "B")]);
+                foo_b.add(100, [KeyValue::new("A", "B")].as_slice().into());
             }),
             expected_files: vec!["no_conflict_two_updowncounters.txt"],
             ..Default::default()
@@ -497,7 +532,7 @@ fn duplicate_metrics() {
                     .with_description("meter histogram foo")
                     .init();
 
-                foo_a.record(100, &[KeyValue::new("A", "B")]);
+                foo_a.record(100, [KeyValue::new("A", "B")].as_slice().into());
 
                 let foo_b = meter_b
                     .u64_histogram("foo")
@@ -505,7 +540,7 @@ fn duplicate_metrics() {
                     .with_description("meter histogram foo")
                     .init();
 
-                foo_b.record(100, &[KeyValue::new("A", "B")]);
+                foo_b.record(100, [KeyValue::new("A", "B")].as_slice().into());
             }),
             expected_files: vec!["no_conflict_two_histograms.txt"],
             ..Default::default()
@@ -519,7 +554,7 @@ fn duplicate_metrics() {
                     .with_description("meter a bar")
                     .init();
 
-                bar_a.add(100, &[KeyValue::new("type", "bar")]);
+                bar_a.add(100, [KeyValue::new("type", "bar")].as_slice().into());
 
                 let bar_b = meter_b
                     .u64_counter("bar")
@@ -527,7 +562,7 @@ fn duplicate_metrics() {
                     .with_description("meter b bar")
                     .init();
 
-                bar_b.add(100, &[KeyValue::new("type", "bar")]);
+                bar_b.add(100, [KeyValue::new("type", "bar")].as_slice().into());
             }),
             expected_files: vec![
                 "conflict_help_two_counters_1.txt",
@@ -544,7 +579,7 @@ fn duplicate_metrics() {
                     .with_description("meter a bar")
                     .init();
 
-                bar_a.add(100, &[KeyValue::new("type", "bar")]);
+                bar_a.add(100, [KeyValue::new("type", "bar")].as_slice().into());
 
                 let bar_b = meter_b
                     .i64_up_down_counter("bar")
@@ -552,7 +587,7 @@ fn duplicate_metrics() {
                     .with_description("meter b bar")
                     .init();
 
-                bar_b.add(100, &[KeyValue::new("type", "bar")]);
+                bar_b.add(100, [KeyValue::new("type", "bar")].as_slice().into());
             }),
             expected_files: vec![
                 "conflict_help_two_updowncounters_1.txt",
@@ -569,7 +604,7 @@ fn duplicate_metrics() {
                     .with_description("meter a bar")
                     .init();
 
-                bar_a.record(100, &[KeyValue::new("A", "B")]);
+                bar_a.record(100, [KeyValue::new("A", "B")].as_slice().into());
 
                 let bar_b = meter_b
                     .u64_histogram("bar")
@@ -577,7 +612,7 @@ fn duplicate_metrics() {
                     .with_description("meter b bar")
                     .init();
 
-                bar_b.record(100, &[KeyValue::new("A", "B")]);
+                bar_b.record(100, [KeyValue::new("A", "B")].as_slice().into());
             }),
             expected_files: vec![
                 "conflict_help_two_histograms_1.txt",
@@ -594,7 +629,7 @@ fn duplicate_metrics() {
                     .with_description("meter bar")
                     .init();
 
-                baz_a.add(100, &[KeyValue::new("type", "bar")]);
+                baz_a.add(100, [KeyValue::new("type", "bar")].as_slice().into());
 
                 let baz_b = meter_b
                     .u64_counter("bar")
@@ -602,7 +637,7 @@ fn duplicate_metrics() {
                     .with_description("meter bar")
                     .init();
 
-                baz_b.add(100, &[KeyValue::new("type", "bar")]);
+                baz_b.add(100, [KeyValue::new("type", "bar")].as_slice().into());
             }),
             builder: ExporterBuilder::default().without_units(),
             expected_files: vec!["conflict_unit_two_counters.txt"],
@@ -617,7 +652,7 @@ fn duplicate_metrics() {
                     .with_description("meter gauge bar")
                     .init();
 
-                bar_a.add(100, &[KeyValue::new("type", "bar")]);
+                bar_a.add(100, [KeyValue::new("type", "bar")].as_slice().into());
 
                 let bar_b = meter_b
                     .i64_up_down_counter("bar")
@@ -625,7 +660,7 @@ fn duplicate_metrics() {
                     .with_description("meter gauge bar")
                     .init();
 
-                bar_b.add(100, &[KeyValue::new("type", "bar")]);
+                bar_b.add(100, [KeyValue::new("type", "bar")].as_slice().into());
             }),
             builder: ExporterBuilder::default().without_units(),
             expected_files: vec!["conflict_unit_two_updowncounters.txt"],
@@ -640,7 +675,7 @@ fn duplicate_metrics() {
                     .with_description("meter histogram bar")
                     .init();
 
-                bar_a.record(100, &[KeyValue::new("A", "B")]);
+                bar_a.record(100, [KeyValue::new("A", "B")].as_slice().into());
 
                 let bar_b = meter_b
                     .u64_histogram("bar")
@@ -648,7 +683,7 @@ fn duplicate_metrics() {
                     .with_description("meter histogram bar")
                     .init();
 
-                bar_b.record(100, &[KeyValue::new("A", "B")]);
+                bar_b.record(100, [KeyValue::new("A", "B")].as_slice().into());
             }),
             builder: ExporterBuilder::default().without_units(),
             expected_files: vec!["conflict_unit_two_histograms.txt"],
@@ -663,7 +698,7 @@ fn duplicate_metrics() {
                     .with_description("meter foo")
                     .init();
 
-                counter.add(100, &[KeyValue::new("type", "foo")]);
+                counter.add(100, [KeyValue::new("type", "foo")].as_slice().into());
 
                 let gauge = meter_a
                     .i64_up_down_counter("foo_total")
@@ -671,7 +706,7 @@ fn duplicate_metrics() {
                     .with_description("meter foo")
                     .init();
 
-                gauge.add(200, &[KeyValue::new("type", "foo")]);
+                gauge.add(200, [KeyValue::new("type", "foo")].as_slice().into());
             }),
             builder: ExporterBuilder::default().without_units(),
             expected_files: vec![
@@ -689,7 +724,7 @@ fn duplicate_metrics() {
                     .with_description("meter gauge foo")
                     .init();
 
-                foo_a.add(100, &[KeyValue::new("A", "B")]);
+                foo_a.add(100, [KeyValue::new("A", "B")].as_slice().into());
 
                 let foo_histogram_a = meter_a
                     .u64_histogram("foo")
@@ -697,7 +732,7 @@ fn duplicate_metrics() {
                     .with_description("meter histogram foo")
                     .init();
 
-                foo_histogram_a.record(100, &[KeyValue::new("A", "B")]);
+                foo_histogram_a.record(100, [KeyValue::new("A", "B")].as_slice().into());
             }),
             expected_files: vec![
                 "conflict_type_histogram_and_updowncounter_1.txt",
