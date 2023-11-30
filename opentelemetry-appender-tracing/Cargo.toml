@@ -26,3 +26,4 @@ opentelemetry-stdout = { path = "../opentelemetry-stdout", features = ["logs"] }
 experimental_metadata_attributes = []
 logs_level_enabled = ["opentelemetry/logs_level_enabled", "opentelemetry_sdk/logs_level_enabled"]
 default = ["logs_level_enabled"]
+testing = ["opentelemetry_sdk/testing"]
