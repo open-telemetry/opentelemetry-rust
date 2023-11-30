@@ -275,8 +275,7 @@ mod tests {
         let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
         let criteria = Instrument::new().name("my_observable_counter");
         // View drops all attributes.
-        let stream_invalid_aggregation = Stream::new()
-             .allowed_attribute_keys(vec![]);
+        let stream_invalid_aggregation = Stream::new().allowed_attribute_keys(vec![]);
 
         let view =
             new_view(criteria, stream_invalid_aggregation).expect("Expected to create a new view");
@@ -287,43 +286,43 @@ mod tests {
 
         // Act
         let meter = meter_provider.meter("test");
-        let observable_counter = meter
-        .u64_observable_counter("my_observable_counter")
-        .init();
+        let observable_counter = meter.u64_observable_counter("my_observable_counter").init();
 
         // Normally, these callbacks would generate 3 time-series, but since the view
         // drops all attributes, we expect only 1 time-series.
-        meter.register_callback(&[observable_counter.as_any()], move |observer| {
-            observer.observe_u64(
-                &observable_counter,
-                100,
-                [
-                    KeyValue::new("statusCode", "200"),
-                    KeyValue::new("verb", "get"),
-                ]
-                .as_ref(),
-            );
+        meter
+            .register_callback(&[observable_counter.as_any()], move |observer| {
+                observer.observe_u64(
+                    &observable_counter,
+                    100,
+                    [
+                        KeyValue::new("statusCode", "200"),
+                        KeyValue::new("verb", "get"),
+                    ]
+                    .as_ref(),
+                );
 
-            observer.observe_u64(
-                &observable_counter,
-                100,
-                [
-                    KeyValue::new("statusCode", "200"),
-                    KeyValue::new("verb", "post"),
-                ]
-                .as_ref(),
-            );
+                observer.observe_u64(
+                    &observable_counter,
+                    100,
+                    [
+                        KeyValue::new("statusCode", "200"),
+                        KeyValue::new("verb", "post"),
+                    ]
+                    .as_ref(),
+                );
 
-            observer.observe_u64(
-                &observable_counter,
-                100,
-                [
-                    KeyValue::new("statusCode", "500"),
-                    KeyValue::new("verb", "get"),
-                ]
-                .as_ref(),
-            );
-        }).expect("Expected to register callback");
+                observer.observe_u64(
+                    &observable_counter,
+                    100,
+                    [
+                        KeyValue::new("statusCode", "500"),
+                        KeyValue::new("verb", "get"),
+                    ]
+                    .as_ref(),
+                );
+            })
+            .expect("Expected to register callback");
 
         meter_provider.force_flush().unwrap();
 
@@ -333,9 +332,7 @@ mod tests {
             .expect("metrics are expected to be exported.");
         assert!(!resource_metrics.is_empty());
         let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
-        assert_eq!(
-            metric.name, "my_observable_counter",
-        );
+        assert_eq!(metric.name, "my_observable_counter",);
 
         let sum = metric
             .data
@@ -354,15 +351,14 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     #[ignore = "Spatial aggregation is not yet implemented."]
     async fn spatial_aggregation_when_view_drops_attributes_counter() {
-    // cargo test spatial_aggregation_when_view_drops_attributes_counter --features=metrics,testing
+        // cargo test spatial_aggregation_when_view_drops_attributes_counter --features=metrics,testing
 
         // Arrange
         let exporter = InMemoryMetricsExporter::default();
         let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
         let criteria = Instrument::new().name("my_counter");
         // View drops all attributes.
-        let stream_invalid_aggregation = Stream::new()
-             .allowed_attribute_keys(vec![]);
+        let stream_invalid_aggregation = Stream::new().allowed_attribute_keys(vec![]);
 
         let view =
             new_view(criteria, stream_invalid_aggregation).expect("Expected to create a new view");
@@ -412,9 +408,7 @@ mod tests {
             .expect("metrics are expected to be exported.");
         assert!(!resource_metrics.is_empty());
         let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
-        assert_eq!(
-            metric.name, "my_counter",
-        );
+        assert_eq!(metric.name, "my_counter",);
 
         let sum = metric
             .data
