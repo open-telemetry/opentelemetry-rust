@@ -209,4 +209,57 @@ mod tests {
         let datapoint = &sum.data_points[0];
         assert_eq!(datapoint.value, 15);
     }
+
+    // "multi_thread" tokio flavor must be used else flush won't
+    // be able to make progress!
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn histogram_aggregation_with_invalid_aggregation_should_proceed_as_if_view_not_exist() {
+        // Run this test with stdout enabled to see output.
+        // cargo test histogram_aggregation_with_invalid_aggregation_should_proceed_as_if_view_not_exist --features=metrics,testing -- --nocapture
+
+        // Arrange
+        let exporter = InMemoryMetricsExporter::default();
+        let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
+        let criteria = Instrument::new().name("test_histogram");
+        let stream_invalid_aggregation = Stream::new()
+            .aggregation(Aggregation::ExplicitBucketHistogram {
+                boundaries: vec![0.9, 1.9, 1.2, 1.3, 1.4, 1.5], // invalid boundaries
+                record_min_max: false,
+            })
+            .name("test_histogram_renamed")
+            .unit(Unit::new("test_unit_renamed"));
+
+        let view =
+            new_view(criteria, stream_invalid_aggregation).expect("Expected to create a new view");
+        let meter_provider = SdkMeterProvider::builder()
+            .with_reader(reader)
+            .with_view(view)
+            .build();
+
+        // Act
+        let meter = meter_provider.meter("test");
+        let histogram = meter
+            .f64_histogram("test_histogram")
+            .with_unit(Unit::new("test_unit"))
+            .init();
+
+        histogram.record(1.5, &[KeyValue::new("key1", "value1")]);
+        meter_provider.force_flush().unwrap();
+
+        // Assert
+        let resource_metrics = exporter
+            .get_finished_metrics()
+            .expect("metrics are expected to be exported.");
+        assert!(!resource_metrics.is_empty());
+        let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
+        assert_eq!(
+            metric.name, "test_histogram",
+            "View rename should be ignored and original name retained."
+        );
+        assert_eq!(
+            metric.unit.as_str(),
+            "test_unit",
+            "View rename of unit should be ignored and original unit retained."
+        );
+    }
 }
