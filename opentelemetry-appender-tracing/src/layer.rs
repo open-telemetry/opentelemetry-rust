@@ -145,9 +145,9 @@ const fn severity_of_level(level: &Level) -> Severity {
 mod tests {
     use crate::layer;
     use opentelemetry::logs::Severity;
-    use opentelemetry::trace::{TraceId, Tracer, TraceContextExt, SpanId, TraceFlags};
-    use opentelemetry::{logs::AnyValue, Key};
     use opentelemetry::trace::TracerProvider as _;
+    use opentelemetry::trace::{SpanId, TraceContextExt, TraceFlags, TraceId, Tracer};
+    use opentelemetry::{logs::AnyValue, Key};
     use opentelemetry_sdk::logs::LoggerProvider;
     use opentelemetry_sdk::testing::logs::InMemoryLogsExporter;
     use opentelemetry_sdk::trace::{config, Sampler, TracerProvider};
@@ -165,12 +165,12 @@ mod tests {
 
         let layer = layer::OpenTelemetryTracingBridge::new(&logger_provider);
         let subscriber = tracing_subscriber::registry().with(layer);
-        
-        // avoiding setting tracing subscriber as global as that does not 
+
+        // avoiding setting tracing subscriber as global as that does not
         // play well with unit tests.
         let _guard = tracing::subscriber::set_default(subscriber);
-        
-        // Act        
+
+        // Act
         error!(name: "my-event-name", target: "my-system", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io");
         logger_provider.force_flush();
 
@@ -214,7 +214,7 @@ mod tests {
         let layer = layer::OpenTelemetryTracingBridge::new(&logger_provider);
         let subscriber = tracing_subscriber::registry().with(layer);
 
-        // avoiding setting tracing subscriber as global as that does not 
+        // avoiding setting tracing subscriber as global as that does not
         // play well with unit tests.
         let _guard = tracing::subscriber::set_default(subscriber);
 
@@ -226,8 +226,8 @@ mod tests {
 
         let mut trace_id_expected = TraceId::from_hex("1").unwrap();
         let mut span_id_expected = SpanId::from_hex("1").unwrap();
-        
-        // Act        
+
+        // Act
         tracer.in_span("test-span", |cx| {            
             trace_id_expected = cx.span().span_context().trace_id();
             span_id_expected = cx.span().span_context().span_id();
@@ -253,9 +253,23 @@ mod tests {
 
         // validate trace context.
         assert!(log.record.trace_context.is_some());
-        assert_eq!(log.record.trace_context.as_ref().unwrap().trace_id, trace_id_expected);
-        assert_eq!(log.record.trace_context.as_ref().unwrap().span_id, span_id_expected);
-        assert_eq!(log.record.trace_context.as_ref().unwrap().trace_flags.unwrap(), TraceFlags::SAMPLED);
+        assert_eq!(
+            log.record.trace_context.as_ref().unwrap().trace_id,
+            trace_id_expected
+        );
+        assert_eq!(
+            log.record.trace_context.as_ref().unwrap().span_id,
+            span_id_expected
+        );
+        assert_eq!(
+            log.record
+                .trace_context
+                .as_ref()
+                .unwrap()
+                .trace_flags
+                .unwrap(),
+            TraceFlags::SAMPLED
+        );
 
         // validate attributes.
         let attributes: Vec<(Key, AnyValue)> = log
