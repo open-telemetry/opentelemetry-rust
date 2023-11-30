@@ -70,7 +70,6 @@ static COMMON_ATTRIBUTES: Lazy<AttributeSet> = Lazy::new(|| {
         KeyValue::new("B", "2"),
         KeyValue::new("C", "3"),
     ]
-    .as_slice()
     .into()
 });
 

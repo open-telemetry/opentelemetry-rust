@@ -124,13 +124,39 @@ impl InternalAttributeSet {
             hash: hasher.finish(),
         }
     }
+
+    fn from_key_values<T: IntoIterator<Item = KeyValue>>(iter: T) -> Self
+    where
+        <T as IntoIterator>::IntoIter: DoubleEndedIterator + ExactSizeIterator,
+    {
+        // Note: this doesn't implement `FromIter` because of the additional constraints
+        let iter = iter.into_iter();
+        let mut seen_keys = HashSet::with_capacity(iter.len());
+        let vec = iter
+            .into_iter()
+            .rev()
+            .filter_map(|kv| {
+                if seen_keys.insert(kv.key.clone()) {
+                    Some(HashKeyValue(kv.clone()))
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
+
+        InternalAttributeSet::new(vec)
+    }
 }
 
-impl From<&[KeyValue]> for InternalAttributeSet {
-    fn from(values: &[KeyValue]) -> Self {
-        let mut seen_keys = HashSet::with_capacity(values.len());
-        let vec = values
-            .iter()
+impl<I: IntoIterator<Item = KeyValue>> From<I> for InternalAttributeSet
+where
+    <I as IntoIterator>::IntoIter: DoubleEndedIterator + ExactSizeIterator,
+{
+    fn from(value: I) -> Self {
+        let iter = value.into_iter();
+        let mut seen_keys = HashSet::with_capacity(iter.len());
+        let vec = iter
+            .into_iter()
             .rev()
             .filter_map(|kv| {
                 if seen_keys.insert(kv.key.clone()) {
@@ -158,13 +184,24 @@ impl Hash for InternalAttributeSet {
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct AttributeSet(Arc<InternalAttributeSet>);
 
-impl From<&[KeyValue]> for AttributeSet {
-    fn from(values: &[KeyValue]) -> Self {
+impl<I: IntoIterator<Item = KeyValue>> From<I> for AttributeSet
+where
+    <I as IntoIterator>::IntoIter: DoubleEndedIterator + ExactSizeIterator,
+{
+    fn from(values: I) -> Self {
         AttributeSet(Arc::new(InternalAttributeSet::from(values)))
     }
 }
 
 impl AttributeSet {
+    /// Creates an attribute set from an iterator of `KeyValue`s
+    pub fn from_key_values<T: IntoIterator<Item = KeyValue>>(iter: T) -> Self
+    where
+        <T as IntoIterator>::IntoIter: DoubleEndedIterator + ExactSizeIterator,
+    {
+        AttributeSet(Arc::new(InternalAttributeSet::from_key_values(iter)))
+    }
+
     /// Returns the number of elements in the set.
     pub fn len(&self) -> usize {
         self.0.key_values.len()

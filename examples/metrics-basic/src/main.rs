@@ -38,7 +38,6 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
             KeyValue::new("mykey1", "myvalue1"),
             KeyValue::new("mykey2", "myvalue2"),
         ]
-        .as_slice()
         .into(),
     );
 
@@ -57,7 +56,6 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
                 KeyValue::new("mykey1", "myvalue1"),
                 KeyValue::new("mykey2", "myvalue2"),
             ]
-            .as_slice()
             .into(),
         )
     })?;
@@ -72,7 +70,6 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
             KeyValue::new("mykey1", "myvalue1"),
             KeyValue::new("mykey2", "myvalue2"),
         ]
-        .as_slice()
         .into(),
     );
 
@@ -91,7 +88,6 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
                 KeyValue::new("mykey1", "myvalue1"),
                 KeyValue::new("mykey2", "myvalue2"),
             ]
-            .as_slice()
             .into(),
         )
     })?;
@@ -109,7 +105,6 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
             KeyValue::new("mykey1", "myvalue1"),
             KeyValue::new("mykey2", "myvalue2"),
         ]
-        .as_slice()
         .into(),
     );
 
@@ -131,7 +126,6 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
                 KeyValue::new("mykey1", "myvalue1"),
                 KeyValue::new("mykey2", "myvalue2"),
             ]
-            .as_slice()
             .into(),
         )
     })?;

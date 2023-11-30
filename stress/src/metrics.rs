@@ -42,7 +42,6 @@ fn test_counter() {
             KeyValue::new("attribute2", ATTRIBUTE_VALUES[index_second_attribute]),
             KeyValue::new("attribute3", ATTRIBUTE_VALUES[index_third_attribute]),
         ]
-        .as_slice()
         .into(),
     );
 }

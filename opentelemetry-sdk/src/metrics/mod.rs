@@ -32,7 +32,7 @@
 //!     .init();
 //!
 //! // use instruments to record measurements
-//! let attributes = AttributeSet::from([KeyValue::new("rate", "standard")].as_slice());
+//! let attributes = AttributeSet::from([KeyValue::new("rate", "standard")]);
 //! counter.add(10, attributes);
 //! ```
 //!
@@ -88,15 +88,15 @@ mod tests {
             .u64_counter("my_counter")
             .with_unit(Unit::new("my_unit"))
             .init();
-        counter.add(1, [KeyValue::new("key1", "value1")].as_slice().into());
-        counter.add(1, [KeyValue::new("key1", "value1")].as_slice().into());
-        counter.add(1, [KeyValue::new("key1", "value1")].as_slice().into());
-        counter.add(1, [KeyValue::new("key1", "value1")].as_slice().into());
-        counter.add(1, [KeyValue::new("key1", "value1")].as_slice().into());
+        counter.add(1, [KeyValue::new("key1", "value1")].into());
+        counter.add(1, [KeyValue::new("key1", "value1")].into());
+        counter.add(1, [KeyValue::new("key1", "value1")].into());
+        counter.add(1, [KeyValue::new("key1", "value1")].into());
+        counter.add(1, [KeyValue::new("key1", "value1")].into());
 
-        counter.add(1, [KeyValue::new("key1", "value2")].as_slice().into());
-        counter.add(1, [KeyValue::new("key1", "value2")].as_slice().into());
-        counter.add(1, [KeyValue::new("key1", "value2")].as_slice().into());
+        counter.add(1, [KeyValue::new("key1", "value2")].into());
+        counter.add(1, [KeyValue::new("key1", "value2")].into());
+        counter.add(1, [KeyValue::new("key1", "value2")].into());
 
         meter_provider.force_flush().unwrap();
 
@@ -183,7 +183,7 @@ mod tests {
             .with_description("my_description")
             .init();
 
-        let attribute = AttributeSet::from([KeyValue::new("key1", "value1")].as_slice());
+        let attribute = AttributeSet::from([KeyValue::new("key1", "value1")]);
         counter.add(10, attribute.clone());
         counter_duplicated.add(5, attribute);
 

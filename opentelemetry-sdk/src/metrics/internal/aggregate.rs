@@ -16,7 +16,7 @@ use super::{
 const STREAM_CARDINALITY_LIMIT: u32 = 2000;
 pub(crate) static STREAM_OVERFLOW_ATTRIBUTE_SET: Lazy<AttributeSet> = Lazy::new(|| {
     let key_values: [KeyValue; 1] = [KeyValue::new("otel.metric.overflow", "true")];
-    AttributeSet::from(&key_values[..])
+    AttributeSet::from(key_values)
 });
 
 /// Checks whether aggregator has hit cardinality limit for metric streams

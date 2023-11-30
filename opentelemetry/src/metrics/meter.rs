@@ -83,7 +83,7 @@ pub trait MeterProvider {
 /// let attributes = AttributeSet::from([
 ///         KeyValue::new("mykey1", "myvalue1"),
 ///         KeyValue::new("mykey2", "myvalue2"),
-///     ].as_slice());
+///     ]);
 ///
 /// // Record measurements using the counter instrument add()
 /// u64_counter.add(10, attributes.clone());

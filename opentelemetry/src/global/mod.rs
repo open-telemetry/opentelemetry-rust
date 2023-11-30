@@ -108,7 +108,7 @@
 //!     let counter = meter.u64_counter("my_counter").init();
 //!
 //!     // record metrics
-//!     let attributes = AttributeSet::from([KeyValue::new("mykey", "myvalue")].as_slice());
+//!     let attributes = AttributeSet::from([KeyValue::new("mykey", "myvalue")]);
 //!     counter.add(1, attributes);
 //! }
 //!
@@ -132,7 +132,7 @@
 //!     let counter = tracer.u64_counter("my_counter").init();
 //!
 //!     // record metrics
-//!     let attributes = AttributeSet::from([KeyValue::new("mykey", "myvalue")].as_slice());
+//!     let attributes = AttributeSet::from([KeyValue::new("mykey", "myvalue")]);
 //!     counter.add(1, attributes);
 //! }
 //! # }

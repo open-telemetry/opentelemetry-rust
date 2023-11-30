@@ -15,7 +15,7 @@ use std::convert::Infallible;
 use std::sync::Arc;
 use std::time::SystemTime;
 
-static HANDLER_ALL: Lazy<[KeyValue; 1]> = Lazy::new(|| [KeyValue::new("handler", "all")]);
+static HANDLER_ALL: Lazy<AttributeSet> = Lazy::new(|| [KeyValue::new("handler", "all")].into());
 
 async fn serve_req(
     req: Request<Body>,
@@ -24,7 +24,7 @@ async fn serve_req(
     println!("Receiving request at path {}", req.uri());
     let request_start = SystemTime::now();
 
-    state.http_counter.add(1, HANDLER_ALL.as_ref().into());
+    state.http_counter.add(1, HANDLER_ALL.clone());
 
     let response = match (req.method(), req.uri().path()) {
         (&Method::GET, "/metrics") => {
@@ -34,7 +34,7 @@ async fn serve_req(
             encoder.encode(&metric_families, &mut buffer).unwrap();
             state
                 .http_body_gauge
-                .record(buffer.len() as u64, HANDLER_ALL.as_ref().into());
+                .record(buffer.len() as u64, HANDLER_ALL.clone());
 
             Response::builder()
                 .status(200)
