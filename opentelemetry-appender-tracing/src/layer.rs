@@ -273,7 +273,6 @@ mod tests {
         assert_eq!(attributes.len(), 4);
         #[cfg(feature = "experimental_metadata_attributes")]
         assert_eq!(attributes.len(), 9);
-        println!("{:?}", attributes);
         assert!(attributes.contains(&(Key::new("name"), "my-event-name".into())));
         assert!(attributes.contains(&(Key::new("event_id"), 20.into())));
         assert!(attributes.contains(&(Key::new("user_name"), "otel".into())));
@@ -382,5 +381,145 @@ mod tests {
             // Ex.: The path will be different on a Windows and Linux machine.
             // Ex.: The line can change easily if someone makes changes in this source file.
         }
+    }
+
+    #[cfg(feature = "experimental_metadata_attributes")]
+    #[test]
+    fn tracing_appender_standalone_with_tracing_log() {
+        // Arrange
+        let exporter: InMemoryLogsExporter = InMemoryLogsExporter::default();
+        let logger_provider = LoggerProvider::builder()
+            .with_simple_exporter(exporter.clone())
+            .build();
+
+        let layer = layer::OpenTelemetryTracingBridge::new(&logger_provider);
+        let subscriber = tracing_subscriber::registry().with(layer);
+
+        // avoiding setting tracing subscriber as global as that does not
+        // play well with unit tests.
+        let _guard = tracing::subscriber::set_default(subscriber);
+        drop(tracing_log::LogTracer::init());
+
+        // Act
+        log::error!("log from log crate");
+        logger_provider.force_flush();
+
+        // Assert TODO: move to helper methods
+        let exported_logs = exporter
+            .get_emitted_logs()
+            .expect("Logs are expected to be exported.");
+        assert_eq!(exported_logs.len(), 1);
+        let log = exported_logs
+            .get(0)
+            .expect("Atleast one log is expected to be present.");
+
+        // Validate common fields
+        assert_eq!(log.instrumentation.name, "opentelemetry-appender-tracing");
+        assert_eq!(log.record.severity_number, Some(Severity::Error));
+
+        // Validate trace context is none.
+        assert!(log.record.trace_context.is_none());
+
+        // Validate attributes
+        let attributes: Vec<(Key, AnyValue)> = log
+            .record
+            .attributes
+            .clone()
+            .expect("Attributes are expected");
+        assert_eq!(attributes.len(), 6);
+        assert!(attributes.contains(&(Key::new("name"), "log event".into())));
+        assert!(attributes.contains(&(Key::new("log.source.file.name"), "layer.rs".into())));
+        assert!(attributes.contains(&(
+            Key::new("log.module.path"),
+            "opentelemetry_appender_tracing::layer::tests".into()
+        )));
+        // The other 3 experimental_metadata_attributes are too unstable to check statically.
+        // Ex.: The path will be different on a Windows and Linux machine.
+        // Ex.: The line can change easily if someone makes changes in this source file.
+    }
+
+    #[cfg(feature = "experimental_metadata_attributes")]
+    #[test]
+    fn tracing_appender_inside_tracing_context_with_tracing_log() {
+        // Arrange
+        let exporter: InMemoryLogsExporter = InMemoryLogsExporter::default();
+        let logger_provider = LoggerProvider::builder()
+            .with_simple_exporter(exporter.clone())
+            .build();
+
+        let layer = layer::OpenTelemetryTracingBridge::new(&logger_provider);
+        let subscriber = tracing_subscriber::registry().with(layer);
+
+        // avoiding setting tracing subscriber as global as that does not
+        // play well with unit tests.
+        let _guard = tracing::subscriber::set_default(subscriber);
+
+        // setup tracing as well.
+        let tracer_provider = TracerProvider::builder()
+            .with_config(config().with_sampler(Sampler::AlwaysOn))
+            .build();
+        let tracer = tracer_provider.tracer("test-tracer");
+
+        // Act
+        let (trace_id_expected, span_id_expected) = tracer.in_span("test-span", |cx| {
+            let trace_id = cx.span().span_context().trace_id();
+            let span_id = cx.span().span_context().span_id();
+
+            // logging is done inside span context.
+            log::error!("log from log crate");
+            (trace_id, span_id)
+        });
+
+        logger_provider.force_flush();
+
+        // Assert TODO: move to helper methods
+        let exported_logs = exporter
+            .get_emitted_logs()
+            .expect("Logs are expected to be exported.");
+        assert_eq!(exported_logs.len(), 1);
+        let log = exported_logs
+            .get(0)
+            .expect("Atleast one log is expected to be present.");
+
+        // validate common fields.
+        assert_eq!(log.instrumentation.name, "opentelemetry-appender-tracing");
+        assert_eq!(log.record.severity_number, Some(Severity::Error));
+
+        // validate trace context.
+        assert!(log.record.trace_context.is_some());
+        assert_eq!(
+            log.record.trace_context.as_ref().unwrap().trace_id,
+            trace_id_expected
+        );
+        assert_eq!(
+            log.record.trace_context.as_ref().unwrap().span_id,
+            span_id_expected
+        );
+        assert_eq!(
+            log.record
+                .trace_context
+                .as_ref()
+                .unwrap()
+                .trace_flags
+                .unwrap(),
+            TraceFlags::SAMPLED
+        );
+
+        // validate attributes.
+        let attributes: Vec<(Key, AnyValue)> = log
+            .record
+            .attributes
+            .clone()
+            .expect("Attributes are expected");
+        assert_eq!(attributes.len(), 6);
+        assert!(attributes.contains(&(Key::new("name"), "log event".into())));
+        assert!(attributes.contains(&(Key::new("log.source.file.name"), "layer.rs".into())));
+        assert!(attributes.contains(&(
+            Key::new("log.module.path"),
+            "opentelemetry_appender_tracing::layer::tests".into()
+        )));
+        // The other 3 experimental_metadata_attributes are too unstable to check statically.
+        // Ex.: The path will be different on a Windows and Linux machine.
+        // Ex.: The line can change easily if someone makes changes in this source file.
     }
 }

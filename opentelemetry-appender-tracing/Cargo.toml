@@ -11,6 +11,7 @@ license = "Apache-2.0"
 rust-version = "1.65"
 
 [dependencies]
+log = { version = "0.4", optional = true }
 opentelemetry = { version = "0.21", path = "../opentelemetry", features = ["logs"] }
 opentelemetry_sdk = { version = "0.21", path = "../opentelemetry-sdk", features = ["logs"] }
 tracing = {version = "0.1", default-features = false, features = ["std"]}
@@ -26,4 +27,4 @@ opentelemetry-stdout = { path = "../opentelemetry-stdout", features = ["logs"] }
 experimental_metadata_attributes = ["dep:tracing-log"]
 logs_level_enabled = ["opentelemetry/logs_level_enabled", "opentelemetry_sdk/logs_level_enabled"]
 default = ["logs_level_enabled"]
-testing = ["opentelemetry_sdk/testing"]
+testing = ["opentelemetry_sdk/testing", "log"]
