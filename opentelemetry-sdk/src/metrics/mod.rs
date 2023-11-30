@@ -347,11 +347,7 @@ mod tests {
 
         // find and validate the single datapoint
         let data_point = &sum.data_points[0];
-        assert_eq!(
-            data_point
-                .value,
-            300
-        );
+        assert_eq!(data_point.value, 300);
     }
 
     // "multi_thread" tokio flavor must be used else flush won't
@@ -430,10 +426,6 @@ mod tests {
         assert_eq!(sum.data_points.len(), 1);
         // find and validate the single datapoint
         let data_point = &sum.data_points[0];
-        assert_eq!(
-            data_point
-                .value,
-            30
-        );
+        assert_eq!(data_point.value, 30);
     }
 }
