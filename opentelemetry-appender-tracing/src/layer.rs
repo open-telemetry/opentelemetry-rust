@@ -4,6 +4,7 @@ use opentelemetry::{
 };
 use std::borrow::Cow;
 use tracing_core::{Level, Metadata};
+#[cfg(feature = "experimental_metadata_attributes")]
 use tracing_log::NormalizeEvent;
 use tracing_subscriber::Layer;
 
@@ -167,8 +168,14 @@ where
         event: &tracing::Event<'_>,
         _ctx: tracing_subscriber::layer::Context<'_, S>,
     ) {
+        #[cfg(feature = "experimental_metadata_attributes")]
         let normalized_meta = event.normalized_metadata();
+        #[cfg(feature = "experimental_metadata_attributes")]
         let meta = normalized_meta.as_ref().unwrap_or_else(|| event.metadata());
+
+        #[cfg(not(feature = "experimental_metadata_attributes"))]
+        let meta = event.metadata();
+
         let mut log_record: LogRecord = LogRecord::default();
         log_record.severity_number = Some(severity_of_level(meta.level()));
         log_record.severity_text = Some(meta.level().to_string().into());

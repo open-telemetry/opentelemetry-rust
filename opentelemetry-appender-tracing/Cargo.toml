@@ -15,7 +15,7 @@ opentelemetry = { version = "0.21", path = "../opentelemetry", features = ["logs
 opentelemetry_sdk = { version = "0.21", path = "../opentelemetry-sdk", features = ["logs"] }
 tracing = {version = "0.1", default-features = false, features = ["std"]}
 tracing-core = "0.1"
-tracing-log = "0.2"
+tracing-log = { version = "0.2", optional = true }
 tracing-subscriber = { version = "0.3", default-features = false, features = ["registry", "std"] }
 once_cell = "1.13.0"
 
@@ -23,7 +23,7 @@ once_cell = "1.13.0"
 opentelemetry-stdout = { path = "../opentelemetry-stdout", features = ["logs"] }
 
 [features]
-experimental_metadata_attributes = []
+experimental_metadata_attributes = ["dep:tracing-log"]
 logs_level_enabled = ["opentelemetry/logs_level_enabled", "opentelemetry_sdk/logs_level_enabled"]
 default = ["logs_level_enabled"]
 testing = ["opentelemetry_sdk/testing"]
