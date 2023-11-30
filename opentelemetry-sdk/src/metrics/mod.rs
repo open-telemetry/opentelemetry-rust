@@ -344,6 +344,14 @@ mod tests {
         // in a single time-series.
         // This is failing today, due to lack of support for spatial aggregation.
         assert_eq!(sum.data_points.len(), 1);
+
+        // find and validate the single datapoint
+        let data_point = &sum.data_points[0];
+        assert_eq!(
+            data_point
+                .value,
+            300
+        );
     }
 
     // "multi_thread" tokio flavor must be used else flush won't
@@ -420,5 +428,12 @@ mod tests {
         // in a single time-series.
         // This is failing today, due to lack of support for spatial aggregation.
         assert_eq!(sum.data_points.len(), 1);
+        // find and validate the single datapoint
+        let data_point = &sum.data_points[0];
+        assert_eq!(
+            data_point
+                .value,
+            30
+        );
     }
 }
