@@ -146,7 +146,7 @@ mod tests {
     use crate::layer;
     use opentelemetry::logs::Severity;
     use opentelemetry::trace::TracerProvider as _;
-    use opentelemetry::trace::{SpanId, TraceContextExt, TraceFlags, TraceId, Tracer};
+    use opentelemetry::trace::{TraceContextExt, TraceFlags, Tracer};
     use opentelemetry::{logs::AnyValue, Key};
     use opentelemetry_sdk::logs::LoggerProvider;
     use opentelemetry_sdk::testing::logs::InMemoryLogsExporter;
@@ -224,16 +224,14 @@ mod tests {
             .build();
         let tracer = tracer_provider.tracer("test-tracer");
 
-        let mut trace_id_expected = TraceId::from_hex("1").unwrap();
-        let mut span_id_expected = SpanId::from_hex("1").unwrap();
-
         // Act
-        tracer.in_span("test-span", |cx| {            
-            trace_id_expected = cx.span().span_context().trace_id();
-            span_id_expected = cx.span().span_context().span_id();
+        let (trace_id_expected, span_id_expected) = tracer.in_span("test-span", |cx| {
+            let trace_id = cx.span().span_context().trace_id();
+            let span_id = cx.span().span_context().span_id();
 
             // logging is done inside span context.
             error!(name: "my-event-name", target: "my-system", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io");
+           (trace_id, span_id)
         });
 
         logger_provider.force_flush();
