@@ -383,7 +383,6 @@ mod tests {
         }
     }
 
-    #[cfg(feature = "experimental_metadata_attributes")]
     #[test]
     fn tracing_appender_standalone_with_tracing_log() {
         // Arrange
@@ -426,19 +425,26 @@ mod tests {
             .attributes
             .clone()
             .expect("Attributes are expected");
+
+        // Attributes can be polluted when we don't use this feature.
+        #[cfg(feature = "experimental_metadata_attributes")]
         assert_eq!(attributes.len(), 6);
+
         assert!(attributes.contains(&(Key::new("name"), "log event".into())));
-        assert!(attributes.contains(&(Key::new("log.source.file.name"), "layer.rs".into())));
-        assert!(attributes.contains(&(
-            Key::new("log.module.path"),
-            "opentelemetry_appender_tracing::layer::tests".into()
-        )));
-        // The other 3 experimental_metadata_attributes are too unstable to check statically.
-        // Ex.: The path will be different on a Windows and Linux machine.
-        // Ex.: The line can change easily if someone makes changes in this source file.
+
+        #[cfg(feature = "experimental_metadata_attributes")]
+        {
+            assert!(attributes.contains(&(Key::new("log.source.file.name"), "layer.rs".into())));
+            assert!(attributes.contains(&(
+                Key::new("log.module.path"),
+                "opentelemetry_appender_tracing::layer::tests".into()
+            )));
+            // The other 3 experimental_metadata_attributes are too unstable to check statically.
+            // Ex.: The path will be different on a Windows and Linux machine.
+            // Ex.: The line can change easily if someone makes changes in this source file.
+        }
     }
 
-    #[cfg(feature = "experimental_metadata_attributes")]
     #[test]
     fn tracing_appender_inside_tracing_context_with_tracing_log() {
         // Arrange
@@ -453,6 +459,7 @@ mod tests {
         // avoiding setting tracing subscriber as global as that does not
         // play well with unit tests.
         let _guard = tracing::subscriber::set_default(subscriber);
+        drop(tracing_log::LogTracer::init());
 
         // setup tracing as well.
         let tracer_provider = TracerProvider::builder()
@@ -511,15 +518,23 @@ mod tests {
             .attributes
             .clone()
             .expect("Attributes are expected");
+
+        // Attributes can be polluted when we don't use this feature.
+        #[cfg(feature = "experimental_metadata_attributes")]
         assert_eq!(attributes.len(), 6);
+
         assert!(attributes.contains(&(Key::new("name"), "log event".into())));
-        assert!(attributes.contains(&(Key::new("log.source.file.name"), "layer.rs".into())));
-        assert!(attributes.contains(&(
-            Key::new("log.module.path"),
-            "opentelemetry_appender_tracing::layer::tests".into()
-        )));
-        // The other 3 experimental_metadata_attributes are too unstable to check statically.
-        // Ex.: The path will be different on a Windows and Linux machine.
-        // Ex.: The line can change easily if someone makes changes in this source file.
+
+        #[cfg(feature = "experimental_metadata_attributes")]
+        {
+            assert!(attributes.contains(&(Key::new("log.source.file.name"), "layer.rs".into())));
+            assert!(attributes.contains(&(
+                Key::new("log.module.path"),
+                "opentelemetry_appender_tracing::layer::tests".into()
+            )));
+            // The other 3 experimental_metadata_attributes are too unstable to check statically.
+            // Ex.: The path will be different on a Windows and Linux machine.
+            // Ex.: The line can change easily if someone makes changes in this source file.
+        }
     }
 }
