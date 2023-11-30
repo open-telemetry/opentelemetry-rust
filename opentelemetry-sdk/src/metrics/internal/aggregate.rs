@@ -1,11 +1,10 @@
 use std::{marker, sync::Arc};
 
 use once_cell::sync::Lazy;
-use opentelemetry::KeyValue;
+use opentelemetry::{KeyValue, attributes::AttributeSet};
 
 use crate::{
     metrics::data::{Aggregation, Gauge, Temporality},
-    AttributeSet,
 };
 
 use super::{

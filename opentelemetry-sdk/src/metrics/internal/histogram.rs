@@ -1,8 +1,8 @@
 use std::{collections::HashMap, sync::Mutex, time::SystemTime};
 
 use crate::metrics::data::{self, Aggregation, Temporality};
-use crate::{attributes::AttributeSet, metrics::data::HistogramDataPoint};
-use opentelemetry::{global, metrics::MetricsError};
+use crate::{metrics::data::HistogramDataPoint};
+use opentelemetry::{attributes::AttributeSet, global, metrics::MetricsError};
 
 use super::{
     aggregate::{is_under_cardinality_limit, STREAM_OVERFLOW_ATTRIBUTE_SET},

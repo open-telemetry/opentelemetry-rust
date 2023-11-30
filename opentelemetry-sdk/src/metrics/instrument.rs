@@ -1,6 +1,7 @@
 use std::{any::Any, borrow::Cow, collections::HashSet, hash::Hash, marker, sync::Arc};
 
 use opentelemetry::{
+    attributes::AttributeSet,
     metrics::{
         AsyncInstrument, MetricsError, Result, SyncCounter, SyncHistogram, SyncUpDownCounter, Unit,
     },
@@ -8,7 +9,6 @@ use opentelemetry::{
 };
 
 use crate::{
-    attributes::AttributeSet,
     instrumentation::Scope,
     metrics::{aggregation::Aggregation, internal::Measure},
 };
