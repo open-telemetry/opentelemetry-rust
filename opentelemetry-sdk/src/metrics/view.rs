@@ -139,7 +139,7 @@ pub fn new_view(criteria: Instrument, mask: Stream) -> Result<Box<dyn View>> {
             Ok(_) => agg = Some(ma.clone()),
             Err(err) => {
                 global::handle_error(MetricsError::Other(format!(
-                    "{}, Proceeding as if View did not exist. criteria: {:?}, mask: {:?}",
+                    "{}, proceeding as if view did not exist. criteria: {:?}, mask: {:?}",
                     err, err_msg_criteria, mask
                 )));
                 return Ok(Box::new(empty_view));
