@@ -1,4 +1,5 @@
 use criterion::{criterion_group, criterion_main, Criterion};
+use opentelemetry::attributes::AttributeSet;
 use opentelemetry::{
     metrics::{Counter, MeterProvider as _},
     KeyValue,
@@ -67,6 +68,19 @@ fn counter_add(c: &mut Criterion) {
                 ]
                 .into(),
             );
+        });
+    });
+
+    c.bench_function("Counter_Add_Cached_Attributes", |b| {
+        let attributes = AttributeSet::from([
+            KeyValue::new("attribute2", attribute_values[0]),
+            KeyValue::new("attribute3", attribute_values[1]),
+            KeyValue::new("attribute1", attribute_values[2]),
+            KeyValue::new("attribute4", attribute_values[3]),
+        ]);
+
+        b.iter(|| {
+            counter.add(1, attributes);
         });
     });
 }

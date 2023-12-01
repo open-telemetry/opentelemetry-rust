@@ -179,6 +179,9 @@ impl Hash for InternalAttributeSet {
 
 /// A unique set of attributes that can be used as instrument identifiers.
 ///
+/// Cloning of an attribute set is cheap, as all clones share a reference to the underlying
+/// attribute data.
+///
 /// This must implement [Hash], [PartialEq], and [Eq] so it may be used as
 /// HashMap keys and other de-duplication methods.
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
