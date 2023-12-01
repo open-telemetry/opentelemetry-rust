@@ -44,13 +44,16 @@ if rustup component add clippy; then
   cargo_feature opentelemetry-proto "full"
   cargo_feature opentelemetry-proto "gen-tonic,trace"
   cargo_feature opentelemetry-proto "gen-tonic,trace,with-serde"
+  cargo_feature opentelemetry-proto "gen-tonic,trace,with-schemars,with-serde"
   cargo_feature opentelemetry-proto "gen-tonic,metrics"
   cargo_feature opentelemetry-proto "gen-tonic,logs"
   cargo_feature opentelemetry-proto "gen-grpcio,trace"
   cargo_feature opentelemetry-proto "gen-grpcio,trace,with-serde"
+  cargo_feature opentelemetry-proto "gen-grpcio,trace,with-schemars,with-serde"
   cargo_feature opentelemetry-proto "gen-grpcio,metrics"
   cargo_feature opentelemetry-proto "gen-grpcio,logs"
   cargo_feature opentelemetry-proto "gen-grpcio,zpages"
   cargo_feature opentelemetry-proto "gen-grpcio,zpages,with-serde"
+  cargo_feature opentelemetry-proto "gen-grpcio,zpages,with-schemars,with-serde"
 
 fi

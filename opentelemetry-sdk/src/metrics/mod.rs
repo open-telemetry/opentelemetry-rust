@@ -212,4 +212,223 @@ mod tests {
         let datapoint = &sum.data_points[0];
         assert_eq!(datapoint.value, 15);
     }
+
+    // "multi_thread" tokio flavor must be used else flush won't
+    // be able to make progress!
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn histogram_aggregation_with_invalid_aggregation_should_proceed_as_if_view_not_exist() {
+        // Run this test with stdout enabled to see output.
+        // cargo test histogram_aggregation_with_invalid_aggregation_should_proceed_as_if_view_not_exist --features=metrics,testing -- --nocapture
+
+        // Arrange
+        let exporter = InMemoryMetricsExporter::default();
+        let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
+        let criteria = Instrument::new().name("test_histogram");
+        let stream_invalid_aggregation = Stream::new()
+            .aggregation(Aggregation::ExplicitBucketHistogram {
+                boundaries: vec![0.9, 1.9, 1.2, 1.3, 1.4, 1.5], // invalid boundaries
+                record_min_max: false,
+            })
+            .name("test_histogram_renamed")
+            .unit(Unit::new("test_unit_renamed"));
+
+        let view =
+            new_view(criteria, stream_invalid_aggregation).expect("Expected to create a new view");
+        let meter_provider = SdkMeterProvider::builder()
+            .with_reader(reader)
+            .with_view(view)
+            .build();
+
+        // Act
+        let meter = meter_provider.meter("test");
+        let histogram = meter
+            .f64_histogram("test_histogram")
+            .with_unit(Unit::new("test_unit"))
+            .init();
+
+        histogram.record(1.5, &[KeyValue::new("key1", "value1")]);
+        meter_provider.force_flush().unwrap();
+
+        // Assert
+        let resource_metrics = exporter
+            .get_finished_metrics()
+            .expect("metrics are expected to be exported.");
+        assert!(!resource_metrics.is_empty());
+        let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
+        assert_eq!(
+            metric.name, "test_histogram",
+            "View rename should be ignored and original name retained."
+        );
+        assert_eq!(
+            metric.unit.as_str(),
+            "test_unit",
+            "View rename of unit should be ignored and original unit retained."
+        );
+    }
+
+    // "multi_thread" tokio flavor must be used else flush won't
+    // be able to make progress!
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    #[ignore = "Spatial aggregation is not yet implemented."]
+    async fn spatial_aggregation_when_view_drops_attributes_observable_counter() {
+        // cargo test spatial_aggregation_when_view_drops_attributes_observable_counter --features=metrics,testing
+
+        // Arrange
+        let exporter = InMemoryMetricsExporter::default();
+        let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
+        let criteria = Instrument::new().name("my_observable_counter");
+        // View drops all attributes.
+        let stream_invalid_aggregation = Stream::new().allowed_attribute_keys(vec![]);
+
+        let view =
+            new_view(criteria, stream_invalid_aggregation).expect("Expected to create a new view");
+        let meter_provider = SdkMeterProvider::builder()
+            .with_reader(reader)
+            .with_view(view)
+            .build();
+
+        // Act
+        let meter = meter_provider.meter("test");
+        let observable_counter = meter.u64_observable_counter("my_observable_counter").init();
+
+        // Normally, these callbacks would generate 3 time-series, but since the view
+        // drops all attributes, we expect only 1 time-series.
+        meter
+            .register_callback(&[observable_counter.as_any()], move |observer| {
+                observer.observe_u64(
+                    &observable_counter,
+                    100,
+                    [
+                        KeyValue::new("statusCode", "200"),
+                        KeyValue::new("verb", "get"),
+                    ]
+                    .as_ref(),
+                );
+
+                observer.observe_u64(
+                    &observable_counter,
+                    100,
+                    [
+                        KeyValue::new("statusCode", "200"),
+                        KeyValue::new("verb", "post"),
+                    ]
+                    .as_ref(),
+                );
+
+                observer.observe_u64(
+                    &observable_counter,
+                    100,
+                    [
+                        KeyValue::new("statusCode", "500"),
+                        KeyValue::new("verb", "get"),
+                    ]
+                    .as_ref(),
+                );
+            })
+            .expect("Expected to register callback");
+
+        meter_provider.force_flush().unwrap();
+
+        // Assert
+        let resource_metrics = exporter
+            .get_finished_metrics()
+            .expect("metrics are expected to be exported.");
+        assert!(!resource_metrics.is_empty());
+        let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
+        assert_eq!(metric.name, "my_observable_counter",);
+
+        let sum = metric
+            .data
+            .as_any()
+            .downcast_ref::<data::Sum<u64>>()
+            .expect("Sum aggregation expected for ObservableCounter instruments by default");
+
+        // Expecting 1 time-series only, as the view drops all attributes resulting
+        // in a single time-series.
+        // This is failing today, due to lack of support for spatial aggregation.
+        assert_eq!(sum.data_points.len(), 1);
+
+        // find and validate the single datapoint
+        let data_point = &sum.data_points[0];
+        assert_eq!(data_point.value, 300);
+    }
+
+    // "multi_thread" tokio flavor must be used else flush won't
+    // be able to make progress!
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    #[ignore = "Spatial aggregation is not yet implemented."]
+    async fn spatial_aggregation_when_view_drops_attributes_counter() {
+        // cargo test spatial_aggregation_when_view_drops_attributes_counter --features=metrics,testing
+
+        // Arrange
+        let exporter = InMemoryMetricsExporter::default();
+        let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
+        let criteria = Instrument::new().name("my_counter");
+        // View drops all attributes.
+        let stream_invalid_aggregation = Stream::new().allowed_attribute_keys(vec![]);
+
+        let view =
+            new_view(criteria, stream_invalid_aggregation).expect("Expected to create a new view");
+        let meter_provider = SdkMeterProvider::builder()
+            .with_reader(reader)
+            .with_view(view)
+            .build();
+
+        // Act
+        let meter = meter_provider.meter("test");
+        let counter = meter.u64_counter("my_counter").init();
+
+        // Normally, this would generate 3 time-series, but since the view
+        // drops all attributes, we expect only 1 time-series.
+        counter.add(
+            10,
+            [
+                KeyValue::new("statusCode", "200"),
+                KeyValue::new("verb", "Get"),
+            ]
+            .as_ref(),
+        );
+
+        counter.add(
+            10,
+            [
+                KeyValue::new("statusCode", "500"),
+                KeyValue::new("verb", "Get"),
+            ]
+            .as_ref(),
+        );
+
+        counter.add(
+            10,
+            [
+                KeyValue::new("statusCode", "200"),
+                KeyValue::new("verb", "Post"),
+            ]
+            .as_ref(),
+        );
+
+        meter_provider.force_flush().unwrap();
+
+        // Assert
+        let resource_metrics = exporter
+            .get_finished_metrics()
+            .expect("metrics are expected to be exported.");
+        assert!(!resource_metrics.is_empty());
+        let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
+        assert_eq!(metric.name, "my_counter",);
+
+        let sum = metric
+            .data
+            .as_any()
+            .downcast_ref::<data::Sum<u64>>()
+            .expect("Sum aggregation expected for Counter instruments by default");
+
+        // Expecting 1 time-series only, as the view drops all attributes resulting
+        // in a single time-series.
+        // This is failing today, due to lack of support for spatial aggregation.
+        assert_eq!(sum.data_points.len(), 1);
+        // find and validate the single datapoint
+        let data_point = &sum.data_points[0];
+        assert_eq!(data_point.value, 30);
+    }
 }

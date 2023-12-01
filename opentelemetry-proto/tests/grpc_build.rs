@@ -61,6 +61,10 @@ fn build_tonic() {
         .client_mod_attribute(".", "#[cfg(feature = \"gen-tonic\")]")
         .type_attribute(
             ".",
+            "#[cfg_attr(feature = \"with-schemars\", derive(schemars::JsonSchema))]",
+        )
+        .type_attribute(
+            ".",
             "#[cfg_attr(feature = \"with-serde\", derive(serde::Serialize, serde::Deserialize))]",
         )
         .out_dir(out_dir.path())
