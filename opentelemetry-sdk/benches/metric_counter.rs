@@ -80,7 +80,7 @@ fn counter_add(c: &mut Criterion) {
         ]);
 
         b.iter(|| {
-            counter.add(1, attributes);
+            counter.add(1, attributes.clone());
         });
     });
 }
