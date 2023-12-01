@@ -246,7 +246,7 @@ mod tests {
             .with_unit(Unit::new("test_unit"))
             .init();
 
-        histogram.record(1.5, &[KeyValue::new("key1", "value1")]);
+        histogram.record(1.5, [KeyValue::new("key1", "value1")].into());
         meter_provider.force_flush().unwrap();
 
         // Assert
@@ -301,7 +301,7 @@ mod tests {
                         KeyValue::new("statusCode", "200"),
                         KeyValue::new("verb", "get"),
                     ]
-                    .as_ref(),
+                    .into(),
                 );
 
                 observer.observe_u64(
@@ -311,7 +311,7 @@ mod tests {
                         KeyValue::new("statusCode", "200"),
                         KeyValue::new("verb", "post"),
                     ]
-                    .as_ref(),
+                    .into(),
                 );
 
                 observer.observe_u64(
@@ -321,7 +321,7 @@ mod tests {
                         KeyValue::new("statusCode", "500"),
                         KeyValue::new("verb", "get"),
                     ]
-                    .as_ref(),
+                    .into(),
                 );
             })
             .expect("Expected to register callback");
@@ -385,7 +385,7 @@ mod tests {
                 KeyValue::new("statusCode", "200"),
                 KeyValue::new("verb", "Get"),
             ]
-            .as_ref(),
+            .into(),
         );
 
         counter.add(
@@ -394,7 +394,7 @@ mod tests {
                 KeyValue::new("statusCode", "500"),
                 KeyValue::new("verb", "Get"),
             ]
-            .as_ref(),
+            .into(),
         );
 
         counter.add(
@@ -403,7 +403,7 @@ mod tests {
                 KeyValue::new("statusCode", "200"),
                 KeyValue::new("verb", "Post"),
             ]
-            .as_ref(),
+            .into(),
         );
 
         meter_provider.force_flush().unwrap();
