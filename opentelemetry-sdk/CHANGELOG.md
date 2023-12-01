@@ -4,7 +4,6 @@
 
 ### Added
 
-
 - [#1410](https://github.com/open-telemetry/opentelemetry-rust/pull/1410) Add experimental synchronous gauge
 
 ### Changed
