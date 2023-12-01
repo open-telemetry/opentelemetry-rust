@@ -269,7 +269,6 @@ mod tests {
     // "multi_thread" tokio flavor must be used else flush won't
     // be able to make progress!
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    #[ignore = "Spatial aggregation is not yet implemented."]
     async fn spatial_aggregation_when_view_drops_attributes_observable_counter() {
         // cargo test spatial_aggregation_when_view_drops_attributes_observable_counter --features=metrics,testing
 
