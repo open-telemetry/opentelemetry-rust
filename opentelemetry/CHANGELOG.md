@@ -4,7 +4,7 @@
 
 ### Added
 
-- [#1410](https://github.com/open-telemetry/opentelemetry-rust/pull/1410) Add experimental synchronous gauge. This is behind the conditional flag, and can be enabled by setting the environment variable RUSTFLAGS="--cfg=otel_unstable". 
+- [#1410](https://github.com/open-telemetry/opentelemetry-rust/pull/1410) Add experimental synchronous gauge. This is behind the feature flag, and can be enabled by enabling the feature `otel_unstable` for opentelemetry crate.
 
 - [#1410](https://github.com/open-telemetry/opentelemetry-rust/pull/1410) Guidelines to add new unstable/experimental features. 
 

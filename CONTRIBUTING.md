@@ -139,16 +139,24 @@ OpenTelemetry supports multiple ways to configure the API, SDK and other compone
 
 ### Experimental/Unstable features:
 
-Use `otel_unstable` flag for implementation of specification with [experimental](https://github.com/open-telemetry/opentelemetry-specification/blob/v1.27.0/specification/document-status.md) status. This approach ensures clear demarcation and safe integration of new or evolving features. Utilize the following structure:
+Use `otel_unstable` feature flag for implementation of specification with [experimental](https://github.com/open-telemetry/opentelemetry-specification/blob/v1.27.0/specification/document-status.md) status. This approach ensures clear demarcation and safe integration of new or evolving features. Utilize the following structure:
 
 ```rust
-#[cfg(otel_unstable)]
+#[cfg(feature = "otel_unstable")]
 {
     // Your feature implementation
 }
 ```
-
 It's important to regularly review and remove the `otel_unstable` flag from the code once the feature becomes stable. This cleanup process is crucial to maintain the overall code quality and to ensure that stable features are accurately reflected in the main build.
+
+### Optional features:
+
+The potential features include:
+
+- Stable and non-experimental features that are included in the specification to minimize compilation size. These could be separate feature flags for signals (like `logs`, `traces`, `metrics`) and runtimes (`rt-tokio`, `rt-tokio-current-thread`, `rt-async-std`).
+- Stable and non-experimental features, although not part of the specification, are crucial for enhancing the tracing/log crate's functionality or boosting performance. Example: `logs_level_enabled`.
+
+All such features should adhere to naming convention  `<signal>_<feature_name>`
 
 ## Style Guide
 

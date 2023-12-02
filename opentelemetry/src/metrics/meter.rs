@@ -3,7 +3,7 @@ use std::any::Any;
 use std::borrow::Cow;
 use std::sync::Arc;
 
-#[cfg(otel_unstable)]
+#[cfg(feature = "otel_unstable")]
 use crate::metrics::Gauge;
 use crate::metrics::{
     AsyncInstrumentBuilder, Counter, Histogram, InstrumentBuilder, InstrumentProvider,
@@ -338,7 +338,7 @@ impl Meter {
     /// # Experimental
     /// This method is experimental and can be changed/removed in future releases.
     /// creates an instrument builder for recording independent values.
-    #[cfg(otel_unstable)]
+    #[cfg(feature = "otel_unstable")]
     pub fn u64_gauge(
         &self,
         name: impl Into<Cow<'static, str>>,
@@ -349,7 +349,7 @@ impl Meter {
     /// # Experimental
     /// This method is experimental and can be changed/removed in future releases.
     /// creates an instrument builder for recording independent values.
-    #[cfg(otel_unstable)]
+    #[cfg(feature = "otel_unstable")]
     pub fn f64_gauge(
         &self,
         name: impl Into<Cow<'static, str>>,
@@ -360,7 +360,7 @@ impl Meter {
     /// # Experimental
     /// This method is experimental and can be changed/removed in future releases.
     /// creates an instrument builder for recording indenpendent values.
-    #[cfg(feature = "sync-gauge-experimental")]
+    #[cfg(feature = "otel_unstable")]
     pub fn i64_gauge(
         &self,
         name: impl Into<Cow<'static, str>>,
