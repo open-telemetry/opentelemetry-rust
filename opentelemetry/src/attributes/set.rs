@@ -124,28 +124,6 @@ impl InternalAttributeSet {
             hash: hasher.finish(),
         }
     }
-
-    fn from_key_values<T: IntoIterator<Item = KeyValue>>(iter: T) -> Self
-    where
-        <T as IntoIterator>::IntoIter: DoubleEndedIterator + ExactSizeIterator,
-    {
-        // Note: this doesn't implement `FromIter` because of the additional constraints
-        let iter = iter.into_iter();
-        let mut seen_keys = HashSet::with_capacity(iter.len());
-        let vec = iter
-            .into_iter()
-            .rev()
-            .filter_map(|kv| {
-                if seen_keys.insert(kv.key.clone()) {
-                    Some(HashKeyValue(kv.clone()))
-                } else {
-                    None
-                }
-            })
-            .collect::<Vec<_>>();
-
-        InternalAttributeSet::new(vec)
-    }
 }
 
 impl<I: IntoIterator<Item = KeyValue>> From<I> for InternalAttributeSet
@@ -197,14 +175,6 @@ where
 }
 
 impl AttributeSet {
-    /// Creates an attribute set from an iterator of `KeyValue`s
-    pub fn from_key_values<T: IntoIterator<Item = KeyValue>>(iter: T) -> Self
-    where
-        <T as IntoIterator>::IntoIter: DoubleEndedIterator + ExactSizeIterator,
-    {
-        AttributeSet(Arc::new(InternalAttributeSet::from_key_values(iter)))
-    }
-
     /// Returns the number of elements in the set.
     pub fn len(&self) -> usize {
         self.0.key_values.len()
