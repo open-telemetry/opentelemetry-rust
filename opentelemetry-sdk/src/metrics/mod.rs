@@ -60,8 +60,10 @@ pub use view::*;
 
 #[cfg(all(test, feature = "testing"))]
 mod tests {
-    use super::*;
-    use crate::{runtime, testing::metrics::InMemoryMetricsExporter};
+    use std::{sync::{Arc, Mutex}};
+
+    use super::{*, data::Temporality, reader::TemporalitySelector};
+    use crate::{runtime, testing::metrics::{InMemoryMetricsExporter, InMemoryMetricsExporterBuilder}};
     use opentelemetry::{
         metrics::{MeterProvider as _, Unit},
         KeyValue,
@@ -154,6 +156,220 @@ mod tests {
                 .expect("datapoint with key1=value2 expected")
                 .value,
             3
+        );
+    }
+
+    #[derive(Clone, Default, Debug)]
+    pub(crate) struct DeltaTemporalitySelector {
+        // pub(crate) _private: (),
+    }
+
+    impl DeltaTemporalitySelector {
+        /// Create a new default temporality selector.
+        pub(crate) fn new() -> Self {
+            Self::default()
+        }
+    }
+
+    impl TemporalitySelector for DeltaTemporalitySelector {
+        fn temporality(&self, _kind: InstrumentKind) -> Temporality {
+            Temporality::Delta
+        }
+    }
+
+    // "multi_thread" tokio flavor must be used else flush won't
+    // be able to make progress!
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn observable_counter_delta_aggregation() {
+        // Run this test with stdout enabled to see output.
+        // cargo test observable_counter_delta_aggregation --features=metrics,testing -- --nocapture        
+        test_observable_counter_aggregation(true);
+    }
+
+    // "multi_thread" tokio flavor must be used else flush won't
+    // be able to make progress!
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn observable_counter_cumulative_aggregation() {
+        // Run this test with stdout enabled to see output.
+        // cargo test observable_counter_cumulative_aggregation --features=metrics,testing -- --nocapture        
+        test_observable_counter_aggregation(false);
+    }
+
+    fn test_observable_counter_aggregation(is_delta: bool) {
+        // Arrange
+        let mut exporter_builder = InMemoryMetricsExporterBuilder::default();
+        if is_delta == true {
+            exporter_builder = exporter_builder.with_temporality_selector(DeltaTemporalitySelector::new());
+        }
+        
+        let exporter = exporter_builder.build();
+        let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
+        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+
+        // Act
+        let meter = meter_provider.meter("test");
+        let observable_counter = meter.u64_observable_counter("my_observable_counter").init();
+
+        let value_being_observed = Arc::new(Mutex::new(100));
+        let value_being_observed_clone = Arc::clone(&value_being_observed);
+
+        // Normally, these callbacks would generate 3 time-series, but since the view
+        // drops all attributes, we expect only 1 time-series.
+        meter
+            .register_callback(&[observable_counter.as_any()], move |observer| {
+                let value = value_being_observed_clone.lock().unwrap();
+                observer.observe_u64(
+                    &observable_counter,
+                    *value,
+                    [
+                        KeyValue::new("key1", "value1"),
+                    ]
+                    .as_ref(),
+                );
+
+                observer.observe_u64(
+                    &observable_counter,
+                    *value + 50,
+                    [
+                        KeyValue::new("key1", "value2"),
+                    ]
+                    .as_ref(),
+                );
+                drop(value);
+            })
+            .expect("Expected to register callback");
+        meter_provider.force_flush().unwrap();
+
+        // Assert
+        let resource_metrics = exporter
+            .get_finished_metrics()
+            .expect("metrics are expected to be exported.");
+        assert!(!resource_metrics.is_empty());
+        let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
+        assert_eq!(metric.name, "my_observable_counter");
+        let sum = metric
+            .data
+            .as_any()
+            .downcast_ref::<data::Sum<u64>>()
+            .expect("Sum aggregation expected for Counter instruments by default");
+
+        // Expecting 2 time-series.
+        assert_eq!(sum.data_points.len(), 2);
+        assert!(sum.is_monotonic, "Counter should produce monotonic.");
+
+        // find and validate key1=value1 datapoint
+        let mut data_point1 = None;
+        for datapoint in &sum.data_points {
+            if datapoint
+                .attributes
+                .iter()
+                .any(|(k, v)| k.as_str() == "key1" && v.as_str() == "value1")
+            {
+                data_point1 = Some(datapoint);
+            }
+        }
+        
+        assert_eq!(
+            data_point1
+                .expect("datapoint with key1=value1 expected")
+                .value,
+            100
+        );
+
+        // find and validate key1=value2 datapoint
+        let mut data_point1 = None;
+        for datapoint in &sum.data_points {
+            if datapoint
+                .attributes
+                .iter()
+                .any(|(k, v)| k.as_str() == "key1" && v.as_str() == "value2")
+            {
+                data_point1 = Some(datapoint);
+            }
+        }        
+
+        assert_eq!(
+            data_point1
+                .expect("datapoint with key1=value2 expected")
+                .value,
+            150
+        );
+
+        // Reset and do another flush.
+        exporter.reset();
+
+        // Update the value here.
+        let value_being_observed_clone = Arc::clone(&value_being_observed);
+        let mut value = value_being_observed_clone.lock().unwrap();
+        *value += 10;
+        drop(value);
+
+        // tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
+        meter_provider.force_flush().unwrap();
+
+        // Assert
+        let resource_metrics = exporter
+            .get_finished_metrics()
+            .expect("metrics are expected to be exported.");
+        assert!(!resource_metrics.is_empty());
+        let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
+        assert_eq!(metric.name, "my_observable_counter");
+        let sum = metric
+            .data
+            .as_any()
+            .downcast_ref::<data::Sum<u64>>()
+            .expect("Sum aggregation expected for Counter instruments by default");
+
+        // Expecting 2 time-series.
+        assert_eq!(sum.data_points.len(), 2);
+        assert!(sum.is_monotonic, "Counter should produce monotonic.");
+
+        // find and validate key1=value1 datapoint
+        let mut data_point1 = None;
+        for datapoint in &sum.data_points {
+            if datapoint
+                .attributes
+                .iter()
+                .any(|(k, v)| k.as_str() == "key1" && v.as_str() == "value1")
+            {
+                data_point1 = Some(datapoint);
+            }
+        }
+
+        let expected_value = if is_delta == true {
+            10
+        } else {
+            110
+        };
+        assert_eq!(
+            data_point1
+                .expect("datapoint with key1=value1 expected")
+                .value,
+            expected_value
+        );
+
+        // find and validate key1=value2 datapoint
+        let mut data_point1 = None;
+        for datapoint in &sum.data_points {
+            if datapoint
+                .attributes
+                .iter()
+                .any(|(k, v)| k.as_str() == "key1" && v.as_str() == "value2")
+            {
+                data_point1 = Some(datapoint);
+            }
+        }
+
+        let expected_value = if is_delta == true {
+            10
+        } else {
+            160
+        };
+        assert_eq!(
+            data_point1
+                .expect("datapoint with key1=value2 expected")
+                .value,
+                expected_value
         );
     }
 
