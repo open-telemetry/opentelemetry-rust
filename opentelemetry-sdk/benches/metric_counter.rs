@@ -8,7 +8,7 @@ use opentelemetry_sdk::metrics::{ManualReader, SdkMeterProvider};
 use rand::{rngs::SmallRng, Rng, SeedableRng};
 
 // Run this benchmark with:
-// cargo bench --bench metric_counter --features=metrics,testing
+// cargo bench --bench metric_counter --features=metrics
 fn create_counter() -> Counter<u64> {
     let meter_provider: SdkMeterProvider = SdkMeterProvider::builder()
         .with_reader(ManualReader::builder().build())
