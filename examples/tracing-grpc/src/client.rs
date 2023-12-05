@@ -6,7 +6,7 @@ use opentelemetry_stdout::SpanExporter;
 
 use opentelemetry::{
     trace::{SpanKind, TraceContextExt, Tracer},
-    Context,
+    Context, KeyValue,
 };
 
 fn init_tracer() {
@@ -42,6 +42,7 @@ async fn greet() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static
     let span = tracer
         .span_builder(String::from("Greeter/client"))
         .with_kind(SpanKind::Client)
+        .with_attributes(vec![KeyValue::new("component", "grpc")])
         .start(&tracer);
     let cx = Context::current_with_span(span);
     let mut client = GreeterClient::connect("http://[::1]:50051").await?;
@@ -54,7 +55,20 @@ async fn greet() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static
         propagator.inject_context(&cx, &mut MetadataMap(request.metadata_mut()))
     });
 
-    let _response = client.say_hello(request).await?;
+    let response = client.say_hello(request).await;
+
+    let status = match response {
+        Ok(_res) => "OK".to_string(),
+        Err(status) => {
+            // Access the status code
+            let status_code = status.code();
+            status_code.to_string()
+        }
+    };
+    cx.span().add_event(
+        "Got response!".to_string(),
+        vec![KeyValue::new("status", status)],
+    );
 
     Ok(())
 }

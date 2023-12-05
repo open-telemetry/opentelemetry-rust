@@ -6,6 +6,7 @@ use opentelemetry::{
 };
 use opentelemetry_http::HeaderInjector;
 use opentelemetry_sdk::{propagation::TraceContextPropagator, trace::TracerProvider};
+use opentelemetry_semantic_conventions;
 use opentelemetry_stdout::SpanExporter;
 
 fn init_tracer() {
