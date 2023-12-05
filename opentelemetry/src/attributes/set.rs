@@ -216,6 +216,7 @@ impl Default for AttributeSet {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::StringValue;
 
     #[test]
     fn can_create_attribute_set_from_array() {
@@ -239,9 +240,29 @@ mod tests {
 
     #[test]
     fn two_sets_with_same_key_values_in_different_orders_are_equal() {
-        let array1 = [KeyValue::new("key1", "value1"), KeyValue::new("key2", 3)];
+        let array1 = [
+            KeyValue::new("key1", "value1"),
+            KeyValue::new("key2", 3),
+            KeyValue::new("key3", Value::Array(Array::Bool(vec![true]))),
+            KeyValue::new("key4", Value::Array(Array::F64(vec![1.5]))),
+            KeyValue::new("key5", Value::Array(Array::I64(vec![15]))),
+            KeyValue::new(
+                "key6",
+                Value::Array(Array::String(vec![StringValue::from("test")])),
+            ),
+        ];
 
-        let array2 = [KeyValue::new("key2", 3), KeyValue::new("key1", "value1")];
+        let array2 = [
+            KeyValue::new(
+                "key6",
+                Value::Array(Array::String(vec![StringValue::from("test")])),
+            ),
+            KeyValue::new("key1", "value1"),
+            KeyValue::new("key3", Value::Array(Array::Bool(vec![true]))),
+            KeyValue::new("key4", Value::Array(Array::F64(vec![1.5]))),
+            KeyValue::new("key5", Value::Array(Array::I64(vec![15]))),
+            KeyValue::new("key2", 3),
+        ];
 
         let set1 = AttributeSet::from(array1);
         let set2 = AttributeSet::from(array2);
@@ -251,9 +272,29 @@ mod tests {
 
     #[test]
     fn two_sets_with_same_key_values_in_different_orders_have_same_hash() {
-        let array1 = [KeyValue::new("key1", "value1"), KeyValue::new("key2", 3)];
+        let array1 = [
+            KeyValue::new("key1", "value1"),
+            KeyValue::new("key2", 3),
+            KeyValue::new("key3", Value::Array(Array::Bool(vec![true]))),
+            KeyValue::new("key4", Value::Array(Array::F64(vec![1.5]))),
+            KeyValue::new("key5", Value::Array(Array::I64(vec![15]))),
+            KeyValue::new(
+                "key6",
+                Value::Array(Array::String(vec![StringValue::from("test")])),
+            ),
+        ];
 
-        let array2 = [KeyValue::new("key2", 3), KeyValue::new("key1", "value1")];
+        let array2 = [
+            KeyValue::new(
+                "key6",
+                Value::Array(Array::String(vec![StringValue::from("test")])),
+            ),
+            KeyValue::new("key1", "value1"),
+            KeyValue::new("key3", Value::Array(Array::Bool(vec![true]))),
+            KeyValue::new("key4", Value::Array(Array::F64(vec![1.5]))),
+            KeyValue::new("key5", Value::Array(Array::I64(vec![15]))),
+            KeyValue::new("key2", 3),
+        ];
 
         let set1 = AttributeSet::from(array1);
         let set2 = AttributeSet::from(array2);
