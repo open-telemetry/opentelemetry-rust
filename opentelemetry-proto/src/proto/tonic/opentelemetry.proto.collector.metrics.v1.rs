@@ -1,3 +1,4 @@
+#[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -12,6 +13,7 @@ pub struct ExportMetricsServiceRequest {
         super::super::super::metrics::v1::ResourceMetrics,
     >,
 }
+#[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -34,6 +36,7 @@ pub struct ExportMetricsServiceResponse {
     #[prost(message, optional, tag = "1")]
     pub partial_success: ::core::option::Option<ExportMetricsPartialSuccess>,
 }
+#[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
