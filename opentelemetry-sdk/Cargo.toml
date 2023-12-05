@@ -66,6 +66,7 @@ harness = false
 [[bench]]
 name = "metric_counter"
 harness = false
+required-features = ["metrics"]
 
 [[bench]]
 name = "attribute_set"
