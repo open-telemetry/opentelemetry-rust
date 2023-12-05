@@ -11,8 +11,10 @@
 ### Added
 
 - Add log appender versions to loggers (#1182)
-- Normalized metadata fields with events from the log crate [#1380](https://github.com/open-telemetry/opentelemetry-rust/pull/1380)
-- Remove redundant metadata [#1380](https://github.com/open-telemetry/opentelemetry-rust/pull/1380)
+- Experimental new attributes for tracing metadata [#1380](https://github.com/open-telemetry/opentelemetry-rust/pull/1380)
+- Fixes the following for events emitted using log crate [#1380](https://github.com/open-telemetry/opentelemetry-rust/pull/1380)
+    - Normalized metadata fields
+    - Remove redundant metadata
 
 ## v0.1.0
 
