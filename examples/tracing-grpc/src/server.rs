@@ -47,7 +47,6 @@ impl<'a> Extractor for MetadataMap<'a> {
 fn expensive_fn<S: Span>(to_print: String, span: &mut S) {
     std::thread::sleep(std::time::Duration::from_millis(20));
     span.add_event(to_print, vec![]);
-    // info!("{}", to_print);
 }
 
 #[derive(Debug, Default)]
