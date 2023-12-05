@@ -242,3 +242,111 @@ impl Default for AttributeSet {
         AttributeSet(EMPTY_SET.clone())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn can_create_attribute_set_from_array() {
+        let array = [KeyValue::new("key1", "value1"), KeyValue::new("key2", 3)];
+
+        let set = AttributeSet::from(array);
+        let mut kvs = set.iter().collect::<Vec<_>>();
+
+        assert_eq!(kvs.len(), 2, "Incorrect number of attributes");
+
+        kvs.sort_by(|kv1, kv2| kv1.0.cmp(kv2.0));
+        assert_eq!(kvs[0].0, &Key::from("key1"), "Unexpected first key");
+        assert_eq!(
+            kvs[0].1,
+            &Value::String("value1".into()),
+            "Unexpected first value"
+        );
+        assert_eq!(kvs[1].0, &Key::from("key2"), "Unexpected second key");
+        assert_eq!(kvs[1].1, &Value::I64(3), "Unexpected second value");
+    }
+
+    #[test]
+    fn two_sets_with_same_key_values_in_different_orders_are_equal() {
+        let array1 = [KeyValue::new("key1", "value1"), KeyValue::new("key2", 3)];
+
+        let array2 = [KeyValue::new("key2", 3), KeyValue::new("key1", "value1")];
+
+        let set1 = AttributeSet::from(array1);
+        let set2 = AttributeSet::from(array2);
+
+        assert_eq!(set1, set2);
+    }
+
+    #[test]
+    fn two_sets_with_same_key_values_in_different_orders_have_same_hash() {
+        let array1 = [KeyValue::new("key1", "value1"), KeyValue::new("key2", 3)];
+
+        let array2 = [KeyValue::new("key2", 3), KeyValue::new("key1", "value1")];
+
+        let set1 = AttributeSet::from(array1);
+        let set2 = AttributeSet::from(array2);
+
+        let mut hasher1 = DefaultHasher::new();
+        let mut hasher2 = DefaultHasher::new();
+        set1.hash(&mut hasher1);
+        set2.hash(&mut hasher2);
+
+        assert_eq!(hasher1.finish(), hasher2.finish());
+    }
+
+    #[test]
+    fn clone_with_removes_unspecified_key_values() {
+        let array = [
+            KeyValue::new("key1", "value1"),
+            KeyValue::new("key2", 3),
+            KeyValue::new("key3", 4),
+        ];
+
+        let set = AttributeSet::from(array);
+        let set2 = set.clone_with(|kv| kv.key == Key::new("key2"));
+
+        assert_ne!(set, set2, "Both sets were unexpectedly equal");
+        assert_eq!(set2.len(), 1, "Expected only one attribute in new set");
+
+        let kvs = set2.iter().collect::<Vec<_>>();
+        assert_eq!(kvs[0].0, &Key::from("key2"), "Unexpected key");
+        assert_eq!(kvs[0].1, &Value::I64(3), "Unexpected value");
+    }
+
+    #[test]
+    fn len_returns_accurate_value() {
+        let array = [KeyValue::new("key1", "value1"), KeyValue::new("key2", 3)];
+
+        let set = AttributeSet::from(array);
+        let kvs = set.iter().collect::<Vec<_>>();
+
+        assert_eq!(set.len(), kvs.len());
+    }
+
+    #[test]
+    fn empty_when_no_attributes_provided() {
+        let set = AttributeSet::from([]);
+        assert!(set.is_empty());
+    }
+
+    #[test]
+    fn default_set_has_no_attributes() {
+        let set = AttributeSet::default();
+        assert!(set.is_empty());
+        assert_eq!(set.len(), 0);
+    }
+
+    #[test]
+    fn last_key_wins_for_deduplication() {
+        let array = [KeyValue::new("key1", "value1"), KeyValue::new("key1", 3)];
+
+        let set = AttributeSet::from(array);
+        let kvs = set.iter().collect::<Vec<_>>();
+
+        assert_eq!(set.len(), 1, "Expected only a single key value pair");
+        assert_eq!(kvs[0].0, &Key::new("key1"), "Unexpected key");
+        assert_eq!(kvs[0].1, &Value::I64(3), "Unexpected value");
+    }
+}
