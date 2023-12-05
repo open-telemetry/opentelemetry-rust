@@ -284,9 +284,13 @@ mod tests {
                 Key::new("log.module.path"),
                 "opentelemetry_appender_tracing::layer::tests".into()
             )));
-            // The other 3 experimental_metadata_attributes are too unstable to check statically.
+            // The other 3 experimental_metadata_attributes are too unstable to check their value.
             // Ex.: The path will be different on a Windows and Linux machine.
             // Ex.: The line can change easily if someone makes changes in this source file.
+            let attributes_key: Vec<Key> = attributes.iter().map(|(key, _)| key.clone()).collect();
+            assert!(attributes_key.contains(&Key::new("log.source.file.path")));
+            assert!(attributes_key.contains(&Key::new("log.source.file.line")));
+            assert!(attributes_key.contains(&Key::new("log.target")));
         }
     }
 
@@ -377,9 +381,13 @@ mod tests {
                 Key::new("log.module.path"),
                 "opentelemetry_appender_tracing::layer::tests".into()
             )));
-            // The other 3 experimental_metadata_attributes are too unstable to check statically.
+            // The other 3 experimental_metadata_attributes are too unstable to check their value.
             // Ex.: The path will be different on a Windows and Linux machine.
             // Ex.: The line can change easily if someone makes changes in this source file.
+            let attributes_key: Vec<Key> = attributes.iter().map(|(key, _)| key.clone()).collect();
+            assert!(attributes_key.contains(&Key::new("log.source.file.path")));
+            assert!(attributes_key.contains(&Key::new("log.source.file.line")));
+            assert!(attributes_key.contains(&Key::new("log.target")));
         }
     }
 
@@ -439,9 +447,13 @@ mod tests {
                 Key::new("log.module.path"),
                 "opentelemetry_appender_tracing::layer::tests".into()
             )));
-            // The other 3 experimental_metadata_attributes are too unstable to check statically.
+            // The other 3 experimental_metadata_attributes are too unstable to check their value.
             // Ex.: The path will be different on a Windows and Linux machine.
             // Ex.: The line can change easily if someone makes changes in this source file.
+            let attributes_key: Vec<Key> = attributes.iter().map(|(key, _)| key.clone()).collect();
+            assert!(attributes_key.contains(&Key::new("log.source.file.path")));
+            assert!(attributes_key.contains(&Key::new("log.source.file.line")));
+            assert!(attributes_key.contains(&Key::new("log.target")));
         }
     }
 
@@ -532,9 +544,13 @@ mod tests {
                 Key::new("log.module.path"),
                 "opentelemetry_appender_tracing::layer::tests".into()
             )));
-            // The other 3 experimental_metadata_attributes are too unstable to check statically.
+            // The other 3 experimental_metadata_attributes are too unstable to check their value.
             // Ex.: The path will be different on a Windows and Linux machine.
             // Ex.: The line can change easily if someone makes changes in this source file.
+            let attributes_key: Vec<Key> = attributes.iter().map(|(key, _)| key.clone()).collect();
+            assert!(attributes_key.contains(&Key::new("log.source.file.path")));
+            assert!(attributes_key.contains(&Key::new("log.source.file.line")));
+            assert!(attributes_key.contains(&Key::new("log.target")));
         }
     }
 }
