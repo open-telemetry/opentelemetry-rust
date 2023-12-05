@@ -175,10 +175,10 @@ fn counters(c: &mut Criterion) {
     });
 
     group.bench_function("AddOneAttr", |b| {
-        b.iter(|| cntr.add(1, [KeyValue::new("K", "V")].into()))
+        b.iter(|| cntr.add(1, [KeyValue::new("K", "V")]))
     });
     group.bench_function("AddOneAttrDelta", |b| {
-        b.iter(|| cntr2.add(1, [KeyValue::new("K1", "V1")].into()))
+        b.iter(|| cntr2.add(1, [KeyValue::new("K1", "V1")]))
     });
     group.bench_function("AddThreeAttr", |b| {
         b.iter(|| {
@@ -188,8 +188,7 @@ fn counters(c: &mut Criterion) {
                     KeyValue::new("K2", "V2"),
                     KeyValue::new("K3", "V3"),
                     KeyValue::new("K4", "V4"),
-                ]
-                .into(),
+                ],
             )
         })
     });
@@ -201,8 +200,7 @@ fn counters(c: &mut Criterion) {
                     KeyValue::new("K2", "V2"),
                     KeyValue::new("K3", "V3"),
                     KeyValue::new("K4", "V4"),
-                ]
-                .into(),
+                ],
             )
         })
     });
@@ -216,8 +214,7 @@ fn counters(c: &mut Criterion) {
                     KeyValue::new("K7", "V7"),
                     KeyValue::new("K8", "V8"),
                     KeyValue::new("K9", "V9"),
-                ]
-                .into(),
+                ],
             )
         })
     });
@@ -231,8 +228,7 @@ fn counters(c: &mut Criterion) {
                     KeyValue::new("K7", "V7"),
                     KeyValue::new("K8", "V8"),
                     KeyValue::new("K9", "V9"),
-                ]
-                .into(),
+                ],
             )
         })
     });
@@ -251,8 +247,7 @@ fn counters(c: &mut Criterion) {
                     KeyValue::new("K17", "V17"),
                     KeyValue::new("K18", "V18"),
                     KeyValue::new("K19", "V19"),
-                ]
-                .into(),
+                ],
             )
         })
     });
@@ -271,8 +266,7 @@ fn counters(c: &mut Criterion) {
                     KeyValue::new("K17", "V17"),
                     KeyValue::new("K18", "V18"),
                     KeyValue::new("K19", "V19"),
-                ]
-                .into(),
+                ],
             )
         })
     });
@@ -285,7 +279,7 @@ fn counters(c: &mut Criterion) {
     }
 
     group.bench_function("AddOneTillMaxAttr", |b| {
-        b.iter(|| cntr3.add(1, max_attributes.clone().into()))
+        b.iter(|| cntr3.add(1, max_attributes.clone()))
     });
 
     for i in MAX_DATA_POINTS..MAX_DATA_POINTS * 2 {
@@ -293,23 +287,23 @@ fn counters(c: &mut Criterion) {
     }
 
     group.bench_function("AddMaxAttr", |b| {
-        b.iter(|| cntr3.add(1, max_attributes.clone().into()))
+        b.iter(|| cntr3.add(1, max_attributes.clone()))
     });
 
     group.bench_function("AddInvalidAttr", |b| {
-        b.iter(|| cntr.add(1, [KeyValue::new("", "V"), KeyValue::new("K", "V")].into()))
+        b.iter(|| cntr.add(1, [KeyValue::new("", "V"), KeyValue::new("K", "V")]))
     });
     group.bench_function("AddSingleUseAttrs", |b| {
         let mut v = 0;
         b.iter(|| {
-            cntr.add(1, [KeyValue::new("K", v)].into());
+            cntr.add(1, [KeyValue::new("K", v)]);
             v += 1;
         })
     });
     group.bench_function("AddSingleUseInvalid", |b| {
         let mut v = 0;
         b.iter(|| {
-            cntr.add(1, [KeyValue::new("", v), KeyValue::new("K", v)].into());
+            cntr.add(1, [KeyValue::new("", v), KeyValue::new("K", v)]);
             v += 1;
         })
     });
@@ -328,7 +322,7 @@ fn counters(c: &mut Criterion) {
     group.bench_function("AddSingleUseFiltered", |b| {
         let mut v = 0;
         b.iter(|| {
-            cntr.add(1, [KeyValue::new("L", v), KeyValue::new("K", v)].into());
+            cntr.add(1, [KeyValue::new("L", v), KeyValue::new("K", v)]);
             v += 1;
         })
     });
@@ -342,7 +336,7 @@ fn counters(c: &mut Criterion) {
     group.bench_function("CollectOneAttr", |b| {
         let mut v = 0;
         b.iter(|| {
-            cntr.add(1, [KeyValue::new("K", v)].into());
+            cntr.add(1, [KeyValue::new("K", v)]);
             let _ = rdr.collect(&mut rm);
             v += 1;
         })
@@ -352,7 +346,7 @@ fn counters(c: &mut Criterion) {
         let mut v = 0;
         b.iter(|| {
             for i in 0..10 {
-                cntr.add(1, [KeyValue::new("K", i)].into());
+                cntr.add(1, [KeyValue::new("K", i)]);
             }
             let _ = rdr.collect(&mut rm);
             v += 1;

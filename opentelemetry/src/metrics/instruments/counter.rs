@@ -30,8 +30,8 @@ impl<T> Counter<T> {
     }
 
     /// Records an increment to the counter.
-    pub fn add(&self, value: T, attributes: AttributeSet) {
-        self.0.add(value, attributes)
+    pub fn add(&self, value: T, attributes: impl Into<AttributeSet>) {
+        self.0.add(value, attributes.into())
     }
 }
 

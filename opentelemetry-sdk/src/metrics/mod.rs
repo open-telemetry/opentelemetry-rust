@@ -88,15 +88,15 @@ mod tests {
             .u64_counter("my_counter")
             .with_unit(Unit::new("my_unit"))
             .init();
-        counter.add(1, [KeyValue::new("key1", "value1")].into());
-        counter.add(1, [KeyValue::new("key1", "value1")].into());
-        counter.add(1, [KeyValue::new("key1", "value1")].into());
-        counter.add(1, [KeyValue::new("key1", "value1")].into());
-        counter.add(1, [KeyValue::new("key1", "value1")].into());
+        counter.add(1, [KeyValue::new("key1", "value1")]);
+        counter.add(1, [KeyValue::new("key1", "value1")]);
+        counter.add(1, [KeyValue::new("key1", "value1")]);
+        counter.add(1, [KeyValue::new("key1", "value1")]);
+        counter.add(1, [KeyValue::new("key1", "value1")]);
 
-        counter.add(1, [KeyValue::new("key1", "value2")].into());
-        counter.add(1, [KeyValue::new("key1", "value2")].into());
-        counter.add(1, [KeyValue::new("key1", "value2")].into());
+        counter.add(1, [KeyValue::new("key1", "value2")]);
+        counter.add(1, [KeyValue::new("key1", "value2")]);
+        counter.add(1, [KeyValue::new("key1", "value2")]);
 
         meter_provider.force_flush().unwrap();
 
@@ -246,7 +246,7 @@ mod tests {
             .with_unit(Unit::new("test_unit"))
             .init();
 
-        histogram.record(1.5, [KeyValue::new("key1", "value1")].into());
+        histogram.record(1.5, [KeyValue::new("key1", "value1")]);
         meter_provider.force_flush().unwrap();
 
         // Assert
@@ -384,8 +384,7 @@ mod tests {
             [
                 KeyValue::new("statusCode", "200"),
                 KeyValue::new("verb", "Get"),
-            ]
-            .into(),
+            ],
         );
 
         counter.add(
@@ -393,8 +392,7 @@ mod tests {
             [
                 KeyValue::new("statusCode", "500"),
                 KeyValue::new("verb", "Get"),
-            ]
-            .into(),
+            ],
         );
 
         counter.add(
@@ -402,8 +400,7 @@ mod tests {
             [
                 KeyValue::new("statusCode", "200"),
                 KeyValue::new("verb", "Post"),
-            ]
-            .into(),
+            ],
         );
 
         meter_provider.force_flush().unwrap();

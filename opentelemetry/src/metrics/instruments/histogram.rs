@@ -30,8 +30,8 @@ impl<T> Histogram<T> {
     }
 
     /// Adds an additional value to the distribution.
-    pub fn record(&self, value: T, attributes: AttributeSet) {
-        self.0.record(value, attributes)
+    pub fn record(&self, value: T, attributes: impl Into<AttributeSet>) {
+        self.0.record(value, attributes.into())
     }
 }
 

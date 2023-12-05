@@ -44,8 +44,7 @@ fn counter_add(c: &mut Criterion) {
                     KeyValue::new("attribute2", attribute_values[index_second_attribute]),
                     KeyValue::new("attribute3", attribute_values[index_third_attribute]),
                     KeyValue::new("attribute4", attribute_values[index_forth_attribute]),
-                ]
-                .into(),
+                ],
             );
         });
     });
@@ -65,8 +64,7 @@ fn counter_add(c: &mut Criterion) {
                     KeyValue::new("attribute3", attribute_values[index_third_attribute]),
                     KeyValue::new("attribute1", attribute_values[index_first_attribute]),
                     KeyValue::new("attribute4", attribute_values[index_forth_attribute]),
-                ]
-                .into(),
+                ],
             );
         });
     });

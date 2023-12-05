@@ -67,7 +67,7 @@ fn prometheus_exporter_integration() {
                     Key::new("E").bool(true),
                     Key::new("F").i64(42),
                 ];
-                counter.add(5.0, attrs2.into());
+                counter.add(5.0, attrs2);
             }),
             ..Default::default()
         },
@@ -97,7 +97,7 @@ fn prometheus_exporter_integration() {
                     Key::new("E").bool(true),
                     Key::new("F").i64(42),
                 ];
-                counter.add(5.0, attrs2.into());
+                counter.add(5.0, attrs2);
             }),
             ..Default::default()
         },
@@ -415,7 +415,7 @@ fn multiple_scopes() {
         .with_unit(Unit::new("ms"))
         .with_description("meter foo counter")
         .init();
-    foo_counter.add(100, [KeyValue::new("type", "foo")].into());
+    foo_counter.add(100, [KeyValue::new("type", "foo")]);
 
     let bar_counter = provider
         .versioned_meter("meterbar", Some("v0.1.0"), None::<&'static str>, None)
@@ -423,7 +423,7 @@ fn multiple_scopes() {
         .with_unit(Unit::new("ms"))
         .with_description("meter bar counter")
         .init();
-    bar_counter.add(200, [KeyValue::new("type", "bar")].into());
+    bar_counter.add(200, [KeyValue::new("type", "bar")]);
 
     let content = fs::read_to_string("./tests/data/multi_scopes.txt").unwrap();
     gather_and_compare(registry, content, "multi_scope");
@@ -462,7 +462,7 @@ fn duplicate_metrics() {
                     .with_description("meter counter foo")
                     .init();
 
-                foo_a.add(100, [KeyValue::new("A", "B")].into());
+                foo_a.add(100, [KeyValue::new("A", "B")]);
 
                 let foo_b = meter_b
                     .u64_counter("foo")
@@ -470,7 +470,7 @@ fn duplicate_metrics() {
                     .with_description("meter counter foo")
                     .init();
 
-                foo_b.add(100, [KeyValue::new("A", "B")].into());
+                foo_b.add(100, [KeyValue::new("A", "B")]);
             }),
             expected_files: vec!["no_conflict_two_counters.txt"],
             ..Default::default()
@@ -484,7 +484,7 @@ fn duplicate_metrics() {
                     .with_description("meter gauge foo")
                     .init();
 
-                foo_a.add(100, [KeyValue::new("A", "B")].into());
+                foo_a.add(100, [KeyValue::new("A", "B")]);
 
                 let foo_b = meter_b
                     .i64_up_down_counter("foo")
@@ -492,7 +492,7 @@ fn duplicate_metrics() {
                     .with_description("meter gauge foo")
                     .init();
 
-                foo_b.add(100, [KeyValue::new("A", "B")].into());
+                foo_b.add(100, [KeyValue::new("A", "B")]);
             }),
             expected_files: vec!["no_conflict_two_updowncounters.txt"],
             ..Default::default()
@@ -506,7 +506,7 @@ fn duplicate_metrics() {
                     .with_description("meter histogram foo")
                     .init();
 
-                foo_a.record(100, [KeyValue::new("A", "B")].into());
+                foo_a.record(100, [KeyValue::new("A", "B")]);
 
                 let foo_b = meter_b
                     .u64_histogram("foo")
@@ -514,7 +514,7 @@ fn duplicate_metrics() {
                     .with_description("meter histogram foo")
                     .init();
 
-                foo_b.record(100, [KeyValue::new("A", "B")].into());
+                foo_b.record(100, [KeyValue::new("A", "B")]);
             }),
             expected_files: vec!["no_conflict_two_histograms.txt"],
             ..Default::default()
@@ -528,7 +528,7 @@ fn duplicate_metrics() {
                     .with_description("meter a bar")
                     .init();
 
-                bar_a.add(100, [KeyValue::new("type", "bar")].into());
+                bar_a.add(100, [KeyValue::new("type", "bar")]);
 
                 let bar_b = meter_b
                     .u64_counter("bar")
@@ -536,7 +536,7 @@ fn duplicate_metrics() {
                     .with_description("meter b bar")
                     .init();
 
-                bar_b.add(100, [KeyValue::new("type", "bar")].into());
+                bar_b.add(100, [KeyValue::new("type", "bar")]);
             }),
             expected_files: vec![
                 "conflict_help_two_counters_1.txt",
@@ -553,7 +553,7 @@ fn duplicate_metrics() {
                     .with_description("meter a bar")
                     .init();
 
-                bar_a.add(100, [KeyValue::new("type", "bar")].into());
+                bar_a.add(100, [KeyValue::new("type", "bar")]);
 
                 let bar_b = meter_b
                     .i64_up_down_counter("bar")
@@ -561,7 +561,7 @@ fn duplicate_metrics() {
                     .with_description("meter b bar")
                     .init();
 
-                bar_b.add(100, [KeyValue::new("type", "bar")].into());
+                bar_b.add(100, [KeyValue::new("type", "bar")]);
             }),
             expected_files: vec![
                 "conflict_help_two_updowncounters_1.txt",
@@ -578,7 +578,7 @@ fn duplicate_metrics() {
                     .with_description("meter a bar")
                     .init();
 
-                bar_a.record(100, [KeyValue::new("A", "B")].into());
+                bar_a.record(100, [KeyValue::new("A", "B")]);
 
                 let bar_b = meter_b
                     .u64_histogram("bar")
@@ -586,7 +586,7 @@ fn duplicate_metrics() {
                     .with_description("meter b bar")
                     .init();
 
-                bar_b.record(100, [KeyValue::new("A", "B")].into());
+                bar_b.record(100, [KeyValue::new("A", "B")]);
             }),
             expected_files: vec![
                 "conflict_help_two_histograms_1.txt",
@@ -603,7 +603,7 @@ fn duplicate_metrics() {
                     .with_description("meter bar")
                     .init();
 
-                baz_a.add(100, [KeyValue::new("type", "bar")].into());
+                baz_a.add(100, [KeyValue::new("type", "bar")]);
 
                 let baz_b = meter_b
                     .u64_counter("bar")
@@ -611,7 +611,7 @@ fn duplicate_metrics() {
                     .with_description("meter bar")
                     .init();
 
-                baz_b.add(100, [KeyValue::new("type", "bar")].into());
+                baz_b.add(100, [KeyValue::new("type", "bar")]);
             }),
             builder: ExporterBuilder::default().without_units(),
             expected_files: vec!["conflict_unit_two_counters.txt"],
@@ -626,7 +626,7 @@ fn duplicate_metrics() {
                     .with_description("meter gauge bar")
                     .init();
 
-                bar_a.add(100, [KeyValue::new("type", "bar")].into());
+                bar_a.add(100, [KeyValue::new("type", "bar")]);
 
                 let bar_b = meter_b
                     .i64_up_down_counter("bar")
@@ -634,7 +634,7 @@ fn duplicate_metrics() {
                     .with_description("meter gauge bar")
                     .init();
 
-                bar_b.add(100, [KeyValue::new("type", "bar")].into());
+                bar_b.add(100, [KeyValue::new("type", "bar")]);
             }),
             builder: ExporterBuilder::default().without_units(),
             expected_files: vec!["conflict_unit_two_updowncounters.txt"],
@@ -649,7 +649,7 @@ fn duplicate_metrics() {
                     .with_description("meter histogram bar")
                     .init();
 
-                bar_a.record(100, [KeyValue::new("A", "B")].into());
+                bar_a.record(100, [KeyValue::new("A", "B")]);
 
                 let bar_b = meter_b
                     .u64_histogram("bar")
@@ -657,7 +657,7 @@ fn duplicate_metrics() {
                     .with_description("meter histogram bar")
                     .init();
 
-                bar_b.record(100, [KeyValue::new("A", "B")].into());
+                bar_b.record(100, [KeyValue::new("A", "B")]);
             }),
             builder: ExporterBuilder::default().without_units(),
             expected_files: vec!["conflict_unit_two_histograms.txt"],
@@ -672,7 +672,7 @@ fn duplicate_metrics() {
                     .with_description("meter foo")
                     .init();
 
-                counter.add(100, [KeyValue::new("type", "foo")].into());
+                counter.add(100, [KeyValue::new("type", "foo")]);
 
                 let gauge = meter_a
                     .i64_up_down_counter("foo_total")
@@ -680,7 +680,7 @@ fn duplicate_metrics() {
                     .with_description("meter foo")
                     .init();
 
-                gauge.add(200, [KeyValue::new("type", "foo")].into());
+                gauge.add(200, [KeyValue::new("type", "foo")]);
             }),
             builder: ExporterBuilder::default().without_units(),
             expected_files: vec![
@@ -698,7 +698,7 @@ fn duplicate_metrics() {
                     .with_description("meter gauge foo")
                     .init();
 
-                foo_a.add(100, [KeyValue::new("A", "B")].into());
+                foo_a.add(100, [KeyValue::new("A", "B")]);
 
                 let foo_histogram_a = meter_a
                     .u64_histogram("foo")
@@ -706,7 +706,7 @@ fn duplicate_metrics() {
                     .with_description("meter histogram foo")
                     .init();
 
-                foo_histogram_a.record(100, [KeyValue::new("A", "B")].into());
+                foo_histogram_a.record(100, [KeyValue::new("A", "B")]);
             }),
             expected_files: vec![
                 "conflict_type_histogram_and_updowncounter_1.txt",
