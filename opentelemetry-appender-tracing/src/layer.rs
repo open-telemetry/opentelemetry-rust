@@ -55,15 +55,19 @@ impl EventVisitor {
             .push(("name".into(), meta.name().into()));
 
         #[cfg(feature = "experimental_metadata_attributes")]
+        self.visit_experimental_metadata(meta);
+    }
+
+    #[cfg(feature = "experimental_metadata_attributes")]
+    fn visit_experimental_metadata(&mut self, meta: &Metadata) {
         self.log_record_attributes
             .push(("log.target".into(), meta.target().to_owned().into()));
 
-        #[cfg(feature = "experimental_metadata_attributes")]
         if let Some(module_path) = meta.module_path() {
             self.log_record_attributes
                 .push(("log.module.path".into(), module_path.to_owned().into()));
         }
-        #[cfg(feature = "experimental_metadata_attributes")]
+
         if let Some(filepath) = meta.file() {
             self.log_record_attributes
                 .push(("log.source.file.path".into(), filepath.to_owned().into()));
@@ -72,7 +76,7 @@ impl EventVisitor {
                 get_filename(filepath).to_owned().into(),
             ));
         }
-        #[cfg(feature = "experimental_metadata_attributes")]
+
         if let Some(line) = meta.line() {
             self.log_record_attributes
                 .push(("log.source.file.line".into(), line.into()));
