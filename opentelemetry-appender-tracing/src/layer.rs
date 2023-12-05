@@ -106,7 +106,7 @@ where
 
         // Extract the trace_id & span_id from the opentelemetry extension.
         #[cfg(feature = "tracing")]
-        inject_trace_context(&mut log_record, &_ctx);
+        set_trace_context(&mut log_record, &_ctx);
 
         // add the `name` metadata to attributes
         // TBD - Propose this to be part of log_record metadata.
@@ -136,10 +136,8 @@ where
 }
 
 #[cfg(feature = "tracing")]
-fn inject_trace_context<S>(
-    log_record: &mut LogRecord,
-    ctx: &tracing_subscriber::layer::Context<'_, S>,
-) where
+fn set_trace_context<S>(log_record: &mut LogRecord, ctx: &tracing_subscriber::layer::Context<'_, S>)
+where
     S: Subscriber + for<'a> LookupSpan<'a>,
 {
     use opentelemetry::{
