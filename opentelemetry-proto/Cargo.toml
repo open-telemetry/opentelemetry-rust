@@ -41,6 +41,7 @@ logs = ["opentelemetry/logs", "opentelemetry_sdk/logs"]
 zpages = ["trace"]
 
 # add ons
+with-schemars = ["schemars"]
 with-serde = ["serde"]
 
 [dependencies]
@@ -49,6 +50,7 @@ tonic = { version = "0.9.0", default-features = false, optional = true, features
 prost = { version = "0.11.0", optional = true }
 opentelemetry = { version = "0.21", default-features = false, path = "../opentelemetry" }
 opentelemetry_sdk = { version = "0.21", default-features = false, path = "../opentelemetry-sdk" }
+schemars = { version = "0.8", optional = true }
 serde = { version = "1.0", optional = true, features = ["serde_derive"] }
 
 [dev-dependencies]

@@ -2,6 +2,10 @@
 
 ## vNext
 
+### Added
+
+- Add `schemars::JsonSchema` trait support with `with-schemars` feature (#1419)
+
 ## v0.4.0
 
 ### Added
