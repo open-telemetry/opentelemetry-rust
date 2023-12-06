@@ -361,8 +361,12 @@ fn prometheus_exporter_integration() {
                 .unwrap(),
             )
             .build();
-        let meter =
-            provider.versioned_meter("testmeter", Some("v0.1.0"), None::<&'static str>, None);
+        let meter = provider.versioned_meter(
+            "testmeter",
+            Some("v0.1.0"),
+            None::<&'static str>,
+            Some(vec![KeyValue::new("k", "v")]),
+        );
         (tc.record_metrics)(meter);
 
         let content = fs::read_to_string(Path::new("./tests/data").join(tc.expected_file))
@@ -410,7 +414,12 @@ fn multiple_scopes() {
         .build();
 
     let foo_counter = provider
-        .versioned_meter("meterfoo", Some("v0.1.0"), None::<&'static str>, None)
+        .versioned_meter(
+            "meterfoo",
+            Some("v0.1.0"),
+            None::<&'static str>,
+            Some(vec![KeyValue::new("k", "v")]),
+        )
         .u64_counter("foo")
         .with_unit(Unit::new("ms"))
         .with_description("meter foo counter")
@@ -418,7 +427,12 @@ fn multiple_scopes() {
     foo_counter.add(100, [KeyValue::new("type", "foo")]);
 
     let bar_counter = provider
-        .versioned_meter("meterbar", Some("v0.1.0"), None::<&'static str>, None)
+        .versioned_meter(
+            "meterbar",
+            Some("v0.1.0"),
+            None::<&'static str>,
+            Some(vec![KeyValue::new("k", "v")]),
+        )
         .u64_counter("bar")
         .with_unit(Unit::new("ms"))
         .with_description("meter bar counter")
@@ -744,8 +758,18 @@ fn duplicate_metrics() {
             .with_reader(exporter)
             .build();
 
-        let meter_a = provider.versioned_meter("ma", Some("v0.1.0"), None::<&'static str>, None);
-        let meter_b = provider.versioned_meter("mb", Some("v0.1.0"), None::<&'static str>, None);
+        let meter_a = provider.versioned_meter(
+            "ma",
+            Some("v0.1.0"),
+            None::<&'static str>,
+            Some(vec![KeyValue::new("k", "v")]),
+        );
+        let meter_b = provider.versioned_meter(
+            "mb",
+            Some("v0.1.0"),
+            None::<&'static str>,
+            Some(vec![KeyValue::new("k", "v")]),
+        );
 
         (tc.record_metrics)(meter_a, meter_b);
 
