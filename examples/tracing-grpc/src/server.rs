@@ -5,7 +5,9 @@ use opentelemetry::{
     propagation::Extractor,
     trace::{Span, SpanKind, Tracer},
 };
-use opentelemetry_sdk::{propagation::TraceContextPropagator, trace::TracerProvider};
+use opentelemetry_sdk::{
+    propagation::TraceContextPropagator, runtime::Tokio, trace::TracerProvider,
+};
 use opentelemetry_stdout::SpanExporter;
 use tonic::{transport::Server, Request, Response, Status};
 
@@ -13,7 +15,7 @@ fn init_tracer() {
     global::set_text_map_propagator(TraceContextPropagator::new());
     // Install stdout exporter pipeline to be able to retrieve the collected spans.
     let provider = TracerProvider::builder()
-        .with_simple_exporter(SpanExporter::default())
+        .with_batch_exporter(SpanExporter::default(), Tokio)
         .build();
 
     global::set_tracer_provider(provider);
