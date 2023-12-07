@@ -299,17 +299,19 @@ impl prometheus::core::Collector for Collector {
             // Resource should be immutable, we don't need to compute again
             create_info_metric(TARGET_INFO_NAME, TARGET_INFO_DESCRIPTION, &metrics.resource)
         });
-        if !self.disable_target_info {
+        if !self.disable_target_info && !metrics.resource.is_empty() {
             res.push(target_info.clone())
         }
 
         for scope_metrics in metrics.scope_metrics {
             let scope_labels = if !self.disable_scope_info {
-                let scope_info = inner
-                    .scope_infos
-                    .entry(scope_metrics.scope.clone())
-                    .or_insert_with_key(create_scope_info_metric);
-                res.push(scope_info.clone());
+                if !scope_metrics.scope.attributes.is_empty() {
+                    let scope_info = inner
+                        .scope_infos
+                        .entry(scope_metrics.scope.clone())
+                        .or_insert_with_key(create_scope_info_metric);
+                    res.push(scope_info.clone());
+                }
 
                 let mut labels =
                     Vec::with_capacity(1 + scope_metrics.scope.version.is_some() as usize);
