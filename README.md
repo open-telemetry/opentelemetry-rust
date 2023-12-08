@@ -130,6 +130,7 @@ maintained by the `opentelemetry` project. These include:
   Application Insights] exporter.
 * [`opentelemetry-tide`] provides integration for the [`Tide`] web server and
   ecosystem.
+* [`trillium-opentelemetry`] provides semantic-conventions metrics for [`trillium`] http servers
 
 If you're the maintainer of an `opentelemetry` ecosystem crate not listed
 above, please let us know! We'd love to add your project to the list!
@@ -161,6 +162,8 @@ above, please let us know! We'd love to add your project to the list!
 [`Tide`]: https://crates.io/crates/tide
 [`opentelemetry-stackdriver`]: https://crates.io/crates/opentelemetry-stackdriver
 [Cloud Trace]: https://cloud.google.com/trace/
+[`trillium-opentelemetry`]: https://github.com/trillium-rs/trillium-opentelemetry
+[`trillium`]: https://github.com/trillium-rs/trillium
 
 ## Supported Rust Versions
 
