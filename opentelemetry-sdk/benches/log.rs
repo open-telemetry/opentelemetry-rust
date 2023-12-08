@@ -1,7 +1,9 @@
+use std::time::SystemTime;
+
 use async_trait::async_trait;
 use criterion::{criterion_group, criterion_main, Criterion};
 
-use opentelemetry::logs::{LogResult, Logger, LoggerProvider as _};
+use opentelemetry::logs::{LogRecord, LogResult, Logger, LoggerProvider as _, Severity};
 use opentelemetry::trace::Tracer;
 use opentelemetry::trace::TracerProvider as _;
 use opentelemetry_sdk::export::logs::{LogData, LogExporter};
@@ -53,7 +55,65 @@ fn log_benchmark_group<F: Fn(&dyn Logger)>(c: &mut Criterion, name: &str, f: F) 
     group.finish();
 }
 
-fn criterion_benchmark(c: &mut Criterion) {}
+fn criterion_benchmark(c: &mut Criterion) {
+    log_benchmark_group(c, "simple-log", |logger| {
+        logger.emit(LogRecord::builder().with_body("simple log".into()).build())
+    });
+
+    log_benchmark_group(c, "long-log", |logger| {
+        logger.emit(LogRecord::builder().with_body("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Gravida in fermentum et sollicitudin ac orci phasellus. Ullamcorper dignissim cras tincidunt lobortis feugiat vivamus at augue. Magna etiam tempor orci eu. Sed tempus urna et pharetra pharetra massa.".into()).build())
+    });
+
+    let now = SystemTime::now();
+    log_benchmark_group(c, "full-log", |logger| {
+        logger.emit(
+            LogRecord::builder()
+                .with_body("full log".into())
+                .with_timestamp(now)
+                .with_observed_timestamp(now)
+                .with_severity_number(Severity::Warn)
+                .with_severity_text(Severity::Warn.name())
+                .build(),
+        )
+    });
+
+    log_benchmark_group(c, "full-log-with-4-attributes", |logger| {
+        logger.emit(
+            LogRecord::builder()
+                .with_body("full log".into())
+                .with_timestamp(now)
+                .with_observed_timestamp(now)
+                .with_severity_number(Severity::Warn)
+                .with_severity_text(Severity::Warn.name())
+                .with_attribute("name", "my-event-name")
+                .with_attribute("event.id", 20)
+                .with_attribute("user.name", "otel")
+                .with_attribute("user.email", "otel@opentelemetry.io")
+                .build(),
+        )
+    });
+
+    log_benchmark_group(c, "full-log-with-9-attributes", |logger| {
+        logger.emit(
+            LogRecord::builder()
+                .with_body("full log".into())
+                .with_timestamp(now)
+                .with_observed_timestamp(now)
+                .with_severity_number(Severity::Warn)
+                .with_severity_text(Severity::Warn.name())
+                .with_attribute("name", "my-event-name")
+                .with_attribute("event.id", 20)
+                .with_attribute("user.name", "otel")
+                .with_attribute("user.email", "otel@opentelemetry.io")
+                .with_attribute("log.source.file.name", "log.rs")
+                .with_attribute("log.source.file.path", "opentelemetry_sdk/benches/log.rs")
+                .with_attribute("log.source.file.line", 96)
+                .with_attribute("log.module.path", "opentelemetry_sdk::benches::log")
+                .with_attribute("log.target", "opentelemetry_sdk::benches::log")
+                .build(),
+        )
+    });
+}
 
 criterion_group!(benches, criterion_benchmark);
 criterion_main!(benches);
