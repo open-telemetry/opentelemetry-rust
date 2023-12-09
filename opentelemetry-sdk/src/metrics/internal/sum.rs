@@ -110,6 +110,9 @@ impl<T: Number<T>> Sum<T> {
         }
 
         let prev_start = self.start.lock().map(|start| *start).unwrap_or(t);
+        if values.len() < s_data.data_points.len() {
+            s_data.data_points.truncate(values.len());
+        }
         for (i, (attrs, value)) in values.drain().enumerate() {
             if let Some(dp) = s_data.data_points.get_mut(i) {
                 dp.attributes = attrs;

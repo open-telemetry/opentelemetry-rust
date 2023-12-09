@@ -169,7 +169,7 @@ impl SdkProducer for Pipeline {
                         prev_agg.description = inst.description.clone();
                         prev_agg.unit = inst.unit.clone();
                     }
-                    _ => continue,
+                    _ => {}
                 }
 
                 j += 1;
