@@ -27,7 +27,7 @@
 
 ### Fixed
 
-- Fix delta aggregation metric reuse.
+- Fix delta aggregation metric reuse. (#1434)
 
 ## v0.21.1
 

@@ -222,6 +222,8 @@ impl<T: Number<T>> PrecomputedSum<T> {
         };
         let s_data = s_data.unwrap_or_else(|| new_agg.as_mut().expect("present if s_data is none"));
         s_data.data_points.clear();
+        s_data.temporality = Temporality::Delta;
+        s_data.is_monotonic = self.monotonic;
 
         let mut values = match self.value_map.values.lock() {
             Ok(v) => v,
@@ -285,6 +287,8 @@ impl<T: Number<T>> PrecomputedSum<T> {
         };
         let s_data = s_data.unwrap_or_else(|| new_agg.as_mut().expect("present if s_data is none"));
         s_data.data_points.clear();
+        s_data.temporality = Temporality::Cumulative;
+        s_data.is_monotonic = self.monotonic;
 
         let values = match self.value_map.values.lock() {
             Ok(v) => v,
