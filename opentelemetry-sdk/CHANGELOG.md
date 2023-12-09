@@ -25,6 +25,10 @@
 
 - [#1375](https://github.com/open-telemetry/opentelemetry-rust/pull/1375/) Fix metric collections during PeriodicReader shutdown
 
+### Fixed
+
+- Fix delta aggregation metric reuse.
+
 ## v0.21.1
 
 ### Fixed
