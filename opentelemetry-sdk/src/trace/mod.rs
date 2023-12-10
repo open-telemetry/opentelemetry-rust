@@ -44,7 +44,9 @@ mod tests {
         trace::span_limit::{DEFAULT_MAX_EVENT_PER_SPAN, DEFAULT_MAX_LINKS_PER_SPAN},
     };
     use opentelemetry::testing::trace::TestSpan;
-    use opentelemetry::trace::{TraceContextExt, TraceState};
+    use opentelemetry::trace::{
+        SamplingDecision, SamplingResult, SpanKind, TraceContextExt, TraceState,
+    };
     use opentelemetry::{
         trace::{
             Event, Link, Span, SpanBuilder, SpanContext, SpanId, TraceFlags, TraceId, Tracer,
@@ -202,6 +204,64 @@ mod tests {
         assert_eq!(
             span.span_context().trace_state().get("foo"),
             trace_state.get("foo")
+        )
+    }
+
+    #[derive(Clone, Debug, Default)]
+    struct TestRecordOnlySampler {}
+
+    impl ShouldSample for TestRecordOnlySampler {
+        fn should_sample(
+            &self,
+            parent_context: Option<&Context>,
+            _trace_id: TraceId,
+            _name: &str,
+            _span_kind: &SpanKind,
+            _attributes: &[KeyValue],
+            _links: &[Link],
+        ) -> SamplingResult {
+            let trace_state = parent_context
+                .unwrap()
+                .span()
+                .span_context()
+                .trace_state()
+                .clone();
+            SamplingResult {
+                decision: SamplingDecision::RecordOnly,
+                attributes: Vec::new(),
+                trace_state,
+            }
+        }
+    }
+
+    #[test]
+    fn trace_state_for_record_only_sampler() {
+        let exporter = InMemorySpanExporterBuilder::new().build();
+        let provider = TracerProvider::builder()
+            .with_config(config().with_sampler(TestRecordOnlySampler::default()))
+            .with_span_processor(SimpleSpanProcessor::new(Box::new(exporter.clone())))
+            .build();
+
+        let tracer = provider.tracer("test");
+        let trace_state = TraceState::from_key_value(vec![("foo", "bar")]).unwrap();
+
+        let parent_context = Context::new().with_span(TestSpan(SpanContext::new(
+            TraceId::from_u128(10000),
+            SpanId::from_u64(20),
+            TraceFlags::SAMPLED,
+            true,
+            trace_state.clone(),
+        )));
+
+        let span = tracer.build_with_context(
+            SpanBuilder::from_name("span")
+                .with_attributes(vec![KeyValue::new("extra_attr_key", "extra_attr_value")]),
+            &parent_context,
+        );
+        assert!(!span.span_context().trace_flags().is_sampled());
+        assert_eq!(
+            span.exported_data().unwrap().attributes,
+            vec![KeyValue::new("extra_attr_key", "extra_attr_value")]
         )
     }
 }
