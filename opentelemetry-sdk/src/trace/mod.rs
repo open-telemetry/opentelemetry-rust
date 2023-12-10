@@ -43,12 +43,14 @@ mod tests {
         testing::trace::InMemorySpanExporterBuilder,
         trace::span_limit::{DEFAULT_MAX_EVENT_PER_SPAN, DEFAULT_MAX_LINKS_PER_SPAN},
     };
+    use opentelemetry::testing::trace::TestSpan;
+    use opentelemetry::trace::{TraceContextExt, TraceState};
     use opentelemetry::{
         trace::{
             Event, Link, Span, SpanBuilder, SpanContext, SpanId, TraceFlags, TraceId, Tracer,
             TracerProvider as _,
         },
-        KeyValue,
+        Context, KeyValue,
     };
 
     #[test]
@@ -175,5 +177,31 @@ mod tests {
         assert_eq!(span.name, "span_name");
         assert_eq!(span.events.len(), DEFAULT_MAX_EVENT_PER_SPAN as usize);
         assert_eq!(span.events.dropped_count, DEFAULT_MAX_EVENT_PER_SPAN + 2);
+    }
+
+    #[test]
+    fn trace_state_for_dropped_sampler() {
+        let exporter = InMemorySpanExporterBuilder::new().build();
+        let provider = TracerProvider::builder()
+            .with_config(config().with_sampler(Sampler::AlwaysOff))
+            .with_span_processor(SimpleSpanProcessor::new(Box::new(exporter.clone())))
+            .build();
+
+        let tracer = provider.tracer("test");
+        let trace_state = TraceState::from_key_value(vec![("foo", "bar")]).unwrap();
+
+        let parent_context = Context::new().with_span(TestSpan(SpanContext::new(
+            TraceId::from_u128(10000),
+            SpanId::from_u64(20),
+            TraceFlags::SAMPLED,
+            true,
+            trace_state.clone(),
+        )));
+
+        let span = tracer.start_with_context("span", &parent_context);
+        assert_eq!(
+            span.span_context().trace_state().get("foo"),
+            trace_state.get("foo")
+        )
     }
 }
