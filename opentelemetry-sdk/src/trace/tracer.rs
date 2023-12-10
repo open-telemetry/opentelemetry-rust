@@ -78,7 +78,7 @@ impl Tracer {
         attributes: &[KeyValue],
         links: &[Link],
         config: &Config,
-    ) -> Option<(TraceFlags, Vec<KeyValue>, TraceState)> {
+    ) -> (SamplingDecision, TraceFlags, Vec<KeyValue>, TraceState) {
         let sampling_result = config.sampler.should_sample(
             Some(parent_cx),
             trace_id,
@@ -95,19 +95,30 @@ impl Tracer {
         &self,
         sampling_result: SamplingResult,
         parent_cx: &Context,
-    ) -> Option<(TraceFlags, Vec<KeyValue>, TraceState)> {
+    ) -> (SamplingDecision, TraceFlags, Vec<KeyValue>, TraceState) {
         match sampling_result {
             SamplingResult {
                 decision: SamplingDecision::Drop,
+                trace_state,
                 ..
-            } => None,
+            } => (
+                SamplingDecision::Drop,
+                TraceFlags::default(),
+                Vec::new(),
+                trace_state,
+            ),
             SamplingResult {
                 decision: SamplingDecision::RecordOnly,
                 attributes,
                 trace_state,
             } => {
                 let trace_flags = parent_cx.span().span_context().trace_flags();
-                Some((trace_flags.with_sampled(false), attributes, trace_state))
+                (
+                    SamplingDecision::RecordOnly,
+                    trace_flags.with_sampled(false),
+                    attributes,
+                    trace_state,
+                )
             }
             SamplingResult {
                 decision: SamplingDecision::RecordAndSample,
@@ -115,7 +126,12 @@ impl Tracer {
                 trace_state,
             } => {
                 let trace_flags = parent_cx.span().span_context().trace_flags();
-                Some((trace_flags.with_sampled(true), attributes, trace_state))
+                (
+                    SamplingDecision::RecordAndSample,
+                    trace_flags.with_sampled(true),
+                    attributes,
+                    trace_state,
+                )
             }
         }
     }
@@ -172,19 +188,20 @@ impl opentelemetry::trace::Tracer for Tracer {
 
         // In order to accommodate use cases like `tracing-opentelemetry` we there is the ability
         // to use pre-sampling. Otherwise, the standard method of sampling is followed.
-        let sampling_decision = if let Some(sampling_result) = builder.sampling_result.take() {
-            self.process_sampling_result(sampling_result, parent_cx)
-        } else {
-            self.make_sampling_decision(
-                parent_cx,
-                trace_id,
-                &builder.name,
-                &span_kind,
-                builder.attributes.as_ref().unwrap_or(&Vec::new()),
-                builder.links.as_deref().unwrap_or(&[]),
-                provider.config(),
-            )
-        };
+        let (decision, flags, extra_attrs, trace_state) =
+            if let Some(sampling_result) = builder.sampling_result.take() {
+                self.process_sampling_result(sampling_result, parent_cx)
+            } else {
+                self.make_sampling_decision(
+                    parent_cx,
+                    trace_id,
+                    &builder.name,
+                    &span_kind,
+                    builder.attributes.as_ref().unwrap_or(&Vec::new()),
+                    builder.links.as_deref().unwrap_or(&[]),
+                    provider.config(),
+                )
+            };
 
         let SpanBuilder {
             name,
@@ -196,97 +213,95 @@ impl opentelemetry::trace::Tracer for Tracer {
         } = builder;
 
         // Build optional inner context, `None` if not recording.
-        let mut span = if let Some((flags, extra_attrs, trace_state)) = sampling_decision {
-            let mut attribute_options = builder.attributes.take().unwrap_or_default();
-            for extra_attr in extra_attrs {
-                attribute_options.push(extra_attr);
+        let mut span = match decision {
+            SamplingDecision::RecordAndSample | SamplingDecision::RecordOnly => {
+                let mut attribute_options = builder.attributes.take().unwrap_or_default();
+                for extra_attr in extra_attrs {
+                    attribute_options.push(extra_attr);
+                }
+
+                let span_attributes_limit = span_limits.max_attributes_per_span as usize;
+                let dropped_attributes_count = attribute_options
+                    .len()
+                    .saturating_sub(span_attributes_limit);
+                attribute_options.truncate(span_attributes_limit);
+                let dropped_attributes_count = dropped_attributes_count as u32;
+
+                // Links are available as Option<Vec<Link>> in the builder
+                // If it is None, then there are no links to process.
+                // In that case Span.Links will be default (empty Vec<Link>, 0 drop count)
+                // Otherwise, truncate Vec<Link> to keep until limits and use that in Span.Links.
+                // Store the count of excess links into Span.Links.dropped_count.
+                // There is no ability today to add Links after Span creation,
+                // but such a capability will be needed in the future
+                // once the spec for that stabilizes.
+
+                let spans_links_limit = span_limits.max_links_per_span as usize;
+                let span_links: SpanLinks = if let Some(mut links) = builder.links.take() {
+                    let dropped_count = links.len().saturating_sub(spans_links_limit);
+                    links.truncate(spans_links_limit);
+                    let link_attributes_limit = span_limits.max_attributes_per_link as usize;
+                    for link in links.iter_mut() {
+                        let dropped_attributes_count =
+                            link.attributes.len().saturating_sub(link_attributes_limit);
+                        link.attributes.truncate(link_attributes_limit);
+                        link.dropped_attributes_count = dropped_attributes_count as u32;
+                    }
+                    SpanLinks {
+                        links,
+                        dropped_count: dropped_count as u32,
+                    }
+                } else {
+                    SpanLinks::default()
+                };
+
+                let start_time = start_time.unwrap_or_else(opentelemetry::time::now);
+                let end_time = end_time.unwrap_or(start_time);
+                let spans_events_limit = span_limits.max_events_per_span as usize;
+                let span_events: SpanEvents = if let Some(mut events) = events {
+                    let dropped_count = events.len().saturating_sub(spans_events_limit);
+                    events.truncate(spans_events_limit);
+                    let event_attributes_limit = span_limits.max_attributes_per_event as usize;
+                    for event in events.iter_mut() {
+                        let dropped_attributes_count = event
+                            .attributes
+                            .len()
+                            .saturating_sub(event_attributes_limit);
+                        event.attributes.truncate(event_attributes_limit);
+                        event.dropped_attributes_count = dropped_attributes_count as u32;
+                    }
+                    SpanEvents {
+                        events,
+                        dropped_count: dropped_count as u32,
+                    }
+                } else {
+                    SpanEvents::default()
+                };
+
+                let span_context = SpanContext::new(trace_id, span_id, flags, false, trace_state);
+                Span::new(
+                    span_context,
+                    Some(SpanData {
+                        parent_span_id,
+                        span_kind,
+                        name,
+                        start_time,
+                        end_time,
+                        attributes: attribute_options,
+                        dropped_attributes_count,
+                        events: span_events,
+                        links: span_links,
+                        status,
+                    }),
+                    self.clone(),
+                    span_limits,
+                )
             }
-
-            let span_attributes_limit = span_limits.max_attributes_per_span as usize;
-            let dropped_attributes_count = attribute_options
-                .len()
-                .saturating_sub(span_attributes_limit);
-            attribute_options.truncate(span_attributes_limit);
-            let dropped_attributes_count = dropped_attributes_count as u32;
-
-            // Links are available as Option<Vec<Link>> in the builder
-            // If it is None, then there are no links to process.
-            // In that case Span.Links will be default (empty Vec<Link>, 0 drop count)
-            // Otherwise, truncate Vec<Link> to keep until limits and use that in Span.Links.
-            // Store the count of excess links into Span.Links.dropped_count.
-            // There is no ability today to add Links after Span creation,
-            // but such a capability will be needed in the future
-            // once the spec for that stabilizes.
-
-            let spans_links_limit = span_limits.max_links_per_span as usize;
-            let span_links: SpanLinks = if let Some(mut links) = builder.links.take() {
-                let dropped_count = links.len().saturating_sub(spans_links_limit);
-                links.truncate(spans_links_limit);
-                let link_attributes_limit = span_limits.max_attributes_per_link as usize;
-                for link in links.iter_mut() {
-                    let dropped_attributes_count =
-                        link.attributes.len().saturating_sub(link_attributes_limit);
-                    link.attributes.truncate(link_attributes_limit);
-                    link.dropped_attributes_count = dropped_attributes_count as u32;
-                }
-                SpanLinks {
-                    links,
-                    dropped_count: dropped_count as u32,
-                }
-            } else {
-                SpanLinks::default()
-            };
-
-            let start_time = start_time.unwrap_or_else(opentelemetry::time::now);
-            let end_time = end_time.unwrap_or(start_time);
-            let spans_events_limit = span_limits.max_events_per_span as usize;
-            let span_events: SpanEvents = if let Some(mut events) = events {
-                let dropped_count = events.len().saturating_sub(spans_events_limit);
-                events.truncate(spans_events_limit);
-                let event_attributes_limit = span_limits.max_attributes_per_event as usize;
-                for event in events.iter_mut() {
-                    let dropped_attributes_count = event
-                        .attributes
-                        .len()
-                        .saturating_sub(event_attributes_limit);
-                    event.attributes.truncate(event_attributes_limit);
-                    event.dropped_attributes_count = dropped_attributes_count as u32;
-                }
-                SpanEvents {
-                    events,
-                    dropped_count: dropped_count as u32,
-                }
-            } else {
-                SpanEvents::default()
-            };
-
-            let span_context = SpanContext::new(trace_id, span_id, flags, false, trace_state);
-            Span::new(
-                span_context,
-                Some(SpanData {
-                    parent_span_id,
-                    span_kind,
-                    name,
-                    start_time,
-                    end_time,
-                    attributes: attribute_options,
-                    dropped_attributes_count,
-                    events: span_events,
-                    links: span_links,
-                    status,
-                }),
-                self.clone(),
-                span_limits,
-            )
-        } else {
-            let span_context = SpanContext::new(
-                trace_id,
-                span_id,
-                TraceFlags::default(),
-                false,
-                Default::default(),
-            );
-            Span::new(span_context, None, self.clone(), span_limits)
+            SamplingDecision::Drop => {
+                let span_context =
+                    SpanContext::new(trace_id, span_id, TraceFlags::default(), false, trace_state);
+                Span::new(span_context, None, self.clone(), span_limits)
+            }
         };
 
         // Call `on_start` for all processors
