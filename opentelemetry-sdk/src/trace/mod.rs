@@ -228,7 +228,7 @@ mod tests {
                 .clone();
             SamplingResult {
                 decision: SamplingDecision::RecordOnly,
-                attributes: Vec::new(),
+                attributes: vec![KeyValue::new("record_only_key", "record_only_value")],
                 trace_state,
             }
         }
@@ -261,7 +261,10 @@ mod tests {
         assert!(!span.span_context().trace_flags().is_sampled());
         assert_eq!(
             span.exported_data().unwrap().attributes,
-            vec![KeyValue::new("extra_attr_key", "extra_attr_value")]
+            vec![
+                KeyValue::new("extra_attr_key", "extra_attr_value"),
+                KeyValue::new("record_only_key", "record_only_value")
+            ]
         )
     }
 }
