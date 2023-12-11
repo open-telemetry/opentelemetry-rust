@@ -265,6 +265,7 @@ mod tests {
                 KeyValue::new("extra_attr_key", "extra_attr_value"),
                 KeyValue::new("record_only_key", "record_only_value")
             ]
-        )
+        );
+        assert_eq!(span.span_context().trace_state().get("foo"), Some("bar"));
     }
 }
