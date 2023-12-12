@@ -1,7 +1,7 @@
 # Contributing to opentelemetry-rust
 
-The Rust special interest group (SIG) meets weekly on Tuesdays at 8 AM Pacific
-Time (16:00 UTC). The meeting is subject to change depending on contributors'
+The Rust special interest group (SIG) meets weekly on Tuesdays at 9 AM Pacific
+Time. The meeting is subject to change depending on contributors'
 availability. Check the [OpenTelemetry community
 calendar](https://calendar.google.com/calendar/embed?src=google.com_b79e3e90j7bbsa2n2p5an5lf60%40group.calendar.google.com)
 for specific dates and for Zoom meeting links. "OTel Rust SIG" is the name of
