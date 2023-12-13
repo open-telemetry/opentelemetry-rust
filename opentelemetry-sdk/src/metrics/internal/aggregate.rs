@@ -73,6 +73,22 @@ where
     }
 }
 
+/// A measure and it's related bounded measure generator
+#[derive(Clone)]
+pub(crate) struct MeasureSet<T> {
+    pub(crate) measure: Arc<dyn Measure<T>>,
+    pub(crate) _bound_measure_generator: Arc<dyn BoundedMeasureGenerator<T>>,
+}
+
+impl<T> MeasureSet<T> {
+    pub(crate) fn new(measure: Arc<dyn Measure<T>>, bound_measure_generator: Arc<dyn BoundedMeasureGenerator<T>>) -> Self {
+        MeasureSet {
+            measure,
+            _bound_measure_generator: bound_measure_generator,
+        }
+    }
+}
+
 /// Stores the aggregate of measurements into the aggregation and returns the number
 /// of aggregate data-points output.
 pub(crate) trait ComputeAggregation: Send + Sync + 'static {

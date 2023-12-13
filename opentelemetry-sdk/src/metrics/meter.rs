@@ -17,9 +17,10 @@ use crate::metrics::{
     instrument::{
         Instrument, InstrumentKind, Observable, ObservableId, ResolvedMeasures, EMPTY_MEASURE_MSG,
     },
-    internal::{self, Number},
+    internal::Number,
     pipeline::{Pipelines, Resolver},
 };
+use crate::metrics::internal::MeasureSet;
 
 // maximum length of instrument name
 const INSTRUMENT_NAME_MAX_LENGTH: usize = 255;
@@ -684,7 +685,7 @@ where
     ) -> Result<ResolvedMeasures<T>> {
         let aggregators = self.measures(kind, name, description, unit)?;
         Ok(ResolvedMeasures {
-            measures: aggregators,
+            measure_sets: aggregators,
         })
     }
 
@@ -695,10 +696,7 @@ where
         description: Option<Cow<'static, str>>,
         unit: Unit,
     ) -> Result<
-        Vec<(
-            Arc<dyn internal::Measure<T>>,
-            Arc<dyn internal::BoundedMeasureGenerator<T>>,
-        )>,
+        Vec<MeasureSet<T>>,
     > {
         let inst = Instrument {
             name,

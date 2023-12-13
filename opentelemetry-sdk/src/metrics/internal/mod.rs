@@ -8,7 +8,7 @@ use core::fmt;
 use std::ops::{Add, AddAssign, Sub};
 
 pub(crate) use aggregate::{
-    AggregateBuilder, BoundedMeasure, BoundedMeasureGenerator, ComputeAggregation, Measure,
+    AggregateBuilder, BoundedMeasure, BoundedMeasureGenerator, ComputeAggregation, Measure, MeasureSet
 };
 pub(crate) use exponential_histogram::{EXPO_MAX_SCALE, EXPO_MIN_SCALE};
 

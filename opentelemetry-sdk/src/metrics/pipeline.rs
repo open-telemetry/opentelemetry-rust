@@ -11,7 +11,7 @@ use opentelemetry::{
     KeyValue,
 };
 
-use crate::metrics::internal::BoundedMeasureGenerator;
+use crate::metrics::internal::{BoundedMeasureGenerator, MeasureSet};
 use crate::{
     instrumentation::Scope,
     metrics::{
@@ -280,10 +280,7 @@ where
         &self,
         inst: Instrument,
     ) -> Result<
-        Vec<(
-            Arc<dyn internal::Measure<T>>,
-            Arc<dyn BoundedMeasureGenerator<T>>,
-        )>,
+        Vec<MeasureSet<T>>,
     > {
         let mut matched = false;
         let mut measures = vec![];
@@ -373,10 +370,7 @@ where
         kind: InstrumentKind,
         mut stream: Stream,
     ) -> Result<
-        Option<(
-            Arc<dyn internal::Measure<T>>,
-            Arc<dyn internal::BoundedMeasureGenerator<T>>,
-        )>,
+        Option<MeasureSet<T>>,
     > {
         let mut agg = stream
             .aggregation
@@ -435,7 +429,7 @@ where
 
         cached
             .as_ref()
-            .map(|o| o.as_ref().map(|(m, bmg)| (Arc::clone(m), Arc::clone(bmg))))
+            .map(|o| o.as_ref().map(|(m, bmg)| MeasureSet::new(Arc::clone(m), Arc::clone(bmg))))
             .map_err(|e| MetricsError::Other(e.to_string()))
     }
 
@@ -748,10 +742,7 @@ where
         &self,
         id: Instrument,
     ) -> Result<
-        Vec<(
-            Arc<dyn internal::Measure<T>>,
-            Arc<dyn internal::BoundedMeasureGenerator<T>>,
-        )>,
+        Vec<MeasureSet<T>>,
     > {
         let (mut measures, mut errs) = (vec![], vec![]);
 
