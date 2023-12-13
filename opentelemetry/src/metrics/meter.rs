@@ -4,6 +4,8 @@ use std::any::Any;
 use std::borrow::Cow;
 use std::sync::Arc;
 
+#[cfg(feature = "otel_unstable")]
+use crate::metrics::Gauge;
 use crate::metrics::{
     AsyncInstrumentBuilder, Counter, Histogram, InstrumentBuilder, InstrumentProvider,
     ObservableCounter, ObservableGauge, ObservableUpDownCounter, Result, UpDownCounter,
@@ -258,6 +260,39 @@ impl Meter {
         name: impl Into<Cow<'static, str>>,
     ) -> AsyncInstrumentBuilder<'_, ObservableUpDownCounter<f64>, f64> {
         AsyncInstrumentBuilder::new(self, name.into())
+    }
+
+    /// # Experimental
+    /// This method is experimental and can be changed/removed in future releases.
+    /// creates an instrument builder for recording independent values.
+    #[cfg(feature = "otel_unstable")]
+    pub fn u64_gauge(
+        &self,
+        name: impl Into<Cow<'static, str>>,
+    ) -> InstrumentBuilder<'_, Gauge<u64>> {
+        InstrumentBuilder::new(self, name.into())
+    }
+
+    /// # Experimental
+    /// This method is experimental and can be changed/removed in future releases.
+    /// creates an instrument builder for recording independent values.
+    #[cfg(feature = "otel_unstable")]
+    pub fn f64_gauge(
+        &self,
+        name: impl Into<Cow<'static, str>>,
+    ) -> InstrumentBuilder<'_, Gauge<f64>> {
+        InstrumentBuilder::new(self, name.into())
+    }
+
+    /// # Experimental
+    /// This method is experimental and can be changed/removed in future releases.
+    /// creates an instrument builder for recording indenpendent values.
+    #[cfg(feature = "otel_unstable")]
+    pub fn i64_gauge(
+        &self,
+        name: impl Into<Cow<'static, str>>,
+    ) -> InstrumentBuilder<'_, Gauge<i64>> {
+        InstrumentBuilder::new(self, name.into())
     }
 
     /// creates an instrument builder for recording the current value via callback.

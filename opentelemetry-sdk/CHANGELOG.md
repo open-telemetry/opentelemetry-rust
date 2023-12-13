@@ -2,6 +2,10 @@
 
 ## vNext
 
+### Added
+
+- [#1410](https://github.com/open-telemetry/opentelemetry-rust/pull/1410) Add experimental synchronous gauge
+
 ### Changed
 
 - **Breaking**
@@ -24,6 +28,10 @@
 - **Breaking** Remove `TextMapCompositePropagator` [#1373](https://github.com/open-telemetry/opentelemetry-rust/pull/1373). Use `TextMapCompositePropagator` in opentelemetry API.
 
 - [#1375](https://github.com/open-telemetry/opentelemetry-rust/pull/1375/) Fix metric collections during PeriodicReader shutdown
+
+### Fixed
+
+- Fix delta aggregation metric reuse. (#1434)
 
 ## v0.21.1
 

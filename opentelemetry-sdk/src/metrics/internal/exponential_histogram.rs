@@ -1,9 +1,4 @@
-use std::{
-    collections::HashMap,
-    f64::consts::LOG2_E,
-    sync::Mutex,
-    time::{SystemTime, UNIX_EPOCH},
-};
+use std::{collections::HashMap, f64::consts::LOG2_E, sync::Mutex, time::SystemTime};
 
 use once_cell::sync::Lazy;
 use opentelemetry::{attributes::AttributeSet, metrics::MetricsError};
@@ -384,6 +379,7 @@ impl<T: Number<T>> ExpoHistogram<T> {
         };
         let h = h.unwrap_or_else(|| new_agg.as_mut().expect("present if h is none"));
         h.temporality = Temporality::Delta;
+        h.data_points.clear();
 
         let mut values = match self.values.lock() {
             Ok(g) => g,
@@ -392,62 +388,39 @@ impl<T: Number<T>> ExpoHistogram<T> {
 
         let n = values.len();
         if n > h.data_points.capacity() {
-            h.data_points.reserve(n - h.data_points.capacity());
+            h.data_points.reserve_exact(n - h.data_points.capacity());
         }
 
-        for (i, (a, mut b)) in values.drain().enumerate() {
-            let el = match h.data_points.get_mut(i) {
-                Some(el) => el,
-                None => {
-                    h.data_points.push(data::ExponentialHistogramDataPoint {
-                        attributes: AttributeSet::default(),
-                        start_time: UNIX_EPOCH,
-                        time: UNIX_EPOCH,
-                        count: 0,
-                        min: None,
-                        max: None,
-                        sum: T::default(),
-                        scale: 0,
-                        zero_count: 0,
-                        positive_bucket: data::ExponentialBucket {
-                            offset: 0,
-                            counts: vec![],
-                        },
-                        negative_bucket: data::ExponentialBucket {
-                            offset: 0,
-                            counts: vec![],
-                        },
-                        zero_threshold: 0.0,
-                        exemplars: vec![],
-                    });
-                    h.data_points.get_mut(i).unwrap()
-                }
-            };
-            el.attributes = a;
-            el.start_time = start;
-            el.time = t;
-            el.count = b.count;
-            el.scale = b.scale;
-            el.zero_count = b.zero_count;
-            el.zero_threshold = 0.0;
-
-            el.positive_bucket.offset = b.pos_buckets.start_bin;
-            el.positive_bucket.counts.clear();
-            el.positive_bucket.counts.append(&mut b.pos_buckets.counts);
-
-            el.negative_bucket.offset = b.neg_buckets.start_bin;
-            el.negative_bucket.counts.clear();
-            el.negative_bucket.counts.append(&mut b.neg_buckets.counts);
-
-            el.sum = if self.record_sum { b.sum } else { T::default() };
-
-            if self.record_min_max {
-                el.min = Some(b.min);
-                el.max = Some(b.max);
-            } else {
-                el.min = None;
-                el.max = None;
-            }
+        for (a, b) in values.drain() {
+            h.data_points.push(data::ExponentialHistogramDataPoint {
+                attributes: a,
+                start_time: start,
+                time: t,
+                count: b.count,
+                min: if self.record_min_max {
+                    Some(b.min)
+                } else {
+                    None
+                },
+                max: if self.record_min_max {
+                    Some(b.max)
+                } else {
+                    None
+                },
+                sum: if self.record_sum { b.sum } else { T::default() },
+                scale: b.scale,
+                zero_count: b.zero_count,
+                positive_bucket: data::ExponentialBucket {
+                    offset: b.pos_buckets.start_bin,
+                    counts: b.pos_buckets.counts.clone(),
+                },
+                negative_bucket: data::ExponentialBucket {
+                    offset: b.neg_buckets.start_bin,
+                    counts: b.neg_buckets.counts.clone(),
+                },
+                zero_threshold: 0.0,
+                exemplars: vec![],
+            });
         }
 
         // The delta collection cycle resets.
@@ -485,71 +458,47 @@ impl<T: Number<T>> ExpoHistogram<T> {
             Ok(g) => g,
             Err(_) => return (0, None),
         };
+        h.data_points.clear();
 
         let n = values.len();
         if n > h.data_points.capacity() {
-            h.data_points.reserve(n - h.data_points.capacity());
+            h.data_points.reserve_exact(n - h.data_points.capacity());
         }
 
         // TODO: This will use an unbounded amount of memory if there
         // are unbounded number of attribute sets being aggregated. Attribute
         // sets that become "stale" need to be forgotten so this will not
         // overload the system.
-        for (i, (a, b)) in values.iter().enumerate() {
-            let el = match h.data_points.get_mut(i) {
-                Some(el) => el,
-                None => {
-                    h.data_points.push(data::ExponentialHistogramDataPoint {
-                        attributes: AttributeSet::default(),
-                        start_time: UNIX_EPOCH,
-                        time: UNIX_EPOCH,
-                        count: 0,
-                        min: None,
-                        max: None,
-                        sum: T::default(),
-                        scale: 0,
-                        zero_count: 0,
-                        positive_bucket: data::ExponentialBucket {
-                            offset: 0,
-                            counts: vec![],
-                        },
-                        negative_bucket: data::ExponentialBucket {
-                            offset: 0,
-                            counts: vec![],
-                        },
-                        zero_threshold: 0.0,
-                        exemplars: vec![],
-                    });
-                    h.data_points.get_mut(i).unwrap()
-                }
-            };
-            el.attributes = a.clone();
-            el.start_time = start;
-            el.time = t;
-            el.count = b.count;
-            el.scale = b.scale;
-            el.zero_count = b.zero_count;
-            el.zero_threshold = 0.0;
-
-            el.positive_bucket.offset = b.pos_buckets.start_bin;
-            el.positive_bucket.counts.clear();
-            el.positive_bucket
-                .counts
-                .extend_from_slice(&b.pos_buckets.counts);
-
-            el.negative_bucket.offset = b.neg_buckets.start_bin;
-            el.negative_bucket.counts.clear();
-            el.negative_bucket
-                .counts
-                .extend_from_slice(&b.neg_buckets.counts);
-
-            if self.record_sum {
-                el.sum = b.sum;
-            }
-            if self.record_min_max {
-                el.min = Some(b.min);
-                el.max = Some(b.max);
-            }
+        for (a, b) in values.iter() {
+            h.data_points.push(data::ExponentialHistogramDataPoint {
+                attributes: a.clone(),
+                start_time: start,
+                time: t,
+                count: b.count,
+                min: if self.record_min_max {
+                    Some(b.min)
+                } else {
+                    None
+                },
+                max: if self.record_min_max {
+                    Some(b.max)
+                } else {
+                    None
+                },
+                sum: if self.record_sum { b.sum } else { T::default() },
+                scale: b.scale,
+                zero_count: b.zero_count,
+                positive_bucket: data::ExponentialBucket {
+                    offset: b.pos_buckets.start_bin,
+                    counts: b.pos_buckets.counts.clone(),
+                },
+                negative_bucket: data::ExponentialBucket {
+                    offset: b.neg_buckets.start_bin,
+                    counts: b.neg_buckets.counts.clone(),
+                },
+                zero_threshold: 0.0,
+                exemplars: vec![],
+            });
         }
 
         (n, new_agg.map(|a| Box::new(a) as Box<_>))

@@ -6,9 +6,9 @@ use opentelemetry::{
     global,
     metrics::{
         noop::{NoopAsyncInstrument, NoopRegistration},
-        AsyncInstrument, Callback, CallbackRegistration, Counter, Histogram, InstrumentProvider,
-        MetricsError, ObservableCounter, ObservableGauge, ObservableUpDownCounter,
-        Observer as ApiObserver, Result, Unit, UpDownCounter,
+        AsyncInstrument, Callback, CallbackRegistration, Counter, Gauge, Histogram,
+        InstrumentProvider, MetricsError, ObservableCounter, ObservableGauge,
+        ObservableUpDownCounter, Observer as ApiObserver, Result, Unit, UpDownCounter,
     },
 };
 
@@ -297,6 +297,57 @@ impl InstrumentProvider for SdkMeter {
         }
 
         Ok(ObservableUpDownCounter::new(observable))
+    }
+
+    fn u64_gauge(
+        &self,
+        name: Cow<'static, str>,
+        description: Option<Cow<'static, str>>,
+        unit: Option<Unit>,
+    ) -> Result<Gauge<u64>> {
+        validate_instrument_config(name.as_ref(), unit.as_ref(), self.validation_policy)?;
+        let p = InstrumentResolver::new(self, &self.u64_resolver);
+        p.lookup(
+            InstrumentKind::Gauge,
+            name,
+            description,
+            unit.unwrap_or_default(),
+        )
+        .map(|i| Gauge::new(Arc::new(i)))
+    }
+
+    fn f64_gauge(
+        &self,
+        name: Cow<'static, str>,
+        description: Option<Cow<'static, str>>,
+        unit: Option<Unit>,
+    ) -> Result<Gauge<f64>> {
+        validate_instrument_config(name.as_ref(), unit.as_ref(), self.validation_policy)?;
+        let p = InstrumentResolver::new(self, &self.f64_resolver);
+        p.lookup(
+            InstrumentKind::Gauge,
+            name,
+            description,
+            unit.unwrap_or_default(),
+        )
+        .map(|i| Gauge::new(Arc::new(i)))
+    }
+
+    fn i64_gauge(
+        &self,
+        name: Cow<'static, str>,
+        description: Option<Cow<'static, str>>,
+        unit: Option<Unit>,
+    ) -> Result<Gauge<i64>> {
+        validate_instrument_config(name.as_ref(), unit.as_ref(), self.validation_policy)?;
+        let p = InstrumentResolver::new(self, &self.i64_resolver);
+        p.lookup(
+            InstrumentKind::Gauge,
+            name,
+            description,
+            unit.unwrap_or_default(),
+        )
+        .map(|i| Gauge::new(Arc::new(i)))
     }
 
     fn u64_observable_gauge(
@@ -784,6 +835,9 @@ mod tests {
                     .f64_observable_up_down_counter(name.into(), None, None, Vec::new())
                     .map(|_| ()),
             );
+            assert(meter.u64_gauge(name.into(), None, None).map(|_| ()));
+            assert(meter.f64_gauge(name.into(), None, None).map(|_| ()));
+            assert(meter.i64_gauge(name.into(), None, None).map(|_| ()));
             assert(
                 meter
                     .u64_observable_gauge(name.into(), None, None, Vec::new())

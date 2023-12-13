@@ -156,70 +156,44 @@ impl<T: Number<T>> Histogram<T> {
         };
         let h = h.unwrap_or_else(|| new_agg.as_mut().expect("present if h is none"));
         h.temporality = Temporality::Delta;
+        h.data_points.clear();
 
         let n = values.len();
         if n > h.data_points.capacity() {
             h.data_points.reserve_exact(n - h.data_points.capacity());
         }
 
-        for (i, (a, b)) in values.drain().enumerate() {
-            if let Some(dp) = h.data_points.get_mut(i) {
-                dp.attributes = a;
-                dp.start_time = start;
-                dp.time = t;
-                dp.count = b.count;
-                dp.bounds = self.hist_values.bounds.clone();
-                dp.bucket_counts = b.counts.clone();
-                dp.sum = if self.hist_values.record_sum {
+        for (a, b) in values.drain() {
+            h.data_points.push(HistogramDataPoint {
+                attributes: a,
+                start_time: start,
+                time: t,
+                count: b.count,
+                bounds: self.hist_values.bounds.clone(),
+                bucket_counts: b.counts.clone(),
+                sum: if self.hist_values.record_sum {
                     b.total
                 } else {
                     T::default()
-                };
-                dp.min = if self.record_min_max {
+                },
+                min: if self.record_min_max {
                     Some(b.min)
                 } else {
                     None
-                };
-                dp.max = if self.record_min_max {
+                },
+                max: if self.record_min_max {
                     Some(b.max)
                 } else {
                     None
-                };
-                dp.exemplars.clear();
-            } else {
-                h.data_points.push(HistogramDataPoint {
-                    attributes: a,
-                    start_time: start,
-                    time: t,
-                    count: b.count,
-                    bounds: self.hist_values.bounds.clone(),
-                    bucket_counts: b.counts.clone(),
-                    sum: if self.hist_values.record_sum {
-                        b.total
-                    } else {
-                        T::default()
-                    },
-                    min: if self.record_min_max {
-                        Some(b.min)
-                    } else {
-                        None
-                    },
-                    max: if self.record_min_max {
-                        Some(b.max)
-                    } else {
-                        None
-                    },
-                    exemplars: vec![],
-                });
-            };
+                },
+                exemplars: vec![],
+            });
         }
 
         // The delta collection cycle resets.
         if let Ok(mut start) = self.start.lock() {
             *start = t;
         }
-
-        h.data_points.truncate(n);
 
         (n, new_agg.map(|a| Box::new(a) as Box<_>))
     }
@@ -249,69 +223,43 @@ impl<T: Number<T>> Histogram<T> {
         };
         let h = h.unwrap_or_else(|| new_agg.as_mut().expect("present if h is none"));
         h.temporality = Temporality::Cumulative;
+        h.data_points.clear();
 
         let n = values.len();
         if n > h.data_points.capacity() {
-            h.data_points.reserve(n - h.data_points.capacity());
+            h.data_points.reserve_exact(n - h.data_points.capacity());
         }
 
         // TODO: This will use an unbounded amount of memory if there
         // are unbounded number of attribute sets being aggregated. Attribute
         // sets that become "stale" need to be forgotten so this will not
         // overload the system.
-        for (i, (a, b)) in values.iter().enumerate() {
-            if let Some(dp) = h.data_points.get_mut(i) {
-                dp.attributes = a.clone();
-                dp.start_time = start;
-                dp.time = t;
-                dp.count = b.count;
-                dp.bounds = self.hist_values.bounds.clone();
-                dp.bucket_counts = b.counts.clone();
-                dp.sum = if self.hist_values.record_sum {
+        for (a, b) in values.iter() {
+            h.data_points.push(HistogramDataPoint {
+                attributes: a.clone(),
+                start_time: start,
+                time: t,
+                count: b.count,
+                bounds: self.hist_values.bounds.clone(),
+                bucket_counts: b.counts.clone(),
+                sum: if self.hist_values.record_sum {
                     b.total
                 } else {
                     T::default()
-                };
-                dp.min = if self.record_min_max {
+                },
+                min: if self.record_min_max {
                     Some(b.min)
                 } else {
                     None
-                };
-                dp.max = if self.record_min_max {
+                },
+                max: if self.record_min_max {
                     Some(b.max)
                 } else {
                     None
-                };
-                dp.exemplars.clear();
-            } else {
-                h.data_points.push(HistogramDataPoint {
-                    attributes: a.clone(),
-                    start_time: start,
-                    time: t,
-                    count: b.count,
-                    bounds: self.hist_values.bounds.clone(),
-                    bucket_counts: b.counts.clone(),
-                    sum: if self.hist_values.record_sum {
-                        b.total
-                    } else {
-                        T::default()
-                    },
-                    min: if self.record_min_max {
-                        Some(b.min)
-                    } else {
-                        None
-                    },
-                    max: if self.record_min_max {
-                        Some(b.max)
-                    } else {
-                        None
-                    },
-                    exemplars: vec![],
-                });
-            };
+                },
+                exemplars: vec![],
+            });
         }
-
-        h.data_points.truncate(n);
 
         (n, new_agg.map(|a| Box::new(a) as Box<_>))
     }

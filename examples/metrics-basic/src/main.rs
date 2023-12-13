@@ -107,17 +107,37 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
 
     // Note that there is no ObservableHistogram instrument.
 
+    // Create a Gauge Instrument.
+    // Note that the Gauge instrument is experimental, and can be changed/removed in the future releases.
+    #[cfg(feature = "otel_unstable")]
+    {
+        let gauge = meter
+            .f64_gauge("my_gauge")
+            .with_description("A gauge set to 1.0")
+            .with_unit(Unit::new("myunit"))
+            .init();
+
+        gauge.record(
+            1.0,
+            [
+                KeyValue::new("mykey1", "myvalue1"),
+                KeyValue::new("mykey2", "myvalue2"),
+            ]
+            .into(),
+        );
+    }
+
     // Create a ObservableGauge instrument and register a callback that reports the measurement.
-    let gauge = meter
-        .f64_observable_gauge("my_gauge")
-        .with_description("A gauge set to 1.0")
+    let observable_gauge = meter
+        .f64_observable_gauge("my_observable_gauge")
+        .with_description("An observable gauge set to 1.0")
         .with_unit(Unit::new("myunit"))
         .init();
 
     // Register a callback that reports the measurement.
-    meter.register_callback(&[gauge.as_any()], move |observer| {
+    meter.register_callback(&[observable_gauge.as_any()], move |observer| {
         observer.observe_f64(
-            &gauge,
+            &observable_gauge,
             1.0,
             [
                 KeyValue::new("mykey1", "myvalue1"),
@@ -126,8 +146,6 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
             .into(),
         )
     })?;
-
-    // Note that Gauge only has a Observable version.
 
     // Metrics are exported by default every 30 seconds when using stdout exporter,
     // however shutting down the MeterProvider here instantly flushes

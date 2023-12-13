@@ -7,7 +7,7 @@ use crate::attributes::AttributeSet;
 use crate::{
     metrics::{
         AsyncInstrument, CallbackRegistration, InstrumentProvider, Meter, MeterProvider, Observer,
-        Result, SyncCounter, SyncHistogram, SyncUpDownCounter,
+        Result, SyncCounter, SyncGauge, SyncHistogram, SyncUpDownCounter,
     },
     KeyValue,
 };
@@ -106,6 +106,12 @@ impl<T> SyncUpDownCounter<T> for NoopSyncInstrument {
 }
 
 impl<T> SyncHistogram<T> for NoopSyncInstrument {
+    fn record(&self, _value: T, _attributes: AttributeSet) {
+        // Ignored
+    }
+}
+
+impl<T> SyncGauge<T> for NoopSyncInstrument {
     fn record(&self, _value: T, _attributes: AttributeSet) {
         // Ignored
     }

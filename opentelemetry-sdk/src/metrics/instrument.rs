@@ -3,7 +3,8 @@ use std::{any::Any, borrow::Cow, collections::HashSet, hash::Hash, marker, sync:
 use opentelemetry::{
     attributes::AttributeSet,
     metrics::{
-        AsyncInstrument, MetricsError, Result, SyncCounter, SyncHistogram, SyncUpDownCounter, Unit,
+        AsyncInstrument, MetricsError, Result, SyncCounter, SyncGauge, SyncHistogram,
+        SyncUpDownCounter, Unit,
     },
     Key,
 };
@@ -33,6 +34,11 @@ pub enum InstrumentKind {
     /// A group of instruments that record increasing and decreasing values in an
     /// asynchronous callback.
     ObservableUpDownCounter,
+
+    /// a group of instruments that record current value synchronously with
+    /// the code path they are measuring.
+    Gauge,
+    ///
     /// a group of instruments that record current values in an asynchronous callback.
     ObservableGauge,
 }
@@ -264,6 +270,14 @@ impl<T: Copy + 'static> SyncUpDownCounter<T> for ResolvedMeasures<T> {
     fn add(&self, val: T, attrs: AttributeSet) {
         for measure in &self.measures {
             measure.call(val, attrs.clone())
+        }
+    }
+}
+
+impl<T: Copy + 'static> SyncGauge<T> for ResolvedMeasures<T> {
+    fn record(&self, val: T, attrs: AttributeSet) {
+        for measure in &self.measures {
+            measure.call(val, AttributeSet::from(attrs.clone()))
         }
     }
 }
