@@ -130,6 +130,7 @@ maintained by the `opentelemetry` project. These include:
   Application Insights] exporter.
 * [`opentelemetry-tide`] provides integration for the [`Tide`] web server and
   ecosystem.
+* [`trillium-opentelemetry`] provides metrics instrumentation for [`trillium`] http servers following [semantic-conventions](https://github.com/open-telemetry/semantic-conventions/blob/main/docs/http/http-metrics.md).
 
 If you're the maintainer of an `opentelemetry` ecosystem crate not listed
 above, please let us know! We'd love to add your project to the list!
@@ -161,6 +162,8 @@ above, please let us know! We'd love to add your project to the list!
 [`Tide`]: https://crates.io/crates/tide
 [`opentelemetry-stackdriver`]: https://crates.io/crates/opentelemetry-stackdriver
 [Cloud Trace]: https://cloud.google.com/trace/
+[`trillium-opentelemetry`]: https://github.com/trillium-rs/trillium-opentelemetry
+[`trillium`]: https://github.com/trillium-rs/trillium
 
 ## Supported Rust Versions
 
@@ -179,8 +182,8 @@ this policy.
 
 See the [contributing file](CONTRIBUTING.md).
 
-The Rust special interest group (SIG) meets weekly on Tuesdays at 8 AM Pacific
-Time (16:00 UTC). The meeting is subject to change depending on contributors'
+The Rust special interest group (SIG) meets weekly on Tuesdays at 9 AM Pacific
+Time. The meeting is subject to change depending on contributors'
 availability. Check the [OpenTelemetry community
 calendar](https://calendar.google.com/calendar/embed?src=google.com_b79e3e90j7bbsa2n2p5an5lf60%40group.calendar.google.com)
 for specific dates and for Zoom meeting links. "OTel Rust SIG" is the name of

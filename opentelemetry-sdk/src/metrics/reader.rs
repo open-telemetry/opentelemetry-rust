@@ -121,6 +121,7 @@ where
 /// * Observable Counter ⇨ Sum
 /// * UpDownCounter ⇨ Sum
 /// * Observable UpDownCounter ⇨ Sum
+/// * Gauge ⇨ LastValue
 /// * Observable Gauge ⇨ LastValue
 /// * Histogram ⇨ ExplicitBucketHistogram
 ///
@@ -144,6 +145,7 @@ impl AggregationSelector for DefaultAggregationSelector {
             | InstrumentKind::UpDownCounter
             | InstrumentKind::ObservableCounter
             | InstrumentKind::ObservableUpDownCounter => Aggregation::Sum,
+            InstrumentKind::Gauge => Aggregation::LastValue,
             InstrumentKind::ObservableGauge => Aggregation::LastValue,
             InstrumentKind::Histogram => Aggregation::ExplicitBucketHistogram {
                 boundaries: vec![

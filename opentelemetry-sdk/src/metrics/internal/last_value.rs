@@ -54,38 +54,26 @@ impl<T: Number<T>> LastValue<T> {
     }
 
     pub(crate) fn compute_aggregation(&self, dest: &mut Vec<DataPoint<T>>) {
+        dest.clear();
         let mut values = match self.values.lock() {
             Ok(guard) if !guard.is_empty() => guard,
-            _ => {
-                dest.clear(); // poisoned or no values recorded yet
-                return;
-            }
+            _ => return,
         };
 
         let n = values.len();
         if n > dest.capacity() {
-            dest.reserve(n - dest.capacity());
+            dest.reserve_exact(n - dest.capacity());
         }
 
-        for (i, (attrs, value)) in values.drain().enumerate() {
-            if let Some(dp) = dest.get_mut(i) {
-                dp.attributes = attrs;
-                dp.time = Some(value.timestamp);
-                dp.value = value.value;
-                dp.start_time = None;
-                dp.exemplars.clear();
-            } else {
-                dest.push(DataPoint {
-                    attributes: attrs,
-                    time: Some(value.timestamp),
-                    value: value.value,
-                    start_time: None,
-                    exemplars: vec![],
-                });
-            }
+        for (attrs, value) in values.drain() {
+            dest.push(DataPoint {
+                attributes: attrs,
+                time: Some(value.timestamp),
+                value: value.value,
+                start_time: None,
+                exemplars: vec![],
+            });
         }
-
-        dest.truncate(n)
     }
 }
 

@@ -556,6 +556,7 @@ fn aggregate_fn<T: Number<T>>(
 /// | Histogram                | ✓    |           | ✓   | ✓         | ✓                     |
 /// | Observable Counter       | ✓    |           | ✓   | ✓         | ✓                     |
 /// | Observable UpDownCounter | ✓    |           | ✓   | ✓         | ✓                     |
+/// | Gauge                    | ✓    | ✓         |     | ✓         | ✓                     |
 /// | Observable Gauge         | ✓    | ✓         |     | ✓         | ✓                     |
 fn is_aggregator_compatible(kind: &InstrumentKind, agg: &aggregation::Aggregation) -> Result<()> {
     use aggregation::Aggregation;
@@ -567,6 +568,7 @@ fn is_aggregator_compatible(kind: &InstrumentKind, agg: &aggregation::Aggregatio
                 kind,
                 InstrumentKind::Counter
                     | InstrumentKind::UpDownCounter
+                    | InstrumentKind::Gauge
                     | InstrumentKind::Histogram
                     | InstrumentKind::ObservableCounter
                     | InstrumentKind::ObservableUpDownCounter
@@ -591,12 +593,14 @@ fn is_aggregator_compatible(kind: &InstrumentKind, agg: &aggregation::Aggregatio
             }
         }
         Aggregation::LastValue => {
-            if kind == &InstrumentKind::ObservableGauge {
-                return Ok(());
+            match kind {
+                InstrumentKind::Gauge | InstrumentKind::ObservableGauge => Ok(()),
+                _ => {
+                    // TODO: review need for aggregation check after
+                    // https://github.com/open-telemetry/opentelemetry-specification/issues/2710
+                    Err(MetricsError::Other("incompatible aggregation".into()))
+                }
             }
-            // TODO: review need for aggregation check after
-            // https://github.com/open-telemetry/opentelemetry-specification/issues/2710
-            Err(MetricsError::Other("incompatible aggregation".into()))
         }
         Aggregation::Drop => Ok(()),
     }
