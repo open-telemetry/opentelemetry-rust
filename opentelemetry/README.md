@@ -52,7 +52,7 @@ fn main() {
 }
 ```
 
-See the [examples](./examples) directory for different integration patterns.
+See the [examples](../examples) directory for different integration patterns.
 
 ## Ecosystem
 
