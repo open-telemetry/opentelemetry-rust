@@ -2,6 +2,10 @@
 
 ## vNext
 
+- Fix delta aggregation metric reuse. (#1434)
+
+## v0.21.1
+
 ### Fixed
 
 - Fix metric export corruption if gauges have not received a last value. (#1363)
