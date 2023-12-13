@@ -2,6 +2,12 @@
 
 ## vNext
 
+### Added
+
+- [#1410](https://github.com/open-telemetry/opentelemetry-rust/pull/1410) Add experimental synchronous gauge. This is behind the feature flag, and can be enabled by enabling the feature `otel_unstable` for opentelemetry crate.
+
+- [#1410](https://github.com/open-telemetry/opentelemetry-rust/pull/1410) Guidelines to add new unstable/experimental features. 
+
 ### Changed
 
 - Modified `AnyValue.Map` to be backed by `HashMap` instead of custom `OrderMap`,
