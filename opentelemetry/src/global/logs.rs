@@ -112,7 +112,7 @@ pub fn logger_provider() -> GlobalLoggerProvider {
 /// If `name` is an empty string, the provider will use a default name.
 ///
 /// [`Logger`]: crate::logs::Logger
-pub fn logger(name: Cow<'static, str>) -> BoxedLogger {
+pub fn logger(name: impl Into<Cow<'static, str>>) -> BoxedLogger {
     logger_provider().logger(name)
 }
 
