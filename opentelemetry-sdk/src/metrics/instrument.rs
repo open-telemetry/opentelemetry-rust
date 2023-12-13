@@ -7,6 +7,7 @@ use opentelemetry::{
     Key, KeyValue,
 };
 
+use crate::metrics::internal::BoundedMeasureGenerator;
 use crate::{
     attributes::AttributeSet,
     instrumentation::Scope,
@@ -249,13 +250,13 @@ impl InstrumentId {
 }
 
 pub(crate) struct ResolvedMeasures<T> {
-    pub(crate) measures: Vec<Arc<dyn Measure<T>>>,
+    pub(crate) measures: Vec<(Arc<dyn Measure<T>>, Arc<dyn BoundedMeasureGenerator<T>>)>,
 }
 
 impl<T: Copy + 'static> SyncCounter<T> for ResolvedMeasures<T> {
     fn add(&self, val: T, attrs: &[KeyValue]) {
         for measure in &self.measures {
-            measure.call(val, AttributeSet::from(attrs))
+            measure.0.call(val, AttributeSet::from(attrs))
         }
     }
 }
@@ -263,7 +264,7 @@ impl<T: Copy + 'static> SyncCounter<T> for ResolvedMeasures<T> {
 impl<T: Copy + 'static> SyncUpDownCounter<T> for ResolvedMeasures<T> {
     fn add(&self, val: T, attrs: &[KeyValue]) {
         for measure in &self.measures {
-            measure.call(val, AttributeSet::from(attrs))
+            measure.0.call(val, AttributeSet::from(attrs))
         }
     }
 }
@@ -271,7 +272,7 @@ impl<T: Copy + 'static> SyncUpDownCounter<T> for ResolvedMeasures<T> {
 impl<T: Copy + 'static> SyncHistogram<T> for ResolvedMeasures<T> {
     fn record(&self, val: T, attrs: &[KeyValue]) {
         for measure in &self.measures {
-            measure.call(val, AttributeSet::from(attrs))
+            measure.0.call(val, AttributeSet::from(attrs))
         }
     }
 }
@@ -314,7 +315,7 @@ impl<T> Eq for ObservableId<T> {}
 #[derive(Clone)]
 pub(crate) struct Observable<T> {
     pub(crate) id: ObservableId<T>,
-    measures: Vec<Arc<dyn Measure<T>>>,
+    measures: Vec<(Arc<dyn Measure<T>>, Arc<dyn BoundedMeasureGenerator<T>>)>,
 }
 
 impl<T> Observable<T> {
@@ -324,7 +325,7 @@ impl<T> Observable<T> {
         name: Cow<'static, str>,
         description: Cow<'static, str>,
         unit: Unit,
-        measures: Vec<Arc<dyn Measure<T>>>,
+        measures: Vec<(Arc<dyn Measure<T>>, Arc<dyn BoundedMeasureGenerator<T>>)>,
     ) -> Self {
         Self {
             id: ObservableId {
@@ -365,7 +366,7 @@ impl<T> Observable<T> {
 impl<T: Copy + Send + Sync + 'static> AsyncInstrument<T> for Observable<T> {
     fn observe(&self, measurement: T, attrs: &[KeyValue]) {
         for measure in &self.measures {
-            measure.call(measurement, AttributeSet::from(attrs))
+            measure.0.call(measurement, AttributeSet::from(attrs))
         }
     }
 

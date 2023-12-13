@@ -694,7 +694,12 @@ where
         name: Cow<'static, str>,
         description: Option<Cow<'static, str>>,
         unit: Unit,
-    ) -> Result<Vec<Arc<dyn internal::Measure<T>>>> {
+    ) -> Result<
+        Vec<(
+            Arc<dyn internal::Measure<T>>,
+            Arc<dyn internal::BoundedMeasureGenerator<T>>,
+        )>,
+    > {
         let inst = Instrument {
             name,
             description: description.unwrap_or_default(),

@@ -11,6 +11,7 @@ use opentelemetry::{
     KeyValue,
 };
 
+use crate::metrics::internal::BoundedMeasureGenerator;
 use crate::{
     instrumentation::Scope,
     metrics::{
@@ -206,7 +207,17 @@ impl fmt::Debug for InstrumentSync {
     }
 }
 
-type Cache<T> = Mutex<HashMap<InstrumentId, Result<Option<Arc<dyn internal::Measure<T>>>>>>;
+type Cache<T> = Mutex<
+    HashMap<
+        InstrumentId,
+        Result<
+            Option<(
+                Arc<dyn internal::Measure<T>>,
+                Arc<dyn BoundedMeasureGenerator<T>>,
+            )>,
+        >,
+    >,
+>;
 
 /// Facilitates inserting of new instruments from a single scope into a pipeline.
 struct Inserter<T> {
@@ -265,7 +276,15 @@ where
     ///
     /// If an instrument is determined to use a [aggregation::Aggregation::Drop],
     /// that instrument is not inserted nor returned.
-    fn instrument(&self, inst: Instrument) -> Result<Vec<Arc<dyn internal::Measure<T>>>> {
+    fn instrument(
+        &self,
+        inst: Instrument,
+    ) -> Result<
+        Vec<(
+            Arc<dyn internal::Measure<T>>,
+            Arc<dyn BoundedMeasureGenerator<T>>,
+        )>,
+    > {
         let mut matched = false;
         let mut measures = vec![];
         let mut errs = vec![];
@@ -353,7 +372,12 @@ where
         scope: &Scope,
         kind: InstrumentKind,
         mut stream: Stream,
-    ) -> Result<Option<Arc<dyn internal::Measure<T>>>> {
+    ) -> Result<
+        Option<(
+            Arc<dyn internal::Measure<T>>,
+            Arc<dyn internal::BoundedMeasureGenerator<T>>,
+        )>,
+    > {
         let mut agg = stream
             .aggregation
             .take()
@@ -391,9 +415,9 @@ where
                 .map(|allowed| Arc::new(move |kv: &KeyValue| allowed.contains(&kv.key)) as Arc<_>);
 
             let b = AggregateBuilder::new(Some(self.pipeline.reader.temporality(kind)), filter);
-            let (m, ca, _bmg) = match aggregate_fn(b, &agg, kind) {
+            let (m, ca, bmg) = match aggregate_fn(b, &agg, kind) {
                 Ok(Some((m, ca, bmg))) => (m, ca, bmg),
-                other => return other.map(|fs| fs.map(|(m, _, _)| m)), // Drop aggregator or error
+                other => return other.map(|fs| fs.map(|(m, _, bmg)| (m, bmg))), // Drop aggregator or error
             };
 
             self.pipeline.add_sync(
@@ -406,12 +430,12 @@ where
                 },
             );
 
-            Ok(Some(m))
+            Ok(Some((m, bmg)))
         });
 
         cached
             .as_ref()
-            .map(|o| o.as_ref().map(Arc::clone))
+            .map(|o| o.as_ref().map(|(m, bmg)| (Arc::clone(m), Arc::clone(bmg))))
             .map_err(|e| MetricsError::Other(e.to_string()))
     }
 
@@ -720,7 +744,15 @@ where
     }
 
     /// The measures that must be updated by the instrument defined by key.
-    pub(crate) fn measures(&self, id: Instrument) -> Result<Vec<Arc<dyn internal::Measure<T>>>> {
+    pub(crate) fn measures(
+        &self,
+        id: Instrument,
+    ) -> Result<
+        Vec<(
+            Arc<dyn internal::Measure<T>>,
+            Arc<dyn internal::BoundedMeasureGenerator<T>>,
+        )>,
+    > {
         let (mut measures, mut errs) = (vec![], vec![]);
 
         for inserter in &self.inserters {
