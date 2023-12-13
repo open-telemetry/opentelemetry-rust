@@ -277,7 +277,7 @@ impl<T: Copy + 'static> SyncUpDownCounter<T> for ResolvedMeasures<T> {
 impl<T: Copy + 'static> SyncGauge<T> for ResolvedMeasures<T> {
     fn record(&self, val: T, attrs: AttributeSet) {
         for measure in &self.measures {
-            measure.call(val, AttributeSet::from(attrs.clone()))
+            measure.call(val, attrs.clone())
         }
     }
 }
