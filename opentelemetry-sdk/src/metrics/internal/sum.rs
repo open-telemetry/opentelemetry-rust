@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use std::{
     collections::{hash_map::Entry, HashMap},
     sync::Mutex,
@@ -6,6 +7,7 @@ use std::{
 
 use crate::attributes::AttributeSet;
 use crate::metrics::data::{self, Aggregation, DataPoint, Temporality};
+use crate::metrics::internal::aggregate::BoundedMeasure;
 use opentelemetry::{global, metrics::MetricsError};
 
 use super::{
@@ -350,4 +352,24 @@ impl<T: Number<T>> PrecomputedSum<T> {
 
         (n, new_agg.map(|a| Box::new(a) as Box<_>))
     }
+}
+
+pub(crate) fn generate_bound_measure_sum<T: Number<T>>(
+    sum: &Arc<Sum<T>>,
+    attrs: AttributeSet,
+) -> Arc<dyn BoundedMeasure<T>> {
+    let cloned_self = sum.clone();
+    Arc::new(move |measurement: T| {
+        cloned_self.measure(measurement, attrs.clone());
+    })
+}
+
+pub(crate) fn generate_bound_measure_precomputed_sum<T: Number<T>>(
+    precomputed_sum: &Arc<PrecomputedSum<T>>,
+    attrs: AttributeSet,
+) -> Arc<dyn BoundedMeasure<T>> {
+    let cloned_self = precomputed_sum.clone();
+    Arc::new(move |measurement: T| {
+        cloned_self.measure(measurement, attrs.clone());
+    })
 }

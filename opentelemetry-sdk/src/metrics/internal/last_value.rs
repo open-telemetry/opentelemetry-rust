@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use std::{
     collections::{hash_map::Entry, HashMap},
     sync::Mutex,
@@ -9,7 +10,7 @@ use opentelemetry::{global, metrics::MetricsError};
 
 use super::{
     aggregate::{is_under_cardinality_limit, STREAM_OVERFLOW_ATTRIBUTE_SET},
-    Number,
+    BoundedMeasure, Number,
 };
 
 /// Timestamped measurement data.
@@ -86,4 +87,14 @@ impl<T: Number<T>> LastValue<T> {
 
         dest.truncate(n)
     }
+}
+
+pub(crate) fn generate_bound_measure<T: Number<T>>(
+    last_value: &Arc<LastValue<T>>,
+    attrs: AttributeSet,
+) -> Arc<dyn BoundedMeasure<T>> {
+    let cloned_self = last_value.clone();
+    Arc::new(move |measurement: T| {
+        cloned_self.measure(measurement, attrs.clone());
+    })
 }

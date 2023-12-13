@@ -7,7 +7,9 @@ mod sum;
 use core::fmt;
 use std::ops::{Add, AddAssign, Sub};
 
-pub(crate) use aggregate::{AggregateBuilder, ComputeAggregation, Measure};
+pub(crate) use aggregate::{
+    AggregateBuilder, BoundedMeasure, BoundedMeasureGenerator, ComputeAggregation, Measure,
+};
 pub(crate) use exponential_histogram::{EXPO_MAX_SCALE, EXPO_MIN_SCALE};
 
 pub(crate) trait Number<T>:

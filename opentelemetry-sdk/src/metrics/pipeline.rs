@@ -391,9 +391,9 @@ where
                 .map(|allowed| Arc::new(move |kv: &KeyValue| allowed.contains(&kv.key)) as Arc<_>);
 
             let b = AggregateBuilder::new(Some(self.pipeline.reader.temporality(kind)), filter);
-            let (m, ca) = match aggregate_fn(b, &agg, kind) {
-                Ok(Some((m, ca))) => (m, ca),
-                other => return other.map(|fs| fs.map(|(m, _)| m)), // Drop aggregator or error
+            let (m, ca, _bmg) = match aggregate_fn(b, &agg, kind) {
+                Ok(Some((m, ca, bmg))) => (m, ca, bmg),
+                other => return other.map(|fs| fs.map(|(m, _, _)| m)), // Drop aggregator or error
             };
 
             self.pipeline.add_sync(
@@ -432,7 +432,7 @@ where
                     existing.kind, id.kind,
                     existing.unit, id.unit,
                     existing.number, id.number,
-               )))
+                )))
             }
         }
     }
@@ -451,6 +451,7 @@ where
 type AggregateFns<T> = (
     Arc<dyn internal::Measure<T>>,
     Box<dyn internal::ComputeAggregation>,
+    Arc<dyn internal::BoundedMeasureGenerator<T>>,
 );
 
 /// Returns new aggregate functions for the given params.
@@ -463,12 +464,17 @@ fn aggregate_fn<T: Number<T>>(
 ) -> Result<Option<AggregateFns<T>>> {
     use aggregation::Aggregation;
     fn box_val<T>(
-        (m, ca): (impl internal::Measure<T>, impl internal::ComputeAggregation),
+        (m, ca, bmg): (
+            impl internal::Measure<T>,
+            impl internal::ComputeAggregation,
+            impl internal::BoundedMeasureGenerator<T>,
+        ),
     ) -> (
         Arc<dyn internal::Measure<T>>,
         Box<dyn internal::ComputeAggregation>,
+        Arc<dyn internal::BoundedMeasureGenerator<T>>,
     ) {
-        (Arc::new(m), Box::new(ca))
+        (Arc::new(m), Box::new(ca), Arc::new(bmg))
     }
 
     match agg {

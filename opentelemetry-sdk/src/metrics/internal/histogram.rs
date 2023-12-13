@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use std::{collections::HashMap, sync::Mutex, time::SystemTime};
 
 use crate::metrics::data::{self, Aggregation, Temporality};
@@ -6,7 +7,7 @@ use opentelemetry::{global, metrics::MetricsError};
 
 use super::{
     aggregate::{is_under_cardinality_limit, STREAM_OVERFLOW_ATTRIBUTE_SET},
-    Number,
+    BoundedMeasure, Number,
 };
 
 #[derive(Default)]
@@ -315,4 +316,14 @@ impl<T: Number<T>> Histogram<T> {
 
         (n, new_agg.map(|a| Box::new(a) as Box<_>))
     }
+}
+
+pub(crate) fn generate_bound_measure<T: Number<T>>(
+    histogram: &Arc<Histogram<T>>,
+    attrs: AttributeSet,
+) -> Arc<dyn BoundedMeasure<T>> {
+    let cloned_self = histogram.clone();
+    Arc::new(move |measurement: T| {
+        cloned_self.measure(measurement, attrs.clone());
+    })
 }

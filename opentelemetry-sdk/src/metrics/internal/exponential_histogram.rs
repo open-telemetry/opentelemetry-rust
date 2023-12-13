@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use std::{
     collections::HashMap,
     f64::consts::LOG2_E,
@@ -13,7 +14,7 @@ use crate::{
     AttributeSet,
 };
 
-use super::Number;
+use super::{BoundedMeasure, Number};
 
 pub(crate) const EXPO_MAX_SCALE: i8 = 20;
 pub(crate) const EXPO_MIN_SCALE: i8 = -10;
@@ -557,6 +558,16 @@ impl<T: Number<T>> ExpoHistogram<T> {
 
         (n, new_agg.map(|a| Box::new(a) as Box<_>))
     }
+}
+
+pub(crate) fn generate_bound_measure<T: Number<T>>(
+    histogram: &Arc<ExpoHistogram<T>>,
+    attrs: AttributeSet,
+) -> Arc<dyn BoundedMeasure<T>> {
+    let cloned_self = histogram.clone();
+    Arc::new(move |measurement: T| {
+        cloned_self.measure(measurement, attrs.clone());
+    })
 }
 
 #[cfg(test)]
@@ -1263,12 +1274,17 @@ mod tests {
     }
 
     fn box_val<T>(
-        (m, ca): (impl internal::Measure<T>, impl internal::ComputeAggregation),
+        (m, ca, bmg): (
+            impl internal::Measure<T>,
+            impl internal::ComputeAggregation,
+            impl internal::BoundedMeasureGenerator<T>,
+        ),
     ) -> (
         Box<dyn internal::Measure<T>>,
         Box<dyn internal::ComputeAggregation>,
+        Box<dyn internal::BoundedMeasureGenerator<T>>,
     ) {
-        (Box::new(m), Box::new(ca))
+        (Box::new(m), Box::new(ca), Box::new(bmg))
     }
 
     fn hist_aggregation<T: Number<T> + From<u32>>() {
@@ -1284,6 +1300,7 @@ mod tests {
                 dyn Fn() -> (
                     Box<dyn internal::Measure<T>>,
                     Box<dyn internal::ComputeAggregation>,
+                    Box<dyn internal::BoundedMeasureGenerator<T>>,
                 ),
             >,
             input: Vec<Vec<T>>,
@@ -1472,7 +1489,7 @@ mod tests {
         ];
 
         for test in test_cases {
-            let (in_fn, out_fn) = (test.build)();
+            let (in_fn, out_fn, _) = (test.build)();
 
             let mut got: Box<dyn data::Aggregation> = Box::new(data::ExponentialHistogram::<T> {
                 data_points: vec![],
