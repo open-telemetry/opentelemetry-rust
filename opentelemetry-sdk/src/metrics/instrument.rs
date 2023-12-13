@@ -8,11 +8,7 @@ use opentelemetry::{
 };
 
 use crate::metrics::internal::MeasureSet;
-use crate::{
-    attributes::AttributeSet,
-    instrumentation::Scope,
-    metrics::aggregation::Aggregation,
-};
+use crate::{attributes::AttributeSet, instrumentation::Scope, metrics::aggregation::Aggregation};
 
 pub(crate) const EMPTY_MEASURE_MSG: &str = "no aggregators for observable instrument";
 
@@ -250,7 +246,7 @@ impl InstrumentId {
 }
 
 pub(crate) struct ResolvedMeasures<T> {
-    pub(crate) measure_sets: Vec<MeasureSet<T>>
+    pub(crate) measure_sets: Vec<MeasureSet<T>>,
 }
 
 impl<T: Copy + 'static> SyncCounter<T> for ResolvedMeasures<T> {

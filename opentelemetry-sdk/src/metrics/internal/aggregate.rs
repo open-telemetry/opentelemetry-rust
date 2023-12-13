@@ -81,7 +81,10 @@ pub(crate) struct MeasureSet<T> {
 }
 
 impl<T> MeasureSet<T> {
-    pub(crate) fn new(measure: Arc<dyn Measure<T>>, bound_measure_generator: Arc<dyn BoundedMeasureGenerator<T>>) -> Self {
+    pub(crate) fn new(
+        measure: Arc<dyn Measure<T>>,
+        bound_measure_generator: Arc<dyn BoundedMeasureGenerator<T>>,
+    ) -> Self {
         MeasureSet {
             measure,
             _bound_measure_generator: bound_measure_generator,

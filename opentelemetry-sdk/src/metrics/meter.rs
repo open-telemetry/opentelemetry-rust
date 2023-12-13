@@ -13,6 +13,7 @@ use opentelemetry::{
 };
 
 use crate::instrumentation::Scope;
+use crate::metrics::internal::MeasureSet;
 use crate::metrics::{
     instrument::{
         Instrument, InstrumentKind, Observable, ObservableId, ResolvedMeasures, EMPTY_MEASURE_MSG,
@@ -20,7 +21,6 @@ use crate::metrics::{
     internal::Number,
     pipeline::{Pipelines, Resolver},
 };
-use crate::metrics::internal::MeasureSet;
 
 // maximum length of instrument name
 const INSTRUMENT_NAME_MAX_LENGTH: usize = 255;
@@ -695,9 +695,7 @@ where
         name: Cow<'static, str>,
         description: Option<Cow<'static, str>>,
         unit: Unit,
-    ) -> Result<
-        Vec<MeasureSet<T>>,
-    > {
+    ) -> Result<Vec<MeasureSet<T>>> {
         let inst = Instrument {
             name,
             description: description.unwrap_or_default(),
