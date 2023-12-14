@@ -67,6 +67,19 @@ fn counter_add(c: &mut Criterion) {
             );
         });
     });
+
+    let bounded_counter = counter.bind(&[
+        KeyValue::new("attribute2", attribute_values[0]),
+        KeyValue::new("attribute3", attribute_values[1]),
+        KeyValue::new("attribute1", attribute_values[2]),
+        KeyValue::new("attribute4", attribute_values[3]),
+    ]);
+
+    c.bench_function("Counter_Bounded", |b| {
+        b.iter(|| {
+            bounded_counter.add(1);
+        });
+    });
 }
 
 criterion_group!(benches, criterion_benchmark);

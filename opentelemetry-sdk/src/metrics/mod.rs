@@ -428,4 +428,66 @@ mod tests {
         let data_point = &sum.data_points[0];
         assert_eq!(data_point.value, 30);
     }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn bounded_counter_aggregation() {
+        // Arrange
+        let exporter = InMemoryMetricsExporter::default();
+        let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
+        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+
+        // Act
+        let meter = meter_provider.meter("test");
+        let counter = meter
+            .u64_counter("my_counter")
+            .with_unit(Unit::new("my_unit"))
+            .init();
+
+        let bounded_counter = counter.bind(&[KeyValue::new("key1", "value1")]);
+        counter.add(1, &[KeyValue::new("key1", "value1")]);
+        bounded_counter.add(1);
+
+        meter_provider.force_flush().unwrap();
+
+        // Assert
+        let resource_metrics = exporter
+            .get_finished_metrics()
+            .expect("metrics are expected to be exported.");
+        assert!(!resource_metrics.is_empty());
+        let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
+        assert_eq!(metric.name, "my_counter");
+        assert_eq!(metric.unit.as_str(), "my_unit");
+        let sum = metric
+            .data
+            .as_any()
+            .downcast_ref::<data::Sum<u64>>()
+            .expect("Sum aggregation expected for Counter instruments by default");
+
+        // Expecting 1 time-series.
+        assert_eq!(sum.data_points.len(), 1);
+        assert!(sum.is_monotonic, "Counter should produce monotonic.");
+        assert_eq!(
+            sum.temporality,
+            data::Temporality::Cumulative,
+            "Should produce cumulative by default."
+        );
+
+        // find and validate key1=value1 datapoint
+        let mut data_point1 = None;
+        for datapoint in &sum.data_points {
+            if datapoint
+                .attributes
+                .iter()
+                .any(|(k, v)| k.as_str() == "key1" && v.as_str() == "value1")
+            {
+                data_point1 = Some(datapoint);
+            }
+        }
+        assert_eq!(
+            data_point1
+                .expect("datapoint with key1=value1 expected")
+                .value,
+            2
+        );
+    }
 }
