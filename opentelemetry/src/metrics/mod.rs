@@ -15,7 +15,10 @@ pub use instruments::{
     counter::{BoundCounter, BoundSyncCounter, Counter, ObservableCounter, SyncCounter},
     gauge::{Gauge, ObservableGauge, SyncGauge},
     histogram::{Histogram, SyncHistogram},
-    up_down_counter::{ObservableUpDownCounter, SyncUpDownCounter, UpDownCounter},
+    up_down_counter::{
+        BoundSyncUpDownCounter, BoundUpDownCounter, ObservableUpDownCounter, SyncUpDownCounter,
+        UpDownCounter,
+    },
     AsyncInstrument, AsyncInstrumentBuilder, Callback, InstrumentBuilder,
 };
 pub use meter::{CallbackRegistration, Meter, MeterProvider, Observer};

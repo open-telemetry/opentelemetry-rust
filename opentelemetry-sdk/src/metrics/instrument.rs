@@ -1,5 +1,6 @@
 use std::{any::Any, borrow::Cow, collections::HashSet, hash::Hash, marker, sync::Arc};
 
+use opentelemetry::metrics::BoundSyncUpDownCounter;
 use opentelemetry::{
     metrics::{
         AsyncInstrument, BoundSyncCounter, MetricsError, Result, SyncCounter, SyncGauge,
@@ -273,6 +274,10 @@ impl<T: Copy + 'static> SyncUpDownCounter<T> for ResolvedMeasures<T> {
             set.measure.call(val, AttributeSet::from(attrs))
         }
     }
+
+    fn bind(&self, attributes: &[KeyValue]) -> Arc<dyn BoundSyncUpDownCounter<T> + Send + Sync> {
+        Arc::new(BoundResolveMeasures::new(attributes, &self.measure_sets))
+    }
 }
 
 impl<T: Copy + 'static> SyncGauge<T> for ResolvedMeasures<T> {
@@ -308,6 +313,14 @@ impl<T: Copy + 'static> BoundResolveMeasures<T> {
 }
 
 impl<T: Copy + 'static> BoundSyncCounter<T> for BoundResolveMeasures<T> {
+    fn add(&self, value: T) {
+        for measure in &self.measures {
+            measure.call(value);
+        }
+    }
+}
+
+impl<T: Copy + 'static> BoundSyncUpDownCounter<T> for BoundResolveMeasures<T> {
     fn add(&self, value: T) {
         for measure in &self.measures {
             measure.call(value);

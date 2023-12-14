@@ -4,6 +4,7 @@
 //! has been set. It is also useful for testing purposes as it is intended
 //! to have minimal resource utilization and runtime impact.
 use crate::metrics::instruments::counter::BoundSyncCounter;
+use crate::metrics::instruments::up_down_counter::BoundSyncUpDownCounter;
 use crate::{
     metrics::{
         AsyncInstrument, CallbackRegistration, InstrumentProvider, Meter, MeterProvider, Observer,
@@ -111,6 +112,16 @@ impl<T> BoundSyncCounter<T> for NoopSyncInstrument {
 
 impl<T> SyncUpDownCounter<T> for NoopSyncInstrument {
     fn add(&self, _value: T, _attributes: &[KeyValue]) {
+        // Ignored
+    }
+
+    fn bind(&self, _attributes: &[KeyValue]) -> Arc<dyn BoundSyncUpDownCounter<T> + Send + Sync> {
+        Arc::new(NoopSyncInstrument::new())
+    }
+}
+
+impl<T> BoundSyncUpDownCounter<T> for NoopSyncInstrument {
+    fn add(&self, _value: T) {
         // Ignored
     }
 }
