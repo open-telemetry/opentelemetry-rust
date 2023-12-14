@@ -11,7 +11,6 @@ use opentelemetry::{
     KeyValue,
 };
 
-use crate::metrics::internal::{BoundedMeasureGenerator, MeasureSet};
 use crate::{
     instrumentation::Scope,
     metrics::{
@@ -19,8 +18,7 @@ use crate::{
         data::{Metric, ResourceMetrics, ScopeMetrics},
         instrument::{Instrument, InstrumentId, InstrumentKind, Stream},
         internal,
-        internal::AggregateBuilder,
-        internal::Number,
+        internal::{AggregateBuilder, Number},
         reader::{AggregationSelector, DefaultAggregationSelector, MetricReader, SdkProducer},
         view::View,
     },
@@ -213,7 +211,7 @@ type Cache<T> = Mutex<
         Result<
             Option<(
                 Arc<dyn internal::Measure<T>>,
-                Arc<dyn BoundedMeasureGenerator<T>>,
+                Arc<dyn internal::BoundedMeasureGenerator<T>>,
             )>,
         >,
     >,
@@ -276,7 +274,7 @@ where
     ///
     /// If an instrument is determined to use a [aggregation::Aggregation::Drop],
     /// that instrument is not inserted nor returned.
-    fn instrument(&self, inst: Instrument) -> Result<Vec<MeasureSet<T>>> {
+    fn instrument(&self, inst: Instrument) -> Result<Vec<internal::MeasureSet<T>>> {
         let mut matched = false;
         let mut measures = vec![];
         let mut errs = vec![];
@@ -364,7 +362,7 @@ where
         scope: &Scope,
         kind: InstrumentKind,
         mut stream: Stream,
-    ) -> Result<Option<MeasureSet<T>>> {
+    ) -> Result<Option<internal::MeasureSet<T>>> {
         let mut agg = stream
             .aggregation
             .take()
@@ -424,7 +422,7 @@ where
             .as_ref()
             .map(|o| {
                 o.as_ref()
-                    .map(|(m, bmg)| MeasureSet::new(Arc::clone(m), Arc::clone(bmg)))
+                    .map(|(m, bmg)| internal::MeasureSet::new(Arc::clone(m), Arc::clone(bmg)))
             })
             .map_err(|e| MetricsError::Other(e.to_string()))
     }
@@ -483,11 +481,7 @@ fn aggregate_fn<T: Number<T>>(
             impl internal::ComputeAggregation,
             impl internal::BoundedMeasureGenerator<T>,
         ),
-    ) -> (
-        Arc<dyn internal::Measure<T>>,
-        Box<dyn internal::ComputeAggregation>,
-        Arc<dyn internal::BoundedMeasureGenerator<T>>,
-    ) {
+    ) -> AggregateFns<T> {
         (Arc::new(m), Box::new(ca), Arc::new(bmg))
     }
 
@@ -738,7 +732,7 @@ where
     }
 
     /// The measures that must be updated by the instrument defined by key.
-    pub(crate) fn measures(&self, id: Instrument) -> Result<Vec<MeasureSet<T>>> {
+    pub(crate) fn measures(&self, id: Instrument) -> Result<Vec<internal::MeasureSet<T>>> {
         let (mut measures, mut errs) = (vec![], vec![]);
 
         for inserter in &self.inserters {
