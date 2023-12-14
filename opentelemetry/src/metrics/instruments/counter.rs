@@ -10,6 +10,15 @@ use std::{any::Any, convert::TryFrom};
 pub trait SyncCounter<T> {
     /// Records an increment to the counter.
     fn add(&self, value: T, attributes: &[KeyValue]);
+
+    /// Creates a child counter that's bound to a specific attribute set
+    fn bind(&self, attributes: &[KeyValue]) -> Arc<dyn BoundSyncCounter<T> + Send + Sync>;
+}
+
+/// An SDK implemented instrument that records increasing values for a predefined attribute set
+pub trait BoundSyncCounter<T> {
+    /// Records an increment to the counter
+    fn add(&self, value: T);
 }
 
 /// An instrument that records increasing values.
@@ -34,6 +43,11 @@ impl<T> Counter<T> {
     /// Records an increment to the counter.
     pub fn add(&self, value: T, attributes: &[KeyValue]) {
         self.0.add(value, attributes)
+    }
+
+    /// Creates an instance of this counter that's bound to a specific set of attributes
+    pub fn bind(&self, attributes: &[KeyValue]) -> BoundCounter<T> {
+        BoundCounter(self.0.bind(attributes))
     }
 }
 
@@ -134,5 +148,25 @@ impl TryFrom<AsyncInstrumentBuilder<'_, ObservableCounter<f64>, f64>> for Observ
             builder.unit,
             builder.callbacks,
         )
+    }
+}
+
+/// An instrument that records increasing values for a predefined attribute set.
+#[derive(Clone)]
+pub struct BoundCounter<T>(Arc<dyn BoundSyncCounter<T> + Send + Sync>);
+
+impl<T> BoundCounter<T> {
+    /// Records an increment to the counter
+    pub fn add(&self, value: T) {
+        self.0.add(value);
+    }
+}
+
+impl<T> fmt::Debug for BoundCounter<T>
+where
+    T: fmt::Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_fmt(format_args!("BoundCounter<{}>", std::any::type_name::<T>()))
     }
 }

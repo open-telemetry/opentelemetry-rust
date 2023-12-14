@@ -77,7 +77,7 @@ where
 #[derive(Clone)]
 pub(crate) struct MeasureSet<T> {
     pub(crate) measure: Arc<dyn Measure<T>>,
-    pub(crate) _bound_measure_generator: Arc<dyn BoundedMeasureGenerator<T>>,
+    pub(crate) bound_measure_generator: Arc<dyn BoundedMeasureGenerator<T>>,
 }
 
 impl<T> MeasureSet<T> {
@@ -87,7 +87,7 @@ impl<T> MeasureSet<T> {
     ) -> Self {
         MeasureSet {
             measure,
-            _bound_measure_generator: bound_measure_generator,
+            bound_measure_generator,
         }
     }
 }

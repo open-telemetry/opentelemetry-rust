@@ -12,7 +12,7 @@ pub mod noop;
 
 use crate::ExportError;
 pub use instruments::{
-    counter::{Counter, ObservableCounter, SyncCounter},
+    counter::{BoundCounter, BoundSyncCounter, Counter, ObservableCounter, SyncCounter},
     gauge::{Gauge, ObservableGauge, SyncGauge},
     histogram::{Histogram, SyncHistogram},
     up_down_counter::{ObservableUpDownCounter, SyncUpDownCounter, UpDownCounter},

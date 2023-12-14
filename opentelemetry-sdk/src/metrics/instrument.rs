@@ -2,13 +2,13 @@ use std::{any::Any, borrow::Cow, collections::HashSet, hash::Hash, marker, sync:
 
 use opentelemetry::{
     metrics::{
-        AsyncInstrument, MetricsError, Result, SyncCounter, SyncGauge, SyncHistogram,
-        SyncUpDownCounter, Unit,
+        AsyncInstrument, BoundSyncCounter, MetricsError, Result, SyncCounter, SyncGauge,
+        SyncHistogram, SyncUpDownCounter, Unit,
     },
     Key, KeyValue,
 };
 
-use crate::metrics::internal::MeasureSet;
+use crate::metrics::internal::{BoundedMeasure, MeasureSet};
 use crate::{attributes::AttributeSet, instrumentation::Scope, metrics::aggregation::Aggregation};
 
 pub(crate) const EMPTY_MEASURE_MSG: &str = "no aggregators for observable instrument";
@@ -261,6 +261,10 @@ impl<T: Copy + 'static> SyncCounter<T> for ResolvedMeasures<T> {
             set.measure.call(val, AttributeSet::from(attrs))
         }
     }
+
+    fn bind(&self, attributes: &[KeyValue]) -> Arc<dyn BoundSyncCounter<T> + Send + Sync> {
+        Arc::new(BoundResolveMeasures::new(attributes, &self.measure_sets))
+    }
 }
 
 impl<T: Copy + 'static> SyncUpDownCounter<T> for ResolvedMeasures<T> {
@@ -273,8 +277,8 @@ impl<T: Copy + 'static> SyncUpDownCounter<T> for ResolvedMeasures<T> {
 
 impl<T: Copy + 'static> SyncGauge<T> for ResolvedMeasures<T> {
     fn record(&self, val: T, attrs: &[KeyValue]) {
-        for measure in &self.measure_sets {
-            measure.measure.call(val, AttributeSet::from(attrs))
+        for set in &self.measure_sets {
+            set.measure.call(val, AttributeSet::from(attrs))
         }
     }
 }
@@ -283,6 +287,30 @@ impl<T: Copy + 'static> SyncHistogram<T> for ResolvedMeasures<T> {
     fn record(&self, val: T, attrs: &[KeyValue]) {
         for set in &self.measure_sets {
             set.measure.call(val, AttributeSet::from(attrs))
+        }
+    }
+}
+
+pub(crate) struct BoundResolveMeasures<T> {
+    pub(crate) measures: Vec<Arc<dyn BoundedMeasure<T>>>,
+}
+
+impl<T: Copy + 'static> BoundResolveMeasures<T> {
+    fn new(attrs: &[KeyValue], measure_sets: &[MeasureSet<T>]) -> Self {
+        let attrs = AttributeSet::from(attrs);
+        let measures = measure_sets
+            .iter()
+            .map(|s| s.bound_measure_generator.generate(attrs.clone()))
+            .collect::<Vec<_>>();
+
+        BoundResolveMeasures { measures }
+    }
+}
+
+impl<T: Copy + 'static> BoundSyncCounter<T> for BoundResolveMeasures<T> {
+    fn add(&self, value: T) {
+        for measure in &self.measures {
+            measure.call(value);
         }
     }
 }
