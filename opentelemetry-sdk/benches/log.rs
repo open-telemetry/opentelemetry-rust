@@ -57,18 +57,18 @@ fn log_benchmark_group<F: Fn(&dyn Logger)>(c: &mut Criterion, name: &str, f: F) 
 
 fn criterion_benchmark(c: &mut Criterion) {
     log_benchmark_group(c, "simple-log", |logger| {
-        logger.emit(LogRecord::builder().with_body("simple log".into()).build())
+        logger.emit(LogRecord::builder().with_body("simple log").build())
     });
 
     log_benchmark_group(c, "long-log", |logger| {
-        logger.emit(LogRecord::builder().with_body("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Gravida in fermentum et sollicitudin ac orci phasellus. Ullamcorper dignissim cras tincidunt lobortis feugiat vivamus at augue. Magna etiam tempor orci eu. Sed tempus urna et pharetra pharetra massa.".into()).build())
+        logger.emit(LogRecord::builder().with_body("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Gravida in fermentum et sollicitudin ac orci phasellus. Ullamcorper dignissim cras tincidunt lobortis feugiat vivamus at augue. Magna etiam tempor orci eu. Sed tempus urna et pharetra pharetra massa.").build())
     });
 
     let now = SystemTime::now();
     log_benchmark_group(c, "full-log", |logger| {
         logger.emit(
             LogRecord::builder()
-                .with_body("full log".into())
+                .with_body("full log")
                 .with_timestamp(now)
                 .with_observed_timestamp(now)
                 .with_severity_number(Severity::Warn)
@@ -80,7 +80,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     log_benchmark_group(c, "full-log-with-4-attributes", |logger| {
         logger.emit(
             LogRecord::builder()
-                .with_body("full log".into())
+                .with_body("full log")
                 .with_timestamp(now)
                 .with_observed_timestamp(now)
                 .with_severity_number(Severity::Warn)
@@ -96,7 +96,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     log_benchmark_group(c, "full-log-with-9-attributes", |logger| {
         logger.emit(
             LogRecord::builder()
-                .with_body("full log".into())
+                .with_body("full log")
                 .with_timestamp(now)
                 .with_observed_timestamp(now)
                 .with_severity_number(Severity::Warn)
