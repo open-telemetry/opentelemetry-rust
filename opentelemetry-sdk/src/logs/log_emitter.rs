@@ -13,10 +13,7 @@ use opentelemetry::{
 #[cfg(feature = "logs_level_enabled")]
 use opentelemetry::logs::Severity;
 
-use std::{
-    borrow::Cow,
-    sync::{Arc, Weak},
-};
+use std::{borrow::Cow, sync::Arc};
 
 #[derive(Debug, Clone)]
 /// Creator for `Logger` instances.
@@ -55,7 +52,7 @@ impl opentelemetry::logs::LoggerProvider for LoggerProvider {
     }
 
     fn library_logger(&self, library: Arc<InstrumentationLibrary>) -> Self::Logger {
-        Logger::new(library, Arc::downgrade(&self.inner))
+        Logger::new(library, Arc::clone(&self.inner))
     }
 }
 
@@ -179,13 +176,13 @@ impl Builder {
 /// [`LogRecord`]: opentelemetry::logs::LogRecord
 pub struct Logger {
     instrumentation_lib: Arc<InstrumentationLibrary>,
-    provider: Weak<LoggerProviderInner>,
+    provider: Arc<LoggerProviderInner>,
 }
 
 impl Logger {
     pub(crate) fn new(
         instrumentation_lib: Arc<InstrumentationLibrary>,
-        provider: Weak<LoggerProviderInner>,
+        provider: Arc<LoggerProviderInner>,
     ) -> Self {
         Logger {
             instrumentation_lib,
@@ -195,7 +192,7 @@ impl Logger {
 
     /// LoggerProvider associated with this logger.
     pub fn provider(&self) -> Option<LoggerProvider> {
-        self.provider.upgrade().map(LoggerProvider::new)
+        Some(LoggerProvider::new(Arc::clone(&self.provider)))
     }
 
     /// Instrumentation library information of this logger.
