@@ -331,10 +331,10 @@ impl LogRecordBuilder {
     }
 
     /// Assign body
-    pub fn with_body(self, body: AnyValue) -> Self {
+    pub fn with_body(self, body: impl Into<AnyValue>) -> Self {
         Self {
             record: LogRecord {
-                body: Some(body),
+                body: Some(body.into()),
                 ..self.record
             },
         }
