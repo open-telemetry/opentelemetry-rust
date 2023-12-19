@@ -1,4 +1,4 @@
-//! The OTLP Exporter supports exporting trace and metric data in the OTLP
+//! The OTLP Exporter supports exporting logs, metrics and traces in the OTLP
 //! format to the OpenTelemetry collector or other compatible backend.
 //!
 //! The OpenTelemetry Collector offers a vendor-agnostic implementation on how
