@@ -86,3 +86,8 @@ required-features = ["rt-tokio", "testing"]
 name = "metric"
 harness = false
 required-features = ["metrics"]
+
+[[bench]]
+name = "log"
+harness = false
+required-features = ["logs"]
